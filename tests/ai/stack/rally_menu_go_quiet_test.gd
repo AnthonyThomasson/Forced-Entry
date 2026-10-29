@@ -14,8 +14,13 @@ const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Grenades := preload("res://tests/_ai/grenade_probe.gd")
 const Investigate := preload("res://tests/_ai/investigate_probe.gd")
+const Follow := preload("res://tests/_ai/follow_probe.gd")
 ## How long (s) the stack is held, with the kitchen suspect, before the go.
 const HELD := 3.0
+## How long (s) each NPC has to hear the gunfire.
+const HEAR_WITHIN := 1.0
+## How near (px) a gunfire lead lies to where the shot landed for it to be that shot's.
+const HEARD_NEAR := 8.0
 ## How long (s) the AIs have, once the go is given, to be in.
 const IN_WITHIN := 25.0
 
@@ -43,6 +48,12 @@ func run(t: TestContext) -> void:
 	if not await Rally.rallied(t, w):
 		return
 	Investigate.gunfire(Maps.KITCHEN_CENTRE)
+	var heard := func() -> bool: return Rally.members(t).all(_heard_kitchen_gunfire)
+	if not t.require(
+			await t.until(heard, HEAR_WITHIN),
+			"premise: both NPCs heard the gunfire in the kitchen (a reason to suspect it, E17)",
+	):
+		return
 	await t.seconds(HELD)
 	if Rally.menu_go(t, "quiet").is_empty():
 		return
@@ -52,3 +63,11 @@ func run(t: TestContext) -> void:
 		"no grenade was thrown (bursts %s)" % str(Grenades.booms(t).map(func(e): return e["data"])),
 	)
 	Rally.check_went_without_human(t)
+
+
+## Whether NPC `m` holds a gunfire lead where the kitchen's gunfire landed.
+func _heard_kitchen_gunfire(m: Node) -> bool:
+	var b := Follow.brain_of(m)
+	return b != null and (b.debug_memory().get("gunfire", []) as Array).any(
+		func(g): return (g["pos"] as Vector2).distance_to(Maps.KITCHEN_CENTRE) <= HEARD_NEAR,
+	)

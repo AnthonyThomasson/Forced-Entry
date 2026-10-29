@@ -105,7 +105,8 @@ func reached_lead() -> String:
 
 
 ## Tell the locomotion what this tick's walk accounts for: the bodies it knows of, the one a melee
-## closes on, and whether it keeps out of the doorway views (and the room an entry goes into).
+## closes on, and whether it keeps out of the doorway views (and the room an entry goes into, or the
+## one a held stack is to enter).
 func set_up_walk(delta: float) -> void:
 	var task: RunningLeaf = behavior.task
 	var loco: Node = behavior._loco
@@ -114,12 +115,27 @@ func set_up_walk(delta: float) -> void:
 	loco.crowd.bodies = _walk_bodies()
 	# A melee closes on its target: no walk round it.
 	loco.crowd.ignore_id = behavior.fight.engage_id if task.primitive == &"melee" else 0
+	var held := _held_entry()
 	behavior._perception.views.ordered = behavior.orders.ordered_stack()
 	loco.doors.avoid_doors = behavior.entries.keeps_out_of_views()
+	loco.doors.keep_out = held
 	var entry_state: RefCounted = behavior._entry.state
 	loco.doors.avoid_entering = ("%s>%s" % [entry_state.opening, entry_state.into]
 			if task.primitive == &"entry" and entry_state.opening != ""
 			else "")
+
+
+## The held stack whose room the walk keeps out of (`"<opening id>><room key>"`, "" for none): a
+## member of a stack held for its leader's go fights on the stack's side of the doorway (D31), so a
+## walk its fight takes (an engage's reposition, a retreat, under fire too) whose plain way goes
+## into that room goes round it (`Locomotion`'s `doors.keep_out`), however long the way round (D4).
+## Not an evade.
+func _held_entry() -> String:
+	var room := str(behavior.task.params.get("keep_out_room", ""))
+	if room == "" or not behavior.grenades.evade.is_empty():
+		return ""
+	var opening := String(behavior._perception.orders.current().get("opening", ""))
+	return "%s>%s" % [opening, room] if opening != "" else ""
 
 
 ## Move: walk to the destination (or into the destination room), aiming as the leaf asks (a threat

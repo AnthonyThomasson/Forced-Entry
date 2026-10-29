@@ -13,10 +13,8 @@ extends GameTest
 ## Scripted Von (`Entry.rules`; the join's and the order's levels ask nothing). Premises: the
 ## ordered member carries a stun the way Main arms a spawn (the stack has the grenade the order's
 ## mode calls for); it starts far off in the south of the garden, so the joiner has claimed first.
-## (The joiner's first claim was in bang mode before D31, the human's claim saying bang; the order
-## was quiet, so the joiner turned quiet. Under D31 the rally starts quiet, so the order turns it
-## the
-## other way, to the order's stun.)
+## The human's rally starts quiet (D31: a rally with no go goes in quietly), so the order is a stun
+## one: the joiner's first claim is quiet and the order's mode turns it to bang.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")

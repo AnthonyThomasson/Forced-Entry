@@ -260,7 +260,7 @@ func _crossed_views(pts: Array, views: Array, max_dist: float, entering := "") -
 ## plain route goes in, and its floor is carved too when a way round would go in: `_with_room`) and
 ## out of the view of the doorway it stacks at, from inside the room too (`avoided`). With no way
 ## round every view in the cap, it goes round those at least (`_entering_set`); on an ordered
-## approach (`ordered_approach`) that way is taken however long it is.
+## approach (`ordered_approach`; `held_route` too) that way is taken however long it is.
 func walk_route(
 	from: Vector2,
 	to: Vector2,
@@ -624,6 +624,29 @@ func _view_fan(
 		ring.append(hit["position"] if not hit.is_empty() else target)
 	ring.append(jambs[1])
 	return ring
+
+
+## `walk_route` for a held stack's member keeping out of the room it is held to enter (`entering`,
+## `docs/leadership.md` D31): its way round that room is taken however long it is, as an ordered
+## approach's.
+func held_route(
+	from: Vector2,
+	to: Vector2,
+	map: RID,
+	space: PhysicsDirectSpaceState2D,
+	entering: String,
+) -> Dictionary:
+	var was := ordered_approach
+	ordered_approach = true
+	var out := walk_route(from, to, map, space, entering)
+	ordered_approach = was
+	return out
+
+
+## Whether the plain route from `from` to `to` on the world navigation map `map` goes into room
+## `key` by any of its doorways: a held stack's member walks round that room only then (D31).
+func plain_enters(from: Vector2, to: Vector2, map: RID, key: String) -> bool:
+	return _entered_rooms([from] + Array(NavBuilder.route(map, from, to))).has(key)
 
 
 ## The keys of the rooms the walk `pts` goes into, by any of their doorways.

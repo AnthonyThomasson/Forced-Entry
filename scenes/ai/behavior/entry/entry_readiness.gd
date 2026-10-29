@@ -170,7 +170,7 @@ func _take_turn(entry: Entry, team: Array) -> void:
 		elif not (entry.grenade.waits_for_bang(entry, team) or entry.listen.listening(entry, team)):
 			entry.pie.start_pie(entry, team)
 		return
-	if slices_own_half(entry, team):
+	if slices_own_half(entry):
 		entry.pie.start_pie(entry, team)
 		return
 	say_ready(entry)
@@ -203,8 +203,8 @@ func _ahead_gone(m: Dictionary) -> bool:
 ## is split across the door, it is the front man of its side (everyone ahead of it in the crossing
 ## order is on the other side) and has not sliced yet. Not in a bang entry: the stun takes the place
 ## of the pie.
-func slices_own_half(entry: Entry, team: Array) -> bool:
-	if entry.pie.sides > 0 or entry.grenade.over or entry.grenade.banging(entry, team):
+func slices_own_half(entry: Entry) -> bool:
+	if entry.pie.sides > 0 or entry.grenade.over or entry.grenade.banging(entry):
 		return false
 	var before := members_before(entry)
 	return not before.is_empty() and before.all(func(m): return int(m["side"]) != state.member.side)

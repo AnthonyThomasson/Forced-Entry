@@ -91,18 +91,22 @@ func reset() -> void:
 	thrown = {}
 
 
-## Whether the stack is in bang mode and has a stun to throw: every member's claim says bang (one
-## that gave it up vetoes it), or this member's quiet entry has just turned and the rest have yet to
-## follow (`listen.upgraded`: their claims say bang within a call or two), or the stack goes in
-## under an order that says bang (LD9: a member still quiet follows it), and a member carries one.
-## The mode is the order's, else the first claimer's (`Entry.begin`), so a stack goes in all one
-## way.
-func banging(entry: Entry, team: Array) -> bool:
+## Whether the stack is in bang mode and has a stun to throw: the stack's mode says bang
+## (`stack_bangs`), or this member's quiet entry has just turned and the rest have yet to follow
+## (`listen.upgraded`: their claims say bang within a call or two), and a member carries one.
+func banging(entry: Entry) -> bool:
 	return (state.bang
 			and not over
-			and (entry.listen.upgraded or entry.orders.mode_set(entry)
-					or team.all(func(m): return m["bang"]))
+			and (entry.listen.upgraded or stack_bangs(entry))
 			and _thrower(entry) != -1)
+
+
+## Whether the stack goes in with a grenade first, by its mode (`DoorStack.mode`): an order's mode
+## (LD9: a member still quiet follows it) or the mode a human leader's rally's go named (D31), else
+## the first claimer's, every claim saying bang (E17); a member that gave its grenade up makes it
+## quiet. A lone member, with nobody claiming, goes its own way.
+func stack_bangs(entry: Entry) -> bool:
+	return entry.claim.stack.mode(entry.claim.me(entry)) != "quiet"
 
 
 ## The instance id of the member who throws the bang's grenade (`_bang_kind`), or -1 when nobody
@@ -133,7 +137,7 @@ func _bang_held_off(entry: Entry, team: Array, ordered: bool) -> bool:
 	if vetoed(entry, team) or (entry.listen.upgraded and crossing(entry)):
 		give_up_bang(entry)
 		return true
-	if not ordered and not team.all(func(m): return m["bang"]):
+	if not ordered and not stack_bangs(entry):
 		if not entry.listen.upgraded:
 			_go_quiet(entry)
 		return true
@@ -189,13 +193,13 @@ func _enter_bang(entry: Entry) -> void:
 
 ## Whether the point holds in its slot for the bang the stack's thrower is about to call, rather
 ## than slicing the pie: the stack is in bang mode and has waited less than `BANG_CALL_CAP` for it,
-## or it goes in with a stun under an order and the rest of the stack, the thrower among them, is
-## still on its way (D7).
+## or its mode is set (an order's, or a human leader's rally's go, D31) with a grenade and the rest
+## of the stack, the thrower among them, is still on its way (D7).
 func waits_for_bang(entry: Entry, team: Array) -> bool:
-	if (state.bang and not over and entry.orders.stack_ordered(entry)
+	if (state.bang and not over and entry.orders.mode_set(entry)
 			and not entry.readiness.stack_ready(entry, team)):
 		return true
-	if not banging(entry, team):
+	if not banging(entry):
 		return false
 	if wait >= BANG_CALL_CAP:
 		give_up_bang(entry)
@@ -355,7 +359,7 @@ func tick_bang(entry: Entry, team: Array, delta: float) -> void:
 		return
 	if (state.clock > (FRAG_BURST_CAP if kind == &"frag" else BANG_BURST_CAP)
 			or vetoed(entry, team)
-			or (not entry.orders.stack_ordered(entry) and not team.all(func(m): return m["bang"]))):
+			or not stack_bangs(entry)):
 		give_up_bang(entry)
 		entry.approach.set_phase("stack")
 		return

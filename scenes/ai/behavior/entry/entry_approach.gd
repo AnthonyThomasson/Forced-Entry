@@ -361,7 +361,7 @@ func tick_approach(entry: Entry, team: Array, delta: float) -> void:
 	if not arrived_at(spot, StackClaim.SLOT_REACH):
 		world.loco.move_to(spot, StackClaim.SLOT_REACH)
 		return
-	_arrive_at_slot(entry, team)
+	_arrive_at_slot(entry)
 
 
 ## End the wait on a teammate of the stack still forming (`forming_wait`) once that hold is over:
@@ -422,12 +422,12 @@ func _got_to(p: Vector2) -> bool:
 
 ## In the slot: stand, stack (E2), note when it got there, and radio `ready` unless it slices its
 ## own half of the pie first (E19).
-func _arrive_at_slot(entry: Entry, team: Array) -> void:
+func _arrive_at_slot(entry: Entry) -> void:
 	world.character.movement.move_input = Vector2.ZERO
 	set_phase("stack")
 	if entry.readiness.ready_at < 0.0:
 		entry.readiness.ready_at = state.time
-	if not entry.readiness.slices_own_half(entry, team):
+	if not entry.readiness.slices_own_half(entry):
 		entry.readiness.say_ready(entry)
 
 

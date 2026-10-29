@@ -22,6 +22,14 @@ var avoid_doors := false
 ## The entry the walk is the approach of (`"<opening id>><room key>"`, "" for none): it keeps out of
 ## that room and of that doorway's view (`AgentPerception.views.walk_route`).
 var avoid_entering := ""
+## The held stack a fight's walk keeps out of (`"<opening id>><room key>"`, "" for none; set each
+## tick by `Behavior`, D31): a walk whose plain way goes into that room goes round it, and round its
+## doorway's view, as that stack's approach would; any other walk is left as it is.
+var keep_out := ""
+## The goal `_out_enters` was worked out for.
+var _out_goal := Vector2.INF
+## Whether the plain way to `_out_goal` goes into the room `keep_out` names.
+var _out_enters := false
 ## The walk has been checked against the doorway views: it goes round them (`map`) or needs no way
 ## round.
 var decided := false
@@ -45,7 +53,7 @@ func _init(locomotion: Node) -> void:
 ## the walk goes round it by the steering map or is held, and the guard secures what views that
 ## crosses.
 func update(delta: float) -> void:
-	if not avoid_doors or views == null:
+	if views == null or not (avoid_doors or _keeps_out()):
 		_drop_doors()
 		return
 	if decided and not map.is_valid():
@@ -55,7 +63,22 @@ func update(delta: float) -> void:
 		if _doors_in > 0.0:
 			return
 	_doors_in = RECHECK
-	_take_route(views.walk_route(loco._goal, avoid_entering))
+	if avoid_entering == "" and _keeps_out():
+		_take_route(views.walk_route(loco._goal, keep_out, Vector2.INF, true))
+	else:
+		_take_route(views.walk_route(loco._goal, avoid_entering))
+
+
+## Whether the walk keeps out of the held stack's room (`keep_out`): its plain way to the goal goes
+## into it, worked out once per goal.
+func _keeps_out() -> bool:
+	if keep_out == "":
+		return false
+	if loco._goal != _out_goal:
+		_out_goal = loco._goal
+		_out_enters = (loco._goal != Vector2.INF
+				and views.walk_enters(loco._goal, keep_out.get_slice(">", 1)))
+	return _out_enters
 
 
 ## A walk that does not keep out of the doorway views: it forgets the avoid map, and one on it goes

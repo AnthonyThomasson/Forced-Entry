@@ -6,6 +6,7 @@ extends RefCounted
 ## node, so no reference cycle) for the body, the memory and its sibling parts.
 
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
+const StackMember := preload("res://scenes/ai/perception/stack/stack_member.gd")
 
 ## The perception it belongs to.
 var perception: Node
@@ -68,12 +69,14 @@ func held_room() -> String:
 		return ""
 	var into := String(live.get("into", ""))
 	var join := StackClaim.is_join(live)
-	var me := {
-		"id": perception._character.get_instance_id(), "into": into, "join": join,
-		"order_id": "" if join else str(live["id"]), "order_hold": true,
-		"order_frame": int(live.get("frame", -1)),
+	# The NPC as its claims under this order describe it (a join's carry no order id, D30).
+	var member := StackMember.new()
+	member.id = perception._character.get_instance_id()
+	member.terms = {
+		"into": into, "join": join, "order_id": "" if join else str(live["id"]),
+		"order_hold": true, "order_frame": int(live.get("frame", -1)),
 	}
-	return into if perception.entry.stack(String(live["opening"]), into).held(me) else ""
+	return into if perception.entry.stack(String(live["opening"]), into).held(member.me()) else ""
 
 
 ## End the live order when it is order `id`, for `why` (`done`, `refused`, `cancelled`): kept as

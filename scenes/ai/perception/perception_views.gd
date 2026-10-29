@@ -181,8 +181,24 @@ func avoided() -> Array:
 ## plain one, or the one that keeps out of the views of the doorways into rooms not clear for
 ## passing when there is one within the cap. `entering` (`"<opening id>><room key>"`): the entry the
 ## walk is the approach of, which keeps out of that room and its doorway's view. `from` (INF: where
-## the NPC stands) is where the walk sets out from, for a leg of a walk read ahead.
-func walk_route(to: Vector2, entering := "", from := Vector2.INF) -> Dictionary:
+## the NPC stands) is where the walk sets out from, for a leg of a walk read ahead. `uncapped`: the
+## way round that room is taken however long it is (a held stack's member, D31).
+func walk_route(
+		to: Vector2,
+		entering := "",
+		from := Vector2.INF,
+		uncapped := false,
+) -> Dictionary:
 	var world: World2D = perception._character.get_world_2d()
 	var at: Vector2 = perception._character.global_position if from == Vector2.INF else from
-	return views.walk_route(at, to, world.navigation_map, world.direct_space_state, entering)
+	var space := world.direct_space_state
+	if uncapped:
+		return views.held_route(at, to, world.navigation_map, space, entering)
+	return views.walk_route(at, to, world.navigation_map, space, entering)
+
+
+## Whether the plain route from where the NPC stands to `to` goes into room `key` (see
+## agent_door_views.gd `plain_enters`).
+func walk_enters(to: Vector2, key: String) -> bool:
+	var at: Vector2 = perception._character.global_position
+	return views.plain_enters(at, to, perception._character.get_world_2d().navigation_map, key)

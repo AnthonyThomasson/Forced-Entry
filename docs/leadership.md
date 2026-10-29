@@ -367,8 +367,11 @@ sentence for Von ends " when they give the go".
   holds for a go that has not come, `DoorStack.held`), the controller pushes it to the planner's confines each decision
   (`DecisionConfines.keep_out`), and inside a `confine` subtree an option whose `tags.room` is that room is dropped, as a defender's room
   confine drops the options outside its room (LD8). The leaf carries it (`keep_out_room`): the fight's spots keep out of that room
-  (`Combat.peek_cover`'s spot rule) and a contact in it is fought from where the member stands, never chased in. When the fight lapses, the
-  member's order brings it back to its slot.
+  (`Combat.peek_cover`'s spot rule), a contact in it is fought from where the member stands, never chased in, and a walk whose plain way goes
+  into that room (an engage's reposition, a retreat, under fire too; not an evade) goes round it and its doorway's view as an ordered
+  approach's does, however long the way round (D4): a retreat to a room behind it is never walked through it. Its other walks, one into the
+  doorway's view to fire through it among them, are left as they are. When the fight lapses, the member's order brings it back to
+  its slot.
 - **The walk into the slot.** A member arrives at its slot from a point past it that stops a body's clearance (32 px) short of the next
   slot along its side a teammate claims, re-planned as claims come in (`docs/tactical-entry.md` E2, for every stack): a held stack whose
   last member claims after the one ahead of it set off (`order_stack_hold_for_go`) never has that member walk into the other's body.

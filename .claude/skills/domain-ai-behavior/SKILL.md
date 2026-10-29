@@ -216,7 +216,10 @@ one of four ways, checked once a physics frame (`_check`):
   closer than the NPC stands to it now) within `LOOKAHEAD` (400 px), or one standing on the goal, ends it:
 - **doors**: the Navigation domain's avoid map (`NavBuilder.avoid_map`: the planning bake with the doorway views carved out, E18), for a walk
   `Behavior` marks `doors.avoid_doors` (above; `doors.avoid_entering` = `"<opening>><into>"` while the primitive is an `entry`, so its approach keeps out of the
-  room it goes into and its own doorway's view, cleared or not). `doors.update` asks the perception's views part (`doors.views`, typed with perception's `perception_views.gd`, which `loco_doors.gd` preloads, and handed `perception.views` by `Behavior.setup`: the seam the architecture's AI row names beside `entry.stack`) for the route (`walk_route(goal, avoid_entering)`) each frame until
+  room it goes into and its own doorway's view, cleared or not). A leaf carrying `keep_out_room` (a member of a stack held for its leader's go, D31; not an evade) sets
+  `doors.keep_out` to the held stack (`errand._held_entry`): a walk whose plain way goes into that room (`views.walk_enters`, once per goal; a
+  retreat or under fire too) is routed round it and its doorway's view however long the way round (`walk_route(goal, keep_out, INF, true)`,
+  `AgentDoorViews.held_route`); any other walk of it, one into that doorway's view to fire through it among them, is left as it is. `doors.update` asks the perception's views part (`doors.views`, typed with perception's `perception_views.gd`, which `loco_doors.gd` preloads, and handed `perception.views` by `Behavior.setup`: the seam the architecture's AI row names beside `entry.stack`) for the route (`walk_route(goal, avoid_entering)`) each frame until
   it is decided (plain while the avoid map bakes: `pending`), then every `doors`' `RECHECK` (2 s) while round the views (which keeps the map alive and follows
   the rooms as their clear lapses): the avoid map when the plain route comes into a view and the route round them is within `door_avoid_ratio` x plain +
   `door_avoid_slack`, else plain (and `passing_ahead` secures what it crosses). A walk that is not guarded (`avoid_doors` false) drops it. A body at rest on

@@ -345,8 +345,8 @@ func _latch_go(opening: String) -> void:
 	var held := _held_at(opening)
 	for id in held:
 		# A join's claims carry no order id: its rally's go is read by the join's frame (D31).
-		var of := "" if is_join(held[id]) else str(id)
-		if stack.released(of, str(held[id]["into"]), int(held[id]["frame"])):
+		var order_id := "" if is_join(held[id]) else str(id)
+		if stack.released(order_id, str(held[id]["into"]), int(held[id]["frame"])):
 			_released[str(id)] = true
 
 

@@ -15,10 +15,9 @@ extends GameTest
 ## Real Von, the whole pipeline; no switch. Premises: the sergeant starts far from the house, so it
 ## is still radioing its claim when it takes over; the trooper's defend is issued, and later
 ## cancelled, through the squad (`Squad.issue`), standing in for the orders a leader gives (an NPC
-## leader gives none of its own); nobody but the lead is ever killed. (Before D31 the lead was a
-## puppet human leader whose death the sergeant took over from; a human leader's rally is now
-## cancelled on its death, `rally_cancelled_on_leader_death`, so an inherited join is an AI leader's
-## rally's.)
+## leader gives none of its own); nobody but the lead is ever killed. The lead is an NPC: a human
+## leader's rally is cancelled on its death (D31, `rally_cancelled_on_leader_death`), so a join is
+## inherited only from an AI leader's rally.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

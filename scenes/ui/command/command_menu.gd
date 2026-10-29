@@ -19,9 +19,8 @@ extends CanvasLayer
 ##   member of the squad's view holds a held stack there that has had no go, whoever is selected
 ##   (D13), or, for a held join of the human's rally there (D31), "Go into the <room> (quiet)",
 ##   "... with stun" and "... with frag", stun and frag greyed while no member holding the join
-## carries one; and "Ambush the doorway from the <room>", `<room>` the one on the click's side of
-## its
-##   wall, as the squad resolves the ambush (LD15, D17);
+##   carries one; and "Ambush the doorway from the <room>", `<room>` the one on the click's side
+##   of its wall, as the squad resolves the ambush (LD15, D17);
 ## - else a room: "Defend the <room>";
 ## - and "Cancel order" while a recipient holds an order (the squad's `view()`).
 ## The panel also lists the teammates to tick. The recipients are the selection (ticked, or picked
@@ -333,10 +332,7 @@ func _go_items(held: Dictionary, at: Vector2) -> Array:
 	if String(held.get("mode", "")) != "join":
 		return [_item("Go into the %s" % into, false, _go.bind(at))]
 	var holders := _holders(String(held.get("id", "")))
-	var carry := func(slot: int) -> bool:
-		return holders.any(
-			func(n): return "inventory" in n and int(n.inventory.item_count(slot)) > 0,
-		)
+	var carry := func(slot: int) -> bool: return _any_carries(holders, slot)
 	return [
 		_item("Go into the %s (quiet)" % into, false, _go.bind(at, "quiet")),
 		_item(
@@ -406,9 +402,12 @@ func _recipients_now() -> Array:
 ## Whether any recipient carries a grenade of inventory slot `slot` (D1, D15: a stun or frag stack
 ## is offered only then).
 func _recipients_carry(slot: int) -> bool:
-	return _recipients_now().any(
-		func(n): return "inventory" in n and int(n.inventory.item_count(slot)) > 0,
-	)
+	return _any_carries(_recipients_now(), slot)
+
+
+## Whether any of `nodes` carries a grenade of inventory slot `slot`.
+static func _any_carries(nodes: Array, slot: int) -> bool:
+	return nodes.any(func(n): return "inventory" in n and int(n.inventory.item_count(slot)) > 0)
 
 
 ## The recipients that hold an order now (the squad's `view()`).
