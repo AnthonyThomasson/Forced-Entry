@@ -2,10 +2,14 @@ extends RefCounted
 ## AI orchestrator: the controller's reflexes, a part it builds once in its `_ready` and holds as
 ## `_reflexes`. What the NPC does every tick outside the decision walk: it follows its squad's
 ## leader and keeps its confinement current (`docs/leadership.md` LD19, LD23), gets clear of the
-## live grenade that threatens it (G16), and, flash-blinded, rolls once whether it fires blind and
-## re-decides the moment its sight returns (G15). Built once with its controller, it holds it (a
-## node, so no reference cycle) for the NPC's body, perception, behaviour, cadence, tuning and
-## squad.
+## live grenade that threatens it (G16), flash-blinded, rolls once whether it fires blind and
+## re-decides the moment its sight returns (G15), and, holding an ambush at its post, is primed
+## (LD15). Built once with its controller, it holds it (a node, so no reference cycle) for the NPC's
+## body, perception, behaviour, cadence, tuning and squad.
+
+## The physics priority of a primed ambusher's body: after every other body's in the frame (the
+## engine runs higher priorities later; 0 is the default).
+const PRIMED_PRIORITY := 1
 
 ## The controller it belongs to.
 var controller: Node
@@ -28,6 +32,21 @@ func _init(brain: Node) -> void:
 ## Seeds the RNG from `character`'s name and spawn spot, on the controller's first tick.
 func bind(character: Node) -> void:
 	_rng.seed = hash("%s %s" % [character.name, character.global_position.round()])
+
+
+## The primed ambusher, every tick (LD15, D18): while the NPC holds its ambush at its post
+## (`Behavior.orders.primed`), its sight tests every character in its view cone every frame (the
+## sight's `primed`) and its body runs after every other body in the physics frame
+## (`PRIMED_PRIORITY`). It then sees an entrant where that one's own step just put it, on the frame
+## the step opens a line between them, while the entrant's controller acted before that step: the
+## earliest the entrant can fire back is the next frame. Off again once the ambush is over.
+func prime() -> void:
+	var primed: bool = controller._behavior.orders.primed()
+	controller._perception.sight.primed = primed
+	var body: Node = controller._character
+	var priority := PRIMED_PRIORITY if primed else 0
+	if body.process_physics_priority != priority:
+		body.process_physics_priority = priority
 
 
 ## The squad's follow reads, every tick (LD19, LD23): whether the NPC follows its leader (the

@@ -432,6 +432,7 @@ func _bind_body(character: Node) -> void:
 ## before the salient-event check.
 func _sense(character: Node, delta: float) -> void:
 	_comms.process_events()
+	_reflexes.prime()
 	_perception.house.openings = openings
 	_perception.observe(rooms)
 	_reflexes.follow_squad()

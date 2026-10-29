@@ -30,6 +30,9 @@ var _looked := {}
 var _tracks := {}
 ## The NPC was flash-blinded on the latest observe() tick: it sees nothing new.
 var blind := false
+## The NPC is a primed ambusher (its controller's reflexes set it every tick, LD15): every
+## character in its view cone gets a sight test every frame, not every `SIGHT_EVERY_FRAMES`.
+var primed := false
 
 
 func _init(npc_perception: Node) -> void:
@@ -73,7 +76,7 @@ func see(rooms: Array) -> void:
 ## Whether character `other` gets a sight test on physics frame `frame`, keeping the view-cone
 ## bookkeeping: a dead one or one out of the cone is dropped (its next look is at once); one tested
 ## since it entered the cone is tested again every `SIGHT_EVERY_FRAMES` frames, offset per NPC and
-## target, and until then stays what the last look saw.
+## target, and until then stays what the last look saw; every frame while `primed`.
 func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int) -> bool:
 	var id: int = other.get_instance_id()
 	if other.get("is_dead") == true:
@@ -82,7 +85,9 @@ func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int)
 	if not vision.in_view(self_pos, facing, other.global_position):
 		_looked.erase(id)  # Out of the cone: not seen, and its next look is at once.
 		return false
-	if _looked.has(id) and (frame + perception.get_instance_id() + id) % SIGHT_EVERY_FRAMES != 0:
+	if (not primed
+			and _looked.has(id)
+			and (frame + perception.get_instance_id() + id) % SIGHT_EVERY_FRAMES != 0):
 		if _visible_before.has(id):
 			visible_now[id] = true  # Not due: still what the last look saw.
 		return false
