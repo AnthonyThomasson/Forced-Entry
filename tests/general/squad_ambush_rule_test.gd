@@ -21,6 +21,7 @@ const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 ## The spec's numbers (#128 rule 7), this test's own copy.
 const REORDER_GAP := 8.0
+const MIN_RECIPIENTS := 2
 const FRONT_CHAIN := "door_150_360"  # outside by the front door -> the hall -> the living room
 const KITCHEN_DOOR := "door_480_150"  # from the kitchen into the living room
 const OUTSIDE_FRONT := Vector2(-100, 415)
@@ -79,7 +80,8 @@ func run(t: TestContext) -> void:
 	)
 	var fresh := await _new_leader(t, squad, third)
 	if not fresh.is_empty():
-		await _refused(t, fresh)
+		var next := await _refused(t, fresh)
+		await _one_free(t, squad, next)
 
 
 ## The first threat: the doorway its attack comes by, to d1 and d2, d3 kept back as rear guard and
@@ -160,7 +162,8 @@ func _new_leader(t: TestContext, squad: Node, third: Dictionary) -> Dictionary:
 
 ## d2 and d3 radio the order they hold `refused` (there is no post for them): past the cool-down a
 ## new doorway is ordered to both, members that refused their order holding none for the rule.
-func _refused(t: TestContext, held: Dictionary) -> void:
+## Returns that order.
+func _refused(t: TestContext, held: Dictionary) -> Dictionary:
 	await _wait_past(t, held)
 	for id in [&"d2", &"d3"]:
 		var m := t.actor(id)
@@ -174,6 +177,18 @@ func _refused(t: TestContext, held: Dictionary) -> void:
 		_is_ambush(next, KITCHEN_DOOR) and _names(next.get("to", [])) == ["d2", "d3"],
 		"having refused their order, d2 and d3 are ordered the kitchen's doorway (%s)"
 			% _describe(next),
+	)
+	return next
+
+
+## d3's order cancelled, d2 (the leader) still holding `held`: past the cool-down a new doorway
+## would go to d3 alone, fewer than `MIN_RECIPIENTS`, so nothing is ordered.
+func _one_free(t: TestContext, squad: Node, held: Dictionary) -> void:
+	Order.issue(squad, { "kind": Order.CANCEL, "to": [t.actor(&"d3")] })
+	await _wait_past(t, held)
+	t.check(
+		await _call(t, OUTSIDE_FRONT, t.actor(&"d2")) == {},
+		"a new doorway with only d3 free (under %d recipients) orders nothing" % MIN_RECIPIENTS,
 	)
 
 

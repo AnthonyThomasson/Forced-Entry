@@ -151,7 +151,8 @@ static func slots() -> Array:
 ## INF for a frag (furniture shields from its blast at any distance); `max_blind` (s) is the longest
 ## a stun blinds anyone, 0 for a frag. The one place this dictionary is made:
 ## `GrenadeItem.throw_stats()` and `ThrownGrenade.throw_stats()` both return it, and the AI reads it
-## (through `Character.inventory.throw_stats`) instead of keeping a copy of the numbers.
+## (a held one's through `Character.inventory.throw_stats`, one no one holds by `stats_of(kind)`)
+## instead of keeping a copy of the numbers.
 static func stats_of(kind: StringName, source: Dictionary = {}) -> Dictionary:
 	if source.is_empty():
 		source = row(kind)

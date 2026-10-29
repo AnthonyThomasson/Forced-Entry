@@ -1,5 +1,5 @@
 extends RefCounted
-## AI domain · TEAM — the attack doorway (the defenders' ambush rule, #128): the doorway into the
+## AI domain · TEAM — the attack doorway (the defenders' ambush rule): the doorway into the
 ## leader's room that an attack from a threat point comes through. From the room the point is in
 ## (outside the house counting as a room its exterior doors join), the shortest way doorway to
 ## doorway to the leader's room, the cost being the straight walk from the point through each

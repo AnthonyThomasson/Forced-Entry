@@ -57,6 +57,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var invaders: Array = IDS.map(func(id): return t.actor(id))
+	# Premise: each invader carries a stun (the stack's bang), and no frag.
 	for c in invaders:
 		Probe.arm(c, 1, 0)
 	var order := Order.issue(
