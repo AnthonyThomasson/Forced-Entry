@@ -474,7 +474,8 @@ within the follower's leash (LD23).
 Tests (the Terrace house's `door_150_360`, ambushed from the living room): `ai/combat/ambush_door_post` (scripted: the post off the axis,
 unseen from every slot and pie step by the test's own copy of the entry geometry, crouched, gun on the threshold; a puppet steps into the
 doorway, it fires, its order ends and it fights on), `ai/combat/ambush_ends_on_shot_at` (scripted, D18: an intruder's footsteps behind the
-wall do not end it, gunfire landing beside it does), `ai/combat/ambush_vs_stack` (real Von, `--include-von --require-von`: an ambushing
+wall do not end it; the same intruder, still unseen in the hall, firing real pistol rounds into the wall beside its post does, not before
+the first shot), `ai/combat/ambush_vs_stack` (real Von, `--include-von --require-von`: an ambushing
 defender against a real invader stack, posted before the first `going_in`, shoots the first of them into the funnel before any of them
 fires), `ai/combat/ambush_contact_leashes_follower` (scripted, LD23: once an intruder in sight ends the ambush `done`, the first decision walk
 begun after it decides over a confinement carrying the leash round its leader), `general/squad_go_and_ambush` (the click side's room, the
