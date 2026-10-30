@@ -241,8 +241,9 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   Exempt: `tuning.entry_guard.enabled` off, no `tuning.entry.enabled`, an NPC under fire (not for a doorway into the room the shots came from, seen shooter or not, `fight.into_the_shots` over
   `AgentPerception.hearing.shots_from_room`, E9: the walk stops there as an entry, a bang one when the stack carries a stun (the room is suspect,
   "shots at you came from there": `Entry.begin`), the shots do not cancel it and a decision made under fire leaves it running; under fire it secures no view it passes), a leaf whose params say `entry_guard: false` (RETREAT), a
-  `move` that has arrived, and a doorway whose entry was given up less than `tuning.entry_guard.rearm` s ago (`entries._guard_off`, on the
-  guard's own clock). A new decision while a detour runs (`set_leaf`) replaces the paused order and leaves the entry
+  `move` that has arrived, a doorway whose entry was given up less than `tuning.entry_guard.rearm` s ago (`entries._guard_off`, on the
+  guard's own clock), and a doorway into the room a held stack's member keeps out of (the confinement's `keep_out`, D31: a fight's walk up to
+  that doorway, to fire through it, stops there, under fire too; test `ai/entry/order_stack_hold_advance_to_door_stays_out`). A new decision while a detour runs (`set_leaf`) replaces the paused order and leaves the entry
   running, unless it is one the guard does not apply to (`entries.guards(leaf, into)`: not a walk, a retreat, or under fire and not into the shots): then the
   detour is dropped and the entry abandoned (`abort` on the radio). Coming under fire before the crossing cancels the detour
   the same way (`entries._cancel_detour`); a crossing already under way is finished. A decision that was in flight when the NPC became
@@ -335,7 +336,8 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   when its own go came, else "", and `state.bang` from `DoorStack.mode` (`_rally_mode`: the go's `stun` / `frag`, quiet with none named or once a member of
   the rally gave its grenade up). Once released, `readiness.members_ahead` drops the human unless it is crossing, so the first AI is the point.
   A held member fights only on the stack's side (`AgentPerception.orders.held_room()`, the confinement's `keep_out`, which the planner's
-  COMBAT filter, the fight and `Combat`'s spots ask; a walk whose plain way goes into that room goes round it, under fire too, and never goes round a body by a way into it, `Locomotion`'s `doors.held_entry`; test `ai/entry/order_stack_hold_retreat_round_body`). Tests: `ai/stack/rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet`, `rally_menu_go_stun`, `rally_menu_go_stun_spares_another_veto`,
+  COMBAT filter, the fight and `Combat`'s spots ask; a walk whose plain way goes into that room goes round it, under fire too, and never goes round a body by a way into it, `Locomotion`'s `doors.held_entry`; test `ai/entry/order_stack_hold_retreat_round_body`; and the entry guard never takes it in by entry, `guard()`
+  dropping a doorway into that room; test `ai/entry/order_stack_hold_advance_to_door_stays_out`). Tests: `ai/stack/rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet`, `rally_menu_go_stun`, `rally_menu_go_stun_spares_another_veto`,
   `rally_menu_go_frag`, `rally_walk_away_follows`, `rally_cancelled_on_leader_death`, `ai/entry/order_stack_hold_fights_stack_side` (LD13's held
   order), probes `tests/_ai/rally_probe.gd` and `tests/_ai/held_fight_probe.gd`.
 - **A frag at entry (`docs/leadership.md` LD14).** A stack under an order whose mode is `frag`, or a rally whose go named frag (`grenade._bang_kind()`, from

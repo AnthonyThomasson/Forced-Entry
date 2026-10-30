@@ -371,7 +371,8 @@ sentence for Von ends " when they give the go".
   into that room (an engage's reposition, a retreat, under fire too; not an evade) goes round it and its doorway's view as an ordered
   approach's does, however long the way round (D4), and never goes round a body at rest on its way by a way into that room (it waits short of
   the body, then goes round the room once that way is clear): a retreat to a room behind it is never walked through it. Its other walks, one into the
-  doorway's view to fire through it among them, are left as they are. When the fight lapses, the member's order brings it back to
+  doorway's view to fire through it among them, are left as they are, and none is turned into an entry into that room: the entry guard (E9)
+  leaves its doorways alone for the member, under fire too, so a walk up to the doorway stops outside it. When the fight lapses, the member's order brings it back to
   its slot.
 - **The walk into the slot.** A member arrives at its slot from a point past it that stops a body's clearance (32 px) short of the next
   slot along its side a teammate claims, re-planned as claims come in (`docs/tactical-entry.md` E2, for every stack): a held stack whose
@@ -404,7 +405,10 @@ funnel before the order and steps in after it; the squad's `view()` then no long
 the kitchen seen through the back door and then hidden, the held members unkillable as the premise: a held member fires from the
 stack's side and none walks into the kitchen while held; once the fight lapses each is back in its slot),
 `order_stack_hold_retreat_round_body` (scripted: a held member falls back to the
-living room past a teammate standing on its plain way through the kitchen, and goes round the house, never into the kitchen). The
+living room past a teammate standing on its plain way through the kitchen, and goes round the house, never into the kitchen),
+`order_stack_hold_advance_to_door_stays_out` (scripted: a held member under fire from the kitchen advances halfway to the defender, to a
+point by the back doorway outside the kitchen: it fights from there, never enters the kitchen nor claims the doorway but under its
+order). The
 `order_stack_*` tests cover a stack that goes when ready.
 
 **LD14. Frag entry.** The stack order's `mode` is `quiet`, `stun` or `frag` (LD5). With `frag` the stack throws a frag into the room

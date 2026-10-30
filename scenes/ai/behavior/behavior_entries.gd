@@ -358,8 +358,9 @@ func _resume_order() -> void:
 ## given rather than the leaf's destination, so a path through an intermediate room, a reposition in
 ## a fight and the way to a doorway itself are all covered. Exempt: a retreat
 ## (`tuning.entry_guard.enabled: false` on its node), an NPC under fire (but for a walk into the
-## room the shots came from, `fight.into_the_shots`), an entry already running, and anything that is
-## not walking.
+## room the shots came from, `fight.into_the_shots`), an entry already running, anything that is
+## not walking, and a walk into the room a held stack's member keeps out of (its confinement's
+## `keep_out`, D31).
 func guard() -> void:
 	var perception: Node = behavior._perception
 	if behavior.task.primitive == &"entry":
@@ -382,6 +383,10 @@ func guard() -> void:
 		# shots came from.
 		return
 	if gate.is_empty() or float(_guard_off.get(gate["opening"], -1.0)) > guard_clock:
+		return
+	if str(gate["into"]) == perception.confinement.keep_out:
+		# A held stack's member fights on the stack's side (D31): a walk up to the doorway, to fire
+		# through it, stops there, and no entry takes it into the room it is held to enter.
 		return
 	_begin_detour(gate)
 

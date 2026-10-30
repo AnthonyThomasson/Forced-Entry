@@ -60,7 +60,7 @@ builds on them in `tests/_ai/rally_probe.gd` (`const Rally := preload(...)`: `wo
 invader NPCs, `IDS`, bound as Main binds them with "Lead the team" on), `members`, `arm`, `rallied` (the human steps up and both stand ready,
 held for its go, within `READY_WITHIN`), `menu_go(t, mode)` (the command menu's go in a mode), `both_in`, `first_going_in`,
 `check_went_without_human`). A stack held for its go under fire (LD13 and D31: `ai/entry/order_stack_hold_fights_stack_side`,
-`order_stack_hold_retreat_round_body`, `ai/stack/rally_held_fights_stack_side`) is `tests/_ai/held_fight_probe.gd` (`const HeldFight := preload(...)`: `defender`, `arm`, `fight`,
+`order_stack_hold_retreat_round_body`, `order_stack_hold_advance_to_door_stays_out`, `ai/stack/rally_held_fights_stack_side`) is `tests/_ai/held_fight_probe.gd` (`const HeldFight := preload(...)`: `defender`, `arm`, `fight`,
 `check_stack_side`: fired from the stack's side, never into the room nor `going_in`, and each back in its slot within `SLOT_NEAR` once the
 fight lapsed).
 
