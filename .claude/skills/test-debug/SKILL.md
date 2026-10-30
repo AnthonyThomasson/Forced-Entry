@@ -45,7 +45,7 @@ gdUnit's reports in `user://gdunit_reports/report_<n>/`.
 - A behaviour that misses a band or a distance (a follower too far behind, a walker off its line), or a walker that
   stops or stalls: trace the actor frame by frame through the miss window before calling it test slack or proposing a
   design. Series and p50s hide a per-frame stall. The first trace logs `movement.move_input`, `movement.run_input`,
-  the destination and the body holding it, not only the rule that stopped it, as one `[dbg]` line
+  the destination, the body holding it and the rule that stopped it, as one `[dbg]` line
   (the temporary-trace rule below). A frame with no step that no rule names is a code bug. A question to the user
   about the miss quotes the trace.
 - Passes alone, fails after another test: a leaked `static var`. Use `set_static` or a switch so it is restored; never

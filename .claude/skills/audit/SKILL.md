@@ -162,8 +162,8 @@ done
   server; `--include-von` adds live-server ones. Report the totals line and every FAIL / TIMEOUT with its ✗ lines; exit
   1 also covers an engine error/warning during a test. Changed behaviour with no test in `tests/<domain>/` covering it
   is a finding (`domain-testing`). Each test whose checks (what it measures, a band, a threshold) the diff changes is
-  compared against the ticket brief's acceptance criteria; one that no longer checks what its criterion says is a
-  finding.
+  compared against the ticket brief's acceptance criteria; one that checks something other than what its criterion says
+  is a finding.
 - **Behaviour** (movement, combat, items, interactions, world-gen): also drive it live with `godot-run`
   (`tools/editor.sh` + `tools/gcmd.py`). Report what you drove and what the game did.
 

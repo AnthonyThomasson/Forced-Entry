@@ -26,10 +26,10 @@ Empty, or too vague to tell expected from actual: ask one concise question first
    regression test.
 4. **Fix** the root cause with the smallest production change. Cross-domain calls only through `architecture`'s
    interfaces. Never loosen, skip or delete the test, or special-case its scenario. The cause is not plain from the red
-   test and the bundle: load `mattpocock-skills:diagnosing-bugs` and follow its phases 2–4 (shrink the repro until every part is
-   load-bearing; 3–5 ranked, falsifiable hypotheses shown to the user before testing; one variable per probe, logs
-   tagged `[DEBUG-<id>]` and grepped out before green). A perf regression: its perf branch, a baseline measured on a
-   quiet machine first, then bisect. A check whose definition or threshold changes once the production change is in
+   test and the bundle: load `mattpocock-skills:diagnosing-bugs` and follow its phases 2–4 (shrink the repro until
+   every part is load-bearing; 3–5 ranked, falsifiable hypotheses shown to the user before testing; one variable per
+   probe, logs tagged `[DEBUG-<id>]` and grepped out before green). A perf regression: its perf branch, a baseline
+   measured on a quiet machine first, then bisect. A check whose definition or threshold changes once the production change is in
    (what it measures, a band, a distance) goes to the user before the rerun: before → after, and why the old one was
    wrong.
 5. **Green.** The test passes (`--id=<id> --repeat=10` for an intermittent bug; no `FLAKY`). Then

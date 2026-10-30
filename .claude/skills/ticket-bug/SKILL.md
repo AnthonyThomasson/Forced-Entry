@@ -35,9 +35,9 @@ Invoke `fix` with the agreed expected-vs-actual (plus the ticket title and usefu
 bug's reason (tell the user the red result; passes at once or not visible headless: agree the next step with the user,
 don't fix blind), root-cause fix, green, skills updated. The repro sits at the seam the agreed bug names.
 
-An `ai` label: the regression test is scripted Von (`von_script`, one mechanism) unless the bug is in what Von picks;
-then it is a real-Von scenario test as `ticket-ai` describes. Green adds
-`tools/run_tests.sh --include-von --require-von --domain=ai` (tests of AI live in the one `ai` domain).
+An `ai` label: the regression test is scripted Von (`von_script`, one mechanism), the bug's exception to `ticket-ai`'s
+"`von_script` never replaces scenario tests"; a bug in what Von picks gets a real-Von scenario test per `ticket-ai`.
+Green adds `tools/run_tests.sh --include-von --require-von --domain=ai`.
 
 **Fix gate:** once the root cause is known (`fix` step 4) and before any production change, the planned fix goes to
 the user as a `change-report` whose **Cause** section holds the cause, then an acceptance question. The red test

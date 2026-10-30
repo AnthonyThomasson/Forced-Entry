@@ -49,8 +49,8 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
 - **User phases stay with you:** grilling, plan acceptance, ticket edits, feedback questions. A worker cannot reach
   the user. Every acceptance question (a plan, a bug's fix, a revision) comes right after a `change-report`. Ask with `AskUserQuestion`, a few specific questions at a time, recommended answer first. Use a decision
   gate where a phase waits on an answer.
-- **Build phases go to workers**, except a bug's phases, which run inline (`ticket-bug`). A self-contained brief: ticket number and body, accepted plan, skills to load
-  (`architecture`, the `domain-<name>` skills, `domain-testing`, `test-debug`), what to produce, how to know it is done,
+- **Build phases go to workers**, except a bug's phases 2–4, which run inline (`ticket-bug`). A self-contained brief:
+  ticket number and body, accepted plan, skills to load (`architecture`, the `domain-<name>` skills, `domain-testing`, `test-debug`), what to produce, how to know it is done,
   "No shortcuts", that anything it cannot decide comes back as an escalation, not a guess, and the heartbeat rule
   (1–2 sentence `--phase` status) and the ack rules below (`received <id>`, `check --ack`, a blocking `ask`). A
   showroom brief (`ticket-assets`) names the exhibits, the references, the variants wanted and its load check and lint.

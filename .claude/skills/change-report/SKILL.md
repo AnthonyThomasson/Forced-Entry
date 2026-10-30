@@ -27,18 +27,20 @@ then ask for acceptance (`AskUserQuestion`) in the same turn. Every revision of 
    wins; and each acceptance scenario another rule also reaches, with the winning rule and the test premise that pins
    it. Walk every rule under each actor kind it names (an AI or a human leader, each side, a member with or without an
    order) to find them.
-7. **Cause** (a bug's fix gate, and any scope change during a fix; otherwise omit the section): the hypothesis the fix
-   rests on, the probe line that confirmed it (quoted), and 2–4 ranked alternatives with what ruled each out. While
-   it is empty, the acceptance question waits.
+7. **Cause** (only at a bug's fix gate and at a scope change during a fix; every other report leaves it out): the
+   hypothesis the fix rests on, the probe line that confirmed it (quoted), and 2–4 ranked alternatives with what ruled
+   each out. While it is empty, the acceptance question waits.
 8. **Alternatives:** the real choices the user could still make instead, each with its trade-off. The grilling's
    rejected options belong here.
 
 Done when every domain in the plan's file list, every interface it names, every changed symbol's tests, every tool
-the plan runs and every pair of rules that can meet are accounted for.
+the plan runs and every pair of rules that can meet are accounted for, plus the cause at a bug's fix gate or a scope
+change during a fix.
 
 ## Write
 
-Exactly this shape. One line per item, at most ~15 words after the name. An empty section reads `none`.
+Exactly this shape. One line per item, at most ~15 words after the name. Every section but **Cause** reads
+`none` when empty; **Cause** appears only at a bug's fix gate or a scope change during a fix.
 
 ```markdown
 ## Change report: <ticket number and title, or the bug in a few words>
