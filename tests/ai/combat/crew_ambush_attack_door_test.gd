@@ -12,8 +12,9 @@ extends GameTest
 ## radio places the invader, the leader orders the ambush of the doorway into its room the attack
 ## comes through, the hall's doorway into the living room (`door_150_360`), to itself and the next
 ## member; the last spawned, the rear guard, holds no order and follows. Each of the two holds the
-## ambush at its post (`in_position`), or, in contact as it takes the order up, ends it `done` at
-## once (D18).
+## ambush at its post (`in_position`); only the spotter (the member whose COMBAT callout first
+## placed the invader) may instead, in contact as it takes the order up, end it `done` at once
+## (D18).
 ##
 ## Real Von, the whole pipeline. Required first (set-up findings otherwise): the radio places the
 ## invader, and the leader is still in the living room on the frame it orders. Premise: the
@@ -77,19 +78,27 @@ func run(t: TestContext) -> void:
 		Order.member_view(squad, d3).get("order", {}).is_empty() and squad.follows(d3),
 		"d3, the last spawned of three, is the rear guard: no order, it follows",
 	)
+	var spotter: Node = at["spotter"]
 	for id in [&"d1", &"d2"]:
 		var m := t.actor(id)
-		var holds := func(): return not Order.steps(t, m, order, ["in_position", "done"]).is_empty()
+		var ends: Array = ["in_position", "done"] if m == spotter else ["in_position"]
+		var holds := func(): return not Order.steps(t, m, order, ends).is_empty()
 		t.check(
 			await t.until(holds, 25.0),
-			"%s holds the ambush at its post, or ends it done in contact (steps %s)"
-				% [id, Order.steps(t, m, order, [])],
+			"%s holds the ambush at its post%s (steps %s; the spotter %s)"
+				% [
+					id,
+					", or ends it done in contact" if m == spotter else "",
+					Order.steps(t, m, order, []),
+					String(spotter.name) if spotter != null else "<none>",
+				],
 		)
 
 
 ## Wait for the crew's radio to place the invader and the first ambush order after it, keeping the
 ## room the leader `lead` stands in at the end of each physics frame, read back for the order's own
-## `frame`: `{ order, room }`, or {} when the test ended (a set-up finding: nobody placed it, no
+## `frame`: `{ order, room, spotter }` (`spotter` the member whose COMBAT callout first placed the
+## invader), or {} when the test ended (a set-up finding: nobody placed it, no
 ## order, or the leader out of the living room on the order's frame).
 func _first_ambush(t: TestContext, lead: Node2D) -> Dictionary:
 	var crew: Array = CREW.map(func(id): return t.actor(id))
@@ -116,7 +125,7 @@ func _first_ambush(t: TestContext, lead: Node2D) -> Dictionary:
 				% room_then,
 	):
 		return {}
-	return { "order": order, "room": room_then }
+	return { "order": order, "room": room_then, "spotter": _sightings(t, crew)[0].get("speaker") }
 
 
 ## The COMBAT callouts of the crew `crew` that place a hostile.
