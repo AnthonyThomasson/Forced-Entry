@@ -353,10 +353,10 @@ class WrapperTests(unittest.TestCase):
         return int(m.group(1)) if m else 1
 
     def test_the_merged_totals_line_names_the_unrun_von_tests_apart(self):
-        code, out = self.run_wrapper("von_skips", "--jobs=2")
+        code, out = self.run_wrapper("von_skips", "--jobs=2", "--domain=ai,physics")  # no perf phase: two processes
         self.assertEqual(code, 0, out)
         self.assertRegex(out, r"(?m)^2 passed, 0 failed, 0 timed out, 6 skipped \(4 need Von, not run: --require-von\), 0 gap  \(2 shards\)  load [0-9.]+$")
-        out = self.run_wrapper("clean", "--jobs=2")[1]
+        out = self.run_wrapper("clean", "--jobs=2", "--domain=ai,physics")[1]
         self.assertRegex(out, r"(?m)^0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  \(2 shards\)  load [0-9.]+$")
 
     def test_the_jobs_default_is_every_core_for_the_whole_suite_and_one_for_a_selection(self):
@@ -898,6 +898,95 @@ class SlotPoolTests(unittest.TestCase):
         self.assertLess(lines.index(header), next(i for i, l in enumerate(lines) if "passed," in l), "before the tests")
         totals = next(l for l in lines if re.match(r"^\d+ passed, ", l))
         self.assertRegex(totals, r"  load 7\.77$")
+
+
+FAKE_PHASES_GODOT = r"""#!/usr/bin/env bash
+# Stands in for Godot: logs `start <selection args>` and, after $FAKE_SLEEP seconds, `end <selection args>` to $FAKE_LOG, and
+# writes a report of one passing test: perf/p for a run of the perf domain alone, a/s<shard> for a shard.
+for a in "$@"; do [ "$a" = "--import" ] && exit 0; done
+log=""; out=""; sel=""; id="a/whole"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --log-file) log="$2"; shift ;;
+    --out=*) out="${1#--out=}" ;;
+    --shard=*) sel="$sel $1"; id="a/s${1#--shard=}" ;;
+    --domain=perf) sel="$sel $1"; id="perf/p" ;;
+    --id=*|--domain=*|--skip-domain=*|--repeat=*) sel="$sel $1" ;;
+  esac
+  shift
+done
+echo "Godot Engine v4.4" > "$log"
+echo "start$sel" >> "$FAKE_LOG"
+sleep "${FAKE_SLEEP:-0.5}"
+echo "end$sel" >> "$FAKE_LOG"
+printf '{"results": [{"id": "%s", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$id" "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
+echo "1 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
+exit 0
+"""
+
+
+class PerfPhaseTests(unittest.TestCase):
+    """Perf tests are held back from the shards and run after every shard has ended, alone in one process."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="perf_phase_"))
+        cls.fake = cls.tmp / "fakegodot"
+        cls.fake.write_text(FAKE_PHASES_GODOT)
+        cls.fake.chmod(0o755)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def setUp(self):
+        self.work = Path(tempfile.mkdtemp(dir=self.tmp))
+        self.log = self.work / "log.txt"
+
+    def run_wrapper(self, *args):
+        """(output, the fake engine's log lines, the merged report written for --failed)."""
+        env = dict(os.environ, GODOT=str(self.fake), TMPDIR=str(self.work), FAKE_LOG=str(self.log),
+                   GAME_TEST_SLOT_DIR=str(self.work / "slots"), GAME_TEST_SLOT_POLL="0.05")
+        env.pop("GAME_TEST_JOBS", None)
+        r = subprocess.run(["bash", str(RUN), "--no-lint", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        report = next(self.work.glob("example_godot_last_report_*.json"), None)
+        lines = self.log.read_text().splitlines() if self.log.exists() else []
+        return r.stdout + r.stderr, lines, json.loads(report.read_text()) if report else None
+
+    def test_with_shards_perf_runs_after_every_shard_alone_in_one_process(self):
+        out, lines, report = self.run_wrapper("--jobs=2")
+        starts = [l for l in lines if l.startswith("start")]
+        self.assertEqual(sorted(starts[:2]), ["start --shard=0/2 --skip-domain=perf", "start --shard=1/2 --skip-domain=perf"],
+                         "the shards leave perf out\n" + "\n".join(lines))
+        self.assertEqual(starts[2:], ["start --domain=perf"], "then one process of the perf tests alone")
+        perf_start = lines.index("start --domain=perf")
+        self.assertEqual(sorted(lines[:perf_start].count(f"end --shard={i}/2 --skip-domain=perf") for i in (0, 1)), [1, 1],
+                         "both shards have ended before it starts")
+        self.assertRegex(out, r"(?m)^3 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  \(2 shards\)  load [0-9.]+$")
+        self.assertEqual(sorted(r["id"] for r in report["results"]), ["a/s0/2", "a/s1/2", "perf/p"],
+                         "the perf result is in the merged report --failed reads")
+
+    def test_repeat_applies_to_the_perf_phase_too(self):
+        _, lines, _ = self.run_wrapper("--jobs=2", "--repeat=3")
+        self.assertIn("start --repeat=3 --domain=perf", lines)
+
+    def test_nothing_is_held_back_with_one_process_or_a_selection_without_perf(self):
+        for args in (["--jobs=1"], ["--id=a/x,b/y", "--jobs=1"], ["--domain=perf", "--jobs=2"], ["--id=perf/p", "--jobs=2"]):
+            with self.subTest(args=args):
+                self.log.unlink(missing_ok=True)
+                _, lines, _ = self.run_wrapper(*args)
+                self.assertEqual(len([l for l in lines if l.startswith("start")]), 1, lines)
+                self.assertNotIn("--skip-domain=perf", " ".join(lines))
+        self.log.unlink(missing_ok=True)
+        _, lines, _ = self.run_wrapper("--domain=ai,physics", "--jobs=2")
+        self.assertEqual(len([l for l in lines if l.startswith("start")]), 2, "no perf phase when perf is not selected")
+
+    def test_the_perf_phase_runs_the_perf_part_of_a_mixed_selection(self):
+        _, lines, _ = self.run_wrapper("--domain=ai,perf", "--jobs=2")
+        starts = [l for l in lines if l.startswith("start")]
+        self.assertEqual(starts[-1], "start --domain=perf", "the domains are narrowed to perf, not added to")
+        self.assertTrue(all("--skip-domain=perf" in l for l in starts[:-1]))
 
 
 class LintReportTests(unittest.TestCase):

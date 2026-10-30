@@ -72,6 +72,10 @@
 #                   $TMPDIR, falling back to the declared timeout); Von tests all stay in shard 0. One combined
 #                   summary and slowest list is printed, the totals line ending with the 1-minute load, which a line
 #                   before the first test prints too; exit 1 if any shard failed. Not used with --list/--self-test.
+#                   With more than one process the perf-domain tests are held back from the shards and run after every
+#                   shard has ended, alone in one process (a slot), then folded into the combined summary, totals and
+#                   --failed report; --repeat applies to that run too. With one process (a selection, --windowed, a
+#                   selection of perf alone) nothing is held back.
 #   --fail-fast     stop after the first FAIL / TIMEOUT (per shard when sharded)
 # Output
 #   --summary       print only the non-passing tests and the totals (best for an agent or a hook)
@@ -262,10 +266,19 @@ fi
 if [[ -n "${GAME_TEST_JOBS:-}" ]]; then
   [[ "$GAME_TEST_JOBS" =~ ^[0-9]+$ && "$GAME_TEST_JOBS" -ge 1 ]] || { echo "GAME_TEST_JOBS wants a number" >&2; exit 2; }
 fi
+# The domains the selection args name with --domain (comma list, every flag joined), "" for none.
+domains_of() {
+  local x d=""
+  for x in "$@"; do case "$x" in --domain=*) d="$d,${x#--domain=}" ;; esac; done
+  echo "${d#,}"
+}
+
 # The number of processes for a run() with these arguments (the selection args it was called with + the global ones),
-# capped by GAME_TEST_JOBS.
+# capped by GAME_TEST_JOBS. A selection of the perf domain alone is one process: perf runs alone, so sharding it buys nothing.
 jobs_for() {
-  local n
+  local n d
+  d=$(domains_of "$@")
+  if [[ -n "$d" && -z "$(echo "$d" | tr ',' '\n' | grep -vx perf || true)" ]]; then echo 1; return; fi
   n=$(jobs_wanted "$@")
   if [[ -n "${GAME_TEST_JOBS:-}" && $n -gt $GAME_TEST_JOBS ]]; then n=$GAME_TEST_JOBS; fi
   echo "$n"
@@ -499,6 +512,25 @@ scan_log() {
   return $bad
 }
 
+# Whether a sharded run with these selection args has perf tests to run after its shards: perf is neither skipped nor
+# left out of the --domain / --id / --failed selection, and tests/perf holds a test.
+perf_selected() {
+  local x d ids="" failed="" skip=""
+  for x in "$@"; do
+    case "$x" in
+      --id=*) ids="$ids,${x#--id=}" ;;
+      --failed=*) failed="${x#--failed=}" ;;
+      --skip-domain=*) skip="$skip,${x#--skip-domain=}" ;;
+    esac
+  done
+  d=$(domains_of "$@")
+  [[ ",$skip," == *",perf,"* ]] && return 1
+  [[ -n "$d" && ",$d," != *",perf,"* ]] && return 1
+  [[ -n "$ids" && ",$ids" != *",perf/"* ]] && return 1
+  [[ -n "$failed" && -z "$ids" ]] && ! grep -q '"id": "perf/' "$failed" 2>/dev/null && return 1
+  [[ -n "$(find tests/perf \( -name '*_test.gd' -o -name '*_suite.gd' \) 2>/dev/null | head -1)" ]]
+}
+
 # A process's lines left out where several processes make one run (a sharded run, a --repeat with native suites):
 # its banner, totals, FLAKY / FAILING lines and slowest list, printed once for every process together instead.
 QUIET='^(Godot Engine|Godot [0-9]|Running [0-9]+ test|[0-9]+ passed, |Report: |Slowest: |FLAKY |FAILING |$)'
@@ -653,16 +685,20 @@ run() {
   fi
 
   local costs_args=() shard_args=()
-  local dirs=() pids=() i status=0 pid fail_fast=0
+  local dirs=() pids=() i status=0 pid fail_fast=0 perf_phase=0
   for x in "$@" ${args[@]+"${args[@]}"}; do [[ "$x" == "--fail-fast" ]] && fail_fast=1; done
   if [[ $jobs -gt 1 ]]; then
     # Every shard reads the same costs snapshot (the file is only rewritten once they have all finished), so they
     # all compute the same split. Each one's output is printed once they have all finished.
     [[ -f "$COSTS" ]] && costs_args=("--costs=$COSTS")
+    # The perf tests' single-frame maxima miss from the load of parallel shards: they are left out of the shards and
+    # run alone once every shard has ended (below).
+    perf_selected "$@" ${args[@]+"${args[@]}"} && perf_phase=1
     for ((i = 0; i < jobs; i++)); do
       out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
       dirs+=("$out")
       shard_args=("--shard=$i/$jobs")
+      [[ $perf_phase -eq 1 ]] && shard_args+=("--skip-domain=perf")
       godot_run "$out" "$@" ${args[@]+"${args[@]}"} ${costs_args[@]+"${costs_args[@]}"} "${shard_args[@]}" \
         >"$out/stdout.txt" 2>&1 &
       pids+=($!)
@@ -676,6 +712,17 @@ run() {
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     dirs+=("$out")
     live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
+  fi
+  if [[ $perf_phase -eq 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
+    # The selection's perf tests (its other --domain flags dropped: they would add domains, not narrow to perf), in one
+    # process with the machine to itself, --repeat and the rest of the selection as given.
+    local phase=() y
+    for y in "$@" ${args[@]+"${args[@]}"}; do
+      case "$y" in --domain=*) ;; *) phase+=("$y") ;; esac
+    done
+    out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
+    dirs+=("$out")
+    live_run "$out" ${phase[@]+"${phase[@]}"} --domain=perf || status=1
   fi
   if [[ $repeat -gt 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
     # The native suites the run met, each run again in N-1 processes, one after another (a suite's own files are
