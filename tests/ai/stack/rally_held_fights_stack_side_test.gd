@@ -65,10 +65,7 @@ func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var members: Array = [t.actor(&"m1"), t.actor(&"m2")]
 	var squad: Node = t.world.squad(&"invader")
-	if not t.require(
-			t.world.player_stack != null and squad.leader() == me,
-			"premise: the human has its stack radio and leads its squad (Lead the team)",
-	):
+	if not Stack.require_human_leads(t, squad, me):
 		return
 	HeldFight.arm(t, &"d")
 	if not await _stack_up(t, [me] + members, squad):

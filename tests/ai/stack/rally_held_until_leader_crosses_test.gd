@@ -94,13 +94,7 @@ func run(t: TestContext) -> void:
 ## The set-up's premises: the human has its stack radio, handed its squad, and leads it; each NPC
 ## carries one stun (armed here as a match arms an invader).
 func _premises(t: TestContext, squad: Node, me: Node, members: Array) -> bool:
-	var stack: Node = t.world.player_stack
-	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
-		return false
-	if not t.require(
-			stack.get("squad") == squad and squad.leader() == me,
-			"premise: the human's stack is handed its squad, and the human leads (Lead the team)",
-	):
+	if not Stack.require_human_leads(t, squad, me):
 		return false
 	for m: Node in members:
 		Grenades.arm(m, 1, 0)

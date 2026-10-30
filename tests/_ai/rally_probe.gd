@@ -53,10 +53,7 @@ static func arm(t: TestContext, stuns: int, frags: int) -> bool:
 static func rallied(t: TestContext, w: Dictionary) -> bool:
 	var me := t.actor(&"me")
 	var squad: Node = t.world.squad(&"invader")
-	if not t.require(
-			t.world.player_stack != null and squad.leader() == me,
-			"premise: the human has its stack radio and leads its squad (Lead the team)",
-	):
+	if not Stack.require_human_leads(t, squad, me):
 		return false
 	var nodes: Array = [me] + members(t)
 	if not await FollowWatch.step_up(t, w, nodes, squad):
