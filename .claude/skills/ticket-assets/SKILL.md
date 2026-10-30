@@ -1,6 +1,7 @@
 ---
 name: ticket-assets
 description: Extra rules for a ticket labelled `assets`, `graphics` or `audio` (with `ticket-story`) - ask for reference material while grilling, a showroom of 2–3 variants per new asset, sound, effect or animation before the plan, the picks recorded in the plan, the showroom deleted before the audit. Invoked from `ticket`.
+model: claude-opus-5-5
 ---
 
 # Ticket: assets

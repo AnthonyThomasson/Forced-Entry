@@ -11,8 +11,8 @@ refuses it), so a worker runs it (`orchestration`; load it if this session has n
 
 1. **Start it.** The session began when the branch was made: the date on the last line of
    `git reflog show --date=iso <branch>`. Start the worker with
-   `orca orchestration worker-start --task-title "retro" --spec "<spec>" --worktree current --agent claude` and name its
-   tab `retro` (`orca terminal rename`, the handle read from `worker-list` as `ticket` → "Work in phases" says).
+   `orca orchestration worker-start --task-title "retro" --spec "<spec>" --worktree current --agent claude
+   --model claude-sonnet-5-5` and name its tab `retro` (`orca terminal rename`, the handle read from `worker-list` as `ticket` → "Work in phases" says).
    Spec, its first line `/mattpocock-skills:retro`, then:
    - **Session:** the ticket (`#<n>`, read with `gh issue view <n> --comments`; none: the branch's work), worktree and
      branch. Its transcripts are the `*.jsonl` in `~/.claude/projects/<slug>/` (`<slug>`: the worktree's absolute path

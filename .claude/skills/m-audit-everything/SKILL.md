@@ -2,7 +2,7 @@
 name: m-audit-everything
 description: Audit the WHOLE codebase for rot (orphaned mechanisms, dead code, duplication, unpublished coupling, domains due a split, stale docs) as a file:line checklist, via a phased Orca orchestration. Manual only (`/m-audit-everything`).
 disable-model-invocation: true
-model: claude-sonnet-5-5
+model: claude-opus-5-5
 effort: xhigh
 ---
 
@@ -54,7 +54,7 @@ the whole suite). Its rows feed the dead-code briefs (1a, 1b).
 start every worker of the wave, then wait:
 
 ```bash
-orca orchestration worker-start --task-title "<name>" --spec "<spec>" --worktree current --agent claude --json   # one per worker
+orca orchestration worker-start --task-title "<name>" --spec "<spec>" --worktree current --agent claude --model claude-sonnet-5-5 --json   # one per worker
 orca orchestration check --wait --types "worker_done,escalation,question" --timeout-ms 900000 --json
 ```
 

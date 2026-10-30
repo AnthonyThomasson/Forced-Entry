@@ -1,6 +1,7 @@
 ---
 name: ticket-bug
 description: Work a ticket labelled `bug` in phases - grill the user to an agreed expected-vs-actual, then reproduce, fix and green it with the `fix` skill, then feedback and report. Invoked from `ticket`.
+model: claude-opus-5-5
 ---
 
 # Ticket: bug

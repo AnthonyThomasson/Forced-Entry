@@ -1,6 +1,7 @@
 ---
 name: ticket
 description: Route a ticket (GitHub issue) to its `ticket-<label>` skill and hold the phases every kind shares (plan on the ticket, rebase, show-me, feedback gate, audit, report). Load first whenever asked to work on a ticket.
+model: claude-opus-5-5
 ---
 
 # Ticket
@@ -84,7 +85,8 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   | a spike's investigation | `investigation` |
   | the session's retro (`session-retro`) | `retro` |
 
-  Pass the name as `--task-title` to `worker-start`, then name the tab:
+  Start every worker on Sonnet (`--agent claude --model claude-sonnet-5-5`; you, the coordinator, stay on Opus). Pass
+  the name as `--task-title` to `worker-start`, then name the tab:
   `orca terminal rename --terminal <agentTerminalHandle> --title "<name>"`. The handle is `agentTerminalHandle` of
   the `orca orchestration worker-list --json` row whose `dispatchId` is the `worker-start` receipt's (the row appears
   a few seconds after the start; the receipt itself holds no handle).
@@ -190,7 +192,7 @@ tree, so the audit reviews against the current `origin/main`. Say so when nothin
 
 One agent runs `mattpocock-skills:code-review` and `audit`. Both see committed work (`audit` also staged): the coding
 workers commit theirs; tell it which files are only in the working tree (a `wrap-up`'s skill and doc edits). Start
-it with `orca orchestration worker-start --task-title "review" --spec "<spec>" --worktree current --agent claude` and
+it with `orca orchestration worker-start --task-title "review" --spec "<spec>" --worktree current --agent claude --model claude-sonnet-5-5` and
 name its tab `review`. Spec:
 
 - **Target:** worktree and branch, ticket number, base ref (default `origin/main`).

@@ -1,6 +1,7 @@
 ---
 name: ticket-ai
 description: Extra rules for a ticket labelled `ai` (with `ticket-story`) - research real tactics online while grilling, scenario tests on the whole AI pipeline with the real Von server, rest of the AI left on. Invoked from `ticket`.
+model: claude-opus-5-5
 ---
 
 # Ticket: ai
