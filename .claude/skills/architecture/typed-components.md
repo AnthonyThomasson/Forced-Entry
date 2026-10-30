@@ -2,7 +2,7 @@
 
 The rest of `SKILL.md`'s "Typed components" convention, from the AI's parts on.
 
-And its parts are reached by preload const with
+The AI's parts are reached by preload const with
   **no `class_name`**, as its modules always were: the controller's `_cadence`, `_comms` and `_reflexes`; behaviour's
   `task`, `fight`, `errand`, `entries`, `grenades`, `orders` and `gait`; entry's leaves `state` and `world` and its ten
   parts (`claim`, `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold`, `radio`); combat's

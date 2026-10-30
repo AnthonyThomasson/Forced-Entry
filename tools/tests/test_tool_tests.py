@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SELF = "tools.tests.test_tool_tests"
 # A tool file and a file outside the tools no test names: built here, so not even this module's code names them.
 UNNAMED = f"tools/no_tool_{os.getpid()}.py"
-OUTSIDE = f"docs/no_tool_{os.getpid()}.md"
+OUTSIDE = f"no_tool_{os.getpid()}.md"
 # The tool test modules a game-only commit (scenes/, tests/, project.godot) can make the pre-commit hook run. Adding a
 # module here means the hook runs it on game commits: time it first.
 GAME_COMMIT_PICKS = {"tools.tests.test_dump_sounds", "tools.tests.test_load_check", "tools.tests.test_run_tests_flags"}
@@ -77,6 +77,13 @@ class PickTests(unittest.TestCase):
         self.assertIn("tools.tests.test_run_tests_flags", self.modules("scenes/testing/test_batch.gd"),
                       "it reads the flags of every script in scenes/testing/")
         self.assertIn("tools.tests.test_gdstyle_reflow", self.modules("gdstyle.toml"))
+
+    def test_a_split_skill_file_or_a_doc_picks_the_skill_pointer_test(self):
+        for path in (".claude/skills/architecture/SKILL.md", ".claude/skills/domain-testing/SKILL.md",
+                     ".claude/skills/domain-testing/perf.md", ".claude/skills/architecture/tuning-holders.md",
+                     ".claude/skills/architecture/interfaces/05-pushable-contract.md", "docs/hearing.md"):
+            with self.subTest(path=path):
+                self.assertIn("tools.tests.test_skill_pointers", self.modules(path))
 
     def test_a_path_a_test_writes_into_a_repo_of_its_own_is_no_read_of_the_checkouts_file(self):
         coverage = {"tools.coverage.tests.test_runner_cli", "tools.coverage.tests.test_instrument",
@@ -192,7 +199,7 @@ class ScriptTests(unittest.TestCase):
     Its tools/__init__.py keeps the discovery to tools/tests/, as this checkout's does. test_a names tools/a.sh and
     reads docs/read.md from its checkout; test_other names tools/c.sh (a.sh's name after a rename) and writes
     docs/fixture.md into a repo of its own; test_kit reads tools/kit/plugins/ (no package) through a variable and the
-    top-level docs/ whole; tools/test_script.py, a test script, names tools/script_only.sh. tools/b.sh and
+    top-level notes/ whole; tools/test_script.py, a test script, names tools/script_only.sh. tools/b.sh and
     docs/notes.md are named by no test."""
 
     def setUp(self):
@@ -208,10 +215,10 @@ class ScriptTests(unittest.TestCase):
             "tools/tests/test_other.py": SENTINEL.replace("{name}", "other").replace(
                 "# {names}", 'TOOL = "tools/c.sh"\nFIXTURE = Path("/tmp/repo") / "docs" / "fixture.md"'),
             "tools/tests/test_kit.py": SENTINEL.replace("{name}", "kit").replace(
-                "# {names}", 'KIT = ROOT / "tools" / "kit"\nPLUGINS = KIT / "plugins"\nDOCS = ROOT / "docs"'),
+                "# {names}", 'KIT = ROOT / "tools" / "kit"\nPLUGINS = KIT / "plugins"\nNOTES = ROOT / "notes"'),
             "tools/kit/__init__.py": "", "tools/kit/plugins/p.py": "",
             "tools/test_script.py": 'TOOL = "tools/script_only.sh"\n', "tools/script_only.sh": "",
-            "docs/notes.md": "", "docs/read.md": "", "docs/fixture.md": "",
+            "docs/notes.md": "", "docs/read.md": "", "docs/fixture.md": "", "notes/n.md": "",
         }
         for rel, text in files.items():
             (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -262,6 +269,11 @@ class ScriptTests(unittest.TestCase):
 
     def test_staged_a_file_in_a_folder_read_through_a_variable_runs_its_reader(self):
         self.stage("tools/kit/plugins/p.py")
+        code, out, ran = self.run_script("--staged")
+        self.assertEqual((code, ran), (0, ["kit"]), out)
+
+    def test_staged_a_file_in_a_top_level_folder_read_whole_runs_its_reader(self):
+        self.stage("notes/n.md")
         code, out, ran = self.run_script("--staged")
         self.assertEqual((code, ran), (0, ["kit"]), out)
 

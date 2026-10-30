@@ -9,6 +9,6 @@ requires that premise: the stack handed its squad, which the human leads), else 
 `Stack.slot_point`) and the human's radio through the usual `Entry.calls(t, step, &"me")`; `Stack.walk` takes the puppet through points
 (`Stack.crossing(door)` goes in through a door). A late AI joiner is held back like in `entry_ally_joins_stack` (`tuning:entry:enabled` false,
 `movement:speed` 0) until the human has its slot. `stack_player_slot_von` runs the whole thing with the real Von server (`requires_von`).
-`stack_ai_goes_round_player_in_slot` declares Main's match instead (`s.declared_match`, below) and its human is the player's own character and
+`stack_ai_goes_round_player_in_slot` declares Main's match instead (`s.declared_match`, `test-setup.md`) and its human is the player's own character and
 controller, given its stack through `MatchBuilder.bind_player`. The UI half is `tests/ui/stack_markers_draw_test.gd` (a fake stack with a
 `view()`), the wiring `tests/general/stack_player_wiring_test.gd`.

@@ -31,9 +31,12 @@ through them. Fixtures and caches are no code. The rules:
   - a changed file outside tools/ and .githooks/ runs every test module that reads it from the checkout: a Python path
     the test's own code, or a helper symbol it imports, builds on the checkout (`ROOT / "gdstyle.toml"`, ROOT being
     `Path(__file__).resolve().parents[2]`, or a name assigned such a path) that is the file or a listed folder holding
-    it. A path written into a repo or temp dir of the test's own (`repo / "scenes" / "main.gd"`) is no read, and neither
-    is a tool that runs the file (tools/run_tests.sh names scenes/testing/test_batch.gd): a test that runs a tool on the
-    checkout names the game file it depends on (test_load_check's `ROOT / "scenes" / "general" / "command_server.gd"`);
+    it, a top-level one included: unlike a name, which ties a test only to the tools, a folder the test builds whole is
+    one it reads all of (`ROOT / "docs"` reads docs/hearing.md; a game commit's picks are held to GAME_COMMIT_PICKS by
+    tools/tests/test_tool_tests.py). A path written into a repo or temp dir of the test's own (`repo / "scenes" /
+    "main.gd"`) is no read, and neither is a tool that runs the file (tools/run_tests.sh names
+    scenes/testing/test_batch.gd): a test that runs a tool on the checkout names the game file it depends on
+    (test_load_check's `ROOT / "scenes" / "general" / "command_server.gd"`);
   - a changed shared test helper (a .py in a package named tests that is not a test module: support.py, __init__.py), or
     a changed tool file (not a test script) no test module or test script names, runs the whole discovery;
   - a changed file outside the tools no test reads, a test script, or a tool file only test scripts name
@@ -191,8 +194,11 @@ class Code:
         return self._imports(path) or any(self.names_folder(f) for f in listed_folders(path))
 
     def reads(self, path: str) -> bool:
-        """Whether this code builds `path`, or a listed folder holding it, on the checkout."""
-        return path in self.rooted or any(f in self.rooted for f in listed_folders(path))
+        """Whether this code builds `path`, or a listed folder holding it (a top-level one too), on the checkout."""
+        top = path.partition("/")[0]
+        package = (ROOT / top / "__init__.py").is_file()
+        folders = [*listed_folders(path), *([top] if "/" in path and not package else [])]
+        return path in self.rooted or any(f in self.rooted for f in folders)
 
     def names_folder(self, folder: str) -> bool:
         """Whether this code names `folder` whole: a path ending at it (its own, or its parent's name and its own), or,
@@ -299,7 +305,7 @@ def rooted_paths(nodes: list, at: str) -> set[str]:
             if base is None or not (isinstance(e.right, ast.Constant) and isinstance(e.right.value, str)):
                 return None
             joined = posixpath.normpath(posixpath.join(base, e.right.value))
-            return None if joined.startswith("..") else joined.removeprefix(".")
+            return None if joined.startswith("..") else "" if joined == "." else joined
         return None
 
     assigns = []

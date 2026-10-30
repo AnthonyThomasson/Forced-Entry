@@ -20,9 +20,9 @@
    beat it is blocked; one that beats it always penetrates, so an armoured body reads `penetrated == false` as "stopped by the armour" (it
    then takes only the armour's blunt share, no wound). The
    projectile and the grenade's `Explosion` (Projectile System: the frag's blast, `Explosion.frag`) are the strikers that call `take_hit`
-   (a blast hit carries `speed_factor` 0 and `height` −1: its shove is the grenade's own `blast_impulse`, applied through the pushable contract below, a
+   (a blast hit carries `speed_factor` 0 and `height` −1: its shove is the grenade's own `blast_impulse`, applied through the pushable contract (interface 5), a
    character's through `blast_push`); a melee punch shoves through the "pushable"
-   contract below, deals its damage through `take_damage(amount)` (the character's plain damage entry, no HitInfo;
+   contract (interface 5), deals its damage through `take_damage(amount)` (the character's plain damage entry, no HitInfo;
    tests wound a character with it too) and does **not** deform, and reads `get_surface()` only for the struck
    `material` it posts. `Explosion` finds the characters under the world by the group `characters` (interface 7), reads their `is_dead`, `facing`, `get_surface()`, and calls
    `take_stun` / `take_damage` / `blast_push` / `take_hit` on them, and `apply_impulse` on a pushable (capped by `get_mass()`): the sanctioned surface. Its

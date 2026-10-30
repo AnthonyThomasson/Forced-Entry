@@ -56,7 +56,7 @@
      pixel rows and free themselves (Despawner-tracked), and a frag's scorch mark in the world's `ScorchDecals` layer (batched like `BloodDecals`,
      capped by `Despawner.max_scene_objects`). Looks and timings are `PhysicsExplosionConfig.looks`; `PhysicsExplosionConfig.fx_enabled` off
      spawns none of it. `Ragdoll.wake()` restarts a sleeping body's clocks so an explosion's push is simulated (the character's `blast_push`).
-   - `PhysicsDeformConfig` (`class_name` static holder, see below) — the deformation tuning
+   - `PhysicsDeformConfig` (`class_name` static holder, `tuning-holders.md`) — the deformation tuning
 	 (`depth_per_damage`, `max_depth`, `chunk_damage`, `max_impacts`, `update_collider`) that Objects reads
 	 directly when recording damage; `PhysicsRagdollConfig` (static holder) — the ragdoll solver's tuning
 	 (read only by `Ragdoll` itself).

@@ -143,11 +143,13 @@ Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart fro
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
 only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-nine `class_name` static holders, one per topic, each with 15 vars or fewer
 (`docs/adr/0003-config-holders-split-by-topic.md`); a domain's holders share its stem, so
-The holders, domain by domain, and what each holds: `tuning-holders.md`.
+`grep -r "class_name Character.*Config" scenes` lists the Character ones, and each domain skill says what each holds.
+World-Gen's `LayoutRules` (which rooms may
 hold the front door or an exit, which room types may share a door) is a rules table in the same style, not
 tuning. There is no `Config` autoload. Three more static holders are not tuning but shared ids (General, interface 11):
 `PhysicsLayers` (a physics-layer id, the same role `Wall.Side` plays for doorway sides), `DrawLayers` (the shared draw-order
 ladder every domain's z knob starts from) and `LightMasks` (the occluder bits, shadow masks and light layers).
+The holders, domain by domain, and what each holds: `tuning-holders.md`.
 
 
 ## Cross-cutting conventions

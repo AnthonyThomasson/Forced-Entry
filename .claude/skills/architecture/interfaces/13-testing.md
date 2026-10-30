@@ -1,5 +1,5 @@
 13. **Testing → every domain** (a second composition root, like `main.gd`)
-    `scenes/testing/` builds a test's world and drives it through the interfaces above only:
+    `scenes/testing/` builds a test's world and drives it through the other interfaces only:
     WorldGen (1, incl. the catalogue lookups) or an arena / hand-laid room layout from the three
     factories (2, incl. `WallFactory.openings_for`), staged as Main stages a match, through the match builder (23: `MatchBuilder.stage`
     over the house, layout or arena it built with its objects in place, so `NavBuilder` and `nav_updater.gd` (9) and the dusk lighting

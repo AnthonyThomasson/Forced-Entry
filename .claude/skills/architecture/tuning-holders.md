@@ -2,7 +2,6 @@
 
 The catalogue `SKILL.md` points to from the dependency graph's tuning note.
 
-`grep -r "class_name Character.*Config" scenes` lists the Character ones, and each domain skill says what each holds.
 **Projectile:** `BallisticsFlightConfig` (speeds, a bullet's height and the fly-over, a surfaceless collider),
 `BallisticsPenetrationConfig` (going through, the blood a round carries out), `BallisticsRicochetConfig`.
 **Physics:** `PhysicsConfig` (the wall mask, the debris and hit-particle switches and particle caps),
@@ -42,4 +41,4 @@ weight bands, seed, prewarm), `SoundDeafnessConfig` and `SoundVehicleConfig`.
 **AI:** `SquadFollowConfig` (the squads' follow spacing and leash, `docs/leadership.md` LD21 to LD23).
 **General:** `CameraConfig` (the camera's follow, framing, zoom and hand pan) and `CameraShakeConfig` (its explosion shake).
 A new tunable goes in the holder of its topic; one that fits no topic starts a holder of its own, never a kept family
-holder unless it is a family-wide switch or a per-kind row (ADR 0003). World-Gen's `LayoutRules` (which rooms may
+holder unless it is a family-wide switch or a per-kind row (ADR 0003).

@@ -28,7 +28,7 @@ read from the folder's `*_test.gd` files, so a new test shows up with no edit to
   slows its sim rather than catching up, as under `--fixed-fps`, and a frame budget measures the iteration a frame ran
   in (`Perf.frame_stats`), not the pacing waits between. So a panel run gives the verdicts of
   `tools/run_tests.sh --windowed`, its perf numbers included: some frame budgets do not hold windowed on this machine
-  yet (Performance tests, "Rendered too"), so a perf test the panel fails is one `--windowed` fails too; `tests/_harness/frame_step_test.gd` checks the stepping (each physics frame waited
+  yet (`perf.md`, "Rendered too"), so a perf test the panel fails is one `--windowed` fails too; `tests/_harness/frame_step_test.gd` checks the stepping (each physics frame waited
   brings a process frame, after slow frames).
 - **Reports out of the checkout:** gdUnit writes a run's JUnit and HTML reports to `res://reports/` unless given `-rd`
   (`run_tests.sh` always gives it, the panel never does); the hook moves a run left on that default to
