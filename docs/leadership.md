@@ -493,7 +493,9 @@ same doorway, an exterior door's kitchen; a request naming the doorway by id and
 `ai/combat/ambush_post_shielded_from_bang` (scripted: a room laid with a wardrobe; the post is hidden from every slot and pie step and
 shielded, crouched, from every landing of a frag thrown in by the doorway, both by the test's own copies of the geometry and the landings;
 frag only: no post in that room has furniture within the flash's cover reach on every landing's line, as above),
-`ai/combat/ambush_survives_stun_entry` (real Von: a shielded ambusher against a real two-invader stack whose suspect-room entry bangs the
+`ai/combat/ambush_post_cover_through_body` (scripted: a body never takes a post's cover; a room where low cover on the line to the threshold
+decides among the hidden posts, a bystander standing between the post and its shoe rack, and the post keeps the rack on its line, bodies
+looked through), `ai/combat/ambush_survives_stun_entry` (real Von: a shielded ambusher against a real two-invader stack whose suspect-room entry bangs the
 room is not blinded and fires before either invader does), `ai/combat/ambush_primed_fires_on_line_open` (scripted: an ambusher spawned
 before the entrant fires on the frame the entrant's step opens the line), `ui/command_menu_items`, `ui/order_markers_draw` (LD16); the
 bang's own landings are pinned unchanged by the `ai/grenade/bang_*` tests.
@@ -1004,12 +1006,14 @@ navigation map shares it, keyed by the geometry's and the sight's tunables and t
 recipient's decision snapshot works it out, and the others read it. The grenade landings are counted only for the posts tied on the
 least `seen` and side among those still open (`_best_post`). Every rank below `seen` adds up to less than one `RANK_SEEN`, so no other
 post can be picked, and the picks are those of the full ranking: `ai/combat/ambush_posts_capture_terrace` and `_house` pin every
-member's post at every doorway of two houses to a capture of it.
+member's post at every doorway of two houses to a capture of it, read off a geometry with no NPC, which keeps a ranking of its own
+worked out as the shared one. The shared ranking itself runs in `ai/combat/ambush_post_cover_through_body`, `perf/ambush_order_stress`
+and the crew scenarios.
 
 `perf/ambush_order_stress` guards it: a crew of three AI defenders in the match guards' house, ordered inside the window to ambush a
 doorway not yet ranked. It was measured headless on 2026-10-30 against 9d078064 (the ranking once a member, every landing of all 80
 counted), in a scratch worktree with the guard copied in. Three alternated pairs were run with the ranking timed in place, each run
-started and ended at a 1-minute load of 3.2 to 3.7, with no other headless Godot. In ms, the guard's max frame, then the ranking per
+started and ended at a 1-minute load of 3.2 to 3.7, with two other headless Godots running. In ms, the guard's max frame, then the ranking per
 order:
 
 | | max frame | ranking per order |
