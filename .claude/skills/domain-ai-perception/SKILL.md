@@ -405,7 +405,7 @@ two posts stand `AMBUSH_SPACING` (44 px) apart. The snapshot's `order` group cal
 **Where an entry's grenade lands (`entry/entry_landings.gd`, `EntryLandings`, static, preloaded, no `class_name`; `docs/grenades.md` G18).**
 The one rule the stack's thrower aims by (the behaviour's `entry/entry_grenade.gd`, `domain-ai-entry`) and an ambush post is shielded by, over
 a way in's entry geometry `g`: `grid(g)` the aim points in order of preference, `Vector2(deep, across)`, `BANG_DEPTHS` (0.85 / 0.7 / 0.55) of
-the room's depth (to its farthest corner along the axis) by `BANG_ACROSS` (0 / 0.2 / -0.2) of its width; `aim(g, spot, deep,
+the room's depth (the geometry's `depth`) by `BANG_ACROSS` (0 / 0.2 / -0.2) of its width; `aim(g, spot, deep,
 across, reach)` the point a grenade thrown from `spot` at that aim point lands at, pulled back along its line to within `reach` (`Vector2.INF` when no point that far
 across is); `lands(g, target)` inside the room `BANG_INSET` (30 px) clear of its walls and at least `BANG_MIN_DEPTH` (120 px) from the
 doorway; `spots(g, reach)` every aim point aimed from the doorway's centre that lands, deduplicated.

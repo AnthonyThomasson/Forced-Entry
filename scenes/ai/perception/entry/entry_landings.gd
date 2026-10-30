@@ -4,7 +4,7 @@ extends RefCounted
 ## stack's thrower aims by (the behaviour's `entry_grenade.gd`) and an ambush post is shielded by
 ## (`entry_posts.gd`). Every call takes the way in's entry geometry `g` (`AgentEntry.geometry`: the
 ## doorway's centre `pos`, the unit normal `out` of the room, `along` its wall, the room's `rect` as
-## `room`). Static, preloaded (no `class_name`).
+## `room` and `depth`, the px it runs in from the door). Static, preloaded (no `class_name`).
 
 ## How deep into the room and how far across it (shares of the room's depth and width) a grenade is
 ## aimed, in order of preference (no deeper than it reaches), the least distance (px) from the door
@@ -20,28 +20,13 @@ const BANG_INSET := 30.0
 ## doorway along its axis and `across` it along the wall, `BANG_DEPTHS` of the room's depth by
 ## `BANG_ACROSS` of its width.
 static func grid(g: Dictionary) -> Array:
-	var depth := _room_depth(g)
+	var depth := float(g["depth"])
 	var width := absf((g["room"] as Rect2).size.dot((g["along"] as Vector2).abs()))
 	var out: Array = []
 	for d: float in BANG_DEPTHS:
 		for a: float in BANG_ACROSS:
 			out.append(Vector2(depth * d, width * a))
 	return out
-
-
-## How deep (px) `g`'s room runs from the doorway, along its axis: to its farthest corner.
-static func _room_depth(g: Dictionary) -> float:
-	var door: Vector2 = g["pos"]
-	var room: Rect2 = g["room"]
-	var depth := 0.0
-	for c: Vector2 in [
-			room.position,
-			Vector2(room.end.x, room.position.y),
-			room.end,
-			Vector2(room.position.x, room.end.y),
-	]:
-		depth = maxf(depth, (door - c).dot(g["out"]))
-	return depth
 
 
 ## The point a grenade thrown from `spot` at the aim point `deep` px into `g`'s room and `across`
