@@ -6,8 +6,8 @@
 Three views, all read from files (no Godot needed):
   1. Domains: each scenes/<domain>/ with its test count (tests/<domain>/**/*_test.gd) — 0 = untested.
   2. Switches: rows of scenes/testing/test_switches.gd that no test turns on/off with s.switch(...).
-  3. Interfaces: `Class.method` names in the `architecture` skill's "vital interfaces" section that
-     never appear in tests/ or scenes/testing/ (a heuristic: a call by name counts as covered).
+  3. Interfaces: `Class.method` names in the `architecture` skill's interface files (interfaces/NN-*.md, in number
+     order) that never appear in tests/ or scenes/testing/ (a heuristic: a call by name counts as covered).
 """
 import re
 from pathlib import Path
@@ -29,8 +29,7 @@ unused = [s for s in switches if f'&"{s}"' not in all_test_text]
 print("  " + (", ".join(unused) if unused else "(all used)"))
 
 print("\n== Interfaces never called by a test ==")
-arch = (ROOT / ".claude/skills/architecture/SKILL.md").read_text()
-section = arch.split("## The vital interfaces", 1)[1].split("### Dependency graph", 1)[0]
+section = "\n".join(p.read_text() for p in sorted((ROOT / ".claude/skills/architecture/interfaces").glob("*.md")))
 # A public member only: `Keybinds._ready` is named in the skill as what Main does NOT call.
 names = sorted(set(re.findall(r"`([A-Z][A-Za-z]+\.[a-z][a-z_]*)\b", section)))
 missing = []

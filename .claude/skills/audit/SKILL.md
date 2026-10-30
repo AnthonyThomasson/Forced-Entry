@@ -28,7 +28,8 @@ git diff --stat                            # unstaged edits (not in the diff)
 
 Empty diff: say so and stop. Never stage files. Unstaged edits are outside the diff but step 5 sees them: report them.
 
-Load `architecture` (the domain table and "The vital interfaces", the whole sanctioned cross-domain surface) and the
+Load `architecture` (the domain table and "The vital interfaces", the whole sanctioned cross-domain surface; read the
+`interfaces/NN-<slug>.md` file of each interface the diff crosses) and the
 skill of every domain the diff touches, once. `scenes/<folder>/` → `domain-<folder>`; sub-domains have their own:
 
 | Path | Skill |
@@ -92,7 +93,8 @@ Same current-state bar as step 4. `AGENTS.md` is a pointer stub.
   claim** rule (`domain-ai-perception`, "The stack"): it names what makes a claim the current entry's, and its test
   has a claim left from an earlier entry through the same doorway. Missing: `file:line` → the scope and that test.
 
-Flag drift as `architecture/SKILL.md:line` or `domain-<name>/SKILL.md:line` → what to change.
+Flag drift as `architecture/SKILL.md:line`, `architecture/interfaces/NN-<slug>.md:line` (or another file beside a
+`SKILL.md`) or `domain-<name>/SKILL.md:line` → what to change.
 
 ## Step 4 — Comments (the comment rules)
 

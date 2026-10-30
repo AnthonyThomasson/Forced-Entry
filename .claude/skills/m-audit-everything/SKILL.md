@@ -225,7 +225,8 @@ survives a move; count the `preload("res://…")` paths, docs and `ext_resource`
 Same bar as comments: concise, present-tense, current state. Read the Phase 1 reports first.
 
 1. **`AGENTS.md`** (5a): a stub pointing at the skills; it says little, all true.
-2. **`architecture`** (5a): domain table, vital interfaces, dependency graph, conventions. The domain count must agree
+2. **`architecture`** (5a): domain table, vital interfaces (the index and each `interfaces/` file), dependency graph,
+   conventions and the files beside `SKILL.md`. The domain count must agree
    everywhere it is stated (`AGENTS.md` ×2; the skill's `description`, intro, table heading):
 
    ```bash
