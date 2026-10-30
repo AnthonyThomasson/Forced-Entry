@@ -402,7 +402,8 @@ stack holds and `view()` says held until the leader's go), `ai/stack/stack_playe
 funnel before the order and steps in after it; the squad's `view()` then no longer says held), `ai/door_stack_suite` (the rule:
 `released` against the order's frame), `general/command_menu_wiring` (LD16), `order_stack_hold_fights_stack_side` (real Von: a defender in
 the kitchen seen through the back door and then hidden, the held members unkillable as the premise: a held member fires from the
-stack's side and none walks into the kitchen while held), `order_stack_hold_retreat_round_body` (scripted: a held member falls back to the
+stack's side and none walks into the kitchen while held; once the fight lapses each is back in its slot),
+`order_stack_hold_retreat_round_body` (scripted: a held member falls back to the
 living room past a teammate standing on its plain way through the kitchen, and goes round the house, never into the kitchen). The
 `order_stack_*` tests cover a stack that goes when ready.
 
@@ -746,15 +747,18 @@ its crew stands beside the hall doorway into the living room: no claim of its ow
 `ai/entry/join_inherited_no_rally` (D30: an AI lead's own claim rallies the sergeant to a doorway and the lead dies while the sergeant is
 on its way; the sergeant leads holding the join, and its claims there give the trooper, its defend cancelled, no join; once the join is
 done, its next claim of its own rallies the trooper). D31's: `ai/stack/rally_held_until_leader_crosses` (the human holds the threshold
-20 s: no joiner crosses, no stun is thrown, each joiner's state reads the held sentence above; the human crosses, both follow it in, the
-kitchen is called clear), `ai/stack/rally_held_fights_stack_side` (the rally split across the back door, E19, since a joiner in file behind
+20 s: no joiner crosses, no stun is thrown, each joiner's state reads the held sentence above; the human crosses, both follow it in with
+no grenade thrown, the kitchen is called clear), `ai/stack/rally_held_fights_stack_side` (the rally split across the back door, E19, since a joiner in file behind
 the human has no line of fire past it; a defender seen through the doorway from the south slot and then hidden: a held joiner fires
-from the stack's side and none walks into the kitchen), `ai/stack/rally_menu_go_stun` (the menu's go with a stun: a stun goes off in the
-kitchen before anyone crosses, then both AIs go in without the human), `rally_menu_go_quiet` (gunfire heard in the kitchen first: no
+from the stack's side and none walks into the kitchen; once the fight lapses each is back in its slot), `ai/stack/rally_menu_go_stun` (the
+menu's go with a stun: a stun goes off in the kitchen before anyone crosses, then both AIs go in without the human),
+`rally_menu_go_stun_spares_another_veto` (a teammate outside the rally radios `bang_off` in the stack: the go's stun still goes off first),
+`rally_menu_go_quiet` (gunfire heard in the kitchen first: no
 grenade, both go in), `rally_menu_go_frag` (a frag first), `ai/stack/rally_walk_away_follows` (LD25: the human walks off, the joins are
 cancelled and both follow it, neither going in), `ai/stack/rally_cancelled_on_leader_death` (LD26), `ui/command_menu_items` (the three go
 items on the doorway and on a teammate, greyed with the tooltip while nobody holding the join carries that grenade, and the requests),
-`ai/door_stack_suite` (`held` / `mode` / `released` over ordered, rallied and released claims) and `ai/stack_member_suite` (a member's own claim: claim, keep and settle, the NPC's and the human's alike; the
+`ai/door_stack_suite` (`held` / `mode` / `released` over ordered, rallied and released claims, and a join left from an earlier rally
+naming no mode) and `ai/stack_member_suite` (a member's own claim: claim, keep and settle, the NPC's and the human's alike; the
 GLOSSARY's stack member). The human's own orders, quiet / stun / frag and held, are LD9's, LD13's and
 LD14's tests, their squads bound.
 

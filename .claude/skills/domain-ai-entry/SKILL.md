@@ -64,8 +64,8 @@ it `done` with no claim) and its side (`claim.ask_side(entry, n)`, the entry's o
 crosses the doorway's view, E19), then stands where `settle` puts it (`member.side`, `member.place`, `member.point`; `member.settle(stack)`, `claim._settle`, for a slot taken otherwise: the side asked for while its wall has room, else the other,
 E21; its place in that side's file; the slot's point, E20; a claim still on a slot a member moved up into counted at the slot it freed) and
 then calls `step(delta)` each tick until it reports done. `claim.me(entry)` is this NPC's own claim as a `DoorStack` reads a member asking about
-itself (`member.me()`, after `claim.sync(entry)` brings the member's `crossed_frame` and `terms` up to date: `{ id, slot, side, want, claim_frame, claim_pos, move_up, step, crossed_frame, into, stuns, frags, order_*, join }`: it never hears its own on the radio). `claim.keep_slot`
-re-picks with that claim through `member.claim` (its side weighed again, unless it is the point, only when the team's side changed, `member.weighs_side`), so a settled claim keeps settling, and a slot
+itself (`member.me()`, after `claim.sync(entry)` brings the member's `crossed_frame` and `terms` up to date: `{ id, slot, side, want, claim_frame, claim_pos, move_up, step, crossed_frame, into, stuns, frags, join, order_* }`, the order fields `orders.terms(entry)`: it never hears its own on the radio). `claim.keep_slot`
+re-picks with that claim through `member.claim` (its side weighed again, unless it is the point, only when the team's side changed, `member.weighs_side`; a changed slot or side, the claim's `changed`, is radioed as a new claim), so a settled claim keeps settling, and a slot
 pushed past what a dead end holds `claim._refuse()`s (radios `abort`, stops, `done`; an ordered member's next decision is the ORDER node's
 `hold_<opening>`, refused, `docs/leadership.md` LD9). Phases:
 `approach` (to its stack slot, its place in its side's file (`member.place`, `StackLayout.place`); an open-floor or tail slot (`claim.on_wall()` false: past
@@ -268,7 +268,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   stack D6's (`DoorStack.split_side`, from the side it asked for, else the one it began on, `orders._pref_side`, unless that side would hold two more than the other, when the last claimer
   there, the highest slot, takes the other); the mode is the order's (`begin`; an unordered member follows it, `orders.follow_order` through `listen.turn_bang`, D10), with
   no suspect-room bang, no first claimer's `grenade._go_quiet`, no `listen.maybe_upgrade` and no listen (`listen._may_turn` is false) and no veto but a
-  `bang_off` from a claim under the same order (`grenade.vetoed`); the stack's mode is `DoorStack.mode` (`grenade.stack_bangs`: the order's, a rally go's, else E17's
+  `bang_off` from a claim under the same order (`grenade.vetoed`: for a stack whose mode is set, `orders.mode_set`, the mode's own veto, `DoorStack.mode` quiet; else any `bang_off`); the stack's mode is `DoorStack.mode` (`grenade.stack_bangs`: the order's, a rally go's, else E17's
   first claimer's), so `grenade.banging` holds whatever a quiet member says and `grenade.tick_bang` gives up only on its own caps, and with the stack in and no stun in it (`grenade.stack_has_stun`) `grenade.due` gives the bang up (D1: quiet, `bang_off` radioed).
   **D7:** `readiness.stack_ready` waits for every other living recipient of the order (`orders.recipients`: the live order's `to` from
   `AgentPerception.orders.current()`, `Squad.alive` through `Entry.world.squad`, which `Behavior.apply_config` hands in from the controller's `squad`) to have radioed past
@@ -326,16 +326,16 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   squad's `general/squad_go_and_ambush` and `squad_go_latched_off_claims`; the rule itself, `ai/door_stack_suite`.
 - **Held for the human leader (`docs/leadership.md` LD24, D31).** A join of the human leader's rally (its order's `wait_go`, `orders.hold`;
   `go` from the order when it came before `begin`) is held as an ordered stack is, with no cap: `DoorStack.hold` gives `{ order_id: "", into, since }`,
-  `since` the join's `order_frame`, from its own claim or the lowest slot's join that holds (an unordered member that joins it follows it), and
+  `since` the join's `order_frame`, from its own claim or the lowest slot's join that holds and is still at a stacking step (an unordered member that joins it follows it; a joiner of an earlier rally, gone through into the room it cleared, forms none), and
   `DoorStack.released("", into, since)` (`_releases_rally`) is a joiner of that rally saying `order_go` or crossing, or the human crossing on a
-  crossing begun since. `radio.say` adds `order_hold`, `order_go`, `order_mode` and `order_frame` to a held join's calls (no `order_id`, D30).
+  crossing begun since. `radio.say` adds `order_hold`, `order_go`, `order_mode` and `order_frame` to a held join's calls (no `order_id`, D30): `orders.terms(entry)`, `StackClaim.order_terms`, the one builder of a claim's order fields, which `claim.sync` puts on the member's `terms` too.
   `orders.rallied()` (a hold with no order id) makes `orders.mode_set()` true, as `orders.stack_ordered()` does: no suspect-room turn, first
-  claimer, `listen.maybe_upgrade` nor listen (`listen._may_turn`), and `grenade.banging` / `grenade.due` hold the mode. `orders.note_go()` latches
+  claimer, `listen.maybe_upgrade` nor listen (`listen._may_turn`), and `grenade.banging` / `grenade.due` hold the mode; `grenade.vetoed` is the mode's own veto (`DoorStack.mode` quiet: a member of the rally gave its grenade up), never a `bang_off` from a claim outside the rally (test `ai/stack/rally_menu_go_stun_spares_another_veto`). `orders.note_go()` latches
   the go (`DoorStack.held` false, or the live order's `go`; never the leader's death) and takes its mode: `orders.mode` the live order's `go_mode`
   when its own go came, else "", and `state.bang` from `DoorStack.mode` (`_rally_mode`: the go's `stun` / `frag`, quiet with none named or once a member of
   the rally gave its grenade up). Once released, `readiness.members_ahead` drops the human unless it is crossing, so the first AI is the point.
   A held member fights only on the stack's side (`AgentPerception.orders.held_room()`, the confinement's `keep_out`, which the planner's
-  COMBAT filter, the fight and `Combat`'s spots ask; a walk whose plain way goes into that room goes round it, under fire too, and never goes round a body by a way into it, `Locomotion`'s `doors.keep_out`; test `ai/entry/order_stack_hold_retreat_round_body`). Tests: `ai/stack/rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet`, `rally_menu_go_stun`,
+  COMBAT filter, the fight and `Combat`'s spots ask; a walk whose plain way goes into that room goes round it, under fire too, and never goes round a body by a way into it, `Locomotion`'s `doors.held_entry`; test `ai/entry/order_stack_hold_retreat_round_body`). Tests: `ai/stack/rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet`, `rally_menu_go_stun`, `rally_menu_go_stun_spares_another_veto`,
   `rally_menu_go_frag`, `rally_walk_away_follows`, `rally_cancelled_on_leader_death`, `ai/entry/order_stack_hold_fights_stack_side` (LD13's held
   order), probes `tests/_ai/rally_probe.gd` and `tests/_ai/held_fight_probe.gd`.
 - **A frag at entry (`docs/leadership.md` LD14).** A stack under an order whose mode is `frag`, or a rally whose go named frag (`grenade._bang_kind()`, from

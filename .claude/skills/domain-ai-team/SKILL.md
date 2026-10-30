@@ -16,7 +16,7 @@ is the `domain-ai` overview's Orders section and `domain-ai-entry`.
 `callout_range`, lapsing after its `callout_ttl` on `GameClock`, LD1; either export, set, reaches the ledger at once through its setter) and, when an allied team is stacking at a doorway the human is near (`reserve_range` 300 px of walking), radios the
 human's own claim for the first free slot (none in a dead end with no room left, E20), on the team's side or, when its way there would cross the doorway's view, on its own (a split stack,
 E19), standing where the doorway's `DoorStack` settles that slot (`_stack()`, asked with the human's own claim, its stack member `reservation.member`, perception's `StackMember`, `_me()` its `me()`, through `member.claim`, over `DoorStack.claim`, as an NPC's entry is: `slot_for`,
-`StackLayout.holds_slot`, the side it asks for, `_ask_side(stack, n)`, its own weighing from where it stands when `member.weighs_side` says so, handed in with `member.ask`, then `settle`, its side `reservation.member.side`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a
+`StackLayout.holds_slot`, the side it asks for, `_ask_side(stack, n)`, its own weighing from where it stands when `member.weighs_side` says so, handed in with `member.ask`, then `settle`, its side `reservation.member.side`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member; `_keeps_slot` radios it again when the claim says its slot or side `changed`): a
 full claim encoded by `StackClaim.encode`, every entry field an NPC's carries (`claim_frame` / `claim_pos` stamped on each new claim and kept
 by its repeats, so a same-frame tie with the human settles by distance as for any member, E2; `crossed_frame`, `reservation.member.crossed_frame`, restamped
 to `GameClock.frame()` each time its step goes from `claim` / `ready` to `going_in` / `in` (`StackClaim.crossing`), cleared on a new reservation and on
@@ -54,7 +54,7 @@ the next leads within the frame and it posts `&"leader"` `{ faction, leader, pre
 (`{ kind, to, pos?, room?, bang?, mode?, wait_go? }`) into an `&"order"` (each stamped by `_post_order` with the `GameClock.frame()` it is
 issued on, `frame`, as is a `go`) (`defend_room` / `stack` / `ambush` / `cancel`: the room key, or
 the doorway nearest `pos` within its width, a stack's room on the far side of the wall plane, `stack_at` or `split`, its `mode` quiet / stun /
-frag (`MODES`; `bang` true for any but quiet; a request naming none of them reads it from `bang`) and `wait_go` (LD13); an ambush's `room` on the click's
+frag (`MODES`, `StackClaim.MODES`, the stack seam's; `bang` true for any but quiet; a request naming none of them reads it from `bang`) and `wait_go` (LD13); an ambush's `room` on the click's
 side of the wall plane and `beyond` the room on the other, "" for an exterior door, LD15, D17; a `defend_room`, `stack` or `ambush` order
 also carries its target point `pos`, the room's centre or the doorway's, which the UI's order markers draw; an ambush may name its doorway
 by id instead, `{ kind: "ambush", opening, room }`, `_ambush_door`: the doorway of that id seen from `room`, through the same `_door_of` a
@@ -146,7 +146,7 @@ same for every squad.
 
 Tests: `tests/ai/attack_door_suite.gd` (native: the attack doorway), `tests/general/` (`squad_*`, among them `squad_ambush_rule`,
 `squad_ambush_rule_off` and `squad_go_and_ambush`'s ambush by id, `squad_takeover_from_human`, `lead_rank`, `stack_player_wiring`), `tests/ai/stack/` (the human's stack
-claim; `human_leader_rallies`, `human_rally_spares_ordered`, `human_stack_slot_no_rally`, `human_defender_leader_no_rally`, D31's `rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet` / `_stun` / `_frag`, `rally_walk_away_follows`, `rally_cancelled_on_leader_death`), `tests/ai/stack_member_suite.gd` (the member's claim chain), `tests/ai/movement/` (`follow_*`, `independent_no_squad`), `tests/ai/combat/`
+claim; `human_leader_rallies`, `human_rally_spares_ordered`, `human_stack_slot_no_rally`, `human_defender_leader_no_rally`, D31's `rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet` / `_stun` / `_frag`, `rally_menu_go_stun_spares_another_veto`, `rally_walk_away_follows`, `rally_cancelled_on_leader_death`), `tests/ai/stack_member_suite.gd` (the member's claim chain), `tests/ai/movement/` (`follow_*`, `independent_no_squad`), `tests/ai/combat/`
 (`leash_*`, and for an ordered member off the leash `defend_room_stays_inside` and `ordered_melee_off_leash`; the ambush rule's crew,
 real Von, `crew_ambush_attack_door`, with `tests/ai/investigate/crew_ambush_before_contact`), the ordered entries and joins in `tests/ai/entry/` (`order_*`, `join_*`), `tests/general/test_world_invader_bound_as_match` and the UI's `tests/ui/` (`stack_markers_draw`, `order_markers_draw`, `command_menu_*`, `leader_overlay_draw`).
 

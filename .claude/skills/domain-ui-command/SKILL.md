@@ -21,9 +21,10 @@ The human leader's orders (`docs/leadership.md` LD11, LD12, D5), built by `main.
   view that has had no go (`_held_order_of`: its view row's `held`, LD13), its go at that order's doorway (`_go_items`, below); a doorway, the one the
   squad resolves a stack at the click to (`resolve({ kind: "stack", pos })`: the nearest within its width; no `resolve`, no doorway) — first
   "Go into the <room>" while any member of the view holds a held stack there that has had no go, whoever is selected (`_held_at`: the held row's
-  order, D13; for a held join of the human's rally, mode `join`, `_go_items` offers "Go into the <room> (quiet)", "Go into the <room> with stun" and
-  "Go into the <room> with frag" in its place, D31: stun / frag greyed while none of the living teammates the view shows holding that join, `_holders`,
-  carries one, tooltip "Nobody holding it carries a stun grenade." / "... a frag grenade."), then
+  order, D13; for a held join of the human's rally, mode `Squad.JOIN`, `_go_items` offers one item per `Squad.MODES`, "Go into the <room> (quiet)", "Go into the <room> with stun" and
+  "Go into the <room> with frag", in its place, D31: stun / frag greyed while none of the living teammates the view shows holding that join, `_holders`,
+  carries the grenade the mode names (`_grenade_slot`: the grenade slot whose `GrenadeConfig.kind_in_slot` is the mode), tooltip "Nobody holding it carries a stun grenade." / "... a frag grenade."; the menu
+  preloads `squad.gd` for that vocabulary alone, interface 21's `Squad.MODES` / `Squad.JOIN`, and reads the view's member rows through one `_rows()`), then
   "Stack into the <room> (quiet)", "Stack into the <room> with stun" and "Stack into the <room> with frag", `<room>` the type of the room it
   resolves the stack into (`into`), so the label names the room of the order (`tests/ui/command_menu_label_matches_order_test.gd`), the stun item
   disabled while no recipient's `inventory.item_count(ItemRegistry.STUN_SLOT)` is above 0 (D1) and the frag item while none's `FRAG_SLOT` is (D15)

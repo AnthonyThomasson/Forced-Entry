@@ -10,8 +10,10 @@ The AI's parts are reached by preload const with
   `sight`, `house`, `contacts`, `hearing`, `orders`, `grenades`, `entry`, `views` and `confinement` (where the NPC may act: its
   territory, the room a defend order keeps it to, its squad leash and a held stack's room, refreshed each tick by the controller's reflexes, frozen into
   the decision snapshot for the planner and read live by behaviour and Combat); the launcher's `_probe`; the doorway
-  geometry's `posts`, `slots` and `layouts`; the snapshot author's `_throws` and `_orders`; the squad's `stacks` and `ambush` and the
-  human's stack's `reservation` and `step_up`. A part member read from outside its part is public on it, its underscore and
+  geometry's `posts`, `slots` and `layouts`; the snapshot author's `_throws` and `_orders`; the squad's `stacks` and `ambush`; the
+  human's stack's `reservation` and `step_up`; and the stack member (`StackMember`, `ai/perception/stack/stack_member.gd`:
+  one member's own claim in a doorway's stack), held as `state.member` on entry's `state` and as `reservation.member` on
+  the human's stack's `reservation`. A part member read from outside its part is public on it, its underscore and
   any prefix the part's name says dropped (`entry_ready_timeout` is `tuning.entry.ready_timeout`, `_bang_stage`
   `grenade.stage`); one used only inside its part keeps its name. Behaviour's, locomotion's, the controller's, perception's
   (but its `confinement`) and the team's working parts hold their Node owner (`behavior`, `loco`, `controller`, `perception`, the squad's `stacks`
@@ -23,7 +25,8 @@ The AI's parts are reached by preload const with
   many) and a private chain reads it from the per-call context dict it already takes (`c["entry"]` / `f["entry"]`), never
   stored. Combat's `throw`, entry's leaves and the data leaves (the cadence, the running leaf, the planner's walk,
   perception's confinement, the probe) hold no owner (`tests/ai/ai_parts_free_suite.gd`, which holds the doorway geometry's parts too), nor
-  does the human's stack's `reservation` leaf. The shell splits the same way
+  do the human's stack's `reservation` leaf and the stack member it and entry's `state` hold (`StackMember`: its own claim
+  alone). The shell splits the same way
   (`docs/adr/0008-the-shell-split-into-parts.md`), each file by its kind: tuning that no scene authors becomes an ADR 0003
   holder (the camera's `CameraConfig` and `CameraShakeConfig`); a scene script's authoring surface that one instance owns
   becomes an exported `Resource` (`main.run`, `MainRun`, local to its scene, so Main's runtime writes to it never outlive a
