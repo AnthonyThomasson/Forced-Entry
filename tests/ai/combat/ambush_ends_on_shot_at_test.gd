@@ -39,6 +39,10 @@ const SOUTH_WALL_Y := 360.0
 ## The intruder's shots: how many, and the time (s) between them.
 const SHOTS := 3
 const SHOT_GAP := 0.4
+## How long (s) after the last shot the ambusher is given to radio done.
+const SETTLE := 3.0
+## The intruder's pistol's inventory slot.
+const PISTOL_SLOT := 3
 
 
 func describe() -> Dictionary:
@@ -63,7 +67,7 @@ func configure(s: TestSetup) -> void:
 		&"intruder",
 		&"puppet",
 		HALL_EAST,
-		{ "faction": &"invader", "max_health": 1_000_000.0, "start_slot": 3 },
+		{ "faction": &"invader", "max_health": 1_000_000.0, "start_slot": PISTOL_SLOT },
 	)
 	s.squads({ "human": &"lead" })
 
@@ -137,6 +141,17 @@ func _ends_on_shots(t: TestContext, a: Node, brain: Node) -> void:
 		not Order.progress(t, "done", a).is_empty(),
 		"shot at, the ambusher radios its order done",
 	)
+	# Required after the done check, so a round landing elsewhere fails that check first.
+	var radius: float = brain.tuning.combat.hit_awareness_radius
+	var landed := Probe.raw(t, &"hit", func(d):
+		return (d.get("attacker") == t.actor(&"intruder")
+				and a.global_position.distance_to(d["position"]) <= radius))
+	if not t.require(
+			not landed.is_empty(),
+			"a real round lands within the ambusher's hit_awareness_radius (%.0f px; premise)"
+				% radius,
+	):
+		return
 	var dones := Probe.raw(
 		t,
 		&"callout",
@@ -169,7 +184,7 @@ func _fire_unseen(t: TestContext, a: Node) -> float:
 	var seen := false
 	var fired := 0
 	var next_shot := t.time
-	var end := t.time + SHOTS * SHOT_GAP + 3.0
+	var end := t.time + SHOTS * SHOT_GAP + SETTLE
 	while t.time < end and Order.progress(t, "done", a).is_empty():
 		seen = seen or GrenadeAi.line_clear(t, a.global_position, intruder_node.global_position)
 		if fired < SHOTS and t.time >= next_shot:
