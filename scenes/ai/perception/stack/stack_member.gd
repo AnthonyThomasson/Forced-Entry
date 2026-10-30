@@ -98,10 +98,12 @@ func ask(asked: int, now: int) -> void:
 
 ## Claim (or keep) its slot in `stack` with the side it asks for (`DoorStack.claim`): the slot, the
 ## side, its place in that side's file and its point, all taken. A member whose slot changes is no
-## longer moving up (E2). Returns `{ slot, held, side, place, point }` (`held` false: a dead end
-## holds no slot for it, E20).
+## longer moving up (E2). Returns `{ slot, held, side, place, point, changed }` (`held` false: a
+## dead end holds no slot for it, E20; `changed`: its slot or side is not the one it held before,
+## which the member radios as a new claim).
 func claim(stack: RefCounted) -> Dictionary:
 	var at: Dictionary = stack.claim(me())
+	at["changed"] = int(at["slot"]) != slot or int(at["side"]) != side
 	if int(at["slot"]) != slot:
 		move_up = 0
 	slot = int(at["slot"])

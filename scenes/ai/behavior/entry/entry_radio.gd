@@ -68,25 +68,9 @@ func say(entry: Entry, what: String, extra := {}) -> void:
 	# (E2: the slot it moved up from, while it walks into the one it took.)
 	msg["move_up"] = state.member.move_up
 	msg["pie"] = entry.pie.begun
-	msg["join"] = entry.orders.join  # A join's claim, never its holder's own (D30).
-	if entry.orders.id != "":
-		# An ordered stack's claim (LD9): the order, its mode and its side, so the stack goes in the
-		# order's way.
-		msg["order_id"] = entry.orders.id
-		msg["order_bang"] = entry.orders.bang
-		msg["order_mode"] = entry.orders.mode  # (LD14.)
-		# Held for the leader's go, and whether it came (LD13).
-		msg["order_hold"] = entry.orders.hold
-		msg["order_go"] = entry.readiness.released
-		msg["order_side"] = entry.orders.side
-		msg["order_frame"] = entry.orders.frame
-	elif entry.orders.join and entry.orders.hold:
-		# A join held for its human leader's go (D31): the rally it holds for (its order's frame),
-		# and whether its go came and in which mode.
-		msg["order_hold"] = true
-		msg["order_go"] = entry.readiness.released
-		msg["order_mode"] = entry.orders.mode
-		msg["order_frame"] = entry.orders.frame
+	# The order it stacks under (LD9, LD13, LD14), a held join's rally (D31); a join's claim, never
+	# its holder's own (D30).
+	msg.merge(entry.orders.terms(entry), true)
 	calls.append(msg)
 	last_call = msg.duplicate()
 	heartbeat = StackClaim.HEARTBEAT

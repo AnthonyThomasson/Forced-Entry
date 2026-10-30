@@ -124,6 +124,15 @@ func mode_set(entry: Entry) -> bool:
 	return stack_ordered(entry) or rallied(entry)
 
 
+## The order fields of this NPC's claims (`StackClaim.order_terms`): the order it stacks under, or
+## the human leader's rally a held join holds for, its go latched (`readiness.released`).
+func terms(entry: Entry) -> Dictionary:
+	return StackClaim.order_terms({
+		"id": id, "join": join, "bang": bang, "mode": mode, "hold": hold,
+		"go": entry.readiness.released, "side": side, "frame": frame,
+	})
+
+
 ## The live order this entry carries out (`live_id`), as the perception holds it: a join's too;
 ## {} for an entry that is no order, and once the order has ended.
 func _live() -> Dictionary:

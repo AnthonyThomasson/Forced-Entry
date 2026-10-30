@@ -35,8 +35,11 @@ const SLOT_REACH := 6.0
 ## How close (px) to its slot a hand-driven body (the human) counts as standing in it: a player
 ## steers to a marker, not onto a point, so the NPCs' `WAYPOINT_REACH`.
 const HUMAN_SLOT_REACH := 20.0
-## The order mode of a join (the leader's own stack bringing its team in, LD24): not one of the
-## squad's `MODES`, which a request may name.
+## The modes a stack goes in (LD14, D31): quietly (the first), with a stun or with a frag thrown in
+## first; the squad's `MODES`, which a leader's request or a rally's go may name.
+const MODES := ["quiet", "stun", "frag"]
+## The order mode of a join (the leader's own stack bringing its team in, LD24): not one of
+## `MODES`.
 const JOIN := "join"
 ## Every field of an entry claim on the radio, with the value a claim that does not say it has:
 ## `opening` / `into` (the doorway, the room it goes into), `slot` (1 = the point), `side` (1 / -1
@@ -74,6 +77,40 @@ static func encode(fields: Dictionary) -> Dictionary:
 	var out := {}
 	for key in DEFAULTS:
 		out[key] = _typed(key, fields.get(key, DEFAULTS[key]))
+	return out
+
+
+## Whether `mode` is one of `MODES` that throws a grenade in first (any but quiet).
+static func throws_first(mode: Variant) -> bool:
+	return MODES.has(mode) and mode != MODES[0]
+
+
+## The order fields of a member's claim (`join` and the `order_*` of `DEFAULTS`) for the order it
+## stacks under, `order` by the order's own names (`id`, `join`, `bang`, `mode`, `hold`, `go`,
+## `side`, `frame`; a key left out says its `DEFAULTS` value): `join` always, and `order_go` once
+## the member latched a go (an unordered member following a held order too, D10, which only its own
+## reads count); an ordered member's (`id` not "", LD9) every `order_*`; a join held for its human
+## leader's go (`join` and `hold`, D31, its claim carrying no order id, D30) the rally it holds for
+## (`order_frame`), `order_hold`, `order_go` and the mode its go named (`order_mode`); nothing more
+## for any other. Built here alone, for the radio's claim and every member's own
+## (`StackMember.terms`).
+static func order_terms(order: Dictionary) -> Dictionary:
+	var join := bool(order.get("join", false))
+	var out := { "join": join }
+	var go := bool(order.get("go", DEFAULTS["order_go"]))
+	if go:
+		out["order_go"] = true
+	var id := str(order.get("id", ""))
+	if id == "" and not (join and bool(order.get("hold", false))):
+		return out
+	out["order_hold"] = bool(order.get("hold", DEFAULTS["order_hold"]))
+	out["order_go"] = go
+	out["order_mode"] = str(order.get("mode", DEFAULTS["order_mode"]))
+	out["order_frame"] = int(order.get("frame", DEFAULTS["order_frame"]))
+	if id != "":
+		out["order_id"] = id
+		out["order_bang"] = bool(order.get("bang", DEFAULTS["order_bang"]))
+		out["order_side"] = int(order.get("side", DEFAULTS["order_side"]))
 	return out
 
 

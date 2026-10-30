@@ -100,8 +100,6 @@ func to_back(entry: Entry) -> bool:
 ## for is this NPC's (`ask_side`).
 func keep_slot(entry: Entry) -> void:
 	var member := state.member
-	var was := member.slot
-	var was_side := member.side
 	var was_spot := member.point
 	ask_side(entry, member.slot_in(stack))
 	sync(entry)
@@ -109,9 +107,9 @@ func keep_slot(entry: Entry) -> void:
 	if not at["held"]:
 		_refuse(entry)  # Pushed past what a dead end holds (E20).
 		return
-	if member.slot != was or member.side != was_side or member.point.distance_to(was_spot) > 1.0:
+	if at["changed"] or member.point.distance_to(was_spot) > 1.0:
 		entry.approach.enter_approach(entry, stack)  # Walk to the new slot.
-		if member.slot != was or member.side != was_side:
+		if at["changed"]:
 			# (Still the claim made then: one settled by distance settles on.)
 			entry.radio.say(entry, "claim", { "claim_frame": member.claim_frame })
 
@@ -155,11 +153,8 @@ func sync(entry: Entry) -> void:
 	state.member.crossed_frame = entry.readiness.crossed_frame
 	state.member.terms = {
 		"into": state.into, "stuns": entry.grenade.stuns, "frags": entry.grenade.frags,
-		"order_id": entry.orders.id, "order_bang": entry.orders.bang,
-		"order_mode": entry.orders.mode, "order_hold": entry.orders.hold,
-		"order_go": entry.readiness.released, "order_side": entry.orders.side,
-		"order_frame": entry.orders.frame, "join": entry.orders.join,
 	}
+	state.member.terms.merge(entry.orders.terms(entry))
 
 
 ## Read the doorway's stack for this tick (`stack`): a pass-by joins no stack, so it hears none.

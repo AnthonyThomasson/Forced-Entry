@@ -130,6 +130,26 @@ func test_a_member_whose_slot_changes_moves_up_no_more() -> void:
 	).is_equal([true, 0])
 
 
+func test_a_claim_says_whether_its_slot_or_side_changed() -> void:
+	# E2, E19: a member radios a new claim when its slot or side changes, and only then: its first
+	# claim takes a slot, the same claim kept changes nothing, a slot lost to a nearer same-frame
+	# claim and a side asked anew each change it.
+	var member := _member(StackRadio.slot_at(1, 1) + Vector2(0, 150))
+	var empty := DoorStack.new(StackRadio.door(), [])
+	member.ask(1, 1)
+	var got := [member.claim(empty)["changed"], member.claim(empty)["changed"]]
+	member.ask(-1, 1)
+	got.append(member.claim(empty)["changed"])
+	var nearer := StackRadio.claim(StackRadio.speaker(self), {
+		"slot": 1, "side": -1, "claim_frame": FRAME,
+		"claim_pos": StackRadio.slot_at(-1, 1) + Vector2(0, -30),
+	})
+	got.append(member.claim(DoorStack.new(StackRadio.door(), [nearer]))["changed"])
+	assert_array(got).override_failure_message(
+		"[first claim, kept, side asked anew, slot lost]: changed %s" % str(got),
+	).is_equal([true, false, true, true])
+
+
 ## A member (instance id `id`, else a fresh speaker's) claiming on `FRAME` from `at`.
 func _member(at: Vector2, id := 0) -> RefCounted:
 	var m := StackMember.new()

@@ -55,6 +55,9 @@ signal order_requested(request: Dictionary)
 signal selection_changed(nodes: Array)
 
 const CommandPanel := preload("res://scenes/ui/command/command_panel.gd")
+## The squad (interface 21), for the vocabulary of its requests alone: `MODES`, a stack's or a go's
+## mode, and `JOIN`, the mode of its rally.
+const Squad := preload("res://scenes/ai/team/squad.gd")
 ## World-space radius (px) around the cursor within which a click picks a teammate's body.
 const PICK_RADIUS := 28.0
 ## The ring on the clicked point: its radius (screen px) and colour.
@@ -316,8 +319,7 @@ func _ambush_from(at: Vector2) -> String:
 ## The stack order a member of the squad's view holds at doorway `opening` that waits for the
 ## leader's go and has not had it (its row's `held`, LD13), or {}.
 func _held_at(opening: String) -> Dictionary:
-	var view: Dictionary = _view.call() if _view.is_valid() else {}
-	for row: Dictionary in view.get("members", []):
+	for row: Dictionary in _rows():
 		if bool(row.get("held", false)) and String(row["order"].get("opening", "")) == opening:
 			return row["order"]
 	return {}
@@ -329,28 +331,35 @@ func _held_at(opening: String) -> Dictionary:
 ## frag", stun and frag greyed while no member holding that join carries one (D1, D15).
 func _go_items(held: Dictionary, at: Vector2) -> Array:
 	var into := _room_name(_room_by_key(String(held.get("into", ""))))
-	if String(held.get("mode", "")) != "join":
+	if String(held.get("mode", "")) != Squad.JOIN:
 		return [_item("Go into the %s" % into, false, _go.bind(at))]
 	var holders := _holders(String(held.get("id", "")))
-	var carry := func(slot: int) -> bool: return _any_carries(holders, slot)
-	return [
-		_item("Go into the %s (quiet)" % into, false, _go.bind(at, "quiet")),
-		_item(
-			"Go into the %s with stun" % into, not carry.call(ItemRegistry.STUN_SLOT),
-			_go.bind(at, "stun"), "Nobody holding it carries a stun grenade.",
-		),
-		_item(
-			"Go into the %s with frag" % into, not carry.call(ItemRegistry.FRAG_SLOT),
-			_go.bind(at, "frag"), "Nobody holding it carries a frag grenade.",
-		),
-	]
+	var out: Array = []
+	for mode: String in Squad.MODES:
+		var slot := _grenade_slot(mode)
+		if slot == -1:
+			out.append(_item("Go into the %s (%s)" % [into, mode], false, _go.bind(at, mode)))
+			continue
+		out.append(_item(
+			"Go into the %s with %s" % [into, mode], not _any_carries(holders, slot),
+			_go.bind(at, mode), "Nobody holding it carries a %s grenade." % mode,
+		))
+	return out
+
+
+## The slot of the grenade mode `mode` (one of `Squad.MODES`) throws in first: the grenade slot
+## whose kind it names (`GrenadeConfig.kind_in_slot`), -1 for quiet.
+static func _grenade_slot(mode: String) -> int:
+	for slot: int in [ItemRegistry.STUN_SLOT, ItemRegistry.FRAG_SLOT]:
+		if GrenadeConfig.kind_in_slot(slot) == StringName(mode):
+			return slot
+	return -1
 
 
 ## The living teammates the squad's view shows holding order `id`.
 func _holders(id: String) -> Array:
-	var view: Dictionary = _view.call() if _view.is_valid() else {}
 	var out: Array = []
-	for row: Dictionary in view.get("members", []):
+	for row: Dictionary in _rows():
 		if String(row.get("order", {}).get("id", "")) == id and _alive(row.get("node")):
 			out.append(row["node"])
 	return out
@@ -359,8 +368,7 @@ func _holders(id: String) -> Array:
 ## The held stack order `mate` holds in the squad's view (its row's `held`) with its doorway's
 ## centre (`pos`), or {}.
 func _held_order_of(mate: Node) -> Dictionary:
-	var view: Dictionary = _view.call() if _view.is_valid() else {}
-	for row: Dictionary in view.get("members", []):
+	for row: Dictionary in _rows():
 		if (row.get("node") == mate
 				and bool(row.get("held", false))
 				and row["order"].get("pos") is Vector2):
@@ -410,11 +418,16 @@ static func _any_carries(nodes: Array, slot: int) -> bool:
 	return nodes.any(func(n): return "inventory" in n and int(n.inventory.item_count(slot)) > 0)
 
 
+## The member rows of the squad's `view()` (`{ node, order, held, ... }`), [] with no view.
+func _rows() -> Array:
+	var view: Dictionary = _view.call() if _view.is_valid() else {}
+	return view.get("members", [])
+
+
 ## The recipients that hold an order now (the squad's `view()`).
 func _ordered_recipients() -> Array:
 	var held: Array = []
-	var view: Dictionary = _view.call() if _view.is_valid() else {}
-	for row: Dictionary in view.get("members", []):
+	for row: Dictionary in _rows():
 		if not (row.get("order", {}) as Dictionary).is_empty():
 			held.append(row.get("node"))
 	return _recipients_now().filter(func(n): return held.has(n))

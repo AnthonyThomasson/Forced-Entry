@@ -72,10 +72,11 @@ func held_room() -> String:
 	# The NPC as its claims under this order describe it (a join's carry no order id, D30).
 	var member := StackMember.new()
 	member.id = perception._character.get_instance_id()
-	member.terms = {
-		"into": into, "join": join, "order_id": "" if join else str(live["id"]),
-		"order_hold": true, "order_frame": int(live.get("frame", -1)),
-	}
+	member.terms = StackClaim.order_terms({
+		"id": "" if join else str(live["id"]), "join": join, "hold": true,
+		"frame": int(live.get("frame", -1)),
+	})
+	member.terms["into"] = into
 	return into if perception.entry.stack(String(live["opening"]), into).held(member.me()) else ""
 
 

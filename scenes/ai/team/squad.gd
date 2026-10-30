@@ -82,8 +82,8 @@ const CANCEL := "cancel"
 const GO := "go"
 const AMBUSH := "ambush"
 ## A stack order's modes a leader's request may name (LD14): in quietly, with a stun first, with a
-## frag first.
-const MODES := ["quiet", "stun", "frag"]
+## frag first (`StackClaim.MODES`).
+const MODES := StackClaim.MODES
 ## The mode of the squad's own rally stack (LD24): the leader's own stack bringing its team in,
 ## which pins no mode (each member goes in as its own entry would). Not one of `MODES`: no request
 ## names it, only the rally posts it.

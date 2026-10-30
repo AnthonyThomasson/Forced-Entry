@@ -401,11 +401,10 @@ func _rally_mode(me: Dictionary, rally: Dictionary) -> String:
 	var of_rally := func(m): return m["join"] and int(m["order_frame"]) == since
 	if team.any(func(m): return of_rally.call(m) and m["bang_off"]):
 		return "quiet"
-	var named := ["stun", "frag"]
-	if bool(me.get("order_go", false)) and named.has(str(me.get("order_mode", ""))):
+	if bool(me.get("order_go", false)) and StackClaim.throws_first(str(me.get("order_mode", ""))):
 		return str(me["order_mode"])
 	for m in team:
-		if of_rally.call(m) and m["order_go"] and named.has(m["order_mode"]):
+		if of_rally.call(m) and m["order_go"] and StackClaim.throws_first(m["order_mode"]):
 			return m["order_mode"]
 	return "quiet"
 

@@ -219,3 +219,28 @@ func test_one_join_rule_reads_orders_leaf_params_and_claims() -> void:
 		"opening": "o_1", "entry_step": "claim", "join": true,
 	})))
 	assert_bool(StackClaim.is_join(join)).is_true()
+
+
+func test_a_claims_order_fields_say_the_order_or_the_held_join_it_stacks_under() -> void:
+	# LD9, LD13, LD14, D10, D30, D31: an ordered member's claim says its whole order; a join held
+	# for its human leader's go says the rally (its frame), its hold, its go and the go's mode, and
+	# no order id; any other member says only whether it is a join, and that it latched a go.
+	var order := {
+		"id": "3", "join": false, "bang": true, "mode": "frag", "hold": true, "go": false,
+		"side": -1, "frame": 40,
+	}
+	assert_that(StackClaim.order_terms(order)).is_equal({
+		"join": false, "order_id": "3", "order_bang": true, "order_mode": "frag",
+		"order_hold": true, "order_go": false, "order_side": -1, "order_frame": 40,
+	})
+	var held_join := { "join": true, "mode": "stun", "hold": true, "go": true, "frame": 40 }
+	assert_that(StackClaim.order_terms(held_join)).is_equal({
+		"join": true, "order_hold": true, "order_go": true, "order_mode": "stun",
+		"order_frame": 40,
+	})
+	assert_that(StackClaim.order_terms({ "join": true, "mode": "join" })).is_equal(
+		{ "join": true },
+	)
+	assert_that(StackClaim.order_terms({ "go": true })).is_equal(
+		{ "join": false, "order_go": true },
+	)

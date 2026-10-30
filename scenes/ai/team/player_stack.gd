@@ -326,13 +326,12 @@ func _leaves(stack: RefCounted, due: bool) -> bool:
 ## slot or side changes. False, withdrawn, when it is pushed past what a dead end holds (E20).
 func _keeps_slot(stack: RefCounted) -> bool:
 	var member := reservation.member
-	var was := member.slot
-	var was_side := member.side
 	_ask_side(stack, member.slot_in(stack))
-	if not member.claim(stack)["held"]:
+	var at: Dictionary = member.claim(stack)
+	if not at["held"]:
 		_withdraw("abort")
 		return false
-	if member.slot != was or member.side != was_side:
+	if at["changed"]:
 		_post(member.step)
 	return true
 
