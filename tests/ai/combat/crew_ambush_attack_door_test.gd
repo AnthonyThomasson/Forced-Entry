@@ -1,19 +1,21 @@
 extends GameTest
 ## The defenders' ambush rule (#128), the scenario: a defender crew of three in the bare Terrace
-## house's living room, in its north-west corner, declared as a match declares its squads
-## (`s.squads`: the first spawned leads), and an invader come in by the front door (it starts in the
-## hall's west end, by the door: an invader still outside slices the pie of the front door for some
-## seconds, long enough for the crew's own search to take its leader into the hall). The corner is
-## out of the line through the hall's doorway from where the invader starts: a crew in that line is
-## shot at once, and its fight takes the leader into the hall before its radio places the invader.
-## Once the crew's radio places it (a COMBAT callout: the invader seen, or where its shots came
-## from), the leader orders the ambush of the doorway into its room the attack comes through, the
-## hall's doorway into the living room (`door_150_360`), to itself and the next member; the last
-## spawned, the rear guard, holds no order and follows. Each of the two holds the ambush at its post
-## (`in_position`), or, in contact as it takes the order up, ends it `done` at once (D18).
+## house's living room, declared as a match declares its squads (`s.squads`: the first spawned
+## leads), and an invader come in by the front door, a few steps along the hall. Every character
+## starts facing east. The next member stands by the living room's west wall, the hall's doorway
+## ahead of it to its right and the invader beyond it: it sees the invader on its first look, and
+## its fight radios it (a COMBAT callout: the invader seen, or where its shots came from) within a
+## fraction of a second. The leader stands by the north wall, the hall's doorway over two
+## seconds' walk away, so its first search (Von's pick of another room) has not taken it out of the
+## living room by then. The last spawned stands by the west wall, out of the line through the
+## doorway. Once the radio places the invader, the leader orders the ambush of the doorway into its
+## room the attack comes through, the hall's doorway into the living room (`door_150_360`), to
+## itself and the next member; the last spawned, the rear guard, holds no order and follows. Each
+## of the two holds the ambush at its post (`in_position`), or, in contact as it takes the order
+## up, ends it `done` at once (D18).
 ##
 ## Real Von, the whole pipeline. Required first (set-up findings otherwise): the radio places the
-## invader, and the leader is still in the living room when it orders. Premise: the
+## invader, and the leader is still in the living room on the frame it orders. Premise: the
 ## defenders are unkillable (no death moves the lead), so the fight ends with the invader's.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -22,6 +24,12 @@ const Order := preload("res://tests/_ai/order_probe.gd")
 const HALL_DOOR := "door_150_360"
 const CREW := [&"d1", &"d2", &"d3"]
 const TOUGH := 1_000_000.0
+## The leader's start: by the north wall, far from the hall's doorway.
+const LEADER_AT := Vector2(280, 40)
+## The next member's start: by the west wall, the hall's doorway ahead of it, within its view east.
+const SPOTTER_AT := Vector2(40, 300)
+## The invader's start: in the hall, on the line from the next member through the doorway.
+const INVADER_AT := Vector2(260, 420)
 
 
 func describe() -> Dictionary:
@@ -38,10 +46,11 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	s.actor(&"d1", &"defender", Vector2(60, 60), { "max_health": TOUGH })
-	s.actor(&"d2", &"defender", Vector2(120, 110), { "max_health": TOUGH })
+	# The premise: unkillable defenders, so no death moves the lead.
+	s.actor(&"d1", &"defender", LEADER_AT, { "max_health": TOUGH })
+	s.actor(&"d2", &"defender", SPOTTER_AT, { "max_health": TOUGH })
 	s.actor(&"d3", &"defender", Vector2(60, 150), { "max_health": TOUGH })
-	s.actor(&"inv", &"invader", Vector2(30, 415))
+	s.actor(&"inv", &"invader", INVADER_AT)
 	s.squads()
 
 
@@ -76,29 +85,34 @@ func run(t: TestContext) -> void:
 
 
 ## Wait for the crew's radio to place the invader and the first ambush order after it, keeping the
-## room the leader `lead` stands in until the order: `{ order, room }`, or {} when the test ended (a
-## set-up finding: nobody placed it, no order, or the leader out of the living room by then).
+## room the leader `lead` stands in on each physics frame, read back for the order's own `frame`:
+## `{ order, room }`, or {} when the test ended (a set-up finding: nobody placed it, no order, or
+## the leader out of the living room on the order's frame).
 func _first_ambush(t: TestContext, lead: Node2D) -> Dictionary:
 	var crew: Array = CREW.map(func(id): return t.actor(id))
+	var rooms := {}
+	var placed := func():
+		rooms[GameClock.frame()] = _room_of(lead)
+		return not _sightings(t, crew).is_empty()
 	if not t.require(
-			await t.until(func(): return not _sightings(t, crew).is_empty(), 40.0),
+			await t.until(placed, 40.0),
 			"the crew's radio places the invader (a COMBAT callout)",
 	):
 		return {}
-	var room_then := { "key": _room_of(lead) }
 	var ordered := func():
-		if _ambushes(t).is_empty():
-			room_then["key"] = _room_of(lead)
-			return false
-		return true
+		rooms[GameClock.frame()] = _room_of(lead)
+		return not _ambushes(t).is_empty()
 	if not t.require(await t.until(ordered, 3.0), "the leader orders an ambush"):
 		return {}
+	var order: Dictionary = _ambushes(t)[0]
+	var room_then: String = rooms.get(order.get("frame", -1), "<no sample>")
 	if not t.require(
-			room_then["key"] == "living_room",
-			"set-up: the leader was still in the living room (%s)" % room_then["key"],
+			room_then == "living_room",
+			"set-up: the leader was still in the living room on the order's frame (%s)"
+				% room_then,
 	):
 		return {}
-	return { "order": _ambushes(t)[0], "room": room_then["key"] }
+	return { "order": order, "room": room_then }
 
 
 ## The ambush orders posted so far.
