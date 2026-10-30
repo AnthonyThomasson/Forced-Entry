@@ -44,6 +44,14 @@
 #                                         scripts as they are on disk; the whole tree when project.godot or a gdstyle
 #                                         file is staged; none when no script is), a finding in a script not staged
 #                                         labelled `not in this commit: <path>`. The pre-commit hook runs it.
+#   tools/run_tests.sh --base=REV --id=ai/foo
+#                                         the working tree's tests against the code of REV: a temporary git worktree of
+#                                         REV (in $TMPDIR) gets the working tree's tests/ (.uid files and helper folders
+#                                         included), is imported, runs the selection in one process, prints its lines under
+#                                         `== on base REV (<short sha>) ==` and is removed, also on ^C. The working tree
+#                                         is never written; no lint; the exit code is that run's verdict. Refused (exit
+#                                         2, a reason line) with --changed, --staged, --jobs above 1 and an unknown REV.
+#                                         Use it to see a fixed test still red on the old code.
 #   tools/run_tests.sh --list [words]     list matching tests (id, flags, tags, name) and exit
 #   tools/run_tests.sh --include-von ai   also run tests that need the Von decision server
 #   tools/run_tests.sh --require-von ai   Von tests FAIL instead of skipping when no server is live
@@ -99,6 +107,44 @@ if [[ -z "$GODOT" ]]; then
   exit 2
 fi
 
+# One cleanup for every way out (an exit, ^C, a kill): this run's note file and, for --base, its temporary worktree.
+LIVE="$PWD"
+BASE=""         # --base=REV
+BASE_TREE=""    # the directory holding --base's worktree, once made
+cleanup() {
+  rm -f "${VON_SKIPPED:-}"
+  if [[ -n "$BASE_TREE" ]]; then
+    cd "$LIVE"
+    git worktree remove --force "$BASE_TREE/checkout" >/dev/null 2>&1 || true
+    rm -rf "$BASE_TREE"
+    git worktree prune
+  fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# --base=REV: this run happens in a worktree of REV (git worktree add in $TMPDIR) whose tests/ is the working tree's, so
+# a test, edited or new, runs against the code it was written for. Only the engine runs there: the working tree is
+# never written, the worktree goes with the run, and the report and the measured times of the checkout are left alone.
+refuse_base() { echo "--base=$BASE: $1" >&2; exit 2; }
+for a in "$@"; do case "$a" in --base=*) BASE="${a#--base=}" ;; esac; done
+if [[ -n "$BASE" ]]; then
+  for a in "$@"; do
+    case "$a" in
+      --changed|--staged) refuse_base "--changed and --staged are refused (given $a): a run on the base runs the selection it is given" ;;
+      --jobs=*) [[ "${a#--jobs=}" == 1 ]] || refuse_base "$a is refused: a run on the base is one process (--jobs=1)" ;;
+    esac
+  done
+  base_sha=$(git rev-parse --verify --quiet "$BASE^{commit}") || refuse_base "unknown revision"
+  BASE_TREE=$(mktemp -d "${TMPDIR:-/tmp}/run_tests_base.XXXXXX")
+  git worktree add --detach --quiet "$BASE_TREE/checkout" "$base_sha" || refuse_base "cannot make a worktree of $base_sha"
+  rm -rf "$BASE_TREE/checkout/tests"
+  cp -R "$LIVE/tests" "$BASE_TREE/checkout/tests"   # the .uid files and the helper folders with it
+  cd "$BASE_TREE/checkout"
+  echo "== on base $BASE ($(git rev-parse --short "$base_sha")) =="
+fi
+
 # A fresh checkout has no import cache (.godot/ is untracked): without the class cache every test script
 # fails to parse and the runner hangs instead of failing, so import first.
 if [[ ! -f .godot/global_script_class_cache.cfg ]]; then
@@ -108,12 +154,16 @@ fi
 
 # Per-checkout state kept in $TMPDIR: the previous run's merged report (for --failed), the measured wall-clock
 # ms per test (what --shard balances the parallel processes by) and the fingerprint of the last clean lint.
-KEY=$(printf %s "$PWD" | shasum | cut -c1-8)
+KEY=$(printf %s "$LIVE" | shasum | cut -c1-8)
 LAST="${TMPDIR:-/tmp}/example_godot_last_report_$KEY.json"
+LAST_OUT="$LAST"   # where a run writes its merged report
 COSTS="${TMPDIR:-/tmp}/example_godot_costs_$KEY.json"
+if [[ -n "$BASE_TREE" ]]; then
+  LAST_OUT="$BASE_TREE/last_report.json"   # --failed still reads the checkout's: a run on the base replaces nothing of it
+  COSTS="$BASE_TREE/costs.json"
+fi
 LINT_OK="${TMPDIR:-/tmp}/example_godot_lint_ok_$KEY.txt"
 VON_SKIPPED=$(mktemp "${TMPDIR:-/tmp}/game_tests_von_skipped.XXXXXX")   # this run's skipped Von tests (note_von_skips)
-trap 'rm -f "$VON_SKIPPED"' EXIT
 
 HEADLESS=--headless
 NOVSYNC=
@@ -152,6 +202,7 @@ for a in "$@"; do
       exit 2 ;;
     --strict-exit) STRICT=--strict-exit ;;
     --report=*) RUN_TESTS_REPORT_TO="${a#--report=}" ;;
+    --base=*) JOBS="${JOBS:-1}"; LINT=0 ;;   # a run on the base: one process, no lint (refused above otherwise)
     --jobs=*) JOBS="${a#--jobs=}" ;;
     --changed) CHANGED=1 ;;
     --staged) STAGED=1 ;;
@@ -364,7 +415,7 @@ godot_list() {
 # says nothing about how long a test takes). With TALLY=1 it first prints the FLAKY / FAILING lines of the merged run
 # (a test that passed some of its runs / none), as each process prints its own; with SLOWEST=1 the five slowest tests.
 save_reports() {
-  python3 - "$LAST" "$COSTS" "${SLOWEST:-0}" "${TALLY:-0}" "$@" <<'EOF'
+  python3 - "$LAST_OUT" "$COSTS" "${SLOWEST:-0}" "${TALLY:-0}" "$@" <<'EOF'
 import json, os, sys
 last, costs_path, slowest, tally = sys.argv[1], sys.argv[2], sys.argv[3] == "1", sys.argv[4] == "1"
 results, stray = [], []
