@@ -4,8 +4,9 @@ extends RefCounted
 ## Terrace house's back door for its leader's go (`docs/leadership.md` LD13, D31) is shot at by a
 ## defender in the kitchen it is held to enter: `defender` declares it out of sight of the garden,
 ## `fight` walks it into view of the stack through the doorway (`IN_VIEW` by default: the stack's
-## north slots), has it fire at the stack, then walks it back out of sight (a hostile lost in the
-## room the stack is held to enter), while it watches the members, and `check_stack_side` asserts
+## north slots), has it fire at the stack, then walks it back out of the doorway's view and takes
+## it out of every member's sight (a hostile lost in the room the stack is held to enter), while it
+## watches the members, and `check_stack_side` asserts
 ## they fought from the stack's side of the doorway only: none stood in the room, nor walked for
 ## it, and once the fight lapsed each was back in its slot.
 
@@ -21,6 +22,11 @@ const IN_VIEW := Vector2(790, 335)
 const FIRE_EVERY := 0.6
 ## How long (s) the defender fires at the held stack.
 const FIGHT := 10.0
+## Where the defender is taken once back at `HIDDEN`: beyond any NPC's sight (2520 px) of the house.
+## No spot in the bare house is out of sight of every place a member's fight can take it (each room
+## is seen into through a doorway from the garden or from the living room), so the fight could
+## otherwise go on at a defender still in view, and never lapse.
+const OFFSTAGE := Vector2(-6000, -6000)
 ## How long (s) the stack is watched once the defender is out of sight again.
 const AFTER := 15.0
 ## How long (s) past `AFTER` the watch goes on while a member is not back in its slot yet: one the
@@ -43,7 +49,8 @@ static func arm(t: TestContext, id: StringName) -> void:
 
 
 ## Walk the defender `id` to `spot`, in view of the stack, and have it fire at `members[0]` every
-## `FIRE_EVERY` s for `FIGHT` s, then walk it back out of sight to `HIDDEN` and watch `AFTER` s
+## `FIRE_EVERY` s for `FIGHT` s, then walk it back to `HIDDEN`, out of the doorway's view, take it
+## `OFFSTAGE` once there, and watch `AFTER` s
 ## more (until every member is back in its slot, at most `BACK_WITHIN` s past that), sampling the
 ## `members` (characters) every frame. Returns `{ in_room: { node: first time }, heading: { node:
 ## [time, act, target] }, fired: { node: shots from outside }, acts: { node: [[time, act]] },
@@ -74,6 +81,9 @@ static func fight(
 	var lapsed_at := t.time
 	var watched := func() -> bool:
 		_sample(t, members, out)
+		if puppet.has_arrived() and t.actor(id).global_position.distance_to(HIDDEN) < 40.0:
+			puppet.stop()
+			t.actor(id).global_position = OFFSTAGE
 		return (t.time - lapsed_at >= AFTER
 				and members.all(func(m): return out["back"].has(m)))
 	await t.until(watched, AFTER + BACK_WITHIN)
