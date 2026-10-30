@@ -336,7 +336,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   when its own go came, else "", and `state.bang` from `DoorStack.mode` (`_rally_mode`: the go's `stun` / `frag`, quiet with none named or once a member of
   the rally gave its grenade up). Once released, `readiness.members_ahead` drops the human unless it is crossing, so the first AI is the point.
   A held member fights only on the stack's side (`AgentPerception.orders.held_room()`, the confinement's `keep_out`, which the planner's
-  COMBAT filter, the fight and `Combat`'s spots ask; a walk whose plain way goes into that room goes round it, under fire too, and never goes round a body by a way into it, `Locomotion`'s `doors.held_entry`; test `ai/entry/order_stack_hold_retreat_round_body`; and the entry guard never takes it in by entry, `guard()`
+  COMBAT filter, the fight and `Combat`'s spots ask; a walk whose plain way goes into that room goes round it, under fire too, and never goes round a body by a way into it, its order's walk to its slot neither (test `ai/entry/order_stack_hold_walk_round_body`), `Locomotion`'s `doors.held_entry`; test `ai/entry/order_stack_hold_retreat_round_body`; and the entry guard never takes it in by entry, `guard()`
   dropping a doorway into that room; test `ai/entry/order_stack_hold_advance_to_door_stays_out`). Tests: `ai/stack/rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet`, `rally_menu_go_stun`, `rally_menu_go_stun_spares_another_veto`,
   `rally_menu_go_frag`, `rally_walk_away_follows`, `rally_cancelled_on_leader_death`, `ai/entry/order_stack_hold_fights_stack_side` (LD13's held
   order), probes `tests/_ai/rally_probe.gd` and `tests/_ai/held_fight_probe.gd`.

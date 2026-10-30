@@ -125,13 +125,14 @@ func set_up_walk(delta: float) -> void:
 
 
 ## The held stack whose room the walk keeps out of (`"<opening id>><room key>"`, "" for none): a
-## member of a stack held for its leader's go fights on the stack's side of the doorway (D31, the
-## room its confinement keeps it out of, `keep_out`), so a walk its fight takes (an engage's
-## reposition, a retreat, under fire too) whose plain way goes into that room goes round it
-## (`Locomotion`'s `doors.held_entry`), however long the way round (D4). Not an evade.
+## member of a stack held for its leader's go stays on the stack's side of the doorway (D31, the
+## room its confinement keeps it out of, `keep_out`), so any walk of it (its fight's: an engage's
+## reposition, a retreat, under fire too; its order's way to its slot) whose plain way goes into
+## that room goes round it, and none goes round a body by a way into it (`Locomotion`'s
+## `doors.held_entry`), however long the way round (D4). Not an evade.
 func _held_entry() -> String:
 	var room: String = behavior._perception.confinement.keep_out
-	if room == "" or not behavior.in_combat() or not behavior.grenades.evade.is_empty():
+	if room == "" or not behavior.grenades.evade.is_empty():
 		return ""
 	var opening := String(behavior._perception.orders.current().get("opening", ""))
 	return "%s>%s" % [opening, room] if opening != "" else ""

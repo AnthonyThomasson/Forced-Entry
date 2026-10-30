@@ -20,13 +20,21 @@ var views: PerceptionViews
 ## walks the entry guard covers).
 var avoid_doors := false
 ## The entry the walk is the approach of (`"<opening id>><room key>"`, "" for none): it keeps out of
-## that room and of that doorway's view (`AgentPerception.views.walk_route`).
-var avoid_entering := ""
-## The held stack a fight's walk keeps out of (`"<opening id>><room key>"`, "" for none; set each
-## tick by `Behavior`, D31): a walk whose plain way goes into its room (`_held_room`) goes round it,
-## and round its doorway's view, as that stack's approach would; any other walk is left as it is.
+## that room and of that doorway's view (`AgentPerception.views.walk_route`). Another one is another
+## walk: its way is decided afresh.
+var avoid_entering := "":
+	set(v):
+		if v != avoid_entering:
+			decided = false
+		avoid_entering = v
+## The held stack a held member's walks keep out of (`"<opening id>><room key>"`, "" for none; set
+## each tick by `Behavior`, D31): a walk whose plain way goes into its room (`_held_room`) goes
+## round it, and round its doorway's view, as that stack's approach would; any other walk is left as
+## it is. Another one is another walk: its way is decided afresh.
 var held_entry := "":
 	set(v):
+		if v != held_entry:
+			decided = false
 		held_entry = v
 		_held_room = v.get_slice(">", 1) if v != "" else ""
 ## The room of `held_entry`, "" for none.

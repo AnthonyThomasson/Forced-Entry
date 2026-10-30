@@ -369,8 +369,9 @@ sentence for Von ends " when they give the go".
   `params.point`), as a defender's confinement drops the options outside its room (LD8); the fight's spots keep out of that room
   (`Combat`'s spots ask the confinement), a contact in it is fought from where the member stands, never chased in, and a walk whose plain way goes
   into that room (an engage's reposition, a retreat, under fire too; not an evade) goes round it and its doorway's view as an ordered
-  approach's does, however long the way round (D4), and never goes round a body at rest on its way by a way into that room (it waits short of
-  the body, then goes round the room once that way is clear): a retreat to a room behind it is never walked through it. Its other walks, one into the
+  approach's does, however long the way round (D4), and no walk of it (its order's way to its slot among them) goes round a body at rest on
+  its way by a way into that room (it waits short of the body, then goes round the room once that way is clear): a retreat to a room behind
+  it is never walked through it. Its other walks, one into the
   doorway's view to fire through it among them, are left as they are, and none is turned into an entry into that room: the entry guard (E9)
   leaves its doorways alone for the member, under fire too, so a walk up to the doorway stops outside it. When the fight lapses, the member's order brings it back to
   its slot.
@@ -408,7 +409,8 @@ stack's side and none walks into the kitchen while held; once the fight lapses e
 living room past a teammate standing on its plain way through the kitchen, and goes round the house, never into the kitchen),
 `order_stack_hold_advance_to_door_stays_out` (scripted: a held member under fire from the kitchen advances halfway to the defender, to a
 point by the back doorway outside the kitchen: it fights from there, never enters the kitchen nor claims the doorway but under its
-order). The
+order), `order_stack_hold_walk_round_body` (scripted: a held member's walk round the house to its slot meets a teammate standing on its
+way along the west wall, and never goes round it through the hall and the kitchen). The
 `order_stack_*` tests cover a stack that goes when ready.
 
 **LD14. Frag entry.** The stack order's `mode` is `quiet`, `stun` or `frag` (LD5). With `frag` the stack throws a frag into the room
