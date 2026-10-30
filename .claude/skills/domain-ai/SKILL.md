@@ -32,12 +32,14 @@ character — and it runs the
 adopted is not one: `_on_decided` re-takes the key after `set_leaf`, since the order sets or clears the engaged contact the key carries, issue #51 R12, test
 `ai/decision/adopt_target_no_redecide`), interrupting a decision
 walk the situation has overtaken, and the EventBus intake (`&"hit"`, `&"footfall"`s within earshot, allies' `&"callout"`s, `&"grenade"` landings,
-`&"explosion"`s and its leader's `&"order"`s (Orders, below), queued and handed to perception on the next tick) and its own callouts (a combat one carries `target_pos`, where its hostile is).
+`&"explosion"`s and its leader's `&"order"`s (Orders, below), queued and handed to perception on the next tick) and its own callouts (a combat one carries `target_pos`, where its hostile is; an
+investigation one `lead_pos`, the freshest lead placing a hostile its decision weighed, which only its squad reads, LD29).
 It does that through three parts it builds once in `_ready`, each preloaded (no `class_name`): `_cadence` (`ai/npc_cadence.gd`, a data
 leaf: the decide timer, `forced` and why (`force(reason)`), the walks started, an order awaiting its decision (`order_from`), the salient
 key and the last snapshot's facts, sections and options; `due(delta)` counts the timer down), `_comms` (`ai/npc_comms.gd`, holding the
 controller: the queued events (`event_queue`, `process_events`) and every callout it radios) and `_reflexes` (`ai/npc_reflexes.gd`, holding
-the controller: following the squad, the grenade evade and the blind roll, its RNG seeded in `bind`). The planner builds and owns the Von
+the controller: following the squad, the grenade evade and the blind roll, its RNG seeded in `bind`, and priming an ambusher at its post,
+`prime`). The planner builds and owns the Von
 client (`DecisionPlanner.setup(tuning.decision)`, the NPC's name through its `bind(npc_name)`).
 
 | Sub-domain | Folder | Skill | Owns (role) |
@@ -78,7 +80,13 @@ side, its mode, a wait for every living recipient, and for the human leader hold
 it claims and its walk guarded, its claims (the radio's `post_entry_call`) carrying `order_id` / `order_bang` / `order_mode` / `order_hold` / `order_go` / `order_side` / `order_frame`
 beside every claim's `stuns`, `frags`, `claim_frame`, `claim_pos`, `move_up`, `pie` and `crossed_frame`; it ends done at the room cleared
 (`domain-ai-entry`). A held stack (LD13) waits at its slots, ready, until its go; a frag stack (LD14) has a frag carrier throw a frag in
-first. An ambush (LD15) ends done on first contact, a hostile in sight or shots at the member (`AgentPerception.orders.end_ambush_on_contact`, D18).
+first. An ambush (LD15) ends done on first contact, a hostile in sight or shots at the member (`AgentPerception.orders.end_ambush_on_contact`, D18);
+while it holds the ambush at its post (`Behavior.orders.primed`) the controller's reflexes prime it every tick before it observes
+(`_reflexes.prime`: the sight's `primed`, every character in its cone tested every frame, and its own character's
+`process_physics_priority` 1, so it moves after every other body; both undone after, D37). Besides the human's orders an AI defender
+leader's squad orders an ambush of its own (LD29, `domain-ai-team`): on a callout of its side placing a threat outside the leader's room,
+read off a COMBAT callout's `target_pos` or an INVESTIGATE callout's `lead_pos` (the radio part's `post_callout`, from the decision's
+snapshot `leads` group, `domain-ai-snapshot`); the leader is one of its recipients and carries it out as any member does.
 A **join** (a `stack` order with `mode` `join`, LD24) is the squad's own: its leader's own claim at a doorway rallies every follower holding
 no order. Its ORDER option is an `entry` with `join: true` and no side or mode of the order's, and `Entry.begin` runs it as the member's own
 unordered entry joining the leader's stack (`domain-ai-entry`); the order's id stays in the leaf's params, so its progress is still radioed.

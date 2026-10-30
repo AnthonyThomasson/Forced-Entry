@@ -381,7 +381,8 @@ How it is made to happen (E17 of `docs/tactical-entry.md` has the rest): the ent
 claim says so; the thrower steps out in front of the door (`BANG_STEP_OUT`) to a spot from which the lob from its hand is clear of the jamb (G17's
 lob test), walks all the way into that spot (6 px: a stride short of it the jamb can be in the way), and
 aims at the room's far side (85% of the room's depth, on the doorway's axis if the lob is clear), or, in a room deeper than a stun reaches from where it throws
-(a long hall entered from its end), at the farthest point along that line it reaches, at least 120 px in from the doorway. A stun grenade in flight in the doorway is not evaded by the
+(a long hall entered from its end), at the farthest point along that line it reaches, at least 120 px in from the doorway (the aim rule
+is the doorway geometry's, `ai/perception/entry/entry_landings.gd`, which an ambush post is shielded by too, `docs/leadership.md` LD15). A stun grenade in flight in the doorway is not evaded by the
 stack members, who hold turned away beside the wall (G16 still moves anyone else). Nor is an ordered entry's frag, in flight or come down where the member's
 slot is out of its zone (the slot is its cover, `Entry.expects_burst`); a member whose slot the frag reaches (one that came back to the door) evades it as G16 says.
 

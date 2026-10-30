@@ -4,31 +4,40 @@ Each side has a squad and a leader, and a squad is a coordinated team. Its membe
 pick no goal of their own, keep to a file on its trail or a ring round it, fight only within a leash of it, and go in by its doorway as one
 stack when it makes its own claim there (LD19 to LD26). The leader can order members to defend a room, to stack on a door (quietly, with a
 stun or with a frag first, going in when ready or holding for the leader's go) or to ambush a door; a member carries its order out until
-the order ends, then follows again. An NPC with no squad handed to it picks its own goals. The human can choose to lead its side from the
+the order ends, then follows again. An AI leader of the defenders orders of its own: on the first threat its side's radio places
+outside its room, its free members, itself included and one kept back as rear guard from three on, ambush the doorway into that room the
+attack comes through, before contact when a lead heard outside places it (LD29). An NPC with no squad handed to it picks its own goals. The human can choose to lead its side from the
 setup window; a right-click then pauses the game and opens a menu to order the selected teammates. In a played match the human sees the
 slots of every stack its side forms, ordered or its own (LD18). A match's invader team starts in one group beside the front door (LD27), and the squad-leaders
 debug overlay draws the leader, its leash, its trail and the follow spots (LD12, LD28). The tests named under each behaviour assert this
 document.
 
 The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `ai/team/squad.gd` (the squad: roster, leader, succession,
-`issue` and `view`; the leader's trail, the follow spots and the leash; the rally, the abort cancel and the takeover), `goal_controller.gd`
+`issue` and `view`; the leader's trail, the follow spots and the leash; the rally, the abort cancel and the takeover), its `ambush` part
+(`ai/team/squad_ambush.gd`: the defenders' ambush rule, LD29, over `ai/team/attack_door.gd`, the attack doorway, and the static holder
+`SquadAmbushConfig`, `ai/team/squad_ambush_config.gd`), `goal_controller.gd`
 (the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads, the confinement it
-refreshes each tick, `npc_reflexes.gd` `refresh_confinement`, with the leash for a follower holding no order, and the leash break), `agent_perception.gd` (its `orders` part, `perception_orders.gd`: the live order, its end, the ambush's end on contact; its `views` part, `perception_views.gd`: `_stack_room`; the `follows` fact),
-`entry/entry_posts.gd` (`defend_spot`, `ambush_spot`), `stack/` (`stack_layout.gd`'s `slots`, `door_stack.gd`'s `layout` and `released`), the snapshot
-(`snapshot_orders.gd` `group`, `snapshot_sections.gd` `order_text`), the perception's `confinement` (`perception_confinement.gd`: the
-ordered room and the leash, frozen into the snapshot), the decision tree's `order` and `follow` nodes and the planner's confinement filter,
-the behaviour's `defend`, `ambush` and `follow` primitives (`behavior_orders.gd`; `behavior_fight.gd` and `combat.gd` ask the confinement)
+refreshes each tick, `npc_reflexes.gd` `refresh_confinement`, with the leash for a follower holding no order, and the leash break; its radio
+part, `npc_comms.gd`, the INVESTIGATE callout's `lead_pos`; its reflexes part's `prime`, the primed ambusher), `agent_perception.gd` (its `orders` part, `perception_orders.gd`: the live order, its end, the ambush's end on contact; its `views` part, `perception_views.gd`: `_stack_room`; its `sight` part, `perception_sight.gd`: a primed
+ambusher's sight every frame; the `follows` fact), `entry/entry_posts.gd` (`defend_spot`, `ambush_spot`, the post
+shielded from an entry's grenade), `entry/entry_landings.gd` (where an entry's grenade lands, the one rule its thrower aims by and an
+ambush post is shielded by), `stack/` (`stack_layout.gd`'s `slots`, `door_stack.gd`'s `layout` and `released`), the snapshot
+(`snapshot_orders.gd` `group`, `snapshot_options.gd` `lead_group`'s `lead_pos`, `snapshot_sections.gd` `order_text`), the perception's
+`confinement` (`perception_confinement.gd`: the ordered room and the leash, frozen into the snapshot), the decision tree's `order` and
+`follow` nodes and the planner's confinement filter, the behaviour's `defend`, `ambush` and `follow` primitives (`behavior_orders.gd`;
+`behavior_fight.gd` and `combat.gd` ask the confinement)
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
 `behavior_entries.gd`, and the perception's `views.ordered` and `views._seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
 stack, as the leader a stack waits for (LD17) and as the leader's own claim (LD24). The match builder (`match_builder.gd`, `MatchBuilder`,
 for Main's match and the Testing world alike) builds the squads and the squad-leaders overlay (`squads_over`: `build_squads`,
-`bind_squad`, `build_leader_overlay`) and places the invader team in one group (`match_spawner.gd` `spawn_invader_team`, LD27); Main builds, when the
+`bind_squad`, `build_leader_overlay`; the defenders' roster's `ambush_attacks`, LD29) and places the invader team in one group (`match_spawner.gd` `spawn_invader_team`, LD27); Main builds, when the
 human leads, the command menu and the order markers (`main.gd` `_build_command_menu`; `ui/command/command_menu.gd`, `ui/command/order_markers.gd`;
 the setup window's "Lead the team", `ui/menus/setup_menu.gd`; `Keybinds.COMMAND`), and in every played match points the stack markers at
 the human's side's squad (`main.gd` `_watch_side_stacks`, `ui/hud/stack_markers.gd`); the squad-leaders overlay is
 `ui/overlays/leader_overlay.gd`. See the `architecture` skill (interfaces 1, 7, 10, 11, 17 and 21), the `domain-ai-*` skills, `domain-main`,
 `domain-general`, `domain-ui-menus`, `domain-ui-hud` and `domain-ui-overlays`. The real-world practice the following rules were weighed
-against is `docs/research/squad-following.md` (where the game differs from it: "Doctrine", after LD28).
+against is `docs/research/squad-following.md` (where the game differs from it: "Doctrine", after LD28), and for the ambush (LD15, LD29)
+`docs/research/defending-a-room-ambush.md` ("Doctrine of the ambush", after LD29).
 
 ## Behaviours
 
@@ -60,8 +69,10 @@ squad the human leads is led by the human. The match builder builds one per side
 under `World` in Main's match, under a test world that declares a match or its squads), and hands each NPC its own
 (`MatchBuilder.bind_squad`). Every squad coordinates, with no switch: its members with no order follow the leader (LD19 to LD23), and the
 leader's own claim at a doorway brings them in with it (LD24). An AI leader decides through Von as any NPC does, fights and enters like
-any member and takes whatever slot its stack gives it; the only orders given in its name are the squad's own (a join, LD24; the cancels of
-LD25 and LD26), never one of the human's kinds. An NPC with no squad handed to its controller is no follower and picks its own goals.
+any member and takes whatever slot its stack gives it. The orders given in its name are the squad's own: a join (LD24), the cancels of
+LD25 and LD26 and, for the defenders' squad alone (its roster's `ambush_attacks`, set by the match builder), an `ambush` of the doorway an
+attack comes through, to its free members and itself (LD29), the one kind of the human's an AI leader gives. An NPC with no squad handed
+to its controller is no follower and picks its own goals.
 
 Tests: `general/squad_leader_rule` (invaders by rank, then spawn order; defenders by the first spawned; the human when leading).
 
@@ -81,7 +92,9 @@ room?, bang?, mode?, wait_go? }`) into one: a room key or the room under `pos`; 
 room on the far side of the wall plane from `pos` (an exterior door always goes into the house), and the side of the door `pos` lies on
 along the wall (`stack_at`) or, for a click on the opening itself, both (`split`); its `mode` (`quiet` / `stun` / `frag`, `Squad.MODES`;
 a request naming none of them reads it from `bang`: true is a stun, else quiet) and `bang` (true for any mode but `quiet`), and `wait_go`
-(false unless asked). The one other mode is `join` (`Squad.JOIN`, not one of `MODES`): the squad's own rally posts it (LD24), no request
+(false unless asked). An ambush may instead name its doorway by id and the room it is laid from, `{ kind: "ambush", opening, room }`
+(`room` a room the doorway joins; the AI leader's rule, LD29), resolved by the same code as a click on that room's side of the doorway, to
+the same order; an id the house lacks, or a room the doorway does not join, names nothing. The one other mode is `join` (`Squad.JOIN`, not one of `MODES`): the squad's own rally posts it (LD24), no request
 names it and the command menu never offers it. No `to` means every living
 member but the leader; an order to a dead member is dropped (a `go` ignores `to`: D13). Range is unlimited. Only the recipients named in `to`, of the squad's side, take it: each
 holds it as its live order (the memory topic `order`, permanent) until it is done, cancelled or replaced, and never on a timer. While it
@@ -414,15 +427,34 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   `AMBUSH_INSET` (22 px), snapped onto the navmesh, with a sight line to the threshold and off the doorway's axis (past its jamb by
   `DEFEND_BODY`, 14 px). Ranked by how many of the doorway's lookouts see the post (the slots and pie steps of an entry into the room by
   that doorway, as laid out before they are snapped: `geometry`'s `lookouts`; hidden only when it is hidden from the 8 points
-  `AMBUSH_SLACK`, 12 px, round it too, since the ambusher stops a few px off its post), then out of every doorway's fatal funnel, then low
-  cover on its line to the threshold, then nearest `AMBUSH_DEPTH` (110 px, E8's `COVER_DEPTH`) back: with no hidden post, the least seen.
-  Members alternate sides of the axis by their place in `to` (the side with more wall first), two on one side at least `AMBUSH_SPACING`
-  (44 px) apart. A hidden post lies tucked against the door's wall well along from it; in the Terrace house only the hall / living room
-  doorway (`door_150_360`, from the living room) has one, every other doorway the least-seen fallback.
+  `AMBUSH_SLACK`, 12 px, round it too, since the ambusher stops a few px off its post), then by how few landings of an entry's grenade
+  reach it (a frag's burst counted first, then a stun's flash: below), then out of every doorway's fatal funnel, then low cover on its
+  line to the threshold, then nearest `AMBUSH_DEPTH` (110 px, E8's `COVER_DEPTH`) back: with no hidden post, the least seen. Each rank
+  outweighs everything the ranks below it can add up to (`RANK_SEEN`, `RANK_FRAG`, `RANK_STUN`, `RANK_FUNNEL`, `RANK_NO_COVER`), and the
+  side of the axis (`RANK_SIDE`, 1e9) outweighs them all: a post on the member's own side wins over any post on the other, however many
+  lookouts see it. Members alternate sides of the axis by their place in `to` (the side with more wall first), two on one side at least
+  `AMBUSH_SPACING` (44 px) apart. A hidden post lies tucked against the door's wall well along from it; in the Terrace house only the
+  hall / living room doorway (`door_150_360`, from the living room) has one, every other doorway the least-seen fallback.
+- **Shielded from the bang (D17).** The landings are where an entry's grenade thrown into the room by that doorway comes down: the bang's
+  own aim rule (`EntryLandings`, `ai/perception/entry/entry_landings.gd`, which the stack's thrower aims by too, `docs/grenades.md` G18:
+  `BANG_DEPTHS` 0.85 / 0.7 / 0.55 of the room's depth by `BANG_ACROSS` 0 / 0.2 / -0.2 of its width, pulled back to within the grenade's
+  reach, at least `BANG_MIN_DEPTH`, 120 px, from the door and `BANG_INSET`, 30 px, inside the walls), reckoned from the doorway's centre
+  (not from a thrower's slot or step-out) and without D16's filter on the stack's slots. A landing reaches the post when the post lies
+  within the grenade's danger radius of it (a frag's blast, 250 px; a stun's flash, 400 px) and the blast's own cover rule
+  (`Explosion.shields`, interface 3, for a body crouched at the post, every character's body passed through; for a stun only furniture
+  within its `flash_cover_reach`, 30 px, of the post) does not shield it. The reach and the radii are the grenade's own numbers,
+  `GrenadeConfig.stats_of(kind)` (interface 6), the reach less `AgentThrow.REACH_SLACK` (15 px) as a thrower reckons it.
 - **The primitive.** `ambush` (`behavior_orders.gd`), the ORDER node's option with `{ opening, room, spot, door_pos, order_id }`: `defend`'s walk
   to its post (guarded as any walk, `DEFEND_REACH`, `DEFEND_DRIFT`), then it holds there crouched (with `posture_enabled`), gun on the
   threshold (`Watch.ease_gaze` on `door_pos`); the watch stage fires the moment a line opens. It radios `moving`, then `in_position`, and
   asks for no decision while its order stands (on the way, the walk's commit cap).
+- **Primed (D37).** While it holds the ambush of its live order at its post (`Behavior.orders.primed`: the running primitive `ambush`,
+  arrived, its order still live), the controller's reflexes prime it each tick before it observes (`npc_reflexes.gd` `prime`): its sight
+  tests every character in its view cone every physics frame instead of every `SIGHT_EVERY_FRAMES` (`perception_sight.gd` `primed`), and its
+  body's `process_physics_priority` is `PRIMED_PRIORITY` (1), so it moves after every other body in the frame. It then sees an entrant at
+  the spot the entrant's own step just reached, on the frame that step opens the line, while the entrant's controller acted before the
+  step: a same-frame tie is the ambusher's, the entrant firing back the next frame at the earliest. Both are undone once it is no longer
+  primed. Nothing changes for any other NPC.
 - **The end (D18).** On first contact the perception ends the order `done` (`orders.end_ambush_on_contact`, every observe): a hostile in sight,
   wherever it stands, or the member under fire (hit, or a round landing by it), wherever the shots come from. Footsteps heard and callouts
   are no contact. It radios `done` and decides on its own (Von; a fight is COMBAT). It is no defend: its confinement keeps it to no room. The order ends in
@@ -433,7 +465,11 @@ within the follower's leash (LD23).
   <room> from the <room>" has no room beyond an exterior door). The combat top pick unchanged in 18 of 18 levels for both, the expected
   pick moving 0.023 / 0.026 on average (0.109 / 0.078 at most); outside combat both pull `stun_entry_quiet_unexplored` and
   `_unsearched` toward STUN ENTRY, the exterior one also `enter_short_unsearched_over_long_unexplored` toward the kitchen (the coding
-  worker, 2026-10-16, as LD6).
+  worker, 2026-10-16, as LD6). An AI leader that orders itself (LD29) reads the same sentence, word for word: the leader's state carries
+  no leader line of its own. Measured again for it (#128's coding worker, the same 38 levels, the sentence inserted after the goal) it
+  gave the numbers above, the combat top pick unchanged in 18 of 18 for both and the expected pick moving 0.023 / 0.026 on average (0.109
+  at most, `tactic_target_fleeing`, / 0.078); the levels it moves are those an ordered leader is never asked while its order holds. So
+  the leader keeps the member's wording.
 
 Tests (the Terrace house's `door_150_360`, ambushed from the living room): `ai/combat/ambush_door_post` (scripted: the post off the axis,
 unseen from every slot and pie step by the test's own copy of the entry geometry, crouched, gun on the threshold; a puppet steps into the
@@ -442,8 +478,13 @@ wall do not end it, gunfire landing beside it does), `ai/combat/ambush_vs_stack`
 defender against a real invader stack, posted before the first `going_in`, shoots the first of them into the funnel before any of them
 fires), `ai/combat/ambush_contact_leashes_follower` (scripted, LD23: once an intruder in sight ends the ambush `done`, the first decision walk
 begun after it decides over a confinement carrying the leash round its leader), `general/squad_go_and_ambush` (the click side's room, the
-same doorway, an exterior door's kitchen), `ui/command_menu_items`,
-`ui/order_markers_draw` (LD16).
+same doorway, an exterior door's kitchen; a request naming the doorway by id and its room gives the order the equivalent click gives),
+`ai/combat/ambush_post_shielded_from_bang` (scripted: a room laid with a wardrobe; the post is hidden from every slot and pie step and
+shielded, crouched, from every landing of a frag thrown in by the doorway, both by the test's own copies of the geometry and the landings),
+`ai/combat/ambush_survives_stun_entry` (real Von: a shielded ambusher against a real two-invader stack whose suspect-room entry bangs the
+room is not blinded and fires before either invader does), `ai/combat/ambush_primed_fires_on_line_open` (scripted: an ambusher spawned
+before the entrant fires on the frame the entrant's step opens the line), `ui/command_menu_items`, `ui/order_markers_draw` (LD16); the
+bang's own landings are pinned unchanged by the `ai/grenade/bang_*` tests.
 
 **LD16. The menu's new entries.** On a doorway the command menu (LD11) offers, in this order: "Go into the <room>" while a member of the
 squad's view holds a held stack there that has had no go (whoever is selected: the go goes to the doorway's holders, D13); "Stack into the
@@ -707,9 +748,73 @@ file (the Army's "follow me"; a USMC column and an entry stack put the team lead
 instead of holding its movement intervals facing out (facing out matches); and the leash is a radius (320 px) where doctrine's is sight or
 voice of the leader. The leader's succession and each member keeping its own entry drill match.
 
+**LD29. An AI defender leader ambushes the doorway an attack comes through.** The defenders' squad runs one rule of its own while an AI
+leads it (its `ambush` part, `ai/team/squad_ambush.gd`): its roster's `ambush_attacks`, set by `MatchBuilder.build_squads` for the
+defenders' side alone (D29's pattern: no faction check in the squad). A squad the human leads never runs it (the human decides), nor does
+the invaders'.
+- **The trigger (D31, D32).** Every callout of the squad's side, the leader's own included, is read for a threat point: a COMBAT callout's
+  `target_pos` (the hostile's last-known spot as the speaker knows it, else where the shots at it came from), an INVESTIGATE callout's
+  `lead_pos` (below); an entry step, an order's progress or a grenade call places nothing. A point in the leader's own room orders nothing
+  (the fight is already inside), nor does `Vector2.INF`, nor a leader standing in no room (outside the house, or on a point no room's rect
+  holds). The leader's room is the room under its live position when the callout is heard (`HouseRooms.key_at`); a threat point inside
+  the house but in no room's rect counts as outside.
+- **`lead_pos` (interface 10).** An INVESTIGATE callout, GO or STAY, carries the spot of the freshest lead the speaker's decision weighed
+  that places a hostile: where one was last seen or was heading, footsteps or gunfire heard, where the shots came from; an ally's support
+  lead is skipped (its spot is the ally, whose own COMBAT callout carries `target_pos`). It is taken over all the leads before the option
+  cap (`snapshot_options.gd` `lead_group` hands it out beside the options; `npc_comms.gd` `post_callout` radios it), `Vector2.INF` with
+  none. Allies' perception ignores it: only the squad reads it. Only the leader investigates (a follower's INVESTIGATE is disabled, LD20),
+  so it is the leader's STAY on steps heard outside, its usual pick while the invaders gather, that posts the crew before contact.
+- **The attack doorway (D33).** From the threat point's room (outside the house counting as a room its exterior doors join), the shortest
+  way doorway to doorway into the leader's room, the cost being the straight walk from the point through each doorway in turn; the last
+  doorway on it is the attack doorway (`ai/team/attack_door.gd` `doorway`, a Dijkstra over the house's `rooms` and `openings`, interface 1;
+  no navmesh). With no way through: none, and nothing is ordered.
+- **The order.** `Squad.issue({ kind: "ambush", to, opening, room })`, the doorway by id from the leader's room (LD5), exactly as the
+  human's request is resolved and posted (LD15). `to` is the living NPC members holding no order, in spawn order, the leader included (a
+  leader that walked off would leave its crew behind); a member whose held order it radioed `refused` holds none for the rule (D36); a
+  human member is never one. **The rear guard (D34):** with three or more of them the last in spawn order that is not the leader is left
+  out; it follows the leader as any member with no order does and is free for the next order. A member fighting takes the order up once
+  its fight lapses (the order's entry rule sits after the fight rules, LD6); one in contact as it arrives ends it `done` at once (D18).
+- **Re-orders (D35).** Another order goes out only for a new doorway, at least `SquadAmbushConfig.reorder_gap` (8 s) after the last, to
+  the members then holding no order (the rear guard left out again), and only with at least `SquadAmbushConfig.min_recipients` (2) of
+  them; the first order needs one. The last doorway and its clock move only when an order is posted.
+- **A new leader.** The rule always reads the live leader. When the leader dies (LD4) the last doorway and the clock start afresh; the
+  ambushes it gave stand (an ambush ends at first contact anyway), and the new leader's rule orders whoever is free. LD26's takeover
+  cancel stays the human leader's alone.
+
+Tests: `ai/attack_door_suite` (native, the Terrace house: outside by the front door comes through the hall, by the back door through the
+kitchen; room to room takes the shortest walk, not the shared doorway; a threat in the leader's room, a leader in no room and a house with no
+way through name none), `general/squad_ambush_rule` (scripted radio over a real crew in the living room: the first threat orders the
+doorway to the leader and the next member, the third kept back and a non-NPC member never named; the same doorway or a threat in the
+leader's room orders nothing; a new doorway within the cool-down orders nothing, past it it does; the dead leader's ambushes stand and the
+new leader orders the same doorway again within the old cool-down; members that radioed `refused` are ordered again),
+`general/squad_ambush_rule_off` (a human-led defender squad and the invaders' AI-led squad order nothing), `ai/investigate/investigate_callout_lead_pos`
+(`von_script`: an INVESTIGATE – STAY callout carries `lead_pos` at the fresher of two steps heard, an ally's fight radioed after them
+skipped), `ai/combat/crew_ambush_attack_door` (real Von: a crew of three in the living room, an invader in by the front door; once the
+radio places it the leader and the next member hold the ambush of the hall's doorway, or end it `done` in contact, and the third, the
+rear guard, holds no order and follows), `ai/investigate/crew_ambush_before_contact` (real Von: a one-room house; the leader hears an
+invader walking outside, takes INVESTIGATE – STAY, `require`d, and the leader and the next member are at their posts on the front door
+before any defender sees it), and `ai/movement/follow_defenders` (a crew's own search walks its leader: a heard threat now posts the crew
+instead).
+
+**Doctrine of the ambush.** `docs/research/defending-a-room-ambush.md` sets LD15 and LD29 beside urban-defence and ambush practice (US Army
+FM 3-06.11, FM 90-10-1, FM 3-21.8 and TC 3-23.30, USMC MCWP 3-35.3). Matching it: the unengaged members reinforce the threatened point
+(FM 90-10-1 ¶4-26a), one group owning the one avenue; the order on a heard approach, before contact (the "look and listen … alert" of FM
+3-06.11 ¶5-31b–c, the ambush's report-then-alert chain, FM 3-21.8 ¶9-94); the leader in a post with the crew (¶7-122); the posts off the
+door's line, back from it, low and hidden from the entry's lookouts (FM 3-06.11 ¶3-22c(9), ¶3-28); the ambush ending at first contact
+(¶9-95); a re-order only on a real change of the threatened doorway. Where the game differs: its all-round security is one rear guard,
+kept back from three members on (doctrine's first priority, ¶5-30b(1), and the ambush's rear security, FM 3-21.8 ¶7-125), and that rear
+guard follows the leader rather than watching another approach; a crew of two sends both. The order is given on the spot from the radio
+picture, the doctrinal "supplementary position occupied on specific enemy action" (FM 3-21.8 ¶8-20) with nothing planned or rehearsed. A
+re-order may come while the threat is already at a door, which doctrine calls the dangerous case (¶8-46); only members holding no order
+move on it. A member in contact ends its ambush and fights on its own, with no counterattack on a foothold nor fall-back to a second line (FM 3-06.11
+¶5-27, FM 3-21.8 ¶8-129). Against a grenade thrown in first, doctrine's answer is hard cover between the post and the door or holding the
+doorway from beyond it (FM 3-06.11 ¶3-29b(2)); the game's post stays in the room the grenade lands in and prefers one that furniture
+shields from the bang's landings (LD15), with no fortifying, and no post outside the room or through a wall. Its depths (40 to 160 px)
+are the game's estimate: doctrine gives no distance.
+
 ## Decisions
 
-The cases the behaviours above cite as D1 to D30.
+The cases the behaviours above cite as D1 to D37.
 
 | # | Case | Decision | Where |
 |---|---|---|---|
@@ -729,7 +834,7 @@ The cases the behaviours above cite as D1 to D30.
 | D14 | The human in a held stack | The stack waits for the human's go: the menu's Go, or the human stepping into the doorway (its `going_in` / `in`) on a crossing begun since the order was issued (`crossed_frame` at or after the order's `frame`; the human's latest crossing); the AIs follow it in. | LD13 |
 | D15 | Ordered with a frag, no frag in the stack | The menu greys "with frag" while no recipient carries one; a stack whose frag is gone by the time it is in goes in quietly and radios `bang_off`, and the order is still done at `cleared_room`. | LD14, LD16 |
 | D16 | Where the frag is aimed | Only where its burst leaves every claimed slot of the stack, the thrower's own too, out of its danger zone (the wall between shields it); nowhere such: the frag is given up, quiet. | LD14 |
-| D17 | Where an ambush waits | In the room on the click's side of the wall (an exterior door: the house's), at a post off the axis, back from the wall, out of the funnel, seeing the threshold and hidden from every slot and pie step of an entry by that doorway; with none hidden, the least seen. | LD15 |
+| D17 | Where an ambush waits | In the room on the click's side of the wall (an exterior door: the house's), at a post off the axis, back from the wall, seeing the threshold and hidden from every slot and pie step of an entry by that doorway (with none hidden, the least seen); among those, the one the fewest landings of an entry's grenade reach, crouched (a frag's, then a stun's: the bang's own aim rule, reckoned from the doorway's centre, without D16's slot filter), then out of the funnel. | LD15 |
 | D18 | When an ambush ends | On first contact, `done`: a hostile in sight anywhere, or under fire; footsteps and callouts do not end it. The member then decides on its own. | LD15 |
 | D19 | The menu's "Hold for my go" | A panel checkbox, off at first, kept across opens while the match runs; it sets `wait_go` on the stack chosen. | LD16 |
 | D20 | The room an ordered stack stands in | Once a member under the order holds its slot there (`ready` or `bang`), it counts as cleared for passing: the members still coming walk through it, not into it by entry. | LD9 |
@@ -743,6 +848,13 @@ The cases the behaviours above cite as D1 to D30.
 | D28 | A follower and its leader's way | It never stands in the lane ahead of its leader: it steps beside it (its own side first) or further ahead, only into rooms the leader has entered, and keeps that spot while it clears the way, so a leader turning back or slicing a pie walks through its file. | LD21 |
 | D29 | Whose human leader rallies by stepping up | The invaders' only: a human defender leader makes no claim of its own at a doorway (the match builder sets `PlayerStack.own_claims` for the invaders' side alone, `MatchBuilder.bind_squad`), so its step-ups rally nobody and its teammates go on following it. | LD24 |
 | D30 | A follower that takes over the lead holding a join | The join's claims are not its own claim: they carry `join: true` and the squad's own-claim check rejects them, so it does not rally again at that doorway; its next claim of its own, at any doorway, rallies the members then holding no order. | LD24 |
+| D31 | What places a threat for the AI defender leader's ambush | A callout of its side, the leader's own included: a COMBAT callout's `target_pos`, an INVESTIGATE callout's `lead_pos` (the freshest lead placing a hostile, an ally's support skipped); nothing in the leader's own room, nothing at `Vector2.INF`; a point inside the house in no room's rect counts as outside. | LD29 |
+| D32 | A leader standing in no room | Orders nothing: outside the house, or on a point no room's rect holds, it has no room to ambush from. | LD29 |
+| D33 | Which doorway | The last doorway on the shortest way, doorway to doorway, from the threat point's room (outside counting as a room) into the leader's, each leg the straight walk from the point or the doorway before; the house's room graph alone, no navmesh; no way through, no order. | LD29 |
+| D34 | The rear guard | With three or more recipients, the last spawned that is not the leader is kept back; it follows the leader and is free for the next order; with two, both go. | LD29 |
+| D35 | Re-orders | Only for a new doorway, at least 8 s after the last order, to the members then holding no order, with at least two of them after the rear guard is left out; the doorway and the clock move only when an order is posted, and start afresh with a new leader; a dead leader's ambushes stand. | LD29 |
+| D36 | A member that refused its order | Free for the ambush rule: a member whose held order it radioed `refused` (no post for it) is a recipient of the next, as a refused join is dropped (LD25); the human's held orders and `view()` keep D21. | LD29 |
+| D37 | The primed ambusher | At its post, holding the ambush of its live order, it tests its sight on every character in its view cone every frame and moves after every other body (`process_physics_priority` 1): a same-frame tie with an entrant is the ambusher's. Nobody else changes. | LD15 |
 
 ## Numbers
 
@@ -761,6 +873,13 @@ The cases the behaviours above cite as D1 to D30.
 | ... inside the room's walls by | 22 px | `AMBUSH_INSET` |
 | ... hidden too from the points this far round it | 12 px | `AMBUSH_SLACK` |
 | Two ambushers' posts on one side, at least | 44 px apart | `AMBUSH_SPACING` |
+| An entry's grenade aimed into the room (shares of its depth, of its width) | 0.85 / 0.7 / 0.55 by 0 / 0.2 / -0.2 | `EntryLandings.BANG_DEPTHS`, `BANG_ACROSS` |
+| ... landing at least, from the door / inside the walls | 120 px / 30 px | `EntryLandings.BANG_MIN_DEPTH`, `BANG_INSET` |
+| An ambush post's grenade landings: reach, danger radius (frag / stun), the stun's furniture reach | 550 - 15 px; 250 / 400 px; 30 px | `GrenadeConfig.stats_of` (`max_range`, `danger_radius`, `flash_cover_reach`), `AgentThrow.REACH_SLACK` |
+| A primed ambusher's body moves in the physics frame after the others' (priority) | 1 (0 otherwise) | `npc_reflexes.gd` `PRIMED_PRIORITY` |
+| The AI defender leader re-orders an ambush at most every | 8 s | `SquadAmbushConfig.reorder_gap` |
+| ... and only to at least | 2 recipients | `SquadAmbushConfig.min_recipients` |
+| A rear guard is kept back from | 3 recipients | `squad_ambush.gd` `_recipients` |
 | A frag entry waits for its frag to go off at most (from the call) | 7 s | `EntryGrenade.FRAG_BURST_CAP` |
 | A frag entry keeps every slot out of the frag's danger zone | 370 px (250 + 120) | `throw_stats().danger_radius` + `tuning.grenades.evade_margin` |
 | An ordered member waits for the map round the views before reading its way at most | 2 s | `ROUTE_WAIT` (`behavior_entries.gd`) |
@@ -817,7 +936,53 @@ from `uptime` before and after the run, on 12 cores; the machine was shared, and
 Main's 5v5 timeout on seed 107 was still undecided at 180 s, one defender and three invaders standing. A run of the squads tree
 before its audit fixes, the same morning (06:52 to 07:03, load 3.07 to 7.28), gave the same tallies: 10 invader wins in 10 at both sizes.
 
+**With the defenders' ambush (LD29, issue #128).** The same `tools/match.py` run (`--seed 101 --rounds 10 --timeout 180`) on
+2026-10-29 at f2d89ae5, set up as above: a headless game per run on its own command port, from an uncommitted scene inheriting
+`main.tscn` with its `run`'s `defender_count` and `invader_count` set, spectator mode, the default loadouts and the real Von server
+(shared with other sessions). 3v3 from 16:36 to 16:41, 5v5 from 16:41 to 16:49, and 5v5 again from 18:11 to 18:19, the machine still
+loaded. Survivors are the members standing when the round ended, over the ten rounds. An ambush order is one doorway an AI defender
+leader ordered its crew to ambush, counted from the log by the `ORDER - ambush the doorway from the <room>` decisions of the members
+that took it (one round can hold two). The early rounds are those whose first such decision came before any defender's first `COMBAT`
+decision. No reply is the share of the decisions' log lines that are `no reply ... (HTTPRequest result 13) — holding steady` (a Von
+timeout) instead of a decision; an NPC logs the same failure again only after a reply came between (`decision_client.gd` `_fail`), so
+the share is a floor.
+
+| Size | Invader wins | Defender wins | Timeouts | Survivors (invaders / defenders) | Round length, mean (min to max) | Ambush orders (rounds; early) | Members taking one | No reply | Load |
+|---|---|---|---|---|---|---|---|---|---|
+| 3v3 | 9 | 1 (seed 102) | 0 | 22 / 2 | 28.4 s (10.1 to 50.7) | 5 (5 rounds; 3) | 25 | 0.4% (2 of 521) | 3.19 → 6.97 |
+| 5v5 | 9 | 1 (seed 108) | 0 | 31 / 3 | 50.5 s (11.2 to 117.1) | 11 (9 rounds; 4) | 43 | 5.7% (63 of 1100) | 6.97 → 15.83 |
+| 5v5, again | 8 | 2 (seeds 104, 106) | 0 | 25 / 3 | 51.6 s (11.1 to 160.7) | 11 (9 rounds; 4) | 51 | 4.3% (42 of 967) | 4.18 → 17.60 |
+
+Against the squads rows above (10 invader wins in 10 at both sizes), the defenders win 1 or 2 rounds in 10. Ten seeds cannot show
+that as a change: two runs of one tree differ by a round or two (the two 5v5 runs here won on different seeds), and from 3 wins in 10
+an arm needs 9 in 10 to differ at p < 0.05 (Fisher's exact test, two-sided); from the squads' 0 in 10 it needs 5. Neither is an A/B
+of issue #128 alone: main has moved since e6cdbf7. The 3v3 seed the defenders won (102) holds no ambush order. The 5v5 rounds last
+longer, with a tail past 100 s in each run, and both 5v5 runs were made on a loaded machine with Von timing out on at least 4 to 6%
+of the decisions.
+
 ## Performance
+
+**With the defenders' ambush (LD29, issue #128).** `tools/run_tests.sh --domain=perf --verbose --summary --no-lint` on f2d89ae5 and
+on main (af3e0f48, a scratch `git worktree`), alternated, on 2026-10-29 from 16:08 to 16:15, each run started at a 1-min load under 4
+with no other headless Godot test running (`uptime` before and after). The machine was shared and seldom quiet: of main's runs, the
+first (3.82 → 4.47) and a rerun at 18:23 (3.89 → 4.28) ended over 4 and are left out, so main has two runs (3.87 → 2.75, 2.52 → 2.78)
+and the change three (3.88 → 3.62, 3.99 → 3.87, 2.75 → 2.52). Every counted run of either tree passed 10 of 12: the 10v10 missed its
+max in every run and its p95 in all but one, as before (#98), and the grenade match its max in every run and its p95 in two of the
+change's and one of main's. In ms per frame, avg / p95 / max (bold misses):
+
+| Guard | Change (median of 3) | Main (2 runs) |
+|---|---|---|
+| 10v10 match (`match_10v10_stress`) | 13.47 / **24.92** / **34.59** | 14.83 / **32.54** / **68.06**, 10.88 / 18.50 / **37.26** |
+| 5v5 match (`match_5v5_stress`) | 5.90 / 11.09 / 24.83 | 5.75 / 11.56 / 31.77, 5.82 / 12.08 / 25.62 |
+| grenades in a 5v5 match (`grenade_match_stress`) | 13.30 / **21.83** / **48.01** | 12.71 / **20.48** / **40.01**, 10.26 / 15.71 / **37.94** |
+
+The grenade match's p95 was higher on the change in each of the three pairs, so that guard alone was run 8 times a tree, alternated
+(16:25 to 16:32, each started at a load under 4 with no other headless Godot): the change missed a budget in 5 runs of 8 and main in
+6, and the means were 11.10 / 18.15 / 33.2 on the change against 11.49 / 18.74 / 40.8 on main (without the change's two runs that
+ended over 4, 10.86 / 17.89 / 32.2 and 4 misses in 6). No cost of the change shows in the guards. What the ambush adds is one frame's
+work per member the first time it ranks a doorway's ambush posts (`entry_posts.gd` `_ambush_posts`, cached per member and doorway
+until the house changes): in the run whose worst frame was 69 ms, the defender leader ordered a new doorway's ambush inside the
+window, and an uncommitted copy of the change that timed that ranking measured 15.8 ms for one member (load 5.4).
 
 **Since the match builder (issue #95).** The three match guards (`match_5v5_stress`, `match_10v10_stress`, `grenade_match_stress`) build
 their match through `MatchBuilder` as Main builds one (`s.declared_match`): the invader team beside the front door with its plates and grenades,

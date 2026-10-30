@@ -43,5 +43,8 @@ beside the wall. Nothing here is drawn from a published source.
 ## Not modelled
 
 The floor under the step (carpet as loud as tile), a step heard louder or softer by distance within the range, which way a walker is
-going, a defender reacting to a stack at its door beyond investigating the steps (issue #51, out of scope), and the human's own
+going, a defender reacting to a stack at its door beyond investigating the steps (issue #51, out of scope; in part since #128: an
+INVESTIGATE callout radios where the steps were heard, `lead_pos`, and on steps outside its AI leader's room a defenders' squad orders its
+crew to ambush the doorway an attack from there comes through, `docs/leadership.md` LD29; a defender with no squad still only
+investigates them), and the human's own
 hearing (the Audio domain plays every step to the player).

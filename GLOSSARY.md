@@ -154,6 +154,26 @@ settled (same-frame ties and move-up, the human's slot, sides, files, tail and d
 thrower, a held stack's release) and a slot becomes a point, so every reader gets the same answer.
 _Avoid_: stack layout (its `layout()`, what the markers draw), slot rules
 
+### Squads and orders
+
+**Attack doorway**:
+The doorway into the AI defender leader's room that an attack from a threat its side's radio placed comes through: the
+last doorway on the shortest way, doorway to doorway, from the threat's room (outside counting as a room) into the
+leader's (`scenes/ai/team/attack_door.gd`, `docs/leadership.md` LD29). Its crew is ordered to ambush it.
+_Avoid_: entry door, front door (an attack doorway may be any doorway of the leader's room)
+
+**Rear guard**:
+The member an AI defender leader keeps back when it orders three or more to ambush the attack doorway: the last spawned
+that is not the leader. It holds no order, follows the leader and is free for the next order (`docs/leadership.md`
+D34).
+_Avoid_: lookout, sentry (it watches no approach of its own)
+
+**Primed ambusher**:
+An NPC holding the ambush of its live order at its post: its sight tests every character in its view cone every frame
+and its body moves after every other in the frame, so it wins a same-frame tie with an entrant (`docs/leadership.md`
+D37).
+_Avoid_: posted ambusher (one still walking to its post is not primed), camper
+
 ### Lint
 
 **Lint rule**:
