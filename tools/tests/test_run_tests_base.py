@@ -2,6 +2,7 @@
 worktree, and the working tree is never written. A throwaway repo holds a copy of the wrapper and a fake Godot that
 records what the run it was started in looks like; the refusals and the interrupt are checked on the same repo."""
 import os
+import re
 import shutil
 import signal
 import stat
@@ -125,7 +126,8 @@ class BaseRunTests(unittest.TestCase):
         short = self.git("rev-parse", "--short", "HEAD~1").strip()
         lines = out.splitlines()
         self.assertIn(f"== on base HEAD~1 ({short}) ==", lines)
-        self.assertIn("0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap", lines[lines.index(f"== on base HEAD~1 ({short}) ==") + 1:])
+        after = lines[lines.index(f"== on base HEAD~1 ({short}) ==") + 1:]
+        self.assertTrue(any(re.fullmatch(r"0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  load [0-9.]+", l) for l in after), after)
 
     def test_its_exit_code_is_that_runs_verdict(self):
         self.assertEqual(self.run_tests("--base=" + self.rev, "--id=ai/x", "--no-lint", FAKE_VERDICT="fail")[0], 1)

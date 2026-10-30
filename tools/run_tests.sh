@@ -35,10 +35,12 @@
 #                                         not run: tools/run_tests.sh --domain=<d> --require-von` when the runs skipped
 #                                         Von tests (the totals line names those apart: `N skipped (V need Von, not run:
 #                                         --require-von)`). A changed docs/*.md paragraph runs the tests its `Test:` /
-#                                         `Tests:` line names (tools/spec_tests.py), --repeat=5 under `== tests named by
-#                                         changed spec paragraphs ==` (with --include-von when a Von server is live;
-#                                         --skip-domain wins), also when their domain ran above; a paragraph that names
-#                                         no test, or a name with no test file, is a NOTE (never a failure).
+#                                         `Tests:` line (or the `Tests:`-only block that directly follows a paragraph
+#                                         naming none) names (tools/spec_tests.py; names resolve against the index under
+#                                         --staged), --repeat=5 under `== tests named by changed spec paragraphs ==`
+#                                         (with --include-von when a Von server is live; --skip-domain wins), also when
+#                                         their domain ran above; a paragraph that names no test, or a name with no test
+#                                         file, is a NOTE (never a failure).
 #   tools/run_tests.sh --changed --staged the same for what is staged (git diff --cached), not the working tree, and
 #                                         the lint of what the commit holds (tools/lint_staged.sh: the staged
 #                                         scripts as they are on disk; the whole tree when project.godot or a gdstyle
@@ -423,7 +425,7 @@ godot_run() {
   if [[ ! -f "$out/report.json" ]] && grep -q "No test cases found" "$out/gdunit.txt"; then
     # gdUnit runs no session, so no suite and no hook, when the selection holds no test: an empty run, as it was.
     echo '{"results": [], "stray_logs": [], "log_end": 0}' > "$out/report.json"
-    echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
+    echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap" | python3 "$TOOLS/godot_slot.py" annotate --ancestor=$$
     echo "Report: $out/report.json"
   fi
   [[ -n "$LOADED_RUN" ]] && mark_loaded "$out"

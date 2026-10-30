@@ -19,8 +19,8 @@ go at once): they take no slot, write no pid and replace no file.
 
 The machine's state, for `--quiet` and the PERF lines of a run: the 1-minute load (`uptime`) and the number of other Godot
 processes (`pgrep -i godot`: editors and played games too), those under the process PID (the run's own) left out.
-`annotate` appends `(load <x>, <n> other Godot)` to every `PERF ` line it passes and, with --loaded, `  loaded` to every
-verdict line (`PASS    <id>  (<s>s sim, <ms> ms)`). `quiet` returns 0 once no other Godot runs and the load is under
+`annotate` appends `(load <x>, <n> other Godot)` to every `PERF ` line it passes, `  load <x>` to every totals line and, with
+--loaded, `  loaded` to every verdict line (`PASS    <id>  (<s>s sim, <ms> ms)`). `quiet` returns 0 once no other Godot runs and the load is under
 --max-load, printing the load and the count at once and every minute ($GAME_TEST_QUIET_MINUTE seconds, 60 by default;
 polled every $GAME_TEST_QUIET_POLL, 5 by default) while it waits, and 3 after --timeout-min minutes.
 """
@@ -38,6 +38,7 @@ RECLAIM_WAIT = 0.1
 # The lock file that serialises the takers of a pool (it is not a slot).
 GUARD = "slot-reclaim.lock"
 VERDICT = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+\S+\s+\(")
+TOTALS = re.compile(r"^\d+ passed, \d+ failed, \d+ timed out, \d+ skipped")
 
 
 def size() -> int:
@@ -210,6 +211,8 @@ def annotate(argv: list) -> int:
         line = line.rstrip("\n")
         if line.startswith("PERF "):
             line += " (load %.2f, %d other Godot)" % (one_minute_load(), other_godots(ancestor))
+        elif TOTALS.match(line):
+            line += "  load %.2f" % one_minute_load()
         elif loaded and VERDICT.match(line):
             line += "  loaded"
         print(line, flush=True)

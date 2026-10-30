@@ -713,7 +713,7 @@ class SpecNamedTestsTests(unittest.TestCase):
 
 FAKE_CONCURRENT_GODOT = r"""#!/usr/bin/env bash
 # Stands in for Godot: records how many fake engines run at once (a file per running one in $FAKE_CONC_DIR, counted
-# after it exists), stays alive $FAKE_SLEEP seconds, then writes a passing report.
+# after it exists), stays alive $FAKE_SLEEP seconds, then writes a passing report (with FAKE_EMPTY, none: no test found).
 for a in "$@"; do [ "$a" = "--import" ] && exit 0; done
 log=""; out=""
 while [ $# -gt 0 ]; do
@@ -721,6 +721,8 @@ while [ $# -gt 0 ]; do
   shift
 done
 echo "Godot Engine v4.4" > "$log"
+# gdUnit with a selection that holds no test: it says so and writes no report.
+if [ -n "$FAKE_EMPTY" ]; then echo "No test cases found, abort test run!"; exit 0; fi
 touch "$FAKE_CONC_DIR/running.$$"
 ls "$FAKE_CONC_DIR" | grep -c '^running\.' >> "$FAKE_CONC_DIR/counts"
 sleep "${FAKE_SLEEP:-1}"
@@ -912,6 +914,18 @@ class SlotPoolTests(unittest.TestCase):
         self.assertLess(lines.index(header), next(i for i, l in enumerate(lines) if "passed," in l), "before the tests")
         totals = next(l for l in lines if re.match(r"^\d+ passed, ", l))
         self.assertRegex(totals, r"  load 7\.77$")
+
+    def test_a_single_process_runs_totals_line_prints_the_load_too(self):
+        for args in (["--jobs=1", self.ids(1)], ["--id=a/x"], ["--jobs=1", "--repeat=1", "--id=a/x"]):
+            with self.subTest(args=args):
+                out = self.run_wrapper(*args, FAKE_SLEEP="0")
+                totals = [l for l in out.splitlines() if re.match(r"^\d+ passed, ", l)]
+                self.assertEqual(len(totals), 1, out)
+                self.assertRegex(totals[0], r"^1 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  load 7\.77$")
+
+    def test_a_run_with_no_test_prints_the_load_on_its_totals_line_too(self):
+        out = self.run_wrapper("--jobs=1", "--id=a/x", FAKE_SLEEP="0", FAKE_EMPTY="1")
+        self.assertRegex(out, r"(?m)^0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  load 7\.77$")
 
 
 FAKE_PHASES_GODOT = r"""#!/usr/bin/env bash
@@ -1746,10 +1760,9 @@ class GdUnitEngineTests(unittest.TestCase):
         for flags in ([], ["--include-von"]):
             with self.subTest(flags=flags):
                 run = self.probe(self.VON, *flags, GAME_TEST_VON_PORT=port)
-                self.assertIn("0 passed, 0 failed, 0 timed out, 1 skipped (1 need Von, not run: --require-von), 0 gap",
-                              run.out.splitlines())
+                self.assertRegex(run.out, r"(?m)^0 passed, 0 failed, 0 timed out, 1 skipped \(1 need Von, not run: --require-von\), 0 gap  load [0-9.]+$")
         run = self.probe(self.VERDICT, GAME_TEST_VERDICT="skip")
-        self.assertIn("0 passed, 0 failed, 0 timed out, 1 skipped, 0 gap", run.out.splitlines(), "no Von skip: unchanged")
+        self.assertRegex(run.out, r"(?m)^0 passed, 0 failed, 0 timed out, 1 skipped, 0 gap  load [0-9.]+$", "no Von skip: no parenthesis")
         run = self.run_tests("--self-test", f"--id={self.VON},{self.VERDICT}", "--summary", GAME_TEST_VERDICT="skip",
                              GAME_TEST_VON_PORT=port)
         self.assertEqual((run.summary, run.von_skipped), ((0, 0, 0, 2, 0), 1), run.out)

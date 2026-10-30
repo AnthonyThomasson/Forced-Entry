@@ -30,12 +30,41 @@ that goes on).
 """
 
 
+# The shape of docs/hearing.md:34: the Tests: line is a block of its own, after a blank line.
+SPLIT_DOC = """# Spec
+
+**H1. First rule.** Prose of the first rule.
+More prose.
+
+Tests: `alpha_one` (scripted: a walk in range),
+`ai/entry/beta_two` (real Von).
+
+**H2. Second rule.** Prose.
+
+Another paragraph of the second rule.
+
+Tests: `ai/beta_one`.
+
+**H3. Third rule.** Prose.
+
+## A heading
+
+Tests: `alpha_two`.
+
+**H4. Fourth rule.** Prose.
+
+Tests: `missing_test`.
+"""
+
+
 def hunk(path, start, count):
     """A unified -U0 diff holding one hunk whose new side is `count` lines from `start`."""
     return f"diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -1,0 +{start},{count} @@\n"
 
 
-class MappingTests(unittest.TestCase):
+class TestFilesCase(unittest.TestCase):
+    """A temp dir of test files, and `map(diff, doc)` over it."""
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -46,8 +75,13 @@ class MappingTests(unittest.TestCase):
             (self.tests / (rel + "_test.gd")).write_text("")
 
     def map(self, diff, doc=DOC):
-        return spec_tests.map_diff(diff, lambda path: doc, self.tests)
+        return spec_tests.map_diff(diff, lambda path: doc, self.test_files())
 
+    def test_files(self):
+        return sorted(f.relative_to(self.tests).as_posix() for f in self.tests.rglob("*_test.gd"))
+
+
+class MappingTests(TestFilesCase):
     def test_a_changed_line_gives_the_ids_its_paragraphs_tests_line_names(self):
         # Line 4 is "More prose." of E1.
         self.assertEqual(self.map(hunk("docs/a.md", 4, 1)), (["physics/alpha_one", "physics/alpha_two"], []))
@@ -73,7 +107,7 @@ class MappingTests(unittest.TestCase):
 
     def test_a_helper_folder_holds_no_test(self):
         doc = "Tests: `delta_helper`.\n"
-        self.assertEqual(spec_tests.map_diff(hunk("docs/a.md", 1, 1), lambda p: doc, self.tests),
+        self.assertEqual(spec_tests.map_diff(hunk("docs/a.md", 1, 1), lambda p: doc, self.test_files()),
                          ([], ["NOTE unknown test name in docs/a.md:1: delta_helper"]))
 
     def test_a_pure_deletion_changes_the_paragraph_around_where_the_lines_were(self):
@@ -100,6 +134,33 @@ class MappingTests(unittest.TestCase):
 
     def test_a_changed_blank_line_changes_no_paragraph(self):
         self.assertEqual(self.map(hunk("docs/a.md", 6, 1)), ([], []))
+
+
+class SplitTestsBlockTests(TestFilesCase):
+    """A changed paragraph that names no test takes the Tests:-only block that directly follows it."""
+
+    def map(self, diff, doc=SPLIT_DOC):
+        return super().map(diff, doc)
+
+    def test_a_changed_paragraph_takes_the_tests_block_directly_after_it(self):
+        ids, notes = self.map(hunk("docs/a.md", 4, 1))
+        self.assertEqual((ids, notes), (["physics/alpha_one", "ai/entry/beta_two"], []))
+
+    def test_a_paragraph_between_the_changed_one_and_the_tests_block_stops_the_search(self):
+        # Line 9 is H2's first paragraph; the block after it is another rule paragraph, not a Tests: block.
+        self.assertEqual(self.map(hunk("docs/a.md", 9, 1)), ([], ["NOTE docs/a.md:9: changed paragraph names no test"]))
+
+    def test_the_second_paragraph_of_a_rule_takes_the_tests_block_after_it(self):
+        self.assertEqual(self.map(hunk("docs/a.md", 11, 1)), (["ai/beta_one"], []))
+
+    def test_a_heading_between_stops_the_search(self):
+        self.assertEqual(self.map(hunk("docs/a.md", 15, 1)), ([], ["NOTE docs/a.md:15: changed paragraph names no test"]))
+
+    def test_an_unknown_name_in_the_block_is_a_note_with_the_line_of_the_name(self):
+        self.assertEqual(self.map(hunk("docs/a.md", 21, 1)), ([], ["NOTE unknown test name in docs/a.md:23: missing_test"]))
+
+    def test_a_changed_tests_block_still_names_its_own_tests(self):
+        self.assertEqual(self.map(hunk("docs/a.md", 6, 1)), (["physics/alpha_one", "ai/entry/beta_two"], []))
 
 
 class CommandLineTests(unittest.TestCase):
@@ -145,6 +206,21 @@ class CommandLineTests(unittest.TestCase):
         self.assertEqual(self.spec_tests("--staged"), ["ID physics/alpha_one", "ID physics/alpha_two"])
         self.assertEqual(self.spec_tests(), ["ID physics/alpha_one", "ID physics/alpha_two",
                                              "NOTE docs/a.md:7: changed paragraph names no test"])
+
+    def test_staged_resolves_a_name_against_the_tests_the_index_holds(self):
+        # alpha_two's test file is deleted from the index only: the commit does not hold it, the working tree still does.
+        self.edit("Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.git("add", "docs/a.md")
+        self.git("rm", "-q", "--cached", "tests/physics/alpha_two_test.gd")
+        self.assertEqual(self.spec_tests("--staged"), ["ID physics/alpha_one", "NOTE unknown test name in docs/a.md:5: alpha_two"])
+        self.assertEqual(self.spec_tests(), ["ID physics/alpha_one", "ID physics/alpha_two"], "the working tree holds both")
+
+    def test_staged_does_not_resolve_a_name_to_a_test_file_that_is_only_in_the_working_tree(self):
+        self.edit("`alpha_one`, `alpha_two`.", "`alpha_one`, `alpha_two`, `alpha_three`.")
+        self.git("add", "docs/a.md")
+        (self.repo / "tests" / "physics" / "alpha_three_test.gd").write_text("")  # untracked: not in the commit
+        self.assertEqual(self.spec_tests("--staged"), ["ID physics/alpha_one", "ID physics/alpha_two",
+                                                       "NOTE unknown test name in docs/a.md:5: alpha_three"])
 
     def test_an_untracked_doc_is_all_changed(self):
         (self.repo / "docs" / "new.md").write_text("A new rule.\nTests: `alpha_one`.\n\nAnother.\n")

@@ -83,8 +83,9 @@ The `tools/run_tests.sh` flags `SKILL.md`'s "Running tests" leaves out.
   `GAME_TEST_CHANGED_FILES` (newline-separated paths) stands in for git's view of the changes, which is how
   `tools/test_log_gate.py` tests this mapping. **A changed `docs/*.md` paragraph runs the tests it names:** the
   blank-line-bounded block of the new file that holds a changed line (a pure deletion: the block around where it was),
-  its `Test:` / `Tests:` line (`tools/spec_tests.py`) gives backticked names, each resolved to `tests/**/<name>_test.gd`
-  (a name with a `/` is a path under `tests/`). Those ids run `--repeat=5` under `== tests named by changed spec
+  its `Test:` / `Tests:` line (`tools/spec_tests.py`; a paragraph that names none takes the block that begins with a `Tests:`
+  line and directly follows it, before the next heading or paragraph of another kind) gives backticked names, each resolved to
+  `tests/**/<name>_test.gd` (a name with a `/` is a path under `tests/`; under `--staged` among the files the index holds). Those ids run `--repeat=5` under `== tests named by changed spec
   paragraphs ==`, also when their domain already ran; Von ones get `--include-von` only when a Von server is live
   (otherwise they are skipped and counted by the Von `NOTE`); `--skip-domain` still wins. A changed paragraph with no
   `Test(s):` line prints `NOTE docs/<f>.md:<line>: changed paragraph names no test`, a name with no test file
