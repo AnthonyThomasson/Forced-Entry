@@ -27,8 +27,9 @@ processes (`pgrep -i godot`: editors and played games too), those under the proc
 --loaded, `  loaded` to every verdict line (`PASS    <id>  (<s>s sim, <ms> ms)`) and `"loaded": true` to every result of the `JSON:` line. `quiet` returns 0 once no other Godot runs and the load is under
 --max-load, printing the load and the count at once and every minute ($GAME_TEST_QUIET_MINUTE seconds, 60 by default;
 polled every $GAME_TEST_QUIET_POLL, 5 by default) while it waits, and 3 after --timeout-min minutes. `stop` sends SIGTERM to
-every process PID started, directly or not (not itself), and SIGKILL to those still there $GAME_TEST_STOP_WAIT seconds
-later (5 by default): what tools/run_tests.sh does when it is interrupted, before it cleans up.
+every process PID started, directly or not (not itself, nor what it started), and SIGKILL to those still there
+$GAME_TEST_STOP_WAIT seconds later (5 by default), and returns as soon as none is left: what tools/run_tests.sh does
+when it is interrupted, before it cleans up.
 """
 import contextlib
 import fcntl
@@ -40,6 +41,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 # How long a lock file naming a dead pid is watched before it is called an orphan's.
 RECLAIM_WAIT = 0.1
@@ -183,28 +185,38 @@ def one_minute_load() -> float:
     return float(m.group(1)) if m else 0.0
 
 
-def under(pid: int) -> set:
-    """The pids of the processes started, directly or not, by the process `pid`."""
-    parent = {}
-    for line in subprocess.run(["ps", "-A", "-o", "pid=", "-o", "ppid="], capture_output=True, text=True).stdout.splitlines():
+def processes() -> dict:
+    """A snapshot of the process table: pid -> (parent pid, state). The `ps` that reads it is in it."""
+    out = subprocess.run(["ps", "-A", "-o", "pid=", "-o", "ppid=", "-o", "stat="], capture_output=True, text=True).stdout
+    table = {}
+    for line in out.splitlines():
         fields = line.split()
-        if len(fields) == 2 and all(f.isdigit() for f in fields):
-            parent[int(fields[0])] = int(fields[1])
+        if len(fields) == 3 and fields[0].isdigit() and fields[1].isdigit():
+            table[int(fields[0])] = (int(fields[1]), fields[2])
+    return table
+
+
+def under(pid: int, table: Optional[dict] = None) -> set:
+    """The pids of the processes started, directly or not, by the process `pid` (in `table`, the process table by default)."""
+    table = processes() if table is None else table
     mine = set()
-    for child in parent:
+    for child in table:
         node, seen = child, 0
-        while node in parent and seen < 64:
-            node, seen = parent[node], seen + 1
+        while node in table and seen < 64:
+            node, seen = table[node][0], seen + 1
             if node == pid:
                 mine.add(child)
                 break
     return mine
 
 
-def zombies() -> set:
-    """The pids of the processes that have ended and are not yet reaped by their parent."""
-    out = subprocess.run(["ps", "-A", "-o", "pid=", "-o", "stat="], capture_output=True, text=True).stdout
-    return {int(f[0]) for f in (line.split() for line in out.splitlines()) if len(f) == 2 and f[0].isdigit() and f[1].startswith("Z")}
+def left_of(ancestor: int) -> set:
+    """What `ancestor` started that still runs: its descendants but this process and what this process started (the `ps`
+    that reads the table is one), and but those that have ended and are not yet reaped by their parent."""
+    table = processes()
+    me = os.getpid()
+    ended = {pid for pid, (_, state) in table.items() if state.startswith("Z")}
+    return under(ancestor, table) - under(me, table) - {me} - ended
 
 
 def other_godots(ancestor: int) -> int:
@@ -270,13 +282,14 @@ def quiet(argv: list) -> int:
 
 
 def stop(argv: list) -> int:
-    """End every process the --ancestor started: SIGTERM, then SIGKILL for what is left after the waits."""
+    """End every process the --ancestor started: SIGTERM, then SIGKILL for what is left after the waits, returning as soon
+    as nothing of them is left. Best effort: the exit code is 0 whatever survived."""
     ancestor = int(option(argv, "--ancestor", os.getppid()))
     wait = float(os.environ.get("GAME_TEST_STOP_WAIT", "5"))
     for sig, seconds in ((signal.SIGTERM, wait), (signal.SIGKILL, KILL_WAIT)):
         sent, deadline = set(), time.monotonic() + seconds
         while True:
-            left = under(ancestor) - {os.getpid()} - zombies()
+            left = left_of(ancestor)
             if not left:
                 return 0
             for pid in left - sent:

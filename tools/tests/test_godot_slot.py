@@ -1,8 +1,10 @@
 """tools/godot_slot.py's own functions on a temporary slot directory (GAME_TEST_SLOT_DIR): taking a slot while other
 processes reclaim the same orphaned one or delete its file under it, and probing the pool (`free`, `status`) without
 taking a slot. (The pool around a whole run_tests.sh run is tools/test_log_gate.py's SlotPoolTests.)"""
+import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -93,8 +95,8 @@ class SlotFixture(unittest.TestCase):
         self.assertEqual(p.stdout.readline().strip(), "held")
         return p
 
-    def tool(self, *args):
-        env = dict(os.environ, GAME_TEST_SLOT_DIR=str(self.slots))
+    def tool(self, *args, **env_extra):
+        env = dict(os.environ, GAME_TEST_SLOT_DIR=str(self.slots), **env_extra)
         r = subprocess.run([sys.executable, "-I", str(SLOT_TOOL), *args], env=env, capture_output=True, text=True, timeout=30)
         return r.returncode, r.stdout.strip(), r.stderr
 
@@ -168,6 +170,58 @@ class ProbeTests(SlotFixture):
         self.assertEqual(self.tool("status")[1], f"1 {size}")
         self.assertEqual(self.tool("free")[1], str(size - 1))
         holder.kill()
+
+
+# What the wrapper does when it is interrupted: a process that has started argv[1] as its child (none when empty) runs
+# `stop` for its own descendants (stop is one of them, as it is under the wrapper) and says what came of it.
+INTERRUPTED = (
+    "import json, os, subprocess, sys, time\n"
+    "child = subprocess.Popen([sys.executable, '-c', sys.argv[1]]) if sys.argv[1] else None\n"
+    f"tool = {str(SLOT_TOOL)!r}\n"
+    "started = time.monotonic()\n"
+    "code = subprocess.run([sys.executable, '-I', tool, 'stop', '--ancestor=%d' % os.getpid()]).returncode\n"
+    "took = time.monotonic() - started\n"
+    "ended = None\n"
+    "if child:\n"
+    "    try:\n"
+    "        ended = child.wait(timeout=2)\n"
+    "    except subprocess.TimeoutExpired:\n"
+    "        child.kill()\n"
+    "print(json.dumps({'code': code, 'took': took, 'child': ended}))\n"
+)
+
+# A child that ends on SIGTERM, and one that survives it.
+SLEEPER = "import time; time.sleep(300)"
+DEAF_CHILD = "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(300)"
+
+
+class StopTests(SlotFixture):
+    def interrupted(self, child_code, window):
+        """A run that starts `child_code` and is stopped with a SIGTERM window of `window` seconds: what `stop` made of it."""
+        env = dict(os.environ, GAME_TEST_STOP_WAIT=str(window))
+        p = self.spawn(INTERRUPTED, child_code, env=env)
+        out, err = p.communicate(timeout=60)
+        self.assertEqual(p.returncode, 0, err)
+        return json.loads(out)
+
+    def test_a_stop_with_nothing_left_of_the_run_returns_at_once(self):
+        # Its own ps and the stop process itself are under the run, and are not what it started.
+        r = self.interrupted("", 30)
+        self.assertEqual(r["code"], 0)
+        self.assertLess(r["took"], 3, "nothing is left to end: the stop does not wait out its 30 s window")
+
+    def test_a_child_that_ends_on_sigterm_is_ended_and_the_stop_returns_at_once(self):
+        r = self.interrupted(SLEEPER, 30)
+        self.assertEqual(r["code"], 0)
+        self.assertEqual(r["child"], -signal.SIGTERM, "the child got SIGTERM")
+        self.assertLess(r["took"], 3, "it ended on SIGTERM: the stop does not wait out the window")
+
+    def test_a_child_that_ignores_sigterm_is_killed_when_the_window_has_passed(self):
+        r = self.interrupted(DEAF_CHILD, 1)
+        self.assertEqual(r["code"], 0)
+        self.assertEqual(r["child"], -signal.SIGKILL, "the child was killed")
+        self.assertGreaterEqual(r["took"], 1, "SIGTERM was given its window first")
+        self.assertLess(r["took"], 4, "then SIGKILL, and nothing left ends the stop")
 
 
 if __name__ == "__main__":
