@@ -157,6 +157,13 @@ report() { printf '{"results": [{"id": "a/x", "status": "PASS"}], "stray_logs": 
 empty() { printf '{"results": [], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
 # A report of one passing case of a native suite (`<suite id>::<case>`).
 native() { printf '{"results": [{"id": "a/n_suite::test_x", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
+# A report of a passing test and two Von tests skipped for want of a server (and one plain skip), with the totals line
+# the batch prints for them.
+von_skips() {
+  printf '{"results": [{"id": "a/x", "status": "PASS", "domain": "a"}, {"id": "ai/v1", "status": "SKIPPED", "domain": "ai", "reason": "needs the Von decision server (pass --include-von)"}, {"id": "ai/v2", "status": "SKIPPED", "domain": "ai", "reason": "the Von decision server is not live"}, {"id": "a/s", "status": "SKIPPED", "domain": "a", "reason": "no reason"}], "stray_logs": [], "log_end": %s}' \
+    "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
+  echo "1 passed, 0 failed, 0 timed out, 3 skipped (2 need Von, not run: --require-von), 0 gap"
+}
 timed() {
   printf '{"results": [{"id": "a/x", "status": "PASS", "wall_ms": 120}, {"id": "a/z", "status": "PASS", "wall_ms": 80}, {"id": "a/s", "status": "SKIPPED", "wall_ms": 5}], "stray_logs": [], "log_end": %s}' \
     "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
@@ -171,6 +178,7 @@ case "$FAKE_SCENARIO" in
   native) native ;;
   shard1_empty) if [ "$shard" = "1/2" ]; then empty; else report; fi ;;
   timed) timed ;;
+  von_skips) von_skips ;;
   judged_error) echo "$judged" >> "$log"; report ;;
   shutdown_error) report; echo "ERROR: engine complained while quitting" >> "$log" ;;
   shutdown_warning) report; echo "WARNING: engine muttered while quitting" >> "$log" ;;
@@ -343,6 +351,15 @@ class WrapperTests(unittest.TestCase):
         """How many processes a run was split over: the wrapper's combined total says so, a single process says nothing."""
         m = re.search(r"\((\d+) shards\)", out)
         return int(m.group(1)) if m else 1
+
+    def test_the_merged_totals_line_names_the_unrun_von_tests_apart(self):
+        code, out = self.run_wrapper("von_skips", "--jobs=2")
+        self.assertEqual(code, 0, out)
+        self.assertIn("2 passed, 0 failed, 0 timed out, 6 skipped (4 need Von, not run: --require-von), 0 gap  (2 shards)",
+                      out.splitlines())
+        out = self.run_wrapper("clean", "--jobs=2")[1]
+        self.assertIn("0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  (2 shards)", out.splitlines(),
+                      "no Von skip: the line is unchanged")
 
     def test_the_jobs_default_is_every_core_for_the_whole_suite_and_one_for_a_selection(self):
         self.assertGreater(self.shards(self.run_wrapper("clean")[1]), 1)
@@ -940,7 +957,8 @@ class GdUnitCommandLineTests(unittest.TestCase):
 
 
 RESULT_LINE = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+(\S+)\s+\((\d+\.\d)s sim, (\d+) ms\)(.*)$")
-SUMMARY_LINE = re.compile(r"^(\d+) passed, (\d+) failed, (\d+) timed out, (\d+) skipped, (\d+) gap\b")
+SUMMARY_LINE = re.compile(r"^(\d+) passed, (\d+) failed, (\d+) timed out, (\d+) skipped"
+                          r"(?: \((\d+) need Von, not run: --require-von\))?, (\d+) gap\b")
 
 
 def free_port():
@@ -956,6 +974,7 @@ class Run:
         self.code, self.out, self.seconds = code, out, seconds
         self.results = {}  # id -> [(status, sim s, wall ms, tail)]
         self.summary = None
+        self.von_skipped = 0  # the skips the totals line names as needing Von
         self.report_path = None
         for line in out.splitlines():
             m = RESULT_LINE.match(line)
@@ -963,7 +982,9 @@ class Run:
                 self.results.setdefault(m.group(2), []).append((m.group(1), float(m.group(3)), int(m.group(4)), m.group(5)))
             m = SUMMARY_LINE.match(line)
             if m:
-                self.summary = tuple(int(g) for g in m.groups())
+                passed, failed, timed_out, skipped, von, gap = m.groups()
+                self.summary = tuple(int(g) for g in (passed, failed, timed_out, skipped, gap))
+                self.von_skipped = int(von) if von else 0
             if line.startswith("Report: "):
                 self.report_path = Path(line[len("Report: "):].strip())
 
@@ -1134,6 +1155,21 @@ class GdUnitEngineTests(unittest.TestCase):
         self.assertEqual(run.status(self.VON), ["SKIPPED"], run.out)
         self.assertIn("--include-von", run.out)
         self.assert_junit(run, self.VON, "skipped")
+
+    def test_the_totals_line_names_the_unrun_von_tests_apart_from_other_skips(self):
+        # No server on the port: the Von probe is skipped whether or not --include-von is given, and a plain skip
+        # (the verdict probe's) is not a Von one.
+        port = str(free_port())
+        for flags in ([], ["--include-von"]):
+            with self.subTest(flags=flags):
+                run = self.probe(self.VON, *flags, GAME_TEST_VON_PORT=port)
+                self.assertIn("0 passed, 0 failed, 0 timed out, 1 skipped (1 need Von, not run: --require-von), 0 gap",
+                              run.out.splitlines())
+        run = self.probe(self.VERDICT, GAME_TEST_VERDICT="skip")
+        self.assertIn("0 passed, 0 failed, 0 timed out, 1 skipped, 0 gap", run.out.splitlines(), "no Von skip: unchanged")
+        run = self.run_tests("--self-test", f"--id={self.VON},{self.VERDICT}", "--summary", GAME_TEST_VERDICT="skip",
+                             GAME_TEST_VON_PORT=port)
+        self.assertEqual((run.summary, run.von_skipped), ((0, 0, 0, 2, 0), 1), run.out)
 
     def test_list_prints_the_selection_and_runs_nothing(self):
         run = self.run_tests("--self-test", "--list")

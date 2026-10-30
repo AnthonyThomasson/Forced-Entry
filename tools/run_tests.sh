@@ -450,6 +450,27 @@ print("\n".join(seen))
 EOF
 }
 
+# The one totals line of the processes whose output is in the files given: every `N passed, ...` line summed field by
+# field, the skips that need Von (named apart as each process names them) summed too, and $1 (the shard count) at its end.
+merged_totals() {
+  local shards="$1"; shift
+  python3 - "$shards" "$@" <<'EOF'
+import re, sys
+LINE = re.compile(r"^(\d+) passed, (\d+) failed, (\d+) timed out, (\d+) skipped"
+                  r"(?: \((\d+) need Von, not run: --require-von\))?, (\d+) gap")
+total = dict.fromkeys(("passed", "failed", "timed out", "skipped", "von", "gap"), 0)
+for path in sys.argv[2:]:
+    for line in open(path, errors="replace"):
+        m = LINE.match(line)
+        if m:
+            for key, value in zip(total, m.groups()):
+                total[key] += int(value or 0)
+need = " (%d need Von, not run: --require-von)" % total["von"] if total["von"] else ""
+print("%d passed, %d failed, %d timed out, %d skipped%s, %d gap%s" % (
+    total["passed"], total["failed"], total["timed out"], total["skipped"], need, total["gap"], sys.argv[1]))
+EOF
+}
+
 # One run of the runner with the given selection args, split over several processes when asked (see jobs_for). With
 # --repeat=N every selected test is listed N times in its process, but a native suite runs once a process: it runs
 # N-1 times more, each in a process of its own given only the native suites the run met, and the FLAKY / FAILING
@@ -537,8 +558,7 @@ run() {
   [[ $repeat -gt 1 ]] && tally=1
   [[ $jobs -gt 1 ]] && shards="  ($jobs shards)"
   TALLY=$tally SLOWEST=$show_slowest save_reports "${dirs[@]}"
-  grep -h -E '^[0-9]+ passed, ' "${files[@]}" | sed -E 's/[^0-9]+/ /g' \
-    | awk -v s="$shards" '{p+=$1; f+=$2; t+=$3; k+=$4; g+=$5} END {printf "%d passed, %d failed, %d timed out, %d skipped, %d gap%s\n", p, f, t, k, g, s}'
+  merged_totals "$shards" "${files[@]}"
   if no_test "${dirs[@]}"; then
     no_test_matched "$@" ${args[@]+"${args[@]}"}
     status=1

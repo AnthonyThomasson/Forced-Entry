@@ -27,6 +27,8 @@ const BUNDLE_DIR := "user://test_failures"
 ## A native suite's case id: `<its path under tests/, no .gd>::<test function>`
 ## (`general/weighted_pick_suite::test_x`).
 const NATIVE_SEP := "::"
+## What both skip reasons of a requires_von test (test_von_gate.gd) say, and no other skip does.
+const VON_SKIP_REASON := "Von decision server"
 
 ## The run's verdict records, in the order they ended.
 static var records: Array = []
@@ -272,6 +274,13 @@ static func skipped_before(id: String) -> bool:
 	return records.any(func(r): return r["id"] == id and r["status"] == "SKIPPED")
 
 
+## Whether the record `r` is a test skipped for want of the Von decision server (`--include-von`
+## not given, or no server live): its skip reason names the server (test_von_gate.gd), which is how
+## the totals line and tools/run_tests.sh tell it from any other skip.
+static func is_von_skip(r: Dictionary) -> bool:
+	return r["status"] == "SKIPPED" and String(r["reason"]).contains(VON_SKIP_REASON)
+
+
 ## Route what is left in the log to the stray lines (no test is open now).
 static func poll_strays(flush := false) -> void:
 	for e in watch().poll(flush):
@@ -315,8 +324,7 @@ static func finish() -> void:
 			print("Slowest: " + ", ".join(timed.slice(0, 5).map(
 				func(r): return "%s %d ms" % [r["id"], r["wall_ms"]],
 			)))
-	print("%d passed, %d failed, %d timed out, %d skipped, %d gap"
-			% [counts["PASS"], counts["FAIL"], counts["TIMEOUT"], counts["SKIPPED"], counts["GAP"]])
+	print(_totals_line(counts))
 	var report_path := option("--out").path_join("report.json")
 	var f := FileAccess.open(report_path, FileAccess.WRITE)
 	if f != null:
@@ -331,6 +339,16 @@ static func finish() -> void:
 		print("Report: %s" % ProjectSettings.globalize_path(report_path))
 	if flag("--json"):
 		print("JSON: " + JSON.stringify({ "results": records, "stray_logs": stray_logs }))
+
+
+## The totals line: the counts by status, the skips that need Von named apart when there are any.
+static func _totals_line(counts: Dictionary) -> String:
+	var von_skipped := records.filter(is_von_skip).size()
+	return "%d passed, %d failed, %d timed out, %d skipped%s, %d gap" % [
+		counts["PASS"], counts["FAIL"], counts["TIMEOUT"], counts["SKIPPED"],
+		"" if von_skipped == 0 else " (%d need Von, not run: --require-von)" % von_skipped,
+		counts["GAP"],
+	]
 
 
 ## The ids that FAILED or TIMED OUT in the report at `path` (empty when it is missing or
