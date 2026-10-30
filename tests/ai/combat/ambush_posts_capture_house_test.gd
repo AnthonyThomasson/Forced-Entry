@@ -1,12 +1,12 @@
 extends GameTest
-## Where an ambush order's members wait (`docs/leadership.md` LD15, D17) is unchanged by the cheaper
-## ranking of the posts (issue #128's review: an entry's grenade landings counted only where they
-## can still decide a pick, and the ranking shared by every NPC on the map): in a generated house
+## Where an ambush order's members wait (`docs/leadership.md` LD15, D17) is the full ranking's,
+## though an entry's grenade landings are counted only where they can still decide a pick and the
+## ranking is shared by every NPC on the map: in a generated house
 ## (the match guards' house, seed 7 on the largest plan, garage_home, furnished), for every doorway
 ## laid from each room it joins and every member of an order to one to six, the post is the one
-## `ambush_posts_capture_house.json` beside this test captured on the code before
-## (`tests/_ai/ambush_posts_probe.gd`). No actors: the posts are read through the published entry
-## geometry.
+## `ambush_posts_capture_house.json` beside this test holds, a capture of the ranking with every
+## post's landings counted (`tests/_ai/ambush_posts_probe.gd`). No actors: the posts are read
+## through the published entry geometry.
 
 const AmbushPosts := preload("res://tests/_ai/ambush_posts_probe.gd")
 ## The house: the match guards' (`tests/_perf/perf_probe.gd` `MATCH_SEED`, `MATCH_PLAN`).
@@ -19,8 +19,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "Ambush posts in a generated house match the capture",
 		"description": "Every member's ambush post at every doorway of a generated house, "
-			+ "from each room it joins, is the one captured before the ranking was made "
-			+ "cheaper (LD15, D17, #128).",
+			+ "from each room it joins, is the full ranking's held in the capture (LD15, D17, "
+			+ "#128).",
 		"tags": ["ai", "combat", "leadership", "ambush", "scripted", "regression"],
 		"timeout": 30.0,
 	}

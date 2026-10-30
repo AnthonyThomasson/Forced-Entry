@@ -89,7 +89,7 @@ func run(t: TestContext) -> void:
 func _interior_doorway(openings: Array, room: String) -> String:
 	var ids: Array = []
 	for o: Dictionary in openings:
-		var joins: Array = (o.get("rooms", []) as Array).map(func(k): return String(k))
+		var joins := HouseRooms.joins(o)
 		if joins.size() == 2 and joins.has(room):
 			ids.append(AgentEntry.opening_id(o))
 	ids.sort()

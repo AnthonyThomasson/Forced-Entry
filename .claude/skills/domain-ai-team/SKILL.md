@@ -138,9 +138,9 @@ room a doorway leads into from one it joins is `HouseRooms.beyond`, which the sq
 `_opening_pos` find a doorway by id through the squad's one `_opening(id)`).
 `free` is `Squad._free()`: the living NPC members (`_npcs`) holding no order, or one they radioed `refused` (`_steps`, D36), in spawn order,
 the leader included; `_recipients` drops the last non-leader when there are three or more (the rear guard, D34). It issues
-`{ kind: "ambush", to, opening, room }` through `squad.issue` when the doorway is new (`_door`), and for a re-order only after
-`SquadAmbushConfig.reorder_gap` (8 s, on `GameClock.seconds()`, `_at`) and with at least `SquadAmbushConfig.min_recipients` (2) recipients
-(D35); `_door` and `_at` move only when an order is posted. `reset()` (from `_on_died`, on a leader change) starts both afresh; the dead
+`{ kind: "ambush", to, opening, room }` through `squad.issue` when the doorway is new (`_last_door`), and for a re-order only after
+`SquadAmbushConfig.reorder_gap` (8 s, on `GameClock.seconds()`, `_ordered_at`) and with at least `SquadAmbushConfig.min_recipients` (2) recipients
+(D35); `_last_door` and `_ordered_at` move only when an order is posted. `reset()` (from `_on_died`, on a leader change) starts both afresh; the dead
 leader's ambushes stand and LD26's takeover cancel stays human-only. The holder `SquadAmbushConfig` (`ai/team/squad_ambush_config.gd`) is the
 same for every squad.
 

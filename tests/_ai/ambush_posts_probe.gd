@@ -7,9 +7,9 @@ extends RefCounted
 ## `slots_probe.gd` reads it): `new()`, `set_house(openings, rooms)`, `opening_id(o)`,
 ## `geometry(id, into, map, space)` and `posts.ambush_spot(entry, g, place, map, space)`, the body's
 ## crouched height handed to its `posts` as the perception hands it in (`crouch`). The capture
-## beside each test was taken on the code before the ranking was made cheaper (issue #128's review):
-## for every doorway of the house, laid from each room it joins, every member `nth` of an order to
-## `count` (1 to `MAX_COUNT`), the post `ambush_spot` gave (`[x, y, seen]`, `[]` for none).
+## beside each test holds the full ranking (every post's grenade landings counted, each member its
+## own): for every doorway of the house, laid from each room it joins, every member `nth` of an
+## order to `count` (1 to `MAX_COUNT`), the post `ambush_spot` gave (`[x, y, seen]`, `[]` for none).
 
 const ENTRY_SCRIPT := "res://scenes/ai/perception/agent_entry.gd"
 ## The largest order a capture holds: past the hidden posts of a side, the later members fall to
