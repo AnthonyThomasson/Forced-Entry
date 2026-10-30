@@ -49,6 +49,8 @@ skill of every domain the diff touches, once. `scenes/<folder>/` → `domain-<fo
 | `ui/{menus,hud,overlays,testing}/` | `domain-ui-<folder>` |
 | `scenes/main.gd`, `scenes/match_builder.gd`, `scenes/match_spawner.gd` | `domain-main` |
 
+For each interface the diff crosses, read its file, `architecture/interfaces/NN-<slug>.md` (the index names it).
+
 A change to a parent (`goal_controller.gd`, `character.gd`, a sub-domain's role) goes to the parent skill; keep both the
 sub-skill and its parent true. A coupling between sub-domains that bypasses their published interfaces is an isolation
 finding, like a cross-domain one.
@@ -92,7 +94,8 @@ Same current-state bar as step 4. `AGENTS.md` is a pointer stub.
   claim** rule (`domain-ai-perception`, "The stack"): it names what makes a claim the current entry's, and its test
   has a claim left from an earlier entry through the same doorway. Missing: `file:line` → the scope and that test.
 
-Flag drift as `architecture/SKILL.md:line` or `domain-<name>/SKILL.md:line` → what to change.
+Flag drift as `architecture/SKILL.md:line`, `architecture/interfaces/NN-<slug>.md:line` (or another file beside a
+`SKILL.md`) or `domain-<name>/SKILL.md:line` → what to change.
 
 ## Step 4 — Comments (the comment rules)
 
@@ -160,7 +163,9 @@ done
   the change touches worldgen, art, general or `main.gd` (runs everything). Scripted-Von tests cover AI without a
   server; `--include-von` adds live-server ones. Report the totals line and every FAIL / TIMEOUT with its ✗ lines; exit
   1 also covers an engine error/warning during a test. Changed behaviour with no test in `tests/<domain>/` covering it
-  is a finding (`domain-testing`).
+  is a finding (`domain-testing`). Each test whose checks (what it measures, a band, a threshold) the diff changes is
+  compared against the ticket brief's acceptance criteria; one that checks something other than what its criterion says
+  is a finding.
 - **Behaviour** (movement, combat, items, interactions, world-gen): also drive it live with `godot-run`
   (`tools/editor.sh` + `tools/gcmd.py`). Report what you drove and what the game did.
 

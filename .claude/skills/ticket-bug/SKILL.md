@@ -1,12 +1,14 @@
 ---
 name: ticket-bug
 description: Work a ticket labelled `bug` in phases - grill the user to an agreed expected-vs-actual, then reproduce, fix and green it with the `fix` skill, then feedback and report. Invoked from `ticket`.
+model: claude-opus-5-5
 ---
 
 # Ticket: bug
 
 Four phases through `orchestration` (`ticket`, "Work in phases"). You run phase 1 and the user questions; phases 2–4
-are `fix`'s steps and may go to workers.
+are `fix`'s steps and run inline in this session, since the fix gate and the test-definition questions need the user
+mid-phase.
 
 ## 1. Grill
 
@@ -31,12 +33,16 @@ behavior** the expected, the trigger, **Acceptance criteria** the regression tes
 
 Invoke `fix` with the agreed expected-vs-actual (plus the ticket title and useful comments) and follow it: red for the
 bug's reason (tell the user the red result; passes at once or not visible headless: agree the next step with the user,
-don't fix blind), root-cause fix, green, skills updated. A worker on these steps runs `implement` with `fix` as its
-steps (`ticket` → "Code goes through `implement`"): the repro is its `tdd` slice, at the seam the agreed bug names.
+don't fix blind), root-cause fix, green, skills updated. The repro sits at the seam the agreed bug names.
+
+An `ai` label: the regression test is scripted Von (`von_script`, one mechanism), the bug's exception to `ticket-ai`'s
+"`von_script` never replaces scenario tests"; a bug in what Von picks gets a real-Von scenario test per `ticket-ai`.
+Green adds `tools/run_tests.sh --include-von --require-von --domain=ai`.
 
 **Fix gate:** once the root cause is known (`fix` step 4) and before any production change, the planned fix goes to
-the user as a `change-report`, then an acceptance question. A worker stops there, the red test uncommitted, and
-sends back the cause and its planned fix; the fix starts once accepted, and the commit comes once it is green.
+the user as a `change-report` whose **Cause** section holds the cause, then an acceptance question. The red test
+stays uncommitted until the fix is accepted and green. A fix that widens while it is built (another domain, rule or
+shared path) goes back to the gate with a fresh `change-report`.
 
 Then:
 

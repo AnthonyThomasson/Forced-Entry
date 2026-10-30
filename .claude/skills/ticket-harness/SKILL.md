@@ -1,6 +1,7 @@
 ---
 name: ticket-harness
 description: Extra rules for a ticket labelled `harness` (skills, AGENTS.md, hooks, tools/, command server, test runner), with `ticket-story` - instruction changes get no tests, agent-facing tools do. Invoked from `ticket`.
+model: claude-opus-5-5
 ---
 
 # Ticket: harness

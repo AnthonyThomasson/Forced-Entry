@@ -1,6 +1,7 @@
 ---
 name: ticket-story
 description: Work a standard ticket (no `bug` or `spike` label; also `ai`, `harness`, `refactor`, `assets`, `graphics` and `audio`) in six phases - grill, plan on the ticket, build test by test, green + feedback gate, audit, report. Invoked from `ticket`.
+model: claude-opus-5-5
 ---
 
 # Ticket: story

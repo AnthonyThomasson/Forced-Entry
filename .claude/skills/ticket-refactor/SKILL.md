@@ -1,6 +1,7 @@
 ---
 name: ticket-refactor
 description: Extra rules for a ticket labelled `refactor` (with `ticket-story`) - coverage evidence from `tools/coverage.py` crossed with `audit_scan.py dead`, tests pinning what stays, re-measured after. Invoked from `ticket`.
+model: claude-opus-5-5
 ---
 
 # Ticket: refactor

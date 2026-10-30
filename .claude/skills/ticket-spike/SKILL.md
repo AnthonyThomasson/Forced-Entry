@@ -1,6 +1,7 @@
 ---
 name: ticket-spike
 description: Work a ticket labelled `spike` - investigate in the workspace without changing the game, then plan the work as new, well-scoped GitHub tickets created with `gh`. Invoked from `ticket`.
+model: claude-opus-5-5
 ---
 
 # Ticket: spike

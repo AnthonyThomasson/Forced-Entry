@@ -261,7 +261,8 @@ along the wall away from the door, the line the team came by, from `stack` until
 it turns to cross in its turn (a threat in sight still takes its eyes first, `docs/gaze-and-fire.md`). A stack of two has no
 rear guard, and the last man in the room still takes the rear watch there (E8). A stack split across the door (E19) has a rear guard
 per side: the last of each side's file that is not one of the two front men.
-Test: `entry_stack_last_covers_rear` (three invaders in the garden; real Von, `requires_von`).
+Test: `entry_stack_last_covers_rear` (three invaders in the garden, the point's pie slowed so the last man reaches his slot while it
+still slices; judged from his `ready` to the `going_in` of the member ahead of him; real Von, `requires_von`).
 
 **E13. Short room: two go in, the rest hold outside.** A room too small for the team is entered by two, who take its
 corners; the later slots hold the stack side as security and never step into the doorway. The game's rule for "too

@@ -1,6 +1,7 @@
 ---
 name: ticket
 description: Route a ticket (GitHub issue) to its `ticket-<label>` skill and hold the phases every kind shares (plan on the ticket, rebase, show-me, feedback gate, audit, report). Load first whenever asked to work on a ticket.
+model: claude-opus-5-5
 ---
 
 # Ticket
@@ -48,12 +49,13 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
 - **User phases stay with you:** grilling, plan acceptance, ticket edits, feedback questions. A worker cannot reach
   the user. Every acceptance question (a plan, a bug's fix, a revision) comes right after a `change-report`. Ask with `AskUserQuestion`, a few specific questions at a time, recommended answer first. Use a decision
   gate where a phase waits on an answer.
-- **Build phases go to workers.** A self-contained brief: ticket number and body, accepted plan, skills to load
-  (`architecture`, the `domain-<name>` skills, `domain-testing`, `test-debug`), what to produce, how to know it is done,
-  "No shortcuts", that anything it cannot decide comes back as an escalation, not a guess, and the heartbeat rule
-  (1–2 sentence `--phase` status) and the ack rules below (`received <id>`, `check --ack`, a blocking `ask`). A
-  showroom brief (`ticket-assets`) names the exhibits, the references, the variants wanted and its load check and lint.
-- **Code goes through `implement`.** A worker that writes tests or production code (`test-preparation`, `coding`,
+- **Build phases go to workers**, except a bug's phases 2–4, which run inline (`ticket-bug`). A self-contained brief:
+  ticket number and body, accepted plan, skills to load (`architecture`, the `domain-<name>` skills, `domain-testing`,
+  `test-debug`), what to produce, how to know it is done, "No shortcuts", that anything it cannot decide comes back as
+  an escalation, not a guess, and the heartbeat rule (1–2 sentence `--phase` status) and the ack rules below (`received
+  <id>`, `check --ack`, a blocking `ask`). A showroom brief (`ticket-assets`) names the exhibits, the references, the
+  variants wanted and its load check and lint.
+- **Code goes through `implement`.** A worker that writes tests or production code (`coding`,
   `coding-review-fixes`) runs `mattpocock-skills:implement`. It is slash-only (the Skill tool refuses it), so the
   spec's first line is `/mattpocock-skills:implement`, the brief after it. The brief also says:
   - **Tests through `mattpocock-skills:tdd`**, in vertical slices: one acceptance criterion's test, red for the right
@@ -74,7 +76,6 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   | Phase | Name |
   |---|---|
   | the showroom (variants before the plan) | `showroom` |
-  | a bug's failing repro | `test-preparation` |
   | building the change, test by test | `coding` |
   | green run, docs and skills | `wrap-up` |
   | removing the showroom (before the audit) | `showroom-removal` |
@@ -84,7 +85,8 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   | a spike's investigation | `investigation` |
   | the session's retro (`session-retro`) | `retro` |
 
-  Pass the name as `--task-title` to `worker-start`, then name the tab:
+  Start every worker on Sonnet (`--agent claude --model claude-sonnet-5-5`; you, the coordinator, stay on Opus). Pass
+  the name as `--task-title` to `worker-start`, then name the tab:
   `orca terminal rename --terminal <agentTerminalHandle> --title "<name>"`. The handle is `agentTerminalHandle` of
   the `orca orchestration worker-list --json` row whose `dispatchId` is the `worker-start` receipt's (the row appears
   a few seconds after the start; the receipt itself holds no handle).
@@ -190,7 +192,7 @@ tree, so the audit reviews against the current `origin/main`. Say so when nothin
 
 One agent runs `mattpocock-skills:code-review` and `audit`. Both see committed work (`audit` also staged): the coding
 workers commit theirs; tell it which files are only in the working tree (a `wrap-up`'s skill and doc edits). Start
-it with `orca orchestration worker-start --task-title "review" --spec "<spec>" --worktree current --agent claude` and
+it with `orca orchestration worker-start --task-title "review" --spec "<spec>" --worktree current --agent claude --model claude-sonnet-5-5` and
 name its tab `review`. Spec:
 
 - **Target:** worktree and branch, ticket number, base ref (default `origin/main`).

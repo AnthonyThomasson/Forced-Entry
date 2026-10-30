@@ -56,8 +56,10 @@ step lists and slot distances; `ClaimLedger` the claims one listener has heard (
 E19 to E22's sides, files, tail and dead ends, the crossing order, the thrower, LD13's release), `StackLayout` the statics it settles them by
 (the slots' points and sides), the same answer for whoever asks. It is perception's, and the one seam behaviour and the team cross into it by: behaviour reads a doorway's stack as
 `AgentPerception.entry.stack(opening, into := "") -> DoorStack` and preloads `StackClaim` / `DoorStack` / `StackLayout` (the orchestrator `StackClaim`, for
-the radio's `post_entry_call`), and the team preloads `StackClaim`, `ClaimLedger`, `DoorStack` and `StackLayout` as it does `AgentEntry`. `domain-ai-perception`,
-"The stack", has the detail.
+the radio's `post_entry_call`), and the team preloads `StackClaim`, `ClaimLedger`, `DoorStack` and `StackLayout`, and three more of perception's: the
+doorway geometry `AgentEntry` (`ai/perception/agent_entry.gd`, built with no NPC: `set_house`, `geometry`, `stack_side_from`, `slots.on_stack_side`,
+`opening_id`, `normal_into`), `AgentVision.wall_hit` (`ai/perception/agent_vision.gd`: the follow spots out of the leader's sight) and `HouseRooms`
+(`ai/perception/house_rooms.gd`: the room a point lies in, `key_at`, and the room with a key, `by_key`). `domain-ai-perception`, "The stack", has the detail.
 
 **Orders (`docs/leadership.md`).** The controller queues `&"order"` events; one that names the NPC (and its side) becomes its live order
 (`AgentPerception.orders.process`) and forces a decision (`_cadence.force("ordered")`, in `_comms.process_events`); from that frame until a decision made knowing the order

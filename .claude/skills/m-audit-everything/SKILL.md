@@ -2,7 +2,7 @@
 name: m-audit-everything
 description: Audit the WHOLE codebase for rot (orphaned mechanisms, dead code, duplication, unpublished coupling, domains due a split, stale docs) as a file:line checklist, via a phased Orca orchestration. Manual only (`/m-audit-everything`).
 disable-model-invocation: true
-model: claude-sonnet-5-5
+model: claude-opus-5-5
 effort: xhigh
 ---
 
@@ -54,7 +54,7 @@ the whole suite). Its rows feed the dead-code briefs (1a, 1b).
 start every worker of the wave, then wait:
 
 ```bash
-orca orchestration worker-start --task-title "<name>" --spec "<spec>" --worktree current --agent claude --json   # one per worker
+orca orchestration worker-start --task-title "<name>" --spec "<spec>" --worktree current --agent claude --model claude-sonnet-5-5 --json   # one per worker
 orca orchestration check --wait --types "worker_done,escalation,question" --timeout-ms 900000 --json
 ```
 
@@ -225,7 +225,8 @@ survives a move; count the `preload("res://…")` paths, docs and `ext_resource`
 Same bar as comments: concise, present-tense, current state. Read the Phase 1 reports first.
 
 1. **`AGENTS.md`** (5a): a stub pointing at the skills; it says little, all true.
-2. **`architecture`** (5a): domain table, vital interfaces, dependency graph, conventions. The domain count must agree
+2. **`architecture`** (5a): domain table, vital interfaces (the index and each `interfaces/` file), dependency graph,
+   conventions and the files beside `SKILL.md`. The domain count must agree
    everywhere it is stated (`AGENTS.md` ×2; the skill's `description`, intro, table heading):
 
    ```bash
