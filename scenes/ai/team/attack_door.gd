@@ -46,7 +46,7 @@ static func _reach(
 	walk: Dictionary,
 ) -> void:
 	for j in openings.size():
-		var beyond = HouseRooms.beyond(openings[j], here)
+		var beyond: Variant = HouseRooms.beyond(openings[j], here)
 		if walk["done"].has(j) or beyond == null:
 			continue
 		var through := walked + from.distance_to(openings[j]["pos"])

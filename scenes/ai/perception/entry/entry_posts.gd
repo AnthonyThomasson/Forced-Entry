@@ -248,6 +248,7 @@ func _defend_candidate(
 	var p := NavBuilder.snap(map, raw)
 	if p.distance_to(raw) > DEFEND_SNAP or not inner.has_point(p):
 		return {}
+	var bodies: Array = f.get("bodies", [])
 	var funnel := 0
 	var sees: Dictionary = {}
 	var cover: Dictionary = {}
@@ -259,9 +260,9 @@ func _defend_candidate(
 				and off.dot(into) < DEFEND_FUNNEL_DEPTH):
 			funnel += 1
 		var aim := pos + into * DEFEND_DOOR_IN
-		if entry._sees(space, p, aim, f.get("bodies", [])):
+		if entry._sees(space, p, aim, bodies):
 			sees[d["id"]] = true
-			if _low_cover(entry, space, p, aim, f.get("bodies", [])):
+			if _low_cover(entry, space, p, aim, bodies):
 				cover[d["id"]] = true
 	return { "spot": p, "funnel": funnel, "sees": sees.size(), "sees_door": sees, "cover": cover }
 
@@ -305,11 +306,11 @@ func ambush_spot(
 	var count := place.y
 	if g.is_empty():
 		return {}
-	var ranking := _ambush_ranking(entry, g, map, space)
+	var bodies := _bodies()
+	var ranking := _ambush_ranking(entry, g, map, space, bodies)
 	var posts: Array = ranking["posts"]
 	if posts.is_empty():
 		return {}
-	var bodies := _bodies()
 	var first := _first_side(g["room"], g["pos"], g["along"])
 	var taken: Array = []
 	var pick := {}
@@ -382,12 +383,13 @@ func _expose(
 ## `score` the post's rank before the side is weighed, the lower the better: hidden first, shielded
 ## from an entry's grenade once `exposed` (`_expose`, counted only for a post that can be picked),
 ## out of every funnel, cover on its line, then nearest `AMBUSH_DEPTH`) and `landings` where an
-## entry's grenades land (`_bang_landings`).
+## entry's grenades land (`_bang_landings`), every line passed through `bodies` (`_bodies`).
 func _ambush_ranking(
 	entry: AgentEntry,
 	g: Dictionary,
 	map: RID,
 	space: PhysicsDirectSpaceState2D,
+	bodies: Array,
 ) -> Dictionary:
 	var room_key := String(g["into"])
 	var key := "%s>%s" % [g["id"], room_key]
@@ -410,7 +412,7 @@ func _ambush_ranking(
 		"room": g["room"],
 		"doors": entry.room_doorways(room_key),
 		"entry": entry,
-		"bodies": _bodies(),
+		"bodies": bodies,
 	}
 	var observers := _observers_of(g)
 	var out: Array = []
@@ -504,8 +506,8 @@ func _exposures(
 
 
 ## The rids of every character under the world root of `body` (a grenade's line passes through
-## bodies, and who stands where while a post is worked out has no say in where it is), read when a
-## post is ranked; none without a body in the tree.
+## bodies, and who stands where while a post is worked out has no say in where it is), read once a
+## call of `ambush_spot` for its ranking and its picks alike; none without a body in the tree.
 func _bodies() -> Array:
 	if not is_instance_valid(body) or not body.is_inside_tree():
 		return []
