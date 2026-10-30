@@ -33,6 +33,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import socket
 import stat
 import subprocess
@@ -669,6 +670,11 @@ class SpecNamedTestsTests(unittest.TestCase):
         self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
         self.assertEqual(self.run_changed(), [self.HEADER, "selection: --id=ai/alpha_one,physics/beta_two --repeat=5"])
 
+    def test_a_repeat_the_user_gave_is_the_larger_of_it_and_five_and_given_once(self):
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.assertEqual(self.run_changed("--repeat=2"), [self.HEADER, "selection: --id=ai/alpha_one,physics/beta_two --repeat=5"])
+        self.assertEqual(self.run_changed("--repeat=9"), [self.HEADER, "selection: --id=ai/alpha_one,physics/beta_two --repeat=9"])
+
     def test_they_run_also_when_their_domain_already_ran(self):
         self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
         self.edit("scenes/ai/a.gd", "Node", "Node2D")
@@ -915,6 +921,34 @@ class SlotPoolTests(unittest.TestCase):
         totals = next(l for l in lines if re.match(r"^\d+ passed, ", l))
         self.assertRegex(totals, r"  load 7\.77$")
 
+    def running_engines(self):
+        return [int(f.name.split(".")[1]) for f in self.conc.glob("running.*")]
+
+    def test_a_terminated_wrapper_stops_the_engines_of_its_shards(self):
+        # SIGTERM to the wrapper's pid alone: the shards are its background jobs, their engines grandchildren.
+        run = self.wrapper("--jobs=2", self.ids(2), FAKE_SLEEP="600")
+        self.addCleanup(lambda: [os.kill(p, 9) for p in self.running_engines() if SlotPoolTests.alive(p)])
+        self.addCleanup(lambda: run.poll() is None and run.kill())
+        deadline = time.monotonic() + 120
+        while len(self.running_engines()) < min(2, pool_size()) and time.monotonic() < deadline:
+            time.sleep(0.1)
+        engines = self.running_engines()
+        self.assertEqual(len(engines), min(2, pool_size()), "premise: the shards' engines run")
+        os.kill(run.pid, signal.SIGTERM)
+        deadline = time.monotonic() + 120
+        while time.monotonic() < deadline and (run.poll() is None or any(self.alive(p) for p in engines)):
+            time.sleep(0.1)
+        self.assertEqual(run.returncode, 143, "the wrapper ended")
+        self.assertEqual([p for p in engines if self.alive(p)], [], "no shard engine is left")
+
+    @staticmethod
+    def alive(pid):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        return True
+
     def test_a_single_process_runs_totals_line_prints_the_load_too(self):
         for args in (["--jobs=1", self.ids(1)], ["--id=a/x"], ["--jobs=1", "--repeat=1", "--id=a/x"]):
             with self.subTest(args=args):
@@ -1030,7 +1064,7 @@ class PerfPhaseTests(unittest.TestCase):
 FAKE_PERF_GODOT = r"""#!/usr/bin/env bash
 # Stands in for Godot: notes its pid in $FAKE_SELF_PIDS (the fake pgrep reports it, as the real one reports every
 # engine), prints a PERF line and a perf test's verdict line, and writes a report of that one passing test (perf/p for
-# a run of the perf domain, a/s<shard> otherwise).
+# a run of the perf domain, a/s<shard> otherwise); with FAKE_JSON set, the `JSON:` line the batch prints under --json.
 for a in "$@"; do [ "$a" = "--import" ] && exit 0; done
 log=""; out=""; id="a/whole"; shard=""
 while [ $# -gt 0 ]; do
@@ -1050,6 +1084,7 @@ echo "PERF $id frame 3.20 (budget 8.00)"
 echo "PASS    $id  (1.0s sim, 20 ms)"
 printf '{"results": [{"id": "%s", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$id" "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
 echo "1 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
+[ -n "$FAKE_JSON" ] && echo "JSON: {\"results\":[{\"id\":\"$id\",\"status\":\"PASS\"}],\"stray_logs\":[]}"
 exit 0
 """
 
@@ -1135,6 +1170,15 @@ class QuietGateTests(unittest.TestCase):
         self.assertIn("quiet gate timed out after 2 min", out)
         self.assertRegex(out, r"(?m)^PASS    perf/p  \(1\.0s sim, 20 ms\)  loaded$")
         self.assertIs(results["perf/p"].get("loaded"), True)
+
+    def test_the_json_line_carries_loaded_where_the_results_are_marked(self):
+        out, _ = self.finish(self.start("--domain=perf", "--quiet=1", "--json", FAKE_JSON="1"))
+        line = next(l for l in out.splitlines() if l.startswith("JSON: "))
+        self.assertEqual([r.get("loaded") for r in json.loads(line[len("JSON: "):])["results"]], [True])
+        self.set_machine(load="1.00", others=[])
+        out, _ = self.finish(self.start("--domain=perf", "--quiet=1", "--json", FAKE_JSON="1"))
+        line = next(l for l in out.splitlines() if l.startswith("JSON: "))
+        self.assertEqual([r.get("loaded") for r in json.loads(line[len("JSON: "):])["results"]], [None], "a quiet machine: not marked")
 
     def test_only_the_perf_process_of_a_sharded_run_waits_and_is_marked(self):
         proc = self.start("--jobs=2", "--quiet=1")

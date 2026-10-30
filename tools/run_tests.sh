@@ -37,9 +37,9 @@
 #                                         --require-von)`). A changed docs/*.md paragraph runs the tests its `Test:` /
 #                                         `Tests:` line (or the `Tests:`-only block that directly follows a paragraph
 #                                         naming none) names (tools/spec_tests.py; names resolve against the index under
-#                                         --staged), --repeat=5 under `== tests named by changed spec paragraphs ==`
-#                                         (with --include-von when a Von server is live; --skip-domain wins), also when
-#                                         their domain ran above; a paragraph that names no test, or a name with no test
+#                                         --staged), --repeat=5 (a larger --repeat given wins) under `== tests named by changed
+#                                         spec paragraphs ==` (with --include-von when a Von server is live; --skip-domain
+#                                         wins), also when their domain ran above; a paragraph that names no test, or a name with no test
 #                                         file, is a NOTE (never a failure).
 #   tools/run_tests.sh --changed --staged the same for what is staged (git diff --cached), not the working tree, and
 #                                         the lint of what the commit holds (tools/lint_staged.sh: the staged
@@ -50,9 +50,11 @@
 #                                         the working tree's tests against the code of REV: a temporary git worktree of
 #                                         REV (in $TMPDIR) gets the working tree's tests/ (.uid files and helper folders
 #                                         included), is imported, runs the selection in one process, prints its lines under
-#                                         `== on base REV (<short sha>) ==` and is removed, also on ^C. The working tree
+#                                         `== on base REV (<short sha>) ==` and is removed, also on ^C or a kill of the wrapper (which ends the engines it
+#                                         started first). The working tree
 #                                         is never written; no lint; the exit code is that run's verdict. Refused (exit
-#                                         2, a reason line) with --changed, --staged, --jobs above 1 and an unknown REV.
+#                                         2, a reason line) with --changed, --staged, --jobs above 1 and an unknown REV
+#                                         (--jobs=auto and --jobs=1 are the one process).
 #                                         Use it to see a fixed test still red on the old code.
 #   tools/run_tests.sh --list [words]     list matching tests (id, flags, tags, name) and exit
 #   tools/run_tests.sh --include-von ai   also run tests that need the Von decision server
@@ -65,7 +67,7 @@
 #   --jobs=N|auto   split the run over N parallel godot processes. Without it, a run of the whole suite uses auto and a
 #                   selection (words, --id, --domain, --failed, --repeat) one process. auto = the free Godot slots (at
 #                   least 1): every godot process this script starts (shards, --repeat's native reruns, --base, --list,
-#                   --self-test) holds one slot of a machine-wide pool of half the cores (lock files in
+#                   --self-test, the first-run import) holds one slot of a machine-wide pool of half the cores (lock files in
 #                   $TMPDIR/forced-entry-godot-slots, or $GAME_TEST_SLOT_DIR), freed when it exits, so runs in other
 #                   worktrees and the pre-commit hook (--jobs=auto) share the CPU; a process with no free slot waits and
 #                   says so once ("waiting for a Godot slot (n of n taken)"). --jobs=N keeps N shards, each waiting for
@@ -131,7 +133,8 @@ if [[ -z "$GODOT" ]]; then
   exit 2
 fi
 
-# One cleanup for every way out (an exit, ^C, a kill): this run's note file and, for --base, its temporary worktree.
+# One cleanup for every way out (an exit, ^C, a kill: the signal first ends the processes this run started): this run's
+# note file and, for --base, its temporary worktree.
 LIVE="$PWD"
 BASE=""         # --base=REV
 BASE_TREE=""    # the directory holding --base's worktree, once made
@@ -141,12 +144,19 @@ cleanup() {
     cd "$LIVE"
     git worktree remove --force "$BASE_TREE/checkout" >/dev/null 2>&1 || true
     rm -rf "$BASE_TREE"
-    git worktree prune
   fi
 }
 trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+# A signal to this wrapper ends what it started (the shards, the engine of a foreground run, a --base run, the quiet
+# gate), then exits through the cleanup above. bash runs a trap only when its foreground command ends: those are run
+# through bg_wait, whose `wait` the signal interrupts at once.
+interrupted() {
+  python3 "$TOOLS/godot_slot.py" stop --ancestor=$$ 2>/dev/null || true
+  exit "$1"
+}
+trap 'interrupted 130' INT
+trap 'interrupted 143' TERM
+bg_wait() { "$@" & wait $!; }
 
 # --base=REV: this run happens in a worktree of REV (git worktree add in $TMPDIR) whose tests/ is the working tree's, so
 # a test, edited or new, runs against the code it was written for. Only the engine runs there: the working tree is
@@ -159,7 +169,7 @@ if [[ $BASE_GIVEN -eq 1 ]]; then
   for a in "$@"; do
     case "$a" in
       --changed|--staged) refuse_base "--changed and --staged are refused (given $a): a run on the base runs the selection it is given" ;;
-      --jobs=*) [[ "${a#--jobs=}" == 1 ]] || refuse_base "$a is refused: a run on the base is one process (--jobs=1)" ;;
+      --jobs=*) [[ "${a#--jobs=}" =~ ^[0-9]+$ && "${a#--jobs=}" -gt 1 ]] && refuse_base "$a is refused: a run on the base is one process (--jobs=1 or auto)" ;;
     esac
   done
   base_sha=$(git rev-parse --verify --quiet "$BASE^{commit}") || refuse_base "unknown revision"
@@ -175,7 +185,7 @@ fi
 # fails to parse and the runner hangs instead of failing, so import first.
 if [[ ! -f .godot/global_script_class_cache.cfg ]]; then
   echo "importing the project (first run in this checkout)..." >&2
-  "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
+  bg_wait python3 "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
 fi
 
 # Per-checkout state kept in $TMPDIR: the previous run's merged report (for --failed), the measured wall-clock
@@ -231,7 +241,7 @@ for a in "$@"; do
       exit 2 ;;
     --strict-exit) STRICT=--strict-exit ;;
     --report=*) RUN_TESTS_REPORT_TO="${a#--report=}" ;;
-    --base=*) JOBS="${JOBS:-1}"; LINT=0 ;;   # a run on the base: one process, no lint (refused above otherwise)
+    --base=*) LINT=0 ;;   # a run on the base: one process (jobs_for), no lint
     --jobs=*) JOBS="${a#--jobs=}" ;;
     --changed) CHANGED=1 ;;
     --staged) STAGED=1 ;;
@@ -298,6 +308,7 @@ domains_of() {
 # capped by GAME_TEST_JOBS. A selection of the perf domain alone is one process: perf runs alone, so sharding it buys nothing.
 jobs_for() {
   local n d
+  [[ -n "$BASE_TREE" ]] && { echo 1; return; }   # a run on the base is one process, whatever --jobs says (auto included)
   d=$(domains_of "$@")
   if [[ -n "$d" && -z "$(echo "$d" | tr ',' '\n' | grep -vx perf || true)" ]]; then echo 1; return; fi
   n=$(jobs_wanted "$@")
@@ -596,7 +607,7 @@ quiet_gate() {
   local max min rc=0
   max=$(sed -n 's/^max_load=//p' "$TOOLS/perf_quiet.conf")
   min=${QUIET_MIN:-$(sed -n 's/^timeout_min=//p' "$TOOLS/perf_quiet.conf")}
-  python3 "$TOOLS/godot_slot.py" quiet --ancestor=$$ --max-load="$max" --timeout-min="$min" || rc=$?
+  bg_wait python3 "$TOOLS/godot_slot.py" quiet --ancestor=$$ --max-load="$max" --timeout-min="$min" || rc=$?
   case $rc in
     0) ;;
     3) LOADED_RUN=1 ;;
@@ -742,10 +753,10 @@ run() {
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     local code=0
     if [[ $listing -eq 1 ]]; then
-      godot_list "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
+      bg_wait godot_list "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
     else
       holds_perf "$@" ${args[@]+"${args[@]}"} && quiet_gate
-      godot_run "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
+      bg_wait godot_run "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
       LOADED_RUN=""
     fi
     [[ $keep -eq 1 ]] && { save_reports "$out"; note_von_skips "$out"; }
@@ -788,7 +799,7 @@ run() {
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     dirs+=("$out")
     holds_perf "$@" ${args[@]+"${args[@]}"} && quiet_gate
-    live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
+    bg_wait live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
     LOADED_RUN=""
   fi
   if [[ $perf_phase -eq 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
@@ -801,7 +812,7 @@ run() {
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     dirs+=("$out")
     quiet_gate
-    live_run "$out" ${phase[@]+"${phase[@]}"} --domain=perf || status=1
+    bg_wait live_run "$out" ${phase[@]+"${phase[@]}"} --domain=perf || status=1
     LOADED_RUN=""
   fi
   if [[ $repeat -gt 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
@@ -813,7 +824,7 @@ run() {
         out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
         dirs+=("$out")
         holds_perf "$@" ${args[@]+"${args[@]}"} && quiet_gate
-        live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
+        bg_wait live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
         LOADED_RUN=""
         [[ $fail_fast -eq 1 && $status -ne 0 ]] && break
       done
@@ -983,13 +994,24 @@ if [[ $CHANGED -eq 1 ]]; then
           fi ;;
         NOTE*) echo "$line" ;;
       esac
-    done < <(python3 tools/spec_tests.py $([[ $STAGED -eq 1 ]] && echo --staged))
+    done < <(python3 "$TOOLS/spec_tests.py" $([[ $STAGED -eq 1 ]] && echo --staged))
     if [[ -n "$spec_ids" ]]; then
       ran=1
       echo "== tests named by changed spec paragraphs =="
       von=()
       von_live && von=(--include-von)
-      run "--id=${spec_ids#,}" --repeat=5 ${von[@]+"${von[@]}"} || status=1
+      # --repeat=5, or the user's own when it is larger (given once: the run's own flags follow the ones given here).
+      spec_repeat=5
+      saved_args=(${args[@]+"${args[@]}"})
+      args=()
+      for x in ${saved_args[@]+"${saved_args[@]}"}; do
+        case "$x" in
+          --repeat=*) [[ "${x#--repeat=}" =~ ^[0-9]+$ && "${x#--repeat=}" -gt $spec_repeat ]] && spec_repeat="${x#--repeat=}" ;;
+          *) args+=("$x") ;;
+        esac
+      done
+      run "--id=${spec_ids#,}" "--repeat=$spec_repeat" ${von[@]+"${von[@]}"} || status=1
+      args=(${saved_args[@]+"${saved_args[@]}"})
     fi
   fi
   if [[ $self_test -eq 1 ]]; then

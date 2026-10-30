@@ -34,5 +34,32 @@ class FlagListTests(unittest.TestCase):
         self.assertEqual(set(self.wrapper_list("BATCH_FLAGS")) & set(self.wrapper_list("WRAPPER_FLAGS")), set())
 
 
+class WrapperFlagTests(unittest.TestCase):
+    """The flags the wrapper handles itself (its argument loop's case labels) are in the usage it prints for an unknown flag."""
+
+    @staticmethod
+    def handled():
+        loop = RUN.read_text().split('for a in "$@"; do\n  case "$a" in\n', 1)[1].split("\n  esac\ndone", 1)[0]
+        flags = set()
+        for line in loop.splitlines():
+            m = re.match(r"^    (--[a-z-]+(?:=\*)?(?:\|--[a-z-]+(?:=\*)?)*)\)", line)
+            if m:
+                flags |= {f.rstrip("=*") for f in m.group(1).split("|")}
+        return flags
+
+    @staticmethod
+    def usage():
+        text = RUN.read_text()
+        return text[text.index("# Selecting tests"):text.index("# Not here:")]
+
+    def test_the_loop_is_found_with_the_flags_this_ticket_added(self):
+        handled = self.handled()
+        self.assertTrue({"--base", "--quiet", "--jobs", "--changed", "--staged"} <= handled, sorted(handled))
+
+    def test_every_flag_the_wrapper_handles_is_in_its_usage(self):
+        usage = self.usage()
+        self.assertEqual(sorted(f for f in self.handled() - {"--play"} if f not in usage), [], "flags the usage lines leave out")
+
+
 if __name__ == "__main__":
     unittest.main()

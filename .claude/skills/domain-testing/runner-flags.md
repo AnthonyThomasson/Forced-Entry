@@ -25,7 +25,7 @@ The `tools/run_tests.sh` flags `SKILL.md`'s "Running tests" leaves out.
   weigh it only when they run, and the native suites run only in shard 0). With no costs file (a fresh checkout) it falls back to the declared `timeout`, an
   unmeasured id costs the median. `--fail-fast` stops after the first FAIL/TIMEOUT (per shard).
 - **The Godot slot pool:** every godot test process the wrapper starts (a shard, the perf phase, a `--repeat` rerun of the
-  native suites, `--base`'s run, `--list`, `--self-test`) holds one slot of a machine-wide pool of `max(1, cores / 2)`
+  native suites, `--base`'s run, `--list`, `--self-test`, the first-run import) holds one slot of a machine-wide pool of `max(1, cores / 2)`
   slots, lock files `slot<i>.lock` in `$TMPDIR/forced-entry-godot-slots` (`GAME_TEST_SLOT_DIR` names another
   directory). `tools/godot_slot.py` takes the slot and becomes the godot command, so the process itself holds the
   `flock` and the slot is free when it exits, however it ends; a lock file whose pid is dead is reclaimed. So runs in
@@ -47,14 +47,15 @@ The `tools/run_tests.sh` flags `SKILL.md`'s "Running tests" leaves out.
   editors and played games included) and the 1-minute load is under `max_load` in `tools/perf_quiet.conf` (6: this box's
   idle baseline is about 5), printing the load and the count of other Godot processes at once and each minute. After
   `MINUTES` (default `timeout_min` of the same file, 30) it runs anyway and marks that process's results `loaded` (on each
-  verdict line, `"loaded": true` in `report.json`): a `loaded` result is no evidence of a regression. A gate that fails for
+  verdict line, `"loaded": true` in `report.json` and in each result of the `JSON:` line): a `loaded` result is no evidence of a regression. A gate that fails for
   another reason than its timeout (an unreadable `perf_quiet.conf`) ends the run with exit 2 before a test starts. The
   wrapper appends `(load <x>, <n> other Godot)` to every `PERF` line it passes (shown with `--verbose`), quiet or not.
 - **`--base=<rev>`:** the working tree's tests against the code of `<rev>`: a temporary `git worktree` of `<rev>` in
   `$TMPDIR` gets the working tree's `tests/` whole (`.uid` files and helper folders included), is imported, runs the
-  selection in one process, prints its lines under `== on base <rev> (<short sha>) ==`, and is removed, also on ^C. The
+  selection in one process, prints its lines under `== on base <rev> (<short sha>) ==`, and is removed, also on ^C or a kill of the wrapper alone: a signal to it ends the engines it started (`tools/godot_slot.py stop`), then
+  the cleanup runs. The
   working tree is never written; no lint; the exit code is that run's verdict. Refused with exit 2 and a reason line:
-  with `--changed`, `--staged` or `--jobs` above 1, and for an unknown `<rev>`. `fix` step 5 uses it
+  with `--changed`, `--staged` or `--jobs` above 1 (`--jobs=auto` and `--jobs=1` are the one process), and for an unknown `<rev>`. `fix` step 5 uses it
   (`--base=<merge-base> --id=<id>`) to show a changed regression test still red on the old code.
 - **Test seams** (set only by `tools/test_log_gate.py` and the tool tests, not by a person): `GAME_TEST_SLOT_POLL`
   (seconds between a waiting process's looks at the pool, 0.5), `GAME_TEST_QUIET_MINUTE` (the seconds a `--quiet` "minute"
@@ -85,7 +86,7 @@ The `tools/run_tests.sh` flags `SKILL.md`'s "Running tests" leaves out.
   blank-line-bounded block of the new file that holds a changed line (a pure deletion: the block around where it was),
   its `Test:` / `Tests:` line (`tools/spec_tests.py`; a paragraph that names none takes the block that begins with a `Tests:`
   line and directly follows it, before the next heading or paragraph of another kind) gives backticked names, each resolved to
-  `tests/**/<name>_test.gd` (a name with a `/` is a path under `tests/`; under `--staged` among the files the index holds). Those ids run `--repeat=5` under `== tests named by changed spec
+  `tests/**/<name>_test.gd` (a name with a `/` is a path under `tests/`; under `--staged` among the files the index holds). Those ids run `--repeat=5` (the larger of 5 and a `--repeat` you gave, once) under `== tests named by changed spec
   paragraphs ==`, also when their domain already ran; Von ones get `--include-von` only when a Von server is live
   (otherwise they are skipped and counted by the Von `NOTE`); `--skip-domain` still wins. A changed paragraph with no
   `Test(s):` line prints `NOTE docs/<f>.md:<line>: changed paragraph names no test`, a name with no test file

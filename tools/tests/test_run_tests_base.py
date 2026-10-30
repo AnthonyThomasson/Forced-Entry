@@ -7,18 +7,21 @@ import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
 
+from tools.tests.test_godot_slot import HOLDER
+
 ROOT = Path(__file__).resolve().parents[2]
 
 # Stands in for Godot: `--import` does nothing; any other start records where it runs and what that checkout holds
 # (the production file, the tests, the helper folders), writes the report $FAKE_VERDICT says (pass or fail), and with
-# FAKE_HANG=1 stays alive after writing $FAKE_STARTED until it is killed.
+# FAKE_HANG=1 stays alive after writing its pid to $FAKE_STARTED until it is killed. Each `--import` is noted in $FAKE_IMPORTS.
 FAKE_GODOT = r"""#!/usr/bin/env bash
-for a in "$@"; do [ "$a" = "--import" ] && exit 0; done
+for a in "$@"; do [ "$a" = "--import" ] && { echo import >> "$FAKE_IMPORTS"; exit 0; }; done
 log=""; out=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -38,7 +41,7 @@ status=PASS; [ "$FAKE_VERDICT" = "fail" ] && status=FAIL
 printf '{"results": [{"id": "ai/x", "status": "%s"}], "stray_logs": [], "log_end": %s}' "$status" \
   "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
 echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
-if [ -n "$FAKE_HANG" ]; then touch "$FAKE_STARTED"; sleep 60; fi
+if [ -n "$FAKE_HANG" ]; then echo $$ > "$FAKE_STARTED.tmp"; mv "$FAKE_STARTED.tmp" "$FAKE_STARTED"; exec sleep 600; fi
 exit 0
 """
 
@@ -58,6 +61,7 @@ class BaseRunTests(unittest.TestCase):
         self.fake.write_text(FAKE_GODOT)
         self.fake.chmod(self.fake.stat().st_mode | stat.S_IEXEC)
         self.observed = self.tmp / "observed.txt"
+        self.imports = self.tmp / "imports.txt"
         # The old revision: the production file as it was, the test as it was, a test since deleted, a helper folder.
         self.write("scenes/a.gd", "old code\n")
         self.write("tests/ai/x_test.gd", "old test\n")
@@ -91,6 +95,7 @@ class BaseRunTests(unittest.TestCase):
     def env(self, **extra):
         env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "GAME_TEST_CHANGED_FILES"}
         return dict(env, GODOT=str(self.fake), TMPDIR=str(self.state), FAKE_OBSERVED=str(self.observed),
+                    FAKE_IMPORTS=str(self.imports), GAME_TEST_SLOT_DIR=str(self.state / "slots"), GAME_TEST_SLOT_POLL="0.05",
                     **{"FAKE_VERDICT": "pass", **extra})
 
     def run_tests(self, *args, **env):
@@ -147,7 +152,6 @@ class BaseRunTests(unittest.TestCase):
             (["--base=" + self.rev, "--changed"], "--changed"),
             (["--base=" + self.rev, "--changed", "--staged"], "--staged"),
             (["--base=" + self.rev, "--jobs=2"], "--jobs"),
-            (["--base=" + self.rev, "--jobs=auto"], "--jobs"),
             (["--base=no-such-rev-zz"], "no-such-rev-zz"),
             (["--base="], "unknown revision"),
         )
@@ -162,23 +166,102 @@ class BaseRunTests(unittest.TestCase):
         self.assertFalse(self.observed.exists(), "no engine process was started")
         self.assertEqual(self.tree(), before)
 
-    def test_an_interrupted_run_still_removes_its_worktree(self):
-        before = self.tree()
+    def start_hanging(self):
+        """A --base run whose fake engine stays alive; returns (the wrapper process, the engine's pid) once it runs."""
         started = self.tmp / "started"
         proc = subprocess.Popen(["bash", str(self.repo / "tools" / "run_tests.sh"), "--base=" + self.rev, "--id=ai/x",
                                  "--no-lint"], cwd=self.repo, env=self.env(FAKE_HANG="1", FAKE_STARTED=str(started)),
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
         self.addCleanup(lambda: proc.poll() is None and os.killpg(proc.pid, signal.SIGKILL))
-        deadline = time.monotonic() + 60
-        while not started.exists() and time.monotonic() < deadline:
+        self.addCleanup(self.kill_engine, started)
+        self.assertTrue(self.wait_for(started.exists), "the run started")
+        return proc, int(started.read_text())
+
+    @staticmethod
+    def kill_engine(started):
+        try:
+            os.kill(int(started.read_text()), signal.SIGKILL)
+        except (OSError, ValueError):
+            pass
+
+    @staticmethod
+    def wait_for(condition, seconds=180):
+        """Whether `condition` holds within `seconds`: a deadline that holds on a loaded box."""
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            if condition():
+                return True
             time.sleep(0.1)
-        self.assertTrue(started.exists(), "the run started")
-        self.assertIn("worktree", self.git("worktree", "list", "--porcelain") + "worktree", "premise")
+        return condition()
+
+    @staticmethod
+    def alive(pid):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        return True
+
+    def test_jobs_auto_and_one_are_one_process_and_not_refused(self):
+        # auto would be the free slots; on the base it is one process, whichever side of --base it is given.
+        for jobs in (["--base=" + self.rev, "--jobs=auto"], ["--jobs=auto", "--base=" + self.rev], ["--base=" + self.rev, "--jobs=1"]):
+            with self.subTest(args=jobs):
+                self.observed.unlink(missing_ok=True)
+                code, out = self.run_tests(*jobs, "--id=ai/x,ai/y,ai/z", "--no-lint")
+                self.assertEqual(code, 0, out)
+                self.assertEqual(self.observed.read_text().count("pwd:"), 1, "one engine process\n" + out)
+
+    def test_an_interrupted_run_still_removes_its_worktree(self):
+        before = self.tree()
+        proc, _ = self.start_hanging()
         self.assertNotEqual(self.git("worktree", "list", "--porcelain"), before[1], "premise: the worktree exists meanwhile")
         os.killpg(proc.pid, signal.SIGINT)
-        proc.wait(timeout=60)
+        self.assertTrue(self.wait_for(lambda: proc.poll() is not None and self.tree() == before), "the run ended and its worktree is gone")
         self.assertEqual(self.tree(), before)
 
+    def test_a_terminated_wrapper_stops_its_engine_and_removes_the_worktree(self):
+        # The signal reaches the wrapper's pid alone, not its process group (a kill from another terminal, a parent).
+        before = self.tree()
+        proc, engine = self.start_hanging()
+        os.kill(proc.pid, signal.SIGTERM)
+        self.assertTrue(self.wait_for(lambda: proc.poll() is not None), "the wrapper ended without waiting for the engine")
+        self.assertEqual(proc.returncode, 143)
+        self.assertTrue(self.wait_for(lambda: not self.alive(engine)), "no engine is left running")
+        self.assertEqual(self.tree(), before, "the worktree is removed")
+
+    def test_it_leaves_the_stale_worktree_records_of_the_repo_alone(self):
+        # Another worktree whose directory was deleted: `git worktree prune` would drop its record, and it is not this run's.
+        stale = self.tmp / "stale_worktree"
+        self.git("worktree", "add", "--detach", "-q", str(stale))
+        shutil.rmtree(stale)
+        before = self.git("worktree", "list", "--porcelain")
+        self.assertIn("prunable", before, "premise: git calls the record stale")
+        self.assertEqual(self.run_tests("--base=" + self.rev, "--id=ai/x", "--no-lint")[0], 0)
+        self.assertEqual(self.git("worktree", "list", "--porcelain"), before)
+
+    def test_the_first_run_import_waits_for_a_slot_like_every_engine_process(self):
+        # A --base worktree has no import cache, so its run imports first. Every slot is held: nothing starts.
+        slots = self.state / "slots"
+        slots.mkdir()
+        size = max(1, (os.cpu_count() or 2) // 2)
+        holders = [subprocess.Popen([sys.executable, "-c", HOLDER, str(slots / f"slot{i}.lock"), str(os.getpid())],
+                                    stdout=subprocess.PIPE, text=True) for i in range(size)]
+        self.addCleanup(lambda: [(h.kill(), h.wait()) for h in holders])
+        for h in holders:
+            self.assertEqual(h.stdout.readline().strip(), "held")
+        proc = subprocess.Popen(["bash", str(self.repo / "tools" / "run_tests.sh"), "--base=" + self.rev, "--id=ai/x", "--no-lint"],
+                                cwd=self.repo, env=self.env(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.addCleanup(lambda: proc.poll() is None and proc.kill())
+        time.sleep(1.5)
+        self.assertIsNone(proc.poll(), "it waits for a slot")
+        self.assertFalse(self.imports.exists(), "the import has not started")
+        for h in holders:
+            h.kill()
+            h.wait()
+        out = proc.communicate(timeout=120)[0]
+        self.assertEqual(proc.returncode, 0, out)
+        self.assertEqual(self.imports.read_text().split(), ["import"], "imported once, after the slot freed")
+        self.assertIn("waiting for a Godot slot", out)
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,6 +6,7 @@
   python3 tools/godot_slot.py status                                     print "<taken> <size>"
   python3 tools/godot_slot.py annotate --ancestor=PID [--loaded]         filter a run's output (stdin to stdout)
   python3 tools/godot_slot.py quiet --ancestor=PID --max-load=X --timeout-min=M   wait for a quiet machine
+  python3 tools/godot_slot.py stop --ancestor=PID                        end every process PID started
 
 The pool has max(1, cores / 2) slots, each a lock file `slot<i>.lock` in $GAME_TEST_SLOT_DIR (default
 $TMPDIR/forced-entry-godot-slots), taken with flock. `run` waits for a free one (saying so once, `waiting for a Godot
@@ -17,17 +18,24 @@ dead counts as free, and is replaced by a new file. Takers go one at a time (an 
 directory), so two never reclaim the same orphan; `free`, `status` and the wait notice only look (a shared lock that is let
 go at once): they take no slot, write no pid and replace no file.
 
+Every engine process tools/run_tests.sh starts holds a slot, the first-run import included; the lint's engine pass,
+editors and played games take none.
+
 The machine's state, for `--quiet` and the PERF lines of a run: the 1-minute load (`uptime`) and the number of other Godot
 processes (`pgrep -i godot`: editors and played games too), those under the process PID (the run's own) left out.
 `annotate` appends `(load <x>, <n> other Godot)` to every `PERF ` line it passes, `  load <x>` to every totals line and, with
---loaded, `  loaded` to every verdict line (`PASS    <id>  (<s>s sim, <ms> ms)`). `quiet` returns 0 once no other Godot runs and the load is under
+--loaded, `  loaded` to every verdict line (`PASS    <id>  (<s>s sim, <ms> ms)`) and `"loaded": true` to every result of the `JSON:` line. `quiet` returns 0 once no other Godot runs and the load is under
 --max-load, printing the load and the count at once and every minute ($GAME_TEST_QUIET_MINUTE seconds, 60 by default;
-polled every $GAME_TEST_QUIET_POLL, 5 by default) while it waits, and 3 after --timeout-min minutes.
+polled every $GAME_TEST_QUIET_POLL, 5 by default) while it waits, and 3 after --timeout-min minutes. `stop` sends SIGTERM to
+every process PID started, directly or not (not itself), and SIGKILL to those still there $GAME_TEST_STOP_WAIT seconds
+later (5 by default): what tools/run_tests.sh does when it is interrupted, before it cleans up.
 """
 import contextlib
 import fcntl
+import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -191,6 +199,12 @@ def under(pid: int) -> set:
     return mine
 
 
+def zombies() -> set:
+    """The pids of the processes that have ended and are not yet reaped by their parent."""
+    out = subprocess.run(["ps", "-A", "-o", "pid=", "-o", "stat="], capture_output=True, text=True).stdout
+    return {int(f[0]) for f in (line.split() for line in out.splitlines()) if len(f) == 2 and f[0].isdigit() and f[1].startswith("Z")}
+
+
 def other_godots(ancestor: int) -> int:
     """How many Godot processes run that the process `ancestor` did not start."""
     found = subprocess.run(["pgrep", "-i", "godot"], capture_output=True, text=True).stdout.split()
@@ -205,6 +219,12 @@ def option(argv: list, name: str, default=None):
     return default
 
 
+def mark_loaded(report: dict) -> dict:
+    for r in report.get("results", []):
+        r["loaded"] = True
+    return report
+
+
 def annotate(argv: list) -> int:
     ancestor, loaded = int(option(argv, "--ancestor", os.getppid())), "--loaded" in argv
     for line in sys.stdin:
@@ -215,6 +235,11 @@ def annotate(argv: list) -> int:
             line += "  load %.2f" % one_minute_load()
         elif loaded and VERDICT.match(line):
             line += "  loaded"
+        elif loaded and line.startswith("JSON: "):
+            try:
+                line = "JSON: " + json.dumps(mark_loaded(json.loads(line[len("JSON: "):])), separators=(",", ":"))
+            except ValueError:
+                pass  # not the batch's line: passed as it is
         print(line, flush=True)
     return 0
 
@@ -239,6 +264,27 @@ def quiet(argv: list) -> int:
             print("waiting for a quiet machine: load %.2f (under %g wanted), %d other Godot (none wanted), %.1f of %g min"
                   % (load, max_load, others, (now - started) / minute, minutes), flush=True)
         time.sleep(poll)
+
+
+def stop(argv: list) -> int:
+    ancestor = int(option(argv, "--ancestor", os.getppid()))
+    wait = float(os.environ.get("GAME_TEST_STOP_WAIT", "5"))
+    for sig, seconds in ((signal.SIGTERM, wait), (signal.SIGKILL, 2.0)):
+        sent, deadline = set(), time.monotonic() + seconds
+        while True:
+            left = under(ancestor) - {os.getpid()} - zombies()
+            if not left:
+                return 0
+            for pid in left - sent:
+                try:
+                    os.kill(pid, sig)
+                except ProcessLookupError:
+                    pass
+            sent |= left
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.05)
+    return 0
 
 
 def run(argv: list) -> int:
@@ -280,6 +326,8 @@ def main(argv: list) -> int:
         return annotate(argv[1:])
     if argv[:1] == ["quiet"]:
         return quiet(argv[1:])
+    if argv[:1] == ["stop"]:
+        return stop(argv[1:])
     print(__doc__, file=sys.stderr)
     return 2
 
