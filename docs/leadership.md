@@ -791,9 +791,9 @@ new leader orders the same doorway again within the old cool-down; members that 
 (`von_script`: an INVESTIGATE – STAY callout carries `lead_pos` at the fresher of two steps heard, an ally's fight radioed after them
 skipped), `ai/combat/crew_ambush_attack_door` (real Von: a crew of three in the living room, an invader in by the front door a few steps
 along the hall, in the next member's view through the hall's doorway, the leader by the north wall over two seconds' walk from that
-doorway, so the radio places the invader while the leader's first search still has it in the room, `require`d on the order's own
-frame; the leader and the next member hold the ambush of the hall's doorway, or end it `done` in contact, and the third, the
-rear guard, holds no order and follows), `ai/investigate/crew_ambush_before_contact` (real Von: a one-room house; the leader hears an
+doorway, so the radio places the invader while the leader's first search still has it in the room (the leader in the living
+room on the order's own frame, `require`d); the leader and the next member hold the ambush of the hall's doorway, or end it
+`done` in contact, and the third, the rear guard, holds no order and follows), `ai/investigate/crew_ambush_before_contact` (real Von: a one-room house; the leader hears an
 invader walking outside, takes INVESTIGATE – STAY, `require`d, and the leader and the next member are at their posts on the front door
 before any defender sees it), and `ai/movement/follow_defenders` (a crew's own search walks its leader: a heard threat now posts the crew
 instead).
