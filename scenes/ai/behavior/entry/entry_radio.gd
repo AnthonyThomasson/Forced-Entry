@@ -48,15 +48,16 @@ func say(entry: Entry, what: String, extra := {}) -> void:
 		return  # A pass-by joins no stack and claims nothing on the radio.
 	# (A new claim: the heartbeat's repeat keeps the frame it was made on.)
 	if what == "claim" and not extra.has("claim_frame"):
-		entry.claim.frame = GameClock.frame()
-		entry.claim.pos = world.character.global_position
+		state.member.claim_frame = GameClock.frame()
+		state.member.claim_pos = world.character.global_position
 	# (D14: the frame its crossing began on, once; its `going_in` is committed.)
 	if entry.readiness.crossed_frame < 0 and StackClaim.crossing(what):
 		entry.readiness.crossed_frame = GameClock.frame()
+	state.member.step = what
 	var msg := {
 		"entry_step": what,
-		"claim_frame": entry.claim.frame,
-		"claim_pos": entry.claim.pos,
+		"claim_frame": state.member.claim_frame,
+		"claim_pos": state.member.claim_pos,
 	}
 	msg.merge(extra)
 	msg["crossed_frame"] = entry.readiness.crossed_frame
@@ -65,7 +66,7 @@ func say(entry: Entry, what: String, extra := {}) -> void:
 	msg["stuns"] = entry.grenade.stuns
 	msg["frags"] = entry.grenade.frags
 	# (E2: the slot it moved up from, while it walks into the one it took.)
-	msg["move_up"] = entry.claim.move_up
+	msg["move_up"] = state.member.move_up
 	msg["pie"] = entry.pie.begun
 	msg["join"] = entry.orders.join  # A join's claim, never its holder's own (D30).
 	if entry.orders.id != "":
@@ -78,6 +79,13 @@ func say(entry: Entry, what: String, extra := {}) -> void:
 		msg["order_hold"] = entry.orders.hold
 		msg["order_go"] = entry.readiness.released
 		msg["order_side"] = entry.orders.side
+		msg["order_frame"] = entry.orders.frame
+	elif entry.orders.join and entry.orders.hold:
+		# A join held for its human leader's go (D31): the rally it holds for (its order's frame),
+		# and whether its go came and in which mode.
+		msg["order_hold"] = true
+		msg["order_go"] = entry.readiness.released
+		msg["order_mode"] = entry.orders.mode
 		msg["order_frame"] = entry.orders.frame
 	calls.append(msg)
 	last_call = msg.duplicate()

@@ -117,8 +117,8 @@ func take_calls() -> Array:
 		c.merge({
 			"opening": behavior._entry.state.opening,
 			"into": behavior._entry.state.into,
-			"slot": behavior._entry.state.slot,
-			"side": behavior._entry.state.side,
+			"slot": behavior._entry.state.member.slot,
+			"side": behavior._entry.state.member.side,
 		})
 		out.append(c)
 	return out
@@ -261,7 +261,7 @@ func _detour_first(delta: float) -> bool:
 				and str(passing["into"]) != into
 				and (gate.is_empty() or float(passing["dist"]) < float(gate["dist"]))
 				and float(_guard_off.get(passing["opening"], -1.0)) <= guard_clock
-				and not perception.entry.stack(passing["opening"]).claimed()):
+				and perception.entry.stack(passing["opening"]).team.is_empty()):
 			passing["secure"] = true
 			gate = passing
 	if gate.is_empty():
@@ -448,7 +448,8 @@ func _guard_approach() -> void:
 	var gate := {}
 	if ordered:
 		gate = _other_threshold(walk["path"], walk["index"], behavior.tuning.entry_guard.reach)
-	var team_coming: bool = (perception.entry.stack(behavior._entry.state.opening).claimed()
+	var stacked: RefCounted = perception.entry.stack(behavior._entry.state.opening)
+	var team_coming: bool = (not stacked.team.is_empty()
 			or (ordered and _recipients_coming()))
 	var passing := {} if team_coming else _passing_gate(walk, gate)
 	if (not passing.is_empty()
@@ -474,7 +475,7 @@ func _passing_gate(walk: Dictionary, gate: Dictionary) -> Dictionary:
 			or (not gate.is_empty() and float(passing["dist"]) >= float(gate["dist"]))):
 		return {}
 	if (float(_guard_off.get(passing["opening"], -1.0)) > guard_clock
-			or perception.entry.stack(passing["opening"]).claimed()):
+			or not perception.entry.stack(passing["opening"]).team.is_empty()):
 		return {}
 	passing["secure"] = true
 	return passing

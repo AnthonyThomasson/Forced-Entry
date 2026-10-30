@@ -4,17 +4,19 @@ extends RefCounted
 ## what `Behavior` sets on it each tick, the doorway's geometry and its clocks. The entry and
 ## `Behavior` read and write it; it decides nothing itself, and holds nothing back.
 
+const StackMember := preload("res://scenes/ai/perception/stack/stack_member.gd")
+
 ## approach / stack / pie / cross / corner / clear / rear / done ("" = idle).
 var phase := ""
 ## The doorway's id (agent_entry.gd `opening_id`).
 var opening := ""
 ## The key of the room behind it.
 var into := ""
-## This NPC's stack slot: its place in the order the stack claimed the doorway (1 = the point).
-var slot := 0
-## The side of the door it stacks on (1 / -1 along its wall): the team's, or its own in a split
-## stack (E19).
-var side := 0
+## This NPC's own claim in the doorway's stack (stack_member.gd): its `slot` (its place in the order
+## the stack claimed the doorway, 1 = the point), the `side` of the door its slot stands on (1 / -1
+## along its wall: the team's, or its own in a split stack, E19), the side it asks for, its claim's
+## frame and spot, its move-up, its place in its side's file and its `point`.
+var member: StackMember = StackMember.new()
 ## Nobody else claims the doorway: no barrier, and the pie is sliced from both sides.
 var solo := true
 ## A bang entry (G18): a stun is thrown into the room before anyone crosses. Radioed with every

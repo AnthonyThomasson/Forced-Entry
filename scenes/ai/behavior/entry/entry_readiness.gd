@@ -99,7 +99,7 @@ func say_ready(entry: Entry) -> void:
 	if ready_said:
 		return
 	ready_said = true
-	entry.claim.move_up = 0  # In the slot it moved up into: an ordinary claim from now on.
+	state.member.move_up = 0  # In the slot it moved up into: an ordinary claim from now on.
 	entry.radio.say(entry, "ready")
 
 
@@ -121,14 +121,14 @@ func tick_stack(entry: Entry, team: Array, delta: float) -> void:
 ## Stand in the slot (shoved out of it, or stood beside it while a body was on it: step back in),
 ## facing the door, or, the stack's rear guard (E12), back along the line away from it.
 func _keep_to_slot(entry: Entry, team: Array, delta: float) -> void:
-	var spot := entry.claim.spot
+	var spot := state.member.point
 	if world.character.global_position.distance_to(spot) > StackClaim.SLOT_REACH:
 		world.loco.move_to(spot, StackClaim.SLOT_REACH)
 	else:
 		world.character.movement.move_input = Vector2.ZERO
 	if _covers_rear(entry, team):
 		entry.sweep.look_toward(
-			spot + (state.geo["along"] as Vector2) * state.side * 300.0,
+			spot + (state.geo["along"] as Vector2) * state.member.side * 300.0,
 			delta,
 			3.0,
 		)
@@ -194,7 +194,7 @@ func follow(entry: Entry, team: Array, ahead: Array) -> void:
 ## file walks in on its back; one across the door (a split stack's criss-cross, E19) or the human
 ## (E16) once it is through, so two never cross the doorway abreast nor walk into the human.
 func _ahead_gone(m: Dictionary) -> bool:
-	if int(m["side"]) == state.side and not bool(m.get("human", false)):
+	if int(m["side"]) == state.member.side and not bool(m.get("human", false)):
 		return StackClaim.crossing(m["step"])
 	return StackClaim.through(m["step"])
 
@@ -207,7 +207,7 @@ func slices_own_half(entry: Entry, team: Array) -> bool:
 	if entry.pie.sides > 0 or entry.grenade.over or entry.grenade.banging(entry, team):
 		return false
 	var before := members_before(entry)
-	return not before.is_empty() and before.all(func(m): return int(m["side"]) != state.side)
+	return not before.is_empty() and before.all(func(m): return int(m["side"]) != state.member.side)
 
 
 ## Whether this member is a rear guard of the stack (E12): the last of its side's file, with two or
@@ -217,7 +217,9 @@ func slices_own_half(entry: Entry, team: Array) -> bool:
 ## split stack, the other side's front man) watch the door.
 func _covers_rear(entry: Entry, team: Array) -> bool:
 	return turn_at < 0.0 and members_before(entry).size() >= 2 \
-		and team.all(func(m): return int(m["side"]) != state.side or m["slot"] < state.slot)
+		and team.all(
+			func(m): return int(m["side"]) != state.member.side or m["slot"] < state.member.slot
+		)
 
 
 ## Whether this member holds the stack outside instead of going in (E13): a room too small for the
@@ -255,12 +257,16 @@ func _tick_security(entry: Entry, team: Array, delta: float) -> void:
 ## first to cross first. One that never reached its slot is dropped once this NPC has waited
 ## `tuning.entry.ready_timeout` for it (under an order, from when every living recipient of it was
 ## in its slot, LD17); a recipient of the order this NPC stacks under, and the human leader that
-## gave it, only once `tuning.entry.order_ready_cap` has run out (D7).
+## gave it, only once `tuning.entry.order_ready_cap` has run out (D7). Once a human leader's rally
+## has its go, the human is not waited for unless it is crossing (D31): the first AI is the point.
 func members_ahead(entry: Entry) -> Array:
 	var waited := ready_at >= 0.0 and state.time - ready_at >= world.tuning.entry.ready_timeout
 	if entry.orders.id != "":
 		waited = all_in_at >= 0.0 and state.time - all_in_at >= world.tuning.entry.ready_timeout
+	var gone := released and entry.orders.rallied(entry)
 	var still_ahead := func(m):
+		if gone and m["human"] and not StackClaim.crossing(m["step"]):
+			return false
 		return not (
 			m["step"] == "claim"
 			and (entry.orders.capped() or (waited and not entry.orders.waits_for(entry, m)))
@@ -286,7 +292,7 @@ func note_all_in(entry: Entry, team: Array) -> void:
 ## The members of the stack that cross before this one (stack_layout.gd `crossing_order`: by slot,
 ## and on a split stack the two sides taking turns), the first to cross first.
 func members_before(entry: Entry) -> Array:
-	return entry.claim.stack.ahead({ "id": world.self_id, "slot": state.slot, "side": state.side })
+	return entry.claim.stack.ahead(entry.claim.me(entry))
 
 
 ## Whether the point may go in: every other member of the stack is in its slot, or the wait (from

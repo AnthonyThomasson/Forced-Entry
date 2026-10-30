@@ -90,7 +90,7 @@ func start_cross(entry: Entry, team: Array) -> void:
 	).size()
 	corner = _corner_for(entry,
 		order,
-		team.any(func(m): return int(m["side"]) != 0 and int(m["side"]) != state.side),
+		team.any(func(m): return int(m["side"]) != 0 and int(m["side"]) != state.member.side),
 	)
 	entry.approach.set_phase("cross")
 	entry.radio.say(entry, "going_in")
@@ -106,16 +106,16 @@ func _corner_for(entry: Entry, order: int, split := false) -> Vector2:
 	var corners: Array = state.geo["corners"]
 	if order == 0:
 		if split:
-			return _pick_corner(corners, -state.side, true)
-		var own := state.side
+			return _pick_corner(corners, -state.member.side, true)
+		var own := state.member.side
 		if state.solo:
-			own = -entry.pie.side if entry.pie.sides > 0 else -state.side
+			own = -entry.pie.side if entry.pie.sides > 0 else -state.member.side
 		return _pick_corner(corners, own, false)
 	if order == 1:
-		return _pick_corner(corners, -state.side, true)
+		return _pick_corner(corners, -state.member.side, true)
 	var door: Vector2 = state.geo["pos"]
 	return world.loco.reachable(door - (state.geo["out"] as Vector2) * 90.0
-			+ (state.geo["along"] as Vector2) * state.side
+			+ (state.geo["along"] as Vector2) * state.member.side
 				* (float(state.geo["width"]) * 0.5 + Entry.SPOT_SPACING * (order - 1)))
 
 

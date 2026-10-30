@@ -227,12 +227,12 @@ func view() -> Dictionary:
 
 
 ## Turn a leader's request (`{ kind, to, pos?, room?, bang?, mode?, wait_go? }`) into an order and
-## post it as `&"order"`. Returns the order posted, or {} when there is nothing to post (no living
-## recipient, an unknown room or doorway, an unknown kind, a go where no held stack waits).
+## post it as `&"order"` (a go's `mode`, one of `MODES`, is the mode a held rally goes in, D31).
+## Returns the order posted, or {} when there is nothing to post (no living recipient, an unknown
+## room or doorway, an unknown kind, a go where no held stack waits).
 func issue(request: Dictionary) -> Dictionary:
 	if String(request.get("kind", "")) == GO:
-		var at := resolve(request)
-		return {} if at.is_empty() else _release(_held_at(String(at["opening"])), at, false)
+		return _go(request)
 	var to: Array = []
 	for m in request.get("to", []):
 		if m is Node and alive(m) and not to.has(m):
@@ -262,6 +262,17 @@ func issue(request: Dictionary) -> Dictionary:
 		_:
 			return {}
 	return _post_order(order)
+
+
+## The leader's go request (`{ kind: "go", pos, mode? }`) posted (`_release`) to the held stacks at
+## the doorway it names, with its `mode` when it names one of `MODES` (D31); {} with none there.
+func _go(request: Dictionary) -> Dictionary:
+	var at := resolve(request)
+	if at.is_empty():
+		return {}
+	if MODES.has(String(request.get("mode", ""))):
+		at["mode"] = String(request["mode"])
+	return _release(_held_at(String(at["opening"])), at, false)
 
 
 ## Give `order` (`{ leader, faction, to, kind, ... }`) its id and the physics frame it is issued on
@@ -333,7 +344,9 @@ func _latch_go(opening: String) -> void:
 	var stack: RefCounted = stacks.ledger.stack(opening)
 	var held := _held_at(opening)
 	for id in held:
-		if stack.released(str(id), str(held[id]["into"]), int(held[id]["frame"])):
+		# A join's claims carry no order id: its rally's go is read by the join's frame (D31).
+		var of := "" if is_join(held[id]) else str(id)
+		if stack.released(of, str(held[id]["into"]), int(held[id]["frame"])):
 			_released[str(id)] = true
 
 
@@ -349,7 +362,8 @@ func _held_at(opening: String) -> Dictionary:
 
 
 ## Release the held stack orders `held` (order id -> order, `_held_at`) with one `go` at `at`
-## (`{ opening, pos }`): posted to every living member holding one of them, `auto` when the squad
+## (`{ opening, pos, mode? }`, `mode` the one a held rally goes in, D31): posted to every living
+## member holding one of them, `auto` when the squad
 ## gives it because their leader is dead (D12). The stack orders stay held (a go is latched, never a
 ## replacement); `view()` marks them released. Returns the go posted, or {} when nobody holds one.
 func _release(held: Dictionary, at: Dictionary, auto: bool) -> Dictionary:
@@ -368,6 +382,8 @@ func _release(held: Dictionary, at: Dictionary, auto: bool) -> Dictionary:
 		"id": "%s_%d" % [_faction, _issued], "leader": _leader, "faction": _faction, "to": to,
 		"kind": GO, "opening": at["opening"], "pos": at["pos"], "frame": GameClock.frame(),
 	}
+	if at.has("mode"):
+		go["mode"] = at["mode"]
 	if auto:
 		go["auto"] = true
 	EventBus.post(&"order", go)
@@ -460,8 +476,9 @@ func _next_leader() -> Node:
 ## A member died (LD4): when it led, the next in line leads now, and the squad says so on the bus.
 ## Its own order is dropped. The held stacks it ordered have nobody to say go now (D12): each is
 ## released (a `go` with `auto: true`), so it goes on the ready barrier. When the human leader dies
-## (LD26), the members it set to defend a room or lie in ambush are told `cancel` (one order) and
-## follow the new leader; its stack orders are finished.
+## (LD26), the members it set to defend a room or lie in ambush, and those holding a join of its
+## rally (D31: never released, no go), are told `cancel` (one order) and follow the new leader; its
+## stack orders are finished.
 func _on_died(member: Node) -> void:
 	_orders.erase(member.get_instance_id())
 	stacks.invalidate()
@@ -475,7 +492,7 @@ func _on_died(member: Node) -> void:
 		ambush.reset()
 		EventBus.post(&"leader", { "faction": _faction, "leader": _leader, "previous": previous })
 		if previous == _human:
-			_take_over()
+			_take_over(previous)
 	# Doorway id -> the held stack orders the dead member gave there, not yet released.
 	var orphaned := {}
 	for m: Node in _members:
@@ -491,10 +508,13 @@ func _on_died(member: Node) -> void:
 		_release(orphaned[at]["orders"], { "opening": at, "pos": orphaned[at]["pos"] }, true)
 
 
-## The new leader takes over from the dead human's (LD26): one `cancel` to the living members
-## holding a `defend_room` or an `ambush` order, so each follows it.
-func _take_over() -> void:
-	_cancel_held(func(held: Dictionary): return held.get("kind") in [DEFEND, AMBUSH])
+## The new leader takes over from the dead human's, `previous` (LD26): one `cancel` to the living
+## members holding a `defend_room` or an `ambush` order, or a join of `previous`'s rally (D31: a
+## rally goes in only on its leader's go, which a dead leader never gives), so each follows it.
+func _take_over(previous: Node) -> void:
+	_cancel_held(func(held: Dictionary): return (
+		held.get("kind") in [DEFEND, AMBUSH] or (is_join(held) and held.get("leader") == previous)
+	))
 
 
 ## Post one `cancel` from the leader to the living members whose held order `holds` (called with it)
@@ -571,7 +591,9 @@ func _rally(claim: Dictionary) -> void:
 			_post_order({
 				"leader": _leader, "faction": _faction, "to": to, "kind": STACK,
 				"opening": opening, "into": claim["into"], "pos": door,
-				"split": false, "mode": JOIN, "bang": false, "wait_go": false,
+				"split": false, "mode": JOIN, "bang": false,
+				# The human leader's rally is held for its go (D31); an AI leader takes the point.
+				"wait_go": bool(claim["human"]),
 			})
 		"abort":
 			if not _rallied.erase(key):

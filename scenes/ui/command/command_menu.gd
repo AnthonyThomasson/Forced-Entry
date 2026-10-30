@@ -5,7 +5,8 @@ extends CanvasLayer
 ## under the cursor:
 ## - a teammate within `PICK_RADIUS`: "Select <name>" / "Deselect <name>" (the menu stays open), and
 ##   "Go into the <room>" while it holds a held stack that has had no go (LD13: the stack's point
-##   stands right by its doorway);
+##   stands right by its doorway); for a held join of the human's rally (D31) the three go items
+##   below in its place;
 ## - else a doorway the squad resolves a stack at the click to (its `resolve` callable: the doorway
 ##   nearest the click within its width): "Stack into the <room> (quiet)", "Stack into the <room>
 ##   with stun" and "Stack into the <room> with frag", `<room>` the room that stack goes into (the
@@ -16,7 +17,10 @@ extends CanvasLayer
 ##   (`FRAG_SLOT`, D15); the panel's "Hold for my go" checkbox (off at first, kept while the match
 ##   runs, D19) makes the stack chosen wait for the leader's go (LD13); "Go into the <room>" while a
 ##   member of the squad's view holds a held stack there that has had no go, whoever is selected
-##   (D13); and "Ambush the doorway from the <room>", `<room>` the one on the click's side of its
+##   (D13), or, for a held join of the human's rally there (D31), "Go into the <room> (quiet)",
+##   "... with stun" and "... with frag", stun and frag greyed while no member holding the join
+## carries one; and "Ambush the doorway from the <room>", `<room>` the one on the click's side of
+## its
 ##   wall, as the squad resolves the ambush (LD15, D17);
 ## - else a room: "Defend the <room>";
 ## - and "Cancel order" while a recipient holds an order (the squad's `view()`).
@@ -41,7 +45,8 @@ extends CanvasLayer
 
 ## Emitted when an order is chosen: `{ kind: "stack", to, pos, bang, mode, wait_go }` (`pos` the
 ## click itself, `mode` quiet / stun / frag, `bang` mode != quiet as part 1 had it, `wait_go` the
-## "Hold for my go" box), `{ kind: "go", pos }` (the held stack at that doorway goes, LD13),
+## "Hold for my go" box), `{ kind: "go", pos, mode? }` (the held stack at that doorway goes, LD13;
+## `mode` quiet / stun / frag for a held rally, D31),
 ## `{ kind: "ambush", to, pos }` (LD15), `{ kind: "defend_room", to, room }` (a room key) or
 ## `{ kind: "cancel", to }` (the recipients holding an order). `to` is the recipients (characters).
 ## Main hands it to the squad's `issue`.
@@ -183,9 +188,12 @@ func is_open() -> bool:
 	return _open
 
 
-## What the menu offers now, `[{ label, disabled }]` in display order; [] while it is closed.
+## What the menu offers now, `[{ label, disabled, why }]` in display order (`why` what greys the
+## item, its tooltip while it is greyed; "" for one never greyed); [] while it is closed.
 func items() -> Array:
-	return _items.map(func(i): return { "label": i["label"], "disabled": i["disabled"] })
+	return _items.map(
+		func(i): return { "label": i["label"], "disabled": i["disabled"], "why": i["why"] },
+	)
 
 
 # --- What lies under the click --------------------------------------------------------------------
@@ -228,11 +236,7 @@ func _teammate_items(mate: Node) -> Dictionary:
 	]
 	var held := _held_order_of(mate)
 	if not held.is_empty():
-		offered.append(_item(
-			"Go into the %s" % _room_name(_room_by_key(String(held.get("into", "")))),
-			false,
-			_go.bind(held["pos"]),
-		))
+		offered.append_array(_go_items(held, held["pos"]))
 	return { "title": String(mate.name), "items": offered }
 
 
@@ -242,8 +246,9 @@ func _teammate_items(mate: Node) -> Dictionary:
 func _doorway_items(door: Dictionary) -> Dictionary:
 	var into := _room_name(_room_by_key(String(door.get("into", ""))))
 	var offered: Array = []
-	if _held_at(String(door.get("opening", ""))):
-		offered.append(_item("Go into the %s" % into, false, _go.bind(_click)))
+	var held := _held_at(String(door.get("opening", "")))
+	if not held.is_empty():
+		offered.append_array(_go_items(held, _click))
 	offered.append(_item("Stack into the %s (quiet)" % into, false, _stack.bind("quiet")))
 	offered.append(_item(
 		"Stack into the %s with stun" % into, not _recipients_carry(ItemRegistry.STUN_SLOT),
@@ -309,14 +314,50 @@ func _ambush_from(at: Vector2) -> String:
 	return String((out as Dictionary).get("room", "")) if out is Dictionary else ""
 
 
-## Whether a member of the squad's view holds a stack order at doorway `opening` that waits for the
-## leader's go and has not had it (its row's `held`, LD13).
-func _held_at(opening: String) -> bool:
+## The stack order a member of the squad's view holds at doorway `opening` that waits for the
+## leader's go and has not had it (its row's `held`, LD13), or {}.
+func _held_at(opening: String) -> Dictionary:
 	var view: Dictionary = _view.call() if _view.is_valid() else {}
 	for row: Dictionary in view.get("members", []):
 		if bool(row.get("held", false)) and String(row["order"].get("opening", "")) == opening:
-			return true
-	return false
+			return row["order"]
+	return {}
+
+
+## The go items for the held stack order `held` (`_held_at`, `_held_order_of`), each going to the
+## doorway at `at`: "Go into the <room>" for a stack the leader ordered (LD13); for its rally (a
+## join, mode `join`, D31) one per mode, "Go into the <room> (quiet)", "... with stun" and "... with
+## frag", stun and frag greyed while no member holding that join carries one (D1, D15).
+func _go_items(held: Dictionary, at: Vector2) -> Array:
+	var into := _room_name(_room_by_key(String(held.get("into", ""))))
+	if String(held.get("mode", "")) != "join":
+		return [_item("Go into the %s" % into, false, _go.bind(at))]
+	var holders := _holders(String(held.get("id", "")))
+	var carry := func(slot: int) -> bool:
+		return holders.any(
+			func(n): return "inventory" in n and int(n.inventory.item_count(slot)) > 0,
+		)
+	return [
+		_item("Go into the %s (quiet)" % into, false, _go.bind(at, "quiet")),
+		_item(
+			"Go into the %s with stun" % into, not carry.call(ItemRegistry.STUN_SLOT),
+			_go.bind(at, "stun"), "Nobody holding it carries a stun grenade.",
+		),
+		_item(
+			"Go into the %s with frag" % into, not carry.call(ItemRegistry.FRAG_SLOT),
+			_go.bind(at, "frag"), "Nobody holding it carries a frag grenade.",
+		),
+	]
+
+
+## The living teammates the squad's view shows holding order `id`.
+func _holders(id: String) -> Array:
+	var view: Dictionary = _view.call() if _view.is_valid() else {}
+	var out: Array = []
+	for row: Dictionary in view.get("members", []):
+		if String(row.get("order", {}).get("id", "")) == id and _alive(row.get("node")):
+			out.append(row["node"])
+	return out
 
 
 ## The held stack order `mate` holds in the squad's view (its row's `held`) with its doorway's
@@ -401,9 +442,11 @@ func _stack(mode: String) -> void:
 
 
 ## The leader's go for the held stack at the doorway at `at` (the squad sends it to whoever holds it
-## there) and close the menu.
-func _go(at: Vector2) -> void:
+## there), in `mode` for a rally's (D31; "" for an ordered stack's), and close the menu.
+func _go(at: Vector2, mode := "") -> void:
 	var request := { "kind": "go", "pos": at }
+	if mode != "":
+		request["mode"] = mode
 	close()
 	order_requested.emit(request)
 

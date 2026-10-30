@@ -2,15 +2,18 @@ extends UnitSuite
 ## Native unit suite (pure logic) for the NPC's confinement (`scenes/ai/perception/
 ## perception_confinement.gd`, the perception's part `confinement`): where it may act, from its
 ## territory (a defender keeps inside the house), the room a `defend_room` order keeps it to
-## (`docs/leadership.md` LD8) and its squad leash (LD23). Fed plain rooms and points: no house, no
-## world. Beneath the simulation tests of the territory, defend-room, ambush and leash behaviours
-## (`tests/ai/flank/flank_territory_*`, `tests/ai/combat/defend_room_*`, `ambush_*`, `leash_*`)
+## (`docs/leadership.md` LD8), its squad leash (LD23) and the room a stack held for its leader's go
+## keeps it out of (LD13, D31). Fed plain rooms and points: no house, no world. Beneath the
+## simulation tests of the territory, defend-room, ambush and leash behaviours
+## (`tests/ai/flank/flank_territory_*`, `tests/ai/combat/defend_room_*`, `ambush_*`, `leash_*`, and
+## the held stacks' `tests/ai/stack/rally_held_fights_stack_side`,
+## `tests/ai/entry/order_stack_hold_fights_stack_side`)
 ## (ADR-0002): it supplements them, never replaces them. Each rule alone and combined, an option
 ## judged where it acts and the frozen copy; the planner's COMBAT filter and `Combat`'s choice of
 ## spot through the confinement's answers are game tests beside them
 ## (`ai/decision/combat_options_within_confinement`, `ai/combat/combat_spot_within_confinement`).
-## The expected values are read off the rules (ticket #97's C1 to C3, and C4's frozen copy), never
-## worked out the way the code does.
+## The expected values are read off the rules (ticket #97's C1 to C3, C4's frozen copy, and ticket
+## #127's keep-out), never worked out the way the code does.
 
 const Confinement := preload("res://scenes/ai/perception/perception_confinement.gd")
 ## Two rooms side by side, sharing the wall at x = 100: the hall west of it, the kitchen east.
@@ -159,16 +162,66 @@ func test_a_copy_is_frozen_against_a_later_refresh() -> void:
 	).is_false()
 
 
-## A confinement over the two rooms, refreshed with `territorial`, `order` and the leash.
+func test_a_held_stacks_room_keeps_it_out() -> void:
+	# D31: a member of a stack held for its leader's go acts only on the stack's side of the
+	# doorway.
+	var c := _confinement(false, {}, Vector2.INF, 0.0, "kitchen")
+	assert_bool(c.confines()).override_failure_message("the keep-out alone confines it").is_true()
+	assert_bool(c.allows(IN_HALL)).override_failure_message("the stack's side").is_true()
+	assert_bool(c.allows(OUTSIDE)).override_failure_message("outside the house").is_true()
+	assert_bool(c.allows(IN_KITCHEN)).override_failure_message("the held room").is_false()
+	_expect_option(c, { "id": "fire_n", "params": { "point": IN_KITCHEN } }, false, "a spot in it")
+	_expect_option(c, { "id": "fire_s", "params": { "point": IN_HALL } }, true, "a spot out of it")
+	_expect_option(
+		c,
+		{ "id": "frag", "params": { "from": IN_HALL, "point": IN_KITCHEN } },
+		true,
+		"a throw from the stack's side into it",
+	)
+
+
+func test_a_held_stacks_room_inside_the_territory() -> void:
+	# A territorial member of a held stack: in the house, and out of the held room.
+	var c := _confinement(true, {}, Vector2.INF, 0.0, "kitchen")
+	assert_bool(c.allows(IN_HALL)).override_failure_message("in the house, out of it").is_true()
+	assert_bool(c.allows(IN_KITCHEN)).override_failure_message(
+		"in the house, but the held room",
+	).is_false()
+	assert_bool(c.allows(OUTSIDE)).override_failure_message(
+		"out of the held room, but outside the house",
+	).is_false()
+
+
+func test_a_copy_and_the_view_carry_the_keep_out() -> void:
+	var c := _confinement(false, {}, Vector2.INF, 0.0, "kitchen")
+	var frozen = c.copy()
+	c.refresh(false, {}, Vector2.INF, 0.0, "")
+	assert_bool(c.allows(IN_KITCHEN)).override_failure_message(
+		"premise: the live one, refreshed with no keep-out, allows the kitchen",
+	).is_true()
+	assert_bool(frozen.allows(IN_KITCHEN)).override_failure_message(
+		"the copy still keeps it out of the kitchen",
+	).is_false()
+	assert_str(String(frozen.view().get("keep_out", ""))).override_failure_message(
+		"the view names the room it keeps out of",
+	).is_equal("kitchen")
+	assert_bool(bool(frozen.view().get("confines", false))).override_failure_message(
+		"the view says it is confined",
+	).is_true()
+
+
+## A confinement over the two rooms, refreshed with `territorial`, `order`, the leash and the room
+## it keeps out of (`keep_out`).
 func _confinement(
 	territorial: bool,
 	order: Dictionary,
 	center: Vector2,
 	radius: float,
+	keep_out := "",
 ) -> RefCounted:
 	var c: RefCounted = Confinement.new()
 	c.rooms = [HALL, KITCHEN]
-	c.refresh(territorial, order, center, radius)
+	c.refresh(territorial, order, center, radius, keep_out)
 	return c
 
 

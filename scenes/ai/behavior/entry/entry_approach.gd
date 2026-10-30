@@ -84,7 +84,7 @@ func reset() -> void:
 ## hold does not seal the slot for good (`_slot_sealed`: another way reaches it, which the walk is
 ## held until the locomotion takes). False when it does: the sealed rule's.
 func drop_sealed(entry: Entry) -> bool:
-	var spot := entry.claim.spot
+	var spot := state.member.point
 	if not waypoints.is_empty():
 		dropped_at = world.character.global_position
 		waypoints.pop_front()
@@ -177,17 +177,17 @@ func enter_approach(entry: Entry, stack: RefCounted) -> void:
 	entry.claim.lead = lead
 	waypoints = []
 	if not entry.claim.on_wall():
-		cap = world.tuning.entry.approach_time + walk_time(entry)
+		cap = world.tuning.entry.approach_time + walk_time()
 		# An open-floor or tail slot (rule 6): the plain way there, which keeps out of the doorway's
 		# view.
 		return
-	_lay_wall_approach(entry, lead)
+	_lay_wall_approach(lead)
 	# Each inside the room the stack stands in; one that lands off the stack's ground (another
 	# doorway's funnel) is left out.
 	waypoints = waypoints.map(func(p): return _waypoint(p)).filter(
 		func(p): return p != Vector2.INF,
 	)
-	cap = world.tuning.entry.approach_time + walk_time(entry)
+	cap = world.tuning.entry.approach_time + walk_time()
 
 
 ## Lay the waypoints of the walk to a slot against the wall (`enter_approach`), arriving from
@@ -195,18 +195,18 @@ func enter_approach(entry: Entry, stack: RefCounted) -> void:
 ## then (when not already beyond the slot along the wall) sideways at that depth to the point past
 ## the slot, then in to the wall there. The lead is shortened until its points can be walked to
 ## (`_fit_lead`).
-func _lay_wall_approach(entry: Entry, lead: float) -> void:
+func _lay_wall_approach(lead: float) -> void:
 	var door: Vector2 = state.geo["pos"]
 	var out: Vector2 = state.geo["out"]
 	var along: Vector2 = state.geo["along"]
-	var target := entry.claim.spot
+	var target := state.member.point
 	var target_out := (target - door).dot(out)
 	var target_lat := absf((target - door).dot(along))
 	var here: Vector2 = world.character.global_position
 	var lat := (here - door).dot(along)
-	var depth := _cross_in_front(entry, (here - door).dot(out), lat, target_out)
+	var depth := _cross_in_front((here - door).dot(out), lat, target_out)
 	var deep := _crosses_door(lat) or absf(lat) < target_lat + lead * 0.5
-	lead = _fit_lead(entry, lead, depth, deep)
+	lead = _fit_lead(lead, depth, deep)
 	if deep:
 		waypoints.append(_wall_point(maxf(depth, target_out), target_lat + lead))
 	waypoints.append(_wall_point(target_out, target_lat + lead))
@@ -218,9 +218,9 @@ func _lay_wall_approach(entry: Entry, lead: float) -> void:
 ## one, round the view straight to the point past the slot. The depth the rest of the walk runs at:
 ## `depth` when it crosses nothing, the crossing's depth, or the slot's own (`target_out`) round the
 ## view.
-func _cross_in_front(entry: Entry, depth: float, lat: float, target_out: float) -> float:
+func _cross_in_front(depth: float, lat: float, target_out: float) -> float:
 	var crossing := _crosses_door(lat)
-	var round_way := _way_round(entry.claim.spot) if crossing else 1
+	var round_way := _way_round(state.member.point) if crossing else 1
 	_round_pending = round_way < 0
 	if round_way == 0:
 		depth = maxf(depth, _cross_depth())
@@ -236,23 +236,23 @@ func _cross_in_front(entry: Entry, depth: float, lat: float, target_out: float) 
 ## Whether a point `lat` px along the doorway's wall lies on the other side of the door from this
 ## NPC's slot (`side`).
 func _crosses_door(lat: float) -> bool:
-	return signf(lat) != float(state.side) and absf(lat) >= 1.0
+	return signf(lat) != float(state.member.side) and absf(lat) >= 1.0
 
 
 ## `lead` shortened by `LEAD_STEP` until the point it puts past the slot can be walked to
 ## (`_lead_ok`), and with a `deep` walk the one sideways at `depth` too: never past the room's end
 ## nor into another doorway's funnel, where the walk would go by another way.
-func _fit_lead(entry: Entry, lead: float, depth: float, deep: bool) -> float:
-	while lead > 0.0 and not _lead_fits(entry, lead, depth, deep):
+func _fit_lead(lead: float, depth: float, deep: bool) -> float:
+	while lead > 0.0 and not _lead_fits(lead, depth, deep):
 		lead = maxf(lead - LEAD_STEP, 0.0)
 	return lead
 
 
 ## Whether the points `lead` px past the slot can be walked to (`_fit_lead`): the one at the wall,
 ## then, on a `deep` walk, the one sideways at `depth` (no less than the slot's own).
-func _lead_fits(entry: Entry, lead: float, depth: float, deep: bool) -> bool:
+func _lead_fits(lead: float, depth: float, deep: bool) -> bool:
 	var door: Vector2 = state.geo["pos"]
-	var target := entry.claim.spot
+	var target := state.member.point
 	var target_out := (target - door).dot(state.geo["out"])
 	var lat := absf((target - door).dot(state.geo["along"])) + lead
 	if not _lead_ok(_wall_point(target_out, lat)):
@@ -265,21 +265,21 @@ func _wall_point(out_px: float, lat_px: float) -> Vector2:
 	var door: Vector2 = state.geo["pos"]
 	var out: Vector2 = state.geo["out"]
 	var along: Vector2 = state.geo["along"]
-	return door + out * out_px + along * state.side * lat_px
+	return door + out * out_px + along * state.member.side * lat_px
 
 
 ## How long (s) the approach's walk takes at walking pace: the way the NPC walks it
 ## (`AgentPerception.views.walk_route`, this entry's approach), leg by leg through the waypoints
 ## into the slot, so a long way round (an ordered approach keeps out of the room being entered
 ## however long it is) is not cut short by the cap (E2).
-func walk_time(entry: Entry) -> float:
+func walk_time() -> float:
 	var speed: float = world.character.movement.walk_speed()
 	if speed <= 0.0:
 		return 0.0
 	var entering := "%s>%s" % [state.opening, state.into]
 	var length := 0.0
 	var at: Vector2 = world.character.global_position
-	for p in waypoints + [entry.claim.spot]:
+	for p in waypoints + [state.member.point]:
 		length += float(world.perception.views.walk_route(p, entering, at)["len"])
 		at = p
 	return length / speed
@@ -346,7 +346,7 @@ func tick_approach(entry: Entry, team: Array, delta: float) -> void:
 	if world.loco.crowd.held_time() > 0.0:
 		# Held: the map the verdict on the slot is read from is asked for now, so it is baked by the
 		# re-plan.
-		_slot_sealed(entry, entry.claim.spot)
+		_slot_sealed(entry, state.member.point)
 	if not team.is_empty() and entry.grenade.due(entry, team, delta):
 		# The rest of the stack is in place: the thrower goes straight to throw, rather than into
 		# its slot first.
@@ -357,7 +357,7 @@ func tick_approach(entry: Entry, team: Array, delta: float) -> void:
 	entry.sweep.aim_travel()
 	if _walk_waypoints():
 		return
-	var spot := entry.claim.spot
+	var spot := state.member.point
 	if not arrived_at(spot, StackClaim.SLOT_REACH):
 		world.loco.move_to(spot, StackClaim.SLOT_REACH)
 		return
@@ -382,7 +382,7 @@ func _replan_approach(entry: Entry) -> void:
 	if (not waypoints.is_empty()
 			and entry.claim.approach_lead(entry, entry.claim.stack) < entry.claim.lead):
 		enter_approach(entry, entry.claim.stack)
-	elif _round_pending and _way_round(entry.claim.spot) >= 0:
+	elif _round_pending and _way_round(state.member.point) >= 0:
 		enter_approach(entry, entry.claim.stack)
 
 
@@ -454,7 +454,7 @@ func set_phase(next: String) -> void:
 	blocked_count = 0
 	GameLog.say("%s entry %s > %s: %s at %s (slot %d%s)" % [
 		world.character.name, state.opening, state.into, next,
-		world.character.global_position.round(), state.slot, ", alone" if state.solo else "",
+		world.character.global_position.round(), state.member.slot, ", alone" if state.solo else "",
 	])
 
 

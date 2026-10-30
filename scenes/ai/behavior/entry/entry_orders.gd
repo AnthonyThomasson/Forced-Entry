@@ -37,6 +37,8 @@ var frame := -1
 ## The entry is a join (LD24, `StackClaim.is_join`): its claims say so, so its squad never takes
 ## them for the member's own (D30).
 var join := false
+## The id of the live order this entry carries out, a join's too ("" for none).
+var live_id := ""
 ## The side of the door this NPC began on: the side it reaches without crossing the doorway's view
 ## (D6).
 var _pref_side := 0
@@ -58,6 +60,7 @@ func reset() -> void:
 	bang = false
 	mode = ""
 	join = false
+	live_id = ""
 	hold = false
 	frame = -1
 	_pref_side = 0
@@ -69,12 +72,15 @@ func reset() -> void:
 ## (LD24, D10): no order's rules, so its order's id is left out; a pass-by carries none either.
 func begin_order(entry: Entry, params: Dictionary) -> void:
 	join = not state.secure and StackClaim.is_join(params)
-	id = "" if state.secure or join else str(params.get("order_id", ""))
+	live_id = "" if state.secure else str(params.get("order_id", ""))
+	id = "" if join else live_id
 	bang = bool(params.get("bang", false))
 	mode = str(params["mode"]) if id != "" else ""
 	hold = bool(params.get("wait_go", false))
 	entry.readiness.released = bool(params.get("go", false))
-	frame = _held_order_frame()
+	frame = int(_live().get("frame", -1))
+	if join and entry.readiness.released:
+		mode = str(_live().get("go_mode", ""))  # (The mode its go named, D31.)
 	side = _side_named(params)
 	_pref_side = world.perception.entry.side_of(state.geo, world.character.global_position)
 
@@ -102,13 +108,29 @@ func stack_ordered(entry: Entry) -> bool:
 	return not claim(entry).is_empty()
 
 
-## The frame the order this entry carries out was issued on (`frame`, of the order the perception
-## holds, when it is this one); -1 for an entry that is no order, or one whose frame is unknown.
-func _held_order_frame() -> int:
-	if id == "":
-		return -1
+## Whether this stack is a human leader's rally held for its go (D31, `DoorStack.hold` with no
+## order behind it), its go come or not.
+func rallied(entry: Entry) -> bool:
+	if state.secure:
+		return false
+	var go: Dictionary = entry.claim.stack.hold(entry.claim.me(entry))
+	return not go.is_empty() and str(go["order_id"]) == ""
+
+
+## Whether this stack's mode is set for it (`DoorStack.mode`): it goes in under an order (LD9) or
+## is a human leader's rally (D31), whose go names its mode. Nothing turns it, no first claimer
+## makes it quiet and nothing vetoes it but its own members' lost grenade (D1, D15).
+func mode_set(entry: Entry) -> bool:
+	return stack_ordered(entry) or rallied(entry)
+
+
+## The live order this entry carries out (`live_id`), as the perception holds it: a join's too;
+## {} for an entry that is no order, and once the order has ended.
+func _live() -> Dictionary:
+	if live_id == "":
+		return {}
 	var held: Dictionary = world.perception.orders.current()
-	return int(held.get("frame", -1)) if str(held.get("id", "")) == id else -1
+	return held if str(held.get("id", "")) == live_id else {}
 
 
 ## The side of the door the order in `params` names (D3): the side along the doorway's wall its
@@ -131,7 +153,7 @@ func ordered_side(entry: Entry, ordered: Dictionary, n: int) -> int:
 		return int(ordered["order_side"])
 	return entry.claim.stack.split_side(
 		{ "id": world.self_id, "slot": n },
-		entry.claim.want if entry.claim.want != 0 else _pref_side,
+		state.member.want if state.member.want != 0 else _pref_side,
 	)
 
 
@@ -154,36 +176,40 @@ func follow_order(entry: Entry, team: Array) -> void:
 
 
 ## Whether the stack holds for the leader's go (LD13): it goes in under an order (`claim`, an
-## unordered member following it too) that says hold, and has had no go yet (`readiness.released`,
-## latched by `note_go`).
+## unordered member following it too) that says hold, and has had no go yet (`DoorStack.held`: its
+## own latched go, `readiness.released`, latched by `note_go`, or a claim saying it came).
 func held_for_go(entry: Entry) -> bool:
-	var ordered := claim(entry)
-	return not entry.readiness.released and not ordered.is_empty() and bool(ordered["order_hold"])
+	return not state.secure and entry.claim.stack.held(entry.claim.me(entry))
 
 
 ## Latch the go of a held stack (LD13) the first time it comes: the leader's `go` on this NPC's own
 ## order (given before the stack was ready too: it then goes on the ready barrier), a teammate under
 ## the same order whose claims say it had it, a member of this stack going in or through into its
-## room (`DoorStack.released`: one under the order, or the human on a crossing begun since the
-## order's `order_frame`, D14: the human leader in the stack stepping in is its go), or the leader
-## that gave the order dead (D12). Radioed with the next claim (`order_go`).
+## room (`DoorStack.held` false: `DoorStack.released`, one under the order, or the human on a
+## crossing begun since the order's `order_frame`, D14: the human leader in the stack stepping in is
+## its go), or the leader that gave the order dead (D12; never a rally's, D31). A rally then takes
+## the mode its go named (`DoorStack.mode`). Radioed with the next claim (`order_go`).
 func note_go(entry: Entry) -> void:
-	if not held_for_go(entry):
+	if entry.readiness.released or state.secure:
 		return
-	var ordered := claim(entry)
-	var go: bool = entry.claim.stack.released(
-		str(ordered["order_id"]), str(ordered["into"]), int(ordered["order_frame"]),
-	)
-	if not go and id != "":
-		var held: Dictionary = world.perception.orders.current()
-		if str(held.get("id", "")) == id:
-			var leader = held.get("leader")
-			go = (bool(held.get("go", false))
-					or not is_instance_valid(leader)
-					or leader.get("is_dead") == true)
+	var me: Dictionary = entry.claim.me(entry)
+	if entry.claim.stack.hold(me).is_empty():
+		return
+	var go: bool = not entry.claim.stack.held(me)
+	var live := _live()
+	if not go and not live.is_empty():
+		var leader = live.get("leader")
+		go = bool(live.get("go", false)) or (id != "" and (
+			not is_instance_valid(leader) or leader.get("is_dead") == true
+		))
 	if not go:
 		return
 	entry.readiness.released = true
+	if join:
+		# A rally goes in the mode its go named, quiet on the leader stepping in (D31): too late for
+		# a grenade.
+		mode = str(live.get("go_mode", "")) if bool(live.get("go", false)) else ""
+		state.bang = entry.claim.stack.mode(entry.claim.me(entry)) != "quiet"
 	if not entry.radio.last_call.is_empty():
 		entry.radio.say(entry, str(entry.radio.last_call["entry_step"]), entry.radio.last_call)
 

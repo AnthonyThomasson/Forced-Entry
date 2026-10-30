@@ -141,22 +141,19 @@ func begin(params: Dictionary) -> bool:
 	grenade.stuns = world.character.inventory.item_count(ItemRegistry.STUN_SLOT)
 	grenade.frags = world.character.inventory.item_count(ItemRegistry.FRAG_SLOT)
 	orders.begin_order(self, params)
-	listen.begin_mode(self, team, bool(params.get("bang", false)))
-	var at: Dictionary = claim.stack.claim(
-		{
-			"id": world.self_id, "slot": 0, "frame": GameClock.frame(),
-			"pos": world.character.global_position,
-		},
-		func(n): return claim.ask_side(self, n, true),
-	)
-	state.slot = at["slot"]
+	listen.begin_mode(self, bool(params.get("bang", false)))
+	var member := state.member
+	member.id = world.self_id
+	member.begin(GameClock.frame(), world.character.global_position)
+	claim.ask_side(self, member.slot_in(claim.stack))
+	claim.sync(self)
+	var at: Dictionary = member.claim(claim.stack)
 	if not at["held"]:
 		# A dead end already holding all it can (E20, rule 6): no slot, no claim (an ordered
 		# member's next decision refuses).
 		state.phase = "done"
 		return false
 	claim.leader_id = orders.leader_id()
-	claim.stand(at)
 	state.solo = orders.alone(team)
 	readiness.team_size = team.size()
 	sweep.points = world.coverage.sample_room(state.into)
@@ -173,8 +170,6 @@ func reset() -> void:
 	state.phase = ""
 	state.opening = ""
 	state.into = ""
-	state.slot = 0
-	state.side = 0
 	state.solo = true
 	state.secure = false
 	state.secured = false
@@ -222,7 +217,9 @@ func laid(params: Dictionary) -> bool:
 ## from `begin` on: the way `Behavior` reads before the claim of an ordered entry goes out (D4).
 func approach_points() -> Array:
 	return approach.waypoints + (
-		[claim.spot] if state.phase == "approach" and claim.spot != Vector2.INF else []
+		[state.member.point]
+		if state.phase == "approach" and state.member.point != Vector2.INF
+		else []
 	)
 
 
@@ -280,7 +277,7 @@ func holding_for_go() -> bool:
 ## the bang phase of a frag stack, in its slot (the thrower once it is back in it).
 func holds_crouched() -> bool:
 	return state.phase == "bang" and grenade.kind == &"frag" and not throwing() \
-		and world.character.global_position.distance_to(claim.spot) <= WAYPOINT_REACH
+		and world.character.global_position.distance_to(state.member.point) <= WAYPOINT_REACH
 
 
 ## The entry as data, for `debug_entry()` / `debug_state()` and the tests: the doorway, slot, side,
@@ -293,11 +290,12 @@ func debug() -> Dictionary:
 		if not sweep.corners_seen.get(i, false):
 			hidden.append(state.geo["corners"][i]["pos"])
 	return {
-		"opening": state.opening, "into": state.into, "slot": state.slot, "side": state.side,
-		"place": claim.place, "solo": state.solo, "phase": state.phase, "secure": state.secure,
+		"opening": state.opening, "into": state.into, "slot": state.member.slot,
+		"side": state.member.side, "place": state.member.place, "solo": state.solo,
+		"phase": state.phase, "secure": state.secure,
 		"seen_fraction": pie.seen_fraction, "pie_sides": pie.sides,
 		"hidden_corners": hidden, "corner": sweep.corner,
-		"stack_point": claim.spot if not state.geo.is_empty() else Vector2.INF,
+		"stack_point": state.member.point if not state.geo.is_empty() else Vector2.INF,
 		"team": readiness.team_size, "covering": hold.covering,
 		"watch_doors": sweep.watch.map(func(w): return w["id"]), "bang": state.bang,
 		"bang_off": grenade.off, "upgraded": listen.upgraded, "bang_stage": grenade.stage,
@@ -318,9 +316,8 @@ func debug_view() -> Dictionary:
 	var role := ("solo"
 			if team.is_empty() and readiness.through.is_empty()
 			else ("point" if readiness.members_ahead(self).is_empty() else "follower"))
-	var me := { "id": world.self_id, "slot": state.slot, "side": state.side }
-	var members: Array = team + [me.merged({ "name": "me" })]
-	var order: Array = claim.stack.crossing(me)
+	var members: Array = team + [claim.me(self).merged({ "name": "me" })]
+	var order: Array = claim.stack.crossing(claim.me(self))
 	var ready_left := _view_ready_left(role)
 	var hold_left := _view_hold_left()
 	var follow_left := _view_follow_left()
@@ -334,9 +331,10 @@ func debug_view() -> Dictionary:
 			"funnel": StackClaim.FUNNEL_DEPTH,
 		},
 		"opening": state.opening, "into": state.into, "phase": state.phase, "role": role,
-		"slot": state.slot, "side": state.side, "place": claim.place, "slots": state.geo["slots"],
+		"slot": state.member.slot, "side": state.member.side, "place": state.member.place,
+		"slots": state.geo["slots"],
 		"order": order.map(func(m): return "me" if m.get("me", false) else str(m["name"])),
-		"my_slot": claim.spot, "pie": state.geo["pie"], "pie_queue": pie.queue.duplicate(),
+		"my_slot": state.member.point, "pie": state.geo["pie"], "pie_queue": pie.queue.duplicate(),
 		"pie_side": pie.side, "pie_sides": pie.sides, "corners": corners, "corner": sweep.corner,
 		"waypoints": approach.waypoints.duplicate(),
 		"unseen": sweep.unseen.duplicate() if state.phase == "pie" else [],
@@ -432,9 +430,7 @@ func step(delta: float) -> bool:
 		orders.follow_order(self, team)
 		listen.maybe_upgrade(self, team, delta)
 	if state.phase in ["approach", "stack", "bang", "pie", "cross"]:
-		var crossing: Array = claim.stack.crossing(
-			{ "id": world.self_id, "slot": state.slot, "side": state.side }
-		)
+		var crossing: Array = claim.stack.crossing(claim.me(self))
 		claim.lead_side = int(crossing[0]["side"])
 	radio.heartbeat -= delta
 	if radio.heartbeat <= 0.0 and not radio.last_call.is_empty():
@@ -528,5 +524,5 @@ func expects_burst(plan: Dictionary) -> bool:
 		or not world.perception.grenades.in_zone(
 			grenade.kind,
 			plan.get("lies", plan["point"]),
-			claim.spot,
+			state.member.point,
 		)

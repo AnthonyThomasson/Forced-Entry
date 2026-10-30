@@ -40,8 +40,8 @@ func describe() -> Dictionary:
 		"description": "On a doorway, a room and a teammate the menu offers the right items (stun "
 			+ "greyed with no stun), emits the right order_requested for the selection or the "
 			+ "whole squad, cancels a selected member's order, pauses the tree and unpauses on "
-			+ "close (LD11); and part 2's frag item, Hold for my go, Go on a held door and "
-			+ "Ambush, with their requests (LD16).",
+			+ "close (LD11); part 2's frag item, Hold for my go, Go on a held door and "
+			+ "Ambush, with their requests (LD16); and a held rally's three go items (D31).",
 		"tags": ["ui", "hud", "leadership", "order"],
 		"timeout": 20.0,
 	}
@@ -94,6 +94,7 @@ func run(t: TestContext) -> void:
 	if not await _check_clicks(t, menu, got, t1, t2):
 		return
 	await _part_two(t, menu, got, t1, t2)
+	await _rally_go(t, menu, got, [t1, t2])
 	t.world.get_tree().paused = false
 
 
@@ -527,6 +528,95 @@ func _set_hold(menu: Node, on: bool) -> void:
 	if box != null and box.button_pressed != on:
 		box.button_pressed = on
 		box.toggled.emit(on)
+
+
+## D31: on a doorway where a member of the view holds a held join (its order a `stack` of mode
+## `join` that waits for the go, its row `held`), the menu offers the rally's three go items, "Go
+## into the <room> (quiet)", "... with stun" and "... with frag", in place of the plain "Go into the
+## <room>"; stun and frag greyed, with a tooltip (`items()`' `why`), while no member holding that
+## join carries one (a member holding none, `everyone`'s first, carries both). The same three on a
+## click on the teammate holding it. Each emits `{ kind: "go", pos, mode }`: the click on a
+## doorway, the doorway's centre on a teammate. The part's requests are appended to `got`.
+func _rally_go(t: TestContext, menu: Node, got: Array, everyone: Array) -> void:
+	var holder: Node = everyone[1]
+	_view["members"][0]["order"] = {}
+	_view["members"][0]["held"] = false
+	_view["members"][1]["order"] = {
+		"id": "o9", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "mode": "join",
+		"bang": false, "wait_go": true, "pos": Vector2(840, 190),
+	}
+	_view["members"][1]["held"] = true
+	Probe.arm(everyone[0], 1, 1)  # Holds no join: what it carries counts for nothing here.
+	Probe.arm(holder, 0, 0)
+	menu.open_at(Order.BACK_SOUTH)
+	await t.frames(1)
+	var quiet := OrderMenu.item(menu, "Go into the kitchen (quiet)")
+	t.check(
+		not quiet.is_empty() and not bool(quiet.get("disabled", true))
+			and not OrderMenu.labels(menu).has("Go into the kitchen"),
+		("a held rally's doorway offers \"Go into the kitchen (quiet)\", not the plain go "
+				+ "(items %s)") % str(OrderMenu.labels(menu)),
+	)
+	for kind: String in ["stun", "frag"]:
+		var item := OrderMenu.item(menu, "Go into the kitchen with %s" % kind)
+		t.check(
+			not item.is_empty() and bool(item.get("disabled", false))
+				and String(item.get("why", "")).contains(kind),
+			"\"Go into the kitchen with %s\" greyed with a tooltip: nobody holding the join " % kind
+				+ "carries one (%s)" % str(item),
+		)
+	menu.close()
+	Probe.arm(holder, 1, 0)
+	menu.open_at(Order.BACK_SOUTH)
+	await t.frames(1)
+	t.check(
+		not bool(OrderMenu.item(menu, "Go into the kitchen with stun").get("disabled", true))
+			and bool(OrderMenu.item(menu, "Go into the kitchen with frag").get("disabled", false)),
+		"with a stun held by the join's holder, \"with stun\" is offered, \"with frag\" not",
+	)
+	var before := got.size()
+	OrderMenu.choose(menu, "Go into the kitchen with stun")
+	await t.frames(1)
+	if t.check(got.size() == before + 1, "choosing it emits order_requested"):
+		_expect_go(t, got[before], "stun", Order.BACK_SOUTH, "the doorway's go with stun")
+	await _rally_go_on_holder(t, menu, got, holder)
+	_view["members"][1]["order"] = {}
+	_view["members"][1]["held"] = false
+
+
+## The rally's three go items on a click on `holder`, the teammate holding the held join; the quiet
+## one chosen emits `{ kind: "go", pos: the doorway's centre, mode: "quiet" }` (into `got`).
+func _rally_go_on_holder(t: TestContext, menu: Node, got: Array, holder: Node) -> void:
+	menu.open_at(holder.global_position)
+	await t.frames(1)
+	t.check(
+		["(quiet)", "with stun", "with frag"].all(
+			func(k): return not OrderMenu.item(menu, "Go into the kitchen %s" % k).is_empty()
+		),
+		"the teammate holding the held join offers the three go items (items %s)"
+			% str(OrderMenu.labels(menu)),
+	)
+	var before := got.size()
+	OrderMenu.choose(menu, "Go into the kitchen (quiet)")
+	await t.frames(1)
+	if t.check(got.size() == before + 1, "choosing it emits order_requested"):
+		_expect_go(t, got[before], "quiet", Vector2(840, 190), "the teammate's quiet go")
+
+
+## Check an emitted go request: kind go, its `mode` and its `pos`.
+func _expect_go(
+	t: TestContext,
+	request: Dictionary,
+	mode: String,
+	at: Vector2,
+	what: String,
+) -> void:
+	t.expect_eq(String(request.get("kind", "")), "go", "%s: kind go" % what)
+	t.expect_eq(String(request.get("mode", "")), mode, "%s: mode %s" % [what, mode])
+	t.check(
+		(request.get("pos", Vector2.INF) as Vector2).is_equal_approx(at),
+		"%s: at %s (%s)" % [what, str(at), str(request.get("pos"))],
+	)
 
 
 ## Check an emitted stack request of part 2: its recipients, `mode`, `wait_go` and part 1's `bang`

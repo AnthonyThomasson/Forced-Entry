@@ -75,7 +75,7 @@ func _hold_rear_or_done(entry: Entry, spare := false) -> void:
 	covering = ""
 	var last := (not entry.readiness.through.is_empty()
 			and entry.readiness.through.values().all(
-				func(other_slot): return other_slot < state.slot,
+				func(other_slot): return other_slot < state.member.slot,
 			))
 	if not (last or (spare and not entry.readiness.through.is_empty())):
 		end_hold(entry)
@@ -84,8 +84,8 @@ func _hold_rear_or_done(entry: Entry, spare := false) -> void:
 	# clearance further along the wall, counted from the point's side, the same for every member (a
 	# split stack's members stacked on either side, E19).
 	var door: Vector2 = state.geo["pos"]
-	var rank := maxi(state.slot - 1, 0)
-	var first := entry.claim.lead_side if entry.claim.lead_side != 0 else state.side
+	var rank := maxi(state.member.slot - 1, 0)
+	var first := entry.claim.lead_side if entry.claim.lead_side != 0 else state.member.side
 	var on := first if rank % 2 == 0 else -first
 	rear_spot = world.loco.reachable(door - (state.geo["out"] as Vector2) * 30.0
 			+ (state.geo["along"] as Vector2) * on

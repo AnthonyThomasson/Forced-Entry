@@ -53,8 +53,8 @@ func start_pie(entry: Entry, team: Array) -> void:
 		if not entry.radio.last_call.is_empty():
 			# The pie is begun: on the radio at once, so nobody moves up behind it (E2).
 			entry.radio.say(entry, entry.radio.last_call["entry_step"], entry.radio.last_call)
-	side = state.side
-	queue = (state.geo["pie"][state.side] as Array).duplicate()
+	side = state.member.side
+	queue = (state.geo["pie"][state.member.side] as Array).duplicate()
 	sides = 1
 
 
@@ -120,9 +120,9 @@ func _end_of_pie(entry: Entry, team: Array, delta: float) -> void:
 ## Alone: cross in front of the door (as far out as the arc's end) and slice it from the other side,
 ## from the axis outward.
 func _pie_other_side() -> void:
-	side = -state.side
+	side = -state.member.side
 	sides = 2
-	queue = (state.geo["pie"][-state.side] as Array).duplicate()
+	queue = (state.geo["pie"][-state.member.side] as Array).duplicate()
 	queue.reverse()
 
 

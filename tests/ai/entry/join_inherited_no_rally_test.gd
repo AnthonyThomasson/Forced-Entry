@@ -1,31 +1,34 @@
 extends GameTest
-## LD24 and D30: a join's claims are never its holder's own. A puppet stands in for the human leader
-## of a squad of two invader NPCs, built and bound the way Main builds it with "Lead the team" on
-## (`s.squads` with the human, `MatchBuilder.build_squads`: its `PlayerStack` attached by
-## `MatchBuilder.bind_player` and handed the squad by `MatchBuilder.bind_squad`), over
-## the bare Terrace house. The human orders the trooper, outside the front door, to defend the
-## living room, then walks up beside the back door: its own claim rallies the sergeant, far off in
-## the garden north-west of the house (a `join`). Once the sergeant has claimed its slot there, and
-## while it is still on its way, the human is killed (`take_damage`): the sergeant leads within the
-## frame, holding the join, and the squad cancels the trooper's defend (LD26), so the trooper holds
-## no order and follows it. The sergeant's claims at the back door are its join's, not its own: they
-## rally nobody, though a member holding no order is there to rally. Once the join is over (the
-## kitchen cleared, `done`), the sergeant's next claim of its own at a doorway rallies the trooper.
+## LD24 and D30: a join's claims are never its holder's own. Three invader NPCs, ranked as Main
+## ranks a unit, are a squad bound as Main binds it (`s.squads`), over the bare Terrace house: the
+## lead in the back garden by the back door, the sergeant far off in the garden north-west of the
+## house, the trooper outside the front door, ordered to defend the living room. The lead decides
+## through Von and claims a doorway of its own: its claim rallies the sergeant (a `join`; the
+## trooper holds its defend, D24). Once the sergeant has claimed its slot there, and while it is
+## still on its way, the lead is killed (`take_damage`): the sergeant leads within the frame,
+## holding the join (an AI leader's rally holds for no go, so its joins stand, D31), and the
+## trooper's defend is cancelled, so it holds no order and follows it. The sergeant's claims at that
+## doorway are its join's, not its own: they rally nobody, though a member holding no order is there
+## to rally. Once the join is over (the room cleared, `done`), the sergeant's next claim of its own
+## at a doorway rallies the trooper.
 ##
-## Real Von, the whole pipeline; no switch. Premises: the sergeant starts far from the back door, so
-## it is still radioing its claim when it takes over; nobody but the human is ever killed.
+## Real Von, the whole pipeline; no switch. Premises: the sergeant starts far from the house, so it
+## is still radioing its claim when it takes over; the trooper's defend is issued, and later
+## cancelled, through the squad (`Squad.issue`), standing in for the orders a leader gives (an NPC
+## leader gives none of its own); nobody but the lead is ever killed. (Before D31 the lead was a
+## puppet human leader whose death the sergeant took over from; a human leader's rally is now
+## cancelled on its death, `rally_cancelled_on_leader_death`, so an inherited join is an AI leader's
+## rally's.)
 
-const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
-const Stack := preload("res://tests/_ai/stack_probe.gd")
-## Where the human stands: against the wall north of the back door, a stack spot beside it.
-const STEP_UP := Order.BACK_NORTH
-## How long (s) the sergeant has, once the human has claimed, to claim its slot at the back door.
+## How long (s) the lead has to claim a doorway of its own.
+const LEAD_CLAIM_WITHIN := 40.0
+## How long (s) the sergeant has, once the lead has claimed, to claim its slot at that doorway.
 const CLAIM_WITHIN := 6.0
-## How long (s) the sergeant's claims at the back door are watched once it leads: its claim's
+## How long (s) the sergeant's claims at that doorway are watched once it leads: its claim's
 ## repeats (every 2 s), while it is still on its way.
 const WATCH_CLAIMS := 5.0
 ## How long (s) the sergeant has, once it leads, to end the join and make a claim of its own.
@@ -35,24 +38,23 @@ const OWN_CLAIM_WITHIN := 150.0
 func describe() -> Dictionary:
 	return {
 		"name": "A follower that takes over holding a join does not rally on it",
-		"description": "The human leader rallies the sergeant to the back door and dies while the "
-			+ "sergeant is on its way: the sergeant leads holding the join, and its claims there "
-			+ "rally nobody; its next claim of its own, once the join is over, rallies the "
-			+ "trooper.",
-		"tags": ["ai", "entry", "squad", "join", "leadership", "human", "von"],
+		"description": "The lead rallies the sergeant to a doorway and dies while the sergeant is "
+			+ "on its way: the sergeant leads holding the join, and its claims there rally "
+			+ "nobody; its next claim of its own, once the join is over, rallies the trooper.",
+		"tags": ["ai", "entry", "squad", "join", "leadership", "von"],
 		"requires_von": true,
-		"timeout": 220.0,
+		"timeout": 240.0,
 	}
 
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	Stack.human(s, &"me", Vector2(930, 40), { "movement:aim_point": STEP_UP })
-	s.set_props(&"me", "Wardrobe", { "rank": 2 })
+	s.actor(&"lead", &"invader", Vector2(960, 150))
+	s.set_props(&"lead", "Wardrobe", { "rank": 2 })
 	s.actor(&"sergeant", &"invader", Vector2(100, -120), { "max_health": 1_000_000.0 })
 	s.set_props(&"sergeant", "Wardrobe", { "rank": 1 })
 	# The trooper stands outside the front door, so its way to the living room is its own (front
-	# door, hall) and never the back door the human rallies at.
+	# door, hall) and never the back garden's.
 	s.actor(
 		&"trooper",
 		&"invader",
@@ -60,40 +62,38 @@ func configure(s: TestSetup) -> void:
 		{ "max_health": 1_000_000.0 },
 	)
 	s.set_props(&"trooper", "Wardrobe", { "rank": 0 })
-	s.squads({ "human": &"me" })
+	s.squads()
 
 
 func run(t: TestContext) -> void:
-	var me := t.actor(&"me")
+	var lead := t.actor(&"lead")
 	var sergeant := t.actor(&"sergeant")
 	var trooper := t.actor(&"trooper")
 	var squad: Node = t.world.squad(&"invader")
-	if not _human_leads(t, me, squad, trooper):
+	if not _lead_leads(t, lead, squad, trooper):
 		return
-	var nodes: Array = [me, sergeant, trooper]
+	var nodes: Array = [lead, sergeant, trooper]
 	var w := FollowWatch.new_watch()
 	var join := await _rally_sergeant(t, w, nodes, squad)
 	if join.is_empty():
 		return
 
-	me.take_damage(1.0e9)
+	lead.take_damage(1.0e9)
 	var died_at := t.time
 	await t.frames(1)
-	if not _sergeant_takes_over(t, squad, sergeant, trooper, died_at):
+	if not _sergeant_takes_over(t, squad, sergeant, trooper):
 		return
-	if not await _join_claims_rally_nobody(t, w, nodes, died_at):
+	var door := String(join["opening"])
+	if not await _join_claims_rally_nobody(t, w, nodes, died_at, door):
 		return
 
 	await _own_claim_rallies(t, w, nodes, join)
 
 
-## The premises: the human has a stack radio, leads, and has ordered the trooper to defend the
-## living room. False when one does not hold.
-func _human_leads(t: TestContext, me: Node, squad: Node, trooper: Node) -> bool:
-	var stack: Node = t.world.player_stack
-	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
-		return false
-	if not t.require(squad.leader() == me, "premise: the human leads (Lead the team)"):
+## The premises: the lead leads, and the trooper holds a defend of the living room. False when one
+## does not hold.
+func _lead_leads(t: TestContext, lead: Node, squad: Node, trooper: Node) -> bool:
+	if not t.require(squad.leader() == lead, "premise: the lead leads (the highest rank)"):
 		return false
 	var defend := Order.issue(
 		squad,
@@ -101,66 +101,70 @@ func _human_leads(t: TestContext, me: Node, squad: Node, trooper: Node) -> bool:
 	)
 	return t.require(
 		String(defend.get("kind", "")) == Order.DEFEND,
-		"premise: the human ordered the trooper to defend the living room (%s)" % str(defend),
+		"premise: the trooper holds a defend of the living room (%s)" % str(defend),
 	)
 
 
-## The human walks up beside the back door; its claim rallies the sergeant (the second of
+## The lead claims a doorway of its own (through Von); its claim rallies the sergeant (the second of
 ## `nodes`) alone, which claims its slot there. Returns the join order's data, empty when a premise
 ## does not hold.
 func _rally_sergeant(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> Dictionary:
+	var lead: Node = nodes[0]
 	var sergeant: Node = nodes[1]
-	var puppet := t.puppet(&"me")
-	puppet.walk_to(STEP_UP)
-	var door := String(Entry.BACK["id"])
+	var claimed := func() -> bool:
+		FollowWatch.tick(w, t, nodes, squad)
+		return not Follow.own_claims(t, lead).is_empty()
+	if not t.require(
+			await t.until(claimed, LEAD_CLAIM_WITHIN),
+			"premise: the lead made its own entry claim (acts %s)" % FollowWatch.acts_of(w, lead),
+	):
+		return {}
+	var door := String(Follow.own_claims(t, lead)[0]["data"].get("opening", ""))
 	var joined := func() -> bool:
 		FollowWatch.tick(w, t, nodes, squad)
 		return Follow.first_call(t, sergeant, "claim", door) < INF
 	if not t.require(
-			await t.until(joined, 8.0 + CLAIM_WITHIN),
-			"premise: the human's own claim at the back door rallied the sergeant, which claimed "
-				+ "its slot there (joins %s)"
-				% str(Follow.raw_joins(t).map(func(e): return e["data"])),
+			await t.until(joined, CLAIM_WITHIN),
+			"premise: the lead's own claim at %s rallied the sergeant, which claimed " % door
+				+ "its slot there (joins %s)" % _joins_data(Follow.raw_joins(t)),
 	):
 		return {}
 	var join: Dictionary = Follow.raw_joins(t)[0]["data"]
 	if not t.require(
-			(join.get("to", []) as Array) == [sergeant],
+			(join.get("to", []) as Array) == [sergeant] and String(join["opening"]) == door,
 			"premise: the join went to the sergeant alone (the trooper holds its defend, D24)",
 	):
 		return {}
 	return join
 
 
-## The premises once the human is dead: the sergeant leads within the frame, and the squad
-## cancelled the trooper's defend. False when one does not hold.
-func _sergeant_takes_over(
-		t: TestContext,
-		squad: Node,
-		sergeant: Node,
-		trooper: Node,
-		died_at: float,
-) -> bool:
+## The premises once the lead is dead: the sergeant leads within the frame, and the trooper's defend
+## is cancelled through the squad, so it holds no order. False when one does not hold.
+func _sergeant_takes_over(t: TestContext, squad: Node, sergeant: Node, trooper: Node) -> bool:
 	if not t.require(
 			squad.leader() == sergeant,
 			"premise: the sergeant leads within the frame (leader %s)"
 				% Follow.name_of(squad.leader()),
 	):
 		return false
+	var cancel := Order.issue(squad, { "kind": Order.CANCEL, "to": [trooper] })
 	return t.require(
-		Follow.raw_orders(t, Order.CANCEL).any(func(e): return (
-			float(e["time"]) >= died_at and (e["data"].get("to", []) as Array).has(trooper)
-		)),
-		"premise: the squad cancelled the trooper's defend (LD26): it holds no order",
+		String(cancel.get("kind", "")) == Order.CANCEL,
+		"premise: the trooper's defend is cancelled: it holds no order (%s)" % str(cancel),
 	)
 
 
-## Watches the sergeant (the second of `nodes`), leading, radio its join's claim at the back door
-## again, and checks those claims rallied nobody. False when it radioed none.
-func _join_claims_rally_nobody(t: TestContext, w: Dictionary, nodes: Array, died_at: float) -> bool:
+## Watches the sergeant (the second of `nodes`), leading, radio its join's claim at `door` again,
+## and checks those claims rallied nobody. False when it radioed none.
+func _join_claims_rally_nobody(
+		t: TestContext,
+		w: Dictionary,
+		nodes: Array,
+		died_at: float,
+		door: String,
+) -> bool:
 	var squad: Node = t.world.squad(&"invader")
 	var sergeant: Node = nodes[1]
-	var door := String(Entry.BACK["id"])
 	var watch_claims := func() -> bool:
 		FollowWatch.tick(w, t, nodes, squad)
 		return false
@@ -170,17 +174,14 @@ func _join_claims_rally_nobody(t: TestContext, w: Dictionary, nodes: Array, died
 	))
 	if not t.require(
 			not claims_led.is_empty(),
-			"premise: the sergeant, leading, radioed its join's claim at the back door again "
-				+ "(steps %s)"
-				% str(Follow.calls_of(t, sergeant).map(func(e): return [
-					snappedf(float(e["time"]), 0.1), e["data"].get("entry_step"),
-				])),
+			"premise: the sergeant, leading, radioed its join's claim at %s again " % door
+				+ "(steps %s)" % _steps(t, sergeant),
 	):
 		return false
 	t.check(
 		_led_joins(t, sergeant).is_empty(),
-		"the sergeant's join claims at the back door rallied nobody (joins %s)"
-			% str(_led_joins(t, sergeant).map(func(e): return e["data"])),
+		"the sergeant's join claims at %s rallied nobody (joins %s)"
+			% [door, _joins_data(_led_joins(t, sergeant))],
 	)
 	return true
 
@@ -219,10 +220,22 @@ func _own_claim_rallies(t: TestContext, w: Dictionary, nodes: Array, join: Dicti
 	t.check(
 		not joins.is_empty() and (joins[0]["data"].get("to", []) as Array).has(trooper),
 		"the sergeant's next claim of its own, at %s, rallied the trooper (joins %s)"
-			% [opening, str(_led_joins(t, sergeant).map(func(e): return e["data"]))],
+			% [opening, _joins_data(_led_joins(t, sergeant))],
 	)
 
 
 ## The join orders the sergeant has issued as leader.
 func _led_joins(t: TestContext, sergeant: Node) -> Array:
 	return Follow.raw_joins(t).filter(func(e): return e["data"].get("leader") == sergeant)
+
+
+## `who`'s entry steps radioed, each `[time, step]`, for a failure message.
+func _steps(t: TestContext, who: Node) -> String:
+	return str(Follow.calls_of(t, who).map(func(e): return [
+		snappedf(float(e["time"]), 0.1), e["data"].get("entry_step"),
+	]))
+
+
+## The data of the order events `joins`, for a failure message.
+func _joins_data(joins: Array) -> String:
+	return str(joins.map(func(e): return e["data"]))

@@ -6,11 +6,12 @@ extends RefCounted
 ## for whoever asks: an NPC's entry, its snapshot, the human's `PlayerStack` and the side's `Squad`.
 ##
 ## A member asking about itself passes `me`, its own claim as it stands (it never hears its own on
-## the radio): `{ id, slot, side, want, frame, pos, move_up, stuns, frags, order_id, order_bang,
-## order_mode, order_hold, order_go, order_side, order_frame, into, step }`, each optional (`id` and
-## `slot` its instance id and slot, 0 while it is claiming; `want` the side it asks for; `frame` /
-## `pos` the frame its slot was claimed on and where it stood then, E2; `move_up` the slot it moved
-## up from; `into` the room it goes into).
+## the radio), in the radio's field names (`StackMember.me`, stack_member.gd, builds it): `{ id,
+## slot, side, want, claim_frame, claim_pos, move_up, step, crossed_frame, stuns, frags, into,
+## order_id, order_bang, order_mode, order_hold, order_go, order_side, order_frame, join, human,
+## leader, own }`, each optional (`id` and `slot` its instance id and slot, 0 while it is claiming;
+## `want` the side it asks for; `claim_frame` / `claim_pos` the frame its slot was claimed on and
+## where it stood then, E2; `move_up` the slot it moved up from; `into` the room it goes into).
 ## The human is a member like any other (E16): no AI moves up into its slot, it never moves up
 ## itself and it never throws the stack's grenade. The layout and claim rules it settles them by
 ## are stack_layout.gd's statics (`StackLayout`), the one place a slot becomes a point. Read-only:
@@ -32,13 +33,15 @@ func _init(g := {}, claims: Array = []) -> void:
 
 
 ## The slot member `me` holds (`me.slot`, 0: it is claiming now), or the first one free for it,
-## among the claims (`StackLayout.free_slot`): same-frame claims settle by distance with `me.frame`
-## and `me.pos`, a move-up holds against a plain claim, and its holder takes the slot it freed (E2).
+## among the claims (`StackLayout.free_slot`): same-frame claims settle by distance with
+## `me.claim_frame` and `me.claim_pos`, a move-up holds against a plain claim, and its holder takes
+## the slot it freed (E2).
 func slot_for(me: Dictionary) -> int:
 	var mine := {}
-	if me.has("frame"):
+	if me.has("claim_frame"):
 		mine = {
-			"frame": int(me["frame"]), "pos": me.get("pos", Vector2.ZERO), "g": geometry,
+			"frame": int(me["claim_frame"]), "pos": me.get("claim_pos", Vector2.ZERO),
+			"g": geometry,
 			"side": int(me.get("side", 0)), "move_up": int(me.get("move_up", 0)),
 		}
 	return StackLayout.free_slot(team, int(me.get("id", 0)), int(me.get("slot", 0)), mine)
@@ -133,23 +136,6 @@ func ahead(me: Dictionary) -> Array:
 	return out
 
 
-## The claims that cross after member `me`.
-func behind(me: Dictionary) -> Array:
-	var out: Array = []
-	var past := false
-	for m in crossing(me):
-		if m.get("me", false):
-			past = true
-		elif past:
-			out.append(m)
-	return out
-
-
-## Whether any ally claims the doorway at all (at any live step).
-func claimed() -> bool:
-	return not team.is_empty()
-
-
 ## Whether anyone holds a place in the stack (a claim at a `StackClaim.STACKING` step).
 func stacking() -> bool:
 	return team.any(func(m): return StackClaim.stacking(m["step"]))
@@ -199,20 +185,75 @@ func order_claim(me := {}) -> Dictionary:
 
 
 ## Whether the held stack under order `order_id`, issued on frame `since`, going into room `into`,
-## has had its go off the radio (LD13): any claim heard says so (`_releases`).
+## has had its go off the radio (LD13): any claim heard says so (`_releases`). `order_id` "" is the
+## human leader's rally whose joins were posted on frame `since` (LD24, D31).
 func released(order_id: String, into: String, since: int) -> bool:
 	return team.any(func(m): return _releases(m, order_id, into, since))
 
 
-## The chain every member claims and keeps its slot by, an NPC's entry (and the slot its snapshot
-## offers it), and the human's `PlayerStack` alike (E2, E19 to E22): the slot `slot_for` gives
-## member `me`, whether the doorway has it (`held`, `StackLayout.holds_slot`: a dead end holds only
-## so many, E20), the side it asks for in it (`want`, its own weighing, called with that slot) and
-## where it then stands (`settle`): `{ slot, held, side, place, point }`. A member whose slot
-## changes is no longer moving up (E2), so its `move_up` is dropped for the settling.
-func claim(me: Dictionary, want: Callable) -> Dictionary:
+## The go member `me`'s stack holds for (LD13, D31): `{ order_id, into, since }`, the order
+## `order_claim` says it goes in under when that order holds for its leader's go (`order_id` its
+## id, `since` its frame), else the human leader's rally it joined (`me`'s own join waiting for the
+## go, `order_hold`, else the lowest slot's such join among the claims: an unordered member that
+## joins it follows it, as D10): `order_id` "", `since` the frame its joins were posted on. {} for a
+## stack that holds for nobody: no hold, an AI leader's rally, an independent stack.
+func hold(me: Dictionary) -> Dictionary:
+	var ordered := order_claim(me)
+	if not ordered.is_empty():
+		if not bool(ordered.get("order_hold", false)):
+			return {}
+		return {
+			"order_id": str(ordered["order_id"]), "into": str(ordered.get("into", "")),
+			"since": int(ordered.get("order_frame", -1)),
+		}
+	var rally := _rally(me)
+	if rally.is_empty():
+		return {}
+	return { "order_id": "", "into": str(rally["into"]), "since": int(rally["order_frame"]) }
+
+
+## Whether member `me`'s stack is held for its leader's go (LD13, D31): it holds for one (`hold`),
+## `me` has not latched it (`order_go`) and no claim says it came (`released`). Nobody in a held
+## stack slices the pie, listens, calls a bang or crosses.
+func held(me: Dictionary) -> bool:
+	if bool(me.get("order_go", false)):
+		return false
+	var go := hold(me)
+	return not go.is_empty() and not released(go["order_id"], go["into"], go["since"])
+
+
+## The mode member `me`'s stack goes in (LD9, LD14, D1, D31, E17): `quiet`, `stun` or `frag`. An
+## ordered stack's is its order's (`order_claim`), quiet once a member under that order gave its
+## grenade up (`bang_off`, D1 / D15); a human leader's rally's is the mode its go named (`me`'s own
+## latched go, else a joiner of that rally saying its go came), quiet before it and on a go no menu
+## named (the leader stepping in), or once a member of the rally gave its grenade up; any other
+## stack's is its first claimer's (E17): `stun` while every claim says bang and none gave it up,
+## else `quiet`. "" with nobody claiming and no order nor rally: the member goes its own way.
+func mode(me: Dictionary) -> String:
+	var ordered := order_claim(me)
+	if not ordered.is_empty():
+		var id := str(ordered["order_id"])
+		if team.any(func(m): return m["bang_off"] and m["order_id"] == id):
+			return "quiet"
+		return str(ordered["order_mode"])
+	var rally := _rally(me)
+	if not rally.is_empty():
+		return _rally_mode(me, rally)
+	if team.is_empty():
+		return ""
+	return "stun" if team.all(func(m): return m["bang"] and not m["bang_off"]) else "quiet"
+
+
+## The chain every member claims and keeps its slot by (`StackMember.claim`: an NPC's entry, the
+## slot its snapshot offers it, and the human's `PlayerStack` alike; E2, E19 to E22): the slot
+## `slot_for` gives member `me`, whether the doorway has it (`held`, `StackLayout.holds_slot`: a
+## dead end holds only so many, E20), and where it then stands (`settle`) on the side it asks for
+## (`me.want`, weighed by the member for that slot and handed in as a value): `{ slot, held, side,
+## place, point }`. A member whose slot changes is no longer moving up (E2), so its `move_up` is
+## dropped for the settling.
+func claim(me: Dictionary) -> Dictionary:
 	var n := slot_for(me)
-	var asked := me.merged({ "slot": n, "want": int(want.call(n)) }, true)
+	var asked := me.merged({ "slot": n }, true)
 	if n != int(me.get("slot", 0)):
 		asked["move_up"] = 0
 	var at := settle(asked)
@@ -316,11 +357,55 @@ func move_up_vacancies(me: Dictionary) -> Array:
 ## no order or another but the human's, or one into the other room.
 func _releases(m: Dictionary, order_id: String, into: String, since: int) -> bool:
 	var crosses: bool = m["into"] == into and StackClaim.crossing(m["step"])
+	if order_id == "":
+		return _releases_rally(m, crosses, since)
 	if m["order_id"] == order_id:
 		return m["order_go"] or crosses
 	if not m["human"]:
 		return false
 	return crosses and since >= 0 and int(m["crossed_frame"]) >= since
+
+
+## Whether claim `m` is the go of the human leader's rally whose joins were posted on frame `since`
+## (D31; `crosses`: `m` is crossing or through into the rally's room): a joiner of that rally (its
+## `order_frame` the same) saying its go came or crossing, or the human crossing on a crossing begun
+## on or after `since` (the leader stepping in). A join or crossing left on the radio from an
+## earlier rally, or of unknown frame, releases nothing.
+func _releases_rally(m: Dictionary, crosses: bool, since: int) -> bool:
+	if since < 0:
+		return false
+	if m["join"]:
+		return int(m["order_frame"]) == since and (m["order_go"] or crosses)
+	return m["human"] and crosses and int(m["crossed_frame"]) >= since
+
+
+## The human leader's rally member `me` holds for (D31): `me` itself when it is a join waiting for
+## its leader's go (`join`, `order_hold`), else the lowest slot's claim that is; `{ into,
+## order_frame }`, {} when it joined none.
+func _rally(me: Dictionary) -> Dictionary:
+	if bool(me.get("join", false)) and bool(me.get("order_hold", false)):
+		return { "into": str(me.get("into", "")), "order_frame": int(me.get("order_frame", -1)) }
+	for m in team:
+		if m["join"] and m["order_hold"]:
+			return m
+	return {}
+
+
+## The mode of the rally `rally` (`_rally`) member `me` holds for (D31): the mode its go named (a
+## stun or a frag, `me`'s latched one, else a joiner's of that rally whose go came), unless a member
+## of the rally gave its grenade up; else quiet.
+func _rally_mode(me: Dictionary, rally: Dictionary) -> String:
+	var since := int(rally["order_frame"])
+	var of_rally := func(m): return m["join"] and int(m["order_frame"]) == since
+	if team.any(func(m): return of_rally.call(m) and m["bang_off"]):
+		return "quiet"
+	var named := ["stun", "frag"]
+	if bool(me.get("order_go", false)) and named.has(str(me.get("order_mode", ""))):
+		return str(me["order_mode"])
+	for m in team:
+		if of_rally.call(m) and m["order_go"] and named.has(m["order_mode"]):
+			return m["order_mode"]
+	return "quiet"
 
 
 ## The claims with the move-up rewrite (E2): the claim still on the slot a member moved up into

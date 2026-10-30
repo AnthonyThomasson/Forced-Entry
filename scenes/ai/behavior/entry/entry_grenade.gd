@@ -100,7 +100,7 @@ func reset() -> void:
 func banging(entry: Entry, team: Array) -> bool:
 	return (state.bang
 			and not over
-			and (entry.listen.upgraded or entry.orders.stack_ordered(entry)
+			and (entry.listen.upgraded or entry.orders.mode_set(entry)
 					or team.all(func(m): return m["bang"]))
 			and _thrower(entry) != -1)
 
@@ -109,10 +109,7 @@ func banging(entry: Entry, team: Array) -> bool:
 ## can: the second of the stack if it carries one, else the lowest slot that does (alone, this NPC).
 ## Every member works it out from the radio's `stuns` (a frag stack's: `frags`, LD14) the same way.
 func _thrower(entry: Entry) -> int:
-	return entry.claim.stack.thrower(
-		_bang_kind(entry),
-		{ "id": world.self_id, "slot": state.slot, "stuns": stuns, "frags": frags },
-	)
+	return entry.claim.stack.thrower(_bang_kind(entry), entry.claim.me(entry))
 
 
 ## A member in its slot with the stack ready that is the thrower calls the bang and goes to throw.
@@ -121,7 +118,7 @@ func _thrower(entry: Entry) -> int:
 func due(entry: Entry, team: Array, delta: float) -> bool:
 	if over or not state.bang or entry.orders.held_for_go(entry):
 		return false  # (A held stack calls no bang before its go, LD13.)
-	var ordered := entry.orders.stack_ordered(entry)
+	var ordered := entry.orders.mode_set(entry)
 	if _bang_held_off(entry, team, ordered):
 		return false
 	return _bang_call(entry, team, ordered, delta)
@@ -258,11 +255,10 @@ func _carried(grenade_kind: StringName) -> int:
 	return frags if grenade_kind == &"frag" else stuns
 
 
-## The grenade the stack's bang throws: a frag for a stack under an order whose mode is frag (LD14),
-## else a stun.
+## The grenade the stack's bang throws: a frag for a stack going in in frag mode (`DoorStack.mode`:
+## an order's, LD14), else a stun.
 func _bang_kind(entry: Entry) -> StringName:
-	var ordered := entry.orders.claim(entry)
-	return &"frag" if not ordered.is_empty() and str(ordered["order_mode"]) == "frag" else &"stun"
+	return &"frag" if entry.claim.stack.mode(entry.claim.me(entry)) == "frag" else &"stun"
 
 
 ## Plan the throw: a spot to throw from and a target in the room, a clear lob from the thrower's
@@ -278,14 +274,14 @@ func _bang_kind(entry: Entry) -> StringName:
 ## nowhere gives a clear lob (for a frag, a safe one).
 func _plan_bang(entry: Entry) -> bool:
 	var type := _bang_kind(entry)
-	var spots := _bang_spots(entry)
+	var spots := _bang_spots()
 	var reach: float = world.perception.grenades.reach(type)
 	var slots := _slot_points(entry) if type == &"frag" else []
 	for at: Vector2 in EntryLandings.grid(state.geo):
 		for spot: Vector2 in spots:
 			var target := EntryLandings.aim(state.geo, spot, at.x, at.y, reach)
 			if _bang_target_ok(target, type, slots) and _clear_lob(spot, target, reach, type):
-				_take_bang(entry, spot, target)
+				_take_bang(spot, target)
 				return true
 	return false
 
@@ -293,14 +289,14 @@ func _plan_bang(entry: Entry) -> bool:
 ## The spots the bang may be thrown from, in order of preference: the thrower's own slot, then each
 ## step out in front of the door (`BANG_STEP_OUT` from the wall, `BANG_STEP_ALONG` of its width
 ## along it, toward the stack's side first).
-func _bang_spots(entry: Entry) -> Array:
+func _bang_spots() -> Array:
 	var door: Vector2 = state.geo["pos"]
 	var out: Vector2 = state.geo["out"]
 	var along: Vector2 = state.geo["along"]
-	var spots: Array = [entry.claim.spot]
+	var spots: Array = [state.member.point]
 	for share: float in BANG_STEP_ALONG:
 		spots.append(world.loco.reachable(door + out * BANG_STEP_OUT
-				+ along * state.side * float(state.geo["width"]) * share))
+				+ along * state.member.side * float(state.geo["width"]) * share))
 	return spots
 
 
@@ -315,7 +311,7 @@ func _bang_target_ok(target: Vector2, grenade_kind: StringName, slots: Array) ->
 
 ## Take the bang's plan: thrown from `spot` at `target`, walked to out from the slot first (clear
 ## of the member ahead of it), then along.
-func _take_bang(entry: Entry, spot: Vector2, target: Vector2) -> void:
+func _take_bang(spot: Vector2, target: Vector2) -> void:
 	var door: Vector2 = state.geo["pos"]
 	var out: Vector2 = state.geo["out"]
 	var along: Vector2 = state.geo["along"]
@@ -323,7 +319,7 @@ func _take_bang(entry: Entry, spot: Vector2, target: Vector2) -> void:
 	_bang_target = target
 	_bang_route = [
 		world.loco.reachable(door + out * maxf(BANG_STEP_OUT, (spot - door).dot(out))
-				+ along * (entry.claim.spot - door).dot(along)),
+				+ along * (state.member.point - door).dot(along)),
 		spot,
 	]
 
@@ -415,12 +411,12 @@ func _bang_throw(entry: Entry, delta: float) -> void:
 ## Hold the slot through the bang turned away from the door: back in it (or, shoved out of it, a
 ## step back in), the thrower once its grenade is away and everyone else from the call.
 func _bang_back(entry: Entry, delta: float) -> void:
-	var spot := entry.claim.spot
+	var spot := state.member.point
 	if world.character.global_position.distance_to(spot) > Entry.WAYPOINT_REACH:
 		world.loco.move_to(spot, StackClaim.SLOT_REACH)
 	else:
 		world.character.movement.move_input = Vector2.ZERO
-	entry.sweep.look_toward(entry.claim.spot + (state.geo["out"] as Vector2) * 300.0, delta, 3.0)
+	entry.sweep.look_toward(state.member.point + (state.geo["out"] as Vector2) * 300.0, delta, 3.0)
 
 
 ## Whether a burst in the room being entered ends a wait: the perception notes every burst

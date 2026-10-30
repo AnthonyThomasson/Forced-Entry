@@ -3,17 +3,20 @@ extends GameTest
 ## order's mode and side. The squad is built and bound as a match's (`s.squads`, a puppet standing
 ## in for the human leader, its `PlayerStack` claiming as Main's does, D29). The human steps up
 ## north of the Terrace house's back door: its own claim rallies its team (LD24), and the joiner,
-## running the join as its own unordered entry, claims its slot north of the door first, in bang
-## mode (the human's claim says nothing of a bang, so it never vetoes one: the stack's first
-## claimers chose a bang). Then the human orders the teammate to stack on the same door south of it,
-## quietly. Unordered, the first claimers set a stack's side and mode; with an ordered claim in the
-## team, the order's do: the joiner's later claims are quiet and on the order's side, and it stacks
-## south of the door.
+## running the join as its own unordered entry, claims its slot north of the door first, quietly (a
+## human leader's rally is held for its go, quiet until the go names a mode, D31). Then the human
+## orders the teammate to stack on the same door south of it, with a stun. Unordered, the rally sets
+## the stack's mode and the first claimers its side; with an ordered claim in the team, the order's
+## do: the joiner's later claims say bang and are on the order's side, and it stacks south of the
+## door.
 ##
 ## Scripted Von (`Entry.rules`; the join's and the order's levels ask nothing). Premises: the
-## ordered member carries a stun the way Main arms a spawn (so once it claims, the stack has a
-## grenade for the bang its first claimers chose, and only the order's mode makes the joiner quiet);
-## it starts far off in the south of the garden, so the joiner has claimed first.
+## ordered member carries a stun the way Main arms a spawn (the stack has the grenade the order's
+## mode calls for); it starts far off in the south of the garden, so the joiner has claimed first.
+## (The joiner's first claim was in bang mode before D31, the human's claim saying bang; the order
+## was quiet, so the joiner turned quiet. Under D31 the rally starts quiet, so the order turns it
+## the
+## other way, to the order's stun.)
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -26,9 +29,9 @@ const Stack := preload("res://tests/_ai/stack_probe.gd")
 func describe() -> Dictionary:
 	return {
 		"name": "An unordered joiner follows the ordered stack's mode and side",
-		"description": "An invader that joined its human leader's stack north of the back door in "
-			+ "bang mode follows a teammate's later order to stack south quietly: its claims turn "
-			+ "quiet and to the order's side, and it stacks south (LD9, D10).",
+		"description": "An invader that joined its human leader's stack north of the back door, "
+			+ "quietly, follows a teammate's later order to stack south with a stun: its claims "
+			+ "turn to bang and to the order's side, and it stacks south (LD9, D10).",
 		"tags": ["ai", "entry", "leadership", "order", "join", "scripted"],
 		"timeout": 60.0,
 	}
@@ -59,8 +62,8 @@ func run(t: TestContext) -> void:
 		return
 	var first: Dictionary = Entry.calls(t, "claim", &"joiner")[0]
 	if not t.require(
-			first.get("bang") == true and str(first.get("order_id", "")) == "",
-			"set-up: its claim is in bang mode and unordered (a join's, LD24)",
+			first.get("bang") == false and str(first.get("order_id", "")) == "",
+			"set-up: its claim is quiet and unordered (a held rally's join, LD24, D31)",
 	):
 		return
 	var order := Order.issue(
@@ -69,7 +72,7 @@ func run(t: TestContext) -> void:
 			"kind": Order.STACK,
 			"to": [t.actor(&"ordered")],
 			"pos": Order.BACK_SOUTH,
-			"bang": false,
+			"bang": true,
 		},
 	)
 	if not t.require(not order.is_empty(), "the squad posts the order (issue)"):
@@ -91,8 +94,8 @@ func _joiner_follows_order(t: TestContext, ordered_at: float) -> void:
 	if not t.require(not later.is_empty(), "the joiner kept radioing its claim after the order's"):
 		return
 	t.check(
-		later.all(func(e): return e["data"].get("bang") == false),
-		"the joiner's later claims are quiet, the order's mode (%s)"
+		later.all(func(e): return e["data"].get("bang") == true),
+		"the joiner's later claims say bang, the order's mode (%s)"
 			% str(later.map(func(e): return e["data"].get("bang"))),
 	)
 	var ordered_side = Order.ordered_claims(t, t.actor(&"ordered"), Entry.BACK["id"])[0].get("side")

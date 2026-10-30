@@ -5,6 +5,8 @@ extends RefCounted
 ## that ends on first contact (LD15, D18). Built once with its `AgentPerception`, it holds it (a
 ## node, so no reference cycle) for the body, the memory and its sibling parts.
 
+const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
+
 ## The perception it belongs to.
 var perception: Node
 ## The order that ended done or refused, until the controller radios it (`take_ended`).
@@ -21,7 +23,8 @@ func _init(npc_perception: Node) -> void:
 ## held; a `cancel` ends the one it holds. An order never lapses on a timer: it ends only when it is
 ## done, cancelled or replaced (`end`). A `go` (LD13) replaces nothing: it releases the held stack
 ## order the NPC holds at its doorway (`go: true` on the live order, latched: the stack goes once
-## ready, however long before that the go came), and asks for no new decision. True when the NPC's
+## ready, however long before that the go came; `go_mode` the mode it names, the one a held rally
+## goes in, D31), and asks for no new decision. True when the NPC's
 ## order changed (the controller then decides at once).
 func process(data: Dictionary) -> bool:
 	if (not (data.get("to", []) as Array).has(perception._character)
@@ -33,6 +36,8 @@ func process(data: Dictionary) -> bool:
 				and String(live.get("opening", "")) == String(data.get("opening", ""))):
 			live = live.duplicate()
 			live["go"] = true
+			if data.has("mode"):
+				live["go_mode"] = String(data["mode"])
 			perception._memory.remember(&"order", live, 0.0, "live")
 		return false
 	if String(data.get("kind", "")) == "cancel":
@@ -49,6 +54,26 @@ func process(data: Dictionary) -> bool:
 func current() -> Dictionary:
 	var held: Dictionary = perception._memory.recall(&"order")
 	return {} if held.is_empty() or held.has("ended") else held
+
+
+## The room the stack of the live order is held to enter (LD13, D31): a `stack` order held for its
+## leader's go (`wait_go`; a join of the human leader's rally too) whose go has come neither on the
+## order (`go`) nor off the radio (`DoorStack.held` over the claims heard at its doorway); ""
+## otherwise. A member holding one fights on the stack's side of the doorway (D31).
+func held_room() -> String:
+	var live := current()
+	if (String(live.get("kind", "")) != "stack"
+			or not bool(live.get("wait_go", false))
+			or bool(live.get("go", false))):
+		return ""
+	var into := String(live.get("into", ""))
+	var join := StackClaim.is_join(live)
+	var me := {
+		"id": perception._character.get_instance_id(), "into": into, "join": join,
+		"order_id": "" if join else str(live["id"]), "order_hold": true,
+		"order_frame": int(live.get("frame", -1)),
+	}
+	return into if perception.entry.stack(String(live["opening"]), into).held(me) else ""
 
 
 ## End the live order when it is order `id`, for `why` (`done`, `refused`, `cancelled`): kept as

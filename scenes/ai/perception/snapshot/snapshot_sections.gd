@@ -51,7 +51,8 @@ func situation_text(rooms: Array) -> String:
 ## the kitchen." / "... to go into the kitchen by its doorway quietly." (or "with a stun grenade
 ## first", "with a frag grenade first", LD14; a held stack adds " when they give the go", LD13,
 ## since "and wait for my go" moved a combat level's top pick; a join, the leader's own stack:
-## "... by its doorway with them.", LD24) / "... to ambush the doorway into the
+## "... by its doorway with them.", LD24, and a human leader's held rally "... with them when they
+## give the go.", D31) / "... to ambush the doorway into the
 ## hall from the living room." (LD15; an exterior door's: "... to ambush the outside doorway of the
 ## kitchen from inside"). Empty with no order, so an NPC that holds none reads exactly what it read
 ## before.
@@ -76,23 +77,24 @@ func _defend_order_text(order: Dictionary, rooms: Array) -> String:
 
 
 ## `order_text` of a `stack` order: into the room by its doorway quietly, with a grenade first or,
-## for a join, with them; a held stack with no go yet adds " when they give the go". "" for a room
-## it does not know.
+## for a join, with them; a held stack with no go yet, a join too, adds " when they give the go". ""
+## for a room it does not know.
 func _stack_order_text(order: Dictionary, rooms: Array) -> String:
 	var into := HouseRooms.by_key(rooms, String(order.get("into", "")))
 	if into.is_empty():
 		return ""
 	var mode := String(order["mode"])
+	var held := " when they give the go" if (
+		bool(order.get("wait_go", false)) and not bool(order.get("go", false))
+	) else ""
 	if StackClaim.is_join(order):
 		# The leader's own stack (LD24): its team goes in with it.
-		return ("Your leader ordered you to go into the %s by its doorway with them."
-				% _v.room_name(into["type"]))
+		return ("Your leader ordered you to go into the %s by its doorway with them%s."
+				% [_v.room_name(into["type"]), held])
 	return "Your leader ordered you to go into the %s by its doorway %s%s." % [
 		_v.room_name(into["type"]),
 		"with a %s grenade first" % mode if mode != "quiet" else "quietly",
-		" when they give the go"
-			if bool(order.get("wait_go", false)) and not bool(order.get("go", false))
-			else "",
+		held,
 	]
 
 

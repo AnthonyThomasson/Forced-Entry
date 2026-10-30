@@ -372,35 +372,27 @@ func test_an_ordered_members_place_follows_the_recipients_before_it_and_every_ot
 
 
 func test_the_claim_chain_takes_a_free_slot_the_side_asked_for_and_its_point() -> void:
-	# E2, E20, E21: a member claims the lowest free slot, asks for its side in that slot and stands
-	# where that side's file puts it; a dead end holding all it can has no slot for it.
+	# E2, E20, E21: a member claims the lowest free slot and stands where the side it asks for in
+	# that slot puts it; a dead end holding all it can has no slot for it.
 	var a := StackRadio.speaker(self)
 	var me := StackRadio.speaker(self)
 	var point_man := [_claim(a, { "slot": 1, "side": 1 })]
-	var asked := [0]
 	var claiming := {
 		"id": me.get_instance_id(),
 		"slot": 0,
-		"frame": FRAME,
-		"pos": Vector2(0, 200),
+		"claim_frame": FRAME,
+		"claim_pos": Vector2(0, 200),
 	}
 	var at: Dictionary = DoorStack.new(_door(), point_man).claim(
-		claiming,
-		func(n):
-			asked[0] = n
-			return -1,
+		claiming.merged({ "want": -1 }, true),
 	)
-	assert_int(asked[0]).override_failure_message(
-		"its side is asked for in the slot it takes, 2 (asked in %d)" % asked[0],
-	).is_equal(2)
 	var got := [at["slot"], at["held"], at["side"], at["place"]]
 	assert_array(got).override_failure_message(
 		"slot 2, held, on the side it asked for, first in that side's file: %s" % str(at),
 	).is_equal([2, true, -1, 1])
 	assert_that(at["point"]).is_equal(_slot_at(-1, 1))
 	var keeping: Dictionary = DoorStack.new(_door(), point_man).claim(
-		claiming.merged({ "slot": 2 }, true),
-		func(_n): return 1,
+		claiming.merged({ "slot": 2, "want": 1 }, true),
 	)
 	assert_array([keeping["slot"], keeping["side"], keeping["place"]]).override_failure_message(
 		"kept, asking for the point's side: behind the point: %s" % str(keeping),
@@ -409,7 +401,9 @@ func test_the_claim_chain_takes_a_free_slot_the_side_asked_for_and_its_point() -
 	var full: Array = range(3).map(
 		func(i): return _claim(StackRadio.speaker(self), { "slot": i + 1, "side": 1 }),
 	)
-	var none: Dictionary = DoorStack.new(_dead_end(), full).claim(claiming, func(_n): return 1)
+	var none: Dictionary = DoorStack.new(_dead_end(), full).claim(
+		claiming.merged({ "want": 1 }, true),
+	)
 	assert_array([none["slot"], none["held"]]).override_failure_message(
 		"a dead end holding three, all claimed: slot 4, not held (%s)" % str(none),
 	).is_equal([4, false])
@@ -435,7 +429,7 @@ func test_a_member_whose_slot_changes_is_settled_moving_up_no_more() -> void:
 		),
 	]
 	var moving := _me(me, 2).merged({ "move_up": 3, "want": 1 }, true)
-	var at: Dictionary = DoorStack.new(_door(), claims).claim(moving, func(_n): return 1)
+	var at: Dictionary = DoorStack.new(_door(), claims).claim(moving)
 	assert_array([at["slot"], at["side"]]).override_failure_message(
 		"premise: it loses slot 2 and takes slot 4, on its side (%s)" % str(at),
 	).is_equal([4, 1])
@@ -447,18 +441,130 @@ func test_a_member_whose_slot_changes_is_settled_moving_up_no_more() -> void:
 	).is_equal(_slot_at(1, 3))
 
 
-## A doorway in a wall along x at the origin, the stack's side out along +y: each side's file of
-## six slots against the wall, 30 px apart from 40 px off the door (agent_entry.gd `geometry`, its
-## `wall` kind).
-func _door() -> Dictionary:
-	var files := {}
-	for s in [1, -1]:
-		files[s] = range(1, 7).map(func(n): return { "point": _slot_at(s, n), "row": 1 })
-	return {
-		"id": "o_1", "into": "hall", "pos": Vector2.ZERO, "out": Vector2(0, 1),
-		"along": Vector2(1, 0), "width": 40.0, "side": 0, "kind": "wall", "files": files,
-		"row1": { 1: 6, -1: 6 }, "wall_n": 6,
+func test_an_ordered_stack_held_for_the_go_is_held_until_its_go() -> void:
+	# LD13, D10, D14: an ordered stack that holds for its leader's go is held, and a member that
+	# joined it unordered with it, until the go: latched by the member itself (`order_go`), or off
+	# the claims (`released`); an ordered stack with no hold, or no order, is never held.
+	var a := StackRadio.speaker(self)
+	var me := StackRadio.speaker(self)
+	var held := { "order_id": "7", "order_hold": true, "order_frame": ORDER_FRAME, "into": "hall" }
+	var mine := _me(me, 2).merged(held, true)
+	var point_man := _claim(a, held.merged({ "slot": 1, "side": 1, "entry_step": "ready" }, true))
+	var cases := {
+		"under the held order, no go": [mine, [point_man], true],
+		"its own go latched": [mine.merged({ "order_go": true }, true), [point_man], false],
+		"the point's claim saying the go came":
+			[mine, [point_man.merged({ "order_go": true }, true)], false],
+		"unordered, following the held order (D10)": [_me(me, 2), [point_man], true],
+		"an order with no hold":
+			[_me(me, 2).merged({ "order_id": "7", "into": "hall" }, true), [], false],
+		"no order at all": [_me(me, 2), [], false],
 	}
+	for why: String in cases:
+		var c: Array = cases[why]
+		assert_bool(DoorStack.new(_door(), c[1]).held(c[0])).override_failure_message(
+			"%s: held %s" % [why, str(c[2])],
+		).is_equal(c[2])
+
+
+func test_a_human_leaders_rally_is_held_until_the_leader_steps_in_or_a_go_comes() -> void:
+	# LD24, D31: a join that waits for the human leader's go (the rally of its own claim) is held
+	# while the leader's claim stands at claim or ready; the leader stepping in on a crossing begun
+	# since the join, or a joiner of that rally saying its go came, releases it. A crossing or go
+	# left on the radio from an earlier rally at the doorway releases nothing.
+	var human := StackRadio.speaker(self)
+	var mate := StackRadio.speaker(self)
+	var me := StackRadio.speaker(self)
+	var rally := { "join": true, "order_hold": true, "order_frame": ORDER_FRAME, "into": "hall" }
+	var mine := _me(me, 3).merged(rally, true)
+	var leader := { "slot": 1, "side": 1, "human": true, "leader": true, "own": true }
+	var cases := {
+		"the leader at ready": [{ "entry_step": "ready" }, {}, true],
+		"the leader going in since the join":
+			[{ "entry_step": "going_in", "crossed_frame": ORDER_FRAME + 30 }, {}, false],
+		"the leader in since the join":
+			[{ "entry_step": "in", "crossed_frame": ORDER_FRAME + 30 }, {}, false],
+		"the leader in on a crossing begun before the join":
+			[{ "entry_step": "in", "crossed_frame": ORDER_FRAME - 30 }, {}, true],
+		"a joiner of the rally saying its go came":
+			[{ "entry_step": "ready" }, rally.merged({ "order_go": true }, true), false],
+		"a joiner of an earlier rally saying its go came": [
+			{ "entry_step": "ready" },
+			rally.merged({ "order_go": true, "order_frame": ORDER_FRAME - 300 }, true),
+			true,
+		],
+	}
+	for why: String in cases:
+		var c: Array = cases[why]
+		var claims := [_claim(human, leader.merged(c[0], true))]
+		if not (c[1] as Dictionary).is_empty():
+			claims.append(_claim(mate, (c[1] as Dictionary).merged({ "slot": 2, "side": 1 }, true)))
+		assert_bool(DoorStack.new(_door(), claims).held(mine)).override_failure_message(
+			"%s: held %s" % [why, str(c[2])],
+		).is_equal(c[2])
+
+
+func test_an_ai_leaders_rally_is_never_held() -> void:
+	# LD24, D31: an AI leader's rally takes the point and goes in; its joins wait for no go.
+	var ai_rally := _me(StackRadio.speaker(self), 3).merged({ "join": true, "into": "hall" }, true)
+	var ai_leader := _claim(
+		StackRadio.speaker(self), { "slot": 1, "side": 1, "entry_step": "ready" },
+	)
+	assert_bool(DoorStack.new(_door(), [ai_leader]).held(ai_rally)).override_failure_message(
+		"an AI leader's rally (its joins wait for no go) is never held",
+	).is_false()
+
+
+func test_the_mode_a_stack_goes_in_is_the_orders_else_the_gos_else_its_first_claimers() -> void:
+	# LD9, LD14, D1, D31, E17: an ordered stack goes in the order's mode, quiet once a member under
+	# that order gave its grenade up; a human leader's rally goes in the mode its go named, quiet
+	# before it or when the leader stepped in; any other stack goes in its first claimer's way, a
+	# stun only while every claim says bang and none gave it up; with nobody claiming, the stack
+	# says nothing ("").
+	var a := StackRadio.speaker(self)
+	var me := StackRadio.speaker(self)
+	var frag := { "order_id": "7", "order_mode": "frag", "order_bang": true, "into": "hall" }
+	var rally := { "join": true, "order_hold": true, "order_frame": ORDER_FRAME, "into": "hall" }
+	var mine := _me(me, 2)
+	var cases := {
+		"the order's frag": [mine.merged(frag, true), [], "frag"],
+		"the order's frag, a member under it gave it up":
+			[mine.merged(frag, true), [{ "order_id": "7", "bang_off": true, "bang": false }],
+				"quiet"],
+		"the order's frag, another order's member gave it up":
+			[mine.merged(frag, true), [{ "order_id": "8", "bang_off": true, "bang": false }],
+				"frag"],
+		"unordered, following the order's frag (D10)": [mine, [frag], "frag"],
+		"a rally held for its go": [mine.merged(rally, true), [{ "bang": true }], "quiet"],
+		"a rally whose go named a stun":
+			[mine.merged(rally, true).merged({ "order_go": true, "order_mode": "stun" }, true),
+				[{ "bang": false }], "stun"],
+		"a rally a joiner's go named a frag":
+			[mine.merged(rally, true),
+				[rally.merged({ "order_go": true, "order_mode": "frag" }, true)], "frag"],
+		"every claim says bang": [mine, [{ "bang": true }], "stun"],
+		"a claim says quiet": [mine, [{ "bang": true }, { "bang": false }], "quiet"],
+		"a claim gave the bang up": [mine, [{ "bang": false, "bang_off": true }], "quiet"],
+		"nobody claiming": [mine, [], ""],
+	}
+	for why: String in cases:
+		var c: Array = cases[why]
+		var claims: Array = []
+		for i in (c[1] as Array).size():
+			var fields: Dictionary = (c[1] as Array)[i]
+			claims.append(_claim(
+				a if i == 0 else StackRadio.speaker(self),
+				fields.merged({ "slot": i + 1 + int(i >= 1), "side": 1 }, true),
+			))
+		var got: String = DoorStack.new(_door(), claims).mode(c[0])
+		assert_str(got).override_failure_message(
+			"%s: %s (got %s)" % [why, c[2], got],
+		).is_equal(c[2])
+
+
+## The probe's plain doorway (`StackRadio.door`).
+func _door() -> Dictionary:
+	return StackRadio.door()
 
 
 ## `_door()` as a dead end holding three: its wall's first two slots and one on its open floor.
@@ -474,25 +580,22 @@ func _releases_7(claims: Array) -> bool:
 	return DoorStack.new(_door(), claims).released("7", "hall", ORDER_FRAME)
 
 
-## The point of the `place`th slot of side `side`'s file of `_door()`.
+## The point of the `place`th slot of side `side`'s file of `_door()` (`StackRadio.slot_at`).
 func _slot_at(side: int, place: int) -> Vector2:
-	return Vector2(side * (40 + 30 * (place - 1)), 12)
+	return StackRadio.slot_at(side, place)
 
 
-## `speaker`'s claim on `_door()` as a listener holds it (`StackClaim.decode`): `fields` over a
-## claim at step `claim`.
+## `speaker`'s claim on `_door()` as a listener holds it (`StackRadio.claim`).
 func _claim(speaker: Node, fields: Dictionary) -> Dictionary:
-	var wire := StackClaim.encode(
-		{ "opening": "o_1", "into": "hall", "entry_step": "claim" }.merged(fields, true),
-	)
-	return StackClaim.decode(StackRadio.callout(speaker, wire, Vector2(0, 200)))
+	return StackRadio.claim(speaker, fields)
 
 
-## `speaker` asking about itself (`DoorStack`'s `me`): holding slot `slot` on side 1, claimed on
-## `FRAME` from `pos`.
+## `speaker` asking about itself (`DoorStack`'s `me`, the radio's names): holding slot `slot` on
+## side 1, claimed on `FRAME` from `pos`.
 func _me(speaker: Node, slot: int, pos := Vector2(0, 200)) -> Dictionary:
 	return {
-		"id": speaker.get_instance_id(), "slot": slot, "side": 1, "frame": FRAME, "pos": pos,
+		"id": speaker.get_instance_id(), "slot": slot, "side": 1, "claim_frame": FRAME,
+		"claim_pos": pos,
 	}
 
 

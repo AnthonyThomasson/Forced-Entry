@@ -10,6 +10,7 @@ extends RefCounted
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")
+const StackMember := preload("res://scenes/ai/perception/stack/stack_member.gd")
 ## How a doorway's option says why its room is suspect (docs/grenades.md G18), one phrase per
 ## `AgentSuspicion` reason, measured with tools/von_probe.py
 ## (tools/von_scenarios/stun_entry_*.json).
@@ -668,13 +669,17 @@ func _entry_pick(ctx: Dictionary, e: Dictionary, known: Dictionary, why: Diction
 	var g: Dictionary = _entry.geometry(e["id"], into, ctx["map"], ctx["space"])
 	if g.is_empty():
 		return {}
-	# The slot and side its entry's `begin` would take, claiming now from where it stands, by the
-	# stack's claim chain (`DoorStack.claim`), the side asked for its own from there.
+	# The slot and side its entry's `begin` would take, claiming now from where it stands, by a
+	# stack member of its own (`StackMember.claim`), the side asked for its own from there.
 	var stack: RefCounted = _ledger.stack(e["id"], g)
-	var at: Dictionary = stack.claim(
-		{ "id": ctx["self_id"], "slot": 0, "frame": GameClock.frame(), "pos": self_pos },
-		func(_n): return _entry.stack_side_from(stack, self_pos, ctx["map"], ctx["space"]),
+	var member := StackMember.new()
+	member.id = ctx["self_id"]
+	member.begin(GameClock.frame(), self_pos)
+	member.ask(
+		_entry.stack_side_from(stack, self_pos, ctx["map"], ctx["space"]),
+		stack.team_side(self_pos),
 	)
+	var at: Dictionary = member.claim(stack)
 	if not at["held"]:
 		return {}  # A dead end already holding all it can (E20): no slot for this NPC there.
 	var point: Vector2 = at["point"]

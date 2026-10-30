@@ -127,7 +127,8 @@ func _stack_order_option(ctx: Dictionary, order: Dictionary, rooms: Array) -> Di
 
 
 ## The ORDER option of a join into room `into`: the member's own `entry`, joining the leader's
-## stack (`join`, `bang` false, the order's id).
+## stack (`join`, `bang` false, the order's id), held for its human leader's go (`wait_go`, and
+## `go` once it came, D31).
 func _join_order_option(ctx: Dictionary, order: Dictionary, into: Dictionary) -> Dictionary:
 	var joined := "the doorway into the %s" % _v.room_name(into["type"])
 	return {
@@ -136,6 +137,7 @@ func _join_order_option(ctx: Dictionary, order: Dictionary, into: Dictionary) ->
 		"params": {
 			"opening": String(order["opening"]), "into": String(into["key"]),
 			"bang": false, "join": true, "order_id": order["id"],
+			"wait_go": bool(order.get("wait_go", false)), "go": bool(order.get("go", false)),
 		},
 		"tags": { "inside": _v.is_inside(ctx["self_pos"]) },
 	}

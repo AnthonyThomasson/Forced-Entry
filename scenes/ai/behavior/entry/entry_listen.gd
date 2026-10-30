@@ -46,19 +46,17 @@ func reset() -> void:
 	_listen_over = false
 
 
-## Set the entry's mode at `Entry.begin` (`bang`), its leaf having `asked` for a bang or not: an
-## ordered stack goes in the order's way, whoever claimed first (LD9, D10); else a room already
-## suspect means a bang with a stun in the stack (`_suspect_bang`, E17), and a stack already claimed
-## goes in the way its first claimer chose. A bang the leaf did not ask for is noted
-## (`Entry.take_turned`).
-func begin_mode(entry: Entry, team: Array, asked: bool) -> void:
-	var ordered := entry.orders.claim(entry)
-	if not ordered.is_empty():
-		state.bang = bool(ordered["order_bang"])
+## Set the entry's mode at `Entry.begin` (`bang`), its leaf having `asked` for a bang or not: the
+## stack's (`DoorStack.mode`): an ordered stack goes in the order's way, whoever claimed first (LD9,
+## D10), and a stack already claimed the way its first claimer chose; else, alone, a room already
+## suspect means a bang with a stun in the stack (`_suspect_bang`, E17). A bang the leaf did not ask
+## for is noted (`Entry.take_turned`).
+func begin_mode(entry: Entry, asked: bool) -> void:
+	var stack_mode: String = entry.claim.stack.mode(entry.claim.me(entry))
+	if stack_mode == "":
+		state.bang = _suspect_bang(entry, [], asked)  # (Nobody claims: the team is empty.)
 	else:
-		state.bang = _suspect_bang(entry, team, asked)
-		if not team.is_empty():
-			state.bang = team.all(func(m): return m["bang"] and not m["bang_off"])
+		state.bang = stack_mode != "quiet"
 	entry.readiness.turned = state.bang and not asked
 
 
@@ -133,12 +131,12 @@ func listening(entry: Entry, team: Array) -> bool:
 
 ## Whether a late reason could still turn this quiet entry into a bang one (`maybe_upgrade`): the
 ## stack carries a stun, nobody has crossed, no member gave the bang up, the stack is not over a
-## burst already, it is not a pass-by, and nobody in it was ordered (LD9: an ordered quiet stack
-## stays quiet).
+## burst already, it is not a pass-by, nobody in it was ordered (LD9: an ordered quiet stack
+## stays quiet) and it is no human leader's rally (D31: its mode is its go's).
 func _may_turn(entry: Entry, team: Array) -> bool:
 	return (not (
 		entry.grenade.off or entry.grenade.over or state.secure
 		or entry.grenade.vetoed(entry, team) or entry.grenade.crossing(entry)
-		or entry.orders.stack_ordered(entry)
+		or entry.orders.mode_set(entry)
 	)
 			and entry.grenade.stack_has_stun(team))
