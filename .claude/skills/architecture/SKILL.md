@@ -55,8 +55,8 @@ General) and `Sound` (Audio).
 
 ## The vital interfaces (this is the whole cross-domain surface)
 
-Everything not listed here is private to its domain. The signatures live only in this skill's `interfaces/` files, one per interface: a domain's skill names the
-interfaces it takes part in (by number) and describes how they're implemented.
+Everything not listed here is private to its domain. The signatures live only in this skill's `interfaces/` files, one
+per interface: a domain's skill names the interfaces it takes part in (by number) and describes how they're implemented.
 
 1. **Main → World Generation** (through `MatchBuilder`) — Main, World-Gen. Read to generate a house (`WorldGen.generate`) or use its catalogue lookups and street: `interfaces/01-main-to-world-generation.md`
 2. **World Generation → Objects** — World-Gen, Objects. Read to spawn a piece, wall, floor or wear (`ObjectFactory`, `WallFactory`, `FloorFactory`, `WearFactory`): `interfaces/02-world-generation-to-objects.md`

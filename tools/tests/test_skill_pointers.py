@@ -2,9 +2,9 @@
 (`architecture/interfaces/NN-<slug>.md`, `domain-testing/perf.md`, ...). These checks keep the map and its files in
 step, reading the checkout as text (nothing written, nothing run but tools/test_coverage.py):
   - every path into either skill folder written in a skill, AGENTS.md or docs/ names a file that exists: rooted
-    (`architecture/interfaces/07-character-controller.md`, `.claude/skills/domain-testing/perf.md`) anywhere, or
+    (`architecture/interfaces/07-character-and-controller.md`, `.claude/skills/domain-testing/perf.md`) anywhere, or
     relative to the skill folder (`interfaces/07-...md`, `perf.md`) inside it;
-  - the interface index in architecture/SKILL.md and the files under interfaces/ match one to one, numbers 1..23;
+  - the interface index in architecture/SKILL.md and the files under interfaces/ match one to one, numbers 1..INTERFACES;
   - no orphan: every side file is pointed to from its SKILL.md;
   - each SKILL.md stays at most 30 KB;
   - each section another file cites by name (`domain-testing`, "Running tests") is still a heading in its SKILL.md;
@@ -25,11 +25,11 @@ COVERAGE_NAMES = 163
 
 # A path into a split skill's folder, rooted at the skills dir or the repo; globs and placeholders (`NN-*.md`,
 # `domain-<name>/`) are prose, not pointers.
-ROOTED = re.compile(r"(?<![\w/.-])(?:\.claude/skills/)?(architecture|domain-testing)/([\w./*<>-]*[\w*>])")
+ROOTED = re.compile(r"(?<![\w/.-])(?:(?:\.claude/)?skills/)?(architecture|domain-testing)/([\w./*<>-]*[\w*>])")
 # A backticked `.md` path inside a split skill's folder, read relative to that folder unless it names a repo file.
 RELATIVE = re.compile(r"`((?:[\w-]+/)*[\w.-]+\.md)`")
 CITATION = re.compile(r'`(architecture|domain-testing)`(?: skill)?, "([^"]+)"')
-INDEX_LINE = re.compile(r"^(\d+)\. .*`interfaces/(\d\d)-[\w-]+\.md`", re.M)
+INDEX_LINE = re.compile(r"^(\d+)\. .*`interfaces/((\d\d)-[\w-]+\.md)`", re.M)
 
 
 def citing_files() -> list[Path]:
@@ -41,7 +41,7 @@ def side_files(skill: str) -> list[Path]:
     return sorted(p for p in folder.rglob("*.md") if p != folder / "SKILL.md")
 
 
-def relative_pointers(skill: str, text: str) -> set[str]:
+def relative_pointers(text: str) -> set[str]:
     return {p for p in RELATIVE.findall(text) if not (ROOT / p).exists() and not (SKILLS / p).exists()
             and not p.startswith(SPLIT)}
 
@@ -62,7 +62,7 @@ class SkillPointerTests(unittest.TestCase):
         missing = []
         for skill in SPLIT:
             for f in [SKILLS / skill / "SKILL.md", *side_files(skill)]:
-                for p in sorted(relative_pointers(skill, f.read_text())):
+                for p in sorted(relative_pointers(f.read_text())):
                     if not (SKILLS / skill / p).exists():
                         missing.append(f"{f.relative_to(ROOT)}: {p}")
         self.assertEqual(missing, [], "relative paths that name no file in their skill folder")
@@ -70,22 +70,22 @@ class SkillPointerTests(unittest.TestCase):
     def test_the_interface_index_and_the_interface_files_match_one_to_one(self):
         text = (SKILLS / "architecture" / "SKILL.md").read_text()
         index = INDEX_LINE.findall(text)
-        for number, file_number in index:
-            self.assertEqual(int(number), int(file_number), f"index line {number} points at file {file_number}")
-        numbers = sorted(int(n) for n, _ in index)
-        self.assertEqual(numbers, list(range(1, INTERFACES + 1)), "index lines: one per interface 1..23")
+        for number, name, file_number in index:
+            self.assertEqual(int(number), int(file_number), f"index line {number} points at {name}")
+        numbers = sorted(int(n) for n, _, _ in index)
+        self.assertEqual(numbers, list(range(1, INTERFACES + 1)), f"index lines: one per interface 1..{INTERFACES}")
         files = sorted((SKILLS / "architecture" / "interfaces").glob("*.md"))
         names = [f.name for f in files]
         self.assertEqual([n for n in names if not re.fullmatch(r"\d\d-[a-z0-9-]+\.md", n)], [], "file names")
         self.assertEqual(sorted(int(n[:2]) for n in names), list(range(1, INTERFACES + 1)),
-                         "interface files: exactly one per number 1..23")
-        for f in files:
-            self.assertIn(f"`interfaces/{f.name}`", text, f"{f.name} has no index line")
+                         f"interface files: exactly one per number 1..{INTERFACES}")
+        indexed = {name for _, name, _ in index}
+        self.assertEqual([n for n in names if n not in indexed], [], "interface files with no index line")
 
     def test_no_side_file_is_an_orphan(self):
         orphans = []
         for skill in SPLIT:
-            pointed = relative_pointers(skill, (SKILLS / skill / "SKILL.md").read_text())
+            pointed = relative_pointers((SKILLS / skill / "SKILL.md").read_text())
             for f in side_files(skill):
                 if str(f.relative_to(SKILLS / skill)) not in pointed:
                     orphans.append(str(f.relative_to(ROOT)))

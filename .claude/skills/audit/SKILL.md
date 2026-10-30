@@ -28,8 +28,7 @@ git diff --stat                            # unstaged edits (not in the diff)
 
 Empty diff: say so and stop. Never stage files. Unstaged edits are outside the diff but step 5 sees them: report them.
 
-Load `architecture` (the domain table and "The vital interfaces", the whole sanctioned cross-domain surface; read the
-`interfaces/NN-<slug>.md` file of each interface the diff crosses) and the
+Load `architecture` (the domain table and "The vital interfaces", the whole sanctioned cross-domain surface) and the
 skill of every domain the diff touches, once. `scenes/<folder>/` → `domain-<folder>`; sub-domains have their own:
 
 | Path | Skill |
@@ -49,6 +48,8 @@ skill of every domain the diff touches, once. `scenes/<folder>/` → `domain-<fo
 | `character/body/` | `domain-character-body` |
 | `ui/{menus,hud,overlays,testing}/` | `domain-ui-<folder>` |
 | `scenes/main.gd`, `scenes/match_builder.gd`, `scenes/match_spawner.gd` | `domain-main` |
+
+For each interface the diff crosses, read its file, `architecture/interfaces/NN-<slug>.md` (the index names it).
 
 A change to a parent (`goal_controller.gd`, `character.gd`, a sub-domain's role) goes to the parent skill; keep both the
 sub-skill and its parent true. A coupling between sub-domains that bypasses their published interfaces is an isolation

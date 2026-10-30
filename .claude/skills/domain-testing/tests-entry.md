@@ -1,6 +1,6 @@
 ## Tactical entry tests (tag `entry`)
 
-`tests/ai/entry/` pin down `docs/tactical-entry.md` (E1 to E15 here, E16 to E22 in `tests-stack.md` and the sections below; each header names its behaviour): staging and
+`tests/ai/entry/` pin down `docs/tactical-entry.md` (E1 to E15 here, E16 to E22 in `tests-stack.md`, the sections below and `tests-leadership.md`; each header names its behaviour): staging and
 the approach, the stack's slots, the pie, the crossing, the corners, the ready barrier and the radio, the solo entry
 and a joining ally, clearing, covering the doorways on and rear security. Scripted-Von tests on the Terrace house (`Maps.house(s, false)`, bare
 rooms so the geometry is clean), through `tests/_ai/entry_probe.gd` (`const Entry := preload(...)`): `rules(s, door)`
