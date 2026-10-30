@@ -1,6 +1,6 @@
 """The `architecture` and `domain-testing` skills are each a short SKILL.md map plus side files read on demand
 (`architecture/interfaces/NN-<slug>.md`, `domain-testing/perf.md`, ...). These checks keep the map and its files in
-step, reading the checkout as text (nothing written, nothing run but tools/test_coverage.py):
+step, reading the checkout as text (nothing written to it, nothing run but tools/test_coverage.py):
   - every path into either skill folder written in a skill, AGENTS.md or docs/ names a file that exists: rooted
     (`architecture/interfaces/07-character-and-controller.md`, `.claude/skills/domain-testing/perf.md`) anywhere, or
     relative to the skill folder (`interfaces/07-...md`, `perf.md`) inside it;
@@ -8,15 +8,16 @@ step, reading the checkout as text (nothing written, nothing run but tools/test_
     no gap (N the index's line count);
   - no orphan: every side file is pointed to from its SKILL.md;
   - each SKILL.md stays at most 30 KB;
-  - each section another file cites against a split skill (`domain-testing`, "Running tests", or "Running tests"
-    (`domain-testing`)) is still a heading in its SKILL.md;
+  - each section another file cites against a split skill (`<skill>`, "<section>", or "<section>" (`<skill>`)) is
+    still a heading in its SKILL.md;
   - each section a split skill's file cites in a named file (`perf.md`, "Rendered too") is still a heading or a
     `**<label>:**` bold label of that file;
-  - tools/test_coverage.py still reads the 163 interface names out of the interface files.
+  - tools/test_coverage.py still reads the `COVERAGE_NAMES` interface names out of the interface files.
 """
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -30,7 +31,7 @@ COVERAGE_NAMES = 163
 
 # A path into a split skill's folder, rooted at the skills dir or the repo, placeholders and globs captured too.
 ROOTED = re.compile(r"(?<![\w/.-])(?:(?:\.claude/)?skills/)?(architecture|domain-testing)/([\w./*<>-]*[\w*>])")
-# A backticked `.md` path inside a split skill's folder, read relative to that folder unless it names a repo file.
+# A backticked `.md` path inside a split skill's folder, read there first, then in the repo root or the skills dir.
 RELATIVE = re.compile(r"`((?:[\w-]+/)*[\w.-]+\.md)`")
 # A section cited by name against a split skill: `<skill>`, "<section>" or "<section>" (`<skill>`).
 CITATION = re.compile(r'`(?P<skill>architecture|domain-testing)`(?: skill)?, "(?P<name>[^"]+)"'
@@ -39,6 +40,9 @@ CITATION = re.compile(r'`(?P<skill>architecture|domain-testing)`(?: skill)?, "(?
 FILE_CITATION = re.compile(r'`([\w./-]+\.md)`, "([^"]+)"')
 # A glob or placeholder in a path (`NN-*.md`, `domain-<name>/`): prose, not a pointer.
 PLACEHOLDER = re.compile(r"[*<>]")
+HEADING = re.compile(r"#+ (.+)$")
+# A code fence's opening or closing run: three or more backticks or tildes, indented at most three spaces.
+FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
 INDEX_LINE = re.compile(r"^(\d+)\. .*`interfaces/((\d\d)-[\w-]+\.md)`", re.M)
 
 
@@ -56,12 +60,26 @@ def one_line(text: str) -> str:
 
 
 def headings(text: str) -> list[str]:
-    return re.findall(r"^#+ (.+)$", text, re.M)
+    """The headings of `text`, a `#` line inside a code fence (a `## doc comment` in GDScript) left out. A fence closes
+    on a run of its own char at least as long with nothing after it; a backtick run with a backtick after it opens
+    none (it is inline code)."""
+    found, fence = [], ""
+    for line in text.splitlines():
+        opener = FENCE.match(line)
+        rest = line.strip()[len(opener[1]):] if opener else ""
+        if fence:
+            if opener and opener[1].startswith(fence) and not rest:
+                fence = ""
+        elif opener and not (opener[1][0] == "`" and "`" in rest):
+            fence = opener[1]
+        elif m := HEADING.match(line):
+            found.append(m[1])
+    return found
 
 
 def unknown_file_sections(folder: Path, text: str) -> list[str]:
-    """The `<file>.md`, "<label>" citations in `text` (read in the skill `folder`) whose label is neither a heading of
-    that file (its start) nor one of its `**<label>:**` bold labels."""
+    """The `<file>.md`, "<label>" citations in `text` (the file read in the skill `folder` or, failing that, the repo
+    root) whose label is neither a heading of that file (its start) nor one of its `**<label>:**` bold labels."""
     unknown = []
     for name, label in FILE_CITATION.findall(text):
         label = one_line(label)
@@ -77,9 +95,13 @@ def side_files(skill: str) -> list[Path]:
     return sorted(p for p in folder.rglob("*.md") if p != folder / "SKILL.md")
 
 
-def relative_pointers(text: str) -> set[str]:
-    return {p for p in RELATIVE.findall(text) if not (ROOT / p).exists() and not (SKILLS / p).exists()
-            and not p.startswith(SPLIT)}
+def relative_pointers(folder: Path, text: str) -> set[str]:
+    """The backticked `.md` paths in `text` that point into the skill `folder`: each read in `folder` first, then in the
+    repo root and the skills dir, where one that is a file is a pointer out of the skill. A path missing from `folder`
+    that names a root file (`GLOSSARY.md`) is therefore read as the root file, and one starting at a split skill's
+    folder (`domain-testing/perf.md`) is a rooted path, checked by the rooted-path test."""
+    return {p for p in RELATIVE.findall(text) if (folder / p).exists()
+            or not ((ROOT / p).exists() or (SKILLS / p).exists() or p.startswith(SPLIT))}
 
 
 class SkillPointerTests(unittest.TestCase):
@@ -98,7 +120,7 @@ class SkillPointerTests(unittest.TestCase):
         missing = []
         for skill in SPLIT:
             for f in [SKILLS / skill / "SKILL.md", *side_files(skill)]:
-                for p in sorted(relative_pointers(f.read_text())):
+                for p in sorted(relative_pointers(SKILLS / skill, f.read_text())):
                     if not (SKILLS / skill / p).exists():
                         missing.append(f"{f.relative_to(ROOT)}: {p}")
         self.assertEqual(missing, [], "relative paths that name no file in their skill folder")
@@ -122,11 +144,19 @@ class SkillPointerTests(unittest.TestCase):
     def test_no_side_file_is_an_orphan(self):
         orphans = []
         for skill in SPLIT:
-            pointed = relative_pointers((SKILLS / skill / "SKILL.md").read_text())
+            pointed = relative_pointers(SKILLS / skill, (SKILLS / skill / "SKILL.md").read_text())
             for f in side_files(skill):
                 if str(f.relative_to(SKILLS / skill)) not in pointed:
                     orphans.append(str(f.relative_to(ROOT)))
         self.assertEqual(orphans, [], "side files their SKILL.md does not point to")
+
+    def test_a_relative_path_is_read_in_the_skill_folder_first(self):
+        text = "`GLOSSARY.md`, `gone.md`, `docs/hearing.md`, `architecture/nowhere.md`"
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            self.assertEqual(relative_pointers(folder, text), {"gone.md"})
+            (folder / "GLOSSARY.md").write_text("# A side file named like the root one\n")
+            self.assertEqual(relative_pointers(folder, text), {"GLOSSARY.md", "gone.md"})
 
     def test_each_split_skill_md_is_at_most_30_kb(self):
         for skill in SPLIT:
@@ -136,9 +166,11 @@ class SkillPointerTests(unittest.TestCase):
     def test_every_cited_section_is_a_heading(self):
         known = {s: headings((SKILLS / s / "SKILL.md").read_text()) for s in SPLIT}
         cited = set()
-        for f in [*citing_files(), *(ROOT / "tools").rglob("*.py"), *(ROOT / "tools").rglob("*.sh")]:
+        for f in citing_files():
             cited |= cited_sections(f.read_text())
         self.assertIn(("domain-testing", "Running tests"), cited, "premise: the citations are found")
+        for f in [*(ROOT / "tools").rglob("*.py"), *(ROOT / "tools").rglob("*.sh")]:
+            cited |= cited_sections(f.read_text())
         unknown = sorted(f"{s}, {name!r}" for s, name in cited if not any(h.startswith(name) for h in known[s]))
         self.assertEqual(unknown, [], "sections cited by name that are no heading in their SKILL.md")
 
@@ -148,10 +180,19 @@ class SkillPointerTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(cited_sections(text), {("domain-testing", "Running tests")})
 
+    def test_a_line_inside_a_code_fence_is_no_heading(self):
+        text = ("# Map\n```gdscript\n## A doc comment\n```\n## Running tests\n````\n```\n# Still code\n````\n"
+                "```a``` is inline code\n## Performance tests\n")
+        self.assertEqual(headings(text), ["Map", "Running tests", "Performance tests"])
+
     def test_a_section_cited_in_a_file_is_a_heading_or_a_bold_label_of_that_file(self):
-        folder = SKILLS / "domain-testing"
-        cited = '`perf.md`, "Rendered too"; `SKILL.md`, "Behaviour switches"; `perf.md`, "Rendered never"'
-        self.assertEqual(unknown_file_sections(folder, cited), ["perf.md, 'Rendered never'"])
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "side.md").write_text("# Behaviour switches\n**Rendered too:** a bold label.\n")
+            cited = ('`side.md`, "Rendered too"; `side.md`, "Behaviour switches"; `side.md`, "Rendered never"; '
+                     '`gone.md`, "Rendered too"')
+            self.assertEqual(unknown_file_sections(folder, cited),
+                             ["side.md, 'Rendered never'", "gone.md, 'Rendered too'"])
 
     def test_every_section_a_split_skill_cites_in_a_file_is_there(self):
         files = [(skill, f) for skill in SPLIT for f in [SKILLS / skill / "SKILL.md", *side_files(skill)]]

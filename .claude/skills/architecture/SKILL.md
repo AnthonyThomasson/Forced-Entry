@@ -180,8 +180,9 @@ Three conventions hold across domains; the per-domain specifics live in each dom
   nodes holding only exports, since an export must name a global class), which behaviour's modules, perception and the
   snapshot's vocabulary read live (`tuning.<topic>.<name>`), and perception's geometry modules and the planner copy each
   decision (PlayerStack and the squads build those modules with no NPC).
-  Which parts each AI module, the shell, Main, `Keybinds`, a world piece, `WorldLighting`, `TestContext` and `TestSession`
-  hold, how they are reached, and what each part may hold of its owner: `typed-components.md`.
+  The other is how the AI's parts are reached: by preload const, with no `class_name`. That, and which parts each AI
+  module, the shell, Main, `Keybinds`, a world piece, `WorldLighting`, `TestContext` and `TestSession` hold, how they are
+  reached, and what each part may hold of its owner: `typed-components.md`.
 
 ## Running & verifying
 

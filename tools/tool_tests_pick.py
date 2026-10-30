@@ -31,9 +31,9 @@ through them. Fixtures and caches are no code. The rules:
   - a changed file outside tools/ and .githooks/ runs every test module that reads it from the checkout: a Python path
     the test's own code, or a helper symbol it imports, builds on the checkout (`ROOT / "gdstyle.toml"`, ROOT being
     `Path(__file__).resolve().parents[2]`, or a name assigned such a path) that is the file or a listed folder holding
-    it, a top-level one included: unlike a name, which ties a test only to the tools, a folder the test builds whole is
-    one it reads all of (`ROOT / "docs"` reads docs/hearing.md; a game commit's picks are held to GAME_COMMIT_PICKS by
-    tools/tests/test_tool_tests.py). A path written into a repo or temp dir of the test's own (`repo / "scenes" /
+    it. A top-level folder counts too: built whole, it is read whole (`ROOT / "docs"` reads docs/hearing.md; a game
+    commit's picks are held to GAME_COMMIT_PICKS by tools/tests/test_tool_tests.py); for naming, a top-level folder
+    names no file. A path written into a repo or temp dir of the test's own (`repo / "scenes" /
     "main.gd"`) is no read, and neither is a tool that runs the file (tools/run_tests.sh names
     scenes/testing/test_batch.gd): a test that runs a tool on the checkout names the game file it depends on
     (test_load_check's `ROOT / "scenes" / "general" / "command_server.gd"`);
