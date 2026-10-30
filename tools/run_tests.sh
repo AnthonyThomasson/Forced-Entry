@@ -148,8 +148,10 @@ trap 'exit 143' TERM
 # a test, edited or new, runs against the code it was written for. Only the engine runs there: the working tree is
 # never written, the worktree goes with the run, and the report and the measured times of the checkout are left alone.
 refuse_base() { echo "--base=$BASE: $1" >&2; exit 2; }
-for a in "$@"; do case "$a" in --base=*) BASE="${a#--base=}" ;; esac; done
-if [[ -n "$BASE" ]]; then
+BASE_GIVEN=0
+for a in "$@"; do case "$a" in --base=*) BASE="${a#--base=}"; BASE_GIVEN=1 ;; esac; done
+if [[ $BASE_GIVEN -eq 1 ]]; then
+  [[ -n "$BASE" ]] || refuse_base "unknown revision (none given)"
   for a in "$@"; do
     case "$a" in
       --changed|--staged) refuse_base "--changed and --staged are refused (given $a): a run on the base runs the selection it is given" ;;
@@ -543,6 +545,18 @@ scan_log() {
   return $bad
 }
 
+# Whether the report $1 (what --failed reads) holds a perf test that FAILED or TIMED OUT.
+failed_perf() {
+  python3 - "$1" <<'EOF'
+import json, sys
+try:
+    results = json.load(open(sys.argv[1])).get("results", [])
+except Exception:
+    sys.exit(1)
+sys.exit(0 if any(r.get("id", "").startswith("perf/") and r.get("status") in ("FAIL", "TIMEOUT") for r in results) else 1)
+EOF
+}
+
 # Whether a sharded run with these selection args has perf tests to run after its shards: perf is neither skipped nor
 # left out of the --domain / --id / --failed selection, and tests/perf holds a test.
 perf_selected() {
@@ -558,7 +572,7 @@ perf_selected() {
   [[ ",$skip," == *",perf,"* ]] && return 1
   [[ -n "$d" && ",$d," != *",perf,"* ]] && return 1
   [[ -n "$ids" && ",$ids" != *",perf/"* ]] && return 1
-  [[ -n "$failed" && -z "$ids" ]] && ! grep -q '"id": "perf/' "$failed" 2>/dev/null && return 1
+  [[ -n "$failed" && -z "$ids" ]] && ! failed_perf "$failed" && return 1
   [[ -n "$(find tests/perf \( -name '*_test.gd' -o -name '*_suite.gd' \) 2>/dev/null | head -1)" ]]
 }
 

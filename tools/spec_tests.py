@@ -35,7 +35,7 @@ def changed_lines(diff: str) -> dict:
         if line.startswith("+++ "):
             target = line[4:].strip()
             path = target[2:] if target.startswith("b/") else None  # /dev/null: a deleted file
-            if path is not None and not (path.startswith("docs/") and path.endswith(".md")):
+            if path is not None and not (path.startswith("docs/") and path.count("/") == 1 and path.endswith(".md")):
                 path = None
         elif line.startswith("@@") and path is not None:
             m = HUNK.match(line)
@@ -133,7 +133,7 @@ def git(*args: str) -> str:
 
 def main(argv: list) -> int:
     staged = "--staged" in argv
-    diff = git("-c", "core.quotePath=false", "diff", "-U0", "--no-color", "--cached" if staged else "HEAD", "--", "docs")
+    diff = git("-c", "core.quotePath=false", "diff", "-U0", "--no-color", "--cached" if staged else "HEAD", "--", "docs/*.md")
     if staged:
         def read_doc(path):
             return git("show", ":" + path)
@@ -142,7 +142,7 @@ def main(argv: list) -> int:
             return Path(path).read_text()
         # An untracked doc is all new: its whole text is one hunk.
         for path in git("ls-files", "--others", "--exclude-standard", "docs").split("\n"):
-            if path.endswith(".md"):
+            if path.endswith(".md") and path.count("/") == 1:
                 diff += f"+++ b/{path}\n@@ -0,0 +1,{len(Path(path).read_text().splitlines())} @@\n"
     ids, notes = map_diff(diff, read_doc, Path("tests"))
     for line in [f"ID {i}" for i in ids] + notes:

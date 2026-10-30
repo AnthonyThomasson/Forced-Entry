@@ -147,6 +147,7 @@ class BaseRunTests(unittest.TestCase):
             (["--base=" + self.rev, "--jobs=2"], "--jobs"),
             (["--base=" + self.rev, "--jobs=auto"], "--jobs"),
             (["--base=no-such-rev-zz"], "no-such-rev-zz"),
+            (["--base="], "unknown revision"),
         )
         for args, reason in cases:
             with self.subTest(args=args):

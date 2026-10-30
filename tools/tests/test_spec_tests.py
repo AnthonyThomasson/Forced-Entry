@@ -91,7 +91,8 @@ class MappingTests(unittest.TestCase):
         self.assertEqual(self.map(hunk("docs/a.md", 3, 1) + "@@ -9,0 +4,1 @@\n")[0], ["physics/alpha_one", "physics/alpha_two"])
 
     def test_only_the_docs_markdown_files_of_the_diff_count(self):
-        for path in ("scenes/ai/x.gd", "docs/adr/0001.txt", "README.md"):
+        for path in ("scenes/ai/x.gd", "docs/adr/0001.txt", "README.md", "docs/adr/0001-a-decision.md",
+                     "docs/agents/domain.md"):
             with self.subTest(path=path):
                 self.assertEqual(self.map(hunk(path, 4, 1)), ([], []))
         deleted = "diff --git a/docs/a.md b/docs/a.md\n--- a/docs/a.md\n+++ /dev/null\n@@ -1,3 +0,0 @@\n"

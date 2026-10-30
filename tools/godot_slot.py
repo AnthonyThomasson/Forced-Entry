@@ -30,6 +30,8 @@ import sys
 import time
 from pathlib import Path
 
+# How long a lock file naming a dead pid is watched before it is called an orphan's.
+RECLAIM_WAIT = 0.1
 VERDICT = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+\S+\s+\(")
 
 
@@ -70,6 +72,12 @@ def take(path: Path):
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             pid = lock_pid(fd)
+            if pid is not None and not alive(pid):
+                # The winner of a slot holds the lock a moment before it writes its pid: look again before taking the
+                # name of a dead process for an orphan's.
+                time.sleep(RECLAIM_WAIT)
+                if lock_pid(fd) != pid:
+                    pid = None
             same_file = os.fstat(fd).st_ino == (path.stat().st_ino if path.exists() else None)
             os.close(fd)
             if pid is None or alive(pid) or not same_file:

@@ -359,7 +359,7 @@ class WrapperTests(unittest.TestCase):
         out = self.run_wrapper("clean", "--jobs=2", "--domain=ai,physics")[1]
         self.assertRegex(out, r"(?m)^0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  \(2 shards\)  load [0-9.]+$")
 
-    def test_the_jobs_default_is_every_core_for_the_whole_suite_and_one_for_a_selection(self):
+    def test_the_jobs_default_is_the_free_slots_for_the_whole_suite_and_one_for_a_selection(self):
         self.assertGreater(self.shards(self.run_wrapper("clean")[1]), 1)
         self.assertEqual(self.shards(self.run_wrapper("clean", "--id=a/x")[1]), 1)
         self.assertEqual(self.shards(self.run_wrapper("clean", "--domain=ai")[1]), 1)
@@ -742,7 +742,7 @@ HOLDER = (
 
 
 def pool_size():
-    """The machine-wide pool the brief fixes: half the cores, at least one."""
+    """The pool's size: half the cores, at least one."""
     return max(1, (os.cpu_count() or 2) // 2)
 
 
@@ -889,6 +889,20 @@ class SlotPoolTests(unittest.TestCase):
         self.assertNotIn("waiting for a Godot slot", out)
         self.assertIn("1 passed", out)
 
+    def test_a_slot_just_locked_whose_file_still_names_the_previous_dead_pid_is_not_reclaimed(self):
+        # The winner of a slot holds the lock a moment before it writes its pid: a probe must not take that for an orphan's.
+        size = pool_size()
+        gone = dead_pid()
+        slow = (HOLDER.replace("os.write(fd, sys.argv[2].encode())\n",
+                               "os.write(fd, sys.argv[2].encode())\nprint('held', flush=True)\ntime.sleep(0.03)\n"
+                               "os.ftruncate(fd, 0)\nos.pwrite(fd, str(os.getpid()).encode(), 0)\n").replace("print('held', flush=True)\ntime.sleep(300)", "time.sleep(300)"))
+        for i in range(size):
+            proc = subprocess.Popen([sys.executable, "-c", slow, str(self.slots / f"slot{i}.lock"), str(gone)],
+                                    stdout=subprocess.PIPE, text=True)
+            self.holders.append(proc)
+            self.assertEqual(proc.stdout.readline().strip(), "held")
+        self.assertEqual(self.slot_tool("free"), (0, "0"), "every slot is held by a process that is alive")
+
     def test_the_header_and_the_merged_totals_print_the_one_minute_load(self):
         out = self.run_wrapper("--jobs=2", self.ids(2), FAKE_SLEEP="0")
         lines = out.splitlines()
@@ -981,6 +995,16 @@ class PerfPhaseTests(unittest.TestCase):
         self.log.unlink(missing_ok=True)
         _, lines, _ = self.run_wrapper("--domain=ai,physics", "--jobs=2")
         self.assertEqual(len([l for l in lines if l.startswith("start")]), 2, "no perf phase when perf is not selected")
+
+    def test_failed_starts_a_perf_phase_only_when_a_perf_test_failed(self):
+        self.run_wrapper("--id=a/x")  # leaves the checkout's last report in the temp dir
+        report = next(self.work.glob("example_godot_last_report_*.json"))
+        for status, phases in (("PASS", 0), ("FAIL", 1)):
+            with self.subTest(perf_record=status):
+                self.log.unlink(missing_ok=True)
+                report.write_text(json.dumps({"results": [{"id": "ai/x", "status": "FAIL"}, {"id": "perf/p", "status": status}]}))
+                _, lines, _ = self.run_wrapper("--jobs=2", "--failed")
+                self.assertEqual(sum(1 for l in lines if l.startswith("start") and "--shard" not in l), phases, lines)
 
     def test_the_perf_phase_runs_the_perf_part_of_a_mixed_selection(self):
         _, lines, _ = self.run_wrapper("--domain=ai,perf", "--jobs=2")
