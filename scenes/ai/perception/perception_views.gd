@@ -197,8 +197,10 @@ func walk_route(
 	return views.walk_route(at, to, world.navigation_map, space, entering)
 
 
-## Whether the plain route from where the NPC stands to `to` goes into room `key` (see
+## Whether the route from where the NPC stands to `to` goes into room `key`: the plain route, or the
+## one on navigation map `on` when given (a walk's steering map round bodies; see
 ## agent_door_views.gd `plain_enters`).
-func walk_enters(to: Vector2, key: String) -> bool:
+func walk_enters(to: Vector2, key: String, on := RID()) -> bool:
 	var at: Vector2 = perception._character.global_position
-	return views.plain_enters(at, to, perception._character.get_world_2d().navigation_map, key)
+	var map: RID = on if on.is_valid() else perception._character.get_world_2d().navigation_map
+	return views.plain_enters(at, to, map, key)

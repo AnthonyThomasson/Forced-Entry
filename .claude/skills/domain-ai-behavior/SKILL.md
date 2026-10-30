@@ -219,25 +219,28 @@ one of four ways, checked once a physics frame (`_check`):
   room it goes into and its own doorway's view, cleared or not). A leaf carrying `keep_out_room` (a member of a stack held for its leader's go, D31; not an evade) sets
   `doors.keep_out` to the held stack (`errand._held_entry`): a walk whose plain way goes into that room (`views.walk_enters`, once per goal; a
   retreat or under fire too) is routed round it and its doorway's view however long the way round (`walk_route(goal, keep_out, INF, true)`,
-  `AgentDoorViews.held_route`); any other walk of it, one into that doorway's view to fire through it among them, is left as it is. `doors.update` asks the perception's views part (`doors.views`, typed with perception's `perception_views.gd`, which `loco_doors.gd` preloads, and handed `perception.views` by `Behavior.setup`: the seam the architecture's AI row names beside `entry.stack`) for the route (`walk_route(goal, avoid_entering)`) each frame until
+  `AgentDoorViews.held_route`), and never goes round a body by a way into it (`doors.enters_kept_out(steering_map)`, below); any other walk of it, one into that doorway's view to fire through it among them, is left as it is. `doors.update` asks the perception's views part (`doors.views`, typed with perception's `perception_views.gd`, which `loco_doors.gd` preloads, and handed `perception.views` by `Behavior.setup`: the seam the architecture's AI row names beside `entry.stack`) for the route (`walk_route(goal, avoid_entering)`) each frame until
   it is decided (plain while the avoid map bakes: `pending`), then every `doors`' `RECHECK` (2 s) while round the views (which keeps the map alive and follows
   the rooms as their clear lapses): the avoid map when the plain route comes into a view and the route round them is within `door_avoid_ratio` x plain +
   `door_avoid_slack`, else plain (and `passing_ahead` secures what it crosses). A walk that is not guarded (`avoid_doors` false) drops it. A body at rest on
   a doors walk's path takes it to the steering map (round) or holds it as on a plain one: the steering map has no views carved, so E15 secures what that
-  crosses; once the way is free it goes back to the avoid map: a held walk at once (`_free_way`), a walk gone round once the avoid map's route to the goal passes
+  crosses; once the way is free it goes back to the avoid map: a held walk at once (`_free_way`), or once the avoid map's route to the goal passes no
+  known body at rest (`_clear_on`, looked at every `RECHECK` s while held: `crowd.check_held`), a walk gone round once the avoid map's route to the goal passes
   no known body at rest all the way, not only the first `LOOKAHEAD` (`_clear_on`, looked at every `RECHECK` s; a body just past the look-ahead would send it
   round again a few strides on). Once the avoid map's route is done short of the goal (a slot by a view's edge lies off that map) the last
   stretch is walked plain (`_last_stretch`; the walk is decided plain for the rest). Tests: `tests/ai/movement/npc_doors_walk_round_body`, `npc_doors_walk_body_on_goal` (scripted).
 - **round**: the Navigation domain's steering map, with every character at rest carved out, when its route reaches the goal (or ends within
   `LAST_LEG`, 64 px, of it with the plain way on passing no known body at rest: a stack slot between two taken ones lies inside their carved
-  margins) and passes no known body at rest (`crowd.goes_round`), whatever the detour (out of the room and in by another door included). A round
+  margins) and passes no known body at rest (`crowd.goes_round`), whatever the detour (out of the room and in by another door included), but
+  never, for a held stack's member, into the room it keeps out of (`doors.enters_kept_out`, `views.walk_enters` on the steering map: held instead,
+  then on its way round that room once clear; test `ai/entry/order_stack_hold_retreat_round_body`, D31). A round
   walk done short of a goal no body stands on walks the rest plain (`_last_stretch`, `crowd.last_leg`), held short of a body on it; held, it
   looks again every `RECHECK` s for a way round: a route that ends at the goal, or a new last leg whose plain way passes clear of every known
   body at rest (`crowd.goes_round(..., held_leg)`, `crowd.at_rest(goal, INF)`), so it never takes one the body holding it, or another, stands on and
   cannot flip between two holders (test `ai/entry/entry_last_leg_sealed_goes_round`);
 - **held**: no way round (the body seals the only way, or has just stopped and the map, re-baked every 0.75 s, has not carved it yet),
   or the body stands on the goal: the NPC walks on until `STOP_GAP` (56 px) from the body and stands. It looks for a way round every
-  `RECHECK` s and walks on the moment nothing known is in the way (`crowd.check_held`). After `crowd`'s `WAIT` (0.75 s), and every `REPLAN_EVERY` (4 s) after, it
+  `RECHECK` s (the avoid map's route first, `_clear_on`, then the steering map's) and walks on the moment nothing known is in the way (`crowd.check_held`). After `crowd`'s `WAIT` (0.75 s), and every `REPLAN_EVERY` (4 s) after, it
   re-plans (on its standing time: a hold that begins again within `crowd`'s `HOLD_GAP` 0.5 s of game time (`GameClock`: a pause is no gap; test
   `ai/movement/npc_hold_clock_across_pause`) of the last ending, the NPC within `HOLD_MOVED` 16 px of
   where that one began, is the same hold and keeps its clocks, `crowd.begin_hold`, so a walk aimed again, a free spot tried or a body read as

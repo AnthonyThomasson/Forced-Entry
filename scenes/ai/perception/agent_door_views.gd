@@ -643,8 +643,9 @@ func held_route(
 	return out
 
 
-## Whether the plain route from `from` to `to` on the world navigation map `map` goes into room
-## `key` by any of its doorways: a held stack's member walks round that room only then (D31).
+## Whether the route from `from` to `to` on navigation map `map` (the world's: the plain route) goes
+## into room `key` by any of its doorways: a held stack's member walks round that room only then,
+## and never goes round a body by a way into it (D31).
 func plain_enters(from: Vector2, to: Vector2, map: RID, key: String) -> bool:
 	return _entered_rooms([from] + Array(NavBuilder.route(map, from, to))).has(key)
 

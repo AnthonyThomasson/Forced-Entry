@@ -136,8 +136,10 @@ func begin_hold() -> void:
 
 
 ## `Locomotion._check` for a held walk: it goes its free way once nothing known is on it (`body`
-## INF), round once the steering map has a way (looked for every `Locomotion.RECHECK` s), and
-## re-plans after `WAIT` s.
+## INF), else, looked at every `Locomotion.RECHECK` s, round the doorway views once its avoid map
+## has a way to the goal that passes no known body at rest (a held stack's member, whose way round
+## the body would go into the room it keeps out of, takes its way round that room so), or round the
+## body once the steering map has a way; it re-plans after `WAIT` s.
 func check_held(from: Vector2, resting: Array, body: Vector2, on_goal: bool, delta: float) -> void:
 	blocker = body
 	if body == Vector2.INF:
@@ -147,7 +149,10 @@ func check_held(from: Vector2, resting: Array, body: Vector2, on_goal: bool, del
 	recheck_in -= delta
 	if not on_goal and recheck_in <= 0.0:
 		recheck_in = loco.RECHECK
-		if goes_round(from, resting, last_leg):
+		if loco.doors.map.is_valid() and loco._clear_on(loco.doors.map, from, resting):
+			last_leg = false
+			loco._set_way(loco.Way.DOORS)
+		elif goes_round(from, resting, last_leg):
 			# A held last leg goes round by a way to the goal, or to a new last leg clear of every
 			# body at rest.
 			last_leg = false
@@ -164,7 +169,8 @@ func check_held(from: Vector2, resting: Array, body: Vector2, on_goal: bool, del
 ## leg, `Locomotion._last_stretch`: of `resting`, or with `held_leg`, a held last leg looking again,
 ## of every known body at rest, so a new last leg is never one the body holding it, or another,
 ## stands on), and passes no known body at rest (`resting`) closer than
-## `Locomotion.PASS_CLEARANCE`. Nothing goes round before both maps have synchronized.
+## `Locomotion.PASS_CLEARANCE`; for a held stack's member, not into the room it keeps out of (D31:
+## `Locomotion`'s `doors.enters_kept_out`). Nothing goes round before both maps have synchronized.
 func goes_round(from: Vector2, resting: Array, held_leg := false) -> bool:
 	var plan_map: RID = loco._plan_map
 	if (not steering_map.is_valid()
@@ -183,7 +189,8 @@ func goes_round(from: Vector2, resting: Array, held_leg := false) -> bool:
 				or NavBuilder.path_length(leg) > LAST_LEG
 				or first_on(end, leg, 0, clear_of, INF) != Vector2.INF):
 			return false
-	return first_on(from, route, 0, resting) == Vector2.INF
+	return (first_on(from, route, 0, resting) == Vector2.INF
+			and not loco.doors.enters_kept_out(steering_map))
 
 
 ## The known bodies at rest within `reach` px of `around` (the one a melee closes on left out), as

@@ -81,6 +81,13 @@ func _keeps_out() -> bool:
 	return _out_enters
 
 
+## Whether the walk's way to the goal on navigation map `on` (the steering map round bodies) goes
+## into the held stack's room it keeps out of (`keep_out`, D31): no way round a body that does is
+## taken.
+func enters_kept_out(on: RID) -> bool:
+	return keep_out != "" and views.walk_enters(loco._goal, keep_out.get_slice(">", 1), on)
+
+
 ## A walk that does not keep out of the doorway views: it forgets the avoid map, and one on it goes
 ## the plain way.
 func _drop_doors() -> void:

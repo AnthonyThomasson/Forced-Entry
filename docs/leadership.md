@@ -369,7 +369,8 @@ sentence for Von ends " when they give the go".
   confine drops the options outside its room (LD8). The leaf carries it (`keep_out_room`): the fight's spots keep out of that room
   (`Combat.peek_cover`'s spot rule), a contact in it is fought from where the member stands, never chased in, and a walk whose plain way goes
   into that room (an engage's reposition, a retreat, under fire too; not an evade) goes round it and its doorway's view as an ordered
-  approach's does, however long the way round (D4): a retreat to a room behind it is never walked through it. Its other walks, one into the
+  approach's does, however long the way round (D4), and never goes round a body at rest on its way by a way into that room (it waits short of
+  the body, then goes round the room once that way is clear): a retreat to a room behind it is never walked through it. Its other walks, one into the
   doorway's view to fire through it among them, are left as they are. When the fight lapses, the member's order brings it back to
   its slot.
 - **The walk into the slot.** A member arrives at its slot from a point past it that stops a body's clearance (32 px) short of the next
@@ -401,7 +402,9 @@ stack holds and `view()` says held until the leader's go), `ai/stack/stack_playe
 funnel before the order and steps in after it; the squad's `view()` then no longer says held), `ai/door_stack_suite` (the rule:
 `released` against the order's frame), `general/command_menu_wiring` (LD16), `order_stack_hold_fights_stack_side` (real Von: a defender in
 the kitchen seen through the back door and then hidden, the held members unkillable as the premise: each fires from its side and none
-walks into the kitchen while held). The `order_stack_*` tests cover a stack that goes when ready.
+walks into the kitchen while held), `order_stack_hold_retreat_round_body` (scripted: a held member falls back to the living room past a
+teammate standing on its plain way through the kitchen, and goes round the house, never into the kitchen). The `order_stack_*` tests
+cover a stack that goes when ready.
 
 **LD14. Frag entry.** The stack order's `mode` is `quiet`, `stun` or `frag` (LD5). With `frag` the stack throws a frag into the room
 before the point crosses, the bang of E17 (`docs/tactical-entry.md`) with a frag:
