@@ -59,7 +59,7 @@ The `tools/run_tests.sh` flags `SKILL.md`'s "Running tests" leaves out.
   (`--base=<merge-base> --id=<id>`) to show a changed regression test still red on the old code.
 - **Test seams** (set only by `tools/test_log_gate.py` and the tool tests, not by a person): `GAME_TEST_SLOT_POLL`
   (seconds between a waiting process's looks at the pool, 0.5), `GAME_TEST_QUIET_MINUTE` (the seconds a `--quiet` "minute"
-  lasts, 60) and `GAME_TEST_QUIET_POLL` (seconds between its looks at the machine, 5), `GAME_TEST_VON_PORT` (the port the
+  lasts, 60) and `GAME_TEST_QUIET_POLL` (seconds between its looks at the machine, 5), `GAME_TEST_STOP_WAIT` (seconds `godot_slot.py stop` waits after SIGTERM before SIGKILL, 5), `GAME_TEST_VON_PORT` (the port the
   wrapper probes for a live Von server, 8000) and `GAME_TEST_CHANGED_FILES` (below).
 - **Other flags:** `--skip-domain=a,b` (leave those exact domains out; wins over every other selection, `--changed`'s included),
   `--repeat=N` (each test N times; names `FLAKY` / `FAILING` ones; a native suite, which runs once a process, runs

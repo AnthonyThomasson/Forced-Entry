@@ -43,6 +43,8 @@ from pathlib import Path
 
 # How long a lock file naming a dead pid is watched before it is called an orphan's.
 RECLAIM_WAIT = 0.1
+# How long `stop` waits for the processes a SIGKILL was sent to.
+KILL_WAIT = 2.0
 # The lock file that serialises the takers of a pool (it is not a slot).
 GUARD = "slot-reclaim.lock"
 VERDICT = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+\S+\s+\(")
@@ -220,6 +222,7 @@ def option(argv: list, name: str, default=None):
 
 
 def mark_loaded(report: dict) -> dict:
+    """`report` (a batch report) with every result marked `"loaded": true`."""
     for r in report.get("results", []):
         r["loaded"] = True
     return report
@@ -267,9 +270,10 @@ def quiet(argv: list) -> int:
 
 
 def stop(argv: list) -> int:
+    """End every process the --ancestor started: SIGTERM, then SIGKILL for what is left after the waits."""
     ancestor = int(option(argv, "--ancestor", os.getppid()))
     wait = float(os.environ.get("GAME_TEST_STOP_WAIT", "5"))
-    for sig, seconds in ((signal.SIGTERM, wait), (signal.SIGKILL, 2.0)):
+    for sig, seconds in ((signal.SIGTERM, wait), (signal.SIGKILL, KILL_WAIT)):
         sent, deadline = set(), time.monotonic() + seconds
         while True:
             left = under(ancestor) - {os.getpid()} - zombies()

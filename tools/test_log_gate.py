@@ -689,6 +689,11 @@ class SpecNamedTestsTests(unittest.TestCase):
         self.assertEqual(self.run_changed("--repeat=2"), [self.HEADER, "selection: --id=ai/alpha_one,physics/beta_two --repeat=5"])
         self.assertEqual(self.run_changed("--repeat=9"), [self.HEADER, "selection: --id=ai/alpha_one,physics/beta_two --repeat=9"])
 
+    def test_a_repeat_that_is_not_a_number_is_left_for_the_batch_to_refuse(self):
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.assertEqual(self.run_changed("--repeat=many"),
+                         [self.HEADER, "selection: --id=ai/alpha_one,physics/beta_two --repeat=5 --repeat=many"])
+
     def test_they_run_also_when_their_domain_already_ran(self):
         self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
         self.edit("scenes/ai/a.gd", "Node", "Node2D")
@@ -1222,6 +1227,11 @@ class QuietGateTests(unittest.TestCase):
         self.assertTrue(waits, out)
         for line in waits:
             self.assertRegex(line, r"\(none wanted\), \d+\.\d of 2 min$")
+
+    def test_the_harness_self_test_holds_no_perf_test_and_does_not_wait(self):
+        out = self.start("--self-test", "--quiet").communicate(timeout=20)[0]
+        self.assertNotIn("waiting for a quiet machine", out)
+        self.assertNotIn("quiet gate timed out", out)
 
     def test_a_selection_without_perf_does_not_wait(self):
         proc = self.start("--domain=ai", "--quiet")

@@ -434,7 +434,7 @@ godot_run() {
     return 1
   fi
   if [[ ! -f "$out/report.json" ]] && grep -q "No test cases found" "$out/gdunit.txt"; then
-    # gdUnit runs no session, so no suite and no hook, when the selection holds no test: an empty run, as it was.
+    # gdUnit runs no session, so no suite and no hook, when the selection holds no test: an empty run.
     echo '{"results": [], "stray_logs": [], "log_end": 0}' > "$out/report.json"
     echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap" | python3 "$TOOLS/godot_slot.py" annotate --ancestor=$$
     echo "Report: $out/report.json"
@@ -1001,13 +1001,18 @@ if [[ $CHANGED -eq 1 ]]; then
       echo "== tests named by changed spec paragraphs =="
       von=()
       von_live && von=(--include-von)
-      # --repeat=5, or the user's own when it is larger (given once: the run's own flags follow the ones given here).
+      # --repeat=5, or the user's own when it is larger. The user's flag is taken out of args for this run, so the batch gets one.
       spec_repeat=5
       saved_args=(${args[@]+"${args[@]}"})
       args=()
       for x in ${saved_args[@]+"${saved_args[@]}"}; do
         case "$x" in
-          --repeat=*) [[ "${x#--repeat=}" =~ ^[0-9]+$ && "${x#--repeat=}" -gt $spec_repeat ]] && spec_repeat="${x#--repeat=}" ;;
+          --repeat=*)
+            if [[ "${x#--repeat=}" =~ ^[0-9]+$ ]]; then
+              [[ "${x#--repeat=}" -gt $spec_repeat ]] && spec_repeat="${x#--repeat=}"
+            else
+              args+=("$x")   # not a number: the batch refuses it
+            fi ;;
           *) args+=("$x") ;;
         esac
       done
