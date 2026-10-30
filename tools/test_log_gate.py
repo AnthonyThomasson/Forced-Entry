@@ -159,11 +159,17 @@ empty() { printf '{"results": [], "stray_logs": [], "log_end": %s}' "$(wc -c < "
 # A report of one passing case of a native suite (`<suite id>::<case>`).
 native() { printf '{"results": [{"id": "a/n_suite::test_x", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
 # A report of a passing test and two Von tests skipped for want of a server (and one plain skip), with the totals line
-# the batch prints for them.
+# the batch prints for them: the batch marks a Von skip `"von": true` in its record.
 von_skips() {
-  printf '{"results": [{"id": "a/x", "status": "PASS", "domain": "a"}, {"id": "ai/v1", "status": "SKIPPED", "domain": "ai", "reason": "needs the Von decision server (pass --include-von)"}, {"id": "ai/v2", "status": "SKIPPED", "domain": "ai", "reason": "the Von decision server is not live"}, {"id": "a/s", "status": "SKIPPED", "domain": "a", "reason": "no reason"}], "stray_logs": [], "log_end": %s}' \
+  printf '{"results": [{"id": "a/x", "status": "PASS", "domain": "a"}, {"id": "ai/v1", "status": "SKIPPED", "domain": "ai", "reason": "needs the Von decision server (pass --include-von)", "von": true}, {"id": "ai/v2", "status": "SKIPPED", "domain": "ai", "reason": "the Von decision server is not live", "von": true}, {"id": "a/s", "status": "SKIPPED", "domain": "a", "reason": "no reason", "von": false}], "stray_logs": [], "log_end": %s}' \
     "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
   echo "1 passed, 0 failed, 0 timed out, 3 skipped (2 need Von, not run: --require-von), 0 gap"
+}
+# A Von skip whose record names no domain, and a plain skip whose own reason talks about the Von decision server.
+von_odd_records() {
+  printf '{"results": [{"id": "ai/v1", "status": "SKIPPED", "domain": "ai", "reason": "gone", "von": true}, {"id": "nodomain/v2", "status": "SKIPPED", "reason": "gone", "von": true}, {"id": "a/decoy", "status": "SKIPPED", "domain": "a", "reason": "skipped by its test: the Von decision server is not what it checks", "von": false}], "stray_logs": [], "log_end": %s}' \
+    "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
+  echo "0 passed, 0 failed, 0 timed out, 3 skipped (2 need Von, not run: --require-von), 0 gap"
 }
 timed() {
   printf '{"results": [{"id": "a/x", "status": "PASS", "wall_ms": 120}, {"id": "a/z", "status": "PASS", "wall_ms": 80}, {"id": "a/s", "status": "SKIPPED", "wall_ms": 5}], "stray_logs": [], "log_end": %s}' \
@@ -180,6 +186,7 @@ case "$FAKE_SCENARIO" in
   shard1_empty) if [ "$shard" = "1/2" ]; then empty; else report; fi ;;
   timed) timed ;;
   von_skips) von_skips ;;
+  von_odd_records) von_odd_records ;;
   judged_error) echo "$judged" >> "$log"; report ;;
   shutdown_error) report; echo "ERROR: engine complained while quitting" >> "$log" ;;
   shutdown_warning) report; echo "WARNING: engine muttered while quitting" >> "$log" ;;
@@ -390,6 +397,13 @@ class WrapperTests(unittest.TestCase):
         # Nothing skipped for want of Von: no NOTE.
         code, out = self.changed_output(["scenes/ai/behavior/behavior.gd"], "clean")
         self.assertNotIn("Von test(s)", out)
+
+    def test_the_von_note_counts_the_records_the_batch_marked_von_and_no_other_skip(self):
+        # Not by the words of the skip reason; and a record with no domain does not end the run.
+        note = "NOTE 2 Von test(s) in the changed domains were not run: tools/run_tests.sh --domain=ai --require-von"
+        code, out = self.changed_output(["scenes/ai/behavior/behavior.gd"], "von_odd_records")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(out.splitlines()[-1], note, out)
 
     def test_changed_runs_only_an_edited_test_not_the_domains_that_compose_its_code(self):
         code, lines = self.changed(["tests/projectile/pistol_shot_wounds_test.gd"])
@@ -1807,6 +1821,9 @@ class GdUnitEngineTests(unittest.TestCase):
                 self.assertRegex(run.out, r"(?m)^0 passed, 0 failed, 0 timed out, 1 skipped \(1 need Von, not run: --require-von\), 0 gap  load [0-9.]+$")
         run = self.probe(self.VERDICT, GAME_TEST_VERDICT="skip")
         self.assertRegex(run.out, r"(?m)^0 passed, 0 failed, 0 timed out, 1 skipped, 0 gap  load [0-9.]+$", "no Von skip: no parenthesis")
+        self.assertEqual([r["von"] for r in run.report()["results"]], [False], "the plain skip's record is not marked")
+        run = self.probe(self.VON, GAME_TEST_VON_PORT=port)
+        self.assertEqual([r["von"] for r in run.report()["results"]], [True], "the Von skip's record is")
         run = self.run_tests("--self-test", f"--id={self.VON},{self.VERDICT}", "--summary", GAME_TEST_VERDICT="skip",
                              GAME_TEST_VON_PORT=port)
         self.assertEqual((run.summary, run.von_skipped), ((0, 0, 0, 2, 0), 1), run.out)

@@ -47,7 +47,7 @@ interface 23), the module Main builds its matches with, so a test world is stage
   description and tags (`ai` matches the ai domain, not "chair"). Sandboxes live apart in `sandboxes/` and are never run.
   `requires_von` tests are skipped unless `--include-von` is passed (`--require-von` runs them and
   fails when no server is live), and are then paced in real time
-  (see below). The totals line names those skips apart from any other: `69 skipped (69 need Von, not run:
+  (see below). The totals line names those skips apart from any other (their records in `report.json` carry `"von": true`): `69 skipped (69 need Von, not run:
   --require-von)` (with none, the line has no parenthesis), and it ends with the machine's 1-minute load, which a line before
   the first test prints too (each process's totals line and a sharded run's merged one alike). `--changed` ends with
   `NOTE <n> Von test(s) in the changed domains were not run: tools/run_tests.sh --domain=<d> --require-von` when the

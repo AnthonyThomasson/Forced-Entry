@@ -54,6 +54,8 @@ var stray_logs: Array = []
 var _building := false
 ## Whether the open test's verdict has been taken (a later logged error then changes it).
 var _concluded := false
+## Whether the open test was skipped for want of the Von decision server (its record says so).
+var _von_skipped := false
 
 
 func _process(_delta: float) -> void:
@@ -92,6 +94,7 @@ func start(test_entry: Dictionary) -> void:
 	entry = test_entry
 	setup = null
 	_concluded = false
+	_von_skipped = false
 	var skip_reason := ""
 	if entry["requires_von"]:
 		skip_reason = await von.skip_reason(status.emit)
@@ -107,6 +110,7 @@ func start(test_entry: Dictionary) -> void:
 		ctx.finish("FAIL")
 		return
 	if skip_reason != "":
+		_von_skipped = true
 		ctx.skip(skip_reason)
 		return
 	var test: GameTest = load(entry["path"]).new()
@@ -171,7 +175,8 @@ func close() -> Dictionary:
 	return record
 
 
-## The verdict and record of the open test. A failed, timed-out or GAP result also carries `events`,
+## The verdict and record of the open test (`von`: it was skipped for want of the Von decision
+## server). A failed, timed-out or GAP result also carries `events`,
 ## `snapshot` (the final actor / object state, taken before teardown when `snapshot` is passed) and
 ## `traces`, so the cause can be read without a rerun.
 func result(snapshot := {}) -> Dictionary:
@@ -182,7 +187,7 @@ func result(snapshot := {}) -> Dictionary:
 		"status": ctx.verdict.status, "reason": ctx.verdict.reason,
 		"time": snappedf(ctx.time, 0.01),
 		"checks": ctx.verdict.checks.duplicate(), "logs": ctx.verdict.logs.duplicate(),
-		"manual": entry.get("manual", false),
+		"manual": entry.get("manual", false), "von": _von_skipped,
 	}
 	if BUNDLED.has(ctx.verdict.status):
 		record["events"] = ctx.bundle.plain_events(ctx.events)

@@ -663,8 +663,8 @@ except OSError:
 EOF
 }
 
-# The Von tests the runs that wrote the dirs given skipped (a record SKIPPED for want of the Von decision server, as the
-# totals line counts them), appended to $VON_SKIPPED as `<domain> <id>` lines for --changed's closing NOTE.
+# The Von tests the runs that wrote the dirs given skipped (the records the batch marked `"von": true`, as the totals
+# line counts them), appended to $VON_SKIPPED as one JSON `[domain, id]` line each for --changed's closing NOTE.
 note_von_skips() {
   python3 - "$VON_SKIPPED" "$@" <<'EOF'
 import json, os, sys
@@ -675,22 +675,23 @@ with open(sys.argv[1], "a") as out:
         except Exception:
             continue
         for r in results:
-            if r.get("status") == "SKIPPED" and "Von decision server" in r.get("reason", ""):
-                out.write("%s %s\n" % (r.get("domain", ""), r["id"]))
+            if r.get("status") == "SKIPPED" and r.get("von"):
+                out.write(json.dumps([r.get("domain", ""), r["id"]]) + "\n")
 EOF
 }
 
 # The closing NOTE of --changed: how many distinct Von tests the runs skipped, and the command that runs their domains.
 von_note() {
   python3 - "$VON_SKIPPED" <<'EOF'
-import sys
+import json, sys
 seen = {}
 for line in open(sys.argv[1]):
-    domain, test_id = line.split()
+    domain, test_id = json.loads(line)
     seen[test_id] = domain
 if seen:
+    domains = sorted({d for d in seen.values() if d})
     print("NOTE %d Von test(s) in the changed domains were not run: tools/run_tests.sh --domain=%s --require-von"
-          % (len(seen), ",".join(sorted(set(seen.values())))))
+          % (len(seen), ",".join(domains)))
 EOF
 }
 
