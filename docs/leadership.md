@@ -455,7 +455,8 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   body's `process_physics_priority` is `PRIMED_PRIORITY` (1), so it moves after every other body in the frame. It then sees an entrant at
   the spot the entrant's own step just reached, on the frame that step opens the line, while the entrant's controller acted before the
   step: a same-frame tie is the ambusher's, the entrant firing back the next frame at the earliest. Both are undone once it is no longer
-  primed. Nothing changes for any other NPC.
+  primed. Nothing changes for any other NPC; its own children at the default priority (its hands, its blood wound) run before its
+  body on those frames (D37), harmless at a post.
 - **The end (D18).** On first contact the perception ends the order `done` (`orders.end_ambush_on_contact`, every observe): a hostile in sight,
   wherever it stands, or the member under fire (hit, or a round landing by it), wherever the shots come from. Footsteps heard and callouts
   are no contact. It radios `done` and decides on its own (Von; a fight is COMBAT). It is no defend: its confinement keeps it to no room. The order ends in
@@ -858,7 +859,7 @@ The cases the behaviours above cite as D1 to D37.
 | D34 | The rear guard | With three or more recipients, the last spawned that is not the leader is kept back; it follows the leader and is free for the next order; with two, both go. | LD29 |
 | D35 | Re-orders | Only for a new doorway, at least 8 s after the last order, to the members then holding no order, with at least two of them after the rear guard is left out; the doorway and the clock move only when an order is posted, and start afresh with a new leader; a dead leader's ambushes stand. | LD29 |
 | D36 | A member that refused its order | Free for the ambush rule: a member whose held order it radioed `refused` (no post for it) is a recipient of the next, as a refused join is dropped (LD25); the human's held orders and `view()` keep D21. | LD29 |
-| D37 | The primed ambusher | At its post, holding the ambush of its live order, it tests its sight on every character in its view cone every frame and moves after every other body (`process_physics_priority` 1): a same-frame tie with an entrant is the ambusher's. Nobody else changes. | LD15 |
+| D37 | The primed ambusher | At its post, holding the ambush of its live order, it tests its sight on every character in its view cone every frame and moves after every other body (`process_physics_priority` 1): a same-frame tie with an entrant is the ambusher's. Nobody else changes, but its own children that process at the default priority (its hands, its blood wound) run before its body on those frames: its hands read the body a frame behind, harmless at a post, where it holds still and does not punch. | LD15 |
 
 ## Numbers
 

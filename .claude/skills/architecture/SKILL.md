@@ -161,7 +161,10 @@ Three conventions hold across domains; the per-domain specifics live in each dom
 - **Layered control / animate / draw.** Within an entity the three verbs live in separate files,
   wired via the scene tree (no `class_name` on scene scripts but a typed component's, below; cross-file calls resolve through
   `$` / `get_parent()`). A "draw" file is attached to its own child `Node2D` (Godot only draws
-  from `CanvasItem`s). Ordering: a parent's `_physics_process` runs before its children's.
+  from `CanvasItem`s). Ordering: a parent's `_physics_process` runs before its children's. One exception: a primed ambusher's body
+  (`process_physics_priority` 1, interface 7, `docs/leadership.md` D37) runs after its own children that process at the default 0 (its
+  `Hands`, its `BloodWound`) on those frames, so its hands read the body a frame behind; harmless at a post, where it holds still and
+  does not punch. Character's children keep no priority of their own (setting one would leave interface 7).
 - **Runtime shapes.** Collision shapes are built **in code in `_ready()`**, not in the scene
   (layout is data-driven). Because of this the editor shows a "no shape" warning on the character scenes'
   `CollisionShape2D` (`character_base.tscn`, so `Player` and the NPCs) — **that is expected** (walls are built in code); don't add scene shapes.
