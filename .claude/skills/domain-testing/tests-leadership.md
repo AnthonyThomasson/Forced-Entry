@@ -55,7 +55,14 @@ call the squad itself (`follows`, `follow_spot`, `leader()`, `view()`) and its t
 that only answers the code's own value (`follows`, `SquadFollowConfig.leash`) is a `require` premise, and the behaviour the spec describes is the check.
 A watch of the team is `tests/_ai/follow_watch_probe.gd` (`const FollowWatch := preload(...)`): `new_watch`, `tick`, `watch`, `asked` (the Von
 questions of a member's walks), `gaps`, `took`, `acts_of`, `went_through`, `percentile`, `off_spot_tick` and `step_up` (the
-human walked up to `STEP_UP` beside the back door, the rally tests' claim).
+human walked up to `STEP_UP` beside the back door, the rally tests' claim). The human leader's held rally (D31, `tests/ai/stack/rally_*`)
+builds on them in `tests/_ai/rally_probe.gd` (`const Rally := preload(...)`: `world` (the bare Terrace house, the human puppet and two
+invader NPCs, `IDS`, bound as Main binds them with "Lead the team" on), `members`, `arm`, `rallied` (the human steps up and both stand ready,
+held for its go, within `READY_WITHIN`), `menu_go(t, mode)` (the command menu's go in a mode), `both_in`, `first_going_in`,
+`check_went_without_human`). A stack held for its go under fire (LD13 and D31: `ai/entry/order_stack_hold_fights_stack_side`,
+`order_stack_hold_retreat_round_body`, `ai/stack/rally_held_fights_stack_side`) is `tests/_ai/held_fight_probe.gd` (`const HeldFight := preload(...)`: `defender`, `arm`, `fight`,
+`check_stack_side`: fired from the stack's side, never into the room nor `going_in`, and each back in its slot within `SLOT_NEAR` once the
+fight lapsed).
 
 **Where a stack stands (E20 to E22) and every member reaching its slot.** `tests/_ai/slots_probe.gd` (`const Slots := preload(...)`; not a
 test) judges slots from the house's own data and the test's own geometry (rooms, wall plane, navmesh, carved furniture, its own copies of
@@ -68,13 +75,17 @@ probes beside it: one per rule for a point in `tests/_ai/slot_rules_probe.gd` (`
 (`const SlotFaults`: `point_faults`, `stack_faults`, `short_wall_faults`, `is_short_wall`, `capacity_text`); and rule 6's ways in, the rule
 a way in's slots answer to and what each holds, in `tests/_ai/slot_capacity_probe.gd` (`const SlotCapacity`: `way_kind`, `dead_end_capacity`,
 `wall_capacity`, `views_capacity`, `open_floor_capacity`, `wall_spots`, `fewest_views_bar`). `tests/ai/entry/stack_slots_sweep` runs them over
-every generated floorplan. Beneath them two native suites
-feed plain claim dicts to the stack module, over the shared speakers and callouts of `tests/_ai/stack_radio_probe.gd` (`const StackRadio :=
-preload(...)`: `speaker(suite, dead)`, freed with the suite's case, and `callout`): `tests/ai/stack_claim_suite.gd` (`StackClaim`'s codec, its
-not-a-claim, step and join rules, a `ClaimLedger`) and `tests/ai/door_stack_suite.gd` (`DoorStack`'s slot rules: same-frame ties, move-up, the
-human's slot, a split stack's crossing order, `released`, layout rows). Where an NPC may act has its native suite too,
+every generated floorplan. Beneath them three native suites
+feed plain claim dicts to the stack module, over the shared speakers, callouts and doorway of `tests/_ai/stack_radio_probe.gd` (`const StackRadio :=
+preload(...)`: `speaker(suite, dead)`, freed with the suite's case, `callout`, `claim` (a speaker's claim as a listener decodes it), and
+`door` / `slot_at`, a plain doorway's two files of six slots): `tests/ai/stack_claim_suite.gd` (`StackClaim`'s codec, its
+not-a-claim, step and join rules, `order_terms`, a `ClaimLedger`), `tests/ai/door_stack_suite.gd` (`DoorStack`'s slot rules: same-frame ties, move-up, the
+human's slot, a split stack's crossing order, `released`, layout rows, and `hold` / `held` / `mode`: an ordered stack held for its go, a human
+leader's rally held until the leader steps in or a go comes, an AI leader's rally never held) and `tests/ai/stack_member_suite.gd`
+(`StackMember`, one member's claim: the first free slot on its side, keeping and settling it, the side rule, its claim in the radio's names,
+the NPC's entry and the human's `PlayerStack` claiming alike, the `changed` report). Where an NPC may act has its native suite too,
 `tests/ai/perception/confinement_suite.gd` (perception's `confinement` part, `domain-ai-perception`: each rule alone and combined, an option
-judged at `from` else `point`, the snapshot's frozen copy), beside its simulation tests `ai/grenade/territorial_throw_from_inside` and
+judged at `from` else `point`, the snapshot's frozen copy, a held stack's room kept out, D31), beside its simulation tests `ai/grenade/territorial_throw_from_inside` and
 `ai/combat/ambush_contact_leashes_follower` and two game tests driving one module through the confinement's answers with no world of its own:
 `ai/decision/combat_options_within_confinement` (the planner's COMBAT filter on hand-made snapshots, a node under the world walked over frames
 with `DecisionStub`) and `ai/combat/combat_spot_within_confinement` (Combat's spot choice, with stand-ins as `ai/combat/combat_waits_for_facing`
