@@ -19,6 +19,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const AmbushRule := preload("res://tests/_ai/ambush_rule_probe.gd")
 ## The spec's numbers (#128 rule 7), this test's own copy.
 const REORDER_GAP := 8.0
 const MIN_RECIPIENTS := 2
@@ -67,7 +68,7 @@ func run(t: TestContext) -> void:
 	var second := Order.ambushes(t).back() as Dictionary
 	Order.issue(squad, { "kind": Order.CANCEL, "to": [d2] })
 	await _wait_past(t, second)
-	var third := await _call(t, OUTSIDE_FRONT)
+	var third := await AmbushRule.combat_call(t, t.actor(&"p"), &"household", OUTSIDE_FRONT)
 	t.check(
 		_is_ambush(third, FRONT_CHAIN) and Order.names(third.get("to", [])) == ["d2", "d3"],
 		"with d1 still holding its order, the new doorway goes to the free d2 and d3, two: no rear "
@@ -88,7 +89,7 @@ func run(t: TestContext) -> void:
 ## the puppet (no NPC) never named; a call naming the same doorway, or a threat in the leader's own
 ## room, orders nothing more. Returns the order ({} when the test ended).
 func _first_order(t: TestContext, squad: Node) -> Dictionary:
-	var first := await _call(t, OUTSIDE_FRONT)
+	var first := await AmbushRule.combat_call(t, t.actor(&"p"), &"household", OUTSIDE_FRONT)
 	if not t.require(
 			_is_ambush(first, FRONT_CHAIN),
 			"a threat outside the front door orders the ambush of the hall's doorway into the "
@@ -103,11 +104,22 @@ func _first_order(t: TestContext, squad: Node) -> Dictionary:
 		"d3, the last spawned of three, is the rear guard: no order, it follows",
 	)
 	t.check(
-		await _call(t, OUTSIDE_FRONT + Vector2(-40, 20)) == {},
+		await AmbushRule.combat_call(
+			t,
+			t.actor(&"p"),
+			&"household",
+			OUTSIDE_FRONT + Vector2(-40, 20),
+		) == {},
 		"a second threat by the same doorway orders nothing",
 	)
-	t.check(await _call(t, IN_LIVING) == {}, "a threat in the leader's own room orders nothing")
-	t.check(await _call(t, Vector2.INF) == {}, "a call placing nothing orders nothing")
+	t.check(
+		await AmbushRule.combat_call(t, t.actor(&"p"), &"household", IN_LIVING) == {},
+		"a threat in the leader's own room orders nothing",
+	)
+	t.check(
+		await AmbushRule.combat_call(t, t.actor(&"p"), &"household", Vector2.INF) == {},
+		"a call placing nothing orders nothing",
+	)
 	return first
 
 
@@ -116,11 +128,11 @@ func _first_order(t: TestContext, squad: Node) -> Dictionary:
 func _cool_down(t: TestContext, squad: Node, first: Dictionary) -> void:
 	Order.issue(squad, { "kind": Order.CANCEL, "to": [t.actor(&"d1"), t.actor(&"d2")] })
 	t.check(
-		await _call(t, IN_KITCHEN) == {},
+		await AmbushRule.combat_call(t, t.actor(&"p"), &"household", IN_KITCHEN) == {},
 		"within %.0f s of the last ambush ordered a new doorway orders nothing" % REORDER_GAP,
 	)
 	await _wait_past(t, first)
-	var again := await _call(t, IN_KITCHEN)
+	var again := await AmbushRule.combat_call(t, t.actor(&"p"), &"household", IN_KITCHEN)
 	t.check(
 		_is_ambush(again, KITCHEN_DOOR) and Order.names(again.get("to", [])) == ["d1", "d2"],
 		"past the cool-down a threat in the kitchen orders the kitchen's doorway to d1 and d2 (%s)"
@@ -151,7 +163,7 @@ func _new_leader(t: TestContext, squad: Node, third: Dictionary) -> Dictionary:
 			"%s still holds the ambush the dead leader gave" % m.name,
 		)
 	Order.issue(squad, { "kind": Order.CANCEL, "to": [d2, d3] })
-	var fresh := await _call(t, OUTSIDE_FRONT, d2)
+	var fresh := await AmbushRule.combat_call(t, d2, &"household", OUTSIDE_FRONT)
 	t.check(
 		_is_ambush(fresh, FRONT_CHAIN) and Order.names(fresh.get("to", [])) == ["d2", "d3"],
 		"the new leader's own call, the same doorway within the cool-down, orders it again (%s)"
@@ -172,7 +184,7 @@ func _refused(t: TestContext, held: Dictionary) -> Dictionary:
 			"status": "", "path": "", "label": "", "target_id": 0, "point": m.global_position,
 			"order_id": held["id"], "order_step": "refused",
 		})
-	var next := await _call(t, IN_KITCHEN, t.actor(&"d2"))
+	var next := await AmbushRule.combat_call(t, t.actor(&"d2"), &"household", IN_KITCHEN)
 	t.check(
 		_is_ambush(next, KITCHEN_DOOR) and Order.names(next.get("to", [])) == ["d2", "d3"],
 		"having refused their order, d2 and d3 are ordered the kitchen's doorway (%s)"
@@ -187,24 +199,9 @@ func _one_free(t: TestContext, squad: Node, held: Dictionary) -> void:
 	Order.issue(squad, { "kind": Order.CANCEL, "to": [t.actor(&"d3")] })
 	await _wait_past(t, held)
 	t.check(
-		await _call(t, OUTSIDE_FRONT, t.actor(&"d2")) == {},
+		await AmbushRule.combat_call(t, t.actor(&"d2"), &"household", OUTSIDE_FRONT) == {},
 		"a new doorway with only d3 free (under %d recipients) orders nothing" % MIN_RECIPIENTS,
 	)
-
-
-## Post a COMBAT callout placing a hostile at `target` from `speaker` (the puppet by default), wait
-## two frames, and return the ambush order it gave rise to, or {}.
-func _call(t: TestContext, target: Vector2, speaker: Node = null) -> Dictionary:
-	var who: Node = speaker if speaker != null else t.actor(&"p")
-	var before := Order.ambushes(t).size()
-	EventBus.post(&"callout", {
-		"speaker": who, "faction": &"household", "position": who.global_position,
-		"status": "", "path": "combat/t_1/engage/here", "label": "COMBAT", "target_id": 0,
-		"point": who.global_position, "target_pos": target,
-	})
-	await t.frames(2)
-	var after := Order.ambushes(t)
-	return after.back() if after.size() > before else {}
 
 
 ## Wait until `REORDER_GAP` s (and a little) of game time have passed since `order` was posted.

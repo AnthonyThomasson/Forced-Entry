@@ -12,7 +12,7 @@ extends GameTest
 ## and Von is scripted (a crew left alone walks its leader out of its room).
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
-const Order := preload("res://tests/_ai/order_probe.gd")
+const AmbushRule := preload("res://tests/_ai/ambush_rule_probe.gd")
 ## Outside by the front door: the defenders' attack comes into the living room by the hall's
 ## doorway.
 const OUTSIDE_FRONT := Vector2(-100, 415)
@@ -59,29 +59,14 @@ func run(t: TestContext) -> void:
 		return
 	await t.seconds(0.5)
 	t.check(
-		await _call(t, &"d2", &"household", OUTSIDE_FRONT) == {},
+		await AmbushRule.combat_call(t, t.actor(&"d2"), &"household", OUTSIDE_FRONT) == {},
 		"the human-led defenders order no ambush on a threat outside the front door",
 	)
 	t.check(
-		await _call(t, &"i2", &"invader", IN_HALL) == {},
+		await AmbushRule.combat_call(t, t.actor(&"i2"), &"invader", IN_HALL) == {},
 		"the invaders order no ambush on a threat in the hall",
 	)
 	t.check(
-		await _call(t, &"i1", &"invader", IN_HALL + Vector2(40, 0)) == {},
+		await AmbushRule.combat_call(t, t.actor(&"i1"), &"invader", IN_HALL + Vector2(40, 0)) == {},
 		"nor on their leader's own call",
 	)
-
-
-## Post a COMBAT callout of `faction` from actor `speaker` placing a hostile at `target`, wait two
-## frames, and return the ambush order it gave rise to, or {}.
-func _call(t: TestContext, speaker: StringName, faction: StringName, target: Vector2) -> Dictionary:
-	var who := t.actor(speaker)
-	var before := Order.ambushes(t).size()
-	EventBus.post(&"callout", {
-		"speaker": who, "faction": faction, "position": who.global_position,
-		"status": "", "path": "combat/t_1/engage/here", "label": "COMBAT", "target_id": 0,
-		"point": who.global_position, "target_pos": target,
-	})
-	await t.frames(2)
-	var after := Order.ambushes(t)
-	return after.back() if after.size() > before else {}

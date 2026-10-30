@@ -24,7 +24,9 @@ members, leader)`, a squad built and bound by the match's own rule (`MatchBuilde
 `levels`, and where its entry has it stand at the back door, `stack_point` and `stacked`). The ambush tests on one room (LD15, D17, D18:
 `ambush_post_shielded_from_bang`, `ambush_primed_fires_on_line_open`, `ambush_survives_stun_entry`) lay it with
 `tests/_ai/ambush_maps.gd` (`const AmbushMap := preload(...)`: `room(s)`, a room over a hall, their doorway, the front door and a wardrobe,
-and its landmarks as consts, as `flank_maps.gd` does). Where every member of an ambush order waits, at every doorway of a house, is read
+and its landmarks as consts, as `flank_maps.gd` does). The defenders' ambush rule's tests (`general/squad_ambush_rule`, `squad_ambush_rule_off`, LD29) post their radio calls through
+`tests/_ai/ambush_rule_probe.gd` (`const AmbushRule := preload(...)`: `combat_call(t, speaker, faction, target)`, a COMBAT callout placing a
+hostile, returning the ambush order it gave rise to, read with `Order.ambushes`). Where every member of an ambush order waits, at every doorway of a house, is read
 by `tests/_ai/ambush_posts_probe.gd` (`const AmbushPosts := preload(...)`: `posts_of(t)`, `check_capture(t, path)`) through the published
 entry geometry with no NPC (a ranking of its own, worked out as the one the NPCs on a map share), and
 `ai/combat/ambush_posts_capture_terrace` / `_house` pin it to a capture of the full ranking beside each; the shared ranking itself runs in
