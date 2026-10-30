@@ -1351,9 +1351,12 @@ class CleanupOnExitTests(unittest.TestCase):
     def interrupted(self, sig: signal.Signals, args: tuple, edit=None) -> None:
         with TempDir() as d:
             repo = fixture_repo(d, edit)
+            # Ctrl-C is the default disposition in the run, whatever this test run was started with (a background job of a
+            # non-interactive shell ignores it, and the run keeps it ignored, as Python does).
             cli = subprocess.Popen([sys.executable, str(repo / "tools" / "coverage.py"), "run", *args], cwd=repo,
                                    env=env_with_godot(), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT, text=True)
+                                   stderr=subprocess.STDOUT, text=True,
+                                   preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
             try:
                 games = wait_for(lambda: godot_processes_under(cli.pid), timeout=120)
                 self.assertTrue(games, "the run started a game")
@@ -1361,7 +1364,11 @@ class CleanupOnExitTests(unittest.TestCase):
                 games = godot_processes_under(cli.pid)
                 self.assertTrue(scratch_left(repo), "the run's copy and hit folder are in artifacts/tmp/")
                 cli.send_signal(sig)
-                out, _ = cli.communicate(timeout=120)
+                try:
+                    out, _ = cli.communicate(timeout=120)
+                except subprocess.TimeoutExpired:
+                    cli.kill()
+                    self.fail(f"the run did not end within 120 s of {sig.name}; it printed:\n{cli.communicate()[0]}")
             finally:
                 if cli.poll() is None:
                     cli.kill()

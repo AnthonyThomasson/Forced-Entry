@@ -39,28 +39,40 @@ The `tools/run_tests.sh` flags `SKILL.md`'s "Running tests" leaves out.
 - **Perf after the shards:** with more than one process the perf-domain tests are held back from the shards and run after
   every shard has ended, alone in one process (one slot), then folded into the combined summary, totals and `--failed`
   report; `--repeat` applies to that run too. With one process (a selection, `--windowed`, a selection of perf alone)
-  nothing is held back. Perf tests budget wall-clock ms about 4x their baseline, so a trip means a loaded machine or a
-  slower game (`--quiet`, below).
-- **`--quiet[=MINUTES]`:** before a process that holds perf tests starts (the perf phase of a sharded run; the one process of
-  a run whose selection holds perf: the whole suite with one job, perf alone, `--id=perf/x,ai/y`; a `--repeat` rerun of a
-  native suite of `tests/perf`) the wrapper waits until no other Godot process runs (any godot this run did not start,
-  editors and played games included) and the 1-minute load is under `max_load` in `tools/perf_quiet.conf` (6: this box's
-  idle baseline is about 5), printing the load and the count of other Godot processes at once and each minute. After
-  `MINUTES` (default `timeout_min` of the same file, 30) it runs anyway and marks that process's results `loaded` (on each
-  verdict line, `"loaded": true` in `report.json` and in each result of the `JSON:` line): a `loaded` result is no evidence of a regression. A gate that fails for
-  another reason than its timeout (an unreadable `perf_quiet.conf`) ends the run with exit 2 before a test starts. The
-  wrapper appends `(load <x>, <n> other Godot)` to every `PERF` line it passes (shown with `--verbose`), quiet or not.
+  nothing is held back. Filter words have that run only if the batch lists a perf test for them (`--quiet` below). Perf
+  tests budget wall-clock ms about 4x their baseline, so a trip means a loaded machine or a slower game (`--quiet`,
+  below).
+- **`--quiet[=MINUTES]`:** (this file owns the rule; `perf.md` and the wrapper's help text point here) before a process that
+  holds perf tests starts, the wrapper waits until no other Godot process runs (any godot this run did not
+  start, editors and played games included) and the 1-minute load is under `max_load` in `tools/perf_quiet.conf` (6: this
+  box's idle baseline is about 5), printing the load and the count of other Godot processes at once and each minute. **A
+  process holds perf tests** when it is the perf phase of a sharded run, the one process of a run whose selection holds
+  perf (the whole suite with one job, perf alone, `--id=perf/x,ai/y`), or a `--repeat` rerun of a native suite of
+  `tests/perf`; a selection of filter words holds one only if the batch lists a perf test for them (one `--list <words>
+  --domain=perf` engine start, asked only when words meet `--quiet` or `--jobs` above 1), so `projectile --jobs=4` starts
+  no perf phase and waits for nothing unless a perf test matches. After `MINUTES` (default `timeout_min` of the same file,
+  30) it runs anyway and marks that process's results `loaded` (on each verdict line, `"loaded": true` in `report.json` and
+  in each result of the `JSON:` line): a `loaded` result is no evidence of a regression. A gate that fails for another
+  reason than its timeout (an unreadable `perf_quiet.conf`) ends the run with exit 2 before a test starts. The wrapper
+  appends `(load <x>, <n> other Godot)` to every `PERF` line it passes (shown with `--verbose`), quiet or not.
+- **The Von run for a change to the AI:** (this file owns the rule; `SKILL.md`'s table, `ticket` and `ticket-story` give the
+  command) a change under `scenes/ai/` or `scenes/testing/` runs `tools/run_tests.sh --domain=ai --require-von --summary`
+  once, whatever its labels, because every other run skips the `requires_von` tests: the totals line names those skips
+  apart (`N skipped (V need Von, not run: --require-von)`) and `--changed` ends with a `NOTE <n> Von test(s) in the
+  changed domains were not run: tools/run_tests.sh --domain=<d> --require-von` when the domains it ran hold some.
 - **`--base=<rev>`:** the working tree's tests against the code of `<rev>`: a temporary `git worktree` of `<rev>` in
   `$TMPDIR` gets the working tree's `tests/` whole (`.uid` files and helper folders included), is imported, runs the
-  selection in one process, prints its lines under `== on base <rev> (<short sha>) ==`, and is removed, also on ^C or a kill of the wrapper alone: a signal to it ends the engines it started (`tools/godot_slot.py stop`), then
-  the cleanup runs. The
-  working tree is never written; no lint; the exit code is that run's verdict. Refused with exit 2 and a reason line:
-  with `--changed`, `--staged` or `--jobs` above 1 (`--jobs=auto` and `--jobs=1` are the one process), and for an unknown `<rev>`. `fix` step 5 uses it
-  (`--base=<merge-base> --id=<id>`) to show a changed regression test still red on the old code.
+  selection in one process, prints its lines under `== on base <rev> (<short sha>) ==`, and is removed, also on ^C or a kill
+  of the wrapper alone: a signal to it ends the engines it started (`tools/godot_slot.py stop`), then the cleanup runs. The
+  working tree is never written; no lint; the exit code is that run's verdict. Every flag is checked before the worktree is
+  made or the import runs, so a refused run builds nothing. Refused with exit 2 and a reason line: with `--changed`,
+  `--staged` or `--jobs` above 1 (`--jobs=auto` and `--jobs=1` are the one process), and for an unknown `<rev>`. `fix` step
+  5 uses it (`--base=<merge-base> --id=<id>`) to show a changed regression test still red on the old code.
 - **Test seams** (set only by `tools/test_log_gate.py` and the tool tests, not by a person): `GAME_TEST_SLOT_POLL`
   (seconds between a waiting process's looks at the pool, 0.5), `GAME_TEST_QUIET_MINUTE` (the seconds a `--quiet` "minute"
-  lasts, 60) and `GAME_TEST_QUIET_POLL` (seconds between its looks at the machine, 5), `GAME_TEST_STOP_WAIT` (seconds `godot_slot.py stop` waits after SIGTERM before SIGKILL, 5), `GAME_TEST_VON_PORT` (the port the
-  wrapper probes for a live Von server, 8000) and `GAME_TEST_CHANGED_FILES` (below).
+  lasts, 60) and `GAME_TEST_QUIET_POLL` (seconds between its looks at the machine, 5), `GAME_TEST_STOP_WAIT` (seconds
+  `godot_slot.py stop` gives its SIGTERM before SIGKILL, 5; it returns as soon as nothing of the run is left),
+  `GAME_TEST_VON_PORT` (the port the wrapper probes for a live Von server, 8000) and `GAME_TEST_CHANGED_FILES` (below).
 - **Other flags:** `--skip-domain=a,b` (leave those exact domains out; wins over every other selection, `--changed`'s included),
   `--repeat=N` (each test N times; names `FLAKY` / `FAILING` ones; a native suite, which runs once a process, runs
   again in N-1 processes of its own, and the tally and totals are every process's together; with a `--shard` given by
@@ -82,7 +94,9 @@ The `tools/run_tests.sh` flags `SKILL.md`'s "Running tests" leaves out.
   `Bake.problem(region)`: what the NavigationServer would refuse in a baked polygon) are unknown to the mapping, so a change to any of them runs the whole suite).
   An edited `tests/<domain>/…_suite.gd` (a wrapper or a native suite) runs that domain.
   `GAME_TEST_CHANGED_FILES` (newline-separated paths) stands in for git's view of the changes, which is how
-  `tools/test_log_gate.py` tests this mapping. **A changed `docs/*.md` paragraph runs the tests it names:** the
+  `tools/test_log_gate.py` tests this mapping and how the `audit` skill hands `--changed` a branch's files; it stands in for
+  the files, not for the docs' hunks, so **a doc paragraph's tests do not run under `GAME_TEST_CHANGED_FILES`** (run them
+  with `--id=<ids>`). **A changed `docs/*.md` paragraph runs the tests it names:** the
   blank-line-bounded block of the new file that holds a changed line (a pure deletion: the block around where it was),
   its `Test:` / `Tests:` line (`tools/spec_tests.py`; a paragraph that names none takes the block that begins with a `Tests:`
   line and directly follows it, before the next heading or paragraph of another kind) gives backticked names, each resolved to

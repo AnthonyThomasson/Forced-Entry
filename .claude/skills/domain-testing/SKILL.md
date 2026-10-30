@@ -51,7 +51,8 @@ interface 23), the module Main builds its matches with, so a test world is stage
   --require-von)` (with none, the line has no parenthesis), and it ends with the machine's 1-minute load, which a line before
   the first test prints too (each process's totals line and a sharded run's merged one alike). `--changed` ends with
   `NOTE <n> Von test(s) in the changed domains were not run: tools/run_tests.sh --domain=<d> --require-von` when the
-  domains it ran hold Von tests it skipped; the run that covers them for a change to the AI is in the table below. Run
+  domains it ran hold Von tests it skipped; the run that covers them for a change to the AI is in the table below
+  (`runner-flags.md`). Run
   with the Bash sandbox disabled, like every Godot launch.
 - **Quiet by default:** the game's own log of what happens (shots, punches, house seed, Von decisions, the
   `PERF …` numbers) goes through `GameLog.say` (General), which a `run_tests.sh` run turns off; pass `--verbose` to
@@ -80,7 +81,7 @@ interface 23), the module Main builds its matches with, so a test world is stage
   | Just saw failures, fixed something | `tools/run_tests.sh --failed` |
   | Finished an edit | `tools/run_tests.sh --changed --summary` |
   | Before committing / big change | `tools/run_tests.sh --summary` (the whole suite shards over `auto` jobs by default: the free Godot slots of a machine-wide pool; the perf tests run after the shards, alone) |
-  | Changed `scenes/ai/` or `scenes/testing/` | once `tools/run_tests.sh --domain=ai --require-von --summary` |
+  | Changed `scenes/ai/` or `scenes/testing/` | once `tools/run_tests.sh --domain=ai --require-von --summary` (why: `runner-flags.md`) |
   | Intermittent | `--id=<id> --repeat=10` (`--seed=N` pins the layout) |
   | A fixed test still red on the old code? | `tools/run_tests.sh --base=<rev> --id=<id>` (the working tree's tests against `<rev>`'s code, in a temporary worktree) |
   | Perf numbers to judge | `tools/run_tests.sh --domain=perf --quiet --summary` (waits for a quiet machine; judge only results not marked `loaded`: `perf.md`) |

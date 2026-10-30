@@ -47,15 +47,16 @@
 #                                         file is staged; none when no script is), a finding in a script not staged
 #                                         labelled `not in this commit: <path>`. The pre-commit hook runs it.
 #   tools/run_tests.sh --base=REV --id=ai/foo
-#                                         the working tree's tests against the code of REV: a temporary git worktree of
-#                                         REV (in $TMPDIR) gets the working tree's tests/ (.uid files and helper folders
-#                                         included), is imported, runs the selection in one process, prints its lines under
-#                                         `== on base REV (<short sha>) ==` and is removed, also on ^C or a kill of the wrapper (which ends the engines it
-#                                         started first). The working tree
-#                                         is never written; no lint; the exit code is that run's verdict. Refused (exit
-#                                         2, a reason line) with --changed, --staged, --jobs above 1 and an unknown REV
-#                                         (--jobs=auto and --jobs=1 are the one process).
-#                                         Use it to see a fixed test still red on the old code.
+#                                         the working tree's tests against the code of REV: a temporary git worktree
+#                                         of REV (in $TMPDIR) gets the working tree's tests/ (.uid files and helper
+#                                         folders included), is imported, runs the selection in one process, prints
+#                                         its lines under `== on base REV (<short sha>) ==` and is removed, also on ^C
+#                                         or a kill of the wrapper (which ends the engines it started first). The
+#                                         working tree is never written; no lint; the exit code is that run's verdict.
+#                                         The flags are checked before the worktree is made. Refused (exit 2, a reason
+#                                         line) with --changed, --staged, --jobs above 1 and an unknown REV
+#                                         (--jobs=auto and --jobs=1 are the one process). Use it to see a fixed test
+#                                         still red on the old code.
 #   tools/run_tests.sh --list [words]     list matching tests (id, flags, tags, name) and exit
 #   tools/run_tests.sh --include-von ai   also run tests that need the Von decision server
 #   tools/run_tests.sh --require-von ai   Von tests FAIL instead of skipping when no server is live
@@ -79,7 +80,8 @@
 #                   With more than one process the perf-domain tests are held back from the shards and run after every
 #                   shard has ended, alone in one process (a slot), then folded into the combined summary, totals and
 #                   --failed report; --repeat applies to that run too. With one process (a selection, --windowed, a
-#                   selection of perf alone) nothing is held back.
+#                   selection of perf alone) nothing is held back. A selection of filter words has that run only if
+#                   the batch lists a perf test for them (one --list start); none, and no perf process runs.
 #   --fail-fast     stop after the first FAIL / TIMEOUT (per shard when sharded)
 # Output
 #   --summary       print only the non-passing tests and the totals (best for an agent or a hook)
@@ -89,15 +91,14 @@
 #   --shots         windowed run (not headless) that saves a PNG of each failed test
 #   --windowed      windowed run with vsync off, in one process: a perf test's frame times then include the render
 #                   (headless measures the CPU only) without being held to the display's refresh
-#   --quiet[=MINUTES]  before a process that holds perf tests starts (the perf phase of a sharded run; the one process of
-#                   a run whose selection holds perf: the whole suite with one job, perf alone, --id=perf/x,ai/y; a
-#                   --repeat rerun of a native suite of tests/perf), wait until no other Godot process runs (any Godot this
-#                   run did not start, editors included) and the 1-minute load is under max_load in tools/perf_quiet.conf
-#                   (6, this box's idle baseline), printing the load and the count each minute. After MINUTES (timeout_min,
-#                   30) it runs anyway and marks that process's results `loaded` (on their verdict lines and "loaded": true
-#                   in report.json); judge only a perf result that is not. A gate that fails otherwise (an unreadable
-#                   conf) exits 2 before any test runs. Every PERF line (shown with --verbose) ends with `(load <x>, <n>
-#                   other Godot)`, as it passes.
+#   --quiet[=MINUTES]  before a process that holds perf tests starts (the perf phase, the one process of a run whose
+#                   selection holds perf, a --repeat rerun of a native perf suite; which: runner-flags.md of the
+#                   domain-testing skill), wait until no other Godot process runs and the 1-minute load is under max_load
+#                   in tools/perf_quiet.conf (6, this box's idle baseline), printing both each minute. After MINUTES
+#                   (timeout_min, 30) it runs anyway and marks that process's results `loaded` (on their verdict lines
+#                   and as "loaded": true in report.json); judge only a perf result that is not. A gate that fails
+#                   otherwise (an unreadable conf) exits 2 before any test runs. Every PERF line (shown with --verbose)
+#                   ends with `(load <x>, <n> other Godot)`, as it passes.
 # Other
 #   --repeat=5      run each test 5 times, a native suite's cases too (it runs again in 4 more processes); names
 #                   FLAKY / FAILING tests. With a --shard given by hand a native suite runs once ("NOTE native suites
@@ -162,6 +163,7 @@ bg_wait() { "$@" & wait $!; }
 # a test, edited or new, runs against the code it was written for. Only the engine runs there: the working tree is
 # never written, the worktree goes with the run, and the report and the measured times of the checkout are left alone.
 refuse_base() { echo "--base=$BASE: $1" >&2; exit 2; }
+decimal() { echo $((10#$1)); }   # the number $1 digits spell: a leading zero is no octal
 BASE_GIVEN=0
 for a in "$@"; do case "$a" in --base=*) BASE="${a#--base=}"; BASE_GIVEN=1 ;; esac; done
 if [[ $BASE_GIVEN -eq 1 ]]; then
@@ -169,23 +171,10 @@ if [[ $BASE_GIVEN -eq 1 ]]; then
   for a in "$@"; do
     case "$a" in
       --changed|--staged) refuse_base "--changed and --staged are refused (given $a): a run on the base runs the selection it is given" ;;
-      --jobs=*) [[ "${a#--jobs=}" =~ ^[0-9]+$ && "${a#--jobs=}" -gt 1 ]] && refuse_base "$a is refused: a run on the base is one process (--jobs=1 or auto)" ;;
+      --jobs=*) [[ "${a#--jobs=}" =~ ^[0-9]+$ && "$(decimal "${a#--jobs=}")" -gt 1 ]] && refuse_base "$a is refused: a run on the base is one process (--jobs=1 or auto)" ;;
     esac
   done
   base_sha=$(git rev-parse --verify --quiet "$BASE^{commit}") || refuse_base "unknown revision"
-  BASE_TREE=$(mktemp -d "${TMPDIR:-/tmp}/run_tests_base.XXXXXX")
-  git worktree add --detach --quiet "$BASE_TREE/checkout" "$base_sha" || refuse_base "cannot make a worktree of $base_sha"
-  rm -rf "$BASE_TREE/checkout/tests"
-  cp -R "$LIVE/tests" "$BASE_TREE/checkout/tests"   # the .uid files and the helper folders with it
-  cd "$BASE_TREE/checkout"
-  echo "== on base $BASE ($(git rev-parse --short "$base_sha")) =="
-fi
-
-# A fresh checkout has no import cache (.godot/ is untracked): without the class cache every test script
-# fails to parse and the runner hangs instead of failing, so import first.
-if [[ ! -f .godot/global_script_class_cache.cfg ]]; then
-  echo "importing the project (first run in this checkout)..." >&2
-  bg_wait python3 "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
 fi
 
 # Per-checkout state kept in $TMPDIR: the previous run's merged report (for --failed), the measured wall-clock
@@ -194,10 +183,6 @@ KEY=$(printf %s "$LIVE" | shasum | cut -c1-8)
 LAST="${TMPDIR:-/tmp}/example_godot_last_report_$KEY.json"
 LAST_OUT="$LAST"   # where a run writes its merged report
 COSTS="${TMPDIR:-/tmp}/example_godot_costs_$KEY.json"
-if [[ -n "$BASE_TREE" ]]; then
-  LAST_OUT="$BASE_TREE/last_report.json"   # --failed still reads the checkout's: a run on the base replaces nothing of it
-  COSTS="$BASE_TREE/costs.json"
-fi
 LINT_OK="${TMPDIR:-/tmp}/example_godot_lint_ok_$KEY.txt"
 VON_SKIPPED=$(mktemp "${TMPDIR:-/tmp}/game_tests_von_skipped.XXXXXX")   # this run's skipped Von tests (note_von_skips)
 
@@ -269,7 +254,7 @@ sys.exit(0 if any(r.get("status") in ("FAIL", "TIMEOUT") for r in results) else 
     --*)
       batch_flag "$a" || {
         echo "unknown flag: $a" >&2
-        sed -n '/^# Selecting tests/,/^# Not here:/{/^# Not here:/d;s/^# \{0,1\}//;p;}' tools/run_tests.sh >&2
+        sed -n '/^# Selecting tests/,/^# Not here:/{/^# Not here:/d;s/^# \{0,1\}//;p;}' "$TOOLS/run_tests.sh" >&2
         exit 2
       }
       args+=("$a") ;;
@@ -290,13 +275,36 @@ auto_jobs() {
   echo $(( free < 1 ? 1 : free ))
 }
 if [[ $JOBS_EXPLICIT -eq 1 && "$JOBS" != "auto" ]]; then
-  [[ "$JOBS" =~ ^[0-9]+$ && "$JOBS" -ge 1 ]] || { echo "--jobs wants a number or auto" >&2; exit 2; }
+  [[ "$JOBS" =~ ^[0-9]+$ && "$(decimal "$JOBS")" -ge 1 ]] || { echo "--jobs wants a number or auto" >&2; exit 2; }
+  JOBS=$(decimal "$JOBS")
 fi
 # GAME_TEST_JOBS=N caps the jobs of every run in a process tree (auto and --jobs=N alike; the smaller wins), so a
 # caller (an agent, a script running this one) bounds the processes below it.
 if [[ -n "${GAME_TEST_JOBS:-}" ]]; then
-  [[ "$GAME_TEST_JOBS" =~ ^[0-9]+$ && "$GAME_TEST_JOBS" -ge 1 ]] || { echo "GAME_TEST_JOBS wants a number" >&2; exit 2; }
+  [[ "$GAME_TEST_JOBS" =~ ^[0-9]+$ && "$(decimal "$GAME_TEST_JOBS")" -ge 1 ]] || { echo "GAME_TEST_JOBS wants a number" >&2; exit 2; }
+  GAME_TEST_JOBS=$(decimal "$GAME_TEST_JOBS")
 fi
+
+# --base: the worktree of REV, made once every flag has passed (a refused run builds and imports nothing). Its
+# tests/ is the working tree's, so a test, edited or new, runs against the code it was written for.
+if [[ $BASE_GIVEN -eq 1 ]]; then
+  BASE_TREE=$(mktemp -d "${TMPDIR:-/tmp}/run_tests_base.XXXXXX")
+  git worktree add --detach --quiet "$BASE_TREE/checkout" "$base_sha" || refuse_base "cannot make a worktree of $base_sha"
+  rm -rf "$BASE_TREE/checkout/tests"
+  cp -R "$LIVE/tests" "$BASE_TREE/checkout/tests"   # the .uid files and the helper folders with it
+  cd "$BASE_TREE/checkout"
+  echo "== on base $BASE ($(git rev-parse --short "$base_sha")) =="
+  LAST_OUT="$BASE_TREE/last_report.json"   # --failed still reads the checkout's: a run on the base replaces nothing of it
+  COSTS="$BASE_TREE/costs.json"
+fi
+
+# A fresh checkout has no import cache (.godot/ is untracked): without the class cache every test script
+# fails to parse and the runner hangs instead of failing, so import first.
+if [[ ! -f .godot/global_script_class_cache.cfg ]]; then
+  echo "importing the project (first run in this checkout)..." >&2
+  bg_wait python3 "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
+fi
+
 # The domains the selection args name with --domain (comma list, every flag joined), "" for none.
 domains_of() {
   local x d=""
@@ -592,11 +600,49 @@ perf_selected() {
   [[ -n "$(find tests/perf \( -name '*_test.gd' -o -name '*_suite.gd' \) 2>/dev/null | head -1)" ]]
 }
 
+# Whether the selection args hold a filter word (an argument that is not a flag).
+has_words() {
+  local x
+  for x in "$@"; do [[ "$x" != --* ]] && return 0; done
+  return 1
+}
+
+# Whether the batch lists a perf test for these selection args: its own `--list` over them narrowed to the perf domain
+# (one engine process, a slot; the filter words are matched by the batch, which alone knows each test's name and tags).
+# The answer is kept for the next call with the same args, which the perf phase and its quiet gate both make. An engine
+# that does not answer counts as listing one: the perf tests are then held back and gated, never run loaded by mistake.
+PROBED_FOR=""
+PROBED_LISTS=0
+lists_perf() {
+  local x probe=() out n
+  for x in "$@"; do
+    case "$x" in --domain=*|--shard=*|--list) ;; *) probe+=("$x") ;; esac
+  done
+  probe+=(--domain=perf)
+  [[ "${probe[*]}" == "$PROBED_FOR" ]] && return $((1 - PROBED_LISTS))
+  out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
+  bg_wait godot_list "$out" "${probe[@]}" >"$out/list.txt" 2>&1 || true
+  n=$(sed -n 's/^\([0-9][0-9]*\) test(s)$/\1/p' "$out/list.txt" | tail -1)
+  rm -rf "$out"
+  PROBED_FOR="${probe[*]}"
+  PROBED_LISTS=1
+  [[ "${n:-1}" -eq 0 ]] && PROBED_LISTS=0
+  return $((1 - PROBED_LISTS))
+}
+
+# Whether a run with these selection args holds perf tests that are held back and gated: the static check (perf_selected)
+# and, for filter words, that the batch lists one.
+selection_has_perf() {
+  perf_selected "$@" || return 1
+  has_words "$@" && { lists_perf "$@"; return; }
+  return 0
+}
+
 # Whether the process about to start holds perf tests: a rerun of native suites (ONLY_SUITES) when one of them is in
-# tests/perf, else the selection args' perf_selected.
+# tests/perf, else the selection args' selection_has_perf.
 holds_perf() {
   if [[ -n "$ONLY_SUITES" ]]; then [[ "$ONLY_SUITES" == *res://tests/perf/* ]]; return; fi
-  perf_selected "$@"
+  selection_has_perf "$@"
 }
 
 # --quiet: before a process that holds perf tests starts, wait for no other Godot and a 1-minute load under
@@ -614,6 +660,17 @@ quiet_gate() {
     *) echo "quiet gate failed (godot_slot.py quiet exited $rc; tools/perf_quiet.conf max_load='$max' timeout_min='$min'): no test was run" >&2
        exit 2 ;;
   esac
+}
+
+# One foreground process, `bg_wait "$@"` (a runner function, its output dir, its selection args), behind the quiet gate
+# when --quiet is given and the process holds perf tests (the selection args are the third argument on). The gate's
+# `loaded` mark is for that process alone.
+perf_run() {
+  local rc=0
+  if [[ $QUIET_GATE -eq 1 ]] && holds_perf "${@:3}"; then quiet_gate; fi
+  bg_wait "$@" || rc=$?
+  LOADED_RUN=""
+  return $rc
 }
 
 # A process's lines left out where several processes make one run (a sharded run, a --repeat with native suites):
@@ -729,20 +786,20 @@ print("%d passed, %d failed, %d timed out, %d skipped%s, %d gap%s  load %s" % (
 EOF
 }
 
-# One run of the runner with the given selection args, split over several processes when asked (see jobs_for). With
-# --repeat=N every selected test is listed N times in its process, but a native suite runs once a process: it runs
-# N-1 times more, each in a process of its own given only the native suites the run met, and the FLAKY / FAILING
-# lines and the totals are those of every process together. A --shard given by hand is one process: its native
-# suites run once, and a NOTE says so.
-run() {
+# One run of the runner with the given selection args (all of them: `run` adds the command line's), split over several
+# processes when asked (see jobs_for). With --repeat=N every selected test is listed N times in its process, but a
+# native suite runs once a process: it runs N-1 times more, each in a process of its own given only the native suites the
+# run met, and the FLAKY / FAILING lines and the totals are those of every process together. A --shard given by hand is
+# one process: its native suites run once, and a NOTE says so.
+run_with() {
   local keep=1 sharded=0 listing=0 jobs x repeat=1 once=0
-  jobs=$(jobs_for "$@" ${args[@]+"${args[@]}"})
+  jobs=$(jobs_for "$@")
   [[ $jobs -gt 1 ]] && sharded=1
-  for x in "$@" ${args[@]+"${args[@]}"}; do
+  for x in "$@"; do
     case "$x" in --repeat=*) repeat="${x#--repeat=}" ;; esac
   done
-  if [[ "$repeat" =~ ^[0-9]+$ && $repeat -gt 1 ]]; then sharded=1; else repeat=1; fi
-  for x in "$@" ${args[@]+"${args[@]}"}; do
+  if [[ "$repeat" =~ ^[0-9]+$ && "$(decimal "$repeat")" -gt 1 ]]; then repeat=$(decimal "$repeat"); sharded=1; else repeat=1; fi
+  for x in "$@"; do
     case "$x" in --shard=*) [[ $repeat -gt 1 ]] && once=1 ;; esac
     case "$x" in --list|--self-test|--shard=*) sharded=0; repeat=1 ;; esac
     case "$x" in --list|--self-test) keep=0 ;; esac
@@ -754,11 +811,9 @@ run() {
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     local code=0
     if [[ $listing -eq 1 ]]; then
-      bg_wait godot_list "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
+      bg_wait godot_list "$out" "$@" || code=$?
     else
-      holds_perf "$@" ${args[@]+"${args[@]}"} && quiet_gate
-      bg_wait godot_run "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
-      LOADED_RUN=""
+      perf_run godot_run "$out" "$@" || code=$?
     fi
     [[ $keep -eq 1 ]] && { save_reports "$out"; note_von_skips "$out"; }
     scan_log "$out" $listing || code=1
@@ -766,7 +821,7 @@ run() {
       echo "NOTE native suites ran once (--shard)"
     fi
     if [[ $listing -eq 0 ]] && no_test "$out"; then
-      no_test_matched "$@" ${args[@]+"${args[@]}"}
+      no_test_matched "$@"
       code=1
     fi
     return $code
@@ -774,20 +829,20 @@ run() {
 
   local costs_args=() shard_args=()
   local dirs=() pids=() i status=0 pid fail_fast=0 perf_phase=0
-  for x in "$@" ${args[@]+"${args[@]}"}; do [[ "$x" == "--fail-fast" ]] && fail_fast=1; done
+  for x in "$@"; do [[ "$x" == "--fail-fast" ]] && fail_fast=1; done
   if [[ $jobs -gt 1 ]]; then
     # Every shard reads the same costs snapshot (the file is only rewritten once they have all finished), so they
     # all compute the same split. Each one's output is printed once they have all finished.
     [[ -f "$COSTS" ]] && costs_args=("--costs=$COSTS")
     # The perf tests' single-frame maxima miss from the load of parallel shards: they are left out of the shards and
     # run alone once every shard has ended (below).
-    perf_selected "$@" ${args[@]+"${args[@]}"} && perf_phase=1
+    selection_has_perf "$@" && perf_phase=1
     for ((i = 0; i < jobs; i++)); do
       out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
       dirs+=("$out")
       shard_args=("--shard=$i/$jobs")
       [[ $perf_phase -eq 1 ]] && shard_args+=("--skip-domain=perf")
-      godot_run "$out" "$@" ${args[@]+"${args[@]}"} ${costs_args[@]+"${costs_args[@]}"} "${shard_args[@]}" \
+      godot_run "$out" "$@" ${costs_args[@]+"${costs_args[@]}"} "${shard_args[@]}" \
         >"$out/stdout.txt" 2>&1 &
       pids+=($!)
     done
@@ -799,22 +854,18 @@ run() {
   else
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     dirs+=("$out")
-    holds_perf "$@" ${args[@]+"${args[@]}"} && quiet_gate
-    bg_wait live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
-    LOADED_RUN=""
+    perf_run live_run "$out" "$@" || status=1
   fi
   if [[ $perf_phase -eq 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
     # The selection's perf tests (its other --domain flags dropped: they would add domains, not narrow to perf), in one
     # process with the machine to itself, --repeat and the rest of the selection as given.
     local phase=() y
-    for y in "$@" ${args[@]+"${args[@]}"}; do
+    for y in "$@"; do
       case "$y" in --domain=*) ;; *) phase+=("$y") ;; esac
     done
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     dirs+=("$out")
-    quiet_gate
-    bg_wait live_run "$out" ${phase[@]+"${phase[@]}"} --domain=perf || status=1
-    LOADED_RUN=""
+    perf_run live_run "$out" ${phase[@]+"${phase[@]}"} --domain=perf || status=1
   fi
   if [[ $repeat -gt 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
     # The native suites the run met, each run again in N-1 processes, one after another (a suite's own files are
@@ -824,9 +875,7 @@ run() {
       for ((i = 1; i < repeat; i++)); do
         out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
         dirs+=("$out")
-        holds_perf "$@" ${args[@]+"${args[@]}"} && quiet_gate
-        bg_wait live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
-        LOADED_RUN=""
+        perf_run live_run "$out" "$@" || status=1
         [[ $fail_fast -eq 1 && $status -ne 0 ]] && break
       done
     fi
@@ -836,18 +885,21 @@ run() {
   # --summary, like the runner) and one combined total.
   local files=() show_slowest=1 tally=0 shards=""
   for out in "${dirs[@]}"; do files+=("$out/stdout.txt"); done
-  for x in "$@" ${args[@]+"${args[@]}"}; do [[ "$x" == "--summary" ]] && show_slowest=0; done
+  for x in "$@"; do [[ "$x" == "--summary" ]] && show_slowest=0; done
   [[ $repeat -gt 1 ]] && tally=1
   [[ $jobs -gt 1 ]] && shards="  ($jobs shards)"
   TALLY=$tally SLOWEST=$show_slowest save_reports "${dirs[@]}"
   note_von_skips "${dirs[@]}"
   merged_totals "$shards" "${files[@]}"
   if no_test "${dirs[@]}"; then
-    no_test_matched "$@" ${args[@]+"${args[@]}"}
+    no_test_matched "$@"
     status=1
   fi
   return $status
 }
+
+# A run of the selection args given and the flags of the command line.
+run() { run_with "$@" ${args[@]+"${args[@]}"}; }
 
 # Which test domains a change to scenes/<domain>/ can break: the domain itself plus everything that
 # composes it (from the architecture skill's dependency graph). "all" = the whole suite.
@@ -1001,23 +1053,21 @@ if [[ $CHANGED -eq 1 ]]; then
       echo "== tests named by changed spec paragraphs =="
       von=()
       von_live && von=(--include-von)
-      # --repeat=5, or the user's own when it is larger. The user's flag is taken out of args for this run, so the batch gets one.
+      # --repeat=5, or the user's own when it is larger. The user's flag is not passed on: the batch gets one.
       spec_repeat=5
-      saved_args=(${args[@]+"${args[@]}"})
-      args=()
-      for x in ${saved_args[@]+"${saved_args[@]}"}; do
+      others=()
+      for x in ${args[@]+"${args[@]}"}; do
         case "$x" in
           --repeat=*)
             if [[ "${x#--repeat=}" =~ ^[0-9]+$ ]]; then
-              [[ "${x#--repeat=}" -gt $spec_repeat ]] && spec_repeat="${x#--repeat=}"
+              [[ "$(decimal "${x#--repeat=}")" -gt $spec_repeat ]] && spec_repeat=$(decimal "${x#--repeat=}")
             else
-              args+=("$x")   # not a number: the batch refuses it
+              others+=("$x")   # not a number: the batch refuses it
             fi ;;
-          *) args+=("$x") ;;
+          *) others+=("$x") ;;
         esac
       done
-      run "--id=${spec_ids#,}" "--repeat=$spec_repeat" ${von[@]+"${von[@]}"} || status=1
-      args=(${saved_args[@]+"${saved_args[@]}"})
+      run_with "--id=${spec_ids#,}" "--repeat=$spec_repeat" ${von[@]+"${von[@]}"} ${others[@]+"${others[@]}"} || status=1
     fi
   fi
   if [[ $self_test -eq 1 ]]; then

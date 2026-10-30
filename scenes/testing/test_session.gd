@@ -176,9 +176,9 @@ func close() -> Dictionary:
 
 
 ## The verdict and record of the open test (`von`: it was skipped for want of the Von decision
-## server). A failed, timed-out or GAP result also carries `events`,
-## `snapshot` (the final actor / object state, taken before teardown when `snapshot` is passed) and
-## `traces`, so the cause can be read without a rerun.
+## server). A failed, timed-out or GAP result also carries `events`, `snapshot` (the final actor /
+## object state, taken before teardown when `snapshot` is passed) and `traces`, so the cause can be
+## read without a rerun.
 func result(snapshot := {}) -> Dictionary:
 	ctx.verdict.conclude(ctx, entry.get("manual", false))
 	_concluded = true

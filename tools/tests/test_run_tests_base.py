@@ -149,9 +149,11 @@ class BaseRunTests(unittest.TestCase):
     def test_the_refusals_exit_2_with_a_reason_and_run_nothing(self):
         before = self.tree()
         cases = (
-            (["--base=" + self.rev, "--changed"], "--changed"),
-            (["--base=" + self.rev, "--changed", "--staged"], "--staged"),
-            (["--base=" + self.rev, "--jobs=2"], "--jobs"),
+            (["--base=" + self.rev, "--changed"], "(given --changed)"),
+            (["--base=" + self.rev, "--staged"], "(given --staged)"),
+            (["--base=" + self.rev, "--changed", "--staged"], "(given --changed)"),
+            (["--base=" + self.rev, "--staged", "--changed"], "(given --staged)"),
+            (["--base=" + self.rev, "--jobs=2"], "--jobs=2 is refused"),
             (["--base=no-such-rev-zz"], "no-such-rev-zz"),
             (["--base="], "unknown revision"),
         )
@@ -166,16 +168,58 @@ class BaseRunTests(unittest.TestCase):
         self.assertFalse(self.observed.exists(), "no engine process was started")
         self.assertEqual(self.tree(), before)
 
+    def git_shim(self):
+        """A `git` ahead of the real one on PATH that notes every call in the returned log (the calls a run makes, as text)."""
+        shim = self.tmp / "shim"
+        shim.mkdir(exist_ok=True)
+        log = self.tmp / "git_calls.txt"
+        (shim / "git").write_text(f'#!/bin/sh\necho "$@" >> {log}\nexec {shutil.which("git")} "$@"\n')
+        (shim / "git").chmod(0o755)
+        return log, f"{shim}:{os.environ['PATH']}"
+
+    def test_a_bad_flag_is_refused_before_a_worktree_is_made_or_an_import_run(self):
+        log, path = self.git_shim()
+        for args, reason in ((["--bogus"], "unknown flag: --bogus"), (["--jobs=abc"], "--jobs wants a number")):
+            with self.subTest(args=args):
+                code, out = self.run_tests("--base=" + self.rev, *args, "--no-lint", PATH=path)
+                self.assertEqual(code, 2, out)
+                self.assertIn(reason, out)
+                self.assertNotIn("worktree add", log.read_text() if log.exists() else "", "no worktree was made")
+                self.assertFalse(self.imports.exists(), "no import ran (it takes minutes)")
+                self.assertFalse(self.observed.exists(), "no engine process was started")
+
+    def test_the_usage_of_an_unknown_flag_is_the_wrappers_own_when_the_revision_predates_it(self):
+        empty = self.git("hash-object", "-t", "tree", "/dev/null").strip()
+        old = self.git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit-tree", empty, "-m", "before the wrapper").strip()
+        code, out = self.run_tests("--base=" + old, "--bogus", "--no-lint")
+        self.assertEqual(code, 2, out)
+        self.assertIn("unknown flag: --bogus", out)
+        self.assertIn("Selecting tests", out, "the usage lines come from the running wrapper, not from the revision")
+
     def start_hanging(self):
         """A --base run whose fake engine stays alive; returns (the wrapper process, the engine's pid) once it runs."""
         started = self.tmp / "started"
+        output = self.wrapper_output.open("w")
+        self.addCleanup(output.close)
+        # Ctrl-C is the default disposition in the wrapper, whatever this test run was started with (a background job of a
+        # non-interactive shell ignores it, and a signal ignored on entry can be neither trapped nor delivered).
         proc = subprocess.Popen(["bash", str(self.repo / "tools" / "run_tests.sh"), "--base=" + self.rev, "--id=ai/x",
                                  "--no-lint"], cwd=self.repo, env=self.env(FAKE_HANG="1", FAKE_STARTED=str(started)),
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                stdout=output, stderr=subprocess.STDOUT, start_new_session=True,
+                                preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
         self.addCleanup(lambda: proc.poll() is None and os.killpg(proc.pid, signal.SIGKILL))
         self.addCleanup(self.kill_engine, started)
         self.assertTrue(self.wait_for(started.exists), "the run started")
         return proc, int(started.read_text())
+
+    @property
+    def wrapper_output(self) -> Path:
+        """Where the hanging run's output goes."""
+        return self.tmp / "wrapper_output.txt"
+
+    def wrapper_said(self):
+        """What the hanging run printed so far, for a failure message."""
+        return self.wrapper_output.read_text() if self.wrapper_output.exists() else ""
 
     @staticmethod
     def kill_engine(started):
@@ -216,18 +260,18 @@ class BaseRunTests(unittest.TestCase):
         proc, _ = self.start_hanging()
         self.assertNotEqual(self.git("worktree", "list", "--porcelain"), before[1], "premise: the worktree exists meanwhile")
         os.killpg(proc.pid, signal.SIGINT)
-        self.assertTrue(self.wait_for(lambda: proc.poll() is not None and self.tree() == before), "the run ended and its worktree is gone")
-        self.assertEqual(self.tree(), before)
+        self.assertTrue(self.wait_for(lambda: proc.poll() is not None), "the run ended\n" + self.wrapper_said())
+        self.assertTrue(self.wait_for(lambda: self.tree() == before), "its worktree is gone\n" + self.wrapper_said())
 
     def test_a_terminated_wrapper_stops_its_engine_and_removes_the_worktree(self):
         # The signal reaches the wrapper's pid alone, not its process group (a kill from another terminal, a parent).
         before = self.tree()
         proc, engine = self.start_hanging()
         os.kill(proc.pid, signal.SIGTERM)
-        self.assertTrue(self.wait_for(lambda: proc.poll() is not None), "the wrapper ended without waiting for the engine")
-        self.assertEqual(proc.returncode, 143)
-        self.assertTrue(self.wait_for(lambda: not self.alive(engine)), "no engine is left running")
-        self.assertEqual(self.tree(), before, "the worktree is removed")
+        self.assertTrue(self.wait_for(lambda: proc.poll() is not None), "the wrapper ended without waiting for the engine\n" + self.wrapper_said())
+        self.assertEqual(proc.returncode, 143, self.wrapper_said())
+        self.assertTrue(self.wait_for(lambda: not self.alive(engine)), "no engine is left running\n" + self.wrapper_said())
+        self.assertEqual(self.tree(), before, "the worktree is removed\n" + self.wrapper_said())
 
     def test_it_leaves_the_stale_worktree_records_of_the_repo_alone(self):
         # Another worktree whose directory was deleted: `git worktree prune` would drop its record, and it is not this run's.

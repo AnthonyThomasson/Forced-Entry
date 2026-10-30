@@ -132,13 +132,10 @@ real-time wait's clock, is left alone), so no budget runs in the pre-commit hook
   `Perf.within` prints `PERF <label> <value> (budget <limit>)`, traces it, and fails the check with the value. Counts
   (nodes, dents, pools) are asserted tightly.
 - **Measuring:** run `tools/run_tests.sh --domain=perf --quiet` (add `--verbose` to read the `PERF` lines). `--quiet` waits
-  until no other Godot process runs and the 1-minute load is under `max_load` in `tools/perf_quiet.conf` (6, this box's idle
-  baseline is about 5; `timeout_min` 30, or `--quiet=MINUTES`), printing the load and the count of other Godot processes each
-  minute; on timeout it runs anyway and marks every result `loaded` (on the verdict line, `"loaded": true` in `report.json`).
-  **Judge only a result not marked `loaded`**; a `loaded` red or green says nothing about the code. Every `PERF` line ends with
-  `(load <x>, <n> other Godot)`, so a number read from a log carries the state of the machine it came from. In a whole-suite
-  run the perf tests run after the shards, alone; `--quiet` gates that phase, and the one process of a run that holds perf
-  tests beside others (`GAME_TEST_JOBS=1`, `--jobs=1`, `--id=perf/x,ai/y`).
+  for a quiet machine and marks a result `loaded` when it gave up (which processes it gates, the load it wants and the
+  timeout: `runner-flags.md`). **Judge only a result not marked `loaded`**; a `loaded` red or green says nothing about the
+  code. Every `PERF` line ends with `(load <x>, <n> other Godot)`, so a number read from a log carries the state of the
+  machine it came from. In a whole-suite run the perf tests run after the shards, alone.
 - **Re-baselining:** run `tools/run_tests.sh --domain=perf --quiet --repeat=5 --verbose` and read the `PERF` lines. The frame standard is not
   loosened to fit a slower game: make the game faster, or state in the test why one load is heavier than a match. Update the
   "before" numbers in a test's comment only when its load changes.

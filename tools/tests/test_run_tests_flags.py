@@ -8,6 +8,8 @@ import re
 import unittest
 from pathlib import Path
 
+from tools.tests.fake_tree import FakeTree
+
 ROOT = Path(__file__).resolve().parents[2]
 RUN = ROOT / "tools" / "run_tests.sh"
 BATCH = ROOT / "scenes" / "testing"
@@ -52,13 +54,44 @@ class WrapperFlagTests(unittest.TestCase):
         text = RUN.read_text()
         return text[text.index("# Selecting tests"):text.index("# Not here:")]
 
-    def test_the_loop_is_found_with_the_flags_this_ticket_added(self):
+    def test_the_loop_is_found_with_the_wrapper_flags(self):
         handled = self.handled()
         self.assertTrue({"--base", "--quiet", "--jobs", "--changed", "--staged"} <= handled, sorted(handled))
 
     def test_every_flag_the_wrapper_handles_is_in_its_usage(self):
         usage = self.usage()
         self.assertEqual(sorted(f for f in self.handled() - {"--play"} if f not in usage), [], "flags the usage lines leave out")
+
+
+class NumberFlagTests(FakeTree):
+    """A number given with a leading zero is the decimal it reads as (bash takes `08` for a bad octal), in a throwaway tree."""
+
+    def test_repeat_with_a_leading_zero_reruns_the_native_suites_as_often_as_the_batch_repeats(self):
+        code, out = self.run_tests("--repeat=08", "--id=general/m_suite", suite="general/m_suite")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(self.started()), 8, "the run and seven reruns of its native suite\n" + out)
+
+    def test_jobs_with_a_leading_zero_is_a_number(self):
+        code, out = self.run_tests("--jobs=08", "--skip-domain=perf", suite="general/m_suite")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("wants a number", out)
+        self.assertEqual(len(self.started()), 8, "eight shards\n" + out)
+
+    def test_a_game_test_jobs_with_a_leading_zero_caps_the_jobs(self):
+        code, out = self.run_tests("--jobs=12", "--skip-domain=perf", suite="general/m_suite", GAME_TEST_JOBS="09")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("wants a number", out)
+        self.assertEqual(len(self.started()), 9, "twelve jobs asked, nine allowed\n" + out)
+
+
+class StagedFlagTests(FakeTree):
+    """`--staged` is the flag of `--changed`: given alone it is refused."""
+
+    def test_staged_alone_is_refused_and_runs_nothing(self):
+        code, out = self.run_tests("--staged")
+        self.assertEqual(code, 2, out)
+        self.assertIn("--staged goes with --changed", out)
+        self.assertEqual(self.started(), [], "no engine process was started")
 
 
 if __name__ == "__main__":
