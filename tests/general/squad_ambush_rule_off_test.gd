@@ -76,17 +76,12 @@ func run(t: TestContext) -> void:
 ## frames, and return the ambush order it gave rise to, or {}.
 func _call(t: TestContext, speaker: StringName, faction: StringName, target: Vector2) -> Dictionary:
 	var who := t.actor(speaker)
-	var before := _ambushes(t).size()
+	var before := Order.ambushes(t).size()
 	EventBus.post(&"callout", {
 		"speaker": who, "faction": faction, "position": who.global_position,
 		"status": "", "path": "combat/t_1/engage/here", "label": "COMBAT", "target_id": 0,
 		"point": who.global_position, "target_pos": target,
 	})
 	await t.frames(2)
-	var after := _ambushes(t)
+	var after := Order.ambushes(t)
 	return after.back() if after.size() > before else {}
-
-
-## The ambush orders posted so far.
-func _ambushes(t: TestContext) -> Array:
-	return Order.orders(t).filter(func(o): return String(o.get("kind", "")) == Order.AMBUSH)

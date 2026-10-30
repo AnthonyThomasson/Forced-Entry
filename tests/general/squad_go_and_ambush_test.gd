@@ -152,8 +152,8 @@ func _check_go(t: TestContext, squad: Node, held: Dictionary) -> void:
 		t.expect_eq(String(go.get("kind", "")), "go", "as an order of kind go")
 		t.expect_eq(String(go.get("opening", "")), BACK, "naming the back door")
 		t.expect_eq(
-			_names(go.get("to", [])),
-			_names([t1, t2]),
+			Order.names(go.get("to", [])),
+			Order.names([t1, t2]),
 			"to every holder of the held stack there, not the request's t3 (D13)",
 		)
 	var posted := Order.orders(t).filter(func(o): return String(o.get("kind", "")) == "go")
@@ -299,15 +299,8 @@ func _check_leader_death(t: TestContext, squad: Node) -> void:
 	)
 	if not released.is_empty():
 		t.expect_eq(
-			_names(released[0].get("to", [])),
-			_names([t1, t2]),
+			Order.names(released[0].get("to", [])),
+			Order.names([t1, t2]),
 			"to the holders of its held stack",
 		)
 		t.expect_eq(String(released[0].get("opening", "")), BACK, "at the back door")
-
-
-## The names of `nodes`, sorted.
-func _names(nodes: Array) -> Array:
-	var out := nodes.map(func(n): return String(n.name) if n is Node else str(n))
-	out.sort()
-	return out

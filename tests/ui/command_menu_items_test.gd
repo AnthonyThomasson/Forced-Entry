@@ -582,14 +582,10 @@ func _expect_order(
 	what: String,
 ) -> void:
 	t.expect_eq(String(request.get("kind", "")), kind, "%s: kind %s" % [what, kind])
-	var names := func(nodes: Array) -> Array:
-		var out := nodes.map(func(n): return String(n.name) if n is Node else str(n))
-		out.sort()
-		return out
 	t.expect_eq(
-		names.call(request.get("to", [])),
-		names.call(to),
-		"%s: to %s" % [what, str(names.call(to))],
+		Order.names(request.get("to", [])),
+		Order.names(to),
+		"%s: to %s" % [what, str(Order.names(to))],
 	)
 
 

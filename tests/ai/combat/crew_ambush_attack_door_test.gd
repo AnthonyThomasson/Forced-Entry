@@ -71,7 +71,7 @@ func run(t: TestContext) -> void:
 	var order: Dictionary = at["order"]
 	t.expect_eq(String(order.get("opening", "")), HALL_DOOR, "of the hall's doorway")
 	t.expect_eq(String(order.get("room", "")), "living_room", "from the leader's room")
-	t.expect_eq(_names(order.get("to", [])), ["d1", "d2"], "to the leader and the next member")
+	t.expect_eq(Order.names(order.get("to", [])), ["d1", "d2"], "to the leader and the next member")
 	var d3 := t.actor(&"d3")
 	t.check(
 		Order.member_view(squad, d3).get("order", {}).is_empty() and squad.follows(d3),
@@ -79,11 +79,11 @@ func run(t: TestContext) -> void:
 	)
 	for id in [&"d1", &"d2"]:
 		var m := t.actor(id)
-		var holds := func(): return not _steps(t, m, order, ["in_position", "done"]).is_empty()
+		var holds := func(): return not Order.steps(t, m, order, ["in_position", "done"]).is_empty()
 		t.check(
 			await t.until(holds, 25.0),
 			"%s holds the ambush at its post, or ends it done in contact (steps %s)"
-				% [id, _steps(t, m, order, [])],
+				% [id, Order.steps(t, m, order, [])],
 		)
 
 
@@ -105,10 +105,10 @@ func _first_ambush(t: TestContext, lead: Node2D) -> Dictionary:
 		return {}
 	var ordered := func():
 		sample.call()
-		return not _ambushes(t).is_empty()
+		return not Order.ambushes(t).is_empty()
 	if not t.require(await t.until(ordered, 3.0), "the leader orders an ambush"):
 		return {}
-	var order: Dictionary = _ambushes(t)[0]
+	var order: Dictionary = Order.ambushes(t)[0]
 	var room_then: String = rooms.get(order.get("frame", -1), "<no sample>")
 	if not t.require(
 			room_then == "living_room",
@@ -117,11 +117,6 @@ func _first_ambush(t: TestContext, lead: Node2D) -> Dictionary:
 	):
 		return {}
 	return { "order": order, "room": room_then }
-
-
-## The ambush orders posted so far.
-func _ambushes(t: TestContext) -> Array:
-	return Order.orders(t).filter(func(o): return String(o.get("kind", "")) == Order.AMBUSH)
 
 
 ## The COMBAT callouts of the crew `crew` that place a hostile.
@@ -134,16 +129,6 @@ func _sightings(t: TestContext, crew: Array) -> Array:
 	))
 
 
-## The progress steps `member` radioed about `order`, those of `steps` only (all with []).
-func _steps(t: TestContext, member: Node, order: Dictionary, steps: Array) -> Array:
-	return Order.progress(t, "", member).filter(
-		func(c): return (
-			str(c.get("order_id", "")) == str(order.get("id", ""))
-			and (steps.is_empty() or steps.has(String(c.get("order_step", ""))))
-		),
-	).map(func(c): return String(c.get("order_step", "")))
-
-
 ## The key of the Terrace room `c` stands in ("" for none).
 func _room_of(c: Node2D) -> String:
 	var p := c.global_position
@@ -152,10 +137,3 @@ func _room_of(c: Node2D) -> String:
 	if Maps.HOUSE_KITCHEN.has_point(p):
 		return "kitchen"
 	return "hall" if Maps.HOUSE_HALL.has_point(p) else ""
-
-
-## The names of `nodes`, sorted.
-func _names(nodes: Array) -> Array:
-	var out := nodes.map(func(n): return String(n.name) if n is Node else str(n))
-	out.sort()
-	return out

@@ -4,12 +4,13 @@ extends GameTest
 ## the room by that doorway reach wins, a frag's burst counted first: an ambusher holding it is not
 ## caught by a frag thrown in first.
 ##
-## A room laid for it: a room 600 x 400 (the "living room") over a hall along its south side, a
-## doorway between them (80 px, centred at (100, 400)) and the front door at the hall's west end. A
-## wardrobe (95 tall, above a crouched body) stands in the room north of the door's wall, east of
-## the doorway. The hidden posts are tucked against the door's wall well along from the doorway (the
-## candidate ring of LD15: 40 to 160 px back, 30 to 260 px past the jamb); the wardrobe stands
-## between some of them and where a grenade comes down, and a post west of it is in the open.
+## The ambush tests' room (`ambush_maps.gd`): a room 600 x 400 (the "living room") over a hall
+## along its south side, a doorway between them (80 px, centred at (100, 400)) and the front door at
+## the hall's west end. A wardrobe (95 tall, above a crouched body) stands in the room north of the
+## door's wall, east of the doorway. The hidden posts are tucked against the door's wall well along
+## from the doorway (the candidate ring of LD15: 40 to 160 px back, 30 to 260 px past the jamb); the
+## wardrobe stands between some of them and where a grenade comes down, and a post west of it is in
+## the open.
 ##
 ## A defender in the room is ordered (by its squad's leader, a household puppet in the hall, by the
 ## doorway's id) to ambush the doorway from the room. Its post (the ORDER leaf's `spot`): unseen
@@ -24,14 +25,7 @@ extends GameTest
 const Order := preload("res://tests/_ai/order_probe.gd")
 const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
-const ROOM := Rect2(0, 0, 600, 400)
-const HALL := Rect2(0, 400, 600, 110)
-const DOOR := Vector2(100, 400)
-const DOOR_ID := "door_100_400"
-const DOOR_WIDTH := 80.0
-## The unit normal out of the ambush room through the doorway: into the hall.
-const OUT := Vector2.DOWN
-const WARDROBE_AT := Vector2(360, 300)
+const AmbushMap := preload("res://tests/_ai/ambush_maps.gd")
 ## The test's copy of the entry geometry (the defaults of the NPC's `tuning.entry_geometry`).
 const SLOT_STANDOFF := 28.0
 const SLOT_FIRST := 18.0
@@ -58,14 +52,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.layout(
-		[
-			{ "key": "living_room", "type": "living_room", "rect": ROOM, "floor": "oak_planks" },
-			{ "key": "hall", "type": "hallway", "rect": HALL, "floor": "oak_planks" },
-		],
-		[{ "pos": DOOR, "width": DOOR_WIDTH }, { "pos": Vector2(0, 455), "width": 80.0 }],
-	)
-	s.object(&"wardrobe", "wardrobe", WARDROBE_AT)
+	AmbushMap.room(s)
 	s.von_script([])
 	s.actor(&"a", &"defender", Vector2(200, 150))
 	s.actor(&"lead", &"puppet", Vector2(400, 455), { "faction": &"household" })
@@ -77,7 +64,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var order := Order.issue(
 		t.world.squad(&"household"),
-		{ "kind": Order.AMBUSH, "to": [a], "opening": DOOR_ID, "room": "living_room" },
+		{ "kind": Order.AMBUSH, "to": [a], "opening": AmbushMap.DOOR_ID, "room": "living_room" },
 	)
 	if not t.require(not order.is_empty(), "the squad posts the ambush order (%s)" % [order]):
 		return
@@ -127,13 +114,15 @@ func _frag_reaches(t: TestContext, post: Vector2) -> Array:
 
 ## Where a grenade thrown in by the doorway comes down, the test's own copy of the bang's rule.
 func _landings() -> Array:
-	var along := OUT.orthogonal()
-	var depth := ROOM.size.y  # the farthest corner, straight back from the door's wall
+	var door := AmbushMap.DOOR
+	var room := AmbushMap.ROOM
+	var along := AmbushMap.OUT.orthogonal()
+	var depth := room.size.y  # the farthest corner, straight back from the door's wall
 	var out: Array = []
 	for d: float in DEPTHS:
 		for k: float in ACROSS:
-			var p: Vector2 = DOOR - OUT * depth * d + along * ROOM.size.x * k
-			if ROOM.grow(-INSET).has_point(p) and p.distance_to(DOOR) >= MIN_DEPTH:
+			var p: Vector2 = door - AmbushMap.OUT * depth * d + along * room.size.x * k
+			if room.grow(-INSET).has_point(p) and p.distance_to(door) >= MIN_DEPTH:
 				out.append(p)
 	return out
 
@@ -141,14 +130,16 @@ func _landings() -> Array:
 ## The slots and pie steps of an entry into the room by the doorway, the test's own copy: where the
 ## stack and the point stand.
 func _observers() -> Array:
-	var along := OUT.orthogonal()
+	var door := AmbushMap.DOOR
+	var outward := AmbushMap.OUT
+	var along := outward.orthogonal()
 	var out: Array = []
 	for side in [1, -1]:
 		for k in SLOTS_A_SIDE:
-			out.append(DOOR + OUT * SLOT_STANDOFF
-					+ along * side * (DOOR_WIDTH * 0.5 + SLOT_FIRST + k * SLOT_SPACING))
+			out.append(door + outward * SLOT_STANDOFF
+					+ along * side * (AmbushMap.DOOR_WIDTH * 0.5 + SLOT_FIRST + k * SLOT_SPACING))
 		for i in PIE_STEPS:
 			var theta := deg_to_rad(lerpf(55.0, 25.0, float(i) / float(PIE_STEPS - 1)))
-			out.append(DOOR + OUT * cos(theta) * PIE_RADIUS
+			out.append(door + outward * cos(theta) * PIE_RADIUS
 					+ along * side * sin(theta) * PIE_RADIUS)
 	return out

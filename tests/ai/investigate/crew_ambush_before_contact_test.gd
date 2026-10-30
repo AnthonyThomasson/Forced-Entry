@@ -61,11 +61,11 @@ func run(t: TestContext) -> void:
 		return
 	t.expect_eq(String(order.get("opening", "")), FRONT_DOOR, "of the front door")
 	t.expect_eq(String(order.get("room", "")), "living_room", "from the leader's room")
-	t.expect_eq(_names(order.get("to", [])), ["d1", "d2"], "to the leader and the next member")
+	t.expect_eq(Order.names(order.get("to", [])), ["d1", "d2"], "to the leader and the next member")
 	var posted := func():
 		_pace(t)
 		return [&"d1", &"d2"].all(
-			func(id): return not _steps(t, t.actor(id), order, "in_position").is_empty()
+			func(id): return not Order.steps(t, t.actor(id), order, ["in_position"]).is_empty()
 		)
 	t.check(await t.until(posted, 30.0), "the leader and d2 reach their posts (in_position)")
 	var seen := _sightings(t, crew)
@@ -83,10 +83,10 @@ func _ordered(t: TestContext, lead: Node2D) -> Dictionary:
 		return {}
 	var ordered := func():
 		_pace(t)
-		return not _ambushes(t).is_empty()
+		return not Order.ambushes(t).is_empty()
 	if not t.require(await t.until(ordered, 3.0), "the leader orders an ambush"):
 		return {}
-	return _ambushes(t)[0]
+	return Order.ambushes(t)[0]
 
 
 ## Walk the invader up and down its lane until the leader takes INVESTIGATE – STAY: whether it did,
@@ -128,22 +128,3 @@ func _sightings(t: TestContext, crew: Array) -> Array:
 	return t.events_of(&"callout", func(c): return (
 		crew.has(c.get("speaker")) and String(c.get("path", "")).begins_with("combat")
 	))
-
-
-## The ambush orders posted so far.
-func _ambushes(t: TestContext) -> Array:
-	return Order.orders(t).filter(func(o): return String(o.get("kind", "")) == Order.AMBUSH)
-
-
-## The `step` callouts `member` radioed about `order`.
-func _steps(t: TestContext, member: Node, order: Dictionary, step: String) -> Array:
-	return Order.progress(t, step, member).filter(
-		func(c): return str(c.get("order_id", "")) == str(order.get("id", "")),
-	)
-
-
-## The names of `nodes`, sorted.
-func _names(nodes: Array) -> Array:
-	var out := nodes.map(func(n): return String(n.name) if n is Node else str(n))
-	out.sort()
-	return out

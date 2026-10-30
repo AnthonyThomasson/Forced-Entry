@@ -4,7 +4,7 @@ extends GameTest
 ## its own body moves that frame, so the earliest it can fire back is the next one: a same-frame
 ## tie goes to the ambusher.
 ##
-## The room of `ambush_post_shielded_from_bang` (600 x 400 over a hall, the doorway between at
+## The ambush tests' room (`ambush_maps.gd`: 600 x 400 over a hall, the doorway between at
 ## (100, 400), a wardrobe north of the door's wall east of the doorway). A defender in the room is
 ## ordered (by its squad's leader, a household puppet in the street, by the doorway's id) to ambush
 ## the doorway from the room; once it radios `in_position`, an invader puppet walks along the hall
@@ -17,9 +17,7 @@ extends GameTest
 
 const Order := preload("res://tests/_ai/order_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
-const ROOM := Rect2(0, 0, 600, 400)
-const HALL := Rect2(0, 400, 600, 110)
-const DOOR_ID := "door_100_400"
+const AmbushMap := preload("res://tests/_ai/ambush_maps.gd")
 ## The puppet's walk: along the hall to below the doorway, then up through it into the room.
 const WALK := [Vector2(100, 455), Vector2(100, 300)]
 
@@ -35,14 +33,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.layout(
-		[
-			{ "key": "living_room", "type": "living_room", "rect": ROOM, "floor": "oak_planks" },
-			{ "key": "hall", "type": "hallway", "rect": HALL, "floor": "oak_planks" },
-		],
-		[{ "pos": Vector2(100, 400), "width": 80.0 }, { "pos": Vector2(0, 455), "width": 80.0 }],
-	)
-	s.object(&"wardrobe", "wardrobe", Vector2(360, 300))
+	AmbushMap.room(s)
 	s.von_script([])
 	s.actor(&"d", &"defender", Vector2(250, 250))
 	s.actor(&"inv", &"puppet", Vector2(450, 455), { "faction": &"invader", "max_health": 1e6 })
@@ -56,7 +47,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var order := Order.issue(
 		t.world.squad(&"household"),
-		{ "kind": Order.AMBUSH, "to": [d], "opening": DOOR_ID, "room": "living_room" },
+		{ "kind": Order.AMBUSH, "to": [d], "opening": AmbushMap.DOOR_ID, "room": "living_room" },
 	)
 	if not t.require(not order.is_empty(), "the squad posts the ambush order (%s)" % [order]):
 		return

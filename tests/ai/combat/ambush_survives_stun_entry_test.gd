@@ -3,7 +3,7 @@ extends GameTest
 ## rule #128, rule 10): an ambusher at a post the stack's stun does not reach is not blinded when
 ## the stack bangs the room, and fires first, at the first of them to come in.
 ##
-## The room of `ambush_post_shielded_from_bang` (600 x 400 over a hall, the doorway between at
+## The ambush tests' room (`ambush_maps.gd`: 600 x 400 over a hall, the doorway between at
 ## (100, 400), a wardrobe north of the door's wall east of the doorway). Two invaders, each carrying
 ## a stun, stand in the hall's west end by the doorway: a short route into a room they have not
 ## searched. A defender a little way into the room is ordered at once, by its squad's leader (a
@@ -20,9 +20,7 @@ const Order := preload("res://tests/_ai/order_probe.gd")
 const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
-const ROOM := Rect2(0, 0, 600, 400)
-const HALL := Rect2(0, 400, 600, 110)
-const DOOR_ID := "door_100_400"
+const AmbushMap := preload("res://tests/_ai/ambush_maps.gd")
 const IDS := [&"a", &"b"]
 
 
@@ -39,14 +37,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.layout(
-		[
-			{ "key": "living_room", "type": "living_room", "rect": ROOM, "floor": "oak_planks" },
-			{ "key": "hall", "type": "hallway", "rect": HALL, "floor": "oak_planks" },
-		],
-		[{ "pos": Vector2(100, 400), "width": 80.0 }, { "pos": Vector2(0, 455), "width": 80.0 }],
-	)
-	s.object(&"wardrobe", "wardrobe", Vector2(360, 300))
+	AmbushMap.room(s)
 	s.actor(&"a", &"invader", Vector2(180, 440))
 	s.actor(&"b", &"invader", Vector2(150, 460))
 	s.actor(&"d", &"defender", Vector2(250, 250))
@@ -62,7 +53,7 @@ func run(t: TestContext) -> void:
 		Probe.arm(c, 1, 0)
 	var order := Order.issue(
 		t.world.squad(&"household"),
-		{ "kind": Order.AMBUSH, "to": [d], "opening": DOOR_ID, "room": "living_room" },
+		{ "kind": Order.AMBUSH, "to": [d], "opening": AmbushMap.DOOR_ID, "room": "living_room" },
 	)
 	if not t.require(not order.is_empty(), "the squad posts the ambush order (%s)" % [order]):
 		return
@@ -100,12 +91,14 @@ func run(t: TestContext) -> void:
 ## went in, and a stun burst in the room.
 func _set_up(t: TestContext, d: Node, acts: String) -> bool:
 	if not t.require(
-			IDS.all(func(id): return Entry.first_call_time(t, "claim", id, DOOR_ID) < INF),
+			IDS.all(
+				func(id): return Entry.first_call_time(t, "claim", id, AmbushMap.DOOR_ID) < INF,
+			),
 			"both invaders chose the doorway into the room (claims there; %s)" % acts,
 	):
 		return false
 	var going_at: float = IDS.map(
-		func(id): return Entry.first_call_time(t, "going_in", id, DOOR_ID),
+		func(id): return Entry.first_call_time(t, "going_in", id, AmbushMap.DOOR_ID),
 	).min()
 	var posted := Order.first_time(t, &"callout", func(e): return (
 		e.get("speaker") == d and String(e.get("order_step", "")) == "in_position"
@@ -122,5 +115,6 @@ func _set_up(t: TestContext, d: Node, acts: String) -> bool:
 ## The stun bursts in the room.
 func _bangs(t: TestContext) -> Array:
 	return t.events_of(&"explosion", func(e): return (
-		StringName(e.get("kind", &"")) == &"stun" and ROOM.has_point(e.get("position", Vector2.INF))
+		StringName(e.get("kind", &"")) == &"stun"
+		and AmbushMap.ROOM.has_point(e.get("position", Vector2.INF))
 	))

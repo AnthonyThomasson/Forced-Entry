@@ -64,12 +64,12 @@ func run(t: TestContext) -> void:
 	if first.is_empty():
 		return
 	await _cool_down(t, squad, first)
-	var second := _ambushes(t).back() as Dictionary
+	var second := Order.ambushes(t).back() as Dictionary
 	Order.issue(squad, { "kind": Order.CANCEL, "to": [d2] })
 	await _wait_past(t, second)
 	var third := await _call(t, OUTSIDE_FRONT)
 	t.check(
-		_is_ambush(third, FRONT_CHAIN) and _names(third.get("to", [])) == ["d2", "d3"],
+		_is_ambush(third, FRONT_CHAIN) and Order.names(third.get("to", [])) == ["d2", "d3"],
 		"with d1 still holding its order, the new doorway goes to the free d2 and d3, two: no rear "
 			+ "guard kept back at two (%s)" % _describe(third),
 	)
@@ -96,7 +96,7 @@ func _first_order(t: TestContext, squad: Node) -> Dictionary:
 	):
 		return {}
 	t.expect_eq(String(first.get("room", "")), "living_room", "from the leader's room")
-	t.expect_eq(_names(first.get("to", [])), ["d1", "d2"], "to the leader and d2")
+	t.expect_eq(Order.names(first.get("to", [])), ["d1", "d2"], "to the leader and d2")
 	t.check(
 		Order.member_view(squad, t.actor(&"d3")).get("order", {}).is_empty()
 			and squad.follows(t.actor(&"d3")),
@@ -122,7 +122,7 @@ func _cool_down(t: TestContext, squad: Node, first: Dictionary) -> void:
 	await _wait_past(t, first)
 	var again := await _call(t, IN_KITCHEN)
 	t.check(
-		_is_ambush(again, KITCHEN_DOOR) and _names(again.get("to", [])) == ["d1", "d2"],
+		_is_ambush(again, KITCHEN_DOOR) and Order.names(again.get("to", [])) == ["d1", "d2"],
 		"past the cool-down a threat in the kitchen orders the kitchen's doorway to d1 and d2 (%s)"
 			% _describe(again),
 	)
@@ -153,7 +153,7 @@ func _new_leader(t: TestContext, squad: Node, third: Dictionary) -> Dictionary:
 	Order.issue(squad, { "kind": Order.CANCEL, "to": [d2, d3] })
 	var fresh := await _call(t, OUTSIDE_FRONT, d2)
 	t.check(
-		_is_ambush(fresh, FRONT_CHAIN) and _names(fresh.get("to", [])) == ["d2", "d3"],
+		_is_ambush(fresh, FRONT_CHAIN) and Order.names(fresh.get("to", [])) == ["d2", "d3"],
 		"the new leader's own call, the same doorway within the cool-down, orders it again (%s)"
 			% _describe(fresh),
 	)
@@ -174,7 +174,7 @@ func _refused(t: TestContext, held: Dictionary) -> Dictionary:
 		})
 	var next := await _call(t, IN_KITCHEN, t.actor(&"d2"))
 	t.check(
-		_is_ambush(next, KITCHEN_DOOR) and _names(next.get("to", [])) == ["d2", "d3"],
+		_is_ambush(next, KITCHEN_DOOR) and Order.names(next.get("to", [])) == ["d2", "d3"],
 		"having refused their order, d2 and d3 are ordered the kitchen's doorway (%s)"
 			% _describe(next),
 	)
@@ -196,14 +196,14 @@ func _one_free(t: TestContext, squad: Node, held: Dictionary) -> void:
 ## two frames, and return the ambush order it gave rise to, or {}.
 func _call(t: TestContext, target: Vector2, speaker: Node = null) -> Dictionary:
 	var who: Node = speaker if speaker != null else t.actor(&"p")
-	var before := _ambushes(t).size()
+	var before := Order.ambushes(t).size()
 	EventBus.post(&"callout", {
 		"speaker": who, "faction": &"household", "position": who.global_position,
 		"status": "", "path": "combat/t_1/engage/here", "label": "COMBAT", "target_id": 0,
 		"point": who.global_position, "target_pos": target,
 	})
 	await t.frames(2)
-	var after := _ambushes(t)
+	var after := Order.ambushes(t)
 	return after.back() if after.size() > before else {}
 
 
@@ -218,11 +218,6 @@ func _wait_past(t: TestContext, order: Dictionary) -> void:
 	)
 
 
-## The ambush orders posted so far.
-func _ambushes(t: TestContext) -> Array:
-	return Order.orders(t).filter(func(o): return String(o.get("kind", "")) == Order.AMBUSH)
-
-
 ## Whether `order` is an ambush of doorway `opening`.
 func _is_ambush(order: Dictionary, opening: String) -> bool:
 	return (
@@ -235,12 +230,5 @@ func _is_ambush(order: Dictionary, opening: String) -> bool:
 func _describe(order: Dictionary) -> String:
 	if order.is_empty():
 		return "none"
-	var to := str(_names(order.get("to", [])))
+	var to := str(Order.names(order.get("to", [])))
 	return "%s %s from %s to %s" % [order.get("kind"), order.get("opening"), order.get("room"), to]
-
-
-## The names of `nodes`, sorted.
-func _names(nodes: Array) -> Array:
-	var out := nodes.map(func(n): return String(n.name) if n is Node else str(n))
-	out.sort()
-	return out
