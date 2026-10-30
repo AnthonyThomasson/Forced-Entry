@@ -38,7 +38,8 @@ weight bands, seed, prewarm), `SoundDeafnessConfig` and `SoundVehicleConfig`.
 `VehicleDoorConfig`, `VehicleDriveConfig` (with the camera's zoom-out), `VehicleCollisionConfig` and `VehicleArtConfig`.
 **Lighting:** `LightingConfig` (the master switch, the dusk, the flashes and the per-floor budget),
 `LightingFixtureConfig` and `LightingTextureConfig`.
-**AI:** `SquadFollowConfig` (the squads' follow spacing and leash, `docs/leadership.md` LD21 to LD23).
+**AI:** `SquadFollowConfig` (the squads' follow spacing and leash, `docs/leadership.md` LD21 to LD23) and `SquadAmbushConfig` (the
+defenders' ambush rule's re-order gap and least recipients, LD29).
 **General:** `CameraConfig` (the camera's follow, framing, zoom and hand pan) and `CameraShakeConfig` (its explosion shake).
 A new tunable goes in the holder of its topic; one that fits no topic starts a holder of its own, never a kept family
 holder unless it is a family-wide switch or a per-kind row (ADR 0003).

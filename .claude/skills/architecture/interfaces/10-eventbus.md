@@ -31,7 +31,9 @@
     - `&"callout"`: an AI controller posts one when it adopts a combat or investigation decision —
       its team radio (`{ speaker, faction, position, status, path, label, target_id, point }`, and with a combat decision `target_pos`:
       the hostile's last-known spot as the speaker knows it, else where the shots at it came from, `Vector2.INF` when it knows neither;
-      an ally reads it as a fight in that room, `docs/grenades.md` G18) — and one
+      an ally reads it as a fight in that room, `docs/grenades.md` G18; and with an investigation decision `lead_pos`: the spot of the
+      freshest lead its decision weighed that places a hostile, an ally's support lead skipped, `Vector2.INF` for none, which allies'
+      perception ignores and its squad's ambush rule reads, `docs/leadership.md` LD29) — and one
       per step of a tactical entry, which adds `opening`, `into` (the room it leads into), `slot`, `side` (the side of the door it stacks on: a stack split across the door, E19, has both), `entry_step` (claim / ready / bang /
       going_in / in / clear / cover / rear / done / abort), `bang` (this member goes in with a stun thrown first), `bang_off` (it gave the bang up: the stack goes in quietly), `stuns` and `frags` (how many stun / frag grenades it carries), `cleared_room` (with a clear) and `covering` (with a cover:
       the doorway on out of the cleared room it watches), `claim_frame` / `claim_pos` (the `GameClock` frame its slot was claimed on and
@@ -76,8 +78,9 @@
       to the living members holding a held stack at that doorway and replaces nothing: it releases their order (latched, D13). Range is
       unlimited: every AI controller named in `to` of the same faction takes it, and it holds it until it is done, cancelled or replaced
       (never on a timer); an `ambush` is done on first contact (a hostile seen or shots at the member, D18). Besides its leader's orders a
-      squad posts its own: the rally's `join` stacks, a `cancel` of them when its leader radios `abort` at that doorway (LD25), and a `cancel`
-      to the members holding a `defend_room` or `ambush` when the human leader dies (LD26).
+      squad posts its own: the rally's `join` stacks, a `cancel` of them when its leader radios `abort` at that doorway (LD25), a `cancel`
+      to the members holding a `defend_room` or `ambush` when the human leader dies (LD26) and, for the defenders' squad while an AI leads
+      it, an `ambush` of the doorway an attack comes through (LD29).
     - `&"leader"`: a squad posts one when its leader dies and the next in line leads (`docs/leadership.md` LD4): `{ faction, leader, previous }`
       (`leader` null when nobody is left). Read by the tests: no game code listens to it.
     - `&"vehicle"`, `&"engine"`, `&"skid"`: a vehicle (Vehicles) posts `&"vehicle"` `{ position, kind` (`&"car"` / `&"van"`)`, stage }` with

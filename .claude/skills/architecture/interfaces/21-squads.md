@@ -11,7 +11,8 @@
       Character API (`wardrobe.rank`, `is_dead`, the `died` signal, `global_position`, and the leader's `facing`; a member is an NPC, one that may
       follow, when a child of it is in the group `npc_controllers` at `setup`, interface 7) and lays its stacks and its follow spots on the
       navigation map and physics space of its own viewport's `World2D` (`NavBuilder.snap`, interface 9; a wall ray for the leader's sight).
-      Every squad coordinates, with no switch (`docs/leadership.md` LD3, LD19 to LD26).
+      Every squad coordinates, with no switch (`docs/leadership.md` LD3, LD19 to LD26); the roster's `ambush_attacks` (below) is the one
+      per-side flag.
     - Reads: `leader() -> Node` (LD3: the human when it leads; else the highest `wardrobe.rank`, the first in spawn order among equals, so the invaders'
       unit lead and the defenders' first spawned), `members() -> Array`, `alive(member) -> bool`, and `view() -> Dictionary`
       (`{ leader, members: [{ node, order, step, held, follow_spot }], stacks, trail, leash }`: the order each member holds, the posted dict or {} (a held stack a `go` released
@@ -41,13 +42,15 @@
       not one of them: only the squad's own rally posts it, and `StackClaim.is_join(order)` tells such an order) resolved into the AI's (a room key, or the room under `pos`; for a stack or an ambush the
       doorway nearest `pos` within its width, a stack's `into` the room on the far side of the wall plane from `pos`, an exterior door's house
       room, and `stack_at` = `pos` or `split` for a click on the opening; a stack's `mode` from the request's `mode`, else `bang` true is a
-      stun; an ambush's `room` the one on `pos`'s side of the wall plane) and posted as `&"order"` (interface 10); a `{ kind: "go", pos }`
+      stun; an ambush's `room` the one on `pos`'s side of the wall plane; an ambush may instead name its doorway by id and the room it is
+      laid from, `{ kind: "ambush", to, opening, room }`, resolved by the same code to the order the equivalent click gives, {} for an id the
+      house lacks or a room the doorway does not join) and posted as `&"order"` (interface 10); a `{ kind: "go", pos }`
       posts a `go` to every living member holding a held stack, not yet released, at the doorway nearest `pos`, whatever its `to` (D13; {}
       when none waits there). Returns the order posted, or {}. Nothing outside the AI computes an AI id. When a leader that gave held stack
       orders dies, the squad posts their `go` itself (`auto: true`, D12).
     - `Squad.resolve(request) -> Dictionary` (read-only): the same resolution without posting, `{ room, pos }` for a `defend_room`,
       `{ opening, pos, into, split, stack_at? }` for a `stack`, `{ opening, pos }` for a `go` and `{ opening, pos, room, beyond }` for an
-      `ambush` ({} when it names nothing): the one rule for which doorway a click means and which room "into" (or an ambush's room) is,
+      `ambush` (by a click or by id; {} when it names nothing): the one rule for which doorway a click means and which room "into" (or an ambush's room) is,
       which the command menu names its stack and ambush items from.
     - On the leader's `died` the next in line leads within the frame and the squad posts `&"leader"` (interface 10, read by the tests); the orders given stand,
       but when the dead leader was the human the squad posts one `cancel` to the members holding a `defend_room` or `ambush` (the takeover,
@@ -56,6 +59,16 @@
       AI leader's entry, or the human's own claim through its `PlayerStack`, the one marked `own`, interface 17; a join's claims never, D30) the squad posts one `stack` order with `mode` `join` to every
       follower holding no order, once per doorway per leader, and on the leader's `abort` there a `cancel` to the members holding those joins.
       The command menu never offers a join.
+    - **The defenders' ambush rule** (LD29): a squad whose roster has `ambush_attacks` (`SquadRoster.ambush_attacks: bool`, false unless set;
+      `MatchBuilder.build_squads` sets it for the defenders' side only, interface 23) runs, while an AI leads it, the only orders of a kind the
+      human gives that it posts of its own: on a callout of its side (the leader's own included) placing a threat outside the leader's room (a
+      COMBAT callout's `target_pos`, an INVESTIGATE callout's `lead_pos`, interface 10; nothing for a leader in no room) it issues
+      `{ kind: "ambush", to, opening, room }`, the attack doorway (the last doorway on the shortest way from the threat's room into the
+      leader's, over `WorldGen.get_rooms` / `get_openings`, interface 1) from the leader's room, `to` the living NPC members holding no order
+      (or holding one they radioed `refused`) in spawn order, the leader included, with three or more the last spawned non-leader left out
+      (the rear guard). It re-orders only for a new doorway, at least `SquadAmbushConfig.reorder_gap` (8 s) after the last, with at least
+      `SquadAmbushConfig.min_recipients` (2) recipients (`SquadAmbushConfig`, `ai/team/squad_ambush_config.gd`, a static holder); the doorway
+      and the clock start afresh with a new leader, and the dead leader's ambushes stand.
     - **The human leader's command menu and order markers** (UI, `docs/leadership.md` LD10 to LD12 and LD16), in the shape of interfaces 14 and 17:
       with the setup window's "Lead the team" on (its `current_config()["lead"]`, saved by `Settings.set_setup`; a played match only, read into
       the spec's `human.lead` by `MatchBuilder.spec_from_setup`) the match builder hands the human to `Squad.setup` (a human invader is ranked

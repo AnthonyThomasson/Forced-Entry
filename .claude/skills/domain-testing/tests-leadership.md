@@ -16,12 +16,17 @@ A test with one squad per side declares it (`s.squads`, the human leader a puppe
 members, leader)`, a squad built and bound by the match's own rule (`MatchBuilder.build_squads`) in `run`, for the squads no setup declares
 (two squads of one side, in `general/squad_leader_rule` and `ai/decision/order_progress_radio`, each saying why in its header), `issue` / `post` / `view` /
 `stack_order` (a stack the way the menu asks for it, `mode` and `wait_go`) / `go` (the leader's go, LD13) /
-`member_view` / `orders`, the radio
-(`progress`, `ordered_claims`, `raw_calls`, `first_time`, `all_called`, `by_slot`), `gunfire_near` (forces a decision without touching the brain),
+`member_view` / `orders` / `ambushes` (the ambush orders posted) / `names` (an order's `to`, sorted names), the radio
+(`progress`, `steps` (a member's progress steps on one order), `ordered_claims`, `raw_calls`, `first_time`, `all_called`, `by_slot`), `gunfire_near` (forces a decision without touching the brain),
 `pause_for(t, wall_s)` (holds the tree paused for that much wall time: the test clock stops with it) and the back door's click points (`BACK_NORTH`, `BACK_SOUTH`,
 `BACK_ON`, `BACK_INSIDE_NORTH`, `back_side`), with the spec's numbers as consts (`ORDER_READY_CAP`). The brain's reads are
 `tests/_ai/order_brain_probe.gd` (`const OrderBrain := preload(...)`: `brain`, `ordered`, `decisions`, `primitive`, `params`, `on_order`,
-`levels`, and where its entry has it stand at the back door, `stack_point` and `stacked`). The command menu and the order markers are
+`levels`, and where its entry has it stand at the back door, `stack_point` and `stacked`). The ambush tests on one room (LD15, D17, D18:
+`ambush_post_shielded_from_bang`, `ambush_primed_fires_on_line_open`, `ambush_survives_stun_entry`) lay it with
+`tests/_ai/ambush_maps.gd` (`const AmbushMap := preload(...)`: `room(s)`, a room over a hall, their doorway, the front door and a wardrobe,
+and its landmarks as consts, as `flank_maps.gd` does). Where every member of an ambush order waits, at every doorway of a house, is read
+by `tests/_ai/ambush_posts_probe.gd` (`const AmbushPosts := preload(...)`: `posts_of(t)`, `check_capture(t, path)`) through the published
+entry geometry, and `ai/combat/ambush_posts_capture_terrace` / `_house` pin it to a capture of the full ranking beside each. The command menu and the order markers are
 `tests/_ai/order_menu_probe.gd` (`const OrderMenu := preload(...)`: `command_menu`, `items`, `item`, `labels`, `choose`, `tick`, `click`,
 `view_still`; `player_screen` sizes a headless root
 viewport to the project's window, as a real screen is (a real window keeps its own size unless `exact`, for a premise built on the

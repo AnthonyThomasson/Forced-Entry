@@ -26,7 +26,8 @@
    tests wound a character with it too) and does **not** deform, and reads `get_surface()` only for the struck
    `material` it posts. `Explosion` finds the characters under the world by the group `characters` (interface 7), reads their `is_dead`, `facing`, `get_surface()`, and calls
    `take_stun` / `take_damage` / `blast_push` / `take_hit` on them, and `apply_impulse` on a pushable (capped by `get_mass()`): the sanctioned surface. Its
-   cover rule (G7, `docs/grenades.md`) is published as two read-only line queries the AI's perception asks of a grenade, so the AI keeps no copy:
+   cover rule (G7, `docs/grenades.md`) is published as two read-only line queries the AI's perception asks of a grenade (a live one, its own
+   throw, and the frag or stun an entry may throw in, which an ambush post is shielded from, `docs/leadership.md` LD15), so the AI keeps no copy:
    `Explosion.shields(space, burst, p, cover: CoverRule) -> bool` (`CoverRule`, `projectile/cover_rule.gd`: `height`, `exclude`,
    `cover_reach` := INF; whether a wall, or a piece of furniture whose `coverage` is above `height`, stands between a burst and a body
    `height` tall at `p`; with a finite `cover_reach`, a stun's flash, a piece only when `p` is within that many px of it) and `Explosion.first_stop(space, a, b, height, exclude) -> Dictionary` (the first wall or piece on the line that

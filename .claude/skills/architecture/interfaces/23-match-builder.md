@@ -39,7 +39,8 @@
       defender a crew style; read off `CharacterStyleConfig.styles`, `styles_of(faction)`), `build_squads(world, squads_spec: SquadsSpec,
       stack := null) -> Dictionary` (`SquadsSpec`, `scenes/squads_spec.gd`: `members` (the combatants), `openings`, `rooms`, `human` := {},
       `claim_ttl` := `CLAIM_TTL_OF_NPCS`; one `Squad` per faction, interface 21, keeping claims `claim_ttl` s, or, at `CLAIM_TTL_OF_NPCS`
-      (any negative value), `callout_ttl_of` the side) and `build_leader_overlay(world, squads) -> Node2D`;
+      (any negative value), `callout_ttl_of` the side, its roster's `ambush_attacks` set for the defenders' side only, LD29) and
+      `build_leader_overlay(world, squads) -> Node2D`;
       `squads_over(world, squads_spec: SquadsSpec, leaders := false) -> Dictionary` (its Arrays in `build_squads`' order, as `Squad.setup` takes them) is the squad tail `populate` and the Testing
       world's declared squads share: the human (`human.node`) handed its stack radio (`bind_player`), then `build_squads`, then
       `build_leader_overlay`, shown when `leaders`; it returns `{ squads, player_stack, leader_overlay }`.

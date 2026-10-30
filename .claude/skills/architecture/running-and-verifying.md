@@ -40,9 +40,9 @@
   3. **Exploratory / not yet scriptable?** `godot-run` skill: drive the live game through the dev
      command server (`tools/gcmd.py`).
   4. **Whole-AI outcomes?** `tools/match.py` scores full defender-vs-invader matches.
-  **Fast enough?** `tools/run_tests.sh --domain=perf`: the performance tests (`tests/perf/`: twelve guards) hold a 5v5 and a 10v10 match, each built through `MatchBuilder` as Main builds one (its squads following their leaders, the sides in contact before the window), to one 60 fps
+  **Fast enough?** `tools/run_tests.sh --domain=perf`: the performance tests (`tests/perf/`: thirteen guards) hold a 5v5 and a 10v10 match, each built through `MatchBuilder` as Main builds one (its squads following their leaders, the sides in contact before the window), to one 60 fps
   frame on average and hold stress cases to their budgets: automatic fire, nav re-bakes and path queries, a whole match dying in one
-  frame, a furniture pile shoved at once, house generation, the sound library's render, hundreds of hits on one body, an NPC crowd, grenades thrown into a 5v5 and a
+  frame, an ambush order's posts laid for a crew, a furniture pile shoved at once, house generation, the sound library's render, hundreds of hits on one body, an NPC crowd, grenades thrown into a 5v5 and a
   frag and a stun bursting in a crowded room (`domain-testing` skill, "Performance tests"); a change to a per-frame path should leave them
   green, but for the 10v10's p95 and max, red on a quiet machine until #98 (an invader's decision weighing its grenades). Headless they measure the CPU; `tools/run_tests.sh --windowed` measures the render too.
   **What runs?** `tools/coverage/README.md`: a dev tool outside the game, kept out of it by the `coverage_isolation` lint rule.
