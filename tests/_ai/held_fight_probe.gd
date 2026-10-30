@@ -3,21 +3,26 @@ extends RefCounted
 ## `const HeldFight := preload("res://tests/_ai/held_fight_probe.gd")`. A stack held at the bare
 ## Terrace house's back door for its leader's go (`docs/leadership.md` LD13, D31) is shot at by a
 ## defender in the kitchen it is held to enter: `defender` declares it out of sight of the garden,
-## `fight` walks it into view of the stack's north slots through the doorway, has it fire at the
-## stack, then walks it back out of sight (a hostile lost in the room the stack is held to enter),
-## while it watches the members, and `check_stack_side` asserts they fought from the stack's side
-## of the doorway only: none stood in the room, nor walked for it.
+## `fight` walks it into view of the stack through the doorway (`IN_VIEW` by default: the stack's
+## north slots), has it fire at the stack, then walks it back out of sight (a hostile lost in the
+## room the stack is held to enter), while it watches the members, and `check_stack_side` asserts
+## they fought from the stack's side of the doorway only: none stood in the room, nor walked for
+## it.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Grenades := preload("res://tests/_ai/grenade_probe.gd")
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 ## Where the defender waits, in the kitchen's north-west, out of sight of the back garden.
 const HIDDEN := Vector2(560, 90)
-## Where it fights from: in the kitchen's south-east, in view through the back door of the stack's
-## north slots (and they of it).
+## Where it fights from by default: in the kitchen's south-east, in view through the back door of
+## the stack's north slots (and they of it).
 const IN_VIEW := Vector2(790, 335)
 ## How often (s) the defender fires while in view.
 const FIRE_EVERY := 0.6
+## How long (s) the defender fires at the held stack.
+const FIGHT := 10.0
+## How long (s) the stack is watched once the defender is out of sight again.
+const AFTER := 15.0
 
 
 ## Declare the defender `id`: a household puppet at `HIDDEN`, never killed (the premise: the stack
@@ -31,22 +36,21 @@ static func arm(t: TestContext, id: StringName) -> void:
 	Grenades.arm(t.actor(id), 0, 0, &"pistol")
 
 
-## Walk the defender `id` into view and have it fire at `members[0]` every `FIRE_EVERY` s for
-## `secs` s, then walk it back out of sight to `HIDDEN` and watch `after` s more, sampling the
-## `members` (characters) every frame. Returns `{ in_room: { node: first time }, heading: { node:
-## [time, act, target] }, fired: { node: shots from outside }, acts: { node: [[time, act]] } }`:
-## when each first stood in the kitchen, when its walk first headed into it (and on which act, to
-## where), how many rounds each fired from the stack's side of the doorway, and each act it took on
-## the way.
+## Walk the defender `id` to `spot`, in view of the stack, and have it fire at `members[0]` every
+## `FIRE_EVERY` s for `FIGHT` s, then walk it back out of sight to `HIDDEN` and watch `AFTER` s
+## more, sampling the `members` (characters) every frame. Returns `{ in_room: { node: first
+## time }, heading: { node: [time, act, target] }, fired: { node: shots from outside }, acts:
+## { node: [[time, act]] } }`: when each first stood in the kitchen, when its walk first headed into
+## it (and on which act, to where), how many rounds each fired from the stack's side of the doorway,
+## and each act it took on the way.
 static func fight(
 		t: TestContext,
 		id: StringName,
 		members: Array,
-		secs: float,
-		after: float,
+		spot: Vector2 = IN_VIEW,
 ) -> Dictionary:
 	var puppet := t.puppet(id)
-	puppet.walk_to(IN_VIEW)
+	puppet.walk_to(spot)
 	var out := { "in_room": {}, "heading": {}, "fired": {}, "acts": {} }
 	var clock := { "next": 0.0 }
 	var firing := func() -> bool:
@@ -56,9 +60,9 @@ static func fight(
 			puppet.aim_at(members[0])
 			puppet.shoot()
 		return false
-	await t.until(firing, secs)
+	await t.until(firing, FIGHT)
 	puppet.walk_to(HIDDEN)
-	await t.until(func() -> bool: _sample(t, members, out); return false, after)
+	await t.until(func() -> bool: _sample(t, members, out); return false, AFTER)
 	for m: Node in members:
 		out["fired"][m] = t.events.filter(func(e): return (
 			e["topic"] == &"shot"

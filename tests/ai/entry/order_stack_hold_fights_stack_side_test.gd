@@ -3,8 +3,9 @@ extends GameTest
 ## side of the doorway. Two invaders are ordered (quiet, hold for go) to stack on the bare Terrace
 ## house's back door from its north side, their leader a puppet human far off in the garden. Once
 ## both stand ready, a defender walks into view in the kitchen and fires at the stack through the
-## doorway for `FIGHT` s, then walks back out of sight: they fire back from outside, and none
-## crosses into the kitchen while held, nor goes after the defender lost in it (`AFTER` s).
+## doorway for `HeldFight.FIGHT` s, then walks back out of sight: they fire back from outside, and
+## none crosses into the kitchen while held, nor goes after the defender lost in it
+## (`HeldFight.AFTER` s).
 ##
 ## Real Von, the whole pipeline; no switch. Premises: the defender (a puppet) and the invaders are
 ## never killed (`max_health`), so the stack stays held through the fight.
@@ -16,10 +17,6 @@ const HeldFight := preload("res://tests/_ai/held_fight_probe.gd")
 const IDS := [&"a", &"b"]
 ## How long (s) the stack has, once ordered, to stand ready.
 const READY_WITHIN := 20.0
-## How long (s) the defender fires at the held stack.
-const FIGHT := 10.0
-## How long (s) the stack is watched once the defender is out of sight again.
-const AFTER := 15.0
 
 
 func describe() -> Dictionary:
@@ -61,5 +58,5 @@ func run(t: TestContext) -> void:
 			"set-up: both claim the back door under the order and stand ready",
 	):
 		return
-	var seen := await HeldFight.fight(t, &"d", members, FIGHT, AFTER)
+	var seen := await HeldFight.fight(t, &"d", members)
 	HeldFight.check_stack_side(t, members, seen)
