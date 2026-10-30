@@ -117,7 +117,7 @@ func set_up_walk(delta: float) -> void:
 	loco.crowd.ignore_id = behavior.fight.engage_id if task.primitive == &"melee" else 0
 	behavior._perception.views.ordered = behavior.orders.ordered_stack()
 	loco.doors.avoid_doors = behavior.entries.keeps_out_of_views()
-	loco.doors.keep_out = _held_entry()
+	loco.doors.held_entry = _held_entry()
 	var entry_state: RefCounted = behavior._entry.state
 	loco.doors.avoid_entering = ("%s>%s" % [entry_state.opening, entry_state.into]
 			if task.primitive == &"entry" and entry_state.opening != ""
@@ -128,7 +128,7 @@ func set_up_walk(delta: float) -> void:
 ## member of a stack held for its leader's go fights on the stack's side of the doorway (D31, the
 ## room its confinement keeps it out of, `keep_out`), so a walk its fight takes (an engage's
 ## reposition, a retreat, under fire too) whose plain way goes into that room goes round it
-## (`Locomotion`'s `doors.keep_out`), however long the way round (D4). Not an evade.
+## (`Locomotion`'s `doors.held_entry`), however long the way round (D4). Not an evade.
 func _held_entry() -> String:
 	var room: String = behavior._perception.confinement.keep_out
 	if room == "" or not behavior.in_combat() or not behavior.grenades.evade.is_empty():
