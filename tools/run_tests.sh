@@ -85,6 +85,13 @@
 #   --shots         windowed run (not headless) that saves a PNG of each failed test
 #   --windowed      windowed run with vsync off, in one process: a perf test's frame times then include the render
 #                   (headless measures the CPU only) without being held to the display's refresh
+#   --quiet[=MINUTES]  before the process of the perf tests starts (the perf phase of a sharded run, or the whole run when
+#                   only perf is selected), wait until no other Godot process runs (any Godot this run did not start,
+#                   editors included) and the 1-minute load is under max_load in tools/perf_quiet.conf (6, this box's idle
+#                   baseline), printing the load and the count each minute. After MINUTES (timeout_min, 30) it runs anyway
+#                   and marks that process's results `loaded` (on their verdict lines and "loaded": true in report.json);
+#                   judge only a perf result that is not. Every PERF line (shown with --verbose) ends with `(load <x>, <n>
+#                   other Godot)`, as it passes.
 # Other
 #   --repeat=5      run each test 5 times, a native suite's cases too (it runs again in 4 more processes); names
 #                   FLAKY / FAILING tests. With a --shard given by hand a native suite runs once ("NOTE native suites
@@ -187,6 +194,9 @@ CHANGED=0
 STAGED=0
 LINT=1
 SKIP=""   # --skip-domain=a,b (every one given, joined), also forwarded to the runner
+QUIET_GATE=0   # --quiet[=MINUTES]: wait for a quiet machine before the perf tests' process starts
+QUIET_MIN=""
+LOADED_RUN=""  # 1 while the process about to start gave up waiting for a quiet machine: its results are marked loaded
 # The flags forwarded to the batch as given (scenes/testing/test_batch.gd reads them; `=` ones take a value), and the
 # ones the wrapper gives it itself, never from the command line. Any other `--` argument, or a `--` argument holding a
 # space (two flags quoted into one), is refused: the batch would drop it and run everything.
@@ -221,6 +231,11 @@ for a in "$@"; do
     --staged) STAGED=1 ;;
     --no-lint) LINT=0 ;;
     --skip-domain=*) SKIP="${SKIP:+$SKIP,}${a#--skip-domain=}"; args+=("$a") ;;
+    --quiet) QUIET_GATE=1 ;;
+    --quiet=*)
+      QUIET_MIN="${a#--quiet=}"
+      [[ "$QUIET_MIN" =~ ^[0-9]+([.][0-9]+)?$ ]] || { echo "--quiet wants a number of minutes (--quiet or --quiet=MINUTES)" >&2; exit 2; }
+      QUIET_GATE=1 ;;
     --failed)
       [[ -f "$LAST" ]] || { echo "No previous run of this checkout to take failures from." >&2; exit 2; }
       # 0: a failed test to rerun; 1: none; 3: the report cannot be read.
@@ -393,7 +408,8 @@ godot_run() {
   set +e
   python3 "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" $HEADLESS $NOVSYNC --path . --fixed-fps 60 --log-file "$out/godot.log" \
     -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -c -rc 1 -rd "res://$rel/gdunit" \
-    ${suites[@]+"${suites[@]}"} -- --out="$out" "$@" | tee "$out/gdunit.txt" | python3 -u -c "$CONSOLE_FILTER"
+    ${suites[@]+"${suites[@]}"} -- --out="$out" "$@" | tee "$out/gdunit.txt" | python3 -u -c "$CONSOLE_FILTER" \
+    | python3 "$TOOLS/godot_slot.py" annotate --ancestor=$$ ${LOADED_RUN:+--loaded}
   code=${PIPESTATUS[0]}
   set -e
   if [[ $code -ne 0 && $code -ne 100 && $code -ne 101 ]]; then
@@ -406,7 +422,22 @@ godot_run() {
     echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
     echo "Report: $out/report.json"
   fi
+  [[ -n "$LOADED_RUN" ]] && mark_loaded "$out"
   verdict "$out"
+}
+
+# Marks every result of the report.json in dir $1 `"loaded": true`: the process ran without the quiet machine it waited for.
+mark_loaded() {
+  python3 - "$1/report.json" <<'EOF'
+import json, sys
+try:
+    data = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(0)
+for r in data.get("results", []):
+    r["loaded"] = True
+json.dump(data, open(sys.argv[1], "w"), indent=2)
+EOF
 }
 
 # The verdict of the run that wrote $1/report.json: 1 when a test FAILED or TIMED OUT or a line was logged outside
@@ -529,6 +560,26 @@ perf_selected() {
   [[ -n "$ids" && ",$ids" != *",perf/"* ]] && return 1
   [[ -n "$failed" && -z "$ids" ]] && ! grep -q '"id": "perf/' "$failed" 2>/dev/null && return 1
   [[ -n "$(find tests/perf \( -name '*_test.gd' -o -name '*_suite.gd' \) 2>/dev/null | head -1)" ]]
+}
+
+# Whether the selection args hold perf tests only: --domain names perf alone, or no --domain and every --id is a perf test.
+perf_only() {
+  local d x ids=""
+  d=$(domains_of "$@")
+  if [[ -n "$d" ]]; then [[ -z "$(echo "$d" | tr ',' '\n' | grep -vx perf || true)" ]]; return; fi
+  for x in "$@"; do case "$x" in --id=*) ids="$ids,${x#--id=}" ;; esac; done
+  [[ -n "$ids" && -z "$(echo "${ids#,}" | tr ',' '\n' | grep -v '^perf/' || true)" ]]
+}
+
+# --quiet: before a process of perf tests starts, wait for no other Godot and a 1-minute load under perf_quiet.conf's
+# max_load (printing both each minute); after timeout_min minutes (--quiet=MINUTES) go ahead and leave LOADED_RUN set,
+# which marks that process's results `loaded`.
+quiet_gate() {
+  [[ $QUIET_GATE -eq 1 ]] || return 0
+  local max min
+  max=$(sed -n 's/^max_load=//p' "$TOOLS/perf_quiet.conf")
+  min=${QUIET_MIN:-$(sed -n 's/^timeout_min=//p' "$TOOLS/perf_quiet.conf")}
+  python3 "$TOOLS/godot_slot.py" quiet --ancestor=$$ --max-load="$max" --timeout-min="$min" || LOADED_RUN=1
 }
 
 # A process's lines left out where several processes make one run (a sharded run, a --repeat with native suites):
@@ -670,7 +721,9 @@ run() {
     if [[ $listing -eq 1 ]]; then
       godot_list "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
     else
+      perf_only "$@" ${args[@]+"${args[@]}"} && quiet_gate
       godot_run "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
+      LOADED_RUN=""
     fi
     [[ $keep -eq 1 ]] && { save_reports "$out"; note_von_skips "$out"; }
     scan_log "$out" $listing || code=1
@@ -711,7 +764,9 @@ run() {
   else
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     dirs+=("$out")
+    perf_only "$@" ${args[@]+"${args[@]}"} && quiet_gate
     live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
+    LOADED_RUN=""
   fi
   if [[ $perf_phase -eq 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
     # The selection's perf tests (its other --domain flags dropped: they would add domains, not narrow to perf), in one
@@ -722,7 +777,9 @@ run() {
     done
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     dirs+=("$out")
+    quiet_gate
     live_run "$out" ${phase[@]+"${phase[@]}"} --domain=perf || status=1
+    LOADED_RUN=""
   fi
   if [[ $repeat -gt 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
     # The native suites the run met, each run again in N-1 processes, one after another (a suite's own files are

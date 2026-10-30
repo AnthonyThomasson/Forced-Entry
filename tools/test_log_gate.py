@@ -989,6 +989,154 @@ class PerfPhaseTests(unittest.TestCase):
         self.assertTrue(all("--skip-domain=perf" in l for l in starts[:-1]))
 
 
+FAKE_PERF_GODOT = r"""#!/usr/bin/env bash
+# Stands in for Godot: notes its pid in $FAKE_SELF_PIDS (the fake pgrep reports it, as the real one reports every
+# engine), prints a PERF line and a perf test's verdict line, and writes a report of that one passing test (perf/p for
+# a run of the perf domain, a/s<shard> otherwise).
+for a in "$@"; do [ "$a" = "--import" ] && exit 0; done
+log=""; out=""; id="a/whole"; shard=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --log-file) log="$2"; shift ;;
+    --out=*) out="${1#--out=}" ;;
+    --shard=*) shard="${1#--shard=}"; id="a/s$shard" ;;
+    --domain=perf|--id=perf/*) id="perf/p" ;;
+  esac
+  shift
+done
+echo "Godot Engine v4.4" > "$log"
+echo $$ >> "$FAKE_SELF_PIDS"
+echo "start $id" >> "$FAKE_LOG"
+sleep "${FAKE_SLEEP:-0.3}"
+echo "PERF $id frame 3.20 (budget 8.00)"
+echo "PASS    $id  (1.0s sim, 20 ms)"
+printf '{"results": [{"id": "%s", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$id" "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
+echo "1 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
+exit 0
+"""
+
+
+class QuietGateTests(unittest.TestCase):
+    """`--quiet`: the perf tests wait for a quiet machine (a fake `uptime` and `pgrep` on PATH, a minute scaled down),
+    run anyway on the timeout with their results marked `loaded`; every PERF line carries the load and the other
+    Godot processes."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="quiet_gate_"))
+        cls.fake = cls.tmp / "fakegodot"
+        cls.fake.write_text(FAKE_PERF_GODOT)
+        cls.fake.chmod(0o755)
+        cls.bin = cls.tmp / "bin"
+        cls.bin.mkdir()
+        (cls.bin / "uptime").write_text('#!/bin/sh\necho " 0:31  up 5 days, 22 users, load averages: $(cat "$FAKE_LOAD") 13.70 13.61"\n')
+        (cls.bin / "pgrep").write_text('#!/bin/sh\n# the engines that run, and the ones listed in $FAKE_OTHERS\n{ for p in $(cat "$FAKE_SELF_PIDS" 2>/dev/null); do kill -0 "$p" 2>/dev/null && echo "$p"; done; cat "$FAKE_OTHERS" 2>/dev/null; } | grep . || exit 1\n')
+        for f in ("uptime", "pgrep"):
+            (cls.bin / f).chmod(0o755)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def setUp(self):
+        self.work = Path(tempfile.mkdtemp(dir=self.tmp))
+        self.load, self.others = self.work / "load", self.work / "others"
+        self.log = self.work / "log"
+        self.set_machine(load="9.00", others=[4000001, 4000002])
+
+    def set_machine(self, load, others):
+        self.load.write_text(load)
+        self.others.write_text("".join(f"{p}\n" for p in others))
+
+    def start(self, *args, **env):
+        env = dict(os.environ, GODOT=str(self.fake), TMPDIR=str(self.work), FAKE_LOAD=str(self.load), FAKE_OTHERS=str(self.others),
+                   FAKE_SELF_PIDS=str(self.work / "self"), FAKE_LOG=str(self.log), GAME_TEST_SLOT_DIR=str(self.work / "slots"),
+                   PATH=f"{self.bin}:{os.environ['PATH']}", GAME_TEST_QUIET_MINUTE="0.3", GAME_TEST_QUIET_POLL="0.05",
+                   GAME_TEST_SLOT_POLL="0.05", **env)
+        env.pop("GAME_TEST_JOBS", None)
+        return subprocess.Popen(["bash", str(RUN), "--no-lint", *args], cwd=ROOT, env=env, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True)
+
+    def finish(self, proc, timeout=60):
+        out = proc.communicate(timeout=timeout)[0]
+        report = json.loads(next(self.work.glob("example_godot_last_report_*.json")).read_text())
+        return out, {r["id"]: r for r in report["results"]}
+
+    def test_the_conf_holds_the_threshold_and_the_timeout_of_this_boxs_idle_baseline(self):
+        conf = dict(l.split("=") for l in (ROOT / "tools" / "perf_quiet.conf").read_text().splitlines()
+                    if "=" in l and not l.startswith("#"))
+        self.assertEqual(conf, {"max_load": "6", "timeout_min": "30"})
+
+    def test_it_waits_for_no_other_godot_and_a_load_under_the_threshold_and_says_so_each_minute(self):
+        proc = self.start("--domain=perf", "--quiet")
+        time.sleep(1.0)
+        self.assertIsNone(proc.poll(), "load 9 and two other Godot: it waits")
+        self.assertFalse(self.log.exists(), "the perf process has not started")
+        self.set_machine(load="1.00", others=[4000001])
+        time.sleep(0.6)
+        self.assertIsNone(proc.poll(), "the load is low but another Godot runs: still waits")
+        self.set_machine(load="5.90", others=[])
+        out, results = self.finish(proc)
+        self.assertEqual(proc.returncode, 0, out)
+        waits = [l for l in out.splitlines() if "waiting for a quiet machine" in l]
+        self.assertGreaterEqual(len(waits), 3, "the load and the count again each minute\n" + out)
+        self.assertRegex(waits[0], r"load 9\.00.* 2 other Godot")
+        self.assertRegex(waits[-1], r"load 1\.00.* 1 other Godot")
+        self.assertNotIn("loaded", out.replace("waiting", ""), "a quiet machine at last: nothing is marked")
+        self.assertNotIn("loaded", results["perf/p"])
+
+    def test_a_load_at_the_threshold_is_not_quiet(self):
+        self.set_machine(load="6.00", others=[])
+        proc = self.start("--domain=perf", "--quiet=1")
+        out, results = self.finish(proc)
+        self.assertTrue(results["perf/p"]["loaded"], "6 is not under max_load 6: it timed out\n" + out)
+
+    def test_on_the_timeout_it_runs_anyway_and_marks_the_results_loaded(self):
+        proc = self.start("--domain=perf", "--quiet=2")
+        out, results = self.finish(proc)
+        self.assertEqual(proc.returncode, 0, out)
+        self.assertIn("quiet gate timed out after 2 min", out)
+        self.assertRegex(out, r"(?m)^PASS    perf/p  \(1\.0s sim, 20 ms\)  loaded$")
+        self.assertIs(results["perf/p"].get("loaded"), True)
+
+    def test_only_the_perf_process_of_a_sharded_run_waits_and_is_marked(self):
+        proc = self.start("--jobs=2", "--quiet=1")
+        out, results = self.finish(proc)
+        self.assertEqual(proc.returncode, 0, out)
+        self.assertEqual(sorted(results), ["a/s0/2", "a/s1/2", "perf/p"])
+        self.assertTrue(results["perf/p"].get("loaded"))
+        self.assertNotIn("loaded", results["a/s0/2"])
+        self.assertNotIn("loaded", results["a/s1/2"])
+        self.assertEqual(out.count("quiet gate timed out"), 1, out)
+        starts = self.log.read_text().split()
+        self.assertEqual(starts[-2:], ["start", "perf/p"], "the shards did not wait for the machine to go quiet")
+
+    def test_a_selection_without_perf_does_not_wait(self):
+        proc = self.start("--domain=ai", "--quiet")
+        out, _ = self.finish(proc, timeout=20)
+        self.assertEqual(proc.returncode, 0, out)
+        self.assertNotIn("waiting for a quiet machine", out)
+
+    def test_a_perf_line_carries_the_load_and_the_other_godot_processes(self):
+        out, _ = self.finish(self.start("--domain=perf"))
+        self.assertIn("PERF perf/p frame 3.20 (budget 8.00) (load 9.00, 2 other Godot)", out.splitlines())
+        self.assertIn("PASS    perf/p  (1.0s sim, 20 ms)", out.splitlines(), "the verdict line is as it was")
+        self.set_machine(load="0.50", others=[])
+        out, _ = self.finish(self.start("--domain=perf"))
+        self.assertIn("PERF perf/p frame 3.20 (budget 8.00) (load 0.50, 0 other Godot)", out.splitlines(),
+                      "the run's own engine is not another Godot")
+
+    def test_a_shards_perf_line_is_annotated_when_it_is_produced(self):
+        out, _ = self.finish(self.start("--jobs=2", "--id=a/x,b/y"))
+        self.assertIn("PERF a/s0/2 frame 3.20 (budget 8.00) (load 9.00, 2 other Godot)", out.splitlines())
+
+    def test_a_bad_quiet_count_is_refused(self):
+        proc = self.start("--domain=perf", "--quiet=soon")
+        out = proc.communicate(timeout=20)[0]
+        self.assertEqual(proc.returncode, 2, out)
+        self.assertIn("--quiet", out)
+
+
 class LintReportTests(unittest.TestCase):
     """tools/lint_report.py on crafted logs of the lint scene."""
 
