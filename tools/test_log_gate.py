@@ -1073,11 +1073,10 @@ class QuietGateTests(unittest.TestCase):
         self.others.write_text("".join(f"{p}\n" for p in others))
 
     def start(self, *args, **env):
-        env = dict(os.environ, GODOT=str(self.fake), TMPDIR=str(self.work), FAKE_LOAD=str(self.load), FAKE_OTHERS=str(self.others),
-                   FAKE_SELF_PIDS=str(self.work / "self"), FAKE_LOG=str(self.log), GAME_TEST_SLOT_DIR=str(self.work / "slots"),
-                   PATH=f"{self.bin}:{os.environ['PATH']}", GAME_TEST_QUIET_MINUTE="0.3", GAME_TEST_QUIET_POLL="0.05",
-                   GAME_TEST_SLOT_POLL="0.05", **env)
-        env.pop("GAME_TEST_JOBS", None)
+        env = dict({k: v for k, v in os.environ.items() if k != "GAME_TEST_JOBS"}, GODOT=str(self.fake), TMPDIR=str(self.work),
+                   FAKE_LOAD=str(self.load), FAKE_OTHERS=str(self.others), FAKE_SELF_PIDS=str(self.work / "self"),
+                   FAKE_LOG=str(self.log), GAME_TEST_SLOT_DIR=str(self.work / "slots"), PATH=f"{self.bin}:{os.environ['PATH']}",
+                   GAME_TEST_QUIET_MINUTE="0.3", GAME_TEST_QUIET_POLL="0.05", GAME_TEST_SLOT_POLL="0.05", **env)
         return subprocess.Popen(["bash", str(RUN), "--no-lint", *args], cwd=ROOT, env=env, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True)
 
@@ -1134,6 +1133,23 @@ class QuietGateTests(unittest.TestCase):
         self.assertEqual(out.count("quiet gate timed out"), 1, out)
         starts = self.log.read_text().split()
         self.assertEqual(starts[-2:], ["start", "perf/p"], "the shards did not wait for the machine to go quiet")
+
+    def test_a_mixed_single_process_waits_for_the_machine_and_is_marked_too(self):
+        # Perf shares the process with other tests when the run is one process: GAME_TEST_JOBS=1, --jobs=1, a list of ids.
+        cases = ((["--quiet=1"], {"GAME_TEST_JOBS": "1"}, "a/whole"), (["--jobs=1", "--quiet=1"], {}, "a/whole"),
+                 (["--id=perf/p,ai/y", "--quiet=1"], {}, "perf/p"))
+        for args, env, result in cases:
+            with self.subTest(args=args, env=env):
+                out, results = self.finish(self.start(*args, **env))
+                self.assertEqual(out.count("quiet gate timed out"), 1, out)
+                self.assertTrue(results[result].get("loaded"), out)
+
+    def test_the_minutes_waited_are_printed_to_one_decimal(self):
+        out, _ = self.finish(self.start("--domain=perf", "--quiet=2"))
+        waits = [l for l in out.splitlines() if "waiting for a quiet machine" in l]
+        self.assertTrue(waits, out)
+        for line in waits:
+            self.assertRegex(line, r"\(none wanted\), \d+\.\d of 2 min$")
 
     def test_a_selection_without_perf_does_not_wait(self):
         proc = self.start("--domain=ai", "--quiet")

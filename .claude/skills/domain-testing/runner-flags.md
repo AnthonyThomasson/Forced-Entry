@@ -33,20 +33,23 @@ The `tools/run_tests.sh` flags `SKILL.md`'s "Running tests" leaves out.
   most `cores / 2`, at least 1**; `--jobs=N` keeps N shards and each waits for its slot. A process with no free slot waits
   and says so once: `waiting for a Godot slot (<n> of <n> taken)`. `GAME_TEST_JOBS=N` caps the jobs of every run in a
   process tree, `auto` and `--jobs=N` alike (the smaller wins). The lint's engine pass, editors and played games take no
-  slot. `python3 tools/godot_slot.py status` prints `<taken> <size>`, `free` the free count. A run's header (a wrapper
+  slot. `python3 tools/godot_slot.py status` prints `<taken> <size>`, `free` the free count (they only look: they take no slot and
+  write nothing; takers go one at a time, so two never reclaim the same orphaned lock). A run's header (a wrapper
   line before the first test) and its totals line print the 1-minute load.
 - **Perf after the shards:** with more than one process the perf-domain tests are held back from the shards and run after
   every shard has ended, alone in one process (one slot), then folded into the combined summary, totals and `--failed`
   report; `--repeat` applies to that run too. With one process (a selection, `--windowed`, a selection of perf alone)
   nothing is held back. Perf tests budget wall-clock ms about 4x their baseline, so a trip means a loaded machine or a
   slower game (`--quiet`, below).
-- **`--quiet[=MINUTES]`:** before the process of the perf tests starts (the perf phase of a sharded run, or the whole run
-  when only perf is selected) the wrapper waits until no other Godot process runs (any godot this run did not start,
+- **`--quiet[=MINUTES]`:** before a process that holds perf tests starts (the perf phase of a sharded run; the one process of
+  a run whose selection holds perf: the whole suite with one job, perf alone, `--id=perf/x,ai/y`; a `--repeat` rerun of a
+  native suite of `tests/perf`) the wrapper waits until no other Godot process runs (any godot this run did not start,
   editors and played games included) and the 1-minute load is under `max_load` in `tools/perf_quiet.conf` (6: this box's
   idle baseline is about 5), printing the load and the count of other Godot processes at once and each minute. After
   `MINUTES` (default `timeout_min` of the same file, 30) it runs anyway and marks that process's results `loaded` (on each
-  verdict line, `"loaded": true` in `report.json`): a `loaded` result is no evidence of a regression. The wrapper appends
-  `(load <x>, <n> other Godot)` to every `PERF` line it passes (shown with `--verbose`), quiet or not.
+  verdict line, `"loaded": true` in `report.json`): a `loaded` result is no evidence of a regression. A gate that fails for
+  another reason than its timeout (an unreadable `perf_quiet.conf`) ends the run with exit 2 before a test starts. The
+  wrapper appends `(load <x>, <n> other Godot)` to every `PERF` line it passes (shown with `--verbose`), quiet or not.
 - **`--base=<rev>`:** the working tree's tests against the code of `<rev>`: a temporary `git worktree` of `<rev>` in
   `$TMPDIR` gets the working tree's `tests/` whole (`.uid` files and helper folders included), is imported, runs the
   selection in one process, prints its lines under `== on base <rev> (<short sha>) ==`, and is removed, also on ^C. The

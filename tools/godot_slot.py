@@ -13,7 +13,9 @@ slot (<n> of <n> taken)`, on fd N, stderr by default; polls every $GAME_TEST_SLO
 its pid into the file and execs COMMAND on the same pid with the lock's file descriptor inherited: the slot is held by
 the command itself, so it is freed when the command exits, however it ends. A process the command started that outlives
 it (a Von server) keeps the lock held, but the file names the command's pid, which is dead: a lock file whose pid is
-dead counts as free, and is replaced by a new file.
+dead counts as free, and is replaced by a new file. Takers go one at a time (an flock on `slot-reclaim.lock` in the same
+directory), so two never reclaim the same orphan; `free`, `status` and the wait notice only look (a shared lock that is let
+go at once): they take no slot, write no pid and replace no file.
 
 The machine's state, for `--quiet` and the PERF lines of a run: the 1-minute load (`uptime`) and the number of other Godot
 processes (`pgrep -i godot`: editors and played games too), those under the process PID (the run's own) left out.
@@ -22,6 +24,7 @@ verdict line (`PASS    <id>  (<s>s sim, <ms> ms)`). `quiet` returns 0 once no ot
 --max-load, printing the load and the count at once and every minute ($GAME_TEST_QUIET_MINUTE seconds, 60 by default;
 polled every $GAME_TEST_QUIET_POLL, 5 by default) while it waits, and 3 after --timeout-min minutes.
 """
+import contextlib
 import fcntl
 import os
 import re
@@ -32,6 +35,8 @@ from pathlib import Path
 
 # How long a lock file naming a dead pid is watched before it is called an orphan's.
 RECLAIM_WAIT = 0.1
+# The lock file that serialises the takers of a pool (it is not a slot).
+GUARD = "slot-reclaim.lock"
 VERDICT = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+\S+\s+\(")
 
 
@@ -54,46 +59,78 @@ def alive(pid: int) -> bool:
     return True
 
 
-def lock_pid(fd: int):
-    """The pid a lock file names, None when it names none (yet)."""
+def lock_pid(path: Path):
+    """The pid the lock file at `path` names, None when it names none (yet) or the file is gone."""
+    try:
+        fd = os.open(path, os.O_RDONLY)
+    except FileNotFoundError:
+        return None
     try:
         text = os.pread(fd, 32, 0).decode().strip()
         return int(text) if text else None
     except (OSError, ValueError):
         return None
+    finally:
+        os.close(fd)
+
+
+def is_at(fd: int, path: Path) -> bool:
+    """Whether the open file `fd` is still the file at `path` (it was replaced or deleted otherwise)."""
+    try:
+        return os.fstat(fd).st_ino == path.stat().st_ino
+    except FileNotFoundError:
+        return False
+
+
+def try_lock(path: Path):
+    """The open file descriptor of the slot file at `path` with its lock held, None when another process holds it."""
+    while True:
+        fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            os.close(fd)
+            return None
+        if is_at(fd, path):
+            return fd
+        os.close(fd)  # the file was replaced between the open and the lock: it is another slot's now
+
+
+def orphaned(path: Path) -> bool:
+    """Whether the lock held on the file at `path` is an orphan's: the file names a dead pid, for longer than the moment
+    the winner of a slot holds the lock before it writes its own pid."""
+    pid = lock_pid(path)
+    if pid is None or alive(pid):
+        return False
+    time.sleep(RECLAIM_WAIT)
+    return lock_pid(path) == pid
+
+
+@contextlib.contextmanager
+def guard(directory: Path):
+    """One taker at a time judges, replaces and locks a slot file: two never both reclaim the same orphan."""
+    fd = os.open(directory / GUARD, os.O_RDWR | os.O_CREAT, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)
 
 
 def take(path: Path):
     """The open, locked file descriptor of the slot at `path`, or None when a live process holds it. A lock held by an
     orphan of a dead pid is dropped: the file is replaced and the new one locked."""
-    for _ in range(3):
-        fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            pid = lock_pid(fd)
-            if pid is not None and not alive(pid):
-                # The winner of a slot holds the lock a moment before it writes its pid: look again before taking the
-                # name of a dead process for an orphan's.
-                time.sleep(RECLAIM_WAIT)
-                if lock_pid(fd) != pid:
-                    pid = None
-            same_file = os.fstat(fd).st_ino == (path.stat().st_ino if path.exists() else None)
-            os.close(fd)
-            if pid is None or alive(pid) or not same_file:
-                return None
-            try:
-                path.unlink()
-            except FileNotFoundError:
-                pass
-            continue
-        if not path.exists() or os.fstat(fd).st_ino != path.stat().st_ino:
-            os.close(fd)  # the file was replaced between open and lock: it is another slot's now
-            continue
-        os.ftruncate(fd, 0)
-        os.pwrite(fd, str(os.getpid()).encode(), 0)
+    with guard(path.parent):
+        fd = try_lock(path)
+        if fd is None and orphaned(path):
+            fd = try_lock(path)  # whoever held it for a moment (a probe) may have let go meanwhile
+            if fd is None:
+                path.unlink(missing_ok=True)
+                fd = try_lock(path)
+        if fd is not None:
+            os.ftruncate(fd, 0)
+            os.pwrite(fd, str(os.getpid()).encode(), 0)
         return fd
-    return None
 
 
 def take_any():
@@ -106,18 +143,27 @@ def take_any():
     return None
 
 
+def held(path: Path) -> bool:
+    """Whether a live process holds the slot at `path`. Probes with a shared lock: it takes no slot, writes no pid and
+    makes no file."""
+    try:
+        fd = os.open(path, os.O_RDONLY)
+    except FileNotFoundError:
+        return False
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return not orphaned(path)
+        return False
+    finally:
+        os.close(fd)
+
+
 def taken() -> int:
     """How many slots a live process holds right now."""
     directory = slot_dir()
-    directory.mkdir(parents=True, exist_ok=True)
-    count = 0
-    for i in range(size()):
-        fd = take(directory / f"slot{i}.lock")
-        if fd is None:
-            count += 1
-        else:
-            os.close(fd)
-    return count
+    return sum(held(directory / f"slot{i}.lock") for i in range(size()))
 
 
 def one_minute_load() -> float:
@@ -187,7 +233,7 @@ def quiet(argv: list) -> int:
             return 3
         if said is None or now - said >= minute:
             said = now
-            print("waiting for a quiet machine: load %.2f (under %g wanted), %d other Godot (none wanted), %g of %g min"
+            print("waiting for a quiet machine: load %.2f (under %g wanted), %d other Godot (none wanted), %.1f of %g min"
                   % (load, max_load, others, (now - started) / minute, minutes), flush=True)
         time.sleep(poll)
 
