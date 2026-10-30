@@ -6,7 +6,8 @@ extends RefCounted
 ## The posts are read through the published entry geometry (`agent_entry.gd`, loaded by path, as
 ## `slots_probe.gd` reads it): `new()`, `set_house(openings, rooms)`, `opening_id(o)`,
 ## `geometry(id, into, map, space)` and `posts.ambush_spot(entry, g, place, map, space)`, the body's
-## crouched height handed to its `posts` as the perception hands it in (`crouch`). The capture
+## crouched height handed to its `posts` as the perception hands it in (`crouch`), and no body (so
+## the geometry keeps its own ranking, not the one the NPCs on the map share). The capture
 ## beside each test holds the full ranking (every post's grenade landings counted, each member its
 ## own): for every doorway of the house, laid from each room it joins, every member `nth` of an
 ## order to `count` (1 to `MAX_COUNT`), the post `ambush_spot` gave (`[x, y, seen]`, `[]` for none).

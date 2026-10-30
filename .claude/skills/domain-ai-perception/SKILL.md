@@ -389,7 +389,10 @@ width + `DEFEND_BODY`) is dropped. Each is scored `seen` x `RANK_SEEN` (1e7) + f
 everything. Since nothing below `seen` can outweigh one `RANK_SEEN`, the landings are counted only where they can decide a pick
 (`_best_post`): among the posts still open (clear of the posts taken) only those tied on the least `seen` and side can win, and only
 those have their exposures counted (`_expose`, once a post, kept in the ranking), so the picks are those of the full score
-(`ai/combat/ambush_posts_capture_terrace` / `_house` pin every post of two houses to a capture of the full ranking). `seen` counts the geometry's `lookouts`, slots and pie points that see it (`_sees_from`: `AgentVision.sight_hit`, over low cover, the bodies looked through,
+(`ai/combat/ambush_posts_capture_terrace` / `_house` pin every post of two houses to a capture of the full ranking, read off a geometry
+with no NPC, whose own ranking is worked out as the shared one; the shared ranking runs in `ai/combat/ambush_post_cover_through_body`,
+`perf/ambush_order_stress` and the crew scenarios, and `ambush_post_cover_through_body` pins that a body standing in front of a post's
+low cover leaves it its cover rank). `seen` counts the geometry's `lookouts`, slots and pie points that see it (`_sees_from`: `AgentVision.sight_hit`, over low cover, the bodies looked through,
 at any range and facing); a post seen by none is hidden only if it is hidden from the 8 points `AMBUSH_SLACK` (12 px) round it too. The
 landings (`_exposures`, LD15, D17) count, per kind of `BANG_KINDS` (frag, then stun), the spots an entry's grenade into the room by that
 doorway may land (`_bang_landings`: `EntryLandings.spots(g, reach)`, reckoned from the doorway's centre, no slot filter) that reach a body
