@@ -337,7 +337,9 @@ when an ally radios `cleared_room`. `entry.is_cleared(key)` reads it; the snapsh
 (search ranking still uses `visited_room`). `views.threshold_ahead(path, from_idx, max_dist)` (a thin wrapper on
 `AgentDoorViews.threshold_ahead`) walks a nav path and returns the first doorway whose wall plane a step crosses, within the
 doorway's width and heading into a room that is not the one the NPC is in and is not cleared: `{ opening, into, dist }`, or
-{}. The last step is extended by `THRESHOLD_EXTEND` (30 px) so a destination that is the doorway counts. The behaviour's
+{}. The room the NPC is in is read from the doorway's outer side when it stands in a doorway of the room a held stack's member keeps
+out of (`AgentDoorViews.kept_out`, the confinement's `keep_out` the wrapper pushes in each call, D31; `_outside_of`: on the room's
+side of the wall plane by `DOORWAY_DEPTH`, 20 px, half a wall and a body's radius, at most, within the doorway's width). The last step is extended by `THRESHOLD_EXTEND` (30 px) so a destination that is the doorway counts. The behaviour's
 entry guard calls it every tick. `views.passing_ahead(path, from_idx, max_dist)` (over `AgentDoorViews.passing_ahead`) is its sibling for E15 / E18:
 the first doorway **view** the walk comes into from outside it (any doorway into a room not clear for passing: inside the house or out, exterior doors too, however far out from the wall; not the NPC's own room, nor a doorway of a room the walk goes into by any of its doors, which the entry into that room covers): `{ opening, into, dist }` (`dist` = px of walking until it is in the view), or {}.
 **Doorway views and the walked route (E18, `agent_door_views.gd`).** The perception builds one `AgentDoorViews` and hands it to its

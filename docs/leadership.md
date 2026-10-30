@@ -373,8 +373,10 @@ sentence for Von ends " when they give the go".
   its way by a way into that room (it waits short of the body, then goes round the room once that way is clear): a retreat to a room behind
   it is never walked through it. Its other walks, one into the
   doorway's view to fire through it among them, are left as they are, and none is turned into an entry into that room: the entry guard (E9)
-  leaves its doorways alone for the member, under fire too, so a walk up to the doorway stops outside it. When the fight lapses, the member's order brings it back to
-  its slot.
+  leaves its doorways alone for the member, under fire too, so a walk up to the doorway stops outside it. Standing in one of that room's
+  doorways (on the room's side of its wall plane by half a wall and a body's radius at most), the member is not in the room yet: the
+  guard reads it as on the doorway's outer side, so its walk away through that doorway is no entry into the room beyond. When the fight
+  lapses, the member's order brings it back to its slot.
 - **The walk into the slot.** A member arrives at its slot from a point past it that stops a body's clearance (32 px) short of the next
   slot along its side a teammate claims, re-planned as claims come in (`docs/tactical-entry.md` E2, for every stack): a held stack whose
   last member claims after the one ahead of it set off (`order_stack_hold_for_go`) never has that member walk into the other's body.
@@ -410,7 +412,10 @@ living room past a teammate standing on its plain way through the kitchen, and g
 `order_stack_hold_advance_to_door_stays_out` (scripted: a held member under fire from the kitchen advances halfway to the defender, to a
 point by the back doorway outside the kitchen: it fights from there, never enters the kitchen nor claims the doorway but under its
 order), `order_stack_hold_walk_round_body` (scripted: a held member's walk round the house to its slot meets a teammate standing on its
-way along the west wall, and never goes round it through the hall and the kitchen). The
+way along the west wall, and never goes round it through the hall and the kitchen),
+`order_stack_hold_from_doorway` (scripted: a held member standing in the hall-kitchen doorway, just on the kitchen's side of the wall
+plane, is not in the kitchen: it walks round the house to its slot, never on into the kitchen, and the entry guard takes it into no
+room by entry). The
 `order_stack_*` tests cover a stack that goes when ready.
 
 **LD14. Frag entry.** The stack order's `mode` is `quiet`, `stun` or `frag` (LD5). With `frag` the stack throws a frag into the room

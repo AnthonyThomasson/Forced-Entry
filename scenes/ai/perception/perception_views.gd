@@ -60,7 +60,8 @@ func sync_walks() -> void:
 ## The first doorway on the walk `path` (from waypoint `from_idx`, `max_dist` px of it at most) that
 ## leads into a room that is not cleared (nor, on an ordered walk, the room its stack holds, or for
 ## an NPC that does not clear rooms by entry seen empty: D11), as `{ opening, into, dist }`,
-## or {} (see agent_door_views.gd `threshold_ahead`).
+## or {} (see agent_door_views.gd `threshold_ahead`). A held stack's member in a doorway of the room
+## it keeps out of (the confinement's `keep_out`, D31) is not in that room yet.
 func threshold_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -> Dictionary:
 	var clear: Callable = perception.entry.is_cleared
 	if ordered:
@@ -72,6 +73,7 @@ func threshold_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -
 				or key == _stack_room()
 				or (not perception.tuning.entry.enabled and _seen_empty(key))
 			)
+	views.kept_out = perception.confinement.keep_out
 	return views.threshold_ahead(
 		path, from_idx, perception._character.global_position, clear, max_dist
 	)

@@ -29,6 +29,9 @@ const VIEW_FAR_RAYS := 10
 ## How far (px) the door-avoiding route may end short of the point it was asked for before it counts
 ## as not reaching it.
 const AVOID_REACH := 24.0
+## How deep (px) into a room a walker still stands in one of its doorways, not yet in the room: half
+## a wall's thickness and a body's radius.
+const DOORWAY_DEPTH := 20.0
 
 ## The sight sense (wall rays): the perception hands in its own.
 var vision: RefCounted = AgentVision.new()
@@ -48,20 +51,18 @@ var pass_clear: Callable
 ## room being entered and its doorway's view is taken however long it is (no `door_avoid_ratio` cap;
 ## `walk_route`).
 var ordered_approach := false
+## The room a held stack's member keeps out of (`docs/leadership.md` D31, "" for none): in one of
+## its doorways the NPC is not in it yet, but on the doorway's outer side (`threshold_ahead`).
+var kept_out := ""
 ## The house's doorways (`{ pos, width, front, exit, rooms }`), as injected.
 var _openings: Array = []
 ## The house's rooms (`{ key, type, rect }`).
 var _rooms: Array = []
 ## "<opening id>><room key>@<depth>" -> the view out of that doorway (a polygon).
 var _views := {}
-## The physics frame `avoided` last worked out its answer in, and for which room...
-var _avoided_frame := -1
-## ... (`here_key`, "" = outside), for which entry the walk is the approach of...
-var _avoided_here := ""
-## ... (`entering`, "<opening id>><room key>", "" = none)...
-var _avoided_entering := ""
-## ... with which `pass_clear` rule...
-var _avoided_clear: Callable
+## What `avoided` last worked out its answer for: `[physics frame, here_key ("" = outside), entering
+## ("<opening id>><room key>", "" = none), pass_clear rule]` ([] for nothing yet)...
+var _avoided_for: Array = []
 ## ... and the answer: `{ key, holes, views }`.
 var _avoided_set := {}
 
@@ -73,7 +74,7 @@ func set_house(openings: Array, rooms: Array) -> void:
 	_openings = openings
 	_rooms = rooms
 	_views.clear()
-	_avoided_frame = -1
+	_avoided_for = []
 
 
 ## The stable id of doorway `o` ("door_<x>_<y>", its rounded world position): what the snapshot's
@@ -117,7 +118,8 @@ func room_rect(key: String) -> Rect2:
 ## the room key) says is not cleared. The walk's last step is extended by a body's length, so a
 ## destination that is the doorway itself crosses it. `{ opening, into, dist }` (`dist` = px of
 ## walking to it), or {}. Used by the behaviour's entry guard (E9): any walk, not only the ENTER
-## order, goes in by the entry.
+## order, goes in by the entry. The room the NPC is in is read from the doorway's outer side when it
+## stands in a doorway of the room it keeps out of (`kept_out`, `_outside_of`).
 func threshold_ahead(
 	path: PackedVector2Array,
 	from_idx: int,
@@ -131,7 +133,7 @@ func threshold_ahead(
 	var tail: Vector2 = (pts[-1] as Vector2) - (pts[-2] as Vector2)
 	if tail.length() > 0.001:
 		pts.append((pts[-1] as Vector2) + tail.normalized() * THRESHOLD_EXTEND)
-	var here := HouseRooms.key_at(from_pos, _rooms)
+	var here := HouseRooms.key_at(_outside_of(from_pos, kept_out), _rooms)
 	var walked := 0.0
 	for i in range(1, pts.size()):
 		var a: Vector2 = pts[i - 1]
@@ -442,11 +444,8 @@ func avoided(
 	space: PhysicsDirectSpaceState2D,
 	entering := "",
 ) -> Dictionary:
-	var frame := Engine.get_physics_frames()
-	if (frame == _avoided_frame
-			and here_key == _avoided_here
-			and entering == _avoided_entering
-			and pass_clear == _avoided_clear):
+	var asked := [Engine.get_physics_frames(), here_key, entering, pass_clear]
+	if asked == _avoided_for:
 		return _avoided_set
 	var keys: Array = []
 	var holes: Array = []
@@ -473,10 +472,7 @@ func avoided(
 		"holes": holes,
 		"views": views,
 	}
-	_avoided_frame = frame
-	_avoided_here = here_key
-	_avoided_entering = entering
-	_avoided_clear = pass_clear
+	_avoided_for = asked
 	return _avoided_set
 
 
@@ -648,6 +644,25 @@ func held_route(
 ## and never goes round a body by a way into it (D31).
 func plain_enters(from: Vector2, to: Vector2, map: RID, key: String) -> bool:
 	return _entered_rooms([from] + Array(NavBuilder.route(map, from, to))).has(key)
+
+
+## Where a walker at `from` stands as to room `key` (`threshold_ahead`'s room it is in): in one of
+## that room's doorways (on the room's side of its wall plane by `DOORWAY_DEPTH` at most, within its
+## width) it is not in the room yet, so the point just across that plane, on the doorway's outer
+## side; `from` otherwise.
+func _outside_of(from: Vector2, key: String) -> Vector2:
+	var room := _room_rect(key)
+	if not room.has_point(from):
+		return from
+	for o in _openings:
+		if not (o.get("rooms", []) as Array).has(key):
+			continue
+		var inward := normal_into(room, o["pos"])
+		var depth := (from - (o["pos"] as Vector2)).dot(inward)
+		var across := absf((from - (o["pos"] as Vector2)).dot(inward.orthogonal()))
+		if depth <= DOORWAY_DEPTH and across <= float(o.get("width", 80.0)) * 0.5:
+			return from - inward * (depth + 1.0)
+	return from
 
 
 ## The keys of the rooms the walk `pts` goes into, by any of their doorways.
