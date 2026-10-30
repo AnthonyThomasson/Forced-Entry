@@ -443,7 +443,7 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   within the grenade's danger radius of it (a frag's blast, 250 px; a stun's flash, 400 px) and the blast's own cover rule
   (`Explosion.shields`, interface 3, for a body crouched at the post, every character's body passed through; for a stun only furniture
   within its `flash_cover_reach`, 30 px, of the post) does not shield it. The reach and the radii are the grenade's own numbers,
-  `GrenadeConfig.stats_of(kind)` (interface 6), the reach less `AgentThrow.REACH_SLACK` (15 px) as a thrower reckons it.
+  `GrenadeConfig.stats_of(kind)` (interface 6), the reach less `AgentThrow.REACH_SLACK` (15 px) as a thrower reckons it (`AgentThrow.reach_of`).
 - **The primitive.** `ambush` (`behavior_orders.gd`), the ORDER node's option with `{ opening, room, spot, door_pos, order_id }`: `defend`'s walk
   to its post (guarded as any walk, `DEFEND_REACH`, `DEFEND_DRIFT`), then it holds there crouched (with `posture_enabled`), gun on the
   threshold (`Watch.ease_gaze` on `door_pos`); the watch stage fires the moment a line opens. It radios `moving`, then `in_position`, and

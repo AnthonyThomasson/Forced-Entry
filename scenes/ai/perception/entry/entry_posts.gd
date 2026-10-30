@@ -453,18 +453,18 @@ func _ambush_post(
 
 
 ## Where an entry's grenade of each kind (`BANG_KINDS`) thrown into the room of entry geometry `g`
-## by its doorway may land (`EntryLandings.spots`, within the kind's throw reach): kind ->
-## `{ landings, radius, reach }`, `radius` its danger radius and `reach` how near furniture must be
-## to shield a body from it (a stun's flash), from the grenade's own numbers
-## (`GrenadeConfig.stats_of`).
+## by its doorway may land (`EntryLandings.spots`, within the reach of a thrower that knows the
+## grenade, `AgentThrow.reach_of`): kind -> `{ landings, radius, reach }`, `radius` its danger
+## radius and `reach` how near furniture must be to shield a body from it (a stun's flash), from the
+## grenade's own numbers (`GrenadeConfig.stats_of`).
 func _bang_landings(g: Dictionary) -> Dictionary:
+	var thrower := AgentThrow.new()
 	var out := {}
 	for kind: StringName in BANG_KINDS:
 		var stats := GrenadeConfig.stats_of(kind)
+		thrower.learn(stats)
 		out[kind] = {
-			"landings": EntryLandings.spots(
-				g, maxf(float(stats["max_range"]) - AgentThrow.REACH_SLACK, 0.0),
-			),
+			"landings": EntryLandings.spots(g, thrower.reach_of(kind)),
 			"radius": float(stats["danger_radius"]),
 			"reach": float(stats["flash_cover_reach"]),
 		}

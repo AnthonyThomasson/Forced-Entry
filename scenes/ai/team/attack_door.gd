@@ -46,7 +46,7 @@ static func _reach(
 	walk: Dictionary,
 ) -> void:
 	for j in openings.size():
-		var beyond = _beyond(openings[j], here)
+		var beyond = HouseRooms.beyond(openings[j], here)
 		if walk["done"].has(j) or beyond == null:
 			continue
 		var through := walked + from.distance_to(openings[j]["pos"])
@@ -64,16 +64,3 @@ static func _cheapest(walk: Dictionary) -> int:
 		if best < 0 or float(walk["cost"][i]) < float(walk["cost"][best]):
 			best = i
 	return best
-
-
-## The room doorway `o` leads into from room `here` ("" = outside): the other room it joins, ""
-## for an exterior door gone out by; null when `o` is not a doorway of `here`.
-static func _beyond(o: Dictionary, here: String) -> Variant:
-	var joins: Array = (o.get("rooms", []) as Array).map(func(k): return String(k))
-	if here == "":
-		return joins[0] if joins.size() == 1 else null
-	if not joins.has(here):
-		return null
-	if joins.size() == 1:
-		return ""
-	return joins[1] if joins[0] == here else joins[0]

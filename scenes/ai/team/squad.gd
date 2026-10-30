@@ -68,7 +68,7 @@ extends Node
 
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 ## The room lookups over the house's rooms the perception shares (which room a point lies in, the
-## room with a key).
+## room with a key, the rooms a doorway joins and the room beyond it).
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 ## The entry claim's wire format and step lists (scenes/ai/perception/stack/).
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
@@ -408,7 +408,7 @@ func _door_for(pos: Vector2) -> Dictionary:
 			best = o
 	if best.is_empty():
 		return {}
-	var joins: Array = (best.get("rooms", []) as Array).map(func(k): return String(k))
+	var joins := HouseRooms.joins(best)
 	if joins.is_empty():
 		return {}
 	var door: Vector2 = best["pos"]
@@ -432,21 +432,16 @@ func _ambush_door(request: Dictionary) -> Dictionary:
 	if not request.has("opening"):
 		var pos = request.get("pos")
 		return _door_for(pos) if pos is Vector2 else {}
+	var o := _opening(String(request["opening"]))
 	var room := String(request.get("room", ""))
-	for o: Dictionary in _openings:
-		if AgentEntry.opening_id(o) == String(request["opening"]):
-			var joins: Array = (o.get("rooms", []) as Array).map(func(k): return String(k))
-			return _door_of(o, room) if joins.has(room) else {}
-	return {}
+	return _door_of(o, room) if not o.is_empty() and HouseRooms.joins(o).has(room) else {}
 
 
 ## Doorway `o` seen from room `from`, one of the rooms it joins: `{ opening, pos, into, from }`,
 ## `into` the room on its other side (an exterior door's: its one room, `from`).
 func _door_of(o: Dictionary, from: String) -> Dictionary:
-	var joins: Array = (o.get("rooms", []) as Array).map(func(k): return String(k))
-	var into := from
-	if joins.size() == 2:
-		into = joins[1] if joins[0] == from else joins[0]
+	var beyond: Variant = HouseRooms.beyond(o, from)
+	var into := from if beyond == null or beyond == "" else String(beyond)
 	return { "opening": AgentEntry.opening_id(o), "pos": o["pos"], "into": into, "from": from }
 
 
@@ -614,7 +609,13 @@ func _free() -> Array:
 
 ## The centre of the house's doorway `opening`, or `Vector2.INF` when it has none by that id.
 func _opening_pos(opening: String) -> Vector2:
+	var o := _opening(opening)
+	return Vector2.INF if o.is_empty() else o["pos"]
+
+
+## The house's doorway whose id (`AgentEntry.opening_id`) is `opening`, or {}.
+func _opening(opening: String) -> Dictionary:
 	for o: Dictionary in _openings:
 		if AgentEntry.opening_id(o) == opening:
-			return o["pos"]
-	return Vector2.INF
+			return o
+	return {}

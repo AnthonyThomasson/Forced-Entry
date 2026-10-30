@@ -108,13 +108,8 @@ static func opening_id(o: Dictionary) -> String:
 func entries_from(here_key: String) -> Array:
 	var out: Array = []
 	for o in _openings:
-		var joins: Array = o.get("rooms", [])
-		var into := ""
-		if here_key == "" and joins.size() == 1:
-			into = str(joins[0])
-		elif here_key != "" and joins.size() == 2 and here_key in joins.map(func(k): return str(k)):
-			into = str(joins[0]) if str(joins[1]) == here_key else str(joins[1])
-		if into == "":
+		var into: Variant = HouseRooms.beyond(o, here_key)
+		if into == null or into == "":
 			continue
 		out.append({
 			"id": opening_id(o), "into": into, "pos": o["pos"],
@@ -129,7 +124,7 @@ func entries_from(here_key: String) -> Array:
 func room_doorways(room_key: String) -> Array:
 	var out: Array = []
 	for o in _openings:
-		if room_key in (o.get("rooms", []) as Array).map(func(k): return str(k)):
+		if HouseRooms.joins(o).has(room_key):
 			out.append({
 				"id": opening_id(o),
 				"pos": o["pos"],

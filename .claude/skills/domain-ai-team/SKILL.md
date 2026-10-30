@@ -133,7 +133,9 @@ entry step, an order's progress or a grenade call, `StackClaim.keeps_claim`), th
 position, preloaded from perception's `house_rooms.gd`) and the attack doorway (`AttackDoor.doorway(point, leader_room, rooms, openings)`,
 `ai/team/attack_door.gd`, static, preloaded, no `class_name`: "" for a point in the leader's room or at INF, a leader in no room, or no way
 through; else a Dijkstra over the doorways from the point's room, outside counting as a room its exterior doors join, the cost the
-straight walk from the point through each doorway in turn, the last doorway into the leader's room; ids by `AgentEntry.opening_id`).
+straight walk from the point through each doorway in turn, the last doorway into the leader's room; ids by `AgentEntry.opening_id`; the
+room a doorway leads into from one it joins is `HouseRooms.beyond`, which the squad's `_door_of` reads too, and `_ambush_door` and
+`_opening_pos` find a doorway by id through the squad's one `_opening(id)`).
 `free` is `Squad._free()`: the living NPC members (`_npcs`) holding no order, or one they radioed `refused` (`_steps`, D36), in spawn order,
 the leader included; `_recipients` drops the last non-leader when there are three or more (the rear guard, D34). It issues
 `{ kind: "ambush", to, opening, room }` through `squad.issue` when the doorway is new (`_door`), and for a re-order only after

@@ -57,7 +57,10 @@ Files:
 - `agent_entry.gd` (+ its parts `entry/entry_posts.gd`, `entry/entry_slots.gd`, `entry/entry_layouts.gd`, and the static
   `entry/entry_landings.gd`) — doorway geometry for a tactical entry (`docs/tactical-entry.md`) (see "Entry geometry" below).
 - `house_rooms.gd` — `HouseRooms`, the static room lookups over the house's rooms (`at(p, rooms)`, `key_at(p, rooms)`, `by_key(rooms, key)`) the
-  perception, its snapshot, the doorway views and the entry geometry share.
+  perception, its snapshot, the doorway views and the entry geometry share, and how a doorway joins them: `joins(o)` (the keys of the rooms
+  doorway `o` joins, as Strings) and `beyond(o, here)` (the room it leads into from `here`, "" = outside: the other room, "" for an exterior
+  door gone out by, null when it is no doorway of `here`), which the doorway geometry (`entries_from`, `room_doorways`), the doorway views
+  and the team (`Squad`, `attack_door.gd`) read alike.
 - `stack/` (`stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`) — a doorway's stack as the radio describes it: the entry claim's wire
   format and step lists, the claims one listener has heard, and every slot rule and slot point (see "The stack" below). The one folder of
   perception's that behaviour and the team (`ai/team/`) preload themselves: the stack seam.
@@ -393,7 +396,7 @@ crouched at the post: within the kind's `danger_radius` and not shielded by `Exp
 `posts.crouch` (the body's `movement.posture_coverage(&"crouch")`, handed in by `AgentPerception.bind`), every character under the NPC's world root excluded
 (`_bodies`: the group `characters` under `posts.body`'s `world_root()`, interface 7, the NPC's body handed in by `bind` beside `crouch`;
 none for a geometry built with no NPC), `cover_reach` the kind's `flash_cover_reach`. The grenade's numbers are `GrenadeConfig.stats_of(kind)` (interface 6: a grenade
-nobody holds), the reach `max_range` less `AgentThrow.REACH_SLACK`. Members alternate sides of the axis, the side with more wall first, and
+nobody holds), the reach a thrower that knows the grenade has (`AgentThrow.reach_of` of an `AgentThrow` that `learn`ed those numbers: `max_range` less `REACH_SLACK`). Members alternate sides of the axis, the side with more wall first, and
 two posts stand `AMBUSH_SPACING` (44 px) apart. The snapshot's `order` group calls it.
 **Where an entry's grenade lands (`entry/entry_landings.gd`, `EntryLandings`, static, preloaded, no `class_name`; `docs/grenades.md` G18).**
 The one rule the stack's thrower aims by (the behaviour's `entry/entry_grenade.gd`, `domain-ai-entry`) and an ambush post is shielded by, over
