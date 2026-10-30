@@ -152,7 +152,8 @@ func _check_held(
 	)
 
 
-## Both joiners follow the human in, after it, and the kitchen is called clear.
+## Both joiners follow the human in, after it, with no grenade thrown (the bang given up, too late
+## once the human stepped in), and the kitchen is called clear.
 func _check_followed(
 		t: TestContext,
 		w: Dictionary,
@@ -178,6 +179,11 @@ func _check_followed(
 		FollowWatch.tick(w, t, nodes, squad)
 		return not Follow.clears(t, String(Entry.BACK["room_key"])).is_empty()
 	t.check(await t.until(cleared, CLEAR_WITHIN), "the kitchen is called clear")
+	t.check(
+		Grenades.booms(t).is_empty() and not t.happened(&"throw"),
+		"no grenade was thrown after the human stepped in: the bang is given up (booms %d)"
+			% Grenades.booms(t).size(),
+	)
 
 
 ## Adds to `read` (member -> its `order` sections seen) each of `members`' latest decision

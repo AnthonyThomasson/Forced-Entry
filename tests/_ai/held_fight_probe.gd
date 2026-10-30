@@ -7,7 +7,7 @@ extends RefCounted
 ## north slots), has it fire at the stack, then walks it back out of sight (a hostile lost in the
 ## room the stack is held to enter), while it watches the members, and `check_stack_side` asserts
 ## they fought from the stack's side of the doorway only: none stood in the room, nor walked for
-## it.
+## it, and once the fight lapsed each was back in its slot.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Grenades := preload("res://tests/_ai/grenade_probe.gd")
@@ -23,6 +23,12 @@ const FIRE_EVERY := 0.6
 const FIGHT := 10.0
 ## How long (s) the stack is watched once the defender is out of sight again.
 const AFTER := 15.0
+## How long (s) past `AFTER` the watch goes on while a member is not back in its slot yet: one the
+## fight took far off (a retreat through the house) walks back once its order resumes.
+const BACK_WITHIN := 20.0
+## Within this (px) of its slot's point a member stands in its slot (an NPC's 6 px slot reach,
+## `docs/tactical-entry.md` E2, and a few px).
+const SLOT_NEAR := 10.0
 
 
 ## Declare the defender `id`: a household puppet at `HIDDEN`, never killed (the premise: the stack
@@ -38,11 +44,13 @@ static func arm(t: TestContext, id: StringName) -> void:
 
 ## Walk the defender `id` to `spot`, in view of the stack, and have it fire at `members[0]` every
 ## `FIRE_EVERY` s for `FIGHT` s, then walk it back out of sight to `HIDDEN` and watch `AFTER` s
-## more, sampling the `members` (characters) every frame. Returns `{ in_room: { node: first
-## time }, heading: { node: [time, act, target] }, fired: { node: shots from outside }, acts:
-## { node: [[time, act]] } }`: when each first stood in the kitchen, when its walk first headed into
+## more (until every member is back in its slot, at most `BACK_WITHIN` s past that), sampling the
+## `members` (characters) every frame. Returns `{ in_room: { node: first time }, heading: { node:
+## [time, act, target] }, fired: { node: shots from outside }, acts: { node: [[time, act]] },
+## back: { node: time } }`: when each first stood in the kitchen, when its walk first headed into
 ## it (and on which act, to where), how many rounds each fired from the stack's side of the doorway,
-## and each act it took on the way.
+## each act it took on the way, and when, once the defender was out of sight, each first stood in
+## its slot again, back on its stack order.
 static func fight(
 		t: TestContext,
 		id: StringName,
@@ -51,7 +59,7 @@ static func fight(
 ) -> Dictionary:
 	var puppet := t.puppet(id)
 	puppet.walk_to(spot)
-	var out := { "in_room": {}, "heading": {}, "fired": {}, "acts": {} }
+	var out := { "in_room": {}, "heading": {}, "fired": {}, "acts": {}, "back": {} }
 	var clock := { "next": 0.0 }
 	var firing := func() -> bool:
 		_sample(t, members, out)
@@ -62,7 +70,13 @@ static func fight(
 		return false
 	await t.until(firing, FIGHT)
 	puppet.walk_to(HIDDEN)
-	await t.until(func() -> bool: _sample(t, members, out); return false, AFTER)
+	out["lapsing"] = true
+	var lapsed_at := t.time
+	var watched := func() -> bool:
+		_sample(t, members, out)
+		return (t.time - lapsed_at >= AFTER
+				and members.all(func(m): return out["back"].has(m)))
+	await t.until(watched, AFTER + BACK_WITHIN)
 	for m: Node in members:
 		out["fired"][m] = t.events.filter(func(e): return (
 			e["topic"] == &"shot"
@@ -74,7 +88,7 @@ static func fight(
 
 ## The members held through the fight `seen` (`fight`) fought from the stack's side of the doorway:
 ## at least one fired from there, none stood in the kitchen nor walked for it, none radioed going in
-## (`opening`).
+## (`opening`); and once the fight lapsed (the defender out of sight), each was back in its slot.
 static func check_stack_side(t: TestContext, members: Array, seen: Dictionary) -> void:
 	var opening := String(Entry.BACK["id"])
 	t.check(
@@ -100,10 +114,17 @@ static func check_stack_side(t: TestContext, members: Array, seen: Dictionary) -
 			)).is_empty(),
 			"%s never radioed going in by the back door while held" % m.name,
 		)
+		t.check(
+			seen["back"].has(m),
+			"%s was back in its slot once the fight lapsed (at %s s; acts %s)"
+				% [m.name, str(seen["back"].get(m, "-")), str(seen["acts"].get(m, []))],
+		)
 
 
 ## Note in `out` the first time each of `members` stood in the kitchen, the first time its walk
-## headed into it, and each new act it took.
+## headed into it, each new act it took and, once the fight lapses (`lapsing`), the first time it
+## stood in its slot again on its stack order's entry (its act the order's stack, within `SLOT_NEAR`
+## of its slot's point).
 static func _sample(t: TestContext, members: Array, out: Dictionary) -> void:
 	for m: Node in members:
 		if not out["in_room"].has(m) and Entry.in_room(Entry.BACK, m.global_position):
@@ -115,3 +136,10 @@ static func _sample(t: TestContext, members: Array, out: Dictionary) -> void:
 		var act := Follow.act(m)
 		if act != "" and (acts.is_empty() or acts.back()[1] != act):
 			acts.append([snappedf(t.time, 0.1), act])
+		if out.get("lapsing", false) and not out["back"].has(m):
+			var e := Entry.entry(Follow.brain_of(m))
+			var slot: Vector2 = e.get("stack_point", Vector2.INF)
+			if (act.begins_with("order/stack")
+					and String(e.get("opening", "")) == String(Entry.BACK["id"])
+					and slot != Vector2.INF and m.global_position.distance_to(slot) <= SLOT_NEAR):
+				out["back"][m] = snappedf(t.time, 0.1)
