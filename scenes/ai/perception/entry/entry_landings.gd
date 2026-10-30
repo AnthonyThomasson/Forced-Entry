@@ -16,10 +16,11 @@ const BANG_INSET := 30.0
 
 
 ## The aim points of an entry's grenade into `g`'s room, in order of preference, each as
-## `Vector2(deep, across)` px: `deep` into the room from the doorway along its axis and `across` it
-## along the wall, `BANG_DEPTHS` of the room's depth by `BANG_ACROSS` of its width.
+## `Vector2(deep, across)` px (x deep, y across, as `aim` takes them): `deep` into the room from the
+## doorway along its axis and `across` it along the wall, `BANG_DEPTHS` of the room's depth by
+## `BANG_ACROSS` of its width.
 static func grid(g: Dictionary) -> Array:
-	var depth := room_depth(g)
+	var depth := _room_depth(g)
 	var width := absf((g["room"] as Rect2).size.dot((g["along"] as Vector2).abs()))
 	var out: Array = []
 	for d: float in BANG_DEPTHS:
@@ -29,7 +30,7 @@ static func grid(g: Dictionary) -> Array:
 
 
 ## How deep (px) `g`'s room runs from the doorway, along its axis: to its farthest corner.
-static func room_depth(g: Dictionary) -> float:
+static func _room_depth(g: Dictionary) -> float:
 	var door: Vector2 = g["pos"]
 	var room: Rect2 = g["room"]
 	var depth := 0.0
@@ -43,20 +44,20 @@ static func room_depth(g: Dictionary) -> float:
 	return depth
 
 
-## The point a grenade thrown from `spot` at aim point `at` (`grid`: `deep` px into `g`'s room, x,
-## and `across` px across it, y) lands at: that point, or, when it is beyond `reach` of the spot,
-## the farthest point the same distance across that is within it (a room deeper than the grenade
+## The point a grenade thrown from `spot` at the aim point `deep` px into `g`'s room and `across`
+## px across it (`grid`) lands at: that point, or, when it is beyond `reach` of the spot, the
+## farthest point the same distance across that is within it (a room deeper than the grenade
 ## reaches: it goes in as far as it can). `Vector2.INF` when no point that far across is within
 ## reach.
-static func aim(g: Dictionary, spot: Vector2, at: Vector2, reach: float) -> Vector2:
+static func aim(g: Dictionary, spot: Vector2, deep: float, across: float, reach: float) -> Vector2:
 	var door: Vector2 = g["pos"]
 	var out: Vector2 = g["out"]
-	var q: Vector2 = door + (g["along"] as Vector2) * at.y - spot
+	var q: Vector2 = door + (g["along"] as Vector2) * across - spot
 	var b := q.dot(out)
 	var room_left := b * b - q.length_squared() + reach * reach
 	if room_left < 0.0:
 		return Vector2.INF
-	return q + spot - out * minf(at.x, b + sqrt(room_left) - 1.0)
+	return q + spot - out * minf(deep, b + sqrt(room_left) - 1.0)
 
 
 ## Whether a grenade may land at `target`: inside `g`'s room, `BANG_INSET` clear of its walls, and
@@ -72,7 +73,7 @@ static func lands(g: Dictionary, target: Vector2) -> bool:
 static func spots(g: Dictionary, reach: float) -> Array:
 	var out: Array = []
 	for at: Vector2 in grid(g):
-		var target := aim(g, g["pos"], at, reach)
+		var target := aim(g, g["pos"], at.x, at.y, reach)
 		if lands(g, target) and not out.has(target):
 			out.append(target)
 	return out

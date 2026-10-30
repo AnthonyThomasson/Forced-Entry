@@ -283,7 +283,7 @@ func _plan_bang(entry: Entry) -> bool:
 	var slots := _slot_points(entry) if type == &"frag" else []
 	for at: Vector2 in EntryLandings.grid(state.geo):
 		for spot: Vector2 in spots:
-			var target := EntryLandings.aim(state.geo, spot, at, reach)
+			var target := EntryLandings.aim(state.geo, spot, at.x, at.y, reach)
 			if _bang_target_ok(target, type, slots) and _clear_lob(spot, target, reach, type):
 				_take_bang(entry, spot, target)
 				return true
