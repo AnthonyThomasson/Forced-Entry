@@ -65,7 +65,8 @@ held for its go, within `READY_WITHIN`), `menu_go(t, mode)` (the command menu's 
 fight lapsed). A held member's walk to its slot round a teammate standing on its way, with no fight, is
 `ai/entry/order_stack_hold_walk_round_body` (its own watch of the walk's ways, as `order_stack_hold_retreat_round_body`'s); one
 standing in the held room's doorway, `ai/entry/order_stack_hold_from_doorway` (the order at once, before it goes its own way, and its
-own `DOORWAY` depth, the spec's measure).
+own `DOORWAY` depth, the spec's measure), and its retreat from the back doorway under fire,
+`ai/entry/order_stack_hold_retreat_from_doorway` (held there, test-placed frame by frame, until the retreat sets out: a premise prop).
 
 **Where a stack stands (E20 to E22) and every member reaching its slot.** `tests/_ai/slots_probe.gd` (`const Slots := preload(...)`; not a
 test) judges slots from the house's own data and the test's own geometry (rooms, wall plane, navmesh, carved furniture, its own copies of

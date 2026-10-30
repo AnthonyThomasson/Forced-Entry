@@ -82,6 +82,13 @@ func update(delta: float) -> void:
 		_take_route(views.walk_route(loco._goal, avoid_entering))
 
 
+## Whether the walk stands where it is for now: it keeps out of the held stack's room
+## (`held_entry`, D31) and its way round is not decided yet (its map is being baked), so the plain
+## way meanwhile would take it into that room, from that room's doorway at once.
+func waiting() -> bool:
+	return not decided and avoid_entering == "" and views != null and _keeps_out()
+
+
 ## Whether the walk keeps out of the held stack's room (`held_entry`): its plain way to the goal
 ## goes into it, worked out once per goal.
 func _keeps_out() -> bool:

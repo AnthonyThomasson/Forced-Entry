@@ -242,6 +242,8 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 	if (_way == Way.HELD
 			and (here.distance_to(crowd.blocker) <= STOP_GAP or _agent.is_navigation_finished())):
 		desired = Vector2.ZERO  # Held: stand short of the body, waiting for it to move.
+	elif doors.waiting():
+		desired = Vector2.ZERO  # The way round the held stack's room is still being baked.
 	_character.movement.move_input = desired
 	give_way.apply()
 	give_way.keep_off()
