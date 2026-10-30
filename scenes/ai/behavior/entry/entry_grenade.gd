@@ -227,14 +227,15 @@ func _go_quiet(entry: Entry) -> void:
 	)
 
 
-## Whether a teammate gave the bang up (its claims say `bang_off`): the stack goes in quietly. In an
-## ordered stack only a member under the same order does (its stun lost or no lob, D1): an ordered
-## stun stack is never vetoed by anyone else (LD9).
+## Whether the stack's bang is off: the stack goes in quietly. A stack whose mode is set (an
+## order's, LD9, or a human leader's rally's go, D31) goes in quietly only by its mode
+## (`DoorStack.mode`: a member under that order, or of that rally, gave its grenade up, D1 / D15, or
+## the mode named none): nobody else vetoes it. In any other, a teammate whose claims say
+## `bang_off` does.
 func vetoed(entry: Entry, team: Array) -> bool:
-	var ordered := entry.orders.claim(entry)
-	if ordered.is_empty():
-		return team.any(func(m): return m["bang_off"])
-	return team.any(func(m): return m["bang_off"] and m["order_id"] == ordered["order_id"])
+	if entry.orders.mode_set(entry):
+		return not stack_bangs(entry)
+	return team.any(func(m): return m["bang_off"])
 
 
 ## Whether a member of the stack is crossing or through the doorway.
