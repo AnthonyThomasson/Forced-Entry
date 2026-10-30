@@ -796,8 +796,8 @@ doorway, so the radio places the invader while the leader's first search still h
 room on the order's own frame, `require`d); the leader and the next member hold the ambush of the hall's doorway, or end it
 `done` in contact, and the third, the rear guard, holds no order and follows), `ai/investigate/crew_ambush_before_contact` (real Von: a one-room house; the leader hears an
 invader walking outside, takes INVESTIGATE – STAY, `require`d, and the leader and the next member are at their posts on the front door
-before any defender sees it), and `ai/movement/follow_defenders` (a crew's own search walks its leader: a heard threat now posts the crew
-instead).
+before any defender sees it), and `ai/movement/follow_defenders` (nothing heard: the crew's own search walks its leader, which a heard threat
+outside its room would hold at its post).
 
 **Doctrine of the ambush.** `docs/research/defending-a-room-ambush.md` sets LD15 and LD29 beside urban-defence and ambush practice (US Army
 FM 3-06.11, FM 90-10-1, FM 3-21.8 and TC 3-23.30, USMC MCWP 3-35.3). Matching it: the unengaged members reinforce the threatened point

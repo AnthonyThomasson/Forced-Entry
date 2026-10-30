@@ -10,15 +10,16 @@ extends GameTest
 ## cannot reach counts as arrived); each follower's spot keeps to its place in the file or on the
 ## rings round a still leader.
 ##
-## Real Von, the whole pipeline; no switch, no premise but the house. (Gunfire heard in another
-## room used to send the leader through the house; since the defenders' ambush rule (#128) a heard
-## threat posts the crew at its room's doorway instead, so the leader's search walks it.)
+## Real Von, the whole pipeline; no switch, no premise but the house. Nothing is heard: the
+## leader's own search walks it through the house (a threat heard outside the leader's room would
+## post the crew at its room's doorway and hold it there, the defenders' ambush rule,
+## `docs/leadership.md` LD29).
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const House := preload("res://tests/_ai/house_probe.gd")
-## The pinned house: one whose search offers the leader a choice of rooms (in house 4 every level
-## of it was a lone option, taken without asking Von).
+## The pinned house: one whose search offers the leader a choice of rooms, so it decides through Von
+## (a level with a lone option is taken without asking).
 const SEED := 1
 const CREW := 3
 const WATCH_S := 90.0
