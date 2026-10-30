@@ -37,7 +37,7 @@
 [node name="NPC" instance=ExtResource("1_base")]
 start_slot = 3
 
-[node name="GoalController" type="Node" parent="." node_paths=PackedStringArray("tuning")]
+[node name="GoalController" type="Node" parent="." node_paths=PackedStringArray("tuning") groups=["npc_controllers"]]
 script = ExtResource("2_controller")
 nav_agent_path = NodePath("../NavigationAgent2D")
 tuning = NodePath("Tuning")

@@ -54,7 +54,7 @@ func test_house_looks_first_on_the_perceptions_phase() -> void:
 		add_child(body)
 		perception.set("_character", body)
 		var frame := Engine.get_physics_frames()
-		perception.house.learn_by_sight([])
+		perception.house.learn_by_sight()
 		assert_int(perception.house.learn_next) \
 			.override_failure_message("perception %d" % n) \
 			.is_equal(

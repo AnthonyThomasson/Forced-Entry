@@ -8,8 +8,8 @@ extends RefCounted
 ## read duck-typed, so a missing piece fails an assertion that names it. The squad a menu is set up
 ## over is built by `order_probe.gd` (`Order.squad`).
 
-const COMMAND_MENU_SCRIPT := "res://scenes/ui/hud/command_menu.gd"
-const ORDER_MARKERS_SCRIPT := "res://scenes/ui/hud/order_markers.gd"
+const COMMAND_MENU_SCRIPT := "res://scenes/ui/command/command_menu.gd"
+const ORDER_MARKERS_SCRIPT := "res://scenes/ui/command/order_markers.gd"
 const OVERLAY_TOGGLES_SCRIPT := "res://scenes/ui/overlays/overlay_toggles.gd"
 const Order := preload("res://tests/_ai/order_probe.gd")
 # --- The command menu's panel on screen (LD11) ----------------------------------------------------

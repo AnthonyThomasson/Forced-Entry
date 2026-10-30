@@ -7,7 +7,7 @@ extends Node
 ## duplicate that cannot bind the port. The server's output is appended to `user://von_server.log`
 ## and, when `echo_to_output` is set, printed to the editor Output panel as `[von] …` lines.
 ##
-## The probe asks the server to DECIDE (see `health_path`), not merely to answer `GET /`, because an
+## The probe asks the server to DECIDE (see `_probe_once`), not merely to answer `GET /`, because an
 ## ORPHANED server is worse than an absent one. A `von serve` left behind by a hard-killed run
 ## (which skips `_exit_tree`) has a dead stdout pipe, so when it tries to fetch weights the progress
 ## output raises `EPIPE` and the load fails — permanently. It still serves HTTP, so a liveness check
@@ -25,14 +25,16 @@ signal resolved(live: bool)
 const LOG_PATH := "user://von_server.log"
 ## The readiness probe (`_probe`).
 const ServerProbe := preload("res://scenes/ai/decision/server_probe.gd")
+## The Von transport, whose reporting of a refused decision the probe's warning reuses (`_detail`).
+const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
 
 ## Absolute path to the `von` executable (the editor-launched game doesn't see the shell PATH).
 ## Empty = never auto-start. Defaults to the `application/von/server_path` project setting, so the
 ## path is configured per machine (Project Settings) rather than hard-coded here; set it on the
 ## node to override.
 @export_global_file var von_path: String = ""
-## Port the server listens on (must match the NPCs' `tuning.decision.server_url`).
-@export var port: int = 8000
+## Port the server listens on: the NPCs' default endpoint's (`NpcDecisionTuning.SERVER_PORT`).
+@export var port: int = NpcDecisionTuning.SERVER_PORT
 ## Compute device passed to `von serve --device`. `cpu` is the default because PyTorch's Apple
 ## GPU backend (`mps`, which `auto` picks on a Mac) crashes the server on its first request.
 @export_enum("cpu", "auto", "mps", "cuda", "openvino") var device: String = "cpu"
@@ -49,14 +51,6 @@ const ServerProbe := preload("res://scenes/ai/decision/server_probe.gd")
 ## when the brain is live. Model boot dominates this; it is not a hard failure, just when we stop
 ## waiting.
 @export var ready_timeout: float = 90.0
-## Endpoint the readiness check POSTs to. It deliberately exercises the REAL decision endpoint: a
-## `GET /` only proves something is listening, and a server that cannot load its weights answers
-## that happily (200 in milliseconds) while refusing every actual decision. Asking it to decide is
-## the only check that means "the brain works" — and it doubles as a warm-up, so the first in-match
-## decision isn't the one paying for model load.
-@export var health_path: String = "/v1/systemone"
-## Model name sent with the readiness check; keep it in step with the NPCs' `tuning.decision.model`.
-@export var health_model: String = "von-1.2.0"
 
 ## Process id of the server we launched; -1 if none (including a reused server).
 var _pid := -1
@@ -124,12 +118,16 @@ func _resolve(live: bool) -> void:
 
 
 ## Ask the server to make one throwaway decision; `_on_probe_completed` then decides reuse, retry,
-## launch, or "up but useless". This is a real POST to `health_path` rather than a `GET /` so that
-## only a server that can actually DECIDE counts as live.
+## launch, or "up but useless". It POSTs to the REAL decision endpoint (`NpcDecisionTuning`'s
+## `SERVER_PATH`, naming its `MODEL`) rather than a `GET /`: a `GET /` only proves something is
+## listening, and a server that cannot load its weights answers that happily (200 in milliseconds)
+## while refusing every actual decision. Asking it to decide is the only check that means "the brain
+## works" — and it doubles as a warm-up, so the first in-match decision isn't the one paying for
+## model load.
 func _probe_once() -> void:
 	_probe.attempts_left -= 1
 	var payload := {
-		"model": health_model,
+		"model": NpcDecisionTuning.MODEL,
 		"state": "Readiness check.",
 		"questions": {
 			"act": {
@@ -140,7 +138,11 @@ func _probe_once() -> void:
 		},
 	}
 	var headers := PackedStringArray(["Content-Type: application/json"])
-	var url := "http://127.0.0.1:%d%s" % [port, health_path]
+	var url := "http://%s:%d%s" % [
+		NpcDecisionTuning.SERVER_HOST,
+		port,
+		NpcDecisionTuning.SERVER_PATH,
+	]
 	if _probe.request.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload)) != OK:
 		# The request couldn't even start (not expected for a fixed localhost URL); treat it as
 		# a failed attempt so the retry/launch path still runs.
@@ -192,13 +194,10 @@ func _on_probe_completed(
 	await _wait_then_probe()
 
 
-## The server's own explanation for a non-200 (`{ "detail": … }`), trimmed to keep the warning
-## readable; falls back to the raw body. Mirrors `decision_client`'s reporting of the same shape.
+## The server's own explanation for a non-200: `DecisionClient.error_detail`, capped at 300
+## characters to keep the warning readable (an empty `detail` reads as an empty body too).
 func _detail(body: PackedByteArray) -> String:
-	var text := body.get_string_from_utf8().strip_edges()
-	var data = JSON.parse_string(text)
-	if data is Dictionary and data.has("detail"):
-		text = str(data["detail"])
+	var text := DecisionClient.error_detail(body)
 	if text == "":
 		return "(empty response body)"
 	return text if text.length() <= 300 else text.substr(0, 300) + "…"

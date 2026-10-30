@@ -279,7 +279,7 @@ func _bang_kind(entry: Entry) -> StringName:
 ## clear lob (for a frag, a safe one).
 func _plan_bang(entry: Entry) -> bool:
 	var type := _bang_kind(entry)
-	var depth := _bang_room_depth()
+	var depth: float = state.geo["depth"]
 	var width := absf((state.geo["room"] as Rect2).size.dot((state.geo["along"] as Vector2).abs()))
 	var spots := _bang_spots(entry)
 	var reach: float = world.perception.grenades.reach(type)
@@ -292,22 +292,6 @@ func _plan_bang(entry: Entry) -> bool:
 					_take_bang(entry, spot, target)
 					return true
 	return false
-
-
-## How deep (px) the room being entered runs from the doorway, along its axis: to its farthest
-## corner.
-func _bang_room_depth() -> float:
-	var door: Vector2 = state.geo["pos"]
-	var room: Rect2 = state.geo["room"]
-	var depth := 0.0
-	for c: Vector2 in [
-			room.position,
-			Vector2(room.end.x, room.position.y),
-			room.end,
-			Vector2(room.position.x, room.end.y),
-	]:
-		depth = maxf(depth, (door - c).dot(state.geo["out"]))
-	return depth
 
 
 ## The spots the bang may be thrown from, in order of preference: the thrower's own slot, then each

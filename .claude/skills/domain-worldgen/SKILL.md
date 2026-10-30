@@ -31,7 +31,7 @@ ArrangementDefinitions                          ├▶ RoomDresser ─▶ Object
   Openings are plain archways — there are no physical door objects. Exactly one opening is `front`
   (the house is positioned by it, always on the south wall); a plan may add `"exit": true` openings
   (an exterior back/side/garage door on exactly one room's wall). The houses have an exit; the flats and the
-  office loft keep only the front door. `get_openings` reports `{ pos, width, front, exit, rooms }`.
+  office loft keep only the front door. `get_openings` reports `{ pos, width, front, exit, rooms, outward }` (`outward`: the way out of each room in `rooms` through the doorway, the unit normal of its wall from `WallFactory.openings_for`'s `side`, `HouseSpawner.outward_on`; the doorway clearances, the street lamps' door rule and the match spawner's invader team read it). `WorldGen.bounds(rooms)` is the rooms' bounding box (World-Gen's, the layout rules' and the match spawner's one copy).
 - **Layout rules** (`layout_rules.gd`, `LayoutRules`): the tunable table of what makes a plan logical.
   `ROOMS[type]` = `front` (may carry the front door: studio, living room, great room, security vestibule,
   hallway — never a bedroom, bathroom, netrunner den …), `exit`, `through` (may be the only route between
@@ -121,14 +121,14 @@ ArrangementDefinitions                          ├▶ RoomDresser ─▶ Object
   curb with its arm out over the road (facing south); every other one is a neon sign (`street_sign`, cyan or magenta) and the rest
   `streetlight`s, both solid `anchored` metal posts (14 px circle, coverage 100, penetration 85) with an `overhang` (their arm
   and head), spawned through `ObjectFactory` under a `Street Lamps` node of the house, so the nav bake carves them. The door rule
-  (`_door_zones`, `_clear_of_doors`): no part of a lamp (its post's square and its overhang) comes within
+  (`_door_zones`, which reads each doorway's `outward`, and `_clear_of_doors`): no part of a lamp (its post's square and its overhang) comes within
   `streetlight_door_clear` (140) px of a front or exit doorway's centre nor into the strip straight out of one (its width plus
   `streetlight_door_strip_margin` (32) px each side, `streetlight_door_strip_reach` (400) px out from the wall of its room); a lamp
   that would is dropped, not moved, so only a doorway's zone opens a wider gap. Its own RNG (`hash([run seed, "streetlights"])`),
   so the furniture layout never shifts (`tests/worldgen/streetlight_placement`).
-- The house carries what it placed as metadata, read through interface 1: `rooms`, `openings`, `clutter` (`get_clutter`:
-  `{ room, key, node }`), `wear` (`get_wear`: `{ room, pos, layer }`, world space), `street` (`get_street`:
-  `{ kind, rect, node }`) and `streetlights` (`get_streetlights`: `{ pos, node }`, world space).
+- The house carries what it placed as metadata, read through interface 1: `rooms`, `openings`, and, read only by tests (the test
+  reads), `clutter` (`get_clutter`: `{ room, key, node }`), `wear` (`get_wear`: `{ room, pos, layer }`, world space), `street`
+  (`get_street`: `{ kind, rect, node }`) and `streetlights` (`get_streetlights`: `{ pos, node }`, world space).
 - Every definition sets `art` (a painter id) and usually `art_opts` (the painter's variant, e.g.
   `{ "front": "drawers", "count": 3 }`, or `props` dressing a surface); the Objects domain owns
   the painters (see `domain-objects`), and draws every catalogue colour run down (its palette grade), so catalogue colours stay
@@ -152,5 +152,5 @@ satisfy `LayoutRules` (check with `tools/run_tests.sh worldgen`). Mind the room 
 for its required pieces plus the door lanes (`OPENING_CLEARANCE` each side of every doorway), or the
 furnisher warns "no room for required zone" and the doorway test fails.
 
-**Interfaces:** 1 (Main → World Generation, incl. `get_wear` / `get_clutter` / `get_street` / `get_streetlights`), 2 (World Generation → Objects,
-incl. `WearFactory`) — signatures in `architecture`.
+**Interfaces:** 1 (Main → World Generation, incl. `bounds` and the test reads `get_wear` / `get_clutter` / `get_street` / `get_streetlights`), 2 (World Generation → Objects,
+incl. `WearFactory`), 11 (`WeightedPick`, the clutter draw) — signatures in `architecture`.

@@ -12,6 +12,8 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
 - `HitInfo` — the one data packet a striker fills in (`position, normal, direction, damage,
   speed_factor, penetrated, has_exit, exit_position, exit_normal, blood, height, source`); `height` is the 0..100 height the striker flew at
   (a bullet's one height, which picks a character's hit zone), −1 = none (the default, and a frag's blast: the whole body).
+  `spray_direction()` (the normal, or back along the shot when it is degenerate) is what `spawn_debris`, `HitParticles` and
+  `BloodWound` spray along.
 - `Physics.impact_impulse(hit)` / `Physics.spawn_debris(world, hit, surface)`.
 - `Knockback` — RigidBody2D adapter: configures its parent furniture body (no gravity, mass,
   `PhysicsImpactConfig.body_*` damping, origin-pinned center of mass, contact reporting) and feeds it
@@ -31,8 +33,8 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
   segments both record through them. `deform` moves each ring point by its dents' summed push, kept inside the outline
   (`_clamp_inside`) and at most `NEIGHBOUR_REACH` (0.45) of the way toward either ring neighbour along the outline, so a
   corner dented from one face cannot slide along the other past its neighbour and fold the ring onto itself
-  (`tests/physics/deformation_outline_suite.gd`, the frag-dented outlines of issue #77). `shape_polygon` keeps its last 256 dented
-  silhouettes, keyed by everything they are made from (shape, size, the dents, the deformation tuning) and checked for equality:
+  (`tests/physics/deformation_outline_suite.gd`, frag-dented outlines). `shape_polygon` keeps up to 256 dented
+  silhouettes (cleared and started over when full), keyed by everything they are made from (shape, size, the dents, the deformation tuning) and checked for equality:
   each hit asks for the same one three times (collider, shadow, drawing) and every repaint of a wounded character asks again
   (`tests/physics/shape_polygon_cache_test.gd`). `convex_pieces` cuts a silhouette into convex collider pieces (Hertel-Mehlhorn
   over its triangulation) finding neighbouring pieces through a directed-edge map, remembering failed pairs by piece id and
@@ -41,12 +43,14 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
   `tests/physics/convex_pieces_match_plain_scan_test.gd` pins it to the plain every-pair, every-corner scan; the pieces come as their points (pure, for a worker thread) and
   `shapes_of` makes the shapes; `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` return `[polygon, pieces]`
   for a dented silhouette computed without the caches (pure: Objects' `ColliderCuts` runs them on worker threads; a circle's unit
-  ring is made afresh there, never read from or written to the kept one). `wall_polygon` keeps its last 256 dented segments like `shape_polygon` (a wall repaints every segment when
+  ring is made afresh there, never read from or written to the kept one). `wall_polygon` keeps up to 256 dented segments (cleared and started over when full) like `shape_polygon` (a wall repaints every segment when
   one is struck), a fresh array each ask, and `draw_wall` skips the triangulation check for an undented segment. Its circle `base_ring`
   is the unit ring (kept per point count) scaled, a fresh array each call; `draw_shape` maps its texture with one transform of the
-  ring and skips the triangulation check for an undented shape (it is the intact ring already); `draw_marks` draws each mark's
-  discs as one General `FillBatch` before its cracks (one batch per mark, not per call: every mark's discs ahead of every crack
-  changed ~19% of the painted pixels where dents cluster, a later mark's discs covering an earlier mark's cracks; #78). `draw_shape` takes
+  ring and skips the triangulation check for an undented shape (it is the intact ring already); the fallback to the intact ring
+  when dents break the polygon and the texture transform are `Deformation.drawable_polygon(shape, size, impacts)` and
+  `Deformation.texture_uvs(poly, size, angle)`, which the character's kept meshes call too; `draw_marks` draws each mark's
+  discs as one General `FillBatch` before its cracks (one batch per mark, not per call, so a later mark's discs cover an
+  earlier mark's cracks as they always do). `draw_shape` takes
   its look as a `ShapeLook` (`shape_look.gd`; `draw_wall`'s is a `WallLook`, `wall_look.gd`), with an optional `texture`: the deformed polygon is then drawn textured (UVs from the intact
   footprint, so dents cut into the image), tinted darker by damage (white darkened by `darken(damage_total)`: up to
   `PhysicsDeformLookConfig.darken_max`, reached at `PhysicsDeformLookConfig.darken_full`; published so the character's kept meshes draw its textured parts in the same
@@ -56,15 +60,17 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
   layered on top.
   `draw_wall`'s `WallLook` takes an optional repeating `texture` + `tile_length`: UVs run in the segment's own
   frame (u along the wall per tile, v across its thickness), so the tile follows every wall.
-- `DebrisSpawner` / `Debris` / `DebrisLayer` — material-styled chips (`STYLES` table). A chip is a node only while it
+- `DebrisSpawner` / `Debris` / `DebrisLayer` — material-styled chips (`STYLES` table). `Debris` is `debris.gd`, with no
+  `class_name` (preloaded as `Debris`); its static `Debris.toss(node, dir, distance, time, spin) -> Tween` is the chip's throw,
+  which the Projectile's casing uses too (interface 4). A chip is a node only while it
   flies (Despawner-tracked); as it lands it hands its place, turn, colour, size and shape to the parent's `DebrisLayer`
   (`DebrisLayer.layer(parent)`) and frees itself, so a floor strewn with a thousand chips costs a few draw calls and no nodes. A chunk
   holds its chips in pages of `PAGE` (32), oldest first, each a canvas item of its own (`DebrisPage`, the chunk's children in age
   order) drawing its chips (disc, triangle or rect, each at its own place and turn) as one General `FillBatch` (`_draw_chips`: the
-  triangle and rect convex, uncut; under the headless display each by its own command, `_draw_each`). A chip landing goes on the
+  triangle and rect convex, uncut; under the headless display each by its own command, `_draw_each`); the flying chip
+  (`debris_visuals.gd`) draws the same `DebrisLayer.tri`, so a chip lands looking as it flew. A chip landing goes on the
   chunk's last page (a new one when that is full) and repaints only it; the oldest dropped leaves the first page, which repaints or,
-  left empty, is freed: a struck chair piles hundreds of chips into one chunk, and repainting them all for each new chip cost ~3.7 ms
-  a frame windowed (#78). `DebrisLayer.paged` off draws each chunk's chips in one batch instead (for tests); `chips_drawn` counts the
+  left empty, is freed: a struck chair piles hundreds of chips into one chunk, which are not all repainted for each new chip. `DebrisLayer.paged` off draws each chunk's chips in one batch instead (for tests); `chips_drawn` counts the
   chips every draw paints. The layer keeps at most `Despawner.max_scene_objects` chips, dropping the oldest; it draws under whatever
   joins its node after it. A page is lit as its own item, by the lights that reach its rect: where more than 15 reach a chunk (one
   straddling two rooms while flashes go off, `docs/lighting.md` L4) a page can keep a light the whole chunk's draw dropped, the only
@@ -76,7 +82,7 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
   (`CHUNK`) drawn by a few chunk nodes, and a capped FIFO (`_add(mark, cap)` drops the oldest past the layer's cap and flags it
   `dead`); `count()`, `items()`, `marks_in(cell)`. Each mark filed and dropped is handed to `_mark_added(cell, mark)` /
   `_mark_dropped(cell, mark)`, which by default redraw that chunk alone (`DebrisLayer` repaints one page instead). A layer names
-  only its recipe, its cap and its chunk's `_draw` (`_make_chunk`); its typed `find(parent)` / `layer(parent)` wrap `_get_or_make`.
+  only its recipe, its cap and its chunk's `_draw` (`_make_chunk`); its typed `layer(parent)` wraps `_get_or_make`; `find(parent)` only looks the layer up.
 
 ## Hit particles (entry and exit bursts)
 
@@ -126,13 +132,13 @@ plus z = height; gravity pulls to z = 0.
 ## Explosion look (`explosion_fx.gd`, `scorch_decals.gd`)
 
 `Physics.spawn_explosion(world, at, kind)` (kind `&"frag"` / `&"stun"`; the Projectile System's `Explosion` calls it) is the look of a grenade's burst, all
-procedural in the same stepped-pixel style as the debris and the blood (every disc is rows of `PhysicsExplosionConfig.pixel` px). `ExplosionFx.spawn` adds
+procedural in the same stepped-pixel style as the debris and the blood (every disc is rows of `PhysicsExplosionConfig.pixel` px, stepped by `ExplosionFx.disc_rows(radius, step)`). `ExplosionFx.spawn` adds
 up to three colliderless nodes under `world`, each named for what it is, animated in `_process`, freed at the end of its life and `Despawner`-tracked:
 `ExplosionFlash` (frag only: a pale disc over a white one that swells a little and fades in `flash_time`; a stun's row has `flash_radius` 0, its
 white flash being the Lighting domain's flash light, `docs/lighting.md` L9), `ExplosionFireball` (frag only: a lumpy puff that swells and
 cools from yellow to deep red, fading over its last stretch) and `ExplosionSmoke` (puffs that drift out, swell and fade over `smoke_time`, ~4 s for a frag, a
 thin ~2.6 s for a stun). A frag also burns a mark into the world's `ScorchDecals` layer (`ScorchDecals.layer(world).burn(at, radius)`, node `ScorchDecals`):
-ragged stepped rows, a darker core in a lighter rim and a few specks, a `chunked_layer.gd` like `DebrisLayer` and `BloodDecals` (only the chunk that gained a
+ragged stepped rows (the same `ExplosionFx.disc_rows`, each edge jittered), a darker core in a lighter rim and a few specks, a `chunked_layer.gd` like `DebrisLayer` and `BloodDecals` (only the chunk that gained a
 mark redraws), drawn at the blood decals' depth (`BloodConfig.print_z_index`, `DrawLayers.BLOOD`) and kept for good up to `Despawner.max_scene_objects` marks (the oldest dropped). A stun leaves no scorch.
 Tuning is `PhysicsExplosionConfig.looks` (one row per kind: `flash_*`, `fireball_*`, `smoke_*`, `scorch_radius`), `pixel` and `scorch_color`;
 `PhysicsExplosionConfig.fx_enabled` is the master switch (off: nothing spawns). Test: `tests/physics/explosion_fx`.
@@ -149,11 +155,11 @@ The core keeps only the entry points: `Physics.spawn_debris` (draws a bullet's `
 
 ## Tuning
 
-`PhysicsConfig.debris_enabled` is the debris master switch (off: `Physics.spawn_debris` spawns nothing; the Testing domain's
+`PhysicsConfig.debris_enabled` is the debris master switch (off: `Physics.spawn_debris` throws no chips; its particle bursts are `hit_particles_enabled`'s; the Testing domain's
 `physics.debris` switch). `PhysicsConfig` holds `wall_mask`
 (the layer the ragdoll sweep and the blood queries treat as blocking). `BloodConfig` (blood's master switch and shared values) and its
 topic holders (`BloodDripConfig` ...) are documented in `domain-physics-blood`. A hit's shove and the furniture body's damping are `PhysicsImpactConfig`, the dents'
 shape `PhysicsDeformConfig` and how they are drawn `PhysicsDeformLookConfig`, the ragdoll solver `PhysicsRagdollConfig` and a
 burst's look `PhysicsExplosionConfig`. All are `class_name` static holders — there is no `Config` autoload.
 
-**Interfaces:** 4 (Objects / Character / Vehicles → Physics), 11 (`PhysicsLayers` in `PhysicsConfig.wall_mask`; `DrawLayers`: blood and scorch decals `BLOOD`, `ExplosionFx.Z_INDEX` = `EFFECTS`; `FillBatch`: the hit marks' blood discs and the debris chips) — signatures in `architecture`.
+**Interfaces:** 3 (`HitInfo`), 4 (Objects / Character / Vehicles → Physics), 5 (`Knockback` and the pushable bodies), 11 (`PhysicsLayers` in `PhysicsConfig.wall_mask`; `DrawLayers`: blood and scorch decals `BLOOD`, `ExplosionFx.Z_INDEX` = `EFFECTS`; `FillBatch`: the hit marks' blood discs and the debris chips), 13 (`physics.debris`, `physics.hit_particles`) — signatures in `architecture`.

@@ -20,8 +20,8 @@ class_name Deformation
 const NO_COLOR := Color(0.0, 0.0, 0.0, 0.0)
 ## Default near-black bullet-hole color when a caller supplies no override.
 const HOLE_COLOR := Color(0.05, 0.05, 0.06)
-## Multiplier that packs two piece ids into one dictionary key in `_convex_pieces` (ids stay far
-## below it).
+## Multiplier that packs two piece ids into one dictionary key in `PieceScan._try_merge`, the scan
+## `_convex_pieces` runs (ids stay far below it).
 const PIECE_PAIR_STRIDE := 65_536
 ## Dented silhouettes `shape_polygon` keeps before it starts over (a dozen bodies, a few parts
 ## each).
@@ -241,20 +241,10 @@ static func shape_polygon(shape: String, size: Vector2, impacts: Array) -> Packe
 	if impacts.is_empty():
 		return _shape_polygon(shape, size, impacts)
 	var inputs: Array = [
-		shape, size, impacts, PhysicsDeformConfig.core_fraction, PhysicsDeformConfig.radius,
-		PhysicsDeformConfig.back_margin, PhysicsDeformConfig.circle_points,
-		PhysicsDeformConfig.rect_points_per_edge, PhysicsDeformConfig.chunk_reach_scale,
-		PhysicsDeformConfig.chunk_jitter, PhysicsDeformConfig.chunk_depth,
-	]
-	var key := inputs.hash()
-	var kept = _polygon_cache.get(key)
-	if kept != null and kept[0] == inputs:
-		return kept[1]
-	var poly := _shape_polygon(shape, size, impacts)
-	if _polygon_cache.size() >= POLYGON_CACHE_SIZE:
-		_polygon_cache.clear()
-	_polygon_cache[key] = [inputs.duplicate(true), poly]
-	return poly
+		shape, size, impacts, PhysicsDeformConfig.core_fraction,
+		PhysicsDeformConfig.circle_points, PhysicsDeformConfig.rect_points_per_edge,
+	] + _deform_knobs()
+	return _cached(_polygon_cache, inputs, func(): return _shape_polygon(shape, size, impacts))
 
 
 ## The silhouette of `shape` at `size` dented by `impacts`, computed afresh (`shape_polygon` caches
@@ -283,19 +273,33 @@ static func wall_polygon(
 	# A dented segment is the same until its next hit, and a wall repaints all its segments whenever
 	# one is struck: the last few are kept like `shape_polygon`'s, keyed by everything they are made
 	# from.
-	var inputs: Array = [
-		a, b, thickness, impacts, PhysicsDeformConfig.radius, PhysicsDeformConfig.back_margin,
+	var inputs: Array = [a, b, thickness, impacts] + _deform_knobs()
+	var make := func(): return _wall_polygon(a, b, thickness, impacts)
+	return _cached(_wall_cache, inputs, make).duplicate()
+
+
+## The `PhysicsDeformConfig` knobs `deform` reads, which every kept dented polygon is keyed by (a
+## knob missing here would let a cache serve a polygon made with its old value).
+static func _deform_knobs() -> Array:
+	return [
+		PhysicsDeformConfig.radius, PhysicsDeformConfig.back_margin,
 		PhysicsDeformConfig.chunk_reach_scale, PhysicsDeformConfig.chunk_jitter,
 		PhysicsDeformConfig.chunk_depth,
 	]
+
+
+## The polygon kept in `cache` for `inputs`, else `make`'s, kept (the cache starts over once it
+## holds `POLYGON_CACHE_SIZE`). The kept polygon itself is returned: a caller that hands it on to be
+## changed copies it.
+static func _cached(cache: Dictionary, inputs: Array, make: Callable) -> PackedVector2Array:
 	var key := inputs.hash()
-	var kept = _wall_cache.get(key)
+	var kept = cache.get(key)
 	if kept != null and kept[0] == inputs:
-		return (kept[1] as PackedVector2Array).duplicate()
-	var poly := _wall_polygon(a, b, thickness, impacts)
-	if _wall_cache.size() >= POLYGON_CACHE_SIZE:
-		_wall_cache.clear()
-	_wall_cache[key] = [inputs.duplicate(true), poly.duplicate()]
+		return kept[1]
+	var poly: PackedVector2Array = make.call()
+	if cache.size() >= POLYGON_CACHE_SIZE:
+		cache.clear()
+	cache[key] = [inputs.duplicate(true), poly]
 	return poly
 
 
@@ -473,14 +477,42 @@ static func darken(damage_total: float) -> float:
 			* PhysicsDeformLookConfig.darken_max)
 
 
+## The silhouette `draw_shape` draws for `shape` at `size` dented by `impacts`: `shape_polygon`,
+## or the intact outline (`base_ring`) when the dents pinched it into a polygon the renderer can't
+## triangulate (the hit marks still show the damage). Undented, it is that outline already.
+static func drawable_polygon(shape: String, size: Vector2, impacts: Array) -> PackedVector2Array:
+	var poly := shape_polygon(shape, size, impacts)
+	if not impacts.is_empty() and not is_valid_polygon(poly):
+		return base_ring(shape, size)
+	return poly
+
+
+## The uvs `draw_shape` maps a texture spanning `size` onto `poly` (local px) with, the image turned
+## by `angle` within the unturned silhouette: each point turned back by `angle`, over the size,
+## from the art's centre (one transform of the whole ring).
+static func texture_uvs(
+	poly: PackedVector2Array,
+	size: Vector2,
+	angle: float,
+) -> PackedVector2Array:
+	var c := cos(angle)
+	var s := sin(angle)
+	var to_uv := Transform2D(
+		Vector2(c / size.x, -s / size.y),
+		Vector2(s / size.x, c / size.y),
+		Vector2(0.5, 0.5),
+	)
+	return to_uv * poly
+
+
 ## Draw a deformed primitive shape (furniture, characters) dented by `impacts`, as `look` says:
 ## filled polygon (darkened by the damage it shows), outline, then crack/hole marks. Its
-## `crack_color`/`hole_color` override the mark colors (e.g. red cracks on flesh); left as NO_COLOR
-## they derive from `outline`. With a `texture` (spanning the `size` footprint) the polygon is
-## drawn textured instead of filled and unoutlined: the dents cut into the image rather than squash
-## it. `texture_angle` turns the image within the (unturned) silhouette — a round body facing any
-## way. Without `marks` the hit marks are left to the caller (draw_marks), to draw over parts
-## layered on top.
+## `crack_color`/`hole_color`/`scorch_color` override the mark colors (e.g. red cracks on flesh);
+## left as NO_COLOR the cracks derive from `outline`, the hole is `HOLE_COLOR` and the scorch black.
+## With a `texture` (spanning the `size` footprint) the polygon is drawn textured instead of filled
+## and unoutlined: the dents cut into the image rather than squash it. `texture_angle` turns the
+## image within the (unturned) silhouette — a round body facing any way. Without `marks` the hit
+## marks are left to the caller (draw_marks), to draw over parts layered on top.
 static func draw_shape(
 	canvas: CanvasItem,
 	shape: String,
@@ -488,25 +520,12 @@ static func draw_shape(
 	impacts: Array,
 	look: ShapeLook,
 ) -> void:
-	var poly := shape_polygon(shape, size, impacts)
-	# Fall back to the intact outline if the dents pinched the silhouette into a polygon the
-	# renderer can't triangulate; the hit marks below still show the damage. Undented, it is that
-	# outline already.
-	if not impacts.is_empty() and not is_valid_polygon(poly):
-		poly = base_ring(shape, size)
+	var poly := drawable_polygon(shape, size, impacts)
 	var dark := darken(look.damage_total)
 	var texture := look.texture
 	if texture:
-		# Each point turned back by `texture_angle`, over the size, from the art's centre: one
-		# transform of the whole ring.
-		var c := cos(look.texture_angle)
-		var s := sin(look.texture_angle)
-		var to_uv := Transform2D(
-			Vector2(c / size.x, -s / size.y),
-			Vector2(s / size.x, c / size.y),
-			Vector2(0.5, 0.5),
-		)
-		canvas.draw_colored_polygon(poly, Color.WHITE.darkened(dark), to_uv * poly, texture)
+		var uvs := texture_uvs(poly, size, look.texture_angle)
+		canvas.draw_colored_polygon(poly, Color.WHITE.darkened(dark), uvs, texture)
 	else:
 		canvas.draw_colored_polygon(poly, look.fill.darkened(dark))
 		_draw_outline(canvas, poly, look.outline)
@@ -565,7 +584,7 @@ static func _impact_apex(impact: Dictionary) -> Vector2:
 	if impact["chunk"]:
 		d *= PhysicsDeformConfig.chunk_depth
 	var apex := pos + inward * d
-	# Same guard deform() uses: never let the point cross the shape center.
+	# Never let the apex cross the origin (the shape's centre).
 	if apex.dot(pos) < 0.0:
 		return pos * 0.02
 	return apex

@@ -54,7 +54,8 @@ same pixels at 60x), in the order added, so it draws the same pixels; a polygon 
 its own after what was added, which reports it as `draw_colored_polygon` does. Under the headless display (`FillBatch.batching` false, from
 `DisplayServer.get_name()`) nothing is rendered and gathering the array costs more than the commands it replaces, so a batch hands
 each shape to its canvas as it comes (a placed disc by the canvas's transform and `draw_circle`); the chip chunk and the blood splat
-draw their plain commands there themselves. Used by the body's limbs and shadow (Character), blood splats, the chip
+draw their plain commands there themselves. It also hands out the 64-gon and its fans, `FillBatch.unit_circle()` and
+`FillBatch.fan(base, n)`, which the Character's `BodyMeshes.Solid` builds its meshes from. Used by the body's limbs and shadow (Character), blood splats, the chip
 and print chunks and the wound marks (Physics). Test: `tests/general/fill_batch_matches_draw_calls_test.gd` (headless, batching forced
 on: the batch holds each polygon's own triangles, and off it holds nothing; `--windowed`: identical pixels to the plain calls).
 
@@ -146,7 +147,7 @@ port the caller set, so two worktrees' checks never clash on 9080 (`tools/tests/
 passes the check). It listens on 127.0.0.1 with a line-delimited protocol: each line is a curated verb
 (`help`, `pos`, `tp X Y`, `slot N`, `move up|down|left|right [off]`, `stop`, `fire`, `punch`, `kick`,
 `interact`, `reload`, `crouch`, `aim X Y`, `match`, `ai`, `restart [seed]`, `menu`, `eval EXPR`) or, failing that, a GDScript `Expression`
-evaluated against the node (e.g. `scene().get_node("Player").speed`). Movement and actions are
+evaluated against the node (e.g. `scene().get_node("Player").movement.speed`). Movement and actions are
 driven by injecting `Input` action presses through `Keybinds` names — the same path a human's
 keyboard/mouse uses — so no game domain is coupled to it. Combatants and the player are discovered under the scene root **or a node in the `match_world` group** (Main's container for everything a match builds). `match` prints a one-line, parseable
 status of every AI combatant it finds: each one's health, current act and
@@ -177,7 +178,7 @@ by the Character for each landed punch (`{ position, victim, direction, damage, 
 and consumed by the AI for combat awareness, hostility and gunfire heard, by Audio for impacts;
 `&"shot"` (a round left a gun; also the Lighting domain's muzzle flash), `&"footfall"` (a foot landed) and `&"reload"` (a
 reload started / finished), posted by
-Items and Character and consumed by Audio; the grenades' `&"throw"` (consumed by Audio), `&"grenade"` (a bounce or rest, consumed by Audio and the AI), `&"explosion"` (consumed by Audio, the camera shake, the
+Items and Character and consumed by Audio (`&"footfall"` by the AI too, for footsteps heard); the grenades' `&"throw"` (consumed by Audio), `&"grenade"` (a bounce or rest, consumed by Audio and the AI), `&"explosion"` (consumed by Audio, the camera shake, the
 Lighting domain's flash and the AI) and `&"stun"` (Audio's tinnitus and the stun screen); the vehicles' `&"vehicle"` (ignition, doors, crashes, a character struck), `&"engine"` and `&"skid"` (consumed by Audio);
 `&"sound"`, which Audio posts for every sound it
 makes (what tests assert on); `&"callout"`, an AI
@@ -240,4 +241,4 @@ human `Player` and `DebugUI`, points the camera at every combatant in framing mo
 for watching and regression-testing both AI agent-types (defender and invader). Composition-root
 wiring lives in `main.gd`; the General observers only read published contracts.
 
-**Interfaces:** 7 (the `Keybinds` consumers and observers), 10 (EventBus), 11 (`PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `WeightedPick`, `MatchVerdict`), 14 (`Settings`, the dev command server), 15 (`GameLog`), 19 (the camera's `use.vehicle().view_zoom_out()`, `USE_VEHICLE`) — signatures in `architecture`.
+**Interfaces:** 7 (the `Keybinds` consumers and observers), 10 (EventBus), 11 (`PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `WeightedPick`, `MatchVerdict`), 13 (Testing: the camera's `frame` / `pan_enabled`, the runner's `Keybinds` reads), 14 (`Settings`, the dev command server), 15 (`GameLog`), 19 (the camera's `use.vehicle().view_zoom_out()`, `USE_VEHICLE`) — signatures in `architecture`.

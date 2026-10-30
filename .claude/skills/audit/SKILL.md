@@ -107,7 +107,9 @@ The rules every audit uses (`m-audit-everything` points here). Concise, present-
    a short inline `#` covers anything non-obvious in one.
 4. **Inline `#` only for a real gotcha**: a non-obvious algorithm step, an ordering dependency, a physics/geometry
    subtlety.
-5. **File header:** one `##` block at the top saying what the file is and its domain.
+5. **File header:** one `##` block at the top saying what the file is and its domain. A `class_name` holder or
+   component whose name carries its domain's stem (ADR 0003, and `architecture`'s holder list: `CharacterMovement`,
+   `BloodSprayConfig`, `NpcEntryTuning`) names its domain by that stem, so its header need not say it again.
 
 Rule 3, and no ticket number in a game comment (`ticket #N` / `issue #N` under `scenes/`), are lint rules
 (`doc_comments`, `comment_ticket_refs`): run them, then grep the changed `.gd` files for history (prefer these to

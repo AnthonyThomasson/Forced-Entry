@@ -61,8 +61,10 @@ extends Node
 ## world the squad itself is in (its viewport's `World2D`).
 
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
-## The entry claim's wire format and step lists, and the claims heard on the radio
-## (scenes/ai/perception/stack/).
+## The room lookups over the house's rooms the perception shares (which room a point lies in, the
+## room with a key).
+const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
+## The entry claim's wire format and step lists (scenes/ai/perception/stack/).
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const SquadFollow := preload("res://scenes/ai/team/squad_follow.gd")
 const SquadStacks := preload("res://scenes/ai/team/squad_stacks.gd")
@@ -178,12 +180,6 @@ func follow_spot(member: Node) -> Vector2:
 	return _follow.spot(member)
 
 
-## Whether `order` (a posted order, or a member's row's `order` in `view()`) is a rally's join: a
-## `stack` of mode `JOIN` (LD24).
-static func is_join(order: Dictionary) -> bool:
-	return StackClaim.is_join(order)
-
-
 ## What the squad looks like now, for observers (the order markers, the command menu, the stack
 ## markers, the leaders overlay):
 ## `{ leader, members: [{ node, order, step, held, follow_spot }], stacks, trail, leash }`, `order`
@@ -290,7 +286,7 @@ func resolve(request: Dictionary) -> Dictionary:
 	match String(request.get("kind", "")):
 		DEFEND:
 			var room := _room_for(request)
-			return {} if room == "" else { "room": room, "pos": _rect_of(room).get_center() }
+			return {} if room == "" else { "room": room, "pos": _centre_of(room) }
 		STACK:
 			var at := _door_for(pos) if pos is Vector2 else {}
 			at.erase("from")
@@ -370,15 +366,17 @@ func _release(held: Dictionary, at: Dictionary, auto: bool) -> Dictionary:
 ## is a room of the house.
 func _room_for(request: Dictionary) -> String:
 	var key := String(request.get("room", ""))
-	for r in _rooms:
-		if key != "" and String(r["key"]) == key:
-			return key
+	if key != "" and not HouseRooms.by_key(_rooms, key).is_empty():
+		return key
 	var pos = request.get("pos")
 	if pos is Vector2:
-		for r in _rooms:
-			if (r["rect"] as Rect2).has_point(pos):
-				return String(r["key"])
+		return HouseRooms.key_at(pos, _rooms)
 	return ""
+
+
+## The centre of room `key` (`HouseRooms.by_key`), or the origin for a room it does not know.
+func _centre_of(key: String) -> Vector2:
+	return (HouseRooms.by_key(_rooms, key).get("rect", Rect2()) as Rect2).get_center()
 
 
 ## Where a click at `pos` stacks (D3): the doorway nearest it within its width (`opening`, and its
@@ -402,7 +400,7 @@ func _door_for(pos: Vector2) -> Dictionary:
 		return {}
 	var door: Vector2 = best["pos"]
 	var into: String = joins[0]
-	var first := _rect_of(joins[0])
+	var first: Rect2 = HouseRooms.by_key(_rooms, joins[0]).get("rect", Rect2())
 	var into_first := AgentEntry.normal_into(first, door)
 	if joins.size() == 2 and (pos - door).dot(into_first) > 0.0:
 		# The click is on the first room's side of the wall: the stack forms there and goes into the
@@ -421,14 +419,6 @@ func _door_for(pos: Vector2) -> Dictionary:
 	if not out["split"]:
 		out["stack_at"] = pos
 	return out
-
-
-## The rect of room `key`, or an empty Rect2.
-func _rect_of(key: String) -> Rect2:
-	for r in _rooms:
-		if String(r["key"]) == key:
-			return r["rect"]
-	return Rect2()
 
 
 ## The leader by the rule (LD3): the human while it leads and lives; else the living member of the
@@ -518,7 +508,7 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 	var held: Dictionary = _orders.get(id, {})
 	if not held.is_empty() and str(held.get("id", "")) == str(data.get("order_id", "")):
 		_steps[id] = step
-		if step == "done" or (step == "refused" and is_join(held)):
+		if step == "done" or (step == "refused" and StackClaim.is_join(held)):
 			# (A join refused, no slot for it, is over too: the member follows again.)
 			_orders.erase(id)
 
@@ -553,7 +543,9 @@ func _rally(claim: Dictionary) -> void:
 			if not _rallied.erase(key):
 				return
 			_cancel_held(func(held: Dictionary): return (
-				is_join(held) and held.get("opening") == opening and held.get("leader") == _leader
+				StackClaim.is_join(held)
+				and held.get("opening") == opening
+				and held.get("leader") == _leader
 			))
 
 

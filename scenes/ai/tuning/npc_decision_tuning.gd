@@ -2,7 +2,18 @@ class_name NpcDecisionTuning extends Node
 ## How an NPC decides: the pursuit and territory primitives, the Von endpoint it asks, the decide
 ## cadence and commitment, and the decision tree's config. One topic node of the NPC's tunables,
 ## under its controller's `Tuning` hub (`NpcTuning.decision`), per NPC: its scene authors it (the
-## presets' overrides), a test sets it as an indexed path (`tuning:decision:<name>`). Only exports.
+## presets' overrides), a test sets it as an indexed path (`tuning:decision:<name>`). Only exports,
+## and the local Von server's constants: the defaults of `server_url` and `model`, which the dev
+## launcher (`decision_server_launcher.gd`) starts and probes the server with too.
+
+## The host the local Von server listens on.
+const SERVER_HOST := "127.0.0.1"
+## The port the local Von server listens on.
+const SERVER_PORT := 8000
+## The decision endpoint's path.
+const SERVER_PATH := "/v1/systemone"
+## The Von model the NPCs name by default (`model`).
+const MODEL := "von-1.2.0"
 
 ## Pursuit primitive: when true this NPC actively hunts hostiles instead of doing chores. Once a
 ## hostile is known every decision starts at COMBAT, and IDLE (chores) is never offered — a passive
@@ -13,9 +24,9 @@ class_name NpcDecisionTuning extends Node
 ## are never offered, and it won't chase a contact out of the house.
 @export var defend_territory: bool = false
 ## The `/v1/systemone` endpoint to ask.
-@export var server_url: String = "http://127.0.0.1:8000/v1/systemone"
+@export var server_url: String = "http://%s:%d%s" % [SERVER_HOST, SERVER_PORT, SERVER_PATH]
 ## Model name sent with each request.
-@export var model: String = "von-1.2.0"
+@export var model: String = MODEL
 ## Minimum seconds between decisions while holding (the re-decide cadence once free to change).
 @export var decide_interval: float = 1.0
 ## Seconds a fight runs before Von re-chooses its tactic (it re-chooses sooner if the fight lapses).

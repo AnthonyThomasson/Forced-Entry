@@ -11,7 +11,7 @@ returns true, then flags the task resolved so the controller re-decides. It hold
 `Behavior.bind`). `max_commit_time` still caps the walk INTO the room before
 coverage starts.
 
-- **Sample:** `begin` locks the room (`Locomotion.room_key_at`) and grid-samples it (`spacing`, inset `margin` off the walls, dropping any point off the
+- **Sample:** `begin` locks the room (`perception.confinement.room_at`) and grid-samples it (`spacing`, inset `margin` off the walls, dropping any point off the
   navmesh via `Locomotion.on_navmesh` so none lands on furniture) into `points`, with `unseen` a copy. An unknown room (an explore point in no
   room) samples nothing, so coverage ends at once — a single look. `sample_room(key)` is public: a tactical entry
   (`behavior/entry.gd`, `domain-ai-entry`) measures the share of a room it saw from outside against the same grid, and reuses

@@ -4,7 +4,8 @@ class_name ArtSurfaceConfig
 ## weave, wood grain, brushed metal, stone flecks).
 ##
 ## A `class_name` holder of `static var`s, read as `ArtSurfaceConfig.<name>`, and of the ramp the
-## tones make, `tones(base)`; there is no instance and no autoload.
+## tones make, `tones(base)`, and its random shift, `jitter(rng, col, k)`; there is no instance and
+## no autoload.
 
 ## How far each tone of `tones` darkens (`tone_outline`, `tone_shadow`, `tone_dark`) or
 ## lightens (`tone_light`, `tone_highlight`) a piece's base color.
@@ -35,3 +36,11 @@ static func tones(base: Color) -> Dictionary:
 		"light": base.lightened(ArtSurfaceConfig.tone_light),
 		"highlight": base.lightened(ArtSurfaceConfig.tone_highlight),
 	}
+
+
+## `col` shifted by a random tone within `k` of it, drawn from `rng` (a painter's canvas's):
+## lightened by a positive draw, darkened by a negative one. A per-plank, per-tile or per-brick
+## tone.
+static func jitter(rng: RandomNumberGenerator, col: Color, k: float) -> Color:
+	var shift := rng.randf_range(-k, k)
+	return col.lightened(shift) if shift > 0.0 else col.darkened(-shift)

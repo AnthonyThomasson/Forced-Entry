@@ -13,7 +13,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "Overlay bar flips a group or everything at once",
 		"description": "A group header turns its whole group on (then off); All covers every "
-			+ "overlay; one overlay_toggled per flag changed; counts follow set_flag.",
+			+ "overlay; one overlay_toggled per flag changed; counts follow the flags.",
 		"tags": ["overlays", "ui"],
 		"timeout": 5.0,
 	}
@@ -62,11 +62,11 @@ func _check_group_header(t: TestContext, perception: Array, total: int) -> void:
 	t.expect_eq(_label("All"), "All (0/%d)" % total, "back to none")
 
 	# Mixed → all on, only the missing flags emit.
-	_bar.set_flag(perception[0], true)
+	_flag_button(perception[0]).button_pressed = true
 	t.expect_eq(
 		_label("Perception"),
 		"Perception (1/%d)" % perception.size(),
-		"set_flag refreshes the count",
+		"a flag's own button refreshes the count",
 	)
 	_events.clear()
 	_button("Perception").pressed.emit()
@@ -85,6 +85,18 @@ func _check_all(t: TestContext, total: int) -> void:
 func _button(prefix: String) -> Button:
 	for b in _bar.find_children("*", "Button", true, false):
 		if (b as Button).text.begins_with(prefix + " ("):
+			return b
+	return null
+
+
+## The toggle button of `flag`, found by its registry label.
+func _flag_button(flag: String) -> Button:
+	var label := ""
+	for e in Registry.ENTRIES:
+		if e["flag"] == flag:
+			label = e["label"]
+	for b in _bar.find_children("*", "Button", true, false):
+		if (b as Button).text == label:
 			return b
 	return null
 

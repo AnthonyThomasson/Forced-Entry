@@ -347,7 +347,8 @@ func blood_origin() -> Vector2:
 
 
 ## Total accumulated hit damage this character has taken, read from its deformation record. Lets a
-## controller sense how hurt the character is (0 when unscathed).
+## controller sense how hurt the character is (0 when unscathed, or before `_ready` builds the
+## record).
 func damage_taken() -> float:
 	return anatomy.deformable.damage_total if anatomy.deformable else 0.0
 

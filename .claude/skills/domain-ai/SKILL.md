@@ -106,7 +106,7 @@ over it;
 adopts the returned leaf into **Behaviour** (and radios it to allies); then has **Behaviour** `apply()`
 the running primitive.
 
-**Observer reads** (pure reads, never perturbing the loop). The controller joins the group `npc_controllers` in its `_ready` (interface 7):
+**Observer reads** (pure reads, never perturbing the loop). The controller is in the group `npc_controllers`, authored on the node in `npc.tscn` (interface 7):
 that is how the HUDs tell an NPC's controller among a character's children (the UI's `hud_probe.gd`). `debug_status()` is the decision path as labels plus the running
 primitive's progress. `debug_state() -> Dictionary` is the deep snapshot: every level of the last walk (the state and question
 Von saw, the options, its probabilities and pick), the facts, the state sections of the last snapshot (`sections`: the text Von reads
@@ -180,7 +180,7 @@ joins the tree (`MatchBuilder.bind_npc`: the house's rooms and openings, an inva
   house. Dropped at a clear spot in a random room (never inside solid furniture or on another defender).
 - **Invader** — `ai/npc_invader.tscn`, an inherited scene overriding only data (faction
   `invader`): `tuning.hostility.on_sight`, not territorial, unfamiliar with the house (it learns rooms by
-  sight and is offered unexplored areas by direction), a red body. Dropped just outside the house: the
+  sight and is offered unexplored areas by direction); it tints its debug label and path red. Dropped just outside the house: the
   match's invader team in one group against the outside wall beside the front door, on a side drawn from the house seed (`match_spawner.gd`
   `spawn_invader_team`, LD27; round the human invader when there is one, round a seeded point of the ring round the house when it has no front
   door); they coordinate flanks over the callout radio and, as a squad, follow their leader. It enters rooms

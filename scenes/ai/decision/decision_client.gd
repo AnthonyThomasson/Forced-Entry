@@ -13,9 +13,9 @@ signal answered(pick: String, probabilities: Dictionary)
 signal failed()
 
 ## The `/v1/systemone` endpoint to ask (set by the planner from the NPC's `tuning.decision`).
-var server_url: String = "http://127.0.0.1:8000/v1/systemone"
-## Model name sent with each request.
-var model: String = "von-1.2.0"
+var server_url: String
+## Model name sent with each request (set by the planner from the NPC's `tuning.decision`).
+var model: String
 ## Client for decision requests.
 var _http: HTTPRequest
 ## True while a request is in flight.
@@ -115,7 +115,7 @@ func _on_request_completed(
 		_fail("no reply from %s (HTTPRequest result %d)" % [server_url, result])
 		return
 	if code != 200:
-		_fail("server refused the decision: HTTP %d — %s" % [code, _error_detail(body)])
+		_fail("server refused the decision: HTTP %d — %s" % [code, error_detail(body)])
 		return
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if not data is Dictionary or not data.get("answers") is Dictionary:
@@ -143,8 +143,9 @@ func _fail(reason: String) -> void:
 
 
 ## The server's own explanation for a non-200 (`{ "detail": … }`), so a configuration fault is
-## reported as itself. Falls back to the raw body, trimmed, when it isn't that shape.
-func _error_detail(body: PackedByteArray) -> String:
+## reported as itself. Falls back to the raw body, trimmed, when it isn't that shape. The launcher's
+## readiness warning reports the same way (`decision_server_launcher.gd`).
+static func error_detail(body: PackedByteArray) -> String:
 	var text := body.get_string_from_utf8().strip_edges()
 	var data = JSON.parse_string(text)
 	if data is Dictionary and data.has("detail"):

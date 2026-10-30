@@ -5,8 +5,8 @@ description: Deep implementation detail for the Vehicles domain (scenes/vehicle/
 
 # Vehicles domain
 
-A drivable **car** and **van** (one scene each, inheriting `vehicle.tscn`). Only the sandbox places them
-(`sandboxes/vehicle_sandbox.gd`); Main, World-Gen and the match never do, the nav map does not carve them and the AI
+A drivable **car** and **van** (one scene each, inheriting `vehicle.tscn`). Only the sandbox (`sandboxes/vehicle_sandbox.gd`) and the tests
+(`TestSetup.vehicle`) place them; Main, World-Gen and the match never do, the nav map does not carve them and the AI
 does not know them (an NPC sees a parked one only as a solid body). The spec, rule by rule with the tests that pin
 it, is `docs/vehicles.md` (V1 to V9).
 
@@ -25,13 +25,13 @@ vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound
 | `vehicle_config.gd` (`VehicleConfig`) | Static holder: one `kinds` row per kind (`car`, `van`) plus one `looks` row per kind (the painters' proportions). |
 | `vehicle_boarding_config.gd`, `vehicle_door_config.gd`, `vehicle_drive_config.gd`, `vehicle_collision_config.gd`, `vehicle_art_config.gd` | Static holders of the numbers every vehicle shares, one per topic: getting in and out (`VehicleBoardingConfig`), the doors' motion (`VehicleDoorConfig`), driving and the camera (`VehicleDriveConfig`), collisions (`VehicleCollisionConfig`), the look (`VehicleArtConfig`). |
 | `vehicle.gd` | Root `RigidBody2D` (control; no `class_name`, cross-file calls through the scene). Body set-up and collider, the drivable contract (interface 19), the hittable contract, its parts (`cabin`, `drive`, `_contacts`) and `post` (every `vehicle` event the domain posts goes through it). Group `vehicles`. |
-| `vehicle_cabin.gd` (`VehicleCabin`) | `RefCounted`, the body's `cabin`, built once in its `_ready` from its row: the doors and seats and whose ride is whose (below): `door_list`, `door(id)`, `seat_ids`, `seat_point`, `occupant`, `is_free`, `reserve`, `change_seat`, `release`, `open_door` / `close_door`, `exit_door`, `take_seat` / `ride_of` (the rides `board` and `exit` start and end) and `update(delta)` (the doors' step and their closing posts). |
+| `vehicle_cabin.gd` (`VehicleCabin`) | `RefCounted`, the body's `cabin`, built once in its `_ready` from its row: the doors and seats and whose ride is whose (below): `door_list`, `door(id)`, `seat_ids`, `seat_point`, `occupant`, `is_free`, `reserve`, `change_seat`, `release`, `open_door` (a door shuts by its own `close()`, its slam posted by `update`), `exit_door`, `take_seat` / `ride_of` (the rides `board` and `exit` start and end) and `update(delta)` (the doors' step and their closing posts). |
 | `vehicle_contacts.gd` (`VehicleContacts`) | `RefCounted`, the body's private `_contacts`, built once with it: the contacts and harm (V6, below), `read(state)` / `remember(state)` in `_integrate_forces` around the drive's step, `apply()` in `_physics_process`. |
 | `vehicle_drive.gd` | `RefCounted` (preloaded), the body's public `drive`, built once with it: the bicycle model, stepped inside `_integrate_forces`. Holds `steer_share`, `wheel_angle`, `braking`, `slip`, `rpm`, `engine_load`, the drive `intent` and whether the engine is `running`; `lock(row, speed)` is the full lock at a speed; `start_engine` / `stop_engine`, `brake_input(character)` and `update_skid()` (the skids). |
 | `tyre_solve.gd` (`TyreSolve`) | `RefCounted` value object: one step's sideways tyre solve (the velocity in the vehicle's frame, each axle's impulse up to its grip), made by `VehicleDrive.step`. |
 | `vehicle_door.gd` | `RefCounted`: one door in the vehicle's frame: eased open amount, its pose (`angle()` / `offset()`), `stand_point`, `entry_point`, `is_clear`, `info`. |
 | `vehicle_boarding.gd` | `RefCounted`: one character's ride, a timed phase machine from E beside the vehicle to its last step out; its inner class `Pose` (one per ride, `_pose`) is the pose phase under way. |
-| `character_vehicle_use.gd` | `Node` composed by `character.gd` in code (like `CharacterInteraction`): finds vehicles, picks the door, steps the ride after the controller, abandons it on death, hands the vehicle left to the character's `use.keep_clear_of`. |
+| `character_vehicle_use.gd` | `Node` composed by the character's `use` (`CharacterUse.attach`, `character/character_use.gd`), like `CharacterInteraction`: finds vehicles, picks the door, steps the ride after the controller, abandons it on death, hands the vehicle left to the character's `use.keep_clear_of`. |
 | `vehicle_visuals.gd` | Draw, on the `Chassis` (`DrawLayers.UNDER_VEHICLE`, −1) and `Roof` (`DrawLayers.ABOVE`, +1) children (`layer` export), which sandwich the occupants (`STANDING`, 0) and cover what lies on the floor (`LYING`, −2: a dead body, casings, a dropped item). |
 | `art/vehicle_art.gd` | The painters' shared helpers (the body's part dispatch `paint_parts`, vehicle frame → canvas, cached convex regions, door frames, side glass, the roof's `lamps` and the tail lamps, seats, dashboard, sills). |
 | `art/vehicle_paint.gd` (`VehiclePaint`) | `RefCounted` value object: the body being painted (canvas, its scale `k`, paint, kind and its `kinds` / `looks` rows), which the body painters make and every shared helper takes. |

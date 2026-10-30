@@ -166,7 +166,7 @@ func order() -> Dictionary:
 	return { "path": task.path.duplicate(), "labels": task.labels.duplicate() }
 
 
-## Read-only: the broad mode of the running leaf (combat / investigate / search / idle / hold).
+## Read-only: the running leaf's root mode (`task.path[0]`), `hold` with none.
 func _intent() -> String:
 	return str(task.path[0]) if not task.path.is_empty() else "hold"
 

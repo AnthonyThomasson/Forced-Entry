@@ -10,7 +10,6 @@ extends "res://scenes/objects/decals/decal_layer.gd"
 ## ObjectArtStreetConfig.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
-const RoomWear = preload("res://scenes/objects/decals/room_wear.gd")
 ## Litter gathers within this many px of the curb.
 const GUTTER := 14.0
 

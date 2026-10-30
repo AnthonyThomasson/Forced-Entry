@@ -52,7 +52,7 @@ Draws, next to the NPC:
 - the NPC's current **movement path** — the `NavigationAgent2D`'s remaining path as a polyline +
   waypoint dots + a target ring.
 
-`label_color` / `path_color` are set per side in the preset scenes to match the body colour.
+`label_color` / `path_color` are a tint per side (the presets set green / red).
 
 ## `tactics_debug.gd` (toggles `show_tactics`, `show_room_zones` — the overlay bar drives both, off by default)
 
@@ -124,7 +124,7 @@ Each is a child of the NPC in `ai/npc.tscn`, found by its `show_<x>` property (r
 | `territory_debug` (`show_territory`) | house outline, "inside/outside · HOLDING GROUND", engaged target inside/outside, zones outside the house a territorial NPC drops | `debug_combat()`, `debug_room_zones()`, `debug_zones()` |
 | `targets_debug` (`show_targets`) | requested vs navmesh-snapped destination (red = unreachable), room-entry target, interact object + dwell arc, hold watch line, checked-lead count | `debug_combat()`, `debug_memory()` |
 | `brain_debug` (`show_brain`) | THINKING badge while Von is asked, FALLBACK badge when the last walk failed, next-decision / tactic / commit timers, force reason, true facts, per-level probability bars | `debug_brain()` |
-| `routes_debug` (`show_routes`) | navigated route to each fire/flank/advance/retreat point (green hidden / red exposed), clear-shot + cover notes, flank `held by` / `route passes` / ally lane, hostile `watch_arc` wedges | `debug_zones()` (entries carry `tags`), `known_contacts_for_display()`; route from the nav map, cached 0.5 s |
+| `routes_debug` (`show_routes`) | navigated route to each fire/flank/advance/retreat point (green hidden / red exposed), clear-shot + cover notes, flank `held by` / `route passes` / ally lane, hostile watch wedges, `tuning.tactics.watch_arc` wide | `debug_zones()` (entries carry `tags`), `known_contacts_for_display()`, `tuning.tactics.watch_arc`; route from the nav map, cached 0.5 s |
 | `stuck_debug` (`show_stuck`) | recent-position trail + a ring that reddens while the NPC is trying to move without progressing | `debug_progress()` |
 | `grenade_overlay` (`show_grenades`) | (docs/grenades.md G19) every live grenade the NPC knows of: a dot with its danger radius ringed round it, `kind fuse_left (source)` and a countdown arc (against the grenade's whole `fuse`, which `debug_grenades()` reports); the safe spot it is running to (green ring, line from the NPC); a planned throw (`throw` set: an arc from the hand to the landing spot, the grenade's danger radius round it) | `debug_grenades()` |
 | `entry_debug` (`show_entry`) | the doorway views its walks keep out of (E18: a faint red polygon with the doorway's id for each, the ones its walk is round bold), and this NPC's tactical entry: the doorway, its out-normal and the fatal funnel; stack slots in use (numbered per side's file, on both sides of a split stack, its own ringed; a lone entrant's far side faint); approach waypoints; the pie arc (steps done dim / to go bright, the current one ringed), the line through the doorway and the room points still unseen; corners red hard / green soft, filled once its pie saw them, its target corner ringed; its gaze; after the clear the doorways on (line + wedge, the one it covers bright, a solo sweep numbered) or the rear it holds; cleared rooms outlined; a badge (slot, role, phase, pie progress, seen %) with timer arcs for the ready wait, follow gap and hold | `debug_entry_view()` |
@@ -139,5 +139,6 @@ world-space data from entry.gd `debug_view` under `entry`, and the entry guard's
 look-ahead along the walk is computed only when asked). `debug_zones()` entries also carry the option's `tags`
 (`inside`, `held`, `crosses`/`crosses_name`, `no_shot`, `heading`, `lane`, `hidden`, plus `clear_shot`,
 `route_exposed`, `cover`, `ally_lane`, `held_by` added by the snapshot's
-`_geo_tags()`; the planner reads only `inside` and the booleans a node's `drop_tags` names, and `hidden` only orders the
+`_geo_tags()`; the planner gates on the booleans a node's `drop_tags` names and on the confinement (`allows_option`, from the
+option's `from` / `point`), `inside` is a fact the territory overlay and the wording read, and `hidden` only orders the
 retreat summary, so the extras don't affect decisions).

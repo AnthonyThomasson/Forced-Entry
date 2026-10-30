@@ -3,9 +3,9 @@ class_name WorldGen
 ## floorplan, and where the front entrance should land, it picks a plan, seeds one RNG for the
 ## whole run (the plan pick is its first draw, so a seed reproduces everything), and builds
 ## the house via HouseSpawner. Callers (Main) never touch HouseDefinitions/HouseSpawner
-## directly — `generate`, `get_rooms`, `get_openings`, `get_wear`, `get_clutter`, `get_street`,
-## `get_streetlights`, `annotate_layout` and the read-only catalogue lookups are the whole surface
-## World-Gen exposes.
+## directly — `generate`, `get_rooms`, `get_openings`, `bounds`, `annotate_layout`, the read-only
+## catalogue lookups and the test reads `get_wear`, `get_clutter`, `get_street` and
+## `get_streetlights` are the whole surface World-Gen exposes.
 
 
 ## Build a house and return its root Node2D (parented under `parent`). `rng_seed` of 0 picks a
@@ -42,6 +42,7 @@ static func annotate_layout(root: Node2D, rooms: Array, doors: Array = []) -> vo
 			"front": keys.size() == 1,
 			"exit": false,
 			"rooms": keys,
+			"outward": HouseSpawner.outward_on(rooms, door),
 		})
 	root.set_meta("openings", openings)
 
@@ -54,9 +55,11 @@ static func get_rooms(house: Node2D) -> Array:
 	return house.get_meta("rooms", [])
 
 
-## The generated house's doorways as an Array of { pos, width, front, exit, rooms } in WORLD space
-## (`rooms` = keys of the rooms the doorway joins: two for an interior door, one for the front
-## entrance or an `exit`). Empty for a null house.
+## The generated house's doorways as an Array of { pos, width, front, exit, rooms, outward } in
+## WORLD space (`rooms` = keys of the rooms the doorway joins: two for an interior door, one for the
+## front entrance or an `exit`; `outward` = the way out of each of those rooms through it, in
+## `rooms`' order: the unit normal of the wall it is on, pointing away from that room). Empty for a
+## null house.
 static func get_openings(house: Node2D) -> Array:
 	if house == null:
 		return []
@@ -65,7 +68,7 @@ static func get_openings(house: Node2D) -> Array:
 
 ## The generated house's wear as an Array of { room, pos, layer }: one entry per wear cluster,
 ## `room` its room's key, `pos` its centre in WORLD space and `layer` the node drawing that room's
-## wear (one per room). Empty for a null house or a hand-laid layout.
+## wear (one per room). Empty for a null house or a hand-laid layout. (A test read.)
 static func get_wear(house: Node2D) -> Array:
 	if house == null:
 		return []
@@ -74,7 +77,7 @@ static func get_wear(house: Node2D) -> Array:
 
 ## The generated house's clutter as an Array of { room, key, node }: one entry per walk-over piece
 ## its rooms were strewn with, `key` its catalogue key and `node` the placed piece. Empty for a null
-## house or a hand-laid layout.
+## house or a hand-laid layout. (A test read.)
 static func get_clutter(house: Node2D) -> Array:
 	if house == null:
 		return []
@@ -83,7 +86,7 @@ static func get_clutter(house: Node2D) -> Array:
 
 ## The street ring round a generated house as an Array of { kind, rect, node }: `kind` `street` or
 ## `sidewalk`, `rect` the piece's WORLD rect and `node` the floor that draws it (none of them a
-## sound surface). Empty for a null house or a hand-laid layout.
+## sound surface). Empty for a null house or a hand-laid layout. (A test read.)
 static func get_street(house: Node2D) -> Array:
 	if house == null:
 		return []
@@ -93,11 +96,20 @@ static func get_street(house: Node2D) -> Array:
 ## The street lamps along the front of a generated house as an Array of { pos, node }: `pos` a
 ## lamp's centre in WORLD space, `node` the placed piece (a solid, anchored metal post, carved into
 ## the nav map, its arm and head overhead). None stands within the clearance of a front or exit
-## doorway nor in the strip straight out of one. Empty for a null house or a hand-laid layout.
+## doorway nor in the strip straight out of one. Empty for a null house or a hand-laid layout. (A
+## test read.)
 static func get_streetlights(house: Node2D) -> Array:
 	if house == null:
 		return []
 	return house.get_meta("streetlights", [])
+
+
+## The bounding box of `rooms`' rects (`{ rect, ... }` dicts, any one frame), a zero Rect2 for none.
+static func bounds(rooms: Array) -> Rect2:
+	var box := Rect2()
+	for i in range(rooms.size()):
+		box = rooms[i]["rect"] if i == 0 else box.merge(rooms[i]["rect"])
+	return box
 
 
 ## The catalogue object definition for `key` (a plain dict for ObjectFactory.spawn), or {} if

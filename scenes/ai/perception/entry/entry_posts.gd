@@ -67,7 +67,7 @@ func defend_spot(
 ) -> Dictionary:
 	var nth := place.x
 	var count := place.y
-	var rect := entry._room_rect(room_key)
+	var rect: Rect2 = entry.views.room_rect(room_key)
 	if rect.size == Vector2.ZERO:
 		return {}
 	var doors := entry.room_doorways(room_key)
@@ -190,8 +190,8 @@ func _offset_point(f: Dictionary, at: Array) -> Vector2:
 
 ## The side (1 / -1 along `along`) with more of room `rect`'s wall from door `pos`, 1 when even.
 func _first_side(rect: Rect2, pos: Vector2, along: Vector2) -> int:
-	return (1 if AgentEntry._wall_length(rect, pos, along)
-			>= AgentEntry._wall_length(rect, pos, -along) else -1)
+	return (1 if AgentEntry.wall_length(rect, pos, along)
+			>= AgentEntry.wall_length(rect, pos, -along) else -1)
 
 
 ## A candidate defend spot near `raw` in frame `f` (`_defend_frame`, `_ambush_posts`: its `room`

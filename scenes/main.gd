@@ -11,8 +11,8 @@ const STACK_MARKERS := preload("res://scenes/ui/hud/stack_markers.gd")
 ## The human leader's command menu (UI, a right-click pauses and orders the teammates) and the order
 ## markers on the floor (world space, under `World`), built only when the human leads
 ## (`docs/leadership.md` LD11, LD12).
-const COMMAND_MENU := preload("res://scenes/ui/hud/command_menu.gd")
-const ORDER_MARKERS := preload("res://scenes/ui/hud/order_markers.gd")
+const COMMAND_MENU := preload("res://scenes/ui/command/command_menu.gd")
+const ORDER_MARKERS := preload("res://scenes/ui/command/order_markers.gd")
 const STUN_SCREEN := preload("res://scenes/ui/hud/stun_screen.gd")
 ## The overlay table (UI) and the in-game bar of toggle buttons built from it.
 const OVERLAY_REGISTRY := preload("res://scenes/ui/overlays/overlay_registry.gd")

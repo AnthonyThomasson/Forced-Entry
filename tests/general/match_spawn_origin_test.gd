@@ -1,12 +1,11 @@
 extends GameTest
-## Main drops an NPC without launching the furniture it lands beside. The spawner used to add the
-## NPC to the tree at the world origin and only then move it, so for that moment its collider
-## overlapped any piece standing near (0, 0); the physics ejected the piece at thousands of px/s,
-## and it flew across the map into whatever character was in its way (a "character spawns or is
-## pushed way far away from the level"). House seed 18 with the front entrance at the game's (440,
-## 350) puts a kitchen counter against the origin. The match is populated over the test's house as
-## Main populates one (`s.declared_match`, `MatchBuilder.populate`): one defender and one invader,
-## placed from the house seed.
+## Main drops an NPC without launching the furniture it lands beside. Adding an NPC to the tree at
+## the world origin before moving it would let its collider overlap, for that moment, any piece
+## standing near (0, 0): the physics would eject the piece at thousands of px/s, across the map into
+## whatever character was in its way. The spawner places the NPC first. House seed 18 with the
+## front entrance at the game's (440, 350) puts a kitchen counter against the origin. The match is
+## populated over the test's house as Main populates one (`s.declared_match`,
+## `MatchBuilder.populate`): one defender and one invader, placed from the house seed.
 
 const SEED := 18
 ## Where `main.gd` puts the front entrance (its scene anchor, `run.entrance_distance` above it).

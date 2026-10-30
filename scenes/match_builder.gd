@@ -5,7 +5,7 @@ extends RefCounted
 ## plain dict `spec` fills with defaults: the house's `seed` / `plan` / `entrance`, or a `house`
 ## already built, each side's `count`, `loadout` and optional `at`, the `human`, `wait_nav`,
 ## `spawn_clearance`, `invader_margin`, `overlays`) and a match handle comes out (a plain dict:
-## `world`, `house`, `rooms`, `openings`, `nav_region`, `nav_debug`, then `combatants`, `squads`,
+## `world`, `house`, `rooms`, `openings`, `nav_debug`, then `combatants`, `squads`,
 ## `player_stack`, `leader_overlay`). `build` is its two stages: `stage`, the world stage (the
 ## house, its navigation map with the holes overlay and the re-baker, interface 9, the dusk
 ## lighting, interface 20, then, when asked, a wait until both navigation maps answer with this
@@ -308,7 +308,7 @@ static func front_entrance(openings: Array) -> Vector2:
 
 
 ## The opening of the front entrance among `openings` (`WorldGen.get_openings`: `{ pos, width,
-## front, exit, rooms }`), or `{}` when the house has none.
+## front, exit, rooms, outward }`), or `{}` when the house has none.
 static func _front_opening(openings: Array) -> Dictionary:
 	for o: Dictionary in openings:
 		if o.get("front", false):
@@ -505,7 +505,7 @@ static func set_overlay(handle: Dictionary, flag: String, on: bool) -> void:
 ## walls' colliders go live on a step), then until `NavBuilder.ready` holds on the planning map and
 ## on the steering map, so an NPC placed afterwards never plans or walks on a map still showing
 ## another navmesh (at most `NAV_SYNC_MS` of real time; an error past it). A coroutine: await it.
-## Returns the handle `{ world, house, rooms, openings, nav_region, nav_debug }`, or `{}` when
+## Returns the handle `{ world, house, rooms, openings, nav_debug }`, or `{}` when
 ## `world` was freed during the wait (the match torn down).
 static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	match_spec = spec(match_spec)
@@ -547,7 +547,6 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 		"house": house,
 		"rooms": rooms,
 		"openings": WorldGen.get_openings(house),
-		"nav_region": nav_region,
 		"nav_debug": nav_debug,
 	}
 
@@ -595,9 +594,8 @@ static func squads_over(world: Node, squads_spec: SquadsSpec, leaders := false) 
 ## Hand an NPC's controller the house: its `rooms` (world-space rects), its `openings` (the
 ## doorways, for tactical entry) and, when given, an `entry_point` it heads for first while outside
 ## every room. Called BEFORE the NPC joins the tree, so its first tick already knows them; the
-## controller is found by its contract (interface 7: the child with `control` and `rooms`), since
-## the `npc_controllers` group is joined only in its `_ready`. An NPC with no such child is left
-## alone.
+## controller is found by the group `npc_controllers` (interface 7), authored on the scene so it
+## holds before the tree. An NPC with no such child is left alone.
 static func bind_npc(
 	npc: Node,
 	rooms: Array,
@@ -608,9 +606,8 @@ static func bind_npc(
 	if brain == null:
 		return
 	brain.rooms = rooms
-	if "openings" in brain:
-		brain.openings = openings
-	if entry_point != Vector2.ZERO and "entry_point" in brain:
+	brain.openings = openings
+	if entry_point != Vector2.ZERO:
 		brain.entry_point = entry_point
 
 
@@ -624,7 +621,7 @@ static func bind_squad(npc: Node, squad: Node, stack: Node = null, own_claims :=
 		stack.squad = squad
 		stack.own_claims = own_claims
 	var brain := _controller_of(npc)
-	if brain != null and "squad" in brain:
+	if brain != null:
 		brain.squad = squad
 
 
@@ -636,7 +633,7 @@ static func callout_ttl_of(members: Array) -> float:
 		if not (m is Node and is_instance_valid(m)):
 			continue
 		var brain := _controller_of(m)
-		if brain != null and "tuning" in brain:
+		if brain != null:
 			return float(brain.tuning.radio.callout_ttl)
 	return 0.0
 
@@ -699,9 +696,9 @@ static func _start_of(human: Dictionary) -> Vector2:
 	return human["at"] if human["at"] != Vector2.INF else (human["node"] as Node2D).global_position
 
 
-## The controller of `npc` (interface 7): its child with `control` and `rooms`, else null.
+## The controller of `npc` (interface 7): its child in the group `npc_controllers`, else null.
 static func _controller_of(npc: Node) -> Node:
 	for child in npc.get_children():
-		if child.has_method("control") and "rooms" in child:
+		if child.is_in_group(&"npc_controllers"):
 			return child
 	return null

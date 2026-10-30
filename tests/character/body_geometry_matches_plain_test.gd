@@ -1,11 +1,11 @@
 extends GameTest
 ## The body's drawing builds its shapes with one transform of a unit outline each
 ## (body_limbs.gd: `capsule` for every limb segment and its shadow; character_visuals.gd:
-## `_texture_uvs` for the shoulders' shadow; Deformation: a circle's `base_ring` and the uvs of
-## `draw_shape`), where it once placed each point with its own trig, and `BodyTrunk.hulls` takes the
-## floor shadow's shift in place of a projection callable. This pins those shapes to the plain
-## point-by-point sums (the trunk's exactly), on random limbs and on real falling bodies, so the
-## body is drawn where it always was.
+## `Deformation.texture_uvs` for the shoulders' shadow; Deformation: a circle's `base_ring` and the
+## uvs of `draw_shape`), where it once placed each point with its own trig, and `BodyTrunk.hulls`
+## takes the floor shadow's shift in place of a projection callable. This pins those shapes to the
+## plain point-by-point sums (the trunk's exactly), on random limbs and on real falling bodies, so
+## the body is drawn where it always was.
 
 const Kill := preload("res://tests/_character/kill_probe.gd")
 const SEED := 5151
@@ -40,12 +40,11 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var visuals = t.actor(&"shooter").get_node("Visuals")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
 	_check_capsules(t, rng)
 	_check_fans_convex(t, rng)
-	_check_texture_uvs(t, visuals, rng)
+	_check_texture_uvs(t, rng)
 	_check_rings(t)
 	if not await Kill.kill_targets(t, TARGETS):
 		return
@@ -91,8 +90,8 @@ func _check_fans_convex(t: TestContext, rng: RandomNumberGenerator) -> void:
 	)
 
 
-## The shoulders' shadow uvs (`_texture_uvs`) of random capsules are the plain sum's.
-func _check_texture_uvs(t: TestContext, visuals: Node, rng: RandomNumberGenerator) -> void:
+## The shoulders' shadow uvs (`Deformation.texture_uvs`) of random capsules are the plain sum's.
+func _check_texture_uvs(t: TestContext, rng: RandomNumberGenerator) -> void:
 	var worst := 0.0
 	for n in 100:
 		var size := Vector2(rng.randf_range(8.0, 60.0), rng.randf_range(8.0, 60.0))
@@ -106,7 +105,7 @@ func _check_texture_uvs(t: TestContext, visuals: Node, rng: RandomNumberGenerato
 		var plain := PackedVector2Array()
 		for p in poly:
 			plain.append(p.rotated(-angle) / size + Vector2(0.5, 0.5))
-		worst = maxf(worst, _gap(visuals._texture_uvs(poly, size, angle), plain))
+		worst = maxf(worst, _gap(Deformation.texture_uvs(poly, size, angle), plain))
 	t.check(
 		worst <= TOLERANCE * 0.01,
 		"texture uvs: the farthest is %.8f from the plain sum's" % worst,

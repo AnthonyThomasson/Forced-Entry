@@ -12,6 +12,7 @@ extends Node2D
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const DecalLayer = preload("res://scenes/objects/decals/decal_layer.gd")
+const FloorPainter = preload("res://scenes/objects/art/floor_painter.gd")
 
 ## `FloorWear`: the floor marks.
 var _floor_layer: Node2D
@@ -125,7 +126,7 @@ static func _floor_mark(
 ## A plank gap near `p`: one or two plank rows broken out along a row.
 static func _plank_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 	var px := ArtCanvasConfig.pixel_size
-	var row_h := maxi(3, roundi(ObjectArtFloorConfig.plank_px / px))
+	var row_h := FloorPainter.row_px()
 	var rows := 1 if rng.randf() < 0.7 else 2
 	var length := roundf(rng.randf_range(20, 56) / px)
 	var row := floori(p.y / (row_h * px))
@@ -148,7 +149,7 @@ static func _plank_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 static func _strip_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 	var px := ArtCanvasConfig.pixel_size
 	var cell := ObjectArtFloorConfig.parquet_px / px
-	var strip := maxi(2, int(cell / 4.0))
+	var strip := FloorPainter.parquet_strip()
 	var g := Vector2i(floori(p.x / (cell * px)), floori(p.y / (cell * px)))
 	var s := rng.randi_range(0, int(cell / strip) - 1)
 	var n := 1 if rng.randf() < 0.6 or s == int(cell / strip) - 1 else 2
@@ -167,9 +168,7 @@ static func _strip_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 ## Tiles knocked out of a block of the tile (or `mosaic`) grid near `p`.
 static func _missing_cells(p: Vector2, pattern: String, rng: RandomNumberGenerator) -> Dictionary:
 	var px := ArtCanvasConfig.pixel_size
-	var cell := (maxi(3, roundi(ObjectArtFloorConfig.mosaic_px / px))
-			if pattern == "mosaic"
-			else maxi(4, roundi(ObjectArtFloorConfig.tile_px / px)))
+	var cell := FloorPainter.cell_px(pattern)
 	var most := 3 if pattern == "mosaic" else 2
 	var n := Vector2i(rng.randi_range(1, most), rng.randi_range(1, most))
 	var g := Vector2i(floori(p.x / (cell * px)), floori(p.y / (cell * px)))

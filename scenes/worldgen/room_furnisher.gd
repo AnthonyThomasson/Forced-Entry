@@ -185,8 +185,9 @@ static func _find_spot(
 	var fp: Vector2 = arrangement["footprint"]
 	var mirror := rng.randf() < 0.5
 
+	var is_free := _spot_check(interior, occupied, walk)
 	if arrangement.get("placement", "wall") == "center":
-		return _centre_spot(fp, interior, mirror, rng, _spot_check(interior, occupied, walk))
+		return _centre_spot(fp, interior, mirror, rng, is_free)
 
 	for orient in _shuffled([Orient.TOP, Orient.BOTTOM, Orient.LEFT, Orient.RIGHT], rng):
 		var wall_length := (interior.size.x
@@ -197,9 +198,7 @@ static func _find_spot(
 			continue
 		for offset in _offsets(max_offset, arrangement.get("prefer_corner", false), rng):
 			var rect := _wall_rect(orient, offset, fp, interior)
-			if (_fits(rect, interior, occupied)
-					and _leaves_no_slot(rect, walk)
-					and _keeps_walkable(rect, walk)):
+			if is_free.call(rect):
 				return { "rect": rect, "orient": orient, "mirror": mirror }
 	return {}
 

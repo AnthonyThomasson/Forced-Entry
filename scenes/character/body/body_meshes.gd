@@ -150,18 +150,12 @@ class Slot:
 
 ## Plain shapes in one colour gathered as General's `FillBatch` gathers them (each polygon cut as
 ## the engine cuts it, a polygon the caller knows to be convex and `draw_circle`'s 64-gon fanned
-## from their first corner, in the order added), drawn by `flush` as one kept mesh in that colour.
+## from their first corner, in the order added: `FillBatch.unit_circle()` and `FillBatch.fan()`),
+## drawn by `flush` as one kept mesh in that colour.
 ## It takes `FillBatch`'s calls, so a drawing can hand either to the same helpers; the colour each
 ## shape is given must be the batch's.
 class Solid:
 	extends RefCounted
-
-	## The corners of `draw_circle`'s 64-gon round the unit circle, point `i` at angle
-	## `i * TAU / 64`.
-	static var _UNIT_CIRCLE := _circle_points()
-	## A fan (corner 0 with each pair of neighbours) of `n` corners numbered from a first index, by
-	## Vector2i(first index, n).
-	static var _fans := {}
 
 	## The canvas item the mesh is drawn on (and a polygon the engine cannot cut, by itself).
 	var _canvas: CanvasItem
@@ -207,7 +201,8 @@ class Solid:
 		xform := Transform2D.IDENTITY,
 	) -> void:
 		assert(color == _color, "a solid batch is all one colour")
-		_add_fan(xform * Transform2D(0.0, Vector2(radius, radius), 0.0, center) * _UNIT_CIRCLE)
+		var disc := Transform2D(0.0, Vector2(radius, radius), 0.0, center)
+		_add_fan(xform * disc * FillBatch.unit_circle())
 
 	## Draw what was added as one kept mesh, `bounds` holding it (empty: measured), and start
 	## again.
@@ -221,22 +216,5 @@ class Solid:
 
 	## Add the convex `placed` as a fan from its first corner.
 	func _add_fan(placed: PackedVector2Array) -> void:
-		var base := _points.size()
-		var key := Vector2i(base, placed.size())
-		var fan: Variant = _fans.get(key)
-		if fan == null:
-			var made := PackedInt32Array()
-			for i in range(1, placed.size() - 1):
-				made.append_array([base, base + i, base + i + 1])
-			_fans[key] = made
-			fan = made
-		_indices.append_array(fan)
+		_indices.append_array(FillBatch.fan(_points.size(), placed.size()))
 		_points.append_array(placed)
-
-	## The 64 corners of `draw_circle`'s polygon round the unit circle.
-	static func _circle_points() -> PackedVector2Array:
-		var out := PackedVector2Array()
-		for i in 64:
-			var angle := TAU * i / 64.0
-			out.append(Vector2(cos(angle), sin(angle)))
-		return out

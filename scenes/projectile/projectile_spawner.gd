@@ -26,7 +26,10 @@ static func spawn(position: Vector2, direction: Vector2, parent: Node, shot: Sho
 			else BallisticsFlightConfig.projectile_speed)
 	proj.speed = proj.muzzle_speed
 	proj.penetration_power = maxf(shot.penetration, 0.05)
-	proj.damage += shot.item_damage
+	if shot.damage >= 0.0:
+		proj.damage = shot.damage
+	else:
+		proj.damage += shot.item_damage
 
 	var visuals := Node2D.new()
 	visuals.name = "ProjectileVisuals"

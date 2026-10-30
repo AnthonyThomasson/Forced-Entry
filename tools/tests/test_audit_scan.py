@@ -82,6 +82,21 @@ def dead_section(output: str) -> list[tuple[str, int, str]]:
     return found
 
 
+# The sections whose output the audit's scanner fixes changed, by the start of their `== ` title.
+CHANGED_SECTIONS = ("== Snapshot facts", "== EventBus topics")
+
+
+def without_sections(output: str, titles: tuple) -> str:
+    """`output` with each section whose `== ` title starts with one of `titles` dropped, up to the next title."""
+    kept, skipping = [], False
+    for line in output.splitlines():
+        if line.startswith("== "):
+            skipping = line.startswith(titles)
+        if not skipping:
+            kept.append(line)
+    return "\n".join(kept)
+
+
 def audit_scan_module():
     """tools.audit_scan imported with the current directory kept (the script changes it at import today)."""
     cwd = os.getcwd()
@@ -112,10 +127,12 @@ class RealTreeTests(unittest.TestCase):
         cls.new_on_full = place_script(cls.full, "audit_scan_new.py", current_script())
 
     def test_output_is_unchanged_by_the_refactor(self):
-        # Passes before the refactor too: it guards the refactor.
+        # Passes before the refactor too: it guards the refactor. The facts and events sections are left out: the
+        # m-audit-everything audit changed what they count on purpose (gated facts, balanced-bracket posts).
         for command in ("dead", "all"):
             with self.subTest(command=command):
-                self.assertEqual(scan(self.new_on_bare, command).stdout, scan(self.old_on_bare, command).stdout)
+                self.assertEqual(without_sections(scan(self.new_on_bare, command).stdout, CHANGED_SECTIONS),
+                                 without_sections(scan(self.old_on_bare, command).stdout, CHANGED_SECTIONS))
 
     def test_the_coverage_fixtures_change_no_output(self):
         for command in ("dead", "all"):
@@ -206,6 +223,75 @@ class HandTreeTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
         self.assertEqual(sorted(got), self.WANT)
+
+
+POSTS = """extends Node
+
+
+func _a() -> void:
+	EventBus.post(
+		&"footfall",
+		{ "position": p, "foot": 0, },
+	)
+	EventBus.post(&"explosion", { "kind": k })
+	var data := { "x": 1 }
+	EventBus.post(&"hit", { "victim": v, "damage": d })
+	EventBus.post(&"order", data)
+	EventBus.post(topic, { "y": 2 })
+"""
+LISTENER = """extends Node
+
+
+func _on_posted(topic: StringName, data: Dictionary) -> void:
+	if topic != &"stun":
+		return
+	match topic:
+		&"shot", &"hit":
+			pass
+	var leader_named := data.get("leader", &"leader")
+"""
+
+
+class EventsAndFactsTests(unittest.TestCase):
+    """The `events` post parser and listener test, and the `facts` gates, on text written by hand."""
+
+    def test_posts_are_read_with_balanced_brackets(self):
+        got = [(t, k) for t, k, _ in audit_scan_module().event_posts(POSTS)]
+        self.assertEqual(got, [
+            ("footfall", ["position", "foot"]),  # spread over lines, trailing commas
+            ("explosion", ["kind"]),  # not given the next post's keys
+            ("hit", ["victim", "damage"]),
+            ("order", None),  # a variable payload: not scanned
+            (None, ["y"]),  # a topic held in a variable
+        ])
+        self.assertEqual([line for _, _, line in audit_scan_module().event_posts(POSTS)], [5, 9, 11, 12, 13])
+
+    def test_a_listener_handles_a_topic_it_compares_or_matches(self):
+        module = audit_scan_module()
+        for topic, want in (("stun", True), ("shot", True), ("hit", True), ("leader", False), ("order", False)):
+            with self.subTest(topic=topic):
+                self.assertEqual(module.handles(LISTENER, topic), want)
+
+    def test_only_requires_entry_rules_and_fact_reads_gate(self):
+        files = {
+            "scenes/ai/decision/decision_tree.gd": 'var t := { "requires": [&"ordered", &"!follows"] }\n',
+            "scenes/ai/tuning/npc_decision_tuning.gd": "@export var entry_rules: Dictionary = { &\"under_fire\": &\"combat\" }\n",
+            "tests/a_test.gd": 's.actor(&"hurt", &"puppet")\nvar f = brain.debug_state()["facts"]["exposed"]\n',
+        }
+        module = audit_scan_module()
+        with TempDir("audit_scan_test.") as d:
+            for rel, text in files.items():
+                (d / rel).parent.mkdir(parents=True, exist_ok=True)
+                (d / rel).write_text(text)
+            cwd = os.getcwd()
+            os.chdir(d)
+            try:
+                gated = module.gated_facts()
+            finally:
+                os.chdir(cwd)
+        for name in ("ordered", "follows", "under_fire", "exposed"):
+            self.assertIn(name, gated)
+        self.assertNotIn("hurt", gated, "an actor's name in a test is not a gate")
 
 
 if __name__ == "__main__":

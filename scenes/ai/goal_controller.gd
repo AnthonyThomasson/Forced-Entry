@@ -7,9 +7,10 @@ extends Node
 ## (`movement.move_input`/`movement.aim_point`) plus the same public actions — all of that done by
 ## the behaviour sub-domain. It is the single authoring surface: `goal` and every tunable, the
 ## tunables in its `Tuning` child's topic nodes (`tuning`, `scenes/ai/tuning/`), so a defender or
-## invader preset is all data on this one node, read by the sub-domains it builds (their
-## `apply_config(tuning)`) — and read again each decision, so a tunable retuned at runtime (a
-## behaviour test, the dev command server) takes effect without a rebuild.
+## invader preset is all data on this one node, read by the sub-domains it builds (perception's
+## `apply_config(tuning)`, the behaviour's `setup`, the planner's `setup`) — and read again each
+## decision, so a tunable retuned at runtime (a behaviour test, the dev command server) takes effect
+## without a rebuild.
 ##
 ## The three sub-domains it builds (see their `domain-ai-<name>` skills; the fourth, DEBUG (debug/),
 ## is the draw-only overlays, children of the NPC that read this node's `debug_*` getters):
@@ -18,13 +19,13 @@ extends Node
 ##     option groups). The NPC is NOT omniscient — it acts on last-KNOWN positions and forgets what
 ##     decays.
 ##   • DECISION (decision/) — THINK. The decision TREE and its planner: Von picks top-down, one
-##     `choice` request per level — a broad mode (combat / investigate / search / idle), the
-##     hostile, a tactic (engage / flank / advance / retreat / reload …), then a concrete option —
-##     ending in one behaviour primitive.
+##     `choice` request per level — a broad mode (order / combat / follow / reload_quiet /
+##     investigate / search / idle), the hostile, a tactic (engage / flank / advance / retreat /
+##     reload …), then a concrete option — ending in one behaviour primitive.
 ##   • BEHAVIOUR (behavior/) — ACT. Runs the chosen primitive (move / engage / melee / interact /
-##     reload / entry / throw / hold) as movement + actions, and holds the System-Two state Von
-##     lacks: the engaged contact, peek-and-cover, the interaction in progress, and the commitment
-##     that keeps a choice running.
+##     hold / reload / entry / throw / defend / ambush / follow) as movement + actions, and holds
+##     the System-Two state Von lacks: the engaged contact, peek-and-cover, the interaction in
+##     progress, and the commitment that keeps a choice running.
 ##
 ## This file keeps only the ORCHESTRATION: the control loop, the decide cadence, forcing a
 ## re-decision on a salient event or a finished task (interrupting a walk in flight when the
@@ -103,8 +104,6 @@ var _reflexes: RefCounted
 ## once, _apply_config() configures (here and again each decision, so a tunable retuned at runtime
 ## still takes effect without a rebuild that would wipe memory or in-flight state).
 func _ready() -> void:
-	# The group the observers find an NPC's controller by (interface 7).
-	add_to_group(&"npc_controllers")
 	_cadence = Cadence.new()
 	_comms = Comms.new(self)
 	_reflexes = Reflexes.new(self)
@@ -194,8 +193,8 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 		_comms.event_queue.append([topic, data])
 
 
-## Read-only: the goal as Von reads it, with `{gun}` filled in with the NPC's gun (the raw `goal`
-## before it has acted).
+## Read-only: the goal as Von reads it, with `{gun}` filled in with the NPC's gun (before it has
+## acted, `{gun}` reads "gun").
 func goal_text() -> String:
 	if _perception == null or not is_instance_valid(_character):
 		return goal.replace("{gun}", "gun")
@@ -262,7 +261,7 @@ func debug_zones() -> Array:
 func debug_room_zones() -> Array:
 	if _character == null or _perception == null:
 		return []
-	return _perception.house.room_status(rooms, _character.global_position)
+	return _perception.house.room_status(_character.global_position)
 
 
 ## Read-only: the running tactical entry — the doorway (`opening`, `into`), the NPC's stack `slot`
@@ -528,7 +527,7 @@ func _start_decision() -> void:
 	_cadence.forced = false
 	_cadence.decide_timer = tuning.decision.decide_interval
 	_apply_config()  # Pick up any tunable retuned at runtime before sensing + deciding.
-	var snapshot: Dictionary = _perception.sense(rooms, goal, _behavior.activity_text())
+	var snapshot: Dictionary = _perception.sense(goal, _behavior.activity_text())
 	_cadence.last_facts = snapshot["facts"]
 	_cadence.last_sections = snapshot["sections"]
 	_cadence.last_options = snapshot["options"]

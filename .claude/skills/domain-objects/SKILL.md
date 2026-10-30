@@ -78,7 +78,7 @@ The Lighting domain lights the world; Objects declares and builds what its piece
 - **`get_lights() -> Array`** (`environment_object.gd`, worked out once in `_ready`, after the visuals, by `object_lights.gd`):
   the lights a piece gives, one plain dict each in its own frame (`offset`, `turn`, `colour`, `energy`, `radius`, `shape`,
   `rhythm`, `room_light`, `street`, `height`, `glow`). What gives light is what its painter draws glowing; the kind is read off
-  the painter and its options (`_kind`: a `lamp`; a `tv` (appliance panel), a `desk` (a table with a monitor prop), the den's
+  the painter and its options (`_kind`, through `ObjectArt.light_kind` for the variant pieces: a `lamp`; a `tv` (appliance panel), a `desk` (a table with a monitor prop), the den's
   `monitor_wall`, `server_rack` and `rig`, the ripperdoc's `surgical` chair and `tool_cart`, the vestibule's `scanner`, the
   `hotplate`, the `neon_tube` decor, a streetlight's `cobra` or `sign` head (at the `Overhang`'s centre, its overlay the glow,
   `street` on), and any other piece with a `neon` option, its `trim`), and the numbers are that kind's row of
@@ -138,7 +138,7 @@ art instead of a flat shape with its name label (the flat path stays for any def
   and greasy, porcelain limescaled and cracked (`ToiletPainter.porcelain`, also the bath), rugs stained and moth-eaten, the
   plant dead (`plant_wilt`), the garage car a beater (`car_beater`, a primer door). Some are rebuilt: the bed is a bare mattress
   on the floor, the lamp a tin shade over a bare bulb, a TV a boxy cracked CRT.
-- **The neon share** (`ObjectArt.neon_for`, `ObjectArtLightConfig.neon_share`): `ObjectFactory` gives a share (25-60% by kind) of the
+- **The neon share** (`ObjectArt.neon_for`, keyed by `ObjectArt.light_kind` for the variant pieces, `ObjectArtLightConfig.neon_share`): `ObjectFactory` gives a share (25-60% by kind) of the
   light-giving pieces (lamps, TVs, desks with a monitor, mirrors, counters, cabinets, shelves, beds, appliances, and by their `kind`
   for the painters in `ObjectArt.BY_KIND`: the monitor wall, the server rack, the rig, the tool cart) a `neon` option
   (`cyan` / `magenta`), picked per piece from where it stands (deterministic; `opts.neon` overrides): a neon trim, under-glow,
@@ -161,7 +161,7 @@ damage is placed in the world (below), so no mark repeats on the tile's grid.
 - `object_art.gd` — the painter registry: `PAINTERS` maps an `art` id to its painter;
   `texture(art, size, color, facing, opts)` renders it via `PixelArt.render` (a cardinal
   facing; the finish is `opts.material`, as `tile`'s `material` argument), `tile(art, color, material, opts)` at the painter's own `tile_size(opts)` (floors), `emissive` / `tile_emissive`, `groove` /
-  `porous` (a tiling painter's blood grooves and soak), `neon_for`, `drawn_color`.
+  `porous` (a tiling painter's blood grooves and soak), `light_kind` (which variant of a painter gives light: the TV, the desk, the tool cart, the scanner; the one rule `ObjectLights` and `neon_for` read), `neon_for`, `drawn_color`.
 - Painters (`*_painter.gd`, each `static paint(canvas, base, material, opts)`): `sofa` (also the
   armchair), `table` (+ `gaps`, `props`; desks, benches, the workbench), `chair`, `cabinet`
   (doors/drawers front lip, crown, glass top, chest lid), `shelf` (books / boxes / shoes),
@@ -211,7 +211,7 @@ damage is placed in the world (below), so no mark repeats on the tile's grid.
 Damage is decals placed in the world, never in a tile. `decal_layer.gd` is a draw-only batch of `[texture, rect]` marks.
 - **A room's wear** (`WearFactory.spawn` over a `WearPlan`, `wear_plan.gd`; `decals/room_wear.gd`): World-Gen places the clusters (where wear gathers, seeded);
   the room's wear node decides each cluster's 1-3 floor marks, following the room's floor pattern (planks break along a plank
-  row, tiles go missing on the tile grid, carpet wears bald, concrete cracks and takes oil; grid marks snap to the floor's grid,
+  row, tiles go missing on the tile grid, carpet wears bald, concrete cracks and takes oil; grid marks snap to the floor's grid (`FloorPainter.row_px` / `cell_px` / `parquet_strip`, the painter's own numbers),
   every mark its own size, turn and `v` variant), and with `ObjectArtWearConfig.wall_chance` a mark on the free stretch of wall the cluster is
   by. Its two layers are `FloorWear` (the floor's rung) and `WallWear` (the walls'); built after every room's floor and walls, so
   each draws over them; one node per room, so it takes the lights of that room's floor (the per-floor budget, `docs/lighting.md` L4).

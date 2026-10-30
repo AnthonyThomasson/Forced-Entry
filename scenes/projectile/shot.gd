@@ -7,6 +7,9 @@ class_name Shot extends RefCounted
 var shooter: Node = null
 ## Added to the bullet's base damage.
 var item_damage: float = 0.0
+## The bullet's damage outright, in place of its base plus `item_damage` (negative = that sum): a
+## grenade's fragments deal their row's `fragment_damage`.
+var damage: float = -1.0
 ## The speed the bullet leaves at, px/s (negative = `BallisticsFlightConfig.projectile_speed`).
 var muzzle_speed: float = -1.0
 ## Its power to punch through what it hits (1 = a pistol round, higher goes further).

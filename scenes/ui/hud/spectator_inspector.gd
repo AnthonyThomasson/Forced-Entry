@@ -169,7 +169,7 @@ func _npc_at(world: Vector2) -> Node:
 ## entry `{ point, category, label, desc }`), or an empty dict when the click wasn't on one.
 func _zone_at(world: Vector2) -> Dictionary:
 	var ctrl := HudProbe.controller_of(_selected)
-	if ctrl == null or not ctrl.has_method("debug_zones"):
+	if ctrl == null:
 		return {}
 	var best := {}
 	var best_d := ZONE_PICK_RADIUS
@@ -217,9 +217,7 @@ func _refresh_markers() -> void:
 	if _contact_markers == null:
 		return
 	var display: Array = []
-	if (_selected_ctrl != null
-			and is_instance_valid(_selected_ctrl)
-			and _selected_ctrl.has_method("known_contacts_for_display")):
+	if _selected_ctrl != null and is_instance_valid(_selected_ctrl):
 		for c in _selected_ctrl.known_contacts_for_display():
 			display.append({
 				"pos": c["pos"],

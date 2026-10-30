@@ -153,5 +153,4 @@ func _shadow_length() -> float:
 ## Where the drop shadow lies off the piece in its own frame: `_shadow_length` px away from the
 ## light, whichever way it is turned.
 func _shadow_shift() -> Vector2:
-	var away := -ArtCanvasConfig.light_from.normalized()
-	return global_transform.basis_xform_inv(away).normalized() * _shadow_length()
+	return PixelArt.away_from_light(self) * _shadow_length()

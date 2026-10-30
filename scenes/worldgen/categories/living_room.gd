@@ -129,12 +129,7 @@ const RECIPES := {
 			},
 		],
 		"zones": [
-			{
-				"options": ["tv_wall_cozy", "tv_wall_modern"],
-				"count": Vector2i(1, 1),
-				"required": true,
-				"fallback": "tv_compact",
-			},
+			GeneralCatalog.TV_ZONE,
 			{ "options": ["reading_nook", "entry_area"], "count": Vector2i(1, 2) },
 			{ "options": ["plant_corner", "side_table_lamp"], "count": Vector2i(0, 2) },
 		],

@@ -23,7 +23,7 @@ and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a 
 stack, as the leader a stack waits for (LD17) and as the leader's own claim (LD24). The match builder (`match_builder.gd`, `MatchBuilder`,
 for Main's match and the Testing world alike) builds the squads and the squad-leaders overlay (`squads_over`: `build_squads`,
 `bind_squad`, `build_leader_overlay`) and places the invader team in one group (`match_spawner.gd` `spawn_invader_team`, LD27); Main builds, when the
-human leads, the command menu and the order markers (`main.gd` `_build_command_menu`; `ui/hud/command_menu.gd`, `ui/hud/order_markers.gd`;
+human leads, the command menu and the order markers (`main.gd` `_build_command_menu`; `ui/command/command_menu.gd`, `ui/command/order_markers.gd`;
 the setup window's "Lead the team", `ui/menus/setup_menu.gd`; `Keybinds.COMMAND`), and in every played match points the stack markers at
 the human's side's squad (`main.gd` `_watch_side_stacks`, `ui/hud/stack_markers.gd`); the squad-leaders overlay is
 `ui/overlays/leader_overlay.gd`. See the `architecture` skill (interfaces 1, 7, 10, 11, 17 and 21), the `domain-ai-*` skills, `domain-main`,
@@ -66,7 +66,7 @@ LD25 and LD26), never one of the human's kinds. An NPC with no squad handed to i
 Tests: `general/squad_leader_rule` (invaders by rank, then spawn order; defenders by the first spawned; the human when leading).
 
 **LD4. Succession.** When the leader dies, the next in line by the same rule leads within the frame, and the squad says so on the bus:
-`&"leader"` `{ faction, leader, previous }`. The orders already given stand (but for the dead human leader's defends and ambushes, LD26); a
+`&"leader"` `{ faction, leader, previous }`, an event the tests read (no game code listens to it). The orders already given stand (but for the dead human leader's defends and ambushes, LD26); a
 later order, from the new leader, replaces them. The followers re-centre on the new leader, which stops following (LD19).
 
 Tests: `general/squad_succession` (a match built as Main builds one, `s.declared_match` on the bare Terrace house: the lead invader killed, the sergeant leads within a frame, one `leader` event, the
@@ -244,7 +244,7 @@ Tests: `ui/setup_menu_config` (the checkbox: off by default, reported as `lead` 
 remembered config), `general/lead_rank` (on: the human invader rank 2, the first NPC 1, the next 0, the same styles and look seeds; off:
 the human last; `Settings.set_setup` keeps and saves `lead`).
 
-**LD11. Command menu.** Built only when the human leads (`ui/hud/command_menu.gd`). `Keybinds.COMMAND` ("Command teammates", right
+**LD11. Command menu.** Built only when the human leads (`ui/command/command_menu.gd`). `Keybinds.COMMAND` ("Command teammates", right
 mouse by default; nothing reads the right button otherwise) pauses the whole tree and opens the menu on what is under the cursor, a
 panel docked on the side of the screen away from the click (on the left, or on the right when the click lies in the left half, so it
 never covers the teammates or the doorway it is about) and a ring on the clicked point. Docked on the left, its top is 120 px down (below
@@ -291,7 +291,7 @@ with a stun claim slots there in bang mode once the menu closes), the keybind co
 every action, `COMMAND` among them, has a settings label and group).
 
 **LD12. Order markers and the squad leaders.** Built with the command menu, only when the human leads (D5; Watch and Endless draw none),
-`ui/hud/order_markers.gd`, under `World` at `DrawLayers.ABOVE`. It draws each living member's order target (a dashed line from the member to its target, the doorway's centre for a stack or an ambush or the room's
+`ui/command/order_markers.gd`, under `World` at `DrawLayers.ABOVE`. It draws each living member's order target (a dashed line from the member to its target, the doorway's centre for a stack or an ambush or the room's
 centre for a defend, as the order's `pos`; the target ringed and named with the order and the member's latest progress, "Defend · in
 position", "Stack (stun) · moving", "Stack (frag, hold) · in position" (the mode, and "hold" while it waits for its go, LD13), "Ambush · in
 position", red when it refused; an order that is done is no longer drawn), and a ring round each teammate selected in the open menu. It watches the squad's `view()` and the menu's

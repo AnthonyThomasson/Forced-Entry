@@ -29,7 +29,7 @@ static func impact_impulse(hit: HitInfo) -> Vector2:
 ## chips from the entry. Particles need PhysicsConfig.hit_particles_enabled, chips
 ## PhysicsConfig.debris_enabled, and the blood bits BloodConfig.enabled.
 static func spawn_debris(parent: Node, hit: HitInfo, surface: Dictionary) -> void:
-	var spray := hit.normal if hit.normal.length() > 0.001 else -hit.direction
+	var spray := hit.spray_direction()
 	var strength := clampf(hit.speed_factor, 0.4, 1.5) * clampf(0.7 + hit.damage / 50.0, 0.7, 1.4)
 	# Through the object: a weak burst going in, the strong one coming out. Otherwise one
 	# full-strength burst.

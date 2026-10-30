@@ -142,7 +142,8 @@ func apply_move(delta: float) -> void:
 		if coverage.step(delta):  # Look around until the room is covered by sight.
 			task.look_around = false
 			task.resolved = true
-			var covered: String = loco.room_key_at(character.global_position)
+			var confinement: RefCounted = behavior._perception.confinement
+			var covered: String = confinement.room_at(character.global_position)
 			if covered != "":
 				# Seen all of it: cleared, as by an entry.
 				behavior._perception.entry.mark_cleared(covered)
@@ -156,7 +157,8 @@ func _note_move_arrival() -> void:
 	var task: RunningLeaf = behavior.task
 	var loco: Node = behavior._loco
 	if task.arrive_room != "" and not task.look_around:
-		task.arrived = loco.room_key_at(behavior._character.global_position) == task.arrive_room
+		var here: Vector2 = behavior._character.global_position
+		task.arrived = behavior._perception.confinement.room_at(here) == task.arrive_room
 	if not task.arrived:
 		task.arrived = loco.reached(task.point)
 	if task.arrived:

@@ -12,6 +12,14 @@ class_name HouseSpawner
 const OPENING_CLEARANCE := 50.0
 ## Gap between wall faces and furniture.
 const INTERIOR_MARGIN := 6.0
+## The way out of a room through each of its walls (`WallFactory.openings_for`'s `side`): the wall's
+## unit normal pointing away from the room.
+const OUTWARD := {
+	WallFactory.WallScript.Side.TOP: Vector2.UP,
+	WallFactory.WallScript.Side.BOTTOM: Vector2.DOWN,
+	WallFactory.WallScript.Side.LEFT: Vector2.LEFT,
+	WallFactory.WallScript.Side.RIGHT: Vector2.RIGHT,
+}
 
 
 ## Build the named floorplan under `parent`, positioned so its front entrance lands on
@@ -190,7 +198,7 @@ static func _streetlights(rooms: Array, openings: Array, house: Node2D, run_seed
 ## `WorldGenStreetConfig.streetlight_every` px, the row centred on the front) and the posts' y,
 ## `streetlight_curb` px in from the curb.
 static func _lamp_row(rooms: Array) -> Dictionary:
-	var bounds := _bounds(rooms)
+	var bounds := WorldGen.bounds(rooms)
 	var side := WorldGenStreetConfig.sidewalk
 	var every := WorldGenStreetConfig.streetlight_every
 	var length := bounds.size.x + side * 2.0
@@ -226,17 +234,10 @@ static func _door_zones(rooms: Array, openings: Array) -> Array:
 		if not (opening.get("front", false) or opening.get("exit", false)):
 			continue
 		var p: Vector2 = opening["pos"]
-		var keys := room_keys_on(rooms, opening)
-		if keys.size() != 1:
+		var outward := outward_on(rooms, opening)
+		if outward.size() != 1:
 			continue
-		var rect: Rect2 = rooms.filter(
-			func(room: Dictionary) -> bool: return room["key"] == keys[0],
-		)[0]["rect"]
-		var out := Vector2.RIGHT if absf(p.x - rect.end.x) < 1.0 else Vector2.LEFT
-		if absf(p.y - rect.end.y) < 1.0:
-			out = Vector2.DOWN
-		elif absf(p.y - rect.position.y) < 1.0:
-			out = Vector2.UP
+		var out: Vector2 = outward[0]
 		var half: float = (
 			opening["width"] * 0.5 + WorldGenStreetConfig.streetlight_door_strip_margin
 		)
@@ -261,21 +262,13 @@ static func _clear_of_doors(extent: Array, zones: Array) -> bool:
 	return true
 
 
-## The bounds of `rooms`' rects.
-static func _bounds(rooms: Array) -> Rect2:
-	var bounds: Rect2 = rooms[0]["rect"]
-	for room in rooms:
-		bounds = bounds.merge(room["rect"])
-	return bounds
-
-
 ## The street ring round the house: a sidewalk hugging the outline of its rooms and asphalt beyond
 ## it, four strips of each (the top and bottom ones spanning the corners), laid through FloorFactory
 ## under `house` from GeneralCatalog.STREET, each with its marks (seeded from `run_seed`; the lane
 ## down the road in front, on the south). Returns them as `[{ kind, rect, node }]` (`rect` in world
 ## space).
 static func _street(rooms: Array, house: Node2D, run_seed: int) -> Array:
-	var bounds := _bounds(rooms)
+	var bounds := WorldGen.bounds(rooms)
 	var walk := bounds.grow(WorldGenStreetConfig.sidewalk)
 	var outer := bounds.grow(WorldGenStreetConfig.reach)
 	var pieces := _street_pieces(bounds)
@@ -354,8 +347,9 @@ static func _street_pieces(bounds: Rect2) -> Array:
 	]
 
 
-## Every doorway as `{ pos, width, front, exit, rooms }` in WORLD space; `rooms` are the keys of the
-## rooms whose wall it cuts (one for the front entrance or an exit, two for an interior door).
+## Every doorway as `{ pos, width, front, exit, rooms, outward }` in WORLD space; `rooms` are the
+## keys of the rooms whose wall it cuts (one for the front entrance or an exit, two for an interior
+## door) and `outward` the way out of each of them through it (`outward_on`, in `rooms`' order).
 static func _openings_world(rooms: Array, openings: Array, origin: Vector2) -> Array:
 	var result: Array = []
 	for opening in openings:
@@ -363,6 +357,7 @@ static func _openings_world(rooms: Array, openings: Array, origin: Vector2) -> A
 			"pos": origin + (opening["pos"] as Vector2), "width": opening["width"],
 			"front": opening.get("front", false), "exit": opening.get("exit", false),
 			"rooms": room_keys_on(rooms, opening),
+			"outward": outward_on(rooms, opening),
 		})
 	return result
 
@@ -374,6 +369,17 @@ static func room_keys_on(rooms: Array, opening: Dictionary) -> Array:
 		if not WallFactory.openings_for(room["rect"], [opening]).is_empty():
 			keys.append(room["key"])
 	return keys
+
+
+## The way out of each room whose wall `opening` (`{ pos, width }`) lies on, in `room_keys_on`'s
+## order: the unit normal of that wall pointing away from the room (`OUTWARD`).
+static func outward_on(rooms: Array, opening: Dictionary) -> Array:
+	var out: Array = []
+	for room in rooms:
+		var cut := WallFactory.openings_for(room["rect"], [opening])
+		if not cut.is_empty():
+			out.append(OUTWARD[cut[0]["side"]])
+	return out
 
 
 ## Author-error checks (warnings only): overlapping rooms, an opening not on the wall(s) it should
@@ -433,10 +439,9 @@ static func _opening_clearances(rooms: Array, openings: Array) -> Array:
 	for opening in openings:
 		var p: Vector2 = opening["pos"]
 		var width: float = opening["width"]
-		var on_horizontal_wall := rooms.any(func(room: Dictionary) -> bool:
-			var r: Rect2 = room["rect"]
-			var on_edge := is_equal_approx(p.y, r.position.y) or is_equal_approx(p.y, r.end.y)
-			return on_edge and p.x > r.position.x and p.x < r.end.x)
+		var on_horizontal_wall := outward_on(rooms, opening).any(
+			func(out: Vector2) -> bool: return out.y != 0.0,
+		)
 		if on_horizontal_wall:
 			blocked.append(
 				Rect2(p.x - width * 0.5, p.y - OPENING_CLEARANCE, width, OPENING_CLEARANCE * 2.0),

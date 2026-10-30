@@ -48,8 +48,7 @@ static func _brick(c: PixelCanvas, base: Color, t: Dictionary) -> void:
 		var offset := (int(brick / 2.0)) * (row % 2)
 		for b in 3:
 			var x0 := b * brick - offset
-			var shift := c.rng.randf_range(-0.08, 0.08)
-			var tone := base.lightened(shift) if shift > 0.0 else base.darkened(-shift)
+			var tone := ArtSurfaceConfig.jitter(c.rng, base, 0.08)
 			for x in range(maxi(0, x0), mini(c.w, x0 + brick)):
 				c.line(Vector2i(x, y0), Vector2i(x, y1 - 1), tone)
 			if x0 >= 0 and x0 < c.w:

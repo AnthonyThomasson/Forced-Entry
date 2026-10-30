@@ -34,3 +34,10 @@ var blood: float = 0.0
 var height: float = -1.0
 ## The node that caused the hit (the projectile, the character, …). May be null.
 var source: Node = null
+
+
+## Which way what a hit knocks off sprays: out along the surface `normal`, or back along the shot
+## when the normal is degenerate (what `Physics.spawn_debris`, `HitParticles` and `BloodWound` spray
+## along).
+func spray_direction() -> Vector2:
+	return normal if normal.length() > 0.001 else -direction

@@ -50,7 +50,7 @@ signal order_requested(request: Dictionary)
 ## once it closes (the order markers' `set_selection`).
 signal selection_changed(nodes: Array)
 
-const CommandPanel := preload("res://scenes/ui/hud/command_panel.gd")
+const CommandPanel := preload("res://scenes/ui/command/command_panel.gd")
 ## World-space radius (px) around the cursor within which a click picks a teammate's body.
 const PICK_RADIUS := 28.0
 ## The ring on the clicked point: its radius (screen px) and colour.

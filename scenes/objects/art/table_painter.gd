@@ -3,18 +3,16 @@ extends RefCounted
 ## along the long side with dark seams, staggered butt joints, a slight tone per plank, grain and
 ## the odd knot — inside a light-aware bevelled rim with rounded corners, optionally dressed with
 ## props. Options (`art_opts`, defaulting to ObjectArtTableConfig.table_*): `plank_px`, `rim_px`,
-## `corner_radius`, `inset` (a recessed centre panel), `runner` (a cloth runner down the long
-## axis), `gaps` (open slats, as on a bench), `props` and `neon` (a desk's: its screens and a neon
-## strip set round its edge, glowing). Run down like a chair (scratches, cup rings, burns). A table
-## is symmetric, so its facing only turns the plank direction with the footprint.
+## `corner_radius`, `inset` (a recessed centre panel), `gaps` (open slats, as on a bench), `props`
+## and `neon` (a desk's: its screens and a neon strip set round its edge, glowing). Run down like a
+## chair (scratches, cup rings, burns). A table is symmetric, so its facing only turns the plank
+## direction with the footprint.
 
 const Props = preload("res://scenes/objects/art/props.gd")
 const ChairPainter = preload("res://scenes/objects/art/chair_painter.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
 ## Tabletop height, for cast shadows.
 const _TOP_HEIGHT := 2
-## The runner sits on the top.
-const _RUNNER_HEIGHT := 3
 
 
 ## Paint a table onto `c` in `base` wood.
@@ -37,8 +35,6 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 				Rect2i(0, a, c.w, 1) if c.w >= c.h else Rect2i(a, 0, 1, c.h),
 				0,
 			), PixelCanvas.CLEAR, 0)
-	if opts.get("runner", ObjectArtTableConfig.table_runner):
-		_runner(c)
 	Props.draw_all(
 		c,
 		opts.get("props", []),
@@ -80,8 +76,7 @@ static func _planks(c: PixelCanvas, base: Color, t: Dictionary, opts: Dictionary
 ## One plank's face over `r` in a tone of `base` drawn per plank, with its grain (along x when
 ## `along_x`); returns the tone.
 static func _plank_face(c: PixelCanvas, base: Color, r: Rect2i, along_x: bool) -> Color:
-	var shift := c.rng.randf_range(-0.05, 0.05)
-	var tone := base.lightened(shift) if shift > 0.0 else base.darkened(-shift)
+	var tone := ArtSurfaceConfig.jitter(c.rng, base, 0.05)
 	c.paint_over(r, tone)
 	c.grain(PixelShape.rounded(r, 0), ArtSurfaceConfig.wood_grain_density, tone.darkened(0.12),
 			tone.lightened(0.06), { "along_x": along_x })
@@ -141,55 +136,3 @@ static func _inset(
 	)
 	c.bevel(inner, 1, 1, t.shadow, t.light)
 	c.bevel(inner, 2, 2, t.dark, inlay)
-
-
-## A cloth runner down the long axis, hanging to the rim at both ends with a fringe, a border
-## stripe along each edge and a woven diamond motif down its middle.
-static func _runner(c: PixelCanvas) -> void:
-	var along_x := c.w >= c.h
-	var length := c.w if along_x else c.h
-	var span := c.h if along_x else c.w
-	var width := maxi(5, roundi(span * float(ObjectArtTableConfig.table_runner_width)))
-	var a := int((span - width) / 2.0)
-	var col := ObjectArtTableConfig.table_runner_color
-	var r := Rect2i(1, a, length - 2, width) if along_x else Rect2i(a, 1, width, length - 2)
-	c.fill(PixelShape.rounded(r, 0), col, _RUNNER_HEIGHT)
-	c.speckle(r, col, ArtSurfaceConfig.fabric_speckle)
-	_runner_weave(c, along_x, Rect2i(0, a, length, width))
-
-
-## The runner's weave over its `lane` (x along the runner, y across it): the border stripes, the
-## diamonds down its middle and the fringe, every other thread at each end.
-static func _runner_weave(c: PixelCanvas, along_x: bool, lane: Rect2i) -> void:
-	var length := lane.size.x
-	var a := lane.position.y
-	var width := lane.size.y
-	var mid := a + int(width / 2.0)
-	var col := ObjectArtTableConfig.table_runner_color
-	var rt := ArtSurfaceConfig.tones(col)
-	var motif := maxi(2, int(width / 2.0) - 3)
-	var period := motif * 2 + 2
-	for i in range(1, length - 1):
-		for s in [a, a + width - 1]:
-			_dot(c, along_x, i, s, rt.dark)
-		if width >= 9:
-			for s in [a + 2, a + width - 3]:
-				_dot(c, along_x, i, s, rt.light if i % 2 == 0 else col)
-		# Diamonds: |offset from the motif centre along| + |offset across| == radius.
-		var along_off := absi((i + int(period / 2.0)) % period - int(period / 2.0))
-		if i > 3 and i < length - 4 and along_off <= motif:
-			for s in [mid - (motif - along_off), mid + (motif - along_off)]:
-				_dot(c, along_x, i, s, rt.shadow)
-	# Fringe: every other thread at each end.
-	for s in range(a, a + width):
-		if s % 2 == 0:
-			for end in [1, length - 2]:
-				_dot(c, along_x, end, s, rt.light)
-
-
-## Set one pixel addressed along/across the planks.
-static func _dot(c: PixelCanvas, along_x: bool, along: int, across: int, col: Color) -> void:
-	if along_x:
-		c.px(along, across, col)
-	else:
-		c.px(across, along, col)

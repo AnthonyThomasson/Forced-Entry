@@ -53,10 +53,9 @@ func _paint() -> void:
 			_paint_route(z["point"], tags, map, me)
 
 
-## The watch cone of every hostile contact whose facing it knows.
+## The watch cone of every hostile contact whose facing it knows, `tuning.tactics.watch_arc` wide.
 func _paint_wedges() -> void:
-	var arc: Variant = _controller.get_indexed("tuning:tactics:watch_arc")
-	var half_arc := deg_to_rad(float(arc) if arc != null else 90.0) * 0.5
+	var half_arc := deg_to_rad(_controller.tuning.tactics.watch_arc) * 0.5
 	var contacts: Array = _controller.known_contacts_for_display()
 	for c in contacts:
 		var facing: Vector2 = c.get("facing", Vector2.ZERO)

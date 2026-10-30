@@ -11,12 +11,14 @@ extends Node
 ##                &"done": the new one is seated and the action racked)   { position, gun, stage,
 ##                power }
 ##   &"throw"     a grenade left a hand           { position, kind }
-##   &"grenade"   a thrown grenade bounced (stage &"bounce"; &"rest" is silent)   { position, kind,
-##   stage } &"explosion" a grenade went off              { position, kind }
-##   &"stun"      a character was flashed / banged; only a deafening of `focus` is voiced   {
-##   character, deaf } &"vehicle"   a vehicle's ignition, door (open / close / slide_open /
-##                slide_close), crash (+ speed, material) or a character struck (bump_character, +
-##                speed)   { position, kind, stage }
+##   &"grenade"   a thrown grenade bounced (stage &"bounce"; &"rest" is silent)
+##                { position, kind, stage }
+##   &"explosion" a grenade went off              { position, kind }
+##   &"stun"      a character was flashed / banged; only a deafening of `focus` is voiced
+##                { character, deaf }
+##   &"vehicle"   a vehicle's ignition, door (open / close / slide_open / slide_close), crash
+##                (+ speed, material) or a character struck (bump_character, + speed)
+##                { position, kind, stage }
 ##   &"engine"    a vehicle's engine started / stopped   { vehicle, kind, stage }
 ##   &"skid"      a vehicle's tyres began / stopped sliding   { vehicle, stage }
 ## Each becomes a *profile* (SoundBank), a rendered variant of it, and a voice: a pooled
@@ -51,6 +53,8 @@ const TINNITUS := &"tinnitus"
 const ENGINE := &"engine"
 const VEHICLE := &"vehicle"
 const SKID := &"skid"
+## The profile families a vehicle's one-shots are voiced from, which play under `VEHICLE`.
+const VEHICLE_ONE_SHOTS: Array[StringName] = [&"ignition", &"door", &"crash"]
 ## The bus every game voice plays on, with the muffling low-pass on it; the tinnitus plays on the
 ## master bus, above the muffle.
 const GAME_BUS := &"GameSound"
@@ -450,27 +454,32 @@ func _reach(category: StringName, at: Vector2) -> float:
 	return reach_from(category, at, camera.get_screen_center_position(), camera.zoom.x)
 
 
-## `category`'s range (px) for a view centred on `center` at camera `zoom`, or 0 when `at` is beyond
-## it. The range grows as the camera zooms out when SoundConfig.range_follows_zoom is on.
+## `category`'s range (px) for a view centred on `center` at camera `zoom` (`range_at_zoom`), or 0
+## when `at` is beyond it.
 static func reach_from(
 	category: StringName,
 	at: Vector2,
 	center: Vector2,
 	zoom: float = 1.0,
 ) -> float:
-	var reach: float = SoundConfig.category_range.get(category, 1000.0)
-	if SoundConfig.range_follows_zoom and zoom > 0.0:
-		reach /= zoom
+	var reach := range_at_zoom(category, zoom)
 	return reach if center.distance_to(at) <= reach else 0.0
 
 
-## A variant of `profile` other than the one played last; a category may have more takes than the
-## default.
+## How far `category` carries (px) seen at camera `zoom`: its `SoundConfig.category_range`, growing
+## as the camera zooms out when SoundConfig.range_follows_zoom is on. What `reach_from` culls by and
+## a loop's voice carries to (`_range`).
+static func range_at_zoom(category: StringName, zoom: float = 1.0) -> float:
+	var reach: float = SoundConfig.category_range.get(category, 1000.0)
+	if SoundConfig.range_follows_zoom and zoom > 0.0:
+		reach /= zoom
+	return reach
+
+
+## A variant of `profile` other than the one played last, out of its `category`'s
+## `_variant_count`.
 func _pick_variant(category: StringName, profile: StringName) -> int:
-	var n := maxi(
-		int(SoundLibraryConfig.category_variants.get(category, SoundLibraryConfig.variants)),
-		1,
-	)
+	var n := _variant_count(category)
 	var v := _rng.randi() % n
 	if n > 1 and _last_variant.get(profile, -1) == v:
 		v = (v + 1) % n
@@ -522,19 +531,26 @@ func library() -> Array:
 	for profile in profiles:
 		out.append([profile, 0])
 	for profile in profiles:
-		for variant in range(1, _variants_of(profile)):
+		for variant in range(1, _variant_count(_category_of(profile))):
 			out.append([profile, variant])
 	return out
 
 
-## How many variants `_pick_variant` chooses between for `profile` (its category is the profile id's
-## first part).
-func _variants_of(profile: StringName) -> int:
-	var category := StringName(String(profile).get_slice("/", 0))
+## How many variants a sound of `category` is drawn from (a category may have more takes than the
+## default, `SoundLibraryConfig.category_variants`): what `_pick_variant` chooses between when it
+## plays, and what the pre-warm renders for each profile of the category.
+func _variant_count(category: StringName) -> int:
 	return maxi(
 		int(SoundLibraryConfig.category_variants.get(category, SoundLibraryConfig.variants)),
 		1,
 	)
+
+
+## The category `profile` plays under: the profile id's first part, but for a vehicle's one-shots
+## (`ignition`, `door`, `crash`), which play as `vehicle` (`_vehicle_sound`).
+func _category_of(profile: StringName) -> StringName:
+	var family := StringName(String(profile).get_slice("/", 0))
+	return VEHICLE if family in VEHICLE_ONE_SHOTS else family
 
 
 ## Pre-render `pairs` (`[profile, variant]`, those not cached yet, in order) on a worker thread, so
@@ -742,11 +758,8 @@ func _loop_aim(loop: Dictionary) -> Dictionary:
 	}
 
 
-## How far `category` carries for whoever is looking now: its range, scaled by the camera's zoom
-## like `reach_from`.
+## How far `category` carries for whoever is looking now: `range_at_zoom` at the camera's zoom
+## (none: its plain range).
 func _range(category: StringName) -> float:
-	var reach: float = SoundConfig.category_range.get(category, 1000.0)
 	var camera := get_viewport().get_camera_2d()
-	if camera != null and SoundConfig.range_follows_zoom and camera.zoom.x > 0.0:
-		reach /= camera.zoom.x
-	return reach
+	return range_at_zoom(category, camera.zoom.x if camera != null else 1.0)

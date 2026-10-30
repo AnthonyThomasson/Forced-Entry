@@ -20,7 +20,6 @@ const VanPainter = preload("res://scenes/vehicle/art/van_painter.gd")
 const DoorPainter = preload("res://scenes/vehicle/art/door_painter.gd")
 const WheelPainter = preload("res://scenes/vehicle/art/wheel_painter.gd")
 const LampPainter = preload("res://scenes/vehicle/art/lamp_painter.gd")
-const VehicleDoor = preload("res://scenes/vehicle/vehicle_door.gd")
 const Art = preload("res://scenes/vehicle/art/vehicle_art.gd")
 ## The body painter of each kind.
 const PAINTERS := { &"car": CarPainter, &"van": VanPainter }
@@ -118,8 +117,7 @@ func _draw_shadow() -> void:
 		float(_vehicle.row()["coverage"]) * ArtCanvasConfig.drop_shadow_per_coverage,
 		ArtCanvasConfig.drop_shadow_max,
 	)
-	var toward := -ArtCanvasConfig.light_from.normalized()
-	var away := global_transform.basis_xform_inv(toward).normalized() * offset
+	var away := PixelArt.away_from_light(self) * offset
 	draw_colored_polygon(Transform2D(0.0, away) * (_vehicle.outline() as PackedVector2Array),
 			Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha))
 
@@ -203,7 +201,7 @@ func _draw_door_glass() -> void:
 ## The wing mirrors, standing out from their doors near the hinge and swinging with them.
 func _draw_mirrors() -> void:
 	for id in VehicleConfig.looks[_vehicle.kind]["mirror"]:
-		var d = _door(id)
+		var d = _vehicle.cabin.door(id)
 		if d == null:
 			continue
 		var frame: Dictionary = _doors[id]["frame"]
@@ -257,11 +255,3 @@ func _lit(angle: float) -> float:
 static func _light_step(angle: float) -> int:
 	var steps := maxi(1, ArtCanvasConfig.turn_steps)
 	return roundi(PixelArt.snap_angle(angle) / (TAU / steps)) % steps
-
-
-## The door object `id`, or null.
-func _door(id: StringName) -> VehicleDoor:
-	for d in _vehicle.cabin.door_list():
-		if d.id == id:
-			return d
-	return null

@@ -41,6 +41,8 @@ the shared `vehicle_art.gd`; see `domain-vehicle`). Knobs follow `opts.get(key, 
   grenade's `looks` row) travels in its options as an int (`opts.look`), never the dict: the caches key by the options and
   `render_turned` hashes them every call. `handle` registers the look under its hash (so the same look has the same handle and a
   cached texture keyed by it is that look's); `look_of` reads it back, {} for none. The Character and Items painters use it.
+- `away_from_light(node) -> Vector2` — the direction away from the light (`ArtCanvasConfig.light_from`) in `node`'s frame: where a
+  drop shadow falls, which the Character, Items, Objects and Vehicles visuals offset their shadows by.
 - Static cache keyed by painter path + inputs (+ orientation); survives scene reloads. Each
   piece's random detail is seeded by its inputs *without* orientation, so it doesn't change as the
   piece turns.
@@ -81,7 +83,8 @@ through snapshots).
   shaded; swap for a recess), `bevel_relative` / `outline_relative` (shade what's drawn — shapes
   in several colors), `outline`, `glare`, `cast_shadows()` (a taller part shades lower pixels on
   its far side from the light, via the height layer); the tone ramp (outline … highlight) is
-  `ArtSurfaceConfig.tones(base)`.
+  `ArtSurfaceConfig.tones(base)`, and `ArtSurfaceConfig.jitter(rng, col, k)` shifts `col` by a random tone within `k` drawn from
+  `rng` (the canvas's: a plank's, tile's or brick's own tone, for the floor, table and wall painters).
 - **Surface finishes:** `surface(shape, material, base, along_x, wraps)` — wood grain, brushed
   metal, stone flecks, ceramic/glass glare, fabric weave, plastic grain — plus `speckle` (sampled;
   matches 8-bit pixels with a tolerance), `grain(s, density, dark, pale, opts := {})` (`opts.along_x`, default true,

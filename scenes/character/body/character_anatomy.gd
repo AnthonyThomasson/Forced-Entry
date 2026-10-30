@@ -106,7 +106,7 @@ func leg_kick() -> bool:
 	return kick.start()
 
 
-## True while a kick is under way (the foot thrown out and drawn back).
+## True while a kick is under way (the foot thrown out and drawn back; a test read).
 func is_kicking() -> bool:
 	return kick.is_active()
 

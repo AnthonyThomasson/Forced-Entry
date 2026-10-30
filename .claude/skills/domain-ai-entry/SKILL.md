@@ -69,7 +69,7 @@ pushed past what a dead end holds `claim._refuse()`s (radios `abort`, stops, `do
 `hold_<opening>`, refused, `docs/leadership.md` LD9). Phases:
 `approach` (to its stack slot, its place in its side's file (`claim.place`, `StackLayout.place`); an open-floor or tail slot (`claim.on_wall()` false: past
 `wall_n`) by the plain way, no waypoints; a wall slot: if on the wrong side of the door, out from the wall and across far out first (`approach._cross_depth`:
-`CROSS_DEPTH` but a body, `CROSS_INSET`, off the stack room's far wall), or round the view when the way round exists (`approach._way_round`); then to a
+`CROSS_DEPTH` but a body, `CROSS_INSET`, off the stack room's far wall, the geometry's `from_depth`), or round the view when the way round exists (`approach._way_round`); then to a
 point past the slot and along the wall into it, so it never walks the door's axis close in; `approach.enter_approach(stack)`: that point is `APPROACH_LEAD` (60 px) past the slot, or
 `Locomotion.PASS_CLEARANCE` (32 px) short of the next slot along that side a teammate claims (`claim.approach_lead`, `claim.lead`), worked out again in `approach.tick_approach` when a claim heard
 since brings it nearer, so the walk never aims at a teammate's body, E2; the lead shortened by `LEAD_STEP` until its points are good, each
@@ -121,8 +121,8 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `entry_guard_quiet_unsuspected_room` (scripted).
 - **A late reason turns a quiet entry (E17, issue #51 R11).** `listen.maybe_upgrade`, every tick in `approach` / `stack` / `pie` while nobody is crossing (`grenade.crossing`: a claim at `going_in` or through), the stack carries a stun and
   no member gave the bang up: when the room's suspicion (`AgentPerception.hearing.room_suspicion(into)`, `AgentSuspicion` reason ids, read every `SUSPECT_EVERY` 0.25 s) holds any reason (one that came up after `begin`, or one
-  this member knew when it joined a quiet stack, or a stun that joined the stack), or a teammate seen quiet in this entry (`listen.quiet_seen`) now says bang, it sets `bang` and `listen.upgraded` and radios its
-  claim; a point in `pie` goes back to `stack`. An `listen.upgraded` member waits for the rest to follow (a quiet teammate is not a veto for it; `grenade.banging` counts its own turn, so a point that turned in its slot holds for the bang rather than starting the pie) and gives the bang up if someone crosses first. A claim without `bang` (the human's
+  this member knew when it joined a quiet stack, or a stun that joined the stack), or a teammate seen quiet in this entry (`listen.quiet_seen`) now says bang, it sets `listen.upgraded` and turns the entry by `listen.turn_bang` (sets `bang`, radios its
+  claim; a point in `pie` goes back to `stack`), the one step an unordered member following its stack's order takes too (`orders.follow_order`). An `listen.upgraded` member waits for the rest to follow (a quiet teammate is not a veto for it; `grenade.banging` counts its own turn, so a point that turned in its slot holds for the bang rather than starting the pie) and gives the bang up if someone crosses first. A claim without `bang` (the human's
   `PlayerStack`) reads as bang, so it never holds a stack back nor turns one. Tests: `tests/ai/grenade/quiet_entry_turns_bang`, `quiet_entry_crossing_stays_quiet`, and `stun_entry_footsteps_heard` (real Von).
 - **A quiet stack listens first (E17, issue #51 R17).** In `readiness.tick_stack` the point of a quiet entry holds in its slot (`listen.listening`) for `tuning.entry.listen_time` s
   (3 s) from `readiness.ready_at` before `pie.start_pie`, while a late reason could still turn it (`listen._may_turn`: the stack carries a stun, nobody crossing, no `bang_off`,
@@ -150,7 +150,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   doorway) says ready, holds for a held stack's go, then runs `readiness._tick_security` as E13's left-over does: it never crosses. A slot no dead
   end holds is never claimed (`begin`, `claim.to_back`, `claim.keep_slot` above).
 - **Top off at the stack (E11).** A member short of a full magazine with a spare swaps it in while `stack`ed, the one lull:
-  `approach.topping_off` (entry.gd) calls `Combat.top_off` (a tactical reload: `inventory.select_slot(inventory.gun_slot())`, `ammo.reload()`) from `readiness.tick_stack`
+  `approach.topping_off` (`entry/entry_approach.gd`) calls `Combat.top_off` (a tactical reload: `inventory.select_slot(inventory.gun_slot())`, `ammo.reload()`) from `readiness.tick_stack`
   before the point starts the pie or a follower crosses, and from `pie.tick_pie` before the point (or a split stack's other front man) crosses (a pie that fired),
   standing still and waiting for the reload to end. Skipped while a hostile holds the entrant's eyes (`state.gaze_held`: it fires) and
   past `TOP_OFF_CAP` (8 s) per entry; never in `cross` (the watch stage's empty-gun reflex is off while committed too).
@@ -265,7 +265,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   claim carries an `order_id` (`orders.claim`: its own, else the lowest slot's; `orders.stack_ordered`); then:
   the side is the order's for every member (`orders.ordered_side`, through `claim.ask_side` in `begin` and `claim.keep_slot`, in place of the team's side and E19), on a split
   stack D6's (`DoorStack.split_side`, from the side it asked for, else the one it began on, `orders._pref_side`, unless that side would hold two more than the other, when the last claimer
-  there, the highest slot, takes the other); the mode is the order's (`begin`; an unordered member follows it, `orders.follow_order`, D10), with
+  there, the highest slot, takes the other); the mode is the order's (`begin`; an unordered member follows it, `orders.follow_order` through `listen.turn_bang`, D10), with
   no suspect-room bang, no first claimer's `grenade._go_quiet`, no `listen.maybe_upgrade` and no listen (`listen._may_turn` is false) and no veto but a
   `bang_off` from a claim under the same order (`grenade.vetoed`); `grenade.banging` holds whatever a quiet member says, `grenade.tick_bang` gives up only on its
   own caps, and with the stack in and no stun in it (`grenade.stack_has_stun`) `grenade.due` gives the bang up (D1: quiet, `bang_off` radioed).

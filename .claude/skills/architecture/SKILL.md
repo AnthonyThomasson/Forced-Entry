@@ -35,8 +35,8 @@ composition root is `domain-main`.
 | **Lighting** | `lighting/` | `domain-lighting` | The world's dusk lighting, a leaf like Audio (`docs/lighting.md`): the ambient and the sky, a light per light-giving piece (declared by the piece) and per room fixture within a per-floor budget, their seeded rhythms, the shot and explosion flashes, and who stands in a light. |
 | **Navigation** | `navigation/` | `domain-navigation` | Baking the house into a walkable nav map so characters can path around walls. |
 | **General** | `general/` | `domain-general` | Infrastructure: input (Keybinds), saved settings (`Settings`), the event bus (`EventBus`), the log (`GameLog`), the pausable game clock (`GameClock`), despawner, camera, dev command server, shared physics-layer ids (`PhysicsLayers`), the draw-order ladder (`DrawLayers`), the light masks (`LightMasks`), the batched plain-colour drawing (`FillBatch`), the shared weighted roll (`WeightedPick`) and the match verdict (`MatchVerdict`). |
-| **UI** | `ui/` | `domain-ui` (+ `domain-ui-menus`, `-hud`, `-overlays`, `-testing` for `ui/<folder>/`) | All HUDs and menus, one sub-domain per folder: menus (pre-game setup window, settings page), hud (debug player panel, match HUD, spectator inspector and its contact markers, stun screen, stack markers, the human leader's command menu and order markers), overlays (overlay registry, toggle bar, performance overlay, the squad-leaders overlay) and testing (test browser window, test result banner). |
-| **AI** | `ai/` | `domain-ai` (+ `domain-ai-perception`, `-snapshot`, `-decision`, `-behavior`, `-combat`, `-coverage`, `-watch`, `-entry`, `-debug`, `-team`) | Non-player brains: one generic controller that drives every NPC. Plus `ai/team/`, the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21): not a fifth sub-domain, but with a skill of its own, `domain-ai-team`. Internally split into four isolated **sub-domains** under `ai/` — perception (`ai/perception/`), decision (`ai/decision/`), behaviour (`ai/behavior/`), debug (`ai/debug/`) — around a thin orchestrator (`ai/goal_controller.gd`). A doorway's stack as the radio describes it lives once, in perception's `ai/perception/stack/` (`StackClaim` the claim's wire format and step lists, `ClaimLedger` the claims one listener has heard, `DoorStack` every slot rule over one doorway's claims, `StackLayout` the slots' points and sides): the seam behaviour and the team read it through (`AgentPerception.entry.stack(opening, into := "") -> DoorStack`, on perception's `entry` part; behaviour (`entry.gd` and its parts under `behavior/entry/`, the behaviour's `orders` and `entries` parts), the orchestrator (its radio part, `npc_comms.gd`) and the team preload `StackClaim` / `DoorStack` / `ClaimLedger` themselves, and `StackLayout`, the slot layout's statics, where they lay slots). Beside it, behaviour's locomotion holds perception's `views` part (`AgentPerception.views`, `ai/perception/perception_views.gd`, which `behavior/locomotion/loco_doors.gd` preloads to type its `doors.views`), handed to it by `Behavior.setup` (`perception.views`), and asks it `walk_route(to, entering := "", from := Vector2.INF)` for a walk that keeps out of the doorway views (E18). `domain-ai` is the overview; each sub-domain has a `domain-ai-<name>` skill. |
+| **UI** | `ui/` | `domain-ui` (+ `domain-ui-menus`, `-hud`, `-command`, `-overlays`, `-testing` for `ui/<folder>/`) | All HUDs and menus, one sub-domain per folder: menus (pre-game setup window, settings page), hud (debug player panel, match HUD, spectator inspector and its contact markers, stun screen, stack markers), command (the human leader's command menu and order markers), overlays (overlay registry, toggle bar, performance overlay, the squad-leaders overlay) and testing (test browser window, test result banner). |
+| **AI** | `ai/` | `domain-ai` (+ `domain-ai-perception`, `-snapshot`, `-decision`, `-behavior`, `-combat`, `-coverage`, `-watch`, `-entry`, `-debug`, `-team`) | Non-player brains: one generic controller that drives every NPC. Plus `ai/team/`, the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21): not a fifth sub-domain, but with a skill of its own, `domain-ai-team`. Internally split into four isolated **sub-domains** under `ai/` — perception (`ai/perception/`), decision (`ai/decision/`), behaviour (`ai/behavior/`), debug (`ai/debug/`) — around a thin orchestrator (`ai/goal_controller.gd`). A doorway's stack as the radio describes it lives once, in perception's `ai/perception/stack/` (`StackClaim` the claim's wire format and step lists, `ClaimLedger` the claims one listener has heard, `DoorStack` every slot rule over one doorway's claims, `StackLayout` the slots' points and sides): the seam behaviour and the team read it through (`AgentPerception.entry.stack(opening, into := "") -> DoorStack`, on perception's `entry` part; behaviour (`entry.gd` and its parts under `behavior/entry/`, the behaviour's `orders` and `entries` parts), the orchestrator (its radio part, `npc_comms.gd`) and the team preload `StackClaim` / `DoorStack` / `ClaimLedger` themselves, and `StackLayout`, the slot layout's statics, where they lay slots). The team also preloads three more of perception's: the doorway geometry `AgentEntry` (`ai/perception/agent_entry.gd`, built with no NPC: `set_house`, `geometry`, `stack_side_from`, `slots.on_stack_side`, `opening_id`, `normal_into`), `AgentVision.wall_hit` (`ai/perception/agent_vision.gd`: the follow spots out of the leader's sight) and `HouseRooms` (`ai/perception/house_rooms.gd`: the room a point lies in, `key_at`, and the room with a key, `by_key`). Beside it, behaviour's locomotion holds perception's `views` part (`AgentPerception.views`, `ai/perception/perception_views.gd`, which `behavior/locomotion/loco_doors.gd` preloads to type its `doors.views`), handed to it by `Behavior.setup` (`perception.views`), and asks it `walk_route(to, entering := "", from := Vector2.INF)` for a walk that keeps out of the doorway views (E18). `domain-ai` is the overview; each sub-domain has a `domain-ai-<name>` skill. |
 | **Vehicles** | `vehicle/` | `domain-vehicle` | Drivable vehicles (a car and a van, only in the sandbox): the rigid body and its driving model, doors and seats, getting in and out (the character's `CharacterVehicleUse` component and the ride), collisions and the harm to a character struck, the dents, the vehicle art and its events. |
 | **Testing** | `testing/` | `domain-testing` | Game tests: a second composition root that builds a declared world (arena, hand-laid room layout or generated house) with chosen behaviour switches, runs a test's script against it and asserts what happened; the in-game test browser + runner, and the gdUnit4 suites the headless CLI runner (`tools/run_tests.sh`) and the editor's GdUnit panel run. Test cases live in `tests/<domain>/*_test.gd`, or one folder deeper by topic (`tests/ai/entry/`), each played through its folder's wrapper suite (`*_suite.gd`); pure-logic native suites (`tests/<domain>/<name>_suite.gd`) only add to them; sandboxes to play by hand (`GameTest` scripts with no assertions) live outside `scenes/` in `sandboxes/*_sandbox.gd`. |
 
@@ -64,10 +64,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 the house; every doorway is an open archway.
    - `WorldGen.get_rooms(house) -> Array` — the house's rooms as `{ key, type, rect }` dicts
 	 (world-space `rect`), read from the house's `rooms` metadata.
-   - `WorldGen.get_openings(house) -> Array` — the house's doorways as `{ pos, width, front, exit, rooms }` dicts
-	 (world-space `pos`, `rooms` = keys of the rooms it joins; `front` = the one front entrance, on the south
+   - `WorldGen.get_openings(house) -> Array` — the house's doorways as `{ pos, width, front, exit, rooms, outward }` dicts
+	 (world-space `pos`, `rooms` = keys of the rooms it joins, `outward` = parallel to `rooms`, each the unit normal out of
+	 that room through the doorway's wall; `front` = the one front entrance, on the south
 	 wall, `exit` = a back/side/garage door, each with one room), read from the house's `openings` metadata.
-   - The run-down dressing a generated house carries, read from its `wear`, `clutter` and `street` metadata the same way (empty
+   - `WorldGen.bounds(rooms) -> Rect2` — the one bounding box of a list of `{ rect, ... }` room dicts (a zero `Rect2` for none).
+   - The run-down dressing a generated house carries (test reads: no game code calls these four getters), read from its `wear`, `clutter` and `street` metadata the same way (empty
 	 for a hand-laid layout): `WorldGen.get_wear(house) -> Array` — `{ room, pos, layer }` per wear cluster (0-3 a room, by a wall,
 	 a corner or furniture; `pos` its world-space centre, `layer` the CanvasItem drawing that room's wear, one per room);
 	 `WorldGen.get_clutter(house) -> Array` — `{ room, key, node }` per walk-over clutter piece (0-2 a room, no `key` twice; a
@@ -135,7 +137,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    speed_factor, penetrated, source`, plus `has_exit` / `exit_position` / `exit_normal` (where a penetrating
    bullet left the body), `blood` (0..1, blood a bullet carries out of a character onto the next
    surface) and `height` (the 0..100 height the striker flew at, which picks a character's hit zone; −1 = none: a blast strikes the
-   whole body). The projectile decides the ballistic outcome, then hands
+   whole body), and `spray_direction()` (out along `normal`, or back along the shot when the normal is degenerate). The projectile decides the ballistic outcome, then hands
    the struck body a HitInfo; the body decides what a hit *does to it* — an object spawns debris
    (interface 4), the character is dented, throws debris (blood, or its armour's chips when the armour stops the round) and bleeds
    (its `BloodWound` component, interface 4), a vehicle is dented
@@ -173,13 +175,17 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 (a dented wall segment), `is_valid_polygon(poly)` (callers skip a self-touching one that frame), `convex_pieces(polygon)` (the
 	 convex pieces a dented collider is rebuilt from, as their points) and `shapes_of(pieces)` (their `ConvexPolygonShape2D`s); and
 	 `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` -> `[polygon, pieces]`, a dented silhouette and its pieces
-	 computed without the caches: all pure, so they may run on a worker thread). An impact record (the dicts in `impacts`) is built by
+	 computed without the caches: all pure, so they may run on a worker thread); `drawable_polygon(shape, size, impacts)` (the
+	 silhouette `draw_shape` draws: `shape_polygon`, or the undented ring when the dents pinched it) and `texture_uvs(poly, size,
+	 angle)` (the uvs `draw_shape` maps a texture onto it with), for a caller drawing that silhouette its own way. An impact record (the dicts in `impacts`) is built by
 	 `new_impact(pos, inward, damage, blood, dent: DentLimits)` (`DentLimits`, `physics/dent_limits.gd`: `max_depth`, `allow_chunks`,
 	 `max_depth` defaulting to `PhysicsDeformConfig.max_depth`, `allow_chunks` to true) and kept by `push_impact(list, impact, max_impacts)` (oldest
 	 dropped past the cap): `Deformable.record` and Objects' wall, which keeps an impact list per segment, both build through them. `NO_COLOR` is the sentinel a caller passes to take a
 	 drawing call's default colour. `darken(damage_total) -> float` is how far `draw_shape` darkens a shape that has taken that
 	 damage (`Color.darkened`'s weight; a textured shape is white darkened by it), for a caller that draws a textured shape's polygon its
 	 own way (the character's kept meshes, `domain-character-body`) in the same colour.
+   - `Debris.toss(node, dir, distance, time, spin) -> Tween` (`physics/debris.gd`, preloaded as `Debris`, no `class_name`): a thrown
+	 chip's toss, which the Projectile System's spent casing takes too.
    - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)` (objects, the character and a vehicle)
 	 `BloodWound` (Node child, character: `record(hit)` on a hit throws a splatter spray and owes drips, one
 	 `BloodSplat` every `BloodDripConfig.interval_min..max` s from the body's blood origin; `stop()` on death)
@@ -188,7 +194,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 `blood_origin() -> Vector2` (where its blood leaves it, in world space); pools emerge there instead
 	 of at its position, so a fallen body bleeds from where it lies. Master switches:
 	 `BloodConfig.enabled` off → `BloodWound.record` / `bleed_out` spawn nothing (`bleed_out` returns null);
-	 `PhysicsConfig.debris_enabled` off → `spawn_debris` spawns nothing. Splatters and bleed-out
+	 `PhysicsConfig.debris_enabled` off → `spawn_debris` throws no chips (its particle bursts are
+	 `PhysicsConfig.hit_particles_enabled`'s). Splatters and bleed-out
 	 pools are added with readable names (`BloodSplat`, `BloodSplat2`, … / `BloodPool`, …).
    - `BloodField` (static registry, Physics-internal: `BloodSplat`/`BloodPool` register themselves) /
 	 `BloodDecals` (a batched layer under a world node, `BloodDecals.layer(parent)`) /
@@ -253,9 +260,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
      the body, butt leading.
    - **`art`** (`ItemArt`, `items/item_art.gd`; `GunArt`, `GrenadeArt`, `SpoonArt`): how it is drawn: `style` (the weapon style, below),
      `draw_weapon(canvas, user)`, `draw_dropped(canvas, at, angle, modulate, opts)` (how it looks lying loose; `opts.flip` is which side
-     landed up), `drawn_art() -> Array` (the textures its last draw, `draw_weapon` or `draw_dropped`, painted: every call in the frame it
+     landed up), `drawn_art() -> Array` (test read: the textures its last draw, `draw_weapon` or `draw_dropped`, painted: every call in the frame it
      was last drawn, e.g. a lying item's shadow and art; pixel art is cached by what it depicts, so a test compares drawings by them, like
-     `CharacterVisuals.drawn_art()`) and `prepaint()`.
+     `CharacterVisuals.drawn_art()`, also a test read) and `prepaint()`.
    - **`ammo`** (`ItemAmmo`, `items/item_ammo.gd`; `GunAmmo`, `items/gun_ammo.gd`): inert hooks the gun's overrides fill:
      `rounds_loaded()` / `capacity()` (-1 = no ammo), `reload_time()`, `can_reload(user)`, `finish_reload(user)`; the `reloading` flag
      the character sets; a gun's loaded `magazine`.
@@ -283,7 +290,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    grenade, in flight and at rest; a dropped gun is the item it was, and a thrown grenade's `item` takes its thrower's item's `art.style`. **Outfits** (`docs/outfits.md`): `OutfitConfig`
    (static holder: the garment and plate rows, a garment's `looks` per character style (`zenitex`, `trauma`, `merc`, `borg`: its `kind` and a `color`
    or a `palette` name, `default_style` for a style it has no row for), `GARMENT_SLOTS` / `PLATE_SLOTS` (String keys `head body vest pants feet
-   front_plate back_plate`), `choices(slot)`, `fits(slot, id)`, `name_of(slot, id)`) and `Outfit` (`RefCounted`, one character's worn set: `set_ids(ids)`, `ids()`, `worn(slot)`, `condition(slot)`,
+   front_plate back_plate`), `choices(slot)`, `fits(slot, id)`, `name_of(slot, id)`) and `Outfit` (`RefCounted`, one character's worn set: `set_ids(ids)`, `ids()` (test read), `worn(slot)`, `condition(slot)`,
    `layer(zone, side)` (the armour a round meets there: `{}` or `{ stop_power, penetration, material, color, blunt, reduction, blast, plate }`), `wear(zone, side, damage)`,
    `weight()`, `look(style)` (what the art draws, in that character style), `view()` (what the UI shows) and `revision` (bumped by every change, which the art watches)). The
    character API an item may call: `facing`, `is_dead` and `inventory.current_item()` (a grenade gives up its windup when its user dies or switches away), the hands of its `anatomy` (`body/character_anatomy.gd`, `CharacterAnatomy`; the `Hands` child, `character_hands.gd`)
@@ -301,7 +308,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    by the character, never held or selectable; a gun loads one and each shot spends a round. For a reload
    its `ammo` part calls the character's `ammo.best_magazine(gun)` / `ammo.take_magazine(gun)` / `ammo.stow_magazine(m)`. Items reach into the
    Projectile System in two places. A gun fires through `ProjectileSpawner.spawn(position, direction, parent, shot: Shot = null) -> Node` (`Shot`,
-   `projectile/shot.gd`: `shooter` (the body the round ignores), `item_damage` = 0.0, `muzzle_speed` = -1.0, `penetration` = 1.0,
+   `projectile/shot.gd`: `shooter` (the body the round ignores), `item_damage` = 0.0, `damage` = -1.0 (the round's damage outright; negative = base + `item_damage`), `muzzle_speed` = -1.0, `penetration` = 1.0,
    `max_range` = -1.0, `strikes_shooter` = false; null, all defaults) (the round; the gun connects its
    `hit(body, damage)` signal to its user's `report_shot`) and ejects a case through `CasingSpawner.spawn(position, direction, parent) -> Node`;
    a `ThrownGrenade` calls `Explosion.frag` / `Explosion.stun` (above).
@@ -312,7 +319,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `movement.move_input` / `movement.aim_point` / `movement.run_input` (hold run: a
    faster pace that spends stamina while moving, dry = walk until it refills; only a standing character runs) and calls the
    character's action API: `movement.set_posture(p) -> bool` (`stand` / `crouch`; idempotent, so a controller may write it every frame; the player's C calls
-   `movement.toggle_crouch()`), `weapon.melee()` (F), `anatomy.leg_kick() -> bool` (a right-leg kick along the facing, whatever is held; false while dead, crouched, busy or a kick is under way; reads `anatomy.is_kicking()`; **not** the recoil `weapon.kick(hand, strength)` above), `weapon.shoot() -> bool` (LMB; true = a round left the barrel; ignored while running, reloading,
+   `movement.toggle_crouch()`), `weapon.melee()` (F), `anatomy.leg_kick() -> bool` (a right-leg kick along the facing, whatever is held; false while dead, crouched, busy or a kick is under way; `anatomy.is_kicking()` (test read) is whether one is; **not** the recoil `weapon.kick(hand, strength)` above), `weapon.shoot() -> bool` (LMB; true = a round left the barrel; ignored while running, reloading,
    or with a long gun's barrel against a wall or object, and a gun holds back between rounds per its fire rate; a controller re-presses it
    every frame while the trigger is held when `weapon.is_automatic()`), `ammo.reload()` (R: a timed swap to
    the fullest carried magazine, taking the item's `ammo.reload_time()`; refused while running or busy and cancelled by running, switching items or
@@ -322,7 +329,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `ammo.spare_magazines()` / `ammo.is_reloading()` (the held item for slot -1; -1 rounds = no ammo), the reads of its `inventory` component (`character_inventory.gd`, `CharacterInventory`) `inventory.item_name(slot := -1)`, `inventory.current_item()` / `inventory.current_slot()` / `inventory.item_reach()` / `inventory.has_item(id)` (the held item, its slot and reach, and whether a slot is carried — what the AI's wording, the debug panel and `requires_item` interactions read), `anatomy.hands.is_attacking()` (a punch swing is under way), `inventory.gun_slot()` (the
    gun it fights with: the held item if it takes ammo, else the lowest such slot, else −1), the weapon reads (its `weapon` component, `character_weapon.gd`, `CharacterWeapon`) `weapon.blocked()` / `weapon.raise()` /
    `weapon.is_automatic()`, `inventory.item_count(slot := -1)` (a grenade slot's count, 1 for any other item, 0 for none), `inventory.throw_stats(slot := -1)` (what a grenade carried in the slot tells its holder, `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot: how the AI reads a grenade's numbers, instead of keeping a copy), `inventory.throw_release_offset(slot := -1)` (where a grenade leaves its hand when it throws one standing: the hand of its `throw` stance, as `Vector2(px ahead of the body centre, px to its right)` in its own frame; the AI judges a lob from there, instead of keeping a copy of the stance), `weapon.aim_target()` (the swayed aim point a grenade
-   is thrown to, interface 6: where the AI expects its own grenade to come down), `inventory.set_loadout(kit: CharacterKit)` (`CharacterKit`, `character/character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"",
+   is thrown to, interface 6: where the AI expects its own grenade to come down), `inventory.set_loadout(kit: CharacterKit)` (`CharacterKit`, `items/character_kit.gd`, Items' vocabulary: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"",
    `grenades` = {}, `weapon_style` = &"police"; carry only those slots, holding one, with those spare
    magazines, the gun loaded with that type when it fits, a grenade slot with `grenades[slot]` of them, every item in that weapon style (`Item.art.style`): how `MatchBuilder.arm` arms a spawn with its side's loadout, interface 23);
    how it is drawn (`docs/outfits.md` O15, looks only), on its `wardrobe` (the `Wardrobe` child, `character_wardrobe.gd`, `CharacterWardrobe`):
@@ -336,7 +343,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    while the character rides a vehicle (interface 19, from the E press to its last step out) `use.is_busy()` is true, and `inventory.current_item()` is null
    while it is posed by the ride (the item put away);
    the stun (a grenade's flash and bang): `take_stun(blind, deaf)` (on the body, interface 3) and its `stun` component (`character_stun.gd`, `CharacterStun`): `stun.is_blind()`, `stun.is_deaf()`, `stun.level()` (0..1 disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway;
-   drawn hunched and staggering, the free hand over the eyes while blind), `weapon.one_handed()` (blind, a held gun is in the weapon hand alone: its rounds spread wider), `stun.view()` (`{ blind, blind_total, deaf, level }`, for the UI) and `blast_push(from, impulse)` (an explosion's shove: knockback, or the fallen body's ragdoll thrown) and `faction` (allegiance tag, for AI hostility). The AI also reads
+   drawn hunched and staggering, the free hand over the eyes while blind), `weapon.one_handed()` (blind, a held gun is in the weapon hand alone: its rounds spread wider), `stun.view()` (`{ blind, blind_total, deaf, level }`, for the UI) and `blast_push(from, impulse)` (an explosion's shove: knockback, or the fallen body's ragdoll thrown) and `faction` (allegiance tag, for AI hostility), and the exported `radius` (the body's collision radius, fixed: the Vehicles and Lighting domains read it). The AI also reads
    another character's `facing`, `damage_taken()`, `ammo.is_reloading()`, `movement.posture()`, `inventory.current_item()` and `faction` — but only while it can SEE that character
    (aim, visible wounds, a reload in progress and the posture are things it perceives); the exceptions are three reads of an unseen character's `faction`,
    which stand for knowing who its own team is: the faction of a character whose footstep it hears (the `footfall` event's `character`, interface 10), so its
@@ -354,7 +361,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `hit_landed(body, damage, hand)` (hand 0/1 = melee punch, hand 2 = leg kick, hand −1 = shot),
    `died` (with `is_dead` / `health` to read; a dead body
    falls as a ragdoll, leaves layer 1 and draws beneath the living). Observers (debug HUD, match HUD, camera) attach by
-   exported node path and read only the public API/signals; the AI controller joins the group `npc_controllers` in its `_ready`, and
+   exported node path and read only the public API/signals; the AI controller is in the group `npc_controllers` (authored on its node in `ai/npc.tscn`, so it holds before the NPC joins the tree), and
    the HUDs find an NPC's controller as its child in that group (the UI's `hud_probe.gd`; a player's controller is never one). The AI controller also exposes
    `current_act()` (its live decision path as ids, e.g. `combat/t_12/flank/side_left`) and
    `debug_status()` (the same path as labels, every level: `COMBAT - Intruder - FLANK - their left
@@ -372,7 +379,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    topic, `tuning.<topic>.<name>`; a preset overrides a topic node's values, e.g. `GoalController/Tuning/Hostility`). The scene hands
    the hub its topics as node references, resolved at `instantiate`, so a composer or a test sets one by indexed path on the
    controller (`set_indexed("tuning:entry:enabled", …)`) before the NPC joins the tree. Its composer injects only `rooms` and `openings` (and `entry_point`), by the one bind rule `MatchBuilder.bind_npc`, before the
-   NPC joins the tree (interface 23; the controller found by its contract, the child with `control` and `rooms`), and its side's `squad`
+   NPC joins the tree (interface 23; the controller found by the group `npc_controllers`, authored on the scene), and its side's `squad`
    (`MatchBuilder.bind_squad`, interface 21); the AI finds and categorizes
    the characters it perceives by sight. Von walks a data-driven DECISION TREE ranked against the
    goal — a broad mode (combat / reload_quiet / investigate / search / idle), then a tactic (engage / flank / advance /
@@ -399,7 +406,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    onto that object, so its exception stays.
 
 9. **Main / Testing (through `MatchBuilder`) / AI → Navigation** (leaf: builds the map, everyone else just pathfinds)
-   - `NavBuilder.build(house, rooms, parent, agent_radius=14.0) -> NavigationRegion2D` — bakes
+   - `NavBuilder.build(house, rooms, parent, agent_radius = NavBuilder.AGENT_RADIUS) -> NavigationRegion2D` (14 px, the radius the re-bakes share too) — bakes
 	 one `NavigationRegion2D` whose walkable area is the house footprint plus an outdoor ring minus the house's
 	 **static** wall colliders (doorways stay open) **and minus each solid furniture footprint**
 	 (baked in as a hole: every `RigidBody2D` with a collider, an anchored piece frozen static among them; walk-over decor has
@@ -457,18 +464,18 @@ interfaces it takes part in (by number) and describes how they're implemented.
       scaling (`docs/outfits.md`; the same for `hit_landed` / `report_shot`). A shot that flies over cover posts nothing.
     - `&"explosion"`: `Explosion.frag` / `Explosion.stun` (Projectile System) post one when a grenade goes off (`{ position, kind` (`&"frag"` / `&"stun"`)`,
       attacker` (the thrower, or null)`, radius` (the blast radius of a frag, the flash radius of a stun)` }`), before the burst's hits and stuns, for
-      Audio (`explosion/<kind>`), the camera (General: `Camera2D.offset` shake by distance and kind) and the AI (`docs/grenades.md`). The grenade's other topics: `&"throw"` (Items, the `GrenadeItem` as it leaves the hand: `{ position, kind, attacker }`), `&"grenade"` (Items, `ThrownGrenade`:
+      Audio (`explosion/<kind>`), the camera (General: `Camera2D.offset` shake by distance and kind) and the AI (`docs/grenades.md`). The grenade's other topics: `&"throw"` (Items, the `GrenadeItem` as it leaves the hand: `{ position, kind, attacker` (read by the tests)` }`), `&"grenade"` (Items, `ThrownGrenade`:
       `{ position, kind, stage }` with stage `bounce` / `rest`) and `&"stun"` (Character, `take_stun`: `{ character, position, blind, deaf }`). Audio voices the
       `throw` (`throw/<kind>`), a `grenade` `bounce` (`grenade/<kind>/<floor>`, the floor from `SoundSurface.at`; a `rest` is silent) and the `explosion`, and of the `stun`
       only a deafening of its `focus` (interface 18); the AI hears where a grenade comes down from its `bounce` / `rest`, and the UI's `StunScreen` reads the human's own `stun` event to freeze the frame of the flash.
     - `&"shot"`: a gun (Items) posts one per round that leaves the barrel (`{ position` (the
-      muzzle)`, gun, attacker, power }`). Audio voices it and the Lighting domain lights a muzzle flash (as it lights a burst on an
+      muzzle)`, gun, attacker` (read by the tests)`, power }`). Audio voices it and the Lighting domain lights a muzzle flash (as it lights a burst on an
       `&"explosion"`).
     - `&"footfall"`: `CharacterFootsteps` posts one each time a foot lands (`{ position` (the sole)`,
       foot` (0 left / 1 right)`, speed, running, character` (the walker)`, crouched }`). Audio voices it; the AI hears it
       (`docs/hearing.md` H1: a stranger's steps through walls, out to a range set by `running` / `crouched`).
     - `&"reload"`: `Character` posts one when a reload starts (`stage = &"start"`) and one when it finishes
-      (`&"done"`, never after a cancelled one): `{ position` (weapon hand)`, gun, stage, power, character }`.
+      (`&"done"`, never after a cancelled one): `{ position` (weapon hand)`, gun, stage, power, character` (read by the tests)` }`.
     - `&"sound"`: the Audio domain's `Sound` service posts one for every sound it accepts (`{ kind,
       profile, variant, position, volume_db, pitch }`), which is what tests assert on.
     - `&"callout"`: an AI controller posts one when it adopts a combat or investigation decision —
@@ -513,7 +520,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       followers holding no order, LD24: no side or mode pinned, the member's own entry joining the leader's stack) with `bang` true for
       `stun` and `frag`, and `wait_go`, the stack holds at
       its slots for the leader's go, LD13)`, beyond?` (`ambush`: the room the doorway leads into from its `room`, "" for an exterior door)`,
-      auto?` (`go`: the squad's own release of the held stacks of a leader that died, D12)`, pos?` (`defend_room` / `stack` / `ambush` /
+      auto?` (`go`: the squad's own release of the held stacks of a leader that died, D12; read by the tests)`, pos?` (`defend_room` / `stack` / `ambush` /
       `go`: the target point, the room's centre or the doorway's, which the UI's order markers draw)`, frame }` (the `GameClock` frame it
       was issued on, on every order: a held stack takes the human's crossing as its go only from then on, D14). A `go` (`opening`, `pos`) goes
       to the living members holding a held stack at that doorway and replaces nothing: it releases their order (latched, D13). Range is
@@ -522,7 +529,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       squad posts its own: the rally's `join` stacks, a `cancel` of them when its leader radios `abort` at that doorway (LD25), and a `cancel`
       to the members holding a `defend_room` or `ambush` when the human leader dies (LD26).
     - `&"leader"`: a squad posts one when its leader dies and the next in line leads (`docs/leadership.md` LD4): `{ faction, leader, previous }`
-      (`leader` null when nobody is left).
+      (`leader` null when nobody is left). Read by the tests: no game code listens to it.
     - `&"vehicle"`, `&"engine"`, `&"skid"`: a vehicle (Vehicles) posts `&"vehicle"` `{ position, kind` (`&"car"` / `&"van"`)`, stage }` with
       stage `ignition` (a driver sat down; the vehicle's centre), `door_open` / `slide_open` (a shut door starts to open; at its handle),
       `door_close` / `slide_close` (the frame it shuts), `crash` (a new impact above `VehicleCollisionConfig.crash_min_speed` on anything but a
@@ -572,7 +579,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - `FillBatch` (`general/fill_batch.gd`, a `RefCounted`) — plain-coloured shapes drawn as one triangle array instead of a polygon
 	  command each, the same triangles the engine would cut and `draw_circle`'s own 64-gon, in order, so the same pixels:
 	  `FillBatch.new(canvas, base := IDENTITY)`, `fill(poly, color, xform := IDENTITY)`, `fill_convex(poly, color, xform := IDENTITY)`,
-	  `circle(center, radius, color, xform := IDENTITY)`, `flush()`; `FillBatch.batching` (false under the headless display, which renders
+	  `circle(center, radius, color, xform := IDENTITY)`, `flush()`; the statics `FillBatch.unit_circle()` (that 64-gon's corners round the
+	  unit circle) and `FillBatch.fan(base, n)` (a fan's triangle indices over `n` corners from `base`), which the Character's
+	  `BodyMeshes.Solid` builds its meshes from; `FillBatch.batching` (false under the headless display, which renders
 	  nothing: each shape is then drawn by its own command). Used where many are drawn each frame: the Character's limbs and shadow, the
 	  Physics domain's blood splats, chip and print chunks and wound marks.
     - `WeightedPick` (`general/weighted_pick.gd`, a `class_name` static holder) — the one weighted roll: one `rng.randf()` over the total of
@@ -596,6 +605,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - `PixelArt.render_turned(painter, size, color, angle, opts := {}) -> Texture2D` + `PixelArt.snap_angle(angle)`
 	  — canonical art lit for a snapped angle, drawn rotated by the caller to the exact one;
 	  characters, hands, the guns, a vehicle's body, doors, wheels and lamps.
+    - `PixelArt.away_from_light(node) -> Vector2` — which way a cast shadow falls in `node`'s frame (away from
+	  `ArtCanvasConfig.light_from`), for every caller that drops a shadow of its own.
     - `PixelCanvas` — the surface a painter draws on (`static paint(canvas, base, material, opts)`): `fill`, `bevel`,
 	  `outline`, `surface`, `grain`, `speckle`, `glare`, `cast_shadows` … over the shapes it is handed (a cleared shape is
 	  `fill(shape, PixelCanvas.CLEAR, 0)`). `PixelShape` (`art/pixel_shape.gd`) — the shapes: the static factories
@@ -603,7 +614,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  `art/pixel_convex_shape.gd`, `extends PixelShape`); `PixelConvexShape.new(rect, x0, x1, y0, y1)` (a shape from its per-row
 	  and per-column spans) is built from outside by the Vehicles domain's `art/vehicle_art.gd`; `PixelShape.line_points(a, b) -> Array[Vector2i]` (the
 	  points of a 1 px line, the one Bresenham `PixelCanvas.line` draws along) is walked by Objects' `art/decay.gd` for its lines and scratches.
-	  The tone ramp is `ArtSurfaceConfig.tones(base)`. **What gives light** (a screen's
+	  The tone ramp is `ArtSurfaceConfig.tones(base)`, and `ArtSurfaceConfig.jitter(rng, col, k)` a colour's signed tone jitter (one
+	  `rng` draw within `k`, lightened or darkened by it), which the floor, table and wall painters shift a tone by. **What gives light** (a screen's
 	  face, a tube, a bulb, an LED) a painter draws inside `canvas.glowing(draw: Callable, area := Rect2i())`, which marks every pixel
 	  the drawing changes as emissive; `PixelArt.emissive(painter, size, color, facing := Vector2.DOWN, opts := {}) -> Texture2D` returns those
 	  pixels of `render`'s texture for the same inputs (same paint, cached beside it; transparent elsewhere, null when nothing in it
@@ -611,7 +623,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  a weapon style's colours) as an int handle, never the look itself: `PixelArt.handle(look) -> int` registers it (the look's hash) and
 	  `PixelArt.look_of(opts) -> Dictionary` reads `opts.look` back ({} for none); the Character's and Items' painters and their callers use them.
     - `ArtCanvasConfig` (`class_name` static holder) — the art pixel's size, where the light falls from, the turn steps and
-	  the drop and cast shadows; `ArtSurfaceConfig` (static holder) — the tone ramp (`tones(base)`) and the surface finishes.
+	  the drop and cast shadows; `ArtSurfaceConfig` (static holder) — the tone ramp (`tones(base)`), the tone jitter (`jitter(rng, col, k)`) and the surface finishes.
     Objects' painters + `ObjectArt` registry, Character's body, head, hand, limb, trunk and vest painters, Items' painters
     (`items/art/`: one gun and one grenade painter per weapon style, police, scrap and pipe, drawing the guns held and dropped and the frag and stun grenades, and the spoon) and Vehicles' painters (`scenes/vehicle/art/`: car, van, door, wheel, lamp) all render through
     these; Art imports nothing from other domains.
@@ -718,21 +730,21 @@ interfaces it takes part in (by number) and describes how they're implemented.
       rallies.
     - `StackMarkers.watch_squad(view: Callable)` — Main (`_watch_side_stacks`, every played match) hands the markers the human's side's
       `Squad.view`, whose `stacks` they draw too (LD18): every stack of that side, a ring per slot, a slot both views give drawn once.
-      `StackMarkers.drawn() -> Array` is what is shown: `[{ n, point, mine, held, there, side, row, opening }]`.
+      `StackMarkers.drawn() -> Array` (test read) is what is shown: `[{ n, point, mine, held, there, side, row, opening }]`.
 
 18. **Main → Audio: `Sound.focus`** (whose ears the player has; Audio stays a leaf)
     - `Sound.focus: Node` (a plain var on the `Sound` autoload): the character a bang deafens *for the player*. Main sets it to the human when there is
       one (`_build_stun_screen`) and clears it at teardown; null = nobody (a spectator match, a test). Audio reads only the focus's `stun.view()` (interface 7)
-      duck-typed: while `stun.view().deaf` > 0, `Sound.muffled()` is true, the game audio goes through a low-pass and one `tinnitus/whine` sound
+      duck-typed: while `stun.view().deaf` > 0, `Sound.muffled()` (test read) is true, the game audio goes through a low-pass and one `tinnitus/whine` sound
       (kind `&"tinnitus"`) plays per stun, following the deafness (`docs/grenades.md` G14). A blind-only stun, or the stun of any other character, changes nothing.
-    - The sight half of the same stun is the UI's `StunScreen` (`ui/hud/stun_screen.gd`, `watch(character)`, `drawn()`), built by Main for the human and reading
+    - The sight half of the same stun is the UI's `StunScreen` (`ui/hud/stun_screen.gd`, `watch(character)`, `drawn()` (test read)), built by Main for the human and reading
       `stun.view()` (`blind`, `blind_total`) and the `&"stun"` event; it knows nothing of Audio, nor Audio of it.
 
 19. **Character ↔ Vehicle: the drivable contract** (`scenes/vehicle/`; spec `docs/vehicles.md`)
     - **The character's side.** `character.gd` composes the Vehicles domain's `CharacterVehicleUse` (`vehicle/character_vehicle_use.gd`,
       preloaded and added in `_ready` like `CharacterInteraction`) and forwards opaque calls: `use.try_use_vehicle()` (E, refused while dead or
       in an object interaction: board by the door whose handle is nearest, or get out), `use.vehicle() -> Node` (the vehicle it is boarding, riding
-      in or getting out of; null on foot) and `use.is_in_vehicle()` (seated only). It steps the component once a physics frame right after its
+      in or getting out of; null on foot) and `use.is_in_vehicle()` (test read: seated only). It steps the component once a physics frame right after its
       controller (`control(delta)`), so a ride overrides that frame's intent, and calls `abandon()` from `_die` (the ride ends where the body is).
       It asks the component `is_active()` (true from the E press to the last step out): while a ride lasts `use.is_busy()` is true and
       `use.try_interact()` / `use.interact_with` are refused.
@@ -756,7 +768,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       export `"chassis"`, at `DrawLayers.UNDER_VEHICLE`) and the child `Roof` (`layer` `"roof"`, at `DrawLayers.ABOVE`). Everything else on it is Vehicles-internal, for its ride and visuals:
       - `half_size`, `outline`, `row`, `hit_marks` and `post` (a `vehicle` event);
       - its `cabin` (`VehicleCabin`, `vehicle/vehicle_cabin.gd`: the doors and seats, `door_list`, `door`, `seat_point`,
-        `occupant`, `is_free`, `reserve`, `change_seat`, `release`, `open_door` / `close_door`, `exit_door`, and the rides);
+        `occupant`, `is_free`, `reserve`, `change_seat`, `release`, `open_door`, `exit_door`, and the rides);
       - its `drive` (the driving model, `vehicle_drive.gd`, with the intent and the engine: `start_engine` / `stop_engine`,
         `brake_input`);
       - its contacts (`VehicleContacts`, `vehicle/vehicle_contacts.gd`, V6).
@@ -768,9 +780,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
 20. **Main / Testing (through `MatchBuilder`) → Lighting, and the world's lights and shadows** (`scenes/lighting/`; spec `docs/lighting.md`; Lighting is a
     leaf: it imports only General and reads the world duck-typed)
     - `WorldLighting.light(root: Node2D, seed_value: int, rooms: Array = []) -> WorldLighting` — lights the built world under `root`:
-      adds one `WorldLighting` node under it, in the group `world_lighting` (`rooms` = `WorldGen.get_rooms`, for the fixtures;
+      adds one `WorldLighting` node under it, in the group `world_lighting` (read by the tests; `rooms` = `WorldGen.get_rooms`, for the fixtures;
       `seed_value` seeds the rhythms); null, building nothing, while `LightingConfig.enabled` is off. The match builder's `stage` (interface
-      23) calls it after the nav bake with the spec's seed: Main's match with the house seed, the Testing world with its setup's. Its reads: `lights()` (every piece and fixture
+      23) calls it after the nav bake with the spec's seed: Main's match with the house seed, the Testing world with its setup's. Its reads (test reads, through `tests/_lighting/lighting_probe.gd`): `lights()` (every piece and fixture
       PointLight2D), `fixtures()` (`{ room, light }`), `flashes()` (the pooled flash lights) and `budget()` (`{ per_floor, dropped }`,
       `dropped` = `{ piece, index }` per declared light left without a light). `LightingConfig` (static holder): `enabled`, the dusk
       (`ambient_color`, `sky_color`, ...), the flashes and the budget (`per_floor()`); `LightingFixtureConfig` the room fixtures;
@@ -833,7 +845,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       follow tunables, and faces away from the leash centre the controller pushes (its leader's live position), reading no `leader()`.
     - `Squad.issue(request) -> Dictionary`: a leader's request in plain terms (`{ kind, to: [characters], pos?, room?, bang?, mode?, wait_go? }`:
       no `to` = every living member but the leader; a stack's `mode` one of `Squad.MODES`, `quiet` / `stun` / `frag`; `Squad.JOIN`, `join`, is
-      not one of them: only the squad's own rally posts it, and `Squad.is_join(order)` tells such an order) resolved into the AI's (a room key, or the room under `pos`; for a stack or an ambush the
+      not one of them: only the squad's own rally posts it, and `StackClaim.is_join(order)` tells such an order) resolved into the AI's (a room key, or the room under `pos`; for a stack or an ambush the
       doorway nearest `pos` within its width, a stack's `into` the room on the far side of the wall plane from `pos`, an exterior door's house
       room, and `stack_at` = `pos` or `split` for a click on the opening; a stack's `mode` from the request's `mode`, else `bang` true is a
       stun; an ambush's `room` the one on `pos`'s side of the wall plane) and posted as `&"order"` (interface 10); a `{ kind: "go", pos }`
@@ -844,7 +856,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `{ opening, pos, into, split, stack_at? }` for a `stack`, `{ opening, pos }` for a `go` and `{ opening, pos, room, beyond }` for an
       `ambush` ({} when it names nothing): the one rule for which doorway a click means and which room "into" (or an ambush's room) is,
       which the command menu names its stack and ambush items from.
-    - On the leader's `died` the next in line leads within the frame and the squad posts `&"leader"` (interface 10); the orders given stand,
+    - On the leader's `died` the next in line leads within the frame and the squad posts `&"leader"` (interface 10, read by the tests); the orders given stand,
       but when the dead leader was the human the squad posts one `cancel` to the members holding a `defend_room` or `ambush` (the takeover,
       LD26). The trail starts afresh at the new leader.
     - **The rally** (LD24, LD25): on an entry claim of its leader's own (an `&"callout"` from the leader with no `order_id` and no `join`: an
@@ -855,7 +867,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       with the setup window's "Lead the team" on (its `current_config()["lead"]`, saved by `Settings.set_setup`; a played match only, read into
       the spec's `human.lead` by `MatchBuilder.spec_from_setup`) the match builder hands the human to `Squad.setup` (a human invader is ranked
       the unit's lead, 2, by `MatchBuilder.style`) and Main's `_build_command_menu`, over the match handle's squads, builds, under `World`, the
-      `CommandMenu` (`ui/hud/command_menu.gd`, a `CanvasLayer`, `PROCESS_MODE_ALWAYS`): `setup({ rooms, teammates, view, resolve, leader,
+      `CommandMenu` (`ui/command/command_menu.gd`, a `CanvasLayer`, `PROCESS_MODE_ALWAYS`): `setup({ rooms, teammates, view, resolve, leader,
       right_clear })` (the house's `WorldGen.get_rooms` dicts, the squad's members but the human, `view` and `resolve` the squad's `view()` and `resolve()`
       callables (the doorway a click is on and the room its stack goes into are the squad's `resolve`), `leader` the human: it opens only
       while the view names it the leader, `right_clear` the screen width from the right edge its panel keeps clear when docked on the right:
@@ -863,11 +875,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
       (`[{ label, disabled }]`, what it offers: on a teammate holding a held stack, "Go into the <room>"; on a doorway, "Go into the <room>"
       while a member holds a held stack there, the stack items quiet / with stun / with frag (the stun or frag one greyed, with a tooltip,
       while no recipient carries one, D1 / D15) and "Ambush the doorway from the <room>"; on a room, "Defend the <room>"; "Cancel order"),
-      a "Hold for my go" checkbox (D19; the menu's widgets are its `Panel` child, `ui/hud/command_panel.gd`), and the signals `order_requested(request)` (`{ kind: "stack", to, pos, bang, mode, wait_go }`,
+      a "Hold for my go" checkbox (D19; the menu's widgets are its `Panel` child, `ui/command/command_panel.gd`), and the signals `order_requested(request)` (`{ kind: "stack", to, pos, bang, mode, wait_go }`,
       `pos` the raw click, `wait_go` the checkbox; `{ kind: "go", pos }`; `{ kind: "ambush", to, pos }`; `{ kind: "defend_room", to, room }`;
       `{ kind: "cancel", to }`), which Main connects to `Squad.issue`, and
-      `selection_changed(nodes)`; and the `OrderMarkers` (`ui/hud/order_markers.gd`, a `Node2D` at `DrawLayers.ABOVE`): `watch(view)` (the
-      squad's `view()` callable), `set_selection(nodes)` (Main connects the menu's `selection_changed` to it) and `drawn() -> Array`
+      `selection_changed(nodes)`; and the `OrderMarkers` (`ui/command/order_markers.gd`, a `Node2D` at `DrawLayers.ABOVE`): `watch(view)` (the
+      squad's `view()` callable), `set_selection(nodes)` (Main connects the menu's `selection_changed` to it) and `drawn() -> Array` (test read)
       (`[{ kind, point, node, from?, label?, refused? }]`, `kind` `order` (`from` where the member stands, `label` the words at its target,
       "Stack (frag, hold) · in position", "Join stack · moving", "Ambush · moving") / `selected`). `Keybinds.COMMAND` (`"command"`, right mouse) is read by the
       menu alone, so with "Lead the team" off nothing reads the right button. Neither holds an AI reference: they read the members through the
@@ -877,7 +889,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       at `DrawLayers.ABOVE`, hidden) with the squads (`MatchBuilder.build_leader_overlay`, interface 23: under `World` in every match, under a
       test world with its declared squads or match), the match handle's `leader_overlay`: `watch(views)` (every squad's `view()`
       callable), `show_leaders` (the overlay bar's global `OverlayRegistry.LEADERS` row, off by default, set through `MatchBuilder.set_overlay`)
-      and `drawn() -> Array` (while shown, per squad: `{ kind: "crown", point, node }`, a crown over its living leader; `{ kind: "leash", point, radius,
+      and `drawn() -> Array` (test read; while shown, per squad: `{ kind: "crown", point, node }`, a crown over its living leader; `{ kind: "leash", point, radius,
       node }`, the leash ring round it; per follower with a follow spot `{ kind: "spot", point, node }` and `{ kind: "line", from, to, node }`;
       `{ kind: "trail", points }`, the leader's trail dotted, LD28). It reads the leader and the members through the Character API
       (`global_position`, `is_dead`) and the squads through `view()` only.
@@ -942,12 +954,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `entry_point_for` the NPC's faction); the human joined to its side (its faction, its start, reparented just above the house);
       everyone armed, styled and ranked (`arm`); `squads_over`; every other overlay but the holes (the stage's) started through
       `set_overlay` by the spec's `overlays`.
-    - **The match handle**, a plain dict: `{ world, house, rooms, openings, nav_region, nav_debug }` from `stage`, plus `combatants` (every
+    - **The match handle**, a plain dict: `{ world, house, rooms, openings, nav_debug }` from `stage`, plus `combatants` (every
       character in spawn order, the human last), `squads` (faction -> `Squad`), `player_stack` (the human's `PlayerStack`, or null) and
       `leader_overlay` from `populate`.
     - **The bind rule, once:** `bind_npc(npc, rooms, openings, entry_point := Vector2.ZERO)` hands an NPC's controller its `rooms`,
-      `openings` and, when given, `entry_point`, **before the NPC joins the tree**; the controller is found by its contract (interface 7: the
-      child with `control` and `rooms`, since the `npc_controllers` group is joined only in `_ready`). `entry_point_for(faction, openings)
+      `openings` and, when given, `entry_point`, **before the NPC joins the tree**; the controller is found by the group `npc_controllers` (interface 7:
+      authored on the scene, so it holds before the tree). `entry_point_for(faction, openings)
       -> Vector2` is the front entrance for an invader, ZERO for a defender (`front_entrance(openings) -> Vector2`, ZERO in a house with
       none). `bind_squad(npc, squad, stack := null, own_claims := false)` (21), `bind_player(player, rooms, openings) -> Node` (17) and
       `callout_ttl_of(members) -> float` (21) are the squad's and the human's.
@@ -1002,6 +1014,8 @@ Projectile / Explosion / Character ──(&"hit" events)──▶ EventBus ─�
 AIController ──(&"callout" events)──▶ EventBus ──(posted)──▶ allied AIControllers
 PlayerStack (human) ◀──(&"callout" entry steps)── EventBus ──(&"callout": the human's claim)──▶ allied AIControllers;  StackMarkers (UI) ──(view())──▶ PlayerStack
 AI behaviour (entry.gd and its parts entry/entry_*.gd, behavior_orders.gd, behavior_entries.gd) / orchestrator (npc_comms.gd) / team (PlayerStack, Squad) ──(StackClaim / ClaimLedger / DoorStack / StackLayout, preloaded; AgentPerception.entry.stack)──▶ AI perception's stack/ (the stack seam)
+AI team (Squad, SquadFollow, PlayerStack and its step_up) ──(AgentEntry, the doorway geometry built with no NPC; AgentVision.wall_hit; HouseRooms; preloaded)──▶ AI perception
+AIController (npc_reflexes.gd) / behaviour (follow) ──(follows / leader / follow_spot, SquadFollowConfig)──▶ Squad (AI team)
 AI behaviour's locomotion (locomotion/loco_doors.gd) ──(perception_views.gd, preloaded to type doors.views, handed perception.views by Behavior.setup; walk_route)──▶ AI perception's views part
 MatchBuilder ──(build_squads: Squad.setup, bind_squad; bind_player: PlayerStack.attach)──▶ Squad / PlayerStack (AI team);  Squad ──(&"order")──▶ EventBus ──(posted)──▶ AIControllers;  Squad ◀──(&"callout" order_step, entry claims)── EventBus;  MatchBuilder.bind_squad ──(squad)──▶ PlayerStack;  StackMarkers (UI) ──(view(): stacks)──▶ Squad
 CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT / FRAG_SLOT (Items, via inventory.item_count)
@@ -1033,7 +1047,7 @@ TestBrowser ──(Back: scene change)──▶ main
 
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
-the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
+the four factories and their `RoomWalls` / `WearPlan`; Navigation depends only on Godot's `NavigationServer2D`; Art
 only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-nine `class_name` static holders, one per topic, each with 15 vars or fewer
 (`docs/adr/0003-config-holders-split-by-topic.md`); a domain's holders share its stem, so
 `grep -r "class_name Character.*Config" scenes` lists the Character ones, and each domain skill says what each holds.
@@ -1052,7 +1066,7 @@ zones, sides), `CharacterShadowConfig`, `CharacterArtConfig`, `CharacterStyleCon
 (the skeleton), `CharacterStrideConfig`, `CharacterStanceConfig` (stances, the muzzle, the raise, recoil),
 `CharacterPoseTurnConfig`, `CharacterPoseHandConfig`, `CharacterPoseHeadConfig`, `CharacterRagdollConfig`,
 `CharacterRagdollJointConfig` and `CharacterRagdollFallConfig`.
-**Art:** `ArtCanvasConfig` (the art pixel, the light, turn steps, shadows) and `ArtSurfaceConfig` (tones, finishes).
+**Art:** `ArtCanvasConfig` (the art pixel, the light, turn steps, shadows) and `ArtSurfaceConfig` (tones, the tone jitter, finishes).
 **Objects** (its painters, floors, walls and the run-down look): `ObjectArtTableConfig`, `ObjectArtFabricConfig`,
 `ObjectArtStorageConfig`, `ObjectArtKitchenBathConfig`, `ObjectArtDecorConfig`, `ObjectArtOutdoorConfig`,
 `ObjectArtClinicConfig`, `ObjectArtTechConfig`, `ObjectArtLightConfig` (light specs, neon), `ObjectArtLayerConfig` (its

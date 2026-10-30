@@ -9,13 +9,17 @@ extends RefCounted
 ## its Locomotion, it holds it (a node, so no reference cycle) for the body, the walk under way and
 ## its way.
 
+## The walk's last-leg rule, held once with the doorway geometry that predicts it
+## (`AgentEntry.slot_reach`).
+const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 ## How far (px) the steering map's route may end short of the point it was asked for before a body
 ## is taken to seal the way (see `goes_round`).
 const BLOCKED_DISTANCE := 24.0
 ## Farthest (px) short of its goal a route round bodies at rest may end when the plain way on from
 ## there passes no body: a goal inside the margins the steering map carves round bodies (a stack
-## slot between two taken ones) is reached by that last leg (`Locomotion._last_stretch`).
-const LAST_LEG := 64.0
+## slot between two taken ones) is reached by that last leg (`Locomotion._last_stretch`). The
+## walk's own number, held on `AgentEntry` (`LAST_LEG`) so the slot prediction reads the same one.
+const LAST_LEG := AgentEntry.LAST_LEG
 ## Seconds a walk is held short before it re-plans (a free spot near a taken destination, else the
 ## caller is told the way is blocked: `take_blocked`), and between later re-plans while it is still
 ## held.
@@ -229,8 +233,8 @@ func first_on(
 
 
 ## How far (px) along the walk from `from` along `path` (from waypoint `index` on, the first `reach`
-## px) it first passes `body` closer than `Locomotion.PASS_CLEARANCE` and closer than the NPC stands
-## to it now, or INF when it does not.
+## px) it first passes `body` closer than `AgentEntry.pass_limit` allows
+## (`Locomotion.PASS_CLEARANCE` and closer than the NPC stands to it now), or INF when it does not.
 func _meets_at(
 	from: Vector2,
 	path: PackedVector2Array,
@@ -238,7 +242,7 @@ func _meets_at(
 	body: Vector2,
 	reach: float,
 ) -> float:
-	var limit := minf(loco.PASS_CLEARANCE, from.distance_to(body) - 1.0)
+	var limit := AgentEntry.pass_limit(from.distance_to(body))
 	var walked := 0.0
 	var a := from
 	for i in range(index, path.size()):

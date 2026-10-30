@@ -6,9 +6,9 @@ extends RefCounted
 ## facts a tactical choice turns on (clear shot, cover, route length and exposure, which ally
 ## already holds a side, which other hostile would see it, which hostile the route passes). It
 ## returns DATA only; the perception turns that into the words Von reads. It holds no policy and
-## never decides. Firing spots are the one candidate set it screens: a spot whose route passes a
-## known hostile, or where a hostile would catch the NPC in the open, is not a place to fight from
-## at all.
+## never decides. Firing and throw spots are screened: a spot whose route passes a known hostile
+## is not a place to fight from at all (firing spots also when a hostile would catch the NPC in the
+## open).
 ##
 ## A target's FLANKS are measured in its own frame: its front is where it was last seen facing (when
 ## recent), else the side facing this NPC. Left/right are the target's own left/right.
@@ -378,22 +378,18 @@ func flank_sides(ctx: Dictionary, target: Dictionary, front: float) -> Array:
 			continue
 		var path := NavBuilder.route(ctx["map"], ctx["self_pos"], p)
 		var vel: Vector2 = target.get("vel", Vector2.ZERO)
-		out.append({
-			"side": side,
-			"point": p,
-			"clear_shot": not blocked(ctx["space"], p, tpos, ex),
-			"cover": _cover_near(ctx["space"], p, tpos, ex),
-			"route_len": NavBuilder.path_length(path),
+		# What standing at the side's point gives (as for every candidate), then the flank's own.
+		var a := { "side": side }
+		a.merge(_annotate(ctx, target, p, ex, path))
+		a.merge({
 			"route_exposed": _route_exposed(ctx["space"], path, tpos, ex, front),
 			"crosses": _route_crosses(path, ctx["hostiles"]),
 			"held_by": _side_holder(target, front, side, ctx["allies"], ctx["callouts"]),
-			"exposed_to": exposed_to(
-				ctx["space"], p, ctx["hostiles"], target["id"], ctx["exclude"],
-			),
 			"heading_toward": vel.length() >= still_speed
 				and absf(vel.angle_to(p - tpos)) < PI / 3.0,
 			"ally_lane": _ally_lane(p, tpos, ctx["allies"], path),
-		})
+		}, true)
+		out.append(a)
 	return out
 
 

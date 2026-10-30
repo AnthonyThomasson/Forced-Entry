@@ -42,7 +42,7 @@ The tooling that switches the AI/nav debug overlays on and off and shows engine 
   when one falls, and how the squad follows it (`docs/leadership.md` LD28): the leash ring round the leader (the view's `leash`,
   `LEASH_COLOR`), each follower's follow spot as a small ring (`SPOT_RADIUS` 6 px) with a thin line from the follower to it (each member
   row's `follow_spot`, none at `Vector2.INF`; `SPOT_COLOR`), and the leader's trail dotted (the view's `trail`, `draw_dashed_line` per
-  segment, `DOT` 3 px; from two points). `drawn()` is `[{ kind: "crown", point, node }]` per crown, `{ kind: "leash", point, radius, node }`,
+  segment, `DOT` 3 px; from two points). `drawn()` (what the test reads) is `[{ kind: "crown", point, node }]` per crown, `{ kind: "leash", point, radius, node }`,
   `{ kind: "spot", point, node }`, `{ kind: "line", from, to, node }` and `{ kind: "trail", points }` ([] while off), redrawn only when it
   changes; a view without `leash`, `trail` or `follow_spot` gives crowns alone. Reads the squads through `view()` and the leader and members
   through the Character API only (`global_position`, `is_dead`). A test world that declares no squads has none, so its bar's row does nothing there. Tested by
@@ -58,4 +58,4 @@ The tooling that switches the AI/nav debug overlays on and off and shows engine 
   move it (it swallows clicks, so it blocks click-to-inspect beneath it). `PROCESS_MODE_ALWAYS` (keeps
   updating while paused); hidden it stops processing.
 
-**Interfaces:** 7 (the overlays' `show_<x>` exports), 13 (the Testing runner's overlay bar), 22 (the overlay bar and `OverlayRegistry` Main wires) — signatures in `architecture`.
+**Interfaces:** 7 (the overlays' `show_<x>` exports), 11 (`DrawLayers.ABOVE`), 13 (the Testing runner's overlay bar), 21 (the squad-leaders overlay), 22 (the overlay bar and `OverlayRegistry` Main wires), 23 (`build_leader_overlay`, `set_overlay`) — signatures in `architecture`.

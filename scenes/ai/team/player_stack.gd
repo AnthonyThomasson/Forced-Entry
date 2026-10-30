@@ -228,7 +228,6 @@ func _look_for_team() -> void:
 func _leads_team() -> bool:
 	if (squad == null
 			or not is_instance_valid(squad)
-			or not squad.has_method("leader")
 			or squad.leader() != _char):
 		return false
 	return squad.members().any(func(m): return m != _char and squad.alive(m))
@@ -416,7 +415,7 @@ func _step_at(pos: Vector2) -> String:
 	if (outward < -StackClaim.THROUGH_DEPTH
 			and lateral < float(reservation.geo["width"]) * 0.5 + StackClaim.THROUGH_DEPTH):
 		return "in"
-	if absf(outward) < StackClaim.FUNNEL_DEPTH and lateral < float(reservation.geo["width"]) * 0.5:
+	if StackClaim.in_funnel(outward, lateral, float(reservation.geo["width"]) * 0.5):
 		return "going_in"
 	var spot: Vector2 = _stack().settle(_me())["point"]
 	var d := pos.distance_to(spot)
@@ -464,8 +463,7 @@ func _post(step: String) -> void:
 		"frags": 0,
 		"move_up": 0,
 		"pie": false,
-		"leader": (squad != null and is_instance_valid(squad) and squad.has_method("leader")
-				and squad.leader() == _char),
+		"leader": squad != null and is_instance_valid(squad) and squad.leader() == _char,
 		"human": true,  # The human's claim: no AI member moves up into its slot (E2).
 		# Its own claim, which its squad rallies the team to (LD24); else E16's.
 		"own": reservation.own,

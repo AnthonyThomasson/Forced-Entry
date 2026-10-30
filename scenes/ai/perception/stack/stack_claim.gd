@@ -153,6 +153,14 @@ static func holding(step: String) -> bool:
 	return HOLDING.has(step)
 
 
+## Whether a point `outward` px off a doorway's wall plane and `lateral` px along it from the
+## doorway's centre stands in its fatal funnel: within its half width `half` (grown by `margin`, a
+## body's width for a body standing there) and `FUNNEL_DEPTH` of the plane, either side. The one
+## funnel test of the entry geometry and the human's stack.
+static func in_funnel(outward: float, lateral: float, half: float, margin := 0.0) -> bool:
+	return absf(lateral) < half + margin and absf(outward) < FUNNEL_DEPTH
+
+
 ## The order claims are listed and settled in: lowest slot first, then lowest instance id (a
 ## `sort_custom` comparator over claims, or any `{ slot, id }`).
 static func by_slot(a: Dictionary, b: Dictionary) -> bool:

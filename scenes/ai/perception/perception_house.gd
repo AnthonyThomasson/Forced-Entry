@@ -47,12 +47,13 @@ func _init(npc_perception: Node) -> void:
 ## (`current`), a room it has seen and searched recently (`searched`) or seen but not searched
 ## (`unsearched`), or one it has not yet seen at all (`unknown`). This is the room reasoning the
 ## search/room/flank options are placed against, exposed for the tactics debug overlay to draw as
-## zones. A pure read of knowledge + the visited-room memory; never perturbs it.
-func room_status(house_rooms: Array, self_pos: Vector2) -> Array:
+## zones. A pure read of knowledge + the visited-room memory; never perturbs it. The house's rooms
+## are those of the latest observe() (`rooms`).
+func room_status(self_pos: Vector2) -> Array:
 	var known := known_room_keys()
-	var here := HouseRooms.at(self_pos, house_rooms)
+	var here := HouseRooms.at(self_pos, rooms)
 	var out: Array = []
-	for room in house_rooms:
+	for room in rooms:
 		var status: StringName
 		if not here.is_empty() and room["key"] == here["key"]:
 			status = &"current"
@@ -94,8 +95,8 @@ func take_in(house_rooms: Array) -> void:
 ## An unfamiliar NPC learns the rooms and objects it can see (permanent once learned). Runs every
 ## `LEARN_EVERY_FRAMES` frames from `observe()`, offset per NPC so a squad does not look on the same
 ## frame, and at the start of every decision, so what it knows when it decides is what it sees at
-## that moment.
-func learn_by_sight(house_rooms: Array) -> void:
+## that moment. The rooms looked for are the house's (`rooms`, kept by `take_in`).
+func learn_by_sight() -> void:
 	var frame := Engine.get_physics_frames()
 	if frame == _learned_frame:
 		return
@@ -109,7 +110,7 @@ func learn_by_sight(house_rooms: Array) -> void:
 	var exclude := [perception._character.get_rid()]
 	# Read once: what is learned here is permanent and only grows.
 	var known_rooms_now := known_room_keys()
-	for room in house_rooms:
+	for room in rooms:
 		if known_rooms_now.has(room["key"]):
 			continue  # Already learned: looking again would change nothing.
 		var rect: Rect2 = room["rect"]
@@ -158,10 +159,10 @@ func _learn_object(obj: Object) -> void:
 		)
 
 
-## The rooms the NPC knows (all of `house_rooms` whose key it has learned), in `house_rooms` order.
-func known_rooms(house_rooms: Array) -> Array:
+## The rooms the NPC knows (all of the house's `rooms` whose key it has learned), in their order.
+func known_rooms() -> Array:
 	var known := known_room_keys()
-	return house_rooms.filter(func(r): return known.has(r["key"]))
+	return rooms.filter(func(r): return known.has(r["key"]))
 
 
 ## The set of room keys the NPC currently knows (from `saw_room` memory), as a lookup dict.

@@ -23,8 +23,6 @@ extends RefCounted
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
 const AgentDoorViews := preload("res://scenes/ai/perception/agent_door_views.gd")
-## The doorway's fatal funnel and the claims' fields (stack/stack_claim.gd).
-const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
 const EntrySlots := preload("res://scenes/ai/perception/entry/entry_slots.gd")
 const EntryPosts := preload("res://scenes/ai/perception/entry/entry_posts.gd")
@@ -42,11 +40,13 @@ const SHORT_ROOM_CAPACITY := 2
 const SLOT_BODY := 14.0
 ## Sides of the polygon a body is carved as (`slot_reach`).
 const BODY_SEGMENTS := 10
-## A route of `slot_reach` that ends short of its point still reaches it by a last leg walked plain,
-## as a walk does (`Locomotion` `LAST_LEG` and `PASS_CLEARANCE`): the leg on at most this long (px),
-## passing no body closer than `SLOT_PASS` (px).
-const SLOT_LAST_LEG := 64.0
-const SLOT_PASS := 32.0
+## The walk's last-leg rule, held here once for the walk and for `slot_reach`'s prediction of it:
+## a route round bodies at rest that ends short of its goal still reaches it by a last leg walked
+## plain, at most `LAST_LEG` long (px; behaviour's locomotion crowd reads it), passing no body
+## closer than `PASS_CLEARANCE` (px; Locomotion's own, which it reads from here) nor than
+## `pass_limit` says.
+const LAST_LEG := 64.0
+const PASS_CLEARANCE := 32.0
 ## The step (px) a side's wall is walked along in.
 const SLOT_STEP := 4.0
 
@@ -102,14 +102,6 @@ static func opening_id(o: Dictionary) -> String:
 	return AgentDoorViews.opening_id(o)
 
 
-## The house's doorway whose `opening_id` is `id`, or `{}`.
-func _opening(id: String) -> Dictionary:
-	for o in _openings:
-		if opening_id(o) == id:
-			return o
-	return {}
-
-
 ## The doorways an NPC standing in room `here_key` ("" = outside) can go through into a room: an
 ## outer door from outside, any door of its room into the room on the far side. Each
 ## `{ id, into, pos, width, front }`.
@@ -160,12 +152,12 @@ func watch_doors(room_key: String, exclude_id: String, is_cleared: Callable) -> 
 ## the body a walk is held by and the others at rest it sees) in its way at body width (`SLOT_BODY`,
 ## and `NavBuilder.OBSTACLE_MARGIN` round it as the steering map carves a body at rest), by any way
 ## at all: 1 when the route on the planning map with them carved (an avoid map of its own, kept per
-## set of bodies) ends within `AgentDoorViews.AVOID_REACH` of `to`, or within `SLOT_LAST_LEG` of it
+## set of bodies) ends within `AgentDoorViews.AVOID_REACH` of `to`, or within `LAST_LEG` of it
 ## with the plain way on from there that long at most and passing none of `bodies` closer than
-## `SLOT_PASS` (a slot between two taken ones lies inside their carved margins, and a walk goes in
-## by that last leg); 0 when it does not, -1 while that map is still being baked (asking starts the
-## bake). What an entry asks before it reads a hold as sealing its slot for good (E2). 1 when there
-## is no planning region to carve.
+## `PASS_CLEARANCE` (a slot between two taken ones lies inside their carved margins, and a walk goes
+## in by that last leg); 0 when it does not, -1 while that map is still being baked (asking starts
+## the bake). What an entry asks before it reads a hold as sealing its slot for good (E2). 1 when
+## there is no planning region to carve.
 func slot_reach(from: Vector2, to: Vector2, map: RID, bodies: Array) -> int:
 	var region := NavBuilder.planning_region(map)
 	if region == null or not NavBuilder.ready(map):
@@ -200,26 +192,26 @@ func _bodies_map(region: NavigationRegion2D, bodies: Array) -> RID:
 	return NavBuilder.avoid_map(region, "bodies:" + ";".join(keys), holes)
 
 
+## How close (px) a walk may pass a body it now stands `stands_off` px from: `PASS_CLEARANCE`, or
+## less for a body it already stands closer to than that and walks away from (no bar). The walk's
+## own test (behaviour's locomotion crowd) and `slot_reach`'s last leg both read it.
+static func pass_limit(stands_off: float) -> float:
+	return minf(PASS_CLEARANCE, stands_off - 1.0)
+
+
 ## Whether the last leg of `slot_reach`, walked plain on `map` from a route's `end` to `goal`, is at
-## most `SLOT_LAST_LEG` long and passes none of `bodies` closer than `SLOT_PASS` (one `end` already
-## stands by, and walks away from, closer than that is no bar).
+## most `LAST_LEG` long and passes none of `bodies` closer than `pass_limit` allows.
 func _last_leg_clear(map: RID, end: Vector2, goal: Vector2, bodies: Array) -> bool:
 	var leg := NavBuilder.route(map, end, goal)
-	if end.distance_to(goal) > SLOT_LAST_LEG or NavBuilder.path_length(leg) > SLOT_LAST_LEG:
+	if end.distance_to(goal) > LAST_LEG or NavBuilder.path_length(leg) > LAST_LEG:
 		return false
 	for b: Vector2 in bodies:
-		# One the route's end already stands by, and walks away from, is no bar.
-		var limit := minf(SLOT_PASS, end.distance_to(b) - 1.0)
+		var limit := pass_limit(end.distance_to(b))
 		for i in range(1, leg.size()):
 			if (Geometry2D.get_closest_point_to_segment(b, leg[i - 1], leg[i]).distance_to(b)
 					< limit):
 				return false
 	return true
-
-
-## The rect of room `key`, or an empty Rect2.
-func _room_rect(key: String) -> Rect2:
-	return HouseRooms.by_key(_rooms, key).get("rect", Rect2())
 
 
 ## The geometry of going through opening `id` into room `into`, or {} when either is unknown. Built
@@ -229,8 +221,9 @@ func _room_rect(key: String) -> Rect2:
 ## [..] } (stack slots, nearest the door first), pie: { 1: [..], -1: [..] } (pie arc points, from
 ## the wall toward the axis), lookouts (the slots and pie points as laid out, before they are
 ## snapped onto the navmesh: where an entry's stack and point stand, or near it), corners: [{ pos,
-## near, side, hard }], room (the room's rect), capacity (how many may go in: 2 for a short room,
-## else MAX_SLOTS) }.
+## near, side, hard }], room (the room's rect), depth (px the room runs in from the door to its far
+## wall), capacity (how many may go in: 2 for a short room, else MAX_SLOTS) }; once laid on a baked
+## map also the stack's ground (`EntrySlots.lay`: `from`, `from_room`, `from_depth`, ...).
 func geometry(id: String, into: String, map: RID, space: PhysicsDirectSpaceState2D) -> Dictionary:
 	var key := "%s>%s" % [id, into]
 	if layouts.cache.has(key):
@@ -240,7 +233,7 @@ func geometry(id: String, into: String, map: RID, space: PhysicsDirectSpaceState
 	if shared.has(shared_key):
 		layouts.cache[key] = shared[shared_key]
 		return layouts.cache[key]
-	var opening := _opening(id)
+	var opening: Dictionary = views.opening_of(id)
 	var room := HouseRooms.by_key(_rooms, into)
 	if opening.is_empty() or room.is_empty():
 		return {}
@@ -289,7 +282,7 @@ func _build(
 	var rect: Rect2 = room["rect"]
 	var out := -normal_into(rect, pos)
 	var along := out.orthogonal()
-	var wall := { 1: _wall_length(rect, pos, along), -1: _wall_length(rect, pos, -along) }
+	var wall := { 1: wall_length(rect, pos, along), -1: wall_length(rect, pos, -along) }
 	var g := {
 		"id": opening_id(opening), "into": str(room["key"]), "pos": pos,
 		"width": float(opening.get("width", 80.0)), "out": out, "along": along, "wall": wall,
@@ -298,6 +291,7 @@ func _build(
 	_lay_rows(g, map)
 	g["corners"] = _corners(g, rect, map, space)
 	g["room"] = rect
+	g["depth"] = wall_length(rect, pos, -out)
 	g["capacity"] = (SHORT_ROOM_CAPACITY
 			if minf(rect.size.x, rect.size.y) < short_room
 			else MAX_SLOTS)
@@ -410,9 +404,10 @@ static func normal_into(rect: Rect2, pos: Vector2) -> Vector2:
 	return AgentDoorViews.normal_into(rect, pos)
 
 
-## How much of the room's wall runs from door `pos` toward `dir` (to the room's corner on that
-## side).
-static func _wall_length(rect: Rect2, pos: Vector2, dir: Vector2) -> float:
+## How far (px) room `rect` runs from door `pos` toward the axis `dir` (to its edge that way): along
+## the wall, how much of it there is to that side's corner; along the door's axis, the room's depth
+## (`geometry`'s `depth` and `from_depth`). The slot rules read it too (`EntrySlots`).
+static func wall_length(rect: Rect2, pos: Vector2, dir: Vector2) -> float:
 	if absf(dir.x) > 0.5:
 		return (rect.end.x - pos.x) if dir.x > 0.0 else (pos.x - rect.position.x)
 	return (rect.end.y - pos.y) if dir.y > 0.0 else (pos.y - rect.position.y)

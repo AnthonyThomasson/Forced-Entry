@@ -20,15 +20,13 @@ extends Node2D
 
 const TestCatalog = preload("res://scenes/testing/test_catalog.gd")
 const TestSessionScript = preload("res://scenes/testing/test_session.gd")
+const TestBatch = preload("res://scenes/testing/test_batch.gd")
 const LogWatch = preload("res://scenes/testing/log_watch.gd")
 const RESULT_HUD = preload("res://scenes/ui/testing/test_result_hud.gd")
 const OVERLAY_TOGGLES = preload("res://scenes/ui/overlays/overlay_toggles.gd")
 const OVERLAY_REGISTRY = preload("res://scenes/ui/overlays/overlay_registry.gd")
 const PERFORMANCE_OVERLAY = preload("res://scenes/ui/overlays/performance_overlay.gd")
 const BROWSER_SCENE := "res://scenes/testing/test_browser.tscn"
-## Failed/timed-out tests (and GAP ones) write their event log, final state and traces here (one
-## JSON per test id), unless `--out=<dir>` moves them to <dir>/failures.
-const BUNDLE_DIR := "user://test_failures"
 ## Seconds a queued run holds each verdict before the next test starts (the HUD's Next skips it).
 const QUEUE_PAUSE := 2.0
 ## Engine meta set once `--queue` has been queued, so a later visit to the runner (from the browser)
@@ -60,19 +58,19 @@ func _ready() -> void:
 	# A run given `--out=<dir>` was also started with `--log-file <dir>/godot.log` (the engine
 	# consumes that flag, so it is not visible here and does not update the project setting): follow
 	# the moved log.
-	var out := _option(args, "--out", "")
+	var out := TestBatch.option("--out")
 	if out != "":
 		_watch.path_override = out.path_join("godot.log")
-	var cli_queue := _option(args, "--queue", "") != "" and not Engine.has_meta(META_CLI_QUEUED)
+	var cli_queue := TestBatch.option("--queue") != "" and not Engine.has_meta(META_CLI_QUEUED)
 	# The command line's queue on the runner's first visit owns a fresh log: startup errors count
 	# too.
 	_watch.begin(out != "" and cli_queue)
-	_start_session(out)
+	_start_session()
 	if args.has("--play"):
 		_select_from_cli(args)
 	if cli_queue:
 		Engine.set_meta(META_CLI_QUEUED, true)
-		_queue_from_cli(TestCatalog.csv(_option(args, "--queue", "")))
+		_queue_from_cli(TestCatalog.csv(TestBatch.option("--queue")))
 	if Engine.has_meta(TestCatalog.META_QUEUE) or Engine.has_meta(TestCatalog.META_SELECTION):
 		_hud = RESULT_HUD.new()
 		_hud.name = "TestResultHUD"
@@ -118,14 +116,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		_set_paused(not get_tree().paused)
 
 
-## The test session every test is played through (its bundles under `out`'s `failures/` when the
-## run was given one), wired to the banner and the verdict lines.
-func _start_session(out: String) -> void:
+## The test session every test is played through (its bundles where the batch keeps them,
+## `TestBatch.bundle_dir`: `<out>/failures` when the run was given `--out`), wired to the banner and
+## the verdict lines.
+func _start_session() -> void:
 	_session = TestSessionScript.new()
 	_session.name = "TestSession"
 	_session.watch = _watch
 	_session.von.launcher_parent = self
-	_session.bundle_dir = out.path_join("failures") if out != "" else BUNDLE_DIR
+	_session.bundle_dir = TestBatch.bundle_dir()
 	add_child(_session)
 	_session.status.connect(func(text: String):
 		if _hud != null:
@@ -358,11 +357,3 @@ func _remember(result: Dictionary) -> void:
 ## Print one verdict as a batch run does (tools/play_tests.sh reads them).
 func _print_result(result: Dictionary) -> void:
 	TestSessionScript.print_result(result, _session.bundle_dir)
-
-
-## The value of a `--name=value` argument, or `fallback`.
-func _option(args: PackedStringArray, option_name: String, fallback: String) -> String:
-	for a in args:
-		if a.begins_with(option_name + "="):
-			return a.substr(option_name.length() + 1)
-	return fallback

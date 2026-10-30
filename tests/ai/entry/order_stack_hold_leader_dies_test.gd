@@ -1,6 +1,6 @@
 extends GameTest
 ## LD13 / D12 (`docs/leadership.md`): no leader to say go. When the leader who gave a held stack
-## order is dead (the `&"leader"` event, or `Squad.alive(order.leader)` false), the held stack
+## order dies, the squad posts that stack's `go` itself (`auto: true`, D12), so the held stack
 ## becomes go-when-ready: it goes on the ready barrier, or at once if already ready.
 ##
 ## Two invaders are ordered (quiet, hold for go) by their leader, a puppet standing in for the

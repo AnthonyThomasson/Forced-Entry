@@ -1,17 +1,16 @@
 extends RefCounted
 ## Top-down pixel-art SOFA painter (Objects domain, private). Painted in the canonical frame
 ## (seat front at +y): a backrest with a rolled top and a row of back cushions, rolled armrests
-## at both ends, puffy seat cushions lined up under the back cushions, optional throw pillows in
-## the back corners, and a speckled weave over the upholstery. Raised parts shade the seat beside
-## them. Run down (decay.gd): grimy, torn to the stuffing, patched with tape, stained. Options
+## at both ends, puffy seat cushions lined up under the back cushions, and a speckled weave over
+## the upholstery. Raised parts shade the seat beside them. Run down (decay.gd): grimy, torn to the
+## stuffing, patched with tape, stained. Options
 ## (`art_opts`, defaulting to ObjectArtFabricConfig.sofa_*): `back_depth`, `arm_width`,
-## `cushion_width`, `max_cushions`, `pillows`.
+## `cushion_width`, `max_cushions`.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 ## Heights for cast shadows, floor-up.
 const _FRAME_HEIGHT := 1
 const _SEAT_HEIGHT := 2
-const _PILLOW_HEIGHT := 3
 const _BACK_CUSHION_HEIGHT := 4
 const _BACK_HEIGHT := 5
 const _ARM_HEIGHT := 6
@@ -46,9 +45,6 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	_seat_cushions(c, base, back_d, arm_w, n)
 	_backrest(c, base, back_d, arm_w, n)
 	_arms(c, base, arm_w)
-
-	if opts.get("pillows", ObjectArtFabricConfig.sofa_pillows):
-		_pillows(c, base, back_d, arm_w, seat_w)
 
 	var bounds := Rect2i(0, 0, c.w, c.h)
 	for tone in [base, base.lightened(0.05), back_tone, back_tone.lightened(0.05)]:
@@ -121,26 +117,3 @@ static func _cushion(c: PixelCanvas, r: Rect2i, tone: Color, height: int) -> voi
 	c.fill(PixelShape.rounded(r.grow(-4), 4), tone.lightened(0.05))
 	c.bevel(cushion, 2, 3, ct.light, ct.dark)
 	c.outline(cushion, ct.shadow)
-
-
-## A throw pillow in each back corner of the seat, hue-shifted from the upholstery, with a
-## crease running in from its outer corner.
-static func _pillows(c: PixelCanvas, base: Color, back_d: int, arm_w: int, seat_w: int) -> void:
-	var size := mini(roundi(back_d * 1.0), int(seat_w / 4.0))
-	if size < 6:
-		return
-	var col := Color.from_hsv(fposmod(base.h + ObjectArtFabricConfig.sofa_pillow_hue_shift, 1.0),
-			clampf(base.s * 1.15, 0.0, 1.0), clampf(base.v * 1.05, 0.0, 1.0))
-	var pt := ArtSurfaceConfig.tones(col)
-	var y := back_d - 3
-	for left: bool in [true, false]:
-		var x := arm_w + 1 if left else c.w - arm_w - 1 - size
-		var r := Rect2i(x, y, size, size - 1)
-		var pillow := PixelShape.rounded(r, 3)
-		c.fill(pillow, col, _PILLOW_HEIGHT)
-		c.fill(PixelShape.rounded(r.grow(-3), 3), col.lightened(0.06))
-		c.bevel(pillow, 2, 2, pt.light, pt.dark)
-		c.outline(pillow, pt.shadow)
-		c.speckle(r, col, ArtSurfaceConfig.fabric_speckle)
-		for i in range(2, int(size / 2.0)):
-			c.px(x + i if left else x + size - 1 - i, y + i, pt.dark)

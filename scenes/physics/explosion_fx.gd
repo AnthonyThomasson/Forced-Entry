@@ -45,19 +45,33 @@ static func _add(world: Node, fx: Node2D, node_name: String, at: Vector2, look: 
 	Despawner.track(fx)
 
 
-## A disc of `radius` px about `center` drawn as rows of `step` px, so it has the stepped edge of
-## the rest of the art.
+## A disc of `radius` px about `center` drawn as rows of `step` px (`disc_rows`), so it has the
+## stepped edge of the rest of the art.
 static func pixel_disc(canvas: CanvasItem, center: Vector2, radius: float, color: Color) -> void:
 	var step := maxf(PhysicsExplosionConfig.pixel, 1.0)
+	for row: Array in disc_rows(radius, step):
+		var cells := roundi(float(row[2]) / step)
+		if cells > 0:
+			canvas.draw_rect(
+				Rect2(
+					center + Vector2(-cells * step, int(row[0]) * step),
+					Vector2(2.0 * cells * step, step),
+				),
+				color,
+			)
+
+
+## The rows a disc of `radius` px is drawn in, `step` px each, top to bottom: `[j, y, half]` per
+## row, `j` its index (its top `j * step` px off the centre), `y` its middle and `half` how far the
+## disc reaches each way along it. The burst's discs and the scorch marks (`ScorchDecals`, which
+## jitters the edge) are both stepped by it.
+static func disc_rows(radius: float, step: float) -> Array:
+	var out := []
 	var rows := int(ceil(radius / step))
 	for j in range(-rows, rows):
 		var y := (float(j) + 0.5) * step
-		var cells := roundi(sqrt(maxf(radius * radius - y * y, 0.0)) / step)
-		if cells > 0:
-			canvas.draw_rect(
-				Rect2(center + Vector2(-cells * step, j * step), Vector2(2.0 * cells * step, step)),
-				color,
-			)
+		out.append([j, y, sqrt(maxf(radius * radius - y * y, 0.0))])
+	return out
 
 
 ## One timed effect: ages in `_process`, redraws and frees itself at the end of its `life`.

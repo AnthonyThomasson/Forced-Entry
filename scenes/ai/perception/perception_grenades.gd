@@ -90,7 +90,7 @@ func _note_flash(data: Dictionary) -> void:
 		var d: float = burst.distance_to(c["pos"])
 		if d > flash:
 			continue
-		if throw.shielded(space, burst, c["pos"], cover):
+		if Explosion.shields(space, burst, c["pos"], cover):
 			continue
 		perception._memory.remember(
 			&"flashed",

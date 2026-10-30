@@ -107,7 +107,7 @@ interface 23), the module Main builds its matches with, so a test world is stage
   result), unless its domain is already running; `tests/_ai`, `tests/_audio` and `tests/_lighting` helpers run that domain,
   `tests/_vehicle` runs `vehicle`, `audio` and `general` (its users), `tests/_perf` runs the `perf` domain, `tests/_harness` the self-tests, and an unknown helper folder everything
   (`tests/_main`, the Main-driving tests' helper, `tests/_outfit`, `tests/_objects` (`collider_probe.gd`, `Colliders.same_pieces`), `tests/_character`
-  (`kill_probe.gd`, `Kill.kill_targets(t, count)`; `arm_probe.gd`, `Arms.check_lengths(t, c, when)`: both arms keep their length) and `tests/_navigation` (`bake_probe.gd`,
+  (`kill_probe.gd`, `Kill.kill_targets(t, count)`; `arm_probe.gd`, `Arms.check_lengths(t, c, when)`: both arms keep their length), `tests/_items` (`weapon_style_probe.gd`) and `tests/_navigation` (`bake_probe.gd`,
   `Bake.problem(region)`: what the NavigationServer would refuse in a baked polygon) are unknown to the mapping, so a change to any of them runs the whole suite).
   An edited `tests/<domain>/…_suite.gd` (a wrapper or a native suite) runs that domain.
   `GAME_TEST_CHANGED_FILES` (newline-separated paths) stands in for git's view of the changes, which is how
@@ -135,7 +135,7 @@ interface 23), the module Main builds its matches with, so a test world is stage
 - **`--self-test`:** runs the harness's own tests (`tests/_harness/`, `internal: true` in `describe()`;
   hidden from the browser and normal runs) through their own gdUnit suite, `tests/_harness/harness_suite.gd`, which
   only `--self-test` passes to gdUnit: verdict rules, catalog selection and shard partitioning, LogWatch really seeing
-  engine logs, the statics / Von-stub restore pairs (`*_a` then `*_b`, run in id order), and the probes
+  engine logs, the statics restore pair (`static_restore_a` then `_b`, run in id order), and the probes
   `tools/test_log_gate.py` drives through environment variables (`verdict_probe`, `gap_probe`, `von_probe`,
   `warning_hold_probe`, `log_gate_probe`). Run it after editing `scenes/testing/`. `--changed` does this
   automatically when `scenes/testing/` changed.
@@ -145,7 +145,8 @@ interface 23), the module Main builds its matches with, so a test world is stage
 - **`--windowed`:** `tools/run_tests.sh --windowed [words]` runs gdUnit in a window with vsync off (`--disable-vsync`), always in one
   process (no shard competes with what it measures, and one window), headless staying the default. A perf test's frame times then
   include the render, without being held to the display's refresh; the draw tests that compare pixels
-  (`general/fill_batch_matches_draw_calls`, `items/prepaint_covers_the_draws`) run their image checks only this way.
+  (`general/fill_batch_matches_draw_calls`, `items/prepaint_covers_the_draws`, `character/body_mesh_matches_polygons`,
+  `physics/debris_pages_match_one_batch`) run their image checks only this way.
 - **Coverage:** `python3 tools/test_coverage.py` lists untested domains (a domain's tests counted in `tests/<domain>/**/*_test.gd`, its
   topic folders included), unused switches and interfaces no test calls.
 - **Failures:** a FAIL/TIMEOUT prints each actor's final state and the `t.trace` series ranges, and writes
@@ -203,7 +204,7 @@ interface 23), the module Main builds its matches with, so a test world is stage
   trackpad / camera-key events and the runner camera's hand-pan; `pause` hides the Pause button and ignores
   Space; `overlays` leaves out the overlay bar. A test that sends its own input must use
   `TestContext.inject(event)` (not bare `Input.parse_input_event`), which tags it so the lock lets it through.
-  Held keys are polled state and cannot be told apart. The three `tests/general/camera_*_test.gd` use it; the
+  Held keys are polled state and cannot be told apart. The five `tests/general/camera_*_test.gd` use it; the
   browser's details pane lists "Locked while it runs".
 
 ## The GdUnit panel (editor)
@@ -366,7 +367,7 @@ func run(t: TestContext) -> void:
     `t.controller(id, method)` (e.g. `&"current_act"` for an NPC brain; `TestContext.controller_of(character, method := &"control")`
     is the same for a character that is not a test actor, e.g. a match's NPC), `t.world`, `t.rooms`, `t.time`; off the world (a `TestWorld`, typed `Node2D` on the
     context, so a `var` takes an explicit type): `t.world.match_handle` (the declared match's handle, `{ world, house, rooms, openings,
-    nav_region, nav_debug, combatants, squads, player_stack, leader_overlay }`, {} with none), `t.world.squad(faction)` (the declared squad
+    nav_debug, combatants, squads, player_stack, leader_overlay }`, {} with none), `t.world.squad(faction)` (the declared squad
     of that faction, `squads`' or the match's, null with none) and `t.world.player_stack` (the human leader's stack radio, null with none).
   - Event log: `t.events_of(topic, filter)`, `t.happened(topic, filter)`, `t.spawned(name_part)`.
     Topics are every EventBus topic (`&"hit"`: position, victim, attacker, direction, damage;
@@ -378,7 +379,7 @@ func run(t: TestContext) -> void:
     `if not …: return`), `expect_eq`, `expect_near`, `skip(why)`, and on its `verdict` part
     `t.verdict.expect_log(pattern, count)`. A test that asserts nothing fails.
 - Puppet (`scripted_controller.gd`): `aim_at(node_or_point)`, `walk_to(point)` + `has_arrived()`
-  (straight line, no pathing), `walk(dir)`, `set_run(on)` (holds run while moving), `set_posture(p)` (wants `stand` / `crouch`, written every frame like the AI does; `&""` stops asking), `toggle_crouch()` (one press of C), `stop()`, `select_slot(n)`, `punch()`, `kick()` (the leg kick), `shoot()` (one click), `hold_fire(on)` (hold the trigger: an automatic gun fires at its rate; a semi-auto one is unaffected), `reload()`,
+  (straight line, no pathing), `walk(dir)`, `set_run(on)` (holds run while moving), `set_posture(p)` (wants `stand` / `crouch`, written every frame like the AI does; `&""` stops asking), `stop()`, `select_slot(n)`, `punch()`, `kick()` (the leg kick), `shoot()` (one click), `hold_fire(on)` (hold the trigger: an automatic gun fires at its rate; a semi-auto one is unaffected), `reload()`,
   `interact(object, id)` (refusals land in `failed_interactions`), `end_interaction()`, `use_vehicle()` (one press of E: get in
   by the nearest usable door, or out; ignored by a character without a `use`) and `drive(throttle, steer, handbrake)` (holds the
   driving keys as the player's do: `movement.move_input` = `(steer, -throttle)` limited to length 1, `movement.run_input` = handbrake; `drive(0, 0, false)`
@@ -650,9 +651,8 @@ reads or writes a private member of `main.gd`.
 
 ## Leadership tests (tag `leadership`)
 
-The rules are `docs/leadership.md` (LD1 to LD18, each with its tests named under it); `tools/run_tests.sh leadership` runs them, the four
-real-Von ones (`ai/decision/order_fight_then_resume`, `ai/combat/defend_room_stays_inside`, `ai/decision/von_request_across_pause`,
-`ai/combat/ambush_vs_stack`) with `--include-von --require-von`. They are spread by domain: the clock in `tests/ai/perception/clock_pauses` (LD1 also names
+The rules are `docs/leadership.md` (LD1 to LD18, each with its tests named under it); `tools/run_tests.sh leadership` runs them, its
+real-Von ones (`requires_von`) with `--include-von --require-von`. They are spread by domain: the clock in `tests/ai/perception/clock_pauses` (LD1 also names
 `memory_matches_reference`, which is not tagged `leadership`), the order transport, ORDER node, progress radio, a refused order and what an order stops (a walk, not a fight: `order_stops_walk`, `order_fight_goes_on`, `order_retreat_goes_on`) in `tests/ai/decision/` (`order_*`, and
 `unordered_state_unchanged`, which compares an unordered NPC's first walk and state text with the capture `unordered_state_unchanged.json`
 beside it), defending a room in `tests/ai/combat/defend_room_*`, the ambush (LD15) in `tests/ai/combat/ambush_*` (`ambush_door_post`,

@@ -277,16 +277,15 @@ static func _plain_spots(
 	var map: RID = search["map"]
 	var zone := {
 		"burst": threat.burst,
-		"out_r": g._zone_radius(threat.kind, threat.radius) + AgentThrow.OUTSIDE_SLACK,
+		"out_r": g._out_radius(threat),
 		"reach": g.cover_reach(threat.kind),
 	}
 	var spots: Array = []
-	# The candidates' grenade as the plain search builds it: its kind, radius and burst.
-	var around := GrenadeThreat.new()
-	around.kind = threat.kind
-	around.radius = threat.radius
-	around.burst = threat.burst
-	for p in g._candidates(search["space"], around, from, search["exclude"]):
+	# The candidates as escape builds them (`_candidates`), the ones round the burst worked out
+	# afresh (`_around`), not taken from the frame's shared ones.
+	var around := g._around(search["space"], threat.burst, zone["out_r"], search["exclude"],
+			threat.kind)
+	for p in g._candidates(from, around):
 		var q := NavBuilder.snap(map, p)
 		if q.distance_to(p) > AgentThrow.SNAP_TOLERANCE:
 			continue

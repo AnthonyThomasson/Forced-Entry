@@ -212,19 +212,9 @@ const RECIPES := {
 			},
 		],
 		"zones": [
-			{
-				"options": ["cooking_line", "cooking_l_shape"],
-				"count": Vector2i(1, 1),
-				"required": true,
-				"fallback": "cooking_compact",
-			},
+			GeneralCatalog.COOKING_ZONE,
 			{ "options": ["fridge_corner"], "count": Vector2i(1, 1) },
-			{
-				"options": ["dining_set_4", "dining_set_2", "island_stools"],
-				"count": Vector2i(1, 1),
-				"required": true,
-				"fallback": "dining_compact",
-			},
+			GeneralCatalog.DINING_ZONE,
 			{ "options": ["pantry", "plant_corner"], "count": Vector2i(0, 2) },
 		],
 		"fill": {

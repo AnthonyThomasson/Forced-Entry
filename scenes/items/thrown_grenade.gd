@@ -103,8 +103,7 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	if item == null:
 		return
-	var toward := -ArtCanvasConfig.light_from.normalized()
-	var away := global_transform.basis_xform_inv(toward).normalized()
+	var away := PixelArt.away_from_light(self)
 	item.art.draw_dropped(
 		self,
 		away * (0.5 + _motion.height * GrenadeConfig.shadow_per_height),

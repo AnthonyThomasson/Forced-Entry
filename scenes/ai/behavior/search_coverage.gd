@@ -60,7 +60,7 @@ func reset() -> void:
 ## the time budget. The room key may be "" (an explore point in no room); then the sample is empty
 ## and `step()` finishes at once (a single look), which is the graceful fallback.
 func begin() -> void:
-	room = _loco.room_key_at(_character.global_position)
+	room = _perception.confinement.room_at(_character.global_position)
 	points = sample_room(room)
 	unseen = points.duplicate()
 	target = _character.global_position

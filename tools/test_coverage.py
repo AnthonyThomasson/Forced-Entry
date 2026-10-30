@@ -7,7 +7,9 @@ Three views, all read from files (no Godot needed):
   1. Domains: each scenes/<domain>/ with its test count (tests/<domain>/**/*_test.gd) — 0 = untested.
   2. Switches: rows of scenes/testing/test_switches.gd that no test turns on/off with s.switch(...).
   3. Interfaces: `Class.method` names in the `architecture` skill's "vital interfaces" section that
-     never appear in tests/ or scenes/testing/ (a heuristic: a call by name counts as covered).
+     appear in none of the game tests (tests/**/*_test.gd), the native suites (tests/**/*_suite.gd)
+     and the harness (scenes/testing/*.gd), tests/_harness/ left out (a heuristic: a call by name counts
+     as covered; the probes in tests/_*/ are not read).
 """
 import re
 from pathlib import Path
@@ -15,8 +17,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 tests = sorted((ROOT / "tests").rglob("*_test.gd"))
 test_text = {t: t.read_text() for t in tests if "_harness" not in t.parts}
+# The native pure-logic suites call interfaces directly too; the wrapper suites name none.
+suite_text = {t: t.read_text() for t in sorted((ROOT / "tests").rglob("*_suite.gd")) if "_harness" not in t.parts}
 harness_text = "\n".join(p.read_text() for p in (ROOT / "scenes" / "testing").glob("*.gd"))
 all_test_text = "\n".join(test_text.values())
+all_called_text = "\n".join([all_test_text, *suite_text.values(), harness_text])
 
 print("== Domains ==")
 for d in sorted(p.name for p in (ROOT / "scenes").iterdir() if p.is_dir()):
@@ -36,7 +41,7 @@ names = sorted(set(re.findall(r"`([A-Z][A-Za-z]+\.[a-z][a-z_]*)\b", section)))
 missing = []
 for full in names:
     cls, method = full.split(".")
-    if not re.search(rf"\b{cls}\.{method}\b|\.{method}\(", all_test_text + harness_text):
+    if not re.search(rf"\b{cls}\.{method}\b|\.{method}\(", all_called_text):
         missing.append(full)
 print("  " + (", ".join(missing) if missing else "(all referenced)"))
 print(f"\n{len(tests)} test file(s); {len(names)} interface names checked.")

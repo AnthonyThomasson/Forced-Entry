@@ -16,25 +16,31 @@ extends Node2D
 @export var eject_time: float = 0.25
 
 
-## Kick the chip out along `eject_dir` (need not be normalized), spin it, and let it settle.
-func start(eject_dir: Vector2) -> void:
-	var dir := eject_dir.normalized() if eject_dir.length() > 0.001 else Vector2.RIGHT
-	var target := position + dir * eject_distance
-	var spin := TAU * randf_range(-1.5, 1.5)
-	rotation = randf_range(0.0, TAU)
-
-	var tween := create_tween()
+## Toss `node` out `distance` px along `dir` (need not be normalized; a zero one tosses it right)
+## over `time` s, turning it by `spin` rad on the way, both easing out: a chip's throw, and the
+## Projectile System's spent casing's. Returns the tween, to hear when it lands.
+static func toss(node: Node2D, dir: Vector2, distance: float, time: float, spin: float) -> Tween:
+	var unit := dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
+	var target := node.position + unit * distance
+	var tween := node.create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(self, "position", target, eject_time).set_trans(Tween.TRANS_QUAD).set_ease(
+	tween.tween_property(node, "position", target, time).set_trans(Tween.TRANS_QUAD).set_ease(
 		Tween.EASE_OUT,
 	)
 	tween.tween_property(
-		self,
+		node,
 		"rotation",
-		rotation + spin,
-		eject_time,
+		node.rotation + spin,
+		time,
 	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.finished.connect(_rest)
+	return tween
+
+
+## Kick the chip out along `eject_dir` (need not be normalized), spin it, and let it settle.
+func start(eject_dir: Vector2) -> void:
+	var spin := TAU * randf_range(-1.5, 1.5)
+	rotation = randf_range(0.0, TAU)
+	toss(self, eject_dir, eject_distance, eject_time, spin).finished.connect(_rest)
 
 
 ## The chip has come to rest: it is drawn by the parent's `DebrisLayer` from here on, and this node

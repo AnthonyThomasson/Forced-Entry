@@ -1,8 +1,8 @@
 class_name CharacterKit extends RefCounted
-## What a character carries (`Character.inventory.set_loadout`, interface 7): its item slots and the
-## one held, its spare magazines, the type its gun starts loaded with, its grenades and the weapon
-## style every item is drawn in. Whoever arms a character fills it (`LoadoutConfig.apply` for a
-## match's spawns); a field left alone is the plain default.
+## Items domain: what a character carries (`Character.inventory.set_loadout`, interface 7), in
+## Items' vocabulary: its item slots and the one held, its spare magazines, the type its gun starts
+## loaded with, its grenades and the weapon style every item is drawn in. Whoever arms a character
+## fills it (`LoadoutConfig.apply` for a match's spawns); a field left alone is the plain default.
 
 ## The `ItemRegistry` slots it carries, and only those.
 var slots: Array = []

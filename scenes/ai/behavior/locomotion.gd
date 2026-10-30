@@ -23,8 +23,9 @@ extends Node
 ## Steering always aims at the next navmesh waypoint, so the character's own push physics bulldoze
 ## furniture sitting on the route without ever tunnelling a wall. It is behaviour's movement tool
 ## only — it holds no decision or combat state. Falls back to straight-line steering when there is
-## no nav agent. It also knows the house's rooms (set each tick by `Behavior`), so the behaviour
-## modules can ask which room, if any, a point lies in.
+## no nav agent. It also holds the house's rooms (set each tick by `Behavior`), which the search
+## coverage samples a room from; which room a point lies in is the perception's
+## (`confinement.room_at`).
 
 ## How a walk goes: on the plain map; round a body at rest by the steering map; held short of a
 ## body; or round the doorway views by the avoid map.
@@ -40,6 +41,9 @@ const Crowd := preload("res://scenes/ai/behavior/locomotion/loco_crowd.gd")
 const GiveWay := preload("res://scenes/ai/behavior/locomotion/loco_give_way.gd")
 const Stall := preload("res://scenes/ai/behavior/locomotion/loco_stall.gd")
 const Doors := preload("res://scenes/ai/behavior/locomotion/loco_doors.gd")
+## The walk's last-leg rule (`PASS_CLEARANCE`), held once with the doorway geometry that predicts
+## it (`AgentEntry.slot_reach`).
+const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 ## A known character whose smoothed track is slower than this (px/s) is AT REST: it stands where it
 ## is, and a walk goes round it or stops short of it; any faster one is a walker, given way to
 ## (`give_way`). A walking pace is 150; a body standing still but jostled by another reads 20 to
@@ -47,8 +51,9 @@ const Doors := preload("res://scenes/ai/behavior/locomotion/loco_doors.gd")
 const REST_SPEED := 40.0
 ## A walk that passes a body's centre closer than this (px) walks into it. Two bodies touch at 28
 ## px; the steering map's hole round a body at rest keeps a route about 33 to 35 px off it (body
-## radius + `NavBuilder.OBSTACLE_MARGIN` + agent radius).
-const PASS_CLEARANCE := 32.0
+## radius + `NavBuilder.OBSTACLE_MARGIN` + agent radius). Held on `AgentEntry` (`PASS_CLEARANCE`),
+## whose slot prediction walks by the same number (`slot_reach`).
+const PASS_CLEARANCE := AgentEntry.PASS_CLEARANCE
 ## How far along the walk (px) the bodies at rest on it are looked for.
 const LOOKAHEAD := 400.0
 ## A walk held short of a body stands this far (px, centre to centre) from it.
@@ -93,14 +98,6 @@ var _goal := Vector2.INF
 var _way: int = Way.PLAIN
 ## The NPC's body, handed in once by `bind`: what a walk steers.
 var _character: Node
-
-
-## The key of the room containing world point `p`, or "" when `p` is in no room.
-func room_key_at(p: Vector2) -> String:
-	for room in rooms:
-		if (room["rect"] as Rect2).has_point(p):
-			return str(room["key"])
-	return ""
 
 
 ## Keep the NPC's `npc_tuning`, and resolve + wire the navigation agent. `agent` may be null (then

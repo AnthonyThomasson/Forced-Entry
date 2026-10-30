@@ -39,9 +39,7 @@ func _init(visuals: Node2D, character: Node, hands: Node2D) -> void:
 ## How far a point on the body is shifted on the floor shadow per px of its height: away from the
 ## light (see `cast`).
 func shift() -> Vector2:
-	return _visuals.global_transform.basis_xform_inv(
-		-ArtCanvasConfig.light_from.normalized(),
-	).normalized() * CharacterShadowConfig.body_shadow_per_height
+	return PixelArt.away_from_light(_visuals) * CharacterShadowConfig.body_shadow_per_height
 
 
 ## A 3D point's place on the floor shadow: its flat position shifted away from the light by its

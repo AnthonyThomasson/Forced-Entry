@@ -26,13 +26,13 @@ Three parts: a wound's **spray** (`BloodSprayConfig`), its **drips** (`BloodDrip
 
 - `BloodWound` (`class_name`, a Node the character composes like `Knockback`; the character's `take_hit` calls `record`): `record(hit)` throws
   `ceil(damage / hit_splat_damage)` splatters (max `hit_splat_max`) out the wound's exit side at once (plus one out the exit
-  wound) and merges them side by side: each is begun as it is thrown (`BloodSpawner.splat(parent, at, throw: BloodThrow, whole = false)`, `blood_throw.gd`:
+  wound) and merges them side by side: each is begun as it is thrown (`BloodSpawner.splat(parent, at, throw: BloodThrow, whole := true)`, the spray passing `whole` false; `blood_throw.gd`:
   `size`, `direction`, `energy`, `exclude` →
   `BloodSplat.begin`: its random shapes and wall rays on the main thread, in `setup`'s order; its outlines merged by the same
   fold, `_fold`, on a worker thread; its wet highlight added and its drying started at once) and `record` returns without
   waiting for the merges: `BloodSplat.defer_finish` finishes them (`finish`: waits for the merge, registers the splat with the
   `BloodField` aged from the physics frame it was begun on, draws it) in one deferred call later in the frame, before it is drawn,
-  so the rest of the frame's work runs beside them (waiting cost ~0.9 ms a frame under heavy fire, #78). Nothing sees a splat
+  so the rest of the frame's work runs beside them. Nothing sees a splat
   half-built: `BloodField.wetness_at` first finishes every pending splat (`BloodSplat.finish_pending`), and a splat freed before
   its finish waits for its task as it leaves the tree. The splats are the ones `setup` builds whole
   (`tests/physics/blood_spray_side_by_side_matches_whole_test.gd` throws the same seeded hits both ways;
@@ -99,8 +99,8 @@ so trails taper. Tuning: `BloodPrintConfig` (`footprints_enabled`, `pickup_gain`
   (polygons, each run of them one General `FillBatch`) and smear ribbons at `BloodConfig.print_z_index` in the shared chunked store, whose chunks redraw only when they gain a mark or a
   ribbon grows (and, its own chunk draw, at 2 Hz while drying, `print_dry_time`); its cap is `print_max` (not the Despawner).
   `ribbon_begin(point, width, alpha) -> mark`, `ribbon_extend(mark, point, width, alpha)` (width 0 = taper to a
-  point), `ribbon_count()`; a ribbon is drawn as two quads per segment via `draw_primitive`, solid on its centre line
-  and fading to `BloodSmearLookConfig.feather` at the edges. `items()` / `print_count()` for tests. `print_at` drops polygons the
+  point); a ribbon is drawn as two quads per segment via `draw_primitive`, solid on its centre line
+  and fading to `BloodSmearLookConfig.feather` at the edges. `items()` / `print_count()` / `ribbon_count()` for tests. `print_at` drops polygons the
   engine can't triangulate.
 - `BloodFootprints` (Node child of a walker): `step(foot, fall: Footfall)` per footfall (`footfall.gd`: `at`, `direction`, `length`, `width`, `inner`, `speed`; the character's `character_footsteps.gd` calls it). Per foot id: soak `max(load, wetness *
   pickup_gain)` (sampled heel/middle/toe), stamp a mirrored sole (heel, arch on the `inner` side, ball, toe) with
@@ -128,4 +128,5 @@ a `BloodPool` node itself, set by `BloodSpawner._new_pool`, so its `BloodPoolVis
 blood's rung) and `print_z_index` (the `BloodDecals` prints and smears, and Physics' scorch decals). Over the floor (−5) and rugs (−4),
 under what lies there (a dead body, casings, a dropped item, `LYING` −2) and so under a vehicle driving over it.
 
-**Interfaces:** 4 (Objects / Character → Physics), 11 (`DrawLayers.BLOOD`; `FillBatch`: the splats and the prints) — signatures in `architecture`.
+**Interfaces:** 4 (Objects / Character → Physics), 11 (`DrawLayers.BLOOD`; `FillBatch`: the splats and the prints), 13
+(`physics.blood`, `physics.footprints`, `physics.smear`) — signatures in `architecture`.

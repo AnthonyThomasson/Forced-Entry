@@ -103,9 +103,7 @@ func spawn_invader_team(
 ) -> void:
 	if rooms.is_empty():
 		return
-	var bounds: Rect2 = rooms[0]["rect"]
-	for room in rooms:
-		bounds = bounds.merge(room["rect"])
+	var bounds := WorldGen.bounds(rooms)
 	var centre := around
 	var door := {}
 	if centre == Vector2.INF:
@@ -131,16 +129,18 @@ func spawn_invader_team(
 		)
 
 
-## The front entrance `front` (its opening, `{ pos, width, rooms, ... }`) as the team is placed
-## by it: `{ pos, out, width }` (its centre, the way out of its room among `rooms` and its width),
-## or `{}` when there is none.
+## The front entrance `front` (its opening, `{ pos, width, rooms, outward, ... }`) as the team is
+## placed by it: `{ pos, out, width }` (its centre, the way out of its room among `rooms`, the
+## opening's `outward` for that room, and its width), or `{}` when there is none.
 func _front_door(front: Dictionary, rooms: Array) -> Dictionary:
 	if front.is_empty():
 		return {}
+	var keys: Array = front.get("rooms", [])
 	for room: Dictionary in rooms:
-		if (front.get("rooms", []) as Array).has(room["key"]):
-			var pos: Vector2 = front["pos"]
-			return { "pos": pos, "out": _outward(room["rect"], pos), "width": front["width"] }
+		var i := keys.find(room["key"])
+		if i >= 0:
+			var out: Vector2 = front["outward"][i]
+			return { "pos": front["pos"], "out": out, "width": front["width"] }
 	return {}
 
 
@@ -152,19 +152,6 @@ func _beside_front_door(door: Dictionary, rng: RandomNumberGenerator) -> Vector2
 	var out: Vector2 = door["out"]
 	var side := 1.0 if rng.randf() < 0.5 else -1.0
 	return door["pos"] + out.orthogonal() * side * DOOR_SIDE_OFFSET + out * spawn_clearance
-
-
-## The way out of room `rect` through its wall at `pos` (a doorway on that wall): the unit normal
-## of the edge nearest `pos`, pointing away from the room.
-func _outward(rect: Rect2, pos: Vector2) -> Vector2:
-	var edges := [
-		[absf(pos.x - rect.position.x), Vector2.LEFT],
-		[absf(pos.x - rect.end.x), Vector2.RIGHT],
-		[absf(pos.y - rect.position.y), Vector2.UP],
-		[absf(pos.y - rect.end.y), Vector2.DOWN],
-	]
-	edges.sort_custom(func(a, b): return a[0] < b[0])
-	return edges[0][1]
 
 
 ## The spot nearest `centre` for one more member of a group: `centre` itself, then the points of

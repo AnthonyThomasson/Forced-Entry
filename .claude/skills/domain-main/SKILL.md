@@ -11,7 +11,7 @@ bar) and hands every match to the root's match-assembly module, `MatchBuilder` (
 domain's world builds through too. Main's `run` (`MainRun`, `scenes/main_run.gd`, an exported `Resource` built per Main, editable inline
 in its inspector, local to its scene, so a scene that authors one gives each Main its own copy and Main's writes to it never outlive a reload) is the authoring surface for a run (`house_seed`, `force_plan`, `entrance_distance`, `defender_count`, `invader_count`,
 `invader_margin`, `spawn_clearance`, `spectator_mode`, `player_side`, `debug_overlays`), and its endless exports `endless_delay` and
-`endless_time_limit` stay on the node (the coverage tool reads `endless_time_limit` by name); every overlay starts at the registry's default.
+`endless_time_limit` stay on the node (the coverage tool reads `endless_time_limit` by name); every overlay starts as `_overlays.initial` seeds it (below).
 `main.tscn` authors none of them. Main holds two parts more, each built once with it and reached by preload const (no `class_name`): the
 endless run's data leaf `_endless` (`main_endless.gd`: `on`, `spec`, `most`, `next_match_in`, `tick(delta)`, `ended(delay)`) and the debug
 overlays' `_overlays` (`main_overlays.gd`, holding Main: `flags`, `perf`, `toggles`, `inspector`, `initial(debug)`, `build(debug)`,
@@ -62,9 +62,9 @@ nothing. Then the UI over the handle (kept in `_match`):
   another node;
 - `_watch_side_stacks()`: in a played match the stack markers `watch_squad(squad.view)` the human's side's squad, lead or not, so every stack
   that side forms shows its rings (LD18);
-- when the human leads, `_build_command_menu(rooms)`: if the squad's `leader()` is the human, the `OrderMarkers` (UI hud, `watch(squad.view)`)
-  and the `CommandMenu` (UI hud, `setup({ rooms, teammates, view, resolve, leader, right_clear })`, the squad's `view` and `resolve`,
-  `right_clear` the overlay bar's `OverlayToggles.RESERVED_WIDTH` with Debug on (`run.debug_overlays`), else 0, as the inspector's) under `World`,
+- when the human leads, `_build_command_menu(rooms)`: if the squad's `leader()` is the human, the `OrderMarkers` (UI command, `watch(squad.view)`)
+  and the `CommandMenu` (UI command, `setup({ rooms, teammates, view, resolve, leader, right_clear })`, the squad's `view` and `resolve`,
+  `right_clear` the overlay bar's `OverlayToggles.RESERVED_WIDTH` with Debug on (`run.debug_overlays`), else 0; the inspector always keeps that column clear) under `World`,
   the menu's `order_requested` connected to the squad's `issue` and its `selection_changed` to the markers' `set_selection` (interface 21,
   LD11, LD12); nothing is built otherwise, so nothing reads the right button;
 - `MatchHUD.begin(combatants, time_limit)` (the endless run's `endless_time_limit`);
@@ -79,7 +79,7 @@ nothing. Then the UI over the handle (kept in `_match`):
 
 A `RefCounted` of statics, beside `main.gd`; its signatures are interface 23. A **match spec** goes in (`spec(overrides)`: `seed`, `plan`,
 `entrance`, `house`, each side's `{ count, loadout, at }`, `human` `{ node, side, lead, at }`, `wait_nav`, `spawn_clearance`,
-`invader_margin`, `overlays`), a **match handle** comes out (`{ world, house, rooms, openings, nav_region, nav_debug, combatants, squads,
+`invader_margin`, `overlays`), a **match handle** comes out (`{ world, house, rooms, openings, nav_debug, combatants, squads,
 player_stack, leader_overlay }`). `build` is its two stages:
 
 1. **`stage`, the world stage.** The spec's `house` (a layout or arena already built, moved under the world) or `WorldGen.generate(seed,
@@ -127,8 +127,8 @@ player_stack, leader_overlay }`). `build` is its two stages:
   `leader_overlay`).
 - **The bind rule, once** (`bind_npc(npc, rooms, openings, entry_point)`): an NPC's controller is handed the house `rooms`, its `openings`
   (for tactical entry) and, when given, its `entry_point` **before the NPC joins the tree**, so its first tick already knows them; the
-  controller is found by its contract (the child with `control` and `rooms`, interface 7), since the `npc_controllers` group is joined only in
-  `_ready`. An invader's entry point is the front entrance (`front_entrance(openings)`, `entry_point_for(faction, openings)`), a defender's
+  controller is the child in the `npc_controllers` group (interface 7), which `npc.tscn` authors so it holds before the NPC joins the tree.
+  An invader's entry point is the front entrance (`front_entrance(openings)`, `entry_point_for(faction, openings)`), a defender's
   none (`_front_opening` is the one lookup of the front entrance among the openings: `front_entrance` returns its `pos`, and `populate`
   hands the opening itself to the spawner). The test world binds its NPC actors by the same call.
 - **Overlay routing, once** (`set_overlay(handle, flag, on)`): `NAV_HOLES` to the handle's `nav_debug` (`show_holes`, redrawn), `LEADERS`

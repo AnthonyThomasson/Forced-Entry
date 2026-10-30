@@ -3,6 +3,15 @@ class_name CharacterStyleConfig
 ## weapons, palettes, looks) and the default style. A `class_name` holder of `static var`s, read as
 ## `CharacterStyleConfig.<name>`; there is no instance and no autoload.
 
+## What the defenders' crew styles (`merc`, `borg`) draw where nothing is worn (a row's `bare`).
+const CREW_BARE := { "body": "top", "pants": "cargo", "feet": "boots" }
+## The crew styles' skin tones (a row's `skin`).
+const CREW_SKIN := [
+	Color(0.96, 0.80, 0.66), Color(0.88, 0.68, 0.52), Color(0.74, 0.54, 0.38),
+	Color(0.56, 0.38, 0.26), Color(0.38, 0.26, 0.18), Color(0.82, 0.76, 0.70),
+	Color(0.66, 0.62, 0.55),
+]
+
 ## The style of a character never given one (a test's puppet, a dummy, the gun range): the invaders'
 ## Zenitex.
 static var default_style: StringName = &"zenitex"
@@ -107,12 +116,8 @@ static var styles: Dictionary = {
 			],
 			"pack": [Color(0.33, 0.35, 0.23), Color(0.52, 0.46, 0.33), Color(0.40, 0.30, 0.20)],
 		},
-		"bare": { "body": "top", "pants": "cargo", "feet": "boots" },
-		"skin": [
-			Color(0.96, 0.80, 0.66), Color(0.88, 0.68, 0.52), Color(0.74, 0.54, 0.38),
-			Color(0.56, 0.38, 0.26), Color(0.38, 0.26, 0.18), Color(0.82, 0.76, 0.70),
-			Color(0.66, 0.62, 0.55),
-		],
+		"bare": CREW_BARE,
+		"skin": CREW_SKIN,
 		"hair": [
 			Color(0.08, 0.07, 0.07),
 			Color(0.33, 0.22, 0.13),
@@ -167,12 +172,8 @@ static var styles: Dictionary = {
 			"patch": [Color(0.18, 0.18, 0.19), Color(0.42, 0.22, 0.13), Color(0.27, 0.29, 0.20)],
 			"pack": [Color(0.20, 0.20, 0.21), Color(0.36, 0.20, 0.12), Color(0.28, 0.10, 0.10)],
 		},
-		"bare": { "body": "top", "pants": "cargo", "feet": "boots" },
-		"skin": [
-			Color(0.96, 0.80, 0.66), Color(0.88, 0.68, 0.52), Color(0.74, 0.54, 0.38),
-			Color(0.56, 0.38, 0.26), Color(0.38, 0.26, 0.18), Color(0.82, 0.76, 0.70),
-			Color(0.66, 0.62, 0.55),
-		],
+		"bare": CREW_BARE,
+		"skin": CREW_SKIN,
 		"hair": [
 			Color(0.08, 0.07, 0.07), Color(0.33, 0.22, 0.13), Color(1.0, 0.25, 0.65),
 			Color(0.20, 0.90, 0.95), Color(0.85, 0.15, 0.12), Color(0.62, 0.32, 0.95),

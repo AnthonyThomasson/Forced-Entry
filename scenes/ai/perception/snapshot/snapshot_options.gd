@@ -620,7 +620,7 @@ func _search_option(c: Dictionary) -> Dictionary:
 ## only) or not searched lately. A doorway's place is the NPC's stack slot beside it (the lowest the
 ## radio leaves free, on the side the team stacks on, or its own when the way there crosses the
 ## doorway's view), out of the doorway's line of sight; the behaviour runs the entry from there.
-## Nearest first, capped.
+## A room a hostile is suspected in first, then nearest; capped.
 func entry_group(ctx: Dictionary, rooms: Array) -> Dictionary:
 	if not know.get("entry_enabled", false):
 		return { "summary": "", "options": [] }
@@ -791,9 +791,9 @@ func room_group(ctx: Dictionary, known_rooms: Array, rooms: Array) -> Dictionary
 
 
 ## `tags` plus the spot's geometry, kept for the routes debug overlay (`clear_shot`,
-## `route_exposed`, `cover`, and the flank `ally_lane` / `held_by` / `crosses` names). Planner
-## filters read only the boolean tags (`inside` / `hidden`, and on a flank side `held` / `crosses` /
-## `no_shot` / `heading` / `lane`), so the extra keys are inert to decisions.
+## `route_exposed`, `cover`, and the flank `ally_lane` / `held_by` / `crosses` names). The planner
+## reads only the boolean tags a level's `drop_tags` names, so the extra keys are inert to
+## decisions.
 func _geo_tags(s: Dictionary, tags: Dictionary) -> Dictionary:
 	for key in ["clear_shot", "route_exposed", "cover", "ally_lane", "held_by"]:
 		if s.has(key):

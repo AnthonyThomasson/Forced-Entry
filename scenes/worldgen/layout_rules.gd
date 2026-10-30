@@ -87,7 +87,7 @@ static func check(rooms: Array, openings: Array) -> Array:
 		type_of[room["key"]] = room["type"]
 		graph[room["key"]] = []
 	var doors := {}  # room key -> interior doors it has
-	var problems := _door_problems(openings, type_of, _bounds(rooms), graph, doors)
+	var problems := _door_problems(openings, type_of, WorldGen.bounds(rooms), graph, doors)
 	for key in type_of:
 		var max_doors: int = rule(type_of[key])["max_doors"]
 		if doors.get(key, 0) > max_doors:
@@ -95,14 +95,6 @@ static func check(rooms: Array, openings: Array) -> Array:
 					% [_describe(key, type_of), doors[key], max_doors])
 	problems.append_array(_reach_problems(type_of, graph))
 	return problems
-
-
-## The bounds of `rooms`' rects.
-static func _bounds(rooms: Array) -> Rect2:
-	var bounds := Rect2()
-	for i in range(rooms.size()):
-		bounds = rooms[i]["rect"] if i == 0 else bounds.merge(rooms[i]["rect"])
-	return bounds
 
 
 ## Every doorway's violations (and the front door count's), joining the rooms each one opens in

@@ -41,10 +41,9 @@ static var _looks: Dictionary = {}
 ## `opts` (its `material` key PixelArt's own, above).
 static func render(painter: Script, size: Vector2, color: Color, facing: Vector2 = Vector2.DOWN,
 		opts: Dictionary = {}) -> Texture2D:
-	# Clockwise quarter turns taking the canonical front (+y) onto `facing`.
-	var turns := posmod(roundi(Vector2.DOWN.angle_to(facing) / (PI * 0.5)), 4)
+	var turns := _turns(facing)
 	var base_key := _key(painter, size, color, opts)
-	var key := "%s|f%d" % [base_key, turns]
+	var key := _render_key(base_key, turns)
 	if _cache.has(key):
 		return _cache[key]
 	var res := _resolution(size)
@@ -61,8 +60,24 @@ static func render(painter: Script, size: Vector2, color: Color, facing: Vector2
 static func emissive(painter: Script, size: Vector2, color: Color, facing: Vector2 = Vector2.DOWN,
 		opts: Dictionary = {}) -> Texture2D:
 	render(painter, size, color, facing, opts)
-	var turns := posmod(roundi(Vector2.DOWN.angle_to(facing) / (PI * 0.5)), 4)
-	return _emissive.get("%s|f%d" % [_key(painter, size, color, opts), turns])
+	return _emissive.get(_render_key(_key(painter, size, color, opts), _turns(facing)))
+
+
+## Which way, away from the light, a cast shadow falls in `node`'s frame (a unit vector): the
+## world's `ArtCanvasConfig.light_from` reversed, turned into the node's own axes.
+static func away_from_light(node: Node2D) -> Vector2:
+	var toward := -ArtCanvasConfig.light_from.normalized()
+	return node.global_transform.basis_xform_inv(toward).normalized()
+
+
+## Clockwise quarter turns taking the canonical front (+y) onto the cardinal `facing`.
+static func _turns(facing: Vector2) -> int:
+	return posmod(roundi(Vector2.DOWN.angle_to(facing) / (PI * 0.5)), 4)
+
+
+## `render`'s cache key (and `_emissive`'s) for the inputs' `_key` at `turns` quarter turns.
+static func _render_key(base_key: String, turns: int) -> String:
+	return "%s|f%d" % [base_key, turns]
 
 
 ## `img` turned by `turns` clockwise quarter turns.

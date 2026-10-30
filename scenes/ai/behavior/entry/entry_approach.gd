@@ -316,19 +316,7 @@ func _in_stack_room(p: Vector2) -> Vector2:
 ## `CROSS_DEPTH`, but no deeper than the room the stack stands in allows, a body (`CROSS_INSET`) off
 ## its far wall; outside the house, `CROSS_DEPTH`.
 func _cross_depth() -> float:
-	var room: Rect2 = state.geo.get("from_room", Rect2())
-	if room.size == Vector2.ZERO:
-		return CROSS_DEPTH
-	var door: Vector2 = state.geo["pos"]
-	var far := -INF
-	for c in [
-			room.position,
-			Vector2(room.end.x, room.position.y),
-			room.end,
-			Vector2(room.position.x, room.end.y),
-	]:
-		far = maxf(far, ((c as Vector2) - door).dot(state.geo["out"]))
-	return minf(CROSS_DEPTH, far - CROSS_INSET)
+	return minf(CROSS_DEPTH, float(state.geo.get("from_depth", INF)) - CROSS_INSET)
 
 
 ## Whether the walk from here to `target` has a way round this doorway's view (E18): 1 when the way

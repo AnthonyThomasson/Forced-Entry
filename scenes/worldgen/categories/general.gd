@@ -78,7 +78,6 @@ const OBJECTS := {
 		"art": "sofa",
 		"art_opts": {
 			"cushion_width": 200.0,
-			"pillows": false,
 			"arm_width": 0.2,
 			"back_depth": 0.3,
 		},
@@ -674,6 +673,28 @@ const WALL := {
 	"color": Color(0.87, 0.81, 0.49),
 	"art_opts": { "pattern": "plaster" },
 }
+## The recipe zones several room types share (a recipe's `zones` entry, see
+## ArrangementDefinitions), so an arrangement added to one reaches every room that draws it: the TV
+## wall (living rooms and the combined rooms), the cooking line (kitchens and the combined rooms)
+## and the dining set (kitchens and the kitchen-living room).
+const TV_ZONE := {
+	"options": ["tv_wall_cozy", "tv_wall_modern"],
+	"count": Vector2i(1, 1),
+	"required": true,
+	"fallback": "tv_compact",
+}
+const COOKING_ZONE := {
+	"options": ["cooking_line", "cooking_l_shape"],
+	"count": Vector2i(1, 1),
+	"required": true,
+	"fallback": "cooking_compact",
+}
+const DINING_ZONE := {
+	"options": ["dining_set_4", "dining_set_2", "island_stools"],
+	"count": Vector2i(1, 1),
+	"required": true,
+	"fallback": "dining_compact",
+}
 ## Combined room types that pull arrangements from several categories.
 const RECIPES := {
 	"kitchen_living": {
@@ -685,25 +706,10 @@ const RECIPES := {
 			{ "wood": WOOD.white, "fabric": FABRIC.navy, "floor": "slate_tile" },
 		],
 		"zones": [
-			{
-				"options": ["tv_wall_cozy", "tv_wall_modern"],
-				"count": Vector2i(1, 1),
-				"required": true,
-				"fallback": "tv_compact",
-			},
-			{
-				"options": ["cooking_line", "cooking_l_shape"],
-				"count": Vector2i(1, 1),
-				"required": true,
-				"fallback": "cooking_compact",
-			},
+			TV_ZONE,
+			COOKING_ZONE,
 			{ "options": ["fridge_corner"], "count": Vector2i(1, 1) },
-			{
-				"options": ["dining_set_4", "dining_set_2", "island_stools"],
-				"count": Vector2i(1, 1),
-				"required": true,
-				"fallback": "dining_compact",
-			},
+			DINING_ZONE,
 			{
 				"options": [
 					"reading_nook", "entry_area", "pantry", "plant_corner", "side_table_lamp",
@@ -728,18 +734,8 @@ const RECIPES := {
 			{ "wood": WOOD.ash, "fabric": FABRIC.sage, "floor": "grey_planks" },
 		],
 		"zones": [
-			{
-				"options": ["tv_wall_cozy", "tv_wall_modern"],
-				"count": Vector2i(1, 1),
-				"required": true,
-				"fallback": "tv_compact",
-			},
-			{
-				"options": ["cooking_line", "cooking_l_shape"],
-				"count": Vector2i(1, 1),
-				"required": true,
-				"fallback": "cooking_compact",
-			},
+			TV_ZONE,
+			COOKING_ZONE,
 			{
 				"options": ["bed_single_nightstand", "bed_twin_nightstands"],
 				"count": Vector2i(1, 1),

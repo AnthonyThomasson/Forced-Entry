@@ -120,22 +120,39 @@ static func porous(art: String, opts: Dictionary) -> bool:
 	return painter != null and painter.has_method(&"porous") and painter.porous(opts)
 
 
+## The light row of a piece whose painter gives light only in some of its variants (a TV among the
+## appliances, a desk with a monitor, the tool cart, the scanner post); "" for any other. The one
+## rule both the piece's lights (`ObjectLights`) and its neon share (`neon_for`) read.
+static func light_kind(art: String, opts: Dictionary) -> String:
+	var kind := String(opts.get("kind", ""))
+	match art:
+		"appliance":
+			return "tv" if String(opts.get("panel", "")) == "tv" else ""
+		"table":
+			var is_monitor := func(p: Variant) -> bool:
+				return p is Dictionary and p.get("kind", "") == "monitor"
+			return "desk" if (opts.get("props", []) as Array).any(is_monitor) else ""
+		"clinic":
+			return "tool_cart" if kind == "tool_cart" else ""
+		"security":
+			return "scanner" if kind == "scanner" else ""
+	return ""
+
+
 ## The neon a piece drawn by `art` with `opts` takes, picked per piece from `piece_seed`
 ## (deterministic: the same piece in the same house always gets the same): `"cyan"`, `"magenta"`, or
 ## `""` for none. Only the light-giving kinds in ObjectArtLightConfig.neon_share ever do, that share
-## of them.
+## of them: a `BY_KIND` piece by its `kind`, a variant piece by its `light_kind` (a table only with
+## a monitor), any other by its painter id.
 static func neon_for(art: String, opts: Dictionary, piece_seed: int) -> String:
 	var kind := art
+	var own := light_kind(art, opts)
 	if BY_KIND.has(art):
 		kind = String(opts.get("kind", ""))
-	elif art == "appliance" and String(opts.get("panel", "")) == "tv":
-		kind = "tv"
+	elif own != "":
+		kind = own
 	elif art == "table":
-		if not (opts.get("props", []) as Array).any(
-				func(p: Dictionary) -> bool: return p.get("kind", "") == "monitor",
-		):
-			return ""
-		kind = "desk"
+		return ""
 	var share: float = ObjectArtLightConfig.neon_share.get(kind, 0.0)
 	var roll := absi(hash([kind, piece_seed]))
 	if share <= 0.0 or float(roll % 1000) / 1000.0 >= share:

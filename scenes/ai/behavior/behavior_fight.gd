@@ -50,7 +50,8 @@ func engage_progress() -> String:
 
 ## Read-only: the running combat / movement / interaction state as world-space data (Vector2s, not
 ## the JSON-safe digest), for the combat, territory and targets debug overlays. The NPC's body gives
-## its aim point and the fire-line query. A pure read — the line query only casts a ray.
+## its aim point, Combat's `has_line_of_fire_to` (the shot's own rule) the fire line. A pure read —
+## the line query only casts a ray.
 func debug_combat() -> Dictionary:
 	var task: RunningLeaf = behavior.task
 	var character: Node = behavior._character
@@ -61,7 +62,7 @@ func debug_combat() -> Dictionary:
 	var fire_clear := false
 	if engaged and character != null:
 		in_range = character.global_position.distance_to(engage_pos) <= tuning.combat.shoot_range
-		fire_clear = in_range and behavior._perception.has_line_to(engage_node, engage_pos)
+		fire_clear = combat.has_line_of_fire_to(engage_node, engage_pos)
 	return {
 		"primitive": task.primitive,
 		"style": task.params.get("style", &"peek_cover") if task.primitive == &"engage" else &"",

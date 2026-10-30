@@ -92,11 +92,19 @@ func maybe_upgrade(entry: Entry, team: Array, delta: float) -> void:
 		_suspect_clock = SUSPECT_EVERY
 		if world.perception.hearing.room_suspicion(state.into).is_empty():
 			return
-	state.bang = true
 	upgraded = true
-	entry.readiness.turned = true
 	entry.grenade.wait = 0.0
-	if state.phase == "pie":
+	turn_bang(entry, true)
+
+
+## Turn the entry to a bang one (`on`) or a quiet one, and radio it with the last call repeated:
+## a turn to bang marks the entry turned (`readiness.turned`) and sends a point slicing the pie
+## back to its slot to hold for the bang. The step both an upgrade (`maybe_upgrade`) and an
+## unordered member following its stack's order (`orders.follow_order`) take.
+func turn_bang(entry: Entry, on: bool) -> void:
+	state.bang = on
+	entry.readiness.turned = entry.readiness.turned or on
+	if on and state.phase == "pie":
 		entry.pie.queue = []
 		# Back to its slot, to hold for the bang instead of slicing on.
 		entry.approach.set_phase("stack")

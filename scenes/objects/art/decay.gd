@@ -1,6 +1,6 @@
 extends RefCounted
 ## The run-down look every Objects painter draws in (Objects domain, private): rust & grime, with a
-## share of neon. A painter draws its piece's shape as before, in the colours ObjectArt hands it
+## share of neon. A painter draws its piece's shape in the colours ObjectArt hands it
 ## (`grade`: any catalogue colour washed toward dun, rust and nicotine yellow) and the
 ## ObjectArt*Config colour knobs, then finishes it here: grime blotches, stains, tears and tape on
 ## upholstery, scratches, cup rings and burns on wood, rust and stickers on metal, cracks in

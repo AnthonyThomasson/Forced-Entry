@@ -50,7 +50,7 @@ func record(hit: HitInfo) -> void:
 	var host := get_parent() as Node2D
 	if host == null:
 		return
-	var out := hit.normal if hit.normal.length() > 0.001 else -hit.direction
+	var out := hit.spray_direction()
 	var thrown: Array[Node] = []  # the spray's splats begun, finished later in the frame
 	var sprays := clampi(
 		ceili(hit.damage / maxf(BloodSprayConfig.hit_splat_damage, 0.001)),

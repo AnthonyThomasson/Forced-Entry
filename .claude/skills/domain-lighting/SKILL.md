@@ -1,17 +1,18 @@
 ---
 name: domain-lighting
-description: Deep implementation detail for the Lighting domain (scenes/lighting/) — the world's dusk lighting, a leaf like Audio. WorldLighting (built by the match builder, for Main's match and the Testing world, under the world root, group `world_lighting`) adds the ambient CanvasModulate and the street's sky DirectionalLight2D, a PointLight2D per light a piece declares (`get_lights()`, parented to the piece) and per room fixture, the per-floor budget (12 of Godot 4.4's 15 point lights per canvas item, the weakest dropped), the seeded rhythms (steady / buzz / failing / blink / shimmer / pulse) dimming each light and its piece's unshaded overlay, the flash pool lit on `shot` / `explosion`, and the per-frame character-mask clearing; LightingConfig, LightingFixtureConfig and LightingTextureConfig are its tuning. The occluders and light layers are General's `LightMasks`, built by Objects (walls, solid pieces, the street) and Character (the living body). Use when editing scenes/lighting/, retuning the dusk, a fixture, a flash or the budget, adding a light-giving piece (its row in ObjectArtLightConfig.specs), changing who shadows whom, or asserting on lights in a test. Complements the `architecture` skill (interfaces 11 and 20); the spec and its tests are docs/lighting.md.
+description: Deep implementation detail for the Lighting domain (scenes/lighting/) — the world's dusk lighting, a leaf like Audio. WorldLighting (built by the match builder, for Main's match and the Testing world, under the world root, in the group `world_lighting`, which the lighting tests find it by) adds the ambient CanvasModulate and the street's sky DirectionalLight2D, a PointLight2D per light a piece declares (`get_lights()`, parented to the piece) and per room fixture, the per-floor budget (12 of Godot 4.4's 15 point lights per canvas item, the weakest dropped), the seeded rhythms (steady / buzz / failing / blink / shimmer / pulse) dimming each light and its piece's unshaded overlay, the flash pool lit on `shot` / `explosion`, and the per-frame character-mask clearing; LightingConfig, LightingFixtureConfig and LightingTextureConfig are its tuning. The occluders and light layers are General's `LightMasks`, built by Objects (walls, solid pieces, the street) and Character (the living body). Use when editing scenes/lighting/, retuning the dusk, a fixture, a flash or the budget, adding a light-giving piece (its row in ObjectArtLightConfig.specs), changing who shadows whom, or asserting on lights in a test. Complements the `architecture` skill (interfaces 10, 11 and 20); the spec and its tests are docs/lighting.md.
 ---
 
 # Lighting domain (`scenes/lighting/`)
 
 A **leaf**: it imports nothing but General (`EventBus`, `DrawLayers`, `LightMasks`, `WeightedPick`) and Godot, and reads the world duck-typed, the
-way Audio reads a vehicle. Nothing calls into it but the composition root's match builder, for Main's match and the Testing world alike (`MatchBuilder.stage` → `WorldLighting.light`, interface 20), and the
-Testing domain's switch row; the lights and shadows of the world's things are declared and built by their own domains. The spec
+way Audio reads a vehicle. Nothing calls into it but the composition root's match builder, for Main's match and the Testing world alike (`MatchBuilder.stage` → `WorldLighting.light`, interface 20), the
+Testing domain's switch row, and the tests, through `lighting_probe.gd`, which read `lights()` / `fixtures()` / `flashes()` /
+`budget()`; the lights and shadows of the world's things are declared and built by their own domains. The spec
 is `docs/lighting.md` (L1 to L10, each with its tests); the tests are `tests/lighting/` through `tests/_lighting/lighting_probe.gd`.
 
 ```
-main.gd / test_world.gd ──WorldLighting.light(root, seed, rooms)──▶ WorldLighting ──(get_lights(), floors' size / light_mask)──▶ the world
+MatchBuilder.stage (Main's match / TestWorld) ──WorldLighting.light(root, seed, rooms)──▶ WorldLighting ──(get_lights(), floors' size / light_mask)──▶ the world
 Objects: walls, solid pieces ──LightMasks.occluder──▶ LightOccluder2D children   (Character: the living body's, freed on death)
 Objects: street floors ──light_mask = LightMasks.STREET                           Objects: Emissive overlays ── unshaded material
 Item (&"shot") / Explosion (&"explosion") ──EventBus──▶ WorldLighting's flash pool
@@ -25,7 +26,7 @@ WorldLighting ──(group `characters`: is_dead, radius, global_position)──
 | `lighting_config.gd` (`LightingConfig`), `lighting_fixture_config.gd` (`LightingFixtureConfig`), `lighting_texture_config.gd` (`LightingTextureConfig`) | Static tuning in three holders. `LightingConfig`: `enabled` (master switch), the dusk (`ambient_color` (0.40, 0.37, 0.55), `sky_color` (1.0, 0.5, 0.42), `sky_from`, `sky_energy`: the street's only), the flashes (`flash_pool` 3, `flashes` rows `shot` / `frag` / `stun`: colour, energy, reach, `reach_per_radius`, `hold` (s at full
 energy, none when absent: the stun's 0.08) and `life` (the fall-off after it); the stun's is energy 8, life 0.7, its burst's whole look,
 since Physics draws no disc for it), the budget (`item_lights` 15, `per_floor()` = 15 − the pool, `floor_reach`), `body_clear` 1.3. `LightingFixtureConfig`, the room fixtures: `color`, `energy`, `reach_scale` / `reach_pad` / `reach_range`, `rhythms`. `LightingTextureConfig`, the pool textures (`textures` per shape, two smooth profiles, linear points: a low light's glow `glow_offsets` / `glow_levels`, an overhead light's downward pool `pool_offsets` / `pool_levels`). |
-| `world_lighting.gd` (`WorldLighting`) | The node: `static light(root, seed_value, rooms := []) -> WorldLighting` (null while `enabled` is off), the reads `lights()`, `fixtures()`, `flashes()`, `budget()`, and the per-frame work (`_process`). |
+| `world_lighting.gd` (`WorldLighting`) | The node: `static light(root, seed_value, rooms := []) -> WorldLighting` (null while `enabled` is off), the reads `lights()`, `fixtures()`, `flashes()`, `budget()` (test reads), and the per-frame work (`_process`). |
 | `flash_pool.gd` (private) | The flash pool (`_pool`): `lights` (the flashes), `flash(at, look, radius)`, `step(delta)` (their fall-off), `clear_bodies()`. |
 | `light_budget.gd` (private) | The per-floor count: `add_floor(ground)`, `take(box, item_mask, always) -> bool`, `box_of(light, xf)`. |
 | `light_rhythm.gd` (private) | One light's rhythm: `pick(kinds, rng)` (General's `WeightedPick`, `steady` for none), `new(mode, seed)`, `step(delta) -> factor`. |
@@ -77,13 +78,13 @@ Lights follow their piece by being its children; the occluders follow theirs the
   12-gon for a round piece; `EMITTER` when it gives light, else `TALL` from `LightMasks.TALL_COVERAGE`, else `FURNITURE`); a wall
   builds one per segment, the collider's rect (`WALL`); the street's floors (catalogue `light_layer: "street"`) put themselves and
   their canvas items on `STREET`; every `Emissive` overlay draws through an unshaded CanvasItemMaterial.
-- **Character** (`domain-character`): an oval occluder (`CharacterShadowConfig.depth` / `_width` / `_sides`) on `CHARACTER`,
+- **Character** (`domain-character`): an oval occluder (`CharacterShadowConfig.depth` / `width` / `sides`) on `CHARACTER`,
   turned with `facing` when it turns, freed in `_die`.
 
 ## Adding to it
 
-- **A light-giving piece:** a row in `ObjectArtLightConfig.specs` and its case in `object_lights.gd` (`_kind`, and its colour /
-  offset in `of`); its painter draws the source inside `canvas.glowing` so its overlay shows it.
+- **A light-giving piece:** a row in `ObjectArtLightConfig.specs` and its case in `object_lights.gd` (`_kind`, or `ObjectArt.light_kind` for a
+  painter that lights only in some variants, and its colour / turn / reach in `_by_kind`; its offset is the row's `ahead`); its painter draws the source inside `canvas.glowing` so its overlay shows it.
 - **Who shadows whom:** the masks in `LightMasks` (General) and the shadow mask each light is given here.
 - **A flash:** a `LightingConfig.flashes` row and its topic in `_on_posted`. A flash that is the whole look of something (the stun's)
   takes a `hold` and a longer `life` rather than a drawn effect beside it; it stays in the pool (no light of its own kept alive).

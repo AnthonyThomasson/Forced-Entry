@@ -15,6 +15,7 @@ class_name Explosion
 ## flash** works by sight (the same line rule, the facing of the victim scaling it); **the bang** by
 ## range, through walls at `wall_factor` (a wall only: furniture muffles nothing).
 
+const Projectile = preload("res://scenes/projectile/projectile.gd")
 ## The layer the line queries test (walls, solid furniture, the living).
 const MASK := PhysicsLayers.SOLID
 ## Most bodies one blast considers.
@@ -123,11 +124,7 @@ static func _strike(
 	info.height = -1.0  # no height: the blast strikes the whole body
 	body.call("take_hit", info)
 	var surface: Dictionary = body.call("get_surface") if body.has_method("get_surface") else {}
-	EventBus.post(&"hit", {
-		"position": info.position, "victim": body, "direction": away, "damage": damage,
-		"attacker": source, "outcome": &"blast", "material": String(surface.get("material", "")),
-		"speed_factor": 0.0, "power": 1.0,
-	})
+	Projectile.post_hit(body, info, source, &"blast", surface)
 
 
 ## The grenade's fragments: `fragments` bullets evenly round the circle (each jittered within its
@@ -143,11 +140,11 @@ static func _fragments(at: Vector2, world: Node, source: Node, row: Dictionary) 
 	shot.penetration = float(row.get("fragment_penetration", 1.0))
 	shot.max_range = float(row.get("fragment_range", -1.0))
 	shot.strikes_shooter = true
+	shot.damage = float(row.get("fragment_damage", 10.0))
 	var turn := randf() * TAU
 	for i in count:
 		var angle := turn + TAU * (float(i) + randf_range(-0.4, 0.4)) / float(count)
-		var fragment := ProjectileSpawner.spawn(at, Vector2.from_angle(angle), world, shot)
-		fragment.set("damage", float(row.get("fragment_damage", 10.0)))
+		ProjectileSpawner.spawn(at, Vector2.from_angle(angle), world, shot)
 
 
 # --- The flash (G11) ------------------------------------------------------------------------------
@@ -325,9 +322,9 @@ static func _against(space: PhysicsDirectSpaceState2D, line: PhysicsRayQueryPara
 			and to.distance_to(found["position"]) <= cover_reach)
 
 
-## Whether `collider` stops a line to something `height` tall: a wall always does, and so does
-## anything that reports no height; a piece of furniture when it stands above it.
+## Whether `collider` stops a line to something `height` tall: anything that reports no height
+## does; a piece of furniture when it stands above `height` (`_walk` has already stopped at a wall).
 static func _stops(collider: Object, height: float) -> bool:
-	if collider == null or collider is StaticBody2D or not collider.has_method("get_surface"):
+	if collider == null or not collider.has_method("get_surface"):
 		return true
 	return float(collider.call("get_surface").get("coverage", 100.0)) > height

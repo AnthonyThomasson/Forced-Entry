@@ -11,30 +11,13 @@ cross-domain interface surface. When working *inside* a domain, also load that d
 **If you are working on a GitHub ticket (issue), invoke the `ticket` skill first.** It reads the
 ticket's label and tells you which `ticket-<label>` skill to invoke (e.g. `spike` → `ticket-spike`).
 
-**Checks:** on Stop, Claude runs only lint + the headless load check (`tools/stop_hook_checks.sh`), when the turn
-changed what lint reads: anything under `scenes/`, `tests/`, `addons/` or `sandboxes/`, `project.godot`, any other `.gd`
-(`tools/` included) but the coverage tool's fixtures, gdstyle's own files (`gdstyle.toml`, `tools/gdstyle.sh`,
-`tools/lint_gdstyle.py`), or the lint and load check themselves (`tools/lint.sh`, `tools/lint_rules/`,
-`tools/lint_report.py`, `tools/lint_scripts.gd` / `.tscn`, `tools/load_check.sh`, `tools/scan_godot_log.py`). Lint is
-the engine's analyzer, the project lint rules (`tools/lint_rules/`) and gdstyle (`gdstyle fmt --check` + `gdstyle
-check`, config `gdstyle.toml`: 100 columns, tabs), and any finding fails it. Format a script with `tools/gdstyle.sh fmt
-PATH`.
-The tests run through gdUnit4 (`addons/gdUnit4/`; `tools/run_tests.sh` drives it headless). A git pre-commit hook
-(`.githooks/pre-commit`) first refuses a commit that leaves a `.gd` under `scenes/`, `tests/`, `addons/` or `sandboxes/`
-without its `.gd.uid` or the reverse (`tools/load_check.sh --import` writes them), then runs the game tests a commit can
-break (`tools/run_tests.sh --changed --staged`: picked from what is staged, after the commit's lint), only when it
-touches `scenes/`, `tests/` or `project.godot`, and without the performance tests, which are a separate
-`tools/run_tests.sh --domain=perf`; on every commit it also runs the tool tests a staged file can break
-(`tools/tool_tests.sh --staged`: the test modules whose code names it, all of them for a shared test helper or a tool
-file no test names; `tools/tool_tests.sh` alone runs them all, the `tools/test_*.py` scripts apart, which run on their
-own); when it touches no game code but a `.gd` outside `addons/` and the coverage tool's fixtures, one of gdstyle's own
-files or a file of the lint itself, it runs the commit's lint itself. It checks what the commit holds, not the working
-tree. The commit's lint (`tools/lint_staged.sh`) is `tools/lint.sh` on the staged scripts as they are on disk, the whole
-tree when `project.godot`, a gdstyle file or a file of the lint (`tools/lint.sh`, `lint_report.py`, `lint_scripts.gd` /
-`.tscn`, the code of `tools/lint_rules/` but its tests) is staged; a finding in a file the commit does not hold says
-`not in this commit: <path>`.
-A commit-msg hook (`.githooks/commit-msg`) refuses a message whose `Co-Authored-By: Claude <model>` line names another
-model than the branch's earlier commits. Enable both once per clone with `tools/install_hooks.sh`.
+**Checks:** on Stop, when the turn changed what lint reads, Claude runs lint and the headless load check
+(`tools/stop_hook_checks.sh`). Lint is the engine's analyzer, the project lint rules and gdstyle (`gdstyle.toml`: 100
+columns, tabs; format with `tools/gdstyle.sh fmt PATH`), and any finding fails it. The pre-commit hook
+(`.githooks/pre-commit`) pairs each `.gd` with its `.gd.uid` and runs the tool tests, the commit's lint and the game tests
+the commit can break (perf apart: `tools/run_tests.sh --domain=perf`); the commit-msg hook (`.githooks/commit-msg`) keeps
+one Claude model per branch. Enable both once per clone with `tools/install_hooks.sh`; each script's header holds its
+rules. The tests run through gdUnit4 (`addons/gdUnit4/`; `tools/run_tests.sh` drives it headless).
 
 ## Agent skills
 

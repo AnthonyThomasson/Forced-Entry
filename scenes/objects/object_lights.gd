@@ -15,6 +15,7 @@ extends RefCounted
 ## Tuning: ObjectArtLightConfig.specs (the per-kind numbers) and the painters' colours.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
+const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 
 
 ## The lights `piece` (an EnvironmentObject in the tree, its visuals ready) gives; [] for a piece
@@ -124,26 +125,8 @@ static func _kind(piece: Node2D) -> String:
 			return String(opts.get("head", ObjectArtOutdoorConfig.streetlight_head))
 		"decor":
 			return "neon_tube" if String(opts.get("kind", "")) == "neon_tube" else ""
-	var own := _variant_kind(art, opts)
+	var own := ObjectArt.light_kind(art, opts)
 	return own if own != "" or Decay.neon(opts).a <= 0.0 else "trim"
-
-
-## The light row of a piece whose painter gives light only in some of its variants (a TV among the
-## appliances, a desk with a monitor, the tool cart, the scanner post); "" for any other.
-static func _variant_kind(art: String, opts: Dictionary) -> String:
-	var kind := String(opts.get("kind", ""))
-	match art:
-		"appliance":
-			return "tv" if String(opts.get("panel", "")) == "tv" else ""
-		"table":
-			var is_monitor := func(p: Variant) -> bool:
-				return p is Dictionary and p.get("kind", "") == "monitor"
-			return "desk" if (opts.get("props", []) as Array).any(is_monitor) else ""
-		"clinic":
-			return "tool_cart" if kind == "tool_cart" else ""
-		"security":
-			return "scanner" if kind == "scanner" else ""
-	return ""
 
 
 ## The `Emissive` overlay of visuals node `visuals` (null without one).

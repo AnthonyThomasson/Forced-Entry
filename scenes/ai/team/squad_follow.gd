@@ -18,6 +18,8 @@ extends RefCounted
 ## out of the lane ahead of the leader's facing (`_clear_of_way`).
 
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
+## The room lookups over the house's rooms the perception shares (which room a point lies in).
+const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const Squad := preload("res://scenes/ai/team/squad.gd")
 ## How far (px) the leader moves before its trail takes a new point.
 const TRAIL_STEP := 15.0
@@ -99,7 +101,7 @@ func reset() -> void:
 	_visited = {}
 	if lead is Node2D:
 		_trail.append((lead as Node2D).global_position)
-		_visited[_room_at((lead as Node2D).global_position)] = true
+		_visited[HouseRooms.key_at((lead as Node2D).global_position, _rooms)] = true
 
 
 ## Take a new trail point once the leader has moved a `TRAIL_STEP` from the last, and keep the
@@ -114,7 +116,7 @@ func track() -> void:
 	if here.distance_to(_trail[_trail.size() - 1]) < TRAIL_STEP:
 		return
 	_trail.append(here)
-	_visited[_room_at(here)] = true
+	_visited[HouseRooms.key_at(here, _rooms)] = true
 	_moved_at = GameClock.seconds()
 	var keep: float = (
 		SquadFollowConfig.gap
@@ -300,7 +302,7 @@ func _beside_way(member: Node, here: Vector2, ahead: Vector2, along: float, side
 	for s in [side, -side]:
 		var beside := _open_at(world, here, here + ahead * along + across * s * off)
 		if (beside != Vector2.INF
-				and _visited.has(_room_at(beside))
+				and _visited.has(HouseRooms.key_at(beside, _rooms))
 				and absf((beside - here).dot(across)) >= WAY_CLEARANCE + arrive
 				and not _taken(beside, member)):
 			_aside[member.get_instance_id()] = { "spot": beside, "from": here, "way": ahead }
@@ -316,7 +318,7 @@ func _further_on(member: Node, here: Vector2, ahead: Vector2) -> Vector2:
 	var step: float = SquadFollowConfig.step
 	for k in range(2, 5):
 		var further := _open_at(world, here, here + ahead * (ring + step * k))
-		if further != Vector2.INF and _visited.has(_room_at(further)):
+		if further != Vector2.INF and _visited.has(HouseRooms.key_at(further, _rooms)):
 			_aside[member.get_instance_id()] = { "spot": further, "from": here, "way": ahead }
 			return further
 	return Vector2.INF
@@ -332,14 +334,6 @@ func _open_at(world: World2D, here: Vector2, want: Vector2) -> Vector2:
 			or not _vision.wall_hit(world.direct_space_state, here, at).is_empty()):
 		return Vector2.INF
 	return at
-
-
-## The key of the house room `p` lies in ("" outside).
-func _room_at(p: Vector2) -> String:
-	for r: Dictionary in _rooms:
-		if (r["rect"] as Rect2).has_point(p):
-			return String(r["key"])
-	return ""
 
 
 ## Whether `p` lies in one of the house's doorways: within half its width (`WAY_CLEARANCE` at

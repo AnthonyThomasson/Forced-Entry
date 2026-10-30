@@ -1,13 +1,13 @@
 extends GameTest
-## R11 and R12 (ticket #61): the houses become run-down cyberpunk flats. Retired: the floorplans
-## luxury_home, family_home, dining_house and cottage, and the room types kids_room, entry_hall and
-## dining_room with their catalogue pieces, arrangements, recipes and LayoutRules rows. New: four
-## room types, the netrunner den (a dead-end private room), the ripperdoc (a through room), the
-## security vestibule (may carry the front door) and the kitchenette, each with LayoutRules rows and
-## links, a recipe and pieces of its own (each spawnable, with sane stats); and three flats, the
+## The catalogue's run-down cyberpunk rooms and flats (R11, R12). No floorplan luxury_home,
+## family_home, dining_house or cottage, and no room type kids_room, entry_hall or dining_room, is
+## left in the catalogue, the arrangements, the recipes or LayoutRules. The four cyberpunk room
+## types, the netrunner den (a dead-end private room), the ripperdoc (a through room), the security
+## vestibule (may carry the front door) and the kitchenette, each have LayoutRules rows and links, a
+## recipe and pieces of their own (each spawnable, with sane stats); and the three flats, the
 ## railroad flat, the micro-flat (a studio, a bathroom and a kitchenette) and the corner flat (a
-## short inner hallway and a vestibule), which between them use every new room type, and in which
-## every room of a new type is furnished with its own pieces. That every floorplan passes
+## short inner hallway and a vestibule), between them use every one of those room types, each room
+## of them furnished with its own pieces. That every floorplan passes
 ## LayoutRules and is walkable is house_doorways_connected's check, which covers the new flats with
 ## every other plan.
 

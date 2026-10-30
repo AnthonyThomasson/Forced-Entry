@@ -2,9 +2,9 @@ extends Node
 ## Testing domain: a puppet controller — a character's `control(character, delta)` child (interface
 ## 7) driven by a test instead of a human or an AI. Commands are queued here and carried out on the
 ## character's own frame, through only the published controller API (`movement.move_input`,
-## `movement.aim_point`, `movement.run_input`, `movement.set_posture`, `movement.toggle_crouch`,
-## `weapon.melee`, `anatomy.leg_kick`, `weapon.shoot`, `ammo.reload`, `inventory.select_slot`,
-## `use.interact_with`, `use.end_interaction`, `use.try_use_vehicle`).
+## `movement.aim_point`, `movement.run_input`, `movement.set_posture`, `weapon.melee`,
+## `anatomy.leg_kick`, `weapon.shoot`, `ammo.reload`, `inventory.select_slot`, `use.interact_with`,
+## `use.end_interaction`, `use.try_use_vehicle`).
 ##
 ## Commands return at once; wait on their effect through the TestContext, e.g.
 ## `p.walk_to(spot)` then `await t.until(p.has_arrived, 3.0, "never arrived")`.
@@ -83,11 +83,6 @@ func set_run(on: bool) -> void:
 ## soon as the character allows. `&""` stops asking.
 func set_posture(posture: StringName) -> void:
 	_posture = posture
-
-
-## Press C / Z once (the player's toggles), on the character's next frame.
-func toggle_crouch() -> void:
-	_pending.append(func(c): c.movement.toggle_crouch())
 
 
 ## Stop walking.

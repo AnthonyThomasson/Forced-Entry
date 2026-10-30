@@ -149,17 +149,8 @@ func follow_order(entry: Entry, team: Array) -> void:
 			and not entry.grenade.vetoed(entry, team))
 	if wanted == state.bang:
 		return
-	state.bang = wanted
 	entry.listen.upgraded = false
-	entry.readiness.turned = entry.readiness.turned or wanted
-	if wanted and state.phase == "pie":
-		entry.pie.queue = []
-		entry.approach.set_phase("stack")
-	entry.radio.say(
-		entry,
-		str(entry.radio.last_call.get("entry_step", "claim")),
-		entry.radio.last_call,
-	)
+	entry.listen.turn_bang(entry, wanted)
 
 
 ## Whether the stack holds for the leader's go (LD13): it goes in under an order (`claim`, an
@@ -212,9 +203,9 @@ func recipients() -> Array:
 
 
 ## Whether `member`, a recipient of the order, still lives: as its squad says (`Squad.alive`), else
-## as the radio tells the living.
+## by its `is_dead`.
 func _alive(member: Node) -> bool:
-	if world.squad != null and world.squad.has_method("alive"):
+	if world.squad != null:
 		return world.squad.alive(member)
 	return member.get("is_dead") != true
 

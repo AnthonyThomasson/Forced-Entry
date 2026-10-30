@@ -305,20 +305,26 @@ func _match_status() -> String:
 func _ai_status() -> String:
 	var out: Array = []
 	for c in _combatants():
-		for child in c.get_children():
-			if child.is_in_group(&"npc_controllers"):
-				out.append(child.debug_state())
-				break
+		var brain := _controller_of(c)
+		if brain != null:
+			out.append(brain.debug_state())
 	return "no AI combatants" if out.is_empty() else JSON.stringify(out, "  ")
 
 
 ## The current act of `character`'s AI controller child (the one in the group `npc_controllers`), or
 ## "?" when it has none (e.g. the player).
 func _act_of(character: Node) -> String:
+	var brain := _controller_of(character)
+	return "?" if brain == null else brain.current_act()
+
+
+## `character`'s AI controller: its child in the group `npc_controllers` (interface 7), or null when
+## it has none (e.g. the player). The UI's hud probe finds it the same way; General cannot call it.
+func _controller_of(character: Node) -> Node:
 	for child in character.get_children():
 		if child.is_in_group(&"npc_controllers"):
-			return child.current_act()
-	return "?"
+			return child
+	return null
 
 
 ## Every AI combatant in the running scene, discovered rather than named: a child of the scene root

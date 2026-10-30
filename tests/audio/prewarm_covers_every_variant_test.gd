@@ -25,7 +25,7 @@ func run(t: TestContext) -> void:
 	var seen := {}
 	var wanted := 0
 	for profile in profiles:
-		wanted += Sound._variants_of(profile)
+		wanted += Sound._variant_count(Sound._category_of(profile))
 	for pair in library:
 		seen["%s#%d" % [pair[0], pair[1]]] = true
 	t.expect_eq(library.size(), wanted, "every variant of every profile is listed")
@@ -35,12 +35,17 @@ func run(t: TestContext) -> void:
 		"the first variants come first",
 	)
 	t.expect_eq(
-		Sound._variants_of(&"footstep/wood/walk"),
+		Sound._variant_count(Sound._category_of(&"footstep/wood/walk")),
 		SoundLibraryConfig.category_variants[&"footstep"],
 		"a step has its own variant count",
 	)
 	t.expect_eq(
-		Sound._variants_of(&"shot/pistol"),
+		Sound._variant_count(Sound._category_of(&"shot/pistol")),
 		SoundLibraryConfig.variants,
 		"a shot has the default count",
+	)
+	t.expect_eq(
+		Sound._category_of(&"door/car/open"),
+		&"vehicle",
+		"a vehicle's one-shot is counted by the category it plays under",
 	)

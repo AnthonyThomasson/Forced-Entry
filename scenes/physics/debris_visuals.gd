@@ -13,11 +13,6 @@ func _draw() -> void:
 		"circle":
 			draw_circle(Vector2.ZERO, s.x * 0.5, color)
 		"tri":
-			var pts := PackedVector2Array([
-				Vector2(0.0, -s.y * 0.5),
-				Vector2(s.x * 0.5, s.y * 0.5),
-				Vector2(-s.x * 0.5, s.y * 0.5),
-			])
-			draw_colored_polygon(pts, color)
+			draw_colored_polygon(DebrisLayer.tri(s), color)
 		_:  # "rect"
 			draw_rect(Rect2(-s * 0.5, s), color)

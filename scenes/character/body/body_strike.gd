@@ -32,7 +32,7 @@ static func strike(
 	params.transform = Transform2D(0.0, at)
 	for result in character.get_world_2d().direct_space_state.intersect_shape(params, 8):
 		var body: Node = result.collider
-		if body == character or struck.has(body):
+		if struck.has(body):
 			continue
 		struck[body] = true
 		var pushed := body.has_method("apply_impulse")

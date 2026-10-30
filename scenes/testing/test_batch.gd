@@ -22,7 +22,7 @@ extends RefCounted
 const TestCatalog = preload("res://scenes/testing/test_catalog.gd")
 const TestSessionScript = preload("res://scenes/testing/test_session.gd")
 const LogWatch = preload("res://scenes/testing/log_watch.gd")
-## Where bundles go without `--out` (a run from the editor panel).
+## Where bundles go without `--out` (a run from the editor panel, or the in-game runner without it).
 const BUNDLE_DIR := "user://test_failures"
 ## A native suite's case id: `<its path under tests/, no .gd>::<test function>`
 ## (`general/weighted_pick_suite::test_x`).

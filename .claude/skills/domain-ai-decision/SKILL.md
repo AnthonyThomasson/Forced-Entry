@@ -180,7 +180,7 @@ each hearing the other's radio first. A test raises `per_frame` with `set_static
 ## `decision_client.gd` — the transport
 
 Built and owned by the planner, its child: `DecisionPlanner.setup(decision)` builds it and calls
-`configure(url, model_name, timeout, npc_name = "NPC")` with `tuning.decision`'s `server_url` and `model`; `set_npc_name(npc_name)` (the NPC's
+`configure(url, model_name, timeout, npc_name = "NPC")` with `tuning.decision`'s `server_url` and `model` (the client keeps no defaults of its own: `NpcDecisionTuning` owns the endpoint and the model, below); `set_npc_name(npc_name)` (the NPC's
 name for log lines, from `DecisionPlanner.bind(npc_name)` once the controller has its character); `ask(state_text, instructions, options) -> bool` POSTs ONE `choice`
 question (`pick`) to `/v1/systemone`; `cancel()`.
 - `signal answered(pick, probabilities)` — Von's top pick: the argmax `choice` when it is one of the
@@ -194,7 +194,7 @@ question (`pick`) to `/v1/systemone`; `cancel()`.
   Testing domain sets these (`TestSetup.von_script` / `von_down`; statics restored after each test).
 - `signal failed()` — request couldn't start, transport failure, non-200, malformed or no offered id.
   **A transport failure and an HTTP error answer are reported as different faults**: a 4xx/5xx prints
-  the server's own `{"detail": …}`, never "unreachable". An identical failure is logged only ONCE per
+  the server's own `{"detail": …}` (the static `error_detail(body)`, which the launcher's readiness warning reuses, capped), never "unreachable". An identical failure is logged only ONCE per
   client; a success clears that. The adopted decision log line (`<NPC> (Von) COMBAT - Intruder -
   FLANK - their left side (kitchen)  [combat auto, combat 112ms, flank 96ms]`) is the controller's.
 
@@ -203,7 +203,10 @@ question (`pick`) to `/v1/systemone`; `cancel()`.
 Development convenience: starts a local `von serve` when the game runs **from the editor** (never in
 exported builds) and stops it on exit. Uses `von_path` (defaults to the `application/von/server_path`
 project setting; blank = don't auto-start). A server that can still **decide** on `port` is **reused**
-and left running, decided by probing `port` up to `probe_attempts` times.
+and left running, decided by probing `port` up to `probe_attempts` times. The launcher derives what it starts and probes from
+`NpcDecisionTuning`'s constants, the same ones the NPCs' `tuning.decision.server_url` and `model` default to: `port` is exported
+with `SERVER_PORT` as its default (a test points it at another), and the probe asks `SERVER_HOST`, `SERVER_PATH` and `MODEL`, so
+nothing has to be kept in step by hand.
 
 **It is a root node of `main.tscn`, so all of this runs at SCENE LOAD** — while the pre-game setup
 window is still open, giving the server its whole boot time before the match builds any NPC. Two
@@ -211,7 +214,7 @@ things keep that head start honest:
 - A probe that is **refused** (nothing bound) short-circuits the retry budget and launches at once;
   the retries only pay off for a probe that **times out** (a slow server worth reusing). Otherwise a
   cold start wasted `probe_attempts × probe_interval` before even launching.
-- The probe **POSTs a real decision** to `health_path` (`/v1/systemone`) rather than checking
+- The probe **POSTs a real decision** to `NpcDecisionTuning.SERVER_PATH` (`/v1/systemone`) rather than checking
   `GET /`, because an **orphaned server is worse than an absent one**. A `von serve` left by a
   hard-killed run (no `_exit_tree`) has a dead stdout pipe, so its weight fetch dies on `EPIPE`
   — permanently — while it keeps serving HTTP. A liveness check reuses it forever and every decision
@@ -231,7 +234,7 @@ server; a run with no server still starts (with a warning), just with NPCs that 
 checks `is_resolved()` *before* awaiting, because the exported-build path resolves synchronously in
 `_ready()` — children are readied before their parent, so the signal would otherwise be missed. Any
 new terminal path here MUST resolve, or the setup window hangs forever. Output is appended to `user://von_server.log` and echoed as `[von] …` lines.
-Every NPC shares the one server (its port must match the clients' `server_url`).
+Every NPC shares the one server (the default `server_url` is built from the same `SERVER_PORT` the launcher listens on).
 
 Note: killing a Bash-launched Godot (`godot-run`, step 5) is a hard kill, so `_exit_tree` doesn't run and the Von server it
 spawned is orphaned on port 8000 — `pkill -f "von serve"` clears it, and you should always run it after one. An

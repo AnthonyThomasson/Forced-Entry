@@ -119,13 +119,6 @@ func _add_flag_button(e: Dictionary, flags: Dictionary) -> void:
 	_buttons[e["flag"]] = b
 
 
-## Set a flag's button without emitting (e.g. when something else changed the flag).
-func set_flag(flag: String, on: bool) -> void:
-	if _buttons.has(flag):
-		(_buttons[flag] as Button).set_pressed_no_signal(on)
-		_refresh_bulk()
-
-
 ## A flag's button was toggled: announce it.
 func _on_toggled(on: bool, flag: String) -> void:
 	overlay_toggled.emit(flag, on)

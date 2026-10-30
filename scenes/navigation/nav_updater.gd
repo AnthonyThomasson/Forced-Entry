@@ -25,7 +25,7 @@ extends Node
 var _region: NavigationRegion2D
 var _house: Node2D
 var _rooms: Array = []
-var _agent_radius: float = 14.0
+var _agent_radius: float = NavBuilder.AGENT_RADIUS
 ## Optional furniture-hole debug overlay (nav_debug.gd), re-snapshotted after each re-bake so it
 ## keeps matching the live navmesh. Null when no overlay is wired.
 var _nav_debug: Node = null
@@ -47,7 +47,7 @@ func setup(
 	house: Node2D,
 	rooms: Array,
 	nav_debug: Node = null,
-	agent_radius: float = 14.0,
+	agent_radius: float = NavBuilder.AGENT_RADIUS,
 ) -> void:
 	_region = region
 	_house = house

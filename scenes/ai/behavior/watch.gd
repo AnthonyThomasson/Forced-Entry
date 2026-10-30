@@ -143,7 +143,7 @@ func idle_gaze(delta: float) -> void:
 	var here: Vector2 = _character.global_position
 	if _character.movement.aim_point == Vector2.ZERO:
 		_character.movement.aim_point = here + (_character.facing as Vector2) * 100.0
-	var room: String = _loco.room_key_at(here)
+	var room: String = _perception.confinement.room_at(here)
 	if room != _room or _dwell <= 0.0:
 		_pick_door(room)
 	_dwell -= delta

@@ -84,7 +84,7 @@ the Audio domain turns into a step on the floor under it and the AI hears by (wh
 Tests: `tests/physics/footprints_trail_test.gd`, `tests/audio/footstep_surface_sound_test.gd`, `tests/ai/perception/footsteps_heard_by_gait_test.gd`.
 
 A reload posts `&"reload"` on `EventBus` twice: `stage = &"start"` from `ammo.reload()` and `&"done"` once the timer ends and the
-magazine is swapped (`CharacterAmmo._post`; `{ position` (weapon hand)`, gun, stage, power, character }`). A reload cancelled by
+magazine is swapped (`CharacterAmmo._post`; `{ position` (weapon hand)`, gun, stage, power, character }`; its `character` is read only by the tests). A reload cancelled by
 running, switching items, an interaction or death never posts `done`. Test: `tests/audio/reload_sound_test.gd`.
 
 ## A long gun against a wall (the raise)
@@ -109,7 +109,7 @@ A character is **standing or crouching** (`movement`'s `_posture`, a `CharacterP
 numbers: `docs/cover-and-stance.md`. All of it is the `movement` component's (`character_movement.gd`, `CharacterMovement`) but
 the turning of `facing`, which stays on `character.gd`. (`CharacterStanceConfig.stances` is how a *hand* is held; the body is a *posture*.)
 - **API** (interface 7): `movement.set_posture(p) -> bool` (idempotent, so a controller may write it every frame; refused while dead, in an interaction or
-  within `CharacterPostureConfig.change_time` of the last change), `movement.toggle_crouch()` (C: stand<->crouch); reads `movement.posture()`. The player's key comes from `Keybinds.CROUCH` through `player_controller.gd`; the puppet has `set_posture` / `toggle_crouch`.
+  within `CharacterPostureConfig.change_time` of the last change), `movement.toggle_crouch()` (C: stand<->crouch); reads `movement.posture()`. The player's key comes from `Keybinds.CROUCH` through `player_controller.gd`; the puppet has `set_posture`.
 - **Reads for a controller:** `movement.posture_coverage(posture)` (the body's height on the coverage scale in `stand` / `crouch`: what furniture must stand above to shield it) and
   `movement.run_speed()` / `movement.walk_speed()` (px/s standing, running / walking, as it is now, slower while stunned or weighed down by the outfit): the AI's grenade geometry judges a spot by them and keeps no copy of the numbers
   (`tests/character/posture_and_run_reads_test.gd`).
@@ -144,7 +144,7 @@ The character's `ammo` component (`character_ammo.gd`, `CharacterAmmo`) carries 
 items) beside its inventory: they are never in the inventory's `_items`, so no number key or interaction can select them. They come from
 `ammo.spare_magazine_types` (`MagazineConfig.types` ids, default two standard magazines for each gun; carried from the
 character's `_ready` through `ammo.restock`) and the inventory's `start_rounds` (what the starting gun is loaded with;
-negative = full), which tests and sandboxes set through `actor(..., props)` (`"ammo:spare_magazine_types"`, `"inventory:start_rounds"`). `inventory.set_loadout(kit: CharacterKit)` (`character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"", `grenades` = {}, `weapon_style` = &"police") re-arms a character after the fact (a match gives an NPC or the scene-placed player its gun this way; the kit's `loaded_magazine` picks the type the gun starts loaded with; its `spare_types` go to `ammo.restock`). `ammo.reload()` (R, or the AI's reload
+negative = full), which tests and sandboxes set through `actor(..., props)` (`"ammo:spare_magazine_types"`, `"inventory:start_rounds"`). `inventory.set_loadout(kit: CharacterKit)` (`CharacterKit` is Items' vocabulary, `items/character_kit.gd`, `domain-items`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"", `grenades` = {}, `weapon_style` = &"police") re-arms a character after the fact (a match gives an NPC or the scene-placed player its gun this way; the kit's `loaded_magazine` picks the type the gun starts loaded with; its `spare_types` go to `ammo.restock`). `ammo.reload()` (R, or the AI's reload
 primitive) starts a timer of the held item's `ammo.reload_time()` on it if its `ammo.can_reload(character)` says a carried
 magazine would add rounds, and sets the item's `ammo.reloading` flag (a gun's support hand eases to the `reload`
 stance while it is up). `ammo.update(delta)` runs right after the controller: it cancels the reload when the character
@@ -163,7 +163,7 @@ is still cycling between rounds. `_physics_process` ticks every carried item (`I
 cooldown is in step with the frame that pulls the trigger. A controller re-presses `weapon.shoot()` every frame while the trigger is held when
 `weapon.is_automatic()` (`player_controller.gd` reads `Keybinds.is_fire_pressed()`; the test puppet has `hold_fire(on)`).
 
-**Loadout.** `inventory.set_loadout(kit: CharacterKit)` rebuilds the inventory from `ItemRegistry.inventory_for(slots, start_rounds, loaded_magazine, grenades, weapon_style)` (every item made in that weapon style, `Item.art.style`: looks only), the carried
+**Loadout.** `inventory.set_loadout(kit: CharacterKit)` (the kit is the Items domain's, `items/character_kit.gd`) rebuilds the inventory from `ItemRegistry.inventory_for(slots, start_rounds, loaded_magazine, grenades, weapon_style)` (every item made in that weapon style, `Item.art.style`: looks only), the carried
 magazines and the held slot (dropping any reload, re-judging the raise). A match uses it (`MatchBuilder.arm`, through `LoadoutConfig.apply`) to arm the human and every NPC with its side's loadout — a chosen gun, or one random gun by default
 (`ItemRegistry.loadout_for` / `spares_for`); tests that do not call it keep `default_inventory()` — every item (`inventory.stock()`, at `_ready`, holding the root's `start_slot`).
 
@@ -213,7 +213,7 @@ selects `inventory.gun_slot()` (else the fists). `weapon.aim_target()` is the ai
 Character reads nothing of `GrenadeConfig`), and while it is above 0 `movement`'s `_move_speed()` scales to `CharacterStunConfig.speed`, running is refused, the walk drifts (`stun.drift()`) and the aim sways (`weapon.aim_sway`, by `stun.wander`: two
 out-of-step sines, up to `CharacterStunConfig.sway` degrees x the level). `stun.is_blind()` / `stun.is_deaf()` read it, `stun.update(delta)` counts it down each physics frame and `stun.view()` feeds the UI (`StunScreen`). `blast_push(from, impulse)` is an explosion's hook: a living body is knocked
 back (`apply_impulse`), a dead one's ragdoll (`anatomy.ragdoll`) is woken and thrown (`CharacterRagdoll.blast`). The `throw` stance (`CharacterStanceConfig.stances`) is the wind-up's drawn-back arm.
-`inventory.set_loadout`'s `CharacterKit.grenades` is a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
+`inventory.set_loadout`'s `CharacterKit.grenades` (Items', `domain-items`) is a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
 
 **The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `anatomy.pose.update`'s `PoseDrive` carries the stun level
 (`stun.level()`, on foot and in an interaction; 0 in a ride's frame (`use.hold_frame`), so a ride's pose wins and the look eases back in once out); the pose eases it
@@ -231,7 +231,7 @@ long-gun raise ray, which follows the drawn reach) keep their reach past the lea
 The character's `use` component (`character_use.gd`, `CharacterUse`) composes the Vehicles domain's `CharacterVehicleUse`
 (`scenes/vehicle/character_vehicle_use.gd`, preloaded and added by `use.attach()` in `_ready` beside the interaction) and only forwards: `use.try_use_vehicle()` (E from `player_controller.gd` on
 `Keybinds.is_use_vehicle_just_pressed()`, the puppet's `use_vehicle()`; refused while dead or in an object interaction, and
-stands a crouched character up through its `_stand_if_busy`), `use.vehicle()` and `use.is_in_vehicle()`. `_physics_process` calls
+stands a crouched character up through its `_stand_if_busy`), `use.vehicle()` and `use.is_in_vehicle()` (a test read). `_physics_process` calls
 `use.control(delta)` right after the controller, so the ride overrides that frame's intent (it walks the character to the
 door with `movement.move_input` / `movement.aim_point`, and from the driver's seat hands the keys on to the vehicle). While the ride lasts (`is_active()`)
 `use.is_busy()` is true and `use.try_interact()` / `use.interact_with` are refused.

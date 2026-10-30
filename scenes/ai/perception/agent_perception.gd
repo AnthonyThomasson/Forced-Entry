@@ -352,7 +352,7 @@ func observe(rooms: Array) -> void:
 	if (not tuning.memory.familiar_with_house
 			and not sight.blind
 			and Engine.get_physics_frames() >= house.learn_next):
-		house.learn_by_sight(rooms)
+		house.learn_by_sight()
 	orders.end_ambush_on_contact()
 
 
@@ -366,13 +366,13 @@ func observe(rooms: Array) -> void:
 ## with a frozen copy of its `confinement`.
 ## The author reads this knowledge and the combat geometry only — it writes no memory and holds no
 ## policy.
-func sense(rooms: Array, goal: String, activity: String) -> Dictionary:
+func sense(goal: String, activity: String) -> Dictionary:
 	if not tuning.memory.familiar_with_house and not _character.stun.is_blind():
-		house.learn_by_sight(rooms)
+		house.learn_by_sight()
 	var self_pos: Vector2 = _character.global_position
 	var carried := PerceptionGrenades.carried(_character)
 	var knowledge := {
-		"known_rooms": house.known_rooms(rooms),
+		"known_rooms": house.known_rooms(),
 		"known_room_keys": house.known_room_keys(),
 		"known_object_ids": house.known_object_ids(),
 		"interactables": house.interactables,
@@ -388,7 +388,7 @@ func sense(rooms: Array, goal: String, activity: String) -> Dictionary:
 	}
 	knowledge["contacts"] = contacts.known(self_pos)
 	knowledge["callouts"] = hearing.callouts()
-	var snapshot: Dictionary = _snapshot.build(rooms, goal, activity, knowledge)
+	var snapshot: Dictionary = _snapshot.build(house.rooms, goal, activity, knowledge)
 	# The walk decides over where it may act as it is now, whatever a later tick refreshes.
 	snapshot["confinement"] = confinement.copy()
 	return snapshot

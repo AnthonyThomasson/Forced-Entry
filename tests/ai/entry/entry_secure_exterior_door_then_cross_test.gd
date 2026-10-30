@@ -1,8 +1,8 @@
 extends GameTest
-## E15 as amended (issue #51, R2): with no way round a doorway's view within 2 x the plain route +
+## E15 (issue #51, R2): with no way round a doorway's view within 2 x the plain route +
 ## 300 px, a walk that has to cross it first covers the doorway from beside the jamb, then crosses
-## the view in one go without stopping; it never goes in. Now for a walk outside the house past an
-## exterior door too. The invader stands in the garden west of the Terrace house's living room and
+## the view in one go without stopping; it never goes in, for a walk past an exterior door
+## as inside. The invader stands in the garden west of the Terrace house's living room and
 ## gunfire is heard in the garden south-west of the hall; the only short way there runs down the
 ## west side, across the view out of the front door; round the house's east side is more than twice
 ## as far, past the cap. Real Von: the invader hears the shots and decides for itself; a `require`

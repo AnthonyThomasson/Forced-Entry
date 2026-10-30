@@ -1,5 +1,5 @@
 class_name ObjectArtTableConfig
-## Tables and chairs (scenes/objects/art/): the table top's planks, rim, corners, inset and runner;
+## Tables and chairs (scenes/objects/art/): the table top's planks, rim, corners and inset;
 ## the chair's back and slats; the office chair's base. A `class_name` holder of `static var`s, read
 ## as `ObjectArtTableConfig.<name>`; there is no instance and no autoload. A piece's catalogue
 ## `art_opts` overrides a painter knob for that piece only, keyed by the knob's name without its
@@ -14,10 +14,6 @@ static var table_corner_radius: int = 3
 ## A recessed centre panel (`table_inset`), inset `table_inset_margin` art px from the edge.
 static var table_inset: bool = false
 static var table_inset_margin: int = 7
-## A cloth runner down the long axis: its width as a fraction of the short side, and its color.
-static var table_runner: bool = false
-static var table_runner_width: float = 0.26
-static var table_runner_color: Color = Color(0.5, 0.42, 0.3)
 ## Depth of the back (rail + slat gap) as a fraction of the chair's depth.
 static var chair_back_depth: float = 0.26
 ## Spindles between the back rail and the seat.

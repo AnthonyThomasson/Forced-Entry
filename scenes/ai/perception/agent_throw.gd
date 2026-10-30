@@ -190,6 +190,13 @@ func _zone_radius(kind: StringName, radius: float) -> float:
 	return radius + evade_margin if kind == &"frag" else radius
 
 
+## How far (px) from the burst of grenade `threat` (its kind and danger radius) a spot is out of
+## its zone with room to spare: the zone and `OUTSIDE_SLACK`. The circle of escape candidates lies
+## on it, and a spot at least this far off is safe standing.
+func _out_radius(threat: GrenadeThreat) -> float:
+	return _zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
+
+
 ## Whether a body `height` tall at `p` is inside the danger zone of grenade `threat` (its kind, its
 ## danger radius and where it bursts; the fuse is not read): within the zone's reach and not
 ## shielded from the burst. `exclude` holds the characters' rids (bodies stop nothing).
@@ -201,22 +208,9 @@ func in_zone(
 	exclude: Array,
 ) -> bool:
 	return (p.distance_to(threat.burst) <= _zone_radius(threat.kind, threat.radius)
-			and not shielded(
+			and not Explosion.shields(
 				space, threat.burst, p, _cover_rule(height, exclude, cover_reach(threat.kind))
 			))
-
-
-## Whether something between `burst` and `p` shields a body at `p` by `cover` (its height, the rids
-## the line passes through, the reach): a wall, or furniture taller than the body, by the blast's
-## own rule (`Explosion.shields`). With a finite reach (a stun's flash, `cover_reach`) a piece of
-## furniture only stops the line when `p` is within that many px of it, on the burst's side.
-func shielded(
-	space: PhysicsDirectSpaceState2D,
-	burst: Vector2,
-	p: Vector2,
-	cover: CoverRule,
-) -> bool:
-	return Explosion.shields(space, burst, p, cover)
 
 
 ## How near (px) a body must be to furniture for it to shield it from a burst of `kind`: a stun's
@@ -246,17 +240,17 @@ func escape(
 	exclude: Array,
 ) -> Dictionary:
 	var from := runner.from
-	var out_r := _zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
+	var out_r := _out_radius(threat)
 	var standing := _cover_rule(_stand, exclude, cover_reach(threat.kind))
 	# Candidates often repeat (the standing and the crouching probe meet the same wall) and snap
 	# onto the same spot, so each point is snapped, each spot judged and each route measured once:
 	# the same answers, in the same order.
 	var shared := _shared_burst(space, threat.burst, out_r, exclude, threat.kind)
 	var on_mesh: Dictionary = _shared_snaps(map)  # candidate -> its spot on the navmesh
-	# spot -> NOT_SAFE, or whether it is safe only crouched
+	# spot -> its verdict (`SAFE_STANDING` / `SAFE_CROUCHED` / `NOT_SAFE`)
 	var judged: Dictionary = shared["judged"]
 	var spots: Array = []
-	for p in [from] + shared["around"] + _ring(from):
+	for p in _candidates(from, shared["around"]):
 		var q: Vector2 = on_mesh.get(p, Vector2.INF)
 		if q == Vector2.INF:
 			q = NavBuilder.snap(map, p)
@@ -286,7 +280,7 @@ func _judge(
 	q: Vector2,
 	standing: CoverRule,
 ) -> int:
-	if (q.distance_to(threat.burst) >= _zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
+	if (q.distance_to(threat.burst) >= _out_radius(threat)
 			or _covered(space, threat.burst, q, standing)):
 		return SAFE_STANDING
 	var crouched := _cover_rule(_crouch, standing.exclude, standing.cover_reach)
@@ -383,23 +377,18 @@ func _covered(
 	cover: CoverRule,
 ) -> bool:
 	var side := (p - burst).normalized().orthogonal() * COVER_MARGIN
-	return (shielded(space, burst, p, cover)
-			and shielded(space, burst, p + side, cover)
-			and shielded(space, burst, p - side, cover))
+	return (Explosion.shields(space, burst, p, cover)
+			and Explosion.shields(space, burst, p + side, cover)
+			and Explosion.shields(space, burst, p - side, cover))
 
 
-## The candidate spots for an escape (unsnapped, unjudged): where the NPC stands (already behind
-## cover that shields a crouched body, it need not move), the circle just outside the zone of the
-## grenade `threat`, the shadows behind the obstacles a ray from its burst meets, and a ring round
-## `from`. `exclude` holds the characters' rids.
-func _candidates(
-	space: PhysicsDirectSpaceState2D,
-	threat: GrenadeThreat,
-	from: Vector2,
-	exclude: Array,
-) -> Array:
-	var out_r := _zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
-	return [from] + _around(space, threat.burst, out_r, exclude, threat.kind) + _ring(from)
+## The candidate spots for an escape (unsnapped, unjudged), in the order they are judged: where the
+## NPC stands at `from` (already behind cover that shields a crouched body, it need not move), the
+## candidates `around` the burst (`_around`: the circle just outside the zone and the shadows behind
+## the obstacles a ray from it meets), and a ring round `from`. `escape` builds its list here, and
+## the tests' plain search compares against the same list (`tests/_ai/grenade_ai_probe.gd`).
+func _candidates(from: Vector2, around: Array) -> Array:
+	return [from] + around + _ring(from)
 
 
 ## The candidates that depend on the burst alone: the circle `out_r` round it and the shadows behind
@@ -536,4 +525,4 @@ func lob_clear(
 	to: Vector2,
 	exclude: Array,
 ) -> bool:
-	return not shielded(space, from, to, _cover_rule(LOB_CLEARANCE, exclude, INF))
+	return not Explosion.shields(space, from, to, _cover_rule(LOB_CLEARANCE, exclude, INF))

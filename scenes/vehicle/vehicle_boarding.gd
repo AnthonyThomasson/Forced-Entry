@@ -193,7 +193,7 @@ func _wait_for_door(delta: float) -> void:
 ## with nobody at the wheel slides across to it first.
 func _sit() -> void:
 	phase = Phase.SEATED
-	vehicle.cabin.close_door(door)
+	door.close()
 	if seat == &"passenger" and vehicle.cabin.is_free(&"driver"):
 		vehicle.cabin.reserve(character, &"driver")
 		_begin_pose(
@@ -218,7 +218,7 @@ func _start_if_driving() -> void:
 func _give_up() -> void:
 	character.movement.move_input = Vector2.ZERO
 	vehicle.cabin.release(character)
-	vehicle.cabin.close_door(door)
+	door.close()
 	phase = Phase.DONE
 
 
@@ -286,7 +286,7 @@ func _open_out() -> void:
 func _step_off() -> void:
 	phase = Phase.DONE
 	vehicle.cabin.release(character)
-	vehicle.cabin.close_door(_exit_door)
+	_exit_door.close()
 	character.use.end_ride()
 
 

@@ -8,10 +8,14 @@ var house: Node2D
 ## The house's rooms, `{ rect, ... }` dicts (world-space `rect`), whose bounds are walkable.
 var rooms: Array = []
 ## The agent radius the bake erodes by, px.
-var agent_radius: float = 14.0
+var agent_radius: float = NavBuilder.AGENT_RADIUS
 
 
-func _init(of_house: Node2D = null, of_rooms: Array = [], radius: float = 14.0) -> void:
+func _init(
+	of_house: Node2D = null,
+	of_rooms: Array = [],
+	radius: float = NavBuilder.AGENT_RADIUS,
+) -> void:
 	house = of_house
 	rooms = of_rooms
 	agent_radius = radius

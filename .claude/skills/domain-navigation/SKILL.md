@@ -10,7 +10,7 @@ domains (a plain `rooms` array + a Node), depending only on Godot's `NavigationS
 
 ## Baking
 
-`NavBuilder.build(house, rooms, parent, agent_radius=14.0) -> NavigationRegion2D` bakes one
+`NavBuilder.build(house, rooms, parent, agent_radius = AGENT_RADIUS) -> NavigationRegion2D` bakes one
 `NavigationRegion2D` whose walkable area is the house footprint (union of `rooms` rects, grown by
 `BOUNDS_PAD` = 160 px so a walkable **outdoor ring** surrounds the house — characters that start
 outside, like the invader NPC, can path around it to the front entrance) minus the house's **static** wall colliders (parsed via `NavigationServer2D`), so doorways — gaps in the
@@ -28,7 +28,7 @@ NavigationServer cannot merge ("navigation map synchronization error"). Overlapp
 then fused (`_union_outlines`, which skips the polygon merge for two outlines whose bounding boxes are apart: the union would keep them as two; `tests/navigation/furniture_union_fast_path_test.gd` pins it to the every-pair merge) and every outline is snapped to the 1 px grid with repeated points dropped (`_on_grid`). The bake runs in the
 house's local frame and the region is offset by `house.position`, so the map lands in world space.
 The composition root's match builder (`MatchBuilder.stage`, Main's match and every test world alike) calls it once after the house is built. `build` and every re-bake share one private path,
-`_source_for` (gathers the source geometry of a `NavSite`, `nav_site.gd`: the house, its rooms and the agent radius) then `_bake_job` (bakes it), so both carve furniture holes identically.
+every bake gathers through `_source_for` (the source geometry of a `NavSite`, `nav_site.gd`: the house, its rooms and the agent radius), so all carve furniture holes identically; the sync ones bake through `_bake_job`, `_rebake_async` on the worker thread. The first bake and the re-bakes share one agent radius, `NavBuilder.AGENT_RADIUS` (14 px), the default of every `agent_radius` (`NavSite`, `nav_updater.gd`).
 
 ## Characters at rest are holes too (the steering map)
 
@@ -51,7 +51,7 @@ accounts for is the walker's business (the AI goes round by it only for a body i
 `nav_updater.gd` re-bakes it through the domain-internal `_rebake_steering`; the public `rebake_steering(region, house, rooms)` is a
 test-facing seam that measures its own footprints.
 
-**Every bake is welded** (`_weld_vertices`, run by `_bake_job`, by `_rebake_async` when its bake lands and by the avoid bake, `_bake_avoid`): it merges the vertices that
+**Every bake is welded** (every bake ends with `_finish`: `_weld_vertices`, then `_drop_slivers`; run by `_bake_job`, by `_rebake_async` when its bake lands and by the avoid bake, `_bake_avoid`): it merges the vertices that
 share a 1 px cell, because a hole meeting a wall leaves vertices a fraction of a pixel apart and the server rejects such an edge
 ("navigation map synchronization error"). A character's hole does it, and so does a piece of furniture's, a turned chair beside a wall for one,
 so the planning re-bake welds too (`tests/navigation/furniture_beside_wall_bakes_clean`, `character_beside_wall_bakes_clean`).
@@ -83,7 +83,7 @@ Invalid when the region has no bake to start from. The world's own map and the s
 The holes a `build` carves are a snapshot of where the furniture stood at bake time. Furniture is
 `RigidBody2D` and gets shoved around in play, so those holes go stale. The game re-bakes through the domain-internal
 `_rebake_async` / `_rebake_steering`, which `nav_updater.gd` drives (below). `NavBuilder.rebake(region,
-house, rooms, agent_radius=14.0)`, `rebake_async(region, house, rooms, agent_radius, done)` and `rebake_steering` are
+house, rooms, agent_radius = AGENT_RADIUS)`, `rebake_async(region, house, rooms, agent_radius, done)` and `rebake_steering` are
 **test-facing seams** over the same bakes that measure their own footprints; only tests call them. `rebake` re-bakes `region`'s polygon **in place** (same region + world
 offset; reassigning `navigation_polygon` re-registers the mesh) with the holes re-measured at the
 furniture's **current** positions — `furniture_holes` reads each collider's live `global_transform`,
@@ -96,7 +96,7 @@ down mid-bake; `tests/navigation/rebake_outlives_region`). The sync `rebake`
 is for a test that needs the map now (`perf/bake_and_path_stress` times it); the re-baker bakes on the worker thread, so no
 frame pays for a bake (`tests/navigation/rebake_runs_off_the_main_thread_test.gd`).
 
-`nav_updater.gd` (a script-only Node; `main.gd` builds it once right after the bake and hands it the
+`nav_updater.gd` (a script-only Node; `MatchBuilder.stage` builds it once right after the bake and hands it the
 region, house, rooms and the overlay) drives the re-bake on an interval. Each tick it recomputes
 `furniture_holes` and `character_holes` (cheap — transforms only, no bake) and re-bakes **only** when a piece moved past
 `move_threshold` (4 px): furniture re-bakes both regions (the planning one on the server's worker thread, `_rebake_async`; a
@@ -111,7 +111,7 @@ from its neighbours' line and measures again only the two neighbours of a droppe
 (`tests/navigation/outline_simplify_matches_plain_test.gd`). `furniture_holes` finds the pieces with `find_children` (depth first, as a walk
 of the house's nodes would) and keeps each body's hull (`_hulls`) with what it was made from (`_hull_inputs`: each shape's global
 transform and size, radius or points), so only a piece that moved, turned or was dented is measured again
-(`tests/navigation/furniture_holes_follow_the_pieces_test.gd`). After a re-bake (once the planning one lands) it calls the overlay's `setup`
+(`tests/navigation/furniture_holes_follow_the_pieces_test.gd`). After each tick's re-bake, and again when the planning one lands, it calls the overlay's `setup`
 again so the overlay re-snapshots. **Bulldozing is still the behaviour between re-bakes** (and for
 non-solid decor, which is never carved): a piece just shoved is run over by the character's push
 physics until the next re-bake routes paths around its new position.
@@ -144,10 +144,10 @@ The AI's `Locomotion` (`reachable`, `on_navmesh`, the steering-map choice), `age
 global — not per-NPC) that draws the furniture HOLES carved out of the navmesh as filled polygons +
 outlines. `MatchBuilder.stage` builds it once right after the bake: `nav_debug.setup(house)` snapshots the holes
 via `NavBuilder.furniture_holes(house)`, and `show_holes` toggles it (`MatchBuilder.set_overlay`, from the toggle bar's
-"Navigation holes" button; in Main's match it starts at the registry's default — off — unless a saved toggle in `Settings.overlays` overrides it).
+"Navigation holes" button; in Main's match it starts at the registry's default — off — unless a saved toggle in `Settings.overlays` overrides it, and only with Debug on).
 `furniture_holes(house) -> Array` returns each solid piece's grown footprint as a closed WORLD-space
 polygon, using the exact same selection and footprint helpers the bake feeds the obstruction baker
-(`_add_furniture_holes` calls it), so the overlay cannot drift from what was carved. `nav_updater.gd`
+(`_source_for` measures them with it and hands them to `_add_furniture_holes`), so the overlay cannot drift from what was carved. `nav_updater.gd`
 calls `setup` again after each re-bake, so the overlay **re-snapshots** and follows the furniture
 to its current positions. The characters' holes are drawn too, in another colour. The overlay reads nothing back and feeds nothing in.
 

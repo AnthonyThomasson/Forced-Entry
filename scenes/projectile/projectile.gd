@@ -100,6 +100,30 @@ func _physics_process(delta: float) -> void:
 			return
 
 
+## Post the world `&"hit"` event for `info` striking `body`, so decoupled listeners (the AI's combat
+## awareness, the Audio domain) learn that something was struck, where, and by whom (`attacker`, or
+## null). The event also says how the striker met the surface: `outcome` (a bullet's &"ricochet" /
+## &"blocked" / &"penetrate", a blast's &"blast"), the struck `surface`'s `material` ("" for a
+## wall), the `speed_factor` it hit at and its penetration `power`: the `penetration_power` of the
+## bullet that struck (`info.source`), 1 for a striker with none (a blast). The bullets and the
+## grenade's blast (`Explosion`) both post through it.
+static func post_hit(
+	body: Node,
+	info: HitInfo,
+	attacker: Node,
+	outcome: StringName,
+	surface: Dictionary,
+) -> void:
+	var power: Variant = info.source.get(&"penetration_power") if info.source != null else null
+	EventBus.post(&"hit", {
+		"position": info.position, "victim": body,
+		"direction": info.direction, "damage": info.damage,
+		"attacker": attacker,
+		"outcome": outcome, "material": String(surface.get("material", "")),
+		"speed_factor": info.speed_factor, "power": float(power) if power != null else 1.0,
+	})
+
+
 ## Raycast from the current position to `to`, skipping already-handled colliders.
 func _sweep(to: Vector2) -> Dictionary:
 	var space := get_world_2d().direct_space_state
@@ -297,19 +321,11 @@ func _find_exit(info: HitInfo, entry: Vector2, rid: RID, travel: Vector2) -> voi
 		skip.append(found.rid)
 
 
-## Hand the hit to the object (if hittable), re-emit `hit`, and post a world `&"hit"` event so
-## decoupled listeners (the AI's combat awareness) learn that something was struck, where, and by
-## whom (`attacker` = the shooter, or null). The event also says how the round met the surface:
-## `outcome` (&"ricochet" / &"blocked" / &"penetrate"), the struck `material` ("" for a wall), the
-## `speed_factor` it hit at and the round's penetration `power`.
+## Hand the hit to the object (if hittable), re-emit `hit`, and post the world `&"hit"` event
+## (`post_hit`, `attacker` = the shooter, or null) with its `outcome` (&"ricochet" / &"blocked" /
+## &"penetrate").
 func _deal(body: Node, info: HitInfo, outcome: StringName, surface: Dictionary) -> void:
 	if body.has_method("take_hit"):
 		body.take_hit(info)
 	hit.emit(body, info.damage)
-	EventBus.post(&"hit", {
-		"position": info.position, "victim": body,
-		"direction": info.direction, "damage": info.damage,
-		"attacker": ignore if is_instance_valid(ignore) else null,
-		"outcome": outcome, "material": String(surface.get("material", "")),
-		"speed_factor": info.speed_factor, "power": penetration_power,
-	})
+	post_hit(body, info, ignore if is_instance_valid(ignore) else null, outcome, surface)

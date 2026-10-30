@@ -33,6 +33,16 @@ static func layer(parent: Node) -> DebrisLayer:
 	return _get_or_make(parent, NODE_NAME, DebrisLayer) as DebrisLayer
 
 
+## A "tri" chip `s` px across, point up, round its centre: the flying chip (`debris_visuals.gd`)
+## draws it too, so a chip lands looking as it flew.
+static func tri(s: Vector2) -> PackedVector2Array:
+	return PackedVector2Array([
+		Vector2(0.0, -s.y * 0.5),
+		Vector2(s.x * 0.5, s.y * 0.5),
+		Vector2(-s.x * 0.5, s.y * 0.5),
+	])
+
+
 ## Draw `chips` on `item` in one triangle array (General's FillBatch), oldest first, each moved to
 ## its own place and turn: the shapes `debris_visuals.gd` draws (its disc, triangle or rect, both
 ## convex so added uncut), the same pixels for a fraction of the commands.
@@ -51,19 +61,10 @@ static func _draw_chips(item: CanvasItem, chips: Array) -> void:
 			"circle":
 				batch.circle(Vector2.ZERO, s.x * 0.5, color, xform)
 			"tri":
-				batch.fill_convex(_tri(s), color, xform)
+				batch.fill_convex(tri(s), color, xform)
 			_:  # "rect"
 				batch.fill_convex(_rect(s), color, xform)
 	batch.flush()
-
-
-## A "tri" chip `s` px across, point up, round its centre.
-static func _tri(s: Vector2) -> PackedVector2Array:
-	return PackedVector2Array([
-		Vector2(0.0, -s.y * 0.5),
-		Vector2(s.x * 0.5, s.y * 0.5),
-		Vector2(-s.x * 0.5, s.y * 0.5),
-	])
 
 
 ## A "rect" chip `s` px across, round its centre.
@@ -85,7 +86,7 @@ static func _draw_each(item: CanvasItem, chips: Array, to_world: Transform2D) ->
 			"circle":
 				item.draw_circle(Vector2.ZERO, s.x * 0.5, color)
 			"tri":
-				item.draw_colored_polygon(_tri(s), color)
+				item.draw_colored_polygon(tri(s), color)
 			_:  # "rect"
 				item.draw_rect(Rect2(-s * 0.5, s), color)
 

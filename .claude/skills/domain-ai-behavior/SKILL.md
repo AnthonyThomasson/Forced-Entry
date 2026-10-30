@@ -26,7 +26,7 @@ Files:
 - `search_coverage.gd` — covering a room by sight (`RefCounted`; `domain-ai-coverage`).
 - `watch.gd` + the watch stage of `behavior.gd` — where it looks and when it takes the shot, in every primitive (`RefCounted`; `domain-ai-watch`, spec `docs/gaze-and-fire.md`).
 - `entry.gd` — a tactical entry through a doorway, as a team member or alone (`RefCounted`; `domain-ai-entry`, spec `docs/tactical-entry.md`).
-- `locomotion.gd` — the pathing layer (a `Node` child of behaviour); owns the NavigationAgent2D and answers `room_key_at(p)`. Its parts, in
+- `locomotion.gd` — the pathing layer (a `Node` child of behaviour); owns the NavigationAgent2D. Its parts, in
   `locomotion/`, each built once with it and holding it (a node): `crowd` (`loco_crowd.gd`, the bodies a walk accounts for and the holds),
   `give_way` (`loco_give_way.gd`), `stall` (`loco_stall.gd`, the stuck overlay's sampling) and `doors` (`loco_doors.gd`, the walk round the doorway views).
 
@@ -200,8 +200,8 @@ an unreachable target it steps toward the closest reachable point. Furniture phy
 (a piece shoved off its baked hole) is bulldozed by the character's own push physics; there is no RVO
 avoidance and no straight-at-the-destination fallback. `reachable(p)` snaps a point onto the navmesh
 (every leaf destination goes through it); `reached(point, within := 0)` reports arrival (at the free spot it took, below; never while held).
-Falls back to straight-line steering with no agent (arriving within `tuning.pace.arrive_dist`, read live; `setup(agent, tuning)`). It also holds the house `rooms` (set by `Behavior`) and answers `room_key_at(p)`
-for the move's `arrive_room` test, the coverage module and the watch (where an NPC may fight is the perception's
+Falls back to straight-line steering with no agent (arriving within `tuning.pace.arrive_dist`, read live; `setup(agent, tuning)`). It also holds the house `rooms` (set by `Behavior`); which room a point lies in
+(the move's `arrive_room` test, the coverage module and the watch) they ask `perception.confinement.room_at` (where an NPC may fight is the perception's
 `confinement`). `reachable` / `on_navmesh` always use the plain map.
 
 **Characters (issue #53).** A walk accounts for the characters the NPC KNOWS of and never walks into one: `Behavior` hands it

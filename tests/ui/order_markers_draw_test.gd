@@ -1,5 +1,5 @@
 extends GameTest
-## LD12 / D5 (`docs/leadership.md`): the order markers (`scenes/ui/hud/order_markers.gd`,
+## LD12 / D5 (`docs/leadership.md`): the order markers (`scenes/ui/command/order_markers.gd`,
 ## `OrderMarkers`, drawn at `DrawLayers.ABOVE`), built only when the human leads. A marker on each
 ## member's order target and the selection highlight (who leads is the squad-leaders debug
 ## overlay's, `leader_overlay_draw_test.gd`). A decoupled observer: `watch(view_callable)` polls the

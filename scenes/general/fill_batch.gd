@@ -84,19 +84,31 @@ func circle(center: Vector2, radius: float, color: Color, xform := Transform2D.I
 	_add_fan(xform * Transform2D(0.0, Vector2(radius, radius), 0.0, center) * _UNIT_CIRCLE, color)
 
 
-## Add the convex `placed` (canvas px) in `color` as a fan from its first corner (`_fans`).
-func _add_fan(placed: PackedVector2Array, color: Color) -> void:
-	var base := _points.size()
-	var n := placed.size()
+## The corners of `draw_circle`'s 64-gon round the unit circle, point `i` at angle `i * TAU / 64`
+## (kept; the Character's `BodyMeshes.Solid` builds its discs from it too).
+static func unit_circle() -> PackedVector2Array:
+	return _UNIT_CIRCLE
+
+
+## The triangles of a fan (corner 0 with each pair of neighbours) over `n` corners numbered from
+## `base`, three indices each (kept by `(base, n)`; `BodyMeshes.Solid` fans its shapes with it too).
+static func fan(base: int, n: int) -> PackedInt32Array:
 	var key := Vector2i(base, n)
-	var fan: Variant = _fans.get(key)
-	if fan == null:
+	var kept: Variant = _fans.get(key)
+	if kept == null:
 		var made := PackedInt32Array()
 		for i in range(1, n - 1):
 			made.append_array([base, base + i, base + i + 1])
 		_fans[key] = made
-		fan = made
-	_indices.append_array(fan)
+		kept = made
+	return kept
+
+
+## Add the convex `placed` (canvas px) in `color` as a fan from its first corner (`fan`).
+func _add_fan(placed: PackedVector2Array, color: Color) -> void:
+	var base := _points.size()
+	var n := placed.size()
+	_indices.append_array(fan(base, n))
 	_points.append_array(placed)
 	var tint := PackedColorArray()
 	tint.resize(n)

@@ -116,11 +116,6 @@ func open_door(which: VehicleDoor) -> void:
 		)
 
 
-## Close `which` (the slam is posted when it shuts).
-func close_door(which: VehicleDoor) -> void:
-	which.close()
-
-
 ## The door `character`, in `seat`, gets out by: `own` (the one it got in by) when clear, else the
 ## nearest clear door whose seat is its own or empty; null when none is clear.
 func exit_door(character: Node2D, seat: StringName, own: VehicleDoor) -> VehicleDoor:

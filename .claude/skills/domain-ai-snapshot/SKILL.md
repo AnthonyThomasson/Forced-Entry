@@ -41,12 +41,11 @@ Files:
 
 Add a **fact** in the `facts` literal of `_facts()`; a **section** as a `*_text` function in `snapshot_sections.gd` plus a key in
 `_state_sections()`'s `sections` dict (and list it in the tree level that shows it); an **option group** as a `*_group` function in
-`snapshot_options.gd` plus a key in `_option_groups()`'s `options` dict. A fact the tree does not gate on is available vocabulary for new rules
-(`tools/audit_scan.py facts` lists those).
+`snapshot_options.gd` plus a key in `_option_groups()`'s `options` dict. A fact the tree does not gate on is available vocabulary for new rules.
 
 ## The snapshot (what the planner walks) — built by `agent_snapshot.gd`
 
-The face's `sense(rooms, goal, activity)` gathers the knowledge (contacts, callouts,
+The face's `sense(goal, activity)` gathers the knowledge (contacts, callouts,
 learned rooms/objects, lost hostiles) and hands it to `agent_snapshot.gd`'s
 `build(rooms, goal, activity, knowledge)` (the knowledge carrying the `contacts` and the `callouts` heard), which assembles the snapshot
 below from that knowledge + the tactics geometry. The author reads the memory and tactics modules
@@ -58,7 +57,8 @@ lives in `agent_snapshot.gd`.
   `weapon_low` (at or below `low_ammo_fraction` of its magazine, empty included), `can_reload` (a carried magazine would add
   rounds), `under_fire`, `engaged`, `leads`, `lead_outside` (the NPC is inside the house and an offered lead lies outside it:
   gates the `stay` child of INVESTIGATE), `hurt` (its damage taken has reached `hurt_threshold`), `inside` (it stands in a room of the
-  house), `exposed` (a clear line to the hostile it lists first, or under fire with no hostile known), and the grenade ones: `grenade_ready` (some known hostile has a `grenade_throws` option),
+  house), `exposed` (a clear line to the hostile it lists first, or under fire with no hostile known) (these three are offered
+  vocabulary: no tree node or entry rule gates on them yet; the brain overlay and `debug_state().facts` read them), and the grenade ones: `grenade_ready` (some known hostile has a `grenade_throws` option),
   `stack_has_stun` (it carries a stun, or a teammate's entry callout says `stuns` > 0, read through `StackClaim.decode`: gates STUN ENTRY), `ordered` (it holds a live order from its
   leader, `docs/leadership.md` LD5: gates the ORDER node and its entry rule), `follows` (it follows its squad's leader, `Squad.follows`, from
   the knowledge's `follows`, which the controller sets on the perception every tick, LD19: gates the FOLLOW node and its entry rule). The brain overlay shows the ones that hold.

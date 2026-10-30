@@ -1,5 +1,5 @@
 extends GameTest
-## LD11 (`docs/leadership.md`): the command menu (`scenes/ui/hud/command_menu.gd`,
+## LD11 (`docs/leadership.md`): the command menu (`scenes/ui/command/command_menu.gd`,
 ## `PROCESS_MODE_ALWAYS`). Right-click (`Keybinds.COMMAND`, right mouse by default) pauses the tree
 ## and opens a menu on what is under the cursor, hit-tested from plain dicts:
 ## - a doorway: "Stack into the <room> (quiet)" and "Stack into the <room> with stun", the second

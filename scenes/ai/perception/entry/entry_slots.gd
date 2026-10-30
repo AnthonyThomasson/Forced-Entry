@@ -10,6 +10,7 @@ extends RefCounted
 ## The entry geometry this part is one of, handed in at the call (never held: it holds the part).
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
+const AgentDoorViews := preload("res://scenes/ai/perception/agent_door_views.gd")
 ## How far (px) past the jamb the first slot of a file stands.
 const SLOT_JAMB := 18.0
 ## Where a stack may stand (`lay`, E20 to E22): a slot stays this far (px) inside its room's
@@ -40,15 +41,16 @@ const WALL_GRID := 8.0
 const VIEW_MARGIN := 10.0
 ## Outdoors, how far (px) along the house's wall from the doorway a file may run.
 const OUTDOOR_REACH := 320.0
-## The open-floor fallback: the grid (px) its spots are sought on, finer (`OPEN_GRID_FINE`) for a
-## dead end whose room holds fewer than a full stack on it; the most search steps the dead end's
-## packing takes; how far (px) from its doorway a tail member holds.
+## The open-floor fallback: the grid (px) its spots are sought on, and the finer one
+## (`OPEN_GRID_FINE`) when an exact pick holds fewer than wanted on the coarse one.
 const OPEN_GRID := 8.0
 const OPEN_GRID_FINE := 4.0
 ## Outdoors, how far (px) along the house's wall either side of the door, and out from it, a short
 ## wall's overflow is sought.
 const OUTDOOR_FLOOR := 300.0
+## The most steps any `_most_spaced` search takes.
 const PACK_BUDGET := 200_000
+## How far (px) from its doorway a tail member holds.
 const TAIL_REACH := 140.0
 
 ## Every way into a room through every doorway, framed (`_door_frames`).
@@ -64,15 +66,8 @@ func on_stack_side(entry: AgentEntry, g: Dictionary, p: Vector2) -> bool:
 		"half": float(g["width"]) * 0.5, "from": str(g.get("from", "")),
 		"from_rect": g.get("from_room", Rect2()),
 	}
-	if not _in_stack_side(entry, c, p):
-		return false
-	for f: Dictionary in _door_frames(entry):
-		var rel: Vector2 = p - (f["pos"] as Vector2)
-		if (f["id"] != c["id"]
-				and absf(rel.dot(f["along"])) < float(f["half"]) + AgentEntry.SLOT_BODY
-				and absf(rel.dot(f["out"])) < StackClaim.FUNNEL_DEPTH):
-			return false
-	return true
+	return (_in_stack_side(entry, c, p)
+			and not _in_other_funnel(entry, c, p, AgentEntry.SLOT_BODY))
 
 
 # --- Where a stack stands (E20 to E22) -----------------------------------------------------------
@@ -96,7 +91,8 @@ func on_stack_side(entry: AgentEntry, g: Dictionary, p: Vector2) -> bool:
 ##   doorway this is): no wall slots.
 ## `wall_n` is how many slots the wall (or the fewest-seen spots) holds; the members past them
 ## follow `seq` (`_overflow`). `from` is the key of the room the stack stands in ("" outside the
-## house), `from_room` its rect (zero outside).
+## house), `from_room` its rect (zero outside) and `from_depth` how far (px) it runs out from the
+## door's wall (INF outside).
 func lay(
 	entry: AgentEntry,
 	g: Dictionary,
@@ -112,6 +108,8 @@ func lay(
 	g["from"] = from
 	# The room the stack stands in (a zero rect: the open, outside the house).
 	g["from_room"] = c["from_rect"]
+	g["from_depth"] = (INF if (c["from_rect"] as Rect2).size == Vector2.ZERO
+			else AgentEntry.wall_length(c["from_rect"], g["pos"], g["out"]))
 	if _has_wall_spot(entry, c, false):
 		_lay_wall(entry, g, c, bands, from == "" or dead_end)
 	elif _has_wall_spot(entry, c, true):
@@ -144,7 +142,7 @@ func _stack_context(
 ) -> Dictionary:
 	return {
 		"id": g["id"], "pos": g["pos"], "out": g["out"], "along": g["along"],
-		"half": float(g["width"]) * 0.5, "from": from, "from_rect": entry._room_rect(from),
+		"half": float(g["width"]) * 0.5, "from": from, "from_rect": entry.views.room_rect(from),
 		"map": map, "space": space,
 		"start": NavBuilder.snap(
 			map,
@@ -296,7 +294,7 @@ func _has_wall_spot_on(entry: AgentEntry, c: Dictionary, s: int, with_views: boo
 	var along: Vector2 = (c["along"] as Vector2) * s
 	var reach := OUTDOOR_REACH
 	if c["from"] != "":
-		reach = _edge_along(
+		reach = AgentEntry.wall_length(
 			c["from_rect"],
 			pos + out * entry.wall_standoff,
 			along,
@@ -341,7 +339,7 @@ func _band(entry: AgentEntry, c: Dictionary, s: int, step: float) -> Array:
 	var along: Vector2 = (c["along"] as Vector2) * s
 	var reach := OUTDOOR_REACH
 	if c["from"] != "":
-		reach = _edge_along(c["from_rect"], pos, along)
+		reach = AgentEntry.wall_length(c["from_rect"], pos, along)
 	var band: Array = []
 	var lateral: float = c["half"] + AgentEntry.SLOT_BODY
 	while lateral <= reach:
@@ -517,8 +515,7 @@ func _slot_ok(c: Dictionary, p: Vector2, with_views: bool, open: bool, routed :=
 	var lateral := absf(rel.dot(c["along"]))
 	var outward := rel.dot(c["out"])
 	var on_axis_or_funnel: bool = (
-		lateral < AgentEntry.SLOT_BODY
-		or (lateral < c["half"] and absf(outward) < StackClaim.FUNNEL_DEPTH)
+		lateral < AgentEntry.SLOT_BODY or StackClaim.in_funnel(outward, lateral, c["half"])
 	)
 	if open and on_axis_or_funnel:
 		return false
@@ -564,15 +561,15 @@ func _reached(c: Dictionary, p: Vector2) -> bool:
 	return ok
 
 
-## Whether `p` stands in the fatal funnel of a doorway other than `c`'s (within its width and
-## `StackClaim.FUNNEL_DEPTH` of its wall plane).
-func _in_other_funnel(entry: AgentEntry, c: Dictionary, p: Vector2) -> bool:
+## Whether `p` stands in the fatal funnel of a doorway other than `c`'s (`StackClaim.in_funnel`:
+## within its width, grown by `margin` past its jambs, and `StackClaim.FUNNEL_DEPTH` of its wall
+## plane).
+func _in_other_funnel(entry: AgentEntry, c: Dictionary, p: Vector2, margin := 0.0) -> bool:
 	for f: Dictionary in _door_frames(entry):
 		if f["id"] == c["id"]:
 			continue
 		var rel: Vector2 = p - (f["pos"] as Vector2)
-		if (absf(rel.dot(f["along"])) < f["half"]
-				and absf(rel.dot(f["out"])) < StackClaim.FUNNEL_DEPTH):
+		if StackClaim.in_funnel(rel.dot(f["out"]), rel.dot(f["along"]), f["half"], margin):
 			return true
 	return false
 
@@ -606,7 +603,7 @@ func _door_frames(entry: AgentEntry) -> Array:
 		return frames
 	for o in entry._openings:
 		for k in o.get("rooms", []):
-			var rect := entry._room_rect(str(k))
+			var rect: Rect2 = entry.views.room_rect(str(k))
 			if rect.size == Vector2.ZERO:
 				continue
 			frames.append(_door_frame(entry, o, rect))
@@ -619,23 +616,12 @@ func _door_frame(entry: AgentEntry, o: Dictionary, rect: Rect2) -> Dictionary:
 	var out := -AgentEntry.normal_into(rect, pos)
 	var along := out.orthogonal()
 	var half := float(o.get("width", 80.0)) * 0.5
-	var corners := [
-		rect.position,
-		Vector2(rect.end.x, rect.position.y),
-		rect.end,
-		Vector2(rect.position.x, rect.end.y),
-	]
-	corners.sort_custom(func(a, b): return (a - pos).dot(out) < (b - pos).dot(out))
 	var jamb_a := pos - along * half
 	var jamb_b := pos + along * half
-	var for_a: Vector2 = (corners[0]
-			if (corners[0] - pos).dot(along) > (corners[1] - pos).dot(along)
-			else corners[1])
-	var for_b: Vector2 = corners[1] if for_a == corners[0] else corners[0]
-	var quad := PackedVector2Array([
-		jamb_a, jamb_a + (jamb_a - for_a).normalized() * entry.views.door_view_depth,
-		jamb_b + (jamb_b - for_b).normalized() * entry.views.door_view_depth, jamb_b,
-	])
+	var ends: Array = AgentDoorViews.view_ends(
+		rect, pos, out, [jamb_a, jamb_b], entry.views.door_view_depth
+	)
+	var quad := PackedVector2Array([jamb_a, ends[0], ends[1], jamb_b])
 	return {
 		"id": AgentEntry.opening_id(o),
 		"pos": pos,
@@ -843,13 +829,13 @@ func _tail_door(entry: AgentEntry, c: Dictionary) -> Dictionary:
 	return best
 
 
-## The tail's ground, as `_slot_ok` and `_in_stack_side` read a stack's (`_stack_context`): doorway
-## frame `best` (`_tail_door`) of the stack of `c`, standing in the room beyond it.
+## The tail's ground, as `_in_stack_side` and `_in_other_funnel` read a stack's (`_stack_context`):
+## doorway frame `best` (`_tail_door`) of the stack of `c`, standing in the room beyond it.
 func _tail_context(entry: AgentEntry, c: Dictionary, best: Dictionary) -> Dictionary:
-	var beyond := _other_room(entry._opening(best["id"]), c["from"])
+	var beyond: String = _other_room(entry.views.opening_of(best["id"]), c["from"])
 	return {
 		"id": best["id"], "pos": best["pos"], "out": best["out"], "along": best["along"],
-		"half": best["half"], "from": beyond, "from_rect": entry._room_rect(beyond),
+		"half": best["half"], "from": beyond, "from_rect": entry.views.room_rect(beyond),
 		"map": c["map"], "space": c["space"], "reach": {},
 	}
 
@@ -930,21 +916,10 @@ func _tail_grid(entry: AgentEntry, tc: Dictionary) -> Array:
 func _tail_floor_ok(entry: AgentEntry, tc: Dictionary, p: Vector2, lat: float, o: float) -> bool:
 	return (p.distance_to(tc["pos"]) <= TAIL_REACH
 			and absf(lat) >= AgentEntry.SLOT_BODY
-			and (absf(lat) >= float(tc["half"]) or o >= StackClaim.FUNNEL_DEPTH)
+			and not StackClaim.in_funnel(o, lat, float(tc["half"]))
 			and NavBuilder.snap(tc["map"], p).distance_to(p) <= SLOT_SNAP
 			and _in_stack_side(entry, tc, p)
 			and not _in_other_funnel(entry, tc, p))
-
-
-## How far (px) from `p` along the axis `dir` to the edge of `rect`.
-func _edge_along(rect: Rect2, p: Vector2, dir: Vector2) -> float:
-	if dir.x > 0.5:
-		return rect.end.x - p.x
-	if dir.x < -0.5:
-		return p.x - rect.position.x
-	if dir.y > 0.5:
-		return rect.end.y - p.y
-	return p.y - rect.position.y
 
 
 ## How far (px) `p` lies from the nearest edge of polygon `poly`.

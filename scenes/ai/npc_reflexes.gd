@@ -41,7 +41,6 @@ func follow_squad() -> void:
 	var behavior: Node = controller._behavior
 	var follows: bool = (squad != null
 			and is_instance_valid(squad)
-			and squad.has_method("follows")
 			and squad.follows(controller._character))
 	controller._perception.follows = follows
 	if follows != _follows:

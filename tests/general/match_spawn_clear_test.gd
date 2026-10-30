@@ -1,9 +1,9 @@
 extends GameTest
 ## Main drops defenders where they can stand: never inside a solid piece of furniture and never on
 ## top of another defender. World-gen puts a free-standing piece (a bed, an island, a table) at a
-## room's dead centre first, so a defender dropped at the centre used to spawn inside it; the first
-## physics step ejected the piece, which handed its momentum back and flung the defender across the
-## map (seen most in endless runs). A unit test of the placement rule inside the match module: it
+## room's dead centre first, so a defender dropped at the centre would spawn inside it, and the
+## first physics step would eject the piece, which hands its momentum back and flings the defender
+## across the map. A unit test of the placement rule inside the match module: it
 ## runs the match spawner (`match_spawner.gd`, which `MatchBuilder.populate` places every match's
 ## NPCs through) on the test's own world, into the one room the test picks, which no match spec can
 ## pin.

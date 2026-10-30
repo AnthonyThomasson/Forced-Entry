@@ -126,7 +126,7 @@ func _draw() -> void:
 		return
 	redraws += 1
 	draw_order.clear()
-	var rig: Rig = _rig if _rig != null else anatomy.rig()
+	var rig := _drawn_rig()
 	if draws_laid_out():
 		_draw_lying(rig)
 		return
@@ -141,9 +141,9 @@ func _draw_shadow() -> void:
 	if rd != null:
 		shadow.draw_fallen(rd)
 	elif draws_laid_out():
-		shadow.draw_fallen(_rig if _rig != null else _character.anatomy.rig())
+		shadow.draw_fallen(_drawn_rig())
 	else:
-		var rig: Rig = _rig if _rig != null else _character.anatomy.rig()
+		var rig := _drawn_rig()
 		var shift := shadow.shift()
 		shadow.draw_standing(rig, shift, _draw_shoulders_shadow(rig, shift))
 
@@ -154,13 +154,13 @@ func _draw_standing(rig: Rig) -> void:
 	var pose: Pose = _character.anatomy.pose
 	# The shoulders sit where the rig puts the chest: the torso's lunge, plus the forward shift of a
 	# folded spine, so the sleeves meet them in a crouch.
-	var lunge := _rig_xy(rig, Rig.CHEST)
-	var deformable = _character.anatomy.deformable
+	var lunge := shoulder_centre()
+	var deformable: Deformable = _character.anatomy.deformable
 	# Impacts are recorded relative to the shoulders (character.take_hit), so they turn with them.
-	var impacts := _turned(deformable.impacts if deformable else [], pose.torso_angle)
+	var impacts := _turned(deformable.impacts, pose.torso_angle)
 	# The same wounds in the character's frame, for the parts.
 	var placed := _shifted(impacts, lunge)
-	var damage_total: float = deformable.damage_total if deformable else 0.0
+	var damage_total: float = deformable.damage_total
 	var item: Item = _character.inventory.current_item()
 
 	for chain in limbs.chains(rig):  # The legs, then the arms.
@@ -182,7 +182,7 @@ func _draw_standing(rig: Rig) -> void:
 		if not hung.has(hand) and pose.arms.grip_height(hand) < HAND_ON_FACE_HEIGHT:
 			_draw_hand(hand, pose.hand_angles[hand] - PI * 0.5, placed, damage_total)
 	draw_order.append(&"hands")
-	_draw_head(pose, rig, placed, damage_total)  # The highest part: over the gun and the fists.
+	_draw_head(pose, placed, damage_total)  # The highest part: over the gun and the fists.
 	draw_order.append(&"head")
 	_draw_face_hands(pose, placed, damage_total)
 	# Wound marks over everything, so a hit hand shows its wound: dark-red holes and cracks that
@@ -248,10 +248,9 @@ func _redraw_key_of(rig: Rig) -> PackedInt32Array:
 	for hand in 2:
 		# A punch swings a long gun round.
 		key.append(roundi(_hands.punch_amount(hand) / REDRAW_RAISE_STEP))
-	var deformable = anatomy.deformable
-	if deformable:
-		key.append(deformable.impacts.size())
-		key.append(roundi(deformable.damage_total * 100.0))
+	var deformable: Deformable = anatomy.deformable
+	key.append(deformable.impacts.size())
+	key.append(roundi(deformable.damage_total * 100.0))
 	key.append(dress.look_key)
 	return key
 
@@ -263,15 +262,21 @@ func drawn_art() -> Array:
 	return art.duplicate()
 
 
-## Where the standing body's shoulders are drawn (local px): the rig's chest, so the sleeves meet
-## them.
+## Where the standing body's shoulders are drawn (local px): the drawn rig's chest, so the sleeves
+## meet them.
 func shoulder_centre() -> Vector2:
-	return _rig_xy(_character.anatomy.rig(), Rig.CHEST)
+	return _rig_xy(_drawn_rig(), Rig.CHEST)
 
 
-## Where the standing body's head is drawn (local px): the rig's head.
+## Where the standing body's head is drawn (local px): the drawn rig's head.
 func head_centre() -> Vector2:
-	return _rig_xy(_character.anatomy.rig(), Rig.HEAD)
+	return _rig_xy(_drawn_rig(), Rig.HEAD)
+
+
+## The skeleton the body and its shadow are drawn from: the one solved for this frame's repaint
+## (`_rig`), else the anatomy's.
+func _drawn_rig() -> Rig:
+	return _rig if _rig != null else _character.anatomy.rig()
 
 
 ## The floor-plane (x, y) of rig `joint`, dropping its height.
@@ -338,19 +343,16 @@ func _shoulder_art(angle: float) -> Texture2D:
 ## shifted from the light (`shift`, per px of height). Returns where it lies.
 func _draw_shoulders_shadow(rig: Rig, shift: Vector2) -> Vector2:
 	var pose: Pose = _character.anatomy.pose
-	var deformable = _character.anatomy.deformable
-	var impacts := _turned(deformable.impacts if deformable else [], pose.torso_angle)
+	var deformable: Deformable = _character.anatomy.deformable
+	var impacts := _turned(deformable.impacts, pose.torso_angle)
 	var size := _shoulder_size()
 	var angle: float = pose.torso_angle - PI * 0.5
-	var poly := Deformation.shape_polygon("circle", size, impacts)
-	# Undented, it is the intact ring already.
-	if not impacts.is_empty() and not Deformation.is_valid_polygon(poly):
-		poly = Deformation.base_ring("circle", size)
+	var poly := Deformation.drawable_polygon("circle", size, impacts)
 	# The shoulders' lunge, shifted from the light.
 	var lift := BodyShadow.cast(rig.point(Rig.CHEST), shift)
 	shadow.meshes.draw(
 		Transform2D(0.0, lift) * poly,
-		_texture_uvs(poly, size, angle),
+		Deformation.texture_uvs(poly, size, angle),
 		_shoulder_art(angle),
 		Color.BLACK,
 		Rect2(lift - size * 0.5, size),  # The round footprint: dents only cave in.
@@ -358,24 +360,9 @@ func _draw_shoulders_shadow(rig: Rig, shift: Vector2) -> Vector2:
 	return lift
 
 
-## Where each point of `poly` (local px) falls on art `size` px across drawn turned by `angle` about
-## its centre: the uvs `Deformation.draw_shape` maps its texture with (the point turned back by
-## `angle`, over the size, from the art's centre).
-static func _texture_uvs(
-	poly: PackedVector2Array,
-	size: Vector2,
-	angle: float,
-) -> PackedVector2Array:
-	var c := cos(angle)
-	var s := sin(angle)
-	var to_uv := Transform2D(Vector2(c / size.x, -s / size.y), Vector2(s / size.x, c / size.y),
-			Vector2(0.5, 0.5))
-	return to_uv * poly
-
-
 ## The head at the pose's offset and angle, casting its shadow onto the shoulders first (the head
 ## sits above them, so its silhouette darkens them a few px away from the light).
-func _draw_head(pose: Pose, rig: Rig, impacts: Array, damage_total: float) -> void:
+func _draw_head(pose: Pose, impacts: Array, damage_total: float) -> void:
 	var px := ArtCanvasConfig.pixel_size
 	var side := (float(HeadPainter.canvas_for(HeadPainter.radius_for(roundi(_character.radius * 2.0
 			/ px)))) * px)
@@ -388,10 +375,8 @@ func _draw_head(pose: Pose, rig: Rig, impacts: Array, damage_total: float) -> vo
 		PixelArt.snap_angle(angle),
 		dress.head_opts,
 	)
-	var at := _rig_xy(rig, Rig.HEAD)  # The pose's offset, plus the neck's pitch in a crouch.
-	var toward := -ArtCanvasConfig.light_from.normalized()
-	var drop := global_transform.basis_xform_inv(toward).normalized() \
-		* ArtCanvasConfig.cast_shadow_px * px
+	var at := head_centre()  # The pose's offset, plus the neck's pitch in a crouch.
+	var drop := PixelArt.away_from_light(self) * ArtCanvasConfig.cast_shadow_px * px
 	draw_set_transform(at + drop, angle, Vector2.ONE)
 	draw_texture_rect(
 		tex,
@@ -454,19 +439,18 @@ func _round_look(
 
 ## A round part (`size` px across) drawn as `look` says, through its silhouette dented by `impacts`,
 ## at the draw transform, its hit marks left for later: what `Deformation.draw_shape` draws, in a
-## kept mesh (`meshes`): the polygon and uvs `draw_shape` maps the art onto (`_texture_uvs`), in
+## kept mesh (`meshes`): the polygon and uvs `draw_shape` maps the art onto
+## (`Deformation.drawable_polygon`, `Deformation.texture_uvs`), in
 ## white darkened as it darkens it (`Deformation.darken`). Without meshes (`BodyMeshes.enabled`)
 ## `draw_shape` draws it.
 func _draw_round(size: Vector2, impacts: Array, look: ShapeLook) -> void:
 	if not BodyMeshes.enabled:
 		Deformation.draw_shape(self, "circle", size, impacts, look)
 		return
-	var poly := Deformation.shape_polygon("circle", size, impacts)
-	if not impacts.is_empty() and not Deformation.is_valid_polygon(poly):
-		poly = Deformation.base_ring("circle", size)
+	var poly := Deformation.drawable_polygon("circle", size, impacts)
 	meshes.draw(
 		poly,
-		_texture_uvs(poly, size, look.texture_angle),
+		Deformation.texture_uvs(poly, size, look.texture_angle),
 		look.texture,
 		Color.WHITE.darkened(Deformation.darken(look.damage_total)),
 		Rect2(-size * 0.5, size),

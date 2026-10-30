@@ -150,7 +150,7 @@ static func spawn(parent: Node, hit: HitInfo, surface: Dictionary, kind: Kind,
 ## when the normal is degenerate), or for an exit on along the shot past the exit normal.
 static func _direction(hit: HitInfo, kind: Kind) -> Vector2:
 	if kind != Kind.EXIT:
-		return hit.normal if hit.normal.length() > 0.001 else -hit.direction
+		return hit.spray_direction()
 	var out := hit.exit_normal if hit.exit_normal.length() > 0.001 else hit.direction
 	return (out + hit.direction).normalized()
 

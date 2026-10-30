@@ -45,6 +45,9 @@ const CIRCLE_SEGMENTS := 10
 ## Slack (px) around an outline's box when deciding whether two outlines could overlap.
 const BOUNDS_EPSILON := 0.5
 const HULLS_KEPT := 512
+## The agent radius (px, the character body's) every bake erodes the map by unless handed another:
+## the first bake (`build`) and the re-bakes (`nav_updater.gd`, `NavSite`) share it.
+const AGENT_RADIUS := 14.0
 
 ## The steering map made for each world navigation map (planning map RID -> steering map RID), and
 ## how many steering regions stand on it. The map is freed with its last region.
@@ -82,7 +85,7 @@ static func build(
 	house: Node2D,
 	rooms: Array,
 	parent: Node,
-	agent_radius: float = 14.0,
+	agent_radius: float = AGENT_RADIUS,
 ) -> NavigationRegion2D:
 	var job := _source_for(NavSite.new(house, rooms, agent_radius))
 	if job.is_empty():
@@ -119,7 +122,7 @@ static func rebake(
 	region: NavigationRegion2D,
 	house: Node2D,
 	rooms: Array,
-	agent_radius: float = 14.0,
+	agent_radius: float = AGENT_RADIUS,
 ) -> void:
 	var job := _source_for(NavSite.new(house, rooms, agent_radius))
 	if job.is_empty():
@@ -136,7 +139,7 @@ static func rebake_steering(
 	region: NavigationRegion2D,
 	house: Node2D,
 	rooms: Array,
-	agent_radius: float = 14.0,
+	agent_radius: float = AGENT_RADIUS,
 ) -> void:
 	_rebake_steering(
 		region,
@@ -169,8 +172,8 @@ static func steering_region(region: NavigationRegion2D) -> NavigationRegion2D:
 ## NavigationAgent2D should walk (`agent.set_navigation_map`): paths on it route around the
 ## characters at rest. Invalid (keep the planning map) when no steering region is on it, so an agent
 ## in a world that never baked one walks the plain map. Named from the moment `build` has added the
-## steering region, before the map has synchronized (Main drops the NPCs in within that same frame;
-## whether the map answers queries yet is `ready`).
+## steering region, before the map has synchronized (whether it answers yet is `ready`, which
+## `MatchBuilder.stage` waits on).
 static func steering_map(planning_map: RID) -> RID:
 	if int(_steering_regions.get(planning_map, 0)) > 0:
 		return _steering_maps.get(planning_map, RID())
@@ -260,7 +263,7 @@ static func _new_map() -> RID:
 ## steering one is re-baked by `rebake_steering`. A test-facing seam that measures its own
 ## footprints; `nav_updater.gd` drives `_rebake_async`.
 static func rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array,
-		agent_radius: float = 14.0, done: Callable = Callable()) -> void:
+		agent_radius: float = AGENT_RADIUS, done: Callable = Callable()) -> void:
 	_rebake_async(region, NavSite.new(house, rooms, agent_radius), furniture_holes(house), done)
 
 
@@ -280,8 +283,7 @@ static func _rebake_async(region: NavigationRegion2D, site: NavSite, furniture: 
 	# torn down mid-bake).
 	var region_ref: WeakRef = weakref(region)
 	NavigationServer2D.bake_from_source_geometry_data_async(nav_poly, job["source"], func() -> void:
-		_weld_vertices(nav_poly, origin)
-		_drop_slivers(nav_poly)
+		_finish(nav_poly, origin)
 		var target := region_ref.get_ref() as NavigationRegion2D
 		if target != null:
 			target.navigation_polygon = nav_poly
@@ -293,10 +295,10 @@ static func _rebake_async(region: NavigationRegion2D, site: NavSite, furniture: 
 ## bounds minus the static wall colliders (doorways stay open) minus each solid furniture footprint
 ## (carved as a hole) and minus each of `characters` (footprints from `character_holes`; none = the
 ## planning bake). Returns null if there are no rooms. In the house's LOCAL frame — the region
-## offsets it into world space. `build` bakes its steering region's first polygon with it. It goes
-## through `_source_for` + `_bake_job` like every other bake, so all carve furniture holes
-## identically, and `_bake_job` welds the result to the 1 px grid (`_weld_vertices`): every hole
-## that meets a wall, a character's and a piece of furniture's, needs it.
+## offsets it into world space. `build` bakes its steering region's first polygon with it. It
+## gathers through `_source_for`, as the planning and steering bakes do, so all carve furniture
+## holes identically, and bakes through `_bake_job`, whose `_finish` welds the result to the 1 px
+## grid: every hole that meets a wall, a character's and a piece of furniture's, needs it.
 static func _bake_polygon(site: NavSite, characters: Array = []) -> NavigationPolygon:
 	var job := _source_for(site, characters)
 	if job.is_empty():
@@ -309,9 +311,15 @@ static func _bake_polygon(site: NavSite, characters: Array = []) -> NavigationPo
 static func _bake_job(job: Dictionary, origin: Vector2) -> NavigationPolygon:
 	var nav_poly: NavigationPolygon = job["poly"]
 	NavigationServer2D.bake_from_source_geometry_data(nav_poly, job["source"])
+	_finish(nav_poly, origin)
+	return nav_poly
+
+
+## What every bake ends with, once its polygon is baked: the vertices welded to the 1 px grid
+## (`_weld_vertices`) and the slivers dropped (`_drop_slivers`); `origin` is the region's offset.
+static func _finish(nav_poly: NavigationPolygon, origin: Vector2) -> void:
 	_weld_vertices(nav_poly, origin)
 	_drop_slivers(nav_poly)
-	return nav_poly
 
 
 ## Everything a bake needs, gathered on the main thread: the polygon to bake into (`poly`, with the
@@ -335,8 +343,8 @@ static func _source_for(site: NavSite, characters: Array = [], furniture: Varian
 
 	var source := NavigationMeshSourceGeometryData2D.new()
 	# Obstructions: the house's static colliders (walls), on the map's grid (`_walls_of`, or `walls`
-	# when the caller parsed them this frame). Parsing resets the source data, so it comes before
-	# the traversable footprint is added.
+	# when the caller parsed them this frame). Setting the parsed outlines replaces the source's
+	# lists, so it comes before the footprint is added.
 	var parsed := walls if not walls.is_empty() else _walls_of(house, site.agent_radius)
 	source.set_traversable_outlines(parsed["traversable"])
 	source.set_obstruction_outlines(parsed["obstruction"])
@@ -705,8 +713,8 @@ static func _footprint_world(
 	return out
 
 
-## The polygon with the most points from `polys` (Geometry2D.offset_polygon's output), or `fallback`
-## when it is empty.
+## The polygon with the most points among `polys` (Geometry2D.offset_polygon's output) and
+## `fallback` (`fallback` on a tie).
 static func _largest_polygon(polys: Array, fallback: PackedVector2Array) -> PackedVector2Array:
 	var best := fallback
 	for poly in polys:
@@ -833,8 +841,7 @@ static func _bake_avoid(region: NavigationRegion2D, entry: Dictionary, holes: Ar
 	entry["baking"] = true
 	entry["version"] = int(stored["version"])
 	NavigationServer2D.bake_from_source_geometry_data_async(nav_poly, source, func() -> void:
-		_weld_vertices(nav_poly, origin)
-		_drop_slivers(nav_poly)
+		_finish(nav_poly, origin)
 		entry["baking"] = false
 		var avoid_region := instance_from_id(region_id) as NavigationRegion2D
 		if avoid_region != null:

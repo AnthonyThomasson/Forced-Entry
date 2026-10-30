@@ -27,7 +27,7 @@ the footsteps; once dead it steps the ragdoll and, once it has settled, bleeds o
 an interaction holds the body (`use.hold_frame`); `wound_by(hit)` dents, throws the blood debris and starts the bleeding; `die()` drops the
 rig, stops the bleeding, sets `CharacterArtConfig.ragdoll_z_index` and frees the shadow; `fall(momentum, direction)` lets the legs and the
 kick go and builds the ragdoll; `turn_shadow()` turns the shadow with the facing. Its reads: `rig()` / `invalidate_rig()` (below),
-`leg_kick()` / `is_kicking()` / `leg_kick_amount(i)` (the kick, below).
+`leg_kick()` / `is_kicking()` (a test read) / `leg_kick_amount(i)` (the kick, below).
 
 ## Animate and draw
 
@@ -50,7 +50,7 @@ kick go and builds the ragdoll; `turn_shadow()` turns the shadow with the facing
   to `REDRAW_POS_STEP` (0.1 px) and `REDRAW_ANGLE_STEP` (0.02 rad), below a visible pixel at the body's
   size; `queue_redraw()` (body and shadow) runs only when the key changes. A character standing still drifts
   by less than a step most frames (breath, glance), so it repaints about once in 15 frames; a walking one
-  every frame. `redraws` counts the standing body's draws for tests, and `drawn_art()` returns the textures the last draw painted (limbs, fists,
+  every frame. `redraws` counts the standing body's draws for tests, and `drawn_art()` (a test read) returns the textures the last draw painted (limbs, fists,
   shoulders or trunk faces, head; not the held item), standing, crouched or fallen: pixel art is cached by what it depicts, so the same drawing gives the
   same textures (`tests/character/outfit_art_test.gd` reads it). A new input to the standing draw must
   join `_redraw_key_of`, or the body will not repaint when it changes. Test:
@@ -67,7 +67,7 @@ kick go and builds the ragdoll; `turn_shadow()` turns the shadow with the facing
   `meshes`, one on its shadow, `shadow.meshes`): every limb segment, the shoulders, fists and head (`_draw_round`: the polygon and uvs
   `Deformation.draw_shape` would map the art onto, from the published `shape_polygon` / `is_valid_polygon` / `base_ring`, in white
   darkened by `Deformation.darken(damage_total)`), the shoulders' floor shadow and a folded or fallen trunk's faces, and the standing
-  floor shadow's plain black shapes as one mesh (`BodyMeshes.Solid`: gathered as `FillBatch` gathers them, drawn black). A mesh is cut
+  floor shadow's plain black shapes as one mesh (`BodyMeshes.Solid`: gathered as `FillBatch` gathers them, from `FillBatch`'s public unit circle and fan statics, `FillBatch.unit_circle()` / `FillBatch.fan(base, n)`, interface 11, drawn black). A mesh is cut
   by `Geometry2D.triangulate_polygon` (the engine's own cut of the polygon: a fan differs at a few edge pixels) and drawn in the
   polygon's colour as its modulate (both full floats, so exact; a mesh's vertex colours would be 8-bit), its corners and uvs written
   into its buffers in place (`mesh_surface_update_vertex_region` / `_attribute_region`, only what changed), rebuilt only when its
@@ -82,7 +82,7 @@ kick go and builds the ragdoll; `turn_shadow()` turns the shadow with the facing
   `tests/character/body_mesh_matches_polygons_test.gd` checks which parts are meshes and, windowed, renders frozen bodies (walking,
   running, damaged, crouched, falling) with meshes off, on and off, every pixel the same (#78).
   The body's and the shadow's draws share one set of limb chains (`limbs.chains`, `body_limbs.gd`, built once for both, dropped (`limbs.drop()`) at every `_process`). Capsules, the shoulders'
-  shadow uvs and a segment's uvs are each one transform of a unit outline (`BodyLimbs.capsule`, `_texture_uvs`; float rounding only) and the
+  shadow uvs and a segment's uvs are each one transform of a unit outline (`BodyLimbs.capsule`, `Deformation.texture_uvs`; float rounding only) and the
   trunk's slices the plain point sums with the shadow's shift in place of a callable;
   A limb capsule whose ends' radii differ by less than `BodyLimbs.CAP_CONVEX` of its length is convex and goes into a batch as a fan, uncut
   (`BodyLimbs.convex`, `BodyLimbs.fill_capsule`). The trunk's outline takes a union that comes out in one piece as it is, without weighing its area.
@@ -265,7 +265,7 @@ over from the last frame (`_stack`, `_order`): a pair swaps only once their heig
   `FOLD_DRAW` is drawn by `_draw_lying`: `laid.draw(rig, false, weapon)` (a lofted trunk showing its back, the limbs by height), then the weapon and
   fists on top, with its shadow from `shadow.draw_fallen`. A crouched body's 25° pitch turns the top most to the camera, so its trunk is the back's
   art (seam, backpack, the vest's back panel and plate wear) with the shoulders' over it.
-  **Arms:** the shoulders sprite and head are drawn at the rig's `CHEST` / `HEAD` xy (`shoulder_centre()` / `head_centre()` on the visuals), so a
+  **Arms:** the shoulders sprite and head are drawn at the rig's `CHEST` / `HEAD` xy (`shoulder_centre()` / `head_centre()` on the visuals, which the draw reads, over the rig it draws, `_drawn_rig()`), so a
   crouch's forward lean carries them with the sleeves. `movement.posture_hand_ahead()` (`body_crouch_hand_ahead` x `movement.posture_folded()`) is added to every
   hand's stance `forward` (`CharacterHands._raw_hand_position`) and to the wall-raise ray's reach, so the arms keep their reach past the leaning
   chest. **A long gun at a wall:** `weapon.blocked()` is judged in every posture and the gun is raised (`raised_stance`) whatever the posture. A pistol is

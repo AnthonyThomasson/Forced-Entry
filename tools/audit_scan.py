@@ -12,10 +12,15 @@
            scene symbols referenced only from tests/ or tools/, and the test and tool declarations nothing
            references. Matching is by token, so a same-named member of another class hides a dead one.
   signals  every signal with its emit sites and its listeners (connect / await / .tscn wiring).
-  facts    keys the decision snapshot writes into `facts` that no tree node, entry rule, test or tool
-           gates on (and whether the skills/docs describe them as available vocabulary).
-  events   every EventBus topic posted, how many listeners handle it, and each payload key it writes with
-           how many reads it has outside the posting files (production vs. tests/tools).
+  facts    keys the decision snapshot writes into `facts` that nothing gates on: gated = named in a `requires`
+           array of decision_tree.gd, a key of an `entry_rules` dictionary (the tuning's default and any preset
+           scene's), or a quoted name on a test's or tool's line that reads `facts` / `requires` /
+           `entry_rules` (and whether the skills/docs describe the rest as available vocabulary).
+  events   every EventBus topic posted from scenes/ (each `EventBus.post(...)` read with balanced brackets, so a
+           post spread over lines or with a trailing comma counts), how many listeners test for it (a script on
+           `EventBus.posted` comparing the topic with `==` / `!=` or in a `match` branch), and each payload key of
+           a dict-literal post with how many reads it has outside the posting files (production vs. tests/tools);
+           a post whose payload is a variable is listed as "payload not scanned".
 
 Reads files only (no Godot needed). A hit is a lead: dynamic dispatch (duck-typed controllers,
 gcmd `Expression` eval, scene-wired signals) can hide a real use, so confirm by hand. The coverage tool's fixture
@@ -253,21 +258,106 @@ def signals() -> None:
             print(f"  {p}:{line:<4} {s:<22} emit={emits} listeners={listeners}{flag}")
 
 
+def gated_facts() -> set:
+    """The fact names something gates on: a `requires` entry of the decision tree, a key of an `entry_rules`
+    dictionary (the tuning's default and any preset scene's), or a quoted name on a line of a test or a tool that
+    reads `facts`, `requires` or `entry_rules` (any other quoted word there, an actor's name or an option's tag, is
+    not a gate)."""
+    gated = set()
+    for m in re.finditer(r"\"requires\"\s*:\s*\[(.*?)\]", read("scenes/ai/decision/decision_tree.gd"), re.S):
+        gated.update(re.findall(r"&?\"!?(\w+)\"", m.group(1)))
+    for p in source_files():
+        if p.endswith((".gd", ".tscn")) and p.startswith("scenes"):
+            for m in re.finditer(r"entry_rules\b[^=\n]*=\s*\{(.*?)\}", read(p), re.S):
+                gated.update(re.findall(r"&?\"(\w+)\"\s*:", m.group(1)))
+        elif p.startswith(("tests", "tools")) and p != os.path.join("tools", "audit_scan.py"):
+            for line in read(p).split("\n"):
+                if re.search(r"\bfacts\b|requires|entry_rules", line):
+                    gated.update(re.findall(r"&?\"!?([a-z_]+)\"", line))
+    return gated
+
+
 def facts() -> None:
     print("== Snapshot facts nothing gates on ==")
     snap = "scenes/ai/perception/agent_snapshot.gd"
     body = re.search(r"var facts := \{(.*?)\n\t\}", read(snap), re.S)
     keys = re.findall(r"\"([a-z_]+)\"\s*:", body.group(1)) if body else []
-    code = "\n".join(read(p) for p in source_files() if p != snap)
     docs = "\n".join(Path(q).read_text(errors="ignore") for r in (".claude", "docs") if os.path.isdir(r)
                      for q in Path(r).rglob("*.md"))
-    ungated = [k for k in keys if not re.search(r"\"!?" + k + "\"|&\"!?" + k + "\"", code)]
+    gated = gated_facts()
+    ungated = [k for k in keys if k not in gated]
     for k in ungated:
         where = "documented as available" if re.search(r"`" + k + "`", docs) else "not documented either"
         print(f"  {k:<18} {where}")
     if not ungated:
         print("  (every fact is gated on somewhere)")
-    print(f"  ({len(keys)} facts written by {snap}; 'gated' = a tree `requires`, entry rule, test or tool names it)")
+    print(f"  ({len(keys)} facts written by {snap}; 'gated' = named in a `requires` of decision_tree.gd, a key of "
+          "an `entry_rules`, or a quoted name on a test's or tool's `facts` / `requires` / `entry_rules` line)")
+
+
+def _close(text: str, i: int) -> int:
+    """The index just past the bracket that closes the one at `text[i]` (strings skipped), or len(text)."""
+    pairs = {"(": ")", "{": "}", "[": "]"}
+    stack, quote = [], None
+    for j in range(i, len(text)):
+        c = text[j]
+        if quote:
+            if c == quote and text[j - 1] != "\\":
+                quote = None
+        elif c in "\"'":
+            quote = c
+        elif c in pairs:
+            stack.append(pairs[c])
+        elif stack and c == stack[-1]:
+            stack.pop()
+            if not stack:
+                return j + 1
+    return len(text)
+
+
+def _first_top_comma(text: str) -> int:
+    """The index of the first comma outside brackets and strings in `text`, or -1."""
+    depth, quote = 0, None
+    for j, c in enumerate(text):
+        if quote:
+            if c == quote and text[j - 1] != "\\":
+                quote = None
+        elif c in "\"'":
+            quote = c
+        elif c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+        elif c == "," and depth == 0:
+            return j
+    return -1
+
+
+def event_posts(text: str) -> list:
+    """Every `EventBus.post(topic, payload)` call in `text` as (topic, keys, line): `topic` the literal's name, or
+    None for a topic held in a variable; `keys` the payload dict's quoted keys, or None when the payload is not a
+    dict literal (a variable, a call: not scanned). The arguments are read with balanced brackets, so a call
+    spread over lines or ending in a trailing comma is read too."""
+    found = []
+    for m in re.finditer(r"EventBus\.post\(", text):
+        start = m.end() - 1
+        args = text[start + 1:_close(text, start) - 1]
+        cut = _first_top_comma(args)
+        topic_arg, payload = (args, "") if cut < 0 else (args[:cut], args[cut + 1:])
+        topic = re.fullmatch(r"\s*&?\"(\w+)\"\s*", topic_arg)
+        payload = payload.strip().rstrip(",").strip()
+        keys = re.findall(r"\"(\w+)\"\s*:", payload[1:-1]) if payload.startswith("{") and payload.endswith("}") else None
+        found.append((topic.group(1) if topic else None, keys, text[:m.start()].count("\n") + 1))
+    return found
+
+
+def handles(text: str, topic: str) -> bool:
+    """Whether a listener's code tests for `topic`: compared with `==` / `!=`, or a branch of a `match`."""
+    t = r"&\"" + topic + r"\""
+    if re.search(r"[!=]=\s*" + t + r"|" + t + r"\s*[!=]=", text):
+        return True
+    branches = re.finditer(r"^[ \t]*&\"\w+\"(?:\s*,\s*&\"\w+\")*\s*:", text, re.M)
+    return any(re.search(t, b.group(0)) for b in branches)
 
 
 def events() -> None:
@@ -275,21 +365,31 @@ def events() -> None:
     text = {p: read(p) for p in source_files() if p.endswith(".gd")}
     prod = {p: t for p, t in text.items() if p.startswith("scenes")}
     posts = collections.defaultdict(dict)  # topic -> key -> the files that post it
+    unscanned = collections.defaultdict(list)  # topic -> "file:line" of each post whose payload is not a dict literal
     for p, t in prod.items():
-        for m in re.finditer(r"EventBus\.post\(\s*&\"(\w+)\"\s*,\s*\{(.*?)\}\s*\)", t, re.S):
-            for k in re.findall(r"\"(\w+)\"\s*:", m.group(2)):
-                posts[m.group(1)].setdefault(k, set()).add(p)
+        for topic, keys, line in event_posts(t):
+            if topic is None:
+                print(f"  (topic not a literal: {p}:{line})")
+                continue
+            posts.setdefault(topic, {})
+            if keys is None:
+                unscanned[topic].append(f"{p}:{line}")
+            for k in keys or []:
+                posts[topic].setdefault(k, set()).add(p)
     listeners = [p for p, t in prod.items() if "EventBus.posted" in t]
     for topic in sorted(posts):
-        handled = sum(1 for p in listeners if re.search(r"&\"" + topic + r"\"", prod[p]))
+        handled = sum(1 for p in listeners if handles(prod[p], topic))
         print(f"  &\"{topic}\"  listeners={handled}" + ("  <-- no listener" if handled == 0 else ""))
+        for where in unscanned[topic]:
+            print(f"      payload not scanned ({where})")
         for k, writers in sorted(posts[topic].items()):
             pat = re.compile(r"(?:\.get\(\s*|\[\s*)&?\"" + k + r"\"")
             reads = sum(len(pat.findall(t)) for p, t in text.items() if p not in writers and p.startswith("scenes"))
             tests = sum(len(pat.findall(t)) for p, t in text.items() if p not in writers and not p.startswith("scenes"))
             flag = "" if reads else ("  <-- read only by tests/tools" if tests else "  <-- nothing reads it")
             print(f"      {k:<14} reads={reads} tests={tests}{flag}")
-    print("  (a generic key such as `position` is counted wherever that name is read; judge each)")
+    print("  (a listener = a scene script on `EventBus.posted` that tests the topic with `==` / `!=` or a `match` branch;"
+          " a generic key such as `position` is counted wherever that name is read; judge each)")
 
 
 COMMANDS = {"deps": deps, "dead": dead, "signals": signals, "facts": facts, "events": events}

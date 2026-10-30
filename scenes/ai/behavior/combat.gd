@@ -97,9 +97,15 @@ func can_fire_at(target: Dictionary) -> bool:
 func has_line_of_fire(target: Dictionary) -> bool:
 	if target.is_empty():
 		return false
-	var pos: Vector2 = target["pos"]
+	return has_line_of_fire_to(target["node"], target["pos"])
+
+
+## The line-of-fire rule, once: whether `pos` (where `node` is known to be) is within
+## `tuning.combat.shoot_range` on a clear line from here. `has_line_of_fire`, the ambush, the peek
+## and the combat overlay all read it.
+func has_line_of_fire_to(node: Node2D, pos: Vector2) -> bool:
 	return (_character.global_position.distance_to(pos) <= tuning.combat.shoot_range
-			and _perception.has_line_to(target["node"], pos))
+			and _perception.has_line_to(node, pos))
 
 
 ## Shoot `target` (a known-contact dict) when it can be shot at (`can_fire_at`), once the facing has
@@ -122,8 +128,7 @@ func holds_fire() -> bool:
 ## Ambush: hold the covered spot and fire the moment a line to the known position opens.
 func ambush(node: Node2D, pos: Vector2) -> void:
 	_character.movement.move_input = Vector2.ZERO
-	if _character.global_position.distance_to(pos) <= tuning.combat.shoot_range \
-			and _perception.has_line_to(node, pos) and fire_timer <= 0.0 and faces(_character, pos):
+	if has_line_of_fire_to(node, pos) and fire_timer <= 0.0 and faces(_character, pos):
 		shoot()
 
 
@@ -134,7 +139,6 @@ func ambush(node: Node2D, pos: Vector2) -> void:
 ## instead of vibrating between near-equal candidates. The perception's confinement keeps the
 ## chosen spots where it may act (`_choose_dest`).
 func peek_cover(delta: float, node: Node2D, pos: Vector2) -> void:
-	var dist: float = _character.global_position.distance_to(pos)
 	dest_timer -= delta
 	if phase == "cover":
 		cover_timer -= delta
@@ -149,7 +153,7 @@ func peek_cover(delta: float, node: Node2D, pos: Vector2) -> void:
 		return
 	# PEEK: take the shot if a clear line to the known position is in range, else reposition to get
 	# one.
-	if dist <= tuning.combat.shoot_range and _perception.has_line_to(node, pos):
+	if has_line_of_fire_to(node, pos):
 		_character.movement.move_input = Vector2.ZERO
 		# Shoot only once the facing has settled on it. A refused shot (a barrel against a wall
 		# stepping back, a reload under way) keeps the NPC peeking until it fires, rather than

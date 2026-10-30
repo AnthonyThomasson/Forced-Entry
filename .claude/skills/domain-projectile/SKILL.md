@@ -51,10 +51,12 @@ the same surface and needs less speed to get through, so a pistol round (3200 px
 
 On any *damaging* outcome the projectile packages a `HitInfo` and calls `body.take_hit(info)` (the
 object then shoves/deforms/sprays via Physics), re-emits `hit(body, damage)` — which a gun
-forwards to the character's `hit_landed` — and posts a `&"hit"` event on `EventBus`
+forwards to the character's `hit_landed` — and posts a `&"hit"` event on `EventBus` through
+`Projectile.post_hit(body, info, attacker, outcome, surface)` (a static on `projectile.gd`, the one place the payload is built; the
+blast posts through it too, below)
 (`{ position, victim, direction, damage, attacker }`, interface 10 — `attacker` is the
 shooter, the projectile's `ignore` body; plus `outcome` (`&"ricochet"` / `&"blocked"` / `&"penetrate"`), the struck
-`material` (`surface.material`, `""` for a wall; a stopped round's is the armour's, one through armour the flesh's), `speed_factor` and the round's `power`,
+`material` (`surface.material`, `""` for a wall; a stopped round's is the armour's, one through armour the flesh's), `speed_factor` and the round's `power` (`info.source`'s `penetration_power`, the bullet's; 1 for a striker with none, a blast),
 which the Audio domain voices impacts from; a fly-over posts nothing) so decoupled listeners (the AI's combat awareness and
 hostility) learn what was struck, where, and by whom. Console lines: `Shot flew over /
 ricocheted off / penetrated / blocked by …`.
@@ -72,10 +74,11 @@ non-flesh surface it strikes (any outcome but fly-over) within `blood_carry_dist
 `projectile.gd` / `casing.gd` are control; `projectile_visuals.gd` / `casing_visuals.gd` draw.
 `projectile_spawner.gd` / `casing_spawner.gd` are the spawn entry points the guns call
 (`ProjectileSpawner.spawn(position, direction, parent, shot: Shot = null)`; `Shot`, `projectile/shot.gd`: `shooter`, `item_damage` = 0.0,
-`muzzle_speed` = -1, `penetration` = 1.0, `max_range` = -1, `strikes_shooter` = false; null, all defaults). `max_range` is `Projectile.max_distance`: the round is spent exactly there (the last step is clamped, so it is never seen past it); `strikes_shooter`
+`damage` = -1 (the bullet's damage outright, in place of its base plus `item_damage`; negative = that sum), `muzzle_speed` = -1, `penetration` = 1.0, `max_range` = -1, `strikes_shooter` = false; null, all defaults). `max_range` is `Projectile.max_distance`: the round is spent exactly there (the last step is clamped, so it is never seen past it); `strikes_shooter`
 leaves the `shooter` in the sweep, so the shooter can be hit while still being the `attacker` of its hits (a grenade's fragments). A bullet is added with a
 readable name (`Projectile`, `Projectile2`, ...), which is how the tests count them. A casing is Despawner-tracked by
-`CasingSpawner`; its toss lasts `eject_time` (~0.3 s), then it rests, drawn at `DrawLayers.LYING` (−2: on the floor, under the
+`CasingSpawner`; its toss is Physics' `Debris.toss` (interface 4; `casing.gd` preloads `physics/debris.gd` as `Debris`, which has no
+`class_name`), a whole turn either way over `eject_time` (~0.3 s), then it rests, drawn at `DrawLayers.LYING` (−2: on the floor, under the
 living and a vehicle's chassis).
 
 ## Explosion (`explosion.gd`, `class_name Explosion`): a grenade's burst
@@ -99,12 +102,12 @@ ones included, in tree order; interface 7). Spec: `docs/grenades.md` G7 to G12; 
 - **Frag blast** (`_blast`): the bodies near are the circle's overlaps on the solid layer (walls left out: they only block) plus every dead character
   (they left the layer but are still thrown). Each within `blast_radius` of the blast point (to its centre) with a clear line takes `blast_damage` (full to
   `kill_radius`, `blast_damage * (R - d) / (R - kill)` beyond) through `take_hit` (a `HitInfo` with `speed_factor` 0: no impact of its own) and posts
-  `&"hit"` with `outcome` `&"blast"`, the thrower as `attacker`. A dead body is not struck (nothing to damage) but is shoved. Every body reached
+  `&"hit"` with `outcome` `&"blast"`, the thrower as `attacker` (`_strike`, through `Projectile.post_hit`, which `explosion.gd` preloads as `Projectile`). A dead body is not struck (nothing to damage) but is shoved. Every body reached
   is then shoved away by `blast_impulse` with the same fall-off, capped at `mass * blast_max_speed` so a light chair is not fired across the house:
   `blast_push(from, impulse)` on a character (living: knockback; dead: its ragdoll thrown and woken, `Ragdoll.wake()`), `apply_impulse(v)` on furniture.
 - **Fragments** (`_fragments`): `fragments` bullets evenly round the circle (each jittered within its share), through `ProjectileSpawner.spawn` with one `Shot`
-  shared by all of them: the row's `fragment_speed`, `fragment_penetration`, `fragment_range` and `strikes_shooter`; their `damage` is `fragment_damage` at full speed head-on
-  (not added to the bullet's base, unlike a gun's `damage`). So cover, penetration, ricochet, blood, debris and impact sounds all work as for bullets.
+  shared by all of them: the row's `fragment_speed`, `fragment_penetration` and `fragment_range`, with `strikes_shooter` on; their `damage` is
+  `fragment_damage` at full speed head-on, set on that shared shot as its `damage` (not added to the bullet's base, unlike a gun's `damage`). So cover, penetration, ricochet, blood, debris and impact sounds all work as for bullets.
 - **Stun** (`stun`): every living character within the larger of `flash_radius` and `bang_radius`. The **flash** works by sight: with a clear line
   it blinds `max_blind * (flash_radius - d) / (flash_radius - flash_full)` (full inside `flash_full`) times the facing factor (the dot of its `facing` with the
   direction to the burst: 1 -> x1, 0 -> x0.6, -1 -> x0.25, linear between); no clear line, none. A wall always stops the line; a piece of furniture taller than the
@@ -119,4 +122,4 @@ Tests: `tests/projectile/frag_blast_by_distance`, `frag_blast_blocked_by_wall`, 
 Interface notes: the blast's `&"hit"` events carry `attacker` = the thrower, so the AI's "attacked me" hostility sees a victim's own teammate as an
 attacker when it throws; the Audio domain ignores `&"blast"` hits (no impact profile), the burst has its own sound.
 
-**Interfaces:** 3 (hittable), 4 (`Physics.spawn_explosion`), 5 (pushable), 6 (the guns' `ProjectileSpawner` / `CasingSpawner`, `ThrownGrenade` → `Explosion`), 7 (what `Explosion` calls on a character), 10 (EventBus `&"hit"`, `&"explosion"`), 11 (`PhysicsLayers`, `DrawLayers.LYING` for a casing) — signatures in `architecture`.
+**Interfaces:** 3 (hittable), 4 (`Physics.spawn_explosion`, `Debris.toss` for a casing), 5 (pushable), 6 (the guns' `ProjectileSpawner` / `CasingSpawner`, `ThrownGrenade` → `Explosion`), 7 (what `Explosion` calls on a character), 10 (EventBus `&"hit"`, `&"explosion"`), 11 (`PhysicsLayers`, `DrawLayers.LYING` for a casing), 15 (`GameLog`: the shot lines) — signatures in `architecture`.

@@ -28,20 +28,21 @@ static func layer(parent: Node) -> ScorchDecals:
 	return _get_or_make(parent, NODE_NAME, ScorchDecals, BloodConfig.print_z_index) as ScorchDecals
 
 
-## Burn a mark of `radius` px at world `at`.
+## Burn a mark of `radius` px at world `at`, in the burst's disc rows (`ExplosionFx.disc_rows`),
+## each edge jittered.
 func burn(at: Vector2, radius: float) -> void:
 	var step := maxf(PhysicsExplosionConfig.pixel, 1.0)
 	var rects: Array[Rect2] = []
 	var tones: Array[Color] = []
 	var base := PhysicsExplosionConfig.scorch_color
 	var rim := Color(base.r, base.g, base.b, base.a * RIM_ALPHA)
-	var rows := int(ceil(radius / step))
-	for j in range(-rows, rows):
-		var y := (float(j) + 0.5) * step
-		var edge := sqrt(maxf(radius * radius - y * y, 0.0)) * randf_range(0.78, 1.12)
-		_row(rects, tones, at + Vector2(0.0, j * step), edge, rim)
+	for row: Array in ExplosionFx.disc_rows(radius, step):
+		var top := int(row[0]) * step
+		var y: float = row[1]
+		var edge := float(row[2]) * randf_range(0.78, 1.12)
+		_row(rects, tones, at + Vector2(0.0, top), edge, rim)
 		var core := sqrt(maxf(pow(radius * CORE_SHARE, 2.0) - y * y, 0.0)) * randf_range(0.8, 1.1)
-		_row(rects, tones, at + Vector2(0.0, j * step), core, base)
+		_row(rects, tones, at + Vector2(0.0, top), core, base)
 	for _i in SPECKS:
 		var spot := at + Vector2.from_angle(randf() * TAU) * radius * randf_range(0.9, 1.35)
 		rects.append(Rect2((spot / step).floor() * step, Vector2(step, step)))
