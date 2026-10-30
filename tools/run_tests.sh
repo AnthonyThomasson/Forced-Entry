@@ -31,7 +31,14 @@
 #                                         testing adds --self-test. An edited tests/<d>/[<topic>/]<name>_test.gd
 #                                         runs just that test; tests/_ai, _audio, _perf, _vehicle their users.
 #                                         Nothing mapped, or only domains --skip-domain leaves out: it says which
-#                                         and exits 0.
+#                                         and exits 0. It ends with a `NOTE <n> Von test(s) in the changed domains were
+#                                         not run: tools/run_tests.sh --domain=<d> --require-von` when the runs skipped
+#                                         Von tests (the totals line names those apart: `N skipped (V need Von, not run:
+#                                         --require-von)`). A changed docs/*.md paragraph runs the tests its `Test:` /
+#                                         `Tests:` line names (tools/spec_tests.py), --repeat=5 under `== tests named by
+#                                         changed spec paragraphs ==` (with --include-von when a Von server is live;
+#                                         --skip-domain wins), also when their domain ran above; a paragraph that names
+#                                         no test, or a name with no test file, is a NOTE (never a failure).
 #   tools/run_tests.sh --changed --staged the same for what is staged (git diff --cached), not the working tree, and
 #                                         the lint of what the commit holds (tools/lint_staged.sh: the staged
 #                                         scripts as they are on disk; the whole tree when project.godot or a gdstyle
@@ -105,6 +112,8 @@ KEY=$(printf %s "$PWD" | shasum | cut -c1-8)
 LAST="${TMPDIR:-/tmp}/example_godot_last_report_$KEY.json"
 COSTS="${TMPDIR:-/tmp}/example_godot_costs_$KEY.json"
 LINT_OK="${TMPDIR:-/tmp}/example_godot_lint_ok_$KEY.txt"
+VON_SKIPPED=$(mktemp "${TMPDIR:-/tmp}/game_tests_von_skipped.XXXXXX")   # this run's skipped Von tests (note_von_skips)
+trap 'rm -f "$VON_SKIPPED"' EXIT
 
 HEADLESS=--headless
 NOVSYNC=
@@ -450,6 +459,49 @@ print("\n".join(seen))
 EOF
 }
 
+# Whether a Von decision server answers: something listens on GAME_TEST_VON_PORT (the seam tools/test_log_gate.py makes
+# "no server" with), else on the launcher's port 8000.
+von_live() {
+  python3 - "${GAME_TEST_VON_PORT:-8000}" <<'EOF'
+import socket, sys
+try:
+    socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=1).close()
+except OSError:
+    sys.exit(1)
+EOF
+}
+
+# The Von tests the runs that wrote the dirs given skipped (a record SKIPPED for want of the Von decision server, as the
+# totals line counts them), appended to $VON_SKIPPED as `<domain> <id>` lines for --changed's closing NOTE.
+note_von_skips() {
+  python3 - "$VON_SKIPPED" "$@" <<'EOF'
+import json, os, sys
+with open(sys.argv[1], "a") as out:
+    for d in sys.argv[2:]:
+        try:
+            results = json.load(open(os.path.join(d, "report.json"))).get("results", [])
+        except Exception:
+            continue
+        for r in results:
+            if r.get("status") == "SKIPPED" and "Von decision server" in r.get("reason", ""):
+                out.write("%s %s\n" % (r.get("domain", ""), r["id"]))
+EOF
+}
+
+# The closing NOTE of --changed: how many distinct Von tests the runs skipped, and the command that runs their domains.
+von_note() {
+  python3 - "$VON_SKIPPED" <<'EOF'
+import sys
+seen = {}
+for line in open(sys.argv[1]):
+    domain, test_id = line.split()
+    seen[test_id] = domain
+if seen:
+    print("NOTE %d Von test(s) in the changed domains were not run: tools/run_tests.sh --domain=%s --require-von"
+          % (len(seen), ",".join(sorted(set(seen.values())))))
+EOF
+}
+
 # The one totals line of the processes whose output is in the files given: every `N passed, ...` line summed field by
 # field, the skips that need Von (named apart as each process names them) summed too, and $1 (the shard count) at its end.
 merged_totals() {
@@ -499,7 +551,7 @@ run() {
     else
       godot_run "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
     fi
-    [[ $keep -eq 1 ]] && save_reports "$out"
+    [[ $keep -eq 1 ]] && { save_reports "$out"; note_von_skips "$out"; }
     scan_log "$out" $listing || code=1
     if [[ $once -eq 1 && -n "$(native_suites_met "$out")" ]]; then
       echo "NOTE native suites ran once (--shard)"
@@ -558,6 +610,7 @@ run() {
   [[ $repeat -gt 1 ]] && tally=1
   [[ $jobs -gt 1 ]] && shards="  ($jobs shards)"
   TALLY=$tally SLOWEST=$show_slowest save_reports "${dirs[@]}"
+  note_von_skips "${dirs[@]}"
   merged_totals "$shards" "${files[@]}"
   if no_test "${dirs[@]}"; then
     no_test_matched "$@" ${args[@]+"${args[@]}"}
@@ -696,6 +749,31 @@ if [[ $CHANGED -eq 1 ]]; then
       run --domain=perf || status=1
     fi
   fi
+  # The tests the changed docs/*.md paragraphs name (tools/spec_tests.py), each five times, also when their domain ran
+  # above: a spec rewrite is the change a timing-sensitive test is most likely to break on. GAME_TEST_CHANGED_FILES
+  # stands in for git's view of the files, not of the docs, so it leaves them out. --skip-domain wins.
+  if [[ -z "${GAME_TEST_CHANGED_FILES:-}" ]]; then
+    spec_ids=""
+    while IFS= read -r line; do
+      case "$line" in
+        "ID "*)
+          id="${line#ID }"
+          if [[ ",$SKIP," == *",${id%%/*},"* ]]; then
+            [[ ",$skipped," != *",${id%%/*},"* ]] && skipped="$skipped,${id%%/*}"
+          else
+            spec_ids="$spec_ids,$id"
+          fi ;;
+        NOTE*) echo "$line" ;;
+      esac
+    done < <(python3 tools/spec_tests.py $([[ $STAGED -eq 1 ]] && echo --staged))
+    if [[ -n "$spec_ids" ]]; then
+      ran=1
+      echo "== tests named by changed spec paragraphs =="
+      von=()
+      von_live && von=(--include-von)
+      run "--id=${spec_ids#,}" --repeat=5 ${von[@]+"${von[@]}"} || status=1
+    fi
+  fi
   if [[ $self_test -eq 1 ]]; then
     ran=1
     echo "== harness self-tests =="
@@ -706,6 +784,7 @@ if [[ $CHANGED -eq 1 ]]; then
   elif [[ $ran -eq 0 ]]; then
     echo "No changed file maps to any tests (affected: ${domains:-none})."
   fi
+  von_note
   exit $status
 fi
 

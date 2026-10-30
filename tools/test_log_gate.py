@@ -145,7 +145,7 @@ while [ $# -gt 0 ]; do
     --out=*) out="${1#--out=}" ;;
     --shard=*) shard="${1#--shard=}" ;;
     --costs=*) costs="${1#--costs=}" ;;
-    --id=*|--domain=*|--skip-domain=*) selection="$selection $1" ;;
+    --id=*|--domain=*|--skip-domain=*|--repeat=*|--include-von) selection="$selection $1" ;;
   esac
   shift
 done
@@ -376,6 +376,22 @@ class WrapperTests(unittest.TestCase):
         r = subprocess.run(["bash", str(RUN), "--changed", "--no-lint", "--jobs=1", *extra], cwd=ROOT, env=env, capture_output=True, text=True)
         return r.returncode, [ln for ln in (r.stdout + r.stderr).splitlines() if ln.startswith(("selection:", "== ", "No "))]
 
+    def changed_output(self, files, scenario="clean", *extra):
+        """The whole output of a `--changed` run when git reports exactly `files` as changed."""
+        env = dict(os.environ, GODOT=str(self.fake), FAKE_SCENARIO=scenario, TMPDIR=str(self.tmp),
+                   GAME_TEST_CHANGED_FILES="\n".join(files))
+        r = subprocess.run(["bash", str(RUN), "--changed", "--no-lint", "--jobs=1", *extra], cwd=ROOT, env=env, capture_output=True, text=True)
+        return r.returncode, r.stdout + r.stderr
+
+    def test_changed_ends_with_a_note_naming_the_von_tests_it_did_not_run(self):
+        note = "NOTE 2 Von test(s) in the changed domains were not run: tools/run_tests.sh --domain=ai --require-von"
+        code, out = self.changed_output(["scenes/ai/behavior/behavior.gd"], "von_skips")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(out.splitlines()[-1], note, out)
+        # Nothing skipped for want of Von: no NOTE.
+        code, out = self.changed_output(["scenes/ai/behavior/behavior.gd"], "clean")
+        self.assertNotIn("Von test(s)", out)
+
     def test_changed_runs_only_an_edited_test_not_the_domains_that_compose_its_code(self):
         code, lines = self.changed(["tests/projectile/pistol_shot_wounds_test.gd"])
         self.assertEqual(code, 0)
@@ -592,6 +608,109 @@ class StagedChangedTests(unittest.TestCase):
         code, out, _, _ = self.run_changed("--staged", FAKE_LINT_FOREIGN="scenes/ui/u.gd")
         self.assertEqual(code, 1, out)
         self.assertIn("not in this commit: scenes/ui/u.gd", out)
+
+
+SPEC_DOC = """# Spec
+
+**S1. First rule.** Prose of the first rule.
+Tests: `alpha_one`, `beta_two`.
+
+**S2. Second rule.** Prose that names nothing.
+
+**S3. Third rule.** Prose of the third.
+Test: `no_such_test`.
+"""
+
+
+class SpecNamedTestsTests(unittest.TestCase):
+    """`--changed` and the tests a changed spec paragraph names: a throwaway repo holding a copy of run_tests.sh (with
+    spec_tests.py and the staged lint's helpers), a doc and its tests, a fake Godot recording each run's selection."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="spec_named_"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.repo = self.tmp / "repo"
+        self.state = self.tmp / "state"
+        self.state.mkdir()
+        tools = self.repo / "tools"
+        tools.mkdir(parents=True)
+        for name in ("run_tests.sh", "scan_godot_log.py", "spec_tests.py", "lint_staged.sh", "lint_label.py"):
+            shutil.copy2(ROOT / "tools" / name, tools / name)
+        self.fake = self.tmp / "fakegodot"
+        self.fake.write_text(FAKE_GODOT)
+        self.fake.chmod(0o755)
+        files = {".gitignore": ".godot/\n", ".godot/global_script_class_cache.cfg": "", "docs/spec.md": SPEC_DOC,
+                 "tests/ai/alpha_one_test.gd": "", "tests/physics/beta_two_test.gd": "", "scenes/ai/a.gd": "extends Node\n"}
+        for rel, text in files.items():
+            (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / rel).write_text(text)
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
+
+    def git(self, *args):
+        subprocess.run(["git", *args], cwd=self.repo, env=StagedChangedTests.env(), check=True, capture_output=True)
+
+    def edit(self, path, old, new):
+        f = self.repo / path
+        f.write_text(f.read_text().replace(old, new))
+
+    def run_changed(self, *args, **env):
+        """The wrapper's selection and header lines; no Von server unless `GAME_TEST_VON_PORT` names a port that listens."""
+        env = {"GAME_TEST_VON_PORT": str(free_port()), **env}
+        r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--changed", "--no-lint", "--jobs=1", *args],
+                           cwd=self.repo, capture_output=True, text=True, timeout=120,
+                           env=StagedChangedTests.env(GODOT=str(self.fake), FAKE_SCENARIO="clean", TMPDIR=str(self.state), **env))
+        out = r.stdout + r.stderr
+        self.assertEqual(r.returncode, 0, out)
+        return [ln for ln in out.splitlines() if ln.startswith(("selection:", "== ", "No ", "NOTE "))]
+
+    HEADER = "== tests named by changed spec paragraphs =="
+
+    def test_a_changed_paragraph_runs_the_tests_it_names_five_times_under_its_own_header(self):
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.assertEqual(self.run_changed(), [self.HEADER, "selection: --id=ai/alpha_one,physics/beta_two --repeat=5"])
+
+    def test_they_run_also_when_their_domain_already_ran(self):
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.edit("scenes/ai/a.gd", "Node", "Node2D")
+        self.assertEqual(self.run_changed(), ["== ai ==", "selection: --domain=ai", self.HEADER,
+                                              "selection: --id=ai/alpha_one,physics/beta_two --repeat=5"])
+
+    def test_skip_domain_still_wins(self):
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.assertEqual(self.run_changed("--skip-domain=physics"),
+                         [self.HEADER, "selection: --id=ai/alpha_one --repeat=5 --skip-domain=physics"])
+        lines = self.run_changed("--skip-domain=physics,ai")
+        self.assertEqual(lines, ["No test to run: the changed files map only to skipped domains (ai,physics)."])
+
+    def test_von_ones_get_include_von_only_when_a_server_is_live(self):
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
+        with socket.socket() as server:
+            server.bind(("127.0.0.1", 0))
+            server.listen()
+            live = self.run_changed(GAME_TEST_VON_PORT=str(server.getsockname()[1]))
+        self.assertIn("--include-von", live[-1])
+        self.assertNotIn("--include-von", self.run_changed(GAME_TEST_VON_PORT=str(free_port()))[-1])
+
+    def test_a_paragraph_naming_no_test_and_an_unknown_name_are_notes_that_do_not_fail_the_run(self):
+        self.edit("docs/spec.md", "Prose that names nothing.", "Prose that names nothing, reworded.")
+        self.edit("docs/spec.md", "Prose of the third.", "Prose of the third, reworded.")
+        self.assertEqual(self.run_changed(), ["NOTE docs/spec.md:6: changed paragraph names no test",
+                                              "NOTE unknown test name in docs/spec.md:9: no_such_test",
+                                              "No changed file maps to any tests (affected: none)."])
+
+    def test_staged_reads_the_doc_the_commit_holds(self):
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.git("add", "docs/spec.md")
+        self.edit("docs/spec.md", "Prose that names nothing.", "Prose that names nothing, reworded.")
+        self.assertEqual(self.run_changed("--staged"),
+                         [self.HEADER, "selection: --id=ai/alpha_one,physics/beta_two --repeat=5"])
+
+    def test_a_doc_alone_with_no_named_test_still_says_nothing_maps(self):
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.git("checkout", "-q", "--", "docs")
+        self.assertEqual(self.run_changed(), ["No changed file maps to any tests (affected: none)."])
 
 
 class LintReportTests(unittest.TestCase):
