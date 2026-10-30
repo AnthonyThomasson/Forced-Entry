@@ -991,19 +991,31 @@ The grenade match's p95 was higher on the change in each of the three pairs, so 
 (16:25 to 16:32, each started at a load under 4 with no other headless Godot): the change missed a budget in 5 runs of 8 and main in
 6, and the means were 11.10 / 18.15 / 33.2 on the change against 11.49 / 18.74 / 40.8 on main (without the change's two runs that
 ended over 4, 10.86 / 17.89 / 32.2 and 4 misses in 6). No cost of the change shows in the guards. What the ambush adds is the
-ranking of a doorway's ambush posts (80 candidates, 5 depths by 8 offsets either side: each one's sight lines from the stack's slots
-and pie steps, and an entry's grenade landings, up to 9 frags and 9 stuns, for the posts that can still be picked): in the run
-whose worst frame was 69 ms, the defender leader ordered a new doorway's ambush inside the window, and an uncommitted copy of the
-change that timed that ranking measured 15.8 ms for one member (load 5.4). It was then worked out once per member, each
-recipient's decision snapshot on a frame of its own (`DecisionBudget`, one a frame), for every landing of all 80.
+ranking of a doorway's ambush posts (`entry_posts.gd` `_ambush_ranking`): 80 candidates (5 depths by 8 offsets either side of the
+axis), each with its sight lines from the stack's slots and pie steps, plus an entry's grenade landings (up to 9 frags and 9 stuns)
+for the posts that can still be picked. In the A/B run whose worst frame was 69 ms, the defender leader ordered a new doorway's
+ambush inside the window.
 
-**The ambush ranking made cheaper (issue #128's review).** The ranking is now worked out once a map, not once a member
-(`entry_posts.gd` `_ambush_ranking`: shared by every NPC on the navigation map, keyed by the geometry's and the sight's tunables
-and the crouched height, until the house changes), in the first recipient's decision snapshot, and the grenade landings are
-counted only for the posts tied on the least `seen` and side among those still open (`_best_post`; every rank below `seen` adds up
-to less than one `RANK_SEEN`, so no other post can be picked). The posts are unchanged: `ai/combat/ambush_posts_capture_terrace`
-and `_house` pin every member's post at every doorway of two houses to a capture of the full ranking. `perf/ambush_order_stress`
-guards it: a crew of three AI defenders ordered inside the window to ambush a doorway not yet ranked.
+**The cost of an ambush order (issue #128's review).** The ranking is worked out once a map, not once a member: every NPC on the
+navigation map shares it, keyed by the geometry's and the sight's tunables and the crouched height, until the house changes. The first
+recipient's decision snapshot works it out, and the others read it. The grenade landings are counted only for the posts tied on the
+least `seen` and side among those still open (`_best_post`). Every rank below `seen` adds up to less than one `RANK_SEEN`, so no other
+post can be picked, and the picks are those of the full ranking: `ai/combat/ambush_posts_capture_terrace` and `_house` pin every
+member's post at every doorway of two houses to a capture of it.
+
+`perf/ambush_order_stress` guards it: a crew of three AI defenders in the match guards' house, ordered inside the window to ambush a
+doorway not yet ranked. It was measured headless on 2026-10-30 against 9d078064 (the ranking once a member, every landing of all 80
+counted), in a scratch worktree with the guard copied in. Three alternated pairs were run with the ranking timed in place, each run
+started and ended at a 1-minute load of 3.2 to 3.7, with no other headless Godot. In ms, the guard's max frame, then the ranking per
+order:
+
+| | max frame | ranking per order |
+|---|---|---|
+| per member, all landings (9d078064) | 21.05 / 21.65 / 25.15 | 9.7 / 10.4 / 11.6 ms on each of 3 frames (29.1 / 29.9 / 33.7 ms) |
+| once a map, landings where they decide | 18.35 / 18.09 / 19.14 | 7.0 / 7.0 / 7.1 ms on 1 frame, + 0.35 ms of landings for 4 posts |
+
+The guard's avg was 1.49 to 1.66 ms before and 1.29 to 1.31 after. Its budgets held both ways (an order to a crew never broke the max
+on a quiet machine), but an order costs one frame of about 7 ms, against three frames of about 10 ms.
 
 **Since the match builder (issue #95).** The three match guards (`match_5v5_stress`, `match_10v10_stress`, `grenade_match_stress`) build
 their match through `MatchBuilder` as Main builds one (`s.declared_match`): the invader team beside the front door with its plates and grenades,
