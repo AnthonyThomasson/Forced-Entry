@@ -445,6 +445,10 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   (`Explosion.shields`, interface 3, for a body crouched at the post, every character's body passed through; for a stun only furniture
   within its `flash_cover_reach`, 30 px, of the post) does not shield it. The reach and the radii are the grenade's own numbers,
   `GrenadeConfig.stats_of(kind)` (interface 6), the reach less `AgentThrow.REACH_SLACK` (15 px) as a thrower reckons it (`AgentThrow.reach_of`).
+  A wall shields a post from a stun at any range, furniture hardly ever: the navmesh keeps a post 24 px clear of a piece's face (its
+  carve, interface 9), so the piece's face lies within the flash's 30 px of it only along lines within about 37° of the face's normal,
+  and an entry's landings, spread across the room, are rarely all that close to one normal. So among the posts shielded from the frag
+  the stun rank mostly picks the one the fewest flashes reach, and only a wall between makes one the flash does not reach at all.
 - **The primitive.** `ambush` (`behavior_orders.gd`), the ORDER node's option with `{ opening, room, spot, door_pos, order_id }`: `defend`'s walk
   to its post (guarded as any walk, `DEFEND_REACH`, `DEFEND_DRIFT`), then it holds there crouched (with `posture_enabled`), gun on the
   threshold (`Watch.ease_gaze` on `door_pos`); the watch stage fires the moment a line opens. It radios `moving`, then `in_position`, and
@@ -483,7 +487,8 @@ fires), `ai/combat/ambush_contact_leashes_follower` (scripted, LD23: once an int
 begun after it decides over a confinement carrying the leash round its leader), `general/squad_go_and_ambush` (the click side's room, the
 same doorway, an exterior door's kitchen; a request naming the doorway by id and its room gives the order the equivalent click gives),
 `ai/combat/ambush_post_shielded_from_bang` (scripted: a room laid with a wardrobe; the post is hidden from every slot and pie step and
-shielded, crouched, from every landing of a frag thrown in by the doorway, both by the test's own copies of the geometry and the landings),
+shielded, crouched, from every landing of a frag thrown in by the doorway, both by the test's own copies of the geometry and the landings;
+frag only: no post in that room has furniture within the flash's cover reach on every landing's line, as above),
 `ai/combat/ambush_survives_stun_entry` (real Von: a shielded ambusher against a real two-invader stack whose suspect-room entry bangs the
 room is not blinded and fires before either invader does), `ai/combat/ambush_primed_fires_on_line_open` (scripted: an ambusher spawned
 before the entrant fires on the frame the entrant's step opens the line), `ui/command_menu_items`, `ui/order_markers_draw` (LD16); the
@@ -839,7 +844,7 @@ The cases the behaviours above cite as D1 to D37.
 | D14 | The human in a held stack | The stack waits for the human's go: the menu's Go, or the human stepping into the doorway (its `going_in` / `in`) on a crossing begun since the order was issued (`crossed_frame` at or after the order's `frame`; the human's latest crossing); the AIs follow it in. | LD13 |
 | D15 | Ordered with a frag, no frag in the stack | The menu greys "with frag" while no recipient carries one; a stack whose frag is gone by the time it is in goes in quietly and radios `bang_off`, and the order is still done at `cleared_room`. | LD14, LD16 |
 | D16 | Where the frag is aimed | Only where its burst leaves every claimed slot of the stack, the thrower's own too, out of its danger zone (the wall between shields it); nowhere such: the frag is given up, quiet. | LD14 |
-| D17 | Where an ambush waits | In the room on the click's side of the wall (an exterior door: the house's), at a post off the axis, back from the wall, seeing the threshold and hidden from every slot and pie step of an entry by that doorway (with none hidden, the least seen); among those, the one the fewest landings of an entry's grenade reach, crouched (a frag's, then a stun's: the bang's own aim rule, reckoned from the doorway's centre, without D16's slot filter), then out of the funnel, then low cover on its line to the threshold, every body looked through. | LD15 |
+| D17 | Where an ambush waits | In the room on the click's side of the wall (an exterior door: the house's), at a post off the axis, back from the wall, seeing the threshold and hidden from every slot and pie step of an entry by that doorway (with none hidden, the least seen); among those, the one the fewest landings of an entry's grenade reach, crouched (a frag's, then a stun's: the bang's own aim rule, reckoned from the doorway's centre, without D16's slot filter; furniture stops the flash only within 30 px, so short of a wall the stun's count picks among posts rather than shielding one), then out of the funnel, then low cover on its line to the threshold, every body looked through. | LD15 |
 | D18 | When an ambush ends | On first contact, `done`: a hostile in sight anywhere, or under fire; footsteps and callouts do not end it. The member then decides on its own. | LD15 |
 | D19 | The menu's "Hold for my go" | A panel checkbox, off at first, kept across opens while the match runs; it sets `wait_go` on the stack chosen. | LD16 |
 | D20 | The room an ordered stack stands in | Once a member under the order holds its slot there (`ready` or `bang`), it counts as cleared for passing: the members still coming walk through it, not into it by entry. | LD9 |

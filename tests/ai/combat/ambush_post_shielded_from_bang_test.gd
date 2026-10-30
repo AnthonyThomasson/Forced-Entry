@@ -20,6 +20,11 @@ extends GameTest
 ## of the room's depth from the doorway by `BANG_ACROSS` 0 / 0.2 / -0.2 of its width, at least 120
 ## px from the door and 30 inside the walls), each within the frag's blast radius of the post
 ## stopped by the blast's own cover rule (`Explosion.shields`, interface 3) for a crouched body.
+## The frag only: furniture stops a stun's flash only within its `flash_cover_reach` (30 px) of the
+## post, and the navmesh keeps every post 24 px clear of a piece's face, so a piece shields a post
+## from a stun only on lines nearly along its face's normal; no post here has that on every
+## landing's line (a wall would). A stun entry against a shielded ambusher is
+## `ambush_survives_stun_entry` (real Von).
 ## Scripted Von (the order is taken without asking); nobody fights.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
