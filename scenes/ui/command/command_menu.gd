@@ -55,9 +55,15 @@ signal order_requested(request: Dictionary)
 signal selection_changed(nodes: Array)
 
 const CommandPanel := preload("res://scenes/ui/command/command_panel.gd")
-## The squad (interface 21), for the vocabulary of its requests alone: `MODES`, a stack's or a go's
-## mode, and `JOIN`, the mode of its rally.
-const Squad := preload("res://scenes/ai/team/squad.gd")
+## The modes a stack or a go request names, as interface 21's request dicts word them (the squad's
+## `MODES`): in quietly, with a stun first, with a frag first.
+const MODES := ["quiet", "stun", "frag"]
+## The mode of the squad's rally stack in its `view()` (interface 21's `join`): a held join's go
+## names one of `MODES`.
+const JOIN := "join"
+## The inventory slot of the grenade each grenade mode of `MODES` throws in first (quiet throws
+## none).
+const GRENADE_SLOTS := { "stun": ItemRegistry.STUN_SLOT, "frag": ItemRegistry.FRAG_SLOT }
 ## World-space radius (px) around the cursor within which a click picks a teammate's body.
 const PICK_RADIUS := 28.0
 ## The ring on the clicked point: its radius (screen px) and colour.
@@ -331,12 +337,12 @@ func _held_at(opening: String) -> Dictionary:
 ## frag", stun and frag greyed while no member holding that join carries one (D1, D15).
 func _go_items(held: Dictionary, at: Vector2) -> Array:
 	var into := _room_name(_room_by_key(String(held.get("into", ""))))
-	if String(held.get("mode", "")) != Squad.JOIN:
+	if String(held.get("mode", "")) != JOIN:
 		return [_item("Go into the %s" % into, false, _go.bind(at))]
 	var holders := _holders(String(held.get("id", "")))
 	var out: Array = []
-	for mode: String in Squad.MODES:
-		var slot := _grenade_slot(mode)
+	for mode: String in MODES:
+		var slot := int(GRENADE_SLOTS.get(mode, -1))
 		if slot == -1:
 			out.append(_item("Go into the %s (%s)" % [into, mode], false, _go.bind(at, mode)))
 			continue
@@ -345,15 +351,6 @@ func _go_items(held: Dictionary, at: Vector2) -> Array:
 			_go.bind(at, mode), "Nobody holding it carries a %s grenade." % mode,
 		))
 	return out
-
-
-## The slot of the grenade mode `mode` (one of `Squad.MODES`) throws in first: the grenade slot
-## whose kind it names (`GrenadeConfig.kind_in_slot`), -1 for quiet.
-static func _grenade_slot(mode: String) -> int:
-	for slot: int in [ItemRegistry.STUN_SLOT, ItemRegistry.FRAG_SLOT]:
-		if GrenadeConfig.kind_in_slot(slot) == StringName(mode):
-			return slot
-	return -1
 
 
 ## The living teammates the squad's view shows holding order `id`.

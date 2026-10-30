@@ -52,7 +52,8 @@ const JOIN := "join"
 ## where it stands when it says none), `move_up` (the slot it moved up from while it walks into the
 ## one it took, E2), `pie` (it has begun the pie: nobody moves up behind it), the order it stacks
 ## under (`order_id`, "" for none, `order_bang`, `order_mode` quiet / stun / frag (LD14),
-## `order_hold` and `order_go` (held for the leader's go and whether it came, LD13), `order_side`,
+## `order_hold` and `order_go` (held for the leader's go and whether it came, LD13; an unordered
+## member that latched a go says `order_go` too, which only its own reads count), `order_side`,
 ## 0 for a split stack, LD9, `order_frame`, the frame the order was issued on, -1 unknown),
 ## `crossed_frame` (the frame its latest crossing began on: its step reached `going_in` or a
 ## through step, -1 for none; a held stack takes the human's crossing as its go only from the
@@ -95,12 +96,12 @@ static func throws_first(mode: Variant) -> bool:
 ## for any other. Built here alone, for the radio's claim and every member's own
 ## (`StackMember.terms`).
 static func order_terms(order: Dictionary) -> Dictionary:
-	var join := bool(order.get("join", false))
+	var join := bool(order.get("join", DEFAULTS["join"]))
 	var out := { "join": join }
 	var go := bool(order.get("go", DEFAULTS["order_go"]))
 	if go:
 		out["order_go"] = true
-	var id := str(order.get("id", ""))
+	var id := str(order.get("id", DEFAULTS["order_id"]))
 	if id == "" and not (join and bool(order.get("hold", false))):
 		return out
 	out["order_hold"] = bool(order.get("hold", DEFAULTS["order_hold"]))

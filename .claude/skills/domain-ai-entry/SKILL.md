@@ -268,7 +268,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   stack D6's (`DoorStack.split_side`, from the side it asked for, else the one it began on, `orders._pref_side`, unless that side would hold two more than the other, when the last claimer
   there, the highest slot, takes the other); the mode is the order's (`begin`; an unordered member follows it, `orders.follow_order` through `listen.turn_bang`, D10), with
   no suspect-room bang, no first claimer's `grenade._go_quiet`, no `listen.maybe_upgrade` and no listen (`listen._may_turn` is false) and no veto but a
-  `bang_off` from a claim under the same order (`grenade.vetoed`: for a stack whose mode is set, `orders.mode_set`, the mode's own veto, `DoorStack.mode` quiet; else any `bang_off`); the stack's mode is `DoorStack.mode` (`grenade.stack_bangs`: the order's, a rally go's, else E17's
+  `bang_off` from a claim under the same order (`grenade.vetoed`, for a stack whose mode is set, `orders.mode_set`, is the mode's own veto: `DoorStack.mode` quiet); the stack's mode is `DoorStack.mode` (`grenade.stack_bangs`: the order's, a rally go's, else E17's
   first claimer's), so `grenade.banging` holds whatever a quiet member says and `grenade.tick_bang` gives up only on its own caps, and with the stack in and no stun in it (`grenade.stack_has_stun`) `grenade.due` gives the bang up (D1: quiet, `bang_off` radioed).
   **D7:** `readiness.stack_ready` waits for every other living recipient of the order (`orders.recipients`: the live order's `to` from
   `AgentPerception.orders.current()`, `Squad.alive` through `Entry.world.squad`, which `Behavior.apply_config` hands in from the controller's `squad`) to have radioed past

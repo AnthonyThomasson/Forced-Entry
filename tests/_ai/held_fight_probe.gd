@@ -47,10 +47,10 @@ static func arm(t: TestContext, id: StringName) -> void:
 ## more (until every member is back in its slot, at most `BACK_WITHIN` s past that), sampling the
 ## `members` (characters) every frame. Returns `{ in_room: { node: first time }, heading: { node:
 ## [time, act, target] }, fired: { node: shots from outside }, acts: { node: [[time, act]] },
-## back: { node: time } }`: when each first stood in the kitchen, when its walk first headed into
-## it (and on which act, to where), how many rounds each fired from the stack's side of the doorway,
-## each act it took on the way, and when, once the defender was out of sight, each first stood in
-## its slot again, back on its stack order.
+## back: { node: time }, lapsing: true }`: when each first stood in the kitchen, when its walk
+## first headed into it (and on which act, to where), how many rounds each fired from the stack's
+## side of the doorway, each act it took on the way, and when, once the defender was out of sight,
+## each first stood in its slot again, back on its stack order (`lapsing`: that watch has begun).
 static func fight(
 		t: TestContext,
 		id: StringName,
