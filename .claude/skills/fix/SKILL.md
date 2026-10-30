@@ -29,9 +29,9 @@ Empty, or too vague to tell expected from actual: ask one concise question first
    test and the bundle: load `mattpocock-skills:diagnosing-bugs` and follow its phases 2–4 (shrink the repro until
    every part is load-bearing; 3–5 ranked, falsifiable hypotheses shown to the user before testing; one variable per
    probe, logs tagged `[DEBUG-<id>]` and grepped out before green). A perf regression: its perf branch, a baseline
-   measured on a quiet machine first, then bisect. A check whose definition or threshold changes once the production change is in
-   (what it measures, a band, a distance) goes to the user before the rerun: before → after, and why the old one was
-   wrong.
+   measured on a quiet machine first, then bisect. A check whose definition or threshold changes once the production
+   change is in (what it measures, a band, a distance) goes to the user before the rerun: before → after, and why the
+   old one was wrong.
 5. **Green.** The test passes (`--id=<id> --repeat=10` for an intermittent bug; no `FLAKY`). Then
    `tools/run_tests.sh --changed --summary`, last `tools/run_tests.sh --summary --jobs=auto`. On a failure, fix and rerun
    with `tools/run_tests.sh --failed`. Report unrelated failures; don't paper over them.

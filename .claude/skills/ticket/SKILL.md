@@ -50,10 +50,11 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   the user. Every acceptance question (a plan, a bug's fix, a revision) comes right after a `change-report`. Ask with `AskUserQuestion`, a few specific questions at a time, recommended answer first. Use a decision
   gate where a phase waits on an answer.
 - **Build phases go to workers**, except a bug's phases 2–4, which run inline (`ticket-bug`). A self-contained brief:
-  ticket number and body, accepted plan, skills to load (`architecture`, the `domain-<name>` skills, `domain-testing`, `test-debug`), what to produce, how to know it is done,
-  "No shortcuts", that anything it cannot decide comes back as an escalation, not a guess, and the heartbeat rule
-  (1–2 sentence `--phase` status) and the ack rules below (`received <id>`, `check --ack`, a blocking `ask`). A
-  showroom brief (`ticket-assets`) names the exhibits, the references, the variants wanted and its load check and lint.
+  ticket number and body, accepted plan, skills to load (`architecture`, the `domain-<name>` skills, `domain-testing`,
+  `test-debug`), what to produce, how to know it is done, "No shortcuts", that anything it cannot decide comes back as
+  an escalation, not a guess, and the heartbeat rule (1–2 sentence `--phase` status) and the ack rules below (`received
+  <id>`, `check --ack`, a blocking `ask`). A showroom brief (`ticket-assets`) names the exhibits, the references, the
+  variants wanted and its load check and lint.
 - **Code goes through `implement`.** A worker that writes tests or production code (`coding`,
   `coding-review-fixes`) runs `mattpocock-skills:implement`. It is slash-only (the Skill tool refuses it), so the
   spec's first line is `/mattpocock-skills:implement`, the brief after it. The brief also says:
