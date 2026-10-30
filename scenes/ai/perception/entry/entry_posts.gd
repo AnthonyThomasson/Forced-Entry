@@ -66,6 +66,10 @@ var cache := {}
 ## (`CharacterMovement.posture_coverage`), handed in by the perception once it knows its body: what
 ## a piece of furniture must stand above to shield it from a grenade's burst.
 var crouch := 0.0
+## The NPC's body, handed in by the perception beside `crouch`: the characters under its world root
+## (the group `characters`, interface 7), itself among them, are the bodies a burst's line passes
+## through. Null for a geometry built with no NPC (it then excludes none).
+var body: Node = null
 
 
 ## Where member `nth` of `count` (`place`: x which post, y of how many) holds room `room_key` it was
@@ -409,14 +413,17 @@ func _exposures(f: Dictionary, p: Vector2, space: PhysicsDirectSpaceState2D) -> 
 	return out
 
 
-## The rids of every character in the scene (a grenade's line passes through bodies, and who stands
-## where while a post is worked out has no say in where it is).
-static func _bodies() -> Array:
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null:
+## The rids of every character under the world root of `body` (a grenade's line passes through
+## bodies, and who stands where while a post is worked out has no say in where it is), read when a
+## post is ranked; none without a body in the tree.
+func _bodies() -> Array:
+	if not is_instance_valid(body) or not body.is_inside_tree():
 		return []
-	return tree.get_nodes_in_group(&"characters").filter(
-		func(c): return c is CollisionObject2D,
+	var root: Node = body.world_root()
+	if root == null:
+		return []
+	return body.get_tree().get_nodes_in_group(&"characters").filter(
+		func(c): return c is CollisionObject2D and root.is_ancestor_of(c),
 	).map(func(c): return (c as CollisionObject2D).get_rid())
 
 

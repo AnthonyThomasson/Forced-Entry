@@ -384,8 +384,9 @@ at any range and facing); a post seen by none is hidden only if it is hidden fro
 landings (`_exposures`, LD15, D17) count, per kind of `BANG_KINDS` (frag, then stun), the spots an entry's grenade into the room by that
 doorway may land (`_bang_landings`: `EntryLandings.spots(g, reach)`, reckoned from the doorway's centre, no slot filter) that reach a body
 crouched at the post: within the kind's `danger_radius` and not shielded by `Explosion.shields` (interface 3) with a `CoverRule` at
-`posts.crouch` (the body's `movement.posture_coverage(&"crouch")`, handed in by `AgentPerception.bind`), every character's body excluded
-(`_bodies`), `cover_reach` the kind's `flash_cover_reach`. The grenade's numbers are `GrenadeConfig.stats_of(kind)` (interface 6: a grenade
+`posts.crouch` (the body's `movement.posture_coverage(&"crouch")`, handed in by `AgentPerception.bind`), every character under the NPC's world root excluded
+(`_bodies`: the group `characters` under `posts.body`'s `world_root()`, interface 7, the NPC's body handed in by `bind` beside `crouch`;
+none for a geometry built with no NPC), `cover_reach` the kind's `flash_cover_reach`. The grenade's numbers are `GrenadeConfig.stats_of(kind)` (interface 6: a grenade
 nobody holds), the reach `max_range` less `AgentThrow.REACH_SLACK`. Members alternate sides of the axis, the side with more wall first, and
 two posts stand `AMBUSH_SPACING` (44 px) apart. The snapshot's `order` group calls it.
 **Where an entry's grenade lands (`entry/entry_landings.gd`, `EntryLandings`, static, preloaded, no `class_name`; `docs/grenades.md` G18).**

@@ -209,6 +209,7 @@ func bind(character: Node) -> void:
 	grenades.throw.bind(character)
 	grenades.live.bind(character)
 	entry.doorways.posts.crouch = character.movement.posture_coverage(&"crouch")
+	entry.doorways.posts.body = character
 	_snapshot.bind(character)
 
 
