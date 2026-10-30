@@ -75,9 +75,9 @@ class TestFilesCase(unittest.TestCase):
             (self.tests / (rel + "_test.gd")).write_text("")
 
     def map(self, diff, doc=DOC):
-        return spec_tests.map_diff(diff, lambda path: doc, self.test_files())
+        return spec_tests.map_diff(diff, lambda path: doc, self.listed_tests())
 
-    def test_files(self):
+    def listed_tests(self):
         return sorted(f.relative_to(self.tests).as_posix() for f in self.tests.rglob("*_test.gd"))
 
 
@@ -107,7 +107,7 @@ class MappingTests(TestFilesCase):
 
     def test_a_helper_folder_holds_no_test(self):
         doc = "Tests: `delta_helper`.\n"
-        self.assertEqual(spec_tests.map_diff(hunk("docs/a.md", 1, 1), lambda p: doc, self.test_files()),
+        self.assertEqual(spec_tests.map_diff(hunk("docs/a.md", 1, 1), lambda p: doc, self.listed_tests()),
                          ([], ["NOTE unknown test name in docs/a.md:1: delta_helper"]))
 
     def test_a_pure_deletion_changes_the_paragraph_around_where_the_lines_were(self):
