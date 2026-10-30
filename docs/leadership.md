@@ -429,12 +429,13 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   that doorway, as laid out before they are snapped: `geometry`'s `lookouts`; hidden only when it is hidden from the 8 points
   `AMBUSH_SLACK`, 12 px, round it too, since the ambusher stops a few px off its post), then by how few landings of an entry's grenade
   reach it (a frag's burst counted first, then a stun's flash: below), then out of every doorway's fatal funnel, then low cover on its
-  line to the threshold (a piece of furniture the first thing that line meets, every character's body looked through: the ranking is
-  shared by the whole crew, so who stands where while it is worked out has no say in it; a body never shields a post), then nearest `AMBUSH_DEPTH` (110 px, E8's `COVER_DEPTH`) back: with no hidden post, the least seen. Each rank
+  line to the threshold (a piece of furniture the first thing that line meets), then nearest `AMBUSH_DEPTH` (110 px, E8's `COVER_DEPTH`) back: with no hidden post, the least seen. Each rank
   outweighs everything the ranks below it can add up to (`RANK_SEEN`, `RANK_FRAG`, `RANK_STUN`, `RANK_FUNNEL`, `RANK_NO_COVER`), and the
   side of the axis (`RANK_SIDE`, 1e9) outweighs them all: a post on the member's own side wins over any post on the other, however many
   lookouts see it. Members alternate sides of the axis by their place in `to` (the side with more wall first), two on one side at least
-  `AMBUSH_SPACING` (44 px) apart. A hidden post lies tucked against the door's wall well along from it; in the Terrace house only the
+  `AMBUSH_SPACING` (44 px) apart. Every line of the ranking (a lookout's sight of the post, the post's sight of the threshold and its
+  cover on that line, a grenade's burst) looks through the characters' bodies: the crew shares the ranking, so who stands where while it
+  is worked out has no say in it, and a body never shields nor hides a post. A hidden post lies tucked against the door's wall well along from it; in the Terrace house only the
   hall / living room doorway (`door_150_360`, from the living room) has one, every other doorway the least-seen fallback.
 - **Shielded from the bang (D17).** The landings are where an entry's grenade thrown into the room by that doorway comes down: the bang's
   own aim rule (`EntryLandings`, `ai/perception/entry/entry_landings.gd`, which the stack's thrower aims by too, `docs/grenades.md` G18:

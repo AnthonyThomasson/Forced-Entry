@@ -409,9 +409,14 @@ static func wall_length(rect: Rect2, pos: Vector2, dir: Vector2) -> float:
 
 
 ## Whether the line `from` → `to` is clear for sight (over low cover; walls and tall furniture block
-## it).
-func _sees(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> bool:
-	return space == null or vision.can_see(from, to - from, to, space, [])
+## it), the rids `exclude` looked through.
+func _sees(
+	space: PhysicsDirectSpaceState2D,
+	from: Vector2,
+	to: Vector2,
+	exclude: Array = [],
+) -> bool:
+	return space == null or vision.can_see(from, to - from, to, space, exclude)
 
 
 # --- The sides of a stack (its claims and layout: stack/door_stack.gd) -------------------------

@@ -64,8 +64,9 @@ const BANG_KINDS: Array[StringName] = [&"frag", &"stun"]
 ## The ambush posts every NPC on a navigation map shares (map RID -> "<geometry key>|<crouch>|
 ## <opening id>><room key>" -> a ranking, `_ambush_ranking`): a doorway's posts are the house's and
 ## the map's, ranked by nothing of the NPC but the tunables its key names (the geometry's and the
-## sight's, `EntryLayouts.key`, and the crouched height), the characters' bodies looked through, so
-## they are ranked once a map, not once a member. Forgotten with the map's planning region.
+## sight's, `EntryLayouts.key`, and the crouched height), every line of the ranking looking through
+## the characters' bodies, so they are ranked once a map, not once a member. Only an NPC's ranking
+## is kept here (a geometry with no body keeps its own). Forgotten with the map's planning region.
 static var _shared := {}
 
 ## "<opening id>><room key>" -> the ranking of that doorway's ambush posts, room side
@@ -230,8 +231,9 @@ func _first_side(rect: Rect2, pos: Vector2, along: Vector2) -> int:
 ## and the room's `doors`) (`defend_spot`): snapped onto the navmesh inside the room
 ## (dropped when the snap moves it off), with `funnel` (how many of the room's `doors` it stands in
 ## the fatal funnel of), `sees` / `sees_door` (the doorways it has a sight line to, how many and
-## which) and `cover` (the ids of those with low furniture on the line, which it sees over, the
-## frame's `bodies` looked through: an ambush post's, so who stands where has no say in its cover).
+## which) and `cover` (the ids of those with low furniture on the line, which it sees over), both
+## lines looking through the frame's `bodies`: an ambush post's, so who stands where has no say in
+## them.
 ## {} when it is no spot.
 func _defend_candidate(
 	entry: AgentEntry,
@@ -257,7 +259,7 @@ func _defend_candidate(
 				and off.dot(into) < DEFEND_FUNNEL_DEPTH):
 			funnel += 1
 		var aim := pos + into * DEFEND_DOOR_IN
-		if entry._sees(space, p, aim):
+		if entry._sees(space, p, aim, f.get("bodies", [])):
 			sees[d["id"]] = true
 			if _low_cover(entry, space, p, aim, f.get("bodies", [])):
 				cover[d["id"]] = true
@@ -391,7 +393,10 @@ func _ambush_ranking(
 	var key := "%s>%s" % [g["id"], room_key]
 	if cache.has(key):
 		return cache[key]
-	var shared := EntryLayouts.per_map(_shared, map)
+	# Only an NPC's ranking (its body known: every body under its world root looked through) is
+	# shared; a geometry with no NPC keeps its own.
+	var npc := is_instance_valid(body)
+	var shared := EntryLayouts.per_map(_shared, map) if npc else {}
 	var shared_key := "%s|%s|%s" % [entry.layouts.key(entry), crouch, key]
 	if shared.has(shared_key):
 		cache[key] = shared[shared_key]
@@ -417,7 +422,8 @@ func _ambush_ranking(
 	if NavBuilder.ready(map):
 		# Only keep what was snapped onto a baked map.
 		cache[key] = ranking
-		shared[shared_key] = ranking
+		if npc:
+			shared[shared_key] = ranking
 	return ranking
 
 
@@ -445,7 +451,7 @@ func _ambush_post(
 	var p: Vector2 = c["spot"]
 	if absf((p - (f["pos"] as Vector2)).dot(f["along"])) < float(f["width"]) * 0.5 + DEFEND_BODY:
 		return {}  # On the axis.
-	var seen := _seen_by(entry, space, observers, p)
+	var seen := _seen_by(entry, space, observers, p, f["bodies"])
 	var score := (float(seen) * RANK_SEEN + float(c["funnel"]) * RANK_FUNNEL
 			+ (0.0 if c["cover"].has(f["id"]) else RANK_NO_COVER)
 			+ absf(float(at[0]) - AMBUSH_DEPTH))
@@ -521,32 +527,34 @@ func _observers_of(g: Dictionary) -> Array:
 	return observers
 
 
-## How many of `observers` see post `p` (`_sees_from`); for a post none sees, the most that see any
-## of the 8 points `AMBUSH_SLACK` round it.
+## How many of `observers` see post `p` (`_sees_from`, `bodies` looked through); for a post none
+## sees, the most that see any of the 8 points `AMBUSH_SLACK` round it.
 func _seen_by(
 	entry: AgentEntry,
 	space: PhysicsDirectSpaceState2D,
 	observers: Array,
 	p: Vector2,
+	bodies: Array,
 ) -> int:
-	var seen := observers.filter(func(o): return _sees_from(entry, space, o, p)).size()
+	var seen := observers.filter(func(o): return _sees_from(entry, space, o, p, bodies)).size()
 	if seen == 0:
 		for k in 8:
 			var q := p + Vector2.from_angle(TAU * k / 8.0) * AMBUSH_SLACK
 			seen = maxi(
 				seen,
-				observers.filter(func(o): return _sees_from(entry, space, o, q)).size(),
+				observers.filter(func(o): return _sees_from(entry, space, o, q, bodies)).size(),
 			)
 	return seen
 
 
-## Whether someone standing at `from` sees `to` (over low cover; walls and tall furniture block it),
-## at any distance and whichever way it faces: what a stack outside could see of a post once it
-## looks.
+## Whether someone standing at `from` sees `to` (over low cover; walls and tall furniture block it,
+## `bodies` looked through), at any distance and whichever way it faces: what a stack outside could
+## see of a post once it looks.
 func _sees_from(
 	entry: AgentEntry,
 	space: PhysicsDirectSpaceState2D,
 	from: Vector2,
 	to: Vector2,
+	bodies: Array,
 ) -> bool:
-	return space == null or entry.vision.sight_hit(space, from, to, []).is_empty()
+	return space == null or entry.vision.sight_hit(space, from, to, bodies).is_empty()
