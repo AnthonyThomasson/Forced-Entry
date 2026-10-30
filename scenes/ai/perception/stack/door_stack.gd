@@ -380,13 +380,15 @@ func _releases_rally(m: Dictionary, crosses: bool, since: int) -> bool:
 
 
 ## The human leader's rally member `me` holds for (D31): `me` itself when it is a join waiting for
-## its leader's go (`join`, `order_hold`), else the lowest slot's claim that is; `{ into,
+## its leader's go (`join`, `order_hold`), else the lowest slot's claim that is and is still at a
+## stacking step (`StackClaim.stacking`): a joiner of an earlier rally at the doorway, gone through
+## into the room it cleared, is left from that entry and forms no rally now. `{ into,
 ## order_frame }`, {} when it joined none.
 func _rally(me: Dictionary) -> Dictionary:
 	if bool(me.get("join", false)) and bool(me.get("order_hold", false)):
 		return { "into": str(me.get("into", "")), "order_frame": int(me.get("order_frame", -1)) }
 	for m in team:
-		if m["join"] and m["order_hold"]:
+		if m["join"] and m["order_hold"] and StackClaim.stacking(m["step"]):
 			return m
 	return {}
 

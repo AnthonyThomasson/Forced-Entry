@@ -518,15 +518,14 @@ func test_an_ai_leaders_rally_is_never_held() -> void:
 func test_the_mode_a_stack_goes_in_is_the_orders_else_the_gos_else_its_first_claimers() -> void:
 	# LD9, LD14, D1, D31, E17: an ordered stack goes in the order's mode, quiet once a member under
 	# that order gave its grenade up; a human leader's rally goes in the mode its go named, quiet
-	# before it or when the leader stepped in; any other stack goes in its first claimer's way, a
-	# stun only while every claim says bang and none gave it up; with nobody claiming, the stack
-	# says nothing ("").
-	var a := StackRadio.speaker(self)
-	var me := StackRadio.speaker(self)
+	# before it or when the leader stepped in, and a join left from an earlier rally, gone through
+	# into the room it cleared, names no mode to a later stack there; any other stack goes in its
+	# first claimer's way, a stun only while every claim says bang and none gave it up; with nobody
+	# claiming, the stack says nothing ("").
 	var frag := { "order_id": "7", "order_mode": "frag", "order_bang": true, "into": "hall" }
 	var rally := { "join": true, "order_hold": true, "order_frame": ORDER_FRAME, "into": "hall" }
-	var mine := _me(me, 2)
-	var cases := {
+	var mine := _me(StackRadio.speaker(self), 2)
+	_assert_modes({
 		"the order's frag": [mine.merged(frag, true), [], "frag"],
 		"the order's frag, a member under it gave it up":
 			[mine.merged(frag, true), [{ "order_id": "7", "bang_off": true, "bang": false }],
@@ -542,18 +541,29 @@ func test_the_mode_a_stack_goes_in_is_the_orders_else_the_gos_else_its_first_cla
 		"a rally a joiner's go named a frag":
 			[mine.merged(rally, true),
 				[rally.merged({ "order_go": true, "order_mode": "frag" }, true)], "frag"],
+		"unordered, a joiner of an earlier rally holding the room it cleared": [
+			mine,
+			[rally.merged({ "order_go": true, "order_mode": "frag", "entry_step": "clear" }, true),
+				{ "bang": false }],
+			"quiet",
+		],
 		"every claim says bang": [mine, [{ "bang": true }], "stun"],
 		"a claim says quiet": [mine, [{ "bang": true }, { "bang": false }], "quiet"],
 		"a claim gave the bang up": [mine, [{ "bang": false, "bang_off": true }], "quiet"],
 		"nobody claiming": [mine, [], ""],
-	}
+	})
+
+
+## Asserts each case of `cases` (why -> `[me, the claims' fields, the mode]`): `me` reads the mode
+## (`DoorStack.mode`) off a stack of those claims, the first on slot 1 and the rest from slot 3 on.
+func _assert_modes(cases: Dictionary) -> void:
 	for why: String in cases:
 		var c: Array = cases[why]
 		var claims: Array = []
 		for i in (c[1] as Array).size():
 			var fields: Dictionary = (c[1] as Array)[i]
 			claims.append(_claim(
-				a if i == 0 else StackRadio.speaker(self),
+				StackRadio.speaker(self),
 				fields.merged({ "slot": i + 1 + int(i >= 1), "side": 1 }, true),
 			))
 		var got: String = DoorStack.new(_door(), claims).mode(c[0])
