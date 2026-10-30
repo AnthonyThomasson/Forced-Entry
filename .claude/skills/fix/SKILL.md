@@ -11,8 +11,8 @@ The bug: **$ARGUMENTS**
 
 Empty, or too vague to tell expected from actual: ask one concise question first.
 
-1. **Orient.** Load `architecture`, the `domain-<name>` skill where the bug lives, `domain-testing` and `test-debug`. Done when `architecture`, the domain skill, `domain-testing` and
-   `test-debug` are loaded in this session.
+1. **Orient.** Load `architecture`, the `domain-<name>` skill where the bug lives, `domain-testing` and `test-debug`.
+   Done when all four are loaded in this session.
 2. **Place it.** Write it as *expected vs. actual* in one or two lines. The test goes in
    `tests/<domain>/<name>_test.gd`; check `tools/run_tests.sh --list <words>` first and extend an existing test rather
    than add a near-duplicate. It is a simulation test (`GameTest`): a native gdUnit suite (`*_suite.gd`) is for pure
