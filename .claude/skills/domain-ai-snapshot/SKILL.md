@@ -75,7 +75,7 @@ lives in `agent_snapshot.gd`.
   kitchen by its doorway quietly." ("with a stun grenade first", "with a frag grenade first": the order's `mode`, LD14; a held stack that has
   had no go adds " when they give the go", LD13), "Your leader ordered you to ambush the doorway into the hall from the living room." (into
   `beyond` from `room`; an exterior door's: "... to ambush the outside doorway of the kitchen from inside.", LD15; an AI defender leader
-  that ordered itself, LD29, reads the same sentence: measured for it with `tools/von_probe.py`, it moved no combat top pick), a join (the leader's own
+  that ordered itself, LD29, reads the same sentence: measured for it with `tools/von_probe.py` on 2026-10-30, it moved no combat top pick, `docs/leadership.md` LD15), a join (the leader's own
   stack, mode `join`, `StackClaim.is_join(order)`, LD24) "Your leader ordered you to go into the kitchen by its doorway with them.", "" otherwise; the planner
   shows it after the goal at every level, so an NPC with no order reads exactly what it read before. Measured with `tools/von_probe.py`
   (`docs/leadership.md` LD6, LD13 to LD15: at the 18 combat levels the top pick unchanged in 17/18 for the defend sentence and 18/18 for

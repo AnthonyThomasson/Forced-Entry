@@ -473,10 +473,13 @@ within the follower's leash (LD23).
   pick moving 0.023 / 0.026 on average (0.109 / 0.078 at most); outside combat both pull `stun_entry_quiet_unexplored` and
   `_unsearched` toward STUN ENTRY, the exterior one also `enter_short_unsearched_over_long_unexplored` toward the kitchen (the coding
   worker, 2026-10-16, as LD6). An AI leader that orders itself (LD29) reads the same sentence, word for word: the leader's state carries
-  no leader line of its own. Measured again for it (#128's coding worker, the same 38 levels, the sentence inserted after the goal) it
-  gave the numbers above, the combat top pick unchanged in 18 of 18 for both and the expected pick moving 0.023 / 0.026 on average (0.109
-  at most, `tactic_target_fleeing`, / 0.078); the levels it moves are those an ordered leader is never asked while its order holds. So
-  the leader keeps the member's wording.
+  no leader line of its own. Measured again for it with `tools/von_probe.py` on 2026-10-30 (#128's wrap-up worker, Von `von-1.2.0`:
+  the same 38 levels, all 38 passing as they stand and each answered alike when asked twice, both sentences inserted on the line after
+  the goal) it gave the numbers above: the combat top pick unchanged in 18 of 18 for both, the expected pick (the probability of the
+  level's expected option) moving 0.023 / 0.026 on average and 0.109 / 0.078 at most, both at `tactic_target_fleeing`, and outside
+  combat the same top picks moved as above (the two quiet stun-entry levels for both, the exterior one also
+  `enter_short_unsearched_over_long_unexplored`). Those are levels an ordered leader is never asked while its order holds. So the leader keeps
+  the member's wording.
 
 Tests (the Terrace house's `door_150_360`, ambushed from the living room): `ai/combat/ambush_door_post` (scripted: the post off the axis,
 unseen from every slot and pie step by the test's own copy of the entry geometry, crouched, gun on the threshold; a puppet steps into the
