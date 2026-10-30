@@ -101,7 +101,7 @@ lives in `agent_snapshot.gd`.
   navmesh point is under a `STRIDE`, 32 px; shots from beyond the walkable ground), and the retreat spots are screened in `agent_tactics.gd`
   (`domain-ai-perception`, Tactics). Other leads lie at fixed points and reaching one spends it (`check_lead`). Beside its options
   `lead_group` hands out `lead_pos`, the point of the freshest lead that places a hostile, over all the leads before the option cap, an
-  ally's support lead (`lead_ally_*`: its spot is the ally) skipped, `Vector2.INF` with none: the controller's radio reads it off the last
+  ally's support lead skipped (each lead dict says `places_hostile`, false for an ally's support: its spot is the ally), `Vector2.INF` with none: the controller's radio reads it off the last
   options (`_cadence.last_options["leads"]`) into an INVESTIGATE callout's `lead_pos`, which the defenders' squad reads for its ambush rule
   (`docs/leadership.md` LD29); nothing in the state text or the options changes. `entries` (the doorways
   ENTER offers, `tuning.entry.enabled` only: out of the NPC's area into a room unseen — named by direction — or unsearched,
