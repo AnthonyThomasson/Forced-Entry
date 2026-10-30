@@ -21,15 +21,16 @@ const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 
 ## The squad it belongs to.
 var squad: Node
-## Whether the squad runs the rule (its roster's `ambush_attacks`: the defenders' side).
+## Whether the squad runs the rule (its roster's `ambush_attacks`: the defenders' side): the squad
+## hears a callout for it (`hear`) only then.
 var enabled := false
 ## The house's doorways and rooms (`WorldGen.get_openings` / `get_rooms`).
 var _openings: Array = []
 var _rooms: Array = []
 ## The doorway of the last ambush ordered ("" for none since the leader took the lead).
-var _door := ""
+var _last_door := ""
 ## When it was ordered (`GameClock.seconds()`).
-var _at := 0.0
+var _ordered_at := 0.0
 
 
 func _init(team: Node) -> void:
@@ -45,23 +46,24 @@ func setup(on: bool, openings: Array, rooms: Array) -> void:
 
 ## A new leader: the last doorway and the cool-down start afresh.
 func reset() -> void:
-	_door = ""
-	_at = 0.0
+	_last_door = ""
+	_ordered_at = 0.0
 
 
-## Callout `data` from the squad's side, heard while an AI leads: order the ambush of the doorway
-## its threat point's attack comes through, to `free` (the living NPC members holding no order, in
-## spawn order), when the rule says so.
+## Callout `data` from the squad's side, heard while an AI leads a squad that runs the rule
+## (`enabled`, which the squad asks first): order the ambush of the doorway its threat point's
+## attack comes through, to `free` (the living NPC members holding no order, in spawn order), when
+## the rule says so.
 func hear(data: Dictionary, free: Array) -> void:
 	var leader: Node = squad.leader()
-	if not enabled or not leader is Node2D:
+	if not leader is Node2D:
 		return
 	var room := HouseRooms.key_at((leader as Node2D).global_position, _rooms)
-	var opening := AttackDoor.doorway(threat_point(data), room, _rooms, _openings)
-	if opening == "" or opening == _door:
+	var opening := AttackDoor.doorway(_threat_point(data), room, _rooms, _openings)
+	if opening == "" or opening == _last_door:
 		return
-	var again := _door != ""
-	if again and GameClock.seconds() - _at < SquadAmbushConfig.reorder_gap:
+	var again := _last_door != ""
+	if again and GameClock.seconds() - _ordered_at < SquadAmbushConfig.reorder_gap:
 		return
 	var to := _recipients(free, leader)
 	if to.is_empty() or (again and to.size() < SquadAmbushConfig.min_recipients):
@@ -70,14 +72,14 @@ func hear(data: Dictionary, free: Array) -> void:
 		"kind": "ambush", "to": to, "opening": opening, "room": room,
 	})
 	if not order.is_empty():
-		_door = opening
-		_at = GameClock.seconds()
+		_last_door = opening
+		_ordered_at = GameClock.seconds()
 
 
 ## Where callout `data` places a threat: a COMBAT decision's `target_pos`, an INVESTIGATE decision's
 ## `lead_pos`; `Vector2.INF` for any other callout (an entry step, an order's progress, a grenade
 ## call) or one that places nothing.
-static func threat_point(data: Dictionary) -> Vector2:
+static func _threat_point(data: Dictionary) -> Vector2:
 	if str(data.get("entry_step", "")) != "" or StackClaim.keeps_claim(data):
 		return Vector2.INF
 	var point: Variant = Vector2.INF

@@ -543,7 +543,7 @@ func _hear_side(data: Dictionary) -> void:
 		var claim := StackClaim.decode(data)
 		if _own_claim(claim):
 			_rally(claim)
-	if _leader != null and _leader != _human:
+	if ambush.enabled and _leader != null and _leader != _human:
 		ambush.hear(data, _free())
 
 

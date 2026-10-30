@@ -127,7 +127,7 @@ an `ambush`; the held stacks it ordered are released as before (D12).
 
 **The defenders' ambush rule (`docs/leadership.md` LD29, D31 to D36).** The squad's `ambush` part (`ai/team/squad_ambush.gd`, built with
 the squad, holding it; `setup(roster.ambush_attacks, openings, rooms)` from `Squad.setup`; the roster flag is set by
-`MatchBuilder.build_squads` for the defenders' side only). `hear(data, free)` reads the threat point (`threat_point`: a COMBAT callout's
+`MatchBuilder.build_squads` for the defenders' side only). `hear(data, free)` (asked by the squad only while `enabled`, so the invaders' squad never lists its free members) reads the threat point (`_threat_point`: a COMBAT callout's
 `target_pos`, an INVESTIGATE callout's `lead_pos`, which the controller's radio adds from its snapshot's `lead_group`; `Vector2.INF` for an
 entry step, an order's progress or a grenade call, `StackClaim.keeps_claim`), the leader's room (`HouseRooms.key_at` over its live
 position, preloaded from perception's `house_rooms.gd`) and the attack doorway (`AttackDoor.doorway(point, leader_room, rooms, openings)`,
