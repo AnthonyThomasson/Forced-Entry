@@ -24,7 +24,8 @@ var engage_pos := Vector2.ZERO
 ## Whether that contact was last seen inside the house.
 var engage_inside := false
 ## The contact's last-known spot is where its confinement does not let it act (outside the house,
-## the room it defends or its leash): it holds its ground instead of chasing there.
+## the room it defends, its leash or the room its held stack is to enter): it holds its ground
+## instead of chasing there.
 var hold_ground := false
 ## The character was reloading last tick (for the status line and overlay).
 var reloading := false

@@ -408,7 +408,7 @@ func _confinement() -> RefCounted:
 
 
 ## Whether a `confine` subtree confines this NPC: its confinement has a rule (its territory, the
-## room it was ordered to defend, its leash).
+## room it was ordered to defend, its leash, the room its held stack is to enter).
 func _confines() -> bool:
 	var confinement := _confinement()
 	return confinement != null and confinement.confines()

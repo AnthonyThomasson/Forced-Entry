@@ -83,8 +83,8 @@ var grenades: PerceptionGrenades
 var entry: PerceptionEntry
 ## The doorway views and the walk that keeps out of them; see perception_views.gd.
 var views: PerceptionViews
-## Where it may act (its territory, the room it defends, its leash), refreshed each tick by the
-## controller; see perception_confinement.gd.
+## Where it may act (its territory, the room it defends, its leash, the room its held stack is to
+## enter), refreshed each tick by the controller; see perception_confinement.gd.
 var confinement: PerceptionConfinement
 
 
