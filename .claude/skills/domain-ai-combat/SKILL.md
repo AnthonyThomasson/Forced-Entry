@@ -34,9 +34,10 @@ cooldown (no cover cycle): its blow (`_strike`) kicks (`_kick`, the character's 
 and otherwise (crouched, or no gun held) equips the fists and punches (`_punch`).
 
 **Where it may fight** is the perception's `confinement` (`perception_confinement.gd`, `domain-ai-perception`), asked live: its territory
-(a territorial NPC keeps inside the house), the room a member ordered to defend keeps to (`docs/leadership.md` LD8) and the leash (a squad
+(a territorial NPC keeps inside the house), the room a member ordered to defend keeps to (`docs/leadership.md` LD8), the leash (a squad
 member following its leader and holding no order fights within `SquadFollowConfig.leash` of the leader's live position, LD23; a member
-carrying an order fights where the order takes it). Combat keeps no copy of any of them. The edge rules:
+carrying an order fights where the order takes it) and the room a member of a stack held for its leader's go keeps out of (LD13, D31: it
+fights from the stack's side of the doorway). Combat keeps no copy of any of them. The edge rules:
 - `_choose_dest` always keeps the peek and cover spots to those `confinement.allows` accepts, whatever the contact: a territorial NPC's
   spots stay in the house against a contact inside it too.
 - With no fire spot left the peek falls back to closing on the contact when the confinement allows the contact's spot, and to holding

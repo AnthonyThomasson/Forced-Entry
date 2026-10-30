@@ -334,8 +334,8 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   the go (`DoorStack.held` false, or the live order's `go`; never the leader's death) and takes its mode: `orders.mode` the live order's `go_mode`
   when its own go came, else "", and `state.bang` from `DoorStack.mode` (`_rally_mode`: the go's `stun` / `frag`, quiet with none named or once a member of
   the rally gave its grenade up). Once released, `readiness.members_ahead` drops the human unless it is crossing, so the first AI is the point.
-  A held member fights only on the stack's side (`AgentPerception.orders.held_room()`, the decision's `keep_out`, `domain-ai-behavior`'s
-  `keep_out_room`; a walk whose plain way goes into that room goes round it, under fire too, and never goes round a body by a way into it, `Locomotion`'s `doors.keep_out`; test `ai/entry/order_stack_hold_retreat_round_body`). Tests: `ai/stack/rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet`, `rally_menu_go_stun`,
+  A held member fights only on the stack's side (`AgentPerception.orders.held_room()`, the confinement's `keep_out`, which the planner's
+  COMBAT filter, the fight and `Combat`'s spots ask; a walk whose plain way goes into that room goes round it, under fire too, and never goes round a body by a way into it, `Locomotion`'s `doors.keep_out`; test `ai/entry/order_stack_hold_retreat_round_body`). Tests: `ai/stack/rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet`, `rally_menu_go_stun`,
   `rally_menu_go_frag`, `rally_walk_away_follows`, `rally_cancelled_on_leader_death`, `ai/entry/order_stack_hold_fights_stack_side` (LD13's held
   order), probes `tests/_ai/rally_probe.gd` and `tests/_ai/held_fight_probe.gd`.
 - **A frag at entry (`docs/leadership.md` LD14).** A stack under an order whose mode is `frag`, or a rally whose go named frag (`grenade._bang_kind()`, from

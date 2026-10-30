@@ -364,10 +364,10 @@ sentence for Von ends " when they give the go".
   held rally, LD24) fights only on the stack's side of the doorway. The watch stage shoots what it sees through the doorway from the slot
   (`docs/tactical-entry.md` E14). A combat decision forced on it (a hostile seen, under fire) drops the options placed in the room the stack
   goes into: the perception names that room while the member's stack is held (`AgentPerception.orders.held_room()`: its live stack order
-  holds for a go that has not come, `DoorStack.held`), the controller pushes it to the planner's confines each decision
-  (`DecisionConfines.keep_out`), and inside a `confine` subtree an option whose `tags.room` is that room is dropped, as a defender's room
-  confine drops the options outside its room (LD8). The leaf carries it (`keep_out_room`): the fight's spots keep out of that room
-  (`Combat.peek_cover`'s spot rule), a contact in it is fought from where the member stands, never chased in, and a walk whose plain way goes
+  holds for a go that has not come, `DoorStack.held`), and it is a rule of the member's confinement (`keep_out`, `GLOSSARY.md`
+  Confinement), refreshed each tick: the planner's COMBAT filter drops an option that acts in that room (where it acts, `params.from`, else
+  `params.point`), as a defender's confinement drops the options outside its room (LD8); the fight's spots keep out of that room
+  (`Combat`'s spots ask the confinement), a contact in it is fought from where the member stands, never chased in, and a walk whose plain way goes
   into that room (an engage's reposition, a retreat, under fire too; not an evade) goes round it and its doorway's view as an ordered
   approach's does, however long the way round (D4), and never goes round a body at rest on its way by a way into that room (it waits short of
   the body, then goes round the room once that way is clear): a retreat to a room behind it is never walked through it. Its other walks, one into the

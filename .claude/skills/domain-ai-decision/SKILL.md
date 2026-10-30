@@ -1,6 +1,6 @@
 ---
 name: domain-ai-decision
-description: Deep implementation detail for the AI DECISION sub-domain (scenes/ai/decision/) — the decision tree (broad mode → tactic → option → primitive) as GDScript data, the planner that walks it with Von one `choice` request per level (entry rules, gating, the confinement filter (territory, ordered room, leash), auto-picked single options, continuity cue, per-level state), the single-question Von transport with argmax/top-pick, and the dev-only server launcher. Use when editing scenes/ai/decision/ or working on the decision tree, adding a mode/tactic, entry rules (under fire → combat), what Von is asked at each level, how a pick is chosen, the server-down fallback, or auto-starting/reusing the Von server. Complements the light `domain-ai` overview and the `architecture` skill (cross-domain interfaces).
+description: Deep implementation detail for the AI DECISION sub-domain (scenes/ai/decision/) — the decision tree (broad mode → tactic → option → primitive) as GDScript data, the planner that walks it with Von one `choice` request per level (entry rules, gating, the confinement filter (territory, ordered room, leash, a held stack's room), auto-picked single options, continuity cue, per-level state), the single-question Von transport with argmax/top-pick, and the dev-only server launcher. Use when editing scenes/ai/decision/ or working on the decision tree, adding a mode/tactic, entry rules (under fire → combat), what Von is asked at each level, how a pick is chosen, the server-down fallback, or auto-starting/reusing the Von server. Complements the light `domain-ai` overview and the `architecture` skill (cross-domain interfaces).
 ---
 
 # AI · Decision sub-domain (`scenes/ai/decision/`)
@@ -122,15 +122,16 @@ Config (pushed in from the controller; the tunables among it from the NPC's `tun
 `entry_rules` (ordered fact → start node) and `skip_single_option`.
 **The confinement filter.** Where the NPC may act is no config of the planner's: it reads perception's `confinement`
 (`perception_confinement.gd`, `domain-ai-perception`) as the snapshot froze it, `snapshot["confinement"]` (`_confinement()`, null in a
-snapshot without one), so a walk decides over one state and a hand-made snapshot drives it. Its three rules are the territory
+snapshot without one), so a walk decides over one state and a hand-made snapshot drives it. Its four rules are the territory
 (`inside_only`, from `tuning.decision.defend_territory`), the room a member ordered to defend it keeps to (`room`, `docs/leadership.md`
-LD8) and a squad follower's leash (`leash_center`, its leader's live position, `Vector2.INF` for none: no squad, or a member holding an
-order, which the leash never binds; `leash` in px, LD23). `_confines()` is the copy's `confines()`: true while any rule is set. Inside a
+LD8), a squad follower's leash (`leash_center`, its leader's live position, `Vector2.INF` for none: no squad, or a member holding an
+order, which the leash never binds; `leash` in px, LD23) and the room a member of a stack held for its leader's go keeps out of
+(`keep_out`, LD13, D31), so a held member fights on the stack's side of the doorway. `_confines()` is the copy's `confines()`: true while any rule is set. Inside a
 `confine` subtree (COMBAT) `_allowed` drops every option the copy's `allows_option(o)` refuses: an option is judged where it acts, its
 `params.from` (the spot a grenade is thrown from), else its `params.point`, so a territorial defender inside may throw onto a spot outside
 (`docs/grenades.md` G17); an option naming no place (a reload, a punch) stays. The planner reads neither `tags.inside` nor a room tag for
 it, and adds no confinement to the leaf's params: behaviour asks the live confinement itself. `summary_inside` fills `{summary}` while the
-copy's `inside_only` is on and the subtree is confined. An order refused as the walk begins (LD6) leaves the snapshot a copy with no room:
+copy's `inside_only` is on and the subtree is confined. An order refused as the walk begins (LD6) leaves the snapshot a copy with no room nor held room:
 the controller refreshes the confinement and replaces the snapshot's copy before the walk starts.
 **ORDER** (`order`, a root child, `requires: ordered`, LD6): its one option is the snapshot's `order` group, so it is taken without asking Von;
 the option names its own `primitive` (`_finish` takes an option's `primitive` over the node's). The controller's entry rules put

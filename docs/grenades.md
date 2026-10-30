@@ -297,7 +297,7 @@ captured out-of-range levels GRENADE ranks first in 18 ("within throwing range f
   safe, being inside the zone does not drop the option;
 - against a hostile in its line of fire in the NPC's own room, or outdoors with it (it shoots).
 
-A **confined** NPC (its territory, the room a defend order keeps it to, its squad leash: its confinement, `GLOSSARY.md`) has a throw judged
+A **confined** NPC (its territory, the room a defend order keeps it to, its squad leash, a held stack's room: its confinement, `GLOSSARY.md`) has a throw judged
 where it is thrown from, `params.from` (where it stands, or the throw spot), as every COMBAT option is judged where it acts, never where the
 grenade bursts: a territorial defender inside the house may throw onto a spot outside it, while a throw spot outside the house, the
 ordered room or the leash is not offered.

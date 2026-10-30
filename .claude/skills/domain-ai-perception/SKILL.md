@@ -1,6 +1,6 @@
 ---
 name: domain-ai-perception
-description: Deep implementation detail for the AI PERCEPTION sub-domain (scenes/ai/perception/) — what an NPC knows and how it is worded for Von. The sight sense, hostility rules, the confinement (where it may act: territory, ordered room, squad leash), the generic event memory (with keyed supersede), movement tracks/facing/visible wounds, gunfire and footsteps heard, where shots came from, allies' radio callouts, the live grenades known (seen, heard, called, own) and the plan to get clear of them, a blinded or deafened NPC, leads, searched rooms, the tactics geometry (flank sides, fire/advance/retreat spots, route length + exposure, cover), the doorway geometry for tactical entry (agent_entry.gd: stack slots, pie arc, hard/soft corners, the team's slot claims, defend and ambush posts, where an entry's grenade lands), the doorway views and the walk that keeps out of them (agent_door_views.gd) and its hand-off to the decision SNAPSHOT (the snapshot itself, its wording rules and option groups are the sub-domain `domain-ai-snapshot`). Use when editing scenes/ai/perception/ (except the snapshot) or working on vision, memory/eviction, hostility, flanking geometry, entry geometry, callouts, or combat line-of-sight. Complements the light `domain-ai` overview and the `architecture` skill (cross-domain interfaces).
+description: Deep implementation detail for the AI PERCEPTION sub-domain (scenes/ai/perception/) — what an NPC knows and how it is worded for Von. The sight sense, hostility rules, the confinement (where it may act: territory, ordered room, squad leash, a held stack's room), the generic event memory (with keyed supersede), movement tracks/facing/visible wounds, gunfire and footsteps heard, where shots came from, allies' radio callouts, the live grenades known (seen, heard, called, own) and the plan to get clear of them, a blinded or deafened NPC, leads, searched rooms, the tactics geometry (flank sides, fire/advance/retreat spots, route length + exposure, cover), the doorway geometry for tactical entry (agent_entry.gd: stack slots, pie arc, hard/soft corners, the team's slot claims, defend and ambush posts, where an entry's grenade lands), the doorway views and the walk that keeps out of them (agent_door_views.gd) and its hand-off to the decision SNAPSHOT (the snapshot itself, its wording rules and option groups are the sub-domain `domain-ai-snapshot`). Use when editing scenes/ai/perception/ (except the snapshot) or working on vision, memory/eviction, hostility, flanking geometry, entry geometry, callouts, or combat line-of-sight. Complements the light `domain-ai` overview and the `architecture` skill (cross-domain interfaces).
 ---
 
 # AI · Perception sub-domain (`scenes/ai/perception/`)
@@ -22,27 +22,29 @@ Files:
   carries, the latest burst), `entry` (the doorway geometry `doorways` and the claims heard `ledger`, the rooms cleared) and `views`
   (the doorway views `views` and the walk rules, `ordered`): preload consts with no `class_name`, built once in `setup()`, each holding the perception (a node).
   `views` is the one part another sub-domain holds: behaviour's locomotion (`behavior/locomotion/loco_doors.gd` preloads `perception_views.gd` to type its
-  `doors.views`, handed `perception.views` by `Behavior.setup`) asks it `walk_route`, the seam the architecture's AI row names beside `entry.stack`.
+  `doors.views`, handed `perception.views` by `Behavior.setup`) asks it `walk_route` and `walk_enters`, the seam the architecture's AI row names beside `entry.stack`.
 - `perception_confinement.gd` — the face's part `confinement`: **where the NPC may act** (`GLOSSARY.md` Confinement). A data leaf (preload
-  const, no `class_name`, built once in `setup()`, holding no owner: `tests/ai/ai_parts_free_suite.gd`), unlike the other parts. It holds three
+  const, no `class_name`, built once in `setup()`, holding no owner: `tests/ai/ai_parts_free_suite.gd`), unlike the other parts. It holds four
   rules, all of which must hold at a point, and the house `rooms` it judges by (set to the face's rooms each `observe`):
   - `inside_only`, the territory (a defender keeps inside the house, from `tuning.decision.defend_territory`);
   - `room`, the room a `defend_room` order keeps it to ("" with none, `docs/leadership.md` LD8);
   - `leash_center` / `leash`, the squad leash (its leader's live position while it follows and holds no order, `Vector2.INF` otherwise;
-    `SquadFollowConfig.leash` px, 0 with none, LD23).
+    `SquadFollowConfig.leash` px, 0 with none, LD23);
+  - `keep_out`, the room its held stack is to enter, which it keeps out of ("" with none, LD13, D31: from `orders.held_room()`).
 
-  `refresh(territorial, order, center, radius)` takes the tick's rules (only a `defend_room` order names a room); the controller's reflexes
+  `refresh(territorial, order, center, radius, held_room := "")` takes the tick's rules (only a `defend_room` order names a room); the controller's reflexes
   call it once a tick in SENSE after the whole order intake (`npc_reflexes.gd` `refresh_confinement`, from `follow_squad`), and again as
   `_start_decision` refuses an order. `allows(p)` is true when the territory is off or `p` is in a house room, no room is ordered or `p` is
-  in it, and no leash is set or `p` is within `leash` of `leash_center`. `allows_option(o)` judges a decision option where it acts:
+  in it, `p` is not in the `keep_out` room, and no leash is set or `p` is within `leash` of `leash_center`. `allows_option(o)` judges a decision option where it acts:
   `params.from` (the spot a grenade is thrown from), else `params.point`; an option naming no place (a reload, a punch) is allowed.
   `confines()` (any rule set), `room_at(p)` (`HouseRooms.key_at`), `copy()` (a copy a later refresh leaves as it is) and `view()`
-  (`{ inside_only, room, leash_center, leash, confines }`). Who reads which: `sense()` puts `confinement.copy()` in the decision snapshot
+  (`{ inside_only, room, leash_center, leash, keep_out, confines }`). Who reads which: `sense()` puts `confinement.copy()` in the decision snapshot
   (`snapshot["confinement"]`), which the planner's COMBAT filter reads (`domain-ai-decision`); behaviour's fight (`hold_ground`), `Combat`'s
-  spots and melee (`domain-ai-combat`) and the `follow` primitive (its `leash_center`) read the live one, and the reflexes' leash break
+  spots and melee (`domain-ai-combat`), the `follow` primitive (its `leash_center`) and the errand's walk keep-out (its `keep_out`,
+  `domain-ai-behavior`) read the live one, and the reflexes' leash break
   its `leash_center` / `leash`. The controller's `debug_state()["confinement"]` is the live `view()`, its `debug_state()["decision"]
   ["confinement"]` the copy the last walk decided over. Pinned by `tests/ai/perception/confinement_suite.gd` (each rule, their
-  combination, an option's place, the frozen copy), and through its answers by the game tests
+  combination, an option's place, the frozen copy, the keep-out), and through its answers by the game tests
   `ai/decision/combat_options_within_confinement` (the planner's filter on a hand-made snapshot) and
   `ai/combat/combat_spot_within_confinement` (Combat's spot choice).
 - `agent_vision.gd` — the sight sense and the single owner of the ray query (`blocked` / `raycast`).
@@ -137,8 +139,8 @@ and `evade_margin` among them, `apply_config` sets on the module that reads them
   ally's. A `go` (LD13) replaces nothing: when the live order is a `stack` at the go's `opening` it is kept again with `go: true` (latched,
   whenever the go came; `go_mode` the go's `mode` when it names one, the mode a held rally goes in, D31), and `orders.process` returns false (no decision is forced).
   `orders.held_room()` (LD13, D31) is the room the live `stack` order (`wait_go`, a join of the human leader's rally too) is held to enter while
-  its go has come neither on the order nor off the radio (`DoorStack.held` over `entry.stack(opening, into)`), else "": the controller pushes it
-  to the planner's `confines.keep_out`, so a held member fights on the stack's side of the doorway. An `ambush` (LD15) ends `done` on first contact:
+  its go has come neither on the order nor off the radio (`DoorStack.held` over `entry.stack(opening, into)`), else "": the reflexes refresh it
+  into the confinement's `keep_out`, so a held member fights on the stack's side of the doorway. An `ambush` (LD15) ends `done` on first contact:
   `orders.end_ambush_on_contact`, run at the end of every `observe`, ends it when the NPC is `under_fire()` or sees a character it holds hostile
   (D18); footsteps heard and callouts are no contact. `quick_facts()` carries `ordered`, and `follows` (the var the controller sets every tick from `Squad.follows`, `docs/leadership.md` LD19; also handed to the snapshot as the knowledge's `follows`). A callout that is only an order's progress (`order_step` with no `entry_step`) is the squad's to
   hear: `hearing.process_callout` returns before the memory, so it never replaces what that ally last said it is doing (its entry claim).
@@ -348,7 +350,9 @@ the edge of the room in front of it (so a view does not run on through the next 
 clear for passing (`AgentPerception.views._is_pass_clear(key)`: the `cleared_room` memory's age is within `tuning.entry_guard.pass_clear_time`, 60 s; `entry.is_cleared` stays the
 entry's), other than the NPC's own room; with `entering` (`"<opening>><into>"`, the entry a walk is the approach of) that doorway's own view
 always counts, from inside the room too and cleared or not; `{ key, holes, views }` (each view `{ id, into, poly, joins }`, `joins` the rooms the doorway joins), worked out once a physics frame.
-`walk_route(from, to, map, space, entering)` (over `AgentPerception.views.walk_route(to, entering, from)`) is the route the NPC walks: the plain one, unless it comes
+`walk_route(from, to, map, space, entering)` (over `AgentPerception.views.walk_route(to, entering, from, uncapped)`; `uncapped` calls `held_route`, which
+routes as an ordered approach does, for a held stack's member keeping out of its room, D31; `views.walk_enters(to, key, on := RID())` / `plain_enters`: whether the
+plain route, or the route on map `on` (a walk's steering map round bodies), goes into a room) is the route the NPC walks: the plain one, unless it comes
 into one of those views (or, with `entering`, goes into the room being entered) and the route on `NavBuilder.avoid_map` for the set (less
 the views `from` stands in, `_left_from`; when that route goes into the room being entered, the route on the map with the room's floor carved too, `_with_room`, so the room-carved map is asked for, baked and kept only while an approach needs it) reaches `to` (within `AVOID_REACH` 24 px) no longer than `door_avoid_ratio`
 (2.0) x the plain length + `door_avoid_slack` (300 px); failing that, with `entering`, the route round that doorway's own view and the room

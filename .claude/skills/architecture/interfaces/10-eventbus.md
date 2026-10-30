@@ -44,7 +44,8 @@
       `order_id`, `order_bang` (a grenade first), `order_mode` (`quiet` / `stun` / `frag`, LD14), `order_hold` (the order holds the stack
       for the leader's go, LD13), `order_go` (that go has come), `order_side` (the side of the door the order names, 1 / -1 along its
       wall, 0 for a split stack) and `order_frame` (the order's `frame`, -1 unknown): a stack with such a claim goes in the order's way (`docs/leadership.md` LD9), and from a member of a join
-      (the squad's rally, LD24) `join: true` (its claims are never its own, D30); a human invader's `PlayerStack`
+      (the squad's rally, LD24) `join: true` (its claims are never its own, D30), a join of the human leader's rally held for its go adding
+      `order_hold`, `order_frame` (the join's `frame`), `order_go` and `order_mode` (the mode its go named) with no `order_id` (D31); a human invader's `PlayerStack`
       (interface 17) posts the same entry steps for the human as a full claim (E16: every field above, `claim_frame` / `claim_pos` stamped
       on each new claim and kept by its repeats, `crossed_frame` restamped each time its step goes from `claim` / `ready` to `going_in` /
       `in`, `bang: true` and `bang_off: false` (it never holds a stack back nor turns it), `stuns: 0` /
@@ -71,15 +72,16 @@
       or a split stack, `mode` `quiet` / `stun` / `frag` (LD14) or `join` (the squad's own rally on its leader's own entry claim, to the
       followers holding no order, LD24: no side or mode pinned, the member's own entry joining the leader's stack) with `bang` true for
       `stun` and `frag`, and `wait_go`, the stack holds at
-      its slots for the leader's go, LD13)`, beyond?` (`ambush`: the room the doorway leads into from its `room`, "" for an exterior door)`,
-      auto?` (`go`: the squad's own release of the held stacks of a leader that died, D12; read by the tests)`, pos?` (`defend_room` / `stack` / `ambush` /
+      its slots for the leader's go, LD13; a join's `wait_go` true for the human leader's rally, D31)`, beyond?` (`ambush`: the room the doorway leads into from its `room`, "" for an exterior door)`,
+      auto?` (`go`: the squad's own release of the held stacks of a leader that died, D12; read by the tests)`, mode?` (`go`: the mode a held rally goes in,
+      `quiet` / `stun` / `frag`, D31)`, pos?` (`defend_room` / `stack` / `ambush` /
       `go`: the target point, the room's centre or the doorway's, which the UI's order markers draw)`, frame }` (the `GameClock` frame it
-      was issued on, on every order: a held stack takes the human's crossing as its go only from then on, D14). A `go` (`opening`, `pos`) goes
+      was issued on, on every order: a held stack takes the human's crossing as its go only from then on, D14). A `go` (`opening`, `pos`, `mode?`) goes
       to the living members holding a held stack at that doorway and replaces nothing: it releases their order (latched, D13). Range is
       unlimited: every AI controller named in `to` of the same faction takes it, and it holds it until it is done, cancelled or replaced
       (never on a timer); an `ambush` is done on first contact (a hostile seen or shots at the member, D18). Besides its leader's orders a
       squad posts its own: the rally's `join` stacks, a `cancel` of them when its leader radios `abort` at that doorway (LD25), a `cancel`
-      to the members holding a `defend_room` or `ambush` when the human leader dies (LD26) and, for the defenders' squad while an AI leads
+      to the members holding a `defend_room`, an `ambush` or a join of its rally when the human leader dies (LD26, D31) and, for the defenders' squad while an AI leads
       it, an `ambush` of the doorway an attack comes through (LD29).
     - `&"leader"`: a squad posts one when its leader dies and the next in line leads (`docs/leadership.md` LD4): `{ faction, leader, previous }`
       (`leader` null when nobody is left). Read by the tests: no game code listens to it.

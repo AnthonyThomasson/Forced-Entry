@@ -8,7 +8,7 @@ The AI's parts are reached by preload const with
   parts (`claim`, `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold`, `radio`); combat's
   `throw`; locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk`; perception's
   `sight`, `house`, `contacts`, `hearing`, `orders`, `grenades`, `entry`, `views` and `confinement` (where the NPC may act: its
-  territory, the room a defend order keeps it to and its squad leash, refreshed each tick by the controller's reflexes, frozen into
+  territory, the room a defend order keeps it to, its squad leash and a held stack's room, refreshed each tick by the controller's reflexes, frozen into
   the decision snapshot for the planner and read live by behaviour and Combat); the launcher's `_probe`; the doorway
   geometry's `posts`, `slots` and `layouts`; the snapshot author's `_throws` and `_orders`; the squad's `stacks` and `ambush` and the
   human's stack's `reservation` and `step_up`. A part member read from outside its part is public on it, its underscore and

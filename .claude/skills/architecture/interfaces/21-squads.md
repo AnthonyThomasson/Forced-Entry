@@ -18,9 +18,10 @@
       (`{ leader, members: [{ node, order, step, held, follow_spot }], stacks, trail, leash }`: the order each member holds, the posted dict or {} (a held stack a `go` released
       carries `go: true`), its latest `order_step` and `held` (its order is a stack that waits for the leader's go and no go has released yet,
       LD13: the one rule the UI reads instead of working it out; released by the squad's own `go`, or by one read off the claims,
-      `DoorStack.released(order_id, into, since)`, `since` the order's `frame`: a claim under that order says `order_go`, or a member of that
+      `DoorStack.released(order_id, into, since)`, `since` the order's `frame`, `order_id` "" for a join of the human leader's rally (D31): a claim under that order says `order_go`, or a member of that
       stack, under the order or the human, is crossing or through into the order's room, the human on a crossing begun since (its
-      `crossed_frame` at or after `since`; -1 on either releases nothing) (D14: the human leader stepping in is its go; a claim left from
+      `crossed_frame` at or after `since`; -1 on either releases nothing); for a join of the rally, a joiner of it (its `order_frame` `since`)
+      saying `order_go` or crossing, or the human crossing on a crossing begun since (D14: the human leader stepping in is its go; a claim left from
       an earlier entry through the doorway releases nothing), latched once heard as each member latches its own); an order radioed `done` is no longer held, {} with the
       step `done`, while a `refused` one is; `stacks` every stack the side is forming, ordered or its own, read off the side's entry claims
       through the squad's own `ClaimLedger` (unlimited range: the side's whole view; `claim_ttl`) and laid by each doorway's `DoorStack.layout`,
@@ -44,20 +45,21 @@
       room, and `stack_at` = `pos` or `split` for a click on the opening; a stack's `mode` from the request's `mode`, else `bang` true is a
       stun; an ambush's `room` the one on `pos`'s side of the wall plane; an ambush may instead name its doorway by id and the room it is
       laid from, `{ kind: "ambush", to, opening, room }`, resolved by the same code to the order the equivalent click gives, {} for an id the
-      house lacks or a room the doorway does not join) and posted as `&"order"` (interface 10); a `{ kind: "go", pos }`
+      house lacks or a room the doorway does not join) and posted as `&"order"` (interface 10); a `{ kind: "go", pos, mode? }`
       posts a `go` to every living member holding a held stack, not yet released, at the doorway nearest `pos`, whatever its `to` (D13; {}
-      when none waits there). Returns the order posted, or {}. Nothing outside the AI computes an AI id. When a leader that gave held stack
+      when none waits there), with the request's `mode` when it is one of `Squad.MODES` (the mode a held rally goes in, D31). Returns the order posted, or {}. Nothing outside the AI computes an AI id. When a leader that gave held stack
       orders dies, the squad posts their `go` itself (`auto: true`, D12).
     - `Squad.resolve(request) -> Dictionary` (read-only): the same resolution without posting, `{ room, pos }` for a `defend_room`,
       `{ opening, pos, into, split, stack_at? }` for a `stack`, `{ opening, pos }` for a `go` and `{ opening, pos, room, beyond }` for an
       `ambush` (by a click or by id; {} when it names nothing): the one rule for which doorway a click means and which room "into" (or an ambush's room) is,
       which the command menu names its stack and ambush items from.
     - On the leader's `died` the next in line leads within the frame and the squad posts `&"leader"` (interface 10, read by the tests); the orders given stand,
-      but when the dead leader was the human the squad posts one `cancel` to the members holding a `defend_room` or `ambush` (the takeover,
-      LD26). The trail starts afresh at the new leader.
+      but when the dead leader was the human the squad posts one `cancel` to the members holding a `defend_room`, an `ambush` or a join of its
+      rally (the takeover, LD26; D31: a rally gets no automatic go). The trail starts afresh at the new leader.
     - **The rally** (LD24, LD25): on an entry claim of its leader's own (an `&"callout"` from the leader with no `order_id` and no `join`: an
       AI leader's entry, or the human's own claim through its `PlayerStack`, the one marked `own`, interface 17; a join's claims never, D30) the squad posts one `stack` order with `mode` `join` to every
       follower holding no order, once per doorway per leader, and on the leader's `abort` there a `cancel` to the members holding those joins.
+      The human leader's rally is held for its go (`wait_go` true, D31): released by the human stepping in or the menu's go with its `mode`.
       The command menu never offers a join.
     - **The defenders' ambush rule** (LD29): a squad whose roster has `ambush_attacks` (`SquadRoster.ambush_attacks: bool`, false unless set;
       `MatchBuilder.build_squads` sets it for the defenders' side only, interface 23) runs, while an AI leads it, the only orders of a kind the
@@ -78,11 +80,12 @@
       callables (the doorway a click is on and the room its stack goes into are the squad's `resolve`), `leader` the human: it opens only
       while the view names it the leader, `right_clear` the screen width from the right edge its panel keeps clear when docked on the right:
       Main hands it the overlay bar's `OverlayToggles.RESERVED_WIDTH` (interface 22) with Debug on, else 0, the default), `open_at(world)`, `close()`, `is_open()`, `items() -> Array`
-      (`[{ label, disabled }]`, what it offers: on a teammate holding a held stack, "Go into the <room>"; on a doorway, "Go into the <room>"
-      while a member holds a held stack there, the stack items quiet / with stun / with frag (the stun or frag one greyed, with a tooltip,
+      (`[{ label, disabled, why }]`, `why` a greyed item's tooltip, what it offers: on a teammate holding a held stack, "Go into the <room>"; on a doorway, "Go into the <room>"
+      while a member holds a held stack there (for a held join of the human's rally, on either, "Go into the <room> (quiet)", "... with stun" and
+      "... with frag", stun or frag greyed while no member holding it carries one, D31), the stack items quiet / with stun / with frag (the stun or frag one greyed, with a tooltip,
       while no recipient carries one, D1 / D15) and "Ambush the doorway from the <room>"; on a room, "Defend the <room>"; "Cancel order"),
       a "Hold for my go" checkbox (D19; the menu's widgets are its `Panel` child, `ui/command/command_panel.gd`), and the signals `order_requested(request)` (`{ kind: "stack", to, pos, bang, mode, wait_go }`,
-      `pos` the raw click, `wait_go` the checkbox; `{ kind: "go", pos }`; `{ kind: "ambush", to, pos }`; `{ kind: "defend_room", to, room }`;
+      `pos` the raw click, `wait_go` the checkbox; `{ kind: "go", pos, mode? }`, `mode` a held rally's go; `{ kind: "ambush", to, pos }`; `{ kind: "defend_room", to, room }`;
       `{ kind: "cancel", to }`), which Main connects to `Squad.issue`, and
       `selection_changed(nodes)`; and the `OrderMarkers` (`ui/command/order_markers.gd`, a `Node2D` at `DrawLayers.ABOVE`): `watch(view)` (the
       squad's `view()` callable), `set_selection(nodes)` (Main connects the menu's `selection_changed` to it) and `drawn() -> Array` (test read)

@@ -118,9 +118,9 @@ hidden; matches never drive it, so its zeros say little.
 ### Where an NPC acts
 
 **Confinement**:
-An NPC's three rules for where it may act: its territory (a defender keeps inside the house), the room a `defend_room`
-order keeps it to (`docs/leadership.md` LD8) and its squad leash (a follower holding no order fights within the leash of
-its leader, LD23). All of them must hold at a point. It is one perception part, `confinement`
+An NPC's four rules for where it may act: its territory (a defender keeps inside the house), the room a `defend_room`
+order keeps it to (`docs/leadership.md` LD8), its squad leash (a follower holding no order fights within the leash of
+its leader, LD23) and the room a stack held for its leader's go is to enter, which a member of it keeps out of (LD13, D31). All of them must hold at a point. It is one perception part, `confinement`
 (`scenes/ai/perception/perception_confinement.gd`), refreshed each tick by the controller; the planner's COMBAT filter
 reads the copy frozen into the decision snapshot, behaviour and Combat the live one. An option is judged where it acts
 (the spot a grenade is thrown from, else its point), so a territorial defender inside may throw onto a spot outside.

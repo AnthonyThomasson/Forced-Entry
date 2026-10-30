@@ -108,7 +108,7 @@ Physics debris / hit particles / blood / explosion fx, Projectile casings ─▶
 Projectile / Explosion / Character ──(&"hit" events)──▶ EventBus ──(posted)──▶ AIController
 AIController ──(&"callout" events)──▶ EventBus ──(posted)──▶ allied AIControllers
 PlayerStack (human) ◀──(&"callout" entry steps)── EventBus ──(&"callout": the human's claim)──▶ allied AIControllers;  StackMarkers (UI) ──(view())──▶ PlayerStack
-AI behaviour (entry.gd and its parts entry/entry_*.gd, behavior_orders.gd, behavior_entries.gd) / orchestrator (npc_comms.gd) / team (PlayerStack, Squad) ──(StackClaim / ClaimLedger / DoorStack / StackLayout, preloaded; AgentPerception.entry.stack)──▶ AI perception's stack/ (the stack seam)
+AI behaviour (entry.gd and its parts entry/entry_*.gd, behavior_orders.gd, behavior_entries.gd) / orchestrator (npc_comms.gd) / team (PlayerStack, Squad) ──(StackClaim / ClaimLedger / DoorStack / StackLayout / StackMember, preloaded; AgentPerception.entry.stack)──▶ AI perception's stack/ (the stack seam)
 AI team (Squad, SquadFollow, PlayerStack and its step_up) ──(AgentEntry, the doorway geometry built with no NPC; AgentVision.wall_hit; HouseRooms; preloaded)──▶ AI perception
 AIController (npc_reflexes.gd) / behaviour (follow) ──(follows / leader / follow_spot, SquadFollowConfig)──▶ Squad (AI team)
 AI behaviour's locomotion (locomotion/loco_doors.gd) ──(perception_views.gd, preloaded to type doors.views, handed perception.views by Behavior.setup; walk_route)──▶ AI perception's views part
