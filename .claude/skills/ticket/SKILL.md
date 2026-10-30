@@ -49,12 +49,12 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
 - **User phases stay with you:** grilling, plan acceptance, ticket edits, feedback questions. A worker cannot reach
   the user. Every acceptance question (a plan, a bug's fix, a revision) comes right after a `change-report`. Ask with `AskUserQuestion`, a few specific questions at a time, recommended answer first. Use a decision
   gate where a phase waits on an answer.
-- **Build phases go to workers.** A self-contained brief: ticket number and body, accepted plan, skills to load
+- **Build phases go to workers**, except a bug's phases, which run inline (`ticket-bug`). A self-contained brief: ticket number and body, accepted plan, skills to load
   (`architecture`, the `domain-<name>` skills, `domain-testing`, `test-debug`), what to produce, how to know it is done,
   "No shortcuts", that anything it cannot decide comes back as an escalation, not a guess, and the heartbeat rule
   (1–2 sentence `--phase` status) and the ack rules below (`received <id>`, `check --ack`, a blocking `ask`). A
   showroom brief (`ticket-assets`) names the exhibits, the references, the variants wanted and its load check and lint.
-- **Code goes through `implement`.** A worker that writes tests or production code (`test-preparation`, `coding`,
+- **Code goes through `implement`.** A worker that writes tests or production code (`coding`,
   `coding-review-fixes`) runs `mattpocock-skills:implement`. It is slash-only (the Skill tool refuses it), so the
   spec's first line is `/mattpocock-skills:implement`, the brief after it. The brief also says:
   - **Tests through `mattpocock-skills:tdd`**, in vertical slices: one acceptance criterion's test, red for the right
@@ -75,7 +75,6 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   | Phase | Name |
   |---|---|
   | the showroom (variants before the plan) | `showroom` |
-  | a bug's failing repro | `test-preparation` |
   | building the change, test by test | `coding` |
   | green run, docs and skills | `wrap-up` |
   | removing the showroom (before the audit) | `showroom-removal` |

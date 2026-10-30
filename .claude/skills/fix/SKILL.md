@@ -11,7 +11,8 @@ The bug: **$ARGUMENTS**
 
 Empty, or too vague to tell expected from actual: ask one concise question first.
 
-1. **Orient.** Load `architecture`, the `domain-<name>` skill where the bug lives, `domain-testing` and `test-debug`.
+1. **Orient.** Load `architecture`, the `domain-<name>` skill where the bug lives, `domain-testing` and `test-debug`. Done when `architecture`, the domain skill, `domain-testing` and
+   `test-debug` are loaded in this session.
 2. **Place it.** Write it as *expected vs. actual* in one or two lines. The test goes in
    `tests/<domain>/<name>_test.gd`; check `tools/run_tests.sh --list <words>` first and extend an existing test rather
    than add a near-duplicate. It is a simulation test (`GameTest`): a native gdUnit suite (`*_suite.gd`) is for pure
@@ -25,13 +26,15 @@ Empty, or too vague to tell expected from actual: ask one concise question first
    regression test.
 4. **Fix** the root cause with the smallest production change. Cross-domain calls only through `architecture`'s
    interfaces. Never loosen, skip or delete the test, or special-case its scenario. The cause is not plain from the red
-   test and the bundle: follow `mattpocock-skills:diagnosing-bugs` phases 2–4 (shrink the repro until every part is
+   test and the bundle: load `mattpocock-skills:diagnosing-bugs` and follow its phases 2–4 (shrink the repro until every part is
    load-bearing; 3–5 ranked, falsifiable hypotheses shown to the user before testing; one variable per probe, logs
    tagged `[DEBUG-<id>]` and grepped out before green). A perf regression: its perf branch, a baseline measured on a
-   quiet machine first, then bisect.
+   quiet machine first, then bisect. A check whose definition or threshold changes once the production change is in
+   (what it measures, a band, a distance) goes to the user before the rerun: before → after, and why the old one was
+   wrong.
 5. **Green.** The test passes (`--id=<id> --repeat=10` for an intermittent bug; no `FLAKY`). Then
    `tools/run_tests.sh --changed --summary`, last `tools/run_tests.sh --summary --jobs=auto`. On a failure, fix and rerun
    with `tools/run_tests.sh --failed`. Report unrelated failures; don't paper over them.
 6. **Wrap up.** A changed domain internal or interface: update that `domain-<name>` skill (and `architecture` for an
    interface). Don't commit unless asked. Report: root cause (the hypothesis that proved right), the test added (path), red →
-   green lines, files changed, anything uncovered.
+   green lines, every check redefined in step 4, files changed, anything uncovered.

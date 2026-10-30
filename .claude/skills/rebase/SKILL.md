@@ -21,6 +21,10 @@ or touch `main`'s checkout.
    (`git log origin/main -p -- <file>`) with ours (`git show REBASE_HEAD`).
    - Resolve only when both intents are clear and compatible, keeping both; never take a side just to clear it. Don't
      guess at `*.uid`, `*.import`, `project.godot`: regenerate with `tools/load_check.sh --import`, or ask.
+   - Text moved to another file (a split skill): keep the map as the incoming side has it; find each hunk's unchanged
+     context lines in the skill folder (`grep -rlF`) and apply the hunk in that file. Then check that every `+` line of
+     `git diff -U0 REBASE_HEAD^ REBASE_HEAD -- <file>` is present in the folder, and run
+     `python3 -m unittest tools.tests.test_skill_pointers`.
    - No markers left (`grep -n '^<<<<<<<\|^=======\|^>>>>>>>'`), `git add`, `GIT_EDITOR=true git rebase --continue`.
    - Unclear or contradictory: stop; show the hunks, one sentence per side, and the options (either side, or
      `git rebase --abort`, which restores the branch exactly). Wait for the user.
