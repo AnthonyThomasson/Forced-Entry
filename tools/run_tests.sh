@@ -60,11 +60,18 @@
 #                                         that passes FAILs ("drop the gap tag")
 #   tools/run_tests.sh --self-test        the harness's own tests (tests/_harness, hidden from normal runs)
 # Speed
-#   --jobs=N|auto   split the run over N parallel godot processes (auto = cores, at most 6). Without it, a run of the
-#                   whole suite uses auto and a selection (words, --id, --domain, --failed, --repeat) one process. The
-#                   tests are dealt out to balance the shards by the wall-clock ms measured in earlier runs (kept in
+#   --jobs=N|auto   split the run over N parallel godot processes. Without it, a run of the whole suite uses auto and a
+#                   selection (words, --id, --domain, --failed, --repeat) one process. auto = the free Godot slots (at
+#                   least 1): every godot process this script starts (shards, --repeat's native reruns, --base, --list,
+#                   --self-test) holds one slot of a machine-wide pool of half the cores (lock files in
+#                   $TMPDIR/forced-entry-godot-slots, or $GAME_TEST_SLOT_DIR), freed when it exits, so runs in other
+#                   worktrees and the pre-commit hook (--jobs=auto) share the CPU; a process with no free slot waits and
+#                   says so once ("waiting for a Godot slot (n of n taken)"). --jobs=N keeps N shards, each waiting for
+#                   its slot. GAME_TEST_JOBS=N caps the jobs of every run in a process tree (auto and --jobs=N alike).
+#                   The tests are dealt out to balance the shards by the wall-clock ms measured in earlier runs (kept in
 #                   $TMPDIR, falling back to the declared timeout); Von tests all stay in shard 0. One combined
-#                   summary and slowest list is printed; exit 1 if any shard failed. Not used with --list/--self-test.
+#                   summary and slowest list is printed, the totals line ending with the 1-minute load, which a line
+#                   before the first test prints too; exit 1 if any shard failed. Not used with --list/--self-test.
 #   --fail-fast     stop after the first FAIL / TIMEOUT (per shard when sharded)
 # Output
 #   --summary       print only the non-passing tests and the totals (best for an agent or a hook)
@@ -96,7 +103,9 @@
 # HTML reports land in that dir too (gdunit/report_1/results.xml, index.html), and its own console, which the
 # printed output leaves out, in gdunit.txt.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+TOOLS="$(cd "$(dirname "$0")" && pwd)"   # this wrapper's tools/, whichever checkout (a --base worktree) it runs in
+cd "$TOOLS/.."
+exec 3>&2   # the run's own stderr: a shard's output is held back, but its wait for a slot is said at once (fd 3)
 # Every engine process runs with the dev command server off (over any port the caller set): a test run never drives
 # it, and a port another worktree's game or run holds would otherwise fail the run on its "failed to listen" warning.
 export GODOT_CMD_PORT=off
@@ -238,27 +247,42 @@ done
 # do not repay it. Resolved per run() call in `jobs_for`.
 JOBS_EXPLICIT=0
 [[ -n "$JOBS" ]] && JOBS_EXPLICIT=1
+# The processes `auto` stands for: the free Godot slots (tools/godot_slot.py; the pool is half the machine's cores), at
+# least one. Asked per run: the slots other runs hold change while this one goes on.
 auto_jobs() {
-  local cores
-  cores=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 2)
-  echo $(( cores < 6 ? cores : 6 ))
+  local free
+  free=$(python3 "$TOOLS/godot_slot.py" free)
+  echo $(( free < 1 ? 1 : free ))
 }
-if [[ $JOBS_EXPLICIT -eq 1 ]]; then
-  [[ "$JOBS" == "auto" ]] && JOBS=$(auto_jobs)
+if [[ $JOBS_EXPLICIT -eq 1 && "$JOBS" != "auto" ]]; then
   [[ "$JOBS" =~ ^[0-9]+$ && "$JOBS" -ge 1 ]] || { echo "--jobs wants a number or auto" >&2; exit 2; }
 fi
-# The number of processes for a run() with these arguments (the selection args it was called with + the global ones).
+# GAME_TEST_JOBS=N caps the jobs of every run in a process tree (auto and --jobs=N alike; the smaller wins), so a
+# caller (an agent, a script running this one) bounds the processes below it.
+if [[ -n "${GAME_TEST_JOBS:-}" ]]; then
+  [[ "$GAME_TEST_JOBS" =~ ^[0-9]+$ && "$GAME_TEST_JOBS" -ge 1 ]] || { echo "GAME_TEST_JOBS wants a number" >&2; exit 2; }
+fi
+# The number of processes for a run() with these arguments (the selection args it was called with + the global ones),
+# capped by GAME_TEST_JOBS.
 jobs_for() {
-  local x ids="" n
+  local n
+  n=$(jobs_wanted "$@")
+  if [[ -n "${GAME_TEST_JOBS:-}" && $n -gt $GAME_TEST_JOBS ]]; then n=$GAME_TEST_JOBS; fi
+  echo "$n"
+}
+jobs_wanted() {
+  local x ids="" n want
   [[ $WINDOWED -eq 1 ]] && { echo 1; return; }  # one window, and no shard competing with what it measures
   if [[ $JOBS_EXPLICIT -eq 1 ]]; then
+    want=$JOBS
+    [[ "$JOBS" == "auto" ]] && want=$(auto_jobs)
     # No more processes than there are tests when the selection is a list of ids (every --id given).
     for x in "$@"; do
       case "$x" in --id=*) ids="$ids,${x#--id=}" ;; esac
     done
     n=$(echo "$ids" | tr ',' '\n' | grep -c . || true)
-    if [[ $n -ge 1 && $n -lt $JOBS ]]; then echo "$n"; return; fi
-    echo "$JOBS"; return
+    if [[ $n -ge 1 && $n -lt $want ]]; then echo "$n"; return; fi
+    echo "$want"; return
   fi
   for x in "$@"; do
     case "$x" in
@@ -354,7 +378,7 @@ godot_run() {
   while IFS= read -r s; do [[ -n "$s" ]] && suites+=(-a "$s"); done < <(
     if [[ -n "$ONLY_SUITES" ]]; then echo "$ONLY_SUITES"; else suites_for "$@"; fi)
   set +e
-  "$GODOT" $HEADLESS $NOVSYNC --path . --fixed-fps 60 --log-file "$out/godot.log" \
+  python3 "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" $HEADLESS $NOVSYNC --path . --fixed-fps 60 --log-file "$out/godot.log" \
     -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -c -rc 1 -rd "res://$rel/gdunit" \
     ${suites[@]+"${suites[@]}"} -- --out="$out" "$@" | tee "$out/gdunit.txt" | python3 -u -c "$CONSOLE_FILTER"
   code=${PIPESTATUS[0]}
@@ -407,7 +431,7 @@ no_test_matched() {
 # (scenes/testing/test_list.gd); it writes no report, so its whole log is scanned.
 godot_list() {
   local out="$1"; shift
-  "$GODOT" --headless --path . --log-file "$out/godot.log" -s res://scenes/testing/test_list.gd -- --out="$out" "$@"
+  python3 "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" --headless --path . --log-file "$out/godot.log" -s res://scenes/testing/test_list.gd -- --out="$out" "$@"
 }
 
 # Merge the report.json of each dir given into $LAST (what --failed reads) and fold each test's wall-clock ms into
@@ -471,7 +495,7 @@ scan_log() {
     echo "Logged outside any test: the runner wrote no report (it crashed or stopped early) in $dir"
     bad=1
   fi
-  python3 "$(dirname "$0")/scan_godot_log.py" "$dir/godot.log" --from="$from" $STRICT || bad=1
+  python3 "$TOOLS/scan_godot_log.py" "$dir/godot.log" --from="$from" $STRICT || bad=1
   return $bad
 }
 
@@ -553,24 +577,37 @@ if seen:
 EOF
 }
 
+# The machine's 1-minute load average (uptime's first figure).
+load_1min() {
+  LC_ALL=C uptime | sed -E 's/.*load averages?: *([0-9.]+).*/\1/'
+}
+
+# The line before a run's first test: the 1-minute load and how many of the pool's Godot slots other runs hold.
+run_header() {
+  local taken size
+  read -r taken size < <(python3 "$TOOLS/godot_slot.py" status)
+  echo "load $(load_1min), $taken of $size Godot slots taken"
+}
+
 # The one totals line of the processes whose output is in the files given: every `N passed, ...` line summed field by
-# field, the skips that need Von (named apart as each process names them) summed too, and $1 (the shard count) at its end.
+# field, the skips that need Von (named apart as each process names them) summed too, then $1 (the shard count) and the
+# 1-minute load.
 merged_totals() {
   local shards="$1"; shift
-  python3 - "$shards" "$@" <<'EOF'
+  python3 - "$shards" "$(load_1min)" "$@" <<'EOF'
 import re, sys
 LINE = re.compile(r"^(\d+) passed, (\d+) failed, (\d+) timed out, (\d+) skipped"
                   r"(?: \((\d+) need Von, not run: --require-von\))?, (\d+) gap")
 total = dict.fromkeys(("passed", "failed", "timed out", "skipped", "von", "gap"), 0)
-for path in sys.argv[2:]:
+for path in sys.argv[3:]:
     for line in open(path, errors="replace"):
         m = LINE.match(line)
         if m:
             for key, value in zip(total, m.groups()):
                 total[key] += int(value or 0)
 need = " (%d need Von, not run: --require-von)" % total["von"] if total["von"] else ""
-print("%d passed, %d failed, %d timed out, %d skipped%s, %d gap%s" % (
-    total["passed"], total["failed"], total["timed out"], total["skipped"], need, total["gap"], sys.argv[1]))
+print("%d passed, %d failed, %d timed out, %d skipped%s, %d gap%s  load %s" % (
+    total["passed"], total["failed"], total["timed out"], total["skipped"], need, total["gap"], sys.argv[1], sys.argv[2]))
 EOF
 }
 
@@ -593,6 +630,7 @@ run() {
     case "$x" in --list|--self-test) keep=0 ;; esac
     case "$x" in --list) listing=1 ;; esac
   done
+  [[ $listing -eq 0 ]] && run_header
   local out
   if [[ $sharded -eq 0 ]]; then
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
@@ -712,8 +750,8 @@ if [[ $LINT -eq 1 ]]; then
   if [[ -f "$LINT_OK" && "$(cat "$LINT_OK")" == "$fingerprint" ]]; then
     echo "lint skipped: the sources are unchanged since the last clean lint" >&2
   else
-    lint=("$(dirname "$0")/lint.sh")
-    [[ $STAGED -eq 1 ]] && lint=("$(dirname "$0")/lint_staged.sh")
+    lint=("$TOOLS/lint.sh")
+    [[ $STAGED -eq 1 ]] && lint=("$TOOLS/lint_staged.sh")
     if ! lint_out=$("${lint[@]}" 2>&1); then
       echo "$lint_out"
       echo "GDScript lint failed: no tests were run (--no-lint skips it)." >&2

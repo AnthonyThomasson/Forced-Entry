@@ -51,7 +51,7 @@ class BaseRunTests(unittest.TestCase):
         self.state.mkdir()
         tools = self.repo / "tools"
         tools.mkdir(parents=True)
-        for name in ("run_tests.sh", "scan_godot_log.py"):
+        for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
         self.fake = self.tmp / "fakegodot"
         self.fake.write_text(FAKE_GODOT)

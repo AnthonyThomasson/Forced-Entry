@@ -355,11 +355,9 @@ class WrapperTests(unittest.TestCase):
     def test_the_merged_totals_line_names_the_unrun_von_tests_apart(self):
         code, out = self.run_wrapper("von_skips", "--jobs=2")
         self.assertEqual(code, 0, out)
-        self.assertIn("2 passed, 0 failed, 0 timed out, 6 skipped (4 need Von, not run: --require-von), 0 gap  (2 shards)",
-                      out.splitlines())
+        self.assertRegex(out, r"(?m)^2 passed, 0 failed, 0 timed out, 6 skipped \(4 need Von, not run: --require-von\), 0 gap  \(2 shards\)  load [0-9.]+$")
         out = self.run_wrapper("clean", "--jobs=2")[1]
-        self.assertIn("0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  (2 shards)", out.splitlines(),
-                      "no Von skip: the line is unchanged")
+        self.assertRegex(out, r"(?m)^0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  \(2 shards\)  load [0-9.]+$")
 
     def test_the_jobs_default_is_every_core_for_the_whole_suite_and_one_for_a_selection(self):
         self.assertGreater(self.shards(self.run_wrapper("clean")[1]), 1)
@@ -466,7 +464,7 @@ class LintFingerprintTests(unittest.TestCase):
         self.state.mkdir()
         tools = self.repo / "tools"
         tools.mkdir(parents=True)
-        for name in ("run_tests.sh", "scan_godot_log.py"):
+        for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
         (tools / "lint.sh").write_text(FAKE_LINT)
         (tools / "lint.sh").chmod(0o755)
@@ -534,7 +532,7 @@ class StagedChangedTests(unittest.TestCase):
         self.state.mkdir()
         tools = self.repo / "tools"
         tools.mkdir(parents=True)
-        for name in ("run_tests.sh", "scan_godot_log.py", "lint_staged.sh", "lint_label.py"):
+        for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py", "lint_staged.sh", "lint_label.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
         (tools / "lint.sh").write_text(FAKE_STAGED_LINT)
         (tools / "lint.sh").chmod(0o755)
@@ -634,7 +632,7 @@ class SpecNamedTestsTests(unittest.TestCase):
         self.state.mkdir()
         tools = self.repo / "tools"
         tools.mkdir(parents=True)
-        for name in ("run_tests.sh", "scan_godot_log.py", "spec_tests.py", "lint_staged.sh", "lint_label.py"):
+        for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py", "spec_tests.py", "lint_staged.sh", "lint_label.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
         self.fake = self.tmp / "fakegodot"
         self.fake.write_text(FAKE_GODOT)
@@ -711,6 +709,195 @@ class SpecNamedTestsTests(unittest.TestCase):
         self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
         self.git("checkout", "-q", "--", "docs")
         self.assertEqual(self.run_changed(), ["No changed file maps to any tests (affected: none)."])
+
+
+FAKE_CONCURRENT_GODOT = r"""#!/usr/bin/env bash
+# Stands in for Godot: records how many fake engines run at once (a file per running one in $FAKE_CONC_DIR, counted
+# after it exists), stays alive $FAKE_SLEEP seconds, then writes a passing report.
+for a in "$@"; do [ "$a" = "--import" ] && exit 0; done
+log=""; out=""
+while [ $# -gt 0 ]; do
+  case "$1" in --log-file) log="$2"; shift ;; --out=*) out="${1#--out=}" ;; esac
+  shift
+done
+echo "Godot Engine v4.4" > "$log"
+touch "$FAKE_CONC_DIR/running.$$"
+ls "$FAKE_CONC_DIR" | grep -c '^running\.' >> "$FAKE_CONC_DIR/counts"
+sleep "${FAKE_SLEEP:-1}"
+rm -f "$FAKE_CONC_DIR/running.$$"
+printf '{"results": [{"id": "a/x", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
+echo "1 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
+exit 0
+"""
+
+SLOT_TOOL = ROOT / "tools" / "godot_slot.py"
+HOLDER = (
+    "import fcntl, os, sys, time\n"
+    "fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o644)\n"
+    "fcntl.flock(fd, fcntl.LOCK_EX)\n"
+    "os.write(fd, sys.argv[2].encode())\n"
+    "print('held', flush=True)\n"
+    "time.sleep(300)\n"
+)
+
+
+def pool_size():
+    """The machine-wide pool the brief fixes: half the cores, at least one."""
+    return max(1, (os.cpu_count() or 2) // 2)
+
+
+def dead_pid():
+    """The pid of a process that has ended."""
+    p = subprocess.Popen(["true"])
+    p.wait()
+    return p.pid
+
+
+class SlotPoolTests(unittest.TestCase):
+    """The machine-wide pool of Godot slots (tools/godot_slot.py, GAME_TEST_SLOT_DIR) around a fake Godot that
+    records how many engines run at once, and a fake `uptime` on PATH."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="slot_pool_"))
+        cls.fake = cls.tmp / "fakegodot"
+        cls.fake.write_text(FAKE_CONCURRENT_GODOT)
+        cls.fake.chmod(0o755)
+        cls.bin = cls.tmp / "bin"
+        cls.bin.mkdir()
+        (cls.bin / "uptime").write_text('#!/bin/sh\necho " 0:31  up 5 days,  6:20, 22 users, load averages: 7.77 13.70 13.61"\n')
+        (cls.bin / "uptime").chmod(0o755)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def setUp(self):
+        self.work = Path(tempfile.mkdtemp(dir=self.tmp))
+        self.slots = self.work / "slots"
+        self.slots.mkdir()
+        self.conc = self.work / "conc"
+        self.conc.mkdir()
+        self.holders = []
+        self.addCleanup(self.release_holders)
+
+    def release_holders(self):
+        for h in self.holders:
+            h.kill()
+            h.wait()
+
+    def env(self, **extra):
+        env = {k: v for k, v in os.environ.items() if k not in ("GAME_TEST_JOBS", "GAME_TEST_CHANGED_FILES")}
+        return dict(env, GODOT=str(self.fake), TMPDIR=str(self.work), GAME_TEST_SLOT_DIR=str(self.slots),
+                    GAME_TEST_SLOT_POLL="0.05", FAKE_CONC_DIR=str(self.conc), PATH=f"{self.bin}:{os.environ['PATH']}",
+                    **{"FAKE_SLEEP": "1", **extra})
+
+    def wrapper(self, *args, **env):
+        """A run_tests.sh process (not yet waited for)."""
+        return subprocess.Popen(["bash", str(RUN), "--no-lint", *args], cwd=ROOT, env=self.env(**env),
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+    def run_wrapper(self, *args, timeout=60, **env):
+        out, _ = self.wrapper(*args, **env).communicate(timeout=timeout)
+        return out
+
+    def peak(self):
+        counts = (self.conc / "counts").read_text().split()
+        return max(int(c) for c in counts)
+
+    def hold(self, index, pid):
+        """A live process holding slot `index` whose lock file names `pid`."""
+        proc = subprocess.Popen([sys.executable, "-c", HOLDER, str(self.slots / f"slot{index}.lock"), str(pid)],
+                                stdout=subprocess.PIPE, text=True)
+        self.holders.append(proc)
+        self.assertEqual(proc.stdout.readline().strip(), "held")
+        return proc
+
+    def slot_tool(self, *args):
+        r = subprocess.run([sys.executable, "-I", str(SLOT_TOOL), *args], env=self.env(), capture_output=True,
+                           text=True, timeout=30)
+        return r.returncode, r.stdout.strip()
+
+    def ids(self, n):
+        return "--id=" + ",".join(f"a/t{i}" for i in range(n))
+
+    def test_two_concurrent_runs_never_hold_more_godot_processes_than_the_pool(self):
+        size = pool_size()
+        runs = [self.wrapper(f"--jobs={size}", self.ids(size)) for _ in range(2)]
+        outs = [r.communicate(timeout=120)[0] for r in runs]
+        self.assertEqual([r.returncode for r in runs], [0, 0], outs)
+        self.assertEqual(self.peak(), size, "the pool is used up and never passed")
+        self.assertTrue(any("waiting for a Godot slot" in o for o in outs), "the run that had to wait says so\n" + "\n".join(outs))
+
+    def test_a_process_waiting_for_a_slot_says_how_many_are_taken_once(self):
+        size = pool_size()
+        for i in range(size):
+            self.hold(i, os.getpid())
+        run = self.wrapper("--jobs=1", self.ids(1))
+        time.sleep(1.5)
+        self.assertIsNone(run.poll(), "no slot is free: it waits")
+        self.release_holders()
+        out = run.communicate(timeout=60)[0]
+        self.assertEqual(run.returncode, 0, out)
+        self.assertEqual(out.count("waiting for a Godot slot"), 1, out)
+        self.assertIn(f"waiting for a Godot slot ({size} of {size} taken)", out)
+
+    def test_a_listing_takes_a_slot_too(self):
+        size = pool_size()
+        for i in range(size):
+            self.hold(i, os.getpid())
+        run = self.wrapper("--list")
+        time.sleep(1.5)
+        self.assertIsNone(run.poll(), "--list is an engine process: it waits for a slot")
+        self.release_holders()
+        run.communicate(timeout=60)
+
+    def test_game_test_jobs_caps_auto_and_an_explicit_count(self):
+        size = pool_size()
+        many = self.ids(12)
+        cases = (("auto", "2", min(2, size)), ("auto", "100", size), ("5", "2", 2), ("2", "5", 2))
+        for jobs, cap, expected in cases:
+            with self.subTest(jobs=jobs, cap=cap):
+                out = self.run_wrapper(f"--jobs={jobs}", many, GAME_TEST_JOBS=cap, FAKE_SLEEP="0")
+                self.assertEqual(WrapperTests.shards(out), expected, out)
+        out = self.run_wrapper(GAME_TEST_JOBS="1", FAKE_SLEEP="0")
+        self.assertEqual(WrapperTests.shards(out), 1, "a whole-suite run's default is capped too\n" + out)
+        self.assertEqual(self.run_wrapper("--jobs=2", many, GAME_TEST_JOBS="zero", timeout=30).count("passed,"), 0)
+
+    def test_auto_takes_the_free_slots_and_at_least_one(self):
+        size = pool_size()
+        self.assertEqual(self.slot_tool("free"), (0, str(size)))
+        for i in range(size - 1):
+            self.hold(i, os.getpid())
+        self.assertEqual(self.slot_tool("free"), (0, "1"))
+        out = self.run_wrapper("--jobs=auto", self.ids(12), FAKE_SLEEP="0")
+        self.assertEqual(WrapperTests.shards(out), 1, "one slot is free: one shard\n" + out)
+        self.hold(size - 1, os.getpid())
+        self.assertEqual(self.slot_tool("free"), (0, "0"))
+        self.release_holders()
+        self.holders.clear()
+        out = self.run_wrapper("--jobs=auto", self.ids(12), FAKE_SLEEP="0")
+        self.assertEqual(WrapperTests.shards(out), size if size > 1 else 1, out)
+
+    def test_a_lock_file_left_by_a_dead_pid_is_reclaimed(self):
+        size = pool_size()
+        gone = dead_pid()
+        for i in range(size):  # held by an orphan that outlived the engine whose pid the file names
+            self.hold(i, gone)
+        self.assertEqual(self.slot_tool("free"), (0, str(size)), "every slot names a dead pid: all are free")
+        out = self.run_wrapper("--jobs=1", self.ids(1), FAKE_SLEEP="0", timeout=30)
+        self.assertNotIn("waiting for a Godot slot", out)
+        self.assertIn("1 passed", out)
+
+    def test_the_header_and_the_merged_totals_print_the_one_minute_load(self):
+        out = self.run_wrapper("--jobs=2", self.ids(2), FAKE_SLEEP="0")
+        lines = out.splitlines()
+        header = next((l for l in lines if l.startswith("load ")), None)
+        self.assertIsNotNone(header, out)
+        self.assertTrue(header.startswith("load 7.77"), header)
+        self.assertLess(lines.index(header), next(i for i, l in enumerate(lines) if "passed," in l), "before the tests")
+        totals = next(l for l in lines if re.match(r"^\d+ passed, ", l))
+        self.assertRegex(totals, r"  load 7\.77$")
 
 
 class LintReportTests(unittest.TestCase):
@@ -1405,7 +1592,7 @@ func test_flaky() -> void:
         self.assertEqual(run.code, 0, run.out)
         for test_id in ids:
             self.assertEqual(run.status(test_id), ["PASS"], run.out)
-        self.assertRegex(run.out, re.compile(r"^2 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  \(2 shards\)$", re.M))
+        self.assertRegex(run.out, re.compile(r"^2 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  \(2 shards\)  load [0-9.]+$", re.M))
 
 
 def os_data_dir() -> Path:
