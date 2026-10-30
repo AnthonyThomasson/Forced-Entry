@@ -28,18 +28,24 @@ var warm_done_in := {}
 var warm_done_for: Array = []
 
 
-## The geometry shared on `map` (`_shared`), made the first time it is asked for and dropped when
-## the map's planning region leaves the tree; a map with no planning region shares nothing (an empty
-## dictionary each time).
+## The geometry shared on `map` (`_shared`, `per_map`).
 func shared_on(map: RID) -> Dictionary:
-	if _shared.has(map):
-		return _shared[map]
+	return per_map(_shared, map)
+
+
+## What `store` (map RID -> dictionary: a static its keeper holds, the shared geometry or the
+## ambush posts, `EntryPosts`) keeps for `map`, made the first time it is asked for and dropped when
+## the map's planning region leaves the tree; a map with no planning region keeps nothing (an empty
+## dictionary each time).
+static func per_map(store: Dictionary, map: RID) -> Dictionary:
+	if store.has(map):
+		return store[map]
 	var region := NavBuilder.planning_region(map)
 	if region == null:
 		return {}
-	_shared[map] = {}
-	region.tree_exited.connect(func() -> void: _shared.erase(map), CONNECT_ONE_SHOT)
-	return _shared[map]
+	store[map] = {}
+	region.tree_exited.connect(func() -> void: store.erase(map), CONNECT_ONE_SHOT)
+	return store[map]
 
 
 ## What a doorway's geometry is laid from besides the map: the house and the tunables

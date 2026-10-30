@@ -371,15 +371,21 @@ and `door_pos` INF for that lone member, who turns among them). The snapshot's `
 unit normal into a room from the edge a doorway lies on, `AgentDoorViews.normal_into`) is also read by the squad (`ai/team/squad.gd`).
 **Ambush posts (`docs/leadership.md` LD15, D17).** `posts.ambush_spot(entry, g, place, map, space)` (`g` the entry geometry `geometry(id, room_key, map, space)`) is where member `nth` of `count` ordered
 to ambush doorway `id` from room `room_key` waits: `{ spot, door_pos, seen }` (`door_pos` the doorway's centre, where its gun goes; `seen` how
-many lookouts see the post, 0 hidden), {} for a doorway or room it does not know or no post. The candidates (`_ambush_posts`, kept per
-doorway and room side in `posts.cache` once worked out on a baked map, cleared by `set_house`; `_ambush_post` reads the entry from the frame
-it takes, `f["entry"]`, set by `_ambush_posts`) lie `AMBUSH_DEPTHS` (40 to 160 px) back from the
+many lookouts see the post, 0 hidden), {} for a doorway or room it does not know or no post. The candidates (`_ambush_ranking`: `{ posts,
+landings }`, kept per doorway and room side once worked out on a baked map, in the NPC's `posts.cache`, cleared by `set_house`, and **shared
+by every NPC on the map** in the static `_shared` (`EntryLayouts.per_map`: map RID -> `"<layouts.key(entry)>|<crouch>|<id>><room>"`,
+dropped with the map's planning region), since a doorway's ranking reads nothing of the member but the tunables that key names (the
+geometry's and the sight's, and the crouched height) and the characters' bodies are looked through; `_ambush_post` reads the entry from
+the frame it takes, `f["entry"]`, set by `_ambush_ranking`) lie `AMBUSH_DEPTHS` (40 to 160 px) back from the
 wall and `AMBUSH_LATERALS` (30 to 260 px) past the jamb, either side, inside the room by `AMBUSH_INSET` (22 px), through `_defend_candidate`
-(snapped, its funnel, its sight line and cover on the line to each doorway); one off the doorway's sight line or on its axis (within half the
+(snapped, its funnel, its sight line and cover on the line to each doorway, the characters' bodies looked through); one off the doorway's sight line or on its axis (within half the
 width + `DEFEND_BODY`) is dropped. Each is scored `seen` x `RANK_SEEN` (1e7) + frag landings x `RANK_FRAG` (1e5) + stun landings x
 `RANK_STUN` (1e4) + funnel x `RANK_FUNNEL` (500) + (no cover on its line to the threshold) `RANK_NO_COVER` (300) + |depth - `AMBUSH_DEPTH`
 110|, each rank above all the ranks below it can add up to; `ambush_spot` adds `RANK_SIDE` (1e9) for a post off the member's side, above
-everything. `seen` counts the geometry's `lookouts`, slots and pie points that see it (`_sees_from`: `AgentVision.sight_hit`, over low cover,
+everything. Since nothing below `seen` can outweigh one `RANK_SEEN`, the landings are counted only where they can decide a pick
+(`_best_post`): among the posts still open (clear of the posts taken) only those tied on the least `seen` and side can win, and only
+those have their exposures counted (`_expose`, once a post, kept in the ranking), so the picks are those of the full score
+(`ai/combat/ambush_posts_capture_terrace` / `_house` pin every post of two houses to a capture of the full ranking). `seen` counts the geometry's `lookouts`, slots and pie points that see it (`_sees_from`: `AgentVision.sight_hit`, over low cover,
 at any range and facing); a post seen by none is hidden only if it is hidden from the 8 points `AMBUSH_SLACK` (12 px) round it too. The
 landings (`_exposures`, LD15, D17) count, per kind of `BANG_KINDS` (frag, then stun), the spots an entry's grenade into the room by that
 doorway may land (`_bang_landings`: `EntryLandings.spots(g, reach)`, reckoned from the doorway's centre, no slot filter) that reach a body
