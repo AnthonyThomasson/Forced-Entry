@@ -18,8 +18,8 @@ selector. They are ordinary tests that load other domains, so they live apart fr
 
 Twelve guards in all. `tools/run_tests.sh --domain=perf` (or the word `perf`) runs just them; `match_10v10_stress` is red on a
 quiet machine until #98. The pre-commit hook leaves them out (`--skip-domain=perf`): their frame-time budgets fail when the
-machine is busy, so run them on their own before a push that touches a per-frame path. They stay in the default run, balanced
-across shards by measured cost like every test, and `--changed` adds the domain whenever a scene they exercise changes
+machine is busy, so run them on their own before a push that touches a per-frame path. They stay in the default run, held back
+from the shards and run after every shard has ended, alone in one process, and `--changed` adds the domain whenever a scene they exercise changes
 (`affected()` in `tools/run_tests.sh`) or `tests/_perf/` changes. The shared helper is `tests/_perf/perf_probe.gd` (`const Perf :=
 preload(...)`; not a test), with the match guards' contact: `await_contact(t, label, characters, limit_s)` runs a guard's warm-up
 on until a shot has been fired and some NPC among `characters` knows a hostile at once (at most `limit_s` s more), logs `PERF
@@ -131,7 +131,14 @@ real-time wait's clock, is left alone), so no budget runs in the pre-commit hook
   (`Perf.time_ms`) keeps a `const` budget at the top of its test, about 4x the baseline stated in the comment above it.
   `Perf.within` prints `PERF <label> <value> (budget <limit>)`, traces it, and fails the check with the value. Counts
   (nodes, dents, pools) are asserted tightly.
-- **Re-baselining:** run `tools/run_tests.sh --domain=perf --repeat=5 --verbose` and read the `PERF` lines. The frame standard is not
+- **Measuring:** run `tools/run_tests.sh --domain=perf --quiet` (add `--verbose` to read the `PERF` lines). `--quiet` waits
+  until no other Godot process runs and the 1-minute load is under `max_load` in `tools/perf_quiet.conf` (6, this box's idle
+  baseline is about 5; `timeout_min` 30, or `--quiet=MINUTES`), printing the load and the count of other Godot processes each
+  minute; on timeout it runs anyway and marks every result `loaded` (on the verdict line, `"loaded": true` in `report.json`).
+  **Judge only a result not marked `loaded`**; a `loaded` red or green says nothing about the code. Every `PERF` line ends with
+  `(load <x>, <n> other Godot)`, so a number read from a log carries the state of the machine it came from. In a whole-suite
+  run the perf tests run after the shards, alone; `--quiet` gates that phase.
+- **Re-baselining:** run `tools/run_tests.sh --domain=perf --quiet --repeat=5 --verbose` and read the `PERF` lines. The frame standard is not
   loosened to fit a slower game: make the game faster, or state in the test why one load is heavier than a match. Update the
   "before" numbers in a test's comment only when its load changes.
 - **Finding what costs:** the wall time of a frame is script time, so attribute it by timing. A throwaway `Time.get_ticks_usec`

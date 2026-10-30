@@ -212,8 +212,10 @@ Read the report yourself; a failed or missing one is a finding. Then:
    accepted findings, through `implement` (above). Each behaviour defect is a `tdd` slice (red for the right reason,
    fix at the cause, green). A test set-up mistake is fixed only as the report names it; no assertion is loosened.
    Stale skills, docs and comments in the same worker.
-3. A `wrap-up` worker reruns the green checks (new tests `--repeat=10`, the whole suite, perf on a quiet machine) and
-   makes sure no doc or skill claims a run that did not happen.
+3. A `wrap-up` worker reruns the green checks (new tests `--repeat=10`, the whole suite, perf with
+   `tools/run_tests.sh --domain=perf --quiet`; a change under `scenes/ai/` or `scenes/testing/` also runs
+   `tools/run_tests.sh --domain=ai --require-von` once, whatever its labels) and makes sure no doc or skill claims a run
+   that did not happen.
 4. If the fixes went beyond the report's list or added behaviour, a `review-fixes` audit (same spec, told which
    findings were fixed); otherwise rerun its checks yourself.
 

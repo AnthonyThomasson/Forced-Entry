@@ -70,8 +70,10 @@ lists each criterion's red line (why it failed) and green line; tell the user.
 ## 4. Green and wrap up
 
 New tests pass (`--repeat=10` if timing-dependent), then `tools/run_tests.sh --changed --summary`, then
-`tools/run_tests.sh --summary --jobs=auto`. Touched a per-frame path: `tools/run_tests.sh --domain=perf` on a quiet
-machine. An older test now failing is your regression until shown otherwise. Update every changed domain's skill,
+`tools/run_tests.sh --summary --jobs=auto`. A change under `scenes/ai/` or `scenes/testing/` runs
+`tools/run_tests.sh --domain=ai --require-von` once, whatever its labels (the other runs skip the Von tests: the totals
+line names them apart, and `--changed` ends with a `NOTE` when it skipped some). Touched a per-frame path:
+`tools/run_tests.sh --domain=perf --quiet` (it waits for a quiet machine; judge only a result not marked `loaded`). An older test now failing is your regression until shown otherwise. Update every changed domain's skill,
 `architecture` for an interface, and the `docs/` spec if there is one. Then `ticket` → "Feedback gate".
 
 ## 5. Audit

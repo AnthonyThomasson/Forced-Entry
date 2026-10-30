@@ -34,7 +34,9 @@ Empty, or too vague to tell expected from actual: ask one concise question first
    old one was wrong.
 5. **Green.** The test passes (`--id=<id> --repeat=10` for an intermittent bug; no `FLAKY`). Then
    `tools/run_tests.sh --changed --summary`, last `tools/run_tests.sh --summary --jobs=auto`. On a failure, fix and rerun
-   with `tools/run_tests.sh --failed`. Report unrelated failures; don't paper over them.
+   with `tools/run_tests.sh --failed`. Report unrelated failures; don't paper over them. The regression test changed
+   after its first red: run it against the old code, `tools/run_tests.sh --base=<merge-base> --id=<id>` (the working
+   tree's tests in a temporary worktree of that revision), and report the red lines.
 6. **Wrap up.** A changed domain internal or interface: update that `domain-<name>` skill (and `architecture` for an
    interface). Don't commit unless asked. Report: root cause (the hypothesis that proved right), the test added (path), red →
    green lines, every check redefined in step 4, files changed, anything uncovered.

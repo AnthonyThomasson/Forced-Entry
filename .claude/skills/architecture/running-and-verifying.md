@@ -30,7 +30,7 @@
      pure-logic suites (`*_suite.gd` extending `UnitSuite`)
      (exit 1 on a lint finding, a failure, or any engine error/warning logged during a test). Useful flags: `--list`,
      `--changed` (the domains your uncommitted changes can break, in one run), `--id=<id>` / `--domain=a,b`
-     (exact selection), `--failed` (rerun last run's failures), `--jobs=auto` (parallel shards),
+     (exact selection), `--failed` (rerun last run's failures), `--jobs=auto` (parallel shards over the free slots of a machine-wide Godot pool), `--base=<rev>` (the working tree's tests against an old revision), `--quiet` (perf, on a quiet machine),
      `--fail-fast`, `--summary` (failures + totals only), `--repeat=N` (flaky check), `--seed=N`,
      `--no-lint`, `--json`, `--report=FILE`, `--include-von` / `--require-von`. A failure prints actor state and a `bundle:` JSON path;
      each run's output dir also holds gdUnit's JUnit `results.xml` and HTML report.
