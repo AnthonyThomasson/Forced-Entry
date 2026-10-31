@@ -51,9 +51,6 @@ var pass_clear: Callable
 ## room being entered and its doorway's view is taken however long it is (no `door_avoid_ratio` cap;
 ## `walk_route`).
 var ordered_approach := false
-## The room a held stack's member keeps out of (`docs/leadership.md` D38, "" for none): in one of
-## its doorways the NPC is not in it yet, but on the doorway's outer side (`threshold_ahead`).
-var kept_out := ""
 ## The house's doorways (`{ pos, width, front, exit, rooms }`), as injected.
 var _openings: Array = []
 ## The house's rooms (`{ key, type, rect }`).
@@ -112,22 +109,23 @@ func room_rect(key: String) -> Rect2:
 
 
 ## The first doorway on a walk that leads into a room the NPC has not cleared: the polyline from
-## `from_pos` through the waypoints of `path` from `from_idx` on, as far as `max_dist` px of
+## `from_pos` through the waypoints of `path` (those still ahead), as far as `max_dist` px of
 ## walking. A doorway counts when a step of the walk crosses its wall plane within the doorway's
 ## width, heading into a room that is not the one the NPC is in and that `is_cleared` (a Callable on
 ## the room key) says is not cleared. The walk's last step is extended by a body's length, so a
 ## destination that is the doorway itself crosses it. `{ opening, into, dist }` (`dist` = px of
 ## walking to it), or {}. Used by the behaviour's entry guard (E9): any walk, not only the ENTER
 ## order, goes in by the entry. The room the NPC is in is read from the doorway's outer side when it
-## stands in a doorway of the room it keeps out of (`kept_out`, `_outside_of`).
+## stands in a doorway of `kept_out` (`_outside_of`), the room a held stack's member keeps out of
+## (`docs/leadership.md` D38, "" for none): there it is not in that room yet.
 func threshold_ahead(
 	path: PackedVector2Array,
-	from_idx: int,
 	from_pos: Vector2,
 	is_cleared: Callable,
 	max_dist: float,
+	kept_out: String,
 ) -> Dictionary:
-	var pts := _walk_points(path, from_idx, from_pos)
+	var pts := _walk_points(path, 0, from_pos)
 	if pts.size() < 2:
 		return {}
 	var tail: Vector2 = (pts[-1] as Vector2) - (pts[-2] as Vector2)
@@ -250,7 +248,7 @@ func _crossed_views(pts: Array, views: Array, max_dist: float, entering := "") -
 	return out
 
 
-## The route from `from` to `to` as the NPC walks it (E18), on the world navigation map `map`: the
+## The route from `from` to `to` as the NPC walks it (E18), on `world`'s navigation map: the
 ## plain route, unless it goes into the view of a doorway into a room not clear for passing
 ## (`avoided`) and a route that keeps out of every such view reaches `to` within `door_avoid_ratio`
 ## x the plain length + `door_avoid_slack`: that one, on the avoid map.
@@ -262,18 +260,21 @@ func _crossed_views(pts: Array, views: Array, max_dist: float, entering := "") -
 ## plain route goes in, and its floor is carved too when a way round would go in: `_with_room`) and
 ## out of the view of the doorway it stacks at, from inside the room too (`avoided`). With no way
 ## round every view in the cap, it goes round those at least (`_entering_set`); on an ordered
-## approach (`ordered_approach`; `held_route` too) that way is taken however long it is.
+## approach (`ordered_approach`) that way is taken however long it is. `held`: the walk keeps a held
+## stack's member out of `entering`'s room (`docs/leadership.md` D38), so its way round that room is
+## taken however long it is, as an ordered approach's, and one standing in a doorway of that room is
+## not in it yet (`_keep_out`, `_goes_in`); any other walk is judged from where it stands.
 func walk_route(
 	from: Vector2,
 	to: Vector2,
-	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	world: World2D,
 	entering := "",
+	held := false,
 ) -> Dictionary:
-	var plain := NavBuilder.route(map, from, to)
+	var plain := NavBuilder.route(world.navigation_map, from, to)
 	var plain_len := NavBuilder.path_length(plain)
 	var out := {
-		"map": map,
+		"map": world.navigation_map,
 		"path": plain,
 		"len": plain_len,
 		"plain_len": plain_len,
@@ -281,14 +282,17 @@ func walk_route(
 		"pending": false,
 		"views": [],
 	}
-	if not avoid_views or not NavBuilder.ready(map):
+	if not avoid_views or not NavBuilder.ready(world.navigation_map):
 		return out
 	var here := HouseRooms.key_at(from, _rooms)
-	var avoid_set := _left_from(avoided(here, map, space, entering), from)
+	var avoid_set := _left_from(
+		avoided(here, world.navigation_map, world.direct_space_state, entering),
+		from,
+	)
 	var crossed := _crossed_views([from] + Array(plain), avoid_set["views"], INF, entering)
 	out["views"] = crossed
-	var keep_out := _keep_out(from, here, entering)
-	if crossed.is_empty() and not _goes_in(from, plain, keep_out):
+	var keep_out := _keep_out(from, here, entering.get_slice(">", 1), held)
+	if crossed.is_empty() and not _goes_in(from, plain, keep_out, held):
 		return out
 	var sets: Array = [avoid_set]
 	if entering != "":
@@ -297,16 +301,16 @@ func walk_route(
 	for i in sets.size():
 		# An ordered approach takes the way round the entry's own set however long it is.
 		var cap := (INF
-				if ordered_approach and i == 1
+				if (ordered_approach or held) and i == 1
 				else door_avoid_ratio * plain_len + door_avoid_slack)
-		var way := _round(from, to, map, sets[i], cap)
-		if way.has("path") and _goes_in(from, way["path"], keep_out):
+		var way := _round(from, to, world.navigation_map, sets[i], cap)
+		if way.has("path") and _goes_in(from, way["path"], keep_out, held):
 			# The room being entered is kept out of itself, not only by its doorways' views: a walk
 			# that starts in one of those views (dropped from the set, `_left_from`) would otherwise
 			# go through the room from there. Its floor is carved (`_with_room`) only for a way
 			# round that goes in, so the map with it carved is asked for, and kept, only while an
 			# approach needs it.
-			way = _round(from, to, map, _with_room(sets[i], keep_out), cap)
+			way = _round(from, to, world.navigation_map, _with_room(sets[i], keep_out), cap)
 		if bool(way.get("pending", false)):
 			out["pending"] = true
 			return out
@@ -316,27 +320,29 @@ func walk_route(
 	return out  # No way round: the walk goes the plain way and the guard secures what it crosses.
 
 
-## The room the walk from `from` (in room `here`) that is the approach of entry `entering` keeps out
-## of: that entry's room, unless the walker is in it already, clear of its doorways, and leaves it
-## by its way; "" for none. One standing in a doorway of that room is not in it yet (`_outside_of`).
-func _keep_out(from: Vector2, here: String, entering: String) -> String:
-	var into := entering.get_slice(">", 1) if entering != "" else ""
-	if into == "" or (into == here and _outside_of(from, into) == from):
+## The room the walk from `from` (in room `here`) that is the approach of an entry into room `into`
+## ("" for none) keeps out of: that room, unless the walker is in it already and leaves it by its
+## way; "" for none. A held stack's member (`held`, D38) standing in a doorway of that room is not
+## in it yet (`_in_doorway_of`).
+func _keep_out(from: Vector2, here: String, into: String, held: bool) -> String:
+	if into == "" or (into == here and not (held and _in_doorway_of(from, into))):
 		return ""
 	return into
 
 
-## Whether the walk from `from` along `path` goes into room `key` ("" for none: false), judged from
-## the outer side of that room's doorway the walker stands in, if any (`_outside_of`): the path's
-## first points still in a doorway of that room (where it starts) are not a way in.
-func _goes_in(from: Vector2, path: PackedVector2Array, key: String) -> bool:
+## Whether the walk from `from` along `path` goes into room `key` ("" for none: false). A held
+## stack's member's walk (`held`, D38) is judged from the outer side of that room's doorway the
+## walker stands in, if any (`_outside_of`): the path's first points still in a doorway of that room
+## (where it starts) are not a way in.
+func _goes_in(from: Vector2, path: PackedVector2Array, key: String, held: bool) -> bool:
 	if key == "":
 		return false
-	var start := _outside_of(from, key)
+	if not held or not _in_doorway_of(from, key):
+		return _entered_rooms([from] + Array(path)).has(key)
 	var pts: Array = Array(path)
-	while start != from and not pts.is_empty() and _outside_of(pts[0], key) != pts[0]:
+	while not pts.is_empty() and _in_doorway_of(pts[0], key):
 		pts.pop_front()
-	return _entered_rooms([start] + pts).has(key)
+	return _entered_rooms([_outside_of(from, key)] + pts).has(key)
 
 
 ## `views_set` (`avoided`) without the views point `from` stands in: a walk that starts in a
@@ -640,28 +646,11 @@ func _view_fan(
 	return ring
 
 
-## `walk_route` for a held stack's member keeping out of the room it is held to enter (`entering`,
-## `docs/leadership.md` D38): its way round that room is taken however long it is, as an ordered
-## approach's.
-func held_route(
-	from: Vector2,
-	to: Vector2,
-	map: RID,
-	space: PhysicsDirectSpaceState2D,
-	entering: String,
-) -> Dictionary:
-	var was := ordered_approach
-	ordered_approach = true
-	var out := walk_route(from, to, map, space, entering)
-	ordered_approach = was
-	return out
-
-
 ## Whether the route from `from` to `to` on navigation map `map` (the world's: the plain route) goes
 ## into room `key` by any of its doorways: a held stack's member walks round that room only then,
 ## and never goes round a body by a way into it (D38).
 func plain_enters(from: Vector2, to: Vector2, map: RID, key: String) -> bool:
-	return _goes_in(from, NavBuilder.route(map, from, to), key)
+	return _goes_in(from, NavBuilder.route(map, from, to), key, true)
 
 
 ## Where a walker at `from` stands as to room `key` (the room `threshold_ahead` reads it in, and
@@ -681,6 +670,12 @@ func _outside_of(from: Vector2, key: String) -> Vector2:
 		if depth <= DOORWAY_DEPTH and across <= float(o.get("width", 80.0)) * 0.5:
 			return from - inward * (depth + 1.0)
 	return from
+
+
+## Whether a walker at `p` stands in one of room `key`'s doorways, not yet in the room
+## (`_outside_of`).
+func _in_doorway_of(p: Vector2, key: String) -> bool:
+	return _outside_of(p, key) != p
 
 
 ## The keys of the rooms the walk `pts` goes into, by any of their doorways.

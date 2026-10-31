@@ -117,25 +117,27 @@ func set_up_walk(delta: float) -> void:
 	loco.crowd.ignore_id = behavior.fight.engage_id if task.primitive == &"melee" else 0
 	behavior._perception.views.ordered = behavior.orders.ordered_stack()
 	loco.doors.avoid_doors = behavior.entries.keeps_out_of_views()
-	loco.doors.held_entry = _held_entry()
+	var held_room := _held_room()
+	loco.doors.keep_out_of(
+		String(behavior._perception.orders.current().get("opening", "")) if held_room != "" else "",
+		held_room,
+	)
 	var entry_state: RefCounted = behavior._entry.state
 	loco.doors.avoid_entering = ("%s>%s" % [entry_state.opening, entry_state.into]
 			if task.primitive == &"entry" and entry_state.opening != ""
 			else "")
 
 
-## The held stack whose room the walk keeps out of (`"<opening id>><room key>"`, "" for none): a
+## The room of the held stack the walk keeps out of ("" for none), at the live order's doorway: a
 ## member of a stack held for its leader's go stays on the stack's side of the doorway (D38, the
 ## room its confinement keeps it out of, `keep_out`), so any walk of it (its fight's: an engage's
 ## reposition, a retreat, under fire too; its order's way to its slot) whose plain way goes into
 ## that room goes round it, and none goes round a body by a way into it (`Locomotion`'s
-## `doors.held_entry`), however long the way round (D4). Not an evade.
-func _held_entry() -> String:
-	var room: String = behavior._perception.confinement.keep_out
-	if room == "" or not behavior.grenades.evade.is_empty():
+## `doors.keep_out_of`), however long the way round (D4). Not an evade.
+func _held_room() -> String:
+	if not behavior.grenades.evade.is_empty():
 		return ""
-	var opening := String(behavior._perception.orders.current().get("opening", ""))
-	return "%s>%s" % [opening, room] if opening != "" else ""
+	return behavior._perception.confinement.keep_out
 
 
 ## Move: walk to the destination (or into the destination room), aiming as the leaf asks (a threat

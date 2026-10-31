@@ -94,13 +94,15 @@ func build(rooms: Array, goal: String, activity: String, knowledge: Dictionary) 
 	}
 
 
-## The decision's context every group reads: where the NPC stands, its space, map and body, the
-## hostiles and allies among `known` (its contacts), the `callouts` heard, and each hostile's front.
+## The decision's context every group reads: where the NPC stands, its world, space, map and body,
+## the hostiles and allies among `known` (its contacts), the `callouts` heard, and each hostile's
+## front.
 func _context(known: Array, callouts: Array) -> Dictionary:
 	var self_pos: Vector2 = _character.global_position
 	var hostiles: Array = known.filter(func(c): return c["hostile"])
 	var allies: Array = known.filter(func(c): return c["ally"] and not c["hostile"])
 	var ctx := {
+		"world": _character.get_world_2d(),
 		"space": _character.get_world_2d().direct_space_state,
 		"map": _character.get_world_2d().navigation_map,
 		"self_pos": self_pos,

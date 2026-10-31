@@ -292,17 +292,21 @@ func _cornered(
 ## The walk to throw spot `p` as the NPC would walk it (agent_door_views.gd `walk_route`: round the
 ## doorway views when it would take that, E18), and whether the entry guard would stop it on the way
 ## (`detour`): a doorway into a room not cleared that it crosses (E9), or a doorway view it comes
-## into with no way round it (E15). `{ path, len, detour }`. The guard runs only where doorway views
-## are kept out of (`AgentDoorViews.avoid_views`: tactical entry and the guard on).
+## into with no way round it (E15), read for a held stack's member from the outer side of the held
+## room's doorway it stands in (the knowledge's `keep_out`, D38). `{ path, len, detour }`. The guard
+## runs only where doorway views are kept out of (`AgentDoorViews.avoid_views`: tactical entry and
+## the guard on).
 func _throw_walk(ctx: Dictionary, p: Vector2) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
-	var way: Dictionary = _views.walk_route(self_pos, p, ctx["map"], ctx["space"])
+	var way: Dictionary = _views.walk_route(self_pos, p, ctx["world"])
 	var detour := false
 	if _views.avoid_views:
 		var cleared := func(key: String) -> bool:
 			return _memory.age_of(&"cleared_room", "key", key) <= _v.tuning.memory.search_ttl
-		detour = not _views.threshold_ahead(way["path"], 0, self_pos, cleared, INF).is_empty() \
-			or (not way["doors"] and not (way["views"] as Array).is_empty())
+		var held := String(know["keep_out"])
+		var ahead: Dictionary = _views.threshold_ahead(way["path"], self_pos, cleared, INF, held)
+		var crossed: bool = not way["doors"] and not (way["views"] as Array).is_empty()
+		detour = not ahead.is_empty() or crossed
 	return { "path": way["path"], "len": way["len"], "detour": detour }
 
 

@@ -149,7 +149,7 @@ func check_held(from: Vector2, resting: Array, body: Vector2, on_goal: bool, del
 	recheck_in -= delta
 	if not on_goal and recheck_in <= 0.0:
 		recheck_in = loco.RECHECK
-		if loco.doors.map.is_valid() and loco._clear_on(loco.doors.map, from, resting):
+		if loco.doors.clear_way(from, resting):
 			last_leg = false
 			loco._set_way(loco.Way.DOORS)
 		elif goes_round(from, resting, last_leg):

@@ -913,7 +913,7 @@ func _shot_origin(ctx: Dictionary, snap_to_navmesh := true) -> Vector2:
 ## out of the doorway views when it would take it (`AgentDoorViews.walk_route`, E18), else the plain
 ## one.
 func _route_len(ctx: Dictionary, p: Vector2) -> float:
-	return float(_views.walk_route(ctx["self_pos"], p, ctx["map"], ctx["space"])["len"])
+	return float(_views.walk_route(ctx["self_pos"], p, ctx["world"])["len"])
 
 
 ## The ally (perceived near the target, or calling it on the radio) already fighting hostile `t`.

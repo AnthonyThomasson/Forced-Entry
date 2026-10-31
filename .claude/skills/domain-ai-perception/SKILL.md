@@ -339,7 +339,8 @@ when an ally radios `cleared_room`. `entry.is_cleared(key)` reads it; the snapsh
 `AgentDoorViews.threshold_ahead`) walks a nav path and returns the first doorway whose wall plane a step crosses, within the
 doorway's width and heading into a room that is not the one the NPC is in and is not cleared: `{ opening, into, dist }`, or
 {}. The room the NPC is in is read from the doorway's outer side when it stands in a doorway of the room a held stack's member keeps
-out of (`AgentDoorViews.kept_out`, the confinement's `keep_out` the wrapper pushes in each call, D38; `_outside_of`: on the room's
+out of (`threshold_ahead`'s `kept_out`, which the wrapper passes from the live confinement's `keep_out` and the snapshot's throw walk from its
+knowledge's, D38; `_outside_of`: on the room's
 side of the wall plane by `DOORWAY_DEPTH`, 20 px, half a wall and a body's radius, at most, within the doorway's width). The last step is extended by `THRESHOLD_EXTEND` (30 px) so a destination that is the doorway counts. The behaviour's
 entry guard calls it every tick. `views.passing_ahead(path, from_idx, max_dist)` (over `AgentDoorViews.passing_ahead`) is its sibling for E15 / E18:
 the first doorway **view** the walk comes into from outside it (any doorway into a room not clear for passing: inside the house or out, exterior doors too, however far out from the wall; not the NPC's own room, nor a doorway of a room the walk goes into by any of its doors, which the entry into that room covers): `{ opening, into, dist }` (`dist` = px of walking until it is in the view), or {}.
@@ -353,13 +354,14 @@ the edge of the room in front of it (so a view does not run on through the next 
 clear for passing (`AgentPerception.views._is_pass_clear(key)`: the `cleared_room` memory's age is within `tuning.entry_guard.pass_clear_time`, 60 s; `entry.is_cleared` stays the
 entry's), other than the NPC's own room; with `entering` (`"<opening>><into>"`, the entry a walk is the approach of) that doorway's own view
 always counts, from inside the room too and cleared or not; `{ key, holes, views }` (each view `{ id, into, poly, joins }`, `joins` the rooms the doorway joins), worked out once a physics frame.
-`walk_route(from, to, map, space, entering)` (over `AgentPerception.views.walk_route(to, entering, from, uncapped)`; `uncapped` calls `held_route`, which
-routes as an ordered approach does, for a held stack's member keeping out of its room, D38; `views.walk_enters(to, key, on := RID())` / `plain_enters`: whether the
+`walk_route(from, to, world, entering, held := false)` (on `world`'s navigation map and physics space; over `AgentPerception.views.walk_route(to, entering, from, held)`; `held`: the walk keeps a
+held stack's member out of `entering`'s room, D38, so its way round that room is uncapped as an ordered approach's and the doorway rule below holds; `views.walk_enters(to, key, on := RID())` / `plain_enters`: whether the
 plain route, or the route on map `on` (a walk's steering map round bodies), goes into a room) is the route the NPC walks: the plain one, unless it comes
 into one of those views (or, with `entering`, goes into the room being entered: `_keep_out`, none when the walker is in that room
-already, clear of its doorways; one standing in a doorway of it, on the room's side of the plane by `DOORWAY_DEPTH` at most, is
-judged from the doorway's outer side, `_outside_of` / `_goes_in`, the route's first points still in that doorway no way in, as
-`plain_enters` judges too) and the route on `NavBuilder.avoid_map` for the set (less
+already; for a `held` walk, one standing in a doorway of it, on the room's side of the plane by `DOORWAY_DEPTH` at most
+(`_in_doorway_of`), is not in it yet and is judged from the doorway's outer side, `_outside_of` / `_goes_in`, the route's first points still
+in that doorway no way in, as `plain_enters` judges too; a walk not `held`, a lone or an ordered approach, is judged from where it stands, so
+from inside that room its plain way goes) and the route on `NavBuilder.avoid_map` for the set (less
 the views `from` stands in, `_left_from`; when that route goes into the room being entered, the route on the map with the room's floor carved too, `_with_room`, so the room-carved map is asked for, baked and kept only while an approach needs it) reaches `to` (within `AVOID_REACH` 24 px) no longer than `door_avoid_ratio`
 (2.0) x the plain length + `door_avoid_slack` (300 px); failing that, with `entering`, the route round that doorway's own view and the room
 at least (`_entering_set`), capped the same unless `ordered_approach` (set by `views.sync_walks` from `views.ordered`: uncapped, D4):
