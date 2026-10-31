@@ -227,7 +227,7 @@ func view() -> Dictionary:
 
 
 ## Turn a leader's request (`{ kind, to, pos?, room?, bang?, mode?, wait_go? }`) into an order and
-## post it as `&"order"` (a go's `mode`, one of `MODES`, is the mode a held rally goes in, D31).
+## post it as `&"order"` (a go's `mode`, one of `MODES`, is the mode a held rally goes in, D38).
 ## Returns the order posted, or {} when there is nothing to post (no living recipient, an unknown
 ## room or doorway, an unknown kind, a go where no held stack waits).
 func issue(request: Dictionary) -> Dictionary:
@@ -265,7 +265,7 @@ func issue(request: Dictionary) -> Dictionary:
 
 
 ## The leader's go request (`{ kind: "go", pos, mode? }`) posted (`_release`) to the held stacks at
-## the doorway it names, with its `mode` when it names one of `MODES` (D31); {} with none there.
+## the doorway it names, with its `mode` when it names one of `MODES` (D38); {} with none there.
 func _go(request: Dictionary) -> Dictionary:
 	var at := resolve(request)
 	if at.is_empty():
@@ -344,7 +344,7 @@ func _latch_go(opening: String) -> void:
 	var stack: RefCounted = stacks.ledger.stack(opening)
 	var held := _held_at(opening)
 	for id in held:
-		# A join's claims carry no order id: its rally's go is read by the join's frame (D31).
+		# A join's claims carry no order id: its rally's go is read by the join's frame (D38).
 		var order_id := "" if StackClaim.is_join(held[id]) else str(id)
 		if stack.released(order_id, str(held[id]["into"]), int(held[id]["frame"])):
 			_released[str(id)] = true
@@ -362,7 +362,7 @@ func _held_at(opening: String) -> Dictionary:
 
 
 ## Release the held stack orders `held` (order id -> order, `_held_at`) with one `go` at `at`
-## (`{ opening, pos, mode? }`, `mode` the one a held rally goes in, D31): posted to every living
+## (`{ opening, pos, mode? }`, `mode` the one a held rally goes in, D38): posted to every living
 ## member holding one of them, `auto` when the squad
 ## gives it because their leader is dead (D12). The stack orders stay held (a go is latched, never a
 ## replacement); `view()` marks them released. Returns the go posted, or {} when nobody holds one.
@@ -477,7 +477,7 @@ func _next_leader() -> Node:
 ## Its own order is dropped. The held stacks it ordered have nobody to say go now (D12): each is
 ## released (a `go` with `auto: true`), so it goes on the ready barrier. When the human leader dies
 ## (LD26), the members it set to defend a room or lie in ambush, and those holding a join of its
-## rally (D31: never released, no go), are told `cancel` (one order) and follow the new leader; its
+## rally (D38: never released, no go), are told `cancel` (one order) and follow the new leader; its
 ## stack orders are finished.
 func _on_died(member: Node) -> void:
 	_orders.erase(member.get_instance_id())
@@ -509,7 +509,7 @@ func _on_died(member: Node) -> void:
 
 
 ## The new leader takes over from the dead human's, `previous` (LD26): one `cancel` to the living
-## members holding a `defend_room` or an `ambush` order, or a join of `previous`'s rally (D31: a
+## members holding a `defend_room` or an `ambush` order, or a join of `previous`'s rally (D38: a
 ## rally goes in only on its leader's go, which a dead leader never gives), so each follows it.
 func _take_over(previous: Node) -> void:
 	_cancel_held(func(held: Dictionary): return (
@@ -593,7 +593,7 @@ func _rally(claim: Dictionary) -> void:
 				"leader": _leader, "faction": _faction, "to": to, "kind": STACK,
 				"opening": opening, "into": claim["into"], "pos": door,
 				"split": false, "mode": JOIN, "bang": false,
-				# The human leader's rally is held for its go (D31); an AI leader takes the point.
+				# The human leader's rally is held for its go (D38); an AI leader takes the point.
 				"wait_go": bool(claim["human"]),
 			})
 		"abort":

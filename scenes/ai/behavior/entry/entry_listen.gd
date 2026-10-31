@@ -132,7 +132,7 @@ func listening(entry: Entry, team: Array) -> bool:
 ## Whether a late reason could still turn this quiet entry into a bang one (`maybe_upgrade`): the
 ## stack carries a stun, nobody has crossed, no member gave the bang up, the stack is not over a
 ## burst already, it is not a pass-by, nobody in it was ordered (LD9: an ordered quiet stack
-## stays quiet) and it is no human leader's rally (D31: its mode is its go's).
+## stays quiet) and it is no human leader's rally (D38: its mode is its go's).
 func _may_turn(entry: Entry, team: Array) -> bool:
 	return (not (
 		entry.grenade.off or entry.grenade.over or state.secure

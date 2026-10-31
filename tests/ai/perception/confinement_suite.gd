@@ -3,7 +3,7 @@ extends UnitSuite
 ## perception_confinement.gd`, the perception's part `confinement`): where it may act, from its
 ## territory (a defender keeps inside the house), the room a `defend_room` order keeps it to
 ## (`docs/leadership.md` LD8), its squad leash (LD23) and the room a stack held for its leader's go
-## keeps it out of (LD13, D31). Fed plain rooms and points: no house, no world. Beneath the
+## keeps it out of (LD13, D38). Fed plain rooms and points: no house, no world. Beneath the
 ## simulation tests of the territory, defend-room, ambush and leash behaviours
 ## (`tests/ai/flank/flank_territory_*`, `tests/ai/combat/defend_room_*`, `ambush_*`, `leash_*`, and
 ## the held stacks' `tests/ai/stack/rally_held_fights_stack_side`,
@@ -163,7 +163,7 @@ func test_a_copy_is_frozen_against_a_later_refresh() -> void:
 
 
 func test_a_held_stacks_room_keeps_it_out() -> void:
-	# D31: a member of a stack held for its leader's go acts only on the stack's side of the
+	# D38: a member of a stack held for its leader's go acts only on the stack's side of the
 	# doorway.
 	var c := _confinement(false, {}, Vector2.INF, 0.0, "kitchen")
 	assert_bool(c.confines()).override_failure_message("the keep-out alone confines it").is_true()

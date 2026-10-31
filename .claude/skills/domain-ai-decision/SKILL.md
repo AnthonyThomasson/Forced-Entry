@@ -126,7 +126,7 @@ snapshot without one), so a walk decides over one state and a hand-made snapshot
 (`inside_only`, from `tuning.decision.defend_territory`), the room a member ordered to defend it keeps to (`room`, `docs/leadership.md`
 LD8), a squad follower's leash (`leash_center`, its leader's live position, `Vector2.INF` for none: no squad, or a member holding an
 order, which the leash never binds; `leash` in px, LD23) and the room a member of a stack held for its leader's go keeps out of
-(`keep_out`, LD13, D31), so a held member fights on the stack's side of the doorway. `_confines()` is the copy's `confines()`: true while any rule is set. Inside a
+(`keep_out`, LD13, D38), so a held member fights on the stack's side of the doorway. `_confines()` is the copy's `confines()`: true while any rule is set. Inside a
 `confine` subtree (COMBAT) `_allowed` drops every option the copy's `allows_option(o)` refuses: an option is judged where it acts, its
 `params.from` (the spot a grenade is thrown from), else its `params.point`, so a territorial defender inside may throw onto a spot outside
 (`docs/grenades.md` G17); an option naming no place (a reload, a punch) stays. The planner reads neither `tags.inside` nor a room tag for

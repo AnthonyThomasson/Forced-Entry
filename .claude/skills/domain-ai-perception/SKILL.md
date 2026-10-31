@@ -30,7 +30,7 @@ Files:
   - `room`, the room a `defend_room` order keeps it to ("" with none, `docs/leadership.md` LD8);
   - `leash_center` / `leash`, the squad leash (its leader's live position while it follows and holds no order, `Vector2.INF` otherwise;
     `SquadFollowConfig.leash` px, 0 with none, LD23);
-  - `keep_out`, the room its held stack is to enter, which it keeps out of ("" with none, LD13, D31: from `orders.held_room()`).
+  - `keep_out`, the room its held stack is to enter, which it keeps out of ("" with none, LD13, D38: from `orders.held_room()`).
 
   `refresh(territorial, order, center, radius, held_room := "")` takes the tick's rules (only a `defend_room` order names a room); the controller's reflexes
   call it once a tick in SENSE after the whole order intake (`npc_reflexes.gd` `refresh_confinement`, from `follow_squad`), and again as
@@ -137,8 +137,8 @@ and `evade_margin` among them, `apply_config` sets on the module that reads them
   `refused`, `cancelled`: kept in the memory as ended, so never a ttl); `orders.take_ended()` is one that ended done or refused since the last
   call, for the controller to radio (LD7). `entry.mark_cleared(key)` ends a `stack` order whose `into` is `key` as done, the NPC's own clear or an
   ally's. A `go` (LD13) replaces nothing: when the live order is a `stack` at the go's `opening` it is kept again with `go: true` (latched,
-  whenever the go came; `go_mode` the go's `mode` when it names one, the mode a held rally goes in, D31), and `orders.process` returns false (no decision is forced).
-  `orders.held_room()` (LD13, D31) is the room the live `stack` order (`wait_go`, a join of the human leader's rally too) is held to enter while
+  whenever the go came; `go_mode` the go's `mode` when it names one, the mode a held rally goes in, D38), and `orders.process` returns false (no decision is forced).
+  `orders.held_room()` (LD13, D38) is the room the live `stack` order (`wait_go`, a join of the human leader's rally too) is held to enter while
   its go has come neither on the order nor off the radio (`DoorStack.held` over `entry.stack(opening, into)`), else "": the reflexes refresh it
   into the confinement's `keep_out`, so a held member fights on the stack's side of the doorway. An `ambush` (LD15) ends `done` on first contact:
   `orders.end_ambush_on_contact`, run at the end of every `observe`, ends it when the NPC is `under_fire()` or sees a character it holds hostile
@@ -338,7 +338,7 @@ when an ally radios `cleared_room`. `entry.is_cleared(key)` reads it; the snapsh
 `AgentDoorViews.threshold_ahead`) walks a nav path and returns the first doorway whose wall plane a step crosses, within the
 doorway's width and heading into a room that is not the one the NPC is in and is not cleared: `{ opening, into, dist }`, or
 {}. The room the NPC is in is read from the doorway's outer side when it stands in a doorway of the room a held stack's member keeps
-out of (`AgentDoorViews.kept_out`, the confinement's `keep_out` the wrapper pushes in each call, D31; `_outside_of`: on the room's
+out of (`AgentDoorViews.kept_out`, the confinement's `keep_out` the wrapper pushes in each call, D38; `_outside_of`: on the room's
 side of the wall plane by `DOORWAY_DEPTH`, 20 px, half a wall and a body's radius, at most, within the doorway's width). The last step is extended by `THRESHOLD_EXTEND` (30 px) so a destination that is the doorway counts. The behaviour's
 entry guard calls it every tick. `views.passing_ahead(path, from_idx, max_dist)` (over `AgentDoorViews.passing_ahead`) is its sibling for E15 / E18:
 the first doorway **view** the walk comes into from outside it (any doorway into a room not clear for passing: inside the house or out, exterior doors too, however far out from the wall; not the NPC's own room, nor a doorway of a room the walk goes into by any of its doors, which the entry into that room covers): `{ opening, into, dist }` (`dist` = px of walking until it is in the view), or {}.
@@ -353,7 +353,7 @@ clear for passing (`AgentPerception.views._is_pass_clear(key)`: the `cleared_roo
 entry's), other than the NPC's own room; with `entering` (`"<opening>><into>"`, the entry a walk is the approach of) that doorway's own view
 always counts, from inside the room too and cleared or not; `{ key, holes, views }` (each view `{ id, into, poly, joins }`, `joins` the rooms the doorway joins), worked out once a physics frame.
 `walk_route(from, to, map, space, entering)` (over `AgentPerception.views.walk_route(to, entering, from, uncapped)`; `uncapped` calls `held_route`, which
-routes as an ordered approach does, for a held stack's member keeping out of its room, D31; `views.walk_enters(to, key, on := RID())` / `plain_enters`: whether the
+routes as an ordered approach does, for a held stack's member keeping out of its room, D38; `views.walk_enters(to, key, on := RID())` / `plain_enters`: whether the
 plain route, or the route on map `on` (a walk's steering map round bodies), goes into a room) is the route the NPC walks: the plain one, unless it comes
 into one of those views (or, with `entering`, goes into the room being entered: `_keep_out`, none when the walker is in that room
 already, clear of its doorways; one standing in a doorway of it, on the room's side of the plane by `DOORWAY_DEPTH` at most, is
@@ -431,14 +431,14 @@ time); `avoided` keys its per-frame cache on the `pass_clear` rule too. On an or
 an ordered walk with entry on; `_passable` adds `_seen_empty`), D20. An invader's walks are otherwise unchanged. The team's claims (`StackClaim.decode`)
 carry an ordered member's `order_id`, `order_bang`, `order_mode` (LD14), `order_hold` and
 `order_go` (LD13), `order_side` and `order_frame` (the frame the order was issued on, D14) ("" / false / quiet / false / false / 0 / -1
-for others; a held join of the human leader's rally says `order_hold`, `order_go`, `order_mode` and `order_frame` with no `order_id`, D31), which `entry.gd` reads, and every member's `crossed_frame` (the frame its crossing began on, -1 before it).
+for others; a held join of the human leader's rally says `order_hold`, `order_go`, `order_mode` and `order_frame` with no `order_id`, D38), which `entry.gd` reads, and every member's `crossed_frame` (the frame its crossing began on, -1 before it).
 `entry.room_doorways(room_key)` (over `AgentEntry.room_doorways`) lists every doorway of a room, outer doors
 included, as `{ id, pos, width }`: the places a resting NPC watches (`Watch.idle_gaze`, `domain-ai-watch`).
 
 
 ## The stack (`stack/`: `stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`, `stack_member.gd`)
 
-A doorway's stack as the radio describes it (`docs/tactical-entry.md` E2, E6, E16 to E22; `docs/leadership.md` LD13, LD18, D31), held once for
+A doorway's stack as the radio describes it (`docs/tactical-entry.md` E2, E6, E16 to E22; `docs/leadership.md` LD13, LD18, D38), held once for
 every reader: the NPC's entry and its snapshot, the human's `PlayerStack` and the side's `Squad` (`domain-ai-team`). Behaviour, the
 orchestrator and the team preload these files themselves; this folder is that seam.
 
@@ -451,7 +451,7 @@ orchestrator and the team preload these files themselves; this folder is that se
   call, `AgentGrenades.is_call`, G16, or an order step with no entry step, LD7: the speaker's last claim stands; any other callout drops it);
   `is_join(d)` (an order, a leaf's params or a claim of a join, LD24: the one test of it); `order_terms(order)` (the one builder of a claim's
   order fields, `join` and the `order_*`, from the order's own names `{ id, join, bang, mode, hold, go, side, frame }`: an ordered member's every
-  `order_*`, a held join's `order_hold` / `order_go` / `order_mode` / `order_frame` with no `order_id` (D30, D31), `order_go` once latched for
+  `order_*`, a held join's `order_hold` / `order_go` / `order_mode` / `order_frame` with no `order_id` (D30, D38), `order_go` once latched for
   anyone else; the NPC's radio and its `StackMember.terms`, `entry_orders.terms`, and `orders.held_room()`'s transient member use it); `MODES`
   (`quiet`, `stun`, `frag`: the modes a stack goes in, LD14, the squad's `Squad.MODES`) and `throws_first(mode)` (one of them but quiet). The step lists `STACKING` (`claim`, `ready`,
   `bang`, `going_in`), `IN_SLOT` (`ready`, `bang`), `THROUGH` (`in`, `clear`, `cover`, `rear`), `CLEARED`, `HOLDING`, `ENDED` and their
@@ -489,11 +489,11 @@ orchestrator and the team preload these files themselves; this folder is that se
   `crossed_frame` at or after it, since the human's claim carries no order to scope it by, and a -1 on either releases nothing; a claim
   left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing; `order_id` "" is the
   human leader's rally whose joins were posted on frame `since`, `_releases_rally`: a joiner of it, its `order_frame` `since`, saying `order_go` or
-  crossing, or the human crossing on a crossing begun since, D31); `hold(me)` (LD13, D31: the go `me`'s stack holds for, `{ order_id, into,
+  crossing, or the human crossing on a crossing begun since, D38); `hold(me)` (LD13, D38: the go `me`'s stack holds for, `{ order_id, into,
   since }`: its order's when it goes under one, {} unless that order says `order_hold`; with no order, the human leader's rally it joined, `me`'s own held join or the lowest slot's still at a stacking step (`_rally`: a join left from an earlier rally, gone through into the room it cleared, is stale and forms none),
   `order_id` "" and `since` its joins' frame; {} for a stack that holds for nobody, an AI leader's rally among them); `held(me)` (it holds for a
   go, `me` has not latched it, `order_go`, and `released` says it has not come: nobody in it slices the pie, listens, calls a bang or crosses);
-  `mode(me)` (LD9, LD14, D31, E17: `quiet` / `stun` / `frag`, an order's, quiet once a member under it gave its grenade up; a rally's the mode
+  `mode(me)` (LD9, LD14, D38, E17: `quiet` / `stun` / `frag`, an order's, quiet once a member under it gave its grenade up; a rally's the mode
   its go named, `_rally_mode`, `me`'s latched one else a joiner's of that rally, quiet before it, on a go naming none or once a member of the
   rally gave its grenade up; else the first claimer's, `stun` while every claim says bang and none gave it up; "" with nobody claiming);
   `team_side(from)`; `claim(me) -> { slot, held, side, place,

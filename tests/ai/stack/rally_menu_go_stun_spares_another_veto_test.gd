@@ -1,5 +1,5 @@
 extends GameTest
-## D31 rule 4: the command menu's go on a held rally beats every veto but a member of the rally
+## D38 rule 4: the command menu's go on a held rally beats every veto but a member of the rally
 ## losing its grenade (D1 / D15). `rally_menu_go_stun`'s world, with a third teammate at the back
 ## door that is not in the rally: once both joiners stand ready, it radios a claim in the stack
 ## that gave the bang up (`bang_off`, slot 4, ready). The leader then gives "Go into the kitchen

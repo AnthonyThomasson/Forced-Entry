@@ -56,7 +56,7 @@ held once: `StackClaim` the entry claim's wire format (`encode` / `decode`, ever
 step lists and slot distances; `ClaimLedger` the claims one listener has heard (the NPC's perception, the human's `PlayerStack`, the side's
 `Squad`: one each, the latest per speaker, on `GameClock`); `DoorStack` every slot rule over one doorway's claims (E2's same-frame ties and move-up, E16's human slot,
 E19 to E22's sides, files, tail and dead ends, the crossing order, the thrower, whether the stack is held for its leader's go and its mode,
-`held` / `mode`, LD13's and D31's release), `StackLayout` the statics it settles them by (the slots' points and sides), the same answer for
+`held` / `mode`, LD13's and D38's release), `StackLayout` the statics it settles them by (the slots' points and sides), the same answer for
 whoever asks; `StackMember` one member's own claim (claim, keep and settle against a `DoorStack`, its `me()`), which the NPC's entry and the
 human's `PlayerStack` each own. It is perception's, and the one seam behaviour and the team cross into it by: behaviour reads a doorway's stack as
 `AgentPerception.entry.stack(opening, into := "") -> DoorStack` and preloads `StackClaim` / `DoorStack` / `StackLayout` / `StackMember` (the orchestrator `StackClaim`, for
@@ -75,7 +75,7 @@ for an ambush (the behaviour's `ambush` primitive, at its post from `EntryPosts.
 latches it on the held stack it releases (`go: true`) and no decision is forced. A
 defend order's room is a rule of the NPC's confinement (perception's `confinement.room`, refreshed each tick by the reflexes, below), which
 keeps the fight to options inside it, and so is the room a held stack is to enter (`confinement.keep_out`, from
-`AgentPerception.orders.held_room()`, LD13 / D31), which keeps the fight out of it, and the controller radios the order's progress (`order_id`, `order_step`: `moving` / `in_position` from the behaviour, `done` / `refused` from the perception).
+`AgentPerception.orders.held_room()`, LD13 / D38), which keeps the fight out of it, and the controller radios the order's progress (`order_id`, `order_step`: `moving` / `in_position` from the behaviour, `done` / `refused` from the perception).
 An order the NPC cannot carry out (no option built) is ended `refused` as `_start_decision` begins the walk, which refreshes the confinement
 (`_reflexes.refresh_confinement()`: no room nor held room now) and puts its copy in the snapshot, so that walk decides with no room;
 a stack at a dead end with no slot for the member is kept instead, its option a `hold` whose params carry `refused` (LD9, D21). An ordered stack (LD9) is an entry that goes in the order's way (its
@@ -103,7 +103,7 @@ included) reads the controller's `squad`:
 with the territory, `tuning.decision.defend_territory`, the live order, `perception.orders.current()`, and the leash,
 `SquadFollowConfig.leash` round the live position of `leash_lead()`, `Vector2.INF` when it does not follow or holds an order: LD23, the
 leash binds only a follower holding no order, so an ordered member fights where its order takes it, and the room its held stack is to
-enter, `perception.orders.held_room()`, D31); a leashed follower in a fight (`in_combat`) further than `SquadFollowConfig.leash_break` leashes from the confinement's `leash_center`, neither `committed()` nor
+enter, `perception.orders.held_room()`, D38); a leashed follower in a fight (`in_combat`) further than `SquadFollowConfig.leash_break` leashes from the confinement's `leash_center`, neither `committed()` nor
 `orders.walk_pending()`, forces one decision ("off the leash", the reflexes' `_leash_broke` re-armed once it is back within that). `_apply_config` disables
 INVESTIGATE, SEARCH and IDLE for a follower, adds the entry rule `follows → follow` (after `hostile_known`); it pushes no confinement: the planner reads the snapshot's frozen copy
 (`snapshot["confinement"]`, `domain-ai-decision`), behaviour and Combat the live one. `debug_state()["confinement"]` is its `view()`

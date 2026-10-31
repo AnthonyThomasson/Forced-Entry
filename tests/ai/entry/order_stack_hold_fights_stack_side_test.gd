@@ -1,5 +1,5 @@
 extends GameTest
-## LD13 with D31 rule 2: a member of a stack held for its leader's go fights only on the stack's
+## LD13 with D38 rule 2: a member of a stack held for its leader's go fights only on the stack's
 ## side of the doorway. Two invaders are ordered (quiet, hold for go) to stack on the bare Terrace
 ## house's back door from its north side, their leader a puppet human far off in the garden. Once
 ## both stand ready, a defender walks into view in the kitchen and fires at the stack through the

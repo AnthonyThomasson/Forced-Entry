@@ -1,5 +1,5 @@
 extends GameTest
-## D31 rule 4: the command menu's go with stun on a held rally. A puppet human leader rallies its
+## D38 rule 4: the command menu's go with stun on a held rally. A puppet human leader rallies its
 ## two NPC teammates at the bare Terrace house's back door and holds the threshold in slot 1; once
 ## both stand ready, the leader gives "Go into the kitchen with stun". The thrower bangs first: a
 ## stun goes off in the kitchen before any AI crosses; then both AIs go in, the human not waited for

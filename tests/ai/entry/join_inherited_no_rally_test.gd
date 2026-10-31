@@ -6,7 +6,7 @@ extends GameTest
 ## through Von and claims a doorway of its own: its claim rallies the sergeant (a `join`; the
 ## trooper holds its defend, D24). Once the sergeant has claimed its slot there, and while it is
 ## still on its way, the lead is killed (`take_damage`): the sergeant leads within the frame,
-## holding the join (an AI leader's rally holds for no go, so its joins stand, D31), and the
+## holding the join (an AI leader's rally holds for no go, so its joins stand, D38), and the
 ## trooper's defend is cancelled, so it holds no order and follows it. The sergeant's claims at that
 ## doorway are its join's, not its own: they rally nobody, though a member holding no order is there
 ## to rally. Once the join is over (the room cleared, `done`), the sergeant's next claim of its own
@@ -16,7 +16,7 @@ extends GameTest
 ## is still radioing its claim when it takes over; the trooper's defend is issued, and later
 ## cancelled, through the squad (`Squad.issue`), standing in for the orders a leader gives (an NPC
 ## leader gives none of its own); nobody but the lead is ever killed. The lead is an NPC: a human
-## leader's rally is cancelled on its death (D31, `rally_cancelled_on_leader_death`), so a join is
+## leader's rally is cancelled on its death (D38, `rally_cancelled_on_leader_death`), so a join is
 ## inherited only from an AI leader's rally.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")

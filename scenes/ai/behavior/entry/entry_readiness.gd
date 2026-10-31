@@ -258,7 +258,7 @@ func _tick_security(entry: Entry, team: Array, delta: float) -> void:
 ## `tuning.entry.ready_timeout` for it (under an order, from when every living recipient of it was
 ## in its slot, LD17); a recipient of the order this NPC stacks under, and the human leader that
 ## gave it, only once `tuning.entry.order_ready_cap` has run out (D7). Once a human leader's rally
-## has its go, the human is not waited for unless it is crossing (D31): the first AI is the point.
+## has its go, the human is not waited for unless it is crossing (D38): the first AI is the point.
 func members_ahead(entry: Entry) -> Array:
 	var waited := ready_at >= 0.0 and state.time - ready_at >= world.tuning.entry.ready_timeout
 	if entry.orders.id != "":

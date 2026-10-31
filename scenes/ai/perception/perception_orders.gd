@@ -25,7 +25,7 @@ func _init(npc_perception: Node) -> void:
 ## done, cancelled or replaced (`end`). A `go` (LD13) replaces nothing: it releases the held stack
 ## order the NPC holds at its doorway (`go: true` on the live order, latched: the stack goes once
 ## ready, however long before that the go came; `go_mode` the mode it names, the one a held rally
-## goes in, D31), and asks for no new decision. True when the NPC's
+## goes in, D38), and asks for no new decision. True when the NPC's
 ## order changed (the controller then decides at once).
 func process(data: Dictionary) -> bool:
 	if (not (data.get("to", []) as Array).has(perception._character)
@@ -57,10 +57,10 @@ func current() -> Dictionary:
 	return {} if held.is_empty() or held.has("ended") else held
 
 
-## The room the stack of the live order is held to enter (LD13, D31): a `stack` order held for its
+## The room the stack of the live order is held to enter (LD13, D38): a `stack` order held for its
 ## leader's go (`wait_go`; a join of the human leader's rally too) whose go has come neither on the
 ## order (`go`) nor off the radio (`DoorStack.held` over the claims heard at its doorway); ""
-## otherwise. A member holding one fights on the stack's side of the doorway (D31).
+## otherwise. A member holding one fights on the stack's side of the doorway (D38).
 func held_room() -> String:
 	var live := current()
 	if (String(live.get("kind", "")) != "stack"

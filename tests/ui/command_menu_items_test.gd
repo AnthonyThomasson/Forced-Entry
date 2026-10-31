@@ -41,7 +41,7 @@ func describe() -> Dictionary:
 			+ "greyed with no stun), emits the right order_requested for the selection or the "
 			+ "whole squad, cancels a selected member's order, pauses the tree and unpauses on "
 			+ "close (LD11); part 2's frag item, Hold for my go, Go on a held door and "
-			+ "Ambush, with their requests (LD16); and a held rally's three go items (D31).",
+			+ "Ambush, with their requests (LD16); and a held rally's three go items (D38).",
 		"tags": ["ui", "hud", "leadership", "order"],
 		"timeout": 20.0,
 	}
@@ -530,7 +530,7 @@ func _set_hold(menu: Node, on: bool) -> void:
 		box.toggled.emit(on)
 
 
-## D31: on a doorway where a member of the view holds a held join (its order a `stack` of mode
+## D38: on a doorway where a member of the view holds a held join (its order a `stack` of mode
 ## `join` that waits for the go, its row `held`), the menu offers the rally's three go items, "Go
 ## into the <room> (quiet)", "... with stun" and "... with frag", in place of the plain "Go into the
 ## <room>"; stun and frag greyed, with a tooltip (`items()`' `why`), while no member holding that

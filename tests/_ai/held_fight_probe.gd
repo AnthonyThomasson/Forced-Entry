@@ -1,7 +1,7 @@
 extends RefCounted
 ## Shared helpers for the held-stack fight tests (not a test itself):
 ## `const HeldFight := preload("res://tests/_ai/held_fight_probe.gd")`. A stack held at the bare
-## Terrace house's back door for its leader's go (`docs/leadership.md` LD13, D31) is shot at by a
+## Terrace house's back door for its leader's go (`docs/leadership.md` LD13, D38) is shot at by a
 ## defender in the kitchen it is held to enter: `defender` declares it out of sight of the garden,
 ## `fight` walks it into view of the stack through the doorway (`IN_VIEW` by default: the stack's
 ## north slots), has it fire at the stack, then walks it back out of the doorway's view and takes

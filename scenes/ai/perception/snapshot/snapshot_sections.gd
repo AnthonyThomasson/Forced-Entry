@@ -52,7 +52,7 @@ func situation_text(rooms: Array) -> String:
 ## first", "with a frag grenade first", LD14; a held stack adds " when they give the go", LD13,
 ## since "and wait for my go" moved a combat level's top pick; a join, the leader's own stack:
 ## "... by its doorway with them.", LD24, and a human leader's held rally "... with them when they
-## give the go.", D31) / "... to ambush the doorway into the
+## give the go.", D38) / "... to ambush the doorway into the
 ## hall from the living room." (LD15; an exterior door's: "... to ambush the outside doorway of the
 ## kitchen from inside"). Empty with no order, so an NPC that holds none reads exactly what it read
 ## before.

@@ -28,7 +28,7 @@ var avoid_entering := "":
 			decided = false
 		avoid_entering = v
 ## The held stack a held member's walks keep out of (`"<opening id>><room key>"`, "" for none; set
-## each tick by `Behavior`, D31): a walk whose plain way goes into its room (`_held_room`) goes
+## each tick by `Behavior`, D38): a walk whose plain way goes into its room (`_held_room`) goes
 ## round it, and round its doorway's view, as that stack's approach would; any other walk is left as
 ## it is. Another one is another walk: its way is decided afresh.
 var held_entry := "":
@@ -83,7 +83,7 @@ func update(delta: float) -> void:
 
 
 ## Whether the walk stands where it is for now: it keeps out of the held stack's room
-## (`held_entry`, D31) and its way round is not decided yet (its map is being baked), so the plain
+## (`held_entry`, D38) and its way round is not decided yet (its map is being baked), so the plain
 ## way meanwhile would take it into that room, from that room's doorway at once.
 func waiting() -> bool:
 	return not decided and avoid_entering == "" and views != null and _keeps_out()
@@ -102,7 +102,7 @@ func _keeps_out() -> bool:
 
 
 ## Whether the walk's way to the goal on navigation map `on` (the steering map round bodies) goes
-## into the held stack's room it keeps out of (`held_entry`, D31): no way round a body that does is
+## into the held stack's room it keeps out of (`held_entry`, D38): no way round a body that does is
 ## taken.
 func enters_kept_out(on: RID) -> bool:
 	return _held_room != "" and views.walk_enters(loco._goal, _held_room, on)

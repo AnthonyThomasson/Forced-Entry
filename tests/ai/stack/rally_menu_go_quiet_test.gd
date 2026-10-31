@@ -1,5 +1,5 @@
 extends GameTest
-## D31 rule 4: the command menu's quiet go on a held rally beats the stack's own E17 pick. A puppet
+## D38 rule 4: the command menu's quiet go on a held rally beats the stack's own E17 pick. A puppet
 ## human leader rallies its two NPC teammates at the bare Terrace house's back door and holds the
 ## threshold in slot 1; once both stand ready, gunfire is heard in the kitchen (which would turn a
 ## stack carrying a stun into a bang one, E17), and the leader gives "Go into the kitchen (quiet)".

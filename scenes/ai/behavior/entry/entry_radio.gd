@@ -68,7 +68,7 @@ func say(entry: Entry, what: String, extra := {}) -> void:
 	# (E2: the slot it moved up from, while it walks into the one it took.)
 	msg["move_up"] = state.member.move_up
 	msg["pie"] = entry.pie.begun
-	# The order it stacks under (LD9, LD13, LD14), a held join's rally (D31); a join's claim, never
+	# The order it stacks under (LD9, LD13, LD14), a held join's rally (D38); a join's claim, never
 	# its holder's own (D30).
 	msg.merge(entry.orders.terms(entry), true)
 	calls.append(msg)

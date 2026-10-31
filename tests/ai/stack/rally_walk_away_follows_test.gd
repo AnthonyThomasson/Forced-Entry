@@ -1,5 +1,5 @@
 extends GameTest
-## D31 rule 5 with LD25: the human leader walking away frees its held rally to follow it, never to
+## D38 rule 5 with LD25: the human leader walking away frees its held rally to follow it, never to
 ## go in. A puppet human leader rallies its two NPC teammates at the bare Terrace house's back door
 ## (`rally_held_until_leader_crosses`' world); once both stand ready, held, the human walks off
 ## across the garden, past `reserve_range * leave_factor` (450 px) of walking: its stack radio

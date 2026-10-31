@@ -5,7 +5,7 @@ extends CanvasLayer
 ## under the cursor:
 ## - a teammate within `PICK_RADIUS`: "Select <name>" / "Deselect <name>" (the menu stays open), and
 ##   "Go into the <room>" while it holds a held stack that has had no go (LD13: the stack's point
-##   stands right by its doorway); for a held join of the human's rally (D31) the three go items
+##   stands right by its doorway); for a held join of the human's rally (D38) the three go items
 ##   below in its place;
 ## - else a doorway the squad resolves a stack at the click to (its `resolve` callable: the doorway
 ##   nearest the click within its width): "Stack into the <room> (quiet)", "Stack into the <room>
@@ -17,7 +17,7 @@ extends CanvasLayer
 ##   (`FRAG_SLOT`, D15); the panel's "Hold for my go" checkbox (off at first, kept while the match
 ##   runs, D19) makes the stack chosen wait for the leader's go (LD13); "Go into the <room>" while a
 ##   member of the squad's view holds a held stack there that has had no go, whoever is selected
-##   (D13), or, for a held join of the human's rally there (D31), "Go into the <room> (quiet)",
+##   (D13), or, for a held join of the human's rally there (D38), "Go into the <room> (quiet)",
 ##   "... with stun" and "... with frag", stun and frag greyed while no member holding the join
 ##   carries one; and "Ambush the doorway from the <room>", `<room>` the one on the click's side
 ##   of its wall, as the squad resolves the ambush (LD15, D17);
@@ -45,7 +45,7 @@ extends CanvasLayer
 ## Emitted when an order is chosen: `{ kind: "stack", to, pos, bang, mode, wait_go }` (`pos` the
 ## click itself, `mode` quiet / stun / frag, `bang` mode != quiet as part 1 had it, `wait_go` the
 ## "Hold for my go" box), `{ kind: "go", pos, mode? }` (the held stack at that doorway goes, LD13;
-## `mode` quiet / stun / frag for a held rally, D31),
+## `mode` quiet / stun / frag for a held rally, D38),
 ## `{ kind: "ambush", to, pos }` (LD15), `{ kind: "defend_room", to, room }` (a room key) or
 ## `{ kind: "cancel", to }` (the recipients holding an order). `to` is the recipients (characters).
 ## Main hands it to the squad's `issue`.
@@ -333,7 +333,7 @@ func _held_at(opening: String) -> Dictionary:
 
 ## The go items for the held stack order `held` (`_held_at`, `_held_order_of`), each going to the
 ## doorway at `at`: "Go into the <room>" for a stack the leader ordered (LD13); for its rally (a
-## join, mode `join`, D31) one per mode, "Go into the <room> (quiet)", "... with stun" and "... with
+## join, mode `join`, D38) one per mode, "Go into the <room> (quiet)", "... with stun" and "... with
 ## frag", stun and frag greyed while no member holding that join carries one (D1, D15).
 func _go_items(held: Dictionary, at: Vector2) -> Array:
 	var into := _room_name(_room_by_key(String(held.get("into", ""))))
@@ -451,7 +451,7 @@ func _stack(mode: String) -> void:
 
 
 ## The leader's go for the held stack at the doorway at `at` (the squad sends it to whoever holds it
-## there), in `mode` for a rally's (D31; "" for an ordered stack's), and close the menu.
+## there), in `mode` for a rally's (D38; "" for an ordered stack's), and close the menu.
 func _go(at: Vector2, mode := "") -> void:
 	var request := { "kind": "go", "pos": at }
 	if mode != "":

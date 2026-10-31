@@ -1,5 +1,5 @@
 extends GameTest
-## D31 (`docs/leadership.md`, LD13): a held stack's member whose fight walks it up to the doorway it
+## D38 (`docs/leadership.md`, LD13): a held stack's member whose fight walks it up to the doorway it
 ## is held at, to fire through it, stops outside: the entry guard never sends it into the room it is
 ## held to enter. One invader is ordered (quiet, held for the go) to stack on the bare Terrace
 ## house's back door from its north side; once it stands ready, a defender walks into its view in
@@ -9,7 +9,7 @@ extends GameTest
 ##
 ## Scripted Von (COMBAT > ADVANCE > halfway): the subject is the walk, not the decision. The test
 ## requires that the advance's walk ends outside the kitchen within reach of the doorway (a walk
-## into the doorway's view to fire through it, which D31 leaves as it is).
+## into the doorway's view to fire through it, which D38 leaves as it is).
 ##
 ## Switches and props: the defender is a puppet that cannot die, as is the invader (the premise is
 ## the walk, not the fight); `ai.hostile_on_trespass` off, so the defender is the invader's only
@@ -33,7 +33,7 @@ func describe() -> Dictionary:
 		"name": "A held member's advance to the doorway stays out of the held room",
 		"description": "An invader held at the back door for its leader's go advances on a "
 			+ "defender in the kitchen to a point by the doorway: it fights from there and is "
-			+ "never sent into the kitchen by entry (D31).",
+			+ "never sent into the kitchen by entry (D38).",
 		"tags": ["ai", "entry", "leadership", "order", "stack", "combat", "scripted"],
 		"timeout": 60.0,
 	}

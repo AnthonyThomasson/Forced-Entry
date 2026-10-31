@@ -125,7 +125,7 @@ func set_up_walk(delta: float) -> void:
 
 
 ## The held stack whose room the walk keeps out of (`"<opening id>><room key>"`, "" for none): a
-## member of a stack held for its leader's go stays on the stack's side of the doorway (D31, the
+## member of a stack held for its leader's go stays on the stack's side of the doorway (D38, the
 ## room its confinement keeps it out of, `keep_out`), so any walk of it (its fight's: an engage's
 ## reposition, a retreat, under fire too; its order's way to its slot) whose plain way goes into
 ## that room goes round it, and none goes round a body by a way into it (`Locomotion`'s

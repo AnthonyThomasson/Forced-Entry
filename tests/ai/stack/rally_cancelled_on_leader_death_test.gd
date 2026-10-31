@@ -1,5 +1,5 @@
 extends GameTest
-## D31 with LD26: a human leader's held rally dies with it. A puppet human leader rallies its two
+## D38 with LD26: a human leader's held rally dies with it. A puppet human leader rallies its two
 ## NPC teammates at the bare Terrace house's back door (`rally_held_until_leader_crosses`' world);
 ## once both stand ready, held for its go, the human is killed (`take_damage`). An NPC leads within
 ## the frame and the squad cancels both joins (one `cancel`): a rally goes in only on its leader's

@@ -186,12 +186,12 @@ func order_claim(me := {}) -> Dictionary:
 
 ## Whether the held stack under order `order_id`, issued on frame `since`, going into room `into`,
 ## has had its go off the radio (LD13): any claim heard says so (`_releases`). `order_id` "" is the
-## human leader's rally whose joins were posted on frame `since` (LD24, D31).
+## human leader's rally whose joins were posted on frame `since` (LD24, D38).
 func released(order_id: String, into: String, since: int) -> bool:
 	return team.any(func(m): return _releases(m, order_id, into, since))
 
 
-## The go member `me`'s stack holds for (LD13, D31): `{ order_id, into, since }`, the order
+## The go member `me`'s stack holds for (LD13, D38): `{ order_id, into, since }`, the order
 ## `order_claim` says it goes in under when that order holds for its leader's go (`order_id` its
 ## id, `since` its frame), else the human leader's rally it joined (`me`'s own join waiting for the
 ## go, `order_hold`, else the lowest slot's such join among the claims: an unordered member that
@@ -212,7 +212,7 @@ func hold(me: Dictionary) -> Dictionary:
 	return { "order_id": "", "into": str(rally["into"]), "since": int(rally["order_frame"]) }
 
 
-## Whether member `me`'s stack is held for its leader's go (LD13, D31): it holds for one (`hold`),
+## Whether member `me`'s stack is held for its leader's go (LD13, D38): it holds for one (`hold`),
 ## `me` has not latched it (`order_go`) and no claim says it came (`released`). Nobody in a held
 ## stack slices the pie, listens, calls a bang or crosses.
 func held(me: Dictionary) -> bool:
@@ -222,7 +222,7 @@ func held(me: Dictionary) -> bool:
 	return not go.is_empty() and not released(go["order_id"], go["into"], go["since"])
 
 
-## The mode member `me`'s stack goes in (LD9, LD14, D1, D31, E17): `quiet`, `stun` or `frag`. An
+## The mode member `me`'s stack goes in (LD9, LD14, D1, D38, E17): `quiet`, `stun` or `frag`. An
 ## ordered stack's is its order's (`order_claim`), quiet once a member under that order gave its
 ## grenade up (`bang_off`, D1 / D15); a human leader's rally's is the mode its go named (`me`'s own
 ## latched go, else a joiner of that rally saying its go came), quiet before it and on a go no menu
@@ -367,7 +367,7 @@ func _releases(m: Dictionary, order_id: String, into: String, since: int) -> boo
 
 
 ## Whether claim `m` is the go of the human leader's rally whose joins were posted on frame `since`
-## (D31; `crosses`: `m` is crossing or through into the rally's room): a joiner of that rally (its
+## (D38; `crosses`: `m` is crossing or through into the rally's room): a joiner of that rally (its
 ## `order_frame` the same) saying its go came or crossing, or the human crossing on a crossing begun
 ## on or after `since` (the leader stepping in). A join or crossing left on the radio from an
 ## earlier rally, or of unknown frame, releases nothing.
@@ -379,7 +379,7 @@ func _releases_rally(m: Dictionary, crosses: bool, since: int) -> bool:
 	return m["human"] and crosses and int(m["crossed_frame"]) >= since
 
 
-## The human leader's rally member `me` holds for (D31): `me` itself when it is a join waiting for
+## The human leader's rally member `me` holds for (D38): `me` itself when it is a join waiting for
 ## its leader's go (`join`, `order_hold`), else the lowest slot's claim that is and is still at a
 ## stacking step (`StackClaim.stacking`): a joiner of an earlier rally at the doorway, gone through
 ## into the room it cleared, is left from that entry and forms no rally now. `{ into,
@@ -393,7 +393,7 @@ func _rally(me: Dictionary) -> Dictionary:
 	return {}
 
 
-## The mode of the rally `rally` (`_rally`) member `me` holds for (D31): the mode its go named (a
+## The mode of the rally `rally` (`_rally`) member `me` holds for (D38): the mode its go named (a
 ## stun or a frag, `me`'s latched one, else a joiner's of that rally whose go came), unless a member
 ## of the rally gave its grenade up; else quiet.
 func _rally_mode(me: Dictionary, rally: Dictionary) -> String:

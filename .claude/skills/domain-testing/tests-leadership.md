@@ -55,11 +55,11 @@ call the squad itself (`follows`, `follow_spot`, `leader()`, `view()`) and its t
 that only answers the code's own value (`follows`, `SquadFollowConfig.leash`) is a `require` premise, and the behaviour the spec describes is the check.
 A watch of the team is `tests/_ai/follow_watch_probe.gd` (`const FollowWatch := preload(...)`): `new_watch`, `tick`, `watch`, `asked` (the Von
 questions of a member's walks), `gaps`, `took`, `acts_of`, `went_through`, `percentile`, `off_spot_tick` and `step_up` (the
-human walked up to `STEP_UP` beside the back door, the rally tests' claim). The human leader's held rally (D31, `tests/ai/stack/rally_*`)
+human walked up to `STEP_UP` beside the back door, the rally tests' claim). The human leader's held rally (D38, `tests/ai/stack/rally_*`)
 builds on them in `tests/_ai/rally_probe.gd` (`const Rally := preload(...)`: `world` (the bare Terrace house, the human puppet and two
 invader NPCs, `IDS`, bound as Main binds them with "Lead the team" on), `members`, `arm`, `rallied` (the human steps up and both stand ready,
 held for its go, within `READY_WITHIN`), `menu_go(t, mode)` (the command menu's go in a mode), `both_in`, `first_going_in`,
-`check_went_without_human`). A stack held for its go under fire (LD13 and D31: `ai/entry/order_stack_hold_fights_stack_side`,
+`check_went_without_human`). A stack held for its go under fire (LD13 and D38: `ai/entry/order_stack_hold_fights_stack_side`,
 `order_stack_hold_retreat_round_body`, `order_stack_hold_advance_to_door_stays_out`, `ai/stack/rally_held_fights_stack_side`) is `tests/_ai/held_fight_probe.gd` (`const HeldFight := preload(...)`: `defender`, `arm`, `fight` (the defender walked back to `HIDDEN` and then taken `OFFSTAGE`, beyond
 sight, since every spot of the bare house is seen through some doorway from where a member's fight can take it),
 `check_stack_side`: fired from the stack's side, never into the room nor `going_in`, and each back in its slot within `SLOT_NEAR` once the
@@ -90,7 +90,7 @@ leader's rally held until the leader steps in or a go comes, an AI leader's rall
 (`StackMember`, one member's claim: the first free slot on its side, keeping and settling it, the side rule, its claim in the radio's names,
 the NPC's entry and the human's `PlayerStack` claiming alike, the `changed` report). Where an NPC may act has its native suite too,
 `tests/ai/perception/confinement_suite.gd` (perception's `confinement` part, `domain-ai-perception`: each rule alone and combined, an option
-judged at `from` else `point`, the snapshot's frozen copy, a held stack's room kept out, D31), beside its simulation tests `ai/grenade/territorial_throw_from_inside` and
+judged at `from` else `point`, the snapshot's frozen copy, a held stack's room kept out, D38), beside its simulation tests `ai/grenade/territorial_throw_from_inside` and
 `ai/combat/ambush_contact_leashes_follower` and two game tests driving one module through the confinement's answers with no world of its own:
 `ai/decision/combat_options_within_confinement` (the planner's COMBAT filter on hand-made snapshots, a node under the world walked over frames
 with `DecisionStub`) and `ai/combat/combat_spot_within_confinement` (Combat's spot choice, with stand-ins as `ai/combat/combat_waits_for_facing`

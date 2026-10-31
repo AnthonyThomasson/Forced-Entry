@@ -359,8 +359,8 @@ sentence for Von ends " when they give the go".
   claim off the human's stack.
 - **No leader to say go (D12).** When the leader who gave a held order dies, the squad releases the held stacks it ordered itself (a `go`
   with `auto: true`, posted on its `died`), and an entry whose order's `leader` is dead or gone latches the go on its own: the stack goes on
-  the ready barrier, or at once if it is ready. A human leader's held rally is cancelled instead (D31, LD26).
-- **A held member fights on the stack's side (D31).** A member of a stack held for its leader's go (this held order, or a human leader's
+  the ready barrier, or at once if it is ready. A human leader's held rally is cancelled instead (D38, LD26).
+- **A held member fights on the stack's side (D38).** A member of a stack held for its leader's go (this held order, or a human leader's
   held rally, LD24) fights only on the stack's side of the doorway. The watch stage shoots what it sees through the doorway from the slot
   (`docs/tactical-entry.md` E14). A combat decision forced on it (a hostile seen, under fire) drops the options placed in the room the stack
   goes into: the perception names that room while the member's stack is held (`AgentPerception.orders.held_room()`: its live stack order
@@ -532,7 +532,7 @@ bang's own landings are pinned unchanged by the `ai/grenade/bang_*` tests.
 
 **LD16. The menu's new entries.** On a doorway the command menu (LD11) offers, in this order: "Go into the <room>" while a member of the
 squad's view holds a held stack there that has had no go (whoever is selected: the go goes to the doorway's holders, D13), or, for a
-human leader's held rally, "Go into the <room> (quiet)", "... with stun" and "... with frag" in its place (D31: stun or frag greyed while no
+human leader's held rally, "Go into the <room> (quiet)", "... with stun" and "... with frag" in its place (D38: stun or frag greyed while no
 member holding that join carries one, its tooltip saying so; each go names its `mode`); "Stack into the
 <room> (quiet)", "... with stun", "... with frag" (each grenade item greyed while no recipient carries one, its tooltip saying which);
 "Ambush the doorway from the <room>" (`<room>` the room `Squad.resolve` names for an ambush at the click: its side of the wall); then
@@ -554,7 +554,7 @@ leader holds a slot in it (`Entry.orders.leads`: the claim says `leader` and is 
 bang while that claim is still at `claim`, whatever the wait, until `order_ready_cap` (D7) runs out; the leader standing in its slot
 (`ready`) lets the stack go. Its claim withdrawn (`abort`: its walk back to the doorway grew past `reserve_range * leave_factor`, 450 px, or it died) frees the
 stack at once. An AI leader holds no `PlayerStack`, so only the human is waited for this way (D22). The joins the human's own claim brings
-(LD24) are no ordered stack: that stack is held for the human's go with no cap, and its joiners' clock does not apply (D31).
+(LD24) are no ordered stack: that stack is held for the human's go with no cap, and its joiners' clock does not apply (D38).
 - **The joiners' clock (D23).** A member the order does not name is waited for `tuning.entry.ready_timeout` (6 s) from the moment every living
   recipient of the order, the member itself among them, stands in its slot (`Entry.readiness.all_in_at`, `readiness.note_all_in`), or from when the stack last
   grew if that is later: not from the point's own `ready`. A point that has stood in its slot a long while for a far recipient still gives
@@ -692,7 +692,7 @@ spot choice: `ai/combat/combat_spot_within_confinement`.
 **LD24. The leader's stack brings the team in.** When the leader makes an entry claim of its own at a doorway (a callout from it with
 `entry_step` `claim`, no `order_id` and no `join`: an AI leader's ENTER or STUN ENTRY, or the human's own claim through its `PlayerStack`, below), the
 squad rallies its team (`_rally`): one `stack` order with mode `join`, `opening` and `into` the claim's, `pos` the doorway's centre, `split`,
-`bang` false and `wait_go` true for the human's claim (D31, below) and false for an AI leader's, to every follower holding no order (D24: a member carrying out another order keeps it). Once per doorway per
+`bang` false and `wait_go` true for the human's claim (D38, below) and false for an AI leader's, to every follower holding no order (D24: a member carrying out another order keeps it). Once per doorway per
 leader (keyed `<leader>:<opening>`), until that stack is given up (LD25); a new leader rallies again. The rule keys on the speaker being the
 leader, never on whether the squad has a human. A join's claims are never its holder's own: they carry `join: true`, so a follower that
 takes over the lead while it holds a join rallies nobody on it; its next claim of its own does (D30).
@@ -700,11 +700,11 @@ takes over the lead while it holds a join rallies nobody on it; its next claim o
   go }`: no side, mode or `split` of the order's. `Entry.begin` leaves the order's id out of the entry's claims, so the member runs its own
   unordered entry, joining the leader's stack: the team's side and the first claimer's mode (D10), the suspect-room bang and its late upgrade
   (`docs/tactical-entry.md` E17), the listen at the stack, the joiner's ready wait (`tuning.entry.ready_timeout`), and no bang of its own; a
-  human leader's rally is held for its go instead (D31, below). Its walk
+  human leader's rally is held for its go instead (D38, below). Its walk
   there is any entry's, not an ordered stack's guarded way (D4). The order still names it, so its progress is radioed (`moving`, `done`) and
   the squad's view and the order markers show it ("Join stack · moving"). The human's quiet / stun / frag orders keep LD9's "the mode wins";
-  the command menu never orders a join, and offers a held rally's go (D31).
-- **Held for the human leader (D31).** A stack the human leader's own claim rallied is held for its leader, with no cap: while held
+  the command menu never orders a join, and offers a held rally's go (D38).
+- **Held for the human leader (D38).** A stack the human leader's own claim rallied is held for its leader, with no cap: while held
   (`DoorStack.held`: the join holds, `wait_go`, and no go has released it; `Entry.orders.held_for_go`) no joiner slices the pie, listens,
   calls a bang, slices a split stack's own half or crosses, whatever the wait. The joiners still claim, settle, move up (never into the
   human's slot), top off (E11), face back as last man (E12) and radio `ready` / `in_position`, and fight only on the stack's side of the
@@ -759,7 +759,7 @@ no claim there), `ai/stack/human_defender_leader_no_rally` (D29: in a Main-wired
 its crew stands beside the hall doorway into the living room: no claim of its own, no join, and its teammate keeps following it),
 `ai/entry/join_inherited_no_rally` (D30: an AI lead's own claim rallies the sergeant to a doorway and the lead dies while the sergeant is
 on its way; the sergeant leads holding the join, and its claims there give the trooper, its defend cancelled, no join; once the join is
-done, its next claim of its own rallies the trooper). D31's: `ai/stack/rally_held_until_leader_crosses` (the human holds the threshold
+done, its next claim of its own rallies the trooper). D38's: `ai/stack/rally_held_until_leader_crosses` (the human holds the threshold
 20 s: no joiner crosses, no stun is thrown, each joiner's state reads the held sentence above; the human crosses, both follow it in with
 no grenade thrown, the kitchen is called clear), `ai/stack/rally_held_fights_stack_side` (the rally split across the back door, E19, since a joiner in file behind
 the human has no line of fire past it; a defender seen through the doorway from the south slot and then hidden: a held joiner fires
@@ -788,7 +788,7 @@ drop their entries and follow within 3 s), `ai/entry/join_cleared_before_reached
 sergeant have cleared the room: it follows within 1 s and never goes in).
 
 **LD26. Taking over from a dead human leader.** When the human leader dies the next in line leads (LD4) and the squad posts one `cancel` to
-the living members holding a `defend_room` or an `ambush` order, or a join of the human's rally (D31: it goes in only on the human's go,
+the living members holding a `defend_room` or an `ambush` order, or a join of the human's rally (D38: it goes in only on the human's go,
 which never comes; `_take_over`), so each follows the new AI leader. The human's held stacks
 are released as any dead leader's (D12) and its other stack orders are carried to their end (the room cleared); each member follows once
 its order ends, and the new leader's next own claim rallies the members then holding no order (LD24).
@@ -920,7 +920,7 @@ The cases the behaviours above cite as D1 to D38.
 | D9 | The clock and the tests | Moving to the game clock may change a test's timing; `memory_matches_reference` takes its reference "now" from the new clock (the clock source only), and any other test turned red is reported with its cause before it is changed. | LD1 |
 | D10 | Unordered entries | Unchanged: Von's ENTER and STUN ENTRY, the first claimer's mode, the suspect-room bang, the `bang_off` veto, the late upgrade, the listen and the ready timeout; the order's rules apply only to a stack with a claim carrying an `order_id`, and an unordered joiner follows the order's mode and side. | LD9 |
 | D11 | A defender's ordered walk across its own house | A room it has stood in and seen empty within `tuning.entry_guard.pass_clear_time` counts as clear for passing, for thresholds and views; any other room gets an entry. | LD9 |
-| D12 | A held stack whose leader can no longer say go | When the leader who gave it is dead, the squad releases it (a `go` with `auto: true`) and the entry latches its go on its own: it goes on the ready barrier, or at once if ready. A human leader's held rally is cancelled instead (D31). | LD13 |
+| D12 | A held stack whose leader can no longer say go | When the leader who gave it is dead, the squad releases it (a `go` with `auto: true`) and the entry latches its go on its own: it goes on the ready barrier, or at once if ready. A human leader's held rally is cancelled instead (D38). | LD13 |
 | D13 | Who a go goes to | Every living member holding a held stack order at that doorway, whatever the selection; it releases the order, never replaces it, and is latched until the stack is ready. | LD13, LD16 |
 | D14 | The human in a held stack | The stack waits for the human's go: the menu's Go, or the human stepping into the doorway (its `going_in` / `in`) on a crossing begun since the order was issued (`crossed_frame` at or after the order's `frame`; the human's latest crossing); the AIs follow it in. | LD13 |
 | D15 | Ordered with a frag, no frag in the stack | The menu greys "with frag" while no recipient carries one; a stack whose frag is gone by the time it is in goes in quietly and radios `bang_off`, and the order is still done at `cleared_room`. | LD14, LD16 |
@@ -930,7 +930,7 @@ The cases the behaviours above cite as D1 to D38.
 | D19 | The menu's "Hold for my go" | A panel checkbox, off at first, kept across opens while the match runs; it sets `wait_go` on the stack chosen. | LD16 |
 | D20 | The room an ordered stack stands in | Once a member under the order holds its slot there (`ready` or `bang`), it counts as cleared for passing: the members still coming walk through it, not into it by entry. | LD9 |
 | D21 | More members than a dead end holds | Each past what its wall and open floor hold claims no slot, holds where it is and radios `refused`; the order is kept (still held, drawn red), unlike a refused unknown room, which is dropped. | LD7, LD9 |
-| D22 | The human leader in a stack it ordered | The stack waits for it as for a recipient: nobody goes while its claim is at `claim`, until `order_ready_cap`; its withdrawn claim frees the stack. A stack its own claim rallied is held for its go instead, with no cap (D31). | LD17 |
+| D22 | The human leader in a stack it ordered | The stack waits for it as for a recipient: nobody goes while its claim is at `claim`, until `order_ready_cap`; its withdrawn claim frees the stack. A stack its own claim rallied is held for its go instead, with no cap (D38). | LD17 |
 | D23 | When an unordered joiner's wait starts | From the moment every living recipient of the order stands in its slot (or the stack last grew), not from the point's own `ready`. | LD17 |
 | D24 | Who a rally's join goes to | Only the followers holding no order: a member carrying out another of the human's orders (a defend, an ambush, a stack elsewhere or at the same doorway) keeps it; the same for an AI leader's rally. | LD24 |
 | D25 | "Once per doorway per leader" and a stack given up | The leader's `abort` there forgets the rally, so its next claim there rallies again (a leader whose approach the entry guard paused, or that comes back after a fight, brings its team in); heartbeats, re-claims and move-ups never rally twice. | LD24, LD25 |

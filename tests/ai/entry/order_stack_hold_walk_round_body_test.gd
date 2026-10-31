@@ -1,5 +1,5 @@
 extends GameTest
-## D31 (`docs/leadership.md`, LD13): a held stack's member whose order walks it to its slot round a
+## D38 (`docs/leadership.md`, LD13): a held stack's member whose order walks it to its slot round a
 ## body at rest on its way never goes round that body by a way into the room it is held to enter.
 ## One invader, out in the front garden south-west of the bare Terrace house, is ordered (quiet,
 ## held for the go) to stack on the back door from its north side: its way there goes round the
@@ -31,7 +31,7 @@ func describe() -> Dictionary:
 		"name": "A held member's walk round a body keeps out of the held room",
 		"description": "An invader held at the back door for its leader's go walks round the "
 			+ "house to its slot past a teammate standing on its way: it never goes round the "
-			+ "teammate through the hall and the kitchen (D31).",
+			+ "teammate through the hall and the kitchen (D38).",
 		"tags": ["ai", "entry", "leadership", "order", "stack", "movement", "scripted"],
 		"timeout": 45.0,
 	}

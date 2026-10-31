@@ -102,7 +102,7 @@ func banging(entry: Entry) -> bool:
 
 
 ## Whether the stack goes in with a grenade first, by its mode (`DoorStack.mode`): an order's mode
-## (LD9: a member still quiet follows it) or the mode a human leader's rally's go named (D31), else
+## (LD9: a member still quiet follows it) or the mode a human leader's rally's go named (D38), else
 ## the first claimer's, every claim saying bang (E17); a member that gave its grenade up makes it
 ## quiet. A lone member, with nobody claiming, goes its own way.
 func stack_bangs(entry: Entry) -> bool:
@@ -193,7 +193,7 @@ func _enter_bang(entry: Entry) -> void:
 
 ## Whether the point holds in its slot for the bang the stack's thrower is about to call, rather
 ## than slicing the pie: the stack is in bang mode and has waited less than `BANG_CALL_CAP` for it,
-## or its mode is set (an order's, or a human leader's rally's go, D31) with a grenade and the rest
+## or its mode is set (an order's, or a human leader's rally's go, D38) with a grenade and the rest
 ## of the stack, the thrower among them, is still on its way (D7).
 func waits_for_bang(entry: Entry, team: Array) -> bool:
 	if (state.bang and not over and entry.orders.mode_set(entry)
@@ -228,7 +228,7 @@ func _go_quiet(entry: Entry) -> void:
 
 
 ## Whether the stack's bang is off: the stack goes in quietly. A stack whose mode is set (an
-## order's, LD9, or a human leader's rally's go, D31) goes in quietly only by its mode
+## order's, LD9, or a human leader's rally's go, D38) goes in quietly only by its mode
 ## (`DoorStack.mode`: a member under that order, or of that rally, gave its grenade up, D1 / D15, or
 ## the mode named none): nobody else vetoes it. In any other, a teammate whose claims say
 ## `bang_off` does.

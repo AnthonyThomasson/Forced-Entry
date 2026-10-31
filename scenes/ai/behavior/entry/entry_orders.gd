@@ -80,7 +80,7 @@ func begin_order(entry: Entry, params: Dictionary) -> void:
 	entry.readiness.released = bool(params.get("go", false))
 	frame = int(_live().get("frame", -1))
 	if join and entry.readiness.released:
-		mode = str(_live().get("go_mode", ""))  # (The mode its go named, D31.)
+		mode = str(_live().get("go_mode", ""))  # (The mode its go named, D38.)
 	side = _side_named(params)
 	_pref_side = world.perception.entry.side_of(state.geo, world.character.global_position)
 
@@ -108,7 +108,7 @@ func stack_ordered(entry: Entry) -> bool:
 	return not claim(entry).is_empty()
 
 
-## Whether this stack is a human leader's rally held for its go (D31, `DoorStack.hold` with no
+## Whether this stack is a human leader's rally held for its go (D38, `DoorStack.hold` with no
 ## order behind it), its go come or not.
 func rallied(entry: Entry) -> bool:
 	if state.secure:
@@ -118,7 +118,7 @@ func rallied(entry: Entry) -> bool:
 
 
 ## Whether this stack's mode is set for it (`DoorStack.mode`): it goes in under an order (LD9) or
-## is a human leader's rally (D31), whose go names its mode. Nothing turns it, no first claimer
+## is a human leader's rally (D38), whose go names its mode. Nothing turns it, no first claimer
 ## makes it quiet and nothing vetoes it but its own members' lost grenade (D1, D15).
 func mode_set(entry: Entry) -> bool:
 	return stack_ordered(entry) or rallied(entry)
@@ -196,7 +196,7 @@ func held_for_go(entry: Entry) -> bool:
 ## the same order whose claims say it had it, a member of this stack going in or through into its
 ## room (`DoorStack.held` false: `DoorStack.released`, one under the order, or the human on a
 ## crossing begun since the order's `order_frame`, D14: the human leader in the stack stepping in is
-## its go), or the leader that gave the order dead (D12; never a rally's, D31). A rally then takes
+## its go), or the leader that gave the order dead (D12; never a rally's, D38). A rally then takes
 ## the mode its go named (`DoorStack.mode`). Radioed with the next claim (`order_go`).
 func note_go(entry: Entry) -> void:
 	if entry.readiness.released or state.secure:
@@ -215,7 +215,7 @@ func note_go(entry: Entry) -> void:
 		return
 	entry.readiness.released = true
 	if join:
-		# A rally goes in the mode its go named, quiet on the leader stepping in (D31): too late for
+		# A rally goes in the mode its go named, quiet on the leader stepping in (D38): too late for
 		# a grenade.
 		mode = str(live.get("go_mode", "")) if bool(live.get("go", false)) else ""
 		state.bang = entry.claim.stack.mode(entry.claim.me(entry)) != "quiet"

@@ -35,7 +35,7 @@ const SLOT_REACH := 6.0
 ## How close (px) to its slot a hand-driven body (the human) counts as standing in it: a player
 ## steers to a marker, not onto a point, so the NPCs' `WAYPOINT_REACH`.
 const HUMAN_SLOT_REACH := 20.0
-## The modes a stack goes in (LD14, D31): quietly (the first), with a stun or with a frag thrown in
+## The modes a stack goes in (LD14, D38): quietly (the first), with a stun or with a frag thrown in
 ## first; the squad's `MODES`, which a leader's request or a rally's go may name.
 const MODES := ["quiet", "stun", "frag"]
 ## The order mode of a join (the leader's own stack bringing its team in, LD24): not one of
@@ -91,7 +91,7 @@ static func throws_first(mode: Variant) -> bool:
 ## `side`, `frame`; a key left out says its `DEFAULTS` value): `join` always, and `order_go` once
 ## the member latched a go (an unordered member following a held order too, D10, which only its own
 ## reads count); an ordered member's (`id` not "", LD9) every `order_*`; a join held for its human
-## leader's go (`join` and `hold`, D31, its claim carrying no order id, D30) the rally it holds for
+## leader's go (`join` and `hold`, D38, its claim carrying no order id, D30) the rally it holds for
 ## (`order_frame`), `order_hold`, `order_go` and the mode its go named (`order_mode`); nothing more
 ## for any other. Built here alone, for the radio's claim and every member's own
 ## (`StackMember.terms`).

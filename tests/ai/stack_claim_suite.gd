@@ -222,7 +222,7 @@ func test_one_join_rule_reads_orders_leaf_params_and_claims() -> void:
 
 
 func test_a_claims_order_fields_say_the_order_or_the_held_join_it_stacks_under() -> void:
-	# LD9, LD13, LD14, D10, D30, D31: an ordered member's claim says its whole order; a join held
+	# LD9, LD13, LD14, D10, D30, D38: an ordered member's claim says its whole order; a join held
 	# for its human leader's go says the rally (its frame), its hold, its go and the go's mode, and
 	# no order id; any other member says only whether it is a join, and that it latched a go.
 	var order := {

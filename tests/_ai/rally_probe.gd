@@ -1,5 +1,5 @@
 extends RefCounted
-## Shared helpers for the human leader's rally tests (`docs/leadership.md` LD24, D31; not a test
+## Shared helpers for the human leader's rally tests (`docs/leadership.md` LD24, D38; not a test
 ## itself): `const Rally := preload("res://tests/_ai/rally_probe.gd")`. The world is
 ## `human_leader_rallies`': a puppet standing in for the human leader of a squad of two invader
 ## NPCs, built and bound the way Main builds it with "Lead the team" on, in the bare Terrace house's
@@ -100,7 +100,7 @@ static func first_going_in(t: TestContext) -> float:
 
 
 ## After a menu go: both NPC teammates went in, the human still standing in its slot outside, never
-## having crossed (the human's claim is no longer waited for, D31).
+## having crossed (the human's claim is no longer waited for, D38).
 static func check_went_without_human(t: TestContext) -> void:
 	var door := String(Entry.BACK["id"])
 	for m: Node in members(t):

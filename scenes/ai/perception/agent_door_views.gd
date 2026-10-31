@@ -51,7 +51,7 @@ var pass_clear: Callable
 ## room being entered and its doorway's view is taken however long it is (no `door_avoid_ratio` cap;
 ## `walk_route`).
 var ordered_approach := false
-## The room a held stack's member keeps out of (`docs/leadership.md` D31, "" for none): in one of
+## The room a held stack's member keeps out of (`docs/leadership.md` D38, "" for none): in one of
 ## its doorways the NPC is not in it yet, but on the doorway's outer side (`threshold_ahead`).
 var kept_out := ""
 ## The house's doorways (`{ pos, width, front, exit, rooms }`), as injected.
@@ -641,7 +641,7 @@ func _view_fan(
 
 
 ## `walk_route` for a held stack's member keeping out of the room it is held to enter (`entering`,
-## `docs/leadership.md` D31): its way round that room is taken however long it is, as an ordered
+## `docs/leadership.md` D38): its way round that room is taken however long it is, as an ordered
 ## approach's.
 func held_route(
 	from: Vector2,
@@ -659,7 +659,7 @@ func held_route(
 
 ## Whether the route from `from` to `to` on navigation map `map` (the world's: the plain route) goes
 ## into room `key` by any of its doorways: a held stack's member walks round that room only then,
-## and never goes round a body by a way into it (D31).
+## and never goes round a body by a way into it (D38).
 func plain_enters(from: Vector2, to: Vector2, map: RID, key: String) -> bool:
 	return _goes_in(from, NavBuilder.route(map, from, to), key)
 

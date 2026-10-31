@@ -83,7 +83,7 @@ func follow_squad() -> void:
 ## Refreshes the perception's confinement from this tick's rules and returns it: the preset's
 ## territory (`tuning.decision.defend_territory`), the live order, the leash round the leader it
 ## fights within (`SquadFollowConfig.leash` round `leash_lead`; none while it holds an order) and
-## the room its held stack is to enter, which it keeps out of (`orders.held_room()`, D31).
+## the room its held stack is to enter, which it keeps out of (`orders.held_room()`, D38).
 func refresh_confinement() -> RefCounted:
 	var confinement: RefCounted = controller._perception.confinement
 	var lead := leash_lead()

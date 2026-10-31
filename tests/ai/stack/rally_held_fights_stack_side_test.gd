@@ -1,5 +1,5 @@
 extends GameTest
-## D31 rule 2: a member of a stack held for its leader fights only on the stack's side of the
+## D38 rule 2: a member of a stack held for its leader fights only on the stack's side of the
 ## doorway. A puppet human leader rallies its two NPC teammates at the bare Terrace house's back
 ## door (as `rally_held_until_leader_crosses`) and holds the threshold. One joiner comes from the
 ## north of the door, the other from the south (held where it starts until it has claimed, so it

@@ -59,7 +59,7 @@ side of the wall plane and `beyond` the room on the other, "" for an exterior do
 also carries its target point `pos`, the room's centre or the doorway's, which the UI's order markers draw; an ambush may name its doorway
 by id instead, `{ kind: "ambush", opening, room }`, `_ambush_door`: the doorway of that id seen from `room`, through the same `_door_of` a
 click's `_door_for` ends in, so the same order; {} for an id the house lacks or a room it does not join) and posts it; no `to` is every
-living member but the leader. A `go` request (`{ kind: "go", pos, mode? }`, LD13, `_go`) posts a `go` order (`opening`, `pos`, and `mode` when the request names one of `MODES`: the mode a held rally goes in, D31) to every living member
+living member but the leader. A `go` request (`{ kind: "go", pos, mode? }`, LD13, `_go`) posts a `go` order (`opening`, `pos`, and `mode` when the request names one of `MODES`: the mode a held rally goes in, D38) to every living member
 holding a held stack (`wait_go`) at the doorway nearest `pos` that no go has released yet, whatever its `to` (D13), and replaces nothing; when
 the leader that gave held stacks dies the squad posts their go itself (`auto: true`, D12; the flag is read by the tests). `resolve(request)` is that resolution read-only,
 without posting (`{ room, pos }`, `{ opening, pos, into, split, stack_at? }`, `{ opening, pos }` for a go, `{ opening, pos, room, beyond }` for
@@ -67,7 +67,7 @@ an ambush: what the UI's command menu names its stack and ambush items from); `v
 non-follower, `trail` the leader's trail oldest point first, `leash` px: what the leader overlay draws, LD28), the
 steps read off the members' progress callouts (`order_step`), a released held stack carrying `go: true`, `held` whether the order is a stack
 still waiting for the leader's go (`_waits_for_go`, LD13: the one place that rule is worked out; the UI reads it): not released by the
-squad's own `go` nor by one read off the claims (`_latch_go`, on each claim heard at that doorway: its `DoorStack.released(order_id, into, since)`, `since` the order's `frame`, `order_id` "" for a join, whose claims carry none, D31,
+squad's own `go` nor by one read off the claims (`_latch_go`, on each claim heard at that doorway: its `DoorStack.released(order_id, into, since)`, `since` the order's `frame`, `order_id` "" for a join, whose claims carry none, D38,
 `into` the order's room: a claim under the order saying `order_go`, or a member of that stack, under the order or the human, crossing or
 through into that room, D14, the human leader stepping in among them on a crossing begun since; a claim left from an earlier entry releases
 nothing), each kept in
@@ -120,10 +120,10 @@ faction, any `entry_step`, not a grenade call) with no `order_id` and no `join` 
 holding one rallies nobody on it), and from the human only one marked `own` (`_own_claim`), to `_rally`: on
 `claim`, once per `"<leader id>:<opening>"` (`_rallied`), one `stack` order with `mode` `JOIN` (`"join"`, not one of `MODES`, `quiet` /
 `stun` / `frag`, which a request may name; `StackClaim.is_join(order)` tells a join), `opening` / `into` the claim's, `pos` the doorway's centre (`_opening_pos`), `split`, `bang`,
-`wait_go` the claim's `human` (the human leader's rally is held for its go, D31; an AI leader's is not), to every follower whose `_orders` entry is empty (D24); on the leader's `abort` the key is erased and one `cancel` goes to
+`wait_go` the claim's `human` (the human leader's rally is held for its go, D38; an AI leader's is not), to every follower whose `_orders` entry is empty (D24); on the leader's `abort` the key is erased and one `cancel` goes to
 the living members holding a join of that leader at that opening (D25). A join radioed `refused` is dropped from `_orders`, as a `done`.
 `_on_died`, when the dead member led and was the human, calls `_take_over(previous)`: one `cancel` to the living members holding a `defend_room`,
-an `ambush` or a join of `previous`'s rally (D31: no automatic go for a rally); the held stacks it ordered are released (an `auto` go, D12).
+an `ambush` or a join of `previous`'s rally (D38: no automatic go for a rally); the held stacks it ordered are released (an `auto` go, D12).
 
 **The defenders' ambush rule (`docs/leadership.md` LD29, D31 to D36).** The squad's `ambush` part (`ai/team/squad_ambush.gd`, built with
 the squad, holding it; `setup(roster.ambush_attacks, openings, rooms)` from `Squad.setup`; the roster flag is set by
@@ -146,7 +146,7 @@ same for every squad.
 
 Tests: `tests/ai/attack_door_suite.gd` (native: the attack doorway), `tests/general/` (`squad_*`, among them `squad_ambush_rule`,
 `squad_ambush_rule_off` and `squad_go_and_ambush`'s ambush by id, `squad_takeover_from_human`, `lead_rank`, `stack_player_wiring`), `tests/ai/stack/` (the human's stack
-claim; `human_leader_rallies`, `human_rally_spares_ordered`, `human_stack_slot_no_rally`, `human_defender_leader_no_rally`, D31's `rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet` / `_stun` / `_frag`, `rally_menu_go_stun_spares_another_veto`, `rally_walk_away_follows`, `rally_cancelled_on_leader_death`), `tests/ai/stack_member_suite.gd` (the member's claim chain), `tests/ai/movement/` (`follow_*`, `independent_no_squad`), `tests/ai/combat/`
+claim; `human_leader_rallies`, `human_rally_spares_ordered`, `human_stack_slot_no_rally`, `human_defender_leader_no_rally`, D38's `rally_held_until_leader_crosses`, `rally_held_fights_stack_side`, `rally_menu_go_quiet` / `_stun` / `_frag`, `rally_menu_go_stun_spares_another_veto`, `rally_walk_away_follows`, `rally_cancelled_on_leader_death`), `tests/ai/stack_member_suite.gd` (the member's claim chain), `tests/ai/movement/` (`follow_*`, `independent_no_squad`), `tests/ai/combat/`
 (`leash_*`, and for an ordered member off the leash `defend_room_stays_inside` and `ordered_melee_off_leash`; the ambush rule's crew,
 real Von, `crew_ambush_attack_door`, with `tests/ai/investigate/crew_ambush_before_contact`), the ordered entries and joins in `tests/ai/entry/` (`order_*`, `join_*`), `tests/general/test_world_invader_bound_as_match` and the UI's `tests/ui/` (`stack_markers_draw`, `order_markers_draw`, `command_menu_*`, `leader_overlay_draw`).
 

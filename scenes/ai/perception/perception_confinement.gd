@@ -4,7 +4,7 @@ extends RefCounted
 ## the house, `tuning.decision.defend_territory`), the room a `defend_room` order keeps it to
 ## (`docs/leadership.md` LD8), its squad leash (a follower holding no order fights within
 ## `SquadFollowConfig.leash` of its leader, LD23) and the room a stack held for its leader's go is
-## to enter, which a member of it keeps out of (LD13, D31). The controller refreshes it once a
+## to enter, which a member of it keeps out of (LD13, D38). The controller refreshes it once a
 ## tick, after the order intake and the squad's follow reads, and again as it refuses an order. The
 ## planner's COMBAT filter asks the frozen copy in the decision snapshot whether an option may be
 ## taken (`allows_option`, and `confines()` whether anything confines it); the behaviour's fight

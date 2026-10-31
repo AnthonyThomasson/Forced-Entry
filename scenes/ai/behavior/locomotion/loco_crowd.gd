@@ -169,7 +169,7 @@ func check_held(from: Vector2, resting: Array, body: Vector2, on_goal: bool, del
 ## leg, `Locomotion._last_stretch`: of `resting`, or with `held_leg`, a held last leg looking again,
 ## of every known body at rest, so a new last leg is never one the body holding it, or another,
 ## stands on), and passes no known body at rest (`resting`) closer than
-## `Locomotion.PASS_CLEARANCE`; for a held stack's member, not into the room it keeps out of (D31:
+## `Locomotion.PASS_CLEARANCE`; for a held stack's member, not into the room it keeps out of (D38:
 ## `Locomotion`'s `doors.enters_kept_out`). Nothing goes round before both maps have synchronized.
 func goes_round(from: Vector2, resting: Array, held_leg := false) -> bool:
 	var plan_map: RID = loco._plan_map

@@ -61,7 +61,7 @@ func sync_walks() -> void:
 ## leads into a room that is not cleared (nor, on an ordered walk, the room its stack holds, or for
 ## an NPC that does not clear rooms by entry seen empty: D11), as `{ opening, into, dist }`,
 ## or {} (see agent_door_views.gd `threshold_ahead`). A held stack's member in a doorway of the room
-## it keeps out of (the confinement's `keep_out`, D31) is not in that room yet.
+## it keeps out of (the confinement's `keep_out`, D38) is not in that room yet.
 func threshold_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -> Dictionary:
 	var clear: Callable = perception.entry.is_cleared
 	if ordered:
@@ -184,7 +184,7 @@ func avoided() -> Array:
 ## passing when there is one within the cap. `entering` (`"<opening id>><room key>"`): the entry the
 ## walk is the approach of, which keeps out of that room and its doorway's view. `from` (INF: where
 ## the NPC stands) is where the walk sets out from, for a leg of a walk read ahead. `uncapped`: the
-## way round that room is taken however long it is (a held stack's member, D31).
+## way round that room is taken however long it is (a held stack's member, D38).
 func walk_route(
 		to: Vector2,
 		entering := "",

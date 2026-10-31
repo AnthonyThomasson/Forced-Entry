@@ -468,7 +468,7 @@ func test_an_ordered_stack_held_for_the_go_is_held_until_its_go() -> void:
 
 
 func test_a_human_leaders_rally_is_held_until_the_leader_steps_in_or_a_go_comes() -> void:
-	# LD24, D31: a join that waits for the human leader's go (the rally of its own claim) is held
+	# LD24, D38: a join that waits for the human leader's go (the rally of its own claim) is held
 	# while the leader's claim stands at claim or ready; the leader stepping in on a crossing begun
 	# since the join, or a joiner of that rally saying its go came, releases it. A crossing or go
 	# left on the radio from an earlier rally at the doorway releases nothing.
@@ -505,7 +505,7 @@ func test_a_human_leaders_rally_is_held_until_the_leader_steps_in_or_a_go_comes(
 
 
 func test_an_ai_leaders_rally_is_never_held() -> void:
-	# LD24, D31: an AI leader's rally takes the point and goes in; its joins wait for no go.
+	# LD24, D38: an AI leader's rally takes the point and goes in; its joins wait for no go.
 	var ai_rally := _me(StackRadio.speaker(self), 3).merged({ "join": true, "into": "hall" }, true)
 	var ai_leader := _claim(
 		StackRadio.speaker(self), { "slot": 1, "side": 1, "entry_step": "ready" },
@@ -516,7 +516,7 @@ func test_an_ai_leaders_rally_is_never_held() -> void:
 
 
 func test_the_mode_a_stack_goes_in_is_the_orders_else_the_gos_else_its_first_claimers() -> void:
-	# LD9, LD14, D1, D31, E17: an ordered stack goes in the order's mode, quiet once a member under
+	# LD9, LD14, D1, D38, E17: an ordered stack goes in the order's mode, quiet once a member under
 	# that order gave its grenade up; a human leader's rally goes in the mode its go named, quiet
 	# before it or when the leader stepped in, and a join left from an earlier rally, gone through
 	# into the room it cleared, names no mode to a later stack there; any other stack goes in its

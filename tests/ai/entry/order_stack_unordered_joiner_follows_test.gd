@@ -4,7 +4,7 @@ extends GameTest
 ## in for the human leader, its `PlayerStack` claiming as Main's does, D29). The human steps up
 ## north of the Terrace house's back door: its own claim rallies its team (LD24), and the joiner,
 ## running the join as its own unordered entry, claims its slot north of the door first, quietly (a
-## human leader's rally is held for its go, quiet until the go names a mode, D31). Then the human
+## human leader's rally is held for its go, quiet until the go names a mode, D38). Then the human
 ## orders the teammate to stack on the same door south of it, with a stun. Unordered, the rally sets
 ## the stack's mode and the first claimers its side; with an ordered claim in the team, the order's
 ## do: the joiner's later claims say bang and are on the order's side, and it stacks south of the
@@ -13,7 +13,7 @@ extends GameTest
 ## Scripted Von (`Entry.rules`; the join's and the order's levels ask nothing). Premises: the
 ## ordered member carries a stun the way Main arms a spawn (the stack has the grenade the order's
 ## mode calls for); it starts far off in the south of the garden, so the joiner has claimed first.
-## The human's rally starts quiet (D31: a rally with no go goes in quietly), so the order is a stun
+## The human's rally starts quiet (D38: a rally with no go goes in quietly), so the order is a stun
 ## one: the joiner's first claim is quiet and the order's mode turns it to bang.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
@@ -61,7 +61,7 @@ func run(t: TestContext) -> void:
 	var first: Dictionary = Entry.calls(t, "claim", &"joiner")[0]
 	if not t.require(
 			first.get("bang") == false and str(first.get("order_id", "")) == "",
-			"set-up: its claim is quiet and unordered (a held rally's join, LD24, D31)",
+			"set-up: its claim is quiet and unordered (a held rally's join, LD24, D38)",
 	):
 		return
 	var order := Order.issue(

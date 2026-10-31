@@ -1,11 +1,11 @@
 extends GameTest
-## D31 (with LD24 and interface 17): a stack the human leader's own claim rallied is held for its
+## D38 (with LD24 and interface 17): a stack the human leader's own claim rallied is held for its
 ## leader. A puppet stands in for the human leader of a squad of two invader NPCs, built and bound
 ## the way Main builds it with "Lead the team" on, as `human_leader_rallies`. The human steps up
 ## beside the bare Terrace house's back door: its own claim rallies both NPCs, which stack ready
 ## with it. The human then holds the threshold for `HOLD` s, three times the joiners'
 ## `tuning.entry.ready_timeout`: no joiner crosses, and no stun is thrown, and each joiner's state
-## reads its join held for the go (D31's wording). The human crosses; both joiners follow it in,
+## reads its join held for the go (D38's wording). The human crosses; both joiners follow it in,
 ## after it, and the kitchen is called clear.
 ##
 ## Real Von, the whole pipeline; no switch. Each NPC carries one stun as a match arms an invader (a
@@ -26,7 +26,7 @@ const HOLD := 20.0
 const FOLLOW_WITHIN := 20.0
 ## How long (s) the team has, once the joiners are in, to call the room clear.
 const CLEAR_WITHIN := 40.0
-## The held join's order sentence (`docs/leadership.md` D31), the back door's room filled in.
+## The held join's order sentence (`docs/leadership.md` D38), the back door's room filled in.
 const HELD_ORDER := (
 	"Your leader ordered you to go into the kitchen by its doorway with them when they give the go."
 )

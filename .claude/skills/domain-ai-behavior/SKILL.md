@@ -66,7 +66,7 @@ an arrived move) turns among its room's doorways. An arrived move zeroes `moveme
 **Where it may act** is its perception's `confinement` (`perception_confinement.gd`, `domain-ai-perception`), which the controller's
 reflexes refresh every tick: the territory (a territorial NPC keeps inside the house), the room a `defend_room` order keeps it to (LD8), the
 leash (a squad follower holding no order fights within `SquadFollowConfig.leash` of its leader's live position, LD23) and the room a member
-of a stack held for its leader's go keeps out of (`keep_out`, LD13, D31). The behaviour asks the
+of a stack held for its leader's go keeps out of (`keep_out`, LD13, D38). The behaviour asks the
 live one and keeps no copy: `fight`'s `_keeps_in(pos)` is `not confinement.allows(pos)`, so `fight.hold_ground` is set each tick while the
 contact's last-known spot (`engage_pos`) is where it may not act; `Combat.peek_cover` and `Combat.melee` ask `allows` themselves (their spots
 and the closing in, `domain-ai-combat`), the `follow` primitive faces away from `confinement.leash_center`, and the errand's walk keep-out reads `confinement.keep_out` (below). The planner's COMBAT filter
@@ -217,7 +217,7 @@ one of four ways, checked once a physics frame (`_check`):
   closer than the NPC stands to it now) within `LOOKAHEAD` (400 px), or one standing on the goal, ends it:
 - **doors**: the Navigation domain's avoid map (`NavBuilder.avoid_map`: the planning bake with the doorway views carved out, E18), for a walk
   `Behavior` marks `doors.avoid_doors` (above; `doors.avoid_entering` = `"<opening>><into>"` while the primitive is an `entry`, so its approach keeps out of the
-  room it goes into and its own doorway's view, cleared or not). A member whose confinement keeps it out of a held stack's room (`confinement.keep_out`, D31; on every walk, its fight's and its order's way to its slot alike; not an evade) has
+  room it goes into and its own doorway's view, cleared or not). A member whose confinement keeps it out of a held stack's room (`confinement.keep_out`, D38; on every walk, its fight's and its order's way to its slot alike; not an evade) has
   `doors.held_entry` set to the held stack (`"<opening>><room>"`, `errand._held_entry`, with the live order's doorway; its room parsed once as it is set, `doors._held_room`): a walk whose plain way goes into that room (`views.walk_enters`, once per goal; a
   retreat or under fire too) is routed round it and its doorway's view however long the way round (`walk_route(goal, held_entry, INF, true)`,
   `AgentDoorViews.held_route`; until that way is decided, while its map bakes, the walk stands where it is, `doors.waiting()` in `move_to`,
@@ -236,7 +236,7 @@ one of four ways, checked once a physics frame (`_check`):
   margins) and passes no known body at rest (`crowd.goes_round`), whatever the detour (out of the room and in by another door included), but
   never, for a held stack's member, into the room it keeps out of (`doors.enters_kept_out`, `views.walk_enters` on the steering map: held instead,
   then on its way round that room once clear; tests `ai/entry/order_stack_hold_retreat_round_body` (a fight's retreat) and
-  `order_stack_hold_walk_round_body` (its order's walk to its slot), D31). A round
+  `order_stack_hold_walk_round_body` (its order's walk to its slot), D38). A round
   walk done short of a goal no body stands on walks the rest plain (`_last_stretch`, `crowd.last_leg`), held short of a body on it; held, it
   looks again every `RECHECK` s for a way round: a route that ends at the goal, or a new last leg whose plain way passes clear of every known
   body at rest (`crowd.goes_round(..., held_leg)`, `crowd.at_rest(goal, INF)`), so it never takes one the body holding it, or another, stands on and

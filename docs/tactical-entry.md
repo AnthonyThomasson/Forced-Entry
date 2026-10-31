@@ -173,7 +173,7 @@ its own approach up after its walk there plus `tuning.entry.approach_time`, E2).
 trickles through the funnel is a series of solo entries; the radio is the team's only signal. The barrier is a
 hold-until-ready, not a fixed delay. A stack its leader ordered to hold for the go holds past the barrier, no pie and no bang, until that
 go (`docs/leadership.md` LD13), and so does a stack the human leader's own claim rallied, with no ready timeout, until the human steps in
-or gives the menu's go (LD24, D31); a held member fights only on the stack's side of the doorway.
+or gives the menu's go (LD24, D38); a held member fights only on the stack's side of the doorway.
 Tests: `entry_waits_for_stack`, `entry_ready_timeout`, `entry_going_in_callout`, `entry_team_flows_in`.
 
 **E7. Solo entry.** An invader with no ally in radio range runs the same sequence without a barrier (it still
@@ -327,7 +327,7 @@ that) and the stack is still on: someone else holds a place in it (a claim at `c
 only other member is on its bang still holds the human's slot) or has just gone in (`in`); an AI that claims the doorway later takes a slot behind it. The human is never ordered: its radio step is read from
 where it stands (`claim` away from the slot, `ready` in it, `going_in` in the doorway, `in` once through). The AI's own
 rules then do the rest: the point waits for the human at the ready barrier (E6, up to `tuning.entry.ready_timeout`; a stack the human
-leader's own claim rallied waits for its go instead, with no timeout, `docs/leadership.md` D31), a lone AI
+leader's own claim rallied waits for its go instead, with no timeout, `docs/leadership.md` D38), a lone AI
 with a human near is a team of two and slices only its own side (E7), and an AI behind the human crosses after the human's
 `in` (the follow gap). A human who does not follow is not waited for for ever: once the AI ahead is through and the human
 has not crossed within `PlayerStack.go_timeout` (6 s), its claim is withdrawn (`abort`), the marker goes and the AI behind goes
@@ -522,7 +522,7 @@ the spacing kept past it).
 
 A stack a leader orders (its side, its mode, its wait for every member it names, its guarded way across the house, for a defender too) is
 `docs/leadership.md` LD9: E1 to E22 hold for it but where LD9 says otherwise, and a stack nobody was ordered to is as written here. So
-are a stack held for its leader's go (LD13), one the human leader's own claim rallied, held for its go (LD24, D31: the go names its mode,
+are a stack held for its leader's go (LD13), one the human leader's own claim rallied, held for its go (LD24, D38: the go names its mode,
 which wins over E17's pick as an order's does), and one ordered in with a frag (LD14, E17).
 
 ## The other side of the door
