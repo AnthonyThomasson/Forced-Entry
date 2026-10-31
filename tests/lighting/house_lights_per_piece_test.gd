@@ -11,7 +11,7 @@ extends GameTest
 ## with `room_light` on the light that lights its room.
 
 const Probe := preload("res://tests/_lighting/lighting_probe.gd")
-const SEED := 4
+const SEED := 1
 
 
 func describe() -> Dictionary:

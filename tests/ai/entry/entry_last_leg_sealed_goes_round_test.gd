@@ -2,35 +2,41 @@ extends GameTest
 ## Ticket #65 round 2, `docs/tactical-entry.md` E2 / "Bodies on the way": the regression of
 ## `stack_reach_garage_home_garage_six`'s scenario, a walk into a slot whose way a teammate closes
 ## by stepping into its own slot goes round by another way when there is one; it is never held there
-## for good. The garage home (seed 1, furnished) doorway from the kitchen into the garage. Three
-## teammates (invader puppets that radio their claims on the doorway, as an AI member does) hold
-## slots 1 to 3 on its east side, so the invader (ENTER the doorway, scripted Von) claims slot 4,
-## which stands west of slots 1 and 3. Slots 1 and 2 are taken from the start; slot 3's holder waits
-## off it. The invader comes from the kitchen's far corner, from the east, and once it is on its way
-## in east of slot 3 the third teammate steps into slot 3 and stands: slots 1 and 3 then stand
-## closer together than two bodies, across the invader's way in. The way round by the hall stays
-## open. The invader must reach slot 4 by it, within `REACH_S` s of the slot being closed, without
-## giving the entry up or taking another slot. It does not force a held last leg (`Locomotion`'s
-## straight last stretch after a way round ends short of the goal): where a route to a goal no way
-## reaches ends is the navigation server's own choice, so that hold came up only in `garage_six` run
-## in a loaded batch.
+## for good. The hand-laid pocket kitchen (`tests/_ai/pocket_kitchen_probe.gd`, sealed: a garage
+## home's kitchen with its 52 px doorway into the garage) doorway from the kitchen into the garage.
+## Three teammates (invader puppets that radio their claims on the doorway, as an AI member does)
+## hold slots 1 to 3 on its west file, so the invader (ENTER the doorway, scripted Von) claims slot
+## 4, which stands behind slots 1 and 3. Slots 1 and 2 are taken from the start; slot 3's holder
+## waits off it. The invader comes from the kitchen's far corner, from the east, and once it is on
+## its way in east of slot 3 the third teammate steps into slot 3 and stands: slots 1 and 3 then
+## stand closer together than two bodies, and a plant and the chairs close the way under slot 3,
+## across the invader's way in. The way round by the south of the island stays open. The invader
+## must reach slot 4 by it, within `REACH_S` s of the slot being closed, without giving the entry
+## up or taking another slot, and its walk must be a way round (it walks `ROUND_FACTOR` times the
+## straight line it had at the closing, at least). It does not force a held last leg
+## (`Locomotion`'s straight last stretch after a way round ends short of the goal): where a route
+## to a goal no way reaches ends is the navigation server's own choice, so that hold came up only
+## in `garage_six` run in a loaded batch.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const Pocket := preload("res://tests/_ai/pocket_kitchen_probe.gd")
 const DOOR := { "id": "door_500_-360" }
-## The slots of a four-member stack on the doorway's east side
-## (`stack_reach_garage_home_garage_six`'s points), and where slot 3's holder waits.
-const SLOT_1 := Vector2(436, -318)
-const SLOT_2 := Vector2(396, -338)
-const SLOT_3 := Vector2(436, -274)
-const SLOT_4 := Vector2(396, -294)
-const WAIT_3 := Vector2(436, -200)
-const START := Vector2(660, -30)
+## The slots of a four-member stack on the doorway's west file, and where slot 3's holder waits.
+const SLOT_1 := Vector2(460, -330)
+const SLOT_2 := Vector2(412, -330)
+const SLOT_3 := Vector2(460, -282)
+const SLOT_4 := Vector2(428, -250)
+const WAIT_3 := Vector2(396, -300)
+const START := Pocket.FAR
 ## The invader is on its way in east of slot 3 once it is this near slot 4 (px) with its x past slot
 ## 3's.
 const CLOSE_NEAR := 110.0
 ## How long (s) after slot 3 is taken the invader may take to stand in slot 4: the way round by the
-## hall, walked, and the hold's re-plan.
+## south of the island, walked, and the hold's re-plan.
 const REACH_S := 8.0
+## How much longer than the straight line at the closing the invader's walk to slot 4 must be: it
+## went round.
+const ROUND_FACTOR := 1.5
 ## Within this (px) of its slot's point it is in its slot (`Entry.SLOT_REACH` and a few px).
 const SLOT_NEAR := 10.0
 
@@ -40,14 +46,15 @@ func describe() -> Dictionary:
 		"name": "A way into a slot closed by a teammate goes round",
 		"description": "An invader walking into slot 4 from the east finds the gap between slots 1 "
 			+ "and 3 closed by a teammate stepping into slot 3; it takes the way round by the "
-			+ "hall and reaches slot 4, without giving the entry up or taking another slot.",
+			+ "south of the island and reaches slot 4, without giving the entry up or taking "
+			+ "another slot.",
 		"tags": ["ai", "entry", "stack", "navigation", "scripted"],
 		"timeout": 60.0,
 	}
 
 
 func configure(s: TestSetup) -> void:
-	s.house(1, "garage_home")
+	Pocket.layout(s, true)
 	Entry.rules(s, DOOR)
 	Entry.npc(s, &"walker", START)
 	s.actor(&"p1", &"puppet", SLOT_1, { "faction": &"invader", "max_health": 1.0e6 })
@@ -56,51 +63,78 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var walker := t.actor(&"walker")
-	var brain := Entry.brain(t, &"walker")
-	var claim_frame := GameClock.frame()
 	var st := {
 		"radio_in": 0.0,
 		"closed_at": INF,
 		"in_slot_at": INF,
 		"slots": [],
 		"spot": Vector2.INF,
+		"straight": 0.0,
+		"walked": 0.0,
+		"last": Vector2.INF,
 	}
+	var walker := t.actor(&"walker")
+	var brain := Entry.brain(t, &"walker")
+	var claim_frame := GameClock.frame()
 	while t.time < 40.0:
 		_radio_claims(t, st, claim_frame)
-		for c in Entry.calls(t, "claim", &"walker"):
-			if not (st["slots"] as Array).has(int(c["slot"])):
-				(st["slots"] as Array).append(int(c["slot"]))
-		var e: Dictionary = Entry.entry(brain)
-		if e.get("stack_point") is Vector2:
-			st["spot"] = e["stack_point"]
-		var here: Vector2 = walker.global_position
-		if (st["closed_at"] == INF
-				and String(e.get("phase", "")) == "approach"
-				and here.x > SLOT_3.x + 20.0
-				and here.distance_to(SLOT_4) < CLOSE_NEAR):
-			st["closed_at"] = t.time
-			t.puppet(&"p3").walk_to(SLOT_3)
-		if (st["in_slot_at"] == INF
-				and String(e.get("phase", "")) == "stack"
-				and here.distance_to(st["spot"]) <= SLOT_NEAR):
-			st["in_slot_at"] = t.time
+		if not _watch(t, walker, brain, st):
 			break
-		if st["closed_at"] != INF and t.time > float(st["closed_at"]) + REACH_S + 4.0:
-			break
-		t.trace("walker_to_slot_4", here.distance_to(SLOT_4))
+		t.trace("walker_to_slot_4", walker.global_position.distance_to(SLOT_4))
 		await t.frames(1)
+	if _premises(t, st):
+		_judge(t, st)
+
+
+## One frame of the watch over the invader: the slots it claimed, where its stack point is, the
+## closing (slot 3 taken once it is on its way in east of slot 3), what it walked since, and
+## whether it stands in its slot. False once the watch is over.
+func _watch(t: TestContext, walker: Node2D, brain: Node, st: Dictionary) -> bool:
+	for c in Entry.calls(t, "claim", &"walker"):
+		if not (st["slots"] as Array).has(int(c["slot"])):
+			(st["slots"] as Array).append(int(c["slot"]))
+	var e: Dictionary = Entry.entry(brain)
+	if e.get("stack_point") is Vector2:
+		st["spot"] = e["stack_point"]
+	var here: Vector2 = walker.global_position
+	if (st["closed_at"] == INF
+			and String(e.get("phase", "")) == "approach"
+			and here.x > SLOT_3.x + 20.0
+			and here.distance_to(SLOT_4) < CLOSE_NEAR):
+		st["closed_at"] = t.time
+		st["straight"] = here.distance_to(SLOT_4)
+		t.puppet(&"p3").walk_to(SLOT_3)
+	if st["closed_at"] != INF and st["last"] != Vector2.INF:
+		st["walked"] = float(st["walked"]) + here.distance_to(st["last"])
+	st["last"] = here
+	if (st["in_slot_at"] == INF
+			and String(e.get("phase", "")) == "stack"
+			and here.distance_to(st["spot"]) <= SLOT_NEAR):
+		st["in_slot_at"] = t.time
+		return false
+	return st["closed_at"] == INF or t.time <= float(st["closed_at"]) + REACH_S + 4.0
+
+
+## The premises of the scenario: the invader claimed slot 4 behind the teammates' 1 to 3, slot 3's
+## holder stepped into it as the invader came in from the east, and the invader's way to slot 4
+## was a way round. False when one failed.
+func _premises(t: TestContext, st: Dictionary) -> bool:
 	if not t.require(
 			(st["slots"] as Array).size() > 0 and int(st["slots"][0]) == 4,
 			"premise: it claimed slot 4 behind the teammates' 1 to 3 (%s)" % [st["slots"]],
 	):
-		return
+		return false
 	if not t.require(
 			st["closed_at"] != INF,
 			"premise: it came in from the east of slot 3, and slot 3's holder stepped into it then",
 	):
-		return
-	_judge(t, st)
+		return false
+	return t.require(
+		float(st["walked"]) >= ROUND_FACTOR * float(st["straight"]),
+		("premise: the invader's way to slot 4 was a way round (it walked %.0f px, the straight "
+				+ "line it had when slot 3 was taken %.0f px, at least %.1f times that)")
+			% [st["walked"], st["straight"], ROUND_FACTOR],
+	)
 
 
 ## Every half second the three puppets radio their claims again (slots 1 to 3).

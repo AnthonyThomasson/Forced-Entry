@@ -6,11 +6,9 @@ extends GameTest
 ## and their order shows `refused` (no room) in `Squad.view()`.
 ##
 ## A hand-laid layout, because no generated plan has a dead end that holds fewer than six: the slot
-## sweep (`ai/entry/stack_slots_sweep`, 11 plans x 3 seeds) finds twelve dead-end ways in
-## (micro_flat kitchenette > studio on all three seeds, office_loft home_office > great_room #1 and
-## #2, bungalow laundry_room > kitchen #2 and #3 and bathroom > bedroom #3, starter_home bathroom >
-## bedroom #1 and #2, open_plan_home bathroom > bedroom #1 and #2), and its own packing finds each
-## holds six (rooms 200 to 380 px across, where furniture only blocks every spot against the wall),
+## sweep (`ai/entry/stack_slots_sweep`, 11 plans x 3 seeds) finds two dead-end ways in
+## (office_loft bathroom > great_room #2 and #3), and its own packing finds each holds six (a room
+## 300 px across, where furniture only blocks every spot against the wall),
 ## while a stack is at most six. So: an office (500 x 300) and, east of it, a closet (100 x 100)
 ## whose only doorway is an 80 px opening in the middle of their shared wall: ten px of wall either
 ## side of it, so no spot against the wall. The test's own packing

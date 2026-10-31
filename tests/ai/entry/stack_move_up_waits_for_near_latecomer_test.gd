@@ -3,31 +3,34 @@ extends GameTest
 ## while the slot's holder, still on its way, may be within `MOVE_UP_REACH` + `MOVE_UP_MARGIN` of
 ## the slot the move-up would hand it, or the two meet mid-swap and the stack jams
 ## (`stack_reach_garage_home_garage_six`: the mover stood a stride off its old slot and the
-## latecomer a stride off the new one, each reading the other's slot as taken). The garage home
-## (seed 1, furnished) doorway from the kitchen into the garage, the stack on its east side. Two
-## teammates (invader puppets that radio their claims, as an AI member does) stand on slots 1 and 2;
-## the invader (ENTER the doorway, scripted Von) claims slot 4 and walks into it from the south. The
-## third teammate holds slot 3 still on its way (its claim at `claim`), standing `LATE_FROM` px from
-## slot 4 at `LATE_AT`: farther from slot 3 than the invader in slot 4, so the move-up's other tests
-## hold, and near enough to slot 4 to meet the invader's step. Once the invader stands in slot 4 the
-## third teammate comes in: to slot 3 when the invader stays, or, when the invader has moved up into
-## slot 3, to slot 4 as an AI latecomer does, stopping where `garage_six`'s latecomer stood held
-## (`HELD_AT`, a stride off slot 3). The invader must not move up, and must stand in its slot.
+## latecomer a stride off the new one, each reading the other's slot as taken). The one-bed flat
+## (seed 4, furnished) doorway from the living room into the bedroom, the stack on its side 1
+## (east). Two teammates (invader puppets that radio their claims, as an AI member does) stand on
+## slots 1 and 2; the invader (ENTER the doorway, scripted Von) claims slot 4 and walks into it from
+## the south. The third teammate holds slot 3 still on its way (its claim at `claim`), standing
+## `LATE_FROM` px from slot 4 at `LATE_AT`: farther from slot 3 than the invader in slot 4, so the
+## move-up's other tests hold, and near enough to slot 4 to meet the invader's step. Once the
+## invader stands in slot 4 the third teammate comes in: to slot 3 when the invader stays, or, when
+## the invader has moved up into slot 3, to slot 4 as an AI latecomer does, stopping a stride off
+## slot 3 (`HELD_AT`). The invader must not move up, and must stand in its slot. No doorway of the
+## garage home holds a stack of four in two files on one side now (its walls beside the 52 px
+## doorways hold the first four across both sides), so the slots are those of this doorway, whose
+## side 1 file is two against the wall and two a step out.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
-const DOOR := { "id": "door_500_-360" }
-## The slots of a four-member stack on the doorway's east side
-## (`stack_reach_garage_home_garage_six`'s points).
-const SLOT_1 := Vector2(436, -318)
-const SLOT_2 := Vector2(396, -338)
-const SLOT_3 := Vector2(436, -274)
-const SLOT_4 := Vector2(396, -294)
-const START := Vector2(396, -200)
+const DOOR := { "id": "door_0_-320" }
+## The side of the doorway the stack forms on (1 / -1 along its wall).
+const SIDE := 1
+## The slots of a four-member stack on the doorway's side 1.
+const SLOT_1 := Vector2(40, -290)
+const SLOT_2 := Vector2(128, -290)
+const SLOT_3 := Vector2(56, -242)
+const SLOT_4 := Vector2(104, -250)
+const START := Vector2(104, -156)
 ## Where slot 3's holder stands until the invader is in slot 4 (`LATE_FROM` px from slot 4, 65 px
-## from slot 3), and where it stops when it takes slot 4 after a move-up (where `garage_six`'s
-## latecomer stood held, 21 px from slot 3).
-const LATE_AT := Vector2(500, -262)
-const HELD_AT := Vector2(457, -271)
+## from slot 3), and where it stops when it takes slot 4 after a move-up (21 px from slot 3).
+const LATE_AT := Vector2(-8, -231)
+const HELD_AT := Vector2(35, -239)
 ## How long (s) the invader is watched in slot 4 for a move-up before the third teammate comes in.
 const MOVE_WATCH_S := 1.5
 ## How long (s) after the third teammate comes in the invader may take to stand in its slot.
@@ -48,7 +51,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.house(1, "garage_home")
+	s.house(4, "one_bed_flat")
 	Entry.rules(s, DOOR)
 	Entry.npc(s, &"walker", START)
 	s.actor(&"p1", &"puppet", SLOT_1, { "faction": &"invader", "max_health": 1.0e6 })
@@ -135,7 +138,7 @@ func _judge(t: TestContext, st: Dictionary) -> void:
 	)
 
 
-## A puppet radios its claim on the doorway: slot `slot` on the stack's side (-1), still on its
+## A puppet radios its claim on the doorway: slot `slot` on the stack's side (`SIDE`), still on its
 ## way, made on `frame`.
 static func _radio(c: Node2D, slot: int, frame: int) -> void:
-	Entry.radio_claim(c, DOOR["id"], "garage", Vector2i(slot, -1), frame)
+	Entry.radio_claim(c, DOOR["id"], "bedroom", Vector2i(slot, SIDE), frame)

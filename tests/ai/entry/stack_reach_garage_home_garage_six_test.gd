@@ -1,11 +1,11 @@
 extends GameTest
 ## Rule 9 (ticket #65 round 2, `docs/tactical-entry.md` E1, E2, E18 and E20 to E22): every member of
 ## an ordered stack reaches the slot it claimed. The garage home (seed 1, furnished) doorway from
-## the kitchen into the garage, a stack of six in the kitchen ordered on its east side: the sweep
-## finds both runs short (150 px to the kitchen's corners) and a piece against the wall at the east
-## jamb (568..606, -351..-315), so six cannot stand in one file: the east file skips the piece
-## (E22), the rest go west (E21) and then into a second file a step out (E21). Six members, one from
-## each starting place.
+## the kitchen into the garage, a stack of six in the kitchen ordered on its east side: a piece
+## against the wall at the east jamb (558..596, -351..-315) splits the east file, which holds four
+## (two against the wall, either side of the piece, and two a step out), so six cannot stand in one
+## file: the east file takes four (E22: it skips the piece) and the rest go west (E21). Six members,
+## one from each starting place.
 ##
 ## 6 invaders are ordered (quiet, held for the go so the stack forms and holds) to stack on it from
 ## the east side through `Squad.issue`, by a puppet leader standing far off; Von is down (scripted),
@@ -47,7 +47,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.actor(&"near", &"invader", Vector2(615, -295), { "max_health": 1_000_000.0 })
 	s.actor(&"wrong", &"invader", Vector2(420, -300), { "max_health": 1_000_000.0 })
-	s.actor(&"far", &"invader", Vector2(660, -30), { "max_health": 1_000_000.0 })
+	s.actor(&"far", &"invader", Vector2(660, -100), { "max_health": 1_000_000.0 })
 	s.actor(&"beyond", &"invader", Vector2(380, -470), { "max_health": 1_000_000.0 })
 	s.actor(&"far_end", &"invader", Vector2(-160, -560), { "max_health": 1_000_000.0 })
 	s.actor(&"outside", &"invader", Vector2(100, 80), { "max_health": 1_000_000.0 })

@@ -44,7 +44,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"near", &"invader", Vector2(650, -820), { "max_health": 1_000_000.0 })
 	s.actor(&"wrong", &"invader", Vector2(300, -830), { "max_health": 1_000_000.0 })
 	s.actor(&"beyond", &"invader", Vector2(620, -560), { "max_health": 1_000_000.0 })
-	s.actor(&"far_end", &"invader", Vector2(-120, -140), { "max_health": 1_000_000.0 })
+	s.actor(&"far_end", &"invader", Vector2(-70, -160), { "max_health": 1_000_000.0 })
 	s.actor(
 		&"lead",
 		&"puppet",

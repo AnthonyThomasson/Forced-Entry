@@ -103,15 +103,43 @@ static func run(
 	side: int,
 	starts: Dictionary,
 ) -> void:
-	var ids: Array = starts.keys()
-	# The watch's record: where each member started, the order's time, the samples, and per member
-	# the sim time it last came to stand in its claimed slot (INF while it is not in it), the first
-	# such time (since its last detour ended), and its entry-guard detours
-	# ([{ opening, into, start, end, from, paused }], `end` and `from` INF while one runs).
-	var rec := {
+	await _run(t, f, lead, side, _record(starts, false))
+
+
+## `run` for a test whose scenario is a move-up: it also requires, before any other check, that a
+## member moved up into a lower slot of its file (E2), so it can never pass with the scenario not
+## happening.
+static func run_with_move_up(
+	t: TestContext,
+	f: Dictionary,
+	lead: StringName,
+	side: int,
+	starts: Dictionary,
+) -> void:
+	await _run(t, f, lead, side, _record(starts, true))
+
+
+## The watch's record: where each member started, the order's time, the samples, and per member
+## the sim time it last came to stand in its claimed slot (INF while it is not in it), the first
+## such time (since its last detour ended), and its entry-guard detours
+## ([{ opening, into, start, end, from, paused }], `end` and `from` INF while one runs);
+## `move_up` whether the run requires a move-up.
+static func _record(starts: Dictionary, move_up: bool) -> Dictionary:
+	return {
 		"starts": starts, "start": {}, "t0": 0.0, "samples": [], "arrived": {}, "ever": {},
-		"detours": {},
+		"detours": {}, "move_up": move_up,
 	}
+
+
+## `run`'s order, watch and checks, over the record `rec`.
+static func _run(
+	t: TestContext,
+	f: Dictionary,
+	lead: StringName,
+	side: int,
+	rec: Dictionary,
+) -> void:
+	var ids: Array = (rec["starts"] as Dictionary).keys()
 	if not _order_stack(t, f, lead, side, rec):
 		return
 	rec["t0"] = t.time
@@ -119,6 +147,11 @@ static func run(
 	var seen: Dictionary = await Bump.watch(t, ids, WATCH_CAP + 1.0, stop)
 	rec["map"] = t.world.get_world_2d().navigation_map
 	rec["moves"] = move_ups(t, ids, String(f["id"]))
+	if rec["move_up"] and not t.require(
+			not (rec["moves"] as Array).is_empty(),
+			"premise: a member moved up into a lower slot of its file (E2), as the scenario needs",
+	):
+		return
 	for id in ids:
 		await _check_member(t, f, id, rec)
 	for m: Dictionary in rec["moves"]:

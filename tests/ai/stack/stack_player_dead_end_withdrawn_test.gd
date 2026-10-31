@@ -3,14 +3,14 @@ extends GameTest
 ## forming in a dead end is withdrawn, its claim radioed `abort`, once the stack pushes it past what
 ## the dead end holds; it is never moved to a slot the room does not have.
 ##
-## The world is a generated house as a match builds it: the micro_flat plan (seed 1), whose
-## kitchenette has one doorway, into the studio. A stack going in there from the kitchenette forms
-## in a dead end (no spot against the wall, no other doorway for a tail), one of the generated dead
-## ends `ai/entry/stack_slots_sweep` and `ai/entry/stack_dead_end_refused` list, and holds as many
-## as the kitchenette's open floor does: six by the test's own packing
+## The world is a generated house as a match builds it: the office_loft plan (seed 2), whose
+## bathroom has one doorway, into the great room. A stack going in there from the bathroom
+## forms in a dead end (no spot against the wall, no other doorway for a tail), one of the generated
+## dead ends `ai/entry/stack_slots_sweep` and `ai/entry/stack_dead_end_refused` list, and holds as
+## many as the bathroom's open floor does: six by the test's own packing
 ## (`SlotCapacity.dead_end_capacity`), which the set-up requires, with the dead end itself
 ## (`SlotCapacity.way_kind`). The human (a puppet with the human's stack radio, as Main gives it)
-## stands in the kitchenette, on one of those points.
+## stands in the bathroom, on one of those points.
 ##
 ## Premise: the teammates are puppets radioing their claims on the bus (`Stack.radio`), not AI
 ## invaders, standing out on the street in front of the house. The human's slot is pushed up only
@@ -19,17 +19,17 @@ extends GameTest
 ## before the human's reached it, and the human's made before that one reached the human, a race on
 ## the radio's heartbeat. The human's stack reads only the bus, so a puppet's claim is exactly what
 ## it hears from an AI. Each puppet is declared before the human (a lower instance id, checked), so
-## its claim keeps the slot. Six of them push the human past the six the kitchenette holds.
+## its claim keeps the slot. Six of them push the human past the six the bathroom holds.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Slots := preload("res://tests/_ai/slots_probe.gd")
 const SlotCapacity := preload("res://tests/_ai/slot_capacity_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
-const PLAN := "micro_flat"
-const HOUSE_SEED := 1
-## The way in: from the kitchenette (the stack side) into the studio.
-const FROM := "kitchenette"
-const INTO := "studio"
+const PLAN := "office_loft"
+const HOUSE_SEED := 2
+## The way in: from the bathroom (the stack side) into the great room.
+const FROM := "bathroom"
+const INTO := "great_room"
 ## The puppet teammates, in the order they claim: `p1` the point, then one per slot the human is
 ## pushed from.
 const MATES := [&"p1", &"p2", &"p3", &"p4", &"p5", &"p6"]
@@ -41,10 +41,10 @@ const REPEAT := 1.0
 func describe() -> Dictionary:
 	return {
 		"name": "The human's slot in a dead-end stack is withdrawn once pushed past what it holds",
-		"description": "The human is reserved a slot in a stack forming in micro_flat's "
-			+ "kitchenette, a dead end that holds six; teammates (puppets on the radio) take its "
-			+ "slot in turn until it is pushed past the last slot the kitchenette holds: it radios "
-			+ "abort and its reservation is gone, never a slot the kitchenette lacks.",
+		"description": "The human is reserved a slot in a stack forming in office_loft's "
+			+ "bathroom, a dead end that holds six; teammates (puppets on the radio) take its "
+			+ "slot in turn until it is pushed past the last slot the bathroom holds: it radios "
+			+ "abort and its reservation is gone, never a slot the bathroom lacks.",
 		"tags": ["ai", "entry", "stack", "scripted", "callout"],
 		"timeout": 60.0,
 	}
@@ -56,7 +56,7 @@ func configure(s: TestSetup) -> void:
 	# Out on the street, in the strip straight out of the front door (at the origin): open ground.
 	for i in MATES.size():
 		Stack.human(s, MATES[i], Vector2(0, 80 + 40 * i))
-	# Moved into the kitchenette once the house is known (`run`).
+	# Moved into the bathroom once the house is known (`run`).
 	Stack.human(s, &"me", Vector2(-120, 120))
 
 
@@ -69,9 +69,14 @@ func run(t: TestContext) -> void:
 		return
 	var holds := int(capacity["count"])
 	var me := t.actor(&"me")
-	# On a point the kitchenette holds a member on: in it, on the navmesh, off furniture, out of
-	# the doorway's funnel.
-	me.global_position = capacity["points"][-1]
+	# On the point of the packing nearest the doorway: a point the bathroom holds a member on (in
+	# it, on the navmesh, off furniture, out of the doorway's funnel) within the human's reserve
+	# range of the doorway, which a stack forming there is offered at.
+	var points: Array = capacity["points"].duplicate()
+	points.sort_custom(func(a: Vector2, b: Vector2) -> bool: return (
+		a.distance_to(f["pos"]) < b.distance_to(f["pos"])
+	))
+	me.global_position = points[0]
 	await t.frames(2)
 	if not _mates_first(t, me):
 		return

@@ -6,7 +6,7 @@ A small top-down Godot 4.4 demo, organized into sixteen isolated domains under `
 the cross-cutting conventions and the whole sanctioned cross-domain interface surface. Inside a domain, also load its
 `domain-<name>` skill. Behaviour specs that tests assert live in `docs/` (`flanking-behavior.md`, `cover-and-stance.md`,
 `tactical-entry.md`, `gaze-and-fire.md`, `grenades.md`, `hearing.md`, `outfits.md`, `vehicles.md`, `lighting.md`,
-`leadership.md`).
+`leadership.md`, `doors.md`).
 
 **Working on a GitHub ticket (issue)? Invoke the `ticket` skill first.** It routes the ticket's label to a kind file in its
 folder (e.g. `spike` → `spike.md`).

@@ -47,7 +47,7 @@ drops it (L4). Every pool **fades smoothly**, without rings. A low light glows f
 an **overhead light pools downward**: its cone meets the floor, so its pool is nearly flat out to half its radius (`pool_offsets`)
 and fades quickly at the rim. A street lamp's and a sign's pool is tight under its head (**130** px in radius, centred on the
 head); a standing lamp's is 160.
-Tests: `lighting/house_lights_per_piece` (seed 4: every lamp, screen, neon tube and streetlight declares its light; for every piece
+Tests: `lighting/house_lights_per_piece` (seed 1: every lamp, screen, neon tube and streetlight declares its light; for every piece
 declared = placed under it + dropped; every light has a texture and casts shadows; every light is a piece's or a fixture's),
 `lighting/overhead_lights_pool_downward` (a lamp, a street lamp and a sign declare `overhead`, a TV `low`; every overhead pool, a
 fixture's too, still ≥ 0.9 of its centre at half its radius, the TV's under 0.7; every pool, the TV's too, with no jump over 0.08
