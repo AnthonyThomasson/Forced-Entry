@@ -45,7 +45,7 @@ whether to finish and invokes `finish` again.
    - GitLab or no link: skip and say so. Never guess a ticket.
    Closing fails: report it and skip step 9.
 8. **Report** before step 9: commits landed on `main` (hashes, subjects), `origin/main` matches, the ticket closed,
-   anything deleted in step 6, the retro's new tickets.
+   anything deleted in step 6, the retro's new tickets and the ones it marked seen again.
 9. **Remove the workspace, last.** `orca worktree rm --worktree id:<worktree id> --json` with step 7's id (not
    `current`). No `--force`, no `--run-hooks`. It removes the git worktree and the merged local branch. Refused: report
    and stop; never retry with `--force`. Nothing runs after this.

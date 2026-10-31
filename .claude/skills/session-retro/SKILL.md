@@ -1,6 +1,6 @@
 ---
 name: session-retro
-description: Retro the session through `mattpocock-skills:retro`, file the improvement tickets the user picks, then ask whether to finish. Use on the ticket workflow's "retro" answer, or from `finish` on a bare `/finish`.
+description: Retro the session through `mattpocock-skills:retro`, file the improvement tickets the user picks and mark the open ones it hit again, then ask whether to finish. Use on the ticket workflow's "retro" answer, or from `finish` on a bare `/finish`.
 model: opus
 ---
 
@@ -24,14 +24,18 @@ refuses it), so a worker runs it (`orchestration`; load it if this session has n
      its retro category, the evidence (which session, what happened), the change (file, check or tool) and a ticket
      draft (title; body `## Problem`, `## Proposal`, `## Evidence`). `worker_done` gives the count and the path. No
      candidates is a valid report.
-2. **Drop the known ones.** Read the report. Per candidate, search the open issues
-   (`gh issue list --state open --search "<key words>"`); one covers it already: name it and file nothing.
-3. **Ask.** Show the rest, one line each (severity, title, the change), and ask with `AskUserQuestion` which to file
-   (multi-select, one option per candidate; more than four: high only / high and medium / all / none). None is a
-   fine answer.
-4. **File** each picked one: its body (ending `Found in the retro of #<n>.`) to a scratchpad file, then
+2. **Match the known ones.** Read the report. Per candidate, search the open issues
+   (`gh issue list --state open --search "<key words>"`); one covers it already: the candidate is a **repeat** of
+   that issue, and is never filed again.
+3. **Ask.** Show the new candidates, one line each (severity, title, the change), and the repeats, one line each
+   (severity, `#<issue>` title, the evidence). Ask with `AskUserQuestion`, one multi-select question each: which new
+   ones to file, which repeats to mark seen again (one option per item; more than four: high only / high and
+   medium / all / none). None is a fine answer to either.
+4. **File** each picked new one: its body (ending `Found in the retro of #<n>.`) to a scratchpad file, then
    `gh issue create --title "<title>" --body-file <file> --label harness --label needs-triage` (`bug` instead of
-   `harness` for a defect in the game itself). Report the new issue numbers; `finish` repeats them in its report.
+   `harness` for a defect in the game itself). **Mark** each picked repeat: `gh issue comment <issue> --body "Seen
+   again in the retro of #<n>: <the evidence, one line>."`. The comments are the tally, one per retro that hit it.
+   Report the new and the marked issue numbers; `finish` repeats them in its report.
 5. **Ask to finish.** Release the retro worker, then ask with `AskUserQuestion`: **finish** (commit, merge into `main`,
    push, close the ticket, remove the workspace) or **not yet**. Finish: invoke `finish`, which lands the work on its
    own model. Not yet: stop and wait.
