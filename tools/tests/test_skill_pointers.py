@@ -10,8 +10,8 @@ step, reading the checkout as text (nothing written to it, nothing run but tools
   - no orphan: every side file of every skill is reachable from its SKILL.md through relative pointers;
   - routing: every `domain-*` skill is in a row of architecture's domain table; ticket's routing table names only kind
     files that exist (a row that names none says `none`), names every kind and leaves no kind file out;
-  - each section another file cites against a skill (`<skill>`, "<section>", or "<section>" (`<skill>`)) is still a
-    heading in its SKILL.md;
+  - each section another file cites against a skill (`<skill>`, "<section>", or "<section>" (`<skill>`)) is a heading
+    of its SKILL.md (the whole heading, or a prefix ending at a word);
   - each section a skill's file cites in a named file (`perf.md`, "Rendered too") is still a heading or a
     `**<label>:**` or `**<label>**:` bold label of that file;
   - tools/test_coverage.py still reads the `COVERAGE_NAMES` interface names out of the interface files.
@@ -24,6 +24,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tools.tests.skill_text import names_alternation, outside_fences
+
 ROOT = Path(__file__).resolve().parents[2]
 SKILLS = ROOT / ".claude" / "skills"
 SKILL_NAMES = tuple(sorted(p.name for p in SKILLS.iterdir() if p.is_dir()))
@@ -31,13 +33,8 @@ SKILL_NAMES = tuple(sorted(p.name for p in SKILLS.iterdir() if p.is_dir()))
 TICKET_KINDS = ("story", "bug", "spike", "ai", "harness", "refactor", "assets")
 TICKET_HELPERS = ("workers", "assets-showroom")
 # The `Class.method` names tools/test_coverage.py reads out of the interface files: bump it when an interface file
-# gains or loses one. 175 -> 173 (#169): interface 13 lost the sandbox sound API (`SoundBank.recipe_for`,
-# `SoundSynth.render`), which no sandbox calls.
-COVERAGE_NAMES = 173
-
-def names_alternation(names) -> str:
-    return "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True))
-
+# gains or loses one.
+COVERAGE_NAMES = 175
 
 # A path into a skill's folder, rooted at the skills dir or the repo, placeholders and globs captured too.
 ROOTED = re.compile(r"(?<![\w/.-])(?:(?:\.claude/)?skills/)?(" + names_alternation(SKILL_NAMES)
@@ -54,8 +51,6 @@ FILE_CITATION = re.compile(r'`([\w./-]+\.md)`, "([^"]+)"')
 # A glob or placeholder in a path (`NN-*.md`, `domain-<name>/`): prose, not a pointer.
 PLACEHOLDER = re.compile(r"[*<>]")
 HEADING = re.compile(r"#+ (.+)$")
-# A code fence's opening or closing run: three or more backticks or tildes, indented at most three spaces.
-FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
 BACKTICKED_MD = re.compile(r"`([\w./-]+\.md)`")
 INDEX_LINE = re.compile(r"^(\d+)\. .*`interfaces/((\d\d)-[\w-]+\.md)`", re.M)
 
@@ -74,21 +69,20 @@ def one_line(text: str) -> str:
 
 
 def headings(text: str) -> list[str]:
-    """The headings of `text`, a `#` line inside a code fence (a `## doc comment` in GDScript) left out. A fence closes
-    on a run of its own char at least as long with nothing after it; a backtick run with a backtick after it opens
-    none (it is inline code)."""
-    found, fence = [], ""
-    for line in text.splitlines():
-        opener = FENCE.match(line)
-        rest = line.strip()[len(opener[1]):] if opener else ""
-        if fence:
-            if opener and opener[1].startswith(fence) and not rest:
-                fence = ""
-        elif opener and not (opener[1][0] == "`" and "`" in rest):
-            fence = opener[1]
-        elif m := HEADING.match(line):
-            found.append(m[1])
-    return found
+    """The headings of `text`, a `#` line inside a code fence (a `## doc comment` in GDScript) left out."""
+    return [m[1] for _, line in outside_fences(text) if (m := HEADING.match(line))]
+
+
+def cites_heading(label: str, found: list[str]) -> bool:
+    """Whether `label` is one of the headings `found`, or a prefix of one that ends at a word boundary ("Rendered too"
+    for "Rendered too (headless)"; "Perf" does not cite "Performance tests")."""
+    return bool(label) and any(h == label or h.startswith(label) and not (label[-1].isalnum() and h[len(label)].isalnum())
+                               for h in found)
+
+
+def unknown_cited_sections(cited: set[tuple[str, str]], known: dict[str, list[str]]) -> list[str]:
+    """The (skill, section) pairs of `cited` whose section is no heading of that skill's SKILL.md (`known`)."""
+    return sorted(f"{s}, {name!r}" for s, name in cited if not cites_heading(name, known[s]))
 
 
 def unknown_file_sections(folder: Path, text: str) -> list[str]:
@@ -99,7 +93,7 @@ def unknown_file_sections(folder: Path, text: str) -> list[str]:
         label = one_line(label)
         target = folder / name if (folder / name).is_file() else ROOT / name
         cited = target.read_text() if target.is_file() else ""
-        if not any(h.startswith(label) for h in headings(cited)) and not any(b in cited for b in (f"**{label}:**", f"**{label}**:")):
+        if not cites_heading(label, headings(cited)) and not any(b in cited for b in (f"**{label}:**", f"**{label}**:")):
             unknown.append(f"{name}, {label!r}")
     return unknown
 
@@ -147,24 +141,31 @@ def missing_cross_pointers(skills: Path, file: Path) -> list[tuple[str, str]]:
     return [(s, p) for s, p in cross_pointers(file.read_text(), names) if not (skills / s / p).is_file()]
 
 
-def table_rows(text: str, header: str) -> list[list[str]]:
-    """The cells of each body row of the Markdown table whose header row starts with the cell `header`."""
-    rows, inside = [], False
+def table_with_header(text: str, header: str) -> tuple[list[str], list[list[str]]]:
+    """The header cells and the cells of each body row of the Markdown table whose header row starts with the cell
+    `header` (an empty header when there is none)."""
+    head, rows, inside = [], [], False
     for line in text.splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.strip().startswith("|") else None
         if cells is None:
             inside = False
         elif cells[0] == header:
-            inside = True
+            inside, head = True, cells
         elif inside and not set("".join(cells)) <= set("-: "):
             rows.append(cells)
-    return rows
+    return head, rows
+
+
+def table_rows(text: str, header: str) -> list[list[str]]:
+    """The cells of each body row of the Markdown table whose header row starts with the cell `header`."""
+    return table_with_header(text, header)[1]
 
 
 def domains_missing_from_table(skills: Path) -> list[str]:
     """The `domain-*` skills that no row of the domain table in architecture/SKILL.md names in its Skill column."""
-    rows = table_rows((skills / "architecture" / "SKILL.md").read_text(), "Domain")
-    named = {name for row in rows for name in re.findall(r"`(domain-[\w-]+)`", row[2] if len(row) > 2 else "")}
+    head, rows = table_with_header((skills / "architecture" / "SKILL.md").read_text(), "Domain")
+    column = head.index("Skill") if "Skill" in head else len(head)
+    named = {name for row in rows for name in re.findall(r"`(domain-[\w-]+)`", row[column] if column < len(row) else "")}
     return sorted(p.name for p in skills.glob("domain-*") if p.is_dir() and p.name not in named)
 
 
@@ -295,6 +296,16 @@ class RoutingTests(unittest.TestCase):
         table = DOMAIN_TABLE.replace("| y |", "| y, next to `domain-c` |")
         self.assertEqual(self.domains_missing(table, ("domain-a", "domain-b", "domain-c")), ["domain-c"])
 
+    def test_the_skill_column_is_found_by_its_header_not_its_position(self):
+        table = ("| Domain | Skill | Folder | Owns |\n|---|---|---|---|\n"
+                 "| A | `domain-a` | `domain-b/` | x |\n| B | `domain-b` | `a/` | y |\n")
+        self.assertEqual(self.domains_missing(table), [])
+        self.assertEqual(self.domains_missing(table, ("domain-a", "domain-b", "domain-c")), ["domain-c"])
+
+    def test_a_table_with_no_skill_column_names_no_domain(self):
+        table = "| Domain | Folder | Owns |\n|---|---|---|\n| A | `domain-a/` | x |\n"
+        self.assertEqual(self.domains_missing(table, ("domain-a",)), ["domain-a"])
+
     def test_the_live_domain_table_names_every_domain_skill(self):
         self.assertEqual(domains_missing_from_table(SKILLS), [])
 
@@ -397,7 +408,7 @@ class SkillPointerTests(unittest.TestCase):
         self.assertIn(("domain-testing", "Running tests"), cited, "premise: the citations are found")
         for f in [*(ROOT / "tools").rglob("*.py"), *(ROOT / "tools").rglob("*.sh")]:
             cited |= cited_sections(f.read_text())
-        unknown = sorted(f"{s}, {name!r}" for s, name in cited if not any(h.startswith(name) for h in known[s]))
+        unknown = unknown_cited_sections(cited, known)
         self.assertEqual(unknown, [], "sections cited by name that are no heading in their SKILL.md")
 
     def test_a_citation_is_read_in_either_order(self):
@@ -420,6 +431,26 @@ class SkillPointerTests(unittest.TestCase):
                      '`gone.md`, "Rendered too"')
             self.assertEqual(unknown_file_sections(folder, cited),
                              ["side.md, 'Rendered never'", "gone.md, 'Rendered too'"])
+
+    def test_a_cited_section_is_a_whole_heading_or_a_prefix_ending_at_a_word(self):
+        headings_of = ["Performance tests", "Rendered too (headless)", "Running"]
+        self.assertTrue(cites_heading("Performance tests", headings_of))
+        self.assertTrue(cites_heading("Rendered too", headings_of))
+        self.assertFalse(cites_heading("Perf", headings_of))
+        self.assertFalse(cites_heading("Run", headings_of))
+        self.assertFalse(cites_heading("Rendered too (headless) and more", headings_of))
+
+    def test_a_section_cited_in_a_file_by_a_part_of_a_word_is_unknown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "side.md").write_text("# Performance tests\n")
+            self.assertEqual(unknown_file_sections(folder, '`side.md`, "Perf"'), ["side.md, 'Perf'"])
+            self.assertEqual(unknown_file_sections(folder, '`side.md`, "Performance"'), [])
+
+    def test_a_section_cited_against_a_skill_by_a_part_of_a_word_is_unknown(self):
+        known = {"domain-testing": ["Performance tests"]}
+        self.assertEqual(unknown_cited_sections({("domain-testing", "Perf")}, known), ["domain-testing, 'Perf'"])
+        self.assertEqual(unknown_cited_sections({("domain-testing", "Performance tests")}, known), [])
 
     def test_every_section_a_skill_cites_in_a_file_is_there(self):
         files = [(skill, f) for skill in SKILL_NAMES for f in [SKILLS / skill / "SKILL.md", *side_files(skill)]]

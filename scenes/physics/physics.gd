@@ -74,9 +74,8 @@ static func bleed_out(parent: Node, source: Node2D, exclude: Array) -> Node:
 
 ## Show a grenade's burst of `kind` (`&"frag"` or `&"stun"`) at world point `at` under `world`: a
 ## frag is a bright flash, a fireball puff, smoke drifting off and a scorch left on the floor
-## under it; a stun is thin smoke only (its `flash_radius` is 0: the Lighting domain's flash light
-## is its flash). Looks and timings are `PhysicsExplosionConfig.looks`; spawns nothing while
-## `PhysicsExplosionConfig.fx_enabled` is off.
+## under it; a stun is thin smoke only. Looks, timings and where a stun's flash comes from are
+## `PhysicsExplosionConfig.looks`; spawns nothing while `PhysicsExplosionConfig.fx_enabled` is off.
 static func spawn_explosion(world: Node, at: Vector2, kind: StringName) -> void:
 	if PhysicsExplosionConfig.fx_enabled:
 		ExplosionFx.spawn(world, at, kind)

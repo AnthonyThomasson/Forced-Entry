@@ -11,11 +11,9 @@
 - **Helper folders** (`tests/_<x>/`): `_ai`, `_audio` and `_lighting` run that domain, `_vehicle` runs `vehicle`, `audio`
   and `general`, `_perf` the `perf` domain, `_harness` the self-tests; every other helper folder is unknown to the
   mapping, so a change to it runs the whole suite.
-- **`--changed=<ref>`** is the branch's whole work: the files in `git diff --name-only <merge-base>` (the merge-base of
-  `<ref>` and HEAD, so committed, staged and unstaged changes) plus the untracked ones, and a changed doc paragraph's tests
-  from hunks read against that merge-base (`tools/spec_tests.py --base=`). Use `--changed=origin/main` after a commit: a
-  bare `--changed` sees only the uncommitted change, so it finds nothing. What `<ref>` gained after the branch was cut is
-  not the branch's change. Refused (exit 2, a reason line, before the lint) with `--staged`, `--base` and an unknown `<ref>`.
+- **`--changed=<ref>`** covers the branch's whole work, committed or not: use `--changed=origin/main` after a commit, since a
+  bare `--changed` sees only the uncommitted change and finds nothing. The merge-base rule and the refusals are in the
+  `tools/run_tests.sh` usage.
 - **A changed `docs/*.md` paragraph runs the tests it names.** The paragraph is the blank-line-bounded block of the new
   file holding a changed line (a pure deletion: the block around where it was). Its `Test:` / `Tests:` line
   (`tools/spec_tests.py`; a paragraph naming none takes the block that begins with `Tests:` and directly follows it)

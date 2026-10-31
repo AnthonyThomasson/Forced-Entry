@@ -860,6 +860,19 @@ class ChangedSinceRefTests(unittest.TestCase):
                 self.assertIn(f"--changed={ref}: unknown revision", out)
                 self.assertNotIn("selection:", out)
 
+    def test_a_ref_with_no_common_history_is_refused_with_a_reason_before_the_lint_and_nothing_runs(self):
+        self.git("checkout", "-q", "--orphan", "unrelated")
+        self.git("commit", "-q", "--allow-empty", "-m", "a root of its own")
+        self.git("checkout", "-q", "-f", "feature")
+        # This repo has no tools/lint.sh: a lint that ran would fail the run (exit 1), not refuse it (2).
+        r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--changed=unrelated"], cwd=self.repo,
+                           capture_output=True, text=True, timeout=120,
+                           env=StagedChangedTests.env(GODOT=str(self.fake), TMPDIR=str(self.state)))
+        out = r.stdout + r.stderr
+        self.assertEqual(r.returncode, 2, out)
+        self.assertIn("--changed=unrelated: no common history with HEAD (refused)", out)
+        self.assertNotIn("selection:", out)
+
     def test_a_ref_is_refused_before_the_lint_runs(self):
         # This repo has no tools/lint.sh: a lint that ran would fail the run (exit 1), not refuse it (2).
         r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--changed=nope"], cwd=self.repo,

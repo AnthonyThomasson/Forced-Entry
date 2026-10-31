@@ -31,7 +31,7 @@ The policies after a primitive steers (confinement, running, posture, orders, th
 
 ## What the orchestrator calls
 
-- `set_leaf(leaf)`: adopt (snap the point onto the navmesh, capture the target; a fight whose target is no longer known drops to hold and forces a decision). `update_known(known, delta) -> bool`: adopt the perception's hostiles, retarget a lost engaged contact to the nearest other, return true when a leaf that needs a target has none (re-decide).
+- `set_leaf` adopts a leaf (snaps the point onto the navmesh, captures the target; a fight whose target is no longer known drops to hold and forces a decision). `update_known` adopts the perception's hostiles, retargets a lost engaged contact to the nearest other, and reports when a leaf that needs a target has none (re-decide).
 - `task.take_resolved()` with `task.resolve_reason` read just before it ("way blocked" when a body seals the only way, "" for a finished task); `wants_decision(...)`; `apply(delta)`; `fallback()` (steady hold with no decision to be had; abandons any entry).
 - `committed()`: crossing a doorway, throwing the bang, a throw's wind-up. No decision starts and `set_leaf` adopts none.
 - `ongoing()`: the running choice is in progress; only then does the planner mark the option continuing it "(your current plan)", so a finished move is not re-picked just because it was last.

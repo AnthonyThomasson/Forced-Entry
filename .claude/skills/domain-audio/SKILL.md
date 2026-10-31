@@ -7,8 +7,10 @@ description: Use when editing scenes/audio/, adding or retuning a sound (guns, i
 
 A leaf: it imports only General's `EventBus`. Other domains **post EventBus events**; the `Sound` autoload listens and plays.
 There are no audio files: `SoundSynth` renders every sound from a recipe into an `AudioStreamWAV`, so a new material or gun is a
-row in a table. Interfaces: 10 (the topics below, and the `&"sound"` it posts), 13 (`audio.sound`), 16 (`SoundSurface`), 18 (`Sound.focus`), 19 (the
+row in a table. Interfaces: 10 (the topics below, and the `&"sound"` it posts), 13 (`audio.sound`, a sandbox's own voice), 16 (`SoundSurface`), 18 (`Sound.focus`), 19 (the
 vehicle a loop follows). Tests: `tests/audio/` (`tools/run_tests.sh audio`); NPC hearing of footsteps is `docs/hearing.md`.
+
+A sandbox renders a sound itself: `SoundBank.recipe_for` / `SoundSynth.render` → `AudioStreamWAV` on its own `AudioStreamPlayer2D`; `Sound` hears nothing of it.
 
 | File | Role |
 |---|---|

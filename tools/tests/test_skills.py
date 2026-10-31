@@ -5,20 +5,24 @@ real checkout:
   - frontmatter: `name` is the folder, the description is present, starts with "Use" and is at most 200 characters;
     the model-invocable descriptions (no `disable-model-invocation: true`) total at most 6144;
   - caps: a `SKILL.md` is at most 12288 bytes, any other `.md` in a skill folder at most 8192;
-  - references: a backticked `domain-*` / `ticket-*` token names a skill folder, a backticked repo path exists;
-  - duplication: no paragraph of 200 characters or more appears in two of the skills, `AGENTS.md`, `docs/agents`.
+  - references: a backticked skill name (`domain-*`, `ticket-*`, a live or removed skill) names a skill folder, a
+    backticked repo path exists; a `#` comment line of a `.gd`, `.py` or `.sh` file under `scenes/`, `tests/`, `tools/`
+    is read for skill names too;
+  - duplication: no paragraph of 200 characters or more appears in two of the skills, `AGENTS.md`, `docs/*.md`,
+    `docs/agents`.
 """
 import re
 import tempfile
 import unittest
 from pathlib import Path
 
+from tools.tests.skill_text import names_alternation, outside_fences
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILLS = ROOT / ".claude" / "skills"
 AGENTS = ROOT / "AGENTS.md"
 DOCS = ROOT / "docs"
-DOCS_AGENTS = DOCS / "agents"
 DESCRIPTION_MAX = 200
 DESCRIPTIONS_TOTAL_MAX = 6144
 SKILL_MD_MAX = 12288
@@ -26,14 +30,33 @@ SIDE_FILE_MAX = 8192
 PARAGRAPH_MIN = 200
 REPO_ROOTS = ("scenes", "tests", "tools", "docs", ".claude", "addons", "sandboxes", ".githooks")
 INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
-SKILL_NAME = re.compile(r"(?<![\w:-])(?:domain|ticket)-[\w-]*\w")
+# Skills folded into a side file: a reference to one is stale. Add a skill's name here when it is removed, so a
+# reference to it goes red once its folder is gone.
+REMOVED_SKILLS = (
+    *(f"domain-ai-{sub}" for sub in ("perception", "snapshot", "decision", "behavior", "combat", "coverage", "watch",
+                                     "entry", "debug", "team")),
+    *(f"domain-ui-{sub}" for sub in ("menus", "hud", "command", "overlays", "testing")),
+    "domain-character-body",
+    "domain-physics-blood",
+    *(f"ticket-{kind}" for kind in ("story", "bug", "spike", "ai", "harness", "refactor", "assets")),
+)
+
+
+def skill_name_pattern(names) -> re.Pattern:
+    """A skill name in a span: any `domain-*` / `ticket-*` token, or one of `names`, not part of a longer word or path
+    segment (`session_retro`, `session-retro-notes`) and not a plugin's (`plugin:name`)."""
+    return re.compile(r"(?<![\w:-])(?:(?:domain|ticket)-[\w-]*\w|" + names_alternation(names) + r")(?![\w-])")
+
+
+SKILL_NAME = skill_name_pattern({*(p.name for p in SKILLS.iterdir() if p.is_dir()), *REMOVED_SKILLS})
+COMMENT_ROOTS = ("scenes", "tests", "tools")
+COMMENT_SUFFIXES = (".gd", ".py", ".sh")
 PLACEHOLDER = re.compile(r"[*<>\[]")
 # Paths a reference may name without the file being in the checkout, each with its reason.
 NOT_TRACKED = (
     "sandboxes/showroom",  # a ticket's temporary showroom: it exists from the showroom phase to its removal
     "addons/gdUnit4/GdUnitRunner.cfg",  # written by the editor's GdUnit panel; gitignored
 )
-FENCE_LINE = re.compile(r"\s{0,3}(```|~~~)")
 
 
 def skill_folders(skills: Path) -> list[Path]:
@@ -113,13 +136,9 @@ def check_caps(skills: Path) -> list[str]:
 
 def inline_spans(text: str):
     """(line number, code span) for every backticked span of `text` outside a code fence."""
-    fenced = False
-    for n, line in enumerate(text.splitlines(), 1):
-        if FENCE_LINE.match(line):
-            fenced = not fenced
-        elif not fenced:
-            for m in INLINE_CODE.finditer(line):
-                yield n, m[2].strip()
+    for n, line in outside_fences(text):
+        for m in INLINE_CODE.finditer(line):
+            yield n, m[2].strip()
 
 
 def repo_paths(span: str):
@@ -141,13 +160,41 @@ def check_references(skills: Path, files: list[Path], repo: Path) -> list[str]:
     for f in files:
         for n, span in inline_spans(f.read_text()):
             where = f"{f.relative_to(repo)}:{n}"
-            words = " ".join(w for w in span.split() if not PLACEHOLDER.search(w))
-            for name in SKILL_NAME.findall(words):
-                if not (skills / name).is_dir():
-                    found.append(f"{where}: skill {name} does not exist")
+            words = without_placeholders(span)
+            found += [f"{where}: skill {name} does not exist" for name in missing_skills(skills, words)]
             for path in repo_paths(words):
                 if not (repo / path).exists():
                     found.append(f"{where}: path {path} does not exist")
+    return found
+
+
+def without_placeholders(span: str) -> str:
+    """The words of `span` with no placeholder or glob in them."""
+    return " ".join(w for w in span.split() if not PLACEHOLDER.search(w))
+
+
+def missing_skills(skills: Path, words: str) -> list[str]:
+    """The skill names in `words` that are no folder of `skills`."""
+    return [name for name in SKILL_NAME.findall(words) if not (skills / name).is_dir()]
+
+
+def comment_files(repo: Path) -> list[Path]:
+    """The source files whose comments are read for skill names: `.gd`, `.py` and `.sh` under `scenes`, `tests`, `tools`."""
+    return sorted(f for root in COMMENT_ROOTS if (repo / root).is_dir() for f in (repo / root).rglob("*")
+                  if f.suffix in COMMENT_SUFFIXES and f.is_file())
+
+
+def check_comment_references(skills: Path, files: list[Path], repo: Path) -> list[str]:
+    """Findings in the source `files`: a backticked skill name in a line that starts with `#` (a `##` doc comment too)
+    that is no folder of `skills`. A word with a placeholder or glob in it is skipped."""
+    found = []
+    for f in files:
+        for n, line in enumerate(f.read_text().splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                for m in INLINE_CODE.finditer(line):
+                    words = without_placeholders(m[2])
+                    found += [f"{f.relative_to(repo)}:{n}: skill {name} does not exist"
+                              for name in missing_skills(skills, words)]
     return found
 
 
@@ -170,9 +217,9 @@ def check_duplicates(files: list[Path], repo: Path) -> list[str]:
             if len(names) > 1]
 
 
-def duplication_files(skills: Path, agents: Path, docs_agents: Path) -> list[Path]:
-    """The Markdown held to one source of truth: every skill file, `AGENTS.md` and `docs/agents/*.md`."""
-    return sorted([*skills.rglob("*.md"), agents, *docs_agents.glob("*.md")])
+def duplication_files(skills: Path, agents: Path, docs: Path) -> list[Path]:
+    """The Markdown held to one source of truth: every skill file, `AGENTS.md`, `docs/*.md` and `docs/agents/*.md`."""
+    return sorted([*skills.rglob("*.md"), agents, *docs.glob("*.md"), *(docs / "agents").glob("*.md")])
 
 
 class FrontmatterTests(unittest.TestCase):
@@ -355,6 +402,20 @@ class ReferenceTests(unittest.TestCase):
         self.assertEqual(len(found), 1, found)
         self.assertIn("domain-gone2", found[0])
 
+    def test_a_skill_that_is_no_domain_or_ticket_is_read_too(self):
+        # `session-retro` is no folder of the fixture's skills root.
+        found = self.findings("Run `session-retro`, then `m-audit-everything`.\n")
+        self.assertEqual(len(found), 2, found)
+        self.assertIn("session-retro", found[0])
+
+    def test_a_skill_that_exists_is_no_finding_whatever_its_name(self):
+        def build(repo: Path):
+            write_skill(repo / ".claude" / "skills", "session-retro")
+        self.assertEqual(self.findings("Run `session-retro`.\n", build), [])
+
+    def test_a_word_that_only_starts_with_a_skill_name_is_no_reference(self):
+        self.assertEqual(self.findings("`session-retro-notes` `session_retro`\n"), [])
+
     def test_a_plugin_skill_is_no_project_skill(self):
         self.assertEqual(self.findings("`mattpocock-skills:domain-modeling`"), [])
         self.assertEqual(len(self.findings("`domain-modeling` and `/ticket-bug`")), 2)
@@ -369,6 +430,61 @@ class ReferenceTests(unittest.TestCase):
 
     def test_the_live_references_exist(self):
         self.assertEqual(check_references(SKILLS, reference_files(SKILLS, AGENTS, DOCS), ROOT), [])
+
+
+class CommentReferenceTests(unittest.TestCase):
+    """`check_comment_references(skills, files, repo)`: a skill named in a backticked span of a `#` comment line."""
+
+    def findings(self, text: str, name: str = "scenes/x.gd") -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            skills = repo / ".claude" / "skills"
+            write_skill(skills, "domain-alpha")
+            source = repo / name
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_text(text)
+            return check_comment_references(skills, [source], repo)
+
+    def test_a_removed_skill_in_a_comment_is_a_finding_with_its_line(self):
+        found = self.findings("extends Node\n## See the `domain-gone` skill.\n")
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("scenes/x.gd:2", found[0])
+        self.assertIn("domain-gone", found[0])
+
+    def test_a_single_hash_comment_and_an_indented_one_are_read(self):
+        found = self.findings("def f():\n    # `session-retro` says so\n", "tools/x.py")
+        self.assertEqual(len(found), 1, found)
+
+    def test_a_skill_that_exists_is_no_finding(self):
+        self.assertEqual(self.findings("# See `domain-alpha`.\n"), [])
+
+    def test_a_line_that_is_not_a_comment_is_not_read(self):
+        self.assertEqual(self.findings('var s := "`domain-gone`"\n'), [])
+
+    def test_a_placeholder_is_skipped(self):
+        self.assertEqual(self.findings("## the `domain-<name>` skills, `ticket-*`\n"), [])
+
+    def test_the_live_comments_name_no_removed_skill(self):
+        files = comment_files(ROOT)
+        self.assertTrue(any(f.suffix == ".gd" for f in files) and any(f.suffix == ".py" for f in files)
+                        and any(f.suffix == ".sh" for f in files), "premise: gd, py and sh files are read")
+        self.assertEqual(check_comment_references(SKILLS, files, ROOT), [])
+
+
+class FenceTests(unittest.TestCase):
+    """A fence must not hide the lines after it: only a run that opens a fence, and a run that closes it, count."""
+
+    def spans(self, text: str) -> list[str]:
+        return [span for _, span in inline_spans(text)]
+
+    def test_an_inline_triple_backtick_span_opens_no_fence(self):
+        self.assertEqual(self.spans("```a``` is inline\n`scenes/nope.gd`\n"), ["a", "scenes/nope.gd"])
+
+    def test_a_shorter_run_inside_a_longer_fence_does_not_close_it(self):
+        self.assertEqual(self.spans("````\n```\n`inside.gd`\n````\n`scenes/nope.gd`\n"), ["scenes/nope.gd"])
+
+    def test_a_tilde_fence_closes_on_tildes_only(self):
+        self.assertEqual(self.spans("~~~\n```\n`inside.gd`\n~~~\n`scenes/nope.gd`\n"), ["scenes/nope.gd"])
 
 
 class DuplicationTests(unittest.TestCase):
@@ -410,8 +526,23 @@ class DuplicationTests(unittest.TestCase):
         found = self.findings(a=block, b=block)
         self.assertEqual(len(found), 1, found)
 
+    def test_a_docs_spec_is_held_to_the_same_rule_as_a_skill(self):
+        paragraph = "x" * 200
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            skills, docs = repo / ".claude" / "skills", repo / "docs"
+            write_skill(skills, "alpha", body=f"# A\n\n{paragraph}\n")
+            (docs / "agents").mkdir(parents=True)
+            (docs / "spec.md").write_text(f"{paragraph}\n")
+            (docs / "agents" / "tracker.md").write_text(f"{paragraph}\n")
+            (repo / "AGENTS.md").write_text("Other.\n")
+            found = check_duplicates(duplication_files(skills, repo / "AGENTS.md", docs), repo)
+        self.assertEqual(len(found), 1, found)
+        for name in ("docs/spec.md", "docs/agents/tracker.md", "alpha/SKILL.md"):
+            self.assertIn(name, found[0])
+
     def test_the_live_files_share_no_long_paragraph(self):
-        self.assertEqual(check_duplicates(duplication_files(SKILLS, AGENTS, DOCS_AGENTS), ROOT), [])
+        self.assertEqual(check_duplicates(duplication_files(SKILLS, AGENTS, DOCS), ROOT), [])
 
 
 if __name__ == "__main__":

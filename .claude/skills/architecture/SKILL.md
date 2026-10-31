@@ -69,6 +69,7 @@ An arrow is "code references" (class names or preloads). No cycles.
 main ──▶ worldgen, navigation, lighting, ai, items, character, audio, ui   (a match is built by MatchBuilder)
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
+Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
 worldgen ──▶ objects (the four factories, RoomWalls, WearPlan)
 objects ──▶ physics, art, audio (SoundSurface.register)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art
