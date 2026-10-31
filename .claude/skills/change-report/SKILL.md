@@ -16,7 +16,7 @@ for acceptance (`AskUserQuestion`) in the same turn. Every revision of the plan 
 2. **Seams:** a cross-domain call, signal, contract or shared type, i.e. an entry in `architecture` → "The cross-domain
    interfaces" (an AI or UI sub-domain border counts). List each the plan adds (a new interface, or a new member on an
    existing one) and each it removes. A call inside one domain is no seam.
-3. **New tests:** each test the plan writes or extends, by id (`<domain>/<name>`), from the acceptance criteria.
+3. **New tests:** each test the plan writes or extends, by id (`<domain>/[<topic>/]<name>`), from the acceptance criteria.
 4. **Tests possibly affected:** existing tests that touch what changes. Find them: `tools/run_tests.sh --list <words>` for
    the behaviour, and `grep -rln` in `tests/` for every class, method, signal and tunable the plan changes. Group a family
    by prefix (`ai/entry_*`).

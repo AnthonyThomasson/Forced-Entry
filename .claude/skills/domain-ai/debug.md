@@ -25,7 +25,7 @@ The controller is the single observer surface: the overlays call its getters dir
 
 | Getter | Source | Used by |
 |---|---|---|
-| `debug_status()`, `current_act()` | behaviour | agent label |
+| `debug_status()` | behaviour | agent label |
 | `debug_zones()`, `debug_room_zones()`, `debug_focus` | last snapshot, `house.room_status()` | tactics, territory, routes |
 | `debug_search_coverage()` | `Behavior.errand.debug_coverage()` | search |
 | `debug_sight_end(to)` | perception sight | vision |

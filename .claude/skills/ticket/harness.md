@@ -8,7 +8,9 @@ and the test runner (`scenes/testing/`). Follow every `story.md` phase; only wha
 description is an always-loaded pointer: short, one trigger per case). The rules for a skill:
 - `SKILL.md` ≤ 12 KB, every other `.md` in the skill folder ≤ 8 KB; detail only some tasks need goes into a side file the
   `SKILL.md` points to, with its path relative to the skill folder in backticks.
-- `description` ≤ 200 characters, starting with "Use", saying only when to invoke the skill; `name` equals the folder.
+- `description` ≤ 200 characters, starting with "Use", saying only when to invoke the skill; `name` equals the folder. All
+  model-invocable descriptions together ≤ 6144 characters (a `disable-model-invocation` skill is left out of the total), so
+  adding a skill or lengthening a description may need another cut.
 - Keep what the code cannot say (when to use it, invariants and gotchas, reasons, interfaces by number, pointers to the
   `docs/` spec and the tests); point to the code and the specs for the rest.
 

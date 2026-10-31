@@ -24,9 +24,6 @@
       `brake_lights()`, `view_zoom_out()` (`VehicleDriveConfig.zoom_out` × speed / top speed: how far a camera following someone aboard zooms
       out). Two draw layers are contract too (tests find them by name): child `Chassis` (`layer` `"chassis"`, at `DrawLayers.UNDER_VEHICLE`)
       and child `Roof` (`layer` `"roof"`, at `DrawLayers.ABOVE`).
-    - **Vehicles-internal** (for its ride and visuals): `half_size`, `outline`, `row`, `hit_marks`, `post` (a `vehicle` event); `cabin`
-      (`VehicleCabin`, `vehicle_cabin.gd`: doors, seats and the rides); `drive` (`vehicle_drive.gd`, the driving model: `start_engine` /
-      `stop_engine`, `brake_input`); `VehicleContacts` (`vehicle_contacts.gd`, V6).
     - **Its other contracts:** hittable (3), Deformable / debris / impulse (4), pushable (5), the `vehicle` / `engine` / `skid` topics (10),
       its painters (12). General's camera reads `target.use.vehicle().view_zoom_out()` duck-typed (`has_method`), never
       `VehicleDriveConfig`; `player_controller.gd` calls `use.try_use_vehicle()` on `Keybinds.USE_VEHICLE` (E). Only the sandbox and the

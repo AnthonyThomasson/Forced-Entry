@@ -27,9 +27,9 @@
 #   tools/run_tests.sh --changed          tests for what uncommitted changes can affect: each changed
 #                                         scenes/<domain>/ plus the domains that compose it (see
 #                                         `affected` below), in ONE run; main.gd, root scenes,
-#                                         project.godot, worldgen, art and general run everything;
-#                                         testing adds --self-test. An edited tests/<d>/[<topic>/]<name>_test.gd
-#                                         runs just that test; tests/_ai, _audio, _perf, _vehicle their users.
+#                                         project.godot and any change under scenes/worldgen, art, general, audio,
+#                                         lighting or testing run everything; testing adds --self-test. An edited
+#                                         tests/<d>/[<topic>/]<name>_test.gd runs just that test; tests/_ai, _audio, _perf, _vehicle their users.
 #                                         Nothing mapped, or only domains --skip-domain leaves out: it says which
 #                                         and exits 0. It ends with a `NOTE <n> Von test(s) in the changed domains were
 #                                         not run: tools/run_tests.sh --domain=<d> --require-von` when the runs skipped
@@ -41,6 +41,14 @@
 #                                         spec paragraphs ==` (with --include-von when a Von server is live; --skip-domain
 #                                         wins), also when their domain ran above; a paragraph that names no test, or a name with no test
 #                                         file, is a NOTE (never a failure).
+#   tools/run_tests.sh --changed=<ref>    the same for what changed since the merge-base of <ref> and HEAD, as a
+#                                         branch's whole work: its commits, the working tree and the untracked files
+#                                         together (git diff --name-only <merge-base>, plus the untracked), and the
+#                                         changed docs/*.md paragraphs read against that merge-base (tools/spec_tests.py
+#                                         --base=). --changed=origin/main after a commit, where a bare --changed sees
+#                                         nothing. Refused (exit 2, a reason line, before the lint) with --staged, with
+#                                         --base and for an unknown <ref> (one that names no commit or shares no
+#                                         history with HEAD).
 #   tools/run_tests.sh --changed --staged the same for what is staged (git diff --cached), not the working tree, and
 #                                         the lint of what the commit holds (tools/lint_staged.sh: the staged
 #                                         scripts as they are on disk; the whole tree when project.godot or a gdstyle
@@ -54,7 +62,7 @@
 #                                         or a kill of the wrapper (which ends the engines it started first). The
 #                                         working tree is never written; no lint; the exit code is that run's verdict.
 #                                         The flags are checked before the worktree is made. Refused (exit 2, a reason
-#                                         line) with --changed, --staged, --jobs above 1 and an unknown REV
+#                                         line) with --changed (also =<ref>), --staged, --jobs above 1 and an unknown REV
 #                                         (--jobs=auto and --jobs=1 are the one process). Use it to see a fixed test
 #                                         still red on the old code.
 #   tools/run_tests.sh --list [words]     list matching tests (id, flags, tags, name) and exit
@@ -170,7 +178,7 @@ if [[ $BASE_GIVEN -eq 1 ]]; then
   [[ -n "$BASE" ]] || refuse_base "unknown revision (none given)"
   for a in "$@"; do
     case "$a" in
-      --changed|--staged) refuse_base "--changed and --staged are refused (given $a): a run on the base runs the selection it is given" ;;
+      --changed|--changed=*|--staged) refuse_base "--changed and --staged are refused (given $a): a run on the base runs the selection it is given" ;;
       --jobs=*) [[ "${a#--jobs=}" =~ ^[0-9]+$ && "$(decimal "${a#--jobs=}")" -gt 1 ]] && refuse_base "$a is refused: a run on the base is one process (--jobs=1 or auto)" ;;
     esac
   done
@@ -193,6 +201,9 @@ STRICT=
 JOBS=
 CHANGED=0
 STAGED=0
+REF_GIVEN=0     # --changed=<ref>: the files and spec paragraphs changed since the merge-base of <ref> and HEAD
+CHANGED_REF=""
+CHANGED_BASE="" # that merge-base, once <ref> has passed its checks
 LINT=1
 SKIP=""   # --skip-domain=a,b (every one given, joined), also forwarded to the runner
 QUIET_GATE=0   # --quiet[=MINUTES]: wait for a quiet machine before the perf tests' process starts
@@ -229,6 +240,7 @@ for a in "$@"; do
     --base=*) LINT=0 ;;   # a run on the base: one process (jobs_for), no lint
     --jobs=*) JOBS="${a#--jobs=}" ;;
     --changed) CHANGED=1 ;;
+    --changed=*) CHANGED=1; REF_GIVEN=1; CHANGED_REF="${a#--changed=}" ;;
     --staged) STAGED=1 ;;
     --no-lint) LINT=0 ;;
     --skip-domain=*) SKIP="${SKIP:+$SKIP,}${a#--skip-domain=}"; args+=("$a") ;;
@@ -262,6 +274,15 @@ sys.exit(0 if any(r.get("status") in ("FAIL", "TIMEOUT") for r in results) else 
   esac
 done
 [[ $STAGED -eq 1 && $CHANGED -eq 0 ]] && { echo "--staged goes with --changed (--changed --staged)" >&2; exit 2; }
+# --changed=<ref>: refused (exit 2, a reason line) before any lint or engine process, with --staged (the index is not a
+# change since a revision) and for a <ref> that names no commit or shares no history with HEAD.
+if [[ $REF_GIVEN -eq 1 ]]; then
+  [[ $STAGED -eq 1 ]] && { echo "--changed=$CHANGED_REF --staged: refused, the index is no change since a revision (--changed --staged is what the commit holds)" >&2; exit 2; }
+  ref_sha=$(git rev-parse --verify --quiet "$CHANGED_REF^{commit}") \
+    || { echo "--changed=$CHANGED_REF: unknown revision (refused)" >&2; exit 2; }
+  CHANGED_BASE=$(git merge-base "$ref_sha" HEAD 2>/dev/null) \
+    || { echo "--changed=$CHANGED_REF: no common history with HEAD (refused)" >&2; exit 2; }
+fi
 # --jobs=N|auto is explicit; without it a run of the whole suite uses auto and a selection (words, --id,
 # --domain, --failed, --repeat, --list ...) one process, since a process costs ~3 s to start and a few tests
 # do not repay it. Resolved per run() call in `jobs_for`.
@@ -961,6 +982,9 @@ if [[ $CHANGED -eq 1 ]]; then
     files="$GAME_TEST_CHANGED_FILES"
   elif [[ $STAGED -eq 1 ]]; then
     files=$(git -c core.quotePath=false diff --cached --name-only)   # what the commit holds, not the working tree
+  elif [[ -n "$CHANGED_BASE" ]]; then
+    # Since the merge-base: committed work, the working tree (staged or not) and untracked files together.
+    files=$( { git -c core.quotePath=false diff --name-only "$CHANGED_BASE"; git ls-files --others --exclude-standard; } | sort -u )
   else
     files=$( { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u )
   fi
@@ -1047,7 +1071,7 @@ if [[ $CHANGED -eq 1 ]]; then
           fi ;;
         NOTE*) echo "$line" ;;
       esac
-    done < <(python3 "$TOOLS/spec_tests.py" $([[ $STAGED -eq 1 ]] && echo --staged))
+    done < <(python3 "$TOOLS/spec_tests.py" $([[ $STAGED -eq 1 ]] && echo --staged) $([[ -n "$CHANGED_BASE" ]] && echo "--base=$CHANGED_BASE"))
     if [[ -n "$spec_ids" ]]; then
       ran=1
       echo "== tests named by changed spec paragraphs =="

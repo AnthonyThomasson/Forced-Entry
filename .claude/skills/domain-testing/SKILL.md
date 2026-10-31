@@ -25,9 +25,9 @@ Exit 1: a test failed or timed out, or an error or warning was logged outside an
 
   | Situation | Command |
   |---|---|
-  | One test | `tools/run_tests.sh --id=<domain>/<name>` |
+  | One test | `tools/run_tests.sh --id=<domain>/[<topic>/]<name>` |
   | Just saw failures, fixed something | `tools/run_tests.sh --failed` |
-  | Finished an edit | `tools/run_tests.sh --changed --summary` |
+  | Finished an edit | `tools/run_tests.sh --changed --summary` (after a commit: `--changed=origin/main`) |
   | Before committing / big change | `tools/run_tests.sh --summary` (shards over the free Godot slots) |
   | Changed `scenes/ai/` or `scenes/testing/` | once `tools/run_tests.sh --domain=ai --require-von --summary` (`runner-flags.md`) |
   | Intermittent | `--id=<id> --repeat=10` (`--seed=N` pins the layout) |

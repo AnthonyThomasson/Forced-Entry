@@ -131,10 +131,9 @@ done
   itself when the picker says `all`, and its first line says which) and each changed `tools/test_*.py` script on its own
   (`python3 tools/test_log_gate.py`: the discovery leaves them out). Report each `Ran N tests` line and every `FAIL:` /
   `ERROR:`.
-- **Tests:** `GAME_TEST_CHANGED_FILES="$(git diff --staged --name-only "$BASE")" tools/run_tests.sh --changed --summary`. The
-  variable hands `--changed` the branch's files (without it, committed work runs nothing) but not a changed doc paragraph's
-  tests: run those with `--id=<ids>` (`domain-testing` (`runner-flags-changed.md`)). Add `--jobs=auto` when the change
-  touches worldgen, art, general or `main.gd`. Scripted-Von tests cover AI without a server; `--include-von` adds live-server
+- **Tests:** `tools/run_tests.sh --changed="$BASE" --summary`: the branch's commits, working tree and untracked files, and
+  the tests of a doc paragraph it changed (`domain-testing` (`runner-flags-changed.md`)); a change that runs everything shards over the free Godot slots by
+  itself. Scripted-Von tests cover AI without a server; `--include-von` adds live-server
   ones. Report the totals line and every FAIL / TIMEOUT with its ✗ lines. Changed behaviour with no test in
   `tests/<domain>/` covering it is a finding (`domain-testing`). Each test whose checks (what it measures, a band, a
   threshold) the diff changes is compared against the ticket brief's acceptance criteria; one that checks something other

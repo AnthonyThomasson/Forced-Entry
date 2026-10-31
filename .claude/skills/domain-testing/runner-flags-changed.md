@@ -2,8 +2,8 @@
 
 `runner-flags.md` holds the other flags; `affected()` in `tools/run_tests.sh` is the domain table.
 
-- **Mapping:** each changed file (`git diff HEAD` plus untracked) maps to a domain; the run is those domains plus the
-  ones that compose them (`affected()`, from the architecture dependency graph) in one process. `main.gd`, root scenes,
+- **Mapping:** each changed file (`git diff HEAD` plus untracked; `--changed=<ref>`: below) maps to a domain; the run is
+  those domains plus the ones that compose them (`affected()`, from the architecture dependency graph) in one process. `main.gd`, root scenes,
   `project.godot`, worldgen, art, general, audio, lighting and testing run everything; `scenes/testing/` and the Von stub
   add `--self-test`.
 - **An edited test file** (`tests/<domain>/[<topic>/]<name>_test.gd`) runs only that test
@@ -11,9 +11,11 @@
 - **Helper folders** (`tests/_<x>/`): `_ai`, `_audio` and `_lighting` run that domain, `_vehicle` runs `vehicle`, `audio`
   and `general`, `_perf` the `perf` domain, `_harness` the self-tests; every other helper folder is unknown to the
   mapping, so a change to it runs the whole suite.
-- **`GAME_TEST_CHANGED_FILES`** (newline-separated paths) stands in for git's view of the changed files; `audit` uses it to
-  hand `--changed` a branch's files. It stands in for files only, not for a doc's hunks: **a doc paragraph's tests do not
-  run under it**, so run them with `--id=<ids>`.
+- **`--changed=<ref>`** is the branch's whole work: the files in `git diff --name-only <merge-base>` (the merge-base of
+  `<ref>` and HEAD, so committed, staged and unstaged changes) plus the untracked ones, and a changed doc paragraph's tests
+  from hunks read against that merge-base (`tools/spec_tests.py --base=`). Use `--changed=origin/main` after a commit: a
+  bare `--changed` sees only the uncommitted change, so it finds nothing. What `<ref>` gained after the branch was cut is
+  not the branch's change. Refused (exit 2, a reason line, before the lint) with `--staged`, `--base` and an unknown `<ref>`.
 - **A changed `docs/*.md` paragraph runs the tests it names.** The paragraph is the blank-line-bounded block of the new
   file holding a changed line (a pure deletion: the block around where it was). Its `Test:` / `Tests:` line
   (`tools/spec_tests.py`; a paragraph naming none takes the block that begins with `Tests:` and directly follows it)

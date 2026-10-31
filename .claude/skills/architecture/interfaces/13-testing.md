@@ -25,8 +25,7 @@
       makes one of its own): `frame(targets)` points it at the setup's camera targets (every actor by default); clear `pan_enabled` where a
       human-driven player walks on WASD or the test locks the camera.
     - **Sandboxes** (`sandboxes/`) may draw through Art (12: their own painter on `PixelCanvas`, rendered by `PixelArt.render` /
-      `render_turned`) and render a sound with `SoundBank.recipe_for(profile)` and `SoundSynth.render(recipe, seed_value) ->
-      AudioStreamWAV` on their own `AudioStreamPlayer2D`; `Sound` hears nothing of it (16).
+      `render_turned`).
     - **Main ↔ Testing:** Main reaches Testing only by changing scene to `testing/test_browser.tscn`; the browser's Back changes scene
       back to `main.tscn`. Beyond that Testing knows only the match builder (23). The UI widgets it shows (`test_browser_window.gd`,
       `test_browser_list.gd`, `test_result_hud.gd`, and the `TestBrowserState` value object) take plain dicts and emit signals.

@@ -179,16 +179,26 @@ class CommandLineTests(unittest.TestCase):
         self.git("add", "-A")
         self.git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
 
+    @staticmethod
+    def env():
+        """Without git's GIT_* variables (a run from inside a hook would act on this checkout)."""
+        return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+
     def git(self, *args):
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-        subprocess.run(["git", *args], cwd=self.repo, env=env, check=True, capture_output=True)
+        subprocess.run(["git", *args], cwd=self.repo, env=self.env(), check=True, capture_output=True)
+
+    def run_script(self, *args):
+        return subprocess.run([sys.executable, "-I", str(SCRIPT), *args], cwd=self.repo, env=self.env(),
+                              capture_output=True, text=True)
 
     def spec_tests(self, *args):
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-        r = subprocess.run([sys.executable, "-I", str(SCRIPT), *args], cwd=self.repo, env=env, capture_output=True,
-                           text=True)
+        r = self.run_script(*args)
         self.assertEqual(r.returncode, 0, r.stderr)
         return r.stdout.splitlines()
+
+    def commit(self, message):
+        self.git("add", "-A")
+        self.git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", message)
 
     def edit(self, old, new):
         doc = self.repo / "docs" / "a.md"
@@ -225,6 +235,41 @@ class CommandLineTests(unittest.TestCase):
     def test_an_untracked_doc_is_all_changed(self):
         (self.repo / "docs" / "new.md").write_text("A new rule.\nTests: `alpha_one`.\n\nAnother.\n")
         self.assertEqual(self.spec_tests(), ["ID physics/alpha_one", "NOTE docs/new.md:4: changed paragraph names no test"])
+
+    def test_a_base_reads_the_change_since_that_revision_the_committed_part_included(self):
+        base = self.rev("HEAD")
+        self.edit("Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.commit("reword the first rule")
+        self.assertEqual(self.spec_tests(), [], "HEAD is the base by default: the commit is no change")
+        self.assertEqual(self.spec_tests(f"--base={base}"), ["ID physics/alpha_one", "ID physics/alpha_two"])
+        self.assertEqual(self.spec_tests(f"--base={self.rev('HEAD')}"), [], "nothing since HEAD")
+
+    def test_a_base_adds_the_uncommitted_change_to_the_committed_one(self):
+        base = self.rev("HEAD")
+        self.edit("Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.commit("reword the first rule")
+        self.edit("Prose that names nothing.", "Prose that names nothing, reworded.")
+        self.assertEqual(self.spec_tests(f"--base={base}"), ["ID physics/alpha_one", "ID physics/alpha_two",
+                                                              "NOTE docs/a.md:7: changed paragraph names no test"])
+
+    def test_a_base_counts_an_untracked_doc_and_ignores_a_change_made_before_it(self):
+        self.edit("Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.commit("reword the first rule, before the base")
+        base = self.rev("HEAD")
+        (self.repo / "docs" / "new.md").write_text("A new rule.\nTests: `alpha_one`.\n")
+        self.assertEqual(self.spec_tests(f"--base={base}"), ["ID physics/alpha_one"])
+
+    def test_an_unknown_base_is_refused_and_so_is_a_base_with_staged(self):
+        r = self.run_script("--base=no-such-rev")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("unknown revision", r.stderr)
+        r = self.run_script("--staged", f"--base={self.rev('HEAD')}")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("--staged", r.stderr)
+
+    def rev(self, name):
+        return subprocess.run(["git", "rev-parse", name], cwd=self.repo, env=self.env(), check=True,
+                              capture_output=True, text=True).stdout.strip()
 
 
 if __name__ == "__main__":

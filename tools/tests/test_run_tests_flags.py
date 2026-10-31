@@ -58,9 +58,18 @@ class WrapperFlagTests(unittest.TestCase):
         handled = self.handled()
         self.assertTrue({"--base", "--quiet", "--jobs", "--changed", "--staged"} <= handled, sorted(handled))
 
+    def test_changed_is_a_wrapper_flag_the_batch_is_never_given(self):
+        flags = {f.rstrip("=") for f in FlagListTests.wrapper_list("BATCH_FLAGS")}
+        self.assertNotIn("--changed", flags, "the wrapper maps the files; the batch gets --domain and --id")
+
     def test_every_flag_the_wrapper_handles_is_in_its_usage(self):
         usage = self.usage()
         self.assertEqual(sorted(f for f in self.handled() - {"--play"} if f not in usage), [], "flags the usage lines leave out")
+
+    def test_the_usage_documents_changed_with_a_ref(self):
+        usage = self.usage()
+        self.assertIn("--changed=<ref>", usage)
+        self.assertRegex(usage, r"(?s)--changed=<ref>.*merge-base")
 
 
 class NumberFlagTests(FakeTree):

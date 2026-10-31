@@ -31,8 +31,9 @@ SKILL_NAMES = tuple(sorted(p.name for p in SKILLS.iterdir() if p.is_dir()))
 TICKET_KINDS = ("story", "bug", "spike", "ai", "harness", "refactor", "assets")
 TICKET_HELPERS = ("workers", "assets-showroom")
 # The `Class.method` names tools/test_coverage.py reads out of the interface files: bump it when an interface file
-# gains or loses one.
-COVERAGE_NAMES = 175
+# gains or loses one. 175 -> 173 (#169): interface 13 lost the sandbox sound API (`SoundBank.recipe_for`,
+# `SoundSynth.render`), which no sandbox calls.
+COVERAGE_NAMES = 173
 
 def names_alternation(names) -> str:
     return "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True))

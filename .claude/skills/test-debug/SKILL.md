@@ -21,7 +21,7 @@ bundles in `user://test_failures/` and reports in `user://gdunit_reports/report_
 
 ## 2. Narrow it down
 
-- One test: `--id=<domain>/<name>`; then `--failed` (with `--fail-fast` to stop at the first).
+- One test: `--id=<domain>/[<topic>/]<name>`; then `--failed` (with `--fail-fast` to stop at the first).
 - Flaky: `--repeat=10 <words>` names `FLAKY` (some pass) vs `FAILING` (none). `--seed=N` pins every `house()` layout, to
   separate layout luck from logic. Watching a repeat run with `Monitor`, filter to `FAIL|TIMEOUT|FLAKY|FAILING|[0-9]+
   passed, [0-9]+ failed`: it wakes you on what you act on, not once per pass.
@@ -40,8 +40,8 @@ bundles in `user://test_failures/` and reports in `user://gdunit_reports/report_
 - An engine error/warning logged: real; fix the code (or `t.verdict.expect_log` / `allowed_logs` if intended).
 - A behaviour that misses a band or a distance (a follower too far behind, a walker off its line), or a walker that stops
   or stalls: trace the actor frame by frame through the miss window before calling it test slack or proposing a design.
-  Series and p50s hide a per-frame stall. The first trace logs `movement.move_input`, `movement.run_input`, the destination,
-  the body holding it and the rule that stopped it, as one `[dbg]` line. A frame with no step that no rule names is a code
+  Series and p50s hide a per-frame stall. Add a trace of your own that prints, per frame, `movement.move_input`,
+  `movement.run_input`, the destination, the body holding it and the rule that stopped it (a temporary trace, below). A frame with no step that no rule names is a code
   bug. A question to the user about the miss quotes the trace.
 - Passes alone, fails after another test: a leaked `static var`. Use `set_static` or a switch so it is restored; never assign
   a config holder directly in a test.

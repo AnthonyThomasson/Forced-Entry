@@ -5,7 +5,7 @@ description: Use when editing scenes/general/ or working on keybinds, settings, 
 
 # General domain (`scenes/general/`)
 
-Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19. HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, verdict; it also holds match-building and squad tests that belong to `domain-main` and `domain-ai` (`team.md`)).
+Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19. HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
 
 Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, plus Audio's `Sound`. The rest are `class_name` static holders (no instance). Tuning holders: `CameraConfig`, `CameraShakeConfig` (ADR 0003), read live, so a test may `set_static` them.
 

@@ -31,8 +31,8 @@ touch `main`'s checkout.
    - Re-applying the uncommitted changes conflicts (rebase done, files unmerged, stash kept): resolve the same way, then `git
      reset` so they stay unstaged. Keep the stash entry until the tree is right; to bail out, `git stash apply <sha>` from
      `git stash list --format='%H %gs'`.
-6. **Verify.** `main` added `class_name` scripts: `tools/load_check.sh --import`. Run `GAME_TEST_CHANGED_FILES="$(git diff --name-only
-   origin/main)" tools/run_tests.sh --changed --summary` (sandbox disabled; without the variable a clean tree runs nothing); fix failures the merge caused.
+6. **Verify.** `main` added `class_name` scripts: `tools/load_check.sh --import`. Run `tools/run_tests.sh --changed=origin/main --summary` (sandbox disabled; the
+   branch's committed work, not only the uncommitted); fix failures the merge caused.
 7. **Report:** commits replayed onto which `origin/main` commit, each conflict and its resolution, files deleted in step 3
    (with backup paths), the test result, the pre-rebase tip, and that uncommitted changes are re-applied (or what remains in
    the stash). With an upstream, warn that pushing now needs `--force-with-lease`, which this skill doesn't do.

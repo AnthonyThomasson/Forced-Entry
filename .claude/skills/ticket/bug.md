@@ -30,8 +30,10 @@ bug's reason (tell the user the red result; passes at once or not visible headle
 don't fix blind), root-cause fix, green, skills updated. The repro sits at the seam the agreed bug names.
 
 An `ai` label: the regression test is scripted Von (`von_script`, one mechanism), the bug's exception to `ai.md`'s
-"`von_script` never replaces scenario tests"; a bug in what Von picks gets a real-Von scenario test per `ai.md`. Green adds
-`tools/run_tests.sh --include-von --require-von --domain=ai`.
+"`von_script` never replaces scenario tests"; a bug in what Von picks gets a real-Von scenario test per `ai.md`.
+
+A fix under `scenes/ai/` or `scenes/testing/` also runs `tools/run_tests.sh --domain=ai --require-von` once at green,
+whatever the labels (`domain-testing` (`runner-flags.md`)), as `story.md` phase 4 does.
 
 **Fix gate:** once the root cause is known (`fix` step 4) and before any production change, the planned fix goes to the
 user as a `change-report` whose **Cause** section holds the cause, then an acceptance question. The red test stays

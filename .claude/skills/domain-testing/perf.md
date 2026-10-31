@@ -13,8 +13,6 @@ re-bake, world-gen, the sound library's cold render).
 - **Judge only a result not marked `loaded`:** `--quiet` waits for a quiet machine and marks a result `loaded` when it
   gave up (`runner-flags.md`); a `loaded` red or green says nothing about the code. Every `PERF` line ends with
   `(load <x>, <n> other Godot)`, so a number read from a log carries the state of its machine.
-- `perf/match_10v10_stress` is red on a quiet machine until #98 (an invader's decision that weighs its grenades spikes in
-  one frame), by the user's decision: the standard is untouched.
 
 ## The standard
 
@@ -50,8 +48,7 @@ the plain-coloured shapes.
 **Windowed keeps the same budgets:** no windowed exemption and no looser number; what a window costs is fixed at its
 cause, each fix pinned to the old pixels or bytes by a windowed-only test (`tests/character/body_mesh_matches_polygons_test.gd`,
 `tests/physics/debris_pages_match_one_batch_test.gd`, `tests/general/fill_batch_matches_draw_calls_test.gd`). The sound
-library's pre-warm renders on a worker thread (`domain-audio`). A windowed run does not yet meet the standard everywhere
-(`docs/grenades.md`, "Performance"); that is the honest state, not a reason to loosen it.
+library's pre-warm renders on a worker thread (`domain-audio`).
 
 ## Finding what costs, and gotchas
 
@@ -64,7 +61,7 @@ library's pre-warm renders on a worker thread (`domain-audio`). A windowed run d
   error); the match guards keep it on and allow that log (`MATCH_LOGS`).
 - World-gen's first run in a process is slower (cold caches), so its budget covers the cold case.
 - Headless runs skip the sound pre-warm: a test that plays sound calls `Perf.warm_sounds()` first or turns `audio.sound`
-  off, or the first play of each variant (9 to 35 ms) lands in its worst frame.
+  off, or the first play of each variant lands in its worst frame.
 - A speed-up must not change what the game does: where a fast path replaces a plain algorithm, a test pins its output to
   the plain one (`navigation/furniture_union_fast_path`, `physics/blood_splat_merge_fast_path`,
   `physics/convex_pieces_match_plain_scan`, `physics/shape_polygon_cache`).

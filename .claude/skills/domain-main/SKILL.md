@@ -125,9 +125,10 @@ one with no `bind`.
 ## Tests
 
 Under `tests/general/` (`match_builder_*`, `match_nav_ready_*`, `match_spawn_*`, `match_setup`, `match_styles`,
-`saved_setup_*`, `main_setup_*`, `lead_rank`, `command_menu_wiring`, `stack_player_wiring`, `squad_leader_rule`,
-`squad_succession`, `test_world_invader_bound_as_match`), plus `tests/ai/stack/human_defender_leader_no_rally_test.gd` and
-`tests/ui/leader_overlay_draw_test.gd`. List them with `ls tests/general | grep -E 'match_|lead_|squad_|stack_player|command_menu|saved_setup|main_setup|test_world_invader'`.
+`saved_setup_*`, `main_setup_*`, `test_world_invader_bound_as_match`), plus
+`tests/ai/stack/human_defender_leader_no_rally_test.gd` and `tests/ui/leader_overlay_draw_test.gd`. The leader, squad and stack-radio tests that sit
+there too (`lead_rank`, `squad_*`, `stack_player_wiring`) are `domain-ai` (`team.md`). List them with
+`ls tests/general | grep -E 'match_|saved_setup|main_setup|test_world_invader'`.
 
 **Interfaces:** 1, 6 (`LoadoutConfig`: arming), 7 (the controller group, overlays' `show_<x>`), 9, 13, 14, 17, 18, 20, 21,
 22 (setup window, Von-server wait, match HUD, spectator inspector, overlay bar), 23. Signatures: `architecture`.

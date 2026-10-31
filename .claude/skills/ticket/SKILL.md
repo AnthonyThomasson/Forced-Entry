@@ -44,7 +44,7 @@ Run phases one after another in one worktree; parallel only for independent phas
 
 - **User phases stay with you:** grilling, plan acceptance, ticket edits, feedback questions. Every acceptance question
   follows a `change-report`; ask with `AskUserQuestion`, a few specific questions at a time, recommended answer first.
-- **Build phases go to workers** (a bug's phases 2–4 run inline, `bug.md`). The brief is self-contained: ticket number
+- **Build phases go to workers** (a bug's phases 2–4 and a spike's steps run inline, `bug.md`, `spike.md`). The brief is self-contained: ticket number
   and body, accepted plan, skills to load (`architecture`, the `domain-<name>` skills, `domain-testing`, `test-debug`),
   what to produce, how to know it is done, "No shortcuts", that anything undecidable is an escalation, and the inbox rules.
 - **Code goes through `implement`.** A worker that writes tests or production code runs `mattpocock-skills:implement`
@@ -52,7 +52,7 @@ Run phases one after another in one worktree; parallel only for independent phas
   - **Tests through `mattpocock-skills:tdd`**, in vertical slices: one criterion's test red for the right reason, the
     smallest change to green, the next. The seams are those the accepted plan names per criterion (acceptance is the
     confirmation `tdd` asks for); a test at an unnamed seam is an escalation.
-  - **Checks:** typechecking is the load check and lint (`godot-run`); one test is `tools/run_tests.sh --id=<domain>/<name>`;
+  - **Checks:** typechecking is the load check and lint (`godot-run`); one test is `tools/run_tests.sh --id=<domain>/[<topic>/]<name>`;
     the full suite (`tools/run_tests.sh --summary --jobs=auto`) once at the end; tool tests `tools/tool_tests.sh --changed`
     while working, the whole discovery only in a `wrap-up` worker.
   - **Self-review:** `mattpocock-skills:code-review` with the fixed point the worker's starting commit and the spec the
@@ -62,7 +62,7 @@ Run phases one after another in one worktree; parallel only for independent phas
     push or merge (`finish` lands it).
 - **Workers** are named in lowercase with hyphens (a split phase adds its stage: `coding-ai-scenarios`): `showroom`,
   `coding`, `wrap-up` (green run, docs and skills), `showroom-removal`, `review`, `coding-review-fixes`, `review-fixes`
-  (second audit), `investigation` (a spike), `retro`. Start each on Sonnet (`--agent claude --model claude-sonnet-5-5`;
+  (second audit), `retro`. Start each on Sonnet (`--agent claude --model claude-sonnet-5-5`;
   you stay on Opus) with the name as `--task-title`, then `orca terminal rename --terminal <agentTerminalHandle> --title
   "<name>"`, the handle from the `orca orchestration worker-list --json` row whose `dispatchId` is the `worker-start`
   receipt's (the row appears a few seconds after the start).

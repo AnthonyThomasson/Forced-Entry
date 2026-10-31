@@ -39,15 +39,15 @@ The header lists every flag; this file holds the rules and the reasons behind th
 - **`--base=<rev>`:** the working tree's tests against `<rev>`'s code, in a temporary `git worktree` under `$TMPDIR` that
   gets the working tree's `tests/` whole (`.uid` files and helper folders included). It is removed also on ^C or a kill
   of the wrapper (`tools/godot_slot.py stop` ends the engines first). The working tree is never written, no lint. Refused
-  with exit 2 and a reason line (before anything is built) with `--changed`, `--staged`, `--jobs` above 1 and an unknown
-  `<rev>`. `fix` uses it to show a changed regression test still red on the old code.
+  with exit 2 and a reason line (before anything is built) with `--changed` (`=<ref>` too), `--staged`, `--jobs` above 1 and
+  an unknown `<rev>`. `fix` uses it to show a changed regression test still red on the old code.
 - **Other flags:** `--skip-domain` wins over every other selection, `--changed`'s included. `--repeat=N` reruns a native
   suite in N-1 processes of its own (with a hand-given `--shard` it runs once). Options take the `--name=value` form; any
   other `--` argument exits 2 with `unknown flag: <arg>`: the wrapper forwards only its `BATCH_FLAGS`, and
   `tools/tests/test_run_tests_flags.py` checks that every flag the batch reads is forwarded.
 - **Test seams** (set only by `tools/test_log_gate.py` and the tool tests): `GAME_TEST_SLOT_POLL`, `GAME_TEST_QUIET_MINUTE`,
   `GAME_TEST_QUIET_POLL`, `GAME_TEST_STOP_WAIT`, `GAME_TEST_VON_PORT` (the port probed for a live Von server, 8000) and
-  `GAME_TEST_CHANGED_FILES`.
+  `GAME_TEST_CHANGED_FILES` (newline-separated paths for the runner's own mapping tests; it leaves a doc's hunks out).
 
 ## `--changed`
 

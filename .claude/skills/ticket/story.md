@@ -47,7 +47,7 @@ The `coding` worker runs `mattpocock-skills:implement` (`SKILL.md`, "Work in pha
    values from the brief, never recomputed the way the code computes them. Extend an existing test rather than add a
    near-duplicate (`tools/run_tests.sh --list <words>`). A behaviour is proved by a simulation test
    (`tests/<domain>/<name>_test.gd`); a native suite is for pure logic and only supplements it (`domain-testing`, "Native
-   unit suites"). Run it alone, Bash sandbox disabled (`tools/run_tests.sh --id=<domain>/<name>`); it must **fail for the
+   unit suites"). Run it alone, Bash sandbox disabled (`tools/run_tests.sh --id=<domain>/[<topic>/]<name>`); it must **fail for the
    right reason** (the behaviour is missing, not a parse error, race or setup mistake). Passes at once: too loose or already
    built; tighten it, or report it built.
 2. **Green.** The smallest production change that passes it, in the right domain, through published interfaces only. Never
@@ -59,8 +59,8 @@ criterion's red line (why it failed) and green line; tell the user.
 
 ## 4. Green and wrap up
 
-New tests pass (`--repeat=10` if timing-dependent), then `GAME_TEST_CHANGED_FILES="$(git diff --name-only origin/main)" tools/run_tests.sh --changed --summary` (the coding worker has committed, so a bare `--changed` finds nothing), then
-`tools/run_tests.sh --summary --jobs=auto`. A change under `scenes/ai/` or `scenes/testing/` also runs
+New tests pass (`--repeat=10` if timing-dependent), then `tools/run_tests.sh --changed=origin/main --summary` (the coding
+worker has committed, so a bare `--changed` finds nothing), then `tools/run_tests.sh --summary --jobs=auto`. A change under `scenes/ai/` or `scenes/testing/` also runs
 `tools/run_tests.sh --domain=ai --require-von` once, whatever its labels (`domain-testing` (`runner-flags.md`)). A touched
 per-frame path: `tools/run_tests.sh --domain=perf --quiet` (judge only a result not marked `loaded`). An older test now
 failing is your regression until shown otherwise. Update every changed domain's skill, `architecture` for an interface, and

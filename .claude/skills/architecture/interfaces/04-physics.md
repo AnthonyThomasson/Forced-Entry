@@ -26,21 +26,21 @@
 	 toss; the Projectile System's spent casing uses it too.
    - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)`: objects, the character and a vehicle.
    - Blood (a character on a hit, a dead body, a footfall, a slid puddle):
-	 - `BloodWound` (Node child, character): `record(hit)` throws a splatter spray and owes drips (one `BloodSplat` every
-	   `BloodDripConfig.interval_min..max` s from the body's blood origin); `stop()` on death.
+	 - `BloodWound` (Node child, character): `record(hit)` throws a splatter spray and owes drips (paced by
+	   `BloodDripConfig.interval_min..max`); `stop()` on death.
 	 - `Physics.bleed_out(parent, source, exclude)`: a dead character, once at rest: one slow, wide pool. A blood source may expose
 	   `blood_origin() -> Vector2` (world space); pools emerge there, so a fallen body bleeds from where it lies.
 	 - `BloodDecals.layer(parent)`: the batched decal layer under a world node.
 	 - `BloodFootprints` (Node child, character): `step(foot, fall: Footfall)` on each footfall prints a sole if the foot carries wet blood
 	   (`Footfall`, `physics/blood/footfall.gd`: `at`, `direction`, `length`, `width`, `inner`, `speed`).
 	 - `BloodSmear` (Node child, objects): `set_footprint(local_polygon)`, then drags blood out of a puddle as ribbons while the body slides.
-	 - `BloodSurface` (static): `register(rect, groove: Callable(world, half_width) -> 0..1, porous) -> id` / `unregister(id)` /
-	   `is_porous(pos)`. Objects' `Floor` registers its room so a bleed-out flow runs along grout/seams; rugs register porous (blood
-	   sinks in). `resistance(pos)` is read only by Physics' `BloodFlow`.
+	 - `BloodSurface` (static): `register(rect, groove: Callable(world, half_width) -> 0..1, porous) -> id` / `unregister(id)`.
+	   Objects' `Floor` registers its room so a bleed-out flow runs along grout/seams; rugs register porous (blood
+	   sinks in).
 	 - Switches: `BloodConfig.enabled` off → `BloodWound.record` and `bleed_out` spawn nothing (`bleed_out` returns null); footprints and
 	   smears need it plus their own (`BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`); `BloodSurfaceConfig.flow` off
 	   ignores floors; `PhysicsConfig.debris_enabled` off → `spawn_debris` throws no chips (its particle bursts follow
-	   `PhysicsConfig.hit_particles_enabled`). Splats and pools get readable names (`BloodSplat`, `BloodSplat2`, … / `BloodPool`, …).
+	   `PhysicsConfig.hit_particles_enabled`).
    - `Ragdoll` (`RefCounted`, character on death): a generic 3D point-mass body over the floor plane (x/y + height z). Build with
 	 `add_point(at, radius, mass)`, `add_bone(a, b)`, `add_rigid(indices)`, `add_frame(origin, up, right, forward_hint)`,
 	 `add_swing(frame, joint, child, rest, limits)` (cone limit), `add_hinge(frame, parent, joint, child, limits: HingeLimits)` (one-way
@@ -54,8 +54,7 @@
 	 `Despawner.max_scene_objects`). Looks and timings: `PhysicsExplosionConfig.looks`; `PhysicsExplosionConfig.fx_enabled` off spawns
 	 none.
    - Tuning read across the boundary: `PhysicsDeformConfig` (`depth_per_damage`, `max_depth`, `chunk_damage`, `max_impacts`,
-	 `update_collider`; Objects reads it when recording damage); `PhysicsRagdollConfig` is read only by `Ragdoll` (holders:
-	 `tuning-holders.md`).
+	 `update_collider`; Objects reads it when recording damage; holders: `tuning-holders.md`).
 
    Physics imports nothing from other domains but General's infrastructure: `Despawner` (debris, hit particles, blood, explosion fx),
    `PhysicsLayers` (`PhysicsConfig.wall_mask`), `DrawLayers` (its z knobs), `FillBatch`.
