@@ -82,16 +82,7 @@ func apply(behavior: Node, delta: float) -> void:
 	gaze = "primitive"
 	if _character.use.is_busy() or _own_gaze(behavior):
 		return
-	var t: Dictionary = _pick_threat(behavior.fight.hostiles, behavior.fight.engage_id)
-	if not t.is_empty() and not t["visible"] and not _perception.has_line_to(t["node"], t["pos"]):
-		t = {}  # Remembered behind a wall: not worth staring at the wall for.
-	if not t.is_empty():
-		threat = t
-		gaze = "threat"
-		_character.movement.aim_point = t["pos"]
-		behavior._combat.fire_at_will(t)
-		if not behavior._entry.committed():
-			behavior._combat.reload_if_dry()
+	if fight_threat(behavior):
 		return
 	if _resting(behavior):
 		gaze = "doors"
@@ -103,6 +94,26 @@ func apply(behavior: Node, delta: float) -> void:
 			ease_gaze(_character, door, tuning.coverage.look_rate, delta)
 		else:
 			idle_gaze(delta)
+
+
+## The threat half of the watch stage: pick the threat (`_pick_threat`: the hostile it is fighting
+## or the nearest it sees, else one it saw a moment ago with a clear line to where it was), aim at
+## it and let `Combat` shoot it as soon as a shot is on, reloading an empty gun unless the entry is
+## crossing. Sets `threat` and `gaze` ("threat"); false with no threat (nothing is touched). Run by
+## `apply`, and by the evade reflex once it holds its spot (docs/grenades.md G16).
+func fight_threat(behavior: Node) -> bool:
+	var t: Dictionary = _pick_threat(behavior.fight.hostiles, behavior.fight.engage_id)
+	if not t.is_empty() and not t["visible"] and not _perception.has_line_to(t["node"], t["pos"]):
+		t = {}  # Remembered behind a wall: not worth staring at the wall for.
+	if t.is_empty():
+		return false
+	threat = t
+	gaze = "threat"
+	_character.movement.aim_point = t["pos"]
+	behavior._combat.fire_at_will(t)
+	if not behavior._entry.committed():
+		behavior._combat.reload_if_dry()
+	return true
 
 
 ## Where a walking NPC looks: the farthest point, up to `tuning.watch.look_ahead` px down the walk

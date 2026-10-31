@@ -22,7 +22,9 @@ its primitive, params, arrival, contacts, `Combat` and `Entry`; the watch keeps 
    as last seen, else the nearest younger than `tuning.watch.lost_gaze`. A contact that is not visible only counts when `has_line_to` its last-seen
    spot is clear (no staring at a wall because someone is behind it).
 3. With a threat: `movement.aim_point` = its position **before any gate**, then `Combat.fire_at_will` (loaded gun, in `shoot_range`, clear
-   line, facing settled, cooldown) and, unless the entry is crossing (`_entry.committed()`, E4), `Combat.reload_if_dry`.
+   line, facing settled, cooldown) and, unless the entry is crossing (`_entry.committed()`, E4), `Combat.reload_if_dry`. Steps 2 and 3 are
+   `Watch.fight_threat(behavior) -> bool` (false with no threat, nothing touched), which the evade reflex also calls while it holds its spot,
+   or is caught by a frag with no spot (`docs/grenades.md` G16, `domain-ai-behavior`): the watch stage itself does not run during an evade.
 4. With none and `_resting` (a `hold`, a `reload`, a `move` that has arrived and is not covering a room, a `throw` whose grenade is
    away, a `defend` or `ambush` that has arrived): `Watch.idle_gaze`, but for a `defend` or `ambush` whose params carry `door_pos`, which
    eases the gaze onto it (`Watch.ease_gaze` at `tuning.coverage.look_rate`): a defender's gun on its own doorway (`docs/leadership.md` D2), an
@@ -36,6 +38,7 @@ its primitive, params, arrival, contacts, `Combat` and `Entry`; the watch keeps 
 It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only the static `ease_gaze` takes a character.
 
 - `apply(behavior, delta)` — the stage above; `threat` and `gaze` are what it set this tick. `_pick_threat` is its pick (`tuning.watch.lost_gaze`, 2 s).
+- `fight_threat(behavior) -> bool` — the stage's threat half (steps 2 and 3), shared with the evade reflex's hold.
 - `travel_point()` — where a walker looks: the farthest point, up to `tuning.watch.look_ahead` (150 px) down the walk
   the nav agent was just given (`Locomotion.path_ahead()`), sampled every 30 px, that it has a clear line to (`has_line_to`); INF with
   none. `Behavior.errand.aim_move`'s default branch and `Entry.sweep.aim_travel` use it and fall back to the steering vector. (The next waypoint

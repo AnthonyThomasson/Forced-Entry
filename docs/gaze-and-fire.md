@@ -21,7 +21,9 @@ counts while it has a clear line to where it was last seen (it does not stare at
 **W1. A threat holds the eyes.** Whatever the primitive is doing (a move, a search covering a room, a hold, a reload, an
 engage still walking to its spot, any tactical-entry phase) the NPC faces its threat. Only a melee and an engaged NPC in
 position (which aim at their target themselves) and an interaction (its own gaze, and the character is frozen anyway) are
-left alone. A fight retargets from a contact it has lost sight of to another hostile it can see.
+left alone. The evade from a live grenade (`docs/grenades.md` G16) is safe first, then the fight: on the run to its spot, and
+caught by a stun with no spot, its back is to the grenade; holding its spot, or caught by a frag with no spot, the threat
+holds its eyes and is shot as here. A fight retargets from a contact it has lost sight of to another hostile it can see.
 Tests: `gaze_search_turns_to_threat`, `gaze_travel_watches_threat`, `engaged_retargets_to_visible`.
 
 **W2. A threat in sight is shot, in every state.** The shot is taken as soon as one is available (a loaded gun, the threat in
