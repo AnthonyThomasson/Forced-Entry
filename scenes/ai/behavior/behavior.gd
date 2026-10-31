@@ -116,6 +116,7 @@ func setup(perception: Node, nav_agent: NavigationAgent2D, npc_tuning: NpcTuning
 	_loco.setup(nav_agent, tuning)
 	_loco.rooms = rooms
 	_loco.doors.views = perception.views
+	_loco.leaves.house = perception.house
 	add_child(_loco)
 	errand.coverage = SearchCoverage.new()
 	errand.coverage.setup(_loco, perception, tuning)
@@ -528,6 +529,7 @@ func apply(delta: float) -> void:
 	if _loco.crowd.take_blocked():
 		_way_blocked()
 	_watch.apply(self, delta)
+	_loco.leaves.face()
 	entries.guard_clock += delta
 	entries.guard()
 	_combat.continue_burst()

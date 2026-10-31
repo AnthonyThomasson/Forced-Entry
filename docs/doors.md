@@ -155,9 +155,24 @@ style; the leaf's art and a knocked-down door's face are the door painter's.
 Tests: `objects/door_materials` (every material and style spawns, draws, each style differently, with its HP and penetration);
 `objects/door_contract` (the contract the Use key and the AI will drive).
 
-## DR14. The AI opens doors in its way (later stage)
+## DR14. The AI opens doors in its way
 
-An NPC whose walk leads through a door not open wide enough to pass stops beside it on its latch side, faces it, uses it until
-it is fully open, and walks on, leaving it open. A door that cannot open wide enough makes the walk a blocked one (the
-existing re-decide). A knocked-down door is no obstacle. A shut door blocks sight, so the room behind it stays unsearched until
-opened.
+An NPC whose walk leads through a door not open wide enough to pass (`gap()` below its body's diameter and a 6 px margin: 34 px for a
+body of radius 14), whatever primitive is walking (a move, a search, a follow, a defend, a throw's walk, the entry's approach and cross),
+stops beside it on its latch side (`latch_side_spot`, within 20 px of it), faces it, uses it until it is fully open (`open_fully` through
+`character.use.doors`, never a toggle, so a second NPC reaching a door the first opened does not shut it) and walks on, leaving it
+open. The door is found on the next 90 px of the walk's path by the group `doors` and read through the door contract (interface 24),
+so the AI imports nothing of Objects. A door open wide enough, or knocked down, is no obstacle. A second walker finding another at
+the latch waits 40 px further out from the wall until the door is passable, so two never stand pressed against each other at the
+doorway. A door used twice that stops short of opening wide enough (a chair or a body held in its arc, the swing stopped) is given up
+on: it is refused for 45 s and the walk is a blocked one (the existing way-blocked handling: the decision re-runs, `decision_reason`
+"way blocked"). While it is refused, a walk whose way runs through its doorway goes by another doorway of the house first (the
+nearest by walking length whose two legs cross no refused door), and a walk with no other way stands short of the door and tells the
+decision its way is blocked every 1.5 s. The tactical entry's point man meets a shut door on its cross and does the same: a stop-gap
+until #159, which gives a stack its side, the opener's role, cracking and breaching; none of that is built here. A shut door blocks
+sight (DR5), so the room behind it is not covered by sight, and so not counted searched, until the door is open and the NPC is in.
+
+Tests: `ai/movement/door_in_the_way` (real Von, hand-laid house: two invaders search the one room behind a shut door, one opens it
+from the latch side, goes in, leaves it open, the room not searched while it was shut), `ai/movement/door_blocked_rerouted` (real
+Von: a chair in the swing holds the nearer door shut, the walk is a blocked one and the defender goes in by the other doorway),
+`ai/movement/door_second_walker_leaves_open` (real Von: two defenders reach the door together; the leaf never turns back toward shut).

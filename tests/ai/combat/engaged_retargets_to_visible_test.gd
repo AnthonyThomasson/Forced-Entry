@@ -103,6 +103,9 @@ class FakePerception extends Node:
 	## The perception's doorway views part, which `Behavior.setup` hands its locomotion (unused
 	## here).
 	var views: PerceptionViews = null
+	## The perception's house part, which `Behavior.setup` hands its locomotion's door leaves
+	## (unused here).
+	var house: RefCounted = null
 
 	func note_engaged() -> void:
 		pass

@@ -41,6 +41,7 @@ const Crowd := preload("res://scenes/ai/behavior/locomotion/loco_crowd.gd")
 const GiveWay := preload("res://scenes/ai/behavior/locomotion/loco_give_way.gd")
 const Stall := preload("res://scenes/ai/behavior/locomotion/loco_stall.gd")
 const Doors := preload("res://scenes/ai/behavior/locomotion/loco_doors.gd")
+const DoorLeaves := preload("res://scenes/ai/behavior/locomotion/loco_door_leaves.gd")
 ## The walk's last-leg rule (`PASS_CLEARANCE`), held once with the doorway geometry that predicts
 ## it (`AgentEntry.slot_reach`).
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
@@ -84,6 +85,8 @@ var give_way := GiveWay.new(self)
 var stall := Stall.new(self)
 ## The walk round the doorway views (E18); see loco_doors.gd.
 var doors := Doors.new(self)
+## The door leaves on the walk's way, opened when not open wide enough; see loco_door_leaves.gd.
+var leaves := DoorLeaves.new(self)
 ## Pathfinding agent, or null (falls back to straight-line).
 var _agent: NavigationAgent2D
 ## The world's navigation map: furniture only, what points are snapped and tested on.
@@ -196,7 +199,8 @@ func reached(point: Vector2, within := 0.0) -> bool:
 		_begin(point, within)
 		_agent.target_position = _goal
 		_last_stretch()
-		return _way != Way.HELD and _agent.is_navigation_finished()
+		return (_way != Way.HELD and _agent.is_navigation_finished()
+				and not leaves.detouring())
 	return _character.global_position.distance_to(point) < tuning.pace.arrive_dist
 
 
@@ -236,6 +240,8 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 	if _check():
 		# The walk changed map or goal: steer by its new path.
 		next = _agent.get_next_path_position()
+	if leaves.work(get_physics_process_delta_time()):
+		return  # A door in the way is being opened: the walk waits for it.
 	var here: Vector2 = _character.global_position
 	var desired: Vector2 = next - here
 	desired = desired.normalized() if desired.length() > 0.001 else Vector2.ZERO
@@ -249,10 +255,12 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 	give_way.keep_off()
 
 
-## Start a walk to `dest`, arriving within `within` px (0 = the agent's own distance), unless it is
-## the walk under way (a destination that drifts a few px, a target being followed, carries the walk
-## on).
-func _begin(dest: Vector2, within := 0.0) -> void:
+## Start a walk to `destination` (or to the doorway `leaves.redirect` sends it by first), arriving
+## within `within` px (0 = the agent's own distance), unless it is the walk under way (a destination
+## that drifts a few px, a target being followed, carries the walk on).
+func _begin(destination: Vector2, within := 0.0) -> void:
+	# A way that runs through a door given up on goes by another doorway first.
+	var dest := leaves.redirect(destination)
 	var reach := within if within > 0.0 else _reach
 	if _agent.target_desired_distance != reach:
 		_agent.target_desired_distance = reach

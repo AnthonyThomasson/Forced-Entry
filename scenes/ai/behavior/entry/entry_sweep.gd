@@ -140,8 +140,10 @@ func _pick_corner(corners: Array, on: int, hard_first: bool) -> Vector2:
 ## and off the door's axis, then on to the corner.
 func tick_cross(entry: Entry, delta: float) -> void:
 	world.loco.move_to(corner, CORNER_REACH)
-	if world.character.movement.move_input == Vector2.ZERO and not world.loco.crowd.holding():
-		# Never stand in the funnel (unless a body is in the way).
+	if (world.character.movement.move_input == Vector2.ZERO
+			and not world.loco.crowd.holding()
+			and not world.loco.leaves.working()):
+		# Never stand in the funnel (unless a body is in the way or a door in it is being opened).
 		var to_corner: Vector2 = corner - world.character.global_position
 		world.character.movement.move_input = to_corner.normalized()
 	look_toward(_across_from(corner), delta, 3.0)

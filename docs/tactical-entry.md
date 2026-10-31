@@ -525,6 +525,9 @@ A stack a leader orders (its side, its mode, its wait for every member it names,
 are a stack held for its leader's go (LD13), one the human leader's own claim rallied, held for its go (LD24, D38: the go names its mode,
 which wins over E17's pick as an order's does), and one ordered in with a frag (LD14, E17).
 
+A shut door in the way of the cross is opened by the point man as any walker opens one in its way (`docs/doors.md` DR14), pending the
+tactical door use of #159. Test: `ai/movement/door_in_the_way` (an invader entry whose door is shut).
+
 ## The other side of the door
 
 A defender reacting to a stack at its door is modelled in one piece, on its leader's order only: the **ambush** (`docs/leadership.md`

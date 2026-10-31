@@ -63,6 +63,17 @@ func use(door: Node2D = null) -> bool:
 	return true
 
 
+## Swing `door` (as `use`: the door in reach when none is given) fully open, never shut: a door that
+## is open already, or swinging open, stays so. How an NPC works a door in its way, which a second
+## walker reaching it must not shut. False when there is no such door in reach.
+func open_fully(door: Node2D = null) -> bool:
+	var target := _target(door)
+	if target == null:
+		return false
+	target.open_fully(character)
+	return true
+
+
 ## Turn `door` (as `use`) by `steps` notches of the wheel (`DoorConfig.step_degrees` each, positive
 ## opening, a share of a notch as a trackpad's scroll gives): from where it is heading, between shut
 ## and fully open, and it stays there. False when there is no such door in reach.

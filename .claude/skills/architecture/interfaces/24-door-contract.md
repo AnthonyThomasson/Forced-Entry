@@ -29,5 +29,6 @@
       turns with the leaf, none for the glass-panel door (interface 20).
     - **Callers:** the Character domain's `CharacterDoors` (`character.use.doors`, interface 7: `door_in_reach()` finds a door by the group
       `doors` and reads `is_down()`, `leaf_pose(angle())` and `leaf_size()`; `use()` calls `toggle(by)`, `turn(steps)` calls `turn_by(steps * DoorConfig.step_degrees,
-      by)`) for the human's Use key (E, the wheel while held; `docs/doors.md` DR6, DR7), which the AI's controller will call in the same way, and the Testing
+      by)`) for the human's Use key (E, the wheel while held; `docs/doors.md` DR6, DR7), which the AI's locomotion calls in the same way (`open_fully(door)`, `docs/doors.md` DR14: it finds a door on its walk by the group `doors` and reads `gap()`, `is_down()`, `angle()`,
+      `leaf_pose(0.0)`, `width`, `swing_into` and `latch_side_spot(from)`, duck-typed), and the Testing
       domain's layouts and puppets (13: `use()`, `turn_door(steps)`).
