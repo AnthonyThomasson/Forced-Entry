@@ -13,9 +13,9 @@
 #                                  commits since the branch left <ref>, default origin/main, else main), the working
 #                                  tree's tracked changes and the untracked files. An unknown <ref>, or --staged too,
 #                                  exits 2. Use it for the checks while working; the whole discovery runs once at the end.
+# The first line says what runs: `tool tests: <module>, ...`, `tool tests: all (<why>)` or `tool tests: none (...)`.
 # The whole discovery took about 10 minutes (591 tests, 628 s): the 15 slowest tests, 10 to 24 s each, are about a third of
 # it, mostly tools/coverage/tests/test_runner_cli.py (each runs Godot) and test_audit_scan's two real-tree walks (48 s).
-# The first line says what runs: `tool tests: <module>, ...`, `tool tests: all (<why>)` or `tool tests: none (...)`.
 # The tests run without git's GIT_* variables: git hands a hook GIT_INDEX_FILE (and in a worktree GIT_DIR), and every
 # git a test runs in a throwaway repo of its own would obey them and act on this repo instead.
 set -uo pipefail

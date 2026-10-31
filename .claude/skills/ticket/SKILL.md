@@ -113,8 +113,8 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   --ack <your last batch's deliveryId>: my answer is behind it." --enter`. A `reply` does not wake an idle worker: a
   reply to an `ask` older than its timeout (10 min by default) is followed, in the same turn, by `orca terminal send
   --terminal <its handle> --text "Your question <id> is answered: run orca orchestration check." --enter`.
-- **Check each phase** before the next: read the result and diff, rerun its check yourself (`tools/tool_tests.sh --changed` and the
-  targeted game runs, not the whole discovery).
+- **Check each phase** before the next: read the result and diff, rerun its check yourself (`tools/tool_tests.sh --changed`
+  and the targeted game runs, not the whole discovery).
 - **Sequential by default** (one worktree, shared Godot runs); parallel only for independent phases, each in its own
   worktree.
 
@@ -218,10 +218,10 @@ Read the report yourself; a failed or missing one is a finding. Then:
    accepted findings, through `implement` (above). Each behaviour defect is a `tdd` slice (red for the right reason,
    fix at the cause, green). A test set-up mistake is fixed only as the report names it; no assertion is loosened.
    Stale skills, docs and comments in the same worker.
-3. A `wrap-up` worker reruns the green checks (new tests `--repeat=10`, the whole tool-test discovery `tools/tool_tests.sh`, the whole suite, perf with
-   `tools/run_tests.sh --domain=perf --quiet`; a change under `scenes/ai/` or `scenes/testing/` also runs
-   `tools/run_tests.sh --domain=ai --require-von` once, whatever its labels) and makes sure no doc or skill claims a run
-   that did not happen.
+3. A `wrap-up` worker reruns the green checks (new tests `--repeat=10`, the whole tool-test discovery
+   `tools/tool_tests.sh`, the whole suite, perf with `tools/run_tests.sh --domain=perf --quiet`; a change under
+   `scenes/ai/` or `scenes/testing/` also runs `tools/run_tests.sh --domain=ai --require-von` once, whatever its
+   labels) and makes sure no doc or skill claims a run that did not happen.
 4. If the fixes went beyond the report's list or added behaviour, a `review-fixes` audit (same spec, told which
    findings were fixed); otherwise rerun its checks yourself.
 

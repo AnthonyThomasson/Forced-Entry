@@ -37,7 +37,8 @@ long as they need; nothing checks their width, so leave it unmeasured.
   `tools/tests/test_run_tests_flags.py` (each flag the batch reads is one the wrapper forwards).
 - **Picking tool tests:** `tools/tool_tests.sh --staged` runs the ones a commit can break, `--changed[=<ref>]` the ones a
   branch can. `tools/tool_tests_pick.py --why PATH...` says why a module is picked; `--sweep [--json] [PREFIX...]` gives
-  every tracked file's picks in one process.
+  every tracked file's picks in one process. A worker's in-flight checks and the coordinator's reruns use
+  `tools/tool_tests.sh --changed`; the whole discovery runs once, in a `wrap-up` worker.
 - **A tool test writes only in a temp dir or a copy of the checkout** (`copy_checkout()` in `tools/test_log_gate.py`,
   or a throwaway git repo), never in the live tree, where another run in the worktree would see its probe;
   `tools/tests/test_tool_tests_stay_out.py` fails on a write to a path built from `ROOT`.

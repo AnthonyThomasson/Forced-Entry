@@ -183,6 +183,14 @@ class PickTests(unittest.TestCase):
     def test_why_for_a_changed_test_module_says_it_is_that_module(self):
         self.assertIn("tools.tests.test_gdstyle <- is tools/tests/test_gdstyle.py", self.why("tools/tests/test_gdstyle.py"))
 
+    def refused(self, *args):
+        return subprocess.run(["python3", str(ROOT / "tools" / "tool_tests_pick.py"), *args], capture_output=True, text=True)
+
+    def test_why_with_no_path_is_a_usage_error_and_prints_nothing(self):
+        r = self.refused("--why")
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn("--why PATH...", r.stderr)
+
     # Tracked paths of every kind: a scene file, a game test, a tool, a file two tools share the name of (runner.py), a
     # file outside the tools a test reads, a test module, a hook.
     SAMPLE = ["scenes/general/command_server.gd", "scenes/general/event_bus.gd", "scenes/testing/test_batch.gd",
@@ -227,6 +235,11 @@ class PickTests(unittest.TestCase):
         self.assertEqual(counts, sorted(counts, reverse=True))
         self.assertEqual(lines[1], "2 tools.tests.test_load_check", "both paths pick it")
         self.assertGreater(len(lines), 2, "tools/load_check.sh picks more tests, with a count of 1 each")
+
+    def test_sweep_refuses_an_unknown_option_and_prints_nothing(self):
+        r = self.refused("--sweep", "--bogus")
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn("--bogus", r.stderr)
 
     def test_a_sweep_of_a_prefix_no_tracked_file_is_under_sweeps_nothing(self):
         self.assertEqual(self.sweep_script(UNNAMED).splitlines(), ["swept 0 files"])

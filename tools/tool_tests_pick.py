@@ -26,7 +26,8 @@ run it prints `all` and its `# <why>` lines, and `none <- <path>` for each path 
 once, each file's picks as `pick([path])` gives them. It prints `swept <N> files`, a line `<count> <module>` for each
 module picked (most first, the count being the files that pick it), then `all <- <path> (<why>)` for each file that
 picks the whole discovery (these count towards no module). --json prints
-`{"files": N, "modules": {module: count}, "all": {path: [why, ...]}}` instead. The rules:
+`{"files": N, "modules": {module: count}, "all": {path: [why, ...]}}` instead. --why without a path, or --sweep with
+an unknown -- option (any but --json), exits 2 with a usage line on stderr and prints nothing. The rules:
   - a changed test module runs itself;
   - a changed tool file (under tools/ or .githooks/) runs every test module whose code names it. Code names a file by
     its repo-relative path (`tools/lint.sh`), by its file name as a word of a path or a string of its own (`ROOT /
@@ -517,10 +518,18 @@ def main(argv: list[str]) -> int:
                   "${=var} in zsh; a path with whitespace is not supported)", file=sys.stderr)
             return 2
     if argv and argv[0] == "--why":
-        print("\n".join(explain([p for p in argv[1:] if p])))
+        paths = [p for p in argv[1:] if p]
+        if not paths:
+            print("usage: tool_tests_pick.py --why PATH...", file=sys.stderr)
+            return 2
+        print("\n".join(explain(paths)))
         return 0
     if argv and argv[0] == "--sweep":
         rest = argv[1:]
+        unknown = [a for a in rest if a.startswith("--") and a != "--json"]
+        if unknown:
+            print(f"unknown option: {unknown[0]} (tool_tests_pick.py --sweep [--json] [PATH_PREFIX...])", file=sys.stderr)
+            return 2
         swept = sweep([p for p in rest if p != "--json" and p])
         if "--json" in rest:
             print(json.dumps(swept))
