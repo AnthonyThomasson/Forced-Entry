@@ -98,7 +98,7 @@ func is_busy() -> bool:
 
 
 ## What Use (E) acts on now: `&"vehicle"` while in a vehicle (to get out, even with a door in reach)
-## and when a vehicle's door is nearer than the nearest door in reach ahead (`character.doors`), or
+## and when a vehicle's door is nearer than the nearest door in reach ahead (`doors`), or
 ## no door is; `&"door"` when a door is; `&""` when nothing is in reach, or the character is dead or
 ## in an object interaction. Nearer is by the distance from the body: to the leaf's nearest point,
 ## to the vehicle door's handle.

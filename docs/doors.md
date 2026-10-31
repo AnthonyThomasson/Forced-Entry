@@ -3,7 +3,7 @@
 How the houses' doorways and the doors in them behave: issue #21 "Add doors". A doorway is the gap in a wall between two
 rooms (or between a room and the street); a door is the hinged leaf that can stand in it. Rules DR1 to DR14; each is
 enforced by the tests named under it (`tools/run_tests.sh <id>`), following the convention of `docs/tactical-entry.md`. The
-research behind the numbers is `docs/research/doors-in-room-entry.md` (scale: 1 m is about 58 px, a character's body radius
+research behind the numbers is `docs/research/doors-in-room-entry.md` (scale: 1 m is about 55 px, a character's body radius
 14 px). The tactical use of doors by the AI (entry on a shut door, cracking it, breaching, defenders shutting doors) is the
 follow-up ticket #159 and is not in this spec.
 
@@ -63,7 +63,7 @@ seeded), 6 px in from the gap's edge, where the walls' ends stand, so the fully 
 jamb along the wall. A mirrored plan mirrors its hinges, as the doorway is mirrored with the rooms. The swing arc (a quarter disc,
 the leaf's length, from the hinge across the doorway into the room) is kept free of furniture, clutter and the neon tube as the
 doorway clearance is: it lies inside that box (`HouseSpawner.OPENING_CLEARANCE` deep each side of the wall, as wide as the
-doorway), which the furnisher and the dresser keep clear, so no plan was re-laid for it. The fit is tight at the front and exits (the
+doorway), which the furnisher and the dresser keep clear, so nothing is added to the spawner's `blocked` areas for it. The fit is tight at the front and exits (the
 open leaf reaches 50 px out and 30 px along from the doorway's middle, exactly the box), so a change to the clearance, the leaf or the
 doorway widths is caught by the test, not by the spawner.
 
@@ -105,7 +105,7 @@ vehicle door's handle). A door is in reach (`character.use.doors.door_in_reach()
 `CharacterDoorConfig.reach` (48 px) of the body that lies ahead of it (the side the character faces); of those, the one whose leaf is
 nearest the aim. A knocked-down door is none. Tap: an open door (or one swinging open) swings shut, a shut or ajar one swings fully
 open, in `DoorConfig.swing_time` (0.4 s). A vehicle is acted on at the press, as before; a door's toggle comes at the release of the
-key, so that a hold can scroll instead (DR7), and a hold that does not scroll toggles at its release. The player's controller remembers the door the key went down on, so the release and the wheel act on that door while it stays in reach, whichever door the aim is nearest by then (`use(door)`, `turn(steps, door)`). `character.use.doors` takes no input event: an NPC's controller will call `character.use.try_use()` or `character.use.doors.use()` / `.turn(steps)` as they are (stage 6).
+key, so that a hold can scroll instead (DR7), and a hold that does not scroll toggles at its release. The player's controller remembers the door the key went down on, so the release and the wheel act on that door while it stays in reach, whichever door the aim is nearest by then (`use(door)`, `turn(steps, door)`). `character.use.doors` takes no input event: the test puppet's `use()` / `turn_door(steps)` call `character.use.try_use()` / `character.use.doors.turn(steps)` as the player's controller does, and the AI (DR14) works a door with `character.use.doors.open_fully(door)`.
 
 Tests: `character/door_use_key` (E held moves nothing, its release opens a shut door fully and the next E shuts it; with a door and a
 car's door both in reach E acts on the door when it is the nearer and boards when the handle is, and leaves the open door as it is;
@@ -216,7 +216,7 @@ cover, and steel stops a pistol, not a rifle (research §3, §4). The catalogue 
 style; the leaf's art and a knocked-down door's face are the door painter's.
 
 Tests: `objects/door_materials` (every material and style spawns, draws, each style differently, with its HP and penetration);
-`objects/door_contract` (the contract the Use key and the AI will drive).
+`objects/door_contract` (the contract the Use key and the AI drive).
 
 ## DR14. The AI opens doors in its way
 

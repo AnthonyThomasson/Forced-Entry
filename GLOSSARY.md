@@ -198,7 +198,7 @@ knocked down at 0 HP. It publishes the door contract (architecture interface 24)
 _Avoid_: door stack (the AI's stack of members at a doorway), vehicle door (a car's, `VehicleDoor`)
 
 **Leaf**:
-The swinging panel of a door, which the door's body is: a rectangle `width` long and `leaf_thickness` thick, turned about its
+The swinging panel of a door, which the door's body is: a rectangle a little shorter than the door's `width` (`DoorConfig.leaf_slack`) and `leaf_thickness` thick (`leaf_size()`), turned about its
 hinge between shut and `open_angle` (90°). Knocked down, it lies flat on the floor as a slab and is no longer a leaf in the doorway.
 _Avoid_: panel, slab (the leaf lying down)
 

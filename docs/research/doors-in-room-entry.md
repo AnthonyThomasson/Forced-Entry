@@ -389,4 +389,7 @@ standard via a reference site (DIN 18101) and trade press (Bob Vila, AIBD) for t
    for a 1.75 m man). A real interior doorway is then about 39–42 px clear (leaf about 45 px) and a front door about
    45–47 px clear (leaf 50 px). The doorways were 80–120 px (1.5–2.2 m); #21 shrinks them to 52 px inside and 60 px at
    the front and exits (about 0.95 m and 1.1 m), a little roomier than real doors, which still passes one body at a
-   time (the nav lane through a 52 px doorway is 52 − 2 × (14 + 4) = 16 px wide).
+   time. A wall's collider reaches half its thickness (6 px of the 12 px walls) into the gap on each side, so a 52 px
+   doorway is 52 − 12 = 40 px clear and a 60 px one 48 px; the bake erodes the nav map by `NavBuilder.AGENT_RADIUS`
+   (14) plus `NavBuilder.WALL_MARGIN` (4) from each collider, so the nav lane through a 52 px doorway is
+   40 − 2 × 18 = 4 px wide (12 px for 60).
