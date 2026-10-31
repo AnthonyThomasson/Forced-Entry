@@ -21,9 +21,9 @@ const FONT_SIZE := 16
 @export var controller_path: NodePath = NodePath("../GoalController")
 
 ## Whether the overlay's status words (label, badge, timers, bars) draw in the world. Off, they are
-## left to the detail card (`card_lines()`); the overlay's geometry draws as ever (the agent, brain,
-## search and entry overlays leave no text in the world; the other overlays' short tags are not
-## gated).
+## left to the detail card (`card_lines()`); the overlay's geometry draws as ever (the agent, search
+## and entry overlays leave no text in the world; the brain overlay draws nothing at all unless its
+## `brain_labels` is on; the other overlays' short tags are not gated).
 var text_in_world := true
 ## The GoalController read for the overlay's data.
 var _controller: Node

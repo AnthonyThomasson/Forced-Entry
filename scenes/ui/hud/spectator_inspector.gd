@@ -8,9 +8,9 @@ extends CanvasLayer
 ## reasoning text Von read (cover, route, range) in the card's Point section; a left-click anywhere
 ## else does nothing. No NPC shows any overlay until it is selected — the debug view is focused on
 ## one NPC at a time. In a spectator match the agent, brain, search and entry overlays' words are on
-## the card, not in the world: `setup` turns `text_in_world` off on every NPC. The selected NPC's
-## brain overlay alone keeps short labels by its indicators (`brain_labels`): the badges, each
-## level's node, each bar's option and percentage and the next-decision ring's seconds.
+## the card, not in the world: `setup` turns `text_in_world` off on every NPC. The brain overlay
+## then draws on the selected NPC alone, whatever the scope (`brain_labels`: its bars, ring and
+## short labels by its indicators); every other NPC's brain draws nothing.
 ##
 ## It runs PROCESS_MODE_ALWAYS so Space and clicks work while the tree is paused (freeze the match,
 ## then inspect). A decoupled observer like the other spectator UI: it reads only published surfaces
@@ -182,7 +182,7 @@ func _select(npc: Node) -> void:
 
 
 ## Show the enabled overlays on the NPCs that show them and hide every other NPC's; the brain
-## overlay keeps its short labels on the selected NPC alone.
+## overlay draws (bars, ring and short labels) on the selected NPC alone.
 func _apply_overlays() -> void:
 	for c in _combatants:
 		if is_instance_valid(c):

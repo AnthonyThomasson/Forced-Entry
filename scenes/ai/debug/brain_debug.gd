@@ -15,6 +15,8 @@ const ORIGIN := Vector2(40, -96)
 const BAR_W := 90.0
 const LINE_H := 21.0
 const MAX_BARS := 4
+## The next-decision ring's radius round the NPC.
+const RING_RADIUS := 33.0
 ## Where the next-decision ring's seconds sit relative to the NPC (above the ring).
 const RING_LABEL_AT := Vector2(-14, -40)
 ## How long (s) after a forced decision its reason stays shown.
@@ -24,12 +26,25 @@ const FALLBACK_TEXT := "FALLBACK: no decision, holding"
 
 ## Whether to draw the brain overlay.
 @export var show_brain: bool = false
-## Whether the overlay keeps short labels by its indicators while `text_in_world` is off: the
-## THINKING / FALLBACK badges, each level's node title, each bar's option and percentage and the
-## next-decision ring's seconds. The facts, the timers line and the forced reason stay card-only.
-## The spectator inspector sets it on the selected NPC alone; with `text_in_world` on it changes
-## nothing (the full text draws, and no ring label).
+## Whether the overlay draws at all while `text_in_world` is off (a spectator match): with both
+## off it draws nothing, no bars, no ring, no labels. On, it draws its bars and ring and short
+## labels by them: the THINKING / FALLBACK badges, each level's node title, each bar's option and
+## percentage and the next-decision ring's seconds (the facts, the timers line and the forced
+## reason stay card-only). The spectator inspector sets it on the selected NPC alone, so under a
+## side scope only the right-clicked NPC shows its brain; with `text_in_world` on it changes
+## nothing (the full overlay draws, with no ring label).
 @export var brain_labels: bool = false
+
+## What the last paint drew: `{ kind: &"bar", option, probability, picked }` per probability bar,
+## `{ kind: &"ring", fraction, radius }` for the next-decision ring and `{ kind: &"label", text }`
+## per string, in drawing order.
+var _drawn: Array = []
+
+
+## Every redraw starts `drawn()` over, also one that draws nothing (toggled off, the NPC dead).
+func _draw() -> void:
+	_drawn.clear()
+	super()
 
 
 ## Whether this overlay's toggle is on.
@@ -39,6 +54,8 @@ func _on() -> bool:
 
 ## Draws the overlay from the controller's public debug getters.
 func _paint() -> void:
+	if not text_in_world and not brain_labels:
+		return
 	var b: Dictionary = _controller.debug_brain()
 	if b.is_empty():
 		return
@@ -49,6 +66,17 @@ func _paint() -> void:
 	# One block per level of the last walk: the node and Von's probability for each offered option.
 	for level in b["levels"]:
 		y = _paint_level(level, x, y + 3.0)
+
+
+## What the last paint drew, `bar`, `ring` and `label` entries (read by tests and nothing else).
+func drawn() -> Array:
+	return _drawn
+
+
+## Record the string too: a `label` entry of `drawn()`.
+func note_text(text: String) -> void:
+	super(text)
+	_drawn.append({ "kind": &"label", "text": text })
 
 
 ## The words of the overlay, one line each in the order they are drawn, for the detail card: the
@@ -89,11 +117,10 @@ func _paint_badges(b: Dictionary, x: float, y: float) -> float:
 	return y
 
 
-## An indicator's label at local position `pos`: drawn while `text_in_world`, or while
-## `brain_labels`.
+## An indicator's label at local position `pos` (every paint that gets this far draws it: the
+## paint is skipped with both `text_in_world` and `brain_labels` off).
 func _tag(pos: Vector2, text: String, size: int, color: Color) -> void:
-	if text_in_world or brain_labels:
-		DebugText.string(self, pos, text, size, color)
+	DebugText.string(self, pos, text, size, color)
 
 
 ## The THINKING badge's text, its dots cycling with the game clock.
@@ -107,13 +134,10 @@ func _thinking_text() -> String:
 func _paint_timers(b: Dictionary, x: float, y: float) -> float:
 	_say(Vector2(x, y), _timers_text(b), FONT_SIZE, TEXT)
 	y += LINE_H
-	_timer_arc(
-		_character.global_position,
-		33.0,
-		1.0 - b["decide_in"] / maxf(b["decide_interval"], 0.01),
-		THINK,
-		2.0,
-	)
+	var fraction: float = 1.0 - b["decide_in"] / maxf(b["decide_interval"], 0.01)
+	_timer_arc(_character.global_position, RING_RADIUS, fraction, THINK, 2.0)
+	if fraction > 0.0:
+		_drawn.append({ "kind": &"ring", "fraction": fraction, "radius": RING_RADIUS })
 	if brain_labels and not text_in_world:
 		_label(_character.global_position, "%.1fs" % b["decide_in"], THINK, RING_LABEL_AT)
 	if _forced(b):
@@ -172,6 +196,9 @@ func _paint_level(level: Dictionary, x: float, y: float) -> float:
 		var p: float = probs[id]
 		var col := PICK if str(id) == pick else BAR
 		draw_rect(Rect2(Vector2(x, y - 12), Vector2(BAR_W * clampf(p, 0.0, 1.0), 12)), col)
+		_drawn.append(
+			{ "kind": &"bar", "option": str(id), "probability": p, "picked": str(id) == pick },
+		)
 		_tag(Vector2(x + BAR_W + 4, y), _bar_text(id, p), FONT_SIZE - 1, col)
 		y += LINE_H - 2
 	if _picked_alone(level):

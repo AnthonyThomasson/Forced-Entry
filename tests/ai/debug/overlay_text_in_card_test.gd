@@ -11,6 +11,8 @@ extends GameTest
 ## even then (`brain_labels`): the THINKING / FALLBACK badges, each level's node title, each
 ## probability bar's option and percentage and the next-decision ring's seconds, and no facts,
 ## timers line or forced reason. With `text_in_world` on it draws its full text and no ring label.
+## With both off it draws nothing at all, bars and ring included (`BrainDebug.drawn()`: what the
+## last paint drew, `bar`, `ring` and `label` entries).
 ##
 ## Each overlay reads a fake controller (the getters it reads, answering fixed data), so a search
 ## and an entry are under way without a house to set them up in.
@@ -80,13 +82,21 @@ func _check_overlay(t: TestContext, kind: Dictionary) -> void:
 	body.queue_free()
 
 
-## The brain overlay with `text_in_world` off and `brain_labels` on draws only its indicators'
-## labels (the fake brain: THINKING and FALLBACK, a "mode" level of 120 ms offering combat 70% and
-## search 30%, an auto-picked "tactic" level, the next decision in 0.8 s); with `text_in_world` on
-## it draws its card lines and no ring label.
+## The brain overlay in its three modes, on the fake brain (THINKING and FALLBACK, a "mode" level
+## of 120 ms offering combat 70% and search 30%, an auto-picked "tactic" level, the next decision
+## in 0.8 s of 2.0 s): with `text_in_world` and `brain_labels` both off it draws nothing at all (no
+## bar, no ring, no label); with `brain_labels` on, `text_in_world` still off, its two bars, its
+## ring and exactly its indicators' labels (no facts, timers line or forced reason); with
+## `text_in_world` on, the bars and the ring with its full text and no ring label.
 func _check_brain_labels(t: TestContext) -> void:
 	var overlay := await _spawn_overlay(t, "brain_debug", ["show_brain"])
+	t.check(not overlay.drawn().is_empty(), "the brain draws something by default (premise)")
 	overlay.text_in_world = false
+	overlay.brain_labels = false
+	await t.frames(3)
+	t.expect_eq(overlay.drawn().size(), 0, "no labels and no text in the world: nothing drawn")
+	t.expect_eq(overlay.drawn_texts().size(), 0, "and no text")
+
 	overlay.brain_labels = true
 	await t.frames(3)
 	var expected := [
@@ -97,6 +107,11 @@ func _check_brain_labels(t: TestContext) -> void:
 	drawn.sort()
 	expected.sort()
 	t.expect_eq(drawn, expected, "brain_labels draws the badges, titles, bar labels and the ring")
+	t.expect_eq(_count_of(overlay, &"bar"), 2, "with the labels on it draws its two bars")
+	t.expect_eq(_count_of(overlay, &"ring"), 1, "and its ring")
+	var labels := _normal(PackedStringArray(_label_texts(overlay)))
+	labels.sort()
+	t.expect_eq(labels, expected, "and drawn() lists the same labels")
 
 	overlay.text_in_world = true
 	await t.frames(3)
@@ -105,7 +120,27 @@ func _check_brain_labels(t: TestContext) -> void:
 		"with text_in_world on the brain draws its full text",
 	)
 	t.check(not overlay.drawn_texts().has("0.8s"), "and no ring label")
+	t.expect_eq(_count_of(overlay, &"bar"), 2, "with its two bars")
+	t.expect_eq(_count_of(overlay, &"ring"), 1, "and its ring")
+	t.expect_eq(
+		_normal(PackedStringArray(_label_texts(overlay))), _normal(overlay.card_lines()),
+		"and drawn() lists its full text as labels",
+	)
 	overlay.get_parent().queue_free()
+
+
+## How many entries of `kind` the overlay's last paint drew (`drawn()`).
+func _count_of(overlay: Node, kind: StringName) -> int:
+	return overlay.drawn().filter(func(d: Dictionary) -> bool: return d["kind"] == kind).size()
+
+
+## The texts of the `label` entries of the overlay's last paint, in order.
+func _label_texts(overlay: Node) -> Array:
+	var out: Array = []
+	for d: Dictionary in overlay.drawn():
+		if d["kind"] == &"label":
+			out.append(d["text"])
+	return out
 
 
 ## A fake NPC body in the world with the overlay script `name` on it, `flags` on, painted.
