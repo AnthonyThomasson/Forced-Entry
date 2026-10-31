@@ -7,6 +7,12 @@ class_name HouseDefinitions
 ##          entrance the house is positioned by, on the south wall); a house may also have `exit`
 ##          openings (a back/side/garage door: exterior, on exactly one room's wall). `width` is the
 ##          doorway's gap: 52 px inside, 60 px for the front and exit ones (docs/doors.md DR1).
+##          An opening may carry `door: true` or `false` (the doorway gets a door, or stays an open
+##          archway, whatever its rooms' types say: docs/doors.md DR2) and `door_set`, the name of
+##          one of the plan's `door_sets`.
+##   door_sets: which doors (`DoorCatalog` keys) a kind of doorway draws from: `front`, `exit`,
+##          `interior`, or a set an opening names with `door_set`. A kind a plan does not name draws
+##          from `DoorRules.SETS`. The flats and the loft have steel doors at the street.
 ## What may connect to what (which rooms can hold the front door or an exit, which room types may
 ## share a door, which must be dead ends) is LayoutRules; HouseSpawner warns about a plan that
 ## breaks it and tests/worldgen/house_doorways_connected_test.gd fails on it. Bedrooms and bathrooms
@@ -26,13 +32,14 @@ const PLANS := {
 		"openings": [
 			{ "pos": Vector2(260, 700), "width": 60.0, "front": true },  # living room, exterior
 			{ "pos": Vector2(900, 525), "width": 60.0, "exit": true },  # kitchen, side door
-			{ "pos": Vector2(520, 525), "width": 52.0 },  # living room <-> kitchen
+			{ "pos": Vector2(520, 525), "width": 52.0, "door": true },  # living room <-> kitchen
 			{ "pos": Vector2(400, 350), "width": 52.0 },  # living room <-> bedroom
 			{ "pos": Vector2(520, 175), "width": 52.0 },  # bedroom <-> bathroom (en-suite)
 		],
 	},
 	"open_plan_home": {
 		"wall_thickness": 12.0,
+		"door_sets": { "patio": ["glass_panes"] },
 		"rooms": [
 			{ "key": "bedroom", "type": "bedroom", "rect": Rect2(0, 0, 520, 350) },
 			{ "key": "bathroom", "type": "bathroom", "rect": Rect2(520, 0, 380, 350) },
@@ -40,14 +47,24 @@ const PLANS := {
 		],
 		"openings": [
 			{ "pos": Vector2(300, 730), "width": 60.0, "front": true },  # great room, exterior
-			{ "pos": Vector2(900, 540), "width": 60.0, "exit": true },  # great room, patio door
-			{ "pos": Vector2(400, 350), "width": 52.0 },  # great room <-> bedroom
+			{
+				"pos": Vector2(900, 540),
+				"width": 60.0,
+				"exit": true,
+				"door_set": "patio",
+			},  # great room, patio door
+			{
+				"pos": Vector2(400, 350),
+				"width": 52.0,
+				"door": false,
+			},  # great room <-> bedroom, an open nook
 			{ "pos": Vector2(520, 175), "width": 52.0 },  # bedroom <-> bathroom (en-suite)
 		],
 	},
 
 	"studio_flat": {
 		"wall_thickness": 12.0,
+		"door_sets": { "front": ["steel_riveted", "steel_peephole"] },
 		"rooms": [
 			{ "key": "studio", "type": "studio", "rect": Rect2(0, 0, 620, 480) },
 			{ "key": "bathroom", "type": "bathroom", "rect": Rect2(620, 0, 300, 480) },
@@ -60,6 +77,7 @@ const PLANS := {
 
 	"one_bed_flat": {
 		"wall_thickness": 12.0,
+		"door_sets": { "front": ["steel_riveted", "steel_peephole"] },
 		"rooms": [
 			{ "key": "bedroom", "type": "bedroom", "rect": Rect2(0, 0, 500, 340) },
 			{ "key": "bathroom", "type": "bathroom", "rect": Rect2(500, 0, 300, 340) },
@@ -76,6 +94,7 @@ const PLANS := {
 
 	"two_bed_flat": {
 		"wall_thickness": 12.0,
+		"door_sets": { "front": ["steel_riveted", "steel_peephole"] },
 		"rooms": [
 			{ "key": "bedroom", "type": "bedroom", "rect": Rect2(0, 0, 300, 340) },
 			{ "key": "bedroom_2", "type": "bedroom", "rect": Rect2(300, 0, 300, 340) },
@@ -87,13 +106,21 @@ const PLANS := {
 			{ "pos": Vector2(220, 680), "width": 60.0, "front": true },  # living room, exterior
 			{ "pos": Vector2(440, 510), "width": 52.0 },  # living <-> kitchen
 			{ "pos": Vector2(150, 340), "width": 52.0 },  # living <-> bedroom
-			{ "pos": Vector2(370, 340), "width": 52.0 },  # living <-> bedroom_2
+			{
+				"pos": Vector2(370, 340),
+				"width": 52.0,
+				"door": false,
+			},  # living <-> bedroom_2, an open nook
 			{ "pos": Vector2(600, 170), "width": 52.0 },  # bedroom_2 <-> bathroom (en-suite)
 		],
 	},
 
 	"office_loft": {
 		"wall_thickness": 12.0,
+		"door_sets": {
+			"front": ["steel_riveted", "steel_peephole"],
+			"office": ["glass_panes"],
+		},
 		"rooms": [
 			{ "key": "great_room", "type": "kitchen_living", "rect": Rect2(0, 0, 660, 440) },
 			{ "key": "home_office", "type": "home_office", "rect": Rect2(660, 0, 340, 240) },
@@ -101,7 +128,12 @@ const PLANS := {
 		],
 		"openings": [
 			{ "pos": Vector2(330, 440), "width": 60.0, "front": true },  # great room, exterior
-			{ "pos": Vector2(660, 120), "width": 52.0 },  # great <-> office
+			{
+				"pos": Vector2(660, 120),
+				"width": 52.0,
+				"door": true,
+				"door_set": "office",
+			},  # great <-> office
 			{ "pos": Vector2(660, 340), "width": 52.0 },  # great <-> bathroom
 		],
 	},
@@ -149,6 +181,7 @@ const PLANS := {
 	# end.
 	"railroad_flat": {
 		"wall_thickness": 12.0,
+		"door_sets": { "front": ["steel_riveted", "steel_peephole"] },
 		"rooms": [
 			{
 				"key": "security_vestibule",
@@ -170,6 +203,7 @@ const PLANS := {
 	# A micro-flat: one studio, a tiny bathroom and a kitchenette off it.
 	"micro_flat": {
 		"wall_thickness": 12.0,
+		"door_sets": { "front": ["steel_riveted", "steel_peephole"] },
 		"rooms": [
 			{ "key": "studio", "type": "studio", "rect": Rect2(0, 0, 560, 460) },
 			{ "key": "bathroom", "type": "bathroom", "rect": Rect2(560, 0, 260, 230) },
@@ -186,6 +220,7 @@ const PLANS := {
 	# bedroom, bathroom and kitchenette are round it.
 	"corner_flat": {
 		"wall_thickness": 12.0,
+		"door_sets": { "front": ["steel_riveted", "steel_peephole"] },
 		"rooms": [
 			{ "key": "living_room", "type": "living_room", "rect": Rect2(0, 0, 420, 340) },
 			{ "key": "bedroom", "type": "bedroom", "rect": Rect2(420, 0, 340, 340) },
@@ -204,7 +239,7 @@ const PLANS := {
 			{ "pos": Vector2(320, 340), "width": 52.0 },  # hallway <-> living room
 			{ "pos": Vector2(620, 340), "width": 52.0 },  # hallway <-> bedroom
 			{ "pos": Vector2(220, 405), "width": 52.0 },  # hallway <-> bathroom
-			{ "pos": Vector2(630, 470), "width": 52.0 },  # hallway <-> kitchenette
+			{ "pos": Vector2(630, 470), "width": 52.0, "door": true },  # hallway <-> kitchenette
 		],
 	},
 }

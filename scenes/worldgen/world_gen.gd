@@ -9,9 +9,10 @@ class_name WorldGen
 
 
 ## Build a house and return its root Node2D (parented under `parent`). `rng_seed` of 0 picks a
-## fresh random layout each run; `force_plan` ("" = random) pins a specific floorplan. Every
-## doorway is an open archway; the house has one front entrance (on its south wall) and, in most
-## floorplans, a back/side/garage exit.
+## fresh random layout each run; `force_plan` ("" = random) pins a specific floorplan. A doorway
+## holds a door as the floorplan's rules roll (`get_doors`) and is an open archway otherwise; the
+## house has one front entrance (on its south wall) and, in most floorplans, a back/side/garage
+## exit.
 static func generate(
 	rng_seed: int,
 	force_plan: String,
@@ -29,8 +30,9 @@ static func generate(
 
 ## Describe a hand-laid layout `root` the way a generated house describes itself, so `get_rooms`,
 ## `get_openings` and the nav builder read it unchanged. `rooms` are `{ key, type, rect }` in WORLD
-## space; `doors` are `{ pos, width }` in world space, and a door on one room's wall only is the
-## front entrance. For the Testing domain's arenas and room layouts.
+## space; `doors` are `{ pos, width, door? }` in world space (a `door` entry says a door stands in
+## it: the opening reports `door` true), and a door on one room's wall only is the front entrance.
+## For the Testing domain's arenas and room layouts.
 static func annotate_layout(root: Node2D, rooms: Array, doors: Array = []) -> void:
 	root.set_meta("rooms", rooms)
 	var openings: Array = []
@@ -43,6 +45,7 @@ static func annotate_layout(root: Node2D, rooms: Array, doors: Array = []) -> vo
 			"exit": false,
 			"rooms": keys,
 			"outward": HouseSpawner.outward_on(rooms, door),
+			"door": door.has("door"),
 		})
 	root.set_meta("openings", openings)
 
@@ -102,6 +105,16 @@ static func get_streetlights(house: Node2D) -> Array:
 	if house == null:
 		return []
 	return house.get_meta("streetlights", [])
+
+
+## The doors a generated house was built with as an Array of { node, opening, material, style }:
+## `node` the `Door` (interface 24), `opening` the doorway's entry of `get_openings` it stands in,
+## `material` and `style` its catalogue definition's. Empty for a null house, a hand-laid layout or
+## a house built with `worldgen.doors` off.
+static func get_doors(house: Node2D) -> Array:
+	if house == null:
+		return []
+	return house.get_meta("doors", [])
 
 
 ## The bounding box of `rooms`' rects (`{ rect, ... }` dicts, any one frame), a zero Rect2 for none.

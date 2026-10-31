@@ -48,6 +48,8 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	# Doors off until #159 makes this family door-aware.
+	s.switch(&"worldgen.doors", false)
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
 	s.actor(&"me", &"player", HUMAN_START, { "max_health": 1_000_000.0 })

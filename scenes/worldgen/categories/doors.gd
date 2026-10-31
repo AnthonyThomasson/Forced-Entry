@@ -43,3 +43,8 @@ const DOORS := {
 ## The definition of the door of `material` in `style`, or {} if the catalogue has none.
 static func definition(material: String, style: String) -> Dictionary:
 	return DOORS.get("%s_%s" % [material, style], {})
+
+
+## The definition of the door keyed `key` (`DOORS`' key, e.g. `steel_riveted`), or {} if none.
+static func by_key(key: String) -> Dictionary:
+	return DOORS.get(key, {})

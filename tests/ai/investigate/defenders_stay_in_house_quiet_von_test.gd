@@ -31,6 +31,8 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	# Doors off until #159 makes this family door-aware.
+	s.switch(&"worldgen.doors", false)
 	House.house(s, SEED, DEFENDERS, INVADERS)
 
 

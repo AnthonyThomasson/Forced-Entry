@@ -38,6 +38,8 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	# Doors off until #159 makes this family door-aware.
+	s.switch(&"worldgen.doors", false)
 	s.von_script([{ "pick": "search" }])
 	s.switch(&"ai.hostile_on_trespass", false)   # nobody to fight: the NPCs just weigh rooms
 

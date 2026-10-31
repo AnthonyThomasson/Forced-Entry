@@ -51,6 +51,8 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	# Doors off until #159 makes this family door-aware.
+	s.switch(&"worldgen.doors", false)
 	s.house(4, "one_bed_flat")
 	Entry.rules(s, DOOR)
 	Entry.npc(s, &"walker", START)

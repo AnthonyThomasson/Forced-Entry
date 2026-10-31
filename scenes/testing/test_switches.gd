@@ -60,6 +60,11 @@ static var ROWS := {
 		"description": "NPCs crouch while fighting in place (off = they always stand).",
 		"actor": { "controller": true, "props": ["tuning:pace:posture_enabled"] },
 	},
+	&"worldgen.doors": {
+		"description": "A generated house is built with its doors (off = the doorways stay open "
+			+ "archways).",
+		"static": [[WorldGenDoorConfig, &"enabled"]],
+	},
 	&"nav.rebake": {
 		"description": "The navmesh is re-carved as furniture is shoved around.",
 		"world": { "node": "NavUpdater", "props": ["enabled"] },

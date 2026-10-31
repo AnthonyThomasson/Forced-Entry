@@ -8,7 +8,8 @@ research behind the numbers is `docs/research/doors-in-room-entry.md` (scale: 1 
 follow-up ticket #159 and is not in this spec.
 
 Rules marked "(later stage)" are the spec of work still to come: their text is the brief's, their tests are written with
-the stage that builds them, and each section grows from one line to its full rule then.
+the stage that builds them, and each section grows from one line to its full rule then. The doors of the old AI families'
+scenario tests are switched off (`worldgen.doors`) until #159 makes those families door-aware.
 
 ## DR1. Doorway size
 
@@ -22,23 +23,61 @@ Tests: `worldgen/doorway_widths` (every floorplan, both mirror states: 52 px ins
 `get_openings`; the widths are the brief's numbers, kept in the test), `worldgen/house_doorways_connected`,
 `worldgen/layout_rules`, `worldgen/house_rooms_furnished`.
 
-## DR2. Which doorways get a door (later stage)
+## DR2. Which doorways get a door
 
-The front and exit doorways always get a door; an interior doorway's chance comes from its more private room's type (bathroom,
-netrunner den: always; bedroom, office, ripperdoc: mostly; kitchen, living spaces, studio: rarely; between two hallways:
-never). A house definition may force or forbid a door on one opening and name its door sets. The roll is seeded per door from
-the run seed in a stream of its own, so a seed's furniture layout never moves.
+The front and the `exit` doorways always get a door. An interior doorway's chance comes from its more private room's type
+(`DoorRules.ROOMS`: each room type's `rank`, how private it is, and `chance`; the doorway's chance is that of the higher-ranked
+of its two rooms, the larger when both rank alike):
 
-## DR3. Swing and hinge (later stage)
+| Room type | Rank | Chance |
+|---|---|---|
+| bathroom, netrunner den | 4 | 1.0 (always) |
+| bedroom, home office, ripperdoc | 3 | 0.85 (mostly) |
+| garage, laundry room | 2 | 0.5 |
+| kitchen, kitchenette, living room, kitchen-living, studio, security vestibule | 1 | 0.15 (rarely) |
+| hallway | 0 | 0.0 (so between two hallways: never) |
 
-A door opens one way only. An interior door swings into its more private room (a tie: seeded), an exterior door into the house.
-Its hinge sits on the jamb nearer that room's corner (a tie: seeded), so the fully open leaf (90°) lies along the wall. The
-swing arc is kept free of furniture, clutter and the neon tube as the doorway clearance is. A mirrored plan mirrors its hinges.
+A floorplan may force or forbid a door on one opening, a front or exit one too (its say wins; the plans use it only inside) (`door: true` / `false` on the opening in `HouseDefinitions`; the plans use
+it for a nook left open between the great room and a bedroom, a kitchen door forced, a glass office door forced) and names its
+door sets (`door_sets`: the `DoorCatalog` doors its `front`, `exit` and `interior` doors draw from, and any set an opening's
+`door_set` picks, such as the patio's or the office's). With none named, a kind draws from `DoorRules.SETS`: solid wood
+(panelled, plank) at the street and at an exit, hollow-core (flush, panelled) inside. The flats and the loft (`studio_flat`,
+`one_bed_flat`, `two_bed_flat`, `office_loft`, `railroad_flat`, `micro_flat`, `corner_flat`) have steel doors (riveted, peephole)
+at the street; the houses solid wood; `open_plan_home`'s patio exit and `office_loft`'s office door are glass-panel.
 
-## DR4. State at the start (later stage)
+Each doorway rolls from a stream of its own, `hash([run seed, "doors", its index in the plan])`, that always draws the same values
+(the chance, the two ties, the door of its set, its start state and angle) whatever it turns out to be, so a door never shifts
+another's roll nor the furniture layout of the seed: it is the same with `worldgen.doors` off (the switch, `WorldGenDoorConfig`,
+which builds no doors and leaves the doorways as open archways) as on. The house reports each opening's `door` and its doors
+(`WorldGen.get_openings`, `WorldGen.get_doors`: `{ node, opening, material, style }`).
 
-Front and exit doors start shut. An interior door is seeded per door: shut, ajar (15 to 35°) or open, by weights
-(0.6 / 0.15 / 0.25).
+Tests: `worldgen/door_placement` (every floorplan, both mirror states: front and exits always a door, a bathroom and a netrunner
+den always, bedrooms, offices and ripperdocs mostly, kitchens, living spaces and studios rarely, a forced and a forbidden opening
+held, the doors drawn from the house's sets, the furniture the same with the switch off), `worldgen/door_rules_suite` (the rules
+table: two hallways never share a door, which no floorplan builds).
+
+## DR3. Swing and hinge
+
+A door opens one way only. An interior door swings into its more private room (the higher `DoorRules` rank; a tie: seeded), an
+exterior door into the house. Its hinge sits on the jamb nearer that room's corner along the wall (in the middle of the wall:
+seeded), 6 px in from the gap's edge, where the walls' ends stand, so the fully open leaf (`open_angle`, 90°) lies out from that
+jamb along the wall. A mirrored plan mirrors its hinges, as the doorway is mirrored with the rooms. The swing arc (a quarter disc,
+the leaf's length, from the hinge across the doorway into the room) is kept free of furniture, clutter and the neon tube as the
+doorway clearance is: it lies inside that box (`HouseSpawner.OPENING_CLEARANCE` deep each side of the wall, as wide as the
+doorway), which the furnisher and the dresser keep clear, so no plan was re-laid for it. The fit is tight at the front and exits (the
+open leaf reaches 50 px out and 30 px along from the doorway's middle, exactly the box), so a change to the clearance, the leaf or the
+doorway widths is caught by the test, not by the spawner.
+
+Tests: `worldgen/door_swing_and_hinge` (every floorplan, both mirror states: the swing room, the hinge on the corner jamb, the open
+leaf along the wall, no furniture, clutter or neon tube in the arc, both outcomes of a tie).
+
+## DR4. State at the start
+
+Front and exit doors start shut. An interior door is seeded per door, from its own stream (DR2): shut, ajar (15 to 35°) or open
+(`open_angle`), by the weights `DoorRules.START_WEIGHTS` (0.6 / 0.15 / 0.25).
+
+Tests: `worldgen/door_start_state` (front and exits shut, interior doors in all three states by the weights over the seeds, the
+same per seed).
 
 ## DR5. What a door blocks
 

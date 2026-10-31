@@ -5,8 +5,8 @@ class_name HouseSpawner
 ## (RoomDresser) and each room's floor (via FloorFactory, the one its furnishing palette names);
 ## then, once every room stands, each room's wear (RoomDresser, through WearFactory), the street
 ## ring round the house (FloorFactory) and the street lamps along its front (ObjectFactory), clear
-## of its doorways. The house is positioned so its front entrance lands on a point. A plan may also
-## carry `exit` openings (a back/side/garage door).
+## of its doorways, and each doorway's door (HouseDoors). The house is positioned so its front
+## entrance lands on a point. A plan may also carry `exit` openings (a back/side/garage door).
 
 ## Kept free of furniture on each side of a doorway opening.
 const OPENING_CLEARANCE := 50.0
@@ -23,8 +23,9 @@ const OUTWARD := {
 
 
 ## Build the named floorplan under `parent`, positioned so its front entrance lands on
-## `front_entrance_world`. `rng` drives every random choice. Every doorway is left as a plain open
-## archway. Returns the house root.
+## `front_entrance_world`. `rng` drives every random choice (the doors roll from streams of their
+## own). A doorway with no door (`worldgen.doors` off, or the roll) is a plain open archway. Returns
+## the house root.
 static func spawn(
 	plan_key: String,
 	front_entrance_world: Vector2,
@@ -53,6 +54,27 @@ static func spawn(
 	house.position = front_entrance_world - (front[0]["pos"] as Vector2)
 	parent.add_child(house)
 
+	var built := _build_rooms(plan, rooms, openings, house, rng)
+	var world_openings := _openings_world(rooms, openings, house.position)
+	house.set_meta("rooms", _rooms_world(rooms, house.position))
+	house.set_meta("openings", world_openings)
+	house.set_meta("doors", HouseDoors.build(plan, rooms, openings, house, rng.seed))
+	house.set_meta("clutter", built["clutter"])
+	house.set_meta("wear", built["wear"])
+	house.set_meta("street", _street(rooms, house, rng.seed))
+	house.set_meta("streetlights", _streetlights(rooms, openings, house, rng.seed))
+	return house
+
+
+## Every room of `plan` built under `house` (`_build_room`), then their wear: `{ clutter, wear }`,
+## the clutter as `[{ room, key, node }]` and the wear as `[{ room, pos, layer }]`.
+static func _build_rooms(
+	plan: Dictionary,
+	rooms: Array,
+	openings: Array,
+	house: Node2D,
+	rng: RandomNumberGenerator,
+) -> Dictionary:
 	var blocked := _opening_clearances(rooms, openings)
 	var clutter_world: Array = []
 	## Per room, for the wear pass: `[site, floor definition]`.
@@ -61,15 +83,7 @@ static func spawn(
 		var site := _site(room, plan["wall_thickness"], blocked, rng.seed)
 		dressing.append([site, _build_room(site, openings, rng, house, clutter_world)])
 	# Wear after every room stands, so a mark on a shared wall draws over both rooms' caps.
-	var wear_world := _wear(dressing, openings, house)
-
-	house.set_meta("rooms", _rooms_world(rooms, house.position))
-	house.set_meta("openings", _openings_world(rooms, openings, house.position))
-	house.set_meta("clutter", clutter_world)
-	house.set_meta("wear", wear_world)
-	house.set_meta("street", _street(rooms, house, rng.seed))
-	house.set_meta("streetlights", _streetlights(rooms, openings, house, rng.seed))
-	return house
+	return { "clutter": clutter_world, "wear": _wear(dressing, openings, house) }
 
 
 ## A room of the plan as RoomFurnisher and RoomDresser read it (its furniture node not built yet).
@@ -347,9 +361,10 @@ static func _street_pieces(bounds: Rect2) -> Array:
 	]
 
 
-## Every doorway as `{ pos, width, front, exit, rooms, outward }` in WORLD space; `rooms` are the
-## keys of the rooms whose wall it cuts (one for the front entrance or an exit, two for an interior
-## door) and `outward` the way out of each of them through it (`outward_on`, in `rooms`' order).
+## Every doorway as `{ pos, width, front, exit, rooms, outward, door }` in WORLD space; `rooms` are
+## the keys of the rooms whose wall it cuts (one for the front entrance or an exit, two for an
+## interior door), `outward` the way out of each of them through it (`outward_on`, in `rooms`'
+## order) and `door` whether a door stands in it (false here: `HouseDoors.build` sets it).
 static func _openings_world(rooms: Array, openings: Array, origin: Vector2) -> Array:
 	var result: Array = []
 	for opening in openings:
@@ -357,7 +372,7 @@ static func _openings_world(rooms: Array, openings: Array, origin: Vector2) -> A
 			"pos": origin + (opening["pos"] as Vector2), "width": opening["width"],
 			"front": opening.get("front", false), "exit": opening.get("exit", false),
 			"rooms": room_keys_on(rooms, opening),
-			"outward": outward_on(rooms, opening),
+			"outward": outward_on(rooms, opening), "door": false,
 		})
 	return result
 
