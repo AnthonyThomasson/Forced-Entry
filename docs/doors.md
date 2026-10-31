@@ -239,3 +239,16 @@ Tests: `ai/movement/door_in_the_way` (real Von, hand-laid house: two invaders se
 from the latch side, goes in, leaves it open, the room not searched while it was shut), `ai/movement/door_blocked_rerouted` (real
 Von: a chair in the swing holds the nearer door shut, the walk is a blocked one and the defender goes in by the other doorway),
 `ai/movement/door_second_walker_leaves_open` (real Von: two defenders reach the door together; the leaf never turns back toward shut).
+
+## Trying doors by hand
+
+The **Gun range** sandbox (`sandboxes/player_gun_range_sandbox.gd`, from Tests → Sandboxes; never run by the suite, nothing asserted)
+has four small rooms built onto the outside of the range's north wall (y < 0), 240 px square side by side from x -360 to 600, each
+opening onto the range through a 52 px doorway, and a 52 px doorway between each neighbouring pair: all seven catalogue doors once.
+On the range side, each with a floor label naming its material: a hollow-core `flush` door (shut, swinging into its room), a solid
+wood `panelled` one (ajar, swinging out into the range), a steel `riveted` one (shut, swinging into its room) and a glass-panel
+`panes` one (shut, swinging into its room, with a dummy inside it seen through the panes). Between the rooms: a hollow `panelled`
+door (shut), a solid `plank` one (ajar) and a steel `peephole` one (open). Tap E beside a door to open or shut it (DR6), hold E and
+scroll to open it by steps (DR7), kick it (V) from the push side to burst its latch (DR10; hollow gives to the second kick, steel to
+none), shoot or kick a door down (DR9, DR11; the pistol stops in steel, the rifle does not) and shoot out the glass door's panes
+(DR9).

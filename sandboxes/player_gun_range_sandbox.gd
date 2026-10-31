@@ -21,6 +21,17 @@ extends GameTest
 ## shot that takes it in the flank (lane 9). The label on the floor under each dummy keeps its
 ## outfit (the debug panel's wording), plate condition and health current. A shoved dummy walks back
 ## to its spot.
+##
+## North of the range, built onto the outside of its north wall (y < 0), is a row of four small
+## rooms with doors (docs/doors.md), seven doors in all, one of each catalogue door. Each room opens
+## onto the range through a doorway with a door whose material a floor label beside it names: a
+## hollow-core flush door (shut, swinging into its room), a solid wood panelled one (ajar, swinging
+## out into the range), a riveted steel one (shut: the tough one to kick or shoot open) and a
+## glass-panel one (shut, with a dummy inside the room, seen through the panes). Between the rooms
+## a hollow panelled door (shut), a solid plank door (ajar) and a steel peephole door (open) join
+## each pair. E opens and shuts a door in reach, held E and the wheel open it by steps; kick it
+## from the push side (the side it swings away from) to burst its latch, shoot or kick it down, and
+## shoot the glass door's panes to shatter them.
 
 const OutfitLines := preload("res://scenes/ui/hud/outfit_lines.gd")
 const ARENA := Rect2(-680, 0, 1680, 1300)
@@ -40,6 +51,56 @@ const RESTOCK_AFTER := 2.0
 ## its west face, the far side from the player, a body's width and a little off it.
 const COUCH := Vector2(-120, 320)
 const CROUCHED := Vector2(-165, 320)
+## The doors' rooms: four side by side over the range's north wall (y = 0), each `ROOM_SIZE` px
+## square, the first starting at x = `ROOMS_X`. Every doorway is `DOORWAY` px wide; the walls' ends
+## reach 6 px into it, so the free gap between the jambs is 40 px and a door's hinge sits `JAMB` px
+## from the doorway's middle (docs/doors.md DR3).
+const ROOM_SIZE := 240.0
+const ROOMS_X := -360.0
+const DOORWAY := 52.0
+const JAMB := 20.0
+## The doorways onto the range, one per room in order: the room's door (a `DoorCatalog` material and
+## style), the side its hinge is on (-1 the west jamb, 1 the east), where it swings (`into`: UP into
+## its room, DOWN out into the range), its start angle (0 shut, else ajar), and the words on its
+## floor label.
+const RANGE_DOORS := [
+	{
+		"name": "door_flush", "material": "hollow", "style": "flush", "hinge": -1.0,
+		"into": Vector2.UP, "angle": 0.0, "title": "Hollow-core wood", "note": "flush, shut",
+	},
+	{
+		"name": "door_solid_panelled", "material": "solid", "style": "panelled", "hinge": 1.0,
+		"into": Vector2.DOWN, "angle": 30.0, "title": "Solid wood",
+		"note": "panelled, ajar, swings out",
+	},
+	{
+		"name": "door_riveted", "material": "steel", "style": "riveted", "hinge": -1.0,
+		"into": Vector2.UP, "angle": 0.0, "title": "Steel", "note": "riveted, shut",
+	},
+	{
+		"name": "door_panes", "material": "glass", "style": "panes", "hinge": 1.0,
+		"into": Vector2.UP, "angle": 0.0, "title": "Glass-panel", "note": "panes, shut: look in",
+	},
+]
+## The doorways between neighbouring rooms, first to last: the door, the y of its hinge (on the
+## north or south jamb of the doorway at y = -`ROOM_SIZE` / 2), the side it swings to (`into`) and
+## its start angle (shut, ajar, open).
+const ROOM_DOORS := [
+	{
+		"name": "door_hollow_panelled", "material": "hollow", "style": "panelled",
+		"hinge_y": -140.0, "into": Vector2.RIGHT, "angle": 0.0,
+	},
+	{
+		"name": "door_plank", "material": "solid", "style": "plank", "hinge_y": -100.0,
+		"into": Vector2.LEFT, "angle": 25.0,
+	},
+	{
+		"name": "door_peephole", "material": "steel", "style": "peephole", "hinge_y": -140.0,
+		"into": Vector2.RIGHT, "angle": 90.0,
+	},
+]
+## The dummy standing in the glass-panel door's room, facing the doorway, seen through the panes.
+const GLASS_DUMMY := Vector2(480, -110)
 ## The lineup, lane by lane: what it is, what it wears and which way it faces (the firing line is
 ## north of it).
 const LANES := [
@@ -107,27 +168,33 @@ func describe() -> Dictionary:
 	return {
 		"name": "Gun range",
 		"description": "Player-controlled sandbox: WASD to move, mouse to aim, LMB to fire (hold "
-			+ "it for the SMG and rifle) or throw, R to reload, F to punch, V to kick, 2 fists, 3 "
-			+ "pistol, 5 SMG, 6 rifle, 7 stun grenades, 8 frag grenades (3 of each, topped back "
-			+ "up 2 s after the last one goes off; the range restocks the guns and spare "
-			+ "magazines with them). Press a long gun against a wall or a chair to see it raised. "
-			+ "West of the start a dummy crouches behind a couch: throw a grenade short of the "
-			+ "couch to see its cover, over it to see none. South of it, the armour range: nine "
-			+ "lanes off a firing line, each dummy (1000 health) in one outfit — plain clothes, "
-			+ "helmet, tactical vest, plate carrier empty and with soft IIIA, steel III or "
-			+ "ceramic IV, the invader kit turned away (back plate) and a ceramic carrier side on "
-			+ "(flank). Shoot each from its lane mark, watch its plates wear on the floor label "
-			+ "and compare front, back and flank.",
+			+ "it for the SMG and rifle) or throw, R to reload, F to punch, V to kick, E to use a "
+			+ "door, 2 fists, 3 pistol, 5 SMG, 6 rifle, 7 stun grenades, 8 frag grenades (3 of "
+			+ "each, topped back up 2 s after the last one goes off; the range restocks the guns "
+			+ "and spare magazines with them). Press a long gun against a wall or a chair to see "
+			+ "it raised. West of the start a dummy crouches behind a couch: throw a grenade short "
+			+ "of the couch to see its cover, over it to see none. South of it, the armour range: "
+			+ "nine lanes off a firing line, each dummy (1000 health) in one outfit — plain "
+			+ "clothes, helmet, tactical vest, plate carrier empty and with soft IIIA, steel III "
+			+ "or ceramic IV, the invader kit turned away (back plate) and a ceramic carrier side "
+			+ "on (flank). Shoot each from its lane mark, watch its plates wear on the floor label "
+			+ "and compare front, back and flank. North of the range, built onto its north wall, "
+			+ "four small rooms with seven doors, one of each material and style, a floor label "
+			+ "naming each door that opens onto the range: tap E beside a door to open or shut "
+			+ "it, hold E and scroll to open it by steps, kick it (V) from the push side, the side "
+			+ "it swings away from, to burst its latch (hollow: two kicks, steel: never), shoot a "
+			+ "door down (steel stops the pistol, not the rifle), and look through the glass "
+			+ "door's panes at the dummy in its room, then shoot them out.",
 		"tags": [
 			"sandbox", "player", "gun", "pistol", "smg", "rifle", "grenade", "stun", "frag",
-			"cover", "outfit", "armour", "plate",
+			"cover", "outfit", "armour", "plate", "door",
 		],
 		"manual": true,
 	}
 
 
 func configure(s: TestSetup) -> void:
-	s.arena(ARENA, { "floor": "concrete" })
+	s.layout(_rooms(), _doorways())
 	s.actor(&"you", &"player", Vector2(240, 320), { "start_slot": 6 })
 	s.actor(&"dummy_a", &"puppet", Vector2(700, 200), { "max_health": 200.0, "faction": &"dummy" })
 	s.actor(&"dummy_b", &"puppet", Vector2(760, 440), { "max_health": 200.0, "faction": &"dummy" })
@@ -148,6 +215,8 @@ func configure(s: TestSetup) -> void:
 		var facing: Vector2 = LANES[i]["facing"]
 		s.actor(_lane_id(i), &"puppet", home, { "max_health": DUMMY_HEALTH, "faction": &"dummy",
 			"facing": facing, "movement:aim_point": home + facing * 300.0 })
+	s.actor(&"dummy_glass", &"puppet", GLASS_DUMMY, { "max_health": 200.0, "faction": &"dummy",
+		"facing": Vector2.DOWN, "movement:aim_point": GLASS_DUMMY + Vector2.DOWN * 300.0 })
 	s.camera_follow([&"you"])
 
 
@@ -164,6 +233,13 @@ func run(t: TestContext) -> void:
 	t.puppet(&"crouched").aim_at(CROUCHED + Vector2.RIGHT * 300.0)
 	t.world.add_child(cover)
 	cover.global_position = CROUCHED
+	t.puppet(&"dummy_glass").aim_at(GLASS_DUMMY + Vector2.DOWN * 300.0)
+	for i in RANGE_DOORS.size():
+		var door_sign := DoorSign.new()
+		door_sign.name = "Door%dSign" % (i + 1)
+		door_sign.setup(RANGE_DOORS[i])
+		t.world.add_child(door_sign)
+		door_sign.global_position = Vector2(_room_centre_x(i), 0.0)
 	for i in LANES.size():
 		var lane: Dictionary = LANES[i]
 		var dummy := t.actor(_lane_id(i))
@@ -176,6 +252,50 @@ func run(t: TestContext) -> void:
 		station.setup(dummy, puppet, i + 1, lane)
 		t.world.add_child(station)
 		station.global_position = home
+
+
+## The layout's rooms: the range over `ARENA` (a concrete floor, the arena's walls) and the four
+## rooms of the doors along the outside of its north wall, each sharing that wall with it.
+static func _rooms() -> Array:
+	var rooms: Array = [{ "key": "range", "type": "arena", "rect": ARENA, "floor": "concrete" }]
+	for i in RANGE_DOORS.size():
+		var room_name: String = (RANGE_DOORS[i]["name"] as String).trim_prefix("door_")
+		rooms.append({
+			"key": "%s_room" % room_name, "type": "living_room",
+			"rect": Rect2(ROOMS_X + ROOM_SIZE * i, -ROOM_SIZE, ROOM_SIZE, ROOM_SIZE),
+		})
+	return rooms
+
+
+## The seven doorways: the four onto the range through the north wall (y = 0), then the three
+## between neighbouring rooms through their shared walls, each with its door.
+static func _doorways() -> Array:
+	var doorways: Array = []
+	for i in RANGE_DOORS.size():
+		var spec: Dictionary = RANGE_DOORS[i]
+		var middle := Vector2(_room_centre_x(i), 0.0)
+		doorways.append(_doorway(middle, spec, middle + Vector2(JAMB * float(spec["hinge"]), 0.0)))
+	for i in ROOM_DOORS.size():
+		var spec: Dictionary = ROOM_DOORS[i]
+		var middle := Vector2(ROOMS_X + ROOM_SIZE * (i + 1), -ROOM_SIZE * 0.5)
+		doorways.append(_doorway(middle, spec, Vector2(middle.x, float(spec["hinge_y"]))))
+	return doorways
+
+
+## A doorway at `middle` holding the door `spec` names, hinged at `hinge`.
+static func _doorway(middle: Vector2, spec: Dictionary, hinge: Vector2) -> Dictionary:
+	return {
+		"pos": middle, "width": DOORWAY,
+		"door": {
+			"name": spec["name"], "material": spec["material"], "style": spec["style"],
+			"hinge": hinge, "swing_into": spec["into"], "angle": spec["angle"],
+		},
+	}
+
+
+## The x of the middle of room `i` (and of its doorway onto the range).
+static func _room_centre_x(i: int) -> float:
+	return ROOMS_X + ROOM_SIZE * (i + 0.5)
 
 
 ## Where lane `i`'s dummy stands.
@@ -299,6 +419,40 @@ class CoverSpot extends Node2D:
 	func setup(dummy: Node2D, puppet: Node) -> void:
 		_dummy = dummy
 		_puppet = puppet
+		z_index = -1  # on the floor, under the bodies
+
+
+## A range-side door's floor label, drawn on the range just south of the doorway: the door's
+## material, then its style and how it starts.
+class DoorSign extends Node2D:
+	const FONT_SIZE := 10
+	## px south of the wall where the two lines' baselines are.
+	const TOP := 40.0
+	const LINE := 11.0
+	const TEXT := Color(0.92, 0.92, 0.86)
+	const MUTED := Color(0.72, 0.74, 0.70)
+
+	var _lines: Array[String] = []
+
+	func _draw() -> void:
+		var font := ThemeDB.fallback_font
+		for i in _lines.size():
+			var at := Vector2(
+				-font.get_string_size(_lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x * 0.5,
+				TOP + LINE * i,
+			)
+			draw_string_outline(
+				font, at, _lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, 3,
+				Color(0, 0, 0, 0.85),
+			)
+			draw_string(
+				font, at, _lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE,
+				TEXT if i == 0 else MUTED,
+			)
+
+	## Label the door `spec` (a `RANGE_DOORS` row).
+	func setup(spec: Dictionary) -> void:
+		_lines = [str(spec["title"]), str(spec["note"])]
 		z_index = -1  # on the floor, under the bodies
 
 
