@@ -18,6 +18,11 @@ const LEADERS := "show_leaders"
 const PERF := "show_perf"
 ## Flags that belong to one global overlay rather than to every NPC.
 const GLOBAL := [NAV_HOLES, LEADERS, PERF]
+## The scopes of the per-NPC overlays, in the order the bar offers them: `selected` (only the
+## spectator's selected NPC), `defenders`, `invaders` and `all`.
+const SCOPES := ["selected", "defenders", "invaders", "all"]
+## The faction (`Character.faction`) each side scope names.
+const SIDE_FACTIONS := { "defenders": &"household", "invaders": &"invader" }
 ## `{ flag, label, group, default }` rows, in display order, grouped for the toggle bar.
 const ENTRIES := [
 	{ "flag": "show_vision", "label": "Vision cones", "group": "Perception", "default": false },
@@ -63,6 +68,14 @@ static func apply(npc: Node, flags: Dictionary) -> void:
 				touched = true
 		if touched and child.has_method("queue_redraw"):
 			child.queue_redraw()
+
+
+## Whether `npc` is in `scope`: `all` takes every NPC, `defenders` / `invaders` the NPCs of that
+## side's faction; `selected` takes none (the spectator inspector adds the NPC it has selected).
+static func in_scope(npc: Node, scope: String) -> bool:
+	if scope == "all":
+		return true
+	return SIDE_FACTIONS.has(scope) and npc.get("faction") == SIDE_FACTIONS[scope]
 
 
 ## Whether `flag` drives a single global overlay instead of each NPC's.

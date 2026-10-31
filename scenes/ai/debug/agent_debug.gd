@@ -48,6 +48,12 @@ func _paint() -> void:
 		_draw_label(_controller.debug_status())
 
 
+## The decision path the label shows, for the detail card; none while the NPC has none.
+func card_lines() -> PackedStringArray:
+	var text: String = _controller.debug_status()
+	return PackedStringArray([text]) if text != "" else PackedStringArray()
+
+
 ## Draw the agent's remaining navigation path as a polyline, a dot at each waypoint, and a ring at
 ## the final target. Nothing is drawn when the path has no remaining segment (an idle/arrived NPC).
 func _draw_path() -> void:
@@ -74,4 +80,4 @@ func _draw_label(text: String) -> void:
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, LABEL_FONT_SIZE)
 	var width: float = text_size.x
 	var pos := Vector2(-width / 2.0, label_offset)
-	DebugText.string(self, pos, text, LABEL_FONT_SIZE, label_color)
+	_say(pos, text, LABEL_FONT_SIZE, label_color)

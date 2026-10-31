@@ -37,6 +37,27 @@ func _on() -> bool:
 	return show_entry
 
 
+## The status the badge and the timer labels say, one line each, for the detail card; none while no
+## entry is running.
+func card_lines() -> PackedStringArray:
+	var out := PackedStringArray()
+	var view: Dictionary = _controller.debug_entry_view()
+	var e: Dictionary = view.get("entry", {})
+	if e.is_empty():
+		return out
+	out.append(_badge_text(e))
+	for t: Array in _timers(e):
+		out.append(t[0])
+	return out
+
+
+## The entry's words draw in the world only while `text_in_world`: its short tags too, so a
+## spectator match shows the geometry alone.
+func _label(world: Vector2, text: String, color: Color, offset := Vector2(6, -6)) -> void:
+	if text_in_world:
+		super(world, text, color, offset)
+
+
 ## Draws the overlay from the controller's public debug getters.
 func _paint() -> void:
 	var view: Dictionary = _controller.debug_entry_view()
@@ -243,6 +264,16 @@ func _gaze(e: Dictionary) -> void:
 ## wait, the follow gap and the hold.
 func _badge(e: Dictionary) -> void:
 	var me := _character.global_position
+	_label(me, _badge_text(e), DOOR, Vector2(-60, 58))
+	var timers := _timers(e)
+	for i in timers.size():
+		var t: Array = timers[i]
+		_timer_arc(me, 26.0 + 5.0 * i, clampf(t[1], 0.0, 1.0), t[2], 2.5)
+		_label(me, t[0], t[2], Vector2(-60, 76 + 18 * i))
+
+
+## The badge's text for entry view `e`: slot and role, phase, the pie's progress and what was seen.
+func _badge_text(e: Dictionary) -> String:
 	var phase := str(e["phase"])
 	var text := ("ENTRY · slot %d %s · %s"
 			% [e["slot"], e["role"], PHASE_NAMES.get(phase, phase.to_upper())])
@@ -254,7 +285,12 @@ func _badge(e: Dictionary) -> void:
 		text += " · seen %d%%" % roundi(float(e["seen_fraction"]) * 100.0)
 	if phase == "cover" and str(e["covering"]) != "":
 		text += " %s" % e["covering"]
-	_label(me, text, DOOR, Vector2(-60, 58))
+	return text
+
+
+## The running timers of entry view `e`, each `[label, fraction left, colour]`: the ready wait, the
+## follow gap and the hold.
+func _timers(e: Dictionary) -> Array:
 	var timers := []
 	if float(e["ready_left"]) >= 0.0:
 		timers.append([
@@ -274,7 +310,4 @@ func _badge(e: Dictionary) -> void:
 			float(e["hold_left"]) / maxf(float(e["hold_total"]), 0.01),
 			COVER,
 		])
-	for i in timers.size():
-		var t: Array = timers[i]
-		_timer_arc(me, 26.0 + 5.0 * i, clampf(t[1], 0.0, 1.0), t[2], 2.5)
-		_label(me, t[0], t[2], Vector2(-60, 76 + 18 * i))
+	return timers

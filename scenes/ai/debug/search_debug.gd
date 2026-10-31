@@ -49,11 +49,20 @@ func _paint() -> void:
 	draw_arc(target, TARGET_RADIUS, 0.0, TAU, 16, TARGET_COLOR, 2.0)
 	# A seen / total readout beside the NPC, with the seconds the search has left before it gives
 	# up.
-	var seen: int = points.size() - unseen.size()
-	DebugText.string(
-		self,
-		Vector2(TARGET_RADIUS, -TARGET_RADIUS),
-		"searched %d/%d  %.1fs left" % [seen, points.size(), cov.get("budget", 0.0)],
-		FONT_SIZE,
-		UNSEEN_COLOR,
-	)
+	_say(Vector2(TARGET_RADIUS, -TARGET_RADIUS), _readout(cov), FONT_SIZE, UNSEEN_COLOR)
+
+
+## The readout the overlay draws and the detail card shows while the NPC is covering a room: how
+## many of the room's points it has seen and the seconds its search has left; none otherwise.
+func card_lines() -> PackedStringArray:
+	var cov: Dictionary = _controller.debug_search_coverage()
+	if not cov.get("active", false) or (cov.get("points", []) as Array).is_empty():
+		return PackedStringArray()
+	return PackedStringArray([_readout(cov)])
+
+
+## The seen / total readout of coverage `cov` (`debug_search_coverage()`).
+func _readout(cov: Dictionary) -> String:
+	var points: Array = cov.get("points", [])
+	var seen: int = points.size() - (cov.get("unseen", []) as Array).size()
+	return "searched %d/%d  %.1fs left" % [seen, points.size(), cov.get("budget", 0.0)]

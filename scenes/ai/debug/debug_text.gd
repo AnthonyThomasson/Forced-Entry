@@ -13,8 +13,10 @@ const OUTLINE_COLOR := Color(0, 0, 0, 0.95)
 
 
 ## Draw `text` on `canvas` at `pos` with a dark outline, `size` px, in `color` (brightened to at
-## least MIN_ALPHA).
+## least MIN_ALPHA), and tell the canvas it drew it (`note_text`, an overlay's record of its words).
 static func string(canvas: CanvasItem, pos: Vector2, text: String, size: int, color: Color) -> void:
+	if canvas.has_method(&"note_text"):
+		canvas.call(&"note_text", text)
 	var font := ThemeDB.fallback_font
 	var align := HORIZONTAL_ALIGNMENT_LEFT
 	var outline := maxi(MIN_OUTLINE, int(size * OUTLINE_RATIO))

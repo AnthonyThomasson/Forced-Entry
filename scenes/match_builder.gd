@@ -480,7 +480,8 @@ static func build_leader_overlay(world: Node, squads: Dictionary) -> Node2D:
 ## squad leaders on its `leader_overlay` (a world with no squads has none: nothing happens), and
 ## any NPC's own overlay on each NPC among its `combatants` (a character with an AI controller,
 ## interface 7: the human has none of those overlays) through `OverlayRegistry.apply`. The
-## performance flag is the caller's own overlay: nothing here.
+## performance flag is the caller's own overlay: nothing here. A per-NPC flag turns on only the NPCs
+## in the handle's `overlay_scope` (`all` with none): the rest stay off.
 static func set_overlay(handle: Dictionary, flag: String, on: bool) -> void:
 	if flag == OVERLAY_REGISTRY.NAV_HOLES:
 		var nav_debug: Variant = handle.get("nav_debug")
@@ -492,9 +493,25 @@ static func set_overlay(handle: Dictionary, flag: String, on: bool) -> void:
 		if is_instance_valid(overlay):
 			overlay.show_leaders = on
 	elif not OVERLAY_REGISTRY.is_global(flag):
+		var scope: String = handle.get("overlay_scope", "all")
 		for npc: Variant in handle.get("combatants", []):
 			if is_instance_valid(npc) and _controller_of(npc) != null:
-				OVERLAY_REGISTRY.apply(npc, { flag: on })
+				OVERLAY_REGISTRY.apply(npc, { flag: on and OVERLAY_REGISTRY.in_scope(npc, scope) })
+
+
+## Show the per-NPC overlays `flags` (`{ show_<x>: bool }`) on the NPCs of `scope` only
+## (`OverlayRegistry.SCOPES`: `all`, `defenders` or `invaders`) among the match `handle`'s
+## `combatants`, and every other NPC's off, at once (a paused overlay is redrawn by `apply`). The
+## scope is kept on the handle as `overlay_scope`, which `set_overlay` honours from then on; the
+## human (no AI controller) has no overlays to set.
+static func set_overlay_scope(handle: Dictionary, flags: Dictionary, scope: String) -> void:
+	handle["overlay_scope"] = scope
+	var off := {}
+	for flag: String in flags:
+		off[flag] = false
+	for npc: Variant in handle.get("combatants", []):
+		if is_instance_valid(npc) and _controller_of(npc) != null:
+			OVERLAY_REGISTRY.apply(npc, flags if OVERLAY_REGISTRY.in_scope(npc, scope) else off)
 
 
 ## Build the world stage of a match under `world`, the node everything the match builds lives under,
