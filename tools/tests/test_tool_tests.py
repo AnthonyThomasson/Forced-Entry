@@ -82,12 +82,16 @@ class PickTests(unittest.TestCase):
                       "it reads the flags of every script in scenes/testing/")
         self.assertIn("tools.tests.test_gdstyle_reflow", self.modules("gdstyle.toml"))
 
-    def test_a_split_skill_file_or_a_doc_picks_the_skill_pointer_test(self):
-        for path in (".claude/skills/architecture/SKILL.md", ".claude/skills/domain-testing/SKILL.md",
-                     ".claude/skills/domain-testing/perf.md", ".claude/skills/architecture/tuning-holders.md",
-                     ".claude/skills/architecture/interfaces/05-pushable-contract.md", "docs/hearing.md"):
+    def test_a_skill_file_agents_md_or_a_doc_picks_both_skill_tests(self):
+        for path in (".claude/skills/architecture/SKILL.md", ".claude/skills/domain-ui/SKILL.md",
+                     ".claude/skills/domain-testing/perf.md", ".claude/skills/domain-ai/team.md",
+                     ".claude/skills/ticket/bug.md", ".claude/skills/architecture/tuning-holders.md",
+                     ".claude/skills/architecture/interfaces/05-pushable-contract.md", "AGENTS.md",
+                     "docs/agents/issue-tracker.md", "docs/hearing.md"):
             with self.subTest(path=path):
-                self.assertIn("tools.tests.test_skill_pointers", self.modules(path))
+                picked = self.modules(path)
+                self.assertIn("tools.tests.test_skill_pointers", picked)
+                self.assertIn("tools.tests.test_skills", picked)
 
     def test_a_path_a_test_writes_into_a_repo_of_its_own_is_no_read_of_the_checkouts_file(self):
         coverage = {"tools.coverage.tests.test_runner_cli", "tools.coverage.tests.test_instrument",

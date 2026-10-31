@@ -5,7 +5,7 @@ description: Use when editing scenes/projectile/ or working on bullet impacts (f
 
 # Projectile System domain
 
-Owns shooting and a grenade's burst. Specs: `docs/cover-and-stance.md` (H1, H2: bullet height and cover), `docs/outfits.md` (O6 to O9: armour), `docs/grenades.md` (G7 to G12: blast, fragments, flash, bang; G9: friendly fire is on, the thrower is struck like anyone). Tests: `tests/projectile/` (also `tests/physics/frag_blast_pushes`, `tests/character/stun_*`).
+Owns shooting and a grenade's burst. Specs: `docs/cover-and-stance.md` (H1, H2: bullet height and cover), `docs/outfits.md` (O6 to O9: armour), `docs/grenades.md` (G7 to G12: blast, fragments, flash, bang; G9: friendly fire is on, the thrower is struck like anyone). Tests: `tests/projectile/` (also `physics/frag_blast_pushes`, `tests/character/stun_*`).
 
 ## Files
 

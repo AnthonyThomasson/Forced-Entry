@@ -61,7 +61,7 @@ Interfaces: 1 (Main → World Generation, incl. `bounds` and the test reads `get
 - Each room's floor (the `FLOORS` entry its palette names) is built after furnishing over the room rect to the wall centrelines
   (so walls cover the seams). It rides on the palette draw, so it costs no extra RNG and seeds keep their layouts.
 - Every definition sets `art` (a painter id) and usually `art_opts`; catalogue colours stay plain, because Objects grades every
-  colour run down (`domain-objects`, `art.md`).
+  colour run down (`domain-objects` (`art.md`)).
 
 ## Run-down dressing (`room_dresser.gd`): World-Gen places, Objects draws
 

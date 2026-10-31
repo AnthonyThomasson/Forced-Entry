@@ -16,19 +16,20 @@ A folded sub-domain is a side file of its parent skill: `.claude/skills/<skill>/
 | World Generation | `worldgen/` | `domain-worldgen` | Floorplan (front door, exits, hallways), building and furnishing a house, its run-down dressing, the street and its lamps. |
 | Objects | `objects/` | `domain-objects` | Furniture, walls, floors, the street: data, hit / push behaviour, wear and decals, every painter. |
 | Items | `items/` | `domain-items` | What a character holds and does with it (guns, grenades, loadout), and what it wears (outfits). |
-| Character | `character/` | `domain-character`; side file body (`character/body/`) | The player character and its components, built so other character types can exist. |
+| Character | `character/` | `domain-character` (`body.md`; `character/body/`) | The player character and its components, built so other character types can exist. |
 | Interaction | `interaction/` | `domain-interaction` | Finding a reachable object and running one of its actions (sit, lie, …). |
 | Projectile | `projectile/` | `domain-projectile` | Shooting (penetration, armour, damage, cover, ricochet) and a grenade's burst (`Explosion`). |
-| Physics | `physics/` | `domain-physics`; side file blood (`physics/blood/`) | Forces, knockback, deformation, debris, hit particles, an explosion's look, ragdoll, blood. |
+| Physics | `physics/` | `domain-physics` (`blood.md`; `physics/blood/`) | Forces, knockback, deformation, debris, hit particles, an explosion's look, ragdoll, blood. |
 | Art | `art/` | `domain-art` | The procedural pixel-art engine every painter draws through, and its shared tuning. |
 | Audio | `audio/` | `domain-audio` | Procedural sound: synthesized in code, picked by event, played by the `Sound` autoload. |
 | Lighting | `lighting/` | `domain-lighting` | The dusk ambient, a light per light-giving piece and room fixture, flashes (`docs/lighting.md`). |
 | Navigation | `navigation/` | `domain-navigation` | Baking the house into a nav map, and re-baking it. |
 | General | `general/` | `domain-general` | Infrastructure: input, settings, `EventBus`, `GameLog`, `GameClock`, `Despawner`, camera, dev command server, shared ids and helpers. |
-| UI | `ui/` | `domain-ui`; side files menus, hud, command, overlays, testing (`ui/<folder>/`) | Every HUD and menu. |
-| AI | `ai/` | `domain-ai`; side files perception, snapshot, decision, behavior, combat, coverage, watch, entry, debug, team | NPC brains: one controller for every NPC around four sub-domains, plus `ai/team/` (the human's stack, each side's squad). `domain-ai` holds the sub-domain map. |
+| UI | `ui/` | `domain-ui` (`menus.md`, `hud.md`, `command.md`, `overlays.md`, `testing.md`; `ui/<folder>/`) | Every HUD and menu. |
+| AI | `ai/` | `domain-ai` (`perception.md`, `snapshot.md`, `decision.md`, `behavior.md`, `combat.md`, `coverage.md`, `watch.md`, `entry.md`, `debug.md`, `team.md`) | NPC brains: one controller for every NPC around four sub-domains, plus `ai/team/` (the human's stack, each side's squad). `domain-ai` holds the sub-domain map. |
 | Vehicles | `vehicle/` | `domain-vehicle` | Cars and vans (sandbox only): driving, doors, seats, getting in and out, collisions, dents. |
 | Testing | `testing/` | `domain-testing` | Game tests: a second composition root that builds a declared world, runs a test against it, asserts; the test browser and runner; gdUnit4 suites. Cases live in `tests/<domain>/` (one folder deeper by topic), sandboxes in `sandboxes/`. |
+| Main | `main.gd`, `match_builder.gd`, `match_spawner.gd` | `domain-main` | The composition root, no domain: it builds a match and is the one place that knows every domain. |
 
 **Composition root.** `scenes/main.gd` (`main.tscn`) and the Testing runner (interface 13) are the only code that knows every domain. A match is built by `MatchBuilder` (`scenes/match_builder.gd`, interface 23) with its helper `scenes/match_spawner.gd`: a match spec in (`Main.start_match(spec)`), a match handle out. Main's flow, placement rules, the endless run: `domain-main`. Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock` (General) and `Sound` (Audio). `GameLog` and the other General helpers are `class_name` statics.
 
@@ -80,7 +81,7 @@ every domain ──▶ general
 - **Leaves:** Physics, Navigation, Art, Audio, Lighting and World-Gen depend on nothing outward but General (and World-Gen on the Objects factories). Audio imports only `EventBus`; Lighting reads the world duck-typed (`get_lights()`, the groups `floors` and `characters`).
 - **Duck-typed, no class reference:** Items, Projectile, Physics and Explosion strike Objects, Character and Vehicles through interface 3; Camera and `Sound` read a vehicle through `use.vehicle()` and its state; UI reads Character and AI by exported path and signals.
 - **Events:** `EventBus` carries hits, shots, callouts, orders, explosions, grenades, footfalls, stuns and vehicle events between domains that do not reference each other. Topics and payloads: interface 10.
-- **Inside the AI** (the stack seam, doorway views, what team reads of perception): `domain-ai`.
+- **Inside the AI** (the stack seam, doorway views, what team reads of perception): `domain-ai` (`team.md`, `perception.md`).
 - A new edge, façade, contract method or signal goes into this graph or the interfaces (`audit` checks it).
 
 ## Cross-cutting conventions

@@ -1,11 +1,11 @@
 extends GameTest
 ## One mechanism (`docs/tactical-entry.md` E18 with the bodies-in-the-way rule of
-## `domain-ai-behavior`): a walk that keeps out of a doorway's view and finds a body at rest on its
-## destination stops short of it, then takes a free spot beside it; it never walks into it. The hall
-## of `entry_route_round_door_view_inside`: a big hall with a long, narrow store room off its north
-## wall, whose doorway's view is a band down the hall that ends short of the south wall. Gunfire is
-## heard just east of the band's far end; the walk there goes round the far end on the avoid map
-## (`way` "doors"). A teammate stands still on the spot.
+## `domain-ai` (`behavior-locomotion.md`)): a walk that keeps out of a doorway's view and finds a
+## body at rest on its destination stops short of it, then takes a free spot beside it; it never
+## walks into it. The hall of `entry_route_round_door_view_inside`: a big hall with a long, narrow
+## store room off its north wall, whose doorway's view is a band down the hall that ends short of
+## the south wall. Gunfire is heard just east of the band's far end; the walk there goes round the
+## far end on the avoid map (`way` "doors"). A teammate stands still on the spot.
 ##
 ## Scripted Von (INVESTIGATE, then the one lead, the gunfire): the subject is the walk, not the
 ## decision. The test requires that the walk was a door-avoiding one and that the walker saw the

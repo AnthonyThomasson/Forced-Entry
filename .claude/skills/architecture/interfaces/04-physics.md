@@ -21,7 +21,7 @@
 	   `allow_chunks`) and kept by `push_impact(list, impact, max_impacts)` (oldest dropped); `Deformable.record` and Objects' wall (one
 	   list per segment) both build through them.
 	 - `darken(damage_total) -> float`: `Color.darkened`'s weight for a shape with that damage (a textured shape is white darkened by it),
-	   for a caller drawing a textured polygon its own way (the character's kept meshes, `domain-character` (side file body)).
+	   for a caller drawing a textured polygon its own way (the character's kept meshes, `domain-character` (`body.md`)).
    - `Debris.toss(node, dir, distance, time, spin) -> Tween` (`physics/debris.gd`, preloaded as `Debris`, no `class_name`): a thrown chip's
 	 toss; the Projectile System's spent casing uses it too.
    - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)`: objects, the character and a vehicle.

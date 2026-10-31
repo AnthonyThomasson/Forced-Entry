@@ -41,7 +41,7 @@ test wanting a one-sided stack starts its joiner on the stack's side.
 character steers within 60° of another it touches (centres under 31 px) as a bump; `pressed_watch` is a clock of the
 walker standing pressed against the other (`PRESSED_GAP` 45 px, `PRESSED_MAX` 0.5 s: what `keep_off` leaves of a walk into
 a body). The mechanism tests are `tests/ai/movement/npc_*` (scripted Von, a puppet teammate standing still), the scenario
-is `tests/ai/entry/entry_team_no_bumping` (real Von, four invaders placed as a match places its team through
+is `ai/entry/entry_team_no_bumping` (real Von, four invaders placed as a match places its team through
 `tests/_ai/house_probe.gd`). A test that a held walk re-plans reads `debug_state()["decisions"]` /
 `["decision_reason"]` ("way blocked"): an auto-picked level asks Von nothing (`entry_held_walk_replans`).
 

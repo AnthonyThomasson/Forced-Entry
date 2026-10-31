@@ -3,7 +3,7 @@
 Where an NPC looks and when it takes the shot (the faults ruled out: an NPC turned its back on a known threat, looked at
 a wall, or saw an enemy and did not shoot). The tests named under each behaviour assert this document
 (`tools/run_tests.sh gaze`). The code is `scenes/ai/behavior/watch.gd` and its *watch stage*
-(`Watch.apply`, which `behavior.gd` runs each tick); see the `domain-ai-watch`, `domain-ai-behavior` and `domain-ai-combat` skills.
+(`Watch.apply`, which `behavior.gd` runs each tick); see `domain-ai` (`watch.md`, `behavior.md`, `combat.md`).
 
 The one rule: **an NPC is always either looking at (and, when it can, shooting) a threat, or watching its doors; never a
 wall, and never with its back to a known threat.** The character turns to wherever the controller sets `movement.aim_point`

@@ -1,6 +1,6 @@
 ---
 name: change-report
-description: Use right before asking the user to accept a plan or fix (a `story.md` plan, a bug's fix gate, every re-acceptance), and on `/change-report`.
+description: Use right before asking the user to accept a plan or fix (a story plan, a bug's fix gate, every re-acceptance), and on `/change-report`.
 ---
 
 # Change report

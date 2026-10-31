@@ -4,7 +4,7 @@ The rules are `docs/leadership.md` (LD1 to LD29, each with its tests named under
 them, its real-Von ones (`requires_von`) with `--include-von --require-von`. Following, the leash, the rally, held stacks
 and slots: `tests-leadership-follow.md`.
 
-**Where the tests live** (spread by domain): the clock in `tests/ai/perception/clock_pauses`; the order transport, the
+**Where the tests live** (spread by domain): the clock in `ai/perception/clock_pauses`; the order transport, the
 ORDER node, the progress radio, a refused order and what an order stops in `tests/ai/decision/` (`order_*`;
 `unordered_state_unchanged` compares an unordered NPC's first walk and state text with the capture beside it); defending a
 room in `tests/ai/combat/defend_room_*`; the ambush (LD15) in `tests/ai/combat/ambush_*`; the ordered stack in

@@ -20,7 +20,7 @@ Empty, or too vague to tell expected from actual: ask one concise question first
 3. **Red.** Write the smallest test that triggers the symptom through published interfaces only (world/`house()` plus
    behaviour switches; `--seed=N` if it depends on layout). Run it inline, Bash sandbox disabled: `tools/run_tests.sh
    --id=<domain>/<name>`. It must FAIL *for the bug's reason*: read the `✗` lines and the `bundle:` JSON. A parse error,
-   fixed-sleep race or harness mistake is not a repro (`test-debug`, "Test bug or code bug?"): fix the test and rerun. Passes
+   fixed-sleep race or harness mistake is not a repro (`test-debug`, "3. Test bug or code bug?"): fix the test and rerun. Passes
    at once: the repro is wrong or the bug is gone; say so and stop. Not visible headless (purely visual, windowed-only): say
    so, reproduce with `godot-run` or `--shots`, and tell the user the fix has no regression test.
 4. **Fix** the root cause with the smallest production change. Cross-domain calls only through `architecture`'s interfaces.

@@ -34,8 +34,8 @@ for Main's match and the Testing world alike) builds the squads and the squad-le
 human leads, the command menu and the order markers (`main.gd` `_build_command_menu`; `ui/command/command_menu.gd`, `ui/command/order_markers.gd`;
 the setup window's "Lead the team", `ui/menus/setup_menu.gd`; `Keybinds.COMMAND`), and in every played match points the stack markers at
 the human's side's squad (`main.gd` `_watch_side_stacks`, `ui/hud/stack_markers.gd`); the squad-leaders overlay is
-`ui/overlays/leader_overlay.gd`. See the `architecture` skill (interfaces 1, 7, 10, 11, 17 and 21), the `domain-ai-*` skills, `domain-main`,
-`domain-general`, `domain-ui-menus`, `domain-ui-hud` and `domain-ui-overlays`. The real-world practice the following rules were weighed
+`ui/overlays/leader_overlay.gd`. See the `architecture` skill (interfaces 1, 7, 10, 11, 17 and 21), `domain-ai` and its side files, `domain-main`,
+`domain-general` and `domain-ui` (`menus.md`, `hud.md`, `overlays.md`). The real-world practice the following rules were weighed
 against is `docs/research/squad-following.md` (where the game differs from it: "Doctrine", after LD28), and for the ambush (LD15, LD29)
 `docs/research/defending-a-room-ambush.md` ("Doctrine of the ambush", after LD29).
 
@@ -643,10 +643,10 @@ status reads "keeping up with its leader" on the way and "by its leader" at its 
   a body seals its only way) ends the catch-up too. A moment with no step (giving way to a walker, held short of a body, a step
   `keep_off` stops) does not end the catch-up: the follower runs on when it steps again, on whatever stamina it has left (the stamina a
   run needs to start is not asked again). The run rule's other gates stay and end it (no run with a shot to take or a reload due, the
-  stamina run dry, never in a tactical entry, `domain-ai-behavior`), and so does any other primitive than `follow`. A run that stopped
+  stamina run dry, never in a tactical entry, `domain-ai` (`behavior-policy.md`)), and so does any other primitive than `follow`. A run that stopped
   at `SquadFollowConfig.step` would leave a follower on a long walk without stops walking at its leader's pace that far behind its spot. Nor does a
   follower give way to its leader walking on ahead of it: the give-way check looks ahead only for the time a walker's own walk still
-  takes (at most its 1.2 s; Locomotion's give-way, `domain-ai-behavior`), and a follower's walk ends at its spot, short of its leader.
+  takes (at most its 1.2 s; Locomotion's give-way, `domain-ai` (`behavior-locomotion.md`)), and a follower's walk ends at its spot, short of its leader.
 
 Tests: LD19's, `follow_human_leader` for the file's spacing, the re-aim and the ring, `follow_catches_up` for the catch-up (a follower far
 behind a leader walking a long straight line comes back within `SquadFollowConfig.caught_up` of its spot after each catch-up, through a teammate

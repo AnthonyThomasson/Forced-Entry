@@ -48,7 +48,7 @@ A parent's `_physics_process` runs before its children's, so the hands see the c
 
 ## The body's shadow (interface 20, `docs/lighting.md` L6)
 
-A living character casts a shadow: `anatomy.attach()` builds a `LightOccluder2D` through `LightMasks.occluder` (none while `LightMasks.shadows` is off) on `LightMasks.CHARACTER`, shaped by `CharacterShadowConfig`. It follows the body unrotated; `anatomy.turn_shadow()` turns it to `facing` only when the facing has turned. `anatomy.die()` frees it: a 2D occluder has no height, so a body on the floor would throw a shadow as long as a wall's. Test: `tests/lighting/occluders_walls_pieces_characters`.
+A living character casts a shadow: `anatomy.attach()` builds a `LightOccluder2D` through `LightMasks.occluder` (none while `LightMasks.shadows` is off) on `LightMasks.CHARACTER`, shaped by `CharacterShadowConfig`. It follows the body unrotated; `anatomy.turn_shadow()` turns it to `facing` only when the facing has turned. `anatomy.die()` frees it: a 2D occluder has no height, so a body on the floor would throw a shadow as long as a wall's. Test: `lighting/occluders_walls_pieces_characters`.
 
 ## Events a character posts
 

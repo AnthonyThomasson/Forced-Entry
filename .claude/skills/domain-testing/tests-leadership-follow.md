@@ -36,7 +36,7 @@
   (`AgentEntry`, loaded by path), `layout` (the slots, read only through the published rule `StackLayout.slots`), the
   spec's numbers. Beside it: `slot_rules_probe.gd` (one rule per point: `in_stack_room`, `on_navmesh`, `reachable`, …),
   `slot_faults_probe.gd` (the faults a slot, a stack or a short wall's chain breaks), `slot_capacity_probe.gd` (rule 6: what
-  each way in holds). `tests/ai/entry/stack_slots_sweep` runs them over every generated floorplan.
+  each way in holds). `ai/entry/stack_slots_sweep` runs them over every generated floorplan.
 - `tests/_ai/reach_probe.gd` (`const Reach`) runs an ordered stack, held for the go, from given starting places and checks
   each member by its own measure: in its last-claimed slot within `SLOT_REACH`, in time (its keep-out route's walk plus slack),
   never the back of the stack nor an `abort`, never the doorway's view nor its front when a way round exists, no bump; the

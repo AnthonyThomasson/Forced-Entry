@@ -31,4 +31,4 @@ The steering map is the one `NavBuilder.steering_map` names when `setup` runs. A
 
 ## Tests
 
-`tests/ai/movement/` (`npc_detours_round_body_at_rest`, `npc_waits_at_doorway_held_by_teammate`, `npc_dest_taken_stops_nearby`, `npc_routes_only_round_bodies_it_sees`, `npc_walkers_give_way`, `npc_doors_walk_*`, `npc_hold_clock_across_pause`), the scenario `tests/ai/entry/entry_team_no_bumping` (real Von; `tests/_ai/bump_probe.gd` measures "walks into"), and the held-stack walks in `tests/ai/entry/order_stack_hold_*`.
+`tests/ai/movement/` (`npc_detours_round_body_at_rest`, `npc_waits_at_doorway_held_by_teammate`, `npc_dest_taken_stops_nearby`, `npc_routes_only_round_bodies_it_sees`, `npc_walkers_give_way`, `npc_doors_walk_*`, `npc_hold_clock_across_pause`), the scenario `ai/entry/entry_team_no_bumping` (real Von; `tests/_ai/bump_probe.gd` measures "walks into"), and the held-stack walks in `tests/ai/entry/order_stack_hold_*`.

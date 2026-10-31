@@ -504,10 +504,10 @@ Performance); and weapon art is painted ahead of time.
 **Issue #78** (19 to 21 October 2026) kept the same budgets windowed, no exemption, and fixed the window's costs at their cause, each fix
 pinned to the old pixels or bytes: the sound library's pre-warm renders on a worker thread instead of about 10 ms a frame on the main
 thread (`domain-audio`); a body's one-polygon parts and its standing shadow's plain shapes are meshes the body keeps instead of a polygon
-command each (`domain-character-body`; `tests/character/body_mesh_matches_polygons_test.gd` compares the pixels windowed); a debris
+command each (`domain-character` (`body.md`); `tests/character/body_mesh_matches_polygons_test.gd` compares the pixels windowed); a debris
 chunk draws its chips in pages, so a chip landing repaints one page, not the hundreds a struck chair piles into a chunk (`domain-physics`;
 `tests/physics/debris_pages_match_one_batch_test.gd`); and a hit's spray no longer waits for its splats' merges, which finish later in the
-frame (`domain-physics-blood`). The limb outlines as kept meshes were measured and dropped (exact, but no faster). Three windowed
+frame (`domain-physics` (`blood.md`)). The limb outlines as kept meshes were measured and dropped (exact, but no faster). Three windowed
 `tools/run_tests.sh --windowed --domain=perf` runs on 21 October 2026, each alone (no other Godot during it); this machine's quiet
 baseline that day was a 1-minute load of about 5 (ordinary apps), load before → after (peak) 4.46 → 4.64 (5.87), 4.83 → 3.89 (4.83),
 2.79 → 4.70 (5.26) (avg / p95 / max ms; bold misses):

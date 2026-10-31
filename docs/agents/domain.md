@@ -8,7 +8,7 @@ How the engineering skills consume this repo's domain documentation.
   `GLOSSARY.md` per context, with context-scoped ADRs in `src/<context>/docs/adr/`; this one has a single context.)
 - **`docs/adr/`**: the ADRs that touch the area you are about to work in.
 
-A missing file: proceed silently, without flagging it or suggesting to create it. `/domain-modeling` creates them lazily
+A missing file: proceed silently, without flagging it or suggesting to create it. `mattpocock-skills:domain-modeling` creates them lazily
 when terms or decisions get resolved.
 
 These sit beside, not in place of, the `architecture` skill (the domain map and cross-domain interfaces) and the behaviour
@@ -18,7 +18,7 @@ specs in `docs/*.md` that the tests assert.
 
 Name a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name) as `GLOSSARY.md` defines it, not
 by a synonym it avoids. A concept the glossary lacks is either language the project does not use (reconsider) or a real gap
-(note it for `/domain-modeling`).
+(note it for `mattpocock-skills:domain-modeling`).
 
 ## Flag ADR conflicts
 

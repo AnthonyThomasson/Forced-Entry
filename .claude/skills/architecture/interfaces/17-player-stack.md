@@ -1,5 +1,5 @@
 17. **Main / Testing (through `MatchBuilder`) → AI team: the human's place in a stack** (`scenes/ai/team/player_stack.gd`; a human invader is one
-    of the stack; implementation in `domain-ai` (side file team))
+    of the stack; implementation in `domain-ai` (`team.md`))
     - `PlayerStack.attach(character, rooms, openings) -> Node` adds a `PlayerStack` child to the human and returns it. Its one caller is
       `MatchBuilder.bind_player` (23, beside `bind_npc`): a match's human (`populate`) and a test world's human leader (`TestSetup.squads`'
       `human`) alike.

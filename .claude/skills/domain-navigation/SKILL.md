@@ -49,7 +49,7 @@ These holes live in a **second map**: `build` adds a child region `NavSteering` 
 count, so it is valid the moment `build` returns, before the server takes the region in; whether it answers queries yet is `ready`
 (`tests/navigation/steering_map_named_once_built_test.gd`). The world's own map stays furniture-only because the AI **plans** on
 it (flank, fire and retreat spots, route length and exposure, entry slots, search coverage) and a body's hole would bend all of
-them. Only a `NavigationAgent2D` walks the steering map, chosen per walk by the AI's `Locomotion` (`domain-ai`, `behavior.md`).
+them. Only a `NavigationAgent2D` walks the steering map, chosen per walk by the AI's `Locomotion` (`domain-ai` (`behavior-locomotion.md`)).
 The map carves every body at rest, seen or not; which bodies a walk accounts for is the walker's business.
 
 ## Avoid maps (`avoid_map`)

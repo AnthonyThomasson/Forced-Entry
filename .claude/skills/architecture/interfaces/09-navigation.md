@@ -13,7 +13,7 @@
 	 those holes; named from the frame `build` returns, before it has synchronized (`ready` tells when it answers); invalid when the world
 	 has none) and `steering_region(region)` (re-baked by `nav_updater.gd` too). The world's own map stays furniture-only because the AI
 	 plans on it; the AI's `Locomotion` puts its `NavigationAgent2D` on the steering map for a walk round a body at rest it knows of (what
-	 a walker accounts for is the AI's rule, `domain-ai` (side file behavior)).
+	 a walker accounts for is the AI's rule, `domain-ai` (`behavior-locomotion.md`)).
    - **Map queries**, what the AI asks of a baked map: `NavBuilder.ready(map) -> bool` (valid, synchronized at least once and has taken in
 	 every region `build` put on it, so a map still showing the previous navmesh counts as unbaked), `snap(map, p) -> Vector2` (`p` on the
 	 navmesh; unchanged before the bake), `route(map, from, to) -> PackedVector2Array` (the navigated waypoints; a straight segment before

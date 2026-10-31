@@ -40,7 +40,7 @@ showroom picks (`assets.md`). Then "Rebase after acceptance", "Brief and plan on
 
 ## 3. Build, test by test
 
-The `coding` worker runs `mattpocock-skills:implement` (`SKILL.md`, "Code goes through `implement`"), which drives
+The `coding` worker runs `mattpocock-skills:implement` (`SKILL.md`, "Work in phases"), which drives
 `mattpocock-skills:tdd`: one acceptance criterion at a time, in the plan's order, at the seam the plan names for it.
 
 1. **Red.** That criterion's test (`domain-testing`, `test-debug`): behaviour through published interfaces, expected

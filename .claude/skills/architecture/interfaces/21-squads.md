@@ -1,5 +1,5 @@
 21. **Main / Testing (through `MatchBuilder`) → AI team: the squads, their leaders and their orders** (`scenes/ai/team/squad.gd`; spec
-    `docs/leadership.md`, rules LD / D; implementation `domain-ai` (side file team), the UI `domain-ui` (side file command))
+    `docs/leadership.md`, rules LD / D; implementation `domain-ai` (`team.md`), the UI `domain-ui` (`command.md`))
     - **Build:** `MatchBuilder.build_squads` (23) makes one `Squad` per side after arming: `Squad.setup(roster: SquadRoster, openings,
       rooms)`. `SquadRoster` (`ai/team/squad_roster.gd`): `faction`; `members` in spawn order; `human` when the human leads, else null;
       `claim_ttl` (the side's `tuning.radio.callout_ttl`, `MatchBuilder.callout_ttl_of(members)`,

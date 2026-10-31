@@ -1,7 +1,7 @@
 extends GameTest
 ## One mechanism (`docs/tactical-entry.md` E18 with the bodies-in-the-way rule of
-## `domain-ai-behavior`): a walk that keeps out of a doorway's view still goes round a body at rest
-## it knows of, or is held short of it, and never walks into it. The hall of
+## `domain-ai` (`behavior-locomotion.md`)): a walk that keeps out of a doorway's view still goes
+## round a body at rest it knows of, or is held short of it, and never walks into it. The hall of
 ## `entry_route_round_door_view_inside`: a big hall with a long, narrow store room off its north
 ## wall, whose doorway's view is a band down the hall that ends short of the south wall. Gunfire is
 ## heard at the hall's east end; the walk there goes round the far end of the band on the avoid map

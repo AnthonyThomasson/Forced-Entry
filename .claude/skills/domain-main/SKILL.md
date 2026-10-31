@@ -23,7 +23,7 @@ domain's worlds build through `MatchBuilder` too, so a test measures the match M
 
 ## Setup flow
 
-A fresh launch loads settings, opens the setup window (`domain-ui`, `menus.md`) and builds nothing until a start button.
+A fresh launch loads settings, opens the setup window (`domain-ui` (`menus.md`)) and builds nothing until a start button.
 
 - `Settings.debug` is seeded from `run.debug_overlays` before `Settings.load_file()`, so the headless runner never reads a
   developer's file and a file that does not name Debug leaves the export standing.
@@ -67,7 +67,7 @@ and awaits `MatchBuilder.build`. A match torn down during the build returns `{}`
 (`Settings.overlays`) over them; Debug off starts every flag off. The bar's `overlay_toggled` reaches Main's public
 `set_overlay(flag, on)`, which saves the flip (`Settings.set_overlay`) and routes it (`_overlays.route`): `PERF` to Main's own
 performance overlay; in a spectator match an NPC's flag to `SpectatorInspector.set_flag` (overlays show on the selected NPC
-only); the rest to `MatchBuilder.set_overlay` (interface 23; routing in `domain-ui`, `overlays.md`).
+only); the rest to `MatchBuilder.set_overlay` (interface 23; routing in `domain-ui` (`overlays.md`)).
 
 ## The match module: gotchas
 

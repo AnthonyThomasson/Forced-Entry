@@ -81,7 +81,7 @@ Answer from the code before asking the user:
 
 1. **Already built?** Search by domain concept, not the ticket's wording; say where you looked. Fully built: offer to
    close it ("Closing without building"). Partly: say what exists and narrow the ticket while grilling.
-2. **Rejected before?** Read `.out-of-scope/*.md` and match by concept ("night theme" matches `dark-mode.md`). A match:
+2. **Rejected before?** Read `.out-of-scope/*.md` and match by concept ("night theme" matches a `dark-mode` entry). A match:
    quote its reason and ask whether it still holds.
 3. **Right kind?** The text reads as another kind than its label (broken behaviour without `bug`, an unknown without
    `spike`): ask first.
@@ -92,7 +92,7 @@ After acceptance and the rebase: read the body (`gh issue view <n> --json body`)
 below to a scratchpad file, `gh issue edit <n> --body-file <file>`, re-read the ticket. Edit only after acceptance, and
 never drop or reword what is there. A revised plan replaces both sections.
 
-- **`## Agent Brief`**, the durable contract (Matt's `triage` `AGENT-BRIEF.md` format): **Category** (bug / enhancement /
+- **`## Agent Brief`**, the durable contract (the agent-brief format of Matt's `triage` skill): **Category** (bug / enhancement /
   spike), **Summary**, **Current behavior**, **Desired behavior** (rule by rule, with edge cases), **Key interfaces**
   (`architecture` interfaces, `class_name`s, signals, tunables; no file paths or line numbers), **Acceptance criteria**
   (`- [ ]`, each independently checkable), **Out of scope**.
@@ -107,7 +107,7 @@ The user's call. Comment, then `gh issue close <n> --reason "not planned"` and a
 
 - **Already implemented:** point to where it lives.
 - **Rejected enhancement:** create or extend `.out-of-scope/<concept>.md` (one per concept: what is out, why, in durable
-  terms, a `## Prior requests` list with this ticket; Matt's `triage` `OUT-OF-SCOPE.md`); the comment links it.
+  terms, a `## Prior requests` list with this ticket; the out-of-scope format of Matt's `triage` skill); the comment links it.
 - **Rejected bug** (works as intended): explain the intended behaviour.
 
 Waiting on information only someone else has: post `## Triage Notes` (**What we've established so far** / **What we still
