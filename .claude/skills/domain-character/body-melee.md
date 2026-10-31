@@ -1,0 +1,21 @@
+# Body: hands, punch, kick, legs
+
+Specs: `docs/cover-and-stance.md` P5 (legs touch the world). Tests: `tests/character/` (`punch_turns_furniture_test`, `kick_*_test`, `legs_rest_on_walls_test`, `leg_press_turns_furniture_test`).
+
+## Hands (`character_hands.gd`, a child `Node2D`, `anatomy.hands`)
+
+Owns hand geometry, the punch tween and punch hit detection. Exposes `hand_position(i)` (local), `world(i)`, `punch(i)`, `punch_amount(i)`, `is_attacking()` and the `punched` signal. Two circles rest at a pose built in each hand's frame (`hand_angles[hand]` + its perpendicular): the stance's `rest_forward` / `rest_lateral` plus `pose.arms.hand_offset(hand, along)` for walk swing and recoil, collision-resolved so they rest on walls and objects (the rig's arm just bends more). A punch swings the fist to `punch_gap + reach` beyond the body edge, so the stance does not change how far it lands. `hand_radius` and `punch_gap` are exports.
+
+## Punch hit detection
+
+A swing strikes through `body_strike.gd` (`strike(character, blow, struck, first_only, on_hit)`; `blow` a `MeleeBlow`, shared with the kick): a circle query on `PhysicsLayers.SOLID` at the fist's *raw* punch position (it extends into what is hit, unlike the drawn hand that rests on the surface), deduped per swing (`struck`). Each new hit shoves the body through the pushable contract (`apply_impulse(impulse, at)`, `at` the fist's offset, or the butt's for a long gun, so a piece struck near an end turns) and deals damage, both scaled by the swing's range of motion. It emits `punched(hand, body, damage)` before the damage; the character re-emits `hit_landed`. A punch pushes but never deforms; walls take damage without moving. Tuning: `CharacterMeleeConfig.punch_*`.
+
+**A long gun's butt strike** (`domain-items`): the hand's extension is shortened by `strike.forward()` + `strike.short` and the hit is queried at the butt (`strike.end`) once it is ahead of the fist. The other hand is placed rigidly on the barrel (`_raw_hand_position`: the weapon hand's place plus `strike.direction × strike.support_gap`, gripping from the first frame), so both arms follow the turning gun. The swing takes `strike.tempo` times a fist's time (the damage's range of motion is normalised by it), and the redraw key carries both hands' punch amounts, since the gun turns with them.
+
+## The leg kick (`character_kick.gd`, `anatomy.kick`)
+
+Independent of the held item, always the right leg (side 0), stepped after `move_and_slide` and before `pose.update`. `anatomy.leg_kick()` starts it (false when dead, crouched, in an interaction or already kicking); a strike then a recover phase run; `amount()` is the foot's 0..1 extension, read by the rig through `anatomy.leg_kick_amount(i)`. The rig lifts the kicking ankle to `kick_foot_height` and throws it out along `facing`. During the strike a circle of `kick_radius` at `kick_reach × amount()` is queried through `body_strike.gd` (at most one body a frame); each body is hit once per kick, shoved by `kick_impulse` at the foot, reported as `kicked(body, damage)` and dealt `kick_damage`. The character posts `hit_landed(body, damage, 2)` and the `&"hit"` event with outcome `punch`; like a punch it never deforms. Tuning: `CharacterMeleeConfig.kick_*`.
+
+## Legs (`character_legs.gd`, stepped after the pose)
+
+Each ankle is swept from the body centre to where the unobstructed rig would put it (a `leg_radius` circle through `body_sweep.gd`, as the hands are) and rests at the first wall, solid piece or character it meets, sliding the leftover. A knee that would pass through something moves the foot back (`KNEE_TRIES`); the rig reads the result through `anatomy.legs.ankle(i)` (null = unobstructed) and re-solves the knee (`CharacterRig.knee_at`). A foot or knee swinging into a pushable (`apply_impulse` + `get_mass`, never another character) shoves it by `leg_push_impulse` through `CharacterPush.shove`, so a piece pressed near an end turns and its contact point is carried at no more than walking pace; a foot at rest pushes nothing. Nothing is cast unless something is within `NEAR` px. Cleared while busy in an interaction and on death.
