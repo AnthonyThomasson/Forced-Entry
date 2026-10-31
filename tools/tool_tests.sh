@@ -8,6 +8,11 @@
 #                                  shared test helper, or a tool file no test names, runs the whole discovery. A file
 #                                  no test names outside tools/ and .githooks/ runs nothing. The pre-commit hook runs
 #                                  this on every commit.
+#   tools/tool_tests.sh --changed[=<ref>]
+#                                  the same picks for what a branch changed: the paths of `git diff <ref>...` (the
+#                                  commits since the branch left <ref>, default origin/main, else main), the working
+#                                  tree's tracked changes and the untracked files. An unknown <ref>, or --staged too,
+#                                  exits 2. Use it for the checks while working; the whole discovery runs once at the end.
 # The first line says what runs: `tool tests: <module>, ...`, `tool tests: all (<why>)` or `tool tests: none (...)`.
 # The tests run without git's GIT_* variables: git hands a hook GIT_INDEX_FILE (and in a worktree GIT_DIR), and every
 # git a test runs in a throwaway repo of its own would obey them and act on this repo instead.
@@ -15,25 +20,52 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 staged=0
+changed=0
+ref=""
 for a in "$@"; do
   case "$a" in
     --staged) staged=1 ;;
-    *) echo "unknown argument: $a (tools/tool_tests.sh [--staged])" >&2; exit 2 ;;
+    --changed) changed=1 ;;
+    --changed=*) changed=1; ref="${a#--changed=}" ;;
+    *) echo "unknown argument: $a (tools/tool_tests.sh [--staged | --changed[=<ref>]])" >&2; exit 2 ;;
   esac
 done
+if [[ $staged -eq 1 && $changed -eq 1 ]]; then
+  echo "--changed and --staged cannot be combined (tools/tool_tests.sh [--staged | --changed[=<ref>]])" >&2
+  exit 2
+fi
 
 modules=()
-if [[ $staged -eq 1 ]]; then
-  # Paths as they are (core.quotePath off), read with git's own variables: they name the index being committed. Both
-  # sides of a rename (--no-renames lists the old path as deleted): a test may name either.
+if [[ $staged -eq 1 || $changed -eq 1 ]]; then
+  # Paths as they are (core.quotePath off). Both sides of a rename (--no-renames lists the old path as deleted): a test
+  # may name either.
   paths=()
-  while IFS= read -r p; do paths+=("$p"); done < <(git -c core.quotePath=false diff --cached --name-only --no-renames)
+  if [[ $staged -eq 1 ]]; then
+    kind=staged
+    # Read with git's own variables: they name the index being committed.
+    while IFS= read -r p; do paths+=("$p"); done < <(git -c core.quotePath=false diff --cached --name-only --no-renames)
+  else
+    kind=changed
+    if [[ -z "$ref" ]]; then
+      ref=origin/main
+      git rev-parse --verify -q "$ref^{commit}" >/dev/null || ref=main
+    fi
+    if ! git rev-parse --verify -q "$ref^{commit}" >/dev/null; then
+      echo "unknown ref: $ref (tools/tool_tests.sh --changed[=<ref>])" >&2
+      exit 2
+    fi
+    # What the branch changed since it left <ref>, what the working tree changed since HEAD, and the untracked files.
+    while IFS= read -r p; do paths+=("$p"); done < <(
+      { git -c core.quotePath=false diff --name-only --no-renames "$ref..." \
+          && git -c core.quotePath=false diff --name-only --no-renames HEAD \
+          && git -c core.quotePath=false ls-files --others --exclude-standard; } | sort -u)
+  fi
   picked=""
   if [[ ${#paths[@]} -gt 0 ]]; then
     picked=$(python3 tools/tool_tests_pick.py "${paths[@]}") || exit 1
   fi
   if [[ -z "$picked" ]]; then
-    echo "tool tests: none (no tool test names a staged file)"
+    echo "tool tests: none (no tool test names a $kind file)"
     exit 0
   elif [[ "$(head -1 <<<"$picked")" == all ]]; then
     echo "tool tests: all ($(sed -n 's/^# //p' <<<"$picked" | paste -sd ';' - | sed 's/;/; /g'))"
