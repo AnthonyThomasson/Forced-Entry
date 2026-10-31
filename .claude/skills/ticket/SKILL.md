@@ -92,6 +92,10 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   a few seconds after the start; the receipt itself holds no handle).
 - **Heartbeats:** tell every worker in its brief: each `--phase` is a 1–2 sentence status (what it is on, what is
   done), never a bare `implementing`. Relay each to the user in one line with the worker's name, no commentary.
+  Read your inbox with `tools/orca_inbox.py` (its header holds the flags and the output lines), never a hand-written
+  parser: a heartbeat's phase lives in the message's `payload`, which the reader decodes, so a phase you cannot see is
+  a missing read, not a bare heartbeat. `(phase unchanged)` is a repeat of that worker's last phase, and
+  `error: <code>` with exit 1 is an error, not an empty inbox.
 - **Ack or resend:** tell every worker in its brief:
   - on reading your message, before acting, send `orca orchestration send --subject "received <message id>" --body
     "<one line: what it will do with it>"`;
@@ -101,6 +105,11 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   - a decision it must wait on goes through the blocking `orca orchestration ask --question "<text>"`; an `ask` that
     times out is still pending: resume it with `orca orchestration ask --resume <its message id>` until it is
     answered. The turn ends only after `worker_done`.
+
+  Wait for the next message with `.claude/skills/ticket/wait.sh [ack_delivery_id]` run in the background: it also
+  wakes on a worker's `status` (the type of its `received <id>` ack), which would otherwise reach the user. It prints
+  `PID=<pid>` first and `DELIVERY=<id>` last, the next call's `[ack_delivery_id]`. Stop a wait with `kill <PID>` (the
+  printed pid); a `pkill` of a wrapper leaves an orphan waiter that refuses every new wait (`waiter_exists`).
 
   Read the whole inbox each time; answer each question with `reply --id <that question's id>` (a blocking `ask` is
   separate from an escalation on the same subject). No `received <id>` within ~5 min: `worker-read --dispatch <id>
