@@ -6,7 +6,8 @@ extends AnimatableBody2D
 ## and never knocked about by what leans on it. It publishes the door contract (architecture
 ## interface 24) and is hit, shoved and damaged through the hittable (3) and pushable (5)
 ## contracts. Drawn by `door_visuals.gd`; its parts are `look`, `damage` and `swing`. Its tuning is
-## `DoorConfig` and `DoorMaterialConfig`.
+## `DoorConfig` and `DoorMaterialConfig`. It posts a `&"door"` event on the EventBus at each stage
+## of its life (interface 10), which Audio voices (`docs/doors.md` DR12).
 ##
 ## Frame: the body's origin is the middle of the leaf and its x axis runs along the leaf from the
 ## hinge toward the latch, so `global_position` is where the leaf is (a blast reaches it there). The
@@ -51,6 +52,10 @@ var _down := false
 var _probe: RectangleShape2D
 ## Unit vector along the shut leaf, hinge to latch.
 var _along := Vector2.RIGHT
+## The game second the door last began opening, -INF before it has or once a closing swing has begun
+## since: a swing opening it within `DoorConfig.creak_gap` of that carries on one movement (a run of
+## scroll notches), which has creaked already.
+var _opened_at := -INF
 
 
 func _ready() -> void:
@@ -83,6 +88,8 @@ func _physics_process(delta: float) -> void:
 	global_transform = leaf_pose(swing.angle)
 	if not swing.moving():
 		changed.emit()
+		if is_zero_approx(swing.angle):
+			_post(&"shut")
 
 
 ## Describe the door before it joins the tree. `opening` holds `pos` (the doorway's centre), `hinge`
@@ -190,7 +197,7 @@ func open_fully(_by: Node) -> void:
 ## jamb, out from the wall line (`DoorConfig.latch_spot_out`) and in from the jamb
 ## (`DoorConfig.latch_spot_in`).
 func latch_side_spot(from: Vector2) -> Vector2:
-	var middle := hinge + _along * width * 0.5
+	var middle := _doorway_middle()
 	var side := 1.0 if (from - middle).dot(swing_into) >= 0.0 else -1.0
 	return (
 		hinge
@@ -266,7 +273,7 @@ func _fall(direction: Vector2) -> void:
 	swing.angle = open_angle
 	swing.halt()
 	var toward := swing_into if direction.dot(swing_into) >= 0.0 else -swing_into
-	var doorway := hinge + _along * width * 0.5
+	var doorway := _doorway_middle()
 	var lies := doorway + toward * (DoorConfig.fallen_length * 0.5 + DoorConfig.leaf_thickness)
 	collision_layer = 0
 	for child in get_children():
@@ -279,6 +286,7 @@ func _fall(direction: Vector2) -> void:
 		-_along.dot(toward.rotated(-PI / 2.0)) < 0.0,
 	)
 	changed.emit()
+	_post(&"down")
 
 
 ## Whether something stops the leaf turning to `to` degrees open this step: furniture, a wall or
@@ -336,14 +344,20 @@ func _turn_to(to: float) -> void:
 	var goal := clampf(to, 0.0, open_angle)
 	if is_equal_approx(goal, swing.target) and not swing.moving():
 		return
+	var opens := goal > swing.angle
+	var begins := opens and GameClock.seconds() - _opened_at >= DoorConfig.creak_gap
+	_opened_at = GameClock.seconds() if opens else -INF
 	swing.begin(goal, DoorConfig.swing_time * absf(goal - swing.angle) / open_angle)
 	changed.emit()
+	if begins:
+		_post(&"open")
 
 
 ## The latch has given: the door is thrown fully open at `DoorConfig.burst_speed`.
 func _burst() -> void:
 	swing.begin(open_angle, (open_angle - swing.angle) / DoorConfig.burst_speed, false)
 	changed.emit()
+	_post(&"burst")
 
 
 ## The glass-panel door's panes shatter: the frame stays, and the leaf is drawn without its glass.
@@ -352,6 +366,23 @@ func _shatter() -> void:
 		return
 	look.broken = true
 	visuals.refresh()
+	_post(&"glass")
+
+
+## The middle of the doorway, on the wall line.
+func _doorway_middle() -> Vector2:
+	return hinge + _along * width * 0.5
+
+
+## Announce a stage of the door's life (`open`, `shut`, `burst`, `down`, `glass`) on the EventBus,
+## for Audio: where the doorway's middle is, the door and its material.
+func _post(stage: StringName) -> void:
+	EventBus.post(&"door", {
+		"position": _doorway_middle(),
+		"door": self,
+		"material": look.material,
+		"stage": stage,
+	})
 
 
 ## The door's shadow: an occluder over the leaf (`half` its half size) in the body's frame, so it

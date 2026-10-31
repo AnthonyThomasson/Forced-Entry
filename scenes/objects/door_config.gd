@@ -35,3 +35,7 @@ static var latch_spot_in: float = 16.0
 ## The deepest a dent in the leaf caves (px), and how many the leaf keeps.
 static var dent_depth: float = 2.0
 static var dents: int = 10
+## Seconds within which a swing opening a door that was already being opened carries on the same
+## movement and does not creak again: a run of scroll notches creaks once, however long it lasts. A
+## closing swing ends the movement, and so does a rest this long.
+static var creak_gap: float = 0.6

@@ -19,6 +19,9 @@ extends Node
 ##   &"vehicle"   a vehicle's ignition, door (open / close / slide_open / slide_close), crash
 ##                (+ speed, material) or a character struck (bump_character, + speed)
 ##                { position, kind, stage }
+##   &"door"      a house door's leaf at a stage of its life: open (a swing starting to open),
+##                shut (its latch as it closes), burst, down, glass (the panes shattering)
+##                { position, door, material, stage }
 ##   &"engine"    a vehicle's engine started / stopped   { vehicle, kind, stage }
 ##   &"skid"      a vehicle's tyres began / stopped sliding   { vehicle, stage }
 ## Each becomes a *profile* (SoundBank), a rendered variant of it, and a voice: a pooled
@@ -53,6 +56,12 @@ const TINNITUS := &"tinnitus"
 const ENGINE := &"engine"
 const VEHICLE := &"vehicle"
 const SKID := &"skid"
+## A house door's category and topic. (A vehicle's door is another thing: its `door/...` profiles
+## play
+## as `VEHICLE`.)
+const DOOR := &"door"
+## The profile family a house door's sounds are voiced from, which play under `DOOR`.
+const DOOR_FAMILY := &"leaf"
 ## The profile families a vehicle's one-shots are voiced from, which play under `VEHICLE`.
 const VEHICLE_ONE_SHOTS: Array[StringName] = [&"ignition", &"door", &"crash"]
 ## The bus every game voice plays on, with the muffling low-pass on it; the tinnitus plays on the
@@ -196,6 +205,12 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 				_start_tinnitus(data)
 		&"vehicle":
 			_vehicle_sound(data)
+		&"door":
+			_play_named(
+				DOOR,
+				SoundDoors.profile(String(data.get("material", "")), data.get("stage", &"")),
+				data,
+			)
 		&"engine":
 			_loop_event(ENGINE, data)
 		&"skid":
@@ -547,9 +562,12 @@ func _variant_count(category: StringName) -> int:
 
 
 ## The category `profile` plays under: the profile id's first part, but for a vehicle's one-shots
-## (`ignition`, `door`, `crash`), which play as `vehicle` (`_vehicle_sound`).
+## (`ignition`, `door`, `crash`), which play as `vehicle` (`_vehicle_sound`), and a house door's
+## `leaf`, which plays as `door`.
 func _category_of(profile: StringName) -> StringName:
 	var family := StringName(String(profile).get_slice("/", 0))
+	if family == DOOR_FAMILY:
+		return DOOR
 	return VEHICLE if family in VEHICLE_ONE_SHOTS else family
 
 

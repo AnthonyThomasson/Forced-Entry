@@ -7,9 +7,8 @@ research behind the numbers is `docs/research/doors-in-room-entry.md` (scale: 1 
 14 px). The tactical use of doors by the AI (entry on a shut door, cracking it, breaching, defenders shutting doors) is the
 follow-up ticket #159 and is not in this spec.
 
-Rules marked "(later stage)" are the spec of work still to come: their text is the brief's, their tests are written with
-the stage that builds them, and each section grows from one line to its full rule then. The doors of the old AI families'
-scenario tests are switched off (`worldgen.doors`) until #159 makes those families door-aware.
+The doors of the old AI families' scenario tests are switched off (`worldgen.doors`) until #159 makes those families
+door-aware.
 
 ## DR1. Doorway size
 
@@ -178,10 +177,35 @@ sight or light (its shadow is gone), and no longer usable (`toggle`, `turn_by` a
 Tests: `objects/door_knocked_down` (four kicks from the east lay a hollow door west; four rounds from the west lay one east; a puppet
 walks over one, a round and an NPC's sight pass).
 
-## DR12. Sound (later stage)
+## DR12. Sound
 
-Synthesized per material: the swing (a creak), the latch as it shuts, a burst's bang, the splinter and thud of a fall, a steel
-door's clang, glass shattering; posted as `&"door"` events and played by `Sound`.
+Every door sound is synthesized in code like the other families (no audio files). A door posts a `&"door"` event
+`{ position, door, material, stage }` on the EventBus at each stage of its life, at the middle of its doorway, and `Sound` voices
+it through its pooled positional voices (category `door`: at most 4 at once, the oldest cut off first, heard out to 1200 px, the
+same range, jitter and `audio.sound` switch as the rest): one voice per event, the profile `leaf/<material>/<stage>`
+(`SoundDoors`), `material` the door's (`hollow`, `solid`, `steel`, `glass`).
+
+| Stage | Posted when | Sounds like |
+|---|---|---|
+| `open` | a swing starts to open (a Use, a notch of the scroll) | the swing: the handle's click, then a creak; wood creaks (hollow brighter, solid lower and slower), a steel door groans lower still, a glass-panel door's frame creaks like wood |
+| `shut` | the leaf arrives at shut (the latch as it closes) | a click, the latch seating and a thud; a steel door clangs |
+| `burst` | the latch gives (DR10) | the bang: the latch cracking and the leaf slamming the wall, wood splintering, steel clanging |
+| `down` | the leaf falls (DR11) | the splinter and thud of the fall; a steel door's is a heavy clang that rings on |
+| `glass` | a glass-panel door's panes shatter (DR9) | a crack, a rush and the shards tinkling down (this stage has a sound for the glass-panel door only) |
+
+**No spam.** A gradual scroll (DR7) turns the door a notch at a time, each notch a swing opening it a little further; only the first
+of a movement creaks. The door remembers when it last began opening (`_opened_at`); a swing opening it within `DoorConfig.creak_gap`
+(0.6 s) of that carries on the same movement and posts no `open`, and every opening swing renews the time, so a run of notches is
+one creak (the clip is half a second) however long the scroll lasts. A movement ends when the door rests for the gap, or when a
+closing swing begins (a reversal): a notch after a rest, and an open, shut, open in quick succession, creak at each opening. A
+closing swing posts nothing until its leaf arrives at shut, so a scroll back down to partly open is silent, and a toggled door
+creaks once on the way open and clicks once on the way shut. A burst and a fall are single events (a burst is not also a creak).
+
+Tests: `audio/door_sounds` (a hollow door used open and shut, burst by two kicks and felled by four, a steel door used open and shut
+and burst by a frag, a glass-panel door's frame opened and its panes shattered by a round: each posts one `&"door"` event with its
+stage and material and plays one voice of `leaf/<material>/<stage>` at the door; five scroll notches in a row, and six a quarter second apart (longer than the gap), creak once, a notch
+after a rest creaks again, and a door opened, shut and opened again at once creaks at each opening; the steel door's latch, burst and fall ring on past the wooden door's, its groan is lower than the creak,
+the glass shatters bright), `audio/bank` and `audio/prewarm_covers_every_variant` (every door profile renders and is pre-warmed).
 
 ## DR13. Materials and styles
 

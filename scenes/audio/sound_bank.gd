@@ -6,9 +6,10 @@ class_name SoundBank
 ## stream (a static cache, like PixelArt's, so it survives scene reloads). Each family holds its
 ## tables, its name rule (its profile functions, which render nothing) and its recipes:
 ## SoundGuns (`shot`, `reload`), SoundImpacts (`impact`), SoundFootsteps (`footstep`),
-## SoundGrenades (`throw`, `grenade`, `explosion`, `tinnitus`) and SoundVehicles (`engine`,
-## `ignition`, `door`, `skid`, `crash`). The bank keeps the round-weight `band` the guns and the
-## impacts are voiced in, the list of every profile and the cache.
+## SoundGrenades (`throw`, `grenade`, `explosion`, `tinnitus`), SoundVehicles (`engine`,
+## `ignition`, `door`, `skid`, `crash`) and SoundDoors (`leaf`: a house door's creak, latch, burst,
+## fall and shattering panes). The bank keeps the round-weight `band` the guns and the impacts are
+## voiced in, the list of every profile and the cache.
 ##
 ## Pieces of a profile:
 ## - gun: a GunConfig id (`pistol`, `smg`, `rifle`); an unknown gun is voiced as the gun of its
@@ -31,6 +32,9 @@ class_name SoundBank
 ##   `door/<vehicle>/<open|close|slide_open|slide_close>`; the tyres' `skid/tyre` (a loop); and
 ##   `crash/<material>/<band>`, the band by the closing speed (SoundVehicleConfig.crash_medium_speed
 ##   / crash_heavy_speed), `flesh` for a character struck.
+## - door leaf: a house door's material (`hollow`, `solid`, `steel`, `glass`) and the stage of its
+##   life (`open`, `shut`, `burst`, `down`, and `glass` for the glass-panel door's panes):
+##   `leaf/<material>/<stage>`.
 
 const BAND_NAMES: Array[String] = ["light", "medium", "heavy"]
 
@@ -61,6 +65,7 @@ static func profiles() -> Array[StringName]:
 	out.append_array(SoundFootsteps.profiles())
 	out.append_array(SoundGrenades.profiles())
 	out.append_array(SoundVehicles.profiles())
+	out.append_array(SoundDoors.profiles())
 	return out
 
 
@@ -129,6 +134,8 @@ static func recipe_for(profile: StringName) -> Dictionary:
 			out = SoundGrenades.recipe(parts)
 		"engine", "ignition", "door", "skid", "crash":
 			out = SoundVehicles.recipe(parts, profile)
+		"leaf":
+			out = SoundDoors.recipe(parts)
 	return out
 
 

@@ -7,10 +7,11 @@ class_name SoundConfig
 ##
 ## Every sound is synthesized in code (SoundSynth) from a recipe SoundBank builds for a *profile*,
 ## then played by the `Sound` service through a small pool of positional voices. A sound belongs to
-## one of eleven categories — `shot`, `impact`, `footstep`, `reload`, the grenades' `throw`,
+## one of twelve categories — `shot`, `impact`, `footstep`, `reload`, the grenades' `throw`,
 ## `grenade` (a bounce), `explosion` and `tinnitus`, and the vehicles' `engine` (a loop per running
-## vehicle), `vehicle` (ignition, doors, crashes) and `skid` (a loop per sliding vehicle) — and the
-## per-category tables below are keyed by those names.
+## vehicle), `vehicle` (ignition, doors, crashes) and `skid` (a loop per sliding vehicle), and the
+## houses' `door` (a leaf's creak, latch, burst, fall) — and the per-category tables below are keyed
+## by those names.
 
 ## Master switch: off = the `Sound` service synthesizes, plays and posts nothing.
 static var enabled: bool = true
@@ -20,7 +21,7 @@ static var master_db: float = 0.0
 static var category_db: Dictionary = {
 	&"shot": 0.0, &"impact": -2.0, &"footstep": -8.0, &"reload": -6.0, &"throw": -6.0,
 	&"grenade": -4.0, &"explosion": 3.0, &"tinnitus": -4.0, &"engine": -9.0, &"vehicle": -2.0,
-	&"skid": -7.0,
+	&"skid": -7.0, &"door": -2.0,
 }
 ## Random pitch swing either side of 1 (0.06 = ±6%) on every play, so a burst of identical events
 ## does not sound like one sample machine-gunned.
@@ -34,6 +35,7 @@ static var category_jitter_scale: Dictionary = { &"footstep": 1.7 }
 static var category_voices: Dictionary = {
 	&"shot": 6, &"impact": 8, &"footstep": 8, &"reload": 3, &"throw": 3, &"grenade": 4,
 	&"explosion": 3, &"tinnitus": 1, &"engine": 4, &"vehicle": 6, &"skid": 3,
+	&"door": 4,
 }
 ## Distance (px, at camera zoom 1) beyond which a category cannot be heard. The AI's own hearing
 ## radius (`hearing_radius`, 900) is the reference for how far a human-scale sound carries.
@@ -42,7 +44,7 @@ static var category_voices: Dictionary = {
 static var category_range: Dictionary = {
 	&"shot": 2400.0, &"impact": 1400.0, &"footstep": 900.0, &"reload": 800.0, &"throw": 900.0,
 	&"grenade": 1000.0, &"explosion": 3200.0, &"tinnitus": 1.0e6, &"engine": 1400.0,
-	&"vehicle": 1800.0, &"skid": 1600.0,
+	&"vehicle": 1800.0, &"skid": 1600.0, &"door": 1200.0,
 }
 ## True = the range grows as the camera zooms out (and shrinks as it zooms in), because Godot's 2D
 ## attenuation is measured in world px and a zoomed-out spectator would otherwise hear nothing.
