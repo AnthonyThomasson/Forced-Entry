@@ -263,7 +263,7 @@ panel docked on the side of the screen away from the click (on the left, or on t
 never covers the teammates or the doorway it is about) and a ring on the clicked point. Docked on the left, its top is 120 px down (below
 the match timer), 24 px in from the edge. Docked on the right, its right edge sits `right_clear` + 24 px from the screen's right edge
 (`CommandMenu.setup`'s `right_clear`: with Debug on, Main hands it the overlay toggle bar's fixed column, `OverlayToggles.RESERVED_WIDTH`,
-as the inspector's outfit panel keeps clear of it; else 0): the bar's fixed column, not where it has been dragged or collapsed to.
+as the inspector's detail card keeps clear of it; else 0): the bar's fixed column, not where it has been dragged or collapsed to.
 There, where its top at 120 px would cover the click or a selected teammate's body (within 24 px: a click near the centre on a narrow
 window), it docks at the top or the bottom of the screen instead (24 px from it, over the paused match timer at the top), the side away
 from the centre of the click and those bodies first: the first dock that covers none of them, else the first that leaves the click clear,
