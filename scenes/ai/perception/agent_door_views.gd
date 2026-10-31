@@ -673,7 +673,7 @@ func _outside_of(from: Vector2, key: String) -> Vector2:
 	if not room.has_point(from):
 		return from
 	for o in _openings:
-		if not (o.get("rooms", []) as Array).has(key):
+		if not HouseRooms.joins(o).has(key):
 			continue
 		var inward := normal_into(room, o["pos"])
 		var depth := (from - (o["pos"] as Vector2)).dot(inward)
