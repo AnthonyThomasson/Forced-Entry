@@ -64,10 +64,13 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
     test at a seam the plan doesn't name is an escalation.
   - **`implement`'s checks here:** typechecking is the load check and lint (`godot-run`); a single test file is
     `tools/run_tests.sh --id=<domain>/<name>`; the full suite (`tools/run_tests.sh --summary --jobs=auto`) once at the
-    end. Godot runs with the Bash sandbox disabled.
+    end. Godot runs with the Bash sandbox disabled. Tool tests: `tools/tool_tests.sh --changed` while working; the whole
+    discovery (`tools/tool_tests.sh`) runs only in a `wrap-up` worker (phase 4, and the one after the review fixes).
   - **Self-review:** `mattpocock-skills:code-review` with the fixed point the commit the worker started from (its sha
     in the brief) and the spec the ticket's `## Agent Brief` (`#<n>`). It fixes the findings it agrees with (a
-    behaviour defect as one more `tdd` slice) and lists the rest in its `worker_done`.
+    behaviour defect as one more `tdd` slice) and lists the rest in its `worker_done`. The brief given to each
+    `code-review` sub-agent says the worker runs the suites (`tools/tool_tests.sh`, `tools/run_tests.sh`) and the
+    sub-agent runs at most one named test module (`python3 -m unittest <module>`) or one `tools/run_tests.sh --id=<id>`.
   - **Commit** to the worktree's branch once green, `#<n>` in the message, ending with the session's commit
     attribution line. Never with a red test (the pre-commit hook runs it), never push or merge: `finish` lands it.
 - **Worker names** (lowercase, hyphens; a split phase adds its stage: `coding-feature-one`,
@@ -110,7 +113,8 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   --ack <your last batch's deliveryId>: my answer is behind it." --enter`. A `reply` does not wake an idle worker: a
   reply to an `ask` older than its timeout (10 min by default) is followed, in the same turn, by `orca terminal send
   --terminal <its handle> --text "Your question <id> is answered: run orca orchestration check." --enter`.
-- **Check each phase** before the next: read the result and diff, rerun its check yourself.
+- **Check each phase** before the next: read the result and diff, rerun its check yourself (`tools/tool_tests.sh --changed` and the
+  targeted game runs, not the whole discovery).
 - **Sequential by default** (one worktree, shared Godot runs); parallel only for independent phases, each in its own
   worktree.
 
@@ -198,7 +202,9 @@ name its tab `review`. Spec:
 - **Target:** worktree and branch, ticket number, base ref (default `origin/main`).
 - **Change:** first `code-review` with the fixed point the base ref and the spec the ticket's `## Agent Brief`: its
   Standards and Spec axes. Then `audit` to its checklist, every step but Spec (5b), which `code-review`'s Spec axis
-  covers. Its two `code-review` sub-agents are fine; start no Orca workers.
+  covers. Its two `code-review` sub-agents are fine; start no Orca workers; their briefs say the review worker
+  runs the suites (`tools/tool_tests.sh`, `tools/run_tests.sh`) and a sub-agent runs at most one named test module
+  (`python3 -m unittest <module>`) or one `tools/run_tests.sh --id=<id>`.
 - **Constraints:** report only: no fix, edit, stage, commit, push or ticket comment; start the editor only when green.
 - **Ownership:** the audit's scratch directory and one report file; no file in the tree.
 - **Observable acceptance:** `worker_done` gives the issue count and report path; the report is `code-review`'s
@@ -212,7 +218,7 @@ Read the report yourself; a failed or missing one is a finding. Then:
    accepted findings, through `implement` (above). Each behaviour defect is a `tdd` slice (red for the right reason,
    fix at the cause, green). A test set-up mistake is fixed only as the report names it; no assertion is loosened.
    Stale skills, docs and comments in the same worker.
-3. A `wrap-up` worker reruns the green checks (new tests `--repeat=10`, the whole suite, perf with
+3. A `wrap-up` worker reruns the green checks (new tests `--repeat=10`, the whole tool-test discovery `tools/tool_tests.sh`, the whole suite, perf with
    `tools/run_tests.sh --domain=perf --quiet`; a change under `scenes/ai/` or `scenes/testing/` also runs
    `tools/run_tests.sh --domain=ai --require-von` once, whatever its labels) and makes sure no doc or skill claims a run
    that did not happen.
