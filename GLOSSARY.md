@@ -182,6 +182,42 @@ and its body moves after every other in the frame, so it wins a same-frame tie w
 D37).
 _Avoid_: posted ambusher (one still walking to its post is not primed), camper
 
+### Doors
+
+**Doorway**:
+The gap in a wall between two rooms, or between a room and the street, as `WorldGen.get_openings` reports it: its centre
+(`pos`) and its `width` (52 px inside, 60 px for the front and the exits), cut in the wall's centreline. A wall's collider
+reaches half its thickness into the gap, so the free passage between the jambs is narrower by a wall's thickness. A
+doorway with no door is an open gap.
+_Avoid_: door (the leaf that may stand in it), opening (the data record of one)
+
+**Door**:
+The hinged leaf standing in a doorway: a `Door` (`scenes/objects/door/door.gd`), a body driven by code, in four materials
+(hollow-core, solid, steel, glass-panel) and their styles. It opens one way only, is damaged, bursts open at a kick and is
+knocked down at 0 HP. It publishes the door contract (architecture interface 24).
+_Avoid_: door stack (the AI's stack of members at a doorway), vehicle door (a car's, `VehicleDoor`)
+
+**Leaf**:
+The swinging panel of a door, which the door's body is: a rectangle `width` long and `leaf_thickness` thick, turned about its
+hinge between shut and `open_angle` (90°). Knocked down, it lies flat on the floor as a slab and is no longer a leaf in the doorway.
+_Avoid_: panel, slab (the leaf lying down)
+
+**Push side / pull side**:
+The two sides of a door. The pull side is the room the door swings into (`swing_into`): the leaf comes toward someone
+standing there as it opens. The push side is the room it swings away from: a kick or a blast from there drives the leaf the way it
+opens and wears its latch; from the pull side it only damages the door.
+_Avoid_: front/back, inside/outside (a door between two rooms has neither)
+
+**Latch side**:
+The side of a door's doorway opposite its hinge, where the latch jamb and the handle are: where someone stands to work the
+door (`latch_side_spot(from)`). The hinge side is the other.
+_Avoid_: handle side, open side
+
+**Ajar**:
+A door open part way: more than shut and less than wide open. A door is shut at 0°, wide open at its `open_angle`, ajar between; one
+passes a character once its `gap()` is wide enough.
+_Avoid_: half-open, unlatched
+
 ### Lint
 
 **Lint rule**:

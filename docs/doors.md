@@ -40,11 +40,22 @@ swing arc is kept free of furniture, clutter and the neon tube as the doorway cl
 Front and exit doors start shut. An interior door is seeded per door: shut, ajar (15 to 35°) or open, by weights
 (0.6 / 0.15 / 0.25).
 
-## DR5. What a door blocks (later stage)
+## DR5. What a door blocks
 
-A standing door (shut, ajar or open) is a solid leaf: it stops bodies like a wall, is struck by rounds at every height and lets
-them through by its material's penetration, blocks the AI's sight and casts a shadow, except the glass-panel door, which sight
-and light pass through. It is in neither nav bake: paths go through doorways as before.
+A standing door (shut, ajar or open) is a solid leaf in the world: a body on the solid layer that stops characters like a wall
+(`tests/objects/door_blocks`: a puppet walking into a shut door stops at it), is struck by rounds at every height (`coverage` 100)
+and lets them through by its material's `penetration` by the usual rule (a hollow door slows a pistol round by 9%, a steel one by
+81%, which the pistol's `projectile_min_speed` does not survive: the round goes on through hollow, stops in steel; a rifle
+round goes through steel), blocks the AI's sight and casts a shadow (a light occluder on the walls' mask that turns with the leaf).
+The glass-panel door is the exception: its surface says `transparent`, which sight reads (an NPC on one side sees a puppet on
+the other through it, not through a wooden door) and it casts no shadow; a round still meets it (penetration 5). A knocked-down
+door blocks nothing (DR11).
+
+It is in neither nav bake (planning, steering): paths go through a doorway as before and the walker deals with the leaf
+(`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`).
+
+Tests: `objects/door_blocks` (the body, the rounds, sight and the shadow), `navigation/door_not_baked` (both maps path through a
+shut door's doorway).
 
 ## DR6. Use (E) (later stage)
 
@@ -57,36 +68,73 @@ swings shut, a shut or ajar one swings fully open, in about 0.4 s.
 While Use is held, each wheel notch turns the door by 10°, wheel up opening and down closing, between shut and fully open, and
 it stays there; the wheel does not zoom the camera meanwhile, and releasing Use after scrolling does not toggle.
 
-## DR8. A swing meets something (later stage)
+## DR8. A swing meets something
 
-A swinging door nudges any character in its arc out of the way (the opener too); it stops short at walls, furniture and a body
-that cannot move further, and stays there.
+A swinging door nudges any character in its arc (the quarter disc its leaf sweeps) out of the way, the one who opened it too:
+before the leaf turns on, the physics space is asked what stands where it will be; a character is moved straight away from the
+leaf by what clears it, no faster than `nudge_speed` (600 px/s; at the tip of the longest leaf, a front doorway's 48 px, the swing peaks near 280 and a burst runs at 450). The swing stops
+short, and stays there, at a wall, at furniture (the furniture is not pushed) and at a body that cannot move further: a
+character with a fridge or a wall at its back, or whom the leaf outruns, is not squashed or shoved through it.
 
-## DR9. Damage (later stage)
+Tests: `objects/door_nudges` (a puppet in the arc, the opener and a chair; a puppet pinned against a fridge),
+`objects/door_nudge_speed` (a nudge slower than the leaf stops it).
 
-Each door has its material's HP. Rounds, punches, kicks and blasts count against it, each by its material's factor for that
-kind of hit; dents and holes show. A glass-panel door's first round shatters its panes; the frame stays.
+## DR9. Damage
 
-## DR10. Burst open (later stage)
+Each door has its material's HP. A round or a fragment, a punch, a kick and a blast count against it, each by its material's
+factor for that kind of hit (`round_factor`, `melee_factor`, `kick_factor`, `blast_factor`); a kick is the strike whose shove, in the same
+frame, was `burst_impulse` or more, anything softer from a hand is a punch. The leaf shows its dents and bullet holes (a `Deformable`
+on it; its collider is kept) and throws debris of its material. A glass-panel door's first round or blast shatters its panes: it is drawn
+without its glass, its hits sound as wood from then on, and the frame stays, standing, with its remaining HP.
 
-Kicks and blasts on a shut or ajar door from the side it swings away from wear down its latch; when the latch gives, the door
-swings fully open at once. A character walking into it never counts. From the other side a kick or blast only damages the door.
+| Material | HP | penetration | round | melee | kick | blast |
+|---|---|---|---|---|---|---|
+| hollow-core | 80 | 10 | 1.0 | 1.0 | 1.5 | 1.5 |
+| solid wood | 250 | 45 | 0.8 | 0.5 | 1.0 | 1.2 |
+| steel | 1200 | 90 | 0.5 | 0.1 | 0.05 | 1.0 |
+| glass-panel | 80 | 5 | 1.0 | 1.0 | 1.5 | 1.5 |
 
-## DR11. Knocked down (later stage)
+Tests: `objects/door_damage` (rounds, a punch, a kick, a frag's blast and fragments, a kick on steel, each against its factor; the
+panes).
 
-At 0 HP the leaf comes off its hinges and falls flat into the room the last blow pushed it toward: walk-over, no cover, blocking
-no shot, sight or light, and no longer usable. The doorway is clear.
+## DR10. Burst open
+
+A kick or a blast on a shut or ajar door from the side it swings away from (its push side: the strike drives the leaf the way it
+opens) wears down its latch by the strike's own damage (a kick deals 14, a frag up to 60); when the latch's `latch_hp` is gone, the
+door swings fully open at once (`burst_speed`, 540°/s: a burst is faster than a swing, 0.17 s). A hollow door's latch (20) holds the first
+kick and gives to the second; a solid wood door's (60) to the fifth; a steel door's (50) to no kick (a boot cannot move its bolt) but to a
+frag; a glass-panel door's (20) to the second. A walking push (a shove of about 900 a frame) and a punch (900) are below
+`burst_impulse` (1500; a kick is 2200) and never count. From the other side (the pull side) a kick or a blast only damages the door,
+and a door that has burst stays unlatched.
+
+Tests: `objects/door_kick_burst` (a hollow door's second kick, the pull side, steel, solid at the fifth, punches, a walker).
+
+## DR11. Knocked down
+
+At 0 HP the leaf comes off its hinges and falls flat into the room the last blow pushed it toward (a kick's shove, a round's or
+a blast's direction; the room it swings into when the blow had none): it lies on the floor beyond the doorway, `fallen_length` (100 px)
+long, its length along the way it fell, drawn face up at the lying bodies' rung. Walk-over (no collider), no cover, blocking no shot,
+sight or light (its shadow is gone), and no longer usable (`toggle`, `turn_by` and `open_fully` do nothing); the doorway is clear
+(`gap()` is its whole width, `open_amount()` 1).
+
+Tests: `objects/door_knocked_down` (four kicks from the east lay a hollow door west; four rounds from the west lay one east; a puppet
+walks over one, a round and an NPC's sight pass).
 
 ## DR12. Sound (later stage)
 
 Synthesized per material: the swing (a creak), the latch as it shuts, a burst's bang, the splinter and thud of a fall, a steel
 door's clang, glass shattering; posted as `&"door"` events and played by `Sound`.
 
-## DR13. Materials and styles (later stage)
+## DR13. Materials and styles
 
-Hollow-core wood (flush, panelled), solid wood (panelled, plank), steel (riveted, peephole), glass-panel (wood frame with
-panes), each drawn in the run-down look, each with its HP, penetration and latch (an interior door is concealment, not cover;
-steel stops a pistol, not a rifle).
+Hollow-core wood (flush, panelled), solid wood (panelled, plank), steel (riveted, peephole), glass-panel (wood frame with panes),
+each drawn in the run-down look (the top edge of the leaf in the style's pattern, a hinge pin and a handle, scratched wood or rusted
+steel, grime), each with its HP, penetration and latch (the table in DR9; the latch in DR10): an interior door is concealment, not
+cover, and steel stops a pistol, not a rifle (research §3, §4). The catalogue (`DoorCatalog`) has one definition per material and
+style; the leaf's art and a knocked-down door's face are the door painter's.
+
+Tests: `objects/door_materials` (every material and style spawns, draws, each style differently, with its HP and penetration);
+`objects/door_contract` (the contract the Use key and the AI will drive).
 
 ## DR14. The AI opens doors in its way (later stage)
 

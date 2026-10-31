@@ -368,15 +368,37 @@ static func _source_for(site: NavSite, characters: Array = [], furniture: Varian
 ## anchored piece too, is not a StaticBody2D, so it is not parsed: the furniture is carved from its
 ## footprints), as `{ traversable, obstruction, projected }` source outlines, the obstructions
 ## snapped to the map's 1 px grid. The same for every bake of the house until a wall's collider
-## changes, so `nav_updater.gd` parses once for a tick's two bakes.
+## changes, so `nav_updater.gd` parses once for a tick's two bakes. The doors under the house (the
+## group `doors`) are left out: their leaves stand in the doorways, which stay open to the paths.
 static func _walls_of(house: Node2D, agent_radius: float) -> Dictionary:
 	var source := NavigationMeshSourceGeometryData2D.new()
+	var doors := _doors_of(house)
+	var layers: Array[int] = []
+	for door in doors:
+		layers.append(door.collision_layer)
+		door.collision_layer = 0
 	NavigationServer2D.parse_source_geometry_data(_new_polygon(agent_radius), source, house)
+	for i in doors.size():
+		doors[i].collision_layer = layers[i]
 	return {
 		"traversable": source.get_traversable_outlines(),
 		"obstruction": _on_grid(source.get_obstruction_outlines()),
 		"projected": source.get_projected_obstructions(),
 	}
+
+
+## The doors standing under `house`: the bodies in the group `doors`. A door is a driven body in a
+## doorway (a StaticBody2D to the engine's parse), but it opens, so a path goes through its doorway
+## as if it were open and the walker deals with the leaf: the parse above does not see it. Named by
+## group alone, so Navigation imports nothing of the Objects domain.
+static func _doors_of(house: Node2D) -> Array[CollisionObject2D]:
+	var doors: Array[CollisionObject2D] = []
+	if not house.is_inside_tree():
+		return doors
+	for node in house.get_tree().get_nodes_in_group(&"doors"):
+		if node is CollisionObject2D and house.is_ancestor_of(node):
+			doors.append(node)
+	return doors
 
 
 ## An empty polygon to bake into, with the bake's agent radius (plus the wall margin).

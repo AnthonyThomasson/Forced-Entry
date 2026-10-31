@@ -54,9 +54,14 @@ func arena(rect: Rect2, opts: Dictionary = {}) -> TestSetup:
 
 ## A hand-laid building: `rooms` is `[{ key, type, rect, floor? }]` (world-space rects; walls run
 ## along their edges, `floor` is a catalogue floor key, default "oak_planks") and `doors` is
-## `[{ pos, width }]`, each `pos` a point on a wall's centerline (on a wall two rooms share it is an
-## interior doorway, on an outer edge an entrance). Walls are the house's own, so the nav bake
-## carves them and leaves the doorways open. `opts`: `thickness` (default 12).
+## `[{ pos, width, door? }]`, each `pos` a point on a wall's centerline (on a wall two rooms share
+## it is an interior doorway, on an outer edge an entrance). A doorway with a `door`
+## (`{ material, style, hinge, swing_into, angle?, name? }`: the catalogue's door of that material
+## and style built through `DoorFactory` with the hinge on the jamb at the world point `hinge`,
+## swinging into the room that lies toward the unit vector `swing_into`, standing `angle` degrees
+## open, and found by `t.object(name)`) has a door in it; one without stays an open gap. Walls are
+## the house's own, so the nav bake carves them and leaves the doorways open (a door is left out of
+## the bake). `opts`: `thickness` (default 12).
 func layout(room_list: Array, doors: Array = [], opts: Dictionary = {}) -> TestSetup:
 	world = {
 		"kind": "layout",

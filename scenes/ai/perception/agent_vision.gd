@@ -119,6 +119,7 @@ func can_see_node(
 ## `blocked()` (physical: any solid collider stops it), this looks OVER low cover — it walks the
 ## line, skipping each collider whose coverage is at or below `see_over_coverage` and casting again
 ## past it, until it reaches `to` or hits something tall enough to block (a wall or tall furniture).
+## A surface that is `transparent` (a glass-panel door) is looked through however tall.
 ## A collider with no readable coverage is treated as a full blocker. The exclude list grows by one
 ## skipped collider each pass, so the walk always terminates (there are finitely many colliders on
 ## the line). Ignores `enabled`: it answers what the line is, the callers decide whether sight is
@@ -134,8 +135,8 @@ func sight_hit(
 		var hit := raycast(space, from, to, ex)
 		if hit.is_empty():
 			return {}  # reached the target: nothing tall in the way
-		if _hit_coverage(hit.get("collider")) > see_over_coverage:
-			return hit  # too tall to see over
+		if _hit_blocks_sight(hit.get("collider")):
+			return hit  # too tall to see over, and not clear (a glass-panel door is)
 		# Low cover: look over it and keep going past it.
 		if ex == exclude:
 			ex = exclude.duplicate()  # don't mutate the caller's list
@@ -153,12 +154,18 @@ func _sight_blocked(
 	return not sight_hit(space, from, to, exclude).is_empty()
 
 
-## The coverage (0–100 height proxy) of a ray-hit collider, read through the hittable contract. An
-## unknown collider (no get_surface) is treated as fully blocking so sight never leaks past it.
-func _hit_coverage(collider: Object) -> float:
-	if collider != null and collider.has_method("get_surface"):
-		return float(collider.get_surface().get("coverage", 100.0))
-	return 100.0
+## Whether a ray-hit collider stops sight, read once through the hittable contract: its coverage
+## (0–100 height proxy) is above `see_over_coverage` and its surface is not `transparent` (a
+## glass-panel door's). An unknown collider (no get_surface) is treated as fully blocking so sight
+## never leaks past it.
+func _hit_blocks_sight(collider: Object) -> bool:
+	if collider == null or not collider.has_method("get_surface"):
+		return true
+	var surface: Dictionary = collider.get_surface()
+	return (
+		float(surface.get("coverage", 100.0)) > see_over_coverage
+		and not bool(surface.get("transparent", false))
+	)
 
 
 ## Whether the straight segment `from`→`to` hits a wall or solid object on the query layer. A pure

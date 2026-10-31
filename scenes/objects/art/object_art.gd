@@ -39,6 +39,7 @@ const PAINTERS := {
 	"clinic": preload("res://scenes/objects/art/clinic_painter.gd"),
 	"security": preload("res://scenes/objects/art/security_painter.gd"),
 	"hotplate": preload("res://scenes/objects/art/hotplate_painter.gd"),
+	"door": preload("res://scenes/objects/art/door_painter.gd"),
 }
 ## The painters that draw several kinds of piece (`kind` in the options): their neon share is the
 ## kind's (ObjectArtLightConfig.neon_share), not the painter's.
@@ -62,6 +63,19 @@ static func tile(
 		push_error("ObjectArt: unknown art '%s'" % art)
 		return null
 	return texture(art, painter.tile_size(opts), color, Vector2.DOWN, _finished(opts, material))
+
+
+## The texture for an `art` that turns freely (a door's leaf): painted in its own frame and lit as
+## if turned by `angle` (snapped to `ArtCanvasConfig.turn_steps`), drawn by the caller turned by the
+## exact angle (`PixelArt.render_turned`). Null for an unknown art id.
+static func turned(art: String, size: Vector2, color: Color, angle: float,
+		opts: Dictionary = {}) -> Texture2D:
+	if not PAINTERS.has(art):
+		push_error("ObjectArt: unknown art '%s'" % art)
+		return null
+	return PixelArt.render_turned(
+		PAINTERS[art], size, _color(art, color), PixelArt.snap_angle(angle), _art_opts(art, opts)
+	)
 
 
 ## The texture for an `art` piece with local footprint `size` whose front faces `facing`

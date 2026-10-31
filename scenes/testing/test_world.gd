@@ -234,6 +234,10 @@ func _build_world(world: Dictionary) -> void:
 		)
 	elif world["kind"] == "layout":
 		house = LayoutBuilder.build(world, self)
+		# the doors its doorways declared, found by their node names like the placed objects
+		for door in house.get_children():
+			if door.is_in_group(&"doors"):
+				objects[StringName(door.name)] = door
 	else:
 		house = ArenaBuilder.build(world, self)
 	rooms = WorldGen.get_rooms(house)

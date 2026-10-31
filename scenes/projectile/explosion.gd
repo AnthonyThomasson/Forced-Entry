@@ -184,8 +184,8 @@ static func _characters(world: Node) -> Array:
 
 
 ## The bodies a blast of `radius` at `at` may reach: what its circle overlaps on the solid layer
-## (furniture, the living; walls are what block it, so they are left out) and the fallen, who have
-## left that layer but are still shoved. Each once.
+## (furniture, the living, a door; walls are what block it, so they are left out) and the fallen,
+## who have left that layer but are still shoved. Each once.
 static func _bodies_near(
 	space: PhysicsDirectSpaceState2D,
 	at: Vector2,
@@ -201,7 +201,9 @@ static func _bodies_near(
 	var out: Array = []
 	for found: Dictionary in space.intersect_shape(query, MAX_BODIES):
 		var body: Object = found["collider"]
-		if body is StaticBody2D or out.has(body):
+		# a wall is a static body that takes no shove; a door is a driven one that does
+		# (`apply_impulse`)
+		if (body is StaticBody2D and not body.has_method("apply_impulse")) or out.has(body):
 			continue
 		if body.has_method("take_hit") or body.has_method("apply_impulse"):
 			out.append(body)

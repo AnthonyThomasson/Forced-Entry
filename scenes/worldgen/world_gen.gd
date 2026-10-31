@@ -123,6 +123,12 @@ static func floor_definition(key: String) -> Dictionary:
 	return GeneralCatalog.FLOORS.get(key, {})
 
 
+## The catalogue door definition of `material` in `style` (a plain dict for DoorFactory.spawn), or
+## {} if unknown. For callers outside World-Gen (the Testing domain) that place single doors.
+static func door_definition(material: String, style: String) -> Dictionary:
+	return DoorCatalog.definition(material, style)
+
+
 ## The house wall style (the `style` dict for WallFactory.spawn), so other builders match the house.
 static func wall_style() -> Dictionary:
 	return GeneralCatalog.WALL

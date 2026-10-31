@@ -92,6 +92,13 @@ Interfaces: 1 (Main → World Generation, incl. `bounds` and the test reads `get
 - The house carries what it placed as metadata, read through interface 1: `rooms`, `openings`, and, for tests, `clutter`,
   `wear`, `street`, `streetlights` (the `get_*` reads).
 
+## Doors (`categories/doors.gd`, `DoorCatalog`)
+
+The catalogue of doors, one definition per material and style (`hollow_flush`, `hollow_panelled`, `solid_panelled`, `solid_plank`,
+`steel_riveted`, `steel_peephole`, `glass_panes`): `name`, `material`, `style`, `color` (one colour per material). `WorldGen.door_definition(material,
+style)` reads it (interface 1) and `DoorFactory.spawn` (interface 2, Objects) builds it; what each material is made of is Objects'
+`DoorMaterialConfig`. World-Gen does not yet put doors in a house (DR2 to DR4: the rules, the swing and hinge, the start state).
+
 ## To add a room type
 
 Add a `categories/<type>.gd` catalog with its recipe (register it in `ObjectDefinitions` and `ArrangementDefinitions`), give the

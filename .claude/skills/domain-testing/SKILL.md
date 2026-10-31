@@ -127,6 +127,14 @@ a `GdUnitTestSuite`), `test_*` functions with gdUnit's asserts. The example is `
 - The log gate holds per case. It runs in shard 0 (`runner-flags.md`); `--changed` runs its domain.
 - Name it `*_suite.gd`, never `*_test.gd` (the catalog's), and keep it out of the helper folders (`tests/_*`).
 
+## Doors in a layout
+
+A `TestSetup.layout` doorway may declare a door: `{ pos, width, door: { material, style, hinge, swing_into, angle?, name? } }`.
+`LayoutBuilder` builds it through `DoorFactory.spawn` from `WorldGen.door_definition(material, style)` (the hinge a point on the jamb where
+the walls' ends stand: 6 px in from the `width` gap's edge in the 12 px walls of a layout) and `TestWorld` registers it in `objects` under its
+node `name`, so `t.object(name)` finds it. The test opens it through the door contract (`toggle`, `turn_by`, `open_fully`); the Use
+key and `use()` / `turn_door(steps)` on the puppet are the next stage's. A puppet's punch needs `start_slot: 2`. Tests: `tests/objects/door_*`.
+
 ## Performance tests (domain `perf`, `tests/perf/`)
 
 Writing, running or reading a performance test (the standard, the guards, rendered vs headless): `perf.md`.

@@ -28,4 +28,17 @@ static func build(world: Dictionary, parent: Node) -> Node2D:
 		WallFactory.spawn(rect, walls, key.capitalize(), root)
 		rooms.append({ "key": room["key"], "type": room.get("type", room["key"]), "rect": rect })
 	WorldGen.annotate_layout(root, rooms, doors)
+	for doorway in doors:
+		if doorway.has("door"):
+			_spawn_door(doorway, root)
 	return root
+
+
+## The door a doorway declares: `door` is `{ material, style, hinge, swing_into, angle?, name? }`
+## (`TestSetup.layout`), built from the catalogue's definition of that material and style.
+static func _spawn_door(doorway: Dictionary, parent: Node) -> void:
+	var spec: Dictionary = doorway["door"]
+	var definition := WorldGen.door_definition(String(spec["material"]), String(spec["style"]))
+	var opening: Dictionary = spec.duplicate()
+	opening["pos"] = doorway["pos"]
+	DoorFactory.spawn(opening, definition, parent)
