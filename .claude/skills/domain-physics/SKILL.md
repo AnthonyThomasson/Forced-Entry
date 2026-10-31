@@ -1,165 +1,112 @@
 ---
 name: domain-physics
-description: Deep implementation detail for the Physics System domain (scenes/physics/) — physical reactions: forces, knockback, deformation, debris, hit particles, and the generic 3D ragdoll solver; the blood system is its own sub-domain (`domain-physics-blood`, scenes/physics/blood/). Use when editing scenes/physics/ or working on HitInfo, Knockback, Deformable/Deformation, debris, hit particles, Ragdoll (joint limits, floor/wall contact, sleeping), or the Physics config holders' tuning (PhysicsConfig, PhysicsImpactConfig, PhysicsDeformConfig, PhysicsDeformLookConfig, PhysicsRagdollConfig, PhysicsExplosionConfig). Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Use when editing scenes/physics/ or working on HitInfo, knockback, deformation, debris, hit particles, the ragdoll solver, an explosion's look, or Physics tuning. Blood is `blood.md`.
 ---
 
-# Physics System domain
+# Physics System domain (`scenes/physics/`)
 
-Stateless helpers + reusable Node components (a leaf).
-Objects, the character and a vehicle *compose* these components; Physics imports nothing from other domains but General's
-infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
+A leaf of stateless helpers and reusable Node components. Objects, the character and a vehicle *compose* them. Physics imports
+only General's infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`). Interfaces: 3 (`HitInfo`), 4 (Objects /
+Character / Vehicles → Physics), 5 (`Knockback` and the pushable bodies), 11 (`PhysicsLayers` in `PhysicsConfig.wall_mask`;
+`DrawLayers` for blood and scorch `BLOOD` and `ExplosionFx.Z_INDEX` = `EFFECTS`; `FillBatch`), 13 (the switches `physics.debris`,
+`physics.hit_particles`, and blood's). Tests: `tests/physics/`. Blood (`scenes/physics/blood/`, its `Blood*Config` holders) is
+`blood.md`; the core keeps only its entry points, `Physics.spawn_debris` and `Physics.bleed_out`.
 
-- `HitInfo` — the one data packet a striker fills in (`position, normal, direction, damage,
-  speed_factor, penetrated, has_exit, exit_position, exit_normal, blood, height, source`); `height` is the 0..100 height the striker flew at
-  (a bullet's one height, which picks a character's hit zone), −1 = none (the default, and a frag's blast: the whole body).
-  `spray_direction()` (the normal, or back along the shot when it is degenerate) is what `spawn_debris`, `HitParticles` and
-  `BloodWound` spray along.
-- `Physics.impact_impulse(hit)` / `Physics.spawn_debris(world, hit, surface)`.
-- `Knockback` — RigidBody2D adapter: configures its parent furniture body (no gravity, mass,
-  `PhysicsImpactConfig.body_*` damping, origin-pinned center of mass, contact reporting) and feeds it
-  impulses via `apply_impulse(v, at_world)` (central with no point; off the centre the body pivots under its own
-  torque, slowed by `body_angular_damp`; a character's shoves reach the body's native `apply_impulse(v, at)` the same way,
-  interface 5). The engine does the sweeping, pivoting and settling; the component only hands momentum to the kinematic
-  character on contact (`PhysicsImpactConfig.transfer_scale`).
-- `Deformable` — records local impacts (dents / carved "missing pieces") and emits `changed`; the
-  owner redraws + rebuilds its collider from the same deformed polygon. `record(hit, turn)` stores
-  the impact un-turned by `turn`, for a body drawn turned beyond its node rotation (a character
-  facing its aim); the owner turns the impacts back when drawing. A vehicle (Vehicles domain) composes one with `allow_chunks`
-  off, its own `max_depth` / `max_impacts`, and leaves its collider alone (it does not listen to `changed`); it has no
-  `Knockback`, being a `RigidBody2D` of its own, and draws the dents with `Deformation.draw_marks`.
-- `Deformation` — the polygon math + drawing (shared by furniture and walls). It owns the impact schema: `new_impact(pos, inward,
-  damage, blood, dent: DentLimits)` (`dent_limits.gd`: `max_depth`, `allow_chunks`) builds one (depth from `PhysicsDeformConfig.depth_per_damage`, a chunk past `PhysicsDeformConfig.chunk_damage`, a
-  fresh seed) and `push_impact(list, impact, max_impacts)` adds it, dropping the oldest; `Deformable.record` and Objects' wall
-  segments both record through them. `deform` moves each ring point by its dents' summed push, kept inside the outline
-  (`_clamp_inside`) and at most `NEIGHBOUR_REACH` (0.45) of the way toward either ring neighbour along the outline, so a
-  corner dented from one face cannot slide along the other past its neighbour and fold the ring onto itself
-  (`tests/physics/deformation_outline_suite.gd`, frag-dented outlines). `shape_polygon` keeps up to 256 dented
-  silhouettes (cleared and started over when full), keyed by everything they are made from (shape, size, the dents, the deformation tuning) and checked for equality:
-  each hit asks for the same one three times (collider, shadow, drawing) and every repaint of a wounded character asks again
-  (`tests/physics/shape_polygon_cache_test.gd`). `convex_pieces` cuts a silhouette into convex collider pieces (Hertel-Mehlhorn
-  over its triangulation) finding neighbouring pieces through a directed-edge map, remembering failed pairs by piece id and
-  checking only the two corners a merge joins; after a merge the scan goes on from the merged piece, having first tried the pairs
-  the new piece makes with the pieces before it (every other pair before it has failed), and an attempt hands back its union;
-  `tests/physics/convex_pieces_match_plain_scan_test.gd` pins it to the plain every-pair, every-corner scan; the pieces come as their points (pure, for a worker thread) and
-  `shapes_of` makes the shapes; `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` return `[polygon, pieces]`
-  for a dented silhouette computed without the caches (pure: Objects' `ColliderCuts` runs them on worker threads; a circle's unit
-  ring is made afresh there, never read from or written to the kept one). `wall_polygon` keeps up to 256 dented segments (cleared and started over when full) like `shape_polygon` (a wall repaints every segment when
-  one is struck), a fresh array each ask, and `draw_wall` skips the triangulation check for an undented segment. Its circle `base_ring`
-  is the unit ring (kept per point count) scaled, a fresh array each call; `draw_shape` maps its texture with one transform of the
-  ring and skips the triangulation check for an undented shape (it is the intact ring already); the fallback to the intact ring
-  when dents break the polygon and the texture transform are `Deformation.drawable_polygon(shape, size, impacts)` and
-  `Deformation.texture_uvs(poly, size, angle)`, which the character's kept meshes call too; `draw_marks` draws each mark's
-  discs as one General `FillBatch` before its cracks (one batch per mark, not per call, so a later mark's discs cover an
-  earlier mark's cracks as they always do). `draw_shape` takes
-  its look as a `ShapeLook` (`shape_look.gd`; `draw_wall`'s is a `WallLook`, `wall_look.gd`), with an optional `texture`: the deformed polygon is then drawn textured (UVs from the intact
-  footprint, so dents cut into the image), tinted darker by damage (white darkened by `darken(damage_total)`: up to
-  `PhysicsDeformLookConfig.darken_max`, reached at `PhysicsDeformLookConfig.darken_full`; published so the character's kept meshes draw its textured parts in the same
-  colour), without the smooth outline;
-  `texture_angle` turns the image within the unturned silhouette (a round body facing any way);
-  with `marks` false the hit marks are left to the caller's `draw_marks`, to draw over parts
-  layered on top.
-  `draw_wall`'s `WallLook` takes an optional repeating `texture` + `tile_length`: UVs run in the segment's own
-  frame (u along the wall per tile, v across its thickness), so the tile follows every wall.
-- `DebrisSpawner` / `Debris` / `DebrisLayer` — material-styled chips (`STYLES` table). `Debris` is `debris.gd`, with no
-  `class_name` (preloaded as `Debris`); its static `Debris.toss(node, dir, distance, time, spin) -> Tween` is the chip's throw,
-  which the Projectile's casing uses too (interface 4). A chip is a node only while it
-  flies (Despawner-tracked); as it lands it hands its place, turn, colour, size and shape to the parent's `DebrisLayer`
-  (`DebrisLayer.layer(parent)`) and frees itself, so a floor strewn with a thousand chips costs a few draw calls and no nodes. A chunk
-  holds its chips in pages of `PAGE` (32), oldest first, each a canvas item of its own (`DebrisPage`, the chunk's children in age
-  order) drawing its chips (disc, triangle or rect, each at its own place and turn) as one General `FillBatch` (`_draw_chips`: the
-  triangle and rect convex, uncut; under the headless display each by its own command, `_draw_each`); the flying chip
-  (`debris_visuals.gd`) draws the same `DebrisLayer.tri`, so a chip lands looking as it flew. A chip landing goes on the
-  chunk's last page (a new one when that is full) and repaints only it; the oldest dropped leaves the first page, which repaints or,
-  left empty, is freed: a struck chair piles hundreds of chips into one chunk, which are not all repainted for each new chip. `DebrisLayer.paged` off draws each chunk's chips in one batch instead (for tests); `chips_drawn` counts the
-  chips every draw paints. The layer keeps at most `Despawner.max_scene_objects` chips, dropping the oldest; it draws under whatever
-  joins its node after it. A page is lit as its own item, by the lights that reach its rect: where more than 15 reach a chunk (one
-  straddling two rooms while flashes go off, `docs/lighting.md` L4) a page can keep a light the whole chunk's draw dropped, the only
-  case its pixels differ. Tests: `tests/physics/debris_rests_in_a_layer_test.gd`, `debris_pages_repaint_one_page_test.gd` (a landing
-  or a drop repaints at most a page; the pages hold the chunk's chips in order) and, windowed, `debris_pages_match_one_batch_test.gd`
-  (pages and one batch paint the same pixels under a light, before and after the cap drops the oldest).
-- `chunked_layer.gd` (no `class_name`; `DebrisLayer`, `ScorchDecals` and the blood's `BloodDecals` extend it by path) — the
-  batched decal store they share: every mark kept as plain data in one node under a world node, grouped in 128 px chunks
-  (`CHUNK`) drawn by a few chunk nodes, and a capped FIFO (`_add(mark, cap)` drops the oldest past the layer's cap and flags it
-  `dead`); `count()`, `items()`, `marks_in(cell)`. Each mark filed and dropped is handed to `_mark_added(cell, mark)` /
-  `_mark_dropped(cell, mark)`, which by default redraw that chunk alone (`DebrisLayer` repaints one page instead). A layer names
-  only its recipe, its cap and its chunk's `_draw` (`_make_chunk`); its typed `layer(parent)` wraps `_get_or_make`; `find(parent)` only looks the layer up.
+## Files
 
-## Hit particles (entry and exit bursts)
+| File | Role |
+|---|---|
+| `physics.gd` (`Physics`) | The entry points `impact_impulse`, `spawn_debris`, `bleed_out`, `spawn_explosion`. |
+| `hit_info.gd` (`HitInfo`) | The one packet a striker fills in. |
+| `knockback.gd` (`Knockback`) | RigidBody2D adapter for furniture. |
+| `deformable.gd`, `deformation.gd`, `dent_limits.gd`, `shape_look.gd`, `wall_look.gd` | Dents: records, polygon math and drawing. |
+| `debris_spawner.gd`, `debris.gd`, `debris_layer.gd`, `debris_visuals.gd`, `chunked_layer.gd` | Chips and the batched decal store. |
+| `hit_particles.gd` (`HitParticles`) | Entry, exit and impact bursts. |
+| `ragdoll.gd`, `hinge_limits.gd` | The generic 3D ragdoll solver. |
+| `explosion_fx.gd`, `scorch_decals.gd` | A grenade burst's look. |
+| `physics_config.gd`, `physics_impact_config.gd`, `physics_deform_config.gd`, `physics_deform_look_config.gd`, `physics_ragdoll_config.gd`, `physics_explosion_config.gd` | Tuning. `PhysicsConfig`: `debris_enabled`, `hit_particles_enabled`, `hit_particles_scale`, `hit_particles_max`, `wall_mask` (the layer the ragdoll sweep and blood queries treat as blocking). `PhysicsImpactConfig`: a hit's shove and the furniture body's damping; `PhysicsDeformConfig`: the dents' shape; `PhysicsDeformLookConfig`: how they are drawn; `PhysicsRagdollConfig`: the solver; `PhysicsExplosionConfig`: a burst's look. |
 
-`HitParticles.spawn(parent, hit, surface, kind, strength)` (`hit_particles.gd`, static; where and which way from the `HitInfo` and the kind:
-an entry or impact burst at `hit.position` out along the normal, an exit burst at `hit.exit_position` on along the shot) bursts a one-shot
-`CPUParticles2D` (named `HitParticles`, frees itself on `finished`, `Despawner`-tracked, no gravity: top-down) styled by
-`surface.material` from its `STYLES` table (wood splinters, metal sparks, glass shards, ceramic, fabric puff, foliage,
-flesh/blood droplets, `default` plaster dust for walls). `Kind.EXIT` (the strongest burst, thrown on along the shot) is paired with a much weaker `Kind.ENTRY` when a round passes through
-(`has_exit`); a hit that stays in the object (blocked, ricochet, no exit found) gets one `Kind.IMPACT` burst back along the normal at exit strength. `Physics.spawn_debris` (what every `take_hit` already calls) fires the entry burst,
-the exit burst when `HitInfo.has_exit`, and the material chips. Tuning: `PhysicsConfig.hit_particles_enabled` (test switch
-`physics.hit_particles`), `hit_particles_scale`, `hit_particles_max`.
+## HitInfo, Knockback
 
-**Blood carried onto a surface.** A hit with `HitInfo.blood > 0` also throws red droplets and `flesh` chips from the entry,
-and the object keeps a bloody mark: `Deformation.new_impact` stores `"blood"` (for `Deformable.record` and the wall's segments), and
-`Deformation.draw_marks` draws a red blot (`PhysicsDeformLookConfig.blood_mark_color` / `blood_mark_radius`) under the hole, riding
-with the object (`hit_marks()` on an `EnvironmentObject` or `Wall` returns them). A character hit with an exit also throws a splatter out the far side (`BloodWound.record`).
+- `HitInfo.height` is the 0..100 height the striker flew at (a bullet's one height, which picks a character's hit zone); −1 is
+  none (the default, and a frag's blast: the whole body). `spray_direction()` (the normal, or back along the shot when degenerate)
+  is what debris, hit particles and `BloodWound` spray along.
+- `Knockback` configures its parent furniture body (no gravity, mass, `PhysicsImpactConfig.body_*` damping, origin-pinned centre
+  of mass, contact reporting) and feeds it impulses; off the centre the body pivots under its own torque. The engine does the
+  sweeping and settling; the component only hands momentum to a kinematic character on contact (`transfer_scale`).
 
-## Ragdoll (a generic 3D body falling to the floor)
+## Deformation
 
-`ragdoll.gd` (`class_name Ragdoll`, `RefCounted`) knows nothing of what the body is; the owner (the
-Character domain's humanoid) builds and steps it. Space is the owner's local floor plane (x, y)
-plus z = height; gravity pulls to z = 0.
-- Building: `add_point(at, radius, mass)`, `add_bone(a, b, stiffness)` (rest length = current
-  distance), `add_rigid(indices)` (all pairs), `add_frame(origin, up, right, forward_hint)` (an
-  orthonormal frame read off three points every step; forward signed by the hint),
-  `add_swing(frame, joint, child, rest, {right, left, front, back})` (a cone around `rest` along the
-  frame's y, its reach toward each frame axis in radians, blended linearly by direction between
-  them) and `add_hinge(frame, parent, joint, child, limits: HingeLimits)` (`hinge_limits.gd`: `rest`, `bend`,
-  `min_angle`, `max_angle`, `slack`; a one-way hinge: the bend side `bend` is carried onto the live parent bone by the shortest turn from `rest`; the
-  child's bend off straight is held to [min_angle, max_angle] and its twist off that plane to ±slack).
-  `push(i, v)` seeds velocities; `exclude` lists colliders the wall sweep ignores.
-- `step(delta, space, origin)`: position-based dynamics in `PhysicsRagdollConfig.substeps` sub-steps — predict
-  under gravity and air drag; `PhysicsRagdollConfig.iterations` passes of bones, limits and the floor (limits
-  correct `LIMIT_STIFFNESS` of the error per pass, turning a bone at most `LIMIT_MAX_TURN`, split
-  by inverse mass); sweep each point's x/y move against layer 1 with `cast_motion` (stop + slide);
-  then derive velocities. A point leaves the constraints no faster than it came in plus
-  `PhysicsRagdollConfig.max_push` (and never past `PhysicsRagdollConfig.max_speed`), so constraints fighting the floor can't
-  fling the body. Floor contact bounces (`PhysicsRagdollConfig.floor_bounce`) and skids to a stop
-  (`PhysicsRagdollConfig.floor_friction`); `PhysicsRagdollConfig.joint_friction` pulls each limited child's velocity toward
-  its joint's so limbs swing heavy. The first step pulls any point that starts inside a wall back
-  toward the origin.
-- Sleeps once every point stays under `PhysicsRagdollConfig.sleep_speed` for `PhysicsRagdollConfig.sleep_time`, or after
-  `PhysicsRagdollConfig.max_time`; then `asleep` is true and `step` does nothing.
-  `wake()` undoes it and restarts both clocks.
-- Reading: `point(i)`, `point_count()`, `frame_basis(f)`.
+- `Deformable` records impacts (dents, carved "missing pieces") and emits `changed`; the owner redraws and rebuilds its collider
+  from the same deformed polygon. `record(hit, turn)` stores the impact un-turned by `turn`, for a body drawn turned beyond its
+  node rotation (a character facing its aim); the owner turns it back when drawing. A vehicle composes one with `allow_chunks` off
+  and its own `max_depth` / `max_impacts`, does not listen to `changed` (it leaves its collider alone), has no `Knockback` (it is a
+  `RigidBody2D`), and draws its dents with `Deformation.draw_marks`.
+- `Deformation` owns the impact schema (`new_impact`, `push_impact`); `Deformable.record` and Objects' wall segments both record
+  through them. `deform` keeps each ring point inside the outline and at most `NEIGHBOUR_REACH` of the way to either ring
+  neighbour, so a corner dented from one face cannot fold the ring (`tests/physics/deformation_outline_suite.gd`).
+- Caches: `shape_polygon` and `wall_polygon` keep up to 256 dented silhouettes (cleared when full), keyed by everything they are
+  made from; one hit asks three times (collider, shadow, drawing) and every repaint of a wounded character asks again
+  (`tests/physics/shape_polygon_cache_test.gd`). `draw_wall` and `draw_shape` skip the triangulation check for an undented
+  outline.
+- `convex_pieces` cuts a silhouette into convex collider pieces (Hertel-Mehlhorn); `tests/physics/convex_pieces_match_plain_scan_test.gd`
+  pins its pruned scan to the plain every-pair scan. `cut_shape` / `cut_wall` are pure (no caches, a circle's unit ring made
+  afresh) because Objects' `ColliderCuts` runs them on worker threads; `shapes_of` makes the shapes on the main thread.
+- `drawable_polygon` (falls back to the intact ring when dents break the polygon) and `texture_uvs` are shared with the
+  character's kept meshes, as is the damage darkening (`PhysicsDeformLookConfig.darken_max` / `darken_full`).
+- `draw_marks` batches each mark's discs as one `FillBatch` before its cracks, so a later mark's discs cover an earlier mark's
+  cracks. `ShapeLook` (with an optional `texture`; `texture_angle` turns the image within the unturned silhouette; `marks` false
+  leaves the marks to the caller's `draw_marks`) and `WallLook` (a repeating `texture` + `tile_length`, UVs in the segment's own
+  frame) carry the look.
+- A bloody hit (`HitInfo.blood > 0`) stores `"blood"` in the impact; `draw_marks` draws a red blot under the hole
+  (`PhysicsDeformLookConfig.blood_mark_color` / `blood_mark_radius`); `hit_marks()` on an `EnvironmentObject`, `Wall` or vehicle returns the marks.
 
-## Explosion look (`explosion_fx.gd`, `scorch_decals.gd`)
+## Debris
 
-`Physics.spawn_explosion(world, at, kind)` (kind `&"frag"` / `&"stun"`; the Projectile System's `Explosion` calls it) is the look of a grenade's burst, all
-procedural in the same stepped-pixel style as the debris and the blood (every disc is rows of `PhysicsExplosionConfig.pixel` px, stepped by `ExplosionFx.disc_rows(radius, step)`). `ExplosionFx.spawn` adds
-up to three colliderless nodes under `world`, each named for what it is, animated in `_process`, freed at the end of its life and `Despawner`-tracked:
-`ExplosionFlash` (frag only: a pale disc over a white one that swells a little and fades in `flash_time`; a stun's row has `flash_radius` 0, its
-white flash being the Lighting domain's flash light, `docs/lighting.md` L9), `ExplosionFireball` (frag only: a lumpy puff that swells and
-cools from yellow to deep red, fading over its last stretch) and `ExplosionSmoke` (puffs that drift out, swell and fade over `smoke_time`, ~4 s for a frag, a
-thin ~2.6 s for a stun). A frag also burns a mark into the world's `ScorchDecals` layer (`ScorchDecals.layer(world).burn(at, radius)`, node `ScorchDecals`):
-ragged stepped rows (the same `ExplosionFx.disc_rows`, each edge jittered), a darker core in a lighter rim and a few specks, a `chunked_layer.gd` like `DebrisLayer` and `BloodDecals` (only the chunk that gained a
-mark redraws), drawn at the blood decals' depth (`BloodConfig.print_z_index`, `DrawLayers.BLOOD`) and kept for good up to `Despawner.max_scene_objects` marks (the oldest dropped). A stun leaves no scorch.
-Tuning is `PhysicsExplosionConfig.looks` (one row per kind: `flash_*`, `fireball_*`, `smoke_*`, `scorch_radius`), `pixel` and `scorch_color`;
-`PhysicsExplosionConfig.fx_enabled` is the master switch (off: nothing spawns). Test: `tests/physics/explosion_fx`.
+- `Debris` is `debris.gd` with no `class_name` (preloaded); its static `toss(node, dir, distance, time, spin)` is the chip's
+  throw, which the Projectile's casing uses too (interface 4).
+- A chip is a node only while it flies (`Despawner`-tracked); on landing it hands its place, turn, colour, size and shape to the
+  parent's `DebrisLayer` and frees itself, so a thousand chips cost a few draw calls and no nodes. A chunk holds chips in pages
+  of `PAGE` (32), each a canvas item (`DebrisPage`) drawn as one `FillBatch`; a landing repaints only the last page, a drop only
+  the first. The flying chip (`debris_visuals.gd`) draws the same `DebrisLayer.tri`, so a chip lands looking as it flew.
+  `DebrisLayer.paged` off draws each chunk in one batch (for tests); `chips_drawn` counts chips painted. The layer keeps at most
+  `Despawner.max_scene_objects` chips.
+- A page is lit as its own item: where more than 15 lights reach a chunk (`docs/lighting.md` L4) a page can keep a light the whole
+  chunk's draw dropped.
+- Tests: `debris_rests_in_a_layer_test.gd`, `debris_pages_repaint_one_page_test.gd`, and, windowed, `debris_pages_match_one_batch_test.gd`.
+- `chunked_layer.gd` (no `class_name`; `DebrisLayer`, `ScorchDecals` and the blood's `BloodDecals` extend it by path) is the
+  batched decal store: marks as plain data in one node under a world node, in 128 px chunks (`CHUNK`), a capped FIFO (`_add`).
+  A layer names its recipe, cap and chunk draw (`_make_chunk`), and may override `_mark_added` / `_mark_dropped` (default: redraw
+  that chunk alone; `DebrisLayer` repaints a page). Its typed `layer(parent)` wraps `_get_or_make`; `find(parent)` only looks up.
 
-`Ragdoll.wake()` clears `asleep` and both sleep clocks (`_time`, `_still`): a body that slept through `PhysicsRagdollConfig.max_time` would otherwise go straight back to
-sleep after one step of an explosion's push. The Character domain's `CharacterRagdoll.blast` calls it (test: `tests/physics/frag_blast_pushes`).
+## Hit particles
 
-## Blood (its own sub-domain: `scenes/physics/blood/`)
+`HitParticles.spawn` bursts a one-shot `CPUParticles2D` (`Despawner`-tracked, no gravity: top-down) styled by `surface.material`
+from its `STYLES`. A round that passes through (`has_exit`) gets a strong `Kind.EXIT` and a weak `Kind.ENTRY`; a hit that stays
+(blocked, ricochet, no exit found) gets one `Kind.IMPACT` at exit strength, back along the normal. `Physics.spawn_debris` (which
+every `take_hit` calls) fires them and the chips; a blood-carrying hit adds red droplets and `flesh` chips.
 
-Wound spray and drips (`BloodWound`), splatters, a dead body's bleed-out pool and its floor-steered flow, and blood that is
-carried (wetness, footprints, smears) are the **`domain-physics-blood`** skill — load it for anything in `physics/blood/` or the `Blood*Config` holders.
-The core keeps only the entry points: `Physics.spawn_debris` (draws a bullet's `HitInfo.blood` as droplets and a mark, see above) and
-`Physics.bleed_out(parent, source, exclude)`.
+## Ragdoll (`ragdoll.gd`, `class_name Ragdoll`, `RefCounted`)
 
-## Tuning
+Generic: it knows nothing of the body; the owner (the Character domain's humanoid) builds and steps it. Space is the owner's
+local floor plane (x, y) plus z = height; gravity pulls to z = 0.
 
-`PhysicsConfig.debris_enabled` is the debris master switch (off: `Physics.spawn_debris` throws no chips; its particle bursts are `hit_particles_enabled`'s; the Testing domain's
-`physics.debris` switch). `PhysicsConfig` holds `wall_mask`
-(the layer the ragdoll sweep and the blood queries treat as blocking). `BloodConfig` (blood's master switch and shared values) and its
-topic holders (`BloodDripConfig` ...) are documented in `domain-physics-blood`. A hit's shove and the furniture body's damping are `PhysicsImpactConfig`, the dents'
-shape `PhysicsDeformConfig` and how they are drawn `PhysicsDeformLookConfig`, the ragdoll solver `PhysicsRagdollConfig` and a
-burst's look `PhysicsExplosionConfig`. All are `class_name` static holders — there is no `Config` autoload.
+- Position-based dynamics in `PhysicsRagdollConfig.substeps`: predict, then `iterations` passes of bones, limits and the floor,
+  sweep each point's x/y move against layer 1 with `cast_motion`, derive velocities. Limits correct `LIMIT_STIFFNESS` of the
+  error per pass, turning a bone at most `LIMIT_MAX_TURN`. The constraint solve can add no more than `max_push` to a point's
+  speed (never past `max_speed`), so constraints fighting the floor cannot fling the body. The first step pulls a point that
+  starts inside a wall back toward the origin.
+- `add_hinge` takes `HingeLimits` (`hinge_limits.gd`): a one-way hinge, its bend side carried onto the live parent bone.
+- It sleeps once every point stays under `sleep_speed` for `sleep_time`, or after `max_time`. `wake()` clears `asleep` and both
+  clocks (`_time`, `_still`); without that, a body that slept through `max_time` goes straight back to sleep after one step of an
+  explosion's push. `CharacterRagdoll.blast` calls it (`tests/physics/frag_blast_pushes_test.gd`).
 
-**Interfaces:** 3 (`HitInfo`), 4 (Objects / Character / Vehicles → Physics), 5 (`Knockback` and the pushable bodies), 11 (`PhysicsLayers` in `PhysicsConfig.wall_mask`; `DrawLayers`: blood and scorch decals `BLOOD`, `ExplosionFx.Z_INDEX` = `EFFECTS`; `FillBatch`: the hit marks' blood discs and the debris chips), 13 (`physics.debris`, `physics.hit_particles`) — signatures in `architecture`.
+## Explosion look
+
+`Physics.spawn_explosion(world, at, kind)` (`&"frag"` / `&"stun"`; Projectile's `Explosion` calls it) spawns up to three
+colliderless, `Despawner`-tracked nodes animated in `_process`: `ExplosionFlash` and `ExplosionFireball` (frag only) and
+`ExplosionSmoke`. A stun's row has `flash_radius` 0: its white flash is the Lighting domain's flash light (`docs/lighting.md`
+L9). All is stepped-pixel (`PhysicsExplosionConfig.pixel`, `ExplosionFx.disc_rows`), like the debris and the blood. A frag
+also burns a mark into `ScorchDecals` (`ScorchDecals.layer(world).burn(at, radius)`) at `DrawLayers.BLOOD`, kept up to
+`Despawner.max_scene_objects`; a stun leaves none. Tuning: `PhysicsExplosionConfig.looks` (a row per kind), `pixel`,
+`scorch_color`; `fx_enabled` is the master switch. Test: `tests/physics/explosion_fx_test.gd`.
