@@ -22,11 +22,12 @@ cd "$(dirname "$0")/.."
 staged=0
 changed=0
 ref=""
+ref_given=0
 for a in "$@"; do
   case "$a" in
     --staged) staged=1 ;;
     --changed) changed=1 ;;
-    --changed=*) changed=1; ref="${a#--changed=}" ;;
+    --changed=*) changed=1; ref_given=1; ref="${a#--changed=}" ;;
     *) echo "unknown argument: $a (tools/tool_tests.sh [--staged | --changed[=<ref>]])" >&2; exit 2 ;;
   esac
 done
@@ -46,7 +47,7 @@ if [[ $staged -eq 1 || $changed -eq 1 ]]; then
     while IFS= read -r p; do paths+=("$p"); done < <(git -c core.quotePath=false diff --cached --name-only --no-renames)
   else
     kind=changed
-    if [[ -z "$ref" ]]; then
+    if [[ $ref_given -eq 0 ]]; then
       ref=origin/main
       git rev-parse --verify -q "$ref^{commit}" >/dev/null || ref=main
     fi
@@ -55,10 +56,14 @@ if [[ $staged -eq 1 || $changed -eq 1 ]]; then
       exit 2
     fi
     # What the branch changed since it left <ref>, what the working tree changed since HEAD, and the untracked files.
-    while IFS= read -r p; do paths+=("$p"); done < <(
-      { git -c core.quotePath=false diff --name-only --no-renames "$ref..." \
-          && git -c core.quotePath=false diff --name-only --no-renames HEAD \
-          && git -c core.quotePath=false ls-files --others --exclude-standard; } | sort -u)
+    # Each list is read on its own: a git that fails (no merge base with <ref>) stops the run, not just its own list.
+    lists=""
+    for list in "diff --name-only --no-renames $ref..." "diff --name-only --no-renames HEAD" \
+        "ls-files --others --exclude-standard"; do
+      out=$(git -c core.quotePath=false $list) || exit 1
+      lists+="$out"$'\n'
+    done
+    while IFS= read -r p; do [[ -n "$p" ]] && paths+=("$p"); done < <(sort -u <<<"$lists")
   fi
   picked=""
   if [[ ${#paths[@]} -gt 0 ]]; then

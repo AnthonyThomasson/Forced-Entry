@@ -15,9 +15,9 @@ import json
 import os
 import subprocess
 import unittest
-from unittest import mock
 from collections import Counter
 from pathlib import Path
+from unittest import mock
 
 from tools import tool_tests_pick
 from tools.coverage.tests.support import TempDir, clean_env, git
@@ -431,6 +431,21 @@ class ScriptTests(unittest.TestCase):
         code, out, ran = self.run_script("--changed=no-such-ref")
         self.assertEqual((code, ran), (2, []), out)
         self.assertIn("unknown ref: no-such-ref", out)
+
+    def test_changed_with_a_ref_sharing_no_history_fails_instead_of_picking_nothing(self):
+        git(self.root, "checkout", "-q", "--orphan", "island")
+        git(self.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "island")
+        with open(self.root / "tools" / "a.sh", "a") as f:
+            f.write("# edited\n")
+        code, out, ran = self.run_script("--changed=main")
+        self.assertEqual((code, ran), (1, []), out)
+        self.assertIn("no merge base", out)
+        self.assertNotIn("tool tests: none", out)
+
+    def test_changed_with_an_empty_ref_is_refused(self):
+        code, out, ran = self.run_script("--changed=")
+        self.assertEqual((code, ran), (2, []), out)
+        self.assertIn("unknown ref: ", out)
 
     def test_changed_with_staged_is_refused(self):
         code, out, ran = self.run_script("--changed", "--staged")
