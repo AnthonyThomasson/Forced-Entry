@@ -1661,12 +1661,14 @@ class EngineTests(unittest.TestCase):
 
     def in_game(self, probe, headed):
         """The interactive runner (`-- --play`), which prints each verdict; it is stopped by --quit-after."""
-        # No --log-file: a person runs the game with the default log (project setting debug/file_logging), which the
-        # in-game runner follows; only a batch run started with --out is told where its log went.
-        cmd = [godot_binary()] + ([] if headed else ["--headless"]) + [
-            "--path", str(ROOT), "--fixed-fps", "60", "--quit-after", "420",
-            "res://scenes/testing/test_runner.tscn", "--", "--play", "log", "gate", "probe"]
-        r = subprocess.run(cmd, cwd=ROOT, env=dict(os.environ, GAME_TEST_PROBE=probe), capture_output=True, text=True, timeout=300)
+        # A `--log-file` of its own: the in-game runner reads the log its process was started with, and none other
+        # (tools/tests/test_runner_own_log.py covers a start without one).
+        with tempfile.TemporaryDirectory(prefix="log_gate_in_game.") as tmp:
+            cmd = [godot_binary()] + ([] if headed else ["--headless"]) + [
+                "--path", str(ROOT), "--log-file", str(Path(tmp) / "godot.log"), "--fixed-fps", "60",
+                "--quit-after", "420", "res://scenes/testing/test_runner.tscn", "--", "--play", "log", "gate", "probe"]
+            r = subprocess.run(cmd, cwd=ROOT, env=dict(os.environ, GAME_TEST_PROBE=probe), capture_output=True,
+                               text=True, timeout=300)
         return r.stdout + "\n" + r.stderr
 
     def check_mode(self, headed):

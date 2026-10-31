@@ -254,10 +254,12 @@ func _run_interactive(path: String) -> void:
 
 
 ## Say so on the banner (and the console) when the engine log cannot be read: errors and warnings
-## would then not fail the test, which must never pass silently.
+## would then not fail the test, which must never pass silently. The process has no log of its own
+## unless it was started with `--log-file` (see log_watch.gd).
 func _warn_if_unwatched() -> void:
 	if not _watch.available():
-		var text := "NOTE: engine log not found - errors and warnings will NOT fail this test"
+		var text := ("NOTE: this process has no engine log of its own (start it with --log-file "
+				+ "<file>) - errors and warnings will NOT fail this test")
 		print(text)
 		if _hud != null:
 			_hud.show_status(text)

@@ -236,7 +236,7 @@ static func begin() -> void:
 	if flag("--shots") and DisplayServer.get_name() == "headless":
 		print("NOTE  --shots needs a rendering run; tools/run_tests.sh --shots drops --headless")
 	if not watch().available():
-		print("NOTE  log file not found — errors/warnings cannot fail tests this run")
+		print("NOTE  no engine log of its own — errors/warnings cannot fail tests this run")
 	if _compact():
 		return
 	var include_von := flag("--include-von")

@@ -53,7 +53,9 @@ Load check first: never drive a game that doesn't parse.
 - Worktree editor: `tools/editor.sh --autorun` (presses Play; `show-me`). It prints `editor pid … | command port <port> | log
   <log>` (`$TMPDIR/editor_<worktree>.log`), or `editor already running` with the same fields. The port is per worktree, so
   pass `--port <port>` to `gcmd.py`.
-- Or from Bash: `"$GODOT" --path . > "$TMPDIR/godot_run.log" 2>&1 &` (port 9080).
+- Or from Bash: `"$GODOT" --path . --log-file "$TMPDIR/godot_engine.log" > "$TMPDIR/godot_run.log" 2>&1 &` (port
+  9080). A test runner start (`res://scenes/testing/test_runner.tscn -- --play …`) needs a `--log-file` of its own: it
+  fails a test on that log's errors only, and without one says it watches none (`domain-testing`, its log gate).
 - Ready when the log shows `[cmd] listening on 127.0.0.1:<port>`. Nothing after ~10 s (display/GPU init hang): kill it and
   launch again.
 - The command server runs only from the editor binary, with a port (`GODOT_CMD_PORT`, else `application/debug/command_port`),

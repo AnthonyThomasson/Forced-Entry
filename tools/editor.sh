@@ -13,7 +13,9 @@
 # The name travels as GAME_TICKET (the editor's game child inherits it; Main shows it atop the
 # setup menu). The command server listens on GODOT_CMD_PORT, so worktrees don't collide:
 #   python3 tools/gcmd.py --port <printed port> 'scene().name'
-# The editor runs detached; its log path and pid are printed.
+# The editor runs detached; its log path and pid are printed. The game its Play starts is given an engine log of its
+# own, `$TMPDIR/game_<name>.engine.log` (GAME_LOG_FILE, which addons/ticket_autorun makes the game's `--log-file`): the
+# test runner in it reads only its own process's errors, never another Godot's from the shared user://logs/godot.log.
 set -euo pipefail
 
 autorun=""; port=""; ticket=""; path="$(cd "$(dirname "$0")/.." && pwd)"
@@ -32,7 +34,9 @@ GODOT="${GODOT:-$( command -v godot || command -v godot4 \
   || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
 [[ -n "$GODOT" ]] || { echo "Godot binary not found (set GODOT=/path/to/Godot)" >&2; exit 2; }
 
-log="${TMPDIR:-/tmp}/editor_${ticket//[^A-Za-z0-9._-]/_}.log"
+safe="${ticket//[^A-Za-z0-9._-]/_}"
+log="${TMPDIR:-/tmp}/editor_$safe.log"
+engine_log="${TMPDIR:-/tmp}/game_$safe.engine.log"
 
 # Already open on this worktree? Report it instead of starting a second editor.
 running=$(pgrep -f -- "--editor --path $path( |\$)" | head -1 || true)
@@ -43,8 +47,9 @@ if [[ -n "$running" ]]; then
   # --autorun with no game window open (nothing listening on the editor's command port): open the game on its own, with
   # the editor's name and port, since Play cannot be pressed in an editor that is already up.
   if [[ -n "$autorun" && "$recorded_port" =~ ^[0-9]+$ ]] && ! lsof -nP -iTCP:"$recorded_port" -sTCP:LISTEN > /dev/null 2>&1; then
-    game_log="${TMPDIR:-/tmp}/game_${ticket//[^A-Za-z0-9._-]/_}.log"
-    GAME_TICKET="$ticket" GODOT_CMD_PORT="$recorded_port" nohup "$GODOT" --path "$path" > "$game_log" 2>&1 &
+    game_log="${TMPDIR:-/tmp}/game_$safe.log"
+    GAME_TICKET="$ticket" GODOT_CMD_PORT="$recorded_port" nohup "$GODOT" --path "$path" \
+      --log-file "$engine_log" > "$game_log" 2>&1 &
     echo "game window opened | pid $! | command port $recorded_port | log $game_log"
   fi
   exit 0
@@ -73,7 +78,7 @@ PY
 )
 fi
 
-export GAME_TICKET="$ticket" GODOT_CMD_PORT="$port"
+export GAME_TICKET="$ticket" GODOT_CMD_PORT="$port" GAME_LOG_FILE="$engine_log"
 [[ -n "$autorun" ]] && export GAME_AUTORUN=1
 nohup "$GODOT" --editor --path "$path" > "$log" 2>&1 &
-echo "editor pid $! | name $ticket | command port $port | log $log"
+echo "editor pid $! | name $ticket | command port $port | log $log | game engine log $engine_log"

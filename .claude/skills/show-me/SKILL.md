@@ -19,8 +19,8 @@ opened before. It runs no test batch and edits no files.
 
 2. `editor already running` (with pid, port, log): report it and go to step 4. If no game was running on its port, the script
    also opened the game window on its own (`game window opened`, with its pid and log): check that log for `[cmd] listening`
-   and any `SCRIPT ERROR`. Otherwise it prints the pid, command-server port and log path; after ~10 s check the log
-   (`$TMPDIR/editor_<name>.log`) for `[cmd] listening on 127.0.0.1:<port>` and any `SCRIPT ERROR`.
+   and any `SCRIPT ERROR`. Otherwise it prints the pid, command-server port and log path (and the engine log of the game its Play starts,
+   `$TMPDIR/game_<name>.engine.log`); after ~10 s check the log (`$TMPDIR/editor_<name>.log`) for `[cmd] listening on 127.0.0.1:<port>` and any `SCRIPT ERROR`.
 3. Report the name, port and pid in a line or two, whether it was already running, and any log errors. Leave the editor
    open. A game window this run opened gets its pid in the report, with "the ticket workflow closes it after the feedback
    gate". The setup window shows the worktree name at the top. The editor picks up file changes when focused; a running game

@@ -33,8 +33,9 @@ as they need.
 - **The runner itself** (`tools/run_tests.sh`, `scenes/testing/`) drives gdUnit4's command-line tool, so its tests are
   `tools/test_log_gate.py` (verdicts, lines, report, flags, the log gate; a fake Godot and the real engine),
   `tools/test_gdunit_wrap.py` (every catalog test one wrapper case, by id), `tools/test_gdunit_panel.py` (a run as the
-  editor's GdUnit panel starts it), `--self-test` (`domain-testing`) and `tools/tests/test_run_tests_flags.py` (each flag
-  the batch reads is one the wrapper forwards).
+  editor's GdUnit panel starts it), `--self-test` (`domain-testing`), `tools/tests/test_runner_own_log.py` (the in-game
+  runner reads only its own process's log, never the shared default one) and `tools/tests/test_run_tests_flags.py`
+  (each flag the batch reads is one the wrapper forwards).
 - **Picking tool tests:** `tools/tool_tests.sh --staged` runs the ones a commit can break, `--changed[=<ref>]` the ones a
   branch can. `tools/tool_tests_pick.py --why PATH...` says why a module is picked; `--sweep [--json] [PREFIX...]` gives
   every tracked file's picks in one process. In-flight checks and the coordinator's reruns use `--changed`; the whole

@@ -1,8 +1,14 @@
 # Errors and warnings fail the test (`log_watch.gd`)
 
-Godot 4.4 has no in-process logger hook (`OS.add_logger` arrives in 4.5), so `LogWatch` tails the engine log file (the run's
-`--log-file`, else `debug/file_logging/log_path`) from an offset marked as the run or runner starts, and parses
-`ERROR:` / `SCRIPT ERROR:` / `USER ERROR:` / `WARNING:` headers with their `at:` lines.
+Godot 4.4 has no in-process logger hook (`OS.add_logger` arrives in 4.5), so `LogWatch` tails the engine log file **this
+process owns** from an offset marked as the run or runner starts, and parses `ERROR:` / `SCRIPT ERROR:` / `USER ERROR:` /
+`WARNING:` headers with their `at:` lines. Its own log is the `--log-file <file>` it was started with, read off its own
+command line before any `--` (the engine strips the flag from `OS.get_cmdline_args()`: `/proc/self/cmdline`, else
+`ps`; none on Windows), or `path_override`. It never reads the default `user://logs/godot.log`: every Godot start of the
+project writes it and each start rotates it by copying and truncating it, so no byte of it is one process's, and other
+starts' exit errors (`p_elem->_root != this`, `ObjectDB instances leaked`) would read as this test's. With no
+`--log-file` it reads nothing: `available()` is false and the runner prints `NOTE: this process has no engine log of its
+own (start it with --log-file <file>) - errors and warnings will NOT fail this test`.
 
 - **Inside a test:** the session (`test_session.gd`: the in-game runner and every gdUnit suite) polls it every physics
   frame and hands each entry to the open test (`verdict.on_log`). An expected (`t.verdict.expect_log`) or allowed
@@ -19,14 +25,19 @@ Godot 4.4 has no in-process logger hook (`OS.add_logger` arrives in 4.5), so `Lo
   leaked", "resources still in use at exit") is a `NOTE` unless `--strict-exit`: a character together with a reflectively
   read config holder such as `CharacterStunConfig` prints it whatever the test does. `tools/load_check.sh` applies the same
   gate to a plain headless start-up.
-- **Headless or windowed:** the gate reads a file, so it is the same either way. The in-game runner started otherwise
-  (`-- --play …`, the browser) and a GdUnit panel run watch the default log (`debug/file_logging/enable_file_logging`),
-  shared by every Godot start of the project, so a start elsewhere rotates it and can hide an error. In-game, a logged
-  error fails the open test and flips a verdict already shown.
+- **Headless or windowed:** the gate reads a file, so it is the same either way. The in-game runner started any other way
+  watches only the log it was given: a hand start takes `--log-file <file>`; the game the editor's Play starts has one
+  when `tools/editor.sh` opened the editor (`GAME_LOG_FILE`, made the game's `--log-file` by `addons/ticket_autorun`,
+  and the game `editor.sh --autorun` opens beside an editor already up: `$TMPDIR/game_<worktree>.engine.log`). A bare
+  `-- --play …`, the Tests button from a game started without one and a GdUnit panel run have none and print the NOTE
+  (console and banner). In-game, a logged error fails the open test and flips a verdict already shown.
 - **Tested by** `tools/test_log_gate.py` (`--headed` adds the windowed engine): the scanner on crafted logs, `run_tests.sh`
   around a fake Godot for every way a run can end, and the real engine through the harness probes in `tests/_harness/`
   (`log_gate_probe_test.gd`, `GAME_TEST_PROBE=error|warning`; `verdict_probe_test.gd`, `gap_probe_test.gd`,
-  `von_probe_test.gd`, `warning_hold_probe_test.gd`; `log_watch_offsets_test.gd` for the read positions). Run it after
+  `von_probe_test.gd`, `warning_hold_probe_test.gd`; `log_watch_offsets_test.gd` for the read positions). `tools/tests/test_runner_own_log.py` runs the real engine in a
+  copy of the checkout with a `user://` of its own: a bare `-- --play` reads none of another start's errors and prints
+  the NOTE, and a start with `--log-file` still fails on its own error after another start rotated the default log
+  (`GAME_TEST_PROBE_AFTER=<file>` holds the probe until then). Run it after
   editing `log_watch.gd`, `test_session.gd`, `test_batch.gd`, `game_test_suite.gd`, `unit_suite.gd`,
   `test_report_hook.gd`, `run_tests.sh`, `scan_godot_log.py`, `tools/lint*` or `gdstyle.toml` (it also tests the lint: its
   probes are written into a copy of the checkout, `copy_checkout()`; `GdStyleLintTests` holds every `quality/*` rule of
