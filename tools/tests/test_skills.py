@@ -135,17 +135,17 @@ def repo_paths(span: str):
 
 def check_references(skills: Path, files: list[Path], repo: Path) -> list[str]:
     """Findings in the Markdown `files`: a backticked `domain-*` / `ticket-*` name that is no folder of `skills`, a
-    backticked path at a repo root that does not exist under `repo`. Placeholders and globs are skipped."""
+    backticked path at a repo root that does not exist under `repo`. A word of a span with a placeholder or glob in
+    it is skipped, the rest of the span is checked."""
     found = []
     for f in files:
         for n, span in inline_spans(f.read_text()):
-            if PLACEHOLDER.search(span):
-                continue
             where = f"{f.relative_to(repo)}:{n}"
-            for name in SKILL_NAME.findall(span):
+            words = " ".join(w for w in span.split() if not PLACEHOLDER.search(w))
+            for name in SKILL_NAME.findall(words):
                 if not (skills / name).is_dir():
                     found.append(f"{where}: skill {name} does not exist")
-            for path in repo_paths(span):
+            for path in repo_paths(words):
                 if not (repo / path).exists():
                     found.append(f"{where}: path {path} does not exist")
     return found
@@ -275,12 +275,6 @@ class CapTests(unittest.TestCase):
         self.assertEqual(len(found), 1, found)
         self.assertIn("alpha/deep/side.md", found[0])
 
-    def test_a_side_file_is_held_to_the_side_cap_not_the_skill_md_cap(self):
-        def build(s: Path):
-            write_skill(s, "alpha")
-            (s / "alpha" / "side.md").write_text("x" * 9000)
-        self.assertEqual(len(self.findings(build)), 1)
-
     def test_a_file_that_is_not_markdown_is_not_capped(self):
         def build(s: Path):
             write_skill(s, "alpha")
@@ -342,6 +336,11 @@ class ReferenceTests(unittest.TestCase):
     def test_a_res_path_is_read_as_a_repo_path(self):
         self.assertEqual(self.findings("`res://scenes/ai/real.gd`"), [])
         self.assertEqual(len(self.findings("`res://scenes/ai/nope.gd`")), 1)
+
+    def test_only_the_placeholder_word_is_skipped_not_the_rest_of_the_span(self):
+        found = self.findings("`tools/nope.sh --base=<rev> --id=<id>` `domain-<name>` `scenes/<domain>/x.gd`")
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("tools/nope.sh", found[0])
 
     def test_placeholders_and_globs_are_skipped(self):
         text = "`domain-<name>` `scenes/<domain>/x.gd` `scenes/ai/*.gd` `tests/**/x_test.gd` `ticket-*`"

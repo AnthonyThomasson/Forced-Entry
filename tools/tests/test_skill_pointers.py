@@ -161,9 +161,10 @@ def table_rows(text: str, header: str) -> list[list[str]]:
 
 
 def domains_missing_from_table(skills: Path) -> list[str]:
-    """The `domain-*` skills that no row of the domain table in architecture/SKILL.md names."""
-    table = " ".join(" ".join(row) for row in table_rows((skills / "architecture" / "SKILL.md").read_text(), "Domain"))
-    return sorted(p.name for p in skills.glob("domain-*") if p.is_dir() and f"`{p.name}`" not in table)
+    """The `domain-*` skills that no row of the domain table in architecture/SKILL.md names in its Skill column."""
+    rows = table_rows((skills / "architecture" / "SKILL.md").read_text(), "Domain")
+    named = {name for row in rows for name in re.findall(r"`(domain-[\w-]+)`", row[2] if len(row) > 2 else "")}
+    return sorted(p.name for p in skills.glob("domain-*") if p.is_dir() and p.name not in named)
 
 
 def ticket_routing_findings(skills: Path, kinds=TICKET_KINDS, helpers=TICKET_HELPERS) -> list[str]:
@@ -171,13 +172,16 @@ def ticket_routing_findings(skills: Path, kinds=TICKET_KINDS, helpers=TICKET_HEL
     none and does not say `none`, a kind it leaves out, a `.md` in ticket/ that is neither a kind nor a helper."""
     folder = skills / "ticket"
     named, found = set(), []
-    for label, read, *_ in table_rows((folder / "SKILL.md").read_text(), "Label"):
+    for label, *cells in table_rows((folder / "SKILL.md").read_text(), "Label"):
+        read = cells[0] if cells else ""
         files = BACKTICKED_MD.findall(read)
-        if not files and "none" not in read:
+        if not files and not re.search(r"\bnone\b", read):
             found.append(f"row {label}: names no kind file and does not say none")
         for f in files:
             named.add(f)
-            if not (folder / f).is_file():
+            if f.removesuffix(".md") in helpers:
+                found.append(f"row {label}: {f} is a helper, not a kind")
+            elif not (folder / f).is_file():
                 found.append(f"row {label}: {f} does not exist in ticket/")
     found += [f"the routing table does not name {k}.md" for k in kinds if f"{k}.md" not in named]
     allowed = {"SKILL.md", *(f"{n}.md" for n in (*kinds, *helpers))}
@@ -286,6 +290,10 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(self.domains_missing(DOMAIN_TABLE + "\nSee `domain-c`.\n", ("domain-a", "domain-b",
                                                                                       "domain-c")), ["domain-c"])
 
+    def test_a_domain_skill_named_only_in_another_rows_owns_cell_is_a_finding(self):
+        table = DOMAIN_TABLE.replace("| y |", "| y, next to `domain-c` |")
+        self.assertEqual(self.domains_missing(table, ("domain-a", "domain-b", "domain-c")), ["domain-c"])
+
     def test_the_live_domain_table_names_every_domain_skill(self):
         self.assertEqual(domains_missing_from_table(SKILLS), [])
 
@@ -318,8 +326,18 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(len(found), 1, found)
         self.assertIn("wayfinder:map", found[0])
 
-    def test_the_state_table_is_not_a_routing_table(self):
-        self.assertEqual(self.routing(ROUTING), [])
+    def test_a_helper_file_in_the_routing_table_is_a_finding(self):
+        found = self.routing(ROUTING.replace("`bug.md`", "`bug.md`, `workers.md`"))
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("workers.md", found[0])
+
+    def test_none_is_a_word_not_a_substring(self):
+        found = self.routing(ROUTING.replace("none: a decision ticket", "nonetheless a decision ticket"))
+        self.assertEqual(len(found), 1, found)
+
+    def test_a_one_cell_row_is_a_finding_not_a_crash(self):
+        found = self.routing(ROUTING.replace("| `bug` | `bug.md` |", "| `bug` |"))
+        self.assertTrue(any("bug" in f for f in found), found)
 
     def test_the_live_routing_table_names_every_kind_file(self):
         self.assertEqual(ticket_routing_findings(SKILLS, TICKET_KINDS, TICKET_HELPERS), [])

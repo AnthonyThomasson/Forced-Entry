@@ -12,7 +12,7 @@ extends Node
 ## decision, so a tunable retuned at runtime (a behaviour test, the dev command server) takes effect
 ## without a rebuild.
 ##
-## The three sub-domains it builds (see their `domain-ai-<name>` skills; the fourth, DEBUG (debug/),
+## The three sub-domains it builds (see `domain-ai`; the fourth, DEBUG (debug/),
 ## is the draw-only overlays, children of the NPC that read this node's `debug_*` getters):
 ##   • PERCEPTION (perception/) — SENSE. What the NPC knows: sight, hostility, event memory, the
 ##     known-contacts view, combat geometry, and the decision SNAPSHOT (state sections, facts and
