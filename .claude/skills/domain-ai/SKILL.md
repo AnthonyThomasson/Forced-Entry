@@ -195,7 +195,7 @@ joins the tree (`MatchBuilder.bind_npc`: the house's rooms and openings, an inva
 - **Invader** — `ai/npc_invader.tscn`, an inherited scene overriding only data (faction
   `invader`): `tuning.hostility.on_sight`, not territorial, unfamiliar with the house (it learns rooms by
   sight and is offered unexplored areas by direction); it tints its debug label and path red. Dropped just outside the house: the
-  match's invader team in one group against the outside wall beside the front door, on a side drawn from the house seed (`match_spawner.gd`
+  match's invader team in one group away from and to the side of the front door, on a side drawn from the house seed (`match_spawner.gd`
   `spawn_invader_team`, LD27; round the human invader when there is one, round a seeded point of the ring round the house when it has no front
   door); they coordinate flanks over the callout radio and, as a squad, follow their leader. It enters rooms
   tactically (`tuning.entry.enabled`, `docs/tactical-entry.md`): stack beside the door, slice the pie, cross

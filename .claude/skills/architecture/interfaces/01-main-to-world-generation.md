@@ -31,8 +31,8 @@
    map from the rooms (interface 9); its `match_spawner.gd` drops each defender at a clear spot in a random room (its centre unless solid
    furniture is within `spawn_clearance` or another combatant within twice that — read off `NavBuilder.furniture_holes` — else a random
    clear point) and the invader team in one group just outside the house (`spawn_invader_team`, `docs/leadership.md` LD27: packed round a
-   point against the outside wall beside the front entrance, 120 px along the wall from the doorway's centre on a side drawn from the house
-   seed, no member in the doorway's straight strip; round the human invader's spot when there is one; in a house with no front entrance,
+   point away from and to the side of the front entrance, 220 px along the wall from the doorway's centre on a side drawn from the house
+   seed and 120 px out from the wall (kept on the walkable ring), no member in the doorway's straight strip; round the human invader's spot when there is one; in a house with no front entrance,
    round a point of the ring `invader_margin` out of the rooms' bounding box, drawn from the house seed) (all via `get_rooms` /
    `get_openings`), and hands every NPC the house's `get_openings` (for tactical entry) and an invader the front entrance; it never touches
    world-gen internals.

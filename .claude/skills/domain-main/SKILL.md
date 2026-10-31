@@ -162,9 +162,10 @@ builder hands it the bind rule as `bind`, so the dependency runs one way.
   LD27), packed round one point:
   - **beside the front door** (`front`, the front entrance's opening `populate` found, `{}` with none; `_front_door` reads its centre, the way
     out of its room and its width):
-    `_beside_front_door` puts the point against the house's outside wall, `DOOR_SIDE_OFFSET` (120 px) along it from the doorway's centre,
-    past the jamb and out of the doorway's straight line, on the side drawn from `rng` (so a pinned house seed pins it), and
-    `spawn_clearance` out from the wall; the wall hides the team from inside;
+    `_beside_front_door` puts the point away from and to the side of the doorway, facing the house's front: `DOOR_SIDE_OFFSET` (220 px)
+    along the outside wall from the doorway's centre, out of the doorway's straight line, on the side drawn from `rng` (so a pinned house
+    seed pins it), and `DOOR_OUT_OFFSET` (120 px) out from the wall, clamped into the rooms' bounding box grown by twice `invader_margin`
+    less two `spawn_clearance` (120 px), so the first ring stays on the walkable ring round the house;
   - **round a human invader** (`around`: the human's start, which a member keeps clear of as of any combatant);
   - **in a house with no front door**, round `perimeter_point` of the rooms' bounding box grown by `invader_margin`, at `rng.randf()`.
   Each member takes `_group_spot`: the point, then rings twice `spawn_clearance` apart (about one slot per twice `spawn_clearance` of ring,

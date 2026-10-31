@@ -1,9 +1,10 @@
 extends GameTest
-## LD27 (`docs/leadership.md`), ticket #95: a match's invader team starts beside the front door,
-## against the house's outside wall on one side of the doorway, where the wall hides it from inside.
-## Its group point (the point its members pack round) stands 120 px along the wall from the front
-## door's centre, past the jamb, and `spawn_clearance` (20 px) out from the wall: within 150 px of
-## the door's centre and out of the doorway's straight strip. Every member stands out of that strip
+## LD27 (`docs/leadership.md`), ticket #95: a match's invader team starts away from and to the
+## side of the front door, out across the street facing the house's front, on one side of the
+## doorway. Its group point (the point its members pack round) stands 220 px along the wall from the
+## front door's centre and 120 px out from the wall, kept within the rooms' bounds grown by 120 px
+## (the walkable ring less a ring): within 260 px of the door's centre and out of the doorway's
+## straight strip. Every member stands out of that strip
 ## and within two of the rings the team packs in of that point (a street lamp beside the door, which
 ## world-gen keeps 140 px or more from it, can push a member out to the second), outside the house's
 ## rooms and within 150 px of the door's centre plus those rings. Across the sweep the team starts
@@ -23,12 +24,14 @@ const Slots := preload("res://tests/_ai/slots_probe.gd")
 ## How many seeds (1, 2, ...) each floorplan is built with (the seed pins the plan's layout and the
 ## side of the door the team takes).
 const SEEDS := 8
-## How far (px) along the wall from the front door's centre the group point stands, and how far
-## out from the wall (the match's `spawn_clearance`).
-const SIDE_OFFSET := 120.0
-const CLEARANCE := 20.0
+## How far (px) along the wall from the front door's centre the group point stands, how far out
+## from the wall, and the most (px) it stands out of the rooms' bounds (twice the match's
+## `invader_margin`, 80, less two `spawn_clearance`, 20).
+const SIDE_OFFSET := 220.0
+const OUT_OFFSET := 120.0
+const BOUNDS_REACH := 120.0
 ## How near (px) the front door's centre the group point stands.
-const NEAR_DOOR := 150.0
+const NEAR_DOOR := 260.0
 ## How far apart (px) the rings a team packs in lie (twice the match's `spawn_clearance`), and how
 ## many of them a member may stand out in: four bodies fill the first ring beside the wall, a second
 ## allows for a street lamp or a piece in the way.
@@ -42,9 +45,9 @@ const DEFENDERS := 3
 
 func describe() -> Dictionary:
 	return {
-		"name": "A match's invader team starts beside the front door",
-		"description": "Over every floorplan and several seeds, the invader team starts against "
-			+ "the outside wall beside the front door, out of the doorway's straight line, on "
+		"name": "A match's invader team starts off to the side of the front door",
+		"description": "Over every floorplan and several seeds, the invader team starts away "
+			+ "from and to the side of the front door, out of the doorway's straight line, on "
 			+ "either side across the seeds, and no defender knows a hostile on the first frame.",
 		"tags": ["setup", "match", "spawn", "squad", "sweep"],
 		"timeout": 300.0,
@@ -146,7 +149,7 @@ func _check_members(t: TestContext, label: String, handle: Dictionary, side: int
 	)
 	var door: Vector2 = front["pos"]
 	var along: Vector2 = front["along"]
-	var point := door + along * side * SIDE_OFFSET + (front["out"] as Vector2) * CLEARANCE
+	var point := _group_point(front, side, rooms)
 	var members := str(invaders.map(func(c): return (c as Node2D).global_position.round()))
 	var where := "%s: the group point %s (door %s, members at %s)" % [
 		label,
@@ -177,6 +180,24 @@ func _check_members(t: TestContext, label: String, handle: Dictionary, side: int
 			"%s starts within %.0f px of the front door's centre (%.0f px)"
 				% [at, NEAR_DOOR + RING * RINGS, p.distance_to(door)],
 		)
+
+
+## The group point the rule lays on `side` of the front door `front`: along the wall and out from
+## it by the rule's numbers, kept within the bounds of `rooms` grown by `BOUNDS_REACH`.
+func _group_point(front: Dictionary, side: int, rooms: Array) -> Vector2:
+	var out: Vector2 = front["out"]
+	var along: Vector2 = front["along"]
+	var point: Vector2 = front["pos"] + along * side * SIDE_OFFSET + out * OUT_OFFSET
+	var reach := _bounds(rooms).grow(BOUNDS_REACH)
+	return point.clamp(reach.position, reach.end)
+
+
+## The bounding box of `rooms` (each `{ rect }`).
+func _bounds(rooms: Array) -> Rect2:
+	var box: Rect2 = rooms[0]["rect"]
+	for r: Dictionary in rooms:
+		box = box.merge(r["rect"])
+	return box
 
 
 ## No one of the `defenders` knows a hostile on the first frame.

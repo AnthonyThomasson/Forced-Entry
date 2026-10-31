@@ -802,10 +802,11 @@ leads within the frame, one `cancel` to both joiners and no `go`, neither goes i
 the other).
 
 **LD27. The invader team spawns together.** A match places its invader team in one group (`match_spawner.gd` `spawn_invader_team`,
-through `MatchBuilder.populate`, Main's match and a test's declared match alike), beside the front door: round a point against the house's
-outside wall next to the front entrance, on one side of the doorway (the side drawn from the match's RNG seeded with the house seed, so a
-pinned seed pins it), 120 px along the wall from the doorway's centre (`DOOR_SIDE_OFFSET`: past the jamb, out of the doorway's straight
-line) and `spawn_clearance` (20 px) out from the wall, where the wall hides the team from inside. With a human invader in a played match the
+through `MatchBuilder.populate`, Main's match and a test's declared match alike), away from and to the side of the front door: round a point
+out across the street from the house's front, on one side of the doorway (the side drawn from the match's RNG seeded with the house seed, so a
+pinned seed pins it), 220 px along the wall from the doorway's centre (`DOOR_SIDE_OFFSET`: out of the doorway's straight line) and 120 px
+out from the wall (`DOOR_OUT_OFFSET`), with the house's front in view; the point is kept within the rooms' bounding box grown by twice
+`invader_margin` less two `spawn_clearance` (120 px), so the team's first ring stays on the walkable ring round the house. With a human invader in a played match the
 group packs round the human's spot instead (the human starts where it stands: Main's player just outside the front entrance). In a house
 with no front door it packs round a point of the perimeter of the rooms' bounding box grown by `invader_margin` (80 px), drawn from the same
 RNG. Each member takes the first spot that is clear (`is_clear`: `spawn_clearance` from every furniture footprint and twice that from every
@@ -815,7 +816,7 @@ centre, then the spots of up to `GROUP_RINGS` (6) rings twice `spawn_clearance` 
 member heads for the front entrance first (its `entry_point`). Defenders keep spawning in random rooms.
 
 Tests: `general/match_spawn_team_beside_front_door` (every floorplan, fixed seeds, each match built whole by `MatchBuilder.build`: every
-invader outside the house, within 150 px of the front door's centre and its rings, out of the doorway's strip; the team on both sides of
+invader outside the house, within 260 px of the front door's centre and its rings, out of the doorway's strip; the team on both sides of
 the door across the seeds; no defender knowing a hostile on the first frame), `general/match_spawn_team_grouped` (Main run whole on house
 seed 101 with four invaders and two defenders: watched, every invader within 110 px of the group's centre, which stands outside the house
 beside its front door, the same point for the same seed, every defender in a room; played as an invader, every invader within 110 px of the
@@ -1001,8 +1002,8 @@ The cases the behaviours above cite as D1 to D38.
 | A follower fights within, of its leader's live position | 320 px | `SquadFollowConfig.leash` |
 | ... and re-decides in a fight further than | 1.3 leashes (416 px) | `SquadFollowConfig.leash_break` |
 | The human has stepped up to a doorway within, and after | 60 px, 0.5 s | `PlayerStack.STEP_UP_REACH`, `STEP_UP_TIME` |
-| The invader team's point lies along the wall from the front door's centre by | 120 px | `match_spawner.gd` `DOOR_SIDE_OFFSET` |
-| ... and out from the wall by | 20 px (`spawn_clearance`) | the match spec's `spawn_clearance` (Main's `run`) |
+| The invader team's point lies along the wall from the front door's centre by | 220 px | `match_spawner.gd` `DOOR_SIDE_OFFSET` |
+| ... and out from the wall by | 120 px | `match_spawner.gd` `DOOR_OUT_OFFSET` |
 | With no front door, it lies out of the rooms' bounds by | 80 px | the match spec's `invader_margin` (Main's `run`) |
 | ... its members packed on rings round it, apart | 40 px (twice `spawn_clearance`), 6 rings | the match spec's `spawn_clearance`, `match_spawner.gd` `GROUP_RINGS` |
 
