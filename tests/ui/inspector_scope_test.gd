@@ -5,6 +5,9 @@ extends GameTest
 ## NPC is right-clicked and then only that NPC's; under `defenders` a right-clicked invader shows
 ## its overlays too, and drops them again when the selection is cleared. The clicks are real mouse
 ## input at a world point's place on screen (once the framing camera has settled).
+##
+## The brain overlay's labels (`brain_labels`) follow the selection, not the scope: on the selected
+## NPC alone, under any scope, cleared on deselect and moved to another NPC selected.
 
 const Inspector := preload("res://scenes/ui/hud/spectator_inspector.gd")
 const OverlayToggles := preload("res://scenes/ui/overlays/overlay_toggles.gd")
@@ -53,18 +56,23 @@ func run(t: TestContext) -> void:
 
 	inspector.call("set_scope", "defenders")
 	t.expect_eq(_lit(t), ["d1", "d2"], "scope defenders, nothing selected: the defenders show")
+	t.expect_eq(_labelled(t), [], "nothing selected: no brain labels, though the defenders show")
 
 	inspector.call("set_scope", "selected")
 	t.expect_eq(_lit(t), [], "scope selected, nothing selected: none shows")
 	await _right_click(t, t.actor(&"i1").global_position)
 	t.expect_eq(_lit(t), ["i1"], "a right-click then shows that NPC alone")
+	t.expect_eq(_labelled(t), ["i1"], "and puts the brain labels on it")
 
 	inspector.call("set_scope", "defenders")
 	t.expect_eq(_lit(t), ["d1", "d2", "i1"], "under defenders the selected invader shows too")
+	t.expect_eq(_labelled(t), ["i1"], "the defenders shown by the scope have no brain labels")
 	await _right_click(t, t.actor(&"i2").global_position)
 	t.expect_eq(_lit(t), ["d1", "d2", "i2"], "selecting another invader moves the extra one")
+	t.expect_eq(_labelled(t), ["i2"], "and moves the brain labels to it")
 	await _right_click(t, GROUND)
 	t.expect_eq(_lit(t), ["d1", "d2"], "and clearing the selection drops it")
+	t.expect_eq(_labelled(t), [], "and the brain labels")
 
 	inspector.call("set_scope", "invaders")
 	t.expect_eq(_lit(t), ["i1", "i2"], "scope invaders: the invaders show")
@@ -77,10 +85,20 @@ func run(t: TestContext) -> void:
 
 ## The ids of the actors whose vision overlay is on, in the order of `SIDES`.
 func _lit(t: TestContext) -> Array:
+	return _with(t, "show_vision")
+
+
+## The ids of the actors whose brain overlay has its labels on, in the order of `SIDES`.
+func _labelled(t: TestContext) -> Array:
+	return _with(t, "brain_labels")
+
+
+## The ids of the actors with an overlay whose property `prop` is on, in the order of `SIDES`.
+func _with(t: TestContext, prop: String) -> Array:
 	var out: Array = []
 	for id: StringName in SIDES:
 		for child in t.actor(id).get_children():
-			if "show_vision" in child and bool(child.get("show_vision")):
+			if prop in child and bool(child.get(prop)):
 				out.append(String(id))
 	return out
 

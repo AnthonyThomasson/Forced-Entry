@@ -15,6 +15,8 @@ const ORIGIN := Vector2(40, -96)
 const BAR_W := 90.0
 const LINE_H := 21.0
 const MAX_BARS := 4
+## Where the next-decision ring's seconds sit relative to the NPC (above the ring).
+const RING_LABEL_AT := Vector2(-14, -40)
 ## How long (s) after a forced decision its reason stays shown.
 const FORCE_SHOW := 4.0
 ## The badge shown when the last walk failed and the NPC holds steady.
@@ -22,6 +24,12 @@ const FALLBACK_TEXT := "FALLBACK: no decision, holding"
 
 ## Whether to draw the brain overlay.
 @export var show_brain: bool = false
+## Whether the overlay keeps short labels by its indicators while `text_in_world` is off: the
+## THINKING / FALLBACK badges, each level's node title, each bar's option and percentage and the
+## next-decision ring's seconds. The facts, the timers line and the forced reason stay card-only.
+## The spectator inspector sets it on the selected NPC alone; with `text_in_world` on it changes
+## nothing (the full text draws, and no ring label).
+@export var brain_labels: bool = false
 
 
 ## Whether this overlay's toggle is on.
@@ -73,12 +81,19 @@ func card_lines() -> PackedStringArray:
 ## The THINKING and FALLBACK badges of brain `b` from (`x`, `y`); returns the y below them.
 func _paint_badges(b: Dictionary, x: float, y: float) -> float:
 	if b["pending"]:
-		_say(Vector2(x, y), _thinking_text(), FONT_SIZE + 2, THINK)
+		_tag(Vector2(x, y), _thinking_text(), FONT_SIZE + 2, THINK)
 		y += LINE_H + 2
 	if b["failed"]:
-		_say(Vector2(x, y), FALLBACK_TEXT, FONT_SIZE + 1, FAIL)
+		_tag(Vector2(x, y), FALLBACK_TEXT, FONT_SIZE + 1, FAIL)
 		y += LINE_H + 2
 	return y
+
+
+## An indicator's label at local position `pos`: drawn while `text_in_world`, or while
+## `brain_labels`.
+func _tag(pos: Vector2, text: String, size: int, color: Color) -> void:
+	if text_in_world or brain_labels:
+		DebugText.string(self, pos, text, size, color)
 
 
 ## The THINKING badge's text, its dots cycling with the game clock.
@@ -99,6 +114,8 @@ func _paint_timers(b: Dictionary, x: float, y: float) -> float:
 		THINK,
 		2.0,
 	)
+	if brain_labels and not text_in_world:
+		_label(_character.global_position, "%.1fs" % b["decide_in"], THINK, RING_LABEL_AT)
 	if _forced(b):
 		_say(Vector2(x, y), _forced_text(b), FONT_SIZE, THINK)
 		y += LINE_H
@@ -147,7 +164,7 @@ func _facts_text(b: Dictionary) -> String:
 ## One level of the last walk at (`x`, `y`): its node and Von's probability bar for each offered
 ## option, the pick highlighted (or the pick alone when it was auto-picked); returns the y below it.
 func _paint_level(level: Dictionary, x: float, y: float) -> float:
-	_say(Vector2(x, y), _level_text(level), FONT_SIZE, TEXT)
+	_tag(Vector2(x, y), _level_text(level), FONT_SIZE, TEXT)
 	y += LINE_H
 	var probs: Dictionary = level.get("probabilities", {})
 	var pick: String = str(level.get("pick", ""))
@@ -155,7 +172,7 @@ func _paint_level(level: Dictionary, x: float, y: float) -> float:
 		var p: float = probs[id]
 		var col := PICK if str(id) == pick else BAR
 		draw_rect(Rect2(Vector2(x, y - 12), Vector2(BAR_W * clampf(p, 0.0, 1.0), 12)), col)
-		_say(Vector2(x + BAR_W + 4, y), _bar_text(id, p), FONT_SIZE - 1, col)
+		_tag(Vector2(x + BAR_W + 4, y), _bar_text(id, p), FONT_SIZE - 1, col)
 		y += LINE_H - 2
 	if _picked_alone(level):
 		_say(Vector2(x, y), _pick_text(level), FONT_SIZE - 1, PICK)
