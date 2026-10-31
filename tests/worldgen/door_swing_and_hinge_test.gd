@@ -64,6 +64,7 @@ func _check_house(t: TestContext, where: String, built: Node2D, seen: Dictionary
 		var room_rect: Rect2 = Houses.room(rooms, opening["rooms"][into])["rect"]
 		_check_hinge(t, here, entry, room_rect, seen)
 		_check_arc(t, here, entry, pieces)
+		_check_reach_kept_clear(t, here, entry, pieces)
 
 
 ## The door swings into the room the spec says; returns the index (in the opening's `rooms`) of the
@@ -131,6 +132,29 @@ func _check_open_leaf(t: TestContext, where: String, door: Door, middle: Vector2
 	t.check(leaf.x.is_equal_approx(door.swing_into)
 			and signf((leaf.origin - middle).dot(along)) == side,
 			"%s: the open leaf runs into the room from the hinge, along the wall" % where)
+
+
+## The ground the open leaf can reach, a box as wide as the doorway and as deep into the room as the
+## leaf's far end stands from the wall (its length and its pivot's offset: 59 px at a front or exit
+## doorway, 50 inside), holds no furniture, clutter or neon tube: the clearance the spawner keeps is
+## as deep as the swing is long.
+func _check_reach_kept_clear(
+	t: TestContext, where: String, entry: Dictionary, pieces: Array
+) -> void:
+	var door: Door = entry["node"]
+	var opening: Dictionary = entry["opening"]
+	var middle: Vector2 = opening["pos"]
+	var half := (opening["width"] as float) * 0.5
+	var along := (middle - door.hinge).normalized()
+	var reach := door.leaf_size().x + PIVOT_OFFSET
+	var box := Rect2(middle - along * half, Vector2.ZERO).expand(
+		middle + along * half + door.swing_into * reach
+	)
+	for rect: Rect2 in pieces:
+		t.check(
+			not rect.grow(-1.0).intersects(box),
+			"%s: %s stands in the ground the open leaf reaches %s" % [where, rect, box],
+		)
 
 
 ## Nothing solid, no clutter and no neon tube is in the swing arc.

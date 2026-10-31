@@ -39,7 +39,8 @@ const BESIDE := BODY
 ## Whether a side has room for one (E21 "while it has room"), judged on spots of the test's own
 ## (`room_for_one`): this far out from the wall plane, from this far past the jamb along the wall
 ## every `ROOM_FOR_ONE_STEP` px, as fine as the AI's own grid along the wall (its `SLOT_STEP`, 4
-## px): a spot out of the other doorways' views beside a 52 px doorway can be narrower than 11 px.
+## px) and finer than the 12 px nav lane through a 60 px doorway (`docs/doors.md` DR1): a spot out
+## of the other doorways' views beside a doorway can be narrower than 11 px.
 const ROOM_FOR_ONE_OUT := 30.0
 const ROOM_FOR_ONE_PAST := 18.0
 const ROOM_FOR_ONE_STEP := 4.0

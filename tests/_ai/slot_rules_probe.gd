@@ -220,38 +220,41 @@ static func view_count(w: Dictionary, f: Dictionary, p: Vector2) -> int:
 	return ids.size()
 
 
-## "" when `p` is a tail spot of frame `f` (rule 6): in a room joined to the stack-side room by
-## another doorway (the room the tail came by, or outside), within `TAIL_REACH` of that doorway, off
-## its axis by a body and out of its funnel, on the navmesh and off furniture; else why not.
+## "" when `p` is a tail spot of frame `f` (rule 6): in the room the tail came by, at the stack-side
+## room's other doorway nearest `f`'s (the spec's: the small room's other doorway nearest the one
+## entered), within `TAIL_REACH` of that doorway, off its axis by a body and out of its funnel, on
+## the navmesh and off furniture; else why not.
 static func tail_fault(w: Dictionary, f: Dictionary, p: Vector2) -> String:
 	var ways := Slots.ways_into_stack_room(w, f)
 	if ways.is_empty():
 		return "not in the %s, which has no other doorway for a tail to hold at" % f["from"]
-	var best := ""
-	var best_d := INF
-	for fo: Dictionary in ways:
-		var d := (fo["pos"] as Vector2).distance_to(p)
-		if d >= best_d:
-			continue
-		var why: Array = []
-		var where := in_stack_room(w, fo, p)
-		if where != "":
-			why.append(where)
-		if d > Slots.TAIL_REACH:
-			why.append("%.0f px from the doorway" % d)
-		if absf(Entry.lateral(fo, p)) < Slots.BODY:
-			why.append("on the doorway's axis")
-		if Entry.in_funnel(fo, p):
-			why.append("in the doorway's funnel")
-		for extra in [on_navmesh(w, p), clear_of_furniture(w, p)]:
-			if extra != "":
-				why.append(extra)
-		best_d = d
-		best = (""
-				if why.is_empty()
-				else "not a tail spot at %s (from the %s): %s"
-					% [fo["id"], fo["from"] if fo["from"] != "" else "outside", ", ".join(why)])
-	return best
+	var fo: Dictionary = ways[0]
+	for way: Dictionary in ways:
+		if (
+			(way["pos"] as Vector2).distance_to(f["pos"])
+			< (fo["pos"] as Vector2).distance_to(f["pos"])
+		):
+			fo = way
+	var why: Array = []
+	var where := in_stack_room(w, fo, p)
+	if where != "":
+		why.append(where)
+	var d := (fo["pos"] as Vector2).distance_to(p)
+	if d > Slots.TAIL_REACH:
+		why.append("%.0f px from the doorway" % d)
+	if absf(Entry.lateral(fo, p)) < Slots.BODY:
+		why.append("on the doorway's axis")
+	if Entry.in_funnel(fo, p):
+		why.append("in the doorway's funnel")
+	for extra in [on_navmesh(w, p), clear_of_furniture(w, p)]:
+		if extra != "":
+			why.append(extra)
+	if why.is_empty():
+		return ""
+	return (
+		"not a tail spot at %s (from the %s): %s"
+		% [fo["id"], fo["from"] if fo["from"] != "" else "outside", ", ".join(why)]
+	)
 
 
 ## How far (px) from `p` along `dir` (an axis) to the edge of `rect`, less `ROOM_INSET`.

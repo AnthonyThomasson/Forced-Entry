@@ -142,8 +142,8 @@ func leaf_pose(angle_degrees: float) -> Transform2D:
 
 
 ## The door's surface for a striker (interface 3): full cover, its material's penetration, the
-## surface material it sounds and throws debris as, and, for the glass-panel door, `transparent`:
-## sight passes through it.
+## surface material it sounds as (a steel door's is wood's) and, for the glass-panel door,
+## `transparent`: sight passes through it.
 func get_surface() -> Dictionary:
 	var surface := {
 		"coverage": 100.0,
@@ -153,6 +153,15 @@ func get_surface() -> Dictionary:
 	}
 	if look.material == "glass":
 		surface["transparent"] = true
+	return surface
+
+
+## The surface a hit's chips and sparks are styled by: the door's own, unless its material has the
+## debris look of another than it sounds as (steel sounds as wood but throws metal).
+func _debris_surface() -> Dictionary:
+	var surface := get_surface()
+	if _row.has("debris"):
+		surface["material"] = _row["debris"]
 	return surface
 
 
@@ -219,7 +228,7 @@ func take_hit(hit: HitInfo) -> void:
 		return
 	var kind := &"blast" if hit.speed_factor <= 0.0 and hit.height < 0.0 else &"round"
 	visuals.deformable.record(hit)
-	Physics.spawn_debris(get_parent(), hit, get_surface())
+	Physics.spawn_debris(get_parent(), hit, _debris_surface())
 	if look.material == "glass":
 		_shatter()
 	_hurt(hit.damage, kind, hit.direction)

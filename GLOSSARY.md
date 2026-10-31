@@ -186,7 +186,7 @@ _Avoid_: posted ambusher (one still walking to its post is not primed), camper
 
 **Doorway**:
 The gap in a wall between two rooms, or between a room and the street, as `WorldGen.get_openings` reports it: its centre
-(`pos`) and its `width` (52 px inside, 60 px for the front and the exits), cut in the wall's centreline. A wall's collider
+(`pos`) and its `width` (60 px inside, 69 px for the front and the exits), cut in the wall's centreline. A wall's collider
 reaches half its thickness into the gap, so the free passage between the jambs is narrower by a wall's thickness. A
 doorway with no door is an open gap.
 _Avoid_: door (the leaf that may stand in it), opening (the data record of one)

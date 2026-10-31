@@ -1,11 +1,17 @@
 extends GameTest
 ## Rule 9 (ticket #65 round 2, `docs/tactical-entry.md` E1, E2, E18 and E20 to E22): every member of
-## an ordered stack reaches the slot it claimed. The bungalow (seed 1, furnished) doorway from the
+## an ordered stack reaches the slot it claimed. The bungalow (seed 8, furnished) doorway from the
 ## living room into the kitchen, the stack in the living room ordered on its north side: the sweep
-## finds the north run 120 px to the room's corner with two pieces against the wall past the first
-## slot (-224..-182, -306..-264 and -219..-187, -330..-300), and the south run as short with pieces
-## by its end, so a single file along that wall would put the second and third slots on the
-## doorway's front and out of the room: a short wall and furniture by a doorway (E21, E22).
+## finds the north run 140 px to the room's corner with two pieces against the wall past the first
+## slot (-224..-182, -334..-292 and -219..-187, -298..-268), and the south run as short, a piece
+## 22 px past the jamb (-223..-187, -118..-46) and another by its end (-220..-184, -43..-9), so a
+## single file along that wall would put the second and third slots on the doorway's front and out
+## of the room: a short wall and furniture by a doorway (E21, E22).
+##
+## Seed 8, not seed 1: on seed 1 the furniture leaves slot 4 in a pocket
+## whose only way in runs past slot 3's holder, so the member sent there is stopped by its
+## teammate. That defect is kept by `ai/entry/stack_slot_reached_through_another` (a `gap` test on
+## seed 1), issue #170.
 ##
 ## 4 invaders are ordered (quiet, held for the go so the stack forms and holds) to stack on it from
 ## the north side through `Squad.issue`, by a puppet leader standing far off; Von is down
@@ -42,7 +48,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	# Doors off until #159 makes this family door-aware.
 	s.switch(&"worldgen.doors", false)
-	s.house(1, "bungalow")
+	s.house(8, "bungalow")
 	s.von_down()
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.actor(&"near", &"invader", Vector2(-150, -250), { "max_health": 1_000_000.0 })

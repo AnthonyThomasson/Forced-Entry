@@ -1,16 +1,16 @@
 extends GameTest
-## DR7 (ticket #21): with Use (E) held on a door, each wheel notch turns the door by the brief's 10
+## DR7 (ticket #21): with Use (E) held on a door, each wheel notch turns the door by the brief's 20
 ## degrees, wheel up opening and down closing, between shut and fully open, and it stays where the
 ## scroll leaves it; the camera does not zoom meanwhile, and letting go of E after scrolling does
 ## not toggle the door. A trackpad's two-finger scroll turns it too, by the notches the camera
 ## counts it as. With E not held, or held with no door in reach, the wheel zooms as before.
 
 ## Degrees one wheel notch turns a door (the brief's number).
-const NOTCH := 10.0
+const NOTCH := 20.0
 const CameraController = preload("res://scenes/general/camera_controller.gd")
 const Pointer := preload("res://tests/_character/player_pointer_probe.gd")
 ## A trackpad scroll of this much (up), as the OS delivers it.
-const PAN := -60.0
+const PAN := -30.0
 ## Beside the shut door, aimed at it, and well away from it.
 const BY_THE_DOOR := Vector2(370, 150)
 const AT_THE_DOOR := Vector2(440, 150)
@@ -18,8 +18,9 @@ const FAR := Vector2(150, 400)
 ## Between the two doors, 31 px from each leaf: both in reach, the aim picks.
 const BETWEEN := Vector2(370, 180)
 const AT_THE_OTHER := Vector2(440, 230)
-## The puppet beside the second door, a long way from the player.
-const PUPPET_SPOT := Vector2(384, 240)
+## The puppet beside the second door, a long way from the player: near enough the hinge to reach the
+## leaf (48 px) still when three notches have turned it 60 degrees.
+const PUPPET_SPOT := Vector2(390, 225)
 ## A zoom that has not moved, to this much.
 const SAME_ZOOM := 0.001
 
@@ -30,7 +31,7 @@ var _pointer := Vector2.ZERO
 func describe() -> Dictionary:
 	return {
 		"name": "Held Use and the wheel open a door by steps",
-		"description": "E held on a door: wheel notches turn it 10 degrees each (up opens, down "
+		"description": "E held on a door: wheel notches turn it 20 degrees each (up opens, down "
 			+ "closes), the camera does not zoom, releasing leaves the angle; a trackpad scroll "
 			+ "turns it too; with E not held, or no door in reach, the wheel zooms.",
 		"tags": ["door", "player", "input", "camera", "keybinds"],
@@ -81,17 +82,17 @@ func run(t: TestContext) -> void:
 	await _the_puppet_works_a_door(t, t.puppet(&"hand"), other)
 
 
-## E held: notches turn the door 10 degrees each, the camera stays, and letting go leaves it.
+## E held: notches turn the door 20 degrees each, the camera stays, and letting go leaves it.
 func _wheel_steps(t: TestContext, door: Node, camera: Camera2D, zoom: float) -> void:
 	Input.action_press(Keybinds.USE)
 	await t.frames(2)
 	for i in 3:
 		await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
 	await _settle(t)
-	t.expect_near(door.angle(), 3.0 * NOTCH, 0.1, "three notches up turn the door 30 degrees")
+	t.expect_near(door.angle(), 3.0 * NOTCH, 0.1, "three notches up turn the door 60 degrees")
 	await _wheel(t, MOUSE_BUTTON_WHEEL_DOWN)
 	await _settle(t)
-	t.expect_near(door.angle(), 2.0 * NOTCH, 0.1, "a notch down turns it back 10 degrees")
+	t.expect_near(door.angle(), 2.0 * NOTCH, 0.1, "a notch down turns it back to 40 degrees")
 	t.expect_near(camera.zoom.x, zoom, SAME_ZOOM, "the camera did not zoom meanwhile")
 	Input.action_release(Keybinds.USE)
 	await _settle(t)
@@ -133,6 +134,13 @@ func _trackpad_steps(
 ## Still held: the door stops at fully open and at shut, and letting go after scrolling does not
 ## toggle it.
 func _limits_and_release(t: TestContext, door: Node, camera: Camera2D, zoom: float) -> void:
+	for i in 2:
+		await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
+	await _settle(t)
+	t.expect_near(door.angle(), 80.0, 0.1, "two notches more take it to 80 degrees")
+	await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
+	await _settle(t)
+	t.expect_near(door.angle(), 90.0, 0.1, "the notch that would pass it stops at fully open")
 	for i in 12:
 		await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
 	await _settle(t)
@@ -199,7 +207,7 @@ func _the_puppet_works_a_door(t: TestContext, puppet: Node, other: Node) -> void
 	await t.frames(3)
 	puppet.turn_door(3.0)
 	await _settle(t)
-	t.expect_near(other.angle(), 3.0 * NOTCH, 0.1, "the puppet's turn_door turns the door 30")
+	t.expect_near(other.angle(), 3.0 * NOTCH, 0.1, "the puppet's turn_door turns the door 60")
 	puppet.use()
 	await _settle(t)
 	t.expect_near(other.angle(), 90.0, 0.1, "its use swings the ajar door fully open")

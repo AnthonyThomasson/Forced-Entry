@@ -4,15 +4,19 @@ class_name SoundDoors
 ## `leaf/<material>/<stage>`, the material a `DoorMaterialConfig.materials` id (`hollow`, `solid`,
 ## `steel`, `glass`) and the stage a `&"door"` event's (Objects): `open` (the swing, a creak: wood
 ## creaks, a steel door groans, a glass-panel door's frame creaks like wood), `shut` (the latch as
-## it closes: a click and a thud, steel a clang), `burst` (the latch giving and the leaf slamming
-## the wall), `down` (the splinter and thud of the fall, steel a heavy clang) and, for the
-## glass-panel door only, `glass` (the panes shattering). The `profile` function names one without
-## rendering it; the bank renders and caches it, asking `recipe` for its recipe. (A vehicle's door
-## is the bank's `door/...` family, `SoundVehicles`.)
+## it closes: a click and a thud; a steel door shuts with a solid wood door's, so it has no `shut`
+## of its own), `burst` (the latch giving and the leaf slamming the wall), `down` (the splinter and
+## thud of the fall, steel a heavy clang) and, for the glass-panel door only, `glass` (the panes
+## shattering). The `profile` function names one without rendering it; the bank renders and caches
+## it, asking `recipe` for its recipe. (A vehicle's door is the bank's `door/...` family,
+## `SoundVehicles`.)
 
 ## The stages every material has, then the one only the glass-panel door has.
 const STAGES: Array[String] = ["open", "shut", "burst", "down"]
 const PANES_STAGE := "glass"
+## The material whose `shut` a door of another material plays: a steel door shuts with the heavy
+## wood door's latch (the click and the thud), not a clang.
+const SHUT_AS := { "steel": "solid" }
 ## The materials. db: the trim of every sound of the door. pitch: the scale of its creak and its
 ## knocks (a heavier door lower). creak: the stick-slip of the swing, `rate` slips a second through
 ## the leaf's resonances `freqs` / `amps` / `decays`, `noise` of each slip heard raw, a whine
@@ -82,22 +86,28 @@ const SHARD_HZ: Array[float] = [2850.0, 3640.0, 4410.0, 3170.0, 5120.0, 3920.0, 
 
 
 ## A door leaf of `material` at `stage` (a `&"door"` event's). &"" for a material or a stage that
-## has no sound: the panes' `glass` stage exists for the glass-panel door only.
+## has no sound: the panes' `glass` stage exists for the glass-panel door only. A `shut` is that of
+## `SHUT_AS`'s material where it names one.
 static func profile(material: String, stage: StringName) -> StringName:
 	if not MATERIALS.has(material):
 		return &""
 	var s := String(stage)
 	if not (STAGES.has(s) or (s == PANES_STAGE and material == "glass")):
 		return &""
+	if s == "shut":
+		material = SHUT_AS.get(material, material)
 	return StringName("leaf/%s/%s" % [material, s])
 
 
 ## The door profiles, in the library's order (the bank's `profiles` holds them): per material its
-## four stages, then the panes shattering.
+## four stages (a material that shuts as another has no `shut` of its own), then the panes
+## shattering.
 static func profiles() -> Array[StringName]:
 	var out: Array[StringName] = []
 	for material: String in MATERIALS:
 		for stage in STAGES:
+			if stage == "shut" and SHUT_AS.has(material):
+				continue
 			out.append(profile(material, StringName(stage)))
 		if material == "glass":
 			out.append(profile(material, StringName(PANES_STAGE)))
@@ -106,7 +116,7 @@ static func profiles() -> Array[StringName]:
 
 ## The recipe of a `leaf/...` profile split into its `parts`; {} if it names no sound.
 static func recipe(parts: PackedStringArray) -> Dictionary:
-	if parts.size() != 3 or profile(parts[1], StringName(parts[2])) == &"":
+	if parts.size() != 3 or profile(parts[1], StringName(parts[2])) != StringName("/".join(parts)):
 		return {}
 	var m: Dictionary = MATERIALS[parts[1]]
 	var length: float = (
@@ -160,8 +170,7 @@ static func _creak(m: Dictionary) -> Array:
 	return layers
 
 
-## The latch as it closes: a click, the latch seating, and the leaf's thud into the frame (a steel
-## door's clang).
+## The latch as it closes: a click, the latch seating, and the leaf's thud into the frame.
 static func _latch(m: Dictionary) -> Array:
 	var p: float = m["pitch"]
 	var layers := [
@@ -175,7 +184,6 @@ static func _latch(m: Dictionary) -> Array:
 		},
 	]
 	layers.append_array(_thud(m, 0.012, 0.9))
-	layers.append_array(_ring(m, 0.35, 0.012))
 	return layers
 
 

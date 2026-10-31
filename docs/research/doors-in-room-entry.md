@@ -387,9 +387,9 @@ standard via a reference site (DIN 18101) and trade press (Bob Vila, AIBD) for t
 9. **Size.** The game's scale is set by the body, not by 1 px ≈ 1 cm: a character is 28 px across (radius 14), the
    width of a 51 cm bideltoid breadth, so 1 m is about 55 px (the skeleton agrees: a 7.2-radius head height, 100 px,
    for a 1.75 m man). A real interior doorway is then about 39–42 px clear (leaf about 45 px) and a front door about
-   45–47 px clear (leaf 50 px). The doorways were 80–120 px (1.5–2.2 m); #21 shrinks them to 52 px inside and 60 px at
-   the front and exits (about 0.95 m and 1.1 m), a little roomier than real doors, which still passes one body at a
-   time. A wall's collider reaches half its thickness (6 px of the 12 px walls) into the gap on each side, so a 52 px
-   doorway is 52 − 12 = 40 px clear and a 60 px one 48 px; the bake erodes the nav map by `NavBuilder.AGENT_RADIUS`
-   (14) plus `NavBuilder.WALL_MARGIN` (4) from each collider, so the nav lane through a 52 px doorway is
-   40 − 2 × 18 = 4 px wide (12 px for 60).
+   45–47 px clear (leaf 50 px). The doorways were 80–120 px (1.5–2.2 m); #21 shrinks them to 60 px inside and 69 px at
+   the front and exits (about 1.1 m and 1.25 m, after a first round of 52 and 60 px that played too tight), a little
+   roomier than real doors, which still passes one body at a time. A wall's collider reaches half its thickness (6 px
+   of the 12 px walls) into the gap on each side, so a 60 px doorway is 60 − 12 = 48 px clear and a 69 px one 57 px; the
+   bake erodes the nav map by `NavBuilder.AGENT_RADIUS` (14) plus `NavBuilder.WALL_MARGIN` (4) from each collider, so the
+   nav lane through a 60 px doorway is 48 − 2 × 18 = 12 px wide (21 px for 69).

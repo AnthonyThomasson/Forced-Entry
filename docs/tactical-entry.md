@@ -10,7 +10,7 @@ E10 (the clear-time benchmark) is met and its test is green. E1 to E9 are script
 the whole pipeline with the real Von server (`requires_von`, `--include-von --require-von`), as are E18's and E19's: the world gives the AI the situation
 and the test judges what the shipped AI does with it; E15 and E18 also have scripted tests of their mechanism. A rule the AI does not
 follow yet is written the same way before it is built: the behaviour here, and a test that is red on purpose and tagged `gap`
-(`tools/run_tests.sh --include-von --require-von gap` lists them; none is open).
+(`tools/run_tests.sh --include-von --require-von gap` lists them; one is open: `stack_slot_reached_through_another`, below).
 
 An *opening* is a doorway in a wall (`WorldGen.get_openings`: `pos`, `width`, `front`/`exit`, the rooms it
 joins). Doorways are open archways to the entry: a door may stand in one (`docs/doors.md`) but the entry does not work it beyond
@@ -138,6 +138,8 @@ it, in the room beyond, at the far end of the house and outside: each ends in th
 rising only as the latecomer's half of a move-up (and each move-up a real one: the mover in its own slot, into a lower one of its side,
 ending in it), within its route's walking time plus 8 s from its last detour (`docs/leadership.md` D4), never in the doorway's view nor
 across the door's front close in when a way round exists, and never bumping a teammate).
+A known gap: on the bungalow's seed 1 the furniture leaves slot 4 in a pocket whose only way in runs past slot 3's holder, and the member sent there never arrives
+(`stack_slot_reached_through_another`, tagged `gap`, the same reach check; `stack_reach_bungalow_kitchen_door` runs on seed 8; issue #170).
 
 **E3. Slice the pie.** The first in the stack walks a short arc outside the opening (`tuning.entry_geometry.pie_steps` points, 100 px from
 the threshold, from 55° to 25° off the door's axis), turning its gaze through the doorway at each, before it crosses. What it sees from outside it engages from

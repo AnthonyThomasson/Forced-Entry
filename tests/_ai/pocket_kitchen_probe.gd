@@ -4,7 +4,7 @@ extends RefCounted
 ## `const Pocket := preload("res://tests/_ai/pocket_kitchen_probe.gd")`.
 ##
 ## A hand-laid kitchen (400 x 360, `KITCHEN`) with the doorway of a garage home's kitchen, `DOOR`,
-## 52 px wide, on its north wall into a garage above it, a doorway of the same width on its west
+## 60 px wide, on its north wall into a garage above it, a doorway of the same width on its west
 ## wall into a living room, and the front door on the living room's south wall. The kitchen is
 ## furnished so that no spot against the north wall east of the door holds a body (a run of counters
 ## and plants), and a fridge in the north-west corner closes the west run at about 80 px from the
@@ -19,7 +19,7 @@ const GARAGE := Rect2(280, -760, 420, 400)
 const LIVING_ROOM := Rect2(-300, -360, 600, 360)
 ## The doorway from the kitchen into the garage.
 const DOOR := Vector2(500, -360)
-const DOOR_WIDTH := 52.0
+const DOOR_WIDTH := 60.0
 const NEAR := Vector2(615, -295)
 const WRONG := Vector2(420, -300)
 const FAR := Vector2(660, -30)
@@ -36,7 +36,7 @@ static func layout(s: TestSetup, sealed := false) -> void:
 			{ "key": "garage", "type": "garage", "rect": GARAGE },
 		],
 		[
-			{ "pos": Vector2(0, 0), "width": 60.0 },
+			{ "pos": Vector2(0, 0), "width": 69.0 },
 			{ "pos": Vector2(300, -180), "width": DOOR_WIDTH },
 			{ "pos": DOOR, "width": DOOR_WIDTH },
 		],

@@ -7,7 +7,9 @@ extends GameTest
 ## A hollow door is used open and shut, burst by two kicks and felled by four; a steel door is used
 ## open and shut and burst by a frag; a glass-panel door's frame opens and its panes shatter on a
 ## round. A run of scroll notches on a door is one movement: one creak, not one per notch, and a
-## notch after the door has rested creaks again. The profile names are the spec's
+## notch after the door has rested creaks again. A steel door shuts with the wood doors' latch (the
+## click and thud of a wood door's `shut`, no clang), and a round and a kick on it sound as they do
+## on a wood door, with no metal in them. The profile names are the spec's
 ## (`docs/doors.md` DR12), kept here.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -22,6 +24,7 @@ const PANES := 700.0
 const GLASS_FRAME := 850.0
 const SCROLLED := 1000.0
 const SLOWLY_SCROLLED := 1150.0
+const STRUCK := 1350.0
 const FRAG_DOOR := Vector2(1600, 200)
 ## How near the door a sound must be heard (px): the doorway's middle, a leaf away at most.
 const AT_THE_DOOR := 30.0
@@ -32,18 +35,21 @@ const RESTED := 1.5
 ## Seconds between the uses of a door opened, shut and opened at once (a swing takes 0.4).
 const REVERSAL := 0.1
 ## Notches of a scroll slower than the creak gap lasts, and the seconds between them.
-const SLOW_NOTCHES := 6
+const SLOW_NOTCHES := 4
 const SLOW_NOTCH_EVERY := 0.25
 ## The puppets that face their door, which lies to the east.
 const FACING_EAST: Array[StringName] = [
 	&"user", &"burster", &"steel_user", &"frame_user", &"scroller", &"slow_scroller",
 ]
-const NOTCHES := 5
-const NOTCH_DEGREES := 10.0
+## Notches of a scroll (20 degrees each, one short of fully open).
+const NOTCHES := 4
+const NOTCH_DEGREES := 20.0
 ## A clang is what still rings on after the strike: per stage, the second from which the sound is
 ## judged (a fall's thud lands at 0.11 s), and a steel door's rings on more than this many times a
 ## wooden door's.
-const RINGS := { &"shut": 0.12, &"burst": 0.12, &"down": 0.35 }
+const RINGS := { &"burst": 0.12, &"down": 0.35 }
+## How near a steel door's leaf (px) the sound of a hit on it is judged.
+const HIT_REACH := 60.0
 const MORE_RING := 3.0
 
 
@@ -71,8 +77,8 @@ func _doorway(at: Vector2, material: String, style: String, id: String) -> Dicti
 
 func configure(s: TestSetup) -> void:
 	s.layout([
-		{ "key": "west", "type": "living_room", "rect": Rect2(0, 0, 400, 1300) },
-		{ "key": "east", "type": "bedroom", "rect": Rect2(400, 0, 400, 1300) },
+		{ "key": "west", "type": "living_room", "rect": Rect2(0, 0, 400, 1500) },
+		{ "key": "east", "type": "bedroom", "rect": Rect2(400, 0, 400, 1500) },
 		{ "key": "west_b", "type": "living_room", "rect": Rect2(1200, 0, 400, 400) },
 		{ "key": "east_b", "type": "bedroom", "rect": Rect2(1600, 0, 400, 400) },
 	], [
@@ -84,6 +90,7 @@ func configure(s: TestSetup) -> void:
 		_doorway(Vector2(400, GLASS_FRAME), "glass", "panes", "frame"),
 		_doorway(Vector2(400, SCROLLED), "hollow", "flush", "scrolled"),
 		_doorway(Vector2(400, SLOWLY_SCROLLED), "hollow", "flush", "slowly_scrolled"),
+		_doorway(Vector2(400, STRUCK), "steel", "riveted", "struck"),
 		_doorway(FRAG_DOOR, "steel", "riveted", "blasted"),
 	])
 	s.switch(&"projectile.flyover", false)
@@ -104,6 +111,9 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"frame_user", &"puppet", Vector2(370, GLASS_FRAME))
 	s.actor(&"scroller", &"puppet", Vector2(370, SCROLLED))
 	s.actor(&"slow_scroller", &"puppet", Vector2(370, SLOWLY_SCROLLED))
+	# the kicker waits out of the gunner's line until the round has struck
+	s.actor(&"gunner", &"puppet", Vector2(300, STRUCK), { "start_slot": 3 })
+	s.actor(&"kicker", &"puppet", Vector2(370, STRUCK + 100.0))
 	s.actor(&"thrower", &"puppet", Vector2(1250, 200), { "max_health": 100_000.0 })
 
 
@@ -113,10 +123,12 @@ func run(t: TestContext) -> void:
 		t.puppet(who).aim_at(t.actor(who).global_position + Vector2.RIGHT * 100.0)
 	t.puppet(&"feller").aim_at(Vector2(300, FALL))
 	t.puppet(&"shooter").aim_at(Vector2(400, PANES))
+	t.puppet(&"gunner").aim_at(Vector2(400, STRUCK))
 	await t.seconds(0.6)
-	await _used(t, &"user", &"used", "hollow")
+	await _used(t, &"user", &"used", "hollow", "hollow")
 	await _reversed(t)
-	await _used(t, &"steel_user", &"steel", "steel")
+	await _used(t, &"steel_user", &"steel", "steel", "solid")
+	await _struck_steel(t)
 	await _burst_and_fall(t)
 	await _glass(t)
 	await _frag_on_steel(t)
@@ -125,8 +137,12 @@ func run(t: TestContext) -> void:
 	_recipes(t)
 
 
-## A door used open: one `open` event and one voice; used again: one `shut`, as the leaf arrives.
-func _used(t: TestContext, who: StringName, id: StringName, material: String) -> void:
+## A door used open: one `open` event and one voice; used again: one `shut`, as the leaf arrives,
+## and its voice is that of `shut_voice`'s `shut` (the wood doors' own; a steel door shuts like a
+## solid wood one).
+func _used(
+	t: TestContext, who: StringName, id: StringName, material: String, shut_voice: String
+) -> void:
 	var door := t.object(id)
 	t.puppet(who).use()
 	await t.seconds(SWING)
@@ -137,7 +153,7 @@ func _used(t: TestContext, who: StringName, id: StringName, material: String) ->
 	await t.seconds(SWING)
 	t.check(door.angle() < 1.0, "the %s door is shut again" % id)
 	_expect_once(t, door, &"open", material)
-	_expect_once(t, door, &"shut", material)
+	_expect_once(t, door, &"shut", material, shut_voice)
 	for stage: StringName in [&"burst", &"down", &"glass"]:
 		t.check(_events(t, door, stage).is_empty(), "using the %s door posts no %s" % [id, stage])
 
@@ -196,6 +212,28 @@ func _glass(t: TestContext) -> void:
 	_expect_once(t, panes, &"glass", "glass")
 
 
+## A round and a kick on a steel door sound as they do on a wood door: the impact is wood's (a
+## round, a `punch` for the boot), and nothing of it is metal.
+func _struck_steel(t: TestContext) -> void:
+	var door := t.object(&"struck")
+	var doorway: Vector2 = door.hinge + door.leaf_pose(0.0).x * door.width * 0.5
+	t.puppet(&"gunner").shoot()
+	await t.seconds(0.5)
+	t.actor(&"kicker").global_position = Vector2(370, STRUCK)
+	t.puppet(&"kicker").aim_at(Vector2(470, STRUCK))
+	await t.seconds(0.3)
+	t.puppet(&"kicker").kick()
+	await t.seconds(0.55)
+	var heard: Array = []
+	for sound: Dictionary in SoundProbe.sounds(t, &"impact"):
+		if (sound["position"] as Vector2).distance_to(doorway) < HIT_REACH:
+			heard.append(String(sound["profile"]))
+	t.check(heard.has("impact/wood/punch"), "the kick is heard as a wood door's (%s)" % [heard])
+	t.check(heard.size() >= 2, "and so is the round (%s)" % [heard])
+	for profile: String in heard:
+		t.check(profile.begins_with("impact/wood/"), "%s is wood's, not metal's" % profile)
+
+
 ## A frag's close blast bursts a steel door's latch: the steel burst.
 func _frag_on_steel(t: TestContext) -> void:
 	await Probe.throw_at(t, &"thrower", Probe.FRAG, FRAG_DOOR - Vector2(50, 0))
@@ -237,7 +275,7 @@ func _scrolled_slowly(t: TestContext) -> void:
 	_expect_once(t, door, &"open", "hollow")
 
 
-## The recipes are the materials': a steel door's latch, burst and fall clang, ringing on long after
+## The recipes are the materials': a steel door's burst and fall clang, ringing on long after
 ## a wooden door's thud has died away, and its groan is lower than a wooden door's creak; the glass
 ## is a bright shattering, not a thud.
 func _recipes(t: TestContext) -> void:
@@ -299,16 +337,20 @@ func _voices(t: TestContext, door: Node2D, material: String, stage: StringName) 
 
 
 ## `door` posted exactly one `stage` event, of `material`, at its doorway, and exactly one voice of
-## `leaf/<material>/<stage>` played there, at the event's own position.
-func _expect_once(t: TestContext, door: Node2D, stage: StringName, material: String) -> void:
+## `leaf/<voice>/<stage>` played there (`voice` the door's `material` unless given), at the event's
+## own position.
+func _expect_once(
+	t: TestContext, door: Node2D, stage: StringName, material: String, voice := ""
+) -> void:
+	var voiced := material if voice == "" else voice
 	var events := _events(t, door, stage)
 	var what := "%s door's %s" % [door.name, stage]
 	t.expect_eq(events.size(), 1, "the %s is posted once" % what)
 	if events.is_empty():
 		return
 	t.expect_eq(String(events[0]["material"]), material, "the %s names its material" % what)
-	var voices := _voices(t, door, material, stage)
-	t.expect_eq(voices.size(), 1, "the %s plays one %s voice at the door" % [what, material])
+	var voices := _voices(t, door, voiced, stage)
+	t.expect_eq(voices.size(), 1, "the %s plays one %s voice at the door" % [what, voiced])
 	if not voices.is_empty():
 		t.check(
 			(voices[0]["position"] as Vector2).is_equal_approx(events[0]["position"]),

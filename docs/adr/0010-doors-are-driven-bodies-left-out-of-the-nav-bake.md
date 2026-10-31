@@ -9,7 +9,7 @@ is at the angle it stands at. Two choices shape it, and a reader who meets the c
 The leaf is an `AnimatableBody2D` the code turns (`Door._physics_process` sets its transform each step to the eased
 angle), not a `RigidBody2D` on a `PinJoint2D` or a `DampedSpringJoint2D` the engine swings.
 
-- **A swing is a script, not a simulation.** The player wants a door that opens in 0.4 s, opens to a scroll notch's 10° and
+- **A swing is a script, not a simulation.** The player wants a door that opens in 0.4 s, opens to a scroll notch's 20° and
   stays there; the AI wants one it can open fully and rely on; a burst latch throws it open at a fixed rate. A hinge
   joint under a character leaning on it, a shove or a stray round would swing, jitter, sag and settle on its own.
   A driven body is exactly where the code puts it.

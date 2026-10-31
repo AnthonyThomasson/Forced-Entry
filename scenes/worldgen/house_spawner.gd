@@ -8,7 +8,8 @@ class_name HouseSpawner
 ## of its doorways, and each doorway's door (HouseDoors). The house is positioned so its front
 ## entrance lands on a point. A plan may also carry `exit` openings (a back/side/garage door).
 
-## Kept free of furniture on each side of a doorway opening.
+## Kept free of furniture on each side of a doorway opening (at least; a wide doorway's door reaches
+## further, `_opening_clearances`).
 const OPENING_CLEARANCE := 50.0
 ## Gap between wall faces and furniture.
 const INTERIOR_MARGIN := 6.0
@@ -75,7 +76,7 @@ static func _build_rooms(
 	house: Node2D,
 	rng: RandomNumberGenerator,
 ) -> Dictionary:
-	var blocked := _opening_clearances(rooms, openings)
+	var blocked := _opening_clearances(rooms, openings, plan["wall_thickness"])
 	var clutter_world: Array = []
 	## Per room, for the wear pass: `[site, floor definition]`.
 	var dressing: Array = []
@@ -448,21 +449,27 @@ static func _mirror_x(rooms: Array, openings: Array) -> void:
 		opening["pos"] = Vector2(width - p.x, p.y)
 
 
-## A box straddling each doorway opening that furniture must stay out of.
-static func _opening_clearances(rooms: Array, openings: Array) -> Array:
+## A box straddling each doorway opening that furniture must stay out of: as wide as the doorway
+## and, each side of its wall, `OPENING_CLEARANCE` deep or as far as its open door reaches if that
+## is further. The leaf fills the gap between the two walls' ends (the doorway less the wall's
+## thickness, less a pixel of slack) and turns about a pivot 3 px off its hinge into the room, so
+## its far end stands `width - wall_thickness + 2` px from the wall line (50 px at a 60 px
+## doorway, 59 at a 69 px one).
+static func _opening_clearances(rooms: Array, openings: Array, wall_thickness: float) -> Array:
 	var blocked: Array = []
 	for opening in openings:
 		var p: Vector2 = opening["pos"]
 		var width: float = opening["width"]
+		var depth := maxf(OPENING_CLEARANCE, width - wall_thickness + 2.0)
 		var on_horizontal_wall := outward_on(rooms, opening).any(
 			func(out: Vector2) -> bool: return out.y != 0.0,
 		)
 		if on_horizontal_wall:
 			blocked.append(
-				Rect2(p.x - width * 0.5, p.y - OPENING_CLEARANCE, width, OPENING_CLEARANCE * 2.0),
+				Rect2(p.x - width * 0.5, p.y - depth, width, depth * 2.0),
 			)
 		else:
 			blocked.append(
-				Rect2(p.x - OPENING_CLEARANCE, p.y - width * 0.5, OPENING_CLEARANCE * 2.0, width),
+				Rect2(p.x - depth, p.y - width * 0.5, depth * 2.0, width),
 			)
 	return blocked

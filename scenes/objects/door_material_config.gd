@@ -20,8 +20,13 @@ class_name DoorMaterialConfig
 ##                 does).
 ##   round_factor, melee_factor, kick_factor, blast_factor   the share of a hit's damage that
 ##                 comes off the hit points, by the kind of hit.
-##   sound         the surface material of its hits (debris, impact sounds); `broken_sound`, when
-##                 present, replaces it once the glass panes have shattered.
+##   sound         the surface material of its hits (impact sounds, and debris unless `debris`
+##                 says otherwise); `broken_sound`, when present, replaces it once the glass
+##                 panes have shattered. A steel door's is wood: a round, a punch or a kick on it
+##                 sounds as on a wood door (`docs/doors.md` DR12).
+##   debris        when present, the material the chips and sparks a hit throws are styled as
+##                 (the steel door's `metal`: grey sparks and shards, where wood's are splinters),
+##                 whatever the hit sounds as.
 ##   weight        its mass.
 static var materials: Dictionary = {
 	"hollow": {
@@ -37,7 +42,7 @@ static var materials: Dictionary = {
 	"steel": {
 		"hp": 1200.0, "penetration": 90.0, "latch_hp": 50.0, "kicks_latch": false,
 		"round_factor": 0.5, "melee_factor": 0.1, "kick_factor": 0.05, "blast_factor": 1.0,
-		"sound": "metal", "weight": 120.0,
+		"sound": "wood", "debris": "metal", "weight": 120.0,
 	},
 	"glass": {
 		"hp": 80.0, "penetration": 5.0, "latch_hp": 20.0, "kicks_latch": true,

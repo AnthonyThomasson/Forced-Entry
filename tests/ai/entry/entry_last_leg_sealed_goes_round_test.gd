@@ -3,7 +3,7 @@ extends GameTest
 ## `stack_reach_garage_home_garage_six`'s scenario, a walk into a slot whose way a teammate closes
 ## by stepping into its own slot goes round by another way when there is one; it is never held there
 ## for good. The hand-laid pocket kitchen (`tests/_ai/pocket_kitchen_probe.gd`, sealed: a garage
-## home's kitchen with its 52 px doorway into the garage) doorway from the kitchen into the garage.
+## home's kitchen with its 60 px doorway into the garage) doorway from the kitchen into the garage.
 ## Three teammates (invader puppets that radio their claims on the doorway, as an AI member does)
 ## hold slots 1 to 3 on its west file, so the invader (ENTER the doorway, scripted Von) claims slot
 ## 4, which stands behind slots 1 and 3. Slots 1 and 2 are taken from the start; slot 3's holder

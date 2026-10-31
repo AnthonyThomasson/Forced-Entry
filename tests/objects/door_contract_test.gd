@@ -1,7 +1,7 @@
 extends GameTest
 ## The door contract (architecture interface 24), as the player's Use key, a scroll and the AI will
 ## drive it: `toggle` swings a shut or ajar door fully open and an open one shut, in about 0.4 s;
-## `turn_by` turns it by degrees between shut and open (10 degrees a scroll notch) and it stays
+## `turn_by` turns it by degrees between shut and open (20 degrees a scroll notch) and it stays
 ## there; `open_fully` opens it; `angle()`, `open_amount()`, `gap()` and `is_down()` say where it
 ## is; `latch_side_spot(from)` is where to stand to work its latch; the signal `changed` says the
 ## state moved; the shadow turns with the leaf; a knocked-down door is no longer usable and leaves

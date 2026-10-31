@@ -12,13 +12,15 @@ door-aware.
 
 ## DR1. Doorway size
 
-Every floorplan's doorway is 52 px wide (about 0.9 m) inside the house and 60 px (about 1 m) for the front and the `exit`
-doorways, about the width of a door beside characters 28 px across. The width is the gap
+Every floorplan's doorway is 60 px wide (about 1.1 m) inside the house and 69 px (about 1.25 m) for the front and the `exit`
+doorways: a character 28 px across has 10 px to spare each side in the 48 px clear width inside. A wall's collider reaches half its thickness (6 px) into the gap on each side, so the clear width is 48 px inside and 57 px
+at the front and exits, and the navigation lane through a doorway (the clear width less the bake's erosion of
+`NavBuilder.AGENT_RADIUS` + `NavBuilder.WALL_MARGIN` = 18 px from each jamb) is 12 and 21 px. The width is the gap
 `WorldGen.get_openings` reports (`width`) and the one `WallFactory` cuts into the walls, in both mirror states of a plan.
 Every floorplan still passes `LayoutRules` and the furnisher (no "no room for required zone"), and every plan still bakes and
 connects over its seeds.
 
-Tests: `worldgen/doorway_widths` (every floorplan, both mirror states: 52 px inside, 60 px at the front and exits, read through
+Tests: `worldgen/doorway_widths` (every floorplan, both mirror states: 60 px inside, 69 px at the front and exits, read through
 `get_openings`; the widths are the brief's numbers, kept in the test), `worldgen/house_doorways_connected`,
 `worldgen/layout_rules`, `worldgen/house_rooms_furnished`.
 
@@ -62,13 +64,14 @@ exterior door into the house. Its hinge sits on the jamb nearer that room's corn
 seeded), 6 px in from the gap's edge, where the walls' ends stand, so the fully open leaf (`open_angle`, 90°) lies out from that
 jamb along the wall. A mirrored plan mirrors its hinges, as the doorway is mirrored with the rooms. The swing arc (a quarter disc,
 the leaf's length, from the hinge across the doorway into the room) is kept free of furniture, clutter and the neon tube as the
-doorway clearance is: it lies inside that box (`HouseSpawner.OPENING_CLEARANCE` deep each side of the wall, as wide as the
-doorway), which the furnisher and the dresser keep clear, so nothing is added to the spawner's `blocked` areas for it. The fit is tight at the front and exits (the
-open leaf reaches 50 px out and 30 px along from the doorway's middle, exactly the box), so a change to the clearance, the leaf or the
-doorway widths is caught by the test, not by the spawner.
+doorway clearance is: it lies inside that box (as wide as the doorway and as deep each side of the wall as the open leaf reaches: its far end stands
+`width - wall_thickness + 2` px out from the wall line, 50 px at a 60 px doorway, 59 at a 69 px one, and the box is
+`HouseSpawner.OPENING_CLEARANCE` (50 px) deep at least), which the furnisher and the dresser keep clear, so nothing is added to the spawner's
+`blocked` areas for it. The fit is exact (the open leaf of a front doorway reaches 59 px out, exactly the box),
+so a change to the leaf or the doorway widths that the box does not follow is caught by the test, not by the spawner.
 
 Tests: `worldgen/door_swing_and_hinge` (every floorplan, both mirror states: the swing room, the hinge on the corner jamb, the open
-leaf along the wall, no furniture, clutter or neon tube in the arc, both outcomes of a tie).
+leaf along the wall, no furniture, clutter or neon tube in the arc nor in the box the open leaf reaches, both outcomes of a tie).
 
 ## DR4. State at the start
 
@@ -114,22 +117,24 @@ clash; a `player` boards and gets out), `general/settings_file` (the old saved n
 
 ## DR7. Gradual opening
 
-While Use is held on a door (the press began on one), each wheel notch turns it by `DoorConfig.step_degrees` (10°), wheel up
+While Use is held on a door (the press began on one), each wheel notch turns it by `DoorConfig.step_degrees` (20°: about five notches open a door fully, the last
+stopping at `open_angle`), wheel up
 (`ZOOM_IN`) opening and down (`ZOOM_OUT`) closing, between shut and fully open, and it stays there. A trackpad's two-finger scroll turns
 it by the notches the camera counts that scroll as (`Keybinds.scroll_notches`: `CameraConfig.trackpad_zoom_sensitivity` notches per unit
 of `delta.y`). The player's controller takes those events before the camera reads them, so the camera does not zoom meanwhile, and
 releasing Use after scrolling does not toggle. With Use not held, or no door in reach (`doors.turn` is false), the scroll goes on to the
 camera and zooms it as before.
 
-Tests: `character/door_scroll_open` (three notches up turn the door 30°, a notch down back 10°, the camera's zoom unchanged, E let go
-leaves the angle; a trackpad scroll turns it by the notches the camera counts it for; fully open and shut are the limits; between two doors the one E went down on is turned, not the one the aim moves to; the puppet's `turn_door` and `use`; with E not held
+Tests: `character/door_scroll_open` (three notches up turn the door 60°, a notch down back to 40°, two more 80° and the next stops at
+fully open, 90°, the camera's zoom unchanged, E let go leaves the angle; a trackpad scroll turns it by the notches the camera counts it for; fully open and shut are the limits; between two doors the one E went down on is turned, not the one the aim moves to; the puppet's `turn_door` and `use`; with E not held
 or held with no door in reach the wheel zooms), `general/camera_wheel_zoom` (unchanged).
 
 ## DR8. A swing meets something
 
 A swinging door nudges any character in its arc (the quarter disc its leaf sweeps) out of the way, the one who opened it too:
 before the leaf turns on, the physics space is asked what stands where it will be; a character is moved straight away from the
-leaf by what clears it, no faster than `nudge_speed` (600 px/s; at the tip of the longest leaf, a front doorway's 48 px, the swing peaks near 280 and a burst runs at 450). The swing stops
+leaf by what clears it, no faster than `nudge_speed` (600 px/s; at the tip of the longest leaf, a front doorway's 56 px, the swing peaks near 330 and a burst runs at 530,
+both under it). The swing stops
 short, and stays there, at a wall, at furniture (the furniture is not pushed) and at a body that cannot move further: a
 character with a fridge or a wall at its back, or whom the leaf outruns, is not squashed or shoved through it.
 
@@ -183,12 +188,13 @@ Every door sound is synthesized in code like the other families (no audio files)
 `{ position, door, material, stage }` on the EventBus at each stage of its life, at the middle of its doorway, and `Sound` voices
 it through its pooled positional voices (category `door`: at most 4 at once, the oldest cut off first, heard out to 1200 px, the
 same range, jitter and `audio.sound` switch as the rest): one voice per event, the profile `leaf/<material>/<stage>`
-(`SoundDoors`), `material` the door's (`hollow`, `solid`, `steel`, `glass`).
+(`SoundDoors`), `material` the door's (`hollow`, `solid`, `steel`, `glass`); the one profile that is not the door's own is a steel
+door's `shut`, which is `leaf/solid/shut` (`SoundDoors.SHUT_AS`: it has no `leaf/steel/shut`).
 
 | Stage | Posted when | Sounds like |
 |---|---|---|
 | `open` | a swing starts to open (a Use, a notch of the scroll) | the swing: the handle's click, then a creak; wood creaks (hollow brighter, solid lower and slower), a steel door groans lower still, a glass-panel door's frame creaks like wood |
-| `shut` | the leaf arrives at shut (the latch as it closes) | a click, the latch seating and a thud; a steel door clangs |
+| `shut` | the leaf arrives at shut (the latch as it closes) | a click, the latch seating and a thud; a steel door shuts with a solid wood door's latch, no clang |
 | `burst` | the latch gives (DR10) | the bang: the latch cracking and the leaf slamming the wall, wood splintering, steel clanging |
 | `down` | the leaf falls (DR11) | the splinter and thud of the fall; a steel door's is a heavy clang that rings on |
 | `glass` | a glass-panel door's panes shatter (DR9) | a crack, a rush and the shards tinkling down (this stage has a sound for the glass-panel door only) |
@@ -201,10 +207,16 @@ closing swing begins (a reversal): a notch after a rest, and an open, shut, open
 closing swing posts nothing until its leaf arrives at shut, so a scroll back down to partly open is silent, and a toggled door
 creaks once on the way open and clicks once on the way shut. A burst and a fall are single events (a burst is not also a creak).
 
+**What a hit sounds like.** A round, a punch or a kick on a door is heard as the door's surface material (`DoorMaterialConfig`'s `sound`, which
+`get_surface()` reports and the impact event carries): wood for the hollow and solid doors, glass for the glass-panel one until its panes
+shatter (then wood), and wood for a steel door too, so a hit on steel is the wood door's knock and carries no metal ring.
+Its hit points, penetration and latch are those of its `DoorMaterialConfig` row. The chips and sparks a hit throws are styled by their own key, `debris`, which a
+steel door sets to `metal` (grey sparks and shards, where wood throws splinters), so the steel door still looks like steel when it is hit.
+
 Tests: `audio/door_sounds` (a hollow door used open and shut, burst by two kicks and felled by four, a steel door used open and shut
 and burst by a frag, a glass-panel door's frame opened and its panes shattered by a round: each posts one `&"door"` event with its
-stage and material and plays one voice of `leaf/<material>/<stage>` at the door; five scroll notches in a row, and six a quarter second apart (longer than the gap), creak once, a notch
-after a rest creaks again, and a door opened, shut and opened again at once creaks at each opening; the steel door's latch, burst and fall ring on past the wooden door's, its groan is lower than the creak,
+stage and material and plays one voice of `leaf/<material>/<stage>` at the door; four scroll notches in a row, and four a quarter second apart (longer than the gap), creak once, a notch
+after a rest creaks again, and a door opened, shut and opened again at once creaks at each opening; the steel door's burst and fall ring on past the wooden door's, its groan is lower than the creak, its shut is the solid wood door's `shut` voice and a round and a kick on it are heard as wood's `impact/wood/...`, never `impact/metal/...`,
 the glass shatters bright), `audio/bank` and `audio/prewarm_covers_every_variant` (every door profile renders and is pre-warmed).
 
 ## DR13. Materials and styles
@@ -244,7 +256,7 @@ Von: a chair in the swing holds the nearer door shut, the walk is a blocked one 
 
 The **Gun range** sandbox (`sandboxes/player_gun_range_sandbox.gd`, from Tests → Sandboxes; never run by the suite, nothing asserted)
 has four small rooms built onto the outside of the range's north wall (y < 0), 240 px square side by side from x -360 to 600, each
-opening onto the range through a 52 px doorway, and a 52 px doorway between each neighbouring pair: all seven catalogue doors once.
+opening onto the range through a 60 px doorway, and a 60 px doorway between each neighbouring pair: all seven catalogue doors once.
 On the range side, each with a floor label naming its material: a hollow-core `flush` door (shut, swinging into its room), a solid
 wood `panelled` one (ajar, swinging out into the range), a steel `riveted` one (shut, swinging into its room) and a glass-panel
 `panes` one (shut, swinging into its room, with a dummy inside it seen through the panes). Between the rooms: a hollow `panelled`

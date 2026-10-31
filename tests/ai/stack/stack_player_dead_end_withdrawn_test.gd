@@ -3,7 +3,7 @@ extends GameTest
 ## forming in a dead end is withdrawn, its claim radioed `abort`, once the stack pushes it past what
 ## the dead end holds; it is never moved to a slot the room does not have.
 ##
-## The world is a generated house as a match builds it: the office_loft plan (seed 2), whose
+## The world is a generated house as a match builds it: the office_loft plan (seed 3), whose
 ## bathroom has one doorway, into the great room. A stack going in there from the bathroom
 ## forms in a dead end (no spot against the wall, no other doorway for a tail), one of the generated
 ## dead ends `ai/entry/stack_slots_sweep` and `ai/entry/stack_dead_end_refused` list, and holds as
@@ -26,7 +26,7 @@ const Slots := preload("res://tests/_ai/slots_probe.gd")
 const SlotCapacity := preload("res://tests/_ai/slot_capacity_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const PLAN := "office_loft"
-const HOUSE_SEED := 2
+const HOUSE_SEED := 3
 ## The way in: from the bathroom (the stack side) into the great room.
 const FROM := "bathroom"
 const INTO := "great_room"

@@ -10,8 +10,9 @@ class_name HouseDoors
 ## rolls, so the doors never shift a seed's furniture layout nor each other's.
 ##
 ## The swing arc (a quarter disc, the leaf's length, from the hinge across the doorway to the room)
-## lies inside the doorway's clearance box (`HouseSpawner.OPENING_CLEARANCE` deep each side of the
-## wall and as wide as the doorway), which furniture, clutter and the neon tube already keep out of.
+## lies inside the doorway's clearance box (as wide as the doorway and as deep each side of the wall
+## as the open leaf reaches, at least `HouseSpawner.OPENING_CLEARANCE`), which furniture, clutter
+## and the neon tube keep out of.
 
 
 ## Roll and build the doors of the house of `plan` under `house` (a `Doors` node of it) for the

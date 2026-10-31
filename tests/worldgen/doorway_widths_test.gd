@@ -1,11 +1,11 @@
 extends GameTest
-## DR1 (docs/doors.md): every floorplan's doorway is 52 px wide inside the house and 60 px for the
+## DR1 (docs/doors.md): every floorplan's doorway is 60 px wide inside the house and 69 px for the
 ## front and exit doorways, in both mirror states, read through the published
 ## `WorldGen.get_openings` of a generated house. The widths are the brief's numbers, kept here as
 ## the spec's own copy.
 
-const INSIDE_WIDTH := 52.0
-const FRONT_AND_EXIT_WIDTH := 60.0
+const INSIDE_WIDTH := 60.0
+const FRONT_AND_EXIT_WIDTH := 69.0
 ## Seeds tried per floorplan, until both mirror states have been seen.
 const SEEDS := 40
 ## Keeps each house clear of the test arena.
@@ -14,9 +14,9 @@ const FAR_AWAY := Vector2(5000, 5000)
 
 func describe() -> Dictionary:
 	return {
-		"name": "Doorways are 52 px inside and 60 px at the front and exits",
+		"name": "Doorways are 60 px inside and 69 px at the front and exits",
 		"description": "DR1: every floorplan, in both mirror states, reports interior doorways "
-			+ "52 px wide and front / exit doorways 60 px wide.",
+			+ "60 px wide and front / exit doorways 69 px wide.",
 		"tags": ["worldgen", "house", "doorway", "doors"],
 		"timeout": 60.0,
 	}

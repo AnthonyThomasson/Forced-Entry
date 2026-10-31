@@ -53,12 +53,12 @@ const COUCH := Vector2(-120, 320)
 const CROUCHED := Vector2(-165, 320)
 ## The doors' rooms: four side by side over the range's north wall (y = 0), each `ROOM_SIZE` px
 ## square, the first starting at x = `ROOMS_X`. Every doorway is `DOORWAY` px wide; the walls' ends
-## reach 6 px into it, so the free gap between the jambs is 40 px and a door's hinge sits `JAMB` px
+## reach 6 px into it, so the free gap between the jambs is 48 px and a door's hinge sits `JAMB` px
 ## from the doorway's middle (docs/doors.md DR3).
 const ROOM_SIZE := 240.0
 const ROOMS_X := -360.0
-const DOORWAY := 52.0
-const JAMB := 20.0
+const DOORWAY := 60.0
+const JAMB := 24.0
 ## The doorways onto the range, one per room in order: the room's door (a `DoorCatalog` material and
 ## style), the side its hinge is on (-1 the west jamb, 1 the east), where it swings (`into`: UP into
 ## its room, DOWN out into the range), its start angle (0 shut, else ajar), and the words on its
@@ -88,14 +88,14 @@ const RANGE_DOORS := [
 const ROOM_DOORS := [
 	{
 		"name": "door_hollow_panelled", "material": "hollow", "style": "panelled",
-		"hinge_y": -140.0, "into": Vector2.RIGHT, "angle": 0.0,
+		"hinge_y": -144.0, "into": Vector2.RIGHT, "angle": 0.0,
 	},
 	{
-		"name": "door_plank", "material": "solid", "style": "plank", "hinge_y": -100.0,
+		"name": "door_plank", "material": "solid", "style": "plank", "hinge_y": -96.0,
 		"into": Vector2.LEFT, "angle": 25.0,
 	},
 	{
-		"name": "door_peephole", "material": "steel", "style": "peephole", "hinge_y": -140.0,
+		"name": "door_peephole", "material": "steel", "style": "peephole", "hinge_y": -144.0,
 		"into": Vector2.RIGHT, "angle": 90.0,
 	},
 ]

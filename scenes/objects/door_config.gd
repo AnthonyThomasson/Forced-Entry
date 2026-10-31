@@ -9,16 +9,16 @@ class_name DoorConfig
 static var open_angle: float = 90.0
 ## Seconds a full swing (shut to `open_angle`, or back) takes; a part swing takes its share.
 static var swing_time: float = 0.4
-## Degrees one step of the gradual opening turns the door.
-static var step_degrees: float = 10.0
+## Degrees one step of the gradual opening turns the door: about five notches open it fully.
+static var step_degrees: float = 20.0
 ## The least impulse (`apply_impulse` units) that counts as a kick or a blast against the latch: a
 ## walking push (about 900 a frame) and a punch (900) are below it, a kick (2200) above.
 static var burst_impulse: float = 1500.0
 ## Degrees a second a burst latch throws the door open at.
 static var burst_speed: float = 540.0
 ## Px a second a character in the door's arc can be nudged aside at, at most: a leaf that sweeps
-## faster than this stops against the character. The swing peaks near 280 at the tip of the longest
-## leaf (a front doorway's 48 px), a burst runs at 450 there.
+## faster than this stops against the character. At the tip of the longest leaf (a front doorway's
+## 69 px gap, a 56 px leaf) the swing peaks near 330 and a burst runs at 530.
 static var nudge_speed: float = 600.0
 ## The leaf's thickness in px (its collider and its drawing).
 static var leaf_thickness: float = 6.0

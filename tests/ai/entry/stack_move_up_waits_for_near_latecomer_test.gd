@@ -13,7 +13,7 @@ extends GameTest
 ## invader stands in slot 4 the third teammate comes in: to slot 3 when the invader stays, or, when
 ## the invader has moved up into slot 3, to slot 4 as an AI latecomer does, stopping a stride off
 ## slot 3 (`HELD_AT`). The invader must not move up, and must stand in its slot. No doorway of the
-## garage home holds a stack of four in two files on one side now (its walls beside the 52 px
+## garage home holds a stack of four in two files on one side now (its walls beside the 60 px
 ## doorways hold the first four across both sides), so the slots are those of this doorway, whose
 ## side 1 file is two against the wall and two a step out.
 
