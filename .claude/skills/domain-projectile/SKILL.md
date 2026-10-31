@@ -1,125 +1,48 @@
 ---
 name: domain-projectile
-description: Deep implementation detail for the Projectile System domain (scenes/projectile/) — shooting: penetration, damage, cover, ricochet, armour. Use when editing scenes/projectile/ or working on the bullet impact model, fly-over/ricochet/armour/penetrate/blocked resolution, casings, or the Ballistics holders' tuning (`BallisticsFlightConfig`, `BallisticsPenetrationConfig`, `BallisticsRicochetConfig`). Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Use when editing scenes/projectile/ or working on bullet impacts (fly-over, ricochet, armour, penetration), casings, the Ballistics* holders, or a grenade's burst (`Explosion`).
 ---
 
 # Projectile System domain
 
-Owns shooting: penetration, damage, cover, ricochet, and a grenade's burst (`Explosion`, below). The shooting knobs live in three holders, `BallisticsFlightConfig` (speeds, a bullet's height and the
-fly-over, a surfaceless collider), `BallisticsPenetrationConfig` (going through, the blood a round carries out) and
-`BallisticsRicochetConfig` (ricochet); the burst's in the grenade's `GrenadeConfig` row (Items), which it receives as a plain dict.
+Owns shooting and a grenade's burst. Specs: `docs/cover-and-stance.md` (H1, H2: bullet height and cover), `docs/outfits.md` (O6 to O9: armour), `docs/grenades.md` (G7 to G12: blast, fragments, flash, bang; G9: friendly fire is on, the thrower is struck like anyone). Tests: `tests/projectile/` (also `tests/physics/frag_blast_pushes`, `tests/character/stun_*`).
+
+## Files
+
+- `projectile.gd` (control) + `projectile_visuals.gd` (draw); `casing.gd` + `casing_visuals.gd`; `projectile_spawner.gd` / `casing_spawner.gd` are the entry points the guns call (a bullet is named `Projectile`, `Projectile2`, … and the tests count by that name).
+- `shot.gd` (`Shot`): a bullet's ballistics (`damage`, `muzzle_speed`, `penetration`, `max_range`, `strikes_shooter`, …), where a field left alone is the pistol round's. A gun and a grenade's fragments each fill one.
+- `explosion.gd` (`Explosion`), `cover_rule.gd` (`CoverRule`).
+- Tuning: `BallisticsFlightConfig` (speeds, `bullet_height`, `cover_flyover_scale`, the surfaceless-collider `wall_*`), `BallisticsPenetrationConfig` (penetration, exit probe, blood carry), `BallisticsRicochetConfig`. The burst's numbers are the grenade's row in `GrenadeConfig` (Items), received as a plain dict.
 
 ## Impact model
 
-A fired bullet (`projectile.gd`) is a **multi-hit traveler**: each physics frame it sweeps
-forward with a raycast and resolves every collider it crosses against that object's surface (`_surface_for(body, travel)`:
-`get_surface_at(height, travel)` when the body has it — a character, whose armour depends on where the round strikes — else
-`get_surface()`) `coverage`/`penetration` (0–100; a collider with no surface uses
-`BallisticsFlightConfig.wall_*`). It flies until `speed < BallisticsFlightConfig.projectile_min_speed` or it
-passes `max_distance`. Non-solid decor has no collider, so it's never raycast.
+A bullet sweeps a raycast each physics frame and resolves **every collider it crosses** (`_resolve`) against that object's surface (`coverage`, `penetration`; a character gives `get_surface_at(height, travel)` because its armour depends on where the round strikes). It flies until `speed < projectile_min_speed` or `max_distance`. Non-solid decor has no collider. Outcomes, first match wins:
 
-Per hit, with squareness `s = |dir·normal|`, speed factor `v = speed / muzzle_speed` (the round's own muzzle speed, so a weapon's
-`damage` is what it deals at full speed head-on), the bullet's own penetration power `p` (`penetration_power`, 1 = a pistol round), coverage
-`C`, the target's penetration `P`, `_resolve()` picks one outcome in order:
+1. **Fly over**: `height` ≥ the collider's cover height; nothing happens and nothing is posted. A bullet draws one `height` at spawn and keeps it through ricochets and penetrations, so cover and the body behind it are judged consistently (H1, H2).
+2. **Ricochet**: surface penetration ≥ `penetration_bounce_min` and a glancing angle (`bounce_square_max`).
+3. **Armour** (surface has `stop_power`): stopped when `penetration_power × speed_factor < stop_power` (outcome `blocked`); otherwise the surface's material becomes its `inner_material` (flesh) and the round always penetrates. A stopped round reads `HitInfo.penetrated == false`.
+4. **Penetrate**, or **blocked** when `speed < BallisticsPenetrationConfig.min_speed / penetration_power`.
 
-1. **Fly over** — the bullet's `height` is at or above `clamp(100 − (100 − C) × cover_flyover_scale, 0, 100)`; no damage, excluded, flies on.
-   **Coverage is a height (0–100) and a bullet flies at one height for its whole flight**: `height` is drawn uniformly 0–100 when it is fired
-   (`BallisticsFlightConfig.bullet_height` pins it for tests; negative = random) and kept through ricochets and penetrations. It strikes every collider
-   whose coverage is above it and clears the rest, so a collider of coverage C is cleared with chance (100 − C)/100 but the same
-   height serves everything along the path: behind cover of 50, a body of 60 is struck only by the shots between 50 and 60 (or those that punch
-   through the cover), and a body of 35 (a crouch) by none that cleared it. A character's coverage is its posture's. Spec: `docs/cover-and-stance.md`.
-   Tests: `tests/projectile/cover_shared_bullet_height_test.gd`, `posture_hit_chance_test.gd`.
-2. **Ricochet** (`P ≥ penetration_bounce_min` and `s < bounce_square_max`) — reflects,
-   `speed ×= bounce_speed_retention`, deals `damage × s × v × bounce_damage_retention`.
-3. **Armour** (the surface has a `stop_power`: a character's helmet, vest or plate, `docs/outfits.md` O6) — **stopped** when `p × v < stop_power`:
-   speed 0, outcome `blocked`, deals the impact (`damage × s × v`) with the armour's `material`, embeds. Else the round is **through**: the surface's
-   `material` becomes its `inner_material` (flesh, so the event, the sound and the blood carry say flesh) and it always penetrates (step 4b, skipping
-   the too-slow block), losing speed against the armour's P. So a body with armour reads `HitInfo.penetrated == false` as stopped. A glancing round
-   off steel (P 95 ≥ `penetration_bounce_min`) has already ricocheted at step 2; ceramic (70) and the soft panels (30) never do.
-4. **Penetrate** (else, while `speed ≥ BallisticsPenetrationConfig.min_speed / p`) — deals `damage × s × v`, bleeds
-   speed by `loss = (P/100) × penetrate_loss_scale × (2 − s) / p`, deflects by up to `penetrate_deflect_max_deg × P/100 / p`.
-   **Blocked** if too slow: deals the impact and embeds.
-   Every `HitInfo` carries the bullet's `height`, which the struck character turns into a hit zone (what the zone, the blunt share and the reduction
-   do to the damage is the character's `take_hit`, `domain-character`).
+Damage scales by squareness and `speed_factor` (speed / the round's own `muzzle_speed`), so a gun's `damage` is what it deals at full speed head-on.
 
-**Two kinds of penetration.** `P` is a property of the *target's surface* (flesh 15, a wardrobe 55, a wall 100); `p` is the *bullet's* power, set
-per gun by the `Shot` handed to `ProjectileSpawner.spawn` (its `muzzle_speed`, `penetration`) from `GunConfig` (pistol 1.0, SMG 0.8, rifle 2.2). A higher `p` loses less speed to
-the same surface and needs less speed to get through, so a pistol round (3200 px/s) dies in a wall (it leaves at ~320 px/s) while a rifle round
-(4400 px/s, `p` 2.2) leaves it at ~59% speed and can wound someone behind it, with its damage scaled down by the speed it has left. `muzzle_speed` also sets
-`v`'s reference, so the pistol (3200 = `BallisticsFlightConfig.projectile_speed`) is unchanged. Tests: `tests/projectile/gun_penetration_test.gd`,
-`gun_damage_test.gd`.
+**Two penetrations.** The target's `P` belongs to its surface (flesh 15, wall 100); the bullet's power `penetration_power` comes from the gun's `Shot` (`GunConfig`). A higher power loses less speed to the same surface and needs less speed to get through: a pistol round dies in a wall where a rifle round leaves it fast enough to wound someone behind.
 
-On any *damaging* outcome the projectile packages a `HitInfo` and calls `body.take_hit(info)` (the
-object then shoves/deforms/sprays via Physics), re-emits `hit(body, damage)` — which a gun
-forwards to the character's `hit_landed` — and posts a `&"hit"` event on `EventBus` through
-`Projectile.post_hit(body, info, attacker, outcome, surface)` (a static on `projectile.gd`, the one place the payload is built; the
-blast posts through it too, below)
-(`{ position, victim, direction, damage, attacker }`, interface 10 — `attacker` is the
-shooter, the projectile's `ignore` body; plus `outcome` (`&"ricochet"` / `&"blocked"` / `&"penetrate"`), the struck
-`material` (`surface.material`, `""` for a wall; a stopped round's is the armour's, one through armour the flesh's), `speed_factor` and the round's `power` (`info.source`'s `penetration_power`, the bullet's; 1 for a striker with none, a blast),
-which the Audio domain voices impacts from; a fly-over posts nothing) so decoupled listeners (the AI's combat awareness and
-hostility) learn what was struck, where, and by whom. Console lines: `Shot flew over /
-ricocheted off / penetrated / blocked by …`.
+**What a damaging outcome does.** `body.take_hit(info)` (interface 3; `HitInfo.height` is what the character turns into a hit zone), then the `hit` signal, then `&"hit"` on `EventBus` through `Projectile.post_hit`, the one place that payload is built (the blast posts through it too; interface 10). A fly-over posts nothing.
 
-**Exit point and blood carry.** A penetrating hit also fills `HitInfo.has_exit / exit_position / exit_normal`:
-`_find_exit` casts a probe ray back from `BallisticsPenetrationConfig.exit_probe_distance` ahead toward the entry, skipping other
-colliders, until it meets the penetrated collider's far face (none found = thicker than the probe, no exit). A bullet
-that penetrates a `BallisticsPenetrationConfig.blood_material` (flesh) surface carries that body's blood from its exit; the next
-non-flesh surface it strikes (any outcome but fly-over) within `blood_carry_distance` px gets `HitInfo.blood`
-= `1 − distance / blood_carry_distance`, and the bullet then carries no more. Tests: `tests/physics/hit_particles_*`,
-`blood_carries_past_character`, `blood_carry_distance_limit`.
+**Exit and blood carry.** A penetrating hit fills `HitInfo.has_exit` / `exit_position` / `exit_normal` (`_find_exit` probes back from `exit_probe_distance`; none found = thicker than the probe). A round that penetrated `blood_material` (flesh) carries that blood to the next non-flesh surface within `blood_carry_distance`.
 
-## Layering
+## Casings
 
-`projectile.gd` / `casing.gd` are control; `projectile_visuals.gd` / `casing_visuals.gd` draw.
-`projectile_spawner.gd` / `casing_spawner.gd` are the spawn entry points the guns call
-(`ProjectileSpawner.spawn(position, direction, parent, shot: Shot = null)`; `Shot`, `projectile/shot.gd`: `shooter`, `item_damage` = 0.0,
-`damage` = -1 (the bullet's damage outright, in place of its base plus `item_damage`; negative = that sum), `muzzle_speed` = -1, `penetration` = 1.0, `max_range` = -1, `strikes_shooter` = false; null, all defaults). `max_range` is `Projectile.max_distance`: the round is spent exactly there (the last step is clamped, so it is never seen past it); `strikes_shooter`
-leaves the `shooter` in the sweep, so the shooter can be hit while still being the `attacker` of its hits (a grenade's fragments). A bullet is added with a
-readable name (`Projectile`, `Projectile2`, ...), which is how the tests count them. A casing is Despawner-tracked by
-`CasingSpawner`; its toss is Physics' `Debris.toss` (interface 4; `casing.gd` preloads `physics/debris.gd` as `Debris`, which has no
-`class_name`), a whole turn either way over `eject_time` (~0.3 s), then it rests, drawn at `DrawLayers.LYING` (−2: on the floor, under the
-living and a vehicle's chassis).
+`CasingSpawner` tracks them with the `Despawner`; the toss is `Debris.toss` (Physics, interface 4; `casing.gd` preloads `physics/debris.gd` as `Debris`), then the casing rests at `DrawLayers.LYING`.
 
-## Explosion (`explosion.gd`, `class_name Explosion`): a grenade's burst
+## Explosion: a grenade's burst
 
-Called by Items' `ThrownGrenade` when its fuse is out: `Explosion.frag(at, world, source, row)` and `Explosion.stun(at, world, source, row)`
-(`source` the thrower or null, `row` its `GrenadeConfig` row). Both post `&"explosion"` `{ position, kind, attacker, radius }` first, call
-`Physics.spawn_explosion(world, at, kind)` and then do their work. The characters they weigh are the group `characters` under `world` (`_characters`, dead
-ones included, in tree order; interface 7). Spec: `docs/grenades.md` G7 to G12; friendly fire is on (G9), the thrower is struck like anyone.
+`ThrownGrenade` (Items) calls `Explosion.frag` / `Explosion.stun` when its fuse is out. Both post `&"explosion"`, call `Physics.spawn_explosion`, then do their work on the group `characters` under `world` (dead ones included).
 
-- **The line.** `_reach(space, at, body, characters)` casts a ray from the burst to the body's centre on `PhysicsLayers.SOLID`, skipping the other
-  characters, and returns where it met the body (`{ position, normal }`; the hit's contact point) or `{}` when something stops it first:
-  a `StaticBody2D` (a wall) always does, a piece of furniture when its `get_surface().coverage` is above the **body's own height** (a character's is
-  its posture's: crouched 35, standing 60, so a crouched character behind a couch (45) is shielded and a standing one is not; a table (30) shields
-  nobody). Lower pieces are cleared and the ray goes on. A body with no collider (the fallen) is reached at its centre. The same rule serves the blast, the
-  flash; the bang asks it with `cover_reach` at `WALLS_ONLY` (-1: only a wall stops the line, furniture muffles nothing). `_reach` runs on
-  `_walk(space, query, height, cover_reach, target)` (`query`: the line's ray, its `exclude` the rids it passes through), the one walk past what
-  does not stop the line (`_stops`; `_against` for a finite `cover_reach`), which counts a line that has cleared `MAX_CLEARED` pieces as stopped. Two read-only statics put the same walk to the AI's perception (interface 3):
-  `shields(space, burst, p, cover: CoverRule) -> bool` (`CoverRule`, `projectile/cover_rule.gd`: `height`, `exclude`, `cover_reach` := INF; whether a body `height` tall at `p` is shielded from a burst at
-  `burst`, the AI's grenade dodging) and `first_stop(space, a, b, height, exclude) -> Dictionary` (the ray hit of the first wall or piece that
-  stops the line, `{}` when none does: where it looks for the shadow behind cover).
-- **Frag blast** (`_blast`): the bodies near are the circle's overlaps on the solid layer (walls left out: they only block) plus every dead character
-  (they left the layer but are still thrown). Each within `blast_radius` of the blast point (to its centre) with a clear line takes `blast_damage` (full to
-  `kill_radius`, `blast_damage * (R - d) / (R - kill)` beyond) through `take_hit` (a `HitInfo` with `speed_factor` 0: no impact of its own) and posts
-  `&"hit"` with `outcome` `&"blast"`, the thrower as `attacker` (`_strike`, through `Projectile.post_hit`, which `explosion.gd` preloads as `Projectile`). A dead body is not struck (nothing to damage) but is shoved. Every body reached
-  is then shoved away by `blast_impulse` with the same fall-off, capped at `mass * blast_max_speed` so a light chair is not fired across the house:
-  `blast_push(from, impulse)` on a character (living: knockback; dead: its ragdoll thrown and woken, `Ragdoll.wake()`), `apply_impulse(v)` on furniture.
-- **Fragments** (`_fragments`): `fragments` bullets evenly round the circle (each jittered within its share), through `ProjectileSpawner.spawn` with one `Shot`
-  shared by all of them: the row's `fragment_speed`, `fragment_penetration` and `fragment_range`, with `strikes_shooter` on; their `damage` is
-  `fragment_damage` at full speed head-on, set on that shared shot as its `damage` (not added to the bullet's base, unlike a gun's `damage`). So cover, penetration, ricochet, blood, debris and impact sounds all work as for bullets.
-- **Stun** (`stun`): every living character within the larger of `flash_radius` and `bang_radius`. The **flash** works by sight: with a clear line
-  it blinds `max_blind * (flash_radius - d) / (flash_radius - flash_full)` (full inside `flash_full`) times the facing factor (the dot of its `facing` with the
-  direction to the burst: 1 -> x1, 0 -> x0.6, -1 -> x0.25, linear between); no clear line, none. A wall always stops the line; a piece of furniture taller than the
-  character stops it only when the character is within the row's `flash_cover_reach` (30 px) of it on the burst's side (`_reach`'s `cover_reach`, `_against`: a reverse ray from the body to the burst), so a crouched body hunched against a couch is
-  shielded and one 120 px behind it is flashed. The blast (`_reach` without a reach) keeps the plain rule. The **bang** works by range: deaf
-  `max_deaf * (1 - d / bang_radius)`, x`wall_factor` when a wall stands between (`_reach(..., WALLS_ONLY)`; a character hunched against a couch is out of the flash, not out of the bang). Both go through `Character.take_stun(blind, deaf)`, which posts the
-  `&"stun"` event; within `point_blank` the character also takes `point_blank_damage` through `take_damage`. A stun does no other damage.
+- **The line is the cover rule.** `_reach` casts burst → body on `PhysicsLayers.SOLID`: a wall always stops it, a piece of furniture only when its coverage is above the **body's height** (a character's is its posture's), so a crouched character behind a couch is shielded and a standing one is not. `_walk` is the one walk past what does not stop the line; a line that has cleared `MAX_CLEARED` pieces counts as stopped. The flash passes a finite `cover_reach` (furniture counts only when the body is within `flash_cover_reach` of it); the bang passes `WALLS_ONLY` (furniture muffles nothing).
+- **AI reads the same rule** through two read-only statics (interface 3): `Explosion.shields(space, burst, p, cover: CoverRule)` and `Explosion.first_stop(space, a, b, height, exclude)`. A change to the rule moves the AI's grenade dodging with it.
+- **Frag blast** (`_blast`): damage with distance, `take_hit` with `speed_factor` 0, `&"hit"` outcome `&"blast"` (Audio ignores it; the burst has its own sound), then a shove capped at `mass * blast_max_speed`: `blast_push` on a character (dead: its ragdoll is thrown and woken), `apply_impulse` on furniture. The thrower is `attacker`, so the AI's "attacked me" hostility sees a victim's own teammate as an attacker when it throws.
+- **Fragments** (`_fragments`) are real bullets from one shared `Shot` with `strikes_shooter` on, so cover, penetration, ricochet, blood and impact sounds all apply. The row's `fragment_damage` is set as the `Shot`'s `damage` outright (not added to a base).
+- **Stun**: flash by sight and bang by range, both through `Character.take_stun(blind, deaf)`; within `point_blank` also `take_damage`.
 
-Tests: `tests/projectile/frag_blast_by_distance`, `frag_blast_blocked_by_wall`, `frag_blast_low_cover_by_posture`, `frag_fragments_hit`,
-`grenade_friendly_fire`, `tests/physics/frag_blast_pushes`, `tests/character/stun_flash_by_sight`, `stun_flash_cover_reach`, `stun_bang_by_range`, `stun_bang_through_furniture`.
-
-Interface notes: the blast's `&"hit"` events carry `attacker` = the thrower, so the AI's "attacked me" hostility sees a victim's own teammate as an
-attacker when it throws; the Audio domain ignores `&"blast"` hits (no impact profile), the burst has its own sound.
-
-**Interfaces:** 3 (hittable), 4 (`Physics.spawn_explosion`, `Debris.toss` for a casing), 5 (pushable), 6 (the guns' `ProjectileSpawner` / `CasingSpawner`, `ThrownGrenade` → `Explosion`), 7 (what `Explosion` calls on a character), 10 (EventBus `&"hit"`, `&"explosion"`), 11 (`PhysicsLayers`, `DrawLayers.LYING` for a casing), 15 (`GameLog`: the shot lines) — signatures in `architecture`.
+**Interfaces:** 3 (hittable), 4 (`Physics.spawn_explosion`, `Debris.toss`), 5 (pushable), 6 (guns → `ProjectileSpawner` / `CasingSpawner`; `ThrownGrenade` → `Explosion`), 7 (what `Explosion` calls on a character), 10 (`&"hit"`, `&"explosion"`), 11 (`PhysicsLayers`, `DrawLayers.LYING`), 15 (`GameLog`: the shot lines).
