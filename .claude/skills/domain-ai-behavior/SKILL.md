@@ -146,8 +146,11 @@ tick of a plan drops the detour, abandons the entry (the stack is told), and rep
 no decision is started or adopted while it runs (the controller's `_should_decide` / `_on_decided`, `set_leaf`). An entry in its `bang` phase is left
 to its own hold when `Entry.expects_burst(plan)` says the grenade is the bang's (a stun, or a frag whose burst leaves its slot out of the zone, LD14; `domain-ai-entry`). `grenades.apply_evade` runs all the way into `plan.spot` (`Locomotion.move_to`
 within `EVADE_REACH` 6 px: a spot is out of the burst's line with little room to spare, so a stride short of it can be in the line; looking where it
-goes, running when `run_enabled` and stamina allow), then holds it facing away from the grenade, **crouched when the spot is cover** (`plan.crouch`); the watch stage does not run (no
-turning to a threat, no shot). With no spot in time it stays, facing away (a stun then blinds it for the back-turned share only), crouched for a frag. When the plan ends (the burst) `task.resolved` forces
+goes, running when `run_enabled` and stamina allow), then holds it facing away from the grenade, **crouched when the spot is cover** (`plan.crouch`). The watch stage does not run, but safe first,
+then the fight: once it has arrived (a frag's spot or a stun's), or a frag caught it with no spot, `Watch.fight_threat` runs after the
+facing away, so a threat the watch picks takes its eyes and gun and it fires at will (`ai/grenade/evade_fights_from_spot`,
+`evade_stun_fights_from_spot`, `evade_frag_cornered_fights`); with no threat it keeps facing away. On the run it does not fight. With no spot in
+time it stays, facing away (a stun then blinds it for the back-turned share only, and it does not fight until the bang), crouched for a frag. When the plan ends (the burst) `task.resolved` forces
 a new decision. Read-outs: `grenades.evading()`, `grenades.evade_spot()` (the controller's `debug_grenades().escape`), `debug_state()["evade"]`. Tests: `tests/ai/grenade/evade_*`.
 
 **A blinded NPC** (`Character.stun.is_blind()`): the orchestrator starts no new decision (`_should_decide`) and re-decides the tick its sight returns; the order it was carrying out goes on

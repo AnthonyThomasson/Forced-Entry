@@ -245,7 +245,11 @@ func evade_crouches() -> bool:
 
 ## Carry the evade out: run to the spot (its back to the grenade, looking away from it all the way),
 ## then hold it, crouched when the spot is cover. With no spot to reach in time it stays and turns
-## its back (a stun's flash then blinds it for the back-turned share only).
+## its back (a stun's flash then blinds it for the back-turned share only). Safe first, then the
+## fight: at its spot (a frag's or a stun's), or caught by a frag with no spot (crouched, its facing
+## no help against the blast), a threat the watch stage picks takes its eyes and gun from its back
+## to the grenade (`Watch.fight_threat`); caught by a stun with no spot, it keeps its back turned to
+## the bang.
 func apply_evade(delta: float) -> void:
 	var character: Node = behavior._character
 	var loco: Node = behavior._loco
@@ -270,6 +274,8 @@ func apply_evade(delta: float) -> void:
 		character.movement.move_input = Vector2.ZERO
 	# Its back to the burst all the way, running or holding: a flash blinds the face.
 	character.movement.aim_point = here + away * 100.0
+	if _evade_arrived or (spot == Vector2.INF and evade.get("kind") == &"frag"):
+		behavior._watch.fight_threat(behavior)  # Safe as it can be: a threat in sight is fought.
 	character.movement.run_input = running
 	behavior.entries.guard_clock += delta
 	behavior.gait.apply_posture(delta)
