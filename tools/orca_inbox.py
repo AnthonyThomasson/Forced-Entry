@@ -3,17 +3,21 @@
 
   tools/orca_inbox.py [--run R] [--ack ID] [--wait] [--types T,...] [--timeout-ms N] [--state PATH]
 
-The flags except --state reach orca unchanged. Keepalive lines (`_keepalive`, the deprecated `_heartbeat`) are dropped
-on either stream. A heartbeat's phase lives in the message's `payload`, a JSON string; this decodes it.
+The flags except --state reach orca unchanged, except `--ack none`: no --ack. Keepalive lines (`_keepalive`, the
+deprecated `_heartbeat`) are dropped on either stream. A heartbeat's phase lives in the message's `payload`, a JSON
+string; this decodes it.
 
 Output (stdout):
   PID=<this pid>          first line, with --wait only: `kill` it to stop the wait (orca, its child, is stopped too)
-  DELIVERY=<id|none>      the batch to pass as the next --ack; with --wait it is repeated as the last line
+  DELIVERY=<id|none>      the batch to pass as the next --ack (`none`, fed back, acks nothing); with --wait it is
+                          repeated as the last line
   <id> <type> <worker> <subject> | <body> | <phase>      one line per message (`no messages` when there are none)
-  <id> heartbeat <worker> (phase unchanged)              a heartbeat repeating that worker's last printed phase
+  <id> heartbeat <worker> (phase unchanged)              a heartbeat repeating that worker's last printed phase,
+                                                         on a message other than the one that printed it
   error: <code>: <message>                               orca's `ok:false` (e.g. waiter_exists); exit 1
 The worker is named from `task-list` (`display_name`, the worker's --task-title), else through `worker-list`, else the
-sender's raw handle. The last phase per worker is kept in $TMPDIR/orca-inbox-<run_id>.json (--state to move it).
+sender's raw handle. The last message and phase per worker are kept in $TMPDIR/orca-inbox-<run_id>.json (--state to
+move it); a state file that cannot be written is a warning on stderr, not a failed read.
 """
 import argparse
 import json
@@ -83,10 +87,10 @@ def parse_args(argv: list) -> argparse.Namespace:
 
 
 def check_argv(args: argparse.Namespace) -> list:
-    """The orca call: the passthrough flags as given."""
+    """The orca call: the passthrough flags as given, except `--ack none` (a DELIVERY=none fed back): no ack."""
     argv = ["orca", "orchestration", "check", "--json"]
     for flag, value in (("--run", args.run), ("--ack", args.ack)):
-        if value is not None:
+        if value is not None and not (flag == "--ack" and value == "none"):
             argv += [flag, value]
     if args.wait:
         argv.append("--wait")
@@ -110,10 +114,9 @@ class Names:
         argv = ["orca", "orchestration", sub, "--json"] + (["--run", self.run] if self.run else [])
         proc = subprocess.run(argv, capture_output=True, text=True)
         reply = reply_of(proc.stdout)
-        try:
-            return reply["result"][key] if reply and reply["ok"] else []
-        except KeyError:
-            return []
+        result = reply.get("result") if reply and reply["ok"] else None
+        rows = result.get(key) if isinstance(result, dict) else None
+        return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
 
     def titles(self) -> dict:
         if self._titles is None:
@@ -141,7 +144,7 @@ class Names:
 
 
 class Phases:
-    """The last phase printed per worker, kept in a JSON file per run so it holds across separate calls."""
+    """The last message id and phase printed per worker, kept in a JSON file per run, so it holds across calls."""
 
     def __init__(self, path_override):
         self.path_override = path_override
@@ -158,32 +161,45 @@ class Phases:
         except (OSError, ValueError):
             self.last = {}
 
-    def repeats(self, worker: str, phase: str) -> bool:
-        """True when `phase` is the worker's last printed one; otherwise records it as the last."""
+    def repeats(self, worker: str, message_id, phase: str) -> bool:
+        """True when `phase` is the worker's last printed one, on a message other than the one that
+        printed it (a replayed message prints in full again); otherwise records the message and phase as the last."""
         if not phase:
             return False
-        if self.last.get(worker) == phase:
-            return True
-        self.last[worker] = phase
+        last = self.last.get(worker)
+        if isinstance(last, dict) and last.get("phase") == phase:
+            return last.get("id") != message_id
+        self.last[worker] = {"id": message_id, "phase": phase}
         self.dirty = True
         return False
 
     def save(self) -> None:
+        """Write the file atomically. A state that cannot be kept is a warning: the read it came with still stands."""
         if not (self.dirty and self.path):
             return
-        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(self.path) or ".", prefix=".orca-inbox-")
-        with os.fdopen(fd, "w") as f:
-            json.dump(self.last, f)
-        os.replace(tmp, self.path)
+        tmp = None
+        try:
+            fd, tmp = tempfile.mkstemp(dir=os.path.dirname(self.path) or ".", prefix=".orca-inbox-")
+            with os.fdopen(fd, "w") as f:
+                json.dump(self.last, f)
+            os.replace(tmp, self.path)
+        except (OSError, TypeError, ValueError) as e:
+            print(f"warning: could not keep the phase state in {self.path}: {e}", file=sys.stderr)
+            if tmp:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
 
 
 def run_orca(argv: list) -> tuple:
     """Run orca as a child and return (returncode, stdout, stderr). On SIGTERM, SIGINT or SIGHUP the child is
     terminated before this process exits, so a killed wait leaves no waiter behind (`waiter_exists`)."""
     child = None
+    pending = None
 
-    def stop(signum, _frame):
-        if child is not None and child.poll() is None:
+    def stop_child(signum):
+        if child.poll() is None:
             child.terminate()
             try:
                 child.wait(timeout=5)
@@ -192,15 +208,19 @@ def run_orca(argv: list) -> tuple:
                 child.wait()
         sys.exit(128 + signum)
 
-    stops = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
-    for sig in stops:
-        signal.signal(sig, stop)
-    # A signal that lands between the fork and `child` being set would find no child to stop: hold it until it is set.
-    signal.pthread_sigmask(signal.SIG_BLOCK, stops)
-    try:
-        child = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    finally:
-        signal.pthread_sigmask(signal.SIG_UNBLOCK, stops)
+    def on_signal(signum, _frame):
+        nonlocal pending
+        if child is None:
+            pending = signum
+        else:
+            stop_child(signum)
+
+    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(sig, on_signal)
+    child = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    # A signal that landed before `child` was set only left a note: act on it now.
+    if pending is not None:
+        stop_child(pending)
     out, err = child.communicate()
     return child.returncode, out, err
 
@@ -241,7 +261,7 @@ def main() -> int:
         name = names.of(m, payload)
         phase = one_line(payload.get("phase"))
         worker = str(payload.get("taskId") or m.get("from_handle"))
-        if m.get("type") == "heartbeat" and phases.repeats(worker, phase):
+        if m.get("type") == "heartbeat" and phases.repeats(worker, m.get("id"), phase):
             print(f"{m.get('id')} heartbeat {name} (phase unchanged)")
         else:
             print(f"{m.get('id')} {m.get('type')} {name} {one_line(m.get('subject'))} | {one_line(m.get('body'))} | {phase}")

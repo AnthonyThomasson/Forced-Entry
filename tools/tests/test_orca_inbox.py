@@ -5,16 +5,18 @@ The fake `orca` answers from files in its own directory (nothing is written in t
   check.stdout / check.stderr   what `orca orchestration check` prints (stderr carries the --wait keepalives)
   task-list.json, worker-list.json   the replies to `task-list` / `worker-list`
   argv.log                      one JSON argv per call, appended
-  block                         when present, `check` records its pid in orca.pid and sleeps until killed
+  block                         when present, `check` records its pid in orca.pid (atomically) and sleeps until killed
 The shapes are the ones Orca prints live: `{"ok":true,"result":{"messages":[...],"count":N,"deliveryId":...}}`, a
 message's `payload` a JSON string, keepalives `{"_keepalive":...}` lines.
 """
+import importlib.util
 import json
 import os
 import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -30,8 +32,9 @@ with open(os.path.join(d, "argv.log"), "a") as f:
     f.write(json.dumps(sys.argv[1:]) + "\\n")
 sub = sys.argv[2]
 if sub == "check" and os.path.exists(os.path.join(d, "block")):
-    with open(os.path.join(d, "orca.pid"), "w") as f:
+    with open(os.path.join(d, "orca.pid.tmp"), "w") as f:
         f.write(str(os.getpid()))
+    os.replace(os.path.join(d, "orca.pid.tmp"), os.path.join(d, "orca.pid"))
     time.sleep(600)
 if sub == "check":
     sys.stderr.write(open(os.path.join(d, "check.stderr")).read())
@@ -131,6 +134,12 @@ class ReaderPassthrough(InboxCase):
         self.assertEqual(self.argv_calls("check"), [["orchestration", "check", "--json", *flags]])
 
 
+    def test_ack_none_is_no_ack(self):
+        r = self.reader("--ack", "none", "--run", RUN)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.argv_calls("check"), [["orchestration", "check", "--json", "--run", RUN]])
+
+
 class ReaderErrors(InboxCase):
     def test_ok_false_prints_the_code_and_exits_1(self):
         self.set_check(json.dumps({"ok": False, "error": {"code": "waiter_exists", "message": "a waiter is running"}}),
@@ -208,6 +217,23 @@ class ReaderMalformed(InboxCase):
         self.assertEqual((r.returncode, r.stdout.splitlines()[-1]), (1, "error: unknown"))
 
 
+class ReaderMalformedLists(InboxCase):
+    def names_with(self, task_list, worker_list):
+        self.set_json("task-list", task_list)
+        self.set_json("worker-list", worker_list)
+        self.set_check(reply([message("msg_1")]))
+        r = self.reader()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout.splitlines()[1].split()[2]
+
+    def test_a_result_that_is_not_an_object_falls_back_to_the_raw_handle(self):
+        self.assertEqual(self.names_with({"ok": True, "result": "oops"}, {"ok": True, "result": []}), TERM_A)
+
+    def test_a_task_that_is_not_an_object_is_skipped(self):
+        tasks = {"ok": True, "result": {"tasks": ["oops", None, *TASKS["result"]["tasks"]]}}
+        self.assertEqual(self.names_with(tasks, {"ok": True, "result": {"workers": ["oops", None]}}), "coding")
+
+
 class ReaderCollapse(InboxCase):
     def setUp(self):
         super().setUp()
@@ -228,10 +254,22 @@ class ReaderCollapse(InboxCase):
                          ["msg_3 heartbeat coding alive |  | Slice one is green."])
         self.assertTrue((self.tmpdir / f"orca-inbox-{RUN}.json").exists())
 
+    def test_a_replayed_batch_prints_in_full_again(self):
+        hb = message("msg_1", phase="Reading the ticket.")
+        full = ["msg_1 heartbeat coding alive |  | Reading the ticket."]
+        self.assertEqual(self.read(hb), full)
+        self.assertEqual(self.read(hb), full)
+        self.assertEqual(self.read(message("msg_2", phase="Reading the ticket.")),
+                         ["msg_2 heartbeat coding (phase unchanged)"])
+
     def test_another_workers_same_phase_prints_in_full(self):
         self.read(message("msg_1", phase="Reading the ticket."))
         other = message("msg_2", task=TASK_B, ctx=CTX_B, sender=TERM_B, phase="Reading the ticket.")
         self.assertEqual(self.read(other), ["msg_2 heartbeat review alive |  | Reading the ticket."])
+
+    def test_a_multi_line_body_prints_on_one_line(self):
+        status = message("msg_1", mtype="status", subject="received msg_9", body="first line\n  second line\n\nthird")
+        self.assertEqual(self.read(status), ["msg_1 status coding received msg_9 | first line second line third | "])
 
     def test_only_a_heartbeat_collapses(self):
         self.read(message("msg_1", phase="Same."))
@@ -247,12 +285,41 @@ class ReaderCollapse(InboxCase):
                          ["msg_2 heartbeat coding (phase unchanged)"])
 
 
+class StateFileFailure(InboxCase):
+    def setUp(self):
+        super().setUp()
+        self.set_json("task-list", TASKS)
+
+    def test_a_state_path_in_a_missing_directory_does_not_fail_the_read(self):
+        state = self.dir / "missing" / "state.json"
+        self.set_check(reply([message("msg_1", phase="Working.")]))
+        r = self.reader("--state", str(state))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.splitlines()[1], "msg_1 heartbeat coding alive |  | Working.")
+        self.assertIn("warning", r.stderr)
+        self.assertFalse(state.parent.exists())
+
+    def test_a_failed_dump_leaves_no_temp_file_behind(self):
+        spec = importlib.util.spec_from_file_location("orca_inbox", READER)
+        inbox = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(inbox)
+        state = self.dir / "state.json"
+        phases = inbox.Phases(str(state))
+        phases.load_for(RUN)
+        phases.last["w"] = {1, 2}  # not JSON
+        phases.dirty = True
+        phases.save()
+        self.assertEqual(os.listdir(self.dir / "tmp"), [])
+        self.assertEqual([p.name for p in self.dir.iterdir() if p.name.startswith(".orca-inbox-")], [])
+        self.assertFalse(state.exists())
+
+
 WAIT_TYPES = "worker_done,escalation,question,heartbeat,status"
 
 
 class WaitScript(InboxCase):
     def wait(self, *args):
-        """Run wait.sh to its end; returns the process (its pid read from the PID= line) and its stdout lines."""
+        """Run wait.sh to its end; returns the process and its stdout lines."""
         proc = subprocess.Popen([str(WAIT), *args], env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 text=True)
         out, err = proc.communicate(timeout=30)
@@ -269,6 +336,11 @@ class WaitScript(InboxCase):
         self.assertEqual(self.argv_calls("check"),
                          [["orchestration", "check", "--json", "--run", RUN, "--wait", "--types", WAIT_TYPES,
                            "--timeout-ms", "1000"]])
+
+    def test_delivery_none_fed_back_acks_nothing(self):
+        self.wait("none")
+        self.assertEqual(self.argv_calls("check"),
+                         [["orchestration", "check", "--json", "--wait", "--types", WAIT_TYPES]])
 
     def test_pid_first_is_the_waiters_own_pid_and_delivery_last(self):
         self.set_check(reply([message("msg_1", phase="Working.")]), stderr=keepalive() + "\n")
@@ -296,22 +368,39 @@ def until(cond, seconds=10) -> bool:
     return cond()
 
 
+KILL_WINDOW = 2  # seconds from the signal to the reader and its orca being gone: terminate(), not the 5s kill fallback
+
+
+def first_line(proc, seconds=10) -> str:
+    """The first line of the process's stdout; the test fails when none comes in time."""
+    got = []
+    reader = threading.Thread(target=lambda: got.append(proc.stdout.readline()), daemon=True)
+    reader.start()
+    reader.join(seconds)
+    if not got:
+        raise AssertionError(f"no output line within {seconds}s")
+    return got[0]
+
+
 class NoOrphanWaiter(InboxCase):
     def kill_the_waiter(self, sig):
         (self.fake / "block").write_text("")
         proc = subprocess.Popen([str(WAIT), "delivery_9"], env=self.env, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, text=True)
         self.addCleanup(lambda: (proc.kill(), proc.communicate()))
-        pid = int(proc.stdout.readline().strip().removeprefix("PID="))
+        pid = int(first_line(proc).strip().removeprefix("PID="))
         self.assertEqual(pid, proc.pid)
         orca_pid_file = self.fake / "orca.pid"
         self.assertTrue(until(orca_pid_file.exists), "the fake orca never started waiting")
         orca_pid = int(orca_pid_file.read_text())
         self.addCleanup(lambda: alive(orca_pid) and os.kill(orca_pid, signal.SIGKILL))
         self.assertTrue(alive(orca_pid))
+        sent = time.monotonic()
         os.kill(pid, sig)
         proc.wait(timeout=10)
-        self.assertTrue(until(lambda: not alive(orca_pid)), "orca is still running after the reader was killed")
+        self.assertTrue(until(lambda: not alive(orca_pid), KILL_WINDOW), "orca is still running after the reader was killed")
+        self.assertLess(time.monotonic() - sent, KILL_WINDOW, "orca was only killed by the fallback, not terminated")
+        self.assertEqual(proc.returncode, 128 + sig)
 
     def test_sigterm(self):
         self.kill_the_waiter(signal.SIGTERM)
