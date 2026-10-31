@@ -415,10 +415,14 @@ static func _any_carries(nodes: Array, slot: int) -> bool:
 	return nodes.any(func(n): return "inventory" in n and int(n.inventory.item_count(slot)) > 0)
 
 
+## The squad's `view()` (interface 21), {} with none.
+func _squad_view() -> Dictionary:
+	return _view.call() if _view.is_valid() else {}
+
+
 ## The member rows of the squad's `view()` (`{ node, order, held, ... }`), [] with no view.
 func _rows() -> Array:
-	var view: Dictionary = _view.call() if _view.is_valid() else {}
-	return view.get("members", [])
+	return _squad_view().get("members", [])
 
 
 ## The recipients that hold an order now (the squad's `view()`).
@@ -501,8 +505,7 @@ func _may_open() -> bool:
 		return false
 	if _leader == null:
 		return true
-	var view: Dictionary = _view.call() if _view.is_valid() else {}
-	return is_instance_valid(_leader) and view.get("leader") == _leader
+	return is_instance_valid(_leader) and _squad_view().get("leader") == _leader
 
 
 ## The screen points the panel keeps clear of: the click it is open on first, then each selected
