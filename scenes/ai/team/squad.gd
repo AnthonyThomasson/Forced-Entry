@@ -345,7 +345,7 @@ func _latch_go(opening: String) -> void:
 	var held := _held_at(opening)
 	for id in held:
 		# A join's claims carry no order id: its rally's go is read by the join's frame (D31).
-		var order_id := "" if is_join(held[id]) else str(id)
+		var order_id := "" if StackClaim.is_join(held[id]) else str(id)
 		if stack.released(order_id, str(held[id]["into"]), int(held[id]["frame"])):
 			_released[str(id)] = true
 
@@ -513,7 +513,8 @@ func _on_died(member: Node) -> void:
 ## rally goes in only on its leader's go, which a dead leader never gives), so each follows it.
 func _take_over(previous: Node) -> void:
 	_cancel_held(func(held: Dictionary): return (
-		held.get("kind") in [DEFEND, AMBUSH] or (is_join(held) and held.get("leader") == previous)
+		held.get("kind") in [DEFEND, AMBUSH]
+		or (StackClaim.is_join(held) and held.get("leader") == previous)
 	))
 
 

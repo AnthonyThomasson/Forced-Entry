@@ -669,7 +669,7 @@ func plain_enters(from: Vector2, to: Vector2, map: RID, key: String) -> bool:
 ## (on the room's side of its wall plane by `DOORWAY_DEPTH` at most, within its width) it is not in
 ## the room yet, so the point just across that plane, on the doorway's outer side; `from` otherwise.
 func _outside_of(from: Vector2, key: String) -> Vector2:
-	var room := _room_rect(key)
+	var room := room_rect(key)
 	if not room.has_point(from):
 		return from
 	for o in _openings:
