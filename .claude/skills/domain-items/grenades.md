@@ -6,7 +6,7 @@ Spec: `docs/grenades.md` G1 to G6 and G10 (carrying, throwing, flight, fuse). Th
 
 - `grenade.gd` (`GrenadeItem`) + `stun_grenade.gd` / `frag_grenade.gd` (each only names its row: `super(KIND)`).
 - `thrown_grenade.gd` (`ThrownGrenade`): the live world node, group `live_grenades`. `grenade_throw.gd` (`GrenadeThrow`: `kind`, `from`, `to`, `thrower`, `style`) is what `ThrownGrenade.spawn(throw, parent)` takes; `grenade_course.gd` (`GrenadeCourse`) carries the `passed` bodies of one throw's sweep.
-- `grenade_spoon.gd` (`GrenadeSpoon`, a tracked `DroppedItem` popped at release); art in `weapon-looks.md`.
+- `grenade_spoon.gd` (`GrenadeSpoon`, an `Item` carried by a Despawner-tracked `DroppedItem`, popped at release); art in `weapon-looks.md`.
 - `grenade_config.gd` (`GrenadeConfig`): one row per kind (fuse, windup, `max_range`, `throw_speed`, `arc_height`, `restitution`, `friction`, the effect numbers `Explosion` reads) beside the flight numbers every kind shares. The stun's effect on a body is `CharacterStunConfig`.
 
 ## Contract

@@ -9,7 +9,7 @@ A character is standing or crouching (`movement`'s `_posture`, a `CharacterPostu
 - API (interface 7): `movement.set_posture(p) -> bool` is idempotent, so a controller may write it every frame; it is refused while dead, in an interaction or within `change_time` of the last change. `toggle_crouch()` is C (`Keybinds.CROUCH` through `player_controller.gd`).
 - **Controllers keep no copy of the numbers.** The AI reads `movement.posture_coverage(posture)` (the body's height on the coverage scale: what furniture must stand above to shield it), `movement.run_speed()` and `movement.walk_speed()` (as they are now: slower while stunned or weighed down), so its grenade geometry judges a spot by them. Test: `posture_and_run_reads_test`.
 - Shooting, reloading and `weapon.melee()` work in every posture; `anatomy.leg_kick()` only standing; running only standing (a refused run costs no stamina). `get_surface().coverage` is the posture's row.
-- Starting an interaction stands the character up (`movement.stand_up()`) and locks the posture. `_die` stands it first, so a body falls from the standing skeleton. The collision circle and `radius` never change.
+- Starting an interaction stands the character up (`movement.stand_up()`) and locks the posture. `_die` stands it (after taking the momentum), so a body falls from the standing skeleton. The collision circle and `radius` never change.
 - Only `facing` is slowed by the posture's `turn` rate; `movement.aim_point` never is, so hands, weapon and shots follow the slower body.
 - The drawn body eases into the posture (`posture_ease`, read through `movement.posture_height()`, `posture_folded()`, `posture_hand_ahead()`); the fold itself is `body.md`.
 

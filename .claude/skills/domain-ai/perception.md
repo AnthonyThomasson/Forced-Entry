@@ -11,7 +11,7 @@ SENSE: turns the world into what the NPC *knows*, then into the snapshot the pla
 
 ## Lifecycle
 
-The controller calls `setup()` once, then `apply_config(tuning)`, then `bind(character)` on its first `control()`. `apply_config` runs **again every decision** so a tunable retuned at runtime (a behaviour test, the dev command server) reaches the modules without a rebuild that would wipe the event memory. Tunables are `NpcTuning` topics read live (`tuning.memory`, `tuning.senses`, ...); modules built without a controller (`AgentVision`, `AgentMemory`, `AgentThrow`, `AgentEntry`, `AgentDoorViews`: the tests, `ai/team/`) keep their own defaults. After `bind` no function takes the character.
+The controller calls `setup()` once, then `apply_config(tuning)`, then `bind(character)` on its first `control()`. `apply_config` runs **again every decision** so a tunable retuned at runtime (a behaviour test, the dev command server) reaches the modules without a rebuild that would wipe the event memory. Tunables are `NpcTuning` topics read live (`tuning.memory`, `tuning.senses`, ...); modules built without a controller (`AgentVision`, `AgentMemory`, `AgentThrow`, `AgentEntry`, `AgentDoorViews`: the tests, `scenes/ai/team/`) keep their own defaults. After `bind` no function takes the character.
 
 ## Seeing
 

@@ -143,7 +143,7 @@ claude-sonnet-5-5` and name its tab `review`. Spec:
 - **Target:** worktree and branch, ticket number, base ref (default `origin/main`).
 - **Change:** `code-review` with the fixed point the base ref and the spec the ticket's `## Agent Brief` (its Standards
   and Spec axes), then `audit` to its checklist, every step but Spec (5b). Its `code-review` sub-agents are fine; it starts
-  no Orca workers. It runs the suites (`tools/tool_tests.sh`, `tools/run_tests.sh`); a sub-agent runs at most one named
+  no Orca workers. It runs `audit` step 5's checks; a sub-agent runs at most one named
   test module (`python3 -m unittest <module>`) or one `tools/run_tests.sh --id=<id>`.
 - **Constraints:** report only (no fix, edit, stage, commit, push or ticket comment).
 - **Ownership and acceptance:** one report file in the audit's scratch directory, no file in the tree; `worker_done` gives

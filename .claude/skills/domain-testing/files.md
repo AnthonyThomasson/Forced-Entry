@@ -18,5 +18,5 @@
 | `test_list.gd` | `run_tests.sh --list`. |
 | `test_runner.gd` / `.tscn` | The in-game runner over a `TestSession`: interactive (`--play`, the browser's Play) and queued (`--queue`, Run N checked). No batch mode: batch runs are gdUnit's (`in-game-runner.md`). |
 | `test_browser.gd` / `.tscn` | Hosts the UI browser window. |
-| `decision_stub.gd` (`scenes/ai/decision/`), `decision_budget.gd` | `DecisionStub`: the scripted-Von statics a `TestSetup` turns on, restored after each test; `DecisionBudget.per_frame` is set with `set_static` the same way. |
+| `decision_stub.gd`, `decision_budget.gd` (both in `scenes/ai/decision/`) | `DecisionStub`: the scripted-Von statics a `TestSetup` turns on, restored after each test; `DecisionBudget.per_frame` is set with `set_static` the same way. |
 | `tests/**/<x>_suite.gd` | The wrapper suites (`extends GameTestSuite`, one parameterized test listing `cases("<folder>")`), `tests/_harness/harness_suite.gd`, and the native suites (`extends UnitSuite`). |

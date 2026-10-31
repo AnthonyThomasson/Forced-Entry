@@ -78,7 +78,7 @@ A carrier soaks up a *load* (0..1) of wet blood and deposits it as the load fade
   - *Blending into the puddle:* a ribbon is see-through where the floor is wet (`absorb_lo..hi`), eases in over `fade_in` px
     and rises at most `alpha_rise` per sample, so a streak has no start line.
   - *Pulled out of a pool:* a finger carrying >= `smear_trail_min` within `smear_trail_reach` px of a pool calls
-    `BloodPool.drag_out`, adding `BloodFlow.trail` cells (3x3, max-merged, capped at `pool_trail_max`, tapering to 0 at
+    `BloodPool.drag_out`, adding trail cells (`BloodFlow.add_trail`) (3x3, max-merged, capped at `pool_trail_max`, tapering to 0 at
     `pool_trail_length` px: how far a pool can be dragged; `fill(c)` = max(flood, trail)). The pool's own visuals draw the
     tongue; `BloodField.pool_near(pos, radius)` finds the pool.
 

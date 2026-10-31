@@ -4,7 +4,7 @@ How an NPC fights with its hands: `scenes/ai/behavior/combat.gd` (`Combat`, shot
 
 ## Shape
 
-- `Combat` is a `RefCounted` that `Behavior` builds in `setup(loco, perception, tuning)` and binds to the body once (`bind(character)`). It reads its tunables live from `tuning.combat` (holder `scenes/ai/tuning/npc_combat_tuning.gd`); a `Combat` built without a controller gets `NpcTuning.defaults()`.
+- `Combat` is a `RefCounted` that `Behavior` builds in `setup(loco, perception, tuning)` and binds to the body once (`bind(character)`). It reads its tunables live from `tuning.combat` (holder `scenes/ai/tuning/npc_combat_tuning.gd`); a test builds a `Combat` by handing `setup` an `NpcTuning.defaults()`.
 - `Behavior` decides WHICH fight is on and passes the engaged contact into every call; `Combat` never picks a target. It reads the world only through the perception (`has_line_to`, `combat_spots`, `note_engaged`, `confinement`) and `Locomotion` (`move_to`, `give_way`).
 - It owns the fire cooldown and the peek-and-cover state (`phase`, `cover_timer`, `dest`, `dest_timer`, the burst and back-off counters).
 - The watch stage (`watch.md`) is the one place a threat is shot at: it calls `fire_at_will` for every primitive. `has_line_of_fire_to(node, pos)` is the single line-of-fire rule; `has_line_of_fire`, `can_fire_at`, `ambush`, the peek and the combat overlay's `fire_clear` all read it, and the entry reads `has_line_of_fire` for E14.

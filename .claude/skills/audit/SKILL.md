@@ -28,7 +28,7 @@ git diff --stat                            # unstaged edits (not in the diff)
 
 Empty diff: say so and stop. Never stage files. Unstaged edits are outside the diff but step 5 sees them: report them.
 
-Load `architecture` (the domain table and "The vital interfaces") and, once, the skill of every domain the diff touches:
+Load `architecture` (the domain table and "The cross-domain interfaces") and, once, the skill of every domain the diff touches:
 `scenes/<folder>/` → `domain-<folder>`, `scenes/main.gd`, `match_builder.gd` and `match_spawner.gd` → `domain-main`. A
 sub-domain's detail is a side file of its parent skill (`domain-ai`, `domain-ui`, `domain-character`, `domain-physics`: the
 parent's map names it). For each interface the diff crosses, read its file, `architecture/interfaces/NN-<slug>.md` (the
@@ -68,11 +68,11 @@ Same current-state bar as step 4. A skill, `AGENTS.md` or `docs/agents` file in 
    `docs/` spec already says, history, filler and no-ops are findings; so is anything a future change needs that was cut).
 3. **Routing:** `architecture` changes in the same change when a domain is added or removed (its table, the domain count
    wherever stated, the new `domain-<folder>/SKILL.md`), a cross-domain interface changes (the interface file, the
-   vital-interfaces list, the dependency graph) or a cross-cutting convention changes. A `domain-<folder>` skill changes
+   interface index, the dependency graph) or a cross-cutting convention changes. A `domain-<folder>` skill changes
    when its internals as described change; it names interfaces by number and leaves signatures to `architecture`.
 
 A changed read of an entry claim (a `ClaimLedger`'s, or a `DoorStack` built from one) holds to the stale-claim rule
-(`domain-ai` (`perception.md`)): it names what makes a claim the current entry's, and its test has a claim left from an
+(`domain-ai` (`perception-stack.md`)): it names what makes a claim the current entry's, and its test has a claim left from an
 earlier entry through the same doorway. Missing: `file:line` → the scope and that test.
 
 Report drift as `<skill file>:line` → what to change.

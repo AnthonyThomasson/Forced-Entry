@@ -93,8 +93,8 @@ Objects declares and builds what its pieces, walls and floors give the Lighting 
 
 `FloorFactory.spawn(rect, definition, name, parent)` builds a `Floor` (`Node2D`, no collider: shots, navigation and perception pass
 over it) in the group `floors` (Lighting's per-floor budget walks it), at `DrawLayers.FLOOR` (beneath blood, casings and rugs).
-`floor_visuals.gd` repeats `ObjectArt.tile(...)` across the rect, the grid starting `tile_offset` px into the tile (the definition's
-`tile_from`: 0 for a room's floor, the street's pieces share one grid); a floor with `marks` gets a `StreetMarks` child.
+`floor_visuals.gd` repeats `ObjectArt.tile(...)` across the rect, the grid starting `tile_offset` px into the tile (`rect.position - tile_from`, the definition's
+`tile_from` point: 0 for a room's floor, the street's pieces share one grid); a floor with `marks` gets a `StreetMarks` child.
 On `_ready` a floor registers (and unregisters on exit):
 
 - with Physics' `BloodSurface`, `flow_groove` asking `ObjectArt.groove` (analytic, mirroring the painted lines; 0 for painters that

@@ -59,7 +59,7 @@ criterion's red line (why it failed) and green line; tell the user.
 
 ## 4. Green and wrap up
 
-New tests pass (`--repeat=10` if timing-dependent), then `tools/run_tests.sh --changed --summary`, then
+New tests pass (`--repeat=10` if timing-dependent), then `GAME_TEST_CHANGED_FILES="$(git diff --name-only origin/main)" tools/run_tests.sh --changed --summary` (the coding worker has committed, so a bare `--changed` finds nothing), then
 `tools/run_tests.sh --summary --jobs=auto`. A change under `scenes/ai/` or `scenes/testing/` also runs
 `tools/run_tests.sh --domain=ai --require-von` once, whatever its labels (`domain-testing` (`runner-flags.md`)). A touched
 per-frame path: `tools/run_tests.sh --domain=perf --quiet` (judge only a result not marked `loaded`). An older test now

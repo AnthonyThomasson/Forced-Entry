@@ -12,7 +12,7 @@ Von only picks the doorway (the ENTER or STUN ENTRY tactic, `decision.md`). The 
 ## Seams
 
 - **Doorway geometry** (stack slots, pie arc, corners, capacity) is perception's: `agent_entry.gd` and its parts under `scenes/ai/perception/entry/`, read through `AgentPerception` wrappers (`perception.md`).
-- **The team's claims off the radio and every slot rule** are perception's stack module, `scenes/ai/perception/stack/`: `StackClaim`, `ClaimLedger`, `DoorStack`, `StackLayout`, `StackMember`. The entry reads one `DoorStack` a tick (`AgentPerception.entry.stack(opening, into)`, `claim.read_stack`) and claims through its `StackMember` (`state.member`). A rule that reads a claim keeps to the stale-claim rule in `perception.md`.
+- **The team's claims off the radio and every slot rule** are perception's stack module, `scenes/ai/perception/stack/`: `StackClaim`, `ClaimLedger`, `DoorStack`, `StackLayout`, `StackMember`. The entry reads one `DoorStack` a tick (`AgentPerception.entry.stack(opening, into)`, `claim.read_stack`) and claims through its `StackMember` (`state.member`). A rule that reads a claim keeps to the stale-claim rule in `perception-stack.md`.
 - **The room is cleared by sight** with `SearchCoverage` (`coverage.md`). **The human's side of the radio** is `PlayerStack` (`team.md`, interface 17). **Where it looks** is the entry's own (`sweep.look_toward`, via `Watch.ease_gaze`), but the watch stage runs after it every tick and has the last word: a threat in sight takes eyes and gun in every phase but `bang` (`watch.md`).
 
 ## Shape

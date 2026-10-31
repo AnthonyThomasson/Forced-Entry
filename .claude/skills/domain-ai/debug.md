@@ -10,7 +10,7 @@ Optional, draw-only overlays that visualize an NPC's brain. Each draws on its ow
 
 ## Adding or toggling an overlay
 
-All default off. Add the node under `npc.tscn`, give it a `show_<x>` property and register the flag in `scenes/ui/overlays/overlay_registry.gd` (the toggle bar; Main routes it through `MatchBuilder.set_overlay`, which sets the property on every NPC child that has it). The spectator inspector flips `show_tactics`, `show_room_zones` and `show_search` per clicked NPC (during a Space-pause: the usual way to study the zones), and sets the controller's `debug_focus` (a clicked zone's point, `Vector2.INF` clears it), which the tactics overlay rings even with both toggles off.
+All default off. Add the node under `npc.tscn`, give it a `show_<x>` property and register the flag in `scenes/ui/overlays/overlay_registry.gd` (the toggle bar; Main routes it through `MatchBuilder.set_overlay`, which sets the property on every NPC child that has it). The spectator inspector applies every per-NPC `show_<x>` flag to the clicked NPC only (during a Space-pause: the usual way to study the zones), and sets the controller's `debug_focus` (a clicked zone's point, `Vector2.INF` clears it), which the tactics overlay rings even with both toggles off.
 
 ## Per overlay gotchas
 

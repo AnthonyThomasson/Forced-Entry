@@ -10,7 +10,7 @@ The header lists every flag; this file holds the rules and the reasons behind th
 - **Jobs:** the whole suite runs on `--jobs=auto`; any selection (words, `--id`, `--domain`, `--failed`, `--repeat`) runs
   one process, since a process costs about 3 s to start and filter words load every test script to match (about 10 s
   more). `--jobs` never starts more processes than the `--id` list has ids, and is not used with
-  `--list` / `--self-test` / `--shots` (the `_a` / `_b` restore pairs need one process in id order).
+  `--list` / `--self-test`; `--windowed`, and `--shots` without `--jobs`, run in one process (the `_a` / `_b` restore pairs need one process in id order).
 - **Shards are balanced by measured cost:** the wrapper keeps each test's wall-clock ms in
   `$TMPDIR/example_godot_costs_<checkout hash>.json` (rewritten after all shards finish; none yet: the declared
   `timeout`; an unmeasured id: the median) and passes `--costs=<file>`. Von tests and native suites stay in shard 0.

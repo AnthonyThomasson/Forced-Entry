@@ -1,7 +1,7 @@
 # Performance tests (domain `perf`, `tests/perf/`)
 
 Regression guards for speed and runaway object counts, one folder, one browser section, one selector. They are ordinary
-tests that load other domains, so they live apart from them. Read `tests/perf/*_stress_test.gd` for the loads: a
+tests that load other domains, so they live apart from them. Read `tests/perf/*_test.gd` for the loads: a
 whole-match guard built as Main builds one (5v5, 10v10), a grenade fight (P1) and burst (P2) (`docs/grenades.md`,
 "Performance"), an NPC crowd, automatic fire, hit overload, a crowd's deaths, a furniture pile, and one-shot work (nav
 re-bake, world-gen, the sound library's cold render).

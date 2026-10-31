@@ -1,10 +1,10 @@
 # AI team module
 
-`scenes/ai/team/`: the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad (`Squad`, interface 21, `docs/leadership.md`). Not a fifth AI sub-domain: two small modules beside the four. Only `MatchBuilder` builds them (for Main's match and the Testing world alike: `bind_player`, `build_squads`, `bind_squad`); the AI controllers hear them over the EventBus; the UI reads them through `view()` and the command menu's `resolve()`. Interface signatures: `architecture` interfaces 17 and 21. How NPCs carry an order out is `behavior-policy.md` and `entry-orders.md`.
+`scenes/ai/team/`: the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad (`Squad`, interface 21, `docs/leadership.md`). Not an AI sub-domain: two small modules beside them. Only `MatchBuilder` builds them (for Main's match and the Testing world alike: `bind_player`, `build_squads`, `bind_squad`); the AI controllers hear them over the EventBus; the UI reads them through `view()` and the command menu's `resolve()`. Interface signatures: `architecture` interfaces 17 and 21. How NPCs carry an order out is `behavior-policy.md` and `entry-orders.md`.
 
 Files: `player_stack.gd` (+ `player_stack_reservation.gd` leaf, `player_stack_step_up.gd` part), `squad.gd` (+ `squad_stacks.gd`, `squad_ambush.gd`, `squad_follow.gd`, `squad_roster.gd`, `attack_door.gd`), the static holders `squad_follow_config.gd` (`SquadFollowConfig`) and `squad_ambush_config.gd` (`SquadAmbushConfig`). The squad is `team-squad.md`.
 
-All of it reuses perception's stack module (`StackClaim`, `ClaimLedger`, `DoorStack`, `StackLayout`, `StackMember`; stale-claim rule in `perception.md`) and three more perception parts, preloaded: `AgentEntry` (the doorway geometry, built with no NPC), `AgentVision.wall_hit` and `HouseRooms`.
+All of it reuses perception's stack module (`StackClaim`, `ClaimLedger`, `DoorStack`, `StackLayout`, `StackMember`; stale-claim rule in `perception-stack.md`) and three more perception parts, preloaded: `AgentEntry` (the doorway geometry, built with no NPC), `AgentVision.wall_hit` and `HouseRooms`.
 
 ## PlayerStack (E16, LD17, LD24)
 

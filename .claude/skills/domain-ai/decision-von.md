@@ -12,7 +12,7 @@ The planner's child; `DecisionPlanner.setup(tuning.decision)` builds it and conf
 
 ## Test seam (`DecisionStub`)
 
-While `DecisionStub.active`, `ask()` answers from the stub a frame later with no HTTP. `rules` is an ordered `[{ pick, question? }]` (the first rule whose id is offered and whose `question` text occurs in the level's question wins, else the first offered id); `fail` makes every ask fail (server down); `latency_frames` holds an answer back like a slow server while the NPC carries on with its old order; `requests` logs `{ state, question, options, pick }` per ask. Only the Testing domain sets these (`TestSetup.von_script` and its second argument, `von_down`; statics are restored after each test).
+While `DecisionStub.active`, `ask()` answers from the stub a frame later with no HTTP. `rules` is an ordered `[{ pick, question? }]` (the first rule whose id is offered and whose `question` text occurs in the level's question wins, else the first offered id); `fail` makes every ask fail (server down); `latency_frames` holds an answer back like a slow server while the NPC carries on with its old order; `requests` logs `{ state, question, options, pick }` per ask. Only the Testing domain sets these (`TestSetup.von_script(rules, latency_frames)` and `von_down()`; statics are restored after each test).
 
 ## Server launcher (`decision_server_launcher.gd`)
 

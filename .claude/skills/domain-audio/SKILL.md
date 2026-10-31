@@ -49,7 +49,7 @@ character struck). Rules that hold across them:
 | `&"throw"` | `GrenadeItem._release` | `throw/<kind>` |
 | `&"grenade"` | `ThrownGrenade._post` | stage `bounce` → `grenade/<kind>/<floor>`; `rest` silent |
 | `&"explosion"` | `Explosion.frag` / `.stun` | `explosion/<kind>` (the same event shakes the camera) |
-| `&"stun"` | `Character.take_stun` | only for the `focus` character with `deaf` > 0: the tinnitus |
+| `&"stun"` | `CharacterStun.take` (via `Character.take_stun`) | only for the `focus` character with `deaf` > 0: the tinnitus |
 | `&"vehicle"` | `vehicle.gd` | stage `ignition`, `door_*` / `slide_*`, `crash`, `bump_character` (louder by `speed / crash_speed_ref` within the band); category `vehicle` |
 | `&"engine"`, `&"skid"` | `vehicle_drive.gd` | stage `start` / `stop` the vehicle's loop |
 

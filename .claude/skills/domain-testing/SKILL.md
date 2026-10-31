@@ -40,7 +40,7 @@ Exit 1: a test failed or timed out, or an error or warning was logged outside an
 
 - **GAP** is a test tagged `gap`: a behaviour a spec states and the code does not show yet, left red on purpose. It
   reports GAP and never fails the run; a `gap` test that passes FAILs ("drop the gap tag"). `tools/run_tests.sh gap`
-  lists them.
+  runs them (`--list gap` lists them).
 - **Von:** `requires_von` tests skip unless `--include-von` (`--require-von` fails when no server is live). A Von test is
   paced in real time (see Gotchas).
 - **Selection:** filter words are word prefixes over id, name, domain, description and tags (`ai` matches the ai
@@ -74,7 +74,7 @@ The editor's GdUnit dock runs a case, a suite or everything; how it differs from
 One file `tests/<domain>/<name>_test.gd` that `extends GameTest`; id = `<domain>/<name>`. A domain with many tests splits
 one folder deeper by topic (`tests/ai/entry/`): the id is `<domain>/<topic>/<name>`, the domain stays the first folder
 (`--domain=ai` and `--changed` see it), `category` is the topic. The file name carries the topic prefix the specs quote.
-Shared setup lives in `tests/_<domain>/*_probe.gd` helpers (not tests; `const X := preload(...)`).
+Shared setup lives in `tests/_<domain>/*_probe.gd` / `*_maps.gd` helpers (not tests; `const X := preload(...)`).
 
 **Sandboxes** (worlds you play by hand): `sandboxes/<name>_sandbox.gd`, the same `GameTest` base, no assertions or
 timeout. `TestCatalog.discover_sandboxes()` lists them for the browser; `discover()` and the suites never see them. A

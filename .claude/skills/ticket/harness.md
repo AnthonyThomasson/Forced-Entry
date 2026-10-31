@@ -18,7 +18,7 @@ as they need.
 ## What is tested
 
 - **Skills, `AGENTS.md`, `docs/agents`:** the skill tests (`tools/tests/test_skills.py` and
-  `tools/tests/test_skill_pointers.py`; `test_skills.py` is built in the next phase of ticket #169, so it may not exist yet)
+  `tools/tests/test_skill_pointers.py`)
   check size caps, frontmatter, references, routing and duplication. They run with `tools/tool_tests.sh --changed`. What no
   test can check is the audit's read-through of each changed skill against the code: every file, command, flag and name
   the text mentions exists as spelled now, the text is true and every line is needed. A tool change that only rewords help text or a log

@@ -13,7 +13,7 @@ for acceptance (`AskUserQuestion`) in the same turn. Every revision of the plan 
 1. **Domains:** each `scenes/` folder the plan adds or changes files in, named as its skill without `domain-`
    (`ai`, `ui`, `objects`); an AI or UI sub-domain (a side file of its parent skill) counts on its own (`ai-behavior`,
    `ui-hud`).
-2. **Seams:** a cross-domain call, signal, contract or shared type, i.e. an entry in `architecture` → "The vital
+2. **Seams:** a cross-domain call, signal, contract or shared type, i.e. an entry in `architecture` → "The cross-domain
    interfaces" (an AI or UI sub-domain border counts). List each the plan adds (a new interface, or a new member on an
    existing one) and each it removes. A call inside one domain is no seam.
 3. **New tests:** each test the plan writes or extends, by id (`<domain>/<name>`), from the acceptance criteria.

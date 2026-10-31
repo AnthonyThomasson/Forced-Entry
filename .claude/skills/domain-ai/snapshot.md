@@ -1,6 +1,6 @@
 # AI · Snapshot (`scenes/ai/perception/agent_snapshot.gd` + `snapshot/`)
 
-The BUILD half of perception: from what the NPC knows (contacts, memory, learned house) and the tactics geometry (`perception-tactics.md`) it writes the decision SNAPSHOT the planner walks: **facts**, **state sections**, **option groups**. A pure transform: it reads the memory and tactics modules, keeps no state between decisions, and never writes memory, decides or picks. `AgentPerception.sense()` gathers the knowledge and calls `build(rooms, goal, activity, knowledge)`; its result gains `confinement` (a frozen copy, `perception.md`) and `gun` (the noun the tree's `{gun}` fills in). What Von is told, and how the wording is measured: `snapshot-wording.md`.
+The BUILD half of perception: from what the NPC knows (contacts, memory, learned house) and the tactics geometry (`perception-tactics.md`) it writes the decision SNAPSHOT the planner walks: **facts**, **state sections**, **option groups**. A pure transform: it reads the memory and tactics modules, keeps no state between decisions, and never writes memory, decides or picks. `AgentPerception.sense()` gathers the knowledge and calls `build(rooms, goal, activity, knowledge)`; `build` returns `gun` (the noun the tree's `{gun}` fills in) and `sense()` adds `confinement` (a frozen copy, `perception.md`). What Von is told, and how the wording is measured: `snapshot-wording.md`.
 
 ## Files
 

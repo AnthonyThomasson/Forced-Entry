@@ -3,7 +3,7 @@
     - `WorldLighting.light(root: Node2D, seed_value: int, rooms: Array = []) -> WorldLighting` lights the built world under `root`: adds one
       `WorldLighting` node (group `world_lighting`) and returns it; `rooms` = `WorldGen.get_rooms`, for the fixtures; `seed_value` seeds the
       rhythms. It builds nothing and returns null while `LightingConfig.enabled` is off. The match builder's `stage` (23) calls it after the
-      nav bake with the spec's seed (Main: the house seed; Testing: its setup's). Test reads, through `tests/_lighting/lighting_probe.gd`:
+      nav bake with the spec's seed (Main: the house seed; Testing: its setup's). Test reads `WorldLighting`'s (helpers in `tests/_lighting/lighting_probe.gd`):
       `lights()` (every piece and fixture `PointLight2D`), `fixtures()` (`{ room, light }`), `flashes()` (the pooled flash lights) and
       `budget()` (`{ per_floor, dropped }`, `dropped` = `{ piece, index }` per declared light left without a light).
     - **Tuning holders:** `LightingConfig` (`enabled`, the dusk `ambient_color` / `sky_color`, the flashes, the budget `per_floor()`),

@@ -5,7 +5,7 @@ Workers 5a to 5d.
 Same bar as comments: concise, present-tense, current state. Read the Phase 1 reports first.
 
 1. **`AGENTS.md`** (5a): says little, all true.
-2. **`architecture`** (5a): domain table, vital interfaces (the index and each `interfaces/` file), dependency graph,
+2. **`architecture`** (5a): domain table, the cross-domain interfaces (the index and each `interfaces/` file), dependency graph,
    conventions and the files beside `SKILL.md`. The domain count agrees everywhere it is stated:
 
    ```bash
