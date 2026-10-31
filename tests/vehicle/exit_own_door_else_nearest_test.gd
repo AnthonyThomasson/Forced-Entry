@@ -33,7 +33,7 @@ func configure(s: TestSetup) -> void:
 ## result.
 func _get_out(t: TestContext, car: Node2D) -> Dictionary:
 	var me := t.actor(&"me")
-	t.puppet(&"me").use_vehicle()
+	t.puppet(&"me").use()
 	return await Probe.watch_doors(t, car, func(): return me.use.vehicle() == null, 8.0)
 
 

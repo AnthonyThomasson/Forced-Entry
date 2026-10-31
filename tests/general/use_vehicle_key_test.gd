@@ -1,7 +1,7 @@
 extends GameTest
-## E key (ticket #54): Keybinds.USE_VEHICLE, default E, rebindable on the settings page, is read by
-## the player's controller: a `player` actor beside the car's front-left door presses it and gets in
-## to drive; pressing it again gets it out.
+## E key (ticket #54): Keybinds.USE (ticket #21: it was USE_VEHICLE), default E, rebindable on the
+## settings page, is read by the player's controller: a `player` actor beside the car's front-left
+## door presses it and gets in to drive; pressing it again gets it out.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
@@ -10,7 +10,7 @@ const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
 func describe() -> Dictionary:
 	return {
 		"name": "The E key gets in and out of a vehicle",
-		"description": "Keybinds.USE_VEHICLE exists, defaults to E, is listed on the settings page "
+		"description": "Keybinds.USE exists, defaults to E, is listed on the settings page "
 			+ "with no clash; the player pressing it beside the car boards into the driver's "
 			+ "seat, and again gets out.",
 		"tags": ["vehicle", "input", "player", "keybinds"],
@@ -34,8 +34,8 @@ func _tap(t: TestContext, action: String) -> void:
 
 
 func run(t: TestContext) -> void:
-	var action: String = Keybinds.get_script().get_script_constant_map().get("USE_VEHICLE", "")
-	if not t.require(action != "", "Keybinds.USE_VEHICLE exists"):
+	var action: String = Keybinds.get_script().get_script_constant_map().get("USE", "")
+	if not t.require(action != "", "Keybinds.USE exists"):
 		return
 	t.check(InputMap.has_action(action), "the action is registered")
 	var event := Keybinds.bindings.default_event(action) as InputEventKey
@@ -52,10 +52,7 @@ func run(t: TestContext) -> void:
 		Keybinds.bindings.conflicts_of(action).is_empty(),
 		"it clashes with no other action (%s)" % [Keybinds.bindings.conflicts_of(action)],
 	)
-	t.check(
-		Keybinds.has_method("is_use_vehicle_just_pressed"),
-		"Keybinds has is_use_vehicle_just_pressed()",
-	)
+	t.check(Keybinds.has_method("is_use_just_pressed"), "Keybinds has is_use_just_pressed()")
 
 	if not Probe.ready(t, &"car", [&"you"]):
 		return

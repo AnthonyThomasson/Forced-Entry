@@ -34,6 +34,7 @@ func run(t: TestContext) -> void:
 	_check_rows(t)
 	_check_reset(t)
 	_check_partial(t)
+	_check_renamed_use(t)
 	await _check_unreadable(t)
 	Keybinds.bindings.reset_all()
 	_remove_scratch()
@@ -127,6 +128,28 @@ func _check_partial(t: TestContext) -> void:
 	Settings.load_file()
 	t.expect_eq(Settings.debug, true, "a file without Debug leaves it as it was")
 	t.check(_key(KEY_UP).is_action(Keybinds.MOVE_UP), "the bindings it names are applied")
+
+
+## A binding saved under the old name of the Use action (`use_vehicle`, before doors) comes back as
+## `use`, is saved under the new name from then on, and loses to a `use` binding saved beside it.
+func _check_renamed_use(t: TestContext) -> void:
+	_write('{ "keybinds": { "use_vehicle": { "key": %d } } }' % KEY_G)
+	Settings.load_file()
+	t.check(_key(KEY_G).is_action(Keybinds.USE), "a saved use_vehicle binding comes back as use")
+	t.expect_eq(
+		Keybinds.bindings.overrides().keys(),
+		[Keybinds.USE],
+		"and only use differs from the defaults",
+	)
+	Settings.save()
+	var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string(SCRATCH))
+	t.expect_eq(saved["keybinds"].keys(), ["use"], "the file now holds it under use")
+	_write(
+		'{ "keybinds": { "use_vehicle": { "key": %d }, "use": { "key": %d } } }' % [KEY_G, KEY_H]
+	)
+	Settings.load_file()
+	t.check(_key(KEY_H).is_action(Keybinds.USE), "a use binding beside an old one wins")
+	Settings.reset_all()
 
 
 ## An unreadable file is a warning and the defaults.

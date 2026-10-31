@@ -103,7 +103,7 @@ func _start_in_reach(t: TestContext, car: Node2D) -> bool:
 ## Every frame from the press until the door is shut behind the seated character (or 6 s).
 func _sample_boarding(t: TestContext, car: Node2D, me: Node2D) -> Samples:
 	var got := Samples.new()
-	t.puppet(&"me").use_vehicle()
+	t.puppet(&"me").use()
 	var deadline := t.time + 6.0
 	while t.time < deadline:
 		await t.frames(1)

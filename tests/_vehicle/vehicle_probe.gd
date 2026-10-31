@@ -4,7 +4,7 @@ extends RefCounted
 ## The vehicle's frame is in `vehicle_frame_probe.gd` (`const VehicleFrame`); placing, the ride
 ## and driving in `vehicle_ride_probe.gd` (`const VehicleRide`).
 ##
-## Everything is read through the drivable contract: the character's `use.try_use_vehicle()`,
+## Everything is read through the drivable contract: the character's `use.try_use()`,
 ## `use.vehicle()`, `use.is_in_vehicle()` (true only while seated) and `movement.posture_folded()`
 ## (the ride fold while in a vehicle); the vehicle's `doors()` (`{ id, kind, seat, handle, open,
 ## hinge, angle, offset }` per door, world space), `seats()` (`{ id, occupant }`), `driver()`,
@@ -43,7 +43,7 @@ const VAN_DOORS := {
 const CAR_SEATS := [&"driver", &"passenger", &"rear_left", &"rear_right"]
 const VAN_SEATS := [&"driver", &"passenger", &"cargo_left", &"cargo_right"]
 ## What a character needs to use a vehicle, and what every vehicle reads out.
-const CHARACTER_READS := [&"try_use_vehicle", &"vehicle", &"is_in_vehicle"]
+const CHARACTER_READS := [&"try_use", &"vehicle", &"is_in_vehicle"]
 const VEHICLE_READS := [
 	&"doors", &"seats", &"driver", &"speed", &"engine_state", &"slip", &"get_surface",
 ]

@@ -69,7 +69,7 @@ func _board_front(t: TestContext, car: Node2D) -> bool:
 	)
 	await VehicleRide.place(t, &"front", at)
 	var front := t.actor(&"front")
-	t.puppet(&"front").use_vehicle()
+	t.puppet(&"front").use()
 	var watched: Dictionary = await Probe.watch_doors(
 		t,
 		car,
@@ -95,7 +95,7 @@ func _board_rear(t: TestContext, car: Node2D) -> void:
 	var front := t.actor(&"front")
 	await VehicleRide.place(t, &"rear", VehicleFrame.stand_point(car, &"rear_right"))
 	var rear := t.actor(&"rear")
-	t.puppet(&"rear").use_vehicle()
+	t.puppet(&"rear").use()
 	var watched: Dictionary = await Probe.watch_doors(
 		t,
 		car,

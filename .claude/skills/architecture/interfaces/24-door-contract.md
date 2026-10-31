@@ -7,11 +7,11 @@
       the room it swings into: the pull side is that room's, the push side the other), `open_angle: float` (90), `width: float` (the doorway's free
       width between the jambs, twice the hinge's distance from the doorway's centre), `angle() -> float`, `open_amount() -> float` (0 shut .. 1
       wide open; 1 once down), `is_down() -> bool` (knocked down: off its hinges, lying flat, no collider, no shadow, unusable),
-      `gap() -> float` (the width a character can pass: the way from the leaf's free end to the latch jamb, at most `width`; `width` once down),
+      `leaf_pose(angle) -> Transform2D` (the leaf's middle as it stands `angle` degrees open, its x axis along the leaf, hinge to latch) and `leaf_size() -> Vector2` (its length and thickness: how the Use key finds the leaf's nearest point), `gap() -> float` (the width a character can pass: the way from the leaf's free end to the latch jamb, at most `width`; `width` once down),
       `damage.hp` / `damage.max_hp` (the leaf's hit points).
     - **Use (call):** `toggle(by)` (an open door, or one swinging open, swings shut; a shut or ajar one swings fully open; in
       `DoorConfig.swing_time`), `turn_by(degrees, by)` (turn from where it is heading, positive opens, clamped to shut..`open_angle`,
-      and stay; a notch of the scroll is `DoorConfig.step_degrees`, which the Use key's scroll reads in the next stage), `open_fully(by)`; `by` is the character using it (or null). A
+      and stay; a notch of the scroll is `DoorConfig.step_degrees`, which the Use key's scroll reads through `use.doors.turn(steps)`), `open_fully(by)`; `by` is the character using it (or null). A
       knocked-down door ignores all three. A swing stops short at a wall, furniture or a body it cannot nudge clear and stays there
       (`docs/doors.md` DR8).
     - **Where to stand:** `latch_side_spot(from: Vector2) -> Vector2` — beside the latch jamb, out from the wall on the side of the
@@ -27,5 +27,7 @@
     - **Built by** `DoorFactory.spawn(opening, definition, parent) -> Door` (interface 2). **Left out of both nav bakes** by
       `NavBuilder` (interface 9), found by the group `doors`; its **shadow** is a `LightOccluder2D` child on `LightMasks.WALL` that
       turns with the leaf, none for the glass-panel door (interface 20).
-    - **Callers:** the Character domain's Use key (`CharacterDoors`), the AI's locomotion and the Testing domain's layouts and
-      puppets (13): stages 3 to 6 of the doors ticket; stage 2 has the Testing domain only.
+    - **Callers:** the Character domain's `CharacterDoors` (`character.use.doors`, interface 7: `door_in_reach()` finds a door by the group
+      `doors` and reads `is_down()`, `leaf_pose(angle())` and `leaf_size()`; `use()` calls `toggle(by)`, `turn(steps)` calls `turn_by(steps * DoorConfig.step_degrees,
+      by)`) for the human's Use key (E, the wheel while held; `docs/doors.md` DR6, DR7), which the AI's controller will call in the same way, and the Testing
+      domain's layouts and puppets (13: `use()`, `turn_door(steps)`).

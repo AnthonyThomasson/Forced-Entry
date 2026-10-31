@@ -50,7 +50,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var pressed := t.time
-	t.puppet(&"me").use_vehicle()
+	t.puppet(&"me").use()
 	var slow_at := -1.0
 	var leave_speed := -1.0
 	var deadline := t.time + 20.0

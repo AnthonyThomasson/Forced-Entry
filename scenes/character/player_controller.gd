@@ -7,6 +7,23 @@ extends Node
 ## The fire button went down over a HUD control, so this press belongs to the UI until it is
 ## released.
 var _fire_press_on_ui := false
+## The door Use (E) went down on, until it is let go: its toggle waits for the release, and the
+## wheel turns that door meanwhile, whichever door the aim comes to be nearest by.
+var _held_door: Node2D = null
+## The wheel turned that door during this hold, so the release does not toggle it.
+var _use_scrolled := false
+
+
+## While Use is held on a door, the wheel and a trackpad's scroll turn that door by steps instead of
+## zooming the camera (the event is taken before the camera reads it). With no door in reach the
+## scroll goes on to the camera.
+func _input(event: InputEvent) -> void:
+	if _held_door == null or not Keybinds.is_use_pressed():
+		return
+	var notches := Keybinds.scroll_notches(event)
+	if notches != 0.0 and get_parent().use.doors.turn(notches, _held_door):
+		_use_scrolled = true
+		get_viewport().set_input_as_handled()
 
 
 ## Called by the character at the top of its _physics_process, so the intent we write is
@@ -32,8 +49,24 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 		character.ammo.reload()
 	if Keybinds.is_interact_just_pressed():
 		character.use.try_interact()
-	if Keybinds.is_use_vehicle_just_pressed():
-		character.use.try_use_vehicle()
+	_use(character)
+
+
+## Use (E): a vehicle is acted on at the press, as is getting out of one. A door is not: its tap
+## toggles it at the release, so that a hold can scroll it instead (DR7), and a hold that scrolled
+## leaves it where the scroll put it.
+func _use(character: CharacterBody2D) -> void:
+	if Keybinds.is_use_just_pressed():
+		_held_door = null
+		_use_scrolled = false
+		if character.use.use_target() == &"door":
+			_held_door = character.use.doors.door_in_reach()
+		else:
+			character.use.try_use()
+	if Keybinds.is_use_just_released():
+		if _held_door != null and not _use_scrolled:
+			character.use.doors.use(_held_door)
+		_held_door = null
 
 
 ## Pull the trigger: once per click, and for as long as the button is held with an automatic gun

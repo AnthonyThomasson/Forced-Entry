@@ -57,16 +57,35 @@ It is in neither nav bake (planning, steering): paths go through a doorway as be
 Tests: `objects/door_blocks` (the body, the rounds, sight and the shadow), `navigation/door_not_baked` (both maps path through a
 shut door's doorway).
 
-## DR6. Use (E) (later stage)
+## DR6. Use (E)
 
-The `use_vehicle` action becomes `use` (default E, rebindable; a saved `use_vehicle` binding carries over). In a vehicle, Use
-gets out. Otherwise it acts on whichever is nearest in reach ahead: a standing door or a vehicle door. Tap: an open door
-swings shut, a shut or ajar one swings fully open, in about 0.4 s.
+The `use_vehicle` action is `use` (`Keybinds.USE`, default E, label "Use (door, vehicle)", rebindable; a binding saved under
+`use_vehicle` comes back as `use`, and one saved under `use` beside it wins). In a vehicle, Use gets out, even with a door in
+reach. Otherwise it acts on whichever is nearest: a standing door in reach ahead, or a vehicle's door to get in by
+(`CharacterUse.use_target()`: the distance from the body to the door's leaf, at its nearest point, against the distance to the
+vehicle door's handle). A door is in reach (`character.use.doors.door_in_reach()`) when its leaf has a point within
+`CharacterDoorConfig.reach` (48 px) of the body that lies ahead of it (the side the character faces); of those, the one whose leaf is
+nearest the aim. A knocked-down door is none. Tap: an open door (or one swinging open) swings shut, a shut or ajar one swings fully
+open, in `DoorConfig.swing_time` (0.4 s). A vehicle is acted on at the press, as before; a door's toggle comes at the release of the
+key, so that a hold can scroll instead (DR7), and a hold that does not scroll toggles at its release. The player's controller remembers the door the key went down on, so the release and the wheel act on that door while it stays in reach, whichever door the aim is nearest by then (`use(door)`, `turn(steps, door)`). `character.use.doors` takes no input event: an NPC's controller will call `character.use.try_use()` or `character.use.doors.use()` / `.turn(steps)` as they are (stage 6).
 
-## DR7. Gradual opening (later stage)
+Tests: `character/door_use_key` (E held moves nothing, its release opens a shut door fully and the next E shuts it; with a door and a
+car's door both in reach E acts on the door when it is the nearer and boards when the handle is, and leaves the open door as it is;
+seated, E gets out with a door in reach; an ajar door swings fully open), `general/use_vehicle_key` (the `use` action, its default, label, group, settings row, no
+clash; a `player` boards and gets out), `general/settings_file` (the old saved name comes back as `use`).
 
-While Use is held, each wheel notch turns the door by 10°, wheel up opening and down closing, between shut and fully open, and
-it stays there; the wheel does not zoom the camera meanwhile, and releasing Use after scrolling does not toggle.
+## DR7. Gradual opening
+
+While Use is held on a door (the press began on one), each wheel notch turns it by `DoorConfig.step_degrees` (10°), wheel up
+(`ZOOM_IN`) opening and down (`ZOOM_OUT`) closing, between shut and fully open, and it stays there. A trackpad's two-finger scroll turns
+it by the notches the camera counts that scroll as (`Keybinds.scroll_notches`: `CameraConfig.trackpad_zoom_sensitivity` notches per unit
+of `delta.y`). The player's controller takes those events before the camera reads them, so the camera does not zoom meanwhile, and
+releasing Use after scrolling does not toggle. With Use not held, or no door in reach (`doors.turn` is false), the scroll goes on to the
+camera and zooms it as before.
+
+Tests: `character/door_scroll_open` (three notches up turn the door 30°, a notch down back 10°, the camera's zoom unchanged, E let go
+leaves the angle; a trackpad scroll turns it by the notches the camera counts it for; fully open and shut are the limits; between two doors the one E went down on is turned, not the one the aim moves to; the puppet's `turn_door` and `use`; with E not held
+or held with no door in reach the wheel zooms), `general/camera_wheel_zoom` (unchanged).
 
 ## DR8. A swing meets something
 

@@ -26,13 +26,14 @@ vehicle's own frame has x forward (its nose) and y toward its right side.
 
 ### Getting in
 
-**V1. Board by the nearest door.** E (`Keybinds.USE_VEHICLE`, default `KEY_E`, label "Get in / out of vehicle", rebindable on the
+**V1. Board by the nearest door.** E (`Keybinds.USE`, default `KEY_E`, label "Use (door, vehicle)", rebindable on the
 settings page) picks the door whose handle is nearest the character among those within `door_reach` **60** of it, on a vehicle moving
 slower than `board_max_speed` **20**. The car has four doors (front and rear, left and right); the van has two front doors, a sliding
 side door on its right and rear double doors. A door that cannot open is skipped for the next nearest that can. A door cannot open when
 something solid (a wall, furniture, a character, another vehicle) stands in its swing arc (a sliding door's track) or where the
 character would stand to use it, or when the seat behind it is taken. With no usable door, nothing happens. E is ignored while the
-character is dead or in an object interaction.
+character is dead or in an object interaction. With a standing door in reach ahead and nearer than the handle, E works the door instead
+(`docs/doors.md` DR6).
 Tests: `vehicle/board_nearest_door` (the front-left door when nearest, the rear-right when nearest, no other door opens),
 `vehicle/board_skips_blocked_door` (an armchair in the rear-left door's swing: the front-left door instead),
 `vehicle/board_skips_taken_seat` (the driver's seat taken: the rear-left door instead), `vehicle/board_refused_far_or_moving` (75 px
@@ -204,10 +205,10 @@ vehicle; nothing under
   `vehicle_drive.gd` (the bicycle, the drive intent, the engine and the skids), `vehicle_door.gd` (the open
   amount, the pose, the stand point, the blocked check), `vehicle_boarding.gd` (the ride's phase machine), `character_vehicle_use.gd` (the
   character's component), `vehicle_visuals.gd` and `art/` (the chassis and roof layers and their painters).
-- **Character**: the forwards `use.try_use_vehicle()`, `use.vehicle()`, `use.is_in_vehicle()`, the ride API `use.set_ride_pose` / `use.end_ride`, `use.is_busy()`
-  over the ride, `inventory.current_item()` null while posed, `_die` abandoning the ride. **General**: `Keybinds.USE_VEHICLE` and the camera's zoom
+- **Character**: the forwards `use.try_use()` (E: a door or the vehicle, `docs/doors.md` DR6), `use.vehicle()`, `use.is_in_vehicle()`, the ride API `use.set_ride_pose` / `use.end_ride`, `use.is_busy()`
+  over the ride, `inventory.current_item()` null while posed, `_die` abandoning the ride. **General**: `Keybinds.USE` and the camera's zoom
   out. **Audio**: the `vehicle`, `engine` and `skid` topics, the profiles and the loops. **Testing**: `TestSetup.vehicle`, `t.vehicle`,
-  the puppet's `use_vehicle()` and `drive(throttle, steer, handbrake)`.
+  the puppet's `use()` and `drive(throttle, steer, handbrake)`.
 - **The tests reach all of it duck-typed** (`has_method`, `call`, groups, the Vehicles holders read by name), so a read that is missing fails a
   `require` instead of a script error.
 

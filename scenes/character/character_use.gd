@@ -1,8 +1,10 @@
 class_name CharacterUse extends RefCounted
 ## What occupies a character's body (`character.gd`'s `use`): an object interaction (sit, lie, …), a
-## ride in a vehicle, and the collision exceptions both leave behind. It composes the Interaction
-## domain's `CharacterInteraction` and the Vehicles domain's `CharacterVehicleUse` as children of
-## the character (`attach`, from its `_ready`), and holds the ride's pose. Each physics frame the
+## ride in a vehicle, its use of doors (`doors`), and the collision exceptions they leave behind. It
+## composes the Interaction domain's `CharacterInteraction` and the Vehicles domain's
+## `CharacterVehicleUse` as children of the character (`attach`, from its `_ready`), and holds the
+## ride's pose. What the Use key acts on, a door or a vehicle, is decided here (`use_target`,
+## `try_use`). Each physics frame the
 ## character steps the ride right after its controller (`control`), lets it hold the body still
 ## while it lasts or an interaction holds it (`hold_frame`), and drops the exceptions of the bodies
 ## it has cleared after the move (`restore_cleared`); death ends both (`end_interaction`,
@@ -14,12 +16,15 @@ const CLEAR_MARGIN := 3.0
 ## Interaction component (Interaction domain): finds and runs object interactions; `try_interact()`,
 ## `is_busy()` and `interaction_label()` go through it.
 const CharacterInteraction = preload("res://scenes/interaction/character_interaction.gd")
-## Vehicle component (Vehicles domain): boards, rides and leaves vehicles; `try_use_vehicle()`,
-## `vehicle()` and `is_in_vehicle()` go through it, and it drives the ride each frame (`control`).
+## Vehicle component (Vehicles domain): boards, rides and leaves vehicles; `try_use()` (when a
+## vehicle is what Use acts on), `vehicle()` and `is_in_vehicle()` go through it, and it drives the
+## ride each frame (`control`).
 const CharacterVehicleUse = preload("res://scenes/vehicle/character_vehicle_use.gd")
 
 ## The character occupied.
 var character: CharacterBody2D
+## Its use of doors (`character_doors.gd`): the door in reach, working it.
+var doors: CharacterDoors
 ## The CharacterInteraction child, built by `attach()`.
 var _interaction: Node
 ## The CharacterVehicleUse child, built by `attach()`.
@@ -39,6 +44,7 @@ var _shape: CollisionShape2D
 ## What occupies `host`.
 func _init(host: CharacterBody2D) -> void:
 	character = host
+	doors = CharacterDoors.new(host)
 
 
 ## Add the interaction and the vehicle use as children of the character (from its `_ready`).
@@ -91,14 +97,35 @@ func is_busy() -> bool:
 	return _interaction.is_busy() or _vehicle_use.is_active()
 
 
-## E: get into the vehicle whose door is nearest (in reach, the vehicle slow enough), or out of the
-## one it sits in. Ignored while in an object interaction. The getting in and out is the Vehicles
-## domain's (CharacterVehicleUse).
-func try_use_vehicle() -> void:
+## What Use (E) acts on now: `&"vehicle"` while in a vehicle (to get out, even with a door in reach)
+## and when a vehicle's door is nearer than the nearest door in reach ahead (`character.doors`), or
+## no door is; `&"door"` when a door is; `&""` when nothing is in reach, or the character is dead or
+## in an object interaction. Nearer is by the distance from the body: to the leaf's nearest point,
+## to the vehicle door's handle.
+func use_target() -> StringName:
 	if character.is_dead or _interaction.is_busy():
-		return
-	_vehicle_use.try_use_vehicle()
-	_stand_if_busy()
+		return &""
+	if _vehicle_use.is_active():
+		return &"vehicle"
+	var door: Node2D = doors.door_in_reach()
+	var handle_gap: float = _vehicle_use.nearest_door_distance()
+	if door == null:
+		return &"vehicle" if handle_gap < INF else &""
+	if doors.distance_to(door) < handle_gap:
+		return &"door"
+	return &"vehicle"
+
+
+## Use at once: act on what `use_target()` names, a door (`doors.use()`) or the vehicle (get out of
+## it, or in by the nearest door). The human's controller waits for a door's key to be let go
+## instead, so a hold can scroll it; an NPC's controller and the test puppet's `use()` call this.
+func try_use() -> void:
+	match use_target():
+		&"door":
+			doors.use()
+		&"vehicle":
+			_vehicle_use.try_use_vehicle()
+			_stand_if_busy()
 
 
 ## The vehicle the character is boarding, riding in or getting out of; null on foot.

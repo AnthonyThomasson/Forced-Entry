@@ -57,7 +57,7 @@ func run(t: TestContext) -> void:
 func _check_boarding(t: TestContext, car: Node2D) -> bool:
 	var me := t.actor(&"me")
 	await VehicleRide.place(t, &"me", VehicleFrame.stand_point(car, &"front_left"))
-	t.puppet(&"me").use_vehicle()
+	t.puppet(&"me").use()
 	var folding_held := 0
 	var folding := 0
 	var deadline := t.time + 6.0
@@ -97,7 +97,7 @@ func _check_seated(t: TestContext) -> void:
 ## Getting out: still nothing in hand until it is out, then the same slot back (`held_name`).
 func _check_getting_out(t: TestContext, held_name: String) -> void:
 	var me := t.actor(&"me")
-	t.puppet(&"me").use_vehicle()
+	t.puppet(&"me").use()
 	var out_held := 0
 	var getting_out := 0
 	var deadline := t.time + 8.0

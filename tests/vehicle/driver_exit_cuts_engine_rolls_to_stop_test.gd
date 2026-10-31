@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 	if not await _coast_under_exit_speed(t, car):
 		return
 	var rolling: float = car.speed()
-	t.puppet(&"me").use_vehicle()
+	t.puppet(&"me").use()
 	# [the most speed gained in one frame, last frame's speed] (an Array: a lambda captures plain
 	# locals by value).
 	var speeds := [0.0, rolling]

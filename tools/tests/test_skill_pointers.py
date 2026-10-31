@@ -34,7 +34,7 @@ TICKET_KINDS = ("story", "bug", "spike", "ai", "harness", "refactor", "assets")
 TICKET_HELPERS = ("workers", "assets-showroom")
 # The `Class.method` names tools/test_coverage.py reads out of the interface files: bump it when an interface file
 # gains or loses one.
-COVERAGE_NAMES = 185
+COVERAGE_NAMES = 187
 
 # A path into a skill's folder, rooted at the skills dir or the repo, placeholders and globs captured too.
 ROOTED = re.compile(r"(?<![\w/.-])(?:(?:\.claude/)?skills/)?(" + names_alternation(SKILL_NAMES)

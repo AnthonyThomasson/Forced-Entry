@@ -4,7 +4,7 @@ extends Node
 ## character's own frame, through only the published controller API (`movement.move_input`,
 ## `movement.aim_point`, `movement.run_input`, `movement.set_posture`, `weapon.melee`,
 ## `anatomy.leg_kick`, `weapon.shoot`, `ammo.reload`, `inventory.select_slot`, `use.interact_with`,
-## `use.end_interaction`, `use.try_use_vehicle`).
+## `use.end_interaction`, `use.try_use`).
 ##
 ## Commands return at once; wait on their effect through the TestContext, e.g.
 ## `p.walk_to(spot)` then `await t.until(p.has_arrived, 3.0, "never arrived")`.
@@ -134,13 +134,23 @@ func interact(object: Node, id: String) -> void:
 			failed_interactions.append([object, id]))
 
 
-## Press E once (the player's use-vehicle key): board the nearest door's seat, or get out. A
-## character without a `use` (`use.try_use_vehicle`) ignores it, so a test written before the
-## feature fails on its own `require`.
-func use_vehicle() -> void:
+## Press E once (the player's Use key), acting at once on the nearer of a door in reach and a
+## vehicle's door: a door toggles, the vehicle is boarded by the nearest door's seat or got out of.
+## A character without a `use` (`use.try_use`) ignores it, so a test written before the feature
+## fails on its own `require`.
+func use() -> void:
 	_pending.append(func(c):
 		if "use" in c:
-			c.use.try_use_vehicle())
+			c.use.try_use())
+
+
+## Turn the door in reach by `steps` notches of the wheel while Use is held (`use.doors.turn`, a
+## notch `DoorConfig.step_degrees`; positive opens, negative shuts). A character without a `use`
+## ignores it.
+func turn_door(steps: float) -> void:
+	_pending.append(func(c):
+		if "use" in c:
+			c.use.doors.turn(steps))
 
 
 ## Hold the driving keys, as the player's WASD and Shift do: `throttle` 1 is W, -1 is S; `steer` 1

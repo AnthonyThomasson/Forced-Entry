@@ -26,8 +26,9 @@ const FIRE := "fire"
 const INTERACT := "interact"
 ## Reload the held gun from a carried magazine.
 const RELOAD := "reload"
-## Get into the vehicle whose door is nearest, or out of the one the player sits in.
-const USE_VEHICLE := "use_vehicle"
+## Use what is nearest in reach ahead: a door (a tap shuts or opens it; held, the wheel turns it
+## by steps), or a vehicle's door to get in by; out of the vehicle the player sits in.
+const USE := "use"
 ## Command teammates (the UI's command menu, built only when the human leads its side): pause and
 ## open the menu on what is under the cursor.
 const COMMAND := "command"
@@ -69,7 +70,7 @@ const DEFAULTS := {
 	KICK: KEY_V,
 	INTERACT: KEY_SPACE,
 	RELOAD: KEY_R,
-	USE_VEHICLE: KEY_E,
+	USE: KEY_E,
 	MENU: KEY_ESCAPE,
 	PAUSE: KEY_SPACE,
 	CAMERA_LEFT: KEY_A,
@@ -108,7 +109,7 @@ const LABELS := {
 	FIRE: "Fire",
 	RELOAD: "Reload",
 	INTERACT: "Interact",
-	USE_VEHICLE: "Get in / out of vehicle",
+	USE: "Use (door, vehicle)",
 	COMMAND: "Command teammates",
 	ITEM_1: "Item 1",
 	ITEM_2: "Item 2",
@@ -141,7 +142,7 @@ const GROUPS := {
 	FIRE: "Combat",
 	RELOAD: "Combat",
 	INTERACT: "Interaction",
-	USE_VEHICLE: "Interaction",
+	USE: "Interaction",
 	COMMAND: "Interaction",
 	ITEM_1: "Items",
 	ITEM_2: "Items",
@@ -161,6 +162,11 @@ const GROUPS := {
 	PAUSE: "System",
 	MENU: "System",
 }
+## The actions that were renamed, each saved binding's old name -> the action it now is, so a
+## settings file written before the rename still binds the action (`bindings.apply_overrides`).
+const RENAMED := {
+	"use_vehicle": USE,
+}
 ## Action pairs that deliberately share a binding, so `bindings.conflicts_of()` doesn't flag them:
 ## Interact and Pause (the player-less spectator match has nothing to interact with) and each camera
 ## pan key with its move key (the spectator match has no player to move).
@@ -174,7 +180,7 @@ const SHARED := [
 
 ## The rebinding store: binding, resetting, describing and the saved overrides
 ## (`input_bindings.gd`), built once with the tables above.
-var bindings: InputBindings = InputBindings.new(DEFAULTS, MOUSE_DEFAULTS, SHARED)
+var bindings: InputBindings = InputBindings.new(DEFAULTS, MOUSE_DEFAULTS, SHARED, RENAMED)
 
 
 func _ready() -> void:
@@ -233,9 +239,38 @@ func is_interact_just_pressed() -> bool:
 	return Input.is_action_just_pressed(INTERACT)
 
 
-## True on the frame the use-vehicle key (E) is pressed: get in, or out. Rebindable like the others.
-func is_use_vehicle_just_pressed() -> bool:
-	return Input.is_action_just_pressed(USE_VEHICLE)
+## True on the frame the Use key (E) is pressed. Rebindable like the others.
+func is_use_just_pressed() -> bool:
+	return Input.is_action_just_pressed(USE)
+
+
+## True while the Use key is held.
+func is_use_pressed() -> bool:
+	return Input.is_action_pressed(USE)
+
+
+## True on the frame the Use key is let go.
+func is_use_just_released() -> bool:
+	return Input.is_action_just_released(USE)
+
+
+## How far `event` scrolls, in wheel notches: positive up (the camera zooms in, a door opens),
+## negative down; 0 for any other event. A wheel notch is the `ZOOM_IN` / `ZOOM_OUT` action (its own
+## amount, fractional for some mice) and a trackpad's two-finger scroll, an `InputEventPanGesture`
+## that is no action, counts `CameraConfig.trackpad_zoom_sensitivity` notches per unit of its
+## `delta.y` (scrolling up is negative). The camera and the player's door scroll read it, so a
+## trackpad is worth the same notches to both.
+func scroll_notches(event: InputEvent) -> float:
+	if event is InputEventPanGesture:
+		return -event.delta.y * CameraConfig.trackpad_zoom_sensitivity
+	var notches := 0.0
+	if event.is_action_pressed(ZOOM_IN):
+		notches = 1.0
+	elif event.is_action_pressed(ZOOM_OUT):
+		notches = -1.0
+	if notches != 0.0 and event is InputEventMouseButton and event.factor > 0.0:
+		notches *= event.factor
+	return notches
 
 
 ## True on the frame the reload key (R) is pressed. Rebindable like the others.

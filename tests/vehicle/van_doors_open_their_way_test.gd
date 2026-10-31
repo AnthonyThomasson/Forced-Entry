@@ -40,7 +40,7 @@ func _board_watching(
 ) -> Dictionary:
 	await VehicleRide.place(t, id, VehicleFrame.stand_point(van, door_id))
 	var who := t.actor(id)
-	t.puppet(id).use_vehicle()
+	t.puppet(id).use()
 	var out := {
 		"seated": false,
 		"angle": 0.0,

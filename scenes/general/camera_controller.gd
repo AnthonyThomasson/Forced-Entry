@@ -64,15 +64,8 @@ func _input(event: InputEvent) -> void:
 ## The mouse wheel (or whatever ZOOM_IN / ZOOM_OUT are bound to) and a trackpad's two-finger scroll
 ## scale the zoom in either mode and the scale stays; UI that scrolls gets the event first.
 func _unhandled_input(event: InputEvent) -> void:
-	var notches := 0.0  # signed: positive zooms in
-	if event is InputEventPanGesture:
-		# Scrolling up (negative delta) zooms in, like wheel-up.
-		notches = -event.delta.y * CameraConfig.trackpad_zoom_sensitivity
-	elif event.is_action_pressed(Keybinds.ZOOM_IN):
-		notches = _wheel_notches(event)
-	elif event.is_action_pressed(Keybinds.ZOOM_OUT):
-		notches = -_wheel_notches(event)
-	else:
+	var notches := Keybinds.scroll_notches(event)  # signed: positive zooms in
+	if notches == 0.0:
 		return
 	_zoom_bias = clampf(_zoom_bias * pow(CameraConfig.zoom_step, notches),
 			CameraConfig.wheel_min_zoom / _base_zoom, CameraConfig.wheel_max_zoom / _base_zoom)
@@ -87,14 +80,6 @@ func _process(delta: float) -> void:
 		var target_pos := _calculate_target_position()
 		global_position = global_position.lerp(target_pos, 1.0 / CameraConfig.follow_speed)
 		_ease_zoom(1.0 - _drive_zoom_out(_player))
-
-
-## How many notches a zoom press counts for: a wheel's own amount (fractional for some mice), else
-## 1.
-func _wheel_notches(event: InputEvent) -> float:
-	if event is InputEventMouseButton and event.factor > 0.0:
-		return event.factor
-	return 1.0
 
 
 ## A grenade went off: shake by its kind and how near it is (linear to nothing at the kind's range,

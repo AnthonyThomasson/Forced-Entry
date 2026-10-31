@@ -36,7 +36,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	await VehicleRide.place(t, &"me", VehicleFrame.stand_point(car, &"front_left"))
-	t.puppet(&"me").use_vehicle()
+	t.puppet(&"me").use()
 	if not t.require(
 			await t.until(func(): return Probe.open_of(car, &"front_left") >= 0.5, 3.0),
 			"the front-left door opens for the boarding",

@@ -63,7 +63,7 @@ func run(t: TestContext) -> void:
 		return
 	await VehicleRide.place(t, &"me", at)
 	var me := t.actor(&"me")
-	t.puppet(&"me").use_vehicle()
+	t.puppet(&"me").use()
 	var watched: Dictionary = await Probe.watch_doors(
 		t,
 		car,

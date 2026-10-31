@@ -26,22 +26,24 @@ func try_use_vehicle() -> void:
 		if _ride.is_seated():
 			_ride.vehicle.exit(_character)
 		return
-	var candidates := []
-	for near in _character.get_tree().get_nodes_in_group(&"vehicles"):
-		if not near is Node2D or near.speed() >= VehicleBoardingConfig.board_max_speed:
-			continue
-		for door: Dictionary in near.doors():
-			var distance: float = _character.global_position.distance_to(door["handle"])
-			if distance <= VehicleBoardingConfig.door_reach:
-				candidates.append({ "vehicle": near, "door": door["id"], "distance": distance })
-	candidates.sort_custom(func(a, b): return a["distance"] < b["distance"])
-	for c: Dictionary in candidates:
+	for c: Dictionary in _candidates():
 		var ride: RefCounted = c["vehicle"].board(_character, c["door"])
 		if ride != null:
 			_ride = ride
 			# Back into the vehicle just left: its exception stays.
 			_character.use.stop_clearing(c["vehicle"])
 			return
+
+
+## How far (px) the nearest door a character on foot could board by is: the nearest handle within
+## `VehicleBoardingConfig.door_reach` of a vehicle moving slower than `board_max_speed`; `INF` when
+## there is none or the character is already in a vehicle. The character's `use` weighs it against a
+## door in reach.
+func nearest_door_distance() -> float:
+	if _ride != null:
+		return INF
+	var candidates := _candidates()
+	return candidates[0]["distance"] if not candidates.is_empty() else INF
 
 
 ## The vehicle the character is boarding, riding in or getting out of; null on foot.
@@ -52,6 +54,22 @@ func vehicle() -> Node2D:
 ## True only while seated (not on the way in or out).
 func is_in_vehicle() -> bool:
 	return vehicle() != null and _ride.is_seated()
+
+
+## The doors a character on foot could board by, nearest handle first: each `{ vehicle, door,
+## distance }`, the handle within `VehicleBoardingConfig.door_reach` of a vehicle slower than
+## `board_max_speed`.
+func _candidates() -> Array:
+	var candidates := []
+	for near in _character.get_tree().get_nodes_in_group(&"vehicles"):
+		if not near is Node2D or near.speed() >= VehicleBoardingConfig.board_max_speed:
+			continue
+		for door: Dictionary in near.doors():
+			var distance: float = _character.global_position.distance_to(door["handle"])
+			if distance <= VehicleBoardingConfig.door_reach:
+				candidates.append({ "vehicle": near, "door": door["id"], "distance": distance })
+	candidates.sort_custom(func(a, b): return a["distance"] < b["distance"])
+	return candidates
 
 
 ## True from the E press to the last step out: the character is busy.

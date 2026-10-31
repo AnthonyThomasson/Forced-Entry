@@ -28,7 +28,7 @@ func configure(s: TestSetup) -> void:
 
 ## Press E and watch 1.5 s: true when nothing opened and the character stayed on foot.
 func _refused(t: TestContext, car: Node2D, me: Node) -> bool:
-	t.puppet(&"me").use_vehicle()
+	t.puppet(&"me").use()
 	var watched: Dictionary = await Probe.watch_doors(t, car, func(): return false, 1.5)
 	return (Probe.opened(watched, 0.05).is_empty()
 			and me.use.vehicle() == null
