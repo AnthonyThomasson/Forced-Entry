@@ -423,7 +423,8 @@ static func styles_of(faction: StringName) -> Array[StringName]:
 ## leader by the squad's rule (rank, then spawn order), so after `arm` has ranked the unit; the
 ## human's side is led by the human when its `human` (the spec's `{ node, side, lead }`) says it
 ## leads. The human is handed its squad through `stack`, its stack radio, with `own_claims` on the
-## invaders' side only (D29). Each squad keeps its members' claims `claim_ttl` s, or, at
+## invaders' side only (D29), and the defenders' squad runs the ambush rule (`ambush_attacks`,
+## `squad_ambush.gd`). Each squad keeps its members' claims `claim_ttl` s, or, at
 ## `CLAIM_TTL_OF_NPCS`, as long as the side's NPCs keep a callout (`callout_ttl_of`). Returns the
 ## squads by faction.
 static func build_squads(world: Node, squads_spec: SquadsSpec, stack: Node = null) -> Dictionary:
@@ -449,6 +450,7 @@ static func build_squads(world: Node, squads_spec: SquadsSpec, stack: Node = nul
 				else null)
 		var ttl := squads_spec.claim_ttl
 		roster.claim_ttl = ttl if ttl >= 0.0 else callout_ttl_of(members)
+		roster.ambush_attacks = faction == DEFENDER_FACTION
 		squad.setup(roster, squads_spec.openings, squads_spec.rooms)
 		for member in members:
 			bind_squad(

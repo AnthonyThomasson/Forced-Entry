@@ -12,11 +12,15 @@ extends GameTest
 ## built and bound as a match's, `s.squads`) to ambush it. Once it holds its post, an
 ## intruder puppet walks along the east end of the hall, behind the living room's south wall and out
 ## of the ambusher's sight (premise, required each frame): its footsteps do not end the order. Then
-## gunfire from nobody it knows lands beside the ambusher (`Order.gunfire_near`, a shot from
-## elsewhere, not through the doorway): the order ends `done`, and its next decision holds no order.
+## the intruder, still in the hall and still unseen (required each frame through the shots), fires
+## real pistol rounds at the hall face of the living room's south wall straight below the post: each
+## round flies the projectile's own path and strikes the wall within the ambusher's
+## `hit_awareness_radius` (its tracer, impact and gunshot seen and heard in the window), not through
+## the doorway: the order ends `done`, not before the first shot, and its next decision holds no
+## order.
 ##
 ## Scripted Von (the first option offered): what the ambusher decides after the order is not under
-## test, only that it decides without it. The intruder is unkillable and never shoots.
+## test, only that it decides without it. The intruder is unkillable and holds a pistol.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
@@ -30,6 +34,15 @@ const HALL_EAST := Vector2(800, 430)
 const HALL_MID := Vector2(520, 430)
 ## How long (s) the posted ambusher is watched holding before the shots.
 const HOLD := 3.0
+## The living room's south wall (the hall's north one), whose hall face the rounds strike.
+const SOUTH_WALL_Y := 360.0
+## The intruder's shots: how many, and the time (s) between them.
+const SHOTS := 3
+const SHOT_GAP := 0.4
+## How long (s) after the last shot the ambusher is given to radio done.
+const SETTLE := 3.0
+## The intruder's pistol's inventory slot.
+const PISTOL_SLOT := 3
 
 
 func describe() -> Dictionary:
@@ -46,10 +59,16 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_script([])
+	# Every round that arrives lands: none flies over cover.
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"a", &"defender", Vector2(240, 150), { "max_health": 1_000_000.0 })
 	s.actor(&"lead", &"puppet", Vector2(700, 120), { "faction": &"household" })
-	s.actor(&"intruder", &"puppet", HALL_EAST, { "faction": &"invader", "max_health": 1_000_000.0 })
+	s.actor(
+		&"intruder",
+		&"puppet",
+		HALL_EAST,
+		{ "faction": &"invader", "max_health": 1_000_000.0, "start_slot": PISTOL_SLOT },
+	)
 	s.squads({ "human": &"lead" })
 
 
@@ -110,15 +129,29 @@ func _holds_through_footsteps(t: TestContext, a: Node, brain: Node) -> bool:
 
 
 func _ends_on_shots(t: TestContext, a: Node, brain: Node) -> void:
-	var shot_at := t.time
+	t.puppet(&"intruder").aim_at(Vector2(a.global_position.x, SOUTH_WALL_Y))
+	await t.seconds(0.5)
 	# Counted before the shots: a follower's next decision (FOLLOW, LD19) can land on the frame it
 	# radios done.
 	var before := OrderBrain.decisions(brain)
-	Order.gunfire_near(a)
+	var shot_at := await _fire_unseen(t, a)
+	if shot_at < 0.0:
+		return
 	t.check(
-		await t.until(func(): return not Order.progress(t, "done", a).is_empty(), 3.0),
+		not Order.progress(t, "done", a).is_empty(),
 		"shot at, the ambusher radios its order done",
 	)
+	# Required after the done check, so a round landing elsewhere fails that check first.
+	var radius: float = brain.tuning.combat.hit_awareness_radius
+	var landed := Probe.raw(t, &"hit", func(d):
+		return (d.get("attacker") == t.actor(&"intruder")
+				and a.global_position.distance_to(d["position"]) <= radius))
+	if not t.require(
+			not landed.is_empty(),
+			"a real round lands within the ambusher's hit_awareness_radius (%.0f px; premise)"
+				% radius,
+	):
+		return
 	var dones := Probe.raw(
 		t,
 		&"callout",
@@ -139,3 +172,33 @@ func _ends_on_shots(t: TestContext, a: Node, brain: Node) -> void:
 		"its next decision holds no order (ordered %s, act %s)"
 			% [str(OrderBrain.ordered(brain)), brain.current_act()],
 	)
+
+
+## Fires the intruder's SHOTS from where it stands, aimed at the south wall's hall face below the
+## post, until the ambusher radios done or a while after the last; requires that the ambusher never
+## has a clear line to the intruder meanwhile and that a round left the barrel. The time of the
+## first shot, or -1 when a premise failed.
+func _fire_unseen(t: TestContext, a: Node) -> float:
+	var intruder := t.puppet(&"intruder")
+	var intruder_node := t.actor(&"intruder")
+	var seen := false
+	var fired := 0
+	var next_shot := t.time
+	var end := t.time + SHOTS * SHOT_GAP + SETTLE
+	while t.time < end and Order.progress(t, "done", a).is_empty():
+		seen = seen or GrenadeAi.line_clear(t, a.global_position, intruder_node.global_position)
+		if fired < SHOTS and t.time >= next_shot:
+			intruder.shoot()
+			fired += 1
+			next_shot = t.time + SHOT_GAP
+		await t.frames(1)
+	if not t.require(
+			not seen,
+			"the intruder shoots from the hall out of the ambusher's sight (premise: no clear line "
+				+ "from the post)",
+	):
+		return -1.0
+	var shots := Probe.raw(t, &"shot", func(d): return d.get("attacker") == intruder_node)
+	if not t.require(not shots.is_empty(), "the intruder fires real rounds"):
+		return -1.0
+	return float(shots[0]["time"])

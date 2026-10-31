@@ -13,15 +13,13 @@ const Entry := preload("res://scenes/ai/behavior/entry.gd")
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const EntryState := preload("res://scenes/ai/behavior/entry/entry_state.gd")
 const EntryWorld := preload("res://scenes/ai/behavior/entry/entry_world.gd")
+## Where an entry's grenade is aimed and may land in the room: the perception's doorway geometry's
+## rule, which an ambush post is shielded by too (`BANG_DEPTHS`, `BANG_ACROSS`, `BANG_MIN_DEPTH`).
+const EntryLandings := preload("res://scenes/ai/perception/entry/entry_landings.gd")
 ## A bang entry (G18): where the thrower steps out to throw from (px out from the wall, and along it
-## from the doorway's centre as shares of its width, toward the stack's side first), how deep into
-## the room and how far across it (shares of the room's depth and width) the stun is aimed, in order
-## of preference (no deeper than it reaches), and the least distance (px) from the door it lands at.
+## from the doorway's centre as shares of its width, toward the stack's side first).
 const BANG_STEP_OUT := 78.0
 const BANG_STEP_ALONG := [0.25, 0.0, -0.25]
-const BANG_DEPTHS := [0.85, 0.7, 0.55]
-const BANG_ACROSS := [0.0, 0.2, -0.2]
-const BANG_MIN_DEPTH := 120.0
 ## The most seconds a stack-ready member waits for its thrower to call the bang before the stack
 ## goes in quietly, and the most the stack waits for the stun to go off once it was called.
 const BANG_CALL_CAP := 8.0
@@ -269,28 +267,26 @@ func _bang_kind(entry: Entry) -> StringName:
 
 ## Plan the throw: a spot to throw from and a target in the room, a clear lob from the thrower's
 ## hand there to the target (one that clears the jamb: `AgentPerception.grenades.can_lob`, from the
-## hand with room to spare either side). The target is the room's far side, `BANG_DEPTHS` of the way
-## in and `BANG_ACROSS` of the way across, or, in a room deeper than a stun reaches from the spot,
-## the farthest point along that line it reaches (`_bang_aim`); at least `BANG_MIN_DEPTH` from the
-## door. The first of them that some spot reaches with a clear lob wins, the thrower's own slot
-## before a step out in front of the door (`BANG_STEP_ALONG`). A frag (LD14, D16) aims only where
-## its burst leaves every claimed slot of the stack, the thrower's own too, out of its danger zone
-## (`AgentPerception.grenades.in_zone`: the wall between shields it). False when nowhere gives a
-## clear lob (for a frag, a safe one).
+## hand with room to spare either side). The target is one of the doorway geometry's aim points
+## (`EntryLandings.grid`: the room's far side, `BANG_DEPTHS` of the way in and `BANG_ACROSS` of the
+## way across), or, in a room deeper than a stun reaches from the spot, the farthest point along
+## that line it reaches (`EntryLandings.aim`), where it may land (`EntryLandings.lands`: at least
+## `BANG_MIN_DEPTH` from the door). The first of them that some spot reaches with a clear lob wins,
+## the thrower's own slot before a step out in front of the door (`BANG_STEP_ALONG`). A frag (LD14,
+## D16) aims only where its burst leaves every claimed slot of the stack, the thrower's own too, out
+## of its danger zone (`AgentPerception.grenades.in_zone`: the wall between shields it). False when
+## nowhere gives a clear lob (for a frag, a safe one).
 func _plan_bang(entry: Entry) -> bool:
 	var type := _bang_kind(entry)
-	var depth: float = state.geo["depth"]
-	var width := absf((state.geo["room"] as Rect2).size.dot((state.geo["along"] as Vector2).abs()))
 	var spots := _bang_spots(entry)
 	var reach: float = world.perception.grenades.reach(type)
 	var slots := _slot_points(entry) if type == &"frag" else []
-	for d: float in BANG_DEPTHS:
-		for a: float in BANG_ACROSS:
-			for spot: Vector2 in spots:
-				var target := _bang_aim(spot, depth * d, width * a, reach)
-				if _bang_target_ok(target, type, slots) and _clear_lob(spot, target, reach, type):
-					_take_bang(entry, spot, target)
-					return true
+	for at: Vector2 in EntryLandings.grid(state.geo):
+		for spot: Vector2 in spots:
+			var target := EntryLandings.aim(state.geo, spot, at.x, at.y, reach)
+			if _bang_target_ok(target, type, slots) and _clear_lob(spot, target, reach, type):
+				_take_bang(entry, spot, target)
+				return true
 	return false
 
 
@@ -308,11 +304,11 @@ func _bang_spots(entry: Entry) -> Array:
 	return spots
 
 
-## Whether the bang may land at `target`: inside the room, at least `BANG_MIN_DEPTH` from the door,
-## and, for a frag (`grenade_kind`), where its burst reaches none of the stack's `slots` (D16).
+## Whether the bang may land at `target`: where an entry's grenade may (`EntryLandings.lands`:
+## inside the room, at least `BANG_MIN_DEPTH` from the door), and, for a frag (`grenade_kind`),
+## where its burst reaches none of the stack's `slots` (D16).
 func _bang_target_ok(target: Vector2, grenade_kind: StringName, slots: Array) -> bool:
-	if (not (state.geo["room"] as Rect2).grow(-30.0).has_point(target)
-			or target.distance_to(state.geo["pos"]) < BANG_MIN_DEPTH):
+	if not EntryLandings.lands(state.geo, target):
 		return false
 	return not slots.any(func(p): return world.perception.grenades.in_zone(grenade_kind, target, p))
 
@@ -338,21 +334,6 @@ func _slot_points(entry: Entry) -> Array:
 	return entry.claim.stack.points(entry.claim.me(entry)).map(func(m): return m["point"]).filter(
 		func(p): return p != Vector2.INF,
 	)
-
-
-## The point a stun thrown from `spot` is aimed at: `deep` px into the room from the doorway (along
-## its axis) and `across` px across it, or, when that is beyond `reach` of the spot, the farthest
-## point the same distance across that is within it (a room deeper than a stun reaches: it goes in
-## as far as it can). `Vector2.INF` when no point that far across is within reach.
-func _bang_aim(spot: Vector2, deep: float, across: float, reach: float) -> Vector2:
-	var door: Vector2 = state.geo["pos"]
-	var out: Vector2 = state.geo["out"]
-	var q: Vector2 = door + (state.geo["along"] as Vector2) * across - spot
-	var b := q.dot(out)
-	var room_left := b * b - q.length_squared() + reach * reach
-	if room_left < 0.0:
-		return Vector2.INF
-	return q + spot - out * minf(deep, b + sqrt(room_left) - 1.0)
 
 
 ## Whether a grenade of `grenade_kind` thrown by a thrower that walks to `spot` and faces `target`

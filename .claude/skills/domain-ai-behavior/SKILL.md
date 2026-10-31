@@ -74,7 +74,8 @@ the controller's leash break reads, beside `in_combat()` and `committed()`.
 
 **Orders (`docs/leadership.md`).** A leaf carrying `order_id` (the ORDER node's) says `moving` when it is adopted and the `defend` or `ambush` primitive
 `in_position` on arrival (a held stack's member says it while `Entry.holding_for_go()`, LD13); `orders.take_steps()` hands them (`{ order_id, step }`, each once until the next step differs) to the controller to
-radio (LD7). `debug_state()["order"]` is the order leaf being carried out (`{ path, primitive, params, paused }`; while an entry detour pauses
+radio (LD7). `orders.primed()` is whether the running leaf is the `ambush` of the live order, arrived at its post: the controller's
+reflexes read it every tick to prime the ambusher (LD15, D37). `debug_state()["order"]` is the order leaf being carried out (`{ path, primitive, params, paused }`; while an entry detour pauses
 it, `paused` and the order's own primitive and params, the running ones staying in `primitive` / `params`), {} with none. After an evade
 (D8) the forced decision takes the order up again and the member walks back to its spot. **An order stops a walk, not a fight (LD6).** From the
 frame an order is taken (`orders.await_next(true)`, called by the controller's radio as its cadence's `order_from` is set) until the decision made knowing it lands

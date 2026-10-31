@@ -114,7 +114,9 @@ AIController (npc_reflexes.gd) / behaviour (follow) ──(follows / leader / fo
 AI behaviour's locomotion (locomotion/loco_doors.gd) ──(perception_views.gd, preloaded to type doors.views, handed perception.views by Behavior.setup; walk_route)──▶ AI perception's views part
 MatchBuilder ──(build_squads: Squad.setup, bind_squad; bind_player: PlayerStack.attach)──▶ Squad / PlayerStack (AI team);  Squad ──(&"order")──▶ EventBus ──(posted)──▶ AIControllers;  Squad ◀──(&"callout" order_step, entry claims)── EventBus;  MatchBuilder.bind_squad ──(squad)──▶ PlayerStack;  StackMarkers (UI) ──(view(): stacks)──▶ Squad
 CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT / FRAG_SLOT (Items, via inventory.item_count)
-AI perception ──(Explosion.shields / first_stop: the blast's cover rule)──▶ Explosion (Projectile)
+AI perception ──(Explosion.shields / first_stop: the blast's cover rule)──▶ Explosion (Projectile);  AI perception (entry_posts.gd) ──(GrenadeConfig.stats_of(kind))──▶ GrenadeConfig (Items)
+AI team (squad.gd, squad_ambush.gd, attack_door.gd) ──(HouseRooms.key_at / joins / beyond, preloaded)──▶ AI perception's house_rooms.gd;  AI behaviour (entry/entry_grenade.gd) ──(EntryLandings, preloaded: where an entry's grenade lands)──▶ AI perception's entry/entry_landings.gd ◀── AI perception (entry_posts.gd: an ambush post shielded from it)
+AI orchestrator (npc_reflexes.gd prime) ──(process_physics_priority, a primed ambusher)──▶ its own Character
 ThrownGrenade (Items) ──(Explosion.frag / .stun)──▶ Explosion (Projectile) ──(take_hit / blast_push / take_stun, ProjectileSpawner fragments, Physics.spawn_explosion)──▶ Objects / Character / Physics
 Item (&"shot") / GrenadeItem (&"throw") / ThrownGrenade (&"grenade") / Projectile (&"hit") / Character (&"hit", &"footfall", &"reload") ──(events)──▶ EventBus ──(posted)──▶ Sound (Audio) ─▶ SoundBank (and its families) ─▶ SoundSynth
 Character (&"footfall") ──▶ EventBus ──(posted)──▶ AIController (footsteps heard)
@@ -143,7 +145,7 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories and their `RoomWalls` / `WearPlan`; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-nine `class_name` static holders, one per topic, each with 15 vars or fewer
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into eighty `class_name` static holders, one per topic, each with 15 vars or fewer
 (`docs/adr/0003-config-holders-split-by-topic.md`); a domain's holders share its stem, so
 `grep -r "class_name Character.*Config" scenes` lists the Character ones, and each domain skill says what each holds.
 World-Gen's `LayoutRules` (which rooms may
@@ -161,7 +163,10 @@ Three conventions hold across domains; the per-domain specifics live in each dom
 - **Layered control / animate / draw.** Within an entity the three verbs live in separate files,
   wired via the scene tree (no `class_name` on scene scripts but a typed component's, below; cross-file calls resolve through
   `$` / `get_parent()`). A "draw" file is attached to its own child `Node2D` (Godot only draws
-  from `CanvasItem`s). Ordering: a parent's `_physics_process` runs before its children's.
+  from `CanvasItem`s). Ordering: a parent's `_physics_process` runs before its children's. One exception: a primed ambusher's body
+  (`process_physics_priority` 1, interface 7, `docs/leadership.md` D37) runs after its own children that process at the default 0 (its
+  `Hands`, its `BloodWound`) on those frames, so its hands read the body a frame behind; harmless at a post, where it holds still and
+  does not punch. Character's children keep no priority of their own (setting one would leave interface 7).
 - **Runtime shapes.** Collision shapes are built **in code in `_ready()`**, not in the scene
   (layout is data-driven). Because of this the editor shows a "no shape" warning on the character scenes'
   `CollisionShape2D` (`character_base.tscn`, so `Player` and the NPCs) — **that is expected** (walls are built in code); don't add scene shapes.

@@ -3,29 +3,26 @@ extends GameTest
 ## placed in a pinned generated house the way Main places them, seeded with the house seed, and
 ## bound to their side's squad the way Main binds it (a match over the house,
 ## `tests/_ai/house_probe.gd`); the first spawned leads. The
-## leader decides through Von as ever: gunfire heard inside the house, in the room farthest from it,
-## sends it to investigate (a defender investigates gunfire inside,
-## `ai/investigate/defender_investigates_gunfire_inside_von`), through the house's doorways. The
-## crew follows it: within a band of it, through its doorways, asking Von nothing; and no follower
-## stands more than `Follow.OFF_SPOT` off the follow spot the squad gives it for more than 8 s
-## (LD21: a path that ends short of a spot it cannot reach counts as arrived); each follower's spot
-## keeps to its place in the file or on the rings round a still leader.
+## leader decides through Von as ever: with no hostile known, the crew's own search takes it from
+## room to room, through the house's doorways. The crew follows it: within a band of it, through
+## its doorways, asking Von nothing; and no follower stands more than `Follow.OFF_SPOT` off the
+## follow spot the squad gives it for more than 8 s (LD21: a path that ends short of a spot it
+## cannot reach counts as arrived); each follower's spot keeps to its place in the file or on the
+## rings round a still leader.
 ##
-## Real Von, the whole pipeline; no switch. The premise is the gunfire (a `hit` event nobody known
-## fired, as `tests/_ai/investigate_probe.gd` posts it), heard by the whole crew: posted at the
-## point of that room farthest from the crew, beyond every member's `hit_awareness_radius`, so it is
-## heard and lands on nobody (a round striking within that radius puts a follower under fire, and
-## the fight rules come before FOLLOW).
+## Real Von, the whole pipeline; no switch, no premise but the house. Nothing is heard: the
+## leader's own search walks it through the house (a threat heard outside the leader's room would
+## post the crew at its room's doorway and hold it there, the defenders' ambush rule,
+## `docs/leadership.md` LD29).
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const House := preload("res://tests/_ai/house_probe.gd")
-const Investigate := preload("res://tests/_ai/investigate_probe.gd")
-const SEED := 4
+## The pinned house: one whose search offers the leader a choice of rooms, so it decides through Von
+## (a level with a lone option is taken without asking).
+const SEED := 1
 const CREW := 3
 const WATCH_S := 90.0
-## When (s) the gunfire is heard.
-const GUNFIRE_AT := 2.0
 ## From when (s) the band and the spots are measured.
 const SETTLE_S := 6.0
 ## How far (px) a follower's median spot may lie outside its place in the file and the ring (a
@@ -37,7 +34,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "A defender crew follows its leader",
 		"description": "Three defenders bound to a squad in a pinned house follow their first "
-			+ "spawned leader as it investigates gunfire through the house: within a band of it, "
+			+ "spawned leader as it searches the house: within a band of it, "
 			+ "through its doorways, asking Von nothing, never 8 s off their spots.",
 		"tags": ["ai", "movement", "squad", "follow", "leadership", "defender", "von"],
 		"requires_von": true,
@@ -57,9 +54,8 @@ func run(t: TestContext) -> void:
 	var lead: Node = crew[0]
 	var members: Array = crew.slice(1)
 	# What the watch keeps per member (`clocks`: its off-spot clock, `spots`: its follow spot's
-	# distance from the leader) and of the gunfire (`heard`, and how far it landed from the crew,
-	# `clear`).
-	var track := { "clocks": {}, "spots": {}, "heard": false, "clear": INF }
+	# distance from the leader).
+	var track := { "clocks": {}, "spots": {} }
 	for m in members:
 		track["clocks"][m] = {}
 		track["spots"][m] = []
@@ -72,9 +68,6 @@ func run(t: TestContext) -> void:
 		WATCH_S,
 		{ "stop": done, "each": each },
 	)
-	if not _beyond_awareness(t, lead, float(track["clear"])):
-		return
-
 	var lead_moves: Array = w["moves"].get(lead, [])
 	if not t.require(
 			lead_moves.size() >= 2,
@@ -115,19 +108,13 @@ func _squad_of(t: TestContext, crew: Array) -> Node:
 	return squad
 
 
-## The watch's per-frame step: the gunfire at `GUNFIRE_AT`, far from the crew, then each member's
-## off-spot clock and follow spot into `track`.
+## The watch's per-frame step: each member's off-spot clock and follow spot into `track`.
 func _each(t: TestContext, squad: Node, crew: Array, track: Dictionary) -> Callable:
 	var lead: Node = crew[0]
 	var members: Array = crew.slice(1)
 	var clocks: Dictionary = track["clocks"]
 	var spots: Dictionary = track["spots"]
 	return func(_rec: Dictionary) -> void:
-		if not track["heard"] and t.time >= GUNFIRE_AT:
-			track["heard"] = true
-			var at := _far_point(_farthest_room(t, lead.global_position), crew)
-			track["clear"] = _nearest(at, crew)
-			Investigate.gunfire(at)
 		for m: Node in members:
 			FollowWatch.off_spot_tick(t, squad, m, clocks[m])
 			var spot: Vector2 = squad.follow_spot(m)
@@ -140,16 +127,6 @@ func _done(t: TestContext, lead: Node) -> Callable:
 	return func(rec: Dictionary) -> bool:
 		var moves: Array = rec["moves"].get(lead, [])
 		return moves.size() >= 2 and t.time > float(moves[1][0]) + 15.0
-
-
-## Whether the gunfire landed `clear` px from the crew, beyond its hit awareness (a premise).
-func _beyond_awareness(t: TestContext, lead: Node, clear: float) -> bool:
-	var radius: float = Follow.brain_of(lead).tuning.combat.hit_awareness_radius
-	return t.require(
-		clear > radius,
-		"premise: the gunfire landed beyond the crew's hit awareness (%.0f px off, radius %.0f)"
-			% [clear, radius],
-	)
 
 
 ## Member `m` (the `i`th) follows: FOLLOW taken, within a band of the leader, through the leader's
@@ -206,34 +183,3 @@ func _check_spot(t: TestContext, m: Node, i: int, track: Dictionary) -> void:
 		"%s was never more than %.0f s off its spot (longest %.1f s)"
 			% [m.name, Follow.STUCK_S, float(clock.get("longest", 0.0))],
 	)
-
-
-## The house room (its rect) whose centre is farthest from `p`.
-func _farthest_room(t: TestContext, p: Vector2) -> Rect2:
-	var best := Rect2(p, Vector2.ZERO)
-	for r in t.rooms:
-		var rect: Rect2 = r["rect"]
-		if rect.get_center().distance_to(p) > best.get_center().distance_to(p):
-			best = rect
-	return best
-
-
-## The point of `rect` (on a grid, a body's width in from its walls) farthest from the nearest of
-## `crew`.
-func _far_point(rect: Rect2, crew: Array) -> Vector2:
-	var inner := rect.grow(-30.0)
-	var best := inner.get_center()
-	for i in 11:
-		for j in 11:
-			var p := inner.position + inner.size * Vector2(i / 10.0, j / 10.0)
-			if _nearest(p, crew) > _nearest(best, crew):
-				best = p
-	return best
-
-
-## How far `p` is from the nearest of `crew`.
-func _nearest(p: Vector2, crew: Array) -> float:
-	var out := INF
-	for c: Node2D in crew:
-		out = minf(out, p.distance_to(c.global_position))
-	return out

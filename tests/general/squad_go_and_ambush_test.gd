@@ -5,7 +5,9 @@ extends GameTest
 ## doorway nearest its `pos` and goes to every living member holding a held stack order there,
 ## whatever the request's `to` (D13), and does not replace those orders (they stay held, released);
 ## an `ambush` names the doorway and the room on the side of its wall plane the click lies on (D17;
-## an exterior door: the house's room); `resolve` answers `go` and `ambush` too; and the leader's
+## an exterior door: the house's room), and one naming its doorway by id and the room it is laid
+## from (`{ kind: "ambush", opening, room }`, the defenders' ambush rule, #128) resolves and posts
+## the same order as the equivalent click; `resolve` answers `go` and `ambush` too; and the leader's
 ## death releases the held orders it gave (D12: a `go` with `auto: true`).
 ##
 ## The squad is built the way Main builds it over three puppet teammates and a puppet standing in
@@ -58,6 +60,7 @@ func run(t: TestContext) -> void:
 	_check_go(t, squad, held)
 	_check_go_without_holder(t, squad)
 	_check_ambush(t, squad)
+	_check_ambush_by_id(t, squad)
 	await _check_leader_death(t, squad)
 
 
@@ -149,8 +152,8 @@ func _check_go(t: TestContext, squad: Node, held: Dictionary) -> void:
 		t.expect_eq(String(go.get("kind", "")), "go", "as an order of kind go")
 		t.expect_eq(String(go.get("opening", "")), BACK, "naming the back door")
 		t.expect_eq(
-			_names(go.get("to", [])),
-			_names([t1, t2]),
+			Order.names(go.get("to", [])),
+			Order.names([t1, t2]),
 			"to every holder of the held stack there, not the request's t3 (D13)",
 		)
 	var posted := Order.orders(t).filter(func(o): return String(o.get("kind", "")) == "go")
@@ -211,6 +214,56 @@ func _check_ambush(t: TestContext, squad: Node) -> void:
 	)
 
 
+## An ambush named by doorway id and room resolves as the click on that room's side does, and posts
+## the same order; a doorway the house does not have, or a room the doorway does not join, names
+## nothing.
+func _check_ambush_by_id(t: TestContext, squad: Node) -> void:
+	var t3 := t.actor(&"t3")
+	var cases := [
+		[HALL_LIVING, "living_room", IN_LIVING],
+		[HALL_LIVING, "hall", IN_HALL],
+		[BACK, "kitchen", Order.BACK_SOUTH],
+	]
+	for c in cases:
+		var by_id: Dictionary = squad.resolve({ "kind": "ambush", "opening": c[0], "room": c[1] })
+		var by_click: Dictionary = squad.resolve({ "kind": "ambush", "pos": c[2] })
+		t.check(
+			not by_id.is_empty() and by_id == by_click,
+			"the ambush of %s from the %s by id resolves as the click on that side (%s, click %s)"
+				% [c[0], c[1], str(by_id), str(by_click)],
+		)
+	var posted := Order.issue(
+		squad,
+		{ "kind": "ambush", "to": [t3], "opening": HALL_LIVING, "room": "living_room" },
+	)
+	var clicked := Order.issue(squad, { "kind": "ambush", "to": [t3], "pos": IN_LIVING })
+	t.check(
+		not posted.is_empty() and _same_order(posted, clicked),
+		"issued by id it posts the click's order (%s, click %s)" % [str(posted), str(clicked)],
+	)
+	var unknown: Dictionary = squad.resolve(
+		{ "kind": "ambush", "opening": "door_1_1", "room": "kitchen" },
+	)
+	t.check(unknown.is_empty(), "a doorway the house lacks names nothing (%s)" % str(unknown))
+	var not_joined: Dictionary = squad.resolve(
+		{ "kind": "ambush", "opening": HALL_LIVING, "room": "kitchen" },
+	)
+	t.check(
+		not_joined.is_empty(),
+		"a room the doorway does not join names nothing (%s)" % str(not_joined),
+	)
+
+
+## Whether orders `a` and `b` are the same order but for their id and frame.
+func _same_order(a: Dictionary, b: Dictionary) -> bool:
+	var x := a.duplicate()
+	var y := b.duplicate()
+	for k in ["id", "frame"]:
+		x.erase(k)
+		y.erase(k)
+	return x == y
+
+
 ## D12: the leader that gave a held order dies before any go; its held orders are released (a go
 ## with auto: true to their holders).
 func _check_leader_death(t: TestContext, squad: Node) -> void:
@@ -246,15 +299,8 @@ func _check_leader_death(t: TestContext, squad: Node) -> void:
 	)
 	if not released.is_empty():
 		t.expect_eq(
-			_names(released[0].get("to", [])),
-			_names([t1, t2]),
+			Order.names(released[0].get("to", [])),
+			Order.names([t1, t2]),
 			"to the holders of its held stack",
 		)
 		t.expect_eq(String(released[0].get("opening", "")), BACK, "at the back door")
-
-
-## The names of `nodes`, sorted.
-func _names(nodes: Array) -> Array:
-	var out := nodes.map(func(n): return String(n.name) if n is Node else str(n))
-	out.sort()
-	return out

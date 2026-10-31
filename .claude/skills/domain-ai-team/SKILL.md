@@ -1,6 +1,6 @@
 ---
 name: domain-ai-team
-description: Deep implementation detail for the AI TEAM module (scenes/ai/team/: player_stack.gd with its reservation leaf and step_up part, squad.gd with its stacks part, squad_follow.gd, squad_roster.gd, the SquadFollowConfig holder) — the human's place in an AI entry stack and each side's squad. The human's stack radio (PlayerStack, interface 17): claiming the first free slot when an allied team stacks at a doorway near the human, the split stack (E19), the dead-end refusal (E20), the other side of the door (E21), human / leader on its claims, the steps read from where the human stands, withdrawing, the human leader's own claim on stepping up to a doorway (LD24), and view() for the stack markers. The squad (Squad, interface 21, docs/leadership.md): the leader and succession (highest rank, the human when it leads, the &"leader" post), issue / resolve of a leader's request into an &"order" (defend_room / stack / go / ambush / cancel: which doorway a click means, the room "into", stack_at or split, quiet / stun / frag modes, held stacks and the go that releases them, the automatic go when the leader dies), following (follows / follow_spot: the leader's trail, the file and the ring, out of the leader's way, the leash), the rally (a join order on the leader's own claim, cancelled on its abort), the takeover from a dead human leader, view() (each member's order, step, held and follow spot, the side's stacks laid slot by slot, the trail and the leash) and the seam into perception it reuses (the stack module: StackClaim, ClaimLedger, DoorStack; AgentEntry's geometry; HouseRooms). Use when editing scenes/ai/team/ or working on the squad, leaders, following, orders, the command menu's resolution, the stack markers' data or the human's stack claim. Complements the light `domain-ai` overview, `domain-ai-entry` (how the NPCs carry a stack out) and the `architecture` skill (interfaces 17, 21).
+description: Deep implementation detail for the AI TEAM module (scenes/ai/team/: player_stack.gd with its reservation leaf and step_up part, squad.gd with its stacks and ambush parts, squad_follow.gd, squad_roster.gd, attack_door.gd, the SquadFollowConfig and SquadAmbushConfig holders) — the human's place in an AI entry stack and each side's squad. The human's stack radio (PlayerStack, interface 17): claiming the first free slot when an allied team stacks at a doorway near the human, the split stack (E19), the dead-end refusal (E20), the other side of the door (E21), human / leader on its claims, the steps read from where the human stands, withdrawing, the human leader's own claim on stepping up to a doorway (LD24), and view() for the stack markers. The squad (Squad, interface 21, docs/leadership.md): the leader and succession (highest rank, the human when it leads, the &"leader" post), issue / resolve of a leader's request into an &"order" (defend_room / stack / go / ambush / cancel: which doorway a click means, the room "into", stack_at or split, quiet / stun / frag modes, held stacks and the go that releases them, the automatic go when the leader dies), following (follows / follow_spot: the leader's trail, the file and the ring, out of the leader's way, the leash), the rally (a join order on the leader's own claim, cancelled on its abort), the takeover from a dead human leader, the defenders' ambush rule (an AI defender leader ordering its crew, the rear guard kept back, to ambush the attack doorway on a threat its radio places outside its room, re-orders, ambush by doorway id), view() (each member's order, step, held and follow spot, the side's stacks laid slot by slot, the trail and the leash) and the seam into perception it reuses (the stack module: StackClaim, ClaimLedger, DoorStack; AgentEntry's geometry; HouseRooms). Use when editing scenes/ai/team/ or working on the squad, leaders, following, orders, the command menu's resolution, the stack markers' data or the human's stack claim. Complements the light `domain-ai` overview, `domain-ai-entry` (how the NPCs carry a stack out) and the `architecture` skill (interfaces 17, 21).
 ---
 
 # AI · Team module (`scenes/ai/team/`)
@@ -48,7 +48,7 @@ the human's only on a crossing begun since the order was issued (`crossed_frame`
 `ai/stack/stack_player_go_after_funnel_brush` (the human brushes the funnel before the order, steps in after it, and the squad releases it).
 
 **The squad (`ai/team/squad.gd`, `docs/leadership.md` LD3 to LD7 and LD19 to LD26, interface 21).** One per side, a `Node` the match builder builds under the match's `World` (or a test world) after
-arming the characters (`MatchBuilder.build_squads`: `setup(roster: SquadRoster, openings, rooms)`, the roster (`squad_roster.gd`) its `faction`, `members`, `human` and `claim_ttl`) and hands each NPC (`MatchBuilder.bind_squad`: the
+arming the characters (`MatchBuilder.build_squads`: `setup(roster: SquadRoster, openings, rooms)`, the roster (`squad_roster.gd`) its `faction`, `members`, `human`, `claim_ttl` and `ambush_attacks`) and hands each NPC (`MatchBuilder.bind_squad`: the
 controller's `squad`). Its leader is the highest `wardrobe.rank`, the first spawned among equals (the human when it leads); on the leader's `died`
 the next leads within the frame and it posts `&"leader"` `{ faction, leader, previous }` (read by the tests: no game code listens). `issue(request)` turns a leader's plain request
 (`{ kind, to, pos?, room?, bang?, mode?, wait_go? }`) into an `&"order"` (each stamped by `_post_order` with the `GameClock.frame()` it is
@@ -56,7 +56,9 @@ issued on, `frame`, as is a `go`) (`defend_room` / `stack` / `ambush` / `cancel`
 the doorway nearest `pos` within its width, a stack's room on the far side of the wall plane, `stack_at` or `split`, its `mode` quiet / stun /
 frag (`MODES`; `bang` true for any but quiet; a request naming none of them reads it from `bang`) and `wait_go` (LD13); an ambush's `room` on the click's
 side of the wall plane and `beyond` the room on the other, "" for an exterior door, LD15, D17; a `defend_room`, `stack` or `ambush` order
-also carries its target point `pos`, the room's centre or the doorway's, which the UI's order markers draw) and posts it; no `to` is every
+also carries its target point `pos`, the room's centre or the doorway's, which the UI's order markers draw; an ambush may name its doorway
+by id instead, `{ kind: "ambush", opening, room }`, `_ambush_door`: the doorway of that id seen from `room`, through the same `_door_of` a
+click's `_door_for` ends in, so the same order; {} for an id the house lacks or a room it does not join) and posts it; no `to` is every
 living member but the leader. A `go` request (`{ kind: "go", pos }`, LD13) posts a `go` order (`opening`, `pos`) to every living member
 holding a held stack (`wait_go`) at the doorway nearest `pos` that no go has released yet, whatever its `to` (D13), and replaces nothing; when
 the leader that gave held stacks dies the squad posts their go itself (`auto: true`, D12; the flag is read by the tests). `resolve(request)` is that resolution read-only,
@@ -82,8 +84,10 @@ markers draw it, laid on the navigation map and physics space of the world the s
 members only through the Character API (`wardrobe.rank`, `is_dead`, `died`, and the leader's `global_position` and `facing`; a member is an NPC, one
 that follows, when a child of it is in the group `npc_controllers` at `setup`, `_npcs`) and the bus, and reuses `AgentEntry.opening_id` /
 `normal_into`, the stack module (`StackClaim`, `ClaimLedger`) and `HouseRooms` (which room a point is in and a room's rect, for
-`squad_follow` and the squad's `_room_for`). The only orders it posts of its own are the rally's joins and the cancels below; `_post_order` (the id,
-`_orders`, the `&"order"` post) serves `issue` and them alike.
+`squad_follow` and the squad's `_room_for`). The only orders it posts of its own are the rally's joins, the cancels below and the ambush rule's ambushes (below); `_post_order`
+(the id, `_orders`, the `&"order"` post) serves `issue` and them alike. A callout of its own side goes to `_hear_side`: it redraws the
+stacks and latches a go, rallies on the leader's own claim, and, while an AI leads (`_leader != _human`), hands the callout to the ambush
+rule with the members it may order (`_free()`).
 
 **Following (`docs/leadership.md` LD19 to LD23).** `follows(member)`: alive, the squad has a leader, not the leader, an NPC (`_npcs`). The
 tunables are the static holder `SquadFollowConfig`'s (`ai/team/squad_follow_config.gd`, the same for every squad): `gap` 55, `step` 45,
@@ -121,12 +125,34 @@ the living members holding a join of that leader at that opening (D25). A join r
 `_on_died`, when the dead member led and was the human, calls `_take_over`: one `cancel` to the living members holding a `defend_room` or
 an `ambush`; the held stacks it ordered are released as before (D12).
 
-Tests: `tests/general/` (`squad_*`, `squad_takeover_from_human`, `lead_rank`, `stack_player_wiring`), `tests/ai/stack/` (the human's stack
-claim; `human_leader_rallies`, `human_rally_spares_ordered`, `human_stack_slot_no_rally`, `human_defender_leader_no_rally`), `tests/ai/movement/` (`follow_*`, `independent_no_squad`), `tests/ai/combat/`
-(`leash_*`, and for an ordered member off the leash `defend_room_stays_inside` and `ordered_melee_off_leash`), the ordered entries and joins in `tests/ai/entry/` (`order_*`, `join_*`), `tests/general/test_world_invader_bound_as_match` and the UI's `tests/ui/` (`stack_markers_draw`, `order_markers_draw`, `command_menu_*`, `leader_overlay_draw`).
+**The defenders' ambush rule (`docs/leadership.md` LD29, D31 to D36).** The squad's `ambush` part (`ai/team/squad_ambush.gd`, built with
+the squad, holding it; `setup(roster.ambush_attacks, openings, rooms)` from `Squad.setup`; the roster flag is set by
+`MatchBuilder.build_squads` for the defenders' side only). `hear(data, free)` (asked by the squad only while `enabled`, so the invaders' squad never lists its free members) reads the threat point (`_threat_point`: a COMBAT callout's
+`target_pos`, an INVESTIGATE callout's `lead_pos`, which the controller's radio adds from its snapshot's `lead_group`; `Vector2.INF` for an
+entry step, an order's progress or a grenade call, `StackClaim.keeps_claim`), the leader's room (`HouseRooms.key_at` over its live
+position, preloaded from perception's `house_rooms.gd`) and the attack doorway (`AttackDoor.doorway(point, leader_room, rooms, openings)`,
+`ai/team/attack_door.gd`, static, preloaded, no `class_name`: "" for a point in the leader's room or at INF, a leader in no room, or no way
+through; else a Dijkstra over the doorways from the point's room, outside counting as a room its exterior doors join, the cost the
+straight walk from the point through each doorway in turn, the last doorway into the leader's room; ids by `AgentEntry.opening_id`; the
+room a doorway leads into from one it joins is `HouseRooms.beyond`, which the squad's `_door_of` reads too, and `_ambush_door` and
+`_opening_pos` find a doorway by id through the squad's one `_opening(id)`).
+`free` is `Squad._free()`: the living NPC members (`_npcs`) holding no order, or one they radioed `refused` (`_steps`, D36), in spawn order,
+the leader included; `_recipients` drops the last non-leader when there are three or more (the rear guard, D34). It issues
+`{ kind: "ambush", to, opening, room }` through `squad.issue` when the doorway is new (`_last_door`), and for a re-order only after
+`SquadAmbushConfig.reorder_gap` (8 s, on `GameClock.seconds()`, `_ordered_at`) and with at least `SquadAmbushConfig.min_recipients` (2) recipients
+(D35); `_last_door` and `_ordered_at` move only when an order is posted. `reset()` (from `_on_died`, on a leader change) starts both afresh; the dead
+leader's ambushes stand and LD26's takeover cancel stays human-only. The holder `SquadAmbushConfig` (`ai/team/squad_ambush_config.gd`) is the
+same for every squad.
 
-**Interfaces:** 7 (the Character API a squad reads: `wardrobe.rank`, `is_dead`, `died`, the leader's `global_position` and `facing`), 9 (the map
+Tests: `tests/ai/attack_door_suite.gd` (native: the attack doorway), `tests/general/` (`squad_*`, among them `squad_ambush_rule`,
+`squad_ambush_rule_off` and `squad_go_and_ambush`'s ambush by id, `squad_takeover_from_human`, `lead_rank`, `stack_player_wiring`), `tests/ai/stack/` (the human's stack
+claim; `human_leader_rallies`, `human_rally_spares_ordered`, `human_stack_slot_no_rally`, `human_defender_leader_no_rally`), `tests/ai/movement/` (`follow_*`, `independent_no_squad`), `tests/ai/combat/`
+(`leash_*`, and for an ordered member off the leash `defend_room_stays_inside` and `ordered_melee_off_leash`; the ambush rule's crew,
+real Von, `crew_ambush_attack_door`, with `tests/ai/investigate/crew_ambush_before_contact`), the ordered entries and joins in `tests/ai/entry/` (`order_*`, `join_*`), `tests/general/test_world_invader_bound_as_match` and the UI's `tests/ui/` (`stack_markers_draw`, `order_markers_draw`, `command_menu_*`, `leader_overlay_draw`).
+
+**Interfaces:** 1 (the house's `rooms` / `openings` the ambush rule's room graph is built from), 7 (the Character API a squad reads: `wardrobe.rank`, `is_dead`, `died`, the leader's `global_position` and `facing`), 9 (the map
 queries `PlayerStack`, the squad's stack slots and the follow spots go through), 10 (EventBus: `&"callout"` entry claims, aborts and order steps
-in, `&"callout"` the human's claim, `&"order"` (with the rally's `join` and the cancels), `&"leader"` out, read by the tests), 11 (`GameClock`: the follow and ledger
-timers), 17
+in, with a COMBAT callout's `target_pos` and an INVESTIGATE callout's `lead_pos` for the ambush rule, `&"callout"` the human's claim,
+`&"order"` (with the rally's `join`, the cancels and the ambush rule's `ambush`), `&"leader"` out, read by the tests), 11 (`GameClock`: the follow and ledger
+timers, the ambush rule's re-order gap), 17
 (`PlayerStack`, `StackMarkers`), 21 (`Squad`, the command menu, order markers and leader overlay) — signatures in `architecture`.

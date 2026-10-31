@@ -10,12 +10,12 @@ The AI's parts are reached by preload const with
   `sight`, `house`, `contacts`, `hearing`, `orders`, `grenades`, `entry`, `views` and `confinement` (where the NPC may act: its
   territory, the room a defend order keeps it to and its squad leash, refreshed each tick by the controller's reflexes, frozen into
   the decision snapshot for the planner and read live by behaviour and Combat); the launcher's `_probe`; the doorway
-  geometry's `posts`, `slots` and `layouts`; the snapshot author's `_throws` and `_orders`; the squad's `stacks` and the
+  geometry's `posts`, `slots` and `layouts`; the snapshot author's `_throws` and `_orders`; the squad's `stacks` and `ambush` and the
   human's stack's `reservation` and `step_up`. A part member read from outside its part is public on it, its underscore and
   any prefix the part's name says dropped (`entry_ready_timeout` is `tuning.entry.ready_timeout`, `_bang_stage`
   `grenade.stage`); one used only inside its part keeps its name. Behaviour's, locomotion's, the controller's, perception's
   (but its `confinement`) and the team's working parts hold their Node owner (`behavior`, `loco`, `controller`, `perception`, the squad's `stacks`
-  its `squad`, the human's stack's `step_up` its `stack`). Entry is a `RefCounted`, so its parts hold only its `state` and
+  and `ambush` their `squad`, the human's stack's `step_up` its `stack`). Entry is a `RefCounted`, so its parts hold only its `state` and
   `world` leaves: a part method that needs the entry or a sibling takes the `Entry` facade as its first parameter, `entry`,
   at the call, and never stores it. The doorway geometry (`AgentEntry`) is a `RefCounted` too: its parts take it as `entry`
   at the call and hold nothing of it. Where gdstyle's `max-parameters` (5) leaves no room for it, a public method folds two

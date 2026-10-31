@@ -74,7 +74,8 @@ lives in `agent_snapshot.gd`.
   `order` (`order_text`, LD6): one sentence while the NPC holds an order, "Your leader ordered you to defend the kitchen." / "... to go into the
   kitchen by its doorway quietly." ("with a stun grenade first", "with a frag grenade first": the order's `mode`, LD14; a held stack that has
   had no go adds " when they give the go", LD13), "Your leader ordered you to ambush the doorway into the hall from the living room." (into
-  `beyond` from `room`; an exterior door's: "... to ambush the outside doorway of the kitchen from inside.", LD15), a join (the leader's own
+  `beyond` from `room`; an exterior door's: "... to ambush the outside doorway of the kitchen from inside.", LD15; an AI defender leader
+  that ordered itself, LD29, reads the same sentence: measured for it with `tools/von_probe.py` on 2026-10-30, it moved no combat top pick, `docs/leadership.md` LD15), a join (the leader's own
   stack, mode `join`, `StackClaim.is_join(order)`, LD24) "Your leader ordered you to go into the kitchen by its doorway with them.", "" otherwise; the planner
   shows it after the goal at every level, so an NPC with no order reads exactly what it read before. Measured with `tools/von_probe.py`
   (`docs/leadership.md` LD6, LD13 to LD15: at the 18 combat levels the top pick unchanged in 17/18 for the defend sentence and 18/18 for
@@ -98,7 +99,11 @@ lives in `agent_snapshot.gd`.
   would end where the NPC already stands or on a character it knows of (issue #51 R12, `docs/tactical-entry.md` E9): `shooter` is empty, and
   the `lead_shooter` lead left out, when the point toward the shots is where the NPC stands (`AgentTactics.where_it_stands`: the walk to its
   navmesh point is under a `STRIDE`, 32 px; shots from beyond the walkable ground), and the retreat spots are screened in `agent_tactics.gd`
-  (`domain-ai-perception`, Tactics). Other leads lie at fixed points and reaching one spends it (`check_lead`). `entries` (the doorways
+  (`domain-ai-perception`, Tactics). Other leads lie at fixed points and reaching one spends it (`check_lead`). Beside its options
+  `lead_group` hands out `lead_pos`, the point of the freshest lead that places a hostile, over all the leads before the option cap, an
+  ally's support lead skipped (each lead dict says `places_hostile`, false for an ally's support: its spot is the ally), `Vector2.INF` with none: the controller's radio reads it off the last
+  options (`_cadence.last_options["leads"]`) into an INVESTIGATE callout's `lead_pos`, which the defenders' squad reads for its ambush rule
+  (`docs/leadership.md` LD29); nothing in the state text or the options changes. `entries` (the doorways
   ENTER offers, `tuning.entry.enabled` only: out of the NPC's area into a room unseen — named by direction — or unsearched,
   nearest first; the place is the NPC's free stack slot on the side it would stack on (the team's, or its own when the way there crosses the doorway's view, E19), the answer its entry's `begin` will give: the doorway's `DoorStack` off the perception's `ClaimLedger` (`_ledger.stack(id, g)`, its claim chain `DoorStack.claim` with its own claim, `{ id, slot: 0, frame: GameClock.frame(), pos }`, and the side `AgentEntry.stack_side_from` gives from where it stands, as every member claims; a slot a dead end does not hold, `held` false, offers no option, E20, nor does a slot laid nowhere, its point `INF`), `params` carry `opening`, `into`, `slot`,
   `side`; the summary is the nearest one's desc), `search_rooms` (+ the front entrance while outside, when the NPC has one, `entry_point`;

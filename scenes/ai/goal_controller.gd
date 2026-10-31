@@ -426,12 +426,14 @@ func _bind_body(character: Node) -> void:
 	_planner.bind(_npc_name())
 
 
-## SENSE: folds the queued events in, perceives, takes the squad's follow reads and refreshes the
-## confinement (after the whole order intake: the SEE pass ends an ambush on contact), and lets the
-## behaviour adopt the hostiles it knows (reconsidering at once when the engaged contact is lost)
-## before the salient-event check.
+## SENSE: folds the queued events in, primes a posted ambusher (before the SEE pass, so the sight
+## test runs every frame), perceives, takes the squad's follow reads and refreshes the confinement
+## (after the whole order intake: the SEE pass ends an ambush on contact), and lets the behaviour
+## adopt the hostiles it knows (reconsidering at once when the engaged contact is lost) before the
+## salient-event check.
 func _sense(character: Node, delta: float) -> void:
 	_comms.process_events()
+	_reflexes.prime()
 	_perception.house.openings = openings
 	_perception.observe(rooms)
 	_reflexes.follow_squad()

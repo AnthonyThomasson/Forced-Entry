@@ -86,6 +86,18 @@ static func orders(t: TestContext, who: Node = null) -> Array:
 	return t.events_of(&"order", func(d): return who == null or (d.get("to", []) as Array).has(who))
 
 
+## The ambush orders posted so far (LD15).
+static func ambushes(t: TestContext) -> Array:
+	return orders(t).filter(func(o): return String(o.get("kind", "")) == AMBUSH)
+
+
+## The names of `nodes` (an order's `to`), sorted.
+static func names(nodes: Array) -> Array:
+	var out := nodes.map(func(n): return String(n.name) if n is Node else str(n))
+	out.sort()
+	return out
+
+
 ## Post an order straight onto the bus, as a squad does (LD5):
 ## `{ id, leader, faction, to, kind, ... }`, stamped with the frame it is posted on (`frame`) unless
 ## it names one.
@@ -123,6 +135,17 @@ static func progress(t: TestContext, step := "", who: Node = null) -> Array:
 		if step != "" and String(d.get("order_step", "")) != step:
 			return false
 		return who == null or d.get("speaker") == who)
+
+
+## The progress steps `member` radioed about `order`, oldest first, those of `of` only (all with
+## []).
+static func steps(t: TestContext, member: Node, order: Dictionary, of: Array = []) -> Array:
+	return progress(t, "", member).filter(
+		func(c): return (
+			str(c.get("order_id", "")) == str(order.get("id", ""))
+			and (of.is_empty() or of.has(String(c.get("order_step", ""))))
+		),
+	).map(func(c): return String(c.get("order_step", "")))
 
 
 ## The entry claims (any entry step) from `who` that carry an `order_id`.

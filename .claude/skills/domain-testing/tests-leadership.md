@@ -5,7 +5,7 @@ real-Von ones (`requires_von`) with `--include-von --require-von`. They are spre
 `memory_matches_reference`, which is not tagged `leadership`), the order transport, ORDER node, progress radio, a refused order and what an order stops (a walk, not a fight: `order_stops_walk`, `order_fight_goes_on`, `order_retreat_goes_on`) in `tests/ai/decision/` (`order_*`, and
 `unordered_state_unchanged`, which compares an unordered NPC's first walk and state text with the capture `unordered_state_unchanged.json`
 beside it), defending a room in `tests/ai/combat/defend_room_*`, the ambush (LD15) in `tests/ai/combat/ambush_*` (`ambush_door_post`,
-`ambush_ends_on_shot_at`, and `ambush_vs_stack` with real Von), the ordered stack in `tests/ai/entry/order_stack_*` (scripted, the Terrace
+`ambush_ends_on_shot_at`, `ambush_post_cover_through_body`, and `ambush_vs_stack` with real Von), the ordered stack in `tests/ai/entry/order_stack_*` (scripted, the Terrace
 house's back door; the held stack of LD13 in `order_stack_hold_for_go`, `order_stack_go_latched`, `order_stack_hold_human_go`,
 `order_stack_hold_leader_dies`), the frag entry (LD14) in `tests/ai/grenade/order_frag_*` (`order_frag_entry`, `order_frag_held_then_go`,
 `order_frag_no_frag_goes_quiet`), the squad and Main's wiring in `tests/general/` (`squad_leader_rule`, `squad_succession`,
@@ -16,12 +16,22 @@ A test with one squad per side declares it (`s.squads`, the human leader a puppe
 members, leader)`, a squad built and bound by the match's own rule (`MatchBuilder.build_squads`) in `run`, for the squads no setup declares
 (two squads of one side, in `general/squad_leader_rule` and `ai/decision/order_progress_radio`, each saying why in its header), `issue` / `post` / `view` /
 `stack_order` (a stack the way the menu asks for it, `mode` and `wait_go`) / `go` (the leader's go, LD13) /
-`member_view` / `orders`, the radio
-(`progress`, `ordered_claims`, `raw_calls`, `first_time`, `all_called`, `by_slot`), `gunfire_near` (forces a decision without touching the brain),
+`member_view` / `orders` / `ambushes` (the ambush orders posted) / `names` (an order's `to`, sorted names), the radio
+(`progress`, `steps` (a member's progress steps on one order), `ordered_claims`, `raw_calls`, `first_time`, `all_called`, `by_slot`), `gunfire_near` (forces a decision without touching the brain),
 `pause_for(t, wall_s)` (holds the tree paused for that much wall time: the test clock stops with it) and the back door's click points (`BACK_NORTH`, `BACK_SOUTH`,
 `BACK_ON`, `BACK_INSIDE_NORTH`, `back_side`), with the spec's numbers as consts (`ORDER_READY_CAP`). The brain's reads are
 `tests/_ai/order_brain_probe.gd` (`const OrderBrain := preload(...)`: `brain`, `ordered`, `decisions`, `primitive`, `params`, `on_order`,
-`levels`, and where its entry has it stand at the back door, `stack_point` and `stacked`). The command menu and the order markers are
+`levels`, and where its entry has it stand at the back door, `stack_point` and `stacked`). The ambush tests on one room (LD15, D17, D18:
+`ambush_post_shielded_from_bang`, `ambush_primed_fires_on_line_open`, `ambush_survives_stun_entry`) lay it with
+`tests/_ai/ambush_maps.gd` (`const AmbushMap := preload(...)`: `room(s)`, a room over a hall, their doorway, the front door and a wardrobe,
+and its landmarks as consts, as `flank_maps.gd` does). The defenders' ambush rule's tests (`general/squad_ambush_rule`, `squad_ambush_rule_off`, LD29) post their radio calls through
+`tests/_ai/ambush_rule_probe.gd` (`const AmbushRule := preload(...)`: `combat_call(t, speaker, faction, target)`, a COMBAT callout placing a
+hostile, returning the ambush order it gave rise to, read with `Order.ambushes`). Where every member of an ambush order waits, at every doorway of a house, is read
+by `tests/_ai/ambush_posts_probe.gd` (`const AmbushPosts := preload(...)`: `posts_of(t)`, `check_capture(t, path)`) through the published
+entry geometry with no NPC (a ranking of its own, worked out as the one the NPCs on a map share), and
+`ai/combat/ambush_posts_capture_terrace` / `_house` pin it to a capture of the full ranking beside each; the shared ranking itself runs in
+`ai/combat/ambush_post_cover_through_body` (its own room: a bystander between a post and the low cover on its line leaves the post its
+cover rank), `perf/ambush_order_stress` and the crew scenarios. The command menu and the order markers are
 `tests/_ai/order_menu_probe.gd` (`const OrderMenu := preload(...)`: `command_menu`, `items`, `item`, `labels`, `choose`, `tick`, `click`,
 `view_still`; `player_screen` sizes a headless root
 viewport to the project's window, as a real screen is (a real window keeps its own size unless `exact`, for a premise built on the

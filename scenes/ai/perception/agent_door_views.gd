@@ -466,7 +466,7 @@ func avoided(
 				"id": opening_id(o),
 				"into": into,
 				"poly": poly,
-				"joins": (o.get("rooms", []) as Array).map(func(j): return str(j)),
+				"joins": HouseRooms.joins(o),
 			})
 	_avoided_set = {
 		"key": "%d:%s" % [int(door_view_depth), ",".join(keys)],

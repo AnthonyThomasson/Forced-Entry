@@ -27,7 +27,7 @@ SPLIT = ("architecture", "domain-testing")
 CEILING = 30 * 1024
 # The `Class.method` names tools/test_coverage.py reads out of the interface files: bump it when an interface file
 # gains or loses one.
-COVERAGE_NAMES = 171
+COVERAGE_NAMES = 174
 
 # A path into a split skill's folder, rooted at the skills dir or the repo, placeholders and globs captured too.
 ROOTED = re.compile(r"(?<![\w/.-])(?:(?:\.claude/)?skills/)?(architecture|domain-testing)/([\w./*<>-]*[\w*>])")

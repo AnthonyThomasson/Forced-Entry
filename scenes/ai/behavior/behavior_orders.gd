@@ -158,6 +158,12 @@ func apply_defend() -> void:
 	behavior._combat.reload_if_dry()
 
 
+## Whether the NPC is a primed ambusher (LD15): its running leaf the `ambush` of its live order, at
+## its post.
+func primed() -> bool:
+	return behavior.task.primitive == &"ambush" and behavior.task.arrived and _live()
+
+
 ## Whether the order the running leaf carries out (its `order_id`) is still the NPC's live order
 ## (`AgentPerception.orders.current`).
 func _live() -> bool:

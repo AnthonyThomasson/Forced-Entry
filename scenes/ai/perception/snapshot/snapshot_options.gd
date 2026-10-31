@@ -373,7 +373,10 @@ func _retreat_name(s: Dictionary) -> Array:
 ## heading in, gunfire or footsteps heard in it, shots from it, an ally's fight in it) is not a lead
 ## when the room is one a doorway of ENTER leads into (`entered`, see `entry_rooms`; the snapshot
 ## hands it over only while a stun can be thrown): that room is entered, and the entry says why
-## (docs/grenades.md G18).
+## (docs/grenades.md G18). Each lead says whether it places a hostile (`places_hostile`: every
+## lead but an ally's support). Beside the options it hands out `lead_pos`, the point of the
+## freshest lead that places one (over them all before the option cap), `Vector2.INF` with none: an
+## INVESTIGATE decision radios it (the defenders' ambush rule).
 func lead_group(ctx: Dictionary, hostiles: Array, entered := {}) -> Dictionary:
 	var leads: Array = (_lost_leads(ctx, entered)
 			+ _heard_leads(ctx, &"heard_gunfire", "gunfire", entered)
@@ -400,7 +403,9 @@ func lead_group(ctx: Dictionary, hostiles: Array, entered := {}) -> Dictionary:
 			"" if leads.size() == 1 else "s",
 			options[0]["desc"].get_slice(" — ", 0),
 		]
-	return { "summary": summary, "options": options }
+	var placing := leads.filter(func(l): return l["places_hostile"])
+	var lead_pos: Vector2 = placing[0]["point"] if not placing.is_empty() else Vector2.INF
+	return { "summary": summary, "options": options, "lead_pos": lead_pos }
 
 
 ## The leads of the hostiles the NPC has lost track of: where it last saw each, and where a moving
@@ -420,6 +425,7 @@ func _lost_leads(ctx: Dictionary, entered: Dictionary) -> Array:
 				("; they were moving %s" % _v.compass(c["vel"])) if moving else "",
 			],
 			"point": c["pos"],
+			"places_hostile": true,
 		})
 		if moving:
 			var ahead: Vector2 = NavBuilder.snap(
@@ -434,6 +440,7 @@ func _lost_leads(ctx: Dictionary, entered: Dictionary) -> Array:
 					_v.route_band(_route_len(ctx, ahead)),
 				],
 				"point": ahead,
+				"places_hostile": true,
 			})
 	return leads
 
@@ -456,6 +463,7 @@ func _heard_leads(ctx: Dictionary, topic: StringName, what: String, entered: Dic
 				_v.route_band(_route_len(ctx, pos)),
 			],
 			"point": NavBuilder.snap(ctx["map"], pos),
+			"places_hostile": true,
 		})
 	return leads
 
@@ -480,6 +488,7 @@ func _shooter_lead(ctx: Dictionary, hostiles: Array, entered: Dictionary) -> Arr
 		"age": 0.0, "id": "lead_shooter", "label": "where the shots came from",
 		"desc": "where the shots at you came from — the %s, just now" % _v.compass(from),
 		"point": origin,
+		"places_hostile": true,
 	}]
 
 
@@ -501,6 +510,7 @@ func _ally_leads(ctx: Dictionary, entered: Dictionary) -> Array:
 				_v.recency(c["age"]), ("; " + status) if status != "" else "",
 			],
 			"point": NavBuilder.snap(ctx["map"], at),
+			"places_hostile": false,
 		})
 	return leads
 

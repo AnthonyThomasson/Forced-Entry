@@ -1,6 +1,6 @@
 ---
 name: domain-ai-perception
-description: Deep implementation detail for the AI PERCEPTION sub-domain (scenes/ai/perception/) — what an NPC knows and how it is worded for Von. The sight sense, hostility rules, the confinement (where it may act: territory, ordered room, squad leash), the generic event memory (with keyed supersede), movement tracks/facing/visible wounds, gunfire and footsteps heard, where shots came from, allies' radio callouts, the live grenades known (seen, heard, called, own) and the plan to get clear of them, a blinded or deafened NPC, leads, searched rooms, the tactics geometry (flank sides, fire/advance/retreat spots, route length + exposure, cover), the doorway geometry for tactical entry (agent_entry.gd: stack slots, pie arc, hard/soft corners, the team's slot claims), the doorway views and the walk that keeps out of them (agent_door_views.gd) and its hand-off to the decision SNAPSHOT (the snapshot itself, its wording rules and option groups are the sub-domain `domain-ai-snapshot`). Use when editing scenes/ai/perception/ (except the snapshot) or working on vision, memory/eviction, hostility, flanking geometry, entry geometry, callouts, or combat line-of-sight. Complements the light `domain-ai` overview and the `architecture` skill (cross-domain interfaces).
+description: Deep implementation detail for the AI PERCEPTION sub-domain (scenes/ai/perception/) — what an NPC knows and how it is worded for Von. The sight sense, hostility rules, the confinement (where it may act: territory, ordered room, squad leash), the generic event memory (with keyed supersede), movement tracks/facing/visible wounds, gunfire and footsteps heard, where shots came from, allies' radio callouts, the live grenades known (seen, heard, called, own) and the plan to get clear of them, a blinded or deafened NPC, leads, searched rooms, the tactics geometry (flank sides, fire/advance/retreat spots, route length + exposure, cover), the doorway geometry for tactical entry (agent_entry.gd: stack slots, pie arc, hard/soft corners, the team's slot claims, defend and ambush posts, where an entry's grenade lands), the doorway views and the walk that keeps out of them (agent_door_views.gd) and its hand-off to the decision SNAPSHOT (the snapshot itself, its wording rules and option groups are the sub-domain `domain-ai-snapshot`). Use when editing scenes/ai/perception/ (except the snapshot) or working on vision, memory/eviction, hostility, flanking geometry, entry geometry, callouts, or combat line-of-sight. Complements the light `domain-ai` overview and the `architecture` skill (cross-domain interfaces).
 ---
 
 # AI · Perception sub-domain (`scenes/ai/perception/`)
@@ -54,9 +54,13 @@ Files:
   `ORDER` (`gunfire`, `footsteps`, `shot_from`, `ally_fight`, `seen_in`, `lost_by_door`, `heading_in`), `lost_rooms`, `shot_rooms` (the rooms `shot_line` runs through: the line back from a shot, counted from where it leaves the room the shot
   landed in, which is only where the NPC stood; the whole line when it never leaves that room). A pure read of the memory, the lost
   hostiles and the radio, shared by the snapshot (which words it) and, through `hearing.room_suspicion(key)`, the behaviour's entry (any entry into a suspect room is a bang one, and a late reason turns a quiet entry, E17).
-- `agent_entry.gd` (+ its parts `entry/entry_posts.gd`, `entry/entry_slots.gd`, `entry/entry_layouts.gd`) — doorway geometry for a tactical entry (`docs/tactical-entry.md`) (see "Entry geometry" below).
+- `agent_entry.gd` (+ its parts `entry/entry_posts.gd`, `entry/entry_slots.gd`, `entry/entry_layouts.gd`, and the static
+  `entry/entry_landings.gd`) — doorway geometry for a tactical entry (`docs/tactical-entry.md`) (see "Entry geometry" below).
 - `house_rooms.gd` — `HouseRooms`, the static room lookups over the house's rooms (`at(p, rooms)`, `key_at(p, rooms)`, `by_key(rooms, key)`) the
-  perception, its snapshot, the doorway views and the entry geometry share.
+  perception, its snapshot, the doorway views and the entry geometry share, and how a doorway joins them: `joins(o)` (the keys of the rooms
+  doorway `o` joins, as Strings) and `beyond(o, here)` (the room it leads into from `here`, "" = outside: the other room, "" for an exterior
+  door gone out by, null when it is no doorway of `here`), which the doorway geometry (`entries_from`, `room_doorways`), the doorway views
+  and the team (`Squad`, `attack_door.gd`) read alike.
 - `stack/` (`stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`) — a doorway's stack as the radio describes it: the entry claim's wire
   format and step lists, the claims one listener has heard, and every slot rule and slot point (see "The stack" below). The one folder of
   perception's that behaviour and the team (`ai/team/`) preload themselves: the stack seam.
@@ -89,7 +93,8 @@ and `evade_margin` among them, `apply_config` sets on the module that reads them
 - `observe(rooms)` — the SEE pass, every tick (`sight.see(rooms)`, then `house.learn_by_sight()`, over the rooms `house.take_in(rooms)` kept): one `saw_character` sighting per visible
   character (keyed, superseded while visible; renewed every `SIGHT_EVERY_FRAMES` (3, `perception_sight.gd`) physics frames, offset per NPC and target,
   for a character that stays in the view cone: the range/cone test runs every frame, so one that enters the cone is tested at once
-  and one that leaves it is dropped at once, and what the NPC holds of a character it sees is at most 3 frames old;
+  and one that leaves it is dropped at once, and what the NPC holds of a character it sees is at most 3 frames old; every frame while
+  `sight.primed` (a primed ambusher at its post, set each tick by the controller's reflexes, `docs/leadership.md` LD15, D37);
   `tests/ai/perception/sight_follows_a_moving_target_test.gd`) carrying `pos`, a smoothed velocity track (`vel`, measured on `GameClock`; `track_smoothing` is the share taken per game frame, so a sighting several frames after the last takes the share they add up to),
   `facing`, the visible wound damage (`wound_dmg`, banded by the snapshot), `reloading`, `posture`, `ally`, inside/room, held item; the room the NPC stands in is
   remembered as searched (`visited_room`); an unfamiliar NPC learns rooms/objects by sight (it skips what it already knows
@@ -369,16 +374,41 @@ and `door_pos` INF for that lone member, who turns among them). The snapshot's `
 unit normal into a room from the edge a doorway lies on, `AgentDoorViews.normal_into`) is also read by the squad (`ai/team/squad.gd`).
 **Ambush posts (`docs/leadership.md` LD15, D17).** `posts.ambush_spot(entry, g, place, map, space)` (`g` the entry geometry `geometry(id, room_key, map, space)`) is where member `nth` of `count` ordered
 to ambush doorway `id` from room `room_key` waits: `{ spot, door_pos, seen }` (`door_pos` the doorway's centre, where its gun goes; `seen` how
-many lookouts see the post, 0 hidden), {} for a doorway or room it does not know or no post. The candidates (`_ambush_posts`, kept per
-doorway and room side in `posts.cache` once worked out on a baked map, cleared by `set_house`; `_ambush_post` reads the entry from the frame
-it takes, `f["entry"]`, set by `_ambush_posts`) lie `AMBUSH_DEPTHS` (40 to 160 px) back from the
+many lookouts see the post, 0 hidden), {} for a doorway or room it does not know or no post. The candidates (`_ambush_ranking`: `{ posts,
+landings }`, kept per doorway and room side once worked out on a baked map, in the NPC's `posts.cache`, cleared by `set_house`, and **shared
+by every NPC on the map** in the static `_shared` (`EntryLayouts.per_map`: map RID -> `"<layouts.key(entry)>|<crouch>|<id>><room>"`,
+dropped with the map's planning region), since a doorway's ranking reads nothing of the member but the tunables that key names (the
+geometry's and the sight's, and the crouched height) and every line of it looks through the characters' bodies; only an NPC's
+ranking (its `posts.body` set) is shared, a geometry with no NPC keeping its own; `_ambush_post` reads the entry from
+the frame it takes, `f["entry"]`, set by `_ambush_ranking`) lie `AMBUSH_DEPTHS` (40 to 160 px) back from the
 wall and `AMBUSH_LATERALS` (30 to 260 px) past the jamb, either side, inside the room by `AMBUSH_INSET` (22 px), through `_defend_candidate`
-(snapped, its funnel, its sight line and cover on the line to each doorway); one off the doorway's sight line or on its axis (within half the
-width + `DEFEND_BODY`) is dropped. Each is scored `seen` x 1000 + funnel x 500 + (no cover on its line to the threshold) 300 + |depth -
-`AMBUSH_DEPTH` 110|, `seen` counting the geometry's `lookouts`, slots and pie points that see it (`_sees_from`: `AgentVision.sight_hit`, over
-low cover, at any range and facing); a post seen by none is hidden only if it is hidden from the 8 points `AMBUSH_SLACK` (12 px) round it too.
-Members alternate sides of the axis, the side with more wall first, and two posts stand `AMBUSH_SPACING` (44 px) apart. The snapshot's `order`
-group calls it.
+(snapped, its funnel, its sight line and cover on the line to each doorway, the characters' bodies looked through); one off the doorway's sight line or on its axis (within half the
+width + `DEFEND_BODY`) is dropped. Each is scored `seen` x `RANK_SEEN` (1e7) + frag landings x `RANK_FRAG` (1e5) + stun landings x
+`RANK_STUN` (1e4) + funnel x `RANK_FUNNEL` (500) + (no cover on its line to the threshold) `RANK_NO_COVER` (300) + |depth - `AMBUSH_DEPTH`
+110|, each rank above all the ranks below it can add up to; `ambush_spot` adds `RANK_SIDE` (1e9) for a post off the member's side, above
+everything. Since nothing below `seen` can outweigh one `RANK_SEEN`, the landings are counted only where they can decide a pick
+(`_best_post`): among the posts still open (clear of the posts taken) only those tied on the least `seen` and side can win, and only
+those have their exposures counted (`_expose`, once a post, kept in the ranking), so the picks are those of the full score
+(`ai/combat/ambush_posts_capture_terrace` / `_house` pin every post of two houses to a capture of the full ranking, read off a geometry
+with no NPC, whose own ranking is worked out as the shared one; the shared ranking runs in `ai/combat/ambush_post_cover_through_body`,
+`perf/ambush_order_stress` and the crew scenarios, and `ambush_post_cover_through_body` pins that a body standing in front of a post's
+low cover leaves it its cover rank). `seen` counts the geometry's `lookouts`, slots and pie points that see it (`_sees_from`: `AgentVision.sight_hit`, over low cover, the bodies looked through,
+at any range and facing); a post seen by none is hidden only if it is hidden from the 8 points `AMBUSH_SLACK` (12 px) round it too. The
+landings (`_exposures`, LD15, D17) count, per kind of `BANG_KINDS` (frag, then stun), the spots an entry's grenade into the room by that
+doorway may land (`_bang_landings`: `EntryLandings.spots(g, reach)`, reckoned from the doorway's centre, no slot filter) that reach a body
+crouched at the post: within the kind's `danger_radius` and not shielded by `Explosion.shields` (interface 3) with a `CoverRule` at
+`posts.crouch` (the body's `movement.posture_coverage(&"crouch")`, handed in by `AgentPerception.bind`), every character under the NPC's world root excluded
+(`_bodies`: the group `characters` under `posts.body`'s `world_root()`, interface 7, the NPC's body handed in by `bind` beside `crouch`;
+none for a geometry built with no NPC), `cover_reach` the kind's `flash_cover_reach`. The grenade's numbers are `GrenadeConfig.stats_of(kind)` (interface 6: a grenade
+nobody holds), the reach a thrower that knows the grenade has (`AgentThrow.reach_of` of an `AgentThrow` that `learn`ed those numbers: `max_range` less `REACH_SLACK`). Members alternate sides of the axis, the side with more wall first, and
+two posts stand `AMBUSH_SPACING` (44 px) apart. The snapshot's `order` group calls it.
+**Where an entry's grenade lands (`entry/entry_landings.gd`, `EntryLandings`, static, preloaded, no `class_name`; `docs/grenades.md` G18).**
+The one rule the stack's thrower aims by (the behaviour's `entry/entry_grenade.gd`, `domain-ai-entry`) and an ambush post is shielded by, over
+a way in's entry geometry `g`: `grid(g)` the aim points in order of preference, `Vector2(deep, across)`, `BANG_DEPTHS` (0.85 / 0.7 / 0.55) of
+the room's depth (the geometry's `depth`) by `BANG_ACROSS` (0 / 0.2 / -0.2) of its width; `aim(g, spot, deep,
+across, reach)` the point a grenade thrown from `spot` at that aim point lands at, pulled back along its line to within `reach` (`Vector2.INF` when no point that far
+across is); `lands(g, target)` inside the room `BANG_INSET` (30 px) clear of its walls and at least `BANG_MIN_DEPTH` (120 px) from the
+doorway; `spots(g, reach)` every aim point aimed from the doorway's centre that lands, deduplicated.
 **An ordered stack's walk (`docs/leadership.md` LD9, D4, D11).** `views.ordered` (on the perception's `views` part, `perception_views.gd`; set each tick by the behaviour while it walks an ordered stack's
 way to its door) makes `sync_walks` turn the view avoidance on (`AgentDoorViews.avoid_views` = `tuning.entry_guard.enabled` and (`tuning.entry.enabled` or `ordered`))
 and, for an NPC with `tuning.entry.enabled` off (a defender), swap `AgentDoorViews.pass_clear` for `_passable` and have `threshold_ahead` pass rooms

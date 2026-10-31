@@ -26,7 +26,9 @@ its primitive, params, arrival, contacts, `Combat` and `Entry`; the watch keeps 
 4. With none and `_resting` (a `hold`, a `reload`, a `move` that has arrived and is not covering a room, a `throw` whose grenade is
    away, a `defend` or `ambush` that has arrived): `Watch.idle_gaze`, but for a `defend` or `ambush` whose params carry `door_pos`, which
    eases the gaze onto it (`Watch.ease_gaze` at `tuning.coverage.look_rate`): a defender's gun on its own doorway (`docs/leadership.md` D2), an
-   ambusher's on the threshold it waits on (LD15).
+   ambusher's on the threshold it waits on (LD15). An ambusher at its post is primed (LD15, D37: the controller's reflexes, not this
+   module): its sight tests the cone every frame and its body moves after every other, so this stage sees an entrant on the frame its step
+   opens the line and fires then, with no change here.
    `gaze` (`threat` / `doors` / `primitive`, `evade` while the behaviour evades) and `threat` are the watch's, in `debug_state()["gaze"]`.
 
 ## Watch (`watch.gd`, a `RefCounted` built in `Behavior.setup`, handed the NPC's tuning there: `setup(loco, perception, tuning)`)

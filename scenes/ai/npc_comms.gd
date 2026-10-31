@@ -95,8 +95,10 @@ func on_entry_turned() -> void:
 
 
 ## Broadcast this NPC's decision as an `&"callout"` EventBus event (interface 10): who is speaking
-## and where, its state, the decision path, its target and destination, and with a combat decision
-## `target_pos` (where the hostile is as it knows it). Allies within range hear it.
+## and where, its state, the decision path, its target and destination, with a combat decision
+## `target_pos` (where the hostile is as it knows it) and with an investigation `lead_pos` (the
+## freshest lead placing a hostile its decision weighed, `Vector2.INF` for none). Allies within
+## range hear it.
 func post_callout(leaf: Dictionary) -> void:
 	var character: Node = controller._character
 	var params: Dictionary = leaf["params"]
@@ -114,6 +116,11 @@ func post_callout(leaf: Dictionary) -> void:
 		# Where the hostile is, as the speaker knows it: an ally weighing the room it is in hears it
 		# (docs/grenades.md G18).
 		radio["target_pos"] = controller._perception.contacts.target_pos(params.get("target_id", 0))
+	elif str(leaf["path"][0]) == "investigate":
+		# The freshest lead placing a hostile, as the decision weighed it: the squad reads it (the
+		# defenders' ambush rule); allies' perception ignores it.
+		var leads: Dictionary = controller._cadence.last_options.get("leads", {})
+		radio["lead_pos"] = leads.get("lead_pos", Vector2.INF)
 	EventBus.post(&"callout", radio)
 
 

@@ -117,7 +117,9 @@ player_stack, leader_overlay }`). `build` is its two stages:
   `docs/leadership.md`) per faction under `world`, named `Squad_<faction>`, over that side's combatants in spawn order (after `arm`, which
   ranks the unit), with the house's openings and rooms, the human as its leader when the spec's `human.lead` says it leads, and the claim
   ttl `callout_ttl_of(members)` (the `tuning.radio.callout_ttl` of the first NPC's controller, 0 with none) unless the spec's `claim_ttl` names one (a
-  test's squad of puppets, `TestSetup.squads`); each member is handed its squad
+  test's squad of puppets, `TestSetup.squads`), and the roster's `ambush_attacks` set for the defenders' side only (`faction ==
+  DEFENDER_FACTION`: its AI leader ambushes the doorway an attack comes through, LD29; the squad never runs it while the human leads);
+  each member is handed its squad
   (`bind_squad`: an NPC's controller's `squad`, and the human's `PlayerStack`, through `stack`, its `squad` and `own_claims`, true on the
   invaders' side only, so a human defender leader's step-ups rally nobody, D29). The leader is the squad's own rule (rank, then spawn order),
   or the human when it leads. Then `build_leader_overlay(world, squads)`: the `LeaderOverlay` (UI overlays, `watch` over every squad's
