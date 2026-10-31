@@ -386,6 +386,8 @@ func sense(goal: String, activity: String) -> Dictionary:
 		"carried_grenades": carried,
 		"character_rids": grenades.character_rids() if not carried.is_empty() else [],
 		"order": orders.current(),
+		# The room its held stack is to enter (its confinement's, `orders.held_room()`).
+		"keep_out": confinement.keep_out,
 		"follows": follows,
 	}
 	knowledge["contacts"] = contacts.known(self_pos)

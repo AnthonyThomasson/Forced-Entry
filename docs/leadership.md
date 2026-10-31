@@ -327,7 +327,8 @@ its slots and radios `ready` as any stack, then holds: the point holds its slot,
 slices a split stack's own half or crosses until its go (`Entry.orders.held_for_go`, ahead of the bang and the pie in `readiness.tick_stack`). Each member
 ready and held radios `order_step` `in_position` (`Entry.holding_for_go`), which the markers show. Its claims carry `order_hold`, and
 `order_go` once the go has come; an unordered member that joins a held ordered stack holds with it (D10). While held the order's
-sentence for Von ends " when they give the go".
+sentence for Von ends " when they give the go": while its stack is held (`DoorStack.held`, the room the confinement keeps it out of, D38), so
+not once the go came, the squad's or the leader stepping in (D14).
 - **Go (D13).** `go` is an order kind of its own, `{ opening, pos }`: the squad posts it to every living member holding a held stack order
   at the doorway nearest the request's `pos`, whatever its `to` and the menu's selection, and posts nothing where no held stack waits. It
   replaces nothing: the member's perception marks its live stack order `go: true` (`orders.process`) and asks for no new decision, and the
@@ -730,7 +731,7 @@ takes over the lead while it holds a join rallies nobody on it; its next claim o
   `refused` and the member follows again (LD25), instead of an ordered stack's refused hold (D21).
 - **The wording.** "Your leader ordered you to go into the kitchen by its doorway with them." (LD6): measured with `tools/von_probe.py` over
   the 38 `tools/von_scenarios` levels in spike #66, it moved no combat level's top pick (the expected pick's probability moving 0.020 on
-  average). A held join, until the squad's go reaches it (`go` on the order), ends " when they give the go" as a held order does (LD13): "Your leader ordered you to go into the
+  average). A held join, while its stack is held (until the squad's go reaches it or the leader steps in, `DoorStack.held`), ends " when they give the go" as a held order does (LD13): "Your leader ordered you to go into the
   kitchen by its doorway with them when they give the go." Measured the same way, the sentence inserted after the goal (2026-10-29): it keeps the combat top pick in 18 of 18 levels, the expected pick moving 0.023 on average (0.092 at most;
   the plain join sentence, measured beside it, 0.020 and 0.076). At the levels an ordered member never reaches it moves the same two the
   plain join sentence moves, by about as much: `investigate_outside_lead_invader_goes` to `stay` (0.51 to 0.49) and

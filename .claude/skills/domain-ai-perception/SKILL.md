@@ -39,7 +39,8 @@ Files:
   `params.from` (the spot a grenade is thrown from), else `params.point`; an option naming no place (a reload, a punch) is allowed.
   `confines()` (any rule set), `room_at(p)` (`HouseRooms.key_at`), `copy()` (a copy a later refresh leaves as it is) and `view()`
   (`{ inside_only, room, leash_center, leash, keep_out, confines }`). Who reads which: `sense()` puts `confinement.copy()` in the decision snapshot
-  (`snapshot["confinement"]`), which the planner's COMBAT filter reads (`domain-ai-decision`); behaviour's fight (`hold_ground`), `Combat`'s
+  (`snapshot["confinement"]`), which the planner's COMBAT filter reads (`domain-ai-decision`), and its `keep_out` in the knowledge (`keep_out`), which
+  the order sentence's " when they give the go" reads (`domain-ai-snapshot`); behaviour's fight (`hold_ground`), `Combat`'s
   spots and melee (`domain-ai-combat`), the `follow` primitive (its `leash_center`) and the errand's walk keep-out (its `keep_out`,
   `domain-ai-behavior`) read the live one, and the reflexes' leash break
   its `leash_center` / `leash`. The controller's `debug_state()["confinement"]` is the live `view()`, its `debug_state()["decision"]

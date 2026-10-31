@@ -52,16 +52,16 @@ func situation_text(rooms: Array) -> String:
 ## first", "with a frag grenade first", LD14; a held stack adds " when they give the go", LD13,
 ## since "and wait for my go" moved a combat level's top pick; a join, the leader's own stack:
 ## "... by its doorway with them.", LD24, and a human leader's held rally "... with them when they
-## give the go.", D38) / "... to ambush the doorway into the
-## hall from the living room." (LD15; an exterior door's: "... to ambush the outside doorway of the
-## kitchen from inside"). Empty with no order, so an NPC that holds none reads exactly what it read
-## before.
-func order_text(order: Dictionary, rooms: Array) -> String:
+## give the go.", D38; held while its stack is: `keep_out`, the room its held stack is to enter, is
+## the order's) / "... to ambush the doorway into the hall from the living room." (LD15; an
+## exterior door's: "... to ambush the outside doorway of the kitchen from inside"). Empty with no
+## order, so an NPC that holds none reads exactly what it read before.
+func order_text(order: Dictionary, rooms: Array, keep_out: String) -> String:
 	match String(order.get("kind", "")):
 		"defend_room":
 			return _defend_order_text(order, rooms)
 		"stack":
-			return _stack_order_text(order, rooms)
+			return _stack_order_text(order, rooms, keep_out)
 		"ambush":
 			return _ambush_order_text(order, rooms)
 	return ""
@@ -77,16 +77,15 @@ func _defend_order_text(order: Dictionary, rooms: Array) -> String:
 
 
 ## `order_text` of a `stack` order: into the room by its doorway quietly, with a grenade first or,
-## for a join, with them; a held stack with no go yet, a join too, adds " when they give the go". ""
-## for a room it does not know.
-func _stack_order_text(order: Dictionary, rooms: Array) -> String:
+## for a join, with them; a stack still held for its leader's go (`keep_out` its room: no go on the
+## order nor off the radio, the leader stepping in too), a join too, adds " when they give the go".
+## "" for a room it does not know.
+func _stack_order_text(order: Dictionary, rooms: Array, keep_out: String) -> String:
 	var into := HouseRooms.by_key(rooms, String(order.get("into", "")))
 	if into.is_empty():
 		return ""
 	var mode := String(order["mode"])
-	var held := " when they give the go" if (
-		bool(order.get("wait_go", false)) and not bool(order.get("go", false))
-	) else ""
+	var held := " when they give the go" if keep_out == into["key"] else ""
 	if StackClaim.is_join(order):
 		# The leader's own stack (LD24): its team goes in with it.
 		return ("Your leader ordered you to go into the %s by its doorway with them%s."

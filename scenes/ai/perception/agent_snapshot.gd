@@ -275,7 +275,7 @@ func _state_sections(
 			else _sections.allies_text(ctx, {}, {}),
 		"flanks": per_sections[primary["id"]]["flanks"] if not primary.is_empty() else "",
 		"awareness": _sections.awareness_text(self_pos, not hostiles.is_empty()),
-		"order": _sections.order_text(knowledge["order"], rooms),
+		"order": _sections.order_text(knowledge["order"], rooms, knowledge["keep_out"]),
 	}
 
 
