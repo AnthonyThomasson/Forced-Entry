@@ -31,12 +31,12 @@ var avoid_entering := "":
 ## none; set each tick by `Behavior` with its doorway, `keep_out_of`, D38): a walk whose plain way
 ## goes into it goes round it, and round that doorway's view, as that stack's approach would; any
 ## other walk is left as it is.
-var held_room := ""
+var _held_room := ""
 ## The held stack's entry, `"<opening id>><room key>"` ("" for none), as `walk_route` takes it.
 var _held_entry := ""
 ## The goal `_out_enters` was worked out for.
 var _out_goal := Vector2.INF
-## Whether the plain way to `_out_goal` goes into `held_room`.
+## Whether the plain way to `_out_goal` goes into `_held_room`.
 var _out_enters := false
 ## The walk has been checked against the doorway views: it goes round them (`map`) or needs no way
 ## round.
@@ -72,14 +72,13 @@ func update(delta: float) -> void:
 			return
 	_doors_in = RECHECK
 	if avoid_entering == "" and _keeps_out():
-		var held_walk := true
-		_take_route(views.walk_route(loco._goal, _held_entry, Vector2.INF, held_walk))
+		_take_route(views.walk_route(loco._goal, _held_entry))
 	else:
 		_take_route(views.walk_route(loco._goal, avoid_entering))
 
 
 ## Whether the walk stands where it is for now: it keeps out of the held stack's room
-## (`held_room`, D38) and its way round is not decided yet (its map is being baked), so the plain
+## (`_held_room`, D38) and its way round is not decided yet (its map is being baked), so the plain
 ## way meanwhile would take it into that room, from that room's doorway at once.
 func waiting() -> bool:
 	return not decided and avoid_entering == "" and views != null and _keeps_out()
@@ -93,7 +92,7 @@ func keep_out_of(opening: String, room: String) -> void:
 		return
 	decided = false
 	_held_entry = entry
-	held_room = room if entry != "" else ""
+	_held_room = room if entry != "" else ""
 	_out_goal = Vector2.INF
 
 
@@ -103,23 +102,23 @@ func clear_way(from: Vector2, resting: Array) -> bool:
 	return map.is_valid() and loco._clear_on(map, from, resting)
 
 
-## Whether the walk keeps out of the held stack's room (`held_room`): its plain way to the goal
+## Whether the walk keeps out of the held stack's room (`_held_room`): its plain way to the goal
 ## goes into it, worked out once per goal.
 func _keeps_out() -> bool:
-	if held_room == "":
+	if _held_room == "":
 		return false
 	if loco._goal != _out_goal:
 		_out_goal = loco._goal
 		_out_enters = (loco._goal != Vector2.INF
-				and views.walk_enters(loco._goal, held_room))
+				and views.walk_enters(loco._goal, _held_room))
 	return _out_enters
 
 
 ## Whether the walk's way to the goal on navigation map `on` (the steering map round bodies) goes
-## into the held stack's room it keeps out of (`held_room`, D38): no way round a body that does is
+## into the held stack's room it keeps out of (`_held_room`, D38): no way round a body that does is
 ## taken.
 func enters_kept_out(on: RID) -> bool:
-	return held_room != "" and views.walk_enters(loco._goal, held_room, on)
+	return _held_room != "" and views.walk_enters(loco._goal, _held_room, on)
 
 
 ## A walk that does not keep out of the doorway views: it forgets the avoid map, and one on it goes

@@ -218,10 +218,10 @@ one of four ways, checked once a physics frame (`_check`):
 - **doors**: the Navigation domain's avoid map (`NavBuilder.avoid_map`: the planning bake with the doorway views carved out, E18), for a walk
   `Behavior` marks `doors.avoid_doors` (above; `doors.avoid_entering` = `"<opening>><into>"` while the primitive is an `entry`, so its approach keeps out of the
   room it goes into and its own doorway's view, cleared or not). A member whose confinement keeps it out of a held stack's room (`confinement.keep_out`, D38; on every walk, its fight's and its order's way to its slot alike; not an evade) has
-  `doors.keep_out_of(opening, room)` given the held stack each tick (`errand._held_room`, with the live order's doorway: `doors.held_room`, and the entry key
+  `doors.keep_out_of(opening, room)` given the held stack each tick (`errand._held_room`, with the live order's doorway: `doors._held_room`, and the entry key
   `walk_route` takes built once as it changes, `doors._held_entry`): a walk whose plain way goes into that room (`views.walk_enters`, once per goal; a
-  retreat or under fire too) is routed round it and its doorway's view however long the way round (`walk_route(goal, _held_entry, INF, held_walk)`, the
-  views' `held` walk: uncapped, and from that room's doorway judged from its outer side; until that way is decided, while its map bakes, the walk stands where it is, `doors.waiting()` in `move_to`,
+  retreat or under fire too) is routed round it and its doorway's view however long the way round (`walk_route(goal, _held_entry)`, a `held` walk, as is
+  any walk of an entry into that room: uncapped, and from that room's doorway judged from its outer side; until that way is decided, while its map bakes, the walk stands where it is, `doors.waiting()` in `move_to`,
   rather than go the plain way in meanwhile, which from that room's doorway takes it in at once), and never goes round a body by a way into it (`doors.enters_kept_out(steering_map)`, below); any other walk of it, one into that doorway's view to fire through it among them, is left as it is. `doors.update` asks the perception's views part (`doors.views`, typed with perception's `perception_views.gd`, which `loco_doors.gd` preloads, and handed `perception.views` by `Behavior.setup`: the seam the architecture's AI row names beside `entry.stack`) for the route (`walk_route(goal, avoid_entering)`) each frame until
   it is decided (plain while the avoid map bakes: `pending`), then every `doors`' `RECHECK` (2 s) while round the views (which keeps the map alive and follows
   the rooms as their clear lapses): the avoid map when the plain route comes into a view and the route round them is within `door_avoid_ratio` x plain +

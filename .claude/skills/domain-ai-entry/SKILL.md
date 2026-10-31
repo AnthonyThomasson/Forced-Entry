@@ -245,8 +245,9 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   guard's own clock), and a doorway into the room a held stack's member keeps out of (the confinement's `keep_out`, D38: a fight's walk up to
   that doorway, to fire through it, stops there, under fire too; test `ai/entry/order_stack_hold_advance_to_door_stays_out`; and a member
   standing in one of that room's doorways is not in it yet: `threshold_ahead` reads the room it is in from the doorway's outer side,
-  so a walk through that doorway away from the room is no entry; test `ai/entry/order_stack_hold_from_doorway`; only a held member's: an
-  approach of a stack held for nobody from inside the room it stacks for walks its plain way, test `ai/entry/order_stack_from_doorway_plain`). A new decision while a detour runs (`set_leaf`) replaces the paused order and leaves the entry
+  so a walk through that doorway away from the room is no entry; test `ai/entry/order_stack_hold_from_doorway`; only a held member's: a
+  walk of an entry held for nobody, from inside the room it goes into, keeps the way it had (`AgentDoorViews.walk_route`'s `held`), test
+  `ai/entry/entry_route_from_entered_room_doorway`). A new decision while a detour runs (`set_leaf`) replaces the paused order and leaves the entry
   running, unless it is one the guard does not apply to (`entries.guards(leaf, into)`: not a walk, a retreat, or under fire and not into the shots): then the
   detour is dropped and the entry abandoned (`abort` on the radio). Coming under fire before the crossing cancels the detour
   the same way (`entries._cancel_detour`); a crossing already under way is finished. A decision that was in flight when the NPC became

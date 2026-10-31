@@ -2,8 +2,9 @@ extends UnitSuite
 ## Native unit suite (pure logic) for the order sentence of the decision snapshot
 ## (`SnapshotSections.order_text`, `docs/leadership.md` LD6, LD13, LD24, D38): a stack held for its
 ## leader's go reads " when they give the go" while its stack is held (the room its held stack is to
-## enter kept out of, the confinement's `keep_out`), and none once the go came, whether the squad's
-## go reached it (the menu) or the leader stepped in (D14, D38: a go no order memory hears of).
+## enter kept out of, the confinement's `keep_out`), and none once the go came: nothing is kept out
+## then, whether the squad's go reached it (the menu) or the leader stepped in (D14, D38: a go no
+## order memory hears of).
 ## Beneath `tests/ai/stack/rally_held_until_leader_crosses` (the held text in a real decision); no
 ## decision of a joiner comes after the leader stepped in, since a crossing member decides nothing.
 ## The sentences are read off the spec (D38, LD13), never built the way the code builds them.
@@ -47,13 +48,6 @@ func test_a_held_join_reads_its_go_to_come() -> void:
 func test_a_join_whose_leader_stepped_in_reads_no_go_to_come() -> void:
 	# The leader crossed: its stack is no longer held, though no go reached the order memory.
 	assert_str(_sections().order_text(JOIN, ROOMS, "")).is_equal(JOIN_GONE)
-
-
-func test_a_join_whose_menu_go_came_reads_no_go_to_come() -> void:
-	var gone := JOIN.duplicate()
-	gone["go"] = true
-	gone["go_mode"] = "stun"
-	assert_str(_sections().order_text(gone, ROOMS, "")).is_equal(JOIN_GONE)
 
 
 func test_a_held_ordered_stack_reads_its_go_to_come() -> void:

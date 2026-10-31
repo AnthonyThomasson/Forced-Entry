@@ -186,16 +186,14 @@ func avoided() -> Array:
 ## plain one, or the one that keeps out of the views of the doorways into rooms not clear for
 ## passing when there is one within the cap. `entering` (`"<opening id>><room key>"`): the entry the
 ## walk is the approach of, which keeps out of that room and its doorway's view. `from` (INF: where
-## the NPC stands) is where the walk sets out from, for a leg of a walk read ahead. `held`: the walk
-## keeps a held stack's member out of `entering`'s room (D38): its way round that room is taken
-## however long it is, and from one of that room's doorways it is not in the room yet.
-func walk_route(
-		to: Vector2,
-		entering := "",
-		from := Vector2.INF,
-		held := false,
-) -> Dictionary:
+## the NPC stands) is where the walk sets out from, for a leg of a walk read ahead. A walk into the
+## room its confinement keeps it out of (`keep_out`, a held stack's member, D38) is a `held` one:
+## its way round that room is taken however long it is, and from one of that room's doorways it is
+## not in the room yet.
+func walk_route(to: Vector2, entering := "", from := Vector2.INF) -> Dictionary:
 	var at: Vector2 = perception._character.global_position if from == Vector2.INF else from
+	var kept_out: String = perception.confinement.keep_out
+	var held := kept_out != "" and entering.get_slice(">", 1) == kept_out
 	return views.walk_route(at, to, perception._character.get_world_2d(), entering, held)
 
 
