@@ -224,7 +224,13 @@ wind-up (0.3 s) later toward its spot, so the NPC throws it first and runs the t
 fuse is out. A spot is safe in either of two ways, and the NPC takes whichever is nearer: **out of line** (out of the grenade's line of sight, round
 a wall corner or a doorway, or outside its danger zone, defined below: beyond the radius and the margin), or **behind cover** that shields it from the blast (G7): it crouches behind that furniture, and
 a crouched character behind cover is as clear as one out of line. It then holds there, facing away or crouched, until the detonation, and
-re-decides. The danger zone of a frag is a clear line to the landing within `blast_radius` plus `evade_margin` **120 px**, so **370 px**; of a stun,
+re-decides. *(Amended by issue #158: safe first, then the fight.)* Holding its spot, a frag's or a stun's, it still fights: a threat the watch
+stage picks (`docs/gaze-and-fire.md`: the hostile it fights or the nearest it sees, else one seen a moment ago with a clear line to where it
+was) takes its eyes and gun from its back to the grenade, and it fires at will as under any primitive, crouched behind cover when the spot
+is cover. So does an NPC a frag catches with no spot it can reach in time (crouched where it stands: its facing is no help against the
+blast). On the run to the spot it does not fight (it runs, and a running character neither shoots nor reloads), and one a stun catches
+with no spot keeps its back to the bang (the fight comes after it). With no threat it faces away as before. A spot it can reach is one its route gets to: one on
+floor it cannot walk to (past a wall with no door) is no spot, however near. The danger zone of a frag is a clear line to the landing within `blast_radius` plus `evade_margin` **120 px**, so **370 px**; of a stun,
 a clear line within `flash_radius`, **400 px**; a stun's cover spot counts as clear only under G11's rule (furniture within `flash_cover_reach` of the body; the planner's candidates include a spot
 right against the far face of whatever stands near the burst). If it cannot get clear of a stun in time, it turns its back to it (so the flash blinds it for the
 back-turned share only). Allies within `callout_range` who are in that zone react the same way to the call, even when they neither saw nor heard the
@@ -237,6 +243,9 @@ the way into its spot (6 px), since a spot is out of the line with only a little
 not running to one), throw: {} }`.
 Tests: `ai/grenade/evade_frag_seen`, `ai/grenade/evade_frag_ally_warned`, `ai/grenade/evade_stun_turns_away`,
 `ai/grenade/evade_frag_crouches_behind_cover` (the amendment: a couch nearer than any way out of line, the defender crouches behind it),
+`ai/grenade/evade_fights_from_spot` and `ai/grenade/evade_stun_fights_from_spot` (scripted: clear of a frag, or of a stun, a defender holding
+its spot shoots at an invader in view before the burst), `ai/grenade/evade_frag_cornered_fights` (scripted: a walking defender a frag catches
+with no spot in time shoots at the thrower before the burst),
 `ai/grenade/evade_replans_when_spot_in_line` (scripted: a frag by the living room's doorway rolls on under 48 px and puts the planned spot in its line; a new
 spot out of the line is planned before the burst), `ai/grenade/evade_waits_for_own_windup` (scripted: a teammate's stun lands beside an invader winding up its
 own throw: its stun still goes onto its spot, then it runs), `ai/grenade/evade_wave_spots_match_own_plan` (five defenders round a frag an ally throws

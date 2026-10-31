@@ -558,7 +558,9 @@ meet (the first stopper for a crouched and for a standing body, `Explosion.first
 if pulled more than 40 px), judged (outside the zone, or shielded standing = out of line, or shielded only crouched = `crouch`), **every** survivor is routed
 (many candidates are the same point, the standing and crouching probes meeting the same wall: each point is snapped, each spot judged and each
 route measured once, `tests/ai/grenade/escape_spot_matches_plain_test.gd` pinning the answer to the plain loop)
-(`NavBuilder.route`; a straight line says nothing, a spot just behind a wall can be a house away) and the shortest route within `(fuse_left - 0.4 s) x run speed`
+(`NavBuilder.route`; a straight line says nothing, a spot just behind a wall can be a house away; a route that ends more than `ROUTE_REACH`
+2 px short of its spot does not reach it, as one to the walkable ring past a closed arena's wall, which the route stops short of at the
+nearest point it can walk to, and the spot is dropped: `tests/ai/grenade/evade_stun_turns_away_test.gd`) and the shortest route within `(fuse_left - 0.4 s) x run speed`
 (`RUN_RELIABILITY` 0.85 of `movement.run_speed()`, or `movement.walk_speed()` once stamina is below `RUN_STAMINA`: both slowed by a
 stun or a heavy outfit; `tests/ai/grenade/throw_timing_counts_slowed_walk_test.gd`) wins; `spot` is `Vector2.INF` when none is in time. Cost: ~150 snaps, ~300 rays and ~100 routes, only when a plan is
 made; in the grenade match guard a plan made alone costs about 2.5 ms of burst work (the candidates round the burst, their snaps, the verdicts) and 1.2 ms of routes.
