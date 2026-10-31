@@ -44,6 +44,12 @@ func advance(delta: float) -> void:
 	_elapsed += delta
 
 
+## The leaf is at rest at `to` (a body pushed it there).
+func rest_at(to: float) -> void:
+	angle = to
+	target = to
+
+
 ## Stop where the leaf is: it rests at this angle.
 func halt() -> void:
 	target = angle

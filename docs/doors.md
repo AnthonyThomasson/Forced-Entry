@@ -84,7 +84,8 @@ same per seed).
 ## DR5. What a door blocks
 
 A standing door (shut, ajar or open) is a solid leaf in the world: a body on the solid layer that stops characters like a wall
-(`tests/objects/door_blocks`: a puppet walking into a shut door stops at it), is struck by rounds at every height (`coverage` 100)
+(`tests/objects/door_blocks`: a puppet walking into a shut door stops at it; a shut door never moves for a walker, an ajar or open
+one turns away from the body, DR10), is struck by rounds at every height (`coverage` 100)
 and lets them through by its material's `penetration` by the usual rule (a hollow door slows a pistol round by 9%, a steel one by
 81%, which the pistol's `projectile_min_speed` does not survive: the round goes on through hollow, stops in steel; a rifle
 round goes through steel), blocks the AI's sight and casts a shadow (a light occluder on the walls' mask that turns with the leaf).
@@ -159,17 +160,41 @@ without its glass, its hits sound as wood from then on, and the frame stays, sta
 Tests: `objects/door_damage` (rounds, a punch, a kick, a frag's blast and fragments, a kick on steel, each against its factor; the
 panes).
 
-## DR10. Burst open
+## DR10. Burst open, and pushed open
 
-A kick or a blast on a shut or ajar door from the side it swings away from (its push side: the strike drives the leaf the way it
-opens) wears down its latch by the strike's own damage (a kick deals 14, a frag up to 60); when the latch's `latch_hp` is gone, the
-door swings fully open at once (`burst_speed`, 540°/s: a burst is faster than a swing, 0.17 s). A hollow door's latch (20) holds the first
-kick and gives to the second; a solid wood door's (60) to the fifth; a steel door's (50) to no kick (a boot cannot move its bolt) but to a
-frag; a glass-panel door's (20) to the second. A walking push (a shove of about 900 a frame) and a punch (900) are below
-`burst_impulse` (1500; a kick is 2200) and never count. From the other side (the pull side) a kick or a blast only damages the door,
-and a door that has burst stays unlatched.
+**A shut door is latched.** A kick or a blast on a shut door from the side it swings away from (its push side: the strike drives the
+leaf the way it opens) wears down its latch by the strike's own damage (a kick deals 14, a frag up to 60); when the latch's
+`latch_hp` is gone, the door swings fully open at once (`burst_speed`, 540°/s: a burst is faster than a swing, 0.17 s). A hollow
+door's latch (20) holds the first kick and gives to the second; a solid wood door's (60) to the fifth; a steel door's (50) to no
+kick (a boot cannot move its bolt) but to a frag; a glass-panel door's (20) to the second. A walking push (a shove of about 900 a
+frame) and a punch (900) are below `burst_impulse` (1500; a kick is 2200) and never count. From the other side (the pull side) a
+kick or a blast only damages the door, and a door that has burst stays unlatched. A shut door never moves for a walker.
 
-Tests: `objects/door_kick_burst` (a hollow door's second kick, the pull side, steel, solid at the fifth, punches, a walker).
+**An ajar or open door is not latched.** A door whose angle is above shut has no latch to wear: one kick or one blast from its
+push side throws it fully open at `burst_speed` with the burst sound (DR12), whatever its material, steel too. From its pull side a
+kick turns it back toward shut, as a walker's push does (below). A door already wide open is not burst.
+
+**A walker pushes an ajar or open door.** A body walking into an ajar or open leaf turns it about its hinge away from the body:
+toward open from the push side, toward shut from the pull side. The leaf turns from the shove the walker already gives it
+(`apply_impulse`, about 900 a frame, below `burst_impulse`; the shove of a kick or a blast too, held to `burst_speed`) by the shove's
+moment about the hinge against the leaf's weight (`DoorMaterialConfig` `weight`: hollow and glass-panel 30, solid 60, steel 120, so
+steel turns slowest): every frame of shove adds `moment / (weight x DoorPushConfig.resistance)` degrees a second to the leaf's
+spin, and the hinge's friction (`DoorPushConfig.friction`, 10 a second) takes the spin down again, so it stops soon after the walker
+stops: no spring-back, no wobble. A walker 30 px from the hinge turns a hollow door at about 95° a second, a steel door at a
+quarter of that. It turns within shut and `open_angle` and is stopped by what it meets as a swing is (DR8): furniture, a wall and a
+body in its arc, which it never pushes through and, unlike a swing, never nudges aside: it stops touching it (nor does it nudge the
+walker pushing it, who stands on the side it turns away from). Reaching shut it latches (the shut sound, DR12) and is a shut door
+again: rigid to walkers, its latch as it was. A hand or a burst swinging the leaf (a Use, a notch of the scroll, a burst latch)
+takes it over from a push, and a shove during a swing does nothing. A punch counts against the door as before (DR9) and gives its
+shove like a walker's. The AI walks doors open (DR14) and passes through open ones; a walker passing an open door lying against a
+wall meets its room-facing side, which can only turn it further open.
+
+Tests: `objects/door_kick_burst` (a hollow door's second kick, the pull side, steel, solid at the fifth, punches, a walker; an ajar
+hollow, solid and steel door thrown fully open by one kick from the push side, an ajar door turned toward shut by one from the pull
+side), `objects/door_push_open` (a puppet walking into an ajar hollow door from its push side opens it and walks through, the same
+into a steel door turns it by less over the same walk, a puppet walking into a shut door leaves it shut and stops, one walking
+into an ajar door from its pull side turns it shut, it latches with the shut sound and holds like a shut door, a leaf stops at a
+body in its arc and does not nudge it).
 
 ## DR11. Knocked down
 
@@ -187,25 +212,29 @@ walks over one, a round and an NPC's sight pass).
 Every door sound is synthesized in code like the other families (no audio files). A door posts a `&"door"` event
 `{ position, door, material, stage }` on the EventBus at each stage of its life, at the middle of its doorway, and `Sound` voices
 it through its pooled positional voices (category `door`: at most 4 at once, the oldest cut off first, heard out to 1200 px, the
-same range, jitter and `audio.sound` switch as the rest): one voice per event, the profile `leaf/<material>/<stage>`
-(`SoundDoors`), `material` the door's (`hollow`, `solid`, `steel`, `glass`); the one profile that is not the door's own is a steel
-door's `shut`, which is `leaf/solid/shut` (`SoundDoors.SHUT_AS`: it has no `leaf/steel/shut`).
+same range, jitter and `audio.sound` switch as the rest): one voice per event (`SoundDoors`). Every door, whatever its material,
+opens and shuts with the one latch sound and bursts with the one burst sound; only its fall (and the glass-panel door's shattering
+panes) is its material's own.
 
-| Stage | Posted when | Sounds like |
+| Stage | Posted when | Sounds like (profile) |
 |---|---|---|
-| `open` | a swing starts to open (a Use, a notch of the scroll) | the swing: the handle's click, then a creak; wood creaks (hollow brighter, solid lower and slower), a steel door groans lower still, a glass-panel door's frame creaks like wood |
-| `shut` | the leaf arrives at shut (the latch as it closes) | a click, the latch seating and a thud; a steel door shuts with a solid wood door's latch, no clang |
-| `burst` | the latch gives (DR10) | the bang: the latch cracking and the leaf slamming the wall, wood splintering, steel clanging |
-| `down` | the leaf falls (DR11) | the splinter and thud of the fall; a steel door's is a heavy clang that rings on |
-| `glass` | a glass-panel door's panes shatter (DR9) | a crack, a rush and the shards tinkling down (this stage has a sound for the glass-panel door only) |
+| `open` | a swing starts to open (a Use, a notch of the scroll) | the latch (`leaf/latch`): a click, the latch seating and the leaf's thud, the solid wood door's shut, for every material; no creak |
+| `shut` | the leaf arrives at shut: a swing, or a walker pushing it home (DR10) | the same latch, `leaf/latch` |
+| `burst` | the latch gives, or an ajar door is thrown open (DR10) | the bang (`leaf/burst`): the latch cracking and the leaf slamming the wall, wood splintering; the solid wood door's, for every material |
+| `down` | the leaf falls (DR11) | the splinter and thud of the fall, per material (`leaf/<material>/down`); a steel door's is a heavy clang that rings on |
+| `glass` | a glass-panel door's panes shatter (DR9) | a crack, a rush and the shards tinkling down (`leaf/glass/glass`; this stage has a sound for the glass-panel door only) |
+
+A door the hand moves posts `open` at the start of an opening swing and `shut` as it arrives; a leaf a walker pushes posts nothing
+on the way (it was not latched) and `shut` when it reaches shut.
 
 **No spam.** A gradual scroll (DR7) turns the door a notch at a time, each notch a swing opening it a little further; only the first
-of a movement creaks. The door remembers when it last began opening (`_opened_at`); a swing opening it within `DoorConfig.creak_gap`
-(0.6 s) of that carries on the same movement and posts no `open`, and every opening swing renews the time, so a run of notches is
-one creak (the clip is half a second) however long the scroll lasts. A movement ends when the door rests for the gap, or when a
-closing swing begins (a reversal): a notch after a rest, and an open, shut, open in quick succession, creak at each opening. A
-closing swing posts nothing until its leaf arrives at shut, so a scroll back down to partly open is silent, and a toggled door
-creaks once on the way open and clicks once on the way shut. A burst and a fall are single events (a burst is not also a creak).
+of a movement sounds its latch. The door remembers when it last began opening (`_opened_at`); a swing opening it within
+`DoorConfig.latch_gap` (0.6 s) of that carries on the same movement and posts no `open`, and every opening swing renews the time, so
+a run of notches is one latch sound (the clip is 0.3 s) however long the scroll lasts. A movement ends when the door rests for the
+gap, or when a closing swing begins (a reversal): a notch after a rest, and an open, shut, open in quick succession, sound at each
+opening (and at the shut between). A closing swing posts nothing until its leaf arrives at shut, so a scroll back down to partly
+open is silent, and a toggled door latches once on the way open and once on the way shut. A burst and a fall are single events (a
+burst is not also a latch).
 
 **What a hit sounds like.** A round, a punch or a kick on a door is heard as the door's surface material (`DoorMaterialConfig`'s `sound`, which
 `get_surface()` reports and the impact event carries): wood for the hollow and solid doors, glass for the glass-panel one until its panes
@@ -215,9 +244,12 @@ steel door sets to `metal` (grey sparks and shards, where wood throws splinters)
 
 Tests: `audio/door_sounds` (a hollow door used open and shut, burst by two kicks and felled by four, a steel door used open and shut
 and burst by a frag, a glass-panel door's frame opened and its panes shattered by a round: each posts one `&"door"` event with its
-stage and material and plays one voice of `leaf/<material>/<stage>` at the door; four scroll notches in a row, and four a quarter second apart (longer than the gap), creak once, a notch
-after a rest creaks again, and a door opened, shut and opened again at once creaks at each opening; the steel door's burst and fall ring on past the wooden door's, its groan is lower than the creak, its shut is the solid wood door's `shut` voice and a round and a kick on it are heard as wood's `impact/wood/...`, never `impact/metal/...`,
-the glass shatters bright), `audio/bank` and `audio/prewarm_covers_every_variant` (every door profile renders and is pre-warmed).
+stage and material and plays one voice at the door, opening and shutting the one `leaf/latch` for hollow, steel and glass-panel
+alike, a burst the one `leaf/burst` for hollow and steel; four scroll notches in a row, and four a quarter second apart (longer than
+the gap), sound once, a notch after a rest sounds again, and a door opened, shut and opened again at once sounds at each opening and
+at the shut between; the steel door's fall rings on past the wooden door's, the latch is short, a round and a kick on a steel door
+are heard as wood's `impact/wood/...`, never `impact/metal/...`, the glass shatters bright), `objects/door_push_open` (a leaf a walker
+pushes home posts `shut`), `audio/bank` and `audio/prewarm_covers_every_variant` (every door profile renders and is pre-warmed).
 
 ## DR13. Materials and styles
 
@@ -262,5 +294,6 @@ wood `panelled` one (ajar, swinging out into the range), a steel `riveted` one (
 `panes` one (shut, swinging into its room, with a dummy inside it seen through the panes). Between the rooms: a hollow `panelled`
 door (shut), a solid `plank` one (ajar) and a steel `peephole` one (open). Tap E beside a door to open or shut it (DR6), hold E and
 scroll to open it by steps (DR7), kick it (V) from the push side to burst its latch (DR10; hollow gives to the second kick, steel to
-none), shoot or kick a door down (DR9, DR11; the pistol stops in steel, the rifle does not) and shoot out the glass door's panes
+none; an ajar or open door has no latch, so one kick throws it open, steel too), walk into an ajar or open door to push it about its
+hinge (away from you, the heavier the door the slower; from the pull side it turns toward shut and latches), shoot or kick a door down (DR9, DR11; the pistol stops in steel, the rifle does not) and shoot out the glass door's panes
 (DR9).

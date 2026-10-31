@@ -2,19 +2,24 @@ extends GameTest
 ## DR12: the doors are heard, every sound synthesized like the rest. A door posts one `&"door"`
 ## event at each stage of its life (`open`: a swing starting to open, `shut`: the latch as it
 ## closes, `burst`: the latch giving, `down`: the fall, `glass`: the panes shattering), with its
-## `material`, and `Sound` plays one voice of that material's recipe (`leaf/<material>/<stage>`) at
-## the door.
+## `material`, and `Sound` plays one voice at the door. Every door, whatever its material, opens
+## and shuts with the one latch voice (no creak) and bursts open with the one burst voice; the
+## fall is the material's own and the shattering panes the glass-panel door's.
 ## A hollow door is used open and shut, burst by two kicks and felled by four; a steel door is used
 ## open and shut and burst by a frag; a glass-panel door's frame opens and its panes shatter on a
-## round. A run of scroll notches on a door is one movement: one creak, not one per notch, and a
-## notch after the door has rested creaks again. A steel door shuts with the wood doors' latch (the
-## click and thud of a wood door's `shut`, no clang), and a round and a kick on it sound as they do
-## on a wood door, with no metal in them. The profile names are the spec's
-## (`docs/doors.md` DR12), kept here.
+## round. A run of scroll notches on a door is one movement: one latch sound, not one per notch, and
+## a notch after the door has rested sounds again. A round and a kick on a steel door sound as they
+## do on a wood door, with no metal in them. The profile names are the spec's (`docs/doors.md`
+## DR12), kept here.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const SoundProbe := preload("res://tests/_audio/sound_probe.gd")
 const JAMB := 20.0
+## The voices (profiles) the spec names: one latch for opening and shutting, one burst.
+const LATCH := "leaf/latch"
+const BURST_VOICE := "leaf/burst"
+## A latch is a click and a thud, over in less than this many seconds; a creak ran longer.
+const LATCH_LENGTH := 0.4
 ## The rows (y of the doorway on the wall at x 400).
 const USED := 100.0
 const BURST := 250.0
@@ -34,7 +39,7 @@ const SWING := 0.7
 const RESTED := 1.5
 ## Seconds between the uses of a door opened, shut and opened at once (a swing takes 0.4).
 const REVERSAL := 0.1
-## Notches of a scroll slower than the creak gap lasts, and the seconds between them.
+## Notches of a scroll slower than a movement's gap lasts, and the seconds between them.
 const SLOW_NOTCHES := 4
 const SLOW_NOTCH_EVERY := 0.25
 ## The puppets that face their door, which lies to the east.
@@ -44,10 +49,9 @@ const FACING_EAST: Array[StringName] = [
 ## Notches of a scroll (20 degrees each, one short of fully open).
 const NOTCHES := 4
 const NOTCH_DEGREES := 20.0
-## A clang is what still rings on after the strike: per stage, the second from which the sound is
-## judged (a fall's thud lands at 0.11 s), and a steel door's rings on more than this many times a
-## wooden door's.
-const RINGS := { &"burst": 0.12, &"down": 0.35 }
+## A clang is what still rings on after the strike: the second from which the fall is judged (its
+## thud lands at 0.11 s), and a steel door's rings on more than this many times a wooden door's.
+const RINGS_FROM := 0.35
 ## How near a steel door's leaf (px) the sound of a hit on it is judged.
 const HIT_REACH := 60.0
 const MORE_RING := 3.0
@@ -55,11 +59,11 @@ const MORE_RING := 3.0
 
 func describe() -> Dictionary:
 	return {
-		"name": "Doors sound: creak, latch, burst, fall and shattering glass",
+		"name": "Doors sound: one latch, one burst, a fall and shattering glass",
 		"description": "A hollow door opens, shuts, bursts and falls, a steel door opens, shuts "
 			+ "and bursts, a glass-panel door opens and its panes shatter: each posts one door "
-			+ "event and plays one voice of its material's recipe at the door; a run of scroll "
-			+ "notches creaks once.",
+			+ "event and plays one voice at the door, the latch for opening and shutting whatever "
+			+ "the material, the burst for bursting; a run of scroll notches sounds once.",
 		"tags": ["sound", "door", "audio"],
 		"timeout": 40.0,
 	}
@@ -125,9 +129,9 @@ func run(t: TestContext) -> void:
 	t.puppet(&"shooter").aim_at(Vector2(400, PANES))
 	t.puppet(&"gunner").aim_at(Vector2(400, STRUCK))
 	await t.seconds(0.6)
-	await _used(t, &"user", &"used", "hollow", "hollow")
+	await _used(t, &"user", &"used")
 	await _reversed(t)
-	await _used(t, &"steel_user", &"steel", "steel", "solid")
+	await _used(t, &"steel_user", &"steel")
 	await _struck_steel(t)
 	await _burst_and_fall(t)
 	await _glass(t)
@@ -137,32 +141,31 @@ func run(t: TestContext) -> void:
 	_recipes(t)
 
 
-## A door used open: one `open` event and one voice; used again: one `shut`, as the leaf arrives,
-## and its voice is that of `shut_voice`'s `shut` (the wood doors' own; a steel door shuts like a
-## solid wood one).
-func _used(
-	t: TestContext, who: StringName, id: StringName, material: String, shut_voice: String
-) -> void:
+## A door used open: one `open` event and one latch voice; used again: one `shut`, as the leaf
+## arrives, and a second latch voice: the same voice whatever the material.
+func _used(t: TestContext, who: StringName, id: StringName) -> void:
 	var door := t.object(id)
 	t.puppet(who).use()
 	await t.seconds(SWING)
 	t.check(door.angle() > 89.0, "the %s door is opened" % id)
-	_expect_once(t, door, &"open", material)
+	_expect_once(t, door, &"open", LATCH, 1)
 	t.check(_events(t, door, &"shut").is_empty(), "the %s door's latch is not heard yet" % id)
 	t.puppet(who).use()
 	await t.seconds(SWING)
 	t.check(door.angle() < 1.0, "the %s door is shut again" % id)
-	_expect_once(t, door, &"open", material)
-	_expect_once(t, door, &"shut", material, shut_voice)
+	_expect_once(t, door, &"open", LATCH, 2)
+	_expect_once(t, door, &"shut", LATCH, 2)
 	for stage: StringName in [&"burst", &"down", &"glass"]:
 		t.check(_events(t, door, stage).is_empty(), "using the %s door posts no %s" % [id, stage])
 
 
-## A door opened, shut and opened again at once is three movements: it creaks each time it opens,
+## A door opened, shut and opened again at once is three movements: it sounds each time it opens,
 ## the second not swallowed because the first was a moment ago.
 func _reversed(t: TestContext) -> void:
 	var door := t.object(&"used")
-	var creaks := _events(t, door, &"open").size()
+	var opens := _events(t, door, &"open").size()
+	var shuts := _events(t, door, &"shut").size()
+	var latches := _heard(t, door, LATCH).size()
 	t.puppet(&"user").use()
 	await t.seconds(REVERSAL)
 	t.puppet(&"user").use()
@@ -170,13 +173,16 @@ func _reversed(t: TestContext) -> void:
 	t.puppet(&"user").use()
 	await t.seconds(SWING)
 	t.check(door.angle() > 89.0, "the door is open again")
-	t.expect_eq(_events(t, door, &"open").size(), creaks + 2, "it creaks at each opening")
-	t.expect_eq(_voices(t, door, "hollow", &"open").size(), creaks + 2, "and each is heard")
+	t.expect_eq(_events(t, door, &"open").size(), opens + 2, "it sounds at each opening")
+	# the door the first use opened is shut by the second before the third opens it again: three
+	# sounds, each heard once
+	t.expect_eq(_events(t, door, &"shut").size(), shuts + 1, "and it shuts once between")
+	t.expect_eq(_heard(t, door, LATCH).size(), latches + 3, "and each is heard")
 	t.puppet(&"user").use()
 	await t.seconds(SWING)
 
 
-## Two kicks from the push side burst a hollow door: one `burst` and no creak; four kicks from the
+## Two kicks from the push side burst a hollow door: one `burst` and no latch; four kicks from the
 ## pull side fell another: one `down`, and no burst.
 func _burst_and_fall(t: TestContext) -> void:
 	var burst := t.object(&"burst")
@@ -185,31 +191,32 @@ func _burst_and_fall(t: TestContext) -> void:
 		t.puppet(&"burster").kick()
 		await t.seconds(0.55)
 	t.check(burst.angle() > 89.0, "two kicks burst the hollow door open")
-	_expect_once(t, burst, &"burst", "hollow")
-	t.check(_events(t, burst, &"open").is_empty(), "a burst is a bang, not a creak")
+	_expect_once(t, burst, &"burst", BURST_VOICE, 1)
+	t.check(_events(t, burst, &"open").is_empty(), "a burst is a bang, not a latch")
 	var fall := t.object(&"fall")
 	for _i in 4:
 		t.puppet(&"feller").kick()
 		await t.seconds(0.55)
 	t.check(fall.is_down(), "four kicks from the pull side fell the hollow door")
-	_expect_once(t, fall, &"down", "hollow")
+	_expect_once(t, fall, &"down", "leaf/hollow/down", 1)
 	t.check(_events(t, fall, &"burst").is_empty(), "from the pull side nothing burst")
 
 
-## A glass-panel door's frame creaks open; the first round on another shatters its panes, once.
+## A glass-panel door's frame opens with the latch; the first round on another shatters its panes,
+## once.
 func _glass(t: TestContext) -> void:
 	var frame := t.object(&"frame")
 	t.puppet(&"frame_user").use()
 	await t.seconds(SWING)
-	_expect_once(t, frame, &"open", "glass")
+	_expect_once(t, frame, &"open", LATCH, 1)
 	var panes := t.object(&"panes")
 	t.puppet(&"shooter").shoot()
 	await t.seconds(0.5)
 	t.check(panes.look.broken, "the round shatters the panes")
-	_expect_once(t, panes, &"glass", "glass")
+	_expect_once(t, panes, &"glass", "leaf/glass/glass", 1)
 	t.puppet(&"shooter").shoot()
 	await t.seconds(0.5)
-	_expect_once(t, panes, &"glass", "glass")
+	_expect_once(t, panes, &"glass", "leaf/glass/glass", 1)
 
 
 ## A round and a kick on a steel door sound as they do on a wood door: the impact is wood's (a
@@ -234,7 +241,7 @@ func _struck_steel(t: TestContext) -> void:
 		t.check(profile.begins_with("impact/wood/"), "%s is wood's, not metal's" % profile)
 
 
-## A frag's close blast bursts a steel door's latch: the steel burst.
+## A frag's close blast bursts a steel door's latch: the one burst voice, the hollow door's.
 func _frag_on_steel(t: TestContext) -> void:
 	await Probe.throw_at(t, &"thrower", Probe.FRAG, FRAG_DOOR - Vector2(50, 0))
 	if not t.require(await Probe.wait_boom(t, &"frag", 6.0), "the frag goes off"):
@@ -244,11 +251,11 @@ func _frag_on_steel(t: TestContext) -> void:
 		await t.until(func(): return blasted.angle() > 89.0, 1.0),
 		"the blast bursts the steel door open",
 	)
-	_expect_once(t, blasted, &"burst", "steel")
+	_expect_once(t, blasted, &"burst", BURST_VOICE, 1)
 
 
-## Five notches in a row turn the door 50 degrees and creak once; after it has rested a notch more
-## is a movement of its own and creaks again.
+## Four notches in a row turn the door 80 degrees and sound once; after it has rested a notch more
+## is a movement of its own and sounds again.
 func _scrolled(t: TestContext) -> void:
 	var door := t.object(&"scrolled")
 	for _i in NOTCHES:
@@ -256,15 +263,16 @@ func _scrolled(t: TestContext) -> void:
 		await t.frames(2)
 	await t.seconds(SWING)
 	t.expect_near(door.angle(), NOTCHES * NOTCH_DEGREES, 0.5, "the notches turn the door")
-	_expect_once(t, door, &"open", "hollow")
+	_expect_once(t, door, &"open", LATCH, 1)
 	await t.seconds(RESTED)
 	t.puppet(&"scroller").turn_door(1.0)
 	await t.seconds(SWING)
-	t.expect_eq(_events(t, door, &"open").size(), 2, "a notch after a rest is a new creak")
-	t.expect_eq(_voices(t, door, "hollow", &"open").size(), 2, "and is heard")
+	t.expect_eq(_events(t, door, &"open").size(), 2, "a notch after a rest is a new sound")
+	t.expect_eq(_heard(t, door, LATCH).size(), 2, "and is heard")
 
 
-## Notches a quarter second apart for longer than the creak gap are still one movement: one creak.
+## Notches a quarter second apart for longer than a movement's gap are still one movement: one
+## sound.
 func _scrolled_slowly(t: TestContext) -> void:
 	var door := t.object(&"slowly_scrolled")
 	for _i in SLOW_NOTCHES:
@@ -272,37 +280,31 @@ func _scrolled_slowly(t: TestContext) -> void:
 		await t.seconds(SLOW_NOTCH_EVERY)
 	await t.seconds(SWING)
 	t.expect_near(door.angle(), SLOW_NOTCHES * NOTCH_DEGREES, 0.5, "the notches turn the door")
-	_expect_once(t, door, &"open", "hollow")
+	_expect_once(t, door, &"open", LATCH, 1)
 
 
-## The recipes are the materials': a steel door's burst and fall clang, ringing on long after
-## a wooden door's thud has died away, and its groan is lower than a wooden door's creak; the glass
-## is a bright shattering, not a thud.
+## The recipes: a steel door's fall clangs, ringing on long after a wooden door's thud has died
+## away; the glass is a bright shattering, not a thud; the latch is a click and a thud, short.
 func _recipes(t: TestContext) -> void:
 	for variant in 2:
-		for stage: StringName in RINGS:
-			var from: float = RINGS[stage]
-			var steel := _ringing(StringName("leaf/steel/%s" % stage), variant, from)
-			var wood := _ringing(StringName("leaf/hollow/%s" % stage), variant, from)
-			t.check(
-				steel > wood * MORE_RING,
-				"the steel door's %s rings on (%.2f of it past %.2f s) over the wooden door's %.2f"
-					% [stage, steel, from, wood],
-			)
-		var groan := SoundProbe.brightness(SoundProbe.samples(&"leaf/steel/open", variant))
-		var creak := SoundProbe.brightness(SoundProbe.samples(&"leaf/hollow/open", variant))
+		var steel := _ringing(&"leaf/steel/down", variant, RINGS_FROM)
+		var wood := _ringing(&"leaf/hollow/down", variant, RINGS_FROM)
 		t.check(
-			groan < creak,
-			"a steel door groans lower than a hollow one creaks (%.4f against %.4f)" % [
-				groan,
-				creak,
-			],
+			steel > wood * MORE_RING,
+			"the steel door's fall rings on (%.2f of it past %.2f s) over the wooden door's %.2f"
+				% [steel, RINGS_FROM, wood],
 		)
 		var shatter := SoundProbe.samples(&"leaf/glass/glass", variant)
 		t.check(
 			SoundProbe.low_share(shatter) < 0.3,
 			"shattering glass is bright, not a thud (%.2f of it under 250 Hz)"
 				% SoundProbe.low_share(shatter),
+		)
+		var latch := SoundProbe.samples(StringName(LATCH), variant)
+		var seconds := float(latch.size()) / SoundLibraryConfig.sample_rate
+		t.check(
+			seconds < LATCH_LENGTH,
+			"the latch is short, a click and a thud, not a creak (%.2f s)" % seconds,
 		)
 
 
@@ -327,32 +329,36 @@ func _events(t: TestContext, door: Node, stage: StringName) -> Array:
 	)
 
 
-## The `sound` events of a `leaf/<material>/<stage>` profile near `door`.
-func _voices(t: TestContext, door: Node2D, material: String, stage: StringName) -> Array:
+## The `sound` events of `profile` near `door`'s doorway.
+func _heard(t: TestContext, door: Node2D, profile: String) -> Array:
 	var doorway: Vector2 = door.hinge + (door.leaf_pose(0.0).x * door.width * 0.5)
-	return SoundProbe.sounds(t, &"", "leaf/%s/%s" % [material, stage]).filter(
+	return SoundProbe.sounds(t, &"", profile).filter(
 		func(d: Dictionary) -> bool:
 			return (d["position"] as Vector2).distance_to(doorway) < AT_THE_DOOR
 	)
 
 
-## `door` posted exactly one `stage` event, of `material`, at its doorway, and exactly one voice of
-## `leaf/<voice>/<stage>` played there (`voice` the door's `material` unless given), at the event's
-## own position.
+## `door` posted exactly one `stage` event, of `material`, at its doorway, and `voices` voices of
+## `profile` have played there in all, the last at the event's own position.
 func _expect_once(
-	t: TestContext, door: Node2D, stage: StringName, material: String, voice := ""
+	t: TestContext, door: Node2D, stage: StringName, profile: String, voices: int
 ) -> void:
-	var voiced := material if voice == "" else voice
 	var events := _events(t, door, stage)
 	var what := "%s door's %s" % [door.name, stage]
 	t.expect_eq(events.size(), 1, "the %s is posted once" % what)
 	if events.is_empty():
 		return
-	t.expect_eq(String(events[0]["material"]), material, "the %s names its material" % what)
-	var voices := _voices(t, door, voiced, stage)
-	t.expect_eq(voices.size(), 1, "the %s plays one %s voice at the door" % [what, voiced])
-	if not voices.is_empty():
+	t.expect_eq(
+		String(events[0]["material"]), door.look.material, "the %s names its material" % what
+	)
+	var heard := _heard(t, door, profile)
+	t.expect_eq(
+		heard.size(),
+		voices,
+		"the %s plays %s at the door (%d in all)" % [what, profile, voices],
+	)
+	if not heard.is_empty():
 		t.check(
-			(voices[0]["position"] as Vector2).is_equal_approx(events[0]["position"]),
+			(heard.back()["position"] as Vector2).is_equal_approx(events[0]["position"]),
 			"the %s is heard where the door posted it" % what,
 		)

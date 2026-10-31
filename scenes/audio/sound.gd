@@ -19,8 +19,9 @@ extends Node
 ##   &"vehicle"   a vehicle's ignition, door (open / close / slide_open / slide_close), crash
 ##                (+ speed, material) or a character struck (bump_character, + speed)
 ##                { position, kind, stage }
-##   &"door"      a house door's leaf at a stage of its life: open (a swing starting to open),
-##                shut (its latch as it closes), burst, down, glass (the panes shattering)
+##   &"door"      a house door's leaf at a stage of its life: open (a swing starting to open)
+##                and shut (the leaf arriving at shut) sound its latch, burst, down, glass (the
+##                panes shattering)
 ##                { position, door, material, stage }
 ##   &"engine"    a vehicle's engine started / stopped   { vehicle, kind, stage }
 ##   &"skid"      a vehicle's tyres began / stopped sliding   { vehicle, stage }

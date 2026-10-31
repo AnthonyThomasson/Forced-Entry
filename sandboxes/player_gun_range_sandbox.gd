@@ -29,9 +29,10 @@ extends GameTest
 ## out into the range), a riveted steel one (shut: the tough one to kick or shoot open) and a
 ## glass-panel one (shut, with a dummy inside the room, seen through the panes). Between the rooms
 ## a hollow panelled door (shut), a solid plank door (ajar) and a steel peephole door (open) join
-## each pair. E opens and shuts a door in reach, held E and the wheel open it by steps; kick it
-## from the push side (the side it swings away from) to burst its latch, shoot or kick it down, and
-## shoot the glass door's panes to shatter them.
+## each pair. E opens and shuts a door in reach, held E and the wheel open it by steps; kick a shut
+## one from the push side (the side it swings away from) to burst its latch; an ajar or open door
+## has no latch (one kick throws it open, steel too) and turns about its hinge as you walk into it;
+## shoot or kick a door down, and shoot the glass door's panes to shatter them.
 
 const OutfitLines := preload("res://scenes/ui/hud/outfit_lines.gd")
 const ARENA := Rect2(-680, 0, 1680, 1300)
@@ -182,9 +183,10 @@ func describe() -> Dictionary:
 			+ "four small rooms with seven doors, one of each material and style, a floor label "
 			+ "naming each door that opens onto the range: tap E beside a door to open or shut "
 			+ "it, hold E and scroll to open it by steps, kick it (V) from the push side, the side "
-			+ "it swings away from, to burst its latch (hollow: two kicks, steel: never), shoot a "
-			+ "door down (steel stops the pistol, not the rifle), and look through the glass "
-			+ "door's panes at the dummy in its room, then shoot them out.",
+			+ "it swings away from, to burst its latch (hollow: two kicks, steel: never; an ajar "
+			+ "door has no latch: one kick opens it), walk into an ajar door to push it about its "
+			+ "hinge, shoot a door down (steel stops the pistol, not the rifle), and look through "
+			+ "the glass door's panes at the dummy in its room, then shoot them out.",
 		"tags": [
 			"sandbox", "player", "gun", "pistol", "smg", "rifle", "grenade", "stun", "frag",
 			"cover", "outfit", "armour", "plate", "door",

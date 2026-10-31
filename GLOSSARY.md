@@ -215,8 +215,9 @@ _Avoid_: handle side, open side
 
 **Ajar**:
 A door open part way: more than shut and less than wide open. A door is shut at 0°, wide open at its `open_angle`, ajar between; one
-passes a character once its `gap()` is wide enough.
-_Avoid_: half-open, unlatched
+passes a character once its `gap()` is wide enough. An ajar or open door is not latched: one kick from its push side throws it open, a
+walker turns it about its hinge, away from the walker (`docs/doors.md` DR10).
+_Avoid_: half-open
 
 ### Lint
 

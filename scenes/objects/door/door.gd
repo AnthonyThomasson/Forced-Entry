@@ -5,9 +5,9 @@ extends AnimatableBody2D
 ## turns its leaf about the hinge and the engine moves the body kinematically, so a swing is exact
 ## and never knocked about by what leans on it. It publishes the door contract (architecture
 ## interface 24) and is hit, shoved and damaged through the hittable (3) and pushable (5)
-## contracts. Drawn by `door_visuals.gd`; its parts are `look`, `damage` and `swing`. Its tuning is
-## `DoorConfig` and `DoorMaterialConfig`. It posts a `&"door"` event on the EventBus at each stage
-## of its life (interface 10), which Audio voices (`docs/doors.md` DR12).
+## contracts. Drawn by `door_visuals.gd`; its parts are `look`, `damage`, `swing` and `push`. Its
+## tuning is `DoorConfig`, `DoorPushConfig` and `DoorMaterialConfig`. It posts a `&"door"` event on
+## the EventBus at each stage of its life (interface 10), which Audio voices (`docs/doors.md` DR12).
 ##
 ## Frame: the body's origin is the middle of the leaf and its x axis runs along the leaf from the
 ## hinge toward the latch, so `global_position` is where the leaf is (a blast reaches it there). The
@@ -21,6 +21,7 @@ signal changed
 
 const DoorDamage = preload("res://scenes/objects/door/door_damage.gd")
 const DoorLook = preload("res://scenes/objects/door/door_look.gd")
+const DoorPush = preload("res://scenes/objects/door/door_push.gd")
 const DoorSwing = preload("res://scenes/objects/door/door_swing.gd")
 const DoorVisuals = preload("res://scenes/objects/door/door_visuals.gd")
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
@@ -37,10 +38,12 @@ var width := 0.0
 ## Its display name.
 var object_name := "Door"
 ## What it is drawn as (`door_look.gd`), its hit points and latch (`door_damage.gd`), its swing
-## (`door_swing.gd`) and what draws it (`texture()`); built with it.
+## (`door_swing.gd`), the turn a walker gives it (`door_push.gd`) and what draws it (`texture()`);
+## built with it.
 var look := DoorLook.new()
 var damage: DoorDamage
 var swing := DoorSwing.new()
+var push := DoorPush.new()
 var visuals: DoorVisuals
 ## The material's row of `DoorMaterialConfig.materials`.
 var _row: Dictionary = {}
@@ -48,13 +51,13 @@ var _row: Dictionary = {}
 var _down := false
 ## What a swing asks the physics space about before it turns there: the leaf's shape, a pixel
 ## slimmer all round (`DoorConfig.probe_inset`), so a leaf lying against a jamb or a wall it clears
-## by a hair is not counted as in it.
+## by a hair is not counted as in it (`_overlapping` sizes it for each query).
 var _probe: RectangleShape2D
 ## Unit vector along the shut leaf, hinge to latch.
 var _along := Vector2.RIGHT
 ## The game second the door last began opening, -INF before it has or once a closing swing has begun
-## since: a swing opening it within `DoorConfig.creak_gap` of that carries on one movement (a run of
-## scroll notches), which has creaked already.
+## since: a swing opening it within `DoorConfig.latch_gap` of that carries on one movement (a run of
+## scroll notches), which has sounded its latch already.
 var _opened_at := -INF
 
 
@@ -67,7 +70,6 @@ func _ready() -> void:
 	leaf.size = size
 	col.shape = leaf
 	_probe = RectangleShape2D.new()
-	_probe.size = size - Vector2.ONE * DoorConfig.probe_inset * 2.0
 	add_child(col)
 	_build_occluder(size * 0.5)
 	visuals = DoorVisuals.new()
@@ -76,11 +78,13 @@ func _ready() -> void:
 	add_child(visuals)
 
 
-## Turn the leaf on a step if it is swinging.
+## Turn the leaf on a step if it is swinging, or being pushed.
 func _physics_process(delta: float) -> void:
 	if not swing.moving():
+		if push.moving():
+			_pushed(delta)
 		return
-	if _blocked(swing.after(delta), delta):
+	if _blocked(swing.after(delta), delta, true):
 		swing.halt()
 		changed.emit()
 		return
@@ -136,7 +140,7 @@ func leaf_size() -> Vector2:
 ## its origin the middle and its x axis along the leaf, hinge to latch).
 func leaf_pose(angle_degrees: float) -> Transform2D:
 	var turned := _along.angle() + swing.turn * deg_to_rad(angle_degrees)
-	var pivot := hinge + swing_into * DoorConfig.leaf_thickness * 0.5
+	var pivot := _pivot()
 	var middle := Vector2(width * 0.5, -swing.turn * DoorConfig.leaf_thickness * 0.5)
 	return Transform2D(turned, pivot + middle.rotated(turned))
 
@@ -244,10 +248,18 @@ func take_damage(amount: float) -> void:
 	_hurt(amount, kind, damage.push())
 
 
-## A shove (the pushable contract, interface 5): the door is driven, so it is not moved; the shove
-## is remembered for the damage that follows it in the same strike.
-func apply_impulse(impulse: Vector2, _at := Vector2.ZERO) -> void:
+## A shove (the pushable contract, interface 5): remembered for the damage that follows it in the
+## same strike. A shut door never moves for it, nor does a leaf a hand or a burst is swinging; an
+## ajar or open one is turned about its hinge by the shove's moment against its weight, away from
+## the body (`door.push`, `docs/doors.md` DR5, DR10). `at` is where it lands, from the leaf's
+## middle.
+func apply_impulse(impulse: Vector2, at := Vector2.ZERO) -> void:
 	damage.note_push(impulse)
+	if _down or swing.moving() or swing.angle <= 0.0:
+		return
+	if not push.moving():
+		push.began_at = swing.angle
+	push.shove(impulse, global_position + at, _pivot(), swing.turn, float(_row["weight"]))
 
 
 ## The leaf's mass, read by a pusher.
@@ -257,19 +269,19 @@ func get_mass() -> float:
 
 ## A hit of `kind` dealing `strike` damage pushing along `direction`: the hit points drop by the
 ## material's factor for that kind of it. A kick or a blast from the push side (it pushes the way
-## the door swings) wears the latch of a door that is not wide open by the strike itself, and when
-## the latch gives the door bursts open.
+## the door swings) throws an ajar door fully open at once, whatever its material: it is not
+## latched. On a shut door it wears the latch by the strike itself (a boot cannot move a steel
+## door's bolt), and when the latch gives the door bursts open.
 func _hurt(strike: float, kind: StringName, direction: Vector2) -> void:
 	if damage.hurt(strike * damage.factor(kind)):
 		_fall(direction)
 		return
 	changed.emit()
-	if (
-		damage.wears_latch(kind)
-		and direction.dot(swing_into) > 0.0
-		and swing.angle < open_angle
-		and damage.wear(strike)
-	):
+	if kind != &"kick" and kind != &"blast":
+		return
+	if direction.dot(swing_into) <= 0.0 or swing.target >= open_angle:
+		return
+	if swing.angle > 0.0 or (damage.wears_latch(kind) and damage.wear(strike)):
 		_burst()
 
 
@@ -281,6 +293,7 @@ func _fall(direction: Vector2) -> void:
 	_down = true
 	swing.angle = open_angle
 	swing.halt()
+	push.stop()
 	var toward := swing_into if direction.dot(swing_into) >= 0.0 else -swing_into
 	var doorway := _doorway_middle()
 	var lies := doorway + toward * (DoorConfig.fallen_length * 0.5 + DoorConfig.leaf_thickness)
@@ -298,23 +311,65 @@ func _fall(direction: Vector2) -> void:
 	_post(&"down")
 
 
+## The leaf has been pushed on a step: it turns on if nothing solid, not even a character, stands
+## where it will be (a pushed leaf nudges no one: it stops), and its friction slows it. Reaching
+## shut it latches, and it is a shut door again.
+func _pushed(delta: float) -> void:
+	var to := push.after(swing.angle, delta, open_angle)
+	if is_equal_approx(to, swing.angle) or _blocked(to, delta, false):
+		push.stop()
+	else:
+		swing.rest_at(to)
+		global_transform = leaf_pose(to)
+		push.slow(delta)
+		if to <= 0.0 or to >= open_angle:
+			push.stop()
+	if push.moving():
+		return
+	if not is_equal_approx(swing.angle, push.began_at):
+		changed.emit()
+	if is_zero_approx(swing.angle):
+		_post(&"shut")
+
+
 ## Whether something stops the leaf turning to `to` degrees open this step: furniture, a wall or
 ## anything else solid in the way, or a character it cannot nudge clear. A character the leaf would
-## sweep over is moved out of the way as the leaf comes (`_nudged`).
-func _blocked(to: float, delta: float) -> bool:
+## sweep over is moved out of the way as the leaf comes (`_nudged`) when `nudging`, else it stops
+## the leaf.
+func _blocked(to: float, delta: float, nudging: bool) -> bool:
 	var pose := leaf_pose(to)
+	for body in _overlapping(pose, DoorConfig.probe_inset):
+		if not _is_character(body):
+			return true
+		if nudging and not _nudged(body as CharacterBody2D, pose, delta):
+			return true
+	if nudging:
+		return false
+	# a pushed leaf nudges no one: it comes to rest touching a character in its way, which a
+	# slimmer probe would let it overlap ever so slightly, and the engine would press aside
+	for body in _overlapping(pose, 0.0):
+		if _is_character(body):
+			return true
+	return false
+
+
+## The solid bodies the leaf standing at `pose`, `inset` px slimmer all round, overlaps.
+func _overlapping(pose: Transform2D, inset: float) -> Array:
+	_probe.size = leaf_size() - Vector2.ONE * inset * 2.0
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = _probe
 	query.transform = pose
 	query.collision_mask = PhysicsLayers.SOLID
 	query.exclude = [get_rid()]
+	var bodies := []
 	for found in get_world_2d().direct_space_state.intersect_shape(query, 8):
-		var body: Object = found["collider"]
-		if not body is CharacterBody2D or not body.is_in_group(&"characters"):
-			return true
-		if not _nudged(body as CharacterBody2D, pose, delta):
-			return true
-	return false
+		bodies.append(found["collider"])
+	return bodies
+
+
+## Whether `body` is a living character (one the leaf may nudge).
+func _is_character(body: Object) -> bool:
+	return body is CharacterBody2D and (body as Node).is_in_group(&"characters")
 
 
 ## Move character `body` clear of the leaf standing at `pose`, straight away from it, by what it
@@ -333,13 +388,13 @@ func _nudged(body: CharacterBody2D, pose: Transform2D, delta: float) -> bool:
 		return true
 	if need > DoorConfig.nudge_speed * delta:
 		return false
-	var push := (away.normalized() if away.length() > 0.001 else pose.y) * need
+	var aside := (away.normalized() if away.length() > 0.001 else pose.y) * need
 	var excepted := body.get_collision_exceptions().has(self)
 	if not excepted:
 		body.add_collision_exception_with(self)
-	var free := not body.test_move(body.global_transform, push)
+	var free := not body.test_move(body.global_transform, aside)
 	if free:
-		body.move_and_collide(push)
+		body.move_and_collide(aside)
 	if not excepted:
 		body.remove_collision_exception_with(self)
 	return free
@@ -353,8 +408,9 @@ func _turn_to(to: float) -> void:
 	var goal := clampf(to, 0.0, open_angle)
 	if is_equal_approx(goal, swing.target) and not swing.moving():
 		return
+	push.stop()
 	var opens := goal > swing.angle
-	var begins := opens and GameClock.seconds() - _opened_at >= DoorConfig.creak_gap
+	var begins := opens and GameClock.seconds() - _opened_at >= DoorConfig.latch_gap
 	_opened_at = GameClock.seconds() if opens else -INF
 	swing.begin(goal, DoorConfig.swing_time * absf(goal - swing.angle) / open_angle)
 	changed.emit()
@@ -364,6 +420,7 @@ func _turn_to(to: float) -> void:
 
 ## The latch has given: the door is thrown fully open at `DoorConfig.burst_speed`.
 func _burst() -> void:
+	push.stop()
 	swing.begin(open_angle, (open_angle - swing.angle) / DoorConfig.burst_speed, false)
 	changed.emit()
 	_post(&"burst")
@@ -376,6 +433,12 @@ func _shatter() -> void:
 	look.broken = true
 	visuals.refresh()
 	_post(&"glass")
+
+
+## The point the leaf turns about: the hinge, half a leaf's thickness toward the room it swings
+## into.
+func _pivot() -> Vector2:
+	return hinge + swing_into * DoorConfig.leaf_thickness * 0.5
 
 
 ## The middle of the doorway, on the wall line.

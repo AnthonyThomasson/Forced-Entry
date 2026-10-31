@@ -7,7 +7,7 @@ class_name SoundBank
 ## tables, its name rule (its profile functions, which render nothing) and its recipes:
 ## SoundGuns (`shot`, `reload`), SoundImpacts (`impact`), SoundFootsteps (`footstep`),
 ## SoundGrenades (`throw`, `grenade`, `explosion`, `tinnitus`), SoundVehicles (`engine`,
-## `ignition`, `door`, `skid`, `crash`) and SoundDoors (`leaf`: a house door's creak, latch, burst,
+## `ignition`, `door`, `skid`, `crash`) and SoundDoors (`leaf`: a house door's latch, burst,
 ## fall and shattering panes). The bank keeps the round-weight `band` the guns and the impacts are
 ## voiced in, the list of every profile and the cache.
 ##
@@ -33,8 +33,9 @@ class_name SoundBank
 ##   `crash/<material>/<band>`, the band by the closing speed (SoundVehicleConfig.crash_medium_speed
 ##   / crash_heavy_speed), `flesh` for a character struck.
 ## - door leaf: a house door's material (`hollow`, `solid`, `steel`, `glass`) and the stage of its
-##   life (`open`, `shut`, `burst`, `down`, and `glass` for the glass-panel door's panes):
-##   `leaf/<material>/<stage>`.
+##   life (`open`, `shut`, `burst`, `down`, and `glass` for the glass-panel door's panes); its
+##   latch and its burst are the same for every material:
+##   `leaf/latch` (`open`, `shut`), `leaf/burst`, `leaf/<material>/down` and `leaf/glass/glass`.
 
 const BAND_NAMES: Array[String] = ["light", "medium", "heavy"]
 

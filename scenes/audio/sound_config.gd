@@ -10,7 +10,7 @@ class_name SoundConfig
 ## one of twelve categories — `shot`, `impact`, `footstep`, `reload`, the grenades' `throw`,
 ## `grenade` (a bounce), `explosion` and `tinnitus`, and the vehicles' `engine` (a loop per running
 ## vehicle), `vehicle` (ignition, doors, crashes) and `skid` (a loop per sliding vehicle), and the
-## houses' `door` (a leaf's creak, latch, burst, fall) — and the per-category tables below are keyed
+## houses' `door` (a leaf's latch, burst, fall) — and the per-category tables below are keyed
 ## by those names.
 
 ## Master switch: off = the `Sound` service synthesizes, plays and posts nothing.

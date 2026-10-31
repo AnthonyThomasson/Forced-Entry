@@ -21,9 +21,13 @@
       surface material it sounds and throws debris as; a glass-panel door's surface also says `transparent: true`, which the AI's
       sight reads: sight passes it), `take_hit(hit)` (a round or a blast: dent or hole, debris, the glass-panel door's panes
       shatter, hit points by the material's factor), `take_damage(amount)` (a punch or a kick), `apply_impulse(v, at)` (remembered for
-      the strike that follows; the door is driven, so it does not move) and `get_mass()`. A kick (a shove of `DoorConfig.burst_impulse`
-      or more) or a blast from the push side wears the latch (`DoorMaterialConfig`: `latch_hp`), and a door whose latch gives bursts
-      fully open at `DoorConfig.burst_speed`; a walking push or a punch never counts; from the pull side a hit only damages.
+      the strike that follows; a shut door does not move for it, an ajar or open one is turned about its hinge away from the shover by the
+      moment of the shove against its weight, damped by the hinge's friction, within shut and `open_angle`, stopped by anything it meets
+      and nudging no one; reaching shut it latches) and `get_mass()`. A kick (a shove of `DoorConfig.burst_impulse` or more) or a blast from
+      the push side wears a shut door's latch (`DoorMaterialConfig`: `latch_hp`), and a door whose latch gives bursts fully open at
+      `DoorConfig.burst_speed`; an ajar or open door has no latch, so one kick or blast from its push side throws it fully open, whatever its
+      material; a walking push or a punch never counts against a latch; from the pull side a kick turns an ajar door toward shut, a blast too, and
+      otherwise a hit only damages.
     - **Built by** `DoorFactory.spawn(opening, definition, parent) -> Door` (interface 2). **Left out of both nav bakes** by
       `NavBuilder` (interface 9), found by the group `doors`; its **shadow** is a `LightOccluder2D` child on `LightMasks.WALL` that
       turns with the leaf, none for the glass-panel door (interface 20).

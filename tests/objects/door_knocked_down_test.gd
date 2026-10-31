@@ -3,12 +3,16 @@ extends GameTest
 ## the blow that felled it: four kicks from the pull side (a hollow door's 80 HP) push it into the
 ## room the kicker faces; four rounds from the west push it east. It is then walk-over (a puppet
 ## crosses it and the doorway), casts no shadow, stops no round and no sight, and is no longer
-## usable.
+## usable. An ajar door felled by kicks from its pull side, which also push it toward shut, stays
+## where it fell.
 
 const JAMB := 20.0
 const KICKED := 250.0
 const SHOT := 650.0
 const WALKED_ROW := 450.0
+const AJAR_ROW := 100.0
+## The shove of a kick (the spec's number: `docs/doors.md` DR10).
+const KICK_IMPULSE := 2200.0
 const SIGHT_ROW := 850.0
 ## How far the fallen door lies out from the wall line, at least (its middle).
 const BEYOND := 40.0
@@ -25,12 +29,12 @@ func describe() -> Dictionary:
 	}
 
 
-func _doorway(y: float, id: String) -> Dictionary:
+func _doorway(y: float, id: String, angle := 0.0) -> Dictionary:
 	return {
 		"pos": Vector2(400, y), "width": 52.0,
 		"door": {
 			"name": id, "material": "hollow", "style": "flush",
-			"hinge": Vector2(400, y - JAMB), "swing_into": Vector2.RIGHT,
+			"hinge": Vector2(400, y - JAMB), "swing_into": Vector2.RIGHT, "angle": angle,
 		},
 	}
 
@@ -42,6 +46,7 @@ func configure(s: TestSetup) -> void:
 	], [
 		_doorway(KICKED, "kicked"), _doorway(SHOT, "shot"),
 		_doorway(WALKED_ROW, "walked"), _doorway(SIGHT_ROW, "seen"),
+		_doorway(AJAR_ROW, "ajar_kicked", 60.0),
 	])
 	s.switch(&"projectile.flyover", false)
 	var straight: Dictionary = GunConfig.guns.duplicate(true)
@@ -74,6 +79,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var kicked = t.object(&"kicked")
 	var shot = t.object(&"shot")
+	await _stays_down(t)
 	_lies_beyond(t, kicked, -1.0, "kicked from the east, it lies west")
 	_lies_beyond(t, shot, 1.0, "shot from the west, it lies east")
 	# the door on the shot row is down: a round goes through to the target behind it
@@ -134,4 +140,23 @@ func _sight_through(t: TestContext) -> void:
 	t.check(
 		await t.until(sees, 2.0),
 		"and sees through the doorway once the door is down",
+	)
+
+
+## An ajar door felled by a kick from its pull side (the strike shoves it toward shut, then deals
+## its damage, as a boot does) lies where it fell: the shove that turned the leaf toward shut does
+## not carry on and put the fallen leaf back on its hinge.
+func _stays_down(t: TestContext) -> void:
+	var door = t.object(&"ajar_kicked")
+	door.apply_impulse(Vector2.LEFT * KICK_IMPULSE)
+	door.take_damage(1000.0)
+	await t.frames(2)
+	t.check(door.is_down(), "a kick from the pull side fells the ajar door")
+	var lies: Vector2 = door.global_position
+	var turned: float = door.global_rotation
+	await t.seconds(0.5)
+	t.check(
+		door.global_position.distance_to(lies) < 0.5
+		and is_equal_approx(door.global_rotation, turned),
+		"and it stays where it fell (moved %.1f px)" % door.global_position.distance_to(lies),
 	)
