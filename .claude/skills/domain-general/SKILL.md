@@ -1,244 +1,96 @@
 ---
 name: domain-general
-description: Deep implementation detail for the General domain (scenes/general/) — input (Keybinds), saved settings (Settings), the pausable game clock (GameClock), despawner, camera, the dev command server, shared physics-layer ids (PhysicsLayers), the draw-order ladder (DrawLayers), the light masks (LightMasks: occluder bits, shadow masks, light layers, the occluder shape), FillBatch (plain-coloured shapes drawn as one triangle array), WeightedPick (the shared weighted roll) and MatchVerdict (who has won a match). Use when editing scenes/general/ or working on input/keybinds/rebinding, the game clock AI timers run on, the saved settings file (debug switch + key bindings), the dev command server (gcmd), camera follow, the despawn cap, a cross-domain physics-layer constant, a draw-order rung, a light mask, batching many plain-coloured shapes, a weighted roll or the match verdict. HUDs and menus live in the UI domain (scenes/ui/) — see `domain-ui`. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Use when editing scenes/general/ or working on keybinds, settings, the game clock, camera, command server, shared ids (PhysicsLayers, DrawLayers, LightMasks), FillBatch, WeightedPick, MatchVerdict.
 ---
 
-# General domain
+# General domain (`scenes/general/`)
 
-Infrastructure: input (Keybinds), saved settings (Settings), despawner, event bus, camera, dev command
-server, shared physics-layer ids, the pausable game clock. `Keybinds`, `Despawner`, `EventBus` and `GameClock` are the General autoloads (`project.godot`; the Audio domain adds a fifth, `Sound`).
-HUDs and menus are the **UI domain** (`scenes/ui/`) — see the `domain-ui` skill.
+Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19. HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, verdict; it also holds match-building and squad tests that belong to `domain-main` and `domain-ai` (`team.md`)).
 
-`physics_layers.gd` (`class_name PhysicsLayers`, no instance/autoload — same style as the other
-`class_name` static holders) names physics-layer bits so they aren't redefined as magic numbers
-per caller. `SOLID := 1` is the layer walls, solid furniture and bodies sit on — read by Interaction's reach query
-(`character_interaction.gd`), AI perception's sight/line-of-fire rays (`agent_vision.gd`), the character's hand queries and leg sweeps (`character/body/`), a dropped
-item's glance (`items/dropped_item.gd`), a thrown grenade's flight (`items/thrown_grenade.gd`), the bullet (`projectile/projectile.gd`), an
-explosion's line (`projectile/explosion.gd`), `PhysicsConfig.wall_mask` and a vehicle's body, door and clearing queries (`scenes/vehicle/`).
+Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, plus Audio's `Sound`. The rest are `class_name` static holders (no instance). Tuning holders: `CameraConfig`, `CameraShakeConfig` (ADR 0003), read live, so a test may `set_static` them.
 
-`light_masks.gd` (`class_name LightMasks`, the same kind of holder, interface 11) is the light masks every domain builds its
-shadows and light layers on (`docs/lighting.md` L6): the occluder bits `WALL` 1, `FURNITURE` 2, `EMITTER` 4 (a solid piece that
-gives light), `CHARACTER` 8, `TALL` 16 (a piece with no light as tall as `TALL_COVERAGE` 75 `coverage`); the shadow masks the
-Lighting domain gives its lights by their height (a 2D shadow has no length, so who shadows whom is picked by height):
-`OVERHEAD_SHADOWS` (walls: an overhead light), `LOW_SHADOWS` (walls + tall pieces: a low light), `ALL_SHADOWS` (a flash); the item
-light layers `HOUSE` 1 and `STREET` 2; `shadows` (whether occluders are built; the Testing domain's `lighting.enabled` turns it
-off with `LightingConfig.enabled`) and `occluder(polygon, bit)`, the one place an occluder is shaped: wound clockwise on screen
-and culled counter-clockwise, so the shape itself stays lit and only what lies behind it falls dark (null while `shadows` is off).
-Objects' walls and solid pieces and the Character's body build theirs through it; Objects' street floors put themselves on
-`STREET`.
+## File map
 
-`game_clock.gd` (autoload `GameClock`, interface 11) is the pausable game clock. A node, `PROCESS_MODE_PAUSABLE`, that counts
-physics frames in `_physics_process`, so it stands still while the tree is paused (the spectator inspector's pause, the test runner's). `msec()` is frames × 1000 / `Engine.physics_ticks_per_second` (an int, the drop-in for
-`Time.get_ticks_msec()`), `seconds()` the same in seconds, `frame()` the frame count. Under `--fixed-fps` a headless run reads the same
-times every run, however far it outpaces the wall clock. It is an autoload node, not a `class_name` holder (an autoload and a class cannot
-share a name), so callers read it off the singleton. Every AI ttl, timer and age runs on it (`docs/leadership.md` LD1, the AI's skills);
-what measures real time (the Von launcher's boot timeout, Von's reply latency) stays on `Time`. Autoloads come before the main scene in
-the tree, so it has counted the current frame before any NPC reads it.
+| File | Holds |
+|---|---|
+| `keybinds.gd`, `input_bindings.gd` | action table, typed readers; rebinding store `Keybinds.bindings` |
+| `settings.gd` | `Settings`: saved JSON |
+| `game_clock.gd` | `GameClock` |
+| `event_bus.gd`, `game_log.gd` | `EventBus` (topics and payloads: interface 10), `GameLog` (interface 15) |
+| `despawner.gd` | cap on transient bodies |
+| `camera_controller.gd` (+ the two config holders) | `Camera2D` |
+| `command_server.gd` | dev command server |
+| `physics_layers.gd`, `draw_layers.gd`, `light_masks.gd` | shared ids |
+| `fill_batch.gd`, `weighted_pick.gd`, `match_verdict.gd` | shared helpers |
 
-`draw_layers.gd` (`class_name DrawLayers`, the same kind of holder) is the world's draw-order ladder (interface 11): `FLOOR` −5,
-`RUG` −4, `BLOOD` −3 (blood and scorch decals), `LYING` −2 (a dead body, casings, a dropped item, a grenade at rest),
-`UNDER_VEHICLE` −1 (a vehicle's chassis), `STANDING` 0 (the default: the living, furniture, walls), `ABOVE` 1 (a vehicle's roof, a
-grenade in flight, the UI's stack markers), `OVERHEAD` 2 (a piece's overhang: a streetlight's arm and head over the road; a room's ceiling fixture), `EFFECTS` 4
-(an explosion's flash and smoke). Every domain's z knob starts from its rung (`ObjectArtLayerConfig`,
-`BloodConfig`, `CharacterArtConfig`, the casing, the dropped item and grenade, the vehicle's layers, `ExplosionFx`, the UI's `StackMarkers`, `OrderMarkers` and `LeaderOverlay`), so a new layer is a
-rung here, not a number in a domain.
+## Shared ids
 
-`fill_batch.gd` (`class_name FillBatch`, a `RefCounted`, shared drawing infrastructure like `DrawLayers`) draws plain-coloured
-shapes on a canvas item as ONE triangle array (`FillBatch.new(canvas, base)`, `base` the draw transform the caller set on it; then
-`fill(poly, color, xform)`, `fill_convex(poly, color, xform)` for a polygon the caller knows is convex (fanned from its first
-corner, uncut), `circle(center, radius, color, xform)`, then `flush()`) instead of one `draw_colored_polygon` / `draw_circle` command
-each: rendering windowed, the engine builds a vertex
-buffer per polygon command (~9 µs each, against a fifth of one for a rect). It cuts each polygon into the triangles the engine itself
-would (`Geometry2D.triangulate_polygon`) and each disc into `draw_circle`'s 64-gon (point `i` at angle `i * TAU / 64`, measured: the
-same pixels at 60x), in the order added, so it draws the same pixels; a polygon that cannot be triangulated goes to the engine on
-its own after what was added, which reports it as `draw_colored_polygon` does. Under the headless display (`FillBatch.batching` false, from
-`DisplayServer.get_name()`) nothing is rendered and gathering the array costs more than the commands it replaces, so a batch hands
-each shape to its canvas as it comes (a placed disc by the canvas's transform and `draw_circle`); the chip chunk and the blood splat
-draw their plain commands there themselves. It also hands out the 64-gon and its fans, `FillBatch.unit_circle()` and
-`FillBatch.fan(base, n)`, which the Character's `BodyMeshes.Solid` builds its meshes from. Used by the body's limbs and shadow (Character), blood splats, the chip
-and print chunks and the wound marks (Physics). Test: `tests/general/fill_batch_matches_draw_calls_test.gd` (headless, batching forced
-on: the batch holds each polygon's own triangles, and off it holds nothing; `--windowed`: identical pixels to the plain calls).
+- `PhysicsLayers.SOLID` is the layer walls, solid furniture and bodies sit on; every ray and sweep that must hit a wall reads it (add a layer here, never a magic number).
+- `DrawLayers` is the one z ladder (`FLOOR` -5 … `EFFECTS` 4). Every domain's z knob starts from a rung; a new layer is a rung here.
+- `LightMasks` (`docs/lighting.md` L6): occluder bits, the shadow masks by light height (a 2D shadow has no length, so height picks who shadows whom), item light layers `HOUSE` / `STREET`. `LightMasks.occluder(polygon, bit)` is the one place an occluder is shaped: wound clockwise on screen and culled counter-clockwise, so the shape stays lit and only what lies behind it falls dark. It returns null while `LightMasks.shadows` is off (the Testing domain's `lighting.enabled` switch).
 
-`weighted_pick.gd` (`class_name WeightedPick`, a static holder like `PhysicsLayers`, interface 11) is the one weighted roll the
-domains share. A roll takes one `rng.randf()` over the total of the weights, each entry in order taking the next stretch of it:
-`WeightedPick.pick(rng, rows, key_index := 0, weight_index := 1, strict := false)` returns the drawn row's `key_index` value (`rows`
-each an Array), `key(rng, weights, strict := false)` a key of a `key -> weight` Dictionary (in its order) and
-`index(rng, rows, weight_index := 1, strict := false) -> int` the drawn row's index. `strict` keeps each caller's own edges: false, a
-roll on the end of a stretch takes that entry and one past them all takes the last; true, it takes the next entry and one past them
-all takes the first. World-Gen's room dresser, Objects' room wear and street marks, the Lighting domain's rhythms (not strict) and
-the Character's style (strict) all draw through it, so the roll lives in one place. Tests: its users' simulation tests, and
-beneath them the native unit suite `tests/general/weighted_pick_suite.gd` (`UnitSuite`, `domain-testing`): the edges, the
-order, one roll per draw and the share by weight.
+## Game clock
 
-`match_verdict.gd` (`class_name MatchVerdict`, a static holder, interface 11) is who has won a match, the one rule the UI's
-MatchHUD (its banner) and the dev command server's `match` verb both decide by. `MatchVerdict.decide(combatants) -> Dictionary` is
-`{}` while every side (faction) still has someone alive; once a side is wiped out, `{ winner, survivors, sides }`: `winner` the faction
-left standing, or null for a draw (nobody, or more than one side, left), `survivors` the living combatants and `sides` faction -> how
-many combatants it fields. It reads them through the Character API only (`faction`, `is_dead`) and leaves a freed one out (its side not counted for it). Each
-caller words the result: the HUD names a lone survivor in a match of any size, `verdict_of` only in a 1v1. Tests: the callers',
-`tests/ui/match_hud_verdict_test.gd` and `tests/general/command_server_verdict_suite.gd`.
+`GameClock` counts physics frames in `_physics_process` and is `PROCESS_MODE_PAUSABLE`, so it stands still while the tree is paused (the spectator inspector's pause, the test runner's) and a headless `--fixed-fps` run reads the same times every run. Every AI ttl, timer and age runs on it (`docs/leadership.md` LD1); what measures real time (the Von launcher's boot timeout, Von's reply latency) stays on `Time`. It is an autoload node (an autoload and a class cannot share a name), read off the singleton.
 
-## Input architecture
+## Input
 
-All input flows through the `Keybinds` autoload; gameplay never hard-codes action strings or
-`KEY_*`. To add/change an input: add an action constant, add its default to `DEFAULTS`, and expose
-a typed helper. `player_controller.gd` (Character domain) is the one gameplay consumer of
-Keybinds (movement, `RUN` — held, default Shift —, `CROUCH` (C) — a toggle, in the "Movement" group after Run — and the action keys, incl. `RELOAD`, default R, and `KICK`, default V, in the "Combat" group next to Punch and Fire, and `USE_VEHICLE`, default E, label
-"Get in / out of vehicle", in the "Interaction" group after Interact: `is_use_vehicle_just_pressed()` → `character.use.try_use_vehicle()`;
-while the player drives, its movement keys and `RUN` are the vehicle's throttle, steer and handbrake, read by the Vehicles domain off the
-character's `movement.move_input` / `movement.run_input`, so driving adds no action). Everything else reads its own actions: `main.gd` and the test runner `MENU`, the spectator
-inspector `PAUSE`, the UI's command menu `COMMAND` ("Command teammates", default right mouse, in the "Interaction" group after Get in / out of
-vehicle; read only by the menu, which Main builds only when the human leads, and which reads `MENU` too, only to close itself), the camera its pan and zoom actions; `settings.gd` persists the bindings, and
-`command_server.gd` (dev-only) reads the action *names* to inject real input when driving the game from
-outside. `Keybinds._ready` registers every action in the InputMap, so there is no `project.godot [input]` section: this file
-is the source of truth. `PAUSE`
-(default Space) is read by the spectator inspector (UI domain) and the test runner; it shares Space with `INTERACT`,
-harmless because the spectator match has no player to interact.
+All input goes through `Keybinds`; gameplay never hard-codes action strings or `KEY_*`. To add an input: an action constant, its default in `DEFAULTS` (or `MOUSE_DEFAULTS`), a typed reader, an entry in `LABELS` and `GROUPS` (a test enforces they cover every action). `Keybinds._ready` registers every action in the InputMap, so `project.godot` has no `[input]` section.
 
-Each action holds exactly one binding, a key (stored by physical keycode) or a mouse button. Keyboard
-defaults live in `DEFAULTS`, pointer defaults in `MOUSE_DEFAULTS` (`FIRE` left-click, `COMMAND` right-click, `ZOOM_IN` /
-`ZOOM_OUT` wheel up/down); `actions()` is their union and what resets, overrides and loading cover.
-`FIRE` is read two ways, both by the player controller: `is_fire_just_pressed()` (a click: one round) and `is_fire_pressed()`
-(held: an automatic gun keeps firing, `Character.weapon.is_automatic()`); no new action, so rebinding `FIRE` moves both.
-`CAMERA_LEFT/RIGHT/UP/DOWN` (default WASD, read through `get_camera_vector()`) and `ZOOM_IN/OUT` are read
-by the camera and the test runner; the camera keys share WASD with `MOVE_*`, harmless because the spectator match has no
-player to move. `LABELS` (settings-page order + names) and `GROUPS` must cover every action (a test
-enforces it). The autoload keeps the action table and the typed readers; the rebinding store is its part `Keybinds.bindings`
-(`input_bindings.gd`, a `RefCounted` reached by preload const, no `class_name`, built once at member init with `DEFAULTS`,
-`MOUSE_DEFAULTS` and `SHARED`, so it is handed the action tables rather than reading them off the autoload, and holds no
-owner; `MOUSE_NAMES` is its const). Its API: `bind(action, event)`
-(key or mouse button incl. wheel up/down; refuses the horizontal wheel and anything else), `reset(action)` / `reset_all()`,
-`actions()`, `default_event`, `text_of` ("W", "Space", "Mouse Left"; skips the layout lookup on the headless display server, which
-logs an error for it), `conflicts_of(action)` (other actions on the same input, minus the deliberately shared `SHARED` pairs —
-Interact/Pause and each camera pan key with its move key), and `overrides()` / `apply_overrides(d)` (only the bindings that differ from the
-defaults, as `{ "key": int }` / `{ "mouse": int }`; malformed entries are skipped one by one); a binding's current event is its
-private `_event_of`. `Keybinds._ready` registers the defaults only (`bindings.reset_all()`).
+- Each action holds exactly one binding: a key (stored by physical keycode) or a mouse button. `FIRE`, `COMMAND`, `ZOOM_IN` and `ZOOM_OUT` are mouse defaults.
+- `SHARED` pairs may sit on one input (`INTERACT`/`PAUSE`; each camera key with its move key) because the spectator match has no player; `conflicts_of` skips them.
+- `FIRE` is read two ways (`is_fire_just_pressed` one round, `is_fire_pressed` held for an automatic gun); rebinding it moves both.
+- While the player drives, its movement keys and `RUN` are the vehicle's throttle, steer and handbrake (read off `movement.move_input` / `run_input`): driving adds no action.
+- `bindings` (`input_bindings.gd`, preloaded, no `class_name`) is built with the action tables handed in and holds no owner. `text_of` skips the layout lookup on the headless display server (it logs an error there).
+- Tests that rebind end with `Keybinds.bindings.reset_all()`: the harness does not restore it.
 
 ## Saved settings
 
-`settings.gd` (`class_name Settings`, a static holder like the config holders — no instance, no autoload)
-keeps the **Debug** switch (`Settings.debug`, the master switch for the AI overlays), the setup window's last choices, the overlay
-toggles and the key-binding overrides in one JSON file, `Settings.path` (`user://settings.json`):
-`{ "debug": bool, "setup": { side, seed, lead, defenders, invaders }, "overlays": { show_<x>: bool }, "keybinds": { action: { "key": int } | { "mouse": int } } }`. Only differences from
-the defaults are stored, so a changed default still reaches an action the player never touched.
-- **`load_file()`** resets every binding, applies the saved overrides and takes the saved `debug`, `setup` and `overlays`; a
-  missing file keeps the defaults, an unreadable one `push_warning`s and does the same, and a file that
-  doesn't name `debug` leaves it as it was.
-- **Main calls it, not `Keybinds._ready`**, once in `_ready` (after seeding `Settings.debug` from its own
-  export), so the headless test runner — which never loads `main.tscn` — never reads a developer's file.
-- **`Settings.setup`** holds the match-setup window's last choices (`set_setup(config)` saves them, dropping the
-  start `mode`; `lead`, "Lead the team", is kept; each side's dict is kept whole: count, loadout and `outfit`); Main feeds it back into the window so it reopens as it was left.
-- **`Settings.overlays`** holds the toggle bar's switches (`set_overlay(flag, on)` saves one); Main seeds the overlays from it.
-- **Mutators save at once:** `set_debug(on)`, `set_setup(config)`, `set_overlay(flag, on)`, `rebind(action, event) -> bool`, `reset(action)`,
-  `reset_all()` (leaves `debug`). `binding_rows()` reshapes the bindings into the plain dicts the settings
-  page draws: `{ action, label, group, text, conflicts: [labels], changed }`.
-- Tests point `Settings.path` at a scratch file with `set_static` (`tests/general/settings_file_test.gd`);
-  `Keybinds` state is not restored by the harness, so a test that rebinds ends with `Keybinds.bindings.reset_all()`.
+`Settings` keeps `debug` (the master switch for the AI overlays), the setup window's last choices, the overlay toggles and the key-binding overrides in `user://settings.json` (`Settings.path`). Only differences from the defaults are stored, so a changed default still reaches an action the player never touched.
+
+- Main calls `Settings.load_file()` once in `_ready`, after seeding `Settings.debug` from its export. Nothing else does, so the headless runner (never loads `main.tscn`) never reads a developer's file.
+- A missing file keeps the defaults; an unreadable one `push_warning`s and does the same; a file without `debug` leaves it as it was.
+- Mutators save at once. `reset_all()` leaves `debug`. `set_setup` drops the start `mode` and keeps each side's dict whole.
+- Tests point `Settings.path` at a scratch file with `set_static` (`tests/general/settings_file_test.gd`).
 
 ## Dev command server
 
-`command_server.gd` (a node in `main.tscn`, editor-only, cleaned up on exit) lets an external tool
-control a running game with text commands. It is **off** unless the port — the `GODOT_CMD_PORT` env
-var (per-worktree, set by `tools/editor.sh`), else `application/debug/command_port` — is >
-0 and never exists in an exported build (`_ready()` bails when `OS.has_feature("editor")` is
-false). `GODOT_CMD_PORT=off` keeps it off whatever port is set (no listen, no warning): `tools/load_check.sh`,
-`tools/run_tests.sh` and the coverage runner (`tools/coverage/runner.py` `game_env`) always run Godot with it, over a
-port the caller set, so two worktrees' checks never clash on 9080 (`tools/tests/test_load_check.py` holds 9080 and
-passes the check). It listens on 127.0.0.1 with a line-delimited protocol: each line is a curated verb
-(`help`, `pos`, `tp X Y`, `slot N`, `move up|down|left|right [off]`, `stop`, `fire`, `punch`, `kick`,
-`interact`, `reload`, `crouch`, `aim X Y`, `match`, `ai`, `restart [seed]`, `menu`, `eval EXPR`) or, failing that, a GDScript `Expression`
-evaluated against the node (e.g. `scene().get_node("Player").movement.speed`). Movement and actions are
-driven by injecting `Input` action presses through `Keybinds` names — the same path a human's
-keyboard/mouse uses — so no game domain is coupled to it. Combatants and the player are discovered under the scene root **or a node in the `match_world` group** (Main's container for everything a match builds). `match` prints a one-line, parseable
-status of every AI combatant it finds: each one's health, current act and
-alive flag, plus the verdict and elapsed time — reading only the characters' public API (`health`, `is_dead`,
-`faction`, `name`) and their
-AI controller's `current_act()` (the child in the group `npc_controllers`, interface 7). The verdict (`verdict_of(combatants)`, static) words `MatchVerdict.decide`,
-the rule the MatchHUD decides by too: `none` while every faction has someone alive; once one is wiped out, the one left standing by its
-faction (a 1v1 names the survivor, where the HUD names a lone survivor in any match); `draw` with nobody, or more than one faction,
-left (`tests/general/command_server_verdict_suite.gd`). `ai` is the diagnostic counterpart: it dumps every AI combatant's
-`debug_state()` as JSON (every level of its last decision walk — the state and question Von saw,
-the options, Von's probabilities and pick — plus the facts gated on, the known contacts, the running
-primitive and the pathing state), read off the same controller so the server stays a decoupled
-observer. `tools/von_probe.py --capture` turns such a dump into replayable Von scenarios. `restart [seed]` reloads the scene for a fresh matchup, pinning the
-next layout when a seed is given (stashed in `Engine` meta, which survives the reload; `main.gd`
-reads it) and sets the `skip_setup` Engine meta so the reloaded scene builds immediately instead of
-reopening the pre-game setup window — the harness never clicks it. Drive it from `tools/gcmd.py` (`python3 tools/gcmd.py "tp 600 300"`) for single
-commands, or `tools/match.py` to run and score N matches in a row; each command is echoed as a
-`[cmd] …` Output line. (The `godot-run` skill covers driving it.)
+`command_server.gd` (a node in `main.tscn`) drives a running game with line-delimited text commands on 127.0.0.1. Editor-only (`OS.has_feature("editor")`), and off unless the port is > 0: `GODOT_CMD_PORT` (per worktree, set by `tools/editor.sh`), else `application/debug/command_port`. `GODOT_CMD_PORT=off` keeps it off whatever port is set: `tools/load_check.sh`, `tools/run_tests.sh` and the coverage runner always set it, so two worktrees' checks never clash on 9080.
 
-## Event bus
+- Verbs: `help` lists them (a verb table in the script); anything else is evaluated as a GDScript `Expression` against the node. Drive it with `tools/gcmd.py` (one command) or `tools/match.py` (N scored matches); the `godot-run` skill covers it.
+- Movement and actions inject `Input` presses through `Keybinds` names, the same path a human's input takes, so no game domain is coupled to it.
+- It finds combatants under the scene root or a node in the `match_world` group (Main's container for everything a match builds).
+- `match` prints one parseable line: each AI combatant's health, act and alive flag, then the verdict and elapsed time. It reads only the Character API and the AI controller's `current_act()`. `verdict_of` words `MatchVerdict.decide` (a 1v1 names the survivor; the HUD names a lone survivor in any match): `tests/general/command_server_verdict_suite.gd`.
+- `ai` dumps every AI combatant's `debug_state()` as JSON; `tools/von_probe.py --capture` turns the dump into replayable Von scenarios.
+- `restart [seed]` reloads the scene. The seed rides in `Engine` meta `match_seed` and `skip_setup` makes `main.gd` build at once instead of reopening the setup window.
 
-`event_bus.gd` (autoload `EventBus`) — a minimal generic publish/subscribe bus for decoupled
-cross-domain notifications: `post(topic, data)` broadcasts and the `posted(topic, data)` signal
-delivers to any listener, which filters by `topic`. Emitters and listeners never reference each
-other. Topics in use: `&"hit"`, posted by the Projectile System for each damaging hit and
-by the Character for each landed punch (`{ position, victim, direction, damage, attacker }`, plus
-`outcome` / `material` and, for bullets, `speed_factor`, `power`)
-and consumed by the AI for combat awareness, hostility and gunfire heard, by Audio for impacts;
-`&"shot"` (a round left a gun; also the Lighting domain's muzzle flash), `&"footfall"` (a foot landed) and `&"reload"` (a
-reload started / finished), posted by
-Items and Character and consumed by Audio (`&"footfall"` by the AI too, for footsteps heard); the grenades' `&"throw"` (consumed by Audio), `&"grenade"` (a bounce or rest, consumed by Audio and the AI), `&"explosion"` (consumed by Audio, the camera shake, the
-Lighting domain's flash and the AI) and `&"stun"` (Audio's tinnitus and the stun screen); the vehicles' `&"vehicle"` (ignition, doors, crashes, a character struck), `&"engine"` and `&"skid"` (consumed by Audio);
-`&"sound"`, which Audio posts for every sound it
-makes (what tests assert on); `&"callout"`, an AI
-controller's team radio (`{ speaker, faction, position, status, path, label, target_id, point }`),
-consumed by allied AIs; and the squads' (`ai/team/squad.gd`) `&"order"`, a leader's order (`{ id, leader, faction, to, kind, … }`),
-consumed by the AI controllers of its side it names in `to`, and `&"leader"`, a new leader after a death (`{ faction, leader, previous }`),
-which no game code listens to: its readers are the test runner's event log and the tests that assert on it.
+## Camera
 
-## Camera and despawner
+`camera_controller.gd` follows its exported `target_path`, or **frames** a list (`frame(targets)`: the midpoint of the live targets, zoomed to fit plus `frame_margin`, dropping any `is_dead`; the spectator view). `pan_enabled` (per instance) removes hand pan; the test runner turns it off for a human-driven player, where WASD walks.
 
-- `camera_controller.gd` — by default follows the character; attaches by exported node path and
-  reads only the public API/signals. Its two exports are `target_path` (scene-authored) and `pan_enabled` (set per instance); every
-  other tunable is in two ADR 0003 holders beside it, `CameraConfig` (`camera_config.gd`: the follow, framing, zoom and hand pan) and
-  `CameraShakeConfig` (`camera_shake_config.gd`: the explosion shake), read live, so a test may `set_static` them. It also has a **framing mode** (`frame(targets)`): instead of
-  following one target it eases to the midpoint of the live targets and zooms to fit them plus
-  `CameraConfig.frame_margin` (clamped by `min_zoom`/`max_zoom`), dropping any whose `is_dead` is true — used by
-  the spectator match view.
-  - **Zoom** (both modes): the `ZOOM_IN`/`ZOOM_OUT` actions (mouse wheel) scale the zoom by `CameraConfig.zoom_step`
-    per notch. A trackpad's two-finger scroll arrives as `InputEventPanGesture` (no wheel events on macOS) and
-    counts `trackpad_zoom_sensitivity` notches per unit of its `delta.y` (up zooms in); it isn't rebindable. The scale (`_zoom_bias`) is lasting and multiplies the
-    automatic zoom (`_base_zoom`: 1 when following, the clamped fit when framing), so it works the same
-    in both modes, can go beyond the fit's `min_zoom`/`max_zoom`, and is limited only by
-    `wheel_min_zoom`/`wheel_max_zoom`. The zoom eases at `follow_speed` (all `CameraConfig`'s). Read in `_unhandled_input`, so
-    scrolling UI gets the wheel first.
-  - **Hand control** (framing mode only): the camera keys or the mouse within `CameraConfig.edge_pan_margin` px of
-    a screen edge pan the camera at `CameraConfig.pan_speed` (screen px/s, so zoom-independent). Panning
-    sets `_manual`, which suspends the automatic framing position (the zoom keeps auto-fitting, scaled
-    by the wheel); after `CameraConfig.manual_hold` (5) seconds without panning `_manual` clears and the framing
-    eases back in. Edge
-    panning only runs while the pointer has been seen moving over the window (`_mouse_in_window`,
-    cleared on `NOTIFICATION_WM_MOUSE_EXIT` / focus-out), so a cursor that left at an edge or has
-    never moved can't drag the camera. `pan_enabled` off removes the pan (wheel still works); the
-    test runner turns it off for a world with a human-driven player, where WASD walks.
-- **Zoom out while driving** (both modes): `_drive_zoom_out(who)` reads `who.use.vehicle().view_zoom_out()` duck-typed (`has_method` on the
-  target and on what `use.vehicle()` returns; 0 on foot, clamped to 0..0.9), never `VehicleDriveConfig`. Following, `_ease_zoom(1 − that)` scales the
-  automatic zoom down, so the view widens with the vehicle's speed (`VehicleDriveConfig.zoom_out`, 0.35, at its top speed) and eases back
-  in as it slows, at the follow easing; framing, the largest among the live framed targets is used. The wheel's `_zoom_bias` multiplies on
-  top. Test: `tests/general/camera_zooms_out_driving_test.gd`.
-- **Explosion shake** (`&"explosion"` on the EventBus, both modes): a burst adds trauma (0..1) = `CameraShakeConfig.frag` (1.0) / `stun` (0.5)
-  times `near²`, `near` = 1 − distance / the kind's range (`frag_range` 1500, `stun_range` 900; beyond it nothing), capped at 1, and the view
-  is thrown about through `Camera2D.offset` by `max_offset` (28 px) × trauma² / zoom (two out-of-step wobbles per axis at `speed`),
-  the trauma draining at `decay` (1.2 /s) so it settles back to a zero offset. The offset never touches `global_position`, so following and
-  framing are unchanged. Test: `tests/general/camera_shakes_on_explosion_test.gd`.
-- `game_log.gd` (`GameLog`, a `class_name` static holder) — the one way any domain logs what is happening:
-  `GameLog.say(message)` prints while `GameLog.enabled` (default true). A `tools/run_tests.sh` run (gdUnit) turns it off
-  unless `--verbose`; never route errors/warnings through it.
-- `despawner.gd` (autoload) — global cap for transient bodies (flying debris chips, `HitParticles`, the `ExplosionFx` nodes, casings, blood
-  splatters and pools, a grenade's `GrenadeSpoon`); domains register spawns with it. The Physics domain's `DebrisLayer` and `ScorchDecals` read
-  `max_scene_objects` as the cap on landed chips and scorch marks too.
+- **Zoom** (both modes): the wheel, or a trackpad's `InputEventPanGesture` (macOS sends no wheel events; not rebindable), scales a lasting `_zoom_bias` that multiplies the automatic zoom `_base_zoom`, so it works the same in both modes and may pass the fit's `min_zoom`/`max_zoom` (limited by `wheel_min_zoom`/`wheel_max_zoom`). Read in `_unhandled_input`, so scrolling UI gets the wheel first.
+- **Hand pan** (framing only): camera keys, or the mouse within `edge_pan_margin` of an edge (only once the pointer was seen moving over the window, cleared on mouse-exit / focus-out), set `_manual`, which suspends the framing position; `manual_hold` seconds without panning eases back in. Test: `tests/general/camera_manual_pan_test.gd`.
+- **Driving zoom-out**: `_drive_zoom_out` reads `who.use.vehicle().view_zoom_out()` duck-typed (interface 19) and never `VehicleDriveConfig`. Test: `camera_zooms_out_driving_test.gd`.
+- **Explosion shake** (`&"explosion"`): trauma from the kind's strength and nearness, applied through `Camera2D.offset` only, never `global_position`, so following and framing are unchanged. Test: `camera_shakes_on_explosion_test.gd`.
 
-HUDs and menus (`debug_ui.gd`, `match_hud.gd`, `setup_menu.gd`) belong to
-`scenes/ui/` — see the `domain-ui` skill for their implementation detail.
+## Despawner
 
-## Spectator match mode
+Global cap (`max_scene_objects`) for transient bodies: domains hand their spawns to `Despawner.track`. Physics' `DebrisLayer` and `ScorchDecals` read the same cap for landed chips and scorch marks.
 
-Main's `run.spectator_mode` (on by default) turns the scene into an AI-only contest between the NPC sides
-(`run.defender_count` / `run.invader_count` NPCs, 1 each by default and up to the setup window's 8 a side): it frees the
-human `Player` and `DebugUI`, points the camera at every combatant in framing mode (`frame(combatants)`), and activates
-`MatchHUD`. The `match` / `restart` command verbs plus `tools/match.py` make the matchup scriptable
-for watching and regression-testing both AI agent-types (defender and invader). Composition-root
-wiring lives in `main.gd`; the General observers only read published contracts.
+## FillBatch
 
-**Interfaces:** 7 (the `Keybinds` consumers and observers), 10 (EventBus), 11 (`PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `WeightedPick`, `MatchVerdict`), 13 (Testing: the camera's `frame` / `pan_enabled`, the runner's `Keybinds` reads), 14 (`Settings`, the dev command server), 15 (`GameLog`), 19 (the camera's `use.vehicle().view_zoom_out()`, `USE_VEHICLE`) — signatures in `architecture`.
+`FillBatch.new(canvas, base)` draws plain-coloured polygons and circles as ONE triangle array (`fill`, `fill_convex`, `circle`, then `flush`) in place of one draw command each, because the windowed renderer builds a vertex buffer per polygon command. It cuts the same triangles the engine would and each disc into `draw_circle`'s 64-gon, so the pixels match. A polygon that cannot be triangulated goes to the engine alone after what was added, which reports it as `draw_colored_polygon` does.
+
+Under the headless display (`FillBatch.batching` false) nothing renders and gathering costs more than it saves, so each shape goes to the canvas as it comes; code that draws plain commands itself there (the chip chunk, the blood splat) is deliberate. `FillBatch.unit_circle()` and `fan(base, n)` feed the Character's `BodyMeshes.Solid`. Test: `tests/general/fill_batch_matches_draw_calls_test.gd` (headless: the triangles; `--windowed`: identical pixels).
+
+## WeightedPick
+
+One `rng.randf()` over the total weight; each entry takes the next stretch. `strict` keeps each caller's edge behaviour: false, a roll on the end of a stretch takes that entry and one past them all takes the last; true, it takes the next entry and one past them all takes the first. The room dresser, room wear and street marks, the Lighting rhythms (not strict) and the Character's style (strict) draw through it. Test: `tests/general/weighted_pick_suite.gd`.
+
+## MatchVerdict
+
+`MatchVerdict.decide(combatants)` is the one rule the MatchHUD banner and the command server's `match` decide by: `{}` while every faction has someone alive; once one is wiped out, `{ winner, survivors, sides }` (`winner` null for a draw). It reads `faction` and `is_dead` only and leaves a freed combatant out. Tests: `tests/ui/match_hud_verdict_test.gd`, `command_server_verdict_suite.gd`.
+
+## Spectator mode
+
+Main's `run.spectator_mode` (default on) runs an AI-only contest: it frees the human `Player` and `DebugUI`, frames every combatant with the camera and shows `MatchHUD`. Wiring lives in `domain-main`; General only publishes the contracts.
