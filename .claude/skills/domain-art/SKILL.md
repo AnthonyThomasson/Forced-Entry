@@ -1,102 +1,66 @@
 ---
 name: domain-art
-description: Deep implementation detail for the Art domain (scenes/art/) — the procedural top-down pixel-art engine every painter draws through: PixelCanvas (the drawing surface, shading, material finishes), PixelShape / PixelConvexShape (the shapes it fills), PixelArt (the cached renderer, cardinal vs. freely turning art, lighting steps) and the two holders ArtCanvasConfig (the art pixel, light, turn steps, shadows) and ArtSurfaceConfig (the tone ramp, surface textures). Use when editing scenes/art/, writing or debugging any painter (furniture, walls, floors, characters, held items, vehicles), or tuning the shared pixel-art look. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Use when editing scenes/art/, writing or debugging a painter (furniture, walls, floors, characters, held items, vehicles), or tuning the shared pixel-art look.
 ---
 
-# Art domain
+# Art domain (`scenes/art/`)
 
-A leaf: the pixel-art engine. It knows nothing about furniture, characters or items — each domain
-owns its own **painters** and renders them through this domain. Depends only on Godot's `Image`.
+A leaf: the procedural pixel-art engine. It knows nothing of furniture, characters or items; each domain owns its painters and
+renders them through here. Depends only on Godot's `Image`. Interfaces: 12 (Objects / Character / Items / Vehicles → Art) and 13
+(a sandbox's own painter, as a `ticket` (`assets.md`) showroom has).
+
+| File | Role |
+|---|---|
+| `pixel_art.gd` (`PixelArt`) | The cached renderer. |
+| `pixel_canvas.gd` (`PixelCanvas`) | The drawing surface: RGBA image plus coverage and height layers; shading, finishes, `glowing`. |
+| `pixel_shape.gd` (`PixelShape`), `pixel_convex_shape.gd` (`PixelConvexShape`) | The shapes a canvas fills. |
+| `art_canvas_config.gd`, `art_surface_config.gd` | Tuning: `ArtCanvasConfig` is what every painting shares (`pixel_size`, `light_from`, `turn_steps`, drop and cast shadow); `ArtSurfaceConfig` is how a surface is shaded (the `tones(base)` ramp, finish densities). A domain's own proportions and colours stay in its own config (`ObjectArt*Config`, `CharacterArtConfig`); a painter knob reads `opts.get(key, <DomainConfig>.<painter>_<key>)`. |
 
 ## Painters
 
-A painter is any script with
-`static func paint(canvas: PixelCanvas, base: Color, material: String, opts: Dictionary)`. It
-draws in a **canonical frame** — front toward +y, width across the front — under `canvas.light`,
-the world light already turned into that frame, so its shading lands correctly after the art is
-turned. Painters live in their own domain: Objects (`objects/art/*_painter.gd` + the `ObjectArt`
-registry: the furniture (the cyberpunk rooms' `tech`, `recliner`, `clinic`, `security` and `hotplate` among them), the `streetlight` (its post,
-and with `part: "overhang"` its arm and head drawn overhead), `decor` (clutter, neon tubes), the tiling `floor`, `street` and `wall`,
-and `wear` (world-placed marks), all in the run-down look through the shared `decay.gd`), Character (`character/body/art/body_painter.gd`, `head_painter.gd`, `hand_painter.gd`, `limb_painter.gd`, `torso_painter.gd`,
-`vest_painter.gd`), Items (`items/art/`, one painter per weapon style for the guns, held and lying dropped, `police_gun_painter.gd`,
-`scrap_gun_painter.gd`, `pipe_gun_painter.gd`, and for the frag and stun grenades, `police_grenade_painter.gd`, `scrap_grenade_painter.gd`,
-`pipe_grenade_painter.gd`, through the shared `weapon_art.gd`; and the spoon's `spoon_painter.gd`), Vehicles (`vehicle/art/car_painter.gd`, `van_painter.gd`, `door_painter.gd`, `wheel_painter.gd`, `lamp_painter.gd`, through
-the shared `vehicle_art.gd`; see `domain-vehicle`). Knobs follow `opts.get(key, <DomainConfig>.<painter>_<key>)`.
+A painter is a script with `static func paint(canvas, base, material, opts)`. It draws in a **canonical frame** (front toward +y,
+width across the front) under `canvas.light`, the world light already turned into that frame, so its shading lands right once
+the art is turned. Painters live in their own domain: Objects (`objects/art/`, `domain-objects`), Character
+(`character/body/art/`), Items (`items/art/`, the gun and grenade painters share `weapon_art.gd`), Vehicles (`vehicle/art/`,
+shared `vehicle_art.gd`, `domain-vehicle`).
 
-## PixelArt (`pixel_art.gd`) — the renderer
+## Rendering
 
-- `render(painter, size, color, facing := Vector2.DOWN, opts := {})` — the surface finish rides in `opts.material`
-  (handed to the painter as its `material`, the rest as its `opts`; the cache key holds it in a field of its own). For a cardinal `facing`: paints at
-  `size / ArtCanvasConfig.pixel_size`, lit for that facing, then turns the image (`rotate_90/180`).
-  Furniture, walls, floor tiles.
-- `render_turned(painter, size, color, angle, opts := {})` — the image stays canonical but is
-  lit as if turned by `angle`; the caller draws it rotated (`draw_set_transform`, or
-  `Deformation.draw_shape` with its `ShapeLook.texture_angle`). Callers pass `snap_angle(angle)` (one of
-  `ArtCanvasConfig.turn_steps` lighting steps) and rotate to the exact angle when drawing — smooth
-  turning, few cached textures, world-consistent light. Characters, hands, the guns, a vehicle's body, doors, wheels and lamps.
-- `emissive(painter, size, color, facing := Vector2.DOWN, opts := {})` — the emissive twin of `render`'s texture for the same inputs: what
-  the painter drew `glowing` (PixelCanvas), in the art's colours, transparent elsewhere, same size and turn; null when nothing in
-  it glows. Kept from the same paint (`_emissive`, beside `_cache`), so asking costs no second paint. `render_turned` keeps none.
-- `handle(look) -> int` / `look_of(opts) -> Dictionary` — a painter's big look (a character style's resolved look, a gun's or
-  grenade's `looks` row) travels in its options as an int (`opts.look`), never the dict: the caches key by the options and
-  `render_turned` hashes them every call. `handle` registers the look under its hash (so the same look has the same handle and a
-  cached texture keyed by it is that look's); `look_of` reads it back, {} for none. The Character and Items painters use it.
-- `away_from_light(node) -> Vector2` — the direction away from the light (`ArtCanvasConfig.light_from`) in `node`'s frame: where a
-  drop shadow falls, which the Character, Items, Objects and Vehicles visuals offset their shadows by.
-- Static cache keyed by painter path + inputs (+ orientation); survives scene reloads. Each
-  piece's random detail is seeded by its inputs *without* orientation, so it doesn't change as the
-  piece turns.
-- `render_turned` sits behind a bounded memo (`_turned_memo`, `TURNED_MEMO_MAX` entries) keyed by the call's exact arguments, so
-  a repeat call (a character repaints every part every frame) costs one lookup instead of formatting the key string. It only
-  shortcuts the string-keyed cache: values that key treats as equal (an angle within four decimals) still share one texture
+Pick the entry point by how the thing turns:
+
+- `render` — a cardinal `facing`: paints at `size / ArtCanvasConfig.pixel_size`, lit for that facing, then turns the image
+  (furniture, walls, floor tiles). The surface finish rides in `opts.material`, handed to the painter as `material`.
+- `render_turned` — the image stays canonical and is lit as if turned by `angle`; the caller draws it rotated (characters,
+  hands, guns, vehicle bodies, doors, wheels, lamps). Callers pass `snap_angle(angle)` (one of `ArtCanvasConfig.turn_steps`) and
+  rotate to the exact angle when drawing: few cached textures, smooth turning, world-consistent light.
+- `emissive` — the twin of `render`'s texture holding only what the painter drew `glowing`; null when nothing glows. Kept from
+  the same paint, so it costs no second paint; `render_turned` keeps none.
+
+Invariants:
+
+- The cache is static (survives scene reloads), keyed by painter path + inputs + orientation. A piece's random detail is seeded
+  by its inputs *without* orientation, so it does not change as the piece turns.
+- A painter's big look (a character style, a gun's `looks` row) travels in `opts.look` as the int from `handle(look)`, never as
+  a dict: the caches key by the options. `look_of(opts)` reads it back. Character and Items painters use it.
+- `render_turned` sits behind a bounded memo (`_turned_memo`, `TURNED_MEMO_MAX`) keyed by exact arguments, because a character
+  repaints every part every frame; values the string key treats as equal still share one texture
   (`tests/art/pixel_art_turned_cache_test.gd`).
+- `away_from_light(node)` gives the direction a drop shadow falls; every visual offsets its shadow by it.
 
-## PixelCanvas (`pixel_canvas.gd`) — the surface
+## PixelCanvas gotchas
 
-An RGBA8 Image at art resolution plus coverage and height layers (R8 images filled natively, read
-through snapshots).
-- **Shapes** are their own classes, `PixelShape` (`pixel_shape.gd`) and `PixelConvexShape extends PixelShape`
-  (`pixel_convex_shape.gd`), and the canvas draws whatever shape it is handed. `PixelShape.rounded(r, radius)`,
-  `PixelShape.ellipse(r)` and `PixelShape.disc(c, radius)` build `PixelConvexShape`s (one span per row/column: native row
-  fills, O(1) depth-from-edge + normal, edge band enumerated directly); `PixelShape.bowed(r, radius, bow)` builds a mask
-  `PixelShape` (run-length sweeps).
-- **Cost:** a mask `PixelShape` tests every pixel of its bounds when built and keeps a per-pixel mask, depth and normal (eight
-  sweeps of its inside pixels, on first use), and hands `bevel` / `outline` only its edge band (`edge_pixels(k)`: depth 1..k),
-  pinned to the plain per-pixel scan by `tests/art/shape_edges_match_plain_scan_test.gd`; a
-  `PixelConvexShape` keeps one span per row and per column, so its fill, bevel and outline cost its edge. A shape that is convex
-  along both axes but not a rounded rect or ellipse can be built from outside with `PixelConvexShape.new(rect, x0, x1, y0, y1)`
-  (per row: first inside x and one past the last; per column the same in y): the Vehicles domain's `vehicle_art.convex` does, once
-  per geometry, for its windscreens and side windows. `cast_shadows()` walks the whole canvas, so a large canvas painted for every
-  lighting step (a vehicle body) skips it and shades with bevels.
-- **Drawing:** `fill(shape, color, height)` (`fill(shape, PixelCanvas.CLEAR, 0)` erases a shape back to transparent floor),
-  `paint_over(rect, color)`, `line`, `px`; the static
-  `PixelShape.line_points(a, b)` (a 1 px line's Bresenham points, `a` first) is the one line walk, also for a painter that blends or clips
-  each point itself (Objects' `decay.gd` `line` / `scratches`).
-- **What gives light:** `glowing(draw: Callable, area := Rect2i())` runs a drawing (a screen's face, a tube, a bulb, an LED)
-  and marks every pixel it changed within `area` (the whole canvas when empty) as emissive; `emissive()` returns those pixels as
-  they stand in the finished art (null when none). It compares the image before and after (skipping the rows left as they
-  were), so pass a small `area` for a small drawing on a big canvas. Nothing else in the engine reads it: `PixelArt.emissive`
-  hands it to callers. `tests/art/glowing_marks_changed_pixels_test.gd` pins the marks to the plain per-pixel comparison.
-- **Reading coverage:** `covered(x, y)` for a pixel; `coverage()` (a snapshot: one byte per pixel, `y * w + x`, non-zero where
-  drawn) for a painter that reads every pixel's neighbourhood (Objects' neon strip), where a `covered` call per pixel is slow.
-- **Shading:** `bevel(shape, from_k, to_k, lit, unlit)` (light-facing edges lit, far edges
-  shaded; swap for a recess), `bevel_relative` / `outline_relative` (shade what's drawn — shapes
-  in several colors), `outline`, `glare`, `cast_shadows()` (a taller part shades lower pixels on
-  its far side from the light, via the height layer); the tone ramp (outline … highlight) is
-  `ArtSurfaceConfig.tones(base)`, and `ArtSurfaceConfig.jitter(rng, col, k)` shifts `col` by a random tone within `k` drawn from
-  `rng` (the canvas's: a plank's, tile's or brick's own tone, for the floor, table and wall painters).
-- **Surface finishes:** `surface(shape, material, base, along_x, wraps)` — wood grain, brushed
-  metal, stone flecks, ceramic/glass glare, fabric weave, plastic grain — plus `speckle` (sampled;
-  matches 8-bit pixels with a tolerance), `grain(s, density, dark, pale, opts := {})` (`opts.along_x`, default true,
-  `opts.wraps` for seamless tiles) / `knot`.
+- A mask `PixelShape` (`bowed`) tests every pixel of its bounds and keeps a per-pixel mask, depth and normal; a
+  `PixelConvexShape` (`rounded`, `ellipse`, `disc`) keeps one span per row and column, so fill, bevel and outline cost its edge.
+  Prefer convex. A shape convex along both axes but neither a rounded rect nor an ellipse is built with `PixelConvexShape.new`
+  (`vehicle_art.convex` does, once per geometry). `edge_pixels(k)` is pinned to the plain scan by
+  `tests/art/shape_edges_match_plain_scan_test.gd`.
+- `cast_shadows()` walks the whole canvas: a large canvas painted for every lighting step (a vehicle body) skips it and shades
+  with bevels.
+- `glowing(draw, area)` marks every pixel `draw` changed within `area` as emissive, comparing the image before and after. Pass a
+  small `area` for a small drawing on a big canvas. Pinned by `tests/art/glowing_marks_changed_pixels_test.gd`.
+- Read pixels in bulk through `coverage()` (a snapshot), not one `covered(x, y)` per pixel.
+- `PixelShape.line_points` is the one line walk, also for a painter that blends or clips each point itself
+  (Objects' `decay.gd`).
+- `ArtSurfaceConfig.jitter(rng, col, k)` takes the canvas's `rng`, so a plank's or tile's own tone stays seeded.
 
-## ArtCanvasConfig and ArtSurfaceConfig (`art_canvas_config.gd`, `art_surface_config.gd`)
-
-Shared tuning in two holders. `ArtCanvasConfig`, what every painting shares: `pixel_size`, `light_from`, `turn_steps`, drop
-shadow (`drop_shadow_per_coverage`, `drop_shadow_max` — read by the object and vehicle visuals; `drop_shadow_alpha` — also by
-the character, a dropped item and a grenade) and cast shadow. `ArtSurfaceConfig`, how a surface is shaded: the tone ramp (`tones(base)`) and the
-surface-finish densities. Domain-specific proportions and colors stay in
-each domain's config (the `ObjectArt*Config` holders, `CharacterArtConfig`).
-
-**Interfaces:** 12 (Objects / Character / Items / Vehicles → Art) and 13 (a sandbox's own painter, e.g. a `ticket-assets`
-showroom) — signatures in `architecture`.
+Tests: `tests/art/`.
