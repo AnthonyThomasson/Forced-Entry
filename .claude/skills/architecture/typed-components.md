@@ -1,43 +1,20 @@
-# Typed components: the part lists
+# Typed components: ownership rules
 
-The rest of `SKILL.md`'s "Typed components" convention, from the AI's parts on.
+`SKILL.md` states the convention (public typed components, ≤ 15 vars and 20 public methods, ADRs 0004 / 0005); this file holds the rules for how parts are reached and what they may hold. The parts themselves: `grep -n "preload(" <module>.gd`.
 
-The AI's parts are reached by preload const with
-  **no `class_name`**, as its modules always were: the controller's `_cadence`, `_comms` and `_reflexes`; behaviour's
-  `task`, `fight`, `errand`, `entries`, `grenades`, `orders` and `gait`; entry's leaves `state` and `world` and its ten
-  parts (`claim`, `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold`, `radio`); combat's
-  `throw`; locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk`; perception's
-  `sight`, `house`, `contacts`, `hearing`, `orders`, `grenades`, `entry`, `views` and `confinement` (where the NPC may act: its
-  territory, the room a defend order keeps it to, its squad leash and a held stack's room, refreshed each tick by the controller's reflexes, frozen into
-  the decision snapshot for the planner and read live by behaviour and Combat); the launcher's `_probe`; the doorway
-  geometry's `posts`, `slots` and `layouts`; the snapshot author's `_throws` and `_orders`; the squad's `stacks` and `ambush`; the
-  human's stack's `reservation` and `step_up`; and the stack member (`StackMember`, `ai/perception/stack/stack_member.gd`:
-  one member's own claim in a doorway's stack), held as `state.member` on entry's `state` and as `reservation.member` on
-  the human's stack's `reservation`. A part member read from outside its part is public on it, its underscore and
-  any prefix the part's name says dropped (`entry_ready_timeout` is `tuning.entry.ready_timeout`, `_bang_stage`
-  `grenade.stage`); one used only inside its part keeps its name. Behaviour's, locomotion's, the controller's, perception's
-  (but its `confinement`) and the team's working parts hold their Node owner (`behavior`, `loco`, `controller`, `perception`, the squad's `stacks`
-  and `ambush` their `squad`, the human's stack's `step_up` its `stack`). Entry is a `RefCounted`, so its parts hold only its `state` and
-  `world` leaves: a part method that needs the entry or a sibling takes the `Entry` facade as its first parameter, `entry`,
-  at the call, and never stores it. The doorway geometry (`AgentEntry`) is a `RefCounted` too: its parts take it as `entry`
-  at the call and hold nothing of it. Where gdstyle's `max-parameters` (5) leaves no room for it, a public method folds two
-  arguments into one (`EntryPosts.defend_spot` / `ambush_spot` take the member's `place: Vector2i`, x which post, y of how
-  many) and a private chain reads it from the per-call context dict it already takes (`c["entry"]` / `f["entry"]`), never
-  stored. Combat's `throw`, entry's leaves and the data leaves (the cadence, the running leaf, the planner's walk,
-  perception's confinement, the probe) hold no owner (`tests/ai/ai_parts_free_suite.gd`, which holds the doorway geometry's parts too), nor
-  do the human's stack's `reservation` leaf and the stack member it and entry's `state` hold (`StackMember`: its own claim
-  alone). The shell splits the same way
-  (`docs/adr/0008-the-shell-split-into-parts.md`), each file by its kind: tuning that no scene authors becomes an ADR 0003
-  holder (the camera's `CameraConfig` and `CameraShakeConfig`); a scene script's authoring surface that one instance owns
-  becomes an exported `Resource` (`main.run`, `MainRun`, local to its scene, so Main's runtime writes to it never outlive a
-  `reload_current_scene`); a static library splits per family into `class_name` static libraries (the sound bank's
-  `SoundGuns`, `SoundImpacts`, `SoundFootsteps`, `SoundGrenades` and `SoundVehicles`), and a drawing API hands its shape
-  type out as `class_name`s other domains name (`PixelShape`, `PixelConvexShape`); a widget's sub-tree becomes a Node child
-  (the command menu's `Panel`, `command_panel.gd`, and the test browser window's list, `test_browser_list.gd`, a `Tree`),
-  reached by preload const. The other parts are reached by preload const with no `class_name` too: Main's `_endless` (a
-  data leaf) and `_overlays` (holding Main), `Keybinds.bindings` (the rebinding store and the saved format, handed the
-  action tables and holding no owner), a world piece's `look` (a data leaf) and
-  `physics` (holding the piece), `WorldLighting`'s `_pool` (holding the node), `TestContext`'s `verdict` and `bundle`
-  (holding no owner: the context is an `Object` freed by hand, so a part method that needs it takes it at the call) and
-  `TestSession`'s `von` (holding the session). The coverage tool's probe, the one template file the tool copies into a
-  project, holds its parts as inner classes (`Run`, `Matches`, `MatchCost`, `Tests`).
+## The AI (ADR 0006, 0007)
+
+- AI parts are reached by **preload const, no `class_name`**. The controller's `_cadence`, `_comms`, `_reflexes`; behaviour's `task`, `fight`, `errand`, `entries`, `grenades`, `orders`, `gait`; entry's `state`, `world` and ten parts (`claim`, `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold`, `radio`); locomotion's `crowd`, `give_way`, `stall`, `doors`; perception's `sight`, `house`, `contacts`, `hearing`, `orders`, `grenades`, `entry`, `views`, `confinement`; the doorway geometry's `posts`, `slots`, `layouts`; the squad's `stacks`, `ambush`; the human's stack's `reservation`, `step_up`; `StackMember` (`ai/perception/stack/stack_member.gd`), held as `state.member` and `reservation.member`.
+- A part member read from outside its part is public: drop its underscore and the prefix its part name says (`entry_ready_timeout` is `tuning.entry.ready_timeout`; `_bang_stage` is `grenade.stage`).
+- **Owner references.** Behaviour's, locomotion's, the controller's, perception's (except `confinement`) and the team's working parts hold their **Node** owner (`behavior`, `loco`, `controller`, `perception`; the squad's `stacks` and `ambush` hold `squad`; `step_up` holds `stack`). Parts of a `RefCounted` owner hold none: a cycle never frees.
+  - Entry (a `RefCounted`) and the doorway geometry `AgentEntry` (a `RefCounted`): a part method takes the facade as its first parameter, `entry`, at the call and never stores it. Where gdstyle's `max-parameters` (5) leaves no room, a public method folds two arguments into one (`EntryPosts.defend_spot` / `ambush_spot` take `place: Vector2i`: x which post, y of how many) and a private chain reads `c["entry"]` / `f["entry"]` from its per-call context dict.
+  - Owner-free leaves: combat's `throw`, entry's `state` and `world`, the cadence, the running leaf, the planner's walk, perception's `confinement`, the launcher's `_probe`, `reservation`, `StackMember`. `tests/ai/ai_parts_free_suite.gd` frees each preset and asserts every part is gone.
+- **Tuning** is per NPC: typed topic nodes under the controller's `Tuning` child (`tuning: NpcTuning`, `Npc<Topic>Tuning` nodes in `scenes/ai/tuning/`, exports only, because an export must name a global class). Behaviour, perception and the snapshot's vocabulary read it live (`tuning.<topic>.<name>`); perception's geometry modules and the planner copy it per decision, since `PlayerStack` and the squads build those modules with no NPC.
+
+## The shell and the rest (ADR 0008)
+
+- Tuning no scene authors becomes an ADR 0003 holder (`CameraConfig`, `CameraShakeConfig`).
+- A scene script's authoring surface that one instance owns becomes an exported `Resource` (`main.run`, `MainRun`): local to its scene, so Main's runtime writes never outlive `reload_current_scene`.
+- A static library splits per family into `class_name` static libraries (`SoundGuns`, `SoundImpacts`, `SoundFootsteps`, `SoundGrenades`, `SoundVehicles`); a drawing API hands out its shape types as `class_name`s (`PixelShape`, `PixelConvexShape`); a widget's sub-tree becomes a Node child reached by preload const (`command_panel.gd`, `test_browser_list.gd`).
+- Preload-const parts, no `class_name`: Main's `_endless` (data leaf) and `_overlays` (holds Main); `Keybinds.bindings` (`input_bindings.gd`, holds no owner); a world piece's `look` (data leaf) and `physics` (holds the piece); `WorldLighting`'s `_pool`; `TestContext`'s `verdict` and `bundle` (no owner: the context is an `Object` freed by hand, so a part method that needs it takes it at the call); `TestSession`'s `von` (holds the session).
+- The coverage tool's probe (`tools/coverage/probe.gd`, one template the tool copies into a project) keeps its parts as inner classes (`Run`, `Matches`, `MatchCost`, `Tests`).
