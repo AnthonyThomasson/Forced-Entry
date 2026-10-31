@@ -1,6 +1,6 @@
 # Triage Labels
 
-The skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in this repo's issue tracker.
+The skills speak of five canonical triage roles; this file maps them to this tracker's label strings.
 
 | Label in mattpocock/skills | Label in our tracker | Meaning                                  |
 | -------------------------- | -------------------- | ---------------------------------------- |
@@ -10,18 +10,16 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
 
-When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
-
-An issue with no state label counts as `needs-triage`.
+A skill's role (e.g. "the AFK-ready triage label") is the label string in this table. An issue with no state label counts as
+`needs-triage`.
 
 ## Category roles
 
 | Role in mattpocock/skills | In our tracker |
 | ------------------------- | -------------- |
 | `bug`                     | `bug`          |
-| `enhancement`             | no label: any issue without `bug` or `spike` (`ai`, `harness`, `assets`, … are kinds of enhancement the `ticket` skill routes on) |
+| `enhancement`             | no label: any issue without `bug` or `spike` (`ai`, `harness`, `refactor`, `assets`, … are kinds of enhancement `ticket` routes on) |
 
-`spike` is a third kind, an investigation that plans tickets; the `ticket` skill routes it. Topic labels (`physics`,
-`navigation`, …) are not categories. Rejected enhancements are recorded in `.out-of-scope/<concept>.md`.
-
-Edit the "Label in our tracker" column to match whatever vocabulary you actually use.
+`spike` is a third kind, an investigation that plans tickets. `ticket` routes each kind to its file (`ticket` (`spike.md`)).
+Topic labels (`physics`, `navigation`, …) are not categories. Rejected enhancements are recorded in
+`.out-of-scope/<concept>.md`.
