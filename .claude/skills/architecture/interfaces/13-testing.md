@@ -14,8 +14,7 @@
       player's keys do.
     - **Doors:** a hand-laid layout's doorway may declare `door: { material, style, hinge, swing_into, angle?, name? }`; the layout builder
       builds it with `WorldGen.door_definition` and `DoorFactory.spawn` (1, 2, 24) and `t.object(name)` finds it. A generated house is
-      built with its doors unless the switch `worldgen.doors` (`WorldGenDoorConfig.enabled`, on by default) is off; the switch
-      `worldgen.doors_open` (`WorldGenDoorConfig.start_open`, off) starts all of them fully open.
+      built with its doors unless the switch `worldgen.doors` (`WorldGenDoorConfig.enabled`, on by default) is off.
     - **Events:** `EventBus` and character signals (7, 10) feed its event log.
     - **Behaviour switches** set existing exported props and config-holder `static var`s by name, and an NPC's tunables by the indexed
       path `tuning:<topic>:<name>` (7). A name the holder lacks fails the test. Statics are restored after each test. Examples:

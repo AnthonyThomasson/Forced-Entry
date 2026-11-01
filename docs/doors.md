@@ -76,12 +76,10 @@ leaf along the wall, no furniture, clutter or neon tube in the arc nor in the bo
 ## DR4. State at the start
 
 Front and exit doors start shut. An interior door is seeded per door, from its own stream (DR2): shut, ajar (15 to 35°) or open
-(`open_angle`), by the weights `DoorRules.START_WEIGHTS` (0.6 / 0.15 / 0.25). The test option `worldgen.doors_open`
-(`WorldGenDoorConfig.start_open`, off by default) starts every door of a generated house fully open, the front and exit ones too;
-the doors are still built, and the rolls draw as before, so nothing else of the house moves.
+(`open_angle`), by the weights `DoorRules.START_WEIGHTS` (0.6 / 0.15 / 0.25).
 
 Tests: `worldgen/door_start_state` (front and exits shut, interior doors in all three states by the weights over the seeds, the
-same per seed), `worldgen/door_start_open_option` (with the option every door starts at 90°).
+same per seed).
 
 ## DR5. What a door blocks
 

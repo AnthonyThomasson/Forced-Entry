@@ -32,9 +32,8 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
   `Perf.time_ms` and exact counts (`Perf.nodes()`, `Despawner.count()`, dent and blood-pool caps).
 - **The three match guards share one match and warm-up:** `configure_match(s, per_side)` declares it (the house
   `MATCH_SEED` on `MATCH_PLAN`, pinned to the largest plan so a catalogue change never shrinks it; `s.declared_match`;
-  scripted Von; callouts, vision and pursuit on; its doors built, all starting open: `worldgen.doors_open`, since a squad's entry
-  waits ~15 s on followers standing on a pie arc, #178), `warm_until_contact(t, label, characters)` runs `MATCH_WARMUP_S` then
-  `await_contact` (at most `MATCH_CONTACT_WITHIN`) and `require`s contact as the premise (a shot fired and some NPC
+  scripted Von; callouts, vision and pursuit on), `warm_until_contact(t, label, characters)` runs `MATCH_WARMUP_S` then
+  `await_contact` (at most `MATCH_CONTACT_WITHIN`; about one run in ten has none, a squad's entry waiting on followers on a pie arc, #178) and `require`s contact as the premise (a shot fired and some NPC
   knowing a hostile, `knows_hostile`), and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines).
 - **A wall-clock budget belongs here and nowhere else:** the lint rule `timing_in_perf` fails a `Time.get_ticks_usec()`
   under `tests/` outside `tests/perf/` and `tests/_perf/`.

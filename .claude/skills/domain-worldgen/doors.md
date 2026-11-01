@@ -30,5 +30,4 @@
   change a door's length and it says whether the box still holds it).
 - **The switch** `WorldGenDoorConfig.enabled` (the behaviour switch `worldgen.doors`, on by default) is guarded at the one spawn point,
   `HouseDoors.build`: off, the doorways stay open archways and nothing else of the house changes, a seed's furniture included
-  (`tests/worldgen/door_placement_test.gd`). `WorldGenDoorConfig.start_open` (the switch `worldgen.doors_open`, off) makes `HouseDoors.roll`
-  start every door fully open, the draws unchanged. Other tests: `door_rules_suite.gd`, `door_start_state_test.gd`, `door_start_open_option_test.gd` there.
+  (`tests/worldgen/door_placement_test.gd`). Other tests: `door_rules_suite.gd`, `door_start_state_test.gd` there.

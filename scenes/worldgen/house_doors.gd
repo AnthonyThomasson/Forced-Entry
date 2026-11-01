@@ -4,8 +4,7 @@ class_name HouseDoors
 ## ones, by its more private room's type inside, or as the plan forces or forbids), which way it
 ## swings (into its more private room, an exterior door into the house; a tie seeded), which jamb it
 ## is hinged on (the one nearer that room's corner; a tie seeded), which of the plan's door set it
-## is and how it starts (front and exit ones shut; an interior one shut, ajar or open by weight;
-## all open when `WorldGenDoorConfig.start_open` is on),
+## is and how it starts (front and exit ones shut; an interior one shut, ajar or open by weight),
 ## then spawns it through `DoorFactory` (interface 2). Every doorway rolls from a stream of its own,
 ## `hash([run seed, "doors", its index in the plan])`, drawing the same number of values whatever it
 ## rolls, so the doors never shift a seed's furniture layout nor each other's.
@@ -71,8 +70,6 @@ static func roll(
 	var angle := 0.0
 	if not exterior:
 		angle = _start_angle(draws["state"], draws["ajar"])
-	if WorldGenDoorConfig.start_open:
-		angle = DoorConfig.open_angle
 	return {
 		"definition": DoorCatalog.by_key(set_keys[draws["pick"] % set_keys.size()]),
 		"hinge": _hinge(
