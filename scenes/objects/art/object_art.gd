@@ -45,14 +45,32 @@ const PAINTERS := {
 	"stock": preload("res://scenes/objects/art/stock_painter.gd"),
 	"awning": preload("res://scenes/objects/art/awning_painter.gd"),
 	"stencil": preload("res://scenes/objects/art/stencil_painter.gd"),
+	"street_prop": preload("res://scenes/objects/art/street_prop_painter.gd"),
+	"podium": preload("res://scenes/objects/art/podium_painter.gd"),
+	"shadow": preload("res://scenes/objects/art/shadow_painter.gd"),
+	"shell_decor": preload("res://scenes/objects/art/shell_decor_painter.gd"),
+	"crossing": preload("res://scenes/objects/art/crossing_painter.gd"),
+	"road_glyph": preload("res://scenes/objects/art/road_glyph_painter.gd"),
 }
 ## The painters that draw several kinds of piece (`kind` in the options): their neon share is the
 ## kind's (ObjectArtLightConfig.neon_share), not the painter's.
 const BY_KIND := ["tech", "recliner", "clinic"]
 ## The painters whose colour inputs are already the colours they draw in (the wear marks are tinted
-## from a floor's drawn tone, the street, the decor, the awning and the floor stencil draw their
-## ObjectArt*Config holders' own): not graded again.
-const AS_GIVEN := ["wear", "street", "decor", "awning", "stencil"]
+## from a floor's drawn tone; the street, the decor, the awning, the floor stencil, the crossing and
+## road glyph paint, the podium, the tower shadow and the shell decor draw their ObjectArt*Config
+## holders' own): not graded again.
+const AS_GIVEN := [
+	"wear",
+	"street",
+	"decor",
+	"awning",
+	"stencil",
+	"crossing",
+	"road_glyph",
+	"podium",
+	"shadow",
+	"shell_decor",
+]
 
 
 ## One repeating tile of a tiling painter (one with `static func tile_size(opts) -> Vector2`, e.g.

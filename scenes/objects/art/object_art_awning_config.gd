@@ -4,7 +4,8 @@ class_name ObjectArtAwningConfig
 ## ink of its two characters). The colours are as drawn: the awning painter is `ObjectArt.AS_GIVEN`.
 ## A `class_name` holder of `static var`s, read as `ObjectArtAwningConfig.<name>`; there is no
 ## instance and no autoload. A piece's catalogue `art_opts` overrides a painter knob for that piece
-## only, keyed by the knob's name without its painter prefix (`awning_stripe_px` -> `stripe_px`).
+## only, keyed by the knob's name without its painter prefix (`awning_stripe_px` -> `stripe_px`,
+## `hanging_frame_color` -> `frame_color`).
 
 ## The awning's two stripe colours, how wide a stripe and a scallop of its front edge are (art px),
 ## how far the scallops hang below the cloth, and the board it hangs from along the wall.

@@ -5,7 +5,9 @@ class_name WorldGen
 ## the house via HouseSpawner. Callers (Main) never touch HouseDefinitions/HouseSpawner
 ## directly — `generate`, `get_rooms`, `get_openings`, `bounds`, `annotate_layout`, the read-only
 ## catalogue lookups and the test reads `get_wear`, `get_clutter`, `get_street` and
-## `get_streetlights` and `get_lobbies` are the whole surface World-Gen exposes.
+## `get_streetlights` and `get_lobbies` are the whole surface World-Gen exposes, with
+## `generate_district` and its reads `house_of` and `district_rooms` (a district's test reads are
+## `DistrictReads`).
 
 
 ## Build a house and return its root Node2D (parented under `parent`). `rng_seed` of 0 picks a
@@ -26,6 +28,41 @@ static func generate(
 	var plan_key: String = force_plan if force_plan != "" else pick
 	GameLog.say("House: %s  seed: %s" % [plan_key, rng.seed])
 	return HouseSpawner.spawn(plan_key, front_entrance_world, rng, parent)
+
+
+## Build a downtown district and return its root Node2D (parented under `parent`, which stays at the
+## origin): a 3 x 3 grid of blocks with a tower in each, streets between and round them and a ring
+## of roofless shells beyond. The centre tower is the **house**, built from `force_plan` (any house
+## or tower plan) or, "" for none, a tower plan drawn by the seed; the others draw tower plans only.
+## Each tower is turned by the seed so its front door faces one of its block's streets, and the
+## house's front door lands on `front_entrance_world`. `rng_seed` of 0 picks a fresh district; one
+## seed reproduces the whole of it.
+static func generate_district(
+	rng_seed: int,
+	force_plan: String,
+	front_entrance_world: Vector2,
+	parent: Node,
+) -> Node2D:
+	var district_seed := rng_seed if rng_seed != 0 else randi()
+	GameLog.say("District: house %s  seed: %s" % [force_plan, district_seed])
+	return DistrictSpawner.spawn(district_seed, force_plan, front_entrance_world, parent)
+
+
+## The house of a generated `district`: the centre tower's node, on which `get_rooms`,
+## `get_openings`, `get_doors` and `get_lobbies` read as for a lone house. Null for a null district.
+static func house_of(district: Node2D) -> Node2D:
+	if district == null:
+		return null
+	return district.get_meta("house", null)
+
+
+## Every tower's rooms of a generated `district` as `{ key, type, rect }` in WORLD space: the
+## house's keys plain, a neighbour's keyed `<block>:<key>` (block 0 to 8), so no two clash. Empty
+## for a null district.
+static func district_rooms(district: Node2D) -> Array:
+	if district == null:
+		return []
+	return district.get_meta("rooms", [])
 
 
 ## Describe a hand-laid layout `root` the way a generated house describes itself, so `get_rooms`,

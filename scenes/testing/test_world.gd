@@ -17,8 +17,10 @@ const ACTOR_SCENES := {
 	&"invader": "res://scenes/ai/npc_invader.tscn",
 }
 
-## The house or arena root and its rooms.
+## The house or arena root and its rooms; in a district world, the centre tower's.
 var house: Node2D
+## The district root (`TestSetup.district`), or null for any other world.
+var district: Node2D
 var rooms: Array = []
 ## Its doorways (`WorldGen.get_openings`), injected into every NPC beside `rooms`.
 var openings: Array = []
@@ -255,7 +257,7 @@ func _set_static(script: Script, prop: StringName, value: Variant) -> void:
 	script.set(prop, value)
 
 
-## Build the generated house or the arena, and read its rooms.
+## Build the generated house or district, or the arena, and read the (house's) rooms.
 func _build_world(world: Dictionary) -> void:
 	if world["kind"] == "house":
 		house = WorldGen.generate(
@@ -264,6 +266,14 @@ func _build_world(world: Dictionary) -> void:
 			world.get("entrance", Vector2.ZERO),
 			self,
 		)
+	elif world["kind"] == "district":
+		district = WorldGen.generate_district(
+			int(world["seed"]),
+			String(world.get("plan", "")),
+			world.get("entrance", Vector2.ZERO),
+			self,
+		)
+		house = WorldGen.house_of(district)
 	elif world["kind"] == "layout":
 		house = LayoutBuilder.build(world, self)
 		# the doors its doorways declared, found by their node names like the placed objects

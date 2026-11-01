@@ -11,13 +11,17 @@ const FIXED_SEED := 424_242
 const TOTAL_BUDGET_MS := 6200.0
 const WORST_HOUSE_BUDGET_MS := 1400.0
 const NODE_BAND := [250, 420]
+# A whole district (nine towers, streets, shells) from a fixed seed. Baseline (cold caches, other
+# Godots running): ~1830 ms, ~6970 nodes. The time budget ~4x, the node band about +-25%.
+const DISTRICT_BUDGET_MS := 7500.0
+const DISTRICT_NODE_BAND := [5200, 8700]
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "Generating many houses stays fast",
+		"name": "Generating many houses and a district stays fast",
 		"description": "WorldGen.generate for a dozen seeds: total and worst-house wall time, and "
-			+ "a fixed seed's node count, stay within budget.",
+			+ "a fixed seed's node count, stay within budget; so do a district's time and nodes.",
 		"tags": ["worldgen", "house"],
 		"timeout": 5.0,
 	}
@@ -30,6 +34,24 @@ func configure(s: TestSetup) -> void:
 func _house(house_seed: int, t: TestContext) -> void:
 	var house := WorldGen.generate(house_seed, "", Vector2.ZERO, t.world)
 	house.free()
+
+
+func _district(t: TestContext) -> void:
+	var before := Perf.nodes()
+	var built: Array[Node2D] = []
+	var ms := Perf.time_ms(
+		func(): built.append(WorldGen.generate_district(FIXED_SEED, "", Vector2.ZERO, t.world)),
+	)
+	var count := Perf.nodes() - before
+	GameLog.say("PERF district ms %.0f nodes %d" % [ms, count])
+	Perf.within(t, "generate a district ms", ms, DISTRICT_BUDGET_MS)
+	t.check(
+		count >= DISTRICT_NODE_BAND[0] and count <= DISTRICT_NODE_BAND[1],
+		"a district spawns %d nodes, expected %d..%d" % [
+			count, DISTRICT_NODE_BAND[0], DISTRICT_NODE_BAND[1],
+		],
+	)
+	built[0].free()
 
 
 func run(t: TestContext) -> void:
@@ -52,6 +74,7 @@ func run(t: TestContext) -> void:
 		"a house spawns %d nodes, expected %d..%d" % [count, NODE_BAND[0], NODE_BAND[1]],
 	)
 	house.free()
+	_district(t)
 	await t.frames(1)
 	t.check(
 		Perf.nodes() <= before + 2,

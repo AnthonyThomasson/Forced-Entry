@@ -6,8 +6,13 @@ extends "res://scenes/objects/decals/decal_layer.gd"
 ## corner (clustered on the slab grid), cracks, stains, gum and weeds, and its curb along `edges`
 ## (the sides facing the road); on a road the worn lane dashes down its middle (`lane`), cracks,
 ## patches and oil, and litter and puddles gathered in the gutter along `edges` (the sides by the
-## sidewalk), the odd puddle out on the road. Draw-only, registers nothing. Tuning:
-## ObjectArtStreetConfig.
+## sidewalk), the odd puddle out on the road. A road's marks may also carry `crossings`
+## (`[{ side, reach }]`: a worn zebra crossing with its stop line at the road's end `side`, `reach`
+## px deep, the end a junction lies at) and `glyphs` (`[{ side, from, length, text }]`: a lane
+## number and an arrow on the approach to the junction at `side`, `from` px in from that end and
+## `length` long, in the lane heading for it). Draw-only, registers nothing; `laid` says where the
+## crossings and glyphs went. Tuning: ObjectArtStreetConfig, ObjectArtCrossingConfig,
+## ObjectArtRoadGlyphConfig.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 ## Litter gathers within this many px of the curb.
@@ -21,6 +26,8 @@ var _sidewalk := false
 var _edges: Array = []
 ## The litter laid so far, so no two pieces overlap.
 var _litter: Array[Rect2] = []
+## The crossings and glyphs laid, by kind (`crossing`, `glyph`): their rects in this layer's frame.
+var _laid: Dictionary = {}
 
 
 func _draw() -> void:
@@ -55,10 +62,17 @@ func setup_marks(
 	else:
 		if marks.get("lane", false):
 			_lane(rng)
+		_crossings(rng, marks.get("crossings", []))
+		_glyphs(rng, marks.get("glyphs", []))
 		_road_wear(rng)
 		_strew(rng)
 	visuals.add_child(self)
 	return self
+
+
+## The rects of the `kind` (`crossing` or `glyph`) marks laid on this piece, in its frame.
+func laid(kind: String) -> Array:
+	return _laid.get(kind, [])
 
 
 ## The band `width` px wide, `inset` px in from this piece's `side` edge, along its whole length.
@@ -189,6 +203,77 @@ func _lane(rng: RandomNumberGenerator) -> void:
 					else Rect2(Vector2(across, t), Vector2(width, length)))
 			_mark(rng, "dash", r.abs(), ObjectArtStreetConfig.lane_color, { "fade": fade })
 		t += length + rng.randf_range(24.0, 32.0)
+
+
+## The worn zebra crossing and stop line at each of `entries`' ends of the road.
+func _crossings(rng: RandomNumberGenerator, entries: Array) -> void:
+	for entry: Dictionary in entries:
+		var side: Vector2 = entry["side"]
+		var reach: float = entry["reach"]
+		var across := _across(side)
+		var rect := _along_rect(side, 0.0, reach, 0.0, across)
+		var texture := ObjectArt.texture(
+			"crossing",
+			Vector2(across, reach),
+			Color.WHITE,
+			side,
+			{ "v": rng.randi_range(0, 7) },
+		)
+		_lay("crossing", texture, rect)
+
+
+## The lane number and arrow at each of `entries`' ends, in the lane heading for the junction there
+## (the right-hand lane: to the right of the way to it, `side` turned a quarter clockwise).
+func _glyphs(rng: RandomNumberGenerator, entries: Array) -> void:
+	for entry: Dictionary in entries:
+		var side: Vector2 = entry["side"]
+		var across := _across(side)
+		var lane_w := across * 0.5 - ObjectArtStreetConfig.glyph_lane_margin
+		var axis := Vector2.RIGHT if side.x == 0.0 else Vector2.DOWN
+		var centre := across * 0.5 + side.rotated(PI * 0.5).dot(axis) * across * 0.25
+		var rect := _along_rect(
+			side, float(entry["from"]), float(entry["length"]), centre - lane_w * 0.5, lane_w,
+		)
+		var texture := ObjectArt.texture(
+			"road_glyph",
+			Vector2(lane_w, float(entry["length"])),
+			Color.WHITE,
+			side,
+			{ "text": entry["text"], "v": rng.randi_range(0, 7) },
+		)
+		_lay("glyph", texture, rect)
+
+
+## How wide the road is across the way to its end at `side`.
+func _across(side: Vector2) -> float:
+	return _size.x if side.x == 0.0 else _size.y
+
+
+## The rect `length` px long, `from` px in from this piece's end at `side`, `across_len` wide
+## starting `across_at` from the piece's edge.
+func _along_rect(
+	side: Vector2,
+	from: float,
+	length: float,
+	across_at: float,
+	across_len: float,
+) -> Rect2:
+	match side:
+		Vector2.DOWN:
+			return Rect2(across_at, _size.y - from - length, across_len, length)
+		Vector2.UP:
+			return Rect2(across_at, from, across_len, length)
+		Vector2.RIGHT:
+			return Rect2(_size.x - from - length, across_at, length, across_len)
+	return Rect2(from, across_at, length, across_len)
+
+
+## Draw `texture` over `rect` and remember it under `kind`.
+func _lay(kind: String, texture: Texture2D, rect: Rect2) -> void:
+	add(texture, rect)
+	if not _laid.has(kind):
+		_laid[kind] = []
+	_laid[kind].append(rect)
 
 
 ## Clusters of 1-3 cracks, patches and oil out on the road, off its gutter.

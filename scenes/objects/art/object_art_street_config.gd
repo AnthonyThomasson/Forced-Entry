@@ -24,3 +24,6 @@ static var road_cluster_area: float = 120_000.0
 static var walk_cluster_run: float = 500.0
 static var slab_cluster_run: float = 380.0
 static var litter_cluster_run: float = 420.0
+## A road's lane glyph keeps this many px clear of the middle line and the gutter on each side of
+## its lane (street_marks.gd).
+static var glyph_lane_margin: float = 20.0

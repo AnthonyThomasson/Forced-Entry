@@ -7,7 +7,9 @@ extends GameTest
 ## the wall of
 ## each room it opens, every doorway that has a door has one built, and the furniture stays inside
 ## its room. With `street` off a house has no street ring and no lamps; by default it has both.
-## Validation stays plan-local, so a turned house builds with no warning.
+## Validation stays plan-local, so a turned house builds with no warning. A turned house's street
+## follows its front door: the lane runs down the road in front of it and the street lamps stand
+## along that sidewalk, clear of its doorways, whichever way it faces.
 
 const FAR_AWAY := Vector2(5000, 5000)
 const PLANS := ["food_hall_tower", "corner_flat"]
@@ -18,6 +20,11 @@ const FRONT_OUTWARD := [Vector2.DOWN, Vector2.LEFT, Vector2.UP, Vector2.RIGHT]
 const ROTATE_TOLERANCE := 0.5
 ## A doorway's gap is cut this close to its width.
 const CUT_TOLERANCE := 1.5
+## The street lamps' door rule (ticket #61): none within this of a front or exit doorway's centre,
+## nor in the strip straight out of one (its width plus the margin each side, the reach out).
+const LAMP_DOOR_CLEAR := 140.0
+const LAMP_STRIP_MARGIN := 32.0
+const LAMP_STRIP_REACH := 400.0
 
 
 func describe() -> Dictionary:
@@ -232,10 +239,73 @@ func _check_street(t: TestContext, plan: String) -> void:
 	without.queue_free()
 
 
+## How far `rect`'s centre lies beyond `bounds`' centre along `out` (a unit axis direction), less
+## the bounds' half extent that way: positive for a rect past the bounds on the `out` side.
+func _beyond(rect: Rect2, bounds: Rect2, out: Vector2) -> float:
+	var half := absf(out.x) * bounds.size.x * 0.5 + absf(out.y) * bounds.size.y * 0.5
+	return (rect.get_center() - bounds.get_center()).dot(out) - half
+
+
+## The street of a house turned `turn` quarter turns follows its front: one road lane, on the front
+## side, and every lamp on the front sidewalk, clear of the front and exit doorways.
+func _check_front_street(t: TestContext, plan: String, house_seed: int, turn: int) -> void:
+	var label := "%s seed %d turned %d" % [plan, house_seed, turn]
+	var house := _build(t, plan, house_seed, { "turn": turn })
+	var bounds := WorldGen.bounds(WorldGen.get_rooms(house))
+	var out: Vector2 = FRONT_OUTWARD[turn]
+	var lanes := WorldGen.get_street(house).filter(
+		func(piece: Dictionary) -> bool:
+			return piece["kind"] == "street" and piece["node"].marks.get("lane", false),
+	)
+	if t.check(lanes.size() == 1, "%s has %d road lanes" % [label, lanes.size()]):
+		t.check(
+			_beyond(lanes[0]["rect"], bounds, out) > 0.0,
+			"%s: the lane is on the road %s, not in front (%s)"
+				% [label, lanes[0]["rect"], out],
+		)
+	var front := Rect2()
+	for piece: Dictionary in WorldGen.get_street(house):
+		if piece["kind"] == "sidewalk" and _beyond(piece["rect"], bounds, out) > -1.0:
+			front = piece["rect"]
+	var lamps := WorldGen.get_streetlights(house)
+	t.check(not lamps.is_empty(), "%s has lamps" % label)
+	for lamp: Dictionary in lamps:
+		t.check(
+			front.grow(1.0).has_point(lamp["pos"]),
+			"%s: the lamp at %s is off the front sidewalk %s" % [label, lamp["pos"], front],
+		)
+		_check_lamp_clear_of_doors(t, label, lamp["pos"], WorldGen.get_openings(house))
+	house.queue_free()
+
+
+## The lamp at `p` keeps the door rule against every front or exit doorway of `openings`.
+func _check_lamp_clear_of_doors(
+	t: TestContext,
+	label: String,
+	p: Vector2,
+	openings: Array,
+) -> void:
+	for opening: Dictionary in openings:
+		if not (opening["front"] or opening["exit"]):
+			continue
+		var door: Vector2 = opening["pos"]
+		var out: Vector2 = opening["outward"][0]
+		var across := Vector2(out.y, out.x).abs()
+		var half: float = opening["width"] * 0.5 + LAMP_STRIP_MARGIN
+		var strip := Rect2(door - across * half, Vector2.ZERO).expand(
+			door + across * half + out * LAMP_STRIP_REACH,
+		)
+		t.check(
+			p.distance_to(door) >= LAMP_DOOR_CLEAR and not strip.has_point(p),
+			"%s: the lamp at %s breaks the door rule at %s" % [label, p, door],
+		)
+
+
 func run(t: TestContext) -> void:
 	for plan in PLANS:
 		for house_seed in SEEDS:
 			for turn in [1, 2, 3]:
 				_check_turn(t, plan, house_seed, turn)
+				_check_front_street(t, plan, house_seed, turn)
 		_check_street(t, plan)
 	await t.frames(2)

@@ -8,11 +8,13 @@ const LOCKABLE := [&"camera", &"pause", &"overlays"]
 ## Testing domain: what a test asks for, filled in by `GameTest.configure()`. Pure data — it builds
 ## nothing; test_world.gd turns it into a live scene. Positions are world-space.
 
-## When non-zero, every `house()` uses this seed instead of its own (the runner's `--seed=N`).
+## When non-zero, every `house()` and `district()` uses this seed instead of its own (the runner's
+## `--seed=N`).
 static var seed_override := 0
 
-## The world: `{ kind: "arena", rect, floor, walls, thickness }` or `{ kind: "house", seed, plan,
-## entrance }`. Empty = an empty arena (see `resolved_world`).
+## The world: `{ kind: "arena", rect, floor, walls, thickness }`, `{ kind: "house", seed, plan,
+## entrance }` or `{ kind: "district", seed, plan, entrance }`. Empty = an empty arena (see
+## `resolved_world`).
 var world: Dictionary = {}
 ## Objects to place: `{ id, definition, position, opts }` (definition already resolved to a dict).
 var objects: Array = []
@@ -82,6 +84,20 @@ func house(house_seed: int, plan: String = "", entrance := Vector2.ZERO) -> Test
 	world = {
 		"kind": "house",
 		"seed": seed_override if seed_override != 0 else house_seed,
+		"plan": plan,
+		"entrance": entrance,
+	}
+	return self
+
+
+## A generated downtown district from `seed` (pinned, never random): nine towers on a 3 x 3 grid
+## with streets between and a ring of shells round them. `plan` ("" for a random one) is the centre
+## tower's, the house; its front entrance lands at `entrance`. The world's `rooms` and `openings`
+## are the house's, the district root is `TestWorld.district`.
+func district(district_seed: int, plan: String = "", entrance := Vector2.ZERO) -> TestSetup:
+	world = {
+		"kind": "district",
+		"seed": seed_override if seed_override != 0 else district_seed,
 		"plan": plan,
 		"entrance": entrance,
 	}

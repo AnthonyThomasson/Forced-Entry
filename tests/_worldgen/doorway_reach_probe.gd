@@ -41,13 +41,27 @@ static func _outside(pos: Vector2, rect: Rect2) -> Vector2:
 
 
 static func check_house(t: TestContext, plan: String, house_seed: int) -> void:
-	var label := "%s seed %d" % [plan, house_seed]
 	var house := WorldGen.generate(house_seed, plan, FAR_AWAY, t.world)
+	await check_built(t, house, "%s seed %d" % [plan, house_seed])
+
+
+## `check_house`'s checks on an already built `house` (freed at the end), named `label`. A turned
+## house is validated plan-local, before it turns (`HouseSpawner.spawn`), so with `turned` the
+## one rule `LayoutRules.check` reads off the world layout, that the front is on the south wall,
+## is left out; every other rule still holds of the turned layout.
+static func check_built(
+	t: TestContext,
+	house: Node2D,
+	label: String,
+	turned: bool = false,
+) -> void:
 	var rooms := WorldGen.get_rooms(house)
 	var openings := WorldGen.get_openings(house)
 
 	# The layout is logical: no LayoutRules violation and at most one exit.
 	var problems := LayoutRules.check(rooms, openings)
+	if turned:
+		problems = problems.filter(func(p: String) -> bool: return not p.contains("south wall"))
 	t.check(problems.is_empty(), "%s is illogical: %s" % [label, "; ".join(problems)])
 	var exits := openings.filter(func(o: Dictionary) -> bool: return o["exit"])
 	t.check(exits.size() <= 1, "%s has %d exits" % [label, exits.size()])
