@@ -6,3 +6,6 @@ class_name WorldGenDoorConfig
 ## Whether HouseSpawner builds the house's doors (`docs/doors.md` DR2): on, as in a match; off, the
 ## doorways stay open archways (the test switch `worldgen.doors`).
 static var enabled: bool = true
+## Whether every door a generated house is built with starts fully open, the front and exit doors
+## too (the test switch `worldgen.doors_open`); off, each starts as `DoorRules` and DR4 say.
+static var start_open: bool = false

@@ -65,6 +65,11 @@ static var ROWS := {
 			+ "archways).",
 		"static": [[WorldGenDoorConfig, &"enabled"]],
 	},
+	&"worldgen.doors_open": {
+		"description": "A generated house's doors all start fully open (off = each starts as the "
+			+ "rules say: front and exit doors shut, interior ones shut, ajar or open).",
+		"static": [[WorldGenDoorConfig, &"start_open"]],
+	},
 	&"nav.rebake": {
 		"description": "The navmesh is re-carved as furniture is shoved around.",
 		"world": { "node": "NavUpdater", "props": ["enabled"] },

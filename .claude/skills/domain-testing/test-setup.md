@@ -16,7 +16,7 @@ only (the browser also calls it to list the switches).
   `door_scroll_open_test.gd`). A player's aim is the mouse: `tests/_character/player_pointer_probe.gd` (`Pointer.aim(t, you, point)`
   puts a world point under it, again each frame while the test camera still eases; `Pointer.at(event, pointer)` gives an injected wheel
   or pan event the pointer's place). A puppet's punch needs `start_slot: 2`. A generated house is built with its doors unless the switch
-  `worldgen.doors` (`WorldGenDoorConfig.enabled`) is off; the AI scenario families that predate doors turn it off (`# Doors off until
+  `worldgen.doors` (`WorldGenDoorConfig.enabled`) is off, and with `worldgen.doors_open` (`WorldGenDoorConfig.start_open`) every door starts fully open; the AI scenario families that predate doors turn it off (`# Doors off until
   #159 makes this family door-aware.`).
 - **Vehicles** are placed after the nav bake and are not carved (the AI ignores vehicles); the world then waits one
   physics frame before the actors, because a new body joins the physics space at the next step. A kind with no scene

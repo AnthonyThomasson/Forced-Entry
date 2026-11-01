@@ -39,9 +39,13 @@ const MATCH_LOGS := [
 
 ## Declare a match guard's match in `s`: the house `MATCH_SEED` on `MATCH_PLAN`, `per_side`
 ## defenders and as many invaders built as Main builds a match (`s.declared_match`), scripted Von
-## (combat, engage) and the callouts, vision and pursuit on.
+## (combat, engage) and the callouts, vision and pursuit on. The house is built with its doors (they
+## are part of the cost) but every door starts open (`worldgen.doors_open`): a squad's entry waits
+## on followers standing on the pie arc of an interior doorway for ~15 s (#178), so a match whose
+## front door starts shut can go a minute before a shot, which no guard is about.
 static func configure_match(s: TestSetup, per_side: int) -> void:
 	s.house(MATCH_SEED, MATCH_PLAN)
+	s.switch(&"worldgen.doors_open", true)
 	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])
 	s.switch(&"ai.callouts", true)
 	s.switch(&"ai.vision", true)

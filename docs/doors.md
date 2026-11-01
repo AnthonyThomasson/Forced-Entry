@@ -76,10 +76,12 @@ leaf along the wall, no furniture, clutter or neon tube in the arc nor in the bo
 ## DR4. State at the start
 
 Front and exit doors start shut. An interior door is seeded per door, from its own stream (DR2): shut, ajar (15 to 35°) or open
-(`open_angle`), by the weights `DoorRules.START_WEIGHTS` (0.6 / 0.15 / 0.25).
+(`open_angle`), by the weights `DoorRules.START_WEIGHTS` (0.6 / 0.15 / 0.25). The test option `worldgen.doors_open`
+(`WorldGenDoorConfig.start_open`, off by default) starts every door of a generated house fully open, the front and exit ones too;
+the doors are still built, and the rolls draw as before, so nothing else of the house moves.
 
 Tests: `worldgen/door_start_state` (front and exits shut, interior doors in all three states by the weights over the seeds, the
-same per seed).
+same per seed), `worldgen/door_start_open_option` (with the option every door starts at 90°).
 
 ## DR5. What a door blocks
 
@@ -280,7 +282,7 @@ doorway. A door used twice that stops short of opening wide enough (a chair or a
 on: it is refused for 45 s and the walk is a blocked one (the existing way-blocked handling: the decision re-runs, `decision_reason`
 "way blocked"). While it is refused, a walk whose way runs through its doorway goes by another doorway of the house first (the
 nearest by walking length whose two legs cross no refused door), and a walk with no other way stands short of the door and tells the
-decision its way is blocked every 1.5 s. The tactical entry's point man meets a shut door on its cross and does the same, and an entry whose doorway has a door that blocks sight (shut, or ajar and not open all the way across the doorway: `gap()` below `width`, a leaf turned less than 60° from shut; not a glass-panel door) skips its pie (`docs/tactical-entry.md` E3) and crosses once the stack is ready, where this opens the door: both are stop-gaps until #159, which gives a stack its side, the opener's role, cracking and breaching; none of that is built here. A shut door blocks
+decision its way is blocked every 1.5 s. The tactical entry's point man meets a shut door on its cross and does the same, and an entry whose doorway has a standing door whose `gap()` is below its `width` and whose surface is not `transparent` (any opaque door not open all the way across the doorway; a glass-panel door keeps its pie) skips its pie (`docs/tactical-entry.md` E3) and crosses once the stack is ready, where this opens the door: both are stop-gaps until #159, which gives a stack its side, the opener's role, cracking and breaching; none of that is built here. A shut door blocks
 sight (DR5), so the room behind it is not covered by sight, and so not counted searched, until the door is open and the NPC is in.
 
 Tests: `ai/movement/door_in_the_way` (real Von, hand-laid house: two invaders search the one room behind a shut door, one opens it
