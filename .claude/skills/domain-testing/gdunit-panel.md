@@ -23,5 +23,5 @@ folder's `*_test.gd` files, so a new test needs no edit to the suite.
   (`run_tests.sh` always gives it); the hook moves a default-location run to `user://gdunit_reports/report_<n>/`. The run
   config the panel writes (`addons/gdUnit4/GdUnitRunner.cfg`) is gitignored.
 - **Tested by** `tools/test_gdunit_panel.py` (`tools/gdunit_panel.gd` does what the panel's Run does without an editor, on
-  a scratch copy of the checkout; `--headed` adds the timing, draw and click tests). Run it after editing
+  a scratch copy of the checkout; `--headed` adds the timing, draw and click tests: `ui/command_menu_items`, `ui/inspector_right_click_card`). Run it after editing
   `test_report_hook.gd`, `perf_probe.gd` or gdUnit's runner settings.

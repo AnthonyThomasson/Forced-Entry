@@ -21,7 +21,7 @@
 
    **Registry.** `ItemRegistry.create(id, rounds, magazine)` makes the item of a slot id (a grenade: `rounds` of them). Slot ids `UNARMED_SLOT`, `FISTS_SLOT`, `KEY_SLOT`, `STUN_SLOT` 7, `FRAG_SLOT` 8 (plus the gun slots). Readers: the AI selects
    `FISTS_SLOT` and names grenades by `STUN_SLOT` / `FRAG_SLOT`; the command menu reads a teammate's grenades as
-   `inventory.item_count(...)`; an interaction's `requires_item` is a slot id; the debug panel lists grenade rows through
+   `inventory.item_count(...)`; an interaction's `requires_item` is a slot id; the spectator's detail card lists grenade rows through
    `LoadoutConfig.grenade_options()`. Also `default_inventory()`, `inventory_for(slots, rounds, magazine, grenades, style := &"police")`
    (`grenades` = slot -> count, `style` stamped on every item made), `create_magazines(type_ids)` (full `Magazine`s: the character's spare
    store), `random_gun_slot(rng)`, `loadout_for(gun_slot, stuns, frags)`, `spares_for(gun_slot)`.

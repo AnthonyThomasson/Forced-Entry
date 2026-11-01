@@ -9,7 +9,7 @@
 - **An edited test file** (`tests/<domain>/[<topic>/]<name>_test.gd`) runs only that test
   (`--id=<domain>/[<topic>/]<name>`) unless its domain is already running. An edited `…_suite.gd` runs its domain.
 - **Helper folders** (`tests/_<x>/`): `_ai`, `_audio` and `_lighting` run that domain, `_vehicle` runs `vehicle`, `audio`
-  and `general`, `_perf` the `perf` domain, `_harness` the self-tests; every other helper folder is unknown to the
+  and `general`, `_perf` the `perf` domain, `_ui` the `ui` domain, `_harness` the self-tests; every other helper folder is unknown to the
   mapping, so a change to it runs the whole suite.
 - **`--changed=<ref>`** covers the branch's whole work, committed or not: use `--changed=origin/main` after a commit, since a
   bare `--changed` sees only the uncommitted change and finds nothing. The merge-base rule and the refusals are in the

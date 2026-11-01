@@ -50,5 +50,5 @@ is `ai/entry/entry_team_no_bumping` (real Von, four invaders placed as a match p
 Every test world is staged as Main's match is (`MatchBuilder.stage`, `wait_nav` on: `general/match_nav_ready_before_spawn`).
 A test that wants Main's whole match declares it (`s.declared_match`, read with `t.world.match_handle`); its human may be a
 test actor. A test of Main itself runs Main whole through its public members with `tests/_main/main_probe.gd`
-(`const MainProbe`: `open`, `viewport`, `setup_menu`, `house`, `close`), then starts a match with `Main.start_match(spec)`
+(`const MainProbe`: `open(parent, exports, player_at, hud := false)` (`hud` adds the scene's `MatchHUD`, which decides a match and so starts an endless run's next one), `viewport`, `setup_menu`, `house`, `close`), then starts a match with `Main.start_match(spec)`
 or reads `SetupMenu.current_config()`. No test reads or writes a private member of `main.gd`.

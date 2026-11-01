@@ -37,7 +37,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 
 All input goes through `Keybinds`; gameplay never hard-codes action strings or `KEY_*`. To add an input: an action constant, its default in `DEFAULTS` (or `MOUSE_DEFAULTS`), a typed reader, an entry in `LABELS` and `GROUPS` (a test enforces they cover every action). `Keybinds._ready` registers every action in the InputMap, so `project.godot` has no `[input]` section.
 
-- Each action holds exactly one binding: a key (stored by physical keycode) or a mouse button. `FIRE`, `COMMAND`, `ZOOM_IN` and `ZOOM_OUT` are mouse defaults.
+- Each action holds exactly one binding: a key (stored by physical keycode) or a mouse button. `FIRE`, `COMMAND`, `ZOOM_IN` and `ZOOM_OUT` are mouse defaults. `COMMAND` is the right button; the spectator inspector's right-click select reads the raw button, not the action (no match has both a command menu and an inspector).
 - `SHARED` pairs may sit on one input (`INTERACT`/`PAUSE`; each camera key with its move key) because the spectator match has no player; `conflicts_of` skips them.
 - `FIRE` is read two ways (`is_fire_just_pressed` one round, `is_fire_pressed` held for an automatic gun); rebinding it moves both.
 - While the player drives, its movement keys and `RUN` are the vehicle's throttle, steer and handbrake (read off `movement.move_input` / `run_input`): driving adds no action.
@@ -46,10 +46,11 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 
 ## Saved settings
 
-`Settings` keeps `debug` (the master switch for the AI overlays), the setup window's last choices, the overlay toggles and the key-binding overrides in `user://settings.json` (`Settings.path`). Only differences from the defaults are stored, so a changed default still reaches an action the player never touched.
+`Settings` keeps `debug` (the master switch for the AI overlays), the setup window's last choices, the overlay toggles with their scope per mode and the key-binding overrides in `user://settings.json` (`Settings.path`). Only differences from the defaults are stored, so a changed default still reaches an action the player never touched.
 
 - Main calls `Settings.load_file()` once in `_ready`, after seeding `Settings.debug` from its export. Nothing else does, so the headless runner (never loads `main.tscn`) never reads a developer's file.
 - A missing file keeps the defaults; an unreadable one `push_warning`s and does the same; a file without `debug` leaves it as it was.
+- `Settings.overlay_scopes` is the bar's "Show on" scope per mode (`{ play: scope, watch: scope }`): only the modes the player chose a scope for, set by `set_overlay_scope(mode, scope)`, loaded from the file only when a mode's entry is a string. A mode with none starts on the UI's `OverlayRegistry.DEFAULT_SCOPES`, which Main reads: `Settings` depends on no UI (`domain-main` (`overlays.md`)).
 - Mutators save at once. `reset_all()` leaves `debug`. `set_setup` drops the start `mode` and keeps each side's dict whole.
 - Tests point `Settings.path` at a scratch file with `set_static` (`tests/general/settings_file_test.gd`).
 
@@ -93,4 +94,4 @@ One `rng.randf()` over the total weight; each entry takes the next stretch. `str
 
 ## Spectator mode
 
-Main's `run.spectator_mode` (default on) runs an AI-only contest: it frees the human `Player` and `DebugUI`, frames every combatant with the camera and shows `MatchHUD`. Wiring lives in `domain-main`; General only publishes the contracts.
+Main's `run.spectator_mode` (default on) runs an AI-only contest: it frees the human `Player`, frames every combatant with the camera and shows `MatchHUD`. Wiring lives in `domain-main`; General only publishes the contracts.

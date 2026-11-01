@@ -49,6 +49,7 @@ Behaviour (how a chosen option is run)
 Team and debug
 - `team.md` — `scenes/ai/team/`: the human's place in an AI entry stack (`PlayerStack`), each side's squad (`Squad`), its leader, orders, following, rally and the defenders' ambush rule (`docs/leadership.md`).
 - `debug.md` — editing `scenes/ai/debug/`: the vision cone, action label, path, tactics, search and behaviour overlays, and the controller's observer getters.
+- `debug-words.md` — the overlays' words: `text_in_world`, the brain's `brain_labels`, `card_lines()` for the spectator's detail card, `drawn_texts()` and `BrainDebug.drawn()` for tests.
 
 ## The decision tree
 

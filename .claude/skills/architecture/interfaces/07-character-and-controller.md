@@ -14,18 +14,18 @@
      `slots`, hold `hold_slot`, `spare_types` magazines, the gun loaded with `loaded_magazine`, `grenades` counts, every item in
      `weapon_style` (`Item.art.style`); how `MatchBuilder.arm` arms a spawn, interface 23).
    - **Reads:** `damage_taken()` (accumulated hit damage), `movement.posture()` / `is_running()` / `stamina_fraction()` /
-     `run_speed()` / `walk_speed()` (px/s, slower while stunned or by outfit weight: how an AI judges whether it gets somewhere in time) / `posture_coverage(posture)` (the body's height on the coverage scale, what furniture must stand above to shield it);
+     `run_speed()` / `walk_speed()` (px/s, slower while stunned or by outfit weight) / `posture_coverage(posture)` (the body's height on the coverage scale, what furniture must stand above to shield it);
      `ammo.rounds(slot := -1)` / `capacity(slot)` / `can_reload(slot)` / `spare_magazines()` / `is_reloading()` (slot -1 = held item;
      -1 rounds = no ammo); `inventory.item_name(slot := -1)` / `current_item()` / `current_slot()` / `item_reach()` / `has_item(id)` /
      `gun_slot()` (the held item if it takes ammo, else the lowest such slot, else −1) / `item_count(slot := -1)` (a grenade slot's count, 1
      for any other item, 0 for none) / `throw_stats(slot := -1)` (a carried grenade's `{ kind, max_range, danger_radius, fuse,
      flash_cover_reach, max_blind }`, `{}` otherwise) / `throw_release_offset(slot := -1)` (where a standing throw leaves the hand:
-     `Vector2(px ahead, px right)` in the body's frame; the AI judges a lob from there); `anatomy.hands.is_attacking()`;
+     `Vector2(px ahead, px right)` in the body's frame); `anatomy.hands.is_attacking()`;
      `weapon.blocked()` / `raise()` / `is_automatic()` / `aim_target()` (the swayed point a grenade is thrown to, interface 6).
    - **Wardrobe** (`docs/outfits.md` O15, looks only): `wardrobe.style` (exported key of `CharacterStyleConfig.styles`: `zenitex` /
      `trauma` police, `merc` / `borg` defenders' crew; `zenitex` when never given), `wardrobe.look_seed`, `wardrobe.rank` (police: 0 trooper, 1 sergeant, 2 lead), `wardrobe.set_style(style, seed, rank := 0)`; `wardrobe.outfit` (an `Outfit`): `set_ids(ids)` (replaces
      the whole outfit; `LoadoutConfig.apply` calls both), `look(style)` / `revision` (what the art reads), `view()` (garment slot → name,
-     plate slot → `{ type, name, condition }`; the debug panel and the inspector list it). `get_surface_at` (interface 3) places a round by
+     plate slot → `{ type, name, condition }`; the detail card lists it). `get_surface_at` (interface 3) places a round by
      height and side (O3, O4); outfit weight slows every pace.
    - **Stun** (flash and bang): `take_stun(blind, deaf)` (interface 3) and `stun.is_blind()` / `is_deaf()` / `level()` (0..1
      disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway) / `view()` (`{ blind, blind_total, deaf, level }`, for the
@@ -67,6 +67,6 @@
      `debug_state() -> Dictionary` (the deep snapshot the command server's `ai` verb dumps), `debug_zones() -> Array` (the points the spectator inspector picks from;
      `debug_focus` rings one on the tactics overlay, `Vector2.INF` clears it), `known_contacts_for_display()`, and the overlays' `debug_*`
      getters (`debug_entry_view()`, `debug_grenades()`).
-   - Each overlay is a child of the NPC with a `show_<x>` export named in the UI's `OverlayRegistry`; `MatchBuilder.set_overlay` (Main's
-     match and Testing's world alike), the spectator inspector and Testing's actor spawn set those flags by that name, so an overlay's export
-     is part of this surface.
+   - Each overlay is a child of the NPC with a `show_<x>` export named in the UI's `OverlayRegistry`; `MatchBuilder.set_overlay` and `set_overlay_scope`
+     (Main's match and Testing's world alike, 23), the spectator inspector and Testing's actor spawn set those flags by that name, so an overlay's export
+     is part of this surface; so are the overlays' words (`text_in_world`, `card_lines()`, `brain_labels`: 22).

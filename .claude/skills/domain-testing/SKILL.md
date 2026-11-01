@@ -144,6 +144,7 @@ Read the file for the topic you write or debug; each holds that topic's probes a
 | investigation and hearing (`investigate`, `hearing`) | `tests-investigate.md` |
 | flanking (`flank`) | `tests-flank.md` |
 | outfits (`outfit`) | `tests-outfit.md` |
+| the spectator inspector, detail card, overlay scope (domain `ui`) | `tests-ui.md` |
 | grenades (`grenade`) | `tests-grenade.md` |
 | lighting (domain `lighting`) | `tests-lighting.md` |
 | vehicles (domain `vehicle`) | `tests-vehicle.md` |
