@@ -130,18 +130,7 @@ func sight_hit(
 	to: Vector2,
 	exclude: Array,
 ) -> Dictionary:
-	var ex := exclude
-	while true:
-		var hit := raycast(space, from, to, ex)
-		if hit.is_empty():
-			return {}  # reached the target: nothing tall in the way
-		if _hit_blocks_sight(hit.get("collider")):
-			return hit  # too tall to see over, and not clear (a glass-panel door is)
-		# Low cover: look over it and keep going past it.
-		if ex == exclude:
-			ex = exclude.duplicate()  # don't mutate the caller's list
-		ex.append(hit.get("rid"))
-	return {}  # unreachable; satisfies the parser
+	return SightRay.hit(space, from, to, exclude, see_over_coverage)
 
 
 ## Whether the straight line `from`→`to` is broken for SIGHT (`sight_hit`).
@@ -152,20 +141,6 @@ func _sight_blocked(
 	exclude: Array,
 ) -> bool:
 	return not sight_hit(space, from, to, exclude).is_empty()
-
-
-## Whether a ray-hit collider stops sight, read once through the hittable contract: its coverage
-## (0–100 height proxy) is above `see_over_coverage` and its surface is not `transparent` (a
-## glass-panel door's). An unknown collider (no get_surface) is treated as fully blocking so sight
-## never leaks past it.
-func _hit_blocks_sight(collider: Object) -> bool:
-	if collider == null or not collider.has_method("get_surface"):
-		return true
-	var surface: Dictionary = collider.get_surface()
-	return (
-		float(surface.get("coverage", 100.0)) > see_over_coverage
-		and not bool(surface.get("transparent", false))
-	)
 
 
 ## Whether the straight segment `from`→`to` hits a wall or solid object on the query layer. A pure
