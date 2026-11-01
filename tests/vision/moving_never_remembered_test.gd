@@ -3,8 +3,9 @@ extends GameTest
 ## visibility bit `MOVING` (2) and the view's capture, which paints the memory, leaves that bit
 ## out of its cull mask. In an arena with the player (the viewer), a puppet that walks, shoots
 ## another puppet and throws a frag: the living puppets and what they hold, the bullet, the grenade
-## in flight, the hit particles, the flying debris, the explosion's look and the flash lights are
-## each on `MOVING` and not drawn by the capture, while a piece of furniture and a wall are
+## in flight, the hit particles, the flying debris, the blood spray in flight (the blood-red bursts
+## a wound throws), the explosion's look and the flash lights are each on `MOVING` and not drawn by
+## the capture, while a piece of furniture, a wall and the blood already settled (a splatter) are
 ## (the premise that the read tells them apart).
 ##
 ## It reads (tests/_vision/vision_probe.gd) the `PlayerView`'s `capture()` cull mask and each
@@ -13,7 +14,11 @@ extends GameTest
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Grenades := preload("res://tests/_ai/grenade_probe.gd")
 ## The moving things the run must have seen, by kind, or the test proves nothing.
-const KINDS := ["bullet", "grenade", "particles", "debris", "explosion"]
+const KINDS := ["bullet", "grenade", "particles", "blood spray", "debris", "explosion"]
+## The colour a blood burst starts as (`HitParticles`' `blood` tint).
+const BLOOD_RED := Color(0.6, 0.05, 0.06)
+## Blood that has landed is settled: a splatter or a pool, remembered where it lies.
+const SETTLED := ["splat"]
 
 var _seen := {}
 var _wrong := {}
@@ -36,8 +41,8 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"vision.enabled", true)
 	s.object(&"wardrobe", "wardrobe", Vector2(300, 100))
 	s.actor(&"you", &"player", Vector2(150, 350))
-	s.actor(&"shooter", &"puppet", Vector2(600, 350))
-	s.actor(&"victim", &"puppet", Vector2(1000, 350))
+	s.actor(&"shooter", &"puppet", Vector2(600, 350), { "max_health": 100_000.0 })
+	s.actor(&"victim", &"puppet", Vector2(1000, 350), { "max_health": 100_000.0 })
 
 
 func run(t: TestContext) -> void:
@@ -64,13 +69,7 @@ func run(t: TestContext) -> void:
 	await _watch(t, view, 1.0)
 	await Grenades.throw_at(t, &"shooter", 8, Vector2(1100, 150))
 	await _watch(t, view, 5.0)
-	for kind in KINDS:
-		t.check(_seen.get(kind, 0) > 0, "premise: a %s was seen" % kind)
-		t.check(
-			_wrong.get(kind, 0) == 0,
-			"every %s seen is on MOVING and out of the capture (%d of %d not)"
-			% [kind, _wrong.get(kind, 0), _seen.get(kind, 0)],
-		)
+	_check_kinds(t)
 	for who in [&"you", &"shooter", &"victim"]:
 		var body := t.actor(who)
 		t.check(body.visibility_layer == Probe.MOVING, "%s, alive, is on MOVING" % who)
@@ -86,6 +85,25 @@ func run(t: TestContext) -> void:
 		t.check(light.visibility_layer == Probe.MOVING, "%s is on MOVING" % light.name)
 
 
+## What the run saw of each kind of thing: the settled blood on `WORLD`, the moving things on
+## `MOVING`.
+func _check_kinds(t: TestContext) -> void:
+	for kind in SETTLED:
+		t.check(_seen.get(kind, 0) > 0, "premise: a %s was seen" % kind)
+		t.check(
+			_wrong.get(kind, 0) == 0,
+			"every settled blood %s is on WORLD and drawn by the capture (%d of %d not)"
+			% [kind, _wrong.get(kind, 0), _seen.get(kind, 0)],
+		)
+	for kind in KINDS:
+		t.check(_seen.get(kind, 0) > 0, "premise: a %s was seen" % kind)
+		t.check(
+			_wrong.get(kind, 0) == 0,
+			"every %s seen is on MOVING and out of the capture (%d of %d not)"
+			% [kind, _wrong.get(kind, 0), _seen.get(kind, 0)],
+		)
+
+
 ## Run `seconds`, looking at every moving thing in the world each frame.
 func _watch(t: TestContext, view: PlayerView, seconds: float) -> void:
 	for _i in int(seconds * 60.0):
@@ -96,8 +114,16 @@ func _watch(t: TestContext, view: PlayerView, seconds: float) -> void:
 				continue  # lying still it is remembered (tests/vision/at_rest_remembered_test.gd)
 			if kind != "":
 				_seen[kind] = _seen.get(kind, 0) + 1
-				if node.visibility_layer != Probe.MOVING or Probe.in_capture(view, node):
+				if _is_wrong(kind, node, view):
 					_wrong[kind] = _wrong.get(kind, 0) + 1
+
+
+## Whether `node`, of `kind`, is on the wrong layer: a moving thing must be on `MOVING` and out of
+## the capture, settled blood on `WORLD` and in it.
+func _is_wrong(kind: String, node: CanvasItem, view: PlayerView) -> bool:
+	if kind in SETTLED:
+		return node.visibility_layer != Probe.WORLD or not Probe.in_capture(view, node)
+	return node.visibility_layer != Probe.MOVING or Probe.in_capture(view, node)
 
 
 ## Whether a grenade has come to rest (a `grenade` event of stage `rest`).
@@ -117,9 +143,16 @@ func _kind_of(node: Node) -> String:
 	elif node.is_in_group(&"live_grenades"):
 		kind = "grenade"
 	elif node is CPUParticles2D and named.begins_with("HitParticles"):
-		kind = "particles"
+		kind = "blood spray" if _is_blood(node) else "particles"
+	elif named.begins_with("BloodSplat"):
+		kind = "splat"
 	elif named.begins_with("Explosion"):
 		kind = "explosion"
 	elif node.get_child_count() > 0 and node.get_child(0).name == "DebrisVisuals":
 		kind = "debris"
 	return kind
+
+
+## Whether a burst of hit particles is blood: it starts as the blood red.
+func _is_blood(burst: CPUParticles2D) -> bool:
+	return burst.color_ramp != null and burst.color_ramp.colors[0].is_equal_approx(BLOOD_RED)
