@@ -1,5 +1,5 @@
 extends GameTest
-## E key (ticket #54): Keybinds.USE (ticket #21: it was USE_VEHICLE), default E, rebindable on the
+## E key (ticket #54): Keybinds.USE, default E, rebindable on the
 ## settings page, is read by the player's controller: a `player` actor beside the car's front-left
 ## door presses it and gets in to drive; pressing it again gets it out.
 

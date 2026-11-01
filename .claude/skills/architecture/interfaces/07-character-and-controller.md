@@ -31,8 +31,8 @@
      UI); `weapon.one_handed()` (blind: the round spreads wider); `blast_push(from, impulse)` (an explosion's shove: knockback, or the
      fallen body's ragdoll thrown).
    - **Vehicle:** from the E press to the last step out `use.is_busy()` is true and `inventory.current_item()` is null.
-   - **Identity:** `faction` (for hostility), exported `radius` (fixed; Vehicles and Lighting read it). Every character
-     joins the group `characters` in `_ready`: how the AI's perception, `Explosion` and vehicles find characters.
+   - **Identity:** `faction` (for hostility), exported `radius` (fixed; Vehicles, Lighting and doors read it). Every character
+     joins the group `characters` in `_ready`: how the AI's perception, `Explosion`, vehicles and a door's swing find them.
    - **Priority:** the AI controller alone writes its character's `process_physics_priority`: 1 while a primed ambusher holds its post
      (`docs/leadership.md` LD15, D37), 0 after.
 

@@ -4,5 +4,5 @@ class_name WorldGenDoorConfig
 ## and no autoload. Which doorways get a door, the swing and the start state are `DoorRules`.
 
 ## Whether HouseSpawner builds the house's doors (`docs/doors.md` DR2): on, as in a match; off, the
-## doorways stay the open archways they were (the test switch `worldgen.doors`).
+## doorways stay open archways (the test switch `worldgen.doors`).
 static var enabled: bool = true

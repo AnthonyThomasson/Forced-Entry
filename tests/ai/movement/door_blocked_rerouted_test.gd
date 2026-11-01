@@ -14,6 +14,9 @@ const Entry := preload("res://tests/_ai/entry_probe.gd")
 const HALL := Rect2(0, 0, 400, 400)
 const BEDROOM := Rect2(400, 0, 300, 400)
 const DOOR_A := Vector2(400, 120)
+## Wider than a house's 60 px doorway: that doorway's navigation lane is 12 px (`docs/doors.md`
+## DR1), and the chair beside the swing would carve it shut, so the walk would never be planned
+## through door A.
 const DOOR_A_WIDTH := 80.0
 const START := Vector2(250, 120)
 const DOOR_A_HINGE := Vector2(400, 86)

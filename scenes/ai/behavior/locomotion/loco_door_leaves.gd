@@ -1,11 +1,4 @@
 extends RefCounted
-
-enum Phase {
-	NONE,
-	APPROACH,
-	OPENING,
-}
-
 ## AI BEHAVIOUR sub-domain — LOCOMOTION's door leaves, its part `leaves` (`docs/doors.md` DR14): a
 ## door on the stretch of the walk ahead that is not open wide enough to pass. Whatever primitive
 ## walks (`Locomotion.move_to`), the walker stops beside the door on its latch side, faces it, opens
@@ -16,6 +9,13 @@ enum Phase {
 ## re-decide). Doors are found by the group `doors` and read through the door contract (interface
 ## 24), duck-typed, so the AI imports nothing of Objects. Built once with its Locomotion, it holds
 ## it (a node, so no reference cycle).
+
+## Where a walk stands at a door: no door, going to its latch side, working it.
+enum Phase {
+	NONE,
+	APPROACH,
+	OPENING,
+}
 
 ## How far (px) along the walk ahead a door is looked for.
 const LOOKAHEAD := 90.0

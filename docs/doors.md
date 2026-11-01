@@ -93,7 +93,7 @@ The glass-panel door is the exception: its surface says `transparent`, which sig
 the other through it, not through a wooden door) and it casts no shadow; a round still meets it (penetration 5). A knocked-down
 door blocks nothing (DR11).
 
-It is in neither nav bake (planning, steering): paths go through a doorway as before and the walker deals with the leaf
+It is in neither nav bake (planning, steering): paths go through a doorway as through an open archway and the walker deals with the leaf
 (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`).
 
 Tests: `objects/door_blocks` (the body, the rounds, sight and the shadow), `navigation/door_not_baked` (both maps path through a
@@ -101,20 +101,20 @@ shut door's doorway).
 
 ## DR6. Use (E)
 
-The `use_vehicle` action is `use` (`Keybinds.USE`, default E, label "Use (door, vehicle)", rebindable; a binding saved under
+The Use action is `use` (`Keybinds.USE`, default E, label "Use (door, vehicle)", rebindable; a binding saved under the alias
 `use_vehicle` comes back as `use`, and one saved under `use` beside it wins). In a vehicle, Use gets out, even with a door in
 reach. Otherwise it acts on whichever is nearest: a standing door in reach ahead, or a vehicle's door to get in by
 (`CharacterUse.use_target()`: the distance from the body to the door's leaf, at its nearest point, against the distance to the
 vehicle door's handle). A door is in reach (`character.use.doors.door_in_reach()`) when its leaf has a point within
 `CharacterDoorConfig.reach` (48 px) of the body that lies ahead of it (the side the character faces); of those, the one whose leaf is
 nearest the aim. A knocked-down door is none. Tap: an open door (or one swinging open) swings shut, a shut or ajar one swings fully
-open, in `DoorConfig.swing_time` (0.4 s). A vehicle is acted on at the press, as before; a door's toggle comes at the release of the
+open, in `DoorConfig.swing_time` (0.4 s). A vehicle is acted on at the press; a door's toggle comes at the release of the
 key, so that a hold can scroll instead (DR7), and a hold that does not scroll toggles at its release. The player's controller remembers the door the key went down on, so the release and the wheel act on that door while it stays in reach, whichever door the aim is nearest by then (`use(door)`, `turn(steps, door)`). `character.use.doors` takes no input event: the test puppet's `use()` / `turn_door(steps)` call `character.use.try_use()` / `character.use.doors.turn(steps)` as the player's controller does, and the AI (DR14) works a door with `character.use.doors.open_fully(door)`.
 
 Tests: `character/door_use_key` (E held moves nothing, its release opens a shut door fully and the next E shuts it; with a door and a
 car's door both in reach E acts on the door when it is the nearer and boards when the handle is, and leaves the open door as it is;
 seated, E gets out with a door in reach; an ajar door swings fully open), `general/use_vehicle_key` (the `use` action, its default, label, group, settings row, no
-clash; a `player` boards and gets out), `general/settings_file` (the old saved name comes back as `use`).
+clash; a `player` boards and gets out), `general/settings_file` (a binding saved under the alias `use_vehicle` comes back as `use`).
 
 ## DR7. Gradual opening
 
@@ -124,11 +124,11 @@ stopping at `open_angle`), wheel up
 it by the notches the camera counts that scroll as (`Keybinds.scroll_notches`: `CameraConfig.trackpad_zoom_sensitivity` notches per unit
 of `delta.y`). The player's controller takes those events before the camera reads them, so the camera does not zoom meanwhile, and
 releasing Use after scrolling does not toggle. With Use not held, or no door in reach (`doors.turn` is false), the scroll goes on to the
-camera and zooms it as before.
+camera, which zooms.
 
 Tests: `character/door_scroll_open` (three notches up turn the door 60°, a notch down back to 40°, two more 80° and the next stops at
-fully open, 90°, the camera's zoom unchanged, E let go leaves the angle; a trackpad scroll turns it by the notches the camera counts it for; fully open and shut are the limits; between two doors the one E went down on is turned, not the one the aim moves to; the puppet's `turn_door` and `use`; with E not held
-or held with no door in reach the wheel zooms), `general/camera_wheel_zoom` (unchanged).
+fully open, 90°, the camera not zooming, E let go leaves the angle; a trackpad scroll turns it by the notches the camera counts it for; fully open and shut are the limits; between two doors the one E went down on is turned, not the one the aim moves to; the puppet's `turn_door` and `use`; with E not held
+or held with no door in reach the wheel zooms), `general/camera_wheel_zoom` (the wheel zooms with no door held).
 
 ## DR8. A swing meets something
 
@@ -228,7 +228,9 @@ panes) is its material's own.
 | `glass` | a glass-panel door's panes shatter (DR9) | a crack, a rush and the shards tinkling down (`leaf/glass/glass`; this stage has a sound for the glass-panel door only) |
 
 A door the hand moves posts `open` at the start of an opening swing and `shut` as it arrives; a leaf a walker pushes posts nothing
-on the way (it was not latched) and `shut` when it reaches shut.
+on the way (it is not latched) and `shut` when it reaches shut. A hand that starts an opening swing posts `open` even when
+furniture stops the leaf at once (the latch is heard to give); a blast that shatters a glass-panel door's panes posts `glass` and, if
+it also throws the door open or fells it, `burst` or `down` too: the shattering and the bang are two sounds.
 
 **No spam.** A gradual scroll (DR7) turns the door a notch at a time, each notch a swing opening it a little further; only the first
 of a movement sounds its latch. The door remembers when it last began opening (`_opened_at`); a swing opening it within

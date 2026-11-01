@@ -162,9 +162,9 @@ const GROUPS := {
 	PAUSE: "System",
 	MENU: "System",
 }
-## The actions that were renamed, each saved binding's old name -> the action it now is, so a
-## settings file written before the rename still binds the action (`bindings.apply_overrides`).
-const RENAMED := {
+## The names a settings file may hold for an action, each alias -> the action it binds, so a file
+## saved under an alias still binds the action (`bindings.apply_overrides`).
+const ALIASES := {
 	"use_vehicle": USE,
 }
 ## Action pairs that deliberately share a binding, so `bindings.conflicts_of()` doesn't flag them:
@@ -180,7 +180,7 @@ const SHARED := [
 
 ## The rebinding store: binding, resetting, describing and the saved overrides
 ## (`input_bindings.gd`), built once with the tables above.
-var bindings: InputBindings = InputBindings.new(DEFAULTS, MOUSE_DEFAULTS, SHARED, RENAMED)
+var bindings: InputBindings = InputBindings.new(DEFAULTS, MOUSE_DEFAULTS, SHARED, ALIASES)
 
 
 func _ready() -> void:

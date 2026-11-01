@@ -71,9 +71,9 @@ main ──▶ worldgen, navigation, lighting, ai, items, character, audio, ui  
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
-worldgen ──▶ objects (the five factories, RoomWalls, WearPlan)
-objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake leaves the group `doors` out: 9)
-character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24)
+worldgen ──▶ objects (the five factories, RoomWalls, WearPlan, and `DoorConfig.open_angle`: 24)
+objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake leaves the group `doors` out: 9; a door's swing nudges a character clear, duck-typed: 7, 24)
+character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
 items ──▶ projectile, art          projectile ──▶ physics          vehicle ──▶ physics, art
 ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement)   (and a house door, duck-typed: 24)
 ui ──▶ items, physics            (plain dicts in, signals out; never calls Main)

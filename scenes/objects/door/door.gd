@@ -253,10 +253,9 @@ func take_damage(amount: float) -> void:
 
 
 ## A shove (the pushable contract, interface 5). A shut door never moves for it, nor does a leaf a
-## hand or a burst is swinging; an
-## ajar or open one is turned about its hinge by the shove's moment against its weight, away from
-## the body (`door.push`, `docs/doors.md` DR5, DR10). `at` is where it lands, from the leaf's
-## middle.
+## hand or a burst is swinging; an ajar or open one is turned about its hinge by the shove's moment
+## against its weight, away from the body (`door.push`, `docs/doors.md` DR5, DR10). `at` is where
+## it lands, from the leaf's middle.
 func apply_impulse(impulse: Vector2, at := Vector2.ZERO) -> void:
 	if _down or swing.moving() or swing.angle <= 0.0:
 		return

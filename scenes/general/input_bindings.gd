@@ -24,20 +24,20 @@ var keys: Dictionary
 var mouse: Dictionary
 ## Action pairs that deliberately share a binding (`Keybinds.SHARED`).
 var shared: Array
-## A renamed action's old saved name -> its name now (`Keybinds.RENAMED`).
-var renamed: Dictionary
+## An action's alias in a settings file -> the action it binds (`Keybinds.ALIASES`).
+var aliases: Dictionary
 
 
 func _init(
 	default_keys: Dictionary,
 	default_mouse: Dictionary,
 	shared_pairs: Array,
-	renamed_actions: Dictionary,
+	alias_names: Dictionary,
 ) -> void:
 	keys = default_keys
 	mouse = default_mouse
 	shared = shared_pairs
-	renamed = renamed_actions
+	aliases = alias_names
 
 
 ## Point `action` at the key or mouse button in `event`, replacing its current binding. A key is
@@ -125,11 +125,11 @@ func overrides() -> Dictionary:
 
 ## Rebind from an `overrides()`-shaped dictionary (as read back from JSON). Unknown actions and
 ## malformed entries are skipped one by one; actions not named keep their current binding. A binding
-## saved under an action's old name (`renamed`) goes to the action it is now, unless the data also
-## holds one under the new name, which wins.
+## saved under an alias (`aliases`) goes to the action it binds, unless the data also holds one
+## under the action's own name, which wins.
 func apply_overrides(data: Dictionary) -> void:
 	for action in data:
-		var current: String = renamed.get(action, action)
+		var current: String = aliases.get(action, action)
 		if current != action and data.has(current):
 			continue
 		if actions().has(current):

@@ -27,6 +27,11 @@
       the door given while it is in reach, false with none. `use.use_target() -> StringName` is `&"door"` when a door in reach is nearer
       than every boardable vehicle handle (19), `&"vehicle"`, or `&""`; `use.try_use()` acts on it at once, while the human's controller
       holds a door back to the key's release unless the wheel turned it meanwhile.
+    - **What a door asks of a character** (so a swing clears one, DR8): the group `characters`, the exported `radius` (7), the body's
+      `test_move` / `move_and_collide` and its collision exceptions, duck-typed; the door imports nothing of Character.
+    - **Tuning read across the boundary:** `DoorConfig.step_degrees` (the Character's wheel step, `turn`), `DoorConfig.open_angle` (the
+      angle World-Gen gives a door that starts open: `Door.open_angle` is the same number) and `DoorConfig.swing_time`; the rest of
+      `DoorConfig` stays in Objects.
     - **Callers:** the human's Use key (`Keybinds.USE`, E; `Keybinds.scroll_notches(event)` while it is held, DR6, DR7); the AI's
       locomotion (DR14: finds a door on its walk by the group and reads `gap()`, `is_down()`, `angle()`, `leaf_pose(0.0)`, `width`, `swing_into`
       and `latch_side_spot(from)`, duck-typed, and calls `use.doors.open_fully`); Testing (13: `use()`, `turn_door(steps)`, a layout's `door`).

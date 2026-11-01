@@ -12,10 +12,11 @@ var deformable: Deformable
 ## The door this draws and the footprint it draws (px), centred on this node.
 var _door: Node2D
 var _size := Vector2.ONE
-## The art now and the lighting angle it was painted for (NAN = not yet).
+## The art now.
 var _art: Texture2D
 ## Whether the door lies knocked down.
 var _fallen := false
+## The lighting angle the art was painted for (NAN = not yet).
 var _lit := NAN
 
 

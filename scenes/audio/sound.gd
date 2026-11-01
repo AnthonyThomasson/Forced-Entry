@@ -58,8 +58,7 @@ const ENGINE := &"engine"
 const VEHICLE := &"vehicle"
 const SKID := &"skid"
 ## A house door's category and topic. (A vehicle's door is another thing: its `door/...` profiles
-## play
-## as `VEHICLE`.)
+## play as `VEHICLE`.)
 const DOOR := &"door"
 ## The profile family a house door's sounds are voiced from, which play under `DOOR`.
 const DOOR_FAMILY := &"leaf"

@@ -1,7 +1,7 @@
 extends RefCounted
 ## Objects domain (private): a door's damage, `door.damage`: its hit points and the wear on its
-## latch. The material's row of `DoorMaterialConfig.materials` says what each kind
-## of hit is worth (`factor`) and how much the latch takes.
+## latch. The material's row of `DoorMaterialConfig.materials` says what each kind of hit is worth
+## (`factor`) and how much the latch takes.
 
 ## The leaf's hit points now and at the start; at 0 it is knocked down.
 var hp := 0.0
