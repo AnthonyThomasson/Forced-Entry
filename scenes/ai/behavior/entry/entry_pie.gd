@@ -23,6 +23,9 @@ var sides := 0
 ## This member has begun slicing the pie, and says so on the radio (`pie`): nobody moves up behind
 ## it from then on.
 var begun := false
+## The doorway's door shut the view when this member's turn first came: it skips the pie for the
+## whole entry, whatever the door does after (`entry_readiness.gd` `_skips_pie`).
+var skipped := false
 ## Pie steps still to look from (points on the arc).
 var queue: Array = []
 ## The side being sliced now.
@@ -40,6 +43,7 @@ func reset() -> void:
 	seen_fraction = 0.0
 	sides = 0
 	begun = false
+	skipped = false
 	queue = []
 	side = 0
 

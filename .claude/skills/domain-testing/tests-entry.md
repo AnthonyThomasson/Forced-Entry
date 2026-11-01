@@ -8,7 +8,7 @@ need `--include-von --require-von`.
   geometry is clean) through `tests/_ai/entry_probe.gd` (`const Entry`): the rules that send an invader to a doorway
   (`rules`, `guard_rules` for the entry guard's E9 tests with `asked(prefix)` proving the scripted order was the one asked),
   `npc`, `target`, the test's own doorway frames (`BACK`, `FRONT`, …), and the radio reads (`calls`, `first_call_time`,
-  `radio_claim`, a puppet teammate's claim). A per-frame sampler and "it went in by entry" are
+  `radio_claim`, a puppet teammate's claim). The entry at a house door (`entry_*_door_*`, E3): `tests/_ai/entry_door_probe.gd` (`const DoorPie`: the Terrace house's back doorway with a 60 px hollow door, its hinges, `slicing`). A per-frame sampler and "it went in by entry" are
   `tests/_ai/entry_watch_probe.gd` (`const EntryWatch`: `watch`, `path_of`, `check_entered`, …). The brain is read through
   `debug_entry()` and `debug_room_zones()` on the controller.
 - **Real-Von tests** (`requires_von`, paced in real time, so timeouts are wall-clock) run the whole pipeline: plain

@@ -157,7 +157,7 @@ func _holds_in_slot(entry: Entry, team: Array, delta: float) -> bool:
 
 ## Take this member's turn at the door: the point (nobody ahead of it) crosses at once after the
 ## burst while the window lasts (no pie, whatever stands in view), else slices the pie unless it
-## holds for the bang or listens (E17), or the doorway's door shuts the view (`_view_shut`: no pie,
+## holds for the bang or listens (E17), or the doorway's door shuts the view (`_skips_pie`: no pie,
 ## it crosses once the stack is ready); the other side's front man of a split stack slices its own
 ## half (E19); a follower crosses after the member ahead of it (`follow`).
 func _take_turn(entry: Entry, team: Array) -> void:
@@ -167,12 +167,12 @@ func _take_turn(entry: Entry, team: Array) -> void:
 		if entry.grenade.over:
 			_cross_when_ready(entry, team)
 		elif not _waits_for_stun(entry, team):
-			if _view_shut():
+			if _skips_pie(entry):
 				_cross_when_ready(entry, team)
 			else:
 				entry.pie.start_pie(entry, team)
 		return
-	if slices_own_half(entry) and not _view_shut():
+	if slices_own_half(entry) and not _skips_pie(entry):
 		entry.pie.start_pie(entry, team)
 		return
 	say_ready(entry)
@@ -338,6 +338,10 @@ func _waits_for_stun(entry: Entry, team: Array) -> bool:
 
 
 ## Whether a standing door that is not open wide enough shuts the view through this entry's doorway
-## (a glass-panel door does not): the pie would look at the door, so it is not sliced.
-func _view_shut() -> bool:
-	return world.loco.leaves.shuts_view_at(state.geo["pos"])
+## (a glass-panel door does not): the pie would look at the door, so it is not sliced. Decided the
+## first time it is asked and kept (`pie.skipped`): the door the point opens on its way in does not
+## bring the pie back for the other side's front man, who follows the point instead.
+func _skips_pie(entry: Entry) -> bool:
+	if not entry.pie.skipped and world.loco.leaves.shuts_view_at(state.geo["pos"]):
+		entry.pie.skipped = true
+	return entry.pie.skipped
