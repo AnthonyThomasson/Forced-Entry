@@ -85,11 +85,10 @@ func _launch_endless(t: TestContext) -> void:
 	t.expect_eq(_shown(world), ["invader"], "a fresh launch restores the watch scope: invaders")
 	main.set_overlay_scope("defenders")
 	t.expect_eq(_shown(world), ["household"], "and the bar's new scope shows at once")
-	var killed := false
 	for npc in _npcs(world):
-		if npc.faction == &"household" and not killed:
+		if npc.faction == &"household":
 			npc.take_damage(1.0e9)
-			killed = true
+			break
 	var next: Node = await _await_world(t, main, world.get_instance_id())
 	if next == null:
 		await MainProbe.close(t, viewport)

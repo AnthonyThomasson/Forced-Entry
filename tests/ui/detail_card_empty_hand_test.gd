@@ -59,8 +59,4 @@ func run(t: TestContext) -> void:
 
 ## The first line of the card's Item section: the held item and its ammo.
 func _held_line(card: Control) -> String:
-	var labels := card.find_children("*", "Label", true, false)
-	for i in labels.size() - 1:
-		if (labels[i] as Label).text == "ITEM":
-			return (labels[i + 1] as Label).text.split("\n")[0]
-	return ""
+	return InspectorProbe.section(card, "ITEM").text.split("\n")[0]

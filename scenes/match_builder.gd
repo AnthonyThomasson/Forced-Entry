@@ -493,7 +493,7 @@ static func set_overlay(handle: Dictionary, flag: String, on: bool) -> void:
 		if is_instance_valid(overlay):
 			overlay.show_leaders = on
 	elif not OVERLAY_REGISTRY.is_global(flag):
-		_show_overlays(
+		_apply_to_combatants(
 			handle, { flag: on }, handle.get("overlay_scope", OVERLAY_REGISTRY.SCOPE_ALL),
 		)
 
@@ -505,13 +505,13 @@ static func set_overlay(handle: Dictionary, flag: String, on: bool) -> void:
 ## human (no AI controller) has no overlays to set.
 static func set_overlay_scope(handle: Dictionary, flags: Dictionary, scope: String) -> void:
 	handle["overlay_scope"] = scope
-	_show_overlays(handle, flags, scope)
+	_apply_to_combatants(handle, flags, scope)
 
 
 ## Apply the per-NPC overlay `flags` (`{ show_<x>: bool }`) to `npc` by the scope rule: as given
 ## when `npc` is in `scope` (`OverlayRegistry.in_scope`), all off when it is not, and nothing at all
 ## to a character with no AI controller (the human). The one gate every router goes through.
-static func _apply_overlays(npc: Node, flags: Dictionary, scope: String) -> void:
+static func _apply_in_scope(npc: Node, flags: Dictionary, scope: String) -> void:
 	if _controller_of(npc) == null:
 		return
 	var shown := flags
@@ -723,12 +723,12 @@ static func _start_of(human: Dictionary) -> Vector2:
 	return human["at"] if human["at"] != Vector2.INF else (human["node"] as Node2D).global_position
 
 
-## `_apply_overlays` to each of the match `handle`'s `combatants`: the one loop `set_overlay` and
+## `_apply_in_scope` to each of the match `handle`'s `combatants`: the one loop `set_overlay` and
 ## `set_overlay_scope` share.
-static func _show_overlays(handle: Dictionary, flags: Dictionary, scope: String) -> void:
+static func _apply_to_combatants(handle: Dictionary, flags: Dictionary, scope: String) -> void:
 	for npc: Variant in handle.get("combatants", []):
 		if is_instance_valid(npc):
-			_apply_overlays(npc, flags, scope)
+			_apply_in_scope(npc, flags, scope)
 
 
 ## The controller of `npc` (interface 7): its child in the group `npc_controllers`, else null.

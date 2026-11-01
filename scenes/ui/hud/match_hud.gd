@@ -13,7 +13,7 @@ extends CanvasLayer
 signal match_ended(verdict: String)
 
 ## The timer's box (px from the top edge), and the top edge the panels docked under it share (the
-## spectator's detail card, the performance overlay): its bottom and a gap.
+## spectator's detail card, and the performance overlay by the same number): its bottom and a gap.
 const TIMER_TOP := 16.0
 const TIMER_HEIGHT := 52.0
 const PANEL_TOP := TIMER_TOP + TIMER_HEIGHT + 8.0

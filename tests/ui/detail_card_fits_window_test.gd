@@ -9,8 +9,12 @@ const OverlayToggles := preload("res://scenes/ui/overlays/overlay_toggles.gd")
 const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 const InspectorProbe := preload("res://tests/_ui/inspector_probe.gd")
 const AT := Vector2(450, 250)
-## The window the project opens at (project.godot), the "default window size" of the brief.
+## The window the project opens at (project.godot): the default window size.
 const WINDOW := Vector2(1152, 648)
+## The least gap (px) the card keeps between its bottom edge and the window's.
+const GAP := 4.0
+## A shorter window the card is squeezed into.
+const SHORT := 400
 ## A reasoning text as long as the zones' own, so the Point section is tall.
 const LONG_DESC := "cover from the doorway, a clear line along the hall, the route passes the " \
 	+ "kitchen door, ally lane to the left, held by the sergeant, exposed for two seconds"
@@ -58,7 +62,7 @@ func run(t: TestContext) -> void:
 	await InspectorProbe.right_click(t, npc.global_position)
 	if not t.require(card.visible, "a right-click opens the card"):
 		return
-	var brain := _body(card, "VON BRAIN")
+	var brain := InspectorProbe.section(card, "VON BRAIN")
 	if not t.require(
 			await t.until(func(): return _lines(brain) >= 6, 8.0),
 			"premise: the Von brain section is populated (%d lines)" % _lines(brain),
@@ -75,13 +79,13 @@ func run(t: TestContext) -> void:
 func _check_scrolling(t: TestContext, card: Control, viewport: Vector2) -> void:
 	var rect := card.get_global_rect()
 	t.check(
-		rect.position.y >= 0.0 and rect.end.y <= viewport.y,
-		"the card ends inside the viewport (%s of %s)" % [rect, viewport],
+		rect.position.y >= 0.0 and rect.end.y <= viewport.y - GAP,
+		"the card ends inside the viewport with a gap (%s of %s)" % [rect, viewport],
 	)
 	var scroll := _first(card, "ScrollContainer") as ScrollContainer
 	if not t.require(scroll != null, "the card's sections sit in a scroll container"):
 		return
-	var point := _body(card, "POINT")
+	var point := InspectorProbe.section(card, "POINT")
 	var tall := (scroll.get_child(0) as Control).get_combined_minimum_size().y
 	t.check(
 		tall > scroll.size.y,
@@ -104,17 +108,9 @@ func _check_scrolling(t: TestContext, card: Control, viewport: Vector2) -> void:
 	)
 	await InspectorProbe.wheel(t, at, MOUSE_BUTTON_WHEEL_UP, 60)
 	t.check(not _inside(point, scroll), "wheeling up scrolls back")
+	await _check_resize(t, card, viewport)
 	await InspectorProbe.click_screen(t, at, MOUSE_BUTTON_RIGHT)
 	t.check(not card.visible, "a right-click on the card passes through: empty ground closes it")
-
-
-## The body label under the heading `heading` of `card`.
-func _body(card: Control, heading: String) -> Label:
-	var labels := card.find_children("*", "Label", true, false)
-	for i in labels.size() - 1:
-		if (labels[i] as Label).text == heading:
-			return labels[i + 1] as Label
-	return null
 
 
 func _lines(label: Label) -> int:
@@ -129,3 +125,17 @@ func _first(node: Node, type: String) -> Node:
 ## Whether `control`'s rect lies inside `container`'s rect.
 func _inside(control: Control, container: Control) -> bool:
 	return container.get_global_rect().encloses(control.get_global_rect())
+
+
+## A shorter window: the open `card` is bounded by it too, its Point section still reachable.
+func _check_resize(t: TestContext, card: Control, viewport: Vector2) -> void:
+	var root := t.world.get_tree().root
+	root.size = Vector2i(int(viewport.x), SHORT)
+	await t.seconds(0.4)
+	var now := t.world.get_viewport().get_visible_rect().size
+	t.check(now.y == SHORT, "premise: the window is shorter now (%s)" % now)
+	var rect := card.get_global_rect()
+	t.check(
+		rect.end.y <= now.y - GAP,
+		"the card follows the window: it ends inside the shorter viewport (%s of %s)" % [rect, now],
+	)

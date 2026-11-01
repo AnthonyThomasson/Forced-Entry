@@ -54,6 +54,16 @@ static func overlays_with(character: Node, prop: String) -> Array:
 	return character.get_children().filter(func(c): return prop in c)
 
 
+## The body label under the section heading `heading` (shown upper-cased, `"POINT"`) of the detail
+## `card`, or null.
+static func section(card: Control, heading: String) -> Label:
+	var labels := card.find_children("*", "Label", true, false)
+	for i in labels.size() - 1:
+		if (labels[i] as Label).text == heading:
+			return labels[i + 1] as Label
+	return null
+
+
 static func _move_to(t: TestContext, screen: Vector2) -> void:
 	var motion := InputEventMouseMotion.new()
 	motion.position = screen

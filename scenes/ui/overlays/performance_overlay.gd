@@ -7,12 +7,13 @@ extends CanvasLayer
 ## the domains. Runs PROCESS_MODE_ALWAYS so it keeps updating (and stays draggable) while the match
 ## is paused.
 
-const MatchHud := preload("res://scenes/ui/hud/match_hud.gd")
 const Toggles := preload("res://scenes/ui/overlays/overlay_toggles.gd")
 const DragHandle := preload("res://scenes/ui/overlays/drag_handle.gd")
-## Panel width in px, and its top edge (clears the match HUD's top-centre timer).
+## Panel width in px, and its top edge (clears the match HUD's top-centre timer: the same line the
+## detail card docks under, `MatchHUD.PANEL_TOP`, kept as a literal so this folder reads nothing of
+## the hud's).
 const PANEL_WIDTH := 232.0
-const PANEL_TOP := MatchHud.PANEL_TOP
+const PANEL_TOP := 76.0
 ## Gap between the panel and the toggle bar.
 const BAR_GAP := 8.0
 const FONT_SIZE := 18

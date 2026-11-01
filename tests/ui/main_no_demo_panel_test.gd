@@ -68,10 +68,12 @@ func _check_live_match(t: TestContext) -> void:
 			"premise: Main's played match is built, the human among its combatants",
 	):
 		await MainProbe.close(t, viewport)
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 		return
 	await t.frames(3)
 	var walked := main.find_children("*", "", true, false)
-	t.check(walked.size() > 20, "premise: the live tree is walked (%d nodes)" % walked.size())
+	# a match is hundreds of nodes (house, NPCs, HUDs): a handful would mean nothing was walked
+	t.check(walked.size() > 50, "premise: the live tree is walked (%d nodes)" % walked.size())
 	t.check(main.find_children("DebugUI", "", true, false).is_empty(), "no DebugUI node live")
 	var demo: Array[String] = []
 	for node: Node in walked:

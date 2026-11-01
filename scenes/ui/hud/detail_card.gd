@@ -108,7 +108,7 @@ func setup(right_clear: float) -> void:
 		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_box.add_child(body)
 		_bodies[heading] = body
-	get_viewport().size_changed.connect(_fit)
+	get_viewport().size_changed.connect(_dock)
 
 
 ## Open the card for `npc`: its sections filled now and kept fresh, no tactical point yet.
@@ -182,7 +182,7 @@ func _dock() -> void:
 
 
 ## Make the sections as tall as their text, up to the window's bottom edge less `BOTTOM`: past it
-## they scroll. Run on each refresh and when the window is resized.
+## they scroll. Run on each refresh and, by `_dock`, when the window is resized.
 func _fit() -> void:
 	if _scroll == null:
 		return

@@ -104,10 +104,6 @@ func _pickable(zones: Array) -> Array:
 	return out
 
 
-## The body text of the card's Point section: the label after the POINT heading.
+## The body text of the card's Point section.
 func _point_section(card: Control) -> String:
-	var labels := card.find_children("*", "Label", true, false)
-	for i in labels.size() - 1:
-		if (labels[i] as Label).text == "POINT":
-			return (labels[i + 1] as Label).text
-	return ""
+	return InspectorProbe.section(card, "POINT").text

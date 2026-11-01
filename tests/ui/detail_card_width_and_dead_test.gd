@@ -9,7 +9,7 @@ const OverlayToggles := preload("res://scenes/ui/overlays/overlay_toggles.gd")
 const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 const InspectorProbe := preload("res://tests/_ui/inspector_probe.gd")
 const AT := Vector2(450, 250)
-## The card's width, left edge and top the brief names (px), and the window's width.
+## The card's width, left edge and top (px), and the window's width.
 const WIDTH := 560.0
 const LEFT := 24.0
 const TOP := 76.0
