@@ -24,16 +24,30 @@ extends GameTest
 ## see the same fight on both sides. A round's cost is its two view blocks' average frame minus its
 ## two bare blocks'; the result is the median of the rounds, so the match's own spikes (a nav
 ## re-bake, a burst of hits) fall in a round and not in the number.
-## Budget 6.0 ms is a placeholder, until the last savings of the view's cost set the real one
-## (the cost measured then, plus 25 %). Ten runs with the machine quiet (the `--quiet` gate passed,
-## none marked loaded) gave 2.92, 3.08, 3.33, 3.67, 4.29, 4.42, 4.44, 4.87, 5.28 and 5.46 ms: median
-## 4.36 ms, all under 6.0. The spread is between runs (each run plays a different fight), not
-## between rounds, which is why 36 rounds a run gave no steadier a number than 12. Twelve runs with
-## the machine loaded gave 2.03 to 5.84 ms (median 3.32). A run on a loaded machine can go over any
+##
+## The budget, 3.2 ms (`BUDGET_MS`), is the highest of eight runs measured with the machine quiet
+## (the `--quiet` gate passed, none marked loaded) after the view's three savings (unseen
+## characters not repainted, the cone rebuilt only when its inputs changed, the cone's own
+## caches), plus 25 %, rounded: 0.33, 0.36, 0.63, 1.18, 1.58, 1.70, 2.50 and 2.51 ms, median
+## 1.38 ms. Median plus 25 % (1.73 ms) was not taken: the spread is between runs (each run plays a
+## different fight, and one run's rounds alone range from about -4 to +5 ms), so it would fail two
+## of these eight correct runs. 3.2 ms still fails the cost before the savings: ten quiet runs then
+## gave 2.92 to 5.46 ms (median 4.36), every one over it. Runs on a loaded machine can go over any
 ## budget here; `--quiet` marks such a run loaded, and a loaded red says nothing about the code
 ## (`perf.md`).
+##
+## The second check is a ratio, `RATIO_MAX` 0.75: in a block of each round the reference cone
+## (`tests/_vision/reference_view_cone.gd`, the cone before any saving, built whole every frame) is
+## built from the viewer's eye and timed, and the live cone's own step (the change check, and the
+## rebuild when there was one) is timed in the blocks the view works in (`Stopwatch`), so a
+## skipped frame counts at what it cost. The eight quiet runs gave
+## 0.27, 0.31, 0.39, 0.39, 0.40, 0.42, 0.49 and 0.59 (median 0.40). With the savings off (the
+## reference cone in the view, every frame rebuilt) it reads 1.00 to 1.02; with only the skip off
+## it reads about 0.65, and the premise that the view skipped rebuilds fails. The reference cone
+## runs in blocks of its own, so it adds nothing to the cost measured above.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
+const Stopwatch := preload("res://tests/_perf/cone_stopwatch.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const PER_SIDE := 10
 ## Blocks, in order: whether the view works in it. Each block is `BLOCK_FRAMES` frames.
@@ -41,9 +55,23 @@ const BLOCKS := [true, false, false, true]
 const ROUNDS := 12
 const BLOCK_FRAMES := 25
 ## The most (ms a frame) the view may add to the same match without it (see the header).
-const BUDGET_MS := 6.0
+const BUDGET_MS := 3.2
+## The most the live cone's cost a frame may be of the reference cone's, from the same eye (see the
+## header).
+const RATIO_MAX := 0.75
 ## Health of the viewer: a view of the dead is lifted, so it must live through the window.
 const HEALTH := 1_000_000.0
+
+## Each viewport's update mode as it was, while the view is off.
+var _modes := {}
+## The view's cost against the unviewed match (ms a frame), and the live cone's cost over the
+## reference cone's, one of each per round.
+var _costs: Array[float] = []
+var _ratios: Array[float] = []
+## How many frames the view worked in, and how many of them rebuilt the cone.
+var _timed := 0
+var _rebuilt := 0
+var _watch := Stopwatch.new()
 
 
 func describe() -> Dictionary:
@@ -80,46 +108,76 @@ func run(t: TestContext) -> void:
 		return
 	if not await Perf.warm_until_contact(t, "10v10 match, view cost", characters):
 		return
-	var modes := {}
-	var costs: Array[float] = []
+	_watch.attach(view)
 	for _round in ROUNDS:
-		var with_view := 0.0
-		var without := 0.0
-		for on: bool in BLOCKS:
-			_switch(view, on, modes)
-			var stats := await Perf.frame_stats(t, BLOCK_FRAMES)
-			if on:
-				with_view += stats["avg_ms"] / float(BLOCKS.count(true))
-			else:
-				without += stats["avg_ms"] / float(BLOCKS.count(false))
-		costs.append(with_view - without)
-	_switch(view, true, modes)
+		await _round_of_blocks(t, view)
+	_switch(view, true)
 	t.check(
 		not viewed.is_dead and is_instance_valid(view),
 		"premise: the viewer lived and the view stood through the blocks",
 	)
-	var cost := _median(costs)
+	var cost := _median(_costs)
 	GameLog.say(
 		"PERF 10v10 view cost: median of %d rounds %.2f ms a frame, rounds %s"
-		% [ROUNDS, cost, costs],
+		% [ROUNDS, cost, _costs],
 	)
 	Perf.within(t, "10v10 match, the view's cost ms/frame", cost, BUDGET_MS)
+	t.check(
+		float(_rebuilt) < float(_timed) * 0.95,
+		"premise: the view skipped rebuilds in the blocks it worked (%d rebuilds in %d frames)"
+		% [_rebuilt, _timed],
+	)
+	var ratio := _median(_ratios)
+	GameLog.say(
+		"PERF 10v10 live cone / reference cone: median of %d rounds %.2f, rounds %s"
+		% [ROUNDS, ratio, _ratios],
+	)
+	Perf.within(t, "10v10 match, live cone cost / reference cone cost", ratio, RATIO_MAX)
+
+
+## One round: the blocks of `BLOCKS` (the view's cost against the match without it), then a block of
+## the reference cone from the same eye, which adds nothing to those.
+func _round_of_blocks(t: TestContext, view: PlayerView) -> void:
+	var with_view := 0.0
+	var without := 0.0
+	_watch.reset()
+	for on: bool in BLOCKS:
+		_switch(view, on)
+		var before := view.rebuilds()
+		var stats := await Perf.frame_stats(t, BLOCK_FRAMES)
+		if on:
+			with_view += stats["avg_ms"] / float(BLOCKS.count(true))
+			_rebuilt += view.rebuilds() - before
+			_timed += BLOCK_FRAMES
+		else:
+			without += stats["avg_ms"] / float(BLOCKS.count(false))
+	_costs.append(with_view - without)
+	_switch(view, false)
+	_watch.measure_reference = true
+	await Perf.frame_stats(t, BLOCK_FRAMES)
+	_watch.measure_reference = false
+	_ratios.append(_watch.live_average() / maxf(_watch.reference_average(), 0.001))
+	t.check(
+		_watch.live_frames > 0 and _watch.reference_frames > 0,
+		"premise: both cones were timed (%d, %d frames)"
+		% [_watch.live_frames, _watch.reference_frames],
+	)
 
 
 ## Switch `view` on or off. Off, none of its work runs: the view's node is disabled (its cone is not
 ## rebuilt, nothing is followed or painted) and the capture, the memory and the mask stop rendering
-## (their update modes are disabled, and put back as they were when it is on again; `modes` keeps
+## (their update modes are disabled, and put back as they were when it is on again; `_modes` keeps
 ## them). It goes through the view's published reads and nodes alone.
-func _switch(view: PlayerView, on: bool, modes: Dictionary) -> void:
+func _switch(view: PlayerView, on: bool) -> void:
 	view.process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
 	for viewport: SubViewport in [view.capture(), view.memory(), view.mask()]:
-		if on and modes.has(viewport):
-			viewport.render_target_update_mode = modes[viewport]
-		elif not on and not modes.has(viewport):
-			modes[viewport] = viewport.render_target_update_mode
+		if on and _modes.has(viewport):
+			viewport.render_target_update_mode = _modes[viewport]
+		elif not on and not _modes.has(viewport):
+			_modes[viewport] = viewport.render_target_update_mode
 			viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	if on:
-		modes.clear()
+		_modes.clear()
 
 
 ## Put the viewed puppet at the centre of the house's largest room, facing out through that room's
