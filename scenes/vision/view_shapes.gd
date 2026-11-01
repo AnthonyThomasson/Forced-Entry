@@ -18,11 +18,20 @@ const GROWTH := 4
 var see_over := 60.0
 var _circle := CircleShape2D.new()
 var _query := PhysicsShapeQueryParameters2D.new()
-## Coverage by collider instance id.
+## The coverage of every collider whose coverage is fixed, by instance id: kept from build to build
+## and handed to `SightRay` (its `rated`) so a ray that meets one does not ask it again. A collider
+## leaves it when it leaves the tree.
+var _rated := {}
+## The coverage of the colliders whose coverage changes (a character's follows its posture), by
+## instance id, read once per build.
 var _coverage := {}
 ## The world polygon of a shape (empty for one that is no rectangle, circle or convex polygon) by
 ## `collider id * 4096 + shape index`.
 var _polygons := {}
+## The rids of the colliders in reach that sight looks over (coverage at or below `see_over`), read
+## by `corners` for one build, and the instance ids already in it.
+var _lows: Array = []
+var _low_seen := {}
 
 
 func _init() -> void:
@@ -34,6 +43,8 @@ func _init() -> void:
 func reset() -> void:
 	_coverage.clear()
 	_polygons.clear()
+	_lows.clear()
+	_low_seen.clear()
 
 
 ## The distinct corners, in world space, of every blocking shape within `reach` of `from`.
@@ -50,6 +61,7 @@ func corners(
 	var found: Array = []
 	for hit in _shapes_in_reach(space):
 		if _coverage_of(hit["collider"]) <= see_over:
+			_note_low(hit)
 			continue
 		for point in polygon_of(hit["collider"], hit["shape"]):
 			var key := Vector2i((point * 2.0).round())
@@ -57,6 +69,19 @@ func corners(
 				seen[key] = true
 				found.append(point)
 	return found
+
+
+## The rids of the colliders within reach of the last `corners` that sight looks over: a ray that
+## leaves them out meets the first blocker in one cast.
+func lows() -> Array:
+	return _lows
+
+
+## Keep the rid of the low collider `hit` met, once.
+func _note_low(hit: Dictionary) -> void:
+	if not _low_seen.has(hit["collider_id"]):
+		_low_seen[hit["collider_id"]] = true
+		_lows.append(hit["rid"])
 
 
 ## Every solid shape the query circle touches. The physics query returns at most as many as it is
@@ -102,12 +127,32 @@ func _signed_area(polygon: PackedVector2Array) -> float:
 	return area
 
 
-## The coverage of a collider (`SightRay.coverage_of`), read once per build.
+## The coverage of every collider whose coverage is fixed, by instance id (`SightRay.rated`).
+func rated() -> Dictionary:
+	return _rated
+
+
+## The coverage of a collider (`SightRay.coverage_of`). A character's follows its posture, so it is
+## read once per build; every other piece rates the same number for as long as it lives, so it is
+## read once and kept until it leaves the tree.
 func _coverage_of(collider: Object) -> float:
 	var id := collider.get_instance_id()
-	if not _coverage.has(id):
-		_coverage[id] = SightRay.coverage_of(collider)
-	return _coverage[id]
+	if _rated.has(id):
+		return _rated[id]
+	if _coverage.has(id):
+		return _coverage[id]
+	var covers := SightRay.coverage_of(collider)
+	if collider is CharacterBody2D:
+		_coverage[id] = covers
+	else:
+		_rated[id] = covers
+		(collider as Node).tree_exiting.connect(_forget.bind(id), CONNECT_ONE_SHOT)
+	return covers
+
+
+## Drop what is kept of the collider `id` (it left the tree).
+func _forget(id: int) -> void:
+	_rated.erase(id)
 
 
 ## The world polygon of shape `index` of `collider`.

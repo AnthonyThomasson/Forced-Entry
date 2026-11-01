@@ -146,6 +146,59 @@ func test_the_line_ends_at_its_target() -> void:
 	assert_dict(SightRay.hit(space, line[0], line[1], [], SEE_OVER)).is_empty()
 
 
+func test_a_caster_leaves_out_what_it_was_told_and_looks_over_the_rest() -> void:
+	var table := _piece(Vector2(100.0, 0.0), Vector2(40.0, 40.0), 40.0)
+	var wall := _piece(Vector2(300.0, 0.0), Vector2(20.0, 200.0), 100.0)
+	var space := await _space()
+	var line := _line(Vector2.ZERO, Vector2(500.0, 0.0))
+	var caster := SightRay.new()
+	caster.looks_over = SEE_OVER
+	caster.leave_out([wall.get_rid()])
+	# The wall is left out; the table, not named, is looked over: nothing is in the way.
+	assert_dict(caster.cast(space, line[0], line[1])).is_empty()
+	# The cast looked past the table with it added to the list, and put the standing list back:
+	# the next cast, from the far side, meets the table's coverage again, not a leftover exclusion.
+	caster.looks_over = 30.0
+	assert_object(caster.cast(space, line[0], line[1]).get("collider")).is_same(table)
+
+
+func test_a_caster_asks_its_rated_before_the_collider() -> void:
+	var wardrobe := _piece(Vector2(100.0, 0.0), Vector2(40.0, 40.0), 90.0)
+	var space := await _space()
+	var line := _line(Vector2.ZERO, Vector2(300.0, 0.0))
+	var caster := SightRay.new()
+	caster.looks_over = SEE_OVER
+	caster.leave_out([])
+	assert_object(caster.cast(space, line[0], line[1]).get("collider")).is_same(wardrobe)
+	# What it was told of the collider stands in place of the collider's own answer.
+	caster.rated = { wardrobe.get_instance_id(): 10.0 }
+	assert_dict(caster.cast(space, line[0], line[1])).is_empty()
+
+
+func test_a_plain_hit_is_not_changed_by_a_caster_left_out_list() -> void:
+	var wall := _piece(Vector2(100.0, 0.0), Vector2(20.0, 200.0), 100.0)
+	var space := await _space()
+	var line := _line(Vector2.ZERO, Vector2(300.0, 0.0))
+	var caster := SightRay.new()
+	caster.leave_out([wall.get_rid()])
+	assert_dict(caster.cast(space, line[0], line[1])).is_empty()
+	# `hit` takes its own list each ask, whatever another caster has been told to leave out.
+	assert_object(SightRay.hit(space, line[0], line[1], [], SEE_OVER).get("collider")).is_same(wall)
+
+
+func test_consecutive_hits_do_not_leak_their_exclude_or_limit_into_each_other() -> void:
+	var table := _piece(Vector2(100.0, 0.0), Vector2(40.0, 40.0), 40.0)
+	var wall := _piece(Vector2(300.0, 0.0), Vector2(20.0, 200.0), 100.0)
+	var space := await _space()
+	var line := _line(Vector2.ZERO, Vector2(500.0, 0.0))
+	# The wall left out, the table looked over: nothing in the way.
+	assert_dict(SightRay.hit(space, line[0], line[1], [wall.get_rid()], SEE_OVER)).is_empty()
+	# The next ask names nothing and looks over less: the table is the hit, not the wall, and the
+	# earlier ask's list and limit are gone.
+	assert_object(SightRay.hit(space, line[0], line[1], [], 30.0).get("collider")).is_same(table)
+	assert_object(SightRay.hit(space, line[0], line[1], [], SEE_OVER).get("collider")).is_same(wall)
+
+
 ## A solid piece with a height, as the hittable contract reports it (`get_surface().coverage`).
 class Piece:
 	extends StaticBody2D

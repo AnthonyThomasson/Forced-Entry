@@ -10,6 +10,10 @@ extends RefCounted
 ## angle and `corner_offset` either side), so the fan's chords never cut across the shadow behind a
 ## corner. The shapes and their corners come from `ViewShapes`.
 ##
+## Every ray is cast leaving out the low pieces in reach (the eye looks over them whatever their
+## place), so it meets its first blocker in one cast, and a fixed coverage is read once, not on each
+## ray (`ViewShapes`): the polygon is the one the plain rule draws, vertex for vertex.
+##
 ## A ray that ends on a blocker runs on to where it leaves that one shape (at most `far_depth`), so
 ## a wall or a wardrobe that is seen shows its top and is not left as a black hole.
 
@@ -23,11 +27,18 @@ var bubble := PackedVector2Array()
 ## The eye the polygons were built from.
 var eye := Vector2.ZERO
 var _shapes := Shapes.new()
+## The sight rule (`SightRay`), asked with the coverage the shapes already know and with the low
+## pieces in reach left out.
+var _ray := SightRay.new()
 ## What the eye sees by (`Character.sight()`), set by each `rebuild`.
 var _fov := 0.0
 var _reach := 0.0
 var _near := 0.0
 var _see_over := 0.0
+
+
+func _init() -> void:
+	_ray.rated = _shapes.rated()
 
 
 ## Rebuild both polygons for an eye at `from` facing `facing`, casting in `space`, leaving `exclude`
@@ -45,14 +56,19 @@ func rebuild(
 	_near = float(sight["awareness_radius"])
 	_see_over = float(sight["see_over_coverage"])
 	_shapes.see_over = _see_over
+	_ray.looks_over = _see_over
 	_shapes.reset()
-	var corners := _visible_corners(space, from, facing, exclude)
-	bubble = _sweep(space, from, _bubble_angles(from, corners), _near, exclude)
+	var found := _shapes.corners(space, from, _reach, exclude)
+	# Every low collider in reach is left out of the rays from here on: each meets the first blocker
+	# in one cast, where it would otherwise cast again past each low piece on its way.
+	_ray.leave_out(exclude + _shapes.lows())
+	var corners := _visible_corners(space, from, facing, found)
+	bubble = _sweep(space, from, _bubble_angles(from, corners), _near)
 	cone.clear()
 	if facing == Vector2.ZERO:
 		return
 	cone = PackedVector2Array([from])
-	cone.append_array(_sweep(space, from, _cone_angles(from, facing, corners), _reach, exclude))
+	cone.append_array(_sweep(space, from, _cone_angles(from, facing, corners), _reach))
 
 
 ## Whether `point` is inside the cone or the bubble polygon.
@@ -70,10 +86,9 @@ func _sight_end(
 	from: Vector2,
 	dir: Vector2,
 	dist: float,
-	exclude: Array,
 ) -> Vector2:
 	var to := from + dir * dist
-	var hit := SightRay.hit(space, from, to, exclude, _see_over)
+	var hit := _ray.cast(space, from, to)
 	return to if hit.is_empty() else _far_face(hit, dir)
 
 
@@ -83,11 +98,10 @@ func _sweep(
 	from: Vector2,
 	angles: Array,
 	dist: float,
-	exclude: Array,
 ) -> PackedVector2Array:
 	var ends := PackedVector2Array()
 	for entry in angles:
-		ends.append(_sight_end(space, from, entry[1], dist, exclude))
+		ends.append(_sight_end(space, from, entry[1], dist))
 	return ends
 
 
@@ -97,10 +111,10 @@ func _visible_corners(
 	space: PhysicsDirectSpaceState2D,
 	from: Vector2,
 	facing: Vector2,
-	exclude: Array,
+	found: Array,
 ) -> Array:
 	var visible: Array = []
-	for corner in _shapes.corners(space, from, _reach, exclude):
+	for corner in found:
 		var to: Vector2 = corner - from
 		var dist := to.length()
 		if dist < 1.0:
@@ -110,7 +124,7 @@ func _visible_corners(
 			continue
 		# A point 1 px short of the corner: the corner's own shape is not in the way of itself.
 		var short := from + to * ((dist - 1.0) / dist)
-		if SightRay.hit(space, from, short, exclude, _see_over).is_empty():
+		if _ray.cast(space, from, short).is_empty():
 			visible.append(corner)
 	return visible
 
