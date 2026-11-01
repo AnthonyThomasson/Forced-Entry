@@ -9,8 +9,10 @@ extends RefCounted
 
 ## The sides a circle shape is cut into.
 const CIRCLE_SIDES := 16
-## The most shapes one query returns.
-const MAX_RESULTS := 512
+## The shapes a query first asks for; a query that comes back full asks again for `GROWTH` times as
+## many, until one comes back with room to spare, so no shape in reach is ever dropped.
+const FIRST_RESULTS := 512
+const GROWTH := 4
 
 ## The coverage a shape must be above to block sight, set by the cone for each build.
 var see_over := 60.0
@@ -46,7 +48,7 @@ func corners(
 	_query.exclude = exclude
 	var seen := {}
 	var found: Array = []
-	for hit in space.intersect_shape(_query, MAX_RESULTS):
+	for hit in _shapes_in_reach(space):
 		if _coverage_of(hit["collider"]) <= see_over:
 			continue
 		for point in polygon_of(hit["collider"], hit["shape"]):
@@ -55,6 +57,17 @@ func corners(
 				seen[key] = true
 				found.append(point)
 	return found
+
+
+## Every solid shape the query circle touches. The physics query returns at most as many as it is
+## asked for, so a result that comes back full is asked again with a larger cap.
+func _shapes_in_reach(space: PhysicsDirectSpaceState2D) -> Array[Dictionary]:
+	var cap := FIRST_RESULTS
+	var hits := space.intersect_shape(_query, cap)
+	while hits.size() >= cap:
+		cap *= GROWTH
+		hits = space.intersect_shape(_query, cap)
+	return hits
 
 
 ## The world-space convex polygon of shape `index` of `collider` (empty when it is not a rectangle,
