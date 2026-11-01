@@ -92,10 +92,17 @@ func _watch(t: TestContext, view: PlayerView, seconds: float) -> void:
 		await t.frames(1)
 		for node in t.world.find_children("*", "", true, false):
 			var kind := _kind_of(node)
+			if kind == "grenade" and _rested(t):
+				continue  # lying still it is remembered (tests/vision/at_rest_remembered_test.gd)
 			if kind != "":
 				_seen[kind] = _seen.get(kind, 0) + 1
 				if node.visibility_layer != Probe.MOVING or Probe.in_capture(view, node):
 					_wrong[kind] = _wrong.get(kind, 0) + 1
+
+
+## Whether a grenade has come to rest (a `grenade` event of stage `rest`).
+func _rested(t: TestContext) -> bool:
+	return t.happened(&"grenade", func(d: Dictionary) -> bool: return d["stage"] == &"rest")
 
 
 ## What moving thing `node` is, or "" when it is none (by the name it was given or the group it

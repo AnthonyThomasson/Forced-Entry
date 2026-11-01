@@ -77,6 +77,8 @@ func _physics_process(delta: float) -> void:
 	cabin.update(delta)
 	_contacts.apply()
 	drive.update_skid()
+	# A vehicle under way is not remembered by the player's view; one parked is.
+	ViewLayers.set_moving(self, speed() > VehicleDriveConfig.stop_speed)
 
 
 func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:

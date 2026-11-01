@@ -29,6 +29,7 @@ var _query: PhysicsShapeQueryParameters2D
 
 func _ready() -> void:
 	z_index = DrawLayers.LYING  # Beneath the living and a vehicle's chassis, like a fallen body.
+	ViewLayers.set_moving(self, true)
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_height = DroppedItemConfig.start_height
 	var circle := CircleShape2D.new()
@@ -52,6 +53,7 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 	if grounded and _rise == 0.0 and _velocity.length_squared() < 1.0 and absf(_spin) < 0.05:
 		set_physics_process(false)  # At rest for good.
+		ViewLayers.set_moving(self, false)
 
 
 func _draw() -> void:

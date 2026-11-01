@@ -96,6 +96,7 @@ func _physics_process(delta: float) -> void:
 		_post(&"bounce")
 	if _motion.rolling and _motion.speed <= REST_SPEED:
 		_resting = true
+		ViewLayers.set_moving(self, false)
 		_spin = 0.0
 		_post(&"rest")
 	queue_redraw()
