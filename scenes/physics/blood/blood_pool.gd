@@ -15,7 +15,8 @@ var flow: BloodFlow
 ## sweep them.
 var _budget := 0.0
 var _flow_duration := 1.0
-## The pool changed while the player's view did not show it, so its draw is out of date.
+## The pool changed since it was last drawn (or was not drawn because the player's view did not
+## show it), so its draw is out of date.
 var _stale := false
 
 ## The draw layer child.
@@ -34,10 +35,20 @@ func _physics_process(delta: float) -> void:
 	else:
 		flow.advance(delta, _flow_duration)
 	flow.tick(delta)
-	_redraw()
-	# A pool out of date waits to be seen, so it keeps watching (cheaply) for the view to reach it.
-	if not _claiming() and flow.settled() and not flow.soaking() and not _stale:
+	_mark_stale()
+	if not _claiming() and flow.settled() and not flow.soaking():
 		set_physics_process(false)
+
+
+## Draw an out-of-date pool once the player's view shows it. The view builds the seen area in its
+## own physics tick, whatever order the tree runs the physics ticks in, so this frame's draw is
+## decided on this frame's view and a pool the cone reaches is drawn the very frame it does.
+func _process(_delta: float) -> void:
+	if _stale and _seen():
+		_stale = false
+		_visuals.queue_redraw()
+	if not _stale:
+		set_process(false)
 
 
 ## Start the pool: `cells` grid cells flowing out from its origin and leaning a random way, filling
@@ -64,26 +75,23 @@ func drag_out(pos: Vector2, level: float) -> void:
 		Vector2i(((pos - global_position) / BloodPoolConfig.flow_cell_size).floor()),
 		level,
 	)
-	_redraw()
+	_mark_stale()
 
 
-## Redraw the pool, unless it lies wholly outside what the player's view shows live
-## (`SeenArea`): then its draw is left out of date until the view reaches it (the pool keeps
-## growing, and what is seen later is drawn whole).
-func _redraw() -> void:
-	if _seen():
-		_stale = false
-		_visuals.queue_redraw()
-		return
+## Mark the pool's draw out of date; it is drawn this frame if the player's view shows it
+## (`_process`) and, if it wholly does not (`SeenArea`), left out of date until the view reaches it
+## (the pool keeps growing, and what is seen later is drawn whole).
+func _mark_stale() -> void:
 	_stale = true
-	set_physics_process(true)
+	set_process(true)
 
 
 ## Whether the pool's drawing, the box of cells it covers and the blur round them, reaches what the
-## player's view shows.
+## player's view shows. The box, not the circle round it: a long pool's circle reaches far past its
+## ends.
 func _seen() -> bool:
 	var size := BloodPoolConfig.flow_cell_size
 	var box := flow.extent()
 	var pad := Vector2.ONE * size * Visuals.PAD
 	var rect := Rect2(Vector2(box.position) * size - pad, Vector2(box.size) * size + pad * 2.0)
-	return SeenArea.reaches(to_global(rect.get_center()), rect.size.length() * 0.5)
+	return SeenArea.reaches_rect(Rect2(to_global(rect.position), rect.size))
