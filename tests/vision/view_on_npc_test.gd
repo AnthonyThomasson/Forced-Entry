@@ -16,7 +16,6 @@ extends GameTest
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Hall := preload("res://tests/_ai/investigate_probe.gd")
-const WorldScript := preload("res://scenes/testing/test_world.gd")
 ## The heard gunfire: the middle of the kitchen, the way in the hall, a living room and two
 ## doorways apart.
 const LEAD := Vector2(660, 190)
@@ -75,15 +74,9 @@ func _twin(t: TestContext, viewed: bool) -> Dictionary:
 	if viewed:
 		s.view(&"npc")
 	s.von_script([{ "pick": "investigate" }])
-	var world: Node2D = WorldScript.new()
-	world.name = "Twin"
-	world.process_mode = Node.PROCESS_MODE_PAUSABLE
-	t.world.get_parent().add_child(world)
-	await world.build(s)
+	var world: Node2D = await Probe.build_world(t, s)
 	var out := await _walk(t, world, viewed)
-	world.restore()
-	world.queue_free()
-	await t.frames(2)
+	await Probe.drop_world(t, world)
 	return out
 
 

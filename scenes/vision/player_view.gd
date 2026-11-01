@@ -79,8 +79,16 @@ static func watch(root: Node, character: Node2D) -> PlayerView:
 	var view := PlayerView.new()
 	view.name = "PlayerView"
 	view._viewer = character
+	if character.has_signal(&"died"):
+		character.connect(&"died", view._lift)
 	root.add_child(view)
 	return view
+
+
+## The viewer died: the view is lifted for good, so the whole world is drawn again, live. The view,
+## its composite and its viewports are freed at the end of this frame, before it is drawn.
+func _lift() -> void:
+	queue_free()
 
 
 ## The character this view was built for.

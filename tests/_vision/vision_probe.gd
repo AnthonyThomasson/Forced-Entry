@@ -20,6 +20,7 @@ extends RefCounted
 ##   piece's `get_surface().coverage`.
 
 const GROUP := &"player_view"
+const WorldScript := preload("res://scenes/testing/test_world.gd")
 ## The visibility bits of the spec (V5): what stays where it is, what moves, the overlays.
 const WORLD := 1
 const MOVING := 2
@@ -69,6 +70,24 @@ static func views_under(root: Node) -> Array[PlayerView]:
 		if root.is_ancestor_of(n):
 			found.append(n as PlayerView)
 	return found
+
+
+## A world of the test's own, built from `setup` beside the session's (the test builds worlds one
+## after the other, and frees each with `drop_world`).
+static func build_world(t: TestContext, setup: TestSetup) -> Node2D:
+	var world: Node2D = WorldScript.new()
+	world.name = "Twin"
+	world.process_mode = Node.PROCESS_MODE_PAUSABLE
+	t.world.get_parent().add_child(world)
+	await world.build(setup)
+	return world
+
+
+## Free a world made by `build_world` and give back what its setup changed.
+static func drop_world(t: TestContext, world: Node2D) -> void:
+	world.restore()
+	world.queue_free()
+	await t.frames(2)
 
 
 ## Put `who` at `at` facing along `dir` and wait until its facing (derived from its aim a frame
