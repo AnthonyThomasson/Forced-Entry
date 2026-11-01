@@ -156,3 +156,17 @@ static func in_capture(of_view: PlayerView, node: Node) -> bool:
 			return false
 		at = at.get_parent()
 	return true
+
+
+## Whether the view's capture lights the world by `light` (a Light2D): the engine gathers a
+## viewport's lights from its canvases alone and never by `visibility_layer`, so a light is in the
+## capture when it is on the capture's world canvas or a canvas layer under the capture.
+static func light_in_capture(of_view: PlayerView, light: CanvasItem) -> bool:
+	var capture := of_view.capture()
+	var canvas := light.get_canvas()
+	if canvas == capture.find_world_2d().canvas:
+		return true
+	for layer in capture.find_children("*", "CanvasLayer", true, false):
+		if (layer as CanvasLayer).get_canvas() == canvas:
+			return true
+	return false

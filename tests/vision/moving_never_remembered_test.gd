@@ -4,9 +4,10 @@ extends GameTest
 ## out of its cull mask. In an arena with the player (the viewer), a puppet that walks, shoots
 ## another puppet and throws a frag: the living puppets and what they hold, the bullet, the grenade
 ## in flight, the hit particles, the flying debris, the blood spray in flight (the blood-red bursts
-## a wound throws), the explosion's look and the flash lights are each on `MOVING` and not drawn by
-## the capture, while a piece of furniture, a wall and the blood already settled (a splatter) are
-## (the premise that the read tells them apart).
+## a wound throws) and the explosion's look are each on `MOVING` and not drawn by the capture, while
+## a piece of furniture, a wall and the blood already settled (a splatter) are (the premise that the
+## read tells them apart). The flash lights (a shot's, a burst's) are lights, which the cull mask
+## does not reach: they are out of the capture by their canvas.
 ##
 ## It reads (tests/_vision/vision_probe.gd) the `PlayerView`'s `capture()` cull mask and each
 ## node's `visibility_layer`.
@@ -28,8 +29,9 @@ func describe() -> Dictionary:
 	return {
 		"name": "What moves is on the MOVING bit and never in the capture",
 		"description": "The living, their held gun, a bullet, a grenade in flight, hit particles, "
-			+ "flying debris, an explosion's look and the flash lights are on MOVING, which the "
-			+ "capture leaves out; furniture and a wall are drawn by it.",
+			+ "flying debris and an explosion's look are on MOVING, which the capture leaves out, "
+			+ "and the flash lights are on a canvas it does not draw; furniture and a wall are "
+			+ "drawn by it.",
 		"tags": ["vision", "scripted"],
 		"timeout": 25.0,
 	}
@@ -79,10 +81,26 @@ func run(t: TestContext) -> void:
 		not Probe.in_capture(view, shooter_body.get_node("Visuals")),
 		"what the shooter draws (its body, its held gun) is not drawn by the capture",
 	)
+	_check_flashes(t, view)
+
+
+## A light is not a canvas item to the engine: the cull mask never reaches it (measured windowed: a
+## flash lit the capture's floor exactly as the live one, whatever its `visibility_layer`; 4.4's
+## `renderer_viewport.cpp` gathers a viewport's lights from its canvases alone). The flash lights
+## are out of the capture by being on a canvas the capture does not draw.
+func _check_flashes(t: TestContext, view: PlayerView) -> void:
 	var lights := t.world.find_children("Flash*", "PointLight2D", true, false)
 	t.check(not lights.is_empty(), "premise: the flash pool's lights exist")
+	var sky := t.world.find_child("Sky", true, false) as CanvasItem
+	t.check(
+		sky != null and Probe.light_in_capture(view, sky),
+		"premise: the sky, a light of the world's canvas, is lit in the capture",
+	)
 	for light in lights:
-		t.check(light.visibility_layer == Probe.MOVING, "%s is on MOVING" % light.name)
+		t.check(
+			not Probe.light_in_capture(view, light),
+			"%s is not lit in the capture" % light.name,
+		)
 
 
 ## What the run saw of each kind of thing: the settled blood on `WORLD`, the moving things on

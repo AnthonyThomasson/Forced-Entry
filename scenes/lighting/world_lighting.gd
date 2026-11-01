@@ -176,8 +176,18 @@ func _place(candidates: Array, rooms: Array, floors: Budget, lit_rooms: Dictiona
 			_fixture(room, floors, false)
 
 
-## The flash pool: `LightingConfig.flash_pool` disabled flashes under this node, none lit yet.
+## The flash pool: `LightingConfig.flash_pool` disabled flashes, none lit yet, under a canvas layer
+## of this node. The engine gathers a viewport's lights from the canvases it draws, and never by a
+## canvas item's visibility layer or the viewport's cull mask, so a flash on the world's own canvas
+## would light every viewport that shares the world (the Vision domain's capture, which paints the
+## memory, among them). On a canvas layer's canvas it lights the world only in this node's own
+## viewport, and still shines on, and is shadowed by, the world's items and occluders. The layer
+## follows the viewport's canvas transform, so the flashes stay in world coordinates.
 func _flash_pool() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "Flashes"
+	layer.follow_viewport_enabled = true
+	add_child(layer)
 	var pooled: Array = []
 	for k in LightingConfig.flash_pool:
 		var flash := _point(
@@ -188,8 +198,7 @@ func _flash_pool() -> void:
 		)
 		flash.name = "Flash%d" % (k + 1)
 		flash.enabled = false
-		ViewLayers.set_moving(flash, true)
-		add_child(flash)
+		layer.add_child(flash)
 		pooled.append(flash)
 	_pool = FlashPool.new(self, pooled)
 

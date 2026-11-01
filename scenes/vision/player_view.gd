@@ -3,8 +3,8 @@ extends Node2D
 ## The Vision domain's one node: what one character sees, drawn for the player
 ## (`docs/player-vision.md`), a leaf like Lighting. The match builder builds it through
 ## `watch(root, viewer)` for Main's human and the Testing world's viewer (interface 24); it reads
-## the viewer only duck-typed (`facing`, `global_position`, `get_rid()`, `sight()`, and its `died`
-## signal, on which the view lifts) and imports nothing but General.
+## the viewer only duck-typed (`facing`, `global_position`, `get_rid()`, `sight()`, `is_dead`, and
+## its `died` and `tree_exiting` signals, on which the view lifts) and imports nothing but General.
 ##
 ## Each physics frame, after its viewer has moved and turned, it builds the exact polygon of the
 ## viewer's sight (`ViewCone`): the cone round its facing and the bubble round its eye, bounded by
@@ -72,21 +72,24 @@ func _physics_process(_delta: float) -> void:
 
 
 ## Build the view of `character` (any one: the viewer) under `root`; null while
-## `VisionConfig.enabled` is off.
+## `VisionConfig.enabled` is off and for a character already dead (no view of the dead).
 static func watch(root: Node, character: Node2D) -> PlayerView:
-	if not VisionConfig.enabled:
+	if not VisionConfig.enabled or character.get("is_dead"):
 		return null
 	var view := PlayerView.new()
 	view.name = "PlayerView"
 	view._viewer = character
 	if character.has_signal(&"died"):
 		character.connect(&"died", view._lift)
+	# A viewer freed or taken out of the tree is not there to see by: the view lifts as on death.
+	character.tree_exiting.connect(view._lift)
 	root.add_child(view)
 	return view
 
 
-## The viewer died: the view is lifted for good, so the whole world is drawn again, live. The view,
-## its composite and its viewports are freed at the end of this frame, before it is drawn.
+## The viewer died or left the tree: the view is lifted for good, so the whole world is drawn again,
+## live. The view, its composite and its viewports are freed at the end of this frame, before it is
+## drawn.
 func _lift() -> void:
 	queue_free()
 

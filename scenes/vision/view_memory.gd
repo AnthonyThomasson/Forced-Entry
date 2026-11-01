@@ -3,7 +3,8 @@ extends Node
 ## nested in another makes the engine log an error):
 ##   capture  shares the main viewport's world, with its size and canvas transform, and leaves
 ##            `ViewLayers.MOVING` and `OVERLAY` out of its cull mask: the world as drawn without
-##            what moves and without the overlays;
+##            what moves and without the overlays (canvas items only: the engine does not cull a
+##            light by the mask, so the flash lights are on a canvas this one does not draw);
 ##   memory   a world-space picture over the bounds of the floors, `scale` texels per world px,
 ##            never cleared, which the cone's polygon paints each frame with the capture, so it
 ##            keeps the world as it was last seen and stays transparent where nothing was seen.
