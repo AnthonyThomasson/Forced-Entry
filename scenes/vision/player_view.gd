@@ -31,6 +31,16 @@ func _enter_tree() -> void:
 	process_physics_priority = PRIORITY
 
 
+func _exit_tree() -> void:
+	SeenArea.clear()
+
+
+## A view whose node is disabled works no more, so it shows the whole world again.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_DISABLED:
+		SeenArea.clear()
+
+
 func _ready() -> void:
 	var main := get_viewport()
 	_memory.name = "Memory"
@@ -69,6 +79,7 @@ func _physics_process(_delta: float) -> void:
 	var space := get_world_2d().direct_space_state
 	var facing: Vector2 = _viewer.get("facing")
 	_cone.rebuild(space, _viewer.global_position, facing, [_viewer.get_rid()], _viewer.sight())
+	_publish_area()
 
 
 ## Build the view of `character` (any one: the viewer) under `root`; null while
@@ -91,6 +102,8 @@ static func watch(root: Node, character: Node2D) -> PlayerView:
 ## live. The view, its composite and its viewports are freed at the end of this frame, before it is
 ## drawn.
 func _lift() -> void:
+	# At once, so what is drawn this frame already repaints everything that was held back.
+	SeenArea.clear()
 	queue_free()
 
 
@@ -153,6 +166,20 @@ func memory_scale() -> float:
 ## Whether the memory is still being emptied (it starts empty).
 func wiping() -> bool:
 	return _memory.wiping()
+
+
+## Tell General what the cone shows live (`SeenArea`), so what is drawn only while seen can skip
+## its repaint while it wholly is not.
+func _publish_area() -> void:
+	var polygons: Array = []
+	var bounds := Rect2(_cone.eye, Vector2.ZERO)
+	for polygon: PackedVector2Array in [_cone.cone, _cone.bubble]:
+		if polygon.size() < 3:
+			continue
+		polygons.append(polygon)
+		for corner in polygon:
+			bounds = bounds.expand(corner)
+	SeenArea.set_area(polygons, bounds)
 
 
 ## The bounds of the world's floors (the group `floors`: `size`, `global_position`), the part of the

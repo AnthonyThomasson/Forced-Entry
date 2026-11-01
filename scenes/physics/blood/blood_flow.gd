@@ -45,8 +45,9 @@ var _resist: Dictionary = {}
 var _soak: Dictionary = {}
 ## Frontier: Vector2i -> accumulated cost to reach it.
 var _frontier: Dictionary = {}
-## The cell blood leaves the body at.
-var _origin: Vector2i
+## The box of cells claimed or dragged to so far, starting as the cell blood leaves the body at
+## (the pool's origin, cell zero).
+var _extent := Rect2i(Vector2i.ZERO, Vector2i.ONE)
 
 
 func _init(aim: Vector2, exclude: Array) -> void:
@@ -56,9 +57,13 @@ func _init(aim: Vector2, exclude: Array) -> void:
 	_noise.seed = randi()
 	_noise.frequency = BloodPoolConfig.flow_noise_frequency
 	_probe.size = Vector2.ONE * _size * 0.8
-	_origin = Vector2i.ZERO
-	_frontier[_origin] = 0.0
-	_blocked[_origin] = false
+	_frontier[Vector2i.ZERO] = 0.0
+	_blocked[Vector2i.ZERO] = false
+
+
+## The box of cells the pool covers so far, trail included: what its draw spans.
+func extent() -> Rect2i:
+	return _extent
 
 
 ## True once nothing is left to flow into.
@@ -156,6 +161,7 @@ func add_trail(c: Vector2i, level: float) -> void:
 				continue
 			var l := level if dx == 0 and dy == 0 else level * 0.75
 			trail[n] = maxf(trail.get(n, 0.0), clampf(l, 0.0, 1.0))
+			_extent = _extent.merge(Rect2i(n, Vector2i.ONE))
 
 
 ## Distance (px) from cell `c` to the nearest flooded cell (0 inside the pool), searched no farther
@@ -198,6 +204,7 @@ func step(
 		var cost: float = _frontier[c]
 		_frontier.erase(c)
 		cells[c] = cost
+		_extent = _extent.merge(Rect2i(c, Vector2i.ONE))
 		if BloodSurface.is_porous(origin_global + _cell_center(c)):
 			_soak[c] = 0.0
 		_last_cost = maxf(_last_cost, cost)

@@ -70,12 +70,15 @@ const PAD := 3
 var _flow_texture: ImageTexture
 ## The threshold shader's material, created on the first flow draw.
 var _flow_material: ShaderMaterial
+## How many times the pool has been drawn (tests read it).
+var redraws := 0
 
 ## The blood pool (control node).
 @onready var _pool := get_parent()
 
 
 func _draw() -> void:
+	redraws += 1
 	_draw_flow()
 
 

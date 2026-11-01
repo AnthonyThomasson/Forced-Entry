@@ -44,6 +44,10 @@ const HAND_ON_FACE_HEIGHT := 6.9
 ## held gun past the body centre, so a part poking into view from a body just outside it is never
 ## missing.
 const CULL_MARGIN := 120.0
+## Px round the body centre that its drawing reaches (a hand holding a gun, the body itself): the
+## player's view repaints a body while a disc of this radius touches the part of the world it shows
+## live (`SeenArea`), and not while it wholly does not.
+const SEEN_REACH := 60.0
 
 ## The textured parts drawn on the body, as meshes kept from draw to draw.
 var meshes: BodyMeshes
@@ -51,8 +55,9 @@ var meshes: BodyMeshes
 var _settled_drawn := false
 ## The standing skeleton solved this frame, shared by the body's and the shadow's draw.
 var _rig: Rig
-## The body was outside the camera's view last frame, so nothing was repainted.
-var _offscreen := false
+## The body was outside the camera's view, or wholly outside the player's view, last frame, so
+## nothing was repainted.
+var _unpainted := false
 ## The rounded inputs the standing body was last repainted for.
 var _redraw_key := PackedInt32Array()
 ## How many times the standing body has been drawn (tests read it).
@@ -91,13 +96,13 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	limbs.drop()  # The limb chains are shared by this frame's two draws only (`limbs.chains`).
-	if not _in_view():
-		if not _offscreen:
-			_offscreen = true
-			# Whatever changes off screen, the first frame back repaints.
+	if not _in_view() or not SeenArea.reaches(global_position, SEEN_REACH):
+		if not _unpainted:
+			_unpainted = true
+			# Whatever changes unseen, the first frame back repaints.
 			_redraw_key = PackedInt32Array()
 		return
-	_offscreen = false
+	_unpainted = false
 	var anatomy: CharacterAnatomy = _character.anatomy
 	var ragdoll = anatomy.ragdoll
 	if dress.refresh(_character.wardrobe):
