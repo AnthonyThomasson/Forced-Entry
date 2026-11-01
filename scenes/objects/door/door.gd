@@ -275,6 +275,7 @@ func get_mass() -> float:
 ## latched. On a shut door it wears the latch by the strike itself (a boot cannot move a steel
 ## door's bolt), and when the latch gives the door bursts open.
 func _hurt(strike: float, kind: StringName, direction: Vector2) -> void:
+	push.note_blow()
 	if damage.hurt(strike * damage.factor(kind)):
 		_fall(direction)
 		return
@@ -318,7 +319,10 @@ func _fall(direction: Vector2) -> void:
 ## shut it latches, and it is a shut door again.
 func _pushed(delta: float) -> void:
 	var to := push.after(swing.angle, delta, open_angle)
-	if is_equal_approx(to, swing.angle) or _blocked(to, delta, false):
+	if is_equal_approx(
+		to,
+		swing.angle,
+	) or push.walker_shuts_open_leaf(swing.angle, open_angle) or _blocked(to, delta, false):
 		push.stop()
 	else:
 		swing.rest_at(to)

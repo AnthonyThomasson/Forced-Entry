@@ -5,10 +5,16 @@ extends RefCounted
 ## walker. It only works out the spin and the angle one step on; the door moves its body to it,
 ## after asking what stands in the way (`docs/doors.md` DR5, DR10).
 
+## The physics frames a hit, blast or blow and the shove that came with it may lie apart (a kick's
+## shove lands before its blow, a blast's after its hit, and the leaf turns on its next step).
+const BLOW_WINDOW := 1
+
 ## The leaf's spin now (degrees a second, positive opening).
 var spin := 0.0
 ## The angle the leaf stood at when this push began.
 var began_at := 0.0
+## The physics frame a hit, blast or melee blow last struck the leaf (long before the first).
+var struck_frame := -1000
 
 
 ## Add the spin a shove of `impulse` landing at world point `contact` gives a leaf of `weight`
@@ -20,6 +26,19 @@ func shove(
 	var moment := (contact - pivot).cross(impulse)
 	spin += turn * moment / (weight * DoorPushConfig.resistance)
 	spin = clampf(spin, -DoorConfig.burst_speed, DoorConfig.burst_speed)
+
+
+## A hit, blast or melee blow struck the leaf now.
+func note_blow() -> void:
+	struck_frame = Engine.get_physics_frames()
+
+
+## Whether the leaf, at `angle` on its open stop `limit`, is being pushed toward shut by a walker:
+## a shove that no hit, blast or blow came with (a strike's shove and its blow land within a frame
+## of each other, in either order). A fully open door ignores a walker (`docs/doors.md` DR10).
+func walker_shuts_open_leaf(angle: float, limit: float) -> bool:
+	var since_blow := Engine.get_physics_frames() - struck_frame
+	return spin < 0.0 and angle >= limit and since_blow > BLOW_WINDOW
 
 
 ## Whether the leaf is turning.
