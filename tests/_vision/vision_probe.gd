@@ -55,9 +55,14 @@ static func view(t: TestContext) -> PlayerView:
 
 ## Every view under the test world.
 static func views(t: TestContext) -> Array[PlayerView]:
+	return views_under(t.world)
+
+
+## Every view under `root`, a world of the test's own.
+static func views_under(root: Node) -> Array[PlayerView]:
 	var found: Array[PlayerView] = []
-	for n in t.world.get_tree().get_nodes_in_group(GROUP):
-		if t.world.is_ancestor_of(n):
+	for n in root.get_tree().get_nodes_in_group(GROUP):
+		if root.is_ancestor_of(n):
 			found.append(n as PlayerView)
 	return found
 
