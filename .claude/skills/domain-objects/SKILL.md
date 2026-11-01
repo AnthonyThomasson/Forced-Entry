@@ -30,7 +30,7 @@ so the editor's "no shape" warning on each `Wall` is expected.
 ## The contracts
 
 - **Hittable (3):** every piece and wall implements it. The striker decides the ballistic outcome and hands over a `HitInfo`; the
-  object decides what the hit *does to it* (shove, deform, debris). A melee punch shoves through the pushable contract and does
+  object decides what the hit *does to it* (shove, deform, debris). A melee punch or kick shoves through the pushable contract and does
   **not** deform.
 - **Pushable (5):** furniture is a `RigidBody2D`, so its native `apply_impulse(v, at)` and `get_mass()` serve the contract. A
   character's shoves pass the contact offset as `at`, so a piece pushed near one end turns about the far end (the body's own

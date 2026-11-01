@@ -186,8 +186,14 @@ body in its arc, which it never pushes through and, unlike a swing, never nudges
 walker pushing it, who stands on the side it turns away from). Reaching shut it latches (the shut sound, DR12) and is a shut door
 again: rigid to walkers and latched. A hand or a burst swinging the leaf (a Use, a notch of the scroll, a burst latch)
 takes it over from a push, and a shove during a swing does nothing. A punch counts against the door by DR9's factor and gives its
-shove like a walker's. The AI walks doors open (DR14) and passes through open ones; a walker passing an open door lying against a
-wall meets its room-facing side, which can only turn it further open.
+shove like a walker's. The AI walks doors open (DR14) and passes through open ones.
+
+**A fully open door stays open for a walker.** A leaf at its open stop (`open_angle`) ignores a walking push toward shut: a walker
+meeting the free end of a leaf lying along the wall nearly head on, or brushing past it, would otherwise turn it by the shove's
+off-axis moment and shut it behind them. What turns the leaf toward shut counts as a walker's when no hit, blast or blow struck
+the leaf within a frame of the shove (`door.push.walker_shuts_open_leaf`); Use, a kick, a punch or a blast (its `take_blow` / `take_hit` lands with
+its shove; a vehicle's shove has none and counts as a walker's) and a walker's push on a door open short of the stop (70°, ajar) behave as before. A walker's push toward open from the
+open stop is held at `open_angle` as ever.
 
 Tests: `objects/door_kick_burst` (a hollow door's second kick, the pull side, steel, solid at the fifth, punches, a walker; an ajar
 hollow, solid and steel door thrown fully open by one kick from the push side, an ajar door turned toward shut by one from the pull
@@ -196,6 +202,8 @@ into a steel door turns it by less over the same walk, a puppet walking into a s
 into an ajar door from its pull side turns it shut, it latches with the shut sound and holds like a shut door, a leaf stops at a
 body in its arc and does not nudge it), `objects/door_push_stops` (a leaf shoved every frame stops at a fridge in its arc and
 leaves it where it stood), `objects/door_push_open_limit` (a leaf shoved as hard as the rules let it spin never turns past 90°),
+`objects/door_open_stop_ignores_walkers` (a puppet brushing past and walking through a fully open door from its pull side leaves it at
+90°, the same walk turns a door open to 70° toward shut, Use still shuts the open door and a kick on its pull side still turns it),
 `objects/door_blast_ajar` (a frag on an ajar steel door's push side throws it fully open, one on its pull side does not),
 `objects/door_hard_punch_stays_a_punch` (a punch as hard as a kick bursts nothing).
 
@@ -286,7 +294,7 @@ sight (DR5), so the room behind it is not covered by sight, and so not counted s
 Tests: `ai/movement/door_in_the_way` (real Von, hand-laid house: two invaders search the one room behind a shut door, one opens it
 from the latch side, goes in, leaves it open, the room not searched while it was shut), `ai/movement/door_blocked_rerouted` (real
 Von: a chair in the swing holds the nearer door shut, the walk is a blocked one and the defender goes in by the other doorway),
-`ai/movement/door_second_walker_leaves_open` (real Von: two defenders reach the door together; the leaf never turns back toward shut), `ai/entry/entry_shut_door_skips_pie`, `entry_ajar_door_skips_pie`, `entry_glass_door_keeps_pie` and `entry_open_door_keeps_pie` (the entry's pie at a door: scripted Von, a hand-laid kitchen with its back door).
+`ai/movement/door_second_walker_leaves_open` (real Von: two defenders reach the door together; the leaf never turns back toward shut), `ai/entry/entry_shut_door_skips_pie`, `entry_ajar_door_skips_pie`, `entry_glass_door_keeps_pie`, `entry_open_door_keeps_pie`, `entry_door_just_under_sixty_skips_pie`, `entry_door_just_over_sixty_keeps_pie`, `entry_knocked_down_door_keeps_pie`, `entry_split_stack_shut_door_skips_pie` and `entry_ajar_door_hostile_in_gap` (the entry's pie at a door: scripted Von, a hand-laid kitchen with its back door).
 
 ## Trying doors by hand
 

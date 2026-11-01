@@ -6,7 +6,7 @@ extends GameTest
 const JAMB := 20.0
 const DOORWAY := Vector2(400, 200)
 const SHOVE := Vector2(900, 0)
-## The most a leaf opens, whatever pushes it (`docs/doors.md` DR1).
+## The most a leaf opens, whatever pushes it (`docs/doors.md` DR10).
 const OPEN := 90.0
 
 

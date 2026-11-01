@@ -13,9 +13,8 @@ angle), not a `RigidBody2D` on a `PinJoint2D` or a `DampedSpringJoint2D` the eng
   stays there; the AI wants one it can open fully and rely on; a burst latch throws it open at a fixed rate. A hinge
   joint under a character leaning on it, a shove or a stray round would swing, jitter, sag and settle on its own.
   A driven body is exactly where the code puts it.
-- **The pushable and hittable contracts stay cheap.** A rigid body answers `apply_impulse` by moving; the door answers
-  it by *remembering* it (the strike that follows, a kick's `take_damage`, tells a kick from a punch by the shove that
-  came with it), and does not move. The latch, the burst and the fall are the door's rules, written once.
+- **The pushable and hittable contracts stay cheap.** A rigid body answers `apply_impulse` by moving; a shut door answers
+  it by not moving (an ajar one turns about its hinge), and a melee strike names its kind to the door through `take_blow`. The latch, the burst and the fall are the door's rules, written once.
 - **A kinematic body pushes.** Godot moves an `AnimatableBody2D` through the physics server, so what it sweeps over is
   depenetrated; but a leaf that must stop at furniture, nudge a character and refuse to squash one against a wall needs the
   rule in code (`Door._blocked`, `_nudged`), asked of the space before the leaf turns there.

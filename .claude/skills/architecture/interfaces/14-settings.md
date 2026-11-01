@@ -2,7 +2,7 @@
     - `Settings` (`general/settings.gd`, static holder) persists to `user://settings.json`: the Debug switch (`debug`), the setup window's last
       choices (`setup`), the overlay toggles (`overlays`) and the `Keybinds` bindings that differ from the defaults
       (`Keybinds.bindings.overrides()` / `apply_overrides`, the rebinding store the autoload holds as its `bindings` part; a binding saved under an
-      action's old name, `Keybinds.RENAMED` (`use_vehicle` → `use`), is read back as the new one, the new name winning). Main calls
+      alias, `Keybinds.ALIASES` (`use_vehicle` → `use`), is read as the action's, the action's own name winning). Main calls
       `load_file()` once in `_ready`, after seeding `Settings.debug` from `run.debug_overlays`; `Keybinds._ready` does not, so tests never
       read a developer's file. Mutators save: `set_debug(on)`, `set_setup(config)`, `set_overlay(flag, on)`, `rebind(action, event) -> bool`,
       `reset(action)`, `reset_all()`; `binding_rows() -> Array` gives the page plain dicts.
