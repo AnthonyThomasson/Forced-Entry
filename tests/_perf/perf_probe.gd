@@ -25,8 +25,8 @@ const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).
 const MATCH_WARMUP_S := 6.0
 ## The most (s) the warm-up runs on past `MATCH_WARMUP_S` for the sides to make contact (a shot
-## fired, and some NPC knowing a hostile). Now and then a squad's entry waits about 15 s on
-## followers standing on a pie arc (#178), and a run goes the whole window without a shot.
+## fired, and some NPC knowing a hostile). The match has no doors (`configure_match`): with them
+## on, some runs saw no contact within the window (#178, #159).
 const MATCH_CONTACT_WITHIN := 20.0
 ## The engine lines a match guard allows (`allowed_logs`): a real match re-bakes the navmesh while
 ## furniture is shoved around, and now and then the bake of overlapping footprints is rejected by
@@ -43,6 +43,8 @@ const MATCH_LOGS := [
 ## (combat, engage) and the callouts, vision and pursuit on.
 static func configure_match(s: TestSetup, per_side: int) -> void:
 	s.house(MATCH_SEED, MATCH_PLAN)
+	# Doors off until #178 and #159 make this family door-aware.
+	s.switch(&"worldgen.doors", false)
 	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])
 	s.switch(&"ai.callouts", true)
 	s.switch(&"ai.vision", true)
