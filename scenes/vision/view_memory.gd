@@ -31,8 +31,8 @@ var _wipe: Node2D
 var _wipe_frames := 0
 
 
-## Build the capture and the memory for `bounds` at up to `want` texels per world px, sharing the
-## world of `main`. The node must be in the tree.
+## Build the capture and the memory for `world_bounds` at up to `want` texels per world px, sharing
+## the world of `main`. The node must be in the tree.
 func build(world_bounds: Rect2, want: float, main: Viewport) -> void:
 	bounds = world_bounds
 	var longest := maxf(maxf(bounds.size.x, bounds.size.y), 1.0)

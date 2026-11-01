@@ -107,7 +107,7 @@ func _walk(t: TestContext, npc: Node2D, view: PlayerView, brain: Node) -> Dictio
 		out["stray"] = maxf(out["stray"], _distance_to_route(npc.global_position))
 		out["eye_off"] = maxf(out["eye_off"], cone[0].distance_to(npc.global_position))
 		var middle := ((cone[1] - cone[0]).normalized() + (cone[-1] - cone[0]).normalized())
-		out["facing_off"] = maxf(out["facing_off"], rad_to_deg(middle.angle_to(facing)))
+		out["facing_off"] = maxf(out["facing_off"], absf(rad_to_deg(middle.angle_to(facing))))
 		out["turned"] += rad_to_deg(absf(last_facing.angle_to(facing)))
 		last_facing = facing
 		out["arrived"] = npc.global_position.distance_to(LEAD) < 60.0

@@ -54,9 +54,19 @@ func run(t: TestContext) -> void:
 	_painter(t, view)
 	_mask(t, view)
 	_composite(t, view)
-	# Never cleared: turn and walk, the memory is not emptied again.
+	# Never cleared: turn and walk, the memory is not emptied again, and the painter follows the
+	# cone to where the viewer is now.
 	await Probe.place(t, eye, Vector2(900, 250), Vector2.LEFT)
 	await t.frames(3)
+	var points: PackedVector2Array = view.painter().points()
+	var missed := 0
+	for corner in view.cone():
+		if points.find(corner) < 0:
+			missed += 1
+	t.check(
+		view.cone().size() >= 3 and missed == 0,
+		"the painter paints the cone where the viewer now stands (%d missing)" % missed,
+	)
 	t.check(not view.wiping(), "the memory is not emptied again after the viewer moves")
 	t.check(
 		view.memory().render_target_clear_mode == SubViewport.CLEAR_MODE_NEVER,
@@ -106,6 +116,12 @@ func _painter(t: TestContext, view: PlayerView) -> void:
 		return
 	t.check(painter.get_parent() == view.memory(), "the painter draws into the memory")
 	t.check(painter.texture == view.capture().get_texture(), "the painter paints the capture")
+	# The capture is the screen; the cone reaches past it, and a place not on it was not seen.
+	var paint := painter.material as ShaderMaterial
+	t.check(
+		paint != null and paint.shader.code.contains("discard"),
+		"what lies off the capture is not painted into the memory",
+	)
 	var points: PackedVector2Array = painter.points()
 	var uvs: PackedVector2Array = painter.uvs()
 	t.check(uvs.size() == points.size(), "every point of the polygon has a texture coordinate")

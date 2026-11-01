@@ -211,4 +211,5 @@ func _check_wall_top(t: TestContext, view: PlayerView, eye: Node2D) -> void:
 	var far_face: Vector2 = far["position"]
 	t.check(near.x < far_face.x, "premise: the wall has a thickness (%s to %s)" % [near, far_face])
 	t.check(view.sees(near + Vector2(3, 0)), "a point just inside the seen wall is in the cone")
+	t.check(view.sees(far_face - Vector2(3, 0)), "the seen wall's far face is in the cone")
 	t.check(not view.sees(far_face + Vector2(40, 0)), "the room beyond the wall is not in the cone")

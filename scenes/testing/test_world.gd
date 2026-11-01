@@ -103,6 +103,8 @@ func _watch_view(setup: TestSetup) -> void:
 		for a in setup.actors:
 			if who == null and a["kind"] == &"player":
 				who = actors.get(a["id"])
+	if setup.view_actor != &"" and not who is Node2D:
+		push_error("TestWorld: the view's actor '%s' is no actor" % setup.view_actor)
 	if who is Node2D:
 		PlayerView.watch(self, who)
 
