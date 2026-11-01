@@ -131,6 +131,14 @@ func test_an_excluded_body_is_not_in_the_way_and_the_list_is_left_as_it_was() ->
 	assert_array(exclude).has_size(1)
 
 
+func test_the_coverage_of_a_collider_is_what_it_says_and_a_full_blocker_when_it_says_none() -> void:
+	var table := _piece(Vector2(100.0, 0.0), Vector2(40.0, 40.0), 40.0)
+	var mute := _mute(Vector2(200.0, 0.0), Vector2(40.0, 40.0))
+	assert_float(SightRay.coverage_of(table)).is_equal(40.0)
+	assert_float(SightRay.coverage_of(mute)).is_equal(100.0)
+	assert_float(SightRay.coverage_of(null)).is_equal(100.0)
+
+
 func test_the_line_ends_at_its_target() -> void:
 	_piece(Vector2(300.0, 0.0), Vector2(20.0, 200.0), 100.0)
 	var space := await _space()

@@ -181,6 +181,21 @@ func report_shot(body: Node, damage: float) -> void:
 	hit_landed.emit(body, damage, -1)
 
 
+# --- Sight (the Vision domain's read of any character) ---------------------------------------
+
+
+## What this character sees by, for a view made for it: `fov_degrees`, `view_distance`,
+## `awareness_radius` and `see_over_coverage` (`CharacterVisionConfig`), the numbers the NPCs see by
+## too. Read duck-typed by the Vision domain.
+func sight() -> Dictionary:
+	return {
+		"fov_degrees": CharacterVisionConfig.fov_degrees,
+		"view_distance": CharacterVisionConfig.view_distance,
+		"awareness_radius": CharacterVisionConfig.awareness_radius,
+		"see_over_coverage": CharacterVisionConfig.see_over_coverage,
+	}
+
+
 # --- The stun (a grenade's flash and bang; docs/grenades.md G13) -------------------------
 
 

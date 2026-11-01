@@ -938,7 +938,8 @@ affected() {
     vehicle) echo vehicle character items interaction projectile physics objects ai perf audio general ;;
     ui) echo ui ;;
     # audio: the Sound autoload runs in every test; lighting: every test world is lit (WorldLighting).
-    worldgen|art|general|testing|audio|lighting) echo all ;;
+    # vision: Main's match and every world with the switch on carries a view.
+    worldgen|art|general|testing|audio|lighting|vision) echo all ;;
     *) echo all ;;  # anything unknown is treated as risky
   esac
 }
@@ -1003,6 +1004,7 @@ if [[ $CHANGED -eq 1 ]]; then
       tests/_audio/*) exact="$exact audio" ;;
       tests/_lighting/*) exact="$exact lighting" ;;
       tests/_ui/*) exact="$exact ui" ;;
+      tests/_vision/*) exact="$exact vision" ;;
       tests/_vehicle/*) exact="$exact vehicle audio general" ;;   # also feeds audio/vehicle_sounds and the general vehicle tests
       tests/_perf/*) perf=1 ;;
       tests/_*/*) domains="$domains all" ;;    # an unknown helper folder: assume the worst

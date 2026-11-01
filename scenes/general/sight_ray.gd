@@ -31,7 +31,7 @@ static func hit(
 		_query.to = to
 		_query.exclude = skipped
 		var found := space.intersect_ray(_query)
-		if found.is_empty() or _blocks(found.get("collider"), see_over):
+		if found.is_empty() or coverage_of(found.get("collider")) > see_over:
 			return found
 		# Low cover: look over it and keep going past it. The list grows by one collider a pass,
 		# so the walk ends (finitely many colliders lie on the line).
@@ -42,17 +42,16 @@ static func hit(
 	return {}  # unreachable; satisfies the parser
 
 
-## Whether a ray-hit collider stops sight, read once through the hittable contract: its coverage
-## (0 to 100) is above `see_over` and its surface is not `transparent` (a glass-panel door's). One
-## that cannot say (no `get_surface`; no `coverage` in it rates 100) blocks like a wall.
-static func _blocks(collider: Object, see_over: float) -> bool:
+## The coverage (0 to 100) sight reads off a ray-hit collider, through the hittable contract. A
+## surface that says it is `transparent` (a glass-panel door) reads 0: it is looked through however
+## tall. One that cannot say (no `get_surface`, or no `coverage` in it) is 100, a full blocker.
+static func coverage_of(collider: Object) -> float:
 	if collider == null or not collider.has_method("get_surface"):
-		return true
+		return 100.0
 	var surface: Dictionary = collider.get_surface()
-	return (
-		float(surface.get("coverage", 100.0)) > see_over
-		and not bool(surface.get("transparent", false))
-	)
+	if bool(surface.get("transparent", false)):
+		return 0.0
+	return float(surface.get("coverage", 100.0))
 
 
 ## A ray query on the solid layer, for `_query` to refill on each cast.
