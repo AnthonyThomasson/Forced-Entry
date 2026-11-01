@@ -46,8 +46,8 @@ group is the only link: Navigation stays a leaf that imports nothing of Objects,
 Left out entirely, an open door's leaf was invisible to every plan: it stands out of its doorway into the room it swings
 into, and a walk (or an entry's corner) behind it ran straight into it and stuck there. So a door standing within 10° of
 its open stop is carved where its leaf stands, read through the door contract (`NavLeaves.hole`); one further shut is still
-left out, and the AI's walker opens it fully before it goes through (DR14), so every door an AI walks through stands at its
-stop (carved) or is down. Two choices the numbers forced:
+left out, and the AI's walker goes through its gap where that clears a body and opens it fully where not (DR14). Three
+choices the numbers forced:
 - *The hole is a 2 px strip along the leaf, not its footprint grown by the furniture margin.* The bake keeps 18 px
   (agent radius and wall margin) off every obstruction; off the grown footprint that met the latch jamb's clearance and
   sealed a 48 px doorway (an interior one between its jambs, the narrowest) even at 90°. Off the strip it is within 2 px
@@ -55,6 +55,10 @@ stop (carved) or is down. Two choices the numbers forced:
 - *Only at the open stop.* A leaf further shut stands across its doorway's mouth; carved, it sealed the doorway at 45°,
   60° and 75° (open from 78°), and the bake cannot be told to keep a narrower way open there. Leaving out the leaf's
   root by the hinge did not help either: the square clearance off the clipped end still met the jamb's.
+- *Only where the way past it stays open.* In a doorway narrower than a house's (52 px) the strip's clearance meets the
+  latch jamb's even at the stop, so a leaf whose middle line stands less than 4 px more than the two clearances off the
+  latch jamb is left out as well (`NavLeaves.MIN_PASS`), and the walker goes through its gap.
 
 `tests/navigation/door_not_baked_test.gd` pins it (both maps path through a shut door's doorway); take the exclusion out and it goes red.
-`tests/navigation/door_open_leaf_carved_test.gd` pins the open stop's carve (shut and ajar left out, open carved, the doorway still open).
+`tests/navigation/door_open_leaf_carved_test.gd` pins the open stop's carve (shut and ajar left out, open carved, the doorway still open);
+`tests/navigation/door_open_leaf_narrow_doorway_paths_test.gd` pins the narrow doorway left open.

@@ -6,8 +6,9 @@
 	 `AnimatableBody2D`, a static collider to the parse) are taken off the solid layer for the parse, so paths cross a doorway as if open and
 	 the walker opens the door (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`). **A door at its open stop** (within
 	 `NavLeaves.OPEN_SLACK`, 10°, standing) is carved where its leaf stands, as a 2 px strip along the leaf (a furniture hole, so every bake,
-	 re-bake and the overlay take it): its doorway stays open past it and a path goes round the leaf in the room it swings into.
-	 `NavBuilder.leaf_in_map(door) -> bool` tells whether a door's leaf is in the map so (the AI's walker opens any door that is not, DR14).
+	 re-bake and the overlay take it) where at least `NavLeaves.MIN_PASS` (4 px) of way past it stays open (not in a 52 px doorway): its
+	 doorway stays open past it and a path goes round the leaf in the room it swings into. `NavBuilder.leaf_in_map(door) -> bool` tells
+	 whether a door's leaf is in the map so (the AI's walker goes through any other door by a clean gap or opens it, DR14).
    - **Re-bake** is the Navigation domain's own: `nav_updater.gd` (built by `MatchBuilder.stage`) re-carves the furniture holes in place at
 	 the pieces' **current** positions, only when a piece has moved, the planning bake on the NavigationServer's worker thread.
 	 `NavBuilder.rebake` / `rebake_async` / `rebake_steering` are test-facing seams, not part of this surface (`domain-navigation`).

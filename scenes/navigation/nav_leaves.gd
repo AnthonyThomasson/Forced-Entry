@@ -12,6 +12,11 @@ const OPEN_SLACK := 10.0
 ## Half the thickness (px) of the strip a carved leaf leaves in the map (`hole`): a sliver, so the
 ## 1 px grid keeps it.
 const HALF := 1.0
+## The least width (px) the map's way past a carved leaf keeps through its doorway, between the
+## bake's clearance off the leaf's strip and off the latch jamb: a doorway narrower than that past
+## the open leaf (a 52 px one) is left uncarved, as a door short of its stop is, since the carve
+## would seal it.
+const MIN_PASS := 4.0
 
 
 ## The doors standing under `house`: the bodies in the group `doors`. A door is a driven body in a
@@ -38,14 +43,28 @@ static func doors_of(house: Node2D) -> Array[CollisionObject2D]:
 ## carved as the strip along its middle line, `HALF` each side, not as its footprint grown by
 ## `NavBuilder.OBSTACLE_MARGIN`: the bake's clearance off that strip is within a few px of what a
 ## body needs off the leaf's faces, where the grown footprint's would close the way past the leaf
-## through a narrow doorway (the leaf's clearance meeting the other jamb's).
+## through a narrow doorway (the leaf's clearance meeting the other jamb's). A doorway whose way
+## past the open leaf would keep less than `MIN_PASS` on the map is left uncarved too (`_passes`).
 static func hole(door: Node) -> PackedVector2Array:
 	if (not door.has_method("leaf_pose") or door.call("is_down")
 			or float(door.call("angle")) < float(door.get("open_angle")) - OPEN_SLACK):
 		return PackedVector2Array()
 	var half_length := (door.call("leaf_size") as Vector2).x * 0.5
 	var pose: Transform2D = door.call("leaf_pose", float(door.call("angle")))
+	if not _passes(door, pose, half_length):
+		return PackedVector2Array()
 	return PackedVector2Array([
 		pose * Vector2(-half_length, -HALF), pose * Vector2(half_length, -HALF),
 		pose * Vector2(half_length, HALF), pose * Vector2(-half_length, HALF),
 	])
+
+
+## Whether the map keeps a way `MIN_PASS` wide past door `door`'s leaf standing at `pose` (its
+## middle, `half_length` to each end) through the doorway: the latch jamb (where the shut leaf's
+## free end meets it) stands off the leaf's middle line by more than the strip's half, the bake's
+## clearance off each side (`NavBuilder.AGENT_RADIUS` + `NavBuilder.WALL_MARGIN`) and `MIN_PASS`.
+static func _passes(door: Node, pose: Transform2D, half_length: float) -> bool:
+	var latch: Vector2 = (door.call("leaf_pose", 0.0) as Transform2D) * Vector2(half_length, 0.0)
+	var across := pose.y.normalized()
+	var clearance := NavBuilder.AGENT_RADIUS + NavBuilder.WALL_MARGIN
+	return absf((latch - pose.origin).dot(across)) - HALF >= 2.0 * clearance + MIN_PASS

@@ -60,8 +60,9 @@ func arena(rect: Rect2, opts: Dictionary = {}) -> TestSetup:
 ## and style built through `DoorFactory` with the hinge on the jamb at the world point `hinge`,
 ## swinging into the room that lies toward the unit vector `swing_into`, standing `angle` degrees
 ## open, and found by `t.object(name)`) has a door in it; one without stays an open gap. Walls are
-## the house's own, so the nav bake carves them and leaves the doorways open (a door is left out of
-## the bake). `opts`: `thickness` (default 12).
+## the house's own, so the nav bake carves them and leaves the doorways open (a door is left out
+## of the bake but for a leaf at its open stop, carved where it stands). `opts`: `thickness`
+## (default 12).
 func layout(room_list: Array, doors: Array = [], opts: Dictionary = {}) -> TestSetup:
 	world = {
 		"kind": "layout",

@@ -2,13 +2,15 @@
 
 `loco_doors.gd` is the doorway VIEWS (`behavior-locomotion.md`); the house doors on a walk are `Locomotion.leaves`
 (`DoorLeaves`, built once with it, holding it). The AI imports nothing of Objects: it finds a door by the group `doors` and reads
-`gap()`, `is_down()`, `angle()`, `leaf_pose(0.0)`, `width`, `swing_into` and `latch_side_spot(from)` duck-typed (interface 24).
+`gap()`, `is_down()`, `angle()`, `leaf_pose(angle)`, `leaf_size()`, `width`, `swing_into` and `latch_side_spot(from)` duck-typed, and
+asks `character.use.doors.reaches(door)` (interface 24).
 
 - **When.** Every walk of every primitive is a `move_to`, which asks `leaves.work(delta)` after `_check`. It reads the agent's path for
   the next `LOOKAHEAD` (90 px) and finds the first door whose doorway segment (`leaf_pose(0.0)`, `width`) the path crosses and that is an
-  obstacle (`_no_obstacle` false): not down and not at its open stop, which it tells by `NavBuilder.leaf_in_map(door)` (interface 9: the
-  maps carve a leaf there, so the walk already goes round it). An ajar door open enough to squeeze through is worked too (issue #183): its
-  leaf stands across the doorway's mouth, which no map can carve, so a walk past it would run into it.
+  obstacle (`_no_obstacle` false): not down, not carved at its open stop (`NavBuilder.leaf_in_map(door)`, interface 9: the walk already
+  goes round it) and not open by a clean gap (`_clean_gap`: `gap()` at least the body, the leaf's thickness and `GAP_SLACK` 4 px each
+  side). A door open by a clean gap but not carved is walked through by `_walk_gap` instead: waypoints by the doorway's mouth, the gap's
+  middle and, where the far end lies behind the leaf (`_behind_leaf`), round its free end (`GAP_CLEAR` 26 px), from either side.
 - **Working a door.** The walker goes straight to `latch_side_spot` (a spot already held by a known body nearer to it is queued behind,
   `QUEUE_BACK` 40 px out, until the door is no obstacle), stands within `SPOT_REACH` (20 px) of it; a leaf ajar on the far side is out of
   the character's reach from there, so it steps toward the leaf as it stands (`_leaf_nearest`) to `LEAF_STAND_OFF` (30 px) off it; then
@@ -29,4 +31,4 @@
   the door blocks sight (DR5), so that room has no point seen from outside and is not counted searched (`coverage.md`). A standing door
   ends a doorway view (`perception-views.md`).
 
-Tests: `tests/ai/movement/door_open_leaf_walked_round_test.gd`, `door_ajar_opened_fully_test.gd`, `door_in_the_way_test.gd`, `door_blocked_rerouted_test.gd`, `door_second_walker_leaves_open_test.gd`; the pie at a door: `tests/ai/entry/entry_shut_door_skips_pie_test.gd`, `entry_ajar_door_skips_pie_test.gd`, `entry_glass_door_keeps_pie_test.gd`, `entry_open_door_keeps_pie_test.gd`, `entry_door_just_under_sixty_skips_pie_test.gd`, `entry_door_just_over_sixty_keeps_pie_test.gd`, `entry_knocked_down_door_keeps_pie_test.gd`, `entry_split_stack_shut_door_skips_pie_test.gd`, `entry_ajar_door_hostile_in_gap_test.gd` (their set-up is `tests/_ai/entry_door_probe.gd`).
+Tests: `tests/ai/movement/door_open_leaf_walked_round_test.gd`, `door_ajar_opened_fully_test.gd`, `door_ajar_gap_walked_test.gd`, `door_in_the_way_test.gd`, `door_blocked_rerouted_test.gd`, `door_second_walker_leaves_open_test.gd`; the pie at a door: `tests/ai/entry/entry_shut_door_skips_pie_test.gd`, `entry_ajar_door_skips_pie_test.gd`, `entry_glass_door_keeps_pie_test.gd`, `entry_open_door_keeps_pie_test.gd`, `entry_door_just_under_sixty_skips_pie_test.gd`, `entry_door_just_over_sixty_keeps_pie_test.gd`, `entry_knocked_down_door_keeps_pie_test.gd`, `entry_split_stack_shut_door_skips_pie_test.gd`, `entry_ajar_door_hostile_in_gap_test.gd` (their set-up is `tests/_ai/entry_door_probe.gd`).
