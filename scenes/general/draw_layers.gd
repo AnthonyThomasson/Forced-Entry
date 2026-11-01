@@ -3,7 +3,8 @@ class_name DrawLayers
 ## `PhysicsLayers`). Every domain that draws on, under or over the standing world sets its `z_index`
 ## from one rung here, so what lies on the floor, what a vehicle covers and what flies over it keep
 ## one order however the domains change. Bottom to top:
-##   FLOOR < RUG < BLOOD < LYING < UNDER_VEHICLE < STANDING < ABOVE < OVERHEAD < EFFECTS
+##   FLOOR < RUG < BLOOD < LYING < UNDER_VEHICLE < STANDING < ABOVE < OVERHEAD < EFFECTS < VISION
+##   < OVERLAY
 ## Within a rung the scene tree decides (later draws over).
 
 ## The room floors (Objects' `Floor`).
@@ -29,3 +30,9 @@ const ABOVE := 1
 const OVERHEAD := 2
 ## A grenade's burst, its flash, fireball and smoke, over everything (Physics).
 const EFFECTS := 4
+## What the player's view draws over the whole world, the effects included: the world as it was last
+## seen, outside the cone (Vision). Set absolute (`z_as_relative` off).
+const VISION := 5
+## The debug overlays and the markers (the stack, the orders, the contacts), over the view so they
+## show in their own colours whatever the view hides (AI debug, Navigation, UI).
+const OVERLAY := 6

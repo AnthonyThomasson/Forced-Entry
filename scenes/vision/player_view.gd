@@ -12,17 +12,55 @@ extends Node2D
 
 const GROUP := &"player_view"
 const Cone := preload("res://scenes/vision/view_cone.gd")
+const Memory := preload("res://scenes/vision/view_memory.gd")
+const Mask := preload("res://scenes/vision/view_mask.gd")
+const Composite := preload("res://scenes/vision/view_composite.gd")
 ## It runs after the characters it watches (their default priority is 0).
 const PRIORITY := 100
 
 ## The character whose sight this is.
 var _viewer: Node2D
 var _cone := Cone.new()
+var _memory := Memory.new()
+var _mask := Mask.new()
+var _composite := Composite.new()
 
 
 func _enter_tree() -> void:
 	add_to_group(GROUP)
 	process_physics_priority = PRIORITY
+
+
+func _ready() -> void:
+	var main := get_viewport()
+	_memory.name = "Memory"
+	_mask.name = "Mask"
+	add_child(_memory)
+	add_child(_mask)
+	_memory.build(_floor_bounds(), VisionConfig.memory_scale, main)
+	_mask.build(main, VisionConfig.feather)
+	_composite.build(
+		_memory.memory.get_texture(),
+		_mask.mask.get_texture(),
+		_memory.bounds,
+		_memory.scale,
+		_memory.memory.size,
+	)
+	add_child(_composite)
+	process_priority = PRIORITY
+
+
+func _process(_delta: float) -> void:
+	if not is_instance_valid(_viewer):
+		return
+	var main := get_viewport()
+	var cam := main.get_canvas_transform()
+	var size := Vector2i(main.get_visible_rect().size).max(Vector2i.ONE)
+	_memory.follow(cam, size)
+	_mask.follow(cam, size)
+	_composite.follow(cam, size)
+	_memory.paint(_cone.cone, _cone.bubble, _cone.eye, cam)
+	_mask.paint(_cone.cone, _cone.bubble, _cone.eye)
 
 
 func _physics_process(_delta: float) -> void:
@@ -64,3 +102,57 @@ func bubble() -> PackedVector2Array:
 ## Whether `point` is in the cone or the bubble.
 func sees(point: Vector2) -> bool:
 	return _cone.contains(point)
+
+
+## The memory: a world-space SubViewport over the floors' bounds, never cleared.
+func memory() -> SubViewport:
+	return _memory.memory
+
+
+## The capture: the world as drawn without what moves and without the overlays.
+func capture() -> SubViewport:
+	return _memory.capture
+
+
+## The mask: the cone as a screen-sized picture, its edge feathered.
+func mask() -> SubViewport:
+	return _mask.mask
+
+
+## The memory's painter, which paints the cone from the capture.
+func painter() -> Node2D:
+	return _memory.painter
+
+
+## The mask's painter.
+func mask_painter() -> Node2D:
+	return _mask.painter
+
+
+## The composite drawn over the world, at `DrawLayers.VISION`.
+func composite() -> Node2D:
+	return _composite
+
+
+## The memory's texels per world px (below the configured one when the world is too big).
+func memory_scale() -> float:
+	return _memory.scale
+
+
+## Whether the memory is still being emptied (it starts empty).
+func wiping() -> bool:
+	return _memory.wiping()
+
+
+## The bounds of the world's floors (the group `floors`: `size`, `global_position`), the part of the
+## world there is to remember; empty with none.
+func _floor_bounds() -> Rect2:
+	var found := Rect2()
+	var first := true
+	for ground: Node2D in get_tree().get_nodes_in_group(&"floors"):
+		if not get_parent().is_ancestor_of(ground):
+			continue
+		var rect := Rect2(ground.global_position, ground.get("size"))
+		found = rect if first else found.merge(rect)
+		first = false
+	return found
