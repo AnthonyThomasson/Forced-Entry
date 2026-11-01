@@ -1,16 +1,15 @@
 extends RefCounted
-## The sets about the tower itself: the lobby floor stencil, the tower's shadow, the podium band,
-## awnings and signs, the upper-floor overhang and the shell roof. One builder per set, each
-## spawning one exhibit (a slot: its `origin`, `variant` and the `player`) through the stage kit.
+## The sets about the tower itself: the lobby floor stencil, the tower's shadow, the podium band
+## and awnings and signs. One builder per set, each spawning one exhibit (a slot: its `origin` and
+## `variant`) through the stage kit.
 
 const Kit := preload("res://sandboxes/showroom/downtown_district/stage_kit.gd")
 const LobbyFloor := preload("res://sandboxes/showroom/downtown_district/lobby_floor_painter.gd")
 const Shadow := preload("res://sandboxes/showroom/downtown_district/tower_shadow_painter.gd")
 const Podium := preload("res://sandboxes/showroom/downtown_district/podium_painter.gd")
 const Awning := preload("res://sandboxes/showroom/downtown_district/awning_painter.gd")
-const Overhang := preload("res://sandboxes/showroom/downtown_district/overhang_painter.gd")
-const Roof := preload("res://sandboxes/showroom/downtown_district/roof_painter.gd")
-const Fade := preload("res://sandboxes/showroom/downtown_district/overhead_fade.gd")
+const Fade := preload("res://sandboxes/showroom/downtown_district/character_fade.gd")
+const Walker := preload("res://sandboxes/showroom/downtown_district/walker_loop.gd")
 const ROOM := Vector2(240, 200)
 const FLOORS := ["concrete", "slate_tile"]
 const PLOT_W := 300.0
@@ -31,10 +30,6 @@ static func build(kit: Kit, kind: StringName, slot: Dictionary) -> void:
 			_podium(kit, slot)
 		&"awning":
 			_awning(kit, slot)
-		&"overhang":
-			_overhang(kit, slot)
-		&"roof":
-			_roof(kit, slot)
 
 
 ## Two empty 240 x 200 rooms (a concrete and a tile floor) with the stencil painted on each.
@@ -133,48 +128,28 @@ static func _awning(kit: Kit, slot: Dictionary) -> void:
 				over.merged({ "shadow": true, "shift": 12 }),
 			)
 		"c":
-			kit.sprite(
-				Awning,
-				Vector2(110, 46),
-				door - Vector2(55, -6),
-				{ "kind": "awning", "palette": "c" },
-				over.merged({ "shadow": true, "shift": 9 }),
-			)
-			kit.sprite(
-				Awning,
-				Vector2(28, 76),
-				door + Vector2(64, 4),
-				{ "kind": "hanging" },
-				over.merged({ "shadow": true, "shift": 12 }),
-			)
+			_fading_awning(kit, door, slot, over)
 
 
-## The upper floors drawn overhead, fading while the player stands inside the footprint.
-static func _overhang(kit: Kit, slot: Dictionary) -> void:
-	var o: Vector2 = slot["origin"]
-	var foot := Rect2(o + Vector2(40, 20), Vector2(220, 160))
-	kit.room(foot, "concrete", [Vector2(foot.get_center().x, foot.end.y)])
-	_frontage(kit, o, foot.end.y, 80.0, 110.0)
-	if slot["variant"] == "today":
-		return
-	var area := foot.grow(18)
-	var drawing: Node2D = kit.sprite(
-		Overhang, area.size, area.position, { "variant": slot["variant"] },
-		{ "z": DrawLayers.OVERHEAD, "street": false },
-	)
-	var fade := Fade.new()
-	fade.drawing = drawing
-	fade.zone = foot
-	fade.player = slot["player"]
-	kit.add(fade)
-
-
-## A closed shell tower seen from above: only its roof, a solid block, beside the real street.
-static func _roof(kit: Kit, slot: Dictionary) -> void:
-	var o: Vector2 = slot["origin"]
-	kit.sprite(
-		Roof, Vector2(260, 230), o + Vector2(20, 0), { "variant": slot["variant"] },
-		{ "z": DrawLayers.ABOVE, "solid": true, "shadow": true, "shift": 6 },
-	)
-	_frontage(kit, o, o.y + 230.0, WALK, 110.0)
-	kit.piece("bench", o + Vector2(80, 230 + 20))
+## Variant C: a dark awning and a hanging glyph sign over the door, each fading to a ghost while any
+## character (the player, or the slot's `walker` looping under both) is beneath it.
+static func _fading_awning(kit: Kit, door: Vector2, slot: Dictionary, over: Dictionary) -> void:
+	var awning := Vector2(110, 46)
+	var sign_size := Vector2(28, 76)
+	var hung: Array = [
+		[awning, door - Vector2(55, -6), { "kind": "awning", "palette": "c" }, 9],
+		[sign_size, door + Vector2(64, 4), { "kind": "hanging" }, 12],
+	]
+	for part: Array in hung:
+		var drawing: Node2D = kit.sprite(
+			Awning, part[0], part[1], part[2], over.merged({ "shadow": true, "shift": part[3] }),
+		)
+		var fade := Fade.new()
+		fade.drawing = drawing
+		fade.size = part[0]
+		kit.add(fade)
+	var loop := Walker.new()
+	loop.walker = slot["walker"]
+	loop.park = slot["park"]
+	loop.points = [door + Vector2(-95, 35), door + Vector2(125, 35)]
+	kit.add(loop)

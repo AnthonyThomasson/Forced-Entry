@@ -1,15 +1,16 @@
 extends Node2D
-## The showroom's stage: owns the twelve sets, the picker and what a set spawns. A set is a row of
+## The showroom's stage: owns the eleven sets, the picker and what a set spawns. A set is a row of
 ## exhibits (today's version where one exists, then variants A / B / C), each on its own plot with a
-## floor caption, built by the set's module (`Building`, `Street`, `Interior`). A pick removes the
-## current set and spawns the next. Run headless with `--showroom-cycle=<s>` it presses Next every
-## `s` sim seconds through every set and back to the first, then quits.
+## floor caption, built by the set's module (`Building`, `Street`, `Interior`, `Shell`). A pick
+## removes the current set and spawns the next. Run headless with `--showroom-cycle=<s>` it presses
+## Next every `s` sim seconds through every set and back to the first, then quits.
 
 const Kit := preload("res://sandboxes/showroom/downtown_district/stage_kit.gd")
 const Picker := preload("res://sandboxes/showroom/downtown_district/set_picker.gd")
 const Building := preload("res://sandboxes/showroom/downtown_district/sets_building.gd")
 const Street := preload("res://sandboxes/showroom/downtown_district/sets_street.gd")
 const Interior := preload("res://sandboxes/showroom/downtown_district/sets_interior.gd")
+const Shell := preload("res://sandboxes/showroom/downtown_district/sets_shell.gd")
 ## The sets, in picker order: the title and one line the picker shows, the module and `kind` that
 ## build it, and each exhibit's name and note under its floor caption (`today` first when the set
 ## has one).
@@ -59,32 +60,24 @@ const SETS := [
 			["B  Neon box sign", "A projecting neon box sign, BAR in vertical letters."],
 			[
 				"C  Awning and glyph sign",
-				"A dark awning with a neon edge and a hanging vertical glyph sign.",
+				"A dark awning with a neon edge and a hanging vertical glyph sign. Each fades to "
+				+ "a ghost while anyone walks under it; a walker loops under both.",
 			],
 		],
 	},
 	{
-		"title": "Upper-floor overhang", "module": &"building", "kind": &"overhang", "today": true,
-		"line": "The tower's upper floors drawn overhead; each fades out while you stand inside "
-			+ "its ground floor.",
+		"title": "Shell interiors", "module": &"shell", "kind": &"shell",
+		"line": "The outer ring of closed towers past the district's edge, drawn roofless: a solid "
+			+ "exterior wall with no doorway round a bare interior, beside the real sidewalk and "
+			+ "road.",
+		"plot": 600.0, "step": 700.0, "label_y": 640.0,
 		"exhibits": [
-			["Today  Nothing", "The ground floor open to the sky."],
-			["A  Dark slab", "A semi-transparent dark slab over the footprint."],
-			["B  Parapet outline", "Only the parapet edge, the middle left open."],
-			["C  Slab with windows", "The slab with a grid of windows, a few lit."],
-		],
-	},
-	{
-		"title": "Shell roof", "module": &"building", "kind": &"roof",
-		"line": "A closed tower past the district's edge, seen from above: a solid roof beside the "
-			+ "real sidewalk and road.",
-		"exhibits": [
+			["A  Bare concrete, partitions", "A bare concrete floor with a few interior walls."],
 			[
-				"A  Slab, parapet, AC boxes",
-				"A dark slab with a parapet and air-conditioning boxes (Glitchpunk).",
+				"B  Under construction",
+				"Rebar bundles, rubble, a scaffold and cement bags to walk over.",
 			],
-			["B  Tank and vents", "Also a water tank and roof vents."],
-			["C  Neon billboard", "Also a rooftop neon billboard."],
+			["C  Derelict", "Trash, puddles and cardboard on the floor, stains on the walls."],
 		],
 	},
 	{
@@ -150,15 +143,15 @@ const SETS := [
 	},
 ]
 ## Plots: the x of the middle of the row, the step between exhibits, where plots start and where
-## their captions sit.
-const CENTRE_X := 780.0
+## their captions sit (a set may say its own `plot` width, `step` and `label_y`). The walker
+## character waits at `WALKER_PARK` while no set uses it.
+const CENTRE_X := 1100.0
 const SLOT_STEP := 320.0
 const PLOT_TOP := 60.0
 const LABEL_Y := 510.0
+const WALKER_PARK := Vector2(60, 790)
 const CYCLE_ARG := "--showroom-cycle="
 
-## The player, so a set can watch where it stands (the overhang that fades).
-var player: Node2D
 var _kit: Kit
 var _picker: CanvasLayer
 var _index := 0
@@ -181,6 +174,9 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with(CYCLE_ARG):
 			_cycle = float(arg.trim_prefix(CYCLE_ARG))
+	var walker := get_parent().get_node_or_null("walker") as Node2D
+	if walker != null:
+		walker.visible = false
 	_stage(0)
 
 
@@ -210,14 +206,28 @@ func _stage(index: int) -> void:
 	var exhibits: Array = entry["exhibits"]
 	var variants: Array[String] = _variants(entry)
 	for i in variants.size():
-		var origin := Vector2(
-			CENTRE_X + (i - (variants.size() - 1) * 0.5) * SLOT_STEP - Kit.PLOT_W * 0.5,
-			PLOT_TOP,
-		)
-		var slot := { "origin": origin, "variant": variants[i], "player": player }
+		var slot := _slot(entry, i, variants)
 		_build(entry, slot)
 		var caption: Array = exhibits[i]
-		_kit.label(Vector2(origin.x, LABEL_Y), caption[0], caption[1])
+		var origin: Vector2 = slot["origin"]
+		_kit.label(Vector2(origin.x, entry.get("label_y", LABEL_Y)), caption[0], caption[1])
+
+
+## Exhibit `i` of `variants`' slot: where its plot starts (a row centred on `CENTRE_X`), its width
+## and variant, and the walker character a set may use.
+func _slot(entry: Dictionary, i: int, variants: Array[String]) -> Dictionary:
+	var width: float = entry.get("plot", Kit.PLOT_W)
+	var step: float = entry.get("step", SLOT_STEP)
+	return {
+		"origin": Vector2(
+			CENTRE_X + (i - (variants.size() - 1) * 0.5) * step - width * 0.5,
+			PLOT_TOP,
+		),
+		"width": width,
+		"variant": variants[i],
+		"walker": get_parent().get_node_or_null("walker"),
+		"park": WALKER_PARK,
+	}
 
 
 ## The variant of each exhibit of `entry`, in row order: `today` (when the set shows it) then a, b,
@@ -238,3 +248,5 @@ func _build(entry: Dictionary, slot: Dictionary) -> void:
 			Street.build(_kit, entry["kind"], slot)
 		&"interior":
 			Interior.build(_kit, entry["kind"], slot)
+		&"shell":
+			Shell.build(_kit, entry["kind"], slot)
