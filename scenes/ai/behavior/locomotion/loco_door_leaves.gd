@@ -158,6 +158,20 @@ func detouring() -> bool:
 	return _detour.via != Vector2.INF and not _detour.passed
 
 
+## Whether a standing door that is not open all the way across its doorway (`gap()` below its
+## `width`: the leaf is turned less than 60 degrees from shut) and not see-through (a glass-panel
+## door's surface says `transparent`) stands in the doorway whose middle is `middle`: the view
+## through that doorway is blocked by the leaf.
+func shuts_view_at(middle: Vector2) -> bool:
+	for door: Node2D in loco._character.get_tree().get_nodes_in_group(&"doors"):
+		if (not door.is_down()
+				and door.gap() < float(door.width)
+				and _is_doorway_of(middle, [door])
+				and not bool(door.get_surface().get("transparent", false))):
+			return true
+	return false
+
+
 ## Whether `door` is open wide enough for the walker's body to pass.
 func _passable(door: Node2D) -> bool:
 	return door.gap() >= 2.0 * float(loco._character.radius) + PASS_MARGIN

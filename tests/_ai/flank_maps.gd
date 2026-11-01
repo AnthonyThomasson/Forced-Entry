@@ -92,8 +92,13 @@ const PILLAR := {
 
 
 ## Lay out the terrace house: three rooms, four doorways and furniture in each room. `furnish` false
-## leaves the rooms bare (a test that needs a clean line places its own pieces).
-static func house(s: TestSetup, furnish := true) -> void:
+## leaves the rooms bare (a test that needs a clean line places its own pieces). `back_door`, a
+## layout `door` (`{ name, material, style, hinge, swing_into, angle? }`), stands in the kitchen's
+## back doorway, which is then 60 px wide (hinge 24 px from its middle) instead of 90.
+static func house(s: TestSetup, furnish := true, back_door := {}) -> void:
+	var back := { "pos": DOOR_BACK, "width": 90.0 }
+	if not back_door.is_empty():
+		back = { "pos": DOOR_BACK, "width": 60.0, "door": back_door }
 	s.layout(
 		[
 			{
@@ -108,7 +113,7 @@ static func house(s: TestSetup, furnish := true) -> void:
 			{ "pos": DOOR_HALL_LIVING, "width": 80.0 },
 			{ "pos": DOOR_HALL_KITCHEN, "width": 80.0 },
 			{ "pos": DOOR_FRONT, "width": 80.0 },
-			{ "pos": DOOR_BACK, "width": 90.0 },
+			back,
 		],
 	)
 	if not furnish:

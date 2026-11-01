@@ -29,7 +29,7 @@ Von only picks the doorway (the ENTER or STUN ENTRY tactic, `decision.md`). The 
 
 ## Phases
 
-A shut door on a walk is opened: `behavior-doors.md`.
+Doors on a walk, and the pie at one: `behavior-doors.md`.
 
 `approach` (to its slot, off the line of sight: E1, E2), `stack` (in the slot facing the door, radios `ready`), `pie` (the point slices the arc: E3), `bang` (E17), `cross` (E4, E5: radios `going_in`, `in` once past the wall plane and off the axis), `corner` (E5), `clear` (`SearchCoverage`; radios `clear` once the rest are in: E8), `cover` (guns on the doorways on, E8), `rear` (a member left over holds just inside the door it came by, facing out; E8, E13).
 

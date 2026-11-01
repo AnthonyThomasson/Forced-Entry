@@ -148,7 +148,8 @@ to learn the room, and the farthest the entrant ever is from a threat. Built on 
 search-coverage sweep.
 It fires in every phase, the approach and the stack as much as the pie (`docs/gaze-and-fire.md` W2); a threat in sight holds the
 entrant's eyes there, and a pie step the gaze cannot settle on because of it counts as settled; with a line of fire to the hostile the pie then holds and nobody crosses (E14), and without one the entry goes on.
-Tests: `entry_pie_sees_room_from_outside`, `entry_pie_engages_from_outside`, `entry_guard_fires_from_outside`.
+A doorway with a standing door that blocks sight (a shut one, or one ajar and not open all the way across the doorway: `gap()` below its width, a leaf turned less than 60° from shut; not a glass-panel door, whose panes sight passes through) has no view to slice: the point does not walk the arc, it stays in its slot until the stack is ready and then crosses (E4), the door opened on the way in by the walk that crosses it (`docs/doors.md` DR14); a split stack's other-side front man does not slice either and follows. The stun's hold (E17) comes before it as before. This is an interim rule until #159 gives the stack its side of the door, the opener's role, cracking and breaching.
+Tests: `entry_pie_sees_room_from_outside`, `entry_pie_engages_from_outside`, `entry_guard_fires_from_outside`; at a door: `entry_shut_door_skips_pie`, `entry_ajar_door_skips_pie`, `entry_glass_door_keeps_pie`, `entry_open_door_keeps_pie`.
 
 **E4. Never stop in the funnel.** Once an invader commits to crossing, it keeps moving until it is
 through the threshold and off the door axis. It does not stop to aim, reload or re-decide in the threshold unless

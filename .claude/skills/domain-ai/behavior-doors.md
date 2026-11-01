@@ -19,8 +19,9 @@
   call every `REBLOCK_TIME`.
 - **Elsewhere.** An entry's approach, cross and corner walks are `move_to` too: a shut door on one is opened by the member walking, the
   point man stopping at the latch side, opening it fully and going on (a stop-gap until #159: stack side, opener roles, cracking and
-  breaching are not built); the pause is part of the phase's time. A searcher walks into a room behind a shut door as any walk does:
+  breaching are not built); the pause is part of the phase's time. An entry whose doorway has a door that blocks sight (`leaves.shuts_view_at(middle)`:
+  standing, `gap()` below its `width`, not `transparent`) skips its pie and crosses once the stack is ready (`entry.md`, `docs/tactical-entry.md` E3). A searcher walks into a room behind a shut door as any walk does:
   the door blocks sight (DR5), so that room has no point seen from outside and is not counted searched (`coverage.md`). A standing door
   ends a doorway view (`perception-views.md`).
 
-Tests: `tests/ai/movement/door_in_the_way_test.gd`, `door_blocked_rerouted_test.gd`, `door_second_walker_leaves_open_test.gd`.
+Tests: `tests/ai/movement/door_in_the_way_test.gd`, `door_blocked_rerouted_test.gd`, `door_second_walker_leaves_open_test.gd`; the pie at a door: `tests/ai/entry/entry_shut_door_skips_pie_test.gd`, `entry_ajar_door_skips_pie_test.gd`, `entry_glass_door_keeps_pie_test.gd`, `entry_open_door_keeps_pie_test.gd`.

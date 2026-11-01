@@ -275,14 +275,13 @@ doorway. A door used twice that stops short of opening wide enough (a chair or a
 on: it is refused for 45 s and the walk is a blocked one (the existing way-blocked handling: the decision re-runs, `decision_reason`
 "way blocked"). While it is refused, a walk whose way runs through its doorway goes by another doorway of the house first (the
 nearest by walking length whose two legs cross no refused door), and a walk with no other way stands short of the door and tells the
-decision its way is blocked every 1.5 s. The tactical entry's point man meets a shut door on its cross and does the same: a stop-gap
-until #159, which gives a stack its side, the opener's role, cracking and breaching; none of that is built here. A shut door blocks
+decision its way is blocked every 1.5 s. The tactical entry's point man meets a shut door on its cross and does the same, and an entry whose doorway has a door that blocks sight (shut, or ajar and not open all the way across the doorway: `gap()` below `width`, a leaf turned less than 60° from shut; not a glass-panel door) skips its pie (`docs/tactical-entry.md` E3) and crosses once the stack is ready, where this opens the door: both are stop-gaps until #159, which gives a stack its side, the opener's role, cracking and breaching; none of that is built here. A shut door blocks
 sight (DR5), so the room behind it is not covered by sight, and so not counted searched, until the door is open and the NPC is in.
 
 Tests: `ai/movement/door_in_the_way` (real Von, hand-laid house: two invaders search the one room behind a shut door, one opens it
 from the latch side, goes in, leaves it open, the room not searched while it was shut), `ai/movement/door_blocked_rerouted` (real
 Von: a chair in the swing holds the nearer door shut, the walk is a blocked one and the defender goes in by the other doorway),
-`ai/movement/door_second_walker_leaves_open` (real Von: two defenders reach the door together; the leaf never turns back toward shut).
+`ai/movement/door_second_walker_leaves_open` (real Von: two defenders reach the door together; the leaf never turns back toward shut), `ai/entry/entry_shut_door_skips_pie`, `entry_ajar_door_skips_pie`, `entry_glass_door_keeps_pie` and `entry_open_door_keeps_pie` (the entry's pie at a door: scripted Von, a hand-laid kitchen with its back door).
 
 ## Trying doors by hand
 
