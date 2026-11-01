@@ -10,6 +10,8 @@ extends RefCounted
 ##   static: [[Script, prop], …] — set each static var to `on`, restored after the test; a row
 ##           `[Script, prop, off_value]` is for a non-bool knob: on keeps its tuning, off sets
 ##           off_value.
+## A row with a `default` is applied (to that value) when a test does not name it, so a switch can
+## be off unless a test asks, where the knob's own default is on.
 ## To add a switch, add a row; test_world.gd applies them generically.
 
 ## The switches, by name (the row shapes above).
@@ -98,12 +100,28 @@ static var ROWS := {
 			+ "every occluder (off = the art alone).",
 		"static": [[LightingConfig, &"enabled"], [LightMasks, &"shadows"]],
 	},
+	&"vision.enabled": {
+		"description": "The player's view (the Vision domain): the world draws only what the "
+			+ "`player` actor, or the actor `TestSetup.view` names, sees. Off unless a test asks.",
+		"default": false,
+		"static": [[VisionConfig, &"enabled"]],
+	},
 	&"projectile.flyover": {
 		"description": "Bullets may fly over partial cover (off = every shot meets what it "
 			+ "reaches).",
 		"static": [[BallisticsFlightConfig, &"cover_flyover_scale", 0.0]],
 	},
 }
+
+
+## `switches` (name -> on) with every row that has a `default` and is not named in it set to that
+## default: the switches as the world applies them.
+static func with_defaults(switches: Dictionary) -> Dictionary:
+	var out := switches.duplicate()
+	for name in ROWS:
+		if ROWS[name].has("default") and not out.has(name):
+			out[name] = ROWS[name]["default"]
+	return out
 
 
 ## Whether `name` is a known switch.

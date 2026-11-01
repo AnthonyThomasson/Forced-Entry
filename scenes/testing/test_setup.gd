@@ -38,6 +38,9 @@ var locked: Array = []
 var match_spec: Variant = null
 ## The squads to build over the actors (`squads`' options); null = none.
 var squads_spec: Variant = null
+## The actor the world draws a view of when the `vision.enabled` switch is on (`view`); empty = the
+## `player` actor.
+var view_actor: StringName = &""
 
 
 ## A walled single-room arena covering `rect`. `opts`: `floor` (a catalogue floor key, default
@@ -171,6 +174,15 @@ func declared_match(overrides: Dictionary = {}) -> TestSetup:
 ## alone: declaring both is an error.
 func squads(opts: Dictionary = {}) -> TestSetup:
 	squads_spec = opts
+	return self
+
+
+## Which actor the world draws a view of (`PlayerView`, the Vision domain) when the `vision.enabled`
+## switch is on: any one character, an NPC included, so the screen shows what that character sees by
+## the same rules. Without it the world views its `player` actor. The view reads the character and
+## changes nothing in it.
+func view(actor_id: StringName) -> TestSetup:
+	view_actor = actor_id
 	return self
 
 

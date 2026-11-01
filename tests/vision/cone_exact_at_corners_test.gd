@@ -54,12 +54,12 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Probe.building(s, Vector2(200, 300))
-	s.set_static(VisionConfig, &"enabled", true)
+	s.switch(&"vision.enabled", true)
+	s.view(&"eye")
 
 
 func run(t: TestContext) -> void:
 	var eye := t.actor(&"eye")
-	PlayerView.watch(t.world, eye)
 	var view := Probe.view(t)
 	if not t.require(view != null, "the world has a view"):
 		return

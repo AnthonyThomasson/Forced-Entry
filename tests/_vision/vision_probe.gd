@@ -11,6 +11,7 @@ extends RefCounted
 ##   - `bubble() -> PackedVector2Array`: the near bubble's polygon round the eye, the line of sight
 ##     bounding it;
 ##   - `sees(point) -> bool`: the point is in the cone or the bubble;
+##   - `viewer() -> Node2D`: the character the view was built for;
 ##   - `static watch(root, viewer) -> PlayerView`: build it for `viewer` (null while
 ##     `VisionConfig.enabled` is off).
 ## - `VisionConfig.enabled` (class_name static holder): the switch.
@@ -48,10 +49,17 @@ static func building(s: TestSetup, at: Vector2) -> void:
 
 ## The view of the test world (null without one).
 static func view(t: TestContext) -> PlayerView:
+	var found := views(t)
+	return null if found.is_empty() else found[0]
+
+
+## Every view under the test world.
+static func views(t: TestContext) -> Array[PlayerView]:
+	var found: Array[PlayerView] = []
 	for n in t.world.get_tree().get_nodes_in_group(GROUP):
 		if t.world.is_ancestor_of(n):
-			return n as PlayerView
-	return null
+			found.append(n as PlayerView)
+	return found
 
 
 ## Put `who` at `at` facing along `dir` and wait until its facing (derived from its aim a frame

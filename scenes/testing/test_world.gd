@@ -89,6 +89,22 @@ func build(setup: TestSetup) -> void:
 	elif setup.squads_spec is Dictionary:
 		_build_squads(setup)
 	_apply_world_switches(setup.switches)
+	_watch_view(setup)
+
+
+## The view of what one character sees (`PlayerView`, the Vision domain) when the `vision.enabled`
+## switch is on: of the actor `TestSetup.view` names, else of the `player` actor; none when a
+## declared match has built one for its human already.
+func _watch_view(setup: TestSetup) -> void:
+	if match_handle.get("view") != null:
+		return
+	var who: Node = actors.get(setup.view_actor)
+	if setup.view_actor == &"":
+		for a in setup.actors:
+			if who == null and a["kind"] == &"player":
+				who = actors.get(a["id"])
+	if who is Node2D:
+		PlayerView.watch(self, who)
 
 
 ## The objects `setup` places, under the house/arena root (like furnished pieces) so the nav bake
@@ -212,8 +228,9 @@ func squad(faction: StringName) -> Node:
 
 ## Apply the switch rows' static knobs, then the explicit `set_static` overrides.
 func _apply_statics(setup: TestSetup) -> void:
-	for switch_name in setup.switches:
-		var on: bool = setup.switches[switch_name]
+	var switches := TestSwitches.with_defaults(setup.switches)
+	for switch_name in switches:
+		var on: bool = switches[switch_name]
 		for knob in TestSwitches.row(switch_name).get("static", []):
 			if knob.size() < 3:
 				_set_static(knob[0], knob[1], on)

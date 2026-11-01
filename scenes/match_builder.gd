@@ -188,9 +188,11 @@ static func build(match_spec: Dictionary, world: Node2D) -> Dictionary:
 ## squad per side and the squad-leaders overlay, shown as the spec's `overlays` says); every other
 ## debug overlay but the navigation holes (the stage's) started as the spec's `overlays` says
 ## (`set_overlay`: a flag it does not name off). Placement draws from one RNG seeded with the spec's
-## `seed`, so a pinned seed pins the match. Returns the handle with `combatants` (every character in
+## `seed`, so a pinned seed pins the match. The human is watched last (`PlayerView.watch`, interface
+## 24: the view of what it sees, drawn for the player; none without a human, nor while
+## `VisionConfig.enabled` is off). Returns the handle with `combatants` (every character in
 ## the match in spawn order, the human last), `squads` (by faction), `player_stack` (the human's, or
-## null) and `leader_overlay`.
+## null), `leader_overlay` and `view` (the human's `PlayerView`, or null).
 static func populate(handle: Dictionary, match_spec: Dictionary) -> Dictionary:
 	match_spec = spec(match_spec)
 	var spawner := _spawner_for(handle, match_spec)
@@ -206,6 +208,7 @@ static func populate(handle: Dictionary, match_spec: Dictionary) -> Dictionary:
 	var out := handle.duplicate()
 	out["combatants"] = combatants
 	_finish(out, match_spec, human)
+	out["view"] = null if human["node"] == null else PlayerView.watch(out["world"], human["node"])
 	return out
 
 

@@ -33,16 +33,21 @@ func _physics_process(_delta: float) -> void:
 	_cone.rebuild(space, _viewer.global_position, facing, [_viewer.get_rid()], _viewer.sight())
 
 
-## Build the view of `viewer` (any character) under `root`; null while `VisionConfig.enabled` is
-## off.
-static func watch(root: Node, viewer: Node2D) -> PlayerView:
+## Build the view of `character` (any one: the viewer) under `root`; null while
+## `VisionConfig.enabled` is off.
+static func watch(root: Node, character: Node2D) -> PlayerView:
 	if not VisionConfig.enabled:
 		return null
 	var view := PlayerView.new()
 	view.name = "PlayerView"
-	view._viewer = viewer
+	view._viewer = character
 	root.add_child(view)
 	return view
+
+
+## The character this view was built for.
+func viewer() -> Node2D:
+	return _viewer
 
 
 ## The cone polygon: the eye, then one corner per ray from the left edge to the right (empty while
