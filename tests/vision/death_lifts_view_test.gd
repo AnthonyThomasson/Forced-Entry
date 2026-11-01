@@ -5,6 +5,10 @@ extends GameTest
 ## within a frame the view's node, its composite and its viewports (capture, memory, mask) are
 ## gone, nothing the view drew is left in the world, and none comes back while the match goes on.
 ##
+## Nothing is hidden after: General's `SeenArea`, which says what the view shows live, is cleared,
+## so a disc or a box far from where the viewer stood reaches it again (with the view standing, it
+## did not).
+##
 ## The same holds where the viewer goes without dying (freed, or taken out of the tree: the view of
 ## a character that is not there cannot be kept, frozen over the world), and a character already
 ## dead has no view built at all (there is no view of the dead).
@@ -15,6 +19,10 @@ extends GameTest
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 ## Frames the match goes on after the lift, to see that no view comes back.
 const AFTERWARDS := 60
+## A place this far west of the viewer is far outside its cone and bubble; the disc and box asked
+## about there are this big (px).
+const FAR := 3000.0
+const ASKED := 10.0
 
 
 func describe() -> Dictionary:
@@ -69,6 +77,8 @@ func _leave(t: TestContext, world: Node, viewer: Node2D, how: String) -> void:
 		return
 	t.check(_left(world) >= 4, "%s: premise: the view's nodes are there (%d)" % [who, _left(world)])
 	t.check(not viewer.is_dead, "%s: premise: the viewer is alive" % who)
+	var far := viewer.global_position + Vector2(-FAR, 0)
+	t.check(_hidden(far), "%s: premise: with the view standing a far place is hidden" % who)
 	if how == "freed":
 		viewer.queue_free()
 	else:
@@ -78,6 +88,7 @@ func _leave(t: TestContext, world: Node, viewer: Node2D, how: String) -> void:
 		_left(world) == 0,
 		"%s: the view's nodes are gone within a frame (%d left)" % [who, _left(world)],
 	)
+	t.check(not _hidden(far), "%s: nothing is hidden after: a far place reaches the area" % who)
 	await t.frames(AFTERWARDS)
 	t.check(_left(world) == 0, "%s: no view comes back (%d left)" % [who, _left(world)])
 	if is_instance_valid(viewer) and not viewer.is_inside_tree():
@@ -103,6 +114,8 @@ func _lift(t: TestContext, world: Node, viewer: Node2D, who: String) -> void:
 		return
 	t.check(views[0].viewer() == viewer, "%s: premise: the view is of the viewer" % who)
 	t.check(_left(world) >= 4, "%s: premise: the view's nodes are there (%d)" % [who, _left(world)])
+	var far := viewer.global_position + Vector2(-FAR, 0)
+	t.check(_hidden(far), "%s: premise: with the view standing a far place is hidden" % who)
 	viewer.take_damage(1000.0)
 	await t.frames(1)
 	t.check(viewer.is_dead, "%s: premise: the viewer is dead" % who)
@@ -111,6 +124,7 @@ func _lift(t: TestContext, world: Node, viewer: Node2D, who: String) -> void:
 		"%s: the view's nodes are gone within a frame (%d left)" % [who, _left(world)],
 	)
 	t.check(Probe.views_under(world).is_empty(), "%s: no view is left in the world" % who)
+	t.check(not _hidden(far), "%s: nothing is hidden after: a far place reaches the area" % who)
 	await t.frames(AFTERWARDS)
 	t.check(_left(world) == 0, "%s: no view comes back (%d left)" % [who, _left(world)])
 
@@ -121,3 +135,9 @@ func _left(world: Node) -> int:
 	count += world.find_children("Composite", "", true, false).size()
 	count += world.find_children("*", "SubViewport", true, false).size()
 	return count
+
+
+## Whether neither a disc nor a box at `at` reaches the area the view shows live.
+func _hidden(at: Vector2) -> bool:
+	var box := Rect2(at - Vector2(ASKED, ASKED), Vector2(ASKED, ASKED) * 2.0)
+	return not SeenArea.reaches(at, ASKED) and not SeenArea.reaches_rect(box)

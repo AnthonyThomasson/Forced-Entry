@@ -11,7 +11,8 @@ const WORLD := 1
 ## What moves and is not remembered: the living, bullets, grenades in flight, hit particles, flying
 ## debris, an explosion's look and a flash's light. Drawn only inside the cone.
 const MOVING := 2
-## The debug overlays and the markers, which are drawn over the view and never remembered.
+## The debug overlays and the markers, which are drawn over the view and never remembered. The
+## view's composite sits on this bit too, so the capture does not draw it.
 const OVERLAY := 4
 
 

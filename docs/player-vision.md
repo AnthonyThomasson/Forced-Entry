@@ -31,7 +31,8 @@ by the bit it sits on; the **seen area** is what General's `SeenArea` says the c
 
 **V1. The cone.** The human sees what the NPCs see, by their default numbers: a 110° cone round its `facing` out to 2520, a 48
 bubble all round, and a line of sight on `PhysicsLayers.SOLID` that walls and pieces of `coverage` above 60 break and lower pieces
-(tables, beds, counters) do not. The numbers are a Character holder's (`CharacterVisionConfig`, read through `character.sight()`),
+(tables, beds, counters) do not. The numbers are a Character holder's (`CharacterVisionConfig`, read through `character.sight()`; the native suite
+`character/character_vision_config_suite` holds them to the spec and equal to the NPCs' default `NpcSensesTuning`),
 so any character carries the same view. The cone is exact at corners: nothing behind a wall corner or a doorway's end is in it. A
 wall or tall piece that is seen shows its top: the cone reaches the far face of the shapes the ray met. It is complete however
 many blockers are in reach (the shape query is asked again with more room while it comes back full, so no cap drops one). Doors
@@ -50,14 +51,20 @@ saving, vertex for vertex, over a grid of eyes and facings in generated houses a
 through it), `vision/cone_skip_exact` (a still then a turning viewer through a dent, a shove, a door's swing, panes shattered, a
 door knocked down, a piece added and freed, a posture change and a death: every frame the polygon equals a fresh rebuild's, vertex
 for vertex; a still viewer rebuilds far less than every frame and never goes more than `rebuild_every` frames without a rebuild).
-What no vision test asserts directly: the room beyond a shut glass-panel door is in the polygon and the room beyond a shut solid
-one is not (the rule is V2's, and `objects/door_blocks` holds it for an NPC's sight).
+`vision/cone_follows_sight` also hangs three doors in the wall the rooms share, and the eye stands before each in turn: the point
+beyond a shut solid door and one beyond a shut hollow door are not in the polygon, the point beyond a shut glass-panel door is, the
+solid door swung open shows the point through its gap and hides it again shut, and a hollow door knocked down does not hide it
+(`objects/door_blocks` holds the rule for an NPC's sight). `vision/cone_skip_exact` also runs a world of its own that counts
+rebuilds: a solid moved every frame 3750 px from the viewer (the reach is 2520) forces none, one moved every frame in the cone
+forces one a frame, and one that moves from outside the reach into it is a rebuild in that frame: `ViewWatch` watches the
+blockers within reach, by the view distance and each solid's own extent.
 
 **V2. One sight rule.** The look-over-low-furniture ray is one rule in General (`SightRay`, interface 11), used by the NPCs'
 sight (`AgentVision.sight_hit` delegates to it) and by the view; a `transparent` surface (a glass-panel door) is looked through
 however tall, and a collider that cannot say its coverage blocks like a wall. The NPCs see exactly as they did before it moved.
 Tests: `general/sight_ray_suite` (native: the rule over a built space: a wall, a table, a piece at and just over the limit, a
-body that cannot say its height, the caller's exclude list left alone) and every `ai` vision test unchanged
+body that cannot say its height, a `transparent` piece looked through however tall and its coverage read as 0, the caller's
+exclude list left alone) and every `ai` vision test unchanged
 (`tools/run_tests.sh --domain=ai`; `objects/door_blocks`).
 
 **V3. Inside the cone** the live world is seen as it is, characters and all. A character at the edge is cut by the edge per
@@ -89,9 +96,13 @@ not draw and still light the screen where they burst).
 **V6. Remembered once at rest:** a dead body once its ragdoll sleeps, a dropped item, a spent casing, a grenade lying still, a
 parked vehicle, and the house and street (floors, walls, doors, furniture where last seen, settled blood, scorch, debris chips).
 A door is always `WORLD`: it is remembered where last seen at whatever angle, mid-swing included. Once at rest a thing is part of
-the memory where it was seen; moved again, it is moving again. Tests: `vision/at_rest_remembered` (a dead body on `MOVING` until its
-ragdoll sleeps, on `WORLD` after and on `MOVING` again from the frame a blast wakes it; a dropped gun, a casing and a frag
-lying still on `WORLD`, in flight on `MOVING`), `vision/vehicle_rest_remembered` (a car driven, then parked).
+the memory where it was seen; moved again, it is moving again. Only a body and a vehicle can be moved again: a dropped item, a
+casing and a grenade at rest stay at rest for good (nothing shoves them: a dropped item stops its physics for good, a casing's
+toss runs once, a resting grenade does nothing but wait for its fuse), so the "moved again" case is the corpse a blast wakes.
+Tests: `vision/at_rest_remembered` (a dead body on `MOVING` until its ragdoll sleeps, on `WORLD` after and on `MOVING` again from
+the frame a blast wakes it; a dropped gun, a casing and a frag lying still on `WORLD`, in flight on `MOVING`; in a world of its
+own a wooden door swung open and shut is on `WORLD` and drawn by the capture in every frame of its swing),
+`vision/vehicle_rest_remembered` (a car driven, then parked).
 
 **V7. Debug overlays and markers are drawn over the view, in colour:** the AI debug overlays (an NPC's own too, out of view),
 the navigation and leader overlays, the contact, stack and order markers. They sit at `DrawLayers.OVERLAY` (absolute, above
@@ -108,11 +119,14 @@ view gives the same decisions, places and arrival tick).
 
 **V9. The viewer's death lifts the view** (the human's, or a viewed NPC's in a test): everything is drawn again at once, live, for
 the rest of the match. So does the viewer leaving the tree without dying; a viewer already dead gets no view. Tests:
-`vision/death_lifts_view` (the node, its composite and its viewports are gone within a frame and none comes back).
+`vision/death_lifts_view` (the node, its composite and its viewports are gone within a frame and none comes back; and
+nothing is hidden after: `SeenArea` holds no area, so a disc and a box far from where the viewer stood reach it again, which they
+did not while the view stood, for the human's death, a viewed NPC's, and a viewer freed or removed).
 
 **V10. The switch.** `VisionConfig.enabled` (default on) gates the view in Main's match; the test world's `vision.enabled`
 switch is off unless a test asks, so existing tests and sandboxes look as they do; with it on, the world views its `player`
-actor, or the actor `TestSetup.view` names. Tests: `vision/switch_off` (no `PlayerView` and no `SubViewport` under the world).
+actor, or the actor `TestSetup.view` names. Tests: `vision/switch_off` (no `PlayerView` and no `SubViewport` under the world, and `SeenArea` holds no area: a far disc and
+box reach it, so no repaint is skipped).
 
 **V11. Unseen characters are not repainted.** A character whose drawn reach (a 60 px disc round it) lies wholly outside the cone
 and bubble is not repainted while it stays there; its pose, aim, hands, footsteps and ragdoll keep running (gameplay reads those,
@@ -128,7 +142,17 @@ so a repaint is never a frame late. Tests: `vision/unseen_not_repainted` (a walk
 its pose keeps updating, a bullet hits the same zone with and without the view; walking in, it is repainted the frame its reach
 enters; a settled body outside keeps its drawing; a pool outside is never redrawn and is redrawn the frame the cone sweeps onto
 it; repainted again when the view lifts), `general/seen_area_suite` and `general/seen_area_rect_suite` (native: the disc and box
-tests over polygons laid out by hand, an L-shaped polygon, no area set).
+tests over polygons laid out by hand, an L-shaped polygon, no area set), `vision/view_sees_suite` (native: `sees` at a cone the
+engine's point-in-polygon gets wrong, the bubble, no polygon).
+
+**Sound.** There is no on-screen hint for gunfire or footsteps heard out of view; sound stays as it is (`docs/hearing.md` is the
+AI's side).
+
+## Out of scope
+
+Any view in Main's Watch and Endless (no spectator view, no side views), a view for NPCs in Main's matches (a test world can view
+one, V8), more than one viewer at once, an on-screen hint for sounds, the memory fading with time, capturing what is off screen,
+a view of the dead human.
 
 ## Technique
 
@@ -169,34 +193,91 @@ a 40 px feather (it smears the cone).
 ## Measured cost
 
 The perf tests run headless and see only the CPU side, so the GPU side was measured by hand, windowed, as `docs/lighting.md`
-"Measured cost" does. Figures below are from the ticket's own measurements and the runs its slices recorded; **the wrap-up ran no
-perf test** (the user chose to skip it): slice 16's eight quiet runs stand for the final state.
+"Measured cost" does. **Each figure below says where it comes from.** *Recorded* means a commit's test header or message holds it
+(the commit is named). *Not reproduced* means it comes from the ticket's own measurements and its slices' notes, was first
+written down in this document (commit 6ecb4659) and has been re-run by no one since: take it as the order of magnitude it
+gave, not as a number to hold the code to.
 
-- **Before the savings:** a windowed 10v10 (the view on an NPC) cost the view about +7.4 ms a frame, 4 to 5 ms of it the cone's
-  CPU, about 3 ms the second world render (the capture) and about 2 ms GPU. A measurement of the same match before slices 13 and 14 (a shared,
-  loaded machine, load average 1.2 to 4.0; Vulkan, 1152×648, `--fixed-fps 60`, vsync off) put the median frame at 18.78 ms headless
-  and 29.95 ms windowed, and the cone's rebuild at 4.86 ms headless and 3.81 ms windowed, the characters' visual update at 3.78 and
-  7.00 ms, blood 1.69 and 1.51 ms (0.73 and 0.50 ms of it pools wholly outside the cone). The cone's cost depends on where the
-  viewer stands (2.6 to 6.0 ms between runs).
-- **Slice 11 (the cone's own caches, the same polygon):** the view's cost 5.68 to 3.65 ms, and the cone's headless bench down 45 %.
-- **After slices 13 and 14** (unseen characters not repainted; the cone rebuilt only when its inputs changed), eight quiet runs of
-  `perf/match_npc_vision_relative` (the `--quiet` gate passed, none marked loaded) gave the view's cost over the unviewed match as
-  0.33, 0.36, 0.63, 1.18, 1.58, 1.70, 2.50 and 2.51 ms, median 1.38; before the savings ten quiet runs gave 2.92 to 5.46 ms,
-  median 4.36. **The budget is 3.2 ms**: the highest quiet run plus 25 %, rounded, by the user's choice. Median plus 25 % (1.73
-  ms) was not taken, because the spread is between runs (each plays a different fight) and it would fail two of these eight correct
-  runs; 3.2 ms still fails the cost before the savings, every one of whose runs was over it. The second check is a ratio: the live
-  cone's per-frame cost (the change check, and the rebuild when there was one) over the reference cone's, built from the same eye in
-  blocks of its own, at most **0.75**. The eight runs gave 0.27, 0.31, 0.39, 0.39, 0.40, 0.42, 0.49 and 0.59, median 0.40; with the
-  savings off it reads 1.00 to 1.02 and with only the skip off about 0.65.
-- **Windowed, after the savings** (Vulkan, `--fixed-fps 60`, vsync off, 1152×648, the same 10v10 with the view on an NPC,
-  interleaved on and off, three runs): the view on minus off was −4.74, −1.54 and −2.18 ms a frame, with the cone ratio 0.47,
-  0.22 and 0.35. The view is a net gain windowed because unseen characters are not repainted while the off blocks repaint
-  everyone; the GPU was not separated from the CPU in these runs.
-- **The pool skip** alone measured 0.13 to 0.5 ms a frame (12 to 25 % of the pools' draw time), the whole frame's change within
-  noise.
+**When the perf figures were measured.** Every perf figure below was taken before commit 6bd7cc63 (a blood pool's repaint decided
+on the frame's view, by its box), and **no perf test was run after it or after the later fixes of the review**. 6bd7cc63 does not
+touch the cone, the change check or the ratio the second guard reads, so the cone figures and the ratio stand. It does touch the
+frame the first guard reads: a pool now asks `SeenArea.reaches_rect` (a box, a little cheaper to refuse than the circle) and
+draws in `_process`, not `_physics_process`; that moves the view's cost by about the pool skip's own size (0.13 to 0.5 ms, below)
+or less, which is inside the spread between runs, but it was not measured. Two later changes can only skip more: `ViewWatch` no
+longer rebuilds for a blocker that is moving out of the eye's reach (the cone test `vision/cone_skip_exact` counts it), and
+`SeenArea.contains` is the one even-odd test (the cone's `contains` used the engine's). Their cost is unmeasured too.
+
+- **Before the savings, the view on an NPC in a 10v10 (not reproduced).** The ticket measured about +7.4 ms a frame windowed,
+  "4 to 5 ms of it the cone's CPU, about 3 ms the second world render (the capture) and about 2 ms GPU". Those three parts
+  sum to 9 to 10 ms, not 7.4: they are separate estimates from separate measurements, so read them as the shape of the cost
+  (the cone, then the capture, then the GPU) and not as a breakdown of the 7.4.
+- **A measurement of the same match before slices 13 and 14 (not reproduced)** on a shared, loaded machine (load average 1.2 to 4.0;
+  Vulkan, 1152×648, `--fixed-fps 60`, vsync off): the median frame was 18.78 ms headless and 29.95 ms windowed, the cone's rebuild
+  4.86 ms headless and 3.81 ms windowed, the characters' visual update 3.78 and 7.00 ms, blood 1.69 and 1.51 ms (0.73 and 0.50 ms
+  of it pools wholly outside the cone). The cone's cost depends on where the viewer stands (2.6 to 6.0 ms between runs).
+- **Slice 11, the cone's own caches (not reproduced):** the ticket put the view's cost at 5.68 ms before and 3.65 ms after, and the
+  cone's headless bench down 45 %. Both sit inside the 2.92 to 5.46 ms the ten quiet runs below spread over, so the pair is not
+  evidence of a saving by itself; the saving the code makes is held by `vision/cone_same_after_savings` (the same polygon) and
+  the ratio below.
+- **Ten quiet runs before the savings (recorded, commit 46b929e4, and the header of
+  `perf/match_npc_vision_relative`):** the view's cost over the unviewed match was 2.92 to 5.46 ms, median 4.36.
+- **After slices 13 and 14** (unseen characters not repainted; the cone rebuilt only when its inputs changed), **eight quiet runs of
+  `perf/match_npc_vision_relative` (recorded, commit a7f3b67c, and that test's header)** (the `--quiet` gate passed, none marked
+  loaded) gave the view's cost over the unviewed match as 0.33, 0.36, 0.63, 1.18, 1.58, 1.70, 2.50 and 2.51 ms, median 1.38.
+  **The budget is 3.2 ms**: the highest quiet run plus 25 %, rounded, by the user's choice. Median plus 25 % (1.73 ms) was not
+  chosen, because the spread is between runs (each plays a different fight) and it would fail two of these eight correct runs;
+  3.2 ms still fails the cost before the savings, every one of whose runs was over it. The second check is a ratio: the live cone's
+  per-frame cost (the change check, and the rebuild when there was one) over the reference cone's, built from the same eye in
+  blocks of its own, at most **0.75**. The same eight runs gave 0.27, 0.31, 0.39, 0.39, 0.40, 0.42, 0.49 and 0.59, median 0.40;
+  with the savings off it reads 1.00 to 1.02 and with only the skip off about 0.65 (all recorded, a7f3b67c).
+- **Windowed, after the savings (not reproduced):** Vulkan, `--fixed-fps 60`, vsync off, 1152×648, the same 10v10 with the view on
+  an NPC, interleaved on and off, three runs: the view on minus off was −4.74, −1.54 and −2.18 ms a frame, with the cone ratio 0.47,
+  0.22 and 0.35. The ticket read this as a net gain windowed because unseen characters are not repainted while the off blocks
+  repaint everyone; the GPU was not separated from the CPU in these runs, and three runs are too few to say a sign, so the claim is
+  only that the view was not seen to cost windowed.
+- **The pool skip (not reproduced)** alone measured 0.13 to 0.5 ms a frame (12 to 25 % of the pools' draw time), the whole frame's
+  change within noise. It is kept for what it saves in the pools' own draw, not for a frame it was seen to speed up.
 - **Dropped, not measured to hold:** the single world draw (V3). An earlier probe that drew only what moves in the main viewport
   read +2.6 to +6.2 ms windowed and about 3 to 4 ms of GPU saved; it is unverified, since by the ancestor rule above it probably drew
   none of the characters' children.
 - **The perf matches run with `worldgen.doors` off** until #178 and #159 make the entry door-aware, which the shared perf probe
   (`tests/_perf/perf_probe.gd`) says. `perf/match_npc_vision` is red with its unviewed sibling
   `perf/match_10v10_stress` until #98.
+- **Where the reference cone came from.** `tests/_vision/reference_view_cone.gd` was frozen as the cone before any saving in commit
+  438c7cf1. Commit 94885766 then changed the live cone's far-face pick (`far_exit`, read off the shapes that hold the point) and its
+  corner dedupe (to half a pixel, the lesser standing), and gave the reference the same two, so that a fresh rebuild is
+  deterministic whichever overlapping shape the engine names. It has none of the savings (no kept coverage, no lows left out, no
+  skipped rebuild).
+
+## Played in a window
+
+The headless tests never open a window, so the review had the change played in one (2026-11-01, Metal, Apple M2 Max, a shared
+machine with load averages of 4 to 9), on the tree of the review's fixes. Each run had its own `--log-file`, and its whole log was
+read with `python3 tools/scan_godot_log.py <log> --from=0`.
+
+- **Five played matches of Main** (Start pressed through the command server, 40 s of play, the game then quit by
+  `get_tree().quit()`): all five exited 0 with a clean scan, with the view in the group `player_view` 8 s into each match and still
+  there at the end of runs 1, 2, 3 and 5; at the end of 4c it was gone (the log shows the human shot, not its death, which was not
+  checked, and a lifted view is V9's). Two earlier tries (runs 4 and 4b) are not counted: the match had started before the driver's Start press,
+  which then found no setup menu and logged its own error, and that error is the whole of what their scans found; the run was
+  taken again with a press guarded by the menu being there (4c), and the five above are 1, 2, 3, 5 and 4c.
+- **Five windowed runs of the change's game tests** (the 20 `*_test.gd` added or changed since `origin/main`, except `perf/*`, which no
+  run of this review plays, and `_harness/log_gate_probe`, which logs an error on purpose), each played whole in the test runner's
+  window with the log gate on (`--log-file <out>/godot.log`, the file the runner follows). Each run: 19 passed and 1 failed,
+  `ui/leader_overlay_draw`, and the log read up to the runner's `Queue done:` line scans clean in all five. That failure is not
+  this change's: the same test fails the same way (its first checks read `[]` where a crown should be) played in a window from
+  an `origin/main` checkout, and passes headless; its cause was not looked into.
+- **What they found.** `vision/unseen_not_repainted` failed in three of three windowed runs of its own: it counted physics frames,
+  and a window now and then runs two physics steps in one drawn frame, so the pool, which repaints in `_process`, was one step
+  from its repaint when the test looked. Nothing was late for the player: a drawn frame never showed the cone over a pool that
+  was not repainted. The test now judges the repaint once a frame has been drawn (`Engine.get_process_frames()`), for the pool and
+  for the walker; it is red against a pool that repaints a drawn frame late and green against the real one (ten headless runs, and
+  windowed runs alone and in the queues above). Two further windowed runs, made while the editor was reloading the changed file,
+  failed the walker's check at its 17th frame and passed in the twenty or so runs after; that was not reproduced and not explained.
+- **The `BUG: Unreferenced static string to 0: ...` lines** (and `Pages in use exist at exit in PagedAllocator`) are the engine's
+  shutdown noise when it is ended by a signal, not this change's. The test runner scene has no command server to quit through, so
+  these runs ended by `SIGTERM` to the pid they started, and the same lines come out of an `origin/main` checkout ended the same way, in
+  a count that varies from run to run on both (4, 26 and 33 on `origin/main`; 14, 15 and 19 on this branch), because the signal
+  lands at a different point of the teardown. The five matches of Main, which quit through the game, print none, and a headless
+  `--import` of `origin/main` prints the `Pages in use` lines at its exit too.
+

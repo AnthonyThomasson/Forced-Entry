@@ -1,12 +1,11 @@
 extends RefCounted
-## TEST-ONLY REFERENCE (not the game's): the blocking shapes as `scenes/vision/view_shapes.gd` read
-## them at the start of #168 slice 11 (commit f69b6f80), before any saving: everything is read anew
-## each build. See `reference_view_cone.gd`. Two changes since, both #168 slice 14 and for one
-## reason: the physics query lists shapes in an order, and names one of several overlapping shapes
-## for a ray, that are not stable from one frame to the next, so the yardstick differed from itself
-## between two builds of the same world. `far_exit` (the far face is read off the shapes that hold
-## a point, not off the one shape the ray named) and `corners` (of two corners in one half-pixel
-## cell, the lesser stands for it, not the first listed).
+## TEST-ONLY REFERENCE (not the game's): the blocking shapes as `scenes/vision/view_shapes.gd` reads
+## them, plainly: everything is read anew each build. See `reference_view_cone.gd`. Two of its rules
+## exist because the physics query lists shapes in an order, and names one of several overlapping
+## shapes for a ray, that are not stable from one frame to the next, so a yardstick that followed
+## the query would differ from itself between two builds of the same world: `far_exit` (the far
+## face is read off the shapes that hold a point, not off the one shape the ray named) and `corners`
+## (of two corners in one half-pixel cell, the lesser stands for it, not the first listed).
 ##
 ## Vision domain: the blocking shapes round an eye, read from the physics space (a shape query on
 ## `PhysicsLayers.SOLID`, never a walk of the scene tree). A shape blocks sight when its piece's
@@ -100,9 +99,9 @@ func polygon_of(collider: Object, index: int) -> PackedVector2Array:
 ## How far a ray from `origin` along `dir`, which has just hit a blocker there, runs before it
 ## leaves the solid it entered: the farthest it leaves any blocking shape that holds the point 0.1
 ## px along it, -1 when it leaves such a shape through no edge, and 0 when no blocking shape holds
-## the point (the ray only touches a corner). Added in #168 slice 14: the physics query may name any
-## of several overlapping or touching shapes for one ray, from one frame to the next, and one it
-## names need not even be entered, so the yardstick could not be rebuilt twice alike.
+## the point (the ray only touches a corner). The physics query may name any of several overlapping
+## or touching shapes for one ray, from one frame to the next, and one it names need not even be
+## entered, so the far face is read off every shape that holds the point.
 func far_exit(space: PhysicsDirectSpaceState2D, origin: Vector2, dir: Vector2) -> float:
 	var probe := PhysicsPointQueryParameters2D.new()
 	probe.collision_mask = PhysicsLayers.SOLID

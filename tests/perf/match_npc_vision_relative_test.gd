@@ -29,12 +29,12 @@ extends GameTest
 ## (the `--quiet` gate passed, none marked loaded) after the view's three savings (unseen
 ## characters not repainted, the cone rebuilt only when its inputs changed, the cone's own
 ## caches), plus 25 %, rounded: 0.33, 0.36, 0.63, 1.18, 1.58, 1.70, 2.50 and 2.51 ms, median
-## 1.38 ms. Median plus 25 % (1.73 ms) was not taken: the spread is between runs (each run plays a
-## different fight, and one run's rounds alone range from about -4 to +5 ms), so it would fail two
-## of these eight correct runs. 3.2 ms still fails the cost before the savings: ten quiet runs then
-## gave 2.92 to 5.46 ms (median 4.36), every one over it. Runs on a loaded machine can go over any
-## budget here; `--quiet` marks such a run loaded, and a loaded red says nothing about the code
-## (`perf.md`).
+## 1.38 ms. The spread is between runs (each run plays a different fight, and one run's rounds alone
+## range from about -4 to +5 ms), so the median plus 25 % (1.73 ms) would fail two of these eight
+## correct runs (2.50 and 2.51 ms); the highest run plus 25 % does not. 3.2 ms still fails the cost
+## before the savings: ten quiet runs then gave 2.92 to 5.46 ms (median 4.36), every one over it.
+## Runs on a loaded machine can go over any budget here; `--quiet` marks such a run loaded, and a
+## loaded red says nothing about the code (`perf.md`).
 ##
 ## The second check is a ratio, `RATIO_MAX` 0.75: in a block of each round the reference cone
 ## (`tests/_vision/reference_view_cone.gd`, the cone before any saving, built whole every frame) is

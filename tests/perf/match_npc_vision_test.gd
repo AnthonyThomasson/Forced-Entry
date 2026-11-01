@@ -2,15 +2,15 @@ extends GameTest
 ## Performance guard for the player's view on an NPC in the largest match the game means to carry
 ## (`docs/player-vision.md`, Perf): the 10v10 of `perf/match_10v10_stress` (a generated house of
 ## `Perf.MATCH_PLAN`, `Perf.configure_match`, built as Main builds one), but with the view drawn of
-## one invader (`TestSetup.view`) while it fights, the cone rebuilt every physics frame, the
-## capture and the memory painted and the composite drawn. The viewed invader is the tenth: a
-## declared invader beside the nine of the match (the match's own NPCs are no test actors for the
-## view to name), moved to stand with the invaders' group before the warm-up. After the warm-up the
-## match runs on until the sides are in contact (`Perf.warm_until_contact`), then 300 frames are
-## measured to the standard every frame-based guard holds: the average frame fits in one 60 fps
-## frame (16.7 ms), the 95th percentile stays under 20 ms and no frame takes over 33.4 ms. Headless
-## measures CPU only (the cone's physics queries and its polygons, the painters' work); the GPU cost
-## is measured by hand, windowed (`docs/lighting.md`, "Measured cost").
+## one invader (`TestSetup.view`) while it fights, the cone rebuilt whenever its inputs changed
+## (`ViewWatch`), the capture and the memory painted and the composite drawn. The viewed invader is
+## the tenth: a declared invader beside the nine of the match (the match's own NPCs are no test
+## actors for the view to name), moved to stand with the invaders' group before the warm-up. After
+## the warm-up the match runs on until the sides are in contact (`Perf.warm_until_contact`), then
+## 300 frames are measured to the standard every frame-based guard holds: the average frame fits in
+## one 60 fps frame (16.7 ms), the 95th percentile stays under 20 ms and no frame takes over 33.4
+## ms. Headless measures CPU only (the cone's physics queries and its polygons, the painters' work);
+## the GPU cost is measured by hand, windowed (`docs/lighting.md`, "Measured cost").
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")

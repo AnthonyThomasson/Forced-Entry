@@ -3,8 +3,9 @@ extends Node2D
 ## overlay bar (`OverlayRegistry.LEADERS`, `show_leaders`, off by default). A crown over each side's
 ## leader, in any match (a played one or Watch / Endless), so who leads, and who leads next once a
 ## leader falls, can be seen. The match builder (`MatchBuilder`) builds one with the squads, under
-## the match's `World` node or a test world (world space), drawn at `DrawLayers.ABOVE` (interface
-## 11) so a character never hides its crown.
+## the match's `World` node or a test world (world space), drawn over the player's view at
+## `DrawLayers.OVERLAY` (`ViewLayers.overlay`, interface 11), in its own colours, so a character
+## never hides its crown.
 ##
 ## With the crown it draws how the squad follows its leader, per squad: the leash ring round the
 ## living leader (the view's `leash`, how far a follower fights from it), each follower's follow

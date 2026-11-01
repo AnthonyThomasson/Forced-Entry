@@ -11,6 +11,9 @@ extends GameTest
 ##   - a door swung wide and shut, a glass-panel door's panes shattered, a door knocked down;
 ##   - in a world of its own, a character that blocks the viewer's sight standing and not crouched
 ##     changing its posture, and dying.
+## And the reach, in a world of its own that counts rebuilds only: a solid moved every frame far
+## outside the viewer's reach forces no rebuild, one moved within reach forces one each frame, and
+## one that moves from outside into reach is a rebuild in that frame.
 ## And the rebuilds themselves: a still viewer rebuilds far less often than every frame, and the
 ## view never goes more than `REBUILD_EVERY` frames without one (the backstop).
 ##
@@ -30,20 +33,27 @@ const GLASS_Y := 110.0
 const WOOD_Y := 250.0
 const DOWN_Y := 390.0
 ## The second world: a character at `STANDER_AT` between the viewer and a far wall, whose sight
-## looks over only what is lower than `LOOK_OVER_LOW` (a standing body, 60, blocks it; a crouched
-## one, 35, does not).
+## looks over only what is lower than `Probe.LOOK_OVER_LOW` (a standing body, 60, blocks it; a
+## crouched one, 35, does not).
 const OTHER := Vector2(4000, 0)
 const OTHER_EYE := Vector2(4100, 300)
 const STANDER_AT := Vector2(4300, 300)
-const LOOK_OVER_LOW := 50.0
-const VOLLEYS := 8
 const HITS_PER_VOLLEY := 6
-const HIT_SEED := 31
 ## The two solids of `_shape_added_and_moved`: a slab that gains a shape, and a mover that is moved.
 const SLAB_AT := Vector2(360, 250)
 const MOVER_AT := Vector2(360, 120)
 const MOVER_TO := Vector2(360, 200)
 const SOLID_SIZE := Vector2(14, 60)
+## The reach, in a third world: the viewer faces east; a solid at `FAR_AT` is 3750 px from it (the
+## reach is 2520), one at `NEAR_AT` is in its cone. Each is moved for `REACH_FRAMES` frames,
+## `REACH_STEP` px a frame, and the far one then arrives at `FAR_ARRIVES`, in the cone.
+const REACH_ARENA := Rect2(8000, 0, 600, 600)
+const REACH_EYE := Vector2(8100, 300)
+const FAR_AT := Vector2(11_850, 300)
+const NEAR_AT := Vector2(8400, 250)
+const FAR_ARRIVES := Vector2(8350, 350)
+const REACH_FRAMES := 60
+const REACH_STEP := 1.0
 ## The frames the dents must change the viewer's cone in, or they proved nothing.
 const MIN_DENT_CHANGES := 3
 
@@ -98,6 +108,7 @@ func run(t: TestContext) -> void:
 	_check_whole(t, checker, "the first world")
 	checker.queue_free()
 	await _posture_and_death(t)
+	await _reach(t)
 
 
 ## The viewer stands still: it rebuilds far less often than every frame.
@@ -148,11 +159,11 @@ func _dents(t: TestContext, checker: Checker) -> void:
 	for node in t.world.find_children("*", "StaticBody2D", true, false):
 		if node.has_method("wall_segments"):
 			targets.append(node)
-	var shapes := _shapes(targets)
+	var shapes := Probe.collision_shapes(targets)
 	var changed := checker.changed
 	var rng := RandomNumberGenerator.new()
-	rng.seed = HIT_SEED
-	for volley in VOLLEYS:
+	rng.seed = Probe.HIT_SEED
+	for volley in Probe.VOLLEYS:
 		for _k in HITS_PER_VOLLEY:
 			_strike_seen(checker, rng)
 		await t.frames(5)
@@ -160,9 +171,9 @@ func _dents(t: TestContext, checker: Checker) -> void:
 	for piece in pieces:
 		piece.freeze = false
 	t.check(
-		_shapes(targets) > shapes,
+		Probe.collision_shapes(targets) > shapes,
 		"premise: the dents cut the colliders into more shapes (%d, was %d)"
-		% [_shapes(targets), shapes],
+		% [Probe.collision_shapes(targets), shapes],
 	)
 	t.check(
 		checker.changed - changed >= MIN_DENT_CHANGES,
@@ -235,6 +246,73 @@ func _shape_added_and_moved(t: TestContext, checker: Checker) -> void:
 	await t.frames(15)
 
 
+## A third world: a solid moved every frame outside the viewer's reach forces no rebuild; one
+## within reach does; the far one moved into reach is a rebuild in the frame it arrives.
+func _reach(t: TestContext) -> void:
+	var s := TestSetup.new()
+	s.arena(REACH_ARENA)
+	s.switch(&"nav.rebake", false)
+	s.switch(&"vision.enabled", true)
+	s.actor(&"eye", &"puppet", REACH_EYE)
+	s.view(&"eye")
+	var world: Node2D = await Probe.build_world(t, s)
+	var view := Probe.views_under(world)[0]
+	TestContext.controller_of(world.actors[&"eye"], &"aim_at").aim_at(REACH_EYE + Vector2(100, 0))
+	var far := _solid_at(world, FAR_AT)
+	var near := _solid_at(world, NEAR_AT)
+	await t.frames(30)
+	var before := view.rebuilds()
+	await _creep(t, far, FAR_AT)
+	var rebuilds := view.rebuilds() - before
+	t.check(
+		far.position.distance_to(FAR_AT) >= REACH_STEP * (REACH_FRAMES - 1),
+		"premise: the far solid moved (%.0f px)" % far.position.distance_to(FAR_AT),
+	)
+	t.check(
+		(far.position - REACH_EYE).length() > view.viewer().sight()["view_distance"],
+		"premise: the far solid stayed outside the reach",
+	)
+	t.check(
+		rebuilds <= int(ceilf(float(REACH_FRAMES) / REBUILD_EVERY)) + 2,
+		"a solid moved every frame far outside the reach forces no rebuild (%d in %d)"
+		% [rebuilds, REACH_FRAMES],
+	)
+	before = view.rebuilds()
+	await _creep(t, near, NEAR_AT)
+	rebuilds = view.rebuilds() - before
+	t.check(
+		rebuilds >= REACH_FRAMES - 2,
+		"a solid moved every frame within the reach forces a rebuild each frame (%d in %d)"
+		% [rebuilds, REACH_FRAMES],
+	)
+	await t.frames(15)
+	before = view.rebuilds()
+	far.position = FAR_ARRIVES
+	await t.frames(1)
+	t.check(
+		view.rebuilds() > before,
+		"a solid that moves from outside the reach into it is a rebuild in that frame",
+	)
+	await Probe.drop_world(t, world)
+
+
+## Move `body` from `from` along y, `REACH_STEP` px a frame, for `REACH_FRAMES` frames.
+func _creep(t: TestContext, body: Node2D, from: Vector2) -> void:
+	for i in REACH_FRAMES:
+		body.position = from + Vector2(0.0, REACH_STEP * i)
+		await t.frames(1)
+
+
+## A solid with a shape, standing at `at` in the world.
+func _solid_at(world: Node, at: Vector2) -> StaticBody2D:
+	var body := StaticBody2D.new()
+	body.collision_layer = PhysicsLayers.SOLID
+	body.position = at
+	body.add_child(_solid_shape())
+	world.add_child(body)
+	return body
+
+
 ## A solid's shape: `SOLID_SIZE` round its body.
 func _solid_shape() -> CollisionShape2D:
 	var shape := CollisionShape2D.new()
@@ -256,7 +334,7 @@ func _doors(t: TestContext, checker: Checker) -> void:
 	wood.toggle(null)
 	await t.frames(60)
 	var glass: Node2D = t.object(&"glass")
-	glass.take_hit(_hit(glass.global_position, Vector2.RIGHT, 8.0))
+	glass.take_hit(Probe.hit(glass.global_position, Vector2.LEFT, 8.0))
 	await t.frames(10)
 	t.check(glass.look.broken, "premise: the glass door's panes shattered")
 	var hollow: Node2D = t.object(&"hollow")
@@ -272,7 +350,7 @@ func _posture_and_death(t: TestContext) -> void:
 	s.arena(Rect2(OTHER.x, OTHER.y, 600, 600))
 	s.switch(&"nav.rebake", false)
 	s.switch(&"vision.enabled", true)
-	s.set_static(CharacterVisionConfig, &"see_over_coverage", LOOK_OVER_LOW)
+	s.set_static(CharacterVisionConfig, &"see_over_coverage", Probe.LOOK_OVER_LOW)
 	s.actor(&"eye", &"puppet", OTHER_EYE)
 	s.actor(&"stander", &"puppet", STANDER_AT)
 	s.view(&"eye")
@@ -324,25 +402,6 @@ func _check_whole(t: TestContext, checker: Checker, where: String) -> void:
 	)
 
 
-## How many collision shapes `targets` hold between them.
-func _shapes(targets: Array[Node2D]) -> int:
-	var count := 0
-	for target in targets:
-		count += target.find_children("*", "CollisionShape2D", false, false).size()
-	return count
-
-
-## A hit of `damage` at `at` along `direction`.
-func _hit(at: Vector2, direction: Vector2, damage: float) -> HitInfo:
-	var hit := HitInfo.new()
-	hit.position = at
-	hit.normal = -direction
-	hit.direction = direction
-	hit.damage = damage
-	hit.speed_factor = 1.0
-	return hit
-
-
 ## One hit on whatever the viewer sees at a random place its cone ends on: the first solid on the
 ## line from its eye to there.
 func _strike_seen(checker: Checker, rng: RandomNumberGenerator) -> void:
@@ -357,10 +416,5 @@ func _strike_seen(checker: Checker, rng: RandomNumberGenerator) -> void:
 	var found := checker.viewer.get_world_2d().direct_space_state.intersect_ray(query)
 	if found.is_empty() or not found["collider"].has_method("take_hit"):
 		return
-	var hit := HitInfo.new()
-	hit.position = found["position"]
-	hit.normal = found["normal"]
-	hit.direction = -hit.normal
-	hit.damage = rng.randf_range(10.0, 40.0)
-	hit.speed_factor = 1.0
-	found["collider"].take_hit(hit)
+	var damage := rng.randf_range(10.0, 40.0)
+	found["collider"].take_hit(Probe.hit(found["position"], found["normal"], damage))

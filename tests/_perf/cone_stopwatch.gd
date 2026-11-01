@@ -10,8 +10,8 @@ extends RefCounted
 ## is the point: the saving is what it is on average, skips included.
 ##
 ## While the view is switched off (its node disabled) and `measure_reference` is set, the second
-## node rebuilds the reference cone (`tests/_vision/reference_view_cone.gd`, the cone as it was
-## before any saving, built whole every frame) from the same eye, facing and sight the view would
+## node rebuilds the reference cone (`tests/_vision/reference_view_cone.gd`, the cone built
+## whole every frame with nothing kept) from the same eye, facing and sight the view would
 ## have used, and times that. The reference runs only in blocks of its own, never while the view's
 ## cost against the unviewed match is measured, so it adds nothing to that.
 

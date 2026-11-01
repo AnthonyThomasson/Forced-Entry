@@ -31,6 +31,15 @@ const FOV := 110.0
 const REACH := 2520.0
 const BUBBLE := 48.0
 const SEE_OVER := 60.0
+## How far (px) a vertex of a cone may sit from the reference cone's: the reach is 2520 px, so this
+## is 4e-7 of it.
+const TOLERANCE := 0.001
+## The dents the cone tests deal: this many volleys, from this random seed, and a sight that looks
+## over only what is lower than `LOOK_OVER_LOW` (a standing body, 60, blocks it; a crouched one, 35,
+## does not).
+const VOLLEYS := 8
+const HIT_SEED := 31
+const LOOK_OVER_LOW := 50.0
 ## The layout the cone tests share: a living room and a kitchen east of it, joined by a doorway
 ## (`DOOR`, 100 px wide) in the wall they share.
 const ROOMS := [
@@ -47,14 +56,32 @@ const WARDROBE_AT := Vector2(450, 130)
 const TABLE_AT := Vector2(330, 300)
 
 
+## The rooms of `ROOMS` moved by `offset`, for a world built far from the session's own.
+static func rooms_at(offset: Vector2) -> Array:
+	var moved := []
+	for room: Dictionary in ROOMS:
+		var rect: Rect2 = room["rect"]
+		var shifted := room.duplicate()
+		shifted["rect"] = Rect2(rect.position + offset, rect.size)
+		moved.append(shifted)
+	return moved
+
+
 ## A doorway in the wall the rooms share (x 700), centred at `y`, holding a door named `id` of
-## `material` and `style` that hangs on the north jamb and swings into the kitchen.
-static func doorway(y: float, material: String, style: String, id: String) -> Dictionary:
+## `material` and `style` that hangs on the north jamb and swings into the kitchen; moved by
+## `offset` with `rooms_at`.
+static func doorway(
+	y: float,
+	material: String,
+	style: String,
+	id: String,
+	offset := Vector2.ZERO,
+) -> Dictionary:
 	return {
-		"pos": Vector2(700, y), "width": DOOR_WIDTH,
+		"pos": Vector2(700, y) + offset, "width": DOOR_WIDTH,
 		"door": {
 			"name": id, "material": material, "style": style,
-			"hinge": Vector2(700, y - JAMB), "swing_into": Vector2.RIGHT,
+			"hinge": Vector2(700, y - JAMB) + offset, "swing_into": Vector2.RIGHT,
 		},
 	}
 
@@ -187,3 +214,64 @@ static func light_in_capture(of_view: PlayerView, light: CanvasItem) -> bool:
 		if (layer as CanvasLayer).get_canvas() == canvas:
 			return true
 	return false
+
+
+## How many collision shapes `targets` hold between them.
+static func collision_shapes(targets: Array[Node2D]) -> int:
+	var count := 0
+	for target in targets:
+		count += target.find_children("*", "CollisionShape2D", false, false).size()
+	return count
+
+
+## A hit of `damage` at `at` on a surface facing `normal`, flying straight in.
+static func hit(at: Vector2, normal: Vector2, damage: float) -> HitInfo:
+	var info := HitInfo.new()
+	info.position = at
+	info.normal = normal
+	info.direction = -normal
+	info.damage = damage
+	info.speed_factor = 1.0
+	return info
+
+
+## Why a cone and bubble (`got_cone`, `got_bubble`) differ from the polygons `want_cone` and
+## `want_bubble` by more than `TOLERANCE` at any vertex, or "" when they are the same.
+static func polygons_differ(
+	got_cone: PackedVector2Array,
+	got_bubble: PackedVector2Array,
+	want_cone: PackedVector2Array,
+	want_bubble: PackedVector2Array,
+) -> String:
+	for which in ["cone", "bubble"]:
+		var got: PackedVector2Array = got_cone if which == "cone" else got_bubble
+		var want: PackedVector2Array = want_cone if which == "cone" else want_bubble
+		if got.size() != want.size():
+			return "%s has %d vertices, not %d" % [which, got.size(), want.size()]
+		for i in got.size():
+			if got[i].distance_to(want[i]) > TOLERANCE:
+				return "%s vertex %d is %s, not %s" % [which, i, got[i], want[i]]
+	return ""
+
+
+## Wait until the test camera holds still (the canvas transform's origin within half a pixel for
+## five drawn frames in a row), and return whether it did within 5 s. The camera starts where the
+## last test left it and eases in, one step a drawn frame, so what the test reads of the screen
+## (is a body on it, is it drawn) is only true once it has arrived. Only a drawn frame counts: a
+## window's first frames run several physics frames each, and the view would look still before the
+## camera had moved at all.
+static func view_still(t: TestContext) -> bool:
+	# The origin at the last drawn frame, that frame's number, and the drawn frames it held still.
+	var last: Array = [Vector2.INF, -1, 0]
+	return await t.until(
+		func() -> bool:
+			var frame := Engine.get_process_frames()
+			if frame == last[1]:
+				return false
+			var origin := t.world.get_viewport().get_canvas_transform().origin
+			last[2] = last[2] + 1 if origin.distance_to(last[0]) < 0.5 else 0
+			last[0] = origin
+			last[1] = frame
+			return last[2] >= 5,
+		5.0,
+	)

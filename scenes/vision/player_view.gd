@@ -2,7 +2,7 @@ class_name PlayerView
 extends Node2D
 ## The Vision domain's one node: what one character sees, drawn for the player
 ## (`docs/player-vision.md`), a leaf like Lighting. The match builder builds it through
-## `watch(root, viewer)` for Main's human and the Testing world's viewer (interface 24); it reads
+## `watch(root, viewer)` for Main's human and the Testing world's viewer (interface 25); it reads
 ## the viewer only duck-typed (`facing`, `global_position`, `get_rid()`, `sight()`, `is_dead`, and
 ## its `died` and `tree_exiting` signals, on which the view lifts) and imports nothing but General.
 ##

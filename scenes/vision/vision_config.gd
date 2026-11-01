@@ -26,8 +26,9 @@ static var memory_scale: float = 2.0
 static var cone_rays: int = 64
 static var bubble_rays: int = 48
 static var corner_offset: float = 0.0002
-## A ray that ends on a blocker runs on to where it leaves that one shape, at most `far_depth` in;
-## a shape whose far face is not found is taken `far_bleed` in, px.
+## A ray that ends on a blocker runs on to where it leaves it (the farthest exit over the blocking
+## shapes holding a point just inside), at most `far_depth` in; one that leaves through no edge is
+## taken `far_bleed` in, px.
 static var far_depth: float = 120.0
 static var far_bleed: float = 14.0
 ## The cone is rebuilt at least this often, in physics frames, whatever the watch (`ViewWatch`) has

@@ -1,12 +1,11 @@
 extends RefCounted
-## TEST-ONLY REFERENCE (not the game's): the cone as `scenes/vision/view_cone.gd` built it at the
-## start of #168 slice 11 (commit f69b6f80), before any saving, kept as it was so that
-## `vision/cone_same_after_savings` can hold the faster cone to its output vertex for vertex. It
+## TEST-ONLY REFERENCE (not the game's): the plainest form of the cone `scenes/vision/view_cone.gd`
+## builds, which `vision/cone_same_after_savings` holds the game's cone to, vertex for vertex. It
 ## keeps nothing from one rebuild to the next, reads every shape and coverage anew each build and
-## casts every ray plainly. Do not "fix" it: it is the yardstick. The game's cone follows
-## `docs/player-vision.md` V1; this file is that rule in its plainest form. The sight rule itself
-## (`_hit`) is a copy of General's `SightRay.hit` as it was then, so a change to `SightRay` does not
-## move the yardstick.
+## casts every ray plainly. Do not "fix" it: it is the yardstick (`docs/player-vision.md`, "Measured
+## cost"). The game's cone follows `docs/player-vision.md` V1; this file is that rule in its
+## plainest form. The sight rule itself (`_hit`) is a copy of General's `SightRay.hit` (a cast that
+## goes on past each low piece in turn), so a change to `SightRay` does not move the yardstick.
 ##
 ## Vision domain: the exact polygon of what an eye sees (`docs/player-vision.md` V1). A point is
 ## seen when it is within the view distance, either inside the near bubble or inside the cone round
@@ -19,12 +18,10 @@ extends RefCounted
 ## angle and `corner_offset` either side), so the fan's chords never cut across the shadow behind a
 ## corner. The shapes and their corners come from `ViewShapes`.
 ##
-## A ray that ends on a blocker runs on to where it leaves that one shape (at most `far_depth`), so
-## a wall or a wardrobe that is seen shows its top and is not left as a black hole. (One change
-## since f69b6f80, #168 slice 14: "that one shape" is the farthest face of the blocking shapes found
-## just inside the hit, `far_exit`, because the physics query names any of several overlapping or
-## touching shapes for one ray, so the yardstick differed from itself between two builds of the
-## same world.)
+## A ray that ends on a blocker runs on to where it leaves it (at most `far_depth`): the farthest
+## exit over the blocking shapes that hold a point 0.1 px along the ray (`far_exit`), not the one
+## shape the physics query names, because the query names any of several overlapping or touching
+## shapes for one ray, from one frame to the next. A wall or a wardrobe that is seen shows its top.
 
 const Shapes := preload("res://tests/_vision/reference_view_shapes.gd")
 
@@ -169,8 +166,8 @@ func _far_face(space: PhysicsDirectSpaceState2D, hit: Dictionary, dir: Vector2) 
 	return near + dir * minf(depth, VisionConfig.far_depth)
 
 
-## `SightRay.hit` as it was at f69b6f80: the first thing on the line from `from` to `to` too tall to
-## look over, casting again past each low one, or {} when the line reaches `to`.
+## `SightRay.hit`'s loop: the first thing on the line from `from` to `to` too tall to look over,
+## casting again past each low one, or {} when the line reaches `to`.
 func _hit(
 	space: PhysicsDirectSpaceState2D,
 	from: Vector2,

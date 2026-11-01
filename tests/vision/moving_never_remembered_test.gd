@@ -96,28 +96,37 @@ func _check_flashes(t: TestContext, view: PlayerView) -> void:
 		sky != null and Probe.light_in_capture(view, sky),
 		"premise: the sky, a light of the world's canvas, is lit in the capture",
 	)
+	var burst_lights := 0
 	for light in lights:
 		t.check(
 			not Probe.light_in_capture(view, light),
 			"%s is not lit in the capture" % light.name,
 		)
-		_check_flash_on_screen(t, light)
+		if _check_flash_on_screen(t, light):
+			burst_lights += 1
+	t.require(
+		burst_lights > 0,
+		"premise: a shot's or a burst's flash lit the world (%d of %d lights)"
+		% [burst_lights, lights.size()],
+	)
 
 
 ## A flash still lights the live world where it burst: its point on the screen is the main
 ## viewport's canvas transform of its world position, as a world item's is (a flash off its own
-## canvas that did not follow the camera would light the wrong place).
-func _check_flash_on_screen(t: TestContext, light: Node2D) -> void:
+## canvas that did not follow the camera would light the wrong place). False when the light is
+## not at a burst of this run (a pooled light that was never used).
+func _check_flash_on_screen(t: TestContext, light: Node2D) -> bool:
 	var bursts := t.events_of(&"shot") + t.events_of(&"explosion")
 	var at := light.global_position
 	if not bursts.any(func(e: Dictionary) -> bool: return e["position"].distance_to(at) < 1.0):
-		return  # never lit this run
+		return false
 	var on_screen := light.get_global_transform_with_canvas().origin
 	var expected := t.world.get_viewport().get_canvas_transform() * at
 	t.check(
 		on_screen.distance_to(expected) < 0.5,
 		"%s lights the screen at %s, where its burst is (%s)" % [light.name, on_screen, expected],
 	)
+	return true
 
 
 ## What the run saw of each kind of thing: the settled blood on `WORLD`, the moving things on

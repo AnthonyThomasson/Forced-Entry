@@ -4,8 +4,9 @@ extends Node2D
 ## ambushes, or the room it defends, the target ringed and named, with the member's latest
 ## progress), and a ring round each teammate selected in the command menu. Who leads is the
 ## squad-leaders debug overlay's (`ui/overlays/leader_overlay.gd`). Main builds it only when the
-## human leads, under the match's `World` node (world space), drawn at `DrawLayers.ABOVE` (interface
-## 11) so a character never hides its marker.
+## human leads, under the match's `World` node (world space), drawn over the player's view at
+## `DrawLayers.OVERLAY` (`ViewLayers.overlay`, interface 11), in its own colours, so a character
+## never hides its marker.
 ##
 ## A decoupled observer like the stack markers: `watch(view)` takes the squad's `view()` callable
 ## (`{ leader, members: [{ node, order, step }] }`, an order carrying its target point `pos`),

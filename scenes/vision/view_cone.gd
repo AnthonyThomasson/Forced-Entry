@@ -14,8 +14,9 @@ extends RefCounted
 ## place), so it meets its first blocker in one cast, and a fixed coverage is read once, not on each
 ## ray (`ViewShapes`): the polygon is the one the plain rule draws, vertex for vertex.
 ##
-## A ray that ends on a blocker runs on to where it leaves that one shape (at most `far_depth`), so
-## a wall or a wardrobe that is seen shows its top and is not left as a black hole.
+## A ray that ends on a blocker runs on to where it leaves it (at most `far_depth`): the farthest
+## exit over the blocking shapes that hold a point 0.1 px along the ray, so a wall or a wardrobe
+## that is seen shows its top and is not left as a black hole.
 
 const Shapes := preload("res://scenes/vision/view_shapes.gd")
 

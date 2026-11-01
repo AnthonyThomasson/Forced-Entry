@@ -26,6 +26,33 @@ RUNNER_SCENE = "res://scenes/testing/test_runner.tscn"
 VERDICT = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+(\S+)", re.M)
 FOREIGN = "foreign process error"
 FOREIGN_SCRIPT = f'extends SceneTree\n\n\nfunc _init() -> void:\n\tpush_error("{FOREIGN}")\n\tpush_warning("foreign process warning")\n\tquit()\n'
+# The editor plugin's log argument (addons/ticket_autorun/game_log_argument.gd), driven as the editor's save hook
+# drives it (`EditorPlugin` itself cannot be made outside the editor): after each step it prints whether the project
+# setting the editor reads on Play exists and what it holds, and whether a project file saved then would hold it.
+ARGUMENT_SCRIPT = '''extends SceneTree
+
+const Argument := preload("res://addons/ticket_autorun/game_log_argument.gd")
+
+
+func _report(step: String) -> void:
+	var path := OS.get_environment("SAVED") + "/" + step + ".godot"
+	ProjectSettings.save_custom(path)
+	var saved := FileAccess.get_file_as_string(path).contains(Argument.RUN_ARGS.get_file())
+	print("STEP %s present=%s value=%s saved=%s" % [step, ProjectSettings.has_setting(Argument.RUN_ARGS),
+		ProjectSettings.get_setting(Argument.RUN_ARGS, "<missing>"), saved])
+
+
+func _init() -> void:
+	_report("start")
+	Argument.give()
+	_report("given")
+	Argument.after_save()
+	_report("after_save")
+	Argument.forget()
+	_report("forgotten")
+	quit()
+'''
+STEP = re.compile(r"^STEP (\w+) present=(\w+) value=(.*) saved=(\w+)$", re.M)
 
 
 def os_data_dir() -> Path:
@@ -129,6 +156,44 @@ class RunnerOwnLogTests(unittest.TestCase):
         self.assertNotIn("NOTE:", out, "a start with a log of its own watches it\n" + out)
         verdicts = {test_id: status for status, test_id in VERDICT.findall(out)}
         self.assertEqual(verdicts.get("_harness/log_gate_probe"), "FAIL", out)
+
+    def run_argument_steps(self, log_file: str | None) -> dict[str, tuple[bool, str, bool]]:
+        """What the editor's Play would read at each step of the plugin's hooks: (present, value, saved)."""
+        script, saved = self.tmp / "argument.gd", self.tmp / "saved"
+        script.write_text(ARGUMENT_SCRIPT)
+        saved.mkdir(exist_ok=True)
+        env = {**clean_env(), "SAVED": str(saved)}
+        env.pop("GAME_LOG_FILE", None)
+        if log_file:
+            env["GAME_LOG_FILE"] = log_file
+        r = subprocess.run([godot_binary(), "--headless", "--path", str(self.copy), "--log-file",
+                            str(self.tmp / "argument.log"), "-s", str(script)],
+                           cwd=self.copy, env=env, capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        steps = {m.group(1): (m.group(2) == "true", m.group(3), m.group(4) == "true")
+                 for m in STEP.finditer(r.stdout)}
+        self.assertEqual(list(steps), ["start", "given", "after_save", "forgotten"], r.stdout + r.stderr)
+        return steps
+
+    def test_the_editors_log_argument_is_never_missing_when_play_reads_it(self):
+        """The editor's save hook runs just before Play reads `editor/run/main_run_args` for the game's command line:
+        the setting must still exist then, holding the game's `--log-file` (a setting erased and put back a frame
+        later is missing for that read: the editor logs `Property not found` and the game starts with none)."""
+        log = str(self.tmp / "game.engine.log")
+        steps = self.run_argument_steps(log)
+        self.assertEqual(steps["given"][:2], (True, "--log-file " + log), "premise: given, the argument is set")
+        self.assertEqual(steps["after_save"][:2], (True, "--log-file " + log), "present and set after the save hook")
+
+    def test_the_editors_log_argument_is_left_out_of_the_saved_project_when_forgotten(self):
+        """Forgotten (the editor closing), the setting is back at its default, which a saved project.godot omits; and
+        it is still there, not erased."""
+        steps = self.run_argument_steps(str(self.tmp / "game.engine.log"))
+        self.assertEqual(steps["forgotten"], (True, "", False), "present, empty, not in the saved project")
+
+    def test_the_editors_log_argument_touches_nothing_without_a_game_log(self):
+        """No `GAME_LOG_FILE` (an editor not started by tools/editor.sh): every step leaves the setting as it was."""
+        steps = self.run_argument_steps(None)
+        self.assertEqual({step: values for step, values in steps.items()}, {step: steps["start"] for step in steps})
 
 
 if __name__ == "__main__":

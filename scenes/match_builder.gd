@@ -189,7 +189,7 @@ static func build(match_spec: Dictionary, world: Node2D) -> Dictionary:
 ## debug overlay but the navigation holes (the stage's) started as the spec's `overlays` says
 ## (`set_overlay`: a flag it does not name off). Placement draws from one RNG seeded with the spec's
 ## `seed`, so a pinned seed pins the match. The human is watched last (`PlayerView.watch`, interface
-## 24: the view of what it sees, drawn for the player; none without a human, nor while
+## 25: the view of what it sees, drawn for the player; none without a human, nor while
 ## `VisionConfig.enabled` is off). Returns the handle with `combatants` (every character in
 ## the match in spawn order, the human last), `squads` (by faction), `player_stack` (the human's, or
 ## null), `leader_overlay` and `view` (the human's `PlayerView`, or null).

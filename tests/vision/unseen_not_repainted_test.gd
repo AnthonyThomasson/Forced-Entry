@@ -99,7 +99,9 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var walker := t.puppet(&"walker")
 	var eye := t.actor(&"eye")
-	# The premise, before any view: a walker on screen repaints nearly every frame.
+	# The premise, before any view: a walker on screen repaints nearly every frame. The camera comes
+	# from where the last test left it, so it is waited for first.
+	t.require(await Probe.view_still(t), "premise: the camera holds still")
 	await t.seconds(0.5)
 	walker.walk_to(Vector2(LANE_EAST, LANE_Y))
 	await t.frames(3)
@@ -164,13 +166,20 @@ func _walking_in(t: TestContext, view: PlayerView) -> void:
 	var pending := true  # a repaint is owed the frame the disc reaches the cone
 	var reached_at := -1
 	var last := _redraws(t, &"walker")
+	var drawn_at := Engine.get_process_frames()
 	for frame in 600:
 		await t.frames(1)
 		var now := _redraws(t, &"walker")
 		var state := _state(view, body.global_position, NEAR_IN, NEAR_OUT)
+		var drawn := Engine.get_process_frames() > drawn_at
+		drawn_at = Engine.get_process_frames()
 		if state == "out":
 			t.check(now == last, "frame %d: wholly outside, not repainted" % frame)
 		elif state == "in":
+			# The repaint is owed to the next drawn frame, which a physics step that shares its
+			# frame with the next (a window runs two now and then) has not come to yet.
+			if pending and now == last and not drawn:
+				continue
 			if pending:
 				t.check(now > last, "frame %d: its reach entered the cone, repainted then" % frame)
 			pending = false
@@ -261,30 +270,41 @@ func _unseen_pool(t: TestContext, view: PlayerView) -> void:
 
 
 ## The viewer turns, a little each frame, from east to the pool: while the pool's box is wholly
-## outside the cone it is not redrawn, and the frame its box first reaches the cone it is (the
-## state and the count a resume reads are of the same frame, as in `_walking_in`).
+## outside the cone it is not redrawn, and the drawn frame its box first reaches the cone it is (the
+## state and the count a resume reads are of the same frame, as in `_walking_in`; a window runs two
+## physics steps in one drawn frame now and then, and the repaint is judged once a frame was drawn).
 func _sweep_onto(t: TestContext, view: PlayerView, pool: Node2D) -> void:
 	var visuals: Node2D = pool.get_node("BloodPoolVisuals")
 	var eye := t.puppet(&"eye")
 	var goal := (_pool_box(pool).get_center() - EYE_AT).angle()
 	var angle := 0.0
-	var pending := true  # a redraw is owed once the box reaches the cone
-	var tally := { "early": 0, "late": 0, "reached": false }
+	# "pending": a redraw is owed once the box reaches the cone.
+	var tally := {
+		"early": 0, "late": 0, "reached": false, "pending": true,
+		"frame": Engine.get_process_frames(),
+	}
 	var last: int = visuals.redraws
 	while not tally["reached"] and angle != goal:
-		var near := _box_seen(view, _pool_box(pool).grow(SWEEP_NEAR))
-		angle = move_toward(angle, goal, SWEEP_STEP if near else SWEEP_FAST)
+		var step := SWEEP_STEP if _box_seen(view, _pool_box(pool).grow(SWEEP_NEAR)) else SWEEP_FAST
+		angle = move_toward(angle, goal, step)
 		eye.aim_at(EYE_AT + Vector2.from_angle(angle) * 300.0)
 		await t.frames(1)
 		var now: int = visuals.redraws
 		var state := _pool_state(view, pool)
+		var undrawn: bool = Engine.get_process_frames() == tally["frame"]
+		tally["frame"] = Engine.get_process_frames()
 		if state == "out":
 			tally["early"] += 1 if now > last else 0
 		elif state == "in":
-			tally["late"] += 1 if pending and now == last else 0
+			# The repaint is owed to the next drawn frame: none has come to a physics step that
+			# shares its frame with the next (a window runs two now and then), so judge it at the
+			# next.
+			if tally["pending"] and now == last and undrawn:
+				continue
+			tally["late"] += 1 if tally["pending"] and now == last else 0
 			tally["reached"] = true
 		elif now > last:
-			pending = false  # the box grazed the cone and was redrawn on the way: fine
+			tally["pending"] = false  # the box grazed the cone and was redrawn on the way: fine
 		last = now
 	t.require(tally["reached"], "premise: the cone swept onto the pool's box")
 	t.check(tally["early"] == 0, "the pool is not redrawn before the cone reaches it")

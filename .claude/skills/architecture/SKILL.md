@@ -23,7 +23,7 @@ A folded sub-domain is a side file of its parent skill: `.claude/skills/<skill>/
 | Art | `art/` | `domain-art` | The procedural pixel-art engine every painter draws through, and its shared tuning. |
 | Audio | `audio/` | `domain-audio` | Procedural sound: synthesized in code, picked by event, played by the `Sound` autoload. |
 | Lighting | `lighting/` | `domain-lighting` | The dusk ambient, a light per light-giving piece and room fixture, flashes (`docs/lighting.md`). |
-| Vision | `vision/` | `domain-vision` | What the player's character sees: the view cone, the memory of what it saw, greyscale outside (`docs/player-vision.md`). |
+| Vision | `vision/` | `domain-vision` | The player's view: cone, memory, greyscale outside (`docs/player-vision.md`). |
 | Navigation | `navigation/` | `domain-navigation` | Baking the house into a nav map, and re-baking it. |
 | General | `general/` | `domain-general` | Infrastructure: input, settings, `EventBus`, `GameLog`, `GameClock`, `Despawner`, camera, dev command server, shared ids and helpers. |
 | UI | `ui/` | `domain-ui` (`menus.md`, `hud.md`, `command.md`, `overlays.md`, `testing.md`; `ui/<folder>/`) | Every HUD and menu. |
@@ -32,7 +32,7 @@ A folded sub-domain is a side file of its parent skill: `.claude/skills/<skill>/
 | Testing | `testing/` | `domain-testing` | Game tests: a second composition root that builds a declared world, runs a test against it, asserts; the test browser and runner; gdUnit4 suites. Cases live in `tests/<domain>/` (one folder deeper by topic), sandboxes in `sandboxes/`. |
 | Main | `main.gd`, `match_builder.gd`, `match_spawner.gd` | `domain-main` | The composition root, no domain: it builds a match and is the one place that knows every domain. |
 
-**Composition root.** `scenes/main.gd` (`main.tscn`) and the Testing runner (interface 13) are the only code that knows every domain. A match is built by `MatchBuilder` (`scenes/match_builder.gd`, interface 23) with its helper `scenes/match_spawner.gd`: a match spec in (`Main.start_match(spec)`), a match handle out. Main's flow, placement rules, the endless run: `domain-main`. Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock` (General) and `Sound` (Audio).
+**Composition root.** `scenes/main.gd` (`main.tscn`) and the Testing runner (interface 13) are the only code that knows every domain. A match is built by `MatchBuilder` (`scenes/match_builder.gd`, interface 23) with its helper `scenes/match_spawner.gd`: a match spec in (`Main.start_match(spec)`), a match handle out. Main's flow, placement rules, the endless run: `domain-main`. Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock` (General) and `Sound` (Audio). `GameLog` and the other General helpers are `class_name` statics.
 
 ## The cross-domain interfaces
 
@@ -62,7 +62,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 22. **Main → UI.** Read for how Main wires a HUD, the setup window or the overlay bar: `interfaces/22-main-to-ui.md`
 23. **Main / Testing → `MatchBuilder`.** Read to build a match or a test world: `interfaces/23-match-builder.md`
 24. **Objects' `Door` ↔ Character, AI, Testing: the door contract.** Read to open, turn, hit or walk through a house door: `interfaces/24-door-contract.md`
-25. **Main / Testing → Vision: the player's view.** Read to build a view of one character, or read its cone and memory: `interfaces/25-vision.md`
+25. **Main / Testing → Vision: the player's view.** Read to build a view or read its cone and memory: `interfaces/25-vision.md`
 
 ## Dependency graph
 

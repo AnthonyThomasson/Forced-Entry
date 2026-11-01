@@ -45,7 +45,8 @@ read through `character.sight()`: any character can be the viewer.
   shapes holding a point 0.1 px along the ray, so a wall or wardrobe seen shows its top; at most `far_depth`; `far_bleed` when it
   leaves through no edge; where no shape holds the point the ray only grazed and ends at the hit).
 - **`ViewWatch` skips a rebuild** a fresh one would draw again, and a rebuild is due when any input of the cone changed: the eye,
-  the facing, the sight numbers, the cone's `VisionConfig` numbers; any blocker's transform or collision layer (polled each frame);
+  the facing, the sight numbers, the cone's `VisionConfig` numbers; the transform or collision layer of any blocker within
+  reach (the view distance and the blocker's own extent; one wholly beyond it forces nothing), polled each frame;
   by signal a blocker's shapes coming or going (a dent or a wall re-cut frees shapes and adds new with no move of the body),
   leaving the tree, or a door's `changed`; a collider that entered the tree; a character that blocks (its posture covers more
   than the viewer looks over: rebuilt every frame it does, and the frame after); and every `rebuild_every` (10) frames, the

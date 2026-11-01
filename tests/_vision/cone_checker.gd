@@ -7,8 +7,7 @@ extends Node
 ## the view's rebuilds (`PlayerView.rebuilds()`) and the longest run of frames between two.
 
 const Reference := preload("res://tests/_vision/reference_view_cone.gd")
-## How far (px) a vertex may sit from the fresh cone's. The reach is 2520 px: this is 4e-7 of it.
-const TOLERANCE := 0.001
+const Probe := preload("res://tests/_vision/vision_probe.gd")
 ## The most differences kept for the report.
 const KEPT := 6
 
@@ -69,15 +68,7 @@ func _physics_process(_delta: float) -> void:
 
 ## Why the view's polygons differ from the fresh cone's, or "" when they are the same.
 func _difference() -> String:
-	for which in ["cone", "bubble"]:
-		var held: PackedVector2Array = view.cone() if which == "cone" else view.bubble()
-		var fresh: PackedVector2Array = _plain.get(which)
-		if held.size() != fresh.size():
-			return "%s has %d vertices, fresh %d" % [which, held.size(), fresh.size()]
-		for i in held.size():
-			if held[i].distance_to(fresh[i]) > TOLERANCE:
-				return "%s vertex %d is %s, fresh %s" % [which, i, held[i], fresh[i]]
-	return ""
+	return Probe.polygons_differ(view.cone(), view.bubble(), _plain.cone, _plain.bubble)
 
 
 ## The number of frames the view's polygon differed from the fresh cone's.

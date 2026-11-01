@@ -1,24 +1,22 @@
 extends GameTest
 ## V1 cost (`docs/player-vision.md`): the cone's CPU savings change nothing it draws. The cone
 ## `ViewCone.rebuild` builds is held, vertex for vertex, to the cone the same algorithm built before
-## any saving (`tests/_vision/reference_view_cone.gd`, the code of commit f69b6f80, which reads and
-## casts everything anew each build). Both are asked the same question in the same physics space:
-## one persistent `ViewCone` (so whatever it keeps from one rebuild to the next is in play) against
-## one reference, for
+## any saving (`tests/_vision/reference_view_cone.gd`, the same algorithm which keeps nothing from
+## one rebuild to the next and reads and casts everything anew each build). Both are asked the same
+## question in the same physics space: one persistent `ViewCone` (so whatever it keeps from one
+## rebuild to the next is in play) against one reference, for
 ## - a grid of eyes and facings in generated houses (a few floorplans and seeds), the cone and the
 ##   bubble both;
 ## - a door swung through the cone between two rebuilds, a piece shoved across it and a piece that
 ##   leaves the world: a hand-laid pair of rooms joined by a doorway, rebuilt after every step.
-##
-## The tolerance is `TOLERANCE` px on every vertex. Nothing but a saving that changes the polygon
-## can exceed it: the faster cone does the same float operations on the same numbers, so it matches
-## to the last bit, and the tolerance only leaves room for an operation done in another order.
+## The tolerance is `Probe.TOLERANCE` px on every vertex. Nothing but a saving that changes the
+## polygon can exceed it: the faster cone does the same float operations on the same numbers, so it
+## matches to the last bit, and the tolerance only leaves room for an operation done in another
+## order.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Cone := preload("res://scenes/vision/view_cone.gd")
 const Reference := preload("res://tests/_vision/reference_view_cone.gd")
-## How far (px) a vertex may sit from the reference's. The reach is 2520 px: this is 4e-7 of it.
-const TOLERANCE := 0.001
 ## The houses: floorplan and seed.
 const HOUSES := [
 	["garage_home", 7],
@@ -45,9 +43,7 @@ const HINGE := Vector2(700.0, 200.0)
 const DOOR_LENGTH := 90.0
 ## The dents: this many volleys, each this many hits at random along the walls and pieces (the
 ## colliders are rebuilt from the dented polygons: convex pieces, slivers among them).
-const VOLLEYS := 8
 const HITS_PER_VOLLEY := 50
-const HIT_SEED := 31
 const SCATTERED := 300
 const NEAR := 220.0
 ## Eyes for the swing: in the living room, in the kitchen, and on the doorway's line.
@@ -59,11 +55,10 @@ const SWING_FACINGS := [0.0, 25.0, -30.0, 180.0, 160.0, 10.0, 200.0]
 const SHOVE_AT := Vector2(450, 350)
 const SHOVE_EYES := [Vector2(150, 250), Vector2(620, 420)]
 ## A character in the way: it blocks sight standing (coverage 60) and not crouched (35) for an eye
-## that looks over only what is lower than `LOOK_OVER_LOW`, so its posture changes the polygon with
-## no move of its own.
+## that looks over only what is lower than `Probe.LOOK_OVER_LOW`, so its posture changes the polygon
+## with no move of its own.
 const STANDER_AT := Vector2(400, 250)
 const STANDER_EYES := [Vector2(150, 250), Vector2(150, 200), Vector2(250, 300)]
-const LOOK_OVER_LOW := 50.0
 ## At least this many rebuilds must be compared, or the test proves nothing.
 const MIN_HOUSE_PAIRS := 800
 const MIN_SWING_PAIRS := 100
@@ -205,12 +200,12 @@ func _compare_dents(t: TestContext) -> void:
 	var world: Node2D = await Probe.build_world(t, setup)
 	var targets := _dent_targets(world)
 	var before := _pairs
-	var shapes_before := _collision_shapes(targets)
+	var shapes_before := Probe.collision_shapes(targets)
 	await _dent_rounds(t, world, targets)
 	t.check(
-		_collision_shapes(targets) > shapes_before,
+		Probe.collision_shapes(targets) > shapes_before,
 		"premise: the dents cut the colliders into more shapes (%d, was %d)"
-		% [_collision_shapes(targets), shapes_before],
+		% [Probe.collision_shapes(targets), shapes_before],
 	)
 	t.check(
 		_pairs - before >= MIN_DENT_PAIRS,
@@ -254,10 +249,10 @@ func _dent_rounds(t: TestContext, world: Node2D, targets: Array[Node2D]) -> void
 	var cone := Cone.new()
 	var plain := Reference.new()
 	var rng := RandomNumberGenerator.new()
-	rng.seed = HIT_SEED
+	rng.seed = Probe.HIT_SEED
 	_compare_rooms(world, cone, plain)
 	_compare_scattered(world, cone, plain, rng, Vector2.ZERO)
-	for volley in VOLLEYS:
+	for volley in Probe.VOLLEYS:
 		# One piece or wall a volley, all hits within a few tens of px of one place: the dents
 		# pile up there and the collider is cut into slivers.
 		var target := targets[volley % targets.size()]
@@ -289,33 +284,23 @@ func _compare_scattered(
 			_compare(cone, plain, at, Vector2.from_angle(rng.randf() * TAU))
 
 
-## How many collision shapes `targets` hold between them.
-func _collision_shapes(targets: Array[Node2D]) -> int:
-	var count := 0
-	for target in targets:
-		count += target.find_children("*", "CollisionShape2D", false, false).size()
-	return count
-
-
 ## One hit on `target` (a wall, or a piece) near `place` (0 to 1 along it); where it landed.
 func _strike(target: Node2D, rng: RandomNumberGenerator, place: float) -> Vector2:
-	var hit := HitInfo.new()
+	var at: Vector2
+	var normal: Vector2
 	if target.has_method("wall_segments"):
 		var segments: Array = target.wall_segments()
 		var segment: PackedVector2Array = segments[int(place * float(segments.size() - 1))]
 		var along: Vector2 = segment[1] - segment[0]
-		var at := clampf(fposmod(place * 7.0, 1.0) + rng.randf_range(-0.05, 0.05), 0.0, 1.0)
-		hit.position = target.to_global(segment[0] + along * at)
-		hit.normal = along.orthogonal().normalized()
+		var along_at := clampf(fposmod(place * 7.0, 1.0) + rng.randf_range(-0.05, 0.05), 0.0, 1.0)
+		at = target.to_global(segment[0] + along * along_at)
+		normal = along.orthogonal().normalized()
 	else:
 		var around := Vector2.from_angle(place * TAU + rng.randf_range(-0.4, 0.4))
-		hit.position = target.global_position + around * 12.0
-		hit.normal = around
-	hit.direction = -hit.normal
-	hit.damage = rng.randf_range(10.0, 40.0)
-	hit.speed_factor = 1.0
-	target.take_hit(hit)
-	return hit.position
+		at = target.global_position + around * 12.0
+		normal = around
+	target.take_hit(Probe.hit(at, normal, rng.randf_range(10.0, 40.0)))
+	return at
 
 
 ## A character stands, crouches and stands again in the way of eyes that look over only what is
@@ -323,7 +308,7 @@ func _strike(target: Node2D, rng: RandomNumberGenerator, place: float) -> Vector
 func _compare_postures(t: TestContext, world: Node2D, cone: Cone, plain: Reference) -> void:
 	var stander: Node2D = world.actors[&"stander"]
 	var low := _sight.duplicate()
-	low["see_over_coverage"] = LOOK_OVER_LOW
+	low["see_over_coverage"] = Probe.LOOK_OVER_LOW
 	var seen: Array[PackedVector2Array] = []
 	for posture in [&"stand", &"crouch", &"stand", &"crouch"]:
 		# A change of posture waits out its cooldown: ask until the body holds it.
@@ -364,16 +349,8 @@ func _compare(
 		_mismatches.append("eye %s facing %s: %s" % [at, facing, reason])
 
 
-## Why the two cones differ, or "" when they are the same within `TOLERANCE`.
+## Why the two cones differ, or "" when they are the same within `Probe.TOLERANCE`.
 func _difference(cone: Cone, plain: Reference) -> String:
 	if cone.eye != plain.eye:
 		return "eye"
-	for name in ["cone", "bubble"]:
-		var got: PackedVector2Array = cone.get(name)
-		var want: PackedVector2Array = plain.get(name)
-		if got.size() != want.size():
-			return "%s has %d vertices, not %d" % [name, got.size(), want.size()]
-		for i in got.size():
-			if got[i].distance_to(want[i]) > TOLERANCE:
-				return "%s vertex %d is %s, not %s" % [name, i, got[i], want[i]]
-	return ""
+	return Probe.polygons_differ(cone.cone, cone.bubble, plain.cone, plain.bubble)

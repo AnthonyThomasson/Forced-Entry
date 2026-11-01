@@ -1,7 +1,9 @@
 class_name CharacterVisionConfig
 ## The character's sight (scenes/character/): what any character sees, the numbers the Vision
 ## domain draws a view by when it is made for one (`docs/player-vision.md` V1). They are the NPCs'
-## default sight (`NpcSensesTuning`), so a human sees what the NPCs see. A `class_name` holder of
+## default sight (`NpcSensesTuning`, which Character does not import: the suite
+## `tests/character/character_vision_config_suite.gd` holds the two equal), so a human sees what the
+## NPCs see. A `class_name` holder of
 ## `static var`s, read as `CharacterVisionConfig.<name>`, handed out through `Character.sight()`;
 ## there is no instance and no autoload.
 

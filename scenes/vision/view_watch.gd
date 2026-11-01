@@ -7,10 +7,13 @@ extends RefCounted
 ## What it watches:
 ## - the eye, the facing, the sight and the cone's tuning, against the last rebuild's;
 ## - every solid that blocks sight (coverage above the viewer's `see_over`; a low piece is looked
-##   over, it is in no ray, so it needs no watching): its transform and collision layer each frame,
-##   and by signal its shapes coming and going (a dent or a wall re-cut frees its shape children and
-##   adds new ones with no move of the body), its leaving the tree and a door's `changed`; a new
-##   solid in the tree is read on the next check;
+##   over, it is in no ray, so it needs no watching) within the viewer's reach (`view_distance`
+##   from the eye, and the solid's own extent): its transform and collision layer each frame, and by
+##   signal its shapes coming and going (a dent or a wall re-cut frees its shape children and adds
+##   new ones with no move of the body), its leaving the tree and a door's `changed`; a new solid in
+##   the tree is read on the next check. One wholly outside the reach before and after a move, a
+##   change or a leave is in no ray, so it forces no rebuild; one that moves into or out of the
+##   reach does;
 ## - the characters: one blocks while its posture covers more than the viewer looks over, and then
 ##   it may move, turn its shape off or die in any frame, so the cone is rebuilt every frame it
 ##   does (and the frame after the last stops). No character does at the default sight;
@@ -43,6 +46,9 @@ var _since := 0
 var _blocking_then := false
 ## The `see_over` the solids were sorted by.
 var _see_over := -1.0
+## The eye and the reach (`view_distance`) the last check was made for: what "within reach" means.
+var _eye := Vector2.ZERO
+var _reach := 0.0
 
 
 ## Start watching `tree`, leaving the bodies in `left_out` (rids) out.
@@ -68,6 +74,8 @@ func detach() -> void:
 ## Whether a rebuild is due for an eye at `eye` facing `facing`, seeing by `sight`.
 func stale(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
 	_since += 1
+	_eye = eye
+	_reach = float(sight["view_distance"])
 	if _built != _key(eye, facing, sight) or _since >= VisionConfig.rebuild_every:
 		return true
 	var see_over := float(sight["see_over_coverage"])
@@ -77,7 +85,7 @@ func stale(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
 	return _blocking_now(see_over) or _blocking_then or _blockers_moved()
 
 
-## The cone was rebuilt for `eye`, `facing` and `sight`: what it was made from is now this.
+## The cone was rebuilt for `eye`, `facing` and `sight`: these are the inputs it was made from.
 func built(eye: Vector2, facing: Vector2, sight: Dictionary) -> void:
 	_since = 0
 	_dirty = false
@@ -133,11 +141,11 @@ func _classify(body: CollisionObject2D) -> void:
 	if SightRay.coverage_of(body) <= _see_over:
 		return
 	_blockers[id] = [body, body.global_transform, body.collision_layer]
-	_connect(body, &"child_entered_tree", _changed_shape)
-	_connect(body, &"child_exiting_tree", _changed_shape)
+	_connect(body, &"child_entered_tree", _changed_shape.bind(body))
+	_connect(body, &"child_exiting_tree", _changed_shape.bind(body))
 	if body.has_signal(&"changed"):
-		_connect(body, &"changed", _mark)
-	_mark()
+		_connect(body, &"changed", _mark_near.bind(body))
+	_mark_near(body)
 
 
 ## Connect `body`'s `signal_name` to `callable` unless it is already (a body is sorted again when
@@ -147,9 +155,9 @@ func _connect(body: Object, signal_name: StringName, callable: Callable) -> void
 		body.connect(signal_name, callable)
 
 
-## A shape came or went on a blocker: its silhouette changed with no move of its body.
-func _changed_shape(_child: Node) -> void:
-	_mark()
+## A shape came or went on `body`, a blocker: its silhouette changed with no move of its body.
+func _changed_shape(_child: Node, body: CollisionObject2D) -> void:
+	_mark_near(body)
 
 
 ## A signal says a blocker changed.
@@ -157,12 +165,25 @@ func _mark() -> void:
 	_dirty = true
 
 
+## A signal says the blocker `body` changed: it is a rebuild when `body` is within reach.
+func _mark_near(body: CollisionObject2D) -> void:
+	if _within_reach(body, body.global_transform.origin):
+		_dirty = true
+
+
 ## The collider `id` left the tree.
 func _left(id: int) -> void:
 	_known.erase(id)
 	_characters.erase(id)
-	if _blockers.erase(id):
-		_mark()
+	if _blockers.has(id):
+		var entry: Array = _blockers[id]
+		var body: CollisionObject2D = entry[0]
+		_blockers.erase(id)
+		if _within_reach(body, (entry[1] as Transform2D).origin) or _within_reach(
+			body,
+			body.global_transform.origin,
+		):
+			_mark()
 
 
 ## Whether a character blocks sight now.
@@ -174,11 +195,35 @@ func _blocking_now(see_over: float) -> bool:
 	return false
 
 
-## Whether a blocker moved, turned or changed layer since the last rebuild.
+## Whether a blocker within reach moved, turned or changed layer since the last rebuild: within
+## reach before the change or after it.
 func _blockers_moved() -> bool:
 	for id in _blockers:
 		var entry: Array = _blockers[id]
 		var body: CollisionObject2D = entry[0]
-		if body.global_transform != entry[1] or body.collision_layer != entry[2]:
+		var then: Transform2D = entry[1]
+		if body.global_transform == then and body.collision_layer == entry[2]:
+			continue
+		if _within_reach(body, then.origin) or _within_reach(body, body.global_transform.origin):
 			return true
 	return false
+
+
+## Whether `body`, standing at `origin`, has a part within the viewer's reach of the eye: the rays
+## are `view_distance` long, so a solid wholly beyond that is in none of them.
+func _within_reach(body: CollisionObject2D, origin: Vector2) -> bool:
+	return origin.distance_to(_eye) <= _reach + _extent(body)
+
+
+## How far (px) any part of `body` lies from its origin: its shapes' farthest corner.
+func _extent(body: CollisionObject2D) -> float:
+	var far := 0.0
+	for child in body.get_children():
+		if child is CollisionShape2D and (child as CollisionShape2D).shape != null:
+			var shape := child as CollisionShape2D
+			var box := shape.shape.get_rect()
+			far = maxf(far, shape.position.length() + box.position.length() + box.size.length())
+		elif child is CollisionPolygon2D:
+			for point in (child as CollisionPolygon2D).polygon:
+				far = maxf(far, point.length() + (child as Node2D).position.length())
+	return far * maxf(body.global_scale.x, body.global_scale.y)
