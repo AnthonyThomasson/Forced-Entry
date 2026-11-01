@@ -1,6 +1,6 @@
 extends GameTest
 ## LD12 / D5 (`docs/leadership.md`): the order markers (`scenes/ui/command/order_markers.gd`,
-## `OrderMarkers`, drawn at `DrawLayers.ABOVE`), built only when the human leads. A marker on each
+## `OrderMarkers`, drawn at `DrawLayers.OVERLAY`), built only when the human leads. A marker on each
 ## member's order target and the selection highlight (who leads is the squad-leaders debug
 ## overlay's, `leader_overlay_draw_test.gd`). A decoupled observer: `watch(view_callable)` polls the
 ## squad's `view()` (`{ leader, members: [{ node, order, step }] }`), `set_selection(nodes)` is the
@@ -50,8 +50,8 @@ func run(t: TestContext) -> void:
 		return
 	t.expect_eq(
 		markers.z_index,
-		DrawLayers.ABOVE,
-		"drawn above the standing world (DrawLayers.ABOVE)",
+		DrawLayers.OVERLAY,
+		"drawn over the view (DrawLayers.OVERLAY)",
 	)
 	var me := t.actor(&"me")
 	var t1 := t.actor(&"t1")

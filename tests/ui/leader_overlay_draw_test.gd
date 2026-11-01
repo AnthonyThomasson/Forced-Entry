@@ -1,10 +1,10 @@
 extends GameTest
 ## LD12 (`docs/leadership.md`): the squad-leaders debug overlay
-## (`scenes/ui/overlays/leader_overlay.gd`, `LeaderOverlay`, drawn at `DrawLayers.ABOVE`). A global
-## row of the overlay bar (`OverlayRegistry.LEADERS`, `show_leaders`, off by default); while it is
-## on, a crown over each squad's living leader, moving to the next leader when the view names one. A
-## decoupled observer: `watch(views)` takes the squads' `view()` callables and `drawn()` is what is
-## shown (`[{ kind: "crown", point, node }]`), which this test reads.
+## (`scenes/ui/overlays/leader_overlay.gd`, `LeaderOverlay`, drawn at `DrawLayers.OVERLAY`). A
+## global row of the overlay bar (`OverlayRegistry.LEADERS`, `show_leaders`, off by default); while
+## it is on, a crown over each squad's living leader, moving to the next leader when the view names
+## one. A decoupled observer: `watch(views)` takes the squads' `view()` callables and `drawn()` is
+## what is shown (`[{ kind: "crown", point, node }]`), which this test reads.
 ##
 ## LD28: per squad it also draws, from `view()` only, the leash ring round the living leader
 ## (`{ kind: "leash", point, radius, node }`, the view's `leash`), each follower's follow spot
@@ -74,8 +74,8 @@ func run(t: TestContext) -> void:
 	t.world.add_child(overlay)
 	t.expect_eq(
 		overlay.z_index,
-		DrawLayers.ABOVE,
-		"drawn above the standing world (DrawLayers.ABOVE)",
+		DrawLayers.OVERLAY,
+		"drawn over the view (DrawLayers.OVERLAY)",
 	)
 	_views = [{ "leader": lead, "members": [] }, { "leader": boss, "members": [] }]
 	overlay.watch([func(): return _views[0], func(): return _views[1]])

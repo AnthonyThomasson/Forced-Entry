@@ -22,8 +22,7 @@ const UNDER_VEHICLE := -1
 ## The standing world: living characters (a vehicle's occupants among them), furniture and walls.
 ## Godot's default z.
 const STANDING := 0
-## Over the standing world: a vehicle's `Roof` (Vehicles), a grenade in flight (Items) and the stack
-## markers (UI).
+## Over the standing world: a vehicle's `Roof` (Vehicles) and a grenade in flight (Items).
 const ABOVE := 1
 ## High overhead, over a vehicle's roof: a piece's overhang reaching out beyond its footprint, a
 ## streetlight's arm and lamp head over the road (Objects).

@@ -34,6 +34,7 @@ var _texts := PackedStringArray()
 
 
 func _ready() -> void:
+	ViewLayers.overlay(self)
 	_controller = get_node_or_null(controller_path)
 	_character = get_parent() as Node2D
 	process_mode = Node.PROCESS_MODE_ALWAYS

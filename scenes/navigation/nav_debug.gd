@@ -26,6 +26,11 @@ var _holes: Array = []
 var _character_holes: Array = []
 
 
+## Over the player's view, in its own colours, and never remembered by it.
+func _init() -> void:
+	ViewLayers.overlay(self)
+
+
 ## Draw each carved hole as a filled polygon + outline. Redraws on a toggle and whenever `setup`
 ## re-snapshots the holes (the initial bake, then each re-bake by nav_updater.gd).
 func _draw() -> void:

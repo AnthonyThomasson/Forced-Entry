@@ -304,20 +304,20 @@ with a stun claim slots there in bang mode once the menu closes), the keybind co
 every action, `COMMAND` among them, has a settings label and group).
 
 **LD12. Order markers and the squad leaders.** Built with the command menu, only when the human leads (D5; Watch and Endless draw none),
-`ui/command/order_markers.gd`, under `World` at `DrawLayers.ABOVE`. It draws each living member's order target (a dashed line from the member to its target, the doorway's centre for a stack or an ambush or the room's
+`ui/command/order_markers.gd`, under `World` at `DrawLayers.OVERLAY` (absolute, over the player's view: `vision/overlays_over_view`). It draws each living member's order target (a dashed line from the member to its target, the doorway's centre for a stack or an ambush or the room's
 centre for a defend, as the order's `pos`; the target ringed and named with the order and the member's latest progress, "Defend · in
 position", "Stack (stun) · moving", "Stack (frag, hold) · in position" (the mode, and "hold" while it waits for its go, LD13), "Ambush · in
 position", red when it refused; an order that is done is no longer drawn), and a ring round each teammate selected in the open menu. It watches the squad's `view()` and the menu's
 selection (`selection_changed`, empty once the menu closes), and reads the members through the Character API.
 
 Who leads is a debug overlay, not a marker: the overlay bar's "Squad leaders" (`show_leaders`, a global row of `OverlayRegistry`, off by
-default; `ui/overlays/leader_overlay.gd`, under `World` at `DrawLayers.ABOVE`), which the match builder builds with the squads
+default; `ui/overlays/leader_overlay.gd`, under `World` at `DrawLayers.OVERLAY`, absolute), which the match builder builds with the squads
 (`MatchBuilder.build_leader_overlay`) in every match, played, Watch or Endless, and in a test world that declares squads or a match, over
 every squad's `view()`; the toggle reaches it through `MatchBuilder.set_overlay`, from Main's bar and the test runner's alike. While it is on it draws a crown over each side's living leader, moving to the next in line when one falls, and
 how the squad follows it: the leash, the follow spots and the trail (LD28). A join is marked "Join stack · moving" (LD24).
 
 Tests: `ui/order_markers_draw` (a fake view: one target per member with an order and none without, no marker on the leader, the selected
-teammate ringed where it stands and cleared with the selection, a join "Join stack · moving", drawn at `DrawLayers.ABOVE`),
+teammate ringed where it stands and cleared with the selection, a join "Join stack · moving", drawn at `DrawLayers.OVERLAY`),
 `ui/leader_overlay_draw` (the `show_leaders` row, global and off by default; with fake views nothing while off, then a crown over each
 squad's leader, moved to a new leader and gone with none; the toggle through `MatchBuilder.set_overlay` on a test world's declared squads,
 `s.squads`, and on Main's match, `Main.start_match`, two real squads, each shown and hidden by the bar's toggle; LD28's marks).

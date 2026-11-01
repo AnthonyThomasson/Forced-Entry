@@ -21,6 +21,11 @@ const COLOR_NEUTRAL := Color(1.0, 0.75, 0.2)
 var _contacts: Array = []
 
 
+## Over the player's view, in its own colours, and never remembered by it.
+func _init() -> void:
+	ViewLayers.overlay(self)
+
+
 func _draw() -> void:
 	var font: Font = ThemeDB.fallback_font
 	for c in _contacts:

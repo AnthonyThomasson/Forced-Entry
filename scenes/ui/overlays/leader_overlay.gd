@@ -41,7 +41,7 @@ var _drawn: Array = []
 
 
 func _init() -> void:
-	z_index = DrawLayers.ABOVE  # Over the floor and the standing world.
+	ViewLayers.overlay(self)  # Over the view, in its own colours.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 

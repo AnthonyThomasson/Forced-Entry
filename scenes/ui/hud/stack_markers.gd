@@ -35,6 +35,11 @@ var _squad := Callable()
 var _slots: Array = []
 
 
+## Over the player's view, in its own colours, and never remembered by it.
+func _init() -> void:
+	ViewLayers.overlay(self)
+
+
 func _process(_delta: float) -> void:
 	var slots := _rings()
 	if slots != _slots:
@@ -81,15 +86,12 @@ func _draw() -> void:
 ## Watch the human's stack (anything with `view()`).
 func watch(stack: Node) -> void:
 	_stack = stack
-	# Over the floor and the standing world, so a character on a slot never hides its ring.
-	z_index = DrawLayers.ABOVE
 
 
 ## Watch the stacks of the human's side through its squad's view (`view`, returning
 ## `{ stacks: [...] }`).
 func watch_squad(view: Callable) -> void:
 	_squad = view
-	z_index = DrawLayers.ABOVE
 
 
 ## The rings drawn right now, as `{ n, point, mine, held, there, side, row, opening }`, empty with

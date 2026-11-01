@@ -15,6 +15,15 @@ const MOVING := 2
 const OVERLAY := 4
 
 
+## Make `item` an overlay: drawn at `DrawLayers.OVERLAY` whatever its parent's z (absolute, so over
+## the player's view at `DrawLayers.VISION`) and on `OVERLAY`, which the view's capture leaves out,
+## so it is never remembered.
+static func overlay(item: CanvasItem) -> void:
+	item.z_index = DrawLayers.OVERLAY
+	item.z_as_relative = false
+	item.visibility_layer = OVERLAY
+
+
 ## Put `item` on `MOVING` (it moves: drawn only inside the cone) or back on `WORLD` (it is at rest:
 ## the view remembers it). The layer is written only when it changes, so a caller may ask every
 ## frame.
