@@ -23,6 +23,11 @@ var toggles: Node = null
 ## The spectator inspector (spectator mode only), told of live toggles so the selected NPC follows
 ## them.
 var inspector: Node = null
+## The mode the current match is in, as `Settings.overlay_scopes` keys it: `play` or `watch`.
+var mode := OVERLAY_REGISTRY.MODE_PLAY
+## Which NPCs the per-NPC overlays show on, one of `OverlayRegistry.SCOPES` (the saved scope of
+## `mode`, once a match has begun).
+var scope := OVERLAY_REGISTRY.SCOPE_ALL
 
 
 func _init(owner: Node) -> void:
@@ -41,6 +46,38 @@ func initial(debug: bool) -> void:
 			flags[flag] = false
 
 
+## A match is built (`handle`), in `spectator` mode or not: take the mode's saved scope (the default
+## `all` for a played match, `selected` for a watched one, when none is saved or the saved one is
+## not offered there) and, for a played match, show the overlays on it.
+func begin(spectator: bool, handle: Dictionary) -> void:
+	mode = OVERLAY_REGISTRY.MODE_WATCH if spectator else OVERLAY_REGISTRY.MODE_PLAY
+	scope = OVERLAY_REGISTRY.default_scope(mode)
+	var saved: String = Settings.overlay_scopes.get(mode, scope)
+	if OVERLAY_REGISTRY.scopes_of(mode).has(saved):
+		scope = saved
+	if not spectator:
+		MatchBuilder.set_overlay_scope(handle, npc_flags(), scope)
+
+
+## The scope `chosen` on the bar: keep it for the mode, save it and apply it live (a played match
+## by the match builder's one rule; a watched one is the inspector's).
+func change_scope(chosen: String, handle: Dictionary) -> void:
+	scope = chosen
+	Settings.set_overlay_scope(mode, chosen)
+	if inspector != null and is_instance_valid(inspector):
+		inspector.set_scope(chosen)
+	else:
+		MatchBuilder.set_overlay_scope(handle, npc_flags(), chosen)
+
+
+## The overlay flags of the NPCs' own overlays, the global ones left out.
+func npc_flags() -> Dictionary:
+	var out := flags.duplicate()
+	for flag in OVERLAY_REGISTRY.GLOBAL:
+		out.erase(flag)
+	return out
+
+
 ## The performance overlay and the toggle bar, built under Main the first time a match starts with
 ## Debug on (`debug`) and kept for the rest of an endless run.
 func build(debug: bool) -> void:
@@ -53,8 +90,9 @@ func build(debug: bool) -> void:
 	var bar := OVERLAY_TOGGLES.new()
 	bar.name = "OverlayToggles"
 	main.add_child(bar)
-	bar.setup(flags)
+	bar.setup(flags, scope, OVERLAY_REGISTRY.scopes_of(mode))
 	bar.overlay_toggled.connect(main.set_overlay)
+	bar.scope_changed.connect(main.set_overlay_scope)
 	toggles = bar
 
 

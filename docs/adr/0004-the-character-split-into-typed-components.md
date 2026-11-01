@@ -29,7 +29,7 @@ with `set_indexed`, the wardrobe's through `set_props(id, "Wardrobe", …)`. A d
 component, never the body. Components are built once and never per frame, and a hot loop takes its component into a
 local once. Each character allocates more Objects at spawn, so a plain perf A/B between the two versions plays a
 different fight (the sight cadence is keyed on instance ids) and is compared on the same fight. The architecture skill
-names the component in every interface signature; `domain-character` and `domain-character-body` say what each
+names the component in every interface signature; `domain-character` (`body.md`) says what each
 component holds.
 
 ## Considered options

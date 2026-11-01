@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Pick the tool test modules a set of changed paths can break (tools/tool_tests.sh --staged runs it on the index).
+"""Pick the tool test modules a set of changed paths can break (tools/tool_tests.sh --staged runs it on the index,
+--changed on a branch's diff), explain a pick, or sweep the tree.
 
   python3 tools/tool_tests_pick.py PATH...
+  python3 tools/tool_tests_pick.py --why PATH...
+  python3 tools/tool_tests_pick.py --sweep [--json] [PATH_PREFIX...]
 
 Prints one test module a line (dotted, as `python3 -m unittest` takes it), nothing when no tool test can break, or the
 single line `all` followed by `# <why>` lines when the whole discovery must run. A path is one of the changed files,
@@ -12,7 +15,19 @@ The test modules are what `python3 -m unittest discover -s tools -t .` loads: ev
 with an __init__.py) under the folders tools/__init__.py's `load_tests` keeps the discovery to (its TEST_PACKAGES), or
 from tools/ down when it keeps none. The other test*.py files under tools/ are test scripts, run on their own
 (`python3 tools/test_log_gate.py`): the discovery never loads them, so nothing here picks them, and no tool is named
-through them. Fixtures and caches are no code. The rules:
+through them. Fixtures and caches are no code.
+
+--why prints, for each picked module, the shortest chain that reached it, `<module> <- <link> <- ... <- <verb>
+<path>`: each link is a tool file or a helper's symbol (`<helper>::<name>`), the verb is `names` for a changed tool file,
+`reads` for a changed file outside the tools and `is` for a changed test module itself. When the whole discovery must
+run it prints `all` and its `# <why>` lines, and `none <- <path>` for each path that reaches no module.
+
+--sweep picks every tracked file (or those at or under the PATH_PREFIXes) on its own from one graph, the sources read
+once, each file's picks as `pick([path])` gives them. It prints `swept <N> files`, a line `<count> <module>` for each
+module picked (most first, the count being the files that pick it), then `all <- <path> (<why>)` for each file that
+picks the whole discovery (these count towards no module). --json prints
+`{"files": N, "modules": {module: count}, "all": {path: [why, ...]}}` instead. --why without a path, or --sweep with
+an unknown -- option (any but --json), exits 2 with a usage line on stderr and prints nothing. The rules:
   - a changed test module runs itself;
   - a changed tool file (under tools/ or .githooks/) runs every test module whose code names it. Code names a file by
     its repo-relative path (`tools/lint.sh`), by its file name as a word of a path or a string of its own (`ROOT /
@@ -44,10 +59,12 @@ through them. Fixtures and caches are no code. The rules:
 """
 import ast
 import functools
+import json
 import posixpath
 import re
+import subprocess
 import sys
-from collections import Counter
+from collections import Counter, deque
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -363,52 +380,135 @@ def helper_symbols(path: str) -> dict[str, Code]:
     return symbols
 
 
-def pick(changed: list[str]) -> tuple[list[str], list[str]]:
-    """(the test modules to run, why the whole discovery must run instead): the modules are [] when `why` is not, and
-    both are [] when no tool test can break."""
-    tests = test_modules()
+class Graph:
+    """What names what, read once: each tool, test and test script's code, and each helper's symbols as
+    `<helper>::<name>`. `walk` follows one changed path through it."""
+
+    def __init__(self):
+        self.tests = test_modules()
+        self.helper_set = set(helpers())
+        self.scripts = set(test_scripts())
+        # The nodes the naming runs through: each tool and test file, and each helper's symbols as `<helper>::<name>`.
+        self.files = set(self.tests) | set(tool_sources())
+        self.code = {p: Code.of(p) for p in (self.files | self.scripts) - self.helper_set}
+        self.counts = Counter(f.rpartition("/")[2] for f in self.files)
+        for h in self.helper_set:
+            self.code.update({f"{h}::{name}": c for name, c in helper_symbols(h).items()})
+        self.order = sorted(self.code)
+
+    def depends(self, source: str, target: str, counts: Counter) -> bool:
+        if "::" in target:
+            helper, symbol = target.split("::")
+            return self.code[source].uses(dotted(helper), symbol)
+        if not target.startswith(TOOL_TREES):
+            return self.code[source].reads(target)
+        return self.code[source].names(target, counts[target.rpartition("/")[2]] > 1)
+
+    def walk(self, path: str, changed: list[str]) -> tuple[dict[str, list[str]], bool]:
+        """(the test modules `path` can break, each with the shortest chain of nodes from `path` to it; whether `path`
+        is a tool file no test or test script names). `changed` is the whole change: a file name `path` shares with a
+        changed file that is no tool or test file counts as shared."""
+        counts = self.counts.copy()
+        counts.update(f.rpartition("/")[2] for f in set(changed) - self.files)
+        tool = path.startswith(TOOL_TREES)
+        # Every tool or helper symbol whose code names `path`, and every one naming one of those, to a fixpoint (the
+        # shortest way to each kept in `via`); for a file outside the tools, only the helper symbols naming it.
+        via: dict[str, str | None] = {path: None}
+        frontier = deque([path])
+        while frontier:
+            current = frontier.popleft()
+            for source in self.order:
+                if (source in via or source in self.tests or source in self.scripts
+                        or not (tool or "::" in source)):
+                    continue
+                if self.depends(source, current, counts):
+                    via[source] = current
+                    if tool:
+                        frontier.append(source)
+        hits = {}
+        for t in self.tests:
+            if t in via:
+                hits[t] = [t]
+                continue
+            for r in via:  # in the order they were reached: the nearest first
+                if self.depends(t, r, counts):
+                    chain = [t, r]
+                    while via[chain[-1]] is not None:
+                        chain.append(via[chain[-1]])
+                    hits[t] = chain[::-1]
+                    break
+        unnamed = (not hits and tool and path not in self.scripts
+                   and not any(self.depends(s, r, counts) for s in self.scripts for r in via))
+        return hits, unnamed
+
+
+def trace(changed: list[str]) -> tuple[dict[str, list[str]], list[str], list[str]]:
+    """(each test module to run with the chain that reached it, why the whole discovery must run instead, the changed
+    paths that reach no module): the modules are {} when `why` is not."""
     helper_set = set(helpers())
     why = [f"{p} is a shared test helper" for p in changed if p in helper_set]
     if why:
-        return [], why
-    scripts = set(test_scripts())
-    # The nodes the naming runs through: each tool and test file, and each helper's symbols as `<helper>::<name>`.
-    files = set(tests) | set(tool_sources())
-    code = {p: Code.of(p) for p in (files | scripts) - helper_set}
-    counts = Counter(f.rpartition("/")[2] for f in files | set(changed))
-    for h in helper_set:
-        code.update({f"{h}::{name}": c for name, c in helper_symbols(h).items()})
-
-    def depends(source: str, target: str) -> bool:
-        if "::" in target:
-            helper, symbol = target.split("::")
-            return code[source].uses(dotted(helper), symbol)
-        if not target.startswith(TOOL_TREES):
-            return code[source].reads(target)
-        return code[source].names(target, counts[target.rpartition("/")[2]] > 1)
-
-    picked = set()
+        return {}, why, []
+    graph = Graph()
+    chains: dict[str, list[str]] = {}
+    nothing = []
     for path in changed:
-        tool = path.startswith(TOOL_TREES)
-        # Every tool or helper symbol whose code names `path`, and every one naming one of those, to a fixpoint; for
-        # a file outside the tools, only the helper symbols naming it.
-        reached, frontier = {path}, [path]
-        while frontier:
-            current = frontier.pop()
-            for source in code:
-                if source in reached or source in tests or source in scripts or not (tool or "::" in source):
-                    continue
-                if depends(source, current):
-                    reached.add(source)
-                    if tool:
-                        frontier.append(source)
-        hits = {t for t in tests if t in reached or any(depends(t, r) for r in reached)}
-        if not hits and tool and path not in scripts and not any(depends(s, r) for s in scripts for r in reached):
+        hits, unnamed = graph.walk(path, changed)
+        if unnamed:
             why.append(f"no tool test names {path}")
-        picked |= hits
+        if not hits:
+            nothing.append(path)
+        for t, chain in hits.items():
+            if t not in chains or len(chain) < len(chains[t]):
+                chains[t] = chain
+    return ({}, why, []) if why else (chains, [], nothing)
+
+
+def pick(changed: list[str]) -> tuple[list[str], list[str]]:
+    """(the test modules to run, why the whole discovery must run instead): the modules are [] when `why` is not, and
+    both are [] when no tool test can break."""
+    chains, why, _ = trace(changed)
+    return sorted(dotted(t) for t in chains), why
+
+
+def explain(changed: list[str]) -> list[str]:
+    """The lines of `--why`: `all` and its reasons, or one line a picked module (`<module> <- <link> <- ... <- <verb>
+    <path>`, the verb `names` for a tool file, `reads` for a file outside the tools, `is` for a test module changed
+    itself), then `none <- <path>` for each path that reaches no module."""
+    chains, why, nothing = trace(changed)
     if why:
-        return [], why
-    return sorted(dotted(t) for t in picked), []
+        return ["all", *(f"# {reason}" for reason in why)]
+    lines = []
+    for t in sorted(chains, key=dotted):
+        chain = chains[t]
+        path = chain[0]
+        verb = "is" if len(chain) == 1 else "names" if path.startswith(TOOL_TREES) else "reads"
+        lines.append(" <- ".join([dotted(t), *reversed(chain[1:-1]), f"{verb} {path}"]))
+    return lines + [f"none <- {p}" for p in nothing]
+
+
+def sweep(prefixes: list[str]) -> dict:
+    """Each tracked file under `prefixes` (all of them when none), picked on its own from one graph read once:
+    {"files": how many, "modules": {module: how many files pick it}, "all": {path: why the whole discovery must run}}.
+    A file's picks are what `pick([path])` gives."""
+    listed = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    under = [p.rstrip("/") + "/" for p in prefixes]
+    paths = [p for p in listed.split("\0") if p and (not prefixes or p in prefixes or p.startswith(tuple(under)))]
+    helper_set = set(helpers())
+    graph = Graph()
+    counts: Counter = Counter()
+    everything: dict[str, list[str]] = {}
+    for path in paths:
+        if path in helper_set:
+            everything[path] = [f"{path} is a shared test helper"]
+            continue
+        hits, unnamed = graph.walk(path, [path])
+        if unnamed:
+            everything[path] = [f"no tool test names {path}"]
+        else:
+            counts.update(dotted(t) for t in hits)
+    modules = dict(sorted(counts.items(), key=lambda item: (-item[1], item[0])))
+    return {"files": len(paths), "modules": modules, "all": everything}
 
 
 def main(argv: list[str]) -> int:
@@ -417,6 +517,29 @@ def main(argv: list[str]) -> int:
             print(f"one path per argument: {arg[:60]}\n  (several paths in one argument: split them, with xargs, or "
                   "${=var} in zsh; a path with whitespace is not supported)", file=sys.stderr)
             return 2
+    if argv and argv[0] == "--why":
+        paths = [p for p in argv[1:] if p]
+        if not paths:
+            print("usage: tool_tests_pick.py --why PATH...", file=sys.stderr)
+            return 2
+        print("\n".join(explain(paths)))
+        return 0
+    if argv and argv[0] == "--sweep":
+        rest = argv[1:]
+        unknown = [a for a in rest if a.startswith("--") and a != "--json"]
+        if unknown:
+            print(f"unknown option: {unknown[0]} (tool_tests_pick.py --sweep [--json] [PATH_PREFIX...])", file=sys.stderr)
+            return 2
+        swept = sweep([p for p in rest if p != "--json" and p])
+        if "--json" in rest:
+            print(json.dumps(swept))
+            return 0
+        print(f"swept {swept['files']} files")
+        for module, count in swept["modules"].items():
+            print(f"{count} {module}")
+        for path, why in swept["all"].items():
+            print(f"all <- {path} ({'; '.join(why)})")
+        return 0
     modules, why = pick([p for p in argv if p])
     if why:
         print("all")

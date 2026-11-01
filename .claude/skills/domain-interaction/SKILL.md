@@ -1,34 +1,17 @@
 ---
 name: domain-interaction
-description: Deep implementation detail for the Interaction domain (scenes/interaction/) — finding a reachable object and running one of its actions (sit, lie, …). Use when editing scenes/interaction/ or working on object interactions, the Space toggle, move_to snapping, or the interactable contract. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Use when editing scenes/interaction/ or working on object interactions: the Space toggle, sit/lie actions, `move_to` snapping, the interactable contract.
 ---
 
 # Interaction domain
 
-Kept deliberately isolated so it iterates alone. The character composes a `CharacterInteraction`
-component (`interaction/`, built in `_ready()` like the physics components). The character never
-learns what an interaction *means* — add/retune actions in the catalogue data alone.
+`scenes/interaction/character_interaction.gd` (`CharacterInteraction`) is the whole domain, a component the character builds in `_ready()`. The character never learns what an interaction *means*: add or retune an action in the catalogue data of the object (`get_interactions()`, interface 8) and touch nothing here. Tests: `tests/interaction/`.
 
-## Behaviour (Space toggle)
+## Gotchas
 
-`CharacterInteraction` shape-queries for reachable objects, keeps the actions whose
-`requires_item` gate passes (`character.inventory.has_item`), targets the object nearest the mouse
-(`movement.aim_point`), and runs a random one of its valid actions — freezing the character (`use.is_busy()`).
-For a `move_to` action it snaps the character onto the object and lets the two bodies overlap (a
-temporary `add_collision_exception_with`, so a seat/bed isn't shoved and the character isn't
-ejected), moving it back on exit. **Space** again stops and steps back. On exit (deferred out of the physics step) it hands the
-object to the character's `use.keep_clear_of(body)`, which lifts the exception only once the body has cleared the object by the
-character's `CharacterUse.CLEAR_MARGIN`, so restoring the collision never finds an overlap to eject from; re-entering the object just left calls
-`use.stop_clearing(body)` first and keeps the exception it still has.
+- **Discovery is by contract.** The reach query (a circle of `reach` px, `front_offset` ahead of `facing`, on `PhysicsLayers.SOLID`) keeps every collider with `get_interactions()` and at least one action whose `requires_item` gate passes. `try_interact()` targets the object nearest `movement.aim_point` and runs a random valid action. A controller (the AI) picks object and action with `interactions_in_reach()` + `interact_with(object, id)`.
+- **A `move_to` action overlaps the object on purpose.** The character is snapped onto the object under a temporary `add_collision_exception_with`, so a seat or bed is not shoved and the character is not ejected. Re-entering the object just left calls `use.stop_clearing(body)` first and keeps the exception it still has.
+- **Exit is deferred out of the physics step** (`_end` → `_teardown`): moving the body and restoring its collision mid-solve made the physics lurch. The character stays busy (`use.is_busy()`) for the frame in between.
+- **Collision comes back only once clear.** `_teardown` hands the object to `use.keep_clear_of(body)` (`CharacterUse`, `CLEAR_MARGIN`), which lifts the exception when the body has left the object, so restoring collision never finds an overlap to eject from.
 
-The component reads the character's existing `facing`, `global_position`, `movement.aim_point`, `inventory.has_item(id)` and `get_rid()` (left out of
-its reach query), moves it, and takes and gives back the collision exception with Godot's own `add_collision_exception_with` and the
-character's `use.keep_clear_of` / `use.stop_clearing`. The reach query is a circle of `reach` px `front_offset` ahead along `facing`, on
-`PhysicsLayers.SOLID` (`QUERY_MASK`). It discovers objects through the **interactable contract** — every
-world object implements `get_interactions() -> Array` (plain data dicts: `id`, `label`, optional
-`move_to` / `requires_item`), advertised via the optional `interactions` object field.
-
-A non-player controller uses `use.interactions_in_reach()` + `use.interact_with(object, id)` to pick a
-specific object and action instead of the random toggle.
-
-**Interfaces:** 8 (Interaction ↔ Character & Objects), 11 (`PhysicsLayers.SOLID` for the reach query) — signatures in `architecture`.
+**Interfaces:** 8 (Interaction ↔ Character & Objects), 11 (`PhysicsLayers.SOLID`).

@@ -14,8 +14,7 @@ const STACK_MARKERS := preload("res://scenes/ui/hud/stack_markers.gd")
 const COMMAND_MENU := preload("res://scenes/ui/command/command_menu.gd")
 const ORDER_MARKERS := preload("res://scenes/ui/command/order_markers.gd")
 const STUN_SCREEN := preload("res://scenes/ui/hud/stun_screen.gd")
-## The overlay table (UI) and the in-game bar of toggle buttons built from it.
-const OVERLAY_REGISTRY := preload("res://scenes/ui/overlays/overlay_registry.gd")
+## The in-game bar of toggle buttons (UI); its column is kept clear by the other HUDs.
 const OVERLAY_TOGGLES := preload("res://scenes/ui/overlays/overlay_toggles.gd")
 ## The test browser scene (Testing domain), opened from the setup window's Tests button.
 const TEST_BROWSER := "res://scenes/testing/test_browser.tscn"
@@ -84,10 +83,6 @@ func _ready() -> void:
 	if Engine.has_meta("skip_setup") or _setup_menu == null:
 		_play(_base_spec())
 	else:
-		# Hide the debug overlay while the setup menu is shown so it doesn't bleed through.
-		var _debug_ui := get_node_or_null("DebugUI")
-		if _debug_ui:
-			_debug_ui.visible = false
 		_setup_menu.start_requested.connect(_on_setup_chosen)
 		_setup_menu.tests_requested.connect(_open_tests)
 		_setup_menu.settings_requested.connect(_open_settings)
@@ -190,9 +185,6 @@ func _on_setup_chosen(config: Dictionary) -> void:
 	if not is_inside_tree():
 		return  # Escape returned us to setup (reloading the scene) while we were waiting.
 	_setup_menu.queue_free()
-	var _debug_ui := get_node_or_null("DebugUI")
-	if _debug_ui:
-		_debug_ui.visible = true  # restored here; _setup_spectator frees it in spectator mode
 	_play(spec)
 
 
@@ -316,6 +308,7 @@ func start_match(spec: Dictionary) -> Dictionary:
 	if _human != null and bool(spec["human"].get("lead", false)):
 		_build_command_menu(built["rooms"])
 	_begin_match_hud(combatants)
+	_overlays.begin(_human == null, built)
 	if _human == null:
 		_setup_spectator(combatants)
 	_overlays.build(run.debug_overlays)
@@ -421,29 +414,25 @@ func _begin_match_hud(combatants: Array) -> void:
 		_match_hud.begin(combatants, endless_time_limit if _endless.on else 0.0)
 
 
-## Turn the scene into a pure AI spectator match: drop the human player and its player-HUD, point
-## the camera at the NPCs, and add the Space-pause / click-to-inspect inspector. Composition-root
+## Turn the scene into a pure AI spectator match: drop the human player, point the camera at the
+## NPCs, and add the Space-pause / right-click-to-inspect inspector. Composition-root
 ## wiring only — each observer reads the characters' public API/signals, never their internals.
 func _setup_spectator(combatants: Array) -> void:
 	var cam := get_node_or_null("MainCamera")
 	if cam and cam.has_method("frame"):
 		cam.frame(combatants)
-	# Space pauses the match; a click selects one NPC (showing only its enabled overlays) and a
-	# click on one of its tactical points shows that point's details. Spectator-only (in player mode
-	# Space is the player's INTERACT), so it is wired here, not on a gameplay node. It is handed the
-	# same overlay toggles the setup menu chose, and reveals exactly those on the clicked NPC.
+	# Space pauses the match; a right-click selects one NPC and opens its detail card, and a left
+	# click on one of its tactical points shows that point in the card's Point section.
+	# Spectator-only (in player mode Space is the player's INTERACT), so it is wired here, not on a
+	# gameplay node. It is handed the same overlay toggles the setup menu chose, and shows exactly
+	# those on the selected NPC (and on the bar's scope).
 	var inspector := SPECTATOR_INSPECTOR.new()
 	inspector.name = "SpectatorInspector"
 	_world.add_child(inspector)
 	_overlays.inspector = inspector
-	var npc_flags := _overlays.flags.duplicate()
-	for flag in OVERLAY_REGISTRY.GLOBAL:  # global overlays, not per NPC
-		npc_flags.erase(flag)
-	# its outfit panel keeps clear of the bar's column
-	inspector.setup(combatants, npc_flags, OVERLAY_TOGGLES.RESERVED_WIDTH)
-	var debug := get_node_or_null("DebugUI")
-	if debug:
-		debug.queue_free()
+	# its detail card keeps clear of the bar's column, and shows on the bar's scope
+	inspector.setup(combatants, _overlays.npc_flags(), OVERLAY_TOGGLES.RESERVED_WIDTH)
+	inspector.set_scope(_overlays.scope)
 	if is_instance_valid(_player):
 		_player.queue_free()
 
@@ -480,3 +469,9 @@ func set_overlay(flag: String, on: bool) -> void:
 	_overlays.flags[flag] = on
 	Settings.set_overlay(flag, on)
 	_overlays.route(flag, on, _match)
+
+
+## Show the per-NPC overlays on the NPCs of `scope` (the bar's "Show on" row): kept per mode in the
+## settings file and applied live (`_overlays.change_scope`).
+func set_overlay_scope(scope: String) -> void:
+	_overlays.change_scope(scope, _match)

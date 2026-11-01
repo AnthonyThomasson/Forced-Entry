@@ -19,7 +19,7 @@ extends GameTest
 ## turned side on. Stand on a lane's mark and shoot its dummy to see what each outfit stops and lets
 ## through, watch a plate wear down, and compare a plate's front with its back (lane 8) and with a
 ## shot that takes it in the flank (lane 9). The label on the floor under each dummy keeps its
-## outfit (the debug panel's wording), plate condition and health current. A shoved dummy walks back
+## outfit (the detail card's wording), plate condition and health current. A shoved dummy walks back
 ## to its spot.
 
 const OutfitLines := preload("res://scenes/ui/hud/outfit_lines.gd")
@@ -303,7 +303,7 @@ class CoverSpot extends Node2D:
 
 
 ## One lane's floor markings, drawn at its dummy's spot: the lane's mark on the firing line, and
-## under the dummy its number and title, its outfit (`OutfitLines`, the debug panel's wording, the
+## under the dummy its number and title, its outfit (`OutfitLines`, the detail card's wording, the
 ## slots worn), its plate condition and its health, kept current. It also walks the dummy back to
 ## its spot once a hit has shoved it off.
 class Station extends Node2D:

@@ -65,6 +65,10 @@ const ARRIVAL_SLACK := 6.0
 ## drifted a step past it closes in on its spot before it throws, and a throw spot is chosen within
 ## it.
 const REACH_SLACK := 15.0
+## How far (px) short of an escape spot its route may end and still reach it (`_nearest_in_time`):
+## the spots are snapped onto the navmesh, so a route that reaches one ends on it, while one to a
+## region the NPC cannot walk to (past a wall with no door) ends at the nearest point it can reach.
+const ROUTE_REACH := 2.0
 ## The inventory slot of each kind of grenade (Items: `ItemRegistry`).
 const SLOTS := { &"frag": ItemRegistry.FRAG_SLOT, &"stun": ItemRegistry.STUN_SLOT }
 ## A spot's verdict in `escape`: not judged yet, out of the zone or shielded standing, shielded only
@@ -289,14 +293,17 @@ func _judge(
 
 ## Of `spots` (`{ spot, crouch }`, safe ones), the one with the shortest route from `from` on
 ## navigation `map` that is at most `allowed` px long: `{ spot, crouch, route }`, or
-## `{ spot: Vector2.INF }` when none is. Each spot's route is measured once.
+## `{ spot: Vector2.INF }` when none is. A spot the route ends short of (`ROUTE_REACH`) cannot be
+## reached at all. Each spot's route is measured once.
 static func _nearest_in_time(map: RID, from: Vector2, spots: Array, allowed: float) -> Dictionary:
 	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
-	var routes := {}  # spot -> its route's length
+	var routes := {}  # spot -> its route's length (INF: it does not get there)
 	for s: Dictionary in spots:
 		var length: float = routes.get(s["spot"], -1.0)
 		if length < 0.0:
-			length = NavBuilder.path_length(NavBuilder.route(map, from, s["spot"]))
+			var path := NavBuilder.route(map, from, s["spot"])
+			var ends: bool = path[path.size() - 1].distance_to(s["spot"]) <= ROUTE_REACH
+			length = NavBuilder.path_length(path) if ends else INF
 			routes[s["spot"]] = length
 		if length <= allowed and length < best["route"]:
 			best = { "spot": s["spot"], "crouch": s["crouch"], "route": length }

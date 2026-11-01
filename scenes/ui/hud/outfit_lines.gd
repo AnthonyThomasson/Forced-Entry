@@ -1,6 +1,6 @@
 extends RefCounted
-## UI hud: the lines that list what a character wears, shared by the player debug panel and the
-## spectator inspector. Built from the character's `outfit_view()` alone (each garment slot -> its
+## UI hud: the lines that list what a character wears, shown on the spectator inspector's detail
+## card. Built from the character's `outfit_view()` alone (each garment slot -> its
 ## name, each plate slot -> `{ type, name, condition }`), one line per slot in the view's order:
 ## `Head: Helmet`, `Front plate: Ceramic IV plate 68%`, "—" for nothing worn.
 

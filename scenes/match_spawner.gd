@@ -17,9 +17,12 @@ const SPAWN_TRIES := 32
 ## hold 130 spots.
 const GROUP_RINGS := 6
 ## How far (px) along the house's outside wall from the front entrance's centre the invader
-## team's group point stands (`_beside_front_door`): past the jamb, out of the doorway's straight
-## line, where the wall hides the team from inside.
-const DOOR_SIDE_OFFSET := 120.0
+## team's group point stands (`_beside_front_door`): well past the jamb, out of the doorway's
+## straight line.
+const DOOR_SIDE_OFFSET := 220.0
+## How far (px) out from the house's outside wall the invader team's group point stands
+## (`_beside_front_door`): across the street from the front wall, which stays in view.
+const DOOR_OUT_OFFSET := 120.0
 
 ## The match's `World` node the NPCs are added under.
 var world: Node2D = null
@@ -87,9 +90,9 @@ func is_clear(p: Vector2, holes: Array, taken: Array) -> bool:
 
 
 ## Drop an invader team of `count` in one group outside the house, so the squad starts together:
-## packed round one point beside the front entrance `front` (its opening, `{}` when the house has
-## none; `_beside_front_door`: against the outside wall on one side of the doorway, the side drawn
-## from `rng`, so a pinned house seed pins it; the wall hides the team from inside), or, in a house
+## packed round one point away from and to the side of the front entrance `front` (its opening,
+## `{}` when the house has none; `_beside_front_door`: out across the street on one side of the
+## doorway, the side drawn from `rng`, so a pinned house seed pins it), or, in a house
 ## with no front entrance, round one point of the perimeter `invader_margin` px out of the rooms'
 ## bounding box, drawn from `rng`; or round `around` when given (the human invader's spot, which a
 ## member then keeps clear of as of any combatant). Each member takes the spot `_group_spot` gives
@@ -109,7 +112,7 @@ func spawn_invader_team(
 	if centre == Vector2.INF:
 		door = _front_door(front, rooms)
 		if not door.is_empty():
-			centre = _beside_front_door(door, rng)
+			centre = _beside_front_door(door, rng, bounds)
 	if centre == Vector2.INF:
 		centre = perimeter_point(bounds.grow(invader_margin), rng.randf())
 	var holes := NavBuilder.furniture_holes(world)
@@ -144,14 +147,20 @@ func _front_door(front: Dictionary, rooms: Array) -> Dictionary:
 	return {}
 
 
-## The invader team's group point beside the front entrance `door` (`_front_door`): against the
-## house's outside wall, `DOOR_SIDE_OFFSET` px along it from the doorway's centre (past the jamb,
-## out of the doorway's straight line) on the side drawn from `rng`, and `spawn_clearance` px out
-## from the wall.
-func _beside_front_door(door: Dictionary, rng: RandomNumberGenerator) -> Vector2:
+## The invader team's group point away from and to the side of the front entrance `door`
+## (`_front_door`): `DOOR_SIDE_OFFSET` px along the house's outside wall from the doorway's centre
+## (out of the doorway's straight line) on the side drawn from `rng`, and `DOOR_OUT_OFFSET` px out
+## from the wall, facing the house's front; kept within `bounds` (the rooms' bounding box) grown by
+## twice `invader_margin` less two `spawn_clearance`, so the first ring stays on the walkable ring
+## round the house (`_outdoors`).
+func _beside_front_door(door: Dictionary, rng: RandomNumberGenerator, bounds: Rect2) -> Vector2:
 	var out: Vector2 = door["out"]
 	var side := 1.0 if rng.randf() < 0.5 else -1.0
-	return door["pos"] + out.orthogonal() * side * DOOR_SIDE_OFFSET + out * spawn_clearance
+	var point: Vector2 = (
+		door["pos"] + out.orthogonal() * side * DOOR_SIDE_OFFSET + out * DOOR_OUT_OFFSET
+	)
+	var reach := bounds.grow(invader_margin * 2.0 - spawn_clearance * 2.0)
+	return point.clamp(reach.position, reach.end)
 
 
 ## The spot nearest `centre` for one more member of a group: `centre` itself, then the points of

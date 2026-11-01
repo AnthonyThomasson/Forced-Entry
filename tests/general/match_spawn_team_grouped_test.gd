@@ -26,8 +26,8 @@ const DEFENDERS := 2
 const HUMAN_AT := Vector2(0, 0)
 ## The most (px) a member may stand from the group's centre: four bodies packed at the clearance.
 const GROUP_RADIUS := 110.0
-## The point stands outside the house, against its outside wall beside the front door; the group's
-## centre stands outside the house within this band of the rooms' bounds (px).
+## The point stands outside the house, out across the street to the side of the front door; the
+## group's centre stands outside the house within this band of the rooms' bounds (px).
 const OUT_MIN := 20.0
 const OUT_MAX := 220.0
 

@@ -1,15 +1,15 @@
 ---
 name: audit
-description: Audit the branch's change against main (commits + staged): isolation, skills true, current-state comments, load/lint/tests, as a file:line checklist. Use before a push or PR, when asked to review the branch, and as a ticket's audit phase.
+description: Use before a push or PR, when asked to review the branch, and as a ticket's audit phase.
 model: claude-sonnet-5-5
 ---
 
 # Audit
 
-Audits every commit since the branch left `main`, plus anything staged. Output: a checklist, each issue a `file:line`
-with a concrete fix. Report only: never commit, merge, push, edit or fix unless the user asks. One agent does every
-step and starts no workers. Priorities: domains **isolated**, skills **true**, comments **current**. Step 5 runs Godot,
-lint and tests (Bash sandbox disabled); nothing edits a tracked file. Two steps raising one line is one item.
+Audits every commit since the branch left `main`, plus anything staged. Output: a checklist, each issue a `file:line` with a
+concrete fix. Report only: never commit, merge, push, edit or fix unless the user asks. One agent does every step and starts
+no workers. Priorities: domains **isolated**, skills **true**, comments **current**. Step 5 runs Godot, lint and tests (Bash
+sandbox disabled). Two steps raising one line is one item.
 
 ## Step 0 — Scope
 
@@ -28,32 +28,12 @@ git diff --stat                            # unstaged edits (not in the diff)
 
 Empty diff: say so and stop. Never stage files. Unstaged edits are outside the diff but step 5 sees them: report them.
 
-Load `architecture` (the domain table and "The vital interfaces", the whole sanctioned cross-domain surface) and the
-skill of every domain the diff touches, once. `scenes/<folder>/` → `domain-<folder>`; sub-domains have their own:
-
-| Path | Skill |
-|---|---|
-| `ai/perception/` | `domain-ai-perception` |
-| `ai/perception/snapshot/`, `ai/perception/agent_snapshot.gd` | `domain-ai-snapshot` |
-| `ai/decision/` | `domain-ai-decision` |
-| `ai/behavior/` | `domain-ai-behavior` |
-| `ai/behavior/combat.gd`, `ai/behavior/combat_throw.gd` | `domain-ai-combat` |
-| `ai/behavior/search_coverage.gd` | `domain-ai-coverage` |
-| `ai/behavior/watch.gd` | `domain-ai-watch` |
-| `ai/behavior/entry.gd` | `domain-ai-entry` |
-| `ai/debug/` | `domain-ai-debug` |
-| `ai/team/` | `domain-ai-team` |
-| `ai/goal_controller.gd`, the set of AI sub-domains | `domain-ai` |
-| `physics/blood/` | `domain-physics-blood` |
-| `character/body/` | `domain-character-body` |
-| `ui/{menus,hud,overlays,testing}/` | `domain-ui-<folder>` |
-| `scenes/main.gd`, `scenes/match_builder.gd`, `scenes/match_spawner.gd` | `domain-main` |
-
-For each interface the diff crosses, read its file, `architecture/interfaces/NN-<slug>.md` (the index names it).
-
-A change to a parent (`goal_controller.gd`, `character.gd`, a sub-domain's role) goes to the parent skill; keep both the
-sub-skill and its parent true. A coupling between sub-domains that bypasses their published interfaces is an isolation
-finding, like a cross-domain one.
+Load `architecture` (the domain table and "The cross-domain interfaces") and, once, the skill of every domain the diff touches:
+`scenes/<folder>/` → `domain-<folder>`, `scenes/main.gd`, `match_builder.gd` and `match_spawner.gd` → `domain-main`. A
+sub-domain's detail is a side file of its parent skill (`domain-ai`, `domain-ui`, `domain-character`, `domain-physics`: the
+parent's map names it). For each interface the diff crosses, read its file, `architecture/interfaces/NN-<slug>.md` (the
+index names it). A change to a parent (`goal_controller.gd`, `character.gd`, a sub-domain's role) keeps both the side file
+and the parent skill true. A coupling between sub-domains that bypasses their published interfaces is an isolation finding.
 
 ## Step 1 — Domain isolation (highest priority)
 
@@ -61,62 +41,61 @@ For every cross-domain reference the diff adds or touches (a call into internals
 `preload`, a hard-coded child path, a signal wired straight to a foreign node):
 
 - **Published?** A call into another domain must be an `architecture` interface (a `class_name` façade like
-  `Physics.spawn_debris`, a contract method like `get_surface()` / `take_hit()`, a named signal). A private method,
-  member or child-node name is the smell. Fix: reroute through the interface, or promote a genuinely needed new one to
-  a small façade / contract method **and add it to `architecture`**.
+  `Physics.spawn_debris`, a contract method like `get_surface()` / `take_hit()`, a named signal). A private method, member
+  or child-node name is the smell. Fix: reroute through the interface, or promote a genuinely needed new one to a small
+  façade / contract method **and add it to `architecture`**.
 - **Leanest?** Reaching in by node name (`get_node("GoalController")`) couples to layout; a duck-typed lookup survives
   refactors. Prefer what knows least about the other side.
-- **Direction?** `architecture`'s dependency graph has no cycles and its leaves depend on nothing outward. An edge the
-  wrong way is a defect even if it works.
+- **Direction?** `architecture`'s dependency graph has no cycles and its leaves depend on nothing outward. An edge the wrong
+  way is a defect even if it works.
 
 Each violation: `file:line`, the two domains, the reroute. Clean: say so explicitly.
 
 ## Step 2 — Should a new domain be extracted?
 
-Signals: one feature adds coupling to three or more domains instead of living behind one new seam; a domain grows a
-second, unrelated responsibility (its header would need "and also …"); the same cross-domain glue repeats. Then
-recommend concretely, with reasoning: what `scenes/<name>/` owns, which logic moves, the one interface the rest talks
-to. Nothing warrants it: one line.
+Signals: one feature couples to three or more domains instead of living behind one new seam; a domain grows a second,
+unrelated responsibility (its header would need "and also …"); the same cross-domain glue repeats. Then recommend what
+`scenes/<name>/` owns, which logic moves and the one interface the rest talks to. Nothing warrants it: one line.
 
 ## Step 3 — Skills stay true
 
-Same current-state bar as step 4. `AGENTS.md` is a pointer stub.
+Same current-state bar as step 4. A skill, `AGENTS.md` or `docs/agents` file in the diff gets three checks:
 
-- **`architecture`** changes in the same change when: a domain is added or removed (the table with its skill column,
-  the domain count in the description and intro, and a new `domain-<folder>/SKILL.md`); a cross-domain interface
-  changes (new façade/contract/signal, a changed signature: the vital interfaces list and the dependency graph); a
-  cross-cutting convention changes (control/animate/draw layering, runtime shapes).
-- **`domain-<folder>`** changes when the domain's internals as the skill describes them change (a pipeline's shape,
-  resolution order, item slots, input flow …). Interface signatures live only in `architecture`; the domain skill
-  names them by number.
+1. **The skill tests:** `tools/tool_tests.sh --changed="$BASE"` (step 5) runs `tools/tests/test_skills.py` and
+   `tools/tests/test_skill_pointers.py` (size caps, frontmatter, references, routing, duplication). A red one is a finding.
+2. **The read-through:** read each changed skill against the code, which no test can: every file, class, method, signal,
+   tunable, flag and command it names exists as spelled, the text is true, and every line is needed (a line the code or a
+   `docs/` spec already says, history, filler and no-ops are findings; so is anything a future change needs that was cut).
+3. **Routing:** `architecture` changes in the same change when a domain is added or removed (its table, the domain count
+   wherever stated, the new `domain-<folder>/SKILL.md`), a cross-domain interface changes (the interface file, the
+   interface index, the dependency graph) or a cross-cutting convention changes. A `domain-<folder>` skill changes
+   when its internals as described change; it names interfaces by number and leaves signatures to `architecture`.
 
-- **A changed read of an entry claim** (a `ClaimLedger`'s, or a `DoorStack` built from one) holds to the **stale
-  claim** rule (`domain-ai-perception`, "The stack"): it names what makes a claim the current entry's, and its test
-  has a claim left from an earlier entry through the same doorway. Missing: `file:line` → the scope and that test.
+A changed read of an entry claim (a `ClaimLedger`'s, or a `DoorStack` built from one) holds to the stale-claim rule
+(`domain-ai` (`perception-stack.md`)): it names what makes a claim the current entry's, and its test has a claim left from an
+earlier entry through the same doorway. Missing: `file:line` → the scope and that test.
 
-Flag drift as `architecture/SKILL.md:line`, `architecture/interfaces/NN-<slug>.md:line` (or another file beside a
-`SKILL.md`) or `domain-<name>/SKILL.md:line` → what to change.
+Report drift as `<skill file>:line` → what to change.
 
 ## Step 4 — Comments (the comment rules)
 
 The rules every audit uses (`m-audit-everything` points here). Concise, present-tense, current state only:
 
-1. **No history or rationale-for-change.** Remove "was X", "renamed from", "moved to/from", "now emits", "no longer",
-   "used to", "formerly", "previously", "(was hardcoded …)", and speculative "today / tomorrow / later / in future".
-   Ordinary words describing current behaviour ("old hits", "keep the old collider") are fine.
+1. **No history or rationale-for-change.** Remove "was X", "renamed from", "moved to/from", "now emits", "no longer", "used
+   to", "formerly", "previously", "(was hardcoded …)", and speculative "today / tomorrow / later / in future". Ordinary
+   words describing current behaviour ("old hits", "keep the old collider") are fine.
 2. **Concise.** Cut comments that restate the code or over-explain.
-3. **Every method and property has a `##` doc comment** directly above, or a trailing `## …` on a one-line
-   var/signal. Lifecycle overrides (`_ready`, `_process`, `_physics_process`, `_draw`, `_init`, `_input`, `_unhandled_input`, `_enter_tree`, `_exit_tree`, `_notification`, `_integrate_forces`) are exempt;
-   a short inline `#` covers anything non-obvious in one.
+3. **Every method and property has a `##` doc comment** directly above, or a trailing `## …` on a one-line var/signal.
+   Lifecycle overrides (the `LIFECYCLE` set of `tools/lint_rules/rules/doc_comments.py`) are exempt; a short inline `#`
+   covers anything non-obvious in one.
 4. **Inline `#` only for a real gotcha**: a non-obvious algorithm step, an ordering dependency, a physics/geometry
    subtlety.
-5. **File header:** one `##` block at the top saying what the file is and its domain. A `class_name` holder or
-   component whose name carries its domain's stem (ADR 0003, and `architecture`'s holder list: `CharacterMovement`,
-   `BloodSprayConfig`, `NpcEntryTuning`) names its domain by that stem, so its header need not say it again.
+5. **File header:** one `##` block at the top saying what the file is and its domain. A `class_name` holder or component
+   whose name carries its domain's stem (ADR 0003, `architecture`'s holder list: `CharacterMovement`, `BloodSprayConfig`,
+   `NpcEntryTuning`) names its domain by that stem, so its header need not say it again.
 
-Rule 3, and no ticket number in a game comment (`ticket #N` / `issue #N` under `scenes/`), are lint rules
-(`doc_comments`, `comment_ticket_refs`): run them, then grep the changed `.gd` files for history (prefer these to
-eyeballing):
+Rule 3, and no ticket number in a game comment (`ticket #N` / `issue #N` under `scenes/`), are lint rules (`doc_comments`,
+`comment_ticket_refs`): run them, then grep the changed `.gd` files for history:
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -130,57 +109,45 @@ done
 
 ## Step 5 — Load, lint, tests, behaviour
 
-- **Load:** `tools/load_check.sh` (`godot-run`; `tools/load_check.sh --import` if the change added a `class_name` or
-  file). Report clean, or the exact `SCRIPT ERROR` / `Parse Error` lines.
+- **Load:** `tools/load_check.sh` (`godot-run`; `--import` if the change added a `class_name` or file). Report clean, or the
+  exact `SCRIPT ERROR` / `Parse Error` lines.
 - **Uids:** every committed script Godot imports has its `.uid` committed beside it; each path printed is a finding:
   ```bash
   git ls-files scenes tests addons sandboxes | grep '\.gd$' \
     | while IFS= read -r f; do git ls-files --error-unmatch "$f.uid" >/dev/null 2>&1 || echo "$f"; done
   ```
-- **Lint:** `tools/lint.sh`; each warning is a `file:line` finding. **Never silence a warning: fix the code.**
-  `@warning_ignore*`, an underscore prefix hiding a parameter that should go or be used, or a lowered level in
-  `project.godot` is accepted only when no code change can remove it, on that one statement, with a comment saying why.
-  Flag every one the diff adds (`git diff --staged "$BASE" | grep -n '^+.*warning_ignore'`) and every added `[debug]` /
-  `gdscript/warnings` line in `project.godot` unless it meets that bar. After a rename that clears a shadowing warning,
-  grep the function for the old name: a stale reference silently binds to the member (`name`, `visible`, `material`).
-  After the engine's section, lint prints one `== <rule>: <description> ==` section per project lint rule
-  (`tools/lint_rules/`; `--list-rules` names them, `--rule=a,b` / `--skip-rule=a,b` select): each finding under a
-  `FAIL` is a `file:line` finding, and a failing rule fails the lint. An `ALLOW` entry the diff adds needs a reason
-  that holds (`tools/lint_rules/README.md`, "Exceptions"). `tools/lint.sh --rule=coverage_isolation` passes: nothing
-  in the game names a dev tool (`docs/adr/0001-dev-tools-stay-outside-the-game.md`).
-  Last come gdstyle's two sections (`gdstyle fmt --check`, `gdstyle check`; config `gdstyle.toml`): each script the
-  formatter would change and each `path:line:col` finding (a line over 100 columns, member order, naming ...) is a
-  finding; the fix is `tools/gdstyle.sh fmt <path>` or the code, a long line split by hand, a comment re-wrapped. No
-  suppression here either: flag every `# gdstyle:ignore` / `# gdstyle:ignore-file` the diff adds, and every change to
-  `gdstyle.toml` that turns a rule off, lowers it or widens `exclude`/`max_line_length` (`git diff --staged "$BASE" --
-  gdstyle.toml`).
-- **Tool tests:** every new or changed `tools/` module, CLI flag, lint rule and hook block has its own test; one
-  without is a finding. Run all of them, `tools/tool_tests.sh` (Bash sandbox disabled: some start Godot), and each
-  changed `tools/test_*.py` script on its own (`python3 tools/test_log_gate.py`: the discovery leaves them out), and
-  report each `Ran N tests` line and every `FAIL:` / `ERROR:`.
-- **Tests:** `GAME_TEST_CHANGED_FILES="$(git diff --staged --name-only "$BASE")" tools/run_tests.sh --changed --summary`.
-  The variable hands `--changed` the branch's files (without it, committed work runs nothing), but not a changed doc
-  paragraph's tests: they do not run under it, so run the ones a changed `docs/*.md` paragraph names with `--id=<ids>`.
-  Add `--jobs=auto` when the change touches worldgen, art, general or `main.gd` (runs everything). Scripted-Von tests
-  cover AI without a server; `--include-von` adds live-server ones. Report the totals line and every FAIL / TIMEOUT with
-  its ✗ lines; exit 1 also covers an engine error/warning during a test. Changed behaviour with no test in
+- **Lint:** `tools/lint.sh` (the passes and rules: `godot-run`); each finding is a `file:line` finding. **Never silence a
+  warning: fix the code.** `@warning_ignore*`, an underscore prefix hiding a parameter that should go or be used, a lowered
+  level in `project.godot`, a `# gdstyle:ignore` / `# gdstyle:ignore-file`, or a `gdstyle.toml` change that turns a rule
+  off, lowers it or widens `exclude` / `max_line_length` is accepted only when no code change can remove it, on that one
+  statement, with a comment saying why. Flag every one the diff adds (`git diff --staged "$BASE" | grep -n
+  '^+.*\(warning_ignore\|gdstyle:ignore\)'`, the `gdstyle.toml` and `project.godot` hunks). After a rename that clears a
+  shadowing warning, grep the function for the old name: a stale reference silently binds to the member (`name`, `visible`,
+  `material`). An `ALLOW` entry the diff adds to a lint rule needs a reason that holds (`tools/lint_rules/README.md`,
+  "Exceptions"). `tools/lint.sh --rule=coverage_isolation` passes: nothing in the game names a dev tool
+  (`docs/adr/0001-dev-tools-stay-outside-the-game.md`).
+- **Tool tests:** every new or changed `tools/` module, CLI flag, lint rule and hook block has its own test; one without is
+  a finding. Run `tools/tool_tests.sh --changed="$BASE"` (sandbox disabled: some start Godot; it runs the whole discovery
+  itself when the picker says `all`, and its first line says which) and each changed `tools/test_*.py` script on its own
+  (`python3 tools/test_log_gate.py`: the discovery leaves them out). Report each `Ran N tests` line and every `FAIL:` /
+  `ERROR:`.
+- **Tests:** `tools/run_tests.sh --changed="$BASE" --summary`: the branch's commits, working tree and untracked files, and
+  the tests of a doc paragraph it changed (`domain-testing` (`runner-flags-changed.md`)); a change that runs everything shards over the free Godot slots by
+  itself. Scripted-Von tests cover AI without a server; `--include-von` adds live-server
+  ones. Report the totals line and every FAIL / TIMEOUT with its ✗ lines. Changed behaviour with no test in
   `tests/<domain>/` covering it is a finding (`domain-testing`). Each test whose checks (what it measures, a band, a
   threshold) the diff changes is compared against the ticket brief's acceptance criteria; one that checks something other
-  than what its criterion says is a finding.
-- **Behaviour** (movement, combat, items, interactions, world-gen): also drive it live with `godot-run`
-  (`tools/editor.sh` + `tools/gcmd.py`). Report what you drove and what the game did.
+  than its criterion says is a finding.
+- **Behaviour** (movement, combat, items, interactions, world-gen): also drive it live with `godot-run`. Report what you
+  drove and what the game did.
 
 ## Step 5b — Spec
 
-Does the change build what its ticket asked (the Spec axis of `mattpocock-skills:code-review`)? Find the ticket: the
-one the brief names, else `orca worktree current --json` → `linkedIssue`, else a `#<n>` in the branch's commits. Read
-its `## Agent Brief` (`gh issue view <n> --json body`) and report, each quoting the brief line:
-
-- acceptance criteria missing or only partly met;
-- behaviour in the diff the brief did not ask for, or that its **Out of scope** rules out;
-- criteria that look built but wrong.
-
-No ticket, or a ticket with no `## Agent Brief`: one line saying so, and skip.
+Does the change build what its ticket asked (the Spec axis of `mattpocock-skills:code-review`)? Find the ticket: the one the
+brief names, else `orca worktree current --json` → `linkedIssue`, else a `#<n>` in the branch's commits. Read its `## Agent
+Brief` (`gh issue view <n> --json body`) and report, each quoting the brief line: acceptance criteria missing or only
+partly met; behaviour in the diff the brief did not ask for or that its **Out of scope** rules out; criteria that look built
+but wrong. No ticket, or no `## Agent Brief`: one line saying so, and skip.
 
 ## Step 6 — Show
 
@@ -199,18 +166,14 @@ Base origin/main @ 1a2b3c4, 3 commits, nothing staged.
 - [ ] `scenes/main.gd:48` — couples to the NPC's child node name `"GoalController"`. Fix: find the controller by its group, `npc_controllers`.
 - [x] No calls into another domain's private members.
 
-### Architecture & domain skills
+### Skills
 - [ ] `domain-physics/SKILL.md:41` — describes the 4-arg `spawn_blood`; the code takes 5. Fix: state the current signature.
 
-### Load check & tests
-- [x] Load clean. `tools/lint.sh`: no warnings, no `@warning_ignore` added.
-- [x] `tools/run_tests.sh`: 6 passed, 0 failed, 2 skipped.
+### Load, lint, tests
+- [x] Load clean; lint clean, no `@warning_ignore` added; `tools/run_tests.sh`: 6 passed, 0 failed, 2 skipped.
 
 ### Spec (#58)
-- [ ] "Entry waypoints sit inside the room for every doorway" — only covered for a single door. Fix: add the two-door room to the scenario.
-
-### Worktree editor
-- [x] `fix-the-flicker` running (pid 4242, port 9345).
+- [ ] "Entry waypoints sit inside the room for every doorway" — only a single door is covered. Fix: add the two-door room.
 
 **Verdict:** 2 issues to address before the branch is pushed.
 ```

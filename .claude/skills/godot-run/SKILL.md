@@ -1,106 +1,80 @@
 ---
 name: godot-run
-description: Check a change loads (headless load check, lint) and, when a test cannot show it, run the game and drive it live with `tools/gcmd.py`. Use after editing GDScript or scenes, before reporting work done, and to watch behaviour in the running game.
+description: Use after editing GDScript or scenes, before reporting work done, and to run and drive the game live when a test cannot show a change.
 ---
 
 # Godot run
 
-**Bash sandbox disabled** (`dangerouslyDisableSandbox: true`) for every Godot, `tools/*.sh` and `gcmd.py` command:
-under the sandbox Godot busy-spins with no output.
-
-Godot is not on PATH; the scripts find it themselves. For a direct call:
+**Bash sandbox disabled** (`dangerouslyDisableSandbox: true`) for every Godot, `tools/*.sh` and `gcmd.py` command: under the
+sandbox Godot busy-spins with no output. Godot is not on PATH; the scripts find it themselves (`GODOT` overrides). For a
+direct call:
 
 ```bash
 GODOT="$( command -v godot || command -v godot4 || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )"
-# on this machine: /Applications/Godot_mono.app/Contents/MacOS/Godot
 ```
 
-**Keep logs out of your context:** for a log-heavy run, spawn `Agent` with `model: "haiku"` giving it the worktree root,
-the exact commands, the marker lines for success/failure and "sandbox disabled, edit nothing, reply only verdict + up
-to ~15 matching lines verbatim". Judge the reply yourself; fix or rerun yourself on FAIL or ambiguity.
+**Keep logs out of your context:** for a log-heavy run, spawn `Agent` with `model: "haiku"` giving it the worktree root, the
+exact commands, the marker lines for success/failure and "sandbox disabled, edit nothing, reply only verdict + up to ~15
+matching lines verbatim". Judge the reply yourself; fix or rerun yourself on FAIL or ambiguity.
 
-## 1. Load check
+## 1. Load check and lint
 
 ```bash
-tools/load_check.sh               # headless: main scene + autoloads, a few frames, quit
+tools/load_check.sh               # headless: main scene + autoloads, a few frames, quit; flags in its header
 tools/load_check.sh --import      # import first (new scripts' .uid files, the class cache), then the check
-tools/load_check.sh --windowed    # with a window: rendering warnings count too
-tools/load_check.sh --strict-exit # also fail on the engine's exit leak report (otherwise a NOTE)
-tools/lint.sh [paths]             # GDScript analyzer warnings, which headless runs never print, the lint rules, gdstyle
-tools/gdstyle.sh fmt [paths]      # format scripts the way gdstyle's pass wants them (gdstyle.toml: 100 columns, tabs);
-                                  # the comment paragraphs it wraps are re-flowed, backtick spans kept whole
+tools/lint.sh [paths]             # analyzer warnings headless runs never print, the lint rules, gdstyle
+tools/gdstyle.sh fmt [paths]      # format scripts the way gdstyle wants them (gdstyle.toml: 100 columns, tabs)
 ```
 
-- `load_check.sh` exits 1 and prints every engine error or warning in the log (`✗ script error: Parse Error: … (res://….gd:42)`
-  plus the log path); 0 = clean. The verdict comes from the log because Godot exits 0 on a parse error.
-- A warning only one renderer or display logs fails only in that mode: run `--windowed` too when a change touches rendering.
-- `Identifier "Foo" not declared` right after adding `class_name Foo`: stale class cache. Run
-  `tools/load_check.sh --import` (it imports with the script's own Godot lookup and fails with a message when there is
-  no Godot; the import's `progress_dialog` noise is not a failure).
-- A new script (a test too) gets its `.gd.uid` only from an import, which headless runs skip: run
-  `tools/load_check.sh --import` and stage the `.uid` with the `.gd`. The pre-commit hook refuses a commit that leaves
-  a `.gd` under `scenes/`, `tests/`, `addons/` or `sandboxes/` without its `.uid`, or a `.uid` without its `.gd`.
+- `load_check.sh` exits 1 and prints every engine error or warning in the log; 0 = clean. The verdict comes from the log
+  because Godot exits 0 on a parse error. A warning only one renderer logs fails only in that mode: add `--windowed` when a
+  change touches rendering.
+- `Identifier "Foo" not declared` right after adding `class_name Foo`: stale class cache, run `--import`.
+- A new script (a test too) gets its `.gd.uid` only from an import, which headless runs skip: run `--import` and stage the
+  `.uid` with the `.gd`. The pre-commit hook refuses a `.gd` under `scenes/`, `tests/`, `addons/` or `sandboxes/` without
+  its `.uid`, and a `.uid` without its `.gd`.
 - One script: `"$GODOT" --headless --path . --check-only --script scenes/character/character.gd`.
-- Lint (about 14 s, nearly all of it the engine pass): fix the code; never silence a warning or a finding (`audit`,
-  step 5). It prints a section per pass: `== GDScript analyzer (engine) ==`, then `== <rule>: <description> ==` for each
-  project lint rule (`tools/lint_rules/README.md`), then `== gdstyle fmt --check: … ==` (each script the formatter would
-  change, with the `tools/gdstyle.sh fmt <path>` that fixes it) and `== gdstyle check: … ==` (`path:line:col: message
-  [rule]`: a line over 100 columns, member order, naming, the 18 `quality/*` rules `gdstyle.toml` turns on, among them
-  `max-file-length`, `max-class-variables` and `max-public-methods` (five are off by decision), ...), each ending in
-  `PASS` or `FAIL`; any failing section
-  fails the lint. `--list-rules` lists the rules, `--rule=a,b` runs only those (no engine or gdstyle pass, so no
-  Godot), `--skip-rule=a,b` every rule but those, `--no-gdstyle` leaves gdstyle out. Every `.gd` outside `addons/`,
-  `.godot/`, `artifacts/` and the coverage tool's fixtures is held to it, `tools/` and `sandboxes/` included. gdstyle
-  is pinned (v0.4.0); `tools/gdstyle.sh` fetches it on first use into `~/.cache/forced-entry-gdstyle` and checks its
-  sha256.
-- A clean load only proves it parses. **Prefer a test** for behaviour (`tools/run_tests.sh --changed --summary`, which
-  imports a fresh checkout itself). Drive the live game only to explore or for what a puppet cannot reach; N-match
-  scoring is `tools/match.py`.
+- **Lint:** fix the code; never silence a warning or a finding (`audit`, step 5). It prints a section per pass:
+  `== GDScript analyzer (engine) ==`, `== <rule>: <description> ==` per project lint rule (`tools/lint_rules/README.md`),
+  `== gdstyle fmt --check ==` (each script the formatter would change, with the `tools/gdstyle.sh fmt <path>` that fixes it)
+  and `== gdstyle check ==` (`path:line:col: message [rule]`); each ends in `PASS` or `FAIL`, and any failing section fails
+  the lint. `--list-rules`, `--rule=a,b` (those rules only, no engine or gdstyle pass), `--skip-rule=a,b` and `--no-gdstyle`
+  select. Every `.gd` outside `addons/`, `.godot/`, `artifacts/` and the coverage tool's fixtures is held to it, `tools/` and
+  `sandboxes/` included. `tools/gdstyle.sh` pins the gdstyle version, fetches it on first use into
+  `~/.cache/forced-entry-gdstyle` and checks its sha256.
+- A clean load only proves it parses. **Prefer a test** for behaviour (`tools/run_tests.sh --changed --summary` imports a
+  fresh checkout itself). Drive the live game only to explore or for what a puppet cannot reach; N-match scoring is
+  `tools/match.py`.
 
 ## 2. Launch
 
 Load check first: never drive a game that doesn't parse.
 
-- Worktree editor: `tools/editor.sh --autorun` (presses Play; `show-me`). It prints `editor pid … | command port <port> |
-  log <log>` (`$TMPDIR/editor_<worktree>.log`), or `editor already running` with the same fields. Its port is per
-  worktree (`--port=N` to choose), so pass `--port <port>` to `gcmd.py`.
-- Or from Bash, logging to a file: `"$GODOT" --path . > "$TMPDIR/godot_run.log" 2>&1 &` (port 9080).
-- Ready when the log shows `[cmd] listening on 127.0.0.1:<port>`. Nothing after ~10 s (display/GPU init hang): kill it
-  and launch again.
-- The command server runs only from the editor binary, with a port (`GODOT_CMD_PORT`, else
-  `application/debug/command_port` = 9080). Never in an exported build. The checks run it with `GODOT_CMD_PORT=off`
-  (`domain-general`, "Dev command server"); `tools/editor.sh`, `gcmd.py` and `match.py` use a real port.
-- The change's tests in a window, for the user to watch: `tools/play_tests.sh` (no ids = the change's tests; it returns
-  at once with the window's pid and log; `domain-testing`).
+- Worktree editor: `tools/editor.sh --autorun` (presses Play; `show-me`). It prints `editor pid … | command port <port> | log
+  <log>` (`$TMPDIR/editor_<worktree>.log`), or `editor already running` with the same fields. The port is per worktree, so
+  pass `--port <port>` to `gcmd.py`.
+- Or from Bash: `"$GODOT" --path . > "$TMPDIR/godot_run.log" 2>&1 &` (port 9080).
+- Ready when the log shows `[cmd] listening on 127.0.0.1:<port>`. Nothing after ~10 s (display/GPU init hang): kill it and
+  launch again.
+- The command server runs only from the editor binary, with a port (`GODOT_CMD_PORT`, else `application/debug/command_port`),
+  never in an exported build. The checks run with `GODOT_CMD_PORT=off` (`domain-general`).
+- The change's tests in a window for the user to watch: `tools/play_tests.sh` (`domain-testing` (`in-game-runner.md`)).
 
 ## 3. Drive with `tools/gcmd.py`
 
-`python3 tools/gcmd.py [--port N] "<line>"`; port = `--port`, else `$GODOT_CMD_PORT`, else 9080. A line is a verb, or
-else a GDScript expression evaluated on the command-server node (helpers `player()`, `scene()`, `node(path)`).
+`python3 tools/gcmd.py [--port N] "<line>"`; port = `--port`, else `$GODOT_CMD_PORT`, else 9080. A line is a curated verb
+(`help` lists them) or a GDScript expression evaluated on the command-server node (helpers `player()`, `scene()`,
+`node(path)`; `eval EXPR`). Two verbs worth knowing: `match` (every combatant's health/act/alive, the verdict, elapsed s) and
+`ai` (every NPC's brain as JSON: the state text Von saw, menus and pick, contacts, commitment timers, pathing: use it before
+guessing from logs). `aim X Y` works windowed only.
 
-| Verb | Does |
-|---|---|
-| `help` | list the verbs |
-| `pos` / `tp X Y` | player position / teleport |
-| `move up\|down\|left\|right [off]`, `stop` | hold or release a direction; release all |
-| `slot N` | select item slot 1–9 |
-| `fire`, `punch`, `kick`, `reload`, `interact`, `crouch` | LMB, F, V, R, Space, C |
-| `aim X Y` | warp the cursor to a world point (windowed only; a no-op headless) |
-| `match` | one-line status: each combatant's health/act/alive, verdict (`none` while each side has someone alive, then the side left standing by faction, a 1v1's survivor by name, or `draw`), elapsed s |
-| `ai` | every NPC's brain as JSON: state text Von saw, menus and pick, contacts (hostile + why, visible, distance), commitment timers, pathing. Use it before guessing from logs |
-| `restart [seed]` | reload straight into a new match, optional layout seed |
-| `menu` | back to the setup window |
-| `eval EXPR` | GDScript, e.g. `eval player().movement.speed` |
+Each command replies on the socket (`ok`, a value, `error: …`) and is echoed in the game log as `[cmd] <line> -> <reply>`
+beside the gameplay lines it caused. `tail` the editor log or `$TMPDIR/godot_run.log`; failure markers: `SCRIPT ERROR`,
+`error:`.
 
-## 4. Read the log
+## 4. Clean up
 
-Each command replies on the socket (`ok`, a value, `error: …`) and is echoed in the game log as `[cmd] <line> -> <reply>`,
-next to the gameplay lines it caused (`Shot penetrated …`, `Punch (hand 0) hit …`). `tail` the editor log or
-`$TMPDIR/godot_run.log`. Failure markers: `SCRIPT ERROR`, `error:`.
-
-## 5. Clean up
-
-`kill` the Bash-launched pid (leave a `show-me` editor open). A hard kill skips `_exit_tree`, so the Von decision server
-it spawned (port 8000) is orphaned: **always `pkill -f "von serve"` after one.** An orphaned server answers HTTP but its
-stdout pipe is dead, so every decision fails (`422 Failed to load Option-Marker decision weights … [Errno 32] Broken
-pipe`) and every NPC sits in `HOLD`.
+`kill` the Bash-launched pid (leave a `show-me` editor open). A hard kill skips `_exit_tree`, so the Von decision server it
+spawned (port 8000) is orphaned: **always `pkill -f "von serve"` after one.** An orphaned server answers HTTP but its stdout
+pipe is dead, so every decision fails (`422 Failed to load Option-Marker decision weights … [Errno 32] Broken pipe`) and
+every NPC sits in `HOLD`.

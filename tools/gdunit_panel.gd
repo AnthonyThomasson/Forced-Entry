@@ -26,7 +26,7 @@ extends SceneTree
 
 const GdUnitTools := preload("res://addons/gdUnit4/src/core/GdUnitTools.gd")
 const RUNNER_SCENE := "res://addons/gdUnit4/src/core/runners/GdUnitTestRunner.tscn"
-## A test id in a wrapper suite's case name: `test_ui:3 ('ui/inspector_outfit')`.
+## A test id in a wrapper suite's case name: `test_ui:3 ('ui/inspector_right_click_card')`.
 const CASE_ID := "\\('([^']+)'\\)$"
 ## The first port tried, away from the editor's own (31002): a panel open on the checkout this was
 ## copied from may be listening there.

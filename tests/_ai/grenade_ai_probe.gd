@@ -328,11 +328,15 @@ static func _plain_spot(
 
 
 ## Of `spots`, the one with the shortest route from `from` within `allowed` px:
-## `{ spot, crouch, route }`, `spot` INF when none is in time.
+## `{ spot, crouch, route }`, `spot` INF when none is in time. A spot the route stops short of (more
+## than 2 px: it lies where the NPC cannot walk) is never one it reaches (G16).
 static func _plain_best(map: RID, spots: Array, from: Vector2, allowed: float) -> Dictionary:
 	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
 	for s: Dictionary in spots:
-		var length := NavBuilder.path_length(NavBuilder.route(map, from, s["spot"]))
+		var path := NavBuilder.route(map, from, s["spot"])
+		if path[path.size() - 1].distance_to(s["spot"]) > 2.0:
+			continue
+		var length := NavBuilder.path_length(path)
 		if length <= allowed and length < best["route"]:
 			best = { "spot": s["spot"], "crouch": s["crouch"], "route": length }
 	return best

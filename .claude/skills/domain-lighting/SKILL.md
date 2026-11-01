@@ -1,104 +1,79 @@
 ---
 name: domain-lighting
-description: Deep implementation detail for the Lighting domain (scenes/lighting/) — the world's dusk lighting, a leaf like Audio. WorldLighting (built by the match builder, for Main's match and the Testing world, under the world root, in the group `world_lighting`, which the lighting tests find it by) adds the ambient CanvasModulate and the street's sky DirectionalLight2D, a PointLight2D per light a piece declares (`get_lights()`, parented to the piece) and per room fixture, the per-floor budget (12 of Godot 4.4's 15 point lights per canvas item, the weakest dropped), the seeded rhythms (steady / buzz / failing / blink / shimmer / pulse) dimming each light and its piece's unshaded overlay, the flash pool lit on `shot` / `explosion`, and the per-frame character-mask clearing; LightingConfig, LightingFixtureConfig and LightingTextureConfig are its tuning. The occluders and light layers are General's `LightMasks`, built by Objects (walls, solid pieces, the street) and Character (the living body). Use when editing scenes/lighting/, retuning the dusk, a fixture, a flash or the budget, adding a light-giving piece (its row in ObjectArtLightConfig.specs), changing who shadows whom, or asserting on lights in a test. Complements the `architecture` skill (interfaces 10, 11 and 20); the spec and its tests are docs/lighting.md.
+description: Use when editing scenes/lighting/, retuning the dusk, a fixture, a flash or the light budget, adding a light-giving piece, changing who shadows whom, or asserting on lights in a test.
 ---
 
 # Lighting domain (`scenes/lighting/`)
 
-A **leaf**: it imports nothing but General (`EventBus`, `DrawLayers`, `LightMasks`, `WeightedPick`) and Godot, and reads the world duck-typed, the
-way Audio reads a vehicle. Nothing calls into it but the composition root's match builder, for Main's match and the Testing world alike (`MatchBuilder.stage` → `WorldLighting.light`, interface 20), the
-Testing domain's switch row, and the tests, through `lighting_probe.gd`, which read `lights()` / `fixtures()` / `flashes()` /
-`budget()`; the lights and shadows of the world's things are declared and built by their own domains. The spec
-is `docs/lighting.md` (L1 to L10, each with its tests); the tests are `tests/lighting/` through `tests/_lighting/lighting_probe.gd`.
+The world's dusk lighting. The spec is `docs/lighting.md` (L1 to L10, each with its tests, which are in `tests/lighting/` through
+`tests/_lighting/lighting_probe.gd`); the numbers (ambient, sky, budget, flashes, fixtures) live in the holders and the spec, not
+here. Interfaces: 10 (the `shot` / `explosion` topics), 11 (`LightMasks`, `DrawLayers.OVERHEAD`), 20 (Main / Testing → Lighting;
+a piece's `get_lights()`; the occluders and light layers).
 
-```
-MatchBuilder.stage (Main's match / TestWorld) ──WorldLighting.light(root, seed, rooms)──▶ WorldLighting ──(get_lights(), floors' size / light_mask)──▶ the world
-Objects: walls, solid pieces ──LightMasks.occluder──▶ LightOccluder2D children   (Character: the living body's, freed on death)
-Objects: street floors ──light_mask = LightMasks.STREET                           Objects: Emissive overlays ── unshaded material
-Item (&"shot") / Explosion (&"explosion") ──EventBus──▶ WorldLighting's flash pool
-WorldLighting ──(group `characters`: is_dead, radius, global_position)──▶ the character-mask clearing
-```
-
-## Files
+A **leaf**: it imports General (`EventBus`, `DrawLayers`, `LightMasks`, `WeightedPick`) and Godot, and reads the world
+duck-typed (`get_lights()`, the groups `floors` and `characters`). Its one caller is the match builder (`MatchBuilder.stage` →
+`WorldLighting.light`), for Main's match and the Testing world alike; Testing's `lighting.enabled` switch and the probe read
+`lights()` / `fixtures()` / `flashes()` / `budget()`. The lights and shadows of the world's things are declared and built by
+their own domains.
 
 | File | Role |
 |---|---|
-| `lighting_config.gd` (`LightingConfig`), `lighting_fixture_config.gd` (`LightingFixtureConfig`), `lighting_texture_config.gd` (`LightingTextureConfig`) | Static tuning in three holders. `LightingConfig`: `enabled` (master switch), the dusk (`ambient_color` (0.40, 0.37, 0.55), `sky_color` (1.0, 0.5, 0.42), `sky_from`, `sky_energy`: the street's only), the flashes (`flash_pool` 3, `flashes` rows `shot` / `frag` / `stun`: colour, energy, reach, `reach_per_radius`, `hold` (s at full
-energy, none when absent: the stun's 0.08) and `life` (the fall-off after it); the stun's is energy 8, life 0.7, its burst's whole look,
-since Physics draws no disc for it), the budget (`item_lights` 15, `per_floor()` = 15 − the pool, `floor_reach`), `body_clear` 1.3. `LightingFixtureConfig`, the room fixtures: `color`, `energy`, `reach_scale` / `reach_pad` / `reach_range`, `rhythms`. `LightingTextureConfig`, the pool textures (`textures` per shape, two smooth profiles, linear points: a low light's glow `glow_offsets` / `glow_levels`, an overhead light's downward pool `pool_offsets` / `pool_levels`). |
-| `world_lighting.gd` (`WorldLighting`) | The node: `static light(root, seed_value, rooms := []) -> WorldLighting` (null while `enabled` is off), the reads `lights()`, `fixtures()`, `flashes()`, `budget()` (test reads), and the per-frame work (`_process`). |
-| `flash_pool.gd` (private) | The flash pool (`_pool`): `lights` (the flashes), `flash(at, look, radius)`, `step(delta)` (their fall-off), `clear_bodies()`. |
-| `light_budget.gd` (private) | The per-floor count: `add_floor(ground)`, `take(box, item_mask, always) -> bool`, `box_of(light, xf)`. |
-| `light_rhythm.gd` (private) | One light's rhythm: `pick(kinds, rng)` (General's `WeightedPick`, `steady` for none), `new(mode, seed)`, `step(delta) -> factor`. |
-| `ceiling_fixture.gd` (private) | A fixture's bulb glyph, drawn unshaded at `DrawLayers.OVERHEAD`. |
+| `world_lighting.gd` (`WorldLighting`) | The node, in the group `world_lighting`; `light(root, seed_value, rooms)` returns null while `enabled` is off; the build and the per-frame work. |
+| `lighting_config.gd`, `lighting_fixture_config.gd`, `lighting_texture_config.gd` | Tuning holders: `LightingConfig` (switch, dusk, flash rows, budget, `body_clear`), `LightingFixtureConfig` (the room fixtures), `LightingTextureConfig` (pool textures per shape). |
+| `flash_pool.gd`, `light_budget.gd`, `light_rhythm.gd`, `ceiling_fixture.gd` | Private parts: the flash pool and its fall-off and character clearing; the per-floor count; one light's seeded rhythm; the fixture's bulb glyph. |
 
-General's `scenes/general/light_masks.gd` (`LightMasks`, interface 11) holds the shared ids: the occluder bits `WALL` 1,
-`FURNITURE` 2, `EMITTER` 4 (a solid piece that gives light), `CHARACTER` 8, `TALL` 16 (`TALL_COVERAGE` 75); the shadow masks
-`OVERHEAD_SHADOWS` (walls), `LOW_SHADOWS` (walls, tall pieces), `ALL_SHADOWS`; the item layers `HOUSE` 1 (Godot's default) and
-`STREET` 2; `shadows` (the occluders' switch) and `occluder(polygon, bit) -> LightOccluder2D` (null while `shadows` is off): it
-winds the polygon clockwise on screen and culls counter-clockwise (`OccluderPolygon2D.CULL_COUNTER_CLOCKWISE`), the probed winding
-that keeps the shape itself lit and darkens only what lies behind it.
+General's `scenes/general/light_masks.gd` (`LightMasks`) holds the occluder bits, shadow masks and item layers, and
+`occluder(polygon, bit)`: it winds the polygon clockwise on screen and culls counter-clockwise, the probed winding that keeps the
+shape itself lit and darkens only what lies behind it.
 
-## Building (`_build`, once)
+## Build order (`_build`, once)
 
-1. `Ambient` (CanvasModulate) and the sky: `Sky` (range `STREET`, no shadows, rotated so its +y, which a DirectionalLight2D
-   shines along, points along `-sky_from`). None on the house's items: the house has a roof.
-2. Every Objects floor under `root` (the group `floors`) is a budget area (its `size` rect grown by `floor_reach`, its light layers
-   the union of its canvas items' `light_mask`); then one walk of `root`'s descendants (itself excluded): a node with `get_lights()` gives candidates
-   (`[piece, index, spec, order]`), and a `room_light` among them marks its room (`rooms`, by the piece's position) lit.
-3. Fixtures for the rooms no `room_light` marked, counted against the budget whatever (`always`).
-4. The candidates **by declared energy, highest first** (ties in walk order): each is placed (`_piece_light`: a PointLight2D under
-   the piece at its `offset` / `turn`, range `HOUSE`, plus `STREET` for a `street` light; its `height` picks its shadow mask and
-   texture: `overhead` `OVERHEAD_SHADOWS` and the downward pool, `low` `LOW_SHADOWS` and the glow) when `take` says every floor its
-   box reaches has room, else listed in `budget().dropped` as `{ piece, index }` and freed. A fixture is overhead (walls, pool).
+1. The ambient and the street's `Sky`. None on the house's items: the house has a roof (L1).
+2. Every Objects floor (group `floors`) becomes a budget area, its `size` grown by `floor_reach`, its light layers the union of
+   its canvas items' `light_mask`. One walk of the root's descendants collects the candidates (nodes with `get_lights()`); a
+   `room_light` marks its room (by the piece's position) lit.
+3. Fixtures for rooms no `room_light` marked, counted against the budget whatever (`always`).
+4. Candidates **strongest declared energy first** (ties in walk order): placed when `take` says every floor the box reaches has
+   room, else listed in `budget().dropped` and freed. `height` picks the shadow mask and texture (`overhead`: walls only, the
+   downward pool; `low`: walls and tall pieces, the glow); a `street` light also takes the `STREET` layer.
 5. A room whose room lights were all dropped gets its fixture if its floors have room.
-6. The flash pool (`Flash1..3` under the node, disabled, kept by `flash_pool.gd`), and the `EventBus` connection (dropped in `_exit_tree`).
+6. The flash pool and the `EventBus` connection (dropped in `_exit_tree`).
 
-Each kept light is a `Lit` (node, full energy, rhythm or null, `glow`): the rhythm is drawn by
-`LightRhythm.pick` from the declaration's `rhythm` weights with an RNG seeded `hash([seed, piece position (rounded), index])`
-(a fixture: `hash([seed, "fixture", room key])`), and none is made for `steady`.
+A kept light's rhythm is picked from the declaration's `rhythm` weights with an RNG seeded `hash([seed, piece position
+(rounded), index])` (a fixture: `hash([seed, "fixture", room key])`), so the same seed flickers the same.
 
 ## Each frame (`_process`), allocation-free
 
-- Every `Lit` with a rhythm: `energy = full × step(delta)`, its `glow` (the piece's `Emissive` overlay, or the fixture's glyph)
-  `modulate`d to `0.3 + 0.7 × factor`.
-- Every live flash: its full energy through its `hold`, then `energy × left²` with `left` = 1 − (t − hold) / life, disabled at the
-  end of its hold + life (the shot and the frag hold none, so theirs is the plain fall-off).
-- `flash_pool.gd`'s `clear_bodies`: the character list is re-read from the group `characters` only when `get_node_count_in_group` changes; each
-  frame fills each living character's position and its `radius × body_clear` reach (squared) into packed arrays, then every lit
-  flash (the only lights the characters shadow, `ALL_SHADOWS`) drops `CHARACTER` from its shadow mask while a character's centre
-  is within reach of the flash's, and gets it back once none is; `shadow_item_cull_mask` is written only when it changes. A flash
-  runs it at once when lit.
-Lights follow their piece by being its children; the occluders follow theirs the same way, so nothing is moved by hand.
+- A rhythm drives the light's energy and dims its `glow` (the piece's `Emissive` overlay or the fixture's glyph) with it.
+- `flash_pool.gd`'s `clear_bodies`: a lit flash drops `CHARACTER` from its shadow mask while a living character's centre is
+  within `radius × body_clear` of the flash's, and gets it back once none is. The character list is re-read from the group
+  `characters` only when `get_node_count_in_group` changes; `shadow_item_cull_mask` is written only when it changes. A flash runs
+  it at once when lit.
+- Lights and occluders are children of their piece, so nothing is moved by hand.
 
 ## The world's side (built by the owning domains)
 
-- **Objects** (`domain-objects`): `object_lights.gd` works out a piece's `get_lights()` once in `_ready` from its painter,
-  options, size and facing and the per-kind rows in `ObjectArtLightConfig.specs`; a solid piece builds its occluder (rect, or a
-  12-gon for a round piece; `EMITTER` when it gives light, else `TALL` from `LightMasks.TALL_COVERAGE`, else `FURNITURE`); a wall
-  builds one per segment, the collider's rect (`WALL`); the street's floors (catalogue `light_layer: "street"`) put themselves and
-  their canvas items on `STREET`; every `Emissive` overlay draws through an unshaded CanvasItemMaterial.
-- **Character** (`domain-character`): an oval occluder (`CharacterShadowConfig.depth` / `width` / `sides`) on `CHARACTER`,
-  turned with `facing` when it turns, freed in `_die`.
+- **Objects** (`domain-objects`): `object_lights.gd` works out a piece's `get_lights()` once in `_ready` from the painter, its
+  options, size, facing and the rows of `ObjectArtLightConfig.specs`; a solid piece builds its occluder (`EMITTER` when it
+  gives light, else `TALL` from `LightMasks.TALL_COVERAGE`, else `FURNITURE`); a wall builds one per segment (`WALL`); the
+  street's floors (`light_layer: "street"`) put themselves on `STREET`; every `Emissive` overlay draws unshaded.
+- **Character** (`domain-character`): an oval occluder (`CharacterShadowConfig`) on `CHARACTER`, freed in `_die`.
 
 ## Adding to it
 
-- **A light-giving piece:** a row in `ObjectArtLightConfig.specs` and its case in `object_lights.gd` (`_kind`, or `ObjectArt.light_kind` for a
-  painter that lights only in some variants, and its colour / turn / reach in `_by_kind`; its offset is the row's `ahead`); its painter draws the source inside `canvas.glowing` so its overlay shows it.
-- **Who shadows whom:** the masks in `LightMasks` (General) and the shadow mask each light is given here.
-- **A flash:** a `LightingConfig.flashes` row and its topic in `_on_posted`. A flash that is the whole look of something (the stun's)
-  takes a `hold` and a longer `life` rather than a drawn effect beside it; it stays in the pool (no light of its own kept alive).
+- **A light-giving piece:** a row in `ObjectArtLightConfig.specs` and its case in `object_lights.gd` (`_kind`, or
+  `ObjectArt.light_kind` for a painter that lights only in some variants; colour / turn / reach in `_by_kind`; the offset is
+  the row's `ahead`). Its painter draws the source inside `canvas.glowing` so the overlay shows it.
+- **Who shadows whom:** the masks in `LightMasks` and the shadow mask each light is given here.
+- **A flash:** a `LightingConfig.flashes` row and its topic in `_on_posted`. A flash that is the whole look of something (the
+  stun's) takes a `hold` and a longer `life` rather than a drawn effect beside it.
 
 ## Gotchas
 
-- **15 point lights per canvas item** (Godot 4.4): any new big batched layer must stay under a floor's count (split it per room,
-  as the wear is) or be drawn on a layer the house's lights do not reach (as the street is).
-- **A DirectionalLight2D's shadows run to the edge of the view** (`max_distance` is a camera cull distance, not a shadow length):
-  hence no shadows on the street's sky.
-- **Headless**, the dummy renderer accepts every light and occluder: the tests read node properties (texture box, masks, energy),
-  and the perf tests see only the CPU side (the rhythms, flashes and clearing above); the GPU cost of shadows is measured by hand (`docs/lighting.md`, "Measured cost").
-- The test world is lit like a match: a test that must not have lights or occluders turns `lighting.enabled` off (so does a sandbox
-  that lights itself).
-
-**Interfaces:** 10 (the `shot` / `explosion` topics it listens to), 11 (`LightMasks`, `DrawLayers.OVERHEAD`), 20 (Main / Testing →
-Lighting; the pieces' `get_lights()`; the occluders and light layers) — signatures in `architecture`.
+- **15 point lights per canvas item** (Godot 4.4): a new big batched layer must stay under a floor's count (split it per room,
+  as the wear is) or draw on a layer the house's lights do not reach (as the street is).
+- A DirectionalLight2D's shadows run to the edge of the view (`max_distance` is a camera cull distance, not a shadow length):
+  hence no shadows on the sky.
+- Headless, the dummy renderer accepts every light and occluder: tests read node properties (texture box, masks, energy), and
+  perf tests see only the CPU side. The GPU cost of shadows is measured by hand (`docs/lighting.md`, "Measured cost").
+- A test that must have no lights or occluders turns `lighting.enabled` off, as does a sandbox that lights itself.

@@ -129,7 +129,7 @@ The side defaults are the match spec's: `general/match_builder_builds_match` (a 
 To try the armour by hand, the **Gun range** sandbox (`sandboxes/player_gun_range_sandbox.gd`) has a firing line of nine lanes, each ending at a
 dummy (1000 health) in one outfit: plain clothes; helmet + t-shirt; tactical vest; plate carrier with no plates; carrier + soft IIIA; + steel III;
 + ceramic IV; the invaders' kit turned away (the back plate); a ceramic carrier side on (the flank). A floor label under each shows its outfit (the
-debug panel's lines), plate condition and health as they change.
+detail card's lines), plate condition and health as they change.
 
 ### Display
 
@@ -145,10 +145,12 @@ body, a settled fallen one included.
 Test: `character/outfit_art` (each garment paints something plain clothes never do, standing and crouched; a worn ceramic plate repaints; a
 crouched carrier shows on the back; a fallen body's carrier taken off changes its drawing, put back restores it exactly).
 
-**O13. Display.** The player debug panel (bottom left, `=== OUTFIT ===`) and the spectator inspector (bottom right while an NPC is selected,
-`<name> — OUTFIT`) list what the character wears, one line per slot: `Head: Helmet`, a plate as `Front plate: Ceramic IV plate 68%`
-(its condition, `roundi(condition x 100)`), `—` for nothing worn. Both read only `wardrobe.outfit.view()`; the inspector refreshes every frame, so wear shows live.
-Tests: `ui/debug_panel_outfit`, `ui/inspector_outfit` (nothing listed before a click on the NPC, nor after a click on empty ground).
+**O13. Display.** The spectator inspector's detail card (docked top-left under the match timer, opened by a right-click on an NPC) lists what the
+character wears in its Outfit section, one line per slot: `Head: Helmet`, a plate as `Front plate: Ceramic IV plate 68%` (its condition,
+`roundi(condition x 100)`), `—` for nothing worn. It reads only `wardrobe.outfit.view()` and refreshes about ten times a second, also while the match is
+paused, so wear shows live. Player mode shows no outfit list.
+Tests: `ui/inspector_right_click_card` (the card holds the outfit lines after a right-click on the NPC; nothing is listed after a second right-click on it
+or one on empty ground).
 
 **O14. The AI is unaware.** NPCs do not know what anyone wears: nothing worn enters their decisions, the snapshot Von reads or their aim. A
 stopped round still posts its `&"hit"` (an NPC hears it and is "attacked"), but it raises no `damage_taken()`, so it is not a visible wound.
@@ -212,7 +214,7 @@ a soft panel).
   resolves the style's look, and the painters, `vest_painter.gd` among them) draws from `wardrobe.outfit.look(style)`.
 - **Projectile**: `_surface_for` asks `get_surface_at`, the armour step in `_resolve`, `HitInfo.height` filled; `Explosion`'s blast hits carry
   height -1. **Physics**: `HitInfo.height`. **Audio**: the `composite` impact material.
-- **UI** (the setup window's picks, `outfit_lines.gd` for the debug panel and the inspector) and **Main** (the outfit through the setup window and
+- **UI** (the setup window's picks, `outfit_lines.gd` for the inspector's detail card and the gun range's floor labels) and **Main** (the outfit through the setup window and
   the settings file) with its match builder (the side defaults, `MatchBuilder.INVADER_LOADOUT`; the crews' styles in `MatchBuilder.style`).
 - **Damage reported** in the `&"hit"` event, `hit_landed` and `report_shot` is the striker's, before the body's zone, blunt and reduction scaling.
 
@@ -228,4 +230,4 @@ plain clothes and the linear slowing; the default outfits of each side.
 
 AI awareness of armour (aiming for the head or the flank, preferring a rifle against plates); looting armour or plates from the dead; a
 helmet's hearing protection against a stun; armour on the arms, neck or groin; gloves as a garment (a style's gloves are looks only); spall
-and backface wounds; plates that crack apart or are swapped mid-match; a HUD widget for the player's own armour beyond the debug panel.
+and backface wounds; plates that crack apart or are swapped mid-match; a HUD widget for the player's own armour.

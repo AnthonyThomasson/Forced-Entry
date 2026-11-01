@@ -1,294 +1,78 @@
 ---
 name: domain-character
-description: Overview and root-body detail for the Character domain (scenes/character/) — the player character (built so other character types can exist): facing, movement, postures and running, the weapon raise against a wall, ammo / reloading and loadout, the outfit (hit zones, sides, armour in take_hit, its weight), its style (how it is drawn, its wardrobe: set_style, look_seed, rank), its shadow (the living body's light occluder), death, footsteps, walking into furniture, riding a vehicle (the forwards to the Vehicles domain's CharacterVehicleUse and the ride pose) and the player/NPC scene wiring. The body itself (skeleton, pose, legs, hands and punch, ragdoll fall, all drawing and pixel art) is the sub-domain `domain-character-body` (scenes/character/body/). Use when editing character.gd, player_controller.gd, character_footsteps.gd, character_push.gd, the Character*Config tuning holders or the character scenes. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Use when editing scenes/character/ (character.gd, player_controller.gd, Character*Config holders, character scenes) or working on how a character moves, holds a weapon, dies or is drawn.
 ---
 
 # Character domain
 
-Owns the player character, built so other character types can exist. Reads intent from a
-pluggable controller child and integrates knockback into locomotion (it is the one "pushable"
-that isn't a RigidBody2D — it integrates knockback into its own walk).
+Owns the player character, built so other character types can exist. It reads intent from a pluggable controller child (interface 7) and is the one pushable that is not a `RigidBody2D`: it integrates knockback into its own walk.
 
-## Tuning
+**Side files** (read the one your task touches):
+- Posture, running and stamina, walking into furniture, the stun's effect on the walk → `movement.md`.
+- Firing, reload and magazines, the raise against a wall, loadout, grenade reads, the stunned look and one-handed fire → `weapon.md`.
+- Style, outfit, hit zones, armour in `take_hit`, weight → `wardrobe.md`.
+- The body (skeleton, pose, rig, hands, punch, kick, legs, ragdoll fall, all pixel art and the redraw key) → `body.md`.
 
-One `class_name` static holder per topic (`grep -r "class_name Character.*Config" scenes/character`). In `character/`:
-`CharacterPostureConfig` (stand or crouch), `CharacterPaceConfig` (running, stamina, the outfit's weight), `CharacterPushConfig` (walking
-into pieces, being shoved), `CharacterStunConfig`, `CharacterHitConfig` (flesh, hit zones, sides), `CharacterShadowConfig`,
-`CharacterArtConfig`, `CharacterStyleConfig` (the styles), `CharacterBodyConfig` (the skeleton), `CharacterStanceConfig` (stances,
-the muzzle, the raise, recoil) and `CharacterRagdollFallConfig` (the fall's launch); the body's own in `body/` (`domain-character-body`).
+## Components
 
-## Layering (control / animate / draw)
+The three verbs (control, animate, draw) live in separate files wired through the scene tree. Scene scripts carry no `class_name` except a typed component's. A draw file sits on its own child `Node2D`.
 
-The three verbs live in separate files, wired via the scene tree (no `class_name` on scene
-scripts but the wardrobe's, a typed component; cross-file calls resolve through `$` / `get_parent()`). A "draw" file is attached to
-its own child `Node2D`.
+`character.gd` (control: state and physics, never draws) holds typed `RefCounted` components as public properties and steps them itself. Callers name the component; the body keeps no forwarders.
 
-- **Control** (`character.gd`, root body) owns state + physics: computes `facing`, moves, and
-  forwards intent from its controller. Never draws. Its components (typed `RefCounted`s it holds as public properties and
-  steps itself): `character_movement.gd` (`movement`, the controller's intent, the posture, running and stamina, the knockback and
-  the push slow), `character_use.gd` (`use`, what occupies the body: an object interaction, a vehicle ride, the collision exceptions
-  both leave behind), `character_inventory.gd` (`inventory`, the items carried and the held slot), `character_weapon.gd` (`weapon`, using the held item: firing, melee, the raise against a wall, recoil, the
-  muzzle and aim, each hand's stance), `character_ammo.gd` (`ammo`, the magazines carried and the reload), `character_stun.gd` (`stun`, a
-  grenade's flash and bang on the body), and `body/character_anatomy.gd` (`anatomy`, `CharacterAnatomy`: the body's animate parts it
-  steps, the pose, the rig, the `Hands` child, the legs, the kick, the footsteps, the flesh's dents and bleeding, the shadow and the
-  ragdoll; `domain-character-body`). One more is a `Node` child, since a scene authors it: `character_wardrobe.gd` (`wardrobe`,
-  `CharacterWardrobe`, the `Wardrobe` child of `character_base.tscn`, found in `_enter_tree`: the style, the look seed, the rank and
-  the `Outfit` worn; it steps nothing).
-- **Animate and draw** live in `scenes/character/body/` — **`domain-character-body`**: `character_hands.gd` (hand geometry, punch,
-  punch hit detection), `character_kick.gd` (the leg kick and its hit detection), `character_pose.gd` (the living motion, each hand's stance), `character_rig.gd` (the standing skeleton),
-  `character_legs.gd` (feet against walls), `body_sweep.gd` (the collide-and-slide hands and legs share), `body_strike.gd` (the melee strike punch and kick share), `character_ragdoll.gd` (the fall) and `character_visuals.gd` + `character_style.gd` (the look a style resolves to) + the painters in `body/art/` (appearance).
-  Load that skill for anything about how the character moves, holds a weapon, looks or falls.
+| Property | File | Owns |
+|---|---|---|
+| `movement` | `character_movement.gd` | the controller's intent, posture, running and stamina, knockback, the push slow |
+| `use` | `character_use.gd` | what occupies the body: an interaction, a vehicle ride, the collision exceptions both leave |
+| `inventory` | `character_inventory.gd` | items carried, the held slot |
+| `weapon` | `character_weapon.gd` | using the held item: firing, melee, the raise, recoil, muzzle and aim, each hand's stance |
+| `ammo` | `character_ammo.gd` | magazines carried, the reload |
+| `stun` | `character_stun.gd` | a grenade's flash and bang on the body |
+| `anatomy` | `body/character_anatomy.gd` | the animate parts (pose, rig, hands, legs, kick, footsteps, ragdoll, dents, wound, shadow): `body.md` |
+| `wardrobe` | `character_wardrobe.gd` | a `Node` child (`Wardrobe` of `character_base.tscn`, found in `_enter_tree` before any child's `_ready`): style, look seed, rank and the `Outfit` worn; it steps nothing |
 
-Ordering: a parent's `_physics_process` runs before its children's, so the hands see the
-character's fresh `facing`, and the character pulls its controller's intent (`movement.pull`) at the top of its own
-`_physics_process` (lag-free), after `movement.tick` (the posture's cooldown and ease), `stun.update` and `inventory.tick`; then the
-ride (`use.control`) and `ammo.update`, then a ride or an interaction holds the body (`use.hold_frame`, `anatomy.hold`), else on foot the facing, `weapon.update_raise`, `movement.walk` (the move and slide,
-the pushes) and `anatomy.step` (the kick, the pose, the legs and the footsteps).
+Also here: `character_footsteps.gd`, `character_push.gd` (the shared `shove`), `player_controller.gd`.
+
+**Tuning:** one `class_name` static holder per topic (`grep -r "class_name Character.*Config" scenes/character`). In `character/`: `CharacterPostureConfig`, `CharacterPaceConfig`, `CharacterPushConfig`, `CharacterStunConfig`, `CharacterHitConfig`, `CharacterShadowConfig`, `CharacterArtConfig`, `CharacterStyleConfig`, `CharacterBodyConfig`, `CharacterStanceConfig`, `CharacterRagdollFallConfig`. The body's own are in `body/` (`body.md`).
+
+## Ordering
+
+A parent's `_physics_process` runs before its children's, so the hands see the character's fresh `facing`. `_physics_step` pulls the controller's intent after `movement.tick`, `stun.update` and `inventory.tick` (so a due gun fires this frame), then the ride (`use.control`) overrides it, then `ammo.update`; a ride or an interaction holds the body (`use.hold_frame`), else the walk frame runs. `facing` is pointed at `movement.aim_point` each frame; the node is never rotated, so hand math stays in local space.
+
+## Runtime shapes
+
+`character.gd` builds its body `CircleShape2D` in `_ready()` and `body_strike.gd` builds each strike's query circle. The editor's "no shape" warning on `Player/CollisionShape2D` is expected. The body runs in `MOTION_MODE_FLOATING` (top-down): in grounded mode a body it walks "down" into would be ridden as a platform and lend the character its launch velocity.
 
 ## Death
 
-`_apply_damage(amount, direction)` (shared by `take_hit`, which passes the shot's direction, and
-`take_damage`, the punch path) calls `_die(direction)` at zero health. `_die` leaves layer 1, and `anatomy.die()` stops the bleeding,
-frees its light occluder (below) and moves it to `CharacterArtConfig.ragdoll_z_index` (`DrawLayers.LYING`, −2: beneath the living and a vehicle's chassis and roof, above blood
-pools; `vehicle/fallen_body_under_vehicle`), ends any
-interaction (`use.end_interaction()`), cancels a reload (`ammo.cancel()`), clears the stun (`stun.clear()`), abandons any vehicle ride (`use.abandon()`, `CharacterVehicleUse.abandon()`: the body falls where it is, the door left as it is), builds `anatomy.ragdoll` from the rig's joints (`anatomy.fall`) with the body's momentum (`movement.momentum()`: walk + knockback,
-including the killing blow's shove), lets go of the held item (`Item.drop(self, momentum + toss)`;
-a returned node removes the slot (`inventory.drop_held`), so `inventory.current_item()` may be null on a corpse), then emits `died`.
-While dead `_physics_process` only steps the ragdoll (`anatomy.step`: `ragdoll.step(delta, space, global_position)`); the
-pose and hands stop. How the ragdoll is built and drawn is in `domain-character-body`.
-
-
-**Bleeding out:** `blood_origin()` is the character's position while alive and its trunk's middle
-once fallen (blood drips and pools sample it). When the ragdoll first settles `anatomy.step` calls
-`Physics.bleed_out(get_parent(), character, [character.get_rid()])`, so a pool spreads out from under the body.
-
+`_apply_damage` (from `take_hit`, `take_damage`) calls `_die(direction)` at zero health. `_die` cancels a reload (`ammo.cancel()`), calls `anatomy.die()`, leaves layer 1 and ends what held the body: `use.end_interaction()`, `use.abandon()` (a vehicle ride: the body falls where it is, the door left as it is). It then takes `movement.momentum()` in the posture it died in, stands the body (`movement.stand_up()`, `movement.fold(0.0)`, so the ragdoll starts from the standing skeleton) and calls `stun.clear()`. `anatomy.die()` stops the bleeding, frees the shadow occluder and moves the body to `CharacterArtConfig.ragdoll_z_index` (`DrawLayers.LYING`: under the living and a vehicle's chassis and roof, over blood pools; test `vehicle/fallen_body_under_vehicle`). `anatomy.fall` builds the ragdoll with the body's momentum (`movement.momentum()`: walk + knockback, including the killing blow's shove). The held item is dropped through `Item.drop(self, momentum + toss)`; a returned node removes the slot, so `inventory.current_item()` may be null on a corpse. Then `died` is emitted. While dead `_physics_process` only steps the ragdoll. `blood_origin()` is the position alive and the trunk's middle once fallen; when the ragdoll first settles `anatomy.step` calls `Physics.bleed_out`.
 
 ## The body's shadow (interface 20, `docs/lighting.md` L6)
 
-A living character casts a shadow: `anatomy.attach()` (from `_ready`) builds a `LightOccluder2D` child through General's `LightMasks.occluder` (none while
-`LightMasks.shadows` is off) on `LightMasks.CHARACTER`, an oval `CharacterShadowConfig.depth` (0.72) radii deep along its +x by
-`CharacterShadowConfig.width` (1.05) across, a `CharacterShadowConfig.sides`-gon (`anatomy._shadow_footprint`). It moves with the body (its parent, never rotated) and
-`anatomy.turn_shadow()` (after each physics step) turns it to `facing` only when the facing has turned. `anatomy.die()` frees it: a 2D occluder has no
-height, so a body on the floor would throw a shadow as long as a wall's. Only the flashes are shadowed by a body
-(`docs/lighting.md` L6); the Lighting domain leaves the characters out of a flash's shadows while one stands in it. Test: `tests/lighting/occluders_walls_pieces_characters`.
+A living character casts a shadow: `anatomy.attach()` builds a `LightOccluder2D` through `LightMasks.occluder` (none while `LightMasks.shadows` is off) on `LightMasks.CHARACTER`, shaped by `CharacterShadowConfig`. It follows the body unrotated; `anatomy.turn_shadow()` turns it to `facing` only when the facing has turned. `anatomy.die()` frees it: a 2D occluder has no height, so a body on the floor would throw a shadow as long as a wall's. Test: `lighting/occluders_walls_pieces_characters`.
 
-## Footsteps (bloody footprints)
+## Events a character posts
 
-`character_footsteps.gd` (a `RefCounted`, the `anatomy`'s `footsteps`, stepped by `anatomy.step` after the pose) spots each foot's landing:
-the foot is planted while `cos(anatomy.pose.gait.stride_phase() + (0|PI))` is >= 0, so a landing is cos rising through 0
-(only above `MIN_WALK` walk amount; none while an interaction holds the character or once dead). On a landing it
-solves the rig once, reports the sole (middle, toes, `CharacterBodyConfig.foot` x radius long, `body_shoe_widths[0]` wide) to the
-`BloodFootprints` child (Physics; its `footprints`, added by `anatomy.attach()`), which decides whether it prints, and posts a `&"footfall"` `EventBus` event
-(`{ position` (the sole)`, foot` (0 left / 1 right)`, speed, running, character` (itself)`, crouched` (`movement.posture() == crouch`)` }`) which
-the Audio domain turns into a step on the floor under it and the AI hears by (whose step, and how far it carries by gait, `docs/hearing.md` H1).
-Tests: `tests/physics/footprints_trail_test.gd`, `tests/audio/footstep_surface_sound_test.gd`, `tests/ai/perception/footsteps_heard_by_gait_test.gd`.
-
-A reload posts `&"reload"` on `EventBus` twice: `stage = &"start"` from `ammo.reload()` and `&"done"` once the timer ends and the
-magazine is swapped (`CharacterAmmo._post`; `{ position` (weapon hand)`, gun, stage, power, character }`; its `character` is read only by the tests). A reload cancelled by
-running, switching items, an interaction or death never posts `done`. Test: `tests/audio/reload_sound_test.gd`.
-
-## A long gun against a wall (the raise)
-
-An item whose `raises_at_contact()` is true (SMG, rifle) is judged every physics frame by the `weapon` component's `update_raise(delta)` (`character_weapon.gd`, after `facing` is
-set, before `anatomy.step`'s `pose.update`; skipped in an interaction). The barrel is a ray from beside the body centre (the weapon hand's lateral) along the
-aim, as far as the gun reaches **held normally** — the item's *un-raised* stance forward plus `muzzle_ahead()`, never the raised one, or pulling
-it up would clear the ray and drop it again. `CharacterHands.solid_distance(from, dir, max)` does the cast (it owns the physics-space query and
-`HAND_MASK`) and **ignores other characters**: a gun against a person is not against a wall, and a dead body is on no layer. It blocks when something is within
-the reach, and stays blocked until `CharacterStanceConfig.weapon_contact_margin` of clearance, so it does not flicker at the edge. `_blocked` is
-set at once (`weapon.blocked()`: `weapon.shoot()` returns false, a gun cannot fire), while `weapon.raise()` (0..1) eases toward it at
-`CharacterStanceConfig.weapon_raise_speed` for the art. While blocked, `weapon.stances()` asks the item for `raised_stance(hand)` (hands drawn in to the chest), and
-`GunArt.draw_weapon` (the gun's `art` part) shortens the barrel by `weapon.raise()`: "pointed up" seen from above. The raise joins `_redraw_key_of` in
-`character_visuals.gd` (rounded to `REDRAW_RAISE_STEP`), or an idle body would not repaint. `inventory.select_slot`, `inventory.set_loadout` (`weapon.reset_raise()`, lowered at once) and **`weapon.shoot()` itself** re-judge it
-at once: a controller acts before the frame's own check runs (and on a character's very first frame none has run), so trusting last frame's `_blocked`
-let a long gun fired point-blank into a wall leave through it. Test: `tests/character/long_gun_wall_raise_test.gd` (incl. a shot on the first frame);
-holds: `tests/character/long_gun_hold_test.gd`.
-
-## Postures (crouch)
-
-A character is **standing or crouching** (`movement`'s `_posture`, a `CharacterPostureConfig.postures` key: `stand` / `crouch`). Spec and
-numbers: `docs/cover-and-stance.md`. All of it is the `movement` component's (`character_movement.gd`, `CharacterMovement`) but
-the turning of `facing`, which stays on `character.gd`. (`CharacterStanceConfig.stances` is how a *hand* is held; the body is a *posture*.)
-- **API** (interface 7): `movement.set_posture(p) -> bool` (idempotent, so a controller may write it every frame; refused while dead, in an interaction or
-  within `CharacterPostureConfig.change_time` of the last change), `movement.toggle_crouch()` (C: stand<->crouch); reads `movement.posture()`. The player's key comes from `Keybinds.CROUCH` through `player_controller.gd`; the puppet has `set_posture`.
-- **Reads for a controller:** `movement.posture_coverage(posture)` (the body's height on the coverage scale in `stand` / `crouch`: what furniture must stand above to shield it) and
-  `movement.run_speed()` / `movement.walk_speed()` (px/s standing, running / walking, as it is now, slower while stunned or weighed down by the outfit): the AI's grenade geometry judges a spot by them and keeps no copy of the numbers
-  (`tests/character/posture_and_run_reads_test.gd`).
-- **Effects:** `_move_speed()` multiplies the posture's `speed` row (1.0 / 0.6); running (`_update_stamina`) needs `_posture == stand`, so a
-  refused run costs no stamina; shooting, reloading and `weapon.melee()` work in every posture (`anatomy.leg_kick()` only standing); `get_surface().coverage` is the
-  posture's row (60 / 35: a bullet strikes what stands above its one height, see the Projectile skill); starting an interaction stands the
-  character up (`movement.stand_up()`) and locks the posture; `_die` stands it (and resets the drawn body, `movement.fold(0.0)`) before the ragdoll is built, so a body falls from the standing skeleton.
-  The collision circle (and `radius`) never change.
-- **Turning:** `facing` is turned toward the aim at no more than the posture's `turn` rate (`_turned_toward`; stand 0 = at once, crouch 5 rad/s),
-  so a low body takes longer to come round; `movement.aim_point` is never held back, and the hands, weapon and shots follow `facing`.
-
-- **Look and legs:** the drawn body eases into the posture (`_posture_height`, `posture_ease`; read through `movement.posture_height()` / `movement.posture_folded()` / `movement.posture_hand_ahead()`); the rig fold, the arms and the legs are in `domain-character-body`.
-Tests: `tests/character/posture_speed_test.gd`, `posture_player_input_test.gd`, `posture_interaction_test.gd`, `posture_turn_speed_test.gd`, `crouch_rig_test.gd`, `crouch_arms_attached_test.gd`, `legs_rest_on_walls_test.gd`.
-
-## Running and stamina
-
-A controller sets `movement.run_input` (the player: `Keybinds.RUN`, Shift; an NPC: its behaviour layer). Each frame on foot
-`movement.walk` (or, held still, `movement.hold`) runs `_update_stamina(wants_run, delta)`, which decides `_running` (asked, moving above `run_min_input`, not
-exhausted) and spends or regains `stamina` (a 0..1 bar): a full bar lasts `run_stamina_seconds`, it refills
-at `stamina_regen_per_sec`. Running dry latches `_exhausted` — the character walks, run still held, until
-the bar refills to `run_resume_fraction`. Only a standing character runs (a crouched one's run request is ignored). Running multiplies the walk speed by `run_speed_mult`
-(`_move_speed()`, also used for the death momentum and the push carry cap); a heavy outfit spends the bar faster (below); the pose's drive still carries the
-walk `movement.speed` as its `top_speed`, so the walk amount stays at 1 while the stride cadence rises with the speed. Being busy in
-an interaction counts as not running. `weapon.shoot()` does nothing while running (`weapon.melee()` still works).
-Reads: `movement.is_running()`, `movement.stamina_fraction()`. Test: `tests/character/run_speed_stamina_test.gd`.
-
-The run's legs, arms and shoulders (stride blend, `run` stance, shoulder sway and lean) are drawn from `anatomy.pose.gait.run_amount()`; see `domain-character-body`. Test: `tests/character/run_pose_test.gd`.
-
-## Ammo and reloading
-
-The character's `ammo` component (`character_ammo.gd`, `CharacterAmmo`) carries the spare magazines (`_magazines`, `Magazine`
-items) beside its inventory: they are never in the inventory's `_items`, so no number key or interaction can select them. They come from
-`ammo.spare_magazine_types` (`MagazineConfig.types` ids, default two standard magazines for each gun; carried from the
-character's `_ready` through `ammo.restock`) and the inventory's `start_rounds` (what the starting gun is loaded with;
-negative = full), which tests and sandboxes set through `actor(..., props)` (`"ammo:spare_magazine_types"`, `"inventory:start_rounds"`). `inventory.set_loadout(kit: CharacterKit)` (`CharacterKit` is Items' vocabulary, `items/character_kit.gd`, `domain-items`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"", `grenades` = {}, `weapon_style` = &"police") re-arms a character after the fact (a match gives an NPC or the scene-placed player its gun this way; the kit's `loaded_magazine` picks the type the gun starts loaded with; its `spare_types` go to `ammo.restock`). `ammo.reload()` (R, or the AI's reload
-primitive) starts a timer of the held item's `ammo.reload_time()` on it if its `ammo.can_reload(character)` says a carried
-magazine would add rounds, and sets the item's `ammo.reloading` flag (a gun's support hand eases to the `reload`
-stance while it is up). `ammo.update(delta)` runs right after the controller: it cancels the reload when the character
-is busy, running or no longer holds that item, else counts down and calls `item.ammo.finish_reload(character)`. `weapon.shoot()` is
-ignored mid-reload; switching slot, a ride's first pose and dying cancel it (`ammo.cancel()`); magazines are lost with the body.
-An item's `ammo` part reloading reaches the store through `ammo.best_magazine(gun)` / `ammo.take_magazine(gun)` / `ammo.stow_magazine(m)`.
-Reads: `ammo.is_reloading()`, `ammo.rounds(slot)`, `ammo.capacity(slot)`, `ammo.can_reload(slot)`, `ammo.spare_magazines()`; on the
-weapon `weapon.is_automatic()`; on the hands `anatomy.hands.is_attacking()` (a punch swing); the `inventory` component's
-(`character_inventory.gd`, `CharacterInventory`: the items carried, slot id -> `Item`, and the held slot) `inventory.item_name(slot)`,
-the held-item reads `inventory.current_item()` / `inventory.current_slot()` / `inventory.item_reach()` / `inventory.item_in(slot)` (the held item for a negative slot) and `inventory.has_item(id)` (is a slot carried),
-`inventory.gun_slot()` (the gun it fights with: the held item if it takes ammo, else the lowest slot that does, else −1: how the AI finds
-its weapon without knowing which). Tests: `tests/items/reload_swaps_magazine_test.gd`, `tests/character/reload_blocked_test.gd`.
-
-**Firing.** `weapon.shoot() -> bool` runs the held item's `secondary`; it returns false when busy, running, reloading, `weapon.blocked()` or the gun
-is still cycling between rounds. `_physics_process` ticks every carried item (`Item.tick(delta)`) *before* the controller runs, so a gun's fire-rate
-cooldown is in step with the frame that pulls the trigger. A controller re-presses `weapon.shoot()` every frame while the trigger is held when
-`weapon.is_automatic()` (`player_controller.gd` reads `Keybinds.is_fire_pressed()`; the test puppet has `hold_fire(on)`).
-
-**Loadout.** `inventory.set_loadout(kit: CharacterKit)` (the kit is the Items domain's, `items/character_kit.gd`) rebuilds the inventory from `ItemRegistry.inventory_for(slots, start_rounds, loaded_magazine, grenades, weapon_style)` (every item made in that weapon style, `Item.art.style`: looks only), the carried
-magazines and the held slot (dropping any reload, re-judging the raise). A match uses it (`MatchBuilder.arm`, through `LoadoutConfig.apply`) to arm the human and every NPC with its side's loadout — a chosen gun, or one random gun by default
-(`ItemRegistry.loadout_for` / `spares_for`); tests that do not call it keep `default_inventory()` — every item (`inventory.stock()`, at `_ready`, holding the root's `start_slot`).
-
-## The style (`docs/outfits.md` O15)
-
-How the character is drawn, looks only, on its `wardrobe` (`character_wardrobe.gd`, `CharacterWardrobe`: a `Node`, the `Wardrobe` child of
-`character_base.tscn`, so a scene can author its style; the root finds it in `_enter_tree`, before any child's `_ready` reads it): `style` (exported, a
-`CharacterStyleConfig.styles` key: `zenitex` / `trauma`, the police units, `merc` / `borg`, the defenders' crew; `zenitex` by default, the defender NPC
-scene's `Wardrobe` `merc`), `look_seed` (exported: its own variety within the style) and `rank` (exported, a police unit's: 0 trooper, 1 sergeant, 2 lead).
-`wardrobe.set_style(style, seed, rank := 0)` sets all three (a match through `LoadoutConfig.apply`'s `style`, `MatchBuilder.style`; tests through it
-or the actor's `Wardrobe` child props, `set_props(id, "Wardrobe", { rank = … })`). Each setter bumps `wardrobe.revision`, which the visuals compare once a frame to re-resolve the look (`domain-character-body`). The
-style rows (`CharacterStyleConfig.styles`: side, police, weapon styles, palettes, bare clothes, skin, hair, gloves, pack, livery marks, chrome, optics,
-implant chances) and `default_style` are this domain's tuning. Tests: `tests/character/style_look_test.gd`, `tests/general/match_styles_test.gd`.
-
-## The outfit: hit zones, sides, armour, weight (`docs/outfits.md` O1 to O10)
-
-The character's wardrobe owns an `Outfit` (Items, `wardrobe.outfit`; a new one wears nothing). `wardrobe.outfit.set_ids(ids)` replaces the whole worn set (Main dresses every spawn
-through `LoadoutConfig.apply`; tests through it or `set_ids`); the art reads the `Outfit`'s `look(style)` and `revision` (`domain-character-body`),
-the UI its `view()`. A character never dressed has no armour, no weight and its style's bare clothes.
-- **Where a round strikes** (private to the body). `_hit_zone(height)`: the bullet's `HitInfo.height` over `movement.posture_coverage(movement.posture())` against `CharacterHitConfig.zones`
-  (`feet` up to 0.08, `legs` 0.45, `torso` 0.85, `head` above; the same fractions standing and crouched), `&""` for a height below 0 (a blast).
-  `_hit_side(direction)`: the angle between `-direction` and `anatomy.pose.torso_angle` (the shoulders), `front` up to `side_front_deg` 60, `back` from
-  `side_back_deg` 120, `flank` between.
-- **`get_surface_at(height, direction)`** (interface 3, which the projectile asks first): `get_surface()` where `Outfit.layer(zone, side)` is empty or the
-  height is below 0; over armour, that surface with the layer's `penetration`, `material`, `color`, `stop_power` and `inner_material` (the body's own
-  material, flesh).
-- **`take_hit`.** The shove is always applied. A hit with height below 0 (a frag's blast) is not zoned: its damage less the torso layer's `blast` share for
-  that side wounds (`_wound_by`). Otherwise the damage is scaled by `CharacterHitConfig.zone_damage` (head 2, torso 1, legs and feet 0.6). No layer there:
-  it wounds for the zoned damage (`_wound_by`). Over a layer it first wears the plate (`Outfit.wear(zone, side, hit.damage)`: the unscaled damage); then a hit that got through
-  (`hit.penetrated`) wounds for `(1 − reduction)` of the zoned damage, and one that did not (stopped or glanced off, `penetrated` false: the projectile
-  guarantees a round that beats `stop_power` penetrates) deals only `blunt` of it through `_apply_damage`, with debris of the armour's material and colour
-  and no `Deformable` record (so `damage_taken()` does not rise), no `BloodWound`. `_wound_by(hit, damage)` is the wounding path: the dent, the blood
-  debris, the bleeding and the damage. Melee (`take_damage`) is not zoned and meets no armour.
-- **Weight** (`wardrobe.outfit.weight()`). `movement`'s `_speed_in` multiplies every pace by `_weight_speed()` = `max(1 − extra × outfit_speed_per_kg, outfit_speed_min)` (0.0067, 0.6), `extra` the kg worn above
-  `outfit_free_weight` (2: plain clothes weigh nothing extra), so `_move_speed()` and `movement.run_speed()` slow with it; `_update_stamina` spends the run's stamina
-  `1 + extra × outfit_stamina_per_kg` (0.025) times as fast. The invaders' plated kit (14 kg) is about 8% slower and spends 1.3x.
-Tests: `tests/character/hit_zone_by_bullet_height_test.gd`, `outfit_weight_slows_test.gd`, `outfit_art_test.gd`, and the armour ones in `tests/projectile/`
-(`helmet_stops_pistol_not_rifle`, `soft_vest_stops_pistol_smg_not_rifle`, `plate_covers_front_back_not_flank`, `plate_wears_out`, `armour_stop_feedback`,
-`frag_blast_cut_by_vest`). A test that counts gun damage pins `BallisticsFlightConfig.bullet_height` (a random height picks a zone).
-
-## Grenades and the stun (`docs/grenades.md` G1, G13)
-
-`inventory.item_count(slot := -1)` reads a grenade slot's count; `inventory.throw_stats(slot := -1)` forwards the item's `throw_stats()` (a grenade's `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot), which the AI throws by; `inventory.throw_release_offset(slot := -1)` is where that grenade leaves the hand, standing: the `throw` stance's `forward` and `lateral` for the item's `weapon_hand()` (hand 0, the right, for anything else), as `Vector2(ahead, right)` in the character's frame, which the AI judges a lob from (test `tests/ai/grenade/grenade_lob_follows_throw_stance_test.gd`). `inventory.tick(delta)` (each physics frame, before the controller) ticks every item and then erases a grenade slot whose last grenade is thrown and, if it was held,
-selects `inventory.gun_slot()` (else the fists). `weapon.aim_target()` is the aim point swayed by `weapon.aim_sway()`; `GunItem.secondary` turns each shot by `weapon.aim_sway()` (0 unless stunned).
-`take_stun(blind, deaf)` (an explosion's hook, on the body) hands the stun to its `stun` component (`character_stun.gd`, `CharacterStun`), whose `take(blind, deaf)` takes the longer of the old and new timers (blind and deaf each) and posts `&"stun"` (`{ character, position, blind, deaf }`); `stun.level()` (0..1) is the longer remaining timer over
-`CharacterStunConfig.recover_tail` (the four stun numbers, `CharacterStunConfig.speed`, `CharacterStunConfig.sway`, `recover_tail` and `CharacterStunConfig.drift`, are the body's tuning and live in `CharacterStunConfig`: the
-Character reads nothing of `GrenadeConfig`), and while it is above 0 `movement`'s `_move_speed()` scales to `CharacterStunConfig.speed`, running is refused, the walk drifts (`stun.drift()`) and the aim sways (`weapon.aim_sway`, by `stun.wander`: two
-out-of-step sines, up to `CharacterStunConfig.sway` degrees x the level). `stun.is_blind()` / `stun.is_deaf()` read it, `stun.update(delta)` counts it down each physics frame and `stun.view()` feeds the UI (`StunScreen`). `blast_push(from, impulse)` is an explosion's hook: a living body is knocked
-back (`apply_impulse`), a dead one's ragdoll (`anatomy.ragdoll`) is woken and thrown (`CharacterRagdoll.blast`). The `throw` stance (`CharacterStanceConfig.stances`) is the wind-up's drawn-back arm.
-`inventory.set_loadout`'s `CharacterKit.grenades` (Items', `domain-items`) is a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
-
-**The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `anatomy.pose.update`'s `PoseDrive` carries the stun level
-(`stun.level()`, on foot and in an interaction; 0 in a ride's frame (`use.hold_frame`), so a ride's pose wins and the look eases back in once out); the pose eases it
-(`CharacterStunConfig.look_ease`) into the hunch and the stagger (`domain-character-body`). `weapon.stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing
-held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raised grip instead while `_blocked`) while its `_covers_eyes(item)`: blind, not
-riding (`use.is_riding()`), running or dead, not reloading (`ammo.is_reloading()`), no punch swing (`anatomy.hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
-`hand_stance` is not `throw`). `weapon.one_handed()` (interfaces 6 and 7) is that, for a held gun (`gun_id() != &""`): `GunItem.secondary` adds the row's
-`one_hand_spread_deg` to its spread, and `weapon.kick` multiplies a long gun's (`raises_at_contact()`) recoil by `CharacterStanceConfig.one_hand_recoil`.
-`movement.posture_hand_ahead()` adds the hunched chest's forward shift (half the spine's lean at `anatomy.pose.gait.hunch()`) to the crouch's, so the hands (and the
-long-gun raise ray, which follows the drawn reach) keep their reach past the leaning chest. Tests: `tests/character/stunned_hand_over_eyes_test.gd`,
-`stunned_hunch_and_stagger_test.gd`, `tests/items/one_handed_fire_test.gd`.
-
-## Riding a vehicle (interface 19, `docs/vehicles.md`)
-
-The character's `use` component (`character_use.gd`, `CharacterUse`) composes the Vehicles domain's `CharacterVehicleUse`
-(`scenes/vehicle/character_vehicle_use.gd`, preloaded and added by `use.attach()` in `_ready` beside the interaction) and only forwards: `use.try_use_vehicle()` (E from `player_controller.gd` on
-`Keybinds.is_use_vehicle_just_pressed()`, the puppet's `use_vehicle()`; refused while dead or in an object interaction, and
-stands a crouched character up through its `_stand_if_busy`), `use.vehicle()` and `use.is_in_vehicle()` (a test read). `_physics_process` calls
-`use.control(delta)` right after the controller, so the ride overrides that frame's intent (it walks the character to the
-door with `movement.move_input` / `movement.aim_point`, and from the driver's seat hands the keys on to the vehicle). While the ride lasts (`is_active()`)
-`use.is_busy()` is true and `use.try_interact()` / `use.interact_with` are refused.
-
-The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, step)`: the first pose sets `use`'s `_riding`, cancels a reload and
-disables the collision shape (`set_deferred`); each pose sets `global_position`, `facing`, `movement.aim_point`, the posture to `stand` (`movement.stand_up()`) and
-the drawn height between standing and the crouch height by `fold` (`movement.fold(fold)`, so `movement.posture_folded()` and the body art read the seated fold), keeps
-`_ride_step` and drops the cached rig (`anatomy.invalidate_rig()`). While `_riding` (`use.is_riding()`), `movement.tick` skips the posture's ease, `inventory.current_item()` returns null (the item put away: no
-firing, nothing drawn in the hands) and `use.hold_frame` replaces the rest of the frame (the frame an interaction holds too, the body's part `anatomy.hold`): no movement, knockback or push, stamina refilling (`movement.hold`),
-legs and kick cleared, and `anatomy.pose.update` with `_ride_step` as the motion and no stun (the stunned look waits until the ride is over) (the legs step with the pose through the vehicle's frame, not
-with the vehicle). `use.end_ride()` clears `_riding`, re-enables the shape, zeroes the step and points the aim along the facing. The collision
-exception with the vehicle is added at boarding; after the ride the component hands the vehicle to `use.keep_clear_of(body)`, below.
-
-**Clearing a body just left** (interfaces 8 and 19). `use.keep_clear_of(body)` keeps the collision exception with an object an interaction's
-`move_to` put the character on, or a vehicle it rode, until the character's circle (+`CharacterUse.CLEAR_MARGIN` 3 px, on `PhysicsLayers.SOLID`) no
-longer overlaps it, checked once a physics frame after the move (`use.restore_cleared()`), then drops it; a freed body is forgotten. Going
-straight back onto that object or into that vehicle calls `use.stop_clearing(body) -> bool`, so the exception stays.
-Tests: `tests/vehicle/` (`domain-vehicle`), `tests/general/use_vehicle_key_test.gd`.
+- `&"footfall"` from `character_footsteps.gd` (stepped by `anatomy.step` after the pose): `{ position, foot, speed, running, character, crouched }`. A landing is the foot's stride phase rising through cos 0, above `MIN_WALK` walk amount; none while an interaction holds the character or once dead. Audio voices it, the AI hears by it (`docs/hearing.md` H1), and the sole goes to the `BloodFootprints` child (Physics). Tests: `tests/physics/footprints_trail_test.gd`, `tests/audio/footstep_surface_sound_test.gd`, `tests/ai/perception/footsteps_heard_by_gait_test.gd`.
+- `&"reload"` twice (`start`, `done`; `CharacterAmmo._post`). A reload cancelled by running, switching items, an interaction or death never posts `done`. Test: `tests/audio/reload_sound_test.gd`.
+- `&"hit"` for a landed punch or kick (`_on_punched`, `_on_kicked`, `KICK_HAND`), with `attacker = self`, `outcome = &"punch"` and the victim's `material`, so a punch counts as an attack for AI hostility; also `hit_landed`.
+- `&"stun"` from `stun.take` (`weapon.md`).
 
 ## Walking into furniture
 
-`movement.walk`'s `_apply_pushes()` shoves each pushable the body slid into with `CharacterPushConfig.impulse` per *second* of contact
-(× `delta`) at the **contact point** (`collision.get_position()`), through `CharacterPush.shove(piece, dir, impulse, at_world, speed)`
-(`character_push.gd`, shared with the leg press in `domain-character-body`): the impulse lands off-centre, so a piece pushed near one
-end slides and turns about a point near the far end, one pushed in the middle of a side just slides. The shove is capped so the
-*contact point* (linear velocity plus spin) is carried at no more than `speed × CharacterPushConfig.carry_factor` along the push, worked out with the
-piece's effective mass at that point (mass and the physics server's inverse inertia), so a turning end is never flung ahead of the
-walker (the cap uses the walker's intent along the contact normal). Another character (no `linear_velocity`) takes the shove uncapped and
-ignores the point.
-The body runs in `MOTION_MODE_FLOATING` (top-down: no floor), otherwise a body it walks "down" into would be ridden as a platform and lend the character its launch velocity. The resulting slow-down (`CharacterPushConfig.slow_per_weight`,
-floored by `CharacterPushConfig.slow_min`) applies at once but eases back at `CharacterPushConfig.slow_release`/s, so a lost-contact
-frame doesn't snap speed. Tests: `tests/character/walk_into_furniture_speed_test.gd`, `walk_into_sofa_turns_test.gd`.
+`movement.walk`'s `_apply_pushes()` shoves each pushable the body slid into through `CharacterPush.shove(piece, dir, impulse, at_world, speed)`, shared with the leg press (`body.md`). The impulse lands at the **contact point**, so a piece pushed near an end turns about a point near the far end. The shove is capped so the contact point is carried at no more than `speed × CharacterPushConfig.carry_factor` along the push, using the piece's effective mass at that point, so a turning end is never flung ahead of the walker. Another character (no `linear_velocity`) takes the shove uncapped. The slow-down (`slow_per_weight`, floor `slow_min`) applies at once and eases back at `slow_release`/s, so a lost-contact frame does not snap speed. Tests: `tests/character/walk_into_furniture_speed_test.gd`, `walk_into_sofa_turns_test.gd`.
 
-## Facing
+## Riding a vehicle (interface 19, `docs/vehicles.md`)
 
-- **Facing:** `character.gd` points `facing` from itself to `movement.aim_point` (the mouse, set by the
-  controller) each frame. The node is never rotated, so hand math stays in local space.
+`use` composes the Vehicles domain's `CharacterVehicleUse` (preloaded and added by `use.attach()` in `_ready`) and only forwards: `use.try_use_vehicle()` (E; refused while dead or in an object interaction, and stands a crouched character up), `use.vehicle()`, `use.is_in_vehicle()`. While the ride lasts, `use.is_busy()` is true and `try_interact` / `interact_with` are refused.
 
-## Runtime shapes (built in `_ready()`)
+The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, step)`: the first pose cancels a reload and disables the collision shape (`set_deferred`); each pose sets position, `facing`, aim and the drawn height (`movement.fold`) and drops the cached rig. While riding, `inventory.current_item()` returns null (the item put away: nothing fires or draws in the hands) and `use.hold_frame` replaces the rest of the frame: no movement, knockback or push, stamina refilling, `anatomy.pose.update` with the ride's step as the motion and no stun look. `use.end_ride()` re-enables the shape.
 
-`character.gd` builds its body `CircleShape2D`; `body_strike.gd` builds each strike's query circle (a fist's or a foot's). The editor shows a "no shape" warning on `Player/CollisionShape2D` — expected.
+**Clearing a body just left** (interfaces 8, 19). `use.keep_clear_of(body)` keeps the collision exception with an object an interaction's `move_to` put the character on, or a vehicle it rode, until the character's circle (+`CLEAR_MARGIN`, on `PhysicsLayers.SOLID`) no longer overlaps it, checked once a physics frame (`use.restore_cleared()`); a freed body is forgotten. Going straight back calls `use.stop_clearing(body)`, so the exception stays.
 
-## Scenes
+## Scenes and groups
 
-The NPCs are the AI domain's scenes (`ai/npc.tscn`, a generic goal-driven agent driven by `ai/goal_controller.gd`;
-see the `domain-ai` skill; `ai/npc_defender.tscn` and `ai/npc_invader.tscn` inherit it and only override data: faction, goal,
-hostility exports, and the defender's style `merc`). The player uses `player_controller.gd`. `character/character_base.tscn` is the bare
-character (body, shape, Hands, Visuals) with **no controller**, and the one place that composition is declared: `npc.tscn`
-inherits it and `main.tscn`'s `Player` instances it: a composer adds any `control()` child before it enters the tree
-(`_find_controller()` runs at `_ready`) — the Testing domain adds its puppet `ScriptedController` or
-`player_controller.gd`.
+`character_base.tscn` is the bare character (body, shape, Hands, Visuals, Wardrobe) with **no controller** and the one place that composition is declared. `ai/npc.tscn` inherits it (`domain-ai`; `npc_defender.tscn` and `npc_invader.tscn` override data only) and `main.tscn`'s `Player` instances it with `player_controller.gd`. A composer adds a `control()` child before the character enters the tree (`_find_controller()` runs at `_ready`); the Testing domain adds its puppet `ScriptedController`.
 
-Every character joins the group `characters` in its `_ready` (interface 7): it is how the AI's perception and tactics, the Projectile
-System's `Explosion` and a vehicle tell a character in the world. Every character has an exported `faction` (`&"player"` by default; the NPC presets set
-`&"household"` / `&"invader"`), read by AI perception to tell allies from potential hostiles. A
-landed punch (or leg kick, `_on_kicked`, hand code `KICK_HAND`) is surfaced as `hit_landed` **and** posted as a `&"hit"` `EventBus` event with
-`attacker = self` (like a projectile's), so a punch counts as an attack for AI hostility. The event also carries
-`outcome = &"punch"` and the struck `material` (the victim's `get_surface()`, `""` when it has none), for the Audio domain.
+Every character joins the group `characters` in `_ready` (interface 7): how the AI's perception, `Explosion` and a vehicle find characters in the world. `faction` is exported (`&"player"` by default; the NPC presets set `&"household"` / `&"invader"`) and read by AI perception to tell allies from potential hostiles.
 
-**Interfaces:** 3 (hittable), 4 (Character → Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID` for the body's hand, leg and strike queries and the clearing check; `DrawLayers.LYING` for the fallen body; `LightMasks.CHARACTER` for its shadow; `FillBatch` for the body's plain-coloured shapes), 12 (Character → Art), 15 (`GameLog`, a landed blow's log line), 18 (`stun.view()`, read off `Sound.focus`), 19 (Character ↔ Vehicle), 20 (the body's occluder; `is_dead` / `radius` read by the lighting) — signatures in `architecture`.
+**Interfaces:** 3 (hittable), 4 (Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID`, `DrawLayers.LYING`, `LightMasks.CHARACTER`, `FillBatch`), 12 (Art), 15 (`GameLog`), 18 (`stun.view()`, read off `Sound.focus`), 19 (Vehicle), 20 (the occluder; `is_dead` / `radius` read by the lighting).

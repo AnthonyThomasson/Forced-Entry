@@ -736,6 +736,169 @@ class SpecNamedTestsTests(unittest.TestCase):
         self.assertEqual(self.run_changed(), ["No changed file maps to any tests (affected: none)."])
 
 
+class ChangedSinceRefTests(unittest.TestCase):
+    """`--changed=<ref>`: the files changed since the merge-base of <ref> and HEAD (commits, the working tree and
+    untracked files together), and the spec paragraphs changed since it. A throwaway repo with main, a feature branch
+    cut from it, and main moved on afterwards (what main gained is not this branch's change), a copy of run_tests.sh
+    and a fake Godot recording each run's selection."""
+
+    HEADER = SpecNamedTestsTests.HEADER
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="changed_ref_"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.repo = self.tmp / "repo"
+        self.state = self.tmp / "state"
+        self.state.mkdir()
+        tools = self.repo / "tools"
+        tools.mkdir(parents=True)
+        for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py", "spec_tests.py", "lint_staged.sh", "lint_label.py"):
+            shutil.copy2(ROOT / "tools" / name, tools / name)
+        self.fake = self.tmp / "fakegodot"
+        self.fake.write_text(FAKE_GODOT)
+        self.fake.chmod(0o755)
+        files = {".gitignore": ".godot/\n", ".godot/global_script_class_cache.cfg": "", "docs/spec.md": SPEC_DOC,
+                 "tests/ai/alpha_one_test.gd": "", "tests/physics/beta_two_test.gd": "", "tests/ai/x_test.gd": "",
+                 "tests/ui/u_test.gd": "", "scenes/ui/u.gd": "extends Node\n", "scenes/navigation/n.gd": "extends Node\n"}
+        for rel, text in files.items():
+            (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / rel).write_text(text)
+        self.git("init", "-q", "-b", "main")
+        self.commit("base")
+        self.git("checkout", "-q", "-b", "feature")
+
+    def git(self, *args):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args], cwd=self.repo,
+                       env=StagedChangedTests.env(), check=True, capture_output=True)
+
+    def commit(self, message):
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", message)
+
+    def edit(self, path, old, new):
+        f = self.repo / path
+        f.write_text(f.read_text().replace(old, new))
+
+    def main_moves_on(self):
+        """A commit on main after the branch was cut: it touches a navigation scene and the doc's first rule."""
+        self.git("checkout", "-q", "main")
+        self.edit("scenes/navigation/n.gd", "Node", "Node2D")
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, as main has it.")
+        self.commit("main moves on")
+        self.git("checkout", "-q", "feature")
+
+    def run_wrapper(self, *args, **env):
+        env = {"GAME_TEST_VON_PORT": str(free_port()), **env}
+        r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--no-lint", "--jobs=1", *args], cwd=self.repo,
+                           capture_output=True, text=True, timeout=120,
+                           env=StagedChangedTests.env(GODOT=str(self.fake), FAKE_SCENARIO="clean", TMPDIR=str(self.state), **env))
+        return r.returncode, r.stdout + r.stderr
+
+    def lines(self, *args, **env):
+        code, out = self.run_wrapper(*args, **env)
+        self.assertEqual(code, 0, out)
+        return [ln for ln in out.splitlines() if ln.startswith(("selection:", "== ", "No ", "NOTE "))]
+
+    def test_it_maps_the_committed_the_uncommitted_and_the_untracked_files_since_the_merge_base(self):
+        self.edit("scenes/ui/u.gd", "Node", "Control")
+        self.commit("a committed scene edit")
+        with open(self.repo / "tests/ai/x_test.gd", "w") as f:
+            f.write("# uncommitted\n")
+        (self.repo / "tests/audio").mkdir()
+        (self.repo / "tests/audio/y_test.gd").write_text("")  # untracked
+        self.assertEqual(self.lines("--changed=main"),
+                         ["== ui ==", "selection: --domain=ui", "== ai/x,audio/y ==", "selection: --id=ai/x,audio/y"])
+
+    def test_what_main_gained_after_the_branch_was_cut_is_not_the_branchs_change(self):
+        self.edit("scenes/ui/u.gd", "Node", "Control")
+        self.commit("a committed scene edit")
+        self.main_moves_on()
+        self.assertEqual(self.lines("--changed=main"), ["== ui ==", "selection: --domain=ui"],
+                         "not navigation (main's commit), whose diff against main's tip would show it")
+
+    def test_a_ref_on_the_branch_itself_has_nothing_committed_to_map(self):
+        self.edit("scenes/ui/u.gd", "Node", "Control")
+        self.commit("a committed scene edit")
+        self.assertEqual(self.lines("--changed=HEAD"), ["No changed file maps to any tests (affected: none)."])
+
+    def test_a_spec_paragraph_changed_in_a_commit_runs_the_tests_it_names(self):
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.commit("reword the first rule")
+        self.assertEqual(self.lines("--changed=main"),
+                         [self.HEADER, "selection: --id=ai/alpha_one,physics/beta_two --repeat=5"])
+        self.assertEqual(self.lines("--changed"), ["No changed file maps to any tests (affected: none)."],
+                         "a bare --changed reads the uncommitted change only")
+
+    def test_a_spec_paragraph_changed_on_main_only_runs_nothing_and_an_uncommitted_one_does(self):
+        self.main_moves_on()
+        self.assertEqual(self.lines("--changed=main"), ["No changed file maps to any tests (affected: none)."])
+        self.edit("docs/spec.md", "Prose that names nothing.", "Prose that names nothing, reworded.")
+        self.edit("docs/spec.md", "Prose of the third.", "Prose of the third, reworded.")
+        self.assertEqual(self.lines("--changed=main"), ["NOTE docs/spec.md:6: changed paragraph names no test",
+                                                        "NOTE unknown test name in docs/spec.md:9: no_such_test",
+                                                        "No changed file maps to any tests (affected: none)."])
+
+    def test_skip_domain_and_repeat_work_as_for_a_bare_changed(self):
+        self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
+        self.commit("reword the first rule")
+        self.assertEqual(self.lines("--changed=main", "--skip-domain=physics", "--repeat=9"),
+                         [self.HEADER, "selection: --id=ai/alpha_one --repeat=9 --skip-domain=physics"])
+
+    def test_staged_with_a_ref_is_refused_with_a_reason_and_nothing_runs(self):
+        code, out = self.run_wrapper("--changed=main", "--staged")
+        self.assertEqual(code, 2, out)
+        self.assertIn("--changed=main --staged", out)
+        self.assertIn("refused", out)
+        self.assertNotIn("selection:", out)
+        self.assertEqual(self.run_wrapper("--staged", "--changed=main")[0], 2, "in either order")
+
+    def test_an_unknown_ref_is_refused_with_a_reason_and_nothing_runs(self):
+        for ref in ("no-such-ref", ""):
+            with self.subTest(ref=ref):
+                code, out = self.run_wrapper(f"--changed={ref}")
+                self.assertEqual(code, 2, out)
+                self.assertIn(f"--changed={ref}: unknown revision", out)
+                self.assertNotIn("selection:", out)
+
+    def test_a_ref_with_no_common_history_is_refused_with_a_reason_before_the_lint_and_nothing_runs(self):
+        self.git("checkout", "-q", "--orphan", "unrelated")
+        self.git("commit", "-q", "--allow-empty", "-m", "a root of its own")
+        self.git("checkout", "-q", "-f", "feature")
+        # This repo has no tools/lint.sh: a lint that ran would fail the run (exit 1), not refuse it (2).
+        r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--changed=unrelated"], cwd=self.repo,
+                           capture_output=True, text=True, timeout=120,
+                           env=StagedChangedTests.env(GODOT=str(self.fake), TMPDIR=str(self.state)))
+        out = r.stdout + r.stderr
+        self.assertEqual(r.returncode, 2, out)
+        self.assertIn("--changed=unrelated: no common history with HEAD (refused)", out)
+        self.assertNotIn("selection:", out)
+
+    def test_a_ref_is_refused_before_the_lint_runs(self):
+        # This repo has no tools/lint.sh: a lint that ran would fail the run (exit 1), not refuse it (2).
+        r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--changed=nope"], cwd=self.repo,
+                           capture_output=True, text=True, timeout=120,
+                           env=StagedChangedTests.env(GODOT=str(self.fake), TMPDIR=str(self.state)))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("--changed=nope: unknown revision", r.stdout + r.stderr)
+
+    def test_a_ref_with_base_is_refused(self):
+        code, out = self.run_wrapper("--changed=main", "--base=main", "--id=ai/x")
+        self.assertEqual(code, 2, out)
+        self.assertIn("--base=main", out)
+
+    def test_a_bare_changed_and_changed_staged_read_head_and_the_index_as_before(self):
+        self.edit("scenes/ui/u.gd", "Node", "Control")
+        self.commit("a committed scene edit")
+        with open(self.repo / "tests/ai/x_test.gd", "w") as f:
+            f.write("# staged\n")
+        self.git("add", "tests/ai/x_test.gd")
+        with open(self.repo / "tests/physics/beta_two_test.gd", "w") as f:
+            f.write("# not staged\n")
+        self.assertEqual(self.lines("--changed"), ["== ai/x,physics/beta_two ==", "selection: --id=ai/x,physics/beta_two"],
+                         "the committed ui edit is no uncommitted change")
+        self.assertEqual(self.lines("--changed", "--staged"), ["== ai/x ==", "selection: --id=ai/x"])
+
+
 FAKE_CONCURRENT_GODOT = r"""#!/usr/bin/env bash
 # Stands in for Godot: records how many fake engines run at once (a file per running one in $FAKE_CONC_DIR, counted
 # after it exists), stays alive $FAKE_SLEEP seconds, then writes a passing report (with FAKE_EMPTY, none: no test found).

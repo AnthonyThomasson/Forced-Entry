@@ -15,6 +15,7 @@ const MainScript := preload("res://scenes/main.gd")
 const PlayerController := preload("res://scenes/character/player_controller.gd")
 const LayoutBuilder := preload("res://scenes/testing/layout_builder.gd")
 const SetupMenu := preload("res://scenes/ui/menus/setup_menu.gd")
+const MatchHud := preload("res://scenes/ui/hud/match_hud.gd")
 const PLAYER_SCENE := "res://scenes/character/character_base.tscn"
 
 
@@ -35,8 +36,11 @@ static func viewport(t: TestContext) -> SubViewport:
 ## front entrance is built `run.entrance_distance` above it): it loads the settings
 ## (`Settings.path`, which the test points at a scratch file) and opens the setup window, or, with
 ## the Engine `skip_setup` meta set while it enters the tree (a scripted restart), builds its match
-## at once. Returned once its `_ready` has run.
-static func open(parent: Node, exports: Dictionary = {}, player_at := Vector2.ZERO) -> Node2D:
+## at once. With `hud` it also has the scene's `MatchHUD`, which decides a match and so starts an
+## endless run's next one. Returned once its `_ready` has run.
+static func open(
+		parent: Node, exports: Dictionary = {}, player_at := Vector2.ZERO, hud := false,
+) -> Node2D:
 	var main: Node2D = MainScript.new()
 	main.name = "Main"
 	main.run.set("debug_overlays", false)
@@ -52,6 +56,10 @@ static func open(parent: Node, exports: Dictionary = {}, player_at := Vector2.ZE
 	var menu: CanvasLayer = SetupMenu.new()
 	menu.name = "SetupMenu"
 	main.add_child(menu)
+	if hud:
+		var match_hud: CanvasLayer = MatchHud.new()
+		match_hud.name = "MatchHUD"
+		main.add_child(match_hud)
 	parent.add_child(main)
 	return main
 

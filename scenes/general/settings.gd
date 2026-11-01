@@ -1,8 +1,8 @@
 class_name Settings
 ## General domain: the player's saved settings — the debug switch, the key bindings that differ from
-## the defaults, the last match-setup choices and the overlay toggles — kept in one JSON file. A
-## `class_name` holder of `static var`s and static functions, read as `Settings.<name>`; there is no
-## instance and no autoload.
+## the defaults, the last match-setup choices, the overlay toggles and their scope — kept in one
+## JSON file. A `class_name` holder of `static var`s and static functions, read as
+## `Settings.<name>`; there is no instance and no autoload.
 ##
 ## Main loads it once at startup (`load_file()`), so the headless test runner, which never loads
 ## `main.tscn`, never reads a developer's real file. The settings page's changes come back through
@@ -22,6 +22,10 @@ static var setup: Dictionary = {}
 ## The overlay toggle bar's last states (`{ show_<x>: bool }`), so the overlays reopen as they were
 ## left. Only flags the player has toggled are stored; the rest keep Main's defaults.
 static var overlays: Dictionary = {}
+## Which NPCs the per-NPC overlays show on, per mode (`{ play: scope, watch: scope }`): only the
+## modes the player has chosen a scope for, the rest start on the mode's default (the UI's
+## `OverlayRegistry.DEFAULT_SCOPES`, which this holder never reads: General depends on no UI).
+static var overlay_scopes: Dictionary = {}
 
 
 ## Read the file: reset every binding to its default, then apply the saved differences, and take the
@@ -40,13 +44,23 @@ static func load_file() -> void:
 		debug = data["debug"]
 	if data.get("setup") is Dictionary:
 		setup = data["setup"]
+	_load_overlays(data)
+	if data.get("keybinds") is Dictionary:
+		Keybinds.bindings.apply_overrides(data["keybinds"])
+
+
+## Take the saved overlay toggles and their per-mode scopes out of `data`, skipping entries of the
+## wrong type; a mode the file does not name keeps its scope.
+static func _load_overlays(data: Dictionary) -> void:
 	if data.get("overlays") is Dictionary:
 		overlays = {}
 		for flag in data["overlays"]:
 			if data["overlays"][flag] is bool:
 				overlays[str(flag)] = data["overlays"][flag]
-	if data.get("keybinds") is Dictionary:
-		Keybinds.bindings.apply_overrides(data["keybinds"])
+	if data.get("overlay_scopes") is Dictionary:
+		for mode in data["overlay_scopes"]:
+			if data["overlay_scopes"][mode] is String:
+				overlay_scopes[str(mode)] = data["overlay_scopes"][mode]
 
 
 ## Write the current debug switch and the key bindings that differ from the defaults.
@@ -60,6 +74,7 @@ static func save() -> void:
 		"debug": debug,
 		"setup": setup,
 		"overlays": overlays,
+		"overlay_scopes": overlay_scopes,
 		"keybinds": Keybinds.bindings.overrides(),
 	}, "  "))
 
@@ -83,6 +98,12 @@ static func set_setup(config: Dictionary) -> void:
 ## Remember one overlay toggle (`flag`, as the toggle bar emits it) and save.
 static func set_overlay(flag: String, on: bool) -> void:
 	overlays[flag] = on
+	save()
+
+
+## Remember the overlay scope of `mode` (`play` or `watch`) and save.
+static func set_overlay_scope(mode: String, scope: String) -> void:
+	overlay_scopes[mode] = scope
 	save()
 
 

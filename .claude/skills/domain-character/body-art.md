@@ -1,0 +1,25 @@
+# Body: pixel art and the resolved look
+
+Specs: `docs/outfits.md` O12 (every garment drawn standing, crouched, fallen) and O15 (styles). Tests: `tests/character/outfit_art_test.gd`, `style_look_test.gd`. The Art domain's engine is `domain-art`.
+
+## Painters (`body/art/`)
+
+Six private painters, each its own part, all drawing from the character's resolved look, which they get as an int handle (`opts.look`, `PixelArt.handle`, read back with `PixelArt.look_of`): the look is some fifty entries and `PixelArt` hashes the options on every call, so the handle keeps the options a few scalars. `style_art.gd` holds the styles' shared marks (chrome, tattoo ink, skin inlays, the edge sheen, stripes, crosses, a stencil, tape).
+
+- `body_painter.gd`: the shoulders in the shirt, the neck ring, the ends where the arms leave (sleeve, skin, chrome), the style's uniform or gear marks, the vest, spine rig, cables and the pack.
+- `head_painter.gd`: skin, ears and nose toward the front, hair, cap or helmet, then the face, on its own canvas (`radius_for(width)`, `canvas_for(r)`).
+- `hand_painter.gd`: a fist, knuckles to the front and the thumb on the inner side (`side`); `limb_painter.gd`: the shaded strip of one arm, leg or shoe segment (`part`, `side`, `cuff`, `skin`, `chrome`).
+- `vest_painter.gd`: called by the body painter (`paint_top`, seen from above) and the torso painter (`paint_face`): a soft vest or a plate carrier. A plate's wear is `WEAR_STEPS` steps of `_MARKS_PER_STEP` marks from one fixed sequence per side (a crack, then a scuff), so each step adds to the last. `torso_painter.gd` paints the trunk's chest, back and flank faces (`body-fall.md`).
+
+`character_visuals.gd` renders each with `PixelArt.render_turned(..., snap_angle(angle), ...)` (lit for the nearest of `ArtCanvasConfig.turn_steps` steps) and draws it rotated to the exact angle of its part from the pose: shoulders at `torso_angle`, head at `head_angle` shifted by `head_offset`, each hand at `hand_angles[hand]`. Each goes through `_draw_round` (a kept mesh darkened by `Deformation.darken`, or `Deformation.draw_shape` headless; both read the part's `ShapeLook` from `_round_look`) so shots dent the art and darken it, then `Deformation.draw_marks` once on top. The visuals map each limb strip onto the tapered capsule between two rig joints (the same drawing the fallen body uses: `limbs`' `_arm_chain` / `_leg_chain` / `draw_chain`). The head casts its shadow onto the shoulders (`ArtCanvasConfig.cast_shadow_px`, `cast_shadow_darken`).
+
+**The floor shadow** (living and fallen alike, `body_shadow.gd`, the visuals' `shadow`) is one `CanvasGroup` of opaque shapes carrying `ArtCanvasConfig.drop_shadow_alpha`: the shoulders' deformed silhouette, each limb's capsule, the fists and the head (`shadow.draw_standing` / `draw_fallen`), every point shifted away from the light by `body_shadow_per_height × height` (`shadow.shift()`), so overlaps do not darken twice. It is redrawn with the body, so only when the standing body's drawing changes.
+
+## The look
+
+The character's style (`wardrobe`: `style`, `look_seed`, `rank`) and what it wears decide everything: `Visuals` has no look exports. Its `dress` (`body_dress.gd`, `BodyDress`) resolves it:
+
+- `refresh(wardrobe)` asks `wardrobe.outfit.look(style)` (each garment's `kind` and a `color` or a palette name) and `character_style.gd`'s `resolve(style, seed, rank, worn)` for the whole look: the style's row (`CharacterStyleConfig.styles`: livery marks, palettes, `bare` = what is drawn where nothing is worn) and the character's own variety drawn from its look seed **in a fixed order**, so a seed's look is stable. A garment's colour is its own, or drawn from the style palette it names by the seed and the palette's name, so a colour stays put as the clothes change.
+- It registers the look with `PixelArt.handle` and builds, once per change, the painters' options: the plates' colours and wear step `ceil((1 − condition) × WEAR_STEPS)`, each arm segment's colour, finish and options (`_arm_part`), each leg part's options and chrome shin, each fist's colour and options. A boot is the shin's lower part from `BOOT_TOP` down, `BOOT_GROW` wider.
+- **`refresh` resolves only when `Outfit.revision` or `wardrobe.revision` moves** (two int compares a frame). When the resolved look's hash `look_key` changes it returns true: it joins the redraw key and a settled fallen body repaints (`_settled_drawn = false`), also on its first frame back in view after a change made off screen.
+- For every body, dressed or not, the crouched and falling trunk map the most visible of chest, back and flank under the shoulders' art (`BodyTrunk._faces`). A crouched body's 25° pitch turns the top most to the camera, so its trunk is the back's art (seam, backpack, the vest's back panel, plate wear) with the shoulders' over it.

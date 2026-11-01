@@ -333,7 +333,15 @@ func _build_toggles() -> void:
 	_toggles = OVERLAY_TOGGLES.new()
 	_toggles.name = "OverlayToggles"
 	add_child(_toggles)
-	_toggles.setup(world.overlay_flags())
+	var mode: String = OVERLAY_REGISTRY.MODE_PLAY
+	_toggles.setup(
+		world.overlay_flags(),
+		OVERLAY_REGISTRY.default_scope(mode),
+		OVERLAY_REGISTRY.scopes_of(mode),
+	)
+	_toggles.scope_changed.connect(func(scope: String):
+		if is_instance_valid(_session.world):
+			_session.world.set_overlay_scope(scope))
 	# The performance panel is the runner's own (it needs no world); the rest go to the world.
 	_perf = PERFORMANCE_OVERLAY.new()
 	_perf.name = "PerformanceOverlay"

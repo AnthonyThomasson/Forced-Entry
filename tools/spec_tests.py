@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """The tests a changed spec paragraph names (tools/run_tests.sh --changed).
 
-  python3 tools/spec_tests.py [--staged]
+  python3 tools/spec_tests.py [--staged | --base=REV]
 
-Reads the uncommitted change to docs/*.md (`git diff HEAD -U0`, plus the untracked docs; with --staged what is staged,
-`git diff --cached`, the doc as the index holds it) and prints, one per line:
+Reads the change to docs/*.md since HEAD (`git diff HEAD -U0`: committed work is no change, the working tree is; plus the
+untracked docs). With --staged it reads what is staged (`git diff --cached`, the doc as the index holds it); with
+--base=REV the change since REV, committed, uncommitted and untracked together (`git diff REV -U0`; run_tests.sh
+--changed=<ref> passes the merge-base of <ref> and HEAD). --staged with --base is refused, and so is an unknown REV
+(exit 2, a reason on stderr). It prints, one per line:
 
   ID <test id>                                       a test a changed paragraph names (resolved under tests/)
   NOTE docs/<f>.md:<line>: changed paragraph names no test
@@ -151,7 +154,15 @@ def git(*args: str) -> str:
 
 def main(argv: list) -> int:
     staged = "--staged" in argv
-    diff = git("-c", "core.quotePath=false", "diff", "-U0", "--no-color", "--cached" if staged else "HEAD", "--", "docs/*.md")
+    bases = [a[len("--base="):] for a in argv if a.startswith("--base=")]
+    base = bases[-1] if bases else "HEAD"
+    if bases and staged:
+        print("spec_tests.py: --staged and --base are exclusive: the index is not a change since a revision", file=sys.stderr)
+        return 2
+    if bases and subprocess.run(["git", "rev-parse", "--verify", "--quiet", base + "^{commit}"], capture_output=True).returncode:
+        print(f"spec_tests.py: --base={base}: unknown revision", file=sys.stderr)
+        return 2
+    diff = git("-c", "core.quotePath=false", "diff", "-U0", "--no-color", "--cached" if staged else base, "--", "docs/*.md")
     if staged:
         # What the commit holds: the doc and the test files as the index has them.
         def read_doc(path):

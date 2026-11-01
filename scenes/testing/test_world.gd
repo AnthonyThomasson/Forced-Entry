@@ -38,6 +38,8 @@ var _saved_statics: Array = []
 ## The overlay toggles (`show_<x>` -> on), given to every actor as it spawns and changed by
 ## `set_overlay`.
 var _overlay_flags: Dictionary = {}
+## Which NPCs the per-NPC overlays show on (`OverlayRegistry.SCOPES`); every NPC at first.
+var _overlay_scope := OVERLAY_REGISTRY.SCOPE_ALL
 ## The navmesh-holes overlay (the "Navigation holes" toggle), kept in step with re-bakes by the
 ## updater.
 var _nav_debug: Node2D = null
@@ -179,15 +181,26 @@ func overlay_flags() -> Dictionary:
 ## panel belongs to the runner.
 func set_overlay(flag: String, on: bool) -> void:
 	_overlay_flags[flag] = on
-	MatchBuilder.set_overlay(
-		{
-			"nav_debug": _nav_debug,
-			"leader_overlay": _leader_overlay,
-			"combatants": actors.values() + (match_handle.get("combatants", []) as Array),
-		},
-		flag,
-		on,
-	)
+	MatchBuilder.set_overlay(_overlay_handle(), flag, on)
+
+
+## Show the per-NPC overlays on the NPCs of `scope` only (`defenders`, `invaders` or `all`, the
+## runner bar's "Show on" row), re-applying every toggle at once by the match's one rule
+## (`MatchBuilder.set_overlay_scope`); a later `set_overlay` honours it.
+func set_overlay_scope(scope: String) -> void:
+	_overlay_scope = scope
+	MatchBuilder.set_overlay_scope(_overlay_handle(), _overlay_flags, scope)
+
+
+## The handle `MatchBuilder` routes an overlay through: the world's nav and leader overlays, its
+## actors and a declared match's NPCs, and the scope they are shown on.
+func _overlay_handle() -> Dictionary:
+	return {
+		"nav_debug": _nav_debug,
+		"leader_overlay": _leader_overlay,
+		"combatants": actors.values() + (match_handle.get("combatants", []) as Array),
+		"overlay_scope": _overlay_scope,
+	}
 
 
 ## The squad of `faction` the setup declared (`TestSetup.squads`, or the declared match's own), or
@@ -281,7 +294,8 @@ func _spawn_actor(a: Dictionary, switches: Dictionary) -> Node:
 		character.set_indexed(NodePath(String(prop)), props[prop])
 	_apply_actor_switches(character, switches)
 	_apply_child_props(character, a)
-	OVERLAY_REGISTRY.apply(character, _overlay_flags)
+	# through the scope's gate, like every toggle: an actor spawned once a scope is set follows it
+	MatchBuilder.set_overlay_scope({ "combatants": [character] }, _overlay_flags, _overlay_scope)
 	# The AI learns the house's rooms, its doorways and, for an invader, the front entrance by
 	# Main's own rule, before it joins the tree.
 	MatchBuilder.bind_npc(

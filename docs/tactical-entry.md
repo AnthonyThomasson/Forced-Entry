@@ -16,8 +16,8 @@ An *opening* is a doorway in a wall (`WorldGen.get_openings`: `pos`, `width`, `f
 joins). Doorways are open archways; there are no door objects yet (issue #21), so forced breaching is not
 modelled (see *Not modelled*). The AI's side lives in `scenes/ai/`: `perception/` (what it knows of the
 opening, `sight.visible_points`), `decision/` (the ENTER tactic) and `behavior/` (the entry phases and their aim in `entry.gd`,
-`search_coverage.gd` for clearing). See `domain-ai-perception`, `domain-ai-decision`, `domain-ai-entry` (the entry phases),
-`domain-ai-behavior` and `domain-ai-coverage`.
+`search_coverage.gd` for clearing). See `domain-ai` (`perception.md`, `decision.md`, `entry.md` for the entry phases,
+`behavior.md` and `coverage.md`).
 
 ## The real-world tactics being simulated
 
@@ -83,7 +83,7 @@ sight. The file forms on one side of the door, unless a member would have to cro
 walks into its slot along the wall from a point past it (`APPROACH_LEAD`, 60 px), which stops a body's clearance (`Locomotion.PASS_CLEARANCE`,
 32 px) short of the next slot along its side a teammate claims, re-planned as claims come in, so the walk into a slot never aims at a
 teammate's body (`Entry.claim.approach_lead`). A member walks round the teammates already in the stack (the human among them), stops short of one on its own slot and takes a
-free spot beside it, and gives way to one walking across the way its walk still goes (`domain-ai-behavior`, Locomotion). When a body seals the only way to where a phase
+free spot beside it, and gives way to one walking across the way its walk still goes (`domain-ai` (`behavior-locomotion.md`), Locomotion). When a body seals the only way to where a phase
 walks and stays, the member re-plans within a few seconds rather than waiting on it: on to its next point the hold does not seal (the
 point it was walking to is dropped, and with it each next one at the slot or whose plain way passes the body holding it, `entry.gd`
 `approach.drop_sealed`; test `ai/entry/entry_held_walks_unsealed_waypoint`). With none left, and on a walk straight into the slot, it walks on into the slot unless the slot is sealed, by a body between the member

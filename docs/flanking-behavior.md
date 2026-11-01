@@ -11,7 +11,7 @@ Flanking here means taking one of the sides of a known hostile, measured in the 
 (left, right, rear), and fighting it from there. The AI's side of this lives in `agent_tactics.gd`
 (candidate points and their annotations), `agent_snapshot.gd` + `snapshot/` (the words Von reads), `decision_tree.gd`
 (which options a node offers) and the `engage` primitive (walking there and firing). See the
-`domain-ai-perception` and `domain-ai-decision` skills.
+`domain-ai` (`perception.md`, `decision.md`).
 
 ## Behaviours
 
@@ -138,5 +138,5 @@ How far each is to be trusted:
   answer to suppression. Review, not design material.
 - Shardpunk devlog, [Tweaking the AI](https://bryqu.itch.io/shardpunk/devlog/56198/tweaking-the-ai): scoring
   flank options against the risk of being flanked (B7). Hobbyist devlog.
-- B8 and B9 are this game's own requirements (the territory rule in `domain-ai-perception` (the confinement) / `domain-ai-decision` / `domain-ai-behavior`; the commit
-  rule in `domain-ai-behavior`), not sourced.
+- B8 and B9 are this game's own requirements (the territory rule in `domain-ai` (`perception.md` for the confinement, `decision.md`, `behavior-policy.md`); the commit
+  rule in `domain-ai` (`behavior-policy.md`), not sourced.
