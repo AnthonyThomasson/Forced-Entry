@@ -25,6 +25,12 @@ unreachable: the AI's cue to shove through). The bake runs in the house's local 
 `MatchBuilder.stage` calls it once after the house is built (Main's match and every test world alike). Every bake gathers
 its source the same way, so all carve holes identically; the default radius is `NavBuilder.AGENT_RADIUS`.
 
+- **Doors are left out of every bake** (interface 9, `docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`). A house `Door`
+  is an `AnimatableBody2D`, which the engine's static-collider parse reads as a wall, so a shut door would seal its doorway in the map.
+  `_walls_of` takes the bodies of the group `doors` under the house (`_doors_of`: the group and `is_ancestor_of`, nothing of Objects imported)
+  off the solid layer for the length of the parse and puts them back. The planning bake, the steering bake (they share `_walls_of`) and the
+  avoid maps (made from the planning bake's remembered source) all path through a doorway as if it were open, and the walker deals with the
+  leaf. Test: `tests/navigation/door_not_baked_test.gd`.
 - Solid furniture is recognised by engine type alone: a `RigidBody2D` with a `CollisionShape2D` (shoved furniture, and an anchored
   piece such as a streetlight's post, `tests/navigation/anchored_hole_test.gd`). Walls are `StaticBody2D` (parsed, not carved);
   non-solid decor has no collider and so no hole. That keeps Navigation importing nothing.

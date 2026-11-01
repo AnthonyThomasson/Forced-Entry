@@ -3,16 +3,15 @@
    `movement.move_input` / `movement.aim_point` / `movement.run_input` (hold run: faster, spends stamina, dry = walk until it refills;
    only a standing character runs) and calls the action API of the character's typed components (`movement`, `weapon`, `ammo`, `inventory`, `use`
    (`CharacterUse`), `anatomy`, `wardrobe`, `stun`; `typed-components.md`):
-   - **Acts:** `movement.set_posture(p) -> bool` (`stand` / `crouch`; idempotent, so every frame is fine; the player's C is
-     `movement.toggle_crouch()`), `weapon.melee()` (F), `anatomy.leg_kick() -> bool` (a right-leg kick along the facing, whatever is held;
+   - **Acts:** `movement.set_posture(p) -> bool` (`stand` / `crouch`; idempotent; the player's C is `movement.toggle_crouch()`), `weapon.melee()` (F), `anatomy.leg_kick() -> bool` (a right-leg kick along the facing, whatever is held;
      false while dead, crouched, busy or kicking; `anatomy.is_kicking()` is a test read; **not** the recoil `weapon.kick`),
      `weapon.shoot() -> bool` (LMB; true = a round left the barrel; ignored while running, reloading or with a long gun raised; a controller
      re-presses it every frame while `weapon.is_automatic()`),
      `ammo.reload()` (R: a timed swap to the fullest carried magazine; refused while running or busy, cancelled by running, switching
      items or dying), `inventory.select_slot(id)`, `use.try_interact()` / `use.interact_with(object, id)` / `use.end_interaction()`,
-     `use.try_use_vehicle()` (E: in or out, interface 19), `inventory.set_loadout(kit: CharacterKit)` (`items/character_kit.gd`: carry only
+     `use.try_use()` (E: the nearer of a house door in reach and a vehicle; 19, 24), `use.use_target()` and `use.doors` (24), `inventory.set_loadout(kit: CharacterKit)` (`items/character_kit.gd`: carry only
      `slots`, hold `hold_slot`, `spare_types` magazines, the gun loaded with `loaded_magazine`, `grenades` counts, every item in
-     `weapon_style` (`Item.art.style`); how `MatchBuilder.arm` arms a spawn, interface 23).
+     `weapon_style`; how `MatchBuilder.arm` arms a spawn, 23).
    - **Reads:** `damage_taken()` (accumulated hit damage), `movement.posture()` / `is_running()` / `stamina_fraction()` /
      `run_speed()` / `walk_speed()` (px/s, slower while stunned or by outfit weight: how an AI judges whether it gets somewhere in time) / `posture_coverage(posture)` (the body's height on the coverage scale, what furniture must stand above to shield it);
      `ammo.rounds(slot := -1)` / `capacity(slot)` / `can_reload(slot)` / `spare_magazines()` / `is_reloading()` (slot -1 = held item;
@@ -29,10 +28,9 @@
      height and side (O3, O4); outfit weight slows every pace.
    - **Stun** (flash and bang): `take_stun(blind, deaf)` (interface 3) and `stun.is_blind()` / `is_deaf()` / `level()` (0..1
      disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway) / `view()` (`{ blind, blind_total, deaf, level }`, for the
-     UI); `weapon.one_handed()` (blind: the gun's round spreads wider); `blast_push(from, impulse)` (an explosion's shove: knockback, or the
+     UI); `weapon.one_handed()` (blind: the round spreads wider); `blast_push(from, impulse)` (an explosion's shove: knockback, or the
      fallen body's ragdoll thrown).
-   - **Vehicle:** from the E press to the last step out `use.is_busy()` is true; `inventory.current_item()` is null while the ride poses
-     the character.
+   - **Vehicle:** from the E press to the last step out `use.is_busy()` is true and `inventory.current_item()` is null.
    - **Identity:** `faction` (for hostility), exported `radius` (fixed; Vehicles and Lighting read it). Every character
      joins the group `characters` in `_ready`: how the AI's perception, `Explosion` and vehicles find characters.
    - **Priority:** the AI controller alone writes its character's `process_physics_priority`: 1 while a primed ambusher holds its post
@@ -50,7 +48,7 @@
    falls as a ragdoll, leaves layer 1 and draws beneath the living). Observers attach by exported node path and read only the public API
    and signals.
 
-   **The player's controller** (`player_controller.gd`) is the only *gameplay* file that touches `Keybinds`; observers read one action
+   **The player's controller** (`player_controller.gd`) is the only *gameplay* file that touches `Keybinds` (Use, `Keybinds.USE`: 24); observers read one action
    each (Main `MENU`, the inspector `PAUSE`, the command menu `COMMAND`, the camera its pan and zoom; the runner `MENU`, `PAUSE`).
 
    **The AI controller** (`ai/goal_controller.gd`, a thin orchestrator over the sub-domains in `domain-ai`):

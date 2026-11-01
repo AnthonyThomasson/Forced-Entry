@@ -27,7 +27,8 @@ Two full-screen, code-built windows that take plain data and emit signals. They 
 
 - `open({ debug, rows })` and `set_rows(rows)` take `rows` = `{ action, label, group, text, conflicts, changed }` in display order. Signals:
   `debug_changed(on)`, `rebind_requested(action, event)`, `reset_requested(action)`, `reset_all_requested`, `back_requested`. Main applies each change
-  and answers with `set_rows`; a redraw keeps the scroll position.
+  and answers with `set_rows`; a redraw keeps the scroll position. It names no action: the rows come from `Settings.binding_rows()`, so Use
+  (`Keybinds.USE`, "Use (door, vehicle)", "Interaction" group, default E) is listed from `Keybinds.LABELS`.
 - **Capture:** a key button swaps to "Press a key…"; the next key or mouse-button press goes out as `rebind_requested` (the host may refuse it);
   Esc cancels. Escape and every key during a capture are consumed in `_input`, which runs before Main's `_unhandled_input`: Escape never
   triggers Main's "return to setup", a captured key never reaches the game, and Esc itself cannot be bound.

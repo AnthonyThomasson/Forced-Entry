@@ -13,8 +13,8 @@ A folded sub-domain is a side file of its parent skill: `.claude/skills/<skill>/
 
 | Domain | Folder | Skill | Owns |
 |---|---|---|---|
-| World Generation | `worldgen/` | `domain-worldgen` | Floorplan (front door, exits, hallways), building and furnishing a house, its run-down dressing, the street and its lamps. |
-| Objects | `objects/` | `domain-objects` | Furniture, walls, floors, the street: data, hit / push behaviour, wear and decals, every painter. |
+| World Generation | `worldgen/` | `domain-worldgen` | Floorplan (front door, exits, hallways), building and furnishing a house, its doors, its run-down dressing, the street and its lamps. |
+| Objects | `objects/` | `domain-objects` | Furniture, walls, floors, the street and the house doors: data, hit / push behaviour, wear and decals, every painter. |
 | Items | `items/` | `domain-items` | What a character holds and does with it (guns, grenades, loadout), and what it wears (outfits). |
 | Character | `character/` | `domain-character` (`body.md`; `character/body/`) | The player character and its components, built so other character types can exist. |
 | Interaction | `interaction/` | `domain-interaction` | Finding a reachable object and running one of its actions (sit, lie, …). |
@@ -60,6 +60,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 21. **Main / Testing → AI team: squads, leaders, orders.** Read for `Squad`, leaders, orders and following: `interfaces/21-squads.md`
 22. **Main → UI.** Read for how Main wires a HUD, the setup window or the overlay bar: `interfaces/22-main-to-ui.md`
 23. **Main / Testing → `MatchBuilder`.** Read to build a match or a test world: `interfaces/23-match-builder.md`
+24. **Objects' `Door` ↔ Character, AI, Testing: the door contract.** Read to open, turn, hit or walk through a house door: `interfaces/24-door-contract.md`
 
 ## Dependency graph
 
@@ -70,11 +71,11 @@ main ──▶ worldgen, navigation, lighting, ai, items, character, audio, ui  
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
-worldgen ──▶ objects (the four factories, RoomWalls, WearPlan)
-objects ──▶ physics, art, audio (SoundSurface.register)
-character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art
+worldgen ──▶ objects (the five factories, RoomWalls, WearPlan)
+objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake leaves the group `doors` out: 9)
+character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24)
 items ──▶ projectile, art          projectile ──▶ physics          vehicle ──▶ physics, art
-ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement)
+ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement)   (and a house door, duck-typed: 24)
 ui ──▶ items, physics            (plain dicts in, signals out; never calls Main)
 every domain ──▶ general
 ```

@@ -6,7 +6,7 @@ The perception builds one `AgentDoorViews`, hands it to its `AgentEntry` (`cuts_
 
 ## The view
 
-`door_view(id, into, map, space)` is the polygon seen out of a doorway from inside room `into`: rays from the room's far corners through the opposite jambs, fanned from three points in the gap, stopped at the first wall (`AgentVision.wall_hit`: static bodies only, furniture and characters looked through), cut at the edge of the room in front of a doorway between two rooms. Laid once per doorway on a baked map and kept.
+`door_view(id, into, map, space)` is the polygon seen out of a doorway from inside room `into`: rays from the room's far corners through the opposite jambs, fanned from three points in the gap, stopped at the first wall (`AgentVision.wall_hit`: static bodies only, furniture and characters looked through; a standing door is one to the engine, so it ends a view, and a walker opens it, `behavior-doors.md`), cut at the edge of the room in front of a doorway between two rooms. Laid once per doorway on a baked map and kept.
 
 `avoided(here_key, map, space, entering := "")` is the set a walk from room `here_key` keeps out of: every doorway into a room not *clear for passing* (`cleared_room` memory younger than `pass_clear_time`; `entry.is_cleared` stays the entry's own test), except the NPC's own room. With `entering` (`"<opening>><into>"`) that doorway's own view always counts. Worked out once per physics frame.
 

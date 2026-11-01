@@ -57,11 +57,10 @@ A kept light's rhythm is picked from the declaration's `rhythm` weights with an 
   options, size, facing and the rows of `ObjectArtLightConfig.specs`; a solid piece builds its occluder (`EMITTER` when it
   gives light, else `TALL` from `LightMasks.TALL_COVERAGE`, else `FURNITURE`); a wall builds one per segment (`WALL`); the
   street's floors (`light_layer: "street"`) put themselves on `STREET`; every `Emissive` overlay draws unshaded.
+- **A door** (Objects, interface 24, `docs/doors.md` DR5): an occluder over the leaf on `WALL` (it shadows every light), a child of the
+  door's body so it turns with the leaf; none for the glass-panel door, freed when the door falls (`tests/objects/door_blocks_test.gd`,
+  `door_contract_test.gd`, `door_knocked_down_test.gd` there).
 - **Character** (`domain-character`): an oval occluder (`CharacterShadowConfig`) on `CHARACTER`, freed in `_die`.
-
-- **A door** (Objects, `docs/doors.md` DR5): its occluder is built over the leaf like a wall run's, on `WALL` (it shadows every light), as a
-  child of the door's body so it turns with the leaf; none for the glass-panel door, and freed when the door is knocked down
-  (`tests/objects/door_blocks`, `door_contract`, `door_knocked_down`).
 
 ## Adding to it
 

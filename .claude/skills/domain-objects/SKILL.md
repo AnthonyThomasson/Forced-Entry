@@ -1,25 +1,27 @@
 ---
 name: domain-objects
-description: Use when editing scenes/objects/ or working on furniture, walls, floors, wear, a piece's lights and colliders, or the hittable / pushable contracts. Painters and pixel art: `art.md`.
+description: Use when editing scenes/objects/ or working on furniture, walls, floors, doors, wear, a piece's lights and colliders, or the hittable / pushable contracts. Painters and pixel art: `art.md`.
 ---
 
 # Objects domain (`scenes/objects/`)
 
-Owns the world's objects (furniture, walls, floors, the street round a house), their wear and decals: their field schema, how
+Owns the world's objects (furniture, walls, floors, the street round a house, the doors), their wear and decals: their field schema, how
 they are hit and pushed, how they compose Physics, what they give the lighting, and their painters. It turns a plain definition
 dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, incl. `WearFactory` and the floor's `sound_surface` /
-`marks` / `tile_from` / `light_layer`), 3 (hittable), 4 (→ Physics), 5 (pushable), 8 (interactable), 11 (`DrawLayers` for the floor
-and rug z, `LightMasks`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`, occluders, unshaded overlays).
+`marks` / `tile_from` / `light_layer`, and `DoorFactory`), 3 (hittable), 4 (→ Physics), 5 (pushable), 8 (interactable), 10 (a door's
+`&"door"`), 11 (`DrawLayers` for the floor and rug z, `LightMasks`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`, occluders,
+unshaded overlays), 24 (the door contract).
 
 | File | Role |
 |---|---|
 | `environment_object.gd` (a `RigidBody2D`), `object_physics.gd`, `object_look.gd`, `object_lights.gd`, `environment_object_visuals.gd`, `overhang_visuals.gd`, `emissive_layer.gd` | A piece: control node, its physics part, its art fields (`piece.look.<field>`: `art`, `art_opts`, `facing`, `text_color`), its lights, its drawing. |
 | `wall/wall.gd`, `wall/wall_visuals.gd`, `room_walls.gd` | Walls: segment math (`wall_segments()`), colliders; `RoomWalls` is `thickness`, `openings` (`{ side, offset, width }`), `style`. |
 | `floor/floor.gd`, `floor/floor_visuals.gd` | Floors. |
-| `object_factory.gd`, `wall_factory.gd`, `floor_factory.gd`, `wear_factory.gd`, `wear_plan.gd` | The interface-2 factories. |
+| `object_factory.gd`, `wall_factory.gd`, `floor_factory.gd`, `wear_factory.gd`, `wear_plan.gd`, `door_factory.gd` | The interface-2 factories. |
+| `door/` (`door.gd` and its parts), `door_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
 | `collider_cuts.gd` (`ColliderCuts`) | The shared queue of convex collider cuts, run on worker threads. |
 | `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`. |
-| `art/` | The painters and their holders: `art.md`. |
+| `art/` | The painters and their holders (the door's: `art/door_painter.gd`): `art.md`. |
 
 Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry, colliders and look data and never draw; their
 `*_visuals` child `Node2D`s read them and draw. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`),
@@ -35,6 +37,7 @@ so the editor's "no shape" warning on each `Wall` is expected.
   torque, `PhysicsImpactConfig.body_angular_damp`). An **anchored** piece (`anchored: true`, the streetlight's post) is frozen static
   in `_ready`: every shove is ignored and its `take_hit` skips `Knockback`, but it is still found by queries, struck, dented, throws
   debris and is carved into the nav map (`tests/objects/anchored_piece_test.gd`, `tests/navigation/anchored_hole_test.gd`).
+- **Door (24):** a `Door` is hittable (coverage 100, its material's `penetration`) and pushable (a shut one never moves; an ajar one turns about its hinge): `doors.md`.
 - **Interactable (8):** `get_interactions()` returns the `interactions` field of the definition; interaction is catalogue data.
 
 ## Physics parts
@@ -78,7 +81,7 @@ Objects declares and builds what its pieces, walls and floors give the Lighting 
   through `ObjectArt.light_kind` for variant pieces) and the numbers are that kind's row of `ObjectArtLightConfig.specs`. The light's
   colour is the painter's glowing colour. A screen's pool lies across its front (`turn` = facing + 90°), a tube's along it. Lighting
   parents each kept light to the piece, so a shove carries it (`tests/lighting/shoved_lamp_light_follows_test.gd`).
-- **Occluders**, through `LightMasks.occluder` (none while `LightMasks.shadows` is off): a solid piece one over its undented
+- **Occluders**, through `LightMasks.occluder` (none while `LightMasks.shadows` is off): a door one over its leaf (`doors.md`); a solid piece one over its undented
   footprint (its rect, or a 12-gon, `OCCLUDER_SIDES`, for a round one), a child so it follows a shove, on `EMITTER` when
   `get_lights()` is not empty, `TALL` when `coverage` ≥ `LightMasks.TALL_COVERAGE`, else `FURNITURE`; walk-over decor none; a wall
   one per segment, its collider's rect (`WALL`), in `_build_walls`. Dents are not followed.

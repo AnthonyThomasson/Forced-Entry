@@ -42,4 +42,4 @@ group is the only link: Navigation stays a leaf that imports nothing of Objects,
 - *Subtracting the doors' outlines from the parsed obstructions afterwards*: the outlines come out unlabelled and merged
   with the walls' at the jambs, so the subtraction would cut the jambs too.
 
-`tests/navigation/door_not_baked` pins it (both maps path through a shut door's doorway); take the exclusion out and it goes red.
+`tests/navigation/door_not_baked_test.gd` pins it (both maps path through a shut door's doorway); take the exclusion out and it goes red.

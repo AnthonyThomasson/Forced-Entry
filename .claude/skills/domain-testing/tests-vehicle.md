@@ -3,7 +3,7 @@
 The rules are `docs/vehicles.md` (V1 to V9, each with its tests named under it). The domain's tests are puppet-driven, plus
 `tests/audio/vehicle_sounds_test.gd`, `tests/audio/vehicle_door_tone_test.gd`,
 `tests/general/camera_zooms_out_driving_test.gd` and `tests/general/use_vehicle_key_test.gd` (a `player` actor and injected
-E). `tools/run_tests.sh --domain=vehicle` runs the domain; `--changed` on `scenes/vehicle/` runs vehicle, character, items,
+E, the `use` action). `tools/run_tests.sh --domain=vehicle` runs the domain; `--changed` on `scenes/vehicle/` runs vehicle, character, items,
 interaction, projectile, physics, objects, ai, perf, audio and general.
 
 Helpers in `tests/_vehicle/` (not tests; everything goes through the drivable contract, interface 19, duck-typed):

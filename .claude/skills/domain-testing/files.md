@@ -20,3 +20,4 @@
 | `test_browser.gd` / `.tscn` | Hosts the UI browser window. |
 | `decision_stub.gd`, `decision_budget.gd` (both in `scenes/ai/decision/`) | `DecisionStub`: the scripted-Von statics a `TestSetup` turns on, restored after each test; `DecisionBudget.per_frame` is set with `set_static` the same way. |
 | `tests/**/<x>_suite.gd` | The wrapper suites (`extends GameTestSuite`, one parameterized test listing `cases("<folder>")`), `tests/_harness/harness_suite.gd`, and the native suites (`extends UnitSuite`). |
+| `sandboxes/*_sandbox.gd` | Worlds played by hand, the same `GameTest` base. `player_gun_range_sandbox.gd` ("Gun range") is a `layout` of its `range` room and, built onto the outside of its north wall, four small rooms with seven doors in 60 px doorways, one of each catalogue door, a floor label by each door onto the range and a dummy behind the glass-panel one (a `layout`, not an `arena`: the two cannot be combined); `vehicle_sandbox.gd` is the vehicle yard. |

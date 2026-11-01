@@ -12,6 +12,7 @@ Owns the player character, built so other character types can exist. It reads in
 - Firing, reload and magazines, the raise against a wall, loadout, grenade reads, the stunned look and one-handed fire → `weapon.md`.
 - Style, outfit, hit zones, armour in `take_hit`, weight → `wardrobe.md`.
 - The body (skeleton, pose, rig, hands, punch, kick, legs, ragdoll fall, all pixel art and the redraw key) → `body.md`.
+- The Use key, a house door in reach, the scroll that turns it, a door in the way → `doors.md`.
 
 ## Components
 
@@ -22,7 +23,7 @@ The three verbs (control, animate, draw) live in separate files wired through th
 | Property | File | Owns |
 |---|---|---|
 | `movement` | `character_movement.gd` | the controller's intent, posture, running and stamina, knockback, the push slow |
-| `use` | `character_use.gd` | what occupies the body: an interaction, a vehicle ride, the collision exceptions both leave |
+| `use` | `character_use.gd` | what occupies the body: an interaction, a vehicle ride, its doors (`use.doors`: `doors.md`), the collision exceptions both leave |
 | `inventory` | `character_inventory.gd` | items carried, the held slot |
 | `weapon` | `character_weapon.gd` | using the held item: firing, melee, the raise, recoil, muzzle and aim, each hand's stance |
 | `ammo` | `character_ammo.gd` | magazines carried, the reload |
@@ -32,7 +33,7 @@ The three verbs (control, animate, draw) live in separate files wired through th
 
 Also here: `character_footsteps.gd`, `character_push.gd` (the shared `shove`), `player_controller.gd`.
 
-**Tuning:** one `class_name` static holder per topic (`grep -r "class_name Character.*Config" scenes/character`). In `character/`: `CharacterPostureConfig`, `CharacterPaceConfig`, `CharacterPushConfig`, `CharacterStunConfig`, `CharacterHitConfig`, `CharacterShadowConfig`, `CharacterArtConfig`, `CharacterStyleConfig`, `CharacterBodyConfig`, `CharacterStanceConfig`, `CharacterRagdollFallConfig`. The body's own are in `body/` (`body.md`).
+**Tuning:** one `class_name` static holder per topic (`grep -r "class_name Character.*Config" scenes/character`). In `character/`: `CharacterPostureConfig`, `CharacterPaceConfig`, `CharacterPushConfig`, `CharacterDoorConfig` (the reach for a door), `CharacterStunConfig`, `CharacterHitConfig`, `CharacterShadowConfig`, `CharacterArtConfig`, `CharacterStyleConfig`, `CharacterBodyConfig`, `CharacterStanceConfig`, `CharacterRagdollFallConfig`. The body's own are in `body/` (`body.md`).
 
 ## Ordering
 
@@ -63,7 +64,7 @@ A living character casts a shadow: `anatomy.attach()` builds a `LightOccluder2D`
 
 ## Riding a vehicle (interface 19, `docs/vehicles.md`)
 
-`use` composes the Vehicles domain's `CharacterVehicleUse` (preloaded and added by `use.attach()` in `_ready`) and only forwards: `use.try_use_vehicle()` (E; refused while dead or in an object interaction, and stands a crouched character up), `use.vehicle()`, `use.is_in_vehicle()`. While the ride lasts, `use.is_busy()` is true and `try_interact` / `interact_with` are refused.
+`use` composes the Vehicles domain's `CharacterVehicleUse` (preloaded and added by `use.attach()` in `_ready`) and forwards its vehicle calls; `use.try_use()` is the one entry for E (`doors.md`; refused while dead or in an object interaction, and stands a crouched character up), `use.vehicle()`, `use.is_in_vehicle()`. While the ride lasts, `use.is_busy()` is true and `try_interact` / `interact_with` are refused.
 
 The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, step)`: the first pose cancels a reload and disables the collision shape (`set_deferred`); each pose sets position, `facing`, aim and the drawn height (`movement.fold`) and drops the cached rig. While riding, `inventory.current_item()` returns null (the item put away: nothing fires or draws in the hands) and `use.hold_frame` replaces the rest of the frame: no movement, knockback or push, stamina refilling, `anatomy.pose.update` with the ride's step as the motion and no stun look. `use.end_ride()` re-enables the shape.
 
@@ -75,4 +76,4 @@ The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, ste
 
 Every character joins the group `characters` in `_ready` (interface 7): how the AI's perception, `Explosion` and a vehicle find characters in the world. `faction` is exported (`&"player"` by default; the NPC presets set `&"household"` / `&"invader"`) and read by AI perception to tell allies from potential hostiles.
 
-**Interfaces:** 3 (hittable), 4 (Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID`, `DrawLayers.LYING`, `LightMasks.CHARACTER`, `FillBatch`), 12 (Art), 15 (`GameLog`), 18 (`stun.view()`, read off `Sound.focus`), 19 (Vehicle), 20 (the occluder; `is_dead` / `radius` read by the lighting).
+**Interfaces:** 3 (hittable), 4 (Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID`, `DrawLayers.LYING`, `LightMasks.CHARACTER`, `FillBatch`), 12 (Art), 15 (`GameLog`), 18 (`stun.view()`, read off `Sound.focus`), 19 (Vehicle), 24 (the door contract, `use.doors`), 20 (the occluder; `is_dead` / `radius` read by the lighting).

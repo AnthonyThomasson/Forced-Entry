@@ -113,7 +113,8 @@ func run(t: TestContext) -> void:
   children. `t.world` is typed `Node2D`, so a `var` off it takes an explicit type (`t.world.match_handle`,
   `t.world.squad(faction)`, `t.world.player_stack`).
 - **Puppet** (`scripted_controller.gd`): its actions run on the character's next frame, and `facing` follows the aim
-  one frame later: aim, wait a moment, then fire.
+  one frame later: aim, wait a moment, then fire. `use()` is one press of E (the nearer of a door in reach and a vehicle);
+  `turn_door(steps)` is the wheel with E held (a step is `DoorConfig.step_degrees`).
 - Make randomness deterministic where the assertion depends on it (`projectile.flyover` off, since a character is
   partial cover).
 
@@ -126,14 +127,6 @@ a `GdUnitTestSuite`), `test_*` functions with gdUnit's asserts. The example is `
 - Its expected values obey the no-tautology rules above; a premise (an rng at state 0 rolls 0.0) is checked first.
 - The log gate holds per case. It runs in shard 0 (`runner-flags.md`); `--changed` runs its domain.
 - Name it `*_suite.gd`, never `*_test.gd` (the catalog's), and keep it out of the helper folders (`tests/_*`).
-
-## Doors in a layout
-
-A `TestSetup.layout` doorway may declare a door: `{ pos, width, door: { material, style, hinge, swing_into, angle?, name? } }`.
-`LayoutBuilder` builds it through `DoorFactory.spawn` from `WorldGen.door_definition(material, style)` (the hinge a point on the jamb where
-the walls' ends stand: 6 px in from the `width` gap's edge in the 12 px walls of a layout) and `TestWorld` registers it in `objects` under its
-node `name`, so `t.object(name)` finds it. The test opens it through the door contract (`toggle`, `turn_by`, `open_fully`); the Use
-key and `use()` / `turn_door(steps)` on the puppet are the next stage's. A puppet's punch needs `start_slot: 2`. Tests: `tests/objects/door_*`.
 
 ## Performance tests (domain `perf`, `tests/perf/`)
 

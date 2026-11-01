@@ -6,7 +6,7 @@ The ACT half of the AI (`scenes/ai/behavior/`): `Behavior` runs the LEAF the dec
 
 - `behavior.gd`: the executor (a `Node`): the commitment state and the read-outs. Its parts are nodes built once in `setup`, reached by preload const: `fight` (`behavior_fight.gd`: hostiles known, the contact fought; `engage`, `melee`, `reload`), `errand` (`behavior_errand.gd`: `move`, `interact`, `hold`, the search `coverage`, `set_up_walk`), `gait` (`behavior_gait.gd`: run and posture policy), `grenades` (`behavior_grenades.gd`: `throw`, the evade reflex, blind fire), `orders` (`behavior_orders.gd`: `defend`, `ambush`, `follow`, order steps, ordered stacks and joins), `entries` (`behavior_entries.gd`: the `entry` primitive over `Entry`, the entry guard and its detours).
 - `combat.gd` (`combat.md`), `search_coverage.gd` (`coverage.md`), `watch.gd` and the watch stage (`watch.md`), `entry.gd` and `entry/` (`entry.md`).
-- `locomotion.gd` and `locomotion/`: pathing, bodies, doorway views (`behavior-locomotion.md`).
+- `locomotion.gd` and `locomotion/`: pathing, bodies, doorway views (`behavior-locomotion.md`), the house doors on a walk's way (`behavior-doors.md`).
 - `running_leaf.gd`: the data leaf `task` (`primitive`, `params`, `path`, `labels`, `arrived`, `resolved`, `resolve_reason`, `held`, `take_resolved()`, ...).
 
 The controller calls `setup(perception, nav_agent, tuning)` once, then `apply_config(npc_squad)` each decision (squad into `orders.squad` and `Entry.world.squad`), and `bind(character)` on its first `control()`, which hands the body to each module so no module function takes the character. No module keeps a tuning copy: each reads `tuning.<topic>.<name>` live, so a retune holds from the next read.

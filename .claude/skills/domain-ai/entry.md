@@ -29,6 +29,8 @@ Von only picks the doorway (the ENTER or STUN ENTRY tactic, `decision.md`). The 
 
 ## Phases
 
+A shut door on a walk is opened: `behavior-doors.md`.
+
 `approach` (to its slot, off the line of sight: E1, E2), `stack` (in the slot facing the door, radios `ready`), `pie` (the point slices the arc: E3), `bang` (E17), `cross` (E4, E5: radios `going_in`, `in` once past the wall plane and off the axis), `corner` (E5), `clear` (`SearchCoverage`; radios `clear` once the rest are in: E8), `cover` (guns on the doorways on, E8), `rear` (a member left over holds just inside the door it came by, facing out; E8, E13).
 
 - **Claim:** a member claims the lowest slot the claims heard leave free (`member.slot_in(stack)`, `DoorStack.slot_for`); the option's `slot` is only the snapshot's guess. Two claims on one slot in the same `GameClock` frame and side settle by distance (E2). A slot past what a dead end holds ends the entry `done` with no claim (E20). `claim.keep_slot` re-picks every tick; a changed slot or side is radioed as a new claim. A slot pushed past a dead end's capacity is refused (`abort`, `done`; an ordered member's next decision is the ORDER node's `hold_<opening>`, LD9).

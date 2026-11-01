@@ -1,4 +1,9 @@
 2. **World Generation → Objects** (the only way world-gen makes entities)
+   - `DoorFactory.spawn(opening: Dictionary, definition: Dictionary, parent: Node) -> Door` — a hinged door in a doorway (interface 24).
+	 `definition` (`DoorCatalog`, via `WorldGen.door_definition`): `name`, `material` (`hollow` / `solid` / `steel` / `glass`, a key of
+	 `DoorMaterialConfig.materials`), `style` (`flush`, `panelled`, `plank`, `riveted`, `peephole`, `panes`), `color`. `opening`: `pos` (the
+	 doorway's centre), `hinge` (the world point on the jamb the leaf turns about), `swing_into` (unit vector into the room it swings
+	 into), optionally `name` and `angle` (degrees from shut it starts at, default 0).
    World-Gen owns the *catalogue*; Objects owns the *field schema* and turns a plain definition dict into a node. World-Gen never
    touches an object's fields.
    - `ObjectFactory.spawn(definition: Dictionary, position, parent, opts) -> Node` — `opts`: `name`, `rotated`, `color`, `facing`, `neon`

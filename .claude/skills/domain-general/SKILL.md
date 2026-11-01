@@ -5,7 +5,7 @@ description: Use when editing scenes/general/ or working on keybinds, settings, 
 
 # General domain (`scenes/general/`)
 
-Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19. HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
+Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `USE`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
 
 Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, plus Audio's `Sound`. The rest are `class_name` static holders (no instance). Tuning holders: `CameraConfig`, `CameraShakeConfig` (ADR 0003), read live, so a test may `set_static` them.
 
@@ -40,6 +40,8 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 - Each action holds exactly one binding: a key (stored by physical keycode) or a mouse button. `FIRE`, `COMMAND`, `ZOOM_IN` and `ZOOM_OUT` are mouse defaults.
 - `SHARED` pairs may sit on one input (`INTERACT`/`PAUSE`; each camera key with its move key) because the spectator match has no player; `conflicts_of` skips them.
 - `FIRE` is read two ways (`is_fire_just_pressed` one round, `is_fire_pressed` held for an automatic gun); rebinding it moves both.
+- `USE` (default E, "Use (door, vehicle)", "Interaction" group) is the one key for a vehicle's door and a house door: `is_use_just_pressed()`, `is_use_pressed()`, `is_use_just_released()` (`domain-character`). `RENAMED` maps an action's old saved name to its name (`use_vehicle` → `use`): `bindings.apply_overrides` reads a binding saved under the old name as the new one (a `use` entry beside it wins) and `save()` writes the new name only.
+- `Keybinds.scroll_notches(event) -> float` is how far an event scrolls in wheel notches (positive up): a `ZOOM_IN` / `ZOOM_OUT` press is one (its own `factor`), a trackpad's `InputEventPanGesture` counts `CameraConfig.trackpad_zoom_sensitivity` per unit of `delta.y` (up is negative); 0 for any other event. The camera zooms by it and the player's controller turns a door by it while Use is held on one, taking the event in `_input` so the camera never sees it (`docs/doors.md` DR7).
 - While the player drives, its movement keys and `RUN` are the vehicle's throttle, steer and handbrake (read off `movement.move_input` / `run_input`): driving adds no action.
 - `bindings` (`input_bindings.gd`, preloaded, no `class_name`) is built with the action tables handed in and holds no owner. `text_of` skips the layout lookup on the headless display server (it logs an error there).
 - Tests that rebind end with `Keybinds.bindings.reset_all()`: the harness does not restore it.
@@ -68,7 +70,7 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 
 `camera_controller.gd` follows its exported `target_path`, or **frames** a list (`frame(targets)`: the midpoint of the live targets, zoomed to fit plus `frame_margin`, dropping any `is_dead`; the spectator view). `pan_enabled` (per instance) removes hand pan; the test runner turns it off for a human-driven player, where WASD walks.
 
-- **Zoom** (both modes): the wheel, or a trackpad's `InputEventPanGesture` (macOS sends no wheel events; not rebindable), scales a lasting `_zoom_bias` that multiplies the automatic zoom `_base_zoom`, so it works the same in both modes and may pass the fit's `min_zoom`/`max_zoom` (limited by `wheel_min_zoom`/`wheel_max_zoom`). Read in `_unhandled_input`, so scrolling UI gets the wheel first.
+- **Zoom** (both modes): the wheel, or a trackpad's `InputEventPanGesture` (macOS sends no wheel events; not rebindable), scales a lasting `_zoom_bias` that multiplies the automatic zoom `_base_zoom`, so it works the same in both modes and may pass the fit's `min_zoom`/`max_zoom` (limited by `wheel_min_zoom`/`wheel_max_zoom`). Both are read through `Keybinds.scroll_notches(event)`, in `_unhandled_input`, so scrolling UI gets the wheel first, and a door held by Use takes the event before it (`_input` of the player's controller).
 - **Hand pan** (framing only): camera keys, or the mouse within `edge_pan_margin` of an edge (only once the pointer was seen moving over the window, cleared on mouse-exit / focus-out), set `_manual`, which suspends the framing position; `manual_hold` seconds without panning eases back in. Test: `tests/general/camera_manual_pan_test.gd`.
 - **Driving zoom-out**: `_drive_zoom_out` reads `who.use.vehicle().view_zoom_out()` duck-typed (interface 19) and never `VehicleDriveConfig`. Test: `camera_zooms_out_driving_test.gd`.
 - **Explosion shake** (`&"explosion"`): trauma from the kind's strength and nearness, applied through `Camera2D.offset` only, never `global_position`, so following and framing are unchanged. Test: `camera_shakes_on_explosion_test.gd`.

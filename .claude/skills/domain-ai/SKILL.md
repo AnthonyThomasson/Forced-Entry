@@ -40,7 +40,7 @@ Perception (what the NPC knows)
 - `snapshot.md` — editing `agent_snapshot.gd` or `snapshot/`: adding a fact, a state section or an option group, or changing what Von is told. Then `snapshot-wording.md` for the measured wording rules and the grenade and suspect-room phrases.
 
 Behaviour (how a chosen option is run)
-- `behavior.md` — editing `scenes/ai/behavior/` (`behavior.gd`, `locomotion.gd`): how a chosen option becomes movement, holding ground, commitment and dwell timers, pathing, posture and run policy, engagement and retargeting.
+- `behavior.md` — editing `scenes/ai/behavior/` (`behavior.gd`, `locomotion.gd`): how a chosen option becomes movement, holding ground, commitment and dwell timers, pathing, opening a door in the way (`behavior-doors.md`), posture and run policy, engagement and retargeting.
 - `combat.md` — `combat.gd` and `combat_throw.gd`: how NPCs shoot, reload, take cover, step back from a blocked gun, punch, throw a grenade, peek and duck, ambush.
 - `coverage.md` — `search_coverage.gd`: search and explore behaviour, covering a room by sight, the `search_coverage_*` tunables and overlay data.
 - `watch.md` — `watch.gd` (`Watch.apply`), `errand.aim_move`, `gait.should_run`: where an NPC looks and when it takes the shot; an NPC turning its back on a threat, staring at a wall, or seeing an enemy and not shooting (spec `docs/gaze-and-fire.md`).

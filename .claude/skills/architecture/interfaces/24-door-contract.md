@@ -1,38 +1,33 @@
-24. **The door contract: Objects' `Door` ↔ Character, AI, Testing** (`scenes/objects/door/door.gd`; spec `docs/doors.md`; World-Gen
-    builds it through interface 2, the Use key and the AI drive it through this one)
-    A `Door` is an `AnimatableBody2D` in the group `doors` (the one name Navigation, Testing and the tests find a door by), one per doorway, driven by code (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`),
-    on `PhysicsLayers.SOLID`; its origin is the middle of its leaf. Angles are degrees from shut. A caller holds the node and
-    reads/calls only what is listed here; the parts (`look`, `damage`, `swing`) and the visuals are Objects' own, bar `hp` / `max_hp`.
-    - **State (read):** `hinge: Vector2` (the world point on the jamb the leaf turns about), `swing_into: Vector2` (unit, from the doorway into
-      the room it swings into: the pull side is that room's, the push side the other), `open_angle: float` (90), `width: float` (the doorway's free
-      width between the jambs, twice the hinge's distance from the doorway's centre), `angle() -> float`, `open_amount() -> float` (0 shut .. 1
-      wide open; 1 once down), `is_down() -> bool` (knocked down: off its hinges, lying flat, no collider, no shadow, unusable),
-      `leaf_pose(angle) -> Transform2D` (the leaf's middle as it stands `angle` degrees open, its x axis along the leaf, hinge to latch) and `leaf_size() -> Vector2` (its length and thickness: how the Use key finds the leaf's nearest point), `gap() -> float` (the width a character can pass: the way from the leaf's free end to the latch jamb, at most `width`; `width` once down),
-      `damage.hp` / `damage.max_hp` (the leaf's hit points).
-    - **Use (call):** `toggle(by)` (an open door, or one swinging open, swings shut; a shut or ajar one swings fully open; in
-      `DoorConfig.swing_time`), `turn_by(degrees, by)` (turn from where it is heading, positive opens, clamped to shut..`open_angle`,
-      and stay; a notch of the scroll is `DoorConfig.step_degrees`, which the Use key's scroll reads through `use.doors.turn(steps)`), `open_fully(by)`; `by` is the character using it (or null). A
-      knocked-down door ignores all three. A swing stops short at a wall, furniture or a body it cannot nudge clear and stays there
-      (`docs/doors.md` DR8).
-    - **Where to stand:** `latch_side_spot(from: Vector2) -> Vector2` — beside the latch jamb, out from the wall on the side of the
-      doorway `from` lies on (`DoorConfig.latch_spot_out` / `latch_spot_in`): where the AI works the latch from.
-    - **Signal:** `changed` — a swing began or ended, the door was hurt, its panes shattered, it was knocked down.
-    - **Implements the hittable (3) and pushable (5) contracts:** `get_surface()` (coverage 100, the material's `penetration`, the
-      surface material it sounds and throws debris as; a glass-panel door's surface also says `transparent: true`, which the AI's
-      sight reads: sight passes it), `take_hit(hit)` (a round or a blast: dent or hole, debris, the glass-panel door's panes
-      shatter, hit points by the material's factor), `take_damage(amount)` (a punch or a kick), `apply_impulse(v, at)` (remembered for
-      the strike that follows; a shut door does not move for it, an ajar or open one is turned about its hinge away from the shover by the
-      moment of the shove against its weight, damped by the hinge's friction, within shut and `open_angle`, stopped by anything it meets
-      and nudging no one; reaching shut it latches) and `get_mass()`. A kick (a shove of `DoorConfig.burst_impulse` or more) or a blast from
-      the push side wears a shut door's latch (`DoorMaterialConfig`: `latch_hp`), and a door whose latch gives bursts fully open at
-      `DoorConfig.burst_speed`; an ajar or open door has no latch, so one kick or blast from its push side throws it fully open, whatever its
-      material; a walking push or a punch never counts against a latch; from the pull side a kick turns an ajar door toward shut, a blast too, and
-      otherwise a hit only damages.
-    - **Built by** `DoorFactory.spawn(opening, definition, parent) -> Door` (interface 2). **Left out of both nav bakes** by
-      `NavBuilder` (interface 9), found by the group `doors`; its **shadow** is a `LightOccluder2D` child on `LightMasks.WALL` that
-      turns with the leaf, none for the glass-panel door (interface 20).
-    - **Callers:** the Character domain's `CharacterDoors` (`character.use.doors`, interface 7: `door_in_reach()` finds a door by the group
-      `doors` and reads `is_down()`, `leaf_pose(angle())` and `leaf_size()`; `use()` calls `toggle(by)`, `turn(steps)` calls `turn_by(steps * DoorConfig.step_degrees,
-      by)`) for the human's Use key (E, the wheel while held; `docs/doors.md` DR6, DR7), which the AI's locomotion calls in the same way (`open_fully(door)`, `docs/doors.md` DR14: it finds a door on its walk by the group `doors` and reads `gap()`, `is_down()`, `angle()`,
-      `leaf_pose(0.0)`, `width`, `swing_into` and `latch_side_spot(from)`, duck-typed), and the Testing
-      domain's layouts and puppets (13: `use()`, `turn_door(steps)`).
+24. **The door contract: Objects' `Door` ↔ Character, AI, Testing** (`scenes/objects/door/door.gd`; spec `docs/doors.md`; World-Gen builds
+    it through 2, the Use key and the AI drive it through this one)
+    A `Door` is an `AnimatableBody2D` on `PhysicsLayers.SOLID` in the group `doors` (the one name Navigation, Testing and the AI find a door
+    by), one per doorway, driven by code (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`); its origin is the middle of
+    its leaf, angles are degrees from shut. A caller reads and calls only what is listed here.
+    - **State:** `hinge` (the world point on the jamb the leaf turns about), `swing_into` (unit vector into the room it swings into: that
+      room's side pulls, the other pushes), `open_angle` (90), `width` (the doorway's free width between the jambs), `angle()`,
+      `open_amount()` (0 shut .. 1 wide open; 1 once down), `is_down()` (knocked down: lying flat, no collider, no shadow, unusable),
+      `gap() -> float` (the width a character can pass, at most `width`; `width` once down), `leaf_pose(angle) -> Transform2D` (the leaf's
+      middle at that angle, x axis along the leaf) and `leaf_size() -> Vector2` (length, thickness), `damage.hp` / `damage.max_hp`.
+    - **Use:** `toggle(by)` (an open door, or one swinging open, swings shut; a shut or ajar one swings fully open, in
+      `DoorConfig.swing_time`), `turn_by(degrees, by)` (from where it is heading, positive opens, clamped to shut..`open_angle`; a scroll
+      notch is `DoorConfig.step_degrees`), `open_fully(by)`; `by` is the user or null. A knocked-down door ignores all three. A swing stops
+      short at a wall, furniture or a body it cannot nudge clear (DR8).
+    - **Where to stand:** `latch_side_spot(from: Vector2) -> Vector2`, beside the latch jamb on the side of the doorway `from` lies on: where
+      the AI works the latch from.
+    - **Signal:** `changed` (a swing began or ended, the door was hurt, its panes shattered, it fell). Events: `&"door"` (10).
+    - **Hittable (3) and pushable (5):** `get_surface()`, `take_hit(hit)`, `take_damage(amount)`, `apply_impulse(v, at)`, `get_mass()`. A kick
+      (a shove of `DoorConfig.burst_impulse` or more, then `take_damage`) or a blast from the push side wears a shut door's latch
+      (`DoorMaterialConfig`); a door whose latch gives, or an ajar one, bursts fully open at `DoorConfig.burst_speed`; from the pull side
+      a kick or blast turns an ajar door toward shut; a walking push or a punch never counts against a latch (DR5, DR10).
+    - **The character's side** (`character.use.doors`, `CharacterDoors`, `character/character_doors.gd`; takes no input event, so an NPC
+      calls it as the player's controller does): `door_in_reach() -> Node2D` (the standing door nearest the aim whose leaf has a point within
+      `CharacterDoorConfig.reach` of the body and ahead of it, else null), `reaches(door) -> bool`, `use(door := null) -> bool`
+      (`door.toggle`), `open_fully(door := null) -> bool` (never shut: how the AI works a door in its way, DR14) and
+      `turn(steps, door := null) -> bool` (`turn_by(steps * DoorConfig.step_degrees)`; `steps` may be a share of a notch); each acts on
+      the door given while it is in reach, false with none. `use.use_target() -> StringName` is `&"door"` when a door in reach is nearer
+      than every boardable vehicle handle (19), `&"vehicle"`, or `&""`; `use.try_use()` acts on it at once, while the human's controller
+      holds a door back to the key's release unless the wheel turned it meanwhile.
+    - **Callers:** the human's Use key (`Keybinds.USE`, E; `Keybinds.scroll_notches(event)` while it is held, DR6, DR7); the AI's
+      locomotion (DR14: finds a door on its walk by the group and reads `gap()`, `is_down()`, `angle()`, `leaf_pose(0.0)`, `width`, `swing_into`
+      and `latch_side_spot(from)`, duck-typed, and calls `use.doors.open_fully`); Testing (13: `use()`, `turn_door(steps)`, a layout's `door`).
+    - **Built by** `DoorFactory.spawn` (2). **Left out of every nav bake** (9). Its **shadow** is an occluder child on `LightMasks.WALL` (20).

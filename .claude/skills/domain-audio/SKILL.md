@@ -17,7 +17,7 @@ A sandbox renders a sound itself: `SoundBank.recipe_for` / `SoundSynth.render` â
 | `sound.gd` (autoload `Sound`) | The service: EventBus listener, variant / pitch / volume, range cull, voice pool, deafness, vehicle loops, the pre-warm. |
 | `sound_bank.gd` (`SoundBank`) | The cache and dispatch: `sound(profile, variant)`, `recipe_for(profile)` (the family is the profile's first part), `profiles()`, `band(power)`. |
 | `sound_synth.gd` (`SoundSynth`) | `render(recipe, seed)`: layers (`noise`, `tone`, `modes`, `pulses`), optional `vary` (each seed its own take) and `drive`, normalised to `peak`. Same recipe + seed gives the same bytes. |
-| `sound_guns.gd`, `sound_impacts.gd`, `sound_footsteps.gd`, `sound_grenades.gd`, `sound_vehicles.gd` | The five families: the tables, the profile-name functions and the recipes. |
+| `sound_guns.gd`, `sound_impacts.gd`, `sound_footsteps.gd`, `sound_grenades.gd`, `sound_vehicles.gd`, `sound_doors.gd` | The six families: the tables, the profile-name functions and the recipes. A house door's: `doors.md`. |
 | `sound_surface.gd` (`SoundSurface`) | Static floor registry (the `BloodSurface` pattern): `register`, `unregister`, `at(pos)` (newest floor wins; none, the street included, is `outdoor`), `surface_for(material, pattern)`. |
 | `sound_config.gd`, `sound_library_config.gd`, `sound_deafness_config.gd`, `sound_vehicle_config.gd` | Tuning. `SoundConfig`: the master switch and the per-category mix (`category_db`, `category_voices`, `category_range`, `category_jitter_scale`, `range_follows_zoom`, jitters). `SoundLibraryConfig`: sample rate, `category_variants`, the weight bands, `rng_seed`, `prewarm`. `SoundDeafnessConfig`: the muffle and the tinnitus. `SoundVehicleConfig`: engine pitch and load, skid, the crash speed bands. |
 
@@ -28,7 +28,7 @@ A profile is a `StringName` that fully determines a sound, so tests assert on it
 `impact/<material>/punch`, no band), `footstep/<surface>/<walk|run>`, `reload/<gun>/<out|in>`, `throw/<kind>`,
 `grenade/<kind>/<surface>` (a bounce), `explosion/<kind>`, `tinnitus/whine`, `engine/<kind>`, `ignition/<kind>`,
 `door/<kind>/<open|close|slide_open|slide_close>`, `skid/tyre`, `crash/<material>/<light|medium|heavy>` (`crash/flesh/<band>` is a
-character struck). Rules that hold across them:
+character struck), `leaf/...` (a house door: `doors.md`). Rules that hold across them:
 
 - An unknown gun borrows its band's recipe; an unknown material is `default`, a wall's empty material `wall`; an unknown vehicle kind
   is voiced as a car; an unknown landing floor is open ground. A profile may not run past 1 s (`tests/audio/bank_test.gd`).
@@ -53,6 +53,7 @@ character struck). Rules that hold across them:
 | `&"stun"` | `CharacterStun.take` (via `Character.take_stun`) | only for the `focus` character with `deaf` > 0: the tinnitus |
 | `&"vehicle"` | `vehicle.gd` | stage `ignition`, `door_*` / `slide_*`, `crash`, `bump_character` (louder by `speed / crash_speed_ref` within the band); category `vehicle` |
 | `&"engine"`, `&"skid"` | `vehicle_drive.gd` | stage `start` / `stop` the vehicle's loop |
+| `&"door"` | `door.gd` | a house door's stage â†’ `leaf/...` (`doors.md`); category `door` |
 
 It posts `&"sound"` `{ kind, profile, variant, position, volume_db, pitch }` for every sound it accepts; that is what tests assert on.
 
@@ -80,9 +81,8 @@ Keep these when adding a sound; each reads wrong otherwise. Tests carry the meas
   ring; the weight band scales body, pitch and level (`SoundImpacts.BANDS`), the faster round or harder punch is louder.
   Test: `impact_weight_test.gd`. To measure, `tools/dump_sounds.gd`, then analyse with `tests/_audio/sound_probe.gd` (`brightness`,
   `low_share`, `low_weight`).
-- **A door is a thunk, not a creak:** its clicks are short noise bursts and the body is low tones; creaks and panel rings above
-  ~300 Hz read high-pitched. Keep a new door sound's clicks short and its weight under ~150 Hz (the 2-pole measure counts a
-  165 Hz tone only ~0.6 low). Test: `vehicle_door_tone_test.gd`.
+- **A vehicle's door is a thunk, not a creak (a house door's too):** its clicks are short noise bursts and the body is low tones; creaks and panel rings above
+  ~300 Hz read high-pitched. Keep a new door sound's clicks short and its weight under ~150 Hz. Test: `vehicle_door_tone_test.gd`.
 
 ## Deafness: `Sound.focus`, `muffled()`, the tinnitus (`docs/grenades.md` G14)
 

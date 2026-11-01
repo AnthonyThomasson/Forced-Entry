@@ -25,6 +25,10 @@
    character's plain damage entry, no `HitInfo`; tests wound with it too), does **not** deform, and reads `get_surface()` only for the
    struck `material` it posts.
 
+   A world `Door` (interface 24) implements it too: `get_surface()` is coverage 100 with its material's `penetration` and, for the
+   glass-panel door only, `transparent: true` (the AI's sight looks through a `transparent` surface, `AgentVision.sight_hit`). It takes
+   `take_hit` for a round or a blast (`speed_factor` 0, no height) and `take_damage` for a punch or a kick.
+
    `Explosion` finds characters by the group `characters` (interface 7), reads `is_dead`, `facing`, `get_surface()`, calls `take_stun` /
    `take_damage` / `blast_push` / `take_hit` on them and `apply_impulse` on a pushable (capped by `get_mass()`): the sanctioned surface.
    Its cover rule (G7, `docs/grenades.md`) is two read-only line queries the AI's perception asks of a grenade (a live one, its own

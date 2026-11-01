@@ -41,7 +41,8 @@ Character / Vehicles → Physics), 5 (`Knockback` and the pushable bodies), 11 (
   from the same deformed polygon. `record(hit, turn)` stores the impact un-turned by `turn`, for a body drawn turned beyond its
   node rotation (a character facing its aim); the owner turns it back when drawing. A vehicle composes one with `allow_chunks` off
   and its own `max_depth` / `max_impacts`, does not listen to `changed` (it leaves its collider alone), has no `Knockback` (it is a
-  `RigidBody2D`), and draws its dents with `Deformation.draw_marks`.
+  `RigidBody2D`), and draws its dents with `Deformation.draw_marks`. A house door's leaf composes one the same way (a child of its visuals, so impacts are
+  stored in the leaf's frame; `max_depth` `DoorConfig.dent_depth`, `max_impacts` `DoorConfig.dents`), and its debris is `Physics.spawn_debris`.
 - `Deformation` owns the impact schema (`new_impact`, `push_impact`); `Deformable.record` and Objects' wall segments both record
   through them. `deform` keeps each ring point inside the outline and at most `NEIGHBOUR_REACH` of the way to either ring
   neighbour, so a corner dented from one face cannot fold the ring (`tests/physics/deformation_outline_suite.gd`).

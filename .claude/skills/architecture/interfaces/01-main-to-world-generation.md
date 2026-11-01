@@ -1,10 +1,15 @@
 1. **Main (through `MatchBuilder`, interface 23) → World Generation**
    - `WorldGen.generate(seed, force_plan, front_entrance_world, parent) -> Node2D` — one RNG for the whole run (the plan pick is its
-	 first draw), prints `House: <plan>  seed: N`; every doorway is an open archway.
+	 first draw), prints `House: <plan>  seed: N`; a doorway with no door (the roll, or `worldgen.doors` off) is an open archway, one with a door
+	 holds a `Door` (`docs/doors.md` DR2 to DR4).
    - `WorldGen.get_rooms(house) -> Array` — `{ key, type, rect }` dicts (world-space `rect`), from the house's `rooms` metadata.
-   - `WorldGen.get_openings(house) -> Array` — `{ pos, width, front, exit, rooms, outward }` dicts, from its `openings` metadata:
+   - `WorldGen.get_openings(house) -> Array` — `{ pos, width, front, exit, rooms, outward, door }` dicts, from its `openings` metadata:
 	 `rooms` = keys of the rooms the doorway joins, `outward` parallel to `rooms` (each the unit normal out of that room through the
-	 doorway's wall), `front` = the one front entrance (south wall), `exit` = a back/side/garage door (one room each).
+	 doorway's wall), `front` = the one front entrance (south wall), `exit` = a back/side/garage door (one room each), `door` = whether a door stands in it.
+   - `WorldGen.get_doors(house) -> Array` — `{ node, opening, material, style }` dicts, from its `doors` metadata: `node` the `Door`
+	 (interface 24, a child of the house's `Doors` node), `opening` that doorway's `get_openings` entry. Every front and exit doorway has
+	 one, an interior doorway by its more private room's type (`DoorRules`), as its plan forces or forbids. Empty for a hand-laid layout
+	 or with `worldgen.doors` off.
    - `WorldGen.bounds(rooms) -> Rect2` — the bounding box of room dicts (zero `Rect2` for none).
    - Run-down dressing, read from the `wear`, `clutter`, `street` and `streetlights` metadata (empty for a hand-laid layout; only tests
 	 call these four getters): `WorldGen.get_wear(house)` — `{ room, pos, layer }` per wear cluster (`layer` the CanvasItem drawing that
@@ -15,10 +20,10 @@
 	 overhang; spacing `WorldGenStreetConfig.streetlight_every`; a lamp within `streetlight_door_clear` of a front or exit doorway, or
 	 in the strip straight out of one, is dropped).
    - Read-only catalogue lookups (Testing places single pieces with them): `WorldGen.object_definition(key)` (for
-	 `ObjectFactory.spawn`), `WorldGen.floor_definition(key)` (for `FloorFactory.spawn`), `WorldGen.wall_style()` (the house wall
-	 `style` for `WallFactory.spawn`).
+	 `ObjectFactory.spawn`), `WorldGen.floor_definition(key)` (for `FloorFactory.spawn`), `WorldGen.door_definition(material, style)` (for `DoorFactory.spawn`),
+	 `WorldGen.wall_style()` (the house wall `style` for `WallFactory.spawn`).
    - `WorldGen.annotate_layout(root, rooms, doors = [])` — for Testing's hand-built arenas: stores the same `rooms` / `openings`
-	 metadata a generated house carries (a door on one room's wall only is the front entrance), so `get_rooms`, `get_openings` and
+	 metadata a generated house carries (a doorway declaring a `door` reports `door` true; a door on one room's wall only is the front entrance), so `get_rooms`, `get_openings` and
 	 `NavBuilder` read them unchanged. No other caller writes those keys.
 
    `MatchBuilder` (interface 23) generates the house with its front entrance where the spec puts it, fixes draw order and builds the nav

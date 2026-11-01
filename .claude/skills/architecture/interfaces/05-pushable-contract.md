@@ -10,3 +10,6 @@
    - To carry a piece at walking pace instead of launching it, a pusher may read a `RigidBody2D` pushable's `linear_velocity` /
      `angular_velocity` and its inverse inertia (`PhysicsServer2D.body_get_direct_state`) and cap its shove by them; a pushable without
      them (a character) is shoved uncapped.
+   - A world `Door` (interface 24) is a driven body: a shut door is never moved by a shove; an ajar or open one is turned about its hinge
+     away from the shover (`docs/doors.md` DR10), so no pusher caps it. A shove of `DoorConfig.burst_impulse` or more followed by
+     `take_damage` is a kick; a walking push and a punch are below it.

@@ -36,6 +36,10 @@
       `stop`. `&"skid"`: `{ vehicle, stage }`, `start` / `stop`. Audio voices the one-shots and keeps one looping voice per vehicle for
       engine and skid, following it each frame through `engine_state()`, `slip()` and `speed()` read duck-typed off the event's
       `vehicle` (the `Sound.focus` pattern, interface 18), so it stays a leaf.
+    - `&"door"`: a house door (Objects, 24) posts one per stage: `{ position (its doorway's middle), door (tests), material (`hollow` /
+      `solid` / `steel` / `glass`), stage }`: `open` (a swing to open begins; a run of scroll notches posts one), `shut`, `burst` (the
+      latch gave, or an ajar door was thrown open), `down` (it fell) or `glass` (the panes shattered). Audio voices `open` / `shut` as
+      `leaf/latch`, `burst` as `leaf/burst`, `down` as `leaf/<material>/down`, `glass` as `leaf/glass/glass` (`docs/doors.md` DR12).
     - `&"callout"`: an AI controller's team radio, posted when it adopts a combat or investigation decision and once per step of a
       tactical entry. Header `{ speaker, faction, position, status, path, label, target_id, point }`; a combat decision adds `target_pos`
       (the hostile's last-known spot as the speaker knows it, else where shots at it came from, `Vector2.INF` for neither; an ally reads
@@ -43,10 +47,8 @@
       for none; allies' perception ignores it, the squad's ambush rule reads it, `docs/leadership.md` LD29). Allied AI controllers
       within `tuning.radio.callout_range` consume it (flanks held, who fights whom, support, stack slots, which room is clear, which
       doorway is covered, when the team moves on, which grenade to get clear of).
-      - *Entry steps* add the claim fields of `StackClaim.DEFAULTS` (`ai/perception/stack/stack_claim.gd`; each field is commented
-        there: `opening`, `into`, `slot`, `side`, `entry_step`, `bang`, `bang_off`, `stuns`, `frags`, `cleared_room`, `covering`,
-        `claim_frame`, `claim_pos`, `move_up`, `pie`, `crossed_frame`, `order_*`, `join`, `human`, `leader`, `own`;
-        `docs/tactical-entry.md`, `docs/leadership.md` LD9 to LD25). Encoded and decoded only by `StackClaim.encode` /
+      - *Entry steps* add the claim fields of `StackClaim.DEFAULTS` (`ai/perception/stack/stack_claim.gd`, each field commented
+        there; `docs/tactical-entry.md`, `docs/leadership.md` LD9 to LD25). Encoded and decoded only by `StackClaim.encode` /
         `StackClaim.decode`: the NPC radio (`npc_comms.gd` `post_entry_call`), `PlayerStack` and every reader of a stack go through them,
         and no reader takes a claim key off a raw callout. `entry_step`: claim / ready / bang / going_in / in / clear / cover / rear /
         done / abort.
@@ -64,8 +66,6 @@
       keys (`room`, `opening`, `into`, `stack_at`, `split`, `mode`, `bang`, `wait_go`, `beyond`, `auto`, `pos`); the key set and the
       resolution rules are `docs/leadership.md` LD5, LD9, LD13, LD14, LD24 (`join`). Range is unlimited: every AI controller named in
       `to` of the same faction takes it and holds it until done, cancelled or replaced (never on a timer). Besides its leader's orders a
-      squad posts its own: a rally's `join` stacks and their `cancel`, a `cancel` / `ambush` when the human leader dies (LD25, LD26), the
-      `go` that releases held stacks when their leader dies (`auto`, tests), and for the defenders' squad led by an AI, an `ambush` of the
-      doorway an attack comes through (LD29).
+      squad posts its own (rally joins, `go`, `cancel`, the defenders' ambush: interface 21).
     - `&"leader"`: a squad posts it when its leader dies and the next in line leads: `{ faction, leader, previous }` (`leader` null when
       nobody is left). Tests read it; no game code listens.

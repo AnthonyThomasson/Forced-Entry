@@ -7,6 +7,17 @@ only (the browser also calls it to list the switches).
   `WorldGen.get_rooms` / `get_openings` work as for a house), `arena(rect, opts)` (a walled room with the same `rooms` meta)
   or `house(seed, plan, entrance)`. The default is an 800×500 arena.
 - **Objects** are placed under the house or arena root before the nav bake, so they are carved.
+- **Doors:** a `layout` doorway may declare one: `{ pos, width, door: { material, style, hinge, swing_into, angle?, name? } }`. `LayoutBuilder`
+  builds it through `DoorFactory.spawn` from `WorldGen.door_definition(material, style)` (the hinge a point on the jamb where the walls'
+  ends stand: 6 px in from the `width` gap's edge in a layout's 12 px walls) and `TestWorld` registers it in `objects` under its node
+  `name`, so `t.object(name)` finds it. The test works it through the door contract (`toggle`, `turn_by`, `open_fully`) or the Use key:
+  the puppet's `use()` / `turn_door(steps)`, or a `player` actor driven by injected events (`Input.action_press(Keybinds.USE)` for a tap
+  or a hold, a wheel notch or a pan gesture through `TestContext.inject`; `tests/character/door_use_key_test.gd`,
+  `door_scroll_open_test.gd`). A player's aim is the mouse: `tests/_character/player_pointer_probe.gd` (`Pointer.aim(t, you, point)`
+  puts a world point under it, again each frame while the test camera still eases; `Pointer.at(event, pointer)` gives an injected wheel
+  or pan event the pointer's place). A puppet's punch needs `start_slot: 2`. A generated house is built with its doors unless the switch
+  `worldgen.doors` (`WorldGenDoorConfig.enabled`) is off; the AI scenario families that predate doors turn it off (`# Doors off until
+  #159 makes this family door-aware.`).
 - **Vehicles** are placed after the nav bake and are not carved (the AI ignores vehicles); the world then waits one
   physics frame before the actors, because a new body joins the physics space at the next step. A kind with no scene
   places nothing and `t.vehicle(id)` is null.

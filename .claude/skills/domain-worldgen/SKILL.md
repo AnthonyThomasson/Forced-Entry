@@ -1,20 +1,21 @@
 ---
 name: domain-worldgen
-description: Use when editing scenes/worldgen/ or working on floorplans, room types, furniture catalogues, arrangements, recipes, placement, clutter, wear placement or the street and its lamps.
+description: Use when editing scenes/worldgen/ or working on floorplans, room types, furniture catalogues, arrangements, recipes, placement, clutter, wear placement, house doors or the street and its lamps.
 ---
 
 # World Generation domain (`scenes/worldgen/`)
 
 Picks a floorplan and builds and furnishes a house. It owns the *catalogue* (which furniture, arrangements and recipes exist);
 Objects owns the field schema and turns a plain definition dict into a node, so World-Gen never touches an object's fields. A leaf
-apart from the four factories (`WallFactory`, `FloorFactory`, `ObjectFactory`, `WearFactory`) and `RoomWalls` / `WearPlan`.
-Interfaces: 1 (Main → World Generation, incl. `bounds` and the test reads `get_wear` / `get_clutter` / `get_street` /
-`get_streetlights`), 2 (→ Objects), 11 (`WeightedPick`, the clutter draw). Tests: `tests/worldgen/`.
+apart from the five factories (`WallFactory`, `FloorFactory`, `ObjectFactory`, `WearFactory`, `DoorFactory`) and `RoomWalls` / `WearPlan`.
+Interfaces: 1 (Main → World Generation, incl. `bounds`, `get_doors` and the test reads `get_wear` / `get_clutter` / `get_street` /
+`get_streetlights`), 2 (→ Objects, incl. `DoorFactory`), 11 (`WeightedPick`, the clutter draw). Tests: `tests/worldgen/`.
 
 | File | Role |
 |---|---|
 | `world_gen.gd` (`WorldGen`) | `generate` picks one `HouseDefinitions.PLANS` floorplan and hands it to `HouseSpawner`; `bounds(rooms)` (the one copy of the rooms' bounding box); `annotate_layout` and the catalogue lookups for outside builders (Testing's arenas and placed pieces). |
 | `house_definitions.gd`, `layout_rules.gd` | The floorplans; `LayoutRules`, the table of what makes a plan logical. |
+| `categories/doors.gd`, `door_rules.gd`, `house_doors.gd`, `world_gen_door_config.gd` | The doors in a house: `doors.md`. |
 | `house_spawner.gd` | Walls, furnishing, floors, the street ring, the street lamps; `_validate` warns with `LayoutRules.check`. |
 | `room_furnisher.gd`, `room_site.gd`, `room_dresser.gd` | Placement of arrangements; `RoomSite` is what each room hands them (the plan's `room`, `wall_thickness`, the doorway boxes `blocked`, `solids` so far, its `furniture` node, `run_seed`); clutter, neon and wear placement. |
 | `categories/*.gd`, `object_definitions.gd`, `arrangement_definitions.gd` | One `<Name>Catalog` per room type holding `OBJECTS`, `ARRANGEMENTS`, `RECIPES`; the two definitions files merge them behind `get_definition` / `get_arrangement` / `get_recipe`. `general.gd` (`GeneralCatalog`) holds shared entries, the `WOOD` / `FABRIC` palettes, `FLOORS`, `WALL`, `CLUTTER`, `STREET`, the `streetlight` / `street_sign` rows, and the pieces two or more categories use. |
@@ -24,9 +25,10 @@ Interfaces: 1 (Main → World Generation, incl. `bounds` and the test reads `get
 
 - Rooms are house-local `Rect2`s with a `type`; `openings` are doorway points on wall lines. `HouseSpawner` cuts each opening into
   every wall through it (`WallFactory.openings_for`), keeps opening clearances (`OPENING_CLEARANCE`) free of furniture, and mirrors
-  the plan L/R half the time. Openings are plain archways: there are no door objects.
+  the plan L/R half the time. A doorway with no door is a plain archway; one with a door holds a `Door` (`doors.md`). A doorway is 60 px wide
+  inside and 69 px for the front and exit ones.
 - Exactly one opening is `front` (the house is positioned by it, always on the south wall); a plan may add `"exit": true`
-  openings (one room's exterior wall). `get_openings` reports `{ pos, width, front, exit, rooms, outward }`; `outward` is the unit
+  openings (one room's exterior wall). `get_openings` reports `{ pos, width, front, exit, rooms, outward, door }`; `outward` is the unit
   normal of each room's wall through the doorway (`HouseSpawner.outward_on`), read by the doorway clearances, the street lamps'
   door rule and the match spawner's invader team.
 - `LayoutRules.ROOMS[type]` says whether a type may carry the front door or an exit, may be the only route between two rooms
@@ -89,15 +91,8 @@ Interfaces: 1 (Main → World Generation, incl. `bounds` and the test reads `get
   overhang) comes within `streetlight_door_clear` of a front or exit doorway's centre or into the strip straight out of one
   (`streetlight_door_strip_*`). A lamp that would is dropped, not moved. Its own RNG, `hash([run seed, "streetlights"])`
   (`tests/worldgen/streetlight_placement_test.gd`).
-- The house carries what it placed as metadata, read through interface 1: `rooms`, `openings`, and, for tests, `clutter`,
+- The house carries what it placed as metadata, read through interface 1: `rooms`, `openings`, `doors`, and, for tests, `clutter`,
   `wear`, `street`, `streetlights` (the `get_*` reads).
-
-## Doors (`categories/doors.gd`, `DoorCatalog`)
-
-The catalogue of doors, one definition per material and style (`hollow_flush`, `hollow_panelled`, `solid_panelled`, `solid_plank`,
-`steel_riveted`, `steel_peephole`, `glass_panes`): `name`, `material`, `style`, `color` (one colour per material). `WorldGen.door_definition(material,
-style)` reads it (interface 1) and `DoorFactory.spawn` (interface 2, Objects) builds it; what each material is made of is Objects'
-`DoorMaterialConfig`. World-Gen does not yet put doors in a house (DR2 to DR4: the rules, the swing and hinge, the start state).
 
 ## To add a room type
 

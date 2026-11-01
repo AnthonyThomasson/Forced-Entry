@@ -18,7 +18,8 @@
       shoved piece carries it.
     - **Shadows and light layers** (General's `LightMasks`, 11): Objects' walls (one occluder per wall run, `WALL`) and solid pieces (their
       footprint: `EMITTER`, `TALL` or `FURNITURE`) and Character's living body (an oval turned with `facing`, `CHARACTER`, freed on death)
-      build their own `LightOccluder2D` children with `LightMasks.occluder`, like their colliders. Objects' street floors (catalogue
+      build their own `LightOccluder2D` children with `LightMasks.occluder`, like their colliders. A `Door` (24) builds one over its leaf on `WALL`
+      as a child of its body, so it turns with the leaf: none for the glass-panel door, freed when the door falls. Objects' street floors (catalogue
       `light_layer: "street"`) put their canvas items on `LightMasks.STREET`; `Emissive` overlays draw unshaded. Lighting reads the
       floors (group `floors`, joined by every Objects `Floor` in `_ready`: their `size` and their items' `light_mask`) for the per-floor
       budget, and each frame the group `characters` (`is_dead`, `radius`, 7) for who stands in a flash.

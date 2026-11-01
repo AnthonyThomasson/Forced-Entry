@@ -40,7 +40,11 @@
 - `tests/_ai/reach_probe.gd` (`const Reach`) runs an ordered stack, held for the go, from given starting places and checks
   each member by its own measure: in its last-claimed slot within `SLOT_REACH`, in time (its keep-out route's walk plus slack),
   never the back of the stack nor an `abort`, never the doorway's view nor its front when a way round exists, no bump; the
-  `tests/ai/entry/stack_reach_*` tests use it.
+  `tests/ai/entry/stack_reach_*` tests use it. `Reach.run_with_move_up` is `run` with a premise first: it fails when no member moved up, so
+  `ai/entry/stack_move_up_lets_follower_in` and `stack_move_up_keeps_slot_reachable` never pass with their move-up not happening. Their kitchen,
+  and `ai/entry/entry_last_leg_sealed_goes_round`'s, is `tests/_ai/pocket_kitchen_probe.gd` (`const Pocket`: `layout(s, sealed)`, a hand-laid
+  kitchen at a 60 px doorway into a garage, furnished so the stack forms in the west file with a pocket behind its first three slots, and the
+  places the members start from): the generated doorways, at their own width, hold no stack in a pocket like that.
 - Native suites feed plain claim dicts to the stack module over `tests/_ai/stack_radio_probe.gd` (`const StackRadio`:
   `speaker`, `callout`, `claim`, `door`, `slot_at`): `tests/ai/stack_claim_suite.gd` (`StackClaim`),
   `tests/ai/door_stack_suite.gd` (`DoorStack`: same-frame ties, move-up, held and released stacks),

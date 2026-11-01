@@ -9,8 +9,12 @@
     - **Actors:** character scenes plus the controller contract (7): a puppet `ScriptedController` or `player_controller.gd` on
       `character/character_base.tscn` (controller-less). `TestSetup.vehicle(id, kind, pos, rotation := 0.0, props := {})` instances
       `res://scenes/vehicle/<kind>.tscn` under the world root after the bake (not carved) and waits one physics frame; `t.vehicle(id)` reads
-      it back (19); the puppet presses E with `use_vehicle()` and drives with `drive(throttle, steer, handbrake)`, writing
-      `movement.move_input` / `movement.run_input` as the player's keys do.
+      it back (19); the puppet presses E with `use()` (the nearer of a door in reach and a vehicle), turns a door with `turn_door(steps)` (the wheel
+      with E held) and drives with `drive(throttle, steer, handbrake)`, writing `movement.move_input` / `movement.run_input` as the
+      player's keys do.
+    - **Doors:** a hand-laid layout's doorway may declare `door: { material, style, hinge, swing_into, angle?, name? }`; the layout builder
+      builds it with `WorldGen.door_definition` and `DoorFactory.spawn` (1, 2, 24) and `t.object(name)` finds it. A generated house is
+      built with its doors unless the switch `worldgen.doors` (`WorldGenDoorConfig.enabled`, on by default) is off.
     - **Events:** `EventBus` and character signals (7, 10) feed its event log.
     - **Behaviour switches** set existing exported props and config-holder `static var`s by name, and an NPC's tunables by the indexed
       path `tuning:<topic>:<name>` (7). A name the holder lacks fails the test. Statics are restored after each test. Examples:

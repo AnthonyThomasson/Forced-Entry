@@ -2,6 +2,9 @@
    - `NavBuilder.build(house, rooms, parent, agent_radius = NavBuilder.AGENT_RADIUS) -> NavigationRegion2D` — bakes one region whose
 	 walkable area is the house footprint plus an outdoor ring, minus the house's **static** wall colliders (doorways stay open) **and each
 	 solid furniture footprint** (every `RigidBody2D` with a collider, anchored pieces frozen static among them; walk-over decor has none).
+	 **Doors are left out of every bake** (planning, steering and avoid maps): the bodies of the group `doors` (interface 24, an
+	 `AnimatableBody2D`, a static collider to the parse) are taken off the solid layer for the parse, so paths cross a doorway as if open and
+	 the walker deals with the leaf (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`).
    - **Re-bake** is the Navigation domain's own: `nav_updater.gd` (built by `MatchBuilder.stage`) re-carves the furniture holes in place at
 	 the pieces' **current** positions, only when a piece has moved, the planning bake on the NavigationServer's worker thread.
 	 `NavBuilder.rebake` / `rebake_async` / `rebake_steering` are test-facing seams, not part of this surface (`domain-navigation`).

@@ -1,7 +1,9 @@
 19. **Character ↔ Vehicle: the drivable contract** (`scenes/vehicle/`; spec `docs/vehicles.md`)
     - **The character's side.** `character.use` (`character/character_use.gd`, `CharacterUse`) composes the Vehicles domain's
-      `CharacterVehicleUse` (`vehicle/character_vehicle_use.gd`) and forwards opaque calls: `use.try_use_vehicle()` (E; refused while dead or
-      in an object interaction: board by the door whose handle is nearest, or get out), `use.vehicle() -> Node` (the vehicle it is boarding,
+      `CharacterVehicleUse` (`vehicle/character_vehicle_use.gd`) and forwards opaque calls: `use.try_use()` (E; refused while dead or
+      in an object interaction: board by the door whose handle is nearest, or get out; a standing house door in reach and nearer works that door
+      instead, interface 24), `nearest_door_distance() -> float` (on `CharacterVehicleUse`: how far the nearest handle a character on foot could board
+      by is, `INF` with none or riding; `use.use_target()` weighs it against a house door), `use.vehicle() -> Node` (the vehicle it is boarding,
       riding in or leaving; null on foot) and `use.is_in_vehicle()` (test read: seated only). The character steps the component once a
       physics frame right after its controller (`control(delta)`), so a ride overrides that frame's intent, and calls `abandon()` from `_die`
       (the ride ends where the body is). While a ride lasts (`is_active()`: from the E press to the last step out) `use.is_busy()` is true
@@ -26,5 +28,5 @@
       and child `Roof` (`layer` `"roof"`, at `DrawLayers.ABOVE`).
     - **Its other contracts:** hittable (3), Deformable / debris / impulse (4), pushable (5), the `vehicle` / `engine` / `skid` topics (10),
       its painters (12). General's camera reads `target.use.vehicle().view_zoom_out()` duck-typed (`has_method`), never
-      `VehicleDriveConfig`; `player_controller.gd` calls `use.try_use_vehicle()` on `Keybinds.USE_VEHICLE` (E). Only the sandbox and the
+      `VehicleDriveConfig`; `player_controller.gd` calls `use.try_use()` on `Keybinds.USE` (E). Only the sandbox and the
       tests place a vehicle: Main, World-Gen, the nav map and the AI do not know them.
