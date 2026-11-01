@@ -21,13 +21,14 @@
 
    Strikers that call `take_hit`: the projectile, and the grenade's `Explosion` (Projectile System, `Explosion.frag`: a blast hit carries
    `speed_factor` 0 and `height` −1; its shove is the grenade's `blast_impulse` through the pushable contract, interface 5, and for a
-   character `blast_push`). A melee punch shoves through the pushable contract, deals damage through `take_damage(amount)` (the
-   character's plain damage entry, no `HitInfo`; tests wound with it too), does **not** deform, and reads `get_surface()` only for the
+   character `blast_push`). A melee punch or kick shoves through the pushable contract, deals damage through `take_damage(amount)` (the
+   character's plain damage entry, no `HitInfo`; tests wound with it too), or through the optional `take_blow(kind, amount, impulse)`
+   (`kind` `&"punch"` or `&"kick"`, `MeleeBlow.kind`) on a body that has it (a `Door`), does **not** deform, and reads `get_surface()` only for the
    struck `material` it posts.
 
    A world `Door` (interface 24) implements it too: `get_surface()` is coverage 100 with its material's `penetration` and, for the
    glass-panel door only, `transparent: true` (the AI's sight looks through a `transparent` surface, `AgentVision.sight_hit`). It takes
-   `take_hit` for a round or a blast (`speed_factor` 0, no height) and `take_damage` for a punch or a kick.
+   `take_hit` for a round or a blast (`speed_factor` 0, no height) and `take_blow` for a punch or a kick (`take_damage`: a punch).
 
    `Explosion` finds characters by the group `characters` (interface 7), reads `is_dead`, `facing`, `get_surface()`, calls `take_stun` /
    `take_damage` / `blast_push` / `take_hit` on them and `apply_impulse` on a pushable (capped by `get_mass()`): the sanctioned surface.

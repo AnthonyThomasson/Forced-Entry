@@ -3,8 +3,9 @@ extends RefCounted
 ## (character_kick.gd) share. A circle is queried at the striking point on the solid layer; each
 ## body in it not struck yet this swing is shoved through the pushable contract at the contact
 ## (`apply_impulse(impulse, at)`, so a piece struck off-centre turns), logged, reported to
-## `on_hit(body, damage)` and dealt the damage (`take_damage`). A strike never deforms; a wall (no
-## `apply_impulse`) takes the damage without moving. Stateless.
+## `on_hit(body, damage)` and dealt the damage: by its kind and shove (`take_blow(kind, amount,
+## impulse)`) when the body takes a blow by kind (a door), else `take_damage`. A strike never
+## deforms; a wall (no `apply_impulse`) takes the damage without moving. Stateless.
 
 ## Physics layer a strike meets: walls, solid furniture and living characters.
 const MASK := PhysicsLayers.SOLID
@@ -42,7 +43,9 @@ static func strike(
 			blow.what, body.name, damage, impulse.length(), "pushable" if pushed else "fixed",
 			blow.note])
 		on_hit.call(body, damage)
-		if body.has_method("take_damage"):
+		if body.has_method("take_blow"):
+			body.take_blow(blow.kind, damage, impulse)
+		elif body.has_method("take_damage"):
 			body.take_damage(damage)
 		if first_only:
 			return

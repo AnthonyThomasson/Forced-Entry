@@ -230,7 +230,7 @@ func _struck_twice(t: TestContext) -> void:
 	var bursts := func(d: Dictionary) -> bool: return d["door"] == door and d["stage"] == &"burst"
 	for _i in 2:
 		door.apply_impulse(Vector2.RIGHT * KICK_IMPULSE)
-		door.take_damage(14.0)
+		door.take_blow(&"kick", 14.0, Vector2.RIGHT * KICK_IMPULSE)
 		await t.frames(3)
 	await t.seconds(BURST)
 	t.check(door.angle() >= 89.0, "two kicks in a moment leave the ajar door fully open")

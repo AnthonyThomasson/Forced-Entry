@@ -238,23 +238,26 @@ func take_hit(hit: HitInfo) -> void:
 	_hurt(hit.damage, kind, hit.direction)
 
 
-## A punch or a kick dealt `amount` (the character's melee, interface 3): a kick is the strike that
-## shoved the door hard in the same frame (`apply_impulse`), anything else a punch. The hit points
-## drop by the material's factor for that.
-func take_damage(amount: float) -> void:
+## A strike of `kind` (`&"punch"` or `&"kick"`, the melee strike's own name for itself) dealt
+## `amount` while shoving along `impulse` (the character's melee, interface 3): the hit points drop
+## by the material's factor for that kind, and a kick from the push side wears the latch.
+func take_blow(kind: StringName, amount: float, impulse: Vector2) -> void:
 	if _down:
 		return
-	var kind := &"kick" if damage.kicked() else &"melee"
-	_hurt(amount, kind, damage.push())
+	_hurt(amount, &"kick" if kind == &"kick" else &"melee", impulse)
 
 
-## A shove (the pushable contract, interface 5): remembered for the damage that follows it in the
-## same strike. A shut door never moves for it, nor does a leaf a hand or a burst is swinging; an
+## Plain damage with no kind (a test's wound, the contract's `take_damage`): counted as a punch.
+func take_damage(amount: float) -> void:
+	take_blow(&"punch", amount, Vector2.ZERO)
+
+
+## A shove (the pushable contract, interface 5). A shut door never moves for it, nor does a leaf a
+## hand or a burst is swinging; an
 ## ajar or open one is turned about its hinge by the shove's moment against its weight, away from
 ## the body (`door.push`, `docs/doors.md` DR5, DR10). `at` is where it lands, from the leaf's
 ## middle.
 func apply_impulse(impulse: Vector2, at := Vector2.ZERO) -> void:
-	damage.note_push(impulse)
 	if _down or swing.moving() or swing.angle <= 0.0:
 		return
 	if not push.moving():
@@ -335,7 +338,7 @@ func _pushed(delta: float) -> void:
 ## Whether something stops the leaf turning to `to` degrees open this step: furniture, a wall or
 ## anything else solid in the way, or a character it cannot nudge clear. A character the leaf would
 ## sweep over is moved out of the way as the leaf comes (`_nudged`) when `nudging`, else it stops
-## the leaf.
+## the leaf; so does a piece of furniture the leaf would touch.
 func _blocked(to: float, delta: float, nudging: bool) -> bool:
 	var pose := leaf_pose(to)
 	for body in _overlapping(pose, DoorConfig.probe_inset):
@@ -345,10 +348,11 @@ func _blocked(to: float, delta: float, nudging: bool) -> bool:
 			return true
 	if nudging:
 		return false
-	# a pushed leaf nudges no one: it comes to rest touching a character in its way, which a
-	# slimmer probe would let it overlap ever so slightly, and the engine would press aside
+	# a pushed leaf nudges no one: it comes to rest touching a character or a loose piece of
+	# furniture in its way, which a slimmer probe would let it overlap ever so slightly, and the
+	# engine would press aside, a shove a frame for as long as the walker pushes
 	for body in _overlapping(pose, 0.0):
-		if _is_character(body):
+		if _is_character(body) or body is RigidBody2D:
 			return true
 	return false
 

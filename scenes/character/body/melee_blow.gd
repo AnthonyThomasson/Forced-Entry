@@ -11,6 +11,9 @@ var damage := 0.0
 ## The strike's name in the log line, and what ends the line's bracket.
 var what := ""
 var note := ""
+## What kind of strike it is (`&"punch"` or `&"kick"`), told to a body that takes it by kind
+## (`take_blow`).
+var kind := &"punch"
 
 
 func _init(

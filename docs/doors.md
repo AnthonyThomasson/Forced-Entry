@@ -145,8 +145,8 @@ Tests: `objects/door_nudges` (a puppet in the arc, the opener and a chair; a pup
 ## DR9. Damage
 
 Each door has its material's HP. A round or a fragment, a punch, a kick and a blast count against it, each by its material's
-factor for that kind of hit (`round_factor`, `melee_factor`, `kick_factor`, `blast_factor`); a kick is the strike whose shove, in the same
-frame, was `burst_impulse` or more, anything softer from a hand is a punch. The leaf shows its dents and bullet holes (a `Deformable`
+factor for that kind of hit (`round_factor`, `melee_factor`, `kick_factor`, `blast_factor`); a kick is the foot's melee strike, a punch the hand's: the strike
+names its kind (`take_blow(kind, amount, impulse)`), however hard it shoves. The leaf shows its dents and bullet holes (a `Deformable`
 on it; its collider is kept) and throws debris of its material. A glass-panel door's first round or blast shatters its panes: it is drawn
 without its glass, its hits sound as wood from then on, and the frame stays, standing, with its remaining HP.
 
@@ -166,8 +166,8 @@ panes).
 leaf the way it opens) wears down its latch by the strike's own damage (a kick deals 14, a frag up to 60); when the latch's
 `latch_hp` is gone, the door swings fully open at once (`burst_speed`, 540°/s: a burst is faster than a swing, 0.17 s). A hollow
 door's latch (20) holds the first kick and gives to the second; a solid wood door's (60) to the fifth; a steel door's (50) to no
-kick (a boot cannot move its bolt) but to a frag; a glass-panel door's (20) to the second. A walking push (a shove of about 900 a
-frame) and a punch (900) are below `burst_impulse` (1500; a kick is 2200) and never count. From the other side (the pull side) a
+kick (a boot cannot move its bolt) but to a frag; a glass-panel door's (20) to the second. A walking push and a punch never
+count, whatever the size of their shove. From the other side (the pull side) a
 kick or a blast only damages the door, and a door that has burst stays unlatched. A shut door never moves for a walker.
 
 **An ajar or open door is not latched.** A door whose angle is above shut has no latch to wear: one kick or one blast from its
@@ -176,7 +176,7 @@ kick turns it back toward shut, as a walker's push does (below). A door already 
 
 **A walker pushes an ajar or open door.** A body walking into an ajar or open leaf turns it about its hinge away from the body:
 toward open from the push side, toward shut from the pull side. The leaf turns from the shove the walker already gives it
-(`apply_impulse`, about 900 a frame, below `burst_impulse`; the shove of a kick or a blast too, held to `burst_speed`) by the shove's
+(`apply_impulse`, about 900 a frame; the shove of a kick or a blast too, held to `burst_speed`) by the shove's
 moment about the hinge against the leaf's weight (`DoorMaterialConfig` `weight`: hollow and glass-panel 30, solid 60, steel 120, so
 steel turns slowest): every frame of shove adds `moment / (weight x DoorPushConfig.resistance)` degrees a second to the leaf's
 spin, and the hinge's friction (`DoorPushConfig.friction`, 10 a second) takes the spin down again, so it stops soon after the walker
@@ -184,8 +184,8 @@ stops: no spring-back, no wobble. A walker 30 px from the hinge turns a hollow d
 quarter of that. It turns within shut and `open_angle` and is stopped by what it meets as a swing is (DR8): furniture, a wall and a
 body in its arc, which it never pushes through and, unlike a swing, never nudges aside: it stops touching it (nor does it nudge the
 walker pushing it, who stands on the side it turns away from). Reaching shut it latches (the shut sound, DR12) and is a shut door
-again: rigid to walkers, its latch as it was. A hand or a burst swinging the leaf (a Use, a notch of the scroll, a burst latch)
-takes it over from a push, and a shove during a swing does nothing. A punch counts against the door as before (DR9) and gives its
+again: rigid to walkers and latched. A hand or a burst swinging the leaf (a Use, a notch of the scroll, a burst latch)
+takes it over from a push, and a shove during a swing does nothing. A punch counts against the door by DR9's factor and gives its
 shove like a walker's. The AI walks doors open (DR14) and passes through open ones; a walker passing an open door lying against a
 wall meets its room-facing side, which can only turn it further open.
 
@@ -194,7 +194,10 @@ hollow, solid and steel door thrown fully open by one kick from the push side, a
 side), `objects/door_push_open` (a puppet walking into an ajar hollow door from its push side opens it and walks through, the same
 into a steel door turns it by less over the same walk, a puppet walking into a shut door leaves it shut and stops, one walking
 into an ajar door from its pull side turns it shut, it latches with the shut sound and holds like a shut door, a leaf stops at a
-body in its arc and does not nudge it).
+body in its arc and does not nudge it), `objects/door_push_stops` (a leaf shoved every frame stops at a fridge in its arc and
+leaves it where it stood), `objects/door_push_open_limit` (a leaf shoved as hard as the rules let it spin never turns past 90°),
+`objects/door_blast_ajar` (a frag on an ajar steel door's push side throws it fully open, one on its pull side does not),
+`objects/door_hard_punch_stays_a_punch` (a punch as hard as a kick bursts nothing).
 
 ## DR11. Knocked down
 

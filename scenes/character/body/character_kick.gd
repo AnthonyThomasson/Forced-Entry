@@ -93,4 +93,5 @@ func _strike(character: CharacterBody2D) -> void:
 		CharacterMeleeConfig.kick_damage,
 		"Kick",
 	)
+	blow.kind = &"kick"
 	Strike.strike(character, blow, _hit_bodies, true, kicked.emit)

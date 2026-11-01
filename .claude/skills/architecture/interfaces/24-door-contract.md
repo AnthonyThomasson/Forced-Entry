@@ -15,8 +15,8 @@
     - **Where to stand:** `latch_side_spot(from: Vector2) -> Vector2`, beside the latch jamb on the side of the doorway `from` lies on: where
       the AI works the latch from.
     - **Signal:** `changed` (a swing began or ended, the door was hurt, its panes shattered, it fell). Events: `&"door"` (10).
-    - **Hittable (3) and pushable (5):** `get_surface()`, `take_hit(hit)`, `take_damage(amount)`, `apply_impulse(v, at)`, `get_mass()`. A kick
-      (a shove of `DoorConfig.burst_impulse` or more, then `take_damage`) or a blast from the push side wears a shut door's latch
+    - **Hittable (3) and pushable (5):** `get_surface()`, `take_hit(hit)`, `take_blow(kind, amount, impulse)`, `take_damage(amount)`, `apply_impulse(v, at)`, `get_mass()`. A kick
+      (`take_blow(&"kick", ...)`) or a blast from the push side wears a shut door's latch
       (`DoorMaterialConfig`); a door whose latch gives, or an ajar one, bursts fully open at `DoorConfig.burst_speed`; from the pull side
       a kick or blast turns an ajar door toward shut; a walking push or a punch never counts against a latch (DR5, DR10).
     - **The character's side** (`character.use.doors`, `CharacterDoors`, `character/character_doors.gd`; takes no input event, so an NPC

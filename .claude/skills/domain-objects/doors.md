@@ -26,9 +26,9 @@ its chips and sparks are styled as.
 - **A push** (`apply_impulse`, `_pushed`; DR10): a shut door, a fallen one and a leaf already swinging take no push. An ajar or open leaf
   adds the moment of the shove about the pivot over `weight x DoorPushConfig.resistance` to `door.push.spin` (degrees a second, positive
   opening), held to `burst_speed`; with no swing running `_physics_process` turns the leaf by it, slows it by `friction` and rests it
-  under `rest_speed`. It nudges no one: any character the exact leaf shape overlaps, furniture or a wall stops it; at open it stops, and
-  reaching shut it posts `shut` and is rigid again (`tests/objects/door_push_open_test.gd`). A hand's `_turn_to` and a `_burst` cancel it.
-  `apply_impulse` only remembers the shove: a strike of `burst_impulse` or more followed by `take_damage` in the same frame is a kick.
+  under `rest_speed`. It nudges no one: any character or loose piece of furniture the exact leaf shape overlaps (the slim probe would let it press them aside, a shove a frame), a wall or other furniture stops it; at open it stops, and
+  reaching shut it posts `shut` and is rigid again (`tests/objects/door_push_open_test.gd`, `door_push_stops_test.gd`, `door_push_open_limit_test.gd`). A hand's `_turn_to` and a `_burst` cancel it.
+  A melee strike names its kind: `take_blow(kind, amount, impulse)` (`&"kick"` or `&"punch"`, `MeleeBlow.kind`); `take_damage` is a punch.
 - **Damage.** `take_hit` (a round, or a blast: `speed_factor` 0, no height) dents the leaf (`door.visuals.deformable`, the collider
   kept), throws debris (`Physics.spawn_debris` with the door's surface, `_debris_surface`), shatters a glass-panel door's panes at the
   first hit (the frame stays; the surface becomes the frame's wood) and takes the material's factor of the hit off the hit points;
@@ -37,7 +37,8 @@ its chips and sparks are styled as.
   latch that gives bursts it open. At 0 HP `_fall`: the door lies flat beyond the doorway on the side of the blow (the room it swings
   into when the blow had no direction), `collision_layer` 0, its occluder freed, drawn lying (`part: "fallen"`) at `DrawLayers.LYING`;
   `angle()` is `open_angle`, `gap()` the width, the Use calls do nothing. Tests: `tests/objects/door_damage_test.gd`,
-  `door_kick_burst_test.gd`, `door_blast_burst_test.gd`, `door_knocked_down_test.gd`, `door_materials_test.gd` there.
+  `door_kick_burst_test.gd`, `door_blast_burst_test.gd`, `door_blast_ajar_test.gd`, `door_hard_punch_stays_a_punch_test.gd`,
+  `door_knocked_down_test.gd`, `door_materials_test.gd` there.
 - **Art** (`art/door_painter.gd`, `door` in `ObjectArt.PAINTERS`): drawn through `ObjectArt.turned` (`PixelArt.render_turned` at the
   lighting step of the leaf's angle, repainted by `door_visuals.gd` when it crosses one). `part` `leaf` (the top edge of the standing
   leaf, 6 px thick: stiles, planks, rivets or panes, a hinge pin, the handle) or `fallen` (the lying face); `style`, `door_material`

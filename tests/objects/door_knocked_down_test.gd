@@ -149,7 +149,7 @@ func _sight_through(t: TestContext) -> void:
 func _stays_down(t: TestContext) -> void:
 	var door = t.object(&"ajar_kicked")
 	door.apply_impulse(Vector2.LEFT * KICK_IMPULSE)
-	door.take_damage(1000.0)
+	door.take_blow(&"kick", 1000.0, Vector2.LEFT * KICK_IMPULSE)
 	await t.frames(2)
 	t.check(door.is_down(), "a kick from the pull side fells the ajar door")
 	var lies: Vector2 = door.global_position
