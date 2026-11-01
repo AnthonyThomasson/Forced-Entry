@@ -42,7 +42,7 @@ PANEL = "res://tools/gdunit_panel.gd"
 SCAN = ROOT / "tools" / "scan_godot_log.py"
 FRAME_STEP = "_harness/frame_step"
 DRAW_TESTS = ["ui/leader_overlay_draw", "ai/debug/vision_overlay_cone_along_wall"]
-CLICK_TESTS = ["ui/command_menu_items", "ui/inspector_outfit"]
+CLICK_TESTS = ["ui/command_menu_items", "ui/inspector_right_click_card"]
 # The tests with a wall-clock budget that a run paced to the clock failed (issue #70, feedback round 1).
 TIMING_TESTS = [
     "perf/automatic_fire_stress", "perf/crowd_deaths_stress", "perf/furniture_pile_stress",

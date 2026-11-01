@@ -27,8 +27,10 @@
   from where a member's fight can take it; `check_stack_side`: fired from the stack's side, never into the room nor
   `going_in`, and each member back in its slot within `SLOT_NEAR` once the fight lapsed.
 - Held-walk cases: `ai/entry/order_stack_hold_walk_round_body`, `order_stack_hold_from_doorway` (the order at once, its own
-  `DOORWAY` depth), `order_stack_hold_retreat_from_doorway` (test-placed frame by frame until the retreat sets out: a
-  premise prop).
+  `DOORWAY` depth), `order_stack_hold_retreat_stays_stack_side` (no RETREAT spot beyond the held room, #154; the members
+  familiar with the house as a premise prop), `order_stack_hold_round_teammate_from_doorway_mouth` (left standing still just
+  outside the doorway, its own carve leaving a way round its teammate only through the held room: `movement.speed` held at 0
+  as a premise until the steering map shows that, over a few pinned spots, checked through `NavBuilder.route`).
 
 **Where a stack stands (E20 to E22) and every member reaching its slot.**
 - `tests/_ai/slots_probe.gd` (`const Slots`) judges slots from the house's own data and the test's own geometry (rooms, wall

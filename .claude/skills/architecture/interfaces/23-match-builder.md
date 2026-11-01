@@ -45,7 +45,9 @@
         shown when `leaders`; returns `{ squads, player_stack, leader_overlay }`.
     - **Overlay routing, once:** `set_overlay(handle, flag, on)` takes a handle, or any dict with `nav_debug`, `leader_overlay` and
       `combatants`: `NAV_HOLES` to the `nav_debug`'s `show_holes`, `LEADERS` to the `leader_overlay`'s `show_leaders`, any other non-global
-      flag to each combatant with an AI controller through `OverlayRegistry.apply`. `PERF` is the caller's own (22).
+      flag to each combatant by one shared gate: through `OverlayRegistry.apply` as given for an NPC `OverlayRegistry.in_scope` of the handle's `overlay_scope` (`all` with none), all-off for the rest, nothing for a
+      character with no AI controller. `PERF` is the caller's own (22). `set_overlay_scope(handle, flags, scope)` records `scope` (`all`, `defenders` or `invaders`) on the handle as `overlay_scope` and applies `flags` at once
+      by the same gate and loop (the human has no controller, so no overlays); the Testing world calls it with a handle of the one actor it spawns, so an actor spawned after a scope follows it.
     - **The setup's specs** (Main's): `spec_from_setup(config, base := {}) -> Dictionary` reads the setup window's config (22) into a spec
       over `base` (its `seed`, each side's `count` and loadout keys, the human on its `side` with `lead` in a played match, none in Watch or
       Endless); `random_spec(rng, base, most) -> Dictionary` draws an endless run's next one (seed 0, each count in 1..its most, a random

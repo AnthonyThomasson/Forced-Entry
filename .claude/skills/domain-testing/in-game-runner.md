@@ -36,7 +36,8 @@ Tests in a window. The headless runs are `SKILL.md`'s "Running tests".
   **Performance** (its own panel) and hands every other overlay toggle to `TestWorld.set_overlay`, which routes it by
   the match's one rule (`MatchBuilder.set_overlay`): Navigation holes to the world's `NavDebug`, Squad leaders to the
   `LeaderOverlay` of a world that declares squads or a match (none otherwise: the toggle does nothing), any NPC flag to
-  every NPC, the actors' and a declared match's.
+  the NPCs in the bar's scope, the actors' and a declared match's. The bar's **Show on** row offers `defenders`, `invaders` and `all` (default `all`; no `selected`: the runner has no detail card) and
+  reaches `TestWorld.set_overlay_scope`, which re-applies every toggle at once.
 - **Locking interactions:** `s.lock_interaction([&"camera", &"pause", &"overlays"])` in `configure` switches off what a
   person could do in a headed run that would change the result: `camera` drops wheel / trackpad / camera-key events and
   the hand-pan; `pause` hides Pause and ignores Space; `overlays` leaves out the overlay bar. A test that sends its own

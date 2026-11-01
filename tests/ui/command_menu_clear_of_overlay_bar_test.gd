@@ -1,7 +1,7 @@
 extends GameTest
 ## LD11 (`docs/leadership.md`) with Debug on: the overlay toggle bar holds a column at the screen's
 ## right edge, and the command menu's panel docked on the right keeps clear of it, as the
-## inspector's outfit panel does. Here the click is far into the left half: a right-click on the
+## inspector's detail card does. Here the click is far into the left half: a right-click on the
 ## Terrace house's back doorway, two teammates beside it in the garden, each then selected by a
 ## left-click on its body, the leader far to the east so the framing puts the three well left. The
 ## panel docks on the right, its right edge the bar's column plus its gap from the screen's edge,

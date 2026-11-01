@@ -23,6 +23,10 @@ const SUSPECT_PHRASES := {
 	AgentSuspicion.LOST_BY_DOOR: "a hostile lost by its doorway",
 	AgentSuspicion.HEADING_IN: "a hostile seen heading in",
 }
+## How far (px) out of its held room's doorway a held stack's member is back on its stack's side
+## (`_held_back_point`): past the doorway's funnel (`StackClaim.FUNNEL_DEPTH`, 40 px), where its
+## stack stands.
+const HELD_BACK := 48.0
 
 ## The knowledge the perception hands in for this decision (see `AgentSnapshot.build()`).
 var know := {}
@@ -311,6 +315,12 @@ func retreat_group(ctx: Dictionary, hostiles: Array, known_rooms: Array, dmg: fl
 	if threats.is_empty():
 		return { "summary": "", "options": [] }
 	var spots: Array = _tactics.retreat_positions(ctx, threats, known_rooms)
+	var back := _held_back_point()
+	if back != Vector2.INF:
+		var held := String(know["keep_out"])
+		spots = spots.filter(func(s): return not _views.plain_enters(
+			s["point"], back, ctx["map"], held,
+		))
 	spots.sort_custom(_retreat_before)
 	var options: Array = []
 	for s in spots:
@@ -340,6 +350,23 @@ func retreat_group(ctx: Dictionary, hostiles: Array, known_rooms: Array, dmg: fl
 		"summary_inside": _retreat_summary(inside, dmg),
 		"options": options,
 	}
+
+
+## Where a held stack's member stands back on its stack's side: `HELD_BACK` px out of the doorway of
+## the room it is held to enter (the knowledge's `keep_out`, `docs/leadership.md` D38), away from
+## that room. INF when its stack is not held. A retreat whose plain way back to it runs through that
+## room is no retreat for it: kept out of the room, its walk back goes the long way round.
+func _held_back_point() -> Vector2:
+	var held := String(know.get("keep_out", ""))
+	var order: Dictionary = know.get("order", {})
+	if held == "" or order.is_empty():
+		return Vector2.INF
+	var o: Dictionary = _views.opening_of(String(order.get("opening", "")))
+	var rect: Rect2 = _views.room_rect(held)
+	if o.is_empty() or not rect.has_area():
+		return Vector2.INF
+	var pos: Vector2 = o["pos"]
+	return pos - _views.normal_into(rect, pos) * HELD_BACK
 
 
 ## The order retreat spots are offered in: out of every threat's sight first, then with cover close

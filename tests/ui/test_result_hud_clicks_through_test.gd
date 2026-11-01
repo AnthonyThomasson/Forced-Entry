@@ -4,6 +4,7 @@ extends GameTest
 ## it); only its buttons stop the mouse. Real mouse events on a banner showing a verdict.
 
 const Banner := preload("res://scenes/ui/testing/test_result_hud.gd")
+const InspectorProbe := preload("res://tests/_ui/inspector_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -42,7 +43,7 @@ func run(t: TestContext) -> void:
 	for what: String in spots:
 		var at: Vector2 = spots[what]
 		catcher.presses.clear()
-		await _click(t, at, MOUSE_BUTTON_RIGHT)
+		await InspectorProbe.click_screen(t, at, MOUSE_BUTTON_RIGHT)
 		t.check(
 			catcher.presses.size() == 1,
 			"a right-click on %s at %s reaches the world (%d presses)" % [
@@ -51,25 +52,13 @@ func run(t: TestContext) -> void:
 		)
 
 	catcher.presses.clear()
-	await _click(t, banner._pause.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+	await InspectorProbe.click_screen(
+		t,
+		banner._pause.get_global_rect().get_center(),
+		MOUSE_BUTTON_LEFT,
+	)
 	t.expect_eq(paused[0], 1, "a click on the Pause button presses it")
 	t.check(catcher.presses.is_empty(), "a click on the Pause button stays out of the world")
-
-
-## Press and release mouse button `button` at screen point `at`, a motion there first.
-func _click(t: TestContext, at: Vector2, button: MouseButton) -> void:
-	var motion := InputEventMouseMotion.new()
-	motion.position = at
-	motion.global_position = at
-	TestContext.inject(motion)
-	for pressed in [true, false]:
-		var event := InputEventMouseButton.new()
-		event.button_index = button
-		event.position = at
-		event.global_position = at
-		event.pressed = pressed
-		TestContext.inject(event)
-		await t.frames(1)
 
 
 ## Stands in for the world under the banner: the presses that reach unhandled input.

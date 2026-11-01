@@ -55,19 +55,17 @@ and awaits `MatchBuilder.build`. A match torn down during the build returns `{}`
 - **Human leads**: `_build_command_menu` builds `OrderMarkers` and `CommandMenu` only when `squad.leader()` is the human, wires
   `order_requested` to the squad's `issue` and `selection_changed` to the markers (interface 21, LD11, LD12). Otherwise nothing
   reads the right button. `right_clear` is `OverlayToggles.RESERVED_WIDTH` with Debug on, else 0.
-- `MatchHUD.begin(combatants, time_limit)`. With no human, `_setup_spectator`: the camera frames the combatants, the
-  `SpectatorInspector` goes under `World`, the player and its debug panel are freed.
+- `MatchHUD.begin(combatants, time_limit)`, then `_overlays.begin(spectator, handle)`: the match's mode and overlay scope (`overlays.md`). With no human,
+  `_setup_spectator`: the camera frames the combatants, the `SpectatorInspector` goes under `World` (`setup(combatants, _overlays.npc_flags(),
+  OverlayToggles.RESERVED_WIDTH)`, then `set_scope(_overlays.scope)`), and the player is freed. A played match has no per-character readout.
 - `_overlays.build`: the performance overlay and toggle bar when Debug is on (built once, kept across an endless run).
 
 `_teardown_world` frees `World` and everything the match left, and clears `Sound.focus`, `_match`, `_human`, `_overlays.inspector`.
 
 ## Overlays
 
-`_overlays.flags` has one entry per `OverlayRegistry` row, seeded by `initial(debug)`: registry defaults, then the saved toggles
-(`Settings.overlays`) over them; Debug off starts every flag off. The bar's `overlay_toggled` reaches Main's public
-`set_overlay(flag, on)`, which saves the flip (`Settings.set_overlay`) and routes it (`_overlays.route`): `PERF` to Main's own
-performance overlay; in a spectator match an NPC's flag to `SpectatorInspector.set_flag` (overlays show on the selected NPC
-only); the rest to `MatchBuilder.set_overlay` (interface 23; routing in `domain-ui` (`overlays.md`)).
+`_overlays.flags` has one entry per `OverlayRegistry` row; the bar's toggles and its "Show on" scope reach Main's public `set_overlay(flag, on)` and `set_overlay_scope(scope)`,
+which save the choice and route it live. Seeding, the scope per mode and the routing: `overlays.md`.
 
 ## The match module: gotchas
 
@@ -128,7 +126,7 @@ Under `tests/general/` (`match_builder_*`, `match_nav_ready_*`, `match_spawn_*`,
 `saved_setup_*`, `main_setup_*`, `test_world_invader_bound_as_match`), plus
 `tests/ai/stack/human_defender_leader_no_rally_test.gd` and `tests/ui/leader_overlay_draw_test.gd`. The leader, squad and stack-radio tests that sit
 there too (`lead_rank`, `squad_*`, `stack_player_wiring`) are `domain-ai` (`team.md`). List them with
-`ls tests/general | grep -E 'match_|saved_setup|main_setup|test_world_invader'`.
+`ls tests/general | grep -E 'match_|saved_setup|main_setup|test_world_invader'`. The overlay scope's tests are in `overlays.md`.
 
-**Interfaces:** 1, 6 (`LoadoutConfig`: arming), 7 (the controller group, overlays' `show_<x>`), 9, 13, 14, 17, 18, 20, 21,
+**Interfaces:** 1, 6 (`LoadoutConfig`: arming), 7 (the controller group, overlays' `show_<x>`), 9, 13, 14 (`Settings.overlay_scopes`), 17, 18, 20, 21,
 22 (setup window, Von-server wait, match HUD, spectator inspector, overlay bar), 23. Signatures: `architecture`.

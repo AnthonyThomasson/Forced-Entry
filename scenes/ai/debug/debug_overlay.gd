@@ -7,6 +7,12 @@ extends Node2D
 ## also the NavigationAgent2D's path) — it senses nothing and feeds nothing back. The base finds the
 ## controller and character, runs PROCESS_MODE_ALWAYS so it keeps drawing while the tree is paused,
 ## redraws every frame only while `_on()` is true and paints only while the NPC is alive.
+##
+## Its words can leave the world: `text_in_world` (on by default) off, the overlays that say
+## their status in words (agent, brain, search, entry) draw none, leaving the words to the
+## spectator's detail card, which reads each one's `card_lines()`. What an overlay draws as text is
+## recorded through `DebugText` (`drawn_texts()`, cleared at each paint), which is how a test reads
+## it.
 
 const DebugText := preload("res://scenes/ai/debug/debug_text.gd")
 const FONT_SIZE := 16
@@ -14,10 +20,17 @@ const FONT_SIZE := 16
 ## The GoalController to read from (a sibling under the NPC).
 @export var controller_path: NodePath = NodePath("../GoalController")
 
+## Whether the overlay's status words (label, badge, timers, bars) draw in the world. Off, they are
+## left to the detail card (`card_lines()`); the overlay's geometry draws as ever (the agent, search
+## and entry overlays leave no text in the world; the brain overlay draws nothing at all unless its
+## `brain_labels` is on; the other overlays' short tags are not gated).
+var text_in_world := true
 ## The GoalController read for the overlay's data.
 var _controller: Node
 ## The NPC body this overlay is a child of.
 var _character: Node2D
+## The strings drawn since the last paint began, in order.
+var _texts := PackedStringArray()
 
 
 func _ready() -> void:
@@ -32,9 +45,27 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
+	_texts.clear()
 	if not _on() or _controller == null or _character == null or _character.get("is_dead") == true:
 		return
 	_paint()
+
+
+## The words this overlay says about its NPC, one line each, as it draws them with `text_in_world`
+## on: what the detail card shows, whatever the toggles and `text_in_world` say. None by default;
+## the agent, brain, search and entry overlays override it.
+func card_lines() -> PackedStringArray:
+	return PackedStringArray()
+
+
+## The strings the last paint drew, in order (read by tests and nothing else).
+func drawn_texts() -> PackedStringArray:
+	return _texts
+
+
+## Record that `text` was drawn on this overlay (called by `DebugText`).
+func note_text(text: String) -> void:
+	_texts.append(text)
 
 
 ## Whether this overlay's toggle is on. Subclasses return their `show_<x>` flag.
@@ -45,6 +76,12 @@ func _on() -> bool:
 ## Draw the overlay. Called only while the toggle is on and the NPC is alive; subclasses override.
 func _paint() -> void:
 	pass
+
+
+## Status words at local position `pos`, drawn only while `text_in_world`.
+func _say(pos: Vector2, text: String, size: int, color: Color) -> void:
+	if text_in_world:
+		DebugText.string(self, pos, text, size, color)
 
 
 ## A small text label at world point `world` (drawn in this node's local space).

@@ -1,7 +1,7 @@
 # Outfit tests (tag `outfit`)
 
 The rules are `docs/outfits.md` (O1 to O15, each with its tests named under it); `tools/run_tests.sh outfit` runs them. They
-are spread by domain (`tests/character/`, `tests/projectile/`, `items/loadout_outfit`, `tests/ui/`, the styles'
+are spread by domain (`tests/character/`, `tests/projectile/`, `items/loadout_outfit`, `tests/ui/` (`setup_menu_config`, `inspector_right_click_card`), the styles'
 `style_look` with `general/match_styles`), all through `tests/_outfit/outfit_probe.gd` (`const OutfitProbe`, not
 `Outfit`: that is the Items class): `wear`, `view`, `condition` (each false / `{}` / -1 without the outfit API; `require_api`
 is the named check), `pin_height`, the spec's numbers (`ZONE_DAMAGE`, `PLATED_KIT`, `PLAIN_CLOTHES`) so a test checks the doc

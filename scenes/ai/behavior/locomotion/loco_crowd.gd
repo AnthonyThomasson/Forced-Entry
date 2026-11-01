@@ -35,6 +35,16 @@ const HOLD_GAP := 0.5
 ## time whatever the map shows.
 const CARVED_GAP := 16.0
 const CARVE_WAIT := 2.0
+## A walker carved out of the steering map looks for its way round from `RIM_POINTS` spots this far
+## (px) round itself (`_rim`): past the hole the map carves round a body at rest (about 33 to 35
+## px, `Locomotion.PASS_CLEARANCE`), a plain step away.
+const RIM := 40.0
+const RIM_POINTS := 8
+## A spot within this (px) of where a map snaps it is on that map; a plain step to a rim spot is no
+## longer than `RIM` and this.
+const ON_MAP := 2.0
+## Within this (px) of its way round's start (`step_out`) the walk has stepped out to it.
+const STEP_REACH := 6.0
 
 ## The Locomotion it belongs to.
 var loco: Node
@@ -64,6 +74,9 @@ var blocked := false
 var checked_frame := -1
 ## `held_for` at which the held walk next re-plans.
 var _replan_at := WAIT
+## The spot on the rim of the walker's own carved footprint its way round starts from, walked to
+## plain first (`step_to`); INF: the way round starts where it stands.
+var step_out := Vector2.INF
 ## Where the NPC stood when the hold under way began (INF: none yet).
 var _hold_at := Vector2.INF
 
@@ -170,16 +183,38 @@ func check_held(from: Vector2, resting: Array, body: Vector2, on_goal: bool, del
 ## of every known body at rest, so a new last leg is never one the body holding it, or another,
 ## stands on), and passes no known body at rest (`resting`) closer than
 ## `Locomotion.PASS_CLEARANCE`; for a held stack's member, not into the room it keeps out of (D38:
-## `Locomotion`'s `doors.enters_kept_out`). Nothing goes round before both maps have synchronized.
+## `Locomotion`'s `doors.enters_kept_out`). A held member standing still is carved out of that map
+## too, and by that room's doorway its carve can leave it a pocket whose only way out runs through
+## the room: when that is why it has no way round, the way may start from a spot on its own
+## footprint's rim a plain step away (`_rim`), the shortest such way taken and its start walked to
+## first (`step_out`). Nothing goes round before both maps have synchronized.
 func goes_round(from: Vector2, resting: Array, held_leg := false) -> bool:
+	step_out = Vector2.INF
 	var plan_map: RID = loco._plan_map
 	if (not steering_map.is_valid()
 			or not NavBuilder.ready(steering_map)
 			or not NavBuilder.ready(plan_map)):
 		return false
-	var route := NavBuilder.route(steering_map, from, loco._goal)
-	if route.is_empty():
+	if _round_length(from, from, resting, held_leg) != INF:
+		return true
+	if not _carved(from) or not loco.doors.enters_kept_out(steering_map):
 		return false
+	var best := INF
+	for start in _rim(from, resting):
+		var length := _round_length(from, start, resting, held_leg)
+		if length < best:
+			best = length
+			step_out = start
+	return best != INF
+
+
+## How far (px) the way round from `from` by `start` (`goes_round`) walks to the goal on the
+## steering map, or INF when it is no way round.
+func _round_length(from: Vector2, start: Vector2, resting: Array, held_leg: bool) -> float:
+	var plan_map: RID = loco._plan_map
+	var route := NavBuilder.route(steering_map, start, loco._goal)
+	if route.is_empty():
+		return INF
 	var end: Vector2 = route[route.size() - 1]
 	var goal := NavBuilder.snap(plan_map, loco._goal)
 	if end.distance_to(goal) > BLOCKED_DISTANCE:
@@ -188,9 +223,39 @@ func goes_round(from: Vector2, resting: Array, held_leg := false) -> bool:
 		if (end.distance_to(goal) > LAST_LEG
 				or NavBuilder.path_length(leg) > LAST_LEG
 				or first_on(end, leg, 0, clear_of, INF) != Vector2.INF):
-			return false
-	return (first_on(from, route, 0, resting) == Vector2.INF
-			and not loco.doors.enters_kept_out(steering_map))
+			return INF
+	var walk := PackedVector2Array([start]) + route if start != from else route
+	if (first_on(from, walk, 0, resting) != Vector2.INF
+			or loco.doors.enters_kept_out(steering_map, start)):
+		return INF
+	return from.distance_to(start) + NavBuilder.path_length(route)
+
+
+## The spots `RIM` px round `from` on the steering map that a plain step reaches, no known body at
+## rest (`resting`) in its way: where a way round may start for a walker carved out of that map
+## (`goes_round`).
+func _rim(from: Vector2, resting: Array) -> Array:
+	var plan_map: RID = loco._plan_map
+	var out: Array = []
+	for i in RIM_POINTS:
+		var p := from + Vector2.from_angle(TAU * i / RIM_POINTS) * RIM
+		if (NavBuilder.snap(steering_map, p).distance_to(p) <= ON_MAP
+				and NavBuilder.path_length(NavBuilder.route(plan_map, from, p)) <= RIM + ON_MAP
+				and first_on(from, PackedVector2Array([p]), 0, resting) == Vector2.INF):
+			out.append(p)
+	return out
+
+
+## The step a walk round bodies takes this frame toward `next` (the agent's next waypoint) from
+## `here`: to its way round's start first while there is one (`step_out`), given up once reached
+## (within `STEP_REACH` px).
+func step_to(here: Vector2, next: Vector2) -> Vector2:
+	if step_out == Vector2.INF:
+		return next
+	if here.distance_to(step_out) <= STEP_REACH:
+		step_out = Vector2.INF
+		return next
+	return step_out
 
 
 ## The known bodies at rest within `reach` px of `around` (the one a melee closes on left out), as

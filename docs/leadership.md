@@ -263,7 +263,7 @@ panel docked on the side of the screen away from the click (on the left, or on t
 never covers the teammates or the doorway it is about) and a ring on the clicked point. Docked on the left, its top is 120 px down (below
 the match timer), 24 px in from the edge. Docked on the right, its right edge sits `right_clear` + 24 px from the screen's right edge
 (`CommandMenu.setup`'s `right_clear`: with Debug on, Main hands it the overlay toggle bar's fixed column, `OverlayToggles.RESERVED_WIDTH`,
-as the inspector's outfit panel keeps clear of it; else 0): the bar's fixed column, not where it has been dragged or collapsed to.
+as the inspector's detail card keeps clear of it; else 0): the bar's fixed column, not where it has been dragged or collapsed to.
 There, where its top at 120 px would cover the click or a selected teammate's body (within 24 px: a click near the centre on a narrow
 window), it docks at the top or the bottom of the screen instead (24 px from it, over the paused match timer at the top), the side away
 from the centre of the click and those bodies first: the first dock that covers none of them, else the first that leaves the click clear,
@@ -371,14 +371,21 @@ not once the go came, the squad's or the leader stepping in (D14).
   (`Combat`'s spots ask the confinement), a contact in it is fought from where the member stands, never chased in, and a walk whose plain way goes
   into that room (an engage's reposition, a retreat, under fire too; not an evade) goes round it and its doorway's view as an ordered
   approach's does, however long the way round (D4), and no walk of it (its order's way to its slot among them) goes round a body at rest on
-  its way by a way into that room (it waits short of the body, then goes round the room once that way is clear): a retreat to a room behind
+  its way by a way into that room (it waits short of the body, then goes round the room once that way is clear): a walk to a room behind
   it is never walked through it. Its other walks, one into the
   doorway's view to fire through it among them, are left as they are, and none is turned into an entry into that room: the entry guard (E9)
   leaves its doorways alone for the member, under fire too, so a walk up to the doorway stops outside it. Standing in one of that room's
   doorways (on the room's side of its wall plane by half a wall and a body's radius at most), the member is not in the room yet: the
   guard reads it as on the doorway's outer side, so its walk away through that doorway is no entry into the room beyond, and a walk of
   it from there whose plain way goes on into the room goes round it as from outside; until its way round is worked out (its map
-  being baked) such a walk stands where it is rather than step in. When the fight lapses, the member's order brings it back to its slot.
+  being baked) such a walk stands where it is rather than step in. It falls back on the stack's side only (#154): RETREAT offers it no
+  spot whose plain way back to the doorway's outer side (48 px out of it, away from that room) runs through that room, since its walk
+  back, kept out of the room, would go the long way round (a room beyond it to clear by entry, out by another door and round the
+  house). When the fight lapses, the member's order brings it back to its slot, round a teammate at rest in its way. Standing still,
+  the member is carved out of the steering map as every body at rest is, and by the doorway that carve can leave it a pocket whose only
+  way out runs through the room: its way round then starts from a spot on its own footprint's rim a plain step away, which it walks
+  to first, and a way round it is already on that comes to go into the room so is looked at anew
+  (`order_stack_hold_round_teammate_from_doorway_mouth`).
 - **The walk into the slot.** A member arrives at its slot from a point past it that stops a body's clearance (32 px) short of the next
   slot along its side a teammate claims, re-planned as claims come in (`docs/tactical-entry.md` E2, for every stack): a held stack whose
   last member claims after the one ahead of it set off (`order_stack_hold_for_go`) never has that member walk into the other's body.
@@ -409,16 +416,18 @@ funnel before the order and steps in after it; the squad's `view()` then no long
 `released` against the order's frame), `general/command_menu_wiring` (LD16), `order_stack_hold_fights_stack_side` (real Von: a defender in
 the kitchen seen through the back door and then hidden, the held members unkillable as the premise: a held member fires from the
 stack's side and none walks into the kitchen while held; once the fight lapses each is back in its slot),
-`order_stack_hold_retreat_round_body` (scripted: a held member falls back to the
-living room past a teammate standing on its plain way through the kitchen, and goes round the house, never into the kitchen),
+`order_stack_hold_retreat_stays_stack_side` (scripted: held members shot at from the kitchen, knowing the house, are offered no retreat
+into the living room nor the hall, whose way back runs through the kitchen),
+`order_stack_hold_round_teammate_from_doorway_mouth` (scripted: a held member left standing still just outside the back doorway after
+a fight, carved out of the steering map where that leaves it a way round its teammate only through the kitchen, goes round the
+teammate on the stack's side back to its slot, never into the kitchen),
 `order_stack_hold_advance_to_door_stays_out` (scripted: a held member under fire from the kitchen advances halfway to the defender, to a
 point by the back doorway outside the kitchen: it fights from there, never enters the kitchen nor claims the doorway but under its
 order), `order_stack_hold_walk_round_body` (scripted: a held member's walk round the house to its slot meets a teammate standing on its
 way along the west wall, and never goes round it through the hall and the kitchen),
 `order_stack_hold_from_doorway` (scripted: a held member standing in the hall-kitchen doorway, just on the kitchen's side of the wall
 plane, is not in the kitchen: it walks round the house to its slot, never on into the kitchen, and the entry guard takes it into no
-room by entry), `order_stack_hold_retreat_from_doorway` (scripted: a held member standing in the back doorway, on the kitchen's
-side of its plane, falls back to the living room under fire: it goes round the house, never on into the kitchen). The
+room by entry). The
 `order_stack_*` tests cover a stack that goes when ready.
 
 **LD14. Frag entry.** The stack order's `mode` is `quiet`, `stun` or `frag` (LD5). With `frag` the stack throws a frag into the room

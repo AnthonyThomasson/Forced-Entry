@@ -12,6 +12,12 @@ extends CanvasLayer
 ## UP - DRAW", …).
 signal match_ended(verdict: String)
 
+## The timer's box (px from the top edge), and the top edge the panels docked under it share (the
+## spectator's detail card, and the performance overlay by the same number): its bottom and a gap.
+const TIMER_TOP := 16.0
+const TIMER_HEIGHT := 52.0
+const PANEL_TOP := TIMER_TOP + TIMER_HEIGHT + 8.0
+
 ## The characters of each side.
 var _combatants: Array = []
 ## Match time so far (s); stops once decided.
@@ -106,7 +112,7 @@ func _decide(verdict: String) -> void:
 func _build_ui() -> void:
 	_timer_label = _add_label(
 		Vector2(0.5, 0.0),
-		Rect2(Vector2(-130, 16), Vector2(260, 52)),
+		Rect2(Vector2(-130, TIMER_TOP), Vector2(260, TIMER_HEIGHT)),
 		34,
 		Color.WHITE,
 		HORIZONTAL_ALIGNMENT_CENTER,

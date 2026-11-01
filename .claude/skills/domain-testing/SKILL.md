@@ -113,8 +113,8 @@ func run(t: TestContext) -> void:
   children. `t.world` is typed `Node2D`, so a `var` off it takes an explicit type (`t.world.match_handle`,
   `t.world.squad(faction)`, `t.world.player_stack`).
 - **Puppet** (`scripted_controller.gd`): its actions run on the character's next frame, and `facing` follows the aim
-  one frame later: aim, wait a moment, then fire. `use()` is one press of E (the nearer of a door in reach and a vehicle);
-  `turn_door(steps)` is the wheel with E held (a step is `DoorConfig.step_degrees`).
+  one frame later: aim, wait, then fire. `use()` presses E (nearer of a door and a vehicle); `turn_door(steps)`
+  is the wheel with E held.
 - Make randomness deterministic where the assertion depends on it (`projectile.flyover` off, since a character is
   partial cover).
 
@@ -145,6 +145,7 @@ Read the file for the topic you write or debug; each holds that topic's probes a
 | investigation and hearing (`investigate`, `hearing`) | `tests-investigate.md` |
 | flanking (`flank`) | `tests-flank.md` |
 | outfits (`outfit`) | `tests-outfit.md` |
+| the spectator inspector, detail card, overlay scope (domain `ui`) | `tests-ui.md` |
 | grenades (`grenade`) | `tests-grenade.md` |
 | lighting (domain `lighting`) | `tests-lighting.md` |
 | vehicles (domain `vehicle`) | `tests-vehicle.md` |

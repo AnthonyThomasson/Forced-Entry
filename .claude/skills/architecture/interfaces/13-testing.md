@@ -25,7 +25,8 @@
     - **Runner:** `TestSetup.lock_interaction` (`camera` / `pause` / `overlays`) shuts out user input a test would trip over; the test
       sends its own through `TestContext.inject`, which the lock lets through. The runner builds the UI's `PerformanceOverlay` for the
       bar's `PERF` toggle and hands every other toggle to the world's `set_overlay`, which routes by the match's one rule
-      (`MatchBuilder.set_overlay`; the bar is 22). Its scene carries General's camera (`general/camera_controller.gd`; `GameTestSuite`
+      (`MatchBuilder.set_overlay`; the bar is 22): any NPC flag reaches the NPCs in the bar's scope, and its "Show on" row (`OverlayRegistry.scopes_of(MODE_PLAY)`: `defenders`,
+      `invaders`, `all`, default `all`) reaches the world's `set_overlay_scope(scope)`, which re-applies every toggle at once by `MatchBuilder.set_overlay_scope`. Its scene carries General's camera (`general/camera_controller.gd`; `GameTestSuite`
       makes one of its own): `frame(targets)` points it at the setup's camera targets (every actor by default); clear `pan_enabled` where a
       human-driven player walks on WASD or the test locks the camera.
     - **Sandboxes** (`sandboxes/`) may draw through Art (12: their own painter on `PixelCanvas`, rendered by `PixelArt.render` /

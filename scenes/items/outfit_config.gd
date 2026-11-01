@@ -9,7 +9,7 @@ class_name OutfitConfig
 ## StringNames, `&""` = nothing worn there.
 ##
 ## Garment row keys:
-##   name        display name (the setup window, the debug panel, the inspector).
+##   name        display name (the setup window, the inspector's detail card).
 ##   slot        the outfit slot it is worn in.
 ##   weight      kg; the outfit's total slows the walk and tires the run
 ##               (`CharacterPaceConfig.outfit_*`).

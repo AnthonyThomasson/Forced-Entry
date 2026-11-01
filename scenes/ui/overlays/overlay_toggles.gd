@@ -11,6 +11,8 @@ extends CanvasLayer
 
 ## Emitted when a button is pressed: the overlay's `show_<x>` flag and its new state.
 signal overlay_toggled(flag: String, on: bool)
+## Emitted when another "Show on" scope is chosen: the scope's name (`OverlayRegistry.SCOPES`).
+signal scope_changed(scope: String)
 
 const Registry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 const DragHandle := preload("res://scenes/ui/overlays/drag_handle.gd")
@@ -34,11 +36,15 @@ var _group_buttons: Dictionary = {}
 var _group_flags: Dictionary = {}
 
 
-## Build the bar seeded from `flags` (`{ flag: bool }`; a missing flag uses its registry default).
-func setup(flags: Dictionary) -> void:
+## Build the bar seeded from `flags` (`{ flag: bool }`; a missing flag uses its registry default),
+## with a "Show on" row of radio buttons for `scopes` (names from `OverlayRegistry.SCOPES`, none:
+## no row) starting on `scope`.
+func setup(flags: Dictionary, scope := "", scopes: Array = []) -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 10
 	_build_frame()
+	if not scopes.is_empty():
+		_add_scope_row(scope, scopes)
 	_all_button = Button.new()  # click to flip every overlay
 	_all_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_all_button.focus_mode = Control.FOCUS_NONE
@@ -88,6 +94,34 @@ func _build_frame() -> void:
 	_body = VBoxContainer.new()
 	_body.add_theme_constant_override("separation", int(2 * SCALE))
 	box.add_child(_body)
+
+
+## The "Show on" row: a caption and one radio button per scope of `scopes`, `scope` chosen.
+func _add_scope_row(scope: String, scopes: Array) -> void:
+	var caption := Label.new()
+	caption.text = "Show on"
+	caption.modulate = Color(1, 1, 1, 0.7)
+	caption.add_theme_font_size_override("font_size", int(12 * SCALE))
+	_body.add_child(caption)
+	var row := HFlowContainer.new()
+	_body.add_child(row)
+	var radio := ButtonGroup.new()
+	for choice: String in scopes:
+		var b := Button.new()
+		b.toggle_mode = true
+		b.button_group = radio
+		b.text = choice.capitalize()
+		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_font_size_override("font_size", int(12 * SCALE))
+		b.button_pressed = choice == scope
+		b.toggled.connect(_on_scope_toggled.bind(choice))
+		row.add_child(b)
+
+
+## A scope button changed: announce the one chosen (the radio's old button un-pressing is not news).
+func _on_scope_toggled(on: bool, scope: String) -> void:
+	if on:
+		scope_changed.emit(scope)
 
 
 ## The title button of `group` (click to flip the whole group), its flag list started empty.

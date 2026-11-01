@@ -480,7 +480,8 @@ static func build_leader_overlay(world: Node, squads: Dictionary) -> Node2D:
 ## squad leaders on its `leader_overlay` (a world with no squads has none: nothing happens), and
 ## any NPC's own overlay on each NPC among its `combatants` (a character with an AI controller,
 ## interface 7: the human has none of those overlays) through `OverlayRegistry.apply`. The
-## performance flag is the caller's own overlay: nothing here.
+## performance flag is the caller's own overlay: nothing here. A per-NPC flag turns on only the NPCs
+## in the handle's `overlay_scope` (`all` with none): the rest stay off.
 static func set_overlay(handle: Dictionary, flag: String, on: bool) -> void:
 	if flag == OVERLAY_REGISTRY.NAV_HOLES:
 		var nav_debug: Variant = handle.get("nav_debug")
@@ -492,9 +493,33 @@ static func set_overlay(handle: Dictionary, flag: String, on: bool) -> void:
 		if is_instance_valid(overlay):
 			overlay.show_leaders = on
 	elif not OVERLAY_REGISTRY.is_global(flag):
-		for npc: Variant in handle.get("combatants", []):
-			if is_instance_valid(npc) and _controller_of(npc) != null:
-				OVERLAY_REGISTRY.apply(npc, { flag: on })
+		_apply_to_combatants(
+			handle, { flag: on }, handle.get("overlay_scope", OVERLAY_REGISTRY.SCOPE_ALL),
+		)
+
+
+## Show the per-NPC overlays `flags` (`{ show_<x>: bool }`) on the NPCs of `scope` only
+## (`OverlayRegistry.SCOPES`: `all`, `defenders` or `invaders`) among the match `handle`'s
+## `combatants`, and every other NPC's off, at once (a paused overlay is redrawn by `apply`). The
+## scope is kept on the handle as `overlay_scope`, which `set_overlay` honours from then on; the
+## human (no AI controller) has no overlays to set.
+static func set_overlay_scope(handle: Dictionary, flags: Dictionary, scope: String) -> void:
+	handle["overlay_scope"] = scope
+	_apply_to_combatants(handle, flags, scope)
+
+
+## Apply the per-NPC overlay `flags` (`{ show_<x>: bool }`) to `npc` by the scope rule: as given
+## when `npc` is in `scope` (`OverlayRegistry.in_scope`), all off when it is not, and nothing at all
+## to a character with no AI controller (the human). The one gate every router goes through.
+static func _apply_in_scope(npc: Node, flags: Dictionary, scope: String) -> void:
+	if _controller_of(npc) == null:
+		return
+	var shown := flags
+	if not OVERLAY_REGISTRY.in_scope(npc, scope):
+		shown = {}
+		for flag: String in flags:
+			shown[flag] = false
+	OVERLAY_REGISTRY.apply(npc, shown)
 
 
 ## Build the world stage of a match under `world`, the node everything the match builds lives under,
@@ -696,6 +721,14 @@ static func _human_of(match_spec: Dictionary) -> Dictionary:
 ## Where the spec's human (`_human_of`) starts: its `at`, else where it stands.
 static func _start_of(human: Dictionary) -> Vector2:
 	return human["at"] if human["at"] != Vector2.INF else (human["node"] as Node2D).global_position
+
+
+## `_apply_in_scope` to each of the match `handle`'s `combatants`: the one loop `set_overlay` and
+## `set_overlay_scope` share.
+static func _apply_to_combatants(handle: Dictionary, flags: Dictionary, scope: String) -> void:
+	for npc: Variant in handle.get("combatants", []):
+		if is_instance_valid(npc):
+			_apply_in_scope(npc, flags, scope)
 
 
 ## The controller of `npc` (interface 7): its child in the group `npc_controllers`, else null.
