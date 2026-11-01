@@ -193,7 +193,7 @@ class RunnerOwnLogTests(unittest.TestCase):
     def test_the_editors_log_argument_touches_nothing_without_a_game_log(self):
         """No `GAME_LOG_FILE` (an editor not started by tools/editor.sh): every step leaves the setting as it was."""
         steps = self.run_argument_steps(None)
-        self.assertEqual({step: values for step, values in steps.items()}, {step: steps["start"] for step in steps})
+        self.assertEqual(steps, {step: steps["start"] for step in steps})
 
 
 if __name__ == "__main__":

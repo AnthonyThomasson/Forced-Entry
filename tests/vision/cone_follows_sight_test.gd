@@ -14,7 +14,8 @@ const EYE_AT := Vector2(150, 300)
 ## From the eye to the wardrobe's centre: points on this line, farther out, are behind it.
 const WARDROBE_LINE := Vector2(300, -170)
 ## The doors, in the wall the rooms share (x 700) clear of the open doorway: where each hangs
-## (`y`), and the eye's place 100 px before it, facing east at the point `BEYOND` px past it.
+## (`y`), and the eye's x (`EYE_BEFORE`, 100 px before the wall), facing east at the point at x
+## `BEYOND`, 200 px past it.
 const GLASS_Y := 60.0
 const HOLLOW_Y := 140.0
 const WOOD_Y := 460.0

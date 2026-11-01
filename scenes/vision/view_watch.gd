@@ -215,15 +215,24 @@ func _within_reach(body: CollisionObject2D, origin: Vector2) -> bool:
 	return origin.distance_to(_eye) <= _reach + _extent(body)
 
 
-## How far (px) any part of `body` lies from its origin: its shapes' farthest corner.
+## How far (px) any part of `body` lies from its origin: its shapes' farthest corner, each as the
+## shape is placed and scaled in the body. A shape not set yet could be anything: unbounded.
 func _extent(body: CollisionObject2D) -> float:
 	var far := 0.0
 	for child in body.get_children():
-		if child is CollisionShape2D and (child as CollisionShape2D).shape != null:
+		if child is CollisionShape2D:
 			var shape := child as CollisionShape2D
+			if shape.shape == null:
+				return INF
 			var box := shape.shape.get_rect()
-			far = maxf(far, shape.position.length() + box.position.length() + box.size.length())
+			var grow := maxf(shape.scale.x, shape.scale.y)
+			far = maxf(
+				far,
+				shape.position.length() + (box.position.length() + box.size.length()) * grow,
+			)
 		elif child is CollisionPolygon2D:
-			for point in (child as CollisionPolygon2D).polygon:
-				far = maxf(far, point.length() + (child as Node2D).position.length())
+			var polygon := child as CollisionPolygon2D
+			var grow := maxf(polygon.scale.x, polygon.scale.y)
+			for point in polygon.polygon:
+				far = maxf(far, polygon.position.length() + point.length() * grow)
 	return far * maxf(body.global_scale.x, body.global_scale.y)

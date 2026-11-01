@@ -1,7 +1,8 @@
 extends RefCounted
 ## The Vision domain's shared reads for the `tests/vision/` tests (`docs/player-vision.md`). Not a
-## test. It reads the view only through what interface 25 publishes, and the numbers of the spec are
-## kept here as consts, so a test checks the spec and not the code.
+## test. It reads the view only through what interface 25 publishes, and the numbers of the spec
+## (and the tests' own tuning, such as the hit volleys) are kept here as consts, so a test checks
+## the spec and not the code.
 ##
 ## What the tests read:
 ## - `PlayerView` (class_name, `scenes/vision/`), the view built for one character, a node in the

@@ -52,6 +52,9 @@ const REACH_EYE := Vector2(8100, 300)
 const FAR_AT := Vector2(11_850, 300)
 const NEAR_AT := Vector2(8400, 250)
 const FAR_ARRIVES := Vector2(8350, 350)
+## A shape scaled by this many reaches 1500 px from its body: from 3750 px off it is 270 px into
+## range.
+const WIDE_SCALE := 30.0
 const REACH_FRAMES := 60
 const REACH_STEP := 1.0
 ## The frames the dents must change the viewer's cone in, or they proved nothing.
@@ -285,6 +288,7 @@ func _reach(t: TestContext) -> void:
 		"a solid moved every frame within the reach forces a rebuild each frame (%d in %d)"
 		% [rebuilds, REACH_FRAMES],
 	)
+	await _wide(t, world, view)
 	await t.frames(15)
 	before = view.rebuilds()
 	far.position = FAR_ARRIVES
@@ -294,6 +298,22 @@ func _reach(t: TestContext) -> void:
 		"a solid that moves from outside the reach into it is a rebuild in that frame",
 	)
 	await Probe.drop_world(t, world)
+
+
+## A solid whose body is 3750 px off but whose shape is stretched into range counts as within it.
+func _wide(t: TestContext, world: Node, view: PlayerView) -> void:
+	var wide := _solid_at(world, FAR_AT)
+	wide.get_child(0).scale = Vector2(WIDE_SCALE, 1.0)
+	await t.frames(15)
+	var before := view.rebuilds()
+	await _creep(t, wide, FAR_AT)
+	var rebuilds := view.rebuilds() - before
+	t.check(
+		rebuilds >= REACH_FRAMES - 2,
+		"a far solid with a stretched shape in range forces a rebuild each frame (%d in %d)"
+		% [rebuilds, REACH_FRAMES],
+	)
+	wide.queue_free()
 
 
 ## Move `body` from `from` along y, `REACH_STEP` px a frame, for `REACH_FRAMES` frames.

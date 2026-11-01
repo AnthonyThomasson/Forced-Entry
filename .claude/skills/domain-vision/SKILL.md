@@ -80,7 +80,8 @@ read through `character.sight()`: any character can be the viewer.
   (`tests/_vision/physics_mover.gd` reproduces it; no effect on the cone was found in real flows).
 - **`ViewCone.contains` (so `PlayerView.sees`) asks General's `SeenArea.contains`,** an even-odd rule, not the engine's
   `Geometry2D.is_point_in_polygon`, which says inside for points well outside a cone with many collinear corners along a wall
-  (`tests/vision/view_sees_suite.gd` holds a counterexample). Ask `SeenArea.contains` for a point against a cone's polygon too.
+  (`tests/vision/view_sees_suite.gd` holds a counterexample). A test that judges a repaint `SeenArea` decides keeps an even-odd copy of its own (`vision/unseen_not_repainted`), so it
+  does not check the rule by itself.
 - **The reference cone is a frozen yardstick:** `tests/_vision/reference_view_cone.gd` is the cone before any saving; the
   tests compare the live cone to it vertex for vertex, so change it only with the spec (`docs/player-vision.md`, "Measured cost").
   Its far-face pick and corner dedupe do not depend on which overlapping shape the engine names, as the live cone's.

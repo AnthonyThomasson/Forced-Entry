@@ -348,13 +348,13 @@ func _box_seen(view: PlayerView, box: Rect2) -> bool:
 		var to: Vector2 = corners[(edge + 1) % 4]
 		var steps := ceili(from.distance_to(to) / EDGE_STEP)
 		for i in steps + 1:
-			if view.sees(from.lerp(to, float(i) / steps)):
+			if _sees(view, from.lerp(to, float(i) / steps)):
 				return true
 	var x := box.position.x
 	while x < box.end.x:
 		var y := box.position.y
 		while y < box.end.y:
-			if view.sees(Vector2(x, y)):
+			if _sees(view, Vector2(x, y)):
 				return true
 			y += POOL_STEP
 		x += POOL_STEP
@@ -519,10 +519,10 @@ func _puppet_of(world: Node2D, id: StringName) -> Node:
 
 ## Whether any part of a disc of `radius` round `at` is seen: the centre or one of `RING` points.
 func _reaches(view: PlayerView, at: Vector2, radius: float) -> bool:
-	if view.sees(at):
+	if _sees(view, at):
 		return true
 	for i in RING:
-		if view.sees(at + Vector2.from_angle(float(i) / RING * TAU) * radius):
+		if _sees(view, at + Vector2.from_angle(float(i) / RING * TAU) * radius):
 			return true
 	return false
 
@@ -544,3 +544,23 @@ func _repaints(t: TestContext, id: StringName, frames: int) -> int:
 	var before := _redraws(t, id)
 	await t.frames(frames)
 	return _redraws(t, id) - before
+
+
+## Whether `point` is in the view's cone or bubble, by the even-odd rule on the polygons: the test's
+## own copy of the rule, so it does not judge `SeenArea` (which the repaint is decided by) by
+## itself.
+func _sees(view: PlayerView, point: Vector2) -> bool:
+	for polygon: PackedVector2Array in [view.cone(), view.bubble()]:
+		if polygon.size() < 3:
+			continue
+		var inside := false
+		var previous := polygon[polygon.size() - 1]
+		for corner in polygon:
+			if (corner.y > point.y) != (previous.y > point.y):
+				var slope := (point.y - previous.y) / (corner.y - previous.y)
+				if point.x < previous.x + slope * (corner.x - previous.x):
+					inside = not inside
+			previous = corner
+		if inside:
+			return true
+	return false

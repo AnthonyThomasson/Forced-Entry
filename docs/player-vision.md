@@ -39,7 +39,7 @@ many blockers are in reach (the shape query is asked again with more room while 
 (`docs/doors.md`) follow the same rule: a shut solid door blocks, a glass-panel door (`transparent`) is seen through, an ajar
 door's gap is seen through, a knocked-down door does not block. The cone is rebuilt only when its output can change: the eye moved
 or turned, the viewer's sight numbers changed, or within reach a blocker moved, changed shape (a dent, a wall re-cut, a door's
-swing, fall or shattered panes), joined or left, or changed coverage or `transparent`; plus a forced rebuild every
+swing, fall or shattered panes) or joined or left; plus a forced rebuild every
 `VisionConfig.rebuild_every` (10) physics frames, a backstop. A skipped frame's cone equals a fresh rebuild's, vertex for vertex.
 Tests: `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over the table
 and inside the cone are in the polygon; points behind the wardrobe, beyond the wall, behind the eye past 48 are not; points
@@ -243,11 +243,6 @@ longer rebuilds for a blocker that is moving out of the eye's reach (the cone te
 - **The perf matches run with `worldgen.doors` off** until #178 and #159 make the entry door-aware, which the shared perf probe
   (`tests/_perf/perf_probe.gd`) says. `perf/match_npc_vision` is red with its unviewed sibling
   `perf/match_10v10_stress` until #98.
-- **Where the reference cone came from.** `tests/_vision/reference_view_cone.gd` was frozen as the cone before any saving in commit
-  438c7cf1. Commit 94885766 then changed the live cone's far-face pick (`far_exit`, read off the shapes that hold the point) and its
-  corner dedupe (to half a pixel, the lesser standing), and gave the reference the same two, so that a fresh rebuild is
-  deterministic whichever overlapping shape the engine names. It has none of the savings (no kept coverage, no lows left out, no
-  skipped rebuild).
 
 ## Played in a window
 
