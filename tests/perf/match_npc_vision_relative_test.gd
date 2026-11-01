@@ -136,13 +136,14 @@ func _place_viewer(t: TestContext, viewed: Node2D) -> bool:
 			door = opening
 	if not t.require(not door.is_empty(), "premise: the largest room has a doorway"):
 		return false
-	var look: Vector2 = ((door["pos"] as Vector2) - centre).normalized()
 	viewed.global_position = centre
-	t.puppet(&"viewed").aim_at(centre + look * 100.0)
+	t.puppet(&"viewed").aim_at(door["pos"])
 	await t.frames(3)
+	var look: Vector2 = ((door["pos"] as Vector2) - viewed.global_position).normalized()
 	return t.require(
 		(viewed.get("facing") as Vector2).distance_to(look) < 0.01,
-		"premise: the viewer faces through the doorway",
+		"premise: the viewer faces through the doorway (from %s, facing %s, toward %s)"
+		% [viewed.global_position.round(), viewed.get("facing"), look],
 	)
 
 
