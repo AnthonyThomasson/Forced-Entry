@@ -22,8 +22,10 @@ static var setup: Dictionary = {}
 ## The overlay toggle bar's last states (`{ show_<x>: bool }`), so the overlays reopen as they were
 ## left. Only flags the player has toggled are stored; the rest keep Main's defaults.
 static var overlays: Dictionary = {}
-## Which NPCs the per-NPC overlays show on, per mode (`{ play: scope, watch: scope }`).
-static var overlay_scopes: Dictionary = { "play": "all", "watch": "selected" }
+## Which NPCs the per-NPC overlays show on, per mode (`{ play: scope, watch: scope }`): only the
+## modes the player has chosen a scope for, the rest start on the mode's default (the UI's
+## `OverlayRegistry.DEFAULT_SCOPES`, which this holder never reads: General depends on no UI).
+static var overlay_scopes: Dictionary = {}
 
 
 ## Read the file: reset every binding to its default, then apply the saved differences, and take the

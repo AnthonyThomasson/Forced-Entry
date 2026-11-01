@@ -1,6 +1,8 @@
 extends GameTest
-## The overlay bar's bulk buttons: a group header flips just its group, "All" flips everything, each
-## flag changed emits its own `overlay_toggled`, and the counts on the buttons follow the flags.
+## The overlay bar: its bulk buttons (a group header flips just its group, "All" flips everything,
+## each flag changed emits its own `overlay_toggled`, the counts on the buttons follow the flags)
+## and its "Show on" row (the scopes it was given and no `selected` otherwise, `scope_changed` when
+## one is pressed, and the scope saved through `Settings` coming back on a fresh launch's bar).
 
 const OverlayToggles := preload("res://scenes/ui/overlays/overlay_toggles.gd")
 const Registry := preload("res://scenes/ui/overlays/overlay_registry.gd")
@@ -12,9 +14,11 @@ var _events: Array = []
 
 func describe() -> Dictionary:
 	return {
-		"name": "Overlay bar flips a group or everything at once",
+		"name": "Overlay bar flips groups and picks the scope to show on",
 		"description": "A group header turns its whole group on (then off); All covers every "
-			+ "overlay; one overlay_toggled per flag changed; counts follow the flags.",
+			+ "overlay; one overlay_toggled per flag changed; counts follow the flags. The Show on "
+			+ "row offers the scopes it was given (no selected unless given), pressing one emits "
+			+ "scope_changed, and a scope saved through Settings starts a fresh bar.",
 		"tags": ["overlays", "ui"],
 		"timeout": 5.0,
 	}
@@ -22,7 +26,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"path", SCRATCH)
-	s.set_static(Settings, &"overlay_scopes", { "play": "all", "watch": "selected" })
+	s.set_static(Settings, &"overlay_scopes", {})
 
 
 func run(t: TestContext) -> void:
@@ -121,14 +125,15 @@ func _check_scope_row(t: TestContext) -> void:
 func _check_scope_saved(t: TestContext) -> void:
 	if FileAccess.file_exists(SCRATCH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SCRATCH))
-	Settings.set_overlay_scope("watch", "invaders")
-	Settings.overlay_scopes = { "play": "all", "watch": "selected" }
+	Settings.set_overlay_scope(Registry.MODE_WATCH, Registry.SCOPE_INVADERS)
+	Settings.set_overlay_scope(Registry.MODE_PLAY, Registry.SCOPE_DEFENDERS)
+	Settings.overlay_scopes = {}
 	Settings.load_file()
 	t.expect_eq(Settings.overlay_scopes["watch"], "invaders", "the saved scope is read back")
-	t.expect_eq(Settings.overlay_scopes["play"], "all", "the other mode keeps its own")
+	t.expect_eq(Settings.overlay_scopes["play"], "defenders", "the other mode keeps its own")
 	_bar = OverlayToggles.new()
 	t.world.add_child(_bar)
-	_bar.setup({}, Settings.overlay_scopes["watch"], ["selected", "defenders", "invaders", "all"])
+	_bar.setup({}, Settings.overlay_scopes["watch"], Registry.scopes_of(Registry.MODE_WATCH))
 	t.check(_scope_button("Invaders").button_pressed, "a fresh bar starts on the saved scope")
 	_bar.queue_free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SCRATCH))

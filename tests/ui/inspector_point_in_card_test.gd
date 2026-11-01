@@ -9,6 +9,7 @@ extends GameTest
 
 const Inspector := preload("res://scenes/ui/hud/spectator_inspector.gd")
 const OverlayToggles := preload("res://scenes/ui/overlays/overlay_toggles.gd")
+const InspectorProbe := preload("res://tests/_ui/inspector_probe.gd")
 const AT := Vector2(450, 250)
 ## How near (px) two points may lie before a click on one may pick the other.
 const NEAR := 40.0
@@ -56,7 +57,7 @@ func run(t: TestContext) -> void:
 			"the NPC weighs a point to click",
 	):
 		return
-	await _click(t, npc.global_position, MOUSE_BUTTON_RIGHT)
+	await InspectorProbe.click(t, npc.global_position, MOUSE_BUTTON_RIGHT)
 	if not t.require(card.visible, "a right-click opens the card"):
 		return
 	t.check(_point_section(card) == "—", "the Point section says — before a point is clicked")
@@ -68,7 +69,7 @@ func run(t: TestContext) -> void:
 		if zones.is_empty():
 			continue
 		zone = zones[0]
-		await _click(t, zone["point"], MOUSE_BUTTON_LEFT)
+		await InspectorProbe.click(t, zone["point"], MOUSE_BUTTON_LEFT)
 		if ctrl.debug_focus == zone["point"]:
 			break
 		zone = {}
@@ -78,22 +79,23 @@ func run(t: TestContext) -> void:
 	var shown := _point_section(card)
 	t.check(shown.contains(String(zone["category"]).to_upper()), "the card names its category")
 	t.check(String(zone.get("label", "")) != "", "premise: the point has a label")
+	t.check(String(zone.get("desc", "")) != "", "premise: the point has a reasoning text")
 	t.check(shown.contains(String(zone["label"])), "and its label:\n%s" % shown)
 	t.check(shown.contains(String(zone.get("desc", ""))), "and its reasoning:\n%s" % shown)
 
-	await _click(t, Vector2(30, 470), MOUSE_BUTTON_LEFT)
+	await InspectorProbe.click(t, Vector2(30, 470), MOUSE_BUTTON_LEFT)
 	t.check(ctrl.debug_focus == zone["point"], "a left-click on nothing keeps the point")
-	await _click(t, npc.global_position, MOUSE_BUTTON_RIGHT)
+	await InspectorProbe.click(t, npc.global_position, MOUSE_BUTTON_RIGHT)
 	t.check(ctrl.debug_focus == Vector2.INF, "closing the card clears the highlight")
 	inspector.queue_free()
 
 
-## The zones of `zones` no other zone is near enough to be picked instead (a click on a point
-## where two lie would pick either).
+## The zones of `zones` that have a label and a reasoning text and that no other zone is near enough
+## to be picked instead (a click on a point where two lie would pick either).
 func _pickable(zones: Array) -> Array:
 	var out := []
 	for zone: Dictionary in zones:
-		var alone := true
+		var alone := String(zone.get("label", "")) != "" and String(zone.get("desc", "")) != ""
 		for other: Dictionary in zones:
 			if other != zone and (other["point"] as Vector2).distance_to(zone["point"]) < NEAR:
 				alone = false
@@ -109,22 +111,3 @@ func _point_section(card: Control) -> String:
 		if (labels[i] as Label).text == "POINT":
 			return (labels[i + 1] as Label).text
 	return ""
-
-
-## A click (press and release) of `button` at world point `at`'s place on screen.
-func _click(t: TestContext, at: Vector2, button: MouseButton) -> void:
-	var screen := t.world.get_viewport().get_canvas_transform() * at
-	var motion := InputEventMouseMotion.new()
-	motion.position = screen
-	motion.global_position = screen
-	TestContext.inject(motion)
-	await t.frames(1)
-	for pressed: bool in [true, false]:
-		var click := InputEventMouseButton.new()
-		click.button_index = button
-		click.pressed = pressed
-		click.position = screen
-		click.global_position = screen
-		TestContext.inject(click)
-		await t.frames(1)
-	await t.frames(1)

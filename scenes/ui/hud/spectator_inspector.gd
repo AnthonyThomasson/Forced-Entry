@@ -34,7 +34,7 @@ var _combatants: Array = []
 ## Which overlay toggles to enable on the selected NPC (from Main).
 var _flags: Dictionary = {}
 ## Which NPCs show their overlays besides the selected one (`OverlayRegistry.SCOPES`).
-var _scope := "selected"
+var _scope := OverlayRegistry.SCOPE_SELECTED
 ## The NPC whose overlays are shown, or null.
 var _selected: Node = null
 ## The selected NPC's controller, cached for live marker refreshes.

@@ -493,10 +493,9 @@ static func set_overlay(handle: Dictionary, flag: String, on: bool) -> void:
 		if is_instance_valid(overlay):
 			overlay.show_leaders = on
 	elif not OVERLAY_REGISTRY.is_global(flag):
-		var scope: String = handle.get("overlay_scope", "all")
-		for npc: Variant in handle.get("combatants", []):
-			if is_instance_valid(npc) and _controller_of(npc) != null:
-				OVERLAY_REGISTRY.apply(npc, { flag: on and OVERLAY_REGISTRY.in_scope(npc, scope) })
+		_show_overlays(
+			handle, { flag: on }, handle.get("overlay_scope", OVERLAY_REGISTRY.SCOPE_ALL),
+		)
 
 
 ## Show the per-NPC overlays `flags` (`{ show_<x>: bool }`) on the NPCs of `scope` only
@@ -506,12 +505,21 @@ static func set_overlay(handle: Dictionary, flag: String, on: bool) -> void:
 ## human (no AI controller) has no overlays to set.
 static func set_overlay_scope(handle: Dictionary, flags: Dictionary, scope: String) -> void:
 	handle["overlay_scope"] = scope
-	var off := {}
-	for flag: String in flags:
-		off[flag] = false
-	for npc: Variant in handle.get("combatants", []):
-		if is_instance_valid(npc) and _controller_of(npc) != null:
-			OVERLAY_REGISTRY.apply(npc, flags if OVERLAY_REGISTRY.in_scope(npc, scope) else off)
+	_show_overlays(handle, flags, scope)
+
+
+## Apply the per-NPC overlay `flags` (`{ show_<x>: bool }`) to `npc` by the scope rule: as given
+## when `npc` is in `scope` (`OverlayRegistry.in_scope`), all off when it is not, and nothing at all
+## to a character with no AI controller (the human). The one gate every router goes through.
+static func _apply_overlays(npc: Node, flags: Dictionary, scope: String) -> void:
+	if _controller_of(npc) == null:
+		return
+	var shown := flags
+	if not OVERLAY_REGISTRY.in_scope(npc, scope):
+		shown = {}
+		for flag: String in flags:
+			shown[flag] = false
+	OVERLAY_REGISTRY.apply(npc, shown)
 
 
 ## Build the world stage of a match under `world`, the node everything the match builds lives under,
@@ -713,6 +721,14 @@ static func _human_of(match_spec: Dictionary) -> Dictionary:
 ## Where the spec's human (`_human_of`) starts: its `at`, else where it stands.
 static func _start_of(human: Dictionary) -> Vector2:
 	return human["at"] if human["at"] != Vector2.INF else (human["node"] as Node2D).global_position
+
+
+## `_apply_overlays` to each of the match `handle`'s `combatants`: the one loop `set_overlay` and
+## `set_overlay_scope` share.
+static func _show_overlays(handle: Dictionary, flags: Dictionary, scope: String) -> void:
+	for npc: Variant in handle.get("combatants", []):
+		if is_instance_valid(npc):
+			_apply_overlays(npc, flags, scope)
 
 
 ## The controller of `npc` (interface 7): its child in the group `npc_controllers`, else null.

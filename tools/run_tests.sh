@@ -29,7 +29,7 @@
 #                                         `affected` below), in ONE run; main.gd, root scenes,
 #                                         project.godot and any change under scenes/worldgen, art, general, audio,
 #                                         lighting or testing run everything; testing adds --self-test. An edited
-#                                         tests/<d>/[<topic>/]<name>_test.gd runs just that test; tests/_ai, _audio, _perf, _vehicle their users.
+#                                         tests/<d>/[<topic>/]<name>_test.gd runs just that test; tests/_ai, _audio, _perf, _ui, _vehicle their users.
 #                                         Nothing mapped, or only domains --skip-domain leaves out: it says which
 #                                         and exits 0. It ends with a `NOTE <n> Von test(s) in the changed domains were
 #                                         not run: tools/run_tests.sh --domain=<d> --require-von` when the runs skipped
@@ -1002,6 +1002,7 @@ if [[ $CHANGED -eq 1 ]]; then
       tests/_ai/*) exact="$exact ai" ;;
       tests/_audio/*) exact="$exact audio" ;;
       tests/_lighting/*) exact="$exact lighting" ;;
+      tests/_ui/*) exact="$exact ui" ;;
       tests/_vehicle/*) exact="$exact vehicle audio general" ;;   # also feeds audio/vehicle_sounds and the general vehicle tests
       tests/_perf/*) perf=1 ;;
       tests/_*/*) domains="$domains all" ;;    # an unknown helper folder: assume the worst

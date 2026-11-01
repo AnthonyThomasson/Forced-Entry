@@ -8,31 +8,38 @@ extends PanelContainer
 ## it draws (so the card never formats the controller's getters itself), read off the NPC's overlay
 ## children duck-typed, like `OverlayRegistry.apply`. Refreshed `REFRESH` seconds apart, also while
 ## the tree is paused. A dead NPC's card stays, marked dead, until `close()`. It never swallows a
-## click: the right button selects through it.
+## click: the right button selects through it. It is as tall as its text, never past the window's
+## bottom edge (`BOTTOM` px clear): the sections scroll inside it, under the mouse wheel, which it
+## swallows (the camera zooms by the wheel too, but only when no UI took it).
 
 ## Seconds between refreshes of the card's text.
 const REFRESH := 0.1
 ## The card's width (px), shortened to clear the overlay bar's column on a narrow window.
 const WIDTH := 560.0
-## Its left edge and top (below the match HUD's timer), and its gap to the column it keeps clear.
+## Its left edge and top (below the match HUD's timer: its `PANEL_TOP`), and its gap to the column
+## it keeps clear.
 const LEFT := 24.0
-const TOP := 76.0
+const TOP := MatchHud.PANEL_TOP
 const GAP := 10.0
+## The gap (px) the card keeps between its bottom edge and the window's.
+const BOTTOM := 12.0
+## How far (px) one wheel notch scrolls the sections.
+const WHEEL_STEP := 60.0
 ## Font sizes of the title line, the section headings and the section bodies.
 const TITLE_SIZE := 22
 const HEADING_SIZE := 14
 const BODY_SIZE := 18
 ## A police unit's rank marks (`wardrobe.rank`) by name.
 const RANKS := ["trooper", "sergeant", "lead"]
-## The word for each faction's side.
-const SIDES := { &"household": "defender", &"invader": "invader" }
 ## The sections after the title, in order: the heading shown, and the child of the NPC's whose
 ## `card_lines()` fills it (a section with no child says "—").
 const OVERLAY_SECTIONS := [
 	["Decision", "AgentDebug"], ["Von brain", "BrainDebug"], ["Search", "SearchDebug"],
 	["Entry", "EntryDebug"],
 ]
+const MatchHud := preload("res://scenes/ui/hud/match_hud.gd")
 const OutfitLines := preload("res://scenes/ui/hud/outfit_lines.gd")
+const OverlayRegistry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 
 ## The NPC shown, or null while the card is closed.
 var _npc: Node = null
@@ -42,6 +49,10 @@ var _point: Dictionary = {}
 var _right_clear := 0.0
 ## Seconds since the text was last refreshed.
 var _since := 0.0
+## The sections' scroll container, as tall as its text up to what the window leaves.
+var _scroll: ScrollContainer
+## The sections' column, inside `_scroll`.
+var _box: VBoxContainer
 ## The title line (name · side · rank).
 var _title: Label
 ## Each section's body label by its heading.
@@ -55,29 +66,49 @@ func _process(delta: float) -> void:
 		refresh()
 
 
+## Scroll the sections under the mouse wheel and swallow it; every other click passes through, to
+## the inspector's right-click select.
+func _gui_input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton or not event.pressed:
+		return
+	var step := WHEEL_STEP * maxf(event.factor, 1.0)
+	if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		_scroll.scroll_vertical += int(step)
+		accept_event()
+	elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
+		_scroll.scroll_vertical -= int(step)
+		accept_event()
+
+
 ## Build the card, hidden, keeping `right_clear` px from the right edge clear (the overlay bar).
 func setup(right_clear: float) -> void:
 	_right_clear = right_clear
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mouse_filter = Control.MOUSE_FILTER_PASS
 	visible = false
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.04, 0.05, 0.08, 0.86)
 	style.set_content_margin_all(10.0)
 	add_theme_stylebox_override("panel", style)
-	var box := VBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(box)
+	_scroll = ScrollContainer.new()
+	_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(_scroll)
+	_box = VBoxContainer.new()
+	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(_box)
 	_title = _label(TITLE_SIZE, Color(1.0, 0.9, 0.45))
-	box.add_child(_title)
+	_box.add_child(_title)
 	for heading: String in _headings():
 		var head := _label(HEADING_SIZE, Color(0.6, 0.75, 1.0))
 		head.text = heading.to_upper()
-		box.add_child(head)
+		_box.add_child(head)
 		var body := _label(BODY_SIZE, Color(1, 1, 1))
 		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		box.add_child(body)
+		_box.add_child(body)
 		_bodies[heading] = body
+	get_viewport().size_changed.connect(_fit)
 
 
 ## Open the card for `npc`: its sections filled now and kept fresh, no tactical point yet.
@@ -119,6 +150,7 @@ func refresh() -> void:
 	for section: Array in OVERLAY_SECTIONS:
 		_bodies[section[0]].text = _or_dash(_overlay_lines(section[1]))
 	_bodies["Point"].text = _point_text()
+	_fit()
 
 
 ## Every section heading, in order.
@@ -146,11 +178,23 @@ func _dock() -> void:
 	offset_right = LEFT + minf(WIDTH, maxf(room, 0.0))
 	offset_top = TOP
 	offset_bottom = TOP
+	_fit()
+
+
+## Make the sections as tall as their text, up to the window's bottom edge less `BOTTOM`: past it
+## they scroll. Run on each refresh and when the window is resized.
+func _fit() -> void:
+	if _scroll == null:
+		return
+	var panel := get_theme_stylebox("panel")
+	var chrome := panel.get_minimum_size().y
+	var room := get_viewport_rect().size.y - TOP - BOTTOM - chrome
+	_scroll.custom_minimum_size.y = clampf(_box.get_combined_minimum_size().y, 0.0, maxf(room, 0.0))
 
 
 ## "name · side · rank", marked dead once the NPC is.
 func _title_text() -> String:
-	var side: String = SIDES.get(_npc.faction, str(_npc.faction))
+	var side := OverlayRegistry.side_of(_npc.faction)
 	var rank := "—"
 	if _npc.faction == &"invader":
 		rank = RANKS[clampi(_npc.wardrobe.rank, 0, RANKS.size() - 1)]
@@ -165,8 +209,11 @@ func _health_text() -> String:
 	return "%d / %d" % [roundi(_npc.health), roundi(_npc.max_health)]
 
 
-## "Pistol · 7/12  (+2 mags)  reloading…": the held item and its ammo ("—" for an item without).
+## "Pistol · 7/12  (+2 mags)  reloading…": the held item and its ammo ("—" for an item without),
+## "—" alone for a hand holding nothing.
 func _item_text() -> String:
+	if _npc.inventory.current_item() == null:
+		return "—"
 	var rounds: int = _npc.ammo.rounds()
 	var ammo := "—"
 	if rounds >= 0:

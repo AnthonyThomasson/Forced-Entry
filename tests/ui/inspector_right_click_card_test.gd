@@ -10,6 +10,7 @@ extends GameTest
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
 const Inspector := preload("res://scenes/ui/hud/spectator_inspector.gd")
 const OverlayToggles := preload("res://scenes/ui/overlays/overlay_toggles.gd")
+const InspectorProbe := preload("res://tests/_ui/inspector_probe.gd")
 const AT := Vector2(450, 250)
 ## Empty ground, far from the NPC: a click there clears the selection.
 const GROUND := Vector2(150, 420)
@@ -62,21 +63,21 @@ func run(t: TestContext) -> void:
 		return
 	t.check(not card.visible, "no card before an NPC is selected")
 
-	await _click(t, npc.global_position, MOUSE_BUTTON_LEFT)
+	await InspectorProbe.click(t, npc.global_position, MOUSE_BUTTON_LEFT)
 	t.check(not _vision_on(npc) and not card.visible, "a left-click on an NPC selects nothing")
 
-	await _click(t, npc.global_position, MOUSE_BUTTON_RIGHT)
+	await InspectorProbe.click(t, npc.global_position, MOUSE_BUTTON_RIGHT)
 	if not t.require(
 			_vision_on(npc) and card.visible, "a right-click selects the NPC and opens its card",
 	):
 		return
 	_check_card(t, card, npc)
 
-	await _click(t, npc.global_position, MOUSE_BUTTON_RIGHT)
+	await InspectorProbe.click(t, npc.global_position, MOUSE_BUTTON_RIGHT)
 	t.check(not _vision_on(npc) and not card.visible, "a second right-click closes the card")
-	await _click(t, npc.global_position, MOUSE_BUTTON_RIGHT)
+	await InspectorProbe.click(t, npc.global_position, MOUSE_BUTTON_RIGHT)
 	t.check(_vision_on(npc) and card.visible, "and a right-click opens it again")
-	await _click(t, GROUND, MOUSE_BUTTON_RIGHT)
+	await InspectorProbe.click(t, GROUND, MOUSE_BUTTON_RIGHT)
 	t.check(
 		not _vision_on(npc) and not card.visible,
 		"a right-click on empty ground clears the selection and closes the card",
@@ -105,25 +106,6 @@ func _check_card(t: TestContext, card: Control, npc: Node) -> void:
 	t.check(shown.contains("100%"), "and the plates' condition (100%%, new)")
 	var path: String = t.controller(&"npc", &"debug_status").debug_status()
 	t.check(path != "" and shown.contains(path), "and the decision path '%s'" % path)
-
-
-## A click (press and release) of `button` at world point `at`'s place on screen.
-func _click(t: TestContext, at: Vector2, button: MouseButton) -> void:
-	var screen := t.world.get_viewport().get_canvas_transform() * at
-	var motion := InputEventMouseMotion.new()
-	motion.position = screen
-	motion.global_position = screen
-	TestContext.inject(motion)
-	await t.frames(1)
-	for pressed: bool in [true, false]:
-		var click := InputEventMouseButton.new()
-		click.button_index = button
-		click.pressed = pressed
-		click.position = screen
-		click.global_position = screen
-		TestContext.inject(click)
-		await t.frames(1)
-	await t.frames(1)
 
 
 ## Whether `npc`'s vision overlay is switched on.

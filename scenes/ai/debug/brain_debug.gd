@@ -4,6 +4,12 @@ extends "res://scenes/ai/debug/debug_overlay.gd"
 ## decision and why the last one was forced, the commitment / tactic timers, the facts that hold,
 ## and — per level of the last walk — Von's probability bars with the pick highlighted. Reads the
 ## controller's `debug_brain()` only.
+##
+## Its words are of two kinds. The card lines (the timers line, the forced reason, the facts, an
+## auto-picked level's pick) go through `_say`, which draws only while `text_in_world`. The short
+## indicator labels (the badges, a level's title, a bar's option and percentage, the ring's seconds)
+## are drawn straight through `DebugText.string` / `_label`: a paint that gets that far has already
+## been allowed to (see `_paint`).
 
 const THINK := Color(1.0, 0.85, 0.2)
 const FAIL := Color(1.0, 0.3, 0.3)
@@ -109,18 +115,12 @@ func card_lines() -> PackedStringArray:
 ## The THINKING and FALLBACK badges of brain `b` from (`x`, `y`); returns the y below them.
 func _paint_badges(b: Dictionary, x: float, y: float) -> float:
 	if b["pending"]:
-		_tag(Vector2(x, y), _thinking_text(), FONT_SIZE + 2, THINK)
+		DebugText.string(self, Vector2(x, y), _thinking_text(), FONT_SIZE + 2, THINK)
 		y += LINE_H + 2
 	if b["failed"]:
-		_tag(Vector2(x, y), FALLBACK_TEXT, FONT_SIZE + 1, FAIL)
+		DebugText.string(self, Vector2(x, y), FALLBACK_TEXT, FONT_SIZE + 1, FAIL)
 		y += LINE_H + 2
 	return y
-
-
-## An indicator's label at local position `pos` (every paint that gets this far draws it: the
-## paint is skipped with both `text_in_world` and `brain_labels` off).
-func _tag(pos: Vector2, text: String, size: int, color: Color) -> void:
-	DebugText.string(self, pos, text, size, color)
 
 
 ## The THINKING badge's text, its dots cycling with the game clock.
@@ -188,7 +188,7 @@ func _facts_text(b: Dictionary) -> String:
 ## One level of the last walk at (`x`, `y`): its node and Von's probability bar for each offered
 ## option, the pick highlighted (or the pick alone when it was auto-picked); returns the y below it.
 func _paint_level(level: Dictionary, x: float, y: float) -> float:
-	_tag(Vector2(x, y), _level_text(level), FONT_SIZE, TEXT)
+	DebugText.string(self, Vector2(x, y), _level_text(level), FONT_SIZE, TEXT)
 	y += LINE_H
 	var probs: Dictionary = level.get("probabilities", {})
 	var pick: String = str(level.get("pick", ""))
@@ -199,7 +199,7 @@ func _paint_level(level: Dictionary, x: float, y: float) -> float:
 		_drawn.append(
 			{ "kind": &"bar", "option": str(id), "probability": p, "picked": str(id) == pick },
 		)
-		_tag(Vector2(x + BAR_W + 4, y), _bar_text(id, p), FONT_SIZE - 1, col)
+		DebugText.string(self, Vector2(x + BAR_W + 4, y), _bar_text(id, p), FONT_SIZE - 1, col)
 		y += LINE_H - 2
 	if _picked_alone(level):
 		_say(Vector2(x, y), _pick_text(level), FONT_SIZE - 1, PICK)

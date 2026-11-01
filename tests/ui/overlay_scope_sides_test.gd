@@ -3,11 +3,11 @@ extends GameTest
 ## defenders (faction household), two invaders and the human (a puppet, no AI controller), the
 ## per-NPC overlays shown only on the NPCs the scope admits: `defenders`, `invaders` or `all`. A
 ## toggle reaches only the NPCs the scope admits, changing the scope re-applies the toggles at once,
-## and the human never gets an overlay.
+## and the human never gets an overlay: a stand-in overlay on it records every flag written to it,
+## and none ever is.
 
-const SIDES := {
-	&"d1": &"defender", &"d2": &"defender", &"i1": &"invader", &"i2": &"invader",
-}
+const InspectorProbe := preload("res://tests/_ui/inspector_probe.gd")
+const SIDES := InspectorProbe.SIDES
 
 
 func describe() -> Dictionary:
@@ -35,39 +35,48 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var world: Node2D = t.world
+	var stand_in := OverlayStandIn.new()
+	t.actor(&"human").add_child(stand_in)
+	var everyone := ["d1", "d2", "i1", "i2"]
 	world.call("set_overlay", "show_vision", true)
-	t.expect_eq(_lit(t, "show_vision"), ["d1", "d2", "i1", "i2"], "scope all: every NPC shows")
+	_expect_lit(t, "show_vision", everyone, "scope all: every NPC shows")
 
 	world.call("set_overlay_scope", "defenders")
-	t.expect_eq(_lit(t, "show_vision"), ["d1", "d2"], "scope defenders: only the defenders show")
+	_expect_lit(t, "show_vision", ["d1", "d2"], "scope defenders: only the defenders show")
 
 	world.call("set_overlay_scope", "invaders")
-	t.expect_eq(_lit(t, "show_vision"), ["i1", "i2"], "scope invaders: only the invaders show")
+	_expect_lit(t, "show_vision", ["i1", "i2"], "scope invaders: only the invaders show")
 
 	world.call("set_overlay", "show_contacts", true)
-	t.expect_eq(_lit(t, "show_contacts"), ["i1", "i2"], "a toggle under invaders reaches them only")
-	t.expect_eq(_lit(t, "show_vision"), ["i1", "i2"], "and leaves the vision overlays as they were")
+	_expect_lit(t, "show_contacts", ["i1", "i2"], "a toggle under invaders reaches them only")
+	_expect_lit(t, "show_vision", ["i1", "i2"], "and leaves the vision overlays as they were")
 
 	world.call("set_overlay_scope", "all")
-	t.expect_eq(
-		_lit(t, "show_contacts"), ["d1", "d2", "i1", "i2"], "scope all again: every NPC shows both",
+	_expect_lit(t, "show_contacts", everyone, "scope all again: every NPC shows both")
+	_expect_lit(t, "show_vision", everyone, "the vision overlays too")
+
+	t.check(
+		stand_in.written.is_empty(),
+		"the human's overlay was never written to (%s)" % [stand_in.written],
 	)
-	t.expect_eq(_lit(t, "show_vision"), ["d1", "d2", "i1", "i2"], "the vision overlays too")
-
-	var human := t.actor(&"human")
-	t.check(_overlay_children(human, "show_vision").is_empty(), "the human has no overlay at all")
 
 
-## The ids of the actors whose overlay of `flag` is on, in the order of `SIDES`.
-func _lit(t: TestContext, flag: String) -> Array:
-	var out: Array = []
-	for id: StringName in SIDES:
-		for overlay in _overlay_children(t.actor(id), flag):
-			if bool(overlay.get(flag)):
-				out.append(String(id))
-	return out
+## The actors whose overlay of `flag` is on are `ids`.
+func _expect_lit(t: TestContext, flag: String, ids: Array, message: String) -> void:
+	t.expect_eq(InspectorProbe.lit(t, flag), ids, message)
 
 
-## Every child of `character` that has the property `flag`.
-func _overlay_children(character: Node, flag: String) -> Array:
-	return character.get_children().filter(func(c): return flag in c)
+## An overlay on a character with no AI controller: it has the flags' properties, so anything that
+## applies a flag to the character reaches it, and it records each write (on or off).
+class OverlayStandIn:
+	extends Node
+
+	var written: Array = []
+	var show_vision := false:
+		set(value):
+			written.append(["show_vision", value])
+			show_vision = value
+	var show_contacts := false:
+		set(value):
+			written.append(["show_contacts", value])
+			show_contacts = value

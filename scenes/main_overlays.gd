@@ -24,10 +24,10 @@ var toggles: Node = null
 ## them.
 var inspector: Node = null
 ## The mode the current match is in, as `Settings.overlay_scopes` keys it: `play` or `watch`.
-var mode := "play"
+var mode := OVERLAY_REGISTRY.MODE_PLAY
 ## Which NPCs the per-NPC overlays show on, one of `OverlayRegistry.SCOPES` (the saved scope of
 ## `mode`, once a match has begun).
-var scope := "all"
+var scope := OVERLAY_REGISTRY.SCOPE_ALL
 
 
 func _init(owner: Node) -> void:
@@ -46,19 +46,14 @@ func initial(debug: bool) -> void:
 			flags[flag] = false
 
 
-## The scopes the bar offers in `a_mode`: the spectator's selected NPC is a `watch` choice only.
-func scopes_of(a_mode: String) -> Array:
-	return OVERLAY_REGISTRY.SCOPES.filter(func(one): return a_mode == "watch" or one != "selected")
-
-
 ## A match is built (`handle`), in `spectator` mode or not: take the mode's saved scope (the default
 ## `all` for a played match, `selected` for a watched one, when none is saved or the saved one is
 ## not offered there) and, for a played match, show the overlays on it.
 func begin(spectator: bool, handle: Dictionary) -> void:
-	mode = "watch" if spectator else "play"
-	scope = "selected" if spectator else "all"
+	mode = OVERLAY_REGISTRY.MODE_WATCH if spectator else OVERLAY_REGISTRY.MODE_PLAY
+	scope = OVERLAY_REGISTRY.default_scope(mode)
 	var saved: String = Settings.overlay_scopes.get(mode, scope)
-	if scopes_of(mode).has(saved):
+	if OVERLAY_REGISTRY.scopes_of(mode).has(saved):
 		scope = saved
 	if not spectator:
 		MatchBuilder.set_overlay_scope(handle, npc_flags(), scope)
@@ -95,7 +90,7 @@ func build(debug: bool) -> void:
 	var bar := OVERLAY_TOGGLES.new()
 	bar.name = "OverlayToggles"
 	main.add_child(bar)
-	bar.setup(flags, scope, scopes_of(mode))
+	bar.setup(flags, scope, OVERLAY_REGISTRY.scopes_of(mode))
 	bar.overlay_toggled.connect(main.set_overlay)
 	bar.scope_changed.connect(main.set_overlay_scope)
 	toggles = bar

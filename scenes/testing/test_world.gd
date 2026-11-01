@@ -39,7 +39,7 @@ var _saved_statics: Array = []
 ## `set_overlay`.
 var _overlay_flags: Dictionary = {}
 ## Which NPCs the per-NPC overlays show on (`OverlayRegistry.SCOPES`); every NPC at first.
-var _overlay_scope := "all"
+var _overlay_scope := OVERLAY_REGISTRY.SCOPE_ALL
 ## The navmesh-holes overlay (the "Navigation holes" toggle), kept in step with re-bakes by the
 ## updater.
 var _nav_debug: Node2D = null
@@ -294,7 +294,8 @@ func _spawn_actor(a: Dictionary, switches: Dictionary) -> Node:
 		character.set_indexed(NodePath(String(prop)), props[prop])
 	_apply_actor_switches(character, switches)
 	_apply_child_props(character, a)
-	OVERLAY_REGISTRY.apply(character, _overlay_flags)
+	# through the scope's gate, like every toggle: an actor spawned once a scope is set follows it
+	MatchBuilder.set_overlay_scope({ "combatants": [character] }, _overlay_flags, _overlay_scope)
 	# The AI learns the house's rooms, its doorways and, for an invader, the front entrance by
 	# Main's own rule, before it joins the tree.
 	MatchBuilder.bind_npc(

@@ -18,11 +18,22 @@ const LEADERS := "show_leaders"
 const PERF := "show_perf"
 ## Flags that belong to one global overlay rather than to every NPC.
 const GLOBAL := [NAV_HOLES, LEADERS, PERF]
-## The scopes of the per-NPC overlays, in the order the bar offers them: `selected` (only the
-## spectator's selected NPC), `defenders`, `invaders` and `all`.
-const SCOPES := ["selected", "defenders", "invaders", "all"]
+## The scope names: `selected` (only the spectator's selected NPC), `defenders`, `invaders` and
+## `all`.
+const SCOPE_SELECTED := "selected"
+const SCOPE_DEFENDERS := "defenders"
+const SCOPE_INVADERS := "invaders"
+const SCOPE_ALL := "all"
+## The scopes of the per-NPC overlays, in the order the bar offers them.
+const SCOPES := [SCOPE_SELECTED, SCOPE_DEFENDERS, SCOPE_INVADERS, SCOPE_ALL]
 ## The faction (`Character.faction`) each side scope names.
-const SIDE_FACTIONS := { "defenders": &"household", "invaders": &"invader" }
+const SIDE_FACTIONS := { SCOPE_DEFENDERS: &"household", SCOPE_INVADERS: &"invader" }
+## The modes a scope is kept for (also the keys of `Settings.overlay_scopes`): a played match and a
+## watched (spectator) one.
+const MODE_PLAY := "play"
+const MODE_WATCH := "watch"
+## The scope each mode starts on when none is saved: the one table everything reads.
+const DEFAULT_SCOPES := { MODE_PLAY: SCOPE_ALL, MODE_WATCH: SCOPE_SELECTED }
 ## `{ flag, label, group, default }` rows, in display order, grouped for the toggle bar.
 const ENTRIES := [
 	{ "flag": "show_vision", "label": "Vision cones", "group": "Perception", "default": false },
@@ -73,9 +84,28 @@ static func apply(npc: Node, flags: Dictionary) -> void:
 ## Whether `npc` is in `scope`: `all` takes every NPC, `defenders` / `invaders` the NPCs of that
 ## side's faction; `selected` takes none (the spectator inspector adds the NPC it has selected).
 static func in_scope(npc: Node, scope: String) -> bool:
-	if scope == "all":
+	if scope == SCOPE_ALL:
 		return true
 	return SIDE_FACTIONS.has(scope) and npc.get("faction") == SIDE_FACTIONS[scope]
+
+
+## The scopes the bar offers in `mode`: the spectator's selected NPC is a `watch` choice only.
+static func scopes_of(mode: String) -> Array:
+	return SCOPES.filter(func(one): return mode == MODE_WATCH or one != SCOPE_SELECTED)
+
+
+## The scope `mode` starts on when none is saved.
+static func default_scope(mode: String) -> String:
+	return DEFAULT_SCOPES[mode]
+
+
+## The word for the side of `faction` (`defender`, `invader`: its scope name in the singular), or
+## the faction's own name when no scope names it.
+static func side_of(faction: StringName) -> String:
+	for scope: String in SIDE_FACTIONS:
+		if SIDE_FACTIONS[scope] == faction:
+			return scope.trim_suffix("s")
+	return str(faction)
 
 
 ## Whether `flag` drives a single global overlay instead of each NPC's.
