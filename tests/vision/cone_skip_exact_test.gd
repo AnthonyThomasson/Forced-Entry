@@ -25,10 +25,7 @@ const EYE_AT := Vector2(250, 250)
 const WARDROBE_AT := Vector2(450, 130)
 const SHOVED_AT := Vector2(450, 390)
 const ADDED_AT := Vector2(520, 250)
-## The doorways in the wall the rooms share (x 700), each 52 px free between jambs 40 px apart whose
-## ends the walls reach 6 px into; the hinge sits 20 px from the doorway's middle.
-const WIDTH := 52.0
-const JAMB := 20.0
+## The doorways in the wall the rooms share (x 700), by `Probe.doorway`.
 const GLASS_Y := 110.0
 const WOOD_Y := 250.0
 const DOWN_Y := 390.0
@@ -65,21 +62,11 @@ func describe() -> Dictionary:
 	}
 
 
-func _doorway(y: float, material: String, style: String, id: String) -> Dictionary:
-	return {
-		"pos": Vector2(700, y), "width": WIDTH,
-		"door": {
-			"name": id, "material": material, "style": style,
-			"hinge": Vector2(700, y - JAMB), "swing_into": Vector2.RIGHT,
-		},
-	}
-
-
 func configure(s: TestSetup) -> void:
 	s.layout(Probe.ROOMS, [
-		_doorway(GLASS_Y, "glass", "panes", "glass"),
-		_doorway(WOOD_Y, "solid", "plank", "wood"),
-		_doorway(DOWN_Y, "hollow", "flush", "hollow"),
+		Probe.doorway(GLASS_Y, "glass", "panes", "glass"),
+		Probe.doorway(WOOD_Y, "solid", "plank", "wood"),
+		Probe.doorway(DOWN_Y, "hollow", "flush", "hollow"),
 	])
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)

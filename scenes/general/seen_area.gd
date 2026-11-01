@@ -67,7 +67,7 @@ static func _meets_rect(polygon: PackedVector2Array, rect: Rect2) -> bool:
 		if _segment_meets_rect(previous, corner, rect):
 			return true
 		previous = corner
-	return _contains(polygon, rect.position)
+	return contains(polygon, rect.position)
 
 
 ## Whether the segment `from`-`to` has a point in `rect` (its edges included): the slab test, a
@@ -105,13 +105,16 @@ static func _reaches(polygon: PackedVector2Array, center: Vector2, radius: float
 		if nearest.distance_squared_to(center) <= limit:
 			return true
 		previous = corner
-	return _contains(polygon, center)
+	return contains(polygon, center)
 
 
-## Whether `point` is inside `polygon` (its edges excluded), by the even-odd rule. Not the engine's
+## Whether `point` is inside `polygon` (at least three corners; its edges excluded), by the even-odd
+## rule. Vision's `sees` and the tests ask it too. Not the engine's
 ## `Geometry2D.is_point_in_polygon`, which says a point is inside some simple polygons it lies
 ## well outside of (a cone with many collinear corners on a wall).
-static func _contains(polygon: PackedVector2Array, point: Vector2) -> bool:
+static func contains(polygon: PackedVector2Array, point: Vector2) -> bool:
+	if polygon.size() < 3:
+		return false
 	var inside := false
 	var previous := polygon[polygon.size() - 1]
 	for corner in polygon:

@@ -70,14 +70,6 @@ func rebuild(
 	cone.append_array(_sweep(space, from, _cone_angles(from, facing, corners), _reach, exclude))
 
 
-## Whether `point` is inside the cone or the bubble polygon.
-func contains(point: Vector2) -> bool:
-	return (
-		(cone.size() >= 3 and Geometry2D.is_point_in_polygon(point, cone))
-		or (bubble.size() >= 3 and Geometry2D.is_point_in_polygon(point, bubble))
-	)
-
-
 ## Where sight along `dir` from `from` ends within `dist`: the full distance when the way is clear
 ## or only low furniture is in it, else where the ray leaves the first blocker's hit shape.
 func _sight_end(

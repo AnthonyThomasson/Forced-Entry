@@ -120,7 +120,7 @@ never the drawing). The frame any of its reach enters the cone it is repainted b
 last drawing (it is remembered). A blood pool is not redrawn while the box its cells cover is wholly outside the cone, and is
 redrawn the frame the cone reaches it. With no view (Watch, Endless, the switch off, the view lifted) everything is repainted as
 before. The seen area is General's `SeenArea`: Vision writes the cone's polygons each rebuild and clears them on a lift; a disc
-(`reaches`) or a box (`reaches_rect`) asks it. The test of a point inside a polygon is its own even-odd rule, since the engine's
+(`reaches`) or a box (`reaches_rect`) asks it. The one test of a point inside a polygon is `SeenArea.contains`, an even-odd rule (the view's `sees` asks it too), since the engine's
 `Geometry2D.is_point_in_polygon` said inside for points well outside a cone with many collinear corners; a pool asks about its
 box, not the circle round it, whose radius reaches into the viewer's 48 px bubble when the box does not. A character decides in
 `_process` and a pool in `_process` too (marked stale in physics), after the view has written the frame's area in its physics tick,

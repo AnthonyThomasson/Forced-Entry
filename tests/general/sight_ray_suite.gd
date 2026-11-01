@@ -22,6 +22,13 @@ func _piece(at: Vector2, size: Vector2, coverage: float) -> Piece:
 	return piece
 
 
+## A glass-panel piece: 100 tall, and its surface says it is `transparent` (the glass-panel door).
+func _glass(at: Vector2, size: Vector2) -> Piece:
+	var glass := _piece(at, size, 100.0)
+	glass.transparent = true
+	return glass
+
+
 func _mute(at: Vector2, size: Vector2) -> Mute:
 	var mute: Mute = auto_free(Mute.new())
 	_shape(mute, at, size)
@@ -139,6 +146,42 @@ func test_the_coverage_of_a_collider_is_what_it_says_and_a_full_blocker_when_it_
 	assert_float(SightRay.coverage_of(null)).is_equal(100.0)
 
 
+func test_a_transparent_piece_is_looked_through_however_tall() -> void:
+	var wall := _piece(Vector2(300.0, 0.0), Vector2(20.0, 200.0), 100.0)
+	_glass(Vector2(100.0, 0.0), Vector2(10.0, 200.0))
+	var space := await _space()
+	var line := _line(Vector2.ZERO, Vector2(500.0, 0.0))
+	# The glass is 100 tall, as tall as the wall, and is not the hit; the wall behind it is.
+	assert_object(SightRay.hit(space, line[0], line[1], [], SEE_OVER).get("collider")).is_same(wall)
+	# Whatever the limit: a caller that looks over nothing still sees through glass.
+	assert_object(SightRay.hit(space, line[0], line[1], [], 0.0).get("collider")).is_same(wall)
+
+
+func test_a_transparent_piece_alone_hits_nothing() -> void:
+	_glass(Vector2(100.0, 0.0), Vector2(10.0, 200.0))
+	var space := await _space()
+	var line := _line(Vector2.ZERO, Vector2(300.0, 0.0))
+	assert_dict(SightRay.hit(space, line[0], line[1], [], SEE_OVER)).is_empty()
+
+
+func test_the_coverage_of_a_transparent_piece_is_zero() -> void:
+	var glass := _glass(Vector2(100.0, 0.0), Vector2(10.0, 200.0))
+	var wall := _piece(Vector2(200.0, 0.0), Vector2(10.0, 200.0), 100.0)
+	assert_float(SightRay.coverage_of(glass)).is_equal(0.0)
+	assert_float(SightRay.coverage_of(wall)).is_equal(100.0)
+
+
+func test_a_caster_looks_through_a_transparent_piece() -> void:
+	var wall := _piece(Vector2(300.0, 0.0), Vector2(20.0, 200.0), 100.0)
+	_glass(Vector2(100.0, 0.0), Vector2(10.0, 200.0))
+	var space := await _space()
+	var line := _line(Vector2.ZERO, Vector2(500.0, 0.0))
+	var caster := SightRay.new()
+	caster.looks_over = SEE_OVER
+	caster.leave_out([])
+	assert_object(caster.cast(space, line[0], line[1]).get("collider")).is_same(wall)
+
+
 func test_the_line_ends_at_its_target() -> void:
 	_piece(Vector2(300.0, 0.0), Vector2(20.0, 200.0), 100.0)
 	var space := await _space()
@@ -204,10 +247,14 @@ class Piece:
 	extends StaticBody2D
 
 	var coverage := 100.0
+	var transparent := false
 
 
 	func get_surface() -> Dictionary:
-		return { "coverage": coverage }
+		var surface := { "coverage": coverage }
+		if transparent:
+			surface["transparent"] = true
+		return surface
 
 
 ## A solid body that cannot say how tall it is (no `get_surface`).

@@ -77,9 +77,9 @@ read through `character.sight()`: any character can be the viewer.
 - **A physics query right after a kinematic body's `global_position` is set sees it where it was** until the physics server is told
   at the next flush, so the view (priority 100) can read a body a mover (a door, a walker) moved this frame at its old place
   (`tests/_vision/physics_mover.gd` reproduces it; no effect on the cone was found in real flows).
-- **`ViewCone.contains` (so `PlayerView.sees`) still uses `Geometry2D.is_point_in_polygon`,** which says inside for points well
-  outside a cone with many collinear corners along a wall (`seen_area_rect_suite` holds a counterexample). `SeenArea` has its own
-  even-odd test; a test that must be exact judges the polygon by its own oracle.
+- **`ViewCone.contains` (so `PlayerView.sees`) asks General's `SeenArea.contains`,** an even-odd rule, not the engine's
+  `Geometry2D.is_point_in_polygon`, which says inside for points well outside a cone with many collinear corners along a wall
+  (`tests/vision/view_sees_suite.gd` holds a counterexample). Ask `SeenArea.contains` for a point against a cone's polygon too.
 - **The reference cone is a frozen yardstick:** `tests/_vision/reference_view_cone.gd` is the cone before any saving; the
   tests compare the live cone to it vertex for vertex, so change it only with the spec (`docs/player-vision.md`, "Measured cost").
   Its far-face pick and corner dedupe do not depend on which overlapping shape the engine names, as the live cone's.

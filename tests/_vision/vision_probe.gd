@@ -1,6 +1,6 @@
 extends RefCounted
 ## The Vision domain's shared reads for the `tests/vision/` tests (`docs/player-vision.md`). Not a
-## test. It reads the view only through what interface 24 publishes, and the numbers of the spec are
+## test. It reads the view only through what interface 25 publishes, and the numbers of the spec are
 ## kept here as consts, so a test checks the spec and not the code.
 ##
 ## What the tests read:
@@ -38,14 +38,31 @@ const ROOMS := [
 	{ "key": "kitchen", "type": "kitchen", "rect": Rect2(700, 0, 500, 500) },
 ]
 const DOOR := { "pos": Vector2(700, 250), "width": 100.0 }
+## A doorway with a door in it (`doorway`): 52 px free between jambs 40 px apart whose ends the
+## walls reach 6 px into; the hinge sits 20 px from the doorway's middle.
+const DOOR_WIDTH := 52.0
+const JAMB := 20.0
 ## The wardrobe (tall) and the coffee table (low) in the living room.
 const WARDROBE_AT := Vector2(450, 130)
 const TABLE_AT := Vector2(330, 300)
 
 
-## Declare the two rooms, the wardrobe and the table, and a puppet `eye` to view by at `at`.
-static func building(s: TestSetup, at: Vector2) -> void:
-	s.layout(ROOMS, [DOOR])
+## A doorway in the wall the rooms share (x 700), centred at `y`, holding a door named `id` of
+## `material` and `style` that hangs on the north jamb and swings into the kitchen.
+static func doorway(y: float, material: String, style: String, id: String) -> Dictionary:
+	return {
+		"pos": Vector2(700, y), "width": DOOR_WIDTH,
+		"door": {
+			"name": id, "material": material, "style": style,
+			"hinge": Vector2(700, y - JAMB), "swing_into": Vector2.RIGHT,
+		},
+	}
+
+
+## Declare the two rooms joined by `doorways` (the open `DOOR` unless given), the wardrobe and the
+## table, and a puppet `eye` to view by at `at`.
+static func building(s: TestSetup, at: Vector2, doorways: Array = [DOOR]) -> void:
+	s.layout(ROOMS, doorways)
 	s.switch(&"nav.rebake", false)
 	s.object(&"wardrobe", "wardrobe", WARDROBE_AT)
 	s.object(&"table", "coffee_table", TABLE_AT)

@@ -73,10 +73,7 @@ func rebuild(
 
 ## Whether `point` is inside the cone or the bubble polygon.
 func contains(point: Vector2) -> bool:
-	return (
-		(cone.size() >= 3 and Geometry2D.is_point_in_polygon(point, cone))
-		or (bubble.size() >= 3 and Geometry2D.is_point_in_polygon(point, bubble))
-	)
+	return SeenArea.contains(cone, point) or SeenArea.contains(bubble, point)
 
 
 ## Where sight along `dir` from `from` ends within `dist`: the full distance when the way is clear

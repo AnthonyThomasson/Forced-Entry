@@ -60,5 +60,5 @@
 	  sight line and Vision's cone both cast through it.
     - `SeenArea` (`general/seen_area.gd`, static holder): what the view shows live. Vision writes `set_area(polygons: Array, bounds: Rect2)`
 	  per rebuild and `clear()` on a lift; `reaches(center, radius)` (a disc) and `reaches_rect(rect)` (a long box) say whether any of it
-	  is shown, true while no area is set. Character's visuals (60 px) and Physics' blood pools (their box) skip a repaint on false. Its
-	  own even-odd point test: the engine's `is_point_in_polygon` says inside for points far outside the cone.
+	  is shown, true while no area is set. Character's visuals (60 px) and Physics' blood pools (their box) skip a repaint on false. `contains(polygon, point)`
+	  is the one even-odd point test (the engine's `is_point_in_polygon` errs on the cone).
