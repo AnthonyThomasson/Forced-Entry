@@ -1,6 +1,6 @@
 # Forced-Entry
 
-A top-down Godot game in sixteen domains under `scenes/`; these are the words its code, tests, skills and tickets
+A top-down Godot game in seventeen domains under `scenes/`; these are the words its code, tests, skills and tickets
 share. The domains and their interfaces are the `architecture` skill.
 
 ## Language
@@ -218,6 +218,34 @@ A door open part way: more than shut and less than wide open. A door is shut at 
 passes a character once its `gap()` is wide enough. An ajar or open door is not latched: one kick from its push side throws it open, a
 walker turns it about its hinge, away from the walker (`docs/doors.md` DR10).
 _Avoid_: half-open
+
+### The player's view
+
+**View**:
+What the screen shows of a match for the human: the live world inside the view cone, the memory outside it and nothing that
+moves out of the cone. It is built for one character, the human in a played match; Watch and Endless have none.
+_Avoid_: fog of war, vision mask, player view (the node's name)
+
+**View cone**:
+The exact area one character sees right now: the cone round its facing out to its view distance, joined to the near bubble round
+it, bounded by whatever breaks its line of sight (walls and tall furniture, not low furniture or a glass-panel door).
+_Avoid_: field of view (only the cone's angle), sight cone, vision cone (the NPCs' debug drawing of the same area)
+
+**Memory**:
+The picture of the world as the human last saw it, drawn in greyscale outside the view cone and black where it never looked. It
+holds only what was on screen when seen, starts empty with the match and never fades.
+_Avoid_: fog, explored map, the AI's memory of what it knows
+
+**Moving / at rest**:
+Whether a thing is drawn only inside the view cone or is remembered where it lies. The living, bullets, grenades in flight,
+hit particles, flying debris, blood spray, a burst's look and a vehicle under way are moving; a dead body once its ragdoll
+sleeps, a dropped item, a spent casing, a grenade lying still, a parked vehicle and the house and street are at rest.
+_Avoid_: dynamic / static, live / baked
+
+**Seen area**:
+The part of the world the view cone shows live this frame. A character or a blood pool wholly outside it is not repainted, since
+nothing would show it.
+_Avoid_: visible region, culled
 
 ### Lint
 
