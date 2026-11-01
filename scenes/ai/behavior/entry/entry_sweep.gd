@@ -85,6 +85,9 @@ func note_seen(entry: Entry) -> void:
 ## Commit to the crossing: pick the corner for this member's place in the order, radio `going_in`,
 ## go.
 func start_cross(entry: Entry, team: Array) -> void:
+	# Alone or one of a team is read again here, not only at the pie: a shut door skips the pie
+	# (E3), and an ally that joined after `begin` makes this a team entry all the same (E5, E7).
+	state.solo = entry.orders.alone(team)
 	var order := entry.readiness.members_before(entry).filter(
 		func(m): return StackClaim.crossing(m["step"]),
 	).size()

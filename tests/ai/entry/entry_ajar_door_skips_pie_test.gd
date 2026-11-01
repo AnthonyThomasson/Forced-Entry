@@ -2,8 +2,9 @@ extends GameTest
 ## Desired (E3, the interim rule until #159; `docs/doors.md` DR14): a door that stands ajar, wide
 ## enough to walk through but not open all the way across its doorway (45 degrees), still blocks the
 ## view through it, so the pie is not sliced there either: the point crosses once the stack is
-## ready, the AI leaving the door as it is (it is open wide enough to pass). Two invaders stack on
-## the kitchen's back door and both go in without slicing the pie.
+## ready, opening the door fully on its way in, as for any door not at its open stop (issue #183:
+## an ajar leaf stands across the way in, where no walk can be planned round it). Two invaders stack
+## on the kitchen's back door and both go in without slicing the pie.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -68,5 +69,9 @@ func run(t: TestContext) -> void:
 	):
 		return
 	t.check(not seen["sliced"], "neither invader sliced the pie at a door that shuts the view")
-	t.check(door.angle() < OPEN, "the door was left as it was (%.0f degrees)" % door.angle())
+	t.check(door.angle() >= OPEN, "the door was opened to its stop (%.0f degrees)" % door.angle())
+	t.check(
+		t.happened(&"door", func(d): return d["door"] == door and d["stage"] == &"open"),
+		"the point used the door open, not pushed it (a door `open` event)",
+	)
 	t.check(seen["both_in"], "both invaders went into the kitchen")

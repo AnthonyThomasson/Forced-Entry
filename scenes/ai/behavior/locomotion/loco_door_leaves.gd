@@ -1,14 +1,15 @@
 extends RefCounted
 ## AI BEHAVIOUR sub-domain — LOCOMOTION's door leaves, its part `leaves` (`docs/doors.md` DR14): a
-## door on the stretch of the walk ahead that is not open wide enough to pass. Whatever primitive
-## walks (`Locomotion.move_to`), the walker stops beside the door on its latch side, faces it, opens
-## it fully (never a toggle: `character.use.doors.open_fully`, so a door another opened is never
-## shut) and walks on, leaving it open. A door open wide enough, or knocked down, is no obstacle. A
-## door that will not open wide enough (held by furniture, a body, the swing stopped short) is
-## refused for a while and makes the walk a blocked one (`crowd.take_blocked`, the existing
-## re-decide). Doors are found by the group `doors` and read through the door contract (interface
-## 24), duck-typed, so the AI imports nothing of Objects. Built once with its Locomotion, it holds
-## it (a node, so no reference cycle).
+## door on the stretch of the walk ahead that does not stand fully open. Whatever primitive walks
+## (`Locomotion.move_to`), the walker stops beside the door on its latch side, faces it, opens it
+## fully (never a toggle: `character.use.doors.open_fully`, so a door another opened is never shut)
+## and walks on, leaving it open. A door at its open stop (its leaf is in the nav map, so the walk
+## already goes round it: `NavBuilder.leaf_in_map`), or knocked down, is no obstacle. A door that
+## will not open fully (held by furniture, a body, the swing stopped short) is refused for a while:
+## left open wide enough to pass, the walk goes through it as it stands; else the walk is a blocked
+## one (`crowd.take_blocked`, the existing re-decide). Doors are found by the group `doors` and read
+## through the door contract (interface 24), duck-typed, so the AI imports nothing of Objects. Built
+## once with its Locomotion, it holds it (a node, so no reference cycle).
 
 ## Where a walk stands at a door: no door, going to its latch side, working it.
 enum Phase {
@@ -38,6 +39,9 @@ const OPEN_WAIT := 1.2
 const STILL_TIME := 0.25
 ## How many times the door is used before it is given up on (a body in the arc may clear).
 const TRIES := 2
+## How near (px, centre to the leaf) a walker steps to an ajar leaf out of reach of the latch spot:
+## well within the character's reach of a door, and clear of the leaf by more than a body's radius.
+const LEAF_STAND_OFF := 30.0
 ## Seconds a door given up on stays refused.
 const REFUSE_TIME := 45.0
 ## A walk's other doorway counts as passed within this many px of its middle.
@@ -82,7 +86,7 @@ func work(delta: float) -> bool:
 		_reset()  # The walker stopped walking meanwhile (another primitive): the door is forgotten.
 	_worked_frame = frame
 	if _door != null:
-		if not is_instance_valid(_door) or _door.is_down() or _passable(_door):
+		if not is_instance_valid(_door) or _no_obstacle(_door):
 			_reset()
 			return false
 		if _phase == Phase.APPROACH and _in_the_way() != _door:
@@ -177,8 +181,16 @@ func _passable(door: Node2D) -> bool:
 	return door.gap() >= 2.0 * float(loco._character.radius) + PASS_MARGIN
 
 
+## Whether `door` is no obstacle to the walk: knocked down, fully open (its leaf in the nav map, so
+## the walk goes round it), or refused but left open wide enough to pass (the walk goes through as
+## it stands).
+func _no_obstacle(door: Node2D) -> bool:
+	return (door.is_down() or NavBuilder.leaf_in_map(door)
+			or (_is_refused(door) and _passable(door)))
+
+
 ## The nearest door along the walk's next `LOOKAHEAD` px whose doorway the walk crosses and which is
-## not open wide enough, or null. Read off the agent's path as the walk was just steered.
+## an obstacle (`_no_obstacle`), or null. Read off the agent's path as the walk was just steered.
 func _in_the_way() -> Node2D:
 	var path: PackedVector2Array = loco._agent.get_current_navigation_path()
 	var index: int = loco._agent.get_current_navigation_path_index()
@@ -238,6 +250,17 @@ func _work_door(delta: float) -> bool:
 			return true
 		_phase = Phase.OPENING
 		_clock = 0.0
+	if _used == 0 and not character.use.doors.reaches(_door):
+		# Ajar and swung away from this side, the leaf is out of reach of the spot by the latch
+		# jamb: step toward the leaf as it stands until it is in reach.
+		if _clock > APPROACH_CAP:
+			return _give_up()
+		var leaf := _leaf_nearest(_door, here)
+		character.movement.move_input = (
+			(leaf - here).normalized() if here.distance_to(leaf) > LEAF_STAND_OFF else Vector2.ZERO
+		)
+		character.movement.aim_point = leaf
+		return true
 	character.movement.move_input = Vector2.ZERO
 	character.movement.aim_point = _leaf_origin(_door)
 	return _open(delta)
@@ -288,10 +311,11 @@ func _open(delta: float) -> bool:
 	return true
 
 
-## The door will not open wide enough: refuse it for a while and make the walk a blocked one.
+## The door will not open fully: refuse it for a while, and make the walk a blocked one unless it is
+## open wide enough to pass (the walk then goes through it as it stands).
 func _give_up() -> bool:
 	refused[_door.get_instance_id()] = GameClock.seconds() + REFUSE_TIME
-	loco.crowd.blocked = true
+	loco.crowd.blocked = not _passable(_door)
 	_reset()
 	return false
 
@@ -334,6 +358,13 @@ func _leaf_origin(door: Node2D) -> Vector2:
 	return door.leaf_pose(0.0).origin
 
 
+## The point of `door`'s leaf, as it stands, nearest to `point`.
+func _leaf_nearest(door: Node2D, point: Vector2) -> Vector2:
+	var pose: Transform2D = door.leaf_pose(door.angle())
+	var half: Vector2 = pose.x * (door.leaf_size() as Vector2).x * 0.5
+	return Geometry2D.get_closest_point_to_segment(point, pose.origin - half, pose.origin + half)
+
+
 ## Whether the segment `a` to `b` crosses `door`'s doorway, jamb to jamb.
 func _crosses(a: Vector2, b: Vector2, door: Node2D) -> bool:
 	var pose: Transform2D = door.leaf_pose(0.0)
@@ -346,11 +377,11 @@ func _crosses(a: Vector2, b: Vector2, door: Node2D) -> bool:
 	) != null
 
 
-## The doors that stand and are not open wide enough.
+## The doors that are an obstacle to the walk (`_no_obstacle`).
 func _standing_doors() -> Array:
 	var found: Array = []
 	for door: Node2D in loco._character.get_tree().get_nodes_in_group(&"doors"):
-		if not door.is_down() and not _passable(door):
+		if not _no_obstacle(door):
 			found.append(door)
 	return found
 

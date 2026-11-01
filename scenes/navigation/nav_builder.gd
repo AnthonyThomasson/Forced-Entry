@@ -48,6 +48,10 @@ const HULLS_KEPT := 512
 ## The agent radius (px, the character body's) every bake erodes the map by unless handed another:
 ## the first bake (`build`) and the re-bakes (`nav_updater.gd`, `NavSite`) share it.
 const AGENT_RADIUS := 14.0
+## How far (px) `snap_within` steps a point toward its room's centre between two tries.
+const SNAP_WITHIN_STEP := 8.0
+## Within this many px of a point a route `snap_within` reads has reached it.
+const SNAP_REACHED := 2.0
 
 ## The steering map made for each world navigation map (planning map RID -> steering map RID), and
 ## how many steering regions stand on it. The map is freed with its last region.
@@ -372,7 +376,7 @@ static func _source_for(site: NavSite, characters: Array = [], furniture: Varian
 ## group `doors`) are left out: their leaves stand in the doorways, which stay open to the paths.
 static func _walls_of(house: Node2D, agent_radius: float) -> Dictionary:
 	var source := NavigationMeshSourceGeometryData2D.new()
-	var doors := _doors_of(house)
+	var doors := NavLeaves.doors_of(house)
 	var layers: Array[int] = []
 	for door in doors:
 		layers.append(door.collision_layer)
@@ -385,20 +389,6 @@ static func _walls_of(house: Node2D, agent_radius: float) -> Dictionary:
 		"obstruction": _on_grid(source.get_obstruction_outlines()),
 		"projected": source.get_projected_obstructions(),
 	}
-
-
-## The doors standing under `house`: the bodies in the group `doors`. A door is a driven body in a
-## doorway (a StaticBody2D to the engine's parse), but it opens, so a path goes through its doorway
-## as if it were open and the walker deals with the leaf: the parse above does not see it. Named by
-## group alone, so Navigation imports nothing of the Objects domain.
-static func _doors_of(house: Node2D) -> Array[CollisionObject2D]:
-	var doors: Array[CollisionObject2D] = []
-	if not house.is_inside_tree():
-		return doors
-	for node in house.get_tree().get_nodes_in_group(&"doors"):
-		if node is CollisionObject2D and house.is_ancestor_of(node):
-			doors.append(node)
-	return doors
 
 
 ## An empty polygon to bake into, with the bake's agent radius (plus the wall margin).
@@ -487,7 +477,9 @@ static func _signed_area(ring: PackedVector2Array) -> float:
 ## navmesh edges the NavigationServer cannot merge ("navigation map synchronization error"). Every
 ## RigidBody2D with a collider is carved: shoved furniture, and an anchored piece (frozen static: a
 ## streetlight's post), which never moves; walk-over decor is frozen too but has no collider, so it
-## leaves no hole.
+## leaves no hole. A door's leaf standing clear of its doorway is carved too, where it stands now
+## (`NavLeaves.hole`): out of the doorway, in the room it swings into, it is as solid as a piece of
+## furniture there.
 static func furniture_holes(house: Node2D) -> Array:
 	var out: Array = []
 	# Every RigidBody2D under the house, depth first (each before what is under it), as a walk of
@@ -497,6 +489,10 @@ static func furniture_holes(house: Node2D) -> Array:
 		var hull := _body_hull(body)
 		if not hull.is_empty():
 			out.append(hull)
+	for door in NavLeaves.doors_of(house):
+		var hole := NavLeaves.hole(door)
+		if not hole.is_empty():
+			out.append(hole)
 	return out
 
 
@@ -937,6 +933,33 @@ static func snap(map: RID, p: Vector2) -> Vector2:
 	if not ready(map):
 		return p
 	return NavigationServer2D.map_get_closest_point(map, p)
+
+
+## `p` snapped onto the navmesh inside `rect` (a room's rectangle) where a route from `from` (a
+## point of that room's floor, a doorway's) reaches it: the closest point to `p` when it is, else
+## the closest to a point stepped from `p` toward `rect`'s centre, then toward `from`, every
+## `SNAP_WITHIN_STEP` px, the first that is, else `from`'s. The plain `snap` of a point by a thin
+## wall can land on the wall's far side (the street, the next room) when the floor nearest to it
+## there is closer than the room's own; and floor in `rect` that furniture walls off from `from`
+## routes round the outside. Unchanged before the map is baked.
+static func snap_within(map: RID, p: Vector2, rect: Rect2, from: Vector2) -> Vector2:
+	if not ready(map):
+		return p
+	for toward in [rect.get_center(), from]:
+		var steps := maxi(1, ceili(p.distance_to(toward) / SNAP_WITHIN_STEP))
+		for i in steps + 1:
+			var q := NavigationServer2D.map_get_closest_point(map, p.lerp(toward, float(i) / steps))
+			if rect.has_point(q) and route(map, from, q)[-1].distance_to(q) <= SNAP_REACHED:
+				return q
+	return snap(map, from)
+
+
+## Whether door `door`'s leaf stands in the nav maps as a hole (at its open stop, standing:
+## `NavLeaves.hole`), so that a path goes round it where it stands; false for a door shut, ajar or
+## down, whose doorway a path goes through as if open. Read through the door contract (interface
+## 24). What the AI's walker reads to tell a door it has no need to open (`docs/doors.md` DR14).
+static func leaf_in_map(door: Node) -> bool:
+	return not NavLeaves.hole(door).is_empty()
 
 
 ## The navigated route `from` → `to` as its waypoints; a straight segment before the map is baked or

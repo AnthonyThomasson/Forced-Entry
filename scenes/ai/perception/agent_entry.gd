@@ -373,7 +373,9 @@ func _corners(g: Dictionary, rect: Rect2, map: RID, space: PhysicsDirectSpaceSta
 	for c in raw:
 		depth_max = maxf(depth_max, (c - pos).dot(out))
 	for c in raw:
-		var p := NavBuilder.snap(map, c)
+		# Kept in the room, on floor the doorway reaches: a corner filled with furniture would snap
+		# through the wall beside it, or into a pocket walled off whose route runs round outside.
+		var p := NavBuilder.snap_within(map, c, rect, NavBuilder.snap(map, entry_point))
 		corners.append({
 			"pos": p,
 			"near": absf((c - pos).dot(out) - depth_max) < 1.0,  # On the door's own wall.

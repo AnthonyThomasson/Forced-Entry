@@ -33,7 +33,9 @@
       angle World-Gen gives a door that starts open: `Door.open_angle` is the same number) and `DoorConfig.swing_time`; the rest of
       `DoorConfig` stays in Objects.
     - **Callers:** the human's Use key (`Keybinds.USE`, E; `Keybinds.scroll_notches(event)` while it is held, DR6, DR7); the AI's
-      locomotion (DR14: finds a door on its walk by the group and reads `gap()`, `is_down()`, `angle()`, `leaf_pose(0.0)`, `width`, `swing_into`
-      and `latch_side_spot(from)`, duck-typed, and calls `use.doors.open_fully`; the entry's pie skip asks whether a doorway's standing door
+      locomotion (DR14: finds a door on its walk by the group and reads `gap()`, `is_down()`, `angle()`, `leaf_pose`, `leaf_size()`, `width`,
+      `swing_into` and `latch_side_spot(from)`, duck-typed, and calls `use.doors.open_fully` on any door not at its open stop, which it tells
+      by `NavBuilder.leaf_in_map` (9); the entry's pie skip asks whether a doorway's standing door
       shuts the view, reading `is_down()`, `gap()`, `width` and `get_surface()` (`transparent`), DR14, `docs/tactical-entry.md` E3); Testing (13: `use()`, `turn_door(steps)`, a layout's `door`).
-    - **Built by** `DoorFactory.spawn` (2). **Left out of every nav bake** (9). Its **shadow** is an occluder child on `LightMasks.WALL` (20).
+    - **Built by** `DoorFactory.spawn` (2). **Left out of every nav bake** (9) **but at its open stop**: then Navigation carves its leaf
+      where it stands, reading `is_down()`, `angle()`, `open_angle`, `leaf_pose(angle)` and `leaf_size()` duck-typed (`NavLeaves`, 9). Its **shadow** is an occluder child on `LightMasks.WALL` (20).

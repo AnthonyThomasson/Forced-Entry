@@ -12,6 +12,7 @@ A leaf: it builds the maps; everyone else pathfinds. It takes a plain `rooms` ar
 |---|---|
 | `nav_builder.gd` (`NavBuilder`) | All static: bake, re-bake, the holes, the steering and avoid maps, `ready` / `snap` / `route` / `path_length`. |
 | `nav_site.gd` (`NavSite`) | The source geometry's inputs: the house, its rooms and the agent radius. |
+| `nav_leaves.gd` (`NavLeaves`) | All static: the house doors (`doors_of`, by the group) and the hole an open leaf leaves (`hole`). |
 | `nav_updater.gd` | Script-only Node that re-bakes on an interval. |
 | `nav_debug.gd` | Draw-only overlay of the holes. |
 
@@ -29,8 +30,16 @@ its source the same way, so all carve holes identically; the default radius is `
   is an `AnimatableBody2D`, which the engine's static-collider parse reads as a wall, so a shut door would seal its doorway in the map.
   `_walls_of` takes the bodies of the group `doors` under the house (`_doors_of`: the group and `is_ancestor_of`, nothing of Objects imported)
   off the solid layer for the length of the parse and puts them back. The planning bake, the steering bake (they share `_walls_of`) and the
-  avoid maps (made from the planning bake's remembered source) all path through a doorway as if it were open, and the walker deals with the
-  leaf. Test: `tests/navigation/door_not_baked_test.gd`.
+  avoid maps (made from the planning bake's remembered source) all path through a doorway as if it were open, and the walker opens the
+  door (`docs/doors.md` DR14). Test: `tests/navigation/door_not_baked_test.gd`.
+- **A leaf at its open stop is carved where it stands** (issue #183): `NavLeaves.hole(door)` (`furniture_holes` adds it, so every bake,
+  re-bake, the updater's move check and the overlay take it) once the door stands within `NavLeaves.OPEN_SLACK` (10°) of `open_angle` and
+  not down, read through the door contract (interface 24). The hole is a strip
+  `NavLeaves.HALF` (1 px) each side of the leaf's middle line, not the grown leaf: the bake's 18 px clearance off the strip is what a body
+  needs, and the grown footprint sealed a 48 px doorway. A leaf further shut stands across its doorway's mouth, where no carve leaves the
+  way open (sealed up to 75°), so it is left out and the walker opens it fully. `NavBuilder.leaf_in_map(door)` is that rule for the AI. Tests:
+  `tests/navigation/door_open_leaf_carved_test.gd` (shut and ajar left out, open carved, the doorway open past it on both maps),
+  `ai/movement/door_open_leaf_walked_round`.
 - Solid furniture is recognised by engine type alone: a `RigidBody2D` with a `CollisionShape2D` (shoved furniture, and an anchored
   piece such as a streetlight's post, `tests/navigation/anchored_hole_test.gd`). Walls are `StaticBody2D` (parsed, not carved);
   non-solid decor has no collider and so no hole. That keeps Navigation importing nothing.
@@ -108,6 +117,10 @@ that region. `tests/ai/perception/room_zones_inside_their_rooms_test.gd` pins it
 (`wait_nav`: planning and steering map) before any NPC is placed (`tests/general/match_nav_ready_before_spawn_test.gd`).
 
 `snap(map, p)` returns `p` until then, else the closest navmesh point (a room's centre is often inside furniture);
+`snap_within(map, p, rect, from)` keeps that point in `rect` (a room) on floor a route from `from` (the doorway's) reaches: `p` stepped
+toward the room's centre, then `from`, every `SNAP_WITHIN_STEP` (8 px) until its snap lands inside and is reached (`SNAP_REACHED`), else
+`from`'s snap: a corner filled with furniture snaps through a thin wall, and a walled-off pocket routes round the outside (issue #183,
+`ai/entry/entry_front_door_corners_in_room`, `ai/entry/entry_front_door_corner_reachable`);
 `route(map, from, to)` returns a straight `[from, to]` until then and when the server finds no path; `path_length(path)` sums a
 path. The AI calls these rather than keeping its own guard.
 
