@@ -1,0 +1,118 @@
+extends GameTest
+## V5 (`docs/player-vision.md`): what moves is never remembered, so each moving thing sits on the
+## visibility bit `MOVING` (2) and the view's capture, which paints the memory, leaves that bit
+## out of its cull mask. In an arena with the player (the viewer), a puppet that walks, shoots
+## another puppet and throws a frag: the living puppets and what they hold, the bullet, the grenade
+## in flight, the hit particles, the flying debris, the explosion's look and the flash lights are
+## each on `MOVING` and not drawn by the capture, while a piece of furniture and a wall are
+## (the premise that the read tells them apart).
+##
+## It reads (tests/_vision/vision_probe.gd) the `PlayerView`'s `capture()` cull mask and each
+## node's `visibility_layer`.
+
+const Probe := preload("res://tests/_vision/vision_probe.gd")
+const Grenades := preload("res://tests/_ai/grenade_probe.gd")
+## The moving things the run must have seen, by kind, or the test proves nothing.
+const KINDS := ["bullet", "grenade", "particles", "debris", "explosion"]
+
+var _seen := {}
+var _wrong := {}
+
+
+func describe() -> Dictionary:
+	return {
+		"name": "What moves is on the MOVING bit and never in the capture",
+		"description": "The living, their held gun, a bullet, a grenade in flight, hit particles, "
+			+ "flying debris, an explosion's look and the flash lights are on MOVING, which the "
+			+ "capture leaves out; furniture and a wall are drawn by it.",
+		"tags": ["vision", "scripted"],
+		"timeout": 25.0,
+	}
+
+
+func configure(s: TestSetup) -> void:
+	s.arena(Rect2(0, 0, 1400, 700))
+	s.switch(&"nav.rebake", false)
+	s.switch(&"vision.enabled", true)
+	s.object(&"wardrobe", "wardrobe", Vector2(300, 100))
+	s.actor(&"you", &"player", Vector2(150, 350))
+	s.actor(&"shooter", &"puppet", Vector2(600, 350))
+	s.actor(&"victim", &"puppet", Vector2(1000, 350))
+
+
+func run(t: TestContext) -> void:
+	var view := Probe.view(t)
+	if not t.require(view != null, "the world has a view"):
+		return
+	var mask := view.capture().canvas_cull_mask
+	t.check((mask & Probe.MOVING) == 0, "the capture's cull mask leaves MOVING out")
+	t.check((mask & Probe.OVERLAY) == 0, "the capture's cull mask leaves OVERLAY out")
+	t.check((mask & Probe.WORLD) != 0, "the capture's cull mask keeps WORLD")
+	t.check(
+		Probe.in_capture(view, t.object(&"wardrobe")),
+		"premise: a piece of furniture is drawn by the capture",
+	)
+	var shooter := t.puppet(&"shooter")
+	Grenades.arm(t.actor(&"shooter"), 0, 1)
+	shooter.select_slot(3)
+	await _watch(t, view, 0.3)
+	shooter.aim_at(t.actor(&"victim"))
+	await _watch(t, view, 0.5)
+	shooter.shoot()
+	await _watch(t, view, 1.0)
+	shooter.walk_to(Vector2(800, 250))
+	await _watch(t, view, 1.0)
+	await Grenades.throw_at(t, &"shooter", 8, Vector2(1100, 150))
+	await _watch(t, view, 5.0)
+	for kind in KINDS:
+		t.check(_seen.get(kind, 0) > 0, "premise: a %s was seen" % kind)
+		t.check(
+			_wrong.get(kind, 0) == 0,
+			"every %s seen is on MOVING and out of the capture (%d of %d not)"
+			% [kind, _wrong.get(kind, 0), _seen.get(kind, 0)],
+		)
+	for who in [&"you", &"shooter", &"victim"]:
+		var body := t.actor(who)
+		t.check(body.visibility_layer == Probe.MOVING, "%s, alive, is on MOVING" % who)
+		t.check(not Probe.in_capture(view, body), "%s, alive, is not drawn by the capture" % who)
+	var shooter_body := t.actor(&"shooter")
+	t.check(
+		not Probe.in_capture(view, shooter_body.get_node("Visuals")),
+		"what the shooter draws (its body, its held gun) is not drawn by the capture",
+	)
+	var lights := t.world.find_children("Flash*", "PointLight2D", true, false)
+	t.check(not lights.is_empty(), "premise: the flash pool's lights exist")
+	for light in lights:
+		t.check(light.visibility_layer == Probe.MOVING, "%s is on MOVING" % light.name)
+
+
+## Run `seconds`, looking at every moving thing in the world each frame.
+func _watch(t: TestContext, view: PlayerView, seconds: float) -> void:
+	for _i in int(seconds * 60.0):
+		await t.frames(1)
+		for node in t.world.find_children("*", "", true, false):
+			var kind := _kind_of(node)
+			if kind != "":
+				_seen[kind] = _seen.get(kind, 0) + 1
+				if node.visibility_layer != Probe.MOVING or Probe.in_capture(view, node):
+					_wrong[kind] = _wrong.get(kind, 0) + 1
+
+
+## What moving thing `node` is, or "" when it is none (by the name it was given or the group it
+## joined).
+func _kind_of(node: Node) -> String:
+	var named := String(node.name)
+	var kind := ""
+	if not node is CanvasItem:
+		kind = ""
+	elif named.begins_with("Projectile") and not named.contains("Visuals"):
+		kind = "bullet"
+	elif node.is_in_group(&"live_grenades"):
+		kind = "grenade"
+	elif node is CPUParticles2D and named.begins_with("HitParticles"):
+		kind = "particles"
+	elif named.begins_with("Explosion"):
+		kind = "explosion"
+	elif node.get_child_count() > 0 and node.get_child(0).name == "DebrisVisuals":
+		kind = "debris"
+	return kind

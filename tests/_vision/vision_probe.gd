@@ -20,6 +20,10 @@ extends RefCounted
 ##   piece's `get_surface().coverage`.
 
 const GROUP := &"player_view"
+## The visibility bits of the spec (V5): what stays where it is, what moves, the overlays.
+const WORLD := 1
+const MOVING := 2
+const OVERLAY := 4
 ## The spec's sight (V1), kept here on its own: the cone's width (degrees) and reach (px), the
 ## bubble's radius (px) and the height (coverage) a line of sight looks over.
 const FOV := 110.0
@@ -121,3 +125,15 @@ static func solid_near(t: TestContext, point: Vector2, margin: float) -> bool:
 	query.transform = Transform2D(0.0, point)
 	query.collision_mask = PhysicsLayers.SOLID
 	return not space(t).intersect_shape(query, 1).is_empty()
+
+
+## Whether the view's capture draws `node`: it and every canvas item above it share a bit with the
+## capture's cull mask (`CanvasItem.visibility_layer`, `Viewport.canvas_cull_mask`).
+static func in_capture(of_view: PlayerView, node: Node) -> bool:
+	var mask := of_view.capture().canvas_cull_mask
+	var at := node
+	while at != null:
+		if at is CanvasItem and ((at as CanvasItem).visibility_layer & mask) == 0:
+			return false
+		at = at.get_parent()
+	return true

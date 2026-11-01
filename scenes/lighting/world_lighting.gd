@@ -188,6 +188,7 @@ func _flash_pool() -> void:
 		)
 		flash.name = "Flash%d" % (k + 1)
 		flash.enabled = false
+		ViewLayers.set_moving(flash, true)
 		add_child(flash)
 		pooled.append(flash)
 	_pool = FlashPool.new(self, pooled)

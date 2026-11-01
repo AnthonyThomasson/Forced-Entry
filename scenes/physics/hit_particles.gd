@@ -139,6 +139,7 @@ static func spawn(parent: Node, hit: HitInfo, surface: Dictionary, kind: Kind,
 	p.direction = direction.normalized() if direction.length() > 0.001 else Vector2.UP
 	p.color_ramp = _ramp(_color(surface.get("color", Color(0.6, 0.6, 0.6)), style["tint"]))
 	p.finished.connect(p.queue_free)
+	ViewLayers.set_moving(p, true)
 	parent.add_child(p, true)  # readable names (HitParticles, HitParticles2, …)
 	p.global_position = hit.exit_position if kind == Kind.EXIT else hit.position
 	p.emitting = true

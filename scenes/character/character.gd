@@ -65,6 +65,8 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	# The group every domain finds the world's characters by (interface 7).
 	add_to_group(&"characters")
+	# The living move: drawn only inside the player's view cone (interface 11, `ViewLayers`).
+	ViewLayers.set_moving(self, true)
 	# Top-down: no floor/ceiling, so a moving body it touches is never ridden as a platform.
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	# Build the body's collision circle to match `radius`.

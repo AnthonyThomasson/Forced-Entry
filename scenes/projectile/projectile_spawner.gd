@@ -16,6 +16,7 @@ static func spawn(position: Vector2, direction: Vector2, parent: Node, shot: Sho
 	proj.name = "Projectile"
 	proj.script = Projectile
 	proj.position = position
+	ViewLayers.set_moving(proj, true)
 	proj.direction = direction
 	proj.ignore = shot.shooter
 	proj.strikes_shooter = shot.strikes_shooter

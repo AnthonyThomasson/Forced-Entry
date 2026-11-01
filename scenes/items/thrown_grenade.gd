@@ -73,6 +73,7 @@ var _flown := 0.0
 
 func _ready() -> void:
 	add_to_group(&"live_grenades")
+	ViewLayers.set_moving(self, true)
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_query = _sweep_query(GrenadeConfig.radius)
 	_update_layer()

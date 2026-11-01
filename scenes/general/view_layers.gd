@@ -13,3 +13,12 @@ const WORLD := 1
 const MOVING := 2
 ## The debug overlays and the markers, which are drawn over the view and never remembered.
 const OVERLAY := 4
+
+
+## Put `item` on `MOVING` (it moves: drawn only inside the cone) or back on `WORLD` (it is at rest:
+## the view remembers it). The layer is written only when it changes, so a caller may ask every
+## frame.
+static func set_moving(item: CanvasItem, moving: bool) -> void:
+	var layer := MOVING if moving else WORLD
+	if item.visibility_layer != layer:
+		item.visibility_layer = layer

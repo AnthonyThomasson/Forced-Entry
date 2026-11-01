@@ -122,6 +122,7 @@ static func spawn(
 		visuals.name = "DebrisVisuals"
 		visuals.script = DebrisVisuals
 		chip.add_child(visuals)
+		ViewLayers.set_moving(chip, true)
 
 		parent.add_child(chip)
 		# `position` is a world contact point; place the chip there regardless of the

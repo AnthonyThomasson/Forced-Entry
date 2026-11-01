@@ -40,6 +40,7 @@ static func _add(world: Node, fx: Node2D, node_name: String, at: Vector2, look: 
 	fx.name = node_name
 	fx.set("look", look)
 	fx.z_index = Z_INDEX
+	ViewLayers.set_moving(fx, true)
 	world.add_child(fx)
 	fx.global_position = at
 	Despawner.track(fx)
