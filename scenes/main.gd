@@ -414,17 +414,18 @@ func _begin_match_hud(combatants: Array) -> void:
 		_match_hud.begin(combatants, endless_time_limit if _endless.on else 0.0)
 
 
-## Turn the scene into a pure AI spectator match: drop the human player and its player-HUD, point
-## the camera at the NPCs, and add the Space-pause / click-to-inspect inspector. Composition-root
+## Turn the scene into a pure AI spectator match: drop the human player, point the camera at the
+## NPCs, and add the Space-pause / right-click-to-inspect inspector. Composition-root
 ## wiring only — each observer reads the characters' public API/signals, never their internals.
 func _setup_spectator(combatants: Array) -> void:
 	var cam := get_node_or_null("MainCamera")
 	if cam and cam.has_method("frame"):
 		cam.frame(combatants)
-	# Space pauses the match; a click selects one NPC (showing only its enabled overlays) and a
-	# click on one of its tactical points shows that point's details. Spectator-only (in player mode
-	# Space is the player's INTERACT), so it is wired here, not on a gameplay node. It is handed the
-	# same overlay toggles the setup menu chose, and reveals exactly those on the clicked NPC.
+	# Space pauses the match; a right-click selects one NPC and opens its detail card, and a left
+	# click on one of its tactical points shows that point in the card's Point section.
+	# Spectator-only (in player mode Space is the player's INTERACT), so it is wired here, not on a
+	# gameplay node. It is handed the same overlay toggles the setup menu chose, and shows exactly
+	# those on the selected NPC (and on the bar's scope).
 	var inspector := SPECTATOR_INSPECTOR.new()
 	inspector.name = "SpectatorInspector"
 	_world.add_child(inspector)
