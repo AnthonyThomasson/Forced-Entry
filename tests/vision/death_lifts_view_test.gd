@@ -7,7 +7,7 @@ extends GameTest
 ##
 ## The same holds where the viewer goes without dying (freed, or taken out of the tree: the view of
 ## a character that is not there cannot be kept, frozen over the world), and a character already
-## dead has no view built at all (the brief's "Out of scope": no view of the dead).
+## dead has no view built at all (there is no view of the dead).
 ##
 ## It reads (tests/_vision/vision_probe.gd) the `PlayerView` of the world (`viewer()`,
 ## `composite()`, `capture()`, `memory()`, `mask()`) and the nodes the world holds of the view's.
