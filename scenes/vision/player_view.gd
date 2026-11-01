@@ -3,8 +3,8 @@ extends Node2D
 ## The Vision domain's one node: what one character sees, drawn for the player
 ## (`docs/player-vision.md`), a leaf like Lighting. The match builder builds it through
 ## `watch(root, viewer)` for Main's human and the Testing world's viewer (interface 24); it reads
-## the viewer only duck-typed (`facing`, `global_position`, `get_rid()`, `sight()`) and imports
-## nothing but General.
+## the viewer only duck-typed (`facing`, `global_position`, `get_rid()`, `sight()`, and its `died`
+## signal, on which the view lifts) and imports nothing but General.
 ##
 ## Each physics frame, after its viewer has moved and turned, it builds the exact polygon of the
 ## viewer's sight (`ViewCone`): the cone round its facing and the bubble round its eye, bounded by
