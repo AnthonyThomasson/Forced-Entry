@@ -56,6 +56,9 @@ const ROUNDS := 12
 const BLOCK_FRAMES := 25
 ## The most (ms a frame) the view may add to the same match without it (see the header).
 const BUDGET_MS := 3.2
+## The most of the frames the view worked in that may rebuild the cone, or it skipped none to speak
+## of.
+const REBUILT_MAX := 0.95
 ## The most the live cone's cost a frame may be of the reference cone's, from the same eye (see the
 ## header).
 const RATIO_MAX := 0.75
@@ -123,7 +126,7 @@ func run(t: TestContext) -> void:
 	)
 	Perf.within(t, "10v10 match, the view's cost ms/frame", cost, BUDGET_MS)
 	t.check(
-		float(_rebuilt) < float(_timed) * 0.95,
+		float(_rebuilt) < float(_timed) * REBUILT_MAX,
 		"premise: the view skipped rebuilds in the blocks it worked (%d rebuilds in %d frames)"
 		% [_rebuilt, _timed],
 	)

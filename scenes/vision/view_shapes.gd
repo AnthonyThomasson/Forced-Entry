@@ -123,11 +123,12 @@ func polygon_of(collider: Object, index: int) -> PackedVector2Array:
 ## How far a ray from `origin` along `dir`, which has just hit a blocker there, runs before it
 ## leaves the solid it entered: the farthest it leaves any blocking shape that holds the point
 ## `PROBE` px along it, -1 when it leaves such a shape through no edge, and 0 when no blocking shape
-## holds the point (the ray only touches a corner). Where shapes overlap or touch (a wall's segments
-## at a corner, the walls of two rooms sharing a face, the pieces a dented wardrobe is cut into) the
-## physics query may name any of them for the same ray, from one frame to the next, and one it names
-## need not even be entered: so the answer is read off no shape the ray hit, but off the shapes
-## `space` says hold that point.
+## holds the point (the ray only touches a corner). The shapes of the viewer itself are left out
+## by the `exclude` of the last `corners` call, so that runs first in every build. Where shapes
+## overlap or touch (a wall's segments at a corner, the walls of two rooms sharing a face, the
+## pieces a dented wardrobe is cut into) the physics query may name any of them for the same ray,
+## from one frame to the next, and one it names need not even be entered: so the answer is read off
+## no shape the ray hit, but off the shapes `space` says hold that point.
 func far_exit(space: PhysicsDirectSpaceState2D, origin: Vector2, dir: Vector2) -> float:
 	_probe.position = origin + dir * PROBE
 	var farthest := -INF
