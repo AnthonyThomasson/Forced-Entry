@@ -114,7 +114,8 @@ path. The AI calls these rather than keeping its own guard.
 ## Debug overlay (`nav_debug.gd`)
 
 A draw-only world-space `Node2D` (the map is global, not per NPC) drawing the furniture holes as filled polygons with outlines,
-and the characters' holes in another colour. `MatchBuilder.stage` builds it; `setup(house)` snapshots the holes via
+and the characters' holes in another colour. It is an overlay (`ViewLayers.overlay` in `_init`, interface 11: `DrawLayers.OVERLAY`
+absolute, `ViewLayers.OVERLAY`): drawn over the player's view in its own colours and never remembered by it. `MatchBuilder.stage` builds it; `setup(house)` snapshots the holes via
 `NavBuilder.furniture_holes(house)`, the same selection and footprint helpers the bake uses, so it cannot drift from what was
 carved; `show_holes` toggles it (`MatchBuilder.set_overlay`, the toggle bar's "Navigation holes"; with Debug on). It reads nothing
 back and feeds nothing in.

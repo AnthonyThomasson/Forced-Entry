@@ -37,7 +37,7 @@ shape itself lit and darkens only what lies behind it.
    room, else listed in `budget().dropped` and freed. `height` picks the shadow mask and texture (`overhead`: walls only, the
    downward pool; `low`: walls and tall pieces, the glow); a `street` light also takes the `STREET` layer.
 5. A room whose room lights were all dropped gets its fixture if its floors have room.
-6. The flash pool and the `EventBus` connection (dropped in `_exit_tree`).
+6. The flash pool (`Flash1..3`, disabled, kept by `flash_pool.gd`, under a `CanvasLayer` child `Flashes` that follows the viewport, so they stay in world coordinates), and the `EventBus` connection (dropped in `_exit_tree`).
 
 A kept light's rhythm is picked from the declaration's `rhythm` weights with an RNG seeded `hash([seed, piece position
 (rounded), index])` (a fixture: `hash([seed, "fixture", room key])`), so the same seed flickers the same.
@@ -73,6 +73,7 @@ A kept light's rhythm is picked from the declaration's `rhythm` weights with an 
 
 ## Gotchas
 
+- **A light is not culled by a viewport's `canvas_cull_mask`, nor by its `visibility_layer`:** Godot 4.4 gathers a viewport's lights from the canvases it draws and tests the mask on canvas items only (`tests/vision/moving_never_remembered_test.gd` records it: a flash lit the Vision capture's floor as the live one, whatever its layer). A light that other viewports sharing the world (the Vision domain's capture, which paints the player's memory) must not draw sits on a canvas they do not draw: the flash pool is under a `CanvasLayer` of this node's viewport, which still shines on and is shadowed by the world's items and occluders. Never rely on `ViewLayers` for a light.
 - **15 point lights per canvas item** (Godot 4.4): a new big batched layer must stay under a floor's count (split it per room,
   as the wear is) or draw on a layer the house's lights do not reach (as the street is).
 - A DirectionalLight2D's shadows run to the edge of the view (`max_distance` is a camera cull distance, not a shadow length):

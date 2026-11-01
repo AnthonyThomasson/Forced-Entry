@@ -86,6 +86,11 @@ The API is interface 23; these are the reasons behind it.
 - **The human's start**: the spec's `human.at`; else a defender gets a clear spot in a random room, an invader starts where it
   stands (for Main's `Player`, its anchor, `run.entrance_distance` below the front entrance). It is reparented just above the
   house (draw order house < human < NPCs) and joins its side's faction, so NPCs treat it as an ally.
+- **The human's view**: `populate` ends by watching the human, `PlayerView.watch(world, human)` (the Vision domain, interface 25,
+  `docs/player-vision.md` V8), after the squads and overlays, and records it as the handle's `view`. No human (Watch, Endless) means
+  no view and everything drawn; so does `VisionConfig.enabled` off. Main's `Player` is the viewer in a played match; its death lifts
+  the view (V9) and the rest of the match is drawn whole. The overlays, markers and the HUD are drawn over it in their own colours
+  (`ViewLayers.overlay`, interface 11).
 - **Arming** (`arm`, `style`; `docs/outfits.md` O11, O15): invaders default to 1 stun + 1 frag and a helmet, shirt, plate
   carrier with steel III plates, tactical pants and boots; defenders to nothing and `LoadoutConfig.default_outfit`. The match's
   police unit is the first draw of `CharacterStyleConfig.styles` for the invaders' side (`styles_of`), worn by every invader the
@@ -129,4 +134,4 @@ there too (`lead_rank`, `squad_*`, `stack_player_wiring`) are `domain-ai` (`team
 `ls tests/general | grep -E 'match_|saved_setup|main_setup|test_world_invader'`. The overlay scope's tests are in `overlays.md`.
 
 **Interfaces:** 1, 6 (`LoadoutConfig`: arming), 7 (the controller group, overlays' `show_<x>`), 9, 13, 14 (`Settings.overlay_scopes`), 17, 18, 20, 21,
-22 (setup window, Von-server wait, match HUD, spectator inspector, overlay bar), 23. Signatures: `architecture`.
+22 (setup window, Von-server wait, match HUD, spectator inspector, overlay bar), 23, 25 (the human's `PlayerView`). Signatures: `architecture`.

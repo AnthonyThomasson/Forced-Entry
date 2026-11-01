@@ -5,7 +5,7 @@ The header lists every flag; this file holds the rules and the reasons behind th
 - **Per-run output dir:** every process gets a fresh `mktemp -d` (`--log-file <dir>/godot.log`, `--out=<dir>`). The
   report, failure bundles, shots, gdUnit's reports (`gdunit/`) and its console (`gdunit.txt`) go there, and `LogWatch`
   follows that `godot.log` (`test_batch.gd` derives it from `--out`), so concurrent runs and a game played meanwhile never
-  share a log or overwrite a report. A run without `--out` (the editor's GdUnit panel) writes no `report.json` and keeps
+  share a log (the shared `user://logs/godot.log` is written by every start and never read: `log-gate.md`) or overwrite a report. A run without `--out` (the editor's GdUnit panel) writes no `report.json` and keeps
   bundles in `user://test_failures/`.
 - **Jobs:** the whole suite runs on `--jobs=auto`; any selection (words, `--id`, `--domain`, `--failed`, `--repeat`) runs
   one process, since a process costs about 3 s to start and filter words load every test script to match (about 10 s

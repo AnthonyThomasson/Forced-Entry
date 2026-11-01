@@ -1,11 +1,11 @@
 ---
 name: domain-general
-description: Use when editing scenes/general/ or working on keybinds, settings, the game clock, camera, command server, shared ids (PhysicsLayers, DrawLayers, LightMasks), FillBatch, WeightedPick, MatchVerdict.
+description: Use when editing scenes/general/ or its keybinds, settings, clock, camera, command server, PhysicsLayers, DrawLayers, ViewLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, MatchVerdict.
 ---
 
 # General domain (`scenes/general/`)
 
-Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `USE`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
+Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `USE`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, SightRay, SeenArea, verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
 
 Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, plus Audio's `Sound`. The rest are `class_name` static holders (no instance). Tuning holders: `CameraConfig`, `CameraShakeConfig` (ADR 0003), read live, so a test may `set_static` them.
 
@@ -20,13 +20,14 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 | `despawner.gd` | cap on transient bodies |
 | `camera_controller.gd` (+ the two config holders) | `Camera2D` |
 | `command_server.gd` | dev command server |
-| `physics_layers.gd`, `draw_layers.gd`, `light_masks.gd` | shared ids |
-| `fill_batch.gd`, `weighted_pick.gd`, `match_verdict.gd` | shared helpers |
+| `physics_layers.gd`, `draw_layers.gd`, `view_layers.gd`, `light_masks.gd` | shared ids |
+| `fill_batch.gd`, `weighted_pick.gd`, `match_verdict.gd`, `sight_ray.gd`, `seen_area.gd` | shared helpers (`helpers.md`) |
 
 ## Shared ids
 
 - `PhysicsLayers.SOLID` is the layer walls, solid furniture and bodies sit on; every ray and sweep that must hit a wall reads it (add a layer here, never a magic number).
-- `DrawLayers` is the one z ladder (`FLOOR` -5 … `EFFECTS` 4). Every domain's z knob starts from a rung; a new layer is a rung here.
+- `DrawLayers` is the one z ladder (`FLOOR` -5 … `EFFECTS` 4, then `VISION` 5, the player's view over the whole world, and `OVERLAY` 6, the debug overlays and markers over the view). Every domain's z knob starts from a rung; a new layer is a rung here.
+- `ViewLayers` holds the visibility bits that say what the player's view may remember (`helpers.md`).
 - `LightMasks` (`docs/lighting.md` L6): occluder bits, the shadow masks by light height (a 2D shadow has no length, so height picks who shadows whom), item light layers `HOUSE` / `STREET`. `LightMasks.occluder(polygon, bit)` is the one place an occluder is shaped: wound clockwise on screen and culled counter-clockwise, so the shape stays lit and only what lies behind it falls dark. It returns null while `LightMasks.shadows` is off (the Testing domain's `lighting.enabled` switch).
 
 ## Game clock
@@ -80,19 +81,9 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 
 Global cap (`max_scene_objects`) for transient bodies: domains hand their spawns to `Despawner.track`. Physics' `DebrisLayer` and `ScorchDecals` read the same cap for landed chips and scorch marks.
 
-## FillBatch
+## Shared helpers
 
-`FillBatch.new(canvas, base)` draws plain-coloured polygons and circles as ONE triangle array (`fill`, `fill_convex`, `circle`, then `flush`) in place of one draw command each, because the windowed renderer builds a vertex buffer per polygon command. It cuts the same triangles the engine would and each disc into `draw_circle`'s 64-gon, so the pixels match. A polygon that cannot be triangulated goes to the engine alone after what was added, which reports it as `draw_colored_polygon` does.
-
-Under the headless display (`FillBatch.batching` false) nothing renders and gathering costs more than it saves, so each shape goes to the canvas as it comes; code that draws plain commands itself there (the chip chunk, the blood splat) is deliberate. `FillBatch.unit_circle()` and `fan(base, n)` feed the Character's `BodyMeshes.Solid`. Test: `tests/general/fill_batch_matches_draw_calls_test.gd` (headless: the triangles; `--windowed`: identical pixels).
-
-## WeightedPick
-
-One `rng.randf()` over the total weight; each entry takes the next stretch. `strict` keeps each caller's edge behaviour: false, a roll on the end of a stretch takes that entry and one past them all takes the last; true, it takes the next entry and one past them all takes the first. The room dresser, room wear and street marks, the Lighting rhythms (not strict) and the Character's style (strict) draw through it. Test: `tests/general/weighted_pick_suite.gd`.
-
-## MatchVerdict
-
-`MatchVerdict.decide(combatants)` is the one rule the MatchHUD banner and the command server's `match` decide by: `{}` while every faction has someone alive; once one is wiped out, `{ winner, survivors, sides }` (`winner` null for a draw). It reads `faction` and `is_dead` only and leaves a freed combatant out. Tests: `tests/ui/match_hud_verdict_test.gd`, `command_server_verdict_suite.gd`.
+`FillBatch`, `WeightedPick`, `MatchVerdict`, and the player's view's shared rules `ViewLayers`, `SightRay` and `SeenArea`: `helpers.md`.
 
 ## Spectator mode
 

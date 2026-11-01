@@ -33,7 +33,7 @@ The three verbs (control, animate, draw) live in separate files wired through th
 
 Also here: `character_footsteps.gd`, `character_push.gd` (the shared `shove`), `player_controller.gd`.
 
-**Tuning:** one `class_name` static holder per topic (`grep -r "class_name Character.*Config" scenes/character`). In `character/`: `CharacterPostureConfig`, `CharacterPaceConfig`, `CharacterPushConfig`, `CharacterDoorConfig` (the reach for a door), `CharacterStunConfig`, `CharacterHitConfig`, `CharacterShadowConfig`, `CharacterArtConfig`, `CharacterStyleConfig`, `CharacterBodyConfig`, `CharacterStanceConfig`, `CharacterRagdollFallConfig`. The body's own are in `body/` (`body.md`).
+**Tuning:** one `class_name` static holder per topic (`grep -r "class_name Character.*Config" scenes/character`). In `character/`: `CharacterPostureConfig`, `CharacterPaceConfig`, `CharacterPushConfig`, `CharacterDoorConfig` (the reach for a door), `CharacterStunConfig`, `CharacterHitConfig`, `CharacterShadowConfig`, `CharacterArtConfig`, `CharacterStyleConfig`, `CharacterBodyConfig`, `CharacterStanceConfig`, `CharacterRagdollFallConfig`, `CharacterVisionConfig` (what the character sees by: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48, `see_over_coverage` 60, the NPCs' default sight; the body's `sight()` hands them out as a dictionary, which the Vision domain reads duck-typed to draw a view of any one character, interface 25). The body's own are in `body/` (`body.md`).
 
 ## Ordering
 
@@ -76,4 +76,4 @@ The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, ste
 
 Every character joins the group `characters` in `_ready` (interface 7): how the AI's perception, `Explosion` and a vehicle find characters in the world. `faction` is exported (`&"player"` by default; the NPC presets set `&"household"` / `&"invader"`) and read by AI perception to tell allies from potential hostiles.
 
-**Interfaces:** 3 (hittable), 4 (Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID`, `DrawLayers.LYING`, `LightMasks.CHARACTER`, `FillBatch`), 12 (Art), 15 (`GameLog`), 18 (`stun.view()`, read off `Sound.focus`), 19 (Vehicle), 24 (the door contract, `use.doors`), 20 (the occluder; `is_dead` / `radius` read by the lighting).
+**Interfaces:** 3 (hittable), 4 (Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID`, `DrawLayers.LYING`, `LightMasks.CHARACTER`, `FillBatch`, `ViewLayers`, `SeenArea`), 12 (Art), 15 (`GameLog`), 18 (`stun.view()`, read off `Sound.focus`), 19 (Vehicle), 24 (the door contract, `use.doors`), 20 (the occluder; `is_dead` / `radius` read by the lighting), 25 (`sight()`, `facing`, `died` read by the Vision domain).

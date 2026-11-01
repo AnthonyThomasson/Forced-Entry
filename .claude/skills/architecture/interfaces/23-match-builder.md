@@ -23,7 +23,8 @@
         `bind_npc` with `entry_point_for` the NPC's faction); the human joined to its side (faction, start, reparented just above the
         house); everyone armed, styled and ranked (`arm`); `squads_over`; every overlay but the holes (the stage's) started through
         `set_overlay` by the spec's `overlays`. Adds to the handle `combatants` (spawn order, the human last), `squads` (faction ->
-        `Squad`), `player_stack` (or null) and `leader_overlay`.
+        `Squad`), `player_stack` (or null), `leader_overlay` and `view` (the human's `PlayerView`, built last by `PlayerView.watch`, 25: null
+        with no human and while `VisionConfig.enabled` is off).
     - **The bind rule, once:** `bind_npc(npc, rooms, openings, entry_point := Vector2.ZERO)` hands the NPC's controller its `rooms`,
       `openings` and, when given, `entry_point`, **before the NPC joins the tree**; the controller is found by the group `npc_controllers`
       (7: authored on the scene, so it holds before the tree). `entry_point_for(faction, openings) -> Vector2` is the front entrance for an

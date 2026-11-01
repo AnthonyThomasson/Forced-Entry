@@ -9,7 +9,7 @@ Same bar as comments: concise, present-tense, current state. Read the Phase 1 re
    conventions and the files beside `SKILL.md`. The domain count agrees everywhere it is stated:
 
    ```bash
-   ls -d scenes/*/ | wc -l    # the real number (sixteen)
+   ls -d scenes/*/ | wc -l    # the real number (seventeen)
    grep -rniE "[a-z]+ (isolated )?domains" AGENTS.md .claude/skills/architecture/SKILL.md
    ```
 

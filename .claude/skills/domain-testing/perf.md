@@ -2,7 +2,7 @@
 
 Regression guards for speed and runaway object counts, one folder, one browser section, one selector. They are ordinary
 tests that load other domains, so they live apart from them. Read `tests/perf/*_test.gd` for the loads: a
-whole-match guard built as Main builds one (5v5, 10v10), a grenade fight (P1) and burst (P2) (`docs/grenades.md`,
+whole-match guard built as Main builds one (5v5, 10v10, and a 10v10 with the player's view on an NPC), a grenade fight (P1) and burst (P2) (`docs/grenades.md`,
 "Performance"), an NPC crowd, automatic fire, hit overload, a crowd's deaths, a furniture pile, and one-shot work (nav
 re-bake, world-gen, the sound library's cold render).
 
@@ -36,6 +36,12 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
   tests on a generated house are), `warm_until_contact(t, label, characters)` runs `MATCH_WARMUP_S` then
   `await_contact` (at most `MATCH_CONTACT_WITHIN`) and `require`s contact as the premise (a shot fired and some NPC
   knowing a hostile, `knows_hostile`), and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines).
+- **What the player's view costs is held as a difference** (`perf/match_npc_vision_relative`, `docs/player-vision.md` "Measured cost"):
+  one 10v10 in one process, blocks of frames with the view working and blocks with it switched off (node disabled, viewports not
+  rendering), interleaved on, off, off, on, because two plays of the match differ from each other by far more than the view costs.
+  It holds the median difference to `BUDGET_MS` and the live cone's cost to `RATIO_MAX` of the reference cone's from the same eye
+  (`tests/_vision/reference_view_cone.gd`). Headless sees the CPU side only. `perf/match_npc_vision` is the absolute standard on the
+  same match and is red with `perf/match_10v10_stress` until #98.
 - **A wall-clock budget belongs here and nowhere else:** the lint rule `timing_in_perf` fails a `Time.get_ticks_usec()`
   under `tests/` outside `tests/perf/` and `tests/_perf/`.
 

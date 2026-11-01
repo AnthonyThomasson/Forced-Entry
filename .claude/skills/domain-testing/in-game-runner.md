@@ -28,7 +28,8 @@ Tests in a window. The headless runs are `SKILL.md`'s "Running tests".
   added or modified since the merge-base with `origin/main` (or `REF`), committed or not, never deleted ones, helpers or
   sandboxes. No tests: `nothing to play`, exit 2, nothing opened. One test window per worktree: a run first closes the
   window an earlier run opened (never the editor). The window owns its engine log (`--log-file <dir>/godot.log`,
-  `--out=<dir>`, `<dir>` = `$TMPDIR/play_tests_<worktree>/`), so another Godot start cannot hide an error from it; lines
+  `--out=<dir>`, `<dir>` = `$TMPDIR/play_tests_<worktree>/`), so another Godot start neither hides an error from it nor
+  lends it one (the shared `user://logs/godot.log` is never read, `log-gate.md`); lines
   logged while no test is open are listed before `Queue done:`. `show-me` runs it. Tested by `tools/test_play_tests.py`:
   run it after editing `play_tests.sh` or the runner's `--queue`.
 - **Pause and overlays:** the banner's **Pause / Resume** (and Space, unless the test has a `player` actor, where Space

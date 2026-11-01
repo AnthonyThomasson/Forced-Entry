@@ -6,7 +6,7 @@ description: Use when editing scenes/physics/ or working on HitInfo, knockback, 
 # Physics System domain (`scenes/physics/`)
 
 A leaf of stateless helpers and reusable Node components. Objects, the character and a vehicle *compose* them. Physics imports
-only General's infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`). Interfaces: 3 (`HitInfo`), 4 (Objects /
+only General's infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`, `ViewLayers`, `SeenArea`). Interfaces: 3 (`HitInfo`), 4 (Objects /
 Character / Vehicles → Physics), 5 (`Knockback` and the pushable bodies), 11 (`PhysicsLayers` in `PhysicsConfig.wall_mask`;
 `DrawLayers` for blood and scorch `BLOOD` and `ExplosionFx.Z_INDEX` = `EFFECTS`; `FillBatch`), 13 (the switches `physics.debris`,
 `physics.hit_particles`, and blood's). Tests: `tests/physics/`. Blood (`scenes/physics/blood/`, its `Blood*Config` holders) is

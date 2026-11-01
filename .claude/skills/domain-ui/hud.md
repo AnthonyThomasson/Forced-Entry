@@ -47,8 +47,8 @@ Tests: `tests/ui/` — `match_hud_verdict_test.gd`, `inspector_right_click_card_
 - **Stack markers** (`docs/tactical-entry.md` E16, E19; `docs/leadership.md` LD18; interfaces 17, 21). Two sources: `watch(stack)` (the human's
   `PlayerStack`) and `watch_squad(view)` (Main hands it `squad.view`). The squad's stacks draw ring by ring: dim while the holder is on its way
   (`held`, not `there`), filled once there, the human's own bright, a free slot faint. A slot both views give is drawn once (`_rings`, flagged
-  `mine`); the `PlayerStack`'s own slots draw only where the squad's view has no stack. Drawn at `DrawLayers.ABOVE`, so a character on a slot never hides
-  its ring. `drawn()` is what the test reads.
+  `mine`); the `PlayerStack`'s own slots draw only where the squad's view has no stack. An overlay (`ViewLayers.overlay`, interface 11: `DrawLayers.OVERLAY` absolute, over the player's view), so a character on a slot never hides
+  its ring. The contact markers (`contact_markers.gd`) are overlays too. `drawn()` is what the test reads.
 - **Stun screen** (`docs/grenades.md` G14; interface 18). `watch(character)`, then reads `stun.view()` each frame: white by `blind / blind_total`
   over a frozen afterimage of the frame on screen when the flash landed (taken on the character's `&"stun"` event with `blind` > 0; none on a
   headless display, where `afterimage` still reports true). A new flash keeps the old frame while the white is above `RETAKE_BELOW`. A deaf-only stun,

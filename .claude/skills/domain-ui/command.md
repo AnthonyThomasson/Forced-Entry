@@ -41,7 +41,7 @@ Tests: `tests/ui/command_menu_items_test.gd`, `command_menu_docks_right_test.gd`
   tries three vertical docks in order and takes the first that keeps `POINT_CLEAR` from the click and the selected bodies, else the first that clears the
   click; a body is covered only in that crowded case (LD11). Constants live in `command_panel.gd`.
 
-## `order_markers.gd` — `OrderMarkers` (Node2D, `DrawLayers.ABOVE`, `PROCESS_MODE_ALWAYS` so the selection shows while the menu pauses the tree)
+## `order_markers.gd` — `OrderMarkers` (Node2D, an overlay: `ViewLayers.overlay`, `DrawLayers.OVERLAY` absolute over the player's view, `PROCESS_MODE_ALWAYS` so the selection shows while the menu pauses the tree)
 
 `watch(view)` polls the squad's `view()` each frame; `set_selection(nodes)` is the menu's selection. For each living member with an order it draws a dashed line to
 `order.pos` (the doorway's centre for a stack, the room's for a defend), ringed and labelled once per target (`_label_of`: "Stack (<mode>)", ", hold" while it waits

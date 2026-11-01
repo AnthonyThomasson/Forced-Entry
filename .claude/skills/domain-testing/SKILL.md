@@ -45,11 +45,10 @@ Exit 1: a test failed or timed out, or an error or warning was logged outside an
   paced in real time (see Gotchas).
 - **Selection:** filter words are word prefixes over id, name, domain, description and tags (`ai` matches the ai
   domain, not "chair"); `--domain`, `--id` and `--skip-domain` accumulate. A native suite runs whole or not at all (id =
-  its path under `tests/`, a case `<suite id>::<function>`). Sandboxes (`sandboxes/`) are never run.
-- **Quiet by default:** the game's own log (`GameLog.say`) is off; `--verbose` shows it (the `PERF` lines).
+  its path under `tests/`, a case `<suite id>::<function>`).
+- **Quiet by default:** the game's own log (`GameLog.say`) is off; `--verbose` shows it.
 - **`--self-test`** runs the harness's own tests (`tests/_harness/`, `internal: true`, hidden from normal runs) through
-  `tests/_harness/harness_suite.gd`. `python3 tools/test_coverage.py` lists untested domains, unused switches and
-  interfaces no test calls.
+  `tests/_harness/harness_suite.gd`. `python3 tools/test_coverage.py` lists untested domains, unused switches and interfaces no test calls.
 - More flags and the Godot slot pool: `runner-flags.md`; which tests `--changed` picks for a file or a spec paragraph: `runner-flags-changed.md`. A window
   (browser, queues, `--shots`, `--windowed`, locking interactions): `in-game-runner.md`. Errors and warnings failing a
   test (`log_watch.gd`): `log-gate.md`.
@@ -102,10 +101,9 @@ func run(t: TestContext) -> void:
 	t.check(t.actor(&"target").health < 50.0, "the target lost health")
 ```
 
-- **`describe()`** (all optional): `name`, `domain`, `description`, `tags`, `timeout` (sim s, default 10),
+- **`describe()`** (all optional): `name`, `domain`, `description`, `tags`, `timeout` (sim s; 10),
   `requires_von`, `fail_on_errors` / `fail_on_warnings` (default true), `allowed_logs` (regexes).
-- **`configure(s)`** is data only (the browser calls it to list the switches); its API, every part of a declared world:
-  `test-setup.md`.
+- **`configure(s)`** is data only (the browser lists its switches); API: `test-setup.md`.
 - **`run(t)`** is a coroutine. Wait only through `t` (`seconds`, `frames`, `until`, all in sim time): a raw
   `await get_tree()…` can resume into a torn-down world. `t.check` is soft, `t.require` ends the test (follow it with
   `if not …: return`); a test that asserts nothing fails. The API: `test_context.gd`; the event log's topics are every
@@ -115,8 +113,7 @@ func run(t: TestContext) -> void:
 - **Puppet** (`scripted_controller.gd`): its actions run on the character's next frame, and `facing` follows the aim
   one frame later: aim, wait, then fire. `use()` presses E (nearer of a door and a vehicle); `turn_door(steps)`
   is the wheel with E held.
-- Make randomness deterministic where the assertion depends on it (`projectile.flyover` off, since a character is
-  partial cover).
+- Make randomness deterministic where the assertion depends on it (`projectile.flyover` off: a character is partial cover).
 
 ### Native unit suites (pure logic only)
 
@@ -148,6 +145,7 @@ Read the file for the topic you write or debug; each holds that topic's probes a
 | the spectator inspector, detail card, overlay scope (domain `ui`) | `tests-ui.md` |
 | grenades (`grenade`) | `tests-grenade.md` |
 | lighting (domain `lighting`) | `tests-lighting.md` |
+| the player's view (`vision`) | `tests-vision.md` |
 | vehicles (domain `vehicle`) | `tests-vehicle.md` |
 
 ## Behaviour switches (`test_switches.gd`)
@@ -155,7 +153,7 @@ Read the file for the topic you write or debug; each holds that topic's probes a
 `s.switch(name, on)` flips a row of `test_switches.gd`'s table, which maps a name to existing knobs: `actor` props on a
 child of every actor (`controller: true` reaches the NPC's controller, a prop an indexed path `tuning:<topic>:<name>`),
 `world` props on a world node, `static` vars, or `[Script, prop, off_value]` for a non-bool knob. The file lists the
-switches. Statics are restored after every test (`TestWorld.restore`); a test changes one with `set_static`, never by
+switches; a row's `default` applies when a test names no value (`vision.enabled`: off). Statics are restored after every test (`TestWorld.restore`); a test changes one with `set_static`, never by
 assigning a config holder. To add a switch, add a row; when the behaviour has no knob, add a master `static var` to the
 domain's config holder, guarded at its one spawn point (as `BloodConfig.enabled` gates `BloodWound.record`).
 
@@ -172,8 +170,7 @@ domain's config holder, guarded at its one spawn point (as `BloodConfig.enabled`
 - **Von tests are paced in real time.** `--fixed-fps 60` outruns the wall clock, so game-time timers (HTTP timeouts, the
   launcher's probe) would fire early; the session sleeps each frame to 1/60 s while a `requires_von` test is open. A cold
   Von start takes about 5 s.
-- **A test that ends mid-wait** leaves its coroutine parked; Godot may report "ObjectDB instances leaked" at exit.
-  Harmless.
+- **A test that ends mid-wait** leaves its coroutine parked: Godot may report "ObjectDB instances leaked" at exit, harmless.
 - **An NPC thinks on its first tick, so the world must be live before actors enter:** `MatchBuilder.stage` waits two
   physics frames, then until `NavBuilder.ready` holds on the planning and steering maps (a map's iteration is built on a
   worker thread; under load an NPC snapped onto the empty map walked to the origin). The wait is real time, so the test

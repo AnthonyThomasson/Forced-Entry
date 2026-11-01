@@ -40,7 +40,7 @@ Built by Main next to the bar when Debug is on; `set_shown(on)` from the "Perfor
 below the match HUD's timer, so it overlaps no other HUD. Shows Godot `Performance` monitors and a frame-time graph. It swallows clicks, so it blocks the inspector's right-click select
 beneath it. `PROCESS_MODE_ALWAYS`; hidden, it stops processing.
 
-## `leader_overlay.gd` — `LeaderOverlay` (Node2D, `DrawLayers.ABOVE`, `PROCESS_MODE_ALWAYS`; `docs/leadership.md` LD12, LD28)
+## `leader_overlay.gd` — `LeaderOverlay` (Node2D, an overlay: `ViewLayers.overlay`, `DrawLayers.OVERLAY` absolute over the player's view, `PROCESS_MODE_ALWAYS`; `docs/leadership.md` LD12, LD28)
 
 - Built hidden by `MatchBuilder.build_leader_overlay` with the squads (under `World` in every match, and in a test world that declares squads or a match); it is the match handle's
   `leader_overlay`. A test world without squads has none, so the bar's row does nothing there.

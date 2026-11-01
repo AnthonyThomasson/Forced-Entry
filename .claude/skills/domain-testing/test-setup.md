@@ -40,6 +40,9 @@ only (the browser also calls it to list the switches).
   (`MatchBuilder.populate`); `overrides` are `MatchBuilder.spec`'s. Its `human` may name an actor (`{ actor, side, lead,
   at }`): joined to its side, armed and handed its stack radio. The match's NPCs are not test actors: read them off
   `t.world.match_handle`. Declare `squads` or `declared_match`, not both (an error).
+- **The player's view:** `view(actor_id)` names the actor the world's `PlayerView` follows when the `vision.enabled` switch is on (else
+  the first `player` actor); `TestWorld` watches it as `MatchBuilder.populate` watches the human, and a declared match with a human
+  has its view from `populate`, not from here (`tests-vision.md`).
 - **Behaviour:** `switch(name, on)` (`test_switches.gd`) and `set_static(Class, prop, value)`. A prop the holder has no
   static var for is an error that fails the test, never a no-op.
 - **Scripted Von:** `von_script(rules, latency_frames)` replaces the server with picks (first rule whose id is offered,

@@ -59,9 +59,9 @@
       `command_panel.gd`). Signals `order_requested(request)` (`{ kind: "stack", to, pos, bang, mode, wait_go }`, `{ kind: "go", pos, mode?
       }`, `{ kind: "ambush", to, pos }`, `{ kind: "defend_room", to, room }`, `{ kind: "cancel", to }`; Main connects it to `Squad.issue`)
       and `selection_changed(nodes)`. `Keybinds.COMMAND` (right mouse) is read by the menu alone. `OrderMarkers`
-      (`ui/command/order_markers.gd`): `watch(view)`, `set_selection(nodes)` (Main connects the menu's `selection_changed`), `drawn() ->
+      (`ui/command/order_markers.gd`, an overlay, 11): `watch(view)`, `set_selection(nodes)` (Main connects the menu's `selection_changed`), `drawn() ->
       Array` (test read): `[{ kind, point, node, from?, label?, refused? }]`, `kind` `order` / `selected`.
-    - **Squad-leaders overlay** (`ui/overlays/leader_overlay.gd`, LD12): `MatchBuilder.build_leader_overlay` (23) builds a hidden
+    - **Squad-leaders overlay** (`ui/overlays/leader_overlay.gd`, LD12, an overlay, 11): `MatchBuilder.build_leader_overlay` (23) builds a hidden
       `LeaderOverlay` over the squads, the handle's `leader_overlay`: `watch(views)` (every squad's `view()` callable), `show_leaders` (the
       global `OverlayRegistry.LEADERS` row, off by default, set through `MatchBuilder.set_overlay`), `drawn() -> Array` (test read; `{
       kind, ... }` of `crown`, `leash` (`radius`), `spot`, `line` (`from`, `to`) and `trail` (`points`), LD28).
