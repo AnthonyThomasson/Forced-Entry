@@ -101,7 +101,10 @@ lives in `agent_snapshot.gd`.
   would end where the NPC already stands or on a character it knows of (issue #51 R12, `docs/tactical-entry.md` E9): `shooter` is empty, and
   the `lead_shooter` lead left out, when the point toward the shots is where the NPC stands (`AgentTactics.where_it_stands`: the walk to its
   navmesh point is under a `STRIDE`, 32 px; shots from beyond the walkable ground), and the retreat spots are screened in `agent_tactics.gd`
-  (`domain-ai-perception`, Tactics). Other leads lie at fixed points and reaching one spends it (`check_lead`). Beside its options
+  (`domain-ai-perception`, Tactics). A held stack's member (the knowledge's `keep_out`, `docs/leadership.md` D38) is offered no retreat spot
+  whose plain way back (`AgentDoorViews.plain_enters`) to `_held_back_point` (`HELD_BACK` 48 px out of its order's doorway, away from the held
+  room) runs through that room: kept out of it, its walk back would go the long way round (#154; test
+  `ai/entry/order_stack_hold_retreat_stays_stack_side`). Other leads lie at fixed points and reaching one spends it (`check_lead`). Beside its options
   `lead_group` hands out `lead_pos`, the point of the freshest lead that places a hostile, over all the leads before the option cap, an
   ally's support lead skipped (each lead dict says `places_hostile`, false for an ally's support: its spot is the ally), `Vector2.INF` with none: the controller's radio reads it off the last
   options (`_cadence.last_options["leads"]`) into an INVESTIGATE callout's `lead_pos`, which the defenders' squad reads for its ambush rule

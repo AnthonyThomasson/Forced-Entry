@@ -237,6 +237,8 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 		# The walk changed map or goal: steer by its new path.
 		next = _agent.get_next_path_position()
 	var here: Vector2 = _character.global_position
+	if _way == Way.ROUND:
+		next = crowd.step_to(here, next)  # Out of its own carved footprint first.
 	var desired: Vector2 = next - here
 	desired = desired.normalized() if desired.length() > 0.001 else Vector2.ZERO
 	if (_way == Way.HELD
@@ -312,6 +314,8 @@ func _set_way(way: int) -> void:
 		crowd.recheck_in = RECHECK
 	if way != Way.HELD:
 		crowd.blocker = Vector2.INF
+	if way != Way.ROUND:
+		crowd.step_out = Vector2.INF
 	_way = way
 	var want := _plan_map
 	if way == Way.ROUND and crowd.steering_map.is_valid():
@@ -380,7 +384,8 @@ func _check() -> bool:
 ## `_check` for a walk under way (plain, round or round the doorway views): a body on its path
 ## (`blocker`) is gone round by the steering map when it can be, else holds the walk; a walk round a
 ## body that keeps out of the doorway views goes back to the avoid map once its route there is
-## clear.
+## clear, and one whose route round now goes into the room a held stack's member keeps out of (the
+## map has carved the walker itself since, D38) back to its free way, to be held or gone round anew.
 func _check_walking(
 	from: Vector2,
 	resting: Array,
@@ -394,12 +399,16 @@ func _check_walking(
 		else:
 			_set_way(Way.HELD)
 			crowd.blocker = blocker
-	elif _way == Way.ROUND and doors.map.is_valid():
+	elif _way == Way.ROUND:
 		crowd.recheck_in -= delta
 		if crowd.recheck_in <= 0.0:
 			crowd.recheck_in = RECHECK
-			if _clear_on(doors.map, from, resting):
+			if doors.map.is_valid() and _clear_on(doors.map, from, resting):
 				_set_way(Way.DOORS)
+			elif crowd.step_out == Vector2.INF and doors.enters_kept_out(crowd.steering_map):
+				# The steering map has carved the walker since (its own body at rest): its route
+				# round now goes into the room it keeps out of. Its free way again, looked at anew.
+				_set_way(_free_way())
 
 
 ## The way a walk goes when no body is in it: round the doorway views when it has been given the

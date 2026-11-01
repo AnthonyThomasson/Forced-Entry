@@ -236,12 +236,19 @@ one of four ways, checked once a physics frame (`_check`):
   `LAST_LEG`, 64 px, of it with the plain way on passing no known body at rest: a stack slot between two taken ones lies inside their carved
   margins) and passes no known body at rest (`crowd.goes_round`), whatever the detour (out of the room and in by another door included), but
   never, for a held stack's member, into the room it keeps out of (`doors.enters_kept_out`, `views.walk_enters` on the steering map: held instead,
-  then on its way round that room once clear; tests `ai/entry/order_stack_hold_retreat_round_body` (a fight's retreat) and
-  `order_stack_hold_walk_round_body` (its order's walk to its slot), D38). A round
+  then on its way round that room once clear; test `ai/entry/order_stack_hold_walk_round_body` (its order's walk to its slot), D38). A round
   walk done short of a goal no body stands on walks the rest plain (`_last_stretch`, `crowd.last_leg`), held short of a body on it; held, it
   looks again every `RECHECK` s for a way round: a route that ends at the goal, or a new last leg whose plain way passes clear of every known
   body at rest (`crowd.goes_round(..., held_leg)`, `crowd.at_rest(goal, INF)`), so it never takes one the body holding it, or another, stands on and
-  cannot flip between two holders (test `ai/entry/entry_last_leg_sealed_goes_round`);
+  cannot flip between two holders (test `ai/entry/entry_last_leg_sealed_goes_round`). A held stack's member standing still is carved out of that
+  map too, and by its held room's doorway that carve can leave it a pocket whose only way out runs through the room: when the way from
+  where it stands is refused for that (`crowd._carved(from)` and `doors.enters_kept_out`), its way round may start from a spot on its own
+  footprint's rim (`crowd._rim`: `RIM` 40 px round it at `RIM_POINTS` 8, each on the steering map within `ON_MAP` and a plain step away
+  with no body in it), the shortest that passes the checks above (the keep-out judged from that start: `doors.enters_kept_out(map,
+  start)`) taken and that start walked to first (`crowd.step_out`, `crowd.step_to` in `move_to`, given up within `STEP_REACH`; dropped
+  when the way leaves round). A round walk looks at its route every `RECHECK` s: back to the avoid map once that is clear, and, not
+  stepping out, back to its free way when its route now goes into the held room (the map has carved the walker since), to be held or
+  gone round anew (test `ai/entry/order_stack_hold_round_teammate_from_doorway_mouth`, D38);
 - **held**: no way round (the body seals the only way, or has just stopped and the map, re-baked every 0.75 s, has not carved it yet),
   or the body stands on the goal: the NPC walks on until `STOP_GAP` (56 px) from the body and stands. It looks for a way round every
   `RECHECK` s (the avoid map's route first, `_clear_on`, then the steering map's) and walks on the moment nothing known is in the way (`crowd.check_held`). After `crowd`'s `WAIT` (0.75 s), and every `REPLAN_EVERY` (4 s) after, it

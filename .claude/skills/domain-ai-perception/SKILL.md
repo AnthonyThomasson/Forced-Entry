@@ -355,7 +355,7 @@ clear for passing (`AgentPerception.views._is_pass_clear(key)`: the `cleared_roo
 entry's), other than the NPC's own room; with `entering` (`"<opening>><into>"`, the entry a walk is the approach of) that doorway's own view
 always counts, from inside the room too and cleared or not; `{ key, holes, views }` (each view `{ id, into, poly, joins }`, `joins` the rooms the doorway joins), worked out once a physics frame.
 `walk_route(from, to, world, entering, held := false)` (on `world`'s navigation map and physics space; over `AgentPerception.views.walk_route(to, entering, from)`, which makes it `held` when `entering`'s room is the one the confinement keeps the
-NPC out of, `keep_out`; `held`: the walk keeps a held stack's member out of `entering`'s room, D38, every walk of that entry among them, so its way round that room is uncapped as an ordered approach's and the doorway rule below holds; `views.walk_enters(to, key, on := RID())` / `plain_enters`: whether the
+NPC out of, `keep_out`; `held`: the walk keeps a held stack's member out of `entering`'s room, D38, every walk of that entry among them, so its way round that room is uncapped as an ordered approach's and the doorway rule below holds; `views.walk_enters(to, key, on := RID(), from := Vector2.INF)` (from `from`, INF: where the NPC stands) / `plain_enters`: whether the
 plain route, or the route on map `on` (a walk's steering map round bodies), goes into a room) is the route the NPC walks: the plain one, unless it comes
 into one of those views (or, with `entering`, goes into the room being entered: `_keep_out`, none when the walker is in that room
 already; for a `held` walk, one standing in a doorway of it, on the room's side of the plane by `DOORWAY_DEPTH` at most

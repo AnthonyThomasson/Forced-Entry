@@ -114,11 +114,11 @@ func _keeps_out() -> bool:
 	return _out_enters
 
 
-## Whether the walk's way to the goal on navigation map `on` (the steering map round bodies) goes
-## into the held stack's room it keeps out of (`_held_room`, D38): no way round a body that does is
-## taken.
-func enters_kept_out(on: RID) -> bool:
-	return _held_room != "" and views.walk_enters(loco._goal, _held_room, on)
+## Whether the walk's way to the goal on navigation map `on` (the steering map round bodies), from
+## `from` (INF: where the NPC stands), goes into the held stack's room it keeps out of
+## (`_held_room`, D38): no way round a body that does is taken.
+func enters_kept_out(on: RID, from := Vector2.INF) -> bool:
+	return _held_room != "" and views.walk_enters(loco._goal, _held_room, on, from)
 
 
 ## A walk that does not keep out of the doorway views: it forgets the avoid map, and one on it goes

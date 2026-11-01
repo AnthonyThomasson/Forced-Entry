@@ -60,14 +60,17 @@ builds on them in `tests/_ai/rally_probe.gd` (`const Rally := preload(...)`: `wo
 invader NPCs, `IDS`, bound as Main binds them with "Lead the team" on), `members`, `arm`, `rallied` (the human steps up and both stand ready,
 held for its go, within `READY_WITHIN`), `menu_go(t, mode)` (the command menu's go in a mode), `both_in`, `first_going_in`,
 `check_went_without_human`). A stack held for its go under fire (LD13 and D38: `ai/entry/order_stack_hold_fights_stack_side`,
-`order_stack_hold_retreat_round_body`, `order_stack_hold_advance_to_door_stays_out`, `ai/stack/rally_held_fights_stack_side`) is `tests/_ai/held_fight_probe.gd` (`const HeldFight := preload(...)`: `defender`, `arm`, `fight` (the defender walked back to `HIDDEN` and then taken `OFFSTAGE`, beyond
+`order_stack_hold_retreat_stays_stack_side`, `order_stack_hold_advance_to_door_stays_out`, `ai/stack/rally_held_fights_stack_side`) is `tests/_ai/held_fight_probe.gd` (`const HeldFight := preload(...)`: `defender`, `arm`, `fight` (the defender walked back to `HIDDEN` and then taken `OFFSTAGE`, beyond
 sight, since every spot of the bare house is seen through some doorway from where a member's fight can take it),
 `check_stack_side`: fired from the stack's side, never into the room nor `going_in`, and each back in its slot within `SLOT_NEAR` once the
 fight lapsed). A held member's walk to its slot round a teammate standing on its way, with no fight, is
-`ai/entry/order_stack_hold_walk_round_body` (its own watch of the walk's ways, as `order_stack_hold_retreat_round_body`'s); one
+`ai/entry/order_stack_hold_walk_round_body` (its own watch of the walk's ways); one
 standing in the held room's doorway, `ai/entry/order_stack_hold_from_doorway` (the order at once, before it goes its own way, and its
-own `DOORWAY` depth, the spec's measure), and its retreat from the back doorway under fire,
-`ai/entry/order_stack_hold_retreat_from_doorway` (held there, test-placed frame by frame, until the retreat sets out: a premise prop).
+own `DOORWAY` depth, the spec's measure). What RETREAT offers a held member (no spot beyond the held room, #154) is
+`ai/entry/order_stack_hold_retreat_stays_stack_side` (the members familiar with the house: a premise prop, so the rooms beyond are
+known); and one left standing still just outside that doorway, its own carve leaving it a way round its teammate only through the
+held room, `ai/entry/order_stack_hold_round_teammate_from_doorway_mouth` (its `movement.speed` held at 0 as a premise until the steering
+map shows that, over a few pinned spots, checked through `NavBuilder.route`).
 
 **Where a stack stands (E20 to E22) and every member reaching its slot.** `tests/_ai/slots_probe.gd` (`const Slots := preload(...)`; not a
 test) judges slots from the house's own data and the test's own geometry (rooms, wall plane, navmesh, carved furniture, its own copies of
