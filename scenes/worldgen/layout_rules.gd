@@ -24,7 +24,9 @@ const DEFAULT_RULE := { "front": false, "exit": false, "through": true, "max_doo
 ## may carry a back/side/garage door. Bedrooms, bathrooms, offices and a netrunner den are never
 ## walked through to reach something else (an en-suite dead end hanging off them is fine); a
 ## bathroom and a netrunner den are always dead ends with one door; a ripperdoc (chop shop) is
-## walked through; a kitchenette has at most two doors.
+## walked through; a kitchenette has at most two doors. A shop and a noodle bar may carry the front
+## door (a tower's shopfront); a stockroom may carry the back exit and has at most two doors; an
+## elevator lobby is a dead end with one door and neither a front door nor an exit.
 const ROOMS := {
 	"studio": { "front": true },
 	"living_room": { "front": true, "exit": true },
@@ -40,12 +42,18 @@ const ROOMS := {
 	"netrunner_den": { "through": false, "max_doors": 1 },
 	"home_office": { "through": false, "max_doors": 2 },
 	"bathroom": { "through": false, "max_doors": 1 },
+	"shop": { "front": true },
+	"noodle_bar": { "front": true },
+	"stockroom": { "exit": true, "max_doors": 2 },
+	"elevator_lobby": { "through": false, "max_doors": 1 },
 }
 ## Allowed interior-door pairs. Bathrooms open onto a hallway, a bedroom (en-suite) or a living
 ## space — never a kitchen, kitchenette, laundry or garage; bedrooms never open onto service rooms
 ## or another bedroom; a garage opens only onto the kitchen, laundry or a hallway; a netrunner den
 ## hangs off a hallway, a living space, a studio or a ripperdoc; a kitchenette off a studio, a
-## living room or a hallway.
+## living room or a hallway. A shop, a noodle bar and a stockroom open onto a hallway, a vestibule
+## and each other; the elevator lobby opens onto a hallway, a vestibule, a shop, a noodle bar or a
+## ripperdoc.
 const LINKS := [
 	["hallway", "security_vestibule"], ["hallway", "bedroom"], ["hallway", "bathroom"],
 	["hallway", "home_office"], ["hallway", "living_room"], ["hallway", "kitchen_living"],
@@ -61,6 +69,12 @@ const LINKS := [
 	["kitchen_living", "ripperdoc"], ["kitchen", "laundry_room"], ["kitchen", "garage"],
 	["bedroom", "bathroom"], ["studio", "bathroom"], ["studio", "kitchenette"],
 	["studio", "netrunner_den"], ["ripperdoc", "netrunner_den"], ["laundry_room", "garage"],
+	["hallway", "shop"], ["hallway", "noodle_bar"], ["hallway", "stockroom"],
+	["hallway", "elevator_lobby"], ["security_vestibule", "shop"],
+	["security_vestibule", "noodle_bar"], ["security_vestibule", "elevator_lobby"],
+	["shop", "stockroom"], ["noodle_bar", "stockroom"], ["shop", "noodle_bar"],
+	["shop", "bathroom"], ["noodle_bar", "bathroom"], ["shop", "elevator_lobby"],
+	["noodle_bar", "elevator_lobby"], ["ripperdoc", "elevator_lobby"],
 ]
 
 

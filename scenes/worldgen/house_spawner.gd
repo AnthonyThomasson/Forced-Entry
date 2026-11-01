@@ -23,17 +23,29 @@ const OUTWARD := {
 }
 
 
+## The floorplan for `key` from the houses or, failing that, the towers; {} if neither has it.
+static func plan_of(key: String) -> Dictionary:
+	var plan := HouseDefinitions.get_plan(key)
+	return plan if not plan.is_empty() else TowerDefinitions.get_plan(key)
+
+
 ## Build the named floorplan under `parent`, positioned so its front entrance lands on
 ## `front_entrance_world`. `rng` drives every random choice (the doors roll from streams of their
-## own). A doorway with no door (`worldgen.doors` off, or the roll) is a plain open archway. Returns
-## the house root.
+## own). A doorway with no door (`worldgen.doors` off, or the roll) is an open archway. `options`:
+##   turn:   int  -- quarter turns clockwise on screen (0 to 3, default 0), applied after the mirror
+##                   the way the mirror is: a south front faces west, north, east. The plan is
+##                   validated before it turns (plan-local: the front on its south wall).
+##   street: bool -- build the street ring and the street lamps (default true); a district builds
+##                   its own streets.
+## Returns the house root.
 static func spawn(
 	plan_key: String,
 	front_entrance_world: Vector2,
 	rng: RandomNumberGenerator,
 	parent: Node,
+	options: Dictionary = {},
 ) -> Node2D:
-	var plan := HouseDefinitions.get_plan(plan_key)
+	var plan := plan_of(plan_key)
 	if plan.is_empty():
 		push_error("Unknown house plan: ", plan_key)
 		return null
@@ -43,12 +55,13 @@ static func spawn(
 	if rng.randf() < 0.5:
 		_mirror_x(rooms, openings)
 
-	var front: Array = openings.filter(func(o: Dictionary) -> bool: return o.get("front", false))
-	if front.size() != 1:
+	if openings.filter(_is_front).size() != 1:
 		push_error("House plan needs exactly one front entrance: ", plan_key)
 		return null
 
 	_validate(rooms, openings, plan_key)
+	_turn(rooms, openings, int(options.get("turn", 0)))
+	var front: Array = openings.filter(_is_front)
 
 	var house := Node2D.new()
 	house.name = "House"
@@ -62,13 +75,19 @@ static func spawn(
 	house.set_meta("doors", HouseDoors.build(plan, rooms, openings, house, rng.seed))
 	house.set_meta("clutter", built["clutter"])
 	house.set_meta("wear", built["wear"])
-	house.set_meta("street", _street(rooms, house, rng.seed))
-	house.set_meta("streetlights", _streetlights(rooms, openings, house, rng.seed))
+	house.set_meta("lobbies", built["lobbies"])
+	var street: bool = options.get("street", true)
+	house.set_meta("street", _street(rooms, house, rng.seed) if street else [])
+	house.set_meta(
+		"streetlights",
+		_streetlights(rooms, openings, house, rng.seed) if street else [],
+	)
 	return house
 
 
-## Every room of `plan` built under `house` (`_build_room`), then their wear: `{ clutter, wear }`,
-## the clutter as `[{ room, key, node }]` and the wear as `[{ room, pos, layer }]`.
+## Every room of `plan` built under `house` (`_build_room`), then their wear: `{ clutter, wear,
+## lobbies }`, the clutter as `[{ room, key, node }]`, the wear as `[{ room, pos, layer }]` and the
+## elevator lobbies' stencils as `[{ room, rect, node, text }]`.
 static func _build_rooms(
 	plan: Dictionary,
 	rooms: Array,
@@ -77,14 +96,18 @@ static func _build_rooms(
 	rng: RandomNumberGenerator,
 ) -> Dictionary:
 	var blocked := _opening_clearances(rooms, openings, plan["wall_thickness"])
-	var clutter_world: Array = []
+	var placed := { "clutter": [], "lobbies": [] }
 	## Per room, for the wear pass: `[site, floor definition]`.
 	var dressing: Array = []
 	for room in rooms:
 		var site := _site(room, plan["wall_thickness"], blocked, rng.seed)
-		dressing.append([site, _build_room(site, openings, rng, house, clutter_world)])
+		dressing.append([site, _build_room(site, openings, rng, house, placed)])
 	# Wear after every room stands, so a mark on a shared wall draws over both rooms' caps.
-	return { "clutter": clutter_world, "wear": _wear(dressing, openings, house) }
+	return {
+		"clutter": placed["clutter"],
+		"wear": _wear(dressing, openings, house),
+		"lobbies": placed["lobbies"],
+	}
 
 
 ## A room of the plan as RoomFurnisher and RoomDresser read it (its furniture node not built yet).
@@ -104,14 +127,16 @@ static func _site(
 
 ## Build `site`'s room under `house`: its walls (every doorway of `openings` on them cut in), its
 ## furniture (RoomFurnisher, drawing from `rng`) and clutter (RoomDresser, appended to
-## `clutter_world` as `{ room, key, node }`) under a node of its own, then its floor, the one its
-## furnishing palette names. Returns that floor's definition ({} for none).
+## `placed["clutter"]` as `{ room, key, node }`) under a node of its own, then its floor, the one
+## its furnishing palette names. A room whose recipe is `bare` (the elevator lobby) is given no
+## clutter or neon; if the recipe has `text`, that is laid on its floor as a stencil (appended to
+## `placed["lobbies"]`). Returns the floor's definition ({} for none).
 static func _build_room(
 	site: RoomSite,
 	openings: Array,
 	rng: RandomNumberGenerator,
 	house: Node2D,
-	clutter_world: Array,
+	placed: Dictionary,
 ) -> Dictionary:
 	var rect: Rect2 = site.room["rect"]
 	var room_name := (site.room["key"] as String).capitalize()
@@ -127,17 +152,46 @@ static func _build_room(
 	var interior := rect.grow(-(site.wall_thickness * 0.5 + INTERIOR_MARGIN))
 	var palette := RoomFurnisher.furnish(site, interior, rng)
 	var recipe := ArrangementDefinitions.get_recipe(site.room["type"])
-	for piece: Dictionary in RoomDresser.strew(site, recipe.get("clutter", GeneralCatalog.CLUTTER)):
-		clutter_world.append({
-			"room": site.room["key"],
-			"key": piece["key"],
-			"node": piece["node"],
-		})
+	if not recipe.get("bare", false):
+		for piece: Dictionary in RoomDresser.strew(
+			site,
+			recipe.get("clutter", GeneralCatalog.CLUTTER),
+		):
+			placed["clutter"].append({
+				"room": site.room["key"],
+				"key": piece["key"],
+				"node": piece["node"],
+			})
 	# The floor runs to the wall centerlines, so the walls cover the seams between rooms.
 	var floor_def: Dictionary = GeneralCatalog.FLOORS.get(palette.get("floor", ""), {})
 	if not floor_def.is_empty():
 		FloorFactory.spawn(rect, floor_def, room_name + " Floor", house)
+	if recipe.has("text"):
+		placed["lobbies"].append(_lay_stencil(site, recipe["text"], room_name, house))
 	return floor_def
+
+
+## Lay `text` as a floor stencil over `site`'s room, between the faces of its walls, under `house`:
+## `{ room, rect, node, text }`, `rect` the room's in WORLD space.
+static func _lay_stencil(
+	site: RoomSite,
+	text: String,
+	room_name: String,
+	house: Node2D,
+) -> Dictionary:
+	var rect: Rect2 = site.room["rect"]
+	var node := DecalFactory.stencil(
+		rect.grow(-site.wall_thickness * 0.5),
+		{ "text": text, "style": "hazard" },
+		room_name + " Stencil",
+		house,
+	)
+	return {
+		"room": site.room["key"],
+		"rect": Rect2(house.position + rect.position, rect.size),
+		"node": node,
+		"text": text,
+	}
 
 
 ## Each room's wear (`dressing`: `[site, floor definition]` per room, its walls cut short of
@@ -434,6 +488,32 @@ static func _warn_misplaced(rooms: Array, opening: Dictionary, plan_key: String)
 	elif touching != 2:
 		push_warning("House %s: interior opening at %s is not on a shared wall"
 				% [plan_key, opening["pos"]])
+
+
+## Whether `opening` is the plan's front entrance.
+static func _is_front(opening: Dictionary) -> bool:
+	return opening.get("front", false)
+
+
+## Turn the floorplan `quarter_turns` quarter turns clockwise on screen (a point (x, y) goes to
+## (-y, x), so a south front faces west), in place, then slide it so its bounds start at the origin.
+static func _turn(rooms: Array, openings: Array, quarter_turns: int) -> void:
+	var turns := posmod(quarter_turns, 4)
+	if turns == 0:
+		return
+	for _i in turns:
+		for room in rooms:
+			var r: Rect2 = room["rect"]
+			room["rect"] = Rect2(-r.end.y, r.position.x, r.size.y, r.size.x)
+		for opening in openings:
+			var p: Vector2 = opening["pos"]
+			opening["pos"] = Vector2(-p.y, p.x)
+	var corner := WorldGen.bounds(rooms).position
+	for room in rooms:
+		var r: Rect2 = room["rect"]
+		room["rect"] = Rect2(r.position - corner, r.size)
+	for opening in openings:
+		opening["pos"] = (opening["pos"] as Vector2) - corner
 
 
 ## Flip the floorplan left-to-right for extra layout variety.

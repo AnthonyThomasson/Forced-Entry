@@ -5,7 +5,7 @@ class_name WorldGen
 ## the house via HouseSpawner. Callers (Main) never touch HouseDefinitions/HouseSpawner
 ## directly — `generate`, `get_rooms`, `get_openings`, `bounds`, `annotate_layout`, the read-only
 ## catalogue lookups and the test reads `get_wear`, `get_clutter`, `get_street` and
-## `get_streetlights` are the whole surface World-Gen exposes.
+## `get_streetlights` and `get_lobbies` are the whole surface World-Gen exposes.
 
 
 ## Build a house and return its root Node2D (parented under `parent`). `rng_seed` of 0 picks a
@@ -115,6 +115,16 @@ static func get_doors(house: Node2D) -> Array:
 	if house == null:
 		return []
 	return house.get_meta("doors", [])
+
+
+## The elevator lobbies a generated house laid as an Array of { room, rect, node, text }: `room` the
+## lobby room's key, `rect` its WORLD rect, `node` the floor stencil laid in it (a `Sprite2D`) and
+## `text` what it says. Empty for a null house, a hand-laid layout or a plan with no lobby. (A test
+## read.)
+static func get_lobbies(house: Node2D) -> Array:
+	if house == null:
+		return []
+	return house.get_meta("lobbies", [])
 
 
 ## The bounding box of `rooms`' rects (`{ rect, ... }` dicts, any one frame), a zero Rect2 for none.

@@ -428,6 +428,33 @@ const OBJECTS := {
 		"coverage": 100,
 		"penetration": 85,
 	},
+	# What hangs over a tower's front door (a district places them): a dark awning with a neon edge
+	# and a hanging vertical glyph sign. Each is a bare mark on the wall line, non-solid, whose
+	# art is all overhang (`overhang` as the street lamp's: across x out, its front the way the
+	# piece faces, from the wall toward the street) and which fades to a quarter of its opacity
+	# while a character stands under it (`fade_under`).
+	"awning": {
+		"name": "Awning",
+		"shape": "square",
+		"size": Vector2(8, 8),
+		"color": Color(0.1, 0.34, 0.36),
+		"material": "metal",
+		"solid": false,
+		"art": "awning",
+		"art_opts": { "kind": "awning" },
+		"overhang": { "size": Vector2(120, 36), "reach": 18.0, "fade_under": true },
+	},
+	"glyph_sign": {
+		"name": "Glyph sign",
+		"shape": "square",
+		"size": Vector2(8, 8),
+		"color": Color(0.09, 0.09, 0.12),
+		"material": "metal",
+		"solid": false,
+		"art": "awning",
+		"art_opts": { "kind": "hanging" },
+		"overhang": { "size": Vector2(26, 72), "reach": 36.0, "fade_under": true },
+	},
 }
 ## The clutter a room strews when its recipe names none (`[key, weight]`; RoomDresser draws 0-2, no
 ## key twice).

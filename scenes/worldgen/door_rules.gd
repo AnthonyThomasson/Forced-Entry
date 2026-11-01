@@ -18,8 +18,9 @@ class_name DoorRules
 ## A room type that has no ROOMS entry.
 const DEFAULT_ROOM := { "rank": 1, "chance": 0.15 }
 ## Bathrooms and the netrunner den always get their door; bedrooms, offices and ripperdocs mostly;
-## the garage and the laundry about half the time; kitchens, living spaces, the studio and the
-## vestibule rarely; and a hallway never (so no door between two hallways).
+## the garage, the laundry and a stockroom about half the time; kitchens, living spaces, the studio,
+## the vestibule, a shop, a noodle bar and the elevator lobby rarely; and a hallway never (so no
+## door between two hallways).
 const ROOMS := {
 	"bathroom": { "rank": 4, "chance": 1.0 },
 	"netrunner_den": { "rank": 4, "chance": 1.0 },
@@ -35,6 +36,10 @@ const ROOMS := {
 	"studio": { "rank": 1, "chance": 0.15 },
 	"security_vestibule": { "rank": 1, "chance": 0.15 },
 	"hallway": { "rank": 0, "chance": 0.0 },
+	"shop": { "rank": 1, "chance": 0.15 },
+	"noodle_bar": { "rank": 1, "chance": 0.15 },
+	"stockroom": { "rank": 2, "chance": 0.5 },
+	"elevator_lobby": { "rank": 1, "chance": 0.15 },
 }
 ## The default door sets, by kind of doorway: the houses' solid wood at the street and at an exit,
 ## hollow-core inside.

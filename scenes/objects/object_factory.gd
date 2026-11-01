@@ -12,7 +12,8 @@ class_name ObjectFactory
 ##   overhang (optional `{ size, reach }`: an overhead part beyond the footprint, a streetlight's
 ##     arm and head, drawn by the piece's painter with `part: "overhang"`, `size` across x out,
 ##     centred `reach` px out along the facing, above the characters, with no collider: the child
-##     `Overhang`, overhang_visuals.gd).
+##     `Overhang`, overhang_visuals.gd); with `fade_under: true` it fades to a quarter of its
+##     opacity while a character stands under it and back when none does (ObjectFadeConfig)).
 ## `opts`:
 ##   name:    String  — node name (readable hit labels; defaults to the definition name).
 ##   rotated: bool    — swap the footprint's width/height (a 90° turn).

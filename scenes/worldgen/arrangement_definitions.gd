@@ -46,7 +46,9 @@ static func _all_arrangements() -> Dictionary:
 				HallwayCatalog.ARRANGEMENTS, LaundryRoomCatalog.ARRANGEMENTS,
 				GarageCatalog.ARRANGEMENTS, NetrunnerDenCatalog.ARRANGEMENTS,
 				RipperdocCatalog.ARRANGEMENTS, SecurityVestibuleCatalog.ARRANGEMENTS,
-				KitchenetteCatalog.ARRANGEMENTS,
+				KitchenetteCatalog.ARRANGEMENTS, ShopCatalog.ARRANGEMENTS,
+				NoodleBarCatalog.ARRANGEMENTS, StockroomCatalog.ARRANGEMENTS,
+				ElevatorLobbyCatalog.ARRANGEMENTS,
 		]:
 			_arrangements.merge(src)
 	return _arrangements
@@ -59,7 +61,8 @@ static func _all_recipes() -> Dictionary:
 				KitchenCatalog.RECIPES, BedroomCatalog.RECIPES, BathroomCatalog.RECIPES,
 				HomeOfficeCatalog.RECIPES, HallwayCatalog.RECIPES, LaundryRoomCatalog.RECIPES,
 				GarageCatalog.RECIPES, NetrunnerDenCatalog.RECIPES, RipperdocCatalog.RECIPES,
-				SecurityVestibuleCatalog.RECIPES, KitchenetteCatalog.RECIPES]:
+				SecurityVestibuleCatalog.RECIPES, KitchenetteCatalog.RECIPES, ShopCatalog.RECIPES,
+				NoodleBarCatalog.RECIPES, StockroomCatalog.RECIPES, ElevatorLobbyCatalog.RECIPES]:
 			_recipes.merge(src)
 	return _recipes
 

@@ -19,7 +19,8 @@ static func _all() -> Dictionary:
 				KitchenCatalog.OBJECTS, BedroomCatalog.OBJECTS, BathroomCatalog.OBJECTS,
 				HomeOfficeCatalog.OBJECTS, HallwayCatalog.OBJECTS, LaundryRoomCatalog.OBJECTS,
 				GarageCatalog.OBJECTS, NetrunnerDenCatalog.OBJECTS, RipperdocCatalog.OBJECTS,
-				SecurityVestibuleCatalog.OBJECTS, KitchenetteCatalog.OBJECTS]:
+				SecurityVestibuleCatalog.OBJECTS, KitchenetteCatalog.OBJECTS, ShopCatalog.OBJECTS,
+				NoodleBarCatalog.OBJECTS, StockroomCatalog.OBJECTS, ElevatorLobbyCatalog.OBJECTS]:
 			_catalog.merge(src)
 	return _catalog
 

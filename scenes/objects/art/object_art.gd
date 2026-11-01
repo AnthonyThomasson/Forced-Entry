@@ -40,14 +40,19 @@ const PAINTERS := {
 	"security": preload("res://scenes/objects/art/security_painter.gd"),
 	"hotplate": preload("res://scenes/objects/art/hotplate_painter.gd"),
 	"door": preload("res://scenes/objects/art/door_painter.gd"),
+	"shop": preload("res://scenes/objects/art/shop_painter.gd"),
+	"noodle": preload("res://scenes/objects/art/noodle_painter.gd"),
+	"stock": preload("res://scenes/objects/art/stock_painter.gd"),
+	"awning": preload("res://scenes/objects/art/awning_painter.gd"),
+	"stencil": preload("res://scenes/objects/art/stencil_painter.gd"),
 }
 ## The painters that draw several kinds of piece (`kind` in the options): their neon share is the
 ## kind's (ObjectArtLightConfig.neon_share), not the painter's.
 const BY_KIND := ["tech", "recliner", "clinic"]
 ## The painters whose colour inputs are already the colours they draw in (the wear marks are tinted
-## from a floor's drawn tone, the street and the decor draw their ObjectArt*Config holders' own):
-## not graded again.
-const AS_GIVEN := ["wear", "street", "decor"]
+## from a floor's drawn tone, the street, the decor, the awning and the floor stencil draw their
+## ObjectArt*Config holders' own): not graded again.
+const AS_GIVEN := ["wear", "street", "decor", "awning", "stencil"]
 
 
 ## One repeating tile of a tiling painter (one with `static func tile_size(opts) -> Vector2`, e.g.
@@ -135,22 +140,28 @@ static func porous(art: String, opts: Dictionary) -> bool:
 
 
 ## The light row of a piece whose painter gives light only in some of its variants (a TV among the
-## appliances, a desk with a monitor, the tool cart, the scanner post); "" for any other. The one
+## appliances, a desk with a monitor, the tool cart, the scanner post, the shop's drinks fridge, the
+## noodle bar's menu board); "" for any other. The one
 ## rule both the piece's lights (`ObjectLights`) and its neon share (`neon_for`) read.
 static func light_kind(art: String, opts: Dictionary) -> String:
 	var kind := String(opts.get("kind", ""))
+	var row := ""
 	match art:
 		"appliance":
-			return "tv" if String(opts.get("panel", "")) == "tv" else ""
+			row = "tv" if String(opts.get("panel", "")) == "tv" else ""
 		"table":
 			var is_monitor := func(p: Variant) -> bool:
 				return p is Dictionary and p.get("kind", "") == "monitor"
-			return "desk" if (opts.get("props", []) as Array).any(is_monitor) else ""
+			row = "desk" if (opts.get("props", []) as Array).any(is_monitor) else ""
 		"clinic":
-			return "tool_cart" if kind == "tool_cart" else ""
+			row = "tool_cart" if kind == "tool_cart" else ""
 		"security":
-			return "scanner" if kind == "scanner" else ""
-	return ""
+			row = "scanner" if kind == "scanner" else ""
+		"shop":
+			row = "fridge" if kind == "fridge" else ""
+		"noodle":
+			row = "menu_board" if kind == "menu" else ""
+	return row
 
 
 ## The neon a piece drawn by `art` with `opts` takes, picked per piece from `piece_seed`

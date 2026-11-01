@@ -74,6 +74,12 @@ static func _by_kind(
 			light["colour"] = neon if neon.a > 0.0 else ObjectArtDecorConfig.lamp_glow_color
 		"tv", "desk":
 			light["turn"] = spill
+		"fridge":
+			light["turn"] = spill
+			light["colour"] = ObjectArtShopConfig.shop_fridge_glow
+		"menu_board":
+			light["turn"] = spill
+			light["colour"] = ObjectArtShopConfig.noodle_menu_colors[1]
 		"monitor_wall":
 			light["turn"] = spill
 			light["radius"] = maxf(absf(size.dot(ahead.orthogonal())) * 0.85, light["radius"])

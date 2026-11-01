@@ -8,7 +8,10 @@ extends Node2D
 ## out, in the canonical frame), centred `reach` px from the piece's centre along its facing. What
 ## in it gives light (a lens, a sign's tube) is drawn again over it by a child `Emissive` layer
 ## (emissive_layer.gd), as on the piece. Draw-only: it reads its parent's look fields and the
-## definition's `overhang` (`{ size, reach }`).
+## definition's `overhang` (`{ size, reach }`). With `fade_under: true` in it the overhang fades to
+## `ObjectFadeConfig.alpha` over `ObjectFadeConfig.seconds` while any node of the group `characters`
+## stands inside the area it draws, and back to opaque over the same time when none does: its own
+## `modulate`, so its glowing `Emissive` child fades with it.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const EmissiveLayer = preload("res://scenes/objects/emissive_layer.gd")
@@ -21,11 +24,24 @@ var _emissive: Texture2D
 var _emissive_layer: Node2D
 ## The area it draws, in its own frame (the piece's).
 var _rect := Rect2()
+## Whether it fades while a character stands under it (the definition's `fade_under`).
+var _fades := false
+
+
+func _ready() -> void:
+	# A node with a `_process` starts processing as it enters the tree: only a fading one keeps it.
+	set_process(_fades)
 
 
 func _draw() -> void:
 	if _art:
 		draw_texture_rect(_art, _rect, false)
+
+
+func _process(delta: float) -> void:
+	var goal := ObjectFadeConfig.alpha if _character_under() else 1.0
+	var speed := (1.0 - ObjectFadeConfig.alpha) / ObjectFadeConfig.seconds
+	modulate.a = move_toward(modulate.a, goal, speed * delta)
 
 
 ## Make this the `Overhang` child of `piece` (an EnvironmentObject not yet in the tree, its look
@@ -48,8 +64,18 @@ func setup(piece: Node2D, overhang: Dictionary) -> Node2D:
 		_emissive = ObjectArt.emissive(piece.look.art, size, piece.color, facing, opts)
 		if _emissive:
 			_emissive_layer = EmissiveLayer.new().setup(self)
+	_fades = overhang.get("fade_under", false)
 	piece.add_child(self)
 	return self
+
+
+## Whether any node of the group `characters` stands inside the area the overhang draws.
+func _character_under() -> bool:
+	var area := get_global_transform() * _rect
+	for body: Node in get_tree().get_nodes_in_group(&"characters"):
+		if body is Node2D and area.has_point((body as Node2D).global_position):
+			return true
+	return false
 
 
 ## The area the overhang draws, in its own frame (the piece's): what reaches out beyond the

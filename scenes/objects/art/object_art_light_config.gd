@@ -66,6 +66,20 @@ static var specs: Dictionary = {
 		"ahead": 9.0,
 		"rhythm": [[&"pulse", 1.0]],
 	},
+	"fridge": {
+		"energy": 0.55,
+		"radius": 95.0,
+		"shape": &"wide",
+		"ahead": 10.0,
+		"rhythm": [[&"steady", 5.0], [&"buzz", 1.0]],
+	},
+	"menu_board": {
+		"energy": 0.7,
+		"radius": 105.0,
+		"shape": &"wide",
+		"ahead": 14.0,
+		"rhythm": [[&"steady", 4.0], [&"buzz", 1.5], [&"failing", 1.0]],
+	},
 	"hotplate": { "energy": 0.6, "radius": 60.0, "shape": &"round", "rhythm": [[&"pulse", 1.0]] },
 	"neon_tube": {
 		"energy": 0.85, "tube_reach": 1.7, "shape": &"tube",
