@@ -20,7 +20,11 @@ extends RefCounted
 ## corner. The shapes and their corners come from `ViewShapes`.
 ##
 ## A ray that ends on a blocker runs on to where it leaves that one shape (at most `far_depth`), so
-## a wall or a wardrobe that is seen shows its top and is not left as a black hole.
+## a wall or a wardrobe that is seen shows its top and is not left as a black hole. (One change
+## since f69b6f80, #168 slice 14: "that one shape" is the farthest face of the blocking shapes found
+## just inside the hit, `far_exit`, because the physics query names any of several overlapping or
+## touching shapes for one ray, so the yardstick differed from itself between two builds of the
+## same world.)
 
 const Shapes := preload("res://tests/_vision/reference_view_shapes.gd")
 
@@ -85,7 +89,7 @@ func _sight_end(
 ) -> Vector2:
 	var to := from + dir * dist
 	var hit := _hit(space, from, to, exclude)
-	return to if hit.is_empty() else _far_face(hit, dir)
+	return to if hit.is_empty() else _far_face(space, hit, dir)
 
 
 ## The ray ends for `angles` (each `[key, direction]`, in order), the direction's `dist` out.
@@ -165,12 +169,9 @@ func _bubble_angles(from: Vector2, corners: Array) -> Array:
 
 ## The far end of the blocker `hit` along `dir`: where the ray leaves the one shape it hit, at most
 ## `far_depth` in, else `far_bleed` px in.
-func _far_face(hit: Dictionary, dir: Vector2) -> Vector2:
+func _far_face(space: PhysicsDirectSpaceState2D, hit: Dictionary, dir: Vector2) -> Vector2:
 	var near: Vector2 = hit["position"]
-	var polygon := _shapes.polygon_of(hit["collider"], hit["shape"])
-	if polygon.size() < 3:
-		return near + dir * VisionConfig.far_bleed
-	var depth := _shapes.exit_distance(polygon, near, dir)
+	var depth := _shapes.far_exit(space, near, dir)
 	if depth < 0.0:
 		return near + dir * VisionConfig.far_bleed
 	return near + dir * minf(depth, VisionConfig.far_depth)

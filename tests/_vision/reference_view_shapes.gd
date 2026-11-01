@@ -1,7 +1,12 @@
 extends RefCounted
 ## TEST-ONLY REFERENCE (not the game's): the blocking shapes as `scenes/vision/view_shapes.gd` read
 ## them at the start of #168 slice 11 (commit f69b6f80), before any saving: everything is read anew
-## each build. See `reference_view_cone.gd`.
+## each build. See `reference_view_cone.gd`. Two changes since, both #168 slice 14 and for one
+## reason: the physics query lists shapes in an order, and names one of several overlapping shapes
+## for a ray, that are not stable from one frame to the next, so the yardstick differed from itself
+## between two builds of the same world. `far_exit` (the far face is read off the shapes that hold
+## a point, not off the one shape the ray named) and `corners` (of two corners in one half-pixel
+## cell, the lesser stands for it, not the first listed).
 ##
 ## Vision domain: the blocking shapes round an eye, read from the physics space (a shape query on
 ## `PhysicsLayers.SOLID`, never a walk of the scene tree). A shape blocks sight when its piece's
@@ -40,6 +45,13 @@ func reset() -> void:
 	_polygons.clear()
 
 
+## Whether `a` comes before `b`: the lesser x, then the lesser y. Two corners less than half a pixel
+## apart are one corner (`corners`); which of them stands for it is this one, whatever order the
+## physics query listed the shapes in.
+static func _before(a: Vector2, b: Vector2) -> bool:
+	return a.x < b.x or (a.x == b.x and a.y < b.y)
+
+
 ## The distinct corners, in world space, of every blocking shape within `reach` of `from`.
 func corners(
 	space: PhysicsDirectSpaceState2D,
@@ -58,8 +70,10 @@ func corners(
 		for point in polygon_of(hit["collider"], hit["shape"]):
 			var key := Vector2i((point * 2.0).round())
 			if not seen.has(key):
-				seen[key] = true
+				seen[key] = found.size()
 				found.append(point)
+			elif _before(point, found[seen[key]]):
+				found[seen[key]] = point
 	return found
 
 
@@ -81,6 +95,24 @@ func polygon_of(collider: Object, index: int) -> PackedVector2Array:
 	if not _polygons.has(key):
 		_polygons[key] = _make_polygon(collider, index)
 	return _polygons[key]
+
+
+## How far a ray from `origin` along `dir`, which has just hit a blocker there, runs before it
+## leaves the solid it entered: the farthest it leaves any blocking shape that holds the point 0.1
+## px along it, -1 when it leaves such a shape through no edge, and 0 when no blocking shape holds
+## the point (the ray only touches a corner). Added in #168 slice 14: the physics query may name any
+## of several overlapping or touching shapes for one ray, from one frame to the next, and one it
+## names need not even be entered, so the yardstick could not be rebuilt twice alike.
+func far_exit(space: PhysicsDirectSpaceState2D, origin: Vector2, dir: Vector2) -> float:
+	var probe := PhysicsPointQueryParameters2D.new()
+	probe.collision_mask = PhysicsLayers.SOLID
+	probe.exclude = _query.exclude
+	probe.position = origin + dir * 0.1
+	var exits: Array[float] = []
+	for found in space.intersect_point(probe, 32):
+		if _coverage_of(found["collider"]) > see_over:
+			exits.append(exit_distance(polygon_of(found["collider"], found["shape"]), origin, dir))
+	return 0.0 if exits.is_empty() else exits.max()
 
 
 ## How far a ray from `origin` (on or in the shape) along `dir` runs before it leaves the convex

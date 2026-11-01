@@ -30,3 +30,7 @@ static var corner_offset: float = 0.0002
 ## a shape whose far face is not found is taken `far_bleed` in, px.
 static var far_depth: float = 120.0
 static var far_bleed: float = 14.0
+## The cone is rebuilt at least this often, in physics frames, whatever the watch (`ViewWatch`) has
+## seen change: a backstop for a change it cannot see. Between two rebuilds it holds the polygon it
+## has, which a fresh rebuild would draw again, vertex for vertex.
+static var rebuild_every: int = 10

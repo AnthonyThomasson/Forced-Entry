@@ -15,6 +15,7 @@ const Cone := preload("res://scenes/vision/view_cone.gd")
 const Memory := preload("res://scenes/vision/view_memory.gd")
 const Mask := preload("res://scenes/vision/view_mask.gd")
 const Composite := preload("res://scenes/vision/view_composite.gd")
+const Watch := preload("res://scenes/vision/view_watch.gd")
 ## It runs after the characters it watches (their default priority is 0).
 const PRIORITY := 100
 
@@ -24,6 +25,9 @@ var _cone := Cone.new()
 var _memory := Memory.new()
 var _mask := Mask.new()
 var _composite := Composite.new()
+var _watch := Watch.new()
+## How many times the cone has been rebuilt.
+var _rebuilds := 0
 
 
 func _enter_tree() -> void:
@@ -32,6 +36,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_watch.detach()
 	SeenArea.clear()
 
 
@@ -47,6 +52,7 @@ func _ready() -> void:
 	_mask.name = "Mask"
 	add_child(_memory)
 	add_child(_mask)
+	_watch.attach(get_tree(), [_viewer.get_rid()])
 	_memory.build(_floor_bounds(), VisionConfig.memory_scale, main)
 	_mask.build(main, VisionConfig.feather)
 	_composite.build(
@@ -76,9 +82,15 @@ func _process(_delta: float) -> void:
 func _physics_process(_delta: float) -> void:
 	if not is_instance_valid(_viewer):
 		return
-	var space := get_world_2d().direct_space_state
+	var eye := _viewer.global_position
 	var facing: Vector2 = _viewer.get("facing")
-	_cone.rebuild(space, _viewer.global_position, facing, [_viewer.get_rid()], _viewer.sight())
+	var sight: Dictionary = _viewer.sight()
+	# Held while nothing the polygon is made of has changed: a rebuild would draw it again.
+	if not _watch.stale(eye, facing, sight):
+		return
+	_cone.rebuild(get_world_2d().direct_space_state, eye, facing, [_viewer.get_rid()], sight)
+	_rebuilds += 1
+	_watch.built(eye, facing, sight)
 	_publish_area()
 
 
@@ -116,6 +128,11 @@ func viewer() -> Node2D:
 ## the viewer has no facing).
 func cone() -> PackedVector2Array:
 	return _cone.cone
+
+
+## How many times the cone has been rebuilt: one for each physics frame it could change in.
+func rebuilds() -> int:
+	return _rebuilds
 
 
 ## The near bubble's polygon round the eye, bounded by the line of sight.

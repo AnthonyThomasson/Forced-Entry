@@ -9,6 +9,10 @@ extends RefCounted
 
 ## The sides a circle shape is cut into.
 const CIRCLE_SIDES := 16
+## How far (px) past the face a ray hit the point is taken that asks which shapes the ray runs into
+## there, and the most shapes that point can be in.
+const PROBE := 0.1
+const PROBE_RESULTS := 32
 ## The shapes a query first asks for; a query that comes back full asks again for `GROWTH` times as
 ## many, until one comes back with room to spare, so no shape in reach is ever dropped.
 const FIRST_RESULTS := 512
@@ -18,6 +22,7 @@ const GROWTH := 4
 var see_over := 60.0
 var _circle := CircleShape2D.new()
 var _query := PhysicsShapeQueryParameters2D.new()
+var _probe := PhysicsPointQueryParameters2D.new()
 ## The coverage of every collider whose coverage is fixed, by instance id: kept from build to build
 ## and handed to `SightRay` (its `rated`) so a ray that meets one does not ask it again. A collider
 ## leaves it when it leaves the tree.
@@ -37,6 +42,7 @@ var _low_seen := {}
 func _init() -> void:
 	_query.collision_mask = PhysicsLayers.SOLID
 	_query.shape = _circle
+	_probe.collision_mask = PhysicsLayers.SOLID
 
 
 ## Forget what the last build read.
@@ -45,6 +51,13 @@ func reset() -> void:
 	_polygons.clear()
 	_lows.clear()
 	_low_seen.clear()
+
+
+## Whether `a` comes before `b`: the lesser x, then the lesser y. Two corners less than half a pixel
+## apart are one corner (`corners`); which of them stands for it is this one, whatever order the
+## physics query listed the shapes in.
+static func _before(a: Vector2, b: Vector2) -> bool:
+	return a.x < b.x or (a.x == b.x and a.y < b.y)
 
 
 ## The distinct corners, in world space, of every blocking shape within `reach` of `from`.
@@ -57,6 +70,7 @@ func corners(
 	_circle.radius = reach
 	_query.transform = Transform2D(0.0, from)
 	_query.exclude = exclude
+	_probe.exclude = exclude
 	var seen := {}
 	var found: Array = []
 	for hit in _shapes_in_reach(space):
@@ -66,8 +80,10 @@ func corners(
 		for point in polygon_of(hit["collider"], hit["shape"]):
 			var key := Vector2i((point * 2.0).round())
 			if not seen.has(key):
-				seen[key] = true
+				seen[key] = found.size()
 				found.append(point)
+			elif _before(point, found[seen[key]]):
+				found[seen[key]] = point
 	return found
 
 
@@ -102,6 +118,24 @@ func polygon_of(collider: Object, index: int) -> PackedVector2Array:
 	if not _polygons.has(key):
 		_polygons[key] = _make_polygon(collider, index)
 	return _polygons[key]
+
+
+## How far a ray from `origin` along `dir`, which has just hit a blocker there, runs before it
+## leaves the solid it entered: the farthest it leaves any blocking shape that holds the point
+## `PROBE` px along it, -1 when it leaves such a shape through no edge, and 0 when no blocking shape
+## holds the point (the ray only touches a corner). Where shapes overlap or touch (a wall's segments
+## at a corner, the walls of two rooms sharing a face, the pieces a dented wardrobe is cut into) the
+## physics query may name any of them for the same ray, from one frame to the next, and one it names
+## need not even be entered: so the answer is read off no shape the ray hit, but off the shapes
+## `space` says hold that point.
+func far_exit(space: PhysicsDirectSpaceState2D, origin: Vector2, dir: Vector2) -> float:
+	_probe.position = origin + dir * PROBE
+	var farthest := -INF
+	for found in space.intersect_point(_probe, PROBE_RESULTS):
+		if _coverage_of(found["collider"]) > see_over:
+			var polygon := polygon_of(found["collider"], found["shape"])
+			farthest = maxf(farthest, exit_distance(polygon, origin, dir))
+	return 0.0 if farthest == -INF else farthest
 
 
 ## How far a ray from `origin` (on or in the shape) along `dir` runs before it leaves the convex

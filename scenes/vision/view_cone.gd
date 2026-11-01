@@ -89,7 +89,7 @@ func _sight_end(
 ) -> Vector2:
 	var to := from + dir * dist
 	var hit := _ray.cast(space, from, to)
-	return to if hit.is_empty() else _far_face(hit, dir)
+	return to if hit.is_empty() else _far_face(space, hit, dir)
 
 
 ## The ray ends for `angles` (each `[key, direction]`, in order), the direction's `dist` out.
@@ -166,14 +166,12 @@ func _bubble_angles(from: Vector2, corners: Array) -> Array:
 	return angles.map(func(angle: float) -> Array: return [angle, Vector2.from_angle(angle)])
 
 
-## The far end of the blocker `hit` along `dir`: where the ray leaves the one shape it hit, at most
-## `far_depth` in, else `far_bleed` px in.
-func _far_face(hit: Dictionary, dir: Vector2) -> Vector2:
+## The far end of the blocker `hit` along `dir`: where the ray leaves the solid it met (the
+## farthest face of the blocking shapes it runs into at the hit, so the engine's pick among
+## overlapping shapes does not matter), at most `far_depth` in, else `far_bleed` px in.
+func _far_face(space: PhysicsDirectSpaceState2D, hit: Dictionary, dir: Vector2) -> Vector2:
 	var near: Vector2 = hit["position"]
-	var polygon := _shapes.polygon_of(hit["collider"], hit["shape"])
-	if polygon.size() < 3:
-		return near + dir * VisionConfig.far_bleed
-	var depth := _shapes.exit_distance(polygon, near, dir)
+	var depth := _shapes.far_exit(space, near, dir)
 	if depth < 0.0:
 		return near + dir * VisionConfig.far_bleed
 	return near + dir * minf(depth, VisionConfig.far_depth)
