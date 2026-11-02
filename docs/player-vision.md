@@ -260,33 +260,37 @@ which costs one rebuild a move that ends within reach.
 
 ## Played in a window
 
-The headless tests never open a window, so the review had the change played in one (2026-11-01, Metal, Apple M2 Max, a shared
-machine with load averages of 4 to 9), on the tree of the review's fixes. Each run had its own `--log-file`, and its whole log was
-read with `python3 tools/scan_godot_log.py <log> --from=0`.
+The headless tests never open a window, so the change was played in one (2026-11-01, Metal, Apple M2 Max, a shared machine with
+load averages of 4 to 7). Each run had its own `--log-file`, and its whole log was read with
+`python3 tools/scan_godot_log.py <log> --from=0`. The matches ran on `a9bb08d7`, the tests on `cd92abf4`; the two commits hold the
+same `scenes/` and `addons/`, `cd92abf4` changing one test only. Perf was not re-run at either (see "When the perf figures were
+measured").
 
-- **Five played matches of Main** (Start pressed through the command server, 40 s of play, the game then quit by
-  `get_tree().quit()`): all five exited 0 with a clean scan, with the view in the group `player_view` 8 s into each match and still
-  there at the end of runs 1, 2, 3 and 5; at the end of 4c it was gone (the log shows the human shot, not its death, which was not
-  checked, and a lifted view is V9's). Two earlier tries (runs 4 and 4b) are not counted: the match had started before the driver's Start press,
-  which then found no setup menu and logged its own error, and that error is the whole of what their scans found; the run was
-  taken again with a press guarded by the menu being there (4c), and the five above are 1, 2, 3, 5 and 4c.
-- **Five windowed runs of the change's game tests** (the 20 `*_test.gd` added or changed since `origin/main`, except `perf/*`, which no
-  run of this review plays, and `_harness/log_gate_probe`, which logs an error on purpose), each played whole in the test runner's
-  window with the log gate on (`--log-file <out>/godot.log`, the file the runner follows). Each run: 19 passed and 1 failed,
-  `ui/leader_overlay_draw`, and the log read up to the runner's `Queue done:` line scans clean in all five. That failure is not
-  this change's: the same test fails the same way (its first checks read `[]` where a crown should be) played in a window from
-  an `origin/main` checkout, and passes headless; its cause was not looked into.
-- **What they found.** `vision/unseen_not_repainted` failed in three of three windowed runs of its own: it counted physics frames,
-  and a window now and then runs two physics steps in one drawn frame, so the pool, which repaints in `_process`, was one step
-  from its repaint when the test looked. Nothing was late for the player: a drawn frame never showed the cone over a pool that
-  was not repainted. The test now judges the repaint once a frame has been drawn (`Engine.get_process_frames()`), for the pool and
-  for the walker; it is red against a pool that repaints a drawn frame late and green against the real one (ten headless runs, and
-  windowed runs alone and in the queues above). Two further windowed runs, made while the editor was reloading the changed file,
-  failed the walker's check at its 17th frame and passed in the twenty or so runs after; that was not reproduced and not explained.
-- **The `BUG: Unreferenced static string to 0: ...` lines** (and `Pages in use exist at exit in PagedAllocator`) are the engine's
-  shutdown noise when it is ended by a signal, not this change's. The test runner scene has no command server to quit through, so
-  these runs ended by `SIGTERM` to the pid they started, and the same lines come out of an `origin/main` checkout ended the same way, in
-  a count that varies from run to run on both (4, 26 and 33 on `origin/main`; 14, 15 and 19 on this branch), because the signal
-  lands at a different point of the teardown. The five matches of Main, which quit through the game, print none, and a headless
-  `--import` of `origin/main` prints the `Pages in use` lines at its exit too.
-
+- **Five played matches of Main** (Start pressed by a scratch driver once the setup menu was up, 40 s of play, the game then quit by
+  `get_tree().quit()`): all five exited 0 and every scan came back empty (no error, no warning). The view, in the group
+  `player_view`, was there 8 s into each match and at its end.
+- **Five windowed runs of the change's game tests** (the 20 `*_test.gd` added or changed since `origin/main`, except `perf/*`, which
+  these runs do not play, and `_harness/log_gate_probe`, which logs an error on purpose), each played whole in the test runner's
+  window with the log gate on (`--log-file <out>/godot.log`, the file the runner follows). On `cd92abf4`: 19 passed and 1 failed in
+  each of the five, the one failure `ui/leader_overlay_draw`, and no engine error or warning in any log up to its `Queue done:`
+  line. `ui/leader_overlay_draw` is not this change's: the same test fails the same way (its first checks read `[]` where a crown
+  should be) played in a window from an `origin/main` checkout, and passes headless; its cause was not looked into.
+- **What they found.** An earlier set of five, on `a9bb08d7`, passed 19 of 20 four times and failed `vision/at_rest_remembered` once
+  ("a gun was seen both moving (0 frames) and at rest (694)", 3 frames not on `WORLD`) besides `ui/leader_overlay_draw`. The shooter's
+  frag grenade sends fragments ricocheting round the arena, and one killed the victim (50 hp) at 5.9 s, before the test killed it on
+  the run: a body that dies standing lets its gun go with no skid, which no change of place shows moving, so the test judged the gun at
+  rest after 90 still frames while it still spun on `MOVING`. Alone the test passed ten of ten windowed runs, so it was not
+  reproduced by waiting; a 60 hp hit standing in for the fragments made the old test fail the same way, in a headless run. The victim
+  has 100 000 hp now and the test kills it with its own health: green with the stand-in, ten of ten headless runs, five of five in the
+  windowed queue above. Nothing in the player's view was wrong: the gun was on `MOVING` while it spun and on `WORLD` after.
+- **`vision/unseen_not_repainted`** failed twice at the 17th frame of its walker's check in two windowed runs made while the editor
+  was reloading the changed file (an earlier review), and passed in the twenty or so runs after. It passed in each of the five
+  queues above and in ten of ten windowed runs of its own on `cd92abf4`: not reproduced, and not explained.
+- **The shutdown noise.** Every log shows `BUG: Unreferenced static string to 0: ...` (33 or 34 lines) and three
+  `Pages in use exist at exit in PagedAllocator` lines, all after the `Queue done:` line: the engine's shutdown noise when it is
+  ended by a signal, not this change's. The test runner scene has no command server to quit through, so these runs ended by `SIGTERM`
+  to the pid they started, and the same lines come out of an `origin/main` checkout ended the same way, in a count that varies from
+  run to run on both, because the signal lands at a different point of the teardown. One of the five logs also holds about thirty-five
+  `Can't emit non-existing signal ""` / `Attempt to connect nonexistent signal ''` lines, again after `Queue done:`, in the same
+  teardown; it was not compared with `origin/main` (it came once in five and did not come again). The five matches of Main, which
+  quit through the game, print none of this.
