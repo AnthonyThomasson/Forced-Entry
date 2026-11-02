@@ -6,10 +6,13 @@ class_name CameraConfig
 
 ## Higher = slower, smoother follow (the camera lerps by 1/follow_speed each frame).
 static var follow_speed: float = 8.0
-## How far toward the mouse to lead the camera (world units).
-static var look_ahead_distance: float = 60.0
-## Distance from screen center the mouse must reach to trigger look-ahead (0-1 fraction of screen).
-static var look_ahead_threshold: float = 0.6
+## Look-ahead, per screen axis: the mouse's distance from the screen centre as a fraction of the
+## half-screen (0 centre, 1 edge). Inside this the camera does not lead.
+static var look_ahead_dead_zone: float = 0.25
+## From the dead zone out to this fraction the lead eases up to its full reach.
+static var look_ahead_full_at: float = 0.92
+## At full reach the followed character sits this many screen pixels in from the opposite edge.
+static var look_ahead_edge_margin: float = 48.0
 ## Framing group: extra world-space padding kept around the framed combatants so they aren't flush
 ## to the screen edge.
 static var frame_margin: float = 160.0

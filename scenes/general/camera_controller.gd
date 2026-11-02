@@ -1,14 +1,14 @@
 extends Camera2D
-## General domain: the camera. It centers on the player, but leads toward the mouse when it
-## approaches screen edges. The mouse wheel zooms, in either mode, as a lasting scale on the
-## automatic zoom. In framing mode (the spectator view) the viewer can also take the camera by hand
-## — pan with the camera keys or by pushing the mouse to a screen edge — and after
-## `CameraConfig.manual_hold` seconds without panning the automatic framing eases back in. An
-## explosion on the EventBus shakes the view (through `Camera2D.offset`, so the follow and the
-## framing are untouched). Following (or framing) someone aboard a vehicle, the zoom eases out with
-## the vehicle's speed (its `view_zoom_out()`, read duck-typed through the target's `use.vehicle()`)
-## and back in as it slows. Its tuning is `CameraConfig` (follow, framing, zoom, hand pan) and
-## `CameraShakeConfig` (the shake); it follows the input pattern.
+## General domain: the camera. It centers on the player, but leads toward the mouse as it nears a
+## screen edge, up to leaving the player at the opposite edge. The mouse wheel zooms, in either
+## mode, as a lasting scale on the automatic zoom. In framing mode (the spectator view) the viewer
+## can also take the camera by hand — pan with the camera keys or by pushing the mouse to a screen
+## edge — and after `CameraConfig.manual_hold` seconds without panning the automatic framing eases
+## back in. An explosion on the EventBus shakes the view (through `Camera2D.offset`, so the follow
+## and the framing are untouched). Following (or framing) someone aboard a vehicle, the zoom eases
+## out with the vehicle's speed (its `view_zoom_out()`, read duck-typed through the target's
+## `use.vehicle()`) and back in as it slows. Its tuning is `CameraConfig` (follow, framing, zoom,
+## hand pan) and `CameraShakeConfig` (the shake); it follows the input pattern.
 
 ## The node to follow. Set in the scene; defaults to a sibling "Player".
 @export var target_path: NodePath = ^"../Player"
@@ -208,36 +208,23 @@ func _drive_zoom_out(who: Node) -> float:
 	return clampf(float(ride.call("view_zoom_out")), 0.0, 0.9)
 
 
-## The point the camera eases toward: the target, offset toward the mouse as it nears a
-## screen edge.
+## The point the camera eases toward: the target, led toward the mouse. On each screen axis the lead
+## eases from nothing inside `CameraConfig.look_ahead_dead_zone` to its full reach at
+## `look_ahead_full_at`, and the full reach leaves the target `look_ahead_edge_margin` screen pixels
+## in from the opposite edge, so the view looks as far as it can without losing the character. Read
+## in screen space, so the camera's own move never feeds back into it.
 func _calculate_target_position() -> Vector2:
 	var player_pos := _player.global_position
-	var mouse_world_pos := get_global_mouse_position()
-	var to_mouse := mouse_world_pos - player_pos
-
-	if to_mouse.length() < 0.1:
-		# Mouse too close to player, don't look ahead.
+	var half := get_viewport_rect().size * 0.5
+	if half.x <= 0.0 or half.y <= 0.0:
 		return player_pos
-
-	var dir_to_mouse := to_mouse.normalized()
-
-	# Offset camera toward the mouse.
-	var look_offset := dir_to_mouse * CameraConfig.look_ahead_distance * _edge_factor()
-
-	return player_pos + look_offset
+	var from_centre := (get_viewport().get_mouse_position() - half) / half
+	var reach := (half - Vector2.ONE * CameraConfig.look_ahead_edge_margin).max(Vector2.ZERO) / zoom
+	return player_pos + Vector2(_lead(from_centre.x), _lead(from_centre.y)) * reach
 
 
-## How far the look-ahead is ramped up (0-1): how far from screen centre the mouse is (screen
-## space), against the longer axis (x or y) scaled by `CameraConfig.look_ahead_threshold`.
-func _edge_factor() -> float:
-	var screen_size := get_viewport_rect().size
-	var mouse_screen := get_viewport().get_mouse_position()
-	var screen_center := screen_size / 2.0
-	var edge_offset := (mouse_screen - screen_center).abs()
-	var threshold_pixels := maxf(
-		screen_size.x,
-		screen_size.y,
-	) * 0.5 * CameraConfig.look_ahead_threshold
-	return (minf(1.0, edge_offset.length() / threshold_pixels)
-			if threshold_pixels > 0
-			else 0.0)
+## The lead (-1..1) along one screen axis for the mouse `u` of the half-screen from the centre.
+func _lead(u: float) -> float:
+	return signf(u) * smoothstep(
+		CameraConfig.look_ahead_dead_zone, CameraConfig.look_ahead_full_at, absf(u)
+	)
