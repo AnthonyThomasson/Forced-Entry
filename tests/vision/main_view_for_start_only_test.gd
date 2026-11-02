@@ -59,7 +59,9 @@ func run(t: TestContext) -> void:
 
 
 ## Start a match of `mode` ("play" or "watch") in a fresh Main of its own, closing the one before;
-## the match's `World`, or null if none was built in time.
+## the match's `World`, or null if none was built in time. Built is a combatant in the `World`:
+## `MatchBuilder.populate` spawns them and watches the human in one frame, after the staged build
+## (the district and its nav) has added the `World`'s first children over several.
 func _start(t: TestContext, mode: String) -> Node:
 	for old in t.world.find_children("MainViewport", "SubViewport", false, false):
 		await MainProbe.close(t, old)
@@ -71,7 +73,7 @@ func _start(t: TestContext, mode: String) -> Node:
 	menu.start_requested.emit(CONFIG.merged({ "mode": mode }))
 	var built := func() -> bool:
 		var world := _world(main)
-		return world != null and world.get_child_count() > 4
+		return world != null and _has_combatant(world)
 	if not await t.until(built, 10.0):
 		return null
 	await t.frames(3)
@@ -85,3 +87,11 @@ func _world(main: Node) -> Node:
 		if child.is_in_group(&"match_world"):
 			return child
 	return null
+
+
+## Whether a character (the group `characters`) stands under `world`.
+func _has_combatant(world: Node) -> bool:
+	for character in world.get_tree().get_nodes_in_group(&"characters"):
+		if world.is_ancestor_of(character):
+			return true
+	return false
