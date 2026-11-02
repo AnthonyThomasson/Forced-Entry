@@ -27,8 +27,10 @@
    struck `material` it posts.
 
    A world `Door` (interface 24) implements it too: `get_surface()` is coverage 100 with its material's `penetration` and, for the
-   glass-panel door only, `transparent: true` (sight looks through a `transparent` surface: `SightRay.coverage_of`, which the AI's `AgentVision.sight_hit` and Vision's cone both use). A piece's `coverage` and a door's `transparent` are fixed at spawn: Vision caches them for the piece's life. It takes
-   `take_hit` for a round or a blast (`speed_factor` 0, no height) and `take_blow` for a punch or a kick (`take_damage`: a punch).
+   glass-panel door only, `transparent: true` (sight looks through a `transparent` surface: `SightRay.coverage_of`, which the AI's
+   `AgentVision.sight_hit` and Vision's cone both use). A piece's `coverage` and a door's `transparent` are fixed at spawn: Vision
+   caches them for the piece's life. It takes `take_hit` for a round or a blast (`speed_factor` 0, no height) and `take_blow` for
+   a punch or a kick (`take_damage`: a punch).
 
    `Explosion` finds characters by the group `characters` (interface 7), reads `is_dead`, `facing`, `get_surface()`, calls `take_stun` /
    `take_damage` / `blast_push` / `take_hit` on them and `apply_impulse` on a pushable (capped by `get_mass()`): the sanctioned surface.

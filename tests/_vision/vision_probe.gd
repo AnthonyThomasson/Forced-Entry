@@ -52,6 +52,16 @@ const DOOR := { "pos": Vector2(700, 250), "width": 100.0 }
 ## walls reach 6 px into; the hinge sits 20 px from the doorway's middle.
 const DOOR_WIDTH := 52.0
 const JAMB := 20.0
+## A cone from an eye at (700, 350) to the far wall, its corners along the wall and floor
+## collinear: the engine's `Geometry2D.is_point_in_polygon` says `OUTSIDE` is inside it, but it
+## lies west of the cone's near edge (the eye to (946.1, 706), at x = 806 on that row) by 90 px.
+const WALL_CONE := [
+	Vector2(700, 350), Vector2(968.875977, -6.000001), Vector2(1406, 14.202365),
+	Vector2(962.224731, 706), Vector2(946.102722, 706),
+]
+const OUTSIDE := Vector2(715.9464, 502.9528)
+## The size (px) of the disc and the half side of the box a test asks `SeenArea` about.
+const ASKED := 10.0
 ## The wardrobe (tall) and the coffee table (low) in the living room.
 const WARDROBE_AT := Vector2(450, 130)
 const TABLE_AT := Vector2(330, 300)
@@ -223,6 +233,13 @@ static func collision_shapes(targets: Array[Node2D]) -> int:
 	for target in targets:
 		count += target.find_children("*", "CollisionShape2D", false, false).size()
 	return count
+
+
+## Whether a disc, and whether a box, round `at` reach the area the view shows live (`SeenArea`):
+## `[disc, box]`.
+static func reached_by(at: Vector2) -> Array[bool]:
+	var box := Rect2(at - Vector2(ASKED, ASKED), Vector2(ASKED, ASKED) * 2.0)
+	return [SeenArea.reaches(at, ASKED), SeenArea.reaches_rect(box)]
 
 
 ## A hit of `damage` at `at` on a surface facing `normal`, flying straight in.

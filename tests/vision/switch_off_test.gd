@@ -8,9 +8,8 @@ extends GameTest
 ## It reads (tests/_vision/vision_probe.gd) the `PlayerView` nodes under the world.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
-## A place and a size asked of `SeenArea`, well away from the player.
+## A place asked of `SeenArea`, well away from the player.
 const FAR := Vector2(-3000, 450)
-const ASKED := 10.0
 
 
 func describe() -> Dictionary:
@@ -45,8 +44,6 @@ func run(t: TestContext) -> void:
 
 ## With the view off nothing is hidden: no area is set.
 func _nothing_hidden(t: TestContext) -> void:
-	t.check(SeenArea.reaches(FAR, ASKED), "a far disc reaches: no area is set")
-	t.check(
-		SeenArea.reaches_rect(Rect2(FAR, Vector2(ASKED, ASKED))),
-		"a far box reaches: no area is set",
-	)
+	var reached := Probe.reached_by(FAR)
+	t.check(reached[0], "a far disc reaches: no area is set")
+	t.check(reached[1], "a far box reaches: no area is set")

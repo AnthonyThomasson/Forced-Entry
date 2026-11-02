@@ -37,8 +37,8 @@ extends GameTest
 ## loaded red says nothing about the code (`perf.md`).
 ##
 ## The second check is a ratio, `RATIO_MAX` 0.75: in a block of each round the reference cone
-## (`tests/_vision/reference_view_cone.gd`, the cone before any saving, built whole every frame) is
-## built from the viewer's eye and timed, and the live cone's own step (the change check, and the
+## (`tests/_vision/reference_view_cone.gd`, the plainest form of the cone, built whole every frame)
+## is built from the viewer's eye and timed, and the live cone's own step (the change check, and the
 ## rebuild when there was one) is timed in the blocks the view works in (`Stopwatch`), so a
 ## skipped frame counts at what it cost. The eight quiet runs gave
 ## 0.27, 0.31, 0.39, 0.39, 0.40, 0.42, 0.49 and 0.59 (median 0.40). With the savings off (the

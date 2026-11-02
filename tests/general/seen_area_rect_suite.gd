@@ -6,6 +6,7 @@ extends UnitSuite
 ## past a long box's ends, does not make it seen. With no area set everything is reached. The
 ## expected answers are read off that description, the geometry laid out by hand.
 
+const Probe := preload("res://tests/_vision/vision_probe.gd")
 ## A square, 100 px a side, from (0, 0) to (100, 100).
 const SQUARE := [Vector2(0, 0), Vector2(100, 0), Vector2(100, 100), Vector2(0, 100)]
 ## An "L": the square's top and left bars, leaving the lower right quarter (50..100) open.
@@ -95,16 +96,10 @@ func test_a_rect_that_only_just_pokes_into_the_area_is_reached() -> void:
 
 
 func test_a_rect_far_from_a_cone_the_engine_calls_inside_is_wholly_outside() -> void:
-	# A cone from an eye at (700, 350) to the far wall, its corners along the wall and floor
-	# collinear: `Geometry2D.is_point_in_polygon` says (715.9, 503) is inside it, but it lies west
-	# of the cone's near edge (eye to (946, 706), at x = 806 on that row) by 90 px.
-	var cone := PackedVector2Array(
-		[
-			Vector2(700, 350), Vector2(968.875977, -6.000001), Vector2(1406, 14.202365),
-			Vector2(962.224731, 706), Vector2(946.102722, 706),
-		],
-	)
+	# Probe.WALL_CONE: the engine says Probe.OUTSIDE is inside it, but it lies 90 px west of the
+	# cone.
+	var cone := PackedVector2Array(Probe.WALL_CONE)
 	SeenArea.set_area([cone], Rect2(700, -6, 706, 712))
 	assert_bool(SeenArea.reaches_rect(Rect2(710, 498, 12, 10))).is_false()
-	assert_bool(SeenArea.reaches(Vector2(715.9464, 502.9528), 10.0)).is_false()
+	assert_bool(SeenArea.reaches(Probe.OUTSIDE, 10.0)).is_false()
 	assert_bool(SeenArea.reaches_rect(Rect2(800, 498, 12, 10))).is_true()

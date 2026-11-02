@@ -30,34 +30,40 @@ by the bit it sits on; the **seen area** is what General's `SeenArea` says the c
 ## Behaviours
 
 **V1. The cone.** The human sees what the NPCs see, by their default numbers: a 110° cone round its `facing` out to 2520, a 48
-bubble all round, and a line of sight on `PhysicsLayers.SOLID` that walls and pieces of `coverage` above 60 break and lower pieces
-(tables, beds, counters) do not. The numbers are a Character holder's (`CharacterVisionConfig`, read through `character.sight()`; the native suite
-`character/character_vision_config_suite` holds them to the spec and equal to the NPCs' default `NpcSensesTuning`),
-so any character carries the same view. The cone is exact at corners: nothing behind a wall corner or a doorway's end is in it. A
-wall or tall piece that is seen shows its top: the cone reaches the far face of the shapes the ray met. It is complete however
-many blockers are in reach (the shape query is asked again with more room while it comes back full, so no cap drops one). Doors
-(`docs/doors.md`) follow the same rule: a shut solid door blocks, a glass-panel door (`transparent`) is seen through, an ajar
-door's gap is seen through, a knocked-down door does not block. The cone is rebuilt only when its output can change: the eye moved
-or turned, the viewer's sight numbers changed, or within reach a blocker moved, changed shape (a dent, a wall re-cut, a door's
-swing, fall or shattered panes) or joined or left; plus a forced rebuild every
-`VisionConfig.rebuild_every` (10) physics frames, a backstop. A skipped frame's cone equals a fresh rebuild's, vertex for vertex.
-Tests: `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over the table
-and inside the cone are in the polygon; points behind the wardrobe, beyond the wall, behind the eye past 48 are not; points
-within 48 behind it are), `vision/cone_exact_at_corners` (eyes near the room corners and the doorway's ends, facing along and
-across the walls: no sampled point behind a corner is inside the polygon and every sampled point the eye sees is; a seen wall's far
-face is in the polygon, the room beyond is not), `vision/cone_exact_with_many_blockers` (more solid shapes in reach than any
-query cap: every wardrobe keeps its corner rays), `vision/cone_same_after_savings` (the live cone against the cone before any
-saving, vertex for vertex, over a grid of eyes and facings in generated houses and after a door, a shove and a freed piece move
-through it), `vision/cone_skip_exact` (a still then a turning viewer through a dent, a shove, a door's swing, panes shattered, a
-door knocked down, a piece added and freed, a posture change and a death: every frame the polygon equals a fresh rebuild's, vertex
-for vertex; a still viewer rebuilds far less than every frame and never goes more than `rebuild_every` frames without a rebuild).
-`vision/cone_follows_sight` also hangs three doors in the wall the rooms share, and the eye stands before each in turn: the point
-beyond a shut solid door and one beyond a shut hollow door are not in the polygon, the point beyond a shut glass-panel door is, the
-solid door swung open shows the point through its gap and hides it again shut, and a hollow door knocked down does not hide it
-(`objects/door_blocks` holds the rule for an NPC's sight). `vision/cone_skip_exact` also runs a world of its own that counts
-rebuilds: a solid moved every frame 3750 px from the viewer (the reach is 2520) forces none, one moved every frame in the cone
-forces one a frame, and one that moves from outside the reach into it is a rebuild in that frame: `ViewWatch` watches the
-blockers within reach, by the view distance and each solid's own extent.
+bubble all round, and a line of sight on `PhysicsLayers.SOLID` that walls and pieces of `coverage` above 60 break and lower
+pieces (tables, beds, counters) do not. The numbers are a Character holder's (`CharacterVisionConfig`, read through
+`character.sight()`; the native suite `character/character_vision_config_suite` holds them to the spec and equal to the NPCs'
+default `NpcSensesTuning`), so any character carries the same view. The cone is exact at corners: nothing behind a wall corner
+or a doorway's end is in it. A wall or tall piece that is seen shows its top: the cone reaches the far face of the shapes the
+ray met. It is complete however many blockers are in reach (the shape query is asked again with more room while it comes back
+full, so no cap drops one). Doors (`docs/doors.md`) follow the same rule: a shut solid door blocks, a glass-panel door
+(`transparent`) is seen through, an ajar door's gap is seen through, a knocked-down door does not block. The cone is rebuilt
+only when its output can change: the eye moved or turned, the viewer's sight numbers changed, or within reach a blocker moved,
+changed shape (a dent, a wall re-cut, a door's swing, fall or shattered panes) or joined or left; plus a forced rebuild every
+`VisionConfig.rebuild_every` (10) physics frames, a backstop. A skipped frame's cone equals a fresh rebuild's, vertex for
+vertex. Tests: `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
+the table and inside the cone are in the polygon; points behind the wardrobe, beyond the wall, behind the eye past 48 are not;
+points within 48 behind it are), `vision/cone_exact_at_corners` (eyes near the room corners and the doorway's ends, facing along
+and across the walls: no sampled point behind a corner is inside the polygon and every sampled point the eye sees is; a seen
+wall's far face is in the polygon, the room beyond is not), `vision/cone_exact_with_many_blockers` (more solid shapes in reach
+than any query cap: every wardrobe keeps its corner rays), `vision/cone_same_after_savings` (the live cone against the reference
+cone, the plainest form of the cone, vertex for vertex, over a grid of eyes and facings in generated houses and after a door, a
+shove and a freed piece move through it), `vision/cone_skip_exact` (a still then a turning viewer through a dent, a shove, a
+door's swing, panes shattered, a door knocked down, a piece added and freed, a posture change and a death: every frame the
+polygon equals a fresh rebuild's, vertex for vertex; a still viewer rebuilds far less than every frame and never goes more than
+`rebuild_every` frames without a rebuild). `vision/cone_follows_sight` also hangs three doors in the wall the rooms share, and
+the eye stands before each in turn: the point beyond a shut solid door and one beyond a shut hollow door are not in the polygon,
+the point beyond a shut glass-panel door is, the solid door swung open shows the point through its gap and hides it again shut,
+and a hollow door knocked down does not hide it (`objects/door_blocks` holds the rule for an NPC's sight).
+`vision/cone_skip_exact` also runs a world of its own: a solid moved every frame 3750 px from the viewer (the reach is 2520)
+forces no rebuild, one moved every frame in the cone forces one a frame, and, with a checker holding every frame's polygon to a
+fresh rebuild's, a solid built each way a body reaches further than its origin does (a shape offset 2000 px, turned a quarter, a
+polygon, a scaled body, a shape scaled and one mirrored, a shape set after the body is placed, the shapes cut anew, a body that
+says `changed`) moves from outside the reach into it the frame after a rebuild (so that the backstop cannot be what rebuilds): a
+rebuild in that frame, and the fresh rebuild's cone in every frame after, also when it is freed. `ViewWatch` watches the
+blockers within reach, by the view distance and each solid's own extent. The native suite `vision/view_watch_suite` holds its
+cost (a blocker that moves is not measured again, only one whose shapes come or go), the largest absolute scale of a shape or a
+body, and a body that moves out of the reach as well as into it.
 
 **V2. One sight rule.** The look-over-low-furniture ray is one rule in General (`SightRay`, interface 11), used by the NPCs'
 sight (`AgentVision.sight_hit` delegates to it) and by the view; a `transparent` surface (a glass-panel door) is looked through
@@ -172,14 +178,19 @@ when it leaves through no edge). Two choices make a rebuild independent of which
 engine names: the far-face pick reads the shapes that hold the point and not the shape the ray hit, and two corners less than half
 a pixel apart are one, the lesser (x, then y) standing for them. Without both, a fresh rebuild was not deterministic.
 
-**What triggers a rebuild** (`ViewWatch`): the eye, the facing, the sight numbers and the cone's `VisionConfig` numbers; any
-blocker's transform or collision layer, each frame; by signal a blocker's shapes coming or going, its leaving the tree, a door's
-`changed`; a collider that entered the tree; a character that blocks (its posture covers more than the viewer looks over, so it
+**What triggers a rebuild** (`ViewWatch`): the eye, the facing, the sight numbers and the cone's `VisionConfig` numbers; the
+transform or collision layer of any blocker within reach (the view distance and the blocker's own extent, kept from the time its
+shapes came or went), each frame, and once more the frame after a rebuild made while one moved (a query in the frame a body moved
+can read it where it was); by signal a blocker's shapes coming or going, its leaving the tree, a door's `changed`; a collider that
+entered the tree; a character that blocks (its posture covers more than the viewer looks over, so it
 may move, turn its shape off or die in any frame: the cone is rebuilt every such frame and the one after); and
 `rebuild_every` frames since the last. A low piece is looked over, so it is in no ray and is not watched. A piece's coverage and a
 door's `transparent` are read once and kept: a piece's coverage is set once in `ObjectFactory`, a door's is always 100 and its
 `transparent` is fixed at spawn (a shatter changes only the look's `broken`); a character's coverage follows its posture and is
-read each build.
+read each build. **`ViewWatch` does not watch either**, though the rebuild
+rule as first written lists a changed `coverage` or `transparent` among its triggers: Objects promises that neither changes in play
+(interface 03). Should one ever change, the cone is stale until the next rebuild, at most `rebuild_every` (10) frames later, the
+backstop that bounds it; a feature that makes one change must tell `ViewShapes` and `ViewWatch`.
 
 ## Tunables
 
@@ -198,14 +209,17 @@ The perf tests run headless and see only the CPU side, so the GPU side was measu
 written down in this document (commit 6ecb4659) and has been re-run by no one since: take it as the order of magnitude it
 gave, not as a number to hold the code to.
 
-**When the perf figures were measured.** Every perf figure below was taken before commit 6bd7cc63 (a blood pool's repaint decided
-on the frame's view, by its box), and **no perf test was run after it or after the later fixes of the review**. 6bd7cc63 does not
-touch the cone, the change check or the ratio the second guard reads, so the cone figures and the ratio stand. It does touch the
-frame the first guard reads: a pool now asks `SeenArea.reaches_rect` (a box, a little cheaper to refuse than the circle) and
-draws in `_process`, not `_physics_process`; that moves the view's cost by about the pool skip's own size (0.13 to 0.5 ms, below)
-or less, which is inside the spread between runs, but it was not measured. Two later changes can only skip more: `ViewWatch` no
-longer rebuilds for a blocker that is moving out of the eye's reach (the cone test `vision/cone_skip_exact` counts it), and
-`SeenArea.contains` is the one even-odd test (the cone's `contains` used the engine's). Their cost is unmeasured too.
+**When the perf figures were measured.** Every perf figure below was taken before commit 6bd7cc63 (a blood pool's repaint
+decided on the frame's view, by its box), and **no perf test was run after it or after the later fixes of the review**. 6bd7cc63
+does not touch the cone, the change check or the ratio the second guard reads, so the cone figures and the ratio stand. It does
+touch the frame the first guard reads: a pool now asks `SeenArea.reaches_rect` (a box, a little cheaper to refuse than the
+circle) and draws in `_process`, not `_physics_process`; that moves the view's cost by about the pool skip's own size (0.13 to
+0.5 ms, below) or less, which is inside the spread between runs, but it was not measured. Two later changes to the change check
+are unmeasured too: `ViewWatch` no longer rebuilds for a blocker that is moving outside the eye's reach (the cone test
+`vision/cone_skip_exact` counts it) and no longer measures a moving blocker's shapes anew each frame (it keeps each blocker's
+extent, and compares the key field by field without building an Array), which can only cost less; and after a rebuild made while
+a blocker within reach moved it rebuilds once more the next frame (a query in the frame a body moved can read it where it was),
+which costs one rebuild a move that ends within reach.
 
 - **Before the savings, the view on an NPC in a 10v10 (not reproduced).** The ticket measured about +7.4 ms a frame windowed,
   "4 to 5 ms of it the cone's CPU, about 3 ms the second world render (the capture) and about 2 ms GPU". Those three parts

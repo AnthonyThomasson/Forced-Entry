@@ -12,16 +12,17 @@
 	  street, lit only by the street lamps, flashes and its own sky). `shadows` (whether occluders are built; off with Testing's
 	  `lighting.enabled`) and `occluder(polygon, bit) -> LightOccluder2D` (null while `shadows` is off; wound and culled so the shape
 	  itself stays lit). Read by Objects (walls, solid pieces, street floors), Character (the living body) and Lighting (interface 20).
-    - `DrawLayers` (`general/draw_layers.gd`, static holder): the world's draw-order ladder, one rung per kind of thing, so floor, vehicle
-	  and fliers keep one order across domains. `FLOOR` −5 (Objects' `Floor`, `ObjectArtLayerConfig.floor_z_index`) < `RUG` −4
-	  (`ObjectArtLayerConfig.rug_z_index`) < `BLOOD` −3 (Physics: splats, pools, prints, smears, scorch; `BloodConfig.z_index` /
-	  `print_z_index`) < `LYING` −2 (a dead body, `CharacterArtConfig.ragdoll_z_index`; a spent casing; a `DroppedItem` and a grenade at
-	  rest) < `UNDER_VEHICLE` −1 (a vehicle's `Chassis`) < `STANDING` 0 (the living, a vehicle's occupants, furniture, walls) < `ABOVE` 1
-	  (a vehicle's `Roof`, a grenade in flight) < `OVERHEAD` 2 (a piece's
-	  `Overhang`, `ObjectArtLayerConfig.overhang_z_index`, a streetlight's arm and head; a room's ceiling fixture, Lighting) < `EFFECTS` 4
+    - `DrawLayers` (`general/draw_layers.gd`, static holder): the world's draw-order ladder, one rung per kind of thing, so floor,
+	  vehicle and fliers keep one order across domains. `FLOOR` −5 (Objects' `Floor`, `ObjectArtLayerConfig.floor_z_index`) < `RUG`
+	  −4 (`ObjectArtLayerConfig.rug_z_index`) < `BLOOD` −3 (Physics: splats, pools, prints, smears, scorch; `BloodConfig.z_index` /
+	  `print_z_index`) < `LYING` −2 (a dead body, `CharacterArtConfig.ragdoll_z_index`; a spent casing; a `DroppedItem` and a grenade
+	  at rest) < `UNDER_VEHICLE` −1 (a vehicle's `Chassis`) < `STANDING` 0 (the living, a vehicle's occupants, furniture, walls) <
+	  `ABOVE` 1 (a vehicle's `Roof`, a grenade in flight) < `OVERHEAD` 2 (a piece's `Overhang`,
+	  `ObjectArtLayerConfig.overhang_z_index`, a streetlight's arm and head; a room's ceiling fixture, Lighting) < `EFFECTS` 4
 	  (Physics' `ExplosionFx`) < `VISION` 5 (Vision's composite, absolute) < `OVERLAY` 6 (the debug overlays and markers over the
-	  view, absolute: the AI's `DebugOverlay`s, `NavDebug`, the UI's `StackMarkers`, `OrderMarkers`, `ContactMarkers`, `LeaderOverlay`). A domain's own z knob is initialised from its rung, never a bare number;
-	  within a rung the scene tree decides. `docs/vehicles.md` V3 / V6: a body struck down lies under the vehicle.
+	  view, absolute: the AI's `DebugOverlay`s, `NavDebug`, the UI's `StackMarkers`, `OrderMarkers`, `ContactMarkers`,
+	  `LeaderOverlay`). A domain's own z knob is initialised from its rung, never a bare number; within a rung the scene tree
+	  decides. `docs/vehicles.md` V3 / V6: a body struck down lies under the vehicle.
     - `GameClock` (`general/game_clock.gd`, an autoload, `PROCESS_MODE_PAUSABLE`): counts physics frames in `_physics_process`, so it stands
 	  still while the tree is paused. `GameClock.msec() -> int` (frames × 1000 / `Engine.physics_ticks_per_second`: deterministic under
 	  `--fixed-fps`, however far a headless run outpaces the wall clock), `GameClock.seconds() -> float`, `GameClock.frame() -> int`. Every
@@ -47,18 +48,19 @@
 	  It reads the Character API (`faction`, `is_dead`; a freed combatant is left out and its side not counted). The UI's `MatchHUD`
 	  (banner) and the command server's `match` verb (`verdict_of`, which `tools/match.py` scores by) both decide by it, each wording the
 	  result its own way (the HUD names a lone survivor in any match, the verb only in a 1v1).
-    - `ViewLayers` (`general/view_layers.gd`, static holder): the visibility bits (`visibility_layer`) the player's view sorts the world by.
-	  `WORLD` 1 (Godot's default: the house, what has come to rest), `MOVING` 2 (what moves: drawn only inside the cone), `OVERLAY` 4
-	  (overlays, markers, the view's composite). Vision's capture leaves `MOVING` and `OVERLAY` out of its cull mask. `set_moving(item,
-	  moving)` (written only on change; Character, Items, Projectile, Physics, Vehicles call it) and `overlay(item)` (`z_index`
-	  `DrawLayers.OVERLAY`, absolute, bit `OVERLAY`; the AI's debug overlays, Navigation, the UI).
+    - `ViewLayers` (`general/view_layers.gd`, static holder): the visibility bits (`visibility_layer`) the player's view sorts the
+	  world by. `WORLD` 1 (Godot's default: the house, what has come to rest), `MOVING` 2 (what moves: drawn only inside the cone),
+	  `OVERLAY` 4 (overlays, markers, the view's composite). Vision's capture leaves `MOVING` and `OVERLAY` out of its cull mask.
+	  `set_moving(item, moving)` (written only on change; Character, Items, Projectile, Physics, Vehicles call it) and
+	  `overlay(item)` (`z_index` `DrawLayers.OVERLAY`, absolute, bit `OVERLAY`; the AI's debug overlays, Navigation, the UI).
     - `SightRay` (`general/sight_ray.gd`, `RefCounted`): the one sight rule. `SightRay.hit(space, from, to, exclude, see_over) ->
-	  Dictionary` is the first thing on the line (`PhysicsLayers.SOLID`) too tall to see over (`intersect_ray`'s dictionary), {} when the
-	  line reaches `to`; a collider at or below `see_over` is looked over, `exclude` is left as given. `SightRay.coverage_of(collider)
-	  -> float` reads `get_surface()`: `transparent` (a glass-panel door) reads 0, looked through however tall; no `coverage` reads 100.
-	  An instance (`looks_over`, `rated`, `leave_out(rids)`, `cast(...)`) serves a caller of many rays (Vision's cone). AI perception's
-	  sight line and Vision's cone both cast through it.
-    - `SeenArea` (`general/seen_area.gd`, static holder): what the view shows live. Vision writes `set_area(polygons: Array, bounds: Rect2)`
-	  per rebuild and `clear()` on a lift; `reaches(center, radius)` (a disc) and `reaches_rect(rect)` (a long box) say whether any of it
-	  is shown, true while no area is set. Character's visuals (60 px) and Physics' blood pools (their box) skip a repaint on false. `contains(polygon, point)`
-	  is the one even-odd point test (the engine's `is_point_in_polygon` errs on the cone).
+	  Dictionary` is the first thing on the line (`PhysicsLayers.SOLID`) too tall to see over (`intersect_ray`'s dictionary), {} when
+	  the line reaches `to`; a collider at or below `see_over` is looked over, `exclude` is left as given.
+	  `SightRay.coverage_of(collider) -> float` reads `get_surface()`: `transparent` (a glass-panel door) reads 0, looked through
+	  however tall; no `coverage` reads 100. An instance (`looks_over`, `rated`, `leave_out(rids)`, `cast(...)`) serves a caller of
+	  many rays (Vision's cone). AI perception's sight line and Vision's cone both cast through it.
+    - `SeenArea` (`general/seen_area.gd`, static holder): what the view shows live. Vision writes `set_area(polygons: Array,
+	  bounds: Rect2)` per rebuild and `clear()` on a lift; `reaches(center, radius)` (a disc) and `reaches_rect(rect)` (a long box)
+	  say whether any of it is shown, true while no area is set. Character's visuals (60 px) and Physics' blood pools (their box)
+	  skip a repaint on false. `contains(polygon, point)` is the one even-odd point test (the engine's `is_point_in_polygon` errs on
+	  the cone).

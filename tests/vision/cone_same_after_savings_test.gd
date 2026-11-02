@@ -1,10 +1,10 @@
 extends GameTest
 ## V1 cost (`docs/player-vision.md`): the cone's CPU savings change nothing it draws. The cone
-## `ViewCone.rebuild` builds is held, vertex for vertex, to the cone the same algorithm built before
-## any saving (`tests/_vision/reference_view_cone.gd`, the same algorithm which keeps nothing from
-## one rebuild to the next and reads and casts everything anew each build). Both are asked the same
-## question in the same physics space: one persistent `ViewCone` (so whatever it keeps from one
-## rebuild to the next is in play) against one reference, for
+## `ViewCone.rebuild` builds is held, vertex for vertex, to the reference cone
+## (`tests/_vision/reference_view_cone.gd`), the plainest form of the cone: the same algorithm,
+## which keeps nothing from one rebuild to the next and reads and casts everything anew each build.
+## Both are asked the same question in the same physics space: one persistent `ViewCone` (so
+## whatever it keeps from one rebuild to the next is in play) against one reference, for
 ## - a grid of eyes and facings in generated houses (a few floorplans and seeds), the cone and the
 ##   bubble both;
 ## - a door swung through the cone between two rebuilds, a piece shoved across it and a piece that

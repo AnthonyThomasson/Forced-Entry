@@ -11,9 +11,13 @@ extends GameTest
 ##   - a door swung wide and shut, a glass-panel door's panes shattered, a door knocked down;
 ##   - in a world of its own, a character that blocks the viewer's sight standing and not crouched
 ##     changing its posture, and dying.
-## And the reach, in a world of its own that counts rebuilds only: a solid moved every frame far
-## outside the viewer's reach forces no rebuild, one moved within reach forces one each frame, and
-## one that moves from outside into reach is a rebuild in that frame.
+## And the reach, in a world of its own: a solid moved every frame far outside the viewer's reach
+## forces no rebuild, one moved within reach forces one each frame. Then a checker holds every
+## frame's polygon to a fresh rebuild's while a solid, built each way a body can reach further than
+## its origin does (a shape offset 2000 px, a shape turned a quarter, a polygon, a scaled body, a
+## shape scaled and mirrored, a shape set after the body is placed, the shapes cut anew, a body
+## that says `changed`), moves from outside the reach into it; the frame after a rebuild, so that
+## the backstop cannot be what rebuilds, and again when it is taken out of the tree.
 ## And the rebuilds themselves: a still viewer rebuilds far less often than every frame, and the
 ## view never goes more than `REBUILD_EVERY` frames without one (the backstop).
 ##
@@ -22,6 +26,7 @@ extends GameTest
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Checker := preload("res://tests/_vision/cone_checker.gd")
 const Mover := preload("res://tests/_vision/physics_mover.gd")
+const Changing := preload("res://tests/_vision/changing_body.gd")
 ## The spec's backstop (V1): the most physics frames between two rebuilds.
 const REBUILD_EVERY := 10
 const EYE_AT := Vector2(250, 250)
@@ -44,17 +49,28 @@ const SLAB_AT := Vector2(360, 250)
 const MOVER_AT := Vector2(360, 120)
 const MOVER_TO := Vector2(360, 200)
 const SOLID_SIZE := Vector2(14, 60)
-## The reach, in a third world: the viewer faces east; a solid at `FAR_AT` is 3750 px from it (the
-## reach is 2520), one at `NEAR_AT` is in its cone. Each is moved for `REACH_FRAMES` frames,
-## `REACH_STEP` px a frame, and the far one then arrives at `FAR_ARRIVES`, in the cone.
-const REACH_ARENA := Rect2(8000, 0, 600, 600)
+## The reach, in a third world, an arena so big that no wall is within the reach but the north one:
+## the viewer faces east; a solid at `FAR_AT` is 3750 px from it (the reach is 2520), one at
+## `NEAR_AT` is in its cone. Each is moved for `REACH_FRAMES` frames, `REACH_STEP` px a frame.
+const REACH_ARENA := Rect2(8000, 0, 8000, 6000)
 const REACH_EYE := Vector2(8100, 300)
 const FAR_AT := Vector2(11_850, 300)
 const NEAR_AT := Vector2(8400, 250)
 const FAR_ARRIVES := Vector2(8350, 350)
-## A shape scaled by this many reaches 1500 px from its body: from 3750 px off it is 270 px into
-## range.
-const WIDE_SCALE := 30.0
+## A 14 px wide shape scaled by this many reaches 1400 px from its body, so from 3750 px off its
+## near end is 2350 px from the eye, within the reach (2520).
+const WIDE_SCALE := 200.0
+## A shape this far offset from its body (west, toward the eye), its body's `ARRIVES` away.
+const OFFSET := 2000.0
+## A long thin shape's length, and how far a shape is stretched along y (and mirrored): 1800 px
+## each way of the body.
+const TURNED_LENGTH := 3200.0
+const MIRROR_SCALE := 60.0
+## A scaled solid's `far`, beyond even the bound `ViewWatch` keeps for a scale that stretches one
+## axis only (the largest scale on both: 18 400 px for a 14 by 60 shape scaled 200 times).
+const FAR_SCALED := 25_000.0
+## The frames a far solid creeps before it moves into reach.
+const FAR_FRAMES := 30
 const REACH_FRAMES := 60
 const REACH_STEP := 1.0
 ## The frames the dents must change the viewer's cone in, or they proved nothing.
@@ -250,7 +266,8 @@ func _shape_added_and_moved(t: TestContext, checker: Checker) -> void:
 
 
 ## A third world: a solid moved every frame outside the viewer's reach forces no rebuild; one
-## within reach does; the far one moved into reach is a rebuild in the frame it arrives.
+## within reach does; and each way of reaching further than the origin does, moved into reach, is a
+## rebuild in the frame it arrives and a cone a fresh rebuild would give.
 func _reach(t: TestContext) -> void:
 	var s := TestSetup.new()
 	s.arena(REACH_ARENA)
@@ -260,10 +277,13 @@ func _reach(t: TestContext) -> void:
 	s.view(&"eye")
 	var world: Node2D = await Probe.build_world(t, s)
 	var view := Probe.views_under(world)[0]
-	TestContext.controller_of(world.actors[&"eye"], &"aim_at").aim_at(REACH_EYE + Vector2(100, 0))
+	var eye: Node2D = world.actors[&"eye"]
+	TestContext.controller_of(eye, &"aim_at").aim_at(REACH_EYE + Vector2(100, 0))
 	var far := _solid_at(world, FAR_AT)
 	var near := _solid_at(world, NEAR_AT)
 	await t.frames(30)
+	var checker := Checker.new(view, eye)
+	world.add_child(checker)
 	var before := view.rebuilds()
 	await _creep(t, far, FAR_AT)
 	var rebuilds := view.rebuilds() - before
@@ -288,15 +308,14 @@ func _reach(t: TestContext) -> void:
 		"a solid moved every frame within the reach forces a rebuild each frame (%d in %d)"
 		% [rebuilds, REACH_FRAMES],
 	)
+	far.queue_free()
+	near.queue_free()
 	await _wide(t, world, view)
 	await t.frames(15)
-	before = view.rebuilds()
-	far.position = FAR_ARRIVES
-	await t.frames(1)
-	t.check(
-		view.rebuilds() > before,
-		"a solid that moves from outside the reach into it is a rebuild in that frame",
-	)
+	for arrival in _arrivals():
+		await _arrives(t, world, view, checker, arrival)
+	_check_whole(t, checker, "the reach world")
+	checker.queue_free()
 	await Probe.drop_world(t, world)
 
 
@@ -316,10 +335,140 @@ func _wide(t: TestContext, world: Node, view: PlayerView) -> void:
 	wide.queue_free()
 
 
-## Move `body` from `from` along y, `REACH_STEP` px a frame, for `REACH_FRAMES` frames.
-func _creep(t: TestContext, body: Node2D, from: Vector2) -> void:
-	for i in REACH_FRAMES:
+## The ways a solid reaches further than its origin does. Each is built, set `far` from the eye
+## (shapes and all outside the reach), moved there for a while, then moved to `near`: its origin
+## still outside the reach (but the plain one's), a part of it in the viewer's cone. `late` is done
+## to the body once it is placed; `removed` has it taken out of the tree once it is in.
+func _arrivals() -> Array[Dictionary]:
+	var behind := Vector2(-OFFSET, 0.0)
+	return [
+		{
+			"name": "a plain solid", "build": _plain,
+			"far": FAR_AT - REACH_EYE, "near": FAR_ARRIVES - REACH_EYE,
+		},
+		{
+			"name": "a shape offset 2000 px", "build": _offset.bind(behind),
+			"far": Vector2(6400, 0), "near": Vector2(4400, 0),
+		},
+		{
+			"name": "a shape turned a quarter", "build": _turned,
+			"far": Vector2(1500, 8300), "near": Vector2(1500, 3300),
+		},
+		{
+			"name": "a polygon", "build": _polygon.bind(behind),
+			"far": Vector2(6400, 0), "near": Vector2(4400, 0),
+		},
+		{
+			"name": "a scaled body", "build": _scaled_body,
+			"far": Vector2(FAR_SCALED, 0), "near": Vector2(3700, 0),
+		},
+		{
+			"name": "a shape scaled", "build": _scaled_shape.bind(Vector2(WIDE_SCALE, 1.0)),
+			"far": Vector2(FAR_SCALED, 0), "near": Vector2(3750, 0),
+		},
+		{
+			"name": "a shape mirrored and scaled",
+			"build": _scaled_shape.bind(Vector2(1.0, -MIRROR_SCALE)),
+			"far": Vector2(1500, 9000), "near": Vector2(1500, 3000),
+		},
+		{
+			"name": "a shape set after the body is placed", "build": _unset,
+			"late": _set_shape.bind(behind),
+			"far": Vector2(6400, 0), "near": Vector2(4400, 0),
+		},
+		{
+			"name": "shapes cut anew", "build": _changing, "late": _recut.bind(behind),
+			"far": Vector2(6400, 0), "near": Vector2(4400, 0),
+		},
+		{
+			"name": "a solid taken out of the tree", "build": _offset.bind(behind), "removed": true,
+			"far": Vector2(6400, 0), "near": Vector2(4400, 0),
+		},
+	]
+
+
+## One of `_arrivals`: placed far, it is moved every frame for `FAR_FRAMES` without a rebuild; then,
+## the frame after a rebuild (so that the backstop, which rebuilds every `REBUILD_EVERY` frames, is
+## not what rebuilds), it is moved to `near`: a rebuild in that frame, and every frame's polygon is
+## the fresh rebuild's.
+func _arrives(
+	t: TestContext,
+	world: Node,
+	view: PlayerView,
+	checker: Checker,
+	arrival: Dictionary,
+) -> void:
+	var what: String = arrival["name"]
+	var body: Node2D = arrival["build"].call()
+	body.position = REACH_EYE + arrival["far"]
+	world.add_child(body)
+	await t.frames(15)
+	if arrival.has("late"):
+		arrival["late"].call(body)
+		await t.frames(15)
+	var before := view.rebuilds()
+	await _creep(t, body, body.position, FAR_FRAMES)
+	t.check(
+		view.rebuilds() - before <= int(ceilf(float(FAR_FRAMES) / REBUILD_EVERY)) + 2,
+		"%s: moved every frame outside the reach it forces no rebuild (%d in %d)"
+		% [what, view.rebuilds() - before, FAR_FRAMES],
+	)
+	await _just_rebuilt(t, view)
+	var wrong := checker.wrong()
+	var changed := checker.changed
+	before = view.rebuilds()
+	body.position = REACH_EYE + arrival["near"]
+	await t.frames(1)
+	t.check(
+		view.rebuilds() > before,
+		"%s: moved from outside the reach into it it is a rebuild in that frame" % what,
+	)
+	await t.frames(5)
+	t.check(checker.changed > changed, "premise: %s: arriving changes what is seen" % what)
+	_same_as_fresh(t, checker, wrong, "%s: arriving" % what)
+	if arrival.get("removed", false):
+		await _just_rebuilt(t, view)
+		wrong = checker.wrong()
+		changed = checker.changed
+		before = view.rebuilds()
+		world.remove_child(body)
+		body.queue_free()
+		await t.frames(2)
+		t.check(view.rebuilds() > before, "%s: leaving the tree in reach is a rebuild" % what)
+		t.check(checker.changed > changed, "premise: %s: leaving changes what is seen" % what)
+		_same_as_fresh(t, checker, wrong, "%s: leaving" % what)
+	else:
+		body.queue_free()
+	await t.frames(15)
+
+
+## No frame since `wrong` held a cone other than a fresh rebuild's.
+func _same_as_fresh(t: TestContext, checker: Checker, wrong: int, what: String) -> void:
+	t.check(
+		checker.wrong() == wrong,
+		"%s: %d frames held a cone other than a fresh rebuild's: %s"
+		% [what, checker.wrong() - wrong, checker.report()],
+	)
+
+
+## Wait for the view to rebuild: when this returns the frame just run was a rebuild's, so the next
+## is the first since.
+func _just_rebuilt(t: TestContext, view: PlayerView) -> void:
+	var count := view.rebuilds()
+	for i in REBUILD_EVERY * 2:
+		await t.frames(1)
+		if view.rebuilds() != count:
+			return
+	t.check(false, "the view rebuilt within %d frames" % (REBUILD_EVERY * 2))
+
+
+## Move `body` from `from` along y, `REACH_STEP` px a frame, for `frames` frames; a body that can
+## say `changed` says it each frame.
+func _creep(t: TestContext, body: Node2D, from: Vector2, frames := REACH_FRAMES) -> void:
+	for i in frames:
 		body.position = from + Vector2(0.0, REACH_STEP * i)
+		if body.has_signal(&"changed"):
+			body.emit_signal(&"changed")
 		await t.frames(1)
 
 
@@ -336,10 +485,101 @@ func _solid_at(world: Node, at: Vector2) -> StaticBody2D:
 ## A solid's shape: `SOLID_SIZE` round its body.
 func _solid_shape() -> CollisionShape2D:
 	var shape := CollisionShape2D.new()
+	shape.shape = _solid_rect()
+	return shape
+
+
+## The rectangle of `SOLID_SIZE`.
+func _solid_rect() -> RectangleShape2D:
 	var rect := RectangleShape2D.new()
 	rect.size = SOLID_SIZE
+	return rect
+
+
+## A solid, its shape `SOLID_SIZE` round its body.
+func _plain() -> StaticBody2D:
+	return _body([_solid_shape()])
+
+
+## A solid whose shape lies `offset` from its body.
+func _offset(offset: Vector2) -> StaticBody2D:
+	var shape := _solid_shape()
+	shape.position = offset
+	return _body([shape])
+
+
+## A solid whose shape is a long thin one, turned a quarter: it runs along y.
+func _turned() -> StaticBody2D:
+	var shape := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(TURNED_LENGTH, 10.0)
 	shape.shape = rect
-	return shape
+	shape.rotation = PI / 2.0
+	return _body([shape])
+
+
+## A solid made of a polygon of `SOLID_SIZE`, `offset` from its body.
+func _polygon(offset: Vector2) -> StaticBody2D:
+	var polygon := CollisionPolygon2D.new()
+	var half := SOLID_SIZE / 2.0
+	polygon.polygon = PackedVector2Array([
+		offset + Vector2(-half.x, -half.y), offset + Vector2(half.x, -half.y),
+		offset + Vector2(half.x, half.y), offset + Vector2(-half.x, half.y),
+	])
+	return _body([polygon])
+
+
+## A solid whose body is stretched `WIDE_SCALE` times along x.
+func _scaled_body() -> StaticBody2D:
+	var body := _plain()
+	body.scale = Vector2(WIDE_SCALE, 1.0)
+	return body
+
+
+## A solid whose shape is scaled by `by`.
+func _scaled_shape(by: Vector2) -> StaticBody2D:
+	var shape := _solid_shape()
+	shape.scale = by
+	return _body([shape])
+
+
+## A solid whose shape is not set yet.
+func _unset() -> StaticBody2D:
+	return _body([CollisionShape2D.new()])
+
+
+## Set the shape of `body`'s one shape node, `offset` from its body.
+func _set_shape(body: StaticBody2D, offset: Vector2) -> void:
+	var shape: CollisionShape2D = body.get_child(0)
+	shape.shape = _solid_rect()
+	shape.position = offset
+
+
+## A solid that can say `changed`, as a door does.
+func _changing() -> StaticBody2D:
+	var body: StaticBody2D = Changing.new()
+	body.collision_layer = PhysicsLayers.SOLID
+	body.add_child(_solid_shape())
+	return body
+
+
+## Cut `body` anew, as a dent does: its shape freed, another `offset` from its body added.
+func _recut(body: StaticBody2D, offset: Vector2) -> void:
+	var old := body.get_child(0)
+	body.remove_child(old)
+	old.queue_free()
+	var shape := _solid_shape()
+	shape.position = offset
+	body.add_child(shape)
+
+
+## A solid with these shape nodes.
+func _body(shapes: Array) -> StaticBody2D:
+	var body := StaticBody2D.new()
+	body.collision_layer = PhysicsLayers.SOLID
+	for shape: Node in shapes:
+		body.add_child(shape)
+	return body
 
 
 ## A wooden door swings wide and shut; a glass-panel door's panes shatter; a hollow door is knocked
