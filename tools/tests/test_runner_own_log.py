@@ -26,9 +26,10 @@ RUNNER_SCENE = "res://scenes/testing/test_runner.tscn"
 VERDICT = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+(\S+)", re.M)
 FOREIGN = "foreign process error"
 FOREIGN_SCRIPT = f'extends SceneTree\n\n\nfunc _init() -> void:\n\tpush_error("{FOREIGN}")\n\tpush_warning("foreign process warning")\n\tquit()\n'
-# The editor plugin's log argument (addons/ticket_autorun/game_log_argument.gd), driven as the editor's save hook
-# drives it (`EditorPlugin` itself cannot be made outside the editor): after each step it prints whether the project
-# setting the editor reads on Play exists and what it holds, and whether a project file saved then would hold it.
+# The editor plugin's log argument (addons/ticket_autorun/game_log_argument.gd), driven as the plugin's hooks drive it
+# (`EditorPlugin` itself cannot be made outside the editor): `_enter_tree` gives it and `_exit_tree` forgets it; after
+# each step it prints whether the project setting the editor reads on Play exists and what it holds, and whether a
+# project file saved then would hold it.
 ARGUMENT_SCRIPT = '''extends SceneTree
 
 const Argument := preload("res://addons/ticket_autorun/game_log_argument.gd")
@@ -46,8 +47,6 @@ func _init() -> void:
 	_report("start")
 	Argument.give()
 	_report("given")
-	Argument.after_save()
-	_report("after_save")
 	Argument.forget()
 	_report("forgotten")
 	quit()
@@ -172,23 +171,24 @@ class RunnerOwnLogTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         steps = {m.group(1): (m.group(2) == "true", m.group(3), m.group(4) == "true")
                  for m in STEP.finditer(r.stdout)}
-        self.assertEqual(list(steps), ["start", "given", "after_save", "forgotten"], r.stdout + r.stderr)
+        self.assertEqual(list(steps), ["start", "given", "forgotten"], r.stdout + r.stderr)
         return steps
 
-    def test_the_editors_log_argument_is_never_missing_when_play_reads_it(self):
-        """The editor's save hook runs just before Play reads `editor/run/main_run_args` for the game's command line:
-        the setting must still exist then, holding the game's `--log-file` (a setting erased and put back a frame
-        later is missing for that read: the editor logs `Property not found` and the game starts with none)."""
+    def test_the_editors_log_argument_is_there_when_play_reads_it(self):
+        """Play reads `editor/run/main_run_args` for the game's command line before any hook of a plugin runs, so the
+        setting holds the game's `--log-file` for as long as the plugin is on."""
         log = str(self.tmp / "game.engine.log")
         steps = self.run_argument_steps(log)
-        self.assertEqual(steps["given"][:2], (True, "--log-file " + log), "premise: given, the argument is set")
-        self.assertEqual(steps["after_save"][:2], (True, "--log-file " + log), "present and set after the save hook")
+        self.assertEqual(steps["given"][:2], (True, "--log-file " + log), "present and set once given")
 
-    def test_the_editors_log_argument_is_left_out_of_the_saved_project_when_forgotten(self):
-        """Forgotten (the editor closing), the setting is back at its default, which a saved project.godot omits; and
-        it is still there, not erased."""
+    def test_the_editors_log_argument_is_never_saved_into_the_project(self):
+        """A save of the project settings (the Project Settings dialog, a new autoload) writes `project.godot`, which is
+        tracked: it must not hold the argument at any step, the one Play reads included. The setting is not erased
+        either (a missing setting is a `Property not found` warning and a game started without the argument)."""
         steps = self.run_argument_steps(str(self.tmp / "game.engine.log"))
-        self.assertEqual(steps["forgotten"], (True, "", False), "present, empty, not in the saved project")
+        self.assertEqual(steps["start"], (True, "", False), "the editor opened: present, empty, not saved")
+        self.assertFalse(steps["given"][2], "given: not in a saved project.godot")
+        self.assertEqual(steps["forgotten"], (True, "", False), "forgotten: present, empty, not saved")
 
     def test_the_editors_log_argument_touches_nothing_without_a_game_log(self):
         """No `GAME_LOG_FILE` (an editor not started by tools/editor.sh): every step leaves the setting as it was."""

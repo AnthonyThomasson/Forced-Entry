@@ -6,9 +6,13 @@ extends EditorPlugin
 ## runs the main scene once the editor has finished its first scan.
 
 const GameLogArgument := preload("res://addons/ticket_autorun/game_log_argument.gd")
+## Seconds the autorun waits for the editor's first filesystem scan.
+const AUTORUN_DELAY := 2.0
 
 ## Toolbar label naming the worktree.
 var _label: Label
+## Seconds left before the autorun plays the main scene.
+var _countdown := 0.0
 
 
 func _enter_tree() -> void:
@@ -19,10 +23,12 @@ func _enter_tree() -> void:
 	_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.3))
 	add_control_to_container(CONTAINER_TOOLBAR, _label)
 	GameLogArgument.give()
+	set_process(false)
 	if OS.get_environment("GAME_AUTORUN").is_empty():
 		return
-	# Deferred a beat so the first filesystem scan finishes before the game is launched.
-	get_tree().create_timer(2.0).timeout.connect(_play, CONNECT_ONE_SHOT)
+	# A beat later, so the first filesystem scan finishes before the game is launched.
+	_countdown = AUTORUN_DELAY
+	set_process(true)
 
 
 func _exit_tree() -> void:
@@ -32,9 +38,15 @@ func _exit_tree() -> void:
 		_label.queue_free()
 
 
-## The editor's save hook: the game's `--log-file` argument stays set (`GameLogArgument`).
-func _save_external_data() -> void:
-	GameLogArgument.after_save()
+## Counts the autorun's delay down, then runs the main scene from here. Play opens a progress
+## dialog, which the editor refuses inside a signal's callback, a timer's included (an engine
+## error: the timer is erased twice, and the editor crashes now and then), and while the message
+## queue is flushed (`call_deferred`).
+func _process(delta: float) -> void:
+	_countdown -= delta
+	if _countdown <= 0.0:
+		set_process(false)
+		_play()
 
 
 ## The worktree's name: `GAME_TICKET` (set by `tools/editor.sh`), else the project directory's name.
