@@ -1,6 +1,6 @@
 # AI · Perception (`scenes/ai/perception/`)
 
-SENSE: turns the world into what the NPC *knows*, then into the snapshot the planner walks (`snapshot.md`). It holds no policy: it never decides, picks or gates by goal. One public face, `agent_perception.gd` (a `Node`); nothing outside this folder holds its internal modules.
+SENSE: turns the world into what the NPC *knows*, then into the snapshot the planner walks (`snapshot.md`). It holds no policy: it never decides or gates by goal. One public face, `agent_perception.gd` (a `Node`); nothing outside holds its modules.
 
 ## Files
 
@@ -15,6 +15,7 @@ The controller calls `setup()` once, then `apply_config(tuning)`, then `bind(cha
 
 ## Seeing
 
+- The interactables an NPC knows (`house.interactables`) are the pieces in its house's rooms; a district's other towers are scenery (`tests/ai/perception/district_npc_knows_house_furniture_only_test.gd`).
 - Sight cadence is staggered per NPC (`SIGHT_EVERY_FRAMES` in `perception_sight.gd`, `LEARN_EVERY_FRAMES` in `perception_house.gd`, both offset by the node's instance id) and `sense()` re-runs the learning look, so what is known at a decision is what is seen then. The range/cone test runs every frame: a character entering the cone is sighted at once, one leaving is dropped at once. A primed ambusher at its post (`sight.primed`) sights every frame (`docs/leadership.md` D37). `tests/ai/perception/sight_follows_a_moving_target_test.gd`.
 - `can_see` needs range, the awareness bubble or the forward cone, and a clear line on `PhysicsLayers.SOLID`. The sight line looks **over** low cover (`coverage` at or below `see_over_coverage`): `AgentVision.sight_hit` hands the line to General's `SightRay.hit` (interface 11), the one sight rule the player's view casts through too, so the NPCs see as they did before it moved there; `blocked()` / `raycast()` stay fully physical for line of fire and cover, so a table stops a bullet but not a glance. A collider whose surface says `transparent` (a glass-panel door's `get_surface().transparent`, interface 3) is looked through however tall (`SightRay.coverage_of` reads the surface: `transparent` rates 0, no readable coverage rates 100, a blocker), while `blocked()` still stops a bullet's line at the door (`tests/objects/door_blocks_test.gd`, `door_knocked_down_test.gd`). `enabled = false` is omniscient.
 - `tuning.memory.familiar_with_house` pre-knows every room and object; otherwise each must be seen. People are never pre-known.

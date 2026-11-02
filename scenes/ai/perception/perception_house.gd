@@ -80,7 +80,7 @@ func take_in(house_rooms: Array) -> void:
 	if not _post_set:
 		post = perception._character.global_position
 		_post_set = true
-	_ensure_interactables()
+	_ensure_interactables(house_rooms)
 	perception.grenades.throw.learn_carried()
 	perception.grenades.throw.learn_body()
 	_seed_house(house_rooms)
@@ -181,22 +181,29 @@ func known_object_ids() -> Dictionary:
 	return out
 
 
-## Scan the world once for objects that advertise interactions (static furniture), caching the refs.
-## Positions are read live each tick; the set itself doesn't change during a run.
-func _ensure_interactables() -> void:
+## Scan the world once for objects that advertise interactions (static furniture) and stand in a
+## room of the house (`house_rooms`; with none, anywhere), caching the refs. The house's furniture
+## is all the NPC knows of: a neighbour tower's pieces are outside it (a district's other towers are
+## scenery, not places to sit), and learning, remembering and offering them would cost every NPC a
+## look at each one all match long. Positions are read live each tick; the set itself doesn't change
+## during a run.
+func _ensure_interactables(house_rooms: Array) -> void:
 	if _scanned:
 		return
 	_scanned = true
 	interactables.clear()
 	var root: Node = perception._character.world_root()
 	if root != null:
-		_collect(root)
+		_collect(root, house_rooms)
 
 
-## Recursively gather descendants whose get_interactions() is non-empty into `interactables`.
-func _collect(node: Node) -> void:
+## Recursively gather descendants whose get_interactions() is non-empty into `interactables`, those
+## standing in a room of `house_rooms` (all of them with no rooms).
+func _collect(node: Node, house_rooms: Array) -> void:
 	for child in node.get_children():
 		if (child.has_method("get_interactions")
-				and not (child.get_interactions() as Array).is_empty()):
+				and not (child.get_interactions() as Array).is_empty()
+				and (house_rooms.is_empty()
+					or not HouseRooms.at(child.global_position, house_rooms).is_empty())):
 			interactables.append(child)
-		_collect(child)
+		_collect(child, house_rooms)

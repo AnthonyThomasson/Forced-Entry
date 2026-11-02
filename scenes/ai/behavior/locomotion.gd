@@ -36,12 +36,13 @@ enum Way {
 	DOORS,
 }
 
-## The parts (`crowd`, `give_way`, `stall`, `doors`).
+## The parts (`crowd`, `give_way`, `stall`, `doors`, `leaves`, `aim`).
 const Crowd := preload("res://scenes/ai/behavior/locomotion/loco_crowd.gd")
 const GiveWay := preload("res://scenes/ai/behavior/locomotion/loco_give_way.gd")
 const Stall := preload("res://scenes/ai/behavior/locomotion/loco_stall.gd")
 const Doors := preload("res://scenes/ai/behavior/locomotion/loco_doors.gd")
 const DoorLeaves := preload("res://scenes/ai/behavior/locomotion/loco_door_leaves.gd")
+const Aim := preload("res://scenes/ai/behavior/locomotion/loco_aim.gd")
 ## The walk's last-leg rule (`PASS_CLEARANCE`), held once with the doorway geometry that predicts
 ## it (`AgentEntry.slot_reach`).
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
@@ -87,6 +88,8 @@ var stall := Stall.new(self)
 var doors := Doors.new(self)
 ## The door leaves on the walk's way, opened or gone through by a clean gap: loco_door_leaves.gd.
 var leaves := DoorLeaves.new(self)
+## Pointing the agent at the goal only when that can change its path: loco_aim.gd.
+var aim := Aim.new(self)
 ## Pathfinding agent, or null (falls back to straight-line).
 var _agent: NavigationAgent2D
 ## The world's navigation map: furniture only, what points are snapped and tested on.
@@ -197,7 +200,7 @@ func _point(p: Vector2) -> Array:
 func reached(point: Vector2, within := 0.0) -> bool:
 	if _agent != null:
 		_begin(point, within)
-		_agent.target_position = _goal
+		aim.at(_agent, _goal)
 		_last_stretch()
 		return (_way != Way.HELD and _agent.is_navigation_finished()
 				and not leaves.detouring())
@@ -226,7 +229,7 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 				else straight.normalized())
 		return
 	_begin(dest, within)
-	_agent.target_position = _goal
+	aim.at(_agent, _goal)
 	_last_stretch()
 	give_way.kept_off = false
 	give_way.yielding = false
@@ -309,7 +312,7 @@ func _last_stretch() -> void:
 	else:
 		return  # A body stands on the goal: the hold and the free spot beside it are `_check`'s.
 	_set_way(Way.PLAIN)
-	_agent.target_position = _goal
+	aim.at(_agent, _goal)
 
 
 ## Put the walk on `way` and the agent on that way's map; a hold starts its clocks.

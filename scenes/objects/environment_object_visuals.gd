@@ -9,8 +9,6 @@ const EmissiveLayer = preload("res://scenes/objects/emissive_layer.gd")
 
 ## The piece's pixel-art texture, or null for the flat shape + label.
 var _art: Texture2D
-## Whether the Deformable's `changed` is connected yet.
-var _watching := false
 ## The global rotation the current drawing was made for (NAN = not drawn yet).
 var _drawn_rotation := NAN
 ## The art's light-giving pixels, or null when nothing in it gives light.
@@ -27,6 +25,10 @@ var _drop_shadow: Node2D
 
 
 func _ready() -> void:
+	# The Deformable is made by the object's own _ready, which runs after this node's: wire to it
+	# once the object is ready. No per-frame callback: a district holds hundreds of pieces, and a
+	# callback on each lengthens every process group a match walks.
+	set_notify_transform(true)
 	if _obj.look.art != "":
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		var opts: Dictionary = _obj.look.art_opts.merged({ "material": _obj.object_material }, true)
@@ -39,26 +41,17 @@ func _ready() -> void:
 		_drop_shadow.show_behind_parent = true
 		_drop_shadow.draw.connect(_draw_drop_shadow)
 		add_child(_drop_shadow)
+	if _obj.is_node_ready():
+		_watch_deformable()
+	else:
+		_obj.ready.connect(_watch_deformable, CONNECT_ONE_SHOT)
 
 
-## Redraws only when the picture can have changed: a recorded impact (the object's `Deformable` says
-## so). A turn swings the drop shadow (its offset is fixed in world space), which only moves its
-## child; a piece at rest, or just shoved sideways, keeps its drawing.
-func _process(_delta: float) -> void:
-	if not _watching:
-		# created by the object's _ready, which runs after this node's
-		var deformable = _obj.physics.deformable
-		if deformable:
-			deformable.changed.connect(queue_redraw)
-			if _emissive_layer:
-				deformable.changed.connect(_emissive_layer.queue_redraw)
-			if _drop_shadow:
-				deformable.changed.connect(_drop_shadow.queue_redraw)
-			_watching = true
-	if global_rotation != _drawn_rotation:
-		_drawn_rotation = global_rotation
-		if _drop_shadow:
-			_drop_shadow.position = _shadow_shift()
+## A turn swings the drop shadow (its offset is fixed in world space), which only moves its child; a
+## piece at rest, or just shoved sideways, keeps its drawing.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED and _obj.is_node_ready():
+		_follow_turn()
 
 
 func _draw() -> void:
@@ -85,6 +78,27 @@ func _draw() -> void:
 	shape_look.outline = text_color
 	Deformation.draw_shape(self, shape, size, impacts, shape_look)
 	_draw_name(text_color)
+
+
+## Wire the redraws once the object has made its Deformable (a recorded impact repaints the piece,
+## its light-source overlay and its drop shadow), and lay the drop shadow for the piece's turn.
+func _watch_deformable() -> void:
+	var deformable = _obj.physics.deformable
+	if deformable:
+		deformable.changed.connect(queue_redraw)
+		if _emissive_layer:
+			deformable.changed.connect(_emissive_layer.queue_redraw)
+		if _drop_shadow:
+			deformable.changed.connect(_drop_shadow.queue_redraw)
+	_follow_turn()
+
+
+## Lay the drop shadow for the piece's turn now, unless it is laid for it already.
+func _follow_turn() -> void:
+	if global_rotation != _drawn_rotation:
+		_drawn_rotation = global_rotation
+		if _drop_shadow:
+			_drop_shadow.position = _shadow_shift()
 
 
 ## Draw the object's name centered on it, in `text_color` (a piece with no art).

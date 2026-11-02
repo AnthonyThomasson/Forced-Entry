@@ -19,3 +19,9 @@ class_name NpcPaceTuning extends Node
 @export var posture_enabled: bool = true
 ## Seconds a crouch is held before the NPC stands again, so a peek-and-duck does not flicker.
 @export var posture_dwell: float = 0.7
+## Physics frames between a walk's path being asked of the navigation server again while its goal
+## and map stand (1 = every frame). Each ask scans every polygon of the map, so on a district's map
+## it is the biggest nav cost of a match; a walk keeps its path in between. A long wait lets a
+## walker that cuts a corner press into the wall (`NpcPaceTuning` is read by `loco_aim.gd`, which
+## says why).
+@export_range(1, 30) var reask_frames: int = 4

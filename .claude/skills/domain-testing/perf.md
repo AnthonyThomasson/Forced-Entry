@@ -70,6 +70,7 @@ library's pre-warm renders on a worker thread (`domain-audio`).
 - World-gen's first run in a process is slower (cold caches), so its budget covers the cold case.
 - Headless runs skip the sound pre-warm: a test that plays sound calls `Perf.warm_sounds()` first or turns `audio.sound`
   off, or the first play of each variant lands in its worst frame.
+- A district holds hundreds of pieces, so a script callback on each is a cost of every frame (it lengthens every process group a match sorts and walks): a piece's visuals and its blood smear run none while it rests (`objects/resting_piece_runs_no_per_frame_callback`, `physics/object_smear_sleeps_at_rest`).
 - A speed-up must not change what the game does: where a fast path replaces a plain algorithm, a test pins its output to
   the plain one (`navigation/furniture_union_fast_path`, `physics/blood_splat_merge_fast_path`,
   `physics/convex_pieces_match_plain_scan`, `physics/shape_polygon_cache`).

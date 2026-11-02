@@ -53,6 +53,10 @@ const AGENT_RADIUS := 14.0
 const SNAP_WITHIN_STEP := 8.0
 ## Within this many px of a point a route `snap_within` reads has reached it.
 const SNAP_REACHED := 2.0
+## Most answers kept per map before they are dropped to start afresh.
+const SNAPS_KEPT := 4096
+## Most maps whose answers are kept.
+const SNAP_MAPS_KEPT := 32
 
 ## The steering map made for each world navigation map (planning map RID -> steering map RID), and
 ## how many steering regions stand on it. The map is freed with its last region.
@@ -76,6 +80,9 @@ static var avoid_idle_ms: int = 20_000
 ## Body instance id -> [`_hull_inputs`, hull] as `_body_hull` last made it. Entries of freed bodies
 ## are dropped once it holds `HULLS_KEPT`.
 static var _hulls := {}
+## `snap`'s answers per map: { iteration (the map's when they were asked), points: { point: answer }
+## }.
+static var _snaps: Dictionary = {}
 
 
 ## Build and add a NavigationRegion2D under `parent`, covering `rooms` (each `{ key, type, rect }`
@@ -917,11 +924,28 @@ static func _forget_region(map: RID, entry: Dictionary) -> void:
 
 
 ## `p` snapped onto the navmesh (a room's geometric centre is often inside furniture); unchanged
-## before the map is baked.
+## before the map is baked. The server scans every polygon of the map for it, so a point asked again
+## is answered from what was learned while the map's iteration stands (the same answer the server
+## gives; a re-bake starts the answers afresh).
 static func snap(map: RID, p: Vector2) -> Vector2:
 	if not ready(map):
 		return p
-	return NavigationServer2D.map_get_closest_point(map, p)
+	var iteration := NavigationServer2D.map_get_iteration_id(map)
+	var kept: Dictionary = _snaps.get(map, {})
+	if kept.get(
+		"iteration",
+		-1,
+	) != iteration or (kept["points"] as Dictionary).size() >= SNAPS_KEPT:
+		if _snaps.size() > SNAP_MAPS_KEPT:
+			_snaps.clear()  # maps come and go with the worlds: start afresh
+		kept = { "iteration": iteration, "points": {} }
+		_snaps[map] = kept
+	var points: Dictionary = kept["points"]
+	if points.has(p):
+		return points[p]
+	var answer := NavigationServer2D.map_get_closest_point(map, p)
+	points[p] = answer
+	return answer
 
 
 ## `p` snapped onto the navmesh inside `rect` (a room's rectangle) where a route from `from` (a

@@ -10,7 +10,9 @@ extends Node
 ## (`BloodSmearConfig.decay_per_px`), tapers to a point where it ends and, once the load is low,
 ## breaks into dry-brush dashes. Over blood already on the floor a ribbon is see-through and it
 ## eases in along its first px, so the smear flows out of a puddle with no edge. Nothing is laid
-## with BloodSmearConfig.enabled off.
+## with BloodSmearConfig.enabled off. It steps (`_physics_process`) only while the body is awake: a
+## sleeping body, and a frozen one (an anchored piece), cannot move, and a district holds hundreds
+## of them.
 
 ## A finger's decay, width and pickup vary by up to this fraction, so streaks end and thicken
 ## unevenly.
@@ -36,20 +38,42 @@ func _init() -> void:
 	_noise.seed = randi()
 
 
+func _ready() -> void:
+	var body := get_parent() as RigidBody2D
+	if body != null:
+		body.sleeping_state_changed.connect(_on_body_sleeping_changed.bind(body))
+
+
 func _physics_process(_delta: float) -> void:
 	var body := get_parent() as RigidBody2D
 	if (body == null
 			or _fingers.is_empty()
 			or not (BloodConfig.enabled and BloodSmearConfig.enabled)):
 		return
+	if body.freeze:
+		_rest()
+		set_physics_process(false)  # A frozen body never moves.
+		return
 	if body.linear_velocity.length() < BloodSmearConfig.min_speed:
-		for f in _fingers:
-			f["prev"] = null  # at rest: the next move starts a fresh ribbon
-			f["ribbon"] = null
-			f["run"] = 0.0
+		_rest()
 		return
 	for f in _fingers:
 		_drag(f, body.to_global(f["local"]), body)
+
+
+## The body fell asleep (the fingers rest and the step stops) or woke (the step resumes).
+func _on_body_sleeping_changed(body: RigidBody2D) -> void:
+	if body.sleeping:
+		_rest()
+	set_physics_process(not body.sleeping)
+
+
+## At rest: the next move starts a fresh ribbon.
+func _rest() -> void:
+	for f in _fingers:
+		f["prev"] = null
+		f["ribbon"] = null
+		f["run"] = 0.0
 
 
 ## Lay the fingers out across `polygon` (the body's footprint, local space). Resets their blood.

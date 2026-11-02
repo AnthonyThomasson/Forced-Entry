@@ -53,7 +53,7 @@ solid pieces only, re-fed the footprint polygon when the collider is rebuilt.
 - The drop shadow (the visuals' `DropShadow` child) is the art's own alpha through the deformed outline, offset away from the
   light by `coverage × drop_shadow_per_coverage`, capped; non-solid decor casts none. A turn moves the child (`_shadow_shift`),
   it repaints nothing (`tests/objects/drop_shadow_follows_turn_test.gd`).
-- A piece repaints (art and shadow) only when its `Deformable` records an impact, not each frame (a house has ~90 pieces); the
+- A piece repaints (art and shadow) only when its `Deformable` records an impact, not each frame (a house has ~90 pieces, a district hundreds); the visuals run no `_process` at all: the Deformable is wired once the object is ready, and the shadow follows a turn on `NOTIFICATION_TRANSFORM_CHANGED` (`tests/objects/resting_piece_runs_no_per_frame_callback_test.gd`); the
   art is drawn through `Deformation.draw_shape(..., shape_look)` so dents cut into it. A wall draws each segment in its own child
   (`Segment<i>`), so a hit repaints that segment alone (`tests/objects/wall_segment_repaints_alone_test.gd`).
 - A hit queues one deferred collider rebuild however many hits land first (a wall: one per struck segment, `_rebuild_queued`).

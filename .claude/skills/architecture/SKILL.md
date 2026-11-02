@@ -9,7 +9,7 @@ A top-down Godot 4.4 demo: a pixel-art character in a procedurally furnished hou
 
 ## The seventeen domains
 
-A folded sub-domain is a side file of its parent skill: `.claude/skills/<skill>/<name>.md`.
+A folded sub-domain is a side file `.claude/skills/<skill>/<name>.md`.
 
 | Domain | Folder | Skill | Owns |
 |---|---|---|---|
@@ -90,9 +90,9 @@ every domain ──▶ general
 
 ## Cross-cutting conventions
 
-- **Layered control / animate / draw.** Within an entity the three verbs live in separate files wired through the scene tree. Scene scripts have no `class_name` (a typed component's has), and cross-file calls resolve through `$` / `get_parent()`. A draw file sits on its own child `Node2D` (only `CanvasItem`s draw). A parent's `_physics_process` runs before its children's. Two exceptions: a primed ambusher's body runs at `process_physics_priority` 1 (`docs/leadership.md` D37, interface 7), and a `Vehicle` at -1, so it moves before the characters it strikes; Character's children keep no priority of their own.
-- **Runtime shapes.** Collision shapes are built in code in `_ready()`. The editor's "no shape" warning on `CollisionShape2D` in `character_base.tscn` is expected; keep scene shapes out.
-- **Typed components.** A body too big for one file splits into typed components held as public properties (`character.movement`, `character.inventory`, …), each one topic, ≤ 15 vars and 20 public methods (gdstyle's `max-class-variables`, `max-public-methods`). Callers name the component; the body keeps no forwarders. A component is a `class_name` `RefCounted`, or a `class_name` Node where a scene authors it. A polymorphic base splits per concern into small bases its kinds subclass (`item.art`, `item.ammo`); what differs by kind only as data goes in the kind's config row. ADRs 0004 to 0008. The AI's parts, owner references and the shell: `typed-components.md`.
+- **Layered control / animate / draw.** Within an entity the three verbs live in separate files wired by the scene tree. Scene scripts have no `class_name` (a typed component's has), and cross-file calls resolve through `$` / `get_parent()`. A draw file sits on its own child `Node2D` (only `CanvasItem`s draw). A parent's `_physics_process` runs first. Two exceptions: a primed ambusher's body runs at `process_physics_priority` 1 (`docs/leadership.md` D37, interface 7), and a `Vehicle` at -1, so it moves before the characters it strikes; Character's children keep none.
+- **Runtime shapes.** Collision shapes are built in code in `_ready()`. The editor's "no shape" warning in `character_base.tscn` is expected; keep scene shapes out.
+- **Typed components.** A body too big for one file splits into typed components held as public properties (`character.movement`, `character.inventory`, …), each one topic, ≤ 15 vars and 20 public methods (gdstyle's `max-class-variables`, `max-public-methods`). Callers name the component; no forwarders. A component is a `class_name` `RefCounted`, or a `class_name` Node where a scene authors it. A polymorphic base splits per concern into small bases its kinds subclass (`item.art`, `item.ammo`); what differs by kind only as data goes in the kind's config row. ADRs 0004 to 0008. The AI's parts, owner references and the shell: `typed-components.md`.
 - **Tuning** lives in `class_name` static holders, one per topic, ≤ 15 vars (ADR 0003); there is no `Config` autoload: `tuning-holders.md`.
 
 ## Running and verifying

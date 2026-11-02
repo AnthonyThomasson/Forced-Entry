@@ -69,32 +69,9 @@ it (flank, fire and retreat spots, route length and exposure, entry slots, searc
 them. Only a `NavigationAgent2D` walks the steering map, chosen per walk by the AI's `Locomotion` (`domain-ai` (`behavior-locomotion.md`)).
 The map carves every body at rest, seen or not; which bodies a walk accounts for is the walker's business.
 
-## A district's steering map: tiles (`nav_tiles.gd`)
+## A district's tiles and the avoid maps
 
-`build` with a `bounds` rect (a district: `house` its root, `rooms` every tower's, `bounds` = `WorldGen.district_bounds`) bakes the planning
-region over the whole rect and the steering map as 512 px tile regions (`NavSteering_<column>_<row>`, children of the planning
-region, `steering_regions(region)`). A tile is baked from its own walls, furniture and characters (`BORDER` 40 px past its edge, so neighbours meet) **only when those changed since its last bake**, so a character
-stopping re-bakes one to four tiles: ~5 ms a tick, not ~57
-(`steering_tiles_rebake_touched_test.gd`, `perf/bake_and_path_stress`). A lone house keeps one `NavSteering` region.
-
-- **Walls are parsed tower by tower** and kept on the planning region (`NavTiles.walls_reaching`): a tile re-parses the towers reaching it,
-  the planning re-bake takes every tower's from the cache and re-parses those near a moved piece. A wall shot up where nothing stands or
-  moves waits for the next change there.
-- **The steering re-bake lands in its tick's frame, house or district** (`nav_updater.gd`; `steering_rebake_lands_in_its_tick_test.gd`): a
-  held walker re-looks for a way round a body every `RECHECK` s and the map answers a frame after the re-bake, so a late one costs a whole
-  `RECHECK`. A district's planning gather waits a frame; the planning region stays whole and async.
-
-## Avoid maps (`avoid_map`)
-
-A walk that should keep out of some floor (the AI's doorway views, `docs/tactical-entry.md` E18) plans on a map with it carved out:
-`avoid_map(region, key, holes) -> RID` (`region` is the planning region, `planning_region(planning_map)` finds it; `holes` closed
-world-space polygons; `key` names the set). The planning bake keeps its source on its region, so the avoid
-bake is the same geometry plus the holes, fused, snapped, welded. Each key gets a map of its own with one child region `NavAvoid`,
-baked on the server's worker thread (`ready(map)` is false until it answers). Asking again returns the same map and marks it
-asked; once the planning bake is redone it is baked again in place, the old mesh answering meanwhile. A map nobody asked for in
-`avoid_idle_ms` is freed with its region by the next ask for another key on the same planning map (the sweep runs only inside
-`avoid_map`), and every one is freed with its world. Invalid when the region has no bake. Test:
-`tests/navigation/avoid_map_carves_the_views_test.gd`.
+`district-tiles-and-avoid.md`: with a `bounds` rect `build` bakes the planning region over the whole district and the steering map as 512 px tile regions (`NavSteering_<column>_<row>`), each re-baked only when its walls, furniture or characters changed; `avoid_map(region, key, holes)` is a map with some floor carved out for a walk that keeps out of it (the AI's doorway views). A lone house keeps one `NavSteering` region.
 
 ## Keeping the holes current (`nav_updater.gd`)
 
@@ -134,7 +111,7 @@ old mesh (`map_force_update` does not change that) and a room's centre snaps to 
 that region. `tests/ai/perception/room_zones_inside_their_rooms_test.gd` pins it; the match builder's stage waits on it
 (`wait_nav`: planning and steering map) before any NPC is placed (`tests/general/match_nav_ready_before_spawn_test.gd`).
 
-`snap(map, p)` returns `p` until then, else the closest navmesh point (a room's centre is often inside furniture);
+`snap(map, p)` returns `p` until then, else the closest navmesh point (a room's centre is often inside furniture), kept per map iteration: the server scans every polygon of the map for it, so a point asked again while the map stands is answered from what was learned (a re-bake starts afresh; `navigation/snap_follows_a_rebake`, `perf/nav_snap_repeat_stress`);
 `snap_within(map, p, rect, from)` keeps that point in `rect` (a room) on floor a route from `from` (the doorway's) reaches: `p` stepped
 toward the room's centre, then `from`, every `SNAP_WITHIN_STEP` (8 px) until its snap lands inside and is reached (`SNAP_REACHED`), else
 `from`'s snap: a corner filled with furniture snaps through a thin wall, and a walled-off pocket routes round the outside
