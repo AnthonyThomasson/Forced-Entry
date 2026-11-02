@@ -564,6 +564,9 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	var nav_rooms: Array = site["rooms"]
 	var bounds: Rect2 = site["bounds"]
 	var nav_region := NavBuilder.build(root, nav_rooms, world, NavBuilder.AGENT_RADIUS, bounds)
+	if root != house and nav_region != null:
+		# A district plans in the building the match is fought in, on a small map of its own.
+		NavBuilder.plan_ring(nav_region, root, rooms)
 	var nav_debug: Node2D = NAV_DEBUG.new()
 	nav_debug.name = "NavDebug"
 	world.add_child(nav_debug)

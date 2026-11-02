@@ -5,7 +5,7 @@ description: Use when editing scenes/navigation/ or working on nav baking, furni
 
 # Navigation domain (`scenes/navigation/`)
 
-A leaf: it builds the maps; everyone else pathfinds. It takes a plain `rooms` array and a Node and depends only on Godot's
+A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array and a Node and depends only on Godot's
 `NavigationServer2D`. Interface 9 (Main / Testing / AI → Navigation). Tests: `tests/navigation/`.
 
 | File | Role |
@@ -15,6 +15,8 @@ A leaf: it builds the maps; everyone else pathfinds. It takes a plain `rooms` ar
 | `nav_leaves.gd` (`NavLeaves`) | All static: the house doors (`doors_of`, by the group) and the hole an open leaf leaves (`hole`). |
 | `nav_updater.gd` | Script-only Node that re-bakes on an interval. |
 | `nav_tiles.gd` (`NavTiles`) | A district's steering tiles, and the per-tower wall cache. |
+| `nav_ring.gd` (`NavRing`) | A district's planning ring: a small map of the match building. |
+| `nav_ready.gd`, `nav_snaps.gd` | `NavReady`: does a map answer yet. `NavSnaps`: what `snap` learned. |
 | `nav_union.gd` (`NavUnion`) | Fuses overlapping footprints. |
 | `nav_weld.gd` (`NavWeld`) | A bake's end: vertices welded, slivers dropped. |
 | `nav_debug.gd` | Draw-only overlay of the holes. |
@@ -27,7 +29,7 @@ wall colliders, so doorways stay open, minus a **hole per solid furniture footpr
 round furniture and through another doorway when the near one is blocked (a piece sealing the only route leaves the far side
 unreachable: the AI's cue to shove through). The bake runs in the house's local frame and the region is offset by `house.position`.
 `MatchBuilder.stage` calls it once after the house is built (Main's match and every test world alike). Every bake gathers
-its source the same way, so all carve holes identically; the default radius is `NavBuilder.AGENT_RADIUS`.
+its source the same way, so all carve holes identically (default radius `NavBuilder.AGENT_RADIUS`).
 
 - **Doors are left out of every bake** (interface 9, `docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`). A house `Door`
   is an `AnimatableBody2D`, which the engine's static-collider parse reads as a wall, so a shut door would seal its doorway in the map.
@@ -69,9 +71,9 @@ it (flank, fire and retreat spots, route length and exposure, entry slots, searc
 them. Only a `NavigationAgent2D` walks the steering map, chosen per walk by the AI's `Locomotion` (`domain-ai` (`behavior-locomotion.md`)).
 The map carves every body at rest, seen or not; which bodies a walk accounts for is the walker's business.
 
-## A district's tiles and the avoid maps
+## A district's tiles, planning ring and the avoid maps
 
-`district-tiles-and-avoid.md`: with a `bounds` rect `build` bakes the planning region over the whole district and the steering map as 512 px tile regions (`NavSteering_<column>_<row>`), each re-baked only when its walls, furniture or characters changed; `avoid_map(region, key, holes)` is a map with some floor carved out for a walk that keeps out of it (the AI's doorway views). A lone house keeps one `NavSteering` region.
+`district-tiles-and-avoid.md`: with a `bounds` rect `build` bakes the planning region over the whole district and the steering map as 512 px tiles, each re-baked only when its walls, furniture or characters changed; `plan_ring` adds the **planning ring**, a small map of the match building that `snap`, `snap_within` and `route` answer from when every point lies in it; `avoid_map` carves floor out of a walk's map.
 
 ## Keeping the holes current (`nav_updater.gd`)
 

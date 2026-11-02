@@ -53,20 +53,11 @@ const AGENT_RADIUS := 14.0
 const SNAP_WITHIN_STEP := 8.0
 ## Within this many px of a point a route `snap_within` reads has reached it.
 const SNAP_REACHED := 2.0
-## Most answers kept per map before they are dropped to start afresh.
-const SNAPS_KEPT := 4096
-## Most maps whose answers are kept.
-const SNAP_MAPS_KEPT := 32
 
 ## The steering map made for each world navigation map (planning map RID -> steering map RID), and
 ## how many steering regions stand on it. The map is freed with its last region.
 static var _steering_maps: Dictionary = {}
 static var _steering_regions: Dictionary = {}
-## The regions a map has been given but may not have taken in yet (map RID -> Array of
-## `{ region: RID, probe: Vector2 }`). A map synchronizes on a worker thread, a frame or more after
-## a region joins it; until the region answers a query, `ready` is false (see there). An entry
-## leaves when its region answers, or when the region leaves the tree.
-static var _awaiting: Dictionary = {}
 ## The planning region `build` put on each world map (planning map RID -> region), for
 ## `planning_region`.
 static var _planning_regions: Dictionary = {}
@@ -80,9 +71,6 @@ static var avoid_idle_ms: int = 20_000
 ## Body instance id -> [`_hull_inputs`, hull] as `_body_hull` last made it. Entries of freed bodies
 ## are dropped once it holds `HULLS_KEPT`.
 static var _hulls := {}
-## `snap`'s answers per map: { iteration (the map's when they were asked), points: { point: answer }
-## }.
-static var _snaps: Dictionary = {}
 
 
 ## Build and add a NavigationRegion2D under `parent`, covering `rooms` (each `{ key, type, rect }`
@@ -122,12 +110,25 @@ static func build(
 		)
 		_add_steering_region(region, NavSite.new(house, rooms, agent_radius, bounds), nav_poly)
 		var probe: Vector2 = (rooms[0]["rect"] as Rect2).get_center()
-		_await_region(region.get_world_2d().navigation_map, region, probe)
+		NavReady.await_region(region.get_world_2d().navigation_map, region, probe)
 		for steering in steering_regions(region):
 			var at: Vector2 = NavTiles.probe_of(steering, probe)
 			if at != Vector2.INF:
-				_await_region(steering.get_navigation_map(), steering, at)
+				NavReady.await_region(steering.get_navigation_map(), steering, at)
 	return region
+
+
+## Give a district's planning `region` (what `build` returned for it) its planning ring: a second,
+## small planning map of `focus` (the rooms of the building the match is fought in, world space) and
+## the outdoor ring round them, which `snap`, `snap_within` and `route` answer from when every point
+## they weigh lies in it (`NavRing`). A lone house has none and plans on its one map.
+static func plan_ring(
+	region: NavigationRegion2D,
+	house: Node2D,
+	focus: Array,
+	agent_radius: float = AGENT_RADIUS,
+) -> void:
+	NavRing.add(region, house, focus, agent_radius)
 
 
 ## What a re-bake of `region` (the planning region `build` returned) over `house` and its `rooms` is
@@ -153,11 +154,16 @@ static func rebake(
 	rooms: Array,
 	agent_radius: float = AGENT_RADIUS,
 ) -> void:
-	var job := _source_for(site_of(region, house, rooms, agent_radius))
+	var site := site_of(region, house, rooms, agent_radius)
+	var furniture := furniture_holes(house)
+	var job := _source_for(site, [], furniture)
 	if job.is_empty():
 		return
 	region.navigation_polygon = _bake_job(job, house.position)
 	_remember_source(region, job)
+	var ring := NavRing.job(region, site, furniture, {})
+	if not ring.is_empty():
+		NavRing.region_of(region).navigation_polygon = _bake_job(ring, house.position)
 
 
 ## Re-bake the steering region under `region` (the planning one `build` returned) with the furniture
@@ -356,19 +362,33 @@ static func _rebake_async(region: NavigationRegion2D, site: NavSite, furniture: 
 		if done.is_valid():
 			done.call()
 		return
-	var nav_poly: NavigationPolygon = job["poly"]
-	var origin := site.house.position
 	_remember_source(region, job)
-	# Held weakly: a lambda that captures a node freed before it runs logs an engine error (a world
-	# torn down mid-bake).
+	# The planning ring is re-baked with it, from the same footprints and walls, and `done` waits
+	# for both.
+	var ring := NavRing.job(region, site, furniture, walls)
+	var waiting := [1 if ring.is_empty() else 2]
+	var landed := func() -> void:
+		waiting[0] -= 1
+		if waiting[0] == 0 and done.is_valid():
+			done.call()
+	_bake_async(region, job, site.house.position, landed)
+	if not ring.is_empty():
+		_bake_async(NavRing.region_of(region), ring, site.house.position, landed)
+
+
+## `job` (`_source_for`) baked on the server's worker thread and assigned to `region` when it lands,
+## then `landed` called. Held weakly: a lambda that captures a node freed before it runs logs an
+## engine error (a world torn down mid-bake).
+static func _bake_async(region: NavigationRegion2D, job: Dictionary, origin: Vector2,
+		landed: Callable) -> void:
+	var nav_poly: NavigationPolygon = job["poly"]
 	var region_ref: WeakRef = weakref(region)
 	NavigationServer2D.bake_from_source_geometry_data_async(nav_poly, job["source"], func() -> void:
 		_finish(nav_poly, origin)
 		var target := region_ref.get_ref() as NavigationRegion2D
 		if target != null:
 			target.navigation_polygon = nav_poly
-		if done.is_valid():
-			done.call())
+		landed.call())
 
 
 ## Bake a NavigationPolygon for `site` (its house over its rooms at its agent radius): the house
@@ -815,7 +835,7 @@ static func avoid_map(region: NavigationRegion2D, key: String, holes: Array) -> 
 	}
 	entries[key] = entry
 	region.add_child(avoid_region)
-	_await_region(map, avoid_region, region.global_position)
+	NavReady.await_region(map, avoid_region, region.global_position)
 	avoid_region.tree_exited.connect(_on_avoid_region_exited.bind(planning_map, key, map))
 	_bake_avoid(region, entry, holes)
 	return map
@@ -890,37 +910,11 @@ static func _remember_source(region: NavigationRegion2D, job: Dictionary) -> voi
 ## with the previous navmesh (the menu's, the last match's), and it takes the new house in only a
 ## frame or so later. Until then a query still answers from the old mesh (a point snapped onto it
 ## lies nowhere near the house), so the callers treat the map as unbaked, the way they do before the
-## first bake, and read the plain point and a straight route instead.
+## first bake, and read the plain point and a straight route instead. A district's map is ready once
+## its planning ring (`NavRing`) is too.
 static func ready(map: RID) -> bool:
-	if not map.is_valid() or NavigationServer2D.map_get_iteration_id(map) == 0:
-		return false
-	var waiting: Array = _awaiting.get(map, [])
-	for entry in waiting.duplicate():
-		# Asked only after the map's first sync: before it the query is an engine error.
-		if NavigationServer2D.map_get_closest_point_owner(map, entry["probe"]) == entry["region"]:
-			waiting.erase(entry)
-	if waiting.is_empty():
-		_awaiting.erase(map)
-		return true
-	return false
-
-
-## Note that `region`, just added to `map`, is not in the map's queries until one at `probe` (a
-## world point on the region) is answered by it. Forgotten when the region leaves the tree.
-static func _await_region(map: RID, region: NavigationRegion2D, probe: Vector2) -> void:
-	var entry := { "region": region.get_rid(), "probe": probe }
-	var waiting: Array = _awaiting.get(map, [])
-	waiting.append(entry)
-	_awaiting[map] = waiting
-	region.tree_exited.connect(_forget_region.bind(map, entry), CONNECT_ONE_SHOT)
-
-
-## Drop `entry` from `map`'s awaited regions (its region left the tree).
-static func _forget_region(map: RID, entry: Dictionary) -> void:
-	var waiting: Array = _awaiting.get(map, [])
-	waiting.erase(entry)
-	if waiting.is_empty():
-		_awaiting.erase(map)
+	var ring := NavRing.map_of(map)
+	return NavReady.taken_in(map) and (not ring.is_valid() or NavReady.taken_in(ring))
 
 
 ## `p` snapped onto the navmesh (a room's geometric centre is often inside furniture); unchanged
@@ -930,22 +924,7 @@ static func _forget_region(map: RID, entry: Dictionary) -> void:
 static func snap(map: RID, p: Vector2) -> Vector2:
 	if not ready(map):
 		return p
-	var iteration := NavigationServer2D.map_get_iteration_id(map)
-	var kept: Dictionary = _snaps.get(map, {})
-	if kept.get(
-		"iteration",
-		-1,
-	) != iteration or (kept["points"] as Dictionary).size() >= SNAPS_KEPT:
-		if _snaps.size() > SNAP_MAPS_KEPT:
-			_snaps.clear()  # maps come and go with the worlds: start afresh
-		kept = { "iteration": iteration, "points": {} }
-		_snaps[map] = kept
-	var points: Dictionary = kept["points"]
-	if points.has(p):
-		return points[p]
-	var answer := NavigationServer2D.map_get_closest_point(map, p)
-	points[p] = answer
-	return answer
+	return NavSnaps.closest(NavRing.map_for(map, [p]), p)
 
 
 ## `p` snapped onto the navmesh inside `rect` (a room's rectangle) where a route from `from` (a
@@ -958,10 +937,14 @@ static func snap(map: RID, p: Vector2) -> Vector2:
 static func snap_within(map: RID, p: Vector2, rect: Rect2, from: Vector2) -> Vector2:
 	if not ready(map):
 		return p
+	var asked := NavRing.map_for(map, [p, rect.get_center(), from])
 	for toward in [rect.get_center(), from]:
 		var steps := maxi(1, ceili(p.distance_to(toward) / SNAP_WITHIN_STEP))
 		for i in steps + 1:
-			var q := NavigationServer2D.map_get_closest_point(map, p.lerp(toward, float(i) / steps))
+			var q := NavigationServer2D.map_get_closest_point(
+				asked,
+				p.lerp(toward, float(i) / steps),
+			)
 			if rect.has_point(q) and route(map, from, q)[-1].distance_to(q) <= SNAP_REACHED:
 				return q
 	return snap(map, from)
@@ -980,7 +963,11 @@ static func leaf_in_map(door: Node) -> bool:
 static func route(map: RID, from: Vector2, to: Vector2) -> PackedVector2Array:
 	if not ready(map):
 		return PackedVector2Array([from, to])
-	var path := NavigationServer2D.map_get_path(map, from, to, true)
+	var asked := NavRing.map_for(map, [from, to])
+	var path := NavigationServer2D.map_get_path(asked, from, to, true)
+	if asked != map and not NavRing.keeps(asked, path, to):
+		# The ring cannot get there, or not by a way inside it: the district's map can say.
+		path = NavigationServer2D.map_get_path(map, from, to, true)
 	return path if path.size() >= 2 else PackedVector2Array([from, to])
 
 

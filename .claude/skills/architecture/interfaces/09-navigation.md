@@ -32,6 +32,14 @@
 	 the bake or with no path), `path_length(path) -> float`. Every user goes through these (AI locomotion, tactics and entry geometry,
 	 grenade escape plan, snapshot options, routes overlay, the squad's follow spots, `PlayerStack`, the match builder's wait), so the "is
 	 the map baked yet" rule lives in one place.
+   - **A district's planning ring**, the AI's planning map in a district: `NavBuilder.plan_ring(region, house, focus, agent_radius = NavBuilder.AGENT_RADIUS)`
+	 (`MatchBuilder.stage` calls it for a district; `focus` the rooms of the building the match is fought in) adds `NavRing`, a small map of that
+	 building and its outdoor ring (`BOUNDS_PAD`), baked from the same walls and furniture as the world's map and re-baked with it, because
+	 the server scans every polygon of a map for a query (a route is 54 us on a district's ~800 polygons, 11 us on a house's). **The AI does not
+	 know of it**: `snap`, `snap_within` and `route` take the world map as ever and answer from the ring when every point they weigh lies well
+	 inside it (`NavRing.MARGIN`), else from the world's map, and a route the ring cannot finish is asked of the world's map; `ready(map)` also
+	 waits for the ring. A lone house has no ring and one planning map. Walking, steering and the avoid maps stay on the world's maps.
+	 `NavRing.region_of(region)` / `map_of(planning_map)` / `map_for(map, points)` are for Navigation's tests and the perf guard.
    - **Avoid maps**, for a walk that keeps out of some floor (the AI's doorway views, `docs/tactical-entry.md` E18):
 	 `NavBuilder.avoid_map(region, key, holes) -> RID` (`region`: the planning region `build` returned, found from a world map by
 	 `NavBuilder.planning_region(planning_map) -> NavigationRegion2D`; `holes`: world-space polygons; `key` names the set): a map of its own
