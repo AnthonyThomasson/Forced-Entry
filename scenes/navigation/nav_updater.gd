@@ -70,10 +70,14 @@ func setup(
 ## holes at the live positions on the server's worker thread (`NavBuilder._rebake_async`; a
 ## furniture move while one is in flight waits for the next tick) and the steering region's in
 ## place; if only a character has, re-carve the steering region. Refreshes the overlay after either.
-## Skips the bake entirely when nothing has moved. Measuring the footprints, gathering the planning
-## bake and re-baking the steering region are each a frame of their own (the footprints are the
-## ones measured first): a district's gather is a few ms a step, a frame that did all three would be
-## the sum.
+## Skips the bake entirely when nothing has moved. The steering re-bake always lands in the frame of
+## the tick that measured the change, house or district: a walker held short of a body at rest looks
+## for a way round it every `RECHECK` s, which the steering map answers a frame after the re-bake,
+## so a re-bake a frame later than the tick lands that look a frame short and the walker waits a
+## whole `RECHECK` more (`tests/navigation/steering_rebake_lands_in_its_tick_test.gd`). A district's
+## planning gather is a few ms a step and the tile re-bake ~5 ms, so its gather and async bake wait
+## a frame (a frame that did both would be the sum); a lone house's bakes are cheap and go together,
+## walls parsed once.
 func _on_tick() -> void:
 	if not enabled or _region == null or not is_instance_valid(_house) or _busy:
 		return
@@ -82,29 +86,37 @@ func _on_tick() -> void:
 	var furniture_moved := _moved(_baseline, furniture)
 	if not furniture_moved and not _moved(_character_baseline, characters):
 		return
-	# Both bakes carve the footprints just measured and the walls parsed once: nothing has moved
-	# since, so measuring or parsing again would give the same. A tick with no planning bake leaves
-	# the walls to the steering bake: a district's tiles parse only the towers they reach.
+	# Both bakes carve the footprints just measured; a house's walls are parsed once for both. A
+	# district's tiles parse the towers they reach, and its planning gather the rest a frame later.
 	_busy = true
 	var site := NavBuilder.site_of(_region, _house, _rooms, _agent_radius)
+	var planning := furniture_moved and not _baking
+	var staged := site.bounds.has_area()
 	var walls := {}
-	if furniture_moved and not _baking:
-		await get_tree().process_frame
-		if not _alive():
-			return
-		walls = NavTiles.walls_after(_region, site, _baseline, furniture)
-		_baking = true
-		NavBuilder._rebake_async(_region, site, furniture, func() -> void:
-			_baking = false
-			_baseline = furniture
-			_refresh_overlay(), walls)
-	await get_tree().process_frame
-	if not _alive():
-		return
+	if planning and not staged:
+		walls = _rebake_planning(site, furniture)
 	NavBuilder._rebake_steering(_region, site, furniture, characters, walls)
 	_character_baseline = characters
 	_refresh_overlay()
+	if planning and staged:
+		await get_tree().process_frame
+		if not _alive():
+			return
+		_rebake_planning(site, furniture)
 	_busy = false
+
+
+## Gather the planning bake of `site` from the furniture footprints `furniture` and start it on the
+## server's worker thread; the baseline is set from what it carved when it lands. Returns the walls
+## it parsed, for a house's steering bake to share.
+func _rebake_planning(site: NavSite, furniture: Array) -> Dictionary:
+	var walls := NavTiles.walls_after(_region, site, _baseline, furniture)
+	_baking = true
+	NavBuilder._rebake_async(_region, site, furniture, func() -> void:
+		_baking = false
+		_baseline = furniture
+		_refresh_overlay(), walls)
+	return walls
 
 
 ## Whether the updater's region and house are still standing after a wait (the match may have been

@@ -13,7 +13,7 @@ A leaf: it builds the maps; everyone else pathfinds. It takes a plain `rooms` ar
 | `nav_builder.gd` (`NavBuilder`) | All static: bake, re-bake, the holes, the steering and avoid maps, `ready` / `snap` / `route` / `path_length`. |
 | `nav_site.gd` (`NavSite`) | The source geometry's inputs: the house, its rooms, the agent radius and a district's explicit `bounds`. |
 | `nav_leaves.gd` (`NavLeaves`) | All static: the house doors (`doors_of`, by the group) and the hole an open leaf leaves (`hole`). |
-| `nav_updater.gd` | Script-only Node that re-bakes on an interval, a frame a step. |
+| `nav_updater.gd` | Script-only Node that re-bakes on an interval. |
 | `nav_tiles.gd` (`NavTiles`) | A district's steering tiles, and the per-tower wall cache. |
 | `nav_union.gd` (`NavUnion`) | Fuses overlapping footprints. |
 | `nav_weld.gd` (`NavWeld`) | A bake's end: vertices welded, slivers dropped. |
@@ -80,8 +80,9 @@ stopping re-bakes one to four tiles: ~5 ms a tick, not ~57
 - **Walls are parsed tower by tower** and kept on the planning region (`NavTiles.walls_reaching`): a tile re-parses the towers reaching it,
   the planning re-bake takes every tower's from the cache and re-parses those near a moved piece. A wall shot up where nothing stands or
   moves waits for the next change there.
-- **The tick is staged** (`nav_updater.gd`): measuring, the planning gather and the tile re-bake are a frame each. The planning region
-  stays whole and async (the AI plans on it; avoid maps bake from its source).
+- **The steering re-bake lands in its tick's frame, house or district** (`nav_updater.gd`; `steering_rebake_lands_in_its_tick_test.gd`): a
+  held walker re-looks for a way round a body every `RECHECK` s and the map answers a frame after the re-bake, so a late one costs a whole
+  `RECHECK`. A district's planning gather waits a frame; the planning region stays whole and async.
 
 ## Avoid maps (`avoid_map`)
 
@@ -105,13 +106,13 @@ the baseline is set from what the bake carved when it lands, so a move during a 
 stopped, set off, appeared or died re-bakes the steering region in place. An at-rest scene costs the compare.
 
 - The tick's own re-bakes take the footprints it just measured, so it measures furniture
-  once and parses the walls once (`tests/navigation/walls_parsed_once_bake_the_same_test.gd`). The public `rebake`,
+  once and parses the walls once. The public `rebake`,
   `rebake_async`, `rebake_steering` are **test-facing seams** that measure their own footprints; only tests call them.
 - `rebake` re-bakes a region's polygon in place with holes re-measured at the furniture's **current** `global_transform`.
   `rebake_async` gathers the geometry on the main thread and assigns the polygon when the bake lands, then runs `done`; the
-  callback holds the region by a `WeakRef` because a lambda capturing a node freed before it runs logs an engine error into
-  whatever runs next (`tests/navigation/rebake_outlives_region_test.gd`). The sync `rebake` is for a test that needs the map now
-  (`perf/bake_and_path_stress` times it); no frame pays for a bake (`rebake_runs_off_the_main_thread_test.gd`).
+  callback holds the region by a `WeakRef` (a lambda capturing a node freed before it runs logs an engine error:
+  `tests/navigation/rebake_outlives_region_test.gd`). The sync `rebake` is for a test that needs the map now
+  (`perf/bake_and_path_stress` times it); no frame pays for a bake.
 - `furniture_holes` keeps each body's hull with what it was made from, so only a piece that moved,
   turned or was dented is measured again (`furniture_holes_follow_the_pieces_test.gd`); the simplified outline is pinned to the plain
   version by `outline_simplify_matches_plain_test.gd`.
@@ -145,5 +146,4 @@ path. The AI calls these rather than keeping its own guard.
 
 A draw-only world-space `Node2D` (the map is global, not per NPC) drawing the furniture holes as filled polygons with outlines,
 and the characters' holes in another colour. `MatchBuilder.stage` builds it; `setup(house)` remembers the house; the holes are snapshotted (only while `show_holes` is on) via `NavBuilder.furniture_holes(house)`, the same selection and footprint helpers the bake uses, so it cannot drift from what was
-carved; `show_holes` toggles it (`MatchBuilder.set_overlay`, the toggle bar's "Navigation holes"; with Debug on). It reads nothing
-back and feeds nothing in.
+carved; `show_holes` toggles it (`MatchBuilder.set_overlay`, the toggle bar's "Navigation holes"; with Debug on).

@@ -11,7 +11,7 @@
 	 doorway stays open past it and a path goes round the leaf in the room it swings into. `NavBuilder.leaf_in_map(door) -> bool` tells
 	 whether a door's leaf is in the map so (the AI's walker goes through any other door by a clean gap or opens it, DR14).
    - **Re-bake** is the Navigation domain's own: `nav_updater.gd` (built by `MatchBuilder.stage`) re-carves the furniture holes in place at
-	 the pieces' **current** positions, only when a piece has moved, the planning bake on the NavigationServer's worker thread.
+	 the pieces' **current** positions, only when a piece has moved, the planning bake on the NavigationServer's worker thread. The steering re-bake lands in the frame of the tick that measured the change (house and district alike: the AI's held walkers look for a way round a body on a timer, and a late map misses the look); a district's planning gather waits a frame.
 	 `NavBuilder.rebake` / `rebake_async` / `rebake_steering` are test-facing seams, not part of this surface (`domain-navigation`).
    - `NavBuilder.furniture_holes(house) -> Array` — the carved footprints (anchored pieces and open door leaves included) as world-space polygons: what
 	 `nav_debug.gd` draws, `nav_updater.gd` watches for a moved piece, and `match_spawner.gd` keeps a spawn's clearance from.
