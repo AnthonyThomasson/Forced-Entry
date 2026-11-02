@@ -102,6 +102,7 @@ func work(delta: float) -> bool:
 		# forgotten.
 		_reset()
 		_gap.door = null
+		_gap.capped = null
 	_worked_frame = frame
 	if _door != null:
 		if not is_instance_valid(_door) or _no_obstacle(_door):
@@ -111,9 +112,11 @@ func work(delta: float) -> bool:
 			_reset()  # A new walk that no longer crosses it.
 			return false
 		return _work_door(delta)
-	var door := _in_the_way()
+	# One look at the house's doors a frame, for a door in the way and for a gap to walk.
+	var doors: Array = loco._character.get_tree().get_nodes_in_group(&"doors")
+	var door := _crossed_ahead(doors.filter(func(d: Node2D) -> bool: return not _no_obstacle(d)))
 	if door == null:
-		return _walk_gap(delta)
+		return _walk_gap(delta, doors)
 	_gap.door = null
 	if _is_refused(door):
 		return _stand_short(delta)
@@ -227,19 +230,26 @@ func _by_gap(door: Node2D) -> bool:
 ## on past the gap, each in turn, so the body never meets the leaf nor the jamb; then the walk goes
 ## on. Until it is at the doorway's mouth, a walk that no longer crosses the door ahead leaves it.
 ## True while this frame's steering is the gap's.
-func _walk_gap(delta: float) -> bool:
+func _walk_gap(delta: float, doors: Array) -> bool:
+	var ahead := _gap_ahead(doors)
+	if _gap.capped != null and ahead != _gap.capped:
+		_gap.capped = null  # The walk no longer crosses the door whose gap walk ran out.
+	if _gap.capped != null:
+		return false
 	if (_gap.door == null or not is_instance_valid(_gap.door) or not _by_gap(_gap.door)
-			or (_gap.stage == 0 and _gap_ahead() != _gap.door)):
+			or (_gap.stage == 0 and ahead != _gap.door)):
 		# None yet, or the walk no longer crosses it before it is in the gap: a new walk's own.
-		if not _take_gap():
+		if not _take_gap(ahead):
 			return false
 	_gap.clock += delta
 	var character: Node = loco._character
 	var here: Vector2 = character.global_position
-	var points := _gap_points(_gap.door, _gap.side, here, loco._agent.target_position)
+	var points := _gap_points(_gap.door, _gap.side, _gap.round_end)
 	while _gap.stage < points.size() and here.distance_to(points[_gap.stage]) <= GAP_REACH:
 		_gap.stage += 1
 	if _gap.stage >= points.size() or _gap.clock > GAP_CAP:
+		if _gap.stage < points.size():
+			_gap.capped = _gap.door  # Ran out: left to the walk while it still crosses the door.
 		_gap.door = null
 		return false
 	var to: Vector2 = points[_gap.stage]
@@ -249,28 +259,30 @@ func _walk_gap(delta: float) -> bool:
 	return true
 
 
-## Take up the gap of the door the walk crosses ahead by its gap (`_gap_ahead`), from the side the
-## walker stands on; false when there is none.
-func _take_gap() -> bool:
-	var door := _gap_ahead()
+## Take up the gap of `door`, the door the walk crosses ahead by its gap (`_gap_ahead`), from the
+## side the walker stands on; false when there is none.
+func _take_gap(door: Node2D) -> bool:
 	_gap.door = door
 	if door == null:
 		return false
 	_gap.stage = 0
 	_gap.clock = 0.0
-	var off: Vector2 = loco._character.global_position - _leaf_origin(door)
-	_gap.side = 1.0 if off.dot(door.swing_into) < 0.0 else -1.0
+	var here: Vector2 = loco._character.global_position
+	_gap.side = 1.0 if (here - _leaf_origin(door)).dot(door.swing_into) < 0.0 else -1.0
+	# Decided once: the far end behind the leaf stays so while the walk goes round it.
+	_gap.round_end = _behind_leaf(door, loco._agent.target_position if _gap.side > 0.0 else here)
 	return true
 
 
 ## The gap walk's waypoints through `door` (`_walk_gap`), for a walker on side `side` of it (1 the
-## side away from the swing, -1 the swing's) at `here` walking to `dest`: the doorway's mouth on
-## the side away from the swing, the middle of the gap between the leaf's free end and the latch
-## jamb, and the way on past the gap (out from the leaf's free end across the gap); reversed from
-## the swing's side. Where the walk's far end (`dest`, or `here` from the swing's side) stands
-## behind the leaf (`_behind_leaf`), two more take the walk round the leaf's free end: `GAP_CLEAR`
-## past it, then `GAP_CLEAR` out behind the leaf.
-static func _gap_points(door: Node2D, side: float, here: Vector2, dest: Vector2) -> Array:
+## side away from the swing, -1 the swing's), going round the leaf's free end when `round_end`: the
+## doorway's mouth on the side away from the swing, the middle of the gap between the leaf's free
+## end and the latch jamb, and the way on past the gap (out from the leaf's free end across the
+## gap); reversed from the swing's side. Where the walk's far end (its destination, or its start
+## from the swing's side) stands behind the leaf (`_behind_leaf`, `round_end`), three more take the
+## walk round the leaf's free end, each `GAP_CLEAR` off it: beside it on the gap's side, past it,
+## and beside it behind the leaf.
+static func _gap_points(door: Node2D, side: float, round_end: bool) -> Array:
 	var shut: Transform2D = door.leaf_pose(0.0)
 	var pose: Transform2D = door.leaf_pose(door.angle())
 	var half := (door.leaf_size() as Vector2).x * 0.5
@@ -282,10 +294,11 @@ static func _gap_points(door: Node2D, side: float, here: Vector2, dest: Vector2)
 	if across.dot(into) < 0.0:
 		across = -across
 	var points := [shut.origin - into * GAP_CLEAR, middle, middle + across * GAP_CLEAR]
-	if _behind_leaf(door, dest if side > 0.0 else here):
+	if round_end:
 		var behind := pose.y * -signf((latch - pose.origin).dot(pose.y))
+		points.append(free_end + pose.x * GAP_CLEAR * 0.5 - behind * GAP_CLEAR)
 		points.append(free_end + pose.x * GAP_CLEAR)
-		points.append(free_end + pose.x * GAP_CLEAR * 0.5 + behind.normalized() * GAP_CLEAR)
+		points.append(free_end + pose.x * GAP_CLEAR * 0.5 + behind * GAP_CLEAR)
 	if side < 0.0:
 		points.reverse()
 	return points
@@ -302,11 +315,10 @@ static func _behind_leaf(door: Node2D, p: Vector2) -> bool:
 			and signf((p - pose.origin).dot(normal)) != signf((latch - pose.origin).dot(normal)))
 
 
-## The nearest door along the walk's next `LOOKAHEAD` px whose doorway the walk crosses and whose
-## gap it walks through (`_by_gap`), or null.
-func _gap_ahead() -> Node2D:
-	var doors: Array = loco._character.get_tree().get_nodes_in_group(&"doors").filter(_by_gap)
-	return _crossed_ahead(doors)
+## The nearest of `doors` along the walk's next `LOOKAHEAD` px whose doorway the walk crosses and
+## whose gap it walks through (`_by_gap`), or null.
+func _gap_ahead(doors: Array) -> Node2D:
+	return _crossed_ahead(doors.filter(_by_gap))
 
 
 ## The nearest door along the walk's next `LOOKAHEAD` px whose doorway the walk crosses and which is
@@ -537,11 +549,14 @@ class Detour:
 
 
 ## The door whose gap a walk goes through (`_walk_gap`: null for none), the side of it the walker
-## set off from (1 away from the swing, -1 the swing's), the waypoint it is on and how long it has
-## taken (s).
+## set off from (1 away from the swing, -1 the swing's), whether it goes round the leaf's free end,
+## the waypoint it is on, how long it has taken (s), and the door whose gap walk ran out of time
+## (`GAP_CAP`), left to the walk while the walk still crosses it (null for none).
 class GapWalk:
 	extends RefCounted
 	var door: Node2D
 	var side := 1.0
+	var round_end := false
 	var stage := 0
 	var clock := 0.0
+	var capped: Node2D

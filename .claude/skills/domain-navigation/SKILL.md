@@ -119,8 +119,8 @@ that region. `tests/ai/perception/room_zones_inside_their_rooms_test.gd` pins it
 `snap(map, p)` returns `p` until then, else the closest navmesh point (a room's centre is often inside furniture);
 `snap_within(map, p, rect, from)` keeps that point in `rect` (a room) on floor a route from `from` (the doorway's) reaches: `p` stepped
 toward the room's centre, then `from`, every `SNAP_WITHIN_STEP` (8 px) until its snap lands inside and is reached (`SNAP_REACHED`), else
-`from`'s snap: a corner filled with furniture snaps through a thin wall, and a walled-off pocket routes round the outside (issue #183,
-`ai/entry/entry_front_door_corners_in_room`, `…_corner_reachable`);
+`from`'s snap: a corner filled with furniture snaps through a thin wall, and a walled-off pocket routes round the outside
+(`ai/entry/entry_front_door_corner_reachable`, `navigation/snap_within_reachable`);
 `route(map, from, to)` returns a straight `[from, to]` until then and when the server finds no path; `path_length(path)` sums a
 path. The AI calls these rather than keeping its own guard.
 

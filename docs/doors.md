@@ -279,9 +279,9 @@ Tests: `objects/door_materials` (every material and style spawns, draws, each st
 
 An NPC whose walk leads through a door that neither stands at its open stop nor is open by a clean gap (shut, ajar, or turned short
 of 80° with a `gap()` under 42 px: a body's diameter, the leaf's 6 px and 4 px each side), whatever primitive is walking (a move, a search, a follow, a defend, a throw's walk, the entry's approach and
-cross), stops beside it on its latch side (`latch_side_spot`, within 20 px of it), faces it, uses it until it is fully open
+cross), stops beside it on its latch side (`latch_side_spot`, within 20 px of it), faces it, uses it to open fully
 (`open_fully` through `character.use.doors`, never a toggle, so a second NPC reaching a door the first opened does not shut it) and
-walks on, leaving it open. An ajar leaf swung away from the walker's side is out of reach of that spot: the walker steps toward the leaf
+walks on once it stands open by a clean gap, the leaf still swinging to its stop, leaving it open. An ajar leaf swung away from the walker's side is out of reach of that spot: the walker steps toward the leaf
 as it stands, to 30 px off it, and opens it from there. The door is found on the next 90 px of the walk's path by the group `doors` and
 read through the door contract (interface 24), so the AI imports nothing of Objects. A door at its open stop, or knocked down, is no
 obstacle: the nav maps carve an open door's leaf where it stands, in the room it swings into, so a walk (and every spot the AI plans,
@@ -290,7 +290,8 @@ out of the maps and its doorway paths as if open (`docs/adr/0010-doors-are-drive
 ajar leaf stands across its doorway's mouth, where no carve leaves the way past it open), and so is an open leaf in a doorway too narrow
 to keep 4 px of the map's way past it (a 52 px doorway; a house's are 60 and 69 px). A door open by a clean gap but not carved is
 walked through as it stands, never used nor run into: by the doorway's mouth, the middle of the gap between the leaf's free end and
-the latch jamb and, where the way on lies behind the leaf, round its free end, 26 px clear of it. A house's ajar doors (15° to 35°)
+the latch jamb and, where the way on lies behind the leaf (or the walker starts behind it), round its free end, 26 px clear of it;
+a walk through a gap that takes over 4 s leaves that door to the plain walk. A house's ajar doors (15° to 35°)
 are never that wide, so a walker opens them. A second walker finding another at
 the latch waits 40 px further out from the wall until the door is passable, so two never stand pressed against each other at the
 doorway. A door used twice that stops short of its open stop (a chair or a body held in its arc, the swing stopped) is given up
@@ -305,7 +306,8 @@ Tests: `ai/movement/door_open_leaf_walked_round` (scripted Von: a defender walki
 beyond it without touching it), `ai/movement/door_ajar_opened_fully` (scripted Von: past a door ajar at 45°, a gap it could squeeze
 through but not cleanly, it uses the door open to its stop, never pushing it, and goes on), `ai/movement/door_ajar_gap_walked`
 (scripted Von: past a door open at 70°, through its gap and round the leaf to gunfire behind it, the door left as it stood, never
-touched), `navigation/door_open_leaf_carved`, `navigation/door_open_leaf_narrow_doorway_paths`, `ai/movement/door_in_the_way` (real Von, hand-laid house: two invaders search the one room behind a shut door, one opens it
+touched), `ai/movement/door_ajar_gap_walked_from_behind` (the way back: from behind the leaf round its free end and out by
+the gap), `navigation/door_open_leaf_carved`, `navigation/door_open_leaf_narrow_doorway_paths`, `ai/movement/door_in_the_way` (real Von, hand-laid house: two invaders search the one room behind a shut door, one opens it
 from the latch side, goes in, leaves it open, the room not searched while it was shut), `ai/movement/door_blocked_rerouted` (real
 Von: a chair in the swing holds the nearer door shut, the walk is a blocked one and the defender goes in by the other doorway),
 `ai/movement/door_second_walker_leaves_open` (real Von: two defenders reach the door together; the leaf never turns back toward shut), `ai/entry/entry_shut_door_skips_pie`, `entry_ajar_door_skips_pie`, `entry_glass_door_keeps_pie`, `entry_open_door_keeps_pie`, `entry_door_just_under_sixty_skips_pie`, `entry_door_just_over_sixty_keeps_pie`, `entry_knocked_down_door_keeps_pie`, `entry_split_stack_shut_door_skips_pie` and `entry_ajar_door_hostile_in_gap` (the entry's pie at a door: scripted Von, a hand-laid kitchen with its back door).

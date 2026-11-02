@@ -101,15 +101,17 @@ func run(t: TestContext) -> void:
 	)
 
 
-## Follow `npc` for up to 15 s until it is at the gunfire: how long it took (`time`), how close it
+## Follow `npc`, every physics frame for up to 15 s, until it is at the gunfire: how long it
+## took (`time`), how close it
 ## came to the leaf's rectangle where it stood each moment (`closest`), where it first touched it
 ## (`touched_at`, INF never).
 static func _walk(t: TestContext, npc: Node2D, door: Node) -> Dictionary:
 	var out := { "time": 0.0, "closest": INF, "touched_at": Vector2.INF }
 	var size: Vector2 = door.leaf_size()
+	var start := t.time
 	while out["time"] < 15.0 and npc.global_position.distance_to(GUNFIRE) > ARRIVED:
-		await t.seconds(0.05)
-		out["time"] += 0.05
+		await t.frames(1)  # Every physics frame: a graze lasts only a few.
+		out["time"] = t.time - start
 		var d := _to_leaf(door.leaf_pose(door.angle()), size, npc.global_position)
 		if d < out["closest"]:
 			out["closest"] = d
