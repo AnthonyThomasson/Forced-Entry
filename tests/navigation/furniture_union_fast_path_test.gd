@@ -3,8 +3,10 @@ extends GameTest
 ## (`NavBuilder._union_outlines`). That is the costliest step of a re-bake (it ran a polygon merge
 ## for every pair of footprints), so it skips the merge for two footprints whose bounding boxes are
 ## apart: the union of such a pair is the pair, as the merge would have said. This pins the result
-## to the plain every-pair merge, outline for outline, over sixteen generated houses.
+## to the plain every-pair merge, outline for outline, over sixteen generated houses and a district
+## (a few hundred footprints, which the merge is indexed by grid cell for, `NavUnion`).
 
+const DISTRICT_SEED := 7
 const SEEDS := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 
 
@@ -42,6 +44,20 @@ func run(t: TestContext) -> void:
 				% [house_seed, outlines.size(), full.size()],
 		)
 		holder.queue_free()
+	var district_holder := Node2D.new()
+	t.world.add_child(district_holder)
+	var district := WorldGen.generate_district(DISTRICT_SEED, "", Vector2.ZERO, district_holder)
+	await t.frames(2)
+	var pieces := NavBuilder.furniture_holes(district)
+	t.check(
+		pieces.size() > 100,
+		"premise: the district has a crowd of footprints (%d)" % pieces.size(),
+	)
+	t.check(
+		NavBuilder._union_outlines(pieces) == _union_every_pair(pieces),
+		"district: %d footprints fuse the same as the every-pair merge" % pieces.size(),
+	)
+	district_holder.queue_free()
 
 
 ## The union as it was before the box test: every footprint merged against every kept one.

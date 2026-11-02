@@ -82,7 +82,9 @@ const CLAIM_TTL_OF_NPCS := -1.0
 ## `&"invader"`, whether it leads that side's squad, and optionally where it starts in place of its
 ## side's placement; `{}` = no human), `wait_nav` (`stage` waits for the navigation maps; on),
 ## `spawn_clearance` (px a character is dropped clear of furniture, twice that of another combatant;
-## 20), `invader_margin` (px out of the house the invaders' group point is drawn; 80) and `overlays`
+## 20), `invader_margin` (px out of the house the invaders' group point is drawn; 80), `front_step`
+## (px out of the house's front door, along its way out, an invading human with no `at` starts; 0:
+## where it stands) and `overlays`
 ## (the debug overlays the match starts with, `{ show_<x>: bool }` by `OverlayRegistry` flag: the
 ## navigation holes, the squad leaders and each NPC's own; a flag it does not name starts off;
 ## `{}`).
@@ -98,6 +100,7 @@ static func spec(overrides: Dictionary = {}) -> Dictionary:
 		"wait_nav": true,
 		"spawn_clearance": 20.0,
 		"invader_margin": 80.0,
+		"front_step": 0.0,
 		"overlays": {},
 	}
 	for key in overrides:
@@ -199,6 +202,7 @@ static func populate(handle: Dictionary, match_spec: Dictionary) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(match_spec["seed"])
 	var human := _human_of(match_spec)
+	_step_out_front(human, handle, float(match_spec["front_step"]))
 	_place_sides(spawner, match_spec, handle, rng, human)
 	var combatants: Array = spawner.combatants.filter(func(c): return is_instance_valid(c))
 	if human["node"] != null:
@@ -302,6 +306,20 @@ static func _place_side(
 		place.call(int(side.get("count", 0)))
 	for i in at.size():
 		spawner.add_npc(scene, spawner.npc_name(base, i), at[i])
+
+
+## Start the spec's `human` (`_human_of`), when it invades and names no start, `step` px out of the
+## house's front door along the way out of its room: its `at` becomes that point. Nothing with no
+## front door, a `step` of 0 or a human who starts elsewhere.
+static func _step_out_front(human: Dictionary, handle: Dictionary, step: float) -> void:
+	if step <= 0.0 or not _invading(human) or human["at"] != Vector2.INF:
+		return
+	var door: Dictionary = MATCH_SPAWNER.front_door(
+		_front_opening(handle["openings"]),
+		handle["rooms"],
+	)
+	if not door.is_empty():
+		human["at"] = (door["pos"] as Vector2) + (door["out"] as Vector2) * step
 
 
 ## The world point of the front entrance among `openings` (`WorldGen.get_openings`), or ZERO when
@@ -539,24 +557,17 @@ static func _apply_in_scope(npc: Node, flags: Dictionary, scope: String) -> void
 ## `world` was freed during the wait (the match torn down).
 static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	match_spec = spec(match_spec)
-	var house: Node2D = match_spec["house"]
-	if house == null:
-		house = WorldGen.generate(
-			int(match_spec["seed"]),
-			String(match_spec["plan"]),
-			match_spec["entrance"],
-			world,
-		)
-	elif house.get_parent() == null:
-		world.add_child(house)
-	elif house.get_parent() != world:
-		house.reparent(world, true)
+	var site := _build_site(match_spec, world)
+	var house: Node2D = site["house"]
+	var root: Node2D = site["root"]
 	var rooms := WorldGen.get_rooms(house)
-	var nav_region := NavBuilder.build(house, rooms, world)
+	var nav_rooms: Array = site["rooms"]
+	var bounds: Rect2 = site["bounds"]
+	var nav_region := NavBuilder.build(root, nav_rooms, world, NavBuilder.AGENT_RADIUS, bounds)
 	var nav_debug: Node2D = NAV_DEBUG.new()
 	nav_debug.name = "NavDebug"
 	world.add_child(nav_debug)
-	nav_debug.setup(house)
+	nav_debug.setup(root)
 	set_overlay(
 		{ "nav_debug": nav_debug },
 		OVERLAY_REGISTRY.NAV_HOLES,
@@ -566,18 +577,55 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	var nav_updater: Node = NAV_UPDATER.new()
 	nav_updater.name = "NavUpdater"
 	world.add_child(nav_updater)
-	nav_updater.setup(nav_region, house, rooms, nav_debug)
-	WorldLighting.light(world, int(match_spec["seed"]), rooms)
+	nav_updater.setup(nav_region, root, nav_rooms, nav_debug)
+	WorldLighting.light(world, int(match_spec["seed"]), nav_rooms)
 	if bool(match_spec["wait_nav"]):
 		await _wait_nav(world)
 		if not is_instance_valid(world):
 			return {}
-	return {
+	var handle := {
 		"world": world,
 		"house": house,
 		"rooms": rooms,
 		"openings": WorldGen.get_openings(house),
 		"nav_debug": nav_debug,
+	}
+	if root != house:
+		handle["district"] = root
+	return handle
+
+
+## What `stage` builds the world on, under `world`: the spec's `house` moved under `world` when it
+## stands elsewhere, else a generated downtown district (`WorldGen.generate_district` from the
+## spec's `seed`, `plan` and front `entrance`). `{ house, root, rooms, bounds }`: `house` the
+## building the match is fought over (the district's centre tower), `root` the node the nav bake
+## parses (the district, or the house itself), `rooms` every room that map covers (all the
+## district's towers', world space) and `bounds` the walkable rect it must cover (the streets out
+## to the shells; an empty Rect2 for a house, whose map is its rooms and a ring round them).
+static func _build_site(match_spec: Dictionary, world: Node2D) -> Dictionary:
+	var house: Node2D = match_spec["house"]
+	if house != null:
+		if house.get_parent() == null:
+			world.add_child(house)
+		elif house.get_parent() != world:
+			house.reparent(world, true)
+		return {
+			"house": house,
+			"root": house,
+			"rooms": WorldGen.get_rooms(house),
+			"bounds": Rect2(),
+		}
+	var district := WorldGen.generate_district(
+		int(match_spec["seed"]),
+		String(match_spec["plan"]),
+		match_spec["entrance"],
+		world,
+	)
+	return {
+		"house": WorldGen.house_of(district),
+		"root": district,
+		"rooms": WorldGen.district_rooms(district),
+		"bounds": WorldGen.district_bounds(district),
 	}
 
 
@@ -678,7 +726,7 @@ static func bind_player(player: Node, rooms: Array, openings: Array) -> Node:
 ## (so its NPCs treat it as an ally) and its start: its `at` when given (not INF), else for a
 ## defender a clear spot in a random room drawn from `rng` through `spawner` (an invader starts
 ## where it stands). It is moved under the match's world, keeping where it stands, just above the
-## house so the draw order stays house < human < NPCs.
+## district (the house, in a lone-house match) so the draw order stays house < human < NPCs.
 static func _join(
 	human: Dictionary,
 	handle: Dictionary,
@@ -697,8 +745,9 @@ static func _join(
 	var world: Node2D = handle["world"]
 	if node.get_parent() != world:
 		node.reparent(world, true)
-	var house: Node = handle["house"]
-	world.move_child(node, house.get_index() + 1)
+	# Just above what stands under the world: the district, or the lone house.
+	var site: Node = handle.get("district", handle["house"])
+	world.move_child(node, site.get_index() + 1)
 
 
 ## Whether the spec's human (`_human_of`) is there and joins the invaders.

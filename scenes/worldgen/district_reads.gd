@@ -1,6 +1,7 @@
 class_name DistrictReads
 ## World Generation domain: the test reads of a generated district (`WorldGen.generate_district`),
-## beside `WorldGen`'s own (`house_of`, `district_rooms`): what it placed, as metadata of its root.
+## beside `WorldGen`'s own (`house_of`, `district_rooms`, `district_bounds`): what it placed, as
+## metadata of its root.
 
 
 ## The towers of a generated `district`, block 0 to 8 row by row (4 the house), each a dict of

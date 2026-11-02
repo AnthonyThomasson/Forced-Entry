@@ -15,19 +15,25 @@ const SMOOTH_AVG_MS := 16.7
 const SMOOTH_P95_MS := 20.0
 const SMOOTH_MAX_MS := 33.4
 ## The match the match guards measure (`perf/match_5v5_stress`, `perf/match_10v10_stress`,
-## `perf/grenade_match_stress`, through `configure_match`): a generated house of seed `MATCH_SEED`
-## on the largest plan by floor area, `MATCH_PLAN` (garage_home: five rooms, 760k px²), pinned
+## `perf/grenade_match_stress`, `perf/ambush_order_stress`, through `configure_match`): a generated
+## downtown district of seed `MATCH_SEED` (the nine towers, the streets and the ring of shells,
+## built as Main builds one), its centre tower the house the fight is over, a plan pinned there:
+## the largest by floor area, `MATCH_PLAN` (garage_home: five rooms, 760k px²). The plan is pinned
 ## rather than drawn from the seed: the match is measured in a full-size house whatever the
 ## catalogue holds, and a plan added or dropped changes no seed's load. A small flat would put both
-## sides in each other's sight from the start, which is a different load.
+## sides in each other's sight from the start, which is a different load. The district is the load
+## the game plays in: a navigation map ten times a house's polygons, 350 solid furniture footprints
+## and a defender's house that is one of nine.
 const MATCH_SEED := 7
 const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).
 const MATCH_WARMUP_S := 6.0
 ## The most (s) the warm-up runs on past `MATCH_WARMUP_S` for the sides to make contact (a shot
 ## fired, and some NPC knowing a hostile). The match has no doors (`configure_match`): with them
-## on, some runs saw no contact within the window (#178, #159).
-const MATCH_CONTACT_WITHIN := 20.0
+## on, some runs saw no contact within the window (#178, #159). The invaders start in the street
+## outside the front door and the 5v5 fight took 18 to 26 s of test time to start over a dozen runs
+## in the district (a house: 21 s), so the window is a half again as long.
+const MATCH_CONTACT_WITHIN := 30.0
 ## The engine lines a match guard allows (`allowed_logs`): a real match re-bakes the navmesh while
 ## furniture is shoved around, and now and then the bake of overlapping footprints is rejected by
 ## the engine (about one run in five). That is a nav bug no guard is about; the bake's cost is part
@@ -38,11 +44,12 @@ const MATCH_LOGS := [
 ]
 
 
-## Declare a match guard's match in `s`: the house `MATCH_SEED` on `MATCH_PLAN`, `per_side`
-## defenders and as many invaders built as Main builds a match (`s.declared_match`), scripted Von
-## (combat, engage) and the callouts, vision and pursuit on.
+## Declare a match guard's match in `s`: the downtown district `MATCH_SEED` with `MATCH_PLAN` as
+## its centre house (the match is fought over that house, in nine towers and their streets),
+## `per_side` defenders and as many invaders built as Main builds a match (`s.declared_match`),
+## scripted Von (combat, engage) and the callouts, vision and pursuit on.
 static func configure_match(s: TestSetup, per_side: int) -> void:
-	s.house(MATCH_SEED, MATCH_PLAN)
+	s.district(MATCH_SEED, MATCH_PLAN)
 	# Doors off until #178 and #159 make this family door-aware.
 	s.switch(&"worldgen.doors", false)
 	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])

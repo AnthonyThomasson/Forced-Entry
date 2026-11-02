@@ -1,14 +1,16 @@
 extends GameTest
 ## Performance guard for an ambush order (`docs/leadership.md` LD15, LD29, Performance): a crew of
-## three AI defenders in a generated house (the match guards' house, `Perf.MATCH_SEED` on
-## `Perf.MATCH_PLAN`, built as Main builds a match with no invaders) is ordered, inside the measured
-## window, to ambush a doorway nobody has ranked the posts of yet: a doorway of its leader's room
-## into the next room, from the leader's room, the leader itself among the recipients as the
-## defenders' ambush rule orders it. Each recipient's decision snapshot lays its post (the doorway's
-## candidate posts ranked: hidden first, then shielded from an entry's grenade, `EntryPosts`), one
-## decision a frame (`DecisionBudget`). Every frame of the window holds the smooth-match standard
-## (`Perf.within_frames`), the worst one the frame the ranking lands in. Scripted Von; nobody
-## fights. Headless measures CPU only.
+## three AI defenders in a generated downtown district (the match guards' district,
+## `Perf.MATCH_SEED` on `Perf.MATCH_PLAN`, built as Main builds a match with no invaders) is
+## ordered, inside the measured window, to ambush a doorway nobody has ranked the posts of yet: a
+## doorway of its leader's room into the next room, from the leader's room, the leader itself among
+## the recipients as the defenders' ambush rule orders it. Each recipient's decision snapshot lays
+## its post (the doorway's candidate posts ranked: hidden first, then shielded from an entry's
+## grenade, `EntryPosts`), one decision a frame (`DecisionBudget`). Every frame of the window holds
+## the smooth-match standard (`Perf.within_frames`), the worst one the frame the ranking lands in.
+## Scripted Von; nobody fights. Headless measures CPU only.
+## Baseline in the district on a loaded machine (load 4 to 8): avg 1.6 to 2.1 ms, p95 2.2 to 2.9,
+## max 22 to 30 (the house: avg 1.6, max 20). Passes in every run.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")

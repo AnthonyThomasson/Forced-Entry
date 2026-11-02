@@ -1,6 +1,7 @@
 9. **Main / Testing (through `MatchBuilder`) / AI → Navigation** (leaf: builds the map, everyone else just pathfinds)
-   - `NavBuilder.build(house, rooms, parent, agent_radius = NavBuilder.AGENT_RADIUS) -> NavigationRegion2D` — bakes one region whose
-	 walkable area is the house footprint plus an outdoor ring, minus the house's **static** wall colliders (doorways stay open) **and each
+   - `NavBuilder.build(house, rooms, parent, agent_radius = NavBuilder.AGENT_RADIUS, bounds = Rect2()) -> NavigationRegion2D` — bakes one
+	 region whose walkable area is the house footprint plus an outdoor ring (or, with a `bounds` rect, that rect: a district's streets out
+	 to its shells, `WorldGen.district_bounds`; `house` is then the district root and `rooms` every tower's), minus the house's **static** wall colliders (doorways stay open) **and each
 	 solid furniture footprint** (every `RigidBody2D` with a collider, anchored pieces frozen static among them; walk-over decor has none).
 	 **Doors are left out of every bake** (planning, steering and avoid maps): the bodies of the group `doors` (interface 24, an
 	 `AnimatableBody2D`, a static collider to the parse) are taken off the solid layer for the parse, so paths cross a doorway as if open and
@@ -18,7 +19,9 @@
 	 at rest under the region's parent), `NavBuilder.OBSTACLE_MARGIN` (px every carved footprint is grown by; the AI's entry geometry grows
 	 a body at rest by it to match the carve), `NavBuilder.steering_map(planning_map) -> RID` (a map of its own holding the furniture *and*
 	 those holes; named from the frame `build` returns, before it has synchronized (`ready` tells when it answers); invalid when the world
-	 has none) and `steering_region(region)` (re-baked by `nav_updater.gd` too). The world's own map stays furniture-only because the AI
+	 has none), `steering_region(region)` and `steering_regions(region)` (re-baked by `nav_updater.gd` too). A lone house's steering map is the one
+	 region; a district's (a `bounds` was given) is a grid of 512 px tiles (`nav_tiles.gd`), each baked from what reaches it and re-baked only
+	 when that changes, so a character stopping re-bakes the tile it stands in, not the district. The world's own map stays furniture-only because the AI
 	 plans on it; the AI's `Locomotion` puts its `NavigationAgent2D` on the steering map for a walk round a body at rest it knows of (what
 	 a walker accounts for is the AI's rule, `domain-ai` (`behavior-locomotion.md`)).
    - **Map queries**, what the AI asks of a baked map: `NavBuilder.ready(map) -> bool` (valid, synchronized at least once and has taken in

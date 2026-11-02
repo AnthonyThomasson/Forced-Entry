@@ -11,14 +11,17 @@ A leaf: it builds the maps; everyone else pathfinds. It takes a plain `rooms` ar
 | File | Role |
 |---|---|
 | `nav_builder.gd` (`NavBuilder`) | All static: bake, re-bake, the holes, the steering and avoid maps, `ready` / `snap` / `route` / `path_length`. |
-| `nav_site.gd` (`NavSite`) | The source geometry's inputs: the house, its rooms and the agent radius. |
+| `nav_site.gd` (`NavSite`) | The source geometry's inputs: the house, its rooms, the agent radius and a district's explicit `bounds`. |
 | `nav_leaves.gd` (`NavLeaves`) | All static: the house doors (`doors_of`, by the group) and the hole an open leaf leaves (`hole`). |
-| `nav_updater.gd` | Script-only Node that re-bakes on an interval. |
+| `nav_updater.gd` | Script-only Node that re-bakes on an interval, a frame a step. |
+| `nav_tiles.gd` (`NavTiles`) | A district's steering tiles, and the per-tower wall cache. |
+| `nav_union.gd` (`NavUnion`) | Fuses overlapping footprints. |
+| `nav_weld.gd` (`NavWeld`) | A bake's end: vertices welded, slivers dropped. |
 | `nav_debug.gd` | Draw-only overlay of the holes. |
 
 ## Baking
 
-`NavBuilder.build(house, rooms, parent, agent_radius)` bakes one `NavigationRegion2D`: the house footprint (the `rooms` rects grown by
+`NavBuilder.build(house, rooms, parent, agent_radius, bounds)` bakes one `NavigationRegion2D`: the house footprint (the `rooms` rects grown by
 `BOUNDS_PAD`, so a walkable **outdoor ring** lets an outside NPC path round to the front entrance) minus the house's **static**
 wall colliders, so doorways stay open, minus a **hole per solid furniture footprint** so paths route
 round furniture and through another doorway when the near one is blocked (a piece sealing the only route leaves the far side
@@ -65,6 +68,20 @@ count, so it is valid the moment `build` returns, before the server takes the re
 it (flank, fire and retreat spots, route length and exposure, entry slots, search coverage) and a body's hole would bend all of
 them. Only a `NavigationAgent2D` walks the steering map, chosen per walk by the AI's `Locomotion` (`domain-ai` (`behavior-locomotion.md`)).
 The map carves every body at rest, seen or not; which bodies a walk accounts for is the walker's business.
+
+## A district's steering map: tiles (`nav_tiles.gd`)
+
+`build` with a `bounds` rect (a district: `house` its root, `rooms` every tower's, `bounds` = `WorldGen.district_bounds`) bakes the planning
+region over the whole rect and the steering map as 512 px tile regions (`NavSteering_<column>_<row>`, children of the planning
+region, `steering_regions(region)`). A tile is baked from its own walls, furniture and characters (`BORDER` 40 px past its edge, so neighbours meet) **only when those changed since its last bake**, so a character
+stopping re-bakes one to four tiles: ~5 ms a tick, not ~57
+(`steering_tiles_rebake_touched_test.gd`, `perf/bake_and_path_stress`). A lone house keeps one `NavSteering` region.
+
+- **Walls are parsed tower by tower** and kept on the planning region (`NavTiles.walls_reaching`): a tile re-parses the towers reaching it,
+  the planning re-bake takes every tower's from the cache and re-parses those near a moved piece. A wall shot up where nothing stands or
+  moves waits for the next change there.
+- **The tick is staged** (`nav_updater.gd`): measuring, the planning gather and the tile re-bake are a frame each. The planning region
+  stays whole and async (the AI plans on it; avoid maps bake from its source).
 
 ## Avoid maps (`avoid_map`)
 
@@ -127,7 +144,6 @@ path. The AI calls these rather than keeping its own guard.
 ## Debug overlay (`nav_debug.gd`)
 
 A draw-only world-space `Node2D` (the map is global, not per NPC) drawing the furniture holes as filled polygons with outlines,
-and the characters' holes in another colour. `MatchBuilder.stage` builds it; `setup(house)` snapshots the holes via
-`NavBuilder.furniture_holes(house)`, the same selection and footprint helpers the bake uses, so it cannot drift from what was
+and the characters' holes in another colour. `MatchBuilder.stage` builds it; `setup(house)` remembers the house; the holes are snapshotted (only while `show_holes` is on) via `NavBuilder.furniture_holes(house)`, the same selection and footprint helpers the bake uses, so it cannot drift from what was
 carved; `show_holes` toggles it (`MatchBuilder.set_overlay`, the toggle bar's "Navigation holes"; with Debug on). It reads nothing
 back and feeds nothing in.

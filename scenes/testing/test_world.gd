@@ -62,19 +62,15 @@ func build(setup: TestSetup) -> void:
 		if not TestSwitches.has(switch_name):
 			push_error("TestWorld: unknown switch '%s'" % switch_name)
 	_apply_statics(setup)
-	_build_world(setup.resolved_world())
-	_spawn_objects(setup)
+	var world := setup.resolved_world()
 	_overlay_flags = {}
 	for flag in OVERLAY_REGISTRY.defaults():
 		_overlay_flags[flag] = setup.overlays.has(flag)
-	var spec := {
-		"seed": int(setup.resolved_world().get("seed", 0)),
-		"house": house,
-		"wait_nav": true,
-		"overlays": _overlay_flags.duplicate(),
-	}
+	var spec := _world_spec(setup, world)
 	var staged: Dictionary = await MatchBuilder.stage(spec, self)
 	_nav_debug = staged["nav_debug"]
+	if staged.has("district"):
+		_read_district(staged)
 	for v in setup.vehicles:
 		var vehicle := _spawn_vehicle(v)
 		if vehicle != null:
@@ -257,7 +253,39 @@ func _set_static(script: Script, prop: StringName, value: Variant) -> void:
 	script.set(prop, value)
 
 
-## Build the generated house or district, or the arena, and read the (house's) rooms.
+## The match spec the world stage is built from. A house, layout or arena is built here (its
+## objects placed, so the bake carves them) and named by the spec's `house`; a district is left to
+## `MatchBuilder.stage`, which generates it from the spec's `seed`, `plan` and `entrance` (and takes
+## no placed objects: it bakes as it is staged).
+func _world_spec(setup: TestSetup, world: Dictionary) -> Dictionary:
+	var spec := {
+		"seed": int(world.get("seed", 0)),
+		"wait_nav": true,
+		"overlays": _overlay_flags.duplicate(),
+	}
+	if world["kind"] == "district":
+		spec["plan"] = String(world.get("plan", ""))
+		spec["entrance"] = world.get("entrance", Vector2.ZERO)
+		if not setup.objects.is_empty():
+			push_error("TestWorld: a district world takes no placed objects")
+		return spec
+	_build_world(world)
+	_spawn_objects(setup)
+	spec["house"] = house
+	return spec
+
+
+## The district `MatchBuilder.stage` built (`staged`, its handle) and the rooms and doorways of its
+## house, which every injected NPC and test read.
+func _read_district(staged: Dictionary) -> void:
+	district = staged["district"]
+	house = staged["house"]
+	rooms = staged["rooms"]
+	openings = staged["openings"]
+
+
+## Build the generated house, the hand-laid layout or the arena, and read its rooms. (A district is
+## built by `MatchBuilder.stage`, with the match's nav map.)
 func _build_world(world: Dictionary) -> void:
 	if world["kind"] == "house":
 		house = WorldGen.generate(
@@ -266,14 +294,6 @@ func _build_world(world: Dictionary) -> void:
 			world.get("entrance", Vector2.ZERO),
 			self,
 		)
-	elif world["kind"] == "district":
-		district = WorldGen.generate_district(
-			int(world["seed"]),
-			String(world.get("plan", "")),
-			world.get("entrance", Vector2.ZERO),
-			self,
-		)
-		house = WorldGen.house_of(district)
 	elif world["kind"] == "layout":
 		house = LayoutBuilder.build(world, self)
 		# the doors its doorways declared, found by their node names like the placed objects

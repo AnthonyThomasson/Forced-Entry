@@ -142,7 +142,9 @@ func _match(t: TestContext, spectator: bool) -> Dictionary:
 		var rooms: Array = []
 		for child in world.get_children():
 			if rooms.is_empty() and child is Node2D:
-				rooms = WorldGen.get_rooms(child)
+				# The match's house: the district's centre tower, or the lone house.
+				var house := WorldGen.house_of(child)
+				rooms = WorldGen.get_rooms(house if house != null else child)
 		var bounds: Rect2 = rooms[0]["rect"] if not rooms.is_empty() else Rect2()
 		for r in rooms:
 			bounds = bounds.merge(r["rect"])

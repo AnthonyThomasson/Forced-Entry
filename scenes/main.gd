@@ -330,9 +330,10 @@ func _play(spec: Dictionary) -> void:
 
 
 ## The match spec Main's `run` names (`MatchBuilder.spec`, whose defaults hold each side's
-## loadout): the house seed and floorplan, the front entrance `run.entrance_distance` above the
-## player's anchor, each side's count, the human (in a played match: the player, on
-## `run.player_side`) and the placement clearances.
+## loadout): the house seed and floorplan, the front entrance at the player's anchor (whichever
+## street it faces, an invading human starts `run.entrance_distance` out of it), each side's
+## count, the human (in a played match: the player, on `run.player_side`) and the placement
+## clearances.
 func _base_spec() -> Dictionary:
 	var human := {}
 	if not run.spectator_mode and is_instance_valid(_player):
@@ -340,7 +341,8 @@ func _base_spec() -> Dictionary:
 	return MatchBuilder.spec({
 		"seed": run.house_seed,
 		"plan": run.force_plan,
-		"entrance": _anchor + Vector2(0, -run.entrance_distance),
+		"entrance": _anchor,
+		"front_step": run.entrance_distance,
 		"defenders": { "count": run.defender_count },
 		"invaders": { "count": run.invader_count },
 		"human": human,

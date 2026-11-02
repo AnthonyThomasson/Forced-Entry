@@ -110,7 +110,7 @@ func spawn_invader_team(
 	var centre := around
 	var door := {}
 	if centre == Vector2.INF:
-		door = _front_door(front, rooms)
+		door = front_door(front, rooms)
 		if not door.is_empty():
 			centre = _beside_front_door(door, rng, bounds)
 	if centre == Vector2.INF:
@@ -135,7 +135,7 @@ func spawn_invader_team(
 ## The front entrance `front` (its opening, `{ pos, width, rooms, outward, ... }`) as the team is
 ## placed by it: `{ pos, out, width }` (its centre, the way out of its room among `rooms`, the
 ## opening's `outward` for that room, and its width), or `{}` when there is none.
-func _front_door(front: Dictionary, rooms: Array) -> Dictionary:
+static func front_door(front: Dictionary, rooms: Array) -> Dictionary:
 	if front.is_empty():
 		return {}
 	var keys: Array = front.get("rooms", [])
@@ -148,7 +148,7 @@ func _front_door(front: Dictionary, rooms: Array) -> Dictionary:
 
 
 ## The invader team's group point away from and to the side of the front entrance `door`
-## (`_front_door`): `DOOR_SIDE_OFFSET` px along the house's outside wall from the doorway's centre
+## (`front_door`): `DOOR_SIDE_OFFSET` px along the house's outside wall from the doorway's centre
 ## (out of the doorway's straight line) on the side drawn from `rng`, and `DOOR_OUT_OFFSET` px out
 ## from the wall, facing the house's front; kept within `bounds` (the rooms' bounding box) grown by
 ## twice `invader_margin` less two `spawn_clearance`, so the first ring stays on the walkable ring
@@ -180,7 +180,7 @@ func _group_spot(centre: Vector2, holes: Array, taken: Array, outside: Callable)
 	return centre
 
 
-## Whether `p` stands in the straight strip out of doorway `door` (`_front_door`): within half its
+## Whether `p` stands in the straight strip out of doorway `door` (`front_door`): within half its
 ## width of its centre along the wall. False with no `door`.
 func _in_strip(p: Vector2, door: Dictionary) -> bool:
 	if door.is_empty():

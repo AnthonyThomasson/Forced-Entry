@@ -71,7 +71,7 @@ which save the choice and route it live. Seeding, the scope per mode and the rou
 
 The API is interface 23; these are the reasons behind it.
 
-- **Wait for the nav maps.** `stage` steps two physics frames (walls' colliders go live on a step), then waits until
+- **Wait for the nav maps.** `stage` (a generated district: the nav bake covers its streets, the lights its towers) steps two physics frames (walls' colliders go live on a step), then waits until
   `NavBuilder.ready` holds on the planning map and the steering map (at most `NAV_SYNC_MS`, then `push_error`), so no NPC is
   placed while a map still shows another navmesh. A world freed during the wait returns `{}`. Main's match and every test world
   keep `wait_nav` on.
@@ -84,8 +84,9 @@ The API is interface 23; these are the reasons behind it.
 - **Placement RNG.** One RNG seeded with `seed` places defenders, then the invader team. Guns draw from `seed ^ LOADOUT_SEED_SALT`
   and styles from `seed ^ STYLE_SEED_SALT`, so a pinned seed pins loadouts and styles without shifting placement or each other.
 - **The human's start**: the spec's `human.at`; else a defender gets a clear spot in a random room, an invader starts where it
-  stands (for Main's `Player`, its anchor, `run.entrance_distance` below the front entrance). It is reparented just above the
-  house (draw order house < human < NPCs) and joins its side's faction, so NPCs treat it as an ally.
+  stands, or `front_step` px (Main: `run.entrance_distance`) out of the front door along the way out of its room, whichever street
+  the district's house faces (Main's `Player` anchor is the front entrance itself). It is reparented just above the
+  district (the lone house: draw order house < human < NPCs) and joins its side's faction, so NPCs treat it as an ally.
 - **The human's view**: `populate` ends by watching the human, `PlayerView.watch(world, human)` (the Vision domain, interface 25,
   `docs/player-vision.md` V8), after the squads and overlays, and records it as the handle's `view`. No human (Watch, Endless) means
   no view and everything drawn; so does `VisionConfig.enabled` off. Main's `Player` is the viewer in a played match; its death lifts

@@ -37,6 +37,8 @@ var _character_baseline: Array = []
 ## meanwhile waits for the first tick after the bake lands (the baseline is set from what that bake
 ## carved, so it is caught then).
 var _baking := false
+## Whether a tick's bakes are still being taken a frame at a time (`_on_tick`).
+var _busy := false
 
 
 ## Wire the updater to the baked map and start the interval. `region` is NavBuilder.build's result,
@@ -68,9 +70,12 @@ func setup(
 ## holes at the live positions on the server's worker thread (`NavBuilder._rebake_async`; a
 ## furniture move while one is in flight waits for the next tick) and the steering region's in
 ## place; if only a character has, re-carve the steering region. Refreshes the overlay after either.
-## Skips the bake entirely when nothing has moved.
+## Skips the bake entirely when nothing has moved. Measuring the footprints, gathering the planning
+## bake and re-baking the steering region are each a frame of their own (the footprints are the
+## ones measured first): a district's gather is a few ms a step, a frame that did all three would be
+## the sum.
 func _on_tick() -> void:
-	if not enabled or _region == null or not is_instance_valid(_house):
+	if not enabled or _region == null or not is_instance_valid(_house) or _busy:
 		return
 	var furniture := NavBuilder.furniture_holes(_house)
 	var characters := NavBuilder.character_holes(_house.get_parent())
@@ -78,18 +83,34 @@ func _on_tick() -> void:
 	if not furniture_moved and not _moved(_character_baseline, characters):
 		return
 	# Both bakes carve the footprints just measured and the walls parsed once: nothing has moved
-	# since, so measuring or parsing again would give the same.
-	var walls := NavBuilder._walls_of(_house, _agent_radius)
-	var site := NavSite.new(_house, _rooms, _agent_radius)
+	# since, so measuring or parsing again would give the same. A tick with no planning bake leaves
+	# the walls to the steering bake: a district's tiles parse only the towers they reach.
+	_busy = true
+	var site := NavBuilder.site_of(_region, _house, _rooms, _agent_radius)
+	var walls := {}
 	if furniture_moved and not _baking:
+		await get_tree().process_frame
+		if not _alive():
+			return
+		walls = NavTiles.walls_after(_region, site, _baseline, furniture)
 		_baking = true
 		NavBuilder._rebake_async(_region, site, furniture, func() -> void:
 			_baking = false
 			_baseline = furniture
 			_refresh_overlay(), walls)
+	await get_tree().process_frame
+	if not _alive():
+		return
 	NavBuilder._rebake_steering(_region, site, furniture, characters, walls)
 	_character_baseline = characters
 	_refresh_overlay()
+	_busy = false
+
+
+## Whether the updater's region and house are still standing after a wait (the match may have been
+## torn down meanwhile).
+func _alive() -> bool:
+	return is_inside_tree() and _region != null and is_instance_valid(_house)
 
 
 ## Re-snapshot the overlay so it matches the re-baked holes.

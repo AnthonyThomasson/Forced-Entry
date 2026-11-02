@@ -10,7 +10,14 @@ extends Node2D
 ## nothing back and feeds nothing in. Toggle with `show_holes`.
 
 ## Whether to draw the hole overlay at all, furniture and characters at rest. Off by default.
-@export var show_holes: bool = false
+## Turning it on takes the snapshot of the moment (a district's measuring is a few ms a re-bake, so
+## it is taken only while the overlay is drawn).
+@export var show_holes: bool = false:
+	set(value):
+		show_holes = value
+		if value:
+			_snapshot()
+		queue_redraw()
 ## Fill colour of a carved hole.
 @export var hole_color: Color = Color(1.0, 0.2, 0.2, 0.2)
 ## Outline colour of a carved hole.
@@ -24,6 +31,8 @@ var _holes: Array = []
 ## The holes the characters at rest carve in the steering map (the node's parent is the world they
 ## stand in).
 var _character_holes: Array = []
+## The house `setup` was given, whose holes the overlay snapshots.
+var _house: Node2D = null
 
 
 ## Over the player's view, in its own colours, and never remembered by it.
@@ -45,9 +54,18 @@ func _draw() -> void:
 ## after each re-bake, so the overlay stays matched to the live navmesh. The node sits at the world
 ## origin so the world-space polygons draw as-is.
 func setup(house: Node2D) -> void:
-	_holes = NavBuilder.furniture_holes(house)
-	_character_holes = NavBuilder.character_holes(house.get_parent())
-	queue_redraw()
+	_house = house
+	if show_holes:
+		_snapshot()
+		queue_redraw()
+
+
+## Take the holes of the house `setup` was given as they stand now.
+func _snapshot() -> void:
+	if _house == null or not is_instance_valid(_house):
+		return
+	_holes = NavBuilder.furniture_holes(_house)
+	_character_holes = NavBuilder.character_holes(_house.get_parent())
 
 
 ## Fill and outline each polygon of `holes`.

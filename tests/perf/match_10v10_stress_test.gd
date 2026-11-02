@@ -1,6 +1,6 @@
 extends GameTest
-## Performance guard for the largest match the game means to carry: a 10v10 in a generated house
-## (the largest plan, `Perf.MATCH_PLAN`; `Perf.configure_match`), built as Main builds one
+## Performance guard for the largest match the game means to carry: a 10v10 in a generated downtown
+## district (the largest plan, `Perf.MATCH_PLAN`; `Perf.configure_match`), built as Main builds one
 ## (`s.declared_match`, `MatchBuilder.populate`): the defenders at clear spots in random rooms and
 ## the invader team in one group beside the front door, each side with its spec loadout (the
 ## invaders' helmet and steel plates front and back, a stun and a frag each; the defenders' plain
@@ -21,6 +21,9 @@ extends GameTest
 ## only; rendering is not in these numbers. Its max (and p95) miss the standard on a quiet machine:
 ## an invader's decision that weighs its grenades (the throw spots and the escape from the burst, in
 ## its decision snapshot) spikes in one frame (#98).
+## Baseline in the district on a loaded machine (load 4 to 7, three or more other Godot: no run was
+## quiet enough to judge): avg 20 to 25 ms, p95 36 to 61, max 53 to 130; the house alone on that
+## machine and load: avg 20.0, p95 35.2, max 61.3, so it misses the standard there too.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const Perf := preload("res://tests/_perf/perf_probe.gd")
@@ -33,8 +36,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "A 10v10 match runs without frame loss",
 		"description": "Ten defenders and ten invaders, each side a squad following its leader, "
-			+ "fight in a generated house, built as Main builds a match; once they are in contact "
-			+ "the average frame stays under 16.7 ms and no frame takes over two.",
+			+ "fight over a house in a downtown district, built as Main builds a match; once they "
+			+ "are in contact the average frame stays under 16.7 ms and no frame takes over two.",
 		"tags": ["match", "ai", "scripted", "crowd", "squad", "follow"],
 		"timeout": 60.0,
 		"allowed_logs": Perf.MATCH_LOGS,

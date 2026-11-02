@@ -147,34 +147,38 @@ func _maps_now(viewport: SubViewport, npc: Node) -> Dictionary:
 	var map: RID = viewport.world_2d.navigation_map
 	var steering := NavBuilder.steering_map(map)
 	var region := _find_region(viewport)
-	var steering_region: NavigationRegion2D = null
+	var steering_regions: Array[NavigationRegion2D] = []
 	if region != null:
-		for child in region.get_children():
-			if child is NavigationRegion2D:
-				steering_region = child
+		steering_regions = NavBuilder.steering_regions(region)
 	var centre := Vector2.INF
 	var world := region.get_parent() if region != null else null
 	if world != null:
 		for child in world.get_children():
-			var rooms := WorldGen.get_rooms(child as Node2D) if child is Node2D else []
+			# The match's house: the district's centre tower, or the lone house.
+			var house: Node2D = WorldGen.house_of(child) if child is Node2D else null
+			var rooms := WorldGen.get_rooms(house if house != null else child as Node2D) \
+				if child is Node2D else []
 			if not rooms.is_empty():
 				centre = (rooms[0]["rect"] as Rect2).get_center()
 	return {
 		"npc": String(npc.name),
 		"planning": NavBuilder.ready(map),
 		"steering": steering.is_valid() and NavBuilder.ready(steering),
-		"planning_house": _answers_with(map, region, centre),
-		"steering_house": _answers_with(steering, steering_region, centre),
+		"planning_house": _answers_with(map, [region], centre),
+		"steering_house": _answers_with(steering, steering_regions, centre),
 	}
 
 
-## Whether `map` has synchronized and its closest point to `centre` belongs to `region`.
-func _answers_with(map: RID, region: NavigationRegion2D, centre: Vector2) -> bool:
-	if region == null or centre == Vector2.INF or not map.is_valid():
+## Whether `map` has synchronized and its closest point to `centre` belongs to one of `regions`.
+func _answers_with(map: RID, regions: Array, centre: Vector2) -> bool:
+	if centre == Vector2.INF or not map.is_valid():
 		return false
 	if NavigationServer2D.map_get_iteration_id(map) == 0:
 		return false  # asking a map that never synchronized is an engine error
-	return NavigationServer2D.map_get_closest_point_owner(map, centre) == region.get_rid()
+	var owner := NavigationServer2D.map_get_closest_point_owner(map, centre)
+	return regions.any(
+		func(r: NavigationRegion2D) -> bool: return r != null and r.get_rid() == owner,
+	)
 
 
 ## The first NavigationRegion2D under `node` (the planning region the bake added), else null.

@@ -2,6 +2,12 @@
    - `WorldGen.generate(seed, force_plan, front_entrance_world, parent) -> Node2D` — one RNG for the whole run (the plan pick is its
 	 first draw), prints `House: <plan>  seed: N`; a doorway with no door (the roll, or `worldgen.doors` off) is an open archway, one with a door
 	 holds a `Door` (`docs/doors.md` DR2 to DR4).
+   - `WorldGen.generate_district(seed, force_plan, front_entrance_world, parent) -> Node2D` — a downtown district: a 3 x 3 grid of
+	 towers (the centre one the match's house, its plan `force_plan`, turned to any of the four streets by the seed, its front door at
+	 `front_entrance_world`), the streets and sidewalks and a ring of roofless shells; the root carries the metas `house`, `towers`, `rooms`,
+	 `streets`, `shells`. Reads: `WorldGen.house_of(district) -> Node2D`, `district_rooms(district) -> Array` (every tower's rooms in
+	 world space, a neighbour's keyed `<block>:<key>`) and `district_bounds(district) -> Rect2` (the streets' rect out to the shells: what
+	 the nav bake must cover). `MatchBuilder.stage` generates one when the spec names no `house`.
    - `WorldGen.get_rooms(house) -> Array` — `{ key, type, rect }` dicts (world-space `rect`), from the house's `rooms` metadata.
    - `WorldGen.get_openings(house) -> Array` — `{ pos, width, front, exit, rooms, outward, door }` dicts, from its `openings` metadata:
 	 `rooms` = keys of the rooms the doorway joins, `outward` parallel to `rooms` (each the unit normal out of that room through the

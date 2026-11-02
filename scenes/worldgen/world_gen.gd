@@ -6,8 +6,8 @@ class_name WorldGen
 ## directly — `generate`, `get_rooms`, `get_openings`, `bounds`, `annotate_layout`, the read-only
 ## catalogue lookups and the test reads `get_wear`, `get_clutter`, `get_street` and
 ## `get_streetlights` and `get_lobbies` are the whole surface World-Gen exposes, with
-## `generate_district` and its reads `house_of` and `district_rooms` (a district's test reads are
-## `DistrictReads`).
+## `generate_district` and its reads `house_of`, `district_rooms` and `district_bounds` (a
+## district's test reads are `DistrictReads`).
 
 
 ## Build a house and return its root Node2D (parented under `parent`). `rng_seed` of 0 picks a
@@ -49,11 +49,12 @@ static func generate_district(
 
 
 ## The house of a generated `district`: the centre tower's node, on which `get_rooms`,
-## `get_openings`, `get_doors` and `get_lobbies` read as for a lone house. Null for a null district.
+## `get_openings`, `get_doors` and `get_lobbies` read as for a lone house. Null for a null district
+## or a node that is no district.
 static func house_of(district: Node2D) -> Node2D:
 	if district == null:
 		return null
-	return district.get_meta("house", null)
+	return district.get_meta("house") if district.has_meta("house") else null
 
 
 ## Every tower's rooms of a generated `district` as `{ key, type, rect }` in WORLD space: the
@@ -63,6 +64,17 @@ static func district_rooms(district: Node2D) -> Array:
 	if district == null:
 		return []
 	return district.get_meta("rooms", [])
+
+
+## The rect of the streets of a generated `district` in WORLD space: the asphalt and sidewalks out
+## to where the ring of shells begins. An empty Rect2 for a null district.
+static func district_bounds(district: Node2D) -> Rect2:
+	var extent := Rect2()
+	var first := true
+	for piece: Dictionary in DistrictReads.get_district_street(district):
+		extent = (piece["rect"] as Rect2) if first else extent.merge(piece["rect"])
+		first = false
+	return extent
 
 
 ## Describe a hand-laid layout `root` the way a generated house describes itself, so `get_rooms`,

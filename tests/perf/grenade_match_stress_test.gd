@@ -1,22 +1,26 @@
 extends GameTest
 ## P1 (`docs/grenades.md`, Performance): grenades going off in a running match keep it smooth. The
 ## 5v5 match of `perf/match_5v5_stress`, built as Main builds one (`Perf.configure_match`,
-## `s.declared_match`: a generated house on its largest plan, the defenders in random rooms, the
-## invader team beside the front door, each side with its spec loadout, so the invaders carry their
-## plates and a stun and a frag each, styled and ranked, one squad per side; nav re-baker, blood,
-## debris, sound and radio on, scripted Von), and once the sides are in contact (after its warm-up,
-## a shot fired and some NPC knowing a hostile, `Perf.warm_until_contact`: a premise) a puppet on
-## the invaders' side (the human's place) throws three frags and three stuns among the fighters over
-## about 3 s, through the controller contract (select the slot, aim, click). The puppet is a test
-## actor, not one of the match's: it carries the three of each P1 names (`Probe.arm`), not a side's
-## one and one, and waits far off the house until its first throw, out of the warm-up and the
-## placement. So the burst's whole cost is in the window: the blast and its fragments, the flash and
-## bang, the FX, scorch, blood and debris, the sounds, and every NPC's grenade perception, evade
-## planning and re-decision. From the puppet's first throw to 3 s after its last burst the frames
-## meet the smooth standard (`Perf.SMOOTH_*`); a grenade an NPC throws meanwhile is part of the
-## load. The camera frames the fighters as Main's spectator view does, on a player's screen, so
-## every body a player would see is drawn. Headless measures the CPU only (the drawing calls
-## included, not the GPU); `tools/run_tests.sh --windowed` measures the render too.
+## `s.declared_match`: a generated downtown district, its centre house on the largest plan, the
+## defenders in random rooms, the invader team beside the front door, each side with its spec
+## loadout, so the invaders carry their plates and a stun and a frag each, styled and ranked, one
+## squad per side; nav re-baker, blood, debris, sound and radio on, scripted Von), and once the
+## sides are in contact (after its warm-up, a shot fired and some NPC knowing a hostile,
+## `Perf.warm_until_contact`: a premise) a puppet on the invaders' side (the human's place) throws
+## three frags and three stuns among the fighters over about 3 s, through the controller contract
+## (select the slot, aim, click). The puppet is a test actor, not one of the match's: it carries the
+## three of each P1 names (`Probe.arm`), not a side's one and one, and waits far off the house until
+## its first throw, out of the warm-up and the placement. So the burst's whole cost is in the
+## window: the blast and its fragments, the flash and bang, the FX, scorch, blood and debris, the
+## sounds, and every NPC's grenade perception, evade planning and re-decision. From the puppet's
+## first throw to 3 s after its last burst the frames meet the smooth standard (`Perf.SMOOTH_*`); a
+## grenade an NPC throws meanwhile is part of the load. The camera frames the fighters as Main's
+## spectator view does, on a player's screen, so every body a player would see is drawn. Headless
+## measures the CPU only (the drawing calls included, not the GPU); `tools/run_tests.sh --windowed`
+## measures the render too.
+## Baseline in the district on a loaded machine (load 4 to 7, three or more other Godot: no run was
+## quiet enough to judge): avg 15 to 17 ms, p95 27 to 34, max 56 to 69; contact came at 20 to 28 s
+## (and in one run in four not within the old 20 s window, hence `Perf.MATCH_CONTACT_WITHIN`).
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")

@@ -1,14 +1,24 @@
 extends GameTest
-## Performance guard: re-baking the nav map of a furnished house and answering many path queries
-## stay fast. Budgets are wall-clock ms with headroom over the baseline.
+## Performance guard: re-baking the nav map of a generated downtown district (nine towers, the
+## streets out to the shells: ~6800 nodes, ~350 furniture footprints, ~800 navmesh polygons) and
+## answering many path queries stay fast. Budgets are wall-clock ms with headroom over the baseline.
+## A frame never pays for the planning bake on the worker thread, so the planning guards are the
+## whole bake done at once (`rebake`, the test seam) and what the frame does to start one
+## (`rebake_async`: the footprints, the walls, the union; the game's tick takes the walls from the
+## per-tower cache and spreads its steps over frames); the steering guard is a re-bake after a
+## character stops somewhere new, which a match pays every tick (`nav_updater.gd`): the one to four
+## tiles round it (`nav_tiles.gd`), where the whole district in one region cost ~57 ms. Baseline on
+## a loaded machine (load ~4, three other Godot): ~57 ms a sync planning re-bake (a house: ~2.5),
+## ~20 ms to start an async one, ~5.5 ms a steering re-bake (was ~57 as one region), ~24 ms for all
+## 300 queries (a house: ~1.2; the map has ten times the polygons). Budgets ~2.5-3x.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const REBAKES := 10
 const QUERIES := 300
-# Baseline: ~2.5 ms per re-bake, ~1.2 ms for all 300 queries. Budgets ~5-8x (small numbers jitter
-# more).
-const REBAKE_BUDGET_MS := 12.0
-const QUERY_BUDGET_MS := 10.0
+const REBAKE_BUDGET_MS := 150.0
+const ASYNC_BUDGET_MS := 60.0
+const STEERING_BUDGET_MS := 15.0
+const QUERY_BUDGET_MS := 60.0
 
 
 func describe() -> Dictionary:
@@ -22,25 +32,54 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.house(424_242)
+	s.district(424_242)
+	s.switch(&"nav.rebake", false)
+	s.actor(&"p", &"puppet", Vector2.ZERO)
 
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)  # the first bake is applied a frame or two after the build
-	if not t.require(t.rooms.size() >= 2, "the house has rooms to path between"):
+	var district: Node2D = t.world.district
+	var rooms := WorldGen.district_rooms(district)
+	if not t.require(rooms.size() >= 2, "the district has rooms to path between"):
 		return
 	var region: NavigationRegion2D = t.world.find_children(
-		"*", "NavigationRegion2D", true, false,
+		"NavRegion", "NavigationRegion2D", true, false,
 	)[0]
-	var house: Node2D = t.world.house
-	var rooms: Array = t.rooms
-
 	var rebake_ms := Perf.time_ms(func():
 		for i in REBAKES:
-			NavBuilder.rebake(region, house, rooms))
+			NavBuilder.rebake(region, district, rooms))
 	Perf.within(t, "nav rebake ms each", rebake_ms / REBAKES, REBAKE_BUDGET_MS)
 	await t.frames(2)  # let the last bake apply
+	var async_ms := Perf.time_ms(func():
+		for i in REBAKES:
+			NavBuilder.rebake_async(region, district, rooms))
+	Perf.within(t, "nav async rebake main-thread ms each", async_ms / REBAKES, ASYNC_BUDGET_MS)
+	await t.seconds(1.0)  # let the bakes on the worker thread land
+	await _steering(t, region, district, rooms)
+	_queries(t, rooms)
 
+
+## A character stops somewhere new, then the steering map is re-baked, `REBAKES` times: what a
+## re-bake tick costs a frame while the characters are about.
+func _steering(
+	t: TestContext,
+	region: NavigationRegion2D,
+	district: Node2D,
+	rooms: Array,
+) -> void:
+	var streets := WorldGen.district_bounds(district)
+	var puppet := t.actor(&"p")
+	var total_ms := 0.0
+	for i in REBAKES:
+		puppet.global_position = streets.position + Vector2(200 + 150 * i, 200 + 90 * (i % 3))
+		await t.frames(2)
+		total_ms += Perf.time_ms(func(): NavBuilder.rebake_steering(region, district, rooms))
+	Perf.within(t, "nav steering rebake ms each", total_ms / REBAKES, STEERING_BUDGET_MS)
+
+
+## `QUERIES` path queries between the district's rooms: their total time and how many found a path.
+func _queries(t: TestContext, rooms: Array) -> void:
 	var map := t.world.get_world_2d().navigation_map
 	var found := [0]  # a lambda captures ints by value
 	var query_ms := Perf.time_ms(func():

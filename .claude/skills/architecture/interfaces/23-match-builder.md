@@ -7,21 +7,23 @@
       lands), `house` (a house, layout or arena already built, staged instead of a generated one; null), `defenders` / `invaders` (`{ count,
       loadout, at }`: 1 each, the side's loadout, optional explicit start points, one NPC each; a side given keeps the defaults of what it
       does not name), `human` (`{ node, side, lead, at }`: the human's character, `&"defender"` / `&"invader"`, whether it leads its side's
-      squad, an optional start; `{}` none), `wait_nav` (true), `spawn_clearance` (20 px), `invader_margin` (80 px), `overlays` (`{ show_<x>:
+      squad, an optional start; `{}` none), `wait_nav` (true), `spawn_clearance` (20 px), `invader_margin` (80 px), `front_step` (px out of the front door, along its way out, an invading human with no `at` starts; 0: where it stands. Main sets `run.entrance_distance`), `overlays` (`{ show_<x>:
       bool }` by `OverlayRegistry` flag; a flag not named starts off). Side loadouts: `INVADER_LOADOUT` (a stun, a frag, helmet, shirt, plate
       carrier with steel III plates, tactical pants, boots; the gun is the `LoadoutConfig` default) and `DEFENDER_LOADOUT` (`{}`), so a
       test's match carries what Main's does. `DEFENDER_FACTION` (`household`) / `INVADER_FACTION` (`invader`) are the factions.
     - **Building:** `build(match_spec, world: Node2D) -> Dictionary` is a coroutine: `stage`, then `populate`; `{}` when the match was torn
       down during the wait.
       - `stage(match_spec, world) -> Dictionary` (coroutine) is the world stage: the spec's `house` moved under `world`, or
-        `WorldGen.generate` (1); `NavBuilder.build`, the `nav_debug.gd` overlay and the `nav_updater.gd` re-baker (9);
-        `WorldLighting.light(world, seed, rooms)` (20). With `wait_nav`: two physics frames, then until `NavBuilder.ready` holds on the
+        a generated downtown district (`WorldGen.generate_district`, 1: the centre tower is the house, the spec's `seed`, `plan` and
+        `entrance` are its); `NavBuilder.build` over the district root with every tower's rooms and `WorldGen.district_bounds` (a lone house:
+        its own rooms),  the `nav_debug.gd` overlay and the `nav_updater.gd` re-baker (9);
+        `WorldLighting.light(world, seed, rooms)` over every tower's rooms (20). With `wait_nav`: two physics frames, then until `NavBuilder.ready` holds on the
         planning map and its steering map (at most `NAV_SYNC_MS`, 5000 ms real time, then a `push_error`), so no NPC is placed before the
-        maps answer with this house. Returns the handle `{ world, house, rooms, openings, nav_debug }`.
+        maps answer with this house. Returns the handle `{ world, house, rooms, openings, nav_debug }`: `house` the building the match is fought over and `rooms` / `openings` its own, plus `district` (the district root) when one was generated.
       - `populate(handle, match_spec) -> Dictionary` over a staged handle: defenders and the invader team placed through `match_spawner.gd`
         from one RNG seeded with `seed` (or at the sides' `at`), each NPC bound before it joins the tree (the spawner's `bind` Callable:
         `bind_npc` with `entry_point_for` the NPC's faction); the human joined to its side (faction, start, reparented just above the
-        house); everyone armed, styled and ranked (`arm`); `squads_over`; every overlay but the holes (the stage's) started through
+        district, or the lone house); everyone armed, styled and ranked (`arm`); `squads_over`; every overlay but the holes (the stage's) started through
         `set_overlay` by the spec's `overlays`. Adds to the handle `combatants` (spawn order, the human last), `squads` (faction ->
         `Squad`), `player_stack` (or null), `leader_overlay` and `view` (the human's `PlayerView`, built last by `PlayerView.watch`, 25: null
         with no human and while `VisionConfig.enabled` is off).
