@@ -57,7 +57,11 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"vision.enabled", true)
 	s.actor(&"you", &"player", Vector2(150, 350))
 	s.actor(&"shooter", &"puppet", Vector2(600, 350), { "max_health": 100_000.0 })
-	s.actor(&"victim", &"puppet", Vector2(1000, 350), { "start_slot": 3 })
+	# Too hardy for a stray fragment of the shooter's frag to kill it before the test does: a body
+	# that dies still (not on the run) lets its gun go with no skid, which no place can show moving.
+	s.actor(
+		&"victim", &"puppet", Vector2(1000, 350), { "start_slot": 3, "max_health": 100_000.0 },
+	)
 
 
 func run(t: TestContext) -> void:
@@ -76,7 +80,7 @@ func run(t: TestContext) -> void:
 	t.puppet(&"victim").walk(Vector2.RIGHT)
 	await _watch(t, 0.5)
 	_corpse = victim
-	victim.take_damage(1000.0)
+	victim.take_damage(victim.health)
 	await _watch(t, 6.0)
 	t.require(
 		victim.anatomy.ragdoll.is_settled(),
