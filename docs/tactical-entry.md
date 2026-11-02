@@ -162,9 +162,16 @@ Tests: `entry_no_pause_in_threshold`, `entry_hit_in_threshold_clears_it`, `entry
 corner on its own side and the second crosses to the door-wall corner on the other side, the hard corner (a stack split across
 the door criss-crosses instead: E19). They do not
 take the same corner, and each turns its gaze across the room as it goes so the sectors interlock. Each walks all the way into its
-corner: in a small room a corner a stride short stands in the doorway the next one crosses. Why: two
+corner: in a small room a corner a stride short stands in the doorway the next one crosses. A corner is a spot inside its room, on
+the floor nearest the room's corner (past its furniture) that the doorway reaches, never one through the wall beside it on the street
+or in the next room, nor one in a pocket of floor furniture walls off (whose only route runs round the outside), nor one on an open
+door's leaf. A point that set off alone and was joined at its stack by the time it crosses (a shut door skips the
+pie, E3, where the pie would have told it) enters as one of a team: it takes its own side's corner and the second the other one. Why: two
 interlocking sectors cover the whole room and each other.
-Tests: `entry_pair_take_opposite_corners`, `entry_pair_hard_corner_first`.
+Tests: `entry_pair_take_opposite_corners`, `entry_pair_hard_corner_first`, `entry_shut_door_pair_takes_opposite_corners` (two
+invaders at the kitchen's shut back door), `entry_front_door_corners_in_room` (a generated house's front door, seed 2, where the plain
+snap of a corner filled with furniture lands on the street), `entry_front_door_corner_reachable` (seed 10, where furniture walls
+the great room's south-east corner off from the doorway).
 
 **E6. Ready barrier and "going in".** The point does not cross until every invader in range holds its
 slot (or a ready timeout runs out), on either side of the door (the other side's front man of a split stack is ready once it has

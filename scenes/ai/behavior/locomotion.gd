@@ -85,7 +85,7 @@ var give_way := GiveWay.new(self)
 var stall := Stall.new(self)
 ## The walk round the doorway views (E18); see loco_doors.gd.
 var doors := Doors.new(self)
-## The door leaves on the walk's way, opened when not open wide enough; see loco_door_leaves.gd.
+## The door leaves on the walk's way, opened or gone through by a clean gap: loco_door_leaves.gd.
 var leaves := DoorLeaves.new(self)
 ## Pathfinding agent, or null (falls back to straight-line).
 var _agent: NavigationAgent2D

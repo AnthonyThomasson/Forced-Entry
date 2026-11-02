@@ -23,7 +23,7 @@ A folded sub-domain is a side file of its parent skill: `.claude/skills/<skill>/
 | Art | `art/` | `domain-art` | The procedural pixel-art engine every painter draws through, and its shared tuning. |
 | Audio | `audio/` | `domain-audio` | Procedural sound: synthesized in code, picked by event, played by the `Sound` autoload. |
 | Lighting | `lighting/` | `domain-lighting` | The dusk ambient, a light per light-giving piece and room fixture, flashes (`docs/lighting.md`). |
-| Vision | `vision/` | `domain-vision` | The player's view: cone, memory, greyscale outside (`docs/player-vision.md`). |
+| Vision | `vision/` | `domain-vision` | The player's view: cone, memory, greyscale outside. |
 | Navigation | `navigation/` | `domain-navigation` | Baking the house into a nav map, and re-baking it. |
 | General | `general/` | `domain-general` | Infrastructure: input, settings, `EventBus`, `GameLog`, `GameClock`, `Despawner`, camera, dev command server, shared ids and helpers. |
 | UI | `ui/` | `domain-ui` (`menus.md`, `hud.md`, `command.md`, `overlays.md`, `testing.md`; `ui/<folder>/`) | Every HUD and menu. |
@@ -62,7 +62,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 22. **Main → UI.** Read for how Main wires a HUD, the setup window or the overlay bar: `interfaces/22-main-to-ui.md`
 23. **Main / Testing → `MatchBuilder`.** Read to build a match or a test world: `interfaces/23-match-builder.md`
 24. **Objects' `Door` ↔ Character, AI, Testing: the door contract.** Read to open, turn, hit or walk through a house door: `interfaces/24-door-contract.md`
-25. **Main / Testing → Vision: the player's view.** Read to build a view or read its cone and memory: `interfaces/25-vision.md`
+25. **Main / Testing → Vision: the player's view.** Read to build or read a view: `interfaces/25-vision.md`
 
 ## Dependency graph
 
@@ -74,7 +74,7 @@ main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
 worldgen ──▶ objects (the five factories, RoomWalls, WearPlan, and `DoorConfig.open_angle`: 24)
-objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake leaves the group `doors` out: 9; a door's swing nudges a character clear, duck-typed: 7, 24)
+objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake leaves the group `doors` out but carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
 items ──▶ projectile, art          projectile ──▶ physics          vehicle ──▶ physics, art
 ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement)   (and a house door, duck-typed: 24)
@@ -82,7 +82,7 @@ ui ──▶ items, physics            (plain dicts in, signals out; never calls
 every domain ──▶ general
 ```
 
-- **Leaves:** Physics, Navigation, Art, Audio, Lighting, Vision and World-Gen depend on nothing outward but General (and World-Gen on the Objects factories). Audio imports only `EventBus`; Lighting reads the world duck-typed (`get_lights()`, the groups `floors` and `characters`), Vision the viewer (`sight()`, `facing`, `died`).
+- **Leaves:** Physics, Navigation, Art, Audio, Lighting, Vision and World-Gen depend on nothing outward but General (and World-Gen on the Objects factories). Audio imports only `EventBus`; Lighting reads the world duck-typed (`get_lights()`, the groups `floors` and `characters`), Vision the viewer's `sight()`.
 - **Duck-typed, no class reference:** Items, Projectile, Physics and Explosion strike Objects, Character and Vehicles through interface 3; Camera reads a vehicle through `use.vehicle()` and its state, `Sound` off the `vehicle` key of the `engine` / `skid` events (interface 10); UI reads Character and AI by exported path and signals (the spectator's detail card reads the NPC overlays' `card_lines()`).
 - **Events:** `EventBus` carries hits, shots, callouts, orders, explosions, grenades, footfalls, stuns and vehicle events between domains that do not reference each other. Topics and payloads: interface 10.
 - **Inside the AI** (the stack seam, doorway views, what team reads of perception): `domain-ai` (`team.md`, `perception.md`).
