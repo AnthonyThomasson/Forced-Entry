@@ -10,8 +10,8 @@ A new tunable goes in the holder of its topic. One that fits no topic starts a h
 | Physics | `Physics{,Impact,Deform,DeformLook,Ragdoll,Explosion}Config`; blood: `BloodConfig` (master switch, colours, draw layers, decal cap) and `Blood{Drip,Spray,Splat,Pool,Surface,Print,Smear,SmearLook,Trail}Config` |
 | Character | `Character*Config` (Posture, Pace, Push, Door, Melee, Stun, Hit, Shadow, Art, Style, Body, Stride, Stance, PoseTurn, PoseHand, PoseHead, Ragdoll, RagdollJoint, RagdollFall, Vision) |
 | Art | `ArtCanvasConfig`, `ArtSurfaceConfig` |
-| Objects | `ObjectArt*Config` (Table, Fabric, Storage, KitchenBath, Decor, Outdoor, Clinic, Tech, Light, Layer, Floor, Wall, Decay, Wear, Street, Door); the doors': `DoorConfig`, `DoorPushConfig`, `DoorMaterialConfig` (a row per door material) |
-| World-Gen | `WorldGen{Fill,Dress,Street,Door}Config` |
+| Objects | `ObjectArt*Config` (Table, Fabric, Storage, KitchenBath, Decor, Outdoor, Clinic, Tech, Light, Layer, Floor, Wall, Decay, Wear, Street, Door, and the district's Shop, Awning, Stencil, StreetProp, Podium, ShellDecor, Crossing, RoadGlyph); `ObjectFadeConfig` (an overhang's fade under a character); the doors': `DoorConfig`, `DoorPushConfig`, `DoorMaterialConfig` (a row per door material) |
+| World-Gen | `WorldGen{Fill,Dress,Street,Door,District,Tower,Shell}Config` (the district's grid, streets and clutter; a tower's podium, shadow and body; a shell's decor) |
 | Items | `GunConfig` and `GrenadeConfig` (one row per gun / grenade kind), `MagazineConfig`, `DroppedItemConfig`, `OutfitConfig` (garment and plate rows), `LoadoutConfig` (setup bounds, default outfit) |
 | Audio | `Sound{,Library,Deafness,Vehicle}Config` |
 | Vehicles | `VehicleConfig` (a `kinds` and a `looks` row per kind), `Vehicle{Boarding,Door,Drive,Collision,Art}Config` |

@@ -6,6 +6,11 @@
       `MatchBuilder.bind_npc` (`MatchBuilder.entry_point_for` gives an invader the front entrance). `TestSetup.declared_match` runs
       `MatchBuilder.populate` over the staged world (read `t.world.match_handle`); `TestSetup.squads` runs `MatchBuilder.squads_over`, the
       human leader getting its stack radio from `MatchBuilder.bind_player` (read `t.world.squad(faction)`, `t.world.player_stack`).
+    - **A district world:** `TestSetup.district(seed, plan := "", entrance := Vector2.ZERO)` declares `{ kind: "district", seed, plan,
+      entrance }` (the runner's `--seed=N` pins its seed as it does a house's). `TestWorld` builds no district itself: it hands the spec
+      to `MatchBuilder.stage` (23), which generates it (1) and bakes it over every tower and street. `t.world.district` is the district
+      root (null in any other world); `t.world.house`, `rooms` and `openings` are the centre tower's, so every injected NPC is bound as in a
+      house. A district world takes no placed objects (a `push_error`); the tower reads are `DistrictReads` (1).
     - **Actors:** character scenes plus the controller contract (7): a puppet `ScriptedController` or `player_controller.gd` on
       `character/character_base.tscn` (controller-less). `TestSetup.vehicle(id, kind, pos, rotation := 0.0, props := {})` instances
       `res://scenes/vehicle/<kind>.tscn` under the world root after the bake (not carved) and waits one physics frame; `t.vehicle(id)` reads

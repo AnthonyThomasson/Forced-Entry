@@ -5,18 +5,19 @@ description: Use when editing scenes/worldgen/ or working on floorplans, room ty
 
 # World Generation domain (`scenes/worldgen/`)
 
-Picks a floorplan and builds and furnishes a house. It owns the *catalogue* (which furniture, arrangements and recipes exist);
+Picks a floorplan and builds and furnishes a house, or a whole downtown district of towers, streets and shells (`district.md`). It owns the *catalogue* (which furniture, arrangements and recipes exist);
 Objects owns the field schema and turns a plain definition dict into a node, so World-Gen never touches an object's fields. A leaf
-apart from the five factories (`WallFactory`, `FloorFactory`, `ObjectFactory`, `WearFactory`, `DoorFactory`) and `RoomWalls` / `WearPlan`.
-Interfaces: 1 (Main → World Generation, incl. `bounds`, `get_doors` and the test reads `get_wear` / `get_clutter` / `get_street` /
-`get_streetlights`), 2 (→ Objects, incl. `DoorFactory`), 11 (`WeightedPick`, the clutter draw). Tests: `tests/worldgen/`.
+apart from the six factories (`WallFactory`, `FloorFactory`, `ObjectFactory`, `WearFactory`, `DoorFactory`, `DecalFactory`) and `RoomWalls` / `WearPlan`.
+Interfaces: 1 (Main → World Generation, incl. `generate_district`, `house_of`, `district_rooms`, `district_bounds`, `bounds`, `get_doors`, `get_lobbies` and the test reads `get_wear` / `get_clutter` / `get_street` /
+`get_streetlights` / `DistrictReads`), 2 (→ Objects, incl. `DoorFactory`, `DecalFactory`), 11 (`WeightedPick`, the clutter draw). Tests: `tests/worldgen/`.
 
 | File | Role |
 |---|---|
 | `world_gen.gd` (`WorldGen`) | `generate` picks one `HouseDefinitions.PLANS` floorplan and hands it to `HouseSpawner`; `bounds(rooms)` (the one copy of the rooms' bounding box); `annotate_layout` and the catalogue lookups for outside builders (Testing's arenas and placed pieces). |
-| `house_definitions.gd`, `layout_rules.gd` | The floorplans; `LayoutRules`, the table of what makes a plan logical. |
+| `house_definitions.gd`, `layout_rules.gd` | The 11 house floorplans; `LayoutRules`, the table of what makes a plan logical (houses and towers alike). |
+| `tower_definitions.gd`, `district_*.gd`, `tower_dressing.gd`, `street_lamps.gd`, `world_gen_{district,tower,shell}_config.gd` | The downtown district: six tower plans, the layout, streets, tower dressing, shells and their tuning: `district.md`. |
 | `categories/doors.gd`, `door_rules.gd`, `house_doors.gd`, `world_gen_door_config.gd` | The doors in a house: `doors.md`. |
-| `house_spawner.gd` | Walls, furnishing, floors, the street ring, the street lamps; `_validate` warns with `LayoutRules.check`. |
+| `house_spawner.gd` | Walls, furnishing, floors, a turn (0 to 3 quarter turns), the elevator lobby's stencil, the street ring and lamps (a switch); `_validate` warns with `LayoutRules.check`. |
 | `room_furnisher.gd`, `room_site.gd`, `room_dresser.gd` | Placement of arrangements; `RoomSite` is what each room hands them (the plan's `room`, `wall_thickness`, the doorway boxes `blocked`, `solids` so far, its `furniture` node, `run_seed`); clutter, neon and wear placement. |
 | `categories/*.gd`, `object_definitions.gd`, `arrangement_definitions.gd` | One `<Name>Catalog` per room type holding `OBJECTS`, `ARRANGEMENTS`, `RECIPES`; the two definitions files merge them behind `get_definition` / `get_arrangement` / `get_recipe`. `general.gd` (`GeneralCatalog`) holds shared entries, the `WOOD` / `FABRIC` palettes, `FLOORS`, `WALL`, `CLUTTER`, `STREET`, the `streetlight` / `street_sign` rows, and the pieces two or more categories use. |
 | `world_gen_fill_config.gd`, `world_gen_dress_config.gd`, `world_gen_street_config.gd` | Tuning: fill (`enabled`, `scale`, `attempts`, `max_pieces`), dressing (`near`, `jamb`, clutter and neon and wear chances), the street and its lamps. |
@@ -27,13 +28,13 @@ Interfaces: 1 (Main → World Generation, incl. `bounds`, `get_doors` and the te
   every wall through it (`WallFactory.openings_for`), keeps opening clearances (`OPENING_CLEARANCE`) free of furniture, and mirrors
   the plan L/R half the time. A doorway with no door is a plain archway; one with a door holds a `Door` (`doors.md`). A doorway is 60 px wide
   inside and 69 px for the front and exit ones.
-- Exactly one opening is `front` (the house is positioned by it, always on the south wall); a plan may add `"exit": true`
+- Exactly one opening is `front` (the house is positioned by it; plan-local it is on the south wall, and a district turns it, `district.md`); a plan may add `"exit": true`
   openings (one room's exterior wall). `get_openings` reports `{ pos, width, front, exit, rooms, outward, door }`; `outward` is the unit
   normal of each room's wall through the doorway (`HouseSpawner.outward_on`), read by the doorway clearances, the street lamps'
   door rule and the match spawner's invader team.
 - `LayoutRules.ROOMS[type]` says whether a type may carry the front door or an exit, may be the only route between two rooms
   (`through`), and its `max_doors`; `LINKS` lists the room-type pairs that may share an interior door. A plan that breaks them
-  fails `tests/worldgen/house_doorways_connected_test.gd`; `layout_rules_test.gd` pins the validator against illogical layouts.
+  fails `tests/worldgen/house_doorways_connected_test.gd` (a tower: `tower_plans_connected_test.gd`; both read `tests/_worldgen/doorway_reach_probe.gd`); `layout_rules_test.gd` pins the validator against illogical layouts.
   A new room type needs its `ROOMS` / `LINKS` entries before a plan can use it.
 - A floorplan must give each room space for its required pieces plus the door lanes (no three-door small bedrooms); otherwise the
   furnisher warns "no room for required zone" and the doorway test fails. `tests/worldgen/house_doorways_connected_test.gd` bakes
@@ -83,7 +84,7 @@ Interfaces: 1 (Main → World Generation, incl. `bounds`, `get_doors` and the te
   `reach`, four strips each (top and bottom span the corners), through `FloorFactory` from `GeneralCatalog.STREET`: `sound_surface:
   false` (footsteps stay `outdoor`) and `light_layer: "street"` (lit only by the street lamps, the flashes and the sky,
   `docs/lighting.md` L4). Each carries `marks` `{ seed, edges, lane }` and a shared `tile_from`, so slab joints meet.
-- `HouseSpawner._streetlights`: along the front sidewalk, spaced and jittered by `streetlight_every` / `streetlight_jitter`, each
+- `HouseSpawner._streetlights` (the run and the door rule are `StreetLamps`, which a district's sidewalks share): along the front sidewalk, spaced and jittered by `streetlight_every` / `streetlight_jitter`, each
   post `streetlight_curb` in from the curb with its arm over the road; every other one is a neon `street_sign`, the rest
   `streetlight`s: solid `anchored` posts with an `overhang`, spawned through `ObjectFactory` under a `Street Lamps` node of the
   house, so the nav bake carves them.
@@ -92,7 +93,7 @@ Interfaces: 1 (Main → World Generation, incl. `bounds`, `get_doors` and the te
   (`streetlight_door_strip_*`). A lamp that would is dropped, not moved. Its own RNG, `hash([run seed, "streetlights"])`
   (`tests/worldgen/streetlight_placement_test.gd`).
 - The house carries what it placed as metadata, read through interface 1: `rooms`, `openings`, `doors`, and, for tests, `clutter`,
-  `wear`, `street`, `streetlights` (the `get_*` reads).
+  `wear`, `street`, `streetlights`, `lobbies` (the `get_*` reads).
 
 ## To add a room type
 
@@ -103,5 +104,5 @@ which also writes the `.uid` files).
 
 ## To add or change a floorplan
 
-Rooms are rects that share walls; put a doorway on each shared wall you want open and make the graph satisfy `LayoutRules`
+A tower plan: `district.md`. Rooms are rects that share walls; put a doorway on each shared wall you want open and make the graph satisfy `LayoutRules`
 (check with `tools/run_tests.sh worldgen`). Mind the room sizes (above).

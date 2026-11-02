@@ -22,15 +22,20 @@ node under the world root, in the group `world_lighting`, with the reads `lights
   `colour`, `energy`, `radius`, `shape`, `rhythm`, `room_light`, `street`, `height`, `glow`);
 - every wall run, every solid piece and every living character builds its own `LightOccluder2D`, like its collider, on the bit
   `LightMasks` gives its kind;
-- the street's floors are on the street light layer (`LightMasks.STREET`); everything else on the house's (`HOUSE`, Godot's
-  default).
+- the street's floors, and the long shadow each tower throws across them, are on the street light layer (`LightMasks.STREET`);
+  everything else on the house's (`HOUSE`, Godot's default).
+
+In a **district** `rooms` is `WorldGen.district_rooms`: the rooms of all nine towers, a neighbour's keyed `<block>:<key>` so no two
+clash, each lit as a house's rooms are (a fixture or a piece's own light). The shells are no rooms and have no fixtures. The street
+floors are cut to `tile_max` (360 px) on a side so the lamps of a block still reach each within the budget (L4). Nothing is drawn
+overhead: a tower's rooms are open to the camera and lit by the ambient, their fixtures and pieces, with no roof above them.
 
 ## Behaviours
 
 **L1. Dusk.** One CanvasModulate tints the world `ambient_color` **(0.40, 0.37, 0.55)**, a cool blue-violet. One
 DirectionalLight2D, `Sky`, in `sky_color` **(1.0, 0.5, 0.42)** comes low from the south-west (`sky_from` (−0.38, 1.0), so it shines
-toward +x, −y; the front of a house is south) at energy 0.42 and lights only the street's layer, **unshadowed** (a directional
-shadow runs to the edge of the view, so a body out there would throw one across the whole street). **The house has a roof:** no sky
+toward +x, −y; the front of a lone house is south; a district's towers face any street) at energy 0.42 and lights only the street's layer, **unshadowed** (a directional
+shadow runs to the edge of the view, so a body out there would throw one across the whole street). **The house has a roof, and so has every tower:** no sky
 reaches its rooms, which are lit by the ambient, their fixtures and their pieces (a sky let in by the doorways would throw a band
 of light the length of the room, a 2D light having no height).
 Tests: `lighting/dusk_ambient_and_sky` (seed 4: the configured ambient; one CanvasModulate in it; every sky light in the sky
@@ -128,11 +133,18 @@ its peak for 3 frames or more, still lit 0.45 s on and dark within 1.1).
 no WorldLighting, ambient, sky, point light or occluder anywhere, the characters' included.
 Tests: `lighting/lighting_switch_off` (after a shot, none of those node types under the world).
 
+**A tower's shadow.** Each tower of a district casts a long, hard shadow onto the street (`DecalFactory.shadow`, interface 2): its
+footprint dragged `WorldGenTowerConfig.shadow_length` away from the art light, the footprint itself left clear, lit by the street's
+lights only. It is a baked decal at `DrawLayers.RUG`, so characters and pieces stand over it, and it casts no occluder of its own.
+Tests: `worldgen/district_tall_read` (a shadow per tower reaching past it, clear on its footprint, on the street layer, under the characters), `general/district_match_staged`
+(every room of every tower has a light, no two rooms share a key).
+
 ## Measured cost
 
 These figures were measured before shadows by height (L6): every piece light was then shadowed by the furniture and the
 characters too, and a shadowed sky lit the house. The lighting now builds fewer shadow casters per light and no sky in the house,
-so they are an upper bound until it is measured again.
+so they are an upper bound until it is measured again. They were taken on one house and street; a district (nine towers, more lights in view at
+once) was **not** measured, and no GPU figure for it is recorded. The hand check in the editor stays to do.
 
 The perf tests run headless and see only the CPU side, so the GPU cost is measured by hand. On 2026-10-15 a 10v10 match in
 `garage_home` was measured, set up as `perf/match_10v10_stress` sets it up (seed 7, scripted Von). It ran windowed on Vulkan

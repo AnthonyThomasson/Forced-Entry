@@ -34,8 +34,8 @@ of its two rooms, the larger when both rank alike):
 |---|---|---|
 | bathroom, netrunner den | 4 | 1.0 (always) |
 | bedroom, home office, ripperdoc | 3 | 0.85 (mostly) |
-| garage, laundry room | 2 | 0.5 |
-| kitchen, kitchenette, living room, kitchen-living, studio, security vestibule | 1 | 0.15 (rarely) |
+| garage, laundry room, stockroom | 2 | 0.5 |
+| kitchen, kitchenette, living room, kitchen-living, studio, security vestibule, shop, noodle bar, elevator lobby | 1 | 0.15 (rarely) |
 | hallway | 0 | 0.0 (so between two hallways: never) |
 
 A floorplan may force or forbid a door on one opening, a front or exit one too (its say wins; the plans use it only inside) (`door: true` / `false` on the opening in `HouseDefinitions`; the plans use
@@ -44,7 +44,8 @@ door sets (`door_sets`: the `DoorCatalog` doors its `front`, `exit` and `interio
 `door_set` picks, such as the patio's or the office's). With none named, a kind draws from `DoorRules.SETS`: solid wood
 (panelled, plank) at the street and at an exit, hollow-core (flush, panelled) inside. The flats and the loft (`studio_flat`,
 `one_bed_flat`, `two_bed_flat`, `office_loft`, `railroad_flat`, `micro_flat`, `corner_flat`) have steel doors (riveted, peephole)
-at the street; the houses solid wood; `open_plan_home`'s patio exit and `office_loft`'s office door are glass-panel.
+at the street; the houses solid wood; `open_plan_home`'s patio exit and `office_loft`'s office door are glass-panel. The downtown towers (`TowerDefinitions`, plans in the houses' format) name their `door_sets`: a shop or a
+noodle bar at the front has a glass-panel shopfront, the other towers a steel one (riveted, peephole), and every back exit is steel.
 
 Each doorway rolls from a stream of its own, `hash([run seed, "doors", its index in the plan])`, that always draws the same values
 (the chance, the two ties, the door of its set, its start state and angle) whatever it turns out to be, so a door never shifts

@@ -13,7 +13,7 @@ A folded sub-domain is a side file of its parent skill: `.claude/skills/<skill>/
 
 | Domain | Folder | Skill | Owns |
 |---|---|---|---|
-| World Generation | `worldgen/` | `domain-worldgen` | Floorplan (front door, exits, hallways), building and furnishing a house, its doors, its run-down dressing, the street and its lamps. |
+| World Generation | `worldgen/` | `domain-worldgen` | Floorplan (front door, exits, hallways), building and furnishing a house or tower, its doors, its run-down dressing, the downtown district (towers, streets, lamps, shells). |
 | Objects | `objects/` | `domain-objects` | Furniture, walls, floors, the street and the house doors: data, hit / push behaviour, wear and decals, every painter. |
 | Items | `items/` | `domain-items` | What a character holds and does with it (guns, grenades, loadout), and what it wears (outfits). |
 | Character | `character/` | `domain-character` (`body.md`; `character/body/`) | The player character and its components, built so other character types can exist. |
@@ -38,8 +38,8 @@ A folded sub-domain is a side file of its parent skill: `.claude/skills/<skill>/
 
 Everything not listed here is private to its domain. A signature lives only in its `interfaces/` file; a domain skill names the interfaces it takes part in by number.
 
-1. **Main → World Generation** (through `MatchBuilder`). Read to generate a house or use the catalogue and street: `interfaces/01-main-to-world-generation.md`
-2. **World Generation → Objects.** Read to spawn a piece, wall, floor or wear: `interfaces/02-world-generation-to-objects.md`
+1. **Main → World Generation** (through `MatchBuilder`). Read to generate a house or district, or use the catalogue and street: `interfaces/01-main-to-world-generation.md`
+2. **World Generation → Objects.** Read to spawn a piece, wall, floor, wear or decal: `interfaces/02-world-generation-to-objects.md`
 3. **The "hittable" contract** (Objects, Character, Vehicles and their strikers). Read to hit something or make something hittable: `interfaces/03-hittable-contract.md`
 4. **Objects / Character / Vehicles → Physics.** Read for knockback, deformation, debris, particles, ragdoll, blood, an explosion's look: `interfaces/04-physics.md`
 5. **The "pushable" contract** (Objects, Vehicles, Character). Read to shove a body: `interfaces/05-pushable-contract.md`
@@ -50,7 +50,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 10. **Any domain ↔ General (`EventBus`).** Read to post or listen to an event and for every topic's payload: `interfaces/10-eventbus.md`
 11. **General → every domain: shared ids and rules.** Read for `PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `FillBatch`, `WeightedPick`, `MatchVerdict`: `interfaces/11-general-shared-ids-and-rules.md`
 12. **Objects / Character / Items / Vehicles → Art.** Read to render pixel art: `interfaces/12-art.md`
-13. **Testing → every domain.** Read for what a test world may build and call: `interfaces/13-testing.md`
+13. **Testing → every domain.** Read for what a test world (house, arena or district) may build and call: `interfaces/13-testing.md`
 14. **Main → General settings, UI settings page.** Read for saved settings and key rebinding: `interfaces/14-settings.md`
 15. **Any domain → General (`GameLog`).** Read to print to the game's log: `interfaces/15-gamelog.md`
 16. **Objects → Audio: `SoundSurface`.** Read for what a floor tells Audio: `interfaces/16-soundsurface.md`
@@ -73,7 +73,7 @@ main ──▶ worldgen, navigation, lighting, vision, ai, items, character, aud
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
-worldgen ──▶ objects (the five factories, RoomWalls, WearPlan, and `DoorConfig.open_angle`: 24)
+worldgen ──▶ objects (the six factories, `DecalFactory` among them, RoomWalls, WearPlan, and `DoorConfig.open_angle`: 24)
 objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake leaves the group `doors` out but carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
 items ──▶ projectile, art          projectile ──▶ physics          vehicle ──▶ physics, art

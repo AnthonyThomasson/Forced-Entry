@@ -4,7 +4,7 @@
 only (the browser also calls it to list the switches).
 
 - **World, one of:** `layout(rooms, doors, opts)` (a hand-laid building in the house style: the nav bake and
-  `WorldGen.get_rooms` / `get_openings` work as for a house), `arena(rect, opts)` (a walled room with the same `rooms` meta)
+  `WorldGen.get_rooms` / `get_openings` work as for a house), `arena(rect, opts)` (a walled room with the same `rooms` meta),
   `house(seed, plan, entrance)` or `district(seed, plan, entrance)` (a downtown district: `MatchBuilder.stage` generates it and bakes the
   nav over its streets as Main's match does; `TestWorld.district` is its root, `house` / `rooms` / `openings` the centre tower's, so a
   district world takes no placed objects, `push_error`). The default is an 800×500 arena.

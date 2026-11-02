@@ -7,8 +7,8 @@ description: Use when editing scenes/objects/ or working on furniture, walls, fl
 
 Owns the world's objects (furniture, walls, floors, the street round a house, the doors), their wear and decals: their field schema, how
 they are hit and pushed, how they compose Physics, what they give the lighting, and their painters. It turns a plain definition
-dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, incl. `WearFactory` and the floor's `sound_surface` /
-`marks` / `tile_from` / `light_layer`, and `DoorFactory`), 3 (hittable), 4 (→ Physics), 5 (pushable), 8 (interactable), 10 (a door's
+dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, incl. `WearFactory`, `DecalFactory`, the floor's `sound_surface` /
+`marks` / `tile_from` / `light_layer` and `DoorFactory`), 3 (hittable), 4 (→ Physics), 5 (pushable), 8 (interactable), 10 (a door's
 `&"door"`), 11 (`DrawLayers` for the floor and rug z, `LightMasks`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`, occluders,
 unshaded overlays), 24 (the door contract).
 
@@ -20,7 +20,7 @@ unshaded overlays), 24 (the door contract).
 | `object_factory.gd`, `wall_factory.gd`, `floor_factory.gd`, `wear_factory.gd`, `wear_plan.gd`, `door_factory.gd` | The interface-2 factories. |
 | `door/` (`door.gd` and its parts), `door_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
 | `collider_cuts.gd` (`ColliderCuts`) | The shared queue of convex collider cuts, run on worker threads. |
-| `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`. |
+| `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`, `decal_factory.gd` (`DecalFactory`: the floor stencil and the tower shadow). |
 | `art/` | The painters and their holders (the door's: `art/door_painter.gd`): `art.md`. |
 
 Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry, colliders and look data and never draw; their
@@ -71,6 +71,9 @@ A definition's `overhang` (`{ size, reach }`) makes `ObjectFactory` add a child 
 footprint (a streetlight's arm and head). It draws the piece's own painter with `part: "overhang"` at `size`, centred `reach` px out
 along the facing, at `DrawLayers.OVERHEAD` (`ObjectArtLayerConfig.overhang_z_index`: over the living and a vehicle's roof), with no
 collider; `get_rect()` is the area it draws, and it has its own `emissive_layer()` (`tests/objects/overhang_test.gd`).
+`fade_under: true` in it (a tower's door awning and glyph sign) fades its `modulate` to `ObjectFadeConfig.alpha` (0.25) over `seconds`
+(0.15) while a node of the group `characters` stands in `get_rect()`, and back; only a fading one processes
+(`tests/objects/overhang_fades_under_character_test.gd`).
 
 ## Lights and shadows (interface 20; spec `docs/lighting.md`, skill `domain-lighting`)
 
@@ -116,7 +119,12 @@ grid). `decal_layer.gd` is a draw-only batch of `[texture, rect]` marks.
   `cell_px` / `parquet_strip`), and with `ObjectArtWearConfig.wall_chance` a mark on the free stretch of wall beside it. Two layers,
   `FloorWear` and `WallWear`, built after every room's floor and walls so they draw over them; one node per room, so it takes that
   room's floor lights (the budget, `docs/lighting.md` L4).
-- **The street's marks** (`street_marks.gd`, from the definition's `marks` `{ seed, lane, edges }`): sidewalk slabs, cracks, stains,
-  gum, weeds and the curb along `edges`; on a road the lane dashes, cracks, patches, oil, and gutter litter and puddles.
+- **The street's marks** (`street_marks.gd`, from the definition's `marks` `{ seed, lane, edges, crossings, glyphs }`): sidewalk slabs,
+  cracks, stains, gum, weeds and the curb along `edges`; on a road the lane dashes, cracks, patches, oil, and gutter litter and puddles,
+  and at a junction's end a worn zebra crossing with its stop line (`crossings`) and a lane number with an arrow (`glyphs`); `laid(kind)`
+  says where they went.
+- **`DecalFactory`** (`decals/decal_factory.gd`, interface 2) lays draw-only sprites with no collider: `stencil` (floor text in a hazard border,
+  painted upright on a canvas the size of the area so a turned building does not turn it) and `shadow` (a tower's footprint dragged away
+  from the art light, on `LightMasks.STREET` at `DrawLayers.RUG`, so only the street's lights reach it).
 
 Tests: `tests/objects/`.

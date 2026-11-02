@@ -18,7 +18,8 @@ One look for every piece; there is no style switch.
 
 - **The palette grade** (`decay.gd` `grade`, `ObjectArtDecayConfig.grade_*`): `ObjectArt.texture` / `tile` wash every painter's
   colour toward dun, rust and nicotine yellow, so World-Gen's catalogue keeps plain colours ("walnut", "navy") and the house
-  still draws run down. `ObjectArt.AS_GIVEN` painters (`wear`, `street`, `decor`) take their colours as given. A piece's and
+  still draws run down. `ObjectArt.AS_GIVEN` painters (`wear`, `street`, `decor` and the district's `awning`, `stencil`, `crossing`, `road_glyph`, `podium`,
+  `shadow`, `shell_decor`) take their colours as given. A piece's and
   wall's `get_surface().color` (debris) is the drawn colour (`ObjectArt.drawn_color`).
 - **The finish** (`decay.gd`): each painter draws its shape, then its finish through the shared helpers (grime, stains, tears,
   rust, stickers, cracks, screens). Several painters share one: `SofaPainter.upholstery` (also the office chair),
@@ -51,7 +52,7 @@ One look for every piece; there is no style switch.
 `ObjectArtKitchenBathConfig`, `ObjectArtDecorConfig` (plant, lamp, mirror frame, the prop palette), `ObjectArtOutdoorConfig` (the
 beater car, the street lamp), `ObjectArtClinicConfig`, `ObjectArtTechConfig`, `ObjectArtLightConfig` (the light `specs`, the
 screens' glow, the neon pair and share), `ObjectArtLayerConfig` (the floor, rug and overhang z-indices), `ObjectArtFloorConfig` and
-`ObjectArtWallConfig` (the tiles), `ObjectArtDecayConfig` (grade and grime), `ObjectArtWearConfig`, `ObjectArtStreetConfig`. The
+`ObjectArtWallConfig` (the tiles), `ObjectArtDecayConfig` (grade and grime), `ObjectArtWearConfig`, `ObjectArtStreetConfig`, and the district's (below). The
 shared light and shadows are `ArtCanvasConfig`, the tones and finishes `ArtSurfaceConfig`.
 
 Key naming (ADR 0003, `docs/adr/0003-config-holders-split-by-topic.md`): a holder of one painter or module drops its topic word
@@ -60,6 +61,24 @@ keeps each painter's name as its key prefix (`ObjectArtTableConfig.table_plank_p
 `ObjectArtTechConfig.tech_*`); a module that is no painter keeps its own name (`ObjectArtLightConfig.decay_screen_color`); a key
 several painters share is named for what it is (`ObjectArtDecorConfig.prop_colors`, `ObjectArtLightConfig.neon_*`). The colour
 knobs hold the grimy values.
+
+## The district's painters
+
+The tower's and the district's pieces, in the grimy steel family, each `kind` a variant of one painter (`ObjectArt.PAINTERS`):
+
+| Painter | Kinds | Knobs |
+|---|---|---|
+| `shop`, `noodle`, `stock` | counter, aisle, fridge, snack; bar, stool, booth, menu; crates, pallet, safe | `ObjectArtShopConfig` (`shop_*`, `noodle_*`, `stock_*`) |
+| `awning` | `awning` (striped cloth, neon edge), `hanging` (vertical glyph sign): only as an `overhang` | `ObjectArtAwningConfig` |
+| `street_prop` | vending, bench, bin, grate, litter | `ObjectArtStreetPropConfig` |
+| `podium`, `shadow` | a concrete band segment with pillars; a tower's shadow (`DecalFactory`) | `ObjectArtPodiumConfig` (`podium_*`, `shadow_*`) |
+| `shell_decor` | rebar, rubble, scaffold, cement, stain | `ObjectArtShellDecorConfig` |
+| `stencil` | the floor text in a hazard border (`DecalFactory`) | `ObjectArtStencilConfig` |
+| `crossing`, `road_glyph` | a junction arm's zebra and stop line; a lane number and arrow (`street_marks.gd`) | `ObjectArtCrossingConfig`, `ObjectArtRoadGlyphConfig` |
+
+`glyphs.gd` is their pixel font (5 x 7 capitals and digits, a few brush-stroke characters) for the menu board, the sign and the
+stencil; `paint_kit.gd` their shared fills, frames and paint wear. The fridge and the menu board give light (`light_kind` rows `fridge`
+and `menu_board` in `ObjectArtLightConfig.specs`).
 
 ## Adding a painter
 

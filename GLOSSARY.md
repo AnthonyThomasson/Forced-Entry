@@ -15,16 +15,52 @@ _Avoid_: spawner (its placement helper, `match_spawner.gd`), match setup (the se
 
 **Match spec**:
 The plain description of one match the match builder takes: the house (a seed, a plan, an entrance, or a house
-already built), each side's count, loadout and optional start points, the human (its side, whether it leads), whether
+already built; a generated one stands in the centre of a district), each side's count, loadout and optional start points, the human (its side, whether it leads), whether
 to wait for the navigation maps, and the debug overlays it starts with. Unnamed keys take the defaults, so the
 invaders' default kit is the same everywhere.
 _Avoid_: config (the setup window's choices, which are read into a spec), match settings
 
 **Match handle**:
-What building a match returns, a plain record of the match as built: its world, house, rooms and doorways, the
-navigation region and overlays, its combatants, its squads by side and the human's stack radio. Main wires its HUDs
-onto it; a test reads it.
+What building a match returns, a plain record of the match as built: its world, house, rooms and doorways (the
+house's alone), the district when one was generated, the navigation region and overlays, its combatants, its squads by
+side and the human's stack radio. Main wires its HUDs onto it; a test reads it.
 _Avoid_: match state, match object
+
+### The world
+
+**House**:
+The building a match is fought over, the one the AI's rooms and doorways describe: defenders spawn in it and the
+invaders enter it. In a district it is the tower in the centre block; a test world may also be a lone house standing
+by itself. Every other tower is scenery to the AI, outside the house.
+_Avoid_: building (any structure), base
+
+**District**:
+The whole world a match is generated into: a 3×3 grid of blocks, the streets between and round them, and a ring of
+shells past the outer street. One seed reproduces all of it. The house is the centre block's tower.
+_Avoid_: city, map (the navigation map), level
+
+**Block**:
+One cell of the district's grid: a tower and the sidewalks round it. The streets run between blocks.
+_Avoid_: lot, plot, cell
+
+**Tower**:
+An enterable building of a district whose ground floor is built: the walls, doors, furniture and lit rooms of a floor
+plan, with one front door onto its block's street, at most one back exit and one elevator lobby. It reads as tall (a
+long shadow, a podium, an awning over its door) but has nothing above its ground floor. Nobody spawns in a tower that
+is not the house.
+_Avoid_: building, skyscraper
+
+**Shell**:
+A roofless closed building past the district's outer street: a solid outer wall with no doorway, a floor and a few
+partition walls, bare, under construction or derelict. It cannot be entered, is no room for the AI and is left off the
+navigation map.
+_Avoid_: ruin, building (a tower)
+
+**Elevator lobby**:
+The empty placeholder room in every tower, marked on its floor "WIP ELEVATOR LOBBY", where stairs and elevators to
+the upper floors will go. It holds no furniture and has one interior doorway and no door to the street. In the house it
+is an ordinary room to the AI.
+_Avoid_: lobby (a tower's front room), elevator
 
 ### Game tests
 

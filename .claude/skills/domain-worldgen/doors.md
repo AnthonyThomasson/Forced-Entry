@@ -6,14 +6,15 @@
   `DoorFactory.spawn` (interface 2, Objects) builds it. What a material is made of is Objects' `DoorMaterialConfig`.
 - **The rules** (`DoorRules`, a rules table beside `LayoutRules`): `ROOMS[type]` = `rank` (how private) and `chance` (the share of the
   doorways it is the more private room of that get a door: bathroom and netrunner den 1.0; bedroom, office, ripperdoc 0.85; garage and
-  laundry 0.5; kitchens, living spaces, studio, vestibule 0.15; hallway 0.0, so never between two hallways); a type with no entry gets
+  laundry and stockroom 0.5; kitchens, living spaces, studio, vestibule, shop, noodle bar and elevator lobby 0.15; hallway 0.0, so never between two hallways); a type with no entry gets
   `DEFAULT_ROOM`. `SETS` = the default door sets per kind (`front`, `exit`: solid wood; `interior`: hollow-core), `TIE_FIRST`,
   `START_WEIGHTS` (shut 0.6, ajar 0.15, open 0.25) and `AJAR_DEGREES` (15 to 35). `chance(a, b)`, `rank(type)` and `set_of(kind,
   plan_sets)` read it.
 - **The floorplans** (`HouseDefinitions`): an opening may carry `door: true` / `false` (forced / forbidden whatever the rooms say) and
   `door_set` (one of the plan's `door_sets`, which name sets for `front`, `exit`, `interior` or any name an opening picks). The flats and
   the loft have steel at the street, the houses solid wood; `open_plan_home`'s patio exit and `office_loft`'s office door are
-  glass-panel.
+  glass-panel. The tower plans (`TowerDefinitions`, the same format) name `SHOPFRONT` (a shop or noodle bar's glass front) or
+  `STEEL_FRONT`, and a steel back exit.
 - **Doorway width** (DR1): 60 px inside, 69 px for the front and exit ones (`tests/worldgen/doorway_widths_test.gd`).
 - **Building** (`HouseDoors.build`, called by `HouseSpawner.spawn` after the rooms and wear, with the mirrored plan): each doorway rolls
   from a stream of its own, `hash([run seed, "doors", its index])`, drawing the same values whatever the outcome, so it never shifts

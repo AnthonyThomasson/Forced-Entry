@@ -1,7 +1,7 @@
 9. **Main / Testing (through `MatchBuilder`) / AI → Navigation** (leaf: builds the map, everyone else just pathfinds)
    - `NavBuilder.build(house, rooms, parent, agent_radius = NavBuilder.AGENT_RADIUS, bounds = Rect2()) -> NavigationRegion2D` — bakes one
 	 region whose walkable area is the house footprint plus an outdoor ring (or, with a `bounds` rect, that rect: a district's streets out
-	 to its shells, `WorldGen.district_bounds`; `house` is then the district root and `rooms` every tower's), minus the house's **static** wall colliders (doorways stay open) **and each
+	 to where its shells begin (they stand past it, off the map), `WorldGen.district_bounds`; `house` is then the district root and `rooms` every tower's), minus the house's **static** wall colliders (doorways stay open) **and each
 	 solid furniture footprint** (every `RigidBody2D` with a collider, anchored pieces frozen static among them; walk-over decor has none).
 	 **Doors are left out of every bake** (planning, steering and avoid maps): the bodies of the group `doors` (interface 24, an
 	 `AnimatableBody2D`, a static collider to the parse) are taken off the solid layer for the parse, so paths cross a doorway as if open and

@@ -1,7 +1,8 @@
 20. **Main / Testing (through `MatchBuilder`) → Lighting, and the world's lights and shadows** (`scenes/lighting/`; spec `docs/lighting.md`;
     Lighting is a leaf: it imports only General and reads the world duck-typed)
     - `WorldLighting.light(root: Node2D, seed_value: int, rooms: Array = []) -> WorldLighting` lights the built world under `root`: adds one
-      `WorldLighting` node (group `world_lighting`) and returns it; `rooms` = `WorldGen.get_rooms`, for the fixtures; `seed_value` seeds the
+      `WorldLighting` node (group `world_lighting`) and returns it; `rooms` = `WorldGen.get_rooms`, or `WorldGen.district_rooms` for a district (every tower's rooms, keys unique, so each gets a fixture or a
+      piece's light; a shell is no room and gets none), for the fixtures; `seed_value` seeds the
       rhythms. It builds nothing and returns null while `LightingConfig.enabled` is off. The match builder's `stage` (23) calls it after the
       nav bake with the spec's seed (Main: the house seed; Testing: its setup's). Test reads `WorldLighting`'s (helpers in `tests/_lighting/lighting_probe.gd`):
       `lights()` (every piece and fixture `PointLight2D`), `fixtures()` (`{ room, light }`), `flashes()` (the pooled flash lights) and
@@ -19,8 +20,7 @@
     - **Shadows and light layers** (General's `LightMasks`, 11): Objects' walls (one occluder per wall run, `WALL`) and solid pieces (their
       footprint: `EMITTER`, `TALL` or `FURNITURE`) and Character's living body (an oval turned with `facing`, `CHARACTER`, freed on death)
       build their own `LightOccluder2D` children with `LightMasks.occluder`, like their colliders. A `Door` (24) builds one over its leaf on `WALL`
-      as a child of its body, so it turns with the leaf: none for the glass-panel door, freed when the door falls. Objects' street floors (catalogue
-      `light_layer: "street"`) put their canvas items on `LightMasks.STREET`; `Emissive` overlays draw unshaded. Lighting reads the
+      as a child of its body, so it turns with the leaf: none for the glass-panel door, freed when the door falls. Objects' street floors (catalogue `light_layer: "street"`, a district's cut to `WorldGenDistrictConfig.tile_max` on a side so a block's lamps stay within the budget) and the tower shadows (`DecalFactory.shadow`, 2) put their canvas items on `LightMasks.STREET`; `Emissive` overlays draw unshaded. Lighting reads the
       floors (group `floors`, joined by every Objects `Floor` in `_ready`: their `size` and their items' `light_mask`) for the per-floor
       budget, and each frame the group `characters` (`is_dead`, `radius`, 7) for who stands in a flash.
     - **Flashes:** the `&"shot"` and `&"explosion"` topics (10) light its flash pool.

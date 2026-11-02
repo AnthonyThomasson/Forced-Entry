@@ -18,7 +18,7 @@ their own domains.
 
 | File | Role |
 |---|---|
-| `world_lighting.gd` (`WorldLighting`) | The node, in the group `world_lighting`; `light(root, seed_value, rooms)` returns null while `enabled` is off; the build and the per-frame work. |
+| `world_lighting.gd` (`WorldLighting`) | The node, in the group `world_lighting`; `light(root, seed_value, rooms)` (a district's `rooms`: every tower's, keys unique) returns null while `enabled` is off; the build and the per-frame work. |
 | `lighting_config.gd`, `lighting_fixture_config.gd`, `lighting_texture_config.gd` | Tuning holders: `LightingConfig` (switch, dusk, flash rows, budget, `body_clear`), `LightingFixtureConfig` (the room fixtures), `LightingTextureConfig` (pool textures per shape). |
 | `flash_pool.gd`, `light_budget.gd`, `light_rhythm.gd`, `ceiling_fixture.gd` | Private parts: the flash pool and its fall-off and character clearing; the per-floor count; one light's seeded rhythm; the fixture's bulb glyph. |
 

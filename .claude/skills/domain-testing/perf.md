@@ -4,7 +4,8 @@ Regression guards for speed and runaway object counts, one folder, one browser s
 tests that load other domains, so they live apart from them. Read `tests/perf/*_test.gd` for the loads: a
 whole-match guard built as Main builds one (5v5, 10v10, and a 10v10 with the player's view on an NPC), a grenade fight (P1) and burst (P2) (`docs/grenades.md`,
 "Performance"), an NPC crowd, automatic fire, hit overload, a crowd's deaths, a furniture pile, and one-shot work (nav
-re-bake, world-gen, the sound library's cold render).
+re-bake, world-gen of houses and of a district, the sound library's cold render). The re-bake and world-gen guards run on a district; the re-bake
+guard measures the planning bake whole, what a frame pays to start one and a steering re-bake (the tile a character stops in).
 
 - **Run:** `tools/run_tests.sh --domain=perf --quiet --summary` (add `--verbose` for the `PERF` lines). The pre-commit hook
   leaves the domain out (`--skip-domain=perf`): its frame-time budgets fail on a busy machine, so run it on its own before
@@ -30,11 +31,11 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
 - **Measured:** wall-clock ms per frame (`Perf.frame_stats` → avg / p95 / max): the main-loop iteration a frame ran in.
   Headless `--fixed-fps` steps one physics frame an iteration, so this is the CPU cost; rendering is not covered. Also
   `Perf.time_ms` and exact counts (`Perf.nodes()`, `Despawner.count()`, dent and blood-pool caps).
-- **The three match guards share one match and warm-up:** `configure_match(s, per_side)` declares it (the house
-  `MATCH_SEED` on `MATCH_PLAN`, pinned to the largest plan so a catalogue change never shrinks it; `s.declared_match`;
+- **The match guards share one match and warm-up:** `configure_match(s, per_side)` declares it (the downtown district
+  `MATCH_SEED` with `MATCH_PLAN` as its centre house, pinned to the largest plan so a catalogue change never shrinks it; `s.declared_match`;
   scripted Von; callouts, vision and pursuit on; `worldgen.doors` off until #178 and #159 make the entry door-aware, the way the older AI
   tests on a generated house are), `warm_until_contact(t, label, characters)` runs `MATCH_WARMUP_S` then
-  `await_contact` (at most `MATCH_CONTACT_WITHIN`) and `require`s contact as the premise (a shot fired and some NPC
+  `await_contact` (at most `MATCH_CONTACT_WITHIN`, 30 s: the invaders start in the street) and `require`s contact as the premise (a shot fired and some NPC
   knowing a hostile, `knows_hostile`), and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines).
 - **What the player's view costs is held as a difference** (`perf/match_npc_vision_relative`, `docs/player-vision.md` "Measured cost"):
   one 10v10 in one process, blocks of frames with the view working and blocks with it switched off (node disabled, viewports not

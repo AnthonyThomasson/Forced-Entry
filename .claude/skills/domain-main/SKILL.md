@@ -13,7 +13,8 @@ domain's worlds build through `MatchBuilder` too, so a test measures the match M
 
 - `main.tscn` authors none of the run's values. Main's `run` (`MainRun`, an exported `Resource`) holds them (`house_seed`,
   `force_plan`, `entrance_distance`, `defender_count`, `invader_count`, `invader_margin`, `spawn_clearance`, `spectator_mode`,
-  `player_side`, `debug_overlays`); a scene that authors one gives each Main its own copy. `endless_delay` and `endless_time_limit`
+  `player_side`, `debug_overlays`: `force_plan` is the district's centre tower, `entrance_distance` the invading human's step out of its
+  front door); a scene that authors one gives each Main its own copy. `endless_delay` and `endless_time_limit`
   stay exports on the node (`tools/coverage` reads `endless_time_limit` by name).
 - `_endless` and `_overlays` are parts built once with Main and reached by preload const (no `class_name`).
 - The side loadouts are not exports: they are the spec defaults (`MatchBuilder.INVADER_LOADOUT` / `DEFENDER_LOADOUT`).
@@ -75,6 +76,8 @@ The API is interface 23; these are the reasons behind it.
   `NavBuilder.ready` holds on the planning map and the steering map (at most `NAV_SYNC_MS`, then `push_error`), so no NPC is
   placed while a map still shows another navmesh. A world freed during the wait returns `{}`. Main's match and every test world
   keep `wait_nav` on.
+- **One house in a district.** A match generates a district (interface 1) unless the spec names a `house`: the NPCs get only the centre
+  tower's `rooms` / `openings` (the handle's), so a neighbour tower counts as outside; only the nav bake and the lighting take every tower.
 - **Light before characters.** `WorldLighting.light` (interface 20, `docs/lighting.md`) runs in `stage`, under `World` so a
   teardown frees it; characters placed afterwards cast their own shadows (group `characters`).
 - **Bind before the tree.** `bind_npc` hands the controller `rooms`, `openings` and its `entry_point` before the NPC joins the
@@ -128,7 +131,7 @@ one with no `bind`.
 
 ## Tests
 
-Under `tests/general/` (`match_builder_*`, `match_nav_ready_*`, `match_spawn_*`, `match_setup`, `match_styles`,
+Under `tests/general/` (`match_builder_*`, `match_nav_ready_*`, `match_spawn_*`, `match_setup`, `match_styles`, `district_match_staged`, `match_human_steps_out_front`,
 `saved_setup_*`, `main_setup_*`, `test_world_invader_bound_as_match`), plus
 `tests/ai/stack/human_defender_leader_no_rally_test.gd` and `tests/ui/leader_overlay_draw_test.gd`. The leader, squad and stack-radio tests that sit
 there too (`lead_rank`, `squad_*`, `stack_player_wiring`) are `domain-ai` (`team.md`). List them with
