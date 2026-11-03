@@ -21,6 +21,7 @@ const GROWTH := 4
 ## The coverage a shape must be above to block sight, set by the cone for each build.
 var see_over := 60.0
 var _circle := CircleShape2D.new()
+var _region := ConvexPolygonShape2D.new()
 var _query := PhysicsShapeQueryParameters2D.new()
 var _probe := PhysicsPointQueryParameters2D.new()
 ## The coverage of every collider whose coverage is fixed, by instance id: kept from build to build
@@ -60,15 +61,24 @@ static func _before(a: Vector2, b: Vector2) -> bool:
 	return a.x < b.x or (a.x == b.x and a.y < b.y)
 
 
-## The distinct corners, in world space, of every blocking shape within `reach` of `from`.
+## The distinct corners, in world space, of every blocking shape within `reach` of `from`, or, with
+## a `region` (world-space points, the hull of what the rays can pass through), of those that touch
+## it.
 func corners(
 	space: PhysicsDirectSpaceState2D,
 	from: Vector2,
 	reach: float,
 	exclude: Array,
+	region := PackedVector2Array(),
 ) -> Array:
-	_circle.radius = reach
-	_query.transform = Transform2D(0.0, from)
+	if region.is_empty():
+		_circle.radius = reach
+		_query.shape = _circle
+		_query.transform = Transform2D(0.0, from)
+	else:
+		_region.set_point_cloud(region)
+		_query.shape = _region
+		_query.transform = Transform2D.IDENTITY
 	_query.exclude = exclude
 	_probe.exclude = exclude
 	var seen := {}

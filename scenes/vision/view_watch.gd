@@ -25,6 +25,7 @@ extends RefCounted
 ## A frame that rebuilds nothing measures no shape and builds no Array: the key is compared field by
 ## field and the extents are kept.
 
+const Sector := preload("res://scenes/vision/view_sector.gd")
 const SOLID := PhysicsLayers.SOLID
 ## The fields of `_key`.
 const KEY_SIZE := 11
@@ -52,9 +53,9 @@ var _since := 0
 var _blocking_then := false
 ## The `see_over` the solids were sorted by.
 var _see_over := -1.0
-## The eye and the reach (`view_distance`) the last check was made for: what "within reach" means.
-var _eye := Vector2.ZERO
-var _reach := 0.0
+## Where a ray can pass, for the eye, the facing and the sight the last check was made for: what
+## "within reach" means (`_within_reach`).
+var _sector := Sector.new()
 ## Whether a blocker within reach had moved by the last rebuild: a query made in the frame it moved
 ## may have read it where it was, so the next frame rebuilds too.
 var _moved_then := false
@@ -85,8 +86,7 @@ func detach() -> void:
 ## Whether a rebuild is due for an eye at `eye` facing `facing`, seeing by `sight`.
 func stale(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
 	_since += 1
-	_eye = eye
-	_reach = float(sight["view_distance"])
+	_sector.look(eye, facing, sight)
 	if _since >= VisionConfig.rebuild_every or not _built_for(eye, facing, sight):
 		return true
 	var see_over := float(sight["see_over_coverage"])
@@ -259,8 +259,9 @@ func measured() -> int:
 	return _measured
 
 
-## Whether the blocker `entry`, its body standing at `origin`, has a part within the viewer's reach
-## of the eye: the rays are `view_distance` long, so a solid wholly beyond that is in none of them.
+## Whether the blocker `entry`, its body standing at `origin`, has a part where a ray can pass: the
+## rays are `view_distance` long and lie in the cone's sector and the bubble round the eye, so a
+## solid wholly beyond the reach, or outside both (`ViewSector`), is in none of them.
 func _within_reach(entry: Array, origin: Vector2) -> bool:
 	var body: CollisionObject2D = entry[0]
 	var scale := body.global_scale
@@ -272,7 +273,7 @@ func _within_reach(entry: Array, origin: Vector2) -> bool:
 		entry[3] = extent
 		if extent == INF:
 			return true
-	return origin.distance_to(_eye) <= _reach + extent * grow
+	return _sector.touches(origin, extent * grow)
 
 
 ## How far (px) any part of `body` lies from its origin at scale 1: its shapes' farthest corner,

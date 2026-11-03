@@ -18,6 +18,12 @@ const REACHED := 3.0
 const SMALLER_THAN := 0.5
 ## How far (px) out of the ring's rect, along its width, the street point stands.
 const OUTSIDE := 400.0
+## The outdoor ring the AI plans on round the match building (px): a street point this far out of
+## the building is answered by the ring, one this far (and the margin past it) is not.
+const PAD_IN := 250.0
+const PAD_OUT := 450.0
+## How near (px) a street point must snap to the point asked for to be a premise.
+const ON_FLOOR := 20.0
 
 
 func describe() -> Dictionary:
@@ -68,6 +74,7 @@ func run(t: TestContext) -> void:
 		for j in range(i + 1, centres.size()):
 			_check_route(t, map, centres[i], centres[j])
 	_check_outside(t, map, ring, centres[0])
+	_check_pad(t, map, ring)
 	_check_keeps(t, ring, centres)
 
 
@@ -162,3 +169,36 @@ func _check_keeps(t: TestContext, ring: RID, centres: Array[Vector2]) -> void:
 	).distance_to(inside_wall) > REACHED:
 		t.check(NavRing.keeps(ring, short, inside_wall), "a path to a goal off the floor is kept")
 	t.check(not NavRing.keeps(ring, PackedVector2Array(), floor_point), "no path is not kept")
+
+
+## The street round the match building: a point `PAD_IN` px out of its walls is weighed on the ring
+## (the AI's hostiles and routes just outside it stay on the small map), one `PAD_OUT` px out on
+## the district map.
+func _check_pad(t: TestContext, map: RID, ring: RID) -> void:
+	var building := Rect2()
+	for room: Dictionary in WorldGen.get_rooms(t.world.house):
+		building = (room["rect"] as Rect2) if building.size == Vector2.ZERO \
+				else building.merge(room["rect"])
+	var checked := 0
+	for dir: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
+		var edge := building.get_center() + dir * (building.size * 0.5 * dir.abs()).length()
+		var near := edge + dir * PAD_IN
+		var far := edge + dir * PAD_OUT
+		var near_floor := NavigationServer2D.map_get_closest_point(map, near)
+		var far_floor := NavigationServer2D.map_get_closest_point(map, far)
+		if near_floor.distance_to(near) > ON_FLOOR or far_floor.distance_to(far) > ON_FLOOR:
+			continue
+		checked += 1
+		t.check(
+			NavRing.map_for(map, [near_floor]) == ring,
+			"a street point %d px %s of the building is weighed on the ring" % [PAD_IN, str(dir)],
+		)
+		t.check(
+			NavRing.map_for(map, [far_floor]) == map,
+			"a street point %d px %s of the building is weighed on the district map"
+				% [PAD_OUT, str(dir)],
+		)
+	t.require(
+		checked > 0,
+		"premise: a side of the building has street floor out to %d px" % PAD_OUT,
+	)

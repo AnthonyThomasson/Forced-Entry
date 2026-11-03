@@ -14,7 +14,7 @@
       (11) each rebuild. It draws at `DrawLayers.VISION` and sorts the world by `ViewLayers` (11): its capture leaves `MOVING` and `OVERLAY`
       out of its cull mask.
     - **Test reads** on a `PlayerView` (helpers in `tests/_vision/vision_probe.gd`): `viewer()`, `cone() -> PackedVector2Array` (the eye, then
-      one corner per ray; empty without a facing), `bubble()`, `sees(point) -> bool`, `rebuilds() -> int` (how often the cone was rebuilt),
+      one corner per ray; empty without a facing), `bubble()`, `sees(point) -> bool`, `rebuilds() -> int` (how often the cone was rebuilt), `corner_rays() -> int` and `corners_read() -> int` (the last rebuild's rays to corners and corners read: its cost),
       `memory()`, `capture()`, `mask()` (the `SubViewport`s), `painter()`, `mask_painter()`, `composite()`, `memory_scale()`, `wiping()`.
     - **Tuning:** `VisionConfig` (`enabled`, the look `grey` / `contrast` / `pivot` / `brightness` / `tint`, `feather`, `memory_scale`,
       `cone_rays`, `bubble_rays`, `corner_offset`, `far_depth`, `far_bleed`, `rebuild_every`); what a character sees by is Character's

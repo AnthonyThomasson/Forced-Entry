@@ -39,16 +39,17 @@ read through `character.sight()`: any character can be the viewer.
   copies, a disc, laid inside the edge).
 - **The cone** (`ViewCone`): a fan from the eye over ray ends sorted by angle. Rays: an even fan (`cone_rays` across the cone,
   `bubble_rays` round the eye) plus three at each corner of each blocking shape the eye sees (the corner's angle,
-  `corner_offset` either side). `ViewShapes.corners` reads every solid shape in reach with a shape query (asked again with four
+  `corner_offset` either side). `ViewShapes.corners` reads every solid shape touching the hull of the cone's sector and the bubble (`ViewCone._region`, grown 2 px) with a shape query (asked again with four
   times the cap while it comes back full: no blocker is dropped), splits them into blockers (coverage above `see_over`) and
   lows, and dedupes corners to half a pixel, keeping the lesser (x, then y), whichever shape the engine names first. Every ray
   leaves the lows out and meets its first blocker in one cast (`SightRay` instance), then runs on to where it leaves it
   (`far_exit`: the farthest exit over the blocking shapes holding a point 0.1 px along the ray, so a wall or wardrobe seen shows
   its top; at most `far_depth`; `far_bleed` when it leaves through no edge; where no shape holds the point the ray only grazed
-  and ends at the hit).
+  and ends at the hit). The even fan is cast first, once (`_cast_fan`), and a corner between two fan rays that met the same
+  convex shape nearer than it needs no ray (`vision/cone_hidden_corners_not_cast`).
 - **`ViewWatch` skips a rebuild** a fresh one would draw again, and a rebuild is due when any input of the cone changed: the eye,
-  the facing, the sight numbers, the cone's `VisionConfig` numbers; the transform or collision layer of any blocker within
-  reach (the view distance and the blocker's own extent, measured when its shapes come or go and scaled by the largest absolute
+  the facing, the sight numbers, the cone's `VisionConfig` numbers; the transform or collision layer of any blocker where a
+  ray can pass (within the view distance, in the cone's sector or the bubble, each grown by the blocker's own extent and 2 px, measured when its shapes come or go and scaled by the largest absolute
   scale of its body; one wholly beyond it forces nothing), polled each frame, and the frame after a rebuild made while one moved;
   by signal a blocker's shapes coming or going (a dent or a wall re-cut frees shapes and adds new with no move of the body),
   leaving the tree, or a door's `changed`; a collider that entered the tree; a character that blocks (its posture covers more

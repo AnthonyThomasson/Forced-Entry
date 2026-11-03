@@ -135,6 +135,16 @@ func rebuilds() -> int:
 	return _rebuilds
 
 
+## How many rays the last rebuild cast to learn which corners the eye sees.
+func corner_rays() -> int:
+	return _cone.corner_rays
+
+
+## How many corners the last rebuild read from the shapes about the eye.
+func corners_read() -> int:
+	return _cone.corners_read
+
+
 ## The near bubble's polygon round the eye, bounded by the line of sight.
 func bubble() -> PackedVector2Array:
 	return _cone.bubble

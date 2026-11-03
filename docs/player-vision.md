@@ -38,7 +38,8 @@ or a doorway's end is in it. A wall or tall piece that is seen shows its top: th
 ray met. It is complete however many blockers are in reach (the shape query is asked again with more room while it comes back
 full, so no cap drops one). Doors (`docs/doors.md`) follow the same rule: a shut solid door blocks, a glass-panel door
 (`transparent`) is seen through, an ajar door's gap is seen through, a knocked-down door does not block. The cone is rebuilt
-only when its output can change: the eye moved or turned, the viewer's sight numbers changed, or within reach a blocker moved,
+only when its output can change: the eye moved or turned, the viewer's sight numbers changed, or where a ray can pass (the sector the viewer looks along and the bubble round it,
+within the view distance) a blocker moved,
 changed shape (a dent, a wall re-cut, a door's swing, fall or shattered panes) or joined or left; plus a forced rebuild every
 `VisionConfig.rebuild_every` (10) physics frames, a backstop. A skipped frame's cone equals a fresh rebuild's, vertex for
 vertex. Tests: `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
@@ -171,7 +172,7 @@ colour. The three viewports are siblings (a viewport nested in another makes the
 The **cone polygon** is a fan from the eye over ray ends sorted by angle. The rays are an even fan (`cone_rays` 64 across the cone,
 `bubble_rays` 48 round the eye) plus, exactly at corners, three for each corner of each blocking shape the eye can see (the
 corner's own angle and `corner_offset` either side), so a chord of the fan never cuts across the shadow behind a corner. The shapes
-come from a physics shape query on the solid layer (a circle of the view distance), never a walk of the scene tree. Every ray is
+come from a physics shape query on the solid layer (the hull of the cone's sector, its arc cut into 16 chords, and the bubble, grown 2 px: a shape that touches neither is in no ray, and has no corner within the half pixel at which two corners are one of a corner that is), never a walk of the scene tree. A corner whose line of sight needs no ray: the two rays of the even fan either side of it met the same convex shape, both nearer than the corner, so the line crosses the chord between those hits and meets the shape there (`vision/cone_hidden_corners_not_cast`: the rays cast to corners are `PlayerView.corner_rays()`); the fan's rays are cast once, for the corners and the polygon both. Every ray is
 cast leaving out the low pieces in reach, so it meets its first blocker in one cast; where it ends on a blocker it runs on to where
 it leaves the solid (the farthest exit over the blocking shapes holding a point 0.1 px along it, at most `far_depth` 120; `far_bleed`, 14, in
 when it leaves through no edge). Two choices make a rebuild independent of which of several overlapping shapes the
@@ -179,8 +180,8 @@ engine names: the far-face pick reads the shapes that hold the point and not the
 a pixel apart are one, the lesser (x, then y) standing for them. Without both, a fresh rebuild was not deterministic.
 
 **What triggers a rebuild** (`ViewWatch`): the eye, the facing, the sight numbers and the cone's `VisionConfig` numbers; the
-transform or collision layer of any blocker within reach (the view distance and the blocker's own extent, kept from the time its
-shapes came or went), each frame, and once more the frame after a rebuild made while one moved (a query in the frame a body moved
+transform or collision layer of any blocker where a ray can pass (within the view distance of the eye and in the cone's sector or the bubble, each grown by the blocker's own extent, kept from the time its
+shapes came or went, and 2 px: `vision/cone_ignores_solids_outside_its_sector`), each frame, and once more the frame after a rebuild made while one moved (a query in the frame a body moved
 can read it where it was); by signal a blocker's shapes coming or going, its leaving the tree, a door's `changed`; a collider that
 entered the tree; a character that blocks (its posture covers more than the viewer looks over, so it
 may move, turn its shape off or die in any frame: the cone is rebuilt every such frame and the one after); and

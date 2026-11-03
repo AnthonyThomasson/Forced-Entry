@@ -19,6 +19,11 @@ extends RefCounted
 ## that is seen shows its top and is not left as a black hole.
 
 const Shapes := preload("res://scenes/vision/view_shapes.gd")
+## The region of a rebuild (`_region`): the sides of the polygon round the bubble, the chords the
+## cone's arc is cut into, and the margin (px) it is grown by.
+const REGION_SIDES := 16
+const REGION_ARC := 16
+const REGION_MARGIN := 2.0
 
 ## The cone: the eye, then one corner per ray from the left edge to the right (empty with no
 ## facing). A triangle fan from the first point.
@@ -27,7 +32,18 @@ var cone := PackedVector2Array()
 var bubble := PackedVector2Array()
 ## The eye the polygons were built from.
 var eye := Vector2.ZERO
+## How many rays the last `rebuild` cast to ask whether a corner is seen (a test's read of the
+## cost).
+var corner_rays := 0
+## How many corners the last `rebuild` read from the shapes about the eye (a test's read of the
+## cost).
+var corners_read := 0
 var _shapes := Shapes.new()
+## The even fan's rays of the last `rebuild` (`_cast_fan`): the hit of ray `i` (an empty dictionary
+## for a clear one) and, by the ray's angle from the facing, where it ends. A corner between two
+## neighbouring rays that met one convex shape nearer than the corner is hidden by it.
+var _fan_hits: Array[Dictionary] = []
+var _fan_ends := {}
 ## The sight rule (`SightRay`), asked with the coverage the shapes already know and with the low
 ## pieces in reach left out.
 var _ray := SightRay.new()
@@ -59,17 +75,39 @@ func rebuild(
 	_shapes.see_over = _see_over
 	_ray.looks_over = _see_over
 	_shapes.reset()
-	var found := _shapes.corners(space, from, _reach, exclude)
+	var found := _shapes.corners(space, from, _reach, exclude, _region(from, facing))
+	corners_read = found.size()
 	# Every low collider in reach is left out of the rays from here on: each meets the first blocker
 	# in one cast, where it would otherwise cast again past each low piece on its way.
 	_ray.leave_out(exclude + _shapes.lows())
+	corner_rays = 0
+	_cast_fan(space, from, facing)
 	var corners := _visible_corners(space, from, facing, found)
 	bubble = _sweep(space, from, _bubble_angles(from, corners), _near)
 	cone.clear()
 	if facing == Vector2.ZERO:
 		return
 	cone = PackedVector2Array([from])
-	cone.append_array(_sweep(space, from, _cone_angles(from, facing, corners), _reach))
+	cone.append_array(_sweep(space, from, _cone_angles(from, facing, corners), _reach, _fan_ends))
+
+
+## The hull of everything a ray of this rebuild passes through, grown by `REGION_MARGIN`: the
+## sector of the cone (its arc cut into chords that lie outside it) and the bubble round the eye.
+## A shape that does not touch it is in no ray, and has no corner within half a pixel of one that
+## is (`ViewShapes.corners` joins those), so it need not be read.
+func _region(from: Vector2, facing: Vector2) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var round_bubble := _near / cos(PI / float(REGION_SIDES))
+	for i in REGION_SIDES:
+		points.append(from + Vector2.from_angle(float(i) / REGION_SIDES * TAU) * round_bubble)
+	if facing != Vector2.ZERO:
+		var half := _fov * 0.5
+		var round_arc := _reach / cos(_fov / float(REGION_ARC) * 0.5)
+		for i in REGION_ARC + 1:
+			var angle := -half + float(i) / float(REGION_ARC) * _fov
+			points.append(from + facing.rotated(angle) * round_arc)
+	var grown := Geometry2D.offset_polygon(Geometry2D.convex_hull(points), REGION_MARGIN)
+	return PackedVector2Array() if grown.is_empty() else grown[0]
 
 
 ## Whether `point` is inside the cone or the bubble polygon.
@@ -96,11 +134,56 @@ func _sweep(
 	from: Vector2,
 	angles: Array,
 	dist: float,
+	known := {},
 ) -> PackedVector2Array:
 	var ends := PackedVector2Array()
 	for entry in angles:
-		ends.append(_sight_end(space, from, entry[1], dist))
+		if known.has(entry[0]):
+			ends.append(known[entry[0]])
+		else:
+			ends.append(_sight_end(space, from, entry[1], dist))
 	return ends
+
+
+## Cast the even fan (`VisionConfig.cone_rays` + 1 rays across the cone) and keep each ray's hit and
+## end: the polygon needs these rays whatever the corners, and the corners are tested against them.
+func _cast_fan(space: PhysicsDirectSpaceState2D, from: Vector2, facing: Vector2) -> void:
+	_fan_hits.clear()
+	_fan_ends.clear()
+	if facing == Vector2.ZERO:
+		return
+	var rays := VisionConfig.cone_rays
+	var half := _fov * 0.5
+	for i in rays + 1:
+		var angle := -half + float(i) / float(rays) * _fov
+		var dir := facing.rotated(angle)
+		var to := from + dir * _reach
+		var hit := _ray.cast(space, from, to)
+		_fan_hits.append(hit)
+		_fan_ends[angle] = to if hit.is_empty() else _far_face(space, hit, dir)
+
+
+## Whether the line from `from` to the point `reach` px along `angle` (from the facing, inside the
+## cone) is blocked before it is, by what the fan found: the two rays either side of it met the
+## same convex shape, both nearer than `reach`. The shape holds the chord between its two hits, the
+## line crosses that chord, so it meets the shape there.
+func _fan_hides(from: Vector2, angle: float, reach: float) -> bool:
+	var rays := VisionConfig.cone_rays
+	var half := _fov * 0.5
+	var i := clampi(int((angle + half) / _fov * float(rays)), 0, rays - 1)
+	if angle <= -half + float(i) / float(rays) * _fov:
+		return false
+	if angle >= -half + float(i + 1) / float(rays) * _fov:
+		return false
+	var a := _fan_hits[i]
+	var b := _fan_hits[i + 1]
+	if a.is_empty() or b.is_empty():
+		return false
+	if a["collider_id"] != b["collider_id"] or a["shape"] != b["shape"]:
+		return false
+	if from.distance_to(a["position"]) >= reach or from.distance_to(b["position"]) >= reach:
+		return false
+	return not _shapes.polygon_of(a["collider"], a["shape"]).is_empty()
 
 
 ## The corners the eye sees: within the view range, inside the cone or the bubble, and with no
@@ -121,7 +204,10 @@ func _visible_corners(
 		if not (in_cone or dist <= _near):
 			continue
 		# A point 1 px short of the corner: the corner's own shape is not in the way of itself.
+		if in_cone and _fan_hides(from, facing.angle_to(to), dist - 1.0):
+			continue
 		var short := from + to * ((dist - 1.0) / dist)
+		corner_rays += 1
 		if _ray.cast(space, from, short).is_empty():
 			visible.append(corner)
 	return visible

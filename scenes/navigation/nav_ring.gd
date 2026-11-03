@@ -4,7 +4,7 @@ class_name NavRing extends RefCounted
 ## ends, so a district's map (eight hundred polygons: nine towers and their streets) costs ten
 ## times what a lone house's does for the same question. The match is fought in one building and
 ## the ring round it, so a second, small map holds just that: the match building's rooms and the
-## outdoor ring (`NavBuilder.BOUNDS_PAD`) round them, baked from the same walls and furniture as
+## outdoor ring (`PAD`) round them, baked from the same walls and furniture as
 ## the district map. `NavBuilder` answers a query whose points all lie well inside it from this
 ## map (`map_for`), else from the district's, which stays the map the AI is handed. Walking,
 ## steering and the streets stay on the district's maps. `NavBuilder.plan_ring` builds the region,
@@ -19,6 +19,12 @@ const META := "nav_ring"
 ## erodes the rect's edge by the agent radius, so a point nearer the edge would snap inward where
 ## the district map leaves it.
 const MARGIN := 32.0
+## The outdoor ring (px) round the match building. Wider than a lone house's
+## (`NavBuilder.BOUNDS_PAD`): in the open street the AI weighs fire, flank and advance spots, and
+## the routes to them, out to 300 px from the building, and a query with a point beyond the ring
+## falls back to the
+## district's map at five times the cost. The ring is still a quarter of the district's polygons.
+const PAD := 300.0
 
 ## The ring map made for each world navigation map that has one (planning map RID -> `{ map: RID,
 ## covered: Rect2 }`).
@@ -110,7 +116,7 @@ static func keeps(map: RID, path: PackedVector2Array, to: Vector2) -> bool:
 static func rect_of(focus: Array, bounds: Rect2) -> Rect2:
 	if focus.is_empty() or not bounds.has_area():
 		return Rect2()
-	return NavBuilder._bounds(focus).grow(NavBuilder.BOUNDS_PAD).intersection(bounds)
+	return NavBuilder._bounds(focus).grow(PAD).intersection(bounds)
 
 
 ## The part of the ring's `rect` a query is answered from the ring map in.
