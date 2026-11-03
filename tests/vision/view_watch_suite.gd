@@ -132,3 +132,12 @@ func test_a_blocker_that_moves_into_the_reach_forces_a_rebuild() -> void:
 	_settled(watch)
 	far.position = ORIGIN + Vector2(300.0, 0.0)
 	assert_bool(watch.stale(EYE, FACING, _sight())).is_true()
+
+
+func test_a_blocker_that_shrinks_out_of_the_sector_forces_a_rebuild() -> void:
+	var watch := _watch()
+	var wide := _solid(Vector2(0.0, 1200.0))
+	wide.scale = Vector2(1.0, 100.0)
+	_settled(watch)
+	wide.scale = Vector2.ONE
+	assert_bool(watch.stale(EYE, FACING, _sight())).is_true()

@@ -107,7 +107,7 @@ func _visible_corners(
 	for corner in _shapes.corners(space, from, _reach, exclude):
 		var to: Vector2 = corner - from
 		var dist := to.length()
-		if dist < 1.0:
+		if dist < 1.0 or dist > _reach:  # a corner beyond the view distance adds no ray
 			continue
 		var in_cone := facing != Vector2.ZERO and absf(facing.angle_to(to)) <= _fov * 0.5
 		if not (in_cone or dist <= _near):

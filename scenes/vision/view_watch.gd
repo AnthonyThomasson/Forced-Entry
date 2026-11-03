@@ -208,7 +208,7 @@ func _mark() -> void:
 ## A signal says the blocker `body` changed: it is a rebuild when `body` is within reach.
 func _mark_near(body: CollisionObject2D) -> void:
 	var id := body.get_instance_id()
-	if _blockers.has(id) and _within_reach(_blockers[id], body.global_transform.origin):
+	if _blockers.has(id) and _within_reach(_blockers[id], body.global_transform):
 		_dirty = true
 
 
@@ -251,7 +251,7 @@ func _blockers_moved() -> bool:
 ## the move or is after it.
 func _moved_within_reach(entry: Array, now: Transform2D) -> bool:
 	var then: Transform2D = entry[1]
-	return _within_reach(entry, then.origin) or _within_reach(entry, now.origin)
+	return _within_reach(entry, then) or _within_reach(entry, now)
 
 
 ## How many times a blocker's extent has been measured.
@@ -259,12 +259,13 @@ func measured() -> int:
 	return _measured
 
 
-## Whether the blocker `entry`, its body standing at `origin`, has a part where a ray can pass: the
-## rays are `view_distance` long and lie in the cone's sector and the bubble round the eye, so a
-## solid wholly beyond the reach, or outside both (`ViewSector`), is in none of them.
-func _within_reach(entry: Array, origin: Vector2) -> bool:
+## Whether the blocker `entry`, its body placed as `placed` (its origin and scale then), has a part
+## where a ray can pass: the rays are `view_distance` long and lie in the cone's sector and the
+## bubble round the eye, so a solid wholly beyond the reach, or outside both (`ViewSector`), is in
+## none of them.
+func _within_reach(entry: Array, placed: Transform2D) -> bool:
 	var body: CollisionObject2D = entry[0]
-	var scale := body.global_scale
+	var scale := placed.get_scale()
 	var grow := maxf(absf(scale.x), absf(scale.y))
 	var extent: float = entry[3]
 	if extent == INF:
@@ -273,7 +274,7 @@ func _within_reach(entry: Array, origin: Vector2) -> bool:
 		entry[3] = extent
 		if extent == INF:
 			return true
-	return _sector.touches(origin, extent * grow)
+	return _sector.touches(placed.origin, extent * grow)
 
 
 ## How far (px) any part of `body` lies from its origin at scale 1: its shapes' farthest corner,

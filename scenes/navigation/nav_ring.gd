@@ -4,7 +4,7 @@ class_name NavRing extends RefCounted
 ## ends, so a district's map (eight hundred polygons: nine towers and their streets) costs ten
 ## times what a lone house's does for the same question. The match is fought in one building and
 ## the ring round it, so a second, small map holds just that: the match building's rooms and the
-## outdoor ring (`PAD`) round them, baked from the same walls and furniture as
+## outdoor ring (`NavRing.PAD`) round them, baked from the same walls and furniture as
 ## the district map. `NavBuilder` answers a query whose points all lie well inside it from this
 ## map (`map_for`), else from the district's, which stays the map the AI is handed. Walking,
 ## steering and the streets stay on the district's maps. `NavBuilder.plan_ring` builds the region,
@@ -22,8 +22,8 @@ const MARGIN := 32.0
 ## The outdoor ring (px) round the match building. Wider than a lone house's
 ## (`NavBuilder.BOUNDS_PAD`): in the open street the AI weighs fire, flank and advance spots, and
 ## the routes to them, out to 300 px from the building, and a query with a point beyond the ring
-## falls back to the
-## district's map at five times the cost. The ring is still a quarter of the district's polygons.
+## falls back to the district's map at five times the cost. The ring is still a quarter of the
+## district's polygons.
 const PAD := 300.0
 
 ## The ring map made for each world navigation map that has one (planning map RID -> `{ map: RID,
