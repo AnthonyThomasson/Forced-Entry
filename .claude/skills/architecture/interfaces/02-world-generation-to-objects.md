@@ -23,13 +23,13 @@
 	 street), `marks` (`{ seed, lane, edges, crossings, glyphs }`: the street's world-placed curb and gutter litter, laid by Objects; a road's
 	 `crossings` `[{ side, reach }]` are a worn zebra crossing with its stop line at the road's end `side`, `reach` px deep, and its
 	 `glyphs` `[{ side, from, length, text }]` a lane number and an arrow on the approach to the junction at `side`, `from` px in from
-	 that end), `tile_from` (the
+	 that end; a tests' read: the floor's `FloorVisuals/StreetMarks` child, whose `laid(kind)` lists where each kind went), `tile_from` (the
 	 point in `parent`'s space its repeating tile starts from, so neighbouring pieces share a grid) and `light_layer` (`"street"`: the
 	 piece and its canvas items on `LightMasks.STREET`, interface 20).
    - `DecalFactory` (`objects/decals/decal_factory.gd`): draw-only decals on the floor, no collider, nothing registered; World-Gen gives
 	 where and what, Objects draws. `stencil(rect: Rect2, spec: Dictionary, decal_name, parent) -> Node2D` — a floor stencil (a `Sprite2D`)
-	 over `rect` in `parent`'s space; `spec`: `text` (one line per line) and `style` (`hazard`: yellow and black stripes round the edge,
-	 the words in stencil letters inside); painted upright on a canvas the size of the area, so it reads the same however the building is
+	 over `rect` in `parent`'s space; `spec`: `text` (one line per line), laid in yellow and black hazard stripes round the edge,
+	 the words in stencil letters inside; painted upright on a canvas the size of the area, so it reads the same however the building is
 	 turned; at `ObjectArtLayerConfig.floor_z_index`, over the floors laid before it. `shadow(foot: Rect2, spec: Dictionary, decal_name,
 	 parent: Node2D) -> Node2D` — the shadow of a tower with footprint `foot`: the footprint dragged `spec.length` px away from the art
 	 light (`PixelArt.away_from_light`), the footprint itself left clear, at `DrawLayers.RUG` (over the street, under what stands on it),

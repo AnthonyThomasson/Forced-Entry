@@ -35,8 +35,8 @@ overhead: a tower's rooms are open to the camera and lit by the ambient, their f
 **L1. Dusk.** One CanvasModulate tints the world `ambient_color` **(0.40, 0.37, 0.55)**, a cool blue-violet. One
 DirectionalLight2D, `Sky`, in `sky_color` **(1.0, 0.5, 0.42)** comes low from the south-west (`sky_from` (−0.38, 1.0), so it shines
 toward +x, −y; the front of a lone house is south; a district's towers face any street) at energy 0.42 and lights only the street's layer, **unshadowed** (a directional
-shadow runs to the edge of the view, so a body out there would throw one across the whole street). **The house has a roof, and so has every tower:** no sky
-reaches its rooms, which are lit by the ambient, their fixtures and their pieces (a sky let in by the doorways would throw a band
+shadow runs to the edge of the view, so a body out there would throw one across the whole street). **The house and every tower are lit from within:** no sky
+reaches their rooms, which are lit by the ambient, their fixtures and their pieces (a sky let in by the doorways would throw a band
 of light the length of the room, a 2D light having no height).
 Tests: `lighting/dusk_ambient_and_sky` (seed 4: the configured ambient; one CanvasModulate in it; every sky light in the sky
 colour, from the south-west; the one reaching the street's floors unshadowed; none reaching the rooms' floors).

@@ -9,6 +9,7 @@ position it reports is world space) carries the metas that `WorldGen` and `Distr
 |---|---|
 | `district_layout.gd` (`DistrictLayout.compute(seed, force_plan)`) | Pure data from a seed, built before any node: per block its plan, turn, footprint and tower corner; the street tiles with their marks; the `landings` (each crossing and the sidewalk at both ends); the 16 shell rects; the streets' `extent`. |
 | `district_spawner.gd` (`DistrictSpawner`) | Builds it: streets, a tower per block, the lamps and clutter, the shells. Shifts the layout so the house's front door lands on the entrance. |
+| `district_keepouts.gd` (`DistrictKeepouts`) | What the street furniture keeps clear of (the doorway zones, the crossings' landings, the towers' bodies and the lamp posts) and `clear(rect)`, the one rule for lamps and clutter. |
 | `district_streets.gd` (`DistrictStreets`) | The street floors, the lamps along every block's sidewalks and the sidewalk clutter. |
 | `tower_dressing.gd` (`TowerDressing`) | A tower's street shadow, podium band, door awning and glyph sign. |
 | `district_shells.gd` (`DistrictShells`) | The ring of shells. |
@@ -16,6 +17,8 @@ position it reports is world space) carries the metas that `WorldGen` and `Distr
 | `tower_definitions.gd` (`TowerDefinitions`) | The six tower plans. |
 | `street_lamps.gd` (`StreetLamps`) | Lamp runs and the door rule, shared with a lone house's street. |
 | `world_gen_district_config.gd`, `world_gen_tower_config.gd`, `world_gen_shell_config.gd` | Tuning: the grid's streets, sidewalks, shell ring, crossings, lamps and clutter; a tower's podium, shadow and body; a shell's decor. |
+
+Tests share `tests/_worldgen/district_probe.gd` (`District`: the spec's grid, `covered` / `piece_at` over street pieces, `digest` of a built district).
 
 ## Plans and room types
 
@@ -61,7 +64,7 @@ From a tower's published `get_rooms` / `get_openings`, so a turned tower is dres
 (`DecalFactory.shadow`, `shadow_length`, away from the art light); a **podium** band of concrete `podium` pieces along every exterior wall,
 broken `podium_door_gap` each side of every front and exit doorway (room for an entry stack's slots); a dark **awning** and a hanging
 **glyph sign** over the front door (the `awning` and `glyph_sign` rows of `GeneralCatalog`, `overhang.fade_under`). `exterior_runs` finds
-the wall stretches no other room abuts. The street furniture keeps off the podium plus `tower_margin`.
+the wall stretches no other room abuts. The street furniture keeps off the podium plus `WorldGenTowerConfig.margin`.
 
 ## Shells (`DistrictShells`)
 

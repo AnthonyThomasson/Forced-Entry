@@ -9,7 +9,7 @@ extends GameTest
 ## character stops somewhere new, which a match pays every tick (`nav_updater.gd`): the one to four
 ## tiles round it (`nav_tiles.gd`), where the whole district in one region cost ~57 ms. Baseline on
 ## a loaded machine (load ~4, three other Godot): ~57 ms a sync planning re-bake (a house: ~2.5),
-## ~20 ms to start an async one, ~5.5 ms a steering re-bake (was ~57 as one region), ~24 ms for all
+## ~20 ms to start an async one, ~5.5 ms a steering re-bake, ~24 ms for all
 ## 300 queries (a house: ~1.2; the map has ten times the polygons). Budgets ~2.5-3x.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")

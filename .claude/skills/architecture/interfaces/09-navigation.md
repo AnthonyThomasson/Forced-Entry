@@ -21,7 +21,7 @@
 	 those holes; named from the frame `build` returns, before it has synchronized (`ready` tells when it answers); invalid when the world
 	 has none), `steering_region(region)` and `steering_regions(region)` (re-baked by `nav_updater.gd` too). A lone house's steering map is the one
 	 region; a district's (a `bounds` was given) is a grid of 512 px tiles (`nav_tiles.gd`), each baked from what reaches it and re-baked only
-	 when that changes, so a character stopping re-bakes the tile it stands in, not the district. The world's own map stays furniture-only because the AI
+	 when that changes, so a character stopping re-bakes the tile it stands in, not the district. A district keeps each tower's parsed walls and parses a tower again only when a piece moves or a character stops near it: a wall shot up where nothing stands or moves stays in the map until the next change there (accepted; `domain-navigation` (`district-tiles-and-avoid.md`)). The world's own map stays furniture-only because the AI
 	 plans on it; the AI's `Locomotion` puts its `NavigationAgent2D` on the steering map for a walk round a body at rest it knows of (what
 	 a walker accounts for is the AI's rule, `domain-ai` (`behavior-locomotion.md`)).
    - **Map queries**, what the AI asks of a baked map: `NavBuilder.ready(map) -> bool` (valid, synchronized at least once and has taken in

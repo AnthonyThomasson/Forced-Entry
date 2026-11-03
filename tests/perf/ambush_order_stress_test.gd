@@ -9,8 +9,8 @@ extends GameTest
 ## grenade, `EntryPosts`), one decision a frame (`DecisionBudget`). Every frame of the window holds
 ## the smooth-match standard (`Perf.within_frames`), the worst one the frame the ranking lands in.
 ## Scripted Von; nobody fights. Headless measures CPU only.
-## Baseline in the district on a loaded machine (load 4 to 8): avg 1.6 to 2.1 ms, p95 2.2 to 2.9,
-## max 22 to 30 (the house: avg 1.6, max 20). Passes in every run.
+## Baseline in the district on a quiet machine (load 3, no other Godot, three runs): avg 1.6 ms, p95
+## 1.9 to 2.3, max 22 to 23 (a lone house: avg 1.6, max 20). Passes in every run.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
@@ -40,7 +40,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.house(Perf.MATCH_SEED, Perf.MATCH_PLAN)
+	s.district(Perf.MATCH_SEED, Perf.MATCH_PLAN)
 	s.von_script([])
 	s.switch(&"audio.sound", false)
 	s.declared_match({ "defenders": { "count": CREW }, "invaders": { "count": 0 } })

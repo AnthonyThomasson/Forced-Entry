@@ -20,7 +20,11 @@ extends GameTest
 ## measures the render too.
 ## Baseline in the district on a loaded machine (load 4 to 7, three or more other Godot: no run was
 ## quiet enough to judge): avg 15 to 17 ms, p95 27 to 34, max 56 to 69; contact came at 20 to 28 s
-## (and in one run in four not within the old 20 s window, hence `Perf.MATCH_CONTACT_WITHIN`).
+## (in one run in four not within 20 s, hence `Perf.MATCH_CONTACT_WITHIN`).
+## Known red on the district (quiet machine, load 3 to 4, no other Godot, 2026-11-02): avg 13.9, p95
+## 24.7, max 73.8 ms against 16.7, 20 and 33.4 (the average passes). The cost is the AI's decisions
+## in open combat, the follow-up to #182 "AI decision cost in open combat" (`perf-district.md` of
+## `domain-testing`); the budgets are not loosened and the test is neither skipped nor tagged.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")

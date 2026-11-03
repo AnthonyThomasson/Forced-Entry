@@ -210,8 +210,8 @@ The perf tests run headless and see only the CPU side, so the GPU side was measu
 written down in this document (commit 6ecb4659) and has been re-run by no one since: take it as the order of magnitude it
 gave, not as a number to hold the code to.
 
-**When the perf figures were measured.** Every perf figure below was taken before commit 6bd7cc63 (a blood pool's repaint
-decided on the frame's view, by its box), and **no perf test was run after it or after the later fixes of the review**. 6bd7cc63
+**When the perf figures were measured.** Every perf figure below but the last two bullets (the district, 2026-11-02) was taken before commit 6bd7cc63 (a blood pool's repaint
+decided on the frame's view, by its box), and **no perf test was run after it or after the later fixes of the review, until the district run of 2026-11-02 (the bullet below)**. 6bd7cc63
 does not touch the cone, the change check or the ratio the second guard reads, so the cone figures and the ratio stand. It does
 touch the frame the first guard reads: a pool now asks `SeenArea.reaches_rect` (a box, a little cheaper to refuse than the
 circle) and draws in `_process`, not `_physics_process`; that moves the view's cost by about the pool skip's own size (0.13 to
@@ -255,9 +255,25 @@ which costs one rebuild a move that ends within reach.
 - **Dropped, not measured to hold:** the single world draw (V3). An earlier probe that drew only what moves in the main viewport
   read +2.6 to +6.2 ms windowed and about 3 to 4 ms of GPU saved; it is unverified, since by the ancestor rule above it probably drew
   none of the characters' children.
+- **On the district, 2026-11-02 (recorded, `perf/match_npc_vision_relative` and `perf/match_npc_vision`).** Both guards now play the
+  10v10 in a downtown district whose centre house is the largest plan (`Perf.configure_match`), not in a house. A quiet run (load 3.6, no other
+  Godot) of the relative guard read **0.88 ms** (median of 12 rounds, rounds from -9.0 to +7.1) and the cone at 0.11 of the reference
+  cone's, against the 3.2 ms and 0.75 budgets. **The budget was set on a house** (the eight runs above) and has not been set again for the
+  district; it is kept, not loosened. The view's cost rose with `5204e489`, the district-cost commit (the bisect read 3.9 ms before it,
+  10.4 at it and 13.7 after the planning ring), and the Vision change that followed brought it back to 4.9 and 5.2 ms: the even fan is cast
+  once, the shape query takes the cone's sector, `ViewWatch` rebuilds only for a blocker where a ray can pass, and a corner beyond the
+  view distance adds no ray (`vision/cone_hidden_corners_not_cast`, `cone_reads_only_its_sector`, `cone_beyond_reach_exact`). **What in
+  `5204e489` raised it was not isolated**: with `environment_object_visuals.gd` and `blood_smear.gd` put back to their older form it read
+  4.25 ms, with only one of the two 9 to 16, and `reask_frames` 1 changed nothing. The district had 3208 corners a rebuild against 480 on
+  main, which is what the Vision change removed.
+- **The cone rewrite is beyond the district brief (#182).** The even fan cast once, the shape query on the cone's sector and the
+  watcher's blocker check (`view_cone.gd`, `view_sector.gd`, `view_shapes.gd`, `view_watch.gd`, the reference cone and four
+  equivalence tests) were made to cut the view's cost on a district. The ticket's brief had no vision line. The cone is vertex for
+  vertex the reference cone's (V-tests above), and it changes the lone house's view cost too.
 - **The perf matches run with `worldgen.doors` off** until #178 and #159 make the entry door-aware, which the shared perf probe
-  (`tests/_perf/perf_probe.gd`) says. `perf/match_npc_vision` is red with its unviewed sibling
-  `perf/match_10v10_stress` until #98.
+  (`tests/_perf/perf_probe.gd`) says. `perf/match_npc_vision`, the absolute guard on the same match, is red on the district with
+  `perf/match_10v10_stress`, `perf/match_5v5_stress` and `perf/grenade_match_stress` (avg 25.0, p95 48.7, max 70.1 ms): the AI's
+  decisions in open combat, a follow-up to #182 (`domain-testing` (`perf-district.md`)).
 
 ## Played in a window
 

@@ -7,7 +7,7 @@
       lands), `house` (a house, layout or arena already built, staged instead of a generated one; null), `defenders` / `invaders` (`{ count,
       loadout, at }`: 1 each, the side's loadout, optional explicit start points, one NPC each; a side given keeps the defaults of what it
       does not name), `human` (`{ node, side, lead, at }`: the human's character, `&"defender"` / `&"invader"`, whether it leads its side's
-      squad, an optional start; `{}` none), `wait_nav` (true), `spawn_clearance` (20 px), `invader_margin` (80 px), `front_step` (px out of the front door, along its way out, an invading human with no `at` starts; 0: where it stands. Main sets `run.entrance_distance`), `overlays` (`{ show_<x>:
+      squad, an optional start; `{}` none), `wait_nav` (true), `spawn_clearance` (20 px), `invader_margin` (80 px), `front_step` (px out of the front door, along its way out, an invading human with no `at` starts; 0: where it stands; a human defender ignores it. Main sets `run.entrance_distance`), `overlays` (`{ show_<x>:
       bool }` by `OverlayRegistry` flag; a flag not named starts off). Side loadouts: `INVADER_LOADOUT` (a stun, a frag, helmet, shirt, plate
       carrier with steel III plates, tactical pants, boots; the gun is the `LoadoutConfig` default) and `DEFENDER_LOADOUT` (`{}`), so a
       test's match carries what Main's does. `DEFENDER_FACTION` (`household`) / `INVADER_FACTION` (`invader`) are the factions.

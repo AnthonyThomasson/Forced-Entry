@@ -1,12 +1,12 @@
 extends GameTest
 ## Performance guard for what the player's view costs, as a difference (`docs/player-vision.md`,
-## Perf): the 10v10 of `perf/match_npc_vision` (a generated house of `Perf.MATCH_PLAN`, built as
-## Main builds one) is played once with the view drawn of a puppet placed in the largest room and
-## facing a doorway (the same long look on every run, as a fighting viewer would see more or less of
-## the house), and after the warm-up its frames are measured in blocks of `BLOCK_FRAMES`, the view
-## working in one block and switched off in the next, in the order on, off, off, on, so a steady
-## drift of the machine falls on both. The test asserts that the view adds at most `BUDGET_MS` to
-## a frame.
+## Perf): the 10v10 of `perf/match_npc_vision` (a generated downtown district whose centre house is
+## the largest plan, `Perf.MATCH_PLAN`, built as Main builds one) is played once with the view drawn
+## of a puppet placed in the largest room and facing a doorway (the same long look on every run, as
+## a fighting viewer would see more or less of the house), and after the warm-up its frames are
+## measured in blocks of `BLOCK_FRAMES`, the view working in one block and switched off in the next,
+## in the order on, off, off, on, so a steady drift of the machine falls on both. The test asserts
+## that the view adds at most `BUDGET_MS` to a frame.
 ##
 ## Off means no per-frame work of the view: its node is disabled (`process_mode`: the cone is not
 ## rebuilt, nothing is followed or painted) and the capture, memory and mask viewports stop
@@ -25,16 +25,26 @@ extends GameTest
 ## two bare blocks'; the result is the median of the rounds, so the match's own spikes (a nav
 ## re-bake, a burst of hits) fall in a round and not in the number.
 ##
-## The budget, 3.2 ms (`BUDGET_MS`), is the highest of eight runs measured with the machine quiet
-## (the `--quiet` gate passed, none marked loaded) after the view's three savings (unseen
-## characters not repainted, the cone rebuilt only when its inputs changed, the cone's own
-## caches), plus 25 %, rounded: 0.33, 0.36, 0.63, 1.18, 1.58, 1.70, 2.50 and 2.51 ms, median
-## 1.38 ms. The spread is between runs (each run plays a different fight, and one run's rounds alone
+## The budget, 3.2 ms (`BUDGET_MS`), is the highest of eight runs measured on a house with the
+## machine quiet (the `--quiet` gate passed, none marked loaded) after the view's three savings
+## (unseen characters not repainted, the cone rebuilt only when its inputs changed, the cone's own
+## caches), plus 25 %, rounded: 0.33, 0.36, 0.63, 1.18, 1.58, 1.70, 2.50 and 2.51 ms, median 1.38
+## ms. The spread is between runs (each run plays a different fight, and one run's rounds alone
 ## range from about -4 to +5 ms), so the median plus 25 % (1.73 ms) would fail two of these eight
 ## correct runs (2.50 and 2.51 ms); the highest run plus 25 % does not. 3.2 ms still fails the cost
 ## before the savings: ten quiet runs then gave 2.92 to 5.46 ms (median 4.36), every one over it.
 ## Runs on a loaded machine can go over any budget here; `--quiet` marks such a run loaded, and a
 ## loaded red says nothing about the code (`perf.md`).
+##
+## 2026-11-02, the district: the budget was set on a house and has not been set again for the
+## district; it is kept and not loosened. One quiet run on the district (load 3.6, no other Godot)
+## read 0.88 ms, rounds from -9.0 to +7.1, and the cone at 0.11 of the reference cone's. The view's
+## cost rose with the district-cost commit `5204e489` (the bisect read 3.9 ms before it, 10.4 at it,
+## 13.7 after the planning ring) and the Vision change that followed (the even fan cast once, the
+## shape query on the cone's sector, a rebuild only for a blocker where a ray can pass) brought it
+## back to 4.9 and 5.2 ms. What in `5204e489` raised it was not isolated: with
+## `environment_object_visuals.gd` and `blood_smear.gd` put back it read 4.25, with only one of the
+## two 9 to 16, and `reask_frames` 1 changed nothing.
 ##
 ## The second check is a ratio, `RATIO_MAX` 0.75: in a block of each round the reference cone
 ## (`tests/_vision/reference_view_cone.gd`, the plainest form of the cone, built whole every frame)

@@ -13,6 +13,10 @@ extends GameTest
 ## Baseline in the district on a loaded machine (load 4 to 7, three or more other Godot: no run was
 ## quiet enough to judge): avg 8 to 14 ms, p95 13 to 43, max 27 to 104 over a dozen runs; the house
 ## alone on that machine and load: avg 8.4, p95 11.9, max 27.3. Contact came at 18 to 30 s.
+## Known red on the district (quiet machine, load 3 to 4, no other Godot, 2026-11-02): avg 8.0, p95
+## 21.3, max 65.4 ms against 16.7, 20 and 33.4 (the average passes). The cost is the AI's decisions
+## in open combat, the follow-up to #182 "AI decision cost in open combat" (`perf-district.md` of
+## `domain-testing`); the budgets are not loosened and the test is neither skipped nor tagged.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const PER_SIDE := 5

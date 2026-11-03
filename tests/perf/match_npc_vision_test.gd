@@ -1,7 +1,8 @@
 extends GameTest
 ## Performance guard for the player's view on an NPC in the largest match the game means to carry
-## (`docs/player-vision.md`, Perf): the 10v10 of `perf/match_10v10_stress` (a generated house of
-## `Perf.MATCH_PLAN`, `Perf.configure_match`, built as Main builds one), but with the view drawn of
+## (`docs/player-vision.md`, Perf): the 10v10 of `perf/match_10v10_stress` (a generated downtown
+## district whose centre house is the largest plan, `Perf.MATCH_PLAN`, `Perf.configure_match`, built
+## as Main builds one), but with the view drawn of
 ## one invader (`TestSetup.view`) while it fights, the cone rebuilt whenever its inputs changed
 ## (`ViewWatch`), the capture and the memory painted and the composite drawn. The viewed invader is
 ## the tenth: a declared invader beside the nine of the match (the match's own NPCs are no test
@@ -11,6 +12,11 @@ extends GameTest
 ## one 60 fps frame (16.7 ms), the 95th percentile stays under 20 ms and no frame takes over 33.4
 ## ms. Headless measures CPU only (the cone's physics queries and its polygons, the painters' work);
 ## the GPU cost is measured by hand, windowed (`docs/lighting.md`, "Measured cost").
+## Known red on the district (quiet machine, load 3 to 4, no other Godot, 2026-11-02): avg 25.0, p95
+## 48.7, max 70.1 ms against 16.7, 20 and 33.4. It was red with `perf/match_10v10_stress` on a house
+## (#98); the district adds the AI's decisions in open combat, the follow-up to #182 "AI decision
+## cost in open combat" (`perf-district.md` of `domain-testing`). The budgets are not loosened and
+## the test is neither skipped nor tagged.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
@@ -24,9 +30,9 @@ const BESIDE := Vector2(40.0, 0.0)
 func describe() -> Dictionary:
 	return {
 		"name": "A 10v10 match runs without frame loss with the view on an NPC",
-		"description": "Ten defenders and ten invaders fight in a generated house, the view drawn "
-			+ "of one invader; once they are in contact the average frame stays under 16.7 ms "
-			+ "and no frame takes over two.",
+		"description": "Ten defenders and ten invaders fight in a generated downtown district, the "
+			+ "view drawn of one invader; once they are in contact the average frame stays under "
+			+ "16.7 ms and no frame takes over two.",
 		"tags": ["match", "ai", "scripted", "crowd", "vision"],
 		"timeout": 60.0,
 		"allowed_logs": Perf.MATCH_LOGS,

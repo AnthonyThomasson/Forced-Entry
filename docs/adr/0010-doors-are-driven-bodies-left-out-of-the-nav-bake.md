@@ -29,7 +29,7 @@ A baked static collider is a wall to the navigation mesh. A shut door is in the 
 `AnimatableBody2D` is a `StaticBody2D` to the engine's parse, so a naive bake would seal every shut door's doorway and
 the AI could never plan through one: the room behind it would be unreachable, and the walker that must open it could not
 even route to it. So `NavBuilder` leaves every door out of every bake: the planning map, the steering map and the avoid
-maps (they share the one parse, `_walls_of`). Paths go through the doorway as if it were open; the walker stops at the
+maps (they share the one parse, `NavSource.walls_of`). Paths go through the doorway as if it were open; the walker stops at the
 leaf if it is in the way and works it (`docs/doors.md` DR14).
 
 How: the parse is made with the bodies of the group `doors` under the house taken off the solid layer for its length. The
