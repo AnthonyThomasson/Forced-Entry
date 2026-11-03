@@ -19,11 +19,11 @@ static func fuse(outlines: Array) -> Array:
 	var next_id := 0
 	for outline in outlines:
 		var cur: PackedVector2Array = outline
-		var box := NavBuilder._outline_bounds(cur)
+		var box := NavSource.outline_bounds(cur)
 		var fused := _fuse_with_one(cur, box, kept, boxes, cells)
 		while not fused.is_empty():
 			cur = fused
-			box = NavBuilder._outline_bounds(cur)
+			box = NavSource.outline_bounds(cur)
 			fused = _fuse_with_one(cur, box, kept, boxes, cells)
 		kept[next_id] = cur
 		boxes[next_id] = box

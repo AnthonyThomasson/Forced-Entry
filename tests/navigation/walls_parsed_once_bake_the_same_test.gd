@@ -1,6 +1,6 @@
 extends GameTest
 ## A re-bake tick bakes the planning and the steering region from one parse of the house's walls
-## (`NavBuilder._walls_of`, handed to both by nav_updater.gd) where each bake once parsed them
+## (`NavSource.walls_of`, handed to both by nav_updater.gd) where each bake once parsed them
 ## itself. This checks a bake's source made from the shared parse is the one a bake parsing on its
 ## own makes (its walkable outlines, its obstructions and projected obstructions, the same values in
 ## the same order), on a generated house as it stands and after a wall is shot up (its collider
@@ -14,7 +14,7 @@ const RADIUS := 14.0
 func describe() -> Dictionary:
 	return {
 		"name": "A bake from the shared wall parse is the same",
-		"description": "A nav bake source built from NavBuilder._walls_of equals one built by "
+		"description": "A nav bake source built from NavSource.walls_of equals one built by "
 			+ "parsing the walls itself, before and after a wall is dented.",
 		"tags": ["bake", "walls"],
 		"timeout": 20.0,
@@ -56,12 +56,12 @@ func _compare(t: TestContext, house: Node2D, when: String) -> void:
 	var rooms: Array = t.rooms
 	var furniture := NavBuilder.furniture_holes(house)
 	var site := NavSite.new(house, rooms, RADIUS)
-	var own: Dictionary = NavBuilder._source_for(site, [], furniture)
-	var shared: Dictionary = NavBuilder._source_for(
+	var own: Dictionary = NavSource.job(site, furniture)
+	var shared: Dictionary = NavSource.job(
 		site,
-		[],
 		furniture,
-		NavBuilder._walls_of(house, RADIUS),
+		[],
+		NavSource.walls_of(house, RADIUS),
 	)
 	var a: NavigationMeshSourceGeometryData2D = own["source"]
 	var b: NavigationMeshSourceGeometryData2D = shared["source"]

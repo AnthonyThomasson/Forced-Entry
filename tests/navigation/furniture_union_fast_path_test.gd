@@ -1,6 +1,6 @@
 extends GameTest
 ## The nav re-bake fuses overlapping furniture footprints into one hole each
-## (`NavBuilder._union_outlines`). That is the costliest step of a re-bake (it ran a polygon merge
+## (`NavUnion.fuse`). That is the costliest step of a re-bake (it ran a polygon merge
 ## for every pair of footprints), so it skips the merge for two footprints whose bounding boxes are
 ## apart: the union of such a pair is the pair, as the merge would have said. This pins the result
 ## to the plain every-pair merge, outline for outline, over sixteen generated houses and a district
@@ -36,7 +36,7 @@ func run(t: TestContext) -> void:
 			for p in outline:
 				local.append(p - house.position)
 			outlines.append(local)
-		var fast: Array = NavBuilder._union_outlines(outlines)
+		var fast: Array = NavUnion.fuse(outlines)
 		var full: Array = _union_every_pair(outlines)
 		t.check(
 			fast == full,
@@ -54,7 +54,7 @@ func run(t: TestContext) -> void:
 		"premise: the district has a crowd of footprints (%d)" % pieces.size(),
 	)
 	t.check(
-		NavBuilder._union_outlines(pieces) == _union_every_pair(pieces),
+		NavUnion.fuse(pieces) == _union_every_pair(pieces),
 		"district: %d footprints fuse the same as the every-pair merge" % pieces.size(),
 	)
 	district_holder.queue_free()

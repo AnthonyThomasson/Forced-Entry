@@ -2,9 +2,9 @@ extends Node
 ## Navigation domain: keeps the baked navigation map in step with furniture that has been shoved
 ## around. The holes `NavBuilder.build` carves are a snapshot of where the furniture stood at bake
 ## time; as pieces are bulldozed off their spots those holes go stale and paths route around empty
-## floor. This node re-bakes the map on an interval (`NavBuilder._rebake_async`) so the holes follow
+## floor. This node re-bakes the map on an interval (`NavRebake.planning`) so the holes follow
 ## the furniture's CURRENT positions and paths route around scattered objects. The living characters
-## are holes in the STEERING region (`NavBuilder._rebake_steering`), so it follows them as they
+## are holes in the STEERING region (`NavRebake.steering`), so it follows them as they
 ## walk, appear and die. It only re-bakes when a piece or a character has actually moved past
 ## `move_threshold`, so an at-rest scene costs a cheap per-tick compare and no bake. The planning
 ## region only re-bakes for furniture. Bulldozing is still the behaviour BETWEEN re-bakes (and
@@ -67,17 +67,13 @@ func setup(
 
 
 ## One interval tick: if furniture has moved since the last bake, re-carve the planning region's
-## holes at the live positions on the server's worker thread (`NavBuilder._rebake_async`; a
+## holes at the live positions on the server's worker thread (`NavRebake.planning`; a
 ## furniture move while one is in flight waits for the next tick) and the steering region's in
 ## place; if only a character has, re-carve the steering region. Refreshes the overlay after either.
-## Skips the bake entirely when nothing has moved. The steering re-bake always lands in the frame of
-## the tick that measured the change, house or district: a walker held short of a body at rest looks
-## for a way round it every `RECHECK` s, which the steering map answers a frame after the re-bake,
-## so a re-bake a frame later than the tick lands that look a frame short and the walker waits a
-## whole `RECHECK` more (`tests/navigation/steering_rebake_lands_in_its_tick_test.gd`). A district's
-## planning gather is a few ms a step and the tile re-bake ~5 ms, so its gather and async bake wait
-## a frame (a frame that did both would be the sum); a lone house's bakes are cheap and go together,
-## walls parsed once.
+## Nothing moved, nothing baked. The steering re-bake lands in the tick's own frame, so a walker
+## looking for a way round a body at rest finds it on its next look
+## (`navigation/steering_rebake_lands_in_its_tick`). A district's planning gather and async bake
+## wait a frame, a lone house's go together.
 func _on_tick() -> void:
 	if not enabled or _region == null or not is_instance_valid(_house) or _busy:
 		return
@@ -95,7 +91,7 @@ func _on_tick() -> void:
 	var walls := {}
 	if planning and not staged:
 		walls = _rebake_planning(site, furniture)
-	NavBuilder._rebake_steering(_region, site, furniture, characters, walls)
+	NavRebake.steering(_region, site, furniture, characters, walls)
 	_character_baseline = characters
 	_refresh_overlay()
 	if planning and staged:
@@ -112,7 +108,7 @@ func _on_tick() -> void:
 func _rebake_planning(site: NavSite, furniture: Array) -> Dictionary:
 	var walls := NavTiles.walls_after(_region, site, _baseline, furniture)
 	_baking = true
-	NavBuilder._rebake_async(_region, site, furniture, func() -> void:
+	NavRebake.planning(_region, site, furniture, func() -> void:
 		_baking = false
 		_baseline = furniture
 		_refresh_overlay(), walls)

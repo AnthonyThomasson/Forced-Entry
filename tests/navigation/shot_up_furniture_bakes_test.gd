@@ -2,7 +2,7 @@ extends GameTest
 ## A shot-up piece of furniture has a many-sided hull, and snapped to the 1 px grid it is a run of
 ## steps and notches a pixel deep. Baked as it is, the engine logs "polygon convex partition failed"
 ## and produces NO navmesh (every path in the house gone until the next re-bake).
-## `NavBuilder._simplified` drops the vertices that sit on the line between their neighbours; the
+## `NavSource.simplified` drops the vertices that sit on the line between their neighbours; the
 ## outlines below are real ones (a kitchen island shot up in a firefight) that the raw bake could
 ## not make a mesh of.
 
@@ -54,7 +54,7 @@ func _bake(outline: PackedVector2Array) -> int:
 func run(t: TestContext) -> void:
 	for i in OUTLINES.size():
 		var raw := PackedVector2Array(OUTLINES[i])
-		var simplified := NavBuilder._simplified(raw)
+		var simplified := NavSource.simplified(raw)
 		t.check(
 			simplified.size() < raw.size(),
 			"outline %d loses its near-collinear vertices (%d -> %d)"

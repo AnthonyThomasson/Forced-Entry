@@ -28,7 +28,6 @@ func _init(
 
 
 ## The walkable `bounds` in the house's local frame (what a bake is made in): a rect with no area
-## when
-## the footprint is from the rooms.
+## when the footprint is from the rooms.
 func footprint() -> Rect2:
 	return Rect2(bounds.position - house.position, bounds.size)

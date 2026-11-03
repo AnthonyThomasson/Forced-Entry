@@ -45,10 +45,10 @@ static func add(
 	if baked.is_empty():
 		region.remove_meta(META)  # no ring: a re-bake must not look for its region
 		return
-	var map := NavBuilder._new_map()
+	var map := NavSource.new_map()
 	var ring := NavigationRegion2D.new()
 	ring.name = NAME
-	ring.navigation_polygon = NavBuilder._bake_job(baked, house.position)
+	ring.navigation_polygon = NavSource.bake(baked, house.position)
 	ring.set_navigation_map(map)
 	region.add_child(ring)
 	var planning_map := region.get_world_2d().navigation_map
@@ -110,7 +110,7 @@ static func keeps(map: RID, path: PackedVector2Array, to: Vector2) -> bool:
 static func rect_of(focus: Array, bounds: Rect2) -> Rect2:
 	if focus.is_empty() or not bounds.has_area():
 		return Rect2()
-	return NavBuilder._bounds(focus).grow(NavBuilder.BOUNDS_PAD).intersection(bounds)
+	return NavSource.bounds_of(focus).grow(NavBuilder.BOUNDS_PAD).intersection(bounds)
 
 
 ## The part of the ring's `rect` a query is answered from the ring map in.
@@ -118,7 +118,7 @@ static func covered(rect: Rect2) -> Rect2:
 	return rect.grow(-MARGIN)
 
 
-## The bake job (`NavBuilder._source_for`) of `region`'s ring from the district's `site`: the
+## The bake job (`NavSource.job`) of `region`'s ring from the district's `site`: the
 ## walls and the furniture footprints of the district that reach it. `walls` is a parse of the
 ## district (`NavTiles.walls_after`'s shape) when the caller has one this frame, else the towers
 ## that reach the ring are parsed (`NavTiles.walls_reaching`). `furniture` is
@@ -138,10 +138,6 @@ static func job(
 		walls["obstruction"] if not walls.is_empty()
 		else NavTiles.walls_reaching(region, ring, reaches)
 	)
-	var reached := {
-		"traversable": [],
-		"obstruction": NavTiles._bin(outlines, reaches, Vector2.ZERO)[0],
-		"projected": [],
-	}
-	var holes: Array = NavTiles._bin(furniture, reaches, ring.house.position)[0]
-	return NavBuilder._source_for(ring, [], holes, reached)
+	var reached := NavSource.walls(NavTiles.bin(outlines, reaches, Vector2.ZERO)[0])
+	var holes: Array = NavTiles.bin(furniture, reaches, ring.house.position)[0]
+	return NavSource.job(ring, holes, [], reached)

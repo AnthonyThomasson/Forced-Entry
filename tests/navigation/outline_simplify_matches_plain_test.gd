@@ -1,6 +1,6 @@
 extends GameTest
 ## A furniture hole's outline drops its vertices within `SIMPLIFY_TOLERANCE` of the line between
-## their neighbours, nearest first, before the bake (`NavBuilder._simplified`). It keeps each
+## their neighbours, nearest first, before the bake (`NavSource.simplified`). It keeps each
 ## vertex's distance where it once measured every vertex again after each drop (dropping one changes
 ## only its two neighbours'). This pins it to the plain loop, vertex for vertex, over outlines like
 ## a shot-up piece's on the 1 px grid: shallow curves, steps a pixel deep, runs of points in line.
@@ -12,7 +12,7 @@ const OUTLINES := 300
 func describe() -> Dictionary:
 	return {
 		"name": "A hole's outline is simplified as the plain loop does",
-		"description": "NavBuilder._simplified drops the same vertices in the same order as "
+		"description": "NavSource.simplified drops the same vertices in the same order as "
 			+ "measuring every vertex after each drop, over 300 grid-snapped outlines.",
 		"tags": ["bake", "furniture", "holes"],
 		"timeout": 20.0,
@@ -40,7 +40,7 @@ func run(t: TestContext) -> void:
 				p = p.round()  # on the map's 1 px grid, as the bake snaps them
 			if outline.is_empty() or outline[outline.size() - 1] != p:
 				outline.append(p)
-		var fast := NavBuilder._simplified(outline)
+		var fast := NavSource.simplified(outline)
 		var plain := _plain(outline)
 		dropped += outline.size() - plain.size()
 		if fast != plain:

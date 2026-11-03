@@ -22,7 +22,7 @@ const MIN_PASS := 4.0
 ## The doors standing under `house`: the bodies in the group `doors`. A door is a driven body in a
 ## doorway (a StaticBody2D to the engine's parse), but it opens, so a path goes through its doorway
 ## as if it were open and the walker deals with the leaf: the walls' parse does not see it
-## (`NavBuilder._walls_of`). Named by group alone, so Navigation imports nothing of the Objects
+## (`NavSource.walls_of`). Named by group alone, so Navigation imports nothing of the Objects
 ## domain.
 static func doors_of(house: Node2D) -> Array[CollisionObject2D]:
 	var doors: Array[CollisionObject2D] = []

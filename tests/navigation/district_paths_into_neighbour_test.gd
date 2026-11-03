@@ -24,6 +24,9 @@ const SHELL_FAR := 100.0
 ## How far (px) in from the grid's streets' corner the outer street's test point stands: the middle
 ## of the 200 px asphalt.
 const CORNER_IN := 100.0
+## How far (px) inside the district's bounds the edge probes stand: past the bake's erosion of the
+## walkable outline (a character's radius, 14, and the wall margin, 4) with a little to spare.
+const EDGE_IN := 24.0
 
 
 func describe() -> Dictionary:
@@ -52,6 +55,7 @@ func run(t: TestContext) -> void:
 		if tower["block"] != DistrictLayout.HOUSE_BLOCK:
 			_check_reaches(t, map, start, tower)
 	_check_outer_street(t, map, district)
+	_check_edges(t, map, district)
 	_check_shells(t, map, district)
 
 
@@ -101,6 +105,25 @@ func _check_outer_street(t: TestContext, map: RID, district: Node2D) -> void:
 			NavigationServer2D.map_get_closest_point(map, corner).distance_to(corner) <= ON_MAP,
 			"the outer street at %s is on the map" % str(corner.round()),
 		)
+
+
+## The map reaches the district's bounds, out to the shells' inner faces: just inside each of the
+## four edges, at a quarter, the middle and three quarters of its length, a point is on the map.
+func _check_edges(t: TestContext, map: RID, district: Node2D) -> void:
+	var bounds := WorldGen.district_bounds(district)
+	for fraction: float in [0.25, 0.5, 0.75]:
+		var across := bounds.position.x + bounds.size.x * fraction
+		var down := bounds.position.y + bounds.size.y * fraction
+		for edge: Vector2 in [
+			Vector2(across, bounds.position.y + EDGE_IN),
+			Vector2(across, bounds.end.y - EDGE_IN),
+			Vector2(bounds.position.x + EDGE_IN, down),
+			Vector2(bounds.end.x - EDGE_IN, down),
+		]:
+			t.check(
+				NavigationServer2D.map_get_closest_point(map, edge).distance_to(edge) <= ON_MAP,
+				"just inside the district's edge at %s is on the map" % str(edge.round()),
+			)
 
 
 ## A point in the middle of every shell is off the map.

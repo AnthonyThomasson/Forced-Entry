@@ -48,7 +48,7 @@ static func name_of(rect: Rect2, footprint: Rect2) -> String:
 ## Re-bake the tiles of `region`'s steering map (`NavBuilder.steering_regions`) whose furniture or
 ## characters changed since they were last baked (a tile never baked has none, so the first call
 ## bakes them all), each from the walls and the furniture and characters that reach it. The walls
-## are `walls` (a whole parse, `NavBuilder._walls_of`) when given, else those of the towers that
+## are `walls` (a whole parse, `NavSource.walls_of`) when given, else those of the towers that
 ## reach the tiles to bake, parsed afresh (`walls_reaching`): a wall shot up in a tile where nothing
 ## stands or moves waits for the next change there. Returns how many tiles were baked.
 static func rebake(
@@ -59,7 +59,7 @@ static func rebake(
 	walls: Dictionary = {},
 ) -> int:
 	var tiles := NavBuilder.steering_regions(region)
-	var hole_bins := _bin(furniture + characters, _reaches(tiles), site.house.position)
+	var hole_bins := bin(furniture + characters, _reaches(tiles), site.house.position)
 	var due: Array[int] = []
 	for i in tiles.size():
 		if not _holes_unchanged(tiles[i], hole_bins[i]):
@@ -71,22 +71,14 @@ static func rebake(
 		reaches.append(_reach(tiles[i]))
 	var parsed := walls
 	if parsed.is_empty():
-		parsed = {
-			"traversable": [],
-			"obstruction": walls_reaching(region, site, reaches),
-			"projected": [],
-		}
-	var wall_bins := _bin(parsed["obstruction"], reaches, Vector2.ZERO)
+		parsed = NavSource.walls(walls_reaching(region, site, reaches))
+	var wall_bins := bin(parsed["obstruction"], reaches, Vector2.ZERO)
 	var baked := 0
 	for k in due.size():
 		var tile: NavigationRegion2D = tiles[due[k]]
 		if _baked_from(tile, wall_bins[k], hole_bins[due[k]]):
 			continue
-		var reached := {
-			"traversable": parsed["traversable"],
-			"obstruction": wall_bins[k],
-			"projected": parsed["projected"],
-		}
+		var reached := NavSource.walls(wall_bins[k], parsed["traversable"], parsed["projected"])
 		if _bake_tile(tile, site, reached, hole_bins[due[k]]):
 			baked += 1
 	return baked
@@ -100,50 +92,82 @@ static func _bake_tile(
 	walls: Dictionary,
 	holes: Array,
 ) -> bool:
-	var job := NavBuilder._source_for(site, [], holes, walls)
+	var job := NavSource.job(site, holes, [], walls)
 	if job.is_empty():
 		return false
 	var nav_poly: NavigationPolygon = job["poly"]
 	nav_poly.baking_rect = _reach(tile)
 	nav_poly.border_size = BORDER
-	tile.navigation_polygon = NavBuilder._bake_job(job, site.house.position)
+	tile.navigation_polygon = NavSource.bake(job, site.house.position)
 	tile.set_meta(WALLS_META, walls["obstruction"])
 	tile.set_meta(HOLES_META, holes)
 	return true
 
 
 ## The wall outlines (the house's local frame, on the map's 1 px grid) of the towers whose walls
-## reach any of `reaches`, or of every tower with `everything`. Each direct child of the house is
-## parsed on its own and kept on `region`; the ones that reach are parsed again, so a wall dented
-## since is in the result, and the rest keep what they were. A tower costs a tenth of the whole
-## district's parse, and a tile touches one or two. A collider that is a child of the house itself
-## is no tower's: the whole house is parsed instead.
+## reach any of `reaches`. Each direct child of the house is parsed on its own and kept on `region`
+## (`_refreshed`); the ones that reach are parsed again, so a wall dented since is in the result.
+## A tower costs a tenth of the whole district's parse, and a tile touches one or two. A collider
+## that is a child of the house itself is no tower's: the whole house is parsed instead.
 static func walls_reaching(
 	region: NavigationRegion2D,
 	site: NavSite,
 	reaches: Array[Rect2],
-	everything := false,
 ) -> Array:
-	var cache: Dictionary = region.get_meta(WALL_CACHE_META, {})
+	var entries: Variant = _refreshed(region, site, reaches)
+	if entries == null:
+		return NavSource.walls_of(site.house, site.agent_radius)["obstruction"]
 	var out: Array = []
+	for entry: Dictionary in entries:
+		if _touches(entry, reaches):
+			out.append_array(entry["outlines"])
+	return out
+
+
+## `walls_reaching` for every tower, not only those that reach: the ones that reach `reaches` are
+## parsed again, and the rest keep what they were.
+static func walls_all(
+	region: NavigationRegion2D,
+	site: NavSite,
+	reaches: Array[Rect2],
+) -> Array:
+	var entries: Variant = _refreshed(region, site, reaches)
+	if entries == null:
+		return NavSource.walls_of(site.house, site.agent_radius)["obstruction"]
+	var out: Array = []
+	for entry: Dictionary in entries:
+		out.append_array(entry["outlines"])
+	return out
+
+
+## The parse of each tower of `site`'s house (`_parse_tower`), in the order of the house's children,
+## as kept on `region`: a tower never parsed, or one that reaches `reaches`, is parsed again and
+## kept. Null when a collider is a child of the house itself.
+static func _refreshed(
+	region: NavigationRegion2D,
+	site: NavSite,
+	reaches: Array[Rect2],
+) -> Variant:
 	for child in site.house.get_children():
 		if child is CollisionObject2D:
-			return NavBuilder._walls_of(site.house, site.agent_radius)["obstruction"]
+			return null
+	var cache: Dictionary = region.get_meta(WALL_CACHE_META, {})
+	var entries: Array = []
+	for child in site.house.get_children():
 		if not child is Node2D:
 			continue
 		var entry: Dictionary = cache.get(child.get_instance_id(), {})
 		if entry.is_empty() or _touches(entry, reaches):
 			entry = _parse_tower(child as Node2D, site.agent_radius)
 			cache[child.get_instance_id()] = entry
-		if everything or _touches(entry, reaches):
-			out.append_array(entry["outlines"])
+		entries.append(entry)
 	region.set_meta(WALL_CACHE_META, cache)
-	return out
+	return entries
 
 
-## The walls (`NavBuilder._walls_of`'s shape) a planning re-bake of `site` is made from after the
+## The walls (`NavSource.walls`' shape) a planning re-bake of `site` is made from after the
 ## furniture went from `before` to `after` (`NavBuilder.furniture_holes`): a house's whole parse; a
-## district's every tower, those near a piece that moved parsed afresh (`walls_reaching`).
+## district's every tower, those near a piece that moved parsed afresh (`walls_all`).
 static func walls_after(
 	region: NavigationRegion2D,
 	site: NavSite,
@@ -151,12 +175,8 @@ static func walls_after(
 	after: Array,
 ) -> Dictionary:
 	if not site.bounds.has_area():
-		return NavBuilder._walls_of(site.house, site.agent_radius)
-	return {
-		"traversable": [],
-		"obstruction": walls_reaching(region, site, _changed(site, before, after), true),
-		"projected": [],
-	}
+		return NavSource.walls_of(site.house, site.agent_radius)
+	return NavSource.walls(walls_all(region, site, _changed(site, before, after)))
 
 
 ## The areas (the house's local frame) where `after` differs from `before`: the box of each piece
@@ -170,7 +190,7 @@ static func _changed(site: NavSite, before: Array, after: Array) -> Array[Rect2]
 	for i in before.size():
 		if before[i] != after[i]:
 			for outline: PackedVector2Array in [before[i], after[i]]:
-				var box := NavBuilder._outline_bounds(outline)
+				var box := NavSource.outline_bounds(outline)
 				box.position -= site.house.position
 				out.append(box)
 	return out
@@ -180,10 +200,10 @@ static func _changed(site: NavSite, before: Array, after: Array) -> Array[Rect2]
 ## (its own transform applied before they are snapped to the grid, as a parse of the house would)
 ## and the box round them.
 static func _parse_tower(tower: Node2D, agent_radius: float) -> Dictionary:
-	var outlines: Array = NavBuilder._walls_of(tower, agent_radius, tower.transform)["obstruction"]
+	var outlines: Array = NavSource.walls_of(tower, agent_radius, tower.transform)["obstruction"]
 	var box := Rect2()
 	for i in outlines.size():
-		var outline_box := NavBuilder._outline_bounds(outlines[i])
+		var outline_box := NavSource.outline_bounds(outlines[i])
 		box = outline_box if i == 0 else box.merge(outline_box)
 	return { "outlines": outlines, "box": box }
 
@@ -243,12 +263,12 @@ static func probe_of(tile: NavigationRegion2D, fallback: Vector2) -> Vector2:
 ## `outlines` binned by the rect of `reaches` each meets: one list per rect, in the order of
 ## `outlines`. `shift` is how far the outlines' frame lies from the rects' (a world-space outline,
 ## the house's position).
-static func _bin(outlines: Array, reaches: Array[Rect2], shift: Vector2) -> Array:
+static func bin(outlines: Array, reaches: Array[Rect2], shift: Vector2) -> Array:
 	var bins: Array = []
 	for _reach_rect in reaches:
 		bins.append([])
 	for outline: PackedVector2Array in outlines:
-		var box := NavBuilder._outline_bounds(outline)
+		var box := NavSource.outline_bounds(outline)
 		box.position -= shift
 		for i in reaches.size():
 			if reaches[i].intersects(box):
