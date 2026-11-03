@@ -97,20 +97,6 @@ static func draw_centered(
 	draw(c, text, Vector2i(left, top), ink)
 
 
-## `text` stacked one letter under the next (a vertical sign), centred on x = `centre_x`.
-static func draw_stacked(
-	c: PixelCanvas,
-	text: String,
-	centre_x: int,
-	top: int,
-	ink: Dictionary,
-) -> void:
-	var scale: int = ink["width"]
-	for i in text.length():
-		var at := Vector2i(centre_x - int(COLS * scale / 2.0), top + i * (ROWS + 2) * scale)
-		draw(c, text[i], at, ink)
-
-
 ## The Chinese character `ch` as brush strokes in the `size` px box at `at`, painted with `ink`.
 static func draw_hanzi(
 	c: PixelCanvas,

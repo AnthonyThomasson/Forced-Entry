@@ -4,13 +4,12 @@ class_name ShopCatalog
 ## aisles, a glass drinks fridge and a snack machine, all grimy steel (Objects' `shop` painter).
 ## Shared clutter (trash, cardboard, puddles) lives in GeneralCatalog.
 
-const STEEL := Color(0.46, 0.47, 0.45)
 const OBJECTS := {
 	"shop_counter": {
 		"name": "Shop counter",
 		"shape": "rect",
 		"size": Vector2(110, 44),
-		"color": STEEL,
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "shop",
 		"art_opts": { "kind": "counter" },
@@ -23,7 +22,7 @@ const OBJECTS := {
 		"name": "Shelf aisle",
 		"shape": "rect",
 		"size": Vector2(120, 40),
-		"color": STEEL,
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "shop",
 		"art_opts": { "kind": "aisle" },
@@ -36,7 +35,7 @@ const OBJECTS := {
 		"name": "Drinks fridge",
 		"shape": "rect",
 		"size": Vector2(64, 36),
-		"color": STEEL,
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "shop",
 		"art_opts": { "kind": "fridge" },
@@ -49,7 +48,7 @@ const OBJECTS := {
 		"name": "Snack machine",
 		"shape": "rect",
 		"size": Vector2(46, 34),
-		"color": STEEL,
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "shop",
 		"art_opts": { "kind": "snack" },

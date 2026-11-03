@@ -553,20 +553,21 @@ static func _apply_in_scope(npc: Node, flags: Dictionary, scope: String) -> void
 ## walls' colliders go live on a step), then until `NavBuilder.ready` holds on the planning map and
 ## on the steering map, so an NPC placed afterwards never plans or walks on a map still showing
 ## another navmesh (at most `NAV_SYNC_MS` of real time; an error past it). A coroutine: await it.
-## Returns the handle `{ world, house, rooms, openings, nav_debug }`, or `{}` when
+## Returns the handle `{ world, house, rooms, openings, nav_debug }` (and the `district` root when
+## the world is a district), or `{}` when
 ## `world` was freed during the wait (the match torn down).
 static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	match_spec = spec(match_spec)
 	var site := _build_site(match_spec, world)
 	var house: Node2D = site["house"]
 	var root: Node2D = site["root"]
-	var rooms := WorldGen.get_rooms(house)
-	var nav_rooms: Array = site["rooms"]
+	var house_rooms := WorldGen.get_rooms(house)
+	var site_rooms: Array = site["site_rooms"]
 	var bounds: Rect2 = site["bounds"]
-	var nav_region := NavBuilder.build(root, nav_rooms, world, NavBuilder.AGENT_RADIUS, bounds)
+	var nav_region := NavBuilder.build(root, site_rooms, world, NavBuilder.AGENT_RADIUS, bounds)
 	if root != house and nav_region != null:
 		# A district plans in the building the match is fought in, on a small map of its own.
-		NavBuilder.plan_ring(nav_region, root, rooms)
+		NavBuilder.plan_ring(nav_region, root, house_rooms)
 	var nav_debug: Node2D = NAV_DEBUG.new()
 	nav_debug.name = "NavDebug"
 	world.add_child(nav_debug)
@@ -580,8 +581,8 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	var nav_updater: Node = NAV_UPDATER.new()
 	nav_updater.name = "NavUpdater"
 	world.add_child(nav_updater)
-	nav_updater.setup(nav_region, root, nav_rooms, nav_debug)
-	WorldLighting.light(world, int(match_spec["seed"]), nav_rooms)
+	nav_updater.setup(nav_region, root, site_rooms, nav_debug)
+	WorldLighting.light(world, int(match_spec["seed"]), site_rooms)
 	if bool(match_spec["wait_nav"]):
 		await _wait_nav(world)
 		if not is_instance_valid(world):
@@ -589,7 +590,7 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	var handle := {
 		"world": world,
 		"house": house,
-		"rooms": rooms,
+		"rooms": house_rooms,
 		"openings": WorldGen.get_openings(house),
 		"nav_debug": nav_debug,
 	}
@@ -600,9 +601,9 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 
 ## What `stage` builds the world on, under `world`: the spec's `house` moved under `world` when it
 ## stands elsewhere, else a generated downtown district (`WorldGen.generate_district` from the
-## spec's `seed`, `plan` and front `entrance`). `{ house, root, rooms, bounds }`: `house` the
+## spec's `seed`, `plan` and front `entrance`). `{ house, root, site_rooms, bounds }`: `house` the
 ## building the match is fought over (the district's centre tower), `root` the node the nav bake
-## parses (the district, or the house itself), `rooms` every room that map covers (all the
+## parses (the district, or the house itself), `site_rooms` every room that map covers (all the
 ## district's towers', world space) and `bounds` the walkable rect it must cover (the streets out
 ## to the shells; an empty Rect2 for a house, whose map is its rooms and a ring round them).
 static func _build_site(match_spec: Dictionary, world: Node2D) -> Dictionary:
@@ -615,7 +616,7 @@ static func _build_site(match_spec: Dictionary, world: Node2D) -> Dictionary:
 		return {
 			"house": house,
 			"root": house,
-			"rooms": WorldGen.get_rooms(house),
+			"site_rooms": WorldGen.get_rooms(house),
 			"bounds": Rect2(),
 		}
 	var district := WorldGen.generate_district(
@@ -627,7 +628,7 @@ static func _build_site(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	return {
 		"house": WorldGen.house_of(district),
 		"root": district,
-		"rooms": WorldGen.district_rooms(district),
+		"site_rooms": WorldGen.district_rooms(district),
 		"bounds": WorldGen.district_bounds(district),
 	}
 

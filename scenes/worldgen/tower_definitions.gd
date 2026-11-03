@@ -3,7 +3,7 @@ class_name TowerDefinitions
 ## `HouseDefinitions`' plan format (rooms, openings, door_sets; plan-local coordinates, the front
 ## door on the south wall). Each plan has exactly one front door, at most one `exit` (a steel back
 ## door) and exactly one `elevator_lobby` (about 240 x 200 px, one interior doorway, no exterior
-## door): a placeholder room for the stairs and elevators to come. A shop or noodle bar at the front
+## door): a placeholder room for stairs and elevators. A shop or noodle bar at the front
 ## has a glass shopfront; the others and the back exits are steel. `HouseSpawner.spawn` finds a plan
 ## here as in `HouseDefinitions`, whose `get_all()` stays the list of houses (a random pick never
 ## lands on a tower). LayoutRules and tests/worldgen/tower_plans_connected_test.gd hold each plan to
@@ -17,8 +17,15 @@ const STEEL_FRONT := {
 	"front": ["steel_riveted", "steel_peephole"],
 	"exit": ["steel_riveted", "steel_peephole"],
 }
+## The plans, by key: `bodega_tower` (the shop on the street, the lobby and a stockroom with the
+## back exit behind it), `noodle_tower` (a noodle bar on the street, the lobby and a stockroom with
+## a side exit behind it), `arcade_tower` (a long hall on the street with a shop, the lobby and a
+## noodle bar off it), `clinic_tower` (a security vestibule on the street, the lobby above it, the
+## ripperdoc beside it and the netrunner's den at the back of the ripperdoc), `corner_shop_tower`
+## (the shop on the street, the lobby and a staff bathroom behind it) and `food_hall_tower` (a
+## noodle bar on the street with a shop beside it, the lobby and a long stockroom with the back
+## exit behind them).
 const PLANS := {
-	# A bodega: the shop on the street, the lobby and a stockroom (with the back exit) behind it.
 	"bodega_tower": {
 		"wall_thickness": 12.0,
 		"door_sets": SHOPFRONT,
@@ -34,7 +41,6 @@ const PLANS := {
 			{ "pos": Vector2(400, 200), "width": 60.0 },  # shop <-> stockroom
 		],
 	},
-	# A noodle bar on the street, the lobby and a stockroom (with a side exit) behind it.
 	"noodle_tower": {
 		"wall_thickness": 12.0,
 		"door_sets": SHOPFRONT,
@@ -50,7 +56,6 @@ const PLANS := {
 			{ "pos": Vector2(420, 220), "width": 60.0 },  # noodle bar <-> lobby
 		],
 	},
-	# An arcade: a long hall on the street with a shop, the lobby and a noodle bar off it.
 	"arcade_tower": {
 		"wall_thickness": 12.0,
 		"door_sets": STEEL_FRONT,
@@ -67,8 +72,6 @@ const PLANS := {
 			{ "pos": Vector2(690, 220), "width": 60.0 },  # hallway <-> noodle bar
 		],
 	},
-	# A clinic tower: a security vestibule on the street, the lobby above it, the ripperdoc beside
-	# it and the netrunner's den at the back of the ripperdoc.
 	"clinic_tower": {
 		"wall_thickness": 12.0,
 		"door_sets": STEEL_FRONT,
@@ -89,7 +92,6 @@ const PLANS := {
 			{ "pos": Vector2(450, 200), "width": 60.0 },  # ripperdoc <-> den
 		],
 	},
-	# A corner shop: the shop on the street, the lobby and a staff bathroom behind it.
 	"corner_shop_tower": {
 		"wall_thickness": 12.0,
 		"door_sets": SHOPFRONT,
@@ -104,8 +106,6 @@ const PLANS := {
 			{ "pos": Vector2(400, 200), "width": 60.0 },  # shop <-> bathroom
 		],
 	},
-	# A food hall: a noodle bar on the street with a shop beside it, the lobby and a long stockroom
-	# (with the back exit) behind them.
 	"food_hall_tower": {
 		"wall_thickness": 12.0,
 		"door_sets": SHOPFRONT,

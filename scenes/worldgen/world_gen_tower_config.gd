@@ -16,4 +16,4 @@ static var podium_door_gap: float = 150.0
 static var shadow_length: float = 170.0
 ## A tower's body for the street furniture is its podium band and this much more (px): the wall's
 ## face and a little room.
-static var tower_margin: float = 10.0
+static var margin: float = 10.0

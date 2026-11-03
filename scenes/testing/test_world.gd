@@ -66,7 +66,7 @@ func build(setup: TestSetup) -> void:
 	_overlay_flags = {}
 	for flag in OVERLAY_REGISTRY.defaults():
 		_overlay_flags[flag] = setup.overlays.has(flag)
-	var spec := _world_spec(setup, world)
+	var spec := _build_spec(setup, world)
 	var staged: Dictionary = await MatchBuilder.stage(spec, self)
 	_nav_debug = staged["nav_debug"]
 	if staged.has("district"):
@@ -253,11 +253,12 @@ func _set_static(script: Script, prop: StringName, value: Variant) -> void:
 	script.set(prop, value)
 
 
-## The match spec the world stage is built from. A house, layout or arena is built here (its
-## objects placed, so the bake carves them) and named by the spec's `house`; a district is left to
+## Build what the world stage stands on and return the match spec it is staged from. A house,
+## layout or arena is built here (its objects placed, so the bake carves them) and named by the
+## spec's `house`; a district is left to
 ## `MatchBuilder.stage`, which generates it from the spec's `seed`, `plan` and `entrance` (and takes
 ## no placed objects: it bakes as it is staged).
-func _world_spec(setup: TestSetup, world: Dictionary) -> Dictionary:
+func _build_spec(setup: TestSetup, world: Dictionary) -> Dictionary:
 	var spec := {
 		"seed": int(world.get("seed", 0)),
 		"wait_nav": true,

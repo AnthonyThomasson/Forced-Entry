@@ -7,8 +7,8 @@ extends GameTest
 ## of `WorldGen.district_rooms` lies in one, and nothing they hold gives light. Read through
 ## `DistrictReads.get_shells`: `{ rect, node, holder, style, partitions, decor }`.
 
+const District := preload("res://tests/_worldgen/district_probe.gd")
 const SEEDS := [1, 2, 3, 4, 5, 6]
-const ENTRANCE := Vector2(6000, 6000)
 const STYLES := ["bare", "site", "derelict"]
 ## What each style may hold (catalogue keys).
 const DECOR := {
@@ -106,6 +106,23 @@ func _check_decor(t: TestContext, label: String, shell: Dictionary) -> void:
 		t.check((node.call("get_lights") as Array).is_empty(), "%s: decor gives light" % label)
 
 
+## A shell's holder holds nothing that gives light: no light node, and no piece, wall or floor
+## whose `get_lights()` is not empty (a room's fixtures belong to its rooms, which a shell has none
+## of, and Lighting reads only a house's or district's rooms).
+func _check_unlit(t: TestContext, label: String, shell: Dictionary) -> void:
+	var holder: Node = shell["holder"]
+	t.check(
+		holder.find_children("*", "Light2D", true, false).is_empty(),
+		"%s: the shell holds a light node" % label,
+	)
+	for node: Node in holder.find_children("*", "", true, false):
+		if node.has_method("get_lights"):
+			t.check(
+				(node.call("get_lights") as Array).is_empty(),
+				"%s: %s in the shell would give light" % [label, node.name],
+			)
+
+
 ## No room of the district lies in a shell, and the shells hold no room data of their own.
 func _check_not_rooms(t: TestContext, label: String, district: Node2D, shells: Array) -> void:
 	for room: Dictionary in WorldGen.district_rooms(district):
@@ -122,7 +139,7 @@ func run(t: TestContext) -> void:
 	var styles := {}
 	var first: Array = []
 	for district_seed in SEEDS:
-		var district := WorldGen.generate_district(district_seed, "", ENTRANCE, t.world)
+		var district := WorldGen.generate_district(district_seed, "", District.ENTRANCE, t.world)
 		var shells := DistrictReads.get_shells(district)
 		var label := "seed %d" % district_seed
 		t.check(shells.size() == 16, "%s: %d shells" % [label, shells.size()])
@@ -132,6 +149,7 @@ func run(t: TestContext) -> void:
 			_check_closed(t, name, shells[i])
 			_check_partitions(t, name, shells[i])
 			_check_decor(t, name, shells[i])
+			_check_unlit(t, name, shells[i])
 			styles[shells[i]["style"]] = true
 		var mine := shells.map(func(s: Dictionary) -> String: return s["style"])
 		if district_seed == SEEDS[0]:
@@ -140,7 +158,7 @@ func run(t: TestContext) -> void:
 		await t.frames(2)
 	for style: String in STYLES:
 		t.check(styles.has(style), "no %s shell across the seeds" % style)
-	var again := WorldGen.generate_district(SEEDS[0], "", ENTRANCE, t.world)
+	var again := WorldGen.generate_district(SEEDS[0], "", District.ENTRANCE, t.world)
 	var repeat := DistrictReads.get_shells(again).map(
 		func(s: Dictionary) -> String: return s["style"],
 	)

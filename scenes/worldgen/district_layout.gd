@@ -14,8 +14,17 @@ const GRID := 3
 const HOUSE_BLOCK := 4
 ## Where a plan's front faces after 0, 1, 2 and 3 quarter turns (`HouseSpawner`'s turn).
 const FACINGS := [Vector2.DOWN, Vector2.LEFT, Vector2.UP, Vector2.RIGHT]
-## The four sides, in the order marks seed their RNGs.
+## The four sides, up, down, left, right: the order a junction's glyphs seed their RNGs (by index),
+## a sidewalk lists its curbs and `TowerDressing` walks a tower's walls. The order is part of every
+## seed's district: reordering it moves the glyph numbers and the podium's pieces.
 const SIDES := [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]
+## The four sides of a block, down, up, right, left: the order `DistrictStreets` draws each side's
+## RNG for its lamps and clutter, the side's index being part of the key. Reordering it moves
+## every seed's lamps and clutter.
+const BLOCK_SIDES := [Vector2.DOWN, Vector2.UP, Vector2.RIGHT, Vector2.LEFT]
+## The facings a shell's decor is turned to, down, up, left, right: a piece draws its index.
+## Reordering it turns every seed's shell decor.
+const DECOR_FACINGS := [Vector2.DOWN, Vector2.UP, Vector2.LEFT, Vector2.RIGHT]
 
 
 ## The layout of the district of `district_seed` with `force_plan` ("" for none) in the centre:
@@ -55,10 +64,10 @@ static func compute(district_seed: int, force_plan: String) -> Dictionary:
 ## Block `block`'s plan, turn and footprint (not yet placed).
 static func _block(district_seed: int, force_plan: String, block: int) -> Dictionary:
 	var plans := TowerDefinitions.get_all()
-	var rng := _rng(district_seed, "plan", block)
-	var drawn: String = plans[rng.randi() % plans.size()]
+	var plan_rng := rng(district_seed, "plan", block)
+	var drawn: String = plans[plan_rng.randi() % plans.size()]
 	var plan := force_plan if block == HOUSE_BLOCK and force_plan != "" else drawn
-	var turn := _rng(district_seed, "facing", block).randi() % 4
+	var turn := rng(district_seed, "facing", block).randi() % 4
 	var tower_seed := hash([district_seed, "tower", block])
 	var foot := HouseSpawner.footprint(plan, tower_seed, turn)
 	return {
@@ -73,10 +82,21 @@ static func _block(district_seed: int, force_plan: String, block: int) -> Dictio
 
 
 ## The RNG of `part` for `block`: `hash([seed, part, block])`.
-static func _rng(district_seed: int, part: String, block: int) -> RandomNumberGenerator:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash([district_seed, part, block])
-	return rng
+static func rng(district_seed: int, part: String, block: int) -> RandomNumberGenerator:
+	return rng_keyed([district_seed, part, block])
+
+
+## The RNG seeded by `hash(key)`: every part of a district draws from one of its own, so no part
+## shifts another's draws.
+static func rng_keyed(key: Array) -> RandomNumberGenerator:
+	var generator := RandomNumberGenerator.new()
+	generator.seed = hash(key)
+	return generator
+
+
+## `rect` moved by `delta`.
+static func shifted(rect: Rect2, delta: Vector2) -> Rect2:
+	return Rect2(rect.position + delta, rect.size)
 
 
 ## The length of each of the three tracks along x (`across`) or y: the largest footprint in it.
@@ -125,8 +145,8 @@ static func _place(
 	)
 	var size: Vector2 = block["size"]
 	var slack := area.size - size
-	var rng := _rng(district_seed, "place", block["block"])
-	var corner := area.position + Vector2(rng.randf() * slack.x, rng.randf() * slack.y)
+	var placing := rng(district_seed, "place", block["block"])
+	var corner := area.position + Vector2(placing.randf() * slack.x, placing.randf() * slack.y)
 	var out: Vector2 = block["outward"]
 	if out.y > 0.0:
 		corner.y = area.end.y - size.y
@@ -154,8 +174,7 @@ static func _streets(across: Dictionary, down: Dictionary) -> Array:
 				across["lengths"][col] + side * 2.0,
 				down["lengths"][row] + side * 2.0,
 			)
-			var curbs := [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]
-			streets.append(_piece("sidewalk", "block", rect, row * GRID + col, curbs))
+			streets.append(_piece("sidewalk", "block", rect, row * GRID + col, SIDES))
 	for j in GRID + 1:
 		for i in GRID + 1:
 			var rect := Rect2(across["roads"][i], down["roads"][j], road, road)
@@ -272,13 +291,13 @@ static func _mark(
 			sides.append(Vector2.DOWN)
 	var reach := WorldGenDistrictConfig.crossing_reach
 	for side: Vector2 in sides:
-		var rng := _rng(district_seed, "glyph", index * 4 + SIDES.find(side))
+		var glyph_rng := rng(district_seed, "glyph", index * 4 + SIDES.find(side))
 		tile["crossings"].append({ "side": side, "reach": reach })
 		tile["glyphs"].append({
 			"side": side,
 			"from": reach + WorldGenDistrictConfig.glyph_gap,
 			"length": WorldGenDistrictConfig.glyph_length,
-			"text": "%02d" % rng.randi_range(7, 49),
+			"text": "%02d" % glyph_rng.randi_range(7, 49),
 		})
 
 
@@ -322,13 +341,13 @@ static func _gutters(k: int, count: int, before: Vector2, after: Vector2) -> Arr
 
 
 ## The sixteen shells: the ring of cells of a 5 x 5 grid round the 3 x 3 blocks, the middle three
-## on each side split at the centre of the roads between blocks and the corners `shell_depth`
-## square, each shrunk by half the gap on every side.
+## on each side split at the centre of the roads between blocks and the corners
+## `WorldGenShellConfig.depth` square, each shrunk by half the gap on every side.
 static func _shells(across: Dictionary, down: Dictionary) -> Array:
-	var depth := WorldGenDistrictConfig.shell_depth
+	var depth := WorldGenShellConfig.depth
 	var xs := _cuts(across, depth)
 	var ys := _cuts(down, depth)
-	var half := WorldGenDistrictConfig.shell_gap * 0.5
+	var half := WorldGenShellConfig.gap * 0.5
 	var shells: Array = []
 	for row in 5:
 		for col in 5:

@@ -6,14 +6,15 @@ class_name DistrictShells
 ## (trash, puddles, cardboard and damp stains down its walls). They are not rooms for the AI
 ## and carry no room fixtures; they stand outside the area the nav map covers.
 
+## The shell styles, drawn by the seed.
 const STYLES := ["bare", "site", "derelict"]
-## What each style strews,
-## `[catalogue key, how many in a shell of `WorldGenShellConfig.shell_area`]`.
+## What the `site` style strews, `[catalogue key, how many in a shell of
+## `WorldGenShellConfig.area`]`.
 const SITE := [["rebar", 3], ["rubble", 3], ["scaffold", 2], ["cement_bags", 3]]
+## What the `derelict` style strews, in the same form.
 const LITTER := [["trash", 7], ["puddle", 4], ["cardboard", 4]]
 ## The damp stains on a derelict shell's long walls: how many on the north wall and on the south.
 const STAINS := [["north", 4], ["south", 2]]
-const FACINGS := [Vector2.DOWN, Vector2.UP, Vector2.LEFT, Vector2.RIGHT]
 
 
 ## Build a shell on each rect of `rects` (layout frame) shifted by `delta`, under `root`:
@@ -24,9 +25,8 @@ const FACINGS := [Vector2.DOWN, Vector2.UP, Vector2.LEFT, Vector2.RIGHT]
 static func build(rects: Array, delta: Vector2, root: Node2D, district_seed: int) -> Array:
 	var out: Array = []
 	for i in rects.size():
-		var rect := Rect2((rects[i] as Rect2).position + delta, (rects[i] as Rect2).size)
-		var rng := RandomNumberGenerator.new()
-		rng.seed = hash([district_seed, "shell", i])
+		var rect := DistrictLayout.shifted(rects[i], delta)
+		var rng := DistrictLayout.rng_keyed([district_seed, "shell", i])
 		var shell := Node2D.new()
 		shell.name = "Shell %d" % i
 		root.add_child(shell)
@@ -47,7 +47,7 @@ static func build(rects: Array, delta: Vector2, root: Node2D, district_seed: int
 ## A wall round `rect` in the house wall style with the doorways `openings` cut in, under `holder`.
 static func _walls(rect: Rect2, openings: Array, wall_name: String, holder: Node2D) -> Node:
 	var walls := RoomWalls.new()
-	walls.thickness = WorldGenDistrictConfig.shell_wall
+	walls.thickness = WorldGenShellConfig.wall
 	walls.openings = openings
 	walls.style = GeneralCatalog.WALL
 	return WallFactory.spawn(rect, walls, wall_name, holder)
@@ -59,14 +59,14 @@ static func _walls(rect: Rect2, openings: Array, wall_name: String, holder: Node
 ## room (one to the east room, one to the open part below it) and one from the east room down.
 static func _partitions(rect: Rect2, rng: RandomNumberGenerator, holder: Node2D) -> Array:
 	var split := lerpf(
-		WorldGenShellConfig.shell_split_min,
-		WorldGenShellConfig.shell_split_max,
+		WorldGenShellConfig.split_min,
+		WorldGenShellConfig.split_max,
 		rng.randf(),
 	)
 	var across := rect.position.x + rect.size.x * split
 	var down := rect.position.y + rect.size.y * lerpf(
-		WorldGenShellConfig.shell_split_min,
-		WorldGenShellConfig.shell_split_max,
+		WorldGenShellConfig.split_min,
+		WorldGenShellConfig.split_max,
 		rng.randf(),
 	)
 	var west := Rect2(rect.position, Vector2(across - rect.position.x, rect.size.y))
@@ -74,7 +74,7 @@ static func _partitions(rect: Rect2, rng: RandomNumberGenerator, holder: Node2D)
 		Vector2(across, rect.position.y),
 		Vector2(rect.end.x - across, down - rect.position.y),
 	)
-	var width := WorldGenShellConfig.shell_doorway
+	var width := WorldGenShellConfig.doorway
 	var upper := { "pos": Vector2(across, (rect.position.y + down) * 0.5), "width": width }
 	var lower := { "pos": Vector2(across, (down + rect.end.y) * 0.5), "width": width }
 	var inner := { "pos": Vector2((across + rect.end.x) * 0.5, down), "width": width }
@@ -92,9 +92,9 @@ static func _decorate(
 	holder: Node2D,
 ) -> Array:
 	var decor: Array = []
-	var inset := WorldGenDistrictConfig.shell_wall * 0.5 + WorldGenShellConfig.shell_edge
+	var inset := WorldGenShellConfig.wall * 0.5 + WorldGenShellConfig.edge
 	var field := rect.grow(-inset)
-	var scale := rect.get_area() / WorldGenShellConfig.shell_area
+	var scale := rect.get_area() / WorldGenShellConfig.area
 	if style == "site":
 		for row: Array in SITE:
 			decor.append_array(_scatter(holder, rng, field, row[0], _count(row[1], scale)))
@@ -122,7 +122,10 @@ static func _scatter(
 	var definition := ObjectDefinitions.get_definition(key)
 	var out: Array = []
 	for _i in count:
-		var turned := { "rotated": rng.randf() < 0.5, "facing": FACINGS[rng.randi() % 4] }
+		var turned := {
+			"rotated": rng.randf() < 0.5,
+			"facing": DistrictLayout.DECOR_FACINGS[rng.randi() % 4],
+		}
 		var size: Vector2 = definition["size"]
 		if turned["rotated"]:
 			size = Vector2(size.y, size.x)
@@ -138,7 +141,7 @@ static func _scatter(
 static func _stains(rect: Rect2, rng: RandomNumberGenerator, holder: Node2D, scale: float) -> Array:
 	var definition := ObjectDefinitions.get_definition("wall_stain")
 	var size: Vector2 = definition["size"]
-	var half := WorldGenDistrictConfig.shell_wall * 0.5
+	var half := WorldGenShellConfig.wall * 0.5
 	var out: Array = []
 	for row: Array in STAINS:
 		var north: bool = row[0] == "north"
@@ -146,8 +149,8 @@ static func _stains(rect: Rect2, rng: RandomNumberGenerator, holder: Node2D, sca
 			rect.position.y + half + size.y * 0.5 if north
 			else rect.end.y - half - size.y * 0.5
 		)
-		var lo := rect.position.x + WorldGenShellConfig.shell_edge + size.x * 0.5
-		var hi := rect.end.x - WorldGenShellConfig.shell_edge - size.x * 0.5
+		var lo := rect.position.x + WorldGenShellConfig.edge + size.x * 0.5
+		var hi := rect.end.x - WorldGenShellConfig.edge - size.x * 0.5
 		for _i in _count(row[1], scale):
 			var at := Vector2(rng.randf_range(lo, maxf(lo, hi)), y)
 			var facing := Vector2.DOWN if north else Vector2.UP

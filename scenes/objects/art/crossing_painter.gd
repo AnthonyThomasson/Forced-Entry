@@ -8,6 +8,10 @@ extends RefCounted
 ## `opts` (keyed without the prefix); the painter takes its colours as given (`ObjectArt.AS_GIVEN`).
 
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
+## A tyre track rubs this far (px) either side of its centre: a wheel's width, 20 px.
+const TRACK_HALF := 10
+## What a rubbed pixel keeps of its alpha.
+const RUBBED_ALPHA := 0.15
 
 
 ## Paint the crossing arm onto `c`.
@@ -19,13 +23,12 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	_bars(c, bars, paint_color, opts)
 	Kit.fill_rect(c, Rect2i(0, 0, int(c.w / 2.0), line), paint_color)
 	_tracks(c, bars, opts.get("track_rub", ObjectArtCrossingConfig.crossing_track_rub))
-	Kit.fade(c, opts.get("opacity", ObjectArtCrossingConfig.crossing_opacity))
-	Kit.wear(
-		c,
-		opts.get("wear_chance", ObjectArtCrossingConfig.crossing_wear_chance),
-		opts.get("wear_depth", ObjectArtCrossingConfig.crossing_wear_depth),
-		opts.get("wear_scratches", ObjectArtCrossingConfig.crossing_wear_scratches),
-	)
+	Kit.age(c, opts, {
+		"opacity": ObjectArtCrossingConfig.crossing_opacity,
+		"wear_chance": ObjectArtCrossingConfig.crossing_wear_chance,
+		"wear_depth": ObjectArtCrossingConfig.crossing_wear_depth,
+		"wear_scratches": ObjectArtCrossingConfig.crossing_wear_scratches,
+	})
 
 
 ## The zebra bars across `zone` (the road's width), one every `step_px`.
@@ -45,8 +48,8 @@ static func _bars(c: PixelCanvas, zone: Rect2i, col: Color, opts: Dictionary) ->
 static func _tracks(c: PixelCanvas, zone: Rect2i, share: float) -> void:
 	for centre in [c.w * 0.25, c.w * 0.75]:
 		for y in range(zone.position.y, zone.end.y):
-			for x in range(int(centre) - 10, int(centre) + 10):
+			for x in range(int(centre) - TRACK_HALF, int(centre) + TRACK_HALF):
 				if c.rng.randf() < share:
 					var col := c.at(x, y)
-					col.a *= 0.15
+					col.a *= RUBBED_ALPHA
 					c.px(x, y, col)

@@ -89,7 +89,7 @@ var doors := Doors.new(self)
 ## The door leaves on the walk's way, opened or gone through by a clean gap: loco_door_leaves.gd.
 var leaves := DoorLeaves.new(self)
 ## Pointing the agent at the goal only when that can change its path: loco_aim.gd.
-var aim := Aim.new(self)
+var aim := Aim.new()
 ## Pathfinding agent, or null (falls back to straight-line).
 var _agent: NavigationAgent2D
 ## The world's navigation map: furniture only, what points are snapped and tested on.
@@ -200,7 +200,7 @@ func _point(p: Vector2) -> Array:
 func reached(point: Vector2, within := 0.0) -> bool:
 	if _agent != null:
 		_begin(point, within)
-		aim.at(_agent, _goal)
+		aim.at(_agent, _goal, tuning.pace.reask_frames)
 		_last_stretch()
 		return (_way != Way.HELD and _agent.is_navigation_finished()
 				and not leaves.detouring())
@@ -229,7 +229,7 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 				else straight.normalized())
 		return
 	_begin(dest, within)
-	aim.at(_agent, _goal)
+	aim.at(_agent, _goal, tuning.pace.reask_frames)
 	_last_stretch()
 	give_way.kept_off = false
 	give_way.yielding = false
@@ -312,7 +312,7 @@ func _last_stretch() -> void:
 	else:
 		return  # A body stands on the goal: the hold and the free spot beside it are `_check`'s.
 	_set_way(Way.PLAIN)
-	aim.at(_agent, _goal)
+	aim.at(_agent, _goal, tuning.pace.reask_frames)
 
 
 ## Put the walk on `way` and the agent on that way's map; a hold starts its clocks.

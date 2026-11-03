@@ -4,13 +4,12 @@ class_name NoodleBarCatalog
 ## and a menu board, in grimy steel (Objects' `noodle` painter). The cooking line (the kitchen's
 ## `cooking_line`) is reused behind the bar. Shared clutter lives in GeneralCatalog.
 
-const STEEL := Color(0.46, 0.47, 0.45)
 const OBJECTS := {
 	"noodle_counter": {
 		"name": "Noodle bar",
 		"shape": "rect",
 		"size": Vector2(150, 34),
-		"color": STEEL,
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "noodle",
 		"art_opts": { "kind": "bar" },
@@ -23,7 +22,7 @@ const OBJECTS := {
 		"name": "Bar stool",
 		"shape": "circle",
 		"size": Vector2(20, 20),
-		"color": STEEL,
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "noodle",
 		"art_opts": { "kind": "stool" },
@@ -36,7 +35,7 @@ const OBJECTS := {
 		"name": "Booth",
 		"shape": "rect",
 		"size": Vector2(96, 64),
-		"color": STEEL,
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "noodle",
 		"art_opts": { "kind": "booth" },
@@ -49,7 +48,7 @@ const OBJECTS := {
 		"name": "Menu board",
 		"shape": "rect",
 		"size": Vector2(100, 20),
-		"color": STEEL,
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "noodle",
 		"art_opts": { "kind": "menu" },
@@ -59,8 +58,8 @@ const OBJECTS := {
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
 }
+## `noodle_bar_line`: the bar against the wall, three stools on the diners' side of it.
 const ARRANGEMENTS := {
-	# The bar against the wall, three stools on the diners' side of it.
 	"noodle_bar_line": {
 		"placement": "wall", "footprint": Vector2(150, 62), "prefer_corner": true,
 		"tags": ["noodle_bar"],

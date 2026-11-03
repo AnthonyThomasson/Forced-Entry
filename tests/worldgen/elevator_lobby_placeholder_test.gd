@@ -122,7 +122,10 @@ func _check_empty(t: TestContext, label: String, house: Node2D, lobby: Dictionar
 			"%s: %s stands in the lobby" % [label, body.name])
 
 
-func _check_house(t: TestContext, plan: String, house_seed: int, turn: int) -> void:
+## Build `plan` from `house_seed` turned `turn` quarter turns and check it; the stencil's image
+## (`null` when there is none).
+func _check_house(t: TestContext, plan: String, house_seed: int, turn: int) -> Image:
+	var image: Image = null
 	var label := "%s seed %d turned %d" % [plan, house_seed, turn]
 	var house := _build(t, plan, house_seed, turn)
 	var lobbies := WorldGen.get_lobbies(house)
@@ -135,6 +138,7 @@ func _check_house(t: TestContext, plan: String, house_seed: int, turn: int) -> v
 		in_lobby = in_lobby and rooms[0]["rect"] == lobby["rect"]
 		t.check(in_lobby, "%s: the stencil is not in the lobby" % label)
 		_check_stencil(t, label, lobby)
+		image = (lobby["node"] as Sprite2D).texture.get_image()
 		_check_empty(t, label, house, lobby)
 		var doorways := WorldGen.get_openings(house).filter(
 			func(o: Dictionary) -> bool: return (o["rooms"] as Array).has(lobby["room"]),
@@ -143,6 +147,32 @@ func _check_house(t: TestContext, plan: String, house_seed: int, turn: int) -> v
 				and not doorways[0]["front"] and not doorways[0]["exit"],
 			"%s: the lobby's doorways are %s" % [label, doorways])
 	house.queue_free()
+	return image
+
+
+## The text stays upright however the tower turns: a half turn gives the same room, so the same
+## stencil pixels (text rotated with the tower would stand upside down), and a three quarter turn
+## the same as one.
+func _check_upright(t: TestContext, plan: String, house_seed: int, images: Array) -> void:
+	var label := "%s seed %d" % [plan, house_seed]
+	if not t.require(
+		images.all(func(i: Image) -> bool: return i != null),
+		"%s: four stencils" % label,
+	):
+		return
+	t.check(
+		images[0].get_data() == images[2].get_data(),
+		"%s: a half turn changes the stencil (text turned with the tower?)" % label,
+	)
+	t.check(
+		images[1].get_data() == images[3].get_data(),
+		"%s: the stencil of a three quarter turn is not the one of a quarter turn" % label,
+	)
+	var unturned: Vector2i = images[0].get_size()
+	t.check(
+		images[1].get_size() == Vector2i(unturned.y, unturned.x),
+		"%s: a quarter turn does not swap the stencil's canvas" % label,
+	)
 
 
 ## Nothing but the lobby is stencilled: a house plan has no lobby, and a tower's only stencil is
@@ -165,6 +195,8 @@ func run(t: TestContext) -> void:
 	_check_only_lobbies(t)
 	for plan in TowerDefinitions.get_all():
 		for house_seed in SEEDS:
+			var images: Array = []
 			for turn in 4:
-				_check_house(t, plan, house_seed, turn)
+				images.append(_check_house(t, plan, house_seed, turn))
+			_check_upright(t, plan, house_seed, images)
 	await t.frames(2)

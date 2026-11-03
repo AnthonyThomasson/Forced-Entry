@@ -40,10 +40,10 @@ var corner_rays := 0
 var corners_read := 0
 var _shapes := Shapes.new()
 ## The even fan's rays of the last `rebuild` (`_cast_fan`): the hit of ray `i` (an empty dictionary
-## for a clear one) and, by the ray's angle from the facing, where it ends. A corner between two
-## neighbouring rays that met one convex shape nearer than the corner is hidden by it.
+## for a clear one) and where it ends. A corner between two neighbouring rays that met one convex
+## shape nearer than the corner is hidden by it.
 var _fan_hits: Array[Dictionary] = []
-var _fan_ends := {}
+var _fan_ends := PackedVector2Array()
 ## The sight rule (`SightRay`), asked with the coverage the shapes already know and with the low
 ## pieces in reach left out.
 var _ray := SightRay.new()
@@ -128,20 +128,22 @@ func _sight_end(
 	return to if hit.is_empty() else _far_face(space, hit, dir)
 
 
-## The ray ends for `angles` (each `[key, direction]`, in order), the direction's `dist` out.
+## The ray ends for `rays` (each `[angle, direction, fan index]`, in order), the direction's `dist`
+## out. A ray with a fan index in `known` (the even fan's ends, `_fan_ends`) takes its end from it.
 func _sweep(
 	space: PhysicsDirectSpaceState2D,
 	from: Vector2,
-	angles: Array,
+	rays: Array,
 	dist: float,
-	known := {},
+	known := PackedVector2Array(),
 ) -> PackedVector2Array:
 	var ends := PackedVector2Array()
-	for entry in angles:
-		if known.has(entry[0]):
-			ends.append(known[entry[0]])
+	for ray in rays:
+		var fan_index: int = ray[2]
+		if fan_index >= 0 and fan_index < known.size():
+			ends.append(known[fan_index])
 		else:
-			ends.append(_sight_end(space, from, entry[1], dist))
+			ends.append(_sight_end(space, from, ray[1], dist))
 	return ends
 
 
@@ -152,15 +154,18 @@ func _cast_fan(space: PhysicsDirectSpaceState2D, from: Vector2, facing: Vector2)
 	_fan_ends.clear()
 	if facing == Vector2.ZERO:
 		return
-	var rays := VisionConfig.cone_rays
-	var half := _fov * 0.5
-	for i in rays + 1:
-		var angle := -half + float(i) / float(rays) * _fov
-		var dir := facing.rotated(angle)
+	for i in VisionConfig.cone_rays + 1:
+		var dir := facing.rotated(_fan_angle(i))
 		var to := from + dir * _reach
 		var hit := _ray.cast(space, from, to)
 		_fan_hits.append(hit)
-		_fan_ends[angle] = to if hit.is_empty() else _far_face(space, hit, dir)
+		_fan_ends.append(to if hit.is_empty() else _far_face(space, hit, dir))
+
+
+## The angle from the facing of ray `i` of the even fan across the cone, `i` from 0 (the left edge)
+## to `VisionConfig.cone_rays` (the right).
+func _fan_angle(i: int) -> float:
+	return -_fov * 0.5 + float(i) / float(VisionConfig.cone_rays) * _fov
 
 
 ## Whether the line from `from` to the point `reach` px along `angle` (from the facing, inside the
@@ -171,9 +176,7 @@ func _fan_hides(from: Vector2, angle: float, reach: float) -> bool:
 	var rays := VisionConfig.cone_rays
 	var half := _fov * 0.5
 	var i := clampi(int((angle + half) / _fov * float(rays)), 0, rays - 1)
-	if angle <= -half + float(i) / float(rays) * _fov:
-		return false
-	if angle >= -half + float(i + 1) / float(rays) * _fov:
+	if angle <= _fan_angle(i) or angle >= _fan_angle(i + 1):
 		return false
 	var a := _fan_hits[i]
 	var b := _fan_hits[i + 1]
@@ -213,27 +216,31 @@ func _visible_corners(
 	return visible
 
 
-## The cone's rays as `[angle from the facing, direction]`, sorted: the even fan, which holds the
-## two edge rays, and three rays at each visible corner inside the cone.
+## The cone's rays as `[angle from the facing, direction, fan index]`, sorted by angle: the even
+## fan, which holds the two edge rays (its index `i` is the ray's place in `_fan_ends`), and three
+## rays at each visible corner inside the cone (index -1: cast on their own; one clamped onto an
+## edge of the cone takes that edge ray's index).
 func _cone_angles(from: Vector2, facing: Vector2, corners: Array) -> Array:
 	var half := _fov * 0.5
-	var rays := VisionConfig.cone_rays
 	var offset := VisionConfig.corner_offset
-	var angles: Array = []
-	for i in rays + 1:
-		angles.append(-half + float(i) / float(rays) * _fov)
+	var rays: Array = []
+	for i in VisionConfig.cone_rays + 1:
+		rays.append([_fan_angle(i), i])
 	for corner in corners:
 		var angle := facing.angle_to(corner - from)
 		if absf(angle) > half:
 			continue
 		for shift in [-offset, 0.0, offset]:
-			angles.append(clampf(angle + shift, -half, half))
-	angles.sort()
-	return angles.map(func(angle: float) -> Array: return [angle, facing.rotated(angle)])
+			var shifted := clampf(angle + shift, -half, half)
+			# A ray clamped onto an edge of the cone is the fan's edge ray: its end is known.
+			var edge := 0 if shifted <= -half else VisionConfig.cone_rays if shifted >= half else -1
+			rays.append([shifted, edge])
+	rays.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	return rays.map(func(ray: Array) -> Array: return [ray[0], facing.rotated(ray[0]), ray[1]])
 
 
-## The bubble's rays as `[angle, direction]`, sorted: the even fan and three rays at each visible
-## corner inside the bubble.
+## The bubble's rays as `[angle, direction, -1]`, sorted: the even fan and three rays at each
+## visible corner inside the bubble.
 func _bubble_angles(from: Vector2, corners: Array) -> Array:
 	var rays := VisionConfig.bubble_rays
 	var offset := VisionConfig.corner_offset
@@ -247,7 +254,7 @@ func _bubble_angles(from: Vector2, corners: Array) -> Array:
 		for shift in [-offset, 0.0, offset]:
 			angles.append(fposmod(to.angle() + shift, TAU))
 	angles.sort()
-	return angles.map(func(angle: float) -> Array: return [angle, Vector2.from_angle(angle)])
+	return angles.map(func(angle: float) -> Array: return [angle, Vector2.from_angle(angle), -1])
 
 
 ## The far end of the blocker `hit` along `dir`: where the ray leaves the solid it met (the

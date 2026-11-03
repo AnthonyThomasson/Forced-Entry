@@ -8,10 +8,10 @@ class_name ObjectArtStreetPropConfig
 
 ## The lighter steel of a machine's face and a bin's lid, the rust-orange trim, the dull glass of
 ## the vending window (glowing) and the bench's slats.
-static var prop_top_color: Color = Color(0.58, 0.58, 0.55)
-static var prop_accent_color: Color = Color(0.62, 0.34, 0.17)
-static var prop_glass_color: Color = Color(0.3, 0.4, 0.42)
-static var prop_wood_color: Color = Color(0.5, 0.38, 0.24)
+static var prop_top_color: Color = ObjectArtShopConfig.STEEL_TOP
+static var prop_accent_color: Color = ObjectArtShopConfig.RUST
+static var prop_glass_color: Color = ObjectArtShopConfig.DULL_GLASS
+static var prop_wood_color: Color = ObjectArtShopConfig.OAK
 ## The drinks in the vending window, and the litter's scraps.
 static var prop_products: Array[Color] = [
 	Color(0.9, 0.3, 0.2), Color(0.95, 0.8, 0.2), Color(0.3, 0.7, 0.9), Color(0.5, 0.85, 0.4),

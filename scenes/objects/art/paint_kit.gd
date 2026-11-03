@@ -67,6 +67,15 @@ static func fade(c: PixelCanvas, alpha: float) -> void:
 				c.px(x, y, col)
 
 
+## Fade and wear a painted layer, as the floor-marking painters end: `fade` by `opacity`, `wear` by
+## `wear_chance`, `wear_depth` and `wear_scratches`, each taken from `opts` when it names it, else
+## from `defaults` (a painter's config).
+static func age(c: PixelCanvas, opts: Dictionary, defaults: Dictionary) -> void:
+	var look := defaults.merged(opts, true)
+	fade(c, look["opacity"])
+	wear(c, look["wear_chance"], look["wear_depth"], look["wear_scratches"])
+
+
 ## Wear a painted layer: every drawn pixel loses up to `depth` of its alpha `chance` of the time,
 ## and `scratches` short lines are rubbed through it.
 static func wear(c: PixelCanvas, chance: float, depth: float, scratches := 0) -> void:

@@ -14,22 +14,16 @@ const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 
 
 ## Lay a floor stencil of `spec` over `rect` (in `parent`'s space) under `parent`, named
-## `decal_name`, and return it (a `Sprite2D`). `spec`: `text` the words (one to a line) and `style`
-## (`hazard`, the only one). It draws on the floor's rung, after the floors already laid, so over
-## them.
+## `decal_name`, and return it (a `Sprite2D`). `spec`: `text` the words (one to a line). It draws on
+## the floor's rung, after the floors already laid, so over them.
 static func stencil(rect: Rect2, spec: Dictionary, decal_name: String, parent: Node) -> Node2D:
-	var sprite := Sprite2D.new()
-	sprite.name = decal_name
-	sprite.centered = false
-	sprite.position = rect.position
-	sprite.z_index = ObjectArtLayerConfig.floor_z_index
-	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var sprite := _sprite(decal_name, rect.position, ObjectArtLayerConfig.floor_z_index)
 	sprite.texture = ObjectArt.texture(
 		"stencil",
 		rect.size,
 		Color.WHITE,
 		Vector2.DOWN,
-		{ "text": spec.get("text", ""), "style": spec.get("style", "hazard") },
+		{ "text": spec.get("text", "") },
 	)
 	parent.add_child(sprite)
 	return sprite
@@ -44,13 +38,8 @@ static func shadow(foot: Rect2, spec: Dictionary, decal_name: String, parent: No
 	var length := int(spec.get("length", 0))
 	var drag := (PixelArt.away_from_light(parent) * float(length)).round()
 	var area := foot.merge(Rect2(foot.position + drag, foot.size))
-	var sprite := Sprite2D.new()
-	sprite.name = decal_name
-	sprite.centered = false
-	sprite.position = area.position
-	sprite.z_index = DrawLayers.RUG
+	var sprite := _sprite(decal_name, area.position, DrawLayers.RUG)
 	sprite.light_mask = LightMasks.STREET
-	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.texture = ObjectArt.texture(
 		"shadow",
 		area.size,
@@ -62,4 +51,16 @@ static func shadow(foot: Rect2, spec: Dictionary, decal_name: String, parent: No
 		},
 	)
 	parent.add_child(sprite)
+	return sprite
+
+
+## A draw-only sprite named `decal_name` with its top-left at `at`, on rung `z_index`, drawn with
+## crisp pixels; its texture and parent are the caller's.
+static func _sprite(decal_name: String, at: Vector2, z_index: int) -> Sprite2D:
+	var sprite := Sprite2D.new()
+	sprite.name = decal_name
+	sprite.centered = false
+	sprite.position = at
+	sprite.z_index = z_index
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	return sprite

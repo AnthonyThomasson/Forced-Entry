@@ -11,10 +11,8 @@ extends GameTest
 ## `<block>:<key>`), and the test reads `get_towers` (`{ block, plan, turn, node, rect, front }`),
 ## `get_shells` (`{ rect, node, style }`) and `get_district_street` (`{ kind, rect, node, block }`).
 
+const District := preload("res://tests/_worldgen/district_probe.gd")
 const SEEDS := [1, 2, 3]
-const ENTRANCE := Vector2(6000, 6000)
-const GRID := 3
-const HOUSE_BLOCK := 4
 const SHELLS := 16
 ## Twice the default `invader_margin` (80): the spec's number, not read from the code.
 const OUTDOORS_RING := 160.0
@@ -39,7 +37,7 @@ func configure(s: TestSetup) -> void:
 
 ## A district of `district_seed` (a `force_plan` house or tower plan if given) under the test world.
 func _build(t: TestContext, district_seed: int, force_plan: String = "") -> Node2D:
-	return WorldGen.generate_district(district_seed, force_plan, ENTRANCE, t.world)
+	return WorldGen.generate_district(district_seed, force_plan, District.ENTRANCE, t.world)
 
 
 ## The tower of `towers` in `block`.
@@ -48,14 +46,6 @@ func _tower(towers: Array, block: int) -> Dictionary:
 		if tower["block"] == block:
 			return tower
 	return {}
-
-
-## Whether some piece of `pieces` of `kind` (any if "") holds `p`.
-func _covered(pieces: Array, p: Vector2, kind: String = "") -> bool:
-	return pieces.any(
-		func(piece: Dictionary) -> bool:
-			return (kind == "" or piece["kind"] == kind) and (piece["rect"] as Rect2).has_point(p),
-	)
 
 
 ## The shortest distance between two rects (0 if they touch or overlap).
@@ -68,9 +58,12 @@ func _gap(a: Rect2, b: Rect2) -> float:
 ## The towers sit on a 3 x 3 grid: each block's tower is east of its western neighbour's and south
 ## of its northern one's.
 func _check_grid(t: TestContext, label: String, towers: Array) -> void:
-	if not t.require(towers.size() == GRID * GRID, "%s: %d towers" % [label, towers.size()]):
+	if not t.require(
+		towers.size() == District.GRID * District.GRID,
+		"%s: %d towers" % [label, towers.size()],
+	):
 		return
-	for block in GRID * GRID:
+	for block in District.GRID * District.GRID:
 		var tower := _tower(towers, block)
 		if not t.check(not tower.is_empty(), "%s: a tower in block %d" % [label, block]):
 			continue
@@ -78,10 +71,10 @@ func _check_grid(t: TestContext, label: String, towers: Array) -> void:
 			tower["node"] is Node2D and (tower["rect"] as Rect2).has_area(),
 			"%s: block %d has a built tower" % [label, block],
 		)
-		if block % GRID > 0:
+		if block % District.GRID > 0:
 			_check_beside(t, label, [_tower(towers, block - 1), tower], true)
-		if block >= GRID:
-			_check_beside(t, label, [_tower(towers, block - GRID), tower], false)
+		if block >= District.GRID:
+			_check_beside(t, label, [_tower(towers, block - District.GRID), tower], false)
 
 
 ## Tower `later` lies wholly east (`across`) or south of tower `earlier`.
@@ -116,35 +109,38 @@ func _walk(streets: Array, block: int) -> Rect2:
 ## Every tower stands in the pavement of its own block, and a street crosses the gap between every
 ## pair of neighbouring blocks' pavements and runs round the grid.
 func _check_streets(t: TestContext, label: String, towers: Array, streets: Array) -> void:
-	for block in GRID * GRID:
+	for block in District.GRID * District.GRID:
 		var walk := _walk(streets, block)
 		t.check(
 			walk.encloses(_tower(towers, block)["rect"]),
 			"%s: the tower of block %d is off its sidewalk %s" % [label, block, walk],
 		)
-		if block % GRID + 1 < GRID:
+		if block % District.GRID + 1 < District.GRID:
 			var east := _walk(streets, block + 1)
 			var mid := Vector2((walk.end.x + east.position.x) * 0.5, walk.get_center().y)
 			t.check(
-				_covered(streets, mid, "street"),
+				District.covered(streets, mid, "street"),
 				"%s: no street between blocks %d and %d" % [label, block, block + 1],
 			)
-		if block + GRID < GRID * GRID:
-			var south := _walk(streets, block + GRID)
+		if block + District.GRID < District.GRID * District.GRID:
+			var south := _walk(streets, block + District.GRID)
 			var mid := Vector2(walk.get_center().x, (walk.end.y + south.position.y) * 0.5)
 			t.check(
-				_covered(streets, mid, "street"),
-				"%s: no street between blocks %d and %d" % [label, block, block + GRID],
+				District.covered(streets, mid, "street"),
+				"%s: no street between blocks %d and %d" % [label, block, block + District.GRID],
 			)
 	# Round the grid: beyond the outermost pavements, on each side.
-	var all := _walk(streets, 0).merge(_walk(streets, GRID * GRID - 1))
+	var all := _walk(streets, 0).merge(_walk(streets, District.GRID * District.GRID - 1))
 	for p: Vector2 in [
 		Vector2(all.get_center().x, all.position.y - 40.0),
 		Vector2(all.get_center().x, all.end.y + 40.0),
 		Vector2(all.position.x - 40.0, all.get_center().y),
 		Vector2(all.end.x + 40.0, all.get_center().y),
 	]:
-		t.check(_covered(streets, p, "street"), "%s: no street round the grid at %s" % [label, p])
+		t.check(
+			District.covered(streets, p, "street"),
+			"%s: no street round the grid at %s" % [label, p],
+		)
 
 
 ## The ring of shells: 16 closed buildings, each past the streets, each touching two others.
@@ -171,14 +167,14 @@ func _check_shells(t: TestContext, label: String, streets: Array, shells: Array)
 
 func _check_house(t: TestContext, label: String, district: Node2D, towers: Array) -> void:
 	var house := WorldGen.house_of(district)
-	var centre := _tower(towers, HOUSE_BLOCK)
+	var centre := _tower(towers, District.HOUSE_BLOCK)
 	t.check(house != null and house == centre["node"], "%s: the house is the centre tower" % label)
 	var fronts := WorldGen.get_openings(house).filter(
 		func(o: Dictionary) -> bool: return o["front"],
 	)
 	t.check(
-		fronts.size() == 1 and (fronts[0]["pos"] as Vector2).distance_to(ENTRANCE) < 0.5,
-		"%s: the house's front door is on the entrance %s" % [label, ENTRANCE],
+		fronts.size() == 1 and (fronts[0]["pos"] as Vector2).distance_to(District.ENTRANCE) < 0.5,
+		"%s: the house's front door is on the entrance %s" % [label, District.ENTRANCE],
 	)
 	t.check(
 		WorldGen.get_rooms(house) == WorldGen.get_rooms(centre["node"]),
@@ -193,7 +189,7 @@ func _check_house(t: TestContext, label: String, district: Node2D, towers: Array
 			"%s: the house's room %s is in district_rooms" % [label, room["key"]],
 		)
 	for tower: Dictionary in towers:
-		if tower["block"] == HOUSE_BLOCK:
+		if tower["block"] == District.HOUSE_BLOCK:
 			continue
 		for room: Dictionary in WorldGen.get_rooms(tower["node"]):
 			var key := "%d:%s" % [tower["block"], room["key"]]
@@ -207,7 +203,9 @@ func _check_house(t: TestContext, label: String, district: Node2D, towers: Array
 ## Every room of every neighbour is further than the invaders' outdoors ring from the house's rooms.
 func _check_clearance(t: TestContext, label: String, district: Node2D, towers: Array) -> void:
 	var bounds := WorldGen.bounds(WorldGen.get_rooms(WorldGen.house_of(district)))
-	var neighbours := towers.filter(func(x: Dictionary) -> bool: return x["block"] != HOUSE_BLOCK)
+	var neighbours := towers.filter(
+		func(x: Dictionary) -> bool: return x["block"] != District.HOUSE_BLOCK,
+	)
 	for tower: Dictionary in neighbours:
 		for room: Dictionary in WorldGen.get_rooms(tower["node"]):
 			var gap := _gap(bounds, room["rect"])
@@ -237,6 +235,11 @@ func _check_same(t: TestContext, label: String, a: Node2D, b: Node2D) -> void:
 	t.check(
 		_rects(streets_a) == _rects(DistrictReads.get_district_street(b)),
 		"%s: the streets differ between two builds of one seed" % label,
+	)
+	var difference := District.first_difference(District.digest(a), District.digest(b))
+	t.check(
+		difference == "",
+		"%s: the trees differ between two builds of one seed: %s" % [label, difference],
 	)
 
 
@@ -276,12 +279,13 @@ func run(t: TestContext) -> void:
 		_check_house(t, label, district, towers)
 		_check_clearance(t, label, district, towers)
 		t.check(
-			TowerDefinitions.get_all().has(_tower(towers, HOUSE_BLOCK)["plan"]),
+			TowerDefinitions.get_all().has(_tower(towers, District.HOUSE_BLOCK)["plan"]),
 			"%s: an unforced house is a tower plan" % label,
 		)
 		for tower: Dictionary in towers:
 			t.check(
-				TowerDefinitions.get_all().has(tower["plan"]) or tower["block"] == HOUSE_BLOCK,
+				(TowerDefinitions.get_all().has(tower["plan"])
+					or tower["block"] == District.HOUSE_BLOCK),
 				"%s: block %d drew a non-tower plan" % [label, tower["block"]],
 			)
 		var again := _build(t, district_seed)
@@ -294,7 +298,7 @@ func run(t: TestContext) -> void:
 	# A forced house plan, and a forced tower plan, become the centre tower.
 	for forced in ["garage_home", "noodle_tower"]:
 		var district := _build(t, 4, forced)
-		var centre := _tower(DistrictReads.get_towers(district), HOUSE_BLOCK)
+		var centre := _tower(DistrictReads.get_towers(district), District.HOUSE_BLOCK)
 		t.check(
 			centre["plan"] == forced,
 			"the forced %s is the house (got %s)" % [forced, centre["plan"]],

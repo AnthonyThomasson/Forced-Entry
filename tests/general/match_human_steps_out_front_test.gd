@@ -3,8 +3,7 @@ extends GameTest
 ## the seed, so its front door faces any of the four streets; the human who invades starts
 ## `run.entrance_distance` (70 px) out from the front door along the way out of the house, whichever
 ## street that is, outside every room, and the invaders gather round that spot on the street. The
-## front door itself stands at Main's anchor (the scene's `Player`, where the game used to put the
-## player 70 px below the door).
+## front door itself stands at Main's anchor (the scene's `Player`).
 ##
 ## Main is run whole (`tests/_main/main_probe.gd`: its own world, built at once as a scripted
 ## restart builds), with the house's seed picked by the test's own scan of seeds so that across the

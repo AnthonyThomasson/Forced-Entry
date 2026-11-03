@@ -302,6 +302,13 @@ func _check_lamp_clear_of_doors(
 
 
 func run(t: TestContext) -> void:
+	# Every other tower and house plan turns as well, over one seed. (Not their street: a shopfront
+	# door in the middle of a short front takes both lamps of its sidewalk under the door rule, and
+	# a district lays its own lamps.)
+	for plan: String in TowerDefinitions.get_all() + HouseDefinitions.get_all():
+		if not PLANS.has(plan):
+			for turn in [1, 2, 3]:
+				_check_turn(t, plan, SEEDS[0], turn)
 	for plan in PLANS:
 		for house_seed in SEEDS:
 			for turn in [1, 2, 3]:

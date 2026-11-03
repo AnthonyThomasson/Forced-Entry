@@ -5,9 +5,8 @@ extends GameTest
 ## which. Read through `DistrictReads.get_towers` (`front` the front doorway with its `outward`) and
 ## `DistrictReads.get_district_street`.
 
-const ENTRANCE := Vector2(6000, 6000)
+const District := preload("res://tests/_worldgen/district_probe.gd")
 const SEEDS := 24
-const HOUSE_BLOCK := 4
 ## How far out of the door the probe walks, and in what steps (px): past the sidewalk and across the
 ## street it leads to.
 const WALK_REACH := 400.0
@@ -30,20 +29,12 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 200, 200))
 
 
-## The street piece (any kind) of `streets` holding `p`, or {}.
-func _piece_at(streets: Array, p: Vector2) -> Dictionary:
-	for piece: Dictionary in streets:
-		if (piece["rect"] as Rect2).has_point(p):
-			return piece
-	return {}
-
-
 ## Walk out of `tower`'s front door: onto its own block's sidewalk within `ONTO_SIDEWALK`, then onto
 ## a street with nothing else between.
 func _check_tower(t: TestContext, label: String, tower: Dictionary, streets: Array) -> void:
 	var door: Vector2 = tower["front"]["pos"]
 	var out: Vector2 = tower["front"]["outward"][0]
-	var first := _piece_at(streets, door + out * ONTO_SIDEWALK)
+	var first := District.piece_at(streets, door + out * ONTO_SIDEWALK)
 	if not t.check(
 		not first.is_empty() and first["kind"] == "sidewalk" and first["block"] == tower["block"],
 		"%s: the front door at %s does not open onto its block's sidewalk (%s)"
@@ -53,7 +44,7 @@ func _check_tower(t: TestContext, label: String, tower: Dictionary, streets: Arr
 	var reached := false
 	var steps := int(WALK_REACH / WALK_STEP)
 	for i in range(1, steps + 1):
-		var piece := _piece_at(streets, door + out * WALK_STEP * i)
+		var piece := District.piece_at(streets, door + out * WALK_STEP * i)
 		if piece.is_empty() or piece["kind"] == "street":
 			reached = not piece.is_empty()
 			break
@@ -66,11 +57,12 @@ func run(t: TestContext) -> void:
 	var house_facings := {}
 	var neighbour_facings := {}
 	for district_seed in range(1, SEEDS + 1):
-		var district := WorldGen.generate_district(district_seed, "", ENTRANCE, t.world)
+		var district := WorldGen.generate_district(district_seed, "", District.ENTRANCE, t.world)
 		var streets := DistrictReads.get_district_street(district)
 		for tower: Dictionary in DistrictReads.get_towers(district):
 			_check_tower(t, "seed %d block %d" % [district_seed, tower["block"]], tower, streets)
-			var facings := house_facings if tower["block"] == HOUSE_BLOCK else neighbour_facings
+			var is_house: bool = tower["block"] == District.HOUSE_BLOCK
+			var facings := house_facings if is_house else neighbour_facings
 			facings[tower["front"]["outward"][0]] = true
 		district.queue_free()
 		await t.frames(2)

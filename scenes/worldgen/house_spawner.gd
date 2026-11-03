@@ -209,7 +209,7 @@ static func _lay_stencil(
 	var rect: Rect2 = site.room["rect"]
 	var node := DecalFactory.stencil(
 		rect.grow(-site.wall_thickness * 0.5),
-		{ "text": text, "style": "hazard" },
+		{ "text": text },
 		room_name + " Stencil",
 		house,
 	)

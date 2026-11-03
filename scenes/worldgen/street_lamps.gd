@@ -30,7 +30,8 @@ static func run_along(rect: Rect2, out: Vector2) -> Dictionary:
 ## `streetlight_every` px, each jittered along it by up to `streetlight_jitter`. Those that stand
 ## clear of every zone of `zones` (`door_zones`) are kept; `rng` draws a jitter and a neon colour
 ## for each, kept or not. A lamp whose post meets a rect of `keepouts` is dropped as well (a
-## district's crossings). Returns `[{ pos, node }]`, `pos` in WORLD space.
+## district's crossings). Returns `[{ pos, node, size }]`, `pos` in WORLD space and `size` the
+## post's footprint.
 static func place(
 	holder: Node2D,
 	run: Dictionary,
@@ -54,7 +55,7 @@ static func place(
 			holder,
 			{ "facing": run["facing"], "neon": spots[i]["neon"] if i % 2 == 1 else "" },
 		)
-		out.append({ "pos": holder.to_global(at), "node": node })
+		out.append({ "pos": holder.to_global(at), "node": node, "size": definition["size"] })
 	return out
 
 

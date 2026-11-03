@@ -2,14 +2,19 @@ class_name StreetCatalog
 ## World Generation domain: the catalogue of a district's streets, grimy steel (DistrictStreets).
 ## The sidewalk clutter: a vending machine and a street bench (solid, anchored: never shoved, but
 ## struck and dented), a bin (solid, pushable) and a drain grate and litter (walk-over decor, no
-## collider). Objects' `street_prop` painter draws them all.
+## collider); Objects' `street_prop` painter draws them all. Also the decor of a shell
+## (DistrictShells): rebar, rubble, scaffold, cement bags and wall stains, walk-over decor drawn
+## by the shell decor painter (a stain starts on the wall it faces away from and runs out over the
+## floor). `street_bench` is the steel variant of GeneralCatalog's `bench`, bolted down; `podium`
+## is a segment of the band along a tower's exterior wall (TowerDressing sets its length), a solid
+## anchored slab of concrete with pillars along its street edge.
 
 const OBJECTS := {
 	"vending_machine": {
 		"name": "Vending machine",
 		"shape": "rect",
 		"size": Vector2(40, 34),
-		"color": Color(0.46, 0.47, 0.45),
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "street_prop",
 		"art_opts": { "kind": "vending" },
@@ -18,12 +23,11 @@ const OBJECTS := {
 		"coverage": 70,
 		"penetration": 75,
 	},
-	# The steel variant of GeneralCatalog's `bench`: a steel frame with slats, bolted down.
 	"street_bench": {
 		"name": "Street bench",
 		"shape": "rect",
 		"size": Vector2(74, 26),
-		"color": Color(0.46, 0.47, 0.45),
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "street_prop",
 		"art_opts": { "kind": "bench" },
@@ -36,7 +40,7 @@ const OBJECTS := {
 		"name": "Street bin",
 		"shape": "circle",
 		"size": Vector2(26, 26),
-		"color": Color(0.46, 0.47, 0.45),
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "street_prop",
 		"art_opts": { "kind": "bin" },
@@ -48,7 +52,7 @@ const OBJECTS := {
 		"name": "Drain grate",
 		"shape": "rect",
 		"size": Vector2(40, 18),
-		"color": Color(0.46, 0.47, 0.45),
+		"color": GeneralCatalog.STEEL,
 		"material": "metal",
 		"art": "street_prop",
 		"art_opts": { "kind": "grate" },
@@ -70,8 +74,6 @@ const OBJECTS := {
 		"coverage": 0,
 		"penetration": 0,
 	},
-	# A segment of the podium band along a tower's exterior wall (TowerDressing sets its length): a
-	# solid, anchored slab of concrete with pillars along its street edge.
 	"podium": {
 		"name": "Podium",
 		"shape": "rect",
@@ -84,9 +86,6 @@ const OBJECTS := {
 		"coverage": 60,
 		"penetration": 90,
 	},
-	# What lies in a district shell's roofless interior (DistrictShells scatters them): walk-over
-	# decor, as the litter is, drawn by the shell decor painter. A wall stain starts on the wall it
-	# faces away from and runs out over the floor.
 	"rebar": {
 		"name": "Rebar",
 		"shape": "rect",

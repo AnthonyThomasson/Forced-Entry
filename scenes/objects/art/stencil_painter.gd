@@ -1,9 +1,9 @@
 extends RefCounted
 ## Pixel-art floor STENCIL painter (Objects domain, private): paint on a floor, a transparent layer
-## the size of the area it covers. `opts.text` is the words, one to a line, and `opts.style`
-## `hazard`: a border of yellow and black stripes round the edge and the words centred inside it in
-## stencil letters (the middle of each stem bridged out), the whole faded and worn. The words are
-## always drawn upright on the canvas, which is never turned. Knobs:
+## the size of the area it covers. `opts.text` is the words, one to a line: a border of yellow and
+## black hazard stripes round the edge and the words centred inside it in stencil letters (the
+## middle of each stem bridged out), the whole faded and worn. The words are always drawn upright
+## on the canvas, which is never turned. Knobs:
 ## ObjectArtStencilConfig.stencil_*, each overridable per stencil by `opts` (keyed without the
 ## prefix); the painter takes its colours as given (`ObjectArt.AS_GIVEN`).
 
@@ -11,7 +11,7 @@ const Glyphs = preload("res://scenes/objects/art/glyphs.gd")
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
 
 
-## Paint the stencil of `opts.text` in `opts.style` onto `c`.
+## Paint the stencil of `opts.text` onto `c`.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
 	var border: int = opts.get("border_px", ObjectArtStencilConfig.stencil_border_px)
 	var dark: Color = opts.get("hazard_black", ObjectArtStencilConfig.stencil_hazard_black)
@@ -20,13 +20,12 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	Kit.frame(c, Rect2i(0, 0, c.w, c.h), dark)
 	Kit.frame(c, inner.grow(1), dark)
 	_lines(c, String(opts.get("text", "")).split(" "), inner, opts)
-	Kit.fade(c, opts.get("opacity", ObjectArtStencilConfig.stencil_opacity))
-	Kit.wear(
-		c,
-		opts.get("wear_chance", ObjectArtStencilConfig.stencil_wear_chance),
-		opts.get("wear_depth", ObjectArtStencilConfig.stencil_wear_depth),
-		opts.get("wear_scratches", ObjectArtStencilConfig.stencil_wear_scratches),
-	)
+	Kit.age(c, opts, {
+		"opacity": ObjectArtStencilConfig.stencil_opacity,
+		"wear_chance": ObjectArtStencilConfig.stencil_wear_chance,
+		"wear_depth": ObjectArtStencilConfig.stencil_wear_depth,
+		"wear_scratches": ObjectArtStencilConfig.stencil_wear_scratches,
+	})
 
 
 ## Yellow and black diagonal stripes over everything outside `inner`.

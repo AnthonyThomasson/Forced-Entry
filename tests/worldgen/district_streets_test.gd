@@ -8,8 +8,8 @@ extends GameTest
 ## meeting a doorway zone, a lamp, a crossing or a tower. Read through `DistrictReads` and
 ## `WorldGen.get_streetlights` / `get_clutter` on the district root.
 
+const District := preload("res://tests/_worldgen/district_probe.gd")
 const SEEDS := [1, 2, 3]
-const ENTRANCE := Vector2(6000, 6000)
 const DIRS := [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]
 ## The lamps' door rule and spacing (ticket #61): the spec's numbers.
 const DOOR_CLEAR := 140.0
@@ -45,7 +45,8 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 200, 200))
 
 
-## The marks layer of street piece `piece`'s floor.
+## The marks layer of street piece `piece`'s floor (the child Objects publishes for tests,
+## interface 2).
 func _marks(piece: Dictionary) -> Node:
 	return piece["node"].get_node_or_null("FloorVisuals/StreetMarks")
 
@@ -160,7 +161,9 @@ func _check_laid(t: TestContext, at: String, road: Dictionary, toward: Vector2) 
 	)
 
 
-## The no-lamp zone of every front or exit doorway of every tower: `{ pos, strip }`.
+## The no-lamp zone of every front or exit doorway of every tower: `{ pos, strip }`. The test's own
+## oracle for `StreetLamps.door_zones`, written from the spec's numbers (`DOOR_CLEAR`, `STRIP_*`),
+## never read back from the code.
 func _door_zones(towers: Array) -> Array:
 	var zones: Array = []
 	for tower: Dictionary in towers:
@@ -206,11 +209,12 @@ func _check_lamps(
 	t.require(lamps.size() >= 20, "%s: only %d lamps" % [label, lamps.size()])
 	var zones := _door_zones(towers)
 	var crossings := _crossings(streets)
+	_check_every_side(t, label, lamps, streets, zones)
 	var signs := 0
 	for lamp: Dictionary in lamps:
 		var p: Vector2 = lamp["pos"]
 		var at := "%s: the lamp at %s" % [label, p.round()]
-		t.check(_in(streets, p, "sidewalk"), "%s is not on a sidewalk" % at)
+		t.check(District.covered(streets, p, "sidewalk", 1.0), "%s is not on a sidewalk" % at)
 		var node := lamp["node"] as RigidBody2D
 		t.check(node != null and node.freeze, "%s is not an anchored piece" % at)
 		signs += 1 if node.object_name == "Neon sign" else 0
@@ -229,6 +233,71 @@ func _check_lamps(
 	t.check(signs > 0 and signs < lamps.size(), "%s: %d of %d lamps are neon signs"
 			% [label, signs, lamps.size()])
 	_check_spacing(t, label, lamps)
+
+
+## Lamps stand along every sidewalk: each of the four sides of every block's sidewalk has a lamp
+## within `SIDEWALK` px of it, unless a doorway keeps it clear (`_kept_clear`). A lamp the rules
+## drop must not leave a side bare for any other reason.
+func _check_every_side(
+	t: TestContext,
+	label: String,
+	lamps: Array,
+	streets: Array,
+	zones: Array,
+) -> void:
+	var pavements := _pavements(streets)
+	if not t.require(
+			pavements.size() == District.GRID * District.GRID,
+			"premise: %s has a sidewalk round every block (%d)" % [label, pavements.size()],
+	):
+		return
+	for block: int in pavements:
+		for side in DIRS:
+			var strip := _side_strip(pavements[block], side)
+			var lit := lamps.any(func(l: Dictionary) -> bool: return strip.has_point(l["pos"]))
+			t.check(
+				lit or _kept_clear(strip, zones),
+				"%s: block %d has no lamp along its %s side and nothing keeps it clear"
+					% [label, block, side],
+			)
+
+
+## The sidewalk of each block (`block` -> Rect2): its tiles merged.
+func _pavements(streets: Array) -> Dictionary:
+	var pavements := {}
+	for piece: Dictionary in streets:
+		if piece["role"] != "block":
+			continue
+		var block: int = piece["block"]
+		pavements[block] = (
+			(pavements[block] as Rect2).merge(piece["rect"]) if pavements.has(block)
+			else piece["rect"]
+		)
+	return pavements
+
+
+## Whether `strip` is kept clear of lamps by a doorway: one of `zones` (`DOOR_CLEAR` round a
+## doorway, or the strip straight out of it) meets it. (A crossing's landing is not enough: every
+## junction corner has one, and none leaves a side bare.)
+func _kept_clear(strip: Rect2, zones: Array) -> bool:
+	for zone: Dictionary in zones:
+		if strip.grow(DOOR_CLEAR).has_point(zone["pos"]) or strip.intersects(zone["strip"]):
+			return true
+	return false
+
+
+## The band of `SIDEWALK` px along the side `side` of the sidewalk `rect`, inside it.
+func _side_strip(rect: Rect2, side: Vector2) -> Rect2:
+	if side == Vector2.UP:
+		return Rect2(rect.position, Vector2(rect.size.x, SIDEWALK))
+	if side == Vector2.DOWN:
+		return Rect2(
+			Vector2(rect.position.x, rect.end.y - SIDEWALK),
+			Vector2(rect.size.x, SIDEWALK),
+		)
+	if side == Vector2.LEFT:
+		return Rect2(rect.position, Vector2(SIDEWALK, rect.size.y))
+	return Rect2(Vector2(rect.end.x - SIDEWALK, rect.position.y), Vector2(SIDEWALK, rect.size.y))
 
 
 ## No two lamps closer than the jittered spacing allows.
@@ -252,13 +321,6 @@ func _check_spacing(t: TestContext, label: String, lamps: Array) -> void:
 ## a corner may stand closer than the spacing along one side.
 func _crosswise(a: Vector2, b: Vector2) -> bool:
 	return absf(a.x - b.x) > 1.0 and absf(a.y - b.y) > 1.0
-
-
-func _in(pieces: Array, p: Vector2, kind: String) -> bool:
-	return pieces.any(
-		func(piece: Dictionary) -> bool:
-			return piece["kind"] == kind and (piece["rect"] as Rect2).grow(1.0).has_point(p),
-	)
 
 
 ## The clutter: the kinds with their solidity, clear of doorways, lamps, crossings and towers.
@@ -298,7 +360,7 @@ func _check_piece(t: TestContext, label: String, piece: Dictionary, around: Dict
 	t.check(node.anchored == CLUTTER[key][1], "%s: anchored is %s" % [at, node.anchored])
 	var rect := Rect2(node.global_position - node.size * 0.5, node.size)
 	t.check(
-		_in(around["streets"], node.global_position, "sidewalk"),
+		District.covered(around["streets"], node.global_position, "sidewalk", 1.0),
 		"%s is off the sidewalks" % at,
 	)
 	for zone: Dictionary in around["zones"]:
@@ -322,7 +384,7 @@ func run(t: TestContext) -> void:
 	var seen := {}
 	for district_seed in SEEDS:
 		var label := "seed %d" % district_seed
-		var district := WorldGen.generate_district(district_seed, "", ENTRANCE, t.world)
+		var district := WorldGen.generate_district(district_seed, "", District.ENTRANCE, t.world)
 		var towers := DistrictReads.get_towers(district)
 		var streets := DistrictReads.get_district_street(district)
 		_check_floors(t, label, streets)

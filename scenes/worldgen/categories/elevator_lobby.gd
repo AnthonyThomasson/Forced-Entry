@@ -1,5 +1,5 @@
 class_name ElevatorLobbyCatalog
-## World Generation domain: the elevator lobby, a placeholder room for stairs and elevators to come.
+## World Generation domain: the elevator lobby, a placeholder room for stairs and elevators.
 ## It owns no pieces, arrangements or clutter, and its recipe is `bare`: nothing is placed in it
 ## (HouseSpawner lays only its floor stencil, "WIP ELEVATOR LOBBY"). Its `text` is that stencil's.
 

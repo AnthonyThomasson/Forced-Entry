@@ -21,8 +21,14 @@ class_name GeneralCatalog
 ## Objects and arrangements used by 2+ room categories (bench, console_wall, bookshelf_wall, the
 ## rugs, …) live here, and the run-down dressing every room shares: the walk-over CLUTTER a recipe
 ## strews (its `clutter`, or this default) and the neon tube on a wall (RoomDresser), and the STREET
-## round the house with its street lamps.
+## round the house with its street lamps. A district hangs an `awning` (a dark one with a neon edge)
+## and a `glyph_sign` (a hanging vertical sign) over each tower's front door: bare, non-solid marks
+## on the wall line whose art is all overhang (as the street lamp's: across x out, its front the way
+## the piece faces, from the wall toward the street), fading to a quarter of their opacity while a
+## character stands under them (`fade_under`).
 
+## The grimy steel of the tower catalogues (shop, noodle bar, street).
+const STEEL := Color(0.46, 0.47, 0.45)
 const OBJECTS := {
 	"chair": {
 		"name": "Chair",
@@ -428,11 +434,6 @@ const OBJECTS := {
 		"coverage": 100,
 		"penetration": 85,
 	},
-	# What hangs over a tower's front door (a district places them): a dark awning with a neon edge
-	# and a hanging vertical glyph sign. Each is a bare mark on the wall line, non-solid, whose
-	# art is all overhang (`overhang` as the street lamp's: across x out, its front the way the
-	# piece faces, from the wall toward the street) and which fades to a quarter of its opacity
-	# while a character stands under it (`fade_under`).
 	"awning": {
 		"name": "Awning",
 		"shape": "square",

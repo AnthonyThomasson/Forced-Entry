@@ -1,6 +1,7 @@
 class_name WorldGenDistrictConfig
 ## Tuning for a downtown district (DistrictSpawner, DistrictLayout, DistrictStreets): the streets
-## and sidewalks between and round the 3 x 3 blocks, and the ring of shells beyond them. A
+## and sidewalks between and round the 3 x 3 blocks, their lamps and clutter (the shells beyond them
+## are `WorldGenShellConfig`). A
 ## `class_name` holder of `static var`s, read as `WorldGenDistrictConfig.<name>`; there is no
 ## instance and no autoload.
 
@@ -9,11 +10,6 @@ class_name WorldGenDistrictConfig
 ## pavement in front of its door).
 static var street_width: float = 200.0
 static var sidewalk: float = 80.0
-## The ring of shells past the outer street: how deep each stands from the street (px), the gap
-## left between neighbours so each is a building of its own, and its wall's thickness.
-static var shell_depth: float = 320.0
-static var shell_gap: float = 16.0
-static var shell_wall: float = 12.0
 ## A street floor is no larger than this on a side (px): a floor is lit as one item, and Godot
 ## lights an item with at most 15 point lights, so a floor the lamps of a whole block reach would
 ## drop some.

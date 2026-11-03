@@ -6,7 +6,6 @@ class_name TowerDressing
 ## character stands under them. Each tower is dressed from what it published (`WorldGen.get_rooms`
 ## and `get_openings`), so a tower turned or mirrored is dressed the way it stands.
 
-const SIDES := [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]
 ## A run of exterior wall abuts another room when their faces are this close (px).
 const ABUT := 1.0
 ## The sign hangs this far past the door's edge along the wall.
@@ -31,8 +30,8 @@ static func dress(tower: Dictionary) -> Dictionary:
 			node,
 		),
 		"podium": _podium(node, runs, openings, rooms, half),
-		"awning": hangings[0],
-		"sign": hangings[1],
+		"awning": hangings["awning"],
+		"sign": hangings["sign"],
 	}
 
 
@@ -44,7 +43,7 @@ static func exterior_runs(rooms: Array) -> Array:
 	var runs: Array = []
 	for room: Dictionary in rooms:
 		var rect: Rect2 = room["rect"]
-		for out: Vector2 in SIDES:
+		for out: Vector2 in DistrictLayout.SIDES:
 			var axis := _axis(out)
 			var line := _face(rect, out, true)
 			var abutted: Array[Vector2] = []
@@ -167,9 +166,9 @@ static func _segment(
 
 
 ## The awning over `front` (an opening) and the glyph sign beside it, under a `Door Dressing` node
-## of `node`: `[awning, sign]`. The sign hangs on the wall at the side of the door whose stretch of
-## exterior wall (`runs`) holds it; null when neither does.
-static func _hangings(node: Node2D, front: Dictionary, runs: Array) -> Array:
+## of `node`: `{ awning, sign }`. The sign hangs on the wall at the side of the door whose stretch
+## of exterior wall (`runs`) holds it; null when neither does.
+static func _hangings(node: Node2D, front: Dictionary, runs: Array) -> Dictionary:
 	var holder := Node2D.new()
 	holder.name = "Door Dressing"
 	node.add_child(holder)
@@ -193,8 +192,8 @@ static func _hangings(node: Node2D, front: Dictionary, runs: Array) -> Array:
 				holder,
 				facing,
 			)
-			return [awning, sign_piece]
-	return [awning, null]
+			return { "awning": awning, "sign": sign_piece }
+	return { "awning": awning, "sign": null }
 
 
 ## Whether the point `at` lies on a stretch of exterior wall facing `out`.

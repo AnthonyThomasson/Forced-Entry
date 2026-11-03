@@ -18,13 +18,12 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	Glyphs.draw_centered(c, String(opts.get("text", "00")), middle, 0, Kit.ink(paint_color, digits))
 	var gap: int = opts.get("gap_px", ObjectArtRoadGlyphConfig.glyph_gap_px)
 	_arrow(c, Vector2i(middle, Glyphs.text_height(digits) + gap), paint_color, opts)
-	Kit.fade(c, opts.get("opacity", ObjectArtRoadGlyphConfig.glyph_opacity))
-	Kit.wear(
-		c,
-		opts.get("wear_chance", ObjectArtRoadGlyphConfig.glyph_wear_chance),
-		opts.get("wear_depth", ObjectArtRoadGlyphConfig.glyph_wear_depth),
-		opts.get("wear_scratches", ObjectArtRoadGlyphConfig.glyph_wear_scratches),
-	)
+	Kit.age(c, opts, {
+		"opacity": ObjectArtRoadGlyphConfig.glyph_opacity,
+		"wear_chance": ObjectArtRoadGlyphConfig.glyph_wear_chance,
+		"wear_depth": ObjectArtRoadGlyphConfig.glyph_wear_depth,
+		"wear_scratches": ObjectArtRoadGlyphConfig.glyph_wear_scratches,
+	})
 
 
 ## An arrow pointing down, its shaft starting at `from` (the shaft's top centre).

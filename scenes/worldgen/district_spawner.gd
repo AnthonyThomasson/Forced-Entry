@@ -46,35 +46,30 @@ static func _street_furniture(
 	district_seed: int,
 ) -> void:
 	var pavements: Array = []
-	var bodies: Array[Rect2] = []
-	var zones: Array = []
+	var taken := DistrictKeepouts.new()
 	for block: Dictionary in layout["blocks"]:
 		pavements.append(
-			Rect2((block["area"] as Rect2).position + delta, (block["area"] as Rect2).size)
-			.grow(WorldGenDistrictConfig.sidewalk),
+			DistrictLayout.shifted(block["area"], delta).grow(WorldGenDistrictConfig.sidewalk),
 		)
 	for tower: Dictionary in towers:
-		zones.append_array(StreetLamps.door_zones(
+		taken.zones.append_array(StreetLamps.door_zones(
 			WorldGen.get_rooms(tower["node"]),
 			WorldGen.get_openings(tower["node"]),
 		))
-		bodies.append((tower["rect"] as Rect2).grow(_body()))
-	var keepouts: Array[Rect2] = []
+		taken.bodies.append((tower["rect"] as Rect2).grow(_body()))
 	for landing: Rect2 in layout["landings"]:
-		keepouts.append(Rect2(landing.position + delta, landing.size))
-	var lamps := DistrictStreets.lamps(pavements, zones, keepouts, root, district_seed)
+		taken.landings.append(DistrictLayout.shifted(landing, delta))
+	var lamps := DistrictStreets.lamps(pavements, taken, root, district_seed)
 	root.set_meta("streetlights", lamps)
-	var posts: Array[Rect2] = []
 	for lamp: Dictionary in lamps:
-		var size: Vector2 = (lamp["node"] as Node2D).get("size")
-		posts.append(Rect2((lamp["pos"] as Vector2) - size * 0.5, size))
-	var taken := { "zones": zones, "keepouts": keepouts, "bodies": bodies, "lamps": posts }
+		var size: Vector2 = lamp["size"]
+		taken.posts.append(Rect2((lamp["pos"] as Vector2) - size * 0.5, size))
 	root.set_meta("clutter", DistrictStreets.clutter(pavements, taken, root, district_seed))
 
 
 ## How far past a tower's rooms the street furniture keeps off it: the podium band and the margin.
 static func _body() -> float:
-	return WorldGenTowerConfig.podium_depth + WorldGenTowerConfig.tower_margin
+	return WorldGenTowerConfig.podium_depth + WorldGenTowerConfig.margin
 
 
 ## A tower in every block of `blocks`, shifted by `delta`, under `root`, dressed (TowerDressing):
@@ -84,7 +79,7 @@ static func _towers(blocks: Array, delta: Vector2, root: Node2D) -> Array:
 	var towers: Array = []
 	for block: Dictionary in blocks:
 		var rng := RandomNumberGenerator.new()
-		rng.seed = block["tower_seed"]
+		rng.seed = block["tower_seed"]  # Already `hash([seed, "tower", block])`: not hashed again.
 		var door: Vector2 = (block["corner"] as Vector2) + block["front"] + delta
 		var node := HouseSpawner.spawn(
 			block["plan"],

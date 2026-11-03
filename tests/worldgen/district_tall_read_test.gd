@@ -6,20 +6,29 @@ extends GameTest
 ## hang over its front door and fade while a character stands under them. Read through the tower
 ## entries of `DistrictReads.get_towers` (`shadow`, `podium`, `awning`, `sign`).
 
+const District := preload("res://tests/_worldgen/district_probe.gd")
 const SEEDS := [1, 2, 3]
-const ENTRANCE := Vector2(6000, 6000)
 ## A wall's half thickness (the plans' 12 px wall is centred on the room's edge).
 const WALL_HALF := 6.0
 ## The podium's spec: no deeper than this past the wall's outer face, and clear of a doorway by
 ## its half width and this much each side.
 const PODIUM_DEPTH := 24.0
-const DOOR_GAP := 20.0
-## The shadow: at least this far beyond the tower along each axis, and its opacity there.
+## The band stands clear of a doorway by room for an entry stack's slots past the jamb: three
+## bodies about 44 px apart along the wall (`docs/tactical-entry.md`), 132 px.
+const DOOR_GAP := 132.0
+## A segment is on a doorway's face when it stands out from the wall as a band does, give or take
+## this much (px).
+const ON_FACE := 14.0
+## The shadow: at least this far beyond the tower along each axis the light has a component on, and
+## its opacity there.
 const SHADOW_REACH := 100.0
 const SHADOW_ALPHA_MIN := 0.3
 ## The awning fade: the spec's numbers.
 const FADED_ALPHA := 0.25
 const ALPHA_SLACK := 0.04
+## Seconds after a character steps under the awning that it must be part way faded (the fade takes
+## 0.15 s: `overhang_fades_under_character`).
+const FADE_PEEK := 0.05
 ## A sign hangs this far from the door's centre, at least and at most.
 const SIGN_NEAR := 30.0
 const SIGN_FAR := 120.0
@@ -72,9 +81,23 @@ func _check_shadow(t: TestContext, label: String, tower: Dictionary) -> void:
 	var image := sprite.texture.get_image()
 	var scale := Vector2(image.get_size()) / sprite.texture.get_size()
 	var area := Rect2(sprite.global_position, sprite.texture.get_size())
-	t.check(area.end.x >= rect.end.x + SHADOW_REACH, "%s: shadow reaches past the tower" % label)
-	t.check(area.end.y >= rect.end.y + SHADOW_REACH, "%s: shadow reaches down the street" % label)
-	var far := rect.end + Vector2.ONE * 50.0
+	# The shadow falls away from the art light (`ArtCanvasConfig.light_from`, the light's side).
+	var away := -ArtCanvasConfig.light_from.normalized()
+	var way := Vector2(signf(away.x), signf(away.y))
+	t.check(
+		(area.end.x >= rect.end.x + SHADOW_REACH) if way.x > 0.0 else (
+			area.position.x <= rect.position.x - SHADOW_REACH
+		),
+		"%s: shadow reaches past the tower (away from the light %s)" % [label, away],
+	)
+	t.check(
+		(area.end.y >= rect.end.y + SHADOW_REACH) if way.y > 0.0 else (
+			area.position.y <= rect.position.y - SHADOW_REACH
+		),
+		"%s: shadow reaches down the street (away from the light %s)" % [label, away],
+	)
+	var corner := rect.get_center() + (rect.size * 0.5) * way
+	var far := corner + way * 50.0
 	var near := rect.get_center()
 	t.check(_alpha_at(image, scale, area, far) >= SHADOW_ALPHA_MIN, "%s: dark beyond" % label)
 	t.check(_alpha_at(image, scale, area, near) == 0.0, "%s: the footprint is clear" % label)
@@ -91,15 +114,19 @@ func _alpha_at(image: Image, scale: Vector2, area: Rect2, world: Vector2) -> flo
 	return image.get_pixelv(at).a
 
 
-## Whether `seg` meets the open box of the doorway `door` on the outside: a wall's width plus the
-## gap each side, a wall and a band deep.
+## Whether `seg` stands in the way of the doorway `door`: on the same face of the tower (its centre
+## one wall half thickness and half a band out from the door's wall line, give or take `ON_FACE`),
+## and nearer along the wall than the door's half width plus the gap each side.
 func _blocks_door(seg: Rect2, door: Dictionary) -> bool:
 	var out: Vector2 = door["outward"][0]
 	var pos: Vector2 = door["pos"]
+	var out_of_wall := (seg.get_center() - pos).dot(out)
+	if absf(out_of_wall - (WALL_HALF + PODIUM_DEPTH * 0.5)) > ON_FACE:
+		return false
+	var along := Vector2(absf(out.y), absf(out.x))
+	var centre := pos.dot(along)
 	var half: float = door["width"] * 0.5 + DOOR_GAP
-	var span := Vector2(absf(out.y), absf(out.x)) * half + Vector2(absf(out.x), absf(out.y)) * 40.0
-	var box := Rect2(pos + out * 20.0 - span, span * 2.0)
-	return seg.intersects(box)
+	return seg.position.dot(along) < centre + half and seg.end.dot(along) > centre - half
 
 
 ## The podium band of `tower`: solid, anchored, outside the walls and against them, clear of the
@@ -184,6 +211,13 @@ func _check_fade(t: TestContext, tower: Dictionary) -> void:
 		"the awning is opaque with no one under it",
 	)
 	walker.global_position = _drawn(overhang).get_center()
+	await t.seconds(FADE_PEEK)
+	var under := _alpha(overhang)
+	t.check(
+		under < 1.0 - ALPHA_SLACK and under > FADED_ALPHA + ALPHA_SLACK,
+		"the awning is mid-fade %.2f s after a character steps under (alpha %.2f)"
+			% [FADE_PEEK, under],
+	)
 	await t.seconds(0.5)
 	t.check(
 		absf(_alpha(overhang) - FADED_ALPHA) <= ALPHA_SLACK,
@@ -196,20 +230,56 @@ func _check_fade(t: TestContext, tower: Dictionary) -> void:
 
 func run(t: TestContext) -> void:
 	for district_seed in SEEDS:
-		var district := WorldGen.generate_district(district_seed, "", ENTRANCE, t.world)
+		var district := WorldGen.generate_district(district_seed, "", District.ENTRANCE, t.world)
 		var towers := DistrictReads.get_towers(district)
 		_check_towers(t, "seed %d" % district_seed, towers)
 		if district_seed == SEEDS[0]:
-			await _check_fade(t, towers[DistrictLayout.HOUSE_BLOCK])
+			await _check_fade(t, towers[District.HOUSE_BLOCK])
 		district.queue_free()
 		await t.frames(2)
-	# Whatever house plan stands in the centre is dressed too.
-	for plan: String in HouseDefinitions.get_all():
-		var district := WorldGen.generate_district(SEEDS[0], plan, ENTRANCE, t.world)
-		var house: Dictionary = DistrictReads.get_towers(district)[DistrictLayout.HOUSE_BLOCK]
+	_check_every_front_dressed(t)
+	# Whatever house or tower plan stands in the centre is dressed too: every front door has its
+	# awning and its sign.
+	for plan: String in HouseDefinitions.get_all() + TowerDefinitions.get_all():
+		var district := WorldGen.generate_district(SEEDS[0], plan, District.ENTRANCE, t.world)
+		var house: Dictionary = DistrictReads.get_towers(district)[District.HOUSE_BLOCK]
 		_check_towers(t, "plan %s" % plan, [house])
 		district.queue_free()
 		await t.frames(2)
+
+
+## Every tower plan, turned each of the four ways and dressed, has an awning over its front door and
+## a sign beside it (the dressing leaves no front door bare whichever wall runs it has).
+func _check_every_front_dressed(t: TestContext) -> void:
+	for plan: String in TowerDefinitions.get_all():
+		for turn in 4:
+			var rng := RandomNumberGenerator.new()
+			rng.seed = SEEDS[0]
+			var node := HouseSpawner.spawn(
+				plan,
+				District.ENTRANCE,
+				rng,
+				t.world,
+				{ "turn": turn, "street": false },
+			)
+			var rooms := WorldGen.get_rooms(node)
+			var fronts := WorldGen.get_openings(node).filter(
+				func(o: Dictionary) -> bool: return o["front"],
+			)
+			var dressing := TowerDressing.dress(
+				{
+					"plan": plan,
+					"turn": turn,
+					"node": node,
+					"rect": WorldGen.bounds(rooms),
+					"front": fronts[0],
+				},
+			)
+			t.check(
+				dressing.get("awning") != null and dressing.get("sign") != null,
+				"%s turned %d: its front door has an awning and a sign" % [plan, turn],
+			)
+			node.queue_free()
 
 
 ## Every tower of `towers` reads as tall.
