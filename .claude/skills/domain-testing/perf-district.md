@@ -16,7 +16,7 @@ invaders starting in the street), so five gates moved. Each was signed off by th
   four tiles a character stops in).
 - `SMOOTH_AVG_MS`, `SMOOTH_P95_MS`, `SMOOTH_MAX_MS`, every vision budget and the house budgets of `perf/generate_houses_stress` did not move.
 
-## Known red on the district: "AI decision cost in open combat" (follow-up to #182)
+## Known red on the district: "AI decision cost in open combat" (#190)
 
 Four match guards miss their budgets on the district (quiet machine, load 3 to 4, no other Godot, 2026-11-02; budgets avg 16.7, p95 20, max 33.4 ms):
 

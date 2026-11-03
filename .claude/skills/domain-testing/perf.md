@@ -43,7 +43,7 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
   It holds the median difference to `BUDGET_MS` and the live cone's cost to `RATIO_MAX` of the reference cone's from the same eye
   (`tests/_vision/reference_view_cone.gd`). Headless sees the CPU side only. `perf/match_npc_vision` is the absolute standard on the
   same match. Four guards are red on the district and stay so, neither loosened, skipped nor tagged: `perf/match_5v5_stress`,
-  `perf/grenade_match_stress`, `perf/match_10v10_stress` and `perf/match_npc_vision` (the AI's decisions in open combat; follow-up to #182
+  `perf/grenade_match_stress`, `perf/match_10v10_stress` and `perf/match_npc_vision` (the AI's decisions in open combat; #190
   "AI decision cost in open combat"). Their numbers, and the gates that moved with the district: `perf-district.md`.
 - **A wall-clock budget belongs here and nowhere else:** the lint rule `timing_in_perf` fails a `Time.get_ticks_usec()`
   under `tests/` outside `tests/perf/` and `tests/_perf/`.

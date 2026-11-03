@@ -26,7 +26,7 @@ extends GameTest
 ## machine and load: avg 20.0, p95 35.2, max 61.3, so it misses the standard there too.
 ## Known red on the district (quiet machine, load 3 to 4, no other Godot, 2026-11-02): avg 19.4, p95
 ## 36.2, max 59.6 ms against 16.7, 20 and 33.4. The cost is the AI's decisions in open combat, the
-## follow-up to #182 "AI decision cost in open combat" (`perf-district.md` of `domain-testing`); the
+## #190 "AI decision cost in open combat" (`perf-district.md` of `domain-testing`); the
 ## budgets are not loosened and the test is neither skipped nor tagged.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")

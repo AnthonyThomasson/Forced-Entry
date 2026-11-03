@@ -273,7 +273,7 @@ which costs one rebuild a move that ends within reach.
 - **The perf matches run with `worldgen.doors` off** until #178 and #159 make the entry door-aware, which the shared perf probe
   (`tests/_perf/perf_probe.gd`) says. `perf/match_npc_vision`, the absolute guard on the same match, is red on the district with
   `perf/match_10v10_stress`, `perf/match_5v5_stress` and `perf/grenade_match_stress` (avg 25.0, p95 48.7, max 70.1 ms): the AI's
-  decisions in open combat, a follow-up to #182 (`domain-testing` (`perf-district.md`)).
+  decisions in open combat, #190 (`domain-testing` (`perf-district.md`)).
 
 ## Played in a window
 

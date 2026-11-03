@@ -14,7 +14,7 @@ extends GameTest
 ## the GPU cost is measured by hand, windowed (`docs/lighting.md`, "Measured cost").
 ## Known red on the district (quiet machine, load 3 to 4, no other Godot, 2026-11-02): avg 25.0, p95
 ## 48.7, max 70.1 ms against 16.7, 20 and 33.4. It was red with `perf/match_10v10_stress` on a house
-## (#98); the district adds the AI's decisions in open combat, the follow-up to #182 "AI decision
+## (#98); the district adds the AI's decisions in open combat, #190 "AI decision
 ## cost in open combat" (`perf-district.md` of `domain-testing`). The budgets are not loosened and
 ## the test is neither skipped nor tagged.
 
