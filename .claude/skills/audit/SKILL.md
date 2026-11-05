@@ -1,7 +1,7 @@
 ---
 name: audit
 description: Use before a push or PR, when asked to review the branch, and as a ticket's audit phase.
-model: claude-sonnet-5-5
+model: kimi-k3.1-pro
 ---
 
 # Audit

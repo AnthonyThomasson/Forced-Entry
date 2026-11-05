@@ -62,10 +62,10 @@ Run phases one after another in one worktree; parallel only for independent phas
     push or merge (`finish` lands it).
 - **Workers** are named in lowercase with hyphens (a split phase adds its stage: `coding-ai-scenarios`): `showroom`,
   `coding`, `wrap-up` (green run, docs and skills), `showroom-removal`, `review`, `coding-review-fixes`, `review-fixes`
-  (second audit), `retro`. Start each on Sonnet (`--agent claude --model claude-sonnet-5-5`;
-  you stay on Opus) with the name as `--task-title`, then `orca terminal rename --terminal <agentTerminalHandle> --title
-  "<name>"`, the handle from the `orca orchestration worker-list --json` row whose `dispatchId` is the `worker-start`
-  receipt's (the row appears a few seconds after the start).
+  (second audit), `retro`. Each runs on Kimi K3.1 Pro via `claudep` (the user's alias for Claude Code on the model
+  proxy; `--agent claude` has no Kimi); you stay on Opus. Start one: `orca terminal create --worktree <wt> --title
+  "<name>" --command "claudep --model kimi-k3.1-pro" --json`, `orca terminal wait --terminal <handle> --for tui-idle`,
+  then `orca orchestration worker-start --terminal <handle> --worktree <wt> --task-title "<name>" --spec "<spec>"`.
 - **Inbox mechanics** (heartbeats, ack or resend, answering, waiting): `workers.md`. Every worker's brief says: each
   `--phase` is a 1–2 sentence status, send `received <message id>` before acting, `check --ack <deliveryId>` after a
   batch, a blocking `ask` for any decision it must wait on, and the turn ends only after `worker_done`.
@@ -137,8 +137,7 @@ after a `change-report`), test first, code, green, ask again. Audit only once th
 First rebase as in "Rebase after acceptance" (read what came in, rerun the checks on the rebased tree), so the audit reviews
 the current `origin/main`. One agent runs `mattpocock-skills:code-review` and `audit`. Both see committed work (`audit` also staged): the coding
 workers commit theirs; tell it which files exist only in the working tree (a `wrap-up`'s skill and doc edits). Start it
-with `orca orchestration worker-start --task-title "review" --spec "<spec>" --worktree current --agent claude --model
-claude-sonnet-5-5` and name its tab `review`. Spec:
+as a `review` worker in the current worktree, as "Work in phases" says. Spec:
 
 - **Target:** worktree and branch, ticket number, base ref (default `origin/main`).
 - **Change:** `code-review` with the fixed point the base ref and the spec the ticket's `## Agent Brief` (its Standards

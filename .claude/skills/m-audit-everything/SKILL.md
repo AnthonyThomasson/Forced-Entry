@@ -55,7 +55,10 @@ matches, then the whole suite). Its rows feed Briefs 1a and 1b.
 every worker of the wave, then wait:
 
 ```bash
-orca orchestration worker-start --task-title "<name>" --spec "<spec>" --worktree current --agent claude --model claude-sonnet-5-5 --json   # one per worker
+# one per worker, on Kimi K3.1 Pro through the user's `claudep` alias (`--agent claude` has no Kimi)
+orca terminal create --worktree current --title "<name>" --command "claudep --model kimi-k3.1-pro" --json
+orca terminal wait --terminal <handle> --for tui-idle --timeout-ms 60000
+orca orchestration worker-start --terminal <handle> --worktree current --task-title "<name>" --spec "<spec>" --json
 orca orchestration check --wait --types "worker_done,escalation,question" --timeout-ms 900000 --json
 ```
 
