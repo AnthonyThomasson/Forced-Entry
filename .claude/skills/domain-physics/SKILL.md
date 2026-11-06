@@ -79,7 +79,7 @@ Character / Vehicles → Physics), 5 (`Knockback` and the pushable bodies), 11 (
   batched decal store: marks as plain data in one node under a world node, in 128 px chunks (`CHUNK`), a capped FIFO (`_add`).
   A layer names its recipe, cap and chunk draw (`_make_chunk`), and may override `_mark_added` / `_mark_dropped` (default: redraw
   that chunk alone; `DebrisLayer` repaints a page). Global and per-chunk marks use advancing-head FIFOs, with occasional prefix
-  compaction, so capped eviction is amortized O(1) and both still iterate oldest-first (`chunked_marks_evict_oldest_test.gd`). Its typed `layer(parent)` wraps `_get_or_make`; `find(parent)` only looks up.
+  compaction, so capped eviction is amortized O(1) and both still iterate oldest-first; `items()` and `marks_in()` return a copy that is the caller's own (`chunked_marks_evict_oldest_test.gd`). Its typed `layer(parent)` wraps `_get_or_make`; `find(parent)` only looks up.
 
 ## Hit particles
 

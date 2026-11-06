@@ -79,7 +79,7 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 
 ## Despawner
 
-Global cap (`max_scene_objects`) for transient bodies: domains hand their spawns to `Despawner.track`. Physics' `DebrisLayer` and `ScorchDecals` read the same cap for landed chips and scorch marks. A node-to-entry index and linked oldest-first FIFO make cap eviction and arbitrary `tree_exited` removal O(1); lowering the cap keeps the original deferred enforcement on the next `track`. Test: `despawner_evicts_oldest_test.gd`.
+Global cap (`max_scene_objects`) for transient bodies: domains hand their spawns to `Despawner.track`. Physics' `DebrisLayer` and `ScorchDecals` read the same cap for landed chips and scorch marks. Entries live in an insertion-ordered dictionary (ticket -> instance id) beside an id -> ticket index, so cap eviction (the first key) and a `tree_exited` removal are O(1) and nothing points at anything else (no cycles to leak). A node tracked twice is two entries, as in the array this replaced (one connection; its exit drops the oldest entry); lowering the cap keeps the original deferred enforcement on the next `track`. Test: `despawner_evicts_oldest_test.gd`.
 
 ## Shared helpers
 

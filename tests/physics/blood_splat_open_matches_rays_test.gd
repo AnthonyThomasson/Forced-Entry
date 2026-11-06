@@ -7,6 +7,8 @@ extends GameTest
 const BloodSplat = preload("res://scenes/physics/blood/blood_splat.gd")
 const SPLATS := 160
 const SEED := 192_014
+## Where the edge cases put the splat: far from the arena walls and the furniture.
+const EDGE_AT := Vector2(130, 200)
 
 
 func describe() -> Dictionary:
@@ -57,6 +59,65 @@ func run(t: TestContext) -> void:
 	t.check(differing.is_empty(), "splats differing from the exact rays: %s" % str(differing))
 	t.check(rays[0] == 0, "open-space splats skipped every exact clipping ray")
 	t.check(rays[1] > 0, "splats near geometry kept the exact clipping rays")
+	for radius in [3.0, 7.0]:
+		await _bound_edge(t, radius)
+
+
+## A wall just beyond the splat's published clear radius leaves it clear (no ray is cast, the
+## outlines are the plain build's); the same wall just inside the radius keeps the exact rays. The
+## radius itself must cover the farthest a clipping ray goes, worked out here from the generator's
+## own extremes: a spike's tip (base 0.7 core radii widened by the stretch, plus up to 1.6 lengths
+## lengthened by 0.9 of the energy) and a satellite (reach 3.4 lengthened by 0.8 of the energy).
+func _bound_edge(t: TestContext, radius: float) -> void:
+	var bound := BloodSplat.clear_radius(radius)
+	var tip := 0.7 * (1.0 + BloodSplatConfig.stretch) + BloodSplatConfig.spike_length_max * 1.9
+	var farthest := radius * maxf(tip, BloodSplatConfig.satellite_reach_max * 1.8)
+	t.check(bound >= farthest, "radius %.0f: the clear radius covers the farthest ray" % radius)
+	t.check(bound <= farthest * 1.25 + 2.0, "radius %.0f: and is not wastefully wide" % radius)
+	for outside in [true, false]:
+		var wall := StaticBody2D.new()
+		wall.collision_layer = PhysicsConfig.wall_mask
+		var shape := CollisionShape2D.new()
+		shape.shape = RectangleShape2D.new()
+		shape.shape.size = Vector2(20, 300)
+		wall.add_child(shape)
+		wall.position = EDGE_AT + Vector2(bound + (1.0 if outside else -1.0) + 10.0, 0.0)
+		t.world.add_child(wall)
+		await t.frames(2)
+		var made := _beside_wall(t, radius)
+		var label := "radius %.0f, wall just %s the clear radius" % [
+			radius, "outside" if outside else "inside"]
+		t.check(made["differing"].is_empty(), "%s: splats differing from the exact rays %s" % [
+			label, str(made["differing"])])
+		if outside:
+			t.check(made["rays"] == 0, "%s: no ray was cast" % label)
+		else:
+			t.check(made["rays"] > 0, "%s: the exact rays were kept" % label)
+		wall.free()
+		await t.frames(1)
+
+
+## Twelve seeded splats of core radius `radius`, each against the plain build: the exact rays the
+## fast build cast, and which of them came out differently.
+func _beside_wall(t: TestContext, radius: float) -> Dictionary:
+	var rays := 0
+	var differing: Array[int] = []
+	for i in 12:
+		var throw := BloodThrow.new()
+		throw.size = radius
+		throw.energy = 1.0 if i % 2 == 0 else 0.4
+		throw.direction = Vector2.RIGHT if i % 3 != 0 else Vector2.from_angle(i * 0.5)
+		seed(SEED + i)
+		var fast := _splat(t, RayDispatchSplat, EDGE_AT, throw)
+		var fast_draw := randf()
+		seed(SEED + i)
+		var plain := _splat(t, EveryRaySplat, EDGE_AT, throw)
+		if fast.shapes != plain.shapes or fast_draw != randf():
+			differing.append(i)
+		rays += fast.exact_rays
+		fast.free()
+		plain.free()
+	return { "rays": rays, "differing": differing }
 
 
 func _position(i: int, rng: RandomNumberGenerator) -> Vector2:

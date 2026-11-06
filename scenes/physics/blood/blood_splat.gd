@@ -404,24 +404,31 @@ func _at(p: Vector2) -> Vector2:
 	return p.rotated(_heading)
 
 
-## Whether the circle around every possible core, spike, tail and satellite extent is clear. The
-## bound includes each shape's maximum elongation and a margin, so a hit always keeps the exact
-## rays. This runs before shape generation and consumes no random numbers.
+## Whether the circle of `clear_radius` around the splat's centre is clear of every blocking
+## collider, so no clipping ray can meet one. This runs before shape generation and consumes no
+## random numbers.
 func _fully_clear() -> bool:
-	var core := (1.0 + BloodSplatConfig.stretch) * (1.0 + BloodSplatConfig.wobble)
-	var spike := (SPIKE_BASE * (1.0 + BloodSplatConfig.stretch)
-			+ BloodSplatConfig.spike_length_max * (1.0 + SPIKE_ENERGY_REACH) + TAIL_GAP_MAX
-			+ TAIL_HALF_MAX * TAIL_WIDTH_MAX * (1.0 + TAIL_ENERGY_ELONGATION))
-	var satellite := (BloodSplatConfig.satellite_reach_max * (1.0 + SATELLITE_ENERGY_REACH)
-			+ (SATELLITE_SIZE_MIN + SATELLITE_SIZE_SPAN) * (1.0 + SATELLITE_ENERGY_ELONGATION))
 	var circle := CircleShape2D.new()
-	circle.radius = _radius * maxf(core, maxf(spike, satellite)) + 2.0
+	circle.radius = clear_radius(_radius)
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = circle
 	query.collision_mask = PhysicsConfig.wall_mask
 	query.exclude = _exclude
 	query.transform = Transform2D(0.0, global_position)
 	return _space.intersect_shape(query, 1).is_empty()
+
+
+## The distance (px) from a splat of core radius `radius` inside which a collider keeps its exact
+## clipping rays, and beyond which none can matter: it covers every possible core, spike, tail and
+## satellite at their maximum elongation, plus a margin.
+static func clear_radius(radius: float) -> float:
+	var core := (1.0 + BloodSplatConfig.stretch) * (1.0 + BloodSplatConfig.wobble)
+	var spike := (SPIKE_BASE * (1.0 + BloodSplatConfig.stretch)
+			+ BloodSplatConfig.spike_length_max * (1.0 + SPIKE_ENERGY_REACH) + TAIL_GAP_MAX
+			+ TAIL_HALF_MAX * TAIL_WIDTH_MAX * (1.0 + TAIL_ENERGY_ELONGATION))
+	var satellite := (BloodSplatConfig.satellite_reach_max * (1.0 + SATELLITE_ENERGY_REACH)
+			+ (SATELLITE_SIZE_MIN + SATELLITE_SIZE_SPAN) * (1.0 + SATELLITE_ENERGY_ELONGATION))
+	return radius * maxf(core, maxf(spike, satellite)) + 2.0
 
 
 ## How much of the way from the core to `p` (forward-frame local) is open floor: 1 if nothing blocks

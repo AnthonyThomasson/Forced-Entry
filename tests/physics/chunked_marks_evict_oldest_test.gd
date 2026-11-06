@@ -50,6 +50,33 @@ func run(t: TestContext) -> void:
 	var chunk: Variant = chunks[Vector2i(1, 0)]
 	var chunk_head: Variant = chunk.get(&"_oldest") if chunk is Object else null
 	t.check(chunk_head != null and chunk_head >= 1, "the chunk FIFO cursor advanced")
+	_lists_are_the_callers(t, layer)
+
+
+## The lists `items` and `marks_in` return are the caller's: emptying one leaves the layer whole,
+## and a list read before a change keeps what it held (it is a snapshot, never a live view).
+func _lists_are_the_callers(t: TestContext, layer: Node) -> void:
+	var all: Array = layer.items()
+	var chunk_list: Array = layer.marks_in(Vector2i(1, 0))
+	all.clear()
+	chunk_list.clear()
+	t.check(_all_ids(layer) == [4, 5, 6, 7, 8], "emptying a returned list left the layer's marks")
+	t.check(_ids(layer, Vector2i(1, 0)) == [4, 7], "emptying a chunk's list left its marks")
+	var held: Array = layer.items()
+	layer.call(&"_add", { "chunk": Vector2i(1, 0), "id": 9 }, CAP)
+	t.check(held.size() == CAP and held[CAP - 1]["id"] == 8, "a list read earlier kept its marks")
+	t.check(
+		_all_ids(layer) == [5, 6, 7, 8, 9],
+		"the next read has the new mark and not the evicted",
+	)
+	t.check(_ids(layer, Vector2i(1, 0)) == [7, 9], "and so has the chunk's list")
+
+
+func _all_ids(layer: Node) -> Array:
+	var ids: Array = []
+	for mark in layer.items():
+		ids.append(mark["id"])
+	return ids
 
 
 func _ids(layer: Node, cell: Vector2i) -> Array:

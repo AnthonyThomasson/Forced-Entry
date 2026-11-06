@@ -35,12 +35,12 @@ func count() -> int:
 	return _marks.size()
 
 
-## Every mark still held (oldest first), for tests and tools.
+## Every mark still held (oldest first), as a list of the caller's own, for tests and tools.
 func items() -> Array[Dictionary]:
 	return _marks.items()
 
 
-## The live marks chunk `cell` draws, oldest first.
+## The live marks chunk `cell` draws, oldest first, as a list of the caller's own.
 func marks_in(cell: Vector2i) -> Array:
 	return _by_chunk[cell].items() if _by_chunk.has(cell) else []
 
@@ -103,16 +103,11 @@ class MarkQueue extends RefCounted:
 	var _oldest := 0
 	## Current slot while GDScript iterates the live marks directly.
 	var _iter := 0
-	## Cached live-mark view, rebuilt only after an append or eviction.
-	var _view: Array[Dictionary] = []
-	## Whether `_view` still matches the live slots.
-	var _view_dirty := true
 
 
 	## File a mark as newest.
 	func append(mark: Dictionary) -> void:
 		_marks.append(mark)
-		_view_dirty = true
 
 
 	## Remove and return the oldest mark.
@@ -120,7 +115,6 @@ class MarkQueue extends RefCounted:
 		var mark := _marks[_oldest]
 		_marks[_oldest] = {}
 		_oldest += 1
-		_view_dirty = true
 		_compact()
 		return mark
 
@@ -130,12 +124,10 @@ class MarkQueue extends RefCounted:
 		return _marks.size() - _oldest
 
 
-	## Live marks, oldest first. The cached view is shared until the next mutation.
+	## A copy of the live marks, oldest first: the caller's own list, which later changes do not
+	## touch and which changing does not touch the queue.
 	func items() -> Array[Dictionary]:
-		if _view_dirty:
-			_view = _marks.slice(_oldest)
-			_view_dirty = false
-		return _view
+		return _marks.slice(_oldest)
 
 
 	## Begin direct GDScript iteration at the oldest live mark.
