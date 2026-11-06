@@ -13,6 +13,24 @@ extends Node2D
 const CORE_VERTS := 16
 ## Vertices in a droplet's outline.
 const DROPLET_VERTS := 10
+## Maximum spike-base radius as a fraction of the core radius.
+const SPIKE_BASE := 0.7
+## Maximum forward energy multiplier on spike length.
+const SPIKE_ENERGY_REACH := 0.9
+## Maximum gap between a spike tip and its tail droplet, in core radii.
+const TAIL_GAP_MAX := 0.45
+## Maximum spike half-width and tail-width multiplier.
+const TAIL_HALF_MAX := 0.36
+const TAIL_WIDTH_MAX := 0.8
+## Maximum energy elongation of a tail droplet.
+const TAIL_ENERGY_ELONGATION := 0.6
+## Maximum forward energy multiplier on satellite reach.
+const SATELLITE_ENERGY_REACH := 0.8
+## Satellite size range as a fraction of core radius.
+const SATELLITE_SIZE_MIN := 0.08
+const SATELLITE_SIZE_SPAN := 0.22
+## Maximum satellite elongation from energy.
+const SATELLITE_ENERGY_ELONGATION := 0.8
 
 ## Begun splats whose merged outlines are still to be taken (`defer_finish`), oldest first.
 static var _pending: Array = []
@@ -37,6 +55,8 @@ var _task := -1
 var _built: Array = [null]
 ## The physics frame a begun splat was thrown on: its age in the blood field counts from it.
 var _born := -1
+## Whether one whole-extent query proved that no clipping ray can meet a collider.
+var _clear := false
 
 
 func _ready() -> void:
@@ -138,6 +158,7 @@ func _throw(
 	_radius = radius
 	_exclude = exclude
 	_space = get_world_2d().direct_space_state
+	_clear = _fully_clear()
 	var e := clampf(energy, 0.0, 1.0)
 	_heading = direction.angle() if direction.length() > 0.001 else randf() * TAU
 
@@ -213,17 +234,17 @@ func _spike(a: float, e: float, out: Array[PackedVector2Array]) -> void:
 		BloodSplatConfig.spike_length_max,
 		pow(randf(), 1.5),
 	)
-	length *= 1.0 + e * 0.9 * maxf(fwd, 0.0)
+	length *= 1.0 + e * SPIKE_ENERGY_REACH * maxf(fwd, 0.0)
 	length *= 1.0 - 0.35 * e * maxf(-fwd, 0.0)
 	var dir := Vector2.from_angle(a)
-	var base_r := _radius * 0.7 * (1.0 + BloodSplatConfig.stretch * e * absf(fwd))
+	var base_r := _radius * SPIKE_BASE * (1.0 + BloodSplatConfig.stretch * e * absf(fwd))
 	var tip_r := base_r + length * _radius
 	var free := _free_fraction(dir * tip_r)
 	if free < 1.0:
 		tip_r *= free * 0.9
 	if tip_r <= base_r * 1.15:
 		return
-	var half := _radius * randf_range(0.16, 0.36)
+	var half := _radius * randf_range(0.16, TAIL_HALF_MAX)
 	var side := Vector2(-dir.y, dir.x)
 	var mid_r := lerpf(base_r, tip_r, 0.5)
 	out.append(PackedVector2Array([
@@ -234,8 +255,13 @@ func _spike(a: float, e: float, out: Array[PackedVector2Array]) -> void:
 		_at(dir * base_r - side * half),
 	]))
 	if free >= 1.0 and length > 1.0 and randf() < 0.55:
-		var gap := _radius * randf_range(0.2, 0.45)
-		out.append(_droplet(dir * (tip_r + gap), dir, half * randf_range(0.5, 0.8), 1.0 + e * 0.6))
+		var gap := _radius * randf_range(0.2, TAIL_GAP_MAX)
+		out.append(_droplet(
+			dir * (tip_r + gap),
+			dir,
+			half * randf_range(0.5, TAIL_WIDTH_MAX),
+			1.0 + e * TAIL_ENERGY_ELONGATION,
+		))
 
 
 ## Satellite droplets scattered around the core, farther and more forward with energy, smaller the
@@ -250,7 +276,7 @@ func _satellites(e: float) -> Array[PackedVector2Array]:
 			BloodSplatConfig.satellite_reach_min,
 			BloodSplatConfig.satellite_reach_max,
 		)
-		reach *= 1.0 + e * 0.8 * maxf(fwd, 0.0)
+		reach *= 1.0 + e * SATELLITE_ENERGY_REACH * maxf(fwd, 0.0)
 		var dir := Vector2.from_angle(a)
 		var at := dir * reach * _radius
 		if _free_fraction(at) < 1.0:
@@ -260,9 +286,9 @@ func _satellites(e: float) -> Array[PackedVector2Array]:
 			BloodSplatConfig.satellite_reach_max * 1.8,
 			reach,
 		)
-		var size := (_radius * (0.08 + pow(randf(), 2.0) * 0.22)
+		var size := (_radius * (SATELLITE_SIZE_MIN + pow(randf(), 2.0) * SATELLITE_SIZE_SPAN)
 				* lerpf(1.0, 0.6, clampf(t, 0.0, 1.0)))
-		out.append(_droplet(at, dir, size, 1.0 + e * 0.8))
+		out.append(_droplet(at, dir, size, 1.0 + e * SATELLITE_ENERGY_ELONGATION))
 	return out
 
 
@@ -378,10 +404,44 @@ func _at(p: Vector2) -> Vector2:
 	return p.rotated(_heading)
 
 
+## Whether the circle of `clear_radius` around the splat's centre is clear of every blocking
+## collider, so no clipping ray can meet one. This runs before shape generation and consumes no
+## random numbers.
+func _fully_clear() -> bool:
+	var circle := CircleShape2D.new()
+	circle.radius = clear_radius(_radius)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = circle
+	query.collision_mask = PhysicsConfig.wall_mask
+	query.exclude = _exclude
+	query.transform = Transform2D(0.0, global_position)
+	return _space.intersect_shape(query, 1).is_empty()
+
+
+## The distance (px) from a splat of core radius `radius` inside which a collider keeps its exact
+## clipping rays, and beyond which none can matter: it covers every possible core, spike, tail and
+## satellite at their maximum elongation, plus a margin.
+static func clear_radius(radius: float) -> float:
+	var core := (1.0 + BloodSplatConfig.stretch) * (1.0 + BloodSplatConfig.wobble)
+	var spike := (SPIKE_BASE * (1.0 + BloodSplatConfig.stretch)
+			+ BloodSplatConfig.spike_length_max * (1.0 + SPIKE_ENERGY_REACH) + TAIL_GAP_MAX
+			+ TAIL_HALF_MAX * TAIL_WIDTH_MAX * (1.0 + TAIL_ENERGY_ELONGATION))
+	var satellite := (BloodSplatConfig.satellite_reach_max * (1.0 + SATELLITE_ENERGY_REACH)
+			+ (SATELLITE_SIZE_MIN + SATELLITE_SIZE_SPAN) * (1.0 + SATELLITE_ENERGY_ELONGATION))
+	return radius * maxf(core, maxf(spike, satellite)) + 2.0
+
+
 ## How much of the way from the core to `p` (forward-frame local) is open floor: 1 if nothing blocks
 ## it, else the fraction at which a wall or furniture collider (`PhysicsConfig.wall_mask`) is
 ## struck.
 func _free_fraction(p: Vector2) -> float:
+	if _clear:
+		return 1.0
+	return _ray_fraction(p)
+
+
+## The exact clipping ray used when the whole-splat broadphase found possible geometry.
+func _ray_fraction(p: Vector2) -> float:
 	var local := _at(p)
 	if local.length_squared() < 0.0001:
 		return 1.0

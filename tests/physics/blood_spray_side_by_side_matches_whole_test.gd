@@ -50,26 +50,9 @@ func run(t: TestContext) -> void:
 		hit.exit_position = victim.global_position - hit.normal * 10.0
 		var sides: Array = []
 		for side_by_side in [true, false]:
-			BloodWound.spray_side_by_side = side_by_side
-			wound._drips = 0  # owing no drips, so each side draws the drip wait the same
-			seed(SEED + k)
-			var before := wound._splats.size()
-			wound.record(hit)
-			BloodSplat.finish_pending()
-			var made: Array = []
-			for i in range(before, wound._splats.size()):
-				var splat: Node2D = wound._splats[i]
-				made.append([
-					splat.global_position, splat.shapes.duplicate(),
-					splat.get_node_or_null("Highlight") != null,
-					BloodField._splats.has(splat.get_instance_id()),
-				])
-				unfinished += 1 if splat._task >= 0 else 0
-			made.append(randf())  # the random draws left after the spray
-			sides.append(made)
-			for i in range(wound._splats.size() - 1, before - 1, -1):
-				wound._splats[i].free()
-				wound._splats.remove_at(i)
+			var result := _spray(wound, hit, k, side_by_side)
+			sides.append(result["made"])
+			unfinished += result["unfinished"]
 		BloodWound.spray_side_by_side = true
 		splats += sides[0].size() - 1
 		if sides[0] != sides[1]:
@@ -84,3 +67,30 @@ func run(t: TestContext) -> void:
 		"every spray merged side by side is the spray built whole (differing hits %s)"
 			% str(differing),
 	)
+
+
+## Throw one side of a paired spray, capture its visible results, then clean up its new splats.
+func _spray(wound: BloodWound, hit: HitInfo, k: int, side_by_side: bool) -> Dictionary:
+	BloodWound.spray_side_by_side = side_by_side
+	wound._drips = 0  # owing no drips, so each side draws the drip wait the same
+	seed(SEED + k)
+	var before := wound._splats.size()
+	wound.record(hit)
+	BloodSplat.finish_pending()
+	var held := wound._splats.items()
+	var made: Array = []
+	var unfinished := 0
+	for i in range(before, held.size()):
+		var splat: Node2D = held[i]
+		made.append([
+			splat.global_position, splat.shapes.duplicate(),
+			splat.get_node_or_null("Highlight") != null,
+			BloodField._splats.has(splat.get_instance_id()),
+		])
+		unfinished += 1 if splat._task >= 0 else 0
+	made.append(randf())  # the random draws left after the spray
+	for splat in wound._splats.items():
+		if is_instance_valid(splat):
+			splat.free()
+	wound._splats = BloodWound.SplatQueue.new()
+	return { "made": made, "unfinished": unfinished }

@@ -9,9 +9,9 @@ extends Node2D
 ## Side (px) of a chunk.
 const CHUNK := 128.0
 
-## Every mark, oldest first: { chunk, ... } (the rest is the layer's recipe).
-var _marks: Array[Dictionary] = []
-## chunk cell -> the marks drawn by that chunk.
+## Every live mark in a global oldest-first FIFO.
+var _marks := MarkQueue.new()
+## chunk cell -> that chunk's oldest-first mark FIFO.
 var _by_chunk: Dictionary = {}
 ## chunk cell -> its drawing node.
 var _chunks: Dictionary = {}
@@ -35,14 +35,14 @@ func count() -> int:
 	return _marks.size()
 
 
-## Every mark still held (oldest first), for tests and tools.
+## Every mark still held (oldest first), as a list of the caller's own, for tests and tools.
 func items() -> Array[Dictionary]:
-	return _marks
+	return _marks.items()
 
 
-## The marks chunk `cell` draws.
+## The live marks chunk `cell` draws, oldest first, as a list of the caller's own.
 func marks_in(cell: Vector2i) -> Array:
-	return _by_chunk.get(cell, [])
+	return _by_chunk[cell].items() if _by_chunk.has(cell) else []
 
 
 ## File `mark` (its `chunk` cell already set) as the newest and drop the oldest past `cap`, telling
@@ -51,14 +51,14 @@ func _add(mark: Dictionary, cap: int) -> void:
 	_marks.append(mark)
 	var cell: Vector2i = mark["chunk"]
 	if not _by_chunk.has(cell):
-		_by_chunk[cell] = []
-	(_by_chunk[cell] as Array).append(mark)
+		_by_chunk[cell] = MarkQueue.new()
+	(_by_chunk[cell] as MarkQueue).append(mark)
 	_mark_added(cell, mark)
 	while _marks.size() > cap:
-		var old: Dictionary = _marks.pop_front()
+		var old := _marks.pop()
 		old["dead"] = true
 		var old_cell: Vector2i = old["chunk"]
-		(_by_chunk[old_cell] as Array).erase(old)
+		(_by_chunk[old_cell] as MarkQueue).pop()
 		_mark_dropped(old_cell, old)
 
 
@@ -91,3 +91,65 @@ func _mark_dropped(cell: Vector2i, _mark: Dictionary) -> void:
 ## A new, not yet added draw chunk for `_cell`; each layer returns its own.
 func _make_chunk(_cell: Vector2i) -> Node2D:
 	return Node2D.new()
+
+
+## A FIFO with an advancing head instead of front-popping or erasing. The consumed prefix is folded
+## away only occasionally, so append and eviction are amortized constant time and storage stays
+## bounded under sustained mark churn.
+class MarkQueue extends RefCounted:
+	## Live marks and the consumed prefix.
+	var _marks: Array[Dictionary] = []
+	## First live slot.
+	var _oldest := 0
+	## Current slot while GDScript iterates the live marks directly.
+	var _iter := 0
+
+
+	## File a mark as newest.
+	func append(mark: Dictionary) -> void:
+		_marks.append(mark)
+
+
+	## Remove and return the oldest mark.
+	func pop() -> Dictionary:
+		var mark := _marks[_oldest]
+		_marks[_oldest] = {}
+		_oldest += 1
+		_compact()
+		return mark
+
+
+	## Number of live marks.
+	func size() -> int:
+		return _marks.size() - _oldest
+
+
+	## A copy of the live marks, oldest first: the caller's own list, which later changes do not
+	## touch and which changing does not touch the queue.
+	func items() -> Array[Dictionary]:
+		return _marks.slice(_oldest)
+
+
+	## Begin direct GDScript iteration at the oldest live mark.
+	func _iter_init(_arg: Variant) -> bool:
+		_iter = _oldest
+		return _iter < _marks.size()
+
+
+	## Advance direct iteration to the next live mark.
+	func _iter_next(_arg: Variant) -> bool:
+		_iter += 1
+		return _iter < _marks.size()
+
+
+	## The current mark of direct iteration.
+	func _iter_get(_arg: Variant) -> Variant:
+		return _marks[_iter]
+
+
+	## Fold away a substantial consumed prefix, retaining live order.
+	func _compact() -> void:
+		if _oldest < 64 or _oldest * 2 < _marks.size():
+			return
+		_marks = _marks.slice(_oldest)
+		_oldest = 0

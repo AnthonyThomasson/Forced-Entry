@@ -78,7 +78,8 @@ Character / Vehicles → Physics), 5 (`Knockback` and the pushable bodies), 11 (
 - `chunked_layer.gd` (no `class_name`; `DebrisLayer`, `ScorchDecals` and the blood's `BloodDecals` extend it by path) is the
   batched decal store: marks as plain data in one node under a world node, in 128 px chunks (`CHUNK`), a capped FIFO (`_add`).
   A layer names its recipe, cap and chunk draw (`_make_chunk`), and may override `_mark_added` / `_mark_dropped` (default: redraw
-  that chunk alone; `DebrisLayer` repaints a page). Its typed `layer(parent)` wraps `_get_or_make`; `find(parent)` only looks up.
+  that chunk alone; `DebrisLayer` repaints a page). Global and per-chunk marks use advancing-head FIFOs, with occasional prefix
+  compaction, so capped eviction is amortized O(1) and both still iterate oldest-first; `items()` and `marks_in()` return a copy that is the caller's own (`chunked_marks_evict_oldest_test.gd`). Its typed `layer(parent)` wraps `_get_or_make`; `find(parent)` only looks up.
 
 ## Hit particles
 
@@ -92,8 +93,10 @@ every `take_hit` calls) fires them and the chips; a blood-carrying hit adds red 
 Generic: it knows nothing of the body; the owner (the Character domain's humanoid) builds and steps it. Space is the owner's
 local floor plane (x, y) plus z = height; gravity pulls to z = 0.
 
-- Position-based dynamics in `PhysicsRagdollConfig.substeps`: predict, then `iterations` passes of bones, limits and the floor,
-  sweep each point's x/y move against layer 1 with `cast_motion`, derive velocities. Limits correct `LIMIT_STIFFNESS` of the
+- Position-based dynamics in `PhysicsRagdollConfig.substeps`: predict, then `iterations` passes of bones, limits and the floor, then one
+  rectangle broadphase over every point's start, predicted end and radius skips all per-point wall sweeps when clear; otherwise each
+  point's x/y move still uses `cast_motion`. The retained `StepScratch` owns the predict/free arrays, query and shape reuse
+  (`ragdoll_sweep_gate_matches_plain_test.gd` pins real humanoid falls). Limits correct `LIMIT_STIFFNESS` of the
   error per pass, turning a bone at most `LIMIT_MAX_TURN`. The constraint solve can add no more than `max_push` to a point's
   speed (never past `max_speed`), so constraints fighting the floor cannot fling the body. The first step pulls a point that
   starts inside a wall back toward the origin.

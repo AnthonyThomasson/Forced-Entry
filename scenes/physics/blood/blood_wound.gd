@@ -19,8 +19,8 @@ static var spray_side_by_side := true
 ## Drips still owed, and seconds until the next one.
 var _drips := 0
 var _wait := 0.0
-## This body's splatters, oldest first.
-var _splats: Array[Node] = []
+## This body's splatters, oldest first, with constant-time eviction.
+var _splats := SplatQueue.new()
 ## Set by `stop()` (death): no more splatters or drips.
 var _stopped := false
 
@@ -150,9 +150,55 @@ func _add_splat(
 		(thrown as Array).append(splat)
 	_splats.append(splat)
 	while (_splats.size() > BloodSplatConfig.max_splats_per_body
-			or (not _splats.is_empty() and not is_instance_valid(_splats[0]))):
+			or (_splats.size() > 0 and not is_instance_valid(_splats.oldest()))):
 		# Untyped: the loop also pops an already-freed splat (something else freed it), and
 		# assigning a freed instance to a typed `Node` is an engine error.
-		var oldest = _splats.pop_front()
+		var oldest = _splats.pop()
 		if is_instance_valid(oldest):
 			oldest.queue_free()
+
+
+## A splat FIFO with an advancing head instead of a front-pop; consumed slots are compacted only
+## occasionally.
+class SplatQueue extends RefCounted:
+	## Live splats and the consumed prefix. Untyped so an externally freed instance can be removed.
+	var _splats: Array = []
+	## First live slot.
+	var _oldest := 0
+
+
+	## Add a splat as newest.
+	func append(splat: Node) -> void:
+		_splats.append(splat)
+
+
+	## Number of live entries, including any externally freed splat awaiting removal.
+	func size() -> int:
+		return _splats.size() - _oldest
+
+
+	## The oldest entry without removing it.
+	func oldest() -> Variant:
+		return _splats[_oldest]
+
+
+	## Remove and return the oldest entry.
+	func pop() -> Variant:
+		var splat = _splats[_oldest]
+		_splats[_oldest] = null
+		_oldest += 1
+		_compact()
+		return splat
+
+
+	## Live entries, oldest first.
+	func items() -> Array:
+		return _splats.slice(_oldest)
+
+
+	## Fold away a substantial consumed prefix.
+	func _compact() -> void:
+		if _oldest < 64 or _oldest * 2 < _splats.size():
+			return
+		_splats = _splats.slice(_oldest)
+		_oldest = 0
