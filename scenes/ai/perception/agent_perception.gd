@@ -368,7 +368,7 @@ func observe(rooms: Array) -> void:
 ## with a frozen copy of its `confinement`.
 ## The author reads this knowledge and the combat geometry only — it writes no memory and holds no
 ## policy.
-func sense(goal: String, activity: String) -> Dictionary:
+func sense(goal: String, activity: String, engaged_id := 0) -> Dictionary:
 	if not tuning.memory.familiar_with_house and not _character.stun.is_blind():
 		house.learn_by_sight()
 	var self_pos: Vector2 = _character.global_position
@@ -389,6 +389,8 @@ func sense(goal: String, activity: String) -> Dictionary:
 		# The room its held stack is to enter (its confinement's, `orders.held_room()`).
 		"keep_out": confinement.keep_out,
 		"follows": follows,
+		# The behaviour's engaged contact, whose full combat analysis always gets a slot.
+		"engaged_id": engaged_id,
 	}
 	knowledge["contacts"] = contacts.known(self_pos)
 	knowledge["callouts"] = hearing.callouts()

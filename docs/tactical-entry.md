@@ -235,8 +235,20 @@ navmesh pulls the point back to the NPC), a cover spot off the navmesh is judged
 it, behind it from the threat, not onto its body. A RETREAT takes the NPC out of sight of every threat when it stands in sight of one, else at least a
 stride farther from them. Other leads need no such rule: they lie at fixed points, and reaching one spends it. Why: a move that ends the tick it
 begins leaves the situation as it was, so the same order is offered and taken again, every other frame. Nor is adopting an order news: the
-NPC re-decides at once when what it believes of hostiles changes (one spotted, lost or newly hostile, or the one it fights crossing the house's
-boundary), and the order it has just adopted, setting or clearing the hostile it fights, is not such a change, so it starts no decision of its own.
+order it has just adopted, setting or clearing the hostile it fights, is not a change of hostile belief, so it starts no decision of its own.
+Other hostile-belief changes (one spotted, lost or newly hostile, or the one it fights crossing the house's boundary) within
+`tuning.decision.belief_redecide_interval` (0.5 s by default) coalesce into one pending decision at the window's end, with reason
+"hostile belief changed". The first hostile known while no target is engaged still forces at once, as do losing engaged contact, a hit
+or coming under fire, orders, grenade reactions and resolved tasks; any such forced reflex consumes the pending belief decision.
+Tests: `ai/decision/belief_change_coalesces`, `ai/decision/reflexes_skip_belief_window` and
+`ai/decision/adopt_target_no_redecide` (an order on a hostile in sight is adopted: no decision forced in the second after) (R12; scripted).
+
+A combat decision gives full per-target analysis to at most `tuning.decision.max_analysed_targets` hostiles (two by default), also
+capped by `max_options_per_level`. The engaged hostile always takes a slot without changing the nearest-first contact order; the other
+slots go to the nearest others. Every known hostile remains in contacts, shared facts and the hostile bind, but those beyond the cap
+receive only their cheap line facts, not fire, flank, advance, melee or grenade groups and no per-target sections. Test:
+`ai/decision/analyses_engaged_and_nearest` (the farthest engaged hostile and the nearest other are analysed; the third stays known).
+
 Tests: `entry_guard_explore`, `entry_guard_search_room`, `entry_guard_advance`, `entry_guard_cleared_room_free`,
 `entry_guard_under_fire_exempt` (shot at from behind, in the garden: straight through), `entry_guard_shot_from_room_ahead` (shot at from the
 kitchen it is ordered to rush: fights from outside, in only by entry), `entry_guard_landing_room_not_the_shots` (shot at in the kitchen from the

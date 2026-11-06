@@ -25,6 +25,10 @@ var order_from := -1
 var salient_key := ""
 ## Whether `salient_key` has been seeded.
 var salient_init := false
+## GameClock msec when the hostile-belief redecision window ends (0: no window open).
+var belief_window_ms := 0
+## Whether a belief change inside the window still owes one forced decision at its end.
+var belief_pending := false
 ## The facts of the last decision snapshot, retained for `debug_state()`.
 var last_facts := {}
 ## The state sections of the last decision snapshot (the global ones: `goal`, `order`, ...), the
@@ -32,6 +36,8 @@ var last_facts := {}
 var last_sections := {}
 ## The option groups of the last snapshot, retained for `debug_zones()`.
 var last_options := {}
+## Hostile ids that received per-target analysis in the last snapshot, for `debug_state()`.
+var last_analysed: Array = []
 
 
 ## Raise the force-decide flag and remember why, for the brain debug overlay.

@@ -4,7 +4,7 @@ The AI's own composition root. It holds the NPC's tunables as `tuning` (`NpcTuni
 
 ## Parts (preloaded, no `class_name`, built once in `_ready`)
 
-- `npc_cadence.gd` (`_cadence`) — a data leaf: the decide timer (`due(delta)`), `forced` and why (`force(reason)`), the walks started, an order awaiting its decision (`order_from`), the salient key and the last snapshot's facts, sections and options (`last_options`).
+- `npc_cadence.gd` (`_cadence`) — a data leaf: the decide timer (`due(delta)`), `forced` and why (`force(reason)`), the hostile-belief window and its pending decision, the walks started, an order awaiting its decision (`order_from`), the salient key and the last snapshot's facts, sections, options and analysed target ids.
 - `npc_comms.gd` (`_comms`) — the queued EventBus intake (`event_queue`, `process_events`: `&"hit"`, `&"footfall"` within earshot, allies' `&"callout"`, `&"grenade"`, `&"explosion"`, the leader's `&"order"`) and every callout the NPC radios, entry claims (`post_entry_call`) included. A combat callout carries `target_pos`; an investigation one `lead_pos` (read only by its squad, LD29).
 - `npc_reflexes.gd` (`_reflexes`) — following the squad, the grenade evade and the blind roll (its RNG seeded in `bind`), the confinement refresh, and priming an ambusher at its post (`prime`).
 - The planner builds and owns the Von client (`DecisionPlanner.setup(tuning.decision)`).
@@ -15,7 +15,7 @@ The AI's own composition root. It holds the NPC's tunables as `tuning` (`NpcTuni
 2. When free (or forced), routes can be measured as they will be walked (`AgentPerception.views.routes_ready`, `perception-views.md`) and `DecisionBudget` allows a snapshot (`decision.md`), the controller asks perception for a snapshot and starts a walk.
 3. The returned leaf is adopted into behaviour (and radioed to allies); behaviour `apply()`s the running primitive.
 
-**Salient events.** A change of belief about hostiles (the behaviour's `salient_key`) restarts a walk the situation has overtaken (`_maybe_interrupt`). The order just adopted is not one: `_on_decided` re-takes the key after `set_leaf`, because the order sets or clears the engaged contact the key carries (issue #51 R12, test `ai/decision/adopt_target_no_redecide`).
+**Salient events.** A change of belief about hostiles (the behaviour's `salient_key`) opens a `GameClock` window of `tuning.decision.belief_redecide_interval` and forces a decision; further changes inside it coalesce into one pending decision forced at its end (`_check_salient`, `_force_belief_change`), so a walk the situation has overtaken restarts once (`_maybe_interrupt`). The first hostile known while no target is engaged forces immediately. Losing engaged contact, hits / under fire, orders, grenade reactions and resolved tasks remain immediate; any forced decision consumes the pending belief decision. The order just adopted is not a belief change: `_on_decided` re-takes the key after `set_leaf`, because the order sets or clears the engaged contact the key carries (issue #51 R12, tests `ai/decision/belief_change_coalesces`, `reflexes_skip_belief_window`, `adopt_target_no_redecide`).
 
 ## Orders and following (`docs/leadership.md`)
 

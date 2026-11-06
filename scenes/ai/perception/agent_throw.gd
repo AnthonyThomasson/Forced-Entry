@@ -112,6 +112,8 @@ var _crouch := 100.0
 ## Where a grenade leaves the NPC's hand, in its frame (`Character.inventory.throw_release_offset`:
 ## x ahead, y to its right); the centre until learned.
 var _release := Vector2.ZERO
+## Route queries made by the latest `has_escape` call; an observable of its early exit.
+var escape_route_queries := 0
 ## The NPC's body (`bind`): the grenades it carries, its heights and its pace.
 var _character: Node
 
@@ -273,6 +275,46 @@ func escape(
 		spots,
 		maxf(threat.fuse_left - ARRIVE_MARGIN, 0.0) * runner.speed,
 	)
+
+
+## Whether `escape` would find any safe spot in time, stopping at the first reachable one rather
+## than measuring every safe candidate to choose the nearest. Uses the same candidate order,
+## snapped spots, verdicts and route reachability as `escape`; the evade movement still uses that
+## full search. `escape_route_queries` records the routes this existence-only answer needed.
+func has_escape(
+	space: PhysicsDirectSpaceState2D,
+	map: RID,
+	threat: GrenadeThreat,
+	runner: GrenadeRunner,
+	exclude: Array,
+) -> bool:
+	escape_route_queries = 0
+	var standing := _cover_rule(_stand, exclude, cover_reach(threat.kind))
+	var shared := _shared_burst(space, threat.burst, _out_radius(threat), exclude, threat.kind)
+	var on_mesh: Dictionary = _shared_snaps(map)
+	var judged: Dictionary = shared["judged"]
+	var routes := {}
+	for p in _candidates(runner.from, shared["around"]):
+		var q: Vector2 = on_mesh.get(p, Vector2.INF)
+		if q == Vector2.INF:
+			q = NavBuilder.snap(map, p)
+			on_mesh[p] = q
+		if q.distance_to(p) > SNAP_TOLERANCE:
+			continue
+		var verdict: int = judged.get(q, UNJUDGED)
+		if verdict == UNJUDGED:
+			verdict = _judge(space, threat, q, standing)
+			judged[q] = verdict
+		if verdict == NOT_SAFE or routes.has(q):
+			continue
+		var path := NavBuilder.route(map, runner.from, q)
+		escape_route_queries += 1
+		var ends: bool = path[path.size() - 1].distance_to(q) <= ROUTE_REACH
+		var length := NavBuilder.path_length(path) if ends else INF
+		routes[q] = length
+		if length <= maxf(threat.fuse_left - ARRIVE_MARGIN, 0.0) * runner.speed:
+			return true
+	return false
 
 
 ## The verdict on spot `q` for the grenade `threat`, judged with the `standing` body's cover rule:
