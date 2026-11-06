@@ -1,6 +1,6 @@
 # AI · Snapshot (`scenes/ai/perception/agent_snapshot.gd` + `snapshot/`)
 
-The BUILD half of perception: from what the NPC knows (contacts, memory, learned house) and the tactics geometry (`perception-tactics.md`) it writes the decision SNAPSHOT the planner walks: **facts**, **state sections**, **option groups**. A pure transform: it reads the memory and tactics modules, keeps no state between decisions, and never writes memory, decides or picks. `AgentPerception.sense()` gathers the knowledge and calls `build(rooms, goal, activity, knowledge)`; `build` returns `gun` (the noun the tree's `{gun}` fills in) and `sense()` adds `confinement` (a frozen copy, `perception.md`). What Von is told, and how the wording is measured: `snapshot-wording.md`.
+The BUILD half of perception: from what the NPC knows (contacts, memory, learned house) and the tactics geometry (`perception-tactics.md`) it writes the decision SNAPSHOT the planner walks: **facts**, **state sections**, **option groups**. A pure transform: it reads the memory and tactics modules, keeps no state between decisions, and never writes memory, decides or picks. `AgentPerception.sense(goal, activity, engaged_id)` gathers the knowledge, including the behaviour's engaged hostile, and calls `build(rooms, goal, activity, knowledge)`; `build` returns `gun` (the noun the tree's `{gun}` fills in) and `sense()` adds `confinement` (a frozen copy, `perception.md`). What Von is told, and how the wording is measured: `snapshot-wording.md`.
 
 ## Files
 
@@ -21,7 +21,7 @@ The BUILD half of perception: from what the NPC knows (contacts, memory, learned
 ## Facts and sections
 
 - Facts that gate the tree: `threat_known`, `hostile_known`, `gun_loaded`, `weapon_low`, `can_reload`, `under_fire`, `engaged`, `leads`, `lead_outside` (gates INVESTIGATE's `stay`), `grenade_ready`, `stack_has_stun` (gates STUN ENTRY), `ordered` (gates ORDER, LD5), `follows` (gates FOLLOW; the controller sets it on the perception each tick from `Squad.follows`, LD19).
-- `sections_per_target[id]` re-frames exposure, flanks and allies round each known hostile. The `loadout` section speaks of the gun in bands, never round counts, naming it by `gun_noun`.
+- `sections_per_target[id]` re-frames exposure, flanks and allies round each hostile selected for full analysis. Full analysis is capped at `min(tuning.decision.max_analysed_targets, max_options_per_level)`: the engaged hostile reserves a slot, then the nearest others fill the rest without reordering contacts. Hostiles beyond the cap keep their cheap line facts for shared facts and the `hostiles` bind, but get no per-target groups or sections; the shared exposure / allies / flanks sections use the nearest hostile with full analysis (`ai/decision/analyses_engaged_and_nearest`). The `loadout` section speaks of the gun in bands, never round counts, naming it by `gun_noun`.
 - The `order` section (`order_text`, LD6): one sentence while the NPC holds an order, "" otherwise, shown after the goal at every level, so an NPC with no order reads exactly what it read before (`tests/ai/decision/unordered_state_unchanged_test.gd`, `tests/ai/order_text_suite.gd`). It carries the order's mode, " when they give the go" while a stack is held (the room in `knowledge.keep_out`, so not once the go came), the ambush doorway, and a join's sentence (LD24).
 
 ## Option groups

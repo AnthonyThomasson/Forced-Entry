@@ -264,8 +264,8 @@ func _throw_way(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect
 
 
 ## Whether the NPC, throwing a grenade of `kind` and `radius` onto `spot` from `from`, would be in
-## its danger zone there with no way to get safe before the fuse is out (`AgentThrow.escape` finds
-## no spot or cover in time).
+## its danger zone there with no way to get safe before the fuse is out (`AgentThrow.has_escape`
+## finds no reachable spot or cover in time).
 func _cornered(
 	ctx: Dictionary,
 	kind: StringName,
@@ -285,8 +285,7 @@ func _cornered(
 	var runner := GrenadeRunner.new()
 	runner.from = from
 	runner.speed = _throw.run_speed()
-	var out: Dictionary = _throw.escape(space, ctx["map"], threat, runner, rids)
-	return (out["spot"] as Vector2) == Vector2.INF
+	return not _throw.has_escape(space, ctx["map"], threat, runner, rids)
 
 
 ## The walk to throw spot `p` as the NPC would walk it (agent_door_views.gd `walk_route`: round the

@@ -52,16 +52,27 @@ func run(t: TestContext) -> void:
 		"rng": rng,
 	}
 	var rooms: Array = t.rooms
-	var tally := { "compared": 0, "found": 0, "differing": [] }
+	var tally := {
+		"compared": 0, "found": 0, "existence": 0, "out_zone_routes": -1, "differing": [],
+	}
 	for n in CASES:
 		var room: Dictionary = rooms[n % rooms.size()]
 		_compare_case(ctx, tally, room["rect"])
+	_fixed_cases(ctx, tally)
 	var compared: int = tally["compared"]
 	var found: int = tally["found"]
 	var differing: Array = tally["differing"]
 	t.check(
 		compared == CASES * 2 and found >= CASES / 2.0,
 		"escapes compared (%d, %d with a spot)" % [compared, found],
+	)
+	t.check(
+		tally["existence"] == CASES * 2 + 6,
+		"existence answers compared, including the six fixed fixtures",
+	)
+	t.check(
+		tally["out_zone_routes"] == 1,
+		"the out-of-zone existence answer stops after its first safe candidate",
 	)
 	t.check(
 		differing.is_empty(),
@@ -121,3 +132,55 @@ func _compare_kind(
 	if fast != plain:
 		tally["differing"].append("%s at %s from %s: %s, plain %s"
 				% [kind, burst.round(), from.round(), fast, plain])
+	_compare_existence(ctx, tally, {
+		"kind": kind, "burst": burst, "from": from, "fuse": fuse, "speed": speed,
+	})
+
+
+## Six named arrangements of the same existence question, including immediate safety, no time to
+## move and candidates that snap onto one another.
+func _fixed_cases(ctx: Dictionary, tally: Dictionary) -> void:
+	var map: RID = ctx["map"]
+	var cases: Array = [
+		{ "label": "covered", "kind": &"frag", "burst": Vector2(650, 50),
+			"from": Vector2(650, 260), "fuse": 1.0, "speed": 120.0 },
+		{ "label": "out-of-zone", "kind": &"frag", "burst": Maps.HALL_MIDDLE,
+			"from": Maps.GARDEN, "fuse": 1.0, "speed": 120.0 },
+		{ "label": "reachable", "kind": &"frag", "burst": Maps.LIVING_CENTRE,
+			"from": Vector2(300, 250), "fuse": 3.0, "speed": 200.0 },
+		{ "label": "unreachable", "kind": &"frag", "burst": Maps.LIVING_CENTRE,
+			"from": Vector2(260, 250), "fuse": 0.6, "speed": 1.0 },
+		{ "label": "duplicate-candidate", "kind": &"stun", "burst": Maps.KITCHEN_CENTRE,
+			"from": Maps.HALL_MIDDLE, "fuse": 3.0, "speed": 200.0 },
+		{ "label": "no-escape", "kind": &"frag", "burst": Maps.HALL_MIDDLE,
+			"from": Maps.HALL_MIDDLE, "fuse": 0.1, "speed": 0.0 },
+	]
+	for c in cases:
+		c["burst"] = NavBuilder.snap(map, c["burst"])
+		c["from"] = NavBuilder.snap(map, c["from"])
+		_compare_existence(ctx, tally, c)
+		if c["label"] == "out-of-zone":
+			tally["out_zone_routes"] = ctx["geometry"].escape_route_queries
+
+
+## Compare only whether a safe, reachable escape exists with the full plain search's answer.
+func _compare_existence(ctx: Dictionary, tally: Dictionary, c: Dictionary) -> void:
+	var geometry = ctx["geometry"]
+	var kind: StringName = c["kind"]
+	var burst: Vector2 = c["burst"]
+	var from: Vector2 = c["from"]
+	var threat := GrenadeAi.escape_threat(kind, geometry.radius_of(kind), burst, c["fuse"])
+	var runner := GrenadeAi.escape_runner(from, c["speed"])
+	var exists: bool = geometry.has_escape(
+		ctx["space"], ctx["map"], threat, runner, ctx["exclude"]
+	)
+	var plain := GrenadeAi.plain_escape(
+		geometry,
+		{ "space": ctx["space"], "map": ctx["map"], "exclude": ctx["exclude"] },
+		threat,
+		runner,
+	)
+	tally["existence"] += 1
+	if exists != (plain["spot"] != Vector2.INF):
+		tally["differing"].append("existence %s %s at %s from %s: %s, plain %s"
+				% [c.get("label", ""), kind, burst.round(), from.round(), exists, plain])

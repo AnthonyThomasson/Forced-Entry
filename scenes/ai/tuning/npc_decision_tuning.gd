@@ -49,5 +49,11 @@ const MODEL := "von-1.2.0"
 @export var entry_rules: Dictionary = { &"under_fire": &"combat", &"engaged": &"combat" }
 ## Take a level's only option without asking Von (saves a round-trip per auto-picked level).
 @export var skip_single_option: bool = true
+## Minimum seconds between decisions forced by a change of hostile belief. Further changes in an
+## open window coalesce into one pending decision at its end; immediate reflexes are exempt.
+@export var belief_redecide_interval: float = 0.5
+## Most hostiles given full combat analysis in one decision. The engaged hostile always takes a
+## slot; the rest go to the nearest others, also capped by `max_options_per_level`.
+@export var max_analysed_targets: int = 2
 ## Most options offered at one level (positions, rooms, leads); interactions are not capped.
 @export var max_options_per_level: int = 4

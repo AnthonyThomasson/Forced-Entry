@@ -243,6 +243,7 @@ func debug_state() -> Dictionary:
 		"forced": _cadence.forced,
 		"decisions": _cadence.decisions,
 		"decision_reason": _cadence.decision_reason,
+		"analysed_targets": _cadence.last_analysed.duplicate(),
 		"facts": _cadence.last_facts,
 		"sections": _cadence.last_sections,
 	}
@@ -539,13 +540,19 @@ func _maybe_interrupt() -> void:
 func _start_decision() -> void:
 	_cadence.decisions += 1
 	_cadence.decision_reason = _cadence.force_reason if _cadence.forced else "cadence"
+	if _cadence.forced:
+		# Any forced reflex that starts now has already weighed the pending belief change.
+		_cadence.belief_pending = false
 	_cadence.forced = false
 	_cadence.decide_timer = tuning.decision.decide_interval
 	_apply_config()  # Pick up any tunable retuned at runtime before sensing + deciding.
-	var snapshot: Dictionary = _perception.sense(goal, _behavior.activity_text())
+	var snapshot: Dictionary = _perception.sense(
+		goal, _behavior.activity_text(), _behavior.fight.engage_id
+	)
 	_cadence.last_facts = snapshot["facts"]
 	_cadence.last_sections = snapshot["sections"]
 	_cadence.last_options = snapshot["options"]
+	_cadence.last_analysed = snapshot["sections_per_target"].keys()
 	var held: Dictionary = _perception.orders.current()
 	if not held.is_empty() and (snapshot["options"]["order"]["options"] as Array).is_empty():
 		# An order it cannot carry out (a room or doorway it does not know): said so, and dropped.
@@ -560,16 +567,36 @@ func _start_decision() -> void:
 ## Force a re-decision when the NPC's BELIEF about hostiles changes: one is spotted, lost or newly
 ## categorized hostile, or the engaged contact crosses the house boundary (per its last sighting).
 ## These are the events worth interrupting a commitment for. The behaviour sub-domain packs that
-## belief into a salient key; seeded on the first call so the initial state isn't a "change".
+## belief into a salient key; seeded on the first call so the initial state isn't a "change". The
+## first hostile known with no target forces immediately; later changes coalesce into one pending
+## decision at the end of the belief window. Other forced reflexes consume that pending decision.
 func _check_salient() -> void:
 	var key: String = _behavior.salient_key()
 	if not _cadence.salient_init:
 		_cadence.salient_key = key
 		_cadence.salient_init = true
 		return
+	var now := GameClock.msec()
 	if key != _cadence.salient_key:
+		var first_known: bool = (_cadence.salient_key.begins_with("[]|")
+				and not key.begins_with("[]|") and _behavior.fight.engage_id == 0)
 		_cadence.salient_key = key
-		_cadence.force("hostile belief changed")
+		if first_known:
+			# With no target this first contact is a reflex, not a change to debounce.
+			_cadence.force("hostile belief changed")
+		elif now < _cadence.belief_window_ms:
+			_cadence.belief_pending = true
+		else:
+			_force_belief_change(now)
+	elif _cadence.belief_pending and now >= _cadence.belief_window_ms:
+		_force_belief_change(now)
+
+
+## Force the one belief-change decision a window allows and open the next window from here.
+func _force_belief_change(now: int) -> void:
+	_cadence.belief_pending = false
+	_cadence.force("hostile belief changed")
+	_cadence.belief_window_ms = now + roundi(tuning.decision.belief_redecide_interval * 1000.0)
 
 
 ## Adopt the planner's leaf: hand it to the behaviour, log the full decision path, and tell allies

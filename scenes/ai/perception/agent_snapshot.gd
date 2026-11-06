@@ -84,6 +84,7 @@ func build(rooms: Array, goal: String, activity: String, knowledge: Dictionary) 
 	_throws.know = knowledge
 	_throws.begin()
 	var ctx := _context(knowledge["contacts"], knowledge["callouts"])
+	ctx["engaged_id"] = int(knowledge.get("engaged_id", 0))
 	var parts := _per_target(ctx, rooms)
 	parts.merge(_shared(ctx, rooms, knowledge))
 	var facts := _facts(ctx, parts, knowledge)
@@ -116,6 +117,8 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 		# hostile id -> whether this NPC is hidden from it where it stands (see agent_tactics.gd
 		# `_watched_in_open`)
 		"covered_from": {},
+		# Snapshot-scoped tactics geometry: routes, self rings and per-(point, hostile) cover.
+		"tactics_cache": {},
 	}
 	# Each hostile's front (its last-seen facing while recent, else toward this NPC): the frame its
 	# flanks are measured in, and where it is looking when a spot is judged watched.
@@ -134,7 +137,29 @@ func _per_target(ctx: Dictionary, rooms: Array) -> Dictionary:
 	var per_target := {}
 	var per_sections := {}
 	var analyses := {}
-	for t in (ctx["hostiles"] as Array).slice(0, vocab.tuning.decision.max_options_per_level):
+	var hostiles: Array = ctx["hostiles"]
+	var cap := mini(
+		vocab.tuning.decision.max_analysed_targets, vocab.tuning.decision.max_options_per_level
+	)
+	var selected: Array = []
+	var engaged_id: int = ctx["engaged_id"]
+	if hostiles.any(func(t): return t["id"] == engaged_id):
+		selected.append(engaged_id)
+	for t in hostiles:
+		if selected.size() >= cap:
+			break
+		if not selected.has(t["id"]):
+			selected.append(t["id"])
+	# Selection reserves the engaged slot; iteration keeps the contacts' nearest-first order.
+	var listed: int = vocab.tuning.decision.max_options_per_level
+	for i in hostiles.size():
+		var t: Dictionary = hostiles[i]
+		if not selected.has(t["id"]):
+			# The hostile bind lists the nearest `max_options_per_level` hostiles and needs only
+			# this cheap line fact of one beyond the cap; hostiles further out need nothing.
+			if i < listed:
+				analyses[t["id"]] = { "line": _line(ctx, t) }
+			continue
 		var a := _analyze(ctx, t)
 		analyses[t["id"]] = a
 		per_target[t["id"]] = {
@@ -237,7 +262,8 @@ func _facts(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -> Dictio
 	return facts
 
 
-## The named state-text sections Von reads, framed around the hostile listed first.
+## The named state-text sections Von reads, framed around the nearest hostile with full analysis
+## (the engaged one when a cap of one leaves the nearest with line facts only).
 func _state_sections(
 	ctx: Dictionary,
 	parts: Dictionary,
@@ -248,8 +274,12 @@ func _state_sections(
 	var self_pos: Vector2 = ctx["self_pos"]
 	var hostiles: Array = ctx["hostiles"]
 	var rooms: Array = vocab.rooms
-	var primary: Dictionary = hostiles[0] if not hostiles.is_empty() else {}
 	var per_sections: Dictionary = parts["per_sections"]
+	var primary: Dictionary = {}
+	for h in hostiles:
+		if per_sections.has(h["id"]):
+			primary = h
+			break
 	var shots_throws: Dictionary = parts["shots_throws"]
 	return {
 		"goal": fill_goal(goal),
@@ -311,20 +341,26 @@ func _option_groups(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -
 func _analyze(ctx: Dictionary, t: Dictionary) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
 	var front: float = ctx["fronts"][t["id"]]
-	var ex: Array = ctx["exclude"] + _tactics.body_rid(t)
-	var obj = _tactics.blocker(ctx["space"], self_pos, t["pos"], ex)
 	return {
 		"front": front,
 		"own_side": _tactics.side_of(t["pos"], front, self_pos),
-		"line": {
-			"clear": obj == null,
-			"in_range": self_pos.distance_to(t["pos"]) <= vocab.tuning.combat.shoot_range,
-			"cover": _tactics.object_label(obj) if _tactics.is_cover(obj) else "",
-			"blocker": _tactics.object_label(obj),
-		},
+		"line": _line(ctx, t),
 		"fire": _tactics.fire_positions(ctx, t),
 		"flanks": _tactics.flank_sides(ctx, t, front),
 		"advance": _tactics.advance_positions(ctx, t),
+	}
+
+
+## The clear-shot line to hostile `t`, also computed for hostiles outside the full-analysis cap.
+func _line(ctx: Dictionary, t: Dictionary) -> Dictionary:
+	var self_pos: Vector2 = ctx["self_pos"]
+	var ex: Array = ctx["exclude"] + _tactics.body_rid(t)
+	var obj = _tactics.blocker(ctx["space"], self_pos, t["pos"], ex)
+	return {
+		"clear": obj == null,
+		"in_range": self_pos.distance_to(t["pos"]) <= vocab.tuning.combat.shoot_range,
+		"cover": _tactics.object_label(obj) if _tactics.is_cover(obj) else "",
+		"blocker": _tactics.object_label(obj),
 	}
 
 
