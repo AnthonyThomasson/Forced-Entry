@@ -61,7 +61,7 @@ read through `character.sight()`: any character can be the viewer.
   shape resource it was made from: a move or a replaced shape misses, a dent, re-cut or in-place shape edit clears all of them
   (child-tree and `changed` signals), a collider leaving the tree drops its own; characters' polygons are read anew. The far face
   (`far_exit(space, hit, dir)`) reuses the previous ray's blocker polygons when the hit is the same collider, shape and face normal,
-  the probe point is strictly inside the kept polygon and no other blocking shape overlaps that shape. The angles are built without
+  the probe point is strictly inside the kept polygon, that polygon is the hit shape's own and the only one the read found, no other blocking shape overlaps that shape, and the shape's polygon has stood unchanged since an earlier rebuild (a body moved this frame is still where it was for the physics server, so its point test and its new polygon disagree). The angles are built without
   lambda sort or map. `far_reuses` and `polygon_reuses` count both for the test.
 - **The look:** the capture shares the main world and leaves `MOVING` and `OVERLAY` out of its cull mask; the memory is a
   world-space `SubViewport` over the floors' bounds at `memory_scale` texels a px (less when the world is wider than 16 384),

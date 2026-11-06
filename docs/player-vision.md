@@ -273,7 +273,7 @@ which costs one rebuild a move that ends within reach.
 - **The moving viewer, #192 (recorded, `perf/match_npc_vision_relative`, `vision/cone_same_after_savings`).** The relative guard parks
   its viewer, so it never measured the cone that rebuilds about every frame while its viewer walks (6 to 9 ms a frame in
   `perf/match_npc_vision`). #192 made that rebuild cheaper without changing a vertex: a rebuild reuses the previous ray's blocker
-  shapes for the far face when the collider, shape and face normal are the same and nothing else blocking overlaps the shape;
+  shapes for the far face when the collider, shape and face normal are the same, the previous read held only that shape and nothing else blocking overlaps it, and the shape has not moved since an earlier rebuild;
   static blockers' corner polygons are kept across rebuilds until the collider moves, is dented or is re-cut; the angles are built
   without lambda sort or map. `vision/cone_same_after_savings` holds a walking, turning eye past moved, dented and re-cut blockers to
   `tests/_vision/reference_view_cone.gd`, frame by frame, and counts both reuses. The guard now also plays rounds where the viewer
