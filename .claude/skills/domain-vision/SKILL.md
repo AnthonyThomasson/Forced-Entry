@@ -56,6 +56,13 @@ read through `character.sight()`: any character can be the viewer.
   than the viewer looks over: rebuilt every frame it does, and the frame after); and every `rebuild_every` (10) frames, the
   backstop for a change it cannot see. A low piece is in no ray, so it is not watched. A frame that rebuilds nothing measures no
   shape and builds no Array for the key (`vision/view_watch_suite` holds the first): keep it so.
+- **A rebuild keeps what a plain one would re-read (#192; the polygon is vertex for vertex the reference's, `vision/cone_same_after_savings`).**
+  `ViewShapes` keeps a non-character shape's world polygon across rebuilds, keyed by collider and shape index with the transform and
+  shape resource it was made from: a move or a replaced shape misses, a dent, re-cut or in-place shape edit clears all of them
+  (child-tree and `changed` signals), a collider leaving the tree drops its own; characters' polygons are read anew. The far face
+  (`far_exit(space, hit, dir)`) reuses the previous ray's blocker polygons when the hit is the same collider, shape and face normal,
+  the probe point is strictly inside the kept polygon, that polygon is the hit shape's own and the only one the read found, no other blocking shape overlaps that shape, and the shape's polygon has stood unchanged since an earlier rebuild (a body moved this frame is still where it was for the physics server, so its point test and its new polygon disagree). The angles are built without
+  lambda sort or map. `far_reuses` and `polygon_reuses` count both for the test.
 - **The look:** the capture shares the main world and leaves `MOVING` and `OVERLAY` out of its cull mask; the memory is a
   world-space `SubViewport` over the floors' bounds at `memory_scale` texels a px (less when the world is wider than 16 384),
   never cleared, wiped for its first two frames; the composite is a screen-sized polygon at `DrawLayers.VISION` (absolute, bit

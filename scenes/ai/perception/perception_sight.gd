@@ -16,6 +16,11 @@ const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 ## holds of a character it sees is at most this many frames old.
 const SIGHT_EVERY_FRAMES := 3
 
+## The root, physics frame and result of the character gathering shared by every perception.
+static var _shared_root: Node = null
+static var _shared_frame := -1
+static var _shared_characters: Array = []
+
 ## The perception it belongs to.
 var perception: Node
 ## The sight sense (FOV/range/LoS); see agent_vision.gd.
@@ -33,6 +38,8 @@ var blind := false
 ## The NPC is a primed ambusher (its controller's reflexes set it every tick, LD15): every
 ## character in its view cone gets a sight test every frame, not every `SIGHT_EVERY_FRAMES`.
 var primed := false
+## How many group gatherings this perception made (a fast-path test's observable).
+var list_builds := 0
 
 
 func _init(npc_perception: Node) -> void:
@@ -149,9 +156,16 @@ func others() -> Array:
 	var root: Node = perception._character.world_root()
 	if root == null:
 		return []
+	var frame := Engine.get_physics_frames()
+	if root != _shared_root or frame != _shared_frame:
+		_shared_root = root
+		_shared_frame = frame
+		_shared_characters = perception._character.get_tree().get_nodes_in_group(&"characters")
+		list_builds += 1
 	var out: Array = []
-	for c: Node in perception._character.get_tree().get_nodes_in_group(&"characters"):
-		if c != perception._character and root.is_ancestor_of(c):
+	# Untyped: a character freed since the list was gathered must not hit a typed assignment.
+	for c in _shared_characters:
+		if is_instance_valid(c) and c != perception._character and root.is_ancestor_of(c):
 			out.append(c)
 	return out
 

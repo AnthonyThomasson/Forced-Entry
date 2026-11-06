@@ -235,8 +235,16 @@ func _cone_angles(from: Vector2, facing: Vector2, corners: Array) -> Array:
 			# A ray clamped onto an edge of the cone is the fan's edge ray: its end is known.
 			var edge := 0 if shifted <= -half else VisionConfig.cone_rays if shifted >= half else -1
 			rays.append([shifted, edge])
-	rays.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
-	return rays.map(func(ray: Array) -> Array: return [ray[0], facing.rotated(ray[0]), ray[1]])
+	rays.sort_custom(_angle_before)
+	var out: Array = []
+	for ray: Array in rays:
+		out.append([ray[0], facing.rotated(ray[0]), ray[1]])
+	return out
+
+
+## Whether ray `a` precedes ray `b` by its angle.
+static func _angle_before(a: Array, b: Array) -> bool:
+	return a[0] < b[0]
 
 
 ## The bubble's rays as `[angle, direction, -1]`, sorted: the even fan and three rays at each
@@ -254,7 +262,10 @@ func _bubble_angles(from: Vector2, corners: Array) -> Array:
 		for shift in [-offset, 0.0, offset]:
 			angles.append(fposmod(to.angle() + shift, TAU))
 	angles.sort()
-	return angles.map(func(angle: float) -> Array: return [angle, Vector2.from_angle(angle), -1])
+	var out: Array = []
+	for angle: float in angles:
+		out.append([angle, Vector2.from_angle(angle), -1])
+	return out
 
 
 ## The far end of the blocker `hit` along `dir`: where the ray leaves the solid it met (the
@@ -262,7 +273,7 @@ func _bubble_angles(from: Vector2, corners: Array) -> Array:
 ## overlapping shapes does not matter), at most `far_depth` in, else `far_bleed` px in.
 func _far_face(space: PhysicsDirectSpaceState2D, hit: Dictionary, dir: Vector2) -> Vector2:
 	var near: Vector2 = hit["position"]
-	var depth := _shapes.far_exit(space, near, dir)
+	var depth := _shapes.far_exit(space, hit, dir)
 	if depth < 0.0:
 		return near + dir * VisionConfig.far_bleed
 	return near + dir * minf(depth, VisionConfig.far_depth)

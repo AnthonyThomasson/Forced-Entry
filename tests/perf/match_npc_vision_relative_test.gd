@@ -55,6 +55,13 @@ extends GameTest
 ## reference cone in the view, every frame rebuilt) it reads 1.00 to 1.02; with only the skip off
 ## it reads about 0.65, and the premise that the view skipped rebuilds fails. The reference cone
 ## runs in blocks of its own, so it adds nothing to the cost measured above.
+##
+## 2026-11-06, #192: the moving rounds. After the parked rounds the same fight is played again
+## with the viewed puppet walking a curved loop and turning its aim every frame (the guard checks
+## that its eye and facing changed on every timed frame), over the same on, off, off, on blocks.
+## The test asserts the median of those rounds, `MOVING_BUDGET_MS`. The budget is PROVISIONAL: its
+## only runs were on a loaded machine (load 8 to 12; medians 16.6 and 17.2 ms), and the wrap-up
+## sets it again from quiet runs at about 4x their baseline. A loaded result says nothing about it.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Stopwatch := preload("res://tests/_perf/cone_stopwatch.gd")
@@ -66,6 +73,9 @@ const ROUNDS := 12
 const BLOCK_FRAMES := 25
 ## The most (ms a frame) the view may add to the same match without it (see the header).
 const BUDGET_MS := 3.2
+## Provisional moving-viewer budget from this worker's loaded runs. Wrap-up replaces it with about
+## four times the new quiet baseline; a loaded result must not be used to judge it.
+const MOVING_BUDGET_MS := 40.0
 ## The most of the frames the view worked in that may rebuild the cone, or it skipped none to speak
 ## of.
 const REBUILT_MAX := 0.95
@@ -84,6 +94,12 @@ var _ratios: Array[float] = []
 ## How many frames the view worked in, and how many of them rebuilt the cone.
 var _timed := 0
 var _rebuilt := 0
+## The moving rounds' costs, reference ratios and proof that both viewer inputs changed each frame.
+var _moving_costs: Array[float] = []
+var _moving_ratios: Array[float] = []
+var _moving_timed := 0
+var _moving_eye_changes := 0
+var _moving_facing_changes := 0
 var _watch := Stopwatch.new()
 
 
@@ -146,11 +162,40 @@ func run(t: TestContext) -> void:
 		% [ROUNDS, ratio, _ratios],
 	)
 	Perf.within(t, "10v10 match, live cone cost / reference cone cost", ratio, RATIO_MAX)
+	await _measure_moving(t, view, viewed)
+
+
+## A second round-set over the same fight with the viewed puppet walking and turning every frame.
+func _measure_moving(t: TestContext, view: PlayerView, viewed: Node2D) -> void:
+	var puppet: Node = t.puppet(&"viewed")
+	var loop := _WalkingLoop.new(viewed, puppet)
+	view.get_parent().add_child(loop)
+	for _round in ROUNDS:
+		await _round_of_blocks(t, view, true)
+	puppet.stop()
+	loop.queue_free()
+	_switch(view, true)
+	var expected := _moving_timed - ROUNDS  # The first live frame of each round has no predecessor.
+	t.check(
+		_moving_eye_changes == expected and _moving_facing_changes == expected,
+		"premise: the moving viewer changed eye and facing on every timed frame (%d, %d of %d)"
+		% [_moving_eye_changes, _moving_facing_changes, expected],
+	)
+	var cost := _median(_moving_costs)
+	GameLog.say(
+		"PERF 10v10 moving view cost: median of %d rounds %.2f ms a frame, rounds %s"
+		% [ROUNDS, cost, _moving_costs],
+	)
+	Perf.within(t, "10v10 match, the moving view's cost ms/frame", cost, MOVING_BUDGET_MS)
+	GameLog.say(
+		"PERF 10v10 moving live cone / reference cone: median %.2f, rounds %s"
+		% [_median(_moving_ratios), _moving_ratios],
+	)
 
 
 ## One round: the blocks of `BLOCKS` (the view's cost against the match without it), then a block of
 ## the reference cone from the same eye, which adds nothing to those.
-func _round_of_blocks(t: TestContext, view: PlayerView) -> void:
+func _round_of_blocks(t: TestContext, view: PlayerView, moving := false) -> void:
 	var with_view := 0.0
 	var without := 0.0
 	_watch.reset()
@@ -160,16 +205,27 @@ func _round_of_blocks(t: TestContext, view: PlayerView) -> void:
 		var stats := await Perf.frame_stats(t, BLOCK_FRAMES)
 		if on:
 			with_view += stats["avg_ms"] / float(BLOCKS.count(true))
-			_rebuilt += view.rebuilds() - before
-			_timed += BLOCK_FRAMES
+			if not moving:
+				_rebuilt += view.rebuilds() - before
+				_timed += BLOCK_FRAMES
 		else:
 			without += stats["avg_ms"] / float(BLOCKS.count(false))
-	_costs.append(with_view - without)
+	if moving:
+		_moving_costs.append(with_view - without)
+	else:
+		_costs.append(with_view - without)
 	_switch(view, false)
 	_watch.measure_reference = true
 	await Perf.frame_stats(t, BLOCK_FRAMES)
 	_watch.measure_reference = false
-	_ratios.append(_watch.live_average() / maxf(_watch.reference_average(), 0.001))
+	var ratio := _watch.live_average() / maxf(_watch.reference_average(), 0.001)
+	if moving:
+		_moving_ratios.append(ratio)
+		_moving_timed += _watch.live_frames
+		_moving_eye_changes += _watch.eye_changes
+		_moving_facing_changes += _watch.facing_changes
+	else:
+		_ratios.append(ratio)
 	t.check(
 		_watch.live_frames > 0 and _watch.reference_frames > 0,
 		"premise: both cones were timed (%d, %d frames)"
@@ -226,3 +282,21 @@ func _median(values: Array[float]) -> float:
 	if sorted.size() % 2 == 1:
 		return sorted[middle]
 	return (sorted[middle - 1] + sorted[middle]) * 0.5
+
+
+## Drives a tight curved walk and a continuously turning aim through the puppet's public commands.
+class _WalkingLoop:
+	extends Node
+
+	var _viewer: Node2D
+	var _puppet: Node
+	var _step := 0
+
+	func _init(viewer: Node2D, puppet: Node) -> void:
+		_viewer = viewer
+		_puppet = puppet
+
+	func _physics_process(_delta: float) -> void:
+		_step += 1
+		_puppet.walk(Vector2.from_angle(float(_step) * 0.04))
+		_puppet.aim_at(_viewer.global_position + Vector2.from_angle(float(_step) * 0.11) * 500.0)

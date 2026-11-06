@@ -180,6 +180,19 @@ func _apply_config() -> void:
 ## (footsteps heard; one out of earshot of every gait is dropped here, as they come many a second),
 ## allies' radio callouts, a grenade coming down or going off, and the leader's orders.
 func _on_event(topic: StringName, data: Dictionary) -> void:
+	if _character != null and (topic == &"hit" or topic == &"callout"):
+		var at: Vector2 = data.get("position", _character.global_position)
+		var distance: float = _character.global_position.distance_to(at)
+		if (topic == &"hit"
+				and data.get("victim") != _character
+				and distance > maxf(
+					tuning.combat.hit_awareness_radius, tuning.senses.hearing_radius
+				)):
+			return
+		if (topic == &"callout"
+				and tuning.radio.callout_range > 0.0
+				and distance > tuning.radio.callout_range):
+			return
 	if (topic == &"hit"
 			or topic == &"callout"
 			or topic == &"grenade"

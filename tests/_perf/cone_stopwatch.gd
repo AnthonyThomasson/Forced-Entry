@@ -24,9 +24,15 @@ var live_us := 0
 var live_frames := 0
 var reference_us := 0
 var reference_frames := 0
+## On live frames, how often the viewer's eye and facing differed from the previous live frame.
+var eye_changes := 0
+var facing_changes := 0
 var _view: PlayerView
 var _reference := Reference.new()
 var _started := 0
+var _eye := Vector2.ZERO
+var _facing := Vector2.ZERO
+var _has_previous := false
 
 
 ## Bracket the physics step of `view`, with two nodes added to the world it is in.
@@ -46,6 +52,9 @@ func reset() -> void:
 	live_frames = 0
 	reference_us = 0
 	reference_frames = 0
+	eye_changes = 0
+	facing_changes = 0
+	_has_previous = false
 
 
 ## The live cone's average cost over the frames timed (µs); 0 with none.
@@ -68,6 +77,15 @@ func _end() -> void:
 	if _view.can_process():
 		live_us += Time.get_ticks_usec() - _started
 		live_frames += 1
+		var viewer := _view.viewer()
+		var eye: Vector2 = viewer.global_position
+		var facing: Vector2 = viewer.get("facing")
+		if _has_previous:
+			eye_changes += int(eye != _eye)
+			facing_changes += int(facing != _facing)
+		_eye = eye
+		_facing = facing
+		_has_previous = true
 	elif measure_reference:
 		var viewer := _view.viewer()
 		var began := Time.get_ticks_usec()

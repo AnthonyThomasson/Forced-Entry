@@ -47,6 +47,69 @@ func test_sight_tests_a_character_in_view_on_the_perceptions_phase() -> void:
 			_assert_due_on_phase(perception, other, n, t)
 
 
+func test_sight_shares_one_character_list_per_world_and_frame() -> void:
+	var root: Node2D = auto_free(Node2D.new())
+	add_child(root)
+	var bodies: Array[Node2D] = []
+	for i in COUNT:
+		var body: Body = auto_free(Body.new())
+		root.add_child(body)
+		body.add_to_group(&"characters")
+		bodies.append(body)
+	var other_root: Node2D = auto_free(Node2D.new())
+	add_child(other_root)
+	var outsider: Body = auto_free(Body.new())
+	other_root.add_child(outsider)
+	outsider.add_to_group(&"characters")
+	var perceptions: Array[Node] = []
+	for body: Body in bodies:
+		var perception := _perception()
+		perceptions.append(perception)
+		perception.set("_character", body)
+		var expected := bodies.filter(func(candidate: Node2D) -> bool: return candidate != body)
+		assert_array(perception.sight.others()).is_equal(expected)
+	var builds := 0
+	for perception: Node in perceptions:
+		var count: Variant = perception.sight.get("list_builds")
+		if count != null:
+			builds += int(count)
+	assert_int(builds).is_equal(1)
+
+
+func test_house_intake_repeats_only_changed_setup() -> void:
+	var perception := _perception()
+	var tuning: NpcTuning = auto_free(NpcTuning.defaults())
+	perception.apply_config(tuning)
+	var body: HouseBody = auto_free(HouseBody.new())
+	add_child(body)
+	perception.set("_character", body)
+	perception.grenades.throw.bind(body)
+	perception.tuning.entry.enabled = false
+	var openings: Array = []
+	var rooms: Array = [{ "key": &"room", "type": &"living", "rect": Rect2(0, 0, 200, 200) }]
+	perception.house.openings = openings
+	perception.house.take_in(rooms)
+	perception.house.take_in(rooms)
+	assert_int(_intake_reads(perception, &"house")).is_equal(1)
+	assert_int(_intake_reads(perception, &"carried")).is_equal(1)
+	assert_int(_intake_reads(perception, &"body")).is_equal(1)
+	rooms = rooms.duplicate()
+	perception.house.take_in(rooms)
+	assert_int(_intake_reads(perception, &"house")).is_equal(2)
+	assert_int(_intake_reads(perception, &"carried")).is_equal(1)
+	assert_int(_intake_reads(perception, &"body")).is_equal(1)
+	body.inventory.item = RefCounted.new()
+	perception.house.take_in(rooms)
+	assert_int(_intake_reads(perception, &"house")).is_equal(2)
+	assert_int(_intake_reads(perception, &"carried")).is_equal(2)
+	assert_int(_intake_reads(perception, &"body")).is_equal(1)
+
+
+func _intake_reads(perception: Node, key: StringName) -> int:
+	var reads: Variant = perception.house.get("intake_reads")
+	return int(reads.get(key, -1)) if reads is Dictionary else -1
+
+
 func test_house_looks_first_on_the_perceptions_phase() -> void:
 	for n in COUNT:
 		var perception := _perception()
@@ -67,3 +130,39 @@ class Body:
 	extends CharacterBody2D
 
 	var facing := Vector2.RIGHT
+
+	## The world this body's sight list is scoped to.
+	func world_root() -> Node:
+		return get_parent()
+
+
+## A body with the inventory and posture surfaces house intake reads.
+class HouseBody:
+	extends Body
+
+	var inventory := HouseInventory.new()
+	var movement := HouseMovement.new()
+
+
+## Two grenade slots whose item identity a test can replace.
+class HouseInventory:
+	extends RefCounted
+
+	var item: RefCounted = RefCounted.new()
+
+	func item_in(_slot: int) -> RefCounted:
+		return item
+
+	func throw_stats(slot: int) -> Dictionary:
+		return { "kind": &"stun" } if item_in(slot) != null else {}
+
+	func throw_release_offset(_slot: int) -> Vector2:
+		return Vector2(12, 3)
+
+
+## Fixed standing and crouching heights.
+class HouseMovement:
+	extends RefCounted
+
+	func posture_coverage(which: StringName) -> float:
+		return 35.0 if which == &"crouch" else 100.0

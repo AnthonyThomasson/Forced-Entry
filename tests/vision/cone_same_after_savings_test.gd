@@ -154,6 +154,7 @@ func _compare_moving_pieces(t: TestContext) -> void:
 		{ "rotated": true },
 	)
 	setup.object(&"shoved", "wardrobe", SHOVE_AT, { "rotated": true })
+	setup.object(&"walk_cover", "wardrobe", Vector2(600, 250), { "rotated": true })
 	setup.object(&"table", "coffee_table", Probe.TABLE_AT)
 	setup.actor(&"stander", &"puppet", STANDER_AT)
 	var world: Node2D = await Probe.build_world(t, setup)
@@ -183,6 +184,7 @@ func _compare_moving_pieces(t: TestContext) -> void:
 		"premise: the swinging door changes what the last eye sees",
 	)
 	await _compare_shove(t, [door, shoved], cone, plain)
+	await _compare_walk(t, world, cone, plain)
 	await _compare_postures(t, world, cone, plain)
 	await Probe.drop_world(t, world)
 
@@ -301,6 +303,48 @@ func _strike(target: Node2D, rng: RandomNumberGenerator, place: float) -> Vector
 		normal = around
 	target.take_hit(Probe.hit(at, normal, rng.randf_range(10.0, 40.0)))
 	return at
+
+
+## A walking, turning eye passes a piece that moves and is then dented and re-cut. Both reuse
+## counters must advance here, while every frame's polygons remain the plain rebuild's.
+func _compare_walk(t: TestContext, world: Node2D, cone: Cone, plain: Reference) -> void:
+	var cover: Node2D = world.objects[&"walk_cover"]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = Probe.HIT_SEED + 91
+	var shapes_before := Probe.collision_shapes([cover])
+	var far_before := _savings_count(cone, &"far_reuses")
+	var polygons_before := _savings_count(cone, &"polygon_reuses")
+	var drawn: Array[PackedVector2Array] = []
+	for step in 24:
+		if step == 4 or step == 18:
+			cover.global_position += Vector2(35, 20)
+		if step == 10:
+			for _hit in HITS_PER_VOLLEY:
+				_strike(cover, rng, 0.4)
+		await t.frames(3 if step == 10 else 2)
+		var at := Vector2(140 + step * 40, 160 + 60 * sin(float(step) * 0.3))
+		_compare(cone, plain, at, Vector2.from_angle(float(step) * 0.27))
+		drawn.append(cone.cone.duplicate())
+	t.check(
+		Probe.collision_shapes([cover]) > shapes_before,
+		"premise: the walking sequence re-cut the blocker into more collision shapes",
+	)
+	t.check(_swing_changed(drawn), "premise: the walking, turning viewer's cone changes")
+	t.check(
+		_savings_count(cone, &"far_reuses") > far_before,
+		"the walking sequence reuses a previous ray's far-face blocker shapes",
+	)
+	t.check(
+		_savings_count(cone, &"polygon_reuses") > polygons_before,
+		"the walking sequence reuses static corner polygons across rebuilds",
+	)
+
+
+## One of the cone's fast-path counters, zero before that fast path exists.
+func _savings_count(cone: Cone, key: StringName) -> int:
+	var shapes: Variant = cone.get("_shapes")
+	var count: Variant = shapes.get(key) if shapes != null else null
+	return int(count) if count != null else 0
 
 
 ## A character stands, crouches and stands again in the way of eyes that look over only what is
