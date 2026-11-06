@@ -76,7 +76,7 @@ func _ready() -> void:
 	visuals.name = "DoorVisuals"
 	visuals.setup(self, size)
 	add_child(visuals)
-	set_physics_process(false)
+	set_physics_process(swing.moving() or push.moving())
 
 
 ## Turn the leaf on a step if it is swinging, or being pushed.

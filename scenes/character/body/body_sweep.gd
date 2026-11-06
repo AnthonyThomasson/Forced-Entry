@@ -32,6 +32,11 @@ func _init(character: CharacterBody2D) -> void:
 	_ray.collision_mask = MASK
 
 
+## Whether the shared query proved nothing solid is in reach, so no hand or leg need be swept.
+func is_clear() -> bool:
+	return gate_enabled and not near_solid
+
+
 ## Refresh the one conservative near-solid result shared by this frame's hands and legs. `radius`
 ## encloses every circle's whole sweep, including the circle itself.
 func refresh(radius: float) -> void:

@@ -56,15 +56,16 @@ static func render(painter: Script, size: Vector2, color: Color, facing: Vector2
 	var cached := _cached(key)
 	if cached != null:
 		return cached
-	return _paint_and_store(key, {
+	return _paint_and_store({
 		"painter": painter, "size": size, "color": color, "facing": facing, "opts": opts,
 	})
 
 
-## Paint every cold shared request on one worker (as Sound's library warm does: painter scripts and
-## their constant drawing tables stay single-threaded). Cache reads and writes are mutexed. A
-## `render` never waits for it: it files the image the worker already painted for its key, else
-## paints synchronously, and the worker skips a key that is cached by then. Keys and pixels are
+## Paint every cold shared request on one worker (as Sound's library warm does). Painters read only
+## constant tables and static tuning, so a main-thread paint may overlap it. Cache reads and writes
+## are mutexed. A `render` never waits for it: it files the image the worker already painted for its
+## key, else paints synchronously, and the worker skips a key that is cached by then. Keys and
+## pixels are
 ## the synchronous paint's either way.
 static func warm(requests: Array) -> void:
 	finish_warming()
@@ -131,10 +132,8 @@ static func _cached(key: String) -> Texture2D:
 
 ## Paint a cold request, then file its art and emissive textures unless another path got there
 ## first.
-static func _paint_and_store(key: String, request: Dictionary) -> Texture2D:
-	var images := _paint_images(request)
-	images["key"] = key
-	return _file_painted(images)
+static func _paint_and_store(request: Dictionary) -> Texture2D:
+	return _file_painted(_paint_images(request))
 
 
 ## Paint a request into ordinary and emissive Images, with no texture or cache access. Pure image

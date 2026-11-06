@@ -54,7 +54,7 @@ func clear() -> void:
 
 ## Rest both legs of `character` against what is near and shove what a foot swings into.
 func update(character: CharacterBody2D, delta: float) -> void:
-	if sweep.gate_enabled and not sweep.near_solid:
+	if sweep.is_clear():
 		clear()
 		return
 	var rig := Rig.new(character, false)

@@ -13,6 +13,9 @@ signal punched(hand_index: int, body: Node, damage: float)
 
 ## The shared near-solid gate and reused queries (typed here by its script).
 const Sweep = preload("res://scenes/character/body/body_sweep.gd")
+## Extra px on the gate's radius for what rides on a hand's reach: its rest lateral (up to 15), the
+## gait's swing (16), recoil and waver.
+const REST_SLACK := 32.0
 ## The melee strike a punch lands (shared with the kick).
 const Strike = preload("res://scenes/character/body/body_strike.gd")
 ## Punch tween durations (s): the fist extends, then retracts. The extend time also
@@ -112,7 +115,7 @@ func near_radius() -> float:
 	if item != null:
 		reach = maxf(item.reach, 0.0)
 		support = maxf(item.strike.support_gap, 0.0)
-	return _character.radius + 2.0 * hand_radius + punch_gap + reach + support
+	return _character.radius + 2.0 * hand_radius + punch_gap + reach + support + REST_SLACK
 
 
 ## Local-space center of a hand (0 = the character's right as drawn, 1 = the left): the
@@ -175,7 +178,7 @@ func _stance_hand_position(hand: int) -> Vector2:
 ## (`body_sweep.gd`).
 func _resolve_hand(hand: int) -> Vector2:
 	var raw := _raw_hand_position(hand)
-	if sweep.gate_enabled and not sweep.near_solid:
+	if sweep.is_clear():
 		return raw
 	return sweep.circle(_character.global_position, raw, hand_radius)
 

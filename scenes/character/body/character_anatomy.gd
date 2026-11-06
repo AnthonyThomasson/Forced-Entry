@@ -137,7 +137,7 @@ func step(delta: float) -> void:
 	kick.update(character, delta)
 	# Before the children's _physics_process, so the hands build on this frame's pose.
 	pose.update(delta, _pose_drive(character.get_real_velocity(), character.stun.level()))
-	sweep.refresh(maxf(CharacterLegs.NEAR, hands.near_radius()))
+	_refresh_sweep()
 	legs.update(character, delta)
 	footsteps.update(character)
 
@@ -150,6 +150,11 @@ func hold(delta: float, moving: Vector2, stun_at: float) -> void:
 	legs.clear()
 	kick.clear()
 	pose.update(delta, _pose_drive(moving, stun_at))
+	_refresh_sweep()
+
+
+## Refresh the near-solid query hands and legs share, wide enough for either.
+func _refresh_sweep() -> void:
 	sweep.refresh(maxf(CharacterLegs.NEAR, hands.near_radius()))
 
 

@@ -67,8 +67,9 @@ func setup(piece: Node2D, overhang: Dictionary) -> Node2D:
 	return self
 
 
-## Step the fade from the watcher's already-fetched character list, writing only a changed alpha.
-func _fade_step(characters: Array, delta: float) -> void:
+## Step the fade (called by the shared watcher)'s already-fetched character list, writing only a
+## changed alpha.
+func fade_step(characters: Array, delta: float) -> void:
 	var goal := ObjectFadeConfig.alpha if _character_under(characters) else 1.0
 	var speed := (1.0 - ObjectFadeConfig.alpha) / ObjectFadeConfig.seconds
 	var next := move_toward(modulate.a, goal, speed * delta)
@@ -133,7 +134,7 @@ class FadeWatcher extends Node:
 			if overhang == null:
 				_overhangs.remove_at(i)
 				continue
-			overhang._fade_step(characters, delta)
+			overhang.fade_step(characters, delta)
 		if _overhangs.is_empty():
 			set_process(false)
 

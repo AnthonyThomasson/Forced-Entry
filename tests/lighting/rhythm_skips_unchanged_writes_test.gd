@@ -22,6 +22,8 @@ func configure(s: TestSetup) -> void:
 	for i in 4:
 		s.object(StringName("tube_%d" % i), "neon_tube", Vector2(100.0 + 130.0 * i, 200))
 		s.object(StringName("tv_%d" % i), "tv", Vector2(100.0 + 130.0 * i, 300), { "neon": "" })
+		# A rack blinks or pulses: a blink holds its energy between edges.
+		s.object(StringName("rack_%d" % i), "server_rack", Vector2(100.0 + 130.0 * i, 100))
 
 
 func run(t: TestContext) -> void:
@@ -35,8 +37,7 @@ func run(t: TestContext) -> void:
 	t.check(steps >= FRAMES, "every rhythm still advances on every frame")
 	var energy: int = lighting.get("energy_writes")
 	var glow: int = lighting.get("glow_writes")
-	t.check(
-		energy < steps or glow < steps,
-		"an unchanged energy or glow is not written again (%d / %d writes, %d steps)"
-			% [energy, glow, steps],
-	)
+	t.check(energy < steps, "an unchanged energy is not written again (%d writes, %d steps)" % [
+		energy, steps])
+	t.check(glow < steps, "an unchanged glow is not written again (%d writes, %d steps)" % [
+		glow, steps])
