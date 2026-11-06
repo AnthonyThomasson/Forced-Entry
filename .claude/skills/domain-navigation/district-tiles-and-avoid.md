@@ -13,6 +13,11 @@ stopping re-bakes one to four tiles: ~5 ms a tick, not ~57
 - **Walls are parsed tower by tower** and kept on the planning region (`NavTiles.walls_reaching`, or `walls_all` for every tower): a tile re-parses the towers reaching it,
   the planning re-bake takes every tower's from the cache and re-parses those near a moved piece. A wall shot up where nothing stands or
   moves waits for the next change there (a trade-off accepted for the district's speed; no test pins it).
+- **Steering outlines are binned by grid range** (`NavTiles.bin`): an outline's bounds, grown by `BORDER` for the candidate
+  range, select only the tile cells it can touch, then the original exact rectangle tests preserve border contact and outline
+  order. Reaches that are not a steering-tile grid (the planning ring's one large footprint) keep the every-reach scan. Bounds
+  are remembered by outline contents, so unchanged furniture is not measured again and a moved outline gets a fresh bound.
+  Test: `navigation/steering_bins_match_full_scan`.
 - **The steering re-bake lands in its tick's frame, house or district** (`nav_updater.gd`; `steering_rebake_lands_in_its_tick_test.gd`): a
   held walker re-looks for a way round a body every `RECHECK` s and the map answers a frame after the re-bake, so a late one costs a whole
   `RECHECK`. A district's planning gather waits a frame; the planning region stays whole and async.

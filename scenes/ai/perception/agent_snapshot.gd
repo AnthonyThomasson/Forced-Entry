@@ -78,6 +78,7 @@ func bind(character: Node) -> void:
 ## its `contacts`, the `callouts` heard, learned rooms/objects, interactables, the NPC's post and
 ## entry point, and lost hostiles. Returns { facts, sections, sections_per_target, options }.
 func build(rooms: Array, goal: String, activity: String, knowledge: Dictionary) -> Dictionary:
+	var _decision: RefCounted = _options._views.begin_decision()
 	vocab.rooms = rooms
 	_options.know = knowledge
 	_throws.know = knowledge

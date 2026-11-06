@@ -9,9 +9,10 @@ extends RefCounted
 ## Pure geometry over the house's openings (Main's `WorldGen.get_openings`, injected), its rooms,
 ## the nav map (the avoid maps are `NavBuilder.avoid_map`) and wall rays (via the vision sense). The
 ## walls never move, so a doorway's view is laid out once, the first time it is asked for on a baked
-## map, and kept. No policy: it never decides which way to walk. The entry geometry
-## (`agent_entry.gd`) reads a doorway's view for a split stack (`cuts_view`); this module never
-## reads it.
+## map, and kept. The one thing it holds between calls is a snapshot build's walked-route memo
+## (`begin_decision`), closed when the build ends. No policy: it never decides which way to walk.
+## The entry geometry (`agent_entry.gd`) reads a doorway's view for a split stack (`cuts_view`);
+## this module never reads it.
 
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
@@ -62,6 +63,12 @@ var _views := {}
 var _avoided_for: Array = []
 ## ... and the answer: `{ key, holes, views }`.
 var _avoided_set := {}
+## Exact walk arguments -> their result, held only while a snapshot build's token is alive.
+var _walked := {}
+## Number of live snapshot-build tokens; zero means no walked route is remembered.
+var _decision_depth := 0
+## How many walks this module has computed; a memo hit does not increase it.
+var walk_queries := 0
 
 
 ## Hand in the house: its doorways and rooms. Forgets the views laid out when they changed.
@@ -248,6 +255,22 @@ func _crossed_views(pts: Array, views: Array, max_dist: float, entering := "") -
 	return out
 
 
+## Open the walked-route memo for one snapshot build. The caller holds the returned token for the
+## whole build; nested builds share it, and releasing the last token forgets every remembered walk.
+func begin_decision() -> RefCounted:
+	if _decision_depth == 0:
+		_walked.clear()
+	_decision_depth += 1
+	return Decision.new(self)
+
+
+## Close one build token; the last one ends reuse before any behaviour-time walk.
+func _end_decision() -> void:
+	_decision_depth = maxi(0, _decision_depth - 1)
+	if _decision_depth == 0:
+		_walked.clear()
+
+
 ## The route from `from` to `to` as the NPC walks it (E18), on `world`'s navigation map: the
 ## plain route, unless it goes into the view of a doorway into a room not clear for passing
 ## (`avoided`) and a route that keeps out of every such view reaches `to` within `door_avoid_ratio`
@@ -265,6 +288,24 @@ func _crossed_views(pts: Array, views: Array, max_dist: float, entering := "") -
 ## taken however long it is, as an ordered approach's, and one standing in a doorway of that room is
 ## not in it yet (`_keep_out`, `_goes_in`); any other walk is judged from where it stands.
 func walk_route(
+	from: Vector2,
+	to: Vector2,
+	world: World2D,
+	entering := "",
+	held := false,
+) -> Dictionary:
+	var key := [from, to, world.navigation_map, entering, held]
+	if _decision_depth > 0 and _walked.has(key):
+		return (_walked[key] as Dictionary).duplicate(true)
+	walk_queries += 1
+	var out := _plain_walk_route(from, to, world, entering, held)
+	if _decision_depth > 0:
+		_walked[key] = out.duplicate(true)
+	return out
+
+
+## Work out one walked route without reading or writing the current decision's memo.
+func _plain_walk_route(
 	from: Vector2,
 	to: Vector2,
 	world: World2D,
@@ -720,3 +761,21 @@ func _entering_distance(pts: Array, poly: PackedVector2Array, max_dist: float) -
 				break
 			walked += a.distance_to(b)
 	return best if best <= max_dist else INF
+
+
+## Holds one snapshot build's walked-route memo open. Releasing the last token closes it.
+class Decision:
+	extends RefCounted
+
+	## The views whose memo this token holds open; also keeps the owner alive for the token.
+	var _views: RefCounted
+
+
+	## Hold `views`' memo open until this token is released.
+	func _init(views: RefCounted) -> void:
+		_views = views
+
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_PREDELETE:
+			_views._end_decision()

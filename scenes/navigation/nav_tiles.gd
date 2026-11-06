@@ -22,6 +22,15 @@ const WALLS_META := "nav_tile_walls"
 const HOLES_META := "nav_tile_holes"
 ## The meta on the planning region that keeps each tower's parsed walls (`walls_reaching`).
 const WALL_CACHE_META := "nav_wall_cache"
+## How many outline bounds are remembered; a full cache starts afresh rather than growing forever.
+const BOUNDS_KEPT := 4096
+
+## Outline contents -> their bounds. A piece that moves has a different outline and is measured
+## again; identical static outlines share one entry even when the hull helper returns a copy.
+static var _bounds: Dictionary = {}
+## Actual bounds measurements and candidate rectangle checks, observables of the two fast paths.
+static var bounds_measures := 0
+static var intersection_tests := 0
 
 
 ## The tiles that cover `footprint` (the house's local frame), row by row; the last of a row or a
@@ -262,15 +271,105 @@ static func probe_of(tile: NavigationRegion2D, fallback: Vector2) -> Vector2:
 
 ## `outlines` binned by the rect of `reaches` each meets: one list per rect, in the order of
 ## `outlines`. `shift` is how far the outlines' frame lies from the rects' (a world-space outline,
-## the house's position).
+## the house's position). The reaches are tile rects grown by `BORDER`, so their grid cell gives
+## the only bins a box can meet; the exact rectangle test at those candidates keeps border contact
+## and the last row's or column's shorter tiles identical to the full scan. A caller with reaches
+## that are not such a grid (the planning ring's one large footprint) keeps the full scan.
 static func bin(outlines: Array, reaches: Array[Rect2], shift: Vector2) -> Array:
 	var bins: Array = []
 	for _reach_rect in reaches:
 		bins.append([])
+	if reaches.is_empty():
+		return bins
+	var origin := reaches[0].position + Vector2.ONE * BORDER
+	var cells := _grid_cells(reaches)
+	if cells.is_empty():
+		return _full_scan(outlines, reaches, shift)
+	var span := _span(cells)
 	for outline: PackedVector2Array in outlines:
-		var box := NavSource.outline_bounds(outline)
+		var box := _outline_bounds(outline)
 		box.position -= shift
-		for i in reaches.size():
+		for i in _candidates(box, origin, cells, span):
+			intersection_tests += 1
 			if reaches[i].intersects(box):
 				bins[i].append(outline)
 	return bins
+
+
+## The cells (low corner, and past the high one) the grid's tiles occupy. A box far larger than the
+## district, or a stray point, only ever meets these.
+static func _span(cells: Dictionary) -> Rect2i:
+	var low := Vector2i(1 << 30, 1 << 30)
+	var high := Vector2i(-(1 << 30), -(1 << 30))
+	for cell: Vector2i in cells:
+		low = Vector2i(mini(low.x, cell.x), mini(low.y, cell.y))
+		high = Vector2i(maxi(high.x, cell.x), maxi(high.y, cell.y))
+	return Rect2i(low, high - low + Vector2i.ONE)
+
+
+## The indices of the reaches a box can meet. Neighbouring reaches overlap by twice the border, so
+## the box is grown and looked up on the ungrown tiles' grid; the caller tests the original box
+## against each candidate's actual reach.
+static func _candidates(box: Rect2, origin: Vector2, cells: Dictionary, span: Rect2i) -> Array[int]:
+	var grid_box := box.grow(BORDER)
+	var first := _cell(grid_box.position, origin).clamp(span.position, span.end - Vector2i.ONE)
+	var last := _cell(grid_box.end, origin).clamp(span.position, span.end - Vector2i.ONE)
+	var out: Array[int] = []
+	for y in range(first.y, last.y + 1):
+		for x in range(first.x, last.x + 1):
+			if cells.has(Vector2i(x, y)):
+				out.append(cells[Vector2i(x, y)])
+	return out
+
+
+## Grid cell -> reach index for a genuine steering-tile grid; empty when the reaches are anything
+## else, so the caller keeps the original every-reach scan.
+static func _grid_cells(reaches: Array[Rect2]) -> Dictionary:
+	var margin := Vector2.ONE * BORDER
+	var origin := reaches[0].position + margin
+	var cells := {}
+	for i in reaches.size():
+		var cell := _cell(reaches[i].position + margin, origin)
+		var aligned := origin + Vector2(cell) * SIZE - margin
+		if (reaches[i].size.x > SIZE + 2 * BORDER
+				or reaches[i].size.y > SIZE + 2 * BORDER
+				or not reaches[i].position.is_equal_approx(aligned)
+				or cells.has(cell)):
+			return {}
+		cells[cell] = i
+	return cells
+
+
+## The every-reach scan for a caller whose reaches are not a steering-tile grid.
+static func _full_scan(outlines: Array, reaches: Array[Rect2], shift: Vector2) -> Array:
+	var bins: Array = []
+	for _reach_rect in reaches:
+		bins.append([])
+	for outline: PackedVector2Array in outlines:
+		var box := _outline_bounds(outline)
+		box.position -= shift
+		for i in reaches.size():
+			intersection_tests += 1
+			if reaches[i].intersects(box):
+				bins[i].append(outline)
+	return bins
+
+
+## The grid cell containing `point`, on the tiles' `SIZE` grid from `origin`; floor, not truncation,
+## so a district whose footprint starts at a negative coordinate uses the cells to its left too.
+static func _cell(point: Vector2, origin: Vector2) -> Vector2i:
+	var p := (point - origin) / SIZE
+	return Vector2i(floori(p.x), floori(p.y))
+
+
+## An outline's bounds, remembered while its points stand still. Hashing the outline also makes two
+## identical pieces share the answer; any moved point makes a different key, never a stale bound.
+static func _outline_bounds(outline: PackedVector2Array) -> Rect2:
+	if _bounds.has(outline):
+		return _bounds[outline]
+	if _bounds.size() >= BOUNDS_KEPT:
+		_bounds.clear()
+	bounds_measures += 1
+	var box := NavSource.outline_bounds(outline)
+	_bounds[outline] = box
+	return box

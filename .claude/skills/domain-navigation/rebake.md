@@ -19,7 +19,8 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   (`perf/bake_and_path_stress` times it); no frame pays for a bake.
 - `furniture_holes` keeps each body's hull with what it was made from, so only a piece that moved,
   turned or was dented is measured again (`furniture_holes_follow_the_pieces_test.gd`); the simplified outline is pinned to the plain
-  version by `outline_simplify_matches_plain_test.gd`.
+  version by `outline_simplify_matches_plain_test.gd`. Tile binning likewise remembers an outline's bounds by its contents:
+  unchanged outlines cost no new measurement, while any moved point makes a fresh key.
 - After each re-bake, and again when the planning one lands, it calls the overlay's `setup` so the overlay re-snapshots.
 - **Between re-bakes bulldozing is the behaviour** (and for non-solid decor, never carved): a piece just shoved is run over by the
   character's push physics until the next re-bake routes round its new position.

@@ -9,8 +9,8 @@ extends GameTest
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const ROUNDS := 30
-## Each round nudges every point by this much (px) so a snap is never one asked before (`snap`
-## remembers the answers it has).
+## Each round nudges every point by this much (px) so neither a snap nor a route is one asked
+## before: both remember exact repeats, and this guard measures the raw server queries.
 const NUDGE := 0.37
 const BUDGET_MS := 8.0
 
@@ -56,6 +56,6 @@ func run(t: TestContext) -> void:
 			for a in points:
 				NavBuilder.snap(map, a + nudge)
 				for b in points:
-					NavBuilder.route(map, a, b))
+					NavBuilder.route(map, a + nudge, b + nudge))
 	var asked := ROUNDS * points.size() * (points.size() + 1)
 	Perf.within(t, "%d routes and snaps inside the ring" % asked, ms, BUDGET_MS)
