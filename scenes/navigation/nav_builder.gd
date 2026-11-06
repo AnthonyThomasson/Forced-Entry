@@ -103,7 +103,9 @@ static func build(
 		var planning_map := region.get_navigation_map()
 		_planning_regions[planning_map] = region
 		region.tree_exited.connect(
-			func() -> void: _planning_regions.erase(planning_map),
+			func() -> void:
+				_planning_regions.erase(planning_map)
+				NavRoutes.forget(planning_map),
 			CONNECT_ONE_SHOT,
 		)
 		_add_steering_region(region, NavSite.new(house, rooms, agent_radius, bounds), nav_poly)
@@ -277,6 +279,7 @@ static func _on_steering_region_exited(planning_map: RID) -> void:
 		return
 	_steering_regions.erase(planning_map)
 	if _steering_maps.has(planning_map):
+		NavRoutes.forget(_steering_maps[planning_map])
 		NavigationServer2D.free_rid(_steering_maps[planning_map])
 		_steering_maps.erase(planning_map)
 
@@ -546,6 +549,7 @@ static func _on_avoid_region_exited(planning_map: RID, key: String, map: RID) ->
 		entries.erase(key)
 	if entries.is_empty():
 		_avoid_maps.erase(planning_map)
+	NavRoutes.forget(map)
 	NavigationServer2D.free_rid(map)
 
 
@@ -636,12 +640,7 @@ static func leaf_in_map(door: Node) -> bool:
 static func route(map: RID, from: Vector2, to: Vector2) -> PackedVector2Array:
 	if not ready(map):
 		return PackedVector2Array([from, to])
-	var asked := NavRing.map_for(map, [from, to])
-	var path := NavigationServer2D.map_get_path(asked, from, to, true)
-	if asked != map and not NavRing.keeps(asked, path, to):
-		# The ring cannot get there, or not by a way inside it: the district's map can say.
-		path = NavigationServer2D.map_get_path(map, from, to, true)
-	return path if path.size() >= 2 else PackedVector2Array([from, to])
+	return NavRoutes.route(map, from, to)
 
 
 ## The length (px) of a path.

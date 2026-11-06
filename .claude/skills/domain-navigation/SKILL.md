@@ -16,9 +16,10 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 | `nav_updater.gd` | Script-only Node that re-bakes on an interval. |
 | `nav_source.gd` (`NavSource`) | All static: what a bake is gathered from (the parsed walls, `walls` / `walls_of`, the `job` of polygon and source) and running it (`bake`), the outline helpers. |
 | `nav_rebake.gd` (`NavRebake`) | All static: the updater's re-bakes, the planning one on the worker thread and the steering one. |
-| `nav_tiles.gd` (`NavTiles`) | A district's steering tiles, and the per-tower wall cache. |
+| `nav_tiles.gd` (`NavTiles`) | A district's steering tiles, the per-tower wall cache and the remembered outline bounds. |
 | `nav_ring.gd` (`NavRing`) | A district's planning ring: a small map of the match building. |
 | `nav_ready.gd`, `nav_snaps.gd` | `NavReady`: does a map answer yet. `NavSnaps`: what `snap` learned. |
+| `nav_routes.gd` (`NavRoutes`) | The exact route answers remembered between planning-map re-bakes. |
 | `nav_union.gd` (`NavUnion`) | Fuses overlapping footprints. |
 | `nav_weld.gd` (`NavWeld`) | A bake's end: vertices welded, slivers dropped. |
 | `nav_debug.gd` | Draw-only overlay of the holes. |
@@ -97,8 +98,11 @@ that region. `tests/ai/perception/room_zones_inside_their_rooms_test.gd` pins it
 toward the room's centre, then `from`, every `SNAP_WITHIN_STEP` (8 px) until its snap lands inside and is reached (`SNAP_REACHED`), else
 `from`'s snap: a corner filled with furniture snaps through a thin wall, and a walled-off pocket routes round the outside
 (`ai/entry/entry_front_door_corner_reachable`, `navigation/snap_within_reachable`);
-`route(map, from, to)` returns a straight `[from, to]` until then and when the server finds no path; `path_length(path)` sums a
-path. The AI calls these rather than keeping its own guard.
+`route(map, from, to)` returns a straight `[from, to]` until then and when the server finds no path. Once ready, `NavRoutes`
+remembers the exact `(map, from, to)` answer, including the final answer after any ring-to-district fallback, only while both
+planning maps' iteration IDs stand; a repeat returns a copy, either map's re-bake starts its answers afresh, and freeing a map
+drops its entries. The per-map and whole-cache bounds start full caches afresh (`navigation/route_cache_follows_rebake`);
+`path_length(path)` sums a path. The AI calls these rather than keeping its own guard.
 
 ## Debug overlay (`nav_debug.gd`)
 
