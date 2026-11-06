@@ -65,10 +65,14 @@ func _contact_ttl() -> float:
 ## memory's newest-first order.
 func sightings(self_pos: Variant, max_age := INF, min_age := -1.0, hostile_only := false) -> Array:
 	var out: Array = []
+	var verdicts: Dictionary = hostility.reasons(perception._memory)
+	var flashed := {}
+	for data: Dictionary in perception._memory.recall_all(&"flashed"):
+		flashed[data.get("id")] = true
 	for rec in perception._memory.recall_aged(&"saw_character"):
 		if rec["age"] > max_age or rec["age"] <= min_age:
 			continue
-		var c := _live_sighting(rec)
+		var c := _live_sighting(rec, verdicts, flashed)
 		if c.is_empty() or (hostile_only and not c["hostile"]):
 			continue
 		out.append(c)
@@ -82,15 +86,16 @@ func sightings(self_pos: Variant, max_age := INF, min_age := -1.0, hostile_only 
 
 
 ## A remembered sighting (`{ data, age }`) as a contact dict, or empty when its character is gone.
-func _live_sighting(rec: Dictionary) -> Dictionary:
+## `verdicts` and `flashed` are the shared lookups read once for the whole list.
+func _live_sighting(rec: Dictionary, verdicts: Dictionary, flashed: Dictionary) -> Dictionary:
 	var data: Dictionary = rec["data"]
 	var n = data.get("node")
 	if not is_instance_valid(n) or (n as Node).get("is_dead") == true:
 		return {}
 	var c := data.duplicate()
 	c["age"] = rec["age"]
-	c["reason"] = hostility.reason(c["id"], perception._memory)
+	c["reason"] = verdicts.get(c["id"], "")
 	c["hostile"] = c["reason"] != ""
 	c["visible"] = perception.sight.visible_now.has(c["id"])
-	c["blind"] = perception._memory.age_of(&"flashed", "id", c["id"]) < INF
+	c["blind"] = flashed.has(c["id"])
 	return c

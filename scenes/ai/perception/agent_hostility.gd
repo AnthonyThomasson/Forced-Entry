@@ -18,6 +18,8 @@ var retaliate: bool
 var ttl: float
 ## This NPC's own faction (read from its character).
 var faction: StringName = &""
+## How many bulk verdict reads have been made (a fast-path test's observable).
+var bulk_reads := 0
 
 
 ## Classify one sighting (`{ id, faction, inside, … }` from the perception) and remember a hostility
@@ -60,6 +62,17 @@ func reason(id: int, memory: RefCounted) -> String:
 		if data.get("id") == id:
 			return data.get("reason", "")
 	return ""
+
+
+## Every live hostile verdict by character id, the freshest winning, read in one pass.
+func reasons(memory: RefCounted) -> Dictionary:
+	bulk_reads += 1
+	var out := {}
+	for data: Dictionary in memory.recall_all(&"hostile"):
+		var id: Variant = data.get("id")
+		if not out.has(id):
+			out[id] = data.get("reason", "")
+	return out
 
 
 ## Remember character `id` as hostile for reason `why`.

@@ -34,6 +34,7 @@ Perception (what the NPC knows)
 - `perception.md` — editing `scenes/ai/perception/` (except the snapshot): vision, memory and eviction, hostility, hearing, orders intake, the confinement rules. It lists the parts and points on.
 - `perception-tactics.md` — flank sides, fire / advance / retreat spots, route safety and exposure, cover, throw spots (`agent_tactics.gd`).
 - `perception-entry.md` — doorway geometry for a tactical entry: stack slots, pie arc, corners, defend and ambush posts, where an entry's grenade lands.
+- `perception-bookkeeping.md` — what perceptions share: `known()` in one pass, one character list per frame, the house intake's skips, the early hit and callout filter.
 - `perception-views.md` — doorway views and the walk that keeps out of them, the entry guard's reads (`agent_door_views.gd`).
 - `perception-stack.md` — the claim wire format, the ledger, slot rules and a member's claim (`stack/`).
 - `perception-grenades.md` — live grenades known, the danger zone, the evade plan, `can_lob`, a blinded or deafened NPC.

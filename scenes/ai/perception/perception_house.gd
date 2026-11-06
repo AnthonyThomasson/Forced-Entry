@@ -9,6 +9,7 @@ extends RefCounted
 ## sibling parts.
 
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
+const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 ## Physics frames between an unfamiliar NPC's looks for rooms and furniture it does not know yet.
 ## Learning is permanent and a decision looks again first, so a glimpse shorter than this still
 ## counts when it is the moment of a decision.
@@ -37,6 +38,10 @@ var _seeded := false
 var learn_next := 0
 ## Physics frame of the latest such look (-1 = none yet).
 var _learned_frame := -1
+## The intake identities already set up: rooms, openings, grenade-slot items and body heights.
+var _intake := {}
+## How often each piece of intake setup ran (fast-path test observables).
+var intake_reads := { &"house": 0, &"carried": 0, &"body": 0 }
 
 
 func _init(npc_perception: Node) -> void:
@@ -81,15 +86,39 @@ func take_in(house_rooms: Array) -> void:
 		post = perception._character.global_position
 		_post_set = true
 	_ensure_interactables(house_rooms)
-	perception.grenades.throw.learn_carried()
-	perception.grenades.throw.learn_body()
+	_learn_carried()
+	if not _intake.get("body", false):
+		perception.grenades.throw.learn_body()
+		_intake["body"] = true
+		intake_reads[&"body"] += 1
 	_seed_house(house_rooms)
-	perception.entry.doorways.set_house(openings, house_rooms)
+	if (not is_same(_intake.get("rooms"), house_rooms)
+			or not is_same(_intake.get("openings"), openings)):
+		_intake["rooms"] = house_rooms
+		_intake["openings"] = openings
+		perception.entry.doorways.set_house(openings, house_rooms)
+		intake_reads[&"house"] += 1
 	if perception.tuning.entry.enabled:
 		var world: World2D = perception._character.get_world_2d()
 		# Lay the doorways before a decision needs them.
 		perception.entry.doorways.warm_geometry(world.navigation_map, world.direct_space_state)
 	rooms = house_rooms
+
+
+## Learn the carried grenades again only when an item in either grenade slot is a different object.
+func _learn_carried() -> void:
+	var carried := {}
+	var changed := not _intake.has("carried")
+	for slot: int in AgentThrow.SLOTS.values():
+		var item: Variant = perception._character.inventory.item_in(slot)
+		carried[slot] = item
+		if not changed and not is_same(item, _intake["carried"].get(slot)):
+			changed = true
+	if not changed:
+		return
+	_intake["carried"] = carried
+	perception.grenades.throw.learn_carried()
+	intake_reads[&"carried"] += 1
 
 
 ## An unfamiliar NPC learns the rooms and objects it can see (permanent once learned). Runs every
