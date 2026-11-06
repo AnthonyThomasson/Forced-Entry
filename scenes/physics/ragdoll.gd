@@ -38,10 +38,8 @@ var _bones: Array = []
 var _frames: Array = []
 ## Swing / hinge dicts (see add_swing / add_hinge).
 var _limits: Array = []
-## Reused wall-sweep query.
-var _params: PhysicsShapeQueryParameters2D
-## Circle query shapes by radius.
-var _shapes := {}
+## Retained per-substep speed arrays and wall-query storage.
+var _scratch := StepScratch.new()
 ## Seconds every point has stayed under the sleep speed.
 var _still := 0.0
 ## Seconds simulated.
@@ -59,6 +57,8 @@ func add_point(at: Vector3, radius: float, mass: float = 1.0) -> int:
 	_pos.append(at)
 	_prev.append(at)
 	_vel.append(Vector3.ZERO)
+	_scratch.fall.append(0.0)
+	_scratch.free.append(0.0)
 	_radius.append(radius)
 	_inv_mass.append(1.0 / maxf(mass, 0.001))
 	return _pos.size() - 1
@@ -176,14 +176,10 @@ func step(delta: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> vo
 ## One sub-step: predict, project the constraints and floor, sweep walls, then derive velocities
 ## and apply floor bounce/friction and joint friction.
 func _substep(h: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> void:
-	var fall := PackedFloat32Array()  # Vertical speed before the floor stops it, for the bounce.
-	fall.resize(_pos.size())
-	var free := PackedFloat32Array()  # Speed before the constraints act on it.
-	free.resize(_pos.size())
-	_predict(h, fall, free)
+	_predict(h, _scratch.fall, _scratch.free)
 	_solve_constraints()
 	_sweep_walls(space, origin)
-	_derive_velocities(h, fall, free)
+	_derive_velocities(h, _scratch.fall, _scratch.free)
 	_joint_friction(h)
 
 
@@ -373,12 +369,40 @@ func _solve_floor() -> void:
 ## Sweep each point's x/y move this sub-step against walls and solid furniture: stop where it first
 ## touches, then slide the rest along the surface.
 func _sweep_walls(space: PhysicsDirectSpaceState2D, origin: Vector2) -> void:
+	if _scratch.sweep_gate and _walls_clear(space, origin):
+		return
 	for i in _pos.size():
+		_scratch.point_sweeps += 1
 		var from := Vector2(_prev[i].x, _prev[i].y)
 		var to := Vector2(_pos[i].x, _pos[i].y)
 		var reached := _sweep(space, origin, from, to, _radius[i])
 		if reached != to:
 			_pos[i] = Vector3(reached.x, reached.y, _pos[i].z)
+
+
+## Whether no wall can touch any point's circle anywhere from its substep start to its constrained
+## end. One reused rectangle covers all those starts, ends and radii; any overlap keeps the exact
+## per-point sweeps. The first-step origin-to-point pull-out is deliberately not gated by this
+## bound.
+func _walls_clear(space: PhysicsDirectSpaceState2D, origin: Vector2) -> bool:
+	if _pos.is_empty():
+		return true
+	var first := Vector2(_prev[0].x, _prev[0].y)
+	var spread := Vector2.ONE * _radius[0]
+	var box := Rect2(first - spread, spread * 2.0)
+	for i in _pos.size():
+		var radius := Vector2.ONE * _radius[i]
+		var from := Vector2(_prev[i].x, _prev[i].y)
+		var to := Vector2(_pos[i].x, _pos[i].y)
+		box = box.expand(from - radius).expand(from + radius)
+		box = box.expand(to - radius).expand(to + radius)
+	_scratch.bounds.size = box.grow(0.01).size
+	var params := _scratch.query(_radius[0], exclude)
+	params.shape = _scratch.bounds
+	params.transform = Transform2D(0.0, origin + box.get_center())
+	params.motion = Vector2.ZERO
+	_scratch.broadphase_queries += 1
+	return space.intersect_shape(params, 1).is_empty()
 
 
 ## Before the first step: draw any point that starts inside a wall back toward the origin (the
@@ -398,7 +422,7 @@ func _sweep(space: PhysicsDirectSpaceState2D, origin: Vector2, from: Vector2, to
 	var motion := to - from
 	if motion.length_squared() < 0.0001:
 		return to
-	var params := _query(radius)
+	var params := _scratch.query(radius, exclude)
 	params.transform = Transform2D(0.0, origin + from)
 	params.motion = motion
 	var res := space.cast_motion(params)
@@ -421,15 +445,31 @@ func _sweep(space: PhysicsDirectSpaceState2D, origin: Vector2, from: Vector2, to
 	return rest + slide * res2[0]
 
 
-## The reused wall query, set to a circle of `radius`.
-func _query(radius: float) -> PhysicsShapeQueryParameters2D:
-	if _params == null:
-		_params = PhysicsShapeQueryParameters2D.new()
-		_params.collision_mask = PhysicsConfig.wall_mask
-		_params.exclude = exclude
-	if not _shapes.has(radius):
-		var circle := CircleShape2D.new()
-		circle.radius = radius
-		_shapes[radius] = circle
-	_params.shape = _shapes[radius]
-	return _params
+## Storage reused by every substep: the two speed arrays and the broadphase/point-sweep queries.
+class StepScratch extends RefCounted:
+	## Vertical speed before the floor and speed before the constraints, overwritten by `_predict`.
+	var fall := PackedFloat32Array()
+	var free := PackedFloat32Array()
+	## The one mutable wall-query object and circle shapes by point radius.
+	var params: PhysicsShapeQueryParameters2D
+	var shapes := {}
+	## Rectangle covering every point's start, end and radius for the current substep.
+	var bounds := RectangleShape2D.new()
+	## Test seam for the reference path, and counts proving which path the solver took.
+	var sweep_gate := true
+	var broadphase_queries := 0
+	var point_sweeps := 0
+
+
+	## The reused wall query, set to a circle of `radius` and ignoring `exclude`.
+	func query(radius: float, exclude: Array[RID]) -> PhysicsShapeQueryParameters2D:
+		if params == null:
+			params = PhysicsShapeQueryParameters2D.new()
+			params.collision_mask = PhysicsConfig.wall_mask
+			params.exclude = exclude
+		if not shapes.has(radius):
+			var circle := CircleShape2D.new()
+			circle.radius = radius
+			shapes[radius] = circle
+		params.shape = shapes[radius]
+		return params

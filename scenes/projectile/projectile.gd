@@ -45,9 +45,10 @@ var ignore: Node
 var strikes_shooter := false
 ## Distance travelled so far.
 var _traveled := 0.0
-## Colliders excluded from further sweeps (flown over or penetrated), so the bullet does not
-## re-hit them. Ricochets are not added — a bounced bullet may strike the same surface again.
-var _exclude: Array[RID] = []
+## Ray query reuse and colliders excluded from further sweeps (flown over or penetrated), so the
+## bullet does not re-hit them. Ricochets are not added — a bounced bullet may strike the same
+## surface again.
+var _ray := RayQuery.new()
 ## `_traveled` at the moment the bullet left a body carrying
 ## `BallisticsPenetrationConfig.blood_material` (a character); -1 = carrying no blood. The next
 ## non-flesh surface within `blood_carry_distance` of it gets marked.
@@ -60,7 +61,7 @@ func _ready() -> void:
 			if BallisticsFlightConfig.bullet_height >= 0.0
 			else randf() * 100.0)
 	if ignore is CollisionObject2D and not strikes_shooter:
-		_exclude.append(ignore.get_rid())
+		_ray.exclude.append(ignore.get_rid())
 
 
 ## Advance one frame's travel, resolving each collider crossed. Loops rather than casting
@@ -127,14 +128,12 @@ static func post_hit(
 ## Raycast from the current position to `to`, skipping already-handled colliders.
 func _sweep(to: Vector2) -> Dictionary:
 	var space := get_world_2d().direct_space_state
-	var query := PhysicsRayQueryParameters2D.create(position, to, collision_mask)
-	query.hit_from_inside = true  # Register even a point-blank shot against a wall.
-	query.exclude = _exclude
-	return space.intersect_ray(query)
+	return _ray.sweep(space, position, to, collision_mask)
 
 
 ## Pick one outcome for a hit and, when it deals damage, hand the object a HitInfo (the
-## object owns the shove/deform/debris). Mutates direction/speed/_exclude and re-emits `hit`.
+## object owns the shove/deform/debris). Mutates direction/speed/_ray.exclude and re-emits
+## `hit`.
 func _resolve(result: Dictionary) -> void:
 	var body: Node = result.collider
 	# Captured before the ricochet branch reassigns `direction`; the shove follows the shot in.
@@ -148,7 +147,7 @@ func _resolve(result: Dictionary) -> void:
 	# punch through to the body), one between 50 and 60 clears the cover and strikes only the body,
 	# and a higher one misses both.
 	if height >= _flyover_height(surface["coverage"]):
-		_exclude.append(result.rid)
+		_ray.exclude.append(result.rid)
 		GameLog.say("Shot flew over %s" % body.name)
 		return
 
@@ -230,7 +229,7 @@ func _penetrate(result: Dictionary, info: HitInfo, squareness: float, surface: D
 			/ penetration_power)
 	direction = direction.rotated(randf_range(-j, j))
 	rotation = direction.angle()
-	_exclude.append(result.rid)
+	_ray.exclude.append(result.rid)
 	GameLog.say("Shot penetrated %s for %.0f damage (%.0f%% square)"
 			% [body.name, info.damage, squareness * 100.0])
 	info.penetrated = true
@@ -304,13 +303,10 @@ func _find_exit(info: HitInfo, entry: Vector2, rid: RID, travel: Vector2) -> voi
 		return
 	var space := get_world_2d().direct_space_state
 	var from := entry + travel * BallisticsPenetrationConfig.exit_probe_distance
-	var skip := _exclude.duplicate()
+	var skip := _ray.exclude.duplicate()
 	skip.erase(rid)
 	for _i in 4:
-		var query := PhysicsRayQueryParameters2D.create(from, entry, collision_mask)
-		query.hit_from_inside = true
-		query.exclude = skip
-		var found := space.intersect_ray(query)
+		var found := _ray.probe(space, from, entry, collision_mask, skip)
 		if found.is_empty():
 			return
 		if found.rid == rid:
@@ -329,3 +325,53 @@ func _deal(body: Node, info: HitInfo, outcome: StringName, surface: Dictionary) 
 		body.take_hit(info)
 	hit.emit(body, info.damage)
 	post_hit(body, info, ignore if is_instance_valid(ignore) else null, outcome, surface)
+
+
+## One retained ray query per bullet for both its forward sweeps and its exit probes. The exclusion
+## list lives here too: forward casts use it directly, while an exit probe still passes its own
+## copy.
+class RayQuery extends RefCounted:
+	## Colliders the forward sweep no longer hits.
+	var exclude: Array[RID] = []
+	## The reused ray, with the bullet's always-on inside-hit behavior set once.
+	var _ray := PhysicsRayQueryParameters2D.new()
+
+
+	func _init() -> void:
+		_ray.hit_from_inside = true
+
+
+	## Cast the forward sweep with the bullet's exclusions.
+	func sweep(
+		space: PhysicsDirectSpaceState2D,
+		from: Vector2,
+		to: Vector2,
+		mask: int,
+	) -> Dictionary:
+		return _cast(space, from, to, mask, exclude)
+
+
+	## Cast an exit probe with its own evolving exclusion list.
+	func probe(
+		space: PhysicsDirectSpaceState2D,
+		from: Vector2,
+		to: Vector2,
+		mask: int,
+		exclusions: Array[RID],
+	) -> Dictionary:
+		return _cast(space, from, to, mask, exclusions)
+
+
+	## Reuse the ray for one cast with the supplied exclusions.
+	func _cast(
+		space: PhysicsDirectSpaceState2D,
+		from: Vector2,
+		to: Vector2,
+		mask: int,
+		exclusions: Array[RID],
+	) -> Dictionary:
+		_ray.from = from
+		_ray.to = to
+		_ray.collision_mask = mask
+		_ray.exclude = exclusions
+		return space.intersect_ray(_ray)

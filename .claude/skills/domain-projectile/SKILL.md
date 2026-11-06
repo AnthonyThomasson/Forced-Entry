@@ -31,6 +31,10 @@ Damage scales by squareness and `speed_factor` (speed / the round's own `muzzle_
 
 **Exit and blood carry.** A penetrating hit fills `HitInfo.has_exit` / `exit_position` / `exit_normal` (`_find_exit` probes back from `exit_probe_distance`; none found = thicker than the probe). A round that penetrated `blood_material` (flesh) carries that blood to the next non-flesh surface within `blood_carry_distance`.
 
+**Ray reuse.** A bullet owns one `RayQuery` (inner class of `projectile.gd`): a single `PhysicsRayQueryParameters2D`
+(`hit_from_inside` set once) serves every forward sweep and every `_find_exit` probe, and holds the bullet's `exclude` list
+(flown-over and penetrated colliders). Each probe passes its own copy of that list.
+
 ## Casings
 
 `CasingSpawner` tracks them with the `Despawner`; the toss is `Debris.toss` (Physics, interface 4; `casing.gd` preloads `physics/debris.gd` as `Debris`), then the casing rests at `DrawLayers.LYING`.

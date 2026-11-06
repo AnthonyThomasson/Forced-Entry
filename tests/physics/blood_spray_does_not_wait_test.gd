@@ -78,4 +78,4 @@ static func _spray(wound: BloodWound, victim: Node2D, k: int) -> Array:
 	hit.exit_position = victim.global_position - hit.normal * 10.0
 	var before: int = wound._splats.size()
 	wound.record(hit)
-	return wound._splats.slice(before)
+	return wound._splats.items().slice(before)

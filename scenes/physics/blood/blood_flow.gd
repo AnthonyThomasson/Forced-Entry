@@ -34,8 +34,8 @@ var _aim: Vector2
 var _exclude: Array
 ## Roughens the per-cell flow cost into lobes.
 var _noise := FastNoiseLite.new()
-## The square each blocked-cell query tests.
-var _probe := RectangleShape2D.new()
+## The retained square shape and query parameters for blocked-cell tests.
+var _collision := Collision.new()
 ## Cells known to be blocked (true) or open (false), so each is queried once.
 var _blocked: Dictionary = {}
 ## Floor-texture flow multiplier per cell, looked up once each.
@@ -43,8 +43,8 @@ var _resist: Dictionary = {}
 ## Soak progress 0..1 of each claimed cell lying on a porous surface (carpet, a rug): 0 = fresh, 1 =
 ## sunk in.
 var _soak: Dictionary = {}
-## Frontier: Vector2i -> accumulated cost to reach it.
-var _frontier: Dictionary = {}
+## Frontier cells and their costs, with the cheapest-first heap and insertion-order tie break.
+var _frontier := Frontier.new()
 ## The box of cells claimed or dragged to so far, starting as the cell blood leaves the body at
 ## (the pool's origin, cell zero).
 var _extent := Rect2i(Vector2i.ZERO, Vector2i.ONE)
@@ -56,8 +56,8 @@ func _init(aim: Vector2, exclude: Array) -> void:
 	_exclude = exclude
 	_noise.seed = randi()
 	_noise.frequency = BloodPoolConfig.flow_noise_frequency
-	_probe.size = Vector2.ONE * _size * 0.8
-	_frontier[Vector2i.ZERO] = 0.0
+	_collision.prepare(_size, exclude)
+	_frontier.set_cost(Vector2i.ZERO, 0.0)
 	_blocked[Vector2i.ZERO] = false
 
 
@@ -201,7 +201,7 @@ func step(
 		if _frontier.is_empty() or budget_used() >= budget:
 			return
 		var c := _pop_cheapest()
-		var cost: float = _frontier[c]
+		var cost: float = _frontier.costs[c]
 		_frontier.erase(c)
 		cells[c] = cost
 		_extent = _extent.merge(Rect2i(c, Vector2i.ONE))
@@ -217,19 +217,13 @@ func step(
 			var lean := 1.0 - BloodPoolConfig.flow_aim_bias * dir.dot(_aim)
 			var next := cost + Vector2(d).length() * maxf(rough, 0.15) * maxf(lean, 0.2) \
 					* _surface_resist(n, origin_global)
-			if not _frontier.has(n) or next < _frontier[n]:
-				_frontier[n] = next
+			if not _frontier.costs.has(n) or next < _frontier.costs[n]:
+				_frontier.set_cost(n, next)
 
 
-## The frontier cell cheapest to reach (the caller removes it).
+## The frontier cell cheapest to reach (the caller removes it); ties keep insertion order.
 func _pop_cheapest() -> Vector2i:
-	var best := Vector2i.ZERO
-	var best_cost := INF
-	for c in _frontier:
-		if _frontier[c] < best_cost:
-			best_cost = _frontier[c]
-			best = c
-	return best
+	return _frontier.pop()
 
 
 ## Floor-texture flow multiplier for cell `c` (cached per cell; see BloodSurface).
@@ -243,12 +237,113 @@ func _surface_resist(c: Vector2i, origin_global: Vector2) -> float:
 func _is_blocked(c: Vector2i, space: PhysicsDirectSpaceState2D, origin_global: Vector2) -> bool:
 	if _blocked.has(c):
 		return _blocked[c]
-	var params := PhysicsShapeQueryParameters2D.new()
-	params.shape = _probe
-	params.collision_mask = PhysicsConfig.wall_mask
-	params.exclude = _exclude
-	params.transform = Transform2D(0.0, origin_global + _cell_center(c))
-	params.collide_with_bodies = true
-	var blocked := not space.intersect_shape(params, 1).is_empty()
+	var blocked := _collision.blocked(space, origin_global + _cell_center(c))
 	_blocked[c] = blocked
 	return blocked
+
+
+## The live frontier. A binary heap orders entries by cost and then the cell's first insertion
+## sequence, exactly as the old strict-< scan over the insertion-ordered cost dictionary did. A cost
+## decrease pushes another entry with that same sequence; `pop` discards stale and removed entries.
+class Frontier extends RefCounted:
+	## Live cells and their current accumulated costs.
+	var costs: Dictionary = {}
+	## Heap entries: [cost, insertion sequence, cell], with possible stale entries.
+	var _heap: Array = []
+	## Each live cell's first insertion sequence; a cost decrease does not change it.
+	var _sequence: Dictionary = {}
+	## Sequence to give the next new cell.
+	var _next := 0
+
+
+	## Add a cell or lower its cost, retaining its first insertion sequence.
+	func set_cost(c: Vector2i, cost: float) -> void:
+		if not costs.has(c):
+			_sequence[c] = _next
+			_next += 1
+		costs[c] = cost
+		_heap.append([cost, _sequence[c], c])
+		_sift_up(_heap.size() - 1)
+
+
+	## Remove the cheapest heap entry and return its live cell. The caller erases it from `costs`.
+	func pop() -> Vector2i:
+		while not _heap.is_empty():
+			var top: Array = _heap[0]
+			_heap[0] = _heap.back()
+			_heap.pop_back()
+			if not _heap.is_empty():
+				_sift_down(0)
+			var c: Vector2i = top[2]
+			if costs.has(c) and costs[c] == top[0]:
+				return c
+		return Vector2i.ZERO
+
+
+	## Forget a claimed cell; any heap entries still naming it become stale.
+	func erase(c: Vector2i) -> void:
+		costs.erase(c)
+		_sequence.erase(c)
+
+
+	## Whether no live cells remain.
+	func is_empty() -> bool:
+		return costs.is_empty()
+
+
+	## Move the entry at `i` toward the root until its parent precedes it.
+	func _sift_up(i: int) -> void:
+		while i > 0:
+			var parent := floori((i - 1) / 2.0)
+			if not _less(_heap[i], _heap[parent]):
+				return
+			_swap(i, parent)
+			i = parent
+
+
+	## Move the root entry at `i` down until both children follow it.
+	func _sift_down(i: int) -> void:
+		while i * 2 + 1 < _heap.size():
+			var child := i * 2 + 1
+			if child + 1 < _heap.size() and _less(_heap[child + 1], _heap[child]):
+				child += 1
+			if not _less(_heap[child], _heap[i]):
+				return
+			_swap(i, child)
+			i = child
+
+
+	## Heap order: lower cost, then earlier insertion.
+	func _less(a: Array, b: Array) -> bool:
+		return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1])
+
+
+	## Exchange two heap entries.
+	func _swap(a: int, b: int) -> void:
+		var held: Array = _heap[a]
+		_heap[a] = _heap[b]
+		_heap[b] = held
+
+
+## One square and one query-parameter object per flow, mutated for each uncached cell instead of
+## allocating both on every query. Exclusions and query flags are fixed when the flow is built.
+class Collision extends RefCounted:
+	## The retained blocked-cell query.
+	var params := PhysicsShapeQueryParameters2D.new()
+	## The square tested at a cell's centre.
+	var _probe := RectangleShape2D.new()
+
+
+	## Prepare the square and the constant parts of the query.
+	func prepare(cell_size: float, exclude: Array) -> void:
+		_probe.size = Vector2.ONE * cell_size * 0.8
+		params.shape = _probe
+		params.collision_mask = PhysicsConfig.wall_mask
+		params.exclude = exclude
+		params.collide_with_bodies = true
+
+
+	## Whether a wall or furniture collider overlaps the square at `at`.
+	func blocked(space: PhysicsDirectSpaceState2D, at: Vector2) -> bool:
+		params.transform = Transform2D(0.0, at)
+		return not space.intersect_shape(params, 1).is_empty()

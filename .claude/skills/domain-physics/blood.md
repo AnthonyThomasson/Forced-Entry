@@ -33,9 +33,12 @@ under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `Blo
   `spray_side_by_side` off builds each whole. A drip is built whole.
 - Drips: damage adds `ceil(damage * drips_per_damage)` to a budget (cap `max_pending_drips`); while it lasts, one drop falls every
   `BloodDripConfig.interval_min..max` s from the host's `blood_origin()` keeping the host's `velocity` for `fall_time`, so a
-  walker's drops land ahead. `stop()` on death ends them. A body keeps at most `max_splats_per_body` splats (oldest freed).
-- A splat is built once in `setup` and then static: shapes clipped by walls (a ray from the centre against `wall_mask`) and
-  merged into opaque outlines so overlaps do not darken (`Geometry2D.merge_polygons`, skipped for outlines whose boxes are
+  walker's drops land ahead. `stop()` on death ends them. A body keeps at most `max_splats_per_body` splats (oldest freed) in an
+  advancing-head FIFO, so eviction and removal of an externally freed oldest splat do not shift the whole list.
+- A splat is built once in `setup` and then static: one conservative whole-extent shape query first skips every clipping ray when
+  no `wall_mask` collider can reach any possible core, spike, tail or satellite; near geometry the exact centre-to-feature rays remain
+  (`blood_splat_open_matches_rays_test.gd` pins identical outlines and RNG draws). Shapes are merged into opaque outlines so overlaps
+  do not darken (`Geometry2D.merge_polygons`, skipped for outlines whose boxes are
   apart; `blood_splat_merge_fast_path_test.gd`), drawn as one `FillBatch`. About 1 splat in 100,000 unions into a polygon the
   engine cannot triangulate; `BloodSplat.drawable` swaps it for its convex hull (or drops it) instead of logging an error
   (`blood_splat_shapes_valid_test.gd`). It dries to `dried_color` over `BloodSplatConfig.dry_time`.
@@ -44,7 +47,9 @@ under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `Blo
 
 - `Physics.bleed_out(parent, source, exclude)` (`BloodSpawner.bleed`) starts a `BloodPool` where the dead body's blood leaves it
   (`blood_origin()`: the trunk's middle once fallen). A `BloodFlow` flood-fill claims `bleed_out_cells` grid cells up front
-  (a batch per frame), cheapest-first with noisy cost; cells overlapping a `wall_mask` collider never fill, so the
+  (a batch per frame), cheapest-first with noisy cost. Its frontier heap orders by (cost, first insertion sequence), leaving stale
+  entries on a cost decrease, so claims match the old linear dictionary scan even on ties; one square and query-parameter object are
+  reused for blocked-cell tests (`blood_flow_heap_matches_scan_test.gd`). Cells overlapping a `wall_mask` collider never fill, so the
   puddle wraps walls and furniture. A front sweeps through flow-cost over `bleed_out_duration`.
   Drawn by blurring the fill field and thresholding it in a shader (`blood_pool_blur_matches_plain_test.gd` pins the blur).
 - `BloodSurface.resistance(world_pos)` multiplies each cell's step cost: Objects' floors register a world rect and a `groove`
