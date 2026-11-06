@@ -106,6 +106,8 @@ var _loops: Dictionary = {}
 
 func _ready() -> void:
 	_rng.seed = SoundLibraryConfig.rng_seed
+	# Test read: actual enabled/cutoff writes, zero while the muffle is settled.
+	set_meta(&"bus_writes", 0)
 	_make_bus()
 	EventBus.posted.connect(_on_posted)
 	if SoundLibraryConfig.prewarm and DisplayServer.get_name() != "headless":
@@ -420,8 +422,9 @@ func _hear_stun(delta: float) -> void:
 		if target > _muffle
 		else SoundDeafnessConfig.muffle_release
 	)
-	_muffle = move_toward(_muffle, target, rate * delta)
-	if _bus >= 0:
+	var next := move_toward(_muffle, target, rate * delta)
+	if next != _muffle and _bus >= 0:
+		_muffle = next
 		var filter := AudioServer.get_bus_effect(_bus, 0) as AudioEffectLowPassFilter
 		AudioServer.set_bus_effect_enabled(_bus, 0, _muffle > 0.0)
 		filter.cutoff_hz = exp(
@@ -431,6 +434,9 @@ func _hear_stun(delta: float) -> void:
 				_muffle,
 			),
 		)
+		set_meta(&"bus_writes", int(get_meta(&"bus_writes", 0)) + 2)
+	else:
+		_muffle = next
 	if _tinnitus.is_empty():
 		return
 	var player: AudioStreamPlayer2D = _tinnitus["player"]

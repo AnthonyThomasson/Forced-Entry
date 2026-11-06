@@ -32,7 +32,8 @@ An item whose `raises_at_contact()` is true (SMG, rifle) is judged every frame b
 ## Grenades and the stun (spec `docs/grenades.md` G1, G13)
 
 - `inventory.item_count(slot)`, `inventory.throw_stats(slot)` (the AI throws by it, `domain-items` (`grenades.md`)) and `inventory.throw_release_offset(slot)` (where the grenade leaves the hand, standing: the `throw` stance's `forward` and `lateral` for the item's `weapon_hand()`, as `Vector2(ahead, right)` in the character's frame; the AI judges a lob from it; test `tests/ai/grenade/grenade_lob_follows_throw_stance_test.gd`).
-- `inventory.tick` erases a grenade slot whose last grenade is thrown and, if it was held, selects `inventory.gun_slot()` (else the fists).
+- `inventory.tick` ticks every item and finds the fallback gun in one pass, then erases a grenade slot whose last grenade is thrown
+  and, if it was held, selects the lowest gun slot (else the fists).
 - `take_stun(blind, deaf)` (an explosion's hook) hands it to `stun.take`, which keeps the longer of the old and new timers (blind and deaf each) and posts `&"stun"`. `stun.update` counts it down; `stun.view()` feeds the UI (`StunScreen`). Character reads nothing of `GrenadeConfig`: the stun's numbers are `CharacterStunConfig`'s.
 - `weapon.aim_target()` is the aim point swayed by `weapon.aim_sway()` (two out-of-step sines, `stun.wander`); a shot turns by `aim_sway()` (0 unless stunned).
 - `blast_push(from, impulse)` is an explosion's hook: a living body is knocked back (`apply_impulse`), a dead one's ragdoll is woken and thrown (`CharacterRagdoll.blast`).

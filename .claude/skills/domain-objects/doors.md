@@ -41,7 +41,9 @@ its chips and sparks are styled as.
   `door_kick_burst_test.gd`, `door_blast_burst_test.gd`, `door_blast_ajar_test.gd`, `door_hard_punch_stays_a_punch_test.gd`,
   `door_knocked_down_test.gd`, `door_materials_test.gd` there.
 - **Art** (`art/door_painter.gd`, `door` in `ObjectArt.PAINTERS`): drawn through `ObjectArt.turned` (`PixelArt.render_turned` at the
-  lighting step of the leaf's angle, repainted by `door_visuals.gd` when it crosses one). `part` `leaf` (the top edge of the standing
+  lighting step of the leaf's angle, repainted by `door_visuals.gd` when a transform notification crosses one). A resting door sleeps
+  both its physics callback and visual polling; every swing, burst, moving shove and fall wakes it
+  (`resting_door_runs_no_per_frame_callback_test.gd`). `part` `leaf` (the top edge of the standing
   leaf, 6 px thick: stiles, planks, rivets or panes, a hinge pin, the handle) or `fallen` (the lying face); `style`, `door_material`
   (steel rusts, wood is scratched), `broken` (shattered panes). Knobs: `ObjectArtDoorConfig`.
 - **Light and sight.** The leaf builds its occluder (`LightMasks.WALL`, a child that turns with it; none for glass) like a wall's

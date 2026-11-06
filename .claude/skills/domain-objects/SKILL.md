@@ -17,7 +17,7 @@ unshaded overlays), 24 (the door contract).
 | `environment_object.gd` (a `RigidBody2D`), `object_physics.gd`, `object_look.gd`, `object_lights.gd`, `environment_object_visuals.gd`, `overhang_visuals.gd`, `emissive_layer.gd` | A piece: control node, its physics part, its art fields (`piece.look.<field>`: `art`, `art_opts`, `facing`, `text_color`), its lights, its drawing. |
 | `wall/wall.gd`, `wall/wall_visuals.gd`, `room_walls.gd` | Walls: segment math (`wall_segments()`), colliders; `RoomWalls` is `thickness`, `openings` (`{ side, offset, width }`), `style`. |
 | `floor/floor.gd`, `floor/floor_visuals.gd` | Floors. |
-| `object_factory.gd`, `wall_factory.gd`, `floor_factory.gd`, `wear_factory.gd`, `wear_plan.gd`, `door_factory.gd` | The interface-2 factories. |
+| `object_factory.gd`, `wall_factory.gd`, `floor_factory.gd`, `wear_factory.gd`, `wear_plan.gd`, `door_factory.gd` | The interface-2 factories. `shared_textures.gd`: shared art (pre-warm). |
 | `door/` (`door.gd` and its parts), `door_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
 | `collider_cuts.gd` (`ColliderCuts`) | The shared queue of convex collider cuts, run on worker threads. |
 | `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`, `decal_factory.gd` (`DecalFactory`: the floor stencil and the tower shadow). |
@@ -71,9 +71,9 @@ A definition's `overhang` (`{ size, reach }`) makes `ObjectFactory` add a child 
 footprint (a streetlight's arm and head). It draws the piece's own painter with `part: "overhang"` at `size`, centred `reach` px out
 along the facing, at `DrawLayers.OVERHEAD` (`ObjectArtLayerConfig.overhang_z_index`: over the living and a vehicle's roof), with no
 collider; `get_rect()` is the area it draws, and it has its own `emissive_layer()` (`tests/objects/overhang_test.gd`).
-`fade_under: true` in it (a tower's door awning and glyph sign) fades its `modulate` to `ObjectFadeConfig.alpha` (0.25) over `seconds`
-(0.15) while a node of the group `characters` stands in `get_rect()`, and back; only a fading one processes
-(`tests/objects/overhang_fades_under_character_test.gd`).
+`fade_under: true` (a tower's awning and glyph sign) fades its `modulate` to `ObjectFadeConfig.alpha` (0.25) over `seconds` (0.15)
+while a `characters` node stands in `get_rect()`; one shared watcher steps them, writing alpha only on change
+(`overhang_fades_under_character_test.gd`).
 
 ## Lights and shadows (interface 20; spec `docs/lighting.md`, skill `domain-lighting`)
 

@@ -91,8 +91,8 @@ silent). Audio reads only its `stun.view()` (`deaf`), duck-typed.
 
 - `muffled()` is true while the focus's `deaf` > 0 (false for null, freed or non-stunnable); it lifts exactly when deafness ends.
 - The muffle: every game voice plays on the `GameSound` bus (an `AudioEffectLowPassFilter`, made in `Sound._ready`); while muffled
-  the filter closes toward `muffle_cutoff_hz` and lifts slowly, so the bang that deafens is heard, then goes dull. Headless,
-  nothing is heard, so tests assert `muffled()`.
+  the filter closes toward `muffle_cutoff_hz` and lifts slowly, so the bang that deafens is heard, then goes dull. Settled ears
+  make no bus writes (`open_ear_skips_bus_writes_test.gd`). Headless: assert `muffled()`.
 - The tinnitus: a `&"stun"` for the focus with `deaf` > 0 starts one `tinnitus/whine` voice on the Master bus (so the muffle does
   not dull it), once per stun. It loops and **follows the deafness**: each frame its `until` and volume come from `deaf`, fading
   over `tinnitus_tail`; range `1e6` (it is in the listener's head).

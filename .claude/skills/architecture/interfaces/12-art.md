@@ -1,4 +1,7 @@
-12. **Objects / Character / Items / Vehicles → Art** (leaf: the pixel-art engine; each domain owns its painters)
+12. **Objects / Character / Items / Vehicles / World Generation → Art** (leaf: the pixel-art engine; each domain owns its painters)
+    - `PixelArt.warm(requests) -> void` + `finish_warming() -> void` — paint complete `render` request dictionaries on one worker,
+	  under the cache mutex, and file their Images as textures on the main thread. A build never waits for the warm: a `render` files the
+	  image the worker already painted for its key, else paints it synchronously, and the worker skips a key already cached. WorldGen supplies Objects' shared-district requests at boot; headless skips the call.
     - `PixelArt.render(painter, size, color, facing := Vector2.DOWN, opts := {}) -> Texture2D` — a painter's art at a cardinal facing (the
 	  image is turned): furniture, walls, floors. `opts.material` (`ArtSurfaceConfig`'s finish, `""` none) is handed to the painter as its
 	  `material`, the rest as its `opts`.

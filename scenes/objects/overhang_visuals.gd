@@ -7,14 +7,15 @@ extends Node2D
 ## piece's own painter with `part: "overhang"` in the options, at the overhang's `size` (across x
 ## out, in the canonical frame), centred `reach` px from the piece's centre along its facing. What
 ## in it gives light (a lens, a sign's tube) is drawn again over it by a child `Emissive` layer
-## (emissive_layer.gd), as on the piece. Draw-only: it reads its parent's look fields and the
-## definition's `overhang` (`{ size, reach }`). With `fade_under: true` in it the overhang fades to
-## `ObjectFadeConfig.alpha` over `ObjectFadeConfig.seconds` while any node of the group `characters`
-## stands inside the area it draws, and back to opaque over the same time when none does: its own
-## `modulate`, so its glowing `Emissive` child fades with it.
+## (emissive_layer.gd), as on the piece. With `fade_under: true` one shared watcher reads the
+## character group and steps every fading overhang; the overhang itself has no frame callback.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const EmissiveLayer = preload("res://scenes/objects/emissive_layer.gd")
+
+## One watcher per scene tree; weak references keep a closed tree or a torn-down world alive
+## nowhere.
+static var _watchers := {}
 
 ## The overhang's pixel art (null for a piece without an art painter: nothing is drawn).
 var _art: Texture2D
@@ -26,22 +27,19 @@ var _emissive_layer: Node2D
 var _rect := Rect2()
 ## Whether it fades while a character stands under it (the definition's `fade_under`).
 var _fades := false
+## Actual alpha writes made by the shared watcher (a test read; zero at rest).
+var fade_writes := 0
 
 
 func _ready() -> void:
-	# A node with a `_process` starts processing as it enters the tree: only a fading one keeps it.
-	set_process(_fades)
+	set_process(false)
+	if _fades:
+		_watch(self)
 
 
 func _draw() -> void:
 	if _art:
 		draw_texture_rect(_art, _rect, false)
-
-
-func _process(delta: float) -> void:
-	var goal := ObjectFadeConfig.alpha if _character_under() else 1.0
-	var speed := (1.0 - ObjectFadeConfig.alpha) / ObjectFadeConfig.seconds
-	modulate.a = move_toward(modulate.a, goal, speed * delta)
 
 
 ## Make this the `Overhang` child of `piece` (an EnvironmentObject not yet in the tree, its look
@@ -69,10 +67,22 @@ func setup(piece: Node2D, overhang: Dictionary) -> Node2D:
 	return self
 
 
-## Whether any node of the group `characters` stands inside the area the overhang draws.
-func _character_under() -> bool:
+## Step the fade (called by the shared watcher)'s already-fetched character list, writing only a
+## changed alpha.
+func fade_step(characters: Array, delta: float) -> void:
+	var goal := ObjectFadeConfig.alpha if _character_under(characters) else 1.0
+	var speed := (1.0 - ObjectFadeConfig.alpha) / ObjectFadeConfig.seconds
+	var next := move_toward(modulate.a, goal, speed * delta)
+	if next == modulate.a:
+		return
+	modulate.a = next
+	fade_writes += 1
+
+
+## Whether any of `characters` stands inside the area the overhang draws.
+func _character_under(characters: Array) -> bool:
 	var area := get_global_transform() * _rect
-	for body: Node in get_tree().get_nodes_in_group(&"characters"):
+	for body: Node in characters:
 		if body is Node2D and area.has_point((body as Node2D).global_position):
 			return true
 	return false
@@ -93,3 +103,43 @@ func emissive_layer() -> Node2D:
 ## Draw the light-giving pixels onto `layer` (the `Emissive` child) over the art.
 func draw_emissive(layer: CanvasItem) -> void:
 	layer.draw_texture_rect(_emissive, _rect, false)
+
+
+## Register `overhang` with the tree's one fade watcher, creating it on demand.
+static func _watch(overhang: Node2D) -> void:
+	var tree := overhang.get_tree()
+	var key := tree.get_instance_id()
+	var watcher: FadeWatcher
+	if _watchers.has(key):
+		watcher = (_watchers[key] as WeakRef).get_ref()
+	if watcher == null:
+		watcher = FadeWatcher.new()
+		watcher.name = "OverhangFadeWatcher"
+		_watchers[key] = weakref(watcher)
+		tree.root.add_child.call_deferred(watcher)
+	watcher.watch(overhang)
+
+
+## The only per-frame callback for fading overhangs: one character-group read for all of them.
+class FadeWatcher extends Node:
+	## Live overhangs, held weakly so world teardown needs no unregister pass.
+	var _overhangs: Array[WeakRef] = []
+
+
+	## Step every live overhang; sleep while no world has one.
+	func _process(delta: float) -> void:
+		var characters := get_tree().get_nodes_in_group(&"characters")
+		for i in range(_overhangs.size() - 1, -1, -1):
+			var overhang = _overhangs[i].get_ref()
+			if overhang == null:
+				_overhangs.remove_at(i)
+				continue
+			overhang.fade_step(characters, delta)
+		if _overhangs.is_empty():
+			set_process(false)
+
+
+	## Add an overhang and wake the watcher.
+	func watch(overhang: Node2D) -> void:
+		_overhangs.append(weakref(overhang))
+		set_process(true)

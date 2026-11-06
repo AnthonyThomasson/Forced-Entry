@@ -11,10 +11,11 @@ extends Node2D
 ## `damage` is the range-of-motion-scaled punch damage dealt (0 at point-blank, up at full reach).
 signal punched(hand_index: int, body: Node, damage: float)
 
-## Physics layers the hands collide with: the solid layer, where walls, furniture and bodies sit.
-const HAND_MASK := PhysicsLayers.SOLID
-## The collide-and-slide a hand makes toward where the pose wants it (shared with the legs).
+## The shared near-solid gate and reused queries (typed here by its script).
 const Sweep = preload("res://scenes/character/body/body_sweep.gd")
+## Extra px on the gate's radius for what rides on a hand's reach: its rest lateral (up to 15), the
+## gait's swing (16), recoil and waver.
+const REST_SLACK := 32.0
 ## The melee strike a punch lands (shared with the kick).
 const Strike = preload("res://scenes/character/body/body_strike.gd")
 ## Punch tween durations (s): the fist extends, then retracts. The extend time also
@@ -52,6 +53,8 @@ var _attack_active := false
 var _active_hand := 0
 ## Bodies already reported this swing (dedup).
 var _hit_bodies := {}
+## The character-owned shared near-solid gate and reused sweep queries, set by `anatomy.attach()`.
+var sweep: Sweep
 
 ## Character (CharacterBody2D) — body radius + held item.
 @onready var _character := get_parent()
@@ -94,24 +97,25 @@ func punch_amounts() -> Array:
 ## not held against a wall), nor the body itself. A weapon's barrel asks this to know whether it
 ## touches something.
 func solid_distance(from: Vector2, dir: Vector2, max_len: float) -> float:
-	var space := get_world_2d().direct_space_state
-	var query := PhysicsRayQueryParameters2D.create(from, from + dir * max_len, HAND_MASK)
-	var skip: Array[RID] = [_character.get_rid()]
-	for _attempt in 6:
-		query.exclude = skip
-		var hit := space.intersect_ray(query)
-		if hit.is_empty():
-			return INF
-		if hit.collider is CharacterBody2D:
-			skip.append(hit.rid)
-			continue
-		return from.distance_to(hit.position)
-	return INF
+	return sweep.solid_distance(from, dir, max_len)
 
 
 ## True while a swing is in progress (extend + retract).
 func is_attacking() -> bool:
 	return _attack_active
+
+
+## A conservative radius from the body centre enclosing either hand's whole swept circle. The
+## held item's full reach, not its shortened strike, and the support grip are included so a loadout
+## change cannot leave a reachable hand outside the gate.
+func near_radius() -> float:
+	var item: Item = _character.inventory.current_item()
+	var reach := 0.0
+	var support := 0.0
+	if item != null:
+		reach = maxf(item.reach, 0.0)
+		support = maxf(item.strike.support_gap, 0.0)
+	return _character.radius + 2.0 * hand_radius + punch_gap + reach + support + REST_SLACK
 
 
 ## Local-space center of a hand (0 = the character's right as drawn, 1 = the left): the
@@ -173,14 +177,10 @@ func _stance_hand_position(hand: int) -> Vector2:
 ## clear, else against the first wall or solid object, slid along it for what is left
 ## (`body_sweep.gd`).
 func _resolve_hand(hand: int) -> Vector2:
-	var space := get_world_2d().direct_space_state
-	return Sweep.circle(
-		space,
-		_character.global_position,
-		_raw_hand_position(hand),
-		hand_radius,
-		[_character.get_rid()],
-	)
+	var raw := _raw_hand_position(hand)
+	if sweep.is_clear():
+		return raw
+	return sweep.circle(_character.global_position, raw, hand_radius)
 
 
 ## Throw the given hand forward, then retract it. The Item decides which hand and gates it.

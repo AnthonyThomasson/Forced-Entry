@@ -1,4 +1,7 @@
 2. **World Generation → Objects** (the only way world-gen makes entities)
+   - `SharedTextures.requests(tower_footprints := []) -> Array` — the complete PixelArt request dictionaries every district shares:
+	 road glyphs, crossings, podiums, awnings and glyph signs, shell decor, and the tower shadows derived from the supplied
+	 `{ size, half, length, depth, podium }` footprints (`podium`: the segment lengths a plan stands with). `WorldGen.prewarm` hands these to Art; no nodes are built.
    - `DoorFactory.spawn(opening: Dictionary, definition: Dictionary, parent: Node) -> Door` — a hinged door in a doorway (interface 24).
 	 `definition` (`DoorCatalog`, via `WorldGen.door_definition`): `name`, `material` (`hollow` / `solid` / `steel` / `glass`, a key of
 	 `DoorMaterialConfig.materials`), `style` (`flush`, `panelled`, `plank`, `riveted`, `peephole`, `panes`), `color`. `opening`: `pos` (the

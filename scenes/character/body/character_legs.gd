@@ -19,12 +19,10 @@ extends RefCounted
 ## is cast while nothing is near. Tuning: CharacterPushConfig.leg_*.
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
-## The collide-and-slide a leg makes toward where the rig wants it (shared with the hands).
+## The shared near-solid gate and reused queries (typed here by its script).
 const Sweep = preload("res://scenes/character/body/body_sweep.gd")
 ## The shove the body's own walking push gives (at the contact point, carried at walking pace).
 const Push = preload("res://scenes/character/character_push.gd")
-## Physics layer a leg meets: walls, solid furniture and living characters (the hands' mask).
-const MASK := PhysicsLayers.SOLID
 ## Nothing is cast unless something solid lies within this many px of the body centre (a leg reaches
 ## ~55).
 const NEAR := 72.0
@@ -39,6 +37,8 @@ const FULL_PRESS := 6.0
 var _ankle: Array = [null, null]
 ## Per side, ankle then knee: where each was wanted last frame (local px), for its speed.
 var _prev: Array = [null, null, null, null]
+## The character-owned shared near-solid gate and reused sweep queries.
+var sweep: Sweep
 
 
 ## Where side `i`'s ankle rests (local x/y), or null when nothing is in its way.
@@ -54,30 +54,16 @@ func clear() -> void:
 
 ## Rest both legs of `character` against what is near and shove what a foot swings into.
 func update(character: CharacterBody2D, delta: float) -> void:
-	var space: PhysicsDirectSpaceState2D = character.get_world_2d().direct_space_state
-	if not _anything_near(space, character):
+	if sweep.is_clear():
 		clear()
 		return
 	var rig := Rig.new(character, false)
 	for i in 2:
-		_ankle[i] = _rest_leg(space, character, rig, i, delta)
-
-
-## Whether anything solid is within `NEAR` px of the body centre.
-func _anything_near(space: PhysicsDirectSpaceState2D, character: CharacterBody2D) -> bool:
-	var circle := CircleShape2D.new()
-	circle.radius = NEAR
-	var params := PhysicsShapeQueryParameters2D.new()
-	params.shape = circle
-	params.collision_mask = MASK
-	params.exclude = [character.get_rid()]
-	params.transform = Transform2D(0.0, character.global_position)
-	return not space.intersect_shape(params, 1).is_empty()
+		_ankle[i] = _rest_leg(character, rig, i, delta)
 
 
 ## Side `i`'s resting ankle (local x/y), or null when neither it nor the knee meets anything.
 func _rest_leg(
-	space: PhysicsDirectSpaceState2D,
 	character: CharacterBody2D,
 	rig: Rig,
 	i: int,
@@ -85,19 +71,19 @@ func _rest_leg(
 ) -> Variant:
 	var wanted: Vector3 = rig.point(Rig.ANKLE[i])
 	var ankle_at := Vector2(wanted.x, wanted.y)
-	var rested := _sweep(space, character, ankle_at)
+	var rested := _sweep(character, ankle_at)
 	var knee_wanted := Vector2.ZERO
 	var knee_rested := Vector2.ZERO
 	for _try in KNEE_TRIES:
 		var knee3: Vector3 = rig.knee_at(i, Vector3(rested.x, rested.y, wanted.z))
 		knee_wanted = Vector2(knee3.x, knee3.y)
-		knee_rested = _sweep(space, character, knee_wanted)
+		knee_rested = _sweep(character, knee_wanted)
 		var overshoot := knee_rested - knee_wanted
 		if overshoot.length() <= REST_EPS:
 			break
 		# The knee would pass through something: step the foot back by how far it overshot, then
 		# rest it again.
-		rested = _sweep(space, character, rested + overshoot)
+		rested = _sweep(character, rested + overshoot)
 	_press(character, 2 + i, knee_wanted, knee_rested, delta)
 	_press(character, i, ankle_at, rested, delta)
 	if (rested.distance_to(ankle_at) <= REST_EPS
@@ -109,18 +95,8 @@ func _rest_leg(
 ## The place `target` (local px) can be reached from the body centre by a foot-sized circle:
 ## `target` itself when the way is clear, else where it first touches a wall or solid piece, slid
 ## along the surface for what is left.
-func _sweep(
-	space: PhysicsDirectSpaceState2D,
-	character: CharacterBody2D,
-	target: Vector2,
-) -> Vector2:
-	return Sweep.circle(
-		space,
-		character.global_position,
-		target,
-		CharacterPushConfig.leg_radius,
-		[character.get_rid()],
-	)
+func _sweep(character: CharacterBody2D, target: Vector2) -> Vector2:
+	return sweep.circle(character.global_position, target, CharacterPushConfig.leg_radius)
 
 
 ## Shove the light piece (if any) that a point wanted at `wanted` but rested at `rested` (local px)
@@ -145,7 +121,7 @@ func _press(
 	if approach <= 0.0:
 		return
 	var at: Vector2 = character.global_position + rested
-	var piece := _pushable_at(character.get_world_2d().direct_space_state, character, at)
+	var piece: Node = sweep.pushable_at(at)
 	if piece == null:
 		return
 	var strength := (clampf(approach / maxf(float(character.movement.speed), 1.0), 0.0, 1.0)
@@ -159,26 +135,3 @@ func _press(
 		at,
 		float(character.movement.speed),
 	)
-
-
-## The light, pushable piece touching a foot-sized circle at world point `at`, or null: a body that
-## takes an impulse and has a mass, and is not another character.
-func _pushable_at(
-	space: PhysicsDirectSpaceState2D,
-	character: CharacterBody2D,
-	at: Vector2,
-) -> Node:
-	var circle := CircleShape2D.new()
-	circle.radius = CharacterPushConfig.leg_radius + 1.5
-	var params := PhysicsShapeQueryParameters2D.new()
-	params.shape = circle
-	params.collision_mask = MASK
-	params.exclude = [character.get_rid()]
-	params.transform = Transform2D(0.0, at)
-	for result in space.intersect_shape(params, 4):
-		var body: Object = result.collider
-		if body is CharacterBody2D:
-			continue
-		if body.has_method("apply_impulse") and body.has_method("get_mass"):
-			return body
-	return null

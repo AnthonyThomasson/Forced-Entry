@@ -12,6 +12,7 @@ position it reports is world space) carries the metas that `WorldGen` and `Distr
 | `district_keepouts.gd` (`DistrictKeepouts`) | What the street furniture keeps clear of (the doorway zones, the crossings' landings, the towers' bodies and the lamp posts) and `clear(rect)`, the one rule for lamps and clutter. |
 | `district_streets.gd` (`DistrictStreets`) | The street floors, the lamps along every block's sidewalks and the sidewalk clutter. |
 | `tower_dressing.gd` (`TowerDressing`) | A tower's street shadow, podium band, door awning and glyph sign. |
+| `district_prewarm.gd` (`DistrictPrewarm`) | The district's shared pixel-art requests for `WorldGen.prewarm` (Objects' `SharedTextures` plus the plans' shadows and uncut podium segments). |
 | `district_shells.gd` (`DistrictShells`) | The ring of shells. |
 | `district_reads.gd` (`DistrictReads`) | The test reads (interface 1). |
 | `tower_definitions.gd` (`TowerDefinitions`) | The six tower plans. |

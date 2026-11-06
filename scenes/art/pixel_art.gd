@@ -35,6 +35,15 @@ static var _emissive: Dictionary = {}
 static var _turned_memo: Dictionary = {}
 ## Painters' looks by their handle (`handle`).
 static var _looks: Dictionary = {}
+## Guards the caches and `_warmed` while the district's shared textures are painted on a worker.
+static var _warm_lock := Mutex.new()
+## The cold shared requests the worker paints, each `{ key, request }` (read-only while it runs).
+static var _warm_requests: Array = []
+## Images the worker has painted, by render key; `render` files one as a texture on the main thread
+## when its key is asked for, `finish_warming` files the rest.
+static var _warmed: Dictionary = {}
+## The worker's task id, or -1 when no warm is outstanding.
+static var _warm_task := -1
 
 
 ## `painter`'s art for a footprint of `size` world px whose front faces the cardinal `facing`, with
@@ -44,14 +53,126 @@ static func render(painter: Script, size: Vector2, color: Color, facing: Vector2
 	var turns := _turns(facing)
 	var base_key := _key(painter, size, color, opts)
 	var key := _render_key(base_key, turns)
-	if _cache.has(key):
-		return _cache[key]
-	var res := _resolution(size)
+	var cached := _cached(key)
+	if cached != null:
+		return cached
+	return _paint_and_store({
+		"painter": painter, "size": size, "color": color, "facing": facing, "opts": opts,
+	})
+
+
+## Paint every cold shared request on one worker (as Sound's library warm does). Painters read only
+## constant tables and static tuning, so a main-thread paint may overlap it. Cache reads and writes
+## are mutexed. A `render` never waits for it: it files the image the worker already painted for its
+## key, else paints synchronously, and the worker skips a key that is cached by then. Keys and
+## pixels are
+## the synchronous paint's either way.
+static func warm(requests: Array) -> void:
+	finish_warming()
+	_warm_lock.lock()
+	var seen := {}
+	for request: Dictionary in requests:
+		var key := _render_key(
+			_key(request["painter"], request["size"], request["color"], request["opts"]),
+			_turns(request["facing"]),
+		)
+		if not _cache.has(key) and not seen.has(key):
+			seen[key] = true
+			_warm_requests.append({ "key": key, "request": request })
+	_warm_lock.unlock()
+	if not _warm_requests.is_empty():
+		_warm_task = WorkerThreadPool.add_task(_warm_all, false, "pixel-art pre-warm")
+
+
+## Wait for the outstanding warm to finish and file every image it painted as a texture, on the
+## main thread. A build does not need this: it is for a caller that wants the cache complete.
+static func finish_warming() -> void:
+	if _warm_task < 0:
+		return
+	WorkerThreadPool.wait_for_task_completion(_warm_task)
+	_warm_task = -1
+	_warm_lock.lock()
+	var painted := _warmed
+	_warmed = {}
+	_warm_requests.clear()
+	_warm_lock.unlock()
+	for images: Dictionary in painted.values():
+		_file_painted(images)
+
+
+## Paint the cold shared requests in order on the worker, skipping a key a build has cached. Only
+## image work runs here: creating an ImageTexture would touch the rendering server off the main
+## thread.
+static func _warm_all() -> void:
+	for entry: Dictionary in _warm_requests:
+		var key: String = entry["key"]
+		_warm_lock.lock()
+		var done := _cache.has(key)
+		_warm_lock.unlock()
+		if done:
+			continue
+		var images := _paint_images(entry["request"])
+		_warm_lock.lock()
+		_warmed[key] = images
+		_warm_lock.unlock()
+
+
+## A cached texture, or the one made from the image the warm already painted for `key`, or null.
+## Reads under the warm lock.
+static func _cached(key: String) -> Texture2D:
+	_warm_lock.lock()
+	var texture: Texture2D = _cache.get(key)
+	var images: Dictionary = {}
+	if texture == null and _warmed.has(key):
+		images = _warmed[key]
+		_warmed.erase(key)
+	_warm_lock.unlock()
+	return texture if images.is_empty() else _file_painted(images)
+
+
+## Paint a cold request, then file its art and emissive textures unless another path got there
+## first.
+static func _paint_and_store(request: Dictionary) -> Texture2D:
+	return _file_painted(_paint_images(request))
+
+
+## Paint a request into ordinary and emissive Images, with no texture or cache access. Pure image
+## work is what the warm's worker runs.
+static func _paint_images(request: Dictionary) -> Dictionary:
+	var turns := _turns(request["facing"])
+	var base_key := _key(
+		request["painter"], request["size"], request["color"], request["opts"],
+	)
+	var res := _resolution(request["size"])
 	var canon := Vector2i(res.y, res.x) if turns % 2 == 1 else res
-	var canvas := _paint(painter, _canvas(canon, -turns * PI * 0.5, base_key), color, opts)
+	var canvas := _paint(
+		request["painter"],
+		_canvas(canon, -turns * PI * 0.5, base_key),
+		request["color"],
+		request["opts"],
+	)
 	var glow := canvas.emissive()
-	_emissive[key] = null if glow == null else ImageTexture.create_from_image(_turned(glow, turns))
-	return _store(key, _turned(canvas.img, turns))
+	return {
+		"key": _render_key(base_key, turns),
+		"image": _turned(canvas.img, turns),
+		"glow": null if glow == null else _turned(glow, turns),
+	}
+
+
+## File painted Images into the caches on the main thread, or return the entry a synchronous paint
+## already filed. `_warm_lock` covers both dictionaries and the duplicate-entry check.
+static func _file_painted(images: Dictionary) -> Texture2D:
+	var key: String = images["key"]
+	_warm_lock.lock()
+	if _cache.has(key):
+		var cached: Texture2D = _cache[key]
+		_warm_lock.unlock()
+		return cached
+	var glow: Image = images["glow"]
+	_emissive[key] = null if glow == null else ImageTexture.create_from_image(glow)
+	var texture := _store_unlocked(key, images["image"])
+	_warm_lock.unlock()
+	return texture
 
 
 ## The emissive pixels of `render`'s texture for the same inputs (painting it if it is not cached
@@ -60,7 +181,12 @@ static func render(painter: Script, size: Vector2, color: Color, facing: Vector2
 static func emissive(painter: Script, size: Vector2, color: Color, facing: Vector2 = Vector2.DOWN,
 		opts: Dictionary = {}) -> Texture2D:
 	render(painter, size, color, facing, opts)
-	return _emissive.get(_render_key(_key(painter, size, color, opts), _turns(facing)))
+	_warm_lock.lock()
+	var texture: Texture2D = _emissive.get(
+		_render_key(_key(painter, size, color, opts), _turns(facing)),
+	)
+	_warm_lock.unlock()
+	return texture
 
 
 ## Which way, away from the light, a cast shadow falls in `node`'s frame (a unit vector): the
@@ -103,12 +229,14 @@ static func render_turned(painter: Script, size: Vector2, color: Color, angle: f
 		return memo
 	var base_key := _key(painter, size, color, opts)
 	var key := "%s|a%.4f" % [base_key, angle]
-	var tex: Texture2D
-	if _cache.has(key):
-		tex = _cache[key]
-	else:
+	var tex := _cached(key)
+	if tex == null:
 		var canvas := _canvas(_resolution(size), -angle, base_key)
-		tex = _store(key, _paint(painter, canvas, color, opts).img)
+		_warm_lock.lock()
+		tex = _cache.get(key)
+		if tex == null:
+			tex = _store_unlocked(key, _paint(painter, canvas, color, opts).img)
+		_warm_lock.unlock()
 	if _turned_memo.size() >= TURNED_MEMO_MAX:
 		_turned_memo.clear()
 	# The caller may change its dictionary later; the memo keeps the values it was asked with.
@@ -187,8 +315,8 @@ static func _painter_opts(opts: Dictionary) -> Dictionary:
 	return own
 
 
-## Cache `img` as a texture under `key` and return it.
-static func _store(key: String, img: Image) -> Texture2D:
+## Cache `img` as a texture under `key` and return it. `_warm_lock` is held.
+static func _store_unlocked(key: String, img: Image) -> Texture2D:
 	var tex := ImageTexture.create_from_image(img)
 	_cache[key] = tex
 	return tex

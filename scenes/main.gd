@@ -68,6 +68,8 @@ var _overlays := MainOverlays.new(self)
 
 
 func _ready() -> void:
+	# Paint the district's shared art while the setup window is open; headless runs skip this.
+	WorldGen.prewarm()
 	# The saved settings (key bindings, Debug) are layered over the defaults here, in the
 	# composition root, so the headless test runner never reads a developer's file. The run's Debug
 	# export seeds the setting first, so a file that doesn't name it leaves the export standing.

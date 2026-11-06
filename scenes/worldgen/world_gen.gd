@@ -10,6 +10,15 @@ class_name WorldGen
 ## district's test reads are `DistrictReads`).
 
 
+## Start painting the textures every district shares on PixelArt's worker while Main's setup window
+## is open. Headless runs skip the warm, so their first district keeps the ordinary synchronous
+## cold path.
+static func prewarm() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	PixelArt.warm(DistrictPrewarm.requests())
+
+
 ## Build a house and return its root Node2D (parented under `parent`). `rng_seed` of 0 picks a
 ## fresh random layout each run; `force_plan` ("" = random) pins a specific floorplan. A doorway
 ## holds a door as the floorplan's rules roll (`get_doors`) and is an open archway otherwise; the

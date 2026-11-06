@@ -44,7 +44,7 @@ A kept light's rhythm is picked from the declaration's `rhythm` weights with an 
 
 ## Each frame (`_process`), allocation-free
 
-- A rhythm drives the light's energy and dims its `glow` (the piece's `Emissive` overlay or the fixture's glyph) with it.
+- A rhythm still steps every frame and drives the light's energy and dims its `glow` (the piece's `Emissive` overlay or the fixture's glyph) with it, but unchanged energy/glow values are not written again (`rhythm_skips_unchanged_writes_test.gd`).
 - `flash_pool.gd`'s `clear_bodies`: a lit flash drops `CHARACTER` from its shadow mask while a living character's centre is
   within `radius × body_clear` of the flash's, and gets it back once none is. The character list is re-read from the group
   `characters` only when `get_node_count_in_group` changes; `shadow_item_cull_mask` is written only when it changes. A flash runs

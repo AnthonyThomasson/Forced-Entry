@@ -39,7 +39,10 @@ Pick the entry point by how the thing turns:
 Invariants:
 
 - The cache is static (survives scene reloads), keyed by painter path + inputs + orientation. A piece's random detail is seeded
-  by its inputs *without* orientation, so it does not change as the piece turns.
+  by its inputs *without* orientation, so it does not change as the piece turns. `warm(requests)` paints complete `render` requests
+  on one worker under the cache mutex (concurrent painter scripts are not safe); `finish_warming` waits and creates their textures
+  on the main thread. A `render` never waits for the warm: it files the image the worker has painted for its key, else paints synchronously (the worker skips a cached key). Main starts the
+  district warm through `WorldGen.prewarm`; headless skips it. Pixel equivalence: `prewarm_paints_shared_textures_test.gd`.
 - A painter's big look (a character style, a gun's `looks` row) travels in `opts.look` as the int from `handle(look)`, never as
   a dict: the caches key by the options. `look_of(opts)` reads it back. Character and Items painters use it.
 - `render_turned` sits behind a bounded memo (`_turned_memo`, `TURNED_MEMO_MAX`) keyed by exact arguments, because a character

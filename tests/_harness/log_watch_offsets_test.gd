@@ -44,6 +44,10 @@ func run(t: TestContext) -> void:
 		"with its message",
 	)
 	t.expect_eq(watch.consumed(), before.length(), "and has consumed exactly the bytes it parsed")
+	var opens = watch.get("opens")
+	if not t.require(opens != null, "the watcher counts its file opens"):
+		return
+	t.expect_eq(opens, 1, "begin opens the log once")
 
 	f = FileAccess.open(SCRATCH, FileAccess.READ_WRITE)
 	f.seek_end()
@@ -56,4 +60,35 @@ func run(t: TestContext) -> void:
 		watch.consumed() < FileAccess.get_file_as_string(SCRATCH).length(),
 		"an unterminated last line is left unconsumed",
 	)
+	t.expect_eq(watch.get("opens"), 1, "an appended log keeps the same open handle")
+
+	_rewrites(t, watch)
+	watch = null
+	ignoring = null
 	DirAccess.remove_absolute(path)
+
+
+func _rewrites(t: TestContext, watch: RefCounted) -> void:
+	var f := FileAccess.open(SCRATCH, FileAccess.WRITE)
+	f.store_string("WARNING: after truncation\n")
+	f.close()
+	var truncated: Array = watch.poll(true)
+	t.expect_eq(truncated.size(), 1, "a truncated log is read again from its start")
+	t.expect_eq(
+		truncated[0]["message"] if not truncated.is_empty() else "",
+		"after truncation",
+		"the new warning is seen",
+	)
+	t.expect_eq(watch.get("opens"), 2, "truncation reopens the handle")
+
+	f = FileAccess.open(SCRATCH, FileAccess.WRITE)
+	f.store_string("ERROR: rewritten problem\n   at: rewrite (b.gd:2)\n")
+	f.close()
+	var rewritten: Array = watch.poll(true)
+	t.expect_eq(rewritten.size(), 1, "an in-place rewrite is detected even when the log grows")
+	t.expect_eq(
+		rewritten[0]["message"] if not rewritten.is_empty() else "",
+		"rewritten problem",
+		"the rewritten entry is seen",
+	)
+	t.expect_eq(watch.get("opens"), 3, "a rewrite reopens the handle")

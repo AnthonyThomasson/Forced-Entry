@@ -19,6 +19,9 @@ own (start it with --log-file <file>) - errors and warnings will NOT fail this t
   run (`Logged outside any test`). A `run_tests.sh` process owns a fresh log, so the watch starts at byte 0 and start-up
   errors count. gdUnit's own log scan (`report/godot/script_error`) is off in `project.godot`: it reads the project's
   log path, not the run's, and would blame a test for another Godot's errors.
+- **Open handle:** `begin` keeps the log open and each physics-frame poll queries and reads that handle rather than reopening it.
+  A shorter length or a change in the remembered 64-byte tail before the read offset reopens it and reads from the start, so
+  truncation and in-place rewrites are seen; appends reuse the handle. `log_watch_offsets_test.gd` pins all three cases.
 - **Nothing escapes the process:** the run writes `log_end` (`LogWatch.consumed()`) into its report; the wrapper then
   scans the log from there to the end with `tools/scan_godot_log.py` (gdUnit's reports, shutdown), from byte 0 when no
   report exists (`--list`, a crash). Any hit fails the run. Godot's end-of-process leak report ("ObjectDB instances
