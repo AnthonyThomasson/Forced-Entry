@@ -29,7 +29,7 @@
 	 navmesh; unchanged before the bake), `snap_within(map, p, rect, from) -> Vector2` (the same kept inside `rect`, a room, on floor a
 	 route from `from` reaches: `p` stepped toward its centre, then toward `from`, until its snap lands in it and is reached, so a point
 	 by a thin wall never snaps to the far side, nor into a pocket furniture walls off; the entry's corners), `route(map, from, to) -> PackedVector2Array` (the navigated waypoints; a straight segment before
-	 the bake or with no path), `path_length(path) -> float`. Every user goes through these (AI locomotion, tactics and entry geometry,
+	 the bake or with no path), `path_length(path) -> float`. A repeat of an exact `(map, from, to)` `route` is answered from a bounded cache that every re-bake of the district or the ring starts afresh (`NavRoutes`, `domain-navigation`); the answer is the uncached one. Every user goes through these (AI locomotion, tactics and entry geometry,
 	 grenade escape plan, snapshot options, routes overlay, the squad's follow spots, `PlayerStack`, the match builder's wait), so the "is
 	 the map baked yet" rule lives in one place.
    - **A district's planning ring**, the AI's planning map in a district: `NavBuilder.plan_ring(region, house, focus, agent_radius = NavBuilder.AGENT_RADIUS)`

@@ -21,6 +21,9 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.district(SEED)
 	s.switch(&"nav.rebake", false)
+	# The bounds cache is keyed by an outline's value and outlives a test: an earlier run in the
+	# process that measured the moved puppet's outline would leave nothing to measure again here.
+	s.set_static(NavTiles, &"_bounds", {})
 	s.actor(&"p", &"puppet", Vector2.ZERO)
 
 

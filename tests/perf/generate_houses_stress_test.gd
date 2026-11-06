@@ -16,6 +16,11 @@ const NODE_BAND := [250, 420]
 # Godot: ~1855 ms, ~6650 nodes), the second is the steady cost (~147 ms) that a run after other
 # tests also reads for the first (the whole perf domain: ~150 ms). Time budgets ~4x, the node band
 # about +-25%.
+# 2026-11-06, #192: the headless cold build runs without the art pre-warm (tests skip it), so the
+# pre-warm does not move this number. Quiet machine, load 2.6 to 2.8, no other Godot, the test
+# alone, twice: cold 1870 and 1873 ms, steady 152 and 153 ms (the whole perf domain: 157 and
+# 160 ms for the first build). The base commit read 152 ms steady on the same machine. 7500 ms is
+# 4.0x the cold build and 600 ms 3.9x the steady one, so neither is set again.
 const DISTRICT_BUDGET_MS := 7500.0
 const DISTRICT_WARM_BUDGET_MS := 600.0
 const DISTRICT_NODE_BAND := [5200, 8700]

@@ -6,6 +6,9 @@ extends GameTest
 ## ring, a map of the match building and its outdoor ring that these are answered from
 ## (`navigation/plan_ring_answers_like_the_district`). Baseline: ~16 ms for the 360 queries asked
 ## of the district map, ~4 ms from the ring. Budget 2x the ring's, half the district map's.
+## 2026-11-06, #192 (quiet, load 3.5 to 3.9, two runs): 3.8 and 4.6 ms from the ring (the base
+## commit, same machine: 3.5). The route cache would answer a repeat at once, so each round also
+## nudges the route ends: the guard still measures the server's queries. The budget stands at 2x.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const ROUNDS := 30

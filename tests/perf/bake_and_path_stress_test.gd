@@ -11,6 +11,11 @@ extends GameTest
 ## a loaded machine (load ~4, three other Godot): ~57 ms a sync planning re-bake (a house: ~2.5),
 ## ~20 ms to start an async one, ~5.5 ms a steering re-bake, ~24 ms for all
 ## 300 queries (a house: ~1.2; the map has ten times the polygons). Budgets ~2.5-3x.
+## 2026-11-06, #192 (quiet machine, load 2.7 to 3.2, no other Godot, two runs; the base commit on
+## the same machine in brackets): 58.8 and 57.8 ms a planning re-bake [58.0], 21.7 and 21.3 ms to
+## start an async one [21.2], 5.6 and 5.1 ms a steering re-bake [5.3], 23.8 and 23.1 ms for the 300
+## queries [22.9]. The tile binning and the route cache did not move what these four measure (the
+## steering re-bake here is one to four tiles), so no budget is set again.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const REBAKES := 10
