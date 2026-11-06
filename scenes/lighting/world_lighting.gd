@@ -55,6 +55,10 @@ var _fixtures: Array = []
 var _dropped: Array = []
 ## The flash pool and who stands in a flash (flash_pool.gd).
 var _pool: FlashPool
+## Test reads: rhythms advance every frame, but only changed values are written.
+var rhythm_steps := 0
+var energy_writes := 0
+var glow_writes := 0
 
 
 func _exit_tree() -> void:
@@ -67,10 +71,17 @@ func _process(delta: float) -> void:
 		if lit.rhythm == null:
 			continue
 		var f := lit.rhythm.step(delta)
-		lit.light.energy = lit.energy * f
+		rhythm_steps += 1
+		var energy := lit.energy * f
+		if energy != lit.light.energy:
+			lit.light.energy = energy
+			energy_writes += 1
 		if lit.glow != null:
 			var g := clampf(0.3 + 0.7 * f, 0.0, 1.1)
-			lit.glow.modulate = Color(g, g, g)
+			var glow := Color(g, g, g)
+			if glow != lit.glow.modulate:
+				lit.glow.modulate = glow
+				glow_writes += 1
 	_pool.step(delta)
 	_pool.clear_bodies()
 

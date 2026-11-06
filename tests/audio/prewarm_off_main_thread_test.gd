@@ -8,6 +8,8 @@ extends GameTest
 
 ## Every `STRIDE`th pair of the library is rendered again on demand and compared.
 const STRIDE := 7
+## How long (wall clock) the worker gets to render its first sound.
+const WORKER_WAIT_MS := 20_000
 
 
 func describe() -> Dictionary:
@@ -31,7 +33,12 @@ func run(t: TestContext) -> void:
 	var main_renders := SoundBank.main_thread_renders
 	Sound.warm(library)
 	t.check(Sound.warming(), "the pre-warm is under way")
-	await t.until(func() -> bool: return SoundBank.cached_count() > 0, 5.0)
+	# The worker renders in real time and the sim clock outruns the wall clock, so wait for its
+	# first sound by the wall clock, a frame at a time (it is filed by the service's frame).
+	var give_up := Time.get_ticks_msec() + WORKER_WAIT_MS
+	while SoundBank.cached_count() == 0 and Time.get_ticks_msec() < give_up:
+		OS.delay_msec(5)
+		await t.frames(1)
 	t.check(
 		SoundBank.cached_count() > 0,
 		"the finished sounds are filed as frames go by (%d)" % SoundBank.cached_count(),

@@ -76,6 +76,7 @@ func _ready() -> void:
 	visuals.name = "DoorVisuals"
 	visuals.setup(self, size)
 	add_child(visuals)
+	set_physics_process(false)
 
 
 ## Turn the leaf on a step if it is swinging, or being pushed.
@@ -83,14 +84,18 @@ func _physics_process(delta: float) -> void:
 	if not swing.moving():
 		if push.moving():
 			_pushed(delta)
+		if not push.moving():
+			set_physics_process(false)
 		return
 	if _blocked(swing.after(delta), delta, true):
 		swing.halt()
+		set_physics_process(false)
 		changed.emit()
 		return
 	swing.advance(delta)
 	global_transform = leaf_pose(swing.angle)
 	if not swing.moving():
+		set_physics_process(false)
 		changed.emit()
 		if is_zero_approx(swing.angle):
 			_post(&"shut")
@@ -262,6 +267,8 @@ func apply_impulse(impulse: Vector2, at := Vector2.ZERO) -> void:
 	if not push.moving():
 		push.began_at = swing.angle
 	push.shove(impulse, global_position + at, _pivot(), swing.turn, float(_row["weight"]))
+	if push.moving():
+		set_physics_process(true)
 
 
 ## The leaf's mass, read by a pusher.
@@ -294,6 +301,7 @@ func _hurt(strike: float, kind: StringName, direction: Vector2) -> void:
 ## doorway's way no more.
 func _fall(direction: Vector2) -> void:
 	_down = true
+	set_physics_process(false)
 	swing.angle = open_angle
 	swing.halt()
 	push.stop()
@@ -420,6 +428,7 @@ func _turn_to(to: float) -> void:
 	var begins := opens and GameClock.seconds() - _opened_at >= DoorConfig.latch_gap
 	_opened_at = GameClock.seconds() if opens else -INF
 	swing.begin(goal, DoorConfig.swing_time * absf(goal - swing.angle) / open_angle)
+	set_physics_process(true)
 	changed.emit()
 	if begins:
 		_post(&"open")
@@ -429,6 +438,7 @@ func _turn_to(to: float) -> void:
 func _burst() -> void:
 	push.stop()
 	swing.begin(open_angle, (open_angle - swing.angle) / DoorConfig.burst_speed, false)
+	set_physics_process(true)
 	changed.emit()
 	_post(&"burst")
 

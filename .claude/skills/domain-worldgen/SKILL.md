@@ -13,7 +13,7 @@ Interfaces: 1 (Main → World Generation, incl. `generate_district`, `house_of`,
 
 | File | Role |
 |---|---|
-| `world_gen.gd` (`WorldGen`) | `generate` picks one `HouseDefinitions.PLANS` floorplan and hands it to `HouseSpawner`; `bounds(rooms)` (the one copy of the rooms' bounding box); `annotate_layout` and the catalogue lookups for outside builders (Testing's arenas and placed pieces). |
+| `world_gen.gd` (`WorldGen`) | `prewarm` hands Objects' shared-district art requests to PixelArt at boot (skipped headless); `generate` picks one `HouseDefinitions.PLANS` floorplan and hands it to `HouseSpawner`; `bounds(rooms)` (the one copy of the rooms' bounding box); `annotate_layout` and the catalogue lookups for outside builders (Testing's arenas and placed pieces). |
 | `house_definitions.gd`, `layout_rules.gd` | The 11 house floorplans; `LayoutRules`, the table of what makes a plan logical (houses and towers alike). |
 | `tower_definitions.gd`, `district_*.gd`, `tower_dressing.gd`, `street_lamps.gd`, `world_gen_{district,tower,shell}_config.gd` | The downtown district: six tower plans, the layout, streets, tower dressing, shells and their tuning: `district.md`. |
 | `categories/doors.gd`, `door_rules.gd`, `house_doors.gd`, `world_gen_door_config.gd` | The doors in a house: `doors.md`. |

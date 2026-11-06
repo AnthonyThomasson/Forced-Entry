@@ -149,16 +149,19 @@ func stock() -> void:
 ## empty the grenade slots whose last grenade has been thrown: if one was held, the gun is taken up
 ## again (the lowest slot that takes ammo, as `gun_slot()` says), else the fists.
 func tick(delta: float) -> void:
-	for item: Item in _items.values():
-		item.tick(delta)
 	var emptied := false
+	var gun := -1
 	for slot: int in _items.keys():
-		if _items[slot].uses_left() == 0:
+		var item: Item = _items[slot]
+		item.tick(delta)
+		if item.uses_left() == 0:
 			_items.erase(slot)
 			emptied = emptied or slot == _current_slot
+		elif item.ammo.capacity() >= 0 and (gun < 0 or slot < gun):
+			gun = slot
 	if not emptied:
 		return
-	_current_slot = gun_slot()
+	_current_slot = gun
 	if _current_slot < 0:
 		_current_slot = (ItemRegistry.FISTS_SLOT
 				if ItemRegistry.FISTS_SLOT in _items

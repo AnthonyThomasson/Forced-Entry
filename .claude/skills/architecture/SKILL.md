@@ -49,7 +49,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 9. **Main / Testing / AI → Navigation.** Read to bake, query or path the nav map: `interfaces/09-navigation.md`
 10. **Any domain ↔ General (`EventBus`).** Read to post or listen to an event and for every topic's payload: `interfaces/10-eventbus.md`
 11. **General → every domain: shared ids and rules.** Read for `PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `FillBatch`, `WeightedPick`, `MatchVerdict`: `interfaces/11-general-shared-ids-and-rules.md`
-12. **Objects / Character / Items / Vehicles → Art.** Read to render pixel art: `interfaces/12-art.md`
+12. **Objects / Character / Items / Vehicles / World Generation → Art.** Read to render pixel art or pre-warm the shared district textures: `interfaces/12-art.md`
 13. **Testing → every domain.** Read for what a test world (house, arena or district) may build and call: `interfaces/13-testing.md`
 14. **Main → General settings, UI settings page.** Read for saved settings and key rebinding: `interfaces/14-settings.md`
 15. **Any domain → General (`GameLog`).** Read to print to the game's log: `interfaces/15-gamelog.md`
@@ -73,7 +73,7 @@ main ──▶ worldgen, navigation, lighting, vision, ai, items, character, aud
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
-worldgen ──▶ objects (the six factories, `DecalFactory` among them, RoomWalls, WearPlan, and `DoorConfig.open_angle`: 24)
+worldgen ──▶ objects (the six factories, `DecalFactory` among them, RoomWalls, WearPlan, `SharedTextures`, and `DoorConfig.open_angle`: 24), art (`PixelArt.warm`: 12)
 objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake leaves the group `doors` out but carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
 items ──▶ projectile, art          projectile ──▶ physics          vehicle ──▶ physics, art

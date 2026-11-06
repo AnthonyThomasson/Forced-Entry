@@ -24,7 +24,7 @@ domain's worlds build through `MatchBuilder` too, so a test measures the match M
 
 ## Setup flow
 
-A fresh launch loads settings, opens the setup window (`domain-ui` (`menus.md`)) and builds nothing until a start button.
+A fresh launch starts `WorldGen.prewarm` (the district's shared pixel art on a worker; skipped headless), loads settings, opens the setup window (`domain-ui` (`menus.md`)) and builds nothing until a start button.
 
 - `Settings.debug` is seeded from `run.debug_overlays` before `Settings.load_file()`, so the headless runner never reads a
   developer's file and a file that does not name Debug leaves the export standing.

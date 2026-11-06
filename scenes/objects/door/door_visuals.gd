@@ -21,6 +21,7 @@ var _lit := NAN
 
 
 func _ready() -> void:
+	set_notify_transform(true)
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	deformable = Deformable.new()
 	deformable.max_depth = DoorConfig.dent_depth
@@ -31,8 +32,11 @@ func _ready() -> void:
 	_refresh(global_rotation)
 
 
-## Paint the art again when the leaf has turned to another lighting step.
-func _process(_delta: float) -> void:
+## Paint the art again when the leaf's transform reaches another lighting step. A resting leaf
+## receives no notification and runs no per-frame callback.
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_TRANSFORM_CHANGED or not is_node_ready():
+		return
 	var snapped_angle := PixelArt.snap_angle(global_rotation)
 	if snapped_angle != _lit:
 		_refresh(snapped_angle)

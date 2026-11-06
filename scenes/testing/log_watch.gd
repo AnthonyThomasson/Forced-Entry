@@ -28,9 +28,14 @@ const GLOBAL_ALLOWED := [
 
 ## Set to watch a given log file instead of the one the process was started with.
 var path_override := ""
-## The log file being tailed, and the byte offset read up to.
+## The log file being tailed, its open handle, and the byte offset read up to.
 var _path := ""
+var _file: FileAccess
 var _offset := 0
+## Up to the last 64 bytes before `_offset`; a changed tail means the log was rewritten in place.
+var _tail := PackedByteArray()
+## Test read: successful file opens (one at begin, none for appends, one after truncation/rewrite).
+var opens := 0
 ## A trailing line not yet terminated by a newline (kept until the rest arrives).
 var _partial := ""
 ## The last parsed entry, held back one line so a following "at: file:line" can be attached.
@@ -49,7 +54,9 @@ func available() -> bool:
 ## (`--log-file`).
 func begin(from_start := false) -> void:
 	_path = path_override if path_override != "" else _own_log()
-	_offset = 0 if from_start else _length()
+	_open()
+	_offset = 0 if from_start or _file == null else _file.get_length()
+	_remember_tail()
 	_partial = ""
 	_pending = {}
 
@@ -67,20 +74,28 @@ func poll(flush := false) -> Array:
 	var out: Array = []
 	if _path == "":
 		return out
-	var length := _length()
-	if length < _offset:
-		_offset = 0  # rotated/truncated
+	if _file == null:
+		_open()
+	if _file == null:
+		return out
+	var length := _file.get_length()
+	if length < _offset or _tail_changed():
+		_open()  # Truncated or rewritten: judge the new contents from the start.
+		if _file == null:
+			return out
+		_offset = 0
+		_partial = ""
+		length = _file.get_length()
 	if length > _offset:
-		var f := FileAccess.open(_path, FileAccess.READ)
-		if f != null:
-			f.seek(_offset)
-			var text := _partial + f.get_buffer(length - _offset).get_string_from_utf8()
-			_offset = length
-			var lines := text.split("\n")
-			_partial = lines[lines.size() - 1]
-			lines.remove_at(lines.size() - 1)
-			for line in lines:
-				_feed(line.trim_suffix("\r"), out)
+		_file.seek(_offset)
+		var text := _partial + _file.get_buffer(length - _offset).get_string_from_utf8()
+		_offset = length
+		_remember_tail()
+		var lines := text.split("\n")
+		_partial = lines[lines.size() - 1]
+		lines.remove_at(lines.size() - 1)
+		for line in lines:
+			_feed(line.trim_suffix("\r"), out)
 	if flush and not _pending.is_empty():
 		out.append(_pending)
 		_pending = {}
@@ -166,8 +181,26 @@ func _process_args() -> PackedStringArray:
 	return String(output[0]).strip_edges().split(" ", false)
 
 
-## The log file's current size in bytes (0 when it is missing).
-func _length() -> int:
-	var path := _log_path()
-	var f := FileAccess.open(path, FileAccess.READ) if path != "" else null
-	return 0 if f == null else f.get_length()
+## Open the watched log for all subsequent polls, replacing any handle from an older incarnation.
+func _open() -> void:
+	_file = FileAccess.open(_path, FileAccess.READ) if _path != "" else null
+	if _file != null:
+		opens += 1
+
+
+## Remember the bytes immediately before the read offset, so an in-place rewrite that leaves the
+## file as long as before is still noticed without reopening it to query its length every frame.
+func _remember_tail() -> void:
+	var count := mini(64, _offset)
+	_tail = PackedByteArray()
+	if _file != null and count > 0:
+		_file.seek(_offset - count)
+		_tail = _file.get_buffer(count)
+
+
+## Whether the bytes already consumed have changed under the open handle.
+func _tail_changed() -> bool:
+	if _offset == 0 or _tail.is_empty():
+		return false
+	_file.seek(_offset - _tail.size())
+	return _file.get_buffer(_tail.size()) != _tail

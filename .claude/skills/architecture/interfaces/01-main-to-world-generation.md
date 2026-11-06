@@ -1,4 +1,6 @@
 1. **Main (through `MatchBuilder`, interface 23) → World Generation**
+   - `WorldGen.prewarm() -> void` — Main calls this at boot, before opening setup: with a display it hands Objects' shared district
+	 requests, plus each tower plan's shadow (either axis orientation) and its uncut podium segments (`DistrictPrewarm`), to `PixelArt.warm`; headless it returns without warming.
    - `WorldGen.generate(seed, force_plan, front_entrance_world, parent) -> Node2D` — one lone house, unturned (its front door on the
 	 south wall), from `HouseDefinitions.PLANS` only; one RNG for the whole run (the plan pick is its first draw), prints `House: <plan>
 	 seed: N`; a doorway with no door (the roll, or `worldgen.doors` off) is an open archway, one with a door holds a `Door`

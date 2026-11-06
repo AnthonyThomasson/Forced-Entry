@@ -13,6 +13,7 @@ const CharacterRagdoll = preload("res://scenes/character/body/character_ragdoll.
 const CharacterFootsteps = preload("res://scenes/character/character_footsteps.gd")
 const CharacterLegs = preload("res://scenes/character/body/character_legs.gd")
 const CharacterKick = preload("res://scenes/character/body/character_kick.gd")
+const BodySweep = preload("res://scenes/character/body/body_sweep.gd")
 
 ## The character the body is.
 var character: CharacterBody2D
@@ -43,6 +44,8 @@ var _drive := PoseDrive.new()
 var _rig: CharacterRig = null
 ## The physics frame `_rig` was solved in.
 var _rig_frame := -1
+## The shared near-solid gate and the reused hand / leg query objects.
+var sweep: BodySweep
 ## True once the dead body has come to rest and started bleeding out.
 var _bled_out := false
 
@@ -50,12 +53,15 @@ var _bled_out := false
 ## The body of `host`.
 func _init(host: CharacterBody2D) -> void:
 	character = host
+	sweep = BodySweep.new(host)
+	legs.sweep = sweep
 
 
 ## Find the Hands child and add the parts that are nodes as children of the character (from its
 ## `_ready`): the flesh's dents, the wound's bleeding, the bloody footprints and the shadow.
 func attach() -> void:
 	hands = character.get_node(^"Hands")
+	hands.sweep = sweep
 	# Compose the flesh deformation component; its impacts dent the drawn silhouette (visual
 	# only — the body keeps its circular hitbox). No carved chunks, since a chunk's reach
 	# would span this small body and fold it.
@@ -131,6 +137,7 @@ func step(delta: float) -> void:
 	kick.update(character, delta)
 	# Before the children's _physics_process, so the hands build on this frame's pose.
 	pose.update(delta, _pose_drive(character.get_real_velocity(), character.stun.level()))
+	sweep.refresh(maxf(CharacterLegs.NEAR, hands.near_radius()))
 	legs.update(character, delta)
 	footsteps.update(character)
 
@@ -143,6 +150,7 @@ func hold(delta: float, moving: Vector2, stun_at: float) -> void:
 	legs.clear()
 	kick.clear()
 	pose.update(delta, _pose_drive(moving, stun_at))
+	sweep.refresh(maxf(CharacterLegs.NEAR, hands.near_radius()))
 
 
 ## Record a wound: the dent (relative to the shoulders, so it turns with them), the blood debris and

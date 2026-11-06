@@ -55,6 +55,20 @@ static func exterior_runs(rooms: Array) -> Array:
 	return runs
 
 
+## The lengths (px) of the podium segments a tower of `rooms` stands with when no doorway cuts its
+## walls, each once. A doorway shortens some, so this is the part of a district's podium art that
+## is the same from tower to tower.
+static func plan_segment_lengths(rooms: Array) -> Array[float]:
+	var lengths: Array[float] = []
+	for run: Dictionary in exterior_runs(rooms):
+		for span in _free(Vector2(run["from"], run["to"]), []):
+			for part in _parts(span):
+				var length := part.y - part.x
+				if not lengths.has(length):
+					lengths.append(length)
+	return lengths
+
+
 ## `rect` (WORLD space) in the space of `node`.
 static func _local(node: Node2D, rect: Rect2) -> Rect2:
 	return Rect2(node.to_local(rect.position), rect.size)

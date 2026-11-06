@@ -14,6 +14,10 @@ var _condition := {}
 ## draws the outfit (the Character's art) checks one int each frame and re-reads `look(style)` only
 ## when it moved.
 var revision := 0
+## Cached total mass; negative means `set_ids` changed the loadout since it was weighed.
+var _weight := -1.0
+## Test read: full garment/plate walks made by `weight`.
+var weight_scans := 0
 
 
 func _init(worn_ids := {}) -> void:
@@ -26,6 +30,7 @@ func _init(worn_ids := {}) -> void:
 ## condition, a new one starts at 1.
 func set_ids(worn_ids: Dictionary) -> void:
 	revision += 1
+	_weight = -1.0
 	var was := _worn
 	_worn = {}
 	for slot: String in OutfitConfig.slots():
@@ -106,14 +111,17 @@ func wear(zone: StringName, side: StringName, damage: float) -> void:
 		revision += 1
 
 
-## Total weight worn (kg).
+## Total weight worn (kg), cached until the loadout changes.
 func weight() -> float:
-	var total := 0.0
+	if _weight >= 0.0:
+		return _weight
+	weight_scans += 1
+	_weight = 0.0
 	for slot: String in OutfitConfig.GARMENT_SLOTS:
-		total += float(OutfitConfig.garment(worn(slot)).get("weight", 0.0))
+		_weight += float(OutfitConfig.garment(worn(slot)).get("weight", 0.0))
 	for slot: String in OutfitConfig.PLATE_SLOTS:
-		total += float(OutfitConfig.plate(worn(slot)).get("weight", 0.0))
-	return total
+		_weight += float(OutfitConfig.plate(worn(slot)).get("weight", 0.0))
+	return _weight
 
 
 ## What the art draws in the character style `style` (its `OutfitConfig` row's `looks`; a style it

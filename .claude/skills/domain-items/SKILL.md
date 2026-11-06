@@ -46,7 +46,8 @@ What the match builder hands a character (`MatchBuilder.arm`, interface 23). `no
 
 - `layer(zone, side)` is what a round meets; what a layer does to a hit is `Character.take_hit` (`domain-character`), and the stop itself is the projectile's (`domain-projectile`).
 - A plate is kept only while the vest `holds_plates()`; a plate left in its slot keeps its condition, a new one starts at 1. `LoadoutConfig.outfit_of(loadout)` makes any outfit valid (a missing or misplaced id takes `LoadoutConfig.default_outfit`'s).
-- `revision` is bumped by `set_ids` and by a `wear` that lowered a condition; the art checks it once a frame.
+- `revision` is bumped by `set_ids` and by a `wear` that lowered a condition; the art checks it once a frame. `weight()` caches its
+  garment/plate total until `set_ids`; plate wear changes condition, not mass (`outfit_weight_follows_loadout_test.gd`).
 - `LoadoutConfig.outfit_options()` marks the plate-carrier choice `plates: true` and each plate row `plate: true`, so the setup window offers plates only with a vest that holds them (O11b).
 
 ## Dropping on death
