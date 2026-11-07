@@ -614,7 +614,7 @@ func search_group(ctx: Dictionary, known_rooms: Array, rooms: Array, entered := 
 		if (not here.is_empty() and room["key"] == here["key"]) or entered.has(str(room["key"])):
 			continue
 		var age: float = _memory.age_of(&"visited_room", "key", room["key"])
-		var point: Vector2 = NavBuilder.snap(ctx["map"], (room["rect"] as Rect2).get_center())
+		var point: Vector2 = _tactics.snap(ctx, (room["rect"] as Rect2).get_center())
 		var stale := age > _v.tuning.memory.search_ttl
 		if stale:
 			unsearched += 1
@@ -772,7 +772,7 @@ func explore_group(ctx: Dictionary, rooms: Array, entered := {}) -> Dictionary:
 	for room in rooms:
 		if known.has(room["key"]) or entered.has(str(room["key"])):
 			continue
-		var point: Vector2 = NavBuilder.snap(ctx["map"], (room["rect"] as Rect2).get_center())
+		var point: Vector2 = _tactics.snap(ctx, (room["rect"] as Rect2).get_center())
 		var dir := _v.compass(point - self_pos)
 		var dist := self_pos.distance_to(point)
 		if not by_dir.has(dir) or dist < by_dir[dir]["dist"]:
@@ -829,7 +829,7 @@ func room_group(ctx: Dictionary, known_rooms: Array, rooms: Array) -> Dictionary
 	for room in known_rooms:
 		if not here.is_empty() and room["key"] == here["key"]:
 			continue
-		var point: Vector2 = NavBuilder.snap(ctx["map"], (room["rect"] as Rect2).get_center())
+		var point: Vector2 = _tactics.snap(ctx, (room["rect"] as Rect2).get_center())
 		options.append({
 			"id": "room_%s" % room["key"], "label": "the %s" % _v.room_name(room["type"]),
 			"desc": "the %s" % _v.room_name(room["type"]),

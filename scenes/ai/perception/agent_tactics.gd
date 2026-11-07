@@ -91,6 +91,11 @@ func is_cover(obj: Object) -> bool:
 			or (obj is Node and obj.is_in_group(&"characters"))
 			or not obj.has_method("get_surface")):
 		return false
+	# A piece that holds its coverage says it without building its whole surface (a colour, a
+	# material, a penetration); one that works it out is asked for the surface.
+	var held: Variant = obj.get("coverage")
+	if held is float:
+		return held >= cover_min
 	return float(obj.get_surface().get("coverage", 0.0)) >= cover_min
 
 
@@ -124,13 +129,19 @@ func _route_exposed(
 		return false
 	var half := deg_to_rad(watch_arc) * 0.5
 	var seen := 0
+	var missed := 0
 	for i in ROUTE_SAMPLES:
 		var sample := _along(path, total * (i + 1) / (ROUTE_SAMPLES + 1))
-		if not is_nan(front) and not _looking_at(threat, front, sample, half):
-			continue
-		if not blocked(space, threat, sample, exclude):
-			seen += 1
-	return seen * 2 > ROUTE_SAMPLES
+		var in_sight := ((is_nan(front) or _looking_at(threat, front, sample, half))
+				and not blocked(space, threat, sample, exclude))
+		seen += 1 if in_sight else 0
+		missed += 0 if in_sight else 1
+		# Settled once more than half are seen, or too few are left to be.
+		if seen * 2 > ROUTE_SAMPLES:
+			return true
+		if (ROUTE_SAMPLES - missed) * 2 <= ROUTE_SAMPLES:
+			return false
+	return false
 
 
 ## The point `dist` px along a route.
@@ -537,6 +548,40 @@ func _cache_bucket(ctx: Dictionary, name: String) -> Dictionary:
 	return root[name]
 
 
+## What this snapshot already worked out under `key` in the bucket `name` of its cache, or null:
+## null too for a plain computation (no `tactics_cache`), which works everything out. A hit is
+## counted in `tactics_cache["hits"][name]` (what was kept in all is the bucket's size).
+func recall(ctx: Dictionary, name: String, key: Variant) -> Variant:
+	var root: Variant = ctx.get("tactics_cache")
+	if root == null or not root.has(name):
+		return null
+	var kept: Variant = root[name].get(key)
+	if kept != null:
+		var hits: Dictionary = root["hits"]
+		hits[name] = hits.get(name, 0) + 1
+	return kept
+
+
+## `value` worked out for `key` in the bucket `name`, kept for the snapshot's later asks
+## (`recall`); returns `value`.
+func remember(ctx: Dictionary, name: String, key: Variant, value: Variant) -> Variant:
+	var root: Variant = ctx.get("tactics_cache")
+	if root != null:
+		if not root.has(name):
+			root[name] = {}
+			root["hits"] = root.get("hits", {})
+		root[name][key] = value
+	return value
+
+
+## `p` snapped onto the navmesh, asked once a snapshot (throw candidates and room centres repeat).
+func snap(ctx: Dictionary, p: Vector2) -> Vector2:
+	var kept: Variant = recall(ctx, "snaps", p)
+	if kept != null:
+		return kept
+	return remember(ctx, "snaps", p, NavBuilder.snap(ctx["map"], p))
+
+
 ## The route from the frozen NPC position to `p`, shared by every target analysis in this snapshot.
 func _route(ctx: Dictionary, p: Vector2) -> PackedVector2Array:
 	var cache := _cache_bucket(ctx, "routes")
@@ -724,7 +769,7 @@ func _throw_point(ctx: Dictionary, r: Vector2, aim: ThrowAim) -> Vector2:
 	if (self_pos.distance_to(r) > throw_spot_walk
 			or r.distance_to(aim.spot) > aim.reach + SNAP_TOLERANCE):
 		return Vector2.INF
-	var p := NavBuilder.snap(ctx["map"], r)
+	var p := snap(ctx, r)
 	if (p.distance_to(r) > SNAP_TOLERANCE
 			or p.distance_to(aim.spot) > aim.reach
 			or self_pos.distance_to(p) < STRIDE):
@@ -843,7 +888,7 @@ func _retreat_candidates(ctx: Dictionary, threats: Array, rooms: Array, ex: Arra
 		if rect.has_point(self_pos):
 			continue
 		candidates.append({
-			"point": NavBuilder.snap(ctx["map"], rect.get_center()),
+			"point": snap(ctx, rect.get_center()),
 			"room": str(room.get("type", "room")).replace("_", " "),
 		})
 	if threats.is_empty():
