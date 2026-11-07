@@ -1,10 +1,11 @@
 extends GameTest
 ## The decision micro bundle (#192 rule 37) changes no answer, only the work: a route's exposure is
 ## settled as soon as five samples are seen or four missed, the throw lob of a spot is judged once
-## a decision whatever kind asks, room-centre snaps are asked once, a firing spot is refused by its
-## cheapest check first, and cover reads fewer properties. Each item is held against the plain
-## computation (the spec's own count of an exposed route: more than half of its eight samples in
-## sight) and shows by a counter that the fast path was taken.
+## a decision whatever kind asks, a navmesh point (room centres among them) is snapped once, and
+## cover is read without a piece's whole surface. A firing spot's checks already run cheapest
+## first (the route's crossing, which casts no ray, before its watchers), so none is reordered. Each
+## item is held against the plain computation (the spec's own count of an exposed route: more than
+## half of its eight samples in sight) and shows by a counter that the fast path was taken.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
@@ -24,7 +25,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "The decision micro bundle matches the plain computation",
 		"description": "Route exposure stopped early, the throw lob and room-centre snaps "
-			+ "memoised per decision, the firing spot's checks reordered and the cheaper cover "
+			+ "memoised per decision and the cheaper cover "
 			+ "read give the plain computation's answers with less work.",
 		"tags": ["ai", "decision", "tactics", "snapshot"],
 		"timeout": 30.0,
