@@ -11,6 +11,7 @@ const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_voca
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")
 const StackMember := preload("res://scenes/ai/perception/stack/stack_member.gd")
+const SnapshotLeadMemo = preload("res://scenes/ai/perception/snapshot/snapshot_lead_memo.gd")
 ## How a doorway's option says why its room is suspect (docs/grenades.md G18), one phrase per
 ## `AgentSuspicion` reason, measured with tools/von_probe.py
 ## (tools/von_scenarios/stun_entry_*.json).
@@ -46,6 +47,8 @@ var _views: RefCounted
 var _suspicion: AgentSuspicion
 ## The allies' entry claims heard on the radio; see stack/claim_ledger.gd.
 var _ledger: RefCounted
+## The walks to heard leads kept for the belief window; see snapshot_lead_memo.gd.
+var _lead_walks := SnapshotLeadMemo.new()
 
 
 ## Capture the shared vocabulary and the collaborators the groups read (`sources`). Called once by
@@ -488,15 +491,16 @@ func _heard_leads(ctx: Dictionary, topic: StringName, what: String, entered: Dic
 		var pos: Vector2 = rec["data"]["pos"]
 		if _entered_at(entered, pos):
 			continue
+		var walk := _lead_walk(ctx, pos)
 		leads.append({
 			"age": rec["age"],
 			"id": "lead_%s_%d_%d" % [what, floori(pos.x / 200.0), floori(pos.y / 200.0)],
 			"label": "%s to the %s" % [what, _v.compass(pos - self_pos)],
 			"desc": "%s heard to the %s, %s — %s — %s route" % [
 				what, _v.compass(pos - self_pos), _v.place(pos), _v.recency(rec["age"]),
-				_v.route_band(_route_len(ctx, pos)),
+				_v.route_band(walk["len"]),
 			],
-			"point": NavBuilder.snap(ctx["map"], pos),
+			"point": walk["snap"],
 			"places_hostile": true,
 		})
 	return leads
@@ -947,6 +951,28 @@ func _shot_origin(ctx: Dictionary, snap_to_navmesh := true) -> Vector2:
 ## one.
 func _route_len(ctx: Dictionary, p: Vector2) -> float:
 	return float(_views.walk_route(ctx["self_pos"], p, ctx["world"])["len"])
+
+
+## The walk to heard lead point `pos` as `{ len, snap }` (the length of the route `_route_len`
+## gives, the point `pos` snaps to), kept for the belief window while the planning map and the doors
+## stand as they were (`SnapshotLeadMemo`). A walk that is still being baked (the plain route
+## stands in until the avoid map is ready) or on a map not yet baked is not kept.
+func _lead_walk(ctx: Dictionary, pos: Vector2) -> Dictionary:
+	var map: RID = ctx["map"]
+	var self_pos: Vector2 = ctx["self_pos"]
+	_lead_walks.open(
+		map,
+		SnapshotLeadMemo.door_state(_character.get_tree()),
+		_v.tuning.decision.belief_redecide_interval,
+	)
+	var kept: Variant = _lead_walks.recall(self_pos, pos)
+	if kept != null:
+		return kept
+	var way: Dictionary = _views.walk_route(self_pos, pos, ctx["world"])
+	var walk := { "len": float(way["len"]), "snap": NavBuilder.snap(map, pos) }
+	if not bool(way.get("pending", false)) and NavBuilder.ready(map):
+		_lead_walks.keep(self_pos, pos, walk)
+	return walk
 
 
 ## The ally (perceived near the target, or calling it on the radio) already fighting hostile `t`.
