@@ -1,7 +1,7 @@
 extends RefCounted
 ## AI PERCEPTION sub-domain — SNAPSHOT DEMAND. The option groups, facts and sections a decision's
-## walk rarely reads, built when it first reads them instead of with every snapshot (#192 rules 23
-## and 24): the groups `leads`, `entries`, `search_rooms`, `explore`, `interactions`, `rooms` and
+## walk rarely reads, built when it first reads them instead of with every snapshot: the groups
+## `leads`, `entries`, `search_rooms`, `explore`, `interactions`, `rooms` and
 ## the grenade throws (`grenade_throws`, the shots' one, and each analysed hostile's); the facts
 ## `leads`, `lead_outside` and `grenade_ready`; and the sections `odds` and `exposure`, which say
 ## what the leads and the throws make possible. `AgentSnapshot.build()` hands each snapshot one
@@ -9,16 +9,18 @@ extends RefCounted
 ## of that decision); the planner asks it for what its snapshot lacks (`group`, `target_group`,
 ## `fact`, `section`, `target_section`), and a reader that wants everything (the debug overlay, the
 ## spectator card, a test) calls `complete()`. What is built here is stored in the snapshot's own
-## dictionaries, so it is built once and every later reader sees it there; its text is exactly the
-## eager build's.
+## dictionaries, so it is built once and every later reader sees it there. On a world that does not
+## change during the walk the path, every option read and its text are the eager build's.
 ##
 ## `grenade_ready` is answered by a search that stops at the first throw the NPC could make
 ## (`SnapshotThrows.grenade_possible`); the throw options themselves, with their tags and wording,
 ## are built only when the walk reads them.
 ##
 ## What a group reads live (the event memory, the physics space, the navigation map) it reads when
-## it is built, up to a walk's latency after the decision began; what it reads from `ctx` and
-## `know` is the decision's frozen copy.
+## it is built, up to a walk's latency after the decision began: a door turned or a sound heard
+## meanwhile is in the group, and the walk neither throws nor loses an option
+## (`tests/ai/decision/lazy_groups_read_live_test.gd`). What it reads from `ctx` and `know` is the
+## decision's frozen copy.
 
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const SnapshotOptions = preload("res://scenes/ai/perception/snapshot/snapshot_options.gd")

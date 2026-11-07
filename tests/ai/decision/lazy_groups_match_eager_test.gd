@@ -13,7 +13,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
-const DecisionPlanner := preload("res://scenes/ai/decision/decision_planner.gd")
+const Walk := preload("res://tests/_ai/snapshot_walk_probe.gd")
 ## Where the invader stands: the back garden, outside the kitchen's back door.
 const NPC := Vector2(900, 190)
 ## Where the trespasser waits until the fight (inside, out of the NPC's sight).
@@ -152,8 +152,8 @@ func _compare(
 		"%s: nothing is built on demand before the walk reads it" % label,
 	)
 	eager_snap["demand"].complete()
-	var eager := await _walk(t, brain, eager_snap)
-	var lazy := await _walk(t, brain, lazy_snap)
+	var eager := await Walk.walk(t, brain, eager_snap)
+	var lazy := await Walk.walk(t, brain, lazy_snap)
 	if not t.require(not eager.is_empty() and not lazy.is_empty(), "%s: both walks end" % label):
 		return {}
 	# The six groups; the grenade throws are built when the exposure line of a combat level says
@@ -175,26 +175,3 @@ func _compare(
 	t.expect_eq(lazy_snap["facts"], eager_snap["facts"], "%s: the full facts" % label)
 	t.expect_eq(lazy_snap["sections"], eager_snap["sections"], "%s: the full sections" % label)
 	return { "built": built, "path": lazy["leaf"].get("path", []) }
-
-
-## `snap` walked on a fresh planner with the NPC's own rules and scripted Von:
-## `{ leaf, levels }` (the levels without their timings), or `{}` when it did not end.
-func _walk(t: TestContext, brain: Node, snap: Dictionary) -> Dictionary:
-	var own: Node = brain.get("_planner")
-	var planner: Node = DecisionPlanner.new()
-	t.world.add_child(planner)
-	planner.entry_rules = own.entry_rules
-	planner.disabled_nodes = own.disabled_nodes
-	planner.setup(brain.tuning.decision)
-	var leaf := {}
-	planner.decided.connect(func(l: Dictionary) -> void: leaf.merge(l))
-	planner.begin(snap, false)
-	for i in 40:
-		if not planner.is_pending():
-			break
-		await t.frames(1)
-	var levels: Array = planner.debug_state()["levels"].duplicate(true)
-	for level in levels:
-		level.erase("ms")
-	planner.queue_free()
-	return {} if leaf.is_empty() else { "leaf": leaf, "levels": levels }

@@ -14,8 +14,7 @@ extends Node
 ## here until its entry is dropped, never the node itself.
 var _fifo: Dictionary = {}
 ## Instance id -> that node's oldest ticket, or an array of tickets (oldest first) when it was
-## tracked more than once: each `track` is an entry of its own, as it was in the array this
-## replaced.
+## tracked more than once: each `track` is an entry of its own.
 var _tickets: Dictionary = {}
 ## The ticket the next `track` takes.
 var _next_ticket := 0
