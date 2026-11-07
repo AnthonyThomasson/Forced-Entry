@@ -9,6 +9,7 @@ The BUILD half of perception: from what the NPC knows (contacts, memory, learned
 - `snapshot/snapshot_vocab.gd` (`SnapshotVocab`) — the shared vocabulary and tuning: `COMPASS`, the band and wording helpers (`dist_band`, `recency`, `route_band`, `place`, `where`, ...), the house `rooms` of the decision in build, the NPC's `character` (set by `bind`). Tunables are read live off `vocab.tuning` (`NpcTuning` topics, handed in by `apply_config`).
 - `snapshot/snapshot_sections.gd` — the `*_text` functions behind the sections.
 - `snapshot/snapshot_options.gd` — the `*_group` option groups; `snapshot/snapshot_throws.gd` — the grenade groups; `snapshot/snapshot_orders.gd` — the ORDER group. They read per-decision `know` set by `build()`.
+- `snapshot/snapshot_demand.gd` (`SnapshotDemand`) — the groups, facts and sections built on demand (below); `snapshot/snapshot_lead_memo.gd` (`SnapshotLeadMemo`) — the heard leads' walk memo (below).
 
 ## Adding to it
 
@@ -17,6 +18,10 @@ The BUILD half of perception: from what the NPC knows (contacts, memory, learned
 - An **option group**: a `*_group` function in `snapshot_options.gd` and a key in `_option_groups()`; a tree node reads it by name through `options`.
 - A **tunable**: one export on its topic node (`ai/tuning/`), read as `vocab.tuning.<topic>.x` (`agent_snapshot.gd`) or `_v.tuning.<topic>.x` (sections and groups).
 - Rewording anything Von reads: re-run `tools/von_probe.py` (`snapshot-wording.md`).
+
+## Built on demand
+
+The lazy groups, facts and sections (`snapshot["demand"]`), the `grenade_ready` existence search and the heard leads' route memo: `snapshot-demand.md`.
 
 ## Facts and sections
 
@@ -29,7 +34,7 @@ The BUILD half of perception: from what the NPC knows (contacts, memory, learned
 - Per target: `hostiles` (the bind: one option per hostile, only DISTINGUISHING facts), `fire_positions`, `flank_sides` (tagged `held`, `crosses`, `no_shot`, `heading`, `lane` for the node's `drop_tags`), `advance_positions`, `melee` (only point-blank), `grenade_throws`. Global: `reload` (one option, only while `can_reload`), `retreat_positions`, `shooter`, `leads`, `entries`, `search_rooms`, `explore`, `interactions`, `rooms`, `order`. Groups are capped at `tuning.decision.max_options_per_level` (`explore` at two); `interactions` and `rooms` are uncapped.
 - Options are places and things, never verbs. `tags.inside` is wording and overlay data, not the filter: which options a confined NPC is offered is its **confinement** (`snapshot["confinement"]`, judged by the planner where the option acts). Tags are not text.
 - `shooter` (LOCATE's `toward_shots`) is empty when the line back from the newest shot runs into a room the NPC is not in (it does not walk into a barricaded shooter, issue #51 R10; GRENADE at the shots' origin or RETREAT stand instead), or when the point is where the NPC already stands (`AgentTactics.where_it_stands`, R12). Other leads lie at fixed points and reaching one spends it (`check_lead`).
-- `lead_group` also hands out `lead_pos`, the point of the freshest lead that places a hostile (an ally's support lead is skipped: `places_hostile` false), `Vector2.INF` with none. The controller radios it from the last options (`_cadence.last_options["leads"]`) as an INVESTIGATE callout's `lead_pos`, which the defenders' squad reads for its ambush rule (LD29, `team.md`). Nothing in the state text changes.
+- `lead_group` also hands out `lead_pos`, the point of the freshest lead that places a hostile (an ally's support lead is skipped: `places_hostile` false), `Vector2.INF` with none. The controller radios it from the last decision's demand (`_cadence.last_demand.group("leads")`) as an INVESTIGATE callout's `lead_pos`, which the defenders' squad reads for its ambush rule (LD29, `team.md`). Nothing in the state text changes.
 - `entries` (the doorways ENTER offers; `tuning.entry.enabled` only): out of the NPC's area into a room unseen or unsearched, nearest first, a suspect room first (`snapshot-wording.md`). Each option's place is the slot the entry's own `begin` would give: a transient `StackMember` (`_entry_pick`) claims against the doorway's `DoorStack` off the perception's `ClaimLedger`, on the side `AgentEntry.stack_side_from` gives (`perception-stack.md`). A slot a dead end does not hold, or laid nowhere, offers no option (E20). `params` carry `opening`, `into`, `slot`, `side`.
 - `search_rooms` adds the front entrance while outside; with entries, the rooms they lead into and the entrance are left to ENTER. `explore` lists unknown rooms by direction only, minus those an entry leads into.
 - `order` (`SnapshotOrders.group`): the ORDER node's one option, carrying its own `primitive` and `order_id`. `defend_<room>` runs `defend` (spot from `EntryPosts.defend_spot`), `stack_<opening>` runs `entry` (`opening`, `into`, `bang`, `mode`, `wait_go`, `go`, `split`, `stack_at`), `ambush_<opening>` runs `ambush` (post from `EntryPosts.ambush_spot`). A join (`StackClaim.is_join`) is an `entry` with `join: true` and no side or mode. A stack at a dead end with no slot for this member is `hold_<opening>` with `refused: true` (the behaviour radios `refused`, LD9 D21). The group is empty with no order or one the NPC cannot carry out (unknown room or doorway, no ambush post, a join at a dead end): the controller ends that order `refused`.
