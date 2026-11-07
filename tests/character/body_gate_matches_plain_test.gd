@@ -1,8 +1,10 @@
 extends GameTest
 ## One conservative near-solid query after the pose is shared by the hands and legs. In the open it
 ## skips every hand and leg sweep; at a wall and in a crowd the ordinary sweeps still run. Hand and
-## ankle positions, and the muzzle they place, are exactly the ungated path's.
+## ankle positions, and the muzzle they place, are exactly the ungated path's. The legs' own rig
+## solve leaves the arms out and gives the legs' joints the full solve's.
 
+const Rig := preload("res://scenes/character/body/character_rig.gd")
 const IDS := [&"open", &"wall", &"crowd"]
 
 
@@ -61,6 +63,31 @@ func run(t: TestContext) -> void:
 	for id in IDS:
 		t.check(fast[id] == plain[id], "%s: the gate matches the plain path" % id)
 		t.check(gated[id] == plain[id], "%s: restoring the gate restores the plain result" % id)
+	await _check_legs_only_solve(t)
+
+
+## The legs layer solves the rig only for the legs: the arms' joints, which it never reads, are not
+## solved, and each ankle and knee it reads is the full solve's.
+func _check_legs_only_solve(t: TestContext) -> void:
+	var solves_before: int = Rig.solves
+	var with_arms_before: int = Rig.arm_solves
+	await t.frames(3)
+	t.check(
+		Rig.solves - solves_before > Rig.arm_solves - with_arms_before,
+		"the legs layer's per-frame solve leaves the arms out",
+	)
+	for id in IDS:
+		var body: Node = t.actor(id)
+		var full := Rig.new(body, false)
+		var legs_only := Rig.new(body, false, false)
+		for joint in [Rig.PELVIS, Rig.HIP[0], Rig.HIP[1], Rig.KNEE[0], Rig.KNEE[1], Rig.ANKLE[0],
+				Rig.ANKLE[1]]:
+			t.check(
+				legs_only.point(joint) == full.point(joint),
+				"%s: the legs-only solve places joint %d as the full solve does" % [id, joint],
+			)
+		for side in 2:
+			t.check(legs_only.toes(side) == full.toes(side), "%s: toes %d match" % [id, side])
 
 
 func _capture(t: TestContext) -> Dictionary:

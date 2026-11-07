@@ -14,6 +14,10 @@ const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 ## Learning is permanent and a decision looks again first, so a glimpse shorter than this still
 ## counts when it is the moment of a decision.
 const LEARN_EVERY_FRAMES := 6
+## How many of the scheduled looks it takes to look at every piece of furniture: a look takes each
+## `LEARN_SLICES`th of the pieces it does not know yet, so a piece in view is learned at most
+## `LEARN_SLICES * LEARN_EVERY_FRAMES` frames later. A decision's own look takes every piece.
+const LEARN_SLICES := 3
 
 ## The perception it belongs to.
 var perception: Node
@@ -38,6 +42,11 @@ var _seeded := false
 var learn_next := 0
 ## Physics frame of the latest such look (-1 = none yet).
 var _learned_frame := -1
+## Whether the latest look was a full one (every unknown piece), not a slice.
+var _learned_full := false
+## How many sliced looks have been made: piece `i` of `interactables` is looked at on the sliced
+## looks where `(i + _sliced_looks) % LEARN_SLICES` is 0.
+var _sliced_looks := 0
 ## The intake identities already set up: rooms, openings, grenade-slot items and body heights.
 var _intake := {}
 ## How often each piece of intake setup ran (fast-path test observables).
@@ -124,19 +133,36 @@ func _learn_carried() -> void:
 ## An unfamiliar NPC learns the rooms and objects it can see (permanent once learned). Runs every
 ## `LEARN_EVERY_FRAMES` frames from `observe()`, offset per NPC so a squad does not look on the same
 ## frame, and at the start of every decision, so what it knows when it decides is what it sees at
-## that moment. The rooms looked for are the house's (`rooms`, kept by `take_in`).
-func learn_by_sight() -> void:
+## that moment. The rooms looked for are the house's (`rooms`, kept by `take_in`). A scheduled look
+## takes every room but only each `LEARN_SLICES`th piece of furniture it does not know; a `full`
+## look (a decision's) takes every piece.
+func learn_by_sight(full := false) -> void:
 	var frame := Engine.get_physics_frames()
-	if frame == _learned_frame:
+	if frame == _learned_frame and (_learned_full or not full):
 		return
-	learn_next = frame + (LEARN_EVERY_FRAMES
-			if _learned_frame >= 0
-			else 1 + perception.get_instance_id() % LEARN_EVERY_FRAMES)
+	if frame != _learned_frame:
+		learn_next = frame + (LEARN_EVERY_FRAMES
+				if _learned_frame >= 0
+				else 1 + perception.get_instance_id() % LEARN_EVERY_FRAMES)
+		if not full:
+			_sliced_looks += 1
 	_learned_frame = frame
+	_learned_full = full
 	var self_pos: Vector2 = perception._character.global_position
 	var facing: Vector2 = perception._character.facing
 	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
 	var exclude := [perception._character.get_rid()]
+	_look_at_rooms(self_pos, facing, space, exclude)
+	_look_at_furniture(full, self_pos, facing, space, exclude)
+
+
+## Learn the rooms not yet known that the NPC stands in or sees the middle of.
+func _look_at_rooms(
+	self_pos: Vector2,
+	facing: Vector2,
+	space: PhysicsDirectSpaceState2D,
+	exclude: Array,
+) -> void:
 	# Read once: what is learned here is permanent and only grows.
 	var known_rooms_now := known_room_keys()
 	for room in rooms:
@@ -148,9 +174,23 @@ func learn_by_sight() -> void:
 				or perception.sight.vision.can_see(self_pos, facing, centre, space, exclude)):
 			known_rooms_now[room["key"]] = true
 			learn_room(room)
+
+
+## Learn the interactable pieces not yet known that the NPC sees: every one when `full`, else the
+## slice this look takes (piece `i` when `(i + _sliced_looks) % LEARN_SLICES` is 0).
+func _look_at_furniture(
+	full: bool,
+	self_pos: Vector2,
+	facing: Vector2,
+	space: PhysicsDirectSpaceState2D,
+	exclude: Array,
+) -> void:
 	var known_objects := known_object_ids()
-	for obj in interactables:
+	for i in interactables.size():
+		var obj: Variant = interactables[i]
 		if not is_instance_valid(obj) or known_objects.has(obj.get_instance_id()):
+			continue
+		if not full and (i + _sliced_looks) % LEARN_SLICES != 0:
 			continue
 		if perception.sight.vision.can_see_node(obj, self_pos, facing, space, exclude):
 			known_objects[obj.get_instance_id()] = true

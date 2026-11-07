@@ -30,13 +30,18 @@ var enabled: bool = true
 ## Maximum distance (px) at which anything can be seen.
 var view_distance: float = 2520.0
 ## Full angular width (degrees) of the forward view cone, centred on the agent's facing.
-var fov_degrees: float = 110.0
+var fov_degrees: float = 110.0:
+	set(value):
+		fov_degrees = value
+		_half_fov = deg_to_rad(value) * 0.5
 ## Radius (px) of the 360° near-awareness bubble: things this close are sensed regardless of facing.
 var awareness_radius: float = 48.0
 ## Coverage rating (0–100 height proxy) at or below which furniture is low enough to see OVER: sight
 ## passes through it. Above this it blocks the line like a wall (which rates 100). Sight-only; cover
 ## and line-of-fire ignore it.
 var see_over_coverage: float = 60.0
+## Half the view cone's width in radians, kept with `fov_degrees`.
+var _half_fov := deg_to_rad(110.0) * 0.5
 ## The ray every cast reuses: the solid layer, nothing else configured.
 var _query := _solid_query()
 
@@ -83,7 +88,7 @@ func _in_view(from_pos: Vector2, facing: Vector2, point: Vector2) -> bool:
 		# Outside the near bubble: must fall within the forward cone.
 		if facing == Vector2.ZERO:
 			return false
-		if absf(facing.angle_to(to)) > deg_to_rad(fov_degrees) * 0.5:
+		if absf(facing.angle_to(to)) > _half_fov:
 			return false
 	return true
 

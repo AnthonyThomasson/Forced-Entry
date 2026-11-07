@@ -45,6 +45,8 @@ const Pose = preload("res://scenes/character/body/character_pose.gd")
 ## How many rigs have been solved in all (a test reads it to check a frame's callers share one
 ## solve).
 static var solves := 0
+## How many of those solved the arms too (the legs layer's own solve needs none).
+static var arm_solves := 0
 ## The measures every solve takes afresh and places the joints from (solves run one at a time;
 ## it keeps what the last one read until the next).
 static var _measures := Measures.new()
@@ -65,16 +67,19 @@ var _shin := 0.0
 ## Solve the skeleton of `character` as it stands now. With `with_legs` (the default) each ankle
 ## takes the place the legs layer rested it at against a wall or piece of furniture
 ## (`character.anatomy.legs.ankle(i)`, when it has one); the legs layer itself solves without, to
-## learn where the legs would go unobstructed.
-func _init(character: CharacterBody2D, with_legs := true) -> void:
+## learn where the legs would go unobstructed. With `with_arms` false the arms' joints (shoulders,
+## elbows, hands) are left unsolved: the legs layer reads only the trunk and the legs.
+func _init(character: CharacterBody2D, with_legs := true, with_arms := true) -> void:
 	solves += 1
+	if with_arms:
+		arm_solves += 1
 	var m := _measures
 	m._measure(character)
 	_thigh = m.thigh
 	_shin = m.shin
 	_points.resize(17)
 	_face = Vector3(cos(m.pose.head_angle), sin(m.pose.head_angle), 0.0)
-	m._place(character, _points, _knee_poles, _toes)
+	m._place(character, _points, _knee_poles, _toes, with_arms)
 	if with_legs:
 		_rest_feet(character)
 
@@ -171,14 +176,22 @@ class Measures:
 
 
 	## Place the joints of `character`, as measured, into the rig's `points` (sized for every
-	## joint), `knee_poles` and `toes`: the trunk, then each side's arm and leg.
-	func _place(character: CharacterBody2D, points: Array, knee_poles: Array, toes: Array) -> void:
+	## joint), `knee_poles` and `toes`: the trunk, then each side's arm (unless `with_arms` is
+	## false) and leg.
+	func _place(
+		character: CharacterBody2D,
+		points: Array,
+		knee_poles: Array,
+		toes: Array,
+		with_arms := true,
+	) -> void:
 		_points = points
 		_knee_poles = knee_poles
 		_toes = toes
 		_trunk()
 		for i in 2:
-			_arm(character, i)
+			if with_arms:
+				_arm(character, i)
 			_leg(character, i)
 
 
