@@ -18,6 +18,10 @@ invaders starting in the street), so five gates moved. Each was signed off by th
   2.52 and 2.58 ms (a tick cuts only the pieces that moved), so the budget is set again at about 4x.
 - `SMOOTH_AVG_MS`, `SMOOTH_P95_MS`, `SMOOTH_MAX_MS`, every vision budget and the house budgets of `perf/generate_houses_stress` did not move.
 
+## After #192's Extension 2 (2026-11-07): AC34 is NOT met
+
+The escape search is capped and pruned; its tail is gone, but `match_10v10_stress`, `grenade_match_stress` (p95, once) and `match_npc_vision` still miss. Two ungated runs, the frame profile and the three levers: `perf-district-ext2.md`.
+
 ## After #192 and its Extension 1 (2026-11-07): AC30 is NOT met on this commit
 
 **Not `--quiet` runs.** The quiet gate waited over ten minutes with no Godot of ours running (it counts the `godot-mcp` servers of other sessions

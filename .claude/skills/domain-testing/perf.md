@@ -13,7 +13,7 @@ guard measures the planning bake whole, what a frame pays to start one and a ste
   `--changed` adds it when a scene they exercise changes (`affected()` in `tools/run_tests.sh`) or `tests/_perf/` changes.
 - **A run that was not `--quiet` says so.** The quiet gate counts every process with `godot` in its name, `godot-mcp` servers and an editor left
   open included, and can wait for ever with no Godot of yours running. Then run `tools/run_tests.sh --domain=perf` (`uptime` under 6, none of your
-  Godot left over), quote the `(load <x>, <n> other Godot)` tails and never call it a `--quiet` run (`perf-district.md`, 2026-11-07).
+  Godot left over), quote the `(load <x>, <n> other Godot)` tails and never call it a `--quiet` run (`perf-district.md`).
 - **Judge only a result not marked `loaded`:** `--quiet` waits for a quiet machine and marks a result `loaded` when it
   gave up (`runner-flags.md`); a `loaded` red or green says nothing about the code. Every `PERF` line ends with
   `(load <x>, <n> other Godot)`, so a number read from a log carries the state of its machine.
@@ -45,11 +45,9 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
   rendering), interleaved on, off, off, on, because two plays of the match differ from each other by far more than the view costs.
   It holds the median difference to `BUDGET_MS` and the live cone's cost to `RATIO_MAX` of the reference cone's from the same eye
   (`tests/_vision/reference_view_cone.gd`). Its moving rounds hold `MOVING_BUDGET_MS`, 20 ms (about 1.4x the moving median of about 13 ms it was set from; 11.9 and 10.9 on 2026-11-07), which departs from the 4x rule: 4x of a per-frame cost would never trip. Headless sees the CPU side only. `perf/match_npc_vision` is the absolute standard on the
-  same match. `perf/match_5v5_stress` is green on the district since #192. Three guards are red and stay so, neither loosened, skipped nor
-  tagged: `perf/grenade_match_stress` and `perf/match_10v10_stress` (the escape search a grenade's landing sets off in several NPCs in one
-  frame, `AgentThrow.escape` through `react_to_grenades`) and `perf/match_npc_vision` (that, and the moving view's cone); the parked-view
-  check of `perf/match_npc_vision_relative` (3.2 ms) is red too. Their numbers, the profile, and the gates that moved with the district:
-  `perf-district.md`.
+  same match. `perf/match_5v5_stress` is green on the district since #192. After its Extension 2 (2026-11-07, two ungated runs) the escape tail is gone but
+  `perf/match_10v10_stress` (its tail is the decision builds), `perf/grenade_match_stress` (p95 19.05, then 20.80) and `perf/match_npc_vision` still miss, and the parked check of
+  `perf/match_npc_vision_relative` read 5.48 then 1.21 against 3.2. None is loosened, skipped or tagged. Numbers and profile: `perf-district-ext2.md`; the gates the district moved: `perf-district.md`.
 - **A wall-clock budget belongs here and nowhere else:** the lint rule `timing_in_perf` fails a `Time.get_ticks_usec()`
   under `tests/` outside `tests/perf/` and `tests/_perf/`.
 
