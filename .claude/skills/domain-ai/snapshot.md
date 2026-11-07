@@ -4,7 +4,7 @@ The BUILD half of perception: from what the NPC knows (contacts, memory, learned
 
 ## Files
 
-- `agent_snapshot.gd` — `build`, the `facts` literal (`_facts`), the per-hostile loop (`_analyze`), assembly of `sections` and `options` (`_state_sections`, `_option_groups`), `fill_goal`.
+- `agent_snapshot.gd` — `build`, the `facts` literal (`_facts`), the per-hostile loop (`_analyze`), assembly of `sections` and `options` (`_state_sections`, `_option_groups`: the groups every walk reads), `fill_goal`.
 - `snapshot/snapshot_sources.gd` (`SnapshotSources`) — the perception modules it reads, filled once by the perception's `setup()`.
 - `snapshot/snapshot_vocab.gd` (`SnapshotVocab`) — the shared vocabulary and tuning: `COMPASS`, the band and wording helpers (`dist_band`, `recency`, `route_band`, `place`, `where`, ...), the house `rooms` of the decision in build, the NPC's `character` (set by `bind`). Tunables are read live off `vocab.tuning` (`NpcTuning` topics, handed in by `apply_config`).
 - `snapshot/snapshot_sections.gd` — the `*_text` functions behind the sections.
@@ -15,7 +15,7 @@ The BUILD half of perception: from what the NPC knows (contacts, memory, learned
 
 - A **fact**: a key in the `facts` literal of `_facts()`. A fact the tree does not gate on is vocabulary for new rules (`exposed`, `hurt`, `inside` today: the brain overlay and `debug_state().facts` read them).
 - A **section**: a `*_text` function in `snapshot_sections.gd`, a key in `_state_sections()`, and the tree level `context` that shows it (`decision.md`).
-- An **option group**: a `*_group` function in `snapshot_options.gd` and a key in `_option_groups()`; a tree node reads it by name through `options`.
+- An **option group**: a `*_group` function in `snapshot_options.gd` and a key in `_option_groups()`; a tree node reads it by name through `options`. A group the walk rarely reads is instead named in `SnapshotDemand.GROUPS` and built in its `_build` (`snapshot-demand.md`); a fact or section likewise in `FACTS` / `SECTIONS`.
 - A **tunable**: one export on its topic node (`ai/tuning/`), read as `vocab.tuning.<topic>.x` (`agent_snapshot.gd`) or `_v.tuning.<topic>.x` (sections and groups).
 - Rewording anything Von reads: re-run `tools/von_probe.py` (`snapshot-wording.md`).
 

@@ -233,8 +233,9 @@ func debug_status() -> String:
 ## auto-picks and timings), what the NPC knows (`contacts`), the running primitive and pathing, how
 ## many decision walks it has started and why the latest one started (`decisions`,
 ## `decision_reason`: the force reason, e.g. "task resolved" or "way blocked", or "cadence"), and
-## where it may act now (`confinement`, the perception's confinement's `view()`). Pure reads —
-## never perturbs the loop.
+## where it may act now (`confinement`, the perception's confinement's `view()`). It completes the
+## last decision's snapshot (builds the groups the walk did not read, `SnapshotDemand.complete`),
+## which changes no decision the NPC makes.
 func debug_state() -> Dictionary:
 	_cadence.complete()
 	var out := {
