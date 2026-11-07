@@ -3,8 +3,9 @@ extends GameTest
 ## search that stops at the first feasible spot, and the full throw options are built only when the
 ## walk reads them (#192 rule 24). Over the throw-spot fixtures (a lob that clears the jamb only
 ## from a throw spot, a clear shot, a room held with a clear lob, a killed target, the shots'
-## origin) the fact equals "the full search found a throw", and where a throw spot is needed the
-## search routes fewer spots than the full search does.
+## origin, the same for a thrower confined to the house) the fact equals "the full search found
+## a throw", and where a throw spot is needed the search routes fewer spots than the full search
+## does.
 ##
 ## The Terrace house, bare: an invader with a frag and a stun outside the back door, a household
 ## puppet that is never killed and never shoots. Each fixture reads two snapshots of the same
@@ -34,10 +35,10 @@ const LANDED := Vector2(930, 210)
 func describe() -> Dictionary:
 	return {
 		"name": "grenade_ready equals the full search and stops early",
-		"description": "Over the round-jamb, no-spot, clear-shot, held-room, killed-target and "
-			+ "shots-origin fixtures the cheap `grenade_ready` equals whether the full throw "
-			+ "groups hold an option, and the throw-spot search routes fewer spots than the "
-			+ "full one.",
+		"description": "Over the round-jamb, no-spot, clear-shot, held-room, killed-target, "
+			+ "shots-origin and confined-thrower fixtures the cheap `grenade_ready` equals "
+			+ "whether the full throw groups hold an option, and the throw-spot search routes "
+			+ "fewer spots than the full one.",
 		"tags": ["ai", "grenade", "throw_spot", "snapshot"],
 		"timeout": 40.0,
 	}
@@ -105,6 +106,25 @@ func run(t: TestContext) -> void:
 	)
 	await t.frames(3)
 	_compare(t, brain, perception, "shots origin", true)
+	await _confined(t, brain, perception)
+
+
+## The shots-origin fixture again for a thrower held to the house (`defend_territory`: confinement
+## `inside_only`, which judges an option where it acts, `perception.md`): the fact still equals the
+## full search, which finds a throw from a spot.
+func _confined(t: TestContext, brain: Node, perception: Node) -> void:
+	brain.tuning.decision.defend_territory = true
+	await t.frames(3)
+	if not t.require(
+		perception.confinement.inside_only, "set-up: the thrower is held to the house"
+	):
+		return
+	var confined := _compare(t, brain, perception, "confined thrower", true)
+	t.check(
+		confined["cheap_walks"] >= 1 and confined["cheap_walks"] < confined["full_walks"],
+		"confined thrower: the search routed fewer throw spots (%d) than the full one (%d)"
+			% [confined["cheap_walks"], confined["full_walks"]],
+	)
 
 
 ## Whether the invader knows a hostile now (waits for sight).
