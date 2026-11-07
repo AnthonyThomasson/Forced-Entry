@@ -17,6 +17,8 @@ const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
+## How many runners off the navmesh `_check_off_mesh` draws.
+const OFF_MESH_CASES := 300
 ## burst, runner, fuse left (s), pace (px/s), and whether the pruned search must measure fewer
 ## routes than there are safe spots.
 const FIXTURES := [
@@ -70,6 +72,8 @@ func run(t: TestContext) -> void:
 	for f: Dictionary in FIXTURES:
 		spotted += 1 if _check_fixture(t, geometry, search, f) else 0
 	t.check(spotted >= 3, "at least three fixtures found a spot in time (%d)" % spotted)
+	_check_off_mesh(t, geometry, search["map"])
+	_check_tie(t, geometry, search["map"])
 
 
 ## One fixture: the pruned answer against the plain one, and the routes measured; true when it
@@ -109,3 +113,64 @@ func _check_fixture(
 				% [label, measured, safe],
 		)
 	return pruned["spot"] != Vector2.INF
+
+
+## A runner standing off the navmesh (a character squeezed into a wall's thickness or a furniture
+## hole): a path starts from the mesh point nearest it, and one may end `ROUTE_REACH` short of its
+## spot, so a route can be shorter than the straight line from where the runner stands. Over drawn
+## runners that far off the mesh and drawn safe spots, the pruned search still picks what measuring
+## every spot picks.
+func _check_off_mesh(t: TestContext, geometry: AgentThrow, map: RID) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2929
+	var differing: Array = []
+	var cases := 0
+	while cases < OFF_MESH_CASES:
+		var on := NavBuilder.snap(map, Vector2(rng.randf_range(0, 840), rng.randf_range(0, 470)))
+		var from := on + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(8.0, 30.0)
+		if NavBuilder.snap(map, from).distance_to(from) < 4.0:
+			continue
+		cases += 1
+		var spots: Array = []
+		for i in 8:
+			var near := from + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(20.0, 320.0)
+			spots.append({ "spot": NavBuilder.snap(map, near), "crouch": i % 2 == 0 })
+		var allowed := rng.randf_range(80.0, 500.0)
+		var pruned: Dictionary = geometry._nearest_in_time(map, from, spots, allowed)
+		var full := _measure_every(map, from, spots, allowed)
+		if pruned != full:
+			differing.append("from %s: %s, every spot %s" % [from.round(), pruned, full])
+	t.check(
+		differing.is_empty(),
+		"%d of %d off-mesh runners differ from measuring every spot: %s"
+			% [differing.size(), OFF_MESH_CASES, differing.slice(0, 2)],
+	)
+
+
+## One spot listed twice, once crouched and once not: the routes are exactly equal and the one
+## listed first wins, in either order.
+func _check_tie(t: TestContext, geometry: AgentThrow, map: RID) -> void:
+	var from := NavBuilder.snap(map, Maps.HALL_MIDDLE)
+	var at := NavBuilder.snap(map, from + Vector2(100, 0))
+	var standing := { "spot": at, "crouch": false }
+	var crouched := { "spot": at, "crouch": true }
+	for spots: Array in [[standing, crouched], [crouched, standing]]:
+		var pruned: Dictionary = geometry._nearest_in_time(map, from, spots, 300.0)
+		t.check(
+			pruned["spot"] == at and pruned["crouch"] == spots[0]["crouch"],
+			"equal routes: the first listed spot wins (%s of %s)" % [pruned, spots],
+		)
+
+
+## The plain search over `spots` (`{ spot, crouch }`): every spot's route measured, the shortest
+## within `allowed` px that ends on its spot (`AgentThrow.ROUTE_REACH`), the first listed on a tie.
+func _measure_every(map: RID, from: Vector2, spots: Array, allowed: float) -> Dictionary:
+	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
+	for s: Dictionary in spots:
+		var path := NavBuilder.route(map, from, s["spot"])
+		if path[path.size() - 1].distance_to(s["spot"]) > 2.0:
+			continue
+		var length := NavBuilder.path_length(path)
+		if length <= allowed and length < best["route"]:
+			best = { "spot": s["spot"], "crouch": s["crouch"], "route": length }
+	return best

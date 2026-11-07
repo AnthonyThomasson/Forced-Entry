@@ -32,8 +32,8 @@ const REPLAN_DIST := 48.0
 const REPLAN_EVERY := 0.15
 ## How many escape searches (`AgentThrow.escape`) run on one physics frame across every NPC. A wave
 ## of NPCs caught by one grenade plans over the next frames (ten of them within 3: 3 + 3 + 3 + 1);
-## one search costs a few ms (mostly the work shared on the frame), so more would pile a wave onto
-## one frame. See `_escape_allowed`.
+## one search costs about 3 ms (measured: the first on a frame 3 to 5, the rest 1 to 1.6), so more
+## would pile a wave onto one frame. See `_escape_allowed`.
 const ESCAPE_CAP := 3
 ## A grenade that came to rest this far (px) from where it was first called is called again, so the
 ## allies plan from the real spot.

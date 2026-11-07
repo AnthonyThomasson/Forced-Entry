@@ -69,8 +69,9 @@ const REACH_SLACK := 15.0
 ## the spots are snapped onto the navmesh, so a route that reaches one ends on it, while one to a
 ## region the NPC cannot walk to (past a wall with no door) ends at the nearest point it can reach.
 const ROUTE_REACH := 2.0
-## How far (px) past the best route (or the distance it may run) a spot's straight line may lie and
-## still be measured, so float noise in a path's length never prunes a spot that ties or wins.
+## How far (px) past the best route (or the distance it may run) a spot's straight line may lie
+## and still be measured, beyond what `_nearest_in_time` allows for a runner off the navmesh and a
+## route ending short: float noise in a path's length must never prune a spot that ties or wins.
 const PRUNE_SLACK := 0.01
 ## The inventory slot of each kind of grenade (Items: `ItemRegistry`).
 const SLOTS := { &"frag": ItemRegistry.FRAG_SLOT, &"stun": ItemRegistry.STUN_SLOT }
@@ -341,14 +342,17 @@ func _judge(
 ## Of `spots` (`{ spot, crouch }`, safe ones), the one with the shortest route from `from` on
 ## navigation `map` that is at most `allowed` px long: `{ spot, crouch, route }`, or
 ## `{ spot: Vector2.INF }` when none is. A spot the route ends short of (`ROUTE_REACH`) cannot be
-## reached at all. A route is never shorter than the straight line to its spot, so the spots are
-## measured nearest first (by straight line, the candidate order among equals) and the search stops
-## at the first one past both the best route so far and `allowed` (`PRUNE_SLACK` for float noise):
-## the answer is the one measuring every spot gives, a tie going to the first in `spots`.
+## reached at all. A route is never shorter than the straight line to its spot, less what a path
+## may start off it (it begins at the navmesh point nearest the runner, `from` itself when it stands
+## on it) and what it may end short (`ROUTE_REACH`), so the spots are measured nearest first (by
+## straight line, the candidate order among equals) and the search stops at the first one more than
+## that past both the best route so far and `allowed` (and `PRUNE_SLACK` for float noise): the
+## answer is the one measuring every spot gives, a tie going to the first in `spots`.
 ## `escape_routes_measured` counts the routes it measured.
 func _nearest_in_time(map: RID, from: Vector2, spots: Array, allowed: float) -> Dictionary:
 	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
 	var best_index := -1
+	var slack := from.distance_to(NavBuilder.snap(map, from)) + ROUTE_REACH + PRUNE_SLACK
 	escape_routes_measured = 0
 	var order: Array = []  # [straight distance, index in `spots`], each distinct spot once
 	var seen := {}
@@ -360,7 +364,7 @@ func _nearest_in_time(map: RID, from: Vector2, spots: Array, allowed: float) -> 
 	order.sort_custom(func(a: Array, b: Array) -> bool:
 		return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
 	for entry: Array in order:
-		if entry[0] > minf(allowed, best["route"]) + PRUNE_SLACK:
+		if entry[0] > minf(allowed, best["route"]) + slack:
 			break
 		var s: Dictionary = spots[entry[1]]
 		var path := NavBuilder.route(map, from, s["spot"])
