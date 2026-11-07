@@ -69,6 +69,9 @@ const REACH_SLACK := 15.0
 ## the spots are snapped onto the navmesh, so a route that reaches one ends on it, while one to a
 ## region the NPC cannot walk to (past a wall with no door) ends at the nearest point it can reach.
 const ROUTE_REACH := 2.0
+## How far (px) past the best route (or the distance it may run) a spot's straight line may lie and
+## still be measured, so float noise in a path's length never prunes a spot that ties or wins.
+const PRUNE_SLACK := 0.01
 ## The inventory slot of each kind of grenade (Items: `ItemRegistry`).
 const SLOTS := { &"frag": ItemRegistry.FRAG_SLOT, &"stun": ItemRegistry.STUN_SLOT }
 ## A spot's verdict in `escape`: not judged yet, out of the zone or shielded standing, shielded only
@@ -114,6 +117,8 @@ var _crouch := 100.0
 var _release := Vector2.ZERO
 ## Route queries made by the latest `has_escape` call; an observable of its early exit.
 var escape_route_queries := 0
+## Routes measured by the latest `escape` call; an observable of its pruning.
+var escape_routes_measured := 0
 ## The NPC's body (`bind`): the grenades it carries, its heights and its pace.
 var _character: Node
 
@@ -336,19 +341,37 @@ func _judge(
 ## Of `spots` (`{ spot, crouch }`, safe ones), the one with the shortest route from `from` on
 ## navigation `map` that is at most `allowed` px long: `{ spot, crouch, route }`, or
 ## `{ spot: Vector2.INF }` when none is. A spot the route ends short of (`ROUTE_REACH`) cannot be
-## reached at all. Each spot's route is measured once.
-static func _nearest_in_time(map: RID, from: Vector2, spots: Array, allowed: float) -> Dictionary:
+## reached at all. A route is never shorter than the straight line to its spot, so the spots are
+## measured nearest first (by straight line, the candidate order among equals) and the search stops
+## at the first one past both the best route so far and `allowed` (`PRUNE_SLACK` for float noise):
+## the answer is the one measuring every spot gives, a tie going to the first in `spots`.
+## `escape_routes_measured` counts the routes it measured.
+func _nearest_in_time(map: RID, from: Vector2, spots: Array, allowed: float) -> Dictionary:
 	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
-	var routes := {}  # spot -> its route's length (INF: it does not get there)
-	for s: Dictionary in spots:
-		var length: float = routes.get(s["spot"], -1.0)
-		if length < 0.0:
-			var path := NavBuilder.route(map, from, s["spot"])
-			var ends: bool = path[path.size() - 1].distance_to(s["spot"]) <= ROUTE_REACH
-			length = NavBuilder.path_length(path) if ends else INF
-			routes[s["spot"]] = length
-		if length <= allowed and length < best["route"]:
+	var best_index := -1
+	escape_routes_measured = 0
+	var order: Array = []  # [straight distance, index in `spots`], each distinct spot once
+	var seen := {}
+	for i in spots.size():
+		var spot: Vector2 = spots[i]["spot"]
+		if not seen.has(spot):
+			seen[spot] = true
+			order.append([from.distance_to(spot), i])
+	order.sort_custom(func(a: Array, b: Array) -> bool:
+		return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
+	for entry: Array in order:
+		if entry[0] > minf(allowed, best["route"]) + PRUNE_SLACK:
+			break
+		var s: Dictionary = spots[entry[1]]
+		var path := NavBuilder.route(map, from, s["spot"])
+		escape_routes_measured += 1
+		if path[path.size() - 1].distance_to(s["spot"]) > ROUTE_REACH:
+			continue
+		var length := NavBuilder.path_length(path)
+		if length <= allowed and (length < best["route"]
+				or (length == best["route"] and entry[1] < best_index)):
 			best = { "spot": s["spot"], "crouch": s["crouch"], "route": length }
+			best_index = entry[1]
 	return best
 
 

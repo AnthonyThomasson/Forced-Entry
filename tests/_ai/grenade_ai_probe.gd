@@ -216,14 +216,19 @@ static func check_sees_again(t: TestContext, brain: Node, p: Node) -> void:
 
 ## `AgentThrow.escape` with nothing shared: every candidate snapped, judged and routed, as
 ## `ai/grenade/escape_spot_matches_plain` pins it. `search` is the search's world (`space`, `map`,
-## `exclude`).
+## `exclude`). `tally`, when given, gets `safe`: how many distinct safe spots there were to measure.
 static func plain_escape(
 		g: AgentThrow,
 		search: Dictionary,
 		threat: GrenadeThreat,
 		runner: GrenadeRunner,
+		tally: Dictionary = {},
 ) -> Dictionary:
 	var spots := _plain_spots(g, search, threat, runner.from)
+	var distinct := {}
+	for s: Dictionary in spots:
+		distinct[s["spot"]] = true
+	tally["safe"] = distinct.size()
 	var allowed := maxf(threat.fuse_left - AgentThrow.ARRIVE_MARGIN, 0.0) * runner.speed
 	return _plain_best(search["map"], spots, runner.from, allowed)
 
