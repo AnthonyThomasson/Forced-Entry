@@ -9,6 +9,7 @@ extends GameTest
 ## an `overhang` carrying `fade_under`, non-solid, and a CanvasItem named `Overhang` under the
 ## spawned piece with `get_rect()` (as `objects/overhang`).
 
+const OverhangVisuals = preload("res://scenes/objects/overhang_visuals.gd")
 const KEYS := ["awning", "glyph_sign"]
 const LAMP := "streetlight"
 ## Where the pieces stand: a row, far enough apart that one character is under only one.
@@ -96,6 +97,15 @@ func _check_fades(t: TestContext, key: String, walker: Node2D) -> void:
 	t.check(
 		is_equal_approx(_alpha(overhang), 1.0),
 		"%s is opaque again after the character leaves (alpha %.2f)" % [key, _alpha(overhang)],
+	)
+	# Opaque with nobody near: the watcher has gone back to sleep.
+	await t.frames(3)
+	var reads: int = OverhangVisuals.FadeWatcher.group_reads
+	await t.frames(10)
+	t.expect_eq(
+		OverhangVisuals.FadeWatcher.group_reads,
+		reads,
+		"%s: no character-group read once it is opaque again" % key,
 	)
 
 

@@ -12,6 +12,9 @@ const SEED := 7
 ## A character stands this far (px) in from the corner of the streets' rect, then moves along.
 const CORNER_IN := 100.0
 const MOVE := 300.0
+## How long (sim s) the planning region's re-bake may take to land: its bake runs on the server's
+## worker thread in real time, and a headless run's frames are far shorter than that.
+const PLANNING_WAIT := 12.0
 
 
 func describe() -> Dictionary:
@@ -86,7 +89,7 @@ func _shoved_piece(
 	t.check(
 		await t.until(
 			func() -> bool: return region.navigation_polygon != planning_before,
-			3.0,
+			PLANNING_WAIT,
 		),
 		"the planning region is re-baked after the shove, after the tiles",
 	)

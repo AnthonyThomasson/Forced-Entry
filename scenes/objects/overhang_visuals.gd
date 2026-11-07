@@ -7,8 +7,10 @@ extends Node2D
 ## piece's own painter with `part: "overhang"` in the options, at the overhang's `size` (across x
 ## out, in the canonical frame), centred `reach` px from the piece's centre along its facing. What
 ## in it gives light (a lens, a sign's tube) is drawn again over it by a child `Emissive` layer
-## (emissive_layer.gd), as on the piece. With `fade_under: true` one shared watcher reads the
-## character group and steps every fading overhang; the overhang itself has no frame callback.
+## (emissive_layer.gd), as on the piece. With `fade_under: true` a physics-server area over the
+## drawn area tells when a character comes near, and one shared watcher then reads the character
+## group and steps the overhangs that are fading or have a character near; with none it sleeps, and
+## the overhang itself has no frame callback.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const EmissiveLayer = preload("res://scenes/objects/emissive_layer.gd")
@@ -29,17 +31,38 @@ var _rect := Rect2()
 var _fades := false
 ## Actual alpha writes made by the shared watcher (a test read; zero at rest).
 var fade_writes := 0
+## The instance ids of the characters whose bodies overlap the overhang's area.
+var _near := {}
+## The physics server's area over the drawn area, and its shape (`_listen`).
+var _area := RID()
+var _shape := RID()
+## Whether the shared watcher steps it now.
+var _awake := false
 
 
 func _ready() -> void:
 	set_process(false)
 	if _fades:
-		_watch(self)
+		_listen()
 
 
 func _draw() -> void:
 	if _art:
 		draw_texture_rect(_art, _rect, false)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED and _area.is_valid():
+		PhysicsServer2D.area_set_transform(_area, get_global_transform())
+
+
+func _exit_tree() -> void:
+	if _area.is_valid():
+		PhysicsServer2D.free_rid(_area)
+		_area = RID()
+	if _shape.is_valid():
+		PhysicsServer2D.free_rid(_shape)
+		_shape = RID()
 
 
 ## Make this the `Overhang` child of `piece` (an EnvironmentObject not yet in the tree, its look
@@ -68,15 +91,17 @@ func setup(piece: Node2D, overhang: Dictionary) -> Node2D:
 
 
 ## Step the fade (called by the shared watcher)'s already-fetched character list, writing only a
-## changed alpha.
-func fade_step(characters: Array, delta: float) -> void:
+## changed alpha. Returns whether it still needs stepping: a character is near or it is not opaque
+## yet. Once it does not, the watcher drops it until a character comes near again.
+func fade_step(characters: Array, delta: float) -> bool:
 	var goal := ObjectFadeConfig.alpha if _character_under(characters) else 1.0
 	var speed := (1.0 - ObjectFadeConfig.alpha) / ObjectFadeConfig.seconds
 	var next := move_toward(modulate.a, goal, speed * delta)
-	if next == modulate.a:
-		return
-	modulate.a = next
-	fade_writes += 1
+	if next != modulate.a:
+		modulate.a = next
+		fade_writes += 1
+	_awake = not _near.is_empty() or modulate.a != 1.0
+	return _awake
 
 
 ## Whether any of `characters` stands inside the area the overhang draws.
@@ -105,6 +130,39 @@ func draw_emissive(layer: CanvasItem) -> void:
 	layer.draw_texture_rect(_emissive, _rect, false)
 
 
+## Watch the drawn area for characters (the living stand on `PhysicsLayers.SOLID`): one coming near
+## wakes the watcher. An area of the physics server, not a node: the overhang has no collider.
+func _listen() -> void:
+	_shape = PhysicsServer2D.rectangle_shape_create()
+	PhysicsServer2D.shape_set_data(_shape, _rect.size * 0.5)
+	_area = PhysicsServer2D.area_create()
+	PhysicsServer2D.area_set_space(_area, get_world_2d().space)
+	PhysicsServer2D.area_add_shape(_area, _shape, Transform2D(0.0, _rect.get_center()))
+	PhysicsServer2D.area_set_transform(_area, get_global_transform())
+	PhysicsServer2D.area_set_collision_layer(_area, 0)
+	PhysicsServer2D.area_set_collision_mask(_area, PhysicsLayers.SOLID)
+	PhysicsServer2D.area_set_monitorable(_area, false)
+	PhysicsServer2D.area_set_monitor_callback(_area, _on_body_event)
+	set_notify_transform(true)
+
+
+## A body came into or left the area (`PhysicsServer2D.AREA_BODY_ADDED` / `_REMOVED`): a character
+## coming in wakes the watcher.
+func _on_body_event(
+	status: int, _body: RID, instance_id: int, _body_shape: int, _area_shape: int
+) -> void:
+	if status == PhysicsServer2D.AREA_BODY_REMOVED:
+		_near.erase(instance_id)
+		return
+	var body := instance_from_id(instance_id) as Node
+	if body == null or not body.is_in_group(&"characters"):
+		return
+	_near[instance_id] = true
+	if not _awake:
+		_awake = true
+		_watch(self)
+
+
 ## Register `overhang` with the tree's one fade watcher, creating it on demand.
 static func _watch(overhang: Node2D) -> void:
 	var tree := overhang.get_tree()
@@ -120,26 +178,32 @@ static func _watch(overhang: Node2D) -> void:
 	watcher.watch(overhang)
 
 
-## The only per-frame callback for fading overhangs: one character-group read for all of them.
+## The only per-frame callback for fading overhangs: one character-group read for all of the
+## awake ones.
 class FadeWatcher extends Node:
-	## Live overhangs, held weakly so world teardown needs no unregister pass.
+	## How many times a watcher has read the character group (a test reads it; none at rest).
+	static var group_reads := 0
+
+	## Awake overhangs, held weakly so world teardown needs no unregister pass.
 	var _overhangs: Array[WeakRef] = []
 
 
-	## Step every live overhang; sleep while no world has one.
+	## Step every awake overhang; sleep while none is.
 	func _process(delta: float) -> void:
+		group_reads += 1
 		var characters := get_tree().get_nodes_in_group(&"characters")
 		for i in range(_overhangs.size() - 1, -1, -1):
 			var overhang = _overhangs[i].get_ref()
 			if overhang == null:
 				_overhangs.remove_at(i)
 				continue
-			overhang.fade_step(characters, delta)
+			if not overhang.fade_step(characters, delta):
+				_overhangs.remove_at(i)
 		if _overhangs.is_empty():
 			set_process(false)
 
 
-	## Add an overhang and wake the watcher.
+	## Add an awake overhang and wake the watcher.
 	func watch(overhang: Node2D) -> void:
 		_overhangs.append(weakref(overhang))
 		set_process(true)

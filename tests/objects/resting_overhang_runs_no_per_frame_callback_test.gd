@@ -1,7 +1,12 @@
 extends GameTest
-## A fading overhang left alone has no per-frame callback of its own and writes no unchanged alpha.
-## Its fade is driven by the shared watcher, proved by overhang_fades_under_character.
+## A fading overhang left alone has no per-frame callback of its own, writes no unchanged alpha
+## and costs no per-frame character-group read: the shared watcher that steps fading overhangs
+## sleeps while none is fading. Its fade is driven by that watcher, proved by
+## overhang_fades_under_character.
 
+const OverhangVisuals = preload("res://scenes/objects/overhang_visuals.gd")
+## Frames the watcher is watched at rest.
+const REST_FRAMES := 30
 const KEYS := [&"awning", &"glyph_sign", &"streetlight"]
 
 
@@ -9,7 +14,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "An overhang at rest runs no per-frame callback",
 		"description": "Fading awnings and signs, and the non-fading lamp, neither process nor "
-			+ "write modulate while left at rest.",
+			+ "write modulate while left at rest, and nothing reads the character group per "
+			+ "frame for them.",
 		"tags": ["overhang", "perf"],
 		"timeout": 6.0,
 	}
@@ -24,6 +30,13 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.frames(30)
+	var reads_before: int = OverhangVisuals.FadeWatcher.group_reads
+	await t.frames(REST_FRAMES)
+	t.expect_eq(
+		OverhangVisuals.FadeWatcher.group_reads - reads_before,
+		0,
+		"no character-group read in %d frames at rest" % REST_FRAMES,
+	)
 	for id in KEYS:
 		var piece := t.object(id)
 		var overhang := piece.find_child("Overhang", true, false)

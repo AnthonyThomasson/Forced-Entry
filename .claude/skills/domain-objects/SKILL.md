@@ -53,7 +53,7 @@ solid pieces only, re-fed the footprint polygon when the collider is rebuilt.
 - The drop shadow (the visuals' `DropShadow` child) is the art's own alpha through the deformed outline, offset away from the
   light by `coverage × drop_shadow_per_coverage`, capped; non-solid decor casts none. A turn moves the child (`_shadow_shift`),
   it repaints nothing (`tests/objects/drop_shadow_follows_turn_test.gd`).
-- A piece repaints (art and shadow) only when its `Deformable` records an impact, not each frame (a house has ~90 pieces, a district hundreds); the visuals run no `_process` at all: the Deformable is wired once the object is ready, and the shadow follows a turn on `NOTIFICATION_TRANSFORM_CHANGED` (`tests/objects/resting_piece_runs_no_per_frame_callback_test.gd`); the
+- A piece repaints (art and shadow) only when its `Deformable` records an impact, not each frame (a district has hundreds); the visuals run no `_process` at all: the Deformable is wired once the object is ready, and the shadow follows a turn on `NOTIFICATION_TRANSFORM_CHANGED` (`tests/objects/resting_piece_runs_no_per_frame_callback_test.gd`); the
   art is drawn through `Deformation.draw_shape(..., shape_look)` so dents cut into it. A wall draws each segment in its own child
   (`Segment<i>`), so a hit repaints that segment alone (`tests/objects/wall_segment_repaints_alone_test.gd`).
 - A hit queues one deferred collider rebuild however many hits land first (a wall: one per struck segment, `_rebuild_queued`).
@@ -68,11 +68,11 @@ solid pieces only, re-fed the footprint polygon when the collider is rebuilt.
 ## The overhang (`overhang_visuals.gd`, interface 2)
 
 A definition's `overhang` (`{ size, reach }`) makes `ObjectFactory` add a child `Overhang`: the part that reaches beyond the
-footprint (a streetlight's arm and head). It draws the piece's own painter with `part: "overhang"` at `size`, centred `reach` px out
-along the facing, at `DrawLayers.OVERHEAD` (`ObjectArtLayerConfig.overhang_z_index`: over the living and a vehicle's roof), with no
+footprint (a streetlight's arm). It draws the piece's own painter with `part: "overhang"` at `size`, centred `reach` px out
+along the facing, at `DrawLayers.OVERHEAD` (`ObjectArtLayerConfig.overhang_z_index`, over the living and vehicles), with no
 collider; `get_rect()` is the area it draws, and it has its own `emissive_layer()` (`tests/objects/overhang_test.gd`).
 `fade_under: true` (a tower's awning and glyph sign) fades its `modulate` to `ObjectFadeConfig.alpha` (0.25) over `seconds` (0.15)
-while a `characters` node stands in `get_rect()`; one shared watcher steps them, writing alpha only on change
+while a `characters` node stands in `get_rect()`; one shared watcher steps those fading or with a character near (a server area over `get_rect()` wakes it), writing alpha only on change
 (`overhang_fades_under_character_test.gd`).
 
 ## Lights and shadows (interface 20; spec `docs/lighting.md`, skill `domain-lighting`)
