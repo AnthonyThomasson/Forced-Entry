@@ -59,10 +59,12 @@ read through `character.sight()`: any character can be the viewer.
 - **A rebuild keeps what a plain one would re-read (#192; the polygon is vertex for vertex the reference's, `vision/cone_same_after_savings`).**
   `ViewShapes` keeps a non-character shape's world polygon across rebuilds, keyed by collider and shape index with the transform and
   shape resource it was made from: a move or a replaced shape misses, a dent, re-cut or in-place shape edit clears all of them
-  (child-tree and `changed` signals), a collider leaving the tree drops its own; characters' polygons are read anew. The far face
-  (`far_exit(space, hit, dir)`) reuses the previous ray's blocker polygons when the hit is the same collider, shape and face normal,
-  the probe point is strictly inside the kept polygon, that polygon is the hit shape's own and the only one the read found, no other blocking shape overlaps that shape, and the shape's polygon has stood unchanged since an earlier rebuild (a body moved this frame is still where it was for the physics server, so its point test and its new polygon disagree). The angles are built without
-  lambda sort or map. `far_reuses` and `polygon_reuses` count both for the test.
+  (child-tree and `changed` signals), a collider leaving the tree drops its own; characters' polygons are read anew. In front of that sits a memo for
+  one rebuild (`_memo`): a polygon is checked against its body once, then served from it (a rebuild asks about 1,300 times), and it is
+  emptied by `reset()`, when polygons are cleared and when a collider leaves the tree, so it never serves a polygon across rebuilds. The check allocates
+  nothing (the transform and the shape resource are compared in place). The far face (`far_exit(space, hit, dir)`) reads the blocking
+  shapes holding the probe point afresh each ray: reusing the previous ray's polygons cost more than it saved (`docs/player-vision.md`), so it is gone; keep it out.
+  The angles are built without lambda sort or map. `polygon_reuses`, `memo_hits` and `validations` count for the test.
 - **The look:** the capture shares the main world and leaves `MOVING` and `OVERLAY` out of its cull mask; the memory is a
   world-space `SubViewport` over the floors' bounds at `memory_scale` texels a px (less when the world is wider than 16 384),
   never cleared, wiped for its first two frames; the composite is a screen-sized polygon at `DrawLayers.VISION` (absolute, bit

@@ -41,7 +41,7 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
   one 10v10 in one process, blocks of frames with the view working and blocks with it switched off (node disabled, viewports not
   rendering), interleaved on, off, off, on, because two plays of the match differ from each other by far more than the view costs.
   It holds the median difference to `BUDGET_MS` and the live cone's cost to `RATIO_MAX` of the reference cone's from the same eye
-  (`tests/_vision/reference_view_cone.gd`). Headless sees the CPU side only. `perf/match_npc_vision` is the absolute standard on the
+  (`tests/_vision/reference_view_cone.gd`). Its moving rounds hold `MOVING_BUDGET_MS`, 20 ms (about 1.4x the quiet moving median of about 13 ms), which departs from the 4x rule: 4x of a per-frame cost would never trip. Headless sees the CPU side only. `perf/match_npc_vision` is the absolute standard on the
   same match. Four guards are red on the district and stay so, neither loosened, skipped nor tagged: `perf/match_5v5_stress`,
   `perf/grenade_match_stress`, `perf/match_10v10_stress` and `perf/match_npc_vision` (the AI's decisions in open combat; #190
   "AI decision cost in open combat"). Their numbers, and the gates that moved with the district: `perf-district.md`.
