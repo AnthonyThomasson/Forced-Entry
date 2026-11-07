@@ -66,6 +66,17 @@ static func job(
 	characters: Array = [],
 	parsed: Dictionary = {},
 ) -> Dictionary:
+	var baked := base(site, parsed)
+	if not baked.is_empty():
+		add_holes(baked["source"], site.house.position, furniture + characters)
+	return baked
+
+
+## A job (`job`) before its holes: the polygon to bake into and the source with the walls and the
+## walkable footprint. {} with no rooms. The holes come after the footprint (both are outlines on
+## the same source) and before the bake carves them in: `add_holes`, or `local_outlines`, a
+## `NavUnion` and `finish_holes` for a gather done in steps (`NavGather`).
+static func base(site: NavSite, parsed: Dictionary = {}) -> Dictionary:
 	var house := site.house
 	var bounds := bounds_of(site.rooms)
 	if bounds.size == Vector2.ZERO:
@@ -85,9 +96,6 @@ static func job(
 	source.set_projected_obstructions(walls_here["projected"])
 	# Walkable footprint: the whole house bounds. The parsed walls carve it, leaving the doorways.
 	source.add_traversable_outline(rect_outline(local_bounds))
-	# Furniture holes, after the footprint (both are outlines on the same source) and before the
-	# bake carves them in.
-	add_holes(source, house.position, furniture + characters)
 	return { "poly": new_polygon(site.agent_radius), "source": source }
 
 
@@ -100,13 +108,25 @@ static func add_holes(
 	origin: Vector2,
 	footprints: Array,
 ) -> void:
+	finish_holes(source, NavUnion.fuse(local_outlines(origin, footprints)))
+
+
+## `footprints` (closed WORLD-space polygons) in the frame the bake runs in: minus `origin`, the
+## house's position.
+static func local_outlines(origin: Vector2, footprints: Array) -> Array:
 	var outlines: Array = []
 	for outline in footprints:
 		var local := PackedVector2Array()
 		for p in outline:
 			local.append(p - origin)
 		outlines.append(local)
-	for outline in on_grid(NavUnion.fuse(outlines)):
+	return outlines
+
+
+## Add `fused` (the fused `local_outlines`) to `source` as obstruction outlines: snapped to the 1 px
+## grid and simplified.
+static func finish_holes(source: NavigationMeshSourceGeometryData2D, fused: Array) -> void:
+	for outline in on_grid(fused):
 		source.add_obstruction_outline(simplified(outline))
 
 

@@ -20,7 +20,8 @@ stopping re-bakes one to four tiles: ~5 ms a tick, not ~57
   Test: `navigation/steering_bins_match_full_scan`.
 - **The steering re-bake lands in its tick's frame, house or district** (`nav_updater.gd`; `steering_rebake_lands_in_its_tick_test.gd`): a
   held walker re-looks for a way round a body every `RECHECK` s and the map answers a frame after the re-bake, so a late one costs a whole
-  `RECHECK`. A district's planning gather waits a frame; the planning region stays whole and async.
+  `RECHECK`. A district's planning gather is not in the tick: it runs a step a physics frame after it (`NavGather`, `rebake.md`) and its
+  bake is async; the planning region stays whole, swapped in as one.
 
 ## Avoid maps (`avoid_map`)
 
