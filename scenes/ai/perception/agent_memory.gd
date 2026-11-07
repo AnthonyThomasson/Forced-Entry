@@ -90,12 +90,9 @@ func age_of(topic: StringName, field: String, value: Variant) -> float:
 func recall_aged(topic: StringName) -> Array:
 	aged_reads += 1
 	var out: Array = []
-	var list: Array = _by_topic.get(topic, [])
 	var now := GameClock.msec()
-	for i in range(list.size() - 1, -1, -1):
-		var entry: Dictionary = list[i]
-		if not _expired(entry, now):
-			out.append({ "data": entry["data"], "age": (now - entry["at"]) / 1000.0 })
+	for entry: Dictionary in live_entries(topic):
+		out.append({ "data": entry["data"], "age": (now - entry["at"]) / 1000.0 })
 	return out
 
 

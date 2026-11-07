@@ -14,7 +14,7 @@ extends UnitSuite
 const AgentPerception := preload("res://scenes/ai/perception/agent_perception.gd")
 const PerceptionSight := preload("res://scenes/ai/perception/perception_sight.gd")
 const PerceptionHouse := preload("res://scenes/ai/perception/perception_house.gd")
-const SightBody := preload("res://tests/_ai/sight_body.gd")
+const SightBody := preload("res://tests/_ai/sight_body_probe.gd")
 ## How many perceptions each case runs over, and how many characters the sight case watches.
 const COUNT := 3
 ## The physics frames the sight case asks about.
@@ -224,6 +224,28 @@ func test_a_decisions_look_for_furniture_is_a_full_look() -> void:
 	# The decision's own look, in the same frame as the scheduled one, covers every piece in view.
 	perception.house.learn_by_sight(true)
 	assert_int(perception.house.known_object_ids().size()).is_equal(6)
+
+
+func test_furniture_in_view_is_learned_within_eighteen_frames_of_the_first_look() -> void:
+	var body: SightBody = auto_free(SightBody.new())
+	var perception := _perception()
+	perception.apply_config(auto_free(NpcTuning.defaults()))
+	add_child(body)
+	perception.set("_character", body)
+	perception.house.interactables = _furniture(6)
+	var first := -1
+	var done := -1
+	for frame in 30:
+		await get_tree().physics_frame
+		# As the perception's observe() schedules it: a look once `learn_next` has come.
+		if Engine.get_physics_frames() >= perception.house.learn_next:
+			if first < 0:
+				first = Engine.get_physics_frames()
+			perception.house.learn_by_sight()
+		if done < 0 and perception.house.known_object_ids().size() == 6:
+			done = Engine.get_physics_frames()
+	assert_int(done).is_greater(-1)
+	assert_int(done - first).is_less_equal(18)
 
 
 ## `count` pieces in the cone of a body at the origin facing +x, in the clear, each a distinct spot.

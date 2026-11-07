@@ -45,8 +45,8 @@ var _learned_frame := -1
 ## Whether the latest look was a full one (every unknown piece), not a slice.
 var _learned_full := false
 ## How many sliced looks have been made: piece `i` of `interactables` is looked at on the sliced
-## looks where `(i + _slices) % LEARN_SLICES` is 0.
-var _slices := 0
+## looks where `(i + _sliced_looks) % LEARN_SLICES` is 0.
+var _sliced_looks := 0
 ## The intake identities already set up: rooms, openings, grenade-slot items and body heights.
 var _intake := {}
 ## How often each piece of intake setup ran (fast-path test observables).
@@ -145,7 +145,7 @@ func learn_by_sight(full := false) -> void:
 				if _learned_frame >= 0
 				else 1 + perception.get_instance_id() % LEARN_EVERY_FRAMES)
 		if not full:
-			_slices += 1
+			_sliced_looks += 1
 	_learned_frame = frame
 	_learned_full = full
 	var self_pos: Vector2 = perception._character.global_position
@@ -177,7 +177,7 @@ func _look_at_rooms(
 
 
 ## Learn the interactable pieces not yet known that the NPC sees: every one when `full`, else the
-## slice this look takes (piece `i` when `(i + _slices) % LEARN_SLICES` is 0).
+## slice this look takes (piece `i` when `(i + _sliced_looks) % LEARN_SLICES` is 0).
 func _look_at_furniture(
 	full: bool,
 	self_pos: Vector2,
@@ -190,7 +190,7 @@ func _look_at_furniture(
 		var obj: Variant = interactables[i]
 		if not is_instance_valid(obj) or known_objects.has(obj.get_instance_id()):
 			continue
-		if not full and (i + _slices) % LEARN_SLICES != 0:
+		if not full and (i + _sliced_looks) % LEARN_SLICES != 0:
 			continue
 		if perception.sight.vision.can_see_node(obj, self_pos, facing, space, exclude):
 			known_objects[obj.get_instance_id()] = true
