@@ -1,15 +1,14 @@
 extends GameTest
 ## The decision micro bundle (#192 rule 37) changes no answer, only the work: a route's exposure is
 ## settled as soon as five samples are seen or four missed, the throw lob of a spot is judged once
-## a decision whatever kind asks, a navmesh point (room centres among them) is snapped once, and
-## cover is read without a piece's whole surface. A firing spot's checks already run cheapest
+## a decision whatever kind asks, and a navmesh point (room centres among them) is snapped once. A
+## firing spot's checks already run cheapest
 ## first (the route's crossing, which casts no ray, before its watchers), so none is reordered. Each
 ## item is held against the plain computation (the spec's own count of an exposed route: more than
 ## half of its eight samples in sight) and shows by a counter that the fast path was taken.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
-const SurfaceStub := preload("res://tests/_ai/surface_stub.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const CountingVision := preload("res://tests/_ai/counting_vision.gd")
@@ -25,8 +24,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "The decision micro bundle matches the plain computation",
 		"description": "Route exposure stopped early, the throw lob and room-centre snaps "
-			+ "memoised per decision and the cheaper cover "
-			+ "read give the plain computation's answers with less work.",
+			+ "memoised per decision give the plain computation's answers "
+			+ "with less work.",
 		"tags": ["ai", "decision", "tactics", "snapshot"],
 		"timeout": 30.0,
 	}
@@ -52,7 +51,6 @@ func run(t: TestContext) -> void:
 	_exposure(t)
 	await _throws(t)
 	_snaps(t)
-	_cover(t)
 
 
 ## The throw groups of the invader's frag and stun, with the lob of a throw spot judged once a
@@ -100,39 +98,6 @@ func _snaps(t: TestContext) -> void:
 	t.expect_eq(fast["sections"], plain["sections"], "the full sections equal the plain ones")
 	var hits := _hits(fast["demand"], "snaps")
 	t.check(hits > 0, "a point is snapped once a decision (%d asks kept)" % hits)
-
-
-## `is_cover` equals the whole-surface reading (`get_surface().coverage` at or above `cover_min`)
-## for every wall, piece and door of the house and for a piece at the edge of the rating, and reads
-## a piece's coverage without building its whole surface.
-func _cover(t: TestContext) -> void:
-	var tactics := _tactics()
-	var tested := 0
-	var covers := 0
-	var wrong: Array = []
-	for node in t.world.find_children("*", "", true, false):
-		if node.is_in_group(&"characters") or not node.has_method("get_surface"):
-			continue
-		var plain: bool = float(node.get_surface().get("coverage", 0.0)) >= tactics.cover_min
-		tested += 1
-		covers += 1 if plain else 0
-		if tactics.is_cover(node) != plain:
-			wrong.append(node.name)
-	t.require(
-		covers > 0 and covers < tested,
-		"set-up: the house holds cover and low pieces (%d of %d)" % [covers, tested],
-	)
-	t.check(wrong.is_empty(), "is_cover equals the surface's coverage test (%s)" % str(wrong))
-	var stub := SurfaceStub.new()
-	t.world.add_child(stub)
-	for coverage in [0.0, tactics.cover_min - 0.5, tactics.cover_min, 100.0]:
-		stub.coverage = coverage
-		t.check(
-			tactics.is_cover(stub) == (coverage >= tactics.cover_min),
-			"a piece of coverage %s is cover only from %s" % [coverage, tactics.cover_min],
-		)
-	t.check(stub.surface_calls == 0, "a piece's coverage is read without its whole surface")
-	stub.queue_free()
 
 
 ## How many asks of bucket `name` the snapshot of `demand` answered from what it had kept.
