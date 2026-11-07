@@ -117,6 +117,7 @@ func parts_of(rd: RefCounted) -> Array:
 		_limbs.segment(chest, head, neck, neck, neck_length),
 		_dress.skin,
 	)
+	neck_seg["last"] = _visuals.cache.slot(BodyDrawCache.SEGMENT + BodyDrawCache.NECK * 8)
 	parts.append(_keyed(_limbs.chain_of([neck_seg]), "neck"))
 	parts.append(head_part(rd))
 	parts.append({
@@ -149,7 +150,7 @@ func _draw_hand(hand: Dictionary) -> void:
 	var diameter: float = _hands.hand_radius * 2.0 + 2.0
 	var size := Vector2(diameter, diameter)
 	var part: Dictionary = _dress.hand_parts[hand["side"]]
-	var tex := PixelArt.render_turned(
+	var tex: Texture2D = _visuals.cache.slot(BodyDrawCache.LAID_HAND + int(hand["side"])).render(
 		HandPainter,
 		size,
 		part["color"],
@@ -173,7 +174,7 @@ func draw_head(head: Dictionary) -> void:
 	var neck: Vector3 = head["neck"]
 	var look := BodyLimbs.flat(face) + BodyLimbs.flat(neck).normalized() * absf(face.z)
 	var angle := look.angle() - PI * 0.5 if look.length() > 0.01 else 0.0
-	var tex := PixelArt.render_turned(
+	var tex: Texture2D = _visuals.cache.slot(BodyDrawCache.LAID_HEAD).render(
 		HeadPainter,
 		size,
 		_dress.skin,

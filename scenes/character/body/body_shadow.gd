@@ -60,7 +60,7 @@ func draw_standing(rig: Rig, shift_by: Vector2, lift: Vector2) -> void:
 		solid = meshes.solid(Color.BLACK)
 		fills = solid
 	else:
-		fills = FillBatch.new(node)
+		fills = _visuals.cache.batch(node)
 	var bounds := Rect2(lift, Vector2.ZERO)  # What the limbs and the discs cover.
 	for i in 2:
 		for chain in [limbs[i], limbs[2 + i]]:
@@ -82,7 +82,7 @@ func draw_standing(rig: Rig, shift_by: Vector2, lift: Vector2) -> void:
 ## it lands.
 func draw_fallen(rd: RefCounted) -> void:
 	var shift_by := shift()
-	var fills := FillBatch.new(node)
+	var fills: FillBatch = _visuals.cache.batch(node)
 	for part in _visuals.laid.parts_of(rd):
 		match part["kind"]:
 			"chain":

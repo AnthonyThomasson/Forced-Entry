@@ -278,7 +278,7 @@ func _face_art(face: Dictionary) -> Dictionary:
 	var art_size := Vector2(roundf(size.x), roundf(size.y))
 	var tex: Texture2D
 	if face["kind"] == "top":
-		tex = PixelArt.render_turned(
+		tex = _visuals.cache.slot(BodyDrawCache.TRUNK_FACE["top"]).render(
 			BodyPainter,
 			art_size,
 			_dress.shirt,
@@ -286,7 +286,7 @@ func _face_art(face: Dictionary) -> Dictionary:
 			_dress.shoulder_opts,
 		)
 	else:
-		tex = PixelArt.render_turned(
+		tex = _visuals.cache.slot(BodyDrawCache.TRUNK_FACE[face["kind"]]).render(
 			TorsoPainter,
 			art_size,
 			_dress.shirt,

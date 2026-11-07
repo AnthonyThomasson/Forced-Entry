@@ -61,9 +61,29 @@ func chains(j: RefCounted) -> Array:
 	var frame := Engine.get_physics_frames()
 	if not is_same(j, _of) or frame != _frame:
 		_chains = [_leg_chain(j, 0), _leg_chain(j, 1), _arm_chain(j, 0), _arm_chain(j, 1)]
+		_give_slots()
 		_of = j
 		_frame = frame
 	return _chains
+
+
+## Hand each segment of the chains just built its slot (`last`), by chain and place,
+## so a limb's next frame finds the arguments it drew with.
+func _give_slots() -> void:
+	var cache: BodyDrawCache = _visuals.cache
+	for c in _chains.size():
+		var segs: Array = _chains[c]["segs"]
+		for k in segs.size():
+			segs[k]["last"] = cache.slot(BodyDrawCache.SEGMENT + c * 8 + k)
+
+
+## `seg`'s `render_turned` slot (`_give_slots`), the plain one while the caches are off or when it
+## has none.
+func _seg_slot(seg: Dictionary) -> PixelArt.TurnedLast:
+	var cache: BodyDrawCache = _visuals.cache
+	if BodyDrawCache.enabled and seg.has("last"):
+		return seg["last"]
+	return cache.plain
 
 
 ## Side `i`'s arm as a limb chain from the joints of `j` (the rig or the ragdoll): the upper arm to
@@ -193,7 +213,7 @@ func chain_of(segs: Array) -> Dictionary:
 ## A limb chain: every segment first a pixel wider in its outline tone, then every fill over them
 ## (lowest first), so the joints run together under one continuous outline.
 func draw_chain(chain: Dictionary) -> void:
-	var outlines := FillBatch.new(_visuals)
+	var outlines: FillBatch = _visuals.cache.batch(_visuals)
 	# The segments by mean height, lowest first; a tie keeps the chain's order.
 	var order: Array = []
 	var heights: Array[float] = []
@@ -233,7 +253,7 @@ func _draw_segment(seg: Dictionary) -> void:
 	var span := a.distance_to(b)
 	var dir := (b - a) / span if span > 0.01 else Vector2.DOWN
 	var widest := maxf(ra, rb)
-	var tex := PixelArt.render_turned(
+	var tex: Texture2D = _seg_slot(seg).render(
 		LimbPainter,
 		Vector2(roundf(widest * 2.0), roundf(float(seg["length"]) + ra + rb)),
 		seg["color"],
