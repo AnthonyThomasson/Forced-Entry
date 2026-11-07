@@ -60,6 +60,12 @@ func setup(vocab: SnapshotVocab, sources: SnapshotSources) -> void:
 	_ledger = sources.ledger
 
 
+## Open the walked-route memo for a build of this decision's groups
+## (`AgentDoorViews.begin_decision`): hold the returned token for the whole build.
+func begin_decision() -> RefCounted:
+	return _views.begin_decision()
+
+
 ## Hand in the NPC's body. Called once by `AgentSnapshot.bind()`.
 func bind(character: Node) -> void:
 	_character = character

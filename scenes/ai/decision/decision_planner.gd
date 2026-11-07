@@ -457,13 +457,17 @@ func _fact(facts: Dictionary, key: String) -> bool:
 ## (`snapshot_demand.gd`). Each group is { summary, options: [{ id, label, desc, params, tags }] }.
 func _group(group_name: StringName) -> Dictionary:
 	var options: Dictionary = _walk.snap.get("options", {})
+	var demand = _walk.snap.get("demand")
 	if _walk.binding.has("target_id"):
-		var per: Dictionary = options.get("per_target", {}).get(_walk.binding["target_id"], {})
+		var target_id: int = _walk.binding["target_id"]
+		var per: Dictionary = options.get("per_target", {}).get(target_id, {})
 		if per.has(String(group_name)):
 			return per[String(group_name)]
+		var own = demand.target_group(String(group_name), target_id) if demand != null else null
+		if own != null:
+			return own
 	if options.has(String(group_name)):
 		return options[String(group_name)]
-	var demand = _walk.snap.get("demand")
 	return demand.group(String(group_name)) if demand != null else {}
 
 
@@ -523,17 +527,18 @@ func _state_text(node: Dictionary, bind_level: bool) -> String:
 
 ## A state section: the bound target's version when it has one, else the global one.
 func _section(section_name: String) -> String:
+	var demand = _walk.snap.get("demand")
 	if _walk.binding.has("target_id"):
-		var per: Dictionary = _walk.snap.get(
-			"sections_per_target",
-			{},
-		).get(_walk.binding["target_id"], {})
+		var target_id: int = _walk.binding["target_id"]
+		var per: Dictionary = _walk.snap.get("sections_per_target", {}).get(target_id, {})
 		if per.has(section_name):
 			return per[section_name]
+		var own = demand.target_section(section_name, target_id) if demand != null else null
+		if own != null:
+			return own
 	var sections: Dictionary = _walk.snap.get("sections", {})
 	if sections.has(section_name):
 		return sections[section_name]
-	var demand = _walk.snap.get("demand")
 	return demand.section(section_name) if demand != null else ""
 
 

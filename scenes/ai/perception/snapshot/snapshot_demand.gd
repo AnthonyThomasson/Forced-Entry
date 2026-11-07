@@ -1,14 +1,20 @@
 extends RefCounted
-## AI PERCEPTION sub-domain — SNAPSHOT DEMAND. The option groups and facts a decision's walk
-## rarely reads, built when it first reads them instead of with every snapshot (#192 rule 23):
-## the groups `leads`, `entries`, `search_rooms`, `explore`, `interactions` and `rooms`, the facts
-## `leads` and `lead_outside` and the section `odds` that need the first. `AgentSnapshot.build()`
-## hands each snapshot
-## one (`snapshot["demand"]`), filled with what the groups are built from (the frozen context and
-## knowledge of that decision); the planner asks it for a group or fact its snapshot lacks
-## (`group`, `fact`), and a reader that wants everything (the debug overlay, the spectator card, a
-## test) calls `complete()`. A group built here is stored in the snapshot's own `options`, so it is
-## built once and every later reader sees it there; its text is exactly the eager build's.
+## AI PERCEPTION sub-domain — SNAPSHOT DEMAND. The option groups, facts and sections a decision's
+## walk rarely reads, built when it first reads them instead of with every snapshot (#192 rules 23
+## and 24): the groups `leads`, `entries`, `search_rooms`, `explore`, `interactions`, `rooms` and
+## the grenade throws (`grenade_throws`, the shots' one, and each analysed hostile's); the facts
+## `leads`, `lead_outside` and `grenade_ready`; and the sections `odds` and `exposure`, which say
+## what the leads and the throws make possible. `AgentSnapshot.build()` hands each snapshot one
+## (`snapshot["demand"]`), filled with what these are built from (the frozen context and knowledge
+## of that decision); the planner asks it for what its snapshot lacks (`group`, `target_group`,
+## `fact`, `section`, `target_section`), and a reader that wants everything (the debug overlay, the
+## spectator card, a test) calls `complete()`. What is built here is stored in the snapshot's own
+## dictionaries, so it is built once and every later reader sees it there; its text is exactly the
+## eager build's.
+##
+## `grenade_ready` is answered by a search that stops at the first throw the NPC could make
+## (`SnapshotThrows.grenade_possible`); the throw options themselves, with their tags and wording,
+## are built only when the walk reads them.
 ##
 ## What a group reads live (the event memory, the physics space, the navigation map) it reads when
 ## it is built, up to a walk's latency after the decision began; what it reads from `ctx` and
@@ -17,29 +23,30 @@ extends RefCounted
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const SnapshotOptions = preload("res://scenes/ai/perception/snapshot/snapshot_options.gd")
 const SnapshotSections = preload("res://scenes/ai/perception/snapshot/snapshot_sections.gd")
+const SnapshotThrows = preload("res://scenes/ai/perception/snapshot/snapshot_throws.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
-## The option groups built on demand.
+## The option groups built on demand (the global ones; a hostile's grenade throws are
+## `target_group`'s).
 const GROUPS: Array[String] = [
-	"leads", "entries", "search_rooms", "explore", "interactions", "rooms",
+	"leads", "entries", "search_rooms", "explore", "interactions", "rooms", "grenade_throws",
 ]
 ## The facts resolved on demand.
-const FACTS: Array[String] = ["leads", "lead_outside"]
+const FACTS: Array[String] = ["leads", "lead_outside", "grenade_ready"]
 ## The state sections written on demand.
-const SECTIONS: Array[String] = ["odds"]
+const SECTIONS: Array[String] = ["odds", "exposure"]
 
 ## The names of the groups built so far, in the order they were built (one entry per group: a
-## group is built once). A test reads it to see which groups a walk read.
+## group is built once; a hostile's grenade throws are `grenade_throws:<its id>`). A test reads it
+## to see which groups a walk read.
 var built: Array[String] = []
 ## The option groups' author (`snapshot_options.gd`).
 var options: SnapshotOptions
+## The grenade groups' author (`snapshot_throws.gd`).
+var throws: SnapshotThrows
 ## The state text's author (`snapshot_sections.gd`).
 var texts: SnapshotSections
-## The agent's event memory (read-only here).
-var memory: RefCounted
 ## The shared vocabulary: its `rooms` are the decision's.
 var vocab: SnapshotVocab
-## The doorway views, whose walked-route memo each build opens for itself.
-var views: RefCounted
 ## The decision's frozen context (`AgentSnapshot._context`).
 var ctx := {}
 ## The knowledge the perception handed the decision (`AgentPerception.sense`).
@@ -48,16 +55,26 @@ var know := {}
 var rooms: Array = []
 ## Whether a stun can be thrown, which hands the leads the rooms the entries lead into.
 var stun_stack := false
+## The hostiles given full analysis, by id: `{ t, a }`, the contact and its combat geometry.
+var targets := {}
 ## The snapshot's own `options`, which a group is stored in once built.
 var groups := {}
 ## The snapshot's own `facts`, which a fact is stored in once worked out.
 var facts := {}
 ## The snapshot's own `sections`, which a section is stored in once written.
 var sections := {}
-## The rooms a doorway of ENTER leads into (`SnapshotOptions.entry_rooms`), once worked out.
-var _entered: Dictionary = {}
-## Whether `_entered` is worked out.
-var _entered_known := false
+## The snapshot's own `sections_per_target`, which a hostile's section is stored in once written.
+var per_sections := {}
+## The rooms a doorway of ENTER leads into (`SnapshotOptions.entry_rooms`), once worked out (null
+## before).
+var _entered: Variant = null
+
+
+## The kinds (`frag` / `stun`) of the throws in grenade group `throw_group` the GRENADE tactic would
+## offer: those not tagged `ally_in_blast` or `no_safe_spot`.
+static func usable(throw_group: Dictionary) -> Array:
+	var offered := func(o): return not o["tags"]["ally_in_blast"] and not o["tags"]["no_safe_spot"]
+	return throw_group["options"].filter(offered).map(func(o): return o["id"])
 
 
 ## Option group `name`, built now unless it was already: `{}` for a name that is not built on
@@ -67,15 +84,26 @@ func group(name: String) -> Dictionary:
 		return groups[name]
 	if not GROUPS.has(name):
 		return {}
-	var _scope: RefCounted = views.begin_decision()
-	# The author's modules read the decision in build from themselves: hand this one's back in,
-	# whatever a decision begun since has left there.
-	options.know = know
-	vocab.rooms = rooms
+	var _scope: RefCounted = _open()
 	var out := _build(name)
 	groups[name] = out
 	built.append(name)
 	return out
+
+
+## Hostile `target_id`'s option group `name` (`grenade_throws`), built now unless it was already;
+## null when it is not built on demand or the hostile got no full analysis.
+func target_group(name: String, target_id: int) -> Variant:
+	if name != "grenade_throws" or not targets.has(target_id):
+		return null
+	var per: Dictionary = groups["per_target"][target_id]
+	if per.has(name):
+		return per[name]
+	var _scope: RefCounted = _open()
+	var target: Dictionary = targets[target_id]
+	per[name] = throws.grenade_group(ctx, target["t"], target["a"])
+	built.append("%s:%d" % [name, target_id])
+	return per[name]
 
 
 ## Fact `name` of the decision, worked out now unless it was already: false for a fact that is not
@@ -90,6 +118,8 @@ func fact(name: String) -> bool:
 		value = not (group("leads")["options"] as Array).is_empty()
 	elif name == "lead_outside":
 		value = _lead_outside()
+	elif name == "grenade_ready":
+		value = _grenade_ready()
 	facts[name] = value
 	return value
 
@@ -104,8 +134,26 @@ func section(name: String) -> String:
 	var text := ""
 	if name == "odds":
 		text = _odds()
+	elif name == "exposure":
+		text = _exposure()
 	sections[name] = text
 	return text
+
+
+## Hostile `target_id`'s version of section `name` (`exposure`), written now unless it was already;
+## null when it is not written on demand or the hostile got no full analysis.
+func target_section(name: String, target_id: int) -> Variant:
+	if name != "exposure" or not targets.has(target_id):
+		return null
+	var per: Dictionary = per_sections[target_id]
+	if per.has(name):
+		return per[name]
+	var target: Dictionary = targets[target_id]
+	var throw_group: Dictionary = target_group("grenade_throws", target_id)
+	per[name] = texts.exposure_text(
+		ctx, target["t"], target["a"], usable(throw_group), throw_group.get("held_room", "")
+	)
+	return per[name]
 
 
 ## Build every group, fact and section still missing, so the snapshot holds what an eager build
@@ -113,20 +161,23 @@ func section(name: String) -> String:
 func complete() -> void:
 	for name in GROUPS:
 		group(name)
+	for id in targets:
+		target_group("grenade_throws", id)
+		target_section("exposure", id)
 	for name in FACTS:
 		fact(name)
 	for name in SECTIONS:
 		section(name)
 
 
-## The odds: how many hostiles against which allies; with none known, whether it is quiet or there
-## is trouble out of sight (a lead), which asks for the leads only with no hostile known and
-## nobody firing at the NPC.
-func _odds() -> String:
-	var hostiles: Array = ctx["hostiles"]
-	var trouble: bool = (hostiles.is_empty() and not memory.under_fire()
-			and not (group("leads")["options"] as Array).is_empty())
-	return texts.odds_text(hostiles, ctx["allies"], ctx["callouts"], trouble)
+## Hand the author's modules the decision this builds for (they read it from themselves, whatever
+## a decision begun since has left there) and open the walked-route memo of the build: hold the
+## returned token for the whole build.
+func _open() -> RefCounted:
+	options.know = know
+	throws.know = know
+	vocab.rooms = rooms
+	return options.begin_decision()
 
 
 ## Whether the NPC is in a room and a lead lies outside the house.
@@ -134,6 +185,44 @@ func _lead_outside() -> bool:
 	if HouseRooms.at(ctx["self_pos"], rooms).is_empty():
 		return false
 	return (group("leads")["options"] as Array).any(func(o): return not o["tags"]["inside"])
+
+
+## Whether a legal throw exists (docs/grenades.md G17, G18): one at a hostile given full analysis,
+## or one where the shots came from. What is already built answers from it; the rest by the search
+## that stops at the first throw the NPC could make.
+func _grenade_ready() -> bool:
+	var _scope: RefCounted = _open()
+	var shots := (not (groups["grenade_throws"]["options"] as Array).is_empty()
+			if groups.has("grenade_throws")
+			else throws.shots_possible(ctx, ctx["hostiles"]))
+	return shots or targets.keys().any(_target_throws)
+
+
+## Whether a throw at hostile `id` is possible: its built group holds an option, else the search.
+func _target_throws(id: int) -> bool:
+	var per: Dictionary = groups["per_target"][id]
+	if per.has("grenade_throws"):
+		return not (per["grenade_throws"]["options"] as Array).is_empty()
+	return throws.grenade_possible(ctx, targets[id]["t"], targets[id]["a"])
+
+
+## The odds: how many hostiles against which allies; with none known, whether it is quiet or there
+## is trouble out of sight (a lead), which asks for the leads only with no hostile known and
+## nobody firing at the NPC.
+func _odds() -> String:
+	var trouble: bool = (texts.is_quiet(ctx["hostiles"])
+			and not (group("leads")["options"] as Array).is_empty())
+	return texts.odds_text(ctx["hostiles"], ctx["allies"], ctx["callouts"], trouble)
+
+
+## The exposure the walk reads at a level with no hostile bound: the nearest hostile given full
+## analysis, else (shot at by someone unseen) what the throws where the shots came from allow.
+func _exposure() -> String:
+	for h: Dictionary in ctx["hostiles"]:
+		if targets.has(h["id"]):
+			return target_section("exposure", h["id"])
+	var shots := group("grenade_throws")
+	return texts.unseen_fire_text(usable(shots), shots.get("held_room", ""))
 
 
 ## The group `name`'s build.
@@ -152,14 +241,15 @@ func _build(name: String) -> Dictionary:
 			out = options.interaction_group(ctx["self_pos"])
 		"rooms":
 			out = options.room_group(ctx, know["known_rooms"], rooms)
+		"grenade_throws":
+			out = throws.shots_grenade_group(ctx, ctx["hostiles"])
 	return out
 
 
 ## The rooms a doorway of ENTER leads into.
 func _entered_rooms() -> Dictionary:
-	if not _entered_known:
+	if _entered == null:
 		_entered = SnapshotOptions.entry_rooms(group("entries"))
-		_entered_known = true
 	return _entered
 
 

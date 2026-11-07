@@ -612,10 +612,9 @@ func _ambush_from(ctx: Dictionary, target: Dictionary, cover_spots: Array, ex: A
 ## first, then out of the line from the spot (low furniture between: hidden from whoever is there),
 ## then with cover close by against it (a doorway's jamb, a piece), then the shortest walk.
 ## `{ point, route_len, hidden, cover, detour }`, or {} when there is none.
-func throw_spot(ctx: Dictionary, aim: ThrowAim, ex: Array) -> Dictionary:
-	var walkable := _throw_walkable(
-		ctx, _throw_found(ctx, aim, ex).slice(0, THROW_ROUTES), aim.route
-	)
+func throw_spot(ctx: Dictionary, aim: ThrowAim, ex: Array, points: Variant = null) -> Dictionary:
+	var found: Array = _throw_ranked(ctx, aim, ex, _points_of(ctx, aim, points))
+	var walkable := _throw_walkable(ctx, found.slice(0, THROW_ROUTES), aim.route)
 	if walkable.is_empty():
 		return {}
 	walkable.sort_custom(func(a, b):
@@ -627,22 +626,62 @@ func throw_spot(ctx: Dictionary, aim: ThrowAim, ex: Array) -> Dictionary:
 	return walkable[0]
 
 
+## Whether `throw_spot` would find a spot (`not throw_spot(...).is_empty()`), without choosing it:
+## the candidates that would be routed (the first `THROW_ROUTES` by rank, every one of them when
+## there are no more than that) are routed one at a time and the search stops at the first the walk
+## reaches. With no more candidates than routes, nothing is ranked. `points` are the candidates
+## `throw_points` found, for a caller that has them (null: found here).
+func has_throw_spot(ctx: Dictionary, aim: ThrowAim, ex: Array, points: Variant = null) -> bool:
+	var found: Array = _points_of(ctx, aim, points)
+	var routed: Array
+	if found.size() > THROW_ROUTES:
+		routed = _throw_ranked(ctx, aim, ex, found).slice(0, THROW_ROUTES)
+	else:
+		routed = found.map(func(p): return { "point": p })
+	for c: Dictionary in routed:
+		if not _throw_leg(ctx, c["point"], aim.route).is_empty():
+			return true
+	return false
+
+
+## `points` (`throw_points`), or the points found now when null.
+func _points_of(ctx: Dictionary, aim: ThrowAim, points: Variant) -> Array:
+	return points if points != null else throw_points(ctx, aim)
+
+
 ## The candidate throw spots for `aim` that pass the cheap tests (`_throw_point`, then not within 12
-## px of one already found, then the lob), each `{ point, hidden, cover }` (hidden from the burst
-## spot, else the cover close by against it), sorted by `_throw_rank`, then the straight distance.
-## A snapped point is lob-tested once whether its first try qualified or not.
-func _throw_found(ctx: Dictionary, aim: ThrowAim, ex: Array) -> Array:
+## px of one already found, then the lob), in the order they are found. A snapped point is
+## lob-tested once whether its first try qualified or not. Worked out once for a spot and shared by
+## `throw_spot` and `has_throw_spot`.
+func throw_points(ctx: Dictionary, aim: ThrowAim) -> Array:
 	var self_pos: Vector2 = ctx["self_pos"]
-	var found: Array = []
+	var points: Array = []
 	var tried := {}
 	for r: Vector2 in _throw_raw(self_pos, aim):
 		var p := _throw_point(ctx, r, aim)
 		if p == Vector2.INF or tried.has(p):
 			continue
 		tried[p] = true
-		if (found.any(func(c): return (c["point"] as Vector2).distance_to(p) < 12.0)
+		if (points.any(func(q): return (q as Vector2).distance_to(p) < 12.0)
 				or not aim.lob.call(p)):
 			continue
+		points.append(p)
+	return points
+
+
+## The candidate throw spots for `aim` (`throw_points`), each `{ point, hidden, cover }` (hidden
+## from the burst spot, else the cover close by against it), sorted by `_throw_rank`, then the
+## straight distance.
+func _throw_found(ctx: Dictionary, aim: ThrowAim, ex: Array) -> Array:
+	return _throw_ranked(ctx, aim, ex, throw_points(ctx, aim))
+
+
+## `points` annotated (`{ point, hidden, cover }`) and sorted by `_throw_rank`, then the straight
+## distance from the NPC.
+func _throw_ranked(ctx: Dictionary, aim: ThrowAim, ex: Array, points: Array) -> Array:
+	var self_pos: Vector2 = ctx["self_pos"]
+	var found: Array = []
+	for p: Vector2 in points:
 		var hidden := blocked(ctx["space"], aim.spot, p, ex)
 		found.append({
 			"point": p,
@@ -701,20 +740,28 @@ func _throw_point(ctx: Dictionary, r: Vector2, aim: ThrowAim) -> Vector2:
 func _throw_walkable(ctx: Dictionary, found: Array, route: Callable) -> Array:
 	var walkable: Array = []
 	for c: Dictionary in found:
-		var way: Dictionary = route.call(c["point"]) if route.is_valid() else {}
-		if way.is_empty():
-			var plain := _route(ctx, c["point"])
-			way = { "path": plain, "len": NavBuilder.path_length(plain), "detour": false }
-		var path: PackedVector2Array = way["path"]
-		var length: float = way["len"]
-		if (length > throw_spot_walk
-				or path.is_empty()
-				or path[path.size() - 1].distance_to(c["point"]) > 12.0):
-			continue
-		if _route_crosses(path, ctx["hostiles"]) != "":
-			continue
-		walkable.append(c.merged({ "route_len": length, "detour": bool(way.get("detour", false)) }))
+		var leg := _throw_leg(ctx, c["point"], route)
+		if not leg.is_empty():
+			walkable.append(c.merged(leg))
 	return walkable
+
+
+## The walk to throw spot `point` (`route`: `{ path, len, detour }`, else the plain route with no
+## detour) as `{ route_len, detour }`, or {} when it does not qualify: it must end within 12 px of
+## the spot, be at most `throw_spot_walk` long and pass no known hostile.
+func _throw_leg(ctx: Dictionary, point: Vector2, route: Callable) -> Dictionary:
+	var way: Dictionary = route.call(point) if route.is_valid() else {}
+	if way.is_empty():
+		var plain := _route(ctx, point)
+		way = { "path": plain, "len": NavBuilder.path_length(plain), "detour": false }
+	var path: PackedVector2Array = way["path"]
+	var length: float = way["len"]
+	if (length > throw_spot_walk
+			or path.is_empty()
+			or path[path.size() - 1].distance_to(point) > 12.0
+			or _route_crosses(path, ctx["hostiles"]) != ""):
+		return {}
+	return { "route_len": length, "detour": bool(way.get("detour", false)) }
 
 
 ## How a throw spot ranks (lower first): hidden from the burst spot, then covered against it, then

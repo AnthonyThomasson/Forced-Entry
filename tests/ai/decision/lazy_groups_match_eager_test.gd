@@ -156,7 +156,9 @@ func _compare(
 	var lazy := await _walk(t, brain, lazy_snap)
 	if not t.require(not eager.is_empty() and not lazy.is_empty(), "%s: both walks end" % label):
 		return {}
-	var built: Array = (lazy_demand.built as Array).duplicate()
+	# The six groups; the grenade throws are built when the exposure line of a combat level says
+	# what can be thrown (`ai/grenade/grenade_ready_matches_full_search`).
+	var built: Array = (lazy_demand.built as Array).filter(func(n): return LAZY.has(n))
 	t.expect_eq(lazy["leaf"], eager["leaf"], "%s: the leaf the walk ends at" % label)
 	t.expect_eq(lazy["levels"], eager["levels"], "%s: every level's options and text" % label)
 	lazy_demand.complete()

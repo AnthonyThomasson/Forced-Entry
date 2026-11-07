@@ -19,9 +19,15 @@ const SHOT_AIM_SHARES := [0.5, 0.35, 0.65, 0.2, 0.8]
 
 ## The knowledge the perception hands in for this decision (see `AgentSnapshot.build()`).
 var know := {}
-## Throw spots worked out for this decision, by burst spot, reach and room kept out of
-## (`_throw_option`; cleared by `begin`).
+## Throw spots worked out for this decision, by where the NPC stands, burst spot, reach and room
+## kept out of (`_throw_option`; cleared by `begin`).
 var _throw_spots := {}
+## The candidate points for those throw spots (`AgentTactics.throw_points`), by the same key: what
+## the existence search and the full one share.
+var _throw_points := {}
+## Whether a throw spot exists, by the same key, for the throws asked only whether one is possible
+## (`grenade_possible`, `shots_possible`).
+var _throw_exists := {}
 ## The shared vocabulary and tuning; see snapshot_vocab.gd.
 var _v: SnapshotVocab
 ## The agent's event memory (read-only here); see agent_memory.gd.
@@ -48,6 +54,8 @@ func setup(vocab: SnapshotVocab, sources: SnapshotSources) -> void:
 ## caller).
 func begin() -> void:
 	_throw_spots.clear()
+	_throw_points.clear()
+	_throw_exists.clear()
 
 
 ## Throwing a grenade at hostile `t`, one option per kind carried (a frag first), offered against a
@@ -144,6 +152,33 @@ func shots_grenade_group(ctx: Dictionary, hostiles: Array) -> Dictionary:
 	}
 
 
+## Whether `grenade_group` would offer a throw at hostile `t` (analysis `a`): the same as
+## `not grenade_group(ctx, t, a)["options"].is_empty()`, without its tags, wording or the ally and
+## escape checks, and with the throw-spot search stopped at the first walk that reaches one.
+func grenade_possible(ctx: Dictionary, t: Dictionary, a: Dictionary) -> bool:
+	var kinds: Array = know.get("carried_grenades", [])
+	var spot: Vector2 = t["pos"]
+	var held := _held_room(ctx, spot)
+	if kinds.is_empty() or (a["line"]["clear"] and held.is_empty()):
+		return false
+	var keep_out := Rect2() if held.is_empty() else held["rect"] as Rect2
+	return kinds.any(func(kind: StringName) -> bool:
+		return _throw_possible(ctx, kind, spot, keep_out, true))
+
+
+## Whether `shots_grenade_group` would offer a throw where the shots came from: the same as
+## `not shots_grenade_group(ctx, hostiles)["options"].is_empty()`, by the cheap search of
+## `grenade_possible`.
+func shots_possible(ctx: Dictionary, hostiles: Array) -> bool:
+	var kinds: Array = know.get("carried_grenades", [])
+	if kinds.is_empty() or not hostiles.is_empty() or not _memory.under_fire():
+		return false
+	var aims := _shots_aims(ctx)
+	return kinds.any(func(kind: StringName) -> bool:
+		return aims.any(func(aim: Dictionary) -> bool:
+			return _throw_possible(ctx, kind, aim["spot"], aim["room"]["rect"], aim["walk"])))
+
+
 ## The room hostile-held spot `spot` lies in when the NPC is outside that room (outdoors, or in
 ## another room), or {}.
 func _held_room(ctx: Dictionary, spot: Vector2) -> Dictionary:
@@ -155,24 +190,36 @@ func _held_room(ctx: Dictionary, spot: Vector2) -> Dictionary:
 
 
 ## Where to throw a grenade of `kind` at the shots: `{ option, room }`, the throw (`_throw_option`)
-## onto a line back from a shot at the NPC (`AgentSuspicion.shot_line`: from where it leaves the
-## room the shot landed in to the wall behind) inside the first room along it the NPC is outside of,
-## at the point nearest the middle of that stretch (`SHOT_AIM_SHARES`) it can lob onto from where it
-## stands, else from a throw spot; {} when there is none.
+## onto the first of the aims (`_shots_aims`) it can lob onto, from where it stands, else from a
+## throw spot; {} when there is none.
 func _shots_aim(ctx: Dictionary, kind: StringName) -> Dictionary:
-	var self_pos: Vector2 = ctx["self_pos"]
-	var here := HouseRooms.at(self_pos, _v.rooms)
+	for aim: Dictionary in _shots_aims(ctx):
+		var option := _throw_option(ctx, kind, aim["spot"], aim["room"]["rect"], aim["walk"])
+		if not option.is_empty():
+			return { "option": option, "room": aim["room"] }
+	return {}
+
+
+## The places a grenade may be aimed at the shots, in order of preference, each `{ spot, room,
+## walk }`: for each shot recalled (`AgentSuspicion.shot_line`: from where the line leaves the room
+## the shot landed in to the wall behind) its stretch inside the first room along it the NPC is
+## outside of, the points nearest the middle of it first (`SHOT_AIM_SHARES`), thrown from where the
+## NPC stands (`walk` false) before from a throw spot (`walk` true).
+func _shots_aims(ctx: Dictionary) -> Array:
+	var here := HouseRooms.at(ctx["self_pos"], _v.rooms)
+	var aims: Array = []
 	for shot: Dictionary in _memory.recall_all(&"shot_from"):
 		var best := _shot_stretch(AgentSuspicion.shot_line(_v.rooms, shot), shot["at"], here)
 		if best.is_empty():
 			continue
 		for walk: bool in [false, true]:
 			for share: float in SHOT_AIM_SHARES:
-				var spot: Vector2 = (best["from"] as Vector2).lerp(best["to"], share)
-				var option := _throw_option(ctx, kind, spot, best["room"]["rect"], walk)
-				if not option.is_empty():
-					return { "option": option, "room": best["room"] }
-	return {}
+				aims.append({
+					"spot": (best["from"] as Vector2).lerp(best["to"], share),
+					"room": best["room"],
+					"walk": walk,
+				})
+	return aims
 
 
 ## The stretch of the line back from a shot (`line`, the shot landing at `at`) inside the room it
@@ -242,25 +289,85 @@ func _throw_option(
 		"tags": { "inside": _v.is_inside(spot), "ally_in_blast": ally, "no_safe_spot": cornered } }
 
 
+## Whether `_throw_option` would give a throw of `kind` onto `spot`: a lob clear from where the NPC
+## stands, else (with `walk`) a throw spot a short walk away.
+func _throw_possible(
+	ctx: Dictionary,
+	kind: StringName,
+	spot: Vector2,
+	keep_out: Rect2,
+	walk: bool,
+) -> bool:
+	if _throw.can_lob(
+		ctx["space"],
+		ctx["self_pos"],
+		spot,
+		_throw.range_of(kind),
+		know["character_rids"],
+	):
+		return true
+	return walk and _throw_way_exists(ctx, kind, spot, keep_out)
+
+
 ## The throw spot to throw a grenade of `kind` onto `spot` from, never inside `keep_out`
 ## (`AgentTactics.throw_spot`: `{ point, route_len, ... }`, {} for none), worked out once per
 ## decision: a frag and a stun of the same reach share their throw spot.
 func _throw_way(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect2) -> Dictionary:
+	var key := _throw_key(ctx, kind, spot, keep_out)
+	if not _throw_spots.has(key):
+		var aim := _throw_aim(ctx, kind, spot, keep_out)
+		_throw_spots[key] = _tactics.throw_spot(
+			ctx, aim, know["character_rids"], _candidates(ctx, aim, key)
+		)
+	return _throw_spots[key]
+
+
+## Whether `_throw_way` would find a throw spot, answered without choosing one: from the spot
+## already worked out when there is one, else by the search that stops at the first walk that
+## reaches (`AgentTactics.has_throw_spot`), once per decision.
+func _throw_way_exists(
+	ctx: Dictionary,
+	kind: StringName,
+	spot: Vector2,
+	keep_out: Rect2,
+) -> bool:
+	var key := _throw_key(ctx, kind, spot, keep_out)
+	if _throw_spots.has(key):
+		return not (_throw_spots[key] as Dictionary).is_empty()
+	if not _throw_exists.has(key):
+		var aim := _throw_aim(ctx, kind, spot, keep_out)
+		_throw_exists[key] = _tactics.has_throw_spot(
+			ctx, aim, know["character_rids"], _candidates(ctx, aim, key)
+		)
+	return _throw_exists[key]
+
+
+## What a decision's throw spots for one aim are keyed by: where the NPC stands, the burst spot,
+## the reach of the kind and the room kept out of (a frag and a stun of the same reach share).
+func _throw_key(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect2) -> Array:
+	return [ctx["self_pos"], spot, _throw.reach_of(kind), keep_out]
+
+
+## The aim a throw spot is searched for: the burst `spot`, the reach of `kind`, the room kept out
+## of, the lob from a candidate and the walk to it.
+func _throw_aim(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect2) -> ThrowAim:
 	var space = ctx["space"]
 	var rids: Array = know["character_rids"]
-	var reach := _throw.reach_of(kind)
-	# A frag and a stun of the same reach share their throw spot.
-	var key := [spot, reach, keep_out]
-	if not _throw_spots.has(key):
-		var aim := ThrowAim.new()
-		aim.spot = spot
-		aim.reach = reach
-		aim.keep_out = keep_out
-		aim.lob = func(p: Vector2) -> bool:
-			return _throw.throw_clear_on_arrival(space, p, spot, rids)
-		aim.route = func(p: Vector2) -> Dictionary: return _throw_walk(ctx, p)
-		_throw_spots[key] = _tactics.throw_spot(ctx, aim, rids)
-	return _throw_spots[key]
+	var aim := ThrowAim.new()
+	aim.spot = spot
+	aim.reach = _throw.reach_of(kind)
+	aim.keep_out = keep_out
+	aim.lob = func(p: Vector2) -> bool:
+		return _throw.throw_clear_on_arrival(space, p, spot, rids)
+	aim.route = func(p: Vector2) -> Dictionary: return _throw_walk(ctx, p)
+	return aim
+
+
+## The candidate throw points for `aim`, found once per decision and key.
+func _candidates(ctx: Dictionary, aim: ThrowAim, key: Array) -> Array:
+	if not _throw_points.has(key):
+		_throw_points[key] = _tactics.throw_points(ctx, aim)
+	return _throw_points[key]
 
 
 ## Whether the NPC, throwing a grenade of `kind` and `radius` onto `spot` from `from`, would be in
