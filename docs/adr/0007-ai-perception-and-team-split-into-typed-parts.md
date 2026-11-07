@@ -30,9 +30,10 @@ held as a public property, built once in `setup`, and holding the perception nod
 The facade keeps the lifecycle (`setup`, `apply_config`, `bind`, `observe`, `sense`, `fill_goal`), the reads the
 controller and combat make every tick (`under_fire`, `engaged_fresh`, `note_engaged`, `has_line_to`, `quick_facts`,
 `check_lead`, `combat_spots`) and the debug reads (`memory_size`, `debug_memory`). Callers name the part, and no
-forwarder stays. Both phases of the sight cadence stay keyed on the perception node's own instance id
-(`perception.get_instance_id()` in the `sight` and `house` parts, never the part's own), which
-`tests/ai/perception_cadence_suite.gd` checks.
+forwarder stays. The sight cadence stays keyed on the perception node's own instance id
+(`perception.get_instance_id()` in the `sight` part, never the part's own), which
+`tests/ai/perception_cadence_suite.gd` checks; the house part's looks take their phase in turn
+(`look_phases.gd`, `tests/ai/perception/house_look_cadence_test.gd`).
 
 The doorway geometry is a `RefCounted` built by the perception, the human's stack and each squad. Its defend and
 ambush posts, its slot layout (E20 to E22) and its shared layout cache become three parts, `posts` (`EntryPosts`),

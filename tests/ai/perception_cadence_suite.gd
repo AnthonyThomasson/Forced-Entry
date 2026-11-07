@@ -1,20 +1,15 @@
 extends UnitSuite
 ## Native unit suite (pure logic): the sight cadence stays keyed on the perception node's own
-## instance id, not on the part that runs it, and the house's looks keep their own phases. The sight
-## part tests a character it keeps in view every `SIGHT_EVERY_FRAMES` frames, phased by
-## `(frame + perception.get_instance_id() + id)`. The house part's looks for rooms and furniture are
-## not keyed on an id (#192 Extension 3: an id's remainder clustered, and moved with every
-## allocation): each NPC takes the next of the `LEARN_EVERY_FRAMES` phases on its first look. Each
-## case runs over several perceptions, so one whose ids happen to agree on the phase cannot hide a
-## wrong key. It also pins what the cadence promises an NPC: a character that enters its view cone
-## is tested at once whatever its phase, and what the NPC holds of one it keeps seeing is at most
-## three frames old (`SIGHT_EVERY_FRAMES` of `perception_sight.gd`, #192 rule 28).
+## instance id, not on the part that runs it, and the house intake repeats only changed setup. The
+## sight case tests a character it keeps in view every `SIGHT_EVERY_FRAMES` frames, phased by
+## `(frame + perception.get_instance_id() + id)`, over several perceptions, so one whose ids
+## happen to agree on the phase cannot hide a wrong key. What needs a world and physics frames (the
+## shared character list, a character entering the cone, the held age, the house looks' phases and
+## their reach) is `ai/perception/sight_cadence` and `ai/perception/house_look_cadence`.
 
 const AgentPerception := preload("res://scenes/ai/perception/agent_perception.gd")
 const PerceptionSight := preload("res://scenes/ai/perception/perception_sight.gd")
-const PerceptionHouse := preload("res://scenes/ai/perception/perception_house.gd")
-const SightBody := preload("res://tests/_ai/sight_body_probe.gd")
-## How many perceptions each case runs over, and how many characters the sight case watches.
+## How many perceptions the sight case runs over, and how many characters each watches.
 const COUNT := 3
 ## The physics frames the sight case asks about.
 const FRAMES := 10
@@ -50,35 +45,6 @@ func test_sight_tests_a_character_in_view_on_the_perceptions_phase() -> void:
 			_assert_due_on_phase(perception, other, n, t)
 
 
-func test_sight_shares_one_character_list_per_world_and_frame() -> void:
-	var root: Node2D = auto_free(Node2D.new())
-	add_child(root)
-	var bodies: Array[Node2D] = []
-	for i in COUNT:
-		var body: Body = auto_free(Body.new())
-		root.add_child(body)
-		body.add_to_group(&"characters")
-		bodies.append(body)
-	var other_root: Node2D = auto_free(Node2D.new())
-	add_child(other_root)
-	var outsider: Body = auto_free(Body.new())
-	other_root.add_child(outsider)
-	outsider.add_to_group(&"characters")
-	var perceptions: Array[Node] = []
-	for body: Body in bodies:
-		var perception := _perception()
-		perceptions.append(perception)
-		perception.set("_character", body)
-		var expected := bodies.filter(func(candidate: Node2D) -> bool: return candidate != body)
-		assert_array(perception.sight.others()).is_equal(expected)
-	var builds := 0
-	for perception: Node in perceptions:
-		var count: Variant = perception.sight.get("list_builds")
-		if count != null:
-			builds += int(count)
-	assert_int(builds).is_equal(1)
-
-
 func test_house_intake_repeats_only_changed_setup() -> void:
 	var perception := _perception()
 	var tuning: NpcTuning = auto_free(NpcTuning.defaults())
@@ -111,203 +77,6 @@ func test_house_intake_repeats_only_changed_setup() -> void:
 func _intake_reads(perception: Node, key: StringName) -> int:
 	var reads: Variant = perception.house.get("intake_reads")
 	return int(reads.get(key, -1)) if reads is Dictionary else -1
-
-
-func test_a_squads_house_looks_land_on_different_frames_whatever_was_allocated_between() -> void:
-	# Spaced by `pad` objects, the perceptions' instance ids step by a stride a remainder of six
-	# can make equal for every one (pad 2): the phases must not follow it.
-	var held: Array = []
-	for pad in 6:
-		var frame := Engine.get_physics_frames()
-		var first_looks := {}
-		for n in 12:
-			var perception := _perception()
-			for p in pad:
-				held.append(RefCounted.new())
-			var body: Body = auto_free(Body.new())
-			add_child(body)
-			perception.set("_character", body)
-			perception.house.learn_by_sight()
-			var next: int = perception.house.learn_next
-			assert_bool(next > frame and next <= frame + PerceptionHouse.LEARN_EVERY_FRAMES) \
-				.override_failure_message("pad %d perception %d: next look at +%d" % [
-					pad, n, next - frame,
-				]) \
-				.is_true()
-			var phase: int = next % PerceptionHouse.LEARN_EVERY_FRAMES
-			first_looks[phase] = int(first_looks.get(phase, 0)) + 1
-		# Twelve over six phases: two on each, the most the squad can be spread to.
-		assert_array(first_looks.values()) \
-			.override_failure_message("pad %d: looks per phase %s" % [pad, str(first_looks)]) \
-			.is_equal([2, 2, 2, 2, 2, 2])
-
-
-func test_sight_sees_the_cone_and_the_bubble_and_a_character_entering_the_cone_at_once() -> void:
-	var watcher := _watcher()
-	var sight: PerceptionSight = watcher["perception"].sight
-	var seen: Dictionary = watcher["others"]
-	await get_tree().physics_frame
-	sight.see([])
-	assert_array(_sorted(sight.visible_now.keys())).is_equal(_sorted([
-		seen["ahead"].get_instance_id(),
-		seen["bubble"].get_instance_id(),
-	]))
-	# A character out of the cone is first tested on the frame it enters it, however its phase
-	# falls: wait for a frame that is off its phase, then turn it into the cone.
-	var entering: Node2D = seen["side"]
-	var pid: int = watcher["perception"].get_instance_id()
-	while (Engine.get_physics_frames() + pid + entering.get_instance_id()) \
-			% PerceptionSight.SIGHT_EVERY_FRAMES == 0:
-		await get_tree().physics_frame
-	entering.position = Vector2(200.0, 40.0)
-	sight.see([])
-	assert_bool(sight.visible_now.has(entering.get_instance_id())) \
-		.override_failure_message("a character entering the cone is tested at once") \
-		.is_true()
-	# And one that leaves it is dropped at once.
-	entering.position = Vector2(0.0, 300.0)
-	await get_tree().physics_frame
-	sight.see([])
-	assert_bool(sight.visible_now.has(entering.get_instance_id())).is_false()
-
-
-func test_sight_holds_a_character_it_keeps_seeing_at_most_three_frames_old() -> void:
-	var watcher := _watcher()
-	var sight: PerceptionSight = watcher["perception"].sight
-	var mover: Node2D = watcher["others"]["ahead"]
-	var step := 10.0
-	for frame in 12:
-		await get_tree().physics_frame
-		mover.position.x += step
-		sight.see([])
-		var held: Vector2 = watcher["perception"]._memory.recall_all(&"saw_character") \
-			.filter(func(d): return d["id"] == mover.get_instance_id())[0]["pos"]
-		var frames_old := (mover.position.x - held.x) / step
-		assert_float(frames_old) \
-			.override_failure_message("frame %d: held %d frames old" % [frame, int(frames_old)]) \
-			.is_between(0.0, 3.0)
-
-
-func test_sight_pass_builds_no_per_npc_character_list() -> void:
-	var first := _watcher()
-	var second := _watcher(first["root"])
-	await get_tree().physics_frame
-	for watcher: Dictionary in [first, second]:
-		watcher["perception"].sight.see([])
-	var calls := 0
-	for watcher: Dictionary in [first, second]:
-		var n: Variant = watcher["perception"].sight.get("others_calls")
-		calls += int(n) if n != null else -1000
-	assert_int(calls).is_equal(0)
-	# Both saw what is in their cones all the same.
-	var ahead: Node2D = first["others"]["ahead"]
-	assert_bool(first["perception"].sight.visible_now.has(ahead.get_instance_id())).is_true()
-
-
-func test_house_looks_for_a_third_of_the_unknown_furniture_each_time() -> void:
-	var body: SightBody = auto_free(SightBody.new())
-	var perception := _perception()
-	perception.apply_config(auto_free(NpcTuning.defaults()))
-	add_child(body)
-	perception.set("_character", body)
-	var pieces := _furniture(6)
-	perception.house.interactables = pieces
-	var learned: Array[int] = []
-	for look in 3:
-		await get_tree().physics_frame
-		perception.house.learn_by_sight()
-		learned.append(perception.house.known_object_ids().size())
-	# A look takes at most a third of the pieces (rounded up), and three looks cover them all, so a
-	# piece in view is learned at most three looks (18 frames) after it comes into view.
-	assert_int(learned[0]).is_between(1, 2)
-	assert_int(learned[1] - learned[0]).is_between(1, 2)
-	assert_int(learned[2]).is_equal(6)
-
-
-func test_a_decisions_look_for_furniture_is_a_full_look() -> void:
-	var body: SightBody = auto_free(SightBody.new())
-	var perception := _perception()
-	perception.apply_config(auto_free(NpcTuning.defaults()))
-	add_child(body)
-	perception.set("_character", body)
-	perception.house.interactables = _furniture(6)
-	await get_tree().physics_frame
-	perception.house.learn_by_sight()
-	assert_int(perception.house.known_object_ids().size()).is_less(6)
-	# The decision's own look, in the same frame as the scheduled one, covers every piece in view.
-	perception.house.learn_by_sight(true)
-	assert_int(perception.house.known_object_ids().size()).is_equal(6)
-
-
-func test_furniture_in_view_is_learned_within_eighteen_frames_of_the_first_look() -> void:
-	var body: SightBody = auto_free(SightBody.new())
-	var perception := _perception()
-	perception.apply_config(auto_free(NpcTuning.defaults()))
-	add_child(body)
-	perception.set("_character", body)
-	perception.house.interactables = _furniture(6)
-	var first := -1
-	var done := -1
-	for frame in 30:
-		await get_tree().physics_frame
-		# As the perception's observe() schedules it: a look once `learn_next` has come.
-		if Engine.get_physics_frames() >= perception.house.learn_next:
-			if first < 0:
-				first = Engine.get_physics_frames()
-			perception.house.learn_by_sight()
-		if done < 0 and perception.house.known_object_ids().size() == 6:
-			done = Engine.get_physics_frames()
-	assert_int(done).is_greater(-1)
-	assert_int(done - first).is_less_equal(18)
-
-
-## `count` pieces in the cone of a body at the origin facing +x, in the clear, each a distinct spot.
-func _furniture(count: int) -> Array:
-	var out: Array = []
-	for i in count:
-		var piece: Node2D = auto_free(Node2D.new())
-		add_child(piece)
-		piece.position = Vector2(150.0 + 30.0 * i, 20.0 * i - 50.0)
-		out.append(piece)
-	return out
-
-
-## `ids` sorted, for an order-free comparison.
-func _sorted(ids: Array) -> Array:
-	var out := ids.duplicate()
-	out.sort()
-	return out
-
-
-## A watching NPC at the origin facing +x with its perception, and the characters around it: one
-## `ahead` in the cone, one at the `side` and one `behind` (out of the cone), one `bubble` close
-## behind it (inside the near bubble), one `dead` ahead. They share `root` (a new one by default).
-func _watcher(root: Node2D = null) -> Dictionary:
-	if root == null:
-		root = auto_free(Node2D.new())
-		add_child(root)
-	var perception := _perception()
-	perception.apply_config(auto_free(NpcTuning.defaults()))
-	var body: SightBody = auto_free(SightBody.new())
-	root.add_child(body)
-	body.add_to_group(&"characters")
-	perception.set("_character", body)
-	var others := {}
-	for entry in [
-		["ahead", Vector2(200.0, 0.0)],
-		["side", Vector2(0.0, 300.0)],
-		["behind", Vector2(-300.0, 0.0)],
-		["bubble", Vector2(-30.0, 0.0)],
-		["dead", Vector2(300.0, 0.0)],
-	]:
-		var other: SightBody = auto_free(SightBody.new())
-		other.faction = &"invader"
-		other.is_dead = entry[0] == "dead"
-		root.add_child(other)
-		other.position = entry[1]
-		other.add_to_group(&"characters")
-		others[entry[0]] = other
-	return { "root": root, "perception": perception, "body": body, "others": others }
 
 
 ## A body as the house part's look reads it: where it stands, its facing, its world and its rid.

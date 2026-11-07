@@ -12,7 +12,7 @@ the match is chaotic: it is not a slice's logic (rules 36, 37 hold) and not the 
   probe left its trajectory at frame 64 too, and padding the physics RIDs before the world built moved it again: any change to what the process allocates moves the match.
 - Mechanism found: `perception_house.gd` phased each NPC's scheduled look by `perception.get_instance_id() % LEARN_EVERY_FRAMES`. Ids step in fixed strides, so the phases
   clustered and moved with allocations: base [4,2,4,0,2,4,0,2,4,0], draw [0,2,2,2,2,2,2,2,2,2], decision [2,0,2,4,0,2,4,0,2,4], merged [4,0,0,0,0,0,0,0,0,0] (nine NPCs on one frame).
-  Now handed out in turn (`look_phases.gd`; `ai/perception/sight_learning_staggered`, `perception_cadence_suite`).
+  Now handed out in turn (`look_phases.gd`; `ai/perception/sight_learning_staggered`, `look_phases_two_worlds`, `house_look_cadence`).
 - Still keyed on allocation, not changed: the sight cadence (`perception_sight.gd`, `(frame + ids) % SIGHT_EVERY_FRAMES`) and the give-way order (`loco_give_way.gd`, the lower
   instance id). Patching only the look phase in scratch copies of base and merged still split them at frame 64 with identical NPC state to there (a physics order), and global `randf`
   (projectile, casing, explosion, ragdoll) is unseeded from the first shot.

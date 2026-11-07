@@ -2,7 +2,7 @@ extends CharacterBody2D
 ## Test double (a probe, not a test): a character as an NPC's sight reads it, with no world of its
 ## own but the physics space it stands in. Alive or `is_dead`, a `faction`, nothing held, not
 ## reloading, standing, unhurt and never blinded; `facing` and `world_root()` as the sight's list
-## reads them. `tests/ai/perception_cadence_suite.gd` places these around a perception.
+## reads them. The cadence tests (`tests/ai/perception/`) place these around a perception.
 
 ## Where the body faces.
 var facing := Vector2.RIGHT

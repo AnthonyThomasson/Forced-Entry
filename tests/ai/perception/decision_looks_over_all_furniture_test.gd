@@ -1,10 +1,10 @@
 extends GameTest
 ## A decision's own look at the house is a full one (#192 rule 28): an unfamiliar NPC's idle looks
-## for furniture it does not know take a third of the pieces each (`ai/perception_cadence_suite`),
-## but the snapshot a decision is built from has looked at every piece in view first, so what the
-## NPC knows when it decides is what it sees at that moment. Six pieces stand round the NPC, all
-## inside its near bubble; its decision's snapshot is built at once, before any scheduled look has
-## run.
+## for furniture it does not know take a third of the pieces each
+## (`ai/perception/house_look_cadence`), but the snapshot a decision is built from has looked at
+## every piece in view first, so what the NPC knows when it decides is what it sees at that moment.
+## Six pieces stand round the NPC, all inside its near bubble; its decision's snapshot is built at
+## once, before any scheduled look has run.
 
 
 func describe() -> Dictionary:
