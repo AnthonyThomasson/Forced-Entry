@@ -31,7 +31,7 @@ static func plain(house: Node2D) -> Array:
 		var hull := cut(node as RigidBody2D)
 		if not hull.is_empty():
 			out.append(hull)
-	add_leaves(out, house)
+	NavLeaves.append_holes(out, house)
 	return out
 
 
@@ -88,14 +88,6 @@ static func inputs_of(body: Node2D) -> Array:
 		else:
 			out.append(shape)
 	return out
-
-
-## The leaves of `house`'s doors that stand clear of their doorways, appended to `out`.
-static func add_leaves(out: Array, house: Node2D) -> void:
-	for door in NavLeaves.doors_of(house):
-		var hole := NavLeaves.hole(door)
-		if not hole.is_empty():
-			out.append(hole)
 
 
 ## The collider's footprint as a closed polygon in WORLD space, grown by

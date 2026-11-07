@@ -52,8 +52,8 @@ func holes() -> Array:
 			piece.hull = NavHoles.cut(piece.body)
 			piece.dirty = false
 		if not piece.hull.is_empty():
-			out.append(piece.hull)
-	NavHoles.add_leaves(out, _house)
+			out.append(piece.hull.duplicate())  # a caller's edit stays its own
+	NavLeaves.append_holes(out, _house)
 	return out
 
 
@@ -85,6 +85,9 @@ func _list() -> void:
 			node.tree_exiting.connect(_on_left)
 		_by_id[id] = piece
 		_pieces.append(piece)
+	for id in known:
+		if not _by_id.has(id):
+			(known[id] as Piece).release(_on_left)  # left the house without being freed
 
 
 ## A piece left the tree.
@@ -109,7 +112,8 @@ class Piece:
 	func _init(piece_body: RigidBody2D) -> void:
 		body = piece_body
 
-	## A child of the body came, went or moved: its colliders may have been rebuilt.
+	## A child of the body came, went or was reordered: its colliders may have been rebuilt. (A
+	## collider moved or re-shaped in place is not seen: nothing does it.)
 	func dirtied() -> void:
 		dirty = true
 

@@ -57,6 +57,7 @@ func run(t: TestContext) -> void:
 	await _check_dented(t, house, moved)
 	await _check_added(t, house)
 	await _check_destroyed(t, house, pieces)
+	await _check_reparented(t, house, moved)
 
 
 ## A piece moved and turned costs one cut, and its hole moved with it.
@@ -142,3 +143,21 @@ func _check_destroyed(t: TestContext, house: Node2D, pieces: Array) -> void:
 func _reset_counts() -> void:
 	NavHoles.walks = 0
 	NavHoles.cuts = 0
+
+
+## A piece taken out of the house and put back is found again, cut once, with no signal doubled.
+func _check_reparented(t: TestContext, house: Node2D, piece: RigidBody2D) -> void:
+	NavBuilder.furniture_holes(house)
+	var at := piece.global_position
+	var parent := piece.get_parent()
+	parent.remove_child(piece)
+	await t.frames(1)
+	var without := NavBuilder.furniture_holes(house)
+	t.check(without == NavHoles.plain(house), "a piece out of the house leaves no hole")
+	parent.add_child(piece)
+	piece.global_position = at
+	await t.frames(1)
+	_reset_counts()
+	var back := NavBuilder.furniture_holes(house)
+	t.check(back.size() == without.size() + 1, "put back, its hole is back")
+	t.check(back == NavHoles.plain(house), "and the holes equal a full re-cut")

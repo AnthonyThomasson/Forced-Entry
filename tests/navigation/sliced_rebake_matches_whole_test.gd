@@ -46,15 +46,15 @@ func run(t: TestContext) -> void:
 		return
 	_timer.stop()  # the ticks are driven here
 	await t.seconds(1.0)  # whatever the first ticks started lands
-	await _check_sliced(t, pieces[0])
-	await _check_next_tick(t, pieces[1])
+	await _check_sliced(t, pieces)
+	await _check_next_tick(t)
 	_check_equals_whole(t)
 	await _check_freed_mid_gather(t, pieces[0])
 
 
 ## A piece shoved: the gather takes two to `MOST_FRAMES` frames and the previous map answers
 ## throughout.
-func _check_sliced(t: TestContext, piece: RigidBody2D) -> void:
+func _check_sliced(t: TestContext, pieces: Array[RigidBody2D]) -> void:
 	var map := _region.get_navigation_map()
 	var held := _region.navigation_polygon
 	var version := _version()
@@ -63,7 +63,7 @@ func _check_sliced(t: TestContext, piece: RigidBody2D) -> void:
 	var from: Vector2 = rooms[0]["rect"].get_center()
 	var to: Vector2 = rooms[3]["rect"].get_center()
 	var route_before := NavBuilder.route(map, from, to)
-	_shove(piece, Vector2(60.0, 0.0))
+	_shove(pieces[0], Vector2(60.0, 0.0))
 	await t.frames(1)
 	_timer.timeout.emit()
 	var frames := 0
@@ -71,6 +71,10 @@ func _check_sliced(t: TestContext, piece: RigidBody2D) -> void:
 	while _version() == version and frames < MOST_FRAMES + 4:
 		await t.frames(1)
 		frames += 1
+		if frames == 2 and _version() == version:
+			# A piece shoved while the gather runs, and a tick that meets it: it waits.
+			_shove(pieces[1], Vector2(0.0, 60.0))
+			_timer.timeout.emit()
 		if _version() == version:
 			seen_previous = (
 				seen_previous
@@ -89,19 +93,15 @@ func _check_sliced(t: TestContext, piece: RigidBody2D) -> void:
 	)
 
 
-## A piece shoved while a bake is in flight waits for the next tick, which gathers it.
-func _check_next_tick(t: TestContext, piece: RigidBody2D) -> void:
+## The piece shoved while the gather ran was left for the next tick, which gathers it.
+func _check_next_tick(t: TestContext) -> void:
 	var version := _version()
 	var held := _region.navigation_polygon
 	var held_ring := NavRing.region_of(_region).navigation_polygon
-	_shove(piece, Vector2(0.0, 60.0))
-	await t.frames(1)
-	_timer.timeout.emit()
-	await t.seconds(1.0)
 	_timer.timeout.emit()
 	t.check(
 		await t.until(func() -> bool: return _version() >= version + 1, WAIT),
-		"a piece shoved while a bake ran is gathered by a later tick",
+		"a piece shoved while a gather ran is gathered by the next tick",
 	)
 	t.check(
 		await t.until(func() -> bool: return _region.navigation_polygon != held, WAIT),
@@ -142,7 +142,10 @@ func _check_freed_mid_gather(t: TestContext, piece: RigidBody2D) -> void:
 	await t.frames(2)
 	_region.queue_free()
 	await t.frames(MOST_FRAMES + 2)
-	t.check(not is_instance_valid(_region), "the region was freed mid-gather and the updater coped")
+	t.check(
+		not (t.world.get_node("NavUpdater") as Node).is_physics_processing(),
+		"the region was freed mid-gather and the updater dropped the gather",
+	)
 
 
 func _version() -> int:

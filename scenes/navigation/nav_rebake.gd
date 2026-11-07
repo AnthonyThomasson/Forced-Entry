@@ -20,7 +20,8 @@ static func planning(
 ) -> void:
 	var job := NavSource.job(site, furniture, [], parsed)
 	# The planning ring is re-baked with it, from the same footprints and walls.
-	swap(region, site, job, NavRing.job(region, site, furniture, parsed), done)
+	var ring := {} if job.is_empty() else NavRing.job(region, site, furniture, parsed)
+	swap(region, site, job, ring, done)
 
 
 ## Take a gathered planning re-bake in: `job` (`NavSource.job`) and the ring's `ring` are kept as

@@ -33,19 +33,19 @@ var _nav_debug: Node = null
 ## (NavBuilder.character_holes) as of the last bake of each, compared each tick to detect movement.
 var _baseline: Array = []
 var _character_baseline: Array = []
-## Whether the planning region's re-bake is running on the server's worker thread; a furniture move
-## meanwhile waits for the first tick after the bake lands (the baseline is set from what that bake
+## Whether the planning region's re-bake is under way, gathering a step a frame (`_gather`) or
+## baking on the server's worker thread; a furniture move meanwhile waits for the first tick after
+## the bake lands (the baseline is set from what that bake
 ## carved, so it is caught then).
 var _baking := false
-## A district's planning gather in progress, a step a physics frame (`_physics_process`), and the
-## furniture footprints and site it was started from. Null between gathers.
+## A district's planning gather in progress, a step a physics frame (`_physics_process`). Null
+## between gathers.
 var _gather: NavGather = null
-var _gather_site: NavSite = null
-var _gather_furniture: Array = []
 
 
-## A script-only node: the gather's steps run in `_physics_process`, only while there is one.
-func _init() -> void:
+## A script-only node: the gather's steps run in `_physics_process`, only while there is one (the
+## engine switches it on at ready, for any node that has the method).
+func _ready() -> void:
 	set_physics_process(false)
 
 
@@ -65,8 +65,8 @@ func _physics_process(_delta: float) -> void:
 	var gathered := _gather
 	_gather = null
 	set_physics_process(false)
-	var furniture := _gather_furniture
-	NavRebake.swap(_region, _gather_site, gathered.job, gathered.ring, func() -> void:
+	var furniture := gathered.furniture
+	NavRebake.swap(_region, gathered.site, gathered.job, gathered.ring, func() -> void:
 		_baking = false
 		_baseline = furniture
 		_refresh_overlay())
@@ -98,7 +98,7 @@ func setup(
 
 
 ## One interval tick: if furniture has moved since the last bake, re-carve the planning region's
-## holes at the live positions on the server's worker thread (`NavRebake.planning`; a
+## holes at the live positions, baked on the server's worker thread (`NavRebake.planning`; a
 ## furniture move while one is in flight waits for the next tick) and the steering region's in
 ## place; if only a character has, re-carve the steering region. Refreshes the overlay after either.
 ## Nothing moved, nothing baked. The steering re-bake lands in the tick's own frame, so a walker
@@ -128,8 +128,6 @@ func _on_tick() -> void:
 	if planning and staged:
 		_baking = true
 		_gather = NavGather.new(_region, site, _baseline, furniture)
-		_gather_site = site
-		_gather_furniture = furniture
 		set_physics_process(true)
 
 
