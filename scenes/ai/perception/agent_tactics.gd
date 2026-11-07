@@ -549,29 +549,32 @@ func _cache_bucket(ctx: Dictionary, name: String) -> Dictionary:
 
 
 ## What this snapshot already worked out under `key` in the bucket `name` of its cache, or null:
-## null too for a plain computation (no `tactics_cache`), which works everything out. Counts the
-## ask, and `remember` the answer worked out (`tally`, as `Vector2i(asked, worked out)`).
+## null too for a plain computation (no `tactics_cache`), which works everything out. A hit is
+## counted in `tactics_cache["hits"][name]` (what was kept in all is the bucket's size).
 func recall(ctx: Dictionary, name: String, key: Variant) -> Variant:
-	if not ctx.has("tactics_cache"):
+	var root: Variant = ctx.get("tactics_cache")
+	if root == null or not root.has(name):
 		return null
-	var tally := _cache_bucket(ctx, "tally")
-	var counts: Vector2i = tally.get(name, Vector2i.ZERO)
-	tally[name] = counts + Vector2i(1, 0)
-	return _cache_bucket(ctx, name).get(key)
+	var kept: Variant = root[name].get(key)
+	if kept != null:
+		var hits: Dictionary = root["hits"]
+		hits[name] = hits.get(name, 0) + 1
+	return kept
 
 
 ## `value` worked out for `key` in the bucket `name`, kept for the snapshot's later asks
 ## (`recall`); returns `value`.
 func remember(ctx: Dictionary, name: String, key: Variant, value: Variant) -> Variant:
-	if ctx.has("tactics_cache"):
-		_cache_bucket(ctx, name)[key] = value
-		var tally := _cache_bucket(ctx, "tally")
-		tally[name] = (tally.get(name, Vector2i.ZERO) as Vector2i) + Vector2i(0, 1)
+	var root: Variant = ctx.get("tactics_cache")
+	if root != null:
+		if not root.has(name):
+			root[name] = {}
+			root["hits"] = root.get("hits", {})
+		root[name][key] = value
 	return value
 
 
-## `p` snapped onto the navmesh (`NavBuilder.snap`), asked once a snapshot: a throw search and the
-## room centres of every group ask the same points again. Worked out afresh in a plain computation.
+## `p` snapped onto the navmesh, asked once a snapshot (throw candidates and room centres repeat).
 func snap(ctx: Dictionary, p: Vector2) -> Vector2:
 	var kept: Variant = recall(ctx, "snaps", p)
 	if kept != null:

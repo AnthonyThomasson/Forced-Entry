@@ -80,12 +80,8 @@ func _throws(t: TestContext) -> void:
 		"set-up: the fixture offers a throw",
 	)
 	t.expect_eq(fast_groups, plain_groups, "the throw groups equal the plain search's")
-	var tallies: Dictionary = fast_demand.ctx["tactics_cache"].get("tally", {})
-	var tally: Vector2i = tallies.get("lobs", Vector2i.ZERO)
-	t.check(
-		tally.y > 0 and tally.y < tally.x,
-		"a spot's lob is judged once for both kinds (%d judged of %d asked)" % [tally.y, tally.x],
-	)
+	var hits := _hits(fast_demand, "lobs")
+	t.check(hits > 0, "a spot's lob is judged once for both kinds (%d asks kept)" % hits)
 
 
 ## The whole snapshot (every group, fact and section) with a navmesh snap asked once a decision:
@@ -102,12 +98,8 @@ func _snaps(t: TestContext) -> void:
 	t.expect_eq(fast["options"], plain["options"], "the full option set equals the plain one")
 	t.expect_eq(fast["facts"], plain["facts"], "the full facts equal the plain ones")
 	t.expect_eq(fast["sections"], plain["sections"], "the full sections equal the plain ones")
-	var tallies: Dictionary = fast["demand"].ctx["tactics_cache"].get("tally", {})
-	var tally: Vector2i = tallies.get("snaps", Vector2i.ZERO)
-	t.check(
-		tally.y > 0 and tally.y < tally.x,
-		"a point is snapped once a decision (%d worked out of %d asked)" % [tally.y, tally.x],
-	)
+	var hits := _hits(fast["demand"], "snaps")
+	t.check(hits > 0, "a point is snapped once a decision (%d asks kept)" % hits)
 
 
 ## `is_cover` equals the whole-surface reading (`get_surface().coverage` at or above `cover_min`)
@@ -141,6 +133,11 @@ func _cover(t: TestContext) -> void:
 		)
 	t.check(stub.surface_calls == 0, "a piece's coverage is read without its whole surface")
 	stub.queue_free()
+
+
+## How many asks of bucket `name` the snapshot of `demand` answered from what it had kept.
+func _hits(demand: RefCounted, name: String) -> int:
+	return (demand.ctx["tactics_cache"].get("hits", {}) as Dictionary).get(name, 0)
 
 
 ## Every target's throw group of `demand`, by target id.
