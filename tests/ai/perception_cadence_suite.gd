@@ -8,7 +8,8 @@ extends UnitSuite
 ## a match plays another fight. Each case runs over several perceptions, so one whose ids happen to
 ## agree on the phase cannot hide a wrong key. It also pins what the cadence promises an NPC: a
 ## character that enters its view cone is tested at once whatever its phase, and what the NPC holds
-## of one it keeps seeing is at most three frames old (`docs/gaze-and-fire.md`, #192 rule 28).
+## of one it keeps seeing is at most three frames old (`SIGHT_EVERY_FRAMES` of
+## `perception_sight.gd`, #192 rule 28).
 
 const AgentPerception := preload("res://scenes/ai/perception/agent_perception.gd")
 const PerceptionSight := preload("res://scenes/ai/perception/perception_sight.gd")
