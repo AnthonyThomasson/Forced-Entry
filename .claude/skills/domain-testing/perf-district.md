@@ -18,6 +18,10 @@ invaders starting in the street), so five gates moved. Each was signed off by th
   2.52 and 2.58 ms (a tick cuts only the pieces that moved), so the budget is set again at about 4x.
 - `SMOOTH_AVG_MS`, `SMOOTH_P95_MS`, `SMOOTH_MAX_MS`, every vision budget and the house budgets of `perf/generate_houses_stress` did not move.
 
+## After #192's Extension 3 (2026-11-07): AC40 is NOT met
+
+5v5 green; the grenade match's p95 reads 18.9 to 22.3 (red in three of six reads); `match_10v10_stress` and `match_npc_vision` recorded red; the parked and moving view guards green with a tightened `MOVING_BUDGET_MS` 8.5. Runs, loads and both spikes' findings: `perf-district-ext3.md`.
+
 ## After #192's Extension 2 (2026-11-07): AC34 is NOT met
 
 The escape search is capped and pruned; its tail is gone, but `match_10v10_stress`, `grenade_match_stress` (p95, once) and `match_npc_vision` still miss. Two ungated runs, the frame profile and the three levers: `perf-district-ext2.md`.

@@ -27,6 +27,8 @@ seam (bodies in the tree, `stale` asked each frame), beside the simulation tests
   every ray plainly, with the determinism rules of `docs/player-vision.md`). `cone_same_after_savings` holds the live cone to it
   over a grid of eyes and facings in generated houses and after a door, a shove and a freed piece; `cone_skip_exact` runs
   `cone_checker.gd` after the view every physics frame, so a frame the view skipped must hold the polygon a fresh rebuild draws
+  **from the pose of the last rebuild**, not the current one: `cone_checker.gd` compares against the cone of the last rebuild's eye and
+  facing (the pose lag, `docs/player-vision.md` V1, `VisionConfig.rebuild_gap`; `vision/pose_lag_bounds` pins the lag's bounds)
   (`physics_mover.gd` moves a body from its own `_physics_process`, as a door or a walker moves: a query later in that frame,
   the view's, still finds it where it was).
 - **Perf:** `perf/match_npc_vision` and `perf/match_npc_vision_relative` (`perf.md`): the 10v10 with the view on an NPC (`s.view`).
