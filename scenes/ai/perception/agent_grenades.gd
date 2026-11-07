@@ -273,14 +273,18 @@ func plan(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array) -> Diction
 	var height := float(_character.get_surface().get("coverage", throw.stand_height()))
 	var best := {}
 	var best_fuse := INF
+	var best_at := -1
+	var order := _known.keys()
 	for id in _asking_order():
 		var plan_ := _current_plan(space, map, exclude, id, height)
 		if plan_.is_empty():
 			continue
 		_plans[id] = plan_
 		var fuse := float(_known[id]["node"].call("fuse_left"))
-		if fuse < best_fuse:
+		# The soonest to go off, the one known first among equals (whatever order they asked in).
+		if fuse < best_fuse or (fuse == best_fuse and order.find(id) < best_at):
 			best_fuse = fuse
+			best_at = order.find(id)
 			best = plan_
 	if best.is_empty():
 		return {}
