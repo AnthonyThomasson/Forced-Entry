@@ -29,7 +29,8 @@ static var batches_made := 0
 
 ## The silhouette of an undented round part by its size and the ring's point count.
 var _polygons := {}
-## The uvs of an undented round part by its size, then the angle its art is turned by.
+## The uvs of an undented round part by its size and its silhouette's point count, then the angle
+## its art is turned by.
 var _uvs := {}
 ## How many uv sets `_uvs` holds.
 var _uv_count := 0
@@ -90,8 +91,9 @@ func uvs(
 ) -> PackedVector2Array:
 	if not enabled or not impacts.is_empty():
 		return Deformation.texture_uvs(poly, size, angle)
-	# By size, then by the exact angle (a Vector3 key would hold it as a float32).
-	var by_angle: Dictionary = _uvs.get(size, {})
+	# By size and point count, then by the exact angle (a Vector3 key would hold it as a float32).
+	var ring := Vector3(size.x, size.y, poly.size())
+	var by_angle: Dictionary = _uvs.get(ring, {})
 	var kept: Variant = by_angle.get(angle)
 	if kept == null:
 		if _uv_count >= UVS_MAX:
@@ -100,7 +102,7 @@ func uvs(
 			by_angle = {}
 		kept = Deformation.texture_uvs(poly, size, angle)
 		by_angle[angle] = kept
-		_uvs[size] = by_angle
+		_uvs[ring] = by_angle
 		_uv_count += 1
 	else:
 		shape_hits += 1

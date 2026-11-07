@@ -54,7 +54,8 @@
 	 `Despawner.max_scene_objects`). Looks and timings: `PhysicsExplosionConfig.looks`; `PhysicsExplosionConfig.fx_enabled` off spawns
 	 none.
    - Tuning read across the boundary: `PhysicsDeformConfig` (`depth_per_damage`, `max_depth`, `chunk_damage`, `max_impacts`,
-	 `update_collider`; Objects reads it when recording damage; holders: `tuning-holders.md`).
+	 `update_collider`; Objects reads it when recording damage; `circle_points`, the round silhouette's ring size, which Character's
+	 `BodyDrawCache` keys its kept silhouettes and uvs on; holders: `tuning-holders.md`).
 
    Physics imports nothing from other domains but General's infrastructure: `Despawner` (debris, hit particles, blood, explosion fx),
    `PhysicsLayers` (`PhysicsConfig.wall_mask`), `DrawLayers` (its z knobs), `FillBatch`.

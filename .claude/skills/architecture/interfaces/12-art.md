@@ -7,6 +7,9 @@
 	  `material`, the rest as its `opts`.
     - `PixelArt.render_turned(painter, size, color, angle, opts := {}) -> Texture2D` + `PixelArt.snap_angle(angle)` — canonical art lit for
 	  a snapped angle, drawn rotated by the caller to the exact one: characters, hands, guns, a vehicle's body, doors, wheels, lamps.
+    - `PixelArt.TurnedLast` — the arguments of one caller's last `render_turned` call and the texture they got (`render(...)` is
+	  `render_turned` answered from that call, or the plain call when `plain`): owned by the caller, one per part it draws every
+	  frame (Character's `BodyDrawCache` slots).
     - `PixelArt.away_from_light(node) -> Vector2` — which way a cast shadow falls in `node`'s frame (away from `ArtCanvasConfig.light_from`),
 	  for every caller that drops a shadow of its own.
     - `PixelCanvas` — the surface a painter draws on (`static paint(canvas, base, material, opts)`): `fill`, `bevel`, `outline`, `surface`,
