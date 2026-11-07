@@ -30,12 +30,23 @@ const CALLED_NEAR := 150.0
 ## through a pause).
 const REPLAN_DIST := 48.0
 const REPLAN_EVERY := 0.15
+## How many escape searches (`AgentThrow.escape`) run on one physics frame across every NPC. A wave
+## of NPCs caught by one grenade plans over the next frames (ten of them within 3: 3 + 3 + 3 + 1);
+## one search costs a few ms (mostly the work shared on the frame), so more would pile a wave onto
+## one frame. See `_escape_allowed`.
+const ESCAPE_CAP := 3
 ## A grenade that came to rest this far (px) from where it was first called is called again, so the
 ## allies plan from the real spot.
 const RECALL_DIST := 30.0
 ## The callout statuses that name a live grenade, and the kind each means (`&""`: the callout names
 ## it).
 const CALL_KINDS := { &"grenade": &"", &"frag_out": &"frag", &"bang_out": &"stun" }
+
+## What `_escape_allowed` keeps across every NPC: the physics frame `_escapes` counts the searches
+## of, and the last physics frame a fresh plan was refused for want of one.
+static var _escape_frame := -1
+static var _escapes := 0
+static var _refused_at := -1000
 
 ## Whether the NPC reacts to grenades at all (the NPC's `tuning.grenades.enabled`, set by the
 ## perception).
@@ -262,7 +273,7 @@ func plan(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array) -> Diction
 	var height := float(_character.get_surface().get("coverage", throw.stand_height()))
 	var best := {}
 	var best_fuse := INF
-	for id in _known:
+	for id in _asking_order():
 		var plan_ := _current_plan(space, map, exclude, id, height)
 		if plan_.is_empty():
 			continue
@@ -283,7 +294,9 @@ func plan(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array) -> Diction
 
 ## The plan for known grenade `id` now, for a body `height` tall where the NPC stands: its plan,
 ## made again when it is due (`_replan_due`); a fresh one when it has none and the NPC is inside its
-## zone; else {}.
+## zone; else {}. Only so many searches run on one physics frame across every NPC
+## (`_escape_allowed`): an NPC over it gets no fresh plan this frame ({}: it carries on
+## as it was, and asks again the next), and one due a replan keeps its plan a frame longer.
 func _current_plan(
 	space: PhysicsDirectSpaceState2D,
 	map: RID,
@@ -295,12 +308,23 @@ func _current_plan(
 	var plan_: Dictionary = _plans.get(id, {})
 	if plan_.is_empty():
 		var self_pos: Vector2 = _character.global_position
-		if throw.in_zone(space, _threat_of(rec, rec["point"]), self_pos, height, exclude):
+		if (throw.in_zone(space, _threat_of(rec, rec["point"]), self_pos, height, exclude)
+				and _escape_allowed(true)):
 			return _make(space, map, exclude, id)
 		return {}
-	if _replan_due(space, exclude, rec, plan_):
+	if _replan_due(space, exclude, rec, plan_) and _escape_allowed(false):
 		return _make(space, map, exclude, id)
 	return plan_
+
+
+## The known grenades' ids, those with no plan yet before those with one: a fresh plan takes a free
+## search before a replan does.
+func _asking_order() -> Array:
+	var fresh: Array = []
+	var held: Array = []
+	for id in _known:
+		(held if _plans.has(id) else fresh).append(id)
+	return fresh + held
 
 
 ## Whether `plan_` for grenade `rec` is made again: the grenade has moved since it was made, at
@@ -350,6 +374,27 @@ static func _threat_of(rec: Dictionary, at: Vector2) -> GrenadeThreat:
 	return threat
 
 
+## Whether an NPC may run an escape search on this physics frame: no more than `ESCAPE_CAP` run on
+## one across every NPC (a count, so which NPC waits is the order they ask in). A `fresh` plan (the
+## NPC has none yet) takes any free search, and when none is free it is refused and asks again the
+## next frame; a replan takes only a search short of the last, and none while a fresh plan was
+## refused this frame or the one before, so the plans of NPCs newly in danger come first. Always
+## true outside a physics frame, where nothing is counted.
+static func _escape_allowed(fresh: bool) -> bool:
+	if not Engine.is_in_physics_frame():
+		return true
+	var frame := Engine.get_physics_frames()
+	if frame != _escape_frame:
+		_escape_frame = frame
+		_escapes = 0
+	if fresh:
+		if _escapes < ESCAPE_CAP:
+			return true
+		_refused_at = frame
+		return false
+	return _escapes < maxi(ESCAPE_CAP - 1, 1) and frame - _refused_at > 1
+
+
 ## A fresh plan for known grenade `id` from where the NPC stands.
 func _make(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array, id: int) -> Dictionary:
 	var rec: Dictionary = _known[id]
@@ -359,6 +404,8 @@ func _make(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array, id: int) 
 	runner.from = _character.global_position
 	runner.speed = throw.run_speed()
 	var found: Dictionary = throw.escape(space, map, threat, runner, exclude)
+	if Engine.is_in_physics_frame():
+		_escapes += 1
 	return {
 		"id": id, "point": rec["point"], "kind": rec["kind"], "radius": rec["radius"],
 		"spot": found["spot"], "crouch": found["crouch"], "at": GameClock.frame(),

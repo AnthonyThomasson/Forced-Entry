@@ -236,7 +236,7 @@ right against the far face of whatever stands near the burst). If it cannot get 
 back-turned share only). Allies within `callout_range` who are in that zone react the same way to the call, even when they neither saw nor heard the
 grenade. A grenade it threw itself it knows about: in flight, at the spot it aimed at (no further than a throw reaches), not at the hand it just left,
 and once it has come down wherever it lies. The spot is chosen again as the grenade moves: after 48 px, and after any move at all that brings
-the spot into the grenade's line (a grenade that rolls on a few px by a doorway can put a spot round the jamb in view of it). The NPC walks all
+the spot into the grenade's line (a grenade that rolls on a few px by a doorway can put a spot round the jamb in view of it). *(Amended by issue #192: a cap on the plans.)* Only **three** plans are made on one physics frame across every NPC, so when many are caught at once an NPC may start its run up to **3 frames** after it could (ten caught by one frag have their plans over the next four frames, three at a time): its plan is then made from where it stands then, with the fuse left then, and it carries on as it was until it has one. An NPC with no plan yet is served before one whose plan is only made again. The NPC walks all
 the way into its spot (6 px), since a spot is out of the line with only a little room to spare either side of it. The callout is `status = &"grenade"` with `point` (the landing) and `kind`;
 `GoalController.debug_grenades()` reports
 `{ known: [{ point, kind, fuse_left, radius, source: &"seen" | &"heard" | &"called" | &"own" }], escape: Vector2 (Vector2.INF when it is
