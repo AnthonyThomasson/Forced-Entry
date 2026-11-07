@@ -8,6 +8,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
+const SurfaceStub := preload("res://tests/_ai/surface_stub.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const CountingVision := preload("res://tests/_ai/counting_vision.gd")
@@ -50,6 +51,7 @@ func run(t: TestContext) -> void:
 	_exposure(t)
 	await _throws(t)
 	_snaps(t)
+	_cover(t)
 
 
 ## The throw groups of the invader's frag and stun, with the lob of a throw spot judged once a
@@ -105,6 +107,39 @@ func _snaps(t: TestContext) -> void:
 		tally.y > 0 and tally.y < tally.x,
 		"a point is snapped once a decision (%d worked out of %d asked)" % [tally.y, tally.x],
 	)
+
+
+## `is_cover` equals the whole-surface reading (`get_surface().coverage` at or above `cover_min`)
+## for every wall, piece and door of the house and for a piece at the edge of the rating, and reads
+## a piece's coverage without building its whole surface.
+func _cover(t: TestContext) -> void:
+	var tactics := _tactics()
+	var tested := 0
+	var covers := 0
+	var wrong: Array = []
+	for node in t.world.find_children("*", "", true, false):
+		if node.is_in_group(&"characters") or not node.has_method("get_surface"):
+			continue
+		var plain: bool = float(node.get_surface().get("coverage", 0.0)) >= tactics.cover_min
+		tested += 1
+		covers += 1 if plain else 0
+		if tactics.is_cover(node) != plain:
+			wrong.append(node.name)
+	t.require(
+		covers > 0 and covers < tested,
+		"set-up: the house holds cover and low pieces (%d of %d)" % [covers, tested],
+	)
+	t.check(wrong.is_empty(), "is_cover equals the surface's coverage test (%s)" % str(wrong))
+	var stub := SurfaceStub.new()
+	t.world.add_child(stub)
+	for coverage in [0.0, tactics.cover_min - 0.5, tactics.cover_min, 100.0]:
+		stub.coverage = coverage
+		t.check(
+			tactics.is_cover(stub) == (coverage >= tactics.cover_min),
+			"a piece of coverage %s is cover only from %s" % [coverage, tactics.cover_min],
+		)
+	t.check(stub.surface_calls == 0, "a piece's coverage is read without its whole surface")
+	stub.queue_free()
 
 
 ## Every target's throw group of `demand`, by target id.

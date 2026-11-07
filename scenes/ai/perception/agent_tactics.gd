@@ -91,6 +91,11 @@ func is_cover(obj: Object) -> bool:
 			or (obj is Node and obj.is_in_group(&"characters"))
 			or not obj.has_method("get_surface")):
 		return false
+	# A piece that holds its coverage says it without building its whole surface (a colour, a
+	# material, a penetration); one that works it out is asked for the surface.
+	var held: Variant = obj.get("coverage")
+	if held is float:
+		return held >= cover_min
 	return float(obj.get_surface().get("coverage", 0.0)) >= cover_min
 
 
