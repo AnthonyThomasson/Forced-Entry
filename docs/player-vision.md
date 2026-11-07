@@ -272,14 +272,19 @@ which costs one rebuild a move that ends within reach.
   vertex the reference cone's (V-tests above), and it changes the lone house's view cost too.
 - **The moving viewer, #192 (recorded, `perf/match_npc_vision_relative`, `vision/cone_same_after_savings`).** The relative guard parks
   its viewer, so it never measured the cone that rebuilds about every frame while its viewer walks (6 to 9 ms a frame in
-  `perf/match_npc_vision`). #192 made that rebuild cheaper without changing a vertex: a rebuild reuses the previous ray's blocker
-  shapes for the far face when the collider, shape and face normal are the same, the previous read held only that shape and nothing else blocking overlaps it, and the shape has not moved since an earlier rebuild;
-  static blockers' corner polygons are kept across rebuilds until the collider moves, is dented or is re-cut; the angles are built
-  without lambda sort or map. `vision/cone_same_after_savings` holds a walking, turning eye past moved, dented and re-cut blockers to
-  `tests/_vision/reference_view_cone.gd`, frame by frame, and counts both reuses. The guard now also plays rounds where the viewer
-  walks a scripted loop (eye and facing change every timed frame, a premise it checks) and holds the moving view's median cost to
-  `MOVING_BUDGET_MS`. **That budget is provisional**: it was set from runs on a loaded machine (load 8 to 12; medians 16.6 and
-  17.2 ms, live cone at 0.27 of the reference's), and the wrap-up re-sets it from quiet runs at about 4x their baseline.
+  `perf/match_npc_vision`). #192 made that rebuild cheaper without changing a vertex: static blockers' corner polygons are kept
+  across rebuilds until the collider moves, is dented or is re-cut, and each is checked against its body once a rebuild (a memo
+  in front of the lookup, dropped at each rebuild, when polygons are cleared and when a collider leaves the tree: a rebuild asks for
+  a polygon about 1,300 times and uses few); the angles are built without lambda sort or map. A first form also reused the previous
+  ray's blocker shapes for the far face; a profile found it fired on 0.2 % of the far-face reads (298 of 146,583) and cost more than
+  it saved (its isolation query, point test and settled check ran on the other 99.8 %), so it was removed. `vision/cone_same_after_savings`
+  holds a walking, turning eye past moved, dented and re-cut blockers, and past a body that moves every frame, to
+  `tests/_vision/reference_view_cone.gd`, frame by frame, counts the cross-rebuild reuses and the memo's hits, and checks no polygon
+  is checked twice in a rebuild. The guard also plays rounds where the viewer walks a scripted loop (eye and facing change every timed
+  frame, a premise it checks) and holds the moving view's median cost to `MOVING_BUDGET_MS`, **20 ms**: about 1.4x the quiet moving
+  median of about 13 ms. It departs from `perf.md`'s 4x rule because the cost is a cone rebuilt every frame, and 4x of a per-frame
+  cost would never trip. (Before the memo the quiet median was 13.9 ms, against 12.2 at the base of the story; the profile put the
+  difference on the polygon re-checks and the far-face reuse.)
 - **The perf matches run with `worldgen.doors` off** until #178 and #159 make the entry door-aware, which the shared perf probe
   (`tests/_perf/perf_probe.gd`) says. `perf/match_npc_vision`, the absolute guard on the same match, is red on the district with
   `perf/match_10v10_stress`, `perf/match_5v5_stress` and `perf/grenade_match_stress` (avg 25.0, p95 48.7, max 70.1 ms): the AI's

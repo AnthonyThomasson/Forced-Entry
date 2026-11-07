@@ -59,9 +59,10 @@ extends GameTest
 ## 2026-11-06, #192: the moving rounds. After the parked rounds the same fight is played again
 ## with the viewed puppet walking a curved loop and turning its aim every frame (the guard checks
 ## that its eye and facing changed on every timed frame), over the same on, off, off, on blocks.
-## The test asserts the median of those rounds, `MOVING_BUDGET_MS`. The budget is PROVISIONAL: its
-## only runs were on a loaded machine (load 8 to 12; medians 16.6 and 17.2 ms), and the wrap-up
-## sets it again from quiet runs at about 4x their baseline. A loaded result says nothing about it.
+## The test asserts the median of those rounds, `MOVING_BUDGET_MS`, 20 ms (about 1.4x the quiet
+## moving median of about 13 ms). It departs from perf.md's 4x rule: the moving view's cost is a
+## whole cone rebuilt almost every frame, a per-frame cost, and 4x of it (about 52 ms) would never
+## trip. A loaded result says nothing about it.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Stopwatch := preload("res://tests/_perf/cone_stopwatch.gd")
@@ -73,9 +74,9 @@ const ROUNDS := 12
 const BLOCK_FRAMES := 25
 ## The most (ms a frame) the view may add to the same match without it (see the header).
 const BUDGET_MS := 3.2
-## Provisional moving-viewer budget from this worker's loaded runs. Wrap-up replaces it with about
-## four times the new quiet baseline; a loaded result must not be used to judge it.
-const MOVING_BUDGET_MS := 40.0
+## The most (ms a frame) the moving view may cost: about 1.4x the quiet moving median of about 13
+## ms. This departs from perf.md's 4x rule, because 4x a per-frame cost would never trip.
+const MOVING_BUDGET_MS := 20.0
 ## The most of the frames the view worked in that may rebuild the cone, or it skipped none to speak
 ## of.
 const REBUILT_MAX := 0.95

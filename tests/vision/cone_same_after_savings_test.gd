@@ -52,6 +52,9 @@ const SWING_EYES := [
 	Vector2(600, 100), Vector2(1100, 400),
 ]
 const SWING_FACINGS := [0.0, 25.0, -30.0, 180.0, 160.0, 10.0, 200.0]
+## The body that moves in every step of `_compare_moving_body`: this many steps of this size (px).
+const MOVING_STEPS := 24
+const MOVING_STEP := Vector2(9.0, -6.0)
 const SHOVE_AT := Vector2(450, 350)
 const SHOVE_EYES := [Vector2(150, 250), Vector2(620, 420)]
 ## A character in the way: it blocks sight standing (coverage 60) and not crouched (35) for an eye
@@ -185,6 +188,7 @@ func _compare_moving_pieces(t: TestContext) -> void:
 	)
 	await _compare_shove(t, [door, shoved], cone, plain)
 	await _compare_walk(t, world, cone, plain)
+	await _compare_moving_body(t, world, cone, plain)
 	await _compare_postures(t, world, cone, plain)
 	await Probe.drop_world(t, world)
 
@@ -305,15 +309,16 @@ func _strike(target: Node2D, rng: RandomNumberGenerator, place: float) -> Vector
 	return at
 
 
-## A walking, turning eye passes a piece that moves and is then dented and re-cut. Both reuse
-## counters must advance here, while every frame's polygons remain the plain rebuild's.
+## A walking, turning eye passes a piece that moves and is then dented and re-cut. The reuse and
+## memo counters must advance here, while every frame's polygons remain the plain rebuild's.
 func _compare_walk(t: TestContext, world: Node2D, cone: Cone, plain: Reference) -> void:
 	var cover: Node2D = world.objects[&"walk_cover"]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = Probe.HIT_SEED + 91
 	var shapes_before := Probe.collision_shapes([cover])
-	var far_before := _savings_count(cone, &"far_reuses")
 	var polygons_before := _savings_count(cone, &"polygon_reuses")
+	var hits_before := _savings_count(cone, &"memo_hits")
+	var validated_twice := 0
 	var drawn: Array[PackedVector2Array] = []
 	for step in 24:
 		if step == 4 or step == 18:
@@ -323,7 +328,11 @@ func _compare_walk(t: TestContext, world: Node2D, cone: Cone, plain: Reference) 
 				_strike(cover, rng, 0.4)
 		await t.frames(3 if step == 10 else 2)
 		var at := Vector2(140 + step * 40, 160 + 60 * sin(float(step) * 0.3))
+		var validations := _savings_count(cone, &"validations")
 		_compare(cone, plain, at, Vector2.from_angle(float(step) * 0.27))
+		# A polygon is validated against its body once a rebuild: the memo holds each one.
+		if _savings_count(cone, &"validations") - validations != _memoed(cone):
+			validated_twice += 1
 		drawn.append(cone.cone.duplicate())
 	t.check(
 		Probe.collision_shapes([cover]) > shapes_before,
@@ -331,20 +340,58 @@ func _compare_walk(t: TestContext, world: Node2D, cone: Cone, plain: Reference) 
 	)
 	t.check(_swing_changed(drawn), "premise: the walking, turning viewer's cone changes")
 	t.check(
-		_savings_count(cone, &"far_reuses") > far_before,
-		"the walking sequence reuses a previous ray's far-face blocker shapes",
-	)
-	t.check(
 		_savings_count(cone, &"polygon_reuses") > polygons_before,
 		"the walking sequence reuses static corner polygons across rebuilds",
 	)
+	t.check(
+		_savings_count(cone, &"memo_hits") > hits_before,
+		"the walking sequence asks for a polygon again within a rebuild and the memo answers",
+	)
+	t.check(
+		validated_twice == 0,
+		"%d of the walking sequence's rebuilds validated a polygon twice" % validated_twice,
+	)
 
 
-## One of the cone's fast-path counters, zero before that fast path exists.
+## A body that moves in every step of a walk, and again between two rebuilds with no physics step in
+## between: the cone stays the reference's frame by frame (the polygon memo serves nothing across
+## rebuilds).
+func _compare_moving_body(t: TestContext, world: Node2D, cone: Cone, plain: Reference) -> void:
+	var cover: Node2D = world.objects[&"walk_cover"]
+	var hits_before := _savings_count(cone, &"memo_hits")
+	var drawn: Array[PackedVector2Array] = []
+	for step in MOVING_STEPS:
+		cover.global_position += MOVING_STEP
+		await t.frames(1)
+		var at := Vector2(160 + step * 30, 200 + 50 * sin(float(step) * 0.4))
+		var facing := Vector2.from_angle(float(step) * 0.2)
+		_compare(cone, plain, at, facing)
+		drawn.append(cone.cone.duplicate())
+		# The body moves again before the physics server is told: both cones read the node's new
+		# place for its polygon, the stale one for what a ray meets.
+		cover.global_position -= MOVING_STEP * 0.5
+		_compare(cone, plain, at, facing)
+	t.check(_swing_changed(drawn), "premise: the cone changes as the body moves and the eye walks")
+	t.check(
+		_savings_count(cone, &"memo_hits") > hits_before,
+		"the moving-body walk is read through the polygon memo",
+	)
+
+
+## One of the cone's fast-path counters, zero when it has no such counter.
 func _savings_count(cone: Cone, key: StringName) -> int:
 	var shapes: Variant = cone.get("_shapes")
 	var count: Variant = shapes.get(key) if shapes != null else null
 	return int(count) if count != null else 0
+
+
+## How many polygons the cone's shapes hold in the memo of the rebuild just made, -1 when it has
+## none.
+func _memoed(cone: Cone) -> int:
+	var shapes: Variant = cone.get("_shapes")
+	if shapes == null or not shapes.has_method("memoed"):
+		return -1
+	return shapes.memoed()
 
 
 ## A character stands, crouches and stands again in the way of eyes that look over only what is
