@@ -4,10 +4,9 @@ extends GameTest
 ## the largest plan, `Perf.MATCH_PLAN`, built as Main builds one) is played once with the view drawn
 ## of a puppet parked at the district's outer corner and facing away from the fight (the same look
 ## on every run, and no world signal of the fight reaches it: see `_place_viewer`), and after the
-## warm-up its frames are
-## measured in blocks of `BLOCK_FRAMES`, the view working in one block and switched off in the next,
-## in the order on, off, off, on, so a steady drift of the machine falls on both. The test asserts
-## that the view adds at most `BUDGET_MS` to a frame.
+## warm-up its frames are measured in blocks of `BLOCK_FRAMES`, the view working in one block and
+## switched off in the next, in the order on, off, off, on, so a steady drift of the machine falls
+## on both. The test asserts that the view adds at most `BUDGET_MS` to a frame.
 ##
 ## Off means no per-frame work of the view: its node is disabled (`process_mode`: the cone is not
 ## rebuilt, nothing is followed or painted) and the capture, memory and mask viewports stop
