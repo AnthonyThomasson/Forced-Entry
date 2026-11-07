@@ -38,9 +38,6 @@ const SOURCE_META := "nav_source"
 ## The meta on the planning region that keeps the explicit walkable footprint `build` was given, so
 ## every re-bake of the region bakes the same map (see `site_of`).
 const BOUNDS_META := "nav_bounds"
-## Segment count approximating a circular furniture footprint as an obstruction polygon.
-const CIRCLE_SEGMENTS := 10
-const HULLS_KEPT := 512
 ## The agent radius (px, the character body's) every bake erodes the map by unless handed another:
 ## the first bake (`build`) and the re-bakes (`nav_updater.gd`, `NavSite`) share it.
 const AGENT_RADIUS := 14.0
@@ -63,9 +60,6 @@ static var _avoid_maps: Dictionary = {}
 ## An avoid map nobody has asked for in this many ms (wall clock) is freed by the next ask for
 ## another set (`avoid_map`).
 static var avoid_idle_ms: int = 20_000
-## Body instance id -> [`_hull_inputs`, hull] as `_body_hull` last made it. Entries of freed bodies
-## are dropped once it holds `HULLS_KEPT`.
-static var _hulls := {}
 
 
 ## Build and add a NavigationRegion2D under `parent`, covering `rooms` (each `{ key, type, rect }`
@@ -344,69 +338,7 @@ static func _bake_polygon(site: NavSite, characters: Array = []) -> NavigationPo
 ## (`NavLeaves.hole`): out of the doorway, in the room it swings into, it is as solid as a piece of
 ## furniture there.
 static func furniture_holes(house: Node2D) -> Array:
-	var out: Array = []
-	# Every RigidBody2D under the house, depth first (each before what is under it), as a walk of
-	# its descendants finds them.
-	for node in house.find_children("*", "RigidBody2D", true, false):
-		var body := node as RigidBody2D
-		var hull := _body_hull(body)
-		if not hull.is_empty():
-			out.append(hull)
-	for door in NavLeaves.doors_of(house):
-		var hole := NavLeaves.hole(door)
-		if not hole.is_empty():
-			out.append(hole)
-	return out
-
-
-## The world-space footprint of `body`, the convex hull of its collision shapes as an open ring (the
-## closing point dropped), or empty when fewer than three points come out of it. It is kept per body
-## with what it was made from (each shape's global transform and its size, radius or points;
-## `_hull_inputs`) and made again only when that changes: most furniture stands still between two
-## bakes, and a dented piece's hull costs a grown outline per convex piece.
-static func _body_hull(body: Node2D) -> PackedVector2Array:
-	var inputs := _hull_inputs(body)
-	var kept: Array = _hulls.get(body.get_instance_id(), [])
-	if not kept.is_empty() and kept[0] == inputs:
-		return (kept[1] as PackedVector2Array).duplicate()
-	var points := PackedVector2Array()
-	for child in body.get_children():
-		var col := child as CollisionShape2D
-		if col == null or col.shape == null:
-			continue
-		points.append_array(_footprint_world(col))
-	var hull := Geometry2D.convex_hull(points)
-	if hull.size() > 1:
-		hull.remove_at(hull.size() - 1)  # convex_hull closes the ring by repeating the first point
-	hull = hull if hull.size() >= 3 else PackedVector2Array()
-	if _hulls.size() >= HULLS_KEPT:
-		for id in _hulls.keys():
-			if not is_instance_id_valid(id):
-				_hulls.erase(id)
-	_hulls[body.get_instance_id()] = [inputs, hull.duplicate()]
-	return hull
-
-
-## Everything `_body_hull` makes `body`'s hull from: for each collision shape, its global transform
-## and what `_footprint_world` reads of its shape (a rect's size, a circle's radius, a convex
-## piece's points; the shape itself for any other kind).
-static func _hull_inputs(body: Node2D) -> Array:
-	var out: Array = []
-	for child in body.get_children():
-		var col := child as CollisionShape2D
-		if col == null or col.shape == null:
-			continue
-		out.append(col.global_transform)
-		var shape := col.shape
-		if shape is RectangleShape2D:
-			out.append((shape as RectangleShape2D).size)
-		elif shape is CircleShape2D:
-			out.append((shape as CircleShape2D).radius)
-		elif shape is ConvexPolygonShape2D:
-			out.append((shape as ConvexPolygonShape2D).points)
-		else:
-			out.append(shape)
-	return out
+	return NavHoles.furniture(house)
 
 
 ## The footprint holes of the living characters AT REST under `root` (the node the nav region lives
@@ -432,53 +364,10 @@ static func character_holes(root: Node) -> Array:
 				or body.collision_layer == 0
 				or body.get_real_velocity().length() >= REST_SPEED):
 			continue
-		var hull := _body_hull(body)
+		var hull := NavHoles.hull_of(body)
 		if not hull.is_empty():
 			out.append(hull)
 	return out
-
-
-## The collider's footprint as a closed polygon in WORLD space, grown by `margin`. Reads only
-## the generic Shape2D — the intact primitives (RectangleShape2D / CircleShape2D) and the
-## ConvexPolygonShape2D a damaged piece's collider is rebuilt into (its points inflated by the
-## margin via Geometry2D.offset_polygon) — mapped through the collider's global transform so an
-## offset or rotated collider still lines up. Empty for an unsupported shape.
-static func _footprint_world(
-	col: CollisionShape2D,
-	margin: float = OBSTACLE_MARGIN,
-) -> PackedVector2Array:
-	var shape := col.shape
-	var local := PackedVector2Array()
-	if shape is RectangleShape2D:
-		var h := (shape as RectangleShape2D).size * 0.5 + Vector2(margin, margin)
-		local = PackedVector2Array([
-			Vector2(-h.x, -h.y), Vector2(h.x, -h.y), Vector2(h.x, h.y), Vector2(-h.x, h.y),
-		])
-	elif shape is CircleShape2D:
-		var r := (shape as CircleShape2D).radius + margin
-		for i in CIRCLE_SEGMENTS:
-			var a := TAU * float(i) / float(CIRCLE_SEGMENTS)
-			local.append(Vector2(cos(a), sin(a)) * r)
-	elif shape is ConvexPolygonShape2D:
-		# A deformed piece: inflate its silhouette by the margin. offset_polygon returns the grown
-		# ring(s); take the largest (a convex grow yields one), falling back to the raw points.
-		var grown := Geometry2D.offset_polygon((shape as ConvexPolygonShape2D).points, margin)
-		local = _largest_polygon(grown, (shape as ConvexPolygonShape2D).points)
-	var xform := col.global_transform
-	var out := PackedVector2Array()
-	for p in local:
-		out.append(xform * p)
-	return out
-
-
-## The polygon with the most points among `polys` (Geometry2D.offset_polygon's output) and
-## `fallback` (`fallback` on a tie).
-static func _largest_polygon(polys: Array, fallback: PackedVector2Array) -> PackedVector2Array:
-	var best := fallback
-	for poly in polys:
-		if (poly as PackedVector2Array).size() > best.size():
-			best = poly
-	return best
 
 
 # --- Avoid maps -----------------------------------------------------------------------------------
