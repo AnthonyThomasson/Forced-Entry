@@ -1,11 +1,12 @@
 extends UnitSuite
-## Native unit suite (pure logic): both phases of an NPC's sight cadence stay keyed on the
-## perception node's own instance id, not on the part that runs them. The sight part tests a
+## Native unit suite (pure logic): the sight cadence stays keyed on the perception node's own
+## instance id, not on the part that runs it, and the house's looks keep their own phases. The
+## sight part tests a
 ## character it keeps in view every `SIGHT_EVERY_FRAMES` frames, phased by
-## `(frame + perception.get_instance_id() + id)`, and the house part's first look for rooms and
-## furniture comes `1 + perception.get_instance_id() % LEARN_EVERY_FRAMES` frames after it is asked.
-## Keyed on anything else, the code still runs but every NPC looks on other frames, so
-## a match plays another fight. Each case runs over several perceptions, so one whose ids happen to
+## `(frame + perception.get_instance_id() + id)`. The house part's looks for rooms and furniture
+## are not keyed on an id (#192 Extension 3: an id's remainder clustered, and moved with every
+## allocation): each NPC takes the next of the `LEARN_EVERY_FRAMES` phases on its first look.
+## Each case runs over several perceptions, so one whose ids happen to
 ## agree on the phase cannot hide a wrong key. It also pins what the cadence promises an NPC: a
 ## character that enters its view cone is tested at once whatever its phase, and what the NPC holds
 ## of one it keeps seeing is at most three frames old (`SIGHT_EVERY_FRAMES` of
@@ -114,19 +115,34 @@ func _intake_reads(perception: Node, key: StringName) -> int:
 	return int(reads.get(key, -1)) if reads is Dictionary else -1
 
 
-func test_house_looks_first_on_the_perceptions_phase() -> void:
-	for n in COUNT:
-		var perception := _perception()
-		var body: Body = auto_free(Body.new())
-		add_child(body)
-		perception.set("_character", body)
+func test_a_squads_house_looks_land_on_different_frames_whatever_was_allocated_between() -> void:
+	# Spaced by `pad` objects, the perceptions' instance ids step by a stride a remainder of six
+	# can make equal for every one (pad 2): the phases must not follow it.
+	var held: Array = []
+	for pad in 6:
 		var frame := Engine.get_physics_frames()
-		perception.house.learn_by_sight()
-		assert_int(perception.house.learn_next) \
-			.override_failure_message("perception %d" % n) \
-			.is_equal(
-				frame + 1 + perception.get_instance_id() % PerceptionHouse.LEARN_EVERY_FRAMES
+		var first_looks := {}
+		for n in 12:
+			var perception := _perception()
+			for p in pad:
+				held.append(RefCounted.new())
+			var body: Body = auto_free(Body.new())
+			add_child(body)
+			perception.set("_character", body)
+			perception.house.learn_by_sight()
+			var next: int = perception.house.learn_next
+			assert_bool(next > frame and next <= frame + PerceptionHouse.LEARN_EVERY_FRAMES) \
+				.override_failure_message("pad %d perception %d: next look at +%d" % [
+					pad, n, next - frame,
+				]) \
+				.is_true()
+			first_looks[next % PerceptionHouse.LEARN_EVERY_FRAMES] = (
+				int(first_looks.get(next % PerceptionHouse.LEARN_EVERY_FRAMES, 0)) + 1
 			)
+		# Twelve over six phases: two on each, the most the squad can be spread to.
+		assert_array(first_looks.values()) \
+			.override_failure_message("pad %d: looks per phase %s" % [pad, str(first_looks)]) \
+			.is_equal([2, 2, 2, 2, 2, 2])
 
 
 func test_sight_sees_the_cone_and_the_bubble_and_a_character_entering_the_cone_at_once() -> void:

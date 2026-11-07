@@ -45,10 +45,8 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
   rendering), interleaved on, off, off, on, because two plays of the match differ from each other by far more than the view costs.
   It holds the median difference to `BUDGET_MS` and the live cone's cost to `RATIO_MAX` of the reference cone's from the same eye
   (`tests/_vision/reference_view_cone.gd`). Its moving rounds hold `MOVING_BUDGET_MS`, 8.5 ms (about 1.4x the moving mean of about 6 ms after #192's Extension 3, 4.60 and 5.61; was 20), which departs from the 4x rule: 4x of a per-frame cost would never trip. Headless sees the CPU side only. `perf/match_npc_vision` is the absolute standard on the
-  same match. `perf/match_5v5_stress` is green on the district since #192. After its Extension 2 (2026-11-07, two ungated runs) the escape tail is gone but
-  `perf/match_10v10_stress` (its tail is the decision builds), `perf/grenade_match_stress` (p95 19.05, then 20.80) and `perf/match_npc_vision` still miss, and the parked check of
-  `perf/match_npc_vision_relative` read 5.48 then 1.21 against 3.2. None is loosened, skipped or tagged. Numbers and profile: `perf-district-ext2.md`; the gates the district moved: `perf-district.md`.
-  After Extension 3 (2026-11-07): 5v5 green, grenade_match p95 18.9 to 22.3, 10v10 and npc_vision red; AC40 not met: `perf-district-ext3.md`.
+  same match. `perf/match_5v5_stress` is green on the district since #192; after Extensions 2 and 3 (2026-11-07) `perf/match_10v10_stress`, `perf/grenade_match_stress` and
+  `perf/match_npc_vision` still miss and AC40 is not met; none is loosened, skipped or tagged: `perf-district-ext2.md`, `perf-district-ext3.md`, the gates the district moved: `perf-district.md`.
 - **A wall-clock budget belongs here and nowhere else:** the lint rule `timing_in_perf` fails a `Time.get_ticks_usec()`
   under `tests/` outside `tests/perf/` and `tests/_perf/`.
 
@@ -71,6 +69,7 @@ library's pre-warm renders on a worker thread (`domain-audio`).
   feature off with `set_static` / `switch` shows what it is worth. Measure before reading: a per-frame cost is rarely
   where the code suggests.
 - A lambda captures ints by value (count into an Array).
+- **Never judge a match guard by its sim length or one run:** a revision plays its own match (order keyed on allocation, an async re-bake): `perf-nondeterminism.md`.
 - `nav.rebake` is off in tests that shove or shoot furniture into overlaps (re-baking overlapping holes logs a nav sync
   error); the match guards keep it on and allow that log (`MATCH_LOGS`).
 - World-gen's first run in a process is slower (cold caches), so its budget covers the cold case.

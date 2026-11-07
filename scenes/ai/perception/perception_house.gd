@@ -3,13 +3,14 @@ extends RefCounted
 ## house — its rooms (`rooms`, as handed to the latest observe()), its doorways (`openings`) and
 ## entrance (`entry_point`), injected by its composer, the rooms and furniture it has learned
 ## (`saw_room` / `saw_object`, seeded for a familiar NPC, else learned by sight every
-## `LEARN_EVERY_FRAMES`, offset per NPC by the perception node's own instance id), the interactables
-## and its post — and the read of it the tactics overlay draws (`room_status`). Built once with its
-## `AgentPerception`, it holds it (a node, so no reference cycle) for the body, the memory and its
-## sibling parts.
+## `LEARN_EVERY_FRAMES`, each NPC on a phase of its own handed out in turn: `LookPhases`), the
+## interactables and its post — and the read of it the tactics overlay draws (`room_status`). Built
+## once with its `AgentPerception`, it holds it (a node, so no reference cycle) for the body, the
+## memory and its sibling parts.
 
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
+const LookPhases := preload("res://scenes/ai/perception/look_phases.gd")
 ## Physics frames between an unfamiliar NPC's looks for rooms and furniture it does not know yet.
 ## Learning is permanent and a decision looks again first, so a glimpse shorter than this still
 ## counts when it is the moment of a decision.
@@ -131,19 +132,19 @@ func _learn_carried() -> void:
 
 
 ## An unfamiliar NPC learns the rooms and objects it can see (permanent once learned). Runs every
-## `LEARN_EVERY_FRAMES` frames from `observe()`, offset per NPC so a squad does not look on the same
-## frame, and at the start of every decision, so what it knows when it decides is what it sees at
-## that moment. The rooms looked for are the house's (`rooms`, kept by `take_in`). A scheduled look
-## takes every room but only each `LEARN_SLICES`th piece of furniture it does not know; a `full`
-## look (a decision's) takes every piece.
+## `LEARN_EVERY_FRAMES` frames from `observe()`, on a phase per NPC handed out in turn in the order
+## the NPCs first look (so a squad of N has at most ceil(N / `LEARN_EVERY_FRAMES`) looking on one
+## frame, whatever the process allocated before them, which an instance id's remainder does not
+## promise) and kept through a decision's look, and at the start of every decision, so what it knows
+## when it decides is what it sees at that moment. The rooms looked for are the house's (`rooms`,
+## kept by `take_in`). A scheduled look takes every room but only each `LEARN_SLICES`th piece of
+## furniture it does not know; a `full` look (a decision's) takes every piece.
 func learn_by_sight(full := false) -> void:
 	var frame := Engine.get_physics_frames()
 	if frame == _learned_frame and (_learned_full or not full):
 		return
 	if frame != _learned_frame:
-		learn_next = frame + (LEARN_EVERY_FRAMES
-				if _learned_frame >= 0
-				else 1 + perception.get_instance_id() % LEARN_EVERY_FRAMES)
+		learn_next = _next_look_after(frame)
 		if not full:
 			_sliced_looks += 1
 	_learned_frame = frame
@@ -154,6 +155,18 @@ func learn_by_sight(full := false) -> void:
 	var exclude := [perception._character.get_rid()]
 	_look_at_rooms(self_pos, facing, space, exclude)
 	_look_at_furniture(full, self_pos, facing, space, exclude)
+
+
+## The first frame after `frame` on this NPC's phase (`LookPhases`, handed out at its first look,
+## and the remainder `learn_next` keeps from then on): `frame + LEARN_EVERY_FRAMES` after a look on
+## it, sooner after a decision's look off it.
+func _next_look_after(frame: int) -> int:
+	var phase: int = (
+		LookPhases.next(perception._character, LEARN_EVERY_FRAMES)
+		if _learned_frame < 0
+		else learn_next % LEARN_EVERY_FRAMES
+	)
+	return frame + 1 + posmod(phase - frame - 1, LEARN_EVERY_FRAMES)
 
 
 ## Learn the rooms not yet known that the NPC stands in or sees the middle of.
