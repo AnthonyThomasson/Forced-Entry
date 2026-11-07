@@ -29,6 +29,11 @@ const Sector := preload("res://scenes/vision/view_sector.gd")
 const SOLID := PhysicsLayers.SOLID
 ## The fields of `_key`.
 const KEY_SIZE := 11
+## The pose lag's bounds (`docs/player-vision.md` V1): while the eye is at most this far (px) and
+## the facing at most this much (radians, 1 degree) off the last rebuild's, and nothing else the
+## polygon is made of differs, a rebuild may wait for `VisionConfig.rebuild_gap`.
+const LAG_EYE := 5.0
+const LAG_FACING := 0.017453292519943295
 
 ## Whether the cone must be rebuilt now: set by anything that signals a change, cleared by the
 ## rebuild.
@@ -87,7 +92,9 @@ func detach() -> void:
 func stale(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
 	_since += 1
 	_sector.look(eye, facing, sight)
-	if _since >= VisionConfig.rebuild_every or not _built_for(eye, facing, sight):
+	if _since >= VisionConfig.rebuild_every:
+		return true
+	if not _built_for(eye, facing, sight) and not _lagging(eye, facing, sight):
 		return true
 	var see_over := float(sight["see_over_coverage"])
 	_read_new(see_over)
@@ -130,7 +137,14 @@ func _built_for(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
 		_built.size() == KEY_SIZE
 		and _built[0] == eye
 		and _built[1] == facing
-		and _built[2] == sight["fov_degrees"]
+		and _tuned_as_built(sight)
+	)
+
+
+## Whether the sight and the cone's tuning are those of the last rebuild (`_key` after the pose).
+func _tuned_as_built(sight: Dictionary) -> bool:
+	return (
+		_built[2] == sight["fov_degrees"]
 		and _built[3] == sight["view_distance"]
 		and _built[4] == sight["awareness_radius"]
 		and _built[5] == sight["see_over_coverage"]
@@ -140,6 +154,24 @@ func _built_for(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
 		and _built[9] == VisionConfig.far_depth
 		and _built[10] == VisionConfig.far_bleed
 	)
+
+
+## Whether the viewer's pose differs from the last rebuild's only by what the lag may hold back: the
+## sight and the cone's tuning are the same, the eye and the facing are within the bounds, and this
+## frame is before the gap (`VisionConfig.rebuild_gap`) is up.
+func _lagging(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
+	if _since >= VisionConfig.rebuild_gap or _built.size() != KEY_SIZE:
+		return false
+	var built_eye: Vector2 = _built[0]
+	var built_facing: Vector2 = _built[1]
+	if eye.distance_to(built_eye) > LAG_EYE:
+		return false
+	if facing != built_facing:
+		if facing == Vector2.ZERO or built_facing == Vector2.ZERO:
+			return false
+		if absf(facing.angle_to(built_facing)) > LAG_FACING:
+			return false
+	return _tuned_as_built(sight)
 
 
 ## A node entered the tree: a collider is read at the next check, once it is ready.

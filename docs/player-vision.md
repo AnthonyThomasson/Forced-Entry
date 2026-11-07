@@ -41,17 +41,26 @@ full, so no cap drops one). Doors (`docs/doors.md`) follow the same rule: a shut
 only when its output can change: the eye moved or turned, the viewer's sight numbers changed, or where a ray can pass (the sector the viewer looks along and the bubble round it,
 within the view distance) a blocker moved,
 changed shape (a dent, a wall re-cut, a door's swing, fall or shattered panes) or joined or left; plus a forced rebuild every
-`VisionConfig.rebuild_every` (10) physics frames, a backstop. A skipped frame's cone equals a fresh rebuild's, vertex for
-vertex. Tests: `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
+`VisionConfig.rebuild_every` (10) physics frames, a backstop. A frame skipped because nothing changed shows the cone a fresh
+rebuild would draw, vertex for vertex. **The pose lag:** while only the viewer's eye (moved at most 5 px) or facing (turned at
+most 1°) differs from the last rebuild's, the cone is rebuilt at most every `VisionConfig.rebuild_gap` (2) physics frames (1 =
+every frame, with no lag); a frame in between shows the exact cone of the last rebuild, which is a fresh cone of an eye the viewer
+really stood at, so the memory (V4) never holds area the eye did not see. The lag is at most one frame of the eye's walk (2.5 px
+a frame at 150 px/s, 4.25 px running) and of its turn; a mover entering or leaving the seen area (V11) may show one frame late.
+A change the pose does not explain is not lagged: a blocker in reach that moved, changed or joined or left, a character that
+blocks, a changed sight number or cone tuning, an eye or facing past the bounds, and the backstop rebuild in that very frame.
+Tests: `vision/pose_lag_bounds` (the lag and its bounds),  `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
 the table and inside the cone are in the polygon; points behind the wardrobe, beyond the wall, behind the eye past 48 are not;
 points within 48 behind it are), `vision/cone_exact_at_corners` (eyes near the room corners and the doorway's ends, facing along
 and across the walls: no sampled point behind a corner is inside the polygon and every sampled point the eye sees is; a seen
 wall's far face is in the polygon, the room beyond is not), `vision/cone_exact_with_many_blockers` (more solid shapes in reach
 than any query cap: every wardrobe keeps its corner rays), `vision/cone_same_after_savings` (the live cone against the reference
 cone, the plainest form of the cone, vertex for vertex, over a grid of eyes and facings in generated houses and after a door, a
-shove and a freed piece move through it), `vision/cone_skip_exact` (a still then a turning viewer through a dent, a shove, a
+shove and a freed piece move through it), `vision/fan_hide_margin_keeps_grazing_corner` (a shelf's tip a hair off a fan ray whose hit the engine
+reports 0.02 px off the shelf is cast: the fan calls a corner hidden only when the two rays either side of it met one convex shape nearer
+than the corner and the corner is more than a quarter pixel, at its own distance, from either ray), `vision/cone_skip_exact` (a still then a turning viewer through a dent, a shove, a
 door's swing, panes shattered, a door knocked down, a piece added and freed, a posture change and a death: every frame the
-polygon equals a fresh rebuild's, vertex for vertex; a still viewer rebuilds far less than every frame and never goes more than
+polygon equals a fresh rebuild's from the pose of the last rebuild (the pose lag), vertex for vertex; a still viewer rebuilds far less than every frame and never goes more than
 `rebuild_every` frames without a rebuild). `vision/cone_follows_sight` also hangs three doors in the wall the rooms share, and
 the eye stands before each in turn: the point beyond a shut solid door and one beyond a shut hollow door are not in the polygon,
 the point beyond a shut glass-panel door is, the solid door swung open shows the point through its gap and hides it again shut,
@@ -197,12 +206,18 @@ backstop that bounds it; a feature that makes one change must tell `ViewShapes` 
 
 `VisionConfig`: `enabled` true; the look `grey` 1.0, `contrast` 0.9, `pivot` 0.3, `brightness` 0.55, `tint` (0.88, 0.96, 1.12);
 `feather` 16; `memory_scale` 2; `cone_rays` 64, `bubble_rays` 48, `corner_offset` 0.0002 rad; `far_depth` 120, `far_bleed` 14;
-`rebuild_every` 10. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48,
+`rebuild_every` 10, `rebuild_gap` 2. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48,
 `see_over_coverage` 60. The repaint reach is `CharacterVisuals.SEEN_REACH` (60). The look and the 16 px edge were picked by eye,
 against a flat 45 % grey (too dark and flat), a full-brightness grey (too close to the live world), a hard edge (a harsh line) and
 a 40 px feather (it smears the cone).
 
 ## Measured cost
+
+**2026-11-07, the pose lag and the fan table (not `--quiet`: load 10 to 12, 29 other Godot).** `perf/match_npc_vision_relative` with the parked
+viewer moved to the district's outer corner facing away from the fight (a viewer in the centre house's largest room rebuilt on 28 to 100 %
+of the frames, shoved and dented by the fight): the parked view read -0.82 and -0.64 ms against 3.2, rebuilding only for its backstop; the
+moving rounds, whose turning aim (6 degrees a frame) is past the lag's bounds and so still rebuild every frame, read 6.74 and 5.02 ms
+(11.9 and 10.9 on 2026-11-07 before). `MOVING_BUDGET_MS` is 8.5, about 1.4x of their mean.
 
 The perf tests run headless and see only the CPU side, so the GPU side was measured by hand, windowed, as `docs/lighting.md`
 "Measured cost" does. **Each figure below says where it comes from.** *Recorded* means a commit's test header or message holds it

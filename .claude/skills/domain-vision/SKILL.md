@@ -24,7 +24,7 @@ debug overlays, Navigation and the UI are overlays (`ViewLayers.overlay`); Gener
 | `view_cone.gd`, `view_shapes.gd`, `view_watch.gd` | The exact polygon (`ViewCone`), the blocking shapes round the eye (`ViewShapes`: a shape query, never a tree walk) and what says a rebuild is due (`ViewWatch`). Private. |
 | `view_memory.gd`, `view_fan.gd`, `view_mask.gd`, `view_composite.gd` | The capture and memory viewports and the wipe, the triangle-fan painter both painters are, the feathered mask, the composite over the world. Private. |
 | `memory_paint`, `memory_wipe`, `view_composite` (`.gdshader`) | Paints the capture into the memory without blending; writes "nothing seen"; cuts the live world out and draws the memory in the look. |
-| `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, `memory_scale`, the rays, `far_depth`, `far_bleed`, `rebuild_every`. |
+| `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, `memory_scale`, the rays, `far_depth`, `far_bleed`, `rebuild_every`, `rebuild_gap`. |
 
 What a character sees by (110° cone, 2520 px, a 48 px bubble, looking over coverage 60) is Character's `CharacterVisionConfig`,
 read through `character.sight()`: any character can be the viewer.
@@ -45,8 +45,9 @@ read through `character.sight()`: any character can be the viewer.
   leaves the lows out and meets its first blocker in one cast (`SightRay` instance), then runs on to where it leaves it
   (`far_exit`: the farthest exit over the blocking shapes holding a point 0.1 px along the ray, so a wall or wardrobe seen shows
   its top; at most `far_depth`; `far_bleed` when it leaves through no edge; where no shape holds the point the ray only grazed
-  and ends at the hit). The even fan is cast first, once (`_cast_fan`), and a corner between two fan rays that met the same
-  convex shape nearer than it needs no ray (`vision/cone_hidden_corners_not_cast`).
+  and ends at the hit). The even fan is cast first, once (`_cast_fan`) with a per-interval hide table (`_fan_hide`), and a corner between two fan rays that met the same convex shape nearer
+  than it needs no ray (`vision/cone_hidden_corners_not_cast`), unless it lies within `FAN_HIDE_MARGIN` (0.25 px at its distance) of
+  either ray: engine hits are off a face by up to 0.02 px (`vision/fan_hide_margin_keeps_grazing_corner`).
 - **`ViewWatch` skips a rebuild** a fresh one would draw again, and a rebuild is due when any input of the cone changed: the eye,
   the facing, the sight numbers, the cone's `VisionConfig` numbers; the transform or collision layer of any blocker where a
   ray can pass (within the view distance, in the cone's sector or the bubble, each grown by the blocker's own extent and 2 px, measured when its shapes come or go and scaled by the largest absolute
@@ -54,7 +55,9 @@ read through `character.sight()`: any character can be the viewer.
   by signal a blocker's shapes coming or going (a dent or a wall re-cut frees shapes and adds new with no move of the body),
   leaving the tree, or a door's `changed`; a collider that entered the tree; a character that blocks (its posture covers more
   than the viewer looks over: rebuilt every frame it does, and the frame after); and every `rebuild_every` (10) frames, the
-  backstop for a change it cannot see. A low piece is in no ray, so it is not watched. A frame that rebuilds nothing measures no
+  backstop for a change it cannot see. **The pose lag (`vision/pose_lag_bounds`, V1):** an eye at most 5 px and a facing at most 1 degree off the last rebuild's wait for
+  `VisionConfig.rebuild_gap` (2) frames (`ViewWatch._lagging`), holding the last rebuild's exact cone, so the memory never paints a
+  made-up one; any other change above is due at once, a changed sight number too; gap 1 = every frame. A low piece is in no ray, so it is not watched. A frame that rebuilds nothing measures no
   shape and builds no Array for the key (`vision/view_watch_suite` holds the first): keep it so.
 - **A rebuild keeps what a plain one would re-read (#192; the polygon is vertex for vertex the reference's, `vision/cone_same_after_savings`).**
   `ViewShapes` keeps a non-character shape's world polygon across rebuilds, keyed by collider and shape index with the transform and

@@ -16,6 +16,11 @@ const REACH := 2520.0
 const FAR := Vector2(3750.0, 0.0)
 const SOLID_SIZE := Vector2(14.0, 60.0)
 const FRAMES := 40
+## The pose lag (`docs/player-vision.md` V1): the eye and facing the view may be off the last
+## rebuild's by at most these (px, degrees) before it rebuilds in that very frame, kept here from
+## the spec.
+const LAG_EYE := 5.0
+const LAG_FACING := 1.0
 
 
 func _sight() -> Dictionary:
@@ -141,3 +146,77 @@ func test_a_blocker_that_shrinks_out_of_the_sector_forces_a_rebuild() -> void:
 	_settled(watch)
 	wide.scale = Vector2.ONE
 	assert_bool(watch.stale(EYE, FACING, _sight())).is_true()
+
+
+## Ask once about `eye` and `facing` after a settled watch: whether a rebuild is due.
+func _due(watch: Watch, eye: Vector2, facing: Vector2, sight := _sight()) -> bool:
+	return watch.stale(eye, facing, sight)
+
+
+func test_a_small_pose_change_waits_for_the_gap() -> void:
+	var watch := _watch()
+	_settled(watch)
+	var step := Vector2(LAG_EYE - 1.0, 0.0)
+	assert_bool(_due(watch, EYE + step, FACING)).is_false()
+	assert_bool(_due(watch, EYE + step, FACING)).is_true()
+
+
+func test_a_small_turn_waits_for_the_gap() -> void:
+	var watch := _watch()
+	_settled(watch)
+	var turned := FACING.rotated(deg_to_rad(LAG_FACING - 0.2))
+	assert_bool(_due(watch, EYE, turned)).is_false()
+	assert_bool(_due(watch, EYE, turned)).is_true()
+
+
+func test_an_eye_past_the_bound_is_rebuilt_at_once() -> void:
+	var watch := _watch()
+	_settled(watch)
+	assert_bool(_due(watch, EYE + Vector2(LAG_EYE + 1.0, 0.0), FACING)).is_true()
+
+
+func test_a_facing_past_the_bound_is_rebuilt_at_once() -> void:
+	var watch := _watch()
+	_settled(watch)
+	var turned := FACING.rotated(deg_to_rad(LAG_FACING + 0.5))
+	assert_bool(_due(watch, EYE, turned)).is_true()
+
+
+func test_a_pose_that_drifts_past_the_bound_over_frames_is_rebuilt() -> void:
+	# The bounds are from the last rebuild's pose, not the last frame's: with a gap longer than the
+	# drift takes, 2 px a frame passes the 5 px bound in the third frame.
+	var watch := _watch()
+	_settled(watch)
+	var gap := VisionConfig.rebuild_gap
+	VisionConfig.rebuild_gap = 6
+	var first := -1
+	for i in 5:
+		if first < 0 and _due(watch, EYE + Vector2(2.0 * float(i + 1), 0.0), FACING):
+			first = i + 1
+	VisionConfig.rebuild_gap = gap
+	assert_int(first).is_equal(3)
+
+
+func test_a_changed_sight_number_is_rebuilt_at_once_whatever_the_pose() -> void:
+	var watch := _watch()
+	_settled(watch)
+	var sight := _sight()
+	sight["view_distance"] = REACH - 100.0
+	assert_bool(_due(watch, EYE + Vector2(1.0, 0.0), FACING, sight)).is_true()
+
+
+func test_a_gap_of_one_rebuilds_every_changed_frame() -> void:
+	var watch := _watch()
+	_settled(watch)
+	var gap := VisionConfig.rebuild_gap
+	VisionConfig.rebuild_gap = 1
+	var due := _due(watch, EYE + Vector2(1.0, 0.0), FACING)
+	VisionConfig.rebuild_gap = gap
+	assert_bool(due).is_true()
+
+
+func test_a_solid_that_joins_is_rebuilt_at_once_whatever_the_pose() -> void:
+	var watch := _watch()
+	_settled(watch)
+	_solid(Vector2(300.0, 0.0))
+	assert_bool(_due(watch, EYE + Vector2(1.0, 0.0), FACING)).is_true()
