@@ -20,3 +20,9 @@ the match is chaotic: it is not a slice's logic (rules 36, 37 hold) and not the 
 ## Reading rule
 
 Compare two revisions by interleaved runs (A, B, A, B), `uptime` before each, the contact time (`PERF <label> contact at`) recorded beside avg / p95 / max. Never conclude from one run.
+
+## After the look-phase fix, the branch against base (2026-11-07)
+
+Interleaved, HEAD `d2f20dea` against `1afec1d2`, ungated at load 10 to 19 with 29 to 40 other Godot: the branch's average frame was higher in 8 of 8 pairs (`grenade_match_stress`
++0.4 to +1.8 ms, `match_10v10_stress` +2.0 to +3.9 ms). Each revision plays its own match, so this is not isolated: a real cost and a different fight read the same. Recorded, not
+resolved (the user chose to move on); #195 holds it. Table and caveat: `perf-district-ext3.md`.

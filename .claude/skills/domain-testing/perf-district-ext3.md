@@ -35,3 +35,18 @@ cut a redrawn body from 6.65 to 6.33 ms in a scratch A/B of 10 bodies, far under
 (`ai/decision/micro_bundle_matches_plain`) showed no measurable ms a decision. Neither moved the grenade match's floor, so its p95 still reads 18.9 to 22.3.
 
 Why 10v10 and `match_npc_vision` stay red, with both spikes' findings copied (`/tmp` is not durable): `perf-district-ext3-spikes.md`.
+
+## After the stagger fix: base against the branch, interleaved (2026-11-07, HEAD `d2f20dea` against base `1afec1d2`)
+
+Run alternately (A, B, A, B), without the quiet gate, at load 10 to 19 with 29 to 40 other Godot processes (none a test's). The branch's average frame was
+higher in **8 of 8 pairs**:
+
+| Guard | branch minus base, average frame |
+|---|---|
+| `grenade_match_stress` | +0.4 to +1.8 ms |
+| `match_10v10_stress` | +2.0 to +3.9 ms |
+
+**Not isolated.** The two revisions play different matches (`perf-nondeterminism.md`: a revision plays its own fight), so the gap is either a real cost of the branch or
+a different match, and this run cannot say which; each slice measured on its own work was neutral or faster (about 0 ms a decision, 0.3 ms less for 10 redrawn
+bodies, about 5 ms less for the moving view). The user chose to record it and move on. Only the ranges were recorded. Follow-up #195 holds the question
+(time each slice's own work on one recorded workload, base against branch, on a quiet machine; revert any slice that is net slower) and the repeatable match guard.
