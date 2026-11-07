@@ -1,10 +1,19 @@
 extends GameTest
 ## Candidate geometry reused inside one frozen two-target snapshot is identical to the plain scan:
-## same fire, flank and advance groups, with fewer route and cover queries.
+## same fire, flank and advance groups, with fewer route and cover queries. Whole snapshots,
+## completed (every group, fact and section, each hostile's sections and the order the groups and
+## hostiles come in), equal the plain computation's for an invader carrying a frag and a stun with
+## two hostiles in view.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
+const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
+## Where the invader stands outside the back door, and the two householders it sees in the kitchen.
+const I_AT := Vector2(960, 190)
+const H1_AT := Vector2(660, 120)
+const H2_AT := Vector2(700, 270)
 
 
 func describe() -> Dictionary:
@@ -22,6 +31,12 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"npc", &"puppet", Maps.HALL_MIDDLE)
 	s.actor(&"one", &"puppet", Maps.LIVING_CENTRE)
 	s.actor(&"two", &"puppet", Maps.KITCHEN_CENTRE)
+	s.von_script([])
+	s.switch(&"ai.callouts", false)
+	s.switch(&"ai.hostile_on_trespass", false)
+	s.actor(&"i", &"invader", I_AT, { "movement:speed": 0.0, "facing": Vector2.LEFT })
+	GrenadeAi.hostile(s, &"h1", H1_AT, Maps.DOOR_BACK)
+	GrenadeAi.hostile(s, &"h2", H2_AT, Maps.DOOR_BACK)
 
 
 func run(t: TestContext) -> void:
@@ -54,6 +69,65 @@ func run(t: TestContext) -> void:
 		"repeated point/hostile cover is reused (%d vs %d)"
 			% [fast_tactics.cover_queries, plain_tactics.cover_queries],
 	)
+	await _completed_snapshots(t)
+
+
+## Two whole snapshots of the invader's moment, one with the per-snapshot geometry reuse and one
+## with none, each completed: the options (groups, per hostile too), facts and sections (global
+## and per hostile) are equal, and so is the order the groups and hostiles come in.
+func _completed_snapshots(t: TestContext) -> void:
+	var inv := t.actor(&"i")
+	Probe.arm(inv, 1, 1)
+	await t.frames(3)
+	var brain := t.controller(&"i", &"debug_state")
+	var seen := func() -> bool: return (
+		(brain.debug_state().get("contacts", []) as Array).filter(
+			func(c): return c.get("hostile", false)
+		).size() >= 2
+	)
+	if not t.require(await t.until(seen, 3.0), "set-up: the invader sees two hostiles"):
+		return
+	var perception: Node = brain.get("_perception")
+	var fast: Dictionary = perception.sense(brain.get("goal"), "", 0)
+	var plain: Dictionary = perception.sense(brain.get("goal"), "", 0)
+	(plain["demand"].ctx as Dictionary).erase("tactics_cache")
+	fast["demand"].complete()
+	plain["demand"].complete()
+	var per_target: Dictionary = fast["options"]["per_target"]
+	t.require(per_target.size() == 2, "set-up: two hostiles are analysed (%d)" % per_target.size())
+	t.require(
+		(fast["demand"].ctx as Dictionary).has("tactics_cache")
+			and not (plain["demand"].ctx as Dictionary).has("tactics_cache"),
+		"set-up: one snapshot reuses geometry and the other does not",
+	)
+	t.expect_eq(fast["options"], plain["options"], "the completed options equal the plain ones")
+	t.expect_eq(fast["facts"], plain["facts"], "the facts equal the plain ones")
+	t.expect_eq(fast["sections"], plain["sections"], "the sections equal the plain ones")
+	t.expect_eq(
+		fast["sections_per_target"],
+		plain["sections_per_target"],
+		"each hostile's sections equal the plain ones",
+	)
+	t.expect_eq(
+		_order(fast), _order(plain), "the groups and the hostiles come in the plain order"
+	)
+
+
+## The order of every dictionary of `snap` that holds groups or hostiles: the option groups, each
+## hostile's, the hostiles of the per-target options and sections (a `Dictionary` compares equal
+## whatever its key order).
+func _order(snap: Dictionary) -> Dictionary:
+	var out := {
+		"options": (snap["options"] as Dictionary).keys(),
+		"per_target": (snap["options"]["per_target"] as Dictionary).keys(),
+		"sections": (snap["sections"] as Dictionary).keys(),
+		"sections_per_target": (snap["sections_per_target"] as Dictionary).keys(),
+	}
+	for id in snap["options"]["per_target"]:
+		out["groups %s" % id] = (snap["options"]["per_target"][id] as Dictionary).keys()
+	for id in snap["sections_per_target"]:
+		out["sections %s" % id] = (snap["sections_per_target"][id] as Dictionary).keys()
+	return out
 
 
 ## Whether the snapshot ring `_self_combat_spots` equals the standalone `combat_spots` (the

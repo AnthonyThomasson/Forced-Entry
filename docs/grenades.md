@@ -236,7 +236,7 @@ right against the far face of whatever stands near the burst). If it cannot get 
 back-turned share only). Allies within `callout_range` who are in that zone react the same way to the call, even when they neither saw nor heard the
 grenade. A grenade it threw itself it knows about: in flight, at the spot it aimed at (no further than a throw reaches), not at the hand it just left,
 and once it has come down wherever it lies. The spot is chosen again as the grenade moves: after 48 px, and after any move at all that brings
-the spot into the grenade's line (a grenade that rolls on a few px by a doorway can put a spot round the jamb in view of it). *(Amended by issue #192: a cap on the plans.)* Only **three** plans are made on one physics frame across every NPC, so when many are caught at once an NPC may start its run up to **3 frames** after it could (ten caught by one frag have their plans over the next four frames, three at a time): its plan is then made from where it stands then, with the fuse left then, and it carries on as it was until it has one. A plan made for the first time has the call over one only made again (a replan leaves a search free for it and waits while one is refused), as far as the order the NPCs ask in allows. The NPC walks all
+the spot into the grenade's line (a grenade that rolls on a few px by a doorway can put a spot round the jamb in view of it). *(Amended by issue #192: a cap on the plans.)* Only **three** plans are made on one physics frame across every NPC, so when many are caught at once an NPC may start its run up to **3 frames** after it could (ten caught by one frag have their plans over the next four frames, three at a time): its plan is then made from where it stands then, with the fuse left then, and it carries on as it was until it has one. A plan made for the first time has the call over a replan: replans take at most two of a frame's three searches, and none on a frame when a first plan was refused on it or on the one before (a replan that comes earlier in the order the NPCs ask in may still run on the very frame a first plan is first refused). The NPC walks all
 the way into its spot (6 px), since a spot is out of the line with only a little room to spare either side of it. The callout is `status = &"grenade"` with `point` (the landing) and `kind`;
 `GoalController.debug_grenades()` reports
 `{ known: [{ point, kind, fuse_left, radius, source: &"seen" | &"heard" | &"called" | &"own" }], escape: Vector2 (Vector2.INF when it is
@@ -248,7 +248,7 @@ its spot shoots at an invader in view before the burst), `ai/grenade/evade_frag_
 with no spot in time shoots at the thrower before the burst),
 `ai/grenade/evade_replans_when_spot_in_line` (scripted: a frag by the living room's doorway rolls on under 48 px and puts the planned spot in its line; a new
 spot out of the line is planned before the burst), `ai/grenade/evade_waits_for_own_windup` (scripted: a teammate's stun lands beside an invader winding up its
-own throw: its stun still goes onto its spot, then it runs), `ai/grenade/evade_wave_spots_match_own_plan` (five defenders round a frag an ally throws
+own throw: its stun still goes onto its spot, then it runs), `ai/grenade/escape_cap_spreads_plans` (ten caught by one frag: at most three searches a frame, every plan within 3 frames, a replan never takes the last search of a frame nor one the frame after a first plan was refused), `ai/grenade/evade_wave_spots_match_own_plan` (five defenders round a frag an ally throws
 into the hall plan their escape together, at least three on one frame: the work that depends on the burst alone is shared among them on that frame,
 and every plan's spot is the one the NPC's own search, nothing shared, picks on that frame).
 
@@ -288,8 +288,8 @@ self-safety tags are judged from there (an NPC that stands outside the zone but 
 walk. `debug_zones()` lists every throw weighed (dropped ones too) as zones of category `grenade` with `point` (the burst spot), `from` and `tags`.
 Whether a legal throw exists at all (`grenade_ready`, the fact that gates the tactic and the unbound level's throw onto the shots' origin) is answered
 by a search that stops at the first spot the NPC could throw from, and the answer is always the one the full search gives ("it found a spot"); the full
-options, with their tags and wording, are built only when the decision's walk reads them (tests `ai/grenade/grenade_ready_matches_full_search`,
-`ai/decision/lazy_groups_match_eager`).
+options, with their tags and wording, are built only when the decision's walk reads them. Tests: `ai/grenade/grenade_ready_matches_full_search`,
+`ai/decision/lazy_groups_match_eager`.
 Its options are one per kind it carries (`frag`, `stun`). Measured with `tools/von_probe.py` (`tools/von_scenarios/grenade_*.json`, captured from the
 real-Von tests): the barricaded holder of a doorway GRENADE 0.49 to 0.51 against ENGAGE 0.32 to 0.40 (dropping the exposure sentence or the desc's
 clause hands it back to ENGAGE; a desc that keeps "Your line to {target} is blocked" for it loses, 0.14 against 0.61); behind cover

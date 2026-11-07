@@ -1,12 +1,12 @@
 # AI · Perception · Grenades (`agent_grenades.gd`, `agent_throw.gd`, `perception_grenades.gd`)
 
-What the NPC knows of live grenades and the plan to get clear of them. Spec: `docs/grenades.md` G15, G16. The behaviour half (running the plan, the throw) is `behavior.md` (the evade reflex) and `combat.md`; the GRENADE and STUN ENTRY options are `snapshot-wording.md`. Tunables: `tuning.grenades` (`enabled`, `hear_grenade`, `evade_margin`, `blind_fire_chance`, `throw_spot_walk`).
+What the NPC knows of live grenades and the plan to get clear of them. Spec: `docs/grenades.md` G15, G16. Behaviour: (running the plan, the throw) is `behavior.md` (the evade reflex) and `combat.md`; the GRENADE and STUN ENTRY options: `snapshot-wording.md`. Tunables: `tuning.grenades` (`enabled`, `hear_grenade`, `evade_margin`, `blind_fire_chance`, `throw_spot_walk`).
 
 ## What it knows (`grenades.known()`)
 
 A live grenade is a node of the group `live_grenades` (Items: `kind`, `fuse_left()`, `throw_stats()`, `thrower`). The NPC knows one by **sight** (`observe`, only while the group is non-empty: view cone and clear sight line), by **hearing** it come down (`hear`, a `&"grenade"` bounce or rest within `hear_grenade`, not deaf), by an ally's **callout** (`called`), or because it threw it (**own**: always known, blind or not). A grenade keeps the source it was first known by. It is forgotten at the burst (`&"explosion"`, or the node leaving the group). `process_explosion` keeps `grenades.last_burst` (`{ kind, position, frame, team }`: a bang entry waits for its stun, and an entry goes in on its own team's burst, E17) and marks the hostiles a stun caught as `flashed` (memory topic `flashed`), which the contact view reads as `blind`.
 
-Its own grenade (`_note_own`) is known at once; until a bounce marks it landed its spot is where it was aimed (`Character.weapon.aim_target()`, clamped to the kind's range), not the hand it left, so the zone it is in is the one the burst will have.
+Its own grenade (`_note_own`) is known at once; until a bounce its spot is where it was aimed (`Character.weapon.aim_target()`, clamped to the kind's range), not the hand it left.
 
 ## The zone and the safe spot (`agent_throw.gd`)
 
@@ -22,7 +22,7 @@ Its own grenade (`_note_own`) is known at once; until a bounce marks it landed i
 
 For the known grenade that goes off first among those the NPC is in the zone of: `{ id, point, kind, radius, spot, crouch, fuse_left, landed, lies }`. Made on first entering a zone, again when the grenade moved (in flight, a bounce) or any distance that leaves the spot in its line (`_still_safe`, test `evade_replans_when_spot_in_line`), at most every `REPLAN_EVERY` seconds, and kept while the grenade lives, so the NPC holds the spot until the burst. Replanning counts `GameClock` time, not wall-clock (a pause does not run it on). A frag entry's stack reads `point` and `lies` (`Entry.expects_burst`, LD14). The callout waits until the grenade has come down (`announcements()`, the spot it landed at) and repeats once if it rests far from there; an ally's call or the NPC's own throw is not radioed again.
 
-**The per-frame cap.** At most `AgentGrenades.ESCAPE_CAP` (3) `escape` searches run on one physics frame across every NPC (`_escape_allowed`: statics, reset each physics frame), so which NPC waits is the order they ask in. An NPC with no plan yet over the cap gets none (`plan()` returns {}: it carries on as it was) and asks again next frame, so ten caught by one frag plan over four frames (G16). Fresh plans go first: `plan()` asks for the grenades without a plan first; a replan takes only a search short of the last, none the frame after a fresh plan was refused, and keeps its old plan meanwhile. `has_escape` is not capped; a stack member whose slot is its cover (`Entry.expects_burst`) still plans and takes a search. Pin: `escape_cap_spreads_plans_test.gd`.
+**The per-frame cap.** At most `AgentGrenades.ESCAPE_CAP` (3) `escape` searches run on one physics frame across every NPC (`_escape_allowed`: statics, reset each physics frame), so which NPC waits is the order they ask in. An NPC with no plan yet over the cap gets none (`plan()` returns {}) and asks again next frame: ten caught by one frag plan over four frames (G16). Fresh plans go first (`plan()` asks for those without a plan first): a replan takes at most `ESCAPE_CAP - 1` of a frame's searches, none on a frame a fresh plan was refused on or the one before, and keeps its old plan meanwhile (one earlier in the asking order may still run on the very frame a fresh plan is first refused). `has_escape` is not capped; a stack member whose slot is its cover (`Entry.expects_burst`) still plans and takes a search. Pin: `escape_cap_spreads_plans_test.gd`.
 
 ## Wrappers for the behaviour (`perception_grenades.gd`)
 
@@ -30,4 +30,4 @@ For the known grenade that goes off first among those the NPC is in the zone of:
 
 ## Stunned and deaf (G15)
 
-Blind: no new sighting and no new decision (it re-decides the tick sight returns), its contacts kept. One roll as it goes blind against `tuning.grenades.blind_fire_chance` decides whether it fires at the last-known spot (aim sway applies) or holds fire (`Combat.holds_fire`); the roll comes from the reflexes' own RNG, seeded at bind from the character's name and spawn spot (a seeded run rolls the same; a re-stun while blind does not reroll). Deaf: the controller drops what it would have heard (`perception.md`).
+Blind: no new sighting and no new decision (it re-decides the tick sight returns), its contacts kept. One roll as it goes blind against `tuning.grenades.blind_fire_chance` decides whether it fires at the last-known spot (aim sway applies) or holds fire (`Combat.holds_fire`); the roll comes from the reflexes' own RNG, seeded at bind from the character's name and spawn spot (a re-stun while blind does not reroll). Deaf: the controller drops what it would have heard (`perception.md`).

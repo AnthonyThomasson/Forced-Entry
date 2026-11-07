@@ -8,7 +8,10 @@ extends GameTest
 ## plan on the same frame (the premise: it is known to all ten on one frame). Each frame, after
 ## every NPC has processed, each one's evade plan (the
 ## grenade perception's `_plans`: `at` is the frame it was made) is read: a plan new to an NPC is
-## a fresh plan, one that changed a replan.
+## a fresh plan, one that changed a replan. The reservation of rule 31 is asserted as worded: a
+## replan never takes the last search of a frame (at most CAP - 1 a frame), and none runs on a
+## frame after a fresh plan was refused. A replan earlier in the NPC order may still run on the
+## frame a fresh plan is first refused, so that frame is not held to it.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -158,6 +161,11 @@ func _check_fresh_first(t: TestContext, frames: Dictionary) -> void:
 		int(row["fresh"]) >= 1 and int(row["replan"]) < CAP,
 		"on that frame a fresh plan still had a search (%s)" % [row],
 	)
+	var greedy: Array = []
+	for frame: int in frames:
+		if int(frames[frame]["replan"]) > CAP - 1:
+			greedy.append(frame)
+	t.check(greedy.is_empty(), "no frame gave replans all %d searches: %s" % [CAP, greedy])
 	var held_up: Array = []
 	for frame: int in frames:
 		if frames.has(frame - 1) and int(frames[frame - 1]["waiting"]) > 0:

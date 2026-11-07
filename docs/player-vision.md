@@ -210,6 +210,7 @@ backstop that bounds it; a feature that makes one change must tell `ViewShapes` 
 `see_over_coverage` 60. The repaint reach is `CharacterVisuals.SEEN_REACH` (60). The look and the 16 px edge were picked by eye,
 against a flat 45 % grey (too dark and flat), a full-brightness grey (too close to the live world), a hard edge (a harsh line) and
 a 40 px feather (it smears the cone).
+Tests: `vision/pose_lag_bounds` (`rebuild_gap` and its bounds), `vision/cone_skip_exact` (`rebuild_every`).
 
 ## Measured cost
 
@@ -218,6 +219,7 @@ viewer moved to the district's outer corner facing away from the fight (a viewer
 of the frames, shoved and dented by the fight): the parked view read -0.82 and -0.64 ms against 3.2, rebuilding only for its backstop; the
 moving rounds, whose turning aim (6 degrees a frame) is past the lag's bounds and so still rebuild every frame, read 6.74 and 5.02 ms
 (11.9 and 10.9 on 2026-11-07 before). `MOVING_BUDGET_MS` is 8.5, about 1.4x of their mean.
+Test: `perf/match_npc_vision_relative`.
 
 The perf tests run headless and see only the CPU side, so the GPU side was measured by hand, windowed, as `docs/lighting.md`
 "Measured cost" does. **Each figure below says where it comes from.** *Recorded* means a commit's test header or message holds it
@@ -306,6 +308,7 @@ which costs one rebuild a move that ends within reach.
   the 10v10 is the moving view's cone, rebuilt almost every frame (about 11 ms a frame in the moving rounds), and a follow-up; the 10v10's
   own tail is the grenades' escape search. The relative guard's parked view read 5.64 and 4.77 ms against its 3.2 ms (rounds 1.0 to 11.7),
   red as it was on 2026-11-02 (4.9 and 5.2). Numbers and loads: `domain-testing` (`perf-district.md`).
+  Tests: `vision/cone_same_after_savings`, `perf/match_npc_vision_relative`, `perf/match_npc_vision`.
 
 ## Played in a window
 
