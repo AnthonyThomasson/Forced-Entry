@@ -17,7 +17,7 @@
       one corner per ray; empty without a facing), `bubble()`, `sees(point) -> bool`, `rebuilds() -> int` (how often the cone was rebuilt), `corner_rays() -> int` and `corners_read() -> int` (the last rebuild's rays to corners and corners read: its cost),
       `memory()`, `capture()`, `mask()` (the `SubViewport`s), `painter()`, `mask_painter()`, `composite()`, `memory_scale()`, `wiping()`.
     - **Tuning:** `VisionConfig` (`enabled`, the look `grey` / `contrast` / `pivot` / `brightness` / `tint`, `feather`, `memory_scale`,
-      `cone_rays`, `bubble_rays`, `corner_offset`, `far_depth`, `far_bleed`, `rebuild_every`); what a character sees by is Character's
+      `cone_rays`, `bubble_rays`, `corner_offset`, `far_depth`, `far_bleed`, `rebuild_every`, `rebuild_gap`: the cone's rebuild gap in frames while only the eye or facing moved a little, 1 = no lag); what a character sees by is Character's
       `CharacterVisionConfig` (7). The Testing switch `vision.enabled` sets `VisionConfig.enabled`.
     - **Owners of the moving and overlay bits** (11): Character, Items, Projectile, Physics and Vehicles put what they own on `MOVING` and back
       on `WORLD` at rest; the AI's debug overlays, Navigation's `NavDebug` and the UI's markers are overlays; Lighting keeps its flash lights

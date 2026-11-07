@@ -2,8 +2,9 @@ extends GameTest
 ## Performance guard for what the player's view costs, as a difference (`docs/player-vision.md`,
 ## Perf): the 10v10 of `perf/match_npc_vision` (a generated downtown district whose centre house is
 ## the largest plan, `Perf.MATCH_PLAN`, built as Main builds one) is played once with the view drawn
-## of a puppet placed in the largest room and facing a doorway (the same long look on every run, as
-## a fighting viewer would see more or less of the house), and after the warm-up its frames are
+## of a puppet parked at the district's outer corner and facing away from the fight (the same look
+## on every run, and no world signal of the fight reaches it: see `_place_viewer`), and after the
+## warm-up its frames are
 ## measured in blocks of `BLOCK_FRAMES`, the view working in one block and switched off in the next,
 ## in the order on, off, off, on, so a steady drift of the machine falls on both. The test asserts
 ## that the view adds at most `BUDGET_MS` to a frame.
@@ -59,8 +60,8 @@ extends GameTest
 ## 2026-11-06, #192: the moving rounds. After the parked rounds the same fight is played again
 ## with the viewed puppet walking a curved loop and turning its aim every frame (the guard checks
 ## that its eye and facing changed on every timed frame), over the same on, off, off, on blocks.
-## The test asserts the median of those rounds, `MOVING_BUDGET_MS`, 20 ms (about 1.4x the moving
-## median of about 13 ms it was set from; 11.89 and 10.90 ms on 2026-11-07, so about 1.7x). It
+## The test asserts the median of those rounds, `MOVING_BUDGET_MS`, set to 20 ms (about 1.4x the
+## moving median of about 13 ms; 11.89 and 10.90 ms on 2026-11-07, so about 1.7x). It
 ## departs from perf.md's 4x rule: the moving view's cost is a whole cone rebuilt almost every
 ## frame, a per-frame cost, and 4x of it (about 52 ms) would never trip. A loaded result says
 ## nothing about it.
@@ -72,6 +73,18 @@ extends GameTest
 ## reference's. A fight's grenade escape bursts (a 40 ms frame, `match_10v10_stress_test.gd`) fall
 ## in whichever block they fall in and swamp a difference of a few ms: the budget is kept, not
 ## loosened.
+##
+## 2026-11-07, #192 Extension 3: the parked viewer stands at the district's outer corner and faces
+## away from the fight, in a place no piece the fight moves, dents or frees reaches (its cone and
+## bubble hold none of them), so the guard measures a parked view and not a view the fight rebuilds
+## on a third to every frame (the largest room of the centre house: a rebuild on 28 to 100 % of the
+## frames, measured in the Extension 3 spike). The premise now holds the parked rebuilds to the
+## backstop's. With the pose lag (V1) and the fan table the moving rounds read 6.74 and 5.02 ms
+## (two runs, not `--quiet`, load 10 to 12 and 29 other Godot, the parked view -0.82 and -0.64 ms
+## against 3.2): `MOVING_BUDGET_MS` is set again to 8.5 ms, about 1.4x of their mean, tightened from
+## 20. The moving loop turns its aim 6 degrees a frame, past the lag's 1 degree, so the moving view
+## still rebuilds every frame there; which of the fan table and the open corner lowered it was not
+## isolated.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Stopwatch := preload("res://tests/_perf/cone_stopwatch.gd")
@@ -83,16 +96,21 @@ const ROUNDS := 12
 const BLOCK_FRAMES := 25
 ## The most (ms a frame) the view may add to the same match without it (see the header).
 const BUDGET_MS := 3.2
-## The most (ms a frame) the moving view may cost: about 1.4x the moving median of about 13 ms it
-## was set from (11.9 and 10.9 on 2026-11-07). This departs from perf.md's 4x rule, because 4x a
-## per-frame cost would never trip.
-const MOVING_BUDGET_MS := 20.0
-## The most of the frames the view worked in that may rebuild the cone, or it skipped none to speak
-## of.
-const REBUILT_MAX := 0.95
+## The most (ms a frame) the moving view may cost: about 1.4x the moving median of about 6 ms (6.74
+## and 5.02 ms, two runs on 2026-11-07 after the pose lag; it was 20 ms from about 13, then 11.9 and
+## 10.9). This departs from perf.md's 4x rule, because 4x a per-frame cost would never trip.
+const MOVING_BUDGET_MS := 8.5
 ## The most the live cone's cost a frame may be of the reference cone's, from the same eye (see the
 ## header).
 const RATIO_MAX := 0.75
+## How far inside the district's street bounds the parked viewer stands (px), and how far (px) from
+## anything solid.
+const CORNER_INSET := 60.0
+const SOLID_CLEAR := 20.0
+## The most of the frames the parked view worked in that may rebuild the cone: its backstop's one
+## in `VisionConfig.rebuild_every` (10) and some slack for a frame's chance change. The fight
+## cannot reach it.
+const PARKED_REBUILT_MAX := 0.2
 ## Health of the viewer: a view of the dead is lifted, so it must live through the window.
 const HEALTH := 1_000_000.0
 
@@ -163,9 +181,12 @@ func run(t: TestContext) -> void:
 	)
 	Perf.within(t, "10v10 match, the view's cost ms/frame", cost, BUDGET_MS)
 	t.check(
-		float(_rebuilt) < float(_timed) * REBUILT_MAX,
-		"premise: the view skipped rebuilds in the blocks it worked (%d rebuilds in %d frames)"
-		% [_rebuilt, _timed],
+		float(_rebuilt) <= float(_timed) * PARKED_REBUILT_MAX,
+		(
+			"premise: the parked view rebuilt only for its backstop in the blocks it worked "
+			+ "(%d rebuilds in %d frames, at most %.0f %%)"
+			% [_rebuilt, _timed, PARKED_REBUILT_MAX * 100.0]
+		),
 	)
 	var ratio := _median(_ratios)
 	GameLog.say(
@@ -260,28 +281,28 @@ func _switch(view: PlayerView, on: bool) -> void:
 		_modes.clear()
 
 
-## Put the viewed puppet at the centre of the house's largest room, facing out through that room's
-## first doorway: the same long look through a doorway on every run, where a viewer that fought
-## would see more or less of the house as it moved. Whether it faces that way in the end.
+## Put the viewed puppet at the district's north-west outer corner, `CORNER_INSET` px inside the
+## streets' bounds, facing straight away from the centre house: nothing the fight moves, dents or
+## frees lies in its cone or its bubble, so no world signal reaches it and only its own backstop
+## rebuilds a parked view. The same spot on every run. Whether it faces that way in the end, and
+## stands clear of anything solid.
 func _place_viewer(t: TestContext, viewed: Node2D) -> bool:
-	var rooms: Array = t.rooms.duplicate()
-	rooms.sort_custom(func(a, b): return a["rect"].get_area() > b["rect"].get_area())
-	var room: Dictionary = rooms[0]
-	var centre: Vector2 = (room["rect"] as Rect2).get_center()
-	var door: Dictionary = {}
-	for opening: Dictionary in t.world.openings:
-		if door.is_empty() and (opening["rooms"] as Array).has(room["key"]):
-			door = opening
-	if not t.require(not door.is_empty(), "premise: the largest room has a doorway"):
+	var bounds := WorldGen.district_bounds(t.world.district)
+	var towers := DistrictReads.get_towers(t.world.district)
+	if not t.require(bounds.has_area() and towers.size() == 9, "premise: a district"):
 		return false
-	viewed.global_position = centre
-	t.puppet(&"viewed").aim_at(door["pos"])
+	var middle: Vector2 = (towers[4]["rect"] as Rect2).get_center()
+	var at := bounds.position + Vector2(CORNER_INSET, CORNER_INSET)
+	var away := (at - middle).normalized()
+	if not t.require(not Probe.solid_near(t, at, SOLID_CLEAR), "premise: the corner is clear"):
+		return false
+	viewed.global_position = at
+	t.puppet(&"viewed").aim_at(at + away * 100.0)
 	await t.frames(3)
-	var look: Vector2 = ((door["pos"] as Vector2) - viewed.global_position).normalized()
 	return t.require(
-		(viewed.get("facing") as Vector2).distance_to(look) < 0.01,
-		"premise: the viewer faces through the doorway (from %s, facing %s, toward %s)"
-		% [viewed.global_position.round(), viewed.get("facing"), look],
+		(viewed.get("facing") as Vector2).distance_to(away) < 0.01,
+		"premise: the viewer faces away from the fight (from %s, facing %s, toward %s)"
+		% [at.round(), viewed.get("facing"), away],
 	)
 
 
