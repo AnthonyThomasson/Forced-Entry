@@ -57,7 +57,7 @@ func update(character: CharacterBody2D, delta: float) -> void:
 	if sweep.is_clear():
 		clear()
 		return
-	var rig := Rig.new(character, false)
+	var rig := Rig.new(character, false, false)
 	for i in 2:
 		_ankle[i] = _rest_leg(character, rig, i, delta)
 

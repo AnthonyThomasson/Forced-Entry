@@ -66,15 +66,26 @@ func _contact_ttl() -> float:
 func sightings(self_pos: Variant, max_age := INF, min_age := -1.0, hostile_only := false) -> Array:
 	var out: Array = []
 	var verdicts: Dictionary = hostility.reasons(perception._memory)
-	var flashed := {}
-	for data: Dictionary in perception._memory.recall_all(&"flashed"):
-		flashed[data.get("id")] = true
-	for rec in perception._memory.recall_aged(&"saw_character"):
-		if rec["age"] > max_age or rec["age"] <= min_age:
+	var flashed := _flashed_ids()
+	var now := GameClock.msec()
+	var visible_now: Dictionary = perception.sight.visible_now
+	for entry: Dictionary in perception._memory.live_entries(&"saw_character"):
+		var age: float = (now - entry["at"]) / 1000.0
+		if age > max_age or age <= min_age:
 			continue
-		var c := _live_sighting(rec, verdicts, flashed)
-		if c.is_empty() or (hostile_only and not c["hostile"]):
+		var data: Dictionary = entry["data"]
+		var n = data.get("node")
+		if not is_instance_valid(n) or (n as Node).get("is_dead") == true:
 			continue
+		var c := data.duplicate()
+		c["age"] = age
+		var reason = verdicts.get(c["id"], "")
+		c["reason"] = reason
+		c["hostile"] = reason != ""
+		if hostile_only and not c["hostile"]:
+			continue
+		c["visible"] = visible_now.has(c["id"])
+		c["blind"] = flashed.has(c["id"])
 		out.append(c)
 	if self_pos is Vector2:
 		out.sort_custom(func(a, b):
@@ -85,17 +96,9 @@ func sightings(self_pos: Variant, max_age := INF, min_age := -1.0, hostile_only 
 	return out
 
 
-## A remembered sighting (`{ data, age }`) as a contact dict, or empty when its character is gone.
-## `verdicts` and `flashed` are the shared lookups read once for the whole list.
-func _live_sighting(rec: Dictionary, verdicts: Dictionary, flashed: Dictionary) -> Dictionary:
-	var data: Dictionary = rec["data"]
-	var n = data.get("node")
-	if not is_instance_valid(n) or (n as Node).get("is_dead") == true:
-		return {}
-	var c := data.duplicate()
-	c["age"] = rec["age"]
-	c["reason"] = verdicts.get(c["id"], "")
-	c["hostile"] = c["reason"] != ""
-	c["visible"] = perception.sight.visible_now.has(c["id"])
-	c["blind"] = flashed.has(c["id"])
-	return c
+## The ids of the characters the NPC remembers flashed, as a set.
+func _flashed_ids() -> Dictionary:
+	var flashed := {}
+	for data: Dictionary in perception._memory.recall_all(&"flashed"):
+		flashed[data.get("id")] = true
+	return flashed

@@ -40,6 +40,9 @@ var blind := false
 var primed := false
 ## How many group gatherings this perception made (a fast-path test's observable).
 var list_builds := 0
+## How many per-NPC filtered copies of the shared list `others()` built; the sight pass reads the
+## shared list itself and builds none (a fast-path test's observable).
+var others_calls := 0
 
 
 func _init(npc_perception: Node) -> void:
@@ -64,7 +67,11 @@ func see(rooms: Array) -> void:
 	blind = perception._character.stun.is_blind()
 	if blind:
 		_looked.clear()
-	for other in (others() if not blind else []):
+	var own: Node = perception._character
+	for other in (_world_characters() if not blind else []):
+		# Untyped: a character freed since the list was gathered must not hit a typed assignment.
+		if other == own or not is_instance_valid(other):
+			continue
 		if not _due_for_sight(other, self_pos, facing, frame):
 			continue
 		if not vision.can_see_node(other, self_pos, facing, space, exclude):
@@ -151,8 +158,23 @@ func _track(id: int, pos: Vector2, now: int) -> Vector2:
 
 
 ## Every other character in the world (the group `characters`, interface 7) under the shared world
-## root, excluding the NPC itself, in tree order. Used by see() to test each for visibility.
+## root, excluding the NPC itself, in tree order. A copy of `_world_characters()` for the readers
+## that want their own list; the sight pass itself reads the shared one.
 func others() -> Array:
+	others_calls += 1
+	var out: Array = []
+	# Untyped: a character freed since the list was gathered must not hit a typed assignment.
+	for c in _world_characters():
+		if is_instance_valid(c) and c != perception._character:
+			out.append(c)
+	return out
+
+
+## Every character under the NPC's world root, itself included, in tree order: the group
+## `characters` gathered once per physics frame and world root for every perception and filtered to
+## the root then. The list is shared: a reader skips what is freed since and what is its own body,
+## and never edits it. Empty with no world root.
+func _world_characters() -> Array:
 	var root: Node = perception._character.world_root()
 	if root == null:
 		return []
@@ -160,14 +182,12 @@ func others() -> Array:
 	if root != _shared_root or frame != _shared_frame:
 		_shared_root = root
 		_shared_frame = frame
-		_shared_characters = perception._character.get_tree().get_nodes_in_group(&"characters")
+		_shared_characters = []
+		for c in perception._character.get_tree().get_nodes_in_group(&"characters"):
+			if root.is_ancestor_of(c):
+				_shared_characters.append(c)
 		list_builds += 1
-	var out: Array = []
-	# Untyped: a character freed since the list was gathered must not hit a typed assignment.
-	for c in _shared_characters:
-		if is_instance_valid(c) and c != perception._character and root.is_ancestor_of(c):
-			out.append(c)
-	return out
+	return _shared_characters
 
 
 ## Of world `points`, the subset the NPC can SEE right now from where it stands — view cone + clear

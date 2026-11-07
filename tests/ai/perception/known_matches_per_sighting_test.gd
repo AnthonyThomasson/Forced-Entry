@@ -2,7 +2,9 @@ extends GameTest
 ## AC7 (#192): known() reads the hostile verdicts and flashed ids once for the whole contact list,
 ## not once for every sighting. Its answer is held to the plain per-sighting rule over several
 ## sightings, a newer hostile verdict, flashes, expired events and a freed character. The bulk-read
-## counter is the observable that proves the shared lookup, not merely the same answer, was used.
+## counter is the observable that proves the shared lookup, not merely the same answer, was used,
+## and the memory's aged-read counter proves the contacts are built from the stored sightings in one
+## pass (#192 rule 28's `known()` cost).
 
 const CONTACT_TTL := 10.0
 const SHORT_TTL := 0.1
@@ -37,24 +39,23 @@ func run(t: TestContext) -> void:
 	var near := t.actor(&"near")
 	var far := t.actor(&"far")
 	var gone := t.actor(&"gone")
-	_remember_sighting(memory, near, CONTACT_TTL)
-	_remember_sighting(memory, far, CONTACT_TTL)
-	_remember_sighting(memory, gone, CONTACT_TTL)
-	memory.remember(&"hostile", { "id": far.get_instance_id(), "reason": "seen" }, CONTACT_TTL)
-	memory.remember(&"hostile", { "id": near.get_instance_id(), "reason": "seen" }, SHORT_TTL)
-	memory.remember(&"flashed", { "id": far.get_instance_id() }, CONTACT_TTL)
-	perception.sight.visible_now[near.get_instance_id()] = true
+	_seed(memory, perception, [near, far, gone])
 	if not t.require(
 			_compare(contacts, perception, memory) == "",
 			"the initial contacts match the per-sighting reference",
 	):
 		return
 	var before: Variant = contacts.hostility.get("bulk_reads")
+	var aged_before: int = memory.aged_reads
 	contacts.known(perception.get("_character").global_position)
 	var after: Variant = contacts.hostility.get("bulk_reads")
 	t.check(
 		after != null and int(after) == (int(before) if before != null else 0) + 1,
 		"known() makes one bulk hostility read however many sightings it holds",
+	)
+	t.check(
+		memory.aged_reads == aged_before,
+		"known() reads the stored sightings itself, building no { data, age } list",
 	)
 	memory.remember(
 		&"hostile", { "id": near.get_instance_id(), "reason": "attacked you" }, CONTACT_TTL
@@ -76,6 +77,16 @@ func run(t: TestContext) -> void:
 		_compare(contacts, perception, memory) == "",
 		"expired verdicts and contacts match the per-sighting reference",
 	)
+
+
+## Three sightings, the far one hostile and flashed, the near one hostile for a moment and in view.
+func _seed(memory: RefCounted, perception: Node, seen: Array) -> void:
+	for character: Node in seen:
+		_remember_sighting(memory, character, CONTACT_TTL)
+	memory.remember(&"hostile", { "id": seen[1].get_instance_id(), "reason": "seen" }, CONTACT_TTL)
+	memory.remember(&"hostile", { "id": seen[0].get_instance_id(), "reason": "seen" }, SHORT_TTL)
+	memory.remember(&"flashed", { "id": seen[1].get_instance_id() }, CONTACT_TTL)
+	perception.sight.visible_now[seen[0].get_instance_id()] = true
 
 
 ## The plain rule: each live sighting asks hostility for its own freshest verdict and memory for its

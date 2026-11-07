@@ -370,7 +370,7 @@ func observe(rooms: Array) -> void:
 ## policy.
 func sense(goal: String, activity: String, engaged_id := 0) -> Dictionary:
 	if not tuning.memory.familiar_with_house and not _character.stun.is_blind():
-		house.learn_by_sight()
+		house.learn_by_sight(true)
 	var self_pos: Vector2 = _character.global_position
 	var carried := PerceptionGrenades.carried(_character)
 	var knowledge := {

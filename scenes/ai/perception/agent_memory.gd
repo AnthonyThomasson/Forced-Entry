@@ -39,6 +39,9 @@ var _next_seq := 0
 ## little early, never late), so `_prune` can skip its scan until then. INF = nothing stored
 ## expires.
 var _earliest_expiry := INF
+## How many times `recall_aged` built its `{ data, age }` list (a fast-path test's observable: the
+## contacts read the stored entries themselves).
+var aged_reads := 0
 
 
 ## Record that something happened: append an event under `topic` with `data`. `ttl` is its lifetime
@@ -85,6 +88,7 @@ func age_of(topic: StringName, field: String, value: Variant) -> float:
 ## Every live `topic` event as `{ data, age }` (age in seconds), newest first — for readers that
 ## grade knowledge by how fresh it is (a sighting is a live contact, then an investigation lead).
 func recall_aged(topic: StringName) -> Array:
+	aged_reads += 1
 	var out: Array = []
 	var list: Array = _by_topic.get(topic, [])
 	var now := GameClock.msec()
@@ -145,6 +149,20 @@ func recall_all(topic: StringName) -> Array:
 		var entry: Dictionary = list[i]
 		if not _expired(entry, now):
 			out.append(entry["data"])
+	return out
+
+
+## Every live `topic` event as its stored entry (`{ topic, key, data, at, ttl, seq }`), newest
+## first. Read-only: the entries are the log's own. What `recall_aged` builds `{ data, age }` pairs
+## from, for a reader that computes the age itself (`(GameClock.msec() - entry["at"]) / 1000.0`).
+func live_entries(topic: StringName) -> Array:
+	var out: Array = []
+	var list: Array = _by_topic.get(topic, [])
+	var now := GameClock.msec()
+	for i in range(list.size() - 1, -1, -1):
+		var entry: Dictionary = list[i]
+		if not _expired(entry, now):
+			out.append(entry)
 	return out
 
 
