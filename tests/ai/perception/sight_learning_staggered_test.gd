@@ -8,11 +8,12 @@ extends GameTest
 ## shared one phase, and any change to what the process allocates moved every NPC's phase (a
 ## match played another fight for it).
 
+const PerceptionHouse := preload("res://scenes/ai/perception/perception_house.gd")
 const COUNT := 12
 ## Physics frames in one learning cycle (`LEARN_EVERY_FRAMES`, 6) and the most scheduled looks one
 ## frame may hold: ceil(COUNT / 6).
-const CYCLE := 6
-const MOST_PER_FRAME := 2
+const CYCLE := PerceptionHouse.LEARN_EVERY_FRAMES
+const MOST_PER_FRAME := 2  # ceil(COUNT / CYCLE), by the spec's arithmetic
 ## Frames watched, after every NPC has had its first look.
 const WATCH_FRAMES := 120
 const SETTLE_S := 1.5

@@ -1,16 +1,14 @@
 extends UnitSuite
 ## Native unit suite (pure logic): the sight cadence stays keyed on the perception node's own
-## instance id, not on the part that runs it, and the house's looks keep their own phases. The
-## sight part tests a
-## character it keeps in view every `SIGHT_EVERY_FRAMES` frames, phased by
-## `(frame + perception.get_instance_id() + id)`. The house part's looks for rooms and furniture
-## are not keyed on an id (#192 Extension 3: an id's remainder clustered, and moved with every
-## allocation): each NPC takes the next of the `LEARN_EVERY_FRAMES` phases on its first look.
-## Each case runs over several perceptions, so one whose ids happen to
-## agree on the phase cannot hide a wrong key. It also pins what the cadence promises an NPC: a
-## character that enters its view cone is tested at once whatever its phase, and what the NPC holds
-## of one it keeps seeing is at most three frames old (`SIGHT_EVERY_FRAMES` of
-## `perception_sight.gd`, #192 rule 28).
+## instance id, not on the part that runs it, and the house's looks keep their own phases. The sight
+## part tests a character it keeps in view every `SIGHT_EVERY_FRAMES` frames, phased by
+## `(frame + perception.get_instance_id() + id)`. The house part's looks for rooms and furniture are
+## not keyed on an id (#192 Extension 3: an id's remainder clustered, and moved with every
+## allocation): each NPC takes the next of the `LEARN_EVERY_FRAMES` phases on its first look. Each
+## case runs over several perceptions, so one whose ids happen to agree on the phase cannot hide a
+## wrong key. It also pins what the cadence promises an NPC: a character that enters its view cone
+## is tested at once whatever its phase, and what the NPC holds of one it keeps seeing is at most
+## three frames old (`SIGHT_EVERY_FRAMES` of `perception_sight.gd`, #192 rule 28).
 
 const AgentPerception := preload("res://scenes/ai/perception/agent_perception.gd")
 const PerceptionSight := preload("res://scenes/ai/perception/perception_sight.gd")
@@ -136,9 +134,8 @@ func test_a_squads_house_looks_land_on_different_frames_whatever_was_allocated_b
 					pad, n, next - frame,
 				]) \
 				.is_true()
-			first_looks[next % PerceptionHouse.LEARN_EVERY_FRAMES] = (
-				int(first_looks.get(next % PerceptionHouse.LEARN_EVERY_FRAMES, 0)) + 1
-			)
+			var phase: int = next % PerceptionHouse.LEARN_EVERY_FRAMES
+			first_looks[phase] = int(first_looks.get(phase, 0)) + 1
 		# Twelve over six phases: two on each, the most the squad can be spread to.
 		assert_array(first_looks.values()) \
 			.override_failure_message("pad %d: looks per phase %s" % [pad, str(first_looks)]) \
