@@ -34,10 +34,26 @@ var last_facts := {}
 ## The state sections of the last decision snapshot (the global ones: `goal`, `order`, ...), the
 ## text Von reads in any question of the walk, retained for `debug_state()`.
 var last_sections := {}
-## The option groups of the last snapshot, retained for `debug_zones()`.
-var last_options := {}
 ## Hostile ids that received per-target analysis in the last snapshot, for `debug_state()`.
 var last_analysed: Array = []
+## What builds the groups and facts of the last snapshot the walk has not read yet
+## (`perception/snapshot/snapshot_demand.gd`); null before the first decision.
+var last_demand: RefCounted = null
+
+
+## Build the groups and facts of the last snapshot its walk did not read, so `last_facts` and the
+## options hold everything an eager build would: the call of every reader that wants them all
+## (`debug_state()`, `debug_zones()`). A no-op once built.
+func complete() -> void:
+	if last_demand != null:
+		last_demand.complete()
+
+
+## The option groups of the last snapshot, every one (`complete()` first): what `debug_zones()`
+## flattens. Empty before the first decision.
+func full_options() -> Dictionary:
+	complete()
+	return last_demand.groups if last_demand != null else {}
 
 
 ## Raise the force-decide flag and remember why, for the brain debug overlay.

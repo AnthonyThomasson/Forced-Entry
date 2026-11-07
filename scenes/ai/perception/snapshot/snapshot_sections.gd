@@ -140,6 +140,12 @@ func _gun_text(gun: int, ammo: int) -> String:
 	return "Your %s is loaded." % noun
 
 
+## Whether the NPC knows no hostile and nobody is firing at it: the only time `odds_text` reads
+## its `trouble`.
+func is_quiet(hostiles: Array) -> bool:
+	return hostiles.is_empty() and not _memory.under_fire()
+
+
 ## How many hostiles the NPC knows of against which allies it has. With none known it says whether
 ## it is quiet or there is trouble out of sight (`trouble`: there are leads to investigate) — "All
 ## quiet" must not be said while gunfire is fresh, since the SEARCH situation echoes it.

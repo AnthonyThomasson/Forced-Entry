@@ -4,7 +4,7 @@ The AI's own composition root. It holds the NPC's tunables as `tuning` (`NpcTuni
 
 ## Parts (preloaded, no `class_name`, built once in `_ready`)
 
-- `npc_cadence.gd` (`_cadence`) — a data leaf: the decide timer (`due(delta)`), `forced` and why (`force(reason)`), the hostile-belief window and its pending decision, the walks started, an order awaiting its decision (`order_from`), the salient key and the last snapshot's facts, sections, options and analysed target ids.
+- `npc_cadence.gd` (`_cadence`) — a data leaf: the decide timer (`due(delta)`), `forced` and why (`force(reason)`), the hostile-belief window and its pending decision, the walks started, an order awaiting its decision (`order_from`), the salient key and the last snapshot's facts, sections, `last_demand` (`SnapshotDemand`: `complete()` and `full_options()` build and return every option group for the overlay) and analysed target ids.
 - `npc_comms.gd` (`_comms`) — the queued EventBus intake (`event_queue`, `process_events`: `&"hit"`, `&"footfall"` within earshot, allies' `&"callout"`, `&"grenade"`, `&"explosion"`, the leader's `&"order"`) and every callout the NPC radios, entry claims (`post_entry_call`) included. A combat callout carries `target_pos`; an investigation one `lead_pos` (read only by its squad, LD29).
 - `npc_reflexes.gd` (`_reflexes`) — following the squad, the grenade evade and the blind roll (its RNG seeded in `bind`), the confinement refresh, and priming an ambusher at its post (`prime`).
 - The planner builds and owns the Von client (`DecisionPlanner.setup(tuning.decision)`).

@@ -26,6 +26,7 @@ const SnapshotSections = preload("res://scenes/ai/perception/snapshot/snapshot_s
 const SnapshotOptions = preload("res://scenes/ai/perception/snapshot/snapshot_options.gd")
 const SnapshotThrows = preload("res://scenes/ai/perception/snapshot/snapshot_throws.gd")
 const SnapshotOrders = preload("res://scenes/ai/perception/snapshot/snapshot_orders.gd")
+const SnapshotDemand = preload("res://scenes/ai/perception/snapshot/snapshot_demand.gd")
 const StackClaim = preload("res://scenes/ai/perception/stack/stack_claim.gd")
 
 ## The shared vocabulary and tuning. The perception's apply_config() hands it the NPC's tuning
@@ -76,9 +77,11 @@ func bind(character: Node) -> void:
 ## string Von ranks against; `activity` is the behaviour's line for what the NPC is doing now. The
 ## perception hands in the knowledge this reads over (`knowledge`, see the perception's `sense()`):
 ## its `contacts`, the `callouts` heard, learned rooms/objects, interactables, the NPC's post and
-## entry point, and lost hostiles. Returns { facts, sections, sections_per_target, options }.
+## entry point, and lost hostiles. Returns { facts, sections, sections_per_target, options, gun,
+## demand }: `demand` builds the groups and facts the walk reads rarely (`snapshot_demand.gd`) when
+## it first reads them, so the snapshot holds those only once something has.
 func build(rooms: Array, goal: String, activity: String, knowledge: Dictionary) -> Dictionary:
-	var _decision: RefCounted = _options._views.begin_decision()
+	var _decision: RefCounted = _options.begin_decision()
 	vocab.rooms = rooms
 	_options.know = knowledge
 	_throws.know = knowledge
@@ -86,13 +89,27 @@ func build(rooms: Array, goal: String, activity: String, knowledge: Dictionary) 
 	var ctx := _context(knowledge["contacts"], knowledge["callouts"])
 	ctx["engaged_id"] = int(knowledge.get("engaged_id", 0))
 	var parts := _per_target(ctx, rooms)
-	parts.merge(_shared(ctx, rooms, knowledge))
+	parts.merge(_shared(ctx, knowledge))
 	var facts := _facts(ctx, parts, knowledge)
-	var sections := _state_sections(ctx, parts, goal, activity, knowledge)
 	var options := _option_groups(ctx, parts, knowledge)
+	var demand := SnapshotDemand.new()
+	demand.options = _options
+	demand.texts = _sections
+	demand.throws = _throws
+	demand.targets = parts["targets"]
+	demand.per_sections = parts["per_sections"]
+	demand.vocab = vocab
+	demand.ctx = ctx
+	demand.know = knowledge
+	demand.rooms = rooms
+	demand.stun_stack = parts["stun_stack"]
+	demand.groups = options
+	demand.facts = facts
+	var sections := _state_sections(ctx, parts, goal, activity, knowledge)
+	demand.sections = sections
 	return {
 		"facts": facts, "sections": sections, "sections_per_target": parts["per_sections"],
-		"options": options, "gun": vocab.gun_noun(parts["gun"]),
+		"options": options, "gun": vocab.gun_noun(parts["gun"]), "demand": demand,
 	}
 
 
@@ -132,24 +149,16 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 
 
 ## Per known hostile: the combat geometry (`analyses`), the option groups (`per_target`) and the
-## sections that follow from it (`per_sections`), each by hostile id.
+## sections that follow from it (`per_sections`), each by hostile id; `targets` holds each hostile
+## given full analysis with its geometry, for what `demand` builds of it later (its grenade throws
+## and its exposure).
 func _per_target(ctx: Dictionary, rooms: Array) -> Dictionary:
 	var per_target := {}
 	var per_sections := {}
 	var analyses := {}
+	var targets := {}
 	var hostiles: Array = ctx["hostiles"]
-	var cap := mini(
-		vocab.tuning.decision.max_analysed_targets, vocab.tuning.decision.max_options_per_level
-	)
-	var selected: Array = []
-	var engaged_id: int = ctx["engaged_id"]
-	if hostiles.any(func(t): return t["id"] == engaged_id):
-		selected.append(engaged_id)
-	for t in hostiles:
-		if selected.size() >= cap:
-			break
-		if not selected.has(t["id"]):
-			selected.append(t["id"])
+	var selected := _analysed_ids(ctx)
 	# Selection reserves the engaged slot; iteration keeps the contacts' nearest-first order.
 	var listed: int = vocab.tuning.decision.max_options_per_level
 	for i in hostiles.size():
@@ -162,62 +171,61 @@ func _per_target(ctx: Dictionary, rooms: Array) -> Dictionary:
 			continue
 		var a := _analyze(ctx, t)
 		analyses[t["id"]] = a
+		targets[t["id"]] = { "t": t, "a": a }
 		per_target[t["id"]] = {
 			"fire_positions": _options.fire_group(ctx, t, a),
 			"flank_sides": _options.flank_group(t, a, rooms),
 			"advance_positions": _options.advance_group(ctx, t, a),
 			"melee": _options.melee_group(ctx["self_pos"], t),
-			"grenade_throws": _throws.grenade_group(ctx, t, a),
 		}
-		per_sections[t["id"]] = _target_sections(ctx, t, a, per_target[t["id"]]["grenade_throws"])
-	return { "per_target": per_target, "per_sections": per_sections, "analyses": analyses }
-
-
-## The sections re-framed around hostile `t` (geometry `a`, grenade group `throws`): exposure,
-## flanks and allies.
-func _target_sections(
-	ctx: Dictionary,
-	t: Dictionary,
-	a: Dictionary,
-	throws: Dictionary,
-) -> Dictionary:
+		per_sections[t["id"]] = _target_sections(ctx, t, a)
 	return {
-		"exposure": _sections.exposure_text(
-			ctx,
-			t,
-			a,
-			_usable(throws),
-			throws.get("held_room", ""),
-		),
+		"per_target": per_target, "per_sections": per_sections, "analyses": analyses,
+		"targets": targets,
+	}
+
+
+## The ids of the hostiles that get full analysis (fire, flank, advance and melee options, and
+## sections): the engaged one when known, then the nearest others, at most the smaller of
+## `max_analysed_targets` and `max_options_per_level` in all.
+func _analysed_ids(ctx: Dictionary) -> Array:
+	var cap := mini(
+		vocab.tuning.decision.max_analysed_targets, vocab.tuning.decision.max_options_per_level
+	)
+	var selected: Array = []
+	var engaged_id: int = ctx["engaged_id"]
+	if ctx["hostiles"].any(func(t): return t["id"] == engaged_id):
+		selected.append(engaged_id)
+	for t in ctx["hostiles"]:
+		if selected.size() >= cap:
+			break
+		if not selected.has(t["id"]):
+			selected.append(t["id"])
+	return selected
+
+
+## The sections re-framed around hostile `t` (geometry `a`) that need no throw: flanks and allies.
+## Its exposure, which says what grenades it can throw, is `demand`'s.
+func _target_sections(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Dictionary:
+	return {
 		"flanks": _sections.flanks_text(t, a),
 		"allies": _sections.allies_text(ctx, t, a),
 	}
 
 
-## What the whole decision shares beyond the hostiles: the doorways to enter by (`entries`) and the
-## rooms they lead into (`entered`), whether the stack has a stun (`stun_stack`), the leads, the
-## throws where the shots came from (`shots_throws`), the damage taken (`dmg`), the gun it fights
-## with (`gun`) and its rounds (`ammo`, -1 without one).
-func _shared(ctx: Dictionary, rooms: Array, knowledge: Dictionary) -> Dictionary:
-	var entries := _options.entry_group(ctx, rooms)
-	var entered := SnapshotOptions.entry_rooms(entries)
+## What the whole decision shares beyond the hostiles: whether the stack has a stun (`stun_stack`),
+## the damage taken (`dmg`), the gun it fights with (`gun`) and its rounds (`ammo`, -1 without one).
+## The doorways to enter by, the leads, the throws and the other groups the walk reads rarely are
+## `demand`'s.
+func _shared(ctx: Dictionary, knowledge: Dictionary) -> Dictionary:
 	var carried: Array = knowledge["carried_grenades"]
 	var stun_stack: bool = (carried.has(&"stun")
 			or ctx["callouts"].any(func(c): return int(StackClaim.decode(c).get("stuns", 0)) > 0))
-	# With a stun to throw, gunfire or a hostile in a room a doorway of ENTER leads into is the
-	# entry's to weigh (quiet or with a bang).
-	var leads := _options.lead_group(ctx, ctx["hostiles"], entered if stun_stack else {})
-	# Shot at by someone unseen from a room it is outside of: a grenade where the shots came from
-	# (the unbound COMBAT level).
-	var shots_throws := _throws.shots_grenade_group(ctx, ctx["hostiles"])
 	var dmg: float = _character.damage_taken()
 	# Rounds in the gun it fights with (-1 without one): the AI shoots, reloads and plans around it.
 	var gun: int = _character.inventory.gun_slot()
 	var ammo: int = _character.ammo.rounds(gun) if gun >= 0 else -1
-	return {
-		"entries": entries, "entered": entered, "stun_stack": stun_stack, "leads": leads,
-		"shots_throws": shots_throws, "dmg": dmg, "gun": gun, "ammo": ammo,
-	}
+	return { "stun_stack": stun_stack, "dmg": dmg, "gun": gun, "ammo": ammo }
 
 
 ## The named facts a `requires` or an entry rule gates on, from the context and the `parts` worked
@@ -231,9 +239,6 @@ func _facts(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -> Dictio
 			else {})
 	var gun: int = parts["gun"]
 	var ammo: int = parts["ammo"]
-	var leads: Dictionary = parts["leads"]
-	var shots_throws: Dictionary = parts["shots_throws"]
-	var can_throw := func(g): return not g["grenade_throws"]["options"].is_empty()
 	var facts := {
 		"hostile_known": not hostiles.is_empty(),
 		"threat_known": not hostiles.is_empty() or _memory.under_fire(),
@@ -247,11 +252,6 @@ func _facts(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -> Dictio
 		"can_reload": gun >= 0 and _character.ammo.can_reload(gun),
 		"under_fire": _memory.under_fire(),
 		"engaged": _memory.engaged(),
-		"leads": not leads["options"].is_empty(),
-		"lead_outside": not HouseRooms.at(self_pos, vocab.rooms).is_empty() \
-			and leads["options"].any(func(o): return not o["tags"]["inside"]),
-		"grenade_ready": (not shots_throws["options"].is_empty()
-			or parts["per_target"].values().any(can_throw)),
 		"stack_has_stun": parts["stun_stack"],
 		"hurt": parts["dmg"] >= vocab.tuning.context.hurt_threshold,
 		"inside": not HouseRooms.at(self_pos, vocab.rooms).is_empty(),
@@ -280,7 +280,6 @@ func _state_sections(
 		if per_sections.has(h["id"]):
 			primary = h
 			break
-	var shots_throws: Dictionary = parts["shots_throws"]
 	return {
 		"goal": fill_goal(goal),
 		"situation": _sections.situation_text(rooms),
@@ -290,19 +289,7 @@ func _state_sections(
 			knowledge["carried_grenades"],
 		),
 		"current": ("Current activity: %s." % activity) if activity != "" else "",
-		"odds": _sections.odds_text(
-			hostiles,
-			ctx["allies"],
-			ctx["callouts"],
-			not parts["leads"]["options"].is_empty(),
-		),
 		"contacts": _sections.contacts_text(self_pos, knowledge["contacts"]),
-		"exposure": per_sections[primary["id"]]["exposure"]
-			if not primary.is_empty()
-			else _sections.unseen_fire_text(
-				_usable(shots_throws),
-				shots_throws.get("held_room", ""),
-			),
 		"allies": per_sections[primary["id"]]["allies"]
 			if not primary.is_empty()
 			else _sections.allies_text(ctx, {}, {}),
@@ -324,14 +311,7 @@ func _option_groups(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -
 		"hostiles": _options.hostile_group(ctx, hostiles, parts["analyses"]),
 		"reload": _options.reload_group(parts["gun"]),
 		"retreat_positions": _options.retreat_group(ctx, hostiles, known_rooms, parts["dmg"]),
-		"leads": parts["leads"],
 		"shooter": _options.shooter_group(ctx, hostiles),
-		"grenade_throws": parts["shots_throws"],
-		"entries": parts["entries"],
-		"search_rooms": _options.search_group(ctx, known_rooms, rooms, parts["entered"]),
-		"explore": _options.explore_group(ctx, rooms, parts["entered"]),
-		"interactions": _options.interaction_group(self_pos),
-		"rooms": _options.room_group(ctx, known_rooms, rooms),
 		"order": _orders.group(ctx, knowledge["order"], rooms),
 	}
 
@@ -362,13 +342,6 @@ func _line(ctx: Dictionary, t: Dictionary) -> Dictionary:
 		"cover": _tactics.object_label(obj) if _tactics.is_cover(obj) else "",
 		"blocker": _tactics.object_label(obj),
 	}
-
-
-## The kinds (`frag` / `stun`) of the throws in grenade group `group` the GRENADE tactic would
-## offer: those not tagged `ally_in_blast` or `no_safe_spot`.
-static func _usable(group: Dictionary) -> Array:
-	var usable := func(o): return not o["tags"]["ally_in_blast"] and not o["tags"]["no_safe_spot"]
-	return group["options"].filter(usable).map(func(o): return o["id"])
 
 
 ## The goal text with `{gun}` replaced by what the NPC calls its gun ("shoot them with your {gun}"

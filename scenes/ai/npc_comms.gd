@@ -119,7 +119,8 @@ func post_callout(leaf: Dictionary) -> void:
 	elif str(leaf["path"][0]) == "investigate":
 		# The freshest lead placing a hostile, as the decision weighed it: the squad reads it (the
 		# defenders' ambush rule); allies' perception ignores it.
-		var leads: Dictionary = controller._cadence.last_options.get("leads", {})
+		var demand: RefCounted = controller._cadence.last_demand
+		var leads: Dictionary = demand.group("leads") if demand != null else {}
 		radio["lead_pos"] = leads.get("lead_pos", Vector2.INF)
 	EventBus.post(&"callout", radio)
 
