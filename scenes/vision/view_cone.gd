@@ -24,6 +24,11 @@ const Shapes := preload("res://scenes/vision/view_shapes.gd")
 const REGION_SIDES := 16
 const REGION_ARC := 16
 const REGION_MARGIN := 2.0
+## A corner closer than this (px, at the corner's own distance) to a fan ray is never called hidden
+## by the fan: the engine's hit positions are off a shape by up to about 0.02 px, and a hit that
+## far off a face makes the chord between two hits leave the shape the line to a grazing corner
+## passes. The corner's own dedupe cell is 0.5 px, so this is half of it.
+const FAN_HIDE_MARGIN := 0.25
 
 ## The cone: the eye, then one corner per ray from the left edge to the right (empty with no
 ## facing). A triangle fan from the first point.
@@ -39,11 +44,11 @@ var corner_rays := 0
 ## cost).
 var corners_read := 0
 var _shapes := Shapes.new()
-## The even fan's rays of the last `rebuild` (`_cast_fan`): the hit of ray `i` (an empty dictionary
-## for a clear one) and where it ends. A corner between two neighbouring rays that met one convex
-## shape nearer than the corner is hidden by it.
-var _fan_hits: Array[Dictionary] = []
+## The even fan's rays of the last `rebuild` (`_cast_fan`): where ray `i` ends, and for each
+## interval `i` (between rays `i` and `i + 1`) how far a corner is hidden in it: the farther of the
+## two hits when both met one convex shape, else -1 (`_fan_hides`).
 var _fan_ends := PackedVector2Array()
+var _fan_hide := PackedFloat64Array()
 ## The sight rule (`SightRay`), asked with the coverage the shapes already know and with the low
 ## pieces in reach left out.
 var _ray := SightRay.new()
@@ -147,19 +152,40 @@ func _sweep(
 	return ends
 
 
-## Cast the even fan (`VisionConfig.cone_rays` + 1 rays across the cone) and keep each ray's hit and
-## end: the polygon needs these rays whatever the corners, and the corners are tested against them.
+## Cast the even fan (`VisionConfig.cone_rays` + 1 rays across the cone) and keep each ray's end and
+## each interval's hide reach: the polygon needs these rays whatever the corners, and the corners
+## are tested against them.
 func _cast_fan(space: PhysicsDirectSpaceState2D, from: Vector2, facing: Vector2) -> void:
-	_fan_hits.clear()
+	_fan_hide.clear()
 	_fan_ends.clear()
 	if facing == Vector2.ZERO:
 		return
+	var previous := {}
+	var previous_distance := 0.0
 	for i in VisionConfig.cone_rays + 1:
 		var dir := facing.rotated(_fan_angle(i))
 		var to := from + dir * _reach
 		var hit := _ray.cast(space, from, to)
-		_fan_hits.append(hit)
+		var distance := 0.0 if hit.is_empty() else from.distance_to(hit["position"])
 		_fan_ends.append(to if hit.is_empty() else _far_face(space, hit, dir))
+		if i > 0:
+			_fan_hide.append(_hide_reach(previous, previous_distance, hit, distance))
+		previous = hit
+		previous_distance = distance
+
+
+## How far the fan's interval between the rays that hit `a` and `b` (`a_distance`, `b_distance` from
+## the eye) hides a corner: the farther of the two hits when they are on one convex shape, else -1.
+## A convex shape holds the chord between its two hits, so a line between the two rays that is
+## shorter than both hits crosses the chord and meets the shape.
+func _hide_reach(a: Dictionary, a_distance: float, b: Dictionary, b_distance: float) -> float:
+	if a.is_empty() or b.is_empty():
+		return -1.0
+	if a["collider_id"] != b["collider_id"] or a["shape"] != b["shape"]:
+		return -1.0
+	if _shapes.polygon_of(a["collider"], a["shape"]).is_empty():
+		return -1.0
+	return maxf(a_distance, b_distance)
 
 
 ## The angle from the facing of ray `i` of the even fan across the cone, `i` from 0 (the left edge)
@@ -168,25 +194,23 @@ func _fan_angle(i: int) -> float:
 	return -_fov * 0.5 + float(i) / float(VisionConfig.cone_rays) * _fov
 
 
-## Whether the line from `from` to the point `reach` px along `angle` (from the facing, inside the
+## Whether the line from the eye to the point `reach` px along `angle` (from the facing, inside the
 ## cone) is blocked before it is, by what the fan found: the two rays either side of it met the
-## same convex shape, both nearer than `reach`. The shape holds the chord between its two hits, the
-## line crosses that chord, so it meets the shape there.
-func _fan_hides(from: Vector2, angle: float, reach: float) -> bool:
+## same convex shape, both nearer than `reach` (`_hide_reach`). Not when the line is within
+## `FAN_HIDE_MARGIN` px, at the corner's distance, of either ray: the engine's hit positions are not
+## exact enough to say a grazing line crosses the chord.
+func _fan_hides(angle: float, reach: float) -> bool:
 	var rays := VisionConfig.cone_rays
-	var half := _fov * 0.5
-	var i := clampi(int((angle + half) / _fov * float(rays)), 0, rays - 1)
-	if angle <= _fan_angle(i) or angle >= _fan_angle(i + 1):
+	var i := clampi(int((angle + _fov * 0.5) / _fov * float(rays)), 0, rays - 1)
+	var low := _fan_angle(i)
+	var high := _fan_angle(i + 1)
+	if angle <= low or angle >= high:
 		return false
-	var a := _fan_hits[i]
-	var b := _fan_hits[i + 1]
-	if a.is_empty() or b.is_empty():
+	var limit := _fan_hide[i]
+	if limit < 0.0 or limit >= reach:
 		return false
-	if a["collider_id"] != b["collider_id"] or a["shape"] != b["shape"]:
-		return false
-	if from.distance_to(a["position"]) >= reach or from.distance_to(b["position"]) >= reach:
-		return false
-	return not _shapes.polygon_of(a["collider"], a["shape"]).is_empty()
+	var margin := FAN_HIDE_MARGIN / (reach + 1.0)
+	return angle - low > margin and high - angle > margin
 
 
 ## The corners the eye sees: within the view range, inside the cone or the bubble, and with no
@@ -207,7 +231,7 @@ func _visible_corners(
 		if not (in_cone or dist <= _near):
 			continue
 		# A point 1 px short of the corner: the corner's own shape is not in the way of itself.
-		if in_cone and _fan_hides(from, facing.angle_to(to), dist - 1.0):
+		if in_cone and _fan_hides(facing.angle_to(to), dist - 1.0):
 			continue
 		var short := from + to * ((dist - 1.0) / dist)
 		corner_rays += 1

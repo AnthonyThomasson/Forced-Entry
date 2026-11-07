@@ -5,9 +5,14 @@ extends Node
 ## one frame to the next) in the same physics space, and compares it vertex for vertex with the
 ## polygon the view holds. A frame the view skipped must still hold the fresh cone. It also counts
 ## the view's rebuilds (`PlayerView.rebuilds()`) and the longest run of frames between two.
+##
+## The fresh cone is of the viewer's pose at the view's last rebuild (the pose lag,
+## `docs/player-vision.md` V1: a skipped frame shows the cone of an eye the viewer stood at), kept
+## with the lag's other counts in `lag` (`pose_lag.gd`).
 
 const Reference := preload("res://tests/_vision/reference_view_cone.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
+const PoseLag := preload("res://tests/_vision/pose_lag.gd")
 ## The most differences kept for the report.
 const KEPT := 6
 
@@ -20,6 +25,8 @@ var rebuilt := 0
 var changed := 0
 ## The most frames in a row the view held its polygon without a rebuild.
 var longest_wait := 0
+## The pose lag's bookkeeping.
+var lag := PoseLag.new()
 ## Frames the view's polygon differed from the fresh cone's: `"frame N: what"`.
 var mismatches: Array[String] = []
 var _plain := Reference.new()
@@ -40,8 +47,12 @@ func _physics_process(_delta: float) -> void:
 		return
 	frames += 1
 	var count := view.rebuilds()
+	var rebuilt_now := _last_count >= 0 and count != _last_count
+	lag.frame(
+		viewer.global_position, viewer.get("facing"), view.cone(), rebuilt_now, frames == 1
+	)
 	if _last_count >= 0:
-		if count != _last_count:
+		if rebuilt_now:
 			rebuilt += 1
 			_waited = 0
 		else:
@@ -54,8 +65,8 @@ func _physics_process(_delta: float) -> void:
 	_last_bubble = view.bubble()
 	_plain.rebuild(
 		viewer.get_world_2d().direct_space_state,
-		viewer.global_position,
-		viewer.get("facing"),
+		lag.eye,
+		lag.facing,
 		[viewer.get_rid()],
 		viewer.sight(),
 	)

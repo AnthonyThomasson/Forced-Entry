@@ -41,8 +41,15 @@ full, so no cap drops one). Doors (`docs/doors.md`) follow the same rule: a shut
 only when its output can change: the eye moved or turned, the viewer's sight numbers changed, or where a ray can pass (the sector the viewer looks along and the bubble round it,
 within the view distance) a blocker moved,
 changed shape (a dent, a wall re-cut, a door's swing, fall or shattered panes) or joined or left; plus a forced rebuild every
-`VisionConfig.rebuild_every` (10) physics frames, a backstop. A skipped frame's cone equals a fresh rebuild's, vertex for
-vertex. Tests: `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
+`VisionConfig.rebuild_every` (10) physics frames, a backstop. A frame skipped because nothing changed shows the cone a fresh
+rebuild would draw, vertex for vertex. **The pose lag:** while only the viewer's eye (moved at most 5 px) or facing (turned at
+most 1°) differs from the last rebuild's, the cone is rebuilt at most every `VisionConfig.rebuild_gap` (2) physics frames (1 =
+every frame, with no lag); a frame in between shows the exact cone of the last rebuild, which is a fresh cone of an eye the viewer
+really stood at, so the memory (V4) never holds area the eye did not see. The lag is at most one frame of the eye's walk (2.5 px
+a frame at 150 px/s, 4.25 px running) and of its turn; a mover entering or leaving the seen area (V11) may show one frame late.
+A change the pose does not explain is not lagged: a blocker in reach that moved, changed or joined or left, a character that
+blocks, a changed sight number or cone tuning, an eye or facing past the bounds, and the backstop rebuild in that very frame.
+Tests: `vision/pose_lag_bounds` (the lag and its bounds),  `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
 the table and inside the cone are in the polygon; points behind the wardrobe, beyond the wall, behind the eye past 48 are not;
 points within 48 behind it are), `vision/cone_exact_at_corners` (eyes near the room corners and the doorway's ends, facing along
 and across the walls: no sampled point behind a corner is inside the polygon and every sampled point the eye sees is; a seen
