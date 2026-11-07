@@ -9,60 +9,68 @@ class_name NavUnion extends RefCounted
 ## A grid cell's side, px: a piece of furniture is a cell or so.
 const CELL := 128.0
 
+## The outlines fused so far: each kept outline by id, its box and the grid cells its box reaches.
+var _kept := {}
+var _boxes := {}
+var _cells := {}
+var _next_id := 0
+
 
 ## `outlines` with every overlapping set fused into one polygon, in the order the fused polygons
 ## were made. An enclosed gap in a union is filled in.
 static func fuse(outlines: Array) -> Array:
-	var kept := {}  # id -> the kept outline
-	var boxes := {}  # id -> its box
-	var cells := {}  # Vector2i -> the ids of the kept outlines whose boxes reach the cell
-	var next_id := 0
+	var fusion := NavUnion.new()
+	fusion.add_all(outlines)
+	return fusion.result()
+
+
+## Fuse `outlines` in too, in order: a fusion fed its outlines in chunks, a frame at a time, has
+## the result one fed them all at once has.
+func add_all(outlines: Array) -> void:
 	for outline in outlines:
 		var cur: PackedVector2Array = outline
 		var box := NavSource.outline_bounds(cur)
-		var fused := _fuse_with_one(cur, box, kept, boxes, cells)
+		var fused := _fuse_with_one(cur, box)
 		while not fused.is_empty():
 			cur = fused
 			box = NavSource.outline_bounds(cur)
-			fused = _fuse_with_one(cur, box, kept, boxes, cells)
-		kept[next_id] = cur
-		boxes[next_id] = box
+			fused = _fuse_with_one(cur, box)
+		_kept[_next_id] = cur
+		_boxes[_next_id] = box
 		for cell in _cells_of(box):
-			if not cells.has(cell):
-				cells[cell] = []
-			cells[cell].append(next_id)
-		next_id += 1
-	var ids := kept.keys()
+			if not _cells.has(cell):
+				_cells[cell] = []
+			_cells[cell].append(_next_id)
+		_next_id += 1
+
+
+## The fused outlines, in the order they were made.
+func result() -> Array:
+	var ids := _kept.keys()
 	ids.sort()
-	return ids.map(func(id: int) -> PackedVector2Array: return kept[id])
+	return ids.map(func(id: int) -> PackedVector2Array: return _kept[id])
 
 
 ## `cur` (its box `box`) fused with the first kept outline, lowest id first, that it overlaps and
 ## forms one polygon with; that outline is dropped from the kept ones. Empty when none.
-static func _fuse_with_one(
-	cur: PackedVector2Array,
-	box: Rect2,
-	kept: Dictionary,
-	boxes: Dictionary,
-	cells: Dictionary,
-) -> PackedVector2Array:
+func _fuse_with_one(cur: PackedVector2Array, box: Rect2) -> PackedVector2Array:
 	var near := {}
 	for cell in _cells_of(box):
-		for id in cells.get(cell, []):
+		for id in _cells.get(cell, []):
 			near[id] = true
 	var ids := near.keys()
 	ids.sort()
 	for id in ids:
-		if not box.intersects(boxes[id]):
+		if not box.intersects(_boxes[id]):
 			continue
-		var merged := Geometry2D.merge_polygons(cur, kept[id])
+		var merged := Geometry2D.merge_polygons(cur, _kept[id])
 		var outer: Array = merged.filter(_is_outer)
 		if outer.size() != 1:
 			continue
-		for cell in _cells_of(boxes[id]):
-			cells[cell].erase(id)
-		kept.erase(id)
-		boxes.erase(id)
+		for cell in _cells_of(_boxes[id]):
+			_cells[cell].erase(id)
+		_kept.erase(id)
+		_boxes.erase(id)
 		return outer[0]
 	return PackedVector2Array()
 

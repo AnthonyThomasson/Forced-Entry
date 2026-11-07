@@ -19,14 +19,28 @@ static func planning(
 	parsed: Dictionary = {},
 ) -> void:
 	var job := NavSource.job(site, furniture, [], parsed)
+	# The planning ring is re-baked with it, from the same footprints and walls.
+	var ring := {} if job.is_empty() else NavRing.job(region, site, furniture, parsed)
+	swap(region, site, job, ring, done)
+
+
+## Take a gathered planning re-bake in: `job` (`NavSource.job`) and the ring's `ring` are kept as
+## the source of the next avoid map, then baked on the server's worker thread, each assigned to its
+## region when it lands, and `done` is called once both have. The one place a finished gather
+## becomes visible: until it, every read sees the previous map. `done` is called even when there is
+## nothing to bake.
+static func swap(
+	region: NavigationRegion2D,
+	site: NavSite,
+	job: Dictionary,
+	ring: Dictionary,
+	done: Callable,
+) -> void:
 	if job.is_empty():
 		if done.is_valid():
 			done.call()
 		return
 	NavSource.remember(region, job)
-	# The planning ring is re-baked with it, from the same footprints and walls, and `done` waits
-	# for both.
-	var ring := NavRing.job(region, site, furniture, parsed)
 	var waiting := [1 if ring.is_empty() else 2]
 	var landed := func() -> void:
 		waiting[0] -= 1

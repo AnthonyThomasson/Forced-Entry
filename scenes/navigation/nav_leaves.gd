@@ -34,6 +34,15 @@ static func doors_of(house: Node2D) -> Array[CollisionObject2D]:
 	return doors
 
 
+## The holes of `house`'s doors' leaves that stand clear of their doorways (`hole`), appended to
+## `out`.
+static func append_holes(out: Array, house: Node2D) -> void:
+	for door in doors_of(house):
+		var leaf := hole(door)
+		if not leaf.is_empty():
+			out.append(leaf)
+
+
 ## The hole door `door`'s leaf leaves in the map where it stands (a world-space ring), or empty when
 ## it leaves none. Read through the door contract (interface 24: `is_down()`, `angle()`,
 ## `open_angle`, `leaf_pose`, `leaf_size`). A fallen door has no collider and leaves none. A leaf

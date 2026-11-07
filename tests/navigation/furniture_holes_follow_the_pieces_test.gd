@@ -86,5 +86,4 @@ func _check_shot_up(t: TestContext, house: Node2D, moved: RigidBody2D) -> void:
 
 ## Every piece's hole measured afresh: nothing kept from an earlier call.
 func _fresh(house: Node2D) -> Array:
-	NavBuilder._hulls.clear()
-	return NavBuilder.furniture_holes(house)
+	return NavHoles.plain(house)
