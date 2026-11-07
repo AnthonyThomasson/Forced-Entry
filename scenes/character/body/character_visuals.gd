@@ -66,8 +66,8 @@ var redraws := 0
 var draw_order: Array[StringName] = []
 ## The textures the last draw of the body painted, in order (`drawn_art`).
 var art: Array[Texture2D] = []
-## How the round part being drawn is drawn: one look, refilled for each part (`_round_look`).
-var _look := ShapeLook.new()
+## What the draw keeps from draw to draw, and the shapes it painted for a test (`BodyDrawCache`).
+var cache := BodyDrawCache.new()
 ## What each part is drawn in (`body_dress.gd`).
 var dress: BodyDress
 ## The body's floor shadow (`body_shadow.gd`).
@@ -124,6 +124,7 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	art.clear()
+	cache.shapes.clear()
 	meshes.begin()
 	var anatomy: CharacterAnatomy = _character.anatomy
 	if anatomy.ragdoll:
@@ -335,7 +336,7 @@ func _shoulder_size() -> Vector2:
 
 ## The shoulders' pixel art, lit for the nearest lighting step to `angle` (the art's turn).
 func _shoulder_art(angle: float) -> Texture2D:
-	return PixelArt.render_turned(
+	return cache.slot(BodyDrawCache.SHOULDERS).render(
 		BodyPainter,
 		_shoulder_size(),
 		dress.shirt,
@@ -352,12 +353,12 @@ func _draw_shoulders_shadow(rig: Rig, shift: Vector2) -> Vector2:
 	var impacts := _turned(deformable.impacts, pose.torso_angle)
 	var size := _shoulder_size()
 	var angle: float = pose.torso_angle - PI * 0.5
-	var poly := Deformation.drawable_polygon("circle", size, impacts)
+	var poly := cache.polygon(size, impacts)
 	# The shoulders' lunge, shifted from the light.
 	var lift := BodyShadow.cast(rig.point(Rig.CHEST), shift)
 	shadow.meshes.draw(
 		Transform2D(0.0, lift) * poly,
-		Deformation.texture_uvs(poly, size, angle),
+		cache.uvs(poly, size, impacts, angle),
 		_shoulder_art(angle),
 		Color.BLACK,
 		Rect2(lift - size * 0.5, size),  # The round footprint: dents only cave in.
@@ -373,7 +374,7 @@ func _draw_head(pose: Pose, impacts: Array, damage_total: float) -> void:
 			/ px)))) * px)
 	var size := Vector2(side, side)
 	var angle: float = pose.head_angle - PI * 0.5
-	var tex := PixelArt.render_turned(
+	var tex: Texture2D = cache.slot(BodyDrawCache.HEAD).render(
 		HeadPainter,
 		size,
 		dress.skin,
@@ -398,7 +399,7 @@ func _draw_hand(hand: int, angle: float, impacts: Array, damage_total: float) ->
 	var diameter: float = _hands.hand_radius * 2.0 + 2.0
 	var size := Vector2(diameter, diameter)
 	var part: Dictionary = dress.hand_parts[hand]
-	var tex := PixelArt.render_turned(
+	var tex: Texture2D = cache.slot(BodyDrawCache.HAND + hand).render(
 		HandPainter,
 		size,
 		part["color"],
@@ -423,7 +424,7 @@ func _draw_part(at: Vector2, size: Vector2, impacts: Array, look: ShapeLook) -> 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-## How a round part is drawn (`_look`, refilled): its art `tex` turned by `angle` within its
+## How a round part is drawn (`cache.look`, refilled): its art `tex` turned by `angle` within its
 ## silhouette, darkened by `damage_total`, `fill` and `outline` its colours where it has no art, its
 ## hit marks left for later.
 func _round_look(
@@ -433,13 +434,14 @@ func _round_look(
 	fill: Color,
 	outline: Color,
 ) -> ShapeLook:
-	_look.fill = fill
-	_look.outline = outline
-	_look.damage_total = damage_total
-	_look.texture = tex
-	_look.texture_angle = angle
-	_look.marks = false
-	return _look
+	var look := cache.look
+	look.fill = fill
+	look.outline = outline
+	look.damage_total = damage_total
+	look.texture = tex
+	look.texture_angle = angle
+	look.marks = false
+	return look
 
 
 ## A round part (`size` px across) drawn as `look` says, through its silhouette dented by `impacts`,
@@ -449,22 +451,22 @@ func _round_look(
 ## white darkened as it darkens it (`Deformation.darken`). Without meshes (`BodyMeshes.enabled`)
 ## `draw_shape` draws it.
 func _draw_round(size: Vector2, impacts: Array, look: ShapeLook) -> void:
-	if not BodyMeshes.enabled:
-		Deformation.draw_shape(self, "circle", size, impacts, look)
-		return
-	var poly := Deformation.drawable_polygon("circle", size, impacts)
-	meshes.draw(
-		poly,
-		Deformation.texture_uvs(poly, size, look.texture_angle),
-		look.texture,
-		Color.WHITE.darkened(Deformation.darken(look.damage_total)),
-		Rect2(-size * 0.5, size),
-	)
+	var poly := cache.polygon(size, impacts)
+	var uvs := cache.uvs(poly, size, impacts, look.texture_angle)
+	if cache.record:
+		cache.shapes.append({ "poly": poly, "uvs": uvs })
+	var darkened := Color.WHITE.darkened(Deformation.darken(look.damage_total))
+	if BodyMeshes.enabled:
+		meshes.draw(poly, uvs, look.texture, darkened, Rect2(-size * 0.5, size))
+	else:
+		draw_colored_polygon(poly, darkened, uvs, look.texture)
 
 
 ## `impacts` turned by `angle`: from the shoulder-relative frame they're recorded in to the drawn
 ## one.
 static func _turned(impacts: Array, angle: float) -> Array:
+	if impacts.is_empty():
+		return impacts  # No wounds: nothing to turn, no list to build.
 	var out := []
 	for impact in impacts:
 		var moved: Dictionary = impact.duplicate()
@@ -476,7 +478,7 @@ static func _turned(impacts: Array, angle: float) -> Array:
 
 ## `impacts` moved by `by`: from the shoulders' frame to the character's, once the shoulders lunge.
 static func _shifted(impacts: Array, by: Vector2) -> Array:
-	if by == Vector2.ZERO:
+	if by == Vector2.ZERO or impacts.is_empty():
 		return impacts
 	var out := []
 	for impact in impacts:
@@ -490,6 +492,8 @@ static func _shifted(impacts: Array, by: Vector2) -> Array:
 ## shot's path before it struck the body — re-seated where the shot entered the part, in its
 ## frame, with the dent scaled down to the part's size.
 func _through(impacts: Array, center: Vector2, radius: float) -> Array:
+	if impacts.is_empty():
+		return impacts
 	var out := []
 	var shrink := radius / float(_character.radius)
 	for impact in impacts:

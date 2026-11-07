@@ -48,6 +48,7 @@ Invariants:
 - `render_turned` sits behind a bounded memo (`_turned_memo`, `TURNED_MEMO_MAX`) keyed by exact arguments, because a character
   repaints every part every frame; values the string key treats as equal still share one texture
   (`tests/art/pixel_art_turned_cache_test.gd`).
+- `PixelArt.TurnedLast` is a caller's slot for one part (`slot.render(painter, size, color, angle, opts)` = `render_turned`, answered by a compare against the last call's values; `PixelArt.last_hits` counts the answers). The character body keeps one per part (Character domain: `domain-character`, draw caches).
 - `away_from_light(node)` gives the direction a drop shadow falls; every visual offsets its shadow by it.
 
 ## PixelCanvas gotchas

@@ -22,6 +22,8 @@ class_name PixelArt
 ## memo is dropped and refills.
 const TURNED_MEMO_MAX := 4096
 
+## How many `render_turned` calls a caller's `TurnedLast` answered (a test reads it).
+static var last_hits := 0
 ## Painted textures by their inputs; identical pieces share one texture.
 static var _cache: Dictionary = {}
 ## A `render`ed texture's emissive pixels by the same key, or null when its painter drew nothing
@@ -320,3 +322,39 @@ static func _store_unlocked(key: String, img: Image) -> Texture2D:
 	var tex := ImageTexture.create_from_image(img)
 	_cache[key] = tex
 	return tex
+
+
+## The arguments of one caller's last `render_turned` call and the texture they got (`render`): a
+## character draws the same part every frame, so the next call is most often a compare of a few
+## values instead of a hashed memo key. Owned by the caller, one per part.
+class TurnedLast extends RefCounted:
+	## The last call's arguments.
+	var painter: Script
+	var size := Vector2.ZERO
+	var color := Color.BLACK
+	var angle := 0.0
+	var opts: Dictionary = {}
+	var pixel_size := 0.0
+	## The texture those arguments got.
+	var texture: Texture2D
+	## A plain slot never remembers: its `render` is `render_turned` itself (the uncached draw).
+	var plain := false
+
+
+	## `render_turned` of these arguments: this slot's texture when they are the ones it saw last,
+	## else the fetched one, remembered.
+	func render(p: Script, s: Vector2, c: Color, a: float, o: Dictionary = {}) -> Texture2D:
+		if plain:
+			return PixelArt.render_turned(p, s, c, a, o)
+		if (texture != null and painter == p and angle == a and size == s and color == c
+				and pixel_size == ArtCanvasConfig.pixel_size and opts == o):
+			PixelArt.last_hits += 1
+			return texture
+		texture = PixelArt.render_turned(p, s, c, a, o)
+		painter = p
+		size = s
+		color = c
+		angle = a
+		opts = o.duplicate(true)
+		pixel_size = ArtCanvasConfig.pixel_size
+		return texture
