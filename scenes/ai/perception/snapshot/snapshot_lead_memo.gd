@@ -2,11 +2,11 @@ extends RefCounted
 ## AI PERCEPTION sub-domain — SNAPSHOT LEAD MEMO. The walks to the leads an NPC heard (the length of
 ## the route it would walk and the point the lead snaps to), remembered for the belief window
 ## (`tuning.decision.belief_redecide_interval`, 0.5 s) so the decisions made inside one do not walk
-## them again (#192 rule 25). A walk is kept by its two ends and answers only while the house is as
-## it was when the window began: the planning map has the iteration it had (a re-bake swapped in
-## starts the walks afresh, as `NavSnaps` and `NavRoutes` follow it) and no door has turned,
-## fallen or come up since (`door_state`). The window ends the memo whatever happened; a window of
-## nothing keeps nothing. `snapshot_options.gd` holds one per NPC.
+## them again. A walk is kept by its two ends and answers only while the house is as it was when
+## the window began: the planning map and its ring have the iterations they had (a re-bake of
+## either swapped in starts the walks afresh, as `NavSnaps` and `NavRoutes` follow it) and no door
+## has turned, fallen or come up since (`door_state`). The window ends the memo whatever happened;
+## a window of nothing keeps nothing. `snapshot_options.gd` holds one per NPC.
 
 ## Most walks kept before the memo starts afresh.
 const KEPT := 64
@@ -19,8 +19,8 @@ static var _doors_sig := 0
 var _walks := {}
 ## `GameClock` msec the window began.
 var _stamp_ms := 0
-## The planning map's iteration and the doors' state the kept walks were made at.
-var _iteration := -1
+## The planning map's and its ring's iterations and the doors' state the kept walks were made at.
+var _iteration: Array = []
 var _doors := 0
 
 
@@ -40,11 +40,11 @@ static func door_state(tree: SceneTree) -> int:
 	return sig
 
 
-## Start asking: forget every walk kept for another window, planning-map iteration of `map` or
-## state of the doors (`doors`, `door_state`). `window_s` is the window's length.
+## Start asking: forget every walk kept for another window, the planning-map or ring iterations
+## of `map` or the state of the doors (`doors`, `door_state`). `window_s` is the window's length.
 func open(map: RID, doors: int, window_s: float) -> void:
 	var now := GameClock.msec()
-	var iteration := NavigationServer2D.map_get_iteration_id(map)
+	var iteration := NavBuilder.iterations(map)
 	if (iteration == _iteration and doors == _doors and now >= _stamp_ms
 			and now - _stamp_ms < roundi(window_s * 1000.0) and _walks.size() < KEPT):
 		return

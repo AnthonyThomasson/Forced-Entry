@@ -524,6 +524,13 @@ static func leaf_in_map(door: Node) -> bool:
 	return not NavLeaves.hole(door).is_empty()
 
 
+## The iterations of the planning map `map` and of its ring (-1 without one), as `[district, ring]`:
+## equal to an earlier read while neither map has taken a re-bake in, so an answer made from either
+## stands (`route`'s memo, the AI's lead-walk memo).
+static func iterations(map: RID) -> Array:
+	return NavRoutes.iterations(map)
+
+
 ## The navigated route `from` → `to` as its waypoints; a straight segment before the map is baked or
 ## when no path exists.
 static func route(map: RID, from: Vector2, to: Vector2) -> PackedVector2Array:

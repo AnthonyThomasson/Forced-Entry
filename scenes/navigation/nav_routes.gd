@@ -16,14 +16,20 @@ static var _answers: Dictionary = {}
 static var server_queries := 0
 
 
-## The route the ring-first, district-fallback algorithm gives, from the memo when this exact
-## question was answered while both supplying maps stood at the same iterations.
-static func route(map: RID, from: Vector2, to: Vector2) -> PackedVector2Array:
+## The iterations of the public planning map `map` and of its ring map (-1 without one): what an
+## answer made from either is valid for (`NavBuilder.iterations`).
+static func iterations(map: RID) -> Array:
 	var ring := NavRing.map_of(map)
-	var iteration := [
+	return [
 		NavigationServer2D.map_get_iteration_id(map),
 		NavigationServer2D.map_get_iteration_id(ring) if ring.is_valid() else -1,
 	]
+
+
+## The route the ring-first, district-fallback algorithm gives, from the memo when this exact
+## question was answered while both supplying maps stood at the same iterations.
+static func route(map: RID, from: Vector2, to: Vector2) -> PackedVector2Array:
+	var iteration := iterations(map)
 	var kept: Dictionary = _answers.get(map, {})
 	if kept.get("iteration", []) != iteration or (kept["routes"] as Dictionary).size() >= KEPT:
 		if _answers.size() > MAPS_KEPT:
