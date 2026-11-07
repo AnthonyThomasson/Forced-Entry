@@ -12,10 +12,13 @@ extends GameTest
 ## one 60 fps frame (16.7 ms), the 95th percentile stays under 20 ms and no frame takes over 33.4
 ## ms. Headless measures CPU only (the cone's physics queries and its polygons, the painters' work);
 ## the GPU cost is measured by hand, windowed (`docs/lighting.md`, "Measured cost").
-## Known red on the district (quiet machine, load 3 to 4, no other Godot, 2026-11-02): avg 25.0, p95
-## 48.7, max 70.1 ms against 16.7, 20 and 33.4. It was red with `perf/match_10v10_stress` on a house
-## (#98); the district adds the AI's decisions in open combat, #190 "AI decision
-## cost in open combat" (`perf-district.md` of `domain-testing`). The budgets are not loosened and
+## Known red on the district. 2026-11-02: avg 25.0, p95 48.7, max 70.1 ms against 16.7, 20 and 33.4.
+## It was red with `perf/match_10v10_stress` on a house (#98). 2026-11-07, #192, two runs (not
+## `--quiet`: the gate was bypassed, `perf-district.md`; load 3.2 to 5.6, six other Godot processes
+## that were no test's): avg 22.53 and 20.13, p95 35.97 and 31.25, max 46.69 and 42.67 ms. What it
+## adds to the 10v10's own tail (the grenades' escape search, `match_10v10_stress_test.gd`) is the
+## view's cone rebuilt almost every frame while its viewer moves (about 11 ms a frame in
+## `perf/match_npc_vision_relative`'s moving rounds): a follow-up. The budgets are not loosened and
 ## the test is neither skipped nor tagged.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")

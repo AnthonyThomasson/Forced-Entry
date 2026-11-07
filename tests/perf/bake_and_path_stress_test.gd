@@ -15,14 +15,20 @@ extends GameTest
 ## the same machine in brackets): 58.8 and 57.8 ms a planning re-bake [58.0], 21.7 and 21.3 ms to
 ## start an async one [21.2], 5.6 and 5.1 ms a steering re-bake [5.3], 23.8 and 23.1 ms for the 300
 ## queries [22.9]. The tile binning and the route cache did not move what these four measure (the
-## steering re-bake here is one to four tiles), so no budget is set again.
+## steering re-bake here is one to four tiles), so no budget was set again then.
+## 2026-11-07, #192, after the furniture-hole cache and the sliced planning gather (two runs, not
+## `--quiet`: the gate was bypassed, `perf-district.md`; load 4.1 and 5.4, six other Godot processes
+## that were no test's): 55.8 and 53.6 ms a planning re-bake, 18.3 and 17.8 to start an async one,
+## 2.52 and 2.58 ms a steering re-bake, 23.3 and 22.9 ms for the 300 queries. The steering re-bake
+## moved from about 5.5 to about 2.5 ms (a tick cuts only the pieces that moved), so its budget is
+## set again at about 4x: 10 ms. The other three read within 15 % of the base and keep theirs.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const REBAKES := 10
 const QUERIES := 300
 const REBAKE_BUDGET_MS := 150.0
 const ASYNC_BUDGET_MS := 60.0
-const STEERING_BUDGET_MS := 15.0
+const STEERING_BUDGET_MS := 10.0
 const QUERY_BUDGET_MS := 60.0
 
 

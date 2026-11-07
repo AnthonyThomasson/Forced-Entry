@@ -6,7 +6,10 @@ extends GameTest
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const ROUTES_SCRIPT := "res://scenes/navigation/nav_routes.gd"
-const WAIT := 5.0
+## How long (sim s) a map may take to answer or to take a changed region in: its iteration is built
+## on the server's worker thread in real time, and a headless run's frames are far shorter than
+## that.
+const WAIT := 12.0
 
 
 func describe() -> Dictionary:
@@ -45,8 +48,10 @@ func _plain_map(t: TestContext, routes: GDScript) -> void:
 	var region := fixture["region"] as NavigationRegion2D
 	var house := fixture["house"] as Node2D
 	(fixture["obstacle"] as Node2D).position = Vector2(400, 100)
+	var held := _iterations(map)
 	NavBuilder.rebake(region, house, fixture["rooms"])
-	await t.seconds(0.3)
+	if not await _moved_on(t, map, held, [0], "the plain re-bake"):
+		return
 	var moved := _plain_route(map, from, to)
 	t.check(moved != expected, "premise: moving the divider changes the plain route")
 	before = _queries(routes)
@@ -70,9 +75,8 @@ func _ring_fallback(t: TestContext, routes: GDScript) -> void:
 	):
 		return
 	var region := fixture["region"] as NavigationRegion2D
-	var small := NavRing.region_of(region)
 	fixture["old_district"] = region.navigation_polygon
-	fixture["old_ring"] = small.navigation_polygon
+	fixture["old_ring"] = NavRing.region_of(region).navigation_polygon
 	var expected := _plain_route(map, from, to)
 	t.expect_eq(NavBuilder.route(map, from, to), expected, "the fallback's final route is cached")
 	var before := _queries(routes)
@@ -80,22 +84,68 @@ func _ring_fallback(t: TestContext, routes: GDScript) -> void:
 	t.expect_eq(_queries(routes), before, "the repeated fallback asks neither map again")
 
 	(fixture["obstacle"] as Node2D).position = Vector2(400, 550)
+	var held := _iterations(map)
 	NavBuilder.rebake(region, fixture["house"], fixture["rooms"])
-	await t.seconds(0.3)
+	if not await _moved_on(t, map, held, [0, 1], "the fallback's re-bake"):
+		return
 	var moved := _plain_route(map, from, to)
 	t.check(moved != expected, "premise: opening the divider changes the fallback route")
 	before = _queries(routes)
 	t.expect_eq(NavBuilder.route(map, from, to), moved, "the re-baked fallback is answered afresh")
 	t.check(_queries(routes) > before, "the re-baked fallback asks its supplying map again")
 
-	# Put back only the district, then only the ring. Either iteration alone must miss the memo.
-	region.navigation_polygon = fixture["old_district"]
-	await t.frames(3)
-	_fresh(t, routes, map, [from, to], "a district-only iteration")
-	small.navigation_polygon = fixture["old_ring"]
-	await t.frames(3)
-	_fresh(t, routes, map, [from, to], "a ring-only iteration")
+	await _put_back_each(t, routes, fixture, [from, to])
 	await _destroyed(t, fixture["viewport"], routes, map)
+
+
+## Put back only the district, then only the ring. Either iteration alone must miss the memo.
+func _put_back_each(
+	t: TestContext, routes: GDScript, fixture: Dictionary, ends: Array,
+) -> void:
+	var map: RID = fixture["map"]
+	var held := _iterations(map)
+	(fixture["region"] as NavigationRegion2D).navigation_polygon = fixture["old_district"]
+	if not await _moved_on(t, map, held, [0], "the district-only iteration"):
+		return
+	_fresh(t, routes, map, ends, "a district-only iteration")
+	held = _iterations(map)
+	NavRing.region_of(fixture["region"]).navigation_polygon = fixture["old_ring"]
+	if not await _moved_on(t, map, held, [1], "the ring-only iteration"):
+		return
+	_fresh(t, routes, map, ends, "a ring-only iteration")
+
+
+## The iteration ids of the maps that can supply a route over `map`: the district's, then its
+## ring's (-1 when there is none).
+func _iterations(map: RID) -> Array:
+	var ring := NavRing.map_of(map)
+	return [
+		NavigationServer2D.map_get_iteration_id(map),
+		NavigationServer2D.map_get_iteration_id(ring) if ring.is_valid() else -1,
+	]
+
+
+## Whether every iteration of `which` differs between `now` and `held`.
+func _all_moved(now: Array, held: Array, which: Array) -> bool:
+	for index: int in which:
+		if now[index] == held[index]:
+			return false
+	return true
+
+
+## Wait until every iteration of `which` (indexes into `_iterations`) has moved on from `held`: the
+## map has taken the changed region in. Not a frame count or a time: the map builds its iteration
+## on a worker thread, so how many frames that takes depends on the machine.
+func _moved_on(
+	t: TestContext, map: RID, held: Array, which: Array, label: String,
+) -> bool:
+	return t.require(
+		await t.until(
+			func() -> bool: return _all_moved(_iterations(map), held, which),
+			WAIT,
+		),
+		"%s reaches its map" % label,
+	)
 
 
 ## One changed map iteration: the answer still equals the plain query, asked of the server afresh.

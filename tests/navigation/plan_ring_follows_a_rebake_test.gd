@@ -49,6 +49,7 @@ func run(t: TestContext) -> void:
 		return
 	var held_planning := region.navigation_polygon
 	var held_ring := small.navigation_polygon
+	var held := _iterations(map)
 	piece.global_position = new_spot
 	t.check(
 		await t.until(func() -> bool: return region.navigation_polygon != held_planning, WAIT),
@@ -58,7 +59,32 @@ func run(t: TestContext) -> void:
 		await t.until(func() -> bool: return small.navigation_polygon != held_ring, WAIT),
 		"the ring is re-baked after the shove",
 	)
-	await t.seconds(0.3)  # the maps take the new meshes in
+	# Both maps take the new meshes in: each builds its iteration on a worker thread, so the wait
+	# is for the iteration to move on, not for a time.
+	if not t.require(
+		await t.until(func() -> bool: return _both_moved(map, held), WAIT),
+		"both maps take the re-baked meshes in",
+	):
+		return
+	_check_snaps(t, map, old_spot, new_spot)
+
+
+## The district map's iteration id and its ring map's.
+func _iterations(map: RID) -> Array:
+	return [
+		NavigationServer2D.map_get_iteration_id(map),
+		NavigationServer2D.map_get_iteration_id(NavRing.map_of(map)),
+	]
+
+
+## Whether both maps' iterations differ from `held`.
+func _both_moved(map: RID, held: Array) -> bool:
+	var now := _iterations(map)
+	return now[0] != held[0] and now[1] != held[1]
+
+
+## The ring snaps both spots as the district map does, and the floor the piece left is floor.
+func _check_snaps(t: TestContext, map: RID, old_spot: Vector2, new_spot: Vector2) -> void:
 	for spot in [old_spot, new_spot]:
 		t.check(
 			NavBuilder.snap(

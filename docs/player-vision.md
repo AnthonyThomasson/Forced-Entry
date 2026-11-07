@@ -282,13 +282,15 @@ which costs one rebuild a move that ends within reach.
   `tests/_vision/reference_view_cone.gd`, frame by frame, counts the cross-rebuild reuses and the memo's hits, and checks no polygon
   is checked twice in a rebuild. The guard also plays rounds where the viewer walks a scripted loop (eye and facing change every timed
   frame, a premise it checks) and holds the moving view's median cost to `MOVING_BUDGET_MS`, **20 ms**: about 1.4x the quiet moving
-  median of about 13 ms. It departs from `perf.md`'s 4x rule because the cost is a cone rebuilt every frame, and 4x of a per-frame
-  cost would never trip. (Before the memo the quiet median was 13.9 ms, against 12.2 at the base of the story; the profile put the
+  median of about 13 ms (11.89 and 10.90 ms in the two runs of 2026-11-07, so about 1.7x). It departs from `perf.md`'s 4x rule because the
+  cost is a cone rebuilt every frame, and 4x of a per-frame cost would never trip. (Before the memo the quiet median was 13.9 ms, against 12.2 at the base of the story; the profile put the
   difference on the polygon re-checks and the far-face reuse.)
 - **The perf matches run with `worldgen.doors` off** until #178 and #159 make the entry door-aware, which the shared perf probe
-  (`tests/_perf/perf_probe.gd`) says. `perf/match_npc_vision`, the absolute guard on the same match, is red on the district with
-  `perf/match_10v10_stress`, `perf/match_5v5_stress` and `perf/grenade_match_stress` (avg 25.0, p95 48.7, max 70.1 ms): the AI's
-  decisions in open combat, #190 (`domain-testing` (`perf-district.md`)).
+  (`tests/_perf/perf_probe.gd`) says. `perf/match_npc_vision`, the absolute guard on the same match, is still red on the district after
+  #192 (2026-11-07, two runs that were not `--quiet`: avg 22.53 and 20.13, p95 35.97 and 31.25, max 46.69 and 42.67 ms). Its excess over
+  the 10v10 is the moving view's cone, rebuilt almost every frame (about 11 ms a frame in the moving rounds), and a follow-up; the 10v10's
+  own tail is the grenades' escape search. The relative guard's parked view read 5.64 and 4.77 ms against its 3.2 ms (rounds 1.0 to 11.7),
+  red as it was on 2026-11-02 (4.9 and 5.2). Numbers and loads: `domain-testing` (`perf-district.md`).
 
 ## Played in a window
 

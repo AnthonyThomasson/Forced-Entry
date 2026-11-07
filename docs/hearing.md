@@ -30,6 +30,10 @@ A heard step is remembered as `heard_footsteps` (`{ pos }`, one per walker, the 
 - a reason to **suspect the room** it came from (`docs/grenades.md` G18): a doorway into it reads "footsteps heard there", and a stack
   that carries a stun takes STUN ENTRY into it; while a stun is in the stack, footsteps in a room a doorway leads into are not a lead.
 
+A heard lead's route (how far the walk to it is, and the point the lead snaps to) is kept for the belief window, 0.5 s (`belief_redecide_interval`), per
+pair of ends, so the decisions made inside one window do not walk it again; a door that turns, falls or comes up and a re-bake that lands drop it, and the
+window's end drops it whatever happened. Which lead an investigator picks does not change (`ai/perception/lead_route_memo_matches_plain`).
+
 Tests: `ai/perception/footsteps_heard_by_gait` (scripted: walk, run and crouch in and out of range through a wall, an ally unheard),
 `ai/investigate/footsteps_lead` (real Von: a defender hears an invader in the next room and investigates),
 `ai/grenade/stun_entry_footsteps_heard` (real Von: the stack bangs the room the steps came from).

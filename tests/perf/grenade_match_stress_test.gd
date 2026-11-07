@@ -21,10 +21,14 @@ extends GameTest
 ## Baseline in the district on a loaded machine (load 4 to 7, three or more other Godot: no run was
 ## quiet enough to judge): avg 15 to 17 ms, p95 27 to 34, max 56 to 69; contact came at 20 to 28 s
 ## (in one run in four not within 20 s, hence `Perf.MATCH_CONTACT_WITHIN`).
-## Known red on the district (quiet machine, load 3 to 4, no other Godot, 2026-11-02): avg 13.9, p95
-## 24.7, max 73.8 ms against 16.7, 20 and 33.4 (the average passes). The cost is the AI's decisions
-## in open combat, #190 "AI decision cost in open combat" (`perf-district.md` of
-## `domain-testing`); the budgets are not loosened and the test is neither skipped nor tagged.
+## Known red on the district. 2026-11-02: avg 13.9, p95 24.7, max 73.8 ms against 16.7, 20 and
+## 33.4. 2026-11-07, #192, two runs (not `--quiet`: the gate was bypassed, `perf-district.md`; load
+## 3.2 to 5.6, six other Godot processes that were no test's): avg 13.14 and 11.34, p95 24.32 and
+## 18.54, max 37.70 and 35.51 ms. No snapshot builds over 8.4 ms any more; what is left is the
+## escape search a grenade's landing sets off in every NPC near it (`AgentThrow.escape`, reached
+## through `react_to_grenades`, about 4.4 ms a call, several NPCs in one frame: 49 to 53 calls in 28
+## or 29 frames of the 560, the worst frame spends 22.4 ms of 31.7 in that reflex). The budgets are
+## not loosened and the test is neither skipped nor tagged.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")

@@ -1,10 +1,11 @@
 extends GameTest
 ## A district's steering re-bake lands in the frame of the tick that measured the change too (#182):
-## every match is a district. Its tick is staged, the planning gather a frame after the tiles'
-## re-bake, but a walker held short of a body at rest looks for a way round it every `RECHECK` s
-## and the steering map must not lag the tick (`steering_rebake_lands_in_its_tick_test.gd`). The
-## first tick after a puppet moves already carries a new polygon on a tile, and so does the tick
-## of a shoved piece of furniture, whose planning re-bake (its gather a frame later) lands too.
+## every match is a district. Its tick re-bakes the tiles at once and starts the planning gather,
+## which runs over the next physics frames and is swapped in whole. A walker held short of a body at
+## rest looks for a way round it every `RECHECK` s, and the steering map must not lag the tick
+## (`steering_rebake_lands_in_its_tick_test.gd`). The first tick after a puppet moves already
+## carries a new polygon on a tile, and so does the tick of a shoved piece of furniture, whose
+## planning re-bake (its gather over the next frames) lands too.
 
 const TickLanding := preload("res://tests/_navigation/tick_landing_probe.gd")
 const SEED := 7
@@ -57,7 +58,7 @@ func run(t: TestContext) -> void:
 
 
 ## A piece of furniture shoved 100 px: the same tick re-bakes the tiles round it, and the planning
-## region (its gather a frame after) is re-baked within the next ticks.
+## region (its gather over the next frames, swapped in whole) is re-baked within the next ticks.
 func _shoved_piece(
 	t: TestContext,
 	region: NavigationRegion2D,
@@ -87,5 +88,5 @@ func _shoved_piece(
 			func() -> bool: return region.navigation_polygon != planning_before,
 			3.0,
 		),
-		"the planning region is re-baked after the shove, a frame after the tiles",
+		"the planning region is re-baked after the shove, after the tiles",
 	)

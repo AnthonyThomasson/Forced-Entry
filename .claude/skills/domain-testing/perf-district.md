@@ -14,9 +14,40 @@ invaders starting in the street), so five gates moved. Each was signed off by th
   (~57 ms, a house ~2.5) and 300 queries on a map of ten times the polygons. The synchronous re-bake is now a test seam; what a frame
   pays is held by the new `ASYNC_BUDGET_MS` (60, starting an async re-bake) and `STEERING_BUDGET_MS` (15, a steering re-bake of the one to
   four tiles a character stops in).
+- `perf/bake_and_path_stress` `STEERING_BUDGET_MS` 15 → 10 (#192, 2026-11-07): the steering re-bake of a tick read about 5.5 ms and now reads
+  2.52 and 2.58 ms (a tick cuts only the pieces that moved), so the budget is set again at about 4x.
 - `SMOOTH_AVG_MS`, `SMOOTH_P95_MS`, `SMOOTH_MAX_MS`, every vision budget and the house budgets of `perf/generate_houses_stress` did not move.
 
-## Known red on the district: "AI decision cost in open combat" (#190)
+## After #192 and its Extension 1 (2026-11-07): AC30 is NOT met on this commit
+
+**Not `--quiet` runs.** The quiet gate waited over ten minutes with no Godot of ours running (it counts the `godot-mcp` servers of other sessions
+and a Godot app left open). The two runs are `tools/run_tests.sh --domain=perf --summary --verbose`, begun at a 1-minute load under 6 with none of
+the worktree's own Godot left; their `PERF` lines read load 3.2 to 6.7 and `6 other Godot` (none a test's). None is marked `loaded` and none is claimed `--quiet`.
+
+| Guard (ms) | run 1 avg / p95 / max | run 2 avg / p95 / max | budget |
+|---|---|---|---|
+| `match_5v5_stress` | 7.07 / 15.88 / 26.01 | 6.44 / 13.09 / 17.98 | 16.7 / 20 / 33.4: **green** |
+| `grenade_match_stress` | 13.14 / **24.32** / **37.70** | 11.34 / 18.54 / **35.51** | red |
+| `match_10v10_stress` | 12.93 / **27.07** / **56.08** | 14.03 / **25.90** / **37.93** | red |
+| `match_npc_vision` | **22.53** / **35.97** / **46.69** | **20.13** / **31.25** / **42.67** | red (the moving view's cone: a follow-up) |
+| `match_npc_vision_relative`, parked | **5.64** (rounds 1.0 to 11.7) | **4.77** (1.1 to 9.4) | 3.2, red (4.9 and 5.2 on 2026-11-02) |
+| the same, moving | 11.89 | 10.90 | 20: green (cone ratio 0.23, moving 0.43) |
+
+The other eleven guards pass (nav re-bake 55.8 and 53.6 ms, steering 2.52 and 2.58, 300 queries 23.3 and 22.9, a district 157 and 155,
+12 houses 1849 and 1882). The budgets of the red four are not loosened; no test is skipped or tagged.
+
+**Profile** (`Time.get_ticks_usec` accumulators on a scratch checkout, two runs each; 10v10 p95 24.9 and 30.0, max 63.6 and 57.3). The tail is the
+escape search a grenade's landing sets off: `react_to_grenades` -> `evade_plan` -> `AgentThrow.escape`, 5.7 and 6.4 ms a call (grenade match
+4.4), for several NPCs in one frame: 40 and 32 calls in the 10v10's 300 frames, in the 15 that set its p95; 53 and 49 in 29 and 28 of the grenade
+match's 560. Four of the 10v10's five worst frames (50 to 64 ms) spend 39 to 46 ms in that reflex, one 20; the grenade match's worst, 31.7, spends
+22.4. Tail frames average 33.4 and 36.7 ms against 9.8 and 11.8 in the lower half; escape is +11.3 and +7.2 of the 23 to 25 excess, decisions
++4.5 and +10.7, whose snapshots build in 4.0 and 4.3 ms and never over 8.4. The burst also swamps the relative guard's few-ms difference. A cap on
+escape plans per frame is out of #192's scope.
+
+**A flake of its own:** `vision/cone_same_after_savings` misses one corner in one cone of 5564 in about 2 to 8 runs in 100 under `--jobs=6` (9 of 10
+at `--jobs=4`), on main too (1 of 48 on `f55dc462`'s scenes); a fresh cone misses it too. A follow-up.
+
+## Known red on the district before #192: "AI decision cost in open combat" (#190)
 
 Four match guards miss their budgets on the district (quiet machine, load 3 to 4, no other Godot, 2026-11-02; budgets avg 16.7, p95 20, max 33.4 ms):
 

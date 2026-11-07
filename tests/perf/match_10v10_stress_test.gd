@@ -24,10 +24,16 @@ extends GameTest
 ## Baseline in the district on a loaded machine (load 4 to 7, three or more other Godot: no run was
 ## quiet enough to judge): avg 20 to 25 ms, p95 36 to 61, max 53 to 130; the house alone on that
 ## machine and load: avg 20.0, p95 35.2, max 61.3, so it misses the standard there too.
-## Known red on the district (quiet machine, load 3 to 4, no other Godot, 2026-11-02): avg 19.4, p95
-## 36.2, max 59.6 ms against 16.7, 20 and 33.4. The cost is the AI's decisions in open combat, the
-## #190 "AI decision cost in open combat" (`perf-district.md` of `domain-testing`); the
-## budgets are not loosened and the test is neither skipped nor tagged.
+## Known red on the district. 2026-11-02: avg 19.4, p95 36.2, max 59.6 ms against 16.7, 20 and 33.4.
+## 2026-11-07, #192, two runs (not `--quiet`: the gate was bypassed, `perf-district.md`; load 3.2 to
+## 5.6, six other Godot processes that were no test's): avg 12.93 and 14.03, p95 27.07 and 25.90,
+## max 56.08 and 37.93 ms. The average passes; the tail is the escape search a grenade's landing
+## sets off in every NPC near it (`AgentThrow.escape`, reached through `react_to_grenades`, 5.7 to
+## 6.4 ms a call, 32 to 40 calls in the 300 frames, in the 15 frames that make the p95; four of
+## the five worst frames, 50 to 64 ms, spend 39 to 46 ms in that reflex). A snapshot builds in 4 ms
+## on
+## average and 8.4 at most. The budgets are not loosened and the test is
+## neither skipped nor tagged.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const Perf := preload("res://tests/_perf/perf_probe.gd")

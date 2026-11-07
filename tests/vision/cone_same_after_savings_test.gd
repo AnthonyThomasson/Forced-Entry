@@ -46,6 +46,11 @@ const DOOR_LENGTH := 90.0
 const HITS_PER_VOLLEY := 50
 const SCATTERED := 300
 const NEAR := 220.0
+## A struck piece is at rest below this speed (px/s) and spin (rad/s); the longest wait for it
+## (sim s).
+const REST_SPEED := 0.5
+const REST_SPIN := 0.01
+const SETTLE_WAIT := 3.0
 ## Eyes for the swing: in the living room, in the kitchen, and on the doorway's line.
 const SWING_EYES := [
 	Vector2(250, 250), Vector2(450, 180), Vector2(500, 330), Vector2(1000, 250), Vector2(900, 120),
@@ -157,7 +162,7 @@ func _compare_moving_pieces(t: TestContext) -> void:
 		{ "rotated": true },
 	)
 	setup.object(&"shoved", "wardrobe", SHOVE_AT, { "rotated": true })
-	setup.object(&"walk_cover", "wardrobe", Vector2(600, 250), { "rotated": true })
+	setup.object(&"walk_cover", _anchored("wardrobe"), Vector2(600, 250), { "rotated": true })
 	setup.object(&"table", "coffee_table", Probe.TABLE_AT)
 	setup.actor(&"stander", &"puppet", STANDER_AT)
 	var world: Node2D = await Probe.build_world(t, setup)
@@ -191,6 +196,15 @@ func _compare_moving_pieces(t: TestContext) -> void:
 	await _compare_moving_body(t, world, cone, plain)
 	await _compare_postures(t, world, cone, plain)
 	await Probe.drop_world(t, world)
+
+
+## The catalogue piece `key` anchored: it takes the test's own moves and nothing else. A free body
+## that the test also teleports is moved by the physics server too, so its node and the server
+## disagree about where it is.
+func _anchored(key: String) -> Dictionary:
+	var definition: Dictionary = WorldGen.object_definition(key).duplicate()
+	definition["anchored"] = true
+	return definition
 
 
 ## Walls and pieces struck again and again: each hit dents the shape and, a frame later, replaces
@@ -266,9 +280,32 @@ func _dent_rounds(t: TestContext, world: Node2D, targets: Array[Node2D]) -> void
 		var struck := Vector2.ZERO
 		for _k in HITS_PER_VOLLEY:
 			struck = _strike(target, rng, place)
-		await t.frames(3)
+		if not await _settle(t, targets):
+			return
 		_compare_rooms(world, cone, plain)
 		_compare_scattered(world, cone, plain, rng, struck)
+
+
+## Let the physics server take the volley in: the colliders are re-cut a frame later, and a hit
+## shoves a piece that then slides on. False (the test ends) when a struck piece never comes to
+## rest, so the cones are never built in a world the server is still changing.
+func _settle(t: TestContext, targets: Array[Node2D]) -> bool:
+	await t.frames(3)
+	return t.require(
+		await t.until(func() -> bool: return _at_rest(targets), SETTLE_WAIT),
+		"premise: the struck pieces came to rest",
+	)
+
+
+## Whether none of the `targets` that move (the pieces; walls are static) is still moving.
+func _at_rest(targets: Array[Node2D]) -> bool:
+	for target in targets:
+		var body := target as RigidBody2D
+		if body != null and not body.sleeping and (
+			body.linear_velocity.length() > REST_SPEED or absf(body.angular_velocity) > REST_SPIN
+		):
+			return false
+	return true
 
 
 ## `SCATTERED` eyes at random places of `world`'s rooms, each facing a random way; with `near` set,
@@ -353,9 +390,10 @@ func _compare_walk(t: TestContext, world: Node2D, cone: Cone, plain: Reference) 
 	)
 
 
-## A body that moves in every step of a walk, and again between two rebuilds with no physics step in
-## between: the cone stays the reference's frame by frame (the polygon memo serves nothing across
-## rebuilds).
+## A body that moves in every step of a walk, and again between two rebuilds: the cone stays the
+## reference's frame by frame (the polygon memo serves nothing across rebuilds). Each move waits a
+## physics frame before the two cones are built: a body teleported this frame is still where it was
+## for the physics server (`domain-vision`, Gotchas), so both read one world.
 func _compare_moving_body(t: TestContext, world: Node2D, cone: Cone, plain: Reference) -> void:
 	var cover: Node2D = world.objects[&"walk_cover"]
 	var hits_before := _savings_count(cone, &"memo_hits")
@@ -367,9 +405,9 @@ func _compare_moving_body(t: TestContext, world: Node2D, cone: Cone, plain: Refe
 		var facing := Vector2.from_angle(float(step) * 0.2)
 		_compare(cone, plain, at, facing)
 		drawn.append(cone.cone.duplicate())
-		# The body moves again before the physics server is told: both cones read the node's new
-		# place for its polygon, the stale one for what a ray meets.
+		# The body moves again, between two rebuilds: the memo must not serve the earlier polygon.
 		cover.global_position -= MOVING_STEP * 0.5
+		await t.frames(1)
 		_compare(cone, plain, at, facing)
 	t.check(_swing_changed(drawn), "premise: the cone changes as the body moves and the eye walks")
 	t.check(
