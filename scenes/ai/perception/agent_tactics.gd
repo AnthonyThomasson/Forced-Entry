@@ -124,13 +124,19 @@ func _route_exposed(
 		return false
 	var half := deg_to_rad(watch_arc) * 0.5
 	var seen := 0
+	var missed := 0
 	for i in ROUTE_SAMPLES:
 		var sample := _along(path, total * (i + 1) / (ROUTE_SAMPLES + 1))
-		if not is_nan(front) and not _looking_at(threat, front, sample, half):
-			continue
-		if not blocked(space, threat, sample, exclude):
-			seen += 1
-	return seen * 2 > ROUTE_SAMPLES
+		var in_sight := ((is_nan(front) or _looking_at(threat, front, sample, half))
+				and not blocked(space, threat, sample, exclude))
+		seen += 1 if in_sight else 0
+		missed += 0 if in_sight else 1
+		# Settled once more than half are seen, or too few are left to be.
+		if seen * 2 > ROUTE_SAMPLES:
+			return true
+		if (ROUTE_SAMPLES - missed) * 2 <= ROUTE_SAMPLES:
+			return false
+	return false
 
 
 ## The point `dist` px along a route.
