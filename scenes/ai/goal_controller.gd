@@ -236,6 +236,7 @@ func debug_status() -> String:
 ## where it may act now (`confinement`, the perception's confinement's `view()`). Pure reads —
 ## never perturbs the loop.
 func debug_state() -> Dictionary:
+	_cadence.complete()
 	var out := {
 		"npc": _npc_name(),
 		"goal": goal_text(),
@@ -264,7 +265,7 @@ func debug_state() -> Dictionary:
 ## flattened to world points tagged by kind (see `debug/zone_list.gd`), for the tactics debug
 ## overlay to draw. Empty until the first decision.
 func debug_zones() -> Array:
-	return ZoneList.from_options(_cadence.last_options)
+	return ZoneList.from_options(_cadence.full_options())
 
 
 ## Read-only: the tactical ROOM zones — every room of the house tagged by how this NPC regards it
@@ -361,6 +362,7 @@ func debug_sent_callout() -> Dictionary:
 func debug_brain() -> Dictionary:
 	if _planner == null:
 		return {}
+	_cadence.complete()
 	var d: Dictionary = _planner.debug_state()
 	var timers: Dictionary = (_behavior.fight.debug_combat().get("timers", {})
 			if _character != null
@@ -551,7 +553,7 @@ func _start_decision() -> void:
 	)
 	_cadence.last_facts = snapshot["facts"]
 	_cadence.last_sections = snapshot["sections"]
-	_cadence.last_options = snapshot["options"]
+	_cadence.last_demand = snapshot["demand"]
 	_cadence.last_analysed = snapshot["sections_per_target"].keys()
 	var held: Dictionary = _perception.orders.current()
 	if not held.is_empty() and (snapshot["options"]["order"]["options"] as Array).is_empty():

@@ -436,21 +436,35 @@ func _requires_ok(names: Array) -> bool:
 		var fact := String(n)
 		var negate := fact.begins_with("!")
 		var key := fact.trim_prefix("!")
-		var value: bool = _walk.binding.has(key) or bool(facts.get(key, false))
+		var value: bool = _walk.binding.has(key) or _fact(facts, key)
 		if value == negate:
 			return false
 	return true
 
 
+## Whether fact `key` holds in `facts` (the snapshot's): one the snapshot has not worked out yet is
+## asked of its demand (`snapshot_demand.gd`); a snapshot without one (a hand-made one) holds none
+## it does not list.
+func _fact(facts: Dictionary, key: String) -> bool:
+	if facts.has(key):
+		return bool(facts[key])
+	var demand = _walk.snap.get("demand")
+	return demand != null and demand.fact(key)
+
+
 ## An option group from the snapshot: the bound target's own group of that name first, else the
-## global one. Each group is { summary, options: [{ id, label, desc, params, tags }] }.
+## global one; one the snapshot has not built yet is built by its demand now
+## (`snapshot_demand.gd`). Each group is { summary, options: [{ id, label, desc, params, tags }] }.
 func _group(group_name: StringName) -> Dictionary:
 	var options: Dictionary = _walk.snap.get("options", {})
 	if _walk.binding.has("target_id"):
 		var per: Dictionary = options.get("per_target", {}).get(_walk.binding["target_id"], {})
 		if per.has(String(group_name)):
 			return per[String(group_name)]
-	return options.get(String(group_name), {})
+	if options.has(String(group_name)):
+		return options[String(group_name)]
+	var demand = _walk.snap.get("demand")
+	return demand.group(String(group_name)) if demand != null else {}
 
 
 # --- What Von reads --------------------------------------------------------------------------
@@ -516,7 +530,11 @@ func _section(section_name: String) -> String:
 		).get(_walk.binding["target_id"], {})
 		if per.has(section_name):
 			return per[section_name]
-	return _walk.snap.get("sections", {}).get(section_name, "")
+	var sections: Dictionary = _walk.snap.get("sections", {})
+	if sections.has(section_name):
+		return sections[section_name]
+	var demand = _walk.snap.get("demand")
+	return demand.section(section_name) if demand != null else ""
 
 
 ## Mark the offered option that continues the last adopted plan, so Von can keep a plan rather than
