@@ -8,7 +8,13 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
+const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const CountingVision := preload("res://tests/_ai/counting_vision.gd")
+## Where the invader stands outside the back door, and the householder it sees in the kitchen off
+## its axis: a throw spot is needed, so the throw search tests many lobs for each kind carried.
+const I_AT := Vector2(960, 190)
+const H_JAMB := Vector2(660, 120)
 ## Samples along a route (the spec: eight, exposed when more than half are in sight).
 const SAMPLES := 8
 
@@ -26,12 +32,87 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s)
+	# A stun that does not carry as far as a frag: two reaches, so two searches over the same spots.
+	var rows := GrenadeConfig.grenades.duplicate(true)
+	rows[&"stun"]["max_range"] = 450.0
+	s.set_static(GrenadeConfig, &"grenades", rows)
+	s.von_script([])
+	s.switch(&"ai.callouts", false)
+	s.switch(&"ai.hostile_on_trespass", false)
+	s.switch(&"projectile.flyover", false)
 	s.actor(&"npc", &"puppet", Maps.HALL_MIDDLE)
+	s.actor(&"i", &"invader", I_AT, { "movement:speed": 0.0, "facing": Vector2.LEFT })
+	GrenadeAi.hostile(s, &"h", H_JAMB, Maps.DOOR_BACK)
 
 
 func run(t: TestContext) -> void:
 	await t.frames(2)
 	_exposure(t)
+	await _throws(t)
+	_snaps(t)
+
+
+## The throw groups of the invader's frag and stun, with the lob of a throw spot judged once a
+## decision whatever kind asks: equal to the groups with no memo, the lobs asked of more spots than
+## were judged.
+func _throws(t: TestContext) -> void:
+	var inv := t.actor(&"i")
+	Probe.arm(inv, 1, 1)
+	await t.frames(3)
+	inv.facing = (H_JAMB - I_AT).normalized()
+	var brain := t.controller(&"i", &"debug_state")
+	var seen := func() -> bool: return (brain.debug_state().get("contacts", []) as Array).any(
+		func(c): return c.get("hostile", false)
+	)
+	if not t.require(await t.until(seen, 3.0), "set-up: the invader sees the householder"):
+		return
+	var perception: Node = brain.get("_perception")
+	var fast_demand = perception.sense(brain.get("goal"), "", 0)["demand"]
+	var plain_demand = perception.sense(brain.get("goal"), "", 0)["demand"]
+	(plain_demand.ctx as Dictionary).erase("tactics_cache")
+	var fast_groups := _throw_groups(fast_demand)
+	var plain_groups := _throw_groups(plain_demand)
+	t.require(
+		not (fast_groups.values() as Array).all(func(g): return (g["options"] as Array).is_empty()),
+		"set-up: the fixture offers a throw",
+	)
+	t.expect_eq(fast_groups, plain_groups, "the throw groups equal the plain search's")
+	var tallies: Dictionary = fast_demand.ctx["tactics_cache"].get("tally", {})
+	var tally: Vector2i = tallies.get("lobs", Vector2i.ZERO)
+	t.check(
+		tally.y > 0 and tally.y < tally.x,
+		"a spot's lob is judged once for both kinds (%d judged of %d asked)" % [tally.y, tally.x],
+	)
+
+
+## The whole snapshot (every group, fact and section) with a navmesh snap asked once a decision:
+## equal to the same moment's snapshot with every snap asked, and the snaps asked of more points
+## than were worked out.
+func _snaps(t: TestContext) -> void:
+	var brain := t.controller(&"i", &"debug_state")
+	var perception: Node = brain.get("_perception")
+	var fast: Dictionary = perception.sense(brain.get("goal"), "", 0)
+	var plain: Dictionary = perception.sense(brain.get("goal"), "", 0)
+	(plain["demand"].ctx as Dictionary).erase("tactics_cache")
+	fast["demand"].complete()
+	plain["demand"].complete()
+	t.expect_eq(fast["options"], plain["options"], "the full option set equals the plain one")
+	t.expect_eq(fast["facts"], plain["facts"], "the full facts equal the plain ones")
+	t.expect_eq(fast["sections"], plain["sections"], "the full sections equal the plain ones")
+	var tallies: Dictionary = fast["demand"].ctx["tactics_cache"].get("tally", {})
+	var tally: Vector2i = tallies.get("snaps", Vector2i.ZERO)
+	t.check(
+		tally.y > 0 and tally.y < tally.x,
+		"a point is snapped once a decision (%d worked out of %d asked)" % [tally.y, tally.x],
+	)
+
+
+## Every target's throw group of `demand`, by target id.
+func _throw_groups(demand: RefCounted) -> Dictionary:
+	var out := {}
+	for id in demand.targets:
+		out[id] = demand.target_group("grenade_throws", id)
+	return out
 
 
 ## `_route_exposed` equals the full eight-sample count over routes and threat positions of the house

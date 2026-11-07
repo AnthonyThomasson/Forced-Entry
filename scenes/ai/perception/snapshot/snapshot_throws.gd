@@ -358,7 +358,13 @@ func _throw_aim(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect
 	aim.reach = _throw.reach_of(kind)
 	aim.keep_out = keep_out
 	aim.lob = func(p: Vector2) -> bool:
-		return _throw.throw_clear_on_arrival(space, p, spot, rids)
+		# What a lob is judged on is the spot and the burst, not the kind thrown.
+		var kept: Variant = _tactics.recall(ctx, "lobs", [p, spot])
+		if kept != null:
+			return kept
+		return _tactics.remember(ctx, "lobs", [p, spot], _throw.throw_clear_on_arrival(
+			space, p, spot, rids
+		))
 	aim.route = func(p: Vector2) -> Dictionary: return _throw_walk(ctx, p)
 	return aim
 

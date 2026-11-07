@@ -543,6 +543,37 @@ func _cache_bucket(ctx: Dictionary, name: String) -> Dictionary:
 	return root[name]
 
 
+## What this snapshot already worked out under `key` in the bucket `name` of its cache, or null:
+## null too for a plain computation (no `tactics_cache`), which works everything out. Counts the
+## ask, and `remember` the answer worked out (`tally`, as `Vector2i(asked, worked out)`).
+func recall(ctx: Dictionary, name: String, key: Variant) -> Variant:
+	if not ctx.has("tactics_cache"):
+		return null
+	var tally := _cache_bucket(ctx, "tally")
+	var counts: Vector2i = tally.get(name, Vector2i.ZERO)
+	tally[name] = counts + Vector2i(1, 0)
+	return _cache_bucket(ctx, name).get(key)
+
+
+## `value` worked out for `key` in the bucket `name`, kept for the snapshot's later asks
+## (`recall`); returns `value`.
+func remember(ctx: Dictionary, name: String, key: Variant, value: Variant) -> Variant:
+	if ctx.has("tactics_cache"):
+		_cache_bucket(ctx, name)[key] = value
+		var tally := _cache_bucket(ctx, "tally")
+		tally[name] = (tally.get(name, Vector2i.ZERO) as Vector2i) + Vector2i(0, 1)
+	return value
+
+
+## `p` snapped onto the navmesh (`NavBuilder.snap`), asked once a snapshot: a throw search and the
+## room centres of every group ask the same points again. Worked out afresh in a plain computation.
+func snap(ctx: Dictionary, p: Vector2) -> Vector2:
+	var kept: Variant = recall(ctx, "snaps", p)
+	if kept != null:
+		return kept
+	return remember(ctx, "snaps", p, NavBuilder.snap(ctx["map"], p))
+
+
 ## The route from the frozen NPC position to `p`, shared by every target analysis in this snapshot.
 func _route(ctx: Dictionary, p: Vector2) -> PackedVector2Array:
 	var cache := _cache_bucket(ctx, "routes")
@@ -730,7 +761,7 @@ func _throw_point(ctx: Dictionary, r: Vector2, aim: ThrowAim) -> Vector2:
 	if (self_pos.distance_to(r) > throw_spot_walk
 			or r.distance_to(aim.spot) > aim.reach + SNAP_TOLERANCE):
 		return Vector2.INF
-	var p := NavBuilder.snap(ctx["map"], r)
+	var p := snap(ctx, r)
 	if (p.distance_to(r) > SNAP_TOLERANCE
 			or p.distance_to(aim.spot) > aim.reach
 			or self_pos.distance_to(p) < STRIDE):
@@ -849,7 +880,7 @@ func _retreat_candidates(ctx: Dictionary, threats: Array, rooms: Array, ex: Arra
 		if rect.has_point(self_pos):
 			continue
 		candidates.append({
-			"point": NavBuilder.snap(ctx["map"], rect.get_center()),
+			"point": snap(ctx, rect.get_center()),
 			"room": str(room.get("type", "room")).replace("_", " "),
 		})
 	if threats.is_empty():
