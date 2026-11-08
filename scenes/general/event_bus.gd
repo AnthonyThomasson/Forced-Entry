@@ -8,7 +8,8 @@ extends Node
 ## &"explosion" and &"stun", the vehicles' &"vehicle", &"engine" and &"skid", &"sound" (what Audio
 ## posts for each sound it makes), &"callout" (an AI controller's team radio) and the squads'
 ## &"order" (a leader's order, taken by the AI controllers it names) and &"leader" (a new leader
-## after a death; no game code listens to it, the tests read it off their event log).
+## after a death; no game code listens to it, the tests read it off their event log) and
+## &"death" (a character died, where it lies: a fading overhang hears it).
 
 ## A notification: `topic` names the kind of event, `data` carries its payload.
 signal posted(topic: StringName, data: Dictionary)

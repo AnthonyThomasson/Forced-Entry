@@ -68,4 +68,5 @@
       `to` of the same faction takes it and holds it until done, cancelled or replaced (never on a timer). Besides its leader's orders a
       squad posts its own (rally joins, `go`, `cancel`, the defenders' ambush: interface 21).
     - `&"leader"`: a squad posts it when its leader dies and the next in line leads: `{ faction, leader, previous }` (`leader` null when
-      nobody is left). Tests read it; no game code listens.
+      nobody is left). Tests read it only.
+    - `&"death"`: `Character._die` posts `{ character, position }` (fading overhangs listen).

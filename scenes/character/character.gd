@@ -349,6 +349,7 @@ func _die(direction: Vector2) -> void:
 	anatomy.fall(momentum, direction)
 	inventory.drop_held(momentum)
 	velocity = Vector2.ZERO
+	EventBus.post(&"death", { "character": self, "position": global_position })
 	died.emit()
 
 

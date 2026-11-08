@@ -56,6 +56,7 @@ A living character casts a shadow: `anatomy.attach()` builds a `LightOccluder2D`
 - `&"footfall"` from `character_footsteps.gd` (stepped by `anatomy.step` after the pose): `{ position, foot, speed, running, character, crouched }`. A landing is the foot's stride phase rising through cos 0, above `MIN_WALK` walk amount; none while an interaction holds the character or once dead. Audio voices it, the AI hears by it (`docs/hearing.md` H1), and the sole goes to the `BloodFootprints` child (Physics). Tests: `tests/physics/footprints_trail_test.gd`, `tests/audio/footstep_surface_sound_test.gd`, `tests/ai/perception/footsteps_heard_by_gait_test.gd`.
 - `&"reload"` twice (`start`, `done`; `CharacterAmmo._post`). A reload cancelled by running, switching items, an interaction or death never posts `done`. Test: `tests/audio/reload_sound_test.gd`.
 - `&"hit"` for a landed punch or kick (`_on_punched`, `_on_kicked`, `KICK_HAND`), with `attacker = self`, `outcome = &"punch"` and the victim's `material`, so a punch counts as an attack for AI hostility; also `hit_landed`.
+- `&"death"` once as the body falls (`_die`: `{ character, position }`; a fading overhang hears it, `tests/objects/overhang_stays_faded_over_corpse_test.gd`).
 - `&"stun"` from `stun.take` (`weapon.md`).
 
 ## Walking into furniture

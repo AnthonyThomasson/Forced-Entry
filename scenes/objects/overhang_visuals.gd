@@ -7,10 +7,13 @@ extends Node2D
 ## piece's own painter with `part: "overhang"` in the options, at the overhang's `size` (across x
 ## out, in the canonical frame), centred `reach` px from the piece's centre along its facing. What
 ## in it gives light (a lens, a sign's tube) is drawn again over it by a child `Emissive` layer
-## (emissive_layer.gd), as on the piece. With `fade_under: true` a physics-server area over the
-## drawn area tells when a character comes near, and one shared watcher then reads the character
-## group and steps the overhangs that are fading or have a character near; with none it sleeps, and
-## the overhang itself has no frame callback.
+## (emissive_layer.gd), as on the piece. With `fade_under: true` it fades under any `characters`
+## member in the drawn area, dead or alive: a physics-server area over it tells when a living one
+## comes near, a death posted on the EventBus (`&"death"`) tells when one dies there (a corpse has
+## no collision layer, so the area cannot see it), and one shared watcher then reads the character
+## group and steps the overhangs that are fading or have a character near. A corpse stays near
+## until it is freed, so its overhang stays awake. With none near and none fading the watcher
+## sleeps, and the overhang itself has no frame callback.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const EmissiveLayer = preload("res://scenes/objects/emissive_layer.gd")
@@ -18,6 +21,11 @@ const EmissiveLayer = preload("res://scenes/objects/emissive_layer.gd")
 ## One watcher per scene tree; weak references keep a closed tree or a torn-down world alive
 ## nowhere.
 static var _watchers := {}
+## The overhangs that fade under a character, held weakly: a death looks here for the ones it is
+## under.
+static var _fading: Array[WeakRef] = []
+## Whether the one EventBus listener for deaths is connected.
+static var _hears_deaths := false
 
 ## The overhang's pixel art (null for a piece without an art painter: nothing is drawn).
 var _art: Texture2D
@@ -100,6 +108,9 @@ func fade_step(characters: Array, delta: float) -> bool:
 	if next != modulate.a:
 		modulate.a = next
 		fade_writes += 1
+	for id: int in _near.keys():
+		if not is_instance_id_valid(id):
+			_near.erase(id)
 	_awake = not _near.is_empty() or modulate.a != 1.0
 	return _awake
 
@@ -131,8 +142,13 @@ func draw_emissive(layer: CanvasItem) -> void:
 
 
 ## Watch the drawn area for characters (the living stand on `PhysicsLayers.SOLID`): one coming near
-## wakes the watcher. An area of the physics server, not a node: the overhang has no collider.
+## wakes the watcher, and a death inside it does too (`_on_death`). An area of the physics server,
+## not a node: the overhang has no collider.
 func _listen() -> void:
+	_fading.append(weakref(self))
+	if not _hears_deaths:
+		_hears_deaths = true
+		EventBus.posted.connect(_on_posted)
 	_shape = PhysicsServer2D.rectangle_shape_create()
 	PhysicsServer2D.shape_set_data(_shape, _rect.size * 0.5)
 	_area = PhysicsServer2D.area_create()
@@ -147,20 +163,46 @@ func _listen() -> void:
 
 
 ## A body came into or left the area (`PhysicsServer2D.AREA_BODY_ADDED` / `_REMOVED`): a character
-## coming in wakes the watcher.
+## coming in wakes the watcher; one leaving is forgotten unless it is dead (dying clears its layer,
+## which reads as leaving, and a corpse stays under the overhang).
 func _on_body_event(
 	status: int, _body: RID, instance_id: int, _body_shape: int, _area_shape: int
 ) -> void:
 	if status == PhysicsServer2D.AREA_BODY_REMOVED:
-		_near.erase(instance_id)
+		var gone := instance_from_id(instance_id)
+		if not (gone is Node and (gone as Node).get(&"is_dead") == true):
+			_near.erase(instance_id)
 		return
 	var body := instance_from_id(instance_id) as Node
 	if body == null or not body.is_in_group(&"characters"):
 		return
+	_note_near(instance_id)
+
+
+## Remember the character `instance_id` as near, and wake the watcher.
+func _note_near(instance_id: int) -> void:
 	_near[instance_id] = true
 	if not _awake:
 		_awake = true
 		_watch(self)
+
+
+## The one EventBus listener: a character's death (`&"death"`: `{ character, position }`) under a
+## fading overhang makes it a corpse near it, as a living one is.
+static func _on_posted(topic: StringName, data: Dictionary) -> void:
+	if topic != &"death":
+		return
+	var at: Vector2 = data["position"]
+	var corpse: Object = data["character"]
+	for i in range(_fading.size() - 1, -1, -1):
+		var overhang = _fading[i].get_ref()
+		if overhang == null:
+			_fading.remove_at(i)
+		elif (
+			overhang.is_inside_tree()
+			and (overhang.get_global_transform() * overhang._rect).has_point(at)
+		):
+			overhang._note_near(corpse.get_instance_id())
 
 
 ## Register `overhang` with the tree's one fade watcher, creating it on demand.

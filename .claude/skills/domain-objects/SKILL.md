@@ -71,9 +71,8 @@ A definition's `overhang` (`{ size, reach }`) makes `ObjectFactory` add a child 
 footprint (a streetlight's arm). It draws the piece's own painter with `part: "overhang"` at `size`, centred `reach` px out
 along the facing, at `DrawLayers.OVERHEAD` (`ObjectArtLayerConfig.overhang_z_index`, over the living and vehicles), with no
 collider; `get_rect()` is the area it draws, and it has its own `emissive_layer()` (`tests/objects/overhang_test.gd`).
-`fade_under: true` (a tower's awning and glyph sign) fades its `modulate` to `ObjectFadeConfig.alpha` (0.25) over `seconds` (0.15)
-while a `characters` node stands in `get_rect()`; one shared watcher steps those fading or with a character near (a server area over `get_rect()` wakes it), writing alpha only on change
-(`overhang_fades_under_character_test.gd`).
+`fade_under: true` (a tower's awning and glyph sign) fades its `modulate` to `ObjectFadeConfig.alpha` over `seconds`
+while any `characters` node, dead or alive, stands in `get_rect()`; one shared watcher steps those fading or near one (a server area wakes it; a corpse has no layer: `&"death"`, 10), alpha written on change (`overhang_fades_under_character_test.gd`).
 
 ## Lights and shadows (interface 20; spec `docs/lighting.md`, skill `domain-lighting`)
 
