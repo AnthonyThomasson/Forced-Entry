@@ -2,10 +2,10 @@ extends GameTest
 ## The decision micro bundle (#192 rule 37) changes no answer, only the work: a route's exposure is
 ## settled as soon as five samples are seen or four missed, the throw lob of a spot is judged once
 ## a decision whatever kind asks, and a navmesh point (room centres among them) is snapped once. A
-## firing spot's checks already run cheapest
-## first (the route's crossing, which casts no ray, before its watchers), so none is reordered. Each
-## item is held against the plain computation (the spec's own count of an exposed route: more than
-## half of its eight samples in sight) and shows by a counter that the fast path was taken.
+## firing spot's checks already run cheapest first (the route's crossing, which casts no ray, before
+## its watchers), so none is reordered. Each item is held against the plain computation (the spec's
+## own count of an exposed route: more than half of its eight samples in sight) and shows by a
+## counter that the fast path was taken.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")

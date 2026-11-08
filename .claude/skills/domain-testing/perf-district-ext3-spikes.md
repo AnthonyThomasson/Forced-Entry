@@ -12,7 +12,7 @@ Copied from the spike reports; `/tmp` is not durable.
 - **The decision build has no single hot spot** (per decision, 10v10: `snap.build` 5.73 ms with 420 rays, 21 routes, 58 snaps; `_per_target` 4.06; `tac.fire_positions` 2.47; `_safe_spot` 1.10;
   `retreat_group` 1.26). Rays are about 23 % of a build, routes 14 %, snaps 9 %, the other 54 % GDScript overhead. The heavy decile of decisions (17 to 19 ms) is the lazy `grenade_ready` fact
   (`tac.throw_points` 7.4 ms in the 10v10, `thr.shots_possible` 10.6 in the grenade match); it is read in about 97 % of decisions with a hostile known.
-- **Identical savings are small:** the micro bundle (`_route_exposed` early exit, snap memos, `_safe_spot` ordering, the `coverage`-property fast path of `is_cover`, since dropped) is about 1.0 ms a decision at 10v10 (E), 0.3 at the grenade match,
+- **Identical savings are small:** the micro bundle (`_route_exposed` early exit, snap memos, `_safe_spot` ordering; the 1.0 ms was measured with a `coverage`-property read in `is_cover` that is no longer in it) is about 1.0 ms a decision at 10v10 (E), 0.3 at the grenade match,
   10v10 p95 about -1.5 (E; stock still about 26.5). Rays repeat 11 % inside a decision, snaps in the walk 43 to 50 %, routes about 0 %; consecutive decisions of one NPC differ, so a cross-decision cache has little to hit.
 - **Slicing a decision** (E, replayed): pieces packed to at most 4 ms take the 10v10's stock p95 from about 25.9 to 23.3 and leave max about 46; at most 3 ms, 22.4. It costs 1 to 3 frames of latency
   (small against Von's about 100 ms) and breaks tests that pin the state at the decision's start tick (a delayed walk by one frame fails `ai/decision/order_transport` and

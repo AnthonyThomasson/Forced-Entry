@@ -52,27 +52,28 @@ solid pieces only, re-fed the footprint polygon when the collider is rebuilt.
 
 - The drop shadow (the visuals' `DropShadow` child) is the art's own alpha through the deformed outline, offset away from the
   light by `coverage × drop_shadow_per_coverage`, capped; non-solid decor casts none. A turn moves the child (`_shadow_shift`),
-  it repaints nothing (`tests/objects/drop_shadow_follows_turn_test.gd`).
-- A piece repaints (art and shadow) only when its `Deformable` records an impact, not each frame (a district has hundreds); the visuals run no `_process` at all: the Deformable is wired once the object is ready, and the shadow follows a turn on `NOTIFICATION_TRANSFORM_CHANGED` (`tests/objects/resting_piece_runs_no_per_frame_callback_test.gd`); the
+  it repaints nothing (`drop_shadow_follows_turn_test.gd`).
+- A piece repaints (art and shadow) only when its `Deformable` records an impact, not each frame (a district has hundreds); the visuals run no `_process` at all: the Deformable is wired once the object is ready, and the shadow follows a turn on `NOTIFICATION_TRANSFORM_CHANGED` (`resting_piece_runs_no_per_frame_callback_test.gd`); the
   art is drawn through `Deformation.draw_shape(..., shape_look)` so dents cut into it. A wall draws each segment in its own child
-  (`Segment<i>`), so a hit repaints that segment alone (`tests/objects/wall_segment_repaints_alone_test.gd`).
+  (`Segment<i>`), so a hit repaints that segment alone (`wall_segment_repaints_alone_test.gd`).
 - A hit queues one deferred collider rebuild however many hits land first (a wall: one per struck segment, `_rebuild_queued`).
   A blast dents a room's worth of pieces in one frame and cutting a dented silhouette into convex pieces is the costly part, so a
   hit that queues a rebuild also queues its cut in `ColliderCuts` (`queue(make)`; `make` runs on the main thread, copies the dents,
   returns a pure job: `Deformation.cut_shape` / `cut_wall`). The first rebuild's `take()` starts every other waiting cut on a worker
   thread; later `take()`s wait for theirs and use it only if its polygon is still the silhouette (else cut there, `_pieces_of`). A
   cut whose piece leaves the tree is dropped (`cancel()`, in `_exit_tree`; a running one is waited for). Tests:
-  `tests/objects/blast_colliders_match_plain_test.gd` (also checks cuts ran on workers, `ColliderCuts.started`),
-  `wall_dents_share_a_rebuild_test.gd`.
+  `tests/objects/blast_colliders_match_plain_test.gd`, `wall_dents_share_a_rebuild_test.gd`.
 
 ## The overhang (`overhang_visuals.gd`, interface 2)
 
 A definition's `overhang` (`{ size, reach }`) makes `ObjectFactory` add a child `Overhang`: the part that reaches beyond the
-footprint (a streetlight's arm). It draws the piece's own painter with `part: "overhang"` at `size`, centred `reach` px out
+footprint (a streetlight's arm and head). It draws the piece's own painter with `part: "overhang"` at `size`, centred `reach` px out
 along the facing, at `DrawLayers.OVERHEAD` (`ObjectArtLayerConfig.overhang_z_index`, over the living and vehicles), with no
 collider; `get_rect()` is the area it draws, and it has its own `emissive_layer()` (`tests/objects/overhang_test.gd`).
 `fade_under: true` (a tower's awning and glyph sign) fades its `modulate` to `ObjectFadeConfig.alpha` over `seconds`
-while any `characters` node, dead or alive, stands in `get_rect()`; one shared watcher steps those fading or near one (a server area wakes it; a corpse has no layer: `&"death"`, 10), alpha written on change (`overhang_fades_under_character_test.gd`).
+while any `characters` node, alive, dead or riding, stands in `get_rect()`: one shared watcher steps those fading or near one. A server
+area wakes it (a vehicle with riders, not a rider; a corpse has no layer: `&"death"`, 10), alpha written on
+change (`overhang_fades_under_character_test.gd`, `overhang_fades_over_rider_test.gd`).
 
 ## Lights and shadows (interface 20; spec `docs/lighting.md`, skill `domain-lighting`)
 

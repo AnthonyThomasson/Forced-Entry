@@ -34,8 +34,8 @@
 	 the map baked yet" rule lives in one place.
    - **A district's planning ring**, the AI's planning map in a district: `NavBuilder.plan_ring(region, house, focus, agent_radius = NavBuilder.AGENT_RADIUS)`
 	 (`MatchBuilder.stage` calls it for a district; `focus` the rooms of the building the match is fought in) adds `NavRing`, a small map of that
-	 building and its outdoor ring (`BOUNDS_PAD`), baked from the same walls and furniture as the world's map and re-baked with it, because
-	 the server scans every polygon of a map for a query. **The AI does not
+	 building and its outdoor ring (`BOUNDS_PAD`), because the server scans every polygon of a map for a query; baked from the same walls
+	 and furniture as the world's map and re-baked with it. **The AI does not
 	 know of it**: `snap`, `snap_within` and `route` take the world map as ever and answer from the ring when every point they weigh lies well
 	 inside it (`NavRing.MARGIN`), else from the world's map, and a route the ring cannot finish is asked of the world's map; `ready(map)` also
 	 waits for the ring. A lone house has no ring and one planning map. Walking, steering and the avoid maps stay on the world's maps.

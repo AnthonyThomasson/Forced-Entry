@@ -10,7 +10,7 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 
 | File | Role |
 |---|---|
-| `nav_builder.gd` (`NavBuilder`) | All static: bake, re-bake, the holes, the steering and avoid maps, `ready` / `snap` / `route` / `path_length`. |
+| `nav_builder.gd` (`NavBuilder`) | All static: bake, re-bake, the holes, the steering and avoid maps, `ready` / `snap` / `route` / `path_length` / `iterations`. NavBuilder is at 20 public methods, the `max-public-methods` cap: the next one needs a split. |
 | `nav_site.gd` (`NavSite`) | The source geometry's inputs: the house, its rooms, the agent radius and a district's explicit `bounds`. |
 | `nav_leaves.gd` (`NavLeaves`) | All static: the house doors (`doors_of`, by the group) and the hole an open leaf leaves (`hole`). |
 | `nav_updater.gd` | Script-only Node that re-bakes on an interval. |
@@ -21,7 +21,7 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 | `nav_tiles.gd` (`NavTiles`) | A district's steering tiles, the per-tower wall cache and the remembered outline bounds. |
 | `nav_ring.gd` (`NavRing`) | A district's planning ring: a small map of the match building. |
 | `nav_ready.gd`, `nav_snaps.gd` | `NavReady`: does a map answer yet. `NavSnaps`: what `snap` learned. |
-| `nav_routes.gd` (`NavRoutes`) | The exact route answers remembered between planning-map re-bakes. |
+| `nav_routes.gd` (`NavRoutes`) | The exact route answers remembered between planning-map re-bakes, and `iterations(map)`. |
 | `nav_union.gd` (`NavUnion`) | Fuses overlapping footprints. |
 | `nav_weld.gd` (`NavWeld`) | A bake's end: vertices welded, slivers dropped. |
 | `nav_debug.gd` | Draw-only overlay of the holes. |
@@ -104,7 +104,7 @@ toward the room's centre, then `from`, every `SNAP_WITHIN_STEP` (8 px) until its
 remembers the exact `(map, from, to)` answer, including the final answer after any ring-to-district fallback, only while both
 planning maps' iteration IDs stand; a repeat returns a copy, either map's re-bake starts its answers afresh, and freeing a map
 drops its entries. The per-map and whole-cache bounds start full caches afresh (`navigation/route_cache_follows_rebake`);
-`path_length(path)` sums a path. The AI calls these rather than keeping its own guard.
+`path_length(path)` sums a path. `iterations(map)` is `[district, ring]` (-1 without a ring), what an answer is valid for: equal to an earlier read while neither took a re-bake in (the lead-walk memo keys on it). The AI calls these rather than keeping its own guard.
 
 ## Debug overlay (`nav_debug.gd`)
 

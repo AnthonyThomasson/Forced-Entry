@@ -36,9 +36,9 @@ cut a redrawn body from 6.65 to 6.33 ms in a scratch A/B of 10 bodies, far under
 
 Why 10v10 and `match_npc_vision` stay red, with both spikes' findings copied (`/tmp` is not durable): `perf-district-ext3-spikes.md`.
 
-## After the stagger fix: base against the branch, interleaved (2026-11-07, HEAD `d2f20dea` against base `1afec1d2`)
+## After the stagger fix, before the review fixes: base against the branch, interleaved (2026-11-07)
 
-Run alternately (A, B, A, B), without the quiet gate, at load 10 to 19 with 29 to 40 other Godot processes (none a test's). The branch's average frame was
+The branch is Extension 3 as it stood after the look-phase fix (`d2f20dea`), before the twelve review-fix commits that followed; the base is the story's own revision before Extension 3 (`1afec1d2`), not `main`. The review fixes touch the measured path and are unmeasured (#195). Run alternately (A, B, A, B), without the quiet gate, at load 10 to 19 with 29 to 40 other Godot processes (none a test's). The branch's average frame was
 higher in **8 of 8 pairs**:
 
 | Guard | branch minus base, average frame |

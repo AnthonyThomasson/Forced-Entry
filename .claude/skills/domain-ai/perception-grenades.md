@@ -1,6 +1,6 @@
 # AI · Perception · Grenades (`agent_grenades.gd`, `agent_throw.gd`, `perception_grenades.gd`)
 
-What the NPC knows of live grenades and the plan to get clear of them. Spec: `docs/grenades.md` G15, G16. Behaviour: (running the plan, the throw) is `behavior.md` (the evade reflex) and `combat.md`; the GRENADE and STUN ENTRY options: `snapshot-wording.md`. Tunables: `tuning.grenades` (`enabled`, `hear_grenade`, `evade_margin`, `blind_fire_chance`, `throw_spot_walk`).
+What the NPC knows of live grenades and the plan to get clear of them. Spec: `docs/grenades.md` G15, G16. The behaviour half (running the plan, the throw) is `behavior.md` (the evade reflex) and `combat.md`; the GRENADE and STUN ENTRY options are `snapshot-wording.md`. Tunables: `tuning.grenades` (`enabled`, `hear_grenade`, `evade_margin`, `blind_fire_chance`, `throw_spot_walk`).
 
 ## What it knows (`grenades.known()`)
 
