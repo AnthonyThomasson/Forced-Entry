@@ -83,10 +83,10 @@ class PickTests(unittest.TestCase):
         self.assertIn("tools.tests.test_gdstyle_reflow", self.modules("gdstyle.toml"))
 
     def test_a_skill_file_agents_md_or_a_doc_picks_both_skill_tests(self):
-        for path in (".claude/skills/architecture/SKILL.md", ".claude/skills/domain-ui/SKILL.md",
-                     ".claude/skills/domain-testing/perf.md", ".claude/skills/domain-ai/team.md",
-                     ".claude/skills/ticket/bug.md", ".claude/skills/architecture/tuning-holders.md",
-                     ".claude/skills/architecture/interfaces/05-pushable-contract.md", "AGENTS.md",
+        for path in (".skillshare/skills/architecture/SKILL.md", ".skillshare/skills/domain-ui/SKILL.md",
+                     ".skillshare/skills/domain-testing/perf.md", ".skillshare/skills/domain-ai/team.md",
+                     ".skillshare/skills/finish/SKILL.md", ".skillshare/skills/architecture/tuning-holders.md",
+                     ".skillshare/skills/architecture/interfaces/05-pushable-contract.md", "AGENTS.md",
                      "docs/agents/issue-tracker.md", "docs/hearing.md"):
             with self.subTest(path=path):
                 picked = self.modules(path)

@@ -34,7 +34,7 @@ unused = [s for s in switches if f'&"{s}"' not in all_test_text]
 print("  " + (", ".join(unused) if unused else "(all used)"))
 
 print("\n== Interfaces never called by a test ==")
-interfaces_text = "\n".join(p.read_text() for p in sorted((ROOT / ".claude/skills/architecture/interfaces").glob("*.md")))
+interfaces_text = "\n".join(p.read_text() for p in sorted((ROOT / ".skillshare/skills/architecture/interfaces").glob("*.md")))
 # A public member only: `Keybinds._ready` is named in the skill as what Main does NOT call.
 names = sorted(set(re.findall(r"`([A-Z][A-Za-z]+\.[a-z][a-z_]*)\b", interfaces_text)))
 missing = []

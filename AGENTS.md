@@ -8,19 +8,20 @@ the cross-cutting conventions and the whole sanctioned cross-domain interface su
 `tactical-entry.md`, `gaze-and-fire.md`, `grenades.md`, `hearing.md`, `outfits.md`, `vehicles.md`, `lighting.md`,
 `leadership.md`, `doors.md`, `player-vision.md`).
 
-**Working on a GitHub ticket (issue)? Invoke the `ticket` skill first.** It routes the ticket's label to a kind file in its
-folder (e.g. `spike` → `spike.md`).
+**GitHub tickets (issues) run through the Herdr workflows in `.herdr/workflows/`,** one per kind; each one's prompts hold its
+phases.
 
 **Checks:** on Stop, when the turn changed what lint reads, Claude runs lint and the headless load check
 (`tools/stop_hook_checks.sh`). Lint is the engine's analyzer, the project lint rules and gdstyle (`gdstyle.toml`: 100
 columns, tabs; format with `tools/gdstyle.sh fmt PATH`); any finding fails it. The pre-commit hook (`.githooks/pre-commit`)
 pairs each `.gd` with its `.gd.uid` and runs the tool tests, the commit's lint and the game tests the commit can break
 (perf apart: `tools/run_tests.sh --domain=perf`); the commit-msg hook (`.githooks/commit-msg`) keeps one Claude model per
-branch. Enable both once per clone with `tools/install_hooks.sh`; each script's header holds its rules. Tests run through
+branch. Enable both once per clone with `tools/install_hooks.sh`; each script's header holds its rules. Skills live in
+`.skillshare/skills/`; `.claude/skills/` is gitignored symlinks that `tools/sync_skills.sh` makes (`install_hooks.sh` and
+the post-checkout hook, for a new worktree, run it). Tests run through
 gdUnit4 (`addons/gdUnit4/`; `tools/run_tests.sh` drives it headless).
 
 ## Agent skills
 
 - **Issue tracker:** GitHub Issues on `AnthonyThomasson/Forced-Entry`, through `gh`: `docs/agents/issue-tracker.md`.
-- **Triage labels:** the five default roles keep their names: `docs/agents/triage-labels.md`.
 - **Domain docs:** single-context, one `GLOSSARY.md` and `docs/adr/` at the root: `docs/agents/domain.md`.
