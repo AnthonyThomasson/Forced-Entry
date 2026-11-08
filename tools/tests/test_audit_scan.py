@@ -25,7 +25,7 @@ from tools.coverage.tests.support import TempDir, class_tempdir
 
 ROOT = Path(__file__).resolve().parents[2]
 PINNED = "304afdf7debab3f2db7fd09b9dfe3a555417a17e"  # tools/audit_scan.py before the ticket #68 refactor
-SCANNED = ("scenes", "tests", "tools", "addons", ".claude", "docs")
+SCANNED = ("scenes", "tests", "tools", "addons", ".skillshare", "docs")
 FIXTURES = Path("tools") / "coverage" / "tests" / "fixtures"
 
 

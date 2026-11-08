@@ -12,18 +12,6 @@ Issues and specs live as GitHub issues; use the `gh` CLI. It infers the repo fro
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
 
-## Pull requests as a triage surface
-
-**PRs as a request surface: no.** _(`/triage` reads this flag; `yes` makes external PRs feature requests.)_
-
-When `yes`, PRs run through the same labels and states as issues, with the `gh pr` equivalents:
-
-- **Read a PR**: `gh pr view <number> --comments` and `gh pr diff <number>` for the diff.
-- **List external PRs for triage**: `gh api --paginate 'repos/{owner}/{repo}/pulls?state=open' --jq '.[] | select(.author_association | IN("OWNER","MEMBER","COLLABORATOR") | not) | {number, title, author: .user.login, author_association, labels: [.labels[].name]}'`.
-- **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label`/`--remove-label`, `gh pr close`.
-
-GitHub shares one number space across issues and PRs, so a bare `#42` may be either: resolve with `gh pr view 42` and fall back to `gh issue view 42`.
-
 ## When a skill says "publish to the issue tracker"
 
 Create a GitHub issue.

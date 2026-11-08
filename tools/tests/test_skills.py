@@ -1,4 +1,4 @@
-"""Checks on the project skills (`.claude/skills/`), `AGENTS.md`, `docs/agents/` and the `docs/` specs, read as text
+"""Checks on the project skills (`.skillshare/skills/`), `AGENTS.md`, `docs/agents/` and the `docs/` specs, read as text
 (nothing written to the checkout). Each rule is a function that takes the skills root (and the files it reads); a
 fixture test breaks the rule in a temp dir and expects the finding, and one live test runs the same function on the
 real checkout:
@@ -20,7 +20,7 @@ from tools.tests.skill_text import names_alternation, outside_fences
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SKILLS = ROOT / ".claude" / "skills"
+SKILLS = ROOT / ".skillshare" / "skills"
 AGENTS = ROOT / "AGENTS.md"
 DOCS = ROOT / "docs"
 DESCRIPTION_MAX = 200
@@ -28,7 +28,7 @@ DESCRIPTIONS_TOTAL_MAX = 6144
 SKILL_MD_MAX = 12288
 SIDE_FILE_MAX = 8192
 PARAGRAPH_MIN = 200
-REPO_ROOTS = ("scenes", "tests", "tools", "docs", ".claude", "addons", "sandboxes", ".githooks")
+REPO_ROOTS = ("scenes", "tests", "tools", "docs", ".claude", ".skillshare", "addons", "sandboxes", ".githooks")
 INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
 # Skills folded into a side file: a reference to one is stale. Add a skill's name here when it is removed, so a
 # reference to it goes red once its folder is gone.
@@ -333,12 +333,12 @@ class CapTests(unittest.TestCase):
 
 
 class ReferenceTests(unittest.TestCase):
-    """`check_references(skills, files, repo)`: the skills under `repo/.claude/skills`, `files` the Markdown read."""
+    """`check_references(skills, files, repo)`: the skills under `repo/.skillshare/skills`, `files` the Markdown read."""
 
     def findings(self, text: str, build=None) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
-            skills = repo / ".claude" / "skills"
+            skills = repo / ".skillshare" / "skills"
             write_skill(skills, "domain-alpha")
             write_skill(skills, "ticket")
             (repo / "scenes" / "ai").mkdir(parents=True)
@@ -365,11 +365,11 @@ class ReferenceTests(unittest.TestCase):
         self.assertIn("ticket-bug", found[0])
 
     def test_a_skill_name_inside_a_longer_span_is_read(self):
-        found = self.findings("`.claude/skills/domain-gone/SKILL.md`\n")
+        found = self.findings("`.skillshare/skills/domain-gone/SKILL.md`\n")
         self.assertTrue(any("domain-gone" in f for f in found), found)
 
     def test_a_missing_repo_path_is_a_finding_for_every_root(self):
-        roots = ["scenes", "tests", "tools", "docs", ".claude", "addons", "sandboxes", ".githooks"]
+        roots = ["scenes", "tests", "tools", "docs", ".claude", ".skillshare", "addons", "sandboxes", ".githooks"]
         text = " ".join(f"`{r}/nope.md`" for r in roots)
         found = self.findings(text)
         self.assertEqual(len(found), len(roots), found)
@@ -410,7 +410,7 @@ class ReferenceTests(unittest.TestCase):
 
     def test_a_skill_that_exists_is_no_finding_whatever_its_name(self):
         def build(repo: Path):
-            write_skill(repo / ".claude" / "skills", "session-retro")
+            write_skill(repo / ".skillshare" / "skills", "session-retro")
         self.assertEqual(self.findings("Run `session-retro`.\n", build), [])
 
     def test_a_word_that_only_starts_with_a_skill_name_is_no_reference(self):
@@ -421,7 +421,7 @@ class ReferenceTests(unittest.TestCase):
         self.assertEqual(len(self.findings("`domain-modeling` and `/ticket-bug`")), 2)
 
     def test_a_bracketed_name_is_a_placeholder(self):
-        self.assertEqual(self.findings("`.claude/skills/domain-alpha/[brief file]`"), [])
+        self.assertEqual(self.findings("`.skillshare/skills/domain-alpha/[brief file]`"), [])
 
     def test_a_path_that_exists_only_while_a_ticket_or_a_run_makes_it_is_not_required(self):
         # The exceptions: a ticket's temporary showroom and the config the gdUnit panel writes (gitignored).
@@ -438,7 +438,7 @@ class CommentReferenceTests(unittest.TestCase):
     def findings(self, text: str, name: str = "scenes/x.gd") -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
-            skills = repo / ".claude" / "skills"
+            skills = repo / ".skillshare" / "skills"
             write_skill(skills, "domain-alpha")
             source = repo / name
             source.parent.mkdir(parents=True, exist_ok=True)
@@ -530,7 +530,7 @@ class DuplicationTests(unittest.TestCase):
         paragraph = "x" * 200
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
-            skills, docs = repo / ".claude" / "skills", repo / "docs"
+            skills, docs = repo / ".skillshare" / "skills", repo / "docs"
             write_skill(skills, "alpha", body=f"# A\n\n{paragraph}\n")
             (docs / "agents").mkdir(parents=True)
             (docs / "spec.md").write_text(f"{paragraph}\n")

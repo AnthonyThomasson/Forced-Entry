@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Git post-checkout hook: relink .claude/skills/ on a branch checkout, which is also how a new worktree (git worktree
+# add) gets its links. It only warns: a failed sync must not make the checkout itself report failure.
+[[ "${3:-0}" == 1 && -x tools/sync_skills.sh ]] || exit 0
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+tools/sync_skills.sh >/dev/null || echo "warning: tools/sync_skills.sh failed; skills may be stale in this checkout" >&2
+exit 0

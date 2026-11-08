@@ -1,0 +1,33 @@
+version: 1
+id: bug
+name: FE - Bug
+strategy: worktree
+
+trigger:
+  labels:
+    - bug
+  match: any
+
+orchestrator:
+  agent: claude
+  command: ""
+  model: opus
+  effort: high
+  prompt: ""
+  planning: Run the `fix` skill; it owns the phases. Planning ends only with a test that reproduces the bug.
+  retro: Run the `session-retro` skill, then ask whether to `finish`.
+
+worker:
+  agent: claude
+  command: ""
+  model: sonnet
+  effort: medium
+  prompt: This bug workflow runs reproduce, fix and green with the user in the orchestrator's session, since the fix gate needs them mid-phase. Report that and stop, changing nothing.
+  testing: ""
+
+reviewer:
+  agent: claude
+  command: ""
+  model: haiku
+  effort: low
+  prompt: A bug has no audit. Report that and stop, changing nothing.

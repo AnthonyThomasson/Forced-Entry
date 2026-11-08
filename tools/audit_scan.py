@@ -282,7 +282,7 @@ def facts() -> None:
     snap = "scenes/ai/perception/agent_snapshot.gd"
     body = re.search(r"var facts := \{(.*?)\n\t\}", read(snap), re.S)
     keys = re.findall(r"\"([a-z_]+)\"\s*:", body.group(1)) if body else []
-    docs = "\n".join(Path(q).read_text(errors="ignore") for r in (".claude", "docs") if os.path.isdir(r)
+    docs = "\n".join(Path(q).read_text(errors="ignore") for r in (".skillshare", "docs") if os.path.isdir(r)
                      for q in Path(r).rglob("*.md"))
     gated = gated_facts()
     ungated = [k for k in keys if k not in gated]

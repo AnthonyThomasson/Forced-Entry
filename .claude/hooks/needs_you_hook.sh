@@ -3,7 +3,7 @@
 # waiting on the user — an AskUserQuestion (PreToolUse: the question and its options), a permission prompt or an
 # agent needing input (Notification), or a reply whose last paragraph ends by asking something (Stop). Everything
 # else stays silent; the built-in notifications are off (preferredNotifChannel) so this is the one source. The
-# banner is titled with the session's folder, so an Orca worktree says which worker is asking. Wired in
+# banner is titled with the session's folder, so a worktree says which session is asking. Wired in
 # .claude/settings.json.
 #
 # Mute the voice (keep the banner): "mute": true in .claude/hooks/needs_you.json of the main checkout, which every
@@ -14,7 +14,7 @@ input=$(cat)
 event=$(jq -r '.hook_event_name // empty' <<<"$input")
 session=$(jq -r '.session_id // "none"' <<<"$input")
 cwd=$(jq -r '.cwd // empty' <<<"$input")
-# The worktree the session runs in, by its root folder (Orca names it after the task); the main checkout is "main".
+# The worktree the session runs in, by its root folder; the main checkout is "main".
 root=$(git -C "${cwd:-$PWD}" rev-parse --show-toplevel 2>/dev/null)
 common=$(git -C "${cwd:-$PWD}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
 if [ -n "$root" ] && [ "$root" = "$(dirname "$common")" ]; then

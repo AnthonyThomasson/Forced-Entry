@@ -1,15 +1,14 @@
-"""Every skill under `.claude/skills/` is a short SKILL.md map plus side files read on demand (`architecture/interfaces/NN-<slug>.md`,
-`domain-testing/perf.md`, `domain-ai/team.md`, `ticket/bug.md`, ...). These checks keep the maps and their files in
+"""Every skill under `.skillshare/skills/` is a short SKILL.md map plus side files read on demand (`architecture/interfaces/NN-<slug>.md`,
+`domain-testing/perf.md`, `domain-ai/team.md`, ...). These checks keep the maps and their files in
 step, reading the checkout as text (nothing written to it, nothing run but tools/test_coverage.py):
   - every path into a skill folder written in a skill, AGENTS.md or docs/ names a file that exists: rooted
-    (`architecture/interfaces/07-character-and-controller.md`, `.claude/skills/domain-testing/perf.md`) anywhere, or
+    (`architecture/interfaces/07-character-and-controller.md`, `.skillshare/skills/domain-testing/perf.md`) anywhere, or
     relative to the skill folder (`interfaces/07-...md`, `perf.md`) inside it; `domain-ai` (`team.md`) names `team.md`
     of that other skill, wherever it is written;
   - the interface index in architecture/SKILL.md and the files under interfaces/ match one to one, numbered 1..N with
     no gap (N the index's line count);
   - no orphan: every side file of every skill is reachable from its SKILL.md through relative pointers;
-  - routing: every `domain-*` skill is in a row of architecture's domain table; ticket's routing table names only kind
-    files that exist (a row that names none says `none`), names every kind and leaves no kind file out;
+  - routing: every `domain-*` skill is in a row of architecture's domain table;
   - each section another file cites against a skill (`<skill>`, "<section>", or "<section>" (`<skill>`)) is a heading
     of its SKILL.md (the whole heading, or a prefix ending at a word);
   - each section a skill's file cites in a named file (`perf.md`, "Rendered too") is still a heading or a
@@ -27,17 +26,14 @@ from pathlib import Path
 from tools.tests.skill_text import names_alternation, outside_fences
 
 ROOT = Path(__file__).resolve().parents[2]
-SKILLS = ROOT / ".claude" / "skills"
+SKILLS = ROOT / ".skillshare" / "skills"
 SKILL_NAMES = tuple(sorted(p.name for p in SKILLS.iterdir() if p.is_dir()))
-# The ticket kinds the routing table sends to, and the files in `ticket/` that help a kind and are no kind.
-TICKET_KINDS = ("story", "bug", "spike", "ai", "harness", "refactor", "assets")
-TICKET_HELPERS = ("workers", "assets-showroom")
 # The `Class.method` names tools/test_coverage.py reads out of the interface files: bump it when an interface file
 # gains or loses one.
 COVERAGE_NAMES = 215
 
 # A path into a skill's folder, rooted at the skills dir or the repo, placeholders and globs captured too.
-ROOTED = re.compile(r"(?<![\w/.-])(?:(?:\.claude/)?skills/)?(" + names_alternation(SKILL_NAMES)
+ROOTED = re.compile(r"(?<![\w/.-])(?:(?:\.skillshare/)?skills/)?(" + names_alternation(SKILL_NAMES)
                     + r")/([\w./*<>-]*[\w*>])")
 # A backticked `.md` path inside a split skill's folder, read there first, then in the repo root or the skills dir.
 RELATIVE = re.compile(r"`((?:[\w-]+/)*[\w.-]+\.md)`")
@@ -169,29 +165,6 @@ def domains_missing_from_table(skills: Path) -> list[str]:
     return sorted(p.name for p in skills.glob("domain-*") if p.is_dir() and p.name not in named)
 
 
-def ticket_routing_findings(skills: Path, kinds=TICKET_KINDS, helpers=TICKET_HELPERS) -> list[str]:
-    """Findings on the routing table of ticket/SKILL.md: a kind file it names that does not exist, a row that names
-    none and does not say `none`, a kind it leaves out, a `.md` in ticket/ that is neither a kind nor a helper."""
-    folder = skills / "ticket"
-    named, found = set(), []
-    for label, *cells in table_rows((folder / "SKILL.md").read_text(), "Label"):
-        read = cells[0] if cells else ""
-        files = BACKTICKED_MD.findall(read)
-        if not files and not re.search(r"\bnone\b", read):
-            found.append(f"row {label}: names no kind file and does not say none")
-        for f in files:
-            named.add(f)
-            if f.removesuffix(".md") in helpers:
-                found.append(f"row {label}: {f} is a helper, not a kind")
-            elif not (folder / f).is_file():
-                found.append(f"row {label}: {f} does not exist in ticket/")
-    found += [f"the routing table does not name {k}.md" for k in kinds if f"{k}.md" not in named]
-    allowed = {"SKILL.md", *(f"{n}.md" for n in (*kinds, *helpers))}
-    found += [f"ticket/{p.name} is neither a kind nor a helper" for p in sorted(folder.glob("*.md"))
-              if p.name not in allowed]
-    return found
-
-
 def make_skills(tmp: str, files: dict[str, str]) -> Path:
     """A skills root in `tmp` holding `files` (path under it -> text)."""
     skills = Path(tmp)
@@ -263,18 +236,6 @@ DOMAIN_TABLE = """| Domain | Folder | Skill | Owns |
 | A | `a/` | `domain-a` (`side.md`) | x |
 | B | `b/` | `domain-b` | y |
 """
-ROUTING = """## Route
-   | Label | Read |
-   |---|---|
-   | `spike` | `spike.md` |
-   | `bug` | `bug.md` |
-   | `wayfinder:map` | none: a decision ticket |
-
-   | State | Then |
-   |---|---|
-   | none / `needs-triage` | go on |
-"""
-
 
 class RoutingTests(unittest.TestCase):
     def domains_missing(self, table: str, folders=("domain-a", "domain-b")) -> list[str]:
@@ -308,51 +269,6 @@ class RoutingTests(unittest.TestCase):
 
     def test_the_live_domain_table_names_every_domain_skill(self):
         self.assertEqual(domains_missing_from_table(SKILLS), [])
-
-    def routing(self, ticket_md: str, extra: tuple[str, ...] = (), kinds: tuple[str, ...] = ("spike", "bug"),
-                helpers: tuple[str, ...] = ("workers",)) -> list[str]:
-        with tempfile.TemporaryDirectory() as tmp:
-            files = {"ticket/SKILL.md": ticket_md, **{f"ticket/{k}.md": "" for k in (*kinds, *extra, *helpers)}}
-            return ticket_routing_findings(make_skills(tmp, files), kinds, helpers)
-
-    def test_a_table_naming_every_kind_file_that_exists_is_no_finding(self):
-        self.assertEqual(self.routing(ROUTING), [])
-
-    def test_a_named_kind_file_that_does_not_exist_is_a_finding(self):
-        found = self.routing(ROUTING.replace("`bug.md`", "`bug.md`, `ghost.md`"))
-        self.assertEqual(len(found), 1, found)
-        self.assertIn("ghost.md", found[0])
-
-    def test_a_kind_the_table_leaves_out_is_a_finding(self):
-        found = self.routing(ROUTING.replace("| `spike` | `spike.md` |\n", ""))
-        self.assertEqual(len(found), 1, found)
-        self.assertIn("spike", found[0])
-
-    def test_a_kind_file_in_the_folder_that_is_not_a_kind_or_a_helper_is_a_finding(self):
-        found = self.routing(ROUTING, extra=("stray",))
-        self.assertEqual(len(found), 1, found)
-        self.assertIn("stray.md", found[0])
-
-    def test_a_row_that_names_no_file_and_does_not_say_none_is_a_finding(self):
-        found = self.routing(ROUTING.replace("none: a decision ticket", "a decision ticket"))
-        self.assertEqual(len(found), 1, found)
-        self.assertIn("wayfinder:map", found[0])
-
-    def test_a_helper_file_in_the_routing_table_is_a_finding(self):
-        found = self.routing(ROUTING.replace("`bug.md`", "`bug.md`, `workers.md`"))
-        self.assertEqual(len(found), 1, found)
-        self.assertIn("workers.md", found[0])
-
-    def test_none_is_a_word_not_a_substring(self):
-        found = self.routing(ROUTING.replace("none: a decision ticket", "nonetheless a decision ticket"))
-        self.assertEqual(len(found), 1, found)
-
-    def test_a_one_cell_row_is_a_finding_not_a_crash(self):
-        found = self.routing(ROUTING.replace("| `bug` | `bug.md` |", "| `bug` |"))
-        self.assertTrue(any("bug" in f for f in found), found)
-
-    def test_the_live_routing_table_names_every_kind_file(self):
-        self.assertEqual(ticket_routing_findings(SKILLS, TICKET_KINDS, TICKET_HELPERS), [])
 
 
 class SkillPointerTests(unittest.TestCase):

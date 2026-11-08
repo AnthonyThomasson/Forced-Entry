@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/runkids/skillshare/main/schemas/project-config.schema.json
+
+targets:
+  - claude
+ignore:
+  - .DS_Store
+  - .git/
+  - __pycache__/
+audit:
+  block_threshold: CRITICAL
+hooks:
+  entries:
+    claude-stop:
+      bindings:
+        claude:
+          events:
+            Stop:
+              - hooks:
+                  - command: '"$CLAUDE_PROJECT_DIR"/tools/stop_hook_checks.sh'
+                    statusMessage: Running lint and load check…
+                    timeout: 60
+                    type: command
+                  - command: '"$CLAUDE_PROJECT_DIR"/.claude/hooks/needs_you_hook.sh'
+                    timeout: 10
+                    type: command
+    claude-pretooluse:
+      bindings:
+        claude:
+          events:
+            PreToolUse:
+              - hooks:
+                  - command: '"$CLAUDE_PROJECT_DIR"/.claude/hooks/needs_you_hook.sh'
+                    timeout: 10
+                    type: command
+                matcher: AskUserQuestion
+    claude-notification:
+      bindings:
+        claude:
+          events:
+            Notification:
+              - hooks:
+                  - command: '"$CLAUDE_PROJECT_DIR"/.claude/hooks/needs_you_hook.sh'
+                    timeout: 10
+                    type: command
+                matcher: permission_prompt|agent_needs_input|elicitation_dialog|elicitation_url_dialog
