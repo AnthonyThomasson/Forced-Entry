@@ -41,13 +41,11 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
   tests on a generated house are), `warm_until_contact(t, label, characters)` runs `MATCH_WARMUP_S` then
   `await_contact` (at most `MATCH_CONTACT_WITHIN`, 30 s: the invaders start in the street) and `require`s contact as the premise (a shot fired and some NPC
   knowing a hostile, `knows_hostile`), and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines).
-- **What the player's view costs is held as a difference** (`perf/match_npc_vision_relative`, `docs/player-vision.md` "Measured cost"):
-  one 10v10 in one process, blocks of frames with the view working and blocks with it switched off (node disabled, viewports not
-  rendering), interleaved on, off, off, on, because two plays of the match differ from each other by far more than the view costs.
-  It holds the median difference to `BUDGET_MS` and the live cone's cost to `RATIO_MAX` of the reference cone's from the same eye
-  (`tests/_vision/reference_view_cone.gd`). Its moving rounds hold `MOVING_BUDGET_MS`, 8.5 ms (about 1.4x the moving mean of about 6 ms after #192's Extension 3, 4.60 and 5.61; was 20), which departs from the 4x rule: 4x of a per-frame cost would never trip. Headless sees the CPU side only. `perf/match_npc_vision` is the absolute standard on the
-  same match. `perf/match_5v5_stress` is green on the district since #192; after Extensions 2 and 3 (2026-11-07) `perf/match_10v10_stress`, `perf/grenade_match_stress` and
-  `perf/match_npc_vision` still miss and AC40 is not met; none is loosened, skipped or tagged: `perf-district-ext2.md`, `perf-district-ext3.md`, the gates the district moved: `perf-district.md`.
+- **What the player's view costs is held as a difference** (`perf/match_npc_vision_relative`: one 10v10 in one process, blocks of frames
+  with the view on and off, interleaved, since two plays of a match differ by far more than the view costs): `perf-vision-cost.md`.
+  `perf/match_5v5_stress` is green on the district since #192; after Extensions 2 and 3 (2026-11-07) `perf/match_10v10_stress`,
+  `perf/grenade_match_stress` and `perf/match_npc_vision` still miss and AC40 is not met; none is loosened, skipped or tagged:
+  `perf-district-ext2.md`, `perf-district-ext3.md`, the gates the district moved: `perf-district.md`.
 - **A wall-clock budget belongs here and nowhere else:** the lint rule `timing_in_perf` fails a `Time.get_ticks_usec()`
   under `tests/` outside `tests/perf/` and `tests/_perf/`.
 
@@ -70,7 +68,10 @@ library's pre-warm renders on a worker thread (`domain-audio`).
   feature off with `set_static` / `switch` shows what it is worth. Measure before reading: a per-frame cost is rarely
   where the code suggests.
 - A lambda captures ints by value (count into an Array).
-- **Never judge a match guard by its sim length or one run (2026-11-07):** a revision plays its own match (order keyed on allocation, an async re-bake; the look phase fixed, #192 Ext 3). Interleave A/B runs, record the contact time: `perf-nondeterminism.md`. A fight written out per frame and diffed: `perf-fingerprint.md`.
+- **Compare two revisions with `tools/perf_ab.sh BASE TIP`, never by one run or a sim length:** it plays both in interleaved rounds on
+  scratch worktrees, drops a `loaded` round, refuses ("fights differ from frame N") unless every round played the same fight, and
+  prints the medians and the delta against `--bar`. How it reads, what is deterministic: `perf-nondeterminism.md`; the fingerprint it
+  checks: `perf-fingerprint.md`.
 - `nav.rebake` is off in tests that shove or shoot furniture into overlaps (re-baking overlapping holes logs a nav sync
   error); the match guards keep it on and allow that log (`MATCH_LOGS`).
 - World-gen's first run in a process is slower (cold caches), so its budget covers the cold case.

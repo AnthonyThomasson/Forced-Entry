@@ -30,6 +30,9 @@ const META := &"fight_fingerprint"
 ## one.
 const ID_DIGITS := 9
 
+## Every run of digits in an act: compiled once, `act_text` runs once per NPC per frame.
+static var _digit_runs := RegEx.create_from_string("\\d+")
+
 var _t: TestContext
 var _tree: SceneTree
 var _npcs: Array
@@ -103,7 +106,7 @@ static func test_id_of(test: GameTest) -> String:
 static func act_text(act: String, index_of: Dictionary) -> String:
 	var out := ""
 	var at := 0
-	for m in RegEx.create_from_string("\\d+").search_all(act):
+	for m in _digit_runs.search_all(act):
 		var digits := m.get_string()
 		var id := int(digits)
 		out += act.substr(at, m.get_start() - at)
