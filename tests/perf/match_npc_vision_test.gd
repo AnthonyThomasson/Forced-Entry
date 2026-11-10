@@ -72,6 +72,7 @@ func run(t: TestContext) -> void:
 	var beside: Node2D = characters.filter(func(c): return c.get("faction") == &"invader")[0]
 	viewed.global_position = beside.global_position + BESIDE
 	characters.append(viewed)
+	Perf.record_fight(t, self, characters)
 	if not await Perf.warm_until_contact(t, "10v10 match, viewed NPC", characters):
 		return
 	var nodes_before := Perf.nodes()

@@ -120,6 +120,11 @@
 #                   finding fails the run before a single test starts. Not run for --list or --self-test, nor when
 #                   the sources are unchanged since the last clean lint (fingerprint kept in $TMPDIR; the lint of
 #                   --changed --staged never records one).
+# Fight fingerprint
+#   GAME_TEST_FINGERPRINT_DIR=DIR   every engine process of the run (shards, --base, --repeat's reruns) writes the four
+#                   match guards' fight fingerprints to DIR, `<test id with / as __>.fp` (tests/_perf/fight_fingerprint.gd;
+#                   the format: perf.md of the domain-testing skill). Made absolute here (--base runs in another
+#                   checkout) and created; unset, no guard records anything.
 # Not here: --play <words> (play one test or sandbox in the runner) is the runner's own flag; this wrapper only runs
 # batches, so it refuses --play and prints the command that launches the runner. Any other flag not listed above, or
 # several flags quoted into one argument, exits 2 with `unknown flag: <arg>` and these usage lines.
@@ -136,6 +141,13 @@ exec 3>&2   # the run's own stderr: a shard's output is held back, but its wait 
 # Every engine process runs with the dev command server off (over any port the caller set): a test run never drives
 # it, and a port another worktree's game or run holds would otherwise fail the run on its "failed to listen" warning.
 export GODOT_CMD_PORT=off
+# The fight fingerprint's directory (tests/_perf/fight_fingerprint.gd) reaches every engine process as an absolute path: a
+# --base run's engine runs in another checkout, a relative one would land inside it.
+if [[ -n "${GAME_TEST_FINGERPRINT_DIR:-}" ]]; then
+  GAME_TEST_FINGERPRINT_DIR=$(python3 -c 'import os, sys; print(os.path.abspath(sys.argv[1]))' "$GAME_TEST_FINGERPRINT_DIR")
+  export GAME_TEST_FINGERPRINT_DIR
+  mkdir -p "$GAME_TEST_FINGERPRINT_DIR"
+fi
 GODOT="${GODOT:-$( command -v godot || command -v godot4 \
   || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
 if [[ -z "$GODOT" ]]; then

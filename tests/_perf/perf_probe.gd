@@ -8,6 +8,7 @@ extends RefCounted
 ## standard below for a frame loop, or (for one-shot work) a multiple of the baseline stated in the
 ## test.
 
+const Fingerprint := preload("res://tests/_perf/fight_fingerprint.gd")
 ## The standard a running match must meet, for every frame-based stress test: the average frame fits
 ## in one 60 fps frame (16.7 ms, the Performance overlay's target), the 95th percentile stays near
 ## it, and no frame takes over two.
@@ -57,6 +58,14 @@ static func configure_match(s: TestSetup, per_side: int) -> void:
 	s.switch(&"ai.vision", true)
 	s.switch(&"ai.pursuit", true)
 	s.declared_match({ "defenders": { "count": per_side }, "invaders": { "count": per_side } })
+
+
+## Record the fight's fingerprint (`fight_fingerprint.gd`, perf.md) from now to the end of the
+## test: every NPC of `npcs` (spawn order) each physics frame, the warm-up and the whole window.
+## A match guard calls it first thing in `run`, passing itself as `test`. Does nothing, and costs
+## nothing, unless the environment's `GAME_TEST_FINGERPRINT_DIR` is set.
+static func record_fight(t: TestContext, test: GameTest, npcs: Array) -> void:
+	Fingerprint.begin(t, Fingerprint.test_id_of(test), npcs)
 
 
 ## A match guard's warm-up: `MATCH_WARMUP_S` s, then on until its sides are in contact

@@ -83,6 +83,7 @@ func run(t: TestContext) -> void:
 	if not _set_up(t, characters):
 		return
 	var thrower := t.actor(&"thrower")
+	Perf.record_fight(t, self, characters)
 	if not await Perf.warm_until_contact(t, "grenades in a 5v5 match", characters):
 		return
 

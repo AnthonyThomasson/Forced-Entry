@@ -48,6 +48,7 @@ func run(t: TestContext) -> void:
 			"ten combatants spawned (%d)" % characters.size(),
 	):
 		return
+	Perf.record_fight(t, self, characters)
 	if not await Perf.warm_until_contact(t, "5v5 match", characters):
 		return
 	var nodes_before := Perf.nodes()

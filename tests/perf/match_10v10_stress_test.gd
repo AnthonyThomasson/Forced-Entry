@@ -68,6 +68,7 @@ func run(t: TestContext) -> void:
 		return
 	if not _check_squads(t, characters):
 		return
+	Perf.record_fight(t, self, characters)
 	if not await Perf.warm_until_contact(t, "10v10 match", characters):
 		return
 	var aware := characters.filter(func(c): return Perf.knows_hostile(c)).size()
