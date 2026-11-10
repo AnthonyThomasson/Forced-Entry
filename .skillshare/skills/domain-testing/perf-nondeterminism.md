@@ -29,4 +29,13 @@ resolved (the user chose to move on); #195 holds it. Table and caveat: `perf-dis
 
 ## The fingerprint's first reading (2026-11-10, #203, before the determinism jobs)
 
-Each of the four guards twice with `GAME_TEST_FINGERPRINT_DIR` set (`perf-fingerprint.md`), padding off and on (`testing.allocation_padding`), a machine at load 14 to 18 with 20+ other Godot: no pair of runs matched. First differing frame, off / on: `match_5v5_stress` 77 / 510, `grenade_match_stress` 83 / 72, `match_10v10_stress` 32 / 48, `match_npc_vision` 49 / 49. Off against on differs at those frames too. The first split is a one or three pixel position step of a follower (`follow`), or, in the 10v10s, one NPC's health before contact (46.7 against 22.9 at frame 48, long before the sides meet; the cause is not known). So the order of events still follows allocation or the wall clock; nothing here says which. The act field once carried the hostile's instance id (`t_<id>`) and differed on every run; the fingerprint now writes the NPC's index.
+Each of the four guards twice with `GAME_TEST_FINGERPRINT_DIR` set (`perf-fingerprint.md`), padding off and on (`testing.allocation_padding`), a machine at load 14 to 18 with 20+ other Godot. The first reading wrote some instance ids into the act field (`lead_ally_<id>`, `do_<id>_...`) and its frames are void; this one is of a fingerprint with none (no number of nine digits in any file). No pair of runs matched. First differing frame, run 1 against run 2, padding off / on, and the first differing field:
+
+| guard | off | on |
+|---|---|---|
+| `match_5v5_stress` | 77: NPC 0 and 1 position (a 4 px step), then NPC 1's goal | 10: NPC 8 and 9 goal (`order/stack_door_0_0` in both runs, goal (30,65) against (140,-181)) |
+| `grenade_match_stress` | 72: NPC 3 position (1 px, `follow`) | 74: NPC 5 and 7 position (2 to 3 px) |
+| `match_10v10_stress` | 32: NPC 16 position (`follow`, 2 to 3 px) | 48: NPC 5 health (43.5 against 36.5, `follow`, position equal) |
+| `match_npc_vision` | 57: NPC 9 health (42.4 against 50.0, no shot, no death, position equal) | 31: NPC 12 position (2 px, `order/stack_door_0_0`) |
+
+Padding off against on also differs: 5v5 at frame 10, grenade 120, 10v10 32, vision 49. So the fight is nondeterministic with and without padding; the first field to differ is a position (a follower or a stacker a pixel or three off), a goal, or an NPC's health with no shot logged (the cause is not known), all long before contact (at 6 s, frame 360, or later). The order of events follows allocation or the wall clock; nothing here says which. Contact came at 8.7 to 11 s (5v5), 11.9 to 12.5 s (grenade) and 6.0 s (10v10 and vision).
