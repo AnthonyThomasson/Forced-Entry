@@ -3,6 +3,19 @@
 Static holders and small classes every domain may use; their signatures are architecture interface 11. Beside them in the file map:
 `DrawLayers`, `PhysicsLayers` and `LightMasks` (`SKILL.md`, "Shared ids").
 
+## WorldRng
+
+`WorldRng` (`world_rng.gd`, statics) is each world's own chance and order. `MatchBuilder.stage` registers the world node with the
+match `seed` (`WorldRng.register(root, seed)`); anything under it finds its world by walking up (`WorldRng.of(node)`), so there is
+no global state a second world could share. `of(node)` is the world's `RandomNumberGenerator`: a shot's spread and bullet height, a
+casing's side, a blast's fragments, a chip of debris, a fall's jolt, a stun's sway and a dropped item's toss draw from it, never the
+global `randf`; the NPC's blind-fire roll seeds from it and the character's spawn order. `Character._enter_tree` calls `enrol`, which
+hands each character the next place (from 0) in its world; `order_of(instance_id)` reads it and `before(a, b)` is the one
+"who was spawned first" test. Every order or timing in the AI that used to read an instance id (the sight cadence, give way, a stack
+slot or doorway two claim) reads this instead, since an instance id follows what the process allocated before. An id stays the key to
+look a character up by. Painters, world-gen, lighting, audio, blood and hit particles keep their own, global randomness. Tests:
+`tests/general/world_rng_two_worlds_test.gd`, `match_seed_plays_its_own_fight_test.gd`, `tests/ai/perception/sight_checks_spread_test.gd`.
+
 ## FillBatch
 
 `FillBatch.new(canvas, base)` draws plain-coloured polygons and circles as ONE triangle array (`fill`, `fill_convex`, `circle`, then `flush`) in place of one draw command each, because the windowed renderer builds a vertex buffer per polygon command. It cuts the same triangles the engine would and each disc into `draw_circle`'s 64-gon, so the pixels match. A polygon that cannot be triangulated goes to the engine alone after what was added, which reports it as `draw_colored_polygon` does.

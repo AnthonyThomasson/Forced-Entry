@@ -34,12 +34,20 @@ func configure(s: TestSetup) -> void:
 	s.object(&"chair", "chair", Vector2(480, 250))
 
 
+## The fall's chance (the world's stream) and the blood's (the global one) both start from `at`'s
+## seed.
+func _reseed(t: TestContext, at: Vector2) -> void:
+	var seeded := 192_015 + int(at.x) * 10 + int(at.y)
+	seed(seeded)
+	WorldRng.of(t.world).seed = seeded
+
+
 func run(t: TestContext) -> void:
 	for scenario in SCENARIOS:
 		var at: Vector2 = scenario["at"]
-		seed(192_015 + int(at.x) * 10 + int(at.y))
+		_reseed(t, at)
 		var fast: Dictionary = await _fall(t, at, true, scenario["blast"], scenario["blow"])
-		seed(192_015 + int(at.x) * 10 + int(at.y))
+		_reseed(t, at)
 		var plain: Dictionary = await _fall(t, at, false, scenario["blast"], scenario["blow"])
 		if not t.require(
 				not fast["samples"].is_empty() and not plain["samples"].is_empty(),

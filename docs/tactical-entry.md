@@ -650,10 +650,10 @@ the stack toward the door's axis, clear of the slots.
   `cleared_room`, `cover` with `covering` (the doorway on it watches), `rear`, `done`, `abort`), repeated whole every
   `StackClaim.HEARTBEAT` (2 s) so a claim stays live; every entry field is encoded and decoded by `StackClaim`
   (`scenes/ai/perception/stack/stack_claim.gd`), and each listener keeps the latest claim per speaker in its own `ClaimLedger`. A doorway on is claimed like a slot: the nearest one no teammate covers, and of two who
-  claim one, the lower instance id keeps it. `done` ends a hold; a teammate still holding takes it as the team moving on. A slot is the lowest the radio
+  claim one, the one spawned first (`WorldRng`) keeps it. `done` ends a hold; a teammate still holding takes it as the team moving on. A slot is the lowest the radio
   leaves free; every claim carries `claim_frame` and `claim_pos` (the frame its slot was claimed on and where the member stood), and two
   members who claim the same slot on the same frame and side settle it by distance to it, the nearer keeping it (within 0.5 px, or on
-  different frames, by instance id, the flank side claim pattern; `StackLayout.free_slot`), the other taking the next. A claim that moved up
+  different frames, by spawn order, the flank side claim pattern; `StackLayout.free_slot`), the other taking the next. A claim that moved up
   (E2) carries `move_up` and holds its slot against the latecomer's, which takes the one it freed; `pie` says the speaker has begun the pie.
   A single invader is a team of one: nobody else claims the doorway, so there is no
   barrier and the pie is sliced from both sides (E7).
@@ -662,7 +662,7 @@ Interpretations and the game's own rules, where the sources leave a choice:
 
 - "Ordered by arrival" (E2) is the order of claims on the radio, then of bodies at the wall: a member claims the lowest slot the
   claims it has heard leave free; two that claim on the same frame settle it by distance (on different frames before either hears the
-  other, by instance id); and a member in its slot moves up into a lower slot whose holder is still on the way.
+  other, by spawn order); and a member in its slot moves up into a lower slot whose holder is still on the way.
 - The point is the lowest slot still waiting; a member that claimed a slot and never reached it is dropped
   once the member behind it has waited `tuning.entry.ready_timeout`. The wait restarts when someone new claims a
   slot (E6, E7).

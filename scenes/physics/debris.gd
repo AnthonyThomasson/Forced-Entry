@@ -38,8 +38,9 @@ static func toss(node: Node2D, dir: Vector2, distance: float, time: float, spin:
 
 ## Kick the chip out along `eject_dir` (need not be normalized), spin it, and let it settle.
 func start(eject_dir: Vector2) -> void:
-	var spin := TAU * randf_range(-1.5, 1.5)
-	rotation = randf_range(0.0, TAU)
+	var rng := WorldRng.of(self)
+	var spin := TAU * rng.randf_range(-1.5, 1.5)
+	rotation = rng.randf_range(0.0, TAU)
 	toss(self, eject_dir, eject_distance, eject_time, spin).finished.connect(_rest)
 
 

@@ -199,10 +199,10 @@ static func in_funnel(outward: float, lateral: float, half: float, margin := 0.0
 	return absf(lateral) < half + margin and absf(outward) < FUNNEL_DEPTH
 
 
-## The order claims are listed and settled in: lowest slot first, then lowest instance id (a
-## `sort_custom` comparator over claims, or any `{ slot, id }`).
+## The order claims are listed and settled in: lowest slot first, then earliest spawned (`WorldRng`;
+## a `sort_custom` comparator over claims, or any `{ slot, id }`).
 static func by_slot(a: Dictionary, b: Dictionary) -> bool:
-	return a["slot"] < b["slot"] if a["slot"] != b["slot"] else a["id"] < b["id"]
+	return a["slot"] < b["slot"] if a["slot"] != b["slot"] else WorldRng.before(a["id"], b["id"])
 
 
 ## `value` as field `key`'s type (its default's).

@@ -22,7 +22,6 @@ func _ready() -> void:
 ## Kick the casing out along `eject_dir` (need not be normalized) and let it settle, a whole turn
 ## either way (Physics' `Debris.toss`).
 func start(eject_dir: Vector2) -> void:
-	var toss := Debris.toss(
-		self, eject_dir, eject_distance, eject_time, TAU * (1.0 if randf() > 0.5 else -1.0)
-	)
+	var spin := TAU * (1.0 if WorldRng.of(self).randf() > 0.5 else -1.0)
+	var toss := Debris.toss(self, eject_dir, eject_distance, eject_time, spin)
 	toss.finished.connect(ViewLayers.set_moving.bind(self, false))

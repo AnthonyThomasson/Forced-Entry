@@ -60,6 +60,7 @@ var wardrobe: CharacterWardrobe
 
 func _enter_tree() -> void:
 	wardrobe = $Wardrobe as CharacterWardrobe
+	WorldRng.enrol(self)  # Its place in its world's spawn order (`WorldRng`, interface 11).
 
 
 func _ready() -> void:

@@ -38,7 +38,7 @@ Doors on a walk, and the pie at one: `behavior-doors.md`.
 - **Commitment:** `committed()` is true while crossing and while the bang's thrower throws; the controller starts no decision, so a hit or a hostile in the doorway is fought once through. The NPC never runs in an entry, not even under fire: a running character cannot shoot (test `entry_never_runs`).
 - **Top off (E11):** `approach.topping_off` calls `Combat.top_off` at the stack; skipped while a hostile holds the eyes and past `TOP_OFF_CAP`.
 - **Last man (E12)** faces back (`readiness._covers_rear`); **a short room takes two (E13)** (`readiness._holds_outside`, `_tick_security`); **E14**: while `state.hostile_in_view` the pie holds and a follower does not cross (the watch stage fires). The rule is the entry's, so it holds whatever order brought the NPC to the door.
-- **Holding the cleared room (E8):** `hold.finish` marks it cleared, then each member claims the nearest doorway on out of it that no teammate's `cover` call names (a tie goes to the lower instance id); one left over goes to `rear`, each rear member with its own spot (`hold._hold_rear_or_done`).
+- **Holding the cleared room (E8):** `hold.finish` marks it cleared, then each member claims the nearest doorway on out of it that no teammate's `cover` call names (a tie: the one spawned first); one left over goes to `rear`, each rear member with its own spot (`hold._hold_rear_or_done`).
 - **Corners (E5):** walks right into its corner (`CORNER_REACH`): short of it blocks the next. `sweep.start_cross` picks it by crossing order, rereading `state.solo`; `_corners` keeps it on floor the doorway reaches (`NavBuilder.snap_within`).
 
 ## Radio

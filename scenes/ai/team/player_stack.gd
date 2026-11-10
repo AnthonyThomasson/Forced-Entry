@@ -322,7 +322,7 @@ func _leaves(stack: RefCounted, due: bool) -> bool:
 
 
 ## Keep the human's slot in `stack`: an AI that keeps the same slot (claimed on its frame nearer it,
-## else the lower instance id) has it, and the human takes the next free one (E2), radioed when its
+## else the one spawned first) has it, and the human takes the next free one (E2), radioed when its
 ## slot or side changes. False, withdrawn, when it is pushed past what a dead end holds (E20).
 func _keeps_slot(stack: RefCounted) -> bool:
 	var member := reservation.member

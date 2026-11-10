@@ -150,7 +150,7 @@ func secondary(user: Node2D) -> bool:
 		spread_deg += float(_stat("one_hand_spread_deg", 0.0))
 	var spread := deg_to_rad(spread_deg)
 	if spread > 0.0:
-		direction = direction.rotated(randf_range(-spread, spread))
+		direction = direction.rotated(WorldRng.of(user).randf_range(-spread, spread))
 	var power := round_power()
 	var shot := Shot.new()
 	shot.shooter = user

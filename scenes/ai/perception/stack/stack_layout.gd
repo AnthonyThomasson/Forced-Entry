@@ -123,7 +123,7 @@ static func laid(g: Dictionary, members: Array, slot: int, side: int) -> Diction
 ## ally farther from the slot's point than this NPC is taken from it, and of two such claims on one
 ## slot the nearer keeps it (each reads the other's `claim_frame` and `claim_pos` off the radio, so
 ## both settle the same way; a slot given up for another keeps the claim's frame and spot, so the
-## settling goes on down the stack). Otherwise, or at an even distance, the lower instance id keeps
+## settling goes on down the stack). Otherwise, or at an even distance, the one spawned first keeps
 ## a slot two claim. A claim that moved up into a slot (E2: its `move_up`, the slot it came from,
 ## which `mine` carries for this NPC's own) holds it against one that did not, and the NPC that held
 ## it takes the freed one.
@@ -195,11 +195,11 @@ static func _verdict(
 
 
 ## Whether this NPC (instance id `self_id`) holds a slot against ally `other` on `_verdict`'s
-## `verdict`: as it settles, else (and at an even distance) by the lower instance id.
+## `verdict`: as it settles, else (and at an even distance) by the earlier spawn order (`WorldRng`).
 static func _settles(verdict: int, self_id: int, other: Dictionary) -> bool:
 	if verdict != 0:
 		return verdict > 0
-	return self_id < int(other["id"])
+	return WorldRng.before(self_id, int(other["id"]))
 
 
 ## The side of the door (1 / -1 along its wall, see `geometry`) the stack in `claims` stacks on: the

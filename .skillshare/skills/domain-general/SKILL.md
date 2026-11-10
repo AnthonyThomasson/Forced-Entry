@@ -1,6 +1,6 @@
 ---
 name: domain-general
-description: Use when editing scenes/general/ or its keybinds, settings, clock, camera, command server, PhysicsLayers, DrawLayers, ViewLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, MatchVerdict.
+description: Use when editing scenes/general/ or its keybinds, settings, clock, camera, command server, PhysicsLayers, DrawLayers, ViewLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, WorldRng.
 ---
 
 # General domain (`scenes/general/`)
@@ -21,6 +21,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 | `camera_controller.gd` (+ the two config holders) | `Camera2D` |
 | `command_server.gd` | dev command server |
 | `physics_layers.gd`, `draw_layers.gd`, `view_layers.gd`, `light_masks.gd` | shared ids |
+| `world_rng.gd` | each world's random stream and its characters' spawn order (`helpers.md`) |
 | `fill_batch.gd`, `weighted_pick.gd`, `match_verdict.gd`, `sight_ray.gd`, `seen_area.gd` | shared helpers (`helpers.md`) |
 
 ## Shared ids
@@ -83,7 +84,7 @@ Global cap (`max_scene_objects`) for transient bodies: domains hand their spawns
 
 ## Shared helpers
 
-`FillBatch`, `WeightedPick`, `MatchVerdict`, and the player's view's shared rules `ViewLayers`, `SightRay` and `SeenArea`: `helpers.md`.
+`WorldRng`, `FillBatch`, `WeightedPick`, `MatchVerdict`, and the player's view's shared rules `ViewLayers`, `SightRay` and `SeenArea`: `helpers.md`.
 
 ## Spectator mode
 

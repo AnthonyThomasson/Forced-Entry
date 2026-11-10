@@ -34,7 +34,8 @@ func take(blind: float, deaf: float) -> void:
 		return
 	if level() <= 0.0:
 		_clock = 0.0
-		_phase = Vector2(randf() * TAU, randf() * TAU)
+		var rng := WorldRng.of(character)
+		_phase = Vector2(rng.randf() * TAU, rng.randf() * TAU)
 	if blind > _blind_left:
 		_blind_left = blind
 		_blind_total = blind

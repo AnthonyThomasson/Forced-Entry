@@ -21,7 +21,7 @@ need `--include-von --require-von`.
 
 Gotchas:
 
-- Two invaders that claim a doorway on the same frame settle their slots by instance id: the first actor declared gets
+- Two invaders that claim a doorway on the same frame settle their slots by spawn order (`WorldRng`, the order the actors are declared in): the first actor declared gets
   slot 1 on a tie.
 - From beside a door you see the opposite door-wall corner through the gap, so what the pie leaves hidden is geometry:
   assert the hidden corners are on the door's wall, not that both are.

@@ -275,8 +275,9 @@ func split_side(me: Dictionary, own: int) -> int:
 	if mine - other < 2:
 		return own
 	for m in team:
-		if (int(m["side"]) == own
-				and (int(m["slot"]) > n or (int(m["slot"]) == n and int(m["id"]) > id))):
+		var later := int(m["slot"]) > n or (
+				int(m["slot"]) == n and WorldRng.before(id, int(m["id"])))
+		if int(m["side"]) == own and later:
 			return own  # A later claimer on this side moves instead.
 	return -own
 

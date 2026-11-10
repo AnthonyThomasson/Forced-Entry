@@ -54,7 +54,7 @@ const POOL_MARGIN := 0.05
 const EDGE_STEP := 0.5
 ## Seeds the pool's lean: a pool that leans toward the viewer, whose box lies wholly outside the
 ## cone and bubble though the circle round it reaches the bubble.
-const POOL_SEED := 5
+const POOL_SEED := 2
 ## The viewer turns this many radians a frame onto the pool once near it.
 const SWEEP_STEP := 0.012
 ## Until the cone is within this many px of the pool's box it turns this fast, a frame.
@@ -229,7 +229,8 @@ func _settled_body(t: TestContext, view: PlayerView) -> void:
 func _unseen_pool(t: TestContext, view: PlayerView) -> void:
 	t.require(await Probe.place(t, t.actor(&"eye"), EYE_AT, Vector2.RIGHT), "the viewer faces east")
 	var fallen: Node2D = t.actor(&"fallen")
-	seed(POOL_SEED)
+	seed(POOL_SEED)  # The pool's blood draws from the global stream, the fall from the world's.
+	WorldRng.of(fallen).seed = POOL_SEED
 	fallen.take_damage(1000.0)
 	var pool := await _pool_near(t, fallen.global_position)
 	if not t.require(pool != null, "premise: the body bleeds a pool"):
