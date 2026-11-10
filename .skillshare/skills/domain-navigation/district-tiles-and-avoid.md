@@ -29,9 +29,9 @@ A walk that should keep out of some floor (the AI's doorway views, `docs/tactica
 `avoid_map(region, key, holes) -> RID` (`region` is the planning region, `planning_region(planning_map)` finds it; `holes` closed
 world-space polygons; `key` names the set). The planning bake keeps its source on its region, so the avoid
 bake is the same geometry plus the holes, fused, snapped, welded. Each key gets a map of its own with one child region `NavAvoid`,
-baked on a worker thread and landed on the fixed frame `NavBakeConfig.district_frames` after the ask (`NavBake`; `ready(map)` is false until it answers). Asking again returns the same map and marks it
+baked on a worker thread and landed on the fixed frame `NavBake.frames_for` after the ask (`district_frames` or `house_frames`) (`NavBake`; `ready(map)` is false until it answers). Asking again returns the same map and marks it
 asked; once the planning bake is redone it is baked again in place, the old mesh answering meanwhile. A map nobody asked for in
-`avoid_idle_ms` is freed with its region by the next ask for another key on the same planning map (the sweep runs only inside
+`avoid_idle_frames` (physics frames, 1200 = 20 s, so a run frees the same maps on the same frame) is freed with its region by the next ask for another key on the same planning map (the sweep runs only inside
 `avoid_map`), and every one is freed with its world. Invalid when the region has no bake. Test:
 `tests/navigation/avoid_map_carves_the_views_test.gd`.
 

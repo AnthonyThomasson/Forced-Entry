@@ -55,11 +55,12 @@ static var _steering_regions: Dictionary = {}
 static var _planning_regions: Dictionary = {}
 ## The avoid maps made for each world navigation map (planning map RID -> key -> entry), see
 ## `avoid_map`. An entry is `{ map: RID, region: NavigationRegion2D, version: int, baking: bool,
-## asked_ms: int }`.
+## asked_frame: int }`.
 static var _avoid_maps: Dictionary = {}
-## An avoid map nobody has asked for in this many ms (wall clock) is freed by the next ask for
-## another set (`avoid_map`).
-static var avoid_idle_ms: int = 20_000
+## An avoid map nobody has asked for in this many physics frames (20 s at 60 a second, counted in
+## frames so a run frees the same maps on the same frame whatever the machine's speed) is freed by
+## the next ask for another set (`avoid_map`).
+static var avoid_idle_frames: int = 1200
 
 
 ## Build and add a NavigationRegion2D under `parent`, covering `rooms` (each `{ key, type, rect }`
@@ -390,26 +391,26 @@ static func planning_region(planning_map: RID) -> NavigationRegion2D:
 ## frame never pays for it, `NavBake.frames_for` physics frames later it lands (`NavBake`)
 ## and `ready` tells when it answers queries, as for any map; the map is kept for the key and
 ## re-baked (the old mesh answers meanwhile) when the planning bake has been redone since. One
-## nobody has asked for in `avoid_idle_ms` (20 s) is freed by the next ask for another key on the
-## same planning map, and every one is freed with its region (its world). Invalid when the region
-## has no bake to start from.
+## nobody has asked for in `avoid_idle_frames` (1200, 20 s) is freed by the next ask for another key
+## on the same planning map, and every one is freed with its region (its world). Invalid when the
+## region has no bake to start from.
 static func avoid_map(region: NavigationRegion2D, key: String, holes: Array) -> RID:
 	if region == null or not region.has_meta(SOURCE_META):
 		return RID()
 	var planning_map := region.get_navigation_map()
 	var entries: Dictionary = _avoid_maps.get(planning_map, {})
 	_avoid_maps[planning_map] = entries
-	var now := Time.get_ticks_msec()
+	var now := Engine.get_physics_frames()
 	for k in entries.keys():
 		var old: Dictionary = entries[k]
 		if (k != key
-				and now - int(old["asked_ms"]) > avoid_idle_ms
+				and now - int(old["asked_frame"]) > avoid_idle_frames
 				and is_instance_valid(old["region"])):
 			(old["region"] as Node).queue_free()  # Its tree exit frees the map.
 	var stored: Dictionary = region.get_meta(SOURCE_META)
 	if entries.has(key):
 		var kept: Dictionary = entries[key]
-		kept["asked_ms"] = now
+		kept["asked_frame"] = now
 		if not bool(kept["baking"]) and int(kept["version"]) != int(stored["version"]):
 			_bake_avoid(region, kept, holes)
 		return kept["map"]
@@ -422,7 +423,7 @@ static func avoid_map(region: NavigationRegion2D, key: String, holes: Array) -> 
 		"region": avoid_region,
 		"version": -1,
 		"baking": false,
-		"asked_ms": now,
+		"asked_frame": now,
 	}
 	entries[key] = entry
 	region.add_child(avoid_region)

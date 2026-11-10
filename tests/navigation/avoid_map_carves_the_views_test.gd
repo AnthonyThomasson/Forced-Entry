@@ -4,7 +4,7 @@ extends GameTest
 ## asks for it. In an empty walled arena, a hole across the middle (leaving a gap above and below)
 ## makes a route that goes round it, longer than the straight one; the world's own map still goes
 ## straight through; the same key answers the same map, another key another; a map not asked for in
-## `avoid_idle_ms` (wall clock) is freed (the test shortens that to 0.3 s).
+## `avoid_idle_frames` (physics frames) is freed (the test shortens that to 20).
 
 const ARENA := Rect2(0, 0, 800, 500)
 const FROM := Vector2(100, 250)
@@ -26,7 +26,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(ARENA)
-	s.set_static(NavBuilder, "avoid_idle_ms", 300)
+	s.set_static(NavBuilder, "avoid_idle_frames", 20)
 
 
 func run(t: TestContext) -> void:
@@ -44,9 +44,9 @@ func run(t: TestContext) -> void:
 	if not other.is_valid():
 		return
 
-	# Only `other` is asked for from here on: `map` goes idle (on the wall clock, which a headless
-	# run outpaces: wait it out) and is freed with its region.
-	OS.delay_msec(450)
+	# Only `other` is asked for from here on: `map` goes idle (a count of physics frames: wait them
+	# out) and is freed with its region.
+	await t.frames(30)
 	NavBuilder.avoid_map(region, "elsewhere", [])
 	t.check(
 		await t.until(func(): return not NavigationServer2D.get_maps().has(map), 5.0),

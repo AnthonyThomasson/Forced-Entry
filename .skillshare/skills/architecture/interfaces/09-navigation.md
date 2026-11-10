@@ -44,7 +44,7 @@
 	 `NavBuilder.avoid_map(region, key, holes) -> RID` (`region`: the planning region `build` returned, found from a world map by
 	 `NavBuilder.planning_region(planning_map) -> NavigationRegion2D`; `holes`: world-space polygons; `key` names the set): a map of its own
 	 with the planning bake plus those holes, baked on a worker thread, landed on a fixed frame, cached by `key` (re-baked when the planning bake has been redone),
-	 freed by the next ask for another set once nobody has asked for `avoid_idle_ms` (20 s), and with its world; `ready` as any
+	 freed by the next ask for another set once nobody has asked for `avoid_idle_frames` (1200), and with its world; `ready` as any
 	 map. The world's and the steering map are untouched. `Locomotion` walks it and `AgentDoorViews.walk_route` measures on it.
 
    `MatchBuilder.stage` (interface 23: Main's match and every test world) calls `build` once after the house is built (then builds the
