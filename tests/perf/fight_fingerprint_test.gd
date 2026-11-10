@@ -42,6 +42,21 @@ func run(t: TestContext) -> void:
 		"a test's file is its id with / as __",
 	)
 	t.expect_eq(Fingerprint.test_id_of(self), ID, "a test's id is its path under tests/")
+	t.expect_eq(
+		Fingerprint.act_text("combat/t_1245473426825/engage/fire_south", { 1_245_473_426_825: 4 }),
+		"combat/t_4/engage/fire_south",
+		"a decision's hostile is the NPC's index, never its instance id",
+	)
+	t.expect_eq(
+		Fingerprint.act_text("combat/t_77/engage/fire_south", { 1: 0 }),
+		"combat/t_?/engage/fire_south",
+		"a hostile that is none of the NPCs recorded has no index",
+	)
+	t.expect_eq(
+		Fingerprint.act_text("order/stack_door_0_0", { 1: 0 }),
+		"order/stack_door_0_0",
+		"the rest of an act is kept as it is",
+	)
 	var npcs: Array = [t.actor(&"shooter"), t.actor(&"target"), t.actor(&"bystander")]
 	if not t.require(
 			Fingerprint.begin(t, ID, npcs, "") == null,

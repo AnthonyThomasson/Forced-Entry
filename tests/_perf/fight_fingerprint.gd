@@ -14,8 +14,9 @@ extends RefCounted
 ##   <frame> TAB <i> <x>,<y> <gx>,<gy> <act> <health> TAB ... TAB S:<x>,<y>;<x>,<y> TAB D:<i>,<i>
 ## `i` is the NPC's index in the order given, never its node name or instance id (both follow
 ## allocation); `x,y` its position rounded to whole pixels; `gx,gy` its navigation agent's target
-## rounded (`-` with none); `act` the controller's decision path (`current_act()`, `-` for a
-## character with no AI controller; it can hold a space); `health` to one decimal (`gone` for a
+## rounded (`-` with none); `act` the controller's decision path (`current_act()`, its hostile as
+## `t_<index>` of that NPC, `t_?` for none, never an instance id; `-` for a character with no AI
+## controller; it can hold a space); `health` to one decimal (`gone` for a
 ## freed NPC, alone in its field). `S:` lists this frame's shots, the muzzle rounded, in the order
 ## they were posted; `D:` the indices of the NPCs that died this frame.
 
@@ -32,6 +33,8 @@ var _file: FileAccess
 var _frame := 0
 var _events_seen := 0
 var _was_dead: Array[bool] = []
+## NPC instance id -> its index in `_npcs`, for the ids an act names (`act_text`).
+var _index_of := {}
 
 
 ## Start recording `npcs` (Nodes, in spawn order) of the running test `t` into
@@ -59,6 +62,8 @@ static func begin(
 	recorder._tree = t.world.get_tree()
 	recorder._npcs = npcs.duplicate()
 	recorder._file = file
+	for i in npcs.size():
+		recorder._index_of[npcs[i].get_instance_id()] = i
 	recorder._was_dead.resize(npcs.size())
 	recorder._was_dead.fill(false)
 	recorder._tree.physics_frame.connect(recorder._on_frame)
@@ -76,6 +81,17 @@ static func path_for(dir: String, test_id: String) -> String:
 ## `_test.gd` suffix.
 static func test_id_of(test: GameTest) -> String:
 	return test.get_script().resource_path.trim_prefix("res://tests/").trim_suffix("_test.gd")
+
+
+## `act` with the hostile it names as an NPC index. A decision's option id for a hostile is `t_` and
+## its instance id (`snapshot_options.gd`), which follows allocation: `index_of` (instance id ->
+## index) turns it into `t_<index>`, `t_?` for one that is none of the NPCs recorded.
+static func act_text(act: String, index_of: Dictionary) -> String:
+	var out := act
+	for m in RegEx.create_from_string("t_(\\d+)").search_all(act):
+		var index: Variant = index_of.get(int(m.get_string(1)))
+		out = out.replace(m.get_string(), "t_" + ("?" if index == null else str(index)))
+	return out
 
 
 ## Stop recording and close the file. Safe to call twice.
@@ -117,7 +133,7 @@ func _state(npc: Variant) -> String:
 	return "%s %s %s %.1f" % [
 		_point(npc.global_position),
 		_point(agent.target_position) if agent != null else "-",
-		brain.current_act() if brain != null else "-",
+		act_text(brain.current_act(), _index_of) if brain != null else "-",
 		npc.get("health"),
 	]
 
