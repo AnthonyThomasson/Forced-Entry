@@ -15,12 +15,15 @@ extends RefCounted
 ## `i` is the NPC's index in the order given, never its node name or instance id (both follow
 ## allocation); `x,y` its position rounded to whole pixels; `gx,gy` its navigation agent's target
 ## rounded (`-` with none); `act` the controller's decision path (`current_act()`, `-` for a
-## character with no AI controller); `health` to one decimal (`gone` for a freed NPC, alone in its
-## field). `S:` lists this frame's shots, the muzzle rounded, in the order they were posted; `D:`
-## the indices of the NPCs that died this frame.
+## character with no AI controller; it can hold a space); `health` to one decimal (`gone` for a
+## freed NPC, alone in its field). `S:` lists this frame's shots, the muzzle rounded, in the order
+## they were posted; `D:` the indices of the NPCs that died this frame.
 
 ## The environment variable that turns the fingerprint on: the directory the files are written to.
 const ENV_DIR := "GAME_TEST_FINGERPRINT_DIR"
+## The meta of the test's world that holds the recorder: a signal connection holds no reference to
+## a RefCounted, so nothing else would keep it (and its file) alive once `begin` returned.
+const META := &"fight_fingerprint"
 
 var _t: TestContext
 var _tree: SceneTree
@@ -60,6 +63,7 @@ static func begin(
 	recorder._was_dead.fill(false)
 	recorder._tree.physics_frame.connect(recorder._on_frame)
 	t.world.tree_exiting.connect(recorder.close)
+	t.world.set_meta(META, recorder)
 	return recorder
 
 

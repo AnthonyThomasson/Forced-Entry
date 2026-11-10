@@ -15,7 +15,7 @@ window, and does nothing, and costs nothing (no signal connected), unless the en
 
   `i` is the NPC's index in the match's `combatants` (the viewed invader of `match_npc_vision` last), never its node name or
   instance id (both follow allocation). `x,y` the position rounded to whole pixels. `gx,gy` its navigation agent's target position
-  rounded (`-` with none). `act` the controller's `current_act()` (decision path, `hold` idle, `-` for no AI controller).
+  rounded (`-` with none). `act` the controller's `current_act()` (decision path, `hold` idle, `-` for no AI controller; it can hold a space).
   `health` to one decimal. A freed NPC's field is `i gone`. `S:` the frame's shots (EventBus `shot`), the muzzle rounded, in
   the order posted; `D:` the indices of the NPCs that died that frame. `grenade_match_stress`'s thrower puppet is no NPC of the
   match and not in it (its throws show as shots).

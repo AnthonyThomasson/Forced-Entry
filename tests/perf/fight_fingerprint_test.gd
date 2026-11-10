@@ -48,8 +48,13 @@ func run(t: TestContext) -> void:
 			"premise: with no directory nothing is recorded",
 	):
 		return
-	var recorder: RefCounted = Fingerprint.begin(t, ID, npcs, DIR)
-	if not t.require(recorder != null, "a directory starts the recording"):
+	# Not kept in a variable: a guard calls `Perf.record_fight` and holds nothing, so the recording
+	# must stay alive by itself (a signal connection holds no reference).
+	Fingerprint.begin(t, ID, npcs, DIR)
+	if not t.require(
+			t.world.has_meta(Fingerprint.META),
+			"a directory starts a recording that outlives the call",
+	):
 		return
 	var shooter := t.puppet(&"shooter")
 	var target := t.actor(&"target")
@@ -61,7 +66,7 @@ func run(t: TestContext) -> void:
 	# Read while recording: a run whose world is torn down without a close (the last test of a
 	# process) must still have written every frame.
 	var lines := _lines(Fingerprint.path_for(DIR, ID))
-	recorder.close()
+	t.world.get_meta(Fingerprint.META).close()
 	_check_lines(t, lines, target)
 
 
