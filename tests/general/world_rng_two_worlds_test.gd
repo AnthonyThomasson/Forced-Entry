@@ -4,7 +4,8 @@ extends GameTest
 ## either: the same seed in two worlds, drawn alternately, plays the same stream in both, another
 ## seed another stream; two worlds enrolling alternately each count their own 0, 1, 2, ...; and what
 ## a fight's chance (a shot's spread, a casing, debris, a fall, a stun, a dropped item's toss) draws
-## from is the world's stream, never the global one.
+## from is the world's stream, never the global one. A character reparented into a world takes that
+## world's next order.
 
 const Fall := preload("res://scenes/character/body/character_ragdoll.gd")
 const DRAWS := 12
@@ -36,6 +37,7 @@ func run(t: TestContext) -> void:
 	_streams(t)
 	_orders(t)
 	await _global_stream_untouched(t)
+	_adopted(t)
 
 
 ## Worlds A1 and A2 (one seed) and B (another), drawn in turn.
@@ -83,6 +85,28 @@ func _orders(t: TestContext) -> void:
 		WorldRng.before(made[1][0].get_instance_id(), made[1][1].get_instance_id()),
 		"the one spawned first comes before the one spawned next",
 	)
+
+
+## A character spawned under one world and reparented into another (`MatchBuilder` joins the scene's
+## own player into the match so): it drops the place it took and takes the next of the world it is
+## in, whatever the process counted before; the world's counting goes on from it.
+func _adopted(t: TestContext) -> void:
+	var mover := t.actor(&"target")
+	var old_order := WorldRng.order_of(mover.get_instance_id())
+	var world := Node2D.new()
+	t.world.add_child(world)
+	WorldRng.register(world, 5)
+	for i in old_order + 3:
+		var earlier := Node2D.new()
+		world.add_child(earlier)
+		WorldRng.enrol(earlier)
+	mover.reparent(world)
+	var taken := old_order + 3
+	t.expect_eq(WorldRng.order_of(mover.get_instance_id()), taken, "the world's next place")
+	var later := Node2D.new()
+	world.add_child(later)
+	t.expect_eq(WorldRng.enrol(later), taken + 1, "the world's counting goes on from it")
+	t.check(WorldRng.of(mover) == WorldRng.of(later), "and it draws from that world's stream")
 
 
 ## Each consumer of chance draws from the world's stream: with the global stream seeded, the act

@@ -8,10 +8,11 @@ extends RefCounted
 ##   sway and a dropped item's toss draw from instead of the global `randf`. The same seed plays the
 ##   same draws, a different seed other ones, and two worlds in one process never share a stream.
 ## - `enrol(node)` / `order_of(id)` is each character's spawn order: its place, from 0, among the
-##   characters its world has taken in (`Character._enter_tree` enrols it), which the AI keys every
-##   order or timing it used to take from an instance id on (the sight cadence, who gives way, whose
-##   claim wins a tie). An instance id follows what the process allocated before; a spawn order does
-##   not. An id is still the key to look a character up by.
+##   characters its world has taken in (`Character._enter_tree` enrols it, again where it is
+##   reparented into another world: it takes that world's next place and drops the old). The AI keys
+##   every order or timing it used to take from an instance id on it (the sight cadence, who gives
+##   way, whose claim wins a tie). An instance id follows what the process allocated before; a spawn
+##   order does not. An id is still the key to look a character up by.
 ## Painters, world-gen, lighting and audio keep their own randomness.
 
 ## Mixed into the match seed, so the world's stream is not the stream of another draw from that seed
@@ -24,6 +25,8 @@ const GONE := 1 << 30
 static var _worlds := {}
 ## Enrolled node instance id -> its spawn order.
 static var _orders := {}
+## Enrolled node instance id -> the instance id of the world root that gave it that order.
+static var _homes := {}
 
 
 ## Register `root` as a world whose stream is seeded from `match_seed` (a registered root again
@@ -35,10 +38,13 @@ static func register(root: Node, match_seed: int) -> void:
 	for id: int in _orders.keys():
 		if not is_instance_id_valid(id):
 			_orders.erase(id)
+			_homes.erase(id)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = match_seed ^ SEED_SALT
 	var kept: Dictionary = _worlds.get(root.get_instance_id(), { "spawned": 0 })
-	_worlds[root.get_instance_id()] = { "rng": rng, "spawned": kept["spawned"] }
+	_worlds[root.get_instance_id()] = {
+		"rng": rng, "spawned": kept["spawned"], "root": root.get_instance_id(),
+	}
 
 
 ## The stream of `node`'s world. A node under no registered root belongs to the topmost node above
@@ -48,15 +54,18 @@ static func of(node: Node) -> RandomNumberGenerator:
 
 
 ## `node`'s place in its world's spawn order, taking the next one when it has none yet (so a node
-## enrolled twice keeps its first).
+## enrolled twice in one world keeps its first). A node now under another world than the one that
+## numbered it (the human, built in the scene and reparented into the match) drops that order and
+## takes the next of the world it is in.
 static func enrol(node: Node) -> int:
 	var id := node.get_instance_id()
-	if _orders.has(id):
-		return _orders[id]
 	var entry := _entry_of(node)
+	if _orders.has(id) and _homes[id] == entry["root"]:
+		return _orders[id]
 	var order: int = entry["spawned"]
 	entry["spawned"] = order + 1
 	_orders[id] = order
+	_homes[id] = entry["root"]
 	return order
 
 

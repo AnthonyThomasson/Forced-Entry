@@ -18,7 +18,7 @@
 	   (uncached and pure: safe on a worker thread), `drawable_polygon(shape, size, impacts)` (what `draw_shape` draws: the dented
 	   silhouette, or the undented ring when the dents pinched it) and `texture_uvs(poly, size, angle)`.
 	 - Impacts: built by `new_impact(pos, inward, damage, blood, dent: DentLimits)` (`physics/dent_limits.gd`: `max_depth`,
-	   `allow_chunks`) and kept by `push_impact(list, impact, max_impacts)` (oldest dropped); `Deformable.record` and Objects' wall (one
+	   `allow_chunks`, `rng`: the world's `WorldRng.of`, the dent's seed) and kept by `push_impact(list, impact, max_impacts)` (oldest dropped); `Deformable.record` and Objects' wall (one
 	   list per segment) both build through them.
 	 - `darken(damage_total) -> float`: `Color.darkened`'s weight for a shape with that damage (a textured shape is white darkened by it),
 	   for a caller drawing a textured polygon its own way (the character's kept meshes, `domain-character` (`body.md`)).
