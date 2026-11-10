@@ -11,12 +11,13 @@ guard measures the planning bake whole, what a frame pays to start one and a ste
   leaves the domain out (`--skip-domain=perf`): its frame-time budgets fail on a busy machine, so run it on its own before
   a push that touches a per-frame path. The default run holds it back from the shards and runs it alone last;
   `--changed` adds it when a scene they exercise changes (`affected()` in `tools/run_tests.sh`) or `tests/_perf/` changes.
-- **A run that was not `--quiet` says so.** The quiet gate counts every process with `godot` in its name, `godot-mcp` servers and an editor left
-  open included, and can wait for ever with no Godot of yours running. Then run `tools/run_tests.sh --domain=perf` (`uptime` under 6, none of your
-  Godot left over), quote the `(load <x>, <n> other Godot)` tails and never call it a `--quiet` run (`perf-district.md`).
+- **A run that was not `--quiet` says so.** The gate waits only for a *busy* other Godot: an engine process (editor, test run,
+  game) over `busy_cpu` percent of a core across `busy_sample_s` (`tools/perf_quiet.conf`); `godot-mcp` servers and idle
+  editors do not hold it. If you run ungated (`uptime` under 6, none of your Godot busy), quote the
+  `(load <x>, <n> busy Godot)` tails and never call it a `--quiet` run (`perf-district.md`).
 - **Judge only a result not marked `loaded`:** `--quiet` waits for a quiet machine and marks a result `loaded` when it
   gave up (`runner-flags.md`); a `loaded` red or green says nothing about the code. Every `PERF` line ends with
-  `(load <x>, <n> other Godot)`, so a number read from a log carries the state of its machine.
+  `(load <x>, <n> busy Godot)`, so a number read from a log carries the state of its machine.
 
 ## The standard
 

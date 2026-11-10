@@ -4,8 +4,8 @@
   python3 tools/godot_slot.py run [--notice-fd=N] -- COMMAND [ARG...]   take a slot, then become COMMAND
   python3 tools/godot_slot.py free                                       print the number of free slots
   python3 tools/godot_slot.py status                                     print "<taken> <size>"
-  python3 tools/godot_slot.py annotate --ancestor=PID [--loaded]         filter a run's output (stdin to stdout)
-  python3 tools/godot_slot.py quiet --ancestor=PID --max-load=X --timeout-min=M   wait for a quiet machine
+  python3 tools/godot_slot.py annotate --ancestor=PID [--loaded] [--busy-cpu=X --busy-sample=S]       filter a run's output (stdin to stdout)
+  python3 tools/godot_slot.py quiet --ancestor=PID --max-load=X --timeout-min=M [--busy-cpu=X --busy-sample=S]  wait for a quiet machine
   python3 tools/godot_slot.py stop --ancestor=PID                        end every process PID started
 
 The pool has max(1, cores / 2) slots, each a lock file `slot<i>.lock` in $GAME_TEST_SLOT_DIR (default
@@ -21,10 +21,13 @@ go at once): they take no slot, write no pid and replace no file.
 Every engine process tools/run_tests.sh starts holds a slot, the first-run import included; the lint's engine pass,
 editors and played games take none.
 
-The machine's state, for `--quiet` and the PERF lines of a run: the 1-minute load (`uptime`) and the number of other Godot
-processes (`pgrep -i godot`: editors and played games too), those under the process PID (the run's own) left out.
-`annotate` appends `(load <x>, <n> other Godot)` to every `PERF ` line it passes, `  load <x>` to every totals line and, with
---loaded, `  loaded` to every verdict line (`PASS    <id>  (<s>s sim, <ms> ms)`) and `"loaded": true` to every result of the `JSON:` line. `quiet` returns 0 once no other Godot runs and the load is under
+The machine's state, for `--quiet` and the PERF lines of a run: the 1-minute load (`uptime`) and the number of busy Godot
+processes, those under the process PID (the run's own) left out. A Godot is an engine process (its executable's name starts
+with godot: an editor, a test run, a played game; a godot-mcp server is a node process and is none) and busy when it burned more than
+--busy-cpu percent (20 by default) of one core over a sample of --busy-sample seconds (2): two readings of its cpu time that far
+apart, taken by `ps` ($GAME_TEST_BUSY_SAMPLE replaces the length, for tests). An idle editor is not busy. The wrapper passes both from tools/perf_quiet.conf.
+`annotate` appends `(load <x>, <n> busy Godot)` to every `PERF ` line it passes, `  load <x>` to every totals line and, with
+--loaded, `  loaded` to every verdict line (`PASS    <id>  (<s>s sim, <ms> ms)`) and `"loaded": true` to every result of the `JSON:` line. `quiet` returns 0 once no other Godot is busy and the load is under
 --max-load, printing the load and the count at once and every minute ($GAME_TEST_QUIET_MINUTE seconds, 60 by default;
 polled every $GAME_TEST_QUIET_POLL, 5 by default) while it waits, and 3 after --timeout-min minutes. `stop` sends SIGTERM to
 every process PID started, directly or not (not itself, nor what it started), and SIGKILL to those still there
@@ -47,6 +50,9 @@ from typing import Optional
 RECLAIM_WAIT = 0.1
 # How long `stop` waits for the processes a SIGKILL was sent to.
 KILL_WAIT = 2.0
+# What counts as a busy engine when the wrapper passes no --busy-cpu / --busy-sample (tools/perf_quiet.conf's values).
+BUSY_CPU = 20.0
+BUSY_SAMPLE_S = 2.0
 # The lock file that serialises the takers of a pool (it is not a slot).
 GUARD = "slot-reclaim.lock"
 VERDICT = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+\S+\s+\(")
@@ -219,11 +225,62 @@ def left_of(ancestor: int) -> set:
     return under(ancestor, table) - under(me, table) - {me} - ended
 
 
-def other_godots(ancestor: int) -> int:
-    """How many Godot processes run that the process `ancestor` did not start."""
-    found = subprocess.run(["pgrep", "-i", "godot"], capture_output=True, text=True).stdout.split()
-    pids = {int(p) for p in found if p.isdigit()} - {os.getpid()}
-    return len(pids - under(ancestor))
+def cpu_seconds(text: str) -> float:
+    """The seconds a `ps -o time` reading names: [[dd-]hh:]mm:ss[.cc]."""
+    days, _, clock = text.rpartition("-")
+    seconds = 0.0
+    for part in clock.split(":"):
+        seconds = seconds * 60 + float(part)
+    return seconds + (int(days) * 86400 if days else 0)
+
+
+def cpu_table() -> dict:
+    """A snapshot of the process table: pid -> (parent pid, cpu seconds burned so far, executable name). The name is the
+    process's own (`ucomm` on macOS, where `comm` is a path and a node process may retitle itself: `npm exec godot-mcp`)."""
+    name = "ucomm" if sys.platform == "darwin" else "comm"
+    out = subprocess.run(["ps", "-A", "-o", "pid=", "-o", "ppid=", "-o", "time=", "-o", name + "="], capture_output=True,
+                         text=True).stdout
+    table = {}
+    for line in out.splitlines():
+        fields = line.split(None, 3)
+        if len(fields) == 4 and fields[0].isdigit() and fields[1].isdigit():
+            try:
+                table[int(fields[0])] = (int(fields[1]), cpu_seconds(fields[2]), fields[3].strip())
+            except ValueError:
+                pass  # a time this does not read: the process is left out
+    return table
+
+
+def is_engine(name: str) -> bool:
+    """Whether an executable name is a Godot engine's (Godot, godot.macos.editor.arm64, Godot_v4.4-stable_...): the name
+    starts with godot. A godot-mcp server is a node process, an editor and a test run alike are engines."""
+    return name.lower().startswith("godot")
+
+
+def other_godots(ancestor: int, busy_cpu: float = BUSY_CPU, sample_s: float = BUSY_SAMPLE_S, snapshot=cpu_table,
+                 sleep=time.sleep, clock=time.monotonic) -> int:
+    """How many Godot engine processes the process `ancestor` did not start are busy: they burned more than `busy_cpu`
+    percent of one core over `sample_s` seconds (two readings of their cpu time that far apart). An idle editor, a
+    godot-mcp server and a process that was not there at the first reading do not count. `snapshot`, `sleep` and `clock`
+    are the machine's, for a test to replace."""
+    first, started = snapshot(), clock()
+    sleep(sample_s)
+    second, elapsed = snapshot(), max(clock() - started, 1e-6)
+    mine = under(ancestor, second) | {os.getpid()}
+    count = 0
+    for pid, (_, cpu, name) in second.items():
+        if pid in mine or pid not in first or not is_engine(name):
+            continue
+        if (cpu - first[pid][1]) / elapsed * 100 > busy_cpu:
+            count += 1
+    return count
+
+
+def busy_options(argv: list) -> tuple:
+    """(busy_cpu, busy_sample_s) from `--busy-cpu=` and `--busy-sample=` (tools/perf_quiet.conf's, passed by the wrapper);
+    $GAME_TEST_BUSY_SAMPLE replaces the sample's length, as the tests scale the quiet gate's minute down."""
+    sample = os.environ.get("GAME_TEST_BUSY_SAMPLE") or option(argv, "--busy-sample", BUSY_SAMPLE_S)
+    return float(option(argv, "--busy-cpu", BUSY_CPU)), float(sample)
 
 
 def option(argv: list, name: str, default=None):
@@ -242,10 +299,11 @@ def mark_loaded(report: dict) -> dict:
 
 def annotate(argv: list) -> int:
     ancestor, loaded = int(option(argv, "--ancestor", os.getppid())), "--loaded" in argv
+    busy_cpu, sample_s = busy_options(argv)
     for line in sys.stdin:
         line = line.rstrip("\n")
         if line.startswith("PERF "):
-            line += " (load %.2f, %d other Godot)" % (one_minute_load(), other_godots(ancestor))
+            line += " (load %.2f, %d busy Godot)" % (one_minute_load(), other_godots(ancestor, busy_cpu, sample_s))
         elif TOTALS.match(line):
             line += "  load %.2f" % one_minute_load()
         elif loaded and VERDICT.match(line):
@@ -262,21 +320,22 @@ def annotate(argv: list) -> int:
 def quiet(argv: list) -> int:
     ancestor, max_load = int(option(argv, "--ancestor", os.getppid())), float(option(argv, "--max-load", "6"))
     minutes = float(option(argv, "--timeout-min", "30"))
+    busy_cpu, sample_s = busy_options(argv)
     minute = float(os.environ.get("GAME_TEST_QUIET_MINUTE", "60"))
     poll = float(os.environ.get("GAME_TEST_QUIET_POLL", "5"))
     started, said = time.monotonic(), None
     while True:
-        load, others = one_minute_load(), other_godots(ancestor)
+        load, others = one_minute_load(), other_godots(ancestor, busy_cpu, sample_s)
         if others == 0 and load < max_load:
             return 0
         now = time.monotonic()
         if now - started >= minutes * minute:
-            print("quiet gate timed out after %g min (load %.2f, %d other Godot): running anyway, the results are marked loaded"
+            print("quiet gate timed out after %g min (load %.2f, %d busy Godot): running anyway, the results are marked loaded"
                   % (minutes, load, others), flush=True)
             return 3
         if said is None or now - said >= minute:
             said = now
-            print("waiting for a quiet machine: load %.2f (under %g wanted), %d other Godot (none wanted), %.1f of %g min"
+            print("waiting for a quiet machine: load %.2f (under %g wanted), %d busy Godot (none wanted), %.1f of %g min"
                   % (load, max_load, others, (now - started) / minute, minutes), flush=True)
         time.sleep(poll)
 

@@ -1244,8 +1244,8 @@ class PerfPhaseTests(unittest.TestCase):
 
 
 FAKE_PERF_GODOT = r"""#!/usr/bin/env bash
-# Stands in for Godot: notes its pid in $FAKE_SELF_PIDS (the fake pgrep reports it, as the real one reports every
-# engine), prints a PERF line and a perf test's verdict line, and writes a report of that one passing test (perf/p for
+# Stands in for Godot: notes its pid in $FAKE_SELF_PIDS (the fake ps lists it as a busy engine, as the real one lists
+# every engine), prints a PERF line and a perf test's verdict line, and writes a report of that one passing test (perf/p for
 # a run of the perf domain, a/s<shard> otherwise); with FAKE_JSON set, the `JSON:` line the batch prints under --json.
 for a in "$@"; do [ "$a" = "--import" ] && exit 0; done
 log=""; out=""; id="a/whole"; shard=""
@@ -1270,10 +1270,39 @@ echo "1 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
 exit 0
 """
 
+# The machine's processes: the real `ps` without the real engines, plus the run's own engines (those in $FAKE_SELF_PIDS
+# that live, busy) and the others $FAKE_OTHERS lists, one per line: `<pid>` a busy engine, `<pid> idle` an idle editor,
+# `<pid> mcp` a busy godot-mcp server (a node process). A busy one burns a core: its cpu time is the clock's.
+FAKE_PS = r"""#!/usr/bin/env python3
+import os, subprocess, sys, time
+real = subprocess.run(["/bin/ps"] + sys.argv[1:], capture_output=True, text=True).stdout.splitlines()
+if not any(a in ("comm=", "ucomm=") for a in sys.argv):
+    print("\n".join(real))
+    sys.exit(0)
+def clock(seconds):
+    return "%d:%02d:%05.2f" % (seconds // 3600, seconds % 3600 // 60, seconds % 60)
+rows = [l for l in real if not l.split(None, 3)[-1].lower().startswith("godot")]
+parents = {l.split()[0]: l.split()[1] for l in real}
+def read(path):
+    try:
+        return open(path).read().split("\n")
+    except OSError:
+        return []
+for pid in read(os.environ["FAKE_SELF_PIDS"]):
+    if pid and pid in parents:
+        rows.append("%s %s %s Godot" % (pid, parents[pid], clock(time.time())))
+for line in read(os.environ["FAKE_OTHERS"]):
+    pid, _, kind = line.partition(" ")
+    if pid:
+        name = "node" if kind == "mcp" else "Godot"
+        rows.append("%s 1 %s %s" % (pid, clock(0.5 if kind == "idle" else time.time()), name))
+print("\n".join(rows))
+"""
+
 
 class QuietGateTests(unittest.TestCase):
-    """`--quiet`: the perf tests wait for a quiet machine (a fake `uptime` and `pgrep` on PATH, a minute scaled down),
-    run anyway on the timeout with their results marked `loaded`; every PERF line carries the load and the other
+    """`--quiet`: the perf tests wait for a quiet machine (a fake `uptime` and `ps` on PATH, a minute scaled down),
+    run anyway on the timeout with their results marked `loaded`; every PERF line carries the load and the busy other
     Godot processes."""
 
     @classmethod
@@ -1285,8 +1314,8 @@ class QuietGateTests(unittest.TestCase):
         cls.bin = cls.tmp / "bin"
         cls.bin.mkdir()
         (cls.bin / "uptime").write_text('#!/bin/sh\necho " 0:31  up 5 days, 22 users, load averages: $(cat "$FAKE_LOAD") 13.70 13.61"\n')
-        (cls.bin / "pgrep").write_text('#!/bin/sh\n# the engines that run, and the ones listed in $FAKE_OTHERS\n{ for p in $(cat "$FAKE_SELF_PIDS" 2>/dev/null); do kill -0 "$p" 2>/dev/null && echo "$p"; done; cat "$FAKE_OTHERS" 2>/dev/null; } | grep . || exit 1\n')
-        for f in ("uptime", "pgrep"):
+        (cls.bin / "ps").write_text(FAKE_PS)
+        for f in ("uptime", "ps"):
             (cls.bin / f).chmod(0o755)
 
     @classmethod
@@ -1307,7 +1336,8 @@ class QuietGateTests(unittest.TestCase):
         env = dict({k: v for k, v in os.environ.items() if k != "GAME_TEST_JOBS"}, GODOT=str(self.fake), TMPDIR=str(self.work),
                    FAKE_LOAD=str(self.load), FAKE_OTHERS=str(self.others), FAKE_SELF_PIDS=str(self.work / "self"),
                    FAKE_LOG=str(self.log), GAME_TEST_SLOT_DIR=str(self.work / "slots"), PATH=f"{self.bin}:{os.environ['PATH']}",
-                   GAME_TEST_QUIET_MINUTE="0.3", GAME_TEST_QUIET_POLL="0.05", GAME_TEST_SLOT_POLL="0.05", **env)
+                   GAME_TEST_QUIET_MINUTE="0.3", GAME_TEST_QUIET_POLL="0.05", GAME_TEST_SLOT_POLL="0.05",
+                   GAME_TEST_BUSY_SAMPLE="0.1", **env)
         return subprocess.Popen(["bash", str(RUN), "--no-lint", *args], cwd=ROOT, env=env, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True)
 
@@ -1316,28 +1346,43 @@ class QuietGateTests(unittest.TestCase):
         report = json.loads(next(self.work.glob("example_godot_last_report_*.json")).read_text())
         return out, {r["id"]: r for r in report["results"]}
 
-    def test_the_conf_holds_the_threshold_and_the_timeout_of_this_boxs_idle_baseline(self):
+    def test_the_conf_holds_the_threshold_the_timeout_and_what_makes_a_godot_busy(self):
         conf = dict(l.split("=") for l in (ROOT / "tools" / "perf_quiet.conf").read_text().splitlines()
                     if "=" in l and not l.startswith("#"))
-        self.assertEqual(conf, {"max_load": "6", "timeout_min": "30"})
+        self.assertEqual(conf, {"max_load": "6", "timeout_min": "30", "busy_cpu": "20", "busy_sample_s": "2"})
 
-    def test_it_waits_for_no_other_godot_and_a_load_under_the_threshold_and_says_so_each_minute(self):
+    def test_it_waits_for_no_other_busy_godot_and_a_load_under_the_threshold_and_says_so_each_minute(self):
         proc = self.start("--domain=perf", "--quiet")
         time.sleep(1.0)
-        self.assertIsNone(proc.poll(), "load 9 and two other Godot: it waits")
+        self.assertIsNone(proc.poll(), "load 9 and two busy Godot: it waits")
         self.assertFalse(self.log.exists(), "the perf process has not started")
         self.set_machine(load="1.00", others=[4000001])
         time.sleep(0.6)
-        self.assertIsNone(proc.poll(), "the load is low but another Godot runs: still waits")
+        self.assertIsNone(proc.poll(), "the load is low but another Godot is busy: still waits")
         self.set_machine(load="5.90", others=[])
         out, results = self.finish(proc)
         self.assertEqual(proc.returncode, 0, out)
         waits = [l for l in out.splitlines() if "waiting for a quiet machine" in l]
         self.assertGreaterEqual(len(waits), 3, "the load and the count again each minute\n" + out)
-        self.assertRegex(waits[0], r"load 9\.00.* 2 other Godot")
-        self.assertRegex(waits[-1], r"load 1\.00.* 1 other Godot")
+        self.assertRegex(waits[0], r"load 9\.00.* 2 busy Godot")
+        self.assertRegex(waits[-1], r"load 1\.00.* 1 busy Godot")
         self.assertNotIn("loaded", out.replace("waiting", ""), "a quiet machine at last: nothing is marked")
         self.assertNotIn("loaded", results["perf/p"])
+
+    def test_an_idle_editor_and_a_godot_mcp_server_do_not_hold_the_gate(self):
+        self.set_machine(load="1.00", others=["4000001 idle", "4000002 mcp"])
+        proc = self.start("--domain=perf", "--quiet=1")
+        out, results = self.finish(proc)
+        self.assertEqual(proc.returncode, 0, out)
+        self.assertNotIn("waiting for a quiet machine", out, "nothing busy runs: the gate clears at once")
+        self.assertNotIn("loaded", results["perf/p"])
+
+    def test_another_worktrees_busy_run_holds_the_gate_beside_an_idle_editor(self):
+        self.set_machine(load="1.00", others=["4000001 idle", "4000002 mcp", "4000003"])
+        proc = self.start("--domain=perf", "--quiet=1")
+        out, results = self.finish(proc)
+        self.assertRegex(out, r"waiting for a quiet machine: load 1\.00.* 1 busy Godot")
+        self.assertTrue(results["perf/p"]["loaded"], "the busy run never went away: the gate timed out\n" + out)
 
     def test_a_load_at_the_threshold_is_not_quiet(self):
         self.set_machine(load="6.00", others=[])
@@ -1402,18 +1447,19 @@ class QuietGateTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, out)
         self.assertNotIn("waiting for a quiet machine", out)
 
-    def test_a_perf_line_carries_the_load_and_the_other_godot_processes(self):
+    def test_a_perf_line_carries_the_load_and_the_busy_other_godot_processes(self):
+        self.set_machine(load="9.00", others=[4000001, "4000002 idle", "4000003 mcp", 4000004])
         out, _ = self.finish(self.start("--domain=perf"))
-        self.assertIn("PERF perf/p frame 3.20 (budget 8.00) (load 9.00, 2 other Godot)", out.splitlines())
+        self.assertIn("PERF perf/p frame 3.20 (budget 8.00) (load 9.00, 2 busy Godot)", out.splitlines())
         self.assertIn("PASS    perf/p  (1.0s sim, 20 ms)", out.splitlines(), "the verdict line is as it was")
         self.set_machine(load="0.50", others=[])
         out, _ = self.finish(self.start("--domain=perf"))
-        self.assertIn("PERF perf/p frame 3.20 (budget 8.00) (load 0.50, 0 other Godot)", out.splitlines(),
+        self.assertIn("PERF perf/p frame 3.20 (budget 8.00) (load 0.50, 0 busy Godot)", out.splitlines(),
                       "the run's own engine is not another Godot")
 
     def test_a_shards_perf_line_is_annotated_when_it_is_produced(self):
         out, _ = self.finish(self.start("--jobs=2", "--id=a/x,b/y"))
-        self.assertIn("PERF a/s0/2 frame 3.20 (budget 8.00) (load 9.00, 2 other Godot)", out.splitlines())
+        self.assertIn("PERF a/s0/2 frame 3.20 (budget 8.00) (load 9.00, 2 busy Godot)", out.splitlines())
 
     def test_a_bad_quiet_count_is_refused(self):
         proc = self.start("--domain=perf", "--quiet=soon")
