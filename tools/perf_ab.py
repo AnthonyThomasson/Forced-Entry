@@ -56,8 +56,8 @@ DEFAULT_RETRIES = 3
 METRICS = ("avg", "p95", "max")
 PERF_LINE = re.compile(r"^PERF (?P<label>.+) (?P<metric>avg|p95|max) ms/frame (?P<value>-?\d+(?:\.\d+)?) \(budget")
 VERDICT = re.compile(r"^(?P<status>PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+(?P<id>\S+)\s+\((?P<rest>.*)$")
-# godot_slot.py annotate marks a verdict line of a loaded process with this exact suffix.
-LOADED_SUFFIX = re.compile(r"\)  loaded$")
+# godot_slot.py annotate marks a verdict line of a loaded process with this suffix (after a TIMEOUT or SKIPPED reason too).
+LOADED_SUFFIX = re.compile(r"  loaded$")
 EXIT_OVER_BAR = 1
 EXIT_UNREADABLE = 2
 EXIT_FIGHTS_DIFFER = 3

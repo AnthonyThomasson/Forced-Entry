@@ -51,7 +51,7 @@ for test_id in ids:
         print("PERF fake match max ms/frame %.2f (budget 33.40) (load 1.00, 0 busy Godot)" % data.get("max", avg + 8))
     print("PERF fake match node growth 251 (load 1.00, 0 busy Godot)")
     status = "PASS" if avg <= 16.7 else "FAIL"
-    print("%s    %s  (13.7s sim, 14341 ms)%s" % (status, test_id, "  loaded" if plan.get("loaded") else data.get("verdict_tail", "")))
+    print("%s    %s  (13.7s sim, 14341 ms)%s" % (status, test_id, plan.get("reason", "") + "  loaded" if plan.get("loaded") else data.get("verdict_tail", "")))
 print("1 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  load 1.00")
 sys.exit(0 if avg <= 16.7 else 1)
 """
@@ -354,6 +354,14 @@ class PerfAbTests(unittest.TestCase):
     def test_quiet_minutes_reach_every_run_and_without_it_the_default_gate_is_asked_for(self):
         self.assertEqual(self.perf_ab(self.base, self.tip, "--rounds=1", "--quiet=2.5")[0], 0)
         self.assertTrue(all("--quiet=2.5" in c[3].split() and "--quiet" not in c[3].split() for c in self.calls()), self.calls())
+
+    def test_a_loaded_mark_after_a_reason_on_a_verdict_line_counts(self):
+        # A TIMEOUT or SKIPPED verdict carries a reason before the mark: `... ms)  - timed out after 30.0s  loaded`.
+        code, out = self.perf_ab(self.base, self.tip, "--rounds=2", "--ids=perf/match_5v5_stress",
+                                 plan={"3": {"loaded": True, "reason": "  - timed out after 30.0s", "avg": 99.0}})
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.names(), ["base", "tip", "base", "base", "tip"])
+        self.assertNotIn("99.00", out)
 
     def test_a_loaded_mark_is_the_exact_suffix_of_a_verdict_line(self):
         # A verdict line that ends in the word loaded without the two spaces godot_slot.py puts before it is not marked.
