@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GUARDS = ["perf/match_5v5_stress", "perf/grenade_match_stress", "perf/match_10v10_stress", "perf/match_npc_vision"]
 
 # The revision's tools/run_tests.sh. It reads the fake.json at the root of the tree it lives in: {"name", "avgs": [one per run of
-# this revision, the last one repeats], "p95", "max", "frames", "diverge": frame, "no_fingerprint": bool}, notes each call in
+# this revision, the last one repeats], "p95", "max", "frames", "diverge": frame, "tail": text appended to row 3, "verdict_tail": text ending the verdict line, "no_fingerprint": bool}, notes each call in
 # $FAKE_LOG (`<name> <pwd> fp=<dir> <args>`) and applies $FAKE_PLAN[<number of this call>] = {"loaded", "diverge", "avg"}.
 FAKE_RUN_TESTS = r"""#!/usr/bin/env python3
 import json, os, sys
@@ -41,6 +41,8 @@ for test_id in ids:
         rows = ["%d\tstate-%d" % (i, i) for i in range(data.get("frames", 6))]
         if diverge is not None and diverge < len(rows):
             rows[diverge] = "%d\tother-%s" % (diverge, data["name"])
+        if "tail" in data:
+            rows[3] += data["tail"]
         (Path(fp) / (test_id.replace("/", "__") + ".fp")).write_text("\n".join(rows) + "\n")
     print("PERF fake match contact at 8.7 s (load 1.00, 0 busy Godot)")
     if not data.get("no_perf"):
@@ -49,7 +51,7 @@ for test_id in ids:
         print("PERF fake match max ms/frame %.2f (budget 33.40) (load 1.00, 0 busy Godot)" % data.get("max", avg + 8))
     print("PERF fake match node growth 251 (load 1.00, 0 busy Godot)")
     status = "PASS" if avg <= 16.7 else "FAIL"
-    print("%s    %s  (13.7s sim, 14341 ms)%s" % (status, test_id, "  loaded" if plan.get("loaded") else ""))
+    print("%s    %s  (13.7s sim, 14341 ms)%s" % (status, test_id, "  loaded" if plan.get("loaded") else data.get("verdict_tail", "")))
 print("1 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  load 1.00")
 sys.exit(0 if avg <= 16.7 else 1)
 """
@@ -92,12 +94,13 @@ class PerfAbTests(unittest.TestCase):
         """Two new commits, the revision that plays `base` (a dict for fake.json) and the one that plays `tip`: their shas."""
         return self.commit("base", **(base or {"avgs": [10.0]})), self.commit("tip", **(tip or {"avgs": [10.0]}))
 
-    def perf_ab(self, *args, plan=None):
+    def perf_ab(self, *args, plan=None, python=None):
         if plan is not None:
             self.plan.write_text(json.dumps(plan))
         env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
         env.update(TMPDIR=str(self.state), FAKE_LOG=str(self.log), FAKE_PLAN=str(self.plan))
-        r = subprocess.run(["bash", str(self.repo / "tools" / "perf_ab.sh"), *args], cwd=self.repo, env=env,
+        cmd = ["bash", str(self.repo / "tools" / "perf_ab.sh")] if python is None else [python, str(self.repo / "tools" / "perf_ab.py")]
+        r = subprocess.run([*cmd, *args], cwd=self.repo, env=env,
                            capture_output=True, text=True, timeout=120)
         return r.returncode, r.stdout + r.stderr
 
@@ -202,7 +205,7 @@ class PerfAbTests(unittest.TestCase):
     def test_fingerprints_that_differ_refuse_with_the_first_frame_the_test_and_the_revisions_and_print_no_delta(self):
         base, tip = self.revs(tip={"avgs": [10.0], "diverge": 3})
         code, out = self.perf_ab(base, tip, "--rounds=2", "--ids=perf/match_5v5_stress")
-        self.assertNotEqual(code, 0, out)
+        self.assertEqual(code, 3, "a refusal has an exit code of its own, apart from 1 (over the bar)\n" + out)
         self.assertIn("fights differ from frame 3", out)
         self.assertIn("perf/match_5v5_stress", out)
         self.assertIn(tip[:8], out)
@@ -213,7 +216,7 @@ class PerfAbTests(unittest.TestCase):
     def test_two_plays_of_base_that_differ_refuse_too(self):
         # Call 3 is BASE's second round: a revision that does not replay its own fight cannot be compared at all.
         code, out = self.perf_ab(self.base, self.tip, "--rounds=2", "--ids=perf/match_5v5_stress", plan={"3": {"diverge": 2}})
-        self.assertNotEqual(code, 0, out)
+        self.assertEqual(code, 3, out)
         self.assertIn("fights differ from frame 2", out)
         self.assertRegex(out, r"BASE %s round 1 against BASE %s round 2" % (self.base[:8], self.base[:8]))
         self.assertNotIn("delta", out)
@@ -221,13 +224,13 @@ class PerfAbTests(unittest.TestCase):
     def test_the_first_differing_frame_is_the_first_of_every_test(self):
         base, tip = self.revs(tip={"avgs": [10.0], "diverge": 4})
         code, out = self.perf_ab(base, tip, "--rounds=1", "--ids=perf/match_5v5_stress,perf/match_npc_vision")
-        self.assertNotEqual(code, 0, out)
+        self.assertEqual(code, 3, out)
         self.assertIn("fights differ from frame 4: perf/match_5v5_stress", out)
 
     def test_a_fingerprint_that_is_a_prefix_of_the_other_differs_at_the_frame_it_ends_on(self):
         base, tip = self.revs(tip={"avgs": [10.0], "frames": 4})  # base wrote frames 0..5, tip 0..3
         code, out = self.perf_ab(base, tip, "--rounds=1", "--ids=perf/match_5v5_stress")
-        self.assertNotEqual(code, 0, out)
+        self.assertEqual(code, 3, out)
         self.assertIn("fights differ from frame 4", out)
 
     def test_a_revision_that_writes_no_fingerprint_ends_the_run_naming_it(self):
@@ -300,11 +303,79 @@ class PerfAbTests(unittest.TestCase):
         self.assertEqual(len(kept), 2, out)
         self.assertTrue(all(Path(k).is_file() for k in kept), kept)
 
+    def test_a_frame_with_a_character_splitlines_splits_at_is_one_line(self):
+        # Row 3 holds a vertical tab (an act can hold odd characters); the fingerprints differ after it, on the same line.
+        base, tip = self.revs({"avgs": [10.0], "tail": "\x0babc"}, {"avgs": [10.0], "tail": "\x0bxyz"})
+        code, out = self.perf_ab(base, tip, "--rounds=1", "--ids=perf/match_5v5_stress")
+        self.assertEqual(code, 3, out)
+        self.assertIn("fights differ from frame 3", out)
+
+    def test_a_reused_tree_with_a_tracked_file_changed_is_reset_keeping_the_untracked_and_ignored(self):
+        self.assertEqual(self.perf_ab(self.base, self.tip, "--rounds=1")[0], 0)
+        tree = self.state / "forced-entry-perf-ab" / self.base
+        (tree / ".godot").mkdir()
+        (tree / ".godot" / "imported.cache").write_text("the import")
+        (tree / "built.marker").write_text("untracked")
+        (tree / "fake.json").write_text(json.dumps({"name": "base", "avgs": [99.0]}))  # a tracked file changed
+        code, out = self.perf_ab(self.base, self.tip, "--rounds=1", "--ids=perf/match_5v5_stress")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(json.loads((tree / "fake.json").read_text())["avgs"], [10.0], "reset to the sha")
+        self.assertNotIn("99.00", out, "the round ran the sha, not the edit")
+        self.assertEqual((tree / ".godot" / "imported.cache").read_text(), "the import")
+        self.assertEqual((tree / "built.marker").read_text(), "untracked")
+
+    def test_a_clean_reused_tree_is_not_reset(self):
+        self.assertEqual(self.perf_ab(self.base, self.tip, "--rounds=1")[0], 0)
+        tree = self.state / "forced-entry-perf-ab" / self.base
+        (tree / "built.marker").write_text("untracked")
+        stamp = (tree / "fake.json").stat().st_mtime_ns
+        self.assertEqual(self.perf_ab(self.base, self.tip, "--rounds=1")[0], 0)
+        self.assertEqual((tree / "fake.json").stat().st_mtime_ns, stamp, "no reset of a clean tree")
+
+    def test_a_rounds_output_is_saved_and_a_failure_that_read_it_names_the_file(self):
+        base = self.commit("base", avgs=[10.0], no_perf=True)
+        code, out = self.perf_ab(base, base, "--rounds=1", "--ids=perf/match_5v5_stress")
+        self.assertEqual(code, 2, out)
+        saved = [Path(w.rstrip(")")) for w in out.split() if w.rstrip(")").endswith("run_tests.out")]
+        self.assertEqual(len(saved), 1, out)
+        self.assertIn("PERF fake match contact at", saved[0].read_text(), "the whole stdout of the round")
+
+    def test_a_failed_setup_still_cleans_the_trees_already_built(self):
+        # The tip's tree path holds a file, so its worktree cannot be made after the base's was.
+        root = self.state / "forced-entry-perf-ab"
+        root.mkdir()
+        (root / self.tip).write_text("in the way")
+        code, out = self.perf_ab(self.base, self.tip, "--rounds=1", "--clean")
+        self.assertEqual(code, 2, out)
+        self.assertEqual(self.calls(), [], "no round ran")
+        self.assertFalse((root / self.base).exists(), out)
+        self.assertNotIn(self.base, self.git("worktree", "list", "--porcelain"))
+
+    def test_quiet_minutes_reach_every_run_and_without_it_the_default_gate_is_asked_for(self):
+        self.assertEqual(self.perf_ab(self.base, self.tip, "--rounds=1", "--quiet=2.5")[0], 0)
+        self.assertTrue(all("--quiet=2.5" in c[3].split() and "--quiet" not in c[3].split() for c in self.calls()), self.calls())
+
+    def test_a_loaded_mark_is_the_exact_suffix_of_a_verdict_line(self):
+        # A verdict line that ends in the word loaded without the two spaces godot_slot.py puts before it is not marked.
+        base = self.commit("base", avgs=[10.0], verdict_tail=" reloaded")
+        code, out = self.perf_ab(base, base, "--rounds=1", "--ids=perf/match_5v5_stress")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("dropped", out)
+        self.assertEqual(self.names(), ["base", "base"])
+
+    def test_it_runs_under_the_oldest_python_3_on_the_machine(self):
+        old = Path("/usr/bin/python3")  # macOS ships 3.9: no `int | None` evaluated at import, no match statement
+        if not old.exists():
+            self.skipTest("no /usr/bin/python3")
+        code, out = self.perf_ab(self.base, self.tip, "--rounds=2", python=str(old))
+        self.assertEqual(code, 0, out)
+        self.assertIn("perf_ab: PASS", out)
+
     def test_argument_errors_exit_2_before_any_tree_or_run(self):
         for args in ([], [self.base], [self.base, self.tip, "HEAD"], [self.base, self.tip, "--rounds=0"],
                      [self.base, self.tip, "--rounds=x"], [self.base, self.tip, "--rounds=-2"], [self.base, self.tip, "--bar=-1"],
                      [self.base, self.tip, "--bar=x"], [self.base, self.tip, "--ids="], [self.base, self.tip, "--ids=perf/a b"],
-                     [self.base, self.tip, "--retries=x"], [self.base, self.tip, "--nope"], ["nosuchrev", self.tip],
+                     [self.base, self.tip, "--retries=x"], [self.base, self.tip, "--quiet=0"], [self.base, self.tip, "--quiet=x"], [self.base, self.tip, "--nope"], ["nosuchrev", self.tip],
                      [self.base, "nosuchrev"]):
             with self.subTest(args=args):
                 code, out = self.perf_ab(*args)

@@ -5,23 +5,18 @@ Until #203 a revision played its own match: the order and timing of events follo
 (`perf-district-ext3.md`) could not be told from a different fight. The sim length is `warm_until_contact` plus the window, so it is the
 contact time. Never judge a match guard by its sim length or by one run.
 
-## What is deterministic now (#203, always on in the game, no switch)
+## State of #203 (what exists, what is landing)
 
-Every order or timing that came from an allocation is keyed on spawn order, an id only ever being a lookup key; each one has a test of its own
-in `tests/ai/`, `tests/navigation/` or `tests/perf/`:
+Built and pinned by tests: the fight fingerprint (`perf-fingerprint.md`: every NPC's position, goal, act and health, the shots and the
+deaths, a line per physics frame through the warm-up and the whole window), the allocation-padding switch
+(`testing.allocation_padding`: 777 nodes and 333 bodies, areas and shapes before the world is built, so a dependence on allocation
+shows), the quiet gate that counts only busy engines (`perf.md`) and `tools/perf_ab.sh` (below). The look phase has been handed out in
+turn since #192 (`look_phases.gd`).
 
-- the look phase (`look_phases.gd`, #192) and the sight cadence (`perception_sight.gd`), handed out in turn;
-- the give-way order (`loco_give_way.gd`) and any other AI order or timing that read an instance id;
-- the planning re-bake (`NavRebake._bake_async`): its result lands on a fixed frame count after it starts and waits for the thread only
-  when it is late (a late thread is the one wall-clock effect left: a quiet machine never shows it);
-- randomness: each world has an RNG seeded from the match seed, used by projectiles, casings, explosions, debris, ragdolls and stun; two
-  worlds in one process share none, and different match seeds still play different fights;
-- the physics order #192 saw split at frame 64.
-
-How it is proved: the fight fingerprint (`perf-fingerprint.md`: every NPC's position, goal, act and health, the shots and the deaths, a
-line per physics frame through the warm-up and the whole window) of two plays of one revision is identical, with and without the
-allocation padding (`testing.allocation_padding`: 777 nodes and 333 bodies, areas and shapes before the world, so any dependence on
-allocation shows).
+**Landing in #203 (not on every branch yet; the final job writes the list as it merged):** the sight cadence, the give-way order and any
+other AI order or timing keyed on an instance id moved to spawn order; the planning re-bake applied on a fixed frame count; a per-world
+RNG seeded from the match seed in place of the global `randf`; the physics-order split #192 saw at frame 64. Until they merge, two plays
+of one revision do not match (the first reading below), and `perf_ab.sh` refuses.
 
 **TODO (#203, the acceptance run):** the result of `tools/perf_ab.sh HEAD~0 HEAD` on this ticket's own tip is written here when it has
 run (identical fingerprints, the delta against the bar), with the four guards' two-run fingerprints and the padding on / off check.
@@ -36,8 +31,8 @@ Compare two revisions only through it (`tools/perf_ab.py`'s header holds the fla
 - **A round marked `loaded`** (the quiet gate gave up, `runner-flags.md`) is dropped and run again, at most `--retries` times (3), then the
   run ends: a loaded result says nothing about the code.
 - **The fights must be the same.** Every round's fingerprint is checked against the first one of BASE, test by test; the first
-  difference ends the run with `fights differ from frame N` (the test, the two revisions or rounds, the files kept) and no delta. Not
-  the tool's fault: the revisions play different matches, or one revision does not replay its own. A revision from before the fingerprint
+  difference ends the run with `fights differ from frame N` (the test, the two revisions or rounds, the files kept), no delta and exit 3
+  (a regression over the bar is exit 1, an unreadable run 2). Not the tool's fault: the revisions play different matches, or one revision does not replay its own. A revision from before the fingerprint
   has none and the run says so.
 - **Only then** it prints per test the medians of avg / p95 / max ms per frame for both and the delta of each, in percent of BASE's
   median avg, and fails (exit 1) when the avg delta is over `--bar` (5). The medians resist a round the machine spoiled; p95 and max are

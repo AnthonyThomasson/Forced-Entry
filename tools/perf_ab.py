@@ -7,7 +7,7 @@ rounds (BASE, TIP, BASE, TIP ...), each through that revision's own tools/run_te
 to a directory of that round, checks every round's fight fingerprint against the first one of BASE and, only when every
 fight is the same, prints per test the medians of avg / p95 / max ms per frame for BASE and TIP and the delta.
 
-  tools/perf_ab.sh BASE TIP [--ids=perf/a,perf/b] [--rounds=6] [--bar=5] [--retries=3] [--clean]
+  tools/perf_ab.sh BASE TIP [--ids=perf/a,perf/b] [--rounds=6] [--bar=5] [--retries=3] [--quiet=30] [--clean]
   tools/perf_ab.sh --clean
 
   BASE, TIP    two revisions (anything `git rev-parse` resolves), resolved to shas first: BASE and TIP may be the same sha.
@@ -18,19 +18,26 @@ fight is the same, prints per test the medians of avg / p95 / max ms per frame f
                exits 1 past it. p95 and max are printed as percent of BASE's avg too, and are not held.
   --retries=N  a round whose result is marked `loaded` (run_tests.sh --quiet gave up waiting for a quiet machine) is
                dropped and run again, at most N times (default 3); a round still loaded after that ends the run (exit 2).
+  --quiet=MIN  the minutes each run_tests.sh waits for a quiet machine before it runs anyway and marks its results loaded (its own
+               default, 30, without it): with retries, a machine that never clears costs MIN x (retries + 1) a round.
   --clean      with BASE and TIP: remove their scratch trees when the run ends (otherwise they stay, built, for the next
                run); alone: remove every scratch tree.
 
 Each revision gets a scratch git worktree at ${TMPDIR}/forced-entry-perf-ab/<sha> (made on the first run, reused while it holds
-that sha, so Godot's import is paid once; `git worktree prune` drops the record of one deleted by hand). The test run of each round is
+that sha and has no tracked file changed, else reset --hard to it keeping what git ignores, `.godot/`, so Godot's import is paid once; `git worktree prune` drops the record of one deleted by hand). The test run of each round is
 `tools/run_tests.sh --no-lint --quiet --verbose --id=<ids>` of that tree (no lint: a revision's lint says nothing about its speed).
 A run_tests.sh that exits non-zero is no failure here: the match guards miss their budgets on some revisions, and the PERF
 lines are what is read. A round that wrote no fingerprint, or printed no PERF avg / p95 / max for a test, ends the run (exit 2).
 
-Exit: 0 every test within the bar; 1 a delta over the bar, or the fights differ (no delta is printed: `fights differ from
-frame N`, N the first frame of two fingerprints that differs, the files kept and named); 2 a usage error or a run that could
-not be read.
+Every round's run_tests.sh output is kept in its run directory (`run_tests.out`, named by a failure that read it); the run
+directories are removed when the run ends well and kept when it does not.
+
+Exit: 0 every test within the bar; 1 a delta over the bar (a regression); 3 the fights differ (a refusal, no delta is printed:
+`fights differ from frame N`, N the first frame of two fingerprints that differs, the files kept and named); 2 a usage error or a run
+that could not be read.
 """
+from __future__ import annotations
+
 import os
 import re
 import shutil
@@ -49,13 +56,18 @@ DEFAULT_RETRIES = 3
 METRICS = ("avg", "p95", "max")
 PERF_LINE = re.compile(r"^PERF (?P<label>.+) (?P<metric>avg|p95|max) ms/frame (?P<value>-?\d+(?:\.\d+)?) \(budget")
 VERDICT = re.compile(r"^(?P<status>PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+(?P<id>\S+)\s+\((?P<rest>.*)$")
-USAGE = "usage: tools/perf_ab.sh BASE TIP [--ids=perf/a,perf/b] [--rounds=6] [--bar=5] [--retries=3] [--clean]   |   tools/perf_ab.sh --clean"
+# godot_slot.py annotate marks a verdict line of a loaded process with this exact suffix.
+LOADED_SUFFIX = re.compile(r"\)  loaded$")
+EXIT_OVER_BAR = 1
+EXIT_UNREADABLE = 2
+EXIT_FIGHTS_DIFFER = 3
+USAGE = "usage: tools/perf_ab.sh BASE TIP [--ids=perf/a,perf/b] [--rounds=6] [--bar=5] [--retries=3] [--quiet=30] [--clean]   |   tools/perf_ab.sh --clean"
 
 
 class Fail(Exception):
     """A run that ends with `code` and says why."""
 
-    def __init__(self, message: str, code: int = 2):
+    def __init__(self, message: str, code: int = EXIT_UNREADABLE):
         super().__init__(message)
         self.code = code
 
@@ -67,6 +79,7 @@ class Options:
         self.rounds = DEFAULT_ROUNDS
         self.bar = DEFAULT_BAR
         self.retries = DEFAULT_RETRIES
+        self.quiet = "--quiet"
         self.clean = False
 
 
@@ -81,6 +94,15 @@ def parse_args(argv: list[str]) -> Options:
                 raise Fail("--ids wants a comma list of test ids (perf/match_5v5_stress), got: %s\n%s" % (a, USAGE))
         elif a.startswith("--rounds="):
             o.rounds = whole(a, "--rounds", 1)
+        elif a.startswith("--quiet="):
+            minutes = a[len("--quiet="):]
+            try:
+                valid = float(minutes) > 0
+            except ValueError:
+                valid = False
+            if not valid:
+                raise Fail("--quiet wants the minutes to wait for a quiet machine (30), got: %s\n%s" % (a, USAGE))
+            o.quiet = a
         elif a.startswith("--retries="):
             o.retries = whole(a, "--retries", 0)
         elif a.startswith("--bar="):
@@ -135,9 +157,12 @@ def tree_holds(path: Path, sha: str) -> bool:
 
 
 def ensure_tree(sha: str) -> Path:
-    """The scratch worktree of `sha`: reused while it holds that sha, else made."""
+    """The scratch worktree of `sha`: reused while it holds that sha with no tracked file changed (a changed one is reset to
+    it; untracked and ignored files, the `.godot/` import, stay), else made."""
     path = scratch_root() / sha
     if tree_holds(path, sha):
+        if git("status", "--porcelain", "--untracked-files=no", cwd=path).stdout.strip():
+            git("reset", "--hard", sha, cwd=path)
         return path
     if path.exists():
         shutil.rmtree(path, ignore_errors=True)  # a leftover of a run that died half way
@@ -176,7 +201,7 @@ class Round:
         return self.dir / (test_id.replace("/", "__") + ".fp")
 
 
-def read_output(text: str, ids: list[str], rnd: Round, where: str) -> None:
+def read_output(text: str, ids: list[str], rnd: Round, where: str, saved: Path) -> None:
     pending: dict[str, float] = {}
     label = None
     for line in text.splitlines():
@@ -191,32 +216,40 @@ def read_output(text: str, ids: list[str], rnd: Round, where: str) -> None:
         if m:
             if m["id"] in ids:
                 rnd.stats[m["id"]] = pending
-                rnd.loaded = rnd.loaded or line.rstrip().endswith("loaded")
+                rnd.loaded = rnd.loaded or LOADED_SUFFIX.search(line) is not None
             pending, label = {}, None
     for test_id in ids:
         got = rnd.stats.get(test_id)
         if got is None:
-            raise Fail("%s: no verdict line for %s in the run_tests.sh output" % (where, test_id))
+            raise Fail("%s: no verdict line for %s in the run_tests.sh output (%s)" % (where, test_id, saved))
         missing = [k for k in METRICS if k not in got]
         if missing:
-            raise Fail("%s: no PERF %s ms/frame line for %s (a test that stopped before its measurement?)"
-                       % (where, "/".join(missing), test_id))
+            raise Fail("%s: no PERF %s ms/frame line for %s (a test that stopped before its measurement? output: %s)"
+                       % (where, "/".join(missing), test_id, saved))
 
 
-def run_round(tree: Path, ids: list[str], directory: Path, where: str) -> Round:
+def run_round(tree: Path, ids: list[str], directory: Path, where: str, quiet: str) -> Round:
     directory.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, GAME_TEST_FINGERPRINT_DIR=str(directory))
-    cmd = [str(tree / "tools" / "run_tests.sh"), "--no-lint", "--quiet", "--verbose", "--id=" + ",".join(ids)]
+    cmd = [str(tree / "tools" / "run_tests.sh"), "--no-lint", quiet, "--verbose", "--id=" + ",".join(ids)]
     r = subprocess.run(cmd, cwd=tree, env=env, stdout=subprocess.PIPE, text=True)  # stderr (a slot wait) passes
+    saved = directory / "run_tests.out"
+    saved.write_text(r.stdout)
     rnd = Round(directory)
-    read_output(r.stdout, ids, rnd, where)
+    read_output(r.stdout, ids, rnd, where, saved)
     return rnd
+
+
+def fingerprint_lines(path: Path) -> list[str]:
+    """The lines of a fingerprint, split at newlines only (an act can hold a space or a character `splitlines` splits at)."""
+    lines = path.read_text().split("\n")
+    return lines[:-1] if lines and lines[-1] == "" else lines
 
 
 def first_difference(a: Path, b: Path) -> int | None:
     """The first frame of two fingerprints that differs (the first field of the first line that differs; a file that is a
     prefix of the other differs at the frame it ends on), None when they are equal."""
-    left, right = a.read_text().splitlines(), b.read_text().splitlines()
+    left, right = fingerprint_lines(a), fingerprint_lines(b)
     for i in range(min(len(left), len(right))):
         if left[i] != right[i]:
             return frame_of(left[i], i)
@@ -251,7 +284,7 @@ class Session:
         for attempt in range(self.o.retries + 1):
             where = "round %d/%d %s %s" % (number, self.o.rounds, side, sha[:8])
             print("%s%s ..." % (where, "" if attempt == 0 else " (run %d)" % (attempt + 1)), flush=True)
-            rnd = run_round(self.trees[sha], self.o.ids, self.runs / ("r%02d-%s-%d" % (number, side.lower(), attempt)), where)
+            rnd = run_round(self.trees[sha], self.o.ids, self.runs / ("r%02d-%s-%d" % (number, side.lower(), attempt)), where, self.o.quiet)
             if rnd.loaded:
                 print("  dropped: the result is marked loaded (the machine was never quiet); running the round again", flush=True)
                 continue
@@ -260,8 +293,8 @@ class Session:
                 for k in METRICS:
                     self.results[side][test_id][k].append(rnd.stats[test_id][k])
             return
-        raise Fail("%s: still marked loaded after %d reruns (--retries=%d): the machine never went quiet; no result"
-                   % (where, self.o.retries, self.o.retries))
+        raise Fail("%s: still marked loaded after %d reruns (--retries=%d): the machine never went quiet; no result (output: %s)"
+                   % (where, self.o.retries, self.o.retries, rnd.dir / "run_tests.out"))
 
     def check_fight(self, rnd: Round, where: str, side: str, number: int) -> None:
         for test_id in self.o.ids:
@@ -278,7 +311,7 @@ class Session:
                 self.keep_runs = True
                 raise Fail("fights differ from frame %d: %s, %s against %s %s round %d\n  %s\n  %s\nthe frame times are not compared: the "
                            "revisions (or two plays of one) did not play the same match (perf-nondeterminism.md)"
-                           % (frame, test_id, ref_where, side, self.sha_of(side)[:8], number, ref_path, path), 1)
+                           % (frame, test_id, ref_where, side, self.sha_of(side)[:8], number, ref_path, path), EXIT_FIGHTS_DIFFER)
 
     def report(self) -> int:
         o = self.o
@@ -298,7 +331,7 @@ class Session:
             if not ok:
                 failed.append(test_id)
         print("\nperf_ab: %s" % ("FAIL: over the bar: " + ", ".join(failed) if failed else "PASS"))
-        return 1 if failed else 0
+        return EXIT_OVER_BAR if failed else 0
 
     def finish(self) -> None:
         if not self.keep_runs:
@@ -310,28 +343,30 @@ class Session:
 
 
 def main(argv: list[str]) -> int:
-    session = None
+    session, options, shas, code = None, None, [], 0
     try:
-        o = parse_args(argv)
-        if not o.revisions:
+        options = parse_args(argv)
+        if not options.revisions:
             clean_all()
             print("perf_ab: scratch trees removed")
             return 0
-        shas = [resolve(r) for r in o.revisions]
-        session = Session(o, shas)
-        for number in range(1, o.rounds + 1):
+        shas = [resolve(r) for r in options.revisions]
+        session = Session(options, shas)
+        for number in range(1, options.rounds + 1):
             session.play(number, "BASE")
             session.play(number, "TIP")
         code = session.report()
     except Fail as e:
         print("perf_ab: %s" % e, file=sys.stderr)
         code = e.code
+        if session is not None:
+            session.keep_runs = True  # the output of the rounds says why
     finally:
         if session is not None:
             session.finish()
-            if o.clean:
-                for sha in session.trees:
-                    remove_tree(session.trees[sha])
+        if options is not None and options.clean:
+            for sha in dict.fromkeys(shas):  # also the trees a setup that failed half way had built
+                remove_tree(scratch_root() / sha)
     return code
 
 
