@@ -1,8 +1,9 @@
 extends RefCounted
 ## A fight's fingerprint: one line per physics frame of everything a revision's fight is made of, so
-## two plays of one match can be diffed and the first frame they differ on named (perf.md, "The
-## fight fingerprint"). Load it with `const Fingerprint := preload(...)`; the match guards reach it
-## through `Perf.record_fight`. Not a test (no `_test.gd` suffix).
+## two plays of one match can be diffed and the first frame they differ on named
+## (perf-fingerprint.md of the domain-testing skill). Load it with
+## `const Fingerprint := preload(...)`; the match guards reach it through `Perf.record_fight`. Not a
+## test (no `_test.gd` suffix).
 ##
 ## It costs nothing unset: `begin` returns null unless the environment holds
 ## `GAME_TEST_FINGERPRINT_DIR` (`tools/run_tests.sh` passes it to every engine process), and no
@@ -97,6 +98,9 @@ func _on_frame() -> void:
 	fields.append("S:" + ";".join(_shots_since_last_frame()))
 	fields.append("D:" + ",".join(died))
 	_file.store_line("\t".join(fields))
+	# Flushed each frame: a process that ends with the world still up (the last test of a run)
+	# closes no file, and the engine's buffer would be lost.
+	_file.flush()
 	_frame += 1
 
 

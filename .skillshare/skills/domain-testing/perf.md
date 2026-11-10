@@ -70,7 +70,7 @@ library's pre-warm renders on a worker thread (`domain-audio`).
   feature off with `set_static` / `switch` shows what it is worth. Measure before reading: a per-frame cost is rarely
   where the code suggests.
 - A lambda captures ints by value (count into an Array).
-- **Never judge a match guard by its sim length or one run (2026-11-07):** a revision plays its own match (order keyed on allocation, an async re-bake; the look phase fixed, #192 Ext 3). Interleave A/B runs, record the contact time: `perf-nondeterminism.md`.
+- **Never judge a match guard by its sim length or one run (2026-11-07):** a revision plays its own match (order keyed on allocation, an async re-bake; the look phase fixed, #192 Ext 3). Interleave A/B runs, record the contact time: `perf-nondeterminism.md`. A fight written out per frame and diffed: `perf-fingerprint.md`.
 - `nav.rebake` is off in tests that shove or shoot furniture into overlaps (re-baking overlapping holes logs a nav sync
   error); the match guards keep it on and allow that log (`MATCH_LOGS`).
 - World-gen's first run in a process is slower (cold caches), so its budget covers the cold case.

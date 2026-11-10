@@ -123,7 +123,7 @@
 # Fight fingerprint
 #   GAME_TEST_FINGERPRINT_DIR=DIR   every engine process of the run (shards, --base, --repeat's reruns) writes the four
 #                   match guards' fight fingerprints to DIR, `<test id with / as __>.fp` (tests/_perf/fight_fingerprint.gd;
-#                   the format: perf.md of the domain-testing skill). Made absolute here (--base runs in another
+#                   the format: perf-fingerprint.md of the domain-testing skill). Made absolute here (--base runs in another
 #                   checkout) and created; unset, no guard records anything.
 # Not here: --play <words> (play one test or sandbox in the runner) is the runner's own flag; this wrapper only runs
 # batches, so it refuses --play and prints the command that launches the runner. Any other flag not listed above, or

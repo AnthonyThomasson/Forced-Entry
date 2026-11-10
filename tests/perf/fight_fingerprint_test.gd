@@ -1,5 +1,5 @@
 extends GameTest
-## The fight fingerprint (`tests/_perf/fight_fingerprint.gd`, perf.md "The fight fingerprint"): one
+## The fight fingerprint (`tests/_perf/fight_fingerprint.gd`, perf-fingerprint.md): one
 ## line per physics frame holding every NPC's rounded position, goal, act and health, then the
 ## frame's shots and deaths, so two plays of a match can be diffed. A small arena fight: a puppet
 ## shoots another dead beside an NPC that stands by.
@@ -58,8 +58,11 @@ func run(t: TestContext) -> void:
 	shooter.shoot()
 	await t.until(func(): return target.is_dead, 3.0)
 	await t.frames(5)
+	# Read while recording: a run whose world is torn down without a close (the last test of a
+	# process) must still have written every frame.
+	var lines := _lines(Fingerprint.path_for(DIR, ID))
 	recorder.close()
-	_check_lines(t, _lines(Fingerprint.path_for(DIR, ID)), target)
+	_check_lines(t, lines, target)
 
 
 func _lines(path: String) -> PackedStringArray:

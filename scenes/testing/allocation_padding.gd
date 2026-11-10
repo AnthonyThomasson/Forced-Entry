@@ -4,8 +4,8 @@ class_name AllocationPadding extends RefCounted
 ## hands out RIDs in turn), and this proves it: with the switch on, `TestWorld.build` allocates
 ## `nodes` loose nodes and `bodies` physics bodies, areas and shapes before it builds anything, so
 ## every id and RID the world then takes is shifted. Its only use is a test that plays a fight with
-## and without it and compares the two (`perf/` fight fingerprints, perf.md). `release` frees all of
-## it (`TestWorld.restore`).
+## and without it and compares the two (`perf/` fight fingerprints, perf-fingerprint.md). `release`
+## frees all of it (`TestWorld.restore`).
 
 ## Whether `TestWorld.build` pads (the switch's knob).
 static var enabled := false

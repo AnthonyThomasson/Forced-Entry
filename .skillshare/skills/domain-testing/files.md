@@ -8,6 +8,7 @@
 | `arena_builder.gd`, `layout_builder.gd` | The walled arena and the hand-laid layout, built through `FloorFactory` / `WallFactory` and annotated like a house (`WorldGen.annotate_layout`). |
 | `scripted_controller.gd` | The puppet controller. |
 | `test_switches.gd` | The switch table. |
+| `allocation_padding.gd` | `AllocationPadding`, the `testing.allocation_padding` switch's allocations (loose nodes and physics RIDs, made by `TestWorld.build` before it builds anything, freed by `restore()`): only to prove allocation does not steer a fight (`perf-fingerprint.md`). |
 | `log_watch.gd` | The log tail of the process's own log only: its `--log-file`, else nothing (`log-gate.md`). |
 | `test_catalog.gd` | `discover`, `describe`, `matches`, and the CLI selection helpers `csv()` / `shard()` / `load_costs()`. |
 | `test_session.gd`, `test_von_gate.gd` | Plays one catalog test at a time, shared by the runner and the gdUnit suites: builds its `TestWorld`, ticks its sim clock and timeout, routes the log to it, returns the verdict record. The `von` part (`test_von_gate.gd`) waits for the Von server and paces a Von test in real time. |

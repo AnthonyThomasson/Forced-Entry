@@ -60,7 +60,8 @@ static func configure_match(s: TestSetup, per_side: int) -> void:
 	s.declared_match({ "defenders": { "count": per_side }, "invaders": { "count": per_side } })
 
 
-## Record the fight's fingerprint (`fight_fingerprint.gd`, perf.md) from now to the end of the
+## Record the fight's fingerprint (`fight_fingerprint.gd`, perf-fingerprint.md) from now to the end
+## of the
 ## test: every NPC of `npcs` (spawn order) each physics frame, the warm-up and the whole window.
 ## A match guard calls it first thing in `run`, passing itself as `test`. Does nothing, and costs
 ## nothing, unless the environment's `GAME_TEST_FINGERPRINT_DIR` is set.
