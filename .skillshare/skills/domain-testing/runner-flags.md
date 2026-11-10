@@ -28,8 +28,8 @@ The header lists every flag; this file holds the rules and the reasons behind th
 - **`--quiet[=MINUTES]`** (the rule lives here): before a process that holds perf tests starts, the wrapper waits until no
   other Godot is busy and the 1-minute load is under `max_load` in `tools/perf_quiet.conf`. A Godot is an engine process
   (an editor, a test run, a game; not a `godot-mcp` server, which is node) that burned more than `busy_cpu` percent of a
-  core (20) over a `busy_sample_s`-second sample (2), both in the conf; an idle editor does not count, and what the run's
-  own wrapper started never does. A process holds perf
+  core (50) over a `busy_sample_s`-second sample (2), both in the conf; an idle editor does not count, and what the run's
+  own wrapper started never does. A run that starts just after the gate clears is seen only at the next poll. A process holds perf
   tests when it is the perf phase of a sharded run, the one process of a run whose selection holds perf (the whole suite
   on one job, perf alone, `--id=perf/x,ai/y`), or a `--repeat` rerun of a `tests/perf` native suite. Filter words hold
   one only if a `--list <words> --domain=perf` engine start lists a perf test. After `MINUTES` (default `timeout_min`) it

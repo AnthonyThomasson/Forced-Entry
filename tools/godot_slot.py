@@ -24,9 +24,10 @@ editors and played games take none.
 The machine's state, for `--quiet` and the PERF lines of a run: the 1-minute load (`uptime`) and the number of busy Godot
 processes, those under the process PID (the run's own) left out. A Godot is an engine process (its executable's name starts
 with godot: an editor, a test run, a played game; a godot-mcp server is a node process and is none) and busy when it burned more than
---busy-cpu percent (20 by default) of one core over a sample of --busy-sample seconds (2): two readings of its cpu time that far
+--busy-cpu percent (50 by default: an idle editor burns 16 to 23 on a Mac, a busy run 100 and more) of one core over a sample of --busy-sample seconds (2): two readings of its cpu time that far
 apart, taken by `ps` ($GAME_TEST_BUSY_SAMPLE replaces the length, for tests). An idle editor is not busy. The wrapper passes both from tools/perf_quiet.conf.
-`annotate` appends `(load <x>, <n> busy Godot)` to every `PERF ` line it passes, `  load <x>` to every totals line and, with
+`annotate` appends `(load <x>, <n> busy Godot)` to every `PERF ` line it passes (`n` a count it samples once at the start and
+refreshes every 10 s in the background, never one per line; `?` and a note on stderr when `ps` cannot be read; `quiet` fails then), `  load <x>` to every totals line and, with
 --loaded, `  loaded` to every verdict line (`PASS    <id>  (<s>s sim, <ms> ms)`) and `"loaded": true` to every result of the `JSON:` line. `quiet` returns 0 once no other Godot is busy and the load is under
 --max-load, printing the load and the count at once and every minute ($GAME_TEST_QUIET_MINUTE seconds, 60 by default;
 polled every $GAME_TEST_QUIET_POLL, 5 by default) while it waits, and 3 after --timeout-min minutes. `stop` sends SIGTERM to
@@ -42,6 +43,7 @@ import re
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -51,8 +53,10 @@ RECLAIM_WAIT = 0.1
 # How long `stop` waits for the processes a SIGKILL was sent to.
 KILL_WAIT = 2.0
 # What counts as a busy engine when the wrapper passes no --busy-cpu / --busy-sample (tools/perf_quiet.conf's values).
-BUSY_CPU = 20.0
+BUSY_CPU = 50.0
 BUSY_SAMPLE_S = 2.0
+# How long the PERF annotation's busy count lives before it is sampled again (it is read, not sampled, per PERF line).
+ANNOTATE_REFRESH = 10.0
 # The lock file that serialises the takers of a pool (it is not a slot).
 GUARD = "slot-reclaim.lock"
 VERDICT = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+\S+\s+\(")
@@ -238,16 +242,19 @@ def cpu_table() -> dict:
     """A snapshot of the process table: pid -> (parent pid, cpu seconds burned so far, executable name). The name is the
     process's own (`ucomm` on macOS, where `comm` is a path and a node process may retitle itself: `npm exec godot-mcp`)."""
     name = "ucomm" if sys.platform == "darwin" else "comm"
-    out = subprocess.run(["ps", "-A", "-o", "pid=", "-o", "ppid=", "-o", "time=", "-o", name + "="], capture_output=True,
-                         text=True).stdout
+    ran = subprocess.run(["ps", "-A", "-o", "pid=", "-o", "ppid=", "-o", "time=", "-o", name + "="], capture_output=True,
+                         text=True)
     table = {}
-    for line in out.splitlines():
+    for line in ran.stdout.splitlines():
         fields = line.split(None, 3)
         if len(fields) == 4 and fields[0].isdigit() and fields[1].isdigit():
             try:
                 table[int(fields[0])] = (int(fields[1]), cpu_seconds(fields[2]), fields[3].strip())
             except ValueError:
                 pass  # a time this does not read: the process is left out
+    if ran.returncode != 0 or os.getpid() not in table:
+        # Not a quiet machine, an unreadable one: a count of 0 from it would clear the gate.
+        raise RuntimeError("cannot read the process table (ps exited %d: %s)" % (ran.returncode, ran.stderr.strip()[:200]))
     return table
 
 
@@ -283,6 +290,30 @@ def busy_options(argv: list) -> tuple:
     return float(option(argv, "--busy-cpu", BUSY_CPU)), float(sample)
 
 
+class BusyWatch:
+    """The busy-engine count the PERF annotation reads, refreshed in the background: the first sample starts at once, the next
+    `refresh` seconds after each one ends. `read()` returns (count, None) or (None, the error) and waits only for the first
+    sample (never one per PERF line: annotate sits last in the engine's output pipe and must not stall it)."""
+
+    def __init__(self, ancestor: int, busy_cpu: float, sample_s: float, refresh: float = ANNOTATE_REFRESH, count=other_godots,
+                 sleep=time.sleep):
+        self.value, self.error, self.ready = None, None, threading.Event()
+        threading.Thread(target=self.loop, args=(ancestor, busy_cpu, sample_s, refresh, count, sleep), daemon=True).start()
+
+    def loop(self, ancestor, busy_cpu, sample_s, refresh, count, sleep):
+        while True:
+            try:
+                self.value, self.error = count(ancestor, busy_cpu, sample_s), None
+            except Exception as e:  # noqa: BLE001 (whatever the machine did, the annotation says it could not tell)
+                self.value, self.error = None, e
+            self.ready.set()
+            sleep(refresh)
+
+    def read(self) -> tuple:
+        self.ready.wait()
+        return self.value, self.error
+
+
 def option(argv: list, name: str, default=None):
     for a in argv:
         if a.startswith(name + "="):
@@ -299,11 +330,15 @@ def mark_loaded(report: dict) -> dict:
 
 def annotate(argv: list) -> int:
     ancestor, loaded = int(option(argv, "--ancestor", os.getppid())), "--loaded" in argv
-    busy_cpu, sample_s = busy_options(argv)
+    watch, warned = BusyWatch(ancestor, *busy_options(argv)), False
     for line in sys.stdin:
         line = line.rstrip("\n")
         if line.startswith("PERF "):
-            line += " (load %.2f, %d busy Godot)" % (one_minute_load(), other_godots(ancestor, busy_cpu, sample_s))
+            busy, error = watch.read()
+            if error is not None and not warned:
+                warned = True
+                print("godot_slot.py annotate: %s: the PERF lines say '?' busy Godot" % error, file=sys.stderr, flush=True)
+            line += " (load %.2f, %s busy Godot)" % (one_minute_load(), "?" if error is not None else busy)
         elif TOTALS.match(line):
             line += "  load %.2f" % one_minute_load()
         elif loaded and VERDICT.match(line):

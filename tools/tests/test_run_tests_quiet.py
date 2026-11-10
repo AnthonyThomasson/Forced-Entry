@@ -8,7 +8,7 @@ from tools.tests.fake_tree import FakeTree
 
 class QuietTreeTests(FakeTree):
     def test_a_gate_that_fails_for_another_reason_than_its_timeout_fails_the_run(self):
-        self.conf.write_text("max_load=\ntimeout_min=30\nbusy_cpu=20\nbusy_sample_s=0.05\n")  # the helper cannot read it
+        self.conf.write_text("max_load=\ntimeout_min=30\nbusy_cpu=50\nbusy_sample_s=0.05\n")  # the helper cannot read it
         code, out = self.run_tests("--domain=perf", "--quiet")
         self.assertNotEqual(code, 0, out)
         self.assertRegex(out, r"quiet gate failed")

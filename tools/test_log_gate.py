@@ -1271,10 +1271,12 @@ exit 0
 """
 
 # The machine's processes: the real `ps` without the real engines, plus the run's own engines (those in $FAKE_SELF_PIDS
-# that live, busy) and the others $FAKE_OTHERS lists, one per line: `<pid>` a busy engine, `<pid> idle` an idle editor,
+# that live, busy) and the others $FAKE_OTHERS lists, one per line: `<pid>` a busy engine, `<pid> idle` an idle editor (it burns 22 percent of a core, as one does),
 # `<pid> mcp` a busy godot-mcp server (a node process). A busy one burns a core: its cpu time is the clock's.
 FAKE_PS = r"""#!/usr/bin/env python3
 import os, subprocess, sys, time
+if os.environ.get("FAKE_PS_FAIL") and any(a in ("comm=", "ucomm=") for a in sys.argv):
+    sys.exit(1)
 real = subprocess.run(["/bin/ps"] + sys.argv[1:], capture_output=True, text=True).stdout.splitlines()
 if not any(a in ("comm=", "ucomm=") for a in sys.argv):
     print("\n".join(real))
@@ -1295,7 +1297,7 @@ for line in read(os.environ["FAKE_OTHERS"]):
     pid, _, kind = line.partition(" ")
     if pid:
         name = "node" if kind == "mcp" else "Godot"
-        rows.append("%s 1 %s %s" % (pid, clock(0.5 if kind == "idle" else time.time()), name))
+        rows.append("%s 1 %s %s" % (pid, clock(0.22 * time.time() if kind == "idle" else time.time()), name))
 print("\n".join(rows))
 """
 
@@ -1349,7 +1351,7 @@ class QuietGateTests(unittest.TestCase):
     def test_the_conf_holds_the_threshold_the_timeout_and_what_makes_a_godot_busy(self):
         conf = dict(l.split("=") for l in (ROOT / "tools" / "perf_quiet.conf").read_text().splitlines()
                     if "=" in l and not l.startswith("#"))
-        self.assertEqual(conf, {"max_load": "6", "timeout_min": "30", "busy_cpu": "20", "busy_sample_s": "2"})
+        self.assertEqual(conf, {"max_load": "6", "timeout_min": "30", "busy_cpu": "50", "busy_sample_s": "2"})
 
     def test_it_waits_for_no_other_busy_godot_and_a_load_under_the_threshold_and_says_so_each_minute(self):
         proc = self.start("--domain=perf", "--quiet")
@@ -1383,6 +1385,14 @@ class QuietGateTests(unittest.TestCase):
         out, results = self.finish(proc)
         self.assertRegex(out, r"waiting for a quiet machine: load 1\.00.* 1 busy Godot")
         self.assertTrue(results["perf/p"]["loaded"], "the busy run never went away: the gate timed out\n" + out)
+
+    def test_a_machine_whose_processes_cannot_be_read_is_no_quiet_machine(self):
+        self.set_machine(load="1.00", others=[])
+        proc = self.start("--domain=perf", "--quiet=1", FAKE_PS_FAIL="1")
+        out = proc.communicate(timeout=60)[0]
+        self.assertEqual(proc.returncode, 2, out)
+        self.assertIn("quiet gate failed", out)
+        self.assertFalse(self.log.exists(), "no perf test started on a gate that could not look\n" + out)
 
     def test_a_load_at_the_threshold_is_not_quiet(self):
         self.set_machine(load="6.00", others=[])

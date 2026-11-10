@@ -55,7 +55,7 @@ class FakeTree(unittest.TestCase):
         for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
         self.conf = tools / "perf_quiet.conf"
-        self.conf.write_text("max_load=6\ntimeout_min=30\nbusy_cpu=20\nbusy_sample_s=0.05\n")
+        self.conf.write_text("max_load=6\ntimeout_min=30\nbusy_cpu=50\nbusy_sample_s=0.05\n")
         (self.repo / ".godot").mkdir()
         (self.repo / ".godot" / "global_script_class_cache.cfg").write_text("")
         (self.repo / "tests" / "perf").mkdir(parents=True)

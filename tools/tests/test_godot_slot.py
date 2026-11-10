@@ -269,6 +269,12 @@ class BusyGodotTests(unittest.TestCase):
         machine = FakeMachine({5: (1, 0.0, "bash"), 6: (5, 0.0, "python3"), 10: (6, 1.0, GODOT), 11: (1, 1.0, GODOT)})
         self.assertEqual(machine.other_godots(ancestor=5, busy_cpu=20, sample_s=2), 1, "the run's own engine is left out")
 
+    def test_an_idle_editor_that_burns_a_fifth_of_a_core_is_not_counted_at_the_conf_threshold(self):
+        # An idle editor on this Mac measured 16 to 23 percent of a core; a busy test run 101 to 113.
+        machine = FakeMachine({10: (1, 0.22, GODOT), 11: (1, 1.05, GODOT)})
+        self.assertEqual(machine.other_godots(busy_cpu=50, sample_s=2), 1, "only the busy run")
+        self.assertEqual(godot_slot.busy_options([])[0], 50.0, "50 percent is the default the conf also gives")
+
     def test_the_threshold_is_a_percent_of_one_core_over_the_sample(self):
         machine = FakeMachine({10: (1, 0.25, GODOT)})
         self.assertEqual(machine.other_godots(busy_cpu=20, sample_s=2), 1, "25 percent is over 20")
@@ -307,7 +313,93 @@ class BusyGodotTests(unittest.TestCase):
     def test_the_options_the_wrapper_passes_are_read_by_the_gate(self):
         args = ["--busy-cpu=35", "--busy-sample=0.5"]
         self.assertEqual(godot_slot.busy_options(args), (35.0, 0.5))
-        self.assertEqual(godot_slot.busy_options([]), (20.0, 2.0), "the conf's values when none is given")
+        self.assertEqual(godot_slot.busy_options([]), (50.0, 2.0), "the conf's values when none is given")
+
+
+class UnreadableMachineTests(unittest.TestCase):
+    """A `ps` that fails or lists nothing is not a quiet machine: the count is an error, never 0."""
+
+    def with_ps(self, returncode, stdout):
+        real = godot_slot.subprocess.run
+        self.addCleanup(setattr, godot_slot.subprocess, "run", real)
+        godot_slot.subprocess.run = lambda *a, **kw: subprocess.CompletedProcess(a, returncode, stdout, "ps: no")
+
+    def test_a_ps_that_fails_raises(self):
+        self.with_ps(1, "")
+        with self.assertRaises(RuntimeError):
+            godot_slot.cpu_table()
+
+    def test_a_ps_that_lists_nothing_raises(self):
+        self.with_ps(0, "")
+        with self.assertRaises(RuntimeError):
+            godot_slot.cpu_table()
+
+    def test_a_ps_that_does_not_list_this_process_raises(self):
+        self.with_ps(0, "1 0 0:01.00 launchd\n")
+        with self.assertRaises(RuntimeError):
+            godot_slot.cpu_table()
+
+    def test_the_quiet_gate_fails_instead_of_clearing_on_it(self):
+        self.with_ps(1, "")
+        with self.assertRaises(RuntimeError):
+            godot_slot.quiet(["--ancestor=1", "--max-load=1000"])
+
+
+class BusyWatchTests(unittest.TestCase):
+    """The PERF annotation reads one count the watch refreshes in the background: no sample per line."""
+
+    def watch(self, counts, **kw):
+        calls = []
+
+        def count(*args):
+            calls.append(args)
+            value = counts[min(len(calls), len(counts)) - 1]
+            if isinstance(value, Exception):
+                raise value
+            return value
+
+        return godot_slot.BusyWatch(7, 50.0, 2.0, count=count, **kw), calls
+
+    def test_many_reads_share_one_sample(self):
+        watch, calls = self.watch([3], refresh=300)
+        self.assertEqual([watch.read() for _ in range(5)], [(3, None)] * 5)
+        self.assertEqual(calls, [(7, 50.0, 2.0)], "one count, whatever the number of PERF lines")
+
+    def test_the_count_is_refreshed_in_the_background(self):
+        watch, calls = self.watch([1, 2], refresh=0.01)
+        deadline = time.monotonic() + 5
+        while watch.read()[0] != 2 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertEqual(watch.read()[0], 2)
+
+    def test_a_machine_that_cannot_be_read_is_an_error_not_a_zero(self):
+        watch, _ = self.watch([RuntimeError("ps failed")], refresh=300)
+        value, error = watch.read()
+        self.assertIsNone(value)
+        self.assertIn("ps failed", str(error))
+
+    def test_annotate_does_not_sample_per_line(self):
+        # Five PERF lines under the real 2 s sample: one wait at the start, none per line.
+        text = "".join("PERF perf/p%d frame 3.20 (budget 8.00)\n" % i for i in range(5))
+        started = time.monotonic()
+        r = subprocess.run([sys.executable, "-I", str(SLOT_TOOL), "annotate", "--ancestor=1", "--busy-sample=2"], input=text,
+                           capture_output=True, text=True, timeout=30, env=dict(os.environ, GAME_TEST_BUSY_SAMPLE=""))
+        took = time.monotonic() - started
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(r.stdout.splitlines()), 5)
+        self.assertRegex(r.stdout.splitlines()[0], r"\(load [\d.]+, \d+ busy Godot\)$")
+        self.assertLess(took, 3.8, "five lines took %.1f s: it sampled for each" % took)
+
+    def test_annotate_marks_the_count_unknown_and_says_so_when_ps_fails(self):
+        shim = self.enterContext(tempfile.TemporaryDirectory())
+        Path(shim, "ps").write_text("#!/bin/sh\nexit 1\n")
+        os.chmod(Path(shim, "ps"), 0o755)
+        r = subprocess.run([sys.executable, "-I", str(SLOT_TOOL), "annotate", "--ancestor=1"], input="PERF a frame 1 (budget 2)\n",
+                           capture_output=True, text=True, timeout=30,
+                           env=dict(os.environ, PATH=shim + ":" + os.environ["PATH"], GAME_TEST_BUSY_SAMPLE="0.05"))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertRegex(r.stdout, r"PERF a frame 1 \(budget 2\) \(load [\d.]+, \? busy Godot\)")
+        self.assertIn("cannot read the process table", r.stderr)
 
 
 if __name__ == "__main__":
