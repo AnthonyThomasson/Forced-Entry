@@ -1,7 +1,8 @@
 class_name NavRebake extends RefCounted
 ## Navigation domain: the re-bakes `nav_updater.gd` drives, from footprints it measured once for the
-## tick. The planning region is baked on the NavigationServer's worker thread, so a frame never pays
-## for it, and its ring with it; the steering region (or a district's tiles) is baked at once.
+## tick. The planning region is baked on a worker thread (`NavBake`), so a frame never pays for it,
+## and its ring with it, and lands on a fixed physics frame after it starts; the steering region (or
+## a district's tiles) is baked at once.
 ## `NavBuilder.rebake_async` and `rebake_steering` are the test-facing seams that measure their own
 ## footprints and come here.
 
@@ -25,10 +26,10 @@ static func planning(
 
 
 ## Take a gathered planning re-bake in: `job` (`NavSource.job`) and the ring's `ring` are kept as
-## the source of the next avoid map, then baked on the server's worker thread, each assigned to its
-## region when it lands, and `done` is called once both have. The one place a finished gather
-## becomes visible: until it, every read sees the previous map. `done` is called even when there is
-## nothing to bake.
+## the source of the next avoid map, then baked on a worker thread, each assigned to its region on
+## the fixed frame it lands on (`NavBake`), and `done` is called once both have. The one place a
+## finished gather becomes visible: until it, every read sees the previous map. `done` is called
+## even when there is nothing to bake.
 static func swap(
 	region: NavigationRegion2D,
 	site: NavSite,
@@ -72,20 +73,13 @@ static func steering(
 		steering_region.navigation_polygon = NavSource.bake(job, site.house.position)
 
 
-## `job` (`NavSource.job`) baked on the server's worker thread and assigned to `region` when it
-## lands, then `landed` called. Held weakly: a lambda that captures a node freed before it runs logs
-## an engine error (a world torn down mid-bake).
+## `job` (`NavSource.job`) baked on a worker thread and assigned to `region` on the physics frame
+## `NavBakeConfig.land_frames` after this call, then `landed` called (`NavBake`: not when the thread
+## finishes, so the frame is the same every run).
 static func _bake_async(
 	region: NavigationRegion2D,
 	job: Dictionary,
 	origin: Vector2,
 	landed: Callable,
 ) -> void:
-	var nav_poly: NavigationPolygon = job["poly"]
-	var region_ref: WeakRef = weakref(region)
-	NavigationServer2D.bake_from_source_geometry_data_async(nav_poly, job["source"], func() -> void:
-		NavWeld.finish(nav_poly, origin)
-		var target := region_ref.get_ref() as NavigationRegion2D
-		if target != null:
-			target.navigation_polygon = nav_poly
-		landed.call())
+	NavBake.start(region, job, origin, landed)

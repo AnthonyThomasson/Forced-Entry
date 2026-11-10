@@ -34,7 +34,7 @@ var _nav_debug: Node = null
 var _baseline: Array = []
 var _character_baseline: Array = []
 ## Whether the planning region's re-bake is under way, gathering a step a frame (`_gather`) or
-## baking on the server's worker thread; a furniture move meanwhile waits for the first tick after
+## baking on a worker thread (`NavBake`); a furniture move meanwhile waits for the first tick after
 ## the bake lands (the baseline is set from what that bake
 ## carved, so it is caught then).
 var _baking := false
@@ -98,7 +98,7 @@ func setup(
 
 
 ## One interval tick: if furniture has moved since the last bake, re-carve the planning region's
-## holes at the live positions, baked on the server's worker thread (`NavRebake.planning`; a
+## holes at the live positions, baked on a worker thread (`NavRebake.planning`; a
 ## furniture move while one is in flight waits for the next tick) and the steering region's in
 ## place; if only a character has, re-carve the steering region. Refreshes the overlay after either.
 ## Nothing moved, nothing baked. The steering re-bake lands in the tick's own frame, so a walker
@@ -131,8 +131,8 @@ func _on_tick() -> void:
 		set_physics_process(true)
 
 
-## Gather the planning bake of `site` from the furniture footprints `furniture` and start it on the
-## server's worker thread; the baseline is set from what it carved when it lands. Returns the walls
+## Gather the planning bake of `site` from the furniture footprints `furniture` and start it on a
+## worker thread; the baseline is set from what it carved when it lands. Returns the walls
 ## it parsed, for a house's steering bake to share.
 func _rebake_planning(site: NavSite, furniture: Array) -> Dictionary:
 	var walls := NavTiles.walls_after(_region, site, _baseline, furniture)

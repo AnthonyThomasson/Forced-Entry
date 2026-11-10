@@ -13,18 +13,30 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   tiles at once and starts a `NavGather`, whose steps run one a physics frame from the updater's `_physics_process` (the walls' parse, the
   furniture holes fused in `FUSE_STEPS` (4) chunks, the district's job, the ring's: seven steps, so seven frames after the tick's own and the swap in the last, under the 8-frame cap). The jobs are a second
   buffer nothing reads: until the last step the region's polygon, the map's iteration and the remembered source (`NavSource.remember`) are
-  the previous bake's. The last step `NavRebake.swap`s it in whole (the source is remembered, the planning and ring bakes go to the worker thread, a
+  the previous bake's. The last step `NavRebake.swap`s it in whole (the source is remembered, the planning and ring bakes go to a worker thread (`NavBake`), landing on their fixed frame, a
   `done` once both land: the baseline is set then), so the swap is the one moment a finished re-bake shows (the `remember` version counts
   them, the map iterations follow when the bakes land; route caches and the AI's lead-route memo key on those). `_baking` holds from the
   tick to the landing: a move meanwhile waits for the next tick. A torn-down match (`_alive()`) drops the gather. A lone house's
   gather stays in its tick (`_rebake_planning`, walls shared with its steering bake). The fusing (`NavUnion`, fed in chunks) is nine tenths
   of the gather.
+- **A planning bake lands on a fixed frame** (`nav_bake.gd`, `nav_bake_config.gd`; `navigation/rebake_lands_on_its_frame`,
+  `rebake_waits_for_a_late_thread`, `perf/nav_rebake_lands_in_a_match`). `NavRebake._bake_async` starts the bake on a `WorkerThreadPool` task
+  (the server's sync `bake_from_source_geometry_data`, so nothing of the server's async queue) and takes its result in (weld, assign to the
+  region, `landed`) on the physics frame `NavBakeConfig.land_frames` (14) after the start, not when the thread finishes: a match plays the same
+  fight on every run (`domain-testing`: the perf nondeterminism note). A thread not done by then is waited for, which holds that frame
+  (`NavBake.late` counts them); one on time costs the frame its weld and assignment only. The 14 is the measured latency of the district's
+  planning bake on the match guards' match (`Perf.configure_match`), 2026-11-09, 41 bakes: the thread took 65 to 94 ms, which is 7 to 16 frames of the
+  5v5 guard's 7 ms frame (p95 12) and 3 to 7 of the 10v10's 15 ms one, a little above that p95; the planning ring's bake (4 to 7 ms) is always on
+  time and lands with it. A real match's frame is no shorter than the guards', so the thread is no later there. Remeasure it (a scratch log of
+  the frames from `NavBake.start` to the thread's completion) when the bake or the frame changes. A region freed meanwhile is left alone and
+  `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`). The avoid maps (`avoid_map`) are baked on the
+  server's own async queue and land when the thread does.
 - The tick's own re-bakes take the footprints it just measured, so it measures furniture
   once and parses the walls once. The public `rebake`,
   `rebake_async`, `rebake_steering` are **test-facing seams** that measure their own footprints; only tests call them.
 - `rebake` re-bakes a region's polygon in place with holes re-measured at the furniture's **current** `global_transform`.
-  `rebake_async` gathers the geometry on the main thread and assigns the polygon when the bake lands, then runs `done`; the
-  callback holds the region by a `WeakRef` (a lambda capturing a node freed before it runs logs an engine error:
+  `rebake_async` gathers the geometry on the main thread and assigns the polygon on the bake's fixed frame, then runs `done`; the
+  landing holds the region by a `WeakRef` (a lambda capturing a node freed before it runs logs an engine error:
   `tests/navigation/rebake_outlives_region_test.gd`). The sync `rebake` is for a test that needs the map now
   (`perf/bake_and_path_stress` times it); no frame pays for a bake.
 - `furniture_holes` (`NavHoles.furniture`, one `NavPieces` tracker per house) keeps each piece's hull with the transform it was cut at, and

@@ -14,9 +14,17 @@ shows), the quiet gate that counts only busy engines (`perf.md`) and `tools/perf
 turn since #192 (`look_phases.gd`).
 
 **Landing in #203 (not on every branch yet; the final job writes the list as it merged):** the sight cadence, the give-way order and any
-other AI order or timing keyed on an instance id moved to spawn order; the planning re-bake applied on a fixed frame count; a per-world
-RNG seeded from the match seed in place of the global `randf`; the physics-order split #192 saw at frame 64. Until they merge, two plays
-of one revision do not match (the first reading below), and `perf_ab.sh` refuses.
+other AI order or timing keyed on an instance id moved to spawn order; a per-world RNG seeded from the match seed in place of the global
+`randf`; the physics-order split #192 saw at frame 64. Until they merge, two plays of one revision do not match (the first reading below),
+and `perf_ab.sh` refuses.
+
+**Landed with the navigation job (#203):** a re-bake and an avoid map land on a fixed physics frame count after they start, the thread
+waited for only when late (`NavBake`, `NavBakeConfig`; `domain-navigation`, its re-bake side file), and a navigation map syncs on the main
+thread (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`). Both were needed: the
+server's async sync showed a landed bake on a frame that followed the machine's load, so the 5v5 guard's contact came at 12 s, at 30 s or not
+in 30 s at any landing count; with it off, four runs of one build had contact at 12.3 s each, and 14, 12 and 8 frames for the avoid maps gave
+11.8, 11.5 and 10.5 s. Idle avoid maps are freed by physics frames, not wall-clock ms (`NavBuilder.avoid_idle_frames`). Each guard logs
+`PERF <label> nav bakes late N of M` (`Perf.log_late_bakes`): a creeping share of late bakes means a count has fallen behind its thread.
 
 **TODO (#203, the acceptance run):** the result of `tools/perf_ab.sh HEAD~0 HEAD` on this ticket's own tip is written here when it has
 run (identical fingerprints, the delta against the bar), with the four guards' two-run fingerprints and the padding on / off check.

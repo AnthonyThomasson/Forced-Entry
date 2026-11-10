@@ -290,11 +290,12 @@ static func _steering_map_for(planning_map: RID) -> RID:
 	return map
 
 
-## `rebake` with the bake itself on the NavigationServer's worker thread, so a frame never pays for
-## it: the source geometry is gathered on the main thread now (the walls are read from the scene
-## tree, the furniture from its live positions), the bake runs in the background, and the polygon is
-## assigned to `region` once it is done, when `done` is called. A region freed meanwhile is left
-## alone. `done` is called even when there is nothing to bake. The planning region only: the
+## `rebake` with the bake itself on a worker thread, so a frame never pays for it: the source
+## geometry is gathered on the main thread now (the walls are read from the scene tree, the
+## furniture from its live positions), the bake runs in the background, and the polygon is assigned
+## to `region` on the physics frame `NavBakeConfig.land_frames` after the call (`NavBake`), when
+## `done` is called. A region freed meanwhile is left alone. `done` is called even when there is
+## nothing to bake. The planning region only: the
 ## steering one is re-baked by `rebake_steering`. A test-facing seam that measures its own
 ## footprints; `nav_updater.gd` drives `NavRebake.planning`.
 static func rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array,

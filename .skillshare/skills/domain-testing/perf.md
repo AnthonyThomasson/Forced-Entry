@@ -2,7 +2,7 @@
 
 Regression guards for speed and runaway object counts, one folder, one browser section, one selector. They are ordinary
 tests that load other domains, so they live apart from them. Read `tests/perf/*_test.gd` for the loads: a
-whole-match guard built as Main builds one (5v5, 10v10, and a 10v10 with the player's view on an NPC), a grenade fight (P1) and burst (P2) (`docs/grenades.md`,
+whole-match guard built as Main builds one (5v5, 10v10, and a 10v10 with the player's view on an NPC), a re-bake landing in a 5v5 match, a grenade fight (P1) and burst (P2) (`docs/grenades.md`,
 "Performance"), an NPC crowd, automatic fire, hit overload, a crowd's deaths, a furniture pile, and one-shot work (nav
 re-bake, world-gen of houses and of a district, the sound library's cold render). The re-bake and world-gen guards run on a district; the re-bake
 guard measures the planning bake whole, what a frame pays to start one and a steering re-bake (the tile a character stops in).
