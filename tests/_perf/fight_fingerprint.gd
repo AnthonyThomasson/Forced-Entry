@@ -14,17 +14,21 @@ extends RefCounted
 ##   <frame> TAB <i> <x>,<y> <gx>,<gy> <act> <health> TAB ... TAB S:<x>,<y>;<x>,<y> TAB D:<i>,<i>
 ## `i` is the NPC's index in the order given, never its node name or instance id (both follow
 ## allocation); `x,y` its position rounded to whole pixels; `gx,gy` its navigation agent's target
-## rounded (`-` with none); `act` the controller's decision path (`current_act()`, its hostile as
-## `t_<index>` of that NPC, `t_?` for none, never an instance id; `-` for a character with no AI
-## controller; it can hold a space); `health` to one decimal (`gone` for a
-## freed NPC, alone in its field). `S:` lists this frame's shots, the muzzle rounded, in the order
-## they were posted; `D:` the indices of the NPCs that died this frame.
+## rounded (`-` with none); `act` the controller's decision path (`current_act()`, every instance
+## id in it written as the NPC's index, or the object's rounded position, `act_text`; `-` for a
+## character with no AI controller; it can hold a space); `health` to one decimal (`gone` for a
+## freed NPC, alone in its field). `S:` and `D:` are what happened since the previous line (the step
+## before this frame's state): the shots, the muzzle rounded, in the order they were posted, and
+## the indices of the NPCs that died.
 
 ## The environment variable that turns the fingerprint on: the directory the files are written to.
 const ENV_DIR := "GAME_TEST_FINGERPRINT_DIR"
 ## The meta of the test's world that holds the recorder: a signal connection holds no reference to
 ## a RefCounted, so nothing else would keep it (and its file) alive once `begin` returned.
 const META := &"fight_fingerprint"
+## The digits an instance id has at least (Godot's are 13 here); a shorter number in an act is not
+## one.
+const ID_DIGITS := 9
 
 var _t: TestContext
 var _tree: SceneTree
@@ -33,6 +37,8 @@ var _file: FileAccess
 var _frame := 0
 var _events_seen := 0
 var _was_dead: Array[bool] = []
+## Indices of the NPCs whose `died` signal fired since the last line.
+var _died_signalled: Array[int] = []
 ## NPC instance id -> its index in `_npcs`, for the ids an act names (`act_text`).
 var _index_of := {}
 
@@ -66,6 +72,11 @@ static func begin(
 		recorder._index_of[npcs[i].get_instance_id()] = i
 	recorder._was_dead.resize(npcs.size())
 	recorder._was_dead.fill(false)
+	for i in npcs.size():
+		# A death seen on the signal still lands in `D:` when the NPC is freed before a frame reads
+		# it.
+		if npcs[i].has_signal("died"):
+			npcs[i].died.connect(recorder._on_died.bind(i))
 	recorder._tree.physics_frame.connect(recorder._on_frame)
 	t.world.tree_exiting.connect(recorder.close)
 	t.world.set_meta(META, recorder)
@@ -83,15 +94,30 @@ static func test_id_of(test: GameTest) -> String:
 	return test.get_script().resource_path.trim_prefix("res://tests/").trim_suffix("_test.gd")
 
 
-## `act` with the hostile it names as an NPC index. A decision's option id for a hostile is `t_` and
-## its instance id (`snapshot_options.gd`), which follows allocation: `index_of` (instance id ->
-## index) turns it into `t_<index>`, `t_?` for one that is none of the NPCs recorded.
+## `act` with every instance id in it made stable: an NPC's becomes its index in the match
+## (`index_of`: instance id -> index), another node's its rounded position (`@x,y`), a freed or
+## unknown one `?`. A decision's option id names a hostile (`t_<id>`, `lead_seen_<id>`,
+## `lead_heading_<id>`, `lead_ally_<id>`: `snapshot_options.gd`) or an object (`do_<id>_<action>`),
+## and an instance id follows allocation. An id is a run of nine digits or more or any number
+## in `index_of`; shorter numbers (a grid cell, `door_0`) are kept.
 static func act_text(act: String, index_of: Dictionary) -> String:
-	var out := act
-	for m in RegEx.create_from_string("t_(\\d+)").search_all(act):
-		var index: Variant = index_of.get(int(m.get_string(1)))
-		out = out.replace(m.get_string(), "t_" + ("?" if index == null else str(index)))
-	return out
+	var out := ""
+	var at := 0
+	for m in RegEx.create_from_string("\\d+").search_all(act):
+		var digits := m.get_string()
+		var id := int(digits)
+		out += act.substr(at, m.get_start() - at)
+		at = m.get_end()
+		if index_of.has(id):
+			out += str(index_of[id])
+		elif digits.length() >= ID_DIGITS:
+			var node := (
+				instance_from_id(id) as Node2D if is_instance_id_valid(id) else null
+			)
+			out += "?" if node == null else "@" + _point(node.global_position)
+		else:
+			out += digits
+	return out + act.substr(at)
 
 
 ## Stop recording and close the file. Safe to call twice.
@@ -112,9 +138,13 @@ func _on_frame() -> void:
 	for i in _npcs.size():
 		var npc: Variant = _npcs[i]
 		fields.append("%d %s" % [i, _state(npc)])
-		if is_instance_valid(npc) and npc.get("is_dead") == true and not _was_dead[i]:
+		var dead: bool = _died_signalled.has(i) or (
+			is_instance_valid(npc) and npc.get("is_dead") == true
+		)
+		if dead and not _was_dead[i]:
 			_was_dead[i] = true
 			died.append(str(i))
+	_died_signalled.clear()
 	fields.append("S:" + ";".join(_shots_since_last_frame()))
 	fields.append("D:" + ",".join(died))
 	_file.store_line("\t".join(fields))
@@ -122,6 +152,10 @@ func _on_frame() -> void:
 	# closes no file, and the engine's buffer would be lost.
 	_file.flush()
 	_frame += 1
+
+
+func _on_died(index: int) -> void:
+	_died_signalled.append(index)
 
 
 ## `x,y gx,gy act health` of one NPC, or `gone` once it is freed.

@@ -61,10 +61,9 @@ static func configure_match(s: TestSetup, per_side: int) -> void:
 
 
 ## Record the fight's fingerprint (`fight_fingerprint.gd`, perf-fingerprint.md) from now to the end
-## of the
-## test: every NPC of `npcs` (spawn order) each physics frame, the warm-up and the whole window.
-## A match guard calls it first thing in `run`, passing itself as `test`. Does nothing, and costs
-## nothing, unless the environment's `GAME_TEST_FINGERPRINT_DIR` is set.
+## of the test: every NPC of `npcs` (spawn order) each physics frame, the warm-up and the whole
+## window. A match guard calls it first thing in `run`, passing itself as `test`. Does nothing, and
+## costs nothing, unless the environment's `GAME_TEST_FINGERPRINT_DIR` is set.
 static func record_fight(t: TestContext, test: GameTest, npcs: Array) -> void:
 	Fingerprint.begin(t, Fingerprint.test_id_of(test), npcs)
 

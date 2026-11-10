@@ -8,10 +8,11 @@ const Fingerprint := preload("res://tests/_perf/fight_fingerprint.gd")
 const DIR := "user://fingerprint_test"
 const ID := "perf/fight_fingerprint"
 ## A frame's line: the frame; NPC 0 and 1 (puppets: no goal, no act); NPC 2 (an AI: a goal and an
-## act); the shots, the deaths.
+## act); NPC 3 (a puppet that is freed: `gone`); the shots, the deaths.
 const LINE := (
 	"^(\\d+)\\t0 (-?\\d+),(-?\\d+) - - (-?\\d+\\.\\d)\\t1 (-?\\d+),(-?\\d+) - - (-?\\d+\\.\\d)"
-	+ "\\t2 (-?\\d+),(-?\\d+) -?\\d+,-?\\d+ \\S+ (-?\\d+\\.\\d)\\tS:([-\\d,;]*)\\tD:([\\d,]*)$"
+	+ "\\t2 (-?\\d+),(-?\\d+) -?\\d+,-?\\d+ \\S+ (-?\\d+\\.\\d)"
+	+ "\\t3 [^\\t]+\\tS:([-\\d,;]*)\\tD:([\\d,]*)$"
 )
 
 
@@ -33,6 +34,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"shooter", &"puppet", Vector2(200.4, 250.6), { "start_slot": 3 })
 	s.actor(&"target", &"puppet", Vector2(600, 250), { "max_health": 10.0 })
 	s.actor(&"bystander", &"defender", Vector2(200, 100))
+	s.actor(&"doomed", &"puppet", Vector2(400, 400))
 
 
 func run(t: TestContext) -> void:
@@ -47,17 +49,13 @@ func run(t: TestContext) -> void:
 		"combat/t_4/engage/fire_south",
 		"a decision's hostile is the NPC's index, never its instance id",
 	)
-	t.expect_eq(
-		Fingerprint.act_text("combat/t_77/engage/fire_south", { 1: 0 }),
-		"combat/t_?/engage/fire_south",
-		"a hostile that is none of the NPCs recorded has no index",
-	)
-	t.expect_eq(
-		Fingerprint.act_text("order/stack_door_0_0", { 1: 0 }),
-		"order/stack_door_0_0",
-		"the rest of an act is kept as it is",
-	)
-	var npcs: Array = [t.actor(&"shooter"), t.actor(&"target"), t.actor(&"bystander")]
+	_check_act_text(t)
+	var npcs: Array = [
+		t.actor(&"shooter"),
+		t.actor(&"target"),
+		t.actor(&"bystander"),
+		t.actor(&"doomed"),
+	]
 	if not t.require(
 			Fingerprint.begin(t, ID, npcs, "") == null,
 			"premise: with no directory nothing is recorded",
@@ -77,12 +75,63 @@ func run(t: TestContext) -> void:
 	await t.frames(5)
 	shooter.shoot()
 	await t.until(func(): return target.is_dead, 3.0)
+	# An NPC that dies and is freed in one frame still has its death in the line it vanishes on.
+	var doomed := t.actor(&"doomed")
+	doomed.died.emit()
+	doomed.queue_free()
 	await t.frames(5)
 	# Read while recording: a run whose world is torn down without a close (the last test of a
 	# process) must still have written every frame.
 	var lines := _lines(Fingerprint.path_for(DIR, ID))
 	t.world.get_meta(Fingerprint.META).close()
 	_check_lines(t, lines, target)
+
+
+## `act_text`: every instance id of an act written as an NPC's index or an object's position.
+func _check_act_text(t: TestContext) -> void:
+	var freed := Node2D.new()
+	var freed_id := freed.get_instance_id()
+	freed.free()
+	t.expect_eq(
+		Fingerprint.act_text("combat/t_%d/engage" % freed_id, { 1: 0 }),
+		"combat/t_?/engage",
+		"a hostile that is none of the NPCs, and no node, is `?`",
+	)
+	var known := { 1_245_473_426_825: 4, 1_253_207_723_845: 7 }
+	t.expect_eq(
+		Fingerprint.act_text("lead/lead_ally_1253207723845", known),
+		"lead/lead_ally_7",
+		"a heard ally's contact id is the NPC's index",
+	)
+	t.expect_eq(
+		Fingerprint.act_text("lead/lead_seen_1245473426825", known),
+		"lead/lead_seen_4",
+		"a seen contact's id is the NPC's index",
+	)
+	t.expect_eq(
+		Fingerprint.act_text("lead/lead_heading_1253207723845", known),
+		"lead/lead_heading_7",
+		"a contact's heading id is the NPC's index",
+	)
+	var chair := t.actor(&"bystander")  # at (200, 100): any Node2D stands for an object
+	t.expect_eq(
+		Fingerprint.act_text("use/do_%d_sit" % chair.get_instance_id(), known),
+		"use/do_@200,100_sit",
+		"an object's instance id is its rounded position",
+	)
+	t.expect_eq(
+		Fingerprint.act_text(
+			"use/do_%d_sit" % chair.get_instance_id(),
+			{ chair.get_instance_id(): 2 },
+		),
+		"use/do_2_sit",
+		"an id that is an NPC's is its index whatever the option names",
+	)
+	t.expect_eq(
+		Fingerprint.act_text("order/stack_door_0_0/lead_window_-3_12/door_2", { 1: 0 }),
+		"order/stack_door_0_0/lead_window_-3_12/door_2",
+		"short numbers (a grid cell, a door number) are kept as they are",
+	)
 
 
 func _lines(path: String) -> PackedStringArray:
@@ -98,6 +147,7 @@ func _check_lines(t: TestContext, lines: PackedStringArray, target: Node) -> voi
 	var rx := RegEx.create_from_string(LINE)
 	var shots := 0
 	var death_lines: Array[int] = []
+	var doomed_lines: Array[int] = []
 	var first_shot := -1
 	for i in lines.size():
 		var m := rx.search(lines[i])
@@ -108,9 +158,9 @@ func _check_lines(t: TestContext, lines: PackedStringArray, target: Node) -> voi
 		shots += 0 if here == "" else here.count(";") + 1
 		if here != "" and first_shot < 0:
 			first_shot = i
-		if m.get_string(12) != "":
-			death_lines.append(i)
-			t.expect_eq(m.get_string(12), "1", "the target is the one that died")
+		for index in m.get_string(12).split(",", false):
+			(death_lines if index == "1" else doomed_lines).append(i)
+			t.check(index in ["1", "3"], "only the target and the freed one died, not %s" % index)
 	var first := rx.search(lines[0])
 	t.expect_eq(
 		[first.get_string(2), first.get_string(3), first.get_string(5), first.get_string(6)],
@@ -123,6 +173,10 @@ func _check_lines(t: TestContext, lines: PackedStringArray, target: Node) -> voi
 		death_lines.size() == 1 and death_lines[0] > first_shot,
 		"the target's death is in one line, after the first shot (lines %s, shot at %d)"
 			% [str(death_lines), first_shot],
+	)
+	t.check(
+		doomed_lines.size() == 1,
+		"the freed NPC's death is in one line (lines %s)" % str(doomed_lines),
 	)
 	var last := rx.search(lines[lines.size() - 1])
 	t.expect_eq(

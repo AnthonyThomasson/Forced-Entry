@@ -14,11 +14,19 @@ window, and does nothing, and costs nothing (no signal connected), unless the en
   `<frame>` TAB `<i> <x>,<y> <gx>,<gy> <act> <health>` (per NPC, `i` = 0, 1, 2 ...) TAB `S:<x>,<y>;<x>,<y>` TAB `D:<i>,<i>`
 
   `i` is the NPC's index in the match's `combatants` (the viewed invader of `match_npc_vision` last), never its node name or
-  instance id (both follow allocation). `x,y` the position rounded to whole pixels. `gx,gy` its navigation agent's target position
-  rounded (`-` with none). `act` the controller's `current_act()` (decision path, `hold` idle, `-` for no AI controller; it can hold a space), a hostile it names (`t_<instance id>`) written `t_<index>` of that NPC (`t_?` for none), never an id.
-  `health` to one decimal. A freed NPC's field is `i gone`. `S:` the frame's shots (EventBus `shot`), the muzzle rounded, in
-  the order posted; `D:` the indices of the NPCs that died that frame. `grenade_match_stress`'s thrower puppet is no NPC of the
-  match and not in it (its throws show as shots).
+  instance id (both follow allocation). `x,y` the position rounded to whole pixels. `gx,gy` its navigation agent's target
+  position rounded (`-` with none). `health` to one decimal; a freed NPC's field is `i gone`.
+
+  `act` is the controller's `current_act()` (the decision path, `hold` idle, `-` for no AI controller; it can hold a space).
+  The path names options by instance id (`t_<id>`, `lead_seen_<id>`, `lead_heading_<id>`, `lead_ally_<id>`, `do_<id>_<action>`
+  in `snapshot_options.gd`), and an id follows allocation, so the fingerprint writes each one stable: an NPC's id as its
+  index (`t_4`, `lead_ally_7`), another node's as its rounded position (`do_@200,100_sit`), none that lives as `?`. An id is
+  a number of nine digits or more, or any number that is an NPC's; shorter ones (a grid cell, `door_0`) stay as they are.
+
+  `S:` and `D:` hold what happened since the previous line, the step before the state the line shows: the shots (EventBus
+  `shot`), the muzzle rounded, in the order posted, and the indices of the NPCs that died (seen dead, or by their `died`
+  signal, so one freed the frame it dies still lands). `grenade_match_stress`'s thrower puppet is no NPC of the match and not in
+  it (its throws show as shots).
 - **Diffing** (for the same-fight A/B tool): two files are the same fight when equal line for line. The first line that differs
   (`cmp`, or `diff` stopped at the first hunk) names the first differing frame by its first field; a file that is a prefix of
   the other differs at the frame it ends on.
