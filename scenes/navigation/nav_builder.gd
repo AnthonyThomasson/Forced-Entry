@@ -298,10 +298,11 @@ static func _steering_map_for(planning_map: RID) -> RID:
 ## `done` is called. A region freed meanwhile is left alone. `done` is called even when there is
 ## nothing to bake. The planning region only: the
 ## steering one is re-baked by `rebake_steering`. A test-facing seam that measures its own
-## footprints; `nav_updater.gd` drives `NavRebake.planning`.
+## footprints; `nav_updater.gd` drives `NavRebake.planning`. Returns the bakes started (`NavBake`:
+## the planning region's, then the ring's), to read each one's `was_late`.
 static func rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array,
-		agent_radius: float = AGENT_RADIUS, done: Callable = Callable()) -> void:
-	NavRebake.planning(
+		agent_radius: float = AGENT_RADIUS, done: Callable = Callable()) -> Array[NavBake]:
+	return NavRebake.planning(
 		region,
 		site_of(region, house, rooms, agent_radius),
 		furniture_holes(house),
@@ -463,7 +464,7 @@ static func _bake_avoid(region: NavigationRegion2D, entry: Dictionary, holes: Ar
 		{ "poly": nav_poly, "source": source },
 		origin,
 		func() -> void: entry["baking"] = false,
-		NavBake.frames_for(region),
+		NavBake.frames_for(region, true),
 	)
 
 

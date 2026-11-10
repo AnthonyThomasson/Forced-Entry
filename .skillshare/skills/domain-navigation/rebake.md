@@ -19,19 +19,19 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   tick to the landing: a move meanwhile waits for the next tick. A torn-down match (`_alive()`) drops the gather. A lone house's
   gather stays in its tick (`_rebake_planning`, walls shared with its steering bake). The fusing (`NavUnion`, fed in chunks) is nine tenths
   of the gather.
-- **A planning bake lands on a fixed frame** (`nav_bake.gd`, `nav_bake_config.gd`; `navigation/rebake_lands_on_its_frame`,
-  `rebake_waits_for_a_late_thread`, `perf/nav_rebake_lands_in_a_match`). `NavRebake._bake_async` starts the bake on a `WorkerThreadPool` task
-  (the server's sync `bake_from_source_geometry_data`, so nothing of the server's async queue) and takes its result in (weld, assign to the
-  region, `landed`) on the physics frame `NavBakeConfig.district_frames` (14; a lone house's `house_frames`, 3: its bake is a few ms, and the AI's first decision waits for an avoid map) after the start, not when the thread finishes: a match plays the same
-  fight on every run (`domain-testing`: the perf nondeterminism note). A thread not done by then is waited for, which holds that frame
-  (`NavBake.late` counts them); one on time costs the frame its weld and assignment only. The 14 is the measured latency of the district's
-  planning bake on the match guards' match (`Perf.configure_match`), 2026-11-09, 41 bakes: the thread took 65 to 94 ms, which is 7 to 16 frames of the
-  5v5 guard's 7 ms frame (p95 12) and 3 to 7 of the 10v10's 15 ms one, a little above that p95; the planning ring's bake (4 to 7 ms) is always on
-  time and lands with it. A real match's frame is no shorter than the guards', so the thread is no later there. Remeasure it (a scratch log of
-  the frames from `NavBake.start` to the thread's completion) when the bake or the frame changes. A region freed meanwhile is left alone and
-  `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`). The avoid maps (`avoid_map`) go through the same
-  `NavBake.start` and the same counts (a district's measured alike: 196 bakes, 1 to 14 frames, p95 13; a house's: 517 bakes, 1 to 2 frames, p95 2;
-  `navigation/avoid_map_lands_on_its_frame`).
+- **A bake lands on a fixed frame** (`nav_bake.gd`, `nav_bake_config.gd`; `navigation/rebake_lands_on_its_frame`, `avoid_map_lands_on_its_frame`,
+  `rebake_waits_for_a_late_thread`, `perf/nav_rebake_lands_in_a_match`). `NavRebake._bake_async` and `NavBuilder._bake_avoid` start the bake on a
+  `WorkerThreadPool` task (the server's sync `bake_from_source_geometry_data`) through `NavBake.start`, which takes its result in (weld, assign to the
+  region, `landed`) on the physics frame the caller's count says after the start, not when the thread finishes (`domain-testing`: the perf
+  nondeterminism note). A thread not done by then is waited for, which holds that frame (`NavBake.was_late` of that bake, `late_total` of all; the match
+  guards log `PERF <label> nav bakes late N of M`); one on time costs the frame its weld and assignment only. `NavBake.frames_for(region, avoid, ring)`
+  picks the count from `NavBakeConfig`: a district's planning bake `district_frames` 14 (the p95 of its thread on the 5v5 guard's 7 ms frame), its avoid
+  maps `avoid_frames` 12 (the p90: the AI waits for a chain of them, so each link costs the count; 10, near the median, was late for a quarter of them), the planning ring `ring_frames` 3
+  (a 4 to 7 ms bake), a lone house's bakes `house_frames` 3. The measurements, and why the avoid maps' is not the same, are the holder's comments.
+  Remeasure when a bake or a frame changes (a scratch log of the frames from `NavBake.start` to the thread's completion). A region freed meanwhile is left
+  alone and `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`).
+- **A map syncs on the main thread** (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`): the server's
+  async sync would show a landed bake on a frame that follows the machine's load, so a match was a different fight run to run whatever the landing frames.
 - The tick's own re-bakes take the footprints it just measured, so it measures furniture
   once and parses the walls once. The public `rebake`,
   `rebake_async`, `rebake_steering` are **test-facing seams** that measure their own footprints; only tests call them.

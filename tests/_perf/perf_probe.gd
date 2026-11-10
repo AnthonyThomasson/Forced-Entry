@@ -44,6 +44,9 @@ const MATCH_LOGS := [
 	"NavigationPolygon polygon convex partition failed",
 ]
 
+## `NavBake`'s started and late counts when the running guard's warm-up began (`log_late_bakes`).
+static var _bakes_mark := [0, 0]
+
 
 ## Declare a match guard's match in `s`: the downtown district `MATCH_SEED` with `MATCH_PLAN` as
 ## its centre house (the match is fought over that house, in nine towers and their streets),
@@ -72,6 +75,7 @@ static func record_fight(t: TestContext, test: GameTest, npcs: Array) -> void:
 ## (`await_contact` over `characters`, at most `MATCH_CONTACT_WITHIN` s more), `require`d as the
 ## guard's premise. Returns whether it held (false: the test has ended).
 static func warm_until_contact(t: TestContext, label: String, characters: Array) -> bool:
+	_bakes_mark = [NavBake.started_total, NavBake.late_total]
 	await t.seconds(MATCH_WARMUP_S)
 	return t.require(
 		await await_contact(t, label, characters, MATCH_CONTACT_WITHIN),
@@ -171,10 +175,22 @@ static func within(t: TestContext, label: String, value: float, limit: float) ->
 	return t.check(value <= limit, "%s: %.2f is over its budget of %.2f" % [label, value, limit])
 
 
+## Log (`PERF <label> nav bakes late N of M`) how many of the nav bakes started since the guard's
+## `warm_until_contact` were still running when their landing frame came (`NavBake`: a late one
+## holds the frame), so a creeping share shows in the log before it shows in a frame budget.
+static func log_late_bakes(label: String) -> void:
+	GameLog.say("PERF %s nav bakes late %d of %d" % [
+		label,
+		NavBake.late_total - _bakes_mark[1],
+		NavBake.started_total - _bakes_mark[0],
+	])
+
+
 ## `within` for each of a `frame_stats` result's average, 95th percentile and worst frame (ms),
 ## against the frame standard every frame-based test holds: `SMOOTH_AVG_MS`, `SMOOTH_P95_MS`,
 ## `SMOOTH_MAX_MS`.
 static func within_frames(t: TestContext, label: String, stats: Dictionary) -> void:
+	log_late_bakes(label)
 	within(t, label + " avg ms/frame", stats["avg_ms"], SMOOTH_AVG_MS)
 	within(t, label + " p95 ms/frame", stats["p95_ms"], SMOOTH_P95_MS)
 	within(t, label + " max ms/frame", stats["max_ms"], SMOOTH_MAX_MS)

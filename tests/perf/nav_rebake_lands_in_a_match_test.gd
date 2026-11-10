@@ -44,10 +44,9 @@ func run(t: TestContext) -> void:
 		"NavRegion", "NavigationRegion2D", true, false,
 	)[0]
 	for attempt in ATTEMPTS:
-		var late_before := NavBake.late
 		var started := Engine.get_physics_frames()
 		var landed_at := [-1]  # a lambda captures an int by value
-		NavBuilder.rebake_async(
+		var bakes := NavBuilder.rebake_async(
 			region, district, rooms, NavBuilder.AGENT_RADIUS,
 			func() -> void: landed_at[0] = Engine.get_physics_frames(),
 		)
@@ -58,7 +57,8 @@ func run(t: TestContext) -> void:
 			landed_at[0] - started == NavBakeConfig.district_frames,
 			"attempt %d: it landed on its frame (%d on)" % [attempt, landed_at[0] - started],
 		)
-		if NavBake.late > late_before:
+		# This attempt's own bakes (the planning region's and the ring's), not the updater's.
+		if bakes.any(func(b: NavBake) -> bool: return b.was_late):
 			GameLog.say("PERF re-bake match attempt %d: the thread was late" % attempt)
 			continue
 		Perf.within(t, "re-bake match max ms/frame", stats["max_ms"], Perf.SMOOTH_MAX_MS)

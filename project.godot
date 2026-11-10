@@ -44,3 +44,7 @@ report/godot/script_error=false
 settings/test/test_lookup_folder="tests"
 settings/test/test_discovery=true
 ui/toolbar/run_overall=true
+
+[navigation]
+
+world/map_use_async_iterations=false

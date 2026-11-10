@@ -3,16 +3,21 @@ class_name NavBake extends RefCounted
 ## `WorkerThreadPool`, started now, and its result is taken in (welded, assigned to its region,
 ## `landed` called) on the physics frame `NavBakeConfig.district_frames` after the start, not when
 ## the thread happens to finish: the same frame every run. A thread that is not done by then is
-## waited for, which holds that frame (`late` counts those). A bake in flight is kept in `_flying`
-## until it lands, so nothing frees it first.
+## waited for, which holds that frame (`was_late` says so of each bake, `late_total` counts them). A
+## bake in flight is kept in `_flying` until it lands, so nothing frees it first.
 
-## How many bakes were still running when their frame came, since the process began.
-static var late := 0
+## How many bakes were started, and how many of them were still running when their frame came,
+## since the process began (a guard reads the rate: a creeping share of late bakes is a count that
+## has fallen behind the thread).
+static var started_total := 0
+static var late_total := 0
 ## The bakes between their start and their landing.
 static var _flying: Array[NavBake] = []
 ## Whether the root window's exit has been hooked to finish the bakes (`_finish_all`).
 static var _exit_hooked := false
 
+## Whether this bake's thread was still running when its frame came (known once it has landed).
+var was_late := false
 ## The worker-pool task baking the polygon (-1 once it has landed), the physics frame it lands on,
 ## the polygon, the region's offset, the region (weakly), what to call once it has landed and the
 ## tree whose physics frames count.
@@ -25,27 +30,34 @@ var _landed: Callable
 var _tree: SceneTree
 
 
-## The physics frames a bake for `region` (the planning region) lands after its start: a district's
-## `NavBakeConfig.district_frames` (its region keeps the outline's bounds), a lone house's
-## `NavBakeConfig.house_frames`.
-static func frames_for(region: NavigationRegion2D) -> int:
+## The physics frames a bake lands after its start, for `region` (the planning region) and the kind
+## of bake: a district (its region keeps the outline's bounds) lands its planning bake after
+## `NavBakeConfig.district_frames` and an avoid map's (`avoid`) after `NavBakeConfig.avoid_frames`;
+## a lone house, either, after `NavBakeConfig.house_frames`. `ring` is the planning ring's bake
+## (`NavBakeConfig.ring_frames`).
+static func frames_for(region: NavigationRegion2D, avoid := false, ring := false) -> int:
 	var bounds: Rect2 = region.get_meta(NavBuilder.BOUNDS_META, Rect2())
-	return NavBakeConfig.district_frames if bounds.has_area() else NavBakeConfig.house_frames
+	if not bounds.has_area():
+		return NavBakeConfig.house_frames
+	if ring:
+		return NavBakeConfig.ring_frames
+	return NavBakeConfig.avoid_frames if avoid else NavBakeConfig.district_frames
 
 
 ## Start baking `job` (`NavSource.job`) on a worker thread; on the physics frame `frames` on (see
 ## `frames_for`), weld it (`origin` is the region's offset), assign it to `region` and call
 ## `landed`. Held weakly: a region freed meanwhile is left alone (a lambda that captures a
 ## node freed before it runs logs an engine error: a world torn down mid-bake), and `landed` is
-## still called.
+## still called. Returns the bake, to read `was_late` once it has landed.
 static func start(
 	region: NavigationRegion2D,
 	job: Dictionary,
 	origin: Vector2,
 	landed: Callable,
 	frames: int,
-) -> void:
+) -> NavBake:
 	var bake := NavBake.new()
+	started_total += 1
 	bake._poly = job["poly"]
 	bake._origin = origin
 	bake._region_ref = weakref(region)
@@ -57,13 +69,14 @@ static func start(
 		NavigationServer2D.bake_from_source_geometry_data(poly, source), false, "nav bake")
 	if bake._tree == null:
 		bake._land()
-		return
+		return bake
 	bake._due = Engine.get_physics_frames() + frames
 	_flying.append(bake)
 	bake._tree.physics_frame.connect(bake._on_physics_frame)
 	if not _exit_hooked:
 		_exit_hooked = true
 		bake._tree.root.tree_exiting.connect(_finish_all)
+	return bake
 
 
 ## Take every bake still in flight in at once (the game is closing: no thread is left running).
@@ -86,7 +99,8 @@ func _land() -> void:
 		_tree.physics_frame.disconnect(_on_physics_frame)
 	_flying.erase(self)
 	if not WorkerThreadPool.is_task_completed(_task):
-		late += 1
+		was_late = true
+		late_total += 1
 	WorkerThreadPool.wait_for_task_completion(_task)
 	_task = -1
 	var target := _region_ref.get_ref() as NavigationRegion2D
