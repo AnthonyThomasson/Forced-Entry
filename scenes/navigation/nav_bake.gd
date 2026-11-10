@@ -1,10 +1,10 @@
 class_name NavBake extends RefCounted
 ## Navigation domain: one re-bake's thread and its landing. The bake runs on a thread of the
 ## `WorkerThreadPool`, started now, and its result is taken in (welded, assigned to its region,
-## `landed` called) on the physics frame `NavBakeConfig.land_frames` after the start, not when the
-## thread happens to finish: the same frame every run. A thread that is not done by then is waited
-## for, which holds that frame (`late` counts those). A bake in flight is kept in `_flying` until it
-## lands, so nothing frees it first.
+## `landed` called) on the physics frame `NavBakeConfig.district_frames` after the start, not when
+## the thread happens to finish: the same frame every run. A thread that is not done by then is
+## waited for, which holds that frame (`late` counts those). A bake in flight is kept in `_flying`
+## until it lands, so nothing frees it first.
 
 ## How many bakes were still running when their frame came, since the process began.
 static var late := 0
@@ -25,9 +25,17 @@ var _landed: Callable
 var _tree: SceneTree
 
 
-## Start baking `job` (`NavSource.job`) on a worker thread; on the physics frame
-## `NavBakeConfig.land_frames` on, weld it (`origin` is the region's offset), assign it to `region`
-## and call `landed`. Held weakly: a region freed meanwhile is left alone (a lambda that captures a
+## The physics frames a bake for `region` (the planning region) lands after its start: a district's
+## `NavBakeConfig.district_frames` (its region keeps the outline's bounds), a lone house's
+## `NavBakeConfig.house_frames`.
+static func frames_for(region: NavigationRegion2D) -> int:
+	var bounds: Rect2 = region.get_meta(NavBuilder.BOUNDS_META, Rect2())
+	return NavBakeConfig.district_frames if bounds.has_area() else NavBakeConfig.house_frames
+
+
+## Start baking `job` (`NavSource.job`) on a worker thread; on the physics frame `frames` on (see
+## `frames_for`), weld it (`origin` is the region's offset), assign it to `region` and call
+## `landed`. Held weakly: a region freed meanwhile is left alone (a lambda that captures a
 ## node freed before it runs logs an engine error: a world torn down mid-bake), and `landed` is
 ## still called.
 static func start(
@@ -35,6 +43,7 @@ static func start(
 	job: Dictionary,
 	origin: Vector2,
 	landed: Callable,
+	frames: int,
 ) -> void:
 	var bake := NavBake.new()
 	bake._poly = job["poly"]
@@ -49,7 +58,7 @@ static func start(
 	if bake._tree == null:
 		bake._land()
 		return
-	bake._due = Engine.get_physics_frames() + NavBakeConfig.land_frames
+	bake._due = Engine.get_physics_frames() + frames
 	_flying.append(bake)
 	bake._tree.physics_frame.connect(bake._on_physics_frame)
 	if not _exit_hooked:

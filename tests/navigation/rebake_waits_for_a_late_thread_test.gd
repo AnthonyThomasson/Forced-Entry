@@ -18,7 +18,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.district(7)
 	s.switch(&"nav.rebake", false)
-	s.set_static(NavBakeConfig, &"land_frames", 1)
+	s.set_static(NavBakeConfig, &"district_frames", 1)
 
 
 func run(t: TestContext) -> void:

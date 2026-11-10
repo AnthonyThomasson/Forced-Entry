@@ -3,7 +3,7 @@ extends GameTest
 ## the 5v5 guard's (`Perf.configure_match`); once the sides are in contact a re-bake of the
 ## district (planning map and ring: `NavBuilder.rebake_async`, the updater's own bakes go on
 ## beside it) is started and the frames from the one after the start to a few past its landing are
-## measured: the landing's weld and assignment, on the fixed frame `NavBakeConfig.land_frames`
+## measured: the landing's weld and assignment, on the fixed frame `NavBakeConfig.district_frames`
 ## after the start, fit under `Perf.SMOOTH_MAX_MS` when its thread is on time (a late thread holds
 ## the frame, by design, so a late attempt is tried again, up to `ATTEMPTS`).
 ## Headless measures CPU only.
@@ -51,11 +51,11 @@ func run(t: TestContext) -> void:
 			region, district, rooms, NavBuilder.AGENT_RADIUS,
 			func() -> void: landed_at[0] = Engine.get_physics_frames(),
 		)
-		var stats := await Perf.frame_stats(t, NavBakeConfig.land_frames + TAIL)
+		var stats := await Perf.frame_stats(t, NavBakeConfig.district_frames + TAIL)
 		if not t.require(landed_at[0] >= 0, "attempt %d: the re-bake has landed" % attempt):
 			return
 		t.check(
-			landed_at[0] - started == NavBakeConfig.land_frames,
+			landed_at[0] - started == NavBakeConfig.district_frames,
 			"attempt %d: it landed on its frame (%d on)" % [attempt, landed_at[0] - started],
 		)
 		if NavBake.late > late_before:

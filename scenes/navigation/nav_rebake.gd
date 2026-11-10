@@ -47,9 +47,10 @@ static func swap(
 		waiting[0] -= 1
 		if waiting[0] == 0 and done.is_valid():
 			done.call()
-	_bake_async(region, job, site.house.position, landed)
+	var frames := NavBake.frames_for(region)
+	_bake_async(region, job, site.house.position, landed, frames)
 	if not ring.is_empty():
-		_bake_async(NavRing.region_of(region), ring, site.house.position, landed)
+		_bake_async(NavRing.region_of(region), ring, site.house.position, landed, frames)
 
 
 ## Re-bake the steering region of `site` from footprints already measured this frame: `furniture`
@@ -74,12 +75,13 @@ static func steering(
 
 
 ## `job` (`NavSource.job`) baked on a worker thread and assigned to `region` on the physics frame
-## `NavBakeConfig.land_frames` after this call, then `landed` called (`NavBake`: not when the thread
-## finishes, so the frame is the same every run).
+## `frames` after this call, then `landed` called (`NavBake`: not when the thread finishes, so the
+## frame is the same every run).
 static func _bake_async(
 	region: NavigationRegion2D,
 	job: Dictionary,
 	origin: Vector2,
 	landed: Callable,
+	frames: int,
 ) -> void:
-	NavBake.start(region, job, origin, landed)
+	NavBake.start(region, job, origin, landed, frames)

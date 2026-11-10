@@ -1,5 +1,5 @@
 extends GameTest
-## A planning re-bake's result is taken in on a fixed physics frame, `NavBakeConfig.land_frames`
+## A planning re-bake's result is taken in on a fixed physics frame, `NavBakeConfig.house_frames`
 ## after it started, not whenever its worker thread finishes: until that frame the region holds the
 ## previous polygon, on it the new one is assigned and `done` called, every time. The same count
 ## whatever the thread's wall-clock is what makes a match play the same fight on every run.
@@ -9,7 +9,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "A re-bake lands on its fixed frame",
 		"description": "rebake_async leaves the region's polygon alone until the physics frame "
-			+ "land_frames after it started, then assigns it and calls back, three times over.",
+			+ "house_frames after it started, then assigns it and calls back, three times over.",
 		"tags": ["navigation", "bake", "rebake"],
 		"timeout": 15.0,
 	}
@@ -35,7 +35,7 @@ func run(t: TestContext) -> void:
 			func() -> void: landed_at[0] = Engine.get_physics_frames(),
 		)
 		var early := false
-		for i in NavBakeConfig.land_frames * 2:
+		for i in NavBakeConfig.house_frames * 2:
 			if landed_at[0] >= 0:
 				break
 			early = early or region.navigation_polygon != before
@@ -47,9 +47,9 @@ func run(t: TestContext) -> void:
 		if not t.require(landed_at[0] >= 0, "attempt %d: the bake lands and calls back" % attempt):
 			return
 		t.check(
-			landed_at[0] - started == NavBakeConfig.land_frames,
+			landed_at[0] - started == NavBakeConfig.house_frames,
 			"attempt %d: it lands %d physics frames after it started (%d)"
-				% [attempt, NavBakeConfig.land_frames, landed_at[0] - started],
+				% [attempt, NavBakeConfig.house_frames, landed_at[0] - started],
 		)
 		t.check(
 			region.navigation_polygon != before,

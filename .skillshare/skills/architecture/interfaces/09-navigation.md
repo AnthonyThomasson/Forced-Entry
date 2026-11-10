@@ -11,7 +11,7 @@
 	 doorway stays open past it and a path goes round the leaf in the room it swings into. `NavBuilder.leaf_in_map(door) -> bool` tells
 	 whether a door's leaf is in the map so (the AI's walker goes through any other door by a clean gap or opens it, DR14).
    - **Re-bake** is the Navigation domain's own: `nav_updater.gd` (built by `MatchBuilder.stage`) re-carves the furniture holes in place at
-	 the pieces' **current** positions, only when a piece has moved, the planning bake on a worker thread, its result taken in on a fixed physics frame after it starts (a count in `NavBakeConfig`). The steering re-bake lands in the frame of the tick that measured the change (house and district alike: the AI's held walkers look for a way round a body on a timer, and a late map misses the look); a district's planning re-bake is not in the tick: a job of `NavGather` steps over 7 physics frames into a second buffer nothing reads, swapped in whole by `NavRebake`'s swap when complete, so a read during it sees the previous map (`domain-navigation`, its re-bake side file).
+	 the pieces' **current** positions, only when a piece has moved, the planning bake on a worker thread, landing on a fixed physics frame (`NavBakeConfig`). The steering re-bake lands in the frame of the tick that measured the change (house and district alike: the AI's held walkers look for a way round a body on a timer, and a late map misses the look); a district's planning re-bake is not in the tick: a job of `NavGather` steps over 7 physics frames into a second buffer nothing reads, swapped in whole by `NavRebake`'s swap when complete, so a read during it sees the previous map (`domain-navigation`, its re-bake side file).
 	 `NavBuilder.rebake` / `rebake_async` / `rebake_steering` are test-facing seams, not part of this surface (`domain-navigation`).
    - `NavBuilder.furniture_holes(house) -> Array` — the carved footprints (anchored pieces and open door leaves included) as world-space polygons: what
 	 `nav_debug.gd` draws, `nav_updater.gd` watches for a moved piece, and `match_spawner.gd` keeps a spawn's clearance from.
@@ -43,7 +43,7 @@
    - **Avoid maps**, for a walk that keeps out of some floor (the AI's doorway views, E18):
 	 `NavBuilder.avoid_map(region, key, holes) -> RID` (`region`: the planning region `build` returned, found from a world map by
 	 `NavBuilder.planning_region(planning_map) -> NavigationRegion2D`; `holes`: world-space polygons; `key` names the set): a map of its own
-	 with the planning bake plus those holes, baked on the worker thread, cached by `key` (re-baked when the planning bake has been redone),
+	 with the planning bake plus those holes, baked on a worker thread, landed on a fixed frame, cached by `key` (re-baked when the planning bake has been redone),
 	 freed by the next ask for another set once nobody has asked for `avoid_idle_ms` (20 s), and with its world; `ready` as any
 	 map. The world's and the steering map are untouched. `Locomotion` walks it and `AgentDoorViews.walk_route` measures on it.
 
