@@ -364,14 +364,26 @@ static func _is_von_skip(r: Dictionary) -> bool:
 	return r["status"] == "SKIPPED" and r.get("von", false)
 
 
-## The totals line: the counts by status, the Von tests that did not run named apart when there
-## are any.
+## Whether the Von skip `r` is one with no recording yet (its `von_kind`), which `--record-von`
+## makes runnable; any other needs the live server (`--require-von`).
+static func _is_unrecorded(r: Dictionary) -> bool:
+	return _is_von_skip(r) and r.get("von_kind", "") == "unrecorded"
+
+
+## The totals line: the counts by status, the Von tests that did not run named apart by what runs
+## them when there are any: `(A need Von, not run: --require-von; B unrecorded, not run:
+## --record-von)`, either part left out when it is 0.
 static func _totals_line(counts: Dictionary) -> String:
-	var von_skipped := records.filter(_is_von_skip).size()
+	var unrecorded: int = records.filter(_is_unrecorded).size()
+	var need_live: int = records.filter(_is_von_skip).size() - unrecorded
+	var parts := PackedStringArray()
+	if need_live > 0:
+		parts.append("%d need Von, not run: --require-von" % need_live)
+	if unrecorded > 0:
+		parts.append("%d unrecorded, not run: --record-von" % unrecorded)
 	return "%d passed, %d failed, %d timed out, %d skipped%s, %d gap" % [
 		counts["PASS"], counts["FAIL"], counts["TIMEOUT"], counts["SKIPPED"],
-		"" if von_skipped == 0 else " (%d need Von, not run: --require-von)" % von_skipped,
-		counts["GAP"],
+		"" if parts.is_empty() else " (%s)" % "; ".join(parts), counts["GAP"],
 	]
 
 

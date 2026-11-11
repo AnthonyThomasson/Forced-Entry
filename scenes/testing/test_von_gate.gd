@@ -15,9 +15,6 @@ const REALTIME_FPS := 60
 ## launcher never starts a server (no server there = no server), which is how tools/test_log_gate.py
 ## makes "no server" on purpose.
 const VON_PORT_ENV := "GAME_TEST_VON_PORT"
-## Environment variable that, set to anything, makes the run RECORD: each requires_von test runs
-## against the live server and writes its recording (the runner's `--record-von` sets it).
-const RECORD_ENV := "GAME_TEST_VON_RECORD"
 ## The skip reason of a Von test when no server is live (a failure under `--require-von`).
 const NOT_LIVE := "the Von decision server is not live"
 
@@ -26,18 +23,22 @@ static var _launcher: Node = null
 ## The launcher's settled answer: whether a server is live.
 static var _von_live := false
 
-## Whether requires_von tests run (false: they are SKIPPED, a batch run without --include-von).
+## Whether a requires_von test that needs the server may run: a live-only one, one run live, one
+## with no recording yet (false: it is SKIPPED, "pass --include-von"). A test that replays its
+## recording never asks. The batch sets it for `--include-von`; a host with no run options leaves
+## it.
 var include := true
 ## Whether a requires_von test FAILs instead of skipping when no server is live (--require-von).
 var require := false
 ## Whether requires_von tests run LIVE, against the server, instead of replaying their recordings
 ## (the host sets it for `--include-von` and `--require-von`).
 var live := false
-## Whether requires_von tests RECORD: live, each writing its recording (`RECORD_ENV`).
-var record := OS.get_environment(RECORD_ENV) != ""
+## Whether requires_von tests RECORD: live, each writing its recording (the host sets it for
+## `--record-von`, and only that does).
+var record := false
 ## Whether a requires_von test with no recording file FAILs (naming the command that records it)
-## instead of running as it always did, skipped without Von or against the live server. Off until
-## every Von test has its recording.
+## instead of being skipped without Von (a live run asks the server). Off while some Von tests have
+## no recording yet; they then count as "unrecorded" in the totals.
 var require_recording := false
 ## Where the Von launcher lives: it is kept, with the server it started, as long as that node does.
 var launcher_parent: Node = null

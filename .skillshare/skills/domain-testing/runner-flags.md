@@ -48,9 +48,12 @@ The header lists every flag; this file holds the rules and the reasons behind th
     themselves, which need the real client and server: `ai/decision/von_request_across_pause`, `_harness/von_probe`. They
     never replay and are skipped without a server (FAIL under `--require-von`). A test that uses Von as a realistic
     driver is recorded, not live-only.
-  - The totals line counts only Von tests that did not run (`N skipped (V need Von, not run: --require-von)`: live-only, or
-    with no recording yet) and `--changed` ends with `NOTE <n> Von test(s) in the changed domains were not run` for them;
-    a replayed test is no part of either. `--list` marks each `von:replay`, `von:live-only` or `von:unrecorded`.
+  - The totals line counts only Von tests that did not run, by the command that runs them: `N skipped (V need Von, not run:
+    --require-von; U unrecorded, not run: --record-von)` (V: live-only, or a live run with no server; U: no recording
+    yet). `--changed` ends with one NOTE per kind: `NOTE <n> Von test(s) in the changed domains were not run:
+    tools/run_tests.sh --domain=<d> --require-von`, and `NOTE <n> Von test(s) ... have no recording: tools/run_tests.sh
+    --record-von --id=<ids>`. A replayed test is no part of either. `--record-von` on a live-only test skips it
+    ("live-only: nothing to record"). `--list` marks each `von:replay`, `von:live-only` or `von:unrecorded`.
 - **`--base=<rev>`:** the working tree's tests against `<rev>`'s code, in a temporary `git worktree` under `$TMPDIR` that
   gets the working tree's `tests/` whole (`.uid` files and helper folders included). It is removed also on ^C or a kill
   of the wrapper (`tools/godot_slot.py stop` ends the engines first). The working tree is never written, no lint. Combinations

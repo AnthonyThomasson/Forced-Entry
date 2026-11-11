@@ -65,7 +65,7 @@ func before() -> void:
 	_session.von.include = TestBatch.flag("--include-von") or not TestBatch.selecting()
 	_session.von.require = TestBatch.flag("--require-von")
 	_session.von.live = TestBatch.flag("--include-von") or TestBatch.flag("--require-von")
-	_session.von.record = _session.von.record or TestBatch.flag("--record-von")
+	_session.von.record = TestBatch.flag("--record-von")
 	_session.shots = TestBatch.flag("--shots")
 	_session.bundle_dir = TestBatch.bundle_dir()
 	# one launcher, and the server it started, for the whole process

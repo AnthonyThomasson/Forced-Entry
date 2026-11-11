@@ -33,9 +33,11 @@
 #                                         Nothing mapped, or only domains --skip-domain leaves out: it says which
 #                                         and exits 0. It ends with a `NOTE <n> Von test(s) in the changed domains were
 #                                         not run: tools/run_tests.sh --domain=<d> --require-von` when the runs skipped
-#                                         Von tests (live-only ones, or ones with no recording yet; a replayed test ran and
-#                                         is no part of it). The totals line names those apart: `N skipped (V need Von, not
-#                                         run: --require-von)`. A changed docs/*.md paragraph runs the tests its `Test:` /
+#                                         Von tests, one NOTE per kind: live-only ones (run them with `--require-von`) and
+#                                         ones with no recording yet (`NOTE <n> Von test(s) ... have no recording:
+#                                         tools/run_tests.sh --record-von --id=<ids>`); a replayed test ran and is no part
+#                                         of either. The totals line names the kinds apart: `N skipped (V need Von, not run:
+#                                         --require-von; U unrecorded, not run: --record-von)`. A changed docs/*.md paragraph runs the tests its `Test:` /
 #                                         `Tests:` line (or the `Tests:`-only block that directly follows a paragraph
 #                                         naming none) names (tools/spec_tests.py; names resolve against the index under
 #                                         --staged), --repeat=5 (a larger --repeat given wins) under `== tests named by changed
@@ -765,7 +767,8 @@ EOF
 }
 
 # The Von tests the runs that wrote the dirs given skipped (the records the batch marked `"von": true`, as the totals
-# line counts them), appended to $VON_SKIPPED as one JSON `[domain, id]` line each for --changed's closing NOTE.
+# line counts them), appended to $VON_SKIPPED as one JSON `[domain, id, kind]` line each for --changed's closing NOTE;
+# `kind` is the record's `von_kind` ("unrecorded", or "live" for one that needs the server).
 note_von_skips() {
   python3 - "$VON_SKIPPED" "$@" <<'EOF'
 import json, os, sys
@@ -777,22 +780,27 @@ with open(sys.argv[1], "a") as out:
             continue
         for r in results:
             if r.get("status") == "SKIPPED" and r.get("von"):
-                out.write(json.dumps([r.get("domain", ""), r["id"]]) + "\n")
+                out.write(json.dumps([r.get("domain", ""), r["id"], r.get("von_kind", "live")]) + "\n")
 EOF
 }
 
-# The closing NOTE of --changed: how many distinct Von tests the runs skipped, and the command that runs their domains.
+# The closing NOTEs of --changed, one per kind of Von test the runs skipped, each with the command that runs them: the
+# ones that need the server (live-only) are run by --require-von on their domains; the ones with no recording yet are
+# made by --record-von on their ids.
 von_note() {
   python3 - "$VON_SKIPPED" <<'EOF'
 import json, sys
-seen = {}
+live, unrecorded = {}, {}
 for line in open(sys.argv[1]):
-    domain, test_id = json.loads(line)
-    seen[test_id] = domain
-if seen:
-    domains = sorted({d for d in seen.values() if d})
+    domain, test_id, kind = json.loads(line)
+    (unrecorded if kind == "unrecorded" else live)[test_id] = domain
+if live:
+    domains = sorted({d for d in live.values() if d})
     print("NOTE %d Von test(s) in the changed domains were not run: tools/run_tests.sh --domain=%s --require-von"
-          % (len(seen), ",".join(domains)))
+          % (len(live), ",".join(domains)))
+if unrecorded:
+    print("NOTE %d Von test(s) in the changed domains have no recording: tools/run_tests.sh --record-von --id=%s"
+          % (len(unrecorded), ",".join(sorted(unrecorded))))
 EOF
 }
 
@@ -809,22 +817,28 @@ run_header() {
 }
 
 # The one totals line of the processes whose output is in the files given: every `N passed, ...` line summed field by
-# field, the skips that need Von (named apart as each process names them) summed too, then $1 (the shard count) and the
-# 1-minute load.
+# field, the skips that need Von or have no recording yet (named apart as each process names them) summed too, then $1
+# (the shard count) and the 1-minute load.
 merged_totals() {
   local shards="$1"; shift
   python3 - "$shards" "$(load_1min)" "$@" <<'EOF'
 import re, sys
 LINE = re.compile(r"^(\d+) passed, (\d+) failed, (\d+) timed out, (\d+) skipped"
-                  r"(?: \((\d+) need Von, not run: --require-von\))?, (\d+) gap")
-total = dict.fromkeys(("passed", "failed", "timed out", "skipped", "von", "gap"), 0)
+                  r"(?: \((?:(\d+) need Von, not run: --require-von)?(?:; )?"
+                  r"(?:(\d+) unrecorded, not run: --record-von)?\))?, (\d+) gap")
+total = dict.fromkeys(("passed", "failed", "timed out", "skipped", "von", "unrecorded", "gap"), 0)
 for path in sys.argv[3:]:
     for line in open(path, errors="replace"):
         m = LINE.match(line)
         if m:
             for key, value in zip(total, m.groups()):
                 total[key] += int(value or 0)
-need = " (%d need Von, not run: --require-von)" % total["von"] if total["von"] else ""
+parts = []
+if total["von"]:
+    parts.append("%d need Von, not run: --require-von" % total["von"])
+if total["unrecorded"]:
+    parts.append("%d unrecorded, not run: --record-von" % total["unrecorded"])
+need = " (%s)" % "; ".join(parts) if parts else ""
 print("%d passed, %d failed, %d timed out, %d skipped%s, %d gap%s  load %s" % (
     total["passed"], total["failed"], total["timed out"], total["skipped"], need, total["gap"], sys.argv[1], sys.argv[2]))
 EOF

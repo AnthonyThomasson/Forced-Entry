@@ -20,7 +20,8 @@
   gives backticked names, each resolved to `tests/**/<name>_test.gd` (a name with a `/` is a path under `tests/`; under
   `--staged`, among the files the index holds). Those ids run `--repeat=5` (the larger of 5 and your `--repeat`) under
   `== tests named by changed spec paragraphs ==`, also when their domain already ran. Von ones replay their recordings
-  (no `--include-von`, so no server is needed); `--skip-domain` still wins. A paragraph
+  (no `--include-von`, so no server is needed); `--skip-domain` still wins. A run ends with one Von `NOTE` per kind of Von
+  test it skipped (live-only; no recording yet) naming the command that runs it (`runner-flags.md`). A paragraph
   with no `Test(s):` line prints `NOTE docs/<f>.md:<line>: changed paragraph names no test`, a name with no file
   `NOTE unknown test name in docs/<f>.md:<line>: <name>`; neither fails the run.
 - **`--changed --staged`** (the pre-commit hook's) maps what is staged (`git diff --cached`) and lints what the commit holds

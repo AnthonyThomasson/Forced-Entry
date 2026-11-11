@@ -30,6 +30,12 @@ const LogWatch = preload("res://scenes/testing/log_watch.gd")
 const VonGate = preload("res://scenes/testing/test_von_gate.gd")
 ## The verdicts that carry a bundle (event log, final state, traces) and a `--shots` screenshot.
 const BUNDLED := ["FAIL", "TIMEOUT", "GAP"]
+## A skipped Von test's `von_kind`: it has no recording yet.
+const VON_UNRECORDED := "unrecorded"
+## A skipped Von test's `von_kind`: it needs the live server.
+const VON_LIVE := "live"
+## The skip reason of a live-only test in a `--record-von` run: nothing of it is recorded.
+const LIVE_ONLY_RECORD := "live-only: nothing to record (--require-von runs it against the server)"
 
 ## The engine log tail whose errors and warnings fail the open test (the host's; set before the
 ## first `start`).
@@ -61,6 +67,10 @@ var _concluded := false
 var _von_run: VonRun = null
 ## Whether the open test was skipped for want of the Von decision server (its record says so).
 var _von_skipped := false
+## Why it was: `VON_UNRECORDED` (no recording yet, so `--record-von` makes it runnable) or
+## `VON_LIVE` (it needs the server: live-only, or a live run with none). The record carries it as
+## `von_kind`.
+var _von_kind := VON_LIVE
 
 
 func _process(_delta: float) -> void:
@@ -117,6 +127,7 @@ func start(test_entry: Dictionary) -> void:
 		return
 	if skip_reason != "":
 		_von_skipped = true
+		_von_kind = _skip_kind()
 		ctx.skip(skip_reason)
 		return
 	var test: GameTest = load(entry["path"]).new()
@@ -149,9 +160,19 @@ func start(test_entry: Dictionary) -> void:
 func _begin_von() -> String:
 	var mode := von.mode_for(entry) if entry["requires_von"] else DecisionStub.Mode.SCRIPT
 	_von_run = VonRun.new(entry, mode, von.require_recording)
+	if entry["requires_von"] and entry.get("live_only", false) and von.record:
+		return LIVE_ONLY_RECORD
 	if not entry["requires_von"] or _von_run.mode == DecisionStub.Mode.REPLAY:
 		return ""
 	return await von.skip_reason(status.emit, _von_run.mode == DecisionStub.Mode.RECORD)
+
+
+## The `von_kind` of the open Von test, skipped: no recording yet, or it needs the live server.
+func _skip_kind() -> String:
+	var unrecorded: bool = (
+		not entry.get("live_only", false) and _von_run.mode == DecisionStub.Mode.SCRIPT
+	)
+	return VON_UNRECORDED if unrecorded else VON_LIVE
 
 
 ## End the open test as FAIL before its world is built, for `message`.
@@ -225,6 +246,8 @@ func result(snapshot := {}) -> Dictionary:
 		"checks": ctx.verdict.checks.duplicate(), "logs": ctx.verdict.logs.duplicate(),
 		"manual": entry.get("manual", false), "von": _von_skipped,
 	}
+	if _von_skipped:
+		record["von_kind"] = _von_kind
 	if BUNDLED.has(ctx.verdict.status):
 		record["events"] = ctx.bundle.plain_events(ctx.events)
 		record["snapshot"] = (snapshot if not snapshot.is_empty()
