@@ -28,6 +28,8 @@ var _concluded := false
 var _gap := false
 ## A gap test passed, which is reported as the failing check "drop the gap tag" (once).
 var _gap_passed := false
+## A check the gap tag does not excuse failed (`hard_check`).
+var hard := false
 ## The test ended by timing out; its verdict stays TIMEOUT whatever the checks say.
 var _timed_out := false
 
@@ -50,6 +52,13 @@ func expect_log(pattern: String, count := 1) -> void:
 func end(result: String) -> void:
 	status = result
 	_timed_out = _timed_out or result == "TIMEOUT"
+
+
+## Record a failed check that no `gap` tag excuses: the harness's own (a stale Von recording), not
+## the behaviour the test pins.
+func hard_check(ctx: TestContext, message: String) -> void:
+	hard = true
+	ctx.check(false, message)
 
 
 ## Handle one logged entry from LogWatch: allowed or expected lines pass, anything else fails the
@@ -90,7 +99,7 @@ func conclude(ctx: TestContext, manual: bool) -> String:
 		status = "TIMEOUT"
 	else:
 		status = "FAIL" if checks.any(func(c): return not c["ok"]) else "PASS"
-	if _gap:
+	if _gap and not hard:
 		_gap_verdict(ctx)
 	return status
 

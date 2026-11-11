@@ -21,6 +21,8 @@ var faults: Array = []
 var _reported := [0, 0]
 ## The test's descriptor.
 var _entry: Dictionary
+## Whether the recording file is there (it may still be unreadable).
+var _has_file := false
 
 
 func _init(
@@ -30,12 +32,11 @@ func _init(
 ) -> void:
 	_entry = entry
 	mode = run_mode
-	if mode == DecisionStub.Mode.REPLAY or mode == DecisionStub.Mode.LIVE:
-		recording = VonRecording.load_file(path())
-		if recording == null and not (mode == DecisionStub.Mode.REPLAY and require_recording):
+	if mode == DecisionStub.Mode.REPLAY:
+		_has_file = FileAccess.file_exists(path())
+		recording = VonRecording.load_file(path()) if _has_file else null
+		if not _has_file and not require_recording:
 			mode = DecisionStub.Mode.SCRIPT
-	if mode == DecisionStub.Mode.LIVE:
-		recording = null  # live asks the server, and writes nothing
 
 
 ## The recording file of the test: beside its script, or the descriptor's `recording`.
@@ -48,14 +49,16 @@ func command() -> String:
 	return "tools/run_tests.sh --record-von --id=%s" % _entry["id"]
 
 
-## Why the test cannot be replayed, "" when it can: its recording is missing or is no recording.
+## Why the test cannot be replayed, "" when it can: its recording is missing (and required) or is
+## no recording (a corrupt file, another version).
 func missing() -> String:
 	if mode != DecisionStub.Mode.REPLAY or recording != null:
 		return ""
-	return "No Von recording %s (missing, or not a recording): record it with %s" % [
-		path(),
-		command(),
-	]
+	if _has_file:
+		return "Von recording %s is not readable (corrupt, or of another version): %s" % [
+			path(), _rerecord(),
+		]
+	return "No Von recording %s: record it with %s" % [path(), command()]
 
 
 ## Make the test's decisions come from its recording or the server: add the stub's statics to
@@ -80,14 +83,26 @@ func problems(ctx: TestContext) -> bool:
 	if misses.size() == _reported[0] and faults.size() == _reported[1]:
 		return false
 	for miss: Dictionary in misses.slice(_reported[0]):
-		ctx.check(false, "Von recording %s has no answer for the question \"%s\" (%d options): "
-				% [path(), String(miss["question"]).left(120), miss["options"].size()]
-				+ "re-record with " + command())
+		ctx.verdict.hard_check(ctx, "Von recording %s %s for the question \"%s\" (%d options): %s"
+				% [
+					path(), _says(miss["why"]), String(miss["question"]).left(120),
+					miss["options"].size(), _rerecord(),
+				])
 	for fault: String in faults.slice(_reported[1]):
-		ctx.check(false, "Von gave no answer: %s%s"
+		ctx.verdict.hard_check(ctx, "Von gave no answer: %s%s"
 				% [fault, " (nothing is recorded)" if mode == DecisionStub.Mode.RECORD else ""])
 	_reported = [misses.size(), faults.size()]
 	return true
+
+
+## The advice a recording problem ends with.
+func _rerecord() -> String:
+	return "re-record with " + command()
+
+
+## The miss reason `why` as the middle of a sentence about the recording.
+func _says(why: String) -> String:
+	return "has no answer" if why == "no recorded answer" else "cannot answer: " + why
 
 
 ## Write the recording when the run recorded and the test ended `status_text` PASS or GAP.

@@ -10,10 +10,12 @@ extends RefCounted
 ##   with no matching rule the first offered id is taken. `fail` makes every ask fail, as if the
 ##   server were down; `latency_frames` holds an answer back like a slow server.
 ## - REPLAY: the answer recorded for the ask (`recording`, a `VonRecording`) by its `VonKey`; an ask
-##   the recording lacks fails and is kept in `misses` for the session to fail the test with.
+##   the recording lacks, or whose recorded pick no offered option matches, fails and is kept in
+##   `misses` (with its `why`) for the session to fail the test with.
 ## - LIVE: the real server answers, the main thread stalled until it does (`VonBlockingAsk`).
 ## - RECORD: LIVE, and each answer is added to `recording`, which the session writes to the test's
-##   file. An ask that gets no answer is kept in `faults`.
+##   file. An ask that gets no answer is kept in `faults`; once there is one, later asks of the run
+##   fail at once instead of each waiting for the server again.
 ## In REPLAY, LIVE and RECORD the answer lands exactly `hold_frames` physics frames after the ask
 ## (the NPC carries on with its old order meanwhile), however long Von took: the three play the same
 ## frames. `source` replaces the server in LIVE and RECORD with a callable
@@ -45,7 +47,7 @@ static var mode := Mode.SCRIPT
 static var hold_frames := HOLD_FRAMES
 ## The recording replayed (REPLAY) or filled (RECORD).
 static var recording: VonRecording = null
-## Asks (`{ state, question, options }`) a REPLAY recording had no answer for.
+## Asks (`{ state, question, options, why }`) a REPLAY recording had no usable answer for.
 static var misses: Array = []
 ## Reasons (text) a LIVE or RECORD ask got no answer.
 static var faults: Array = []
@@ -87,9 +89,13 @@ static func decide(
 	var out := {}
 	if mode == Mode.REPLAY:
 		out = _replayed(state, question, options)
-		if out.is_empty():
-			misses.append({ "state": state, "question": question, "options": options.duplicate() })
-	else:
+		if out.has("why"):
+			misses.append({
+				"state": state, "question": question, "options": options.duplicate(),
+				"why": out["why"],
+			})
+			out = {}
+	elif faults.is_empty():
 		out = _live(state, question, options, url, model)
 		if out.has("error"):
 			faults.append("%s — %s" % [question, out["error"]])
@@ -100,16 +106,15 @@ static func decide(
 	return out
 
 
-## The recorded answer to the ask under the ids it offers now, `{}` when there is none.
+## The recorded answer to the ask under the ids it offers now, or `{ why }` when there is none.
 static func _replayed(state: String, question: String, options: Dictionary) -> Dictionary:
-	if recording == null:
-		return {}
-	var entry := recording.lookup(state, question, options)
+	var entry := recording.lookup(state, question, options) if recording != null else {}
 	if entry.is_empty():
-		return {}
-	var pick := VonKey.offered_id(String(entry.get("pick", "")), options)
+		return { "why": "no recorded answer" }
+	var recorded := String(entry.get("pick", ""))
+	var pick := VonKey.offered_id(recorded, options)
 	if pick == "":
-		return {}
+		return { "why": "its recorded pick \"%s\" is not among the offered options" % recorded }
 	var probs: Dictionary = entry.get("probabilities", {})
 	return { "pick": pick, "probabilities": VonKey.offered_probabilities(probs, options) }
 

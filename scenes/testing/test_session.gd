@@ -154,7 +154,7 @@ func _begin_von() -> String:
 
 ## End the open test as FAIL before its world is built, for `message`.
 func _fail_at_start(message: String) -> void:
-	ctx.check(false, message)
+	ctx.verdict.hard_check(ctx, message)
 	ctx.finish("FAIL")
 
 

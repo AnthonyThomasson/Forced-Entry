@@ -43,6 +43,8 @@ func run(t: TestContext) -> void:
 	await _miss(t)
 	await _missing_file(t)
 	await _without_recording(t)
+	await _unreadable_file(t)
+	await _gap_tagged(t)
 	await _record(t)
 	await _live(t)
 
@@ -65,22 +67,17 @@ func _stand_in_von(_state: String, _question: String, options: Dictionary) -> Di
 
 ## Play the fixture through a session of its own: `{ record, log }`, its verdict record and what its
 ## asks logged. `recording` is the file it replays or writes, `mode` "replay", "record" or "live".
-func _play(
-	t: TestContext,
-	recording: String,
-	mode: String,
-	required := false,
-	include := true,
-) -> Dictionary:
+func _play(t: TestContext, recording: String, mode: String, opts := {}) -> Dictionary:
 	var session := SessionScript.new()
 	t.world.add_child(session)
-	session.von.require_recording = required
-	session.von.include = include
+	session.von.require_recording = opts.get("required", false)
+	session.von.include = opts.get("include", true)
 	session.von.record = mode == "record"
 	session.von.live = mode == "live"
 	Fixture.asked = []
 	var entry := Catalog.describe(FIXTURE_PATH)
 	entry["recording"] = recording
+	entry["tags"] = (entry["tags"] as Array) + opts.get("tags", [])
 	await session.start(entry)
 	var record: Dictionary = await session.close()
 	session.queue_free()
@@ -134,7 +131,12 @@ func _miss(t: TestContext) -> void:
 
 
 func _missing_file(t: TestContext) -> void:
-	var played := await _play(t, "user://no_such_recording.von.json", "replay", true)
+	var played := await _play(
+		t,
+		"user://no_such_recording.von.json",
+		"replay",
+		{ "required": true },
+	)
 	var record: Dictionary = played["record"]
 	t.expect_eq(record["status"], "FAIL", "a requires_von test with no recording fails")
 	var said := _failures(record)
@@ -148,7 +150,12 @@ func _without_recording(t: TestContext) -> void:
 	# recordings not required, no Von flag: as before, the test is skipped and its world never runs
 	var source := DecisionStub.source
 	DecisionStub.source = Callable()
-	var played := await _play(t, "user://no_such_recording.von.json", "replay", false, false)
+	var played := await _play(
+		t,
+		"user://no_such_recording.von.json",
+		"replay",
+		{ "include": false },
+	)
 	DecisionStub.source = source
 	var record: Dictionary = played["record"]
 	t.expect_eq(record["status"], "SKIPPED", "a test with no recording is skipped, not failed")
@@ -157,6 +164,31 @@ func _without_recording(t: TestContext) -> void:
 		"as it always was: " + record["reason"],
 	)
 	t.check(played["log"].is_empty(), "and its world never ran")
+
+
+func _unreadable_file(t: TestContext) -> void:
+	# a file that is there but no recording is no "missing" file: it fails, required or not
+	var bad := "user://von_session_unreadable.von.json"
+	var f := FileAccess.open(bad, FileAccess.WRITE)
+	f.store_string('{"version": 99, "entries": []}')
+	f.close()
+	var played := await _play(t, bad, "replay")
+	DirAccess.remove_absolute(bad)
+	t.expect_eq(played["record"]["status"], "FAIL", "an unreadable recording fails the test")
+	t.check(_failures(played["record"]).contains("not readable"), "naming it")
+	t.check(played["log"].is_empty(), "and its world never ran")
+
+
+func _gap_tagged(t: TestContext) -> void:
+	# a stale recording is never a "gap": the test FAILs whatever it is tagged
+	Fixture.extra_ask = true
+	var missed := await _play(t, COMMITTED, "replay", { "tags": ["gap"] })
+	Fixture.extra_ask = false
+	t.expect_eq(missed["record"]["status"], "FAIL", "a miss in a gap-tagged test still fails")
+	var absent := await _play(
+		t, "user://no_such_recording.von.json", "replay", { "required": true, "tags": ["gap"] },
+	)
+	t.expect_eq(absent["record"]["status"], "FAIL", "and so does a missing recording")
 
 
 func _record(t: TestContext) -> void:
@@ -169,6 +201,7 @@ func _record(t: TestContext) -> void:
 		return
 	# not expect_eq: the entries are keyed by `VonKey.SEP`, a control character a report cannot hold
 	t.check(written.entries == committed.entries, "it holds what the committed fixture holds")
+	t.check(not FileAccess.file_exists(WRITTEN + ".tmp"), "no temporary file is left behind")
 	var replayed := await _play(t, WRITTEN, "replay")
 	t.expect_eq(replayed["record"]["status"], "PASS", "and replays what it recorded")
 	t.expect_eq(replayed["log"].map(_picked), played["log"].map(_picked), "the same picks")
@@ -186,7 +219,8 @@ func _record(t: TestContext) -> void:
 func _live(t: TestContext) -> void:
 	var replayed := await _play(t, COMMITTED, "replay")
 	_stall_ms = 150
-	var live := await _play(t, COMMITTED, "live")
+	# live is decided by the flags alone: this run has no recording at all
+	var live := await _play(t, WRITTEN, "live")
 	_stall_ms = 0
 	t.expect_eq(live["record"]["status"], "PASS", "a live run passes")
 	t.expect_eq(FileAccess.file_exists(WRITTEN), false, "and writes nothing")

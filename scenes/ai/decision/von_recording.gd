@@ -19,7 +19,8 @@ static func path_for(test_path: String) -> String:
 	return test_path.get_basename() + ".von.json"
 
 
-## The recording in `path`, or null when the file is missing, unreadable or not a recording.
+## The recording in `path`, or null when the file is missing, unreadable or not a recording
+## (`FileAccess.file_exists` tells a missing file from the rest).
 static func load_file(path: String) -> VonRecording:
 	if not FileAccess.file_exists(path):
 		return null
@@ -49,7 +50,7 @@ func add(
 		"state": state,
 		"question": question,
 		"options": VonKey.descriptions(options),
-		"pick": VonKey.normalise_id(pick),
+		"pick": VonKey.normalise_pick(pick, options),
 		"probabilities": VonKey.normalise_probabilities(probabilities, options),
 	}
 
@@ -59,10 +60,13 @@ func lookup(state: String, question: String, options: Dictionary) -> Dictionary:
 	return entries.get(VonKey.key(state, question, options), {})
 
 
-## Write the recording whole to `path`. Returns whether the file was written.
+## Write the recording whole to `path`, through a temporary file renamed over it, so a run that
+## stops half way never leaves a half-written recording. Returns whether the file was written.
 func save(path: String) -> bool:
-	var f := FileAccess.open(path, FileAccess.WRITE)
+	var temporary := path + ".tmp"
+	var f := FileAccess.open(temporary, FileAccess.WRITE)
 	if f == null:
 		return false
 	f.store_string(JSON.stringify({ "version": VERSION, "entries": entries.values() }, "\t") + "\n")
-	return true
+	f.close()
+	return DirAccess.rename_absolute(temporary, path) == OK

@@ -54,10 +54,43 @@ static func normalise_id(id: String) -> String:
 	return id
 
 
+## The normalised id of each offered option (offered id → normalised id), each unique in the ask:
+## options whose ids normalise alike (`do_<object>_open` for several objects, characters the world
+## never knew) take `~0`, `~1` … by their description's rank, the order the key sorts them in, so
+## the same ask reads the same ids in any process. Options of one description keep their listed
+## order.
+static func id_map(options: Dictionary) -> Dictionary:
+	var groups := {}
+	var place := {}
+	for id in options:
+		place[id] = place.size()
+		var alike: Array = groups.get_or_add(normalise_id(String(id)), [])
+		alike.append(id)
+	var out := {}
+	for norm: String in groups:
+		var members: Array = groups[norm]
+		if members.size() == 1:
+			out[members[0]] = norm
+			continue
+		members.sort_custom(func(a, b):
+			var da := String(options[a])
+			var db := String(options[b])
+			return place[a] < place[b] if da == db else da < db)
+		for rank in members.size():
+			out[members[rank]] = "%s~%d" % [norm, rank]
+	return out
+
+
+## The normalised id the offered option `pick` is recorded under.
+static func normalise_pick(pick: String, options: Dictionary) -> String:
+	return id_map(options).get(pick, pick)
+
+
 ## The offered id (key of `options`) whose normalised id is `normalised`, "" when none is.
 static func offered_id(normalised: String, options: Dictionary) -> String:
-	for id in options:
-		if normalise_id(String(id)) == normalised:
+	var ids := id_map(options)
+	for id in ids:
+		if ids[id] == normalised:
 			return String(id)
 	return ""
 
@@ -65,18 +98,19 @@ static func offered_id(normalised: String, options: Dictionary) -> String:
 ## `probabilities` (offered id → p) stored under normalised ids; an id `options` does not offer is
 ## left out.
 static func normalise_probabilities(probabilities: Dictionary, options: Dictionary) -> Dictionary:
+	var ids := id_map(options)
 	var out := {}
-	for id in options:
+	for id in ids:
 		if probabilities.has(id):
-			out[normalise_id(String(id))] = probabilities[id]
+			out[ids[id]] = probabilities[id]
 	return out
 
 
 ## Stored `probabilities` (normalised id → p) under the ids `options` offers now.
 static func offered_probabilities(probabilities: Dictionary, options: Dictionary) -> Dictionary:
+	var ids := id_map(options)
 	var out := {}
-	for id in options:
-		var norm := normalise_id(String(id))
-		if probabilities.has(norm):
-			out[id] = probabilities[norm]
+	for id in ids:
+		if probabilities.has(ids[id]):
+			out[id] = probabilities[ids[id]]
 	return out

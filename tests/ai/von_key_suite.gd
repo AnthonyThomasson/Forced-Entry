@@ -46,8 +46,8 @@ func test_an_instance_id_becomes_its_spawn_order() -> void:
 	assert_str(VonKey.normalise_id("lead_ally_%d" % ids[1])).is_equal("lead_ally_1")
 
 
-func test_an_object_id_in_a_do_option_is_dropped_for_the_action() -> void:
-	# the room the object is in is in the description, and an object is not a spawned character
+func test_an_object_id_in_a_do_option_is_replaced_by_its_action() -> void:
+	# an object is no spawned character: the id says the action, the description says which object
 	assert_str(VonKey.normalise_id("do_48213_sit")).is_equal("do_sit")
 	assert_str(VonKey.normalise_id("do_9_lie_down")).is_equal("do_lie_down")
 
@@ -102,6 +102,60 @@ func test_a_recorded_pick_maps_back_to_the_offered_id_by_its_normalised_id() -> 
 	assert_str(VonKey.offered_id("t_1", offered)).is_equal("t_%d" % ids[1])
 	assert_str(VonKey.offered_id("t_0", offered)).is_equal("t_%d" % ids[0])
 	assert_str(VonKey.offered_id("t_2", offered)).is_equal("")
+
+
+func test_two_objects_with_one_action_keep_their_own_picks_and_probabilities() -> void:
+	# one kitchen ask offers one `open` option per object: the ids differ only in the instance id
+	var one := {
+		"do_501_open": "Open fridge, in the kitchen",
+		"do_502_open": "Open drawer, in the kitchen",
+	}
+	var other := {
+		"do_9001_open": "Open fridge, in the kitchen",
+		"do_9002_open": "Open drawer, in the kitchen",
+	}
+	var ids := VonKey.id_map(one)
+	assert_bool(ids["do_501_open"] == ids["do_502_open"]).override_failure_message(
+		"each option has an id of its own"
+	).is_false()
+	var picked := VonKey.normalise_pick("do_501_open", one)
+	assert_str(VonKey.offered_id(picked, other)).is_equal("do_9001_open")
+	assert_str(VonKey.offered_id(VonKey.normalise_pick("do_502_open", one), other)).is_equal(
+		"do_9002_open"
+	)
+	var stored := VonKey.normalise_probabilities({ "do_501_open": 0.8, "do_502_open": 0.2 }, one)
+	assert_int(stored.size()).is_equal(2)
+	assert_dict(VonKey.offered_probabilities(stored, other)).is_equal(
+		{ "do_9001_open": 0.8, "do_9002_open": 0.2 }
+	)
+
+
+func test_a_freed_character_keeps_the_spawn_order_it_had() -> void:
+	var root: Node = auto_free(Node.new())
+	WorldRng.register(root, 7)
+	var first: Node = Node.new()
+	var second: Node = Node.new()
+	root.add_child(first)
+	root.add_child(second)
+	WorldRng.enrol(first)
+	WorldRng.enrol(second)
+	var second_id := second.get_instance_id()
+	second.free()
+	assert_str(VonKey.normalise_id("lead_seen_%d" % second_id)).is_equal("lead_seen_1")
+	first.free()
+
+
+func test_two_characters_freed_before_the_world_knew_them_do_not_collide() -> void:
+	var gone: Array = []
+	for i in 2:
+		var node := Node.new()
+		gone.append(node.get_instance_id())
+		node.free()
+	var options := { "t_%d" % gone[0]: "Dana, close", "t_%d" % gone[1]: "Rob, far" }
+	var ids := VonKey.id_map(options)
+	assert_bool(ids["t_%d" % gone[0]] == ids["t_%d" % gone[1]]).is_false()
+	var pick := VonKey.normalise_pick("t_%d" % gone[1], options)
+	assert_str(VonKey.offered_id(pick, options)).is_equal("t_%d" % gone[1])
 
 
 func test_probabilities_are_stored_and_read_back_under_normalised_ids() -> void:
