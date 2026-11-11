@@ -1,10 +1,11 @@
 class_name NavBakeConfig
 ## Navigation domain: when a re-bake lands. A `class_name` holder of `static var`s, read as
-## `NavBakeConfig.<name>`; there is no instance and no autoload. A count is physics frames from a
-## bake's start to the one its result is assigned on (`NavBake`): fixed, so a match plays the same
-## fight whatever a thread's wall-clock is, and the game waits for the thread (blocking the frame)
-## only when the thread is later than the count. A count is two costs: too low and the thread is
-## late, which holds a frame for the rest of its run; too high and everything that waits for the
+## `NavBakeConfig.<name>`; there is no instance and no autoload. A count is game frames
+## (`GameClock`, which a pause stops) from a bake's start to the one its result is assigned on
+## (`NavBake`): fixed, so a match plays the same fight whatever a thread's wall-clock is, and the
+## game waits for the thread (blocking the frame) only when the thread is later than the count. A
+## count is two costs: too low and the thread is late, which holds a frame for the rest of its run;
+## too high and everything that waits for the
 ## map (the AI's first decision, an entry's slots) waits for it too, which moves the fight.
 
 ## A district's planning re-bake. Measured 2026-11-10 over 175 planning bakes of the match guards'

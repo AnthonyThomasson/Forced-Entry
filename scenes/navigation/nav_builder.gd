@@ -57,9 +57,9 @@ static var _planning_regions: Dictionary = {}
 ## `avoid_map`. An entry is `{ map: RID, region: NavigationRegion2D, version: int, baking: bool,
 ## asked_frame: int }`.
 static var _avoid_maps: Dictionary = {}
-## An avoid map nobody has asked for in this many physics frames (20 s at 60 a second, counted in
-## frames so a run frees the same maps on the same frame whatever the machine's speed) is freed by
-## the next ask for another set (`avoid_map`).
+## An avoid map nobody has asked for in this many `GameClock` frames (20 s at 60 a second, counted
+## in frames so a run frees the same maps on the same frame whatever the machine's speed) is freed
+## by the next ask for another set (`avoid_map`).
 static var avoid_idle_frames: int = 1200
 
 
@@ -294,7 +294,7 @@ static func _steering_map_for(planning_map: RID) -> RID:
 ## `rebake` with the bake itself on a worker thread, so a frame never pays for it: the source
 ## geometry is gathered on the main thread now (the walls are read from the scene tree, the
 ## furniture from its live positions), the bake runs in the background, and the polygon is assigned
-## to `region` on the physics frame `NavBakeConfig.district_frames` after the call (`NavBake`), when
+## to `region` on the game frame `NavBakeConfig.district_frames` after the call (`NavBake`), when
 ## `done` is called. A region freed meanwhile is left alone. `done` is called even when there is
 ## nothing to bake. The planning region only: the
 ## steering one is re-baked by `rebake_steering`. A test-facing seam that measures its own
@@ -389,7 +389,7 @@ static func planning_region(planning_map: RID) -> NavigationRegion2D:
 ## closed WORLD-space polygon: where the AI plans a walk that keeps out of some stretch of floor (a
 ## doorway's view). Made for `region`, the planning region `build` returned, and named by `key` (the
 ## same holes, the same key): the first ask makes the map and bakes it on a worker thread, so a
-## frame never pays for it, `NavBake.frames_for` physics frames later it lands (`NavBake`)
+## frame never pays for it, `NavBake.frames_for` game frames later it lands (`NavBake`)
 ## and `ready` tells when it answers queries, as for any map; the map is kept for the key and
 ## re-baked (the old mesh answers meanwhile) when the planning bake has been redone since. One
 ## nobody has asked for in `avoid_idle_frames` (1200 `GameClock` frames, 20 s) is freed by the next

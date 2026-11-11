@@ -1,14 +1,18 @@
 class_name NavBake extends RefCounted
 ## Navigation domain: one re-bake's thread and its landing. The bake runs on a thread of the
 ## `WorkerThreadPool`, started now, and its result is taken in (welded, assigned to its region,
-## `landed` called) on the physics frame `NavBakeConfig.district_frames` after the start, not when
+## `landed` called) on the game frame `NavBakeConfig.district_frames` after the start, not when
 ## the thread happens to finish: the same frame every run. A thread that is not done by then is
 ## waited for, which holds that frame (`was_late` says so of each bake, `late_total` counts them). A
 ## bake in flight is kept in `_flying` until it lands, so nothing frees it first.
 ##
-## "Physics frame" is counted on `GameClock.frame()`, the AI's own frame (`WorldRng.frame_of`, every
+## A "frame" is counted on `GameClock.frame()`, the AI's own frame (`WorldRng.frame_of`, every
 ## timer), not `Engine.get_physics_frames()`: that one runs through a pause and the clock stands
-## still, so a paused match lands its bakes on the same AI frame as an unpaused one.
+## still, so a paused match lands its bakes on the same AI frame as an unpaused one. The count
+## starts at the first `physics_frame` after the start and the bake lands on the `frames`-th one
+## (`GameClock` has or has not ticked yet this step, depending on where the caller sits in the
+## tree, and a count read at the start would follow that): a bake started anywhere in a physics step
+## lands `frames` steps on, from a node's `_physics_process` or a coroutine alike.
 
 ## How many bakes were started, and how many of them were still running when their frame came,
 ## since the process began (a guard reads the rate: a creeping share of late bakes is a count that
@@ -22,11 +26,15 @@ static var _exit_hooked := false
 
 ## Whether this bake's thread was still running when its frame came (known once it has landed).
 var was_late := false
-## The worker-pool task baking the polygon (-1 once it has landed), the physics frame it lands on,
+## The worker-pool task baking the polygon (-1 once it has landed), the `GameClock` frame it lands
+## on
+## (-1 until the first `physics_frame` after the start fixes it),
 ## the polygon, the region's offset, the region (weakly), what to call once it has landed and the
-## tree whose physics frames count.
+## tree whose `physics_frame` signal drives it.
 var _task := -1
-var _due := 0
+var _due := -1
+## How many frames the bake lands after its start (`start`'s `frames`).
+var _frames := 0
 var _poly: NavigationPolygon
 var _origin := Vector2.ZERO
 var _region_ref: WeakRef
@@ -34,7 +42,7 @@ var _landed: Callable
 var _tree: SceneTree
 
 
-## The physics frames a bake lands after its start, for `region` (the planning region) and the kind
+## The game frames a bake lands after its start, for `region` (the planning region) and the kind
 ## of bake: a district (its region keeps the outline's bounds) lands its planning bake after
 ## `NavBakeConfig.district_frames` and an avoid map's (`avoid`) after `NavBakeConfig.avoid_frames`;
 ## a lone house, either, after `NavBakeConfig.house_frames`. `ring` is the planning ring's bake
@@ -48,7 +56,7 @@ static func frames_for(region: NavigationRegion2D, avoid := false, ring := false
 	return NavBakeConfig.avoid_frames if avoid else NavBakeConfig.district_frames
 
 
-## Start baking `job` (`NavSource.job`) on a worker thread; on the physics frame `frames` on (see
+## Start baking `job` (`NavSource.job`) on a worker thread; on the game frame `frames` on (see
 ## `frames_for`), weld it (`origin` is the region's offset), assign it to `region` and call
 ## `landed`. Held weakly: a region freed meanwhile is left alone (a lambda that captures a
 ## node freed before it runs logs an engine error: a world torn down mid-bake), and `landed` is
@@ -74,7 +82,7 @@ static func start(
 	if bake._tree == null:
 		bake._land()
 		return bake
-	bake._due = GameClock.frame() + frames
+	bake._frames = frames
 	_flying.append(bake)
 	bake._tree.physics_frame.connect(bake._on_physics_frame)
 	if not _exit_hooked:
@@ -91,6 +99,8 @@ static func _finish_all() -> void:
 
 ## Land once the frame has come.
 func _on_physics_frame() -> void:
+	if _due < 0:
+		_due = GameClock.frame() + _frames - 1  # this is already the step after the start
 	if GameClock.frame() >= _due:
 		_land()
 

@@ -3,7 +3,7 @@
 Until #203 a revision played its own match: the order and timing of events followed memory allocation or the wall clock, so
 `perf/grenade_match_stress` read a sim length of 21.3 to 21.5 s merged against 20.4 s at base, and "the branch is slower in 8 of 8 pairs"
 (`perf-district-ext3.md`) could not be told from a different fight. The sim length is `warm_until_contact` plus the window, so it is the
-contact time. Never judge a match guard by its sim length or by one run.
+contact time. Never judge a guard by its sim length or one run.
 
 ## State of #203 (all landed)
 
@@ -17,23 +17,22 @@ turn since #192 (`look_phases.gd`); the sight cadence, the give-way order and th
 count the world's own frames (`WorldRng.frame_of`), `GameClock.seconds()` and `msec()` no longer follow the frame a timer started on, the guards' seed is 2, and four replay tests
 pin it. The split #192 saw at frame 64 reproduces, as a kind, on the tip before this job (the replays split at frames 8 to 61, 260 to 610 on one phase) and not after it; padding alone never split a fight. The causes, the tests and the seed: `perf-determinism-causes.md`.
 
-**The navigation job:** a re-bake and an avoid map land on a fixed physics frame count after they start, the thread
+**The navigation job:** a re-bake and an avoid map land on a fixed game-frame count after they start, the thread
 waited for only when late (`NavBake`, `NavBakeConfig`; `domain-navigation`, its re-bake side file), and a navigation map syncs on the main
 thread (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`). Both were needed: the
 server's async sync showed a landed bake on a frame that followed the machine's load, so the 5v5 guard's contact came at 12 s, at 30 s or not
 in 30 s at any landing count; with it off, four runs of one build had contact at 12.3 s each, and 14, 12 and 8 frames for the avoid maps gave
-11.8, 11.5 and 10.5 s. Idle avoid maps are freed by physics frames, not wall-clock ms (`NavBuilder.avoid_idle_frames`). Each guard logs
+11.8, 11.5 and 10.5 s. Idle avoid maps are freed by game frames, not wall-clock ms (`NavBuilder.avoid_idle_frames`). Each guard logs
 `PERF <label> nav bakes late N of M` (`Perf.log_late_bakes`): a creeping share of late bakes means a count has fallen behind its thread.
 
 **What the main-thread sync costs (#203, seed 2, 5v5 and 10v10 guards, `--quiet` cleared: 0 busy Godot, load 5.0 to 6.7; sync vs async interleaved, four rounds):** sync 5v5 avg 6.82
-p95 14.8 max 28.6 ms; 10v10 avg 12.58 p95 21.7 max 31.5. Async plays another fight (5v5 contact 22.9 s in three runs of four, 8.1 s in the fourth), so its numbers are of a lighter load, not of
-the flag; where the fight is the same (10v10 at 6.0 s: avg 12.94 p95 18.3 max 29.8; the 5v5's one 8.1 s run: avg 6.88 p95 15.15 max 22.7) the sync is within 0.4 ms of the average and its max
-stays under `SMOOTH_MAX_MS`, so no frame is pushed over it. An earlier reading on seed 13 (5v5 p95 20.3 sync vs 15.0 async) compared different fights (an async run's fight varies from run to run) and carried late-bake spikes: it is not the flag's cost. The 10v10 p95 stays over 20 ms either way (known red, `match_10v10_stress_test.gd`).
+p95 14.8 max 28.6 ms; 10v10 avg 12.58 p95 21.7 max 31.5. Async plays another fight (5v5 contact 22.9 s in three runs of four, 8.1 s in the fourth), so its numbers are of a lighter load, not the flag's; where the fight is the same (10v10 at 6.0 s: avg 12.94 p95 18.3 max 29.8; the 5v5's one 8.1 s run: avg 6.88 p95 15.15 max 22.7) the sync is within 0.4 ms of the average and its max
+stays under `SMOOTH_MAX_MS`, so no frame is pushed over it. An earlier reading on seed 13 (5v5 p95 20.3 sync vs 15.0 async) compared different fights and carried late-bake spikes: it is not the flag's cost. The 10v10 p95 stays over 20 ms either way (known red, `match_10v10_stress_test.gd`).
 
 **Acceptance run (#203, 2026-11-10, tip `3dae2431`, seed 2, machine load 7.1 at the start to 4.3 at the end, no round marked `loaded`, none dropped):** `tools/perf_ab.sh HEAD~0 HEAD`
 (the default four guards, `--rounds=6`, `--bar=5`, BASE and TIP the one sha and so one scratch tree: a same-revision A/B, the tool's noise floor) reported identical fingerprints for all 12 plays of each guard (no `fights differ`)
 and `perf_ab: PASS`, exit 0. Medians of six rounds, BASE / TIP avg ms per frame and the avg delta in percent of BASE's avg: 5v5 7.89 / 7.78 (-1.5%), grenade match 12.97 / 12.94 (-0.3%),
-10v10 16.90 / 16.87 (-0.1%), NPC-vision match 19.98 / 19.88 (-0.6%); p95 and max moved by at most +1.3% and +6.8% (the vision guard's max, 48.44 / 49.79 ms). Load was read with `uptime` before (7.1) and after (4.3) only, and the ms read heavier than the sync reading above: quote them for the delta, not as a level. The two-run and padding-on / off fingerprint
+10v10 16.90 / 16.87 (-0.1%), NPC-vision match 19.98 / 19.88 (-0.6%); p95 and max moved by at most +1.3% and +6.8% (the vision guard's max, 48.44 / 49.79 ms; read, not held). Load was read with `uptime` before (7.1) and after (4.3) the run only, not per round, and the ms read heavier than the sync reading above (5v5 avg 6.7 there, 7.9 here): quote these ms for the delta, not as a level. The two-run and padding-on / off fingerprint
 checks of each guard are the replay tests (`perf/match_5v5_replay`, `grenade_match_replay`, `match_10v10_replay`, `match_npc_vision_replay`), green on this tip.
 
 ## Reading rule: `tools/perf_ab.sh BASE TIP`

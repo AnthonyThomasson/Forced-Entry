@@ -4,7 +4,7 @@ extends GameTest
 ## asks for it. In an empty walled arena, a hole across the middle (leaving a gap above and below)
 ## makes a route that goes round it, longer than the straight one; the world's own map still goes
 ## straight through; the same key answers the same map, another key another; a map not asked for in
-## `avoid_idle_frames` (physics frames) is freed (the test shortens that to 20).
+## `avoid_idle_frames` (`GameClock` frames) is freed (the test shortens that to 20).
 
 const ARENA := Rect2(0, 0, 800, 500)
 const FROM := Vector2(100, 250)
