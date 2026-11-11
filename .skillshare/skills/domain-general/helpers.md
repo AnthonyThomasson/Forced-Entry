@@ -17,6 +17,8 @@ reads it and `before(a, b)` is the one "who was spawned first" test. Every order
 (the sight cadence, give way, a stack slot or doorway two claim) reads this instead, since an instance id follows what the process
 allocated before. An id stays the key to look a character up by.
 
+`WorldRng.frame_of(node)` is the physics frames its world has run since its first character took its place: the frame every AI cadence and phase counts (the sight cadence, the house look), never the process's `Engine.get_physics_frames()`, which follows what ran before the world. The first character's place also puts the game clock's ms grid on that frame (`GameClock.align`, below).
+
 Left on the global stream on purpose, because it only looks and changes no fight: blood and hit particles, the spin and toss of a
 dropped item, a thrown grenade and its spoon, an explosion's look, the painters, world-gen, lighting and audio. Tests:
 `tests/general/world_rng_two_worlds_test.gd`, `match_seed_plays_its_own_fight_test.gd`, `tests/ai/perception/sight_checks_spread_test.gd`.

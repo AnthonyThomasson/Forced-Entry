@@ -5,18 +5,17 @@ Until #203 a revision played its own match: the order and timing of events follo
 (`perf-district-ext3.md`) could not be told from a different fight. The sim length is `warm_until_contact` plus the window, so it is the
 contact time. Never judge a match guard by its sim length or by one run.
 
-## State of #203 (what exists, what is landing)
+## State of #203 (what exists)
 
 Built and pinned by tests: the fight fingerprint (`perf-fingerprint.md`: every NPC's position, goal, act and health, the shots and the
 deaths, a line per physics frame through the warm-up and the whole window), the allocation-padding switch
 (`testing.allocation_padding`: 777 nodes and 333 bodies, areas and shapes before the world is built, so a dependence on allocation
 shows), the quiet gate that counts only busy engines (`perf.md`) and `tools/perf_ab.sh` (below). The look phase has been handed out in
-turn since #192 (`look_phases.gd`).
+turn since #192 (`look_phases.gd`); the sight cadence, the give-way order and the AI's other orders are keyed on spawn order (`WorldRng`).
 
-**Landing in #203 (not on every branch yet; the final job writes the list as it merged):** the sight cadence, the give-way order and any
-other AI order or timing keyed on an instance id moved to spawn order; a per-world RNG seeded from the match seed in place of the global
-`randf`; the physics-order split #192 saw at frame 64. Until they merge, two plays of one revision do not match (the first reading below),
-and `perf_ab.sh` refuses.
+**Landed in #203 (the physics-order job):** a match plays the same fight whatever ran before it in the process, with or without padding: the AI's cadences
+count the world's own frames (`WorldRng.frame_of`), `GameClock.seconds()` and `msec()` no longer follow the frame a timer started on, the guards' seed is 13, and four replay tests
+pin it. The causes, the tests and the seed: `perf-determinism-causes.md`.
 
 **Landed with the navigation job (#203):** a re-bake and an avoid map land on a fixed physics frame count after they start, the thread
 waited for only when late (`NavBake`, `NavBakeConfig`; `domain-navigation`, its re-bake side file), and a navigation map syncs on the main

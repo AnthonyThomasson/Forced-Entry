@@ -33,7 +33,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 
 ## Game clock
 
-`GameClock` counts physics frames in `_physics_process` and is `PROCESS_MODE_PAUSABLE`, so it stands still while the tree is paused (the spectator inspector's pause, the test runner's) and a headless `--fixed-fps` run reads the same times every run. Every AI ttl, timer and age runs on it (`docs/leadership.md` LD1); what measures real time (the Von launcher's boot timeout, Von's reply latency) stays on `Time`. It is an autoload node (an autoload and a class cannot share a name), read off the singleton.
+`GameClock` counts physics frames in `_physics_process` and is `PROCESS_MODE_PAUSABLE`, so it stands still while the tree is paused (the spectator inspector's pause, the test runner's) and a headless `--fixed-fps` run reads the same times every run. Every AI ttl, timer and age runs on it (`docs/leadership.md` LD1); what measures real time (the Von launcher's boot timeout, Von's reply latency) stays on `Time`. It is an autoload node (an autoload and a class cannot share a name), read off the singleton. `seconds()` reads 1e-9 above exact so `seconds() - start >= ttl` ends on the frame a ttl of whole frames says whatever frame it started on (as floats it missed at 45 of 100 start frames); `msec()` reads 16 or 17 ms a frame by the frame a span starts on, so a world calls `align()` when it begins (`WorldRng`) and every span from then reads the same ms (`domain-testing`'s perf notes; `tests/general/game_clock_suite.gd`).
 
 ## Input
 

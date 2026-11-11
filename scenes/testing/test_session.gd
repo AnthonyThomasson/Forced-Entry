@@ -116,6 +116,10 @@ func start(test_entry: Dictionary) -> void:
 	var test: GameTest = load(entry["path"]).new()
 	setup = TestSetup.new()
 	test.configure(setup)
+	# A test that plays another test's world under its own terms (perf/..._replay) adds switches.
+	var extra: Dictionary = entry.get("extra_switches", {})
+	for switch_name: StringName in extra:
+		setup.switch(switch_name, extra[switch_name])
 	configured.emit(setup)
 	_open_world()
 	_building = true

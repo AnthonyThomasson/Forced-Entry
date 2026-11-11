@@ -30,6 +30,7 @@ window, and does nothing, and costs nothing (no signal connected), unless the en
 - **Diffing** (for the same-fight A/B tool): two files are the same fight when equal line for line. The first line that differs
   (`cmp`, or `diff` stopped at the first hunk) names the first differing frame by its first field; a file that is a prefix of
   the other differs at the frame it ends on.
+- **Replay tests:** `perf/match_5v5_replay`, `grenade_match_replay`, `match_10v10_replay` and `match_npc_vision_replay` play the guard three times in one process (`tests/_perf/guard_replay.gd`: a `TestSession` in a `SubViewport` of its own, `entry["extra_switches"]` adding padding, the fingerprint dir set around it) and diff the three files (`first_difference`).
 - **The allocation-padding switch:** `s.switch(&"testing.allocation_padding", true)` makes `TestWorld.build` allocate 777 loose
   nodes and 333 each of physics bodies, areas and shapes (`AllocationPadding`) before it builds the world, freed with it.
   Its only use is to play a fight with and without it and compare fingerprints: allocation must not steer a fight. Off unless a test

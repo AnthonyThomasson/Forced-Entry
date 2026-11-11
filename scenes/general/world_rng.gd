@@ -71,7 +71,7 @@ static func enrol(node: Node) -> int:
 	var order: int = entry["spawned"]
 	entry["spawned"] = order + 1
 	if int(entry["began"]) < 0:
-		entry["began"] = Engine.get_physics_frames()
+		_begin(entry)
 	_orders[id] = order
 	_homes[id] = entry["root"]
 	return order
@@ -82,10 +82,9 @@ static func enrol(node: Node) -> int:
 ## or a phase of the AI is counted on, never `Engine.get_physics_frames()`.
 static func frame_of(node: Node) -> int:
 	var entry := _entry_of(node)
-	var now := Engine.get_physics_frames()
 	if int(entry["began"]) < 0:
-		entry["began"] = now
-	return now - int(entry["began"])
+		_begin(entry)
+	return Engine.get_physics_frames() - int(entry["began"])
 
 
 ## The spawn order of the node with instance id `id`: its own once enrolled, enrolled now for a live
@@ -103,6 +102,13 @@ static func order_of(id: int) -> int:
 ## "the lower instance id wins" tie-break reads, the same in whatever order the process allocated.
 static func before(a: int, b: int) -> bool:
 	return order_of(a) < order_of(b)
+
+
+## Start `entry`'s world counting its frames now, and put the game clock's ms grid on this frame
+## (`GameClock.align`).
+static func _begin(entry: Dictionary) -> void:
+	entry["began"] = Engine.get_physics_frames()
+	GameClock.align()
 
 
 ## The registry entry of `node`'s world: the nearest registered root above it, else the topmost
