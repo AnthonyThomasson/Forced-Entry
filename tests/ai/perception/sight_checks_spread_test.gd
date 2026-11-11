@@ -87,8 +87,8 @@ func _world(t: TestContext) -> Array:
 ## ("seer>seen", by spawn order) that are due.
 func _checks(worlds: Array) -> Array:
 	var out: Array = []
-	var frame := Engine.get_physics_frames()
 	for seers: Array in worlds:
+		var frame := WorldRng.frame_of(seers[0]["body"])
 		var due: Array = []
 		for i in seers.size():
 			for j in seers.size():

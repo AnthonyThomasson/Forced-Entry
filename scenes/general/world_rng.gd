@@ -13,6 +13,11 @@ extends RefCounted
 ##   every order or timing it used to take from an instance id on it (the sight cadence, who gives
 ##   way, whose claim wins a tie). An instance id follows what the process allocated before; a spawn
 ##   order does not. An id is still the key to look a character up by.
+## - `frame_of(node)` is how many physics frames its world has run since its first character took
+##   its place: the frame every AI cadence and phase is counted on (`perception_sight.gd`'s sight
+##   cadence, `perception_house.gd`'s look). `Engine.get_physics_frames()` counts what the whole
+##   process ran before the world did, so a match's phase would follow every test that ran ahead of
+##   it; this starts at 0 with each world.
 ## Painters, world-gen, lighting and audio keep their own randomness.
 
 ## Mixed into the match seed, so the world's stream is not the stream of another draw from that seed
@@ -41,9 +46,10 @@ static func register(root: Node, match_seed: int) -> void:
 			_homes.erase(id)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = match_seed ^ SEED_SALT
-	var kept: Dictionary = _worlds.get(root.get_instance_id(), { "spawned": 0 })
+	var kept: Dictionary = _worlds.get(root.get_instance_id(), { "spawned": 0, "began": -1 })
 	_worlds[root.get_instance_id()] = {
 		"rng": rng, "spawned": kept["spawned"], "root": root.get_instance_id(),
+		"began": kept["began"],
 	}
 
 
@@ -64,9 +70,22 @@ static func enrol(node: Node) -> int:
 		return _orders[id]
 	var order: int = entry["spawned"]
 	entry["spawned"] = order + 1
+	if int(entry["began"]) < 0:
+		entry["began"] = Engine.get_physics_frames()
 	_orders[id] = order
 	_homes[id] = entry["root"]
 	return order
+
+
+## The physics frames `node`'s world has run since its first character took its place (0 on that
+## frame, and for a world with none yet, which starts counting at this ask): the one clock a cadence
+## or a phase of the AI is counted on, never `Engine.get_physics_frames()`.
+static func frame_of(node: Node) -> int:
+	var entry := _entry_of(node)
+	var now := Engine.get_physics_frames()
+	if int(entry["began"]) < 0:
+		entry["began"] = now
+	return now - int(entry["began"])
 
 
 ## The spawn order of the node with instance id `id`: its own once enrolled, enrolled now for a live

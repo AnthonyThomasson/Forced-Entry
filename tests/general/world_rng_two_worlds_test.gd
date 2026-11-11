@@ -36,6 +36,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	_streams(t)
 	_orders(t)
+	await _clocks(t)
 	await _global_stream_untouched(t)
 	_adopted(t)
 
@@ -85,6 +86,30 @@ func _orders(t: TestContext) -> void:
 		WorldRng.before(made[1][0].get_instance_id(), made[1][1].get_instance_id()),
 		"the one spawned first comes before the one spawned next",
 	)
+
+
+## Two worlds started some frames apart each count their own frames from their first character: the
+## later one is not ahead by what the process ran before it, so an AI cadence keyed on it lands on
+## the same frame of its world's life.
+func _clocks(t: TestContext) -> void:
+	var roots: Array[Node] = []
+	for w in 2:
+		var root := Node2D.new()
+		t.world.add_child(root)
+		WorldRng.register(root, w)
+		var first := Node2D.new()
+		root.add_child(first)
+		WorldRng.enrol(first)
+		roots.append(first)
+		await t.frames(5 if w == 0 else 1)
+	t.expect_eq(WorldRng.frame_of(roots[0]), 6, "the first world has run 6 frames")
+	t.expect_eq(WorldRng.frame_of(roots[1]), 1, "the second, started 5 frames later, has run 1")
+	await t.frames(2)
+	t.expect_eq(WorldRng.frame_of(roots[0]) - WorldRng.frame_of(roots[1]), 5, "both go on alike")
+	var late := Node2D.new()
+	roots[0].get_parent().add_child(late)
+	WorldRng.enrol(late)
+	t.expect_eq(WorldRng.frame_of(late), 8, "a character joining later reads its world's frame")
 
 
 ## A character spawned under one world and reparented into another (`MatchBuilder` joins the scene's

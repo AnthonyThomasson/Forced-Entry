@@ -353,7 +353,7 @@ func observe(rooms: Array) -> void:
 	grenades.live.observe(sight.vision, space, exclude, sight.blind)
 	if (not tuning.memory.familiar_with_house
 			and not sight.blind
-			and Engine.get_physics_frames() >= house.learn_next):
+			and WorldRng.frame_of(_character) >= house.learn_next):
 		house.learn_by_sight()
 	orders.end_ambush_on_contact()
 
