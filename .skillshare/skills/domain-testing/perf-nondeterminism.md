@@ -28,7 +28,7 @@ in 30 s at any landing count; with it off, four runs of one build had contact at
 **What the main-thread sync costs (#203, seed 2, 5v5 and 10v10 guards, `--quiet` cleared: 0 busy Godot, load 5.0 to 6.7; sync vs async interleaved, four rounds):** sync 5v5 avg 6.82
 p95 14.8 max 28.6 ms; 10v10 avg 12.58 p95 21.7 max 31.5. Async plays another fight (5v5 contact 22.9 s in three runs of four, 8.1 s in the fourth), so its numbers are of a lighter load, not of
 the flag; where the fight is the same (10v10 at 6.0 s: avg 12.94 p95 18.3 max 29.8; the 5v5's one 8.1 s run: avg 6.88 p95 15.15 max 22.7) the sync is within 0.4 ms of the average and its max
-stays under `SMOOTH_MAX_MS`, so no frame is pushed over it. The 10v10 p95 stays over 20 ms either way (known red, `match_10v10_stress_test.gd`).
+stays under `SMOOTH_MAX_MS`, so no frame is pushed over it. An earlier reading on seed 13 (5v5 p95 20.3 sync vs 15.0 async) compared different fights (an async run's fight varies from run to run) and carried late-bake spikes: it is not the flag's cost. The 10v10 p95 stays over 20 ms either way (known red, `match_10v10_stress_test.gd`).
 
 **TODO (#203, the acceptance run):** the result of `tools/perf_ab.sh HEAD~0 HEAD` on this ticket's own tip is written here when it has
 run (identical fingerprints, the delta against the bar), with the four guards' two-run fingerprints and the padding on / off check.
