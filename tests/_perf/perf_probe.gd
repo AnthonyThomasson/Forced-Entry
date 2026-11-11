@@ -23,8 +23,9 @@ const SMOOTH_MAX_MS := 33.4
 ## rather than drawn from the seed: the match is measured in a full-size house whatever the
 ## catalogue holds, and a plan added or dropped changes no seed's load. A small flat would put both
 ## sides in each other's sight from the start, which is a different load. The district is the load
-## the game plays in: a navigation map ten times a house's polygons, 350 solid furniture footprints
-## and a defender's house that is one of nine.
+## the game plays in: a navigation map about seven times a house's polygons, a few hundred solid
+## furniture footprints and a defender's house that is one of nine (at seed 2: 939 polygons, 406
+## footprints, about 7,700 nodes; the seed 7 it had been: 1,006, 404 and 7,400).
 ## Seed 2 since the match plays the same fight on every run (perf-determinism-causes.md): a seed's
 ## fight is one fixed fight, and seed 7's (the seed until then, where a run's luck had put contact
 ## at 6 to 30 s) became the slow one, the invaders clearing the living room for 18 s before they met

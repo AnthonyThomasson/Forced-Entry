@@ -13,10 +13,11 @@ extends RefCounted
 ##   every order or timing it used to take from an instance id on it (the sight cadence, who gives
 ##   way, whose claim wins a tie). An instance id follows what the process allocated before; a spawn
 ##   order does not. An id is still the key to look a character up by.
-## - `frame_of(node)` is how many physics frames its world has run since its first character took
-##   its place: the frame every AI cadence and phase is counted on (`perception_sight.gd`'s sight
-##   cadence, `perception_house.gd`'s look). `Engine.get_physics_frames()` counts what the whole
-##   process ran before the world did, so a match's phase would follow every test that ran ahead of
+## - `frame_of(node)` is how many `GameClock` frames its world has run since its first character
+##   took its place: the frame every AI cadence and phase is counted on (`perception_sight.gd`'s
+##   sight cadence, `perception_house.gd`'s look). Like every AI timer it stands still while the
+##   tree is paused. `Engine.get_physics_frames()` counts what the whole process ran before the
+##   world did (and through a pause), so a match's phase would follow every test that ran ahead of
 ##   it; this starts at 0 with each world.
 ## Painters, world-gen, lighting and audio keep their own randomness.
 
@@ -77,14 +78,15 @@ static func enrol(node: Node) -> int:
 	return order
 
 
-## The physics frames `node`'s world has run since its first character took its place (0 on that
+## The `GameClock` frames `node`'s world has run since its first character took its place (0 on that
 ## frame, and for a world with none yet, which starts counting at this ask): the one clock a cadence
-## or a phase of the AI is counted on, never `Engine.get_physics_frames()`.
+## or a phase of the AI is counted on, never `Engine.get_physics_frames()`. It stands still while
+## the tree is paused, as `GameClock` does.
 static func frame_of(node: Node) -> int:
 	var entry := _entry_of(node)
 	if int(entry["began"]) < 0:
 		_begin(entry)
-	return Engine.get_physics_frames() - int(entry["began"])
+	return GameClock.frame() - int(entry["began"])
 
 
 ## The spawn order of the node with instance id `id`: its own once enrolled, enrolled now for a live
@@ -107,7 +109,7 @@ static func before(a: int, b: int) -> bool:
 ## Start `entry`'s world counting its frames now, and put the game clock's ms grid on this frame
 ## (`GameClock.align`).
 static func _begin(entry: Dictionary) -> void:
-	entry["began"] = Engine.get_physics_frames()
+	entry["began"] = GameClock.frame()
 	GameClock.align()
 
 

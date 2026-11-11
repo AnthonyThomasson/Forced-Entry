@@ -17,26 +17,36 @@ const TestSessionScript := preload("res://scenes/testing/test_session.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
 ## Physics frames a freed world is given to settle before the next is built.
 const SETTLE := 30
-## Frames the second and the third play of `check_same_fight` wait before they build their world:
-## not multiples of 3 or of each other, so the clock's phase differs in each.
-const SECOND_BURN := 7
-const THIRD_BURN := 13
+## The cadences a world's phase can follow divide this: the sight cadence (3), the house look (6),
+## the game clock's ms grid (3). `check_same_fight` plays the guard at three different residues of
+## the frame its world is built on, modulo it: a regression that counts a cadence on the process's
+## frames then shows as a different fight, not only one that happens to miss it.
+const PHASE_PERIOD := 6
+## How far from the first play's residue the second and the third are built.
+const SECOND_OFFSET := 1
+const THIRD_OFFSET := 2
 ## Frames the first fight has at least (the guard's warm-up alone is 360).
 const MIN_FRAMES := 360
 
 
-## Play the guard `guard_id` (`perf/match_5v5_stress`) once, after `burn_frames` physics frames
-## (the process's frame count, and so the clock's phase, when the world is built), with the
-## switches `extra_switches` (name -> on) added to what the guard declares. Returns `{ fight,
-## status, reason }`: the fingerprint's text (empty when the guard wrote none), and the guard's own
-## verdict and its reason.
+## Play the guard `guard_id` (`perf/match_5v5_stress`) once, with the switches `extra_switches`
+## (name -> on) added to what the guard declares. With `want_phase` >= 0 it first burns the frames
+## (fewer than `PHASE_PERIOD`) that put the frame its world is built on at that residue modulo
+## `PHASE_PERIOD`, `build_lag` being the frames from the call to the build (`built_at - started_at`
+## of an earlier play). Returns `{ fight, status, reason, started_at, built_at }`: the fingerprint's
+## text (empty when the guard wrote none), the guard's own verdict and its reason, and the process's
+## physics frame when the play began and when its world was built.
 static func play(
 	t: TestContext,
 	guard_id: String,
 	extra_switches := {},
-	burn_frames := 0,
+	want_phase := -1,
+	build_lag := 0,
 ) -> Dictionary:
-	await t.frames(burn_frames)
+	if want_phase >= 0:
+		await t.frames(posmod(want_phase - (Engine.get_physics_frames() + build_lag), PHASE_PERIOD))
+	var started_at := Engine.get_physics_frames()
+	var built: Array[int] = [-1]
 	var dir := OS.get_user_data_dir().path_join("guard_replay")
 	var file := Fingerprint.path_for(dir, guard_id)
 	DirAccess.remove_absolute(file)
@@ -52,6 +62,7 @@ static func play(
 	session.name = "ReplaySession"
 	viewport.add_child(session)
 	session.world_built.connect(func(_setup: TestSetup) -> void:
+		built[0] = Engine.get_physics_frames()
 		camera.make_current()
 		camera.frame(session.camera_targets()))
 	var entry := TestCatalog.describe("%s/%s%s" % [TestCatalog.ROOT, guard_id, TestCatalog.SUFFIX])
@@ -65,6 +76,8 @@ static func play(
 		"fight": FileAccess.get_file_as_string(file) if FileAccess.file_exists(file) else "",
 		"status": record.get("status", ""),
 		"reason": record.get("reason", ""),
+		"started_at": started_at,
+		"built_at": built[0],
 	}
 
 
@@ -98,11 +111,12 @@ static func had_a_shot(fight: String) -> bool:
 
 
 ## The replay test of the guard `guard_id`: it is played three times in this process, plain, then
-## plain again after `SECOND_BURN` frames and then with allocation padding on after `THIRD_BURN`
-## (`testing.allocation_padding`: every instance id and RID the match takes is shifted), and the
-## three fights must be the same, line for line, through the warm-up and the whole window. The
-## burned frames move the clock's phase the world starts on, so a timer that ends a frame late on
-## one start frame shows. Also checks the guard made contact (a shot in its fight).
+## plain again and then with allocation padding on (`testing.allocation_padding`: every instance id
+## and RID the match takes is shifted), the second and the third built `SECOND_OFFSET` and
+## `THIRD_OFFSET` frames off the first's residue modulo `PHASE_PERIOD` (premises: the worlds are
+## built on three different residues of every cadence), and the three fights must be the same, line
+## for line, through the warm-up and the whole window. Also checks the guard made contact (a shot in
+## its fight).
 static func check_same_fight(t: TestContext, guard_id: String) -> void:
 	var first: Dictionary = await play(t, guard_id)
 	if not t.require(
@@ -116,18 +130,32 @@ static func check_same_fight(t: TestContext, guard_id: String) -> void:
 		"the sides made contact: a shot is in the fight (the guard: %s %s)"
 			% [first["status"], first["reason"]],
 	)
-	var again: Dictionary = await play(t, guard_id, {}, SECOND_BURN)
+	var lag: int = first["built_at"] - first["started_at"]
+	var again: Dictionary = await play(t, guard_id, {}, first["built_at"] + SECOND_OFFSET, lag)
+	_check_phase(t, first, again, SECOND_OFFSET)
 	t.expect_eq(
 		first_difference(first["fight"], again["fight"]),
 		"",
-		"a second play of the guard, %d frames later in the process, is the same fight"
-			% SECOND_BURN,
+		"a second play of the guard, built %d frames off the first's phase, is the same fight"
+			% SECOND_OFFSET,
 	)
 	var padded: Dictionary = await play(
-		t, guard_id, { &"testing.allocation_padding": true }, THIRD_BURN,
+		t, guard_id, { &"testing.allocation_padding": true }, first["built_at"] + THIRD_OFFSET, lag,
 	)
+	_check_phase(t, first, padded, THIRD_OFFSET)
 	t.expect_eq(
 		first_difference(first["fight"], padded["fight"]),
 		"",
-		"a play with allocation padding on is the same fight",
+		"a play with allocation padding on, built %d frames off, is the same fight" % THIRD_OFFSET,
+	)
+
+
+## Premise: `other`'s world was built `offset` frames off `first`'s residue modulo `PHASE_PERIOD`
+## (so on a residue of 2, 3 and 6 that differs from the first's, taken with the third play's).
+static func _check_phase(t: TestContext, first: Dictionary, other: Dictionary, offset: int) -> void:
+	t.expect_eq(
+		posmod(other["built_at"] - first["built_at"], PHASE_PERIOD),
+		offset,
+		"premise: the world was built %d frames off the first's phase (modulo %d)"
+			% [offset, PHASE_PERIOD],
 	)

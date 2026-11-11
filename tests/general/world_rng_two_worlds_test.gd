@@ -37,6 +37,7 @@ func run(t: TestContext) -> void:
 	_streams(t)
 	_orders(t)
 	await _clocks(t)
+	await _clock_stands_still_paused(t)
 	await _global_stream_untouched(t)
 	_adopted(t)
 
@@ -110,6 +111,33 @@ func _clocks(t: TestContext) -> void:
 	roots[0].get_parent().add_child(late)
 	WorldRng.enrol(late)
 	t.expect_eq(WorldRng.frame_of(late), 8, "a character joining later reads its world's frame")
+
+
+## A world's frame is `GameClock`'s: it stands still while the tree is paused, as every AI timer
+## does, though the engine goes on counting physics frames, and goes on from there once unpaused.
+func _clock_stands_still_paused(t: TestContext) -> void:
+	var root := Node2D.new()
+	t.world.add_child(root)
+	WorldRng.register(root, 9)
+	var body := Node2D.new()
+	root.add_child(body)
+	WorldRng.enrol(body)
+	await t.frames(3)
+	var before := WorldRng.frame_of(body)
+	var engine_before := Engine.get_physics_frames()
+	var tree := t.world.get_tree()
+	tree.paused = true
+	await t.frames(5)
+	var held := WorldRng.frame_of(body)
+	var engine_run := Engine.get_physics_frames() - engine_before
+	tree.paused = false
+	t.require(engine_run >= 5, "premise: the engine ran %d physics frames paused" % engine_run)
+	t.expect_eq(held, before, "the world's frame stood still through the pause")
+	await t.frames(4)
+	t.check(
+		WorldRng.frame_of(body) >= before + 3 and WorldRng.frame_of(body) <= before + 4,
+		"it goes on once unpaused (%d from %d)" % [WorldRng.frame_of(body), before],
+	)
 
 
 ## A character spawned under one world and reparented into another (`MatchBuilder` joins the scene's

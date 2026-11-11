@@ -16,8 +16,9 @@ extends Node
 ## reaches `ttl` follows the frame the timer started on (0.8 s read short at 45 of 100 start
 ## frames), so a match played after another in one process swung the timer a frame. Every reading
 ## sits this much above exact, many times the rounding of an hour of play and far below a frame, so
-## a timer ends
-## on its frame whenever it started.
+## a timer ends on its frame whenever it started. So a timer reads `seconds()` at both ends: not
+## `seconds()` against `msec() / 1000.0` or `frame() / 60.0`, which are exact (or whole ms) and
+## differ from it by that bias and by rounding.
 const SECONDS_BIAS := 1e-9
 
 ## Physics frames run while the tree was unpaused, since the game started.
