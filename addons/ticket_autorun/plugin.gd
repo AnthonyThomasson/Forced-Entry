@@ -23,6 +23,10 @@ func _enter_tree() -> void:
 	_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.3))
 	add_control_to_container(CONTAINER_TOOLBAR, _label)
 	GameLogArgument.give()
+
+
+func _ready() -> void:
+	# READY enables processing for scripts with _process, so the autorun gate belongs here.
 	set_process(false)
 	if OS.get_environment("GAME_AUTORUN").is_empty():
 		return
