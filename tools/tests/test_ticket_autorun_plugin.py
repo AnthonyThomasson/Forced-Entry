@@ -32,9 +32,9 @@ class AutorunPlayTests(unittest.TestCase):
             self.assertTrue(process.start() <= at < process.end(), "_play() is called outside _process")
 
     def test_process_runs_only_when_autorun_is_asked_for(self):
-        enter = re.search(r"^func _enter_tree\(.*?(?=^func |\Z)", self.source, re.S | re.M)
-        self.assertIsNotNone(enter, "the plugin has an _enter_tree")
-        body = enter.group(0)
+        ready = re.search(r"^func _ready\(.*?(?=^func |\Z)", self.source, re.S | re.M)
+        self.assertIsNotNone(ready, "the plugin gates processing in _ready, after READY enables it")
+        body = ready.group(0)
         off = body.index("set_process(false)")
         guard = body.index('OS.get_environment("GAME_AUTORUN")')
         on = body.index("set_process(true)")
