@@ -11,6 +11,7 @@ func describe() -> Dictionary:
 		"tags": ["harness", "von"],
 		"internal": true,
 		"requires_von": true,
+		"live_only": true,
 		"timeout": 2.0,
 	}
 

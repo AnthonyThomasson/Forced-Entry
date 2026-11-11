@@ -14,6 +14,9 @@ const REALTIME_FPS := 60
 ## launcher never starts a server (no server there = no server), which is how tools/test_log_gate.py
 ## makes "no server" on purpose.
 const VON_PORT_ENV := "GAME_TEST_VON_PORT"
+## Environment variable that, set to anything, makes the run RECORD: each requires_von test runs
+## against the live server and writes its recording (the runner's `--record-von` sets it).
+const RECORD_ENV := "GAME_TEST_VON_RECORD"
 ## The skip reason of a Von test when no server is live (a failure under `--require-von`).
 const NOT_LIVE := "the Von decision server is not live"
 
@@ -26,6 +29,15 @@ static var _von_live := false
 var include := true
 ## Whether a requires_von test FAILs instead of skipping when no server is live (--require-von).
 var require := false
+## Whether requires_von tests run LIVE, against the server, instead of replaying their recordings
+## (the host sets it for `--include-von` and `--require-von`).
+var live := false
+## Whether requires_von tests RECORD: live, each writing its recording (`RECORD_ENV`).
+var record := OS.get_environment(RECORD_ENV) != ""
+## Whether a requires_von test with no recording file FAILs (naming the command that records it)
+## instead of running as it always did, skipped without Von or against the live server. Off until
+## every Von test has its recording.
+var require_recording := false
 ## Where the Von launcher lives: it is kept, with the server it started, as long as that node does.
 var launcher_parent: Node = null
 ## While true, each frame sleeps out the rest of 1/REALTIME_FPS of wall time (Engine.max_fps is not
@@ -53,11 +65,25 @@ func pace() -> void:
 	_last_frame_usec = now
 
 
-## Why the open Von test does not run, "" when it does: skipped unless Von tests are included, else
-## `NOT_LIVE` when the launcher finds no server. A Von test that runs is paced in real time.
-## `announce` is called with a status line for the host's banner while the server is awaited.
-func skip_reason(announce: Callable) -> String:
-	if not include and not require:
+## How the Von test `entry` is answered (`DecisionStub.Mode`): RECORD when the run records, LIVE
+## when the host asked for the server, else REPLAY of its recording. SCRIPT stands for no stub at
+## all: a `live_only` test (the HTTP transport itself) always meets the real client and server.
+func mode_for(entry: Dictionary) -> DecisionStub.Mode:
+	if entry.get("live_only", false):
+		return DecisionStub.Mode.SCRIPT
+	if record:
+		return DecisionStub.Mode.RECORD
+	return DecisionStub.Mode.LIVE if live else DecisionStub.Mode.REPLAY
+
+
+## Why the open Von test does not run live, "" when it does: skipped unless Von tests are included
+## (or `force`: a recording run), else `NOT_LIVE` when the launcher finds no server. A Von test that
+## runs live is paced in real time. `announce` is called with a status line for the host's banner
+## while the server is awaited. A replayed test never asks.
+func skip_reason(announce: Callable, force := false) -> String:
+	if DecisionStub.source.is_valid():
+		return ""  # a stand-in answer source replaces the server (the tests of the seam)
+	if not force and not include and not require:
 		return "needs the Von decision server (pass --include-von)"
 	# Von answers in real time: a batch run's `--fixed-fps` sim outpaces it (game-time timers like
 	# the HTTP timeout expire early), so pace this test in real time.
@@ -83,7 +109,7 @@ func _await_von(announce: Callable) -> bool:
 		var port := OS.get_environment(VON_PORT_ENV)
 		if port != "":
 			_launcher.port = int(port)
-		_launcher.resolved.connect(func(live: bool): _von_live = live)
+		_launcher.resolved.connect(func(is_live: bool): _von_live = is_live)
 		_von_live = false
 		(launcher_parent if launcher_parent != null else _session).add_child(_launcher)
 		if port != "":
