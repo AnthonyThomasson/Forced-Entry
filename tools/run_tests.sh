@@ -857,7 +857,7 @@ own_process_args() {
 
 # Each deferred own-process test (own_deferred over the dirs given), --repeat times, in an engine process of its own
 # (a fresh process plays a test as its recording was made: `own_process` of domain-testing); the report dirs they
-# write are appended to OWN_DIRS (a global: bash returns no array). Returns 1 when one fails. $1: how many times each
+# write are appended to OWN_DIRS (a global: bash returns no array). Returns 1 when one fails (--fail-fast stops there). $1: how many times each
 # runs; the dirs after it, the main runs'; OWN_ARGS: the run's args as own_process_args made them.
 OWN_ARGS=()
 OWN_DIRS=()
@@ -871,6 +871,8 @@ own_process_runs() {
       out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
       OWN_DIRS+=("$out")
       perf_run live_run "$out" ${OWN_ARGS[@]+"${OWN_ARGS[@]}"} "--id=$id" </dev/null || status=1
+      # --fail-fast (the caller's `fail_fast`): the first failure ends every id and repeat that is left
+      [[ ${fail_fast:-0} -eq 1 && $status -ne 0 ]] && break 2
     done
   done < <(own_deferred "$@")
   return $status

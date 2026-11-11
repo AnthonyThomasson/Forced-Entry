@@ -50,16 +50,15 @@ The header lists every flag; this file holds the rules and the reasons behind th
     hair differently in a replay). They never replay and are skipped without a server (FAIL under `--require-von`).
   - **Own process** (`"own_process": true`; a last resort and a debt, it needs a follow-up ticket): the wrapper leaves
     the test out of the shards (`--skip-own-process`; ids go to `<out>/own_process.txt`) and runs it after them in an
-    engine process of its own, once per `--repeat`, its report merged into the run's. The
-    engine orders the contacts of touching rigid bodies by their allocation slots, which follow what the process ran
-    before (two touching pieces of furniture a blast shoves settle one of two ways), so a replay whose
-    snapshot wording turns on such a piece at a band edge matches its recording only in a fresh process. Only
-    `ai/grenade/combat_frag_take_cover` has it (20 of 20 separate-process replays pass; 3 in 6 after other tests).
+    engine process of its own, once per `--repeat` (`--fail-fast` stops at the first failure), its report merged into the
+    run's. The engine orders the contacts of touching rigid bodies by their allocation slots, which follow what the
+    process ran before, so a replay whose snapshot wording turns on such a piece at a band edge matches its recording
+    only in a fresh process. Only `ai/grenade/combat_frag_take_cover` has it (20 of 20 separate-process replays pass).
+    Only `run_tests.sh` honours it: the browser, the GdUnit panel and a direct batch run play it in the shared process.
   - A Von test with no recording FAILs naming `tools/run_tests.sh --record-von --id=<id>`; record a new one in its commit.
-  - The totals line counts only Von tests that did not run: `N skipped (V need Von, not run: --require-von)` (live-only,
+  - The totals line counts only the Von tests not run: `N skipped (V need Von, not run: --require-von)` (live-only,
     or a live run with no server). `--changed` ends with `NOTE <n> Von test(s) in the changed domains were not run:
-    tools/run_tests.sh --domain=<d> --require-von` when it skipped any. `--record-von` skips a live-only test. `--list` marks each `von:replay`, `von:live-only` or
-    `von:unrecorded` (no file: it would FAIL).
+    tools/run_tests.sh --domain=<d> --require-von` when it skipped any. `--list` marks each `von:replay`, `von:live-only` or `von:unrecorded` (no file: it FAILs).
 - **`--base=<rev>`:** the working tree's tests against `<rev>`'s code, in a temporary `git worktree` under `$TMPDIR` that
   gets the working tree's `tests/` whole (`.uid` files and helper folders included). It is removed also on ^C or a kill
   of the wrapper (`tools/godot_slot.py stop` ends the engines first). The working tree is never written, no lint. Combinations

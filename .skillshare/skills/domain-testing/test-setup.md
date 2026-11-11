@@ -53,8 +53,9 @@ only (the browser also calls it to list the switches).
   fallback). What was asked is `DecisionStub.requests`. Ids are the decision tree's node and option ids.
 - **Recorded Von:** `"requires_von": true` in `describe()` runs the real decision pipeline with Von's recorded answers
   (`<name>_test.von.json` beside the test; `tools/run_tests.sh --record-von --id=<id>` writes it, `gotchas.md`). Assert world
-  outcomes and `require` the premise as for any test, never that a pick was made. `"live_only": true` (the transport itself,
-  `runner-flags.md`) keeps the real server.
+  outcomes and `require` the premise as for any test, never that a pick was made. `"live_only": true` (the transport itself, and
+  `ai/investigate/defenders_stay_in_house_quiet_von`, a 40 s generated-house match whose fight moves the NPCs by a hair
+  differently in a replay; `runner-flags.md`) keeps the real server.
 - **Presentation:** `show_overlays([...])`, `camera_follow([ids])` (default frames all actors; the hand-pan is off when a
   `player` actor is present, since WASD walks it) and `lock_interaction([&"camera", …])`
   (`in-game-runner.md`, "Locking interactions").

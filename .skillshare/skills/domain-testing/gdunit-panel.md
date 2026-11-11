@@ -8,7 +8,7 @@ folder's `*_test.gd` files, so a new test needs no edit to the suite.
 - **Run:** right-click a case or suite in the dock's tree (**Run** or **Debug**: breakpoints stop in the test), the
   FileSystem dock's **Run Testsuites**, the script editor's **Run Tests**, or the toolbar's **Run overall tests**.
 - **What differs from `run_tests.sh`:** no options reach the suites, so nothing is selected away: every case is listed,
-  the harness's own included, and `requires_von` tests replay their recordings (a `live_only` one runs live: the server is started or reused,
+  the harness's own included (an `own_process` test runs in the shared process, where it can miss), and `requires_von` tests replay their recordings (a `live_only` one runs live: the server is started or reused,
   skipped when none comes up; one without a recording fails). Verdicts map as on the command line (FAIL / TIMEOUT failed, SKIPPED / GAP skipped). Bundles go to
   `user://test_failures/`, no `report.json` is written, and the log gate watches the project's own log from the run's start,
   which another Godot start (the game, `tools/lint.sh`) can rotate.

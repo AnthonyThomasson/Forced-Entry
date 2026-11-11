@@ -2252,6 +2252,15 @@ class GdUnitEngineTests(unittest.TestCase):
         self.assertEqual(run.code, 1, run.out)
         self.assertEqual(run.status(self.OWN), ["FAIL", "FAIL"], run.out)
 
+    def test_fail_fast_stops_the_own_process_runs_at_the_first_failure(self):
+        log = self.tmp / "pids.log"
+        log.unlink(missing_ok=True)
+        run = self.run_tests("--self-test", f"--id={self.OWN}", "--repeat=3", "--fail-fast",
+                             GAME_TEST_OWN_FAIL="1", GAME_TEST_PID_LOG=str(log))
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(len(self.pids(log, "own")), 1, "one process ran, not one per repeat")
+        self.assertEqual(run.status(self.OWN), ["FAIL"], run.out)
+
     def test_list_does_not_defer_an_own_process_test(self):
         run = self.run_tests("--self-test", "--list")
         self.assertRegex(run.out, re.compile(r"^_harness/own_process_probe\s", re.M))

@@ -18,8 +18,11 @@ class_name Explosion
 const Projectile = preload("res://scenes/projectile/projectile.gd")
 ## The layer the line queries test (walls, solid furniture, the living).
 const MASK := PhysicsLayers.SOLID
-## Most bodies one blast considers.
+## Most bodies one blast considers: the nearest ones.
 const MAX_BODIES := 64
+## Most colliders the shape query returns for a blast, before the nearest `MAX_BODIES` are kept
+## (a cut made on the engine's order would keep an arbitrary set).
+const MAX_FOUND := 4 * MAX_BODIES
 ## Most colliders a line may pass through (the low ones it clears) before it is called blocked.
 const MAX_CLEARED := 8
 ## A cover reach no piece of furniture is ever within: only the walls stop the line (the bang, G12).
@@ -200,7 +203,7 @@ static func _bodies_near(
 	query.transform = Transform2D(0.0, at)
 	query.collision_mask = MASK
 	var out: Array = []
-	for found: Dictionary in space.intersect_shape(query, MAX_BODIES):
+	for found: Dictionary in space.intersect_shape(query, MAX_FOUND):
 		var body: Object = found["collider"]
 		# a wall is a static body that takes no shove; a door is a driven one that does
 		# (`apply_impulse`)
@@ -215,10 +218,13 @@ static func _bodies_near(
 	# process allocated before: nearest first (then by place) keeps every draw of the world's
 	# random stream, and every hit, on the same body whatever the process ran earlier.
 	out.sort_custom(func(a: Node2D, b: Node2D) -> bool: return _nearer(a, b, at))
+	if out.size() > MAX_BODIES:
+		out.resize(MAX_BODIES)
 	return out
 
 
-## Whether `a` stands nearer the burst at `at` than `b` (a tie: the leftmost, then the topmost).
+## Whether `a` stands nearer the burst at `at` than `b` (a tie: the leftmost, then the topmost,
+## then the one made first: a total order, so the sort never depends on the engine's).
 static func _nearer(a: Node2D, b: Node2D, at: Vector2) -> bool:
 	var da := a.global_position.distance_squared_to(at)
 	var db := b.global_position.distance_squared_to(at)
@@ -226,7 +232,9 @@ static func _nearer(a: Node2D, b: Node2D, at: Vector2) -> bool:
 		return da < db
 	if a.global_position.x != b.global_position.x:
 		return a.global_position.x < b.global_position.x
-	return a.global_position.y < b.global_position.y
+	if a.global_position.y != b.global_position.y:
+		return a.global_position.y < b.global_position.y
+	return a.get_instance_id() < b.get_instance_id()
 
 
 ## Whether something between `burst` and `p` shields a body at `p` from a burst there (G7), by
