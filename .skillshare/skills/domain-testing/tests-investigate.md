@@ -7,7 +7,7 @@ defenders leaving the house). Footsteps are `docs/hearing.md` H1.
   trespass hostility off, Von left to the caller), `gunfire(at)` (a hit event nobody known fired, heard from
   `Probe.OUTSIDE` / `Probe.INSIDE`), `levels`, `asked_about_investigating`.
 - Scripted tests check the wiring (`investigate_outside_lead_offers_stay`, `investigate_lone_lead_is_asked`); the `*_von`
-  tests (`requires_von`, `--include-von --require-von`) check what a real Von decides: the defender stays in, still
+  tests (`requires_von`, replayed from a recording; `--record-von` re-asks Von) check what a real Von decided: the defender stays in, still
   investigates gunfire inside, and an invader investigates the same gunfire outside. After rewording what Von reads about
   leads, run `tools/von_probe.py` (its `investigate_outside_lead_*` scenarios).
 - `defenders_stay_in_house_quiet` (scripted) and `_von` (real Von, invaders outside as at a match's start) watch every

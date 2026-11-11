@@ -155,9 +155,8 @@ func _topic_row(parent: TreeItem, category: String, key: String) -> TreeItem:
 
 
 ## Test `t`'s row under `parent`: its last result's mark, name and how its Von decisions are
-## answered ("[Von replay]",
-## "[Von live-only]", from the descriptor's `von`), coloured by that result
-## (a script error red); a checkbox unless it has a script error.
+## answered ("[Von replay]", "[Von live-only]", from the descriptor's `von`), coloured by that
+## result (a script error red); a checkbox unless it has a script error.
 func _test_row(parent: TreeItem, t: Dictionary) -> TreeItem:
 	var item := create_item(parent)
 	if t.get("error", "") == "":

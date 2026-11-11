@@ -28,7 +28,9 @@
       and physics RIDs first, shifting every instance id and RID; a catalog entry's `extra_switches` (name -> on, set by `TestSession`
       after the test's `configure`) lets a test replay another's world under its own terms (`tests/_perf/guard_replay.gd`).
     - **Von without a server:** script the answers through the AI decision sub-domain's `DecisionStub` statics and read what was asked off
-      `DecisionStub.requests`; the session's `von` part drives `DecisionServerLauncher` where a test needs the real server;
+      `DecisionStub.requests`, or (`requires_von`) replay the test's recording (`VonRecording`, `<name>_test.von.json`) through the stub's
+      REPLAY mode, which `TestVonGate.mode_for` picks from the run flags (`--record-von`: RECORD, `--include-von` / `--require-von`: LIVE;
+      a `live_only` test: no stub); the session's `von` part drives `DecisionServerLauncher` where a run needs the real server;
       `DecisionBudget.per_frame` (snapshots a frame may start) is set the same way.
     - **Runner:** `TestSetup.lock_interaction` (`camera` / `pause` / `overlays`) shuts out user input a test would trip over; the test
       sends its own through `TestContext.inject`, which the lock lets through. The runner builds the UI's `PerformanceOverlay` for the

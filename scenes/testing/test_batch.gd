@@ -4,8 +4,8 @@ extends RefCounted
 ## the process. The options are the batch flags tools/run_tests.sh passes after `--`, which gdUnit
 ## leaves alone:
 ##   [filter words] [--domain=a,b] [--id=a,b] [--skip-domain=a,b] [--failed=<report>] [--self-test]
-## [--include-von] [--require-von] [--record-von] [--repeat=N] [--seed=N] [--fail-fast] [--summary]
-## [--verbose]
+##   [--include-von] [--require-von] [--record-von] [--repeat=N] [--seed=N] [--fail-fast]
+##   [--summary] [--verbose]
 ##   [--json] [--shots] [--shard=I/N] [--costs=<json>] [--out=<dir>]
 ## The selection is made once per process from the catalog (test_catalog.gd), as the batch runner
 ## made it: `--domain` / `--id` keep exactly those, `--skip-domain` wins over all (each of the three

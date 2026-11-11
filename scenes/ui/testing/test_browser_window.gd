@@ -6,8 +6,7 @@ extends CanvasLayer
 ## `set_run_status` / `set_results`. Built in code like the other UI windows; it knows nothing of
 ## the Testing domain — only the descriptor dicts
 ## (`{ id, path, name, domain, category, description, tags, requires_von, von, manual, switches,
-## world,
-## locked, error }`) and the `{ id: status }` results it is handed.
+## world, locked, error }`) and the `{ id: status }` results it is handed.
 ## Each test (not sandbox) row has a checkbox; a domain row's box and the header's "Check shown"
 ## button tick or clear the tests the search currently shows. "Run N checked" emits
 ## `run_queue_requested` with the ticked tests' paths for a headed, one-by-one run (the host

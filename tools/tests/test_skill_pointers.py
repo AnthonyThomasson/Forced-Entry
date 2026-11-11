@@ -30,7 +30,7 @@ SKILLS = ROOT / ".skillshare" / "skills"
 SKILL_NAMES = tuple(sorted(p.name for p in SKILLS.iterdir() if p.is_dir()))
 # The `Class.method` names tools/test_coverage.py reads out of the interface files: bump it when an interface file
 # gains or loses one.
-COVERAGE_NAMES = 220
+COVERAGE_NAMES = 221
 
 # A path into a skill's folder, rooted at the skills dir or the repo, placeholders and globs captured too.
 ROOTED = re.compile(r"(?<![\w/.-])(?:(?:\.skillshare/)?skills/)?(" + names_alternation(SKILL_NAMES)

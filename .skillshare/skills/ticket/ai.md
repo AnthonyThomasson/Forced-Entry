@@ -16,7 +16,8 @@ plan. Don't shape the behaviour around what the AI, snapshot or navmesh can do t
 - Location: `tests/ai/<topic>/<name>_test.gd` (topics are the folders under `tests/ai/`); shared setup in
   `tests/_ai/<name>_probe.gd`.
 - **Scenario tests script nothing:** perception, snapshot, the real Von server at every tree level, behaviour, radio and
-  guard all run. `"requires_von": true`, tag `von`, run with `--include-von --require-von`.
+  guard all run. `"requires_von": true`, tag `von`: recorded once with `tools/run_tests.sh --record-von --id=<id>` (commit
+  `<name>_test.von.json`), replayed in every run; `--require-von` runs it live. Only a test of the transport itself is `live_only`.
 - Build the world so the decision under test is the natural one (nearest doorway, the one unsearched room, the hostile in
   view), and `require` the AI took that path before asserting what it did there, so a surprising Von pick reads as a
   set-up finding in the bundle.

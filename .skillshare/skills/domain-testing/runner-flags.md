@@ -13,7 +13,7 @@ The header lists every flag; this file holds the rules and the reasons behind th
   `--list` / `--self-test`; `--windowed`, and `--shots` without `--jobs`, run in one process (the `_a` / `_b` restore pairs need one process in id order).
 - **Shards are balanced by measured cost:** the wrapper keeps each test's wall-clock ms in
   `$TMPDIR/example_godot_costs_<checkout hash>.json` (rewritten after all shards finish; none yet: the declared
-  `timeout`; an unmeasured id: the median) and passes `--costs=<file>`. Von tests and native suites stay in shard 0.
+  `timeout`; an unmeasured id: the median) and passes `--costs=<file>`. A Von test run live (`--include-von`, `--require-von`, `--record-von`) and the native suites stay in shard 0; a replayed one is dealt by cost like any test.
 - **The Godot slot pool:** every godot test process the wrapper starts (shard, perf phase, `--repeat` native rerun,
   `--base`, `--list`, `--self-test`, the first import) holds one of `max(1, cores / 2)` machine-wide slots (lock files
   `slot<i>.lock` in `$TMPDIR/forced-entry-godot-slots`, `GAME_TEST_SLOT_DIR` names another). `tools/godot_slot.py`
@@ -35,10 +35,22 @@ The header lists every flag; this file holds the rules and the reasons behind th
   one only if a `--list <words> --domain=perf` engine start lists a perf test. After `MINUTES` (default `timeout_min`) it
   runs anyway and marks that process's results `loaded`: a `loaded` result is no evidence of a regression. An unreadable
   `perf_quiet.conf` ends the run with exit 2. The wrapper appends `(load <x>, <n> busy Godot)` to every `PERF` line.
-- **The Von run for a change to the AI:** a change under `scenes/ai/` or `scenes/testing/` runs
-  `tools/run_tests.sh --domain=ai --require-von --summary` once, whatever its labels, because every other run skips
-  `requires_von` tests. The totals line names the skips (`N skipped (V need Von, not run: --require-von)`) and
-  `--changed` ends with `NOTE <n> Von test(s) in the changed domains were not run` when it skipped some.
+- **Von tests:** a `requires_von` test with a recording runs in every normal run, `--changed`, the pre-commit hook and
+  `--base` included, from `<name>_test.von.json` beside it (`VonRecording`; entries keyed by state + question + sorted
+  option descriptions, ids normalised to spawn order). Each answer lands 12 physics frames after its ask, as live does, so
+  record, live and replay play the same frames. No server, no pacing, sharded like any test. An ask the recording lacks, or
+  a missing or unreadable file, FAILs naming the question and `tools/run_tests.sh --record-von --id=<id>`: a wording change
+  in a snapshot or a question makes recordings stale; run that command (it needs a live Von on :8000) and commit the diff.
+  - `--record-von` runs the selected Von tests live and writes each passing test's recording whole (unused entries drop);
+    FAILs with no server, like `--require-von`. `--include-von` and `--require-von` run the tests live and never read or
+    write a recording. Live and record runs are paced in real time and kept in shard 0.
+  - **Live-only** (`"live_only": true` in `describe()`, with `requires_von`): tests of the transport or the gate
+    themselves, which need the real client and server: `ai/decision/von_request_across_pause`, `_harness/von_probe`. They
+    never replay and are skipped without a server (FAIL under `--require-von`). A test that uses Von as a realistic
+    driver is recorded, not live-only.
+  - The totals line counts only Von tests that did not run (`N skipped (V need Von, not run: --require-von)`: live-only, or
+    with no recording yet) and `--changed` ends with `NOTE <n> Von test(s) in the changed domains were not run` for them;
+    a replayed test is no part of either. `--list` marks each `von:replay`, `von:live-only` or `von:unrecorded`.
 - **`--base=<rev>`:** the working tree's tests against `<rev>`'s code, in a temporary `git worktree` under `$TMPDIR` that
   gets the working tree's `tests/` whole (`.uid` files and helper folders included). It is removed also on ^C or a kill
   of the wrapper (`tools/godot_slot.py stop` ends the engines first). The working tree is never written, no lint. Combinations

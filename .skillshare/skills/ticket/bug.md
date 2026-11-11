@@ -32,8 +32,8 @@ names.
 An `ai` label: the regression test is scripted Von (`von_script`, one mechanism), the bug's exception to `ai.md`'s
 "`von_script` never replaces scenario tests"; a bug in what Von picks gets a real-Von scenario test per `ai.md`.
 
-A fix under `scenes/ai/` or `scenes/testing/` also runs `tools/run_tests.sh --domain=ai --require-von` once at green,
-whatever the labels (`domain-testing` (`runner-flags.md`)), as `story.md` section 4 does.
+A fix under `scenes/ai/` or `scenes/testing/` needs no separate Von run at green: Von tests replay in the whole-suite run,
+and a stale recording is refreshed with `--record-von` (`domain-testing` (`runner-flags.md`)), as `story.md` section 4 says.
 
 **Fix gate:** once the root cause is known (`fix` step 4) and before any production change, the planned fix goes to the
 user as a `change-report` whose **Cause** section holds the cause, then an acceptance question. A fix that widens while it

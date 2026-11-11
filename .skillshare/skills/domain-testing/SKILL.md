@@ -29,7 +29,7 @@ Exit 1: a test failed or timed out, or an error or warning was logged outside an
   | Just saw failures, fixed something | `tools/run_tests.sh --failed` |
   | Finished an edit | `tools/run_tests.sh --changed --summary` (after a commit: `--changed=origin/main`) |
   | Before committing / big change | `tools/run_tests.sh --summary` (shards over the free Godot slots) |
-  | Changed `scenes/ai/` or `scenes/testing/` | once `tools/run_tests.sh --domain=ai --require-von --summary` (`runner-flags.md`) |
+  | A Von test's recording went stale (its FAIL names the command) | `tools/run_tests.sh --record-von --id=<id>` (needs a live Von), commit the `.von.json` (`runner-flags.md`) |
   | Intermittent | `--id=<id> --repeat=10` (`--seed=N` pins the layout) |
   | A fixed test, still red on the old code? | `tools/run_tests.sh --base=<rev> --id=<id>` |
   | Perf numbers to judge | `tools/run_tests.sh --domain=perf --quiet --summary` (`perf.md`) |
@@ -41,8 +41,11 @@ Exit 1: a test failed or timed out, or an error or warning was logged outside an
 - **GAP** is a test tagged `gap`: a behaviour a spec states and the code does not show yet, left red on purpose. It
   reports GAP and never fails the run; a `gap` test that passes FAILs ("drop the gap tag"). `tools/run_tests.sh gap`
   runs them (`--list gap` lists them).
-- **Von:** `requires_von` tests skip unless `--include-von` (`--require-von` fails when no server is live). A Von test is
-  paced in real time (see Gotchas).
+- **Von:** a `requires_von` test replays its recording (`<name>_test.von.json` beside it) in every normal run: no server,
+  `--fixed-fps` speed, sharded like any test. `--record-von` rewrites the recordings against a live server;
+  `--include-von` / `--require-von` run the tests live instead (paced in real time, shard 0; `--require-von` FAILs with no
+  server). A `live_only` test (the HTTP transport itself) never replays and is skipped without a server. The live-only set
+  and the rule for it: `runner-flags.md`, "Von tests".
 - **Selection:** filter words are word prefixes over id, name, domain, description and tags (`ai` matches the ai
   domain, not "chair"); `--domain`, `--id` and `--skip-domain` accumulate. A native suite runs whole or not at all (id =
   its path under `tests/`, a case `<suite id>::<function>`).
