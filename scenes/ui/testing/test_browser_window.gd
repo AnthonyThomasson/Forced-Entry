@@ -5,7 +5,8 @@ extends CanvasLayer
 ## all, or the ▶ button on a domain's row, emits `run_requested` and the host answers with
 ## `set_run_status` / `set_results`. Built in code like the other UI windows; it knows nothing of
 ## the Testing domain — only the descriptor dicts
-## (`{ id, path, name, domain, category, description, tags, requires_von, manual, switches, world,
+## (`{ id, path, name, domain, category, description, tags, requires_von, von, manual, switches,
+## world,
 ## locked, error }`) and the `{ id: status }` results it is handed.
 ## Each test (not sandbox) row has a checkbox; a domain row's box and the header's "Check shown"
 ## button tick or clear the tests the search currently shows. "Run N checked" emits
@@ -258,8 +259,16 @@ func _setup_lines(t: Dictionary) -> PackedStringArray:
 		lines.append("Switches: %s" % ", ".join(parts))
 	if not (t.get("locked", []) as Array).is_empty():
 		lines.append("Locked while it runs: %s" % ", ".join(t["locked"]))
-	if t.get("requires_von", false):
-		lines.append("Needs the Von decision server (skipped without one).")
+	match t.get("von", ""):
+		"replay":
+			lines.append("Von decisions replay from its recording (no server needed).")
+		"live-only":
+			lines.append("Needs the Von decision server (skipped without one).")
+		"unrecorded":
+			lines.append("Von test with no recording yet: needs the Von decision server.")
+		_:
+			if t.get("requires_von", false):
+				lines.append("Needs the Von decision server (skipped without one).")
 	if t.get("manual", false):
 		lines.append("Sandbox: play it yourself (WASD, mouse, F, Space).")
 	var status: String = _tree.results.get(t["id"], "")

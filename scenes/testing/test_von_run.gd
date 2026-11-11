@@ -41,7 +41,14 @@ func _init(
 
 ## The recording file of the test: beside its script, or the descriptor's `recording`.
 func path() -> String:
-	return String(_entry.get("recording", VonRecording.path_for(String(_entry["path"]))))
+	return recording_path(_entry)
+
+
+## The recording file of the test `entry` (a catalog descriptor): beside its script, or its
+## `recording` when it names one.
+static func recording_path(entry: Dictionary) -> String:
+	var named := String(entry.get("recording", ""))
+	return named if named != "" else VonRecording.path_for(String(entry["path"]))
 
 
 ## The command that records the test.

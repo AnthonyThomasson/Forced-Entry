@@ -18,6 +18,19 @@ func _init(tree: SceneTree) -> void:
 	_tree = tree
 
 
+## `data` as JSON text that every JSON reader accepts: `JSON.stringify` writes a control character
+## (the separator of a Von key, say) into a string raw, so each is written as its `\u00XX` escape.
+## Tab, newline and return are left alone: inside a string they are escaped already, outside it
+## they are `indent`'s layout. `indent` is `JSON.stringify`'s.
+static func json_text(data: Variant, indent := "") -> String:
+	var text := JSON.stringify(data, indent)
+	for code in range(1, 32):
+		var raw := char(code)
+		if code != 9 and code != 10 and code != 13 and text.contains(raw):
+			text = text.replace(raw, "\\u%04x" % code)
+	return text
+
+
 ## Save the current frame as a PNG named after `label` and return its absolute path, or "" when
 ## screenshots are off (`--shots` not given) or there is no rendering (headless). Failed runs under
 ## `--shots` also get one automatically.

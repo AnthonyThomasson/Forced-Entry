@@ -89,9 +89,10 @@ func _on_back() -> void:
 	get_tree().change_scene_to_file(MAIN_SCENE)
 
 
-## Run: start a headless run of every test, or only `domain`'s when it is not "" (Von tests
-## included), through tools/run_tests.sh with this game's engine, its output in a fresh dir
-## (`run.log`, the merged `report.json`), and watch it from `_process`.
+## Run: start a headless run of every test, or only `domain`'s when it is not "" (Von tests replay
+## their recordings; the live-only ones are skipped), through tools/run_tests.sh with this game's
+## engine, its output in a fresh dir (`run.log`, the merged `report.json`), and watch it from
+## `_process`.
 func _on_run(domain: String) -> void:
 	if _pid != -1:
 		return
@@ -104,7 +105,7 @@ func _on_run(domain: String) -> void:
 		'cd "$1" && log="$2" && export GODOT="$3" && shift 3 && exec tools/run_tests.sh "$@" > '
 			+ '"$log" 2>&1',
 		"test-run", ProjectSettings.globalize_path("res://"), _out_dir.path_join("run.log"),
-		OS.get_executable_path(), "--include-von", "--no-lint",
+		OS.get_executable_path(), "--no-lint",
 		"--report=" + _out_dir.path_join("report.json"),
 	])
 	if domain != "":

@@ -4,7 +4,8 @@ extends RefCounted
 ## the process. The options are the batch flags tools/run_tests.sh passes after `--`, which gdUnit
 ## leaves alone:
 ##   [filter words] [--domain=a,b] [--id=a,b] [--skip-domain=a,b] [--failed=<report>] [--self-test]
-##   [--include-von] [--require-von] [--repeat=N] [--seed=N] [--fail-fast] [--summary] [--verbose]
+## [--include-von] [--require-von] [--record-von] [--repeat=N] [--seed=N] [--fail-fast] [--summary]
+## [--verbose]
 ##   [--json] [--shots] [--shard=I/N] [--costs=<json>] [--out=<dir>]
 ## The selection is made once per process from the catalog (test_catalog.gd), as the batch runner
 ## made it: `--domain` / `--id` keep exactly those, `--skip-domain` wins over all (each of the three
@@ -20,6 +21,7 @@ extends RefCounted
 ## written.
 
 const TestCatalog = preload("res://scenes/testing/test_catalog.gd")
+const TestBundle = preload("res://scenes/testing/test_bundle.gd")
 const TestSessionScript = preload("res://scenes/testing/test_session.gd")
 const LogWatch = preload("res://scenes/testing/log_watch.gd")
 ## Where bundles go without `--out` (a run from the editor panel, or the in-game runner without it).
@@ -156,9 +158,34 @@ static func selection() -> Array:
 	var spec := option("--shard")
 	if spec != "":
 		picked = TestCatalog.shard(picked, spec, TestCatalog.load_costs(option("--costs")),
-			flag("--include-von") or flag("--require-von"))
+			von_live())
 	_picked = picked
 	return picked
+
+
+## Whether the run asks the Von server for its Von tests, `--include-von`, `--require-von` and
+## `--record-von`: such tests are paced in real time and kept in shard 0. Without one, a Von test
+## replays its recording and is a test like any other.
+static func von_live() -> bool:
+	return flag("--include-von") or flag("--require-von") or flag("--record-von")
+
+
+## How this run answers the Von test `entry` (`TestCatalog.von_label`), for `--list`.
+static func von_label(entry: Dictionary) -> String:
+	return TestCatalog.von_label(
+		entry, flag("--include-von") or flag("--require-von"), flag("--record-von"),
+	)
+
+
+## How this run answers its Von tests, for the banner line.
+static func _von_mode() -> String:
+	if flag("--record-von"):
+		return "recorded live"
+	if flag("--require-von"):
+		return "required live"
+	if flag("--include-von"):
+		return "live"
+	return "replayed (live-only skipped)"
 
 
 ## The exact ids asked for: `--id`, plus those that FAILED or TIMED OUT in the `--failed` report (a
@@ -239,11 +266,8 @@ static func begin() -> void:
 		print("NOTE  no engine log of its own — errors/warnings cannot fail tests this run")
 	if _compact():
 		return
-	var include_von := flag("--include-von")
-	var require_von := flag("--require-von")
 	print("Godot %s  fixed-fps %d  Von tests: %s%s%s" % [
-		Engine.get_version_info()["string"], Engine.physics_ticks_per_second,
-		"required" if require_von else ("included" if include_von else "skipped"),
+		Engine.get_version_info()["string"], Engine.physics_ticks_per_second, _von_mode(),
 		"" if _repeat() == 1 else "  repeat x%d" % _repeat(),
 		"" if TestSetup.seed_override == 0 else "  seed %d" % TestSetup.seed_override,
 	])
@@ -322,24 +346,26 @@ static func finish() -> void:
 		# `log_end`: how much of the engine log this run has judged; what the engine writes after it
 		# (gdUnit's own reports, shutdown) is checked by tools/run_tests.sh through
 		# tools/scan_godot_log.py.
-		f.store_string(JSON.stringify(
+		f.store_string(TestBundle.json_text(
 			{ "results": records, "stray_logs": stray_logs, "log_end": watch().consumed() },
 			"  ",
 		))
 		f.close()
 		print("Report: %s" % ProjectSettings.globalize_path(report_path))
 	if flag("--json"):
-		print("JSON: " + JSON.stringify({ "results": records, "stray_logs": stray_logs }))
+		print("JSON: " + TestBundle.json_text({ "results": records, "stray_logs": stray_logs }))
 
 
-## Whether the record `r` is a test skipped for want of the Von decision server (`--include-von` not
-## given, or no server live): the session marks its record `"von": true` (test_session.gd), which is
-## how the totals line and tools/run_tests.sh tell it from any other skip.
+## Whether the record `r` is a Von test that did not run: a `live_only` one skipped for want of the
+## Von decision server (no `--include-von`, or none live), or one with no recording yet. The session
+## marks its record `"von": true` (test_session.gd), which is how the totals line and
+## tools/run_tests.sh tell it from any other skip; a replayed test ran and is never marked.
 static func _is_von_skip(r: Dictionary) -> bool:
 	return r["status"] == "SKIPPED" and r.get("von", false)
 
 
-## The totals line: the counts by status, the skips that need Von named apart when there are any.
+## The totals line: the counts by status, the Von tests that did not run named apart when there
+## are any.
 static func _totals_line(counts: Dictionary) -> String:
 	var von_skipped := records.filter(_is_von_skip).size()
 	return "%d passed, %d failed, %d timed out, %d skipped%s, %d gap" % [

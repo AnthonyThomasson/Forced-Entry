@@ -10,7 +10,7 @@
 # --changed run with nothing mapped, exit 0.
 #
 # Selecting tests
-#   tools/run_tests.sh                    every test (Von tests skipped)
+#   tools/run_tests.sh                    every test (a Von test replays its recording, no server; a live-only one is skipped)
 #   tools/run_tests.sh projectile         only tests matching "projectile" (id, name, domain, tag;
 #                                         every word must start a word of one of those)
 #   tools/run_tests.sh --domain=ai        only the tests of exactly that domain; comma list allowed
@@ -33,13 +33,14 @@
 #                                         Nothing mapped, or only domains --skip-domain leaves out: it says which
 #                                         and exits 0. It ends with a `NOTE <n> Von test(s) in the changed domains were
 #                                         not run: tools/run_tests.sh --domain=<d> --require-von` when the runs skipped
-#                                         Von tests (the totals line names those apart: `N skipped (V need Von, not run:
-#                                         --require-von)`). A changed docs/*.md paragraph runs the tests its `Test:` /
+#                                         Von tests (live-only ones, or ones with no recording yet; a replayed test ran and
+#                                         is no part of it). The totals line names those apart: `N skipped (V need Von, not
+#                                         run: --require-von)`. A changed docs/*.md paragraph runs the tests its `Test:` /
 #                                         `Tests:` line (or the `Tests:`-only block that directly follows a paragraph
 #                                         naming none) names (tools/spec_tests.py; names resolve against the index under
 #                                         --staged), --repeat=5 (a larger --repeat given wins) under `== tests named by changed
-#                                         spec paragraphs ==` (with --include-von when a Von server is live; --skip-domain
-#                                         wins), also when their domain ran above; a paragraph that names no test, or a name with no test
+#                                         spec paragraphs ==` (--skip-domain
+#                                         wins; Von tests replay), also when their domain ran above; a paragraph that names no test, or a name with no test
 #                                         file, is a NOTE (never a failure).
 #   tools/run_tests.sh --changed=<ref>    the same for what changed since the merge-base of <ref> and HEAD, as a
 #                                         branch's whole work: its commits, the working tree and the untracked files
@@ -65,9 +66,16 @@
 #                                         line) with --changed (also =<ref>), --staged, --jobs above 1 and an unknown REV
 #                                         (--jobs=auto and --jobs=1 are the one process). Use it to see a fixed test
 #                                         still red on the old code.
-#   tools/run_tests.sh --list [words]     list matching tests (id, flags, tags, name) and exit
-#   tools/run_tests.sh --include-von ai   also run tests that need the Von decision server
-#   tools/run_tests.sh --require-von ai   Von tests FAIL instead of skipping when no server is live
+#   tools/run_tests.sh --list [words]     list matching tests (id, `von:replay` / `von:live-only` / `von:unrecorded`
+#                                         for a Von test, tags, name) and exit
+#   tools/run_tests.sh --include-von ai   run the Von tests LIVE against the decision server (real-time pace, shard 0), not
+#                                         from their recordings; the live-only ones run too, skipped when no server is live
+#   tools/run_tests.sh --require-von ai   the same, and a Von test FAILs instead of skipping when no server is live. A
+#                                         live run never reads or writes a recording
+#   tools/run_tests.sh --record-von --id=ai/foo_bar
+#                                         run the selected Von tests live and write each one's recording beside its test
+#                                         (<name>_test.von.json, whole: unused entries drop) when it passes; FAILs when no
+#                                         server is live. Real-time pace, shard 0; commit the changed .von.json files
 #   tools/run_tests.sh gap                the tests tagged `gap`: specs the code does not meet yet, written first and
 #                                         left red; their failure is reported as GAP and does not fail the run, and one
 #                                         that passes FAILs ("drop the gap tag")
@@ -82,7 +90,8 @@
 #                   says so once ("waiting for a Godot slot (n of n taken)"). --jobs=N keeps N shards, each waiting for
 #                   its slot. GAME_TEST_JOBS=N caps the jobs of every run in a process tree (auto and --jobs=N alike).
 #                   The tests are dealt out to balance the shards by the wall-clock ms measured in earlier runs (kept in
-#                   $TMPDIR, falling back to the declared timeout); Von tests all stay in shard 0. One combined
+#                   $TMPDIR, falling back to the declared timeout); Von tests run live (--include-von, --require-von, --record-von) all stay in shard 0;
+#                   a replayed one is dealt like any test. One combined
 #                   summary and slowest list is printed, the totals line ending with the 1-minute load, which a line
 #                   before the first test prints too; exit 1 if any shard failed. Not used with --list/--self-test.
 #                   With more than one process the perf-domain tests are held back from the shards and run after every
@@ -227,7 +236,7 @@ LOADED_RUN=""  # 1 while the process about to start gave up waiting for a quiet 
 # space (two flags quoted into one), is refused: the batch would drop it and run everything.
 # tools/tests/test_run_tests_flags.py checks that every flag the batch reads is in one of the two lists.
 BATCH_FLAGS=(--domain= --id= --skip-domain= --repeat= --seed= --shard= --list --self-test --include-von --require-von
-  --summary --verbose --json --shots --fail-fast)
+  --record-von --summary --verbose --json --shots --fail-fast)
 WRAPPER_FLAGS=(--out= --costs= --failed=)
 batch_flag() {
   local f
@@ -755,18 +764,6 @@ print("\n".join(seen))
 EOF
 }
 
-# Whether a Von decision server answers: something listens on GAME_TEST_VON_PORT (the seam tools/test_log_gate.py makes
-# "no server" with), else on the launcher's port 8000.
-von_live() {
-  python3 - "${GAME_TEST_VON_PORT:-8000}" <<'EOF'
-import socket, sys
-try:
-    socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=1).close()
-except OSError:
-    sys.exit(1)
-EOF
-}
-
 # The Von tests the runs that wrote the dirs given skipped (the records the batch marked `"von": true`, as the totals
 # line counts them), appended to $VON_SKIPPED as one JSON `[domain, id]` line each for --changed's closing NOTE.
 note_von_skips() {
@@ -1104,8 +1101,6 @@ if [[ $CHANGED -eq 1 ]]; then
     if [[ -n "$spec_ids" ]]; then
       ran=1
       echo "== tests named by changed spec paragraphs =="
-      von=()
-      von_live && von=(--include-von)
       # --repeat=5, or the user's own when it is larger. The user's flag is not passed on: the batch gets one.
       spec_repeat=5
       others=()
@@ -1120,7 +1115,7 @@ if [[ $CHANGED -eq 1 ]]; then
           *) others+=("$x") ;;
         esac
       done
-      run_with "--id=${spec_ids#,}" "--repeat=$spec_repeat" ${von[@]+"${von[@]}"} ${others[@]+"${others[@]}"} || status=1
+      run_with "--id=${spec_ids#,}" "--repeat=$spec_repeat" ${others[@]+"${others[@]}"} || status=1
     fi
   fi
   if [[ $self_test -eq 1 ]]; then

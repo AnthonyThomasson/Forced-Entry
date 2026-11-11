@@ -12,14 +12,15 @@ extends GdUnitTestSuite
 ## FAIL and TIMEOUT fail with the failed checks; SKIPPED is skipped with its reason; GAP is skipped
 ## as "gap: expected to fail" with its failed checks; a gap test that passes FAILs ("drop the gap
 ## tag"). Each verdict is also kept as a record and printed as the batch runner printed it
-## (test_batch.gd), and a requires_von test waits for the Von decision server, one launcher for the
-## whole process, paced in real time. A suite joins the group `game_test_suites` and exposes the
-## open test's descriptor and context as `open_entry` / `open_ctx`, the hook the coverage tool's
-## probe reads. The log gate is this domain's alone: gdUnit's own log scan
-## (`gdunit4/report/godot/script_error`, off in project.godot) reads the project's log path, not the
-## `--log-file` a run owns, so it would blame a test for another Godot's errors. A run of the
-## editor's GdUnit panel, which gdUnit starts without `--fixed-fps`, is stepped once a main-loop
-## iteration like one with it, and its reports kept out of the checkout (test_report_hook.gd).
+## (test_batch.gd), and a requires_von test replays its recording, or (live, recording, live-only)
+## waits for the Von decision server, one launcher for the whole process, paced in real time. A
+## suite joins the group `game_test_suites` and exposes the open test's descriptor and context as
+## `open_entry` / `open_ctx`, the hook the coverage tool's probe reads. The log gate is this
+## domain's alone: gdUnit's own log scan (`gdunit4/report/godot/script_error`, off in project.godot)
+## reads the project's log path, not the `--log-file` a run owns, so it would blame a test for
+## another Godot's errors. A run of the editor's GdUnit panel, which gdUnit starts without
+## `--fixed-fps`, is stepped once a main-loop iteration like one with it, and its reports kept out
+## of the checkout (test_report_hook.gd).
 
 const TestBatch = preload("res://scenes/testing/test_batch.gd")
 const TestCatalog = preload("res://scenes/testing/test_catalog.gd")
@@ -64,6 +65,7 @@ func before() -> void:
 	_session.von.include = TestBatch.flag("--include-von") or not TestBatch.selecting()
 	_session.von.require = TestBatch.flag("--require-von")
 	_session.von.live = TestBatch.flag("--include-von") or TestBatch.flag("--require-von")
+	_session.von.record = _session.von.record or TestBatch.flag("--record-von")
 	_session.shots = TestBatch.flag("--shots")
 	_session.bundle_dir = TestBatch.bundle_dir()
 	# one launcher, and the server it started, for the whole process

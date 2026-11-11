@@ -1,8 +1,9 @@
 extends RefCounted
 ## Testing domain: finds every test (`res://tests/**/*_test.gd`) and describes it as a plain dict
 ## the browser and runner work from:
-##   { id, path, name, domain, category, description, tags, timeout, requires_von, manual, internal,
-##     switches, world, locked, error }
+## { id, path, name, domain, category, description, tags, timeout, requires_von, live_only, von,
+## manual,
+##     internal, switches, world, locked, error }
 ## `id` is the path under tests/ without the suffix (e.g. "projectile/pistol_shot_wounds");
 ## `category` is the sub-folder between the domain and the file when there is one
 ## (`tests/ai/entry/…` -> "entry", else ""); `error` is set (and the rest defaulted) when the script
@@ -80,7 +81,8 @@ static func describe(path: String, root := "") -> Dictionary:
 		"id": rel, "path": path, "name": parts[parts.size() - 1].capitalize(),
 		"domain": parts[0] if parts.size() > 1 else "general",
 		"category": parts[1] if parts.size() > 2 else "", "description": "", "tags": [],
-		"timeout": DEFAULT_TIMEOUT, "requires_von": false, "manual": sandbox, "internal": false,
+		"timeout": DEFAULT_TIMEOUT, "requires_von": false, "live_only": false, "von": "",
+		"manual": sandbox, "internal": false,
 		"switches": {}, "world": "", "locked": [], "error": "",
 	}
 	var script := load(path) as GDScript
@@ -95,6 +97,7 @@ static func describe(path: String, root := "") -> Dictionary:
 	for key in info:
 		entry[key] = info[key]
 	entry["manual"] = sandbox
+	entry["von"] = von_label(entry)
 	var setup := TestSetup.new()
 	test.configure(setup)
 	entry["switches"] = setup.switches
@@ -141,6 +144,23 @@ static func _find(dir_path: String, suffix := SUFFIX) -> Array:
 	return out
 
 
+## How `entry`'s Von decisions are answered, for a listing: "" for a test that needs no Von,
+## "live-only" (a `live_only` test: the real transport, skipped without a server), "record" or
+## "live" when the run records or asks the server (`record`, `live`), else "replay" when its
+## recording is there and "unrecorded" when it is not (skipped without a server until it is
+## recorded).
+static func von_label(entry: Dictionary, live := false, record := false) -> String:
+	if not entry["requires_von"]:
+		return ""
+	if entry["live_only"]:
+		return "live-only"
+	if record:
+		return "record"
+	if live:
+		return "live"
+	return "replay" if FileAccess.file_exists(VonRun.recording_path(entry)) else "unrecorded"
+
+
 ## The non-empty items of a comma-separated list.
 static func csv(text: String) -> Array:
 	var out: Array = []
@@ -149,14 +169,18 @@ static func csv(text: String) -> Array:
 	return out
 
 
-## Shard `spec` ("I/N", I from 0) of `entries`. Every shard computes the same split: tests that need
-## Von all go to shard 0 (they are paced in real time and share one launcher); the rest, costliest
-## first, each go to the shard with the least cost so far, so the shards finish at about the same
-## time. A test's cost is its wall-clock milliseconds in `costs` (id -> ms, measured by an earlier
-## run; an id it lacks costs the median of those it has). With no `costs` the declared `timeout`
-## stands in, which orders tests but says little about how long they really take. `von_runs` is
-## whether the Von tests are going to run: when they are skipped they cost shard 0 nothing.
-static func shard(entries: Array, spec: String, costs := {}, von_runs := true) -> Array:
+## Shard `spec` ("I/N", I from 0) of `entries`. Every shard computes the same split: a test that
+## runs live against Von (`von_live`: the run asked for the server or to record, or the test is
+## `live_only` and the server is asked for) is paced in real time and shares one launcher, so it
+## goes to shard 0; the rest, costliest first, each go to the shard with the least cost so far, so
+## the shards finish at about the same time. A replayed Von test is no different from any other:
+## unpaced, dealt by cost. A test's cost is its wall-clock milliseconds in `costs` (id -> ms,
+## measured by an earlier run; an id it lacks costs the median of those it has). With no `costs` the
+## declared `timeout` stands in, which orders tests but says little about how long they really take.
+## `von_live` is whether the run asks the server for its Von tests (`--include-von`,
+## `--require-von`, `--record-von`): without it a `live_only` test is skipped and costs shard 0
+## nothing.
+static func shard(entries: Array, spec: String, costs := {}, von_live := false) -> Array:
 	var parts := spec.split("/")
 	var count := maxi(1, int(parts[1])) if parts.size() == 2 else 1
 	var index := clampi(int(parts[0]), 0, count - 1)
@@ -166,17 +190,21 @@ static func shard(entries: Array, spec: String, costs := {}, von_runs := true) -
 	loads.fill(0.0)
 	var rest: Array = []
 	for e in entries:
-		if e["requires_von"]:
-			if von_runs:
-				loads[0] += cost_of.call(e)
+		if _runs_live(e, von_live):
+			loads[0] += cost_of.call(e)
 		else:
 			rest.append(e)
 	var mine := _deal(rest, loads, cost_of, index)
 	var out: Array = []
 	for e in entries:
-		if mine.has(e) or (e["requires_von"] and index == 0):
+		if mine.has(e) or (_runs_live(e, von_live) and index == 0):
 			out.append(e)
 	return out
+
+
+## Whether `entry` runs against the live Von server in a run whose Von tests do (`von_live`).
+static func _runs_live(entry: Dictionary, von_live: bool) -> bool:
+	return entry["requires_von"] and von_live
 
 
 ## A test entry's cost as `shard` weighs it: its wall-clock ms in `costs` (an id it lacks costs the

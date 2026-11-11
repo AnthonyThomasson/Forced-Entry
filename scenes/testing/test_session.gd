@@ -8,9 +8,10 @@ extends Node
 ## declared timeout; every engine error or warning the host's LogWatch reads meanwhile goes to the
 ## test and fails it at once (log_watch.gd), and one read while no test is open is kept in
 ## `stray_logs`. `close()` frees the world (restoring statics), lets the teardown's logs land on the
-## test and returns its verdict record. A requires_von test waits for the Von decision server (one
-## launcher kept under `von.launcher_parent` while it lives) and runs paced in real time, through
-## the `von` part (test_von_gate.gd).
+## test and returns its verdict record. A requires_von test replays its recording (VonRun) with no
+## server, or runs live / recording / live-only: it waits for the Von decision server (one launcher
+## kept under `von.launcher_parent` while it lives) and runs paced in real time, through the `von`
+## part (test_von_gate.gd).
 
 ## A status line for the host's banner ("Waiting for the decision server…").
 signal status(text: String)
@@ -23,6 +24,7 @@ signal world_built(setup: TestSetup)
 signal verdict_changed(result: Dictionary)
 
 const TestCatalog = preload("res://scenes/testing/test_catalog.gd")
+const TestBundle = preload("res://scenes/testing/test_bundle.gd")
 const TestWorldScript = preload("res://scenes/testing/test_world.gd")
 const LogWatch = preload("res://scenes/testing/log_watch.gd")
 const VonGate = preload("res://scenes/testing/test_von_gate.gd")
@@ -329,5 +331,5 @@ static func _write_bundle(r: Dictionary, dir: String) -> String:
 	var path := "%s/%s.json" % [dir, String(r["id"]).replace("/", "__")]
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f != null:
-		f.store_string(JSON.stringify(r, "  "))
+		f.store_string(TestBundle.json_text(r, "  "))
 	return ProjectSettings.globalize_path(path)

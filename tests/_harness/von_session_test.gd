@@ -7,11 +7,14 @@ extends GameTest
 ## - a question the recording lacks, and (once recordings are required) a recording that is not
 ##   there, each FAIL the test naming the command that records it; while they are not required, a
 ##   test with no recording runs as it always did (skipped without Von);
+## - a replayed test is not paced in real time, and the gate picks each run's mode from the run's
+##   flags: REPLAY with none, LIVE and RECORD with theirs, and no stub at all for a live_only test;
 ## - RECORD and LIVE with a stand-in answer source (no server needed): the answer lands on the
 ##   same frame however long Von took, a recorded file holds what the committed fixture holds, and
 ##   an ask Von did not answer writes nothing and FAILs.
 
 const Catalog = preload("res://scenes/testing/test_catalog.gd")
+const VonGate = preload("res://scenes/testing/test_von_gate.gd")
 const SessionScript = preload("res://scenes/testing/test_session.gd")
 const Fixture = preload("res://tests/_harness/von_fixtures/ask_fixture.gd")
 const FIXTURE_PATH := "res://tests/_harness/von_fixtures/ask_fixture.gd"
@@ -47,6 +50,7 @@ func run(t: TestContext) -> void:
 	await _gap_tagged(t)
 	await _record(t)
 	await _live(t)
+	_modes(t)
 
 
 ## The answer source of RECORD and LIVE: the option described with "hide" or "Rob" with 0.7, the
@@ -74,6 +78,8 @@ func _play(t: TestContext, recording: String, mode: String, opts := {}) -> Dicti
 	session.von.include = opts.get("include", true)
 	session.von.record = mode == "record"
 	session.von.live = mode == "live"
+	var paced := { "yes": false }
+	session.world_built.connect(func(_setup): paced["yes"] = session.von.paced())
 	Fixture.asked = []
 	var entry := Catalog.describe(FIXTURE_PATH)
 	entry["recording"] = recording
@@ -81,7 +87,7 @@ func _play(t: TestContext, recording: String, mode: String, opts := {}) -> Dicti
 	await session.start(entry)
 	var record: Dictionary = await session.close()
 	session.queue_free()
-	return { "record": record, "log": Fixture.asked.duplicate(true) }
+	return { "record": record, "log": Fixture.asked.duplicate(true), "paced": paced["yes"] }
 
 
 ## The text of every failed check of a verdict `record`.
@@ -98,9 +104,19 @@ func _picked(a: Dictionary) -> int:
 
 func _replay(t: TestContext) -> void:
 	Fixture.extra_ask = false
+	# no stand-in answer source: a replay must need no server, nor any pacing the wait for one
+	# brings
+	var source := DecisionStub.source
+	DecisionStub.source = Callable()
 	var played := await _play(t, COMMITTED, "replay")
+	DecisionStub.source = source
 	var asks: Array = played["log"]
 	t.expect_eq(played["record"]["status"], "PASS", "replay passes with no server and no flag")
+	t.expect_eq(
+		played["paced"],
+		false,
+		"a replay runs at the batch's speed, not paced in real time",
+	)
 	if not t.require(asks.size() == 2, "the fixture asked its two questions"):
 		return
 	t.expect_eq(asks[0]["pick"], "b", "the first recorded pick comes back")
@@ -229,3 +245,27 @@ func _live(t: TestContext) -> void:
 			"a slow Von's answer lands on the frame a replay's does")
 	t.expect_eq(live["log"].map(_picked), replayed["log"].map(_picked),
 			"and picks what the recording picked")
+
+
+func _modes(t: TestContext) -> void:
+	var gate := VonGate.new(t.world)
+	var entry := Catalog.describe(FIXTURE_PATH)
+	var REPLAY := DecisionStub.Mode.REPLAY
+	t.expect_eq(gate.mode_for(entry), REPLAY, "with no Von flag a Von test replays")
+	gate.live = true
+	t.expect_eq(
+		gate.mode_for(entry),
+		DecisionStub.Mode.LIVE,
+		"--include-von / --require-von run it live",
+	)
+	gate.record = true
+	t.expect_eq(gate.mode_for(entry), DecisionStub.Mode.RECORD, "--record-von records")
+	entry["live_only"] = true
+	for flags in [[false, false], [true, false], [true, true]]:
+		gate.live = flags[0]
+		gate.record = flags[1]
+		t.expect_eq(
+			gate.mode_for(entry),
+			DecisionStub.Mode.SCRIPT,
+			"a live-only test meets the real client whatever the run does (%s)" % str(flags),
+		)

@@ -29,6 +29,7 @@ matched") while a --list that lists none passes.
 FreshUserDirTests runs one native suite in a copy of the checkout whose user:// holds no logs/godot.log (a fresh
 clone, CI): gdUnit's own log monitor reads the run's log, nothing is logged outside a test, project.godot is untouched.
 """
+import http.server
 import json
 import os
 import re
@@ -39,6 +40,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import tomllib
 import unittest
@@ -146,7 +148,7 @@ while [ $# -gt 0 ]; do
     --out=*) out="${1#--out=}" ;;
     --shard=*) shard="${1#--shard=}" ;;
     --costs=*) costs="${1#--costs=}" ;;
-    --id=*|--domain=*|--skip-domain=*|--repeat=*|--include-von) selection="$selection $1" ;;
+    --id=*|--domain=*|--skip-domain=*|--repeat=*|--include-von|--require-von|--record-von) selection="$selection $1" ;;
   esac
   shift
 done
@@ -254,6 +256,13 @@ class WrapperTests(unittest.TestCase):
         self.assertIn("wrote no report", out)
         self.assertIn("broken script", out)
         self.assertEqual(self.run_wrapper("no_report_clean")[0], 1)
+
+    def test_record_von_is_a_flag_the_batch_is_given(self):
+        for flag in ("--record-von", "--require-von", "--include-von"):
+            with self.subTest(flag=flag):
+                code, out = self.run_wrapper("clean", flag, "--id=a/x")
+                self.assertEqual(code, 0, out)
+                self.assertIn(f"selection: {flag} --id=a/x", out)
 
     def test_list_run_is_scanned_from_the_start(self):
         self.assertEqual(self.run_wrapper("listing_error", "--list")[0], 1)
@@ -707,13 +716,14 @@ class SpecNamedTestsTests(unittest.TestCase):
         lines = self.run_changed("--skip-domain=physics,ai")
         self.assertEqual(lines, ["No test to run: the changed files map only to skipped domains (ai,physics)."])
 
-    def test_von_ones_get_include_von_only_when_a_server_is_live(self):
+    def test_von_ones_replay_their_recordings_whether_or_not_a_server_is_live(self):
+        # --include-von would run them live, paced and in shard 0: a changed spec's tests replay instead.
         self.edit("docs/spec.md", "Prose of the first rule.", "Prose of the first rule, reworded.")
         with socket.socket() as server:
             server.bind(("127.0.0.1", 0))
             server.listen()
             live = self.run_changed(GAME_TEST_VON_PORT=str(server.getsockname()[1]))
-        self.assertIn("--include-von", live[-1])
+        self.assertNotIn("--include-von", live[-1])
         self.assertNotIn("--include-von", self.run_changed(GAME_TEST_VON_PORT=str(free_port()))[-1])
 
     def test_a_paragraph_naming_no_test_and_an_unknown_name_are_notes_that_do_not_fail_the_run(self):
@@ -1853,6 +1863,38 @@ def free_port():
         return s.getsockname()[1]
 
 
+class FakeVon:
+    """A Von server on a free port that answers every question with `hide` and counts them, for the tests of the
+    Von run modes (the probe asks one question through the real client)."""
+
+    def __enter__(self):
+        outer = self
+        self.asked = 0
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers.get("Content-Length", 0)))
+                outer.asked += 1
+                body = json.dumps({"answers": {"pick": {"choice": "hide", "probabilities": {"shoot": 0.3, "hide": 0.7}}}}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.port = str(self.server.server_address[1])
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        return self
+
+    def __exit__(self, *exc):
+        self.server.shutdown()
+        self.server.server_close()
+
+
 class Run:
     """One tools/run_tests.sh call, read the way a person or an agent reads it."""
 
@@ -1913,7 +1955,8 @@ class GdUnitEngineTests(unittest.TestCase):
     GAP = "_harness/gap_probe"
     HOLD = "_harness/warning_hold_probe"
     VON = "_harness/von_probe"
-    PROBE_ENV = ("GAME_TEST_PROBE", "GAME_TEST_VERDICT", "GAME_TEST_GAP", "GAME_TEST_HOLD", "GAME_TEST_VON_PORT",
+    RECORD_PROBE = "_harness/von_record_probe"
+    PROBE_ENV = ("GAME_TEST_PROBE_RECORDING", "GAME_TEST_VON_RECORD", "GAME_TEST_PROBE", "GAME_TEST_VERDICT", "GAME_TEST_GAP", "GAME_TEST_HOLD", "GAME_TEST_VON_PORT",
                  "GAME_TEST_FLAKY_COUNT")
 
     @classmethod
@@ -2035,6 +2078,90 @@ class GdUnitEngineTests(unittest.TestCase):
         self.assertEqual(run.status(self.VON), ["FAIL"], f"no server on port {port} under --require-von: FAIL\n" + run.out)
         self.assert_junit(run, self.VON, "failure")
 
+    def von_probe(self, *flags, port, recording, **env):
+        """The record probe (a requires_von test asking the server on `port`, its recording the file `recording`)."""
+        return self.run_tests("--self-test", f"--id={self.RECORD_PROBE}", *flags, GAME_TEST_VON_PORT=str(port),
+                              GAME_TEST_PROBE_RECORDING=str(recording), **env)
+
+    def test_record_von_writes_the_recording_that_a_plain_run_replays_with_no_server(self):
+        recording = self.tmp / "record_replay.von.json"
+        recording.unlink(missing_ok=True)
+        with FakeVon() as von:
+            run = self.von_probe("--record-von", port=von.port, recording=recording)
+            self.assertEqual(run.status(self.RECORD_PROBE), ["PASS"], run.out)
+            self.assertGreaterEqual(von.asked, 1, "a recording run asks the server")
+            self.assertTrue(recording.exists(), "and writes the recording\n" + run.out)
+            written = recording.read_text()
+            # No flag: the answer comes from the recording, the server (still up) is never asked.
+            before = von.asked
+            run = self.von_probe(port=von.port, recording=recording)
+            self.assertEqual(von.asked, before, "a replay makes no request")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.status(self.RECORD_PROBE), ["PASS"], run.out)
+        self.assertEqual(run.summary, (1, 0, 0, 0, 0), "a replayed test is not counted as needing Von\n" + run.out)
+        self.assertEqual(run.von_skipped, 0, run.out)
+        self.assertEqual(recording.read_text(), written, "a replay writes nothing")
+        # And with nothing listening at all.
+        run = self.von_probe(port=free_port(), recording=recording)
+        self.assertEqual(run.status(self.RECORD_PROBE), ["PASS"], "replayed with no server\n" + run.out)
+
+    def test_require_von_runs_live_and_neither_reads_nor_writes_a_recording(self):
+        recording = self.tmp / "require_live.von.json"
+        recording.unlink(missing_ok=True)
+        with FakeVon() as von:
+            run = self.von_probe("--require-von", port=von.port, recording=recording)
+            self.assertEqual(run.status(self.RECORD_PROBE), ["PASS"], run.out)
+            first = von.asked
+            self.assertGreaterEqual(first, 1, "the server is asked, there being no recording to answer")
+            self.assertFalse(recording.exists(), "and no recording is written")
+            # A recording that is there is ignored, too: the server answers again and the file stays as it is.
+            recording.write_text("not a recording")
+            run = self.von_probe("--require-von", port=von.port, recording=recording)
+            self.assertEqual(run.status(self.RECORD_PROBE), ["PASS"], run.out)
+            self.assertGreater(von.asked, first, "a recording that is there does not answer for it")
+            self.assertEqual(recording.read_text(), "not a recording")
+
+    def test_record_von_and_require_von_fail_when_no_server_is_live(self):
+        recording = self.tmp / "no_server.von.json"
+        recording.unlink(missing_ok=True)
+        for flag in ("--record-von", "--require-von"):
+            with self.subTest(flag=flag):
+                run = self.von_probe(flag, port=free_port(), recording=recording)
+                self.assertEqual(run.code, 1, run.out)
+                self.assertEqual(run.status(self.RECORD_PROBE), ["FAIL"], run.out)
+                self.assertIn(flag, run.out)
+                self.assertFalse(recording.exists(), "nothing is recorded")
+
+    def test_a_stale_recording_fails_naming_the_question_and_the_command_that_records_it(self):
+        recording = self.tmp / "stale.von.json"
+        with FakeVon() as von:
+            self.von_probe("--record-von", port=von.port, recording=recording)
+        data = json.loads(recording.read_text())
+        self.assertTrue(data["entries"], "premise: the recording holds an entry")
+        data["entries"] = []
+        recording.write_text(json.dumps(data))
+        run = self.von_probe(port=free_port(), recording=recording)
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(run.status(self.RECORD_PROBE), ["FAIL"], run.out)
+        self.assertIn("What do you do?", run.out)
+        self.assertIn(f"tools/run_tests.sh --record-von --id={self.RECORD_PROBE}", run.out)
+
+    def test_a_live_only_test_is_never_replayed(self):
+        # The transport probe runs against the server alone: with none on the port it is skipped.
+        run = self.probe(self.VON, GAME_TEST_VON_PORT=str(free_port()))
+        self.assertEqual(run.status(self.VON), ["SKIPPED"], run.out)
+        self.assertEqual(run.von_skipped, 1, "and the totals name it as needing Von\n" + run.out)
+
+    def test_a_check_message_with_a_control_character_leaves_a_valid_report(self):
+        run = self.probe(self.VERDICT, GAME_TEST_VERDICT="control_char")
+        self.assertEqual(run.status(self.VERDICT), ["FAIL"], run.out)
+        report = run.report()  # json.loads: a raw control character in a string is a decode error
+        result = next(r for r in report["results"] if r["id"] == self.VERDICT)
+        self.assertIn("\u0001id\u0001", " ".join(c["message"] for c in result["checks"]))
+        bundles = run.bundles()
+        self.assertEqual(len(bundles), 1, run.out)
+        self.assertEqual(json.loads(bundles[0].read_text())["checks"], result["checks"])
+
     def test_a_requires_von_test_is_skipped_without_include_von(self):
         run = self.probe(self.VON)
         self.assertEqual(run.code, 0, run.out)
@@ -2062,7 +2189,8 @@ class GdUnitEngineTests(unittest.TestCase):
     def test_list_prints_the_selection_and_runs_nothing(self):
         run = self.run_tests("--self-test", "--list")
         self.assertEqual(run.code, 0, run.out)
-        self.assertRegex(run.out, re.compile(r"^_harness/von_probe\s+von\s+\[harness, von\]\s+Von probe$", re.M))
+        self.assertRegex(run.out, re.compile(r"^_harness/von_probe\s+von:live-only\s+\[harness, von\]\s+Von probe$", re.M))
+        self.assertRegex(run.out, re.compile(r"^_harness/von_record_probe\s+von:unrecorded\s", re.M), "no recording of its own yet")
         self.assertRegex(run.out, re.compile(r"^\d+ test\(s\)$", re.M))
         self.assertEqual(run.results, {}, "--list runs no test")
 

@@ -1,8 +1,9 @@
 extends GameTest
 ## Harness probe for the verdicts a run reports, and gdUnit's JUnit with them
 ## (tools/test_log_gate.py). It passes unless the environment variable GAME_TEST_VERDICT is `fail`
-## (a failed check), `timeout` (it runs past its timeout), `skip` (it skips itself) or
-## `missing_static` (its setup sets a static var its holder lacks, which fails it).
+## (a failed check), `timeout` (it runs past its timeout), `skip` (it skips itself),
+## `missing_static` (its setup sets a static var its holder lacks, which fails it) or `control_char`
+## (a failed check whose message holds a control character, as a Von option id's key does).
 
 
 func describe() -> Dictionary:
@@ -31,5 +32,8 @@ func run(t: TestContext) -> void:
 			return
 		"skip":
 			t.skip("verdict probe: skipped on purpose")
+			return
+		"control_char":
+			t.check(false, "verdict probe: ask \u0001id\u0001 failed")
 			return
 	t.check(true, "reached the end")

@@ -1,10 +1,11 @@
 extends RefCounted
-## Testing domain: the test session's Von gate (test_session.gd's `von`). A requires_von test waits
-## here for the Von decision server (one launcher per process, kept under `launcher_parent` while it
-## lives) and, once it runs, is paced in real time (`pace`, each process frame) until `end`. It
-## holds its session (a Node): the launcher goes under it when no `launcher_parent` is given. The
-## wait is announced through the callable the session hands `skip_reason`, its `status` signal's
-## `emit`.
+## Testing domain: the test session's Von gate (test_session.gd's `von`). It decides how each
+## requires_von test's decisions are answered (`mode_for`): replayed from its recording, which needs
+## no server and no pacing, or live / recording / live-only, which wait here for the Von decision
+## server (one launcher per process, kept under `launcher_parent` while it lives) and, once they
+## run, are paced in real time (`pace`, each process frame) until `end`. It holds its session (a
+## Node): the launcher goes under it when no `launcher_parent` is given. The wait is announced
+## through the callable the session hands `skip_reason`, its `status` signal's `emit`.
 
 const LAUNCHER = preload("res://scenes/ai/decision/decision_server_launcher.gd")
 ## Frame rate a Von-dependent test is paced to in real time (matches the batch run's --fixed-fps
@@ -91,6 +92,11 @@ func skip_reason(announce: Callable, force := false) -> String:
 	if not await _await_von(announce):
 		return NOT_LIVE
 	return ""
+
+
+## Whether the open test is paced in real time (it runs live; a replayed one never is).
+func paced() -> bool:
+	return _realtime
 
 
 ## Stop pacing in real time (the session's `close`).
