@@ -35,8 +35,8 @@ pair of ends, so the decisions made inside one window do not walk it again; a do
 window's end drops it whatever happened. Which lead an investigator picks does not change (`ai/perception/lead_route_memo_matches_plain`).
 
 Tests: `ai/perception/footsteps_heard_by_gait` (scripted: walk, run and crouch in and out of range through a wall, an ally unheard),
-`ai/investigate/footsteps_lead` (real Von: a defender hears an invader in the next room and investigates),
-`ai/grenade/stun_entry_footsteps_heard` (real Von: the stack bangs the room the steps came from).
+`ai/investigate/footsteps_lead` (recorded Von: a defender hears an invader in the next room and investigates),
+`ai/grenade/stun_entry_footsteps_heard` (recorded Von: the stack bangs the room the steps came from).
 
 ## Numbers
 

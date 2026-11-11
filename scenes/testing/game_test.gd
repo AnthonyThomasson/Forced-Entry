@@ -17,8 +17,11 @@ class_name GameTest extends RefCounted
 ##                           (`<name>_test.von.json` beside it, no server); `--record-von` writes
 ##                           it; `--include-von` / `--require-von` run it live (default false)
 ##   live_only: bool       — with requires_von: never replayed, always against the real server and
-##                           the real client (the HTTP transport itself); SKIPPED without one
-##                           (default false)
+##                           the real client (the HTTP transport itself, or a fight no replay
+##                           reproduces); SKIPPED without one (default false)
+##   own_process: bool     — a last resort: the runner plays it in an engine process of its own,
+##                           after the shards (the engine's contact order follows what the process
+##                           ran before; `runner-flags.md`) (default false)
 ##   (sandboxes — `res://sandboxes/*_sandbox.gd`, same base class — are played by hand: no
 ##   assertions, no timeout, never in a batch run) internal: bool        — a harness self-test:
 ##                           hidden from the browser and normal runs, run by

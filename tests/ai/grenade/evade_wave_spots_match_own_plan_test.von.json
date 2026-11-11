@@ -1,0 +1,164 @@
+{
+	"entries": [
+		{
+			"options": [
+				"You are badly wounded and being hit (best: d2, out of their sight; you are unhurt)",
+				"You have a clear shot at thrower, and you are not badly wounded (from where you stand)",
+				"thrower looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Pistol)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.2475,
+				"engage": 0.5361,
+				"retreat": 0.2165
+			},
+			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: d2, d3, d4, d5.\nYou have a clear shot at thrower from where you stand. You are exposed to their fire.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — facing away from you — holding a Pistol.\nd2 (ally) — in sight — south-east of you, in the hallway — on thrower's behind them — standing still.\nd3 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nd4 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nd5 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nFlanks on thrower (you are on behind them): their left side — route passes thrower, line blocked, cover, medium hidden route; their right side — route passes thrower, line blocked, cover, long hidden route.\nDecided so far: COMBAT → thrower."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the cabinet close by, out of their sight; you are unhurt)",
+				"You have a clear shot at thrower, and you are not badly wounded (once they show, from an ambush behind cover)",
+				"thrower looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Pistol)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.346,
+				"engage": 0.4052,
+				"retreat": 0.2488
+			},
+			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: d3, d4, d5.\nYou are behind cover from thrower (the cabinet): your line to them is blocked.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — facing away from you — holding a Pistol.\nd3 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nd4 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nd5 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nFlanks on thrower (you are on behind them): their left side — route passes thrower, line blocked, cover, medium hidden route; their right side — route passes thrower, line blocked, cover, long hidden route.\nDecided so far: COMBAT → thrower."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: the living room, out of their sight; you are unhurt)",
+				"thrower looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Pistol)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.5776,
+				"retreat": 0.4224
+			},
+			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: d4, d5.\nA d5 is between you and thrower: your line to them is blocked. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — aiming at you — holding a Pistol.\nd4 (ally) — in sight — south-east of you, in the hallway — on thrower's front — standing still.\nd5 (ally) — in sight — east of you, in the hallway — on thrower's front — standing still.\nFlanks on thrower (you are on their front): their left side — route passes thrower, line blocked, cover, medium hidden route; their right side — route passes thrower, line blocked, cover, medium hidden route; behind them — route passes thrower, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → thrower."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: the kitchen, out of their sight; you are unhurt)",
+				"You have a clear shot at thrower, and you are not badly wounded (from where you stand)",
+				"thrower looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, standing still, holding a Pistol)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.2314,
+				"engage": 0.6008,
+				"retreat": 0.1678
+			},
+			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: d5.\nYou have a clear shot at thrower from where you stand. You are exposed to their fire. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — close, in pistol range, east of you, in the hallway — standing still — aiming at you — holding a Pistol.\nd5 (ally) — in sight — north-east of you, in the hallway — on thrower's front — standing still.\nFlanks on thrower (you are on their front): their left side — route passes thrower, line blocked, cover, medium hidden route; their right side — route passes thrower, line blocked, cover, short hidden route; behind them — route passes thrower, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → thrower."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)",
+				"You have a clear shot at thrower, and you are not badly wounded (from where you stand)",
+				"thrower looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, standing still, holding a Pistol)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.1821,
+				"engage": 0.6814,
+				"retreat": 0.1365
+			},
+			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at thrower from where you stand. You are exposed to their fire. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — close, in pistol range, east of you, in the hallway — standing still — aiming at you — holding a Pistol.\nFlanks on thrower (you are on their front): their left side — route passes thrower, line blocked, cover, medium hidden route; their right side — route passes thrower, line blocked, cover, short hidden route; behind them — route passes thrower, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → thrower."
+		},
+		{
+			"options": [
+				"fire from behind the cabinet in the hallway, west of them — clear shot — cover close by (the cabinet) — short exposed route",
+				"fire from where you stand (in the hallway) — clear shot — cover close by (the cabinet)",
+				"wait in ambush behind the cabinet — you shoot when they show — they are standing still"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"ambush": 0.3235,
+				"fire_here": 0.4085,
+				"fire_west": 0.268
+			},
+			"question": "Where should you fight thrower from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour pistol is loaded.\nYou have a clear shot at thrower from where you stand. You are exposed to their fire.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — facing away from you — holding a Pistol.\nd2 (ally) — in sight — south-east of you, in the hallway — on thrower's behind them — standing still.\nd3 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nd4 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nd5 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nDecided so far: COMBAT → thrower → ENGAGE."
+		},
+		{
+			"options": [
+				"advance halfway to them (in the hallway) — in the open — clear shot from there",
+				"advance most of the way to them (in the hallway) — in the open — clear shot from there",
+				"rush straight at where they are (in the hallway) — short hidden route — they hold a Pistol"
+			],
+			"pick": "advance_close",
+			"probabilities": {
+				"advance_close": 0.3738,
+				"advance_half": 0.3311,
+				"rush": 0.2951
+			},
+			"question": "How should you close in on thrower? Prefer cover close to them and a hidden route; rush only when they are weak, fleeing or unarmed.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour pistol is loaded.\nA d5 is between you and thrower: your line to them is blocked. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — aiming at you — holding a Pistol.\nd4 (ally) — in sight — south-east of you, in the hallway — on thrower's front — standing still.\nd5 (ally) — in sight — east of you, in the hallway — on thrower's front — standing still.\nDecided so far: COMBAT → thrower → ADVANCE."
+		},
+		{
+			"options": [
+				"fire from behind the wall in the hallway, west of them — clear shot — cover close by (the wall) — short hidden route",
+				"fire from where you stand (in the hallway) — clear shot — cover close by (the wall)"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"fire_here": 0.5385,
+				"fire_west": 0.4615
+			},
+			"question": "Where should you fight thrower from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour pistol is loaded.\nYou have a clear shot at thrower from where you stand. You are exposed to their fire. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — close, in pistol range, east of you, in the hallway — standing still — aiming at you — holding a Pistol.\nd5 (ally) — in sight — north-east of you, in the hallway — on thrower's front — standing still.\nDecided so far: COMBAT → thrower → ENGAGE."
+		},
+		{
+			"options": [
+				"fire from behind the wall in the hallway, west of them — clear shot — cover close by (the wall) — short exposed route",
+				"fire from where you stand (in the hallway) — clear shot — in the open"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"fire_here": 0.6051,
+				"fire_west": 0.3949
+			},
+			"question": "Where should you fight thrower from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour pistol is loaded.\nYou have a clear shot at thrower from where you stand. You are exposed to their fire. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — close, in pistol range, east of you, in the hallway — standing still — aiming at you — holding a Pistol.\nDecided so far: COMBAT → thrower → ENGAGE."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: d3, out of their sight; you are unhurt)",
+				"You have a clear shot at thrower, and you are not badly wounded (once they show, from an ambush behind cover; they look badly wounded) (your current plan)",
+				"thrower looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Pistol, looks badly wounded)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.6042,
+				"engage": 0.2157,
+				"retreat": 0.1802
+			},
+			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - thrower - ENGAGE - ambush behind the cabinet (in ambush, waiting for a shot, for 3s).\nKnown hostiles: 1 (1 in sight). Allies near you: d3, d4, d5, d1.\nYou are behind cover from thrower (the cabinet): your line to them is blocked. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nd3 (ally) — last seen just now — north of you, in the hallway — on thrower's front — was moving west.\nd4 (ally) — in sight — north-east of you, in the hallway — on thrower's front — standing still.\nd5 (ally) — last seen just now — east of you, in the hallway — on thrower's front — was moving north-east, away from you.\nd5 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd4 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd3 (radio, recently): COMBAT - thrower - ADVANCE - close to them.\nd1 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nFlanks on thrower (you are on their front): their left side — route passes thrower, line blocked, cover, long hidden route; their right side — route passes thrower, line blocked, cover, medium exposed route; behind them — route passes thrower, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → thrower."
+		},
+		{
+			"options": [
+				"advance halfway to them (in the hallway) — in the open — clear shot from there",
+				"advance most of the way to them (in the hallway) — in the open — clear shot from there",
+				"rush straight at where they are (in the hallway) — medium exposed route — they hold a Pistol"
+			],
+			"pick": "advance_close",
+			"probabilities": {
+				"advance_close": 0.3653,
+				"advance_half": 0.3465,
+				"rush": 0.2882
+			},
+			"question": "How should you close in on thrower? Prefer cover close to them and a hidden route; rush only when they are weak, fleeing or unarmed.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nCurrent activity: COMBAT - thrower - ENGAGE - ambush behind the cabinet (in ambush, waiting for a shot, for 3s).\nYour pistol is loaded.\nYou are behind cover from thrower (the cabinet): your line to them is blocked. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nd3 (ally) — last seen just now — north of you, in the hallway — on thrower's front — was moving west.\nd4 (ally) — in sight — north-east of you, in the hallway — on thrower's front — standing still.\nd5 (ally) — last seen just now — east of you, in the hallway — on thrower's front — was moving north-east, away from you.\nd5 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd4 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd3 (radio, recently): COMBAT - thrower - ADVANCE - close to them.\nd1 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nDecided so far: COMBAT → thrower → ADVANCE."
+		}
+	],
+	"version": 1
+}

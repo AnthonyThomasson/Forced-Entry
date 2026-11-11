@@ -1,0 +1,57 @@
+{
+	"entries": [
+		{
+			"options": [
+				"the hallway — unsearched — medium route",
+				"the kitchen — unsearched — medium route"
+			],
+			"pick": "room_hall",
+			"probabilities": {
+				"room_hall": 0.6036,
+				"room_kitchen": 0.3964
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the living room, inside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)",
+				"You have a clear shot at inv, and you are not badly wounded (from where you stand)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"engage": 0.7743,
+				"retreat": 0.2257
+			},
+			"question": "How should you fight inv? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the living room, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: d1.\nYou have a clear shot at inv from where you stand. You are exposed to their fire.\ninv — HOSTILE (trespassing) — in sight — in pistol range, south-east of you, in the hallway — standing still — facing away from you — holding a Pistol.\nd1 (ally) — in sight — north-east of you, in the living room — on inv's left side — standing still.\nFlanks on inv (you are on behind them): their left side — taken by d1, line blocked, cover, short hidden route; their right side — free, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → inv."
+		},
+		{
+			"options": [
+				"the doorway to the east — unexplored — short route",
+				"the doorway to the north-west — unexplored — short route"
+			],
+			"pick": "door_690_360",
+			"probabilities": {
+				"door_150_360": 0.4667,
+				"door_690_360": 0.5333
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH → ENTER."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)",
+				"You have a clear shot at inv, and you are not badly wounded (from where you stand) (your current plan)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"engage": 0.7072,
+				"retreat": 0.2928
+			},
+			"question": "How should you fight inv? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the living room, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - inv - ENGAGE - ambush behind the wall (moving into position, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: d1.\nYou have a clear shot at inv from where you stand. You are exposed to their fire.\ninv — HOSTILE (trespassing) — in sight — in pistol range, south-east of you, in the hallway — moving east, away from you — facing away from you — holding a Pistol.\nd1 (ally) — last seen just now — north-east of you, in the living room — on inv's left side — was standing still.\nFlanks on inv (you are on behind them): their left side — taken by d1, line blocked, cover, short hidden route; their right side — free, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → inv."
+		}
+	],
+	"version": 1
+}

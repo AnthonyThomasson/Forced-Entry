@@ -4,6 +4,7 @@ extends GameTest
 ## server is the port in GAME_TEST_VON_PORT (a fake one the tool test runs), its recording the file
 ## GAME_TEST_PROBE_RECORDING names (never a file in the repository), so `--record-von` writes one,
 ## a plain run replays it with no server, and `--require-von` asks the server and writes nothing.
+## Without that variable it replays the recording committed beside it.
 
 const DecisionClient = preload("res://scenes/ai/decision/decision_client.gd")
 

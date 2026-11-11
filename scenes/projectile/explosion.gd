@@ -211,7 +211,22 @@ static func _bodies_near(
 	for c: Node2D in characters:
 		if _dead(c) and not out.has(c):
 			out.append(c)
+	# The shape query lists bodies in the order the engine holds them, which follows what the
+	# process allocated before: nearest first (then by place) keeps every draw of the world's
+	# random stream, and every hit, on the same body whatever the process ran earlier.
+	out.sort_custom(func(a: Node2D, b: Node2D) -> bool: return _nearer(a, b, at))
 	return out
+
+
+## Whether `a` stands nearer the burst at `at` than `b` (a tie: the leftmost, then the topmost).
+static func _nearer(a: Node2D, b: Node2D, at: Vector2) -> bool:
+	var da := a.global_position.distance_squared_to(at)
+	var db := b.global_position.distance_squared_to(at)
+	if da != db:
+		return da < db
+	if a.global_position.x != b.global_position.x:
+		return a.global_position.x < b.global_position.x
+	return a.global_position.y < b.global_position.y
 
 
 ## Whether something between `burst` and `p` shields a body at `p` from a burst there (G7), by

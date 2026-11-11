@@ -1,0 +1,33 @@
+{
+	"entries": [
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the south-west — an ally radioed a fight there — short route)",
+				"A doorway leads into a room where a hostile was heard, seen, radioed or shooting from (the doorway to the south-west — an ally radioed a fight there — short route)",
+				"an unexplored part of the house to the west — medium route"
+			],
+			"pick": "stun_entry",
+			"probabilities": {
+				"enter": 0.3568,
+				"explore_west": 0.1881,
+				"stun_entry": 0.4552
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the doorway to the south-west — an ally radioed a fight there — short route",
+				"the doorway to the west — unexplored — long route"
+			],
+			"pick": "door_840_190",
+			"probabilities": {
+				"door_0_415": 0.3219,
+				"door_840_190": 0.6781
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH → STUN ENTRY."
+		}
+	],
+	"version": 1
+}

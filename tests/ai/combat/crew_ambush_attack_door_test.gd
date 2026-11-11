@@ -133,7 +133,7 @@ func _sightings(t: TestContext, crew: Array) -> Array:
 	return t.events_of(&"callout", func(c): return (
 		crew.has(c.get("speaker"))
 		and String(c.get("path", "")).begins_with("combat")
-		and c.get("target_pos", Vector2.INF) is Vector2
+		and c.get("target_pos", null) is Vector2
 		and (c["target_pos"] as Vector2).is_finite()
 	))
 

@@ -85,11 +85,14 @@ class FakeTree(unittest.TestCase):
 
     def listed(self):
         """The arguments of each listing the run asked the engine for, one string each."""
-        return self.lists.read_text().splitlines() if self.lists.exists() else []
+        lines = self.lists.read_text().splitlines() if self.lists.exists() else []
+        return [ln.replace(" --skip-own-process", "") for ln in lines]
 
     def started(self):
-        """The arguments of each engine process the run started (after the `--` of the command line), one string each."""
-        return self.starts.read_text().splitlines() if self.starts.exists() else []
+        """The arguments of each engine process the run started (after the `--` of the command line), one string each.
+        The `--skip-own-process` the wrapper adds to every main run is left out: it is no part of what a test selects."""
+        lines = self.starts.read_text().splitlines() if self.starts.exists() else []
+        return [ln.replace(" --skip-own-process", "") for ln in lines]
 
     def last_report(self):
         return json.loads(next(self.state.glob("example_godot_last_report_*.json")).read_text())["results"]

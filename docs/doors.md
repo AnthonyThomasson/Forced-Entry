@@ -308,10 +308,10 @@ beyond it without touching it), `ai/movement/door_ajar_opened_fully` (scripted V
 through but not cleanly, it uses the door open to its stop, never pushing it, and goes on), `ai/movement/door_ajar_gap_walked`
 (scripted Von: past a door open at 70°, through its gap and round the leaf to gunfire behind it, the door left as it stood, never
 touched), `ai/movement/door_ajar_gap_walked_from_behind` (the way back: from behind the leaf round its free end and out by
-the gap), `navigation/door_open_leaf_carved`, `navigation/door_open_leaf_narrow_doorway_paths`, `ai/movement/door_in_the_way` (real Von, hand-laid house: two invaders search the one room behind a shut door, one opens it
-from the latch side, goes in, leaves it open, the room not searched while it was shut), `ai/movement/door_blocked_rerouted` (real
+the gap), `navigation/door_open_leaf_carved`, `navigation/door_open_leaf_narrow_doorway_paths`, `ai/movement/door_in_the_way` (recorded Von, hand-laid house: two invaders search the one room behind a shut door, one opens it
+from the latch side, goes in, leaves it open, the room not searched while it was shut), `ai/movement/door_blocked_rerouted` (recorded
 Von: a chair in the swing holds the nearer door shut, the walk is a blocked one and the defender goes in by the other doorway),
-`ai/movement/door_second_walker_leaves_open` (real Von: two defenders reach the door together; the leaf never turns back toward shut), `ai/entry/entry_shut_door_skips_pie`, `entry_ajar_door_skips_pie`, `entry_glass_door_keeps_pie`, `entry_open_door_keeps_pie`, `entry_door_just_under_sixty_skips_pie`, `entry_door_just_over_sixty_keeps_pie`, `entry_knocked_down_door_keeps_pie`, `entry_split_stack_shut_door_skips_pie` and `entry_ajar_door_hostile_in_gap` (the entry's pie at a door: scripted Von, a hand-laid kitchen with its back door).
+`ai/movement/door_second_walker_leaves_open` (recorded Von: two defenders reach the door together; the leaf never turns back toward shut), `ai/entry/entry_shut_door_skips_pie`, `entry_ajar_door_skips_pie`, `entry_glass_door_keeps_pie`, `entry_open_door_keeps_pie`, `entry_door_just_under_sixty_skips_pie`, `entry_door_just_over_sixty_keeps_pie`, `entry_knocked_down_door_keeps_pie`, `entry_split_stack_shut_door_skips_pie` and `entry_ajar_door_hostile_in_gap` (the entry's pie at a door: scripted Von, a hand-laid kitchen with its back door).
 
 ## Trying doors by hand
 

@@ -44,7 +44,7 @@ Exit 1: a test failed or timed out, or an error or warning was logged outside an
 - **Von:** a `requires_von` test replays its recording (`<name>_test.von.json` beside it) in every normal run: no server,
   `--fixed-fps` speed, sharded like any test. `--record-von` rewrites the recordings against a live server;
   `--include-von` / `--require-von` run the tests live instead (paced in real time, shard 0; `--require-von` FAILs with no
-  server). A `live_only` test (the HTTP transport itself) never replays and is skipped without a server. The live-only set
+  server). A `live_only` test (the HTTP transport itself, or a fight no replay reproduces) never replays and is skipped without a server. The live-only set
   and the rule for it: `runner-flags.md`, "Von tests".
 - **Selection:** filter words are word prefixes over id, name, domain, description and tags (`ai` matches the ai
   domain, not "chair"); `--domain`, `--id` and `--skip-domain` accumulate. A native suite runs whole or not at all (id =
@@ -105,7 +105,7 @@ func run(t: TestContext) -> void:
 ```
 
 - **`describe()`** (all optional): `name`, `domain`, `description`, `tags`, `timeout` (sim s; 10),
-  `requires_von`, `fail_on_errors` / `fail_on_warnings` (default true), `allowed_logs` (regexes).
+  `requires_von`, `own_process` (`runner-flags.md`), `fail_on_errors` / `fail_on_warnings` (default true), `allowed_logs` (regexes).
 - **`configure(s)`** is data only (the browser lists its switches); API: `test-setup.md`.
 - **`run(t)`** is a coroutine. Wait only through `t` (`seconds`, `frames`, `until`, all in sim time): a raw
   `await get_tree()…` can resume into a torn-down world. `t.check` is soft, `t.require` ends the test (follow it with

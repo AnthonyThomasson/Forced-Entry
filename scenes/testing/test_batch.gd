@@ -6,15 +6,16 @@ extends RefCounted
 ##   [filter words] [--domain=a,b] [--id=a,b] [--skip-domain=a,b] [--failed=<report>] [--self-test]
 ##   [--include-von] [--require-von] [--record-von] [--repeat=N] [--seed=N] [--fail-fast]
 ##   [--summary] [--verbose]
-##   [--json] [--shots] [--shard=I/N] [--costs=<json>] [--out=<dir>]
+##   [--json] [--shots] [--shard=I/N] [--costs=<json>] [--out=<dir>] [--skip-own-process]
 ## The selection is made once per process from the catalog (test_catalog.gd), as the batch runner
 ## made it: `--domain` / `--id` keep exactly those, `--skip-domain` wins over all (each of the three
 ## a comma list, and a flag given again adds to it: `list_option`), the words are
 ## word prefixes (TestCatalog.matches), `--self-test` keeps only the harness's own tests and
-## `--shard` one cost-balanced slice. Each wrapper suite lists the selected tests of its folder as
-## its cases (`cases`), each `--repeat` times; a native suite runs whole or not at all
-## (`native_selected`). With no options at all (gdUnit's editor panel, its own command line) every
-## test of a folder is listed, the harness's own included, read from the file names. With
+## `--shard` one cost-balanced slice, `--skip-own-process` leaves out the `own_process` tests (the
+## wrapper runs each in an engine process of its own). Each wrapper suite lists the selected tests
+## of its folder as its cases (`cases`), each `--repeat` times; a native suite runs whole or not at
+## all (`native_selected`). With no options at all (gdUnit's editor panel, its own command line)
+## every test of a folder is listed, the harness's own included, read from the file names. With
 ## `--out=<dir>` (a run that owns its engine log, `--log-file <dir>/godot.log`) the run keeps a
 ## verdict record per test (`add`), prints each as the batch runner printed it, and the session hook
 ## writes <dir>/report.json and prints the summary at the end (`finish`). Without it nothing is
@@ -155,12 +156,27 @@ static func selection() -> Array:
 	var keep := func(e): return (e["internal"] or not self_test) and TestCatalog.matches(e, text)
 	var picked := TestCatalog.discover(TestCatalog.ROOT, domains, _ids(), skipped).filter(keep)
 	TestCatalog.show_internal = false
+	if flag("--skip-own-process"):
+		picked = _defer_own_process(picked)
 	var spec := option("--shard")
 	if spec != "":
 		picked = TestCatalog.shard(picked, spec, TestCatalog.load_costs(option("--costs")),
 			von_live())
 	_picked = picked
 	return picked
+
+
+## `picked` without its `own_process` tests, whose ids the run leaves in `<out>/own_process.txt` for
+## the wrapper, which runs each in an engine process of its own (`--skip-own-process`).
+static func _defer_own_process(picked: Array) -> Array:
+	var own: Array = picked.filter(func(e): return e["own_process"])
+	if own.is_empty():
+		return picked
+	if reporting():
+		var f := FileAccess.open(option("--out").path_join("own_process.txt"), FileAccess.WRITE)
+		if f != null:
+			f.store_string("\n".join(own.map(func(e): return e["id"])) + "\n")
+	return picked.filter(func(e): return not e["own_process"])
 
 
 ## Whether the run asks the Von server for its Von tests, `--include-von`, `--require-von` and
@@ -356,34 +372,22 @@ static func finish() -> void:
 		print("JSON: " + TestBundle.json_text({ "results": records, "stray_logs": stray_logs }))
 
 
-## Whether the record `r` is a Von test that did not run: a `live_only` one skipped for want of the
-## Von decision server (no `--include-von`, or none live), or one with no recording yet. The session
-## marks its record `"von": true` (test_session.gd), which is how the totals line and
-## tools/run_tests.sh tell it from any other skip; a replayed test ran and is never marked.
+## Whether the record `r` is a Von test that did not run: a `live_only` one, or one run live,
+## skipped for want of the Von decision server (no `--include-von`, or none live). The session marks
+## its record `"von": true` (test_session.gd), which is how the totals line and tools/run_tests.sh
+## tell it from any other skip; a replayed test ran and is never marked.
 static func _is_von_skip(r: Dictionary) -> bool:
 	return r["status"] == "SKIPPED" and r.get("von", false)
 
 
-## Whether the Von skip `r` is one with no recording yet (its `von_kind`), which `--record-von`
-## makes runnable; any other needs the live server (`--require-von`).
-static func _is_unrecorded(r: Dictionary) -> bool:
-	return _is_von_skip(r) and r.get("von_kind", "") == "unrecorded"
-
-
-## The totals line: the counts by status, the Von tests that did not run named apart by what runs
-## them when there are any: `(A need Von, not run: --require-von; B unrecorded, not run:
-## --record-von)`, either part left out when it is 0.
+## The totals line: the counts by status, the Von tests that did not run (`_is_von_skip`) named
+## when there are any: `(A need Von, not run: --require-von)`.
 static func _totals_line(counts: Dictionary) -> String:
-	var unrecorded: int = records.filter(_is_unrecorded).size()
-	var need_live: int = records.filter(_is_von_skip).size() - unrecorded
-	var parts := PackedStringArray()
-	if need_live > 0:
-		parts.append("%d need Von, not run: --require-von" % need_live)
-	if unrecorded > 0:
-		parts.append("%d unrecorded, not run: --record-von" % unrecorded)
+	var need_live: int = records.filter(_is_von_skip).size()
 	return "%d passed, %d failed, %d timed out, %d skipped%s, %d gap" % [
 		counts["PASS"], counts["FAIL"], counts["TIMEOUT"], counts["SKIPPED"],
-		"" if parts.is_empty() else " (%s)" % "; ".join(parts), counts["GAP"],
+		"" if need_live == 0 else " (%d need Von, not run: --require-von)" % need_live,
+		counts["GAP"],
 	]
 
 

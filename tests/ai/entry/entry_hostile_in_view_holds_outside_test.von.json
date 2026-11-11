@@ -1,0 +1,115 @@
+{
+	"entries": [
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the south-west — unexplored — short route)",
+				"an unexplored part of the house to the west — medium route"
+			],
+			"pick": "enter",
+			"probabilities": {
+				"enter": 0.6113,
+				"explore_west": 0.3887
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the doorway to the south-west — unexplored — short route",
+				"the doorway to the west — unexplored — long route"
+			],
+			"pick": "door_840_190",
+			"probabilities": {
+				"door_0_415": 0.3689,
+				"door_840_190": 0.6311
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH → ENTER."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)",
+				"You have a clear shot at defender, and you are not badly wounded (from where you stand)",
+				"Your line to defender is blocked, or they are aiming at someone else (2 free sides; best: their left side via the kitchen, short exposed route, cover)",
+				"defender looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Unarmed)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.1511,
+				"engage": 0.6076,
+				"flank": 0.1371,
+				"retreat": 0.1042
+			},
+			"question": "How should you fight defender? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: SEARCH - ENTER - the doorway to the south-west (slicing the pie, for 2s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at defender from where you stand. You are exposed to their fire. They are aiming at you.\ndefender — HOSTILE (seen) — in sight — in pistol range, west of you, in the kitchen — standing still — aiming at you — holding a Unarmed.\nFlanks on defender (you are on their front): their left side — free, clear shot, cover, short exposed route; their right side — free, clear shot, cover, short exposed route; behind them — route passes defender, clear shot, cover, medium hidden route.\nDecided so far: COMBAT → defender."
+		},
+		{
+			"options": [
+				"fire from where you stand (outside) — clear shot — cover close by (the wall)",
+				"wait in ambush behind the wall — you shoot when they show — they are standing still"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"ambush": 0.3889,
+				"fire_here": 0.6111
+			},
+			"question": "Where should you fight defender from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: SEARCH - ENTER - the doorway to the south-west (slicing the pie, for 2s).\nYour pistol is loaded.\nYou have a clear shot at defender from where you stand. You are exposed to their fire. They are aiming at you.\ndefender — HOSTILE (seen) — in sight — in pistol range, west of you, in the kitchen — standing still — aiming at you — holding a Unarmed.\nDecided so far: COMBAT → defender → ENGAGE."
+		},
+		{
+			"options": [
+				"All is quiet and there are rooms left to search (find your way into the house and explore it)",
+				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: where you last saw defender, in the kitchen))"
+			],
+			"pick": "investigate",
+			"probabilities": {
+				"investigate": 0.6103,
+				"search": 0.3897
+			},
+			"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - defender - ENGAGE - where you stand (slicing the pie, for 4s).\nThere is trouble nearby, out of your sight. Allies near you: none.\nNobody else is in sight or known."
+		},
+		{
+			"options": [
+				"where you last saw defender, in the kitchen — recently — short route"
+			],
+			"pick": "lead_seen_1",
+			"probabilities": {
+				"lead_seen_1": 1.0
+			},
+			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: COMBAT - defender - ENGAGE - where you stand (slicing the pie, for 4s).\nNobody else is in sight or known.\nDecided so far: INVESTIGATE."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)",
+				"You have a clear shot at defender, and you are not badly wounded (from where you stand; they look hurt)",
+				"Your line to defender is blocked, or they are aiming at someone else (2 free sides; best: their left side via the kitchen, short exposed route, cover)",
+				"defender looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Unarmed, looks hurt)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.1912,
+				"engage": 0.5091,
+				"flank": 0.1672,
+				"retreat": 0.1325
+			},
+			"question": "How should you fight defender? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: INVESTIGATE - where you last saw defender (slicing the pie, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at defender from where you stand. You are exposed to their fire. They are aiming at you.\ndefender — HOSTILE (seen) — in sight — in pistol range, west of you, in the kitchen — standing still — aiming at you — holding a Unarmed — looks hurt.\nFlanks on defender (you are on their front): their left side — free, clear shot, cover, short exposed route; their right side — free, clear shot, cover, short exposed route; behind them — route passes defender, clear shot, cover, medium hidden route.\nDecided so far: COMBAT → defender."
+		},
+		{
+			"options": [
+				"fire from where you stand (outside) — clear shot — cover close by (the wall)",
+				"wait in ambush behind the wall — you shoot when they show — they are standing still"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"ambush": 0.3725,
+				"fire_here": 0.6275
+			},
+			"question": "Where should you fight defender from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: INVESTIGATE - where you last saw defender (slicing the pie, for 0s).\nYour pistol is loaded.\nYou have a clear shot at defender from where you stand. You are exposed to their fire. They are aiming at you.\ndefender — HOSTILE (seen) — in sight — in pistol range, west of you, in the kitchen — standing still — aiming at you — holding a Unarmed — looks hurt.\nDecided so far: COMBAT → defender → ENGAGE."
+		}
+	],
+	"version": 1
+}

@@ -26,6 +26,11 @@ func describe() -> Dictionary:
 			+ "the bang, takes no blast, and is back on its gun afterwards.",
 		"tags": ["ai", "grenade", "combat", "cover", "von"],
 		"requires_von": true,
+		# A frag shoves rigid furniture, and the engine settles touching bodies in the order of the
+		# slots they were allocated in, which follows what the process ran before: the snapshot's
+		# wording at a band edge then differs from the recording's. A fresh process plays it as it
+		# was recorded.
+		"own_process": true,
 		"timeout": 100.0,
 	}
 

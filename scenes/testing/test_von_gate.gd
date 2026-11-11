@@ -23,10 +23,9 @@ static var _launcher: Node = null
 ## The launcher's settled answer: whether a server is live.
 static var _von_live := false
 
-## Whether a requires_von test that needs the server may run: a live-only one, one run live, one
-## with no recording yet (false: it is SKIPPED, "pass --include-von"). A test that replays its
-## recording never asks. The batch sets it for `--include-von`; a host with no run options leaves
-## it.
+## Whether a requires_von test that needs the server may run: a live-only one or one run live
+## (false: it is SKIPPED, "pass --include-von"). A test that replays its recording never asks.
+## The batch sets it for `--include-von`; a host with no run options leaves it.
 var include := true
 ## Whether a requires_von test FAILs instead of skipping when no server is live (--require-von).
 var require := false
@@ -36,10 +35,6 @@ var live := false
 ## Whether requires_von tests RECORD: live, each writing its recording (the host sets it for
 ## `--record-von`, and only that does).
 var record := false
-## Whether a requires_von test with no recording file FAILs (naming the command that records it)
-## instead of being skipped without Von (a live run asks the server). Off while some Von tests have
-## no recording yet; they then count as "unrecorded" in the totals.
-var require_recording := false
 ## Where the Von launcher lives: it is kept, with the server it started, as long as that node does.
 var launcher_parent: Node = null
 ## While true, each frame sleeps out the rest of 1/REALTIME_FPS of wall time (Engine.max_fps is not

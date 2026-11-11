@@ -1,0 +1,44 @@
+{
+	"entries": [
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the west — unexplored — short route)",
+				"an unexplored part of the house to the west — medium route"
+			],
+			"pick": "enter",
+			"probabilities": {
+				"enter": 0.6119,
+				"explore_west": 0.3881
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the doorway to the west — unexplored — long route",
+				"the doorway to the west — unexplored — short route"
+			],
+			"pick": "door_840_190",
+			"probabilities": {
+				"door_0_415": 0.3831,
+				"door_840_190": 0.6169
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH → ENTER."
+		},
+		{
+			"options": [
+				"the doorway into the living room — unsearched — short route",
+				"the doorway to the south — unexplored — short route"
+			],
+			"pick": "door_690_360",
+			"probabilities": {
+				"door_480_150": 0.3708,
+				"door_690_360": 0.6292
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: ORDER - the doorway into the kitchen (waiting, for 14s).\nDecided so far: SEARCH → ENTER."
+		}
+	],
+	"version": 1
+}

@@ -25,18 +25,12 @@ var _entry: Dictionary
 var _has_file := false
 
 
-func _init(
-	entry: Dictionary,
-	run_mode: DecisionStub.Mode,
-	require_recording := false,
-) -> void:
+func _init(entry: Dictionary, run_mode: DecisionStub.Mode) -> void:
 	_entry = entry
 	mode = run_mode
 	if mode == DecisionStub.Mode.REPLAY:
 		_has_file = FileAccess.file_exists(path())
 		recording = VonRecording.load_file(path()) if _has_file else null
-		if not _has_file and not require_recording:
-			mode = DecisionStub.Mode.SCRIPT
 
 
 ## The recording file of the test: beside its script, or the descriptor's `recording`.
@@ -56,7 +50,7 @@ func command() -> String:
 	return "tools/run_tests.sh --record-von --id=%s" % _entry["id"]
 
 
-## Why the test cannot be replayed, "" when it can: its recording is missing (and required) or is
+## Why the test cannot be replayed, "" when it can: its recording file is missing or is
 ## no recording (a corrupt file, another version).
 func missing() -> String:
 	if mode != DecisionStub.Mode.REPLAY or recording != null:

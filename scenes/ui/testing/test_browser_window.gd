@@ -264,7 +264,7 @@ func _setup_lines(t: Dictionary) -> PackedStringArray:
 		"live-only":
 			lines.append("Needs the Von decision server (skipped without one).")
 		"unrecorded":
-			lines.append("Von test with no recording yet: needs the Von decision server.")
+			lines.append("Von test with no recording: it fails until --record-von records it.")
 		_:
 			if t.get("requires_von", false):
 				lines.append("Needs the Von decision server (skipped without one).")

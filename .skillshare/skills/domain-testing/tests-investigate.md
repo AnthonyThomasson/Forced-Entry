@@ -10,7 +10,7 @@ defenders leaving the house). Footsteps are `docs/hearing.md` H1.
   tests (`requires_von`, replayed from a recording; `--record-von` re-asks Von) check what a real Von decided: the defender stays in, still
   investigates gunfire inside, and an invader investigates the same gunfire outside. After rewording what Von reads about
   leads, run `tools/von_probe.py` (its `investigate_outside_lead_*` scenarios).
-- `defenders_stay_in_house_quiet` (scripted) and `_von` (real Von, invaders outside as at a match's start) watch every
+- `defenders_stay_in_house_quiet` (scripted) and `_von` (`live_only`: real Von, never replayed, invaders outside as at a match's start) watch every
   defender of a generated house (`tests/_ai/house_probe.gd`: `house(s, seed, defenders, invaders)` declares the house and a
   match over it; `side(t, faction)` reads one side's NPCs off `t.world.match_handle`; `watch` carries each defender's trail
   and what Von was last asked into its failure message). Sweep them with `--seed=N`.

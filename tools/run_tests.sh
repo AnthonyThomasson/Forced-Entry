@@ -33,11 +33,9 @@
 #                                         Nothing mapped, or only domains --skip-domain leaves out: it says which
 #                                         and exits 0. It ends with a `NOTE <n> Von test(s) in the changed domains were
 #                                         not run: tools/run_tests.sh --domain=<d> --require-von` when the runs skipped
-#                                         Von tests, one NOTE per kind: live-only ones (run them with `--require-von`) and
-#                                         ones with no recording yet (`NOTE <n> Von test(s) ... have no recording:
-#                                         tools/run_tests.sh --record-von --id=<ids>`); a replayed test ran and is no part
-#                                         of either. The totals line names the kinds apart: `N skipped (V need Von, not run:
-#                                         --require-von; U unrecorded, not run: --record-von)`. A changed docs/*.md paragraph runs the tests its `Test:` /
+#                                         live-only Von tests; a replayed test ran and is no part of it. The totals line
+#                                         names them: `N skipped (V need Von, not run: --require-von)`. A Von test with no
+#                                         recording is no skip: it FAILs naming `--record-von --id=`. A changed docs/*.md paragraph runs the tests its `Test:` /
 #                                         `Tests:` line (or the `Tests:`-only block that directly follows a paragraph
 #                                         naming none) names (tools/spec_tests.py; names resolve against the index under
 #                                         --staged), --repeat=5 (a larger --repeat given wins) under `== tests named by changed
@@ -68,7 +66,7 @@
 #                                         line) with --changed (also =<ref>), --staged, --jobs above 1 and an unknown REV
 #                                         (--jobs=auto and --jobs=1 are the one process). Use it to see a fixed test
 #                                         still red on the old code.
-#   tools/run_tests.sh --list [words]     list matching tests (id, `von:replay` / `von:live-only` / `von:unrecorded`
+#   tools/run_tests.sh --list [words]     list matching tests (id, `von:replay` / `von:live-only` / `von:unrecorded` (no recording: it FAILs)
 #                                         for a Von test, tags, name) and exit
 #   tools/run_tests.sh --include-von ai   run the Von tests LIVE against the decision server (real-time pace, shard 0), not
 #                                         from their recordings; the live-only ones run too, skipped when no server is live
@@ -93,7 +91,10 @@
 #                   its slot. GAME_TEST_JOBS=N caps the jobs of every run in a process tree (auto and --jobs=N alike).
 #                   The tests are dealt out to balance the shards by the wall-clock ms measured in earlier runs (kept in
 #                   $TMPDIR, falling back to the declared timeout); Von tests run live (--include-von, --require-von, --record-von) all stay in shard 0;
-#                   a replayed one is dealt like any test. One combined
+#                   a replayed one is dealt like any test. A test with `own_process` in its describe() (a last resort,
+#                   domain-testing's runner-flags.md) is left out of every process (--skip-own-process, which the wrapper
+#                   adds itself) and runs after them, --repeat times, each in an engine process of its own; a hand-given
+#                   --shard and --list leave it where it is. One combined
 #                   summary and slowest list is printed, the totals line ending with the 1-minute load, which a line
 #                   before the first test prints too; exit 1 if any shard failed. Not used with --list/--self-test.
 #                   With more than one process the perf-domain tests are held back from the shards and run after every
@@ -239,7 +240,7 @@ LOADED_RUN=""  # 1 while the process about to start gave up waiting for a quiet 
 # tools/tests/test_run_tests_flags.py checks that every flag the batch reads is in one of the two lists.
 BATCH_FLAGS=(--domain= --id= --skip-domain= --repeat= --seed= --shard= --list --self-test --include-von --require-von
   --record-von --summary --verbose --json --shots --fail-fast)
-WRAPPER_FLAGS=(--out= --costs= --failed=)
+WRAPPER_FLAGS=(--out= --costs= --failed= --skip-own-process)
 batch_flag() {
   local f
   [[ "$1" == *[[:space:]]* ]] && return 1
@@ -767,8 +768,7 @@ EOF
 }
 
 # The Von tests the runs that wrote the dirs given skipped (the records the batch marked `"von": true`, as the totals
-# line counts them), appended to $VON_SKIPPED as one JSON `[domain, id, kind]` line each for --changed's closing NOTE;
-# `kind` is the record's `von_kind` ("unrecorded", or "live" for one that needs the server).
+# line counts them), appended to $VON_SKIPPED as one JSON `[domain, id]` line each for --changed's closing NOTE.
 note_von_skips() {
   python3 - "$VON_SKIPPED" "$@" <<'EOF'
 import json, os, sys
@@ -780,27 +780,23 @@ with open(sys.argv[1], "a") as out:
             continue
         for r in results:
             if r.get("status") == "SKIPPED" and r.get("von"):
-                out.write(json.dumps([r.get("domain", ""), r["id"], r.get("von_kind", "live")]) + "\n")
+                out.write(json.dumps([r.get("domain", ""), r["id"]]) + "\n")
 EOF
 }
 
-# The closing NOTEs of --changed, one per kind of Von test the runs skipped, each with the command that runs them: the
-# ones that need the server (live-only) are run by --require-von on their domains; the ones with no recording yet are
-# made by --record-von on their ids.
+# The closing NOTE of --changed: the Von tests the runs skipped (live-only: they need the server) are run by
+# --require-von on their domains.
 von_note() {
   python3 - "$VON_SKIPPED" <<'EOF'
 import json, sys
-live, unrecorded = {}, {}
+live = {}
 for line in open(sys.argv[1]):
-    domain, test_id, kind = json.loads(line)
-    (unrecorded if kind == "unrecorded" else live)[test_id] = domain
+    domain, test_id = json.loads(line)
+    live[test_id] = domain
 if live:
     domains = sorted({d for d in live.values() if d})
     print("NOTE %d Von test(s) in the changed domains were not run: tools/run_tests.sh --domain=%s --require-von"
           % (len(live), ",".join(domains)))
-if unrecorded:
-    print("NOTE %d Von test(s) in the changed domains have no recording: tools/run_tests.sh --record-von --id=%s"
-          % (len(unrecorded), ",".join(sorted(unrecorded))))
 EOF
 }
 
@@ -817,31 +813,67 @@ run_header() {
 }
 
 # The one totals line of the processes whose output is in the files given: every `N passed, ...` line summed field by
-# field, the skips that need Von or have no recording yet (named apart as each process names them) summed too, then $1
+# field, the skips that need Von (as each process names them) summed too, then $1
 # (the shard count) and the 1-minute load.
 merged_totals() {
   local shards="$1"; shift
   python3 - "$shards" "$(load_1min)" "$@" <<'EOF'
 import re, sys
 LINE = re.compile(r"^(\d+) passed, (\d+) failed, (\d+) timed out, (\d+) skipped"
-                  r"(?: \((?:(\d+) need Von, not run: --require-von)?(?:; )?"
-                  r"(?:(\d+) unrecorded, not run: --record-von)?\))?, (\d+) gap")
-total = dict.fromkeys(("passed", "failed", "timed out", "skipped", "von", "unrecorded", "gap"), 0)
+                  r"(?: \((\d+) need Von, not run: --require-von\))?, (\d+) gap")
+total = dict.fromkeys(("passed", "failed", "timed out", "skipped", "von", "gap"), 0)
 for path in sys.argv[3:]:
     for line in open(path, errors="replace"):
         m = LINE.match(line)
         if m:
             for key, value in zip(total, m.groups()):
                 total[key] += int(value or 0)
-parts = []
-if total["von"]:
-    parts.append("%d need Von, not run: --require-von" % total["von"])
-if total["unrecorded"]:
-    parts.append("%d unrecorded, not run: --record-von" % total["unrecorded"])
-need = " (%s)" % "; ".join(parts) if parts else ""
+need = " (%d need Von, not run: --require-von)" % total["von"] if total["von"] else ""
 print("%d passed, %d failed, %d timed out, %d skipped%s, %d gap%s  load %s" % (
     total["passed"], total["failed"], total["timed out"], total["skipped"], need, total["gap"], sys.argv[1], sys.argv[2]))
 EOF
+}
+
+# The ids the runs that wrote the dirs given deferred (`--skip-own-process`: the batch lists the selected `own_process`
+# tests in <dir>/own_process.txt instead of running them), one per line, each once.
+own_deferred() {
+  local d
+  for d in "$@"; do cat "$d/own_process.txt" 2>/dev/null || true; done | sort -u | grep . || true
+}
+
+# The args of a run's own-process tests: the run's, less what selects tests or repeats them (each such test is selected
+# by its id, once a process), the shard, the costs and the flag that deferred them.
+own_process_args() {
+  local a
+  for a in "$@"; do
+    case "$a" in
+      -*) case "$a" in
+            --id=*|--domain=*|--skip-domain=*|--failed*|--repeat=*|--shard=*|--costs=*|--skip-own-process) ;;
+            *) echo "$a" ;;
+          esac ;;
+    esac
+  done
+}
+
+# Each deferred own-process test (own_deferred over the dirs given), --repeat times, in an engine process of its own
+# (a fresh process plays a test as its recording was made: `own_process` of domain-testing); the report dirs they
+# write are appended to OWN_DIRS (a global: bash returns no array). Returns 1 when one fails. $1: how many times each
+# runs; the dirs after it, the main runs'; OWN_ARGS: the run's args as own_process_args made them.
+OWN_ARGS=()
+OWN_DIRS=()
+own_process_runs() {
+  local times="$1" id k out status=0
+  shift
+  OWN_DIRS=()
+  while IFS= read -r id; do
+    [[ -z "$id" ]] && continue
+    for ((k = 0; k < times; k++)); do
+      out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
+      OWN_DIRS+=("$out")
+      perf_run live_run "$out" ${OWN_ARGS[@]+"${OWN_ARGS[@]}"} "--id=$id" </dev/null || status=1
+    done
+  done < <(own_deferred "$@")
+  return $status
 }
 
 # One run of the runner with the given selection args (all of them: `run` adds the command line's), split over several
@@ -857,6 +889,7 @@ run_with() {
     case "$x" in --repeat=*) repeat="${x#--repeat=}" ;; esac
   done
   if [[ "$repeat" =~ ^[0-9]+$ && "$(decimal "$repeat")" -gt 1 ]]; then repeat=$(decimal "$repeat"); sharded=1; else repeat=1; fi
+  local own_times=$repeat   # kept: a --self-test run leaves its --repeat to the batch, an own-process test still gets a process each
   for x in "$@"; do
     case "$x" in --shard=*) [[ $repeat -gt 1 ]] && once=1 ;; esac
     case "$x" in --list|--self-test|--shard=*) sharded=0; repeat=1 ;; esac
@@ -864,7 +897,18 @@ run_with() {
     case "$x" in --list) listing=1 ;; esac
   done
   [[ $listing -eq 0 ]] && run_header
-  local out
+  local out a own=1 shown=("$@")
+  for x in "$@"; do
+    case "$x" in --list|--shard=*) own=0 ;; esac
+  done
+  if [[ $own -eq 1 ]]; then
+    # An `own_process` test is left to a process of its own, run after the others (own_process_runs); every run, a
+    # lone process too, ends as a run of several does: its processes' reports and totals together.
+    OWN_ARGS=()
+    while IFS= read -r a; do [[ -n "$a" ]] && OWN_ARGS+=("$a"); done < <(own_process_args "$@")
+    set -- "$@" --skip-own-process
+    sharded=1
+  fi
   if [[ $sharded -eq 0 ]]; then
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     local code=0
@@ -879,7 +923,7 @@ run_with() {
       echo "NOTE native suites ran once (--shard)"
     fi
     if [[ $listing -eq 0 ]] && no_test "$out"; then
-      no_test_matched "$@"
+      no_test_matched ${shown[@]+"${shown[@]}"}
       code=1
     fi
     return $code
@@ -925,6 +969,10 @@ run_with() {
     dirs+=("$out")
     perf_run live_run "$out" ${phase[@]+"${phase[@]}"} --domain=perf || status=1
   fi
+  if [[ $own -eq 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
+    own_process_runs "$own_times" "${dirs[@]}" || status=1
+    dirs+=(${OWN_DIRS[@]+"${OWN_DIRS[@]}"})
+  fi
   if [[ $repeat -gt 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
     # The native suites the run met, each run again in N-1 processes, one after another (a suite's own files are
     # never shared by two processes at once).
@@ -950,7 +998,7 @@ run_with() {
   note_von_skips "${dirs[@]}"
   merged_totals "$shards" "${files[@]}"
   if no_test "${dirs[@]}"; then
-    no_test_matched "$@"
+    no_test_matched ${shown[@]+"${shown[@]}"}
     status=1
   fi
   return $status

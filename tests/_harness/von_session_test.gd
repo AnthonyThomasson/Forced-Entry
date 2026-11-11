@@ -4,9 +4,8 @@ extends GameTest
 ## logs each answer's physics frame; this test plays it through a TestSession of its own:
 ## - REPLAY (no Von flag, no server): the recorded picks come back, each exactly 12 physics frames
 ##   after its ask (the spec: about 200 ms at 60 fps), with the recorded probabilities;
-## - a question the recording lacks, and (once recordings are required) a recording that is not
-##   there, each FAIL the test naming the command that records it; while they are not required, a
-##   test with no recording runs as it always did (skipped without Von);
+## - a question the recording lacks, and a recording that is not there, each FAIL the test naming
+##   the command that records it (an unrecorded test is no skip kind: nothing replaces it);
 ## - a replayed test is not paced in real time, and the gate picks each run's mode from the run's
 ##   flags: REPLAY with none, LIVE and RECORD with theirs, and no stub at all for a live_only test;
 ## - RECORD and LIVE with a stand-in answer source (no server needed): the answer lands on the
@@ -45,7 +44,6 @@ func run(t: TestContext) -> void:
 	await _replay(t)
 	await _miss(t)
 	await _missing_file(t)
-	await _without_recording(t)
 	await _unreadable_file(t)
 	await _gap_tagged(t)
 	await _record(t)
@@ -74,7 +72,6 @@ func _stand_in_von(_state: String, _question: String, options: Dictionary) -> Di
 func _play(t: TestContext, recording: String, mode: String, opts := {}) -> Dictionary:
 	var session := SessionScript.new()
 	t.world.add_child(session)
-	session.von.require_recording = opts.get("required", false)
 	session.von.include = opts.get("include", true)
 	session.von.record = mode == "record"
 	session.von.live = mode == "live"
@@ -147,12 +144,7 @@ func _miss(t: TestContext) -> void:
 
 
 func _missing_file(t: TestContext) -> void:
-	var played := await _play(
-		t,
-		"user://no_such_recording.von.json",
-		"replay",
-		{ "required": true },
-	)
+	var played := await _play(t, "user://no_such_recording.von.json", "replay")
 	var record: Dictionary = played["record"]
 	t.expect_eq(record["status"], "FAIL", "a requires_von test with no recording fails")
 	var said := _failures(record)
@@ -162,28 +154,8 @@ func _missing_file(t: TestContext) -> void:
 	t.check(played["log"].is_empty(), "and its world never ran")
 
 
-func _without_recording(t: TestContext) -> void:
-	# recordings not required, no Von flag: as before, the test is skipped and its world never runs
-	var source := DecisionStub.source
-	DecisionStub.source = Callable()
-	var played := await _play(
-		t,
-		"user://no_such_recording.von.json",
-		"replay",
-		{ "include": false },
-	)
-	DecisionStub.source = source
-	var record: Dictionary = played["record"]
-	t.expect_eq(record["status"], "SKIPPED", "a test with no recording is skipped, not failed")
-	t.check(
-		String(record["reason"]).contains("--include-von"),
-		"as it always was: " + record["reason"],
-	)
-	t.check(played["log"].is_empty(), "and its world never ran")
-
-
 func _unreadable_file(t: TestContext) -> void:
-	# a file that is there but no recording is no "missing" file: it fails, required or not
+	# a file that is there but no recording is no "missing" file: it fails like a missing one
 	var bad := "user://von_session_unreadable.von.json"
 	var f := FileAccess.open(bad, FileAccess.WRITE)
 	f.store_string('{"version": 99, "entries": []}')
@@ -202,7 +174,7 @@ func _gap_tagged(t: TestContext) -> void:
 	Fixture.extra_ask = false
 	t.expect_eq(missed["record"]["status"], "FAIL", "a miss in a gap-tagged test still fails")
 	var absent := await _play(
-		t, "user://no_such_recording.von.json", "replay", { "required": true, "tags": ["gap"] },
+		t, "user://no_such_recording.von.json", "replay", { "tags": ["gap"] },
 	)
 	t.expect_eq(absent["record"]["status"], "FAIL", "and so does a missing recording")
 

@@ -1,0 +1,68 @@
+{
+	"entries": [
+		{
+			"options": [
+				"the hallway — unsearched — medium route",
+				"the kitchen — unsearched — medium route"
+			],
+			"pick": "room_hall",
+			"probabilities": {
+				"room_hall": 0.6036,
+				"room_kitchen": 0.3964
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the living room, inside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the hallway — unsearched — short route",
+				"the kitchen — unsearched — medium route"
+			],
+			"pick": "room_hall",
+			"probabilities": {
+				"room_hall": 0.5988,
+				"room_kitchen": 0.4012
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the living room, inside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"All is quiet and there are rooms left to search (1 of 3 known rooms unsearched) (your current plan)",
+				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: gunfire heard to the north-east, in the kitchen))"
+			],
+			"pick": "investigate",
+			"probabilities": {
+				"investigate": 0.5865,
+				"search": 0.4135
+			},
+			"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: SEARCH - the hallway (en route, for 6s).\nThere is trouble nearby, out of your sight. Allies near you: deaf.\nNobody else is in sight or known.\nGunfire heard to the north-east, in the kitchen, recently."
+		},
+		{
+			"options": [
+				"gunfire heard to the north-east, in the kitchen — recently — medium route"
+			],
+			"pick": "lead_gunfire_3_0",
+			"probabilities": {
+				"lead_gunfire_3_0": 1.0
+			},
+			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - the hallway (en route, for 6s).\nNobody else is in sight or known.\ndeaf (ally) — in sight — north-east of you, in the hallway — standing still.\nGunfire heard to the north-east, in the kitchen, recently.\nDecided so far: INVESTIGATE."
+		},
+		{
+			"options": [
+				"the kitchen — unsearched — medium route",
+				"the living room — searched recently — medium route"
+			],
+			"pick": "room_living_room",
+			"probabilities": {
+				"room_kitchen": 0.4022,
+				"room_living_room": 0.5978
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - the hallway (reached it, for 6s).\nDecided so far: SEARCH."
+		}
+	],
+	"version": 1
+}

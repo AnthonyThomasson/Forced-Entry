@@ -1,0 +1,202 @@
+{
+	"entries": [
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are hurt)",
+				"You have a clear shot at d, and you are not badly wounded (from where you stand; they look badly wounded)"
+			],
+			"pick": "retreat",
+			"probabilities": {
+				"engage": 0.4875,
+				"retreat": 0.5125
+			},
+			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are hurt.\nYour pistol is loaded.\nCurrent activity: ORDER - the doorway into the kitchen (stacked at the door, for 4s).\nKnown hostiles: 1 (1 in sight). Allies near you: b.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the kitchen — standing still — aiming at you — holding a Pistol — looks badly wounded.\nb (radio, just now): ORDER - the doorway into the kitchen.\nFlanks on d (you are on their front): their left side — free, clear shot, in the open, short hidden route; their right side — free, line blocked, cover, short hidden route; behind them — route passes d, line blocked, cover, medium hidden route.\nYou are being hit, from the south!\nDecided so far: COMBAT → d."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)",
+				"You have a clear shot at d, and you are not badly wounded (from where you stand; they look badly wounded)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"engage": 0.6104,
+				"retreat": 0.3896
+			},
+			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: ORDER - the doorway into the kitchen (stacked at the door, for 4s).\nKnown hostiles: 1 (1 in sight). Allies near you: a, lead.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — in pistol range, south of you, in the kitchen — standing still — aiming at you — holding a Pistol — looks badly wounded.\na (ally) — in sight — south of you, outside the house — on d's front — standing still — looks hurt.\nlead (ally) — in sight — south-east of you, outside the house — far from d — standing still.\na (radio, just now): ORDER - the doorway into the kitchen.\nFlanks on d (you are on their front): their left side — free, clear shot, in the open, short hidden route; their right side — free, line blocked, cover, short hidden route; behind them — route passes d, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → d."
+		},
+		{
+			"options": [
+				"fire from where you stand (outside) — clear shot — cover close by (the wall)",
+				"wait in ambush behind the wall — you shoot when they show — they are standing still"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"ambush": 0.3946,
+				"fire_here": 0.6054
+			},
+			"question": "Where should you fight d from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nCurrent activity: ORDER - the doorway into the kitchen (stacked at the door, for 4s).\nYour pistol is loaded.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — in pistol range, south of you, in the kitchen — standing still — aiming at you — holding a Pistol — looks badly wounded.\na (ally) — in sight — south of you, outside the house — on d's front — standing still — looks hurt.\nlead (ally) — in sight — south-east of you, outside the house — far from d — standing still.\na (radio, just now): ORDER - the doorway into the kitchen.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → d → ENGAGE."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are hurt)",
+				"You have a clear shot at d, and you are not badly wounded (from behind the wall outside; they look badly wounded)"
+			],
+			"pick": "retreat",
+			"probabilities": {
+				"engage": 0.3534,
+				"retreat": 0.6466
+			},
+			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are hurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - d - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: b.\nYou are behind cover from d (the wall): your line to them is blocked.\nd — HOSTILE (attacked you) — last seen just now — in pistol range, south-west of you, in the kitchen — was standing still — holding a Pistol — looks badly wounded.\nb (ally) — last seen just now — north-west of you, outside the house — on d's front — was standing still.\nb (radio, just now): COMBAT - d - ENGAGE - where you stand; under fire.\nFlanks on d (you are on their front): their left side — free, clear shot, in the open, medium hidden route; their right side — free, line blocked, cover, short hidden route; behind them — route passes d, line blocked, cover, medium hidden route.\nYou are being hit, from the south!\nDecided so far: COMBAT → d."
+		},
+		{
+			"options": [
+				"back off behind the wall close by — out of every hostile's sight — cover close by (the wall) — short hidden route",
+				"fall back to b — out of every hostile's sight — cover close by (the wall) — short hidden route"
+			],
+			"pick": "fall_ally_b",
+			"probabilities": {
+				"fall_ally_b": 0.5313,
+				"fall_cover": 0.4687
+			},
+			"question": "Where should you fall back to? Prefer a spot out of every hostile's sight, with cover, toward allies, and close by.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are hurt.\nYou are behind cover from d (the wall): your line to them is blocked.\nd — HOSTILE (attacked you) — last seen just now — in pistol range, south-west of you, in the kitchen — was standing still — holding a Pistol — looks badly wounded.\nb (ally) — last seen just now — north-west of you, outside the house — on d's front — was standing still.\nb (radio, just now): COMBAT - d - ENGAGE - where you stand; under fire.\nYou are being hit, from the south!\nDecided so far: COMBAT → d → RETREAT."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: b, out of their sight; you are hurt)",
+				"You have a clear shot at d, and you are not badly wounded (from where you stand; they look badly wounded)"
+			],
+			"pick": "retreat",
+			"probabilities": {
+				"engage": 0.4209,
+				"retreat": 0.5791
+			},
+			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are hurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - d - RETREAT - b (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: b, lead.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — in pistol range, south of you, in the kitchen — standing still — aiming at you — holding a Pistol — looks badly wounded.\nb (ally) — in sight — south of you, outside the house — on d's front — moving east.\nlead (ally) — in sight — south-east of you, outside the house — far from d — standing still.\nb (radio, just now): COMBAT - d - ENGAGE - where you stand; under fire.\nFlanks on d (you are on their front): their left side — free, clear shot, in the open, medium exposed route; their right side — free, line blocked, cover, short hidden route; behind them — route passes d, line blocked, cover, medium hidden route.\nYou are being hit, from the south!\nDecided so far: COMBAT → d."
+		},
+		{
+			"options": [
+				"back off behind the wall close by — out of every hostile's sight — cover close by (the wall) — short hidden route",
+				"fall back to b — out of every hostile's sight — cover close by (the wall) — short hidden route"
+			],
+			"pick": "fall_ally_b",
+			"probabilities": {
+				"fall_ally_b": 0.5284,
+				"fall_cover": 0.4716
+			},
+			"question": "Where should you fall back to? Prefer a spot out of every hostile's sight, with cover, toward allies, and close by.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are hurt.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — in pistol range, south of you, in the kitchen — standing still — aiming at you — holding a Pistol — looks badly wounded.\nb (ally) — in sight — south of you, outside the house — on d's front — moving east.\nlead (ally) — in sight — south-east of you, outside the house — far from d — standing still.\nb (radio, just now): COMBAT - d - ENGAGE - where you stand; under fire.\nYou are being hit, from the south!\nDecided so far: COMBAT → d → RETREAT."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
+				"You have a clear shot at d, and you are not badly wounded (from behind the wall in the kitchen; they look badly wounded)"
+			],
+			"pick": "retreat",
+			"probabilities": {
+				"engage": 0.4021,
+				"retreat": 0.5979
+			},
+			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - d - RETREAT - b (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: b, lead.\nA b is between you and d: your line to them is blocked.\nd — HOSTILE (attacked you) — last seen just now — in pistol range, south-west of you, in the kitchen — was standing still — holding a Pistol — looks badly wounded.\nb (ally) — in sight — south-west of you, outside the house — on d's front — moving south-west, away from you.\nlead (ally) — last seen just now — south-east of you, outside the house — far from d — was standing still.\nb (radio, recently): COMBAT - d - ENGAGE - where you stand; under fire.\nFlanks on d (you are on their front): their left side — free, clear shot, in the open, short hidden route; their right side — free, line blocked, cover, short hidden route; behind them — route passes d, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south-west!\nDecided so far: COMBAT → d."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: a, out of their sight; you are unhurt)",
+				"You have a clear shot at d, and you are not badly wounded (from behind the wall in the kitchen; they look badly wounded) (your current plan)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"engage": 0.5429,
+				"retreat": 0.4571
+			},
+			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - d - ENGAGE - where you stand (in position, looking for a shot, for 3s).\nKnown hostiles: 1 (0 in sight). Allies near you: a, lead.\nYou are behind cover from d (the wall): your line to them is blocked.\nd — HOSTILE (attacked you) — last seen recently — close, in pistol range, south-west of you, in the kitchen — was standing still — holding a Pistol — looks badly wounded.\na (ally) — last seen recently — north-east of you, outside the house — on d's front — was moving east, away from you — looks hurt.\nlead (ally) — last seen recently — south-east of you, outside the house — far from d — was standing still.\na (radio, just now): COMBAT - d - RETREAT - behind the wall close by; under fire, badly wounded.\nFlanks on d (you are on their front): their left side — free, clear shot, in the open, short hidden route; their right side — free, line blocked, cover, short hidden route; behind them — route passes d, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south-west!\nDecided so far: COMBAT → d."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
+				"You have a clear shot at d, and you are not badly wounded (from behind the wall outside; they look badly wounded)"
+			],
+			"pick": "retreat",
+			"probabilities": {
+				"engage": 0.3502,
+				"retreat": 0.6498
+			},
+			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - d - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: b, lead.\nYou are behind cover from d (the wall): your line to them is blocked.\nd — HOSTILE (attacked you) — last seen just now — in pistol range, south-west of you, in the kitchen — was standing still — holding a Pistol — looks badly wounded.\nb (ally) — in sight — south-west of you, outside the house — on d's front — moving south-east.\nlead (ally) — last seen just now — south-east of you, outside the house — far from d — was standing still.\nb (radio, just now): COMBAT - d - ENGAGE - ambush behind the wall; under fire.\nFlanks on d (you are on their front): their left side — free, clear shot, in the open, medium hidden route; their right side — free, line blocked, cover, short hidden route; behind them — route passes d, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south-west!\nDecided so far: COMBAT → d."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
+				"You have a clear shot at d, and you are not badly wounded (from behind the wall outside; they look badly wounded)",
+				"d looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, was standing still, holding a Pistol, looks badly wounded)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.5837,
+				"engage": 0.1471,
+				"retreat": 0.2692
+			},
+			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - d - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: b, lead.\nYou are behind cover from d (the wall): your line to them is blocked.\nd — HOSTILE (attacked you) — last seen just now — in pistol range, south-west of you, in the kitchen — was standing still — holding a Pistol — looks badly wounded.\nb (ally) — in sight — south-west of you, outside the house — on d's front — standing still.\nlead (ally) — last seen just now — south-east of you, outside the house — far from d — was standing still.\nb (radio, just now): COMBAT - d - ENGAGE - ambush behind the wall; under fire.\nFlanks on d (you are on their front): their left side — free, clear shot, in the open, medium hidden route; their right side — free, line blocked, cover, short hidden route; behind them — route passes d, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south-west!\nDecided so far: COMBAT → d."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: b, out of their sight; you are badly wounded)",
+				"You have a clear shot at d, and you are not badly wounded (from behind the wall in the kitchen; they look badly wounded)"
+			],
+			"pick": "retreat",
+			"probabilities": {
+				"engage": 0.3308,
+				"retreat": 0.6692
+			},
+			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - d - ADVANCE - halfway to them (reached it, for 1s).\nKnown hostiles: 1 (0 in sight). Allies near you: b, lead.\nYou are behind cover from d (the wall): your line to them is blocked.\nd — HOSTILE (attacked you) — last seen recently — close, in pistol range, south-west of you, in the kitchen — was standing still — holding a Pistol — looks badly wounded.\nb (ally) — last seen just now — south-east of you, outside the house — on d's front — was moving east, away from you.\nlead (ally) — last seen recently — south-east of you, outside the house — far from d — was standing still.\nb (radio, just now): COMBAT - RETREAT - behind the wall close by; under fire.\nFlanks on d (you are on their front): their left side — free, clear shot, in the open, short hidden route; their right side — free, line blocked, cover, short hidden route; behind them — route passes d, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south-west!\nDecided so far: COMBAT → d."
+		},
+		{
+			"options": [
+				"back off behind the wall close by — out of every hostile's sight — cover close by (the wall) — short hidden route",
+				"fall back to b — out of every hostile's sight — cover close by (the wall) — short hidden route"
+			],
+			"pick": "fall_cover",
+			"probabilities": {
+				"fall_ally_b": 0.4991,
+				"fall_cover": 0.5009
+			},
+			"question": "Where should you fall back to? Prefer a spot out of every hostile's sight, with cover, toward allies, and close by.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are badly wounded.\nYou are behind cover from d (the wall): your line to them is blocked.\nd — HOSTILE (attacked you) — last seen recently — close, in pistol range, south-west of you, in the kitchen — was standing still — holding a Pistol — looks badly wounded.\nb (ally) — last seen just now — south-east of you, outside the house — on d's front — was moving east, away from you.\nlead (ally) — last seen recently — south-east of you, outside the house — far from d — was standing still.\nb (radio, just now): COMBAT - RETREAT - behind the wall close by; under fire.\nYou are under fire: shots are landing near you, from the south-west!\nDecided so far: COMBAT → d → RETREAT."
+		},
+		{
+			"options": [
+				"back off behind the wall close by — out of every hostile's sight — cover close by (the wall) — short hidden route",
+				"fall back to a — out of every hostile's sight — cover close by (the wall) — short hidden route"
+			],
+			"pick": "fall_ally_a",
+			"probabilities": {
+				"fall_ally_a": 0.5237,
+				"fall_cover": 0.4763
+			},
+			"question": "Where should you fall back to? Prefer a spot out of every hostile's sight, with cover, toward allies, and close by.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are unhurt.\nYou are being shot at by someone you cannot see, from the south-west; you are exposed to their fire.\nNobody else is in sight or known.\na (ally) — last seen just now — north-east of you, outside the house — was moving north-east, away from you — looks badly wounded.\nlead (ally) — last seen just now — south-east of you, outside the house — was standing still.\na (radio, just now): COMBAT - RETREAT - behind the wall close by; under fire, badly wounded.\nYou are under fire: shots are landing near you, from the south-west!\nGunfire heard to the south-west, in the hallway, recently.\nFootsteps heard to the south-west, in the kitchen, recently.\nDecided so far: COMBAT → RETREAT."
+		},
+		{
+			"options": [
+				"back off behind the wall close by — out of every hostile's sight — cover close by (the wall) — short hidden route",
+				"fall back to a — out of every hostile's sight — cover close by (the wall) — short hidden route"
+			],
+			"pick": "fall_ally_a",
+			"probabilities": {
+				"fall_ally_a": 0.5281,
+				"fall_cover": 0.4719
+			},
+			"question": "Where should you fall back to? Prefer a spot out of every hostile's sight, with cover, toward allies, and close by.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to go into the kitchen by its doorway quietly when they give the go.\nYou are outside the house, holding a Pistol. You are unhurt.\nYou are being shot at by someone you cannot see, from the south-west; you are exposed to their fire.\nNobody else is in sight or known.\na (ally) — last seen just now — north-west of you, outside the house — was moving north-west, away from you — looks badly wounded.\nlead (ally) — last seen recently — south-east of you, outside the house — was standing still.\na (radio, just now): COMBAT - RETREAT - behind the wall close by; under fire, badly wounded.\nYou are under fire: shots are landing near you, from the south-west!\nGunfire heard to the south-west, in the hallway, recently.\nFootsteps heard to the south-west, in the kitchen, just now.\nDecided so far: COMBAT → RETREAT."
+		}
+	],
+	"version": 1
+}

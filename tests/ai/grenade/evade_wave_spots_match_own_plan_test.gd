@@ -41,7 +41,7 @@ func describe() -> Dictionary:
 		"description": "Five defenders round a frag thrown into the hall plan their escape "
 			+ "together; every plan's spot equals the plain search's (nothing shared) for that "
 			+ "NPC on that frame, and at least three plan on one frame.",
-		"tags": ["ai", "grenade", "evade", "von"],
+		"tags": ["ai", "grenade", "evade", "von", "gap"],
 		"requires_von": true,
 		"timeout": 60.0,
 	}

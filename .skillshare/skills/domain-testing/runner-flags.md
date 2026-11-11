@@ -5,15 +5,15 @@ The header lists every flag; this file holds the rules and the reasons behind th
 - **Per-run output dir:** every process gets a fresh `mktemp -d` (`--log-file <dir>/godot.log`, `--out=<dir>`). The
   report, failure bundles, shots, gdUnit's reports (`gdunit/`) and its console (`gdunit.txt`) go there, and `LogWatch`
   follows that `godot.log` (`test_batch.gd` derives it from `--out`), so concurrent runs and a game played meanwhile never
-  share a log (the shared `user://logs/godot.log` is written by every start and never read: `log-gate.md`) or overwrite a report. A run without `--out` (the editor's GdUnit panel) writes no `report.json` and keeps
-  bundles in `user://test_failures/`.
+  share a log (the shared `user://logs/godot.log` is written by every start and never read: `log-gate.md`) or overwrite a
+  report. A run without `--out` (the GdUnit panel) writes no `report.json` and keeps bundles in `user://test_failures/`.
 - **Jobs:** the whole suite runs on `--jobs=auto`; any selection (words, `--id`, `--domain`, `--failed`, `--repeat`) runs
   one process, since a process costs about 3 s to start and filter words load every test script to match (about 10 s
   more). `--jobs` never starts more processes than the `--id` list has ids, and is not used with
-  `--list` / `--self-test`; `--windowed`, and `--shots` without `--jobs`, run in one process (the `_a` / `_b` restore pairs need one process in id order).
+  `--list` / `--self-test`; `--windowed`, and `--shots` without `--jobs`, run in one process (`_a` / `_b` restore pairs).
 - **Shards are balanced by measured cost:** the wrapper keeps each test's wall-clock ms in
   `$TMPDIR/example_godot_costs_<checkout hash>.json` (rewritten after all shards finish; none yet: the declared
-  `timeout`; an unmeasured id: the median) and passes `--costs=<file>`. A Von test run live (`--include-von`, `--require-von`, `--record-von`) and the native suites stay in shard 0; a replayed one is dealt by cost like any test.
+  `timeout`; an unmeasured id: the median) and passes `--costs=<file>`. A live Von test and the native suites stay in shard 0; a replayed one is dealt by cost.
 - **The Godot slot pool:** every godot test process the wrapper starts (shard, perf phase, `--repeat` native rerun,
   `--base`, `--list`, `--self-test`, the first import) holds one of `max(1, cores / 2)` machine-wide slots (lock files
   `slot<i>.lock` in `$TMPDIR/forced-entry-godot-slots`, `GAME_TEST_SLOT_DIR` names another). `tools/godot_slot.py`
@@ -42,18 +42,24 @@ The header lists every flag; this file holds the rules and the reasons behind th
   a missing or unreadable file, FAILs naming the question and `tools/run_tests.sh --record-von --id=<id>`: a wording change
   in a snapshot or a question makes recordings stale; run that command (it needs a live Von on :8000) and commit the diff.
   - `--record-von` runs the selected Von tests live and writes each passing test's recording whole (unused entries drop);
-    FAILs with no server, like `--require-von`. `--include-von` and `--require-von` run the tests live and never read or
-    write a recording. Live and record runs are paced in real time and kept in shard 0.
-  - **Live-only** (`"live_only": true` in `describe()`, with `requires_von`): tests of the transport or the gate
-    themselves, which need the real client and server: `ai/decision/von_request_across_pause`, `_harness/von_probe`. They
-    never replay and are skipped without a server (FAIL under `--require-von`). A test that uses Von as a realistic
-    driver is recorded, not live-only.
-  - The totals line counts only Von tests that did not run, by the command that runs them: `N skipped (V need Von, not run:
-    --require-von; U unrecorded, not run: --record-von)` (V: live-only, or a live run with no server; U: no recording
-    yet). `--changed` ends with one NOTE per kind: `NOTE <n> Von test(s) in the changed domains were not run:
-    tools/run_tests.sh --domain=<d> --require-von`, and `NOTE <n> Von test(s) ... have no recording: tools/run_tests.sh
-    --record-von --id=<ids>`. A replayed test is no part of either. `--record-von` on a live-only test skips it
-    ("live-only: nothing to record"). `--list` marks each `von:replay`, `von:live-only` or `von:unrecorded`.
+    FAILs with no server, like `--require-von`. `--include-von` and `--require-von` run live and never read or write a
+    recording. Live and record runs are paced in real time and kept in shard 0.
+  - **Live-only** (`"live_only": true`, with `requires_von`): tests of the transport or the gate
+    (`ai/decision/von_request_across_pause`, `_harness/von_probe`) and one a replay cannot reproduce,
+    `ai/investigate/defenders_stay_in_house_quiet_von` (a 40 s generated-house match whose fight moves the NPCs by a
+    hair differently in a replay). They never replay and are skipped without a server (FAIL under `--require-von`).
+  - **Own process** (`"own_process": true`; a last resort and a debt, it needs a follow-up ticket): the wrapper leaves
+    the test out of the shards (`--skip-own-process`; ids go to `<out>/own_process.txt`) and runs it after them in an
+    engine process of its own, once per `--repeat`, its report merged into the run's. The
+    engine orders the contacts of touching rigid bodies by their allocation slots, which follow what the process ran
+    before (two touching pieces of furniture a blast shoves settle one of two ways), so a replay whose
+    snapshot wording turns on such a piece at a band edge matches its recording only in a fresh process. Only
+    `ai/grenade/combat_frag_take_cover` has it (20 of 20 separate-process replays pass; 3 in 6 after other tests).
+  - A Von test with no recording FAILs naming `tools/run_tests.sh --record-von --id=<id>`; record a new one in its commit.
+  - The totals line counts only Von tests that did not run: `N skipped (V need Von, not run: --require-von)` (live-only,
+    or a live run with no server). `--changed` ends with `NOTE <n> Von test(s) in the changed domains were not run:
+    tools/run_tests.sh --domain=<d> --require-von` when it skipped any. `--record-von` skips a live-only test. `--list` marks each `von:replay`, `von:live-only` or
+    `von:unrecorded` (no file: it would FAIL).
 - **`--base=<rev>`:** the working tree's tests against `<rev>`'s code, in a temporary `git worktree` under `$TMPDIR` that
   gets the working tree's `tests/` whole (`.uid` files and helper folders included). It is removed also on ^C or a kill
   of the wrapper (`tools/godot_slot.py stop` ends the engines first). The working tree is never written, no lint. Combinations

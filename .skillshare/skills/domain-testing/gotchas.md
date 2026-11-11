@@ -18,6 +18,11 @@ Side file of `domain-testing` (`SKILL.md`).
 - **Recordings** are `<name>_test.von.json` beside a `requires_von` test. Everything the NPCs read in a test goes into the key
   (state text, question, option descriptions), so a test that changes what an NPC sees (a map, a wording, a tuning that
   shifts a band) needs `--record-von --id=<id>` again. Commit the recording with the change that staled it.
+  A recording replays the same frames only while the world does: a frag's blast strikes bodies nearest first so the world's
+  random stream is drawn for the same body each run (`Explosion._bodies_near`), but the engine orders the contacts of touching
+  rigid bodies by the slots they were allocated in, so a furniture piece a blast shoves settles a thousandth of a pixel
+  differently from one run to the next in one process, and a snapshot wording at a band edge can then miss its recording.
+  `own_process` (`runner-flags.md`) is the last resort for one such test; a long fight of NPCs is `live_only`.
 - **A test that ends mid-wait** leaves its coroutine parked: Godot may report "ObjectDB instances leaked" at exit, harmless.
 - **An NPC thinks on its first tick, so the world must be live before actors enter:** `MatchBuilder.stage` waits two
   physics frames, then until `NavBuilder.ready` holds on the planning and steering maps (a map's iteration is built on a

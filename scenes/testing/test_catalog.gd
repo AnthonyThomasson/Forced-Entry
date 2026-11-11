@@ -2,7 +2,7 @@ extends RefCounted
 ## Testing domain: finds every test (`res://tests/**/*_test.gd`) and describes it as a plain dict
 ## the browser and runner work from:
 ##   { id, path, name, domain, category, description, tags, timeout, requires_von, live_only, von,
-##     manual, internal, switches, world, locked, error }
+##     own_process, manual, internal, switches, world, locked, error }
 ## `id` is the path under tests/ without the suffix (e.g. "projectile/pistol_shot_wounds");
 ## `category` is the sub-folder between the domain and the file when there is one
 ## (`tests/ai/entry/…` -> "entry", else ""); `error` is set (and the rest defaulted) when the script
@@ -81,6 +81,7 @@ static func describe(path: String, root := "") -> Dictionary:
 		"domain": parts[0] if parts.size() > 1 else "general",
 		"category": parts[1] if parts.size() > 2 else "", "description": "", "tags": [],
 		"timeout": DEFAULT_TIMEOUT, "requires_von": false, "live_only": false, "von": "",
+		"own_process": false,
 		"manual": sandbox, "internal": false,
 		"switches": {}, "world": "", "locked": [], "error": "",
 	}
@@ -146,8 +147,8 @@ static func _find(dir_path: String, suffix := SUFFIX) -> Array:
 ## How `entry`'s Von decisions are answered, for a listing: "" for a test that needs no Von,
 ## "live-only" (a `live_only` test: the real transport, skipped without a server), "record" or
 ## "live" when the run records or asks the server (`record`, `live`), else "replay" when its
-## recording is there and "unrecorded" when it is not (skipped without a server until it is
-## recorded).
+## recording is there and "unrecorded" when it is not (it FAILs, naming the command that records
+## it).
 static func von_label(entry: Dictionary, live := false, record := false) -> String:
 	if not entry["requires_von"]:
 		return ""

@@ -160,12 +160,12 @@ report() { printf '{"results": [{"id": "a/x", "status": "PASS"}], "stray_logs": 
 empty() { printf '{"results": [], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
 # A report of one passing case of a native suite (`<suite id>::<case>`).
 native() { printf '{"results": [{"id": "a/n_suite::test_x", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
-# A report of a passing test and two Von tests skipped for want of a server (and one plain skip), with the totals line
+# A report of a passing test, a Von test skipped for want of a server (and one plain skip), with the totals line
 # the batch prints for them: the batch marks a Von skip `"von": true` in its record.
 von_skips() {
-  printf '{"results": [{"id": "a/x", "status": "PASS", "domain": "a"}, {"id": "ai/v1", "status": "SKIPPED", "domain": "ai", "reason": "needs the Von decision server (pass --include-von)", "von": true}, {"id": "ai/v2", "status": "SKIPPED", "domain": "ai", "reason": "no Von recording yet and the Von decision server is not live", "von": true, "von_kind": "unrecorded"}, {"id": "a/s", "status": "SKIPPED", "domain": "a", "reason": "no reason", "von": false}], "stray_logs": [], "log_end": %s}' \
+  printf '{"results": [{"id": "a/x", "status": "PASS", "domain": "a"}, {"id": "ai/v1", "status": "SKIPPED", "domain": "ai", "reason": "needs the Von decision server (pass --include-von)", "von": true}, {"id": "a/s", "status": "SKIPPED", "domain": "a", "reason": "no reason", "von": false}], "stray_logs": [], "log_end": %s}' \
     "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
-  echo "1 passed, 0 failed, 0 timed out, 3 skipped (1 need Von, not run: --require-von; 1 unrecorded, not run: --record-von), 0 gap"
+  echo "1 passed, 0 failed, 0 timed out, 2 skipped (1 need Von, not run: --require-von), 0 gap"
 }
 # A Von skip whose record names no domain, and a plain skip whose own reason talks about the Von decision server.
 von_odd_records() {
@@ -372,7 +372,7 @@ class WrapperTests(unittest.TestCase):
     def test_the_merged_totals_line_names_the_unrun_von_tests_apart(self):
         code, out = self.run_wrapper("von_skips", "--jobs=2", "--domain=ai,physics")  # no perf phase: two processes
         self.assertEqual(code, 0, out)
-        self.assertRegex(out, r"(?m)^2 passed, 0 failed, 0 timed out, 6 skipped \(2 need Von, not run: --require-von; 2 unrecorded, not run: --record-von\), 0 gap  \(2 shards\)  load [0-9.]+$")
+        self.assertRegex(out, r"(?m)^2 passed, 0 failed, 0 timed out, 4 skipped \(2 need Von, not run: --require-von\), 0 gap  \(2 shards\)  load [0-9.]+$")
         out = self.run_wrapper("clean", "--jobs=2", "--domain=ai,physics")[1]
         self.assertRegex(out, r"(?m)^0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  \(2 shards\)  load [0-9.]+$")
 
@@ -398,12 +398,12 @@ class WrapperTests(unittest.TestCase):
         r = subprocess.run(["bash", str(RUN), "--changed", "--no-lint", "--jobs=1", *extra], cwd=ROOT, env=env, capture_output=True, text=True)
         return r.returncode, r.stdout + r.stderr
 
-    def test_changed_ends_with_a_note_per_kind_naming_the_command_that_runs_those_von_tests(self):
+    def test_changed_ends_with_a_note_naming_the_command_that_runs_the_live_only_von_tests(self):
         live = "NOTE 1 Von test(s) in the changed domains were not run: tools/run_tests.sh --domain=ai --require-von"
-        record = "NOTE 1 Von test(s) in the changed domains have no recording: tools/run_tests.sh --record-von --id=ai/v2"
         code, out = self.changed_output(["scenes/ai/behavior/behavior.gd"], "von_skips")
         self.assertEqual(code, 0, out)
-        self.assertEqual(out.splitlines()[-2:], [live, record], out)
+        self.assertEqual(out.splitlines()[-1], live, out)
+        self.assertNotIn("no recording", out)
         # Nothing skipped for want of Von: no NOTE.
         code, out = self.changed_output(["scenes/ai/behavior/behavior.gd"], "clean")
         self.assertNotIn("Von test(s)", out)
@@ -1855,8 +1855,7 @@ class GdUnitCommandLineTests(unittest.TestCase):
 
 RESULT_LINE = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+(\S+)\s+\((\d+\.\d)s sim, (\d+) ms\)(.*)$")
 SUMMARY_LINE = re.compile(r"^(\d+) passed, (\d+) failed, (\d+) timed out, (\d+) skipped"
-                          r"(?: \((?:(\d+) need Von, not run: --require-von)?(?:; )?"
-                          r"(?:(\d+) unrecorded, not run: --record-von)?\))?, (\d+) gap\b")
+                          r"(?: \((\d+) need Von, not run: --require-von\))?, (\d+) gap\b")
 
 
 def free_port():
@@ -1905,7 +1904,6 @@ class Run:
         self.results = {}  # id -> [(status, sim s, wall ms, tail)]
         self.summary = None
         self.von_skipped = 0  # the skips the totals line names as needing Von (--require-von runs them)
-        self.unrecorded = 0  # the skips it names as having no recording yet (--record-von makes it)
         self.report_path = None
         for line in out.splitlines():
             m = RESULT_LINE.match(line)
@@ -1913,10 +1911,9 @@ class Run:
                 self.results.setdefault(m.group(2), []).append((m.group(1), float(m.group(3)), int(m.group(4)), m.group(5)))
             m = SUMMARY_LINE.match(line)
             if m:
-                passed, failed, timed_out, skipped, von, unrecorded, gap = m.groups()
+                passed, failed, timed_out, skipped, von, gap = m.groups()
                 self.summary = tuple(int(g) for g in (passed, failed, timed_out, skipped, gap))
                 self.von_skipped = int(von) if von else 0
-                self.unrecorded = int(unrecorded) if unrecorded else 0
             if line.startswith("Report: "):
                 self.report_path = Path(line[len("Report: "):].strip())
 
@@ -1960,8 +1957,10 @@ class GdUnitEngineTests(unittest.TestCase):
     HOLD = "_harness/warning_hold_probe"
     VON = "_harness/von_probe"
     RECORD_PROBE = "_harness/von_record_probe"
+    OWN = "_harness/own_process_probe"
+    PLAIN = "_harness/plain_process_probe"
     PROBE_ENV = ("GAME_TEST_PROBE_RECORDING", "GAME_TEST_PROBE", "GAME_TEST_VERDICT", "GAME_TEST_GAP", "GAME_TEST_HOLD", "GAME_TEST_VON_PORT",
-                 "GAME_TEST_FLAKY_COUNT")
+                 "GAME_TEST_FLAKY_COUNT", "GAME_TEST_OWN_FAIL", "GAME_TEST_PID_LOG")
 
     @classmethod
     def setUpClass(cls):
@@ -2162,18 +2161,18 @@ class GdUnitEngineTests(unittest.TestCase):
             self.assertEqual(von.asked, before, "a replay asks no server")
         self.assertEqual(recording.read_text(), written)
 
-    def test_a_test_with_no_recording_is_named_apart_from_one_that_needs_a_live_server(self):
+    def test_a_test_with_no_recording_fails_naming_the_command_that_records_it(self):
         recording = self.tmp / "none_yet.von.json"
         recording.unlink(missing_ok=True)
         run = self.von_probe(port=free_port(), recording=recording)
-        self.assertEqual(run.status(self.RECORD_PROBE), ["SKIPPED"], run.out)
-        self.assertEqual((run.von_skipped, run.unrecorded), (0, 1), run.out)
-        self.assertIn("(1 unrecorded, not run: --record-von)", run.out)
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(run.status(self.RECORD_PROBE), ["FAIL"], run.out)
+        self.assertIn(f"tools/run_tests.sh --record-von --id={self.RECORD_PROBE}", run.out)
+        self.assertEqual(run.von_skipped, 0, "an unrecorded test is no skip kind\n" + run.out)
         run = self.probe(self.VON, GAME_TEST_VON_PORT=str(free_port()))
-        self.assertEqual((run.von_skipped, run.unrecorded), (1, 0), run.out)
+        self.assertEqual(run.von_skipped, 1, run.out)
         self.assertIn("(1 need Von, not run: --require-von)", run.out)
-        reasons = {r["id"]: r for r in run.report()["results"]}
-        self.assertEqual(reasons[self.VON].get("von_kind", "live"), "live")
+        self.assertNotIn("unrecorded", run.out)
 
     def test_record_von_says_a_live_only_test_has_nothing_to_record(self):
         run = self.probe(self.VON, "--record-von", GAME_TEST_VON_PORT=str(free_port()))
@@ -2223,11 +2222,45 @@ class GdUnitEngineTests(unittest.TestCase):
                              GAME_TEST_VON_PORT=port)
         self.assertEqual((run.summary, run.von_skipped), ((0, 0, 0, 2, 0), 1), run.out)
 
+    def pids(self, log, kind):
+        """The engine process ids the probe of `kind` ("own" or "plain") appended to `log`, one per run."""
+        return [int(ln.split()[1]) for ln in log.read_text().splitlines() if ln.startswith(kind + " ")]
+
+    def test_an_own_process_test_runs_in_an_engine_process_of_its_own_each_run(self):
+        log = self.tmp / "pids.log"
+        log.unlink(missing_ok=True)
+        run = self.run_tests("--self-test", f"--id={self.OWN},{self.PLAIN}", "--repeat=3", GAME_TEST_PID_LOG=str(log))
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.status(self.OWN), ["PASS"] * 3, run.out)
+        self.assertEqual(run.status(self.PLAIN), ["PASS"] * 3, run.out)
+        self.assertEqual(run.summary, (6, 0, 0, 0, 0), run.out)
+        own, plain = self.pids(log, "own"), self.pids(log, "plain")
+        self.assertEqual(len(own), 3, run.out)
+        self.assertEqual(len(set(own)), 3, f"each run of it has a process of its own: {own}")
+        self.assertEqual(len(set(plain)), 1, f"the plain test's runs share one: {plain}")
+        self.assertFalse(set(own) & set(plain), "and none of them is the process that plays the plain tests")
+
+    def test_an_own_process_test_alone_runs_once_and_is_no_empty_selection(self):
+        run = self.run_tests("--self-test", f"--id={self.OWN}")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.status(self.OWN), ["PASS"], run.out)
+        self.assertEqual(run.summary, (1, 0, 0, 0, 0), run.out)
+        self.assertNotIn("no test matched", run.out)
+
+    def test_an_own_process_test_that_fails_fails_the_run(self):
+        run = self.run_tests("--self-test", f"--id={self.OWN}", "--repeat=2", GAME_TEST_OWN_FAIL="1")
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(run.status(self.OWN), ["FAIL", "FAIL"], run.out)
+
+    def test_list_does_not_defer_an_own_process_test(self):
+        run = self.run_tests("--self-test", "--list")
+        self.assertRegex(run.out, re.compile(r"^_harness/own_process_probe\s", re.M))
+
     def test_list_prints_the_selection_and_runs_nothing(self):
         run = self.run_tests("--self-test", "--list")
         self.assertEqual(run.code, 0, run.out)
         self.assertRegex(run.out, re.compile(r"^_harness/von_probe\s+von:live-only\s+\[harness, von\]\s+Von probe$", re.M))
-        self.assertRegex(run.out, re.compile(r"^_harness/von_record_probe\s+von:unrecorded\s", re.M), "no recording of its own yet")
+        self.assertRegex(run.out, re.compile(r"^_harness/von_record_probe\s+von:replay\s", re.M), "its committed recording replays")
         self.assertRegex(run.out, re.compile(r"^\d+ test\(s\)$", re.M))
         self.assertEqual(run.results, {}, "--list runs no test")
 
