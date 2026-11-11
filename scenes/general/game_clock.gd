@@ -50,6 +50,8 @@ func msec() -> int:
 ## frames that follow then read the same ms from this frame on, whichever frame of the process this
 ## is. A world calls it when it begins (`WorldRng`), so a match's measured spans (a walker's speed
 ## over its last sighting, an age) do not follow what the process ran before it.
+## Process-global, like the clock: one world's start at a time. A second world starting while
+## another plays re-phases `msec()` for both, by at most 1 ms (a span's reading, never a frame).
 func align() -> void:
 	var ticks := Engine.physics_ticks_per_second
 	var now := msec()

@@ -13,7 +13,7 @@ deaths, a line per physics frame through the warm-up and the whole window), the 
 shows), the quiet gate that counts only busy engines (`perf.md`) and `tools/perf_ab.sh` (below). The look phase has been handed out in
 turn since #192 (`look_phases.gd`); the sight cadence, the give-way order and the AI's other orders are keyed on spawn order (`WorldRng`).
 
-**The physics-order job:** a match plays the same fight whatever ran before it in the process, with or without padding: the AI's cadences
+**The cadences-and-clock job:** a match plays the same fight whatever ran before it in the process, with or without padding: the AI's cadences
 count the world's own frames (`WorldRng.frame_of`), `GameClock.seconds()` and `msec()` no longer follow the frame a timer started on, the guards' seed is 2, and four replay tests
 pin it. The split #192 saw at frame 64 reproduces, as a kind, on the tip before this job (the replays split at frames 8 to 61, 260 to 610 on one phase) and not after it; padding alone never split a fight. The causes, the tests and the seed: `perf-determinism-causes.md`.
 
@@ -31,9 +31,9 @@ the flag; where the fight is the same (10v10 at 6.0 s: avg 12.94 p95 18.3 max 29
 stays under `SMOOTH_MAX_MS`, so no frame is pushed over it. An earlier reading on seed 13 (5v5 p95 20.3 sync vs 15.0 async) compared different fights (an async run's fight varies from run to run) and carried late-bake spikes: it is not the flag's cost. The 10v10 p95 stays over 20 ms either way (known red, `match_10v10_stress_test.gd`).
 
 **Acceptance run (#203, 2026-11-10, tip `3dae2431`, seed 2, machine load 7.1 at the start to 4.3 at the end, no round marked `loaded`, none dropped):** `tools/perf_ab.sh HEAD~0 HEAD`
-(the default four guards, `--rounds=6`, `--bar=5`, BASE and TIP the one sha: a same-revision A/B, the noise floor of the tool) reported identical fingerprints for all 12 plays of each guard (no `fights differ`)
+(the default four guards, `--rounds=6`, `--bar=5`, BASE and TIP the one sha and so one scratch tree: a same-revision A/B, the tool's noise floor) reported identical fingerprints for all 12 plays of each guard (no `fights differ`)
 and `perf_ab: PASS`, exit 0. Medians of six rounds, BASE / TIP avg ms per frame and the avg delta in percent of BASE's avg: 5v5 7.89 / 7.78 (-1.5%), grenade match 12.97 / 12.94 (-0.3%),
-10v10 16.90 / 16.87 (-0.1%), NPC-vision match 19.98 / 19.88 (-0.6%); p95 and max moved by at most +1.3% and +6.8% (the vision guard's max, 48.44 / 49.79 ms; read, not held). Load was read with `uptime` before (7.1) and after (4.3) the run only, not per round, and the ms read heavier than the sync reading above (5v5 avg 6.7 there, 7.9 here): quote these ms for the delta, not as a level. The two-run and padding-on / off fingerprint
+10v10 16.90 / 16.87 (-0.1%), NPC-vision match 19.98 / 19.88 (-0.6%); p95 and max moved by at most +1.3% and +6.8% (the vision guard's max, 48.44 / 49.79 ms). Load was read with `uptime` before (7.1) and after (4.3) only, and the ms read heavier than the sync reading above: quote them for the delta, not as a level. The two-run and padding-on / off fingerprint
 checks of each guard are the replay tests (`perf/match_5v5_replay`, `grenade_match_replay`, `match_10v10_replay`, `match_npc_vision_replay`), green on this tip.
 
 ## Reading rule: `tools/perf_ab.sh BASE TIP`
@@ -41,7 +41,7 @@ checks of each guard are the replay tests (`perf/match_5v5_replay`, `grenade_mat
 Compare two revisions only through it (`tools/perf_ab.py`'s header holds the flags, the scratch trees and the exit codes):
 
 - **Rounds interleave** (BASE, TIP, BASE, TIP, ...), each round one `run_tests.sh --quiet --verbose` of that revision's own scratch
-  worktree (`${TMPDIR}/forced-entry-perf-ab/<sha>`, built once and reused) with `GAME_TEST_FINGERPRINT_DIR` set per round. This replaces
+  worktree (`${TMPDIR}/forced-entry-perf-ab/<sha>`, built once and reused; BASE and TIP the one sha share one) with `GAME_TEST_FINGERPRINT_DIR` set per round. This replaces
   interleaving by hand: a drifting machine hits both revisions alike.
 - **A round marked `loaded`** (the quiet gate gave up, `runner-flags.md`) is dropped and run again, at most `--retries` times (3), then the
   run ends: a loaded result says nothing about the code.

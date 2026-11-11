@@ -23,7 +23,7 @@ editors and played games take none.
 
 The machine's state, for `--quiet` and the PERF lines of a run: the 1-minute load (`uptime`) and the number of busy Godot
 processes, those under the process PID (the run's own) left out. A Godot is an engine process (its executable's name starts
-with godot: an editor, a test run, a played game; a godot-mcp server is a node process and is none) and busy when it burned more than
+with godot: an editor, a test run, a played game; a godot-mcp server is a node process and is none) and busy when it burned at least
 --busy-cpu percent (50 by default: an idle editor burns 16 to 23 on a Mac, a busy run 100 and more) of one core over a sample of --busy-sample seconds (2): two readings of its cpu time that far
 apart, taken by `ps` ($GAME_TEST_BUSY_SAMPLE replaces the length, for tests). An idle editor is not busy. The wrapper passes both from tools/perf_quiet.conf.
 `annotate` appends `(load <x>, <n> busy Godot)` to every `PERF ` line it passes (`n` a count it samples once at the start and
@@ -266,8 +266,9 @@ def is_engine(name: str) -> bool:
 
 def other_godots(ancestor: int, busy_cpu: float = BUSY_CPU, sample_s: float = BUSY_SAMPLE_S, snapshot=cpu_table,
                  sleep=time.sleep, clock=time.monotonic) -> int:
-    """How many Godot engine processes the process `ancestor` did not start are busy: they burned more than `busy_cpu`
-    percent of one core over `sample_s` seconds (two readings of their cpu time that far apart). An idle editor, a
+    """How many Godot engine processes the process `ancestor` did not start are busy: they burned `busy_cpu` percent or more
+    of one core over `sample_s` seconds (two readings of their cpu time that far apart; at the threshold counts, since
+    Linux `ps` reads cpu time in whole seconds, so a busy engine can read exactly 50 percent over 2 s). An idle editor, a
     godot-mcp server and a process that was not there at the first reading do not count. `snapshot`, `sleep` and `clock`
     are the machine's, for a test to replace."""
     first, started = snapshot(), clock()
@@ -278,7 +279,7 @@ def other_godots(ancestor: int, busy_cpu: float = BUSY_CPU, sample_s: float = BU
     for pid, (_, cpu, name) in second.items():
         if pid in mine or pid not in first or not is_engine(name):
             continue
-        if (cpu - first[pid][1]) / elapsed * 100 > busy_cpu:
+        if (cpu - first[pid][1]) / elapsed * 100 >= busy_cpu:
             count += 1
     return count
 

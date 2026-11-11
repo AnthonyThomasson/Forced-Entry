@@ -51,8 +51,9 @@ const MATCH_LOGS := [
 	"NavigationPolygon polygon convex partition failed",
 ]
 
-## `NavBake`'s started and late counts when the running guard's warm-up began (`log_late_bakes`).
-static var _bakes_mark := [0, 0]
+## `NavBake`'s started and late counts when the running guard's warm-up began (`log_late_bakes`):
+## empty until `warm_until_contact` takes one, and again once `log_late_bakes` has read it.
+static var _bakes_mark: Array = []
 
 
 ## Declare a match guard's match in `s`: the downtown district `MATCH_SEED` with `MATCH_PLAN` as
@@ -184,12 +185,18 @@ static func within(t: TestContext, label: String, value: float, limit: float) ->
 
 ## Log (`PERF <label> nav bakes late N of M`) how many of the nav bakes started since the guard's
 ## `warm_until_contact` were still running when their landing frame came (`NavBake`: a late one
-## holds the frame), so a creeping share shows in the log before it shows in a frame budget.
+## holds the frame), so a creeping share shows in the log before it shows in a frame budget. Logs
+## nothing for a test that took no mark (it never ran `warm_until_contact`: not a match guard), and
+## reads the mark once, so one guard's mark never reaches the next test.
 static func log_late_bakes(label: String) -> void:
+	if _bakes_mark.is_empty():
+		return
+	var mark := _bakes_mark
+	_bakes_mark = []
 	GameLog.say("PERF %s nav bakes late %d of %d" % [
 		label,
-		NavBake.late_total - _bakes_mark[1],
-		NavBake.started_total - _bakes_mark[0],
+		NavBake.late_total - mark[1],
+		NavBake.started_total - mark[0],
 	])
 
 

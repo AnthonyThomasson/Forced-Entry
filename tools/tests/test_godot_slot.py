@@ -279,7 +279,13 @@ class BusyGodotTests(unittest.TestCase):
         machine = FakeMachine({10: (1, 0.25, GODOT)})
         self.assertEqual(machine.other_godots(busy_cpu=20, sample_s=2), 1, "25 percent is over 20")
         self.assertEqual(machine.other_godots(busy_cpu=40, sample_s=2), 0, "25 percent is under 40")
-        self.assertEqual(machine.other_godots(busy_cpu=25, sample_s=2), 0, "at the threshold is not over it")
+        self.assertEqual(machine.other_godots(busy_cpu=25, sample_s=2), 1, "at the threshold is busy")
+        self.assertEqual(machine.other_godots(busy_cpu=26, sample_s=2), 0, "under it is not")
+
+    def test_a_whole_second_cpu_reading_at_exactly_the_threshold_is_busy(self):
+        # Linux ps reads cpu time in whole seconds: an engine busy for 1 s of a 2 s sample reads exactly 50 percent.
+        machine = FakeMachine({10: (1, 0.5, GODOT)})
+        self.assertEqual(machine.other_godots(busy_cpu=50, sample_s=2), 1, "50 of 50 percent is busy")
 
     def test_a_process_that_started_during_the_sample_burns_from_nothing(self):
         # No first reading of it: its cpu time over the whole sample counts.

@@ -31,7 +31,7 @@ world-space polygons; `key` names the set). The planning bake keeps its source o
 bake is the same geometry plus the holes, fused, snapped, welded. Each key gets a map of its own with one child region `NavAvoid`,
 baked on a worker thread and landed on the fixed frame `NavBake.frames_for` after the ask (`avoid_frames` in a district, `house_frames` in a house) (`NavBake`; `ready(map)` is false until it answers). Asking again returns the same map and marks it
 asked; once the planning bake is redone it is baked again in place, the old mesh answering meanwhile. A map nobody asked for in
-`avoid_idle_frames` (physics frames, 1200 = 20 s, so a run frees the same maps on the same frame) is freed with its region by the next ask for another key on the same planning map (the sweep runs only inside
+`avoid_idle_frames` (`GameClock` frames, 1200 = 20 s, so a run frees the same maps on the same frame) is freed with its region by the next ask for another key on the same planning map (the sweep runs only inside
 `avoid_map`), and every one is freed with its world. Invalid when the region has no bake. Test:
 `tests/navigation/avoid_map_carves_the_views_test.gd`.
 

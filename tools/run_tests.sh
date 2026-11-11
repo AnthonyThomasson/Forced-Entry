@@ -101,7 +101,7 @@
 #                   (headless measures the CPU only) without being held to the display's refresh
 #   --quiet[=MINUTES]  before a process that holds perf tests starts (the perf phase, the one process of a run whose
 #                   selection holds perf, a --repeat rerun of a native perf suite; which: runner-flags.md of the
-#                   domain-testing skill), wait until no other Godot is busy (an engine process over busy_cpu percent of a core across
+#                   domain-testing skill), wait until no other Godot is busy (an engine process at busy_cpu percent or over of a core across
 #                   busy_sample_s seconds; an idle editor and the godot-mcp servers are not) and the 1-minute load is under
 #                   max_load in tools/perf_quiet.conf (6, this box's idle baseline), printing both each minute. After MINUTES
 #                   (timeout_min, 30) it runs anyway and marks that process's results `loaded` (on their verdict lines

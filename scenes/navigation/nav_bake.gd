@@ -5,6 +5,10 @@ class_name NavBake extends RefCounted
 ## the thread happens to finish: the same frame every run. A thread that is not done by then is
 ## waited for, which holds that frame (`was_late` says so of each bake, `late_total` counts them). A
 ## bake in flight is kept in `_flying` until it lands, so nothing frees it first.
+##
+## "Physics frame" is counted on `GameClock.frame()`, the AI's own frame (`WorldRng.frame_of`, every
+## timer), not `Engine.get_physics_frames()`: that one runs through a pause and the clock stands
+## still, so a paused match lands its bakes on the same AI frame as an unpaused one.
 
 ## How many bakes were started, and how many of them were still running when their frame came,
 ## since the process began (a guard reads the rate: a creeping share of late bakes is a count that
@@ -70,7 +74,7 @@ static func start(
 	if bake._tree == null:
 		bake._land()
 		return bake
-	bake._due = Engine.get_physics_frames() + frames
+	bake._due = GameClock.frame() + frames
 	_flying.append(bake)
 	bake._tree.physics_frame.connect(bake._on_physics_frame)
 	if not _exit_hooked:
@@ -87,7 +91,7 @@ static func _finish_all() -> void:
 
 ## Land once the frame has come.
 func _on_physics_frame() -> void:
-	if Engine.get_physics_frames() >= _due:
+	if GameClock.frame() >= _due:
 		_land()
 
 
