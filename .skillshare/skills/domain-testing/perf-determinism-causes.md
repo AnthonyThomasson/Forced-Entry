@@ -16,8 +16,8 @@ A match plays the same fight whatever ran before it in the process, with or with
   same fight once the two above were fixed. **The frame-64 split #192 saw** was reproduced as a kind, not by its own run: the replay harness on the tip before this job (`e9afa04d`) splits the 5v5's second
   play at frame 61 (the grenade guard at 40, both 10v10s at 8 and 9) when the worlds are built on other residues of the frame, and at frames 260 to 610 when they are built on the same one (the clock's rounding); the padded
   play there plays like the plain one built on the same frame, so padding is not what splits it. On this branch the same plays are identical.
-- A house look's phase does not steer the fight: a decision's own look takes everything in view, so the scheduled looks between decisions change nothing a decision reads. The cadence on the
-  process's frames passes the replays (`ai/perception/house_look_cadence` fails it); the sight cadence on them fails both the 5v5 and the 10v10 replay.
+- A house look's phase changed nothing in the four guards' fights (checked by mutation): the cadence on the process's frames passes the replays. `ai/perception/house_look_cadence` pins that the look
+  reads the world's frame (it fails the process-frame cadence); the sight cadence on them fails both the 5v5 and the 10v10 replay.
 
 **Tests:** `perf/match_5v5_replay`, `grenade_match_replay`, `match_10v10_replay`, `match_npc_vision_replay` play the guard three times in one process (`tests/_perf/guard_replay.gd`: the guard
 unchanged, in a world of its own, its fingerprint read back): plain, plain again and with padding on, their worlds built on three residues modulo 6 (every cadence divides it; the test checks it as a premise), and the three must match line for line, through the
