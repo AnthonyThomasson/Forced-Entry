@@ -1,11 +1,13 @@
 extends GameTest
 ## Performance guard: a planning re-bake landing in a match costs no frame over two. The match is
-## the 5v5 guard's (`Perf.configure_match`); once the sides are in contact a re-bake of the
-## district (planning map and ring: `NavBuilder.rebake_async`, the updater's own bakes go on
-## beside it) is started and the frames from the one after the start to a few past its landing are
-## measured: the landing's weld and assignment, on the fixed frame `NavBakeConfig.district_frames`
-## after the start, fit under `Perf.SMOOTH_MAX_MS` when its thread is on time (a late thread holds
-## the frame, by design, so a late attempt is tried again, up to `ATTEMPTS`).
+## the 5v5 guard's (`Perf.configure_match`); after its warm-up (`Perf.MATCH_WARMUP_S`, the sides
+## moving and deciding: contact is no premise here, a second match in a process may not make it)
+## a re-bake of the district (planning map and ring: `NavBuilder.rebake_async`, the updater's own
+## bakes go on beside it) is started and the frames from the one after the start to a few past its
+## landing are measured: the landing's weld and assignment, on the fixed frame
+## `NavBakeConfig.district_frames` after the start, fit under `Perf.SMOOTH_MAX_MS` when its thread
+## is on time (a late thread holds the frame, by design, so a late attempt is tried again, up to
+## `ATTEMPTS`).
 ## Headless measures CPU only.
 ## No budget is set here: the standard is the frame standard.
 
@@ -19,8 +21,8 @@ const TAIL := 4
 func describe() -> Dictionary:
 	return {
 		"name": "A re-bake lands in a match without a frame over two",
-		"description": "In a 5v5 match, a district re-bake lands on its fixed frame with its "
-			+ "thread on time and no frame of the window takes over 33.4 ms.",
+		"description": "In a 5v5 match after its warm-up, a district re-bake lands on its fixed "
+			+ "frame with its thread on time and no frame of the window takes over 33.4 ms.",
 		"tags": ["match", "navigation", "bake", "scripted"],
 		"timeout": 80.0,
 		"allowed_logs": Perf.MATCH_LOGS,
@@ -36,8 +38,7 @@ func run(t: TestContext) -> void:
 	var characters: Array = t.world.match_handle.get("combatants", [])
 	if not t.require(characters.size() == PER_SIDE * 2, "ten combatants spawned"):
 		return
-	if not await Perf.warm_until_contact(t, "re-bake match", characters):
-		return
+	await t.seconds(Perf.MATCH_WARMUP_S)
 	var district: Node2D = t.world.district
 	var rooms := WorldGen.district_rooms(district)
 	var region: NavigationRegion2D = t.world.find_children(

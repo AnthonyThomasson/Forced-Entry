@@ -4,10 +4,10 @@ extends GameTest
 ## background thread whose finish is wall-clock: with it on, the frame a landed bake becomes visible
 ## to a query (`NavBuilder.ready`, a route) shifted with the machine's load, and a match fought over
 ## the same seed was a different fight from one run to the next (the 5v5 guard's contact came at
-## 12 s, at 30 s, or not in 30 s). The world's map and the ones `NavBuilder` makes (steering, avoid)
-## all answer false to `map_get_use_async_iterations`.
+## 12 s, at 30 s, or not in 30 s). The world's map and the ones `NavBuilder` makes (steering, avoid
+## and, in a district, the planning ring) all answer false to `map_get_use_async_iterations`.
 
-const ARENA := Rect2(0, 0, 800, 500)
+const SEED := 7
 
 
 func describe() -> Dictionary:
@@ -21,7 +21,8 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.arena(ARENA)
+	s.district(SEED)
+	s.switch(&"nav.rebake", false)
 
 
 func run(t: TestContext) -> void:
@@ -30,6 +31,13 @@ func run(t: TestContext) -> void:
 		not NavigationServer2D.map_get_use_async_iterations(world_map),
 		"the world's map does not sync on a thread",
 	)
+	await t.seconds(0.5)  # the first bake is applied a frame or two after the build
+	var ring := NavRing.map_of(world_map)
+	if t.require(ring.is_valid(), "the district has its planning ring map"):
+		t.check(
+			not NavigationServer2D.map_get_use_async_iterations(ring),
+			"the planning ring's map does not sync on a thread",
+		)
 	var region := NavBuilder.planning_region(world_map)
 	if not t.require(region != null, "the planning region is found from the world's map"):
 		return
