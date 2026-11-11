@@ -17,6 +17,9 @@ extends GameTest
 ## in open combat). Green on 2026-11-07, #192, in two runs (not `--quiet`: the gate was bypassed,
 ## `perf-district.md`; load 3.2 to 5.6, six other Godot processes that were no test's): avg 7.07 and
 ## 6.44, p95 15.88 and 13.09, max 26.01 and 17.98 ms against 16.7, 20 and 33.4.
+## #203: the match plays one fight per seed (seed 2 now, `perf_probe.gd`), contact at 7.7 s, no late
+## nav bake; four runs (load 6 to 7.5, not `--quiet`): avg 6.69 to 6.91, p95 14.04 to 15.20, max
+## 27.38 to 28.61 ms.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const PER_SIDE := 5
