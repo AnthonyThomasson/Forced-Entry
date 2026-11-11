@@ -1,0 +1,66 @@
+# Ticket: story
+
+The default kind. A label adds its kind file: `ai.md`, `harness.md`, `refactor.md`, `assets.md`. Sections 1 and 2 are
+planning, 3 and 4 building, then the shared "Feedback gate", "Audit" and "Report" (`SKILL.md`).
+
+## 1. Orient and grill
+
+Load `architecture` and the `domain-<name>` skills the ticket touches; read the code it names. Run "Triage checks"
+(`SKILL.md`). Answer from the code what the code can answer.
+
+Grill with `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling`: each round asks the whole frontier (every
+question whose prerequisites are settled), a recommended answer on each, through `AskUserQuestion` up to four at a time. A
+term the grilling sharpens goes in `GLOSSARY.md`, a hard-to-reverse decision with a real trade-off in `docs/adr/`. A
+question only something runnable can settle: a throwaway sandbox under `mattpocock-skills:prototype`'s rules (named as a
+prototype, kept on a `prototype/<name>` branch, the verdict on the ticket). Grill until nothing material is open:
+
+- the outcome: what the user or player sees or can do afterwards, and what stays as it is;
+- edge cases: wrong moment, nothing to act on, two at once, the thing absent; and each rule under every actor kind it names
+  (an AI or a human leader, each side, a member with or without an order), with the rule that wins where two meet
+  (`change-report`'s Rule interactions lists them);
+- fit: which behaviour it replaces or sits beside, which domains and interfaces it touches;
+- tuning and display: tunables, defaults, debug overlays, HUD, sound;
+- out of scope, and what "done" means (the behaviour or tests that prove it).
+
+The ticket text is a starting point. Stop when questions would only restate decisions.
+
+## 2. Plan
+
+A brief and a plan someone else could build from (shape: `SKILL.md`, "Brief and plan on the ticket"):
+
+- **Agent Brief:** current behaviour; **desired behaviour** rule by rule, with the grilling's decisions; key interfaces
+  (only those in `architecture`) and tunables with defaults; **acceptance criteria**, one per rule, each naming the test
+  scenario and the seam it runs at (the world or `house()` it builds, the switches on), the seams `tdd` tests at; out of
+  scope.
+- **Plan:** per domain, files and types added or changed, data; test files; slices (the acceptance criteria in build
+  order, each a test and the code that turns it green); open risks.
+
+Show it with a `change-report` and ask for acceptance; each revision gets a fresh report. Assets: the plan follows the
+showroom picks (`assets.md`). Then "Rebase after acceptance", "Brief and plan on the ticket", "Show the user" (`SKILL.md`).
+
+## 3. Build, test by test
+
+As "Building" (`SKILL.md`) says: one acceptance criterion at a time, in the plan's order, at the seam the plan names for it.
+
+1. **Red.** That criterion's test (`domain-testing`, `test-debug`): behaviour through published interfaces, expected
+   values from the brief, never recomputed the way the code computes them. Extend an existing test rather than add a
+   near-duplicate (`tools/run_tests.sh --list <words>`). A behaviour is proved by a simulation test
+   (`tests/<domain>/<name>_test.gd`); a native suite is for pure logic and only supplements it (`domain-testing`, "Native
+   unit suites"). Run it alone, Bash sandbox disabled (`tools/run_tests.sh --id=<domain>/[<topic>/]<name>`); it must
+   **fail for the right reason** (the behaviour is missing, not a parse error, race or setup mistake). Passes at once: too
+   loose or already built; tighten it, or report it built.
+2. **Green.** The smallest production change that passes it, in the right domain, through published interfaces only. Never
+   loosen, skip or special-case a test. Load check and lint (`godot-run`), then the test again.
+3. **Next criterion.** No code for a later one ahead of its test; refactoring waits for the review.
+
+Then the whole suite, the self-review and the commit. The report lists each criterion's red line (why it failed) and
+green line.
+
+## 4. Green and wrap up
+
+New tests pass (`--repeat=10` if timing-dependent), then `tools/run_tests.sh --changed=origin/main --summary` (the work is
+committed, so a bare `--changed` finds nothing), then `tools/run_tests.sh --summary --jobs=auto`. A change under
+`scenes/ai/` or `scenes/testing/` also runs `tools/run_tests.sh --domain=ai --require-von` once, whatever its labels
+(`domain-testing` (`runner-flags.md`)). A touched per-frame path: `tools/run_tests.sh --domain=perf --quiet` (judge only a
+result not marked `loaded`). An older test now failing is your regression until shown otherwise. Update every changed
+domain's skill, `architecture` for an interface, and the `docs/` spec if there is one. Then "Feedback gate" (`SKILL.md`).

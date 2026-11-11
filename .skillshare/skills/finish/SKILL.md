@@ -1,6 +1,6 @@
 ---
 name: finish
-description: Use only once the user answered "finish" (or "finish now, skip the retro") at the end of a ticket workflow, or on `/finish`.
+description: Use only on `/finish` or when the user asks to land a branch by hand. A Herdr ticket run lands through its run page's Merge button instead.
 model: haiku
 ---
 

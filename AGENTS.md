@@ -8,8 +8,8 @@ the cross-cutting conventions and the whole sanctioned cross-domain interface su
 `tactical-entry.md`, `gaze-and-fire.md`, `grenades.md`, `hearing.md`, `outfits.md`, `vehicles.md`, `lighting.md`,
 `leadership.md`, `doors.md`, `player-vision.md`).
 
-**GitHub tickets (issues) run through the Herdr workflows in `.herdr/workflows/`,** one per kind; each one's prompts hold its
-phases.
+**Working on a GitHub ticket (issue), in any role, load the `ticket` skill first.** Herdr's default workflows run the
+ticket (roles, phases, pull request, merge); `ticket` routes it by label to what each kind needs planned, built and checked.
 
 **Checks:** on Stop, when the turn changed what lint reads, Claude runs lint and the headless load check
 (`tools/stop_hook_checks.sh`). Lint is the engine's analyzer, the project lint rules and gdstyle (`gdstyle.toml`: 100

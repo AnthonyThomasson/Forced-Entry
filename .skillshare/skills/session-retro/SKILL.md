@@ -1,6 +1,6 @@
 ---
 name: session-retro
-description: Use on the ticket workflow's "retro" answer, or from `finish` on a bare `/finish`.
+description: Use when asked for a retro on a session or ticket run, or from `finish` on a bare `/finish`.
 model: opus
 ---
 
