@@ -29,6 +29,12 @@ clean() {
     | tr -s ' \n' ' ' | sed -E 's/^ +| +$//g'
 }
 
+# The user answered or sent a prompt: the wait is over, so the next one alerts again.
+stamp="${TMPDIR:-/tmp}/needs-you.$session"
+case "$event" in
+  UserPromptSubmit|PostToolUse) rm -f "$stamp"; exit 0 ;;
+esac
+
 case "$event" in
   PreToolUse)
     text=$(jq -r '[.tool_input.questions[]? |
@@ -55,10 +61,10 @@ esac
 text=$(printf '%s' "$text" | clean | cut -c1-400)
 [ -z "$text" ] && exit 0
 
-# One alert per session per 5s: a question can trip two events at once.
-stamp="${TMPDIR:-/tmp}/needs-you.$session"
+# One alert per wait: a question trips several events (the PreToolUse, then a Notification seconds later), so a
+# session stays quiet until the user answers (the stamp is cleared above) or 60s pass.
 now=$(date +%s)
-[ -f "$stamp" ] && [ $((now - $(cat "$stamp"))) -lt 5 ] && exit 0
+[ -f "$stamp" ] && [ $((now - $(cat "$stamp"))) -lt 60 ] && exit 0
 echo "$now" >"$stamp"
 
 if [ -n "${NEEDS_YOU_DRY_RUN:-}" ]; then
