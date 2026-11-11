@@ -14,7 +14,7 @@ shows), the quiet gate that counts only busy engines (`perf.md`) and `tools/perf
 turn since #192 (`look_phases.gd`); the sight cadence, the give-way order and the AI's other orders are keyed on spawn order (`WorldRng`).
 
 **Landed in #203 (the physics-order job):** a match plays the same fight whatever ran before it in the process, with or without padding: the AI's cadences
-count the world's own frames (`WorldRng.frame_of`), `GameClock.seconds()` and `msec()` no longer follow the frame a timer started on, the guards' seed is 13, and four replay tests
+count the world's own frames (`WorldRng.frame_of`), `GameClock.seconds()` and `msec()` no longer follow the frame a timer started on, the guards' seed is 2, and four replay tests
 pin it. The causes, the tests and the seed: `perf-determinism-causes.md`.
 
 **Landed with the navigation job (#203):** a re-bake and an avoid map land on a fixed physics frame count after they start, the thread
@@ -24,6 +24,11 @@ server's async sync showed a landed bake on a frame that followed the machine's 
 in 30 s at any landing count; with it off, four runs of one build had contact at 12.3 s each, and 14, 12 and 8 frames for the avoid maps gave
 11.8, 11.5 and 10.5 s. Idle avoid maps are freed by physics frames, not wall-clock ms (`NavBuilder.avoid_idle_frames`). Each guard logs
 `PERF <label> nav bakes late N of M` (`Perf.log_late_bakes`): a creeping share of late bakes means a count has fallen behind its thread.
+
+**What the main-thread sync costs (#203, seed 2, 5v5 and 10v10 guards, `--quiet` cleared: 0 busy Godot, load 5.0 to 6.7; sync vs async interleaved, four rounds):** sync 5v5 avg 6.82
+p95 14.8 max 28.6 ms; 10v10 avg 12.58 p95 21.7 max 31.5. Async plays another fight (5v5 contact 22.9 s in three runs of four, 8.1 s in the fourth), so its numbers are of a lighter load, not of
+the flag; where the fight is the same (10v10 at 6.0 s: avg 12.94 p95 18.3 max 29.8; the 5v5's one 8.1 s run: avg 6.88 p95 15.15 max 22.7) the sync is within 0.4 ms of the average and its max
+stays under `SMOOTH_MAX_MS`, so no frame is pushed over it. The 10v10 p95 stays over 20 ms either way (known red, `match_10v10_stress_test.gd`).
 
 **TODO (#203, the acceptance run):** the result of `tools/perf_ab.sh HEAD~0 HEAD` on this ticket's own tip is written here when it has
 run (identical fingerprints, the delta against the bar), with the four guards' two-run fingerprints and the padding on / off check.

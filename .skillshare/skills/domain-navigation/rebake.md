@@ -32,6 +32,8 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   alone and `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`).
 - **A map syncs on the main thread** (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`): the server's
   async sync would show a landed bake on a frame that follows the machine's load, so a match was a different fight run to run whatever the landing frames.
+  It costs the main thread almost nothing in the perf guards: 5v5 avg 6.8 ms, max 28.6; 10v10 avg 12.6, max 31.5 (under `SMOOTH_MAX_MS` 33.4), within 0.4 ms of the async average on a same fight
+  (`domain-testing`, its perf side files).
 - The tick's own re-bakes take the footprints it just measured, so it measures furniture
   once and parses the walls once. The public `rebake`,
   `rebake_async`, `rebake_steering` are **test-facing seams** that measure their own footprints; only tests call them.
