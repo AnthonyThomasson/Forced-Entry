@@ -23,7 +23,7 @@ static func spawn(position: Vector2, direction: Vector2, parent: Node) -> Node:
 	Despawner.track(casing)
 
 	# Eject sideways (random side) plus a small backward component.
-	var side := 1.0 if randf() > 0.5 else -1.0
+	var side := 1.0 if WorldRng.of(parent).randf() > 0.5 else -1.0
 	var eject_dir := direction.orthogonal() * side - direction * 0.3
 	casing.start(eject_dir)
 	return casing

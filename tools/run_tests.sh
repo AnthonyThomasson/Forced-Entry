@@ -101,12 +101,13 @@
 #                   (headless measures the CPU only) without being held to the display's refresh
 #   --quiet[=MINUTES]  before a process that holds perf tests starts (the perf phase, the one process of a run whose
 #                   selection holds perf, a --repeat rerun of a native perf suite; which: runner-flags.md of the
-#                   domain-testing skill), wait until no other Godot process runs and the 1-minute load is under max_load
-#                   in tools/perf_quiet.conf (6, this box's idle baseline), printing both each minute. After MINUTES
+#                   domain-testing skill), wait until no other Godot is busy (an engine process at busy_cpu percent or over of a core across
+#                   busy_sample_s seconds; an idle editor and the godot-mcp servers are not) and the 1-minute load is under
+#                   max_load in tools/perf_quiet.conf (6, this box's idle baseline), printing both each minute. After MINUTES
 #                   (timeout_min, 30) it runs anyway and marks that process's results `loaded` (on their verdict lines
 #                   and as "loaded": true in report.json); judge only a perf result that is not. A gate that fails
 #                   otherwise (an unreadable conf) exits 2 before any test runs. Every PERF line (shown with --verbose)
-#                   ends with `(load <x>, <n> other Godot)`, as it passes.
+#                   ends with `(load <x>, <n> busy Godot)`, as it passes.
 # Other
 #   --repeat=5      run each test 5 times, a native suite's cases too (it runs again in 4 more processes); names
 #                   FLAKY / FAILING tests. With a --shard given by hand a native suite runs once ("NOTE native suites
@@ -119,6 +120,11 @@
 #                   finding fails the run before a single test starts. Not run for --list or --self-test, nor when
 #                   the sources are unchanged since the last clean lint (fingerprint kept in $TMPDIR; the lint of
 #                   --changed --staged never records one).
+# Fight fingerprint
+#   GAME_TEST_FINGERPRINT_DIR=DIR   every engine process of the run (shards, --base, --repeat's reruns) writes the four
+#                   match guards' fight fingerprints to DIR, `<test id with / as __>.fp` (tests/_perf/fight_fingerprint.gd;
+#                   the format: perf-fingerprint.md of the domain-testing skill). Made absolute here (--base runs in another
+#                   checkout) and created; unset, no guard records anything.
 # Not here: --play <words> (play one test or sandbox in the runner) is the runner's own flag; this wrapper only runs
 # batches, so it refuses --play and prints the command that launches the runner. Any other flag not listed above, or
 # several flags quoted into one argument, exits 2 with `unknown flag: <arg>` and these usage lines.
@@ -135,6 +141,13 @@ exec 3>&2   # the run's own stderr: a shard's output is held back, but its wait 
 # Every engine process runs with the dev command server off (over any port the caller set): a test run never drives
 # it, and a port another worktree's game or run holds would otherwise fail the run on its "failed to listen" warning.
 export GODOT_CMD_PORT=off
+# The fight fingerprint's directory (tests/_perf/fight_fingerprint.gd) reaches every engine process as an absolute path: a
+# --base run's engine runs in another checkout, a relative one would land inside it.
+if [[ -n "${GAME_TEST_FINGERPRINT_DIR:-}" ]]; then
+  GAME_TEST_FINGERPRINT_DIR=$(python3 -c 'import os, sys; print(os.path.abspath(sys.argv[1]))' "$GAME_TEST_FINGERPRINT_DIR")
+  export GAME_TEST_FINGERPRINT_DIR
+  mkdir -p "$GAME_TEST_FINGERPRINT_DIR"
+fi
 GODOT="${GODOT:-$( command -v godot || command -v godot4 \
   || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
 if [[ -z "$GODOT" ]]; then
@@ -455,7 +468,7 @@ godot_run() {
   python3 "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" $HEADLESS $NOVSYNC --path . --fixed-fps 60 --log-file "$out/godot.log" \
     -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -c -rc 1 -rd "res://$rel/gdunit" \
     ${suites[@]+"${suites[@]}"} -- --out="$out" "$@" | tee "$out/gdunit.txt" | python3 -u -c "$CONSOLE_FILTER" \
-    | python3 "$TOOLS/godot_slot.py" annotate --ancestor=$$ ${LOADED_RUN:+--loaded}
+    | python3 "$TOOLS/godot_slot.py" annotate --ancestor=$$ $(busy_args) ${LOADED_RUN:+--loaded}
   code=${PIPESTATUS[0]}
   set -e
   if [[ $code -ne 0 && $code -ne 100 && $code -ne 101 ]]; then
@@ -465,7 +478,7 @@ godot_run() {
   if [[ ! -f "$out/report.json" ]] && grep -q "No test cases found" "$out/gdunit.txt"; then
     # gdUnit runs no session, so no suite and no hook, when the selection holds no test: an empty run.
     echo '{"results": [], "stray_logs": [], "log_end": 0}' > "$out/report.json"
-    echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap" | python3 "$TOOLS/godot_slot.py" annotate --ancestor=$$
+    echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap" | python3 "$TOOLS/godot_slot.py" annotate --ancestor=$$ $(busy_args)
     echo "Report: $out/report.json"
   fi
   [[ -n "$LOADED_RUN" ]] && mark_loaded "$out"
@@ -666,19 +679,32 @@ holds_perf() {
   selection_has_perf "$@"
 }
 
-# --quiet: before a process that holds perf tests starts, wait for no other Godot and a 1-minute load under
+# perf_quiet.conf's busy_cpu and busy_sample_s as godot_slot.py's --busy-cpu and --busy-sample (what makes another Godot
+# busy: the PERF lines count them as the gate does). A value the conf does not give is left out, the tool's own default
+# applies, so an unreadable conf never costs a run its output; the quiet gate itself passes the raw values, as max_load.
+busy_args() {
+  local cpu sample
+  cpu=$(sed -n 's/^busy_cpu=//p' "$TOOLS/perf_quiet.conf")
+  sample=$(sed -n 's/^busy_sample_s=//p' "$TOOLS/perf_quiet.conf")
+  echo "${cpu:+--busy-cpu=$cpu} ${sample:+--busy-sample=$sample}"
+}
+
+# --quiet: before a process that holds perf tests starts, wait for no other busy Godot and a 1-minute load under
 # perf_quiet.conf's max_load (printing both each minute); after timeout_min minutes (--quiet=MINUTES) go ahead and leave
 # LOADED_RUN set, which marks that process's results `loaded`. A gate that fails otherwise (an unreadable conf) ends the run.
 quiet_gate() {
   [[ $QUIET_GATE -eq 1 ]] || return 0
-  local max min rc=0
+  local max min cpu sample rc=0
   max=$(sed -n 's/^max_load=//p' "$TOOLS/perf_quiet.conf")
   min=${QUIET_MIN:-$(sed -n 's/^timeout_min=//p' "$TOOLS/perf_quiet.conf")}
-  bg_wait python3 "$TOOLS/godot_slot.py" quiet --ancestor=$$ --max-load="$max" --timeout-min="$min" || rc=$?
+  cpu=$(sed -n 's/^busy_cpu=//p' "$TOOLS/perf_quiet.conf")
+  sample=$(sed -n 's/^busy_sample_s=//p' "$TOOLS/perf_quiet.conf")
+  bg_wait python3 "$TOOLS/godot_slot.py" quiet --ancestor=$$ --max-load="$max" --timeout-min="$min" \
+    --busy-cpu="$cpu" --busy-sample="$sample" || rc=$?
   case $rc in
     0) ;;
     3) LOADED_RUN=1 ;;
-    *) echo "quiet gate failed (godot_slot.py quiet exited $rc; tools/perf_quiet.conf max_load='$max' timeout_min='$min'): no test was run" >&2
+    *) echo "quiet gate failed (godot_slot.py quiet exited $rc; tools/perf_quiet.conf max_load='$max' timeout_min='$min' busy_cpu='$cpu' busy_sample_s='$sample'): no test was run" >&2
        exit 2 ;;
   esac
 }

@@ -17,7 +17,8 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 | `nav_holes.gd` (`NavHoles`), `nav_pieces.gd` (`NavPieces`) | `NavHoles`: a body's footprint (`cut`, `hull_of`), the furniture's (`furniture`) and the reference that cuts every piece afresh (`plain`). `NavPieces`: one tracker per house, the pieces and the hull each was last cut to. |
 | `nav_gather.gd` (`NavGather`) | A district's planning re-bake gathered a step a physics frame, swapped in whole (`NavRebake.swap`). |
 | `nav_source.gd` (`NavSource`) | All static: what a bake is gathered from (the parsed walls, `walls` / `walls_of`, the `job` of polygon and source) and running it (`bake`), the outline helpers. |
-| `nav_rebake.gd` (`NavRebake`) | All static: the updater's re-bakes, the planning one (its `swap` onto the worker thread) and the steering one. |
+| `nav_rebake.gd` (`NavRebake`) | All static: the updater's re-bakes, the planning one (its `swap` onto a worker thread) and the steering one. |
+| `nav_bake.gd` (`NavBake`), `nav_bake_config.gd` (`NavBakeConfig`) | `NavBake`: one planning bake's worker thread and its landing on a fixed `GameClock` frame (not `Engine.get_physics_frames()`, which runs through a pause). `NavBakeConfig`: that frame count by kind of bake (`district_frames`, `avoid_frames`, `ring_frames`, a lone house's `house_frames`). |
 | `nav_tiles.gd` (`NavTiles`) | A district's steering tiles, the per-tower wall cache and the remembered outline bounds. |
 | `nav_ring.gd` (`NavRing`) | A district's planning ring: a small map of the match building. |
 | `nav_ready.gd`, `nav_snaps.gd` | `NavReady`: does a map answer yet. `NavSnaps`: what `snap` learned. |

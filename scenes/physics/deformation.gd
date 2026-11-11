@@ -42,8 +42,8 @@ static var _wall_cache := {}
 ## An impact (above) at `pos` caving along `inward` (both in the caller's local space) from `damage`
 ## dealt, in a body that caves as `dent` says: its depth `damage *
 ## PhysicsDeformConfig.depth_per_damage`, at most `dent.max_depth`; a chunk when
-## `dent.allow_chunks` and `damage` reaches `PhysicsDeformConfig.chunk_damage`; a fresh `randi()`
-## seed; `blood` carried.
+## `dent.allow_chunks` and `damage` reaches `PhysicsDeformConfig.chunk_damage`; a seed drawn from
+## `dent.rng` (the world's); `blood` carried.
 static func new_impact(
 	pos: Vector2,
 	inward: Vector2,
@@ -55,7 +55,7 @@ static func new_impact(
 		"pos": pos, "inward": inward,
 		"depth": minf(damage * PhysicsDeformConfig.depth_per_damage, dent.max_depth),
 		"chunk": dent.allow_chunks and damage >= PhysicsDeformConfig.chunk_damage,
-		"seed": randi(), "blood": blood,
+		"seed": dent.rng.randi(), "blood": blood,
 	}
 
 

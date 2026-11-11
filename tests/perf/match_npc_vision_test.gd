@@ -20,6 +20,11 @@ extends GameTest
 ## view's cone rebuilt almost every frame while its viewer moves (about 11 ms a frame in
 ## `perf/match_npc_vision_relative`'s moving rounds): a follow-up. The budgets are not loosened and
 ## the test is neither skipped nor tagged.
+## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
+## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
+## one fight per seed, seed 2 now (`perf_probe.gd`), contact at 6.0 s every
+## run; four runs (load 5 to 6.4, not `--quiet`): avg 15.56 to 17.05, p95 22.57 to 24.48, max 31.90
+## to 38.25 ms (one run 146.63, a stall on the loaded machine).
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
@@ -72,6 +77,7 @@ func run(t: TestContext) -> void:
 	var beside: Node2D = characters.filter(func(c): return c.get("faction") == &"invader")[0]
 	viewed.global_position = beside.global_position + BESIDE
 	characters.append(viewed)
+	Perf.record_fight(t, self, characters)
 	if not await Perf.warm_until_contact(t, "10v10 match, viewed NPC", characters):
 		return
 	var nodes_before := Perf.nodes()

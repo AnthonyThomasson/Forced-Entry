@@ -3,7 +3,7 @@ class_name NavSource extends RefCounted
 ## `NavBuilder`, `NavTiles`, `NavRing` and `NavRebake` share. A bake is a job, `{ poly, source }`:
 ## the polygon to bake into (the agent radius set) and its source geometry (the parsed walls, the
 ## walkable footprint and the furniture and character holes), gathered on the main thread. `bake`
-## runs a job at once; `NavRebake` hands one to the server's worker thread. The parsed walls are a
+## runs a job at once; `NavRebake` hands one to a worker thread (`NavBake`). The parsed walls are a
 ## `walls` dictionary, `{ traversable, obstruction, projected }`, built only by `walls`.
 
 ## The box round an outline is this much (px) larger than the polygon, so outlines that merely touch

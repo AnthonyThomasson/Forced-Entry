@@ -89,7 +89,7 @@ func to_back(entry: Entry) -> bool:
 
 ## Keep this NPC's slot, side and place in step with the radio: a slot an ally also claimed is given
 ## up for the next free one when the ally keeps it (one that moved up into it, E2; nearer it, of two
-## claims made on one frame; else the lower instance id: `StackLayout.free_slot`), or for the one
+## claims made on one frame; else the one spawned first: `StackLayout.free_slot`), or for the one
 ## the ally freed when it moved up; and when the side the team stacks on changes (the point's, once
 ## it is known) a member that is not the point weighs it again: it follows it, unless its way there
 ## crosses the doorway's view (E19). The side is otherwise never re-read from where this NPC stands:

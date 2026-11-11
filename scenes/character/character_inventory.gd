@@ -176,7 +176,8 @@ func drop_held(momentum: Vector2) -> void:
 	var item := current_item()
 	if item == null:
 		return
-	var toss := (Vector2.from_angle(randf() * TAU) * CharacterRagdollFallConfig.drop_toss
-			* randf_range(0.5, 1.0))
+	var rng := WorldRng.of(character)
+	var toss := (Vector2.from_angle(rng.randf() * TAU) * CharacterRagdollFallConfig.drop_toss
+			* rng.randf_range(0.5, 1.0))
 	if item.drop(character, momentum + toss):
 		_items.erase(_current_slot)

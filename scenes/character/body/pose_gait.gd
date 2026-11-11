@@ -18,8 +18,19 @@ var move_dir := Vector2.ZERO
 var _stun := 0.0
 ## Seconds alive, for breathing, glances and a steady hand's wander.
 var time := 0.0
-## Per-character offset so characters don't move in lockstep.
-var phase := randf() * TAU
+## Per-character offset so characters don't move in lockstep (`place`).
+var phase := 0.0
+## The stream `phase` was drawn from: a character is placed once in each world it stands in.
+var _placed_by: RandomNumberGenerator
+
+
+## Give the character its offset, drawn once from its world's stream `rng` (`WorldRng.of`), so a
+## seeded match phases its breath, glances and stagger the same. Called again in the same world it
+## changes nothing; in another (the scene's player joined to a match) it draws afresh.
+func place(rng: RandomNumberGenerator) -> void:
+	if rng != _placed_by:
+		_placed_by = rng
+		phase = rng.randf() * TAU
 
 
 ## Advance the gait by `delta` as `drive` asks: the clock, the stun eased toward its `stun` level,

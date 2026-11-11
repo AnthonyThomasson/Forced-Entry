@@ -34,7 +34,7 @@ var _nav_debug: Node = null
 var _baseline: Array = []
 var _character_baseline: Array = []
 ## Whether the planning region's re-bake is under way, gathering a step a frame (`_gather`) or
-## baking on the server's worker thread; a furniture move meanwhile waits for the first tick after
+## baking on a worker thread (`NavBake`); a furniture move meanwhile waits for the first tick after
 ## the bake lands (the baseline is set from what that bake
 ## carved, so it is caught then).
 var _baking := false
@@ -66,10 +66,7 @@ func _physics_process(_delta: float) -> void:
 	_gather = null
 	set_physics_process(false)
 	var furniture := gathered.furniture
-	NavRebake.swap(_region, gathered.site, gathered.job, gathered.ring, func() -> void:
-		_baking = false
-		_baseline = furniture
-		_refresh_overlay())
+	NavRebake.swap(_region, gathered.site, gathered.job, gathered.ring, _on_landed.bind(furniture))
 
 
 ## Wire the updater to the baked map and start the interval. `region` is NavBuilder.build's result,
@@ -98,7 +95,7 @@ func setup(
 
 
 ## One interval tick: if furniture has moved since the last bake, re-carve the planning region's
-## holes at the live positions, baked on the server's worker thread (`NavRebake.planning`; a
+## holes at the live positions, baked on a worker thread (`NavRebake.planning`; a
 ## furniture move while one is in flight waits for the next tick) and the steering region's in
 ## place; if only a character has, re-carve the steering region. Refreshes the overlay after either.
 ## Nothing moved, nothing baked. The steering re-bake lands in the tick's own frame, so a walker
@@ -131,16 +128,24 @@ func _on_tick() -> void:
 		set_physics_process(true)
 
 
-## Gather the planning bake of `site` from the furniture footprints `furniture` and start it on the
-## server's worker thread; the baseline is set from what it carved when it lands. Returns the walls
+## What a planning bake's landing does: the baseline is what it carved (`furniture`), the next move
+## may start a bake, the overlay follows. Handed over as a bound method, not a lambda: a world torn
+## down while its bake is in flight frees the updater, a method callable of a freed object is not
+## `is_valid` (the landing skips it), and a lambda that held the updater was still called, an
+## engine error ("Bad address index") logged into whatever ran next.
+func _on_landed(furniture: Array) -> void:
+	_baking = false
+	_baseline = furniture
+	_refresh_overlay()
+
+
+## Gather the planning bake of `site` from the furniture footprints `furniture` and start it on a
+## worker thread; the baseline is set from what it carved when it lands. Returns the walls
 ## it parsed, for a house's steering bake to share.
 func _rebake_planning(site: NavSite, furniture: Array) -> Dictionary:
 	var walls := NavTiles.walls_after(_region, site, _baseline, furniture)
 	_baking = true
-	NavRebake.planning(_region, site, furniture, func() -> void:
-		_baking = false
-		_baseline = furniture
-		_refresh_overlay(), walls)
+	NavRebake.planning(_region, site, furniture, _on_landed.bind(furniture), walls)
 	return walls
 
 

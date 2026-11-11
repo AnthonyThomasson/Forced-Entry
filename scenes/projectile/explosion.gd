@@ -141,9 +141,10 @@ static func _fragments(at: Vector2, world: Node, source: Node, row: Dictionary) 
 	shot.max_range = float(row.get("fragment_range", -1.0))
 	shot.strikes_shooter = true
 	shot.damage = float(row.get("fragment_damage", 10.0))
-	var turn := randf() * TAU
+	var rng := WorldRng.of(world)
+	var turn := rng.randf() * TAU
 	for i in count:
-		var angle := turn + TAU * (float(i) + randf_range(-0.4, 0.4)) / float(count)
+		var angle := turn + TAU * (float(i) + rng.randf_range(-0.4, 0.4)) / float(count)
 		ProjectileSpawner.spawn(at, Vector2.from_angle(angle), world, shot)
 
 

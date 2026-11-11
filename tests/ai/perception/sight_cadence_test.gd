@@ -90,8 +90,9 @@ func _cone_bubble_and_entering(t: TestContext) -> void:
 	# A character out of the cone is first tested on the frame it enters it, however its phase
 	# falls: wait for a frame that is off its phase, then turn it into the cone.
 	var entering: Node2D = seen["side"]
-	var pid: int = watcher["perception"].get_instance_id()
-	while (Engine.get_physics_frames() + pid + entering.get_instance_id()) \
+	var mine := WorldRng.order_of(watcher["body"].get_instance_id())
+	var theirs := WorldRng.order_of(entering.get_instance_id())
+	while (WorldRng.frame_of(watcher["body"]) + mine + theirs) \
 			% PerceptionSight.SIGHT_EVERY_FRAMES == 0:
 		await t.frames(1)
 	entering.position = Vector2(200.0, 40.0)

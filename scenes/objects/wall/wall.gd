@@ -112,7 +112,9 @@ func _record_segment_damage(
 		return
 	var inward := _inward(world_pos, world_normal, segs[best_i])
 	var arr: Array = _seg_impacts.get(best_i, [])
-	var impact := Deformation.new_impact(local_pos, inward, amount, blood, DentLimits.new())
+	var dent := DentLimits.new()
+	dent.rng = WorldRng.of(self)
+	var impact := Deformation.new_impact(local_pos, inward, amount, blood, dent)
 	Deformation.push_impact(arr, impact, PhysicsDeformConfig.max_impacts)
 	_seg_impacts[best_i] = arr
 	if _visuals:

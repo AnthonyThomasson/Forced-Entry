@@ -227,16 +227,16 @@ func _way_left() -> float:
 
 
 ## Whether the NPC has the right of way over walker `b`: `b` sees it (it is near, or within `b`'s
-## view by its facing) and the NPC's instance id is the lower. Both reckon the same, so of two
-## walkers that see each other one gives way; one that does not see the NPC cannot give way to it,
-## so the NPC gives way.
+## view by its facing) and the NPC's spawn order (`WorldRng`) is the lower. Both reckon the same, so
+## of two walkers that see each other one gives way; one that does not see the NPC cannot give way
+## to it, so the NPC gives way.
 func _has_way(b: Dictionary) -> bool:
 	var character: Node = loco._character
 	var to_me: Vector2 = character.global_position - (b["pos"] as Vector2)
 	var facing: Vector2 = b.get("facing", Vector2.ZERO)
 	var sees := (to_me.length() <= SEES_NEAR
 			or (facing != Vector2.ZERO and facing.normalized().dot(to_me.normalized()) >= SEES_COS))
-	return sees and character.get_instance_id() < int(b["id"])
+	return sees and WorldRng.before(character.get_instance_id(), int(b["id"]))
 
 
 ## A spot to step aside to, off the line `line` a walker at `at` comes along (the NPC stands `off`

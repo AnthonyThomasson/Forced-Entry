@@ -29,6 +29,11 @@ extends GameTest
 ## through `react_to_grenades`, about 4.4 ms a call, several NPCs in one frame: 49 to 53 calls in 28
 ## or 29 frames of the 560, the worst frame spends 22.4 ms of 31.7 in that reflex). The budgets are
 ## not loosened and the test is neither skipped nor tagged.
+## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
+## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
+## one fight per seed, seed 2 now (`perf_probe.gd`), contact at 8.1 s every
+## run; four runs (load 5 to 6, not `--quiet`): avg 9.96 to 12.50, p95 19.78 to 22.39, max 28.33 to
+## 35.63 ms.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -83,6 +88,7 @@ func run(t: TestContext) -> void:
 	if not _set_up(t, characters):
 		return
 	var thrower := t.actor(&"thrower")
+	Perf.record_fight(t, self, characters)
 	if not await Perf.warm_until_contact(t, "grenades in a 5v5 match", characters):
 		return
 

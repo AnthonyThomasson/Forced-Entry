@@ -50,7 +50,6 @@ func _squad_looks_land_on_different_frames(t: TestContext) -> void:
 	# can make equal for every one (pad 2): the phases must not follow it.
 	var held: Array = []
 	for pad in PADS:
-		var frame := Engine.get_physics_frames()
 		var first_looks := {}
 		for n in SQUAD:
 			var perception := Probe.perception()
@@ -60,6 +59,7 @@ func _squad_looks_land_on_different_frames(t: TestContext) -> void:
 			var body := SightBody.new()
 			t.world.add_child(body)
 			perception.set("_character", body)
+			var frame := WorldRng.frame_of(body)
 			perception.house.learn_by_sight()
 			var next: int = perception.house.learn_next
 			t.check(
@@ -117,15 +117,16 @@ func _furniture_learned_within_eighteen_frames(t: TestContext) -> void:
 	perception.house.interactables = Probe.furniture(t.world, PIECES)
 	var first := -1
 	var done := -1
-	for frame in WATCH_FRAMES:
+	for _i in WATCH_FRAMES:
 		await t.frames(1)
 		# As the perception's observe() schedules it: a look once `learn_next` has come.
-		if Engine.get_physics_frames() >= perception.house.learn_next:
+		var frame := WorldRng.frame_of(perception.get("_character"))
+		if frame >= perception.house.learn_next:
 			if first < 0:
-				first = Engine.get_physics_frames()
+				first = frame
 			perception.house.learn_by_sight()
 		if done < 0 and perception.house.known_object_ids().size() == PIECES:
-			done = Engine.get_physics_frames()
+			done = frame
 	t.check(done > -1, "every piece in view was learned")
 	t.check(
 		done - first <= LEARN_FRAMES,

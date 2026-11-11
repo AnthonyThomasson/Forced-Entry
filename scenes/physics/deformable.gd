@@ -47,6 +47,7 @@ func record(hit: HitInfo, turn: float = 0.0) -> void:
 	var dent := DentLimits.new()
 	dent.max_depth = max_depth
 	dent.allow_chunks = allow_chunks
+	dent.rng = WorldRng.of(_body)
 	var impact := Deformation.new_impact(local_pos, inward, hit.damage, hit.blood, dent)
 	Deformation.push_impact(impacts, impact, max_impacts)
 	damage_total += hit.damage

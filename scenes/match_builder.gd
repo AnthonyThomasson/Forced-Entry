@@ -549,15 +549,18 @@ static func _apply_in_scope(npc: Node, flags: Dictionary, scope: String) -> void
 ## `plan` and front `entrance`); a caller that built its own (a hand-laid layout or an arena, its
 ## objects already placed so the bake carves them) names it, and it is moved under `world` when it
 ## stands elsewhere. Then the nav map (`NavBuilder.build`), its holes overlay and its re-baker, and
-## the dusk lighting seeded by `seed`. With `wait_nav` the world is stepped two physics frames (the
-## walls' colliders go live on a step), then until `NavBuilder.ready` holds on the planning map and
-## on the steering map, so an NPC placed afterwards never plans or walks on a map still showing
-## another navmesh (at most `NAV_SYNC_MS` of real time; an error past it). A coroutine: await it.
-## Returns the handle `{ world, house, rooms, openings, nav_debug }` (and the `district` root when
-## the world is a district), or `{}` when
+## the dusk lighting seeded by `seed`. `world` is also registered as the match's world (`WorldRng`,
+## 11: its random stream seeded by `seed`, its characters' spawn order). With `wait_nav` the world
+## is stepped two physics frames (the walls' colliders go live on a step), then until
+## `NavBuilder.ready` holds on the planning map and on the steering map, so an NPC placed afterwards
+## never plans or walks on a map still showing another navmesh (at most `NAV_SYNC_MS` of real time;
+## an error past it). A coroutine: await it. Returns the handle
+## `{ world, house, rooms, openings, nav_debug }` (and the `district` root when the world is a
+## district), or `{}` when
 ## `world` was freed during the wait (the match torn down).
 static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	match_spec = spec(match_spec)
+	WorldRng.register(world, int(match_spec["seed"]))
 	var site := _build_site(match_spec, world)
 	var house: Node2D = site["house"]
 	var root: Node2D = site["root"]

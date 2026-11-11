@@ -60,6 +60,10 @@ var wardrobe: CharacterWardrobe
 
 func _enter_tree() -> void:
 	wardrobe = $Wardrobe as CharacterWardrobe
+	# Its place in its world's spawn order and its gait phase off the world's stream (`WorldRng`,
+	# interface 11).
+	WorldRng.enrol(self)
+	anatomy.pose.gait.place(WorldRng.of(self))
 
 
 func _ready() -> void:

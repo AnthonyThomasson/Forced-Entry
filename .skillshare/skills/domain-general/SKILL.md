@@ -1,6 +1,6 @@
 ---
 name: domain-general
-description: Use when editing scenes/general/ or its keybinds, settings, clock, camera, command server, PhysicsLayers, DrawLayers, ViewLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, MatchVerdict.
+description: Use when editing scenes/general/: keybinds, settings, camera, command server, PhysicsLayers, DrawLayers, ViewLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, MatchVerdict, WorldRng.
 ---
 
 # General domain (`scenes/general/`)
@@ -21,6 +21,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 | `camera_controller.gd` (+ the two config holders) | `Camera2D` |
 | `command_server.gd` | dev command server |
 | `physics_layers.gd`, `draw_layers.gd`, `view_layers.gd`, `light_masks.gd` | shared ids |
+| `world_rng.gd` | each world's random stream and its characters' spawn order (`helpers.md`) |
 | `fill_batch.gd`, `weighted_pick.gd`, `match_verdict.gd`, `sight_ray.gd`, `seen_area.gd` | shared helpers (`helpers.md`) |
 
 ## Shared ids
@@ -32,7 +33,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 
 ## Game clock
 
-`GameClock` counts physics frames in `_physics_process` and is `PROCESS_MODE_PAUSABLE`, so it stands still while the tree is paused (the spectator inspector's pause, the test runner's) and a headless `--fixed-fps` run reads the same times every run. Every AI ttl, timer and age runs on it (`docs/leadership.md` LD1); what measures real time (the Von launcher's boot timeout, Von's reply latency) stays on `Time`. It is an autoload node (an autoload and a class cannot share a name), read off the singleton.
+`GameClock` counts physics frames in `_physics_process` and is `PROCESS_MODE_PAUSABLE`, so it stands still while the tree is paused (the spectator inspector's pause, the test runner's) and a headless `--fixed-fps` run reads the same times every run. Every AI ttl, timer and age runs on it (`docs/leadership.md` LD1); what measures real time (the Von launcher's boot timeout, Von's reply latency) stays on `Time`. It is an autoload node (an autoload and a class cannot share a name), read off the singleton. `seconds()` reads 1e-9 above exact (compare it with itself, never with `msec() / 1000.0` or `frame() / 60.0`) so `seconds() - start >= ttl` ends on the frame a ttl of whole frames says whatever frame it started on (as floats it missed at 45 of 100 start frames); `msec()` reads 16 or 17 ms a frame by the frame a span starts on, so a world calls `align()` when it begins (`WorldRng`) and every span from then reads the same ms (`domain-testing`'s perf notes; `tests/general/game_clock_suite.gd`).
 
 ## Input
 
@@ -83,7 +84,7 @@ Global cap (`max_scene_objects`) for transient bodies: domains hand their spawns
 
 ## Shared helpers
 
-`FillBatch`, `WeightedPick`, `MatchVerdict`, and the player's view's shared rules `ViewLayers`, `SightRay` and `SeenArea`: `helpers.md`.
+`WorldRng`, `FillBatch`, `WeightedPick`, `MatchVerdict`, and the player's view's shared rules `ViewLayers`, `SightRay` and `SeenArea`: `helpers.md`.
 
 ## Spectator mode
 

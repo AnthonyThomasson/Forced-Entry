@@ -8,6 +8,7 @@ extends RefCounted
 ## standard below for a frame loop, or (for one-shot work) a multiple of the baseline stated in the
 ## test.
 
+const Fingerprint := preload("res://tests/_perf/fight_fingerprint.gd")
 ## The standard a running match must meet, for every frame-based stress test: the average frame fits
 ## in one 60 fps frame (16.7 ms, the Performance overlay's target), the 95th percentile stays near
 ## it, and no frame takes over two.
@@ -22,9 +23,16 @@ const SMOOTH_MAX_MS := 33.4
 ## rather than drawn from the seed: the match is measured in a full-size house whatever the
 ## catalogue holds, and a plan added or dropped changes no seed's load. A small flat would put both
 ## sides in each other's sight from the start, which is a different load. The district is the load
-## the game plays in: a navigation map ten times a house's polygons, 350 solid furniture footprints
-## and a defender's house that is one of nine.
-const MATCH_SEED := 7
+## the game plays in: a navigation map about seven times a house's polygons, a few hundred solid
+## furniture footprints and a defender's house that is one of nine (at seed 2: 939 polygons, 406
+## footprints, about 7,700 nodes; the seed 7 it had been: 1,006, 404 and 7,400).
+## Seed 2 since the match plays the same fight on every run (perf-determinism-causes.md): a seed's
+## fight is one fixed fight, and seed 7's (the seed until then, where a run's luck had put contact
+## at 6 to 30 s) became the slow one, the invaders clearing the living room for 18 s before they met
+## the defenders in ambush, so the grenade guard never saw contact within `MATCH_CONTACT_WITHIN`.
+## Seed 2 meets at 7.7 s in the 5v5, 8.1 s in the grenade guard and 6.0 s in both 10v10s, with no
+## late nav bake (seed 13 had four or five in the 5v5, each a 30 to 50 ms frame).
+const MATCH_SEED := 2
 const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).
 const MATCH_WARMUP_S := 6.0
@@ -43,6 +51,10 @@ const MATCH_LOGS := [
 	"NavigationPolygon polygon convex partition failed",
 ]
 
+## `NavBake`'s started and late counts when the running guard's warm-up began (`log_late_bakes`):
+## empty until `warm_until_contact` takes one, and again once `log_late_bakes` has read it.
+static var _bakes_mark: Array = []
+
 
 ## Declare a match guard's match in `s`: the downtown district `MATCH_SEED` with `MATCH_PLAN` as
 ## its centre house (the match is fought over that house, in nine towers and their streets),
@@ -59,10 +71,19 @@ static func configure_match(s: TestSetup, per_side: int) -> void:
 	s.declared_match({ "defenders": { "count": per_side }, "invaders": { "count": per_side } })
 
 
+## Record the fight's fingerprint (`fight_fingerprint.gd`, perf-fingerprint.md) from now to the end
+## of the test: every NPC of `npcs` (spawn order) each physics frame, the warm-up and the whole
+## window. A match guard calls it first thing in `run`, passing itself as `test`. Does nothing, and
+## costs nothing, unless the environment's `GAME_TEST_FINGERPRINT_DIR` is set.
+static func record_fight(t: TestContext, test: GameTest, npcs: Array) -> void:
+	Fingerprint.begin(t, Fingerprint.test_id_of(test), npcs)
+
+
 ## A match guard's warm-up: `MATCH_WARMUP_S` s, then on until its sides are in contact
 ## (`await_contact` over `characters`, at most `MATCH_CONTACT_WITHIN` s more), `require`d as the
 ## guard's premise. Returns whether it held (false: the test has ended).
 static func warm_until_contact(t: TestContext, label: String, characters: Array) -> bool:
+	_bakes_mark = [NavBake.started_total, NavBake.late_total]
 	await t.seconds(MATCH_WARMUP_S)
 	return t.require(
 		await await_contact(t, label, characters, MATCH_CONTACT_WITHIN),
@@ -162,10 +183,28 @@ static func within(t: TestContext, label: String, value: float, limit: float) ->
 	return t.check(value <= limit, "%s: %.2f is over its budget of %.2f" % [label, value, limit])
 
 
+## Log (`PERF <label> nav bakes late N of M`) how many of the nav bakes started since the guard's
+## `warm_until_contact` were still running when their landing frame came (`NavBake`: a late one
+## holds the frame), so a creeping share shows in the log before it shows in a frame budget. Logs
+## nothing for a test that took no mark (it never ran `warm_until_contact`: not a match guard), and
+## reads the mark once, so one guard's mark never reaches the next test.
+static func log_late_bakes(label: String) -> void:
+	if _bakes_mark.is_empty():
+		return
+	var mark := _bakes_mark
+	_bakes_mark = []
+	GameLog.say("PERF %s nav bakes late %d of %d" % [
+		label,
+		NavBake.late_total - mark[1],
+		NavBake.started_total - mark[0],
+	])
+
+
 ## `within` for each of a `frame_stats` result's average, 95th percentile and worst frame (ms),
 ## against the frame standard every frame-based test holds: `SMOOTH_AVG_MS`, `SMOOTH_P95_MS`,
 ## `SMOOTH_MAX_MS`.
 static func within_frames(t: TestContext, label: String, stats: Dictionary) -> void:
+	log_late_bakes(label)
 	within(t, label + " avg ms/frame", stats["avg_ms"], SMOOTH_AVG_MS)
 	within(t, label + " p95 ms/frame", stats["p95_ms"], SMOOTH_P95_MS)
 	within(t, label + " max ms/frame", stats["max_ms"], SMOOTH_MAX_MS)

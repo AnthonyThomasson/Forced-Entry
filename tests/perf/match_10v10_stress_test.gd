@@ -34,6 +34,11 @@ extends GameTest
 ## on
 ## average and 8.4 at most. The budgets are not loosened and the test is
 ## neither skipped nor tagged.
+## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
+## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
+## one fight per seed, seed 2 now (`perf_probe.gd`), contact at 6.0 s every
+## run; four runs (load 5.3 to 6, not `--quiet`): avg 12.15 to 12.81, p95 20.93 to 23.35, max 28.52
+## to 30.65 ms.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const Perf := preload("res://tests/_perf/perf_probe.gd")
@@ -68,6 +73,7 @@ func run(t: TestContext) -> void:
 		return
 	if not _check_squads(t, characters):
 		return
+	Perf.record_fight(t, self, characters)
 	if not await Perf.warm_until_contact(t, "10v10 match", characters):
 		return
 	var aware := characters.filter(func(c): return Perf.knows_hostile(c)).size()

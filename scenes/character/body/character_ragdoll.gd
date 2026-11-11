@@ -32,6 +32,8 @@ const BACK := Vector3(0.0, 0.0, -1.0)
 var body := Ragdoll.new()
 ## The trunk's frame id in `body`.
 var _frame := 0
+## The world's stream (`WorldRng`) the fall's topple and jolts draw from.
+var _rng: RandomNumberGenerator
 
 
 ## Build the body standing as the rig holds `character`, moving at `momentum` (px/s) and knocked
@@ -45,6 +47,7 @@ func _init(character: CharacterBody2D, momentum: Vector2, blow: Vector2) -> void
 	body.exclude.append(character.get_rid())
 	_frame = body.add_frame(PELVIS, CHEST, SHOULDER[1], fwd)
 	_add_limits()
+	_rng = WorldRng.of(character)
 	_launch(
 		momentum,
 		blow,
@@ -138,7 +141,7 @@ func _launch(
 	var topple := CharacterRagdollFallConfig.hit_topple
 	var dir := blow
 	if dir.length() < 0.001:
-		dir = momentum if momentum.length() > 1.0 else Vector2.from_angle(randf() * TAU)
+		dir = momentum if momentum.length() > 1.0 else Vector2.from_angle(_rng.randf() * TAU)
 		topple *= 0.4
 	dir = dir.normalized()
 	var base := Vector3(momentum.x, momentum.y, 0.0)
@@ -146,7 +149,7 @@ func _launch(
 	var jitter := CharacterRagdollFallConfig.jitter
 	for i in body.point_count():
 		var lift := clampf((body.point(i).z - hip_z) / maxf(shoulder_z - hip_z, 1.0), 0.0, 1.2)
-		var jolt := Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), 0.0) * jitter
+		var jolt := Vector3(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0), 0.0) * jitter
 		body.push(i, base + push * lift + jolt)
 	for i in 2:
 		body.push(KNEE[i], fwd * CharacterRagdollFallConfig.knee_buckle)

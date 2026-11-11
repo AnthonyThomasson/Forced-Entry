@@ -19,9 +19,9 @@ var _follows := false
 var _leash_broke := false
 ## The character was flash-blinded last tick, to re-decide the moment its sight returns.
 var _was_blind := false
-## The AI's one source of chance (the blind-fire roll, G15), seeded once at bind from the
-## character's name and spawn spot, so a seeded match or a test that places the NPC the same way
-## draws the same rolls.
+## The AI's one source of chance (the blind-fire roll, G15), seeded once at bind from the world's
+## seed and the character's spawn order (`WorldRng`), so a seeded match draws the same rolls
+## whatever the process allocated, and another seed other ones.
 var _rng := RandomNumberGenerator.new()
 
 
@@ -29,9 +29,9 @@ func _init(brain: Node) -> void:
 	controller = brain
 
 
-## Seeds the RNG from `character`'s name and spawn spot, on the controller's first tick.
+## Seeds the RNG from `character`'s world seed and spawn order, on the controller's first tick.
 func bind(character: Node) -> void:
-	_rng.seed = hash("%s %s" % [character.name, character.global_position.round()])
+	_rng.seed = hash([WorldRng.of(character).seed, WorldRng.order_of(character.get_instance_id())])
 
 
 ## The primed ambusher, every tick (LD15, D18): while the NPC holds its ambush at its post

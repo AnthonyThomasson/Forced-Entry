@@ -59,7 +59,7 @@ func _ready() -> void:
 	rotation = direction.angle()
 	height = (BallisticsFlightConfig.bullet_height
 			if BallisticsFlightConfig.bullet_height >= 0.0
-			else randf() * 100.0)
+			else WorldRng.of(self).randf() * 100.0)
 	if ignore is CollisionObject2D and not strikes_shooter:
 		_ray.exclude.append(ignore.get_rid())
 
@@ -227,7 +227,7 @@ func _penetrate(result: Dictionary, info: HitInfo, squareness: float, surface: D
 	speed *= (1.0 - loss)
 	var j := deg_to_rad(BallisticsPenetrationConfig.penetrate_deflect_max_deg * penetration / 100.0
 			/ penetration_power)
-	direction = direction.rotated(randf_range(-j, j))
+	direction = direction.rotated(WorldRng.of(self).randf_range(-j, j))
 	rotation = direction.angle()
 	_ray.exclude.append(result.rid)
 	GameLog.say("Shot penetrated %s for %.0f damage (%.0f%% square)"

@@ -17,6 +17,7 @@ A new tunable goes in the holder of its topic. One that fits no topic starts a h
 | Vehicles | `VehicleConfig` (a `kinds` and a `looks` row per kind), `Vehicle{Boarding,Door,Drive,Collision,Art}Config` |
 | Lighting | `Lighting{,Fixture,Texture}Config` |
 | AI | `SquadFollowConfig`, `SquadAmbushConfig` (squad tuning, not per NPC); an NPC's own tunables are the `Npc<Topic>Tuning` nodes (`typed-components.md`) |
+| Navigation | `NavBakeConfig` (the physics frame a planning re-bake lands on) |
 | General | `Camera{,Shake}Config` |
 | Vision | `VisionConfig` (the switch, the look, the memory's scale, the cone's rays, the rebuild backstop) |
 

@@ -3,6 +3,26 @@
 Static holders and small classes every domain may use; their signatures are architecture interface 11. Beside them in the file map:
 `DrawLayers`, `PhysicsLayers` and `LightMasks` (`SKILL.md`, "Shared ids").
 
+## WorldRng
+
+`WorldRng` (`world_rng.gd`, statics) is each world's own chance and order. `MatchBuilder.stage` registers the world node with the
+match `seed` (`WorldRng.register(root, seed)`); anything under it finds its world by walking up (`WorldRng.of(node)`), so there is
+no global state a second world could share. `of(node)` is the world's `RandomNumberGenerator`; draw from it, never the global
+`randf`, wherever chance steers the fight: a shot's spread and bullet height, a casing's side, a blast's fragments, a chip of debris,
+a fall's jolt, a stun's sway, a dropped item's toss, the seed of a dent (it becomes the collider) and a character's gait phase, drawn as it
+spawns (it feeds the muzzle in a waver stance and a stunned stride). The NPC's blind-fire roll seeds from it and the spawn order.
+`Character._enter_tree` calls `enrol`, which hands each character the next place (from 0) in its world; a character moved into
+another world (the scene's player, joined to the match) takes that world's next place and drops the old. `order_of(instance_id)`
+reads it and `before(a, b)` is the one "who was spawned first" test. Every order or timing in the AI that used to read an instance id
+(the sight cadence, give way, a stack slot or doorway two claim) reads this instead, since an instance id follows what the process
+allocated before. An id stays the key to look a character up by.
+
+`WorldRng.frame_of(node)` is the `GameClock` frames its world has run since its first character took its place (still while paused): the frame every AI cadence and phase counts (the sight cadence, the house look), never the process's `Engine.get_physics_frames()`, which follows what ran before the world. The first character's place also puts the game clock's ms grid on that frame (`GameClock.align`, below).
+
+Left on the global stream on purpose, because it only looks and changes no fight: blood and hit particles, the spin and toss of a
+dropped item, a thrown grenade and its spoon, an explosion's look, the painters, world-gen, lighting and audio. Tests:
+`tests/general/world_rng_two_worlds_test.gd`, `match_seed_plays_its_own_fight_test.gd`, `tests/ai/perception/sight_checks_spread_test.gd`.
+
 ## FillBatch
 
 `FillBatch.new(canvas, base)` draws plain-coloured polygons and circles as ONE triangle array (`fill`, `fill_convex`, `circle`, then `flush`) in place of one draw command each, because the windowed renderer builds a vertex buffer per polygon command. It cuts the same triangles the engine would and each disc into `draw_circle`'s 64-gon, so the pixels match. A polygon that cannot be triangulated goes to the engine alone after what was added, which reports it as `draw_colored_polygon` does.

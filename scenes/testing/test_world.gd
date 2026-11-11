@@ -62,6 +62,7 @@ func build(setup: TestSetup) -> void:
 		if not TestSwitches.has(switch_name):
 			push_error("TestWorld: unknown switch '%s'" % switch_name)
 	_apply_statics(setup)
+	AllocationPadding.fill()
 	var world := setup.resolved_world()
 	_overlay_flags = {}
 	for flag in OVERLAY_REGISTRY.defaults():
@@ -179,6 +180,7 @@ func _build_squads(setup: TestSetup) -> void:
 
 ## Undo every static override (call after freeing the world, or before rebuilding).
 func restore() -> void:
+	AllocationPadding.release()
 	for i in range(_saved_statics.size() - 1, -1, -1):
 		var s: Array = _saved_statics[i]
 		(s[0] as Script).set(s[1], s[2])

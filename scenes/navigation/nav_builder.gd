@@ -55,11 +55,12 @@ static var _steering_regions: Dictionary = {}
 static var _planning_regions: Dictionary = {}
 ## The avoid maps made for each world navigation map (planning map RID -> key -> entry), see
 ## `avoid_map`. An entry is `{ map: RID, region: NavigationRegion2D, version: int, baking: bool,
-## asked_ms: int }`.
+## asked_frame: int }`.
 static var _avoid_maps: Dictionary = {}
-## An avoid map nobody has asked for in this many ms (wall clock) is freed by the next ask for
-## another set (`avoid_map`).
-static var avoid_idle_ms: int = 20_000
+## An avoid map nobody has asked for in this many `GameClock` frames (20 s at 60 a second, counted
+## in frames so a run frees the same maps on the same frame whatever the machine's speed) is freed
+## by the next ask for another set (`avoid_map`).
+static var avoid_idle_frames: int = 1200
 
 
 ## Build and add a NavigationRegion2D under `parent`, covering `rooms` (each `{ key, type, rect }`
@@ -290,16 +291,18 @@ static func _steering_map_for(planning_map: RID) -> RID:
 	return map
 
 
-## `rebake` with the bake itself on the NavigationServer's worker thread, so a frame never pays for
-## it: the source geometry is gathered on the main thread now (the walls are read from the scene
-## tree, the furniture from its live positions), the bake runs in the background, and the polygon is
-## assigned to `region` once it is done, when `done` is called. A region freed meanwhile is left
-## alone. `done` is called even when there is nothing to bake. The planning region only: the
+## `rebake` with the bake itself on a worker thread, so a frame never pays for it: the source
+## geometry is gathered on the main thread now (the walls are read from the scene tree, the
+## furniture from its live positions), the bake runs in the background, and the polygon is assigned
+## to `region` on the game frame `NavBakeConfig.district_frames` after the call (`NavBake`), when
+## `done` is called. A region freed meanwhile is left alone. `done` is called even when there is
+## nothing to bake. The planning region only: the
 ## steering one is re-baked by `rebake_steering`. A test-facing seam that measures its own
-## footprints; `nav_updater.gd` drives `NavRebake.planning`.
+## footprints; `nav_updater.gd` drives `NavRebake.planning`. Returns the bakes started (`NavBake`:
+## the planning region's, then the ring's), to read each one's `was_late`.
 static func rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array,
-		agent_radius: float = AGENT_RADIUS, done: Callable = Callable()) -> void:
-	NavRebake.planning(
+		agent_radius: float = AGENT_RADIUS, done: Callable = Callable()) -> Array[NavBake]:
+	return NavRebake.planning(
 		region,
 		site_of(region, house, rooms, agent_radius),
 		furniture_holes(house),
@@ -385,29 +388,30 @@ static func planning_region(planning_map: RID) -> NavigationRegion2D:
 ## A map of its own that holds the planning bake (the furniture) and the extra `holes` too, each a
 ## closed WORLD-space polygon: where the AI plans a walk that keeps out of some stretch of floor (a
 ## doorway's view). Made for `region`, the planning region `build` returned, and named by `key` (the
-## same holes, the same key): the first ask makes the map and bakes it on the NavigationServer's
-## worker thread, so a frame never pays for it, and `ready` tells when it answers queries, as for
-## any map; the map is kept for the key and re-baked (the old mesh answers meanwhile) when the
-## planning bake has been redone since. One nobody has asked for in `avoid_idle_ms` (20 s) is freed
-## by the next ask for another key on the same planning map, and every one is freed with its region
-## (its world). Invalid when the region has no bake to start from.
+## same holes, the same key): the first ask makes the map and bakes it on a worker thread, so a
+## frame never pays for it, `NavBake.frames_for` game frames later it lands (`NavBake`)
+## and `ready` tells when it answers queries, as for any map; the map is kept for the key and
+## re-baked (the old mesh answers meanwhile) when the planning bake has been redone since. One
+## nobody has asked for in `avoid_idle_frames` (1200 `GameClock` frames, 20 s) is freed by the next
+## ask for another key on the same planning map, and every one is freed with its region (its world).
+## Invalid when the region has no bake to start from.
 static func avoid_map(region: NavigationRegion2D, key: String, holes: Array) -> RID:
 	if region == null or not region.has_meta(SOURCE_META):
 		return RID()
 	var planning_map := region.get_navigation_map()
 	var entries: Dictionary = _avoid_maps.get(planning_map, {})
 	_avoid_maps[planning_map] = entries
-	var now := Time.get_ticks_msec()
+	var now := GameClock.frame()
 	for k in entries.keys():
 		var old: Dictionary = entries[k]
 		if (k != key
-				and now - int(old["asked_ms"]) > avoid_idle_ms
+				and now - int(old["asked_frame"]) > avoid_idle_frames
 				and is_instance_valid(old["region"])):
 			(old["region"] as Node).queue_free()  # Its tree exit frees the map.
 	var stored: Dictionary = region.get_meta(SOURCE_META)
 	if entries.has(key):
 		var kept: Dictionary = entries[key]
-		kept["asked_ms"] = now
+		kept["asked_frame"] = now
 		if not bool(kept["baking"]) and int(kept["version"]) != int(stored["version"]):
 			_bake_avoid(region, kept, holes)
 		return kept["map"]
@@ -420,7 +424,7 @@ static func avoid_map(region: NavigationRegion2D, key: String, holes: Array) -> 
 		"region": avoid_region,
 		"version": -1,
 		"baking": false,
-		"asked_ms": now,
+		"asked_frame": now,
 	}
 	entries[key] = entry
 	region.add_child(avoid_region)
@@ -442,9 +446,9 @@ static func _on_avoid_region_exited(planning_map: RID, key: String, map: RID) ->
 	NavigationServer2D.free_rid(map)
 
 
-## Bake `entry`'s avoid region on the worker thread: the planning source geometry kept by
+## Bake `entry`'s avoid region on a worker thread: the planning source geometry kept by
 ## `NavSource.remember`, with `holes` (world space) added as obstructions, fused and snapped like
-## the furniture's. The polygon is assigned when the bake lands.
+## the furniture's. The polygon is assigned on the fixed frame the bake lands on (`NavBake`).
 static func _bake_avoid(region: NavigationRegion2D, entry: Dictionary, holes: Array) -> void:
 	var stored: Dictionary = region.get_meta(SOURCE_META)
 	var origin := region.global_position
@@ -453,16 +457,15 @@ static func _bake_avoid(region: NavigationRegion2D, entry: Dictionary, holes: Ar
 	source.set_obstruction_outlines(stored["obstructions"])
 	NavSource.add_holes(source, origin, holes)
 	var nav_poly := NavSource.new_polygon(float(stored["agent_radius"]))
-	# Not the node: a region freed while its bake runs must not be captured.
-	var region_id: int = (entry["region"] as Node).get_instance_id()
 	entry["baking"] = true
 	entry["version"] = int(stored["version"])
-	NavigationServer2D.bake_from_source_geometry_data_async(nav_poly, source, func() -> void:
-		NavWeld.finish(nav_poly, origin)
-		entry["baking"] = false
-		var avoid_region := instance_from_id(region_id) as NavigationRegion2D
-		if avoid_region != null:
-			avoid_region.navigation_polygon = nav_poly)
+	NavBake.start(
+		entry["region"] as NavigationRegion2D,
+		{ "poly": nav_poly, "source": source },
+		origin,
+		func() -> void: entry["baking"] = false,
+		NavBake.frames_for(region, true),
+	)
 
 
 # --- Map queries ---------------------------------------------------------------------------------

@@ -3,10 +3,10 @@ extends RefCounted
 ## (agent_vision.gd, `vision`, which it holds) run over every other character — one sighting per
 ## character it sees, with its movement track, folded into the memory and the hostility rules — what
 ## is in view now (`visible_now`), whether the NPC is flash-blinded (`blind`, G15), the sight
-## cadence (`SIGHT_EVERY_FRAMES`, offset per NPC by the perception node's own instance id), and the
-## reads of sight from where the NPC stands: which points it sees, where its sight toward a point is
-## first blocked. Built once with its `AgentPerception`, it holds it (a node, so no reference cycle)
-## for the body, the memory and its sibling parts.
+## cadence (`SIGHT_EVERY_FRAMES`, offset by the spawn order of the NPC and of the target,
+## `WorldRng`), and the reads of sight from where the NPC stands: which points it sees, where its
+## sight toward a point is first blocked. Built once with its `AgentPerception`, it holds it (a
+## node, so no reference cycle) for the body, the memory and its sibling parts.
 
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 ## Physics frames between two sight tests of a character that stays inside an NPC's view cone. The
@@ -59,7 +59,7 @@ func see(rooms: Array) -> void:
 	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
 	var exclude := [perception._character.get_rid()]
 	var now := GameClock.msec()
-	var frame := Engine.get_physics_frames()
+	var frame := WorldRng.frame_of(perception._character)
 	var swap := _visible_before
 	_visible_before = visible_now
 	visible_now = swap
@@ -87,10 +87,11 @@ func see(rooms: Array) -> void:
 		perception.contacts.hostility.classify(sighting, perception._memory)
 
 
-## Whether character `other` gets a sight test on physics frame `frame`, keeping the view-cone
-## bookkeeping: a dead one or one out of the cone is dropped (its next look is at once); one tested
-## since it entered the cone is tested again every `SIGHT_EVERY_FRAMES` frames, offset per NPC and
-## target, and until then stays what the last look saw; every frame while `primed`.
+## Whether character `other` gets a sight test on its world's physics frame `frame`
+## (`WorldRng.frame_of`), keeping the view-cone bookkeeping: a dead one or one out of the cone is
+## dropped (its next look is at once); one tested since it entered the cone is tested again every
+## `SIGHT_EVERY_FRAMES` frames, offset by the NPC's and the target's spawn order, and until then
+## stays what the last look saw; every frame while `primed`.
 func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int) -> bool:
 	var id: int = other.get_instance_id()
 	if other.get("is_dead") == true:
@@ -101,7 +102,8 @@ func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int)
 		return false
 	if (not primed
 			and _looked.has(id)
-			and (frame + perception.get_instance_id() + id) % SIGHT_EVERY_FRAMES != 0):
+			and (frame + WorldRng.order_of(perception._character.get_instance_id())
+					+ WorldRng.order_of(id)) % SIGHT_EVERY_FRAMES != 0):
 		if _visible_before.has(id):
 			visible_now[id] = true  # Not due: still what the last look saw.
 		return false

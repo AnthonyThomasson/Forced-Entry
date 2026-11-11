@@ -140,7 +140,7 @@ func _learn_carried() -> void:
 ## kept by `take_in`). A scheduled look takes every room but only each `LEARN_SLICES`th piece of
 ## furniture it does not know; a `full` look (a decision's) takes every piece.
 func learn_by_sight(full := false) -> void:
-	var frame := Engine.get_physics_frames()
+	var frame := WorldRng.frame_of(perception._character)
 	if frame == _learned_frame and (_learned_full or not full):
 		return
 	if frame != _learned_frame:

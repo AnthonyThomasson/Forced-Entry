@@ -24,6 +24,9 @@
     - **Behaviour switches** set existing exported props and config-holder `static var`s by name, and an NPC's tunables by the indexed
       path `tuning:<topic>:<name>` (7). A name the holder lacks fails the test. Statics are restored after each test. Examples:
       `BloodConfig.enabled`, `PhysicsConfig.debris_enabled`, the Audio `audio.sound` switch.
+    - **Perf replays:** the switch `testing.allocation_padding` (`AllocationPadding.enabled`) has `TestWorld.build` allocate loose nodes
+      and physics RIDs first, shifting every instance id and RID; a catalog entry's `extra_switches` (name -> on, set by `TestSession`
+      after the test's `configure`) lets a test replay another's world under its own terms (`tests/_perf/guard_replay.gd`).
     - **Von without a server:** script the answers through the AI decision sub-domain's `DecisionStub` statics and read what was asked off
       `DecisionStub.requests`; the session's `von` part drives `DecisionServerLauncher` where a test needs the real server;
       `DecisionBudget.per_frame` (snapshots a frame may start) is set the same way.

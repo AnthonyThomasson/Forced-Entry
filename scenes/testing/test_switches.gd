@@ -106,6 +106,12 @@ static var ROWS := {
 		"default": false,
 		"static": [[VisionConfig, &"enabled"]],
 	},
+	&"testing.allocation_padding": {
+		"description": "Allocate extra nodes and physics RIDs before the world is built (off = "
+			+ "none). Only to prove allocation does not steer a fight (AllocationPadding).",
+		"default": false,
+		"static": [[AllocationPadding, &"enabled"]],
+	},
 	&"projectile.flyover": {
 		"description": "Bullets may fly over partial cover (off = every shot meets what it "
 			+ "reaches).",

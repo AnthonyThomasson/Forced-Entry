@@ -96,16 +96,20 @@ func _hold_rear_or_done(entry: Entry, spare := false) -> void:
 	world.character.movement.move_input = Vector2.ZERO
 
 
+## Whether teammate `m` leaves doorway `door` to the NPC with instance id `me`: it is not covering
+## it, or it is and `me` was spawned first.
+func _not_covering(m: Dictionary, door: Variant, me: int) -> bool:
+	return m["step"] != "cover" or m["covering"] != door or WorldRng.before(me, m["id"])
+
+
 ## Claim the doorway on that is nearest this NPC and that no teammate covers, keeping the one it
-## already covers while that stays its own (when two claim one, the lower instance id keeps it, as
+## already covers while that stays its own (when two claim one, the one spawned first keeps it, as
 ## with a stack slot). False when every doorway on is covered.
 func _claim_door(entry: Entry, team: Array) -> bool:
 	var me: int = world.character.get_instance_id()
 	var best := {}
 	for w in entry.sweep.watch:
-		var mine := team.all(
-			func(m): return m["step"] != "cover" or m["covering"] != w["id"] or me < m["id"],
-		)
+		var mine := team.all(_not_covering.bind(w["id"], me))
 		if not mine:
 			continue
 		if w["id"] == covering:
@@ -125,7 +129,7 @@ func _claim_door(entry: Entry, team: Array) -> bool:
 
 ## Hold the cleared room covering a doorway on: to the cover spot with the gun through that doorway,
 ## kept there until a teammate who held the room moves on, or `tuning.entry.cover_time` runs out. A
-## teammate that takes the same doorway with a lower instance id makes this NPC take another (or the
+## teammate that takes the same doorway spawned earlier makes this NPC take another (or the
 ## rear). Alone: look through each doorway on in turn, `tuning.entry.watch_dwell` each once the gaze
 ## has settled, then done.
 func tick_cover(entry: Entry, team: Array, delta: float) -> void:

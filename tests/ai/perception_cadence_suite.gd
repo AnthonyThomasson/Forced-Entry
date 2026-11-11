@@ -1,11 +1,11 @@
 extends UnitSuite
-## Native unit suite (pure logic): the sight cadence stays keyed on the perception node's own
-## instance id, not on the part that runs it, and the house intake repeats only changed setup. The
+## Native unit suite (pure logic): the sight cadence stays keyed on spawn order (`WorldRng`), not on
+## the part that runs it or on an instance id, and the house intake repeats only changed setup. The
 ## sight case tests a character it keeps in view every `SIGHT_EVERY_FRAMES` frames, phased by
-## `(frame + perception.get_instance_id() + id)`, over several perceptions, so one whose ids
-## happen to agree on the phase cannot hide a wrong key. What needs a world and physics frames (the
-## shared character list, a character entering the cone, the held age, the house looks' phases and
-## their reach) is `ai/perception/sight_cadence` and `ai/perception/house_look_cadence`.
+## `(frame + the NPC's spawn order + the target's)`, over several NPCs, so one whose orders happen
+## to agree on the phase cannot hide a wrong key. What needs a world and physics frames (the shared
+## character list, a character entering the cone, the held age, the house looks' phases and their
+## reach) is `ai/perception/sight_cadence` and `ai/perception/house_look_cadence`.
 
 const AgentPerception := preload("res://scenes/ai/perception/agent_perception.gd")
 const PerceptionSight := preload("res://scenes/ai/perception/perception_sight.gd")
@@ -22,11 +22,16 @@ func _perception() -> Node:
 	return perception
 
 
-## Assert, over the first `FRAMES` physics frames, that `perception`'s sight part tests `other`,
-## straight ahead of it, on the frames its phase names (`n`, `t`: which perception and character).
-func _assert_due_on_phase(perception: Node, other: Node2D, n: int, t: int) -> void:
-	var sight: PerceptionSight = perception.sight
-	var phase := perception.get_instance_id() + other.get_instance_id()
+## Assert, over the first `FRAMES` physics frames, that `sight` tests `other`, straight ahead of its
+## NPC, on the frames its phase names: `phase`, the spawn orders of the NPC and of `other` added
+## (`n`, `t`: which NPC and character).
+func _assert_due_on_phase(
+	sight: PerceptionSight,
+	other: Node2D,
+	phase: int,
+	n: int,
+	t: int,
+) -> void:
 	for frame in FRAMES:
 		# The first look comes at once; after it, one on every frame of the phase.
 		var want := frame == 0 or (frame + phase) % PerceptionSight.SIGHT_EVERY_FRAMES == 0
@@ -35,14 +40,26 @@ func _assert_due_on_phase(perception: Node, other: Node2D, n: int, t: int) -> vo
 			.is_equal(want)
 
 
-func test_sight_tests_a_character_in_view_on_the_perceptions_phase() -> void:
+func test_sight_tests_a_character_in_view_on_its_spawn_order_phase() -> void:
+	var root: Node2D = auto_free(Node2D.new())
+	add_child(root)
+	WorldRng.register(root, 0)
+	var spawned := 0  # The spawn order the next node takes: counted here, from the spec.
 	for n in COUNT:
 		var perception := _perception()
+		var body: Node2D = auto_free(Node2D.new())
+		root.add_child(body)
+		WorldRng.enrol(body)
+		perception.set("_character", body)
+		var mine := spawned
+		spawned += 1
 		for t in COUNT:
 			var other: Node2D = auto_free(Node2D.new())
 			other.position = Vector2(100.0, 0.0)  # Straight ahead, in the view cone.
-			add_child(other)
-			_assert_due_on_phase(perception, other, n, t)
+			root.add_child(other)
+			WorldRng.enrol(other)
+			_assert_due_on_phase(perception.sight, other, mine + spawned, n, t)
+			spawned += 1
 
 
 func test_house_intake_repeats_only_changed_setup() -> void:
