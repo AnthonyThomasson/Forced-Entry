@@ -224,7 +224,7 @@ static func _bodies_near(
 
 
 ## Whether `a` stands nearer the burst at `at` than `b` (a tie: the leftmost, then the topmost,
-## then the one made first: a total order, so the sort never depends on the engine's).
+## then the one spawned first: a total order, so the sort never depends on the engine's).
 static func _nearer(a: Node2D, b: Node2D, at: Vector2) -> bool:
 	var da := a.global_position.distance_squared_to(at)
 	var db := b.global_position.distance_squared_to(at)
@@ -234,7 +234,7 @@ static func _nearer(a: Node2D, b: Node2D, at: Vector2) -> bool:
 		return a.global_position.x < b.global_position.x
 	if a.global_position.y != b.global_position.y:
 		return a.global_position.y < b.global_position.y
-	return a.get_instance_id() < b.get_instance_id()
+	return WorldRng.before(a.get_instance_id(), b.get_instance_id())
 
 
 ## Whether something between `burst` and `p` shields a body at `p` from a burst there (G7), by
