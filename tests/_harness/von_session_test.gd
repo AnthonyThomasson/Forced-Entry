@@ -178,7 +178,7 @@ func _record(t: TestContext) -> void:
 	var faulty := await _play(t, WRITTEN, "record")
 	Fixture.extra_ask = false
 	t.expect_eq(faulty["record"]["status"], "FAIL", "a recording run whose ask got no answer fails")
-	t.check(_failures(faulty["record"]).contains("no recording can be written"), "saying why")
+	t.check(_failures(faulty["record"]).contains("Von gave no answer"), "saying why")
 	t.expect_eq(FileAccess.get_modified_time(WRITTEN), stamp, "and writes no file")
 	DirAccess.remove_absolute(WRITTEN)
 

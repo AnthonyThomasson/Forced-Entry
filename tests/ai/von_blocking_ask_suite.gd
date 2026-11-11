@@ -14,13 +14,18 @@ var _server := TCPServer.new()
 var _thread: Thread = null
 var _reply := ""
 var _code := 200
+var _delay_ms := DELAY_MS
+var _timeout_was := 0.0
 
 
 func before_test() -> void:
 	_code = 200
+	_delay_ms = DELAY_MS
+	_timeout_was = VonBlockingAsk.timeout_s
 
 
 func after_test() -> void:
+	VonBlockingAsk.timeout_s = _timeout_was
 	if _thread != null:
 		_thread.wait_to_finish()
 		_thread = null
@@ -51,7 +56,7 @@ func _serve() -> void:
 				request += conn.get_utf8_string(conn.get_available_bytes())
 			else:
 				OS.delay_msec(2)
-		OS.delay_msec(DELAY_MS)
+		OS.delay_msec(_delay_ms)
 		var body := _reply.to_utf8_buffer()
 		var head := (
 			"HTTP/1.1 %d X\r\nContent-Type: application/json\r\nContent-Length: %d\r\n"
@@ -120,3 +125,18 @@ func test_a_reply_that_offers_none_of_the_options_is_an_error() -> void:
 func test_no_server_is_an_error_not_a_hang() -> void:
 	var got := VonBlockingAsk.ask("http://127.0.0.1:%d/x" % (PORT + 1), "m", "s", "q", OPTIONS)
 	assert_bool(got.has("error")).is_true()
+
+
+func test_a_server_that_does_not_answer_in_time_fails_the_ask_naming_the_seconds() -> void:
+	_delay_ms = 1500
+	_reply = JSON.stringify({ "answers": { "pick": { "choice": "a" } } })
+	VonBlockingAsk.timeout_s = 0.3
+	_serve()
+	var began := Time.get_ticks_msec()
+	var got := _ask()
+	var waited := Time.get_ticks_msec() - began
+	assert_bool(got.has("pick")).is_false()
+	assert_str(got["error"]).contains("Von did not answer within 0.3s")
+	assert_int(waited).override_failure_message(
+		"it gave up on time, not at the reply (%d ms)" % waited
+	).is_between(300, 1000)

@@ -8,8 +8,10 @@ extends RefCounted
 
 ## Microseconds slept between two polls of the connection.
 const POLL_USEC := 500
-## Wall seconds an ask waits for the server.
-const TIMEOUT_S := 10.0
+
+## Wall seconds an ask waits for the server, connecting and answering together: when they pass the
+## ask fails ("Von did not answer within …"), it never hangs. A test of the seam may shorten it.
+static var timeout_s := 10.0
 
 
 ## Ask Von `question` over `options` (id → description) for `state` and wait for its answer:
@@ -22,7 +24,7 @@ static func ask(
 	options: Dictionary,
 ) -> Dictionary:
 	var reply := post(
-		url, JSON.stringify(VonWire.request_body(model, state, question, options)), TIMEOUT_S,
+		url, JSON.stringify(VonWire.request_body(model, state, question, options)), timeout_s,
 	)
 	if not reply["ok"]:
 		return { "error": reply["error"] }
@@ -32,31 +34,31 @@ static func ask(
 	return answer if not answer.is_empty() else { "error": "no offered option in the answer" }
 
 
-## POST `body` (JSON text) to `url` and wait for the reply, at most `timeout_s` seconds of wall
-## time. Returns `{ ok, code, body, error }`: `ok` when a reply came (whatever its code), its
-## HTTP `code` and `body` bytes; otherwise `error` says what went wrong.
-static func post(url: String, body: String, timeout_s: float) -> Dictionary:
+## POST `body` (JSON text) to `url` and wait for the reply, at most `seconds` of wall
+## time (`seconds`). Returns `{ ok, code, body, error }`: `ok` when a reply came (whatever its
+## code), its HTTP `code` and `body` bytes; otherwise `error` says what went wrong.
+static func post(url: String, body: String, seconds: float) -> Dictionary:
 	var target := _split(url)
 	var http := HTTPClient.new()
-	var deadline := Time.get_ticks_msec() + int(timeout_s * 1000.0)
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
 	var headers := PackedStringArray(["Content-Type: application/json"])
 	var failure := ""
 	if http.connect_to_host(target["host"], target["port"]) != OK:
 		failure = "could not connect to %s" % url
 	elif not _settle(http, [HTTPClient.STATUS_CONNECTING, HTTPClient.STATUS_RESOLVING], deadline):
-		failure = "timed out connecting to %s" % url
+		failure = _unanswered("connecting to " + url)
 	elif http.get_status() != HTTPClient.STATUS_CONNECTED:
 		failure = "no server at %s" % url
 	elif http.request(HTTPClient.METHOD_POST, target["path"], headers, body) != OK:
 		failure = "request failed to start"
 	elif not _settle(http, [HTTPClient.STATUS_REQUESTING], deadline):
-		failure = "timed out waiting for %s" % url
+		failure = _unanswered("waiting for " + url)
 	var reply := PackedByteArray()
 	while failure == "" and http.get_status() == HTTPClient.STATUS_BODY:
 		http.poll()
 		reply.append_array(http.read_response_body_chunk())
 		if _late(deadline):
-			failure = "timed out reading the reply of %s" % url
+			failure = _unanswered("reading the reply of " + url)
 		else:
 			OS.delay_usec(POLL_USEC)
 	if failure == "" and http.get_status() not in [
@@ -66,6 +68,11 @@ static func post(url: String, body: String, timeout_s: float) -> Dictionary:
 	if failure != "":
 		return { "ok": false, "code": 0, "body": PackedByteArray(), "error": failure }
 	return { "ok": true, "code": http.get_response_code(), "body": reply, "error": "" }
+
+
+## The failure text of an ask that ran out of time `during` something.
+static func _unanswered(during: String) -> String:
+	return "Von did not answer within %ss (timed out %s)" % [String.num(timeout_s), during]
 
 
 ## Poll `http` while its status is one of `busy`; false when `deadline` (ms) passed first.

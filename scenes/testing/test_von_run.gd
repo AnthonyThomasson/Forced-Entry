@@ -74,8 +74,8 @@ func arm(setup: TestSetup) -> void:
 
 
 ## Fail `ctx` for each ask the recording had no answer for and each one the server did not answer
-## (a recording cannot be written without it): the test cannot go on without the answer. Returns
-## whether it added any.
+## (a recording cannot be written without it, and a live test cannot go on): the test cannot go on
+## without the answer. Returns whether it added any.
 func problems(ctx: TestContext) -> bool:
 	if misses.size() == _reported[0] and faults.size() == _reported[1]:
 		return false
@@ -84,7 +84,8 @@ func problems(ctx: TestContext) -> bool:
 				% [path(), String(miss["question"]).left(120), miss["options"].size()]
 				+ "re-record with " + command())
 	for fault: String in faults.slice(_reported[1]):
-		ctx.check(false, "Von gave no answer, so no recording can be written (%s)" % fault)
+		ctx.check(false, "Von gave no answer: %s%s"
+				% [fault, " (nothing is recorded)" if mode == DecisionStub.Mode.RECORD else ""])
 	_reported = [misses.size(), faults.size()]
 	return true
 
