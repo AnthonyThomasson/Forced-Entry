@@ -20,6 +20,7 @@ extends RefCounted
 ## argues for. Options are places and things, never verbs — the decision tree decides what to do at
 ## them.
 
+const SnapshotBuild = preload("res://scenes/ai/perception/snapshot/snapshot_build.gd")
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const SnapshotSections = preload("res://scenes/ai/perception/snapshot/snapshot_sections.gd")
@@ -79,38 +80,67 @@ func bind(character: Node) -> void:
 ## its `contacts`, the `callouts` heard, learned rooms/objects, interactables, the NPC's post and
 ## entry point, and lost hostiles. Returns { facts, sections, sections_per_target, options, gun,
 ## demand }: `demand` builds the groups and facts the walk reads rarely (`snapshot_demand.gd`) when
-## it first reads them, so the snapshot holds those only once something has.
+## it first reads them, so the snapshot holds those only once something has. This runs every piece
+## of a staged build (`begin_build`) in one go.
 func build(rooms: Array, goal: String, activity: String, knowledge: Dictionary) -> Dictionary:
-	var _decision: RefCounted = _options.begin_decision()
-	vocab.rooms = rooms
+	var staged := begin_build(rooms, goal, activity, func() -> Dictionary: return knowledge)
+	while not staged.done():
+		staged.step()
+	return staged.result()
+
+
+## BUILD pass in pieces: the same snapshot as `build()`, made by `step()`ping the returned build
+## (`snapshot/snapshot_build.gd`) until `done()`, then `result()`. Nothing runs here; the first
+## piece calls `gather` for the knowledge `build()` takes (a `Dictionary`) and `freeze`, if given,
+## for entries that go into the snapshot as they stand at that moment (the perception's
+## confinement copy). The pieces do the work in the order `build()` always did, so a staged build
+## moves no ray, route or random draw. One build is in flight per author: the author's
+## per-decision scratch (`vocab.rooms`, the options' and throws' `know`) is the build's, set by its
+## first piece, so a build that is dropped for a new one is never resumed.
+func begin_build(
+		rooms: Array, goal: String, activity: String, gather: Callable, freeze := Callable(),
+) -> SnapshotBuild:
+	var staged := SnapshotBuild.new()
+	staged.author = self
+	staged.rooms = rooms
+	staged.goal = goal
+	staged.activity = activity
+	staged.gather = gather
+	staged.freeze = freeze
+	return staged
+
+
+## Run the next piece of `staged` (`SnapshotBuild.step` calls this).
+func advance_build(staged: SnapshotBuild) -> void:
+	match staged.piece:
+		SnapshotBuild.Piece.START:
+			_start_build(staged)
+		SnapshotBuild.Piece.HOSTILE:
+			_hostile_piece(staged)
+		SnapshotBuild.Piece.FINISH:
+			_finish_build(staged)
+
+
+## The START piece: the knowledge, the decision's per-build scratch and its context, and which
+## hostiles get full analysis.
+func _start_build(staged: SnapshotBuild) -> void:
+	var knowledge: Dictionary = staged.gather.call()
+	staged.knowledge = knowledge
+	if staged.freeze.is_valid():
+		staged.frozen = staged.freeze.call()
+	staged.token = _options.begin_decision()
+	vocab.rooms = staged.rooms
 	_options.know = knowledge
 	_throws.know = knowledge
 	_throws.begin()
 	var ctx := _context(knowledge["contacts"], knowledge["callouts"])
 	ctx["engaged_id"] = int(knowledge.get("engaged_id", 0))
-	var parts := _per_target(ctx, rooms)
-	parts.merge(_shared(ctx, knowledge))
-	var facts := _facts(ctx, parts, knowledge)
-	var options := _option_groups(ctx, parts, knowledge)
-	var demand := SnapshotDemand.new()
-	demand.options = _options
-	demand.texts = _sections
-	demand.throws = _throws
-	demand.targets = parts["targets"]
-	demand.per_sections = parts["per_sections"]
-	demand.vocab = vocab
-	demand.ctx = ctx
-	demand.know = knowledge
-	demand.rooms = rooms
-	demand.stun_stack = parts["stun_stack"]
-	demand.groups = options
-	demand.facts = facts
-	var sections := _state_sections(ctx, parts, goal, activity, knowledge)
-	demand.sections = sections
-	return {
-		"facts": facts, "sections": sections, "sections_per_target": parts["per_sections"],
-		"options": options, "gun": vocab.gun_noun(parts["gun"]), "demand": demand,
-	}
+	staged.ctx = ctx
+	staged.parts = { "per_target": {}, "per_sections": {}, "analyses": {}, "targets": {} }
+	staged.analysed = _analysed_ids(ctx)
+	staged.piece = SnapshotBuild.Piece.FINISH
+	if not staged.analysed.is_empty():
+		staged.piece = SnapshotBuild.Piece.HOSTILE
 
 
 ## The decision's context every group reads: where the NPC stands, its world, space, map and body,
@@ -148,41 +178,80 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 	return ctx
 
 
-## Per known hostile: the combat geometry (`analyses`), the option groups (`per_target`) and the
-## sections that follow from it (`per_sections`), each by hostile id; `targets` holds each hostile
-## given full analysis with its geometry, for what `demand` builds of it later (its grenade throws
-## and its exposure).
-func _per_target(ctx: Dictionary, rooms: Array) -> Dictionary:
-	var per_target := {}
-	var per_sections := {}
-	var analyses := {}
-	var targets := {}
+## One HOSTILE piece: the next hostile given full analysis, with the cheap `line` entries of the
+## listed hostiles ahead of it in the contacts' nearest-first order (and, after the last analysed
+## one, of those that follow it). Per hostile the build gathers the combat geometry (`analyses`),
+## the option groups (`per_target`) and the sections that follow from it (`per_sections`), each by
+## hostile id; `targets` holds each hostile given full analysis with its geometry, for what `demand`
+## builds of it later (its grenade throws and its exposure).
+func _hostile_piece(staged: SnapshotBuild) -> void:
+	var ctx := staged.ctx
 	var hostiles: Array = ctx["hostiles"]
-	var selected := _analysed_ids(ctx)
+	var analyses: Dictionary = staged.parts["analyses"]
 	# Selection reserves the engaged slot; iteration keeps the contacts' nearest-first order.
 	var listed: int = vocab.tuning.decision.max_options_per_level
-	for i in hostiles.size():
+	while staged.cursor < hostiles.size():
+		var i := staged.cursor
+		staged.cursor += 1
 		var t: Dictionary = hostiles[i]
-		if not selected.has(t["id"]):
+		if not staged.analysed.has(t["id"]):
 			# The hostile bind lists the nearest `max_options_per_level` hostiles and needs only
 			# this cheap line fact of one beyond the cap; hostiles further out need nothing.
 			if i < listed:
 				analyses[t["id"]] = { "line": _line(ctx, t) }
 			continue
-		var a := _analyze(ctx, t)
-		analyses[t["id"]] = a
-		targets[t["id"]] = { "t": t, "a": a }
-		per_target[t["id"]] = {
-			"fire_positions": _options.fire_group(ctx, t, a),
-			"flank_sides": _options.flank_group(t, a, rooms),
-			"advance_positions": _options.advance_group(ctx, t, a),
-			"melee": _options.melee_group(ctx["self_pos"], t),
-		}
-		per_sections[t["id"]] = _target_sections(ctx, t, a)
-	return {
-		"per_target": per_target, "per_sections": per_sections, "analyses": analyses,
-		"targets": targets,
+		_analyse_target(staged, t)
+		if staged.parts["targets"].size() < staged.analysed.size():
+			return
+	staged.piece = SnapshotBuild.Piece.FINISH
+
+
+## The full analysis of hostile `t`: its geometry, option groups and sections, into `staged.parts`.
+func _analyse_target(staged: SnapshotBuild, t: Dictionary) -> void:
+	var ctx := staged.ctx
+	var parts := staged.parts
+	var a := _analyze(ctx, t)
+	parts["analyses"][t["id"]] = a
+	parts["targets"][t["id"]] = { "t": t, "a": a }
+	parts["per_target"][t["id"]] = {
+		"fire_positions": _options.fire_group(ctx, t, a),
+		"flank_sides": _options.flank_group(t, a, staged.rooms),
+		"advance_positions": _options.advance_group(ctx, t, a),
+		"melee": _options.melee_group(ctx["self_pos"], t),
 	}
+	parts["per_sections"][t["id"]] = _target_sections(ctx, t, a)
+
+
+## The FINISH piece: what the whole decision shares, the facts, the option groups, the demand that
+## builds the rest when the walk reads it, and the sections; the snapshot is done.
+func _finish_build(staged: SnapshotBuild) -> void:
+	var knowledge := staged.knowledge
+	var ctx := staged.ctx
+	var parts := staged.parts
+	parts.merge(_shared(ctx, knowledge))
+	var facts := _facts(ctx, parts, knowledge)
+	var options := _option_groups(ctx, parts, knowledge)
+	var demand := SnapshotDemand.new()
+	demand.options = _options
+	demand.texts = _sections
+	demand.throws = _throws
+	demand.targets = parts["targets"]
+	demand.per_sections = parts["per_sections"]
+	demand.vocab = vocab
+	demand.ctx = ctx
+	demand.know = knowledge
+	demand.rooms = staged.rooms
+	demand.stun_stack = parts["stun_stack"]
+	demand.groups = options
+	demand.facts = facts
+	var sections := _state_sections(ctx, parts, staged.goal, staged.activity, knowledge)
+	demand.sections = sections
+	var snapshot := {
+		"facts": facts, "sections": sections, "sections_per_target": parts["per_sections"],
+		"options": options, "gun": vocab.gun_noun(parts["gun"]), "demand": demand,
+	}
+	snapshot.merge(staged.frozen)
+	staged.finish(snapshot)
 
 
 ## The ids of the hostiles that get full analysis (fire, flank, advance and melee options, and

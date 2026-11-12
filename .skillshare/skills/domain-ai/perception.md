@@ -4,7 +4,7 @@ SENSE: turns the world into what the NPC *knows*, then into the snapshot the pla
 
 ## Files
 
-- `agent_perception.gd` — lifecycle (`setup`, `apply_config`, `bind`), SEE (`observe`), per-tick reads, BUILD (`sense`).
+- `agent_perception.gd` — lifecycle, SEE (`observe`), tick reads, BUILD (`sense`, `begin_sense`: `snapshot-staged.md`).
 - The face's parts, preloaded consts with no `class_name`, built once in `setup()`, each holding the perception: `perception_sight.gd` (`sight`), `perception_house.gd` (`house`), `perception_hearing.gd` (`hearing`), `perception_orders.gd` (`orders`), `perception_contacts.gd` (`contacts`), `perception_grenades.gd` (`grenades`), `perception_entry.gd` (`entry`), `perception_views.gd` (`views`). `perception_confinement.gd` (`confinement`) is an owner-free data leaf (`tests/ai/ai_parts_free_suite.gd`).
 - `agent_vision.gd` (sight and the one owner of the ray query), `agent_hostility.gd`, `agent_memory.gd`, `agent_suspicion.gd`, `house_rooms.gd` (`HouseRooms`: room lookups and how a doorway joins rooms; perception, snapshot, door views, entry geometry and the team all share it).
 - `agent_tactics.gd` → `perception-tactics.md`; `agent_entry.gd`, `entry/`, `agent_door_views.gd` → `perception-entry.md`, `perception-views.md`; `stack/` → `perception-stack.md`; `agent_grenades.gd` (`ESCAPE_CAP` escape searches a frame), `agent_throw.gd` → `perception-grenades.md`; `agent_snapshot.gd`, `snapshot/` → `snapshot.md`; shared lists, intake, event filter → `perception-bookkeeping.md`.

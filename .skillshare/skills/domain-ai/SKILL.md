@@ -39,6 +39,7 @@ Perception (what the NPC knows)
 - `perception-stack.md` — the claim wire format, the ledger, slot rules and a member's claim (`stack/`).
 - `perception-grenades.md` — live grenades known, the danger zone, the evade plan, `can_lob`, a blinded or deafened NPC.
 - `snapshot.md` — editing `agent_snapshot.gd` or `snapshot/`: adding a fact, a state section or an option group, or changing what Von is told. Then `snapshot-wording.md` for the measured wording rules and the grenade and suspect-room phrases.
+- `snapshot-staged.md` — the snapshot build in resumable pieces (`begin_build`, `SnapshotBuild`, `AgentPerception.begin_sense`): the piece kinds, the start's gathering and the frozen confinement copy.
 - `snapshot-demand.md` — the groups, facts and sections built when the walk first reads them (`SnapshotDemand`), `complete()` for the overlay and tests, the `grenade_ready` existence search, the heard leads' route memo.
 
 Behaviour (how a chosen option is run)

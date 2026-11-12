@@ -367,8 +367,31 @@ func observe(rooms: Array) -> void:
 ## into the decision snapshot the planner walks: { facts, sections, sections_per_target, options },
 ## with a frozen copy of its `confinement`.
 ## The author reads this knowledge and the combat geometry only — it writes no memory and holds no
-## policy.
+## policy. This builds the whole snapshot in one call: `begin_sense` stepped to its end.
 func sense(goal: String, activity: String, engaged_id := 0) -> Dictionary:
+	var staged := begin_sense(goal, activity, engaged_id)
+	while not staged.done():
+		staged.step()
+	return staged.result()
+
+
+## BUILD pass in pieces (`sense()` made resumable): a snapshot build in progress, whose `step()`
+## runs the next piece, `next_piece()` says which kind that is (`SnapshotBuild.Piece`), `done()`
+## whether it is complete and `result()` the snapshot `sense()` returns. The first piece does the
+## gathering `sense()` begins with, so the knowledge and the confinement copy are those of the
+## build's start; the live `confinement` may change after that without reaching the snapshot.
+func begin_sense(goal: String, activity: String, engaged_id := 0) -> RefCounted:
+	return _snapshot.begin_build(
+		house.rooms,
+		goal,
+		activity,
+		_gather_knowledge.bind(engaged_id),
+		_frozen_entries,
+	)
+
+
+## What the NPC knows as a build starts (what the snapshot author reads).
+func _gather_knowledge(engaged_id: int) -> Dictionary:
 	if not tuning.memory.familiar_with_house and not _character.stun.is_blind():
 		house.learn_by_sight(true)
 	var self_pos: Vector2 = _character.global_position
@@ -394,10 +417,14 @@ func sense(goal: String, activity: String, engaged_id := 0) -> Dictionary:
 	}
 	knowledge["contacts"] = contacts.known(self_pos)
 	knowledge["callouts"] = hearing.callouts()
-	var snapshot: Dictionary = _snapshot.build(house.rooms, goal, activity, knowledge)
-	# The walk decides over where it may act as it is now, whatever a later tick refreshes.
-	snapshot["confinement"] = confinement.copy()
-	return snapshot
+	return knowledge
+
+
+## The snapshot's entries that stay as they were as the build starts: a frozen copy of the
+## `confinement`, as the walk decides over where it may act as it is now, whatever a later tick
+## refreshes.
+func _frozen_entries() -> Dictionary:
+	return { "confinement": confinement.copy() }
 
 
 ## The goal text as Von reads it: `{gun}` filled with what the NPC calls its gun.
