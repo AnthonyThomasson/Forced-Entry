@@ -21,10 +21,10 @@ debug overlays, Navigation and the UI are overlays (`ViewLayers.overlay`); Gener
 | File | Role |
 |---|---|
 | `player_view.gd` (`PlayerView`) | The one node (group `player_view`): `watch` builds it, the two per-frame hooks, the lift, the test reads. |
-| `view_cone.gd`, `view_shapes.gd`, `view_watch.gd` | The exact polygon (`ViewCone`), the blocking shapes round the eye (`ViewShapes`: a shape query, never a tree walk) and what says a rebuild is due (`ViewWatch`). Private. |
+| `view_cone.gd`, `view_shapes.gd`, `view_watch.gd` | The exact polygon (`ViewCone`, a job: `cone-job.md`; holders `view_cone_job.gd`, `view_cone_buffer.gd`), the blocking shapes round the eye (`ViewShapes`: a shape query, never a tree walk) and what says a rebuild is due (`ViewWatch`). Private. |
 | `view_memory.gd`, `view_fan.gd`, `view_mask.gd`, `view_composite.gd` | The capture and memory viewports and the wipe, the triangle-fan painter both painters are, the feathered mask, the composite over the world. Private. |
 | `memory_paint`, `memory_wipe`, `view_composite` (`.gdshader`) | Paints the capture into the memory without blending; writes "nothing seen"; cuts the live world out and draws the memory in the look. |
-| `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, `memory_scale`, the rays, `far_depth`, `far_bleed`, `rebuild_every`, `rebuild_gap`. |
+| `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, `memory_scale`, the rays, `far_depth`, `far_bleed`, `rebuild_every`, `rebuild_gap`; the sliced rebuild's: `VisionSliceConfig` (`cone-job.md`). |
 
 What a character sees by (110° cone, 2520 px, a 48 px bubble, looking over coverage 60) is Character's `CharacterVisionConfig`,
 read through `character.sight()`: any character can be the viewer.
@@ -39,15 +39,15 @@ read through `character.sight()`: any character can be the viewer.
   copies, a disc, laid inside the edge).
 - **The cone** (`ViewCone`): a fan from the eye over ray ends sorted by angle. Rays: an even fan (`cone_rays` across the cone,
   `bubble_rays` round the eye) plus three at each corner of each blocking shape the eye sees (the corner's angle,
-  `corner_offset` either side). `ViewShapes.corners` reads every solid shape touching the hull of the cone's sector and the bubble (`ViewCone._region`, grown 2 px) with a shape query (asked again with four
-  times the cap while it comes back full: no blocker is dropped), splits them into blockers (coverage above `see_over`) and
+  `corner_offset` either side). `ViewShapes.corners` reads every solid shape touching the hull of the cone's sector and the bubble (`ViewCone._region`, grown 2 px) with a shape query (asked again at four times the cap while full: none dropped), splits them into blockers (coverage above `see_over`) and
   lows, and dedupes corners to half a pixel, keeping the lesser (x, then y), whichever shape the engine names first. Every ray
   leaves the lows out and meets its first blocker in one cast (`SightRay` instance), then runs on to where it leaves it
   (`far_exit`: the farthest exit over the blocking shapes holding a point 0.1 px along the ray, so a wall or wardrobe seen shows
   its top; at most `far_depth`; `far_bleed` when it leaves through no edge; where no shape holds the point the ray only grazed
-  and ends at the hit). The even fan is cast first, once (`_cast_fan`) with a per-interval hide table (`_fan_hide`), and a corner between two fan rays that met the same convex shape nearer
+  and ends at the hit). The even fan is cast first, once (`_run_fan`) with a per-interval hide table (`_fan_hide`), and a corner between two fan rays that met the same convex shape nearer
   than it needs no ray (`vision/cone_hidden_corners_not_cast`), unless it lies within `FAN_HIDE_MARGIN` (0.25 px at its distance) of
   either ray: engine hits are off a face by up to 0.02 px (`vision/fan_hide_margin_keeps_grazing_corner`).
+- **A rebuild is a job** (`ViewCone.begin` / `step`; `rebuild` runs it whole): `cone-job.md`.
 - **`ViewWatch` skips a rebuild** a fresh one would draw again, and a rebuild is due when any input of the cone changed: the eye,
   the facing, the sight numbers, the cone's `VisionConfig` numbers; the transform or collision layer of any blocker where a
   ray can pass (within the view distance, in the cone's sector or the bubble, each grown by the blocker's own extent and 2 px, measured when its shapes come or go and scaled by the largest absolute
@@ -65,15 +65,14 @@ read through `character.sight()`: any character can be the viewer.
   (child-tree and `changed` signals), a collider leaving the tree drops its own; characters' polygons are read anew. In front of that sits a memo for
   one rebuild (`_memo`): a polygon is checked against its body once, then served from it (a rebuild asks about 1,300 times), and it is
   emptied by `reset()`, when polygons are cleared and when a collider leaves the tree, so it never serves a polygon across rebuilds. The check allocates
-  nothing (the transform and the shape resource are compared in place). The far face (`far_exit(space, hit, dir)`) reads the blocking
-  shapes holding the probe point afresh each ray: reusing the previous ray's polygons cost more than it saved (`docs/player-vision.md`), so it is gone; keep it out.
-  The angles are built without lambda sort or map. `polygon_reuses`, `memo_hits` and `validations` count for the test.
-- **The look:** the capture shares the main world and leaves `MOVING` and `OVERLAY` out of its cull mask; the memory is a
-  world-space `SubViewport` over the floors' bounds at `memory_scale` texels a px (less when the world is wider than 16 384),
+  nothing (the transform and the shape resource are compared in place). The far face (`far_exit`) reads the blocking
+  shapes holding the probe point afresh each ray: reusing the previous ray's polygons cost more than it saved: keep it out.
+  Angles are built without lambda sort or map; `polygon_reuses`, `memo_hits`, `validations` count for a test.
+- **The look:** the capture shares the world and leaves `MOVING` and `OVERLAY` out of its cull mask; the memory is a
+  world-space `SubViewport` over the floors' bounds at `memory_scale` texels a px (less past 16 384 wide),
   never cleared, wiped for its first two frames; the composite is a screen-sized polygon at `DrawLayers.VISION` (absolute, bit
   `OVERLAY`): clear inside the cone, the memory in the look outside it, black where nothing was seen.
-- **The lift:** `died` or `tree_exiting` on the viewer runs `SeenArea.clear()` at once and frees the view (composite, viewports)
-  that frame; a viewer already dead gets no view (`watch` returns null). A view whose node is disabled (the perf guard's "off")
+- **The lift:** `died` or `tree_exiting` on the viewer runs `SeenArea.clear()` at once and frees the view (composite, viewports) that frame; a viewer already dead gets no view (`watch` returns null). A view whose node is disabled (the perf guard's "off")
   clears `SeenArea` too, and the whole world is repainted.
 
 ## Gotchas

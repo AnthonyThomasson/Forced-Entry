@@ -19,6 +19,6 @@ A new tunable goes in the holder of its topic. One that fits no topic starts a h
 | AI | `SquadFollowConfig`, `SquadAmbushConfig` (squad tuning, not per NPC); an NPC's own tunables are the `Npc<Topic>Tuning` nodes (`typed-components.md`) |
 | Navigation | `NavBakeConfig` (the physics frame a planning re-bake lands on) |
 | General | `Camera{,Shake}Config` |
-| Vision | `VisionConfig` (the switch, the look, the memory's scale, the cone's rays, the rebuild backstop) |
+| Vision | `VisionConfig` (the switch, the look, the memory's scale, the cone's rays, the rebuild backstop), `VisionSliceConfig` (a sliced cone rebuild: unit prices, slice size, restart cap) |
 
 World-Gen's `LayoutRules` (which rooms may hold the front door or an exit, which room types may share a door) and `DoorRules` (which doorways get a door) are rules tables in the same style, not tuning. `PhysicsLayers`, `DrawLayers`, `ViewLayers` and `LightMasks` are shared ids, not tuning (interface 11).
