@@ -1,15 +1,4 @@
 extends RefCounted
-
-## Where the job is: claimed (its start still to run, paid for by the claim), building, taking its
-## order-refusal step, or walking.
-enum Stage {
-	IDLE,
-	CLAIMED,
-	BUILD,
-	REFUSAL,
-	WALK,
-}
-
 ## AI DECISION sub-domain: ONE decision as a job the controller drives with `request(forced)` and a
 ## per-frame `advance()`. It owns the claim (the budget's pool, `decision_budget.gd`), the retry
 ## (a refused claim changes nothing, so the controller's wish stands and is asked again next
@@ -21,13 +10,36 @@ enum Stage {
 ##
 ## A claim made while a job is in flight (half-built, or walking) drops that job without a signal
 ## and starts the new one; refused, the job in flight carries on. A dropped build is freed, never
-## resumed (`snapshot-staged.md`). The snapshot stays as built: the perception froze the
-## confinement at the build's START and the order-refusal step is the only thing that replaces it,
-## before the first level. What the last decision knew (`last_facts`, `last_sections`,
+## resumed (`snapshot-staged.md`). What the last decision knew (`last_facts`, `last_sections`,
 ## `last_demand`, `last_analysed`, on the cadence) changes only when a build completes.
+##
+## What is read when. At the claim (the build's first `advance`, the claim frame's): the goal, the
+## activity, the engaged contact (`reads`), whether the behaviour's last choice is still running
+## (`ongoing`, judged for "(your current plan)" on that state), the order held and the entry the
+## decision starts from (the planner's entry rule over the perception's quick facts). The build's
+## START freezes the knowledge and the confinement copy (`perception.md`). After the build, at the
+## order-refusal step: the live confinement refreshed (`refresh`) when the order the build saw is
+## refused, replacing the snapshot's copy before the first level.
+##
+## Interrupting (`stale`, `frozen`): the controller applies one test to a job in flight. A walk is
+## stale when the situation's entry (`entry_for(quick_facts)`) is not the one it started from; a
+## build is stale when it is not the one the build started from (its start-time facts). Stale, a
+## forced decision claims over it. Not stale, a walk is left to finish and the wish is dropped; a
+## build whose START has run (`frozen`) has not seen what forced it, so the wish is kept until the
+## walk begins.
 ##
 ## A data part, no owner (ADR 0006): it holds the perception, the planner and the cadence its
 ## controller hands it and three reads of the behaviour and reflexes as `Callable`s.
+
+## Where the job is: claimed (its start still to run, paid for by the claim), building, taking its
+## order-refusal step, or walking.
+enum Stage {
+	IDLE,
+	CLAIMED,
+	BUILD,
+	REFUSAL,
+	WALK,
+}
 
 ## The snapshot build's piece kinds (`SnapshotBuild.Piece`), to price them.
 const SnapshotBuild := preload("res://scenes/ai/perception/snapshot/snapshot_build.gd")
@@ -43,7 +55,7 @@ var cadence: RefCounted
 ## What a build starts from: `{ goal, activity, engaged }` (the goal as written, the behaviour's
 ## activity line, the engaged contact's id).
 var reads: Callable
-## Whether the behaviour's last choice is still running, as the walk begins.
+## Whether the behaviour's last choice is still running, read at the claim.
 var ongoing: Callable
 ## The confinement refreshed from this tick's rules (the reflexes'), as an order is refused.
 var refresh: Callable
@@ -52,6 +64,10 @@ var _build: RefCounted
 var _snapshot := {}
 ## The id of the order the build started with (-1: none): the refusal step judges that one.
 var _order_seen := -1
+## Whether the behaviour's last choice was still running at the claim.
+var _continuing := false
+## The entry node the decision starts from, worked out at the claim: what a build is compared with.
+var _entry: StringName = &"root"
 
 
 ## Wire the job to the perception, the planner and the cadence its controller holds (the three
@@ -77,12 +93,18 @@ func walking() -> bool:
 	return _stage == Stage.WALK and planner.is_pending()
 
 
-## Whether the walk in flight no longer fits a situation that starts at node `entry`. A job still
-## building has no walk to compare with and is never stale, so a stream of forced decisions cannot
-## keep dropping a build before it finishes (an order taken meanwhile is the controller's to act
-## on).
+## Whether the build's START has run and its walk has not begun: what it knows is frozen, and a
+## forced decision since has not been weighed in it.
+func frozen() -> bool:
+	return _stage == Stage.BUILD or _stage == Stage.REFUSAL
+
+
+## Whether the job in flight no longer fits a situation that starts at node `entry`: a walk that
+## started from another node, or a build whose claim-time facts started from another.
 func stale(entry: StringName) -> bool:
-	return walking() and planner.current_entry() != entry
+	if walking():
+		return planner.current_entry() != entry
+	return pending() and _entry != entry
 
 
 ## Ask to begin a decision: claims its first piece, the build's start, from the frame's pool.
@@ -117,6 +139,8 @@ func advance() -> void:
 				var read: Dictionary = reads.call()
 				_build = perception.begin_sense(read["goal"], read["activity"], read["engaged"])
 				_order_seen = int(perception.orders.current().get("id", -1))
+				_continuing = bool(ongoing.call())
+				_entry = planner.entry_for(perception.quick_facts())
 				_build.step()  # the start, paid for by the claim
 				_stage = Stage.BUILD
 			Stage.BUILD:
@@ -129,7 +153,7 @@ func advance() -> void:
 				if not Budget.take(Budget.cost_refusal):
 					return
 				_refuse_order()
-				planner.begin(_snapshot, ongoing.call())
+				planner.begin(_snapshot, _continuing)
 				_stage = Stage.WALK
 			Stage.WALK:
 				if not planner.is_pending():

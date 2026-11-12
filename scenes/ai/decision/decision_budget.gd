@@ -49,3 +49,10 @@ static func take(cost: int) -> bool:
 		return false
 	_spent += cost
 	return true
+
+
+## Forget the frame's spending (a test's cleanup: a unit suite that stood in for the frame leaves
+## none of its units behind).
+static func reset() -> void:
+	_frame = -1
+	_spent = 0

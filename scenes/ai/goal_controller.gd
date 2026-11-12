@@ -539,7 +539,9 @@ func _maybe_interrupt() -> void:
 	if (_cadence.order_from >= 0
 			or _job.stale(_job.planner.entry_for(_perception.quick_facts()))):
 		_request()
-	else:
+	elif not _job.frozen():
+		# The walk in flight fits: its wish is spent. A build already started has not seen what
+		# forced this: it stays until the walk begins.
 		_cadence.forced = false
 
 

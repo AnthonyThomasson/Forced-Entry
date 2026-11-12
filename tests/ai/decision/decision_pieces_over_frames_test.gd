@@ -4,7 +4,9 @@ extends GameTest
 ## sees a trespasser claims its decision on one frame and Von is not asked its first question
 ## until the build's pieces and the order-refusal step have each had a frame of their own; the
 ## walk then goes on level by level (each level one more frame) and adopts a leaf, so a priced
-## piece never stalls a job. The default prices run all of it in the claim frame
+## piece never stalls a job. A decision forced while its build is under way (the situation is the
+## same, so no restart) is not lost: its wish stays while the build is frozen, and is spent once
+## the walk has begun. The default prices run all of it in the claim frame
 ## (`decisions_spread_over_frames`).
 
 ## The pieces ahead of the first question: the build's finish, the order-refusal step and the
@@ -47,10 +49,19 @@ func run(t: TestContext) -> void:
 	var brain := t.controller(&"npc", &"debug_state")
 	var claimed := -1
 	var asked := -1
+	var forced_at := -1
+	var kept := false
 	for frame in 90:
 		await t.frames(1)
 		if claimed < 0 and int(brain.debug_state()["decisions"]) > 0:
 			claimed = frame
+			# Something forces a decision now, mid-build: a hit, say.
+			brain.get("_cadence").force("probe")
+			forced_at = frame
+		elif forced_at >= 0 and frame == forced_at + 2:
+			# Two frames on the build is still under way: it was not restarted, the wish is kept.
+			var state: Dictionary = brain.debug_state()
+			kept = bool(state["forced"]) and int(state["decisions"]) == 1
 		if asked < 0 and not DecisionStub.requests.is_empty():
 			asked = frame
 		if claimed >= 0 and asked >= 0:
@@ -62,6 +73,7 @@ func run(t: TestContext) -> void:
 		"Von was asked %d frames after the claim (at least %d)"
 			% [asked - claimed, PIECES_BEFORE_THE_ASK],
 	)
+	t.check(kept, "a decision forced mid-build neither restarted it nor was dropped")
 	var landed := await t.until(
 		func(): return (brain.debug_state()["decision"]["levels"] as Array).size() >= 2, 3.0
 	)

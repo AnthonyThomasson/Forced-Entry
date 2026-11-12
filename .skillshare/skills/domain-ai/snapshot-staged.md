@@ -1,6 +1,6 @@
 # AI · Snapshot, built in pieces (`agent_snapshot.gd`, `snapshot/snapshot_build.gd`)
 
-`AgentSnapshot.build()` makes the whole snapshot in one call; the same build can run in resumable pieces, for a caller that spreads a decision over several steps or prices what each costs. `snapshot.md` holds the snapshot itself; the **decision job** (`decision.md`) is the caller that steps it, one piece per work unit of `DecisionBudget`.
+`AgentSnapshot.build()` makes the whole snapshot in one call; the same build can run in resumable pieces, for a caller that spreads a decision over several steps or prices what each costs. `snapshot.md` holds the snapshot itself; the **decision job** (`decision-job.md`) is the caller that steps it, one piece per work unit of `DecisionBudget`.
 
 ## The build
 

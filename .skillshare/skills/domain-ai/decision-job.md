@@ -1,0 +1,19 @@
+# AI · The decision job and its budget (`decision_job.gd`, `decision_budget.gd`)
+
+THINK, one decision as a job: what claims a decision, builds its snapshot, refuses a held order and walks the tree, piece by piece against a pool of work units shared by every NPC. The tree and the planner are `decision.md`; the build is `snapshot-staged.md`; the controller that asks is `orchestrator.md`.
+
+## The pool (`DecisionBudget`)
+
+NPCs that spawned or came under fire together want to decide on one frame. `per_frame` work units (default 1) a physics frame are shared by every NPC, counted, never timed, so when an NPC decides never depends on the machine, and two NPCs that would claim the same flank side decide on different frames, each hearing the other's radio first (`decisions_spread_over_frames`). A **piece** has a static price: `cost_start` (the build's START, the claim) 1, `cost_hostile`, `cost_finish`, `cost_refusal`, `cost_level` 0, so one decision is one unit and runs whole in its claim frame, each later level as Von answers. `take(cost)` spends it when `spent + cost` fits; a frame whose pool is untouched runs the next piece even if dearer than the pool (a job never stalls, nobody else gets that frame); a free piece always runs. Tests set the statics with `set_static`; a native suite stands in for the frame with `frame_source` and ends with `reset()`.
+
+## The job (`DecisionJob`, preloaded by the controller, no `class_name`)
+
+A data part holding no owner (ADR 0006): the perception, the planner and the cadence, and three `Callable` reads. `request(forced)` claims the START: refused, nothing changes and the controller's wish (`forced`, its reason, the elapsed decide timer) stands for next frame; claimed, any job in flight (building or walking) is dropped without a signal, and a cadence wish (`forced` false) never claims over one. The controller books the decision at the claim (`decisions`, the reason, the timer, `_apply_config`). `advance()` runs the pieces the pool allows, each frame: START (reads the goal, activity and engaged contact, `ongoing`, the order held and the entry the decision starts from, then freezes the knowledge and the confinement copy), a HOSTILE piece per analysed hostile, FINISH, the **refusal step**, then the planner's levels. The refusal step ends the order the build saw and offered no option for (`ordered` false) and replaces the snapshot's confinement with the live one refreshed (`refresh`, read after the build); an order taken meanwhile is not judged on a snapshot made without it. `last_facts`, `last_sections`, `last_demand` and `last_analysed` (the cadence's) change only as a build completes: a dropped half-built job leaves them.
+
+The planner is `driven`: `begin` queues its first level, `step()` runs one piece (follow a pick, decide a level), and an answer from Von queues the next and emits `piece_ready`, which the job answers with `advance()`: run at once if its price fits, else on a later `advance`. `decided` / `failed` are unchanged.
+
+## Interrupting
+
+The controller applies one test to a job in flight (`_maybe_interrupt`): an order taken since (`order_from`) restarts it; else `stale(entry_for(quick_facts))`. A walk is stale when it started from another node, a build when its claim-time facts started from another. Stale, the forced decision claims over it (and is refused, the job carries on and the wish stays). Not stale, a walk is left to finish and the wish is dropped; a build whose START has run (`frozen()`) has not seen what forced it, so its wish is kept until the walk begins.
+
+Tests: `ai/decision/decision_job_suite` (native: a job that finishes, an interrupt over a half-built job, a refused claim, an over-pool piece, the frozen snapshot, the refusal), `decision_pieces_over_frames` (priced pieces end to end; a decision forced mid-build is kept), `decision_refused_claim_keeps_wish` (the controller keeps a refused wish), `decisions_spread_over_frames`.
