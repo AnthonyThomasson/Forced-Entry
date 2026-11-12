@@ -117,6 +117,11 @@ func running() -> bool:
 	return _job.stage != Job.Stage.DONE
 
 
+## Drop the job in flight (a view lifted or disabled); the readers keep the last finished job's.
+func abort() -> void:
+	_job.stage = Job.Stage.DONE
+
+
 ## The engine work (units) the job in flight, or the last one, has spent.
 func work_units() -> int:
 	return _job.work

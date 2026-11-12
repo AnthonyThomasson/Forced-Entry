@@ -16,6 +16,7 @@ const Memory := preload("res://scenes/vision/view_memory.gd")
 const Mask := preload("res://scenes/vision/view_mask.gd")
 const Composite := preload("res://scenes/vision/view_composite.gd")
 const Watch := preload("res://scenes/vision/view_watch.gd")
+const Pipeline := preload("res://scenes/vision/view_pipeline.gd")
 ## It runs after the characters it watches (their default priority is 0).
 const PRIORITY := 100
 
@@ -26,8 +27,8 @@ var _memory := Memory.new()
 var _mask := Mask.new()
 var _composite := Composite.new()
 var _watch := Watch.new()
-## How many times the cone has been rebuilt.
-var _rebuilds := 0
+## The cone's jobs: starts, slices, restarts and publishes.
+var _pipeline := Pipeline.new(_cone, _watch)
 
 
 func _enter_tree() -> void:
@@ -43,6 +44,7 @@ func _exit_tree() -> void:
 ## A view whose node is disabled works no more, so it shows the whole world again.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_DISABLED:
+		_pipeline.drop()
 		SeenArea.clear()
 
 
@@ -80,18 +82,16 @@ func _process(_delta: float) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if not is_instance_valid(_viewer):
+	if not is_instance_valid(_viewer) or is_queued_for_deletion():
 		return
 	var eye := _viewer.global_position
 	var facing: Vector2 = _viewer.get("facing")
 	var sight: Dictionary = _viewer.sight()
-	# Held while nothing the polygon is made of has changed: a rebuild would draw it again.
-	if not _watch.stale(eye, facing, sight):
-		return
-	_cone.rebuild(get_world_2d().direct_space_state, eye, facing, [_viewer.get_rid()], sight)
-	_rebuilds += 1
-	_watch.built(eye, facing, sight)
-	_publish_area()
+	# One slice of the cone's job (`ViewPipeline`): held while nothing the polygon is made of has
+	# changed, published when a job completes.
+	var space := get_world_2d().direct_space_state
+	if _pipeline.tick(space, eye, facing, [_viewer.get_rid()], sight):
+		_publish_area()
 
 
 ## Build the view of `character` (any one: the viewer) under `root`; null while
@@ -114,7 +114,9 @@ static func watch(root: Node, character: Node2D) -> PlayerView:
 ## live. The view, its composite and its viewports are freed at the end of this frame, before it is
 ## drawn.
 func _lift() -> void:
-	# At once, so what is drawn this frame already repaints everything that was held back.
+	# At once, so what is drawn this frame already repaints everything that was held back; a job
+	# half done is dropped with the view.
+	_pipeline.drop()
 	SeenArea.clear()
 	queue_free()
 
@@ -130,9 +132,26 @@ func cone() -> PackedVector2Array:
 	return _cone.cone
 
 
-## How many times the cone has been rebuilt: one for each physics frame it could change in.
+## How many cones have been published: a job that ran to its end (or a whole rebuild).
 func rebuilds() -> int:
-	return _rebuilds
+	return _pipeline.published
+
+
+## How many rebuilds have been started: a job begun, a restart after a change of the world and a
+## whole build each count.
+func starts() -> int:
+	return _pipeline.started
+
+
+## Whether a rebuild is in flight: the cone published is older than the world and the viewer.
+func building() -> bool:
+	return _pipeline.running()
+
+
+## The pose the published cone is of: `{eye, facing}`, the eye and facing the viewer had when the
+## job that built it started (zero before the first cone).
+func published_pose() -> Dictionary:
+	return { "eye": _pipeline.pose_eye, "facing": _pipeline.pose_facing }
 
 
 ## How many rays the last rebuild cast to learn which corners the eye sees.

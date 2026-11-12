@@ -16,9 +16,7 @@ const REACH := 2520.0
 const FAR := Vector2(3750.0, 0.0)
 const SOLID_SIZE := Vector2(14.0, 60.0)
 const FRAMES := 40
-## The pose lag (`docs/player-vision.md` V1): the eye and facing the view may be off the last
-## rebuild's by at most these (px, degrees) before it rebuilds in that very frame, kept here from
-## the spec.
+## A small pose change (px, degrees): the old pose lag's bounds; a rebuild is due for any of it now.
 const LAG_EYE := 5.0
 const LAG_FACING := 1.0
 
@@ -153,70 +151,83 @@ func _due(watch: Watch, eye: Vector2, facing: Vector2, sight := _sight()) -> boo
 	return watch.stale(eye, facing, sight)
 
 
-func test_a_small_pose_change_waits_for_the_gap() -> void:
+## Ask a settled watch, as a job in flight, whether the world changed for a viewer at its pose.
+func _changed(watch: Watch, sight := _sight()) -> bool:
+	return watch.world_changed(sight)
+
+
+func test_a_small_pose_change_is_due_at_once() -> void:
 	var watch := _watch()
 	_settled(watch)
-	var step := Vector2(LAG_EYE - 1.0, 0.0)
-	assert_bool(_due(watch, EYE + step, FACING)).is_false()
-	assert_bool(_due(watch, EYE + step, FACING)).is_true()
+	assert_bool(_due(watch, EYE + Vector2(LAG_EYE - 1.0, 0.0), FACING)).is_true()
 
 
-func test_a_small_turn_waits_for_the_gap() -> void:
+func test_a_small_turn_is_due_at_once() -> void:
 	var watch := _watch()
 	_settled(watch)
 	var turned := FACING.rotated(deg_to_rad(LAG_FACING - 0.2))
-	assert_bool(_due(watch, EYE, turned)).is_false()
 	assert_bool(_due(watch, EYE, turned)).is_true()
 
 
-func test_an_eye_past_the_bound_is_rebuilt_at_once() -> void:
-	var watch := _watch()
-	_settled(watch)
-	assert_bool(_due(watch, EYE + Vector2(LAG_EYE + 1.0, 0.0), FACING)).is_true()
-
-
-func test_a_facing_past_the_bound_is_rebuilt_at_once() -> void:
-	var watch := _watch()
-	_settled(watch)
-	var turned := FACING.rotated(deg_to_rad(LAG_FACING + 0.5))
-	assert_bool(_due(watch, EYE, turned)).is_true()
-
-
-func test_a_pose_that_drifts_past_the_bound_over_frames_is_rebuilt() -> void:
-	# The bounds are from the last rebuild's pose, not the last frame's: with a gap longer than the
-	# drift takes, 2 px a frame passes the 5 px bound in the third frame.
-	var watch := _watch()
-	_settled(watch)
-	var gap := VisionConfig.rebuild_gap
-	VisionConfig.rebuild_gap = 6
-	var first := -1
-	for i in 5:
-		if first < 0 and _due(watch, EYE + Vector2(2.0 * float(i + 1), 0.0), FACING):
-			first = i + 1
-	VisionConfig.rebuild_gap = gap
-	assert_int(first).is_equal(3)
-
-
-func test_a_changed_sight_number_is_rebuilt_at_once_whatever_the_pose() -> void:
+func test_a_changed_sight_number_is_due() -> void:
 	var watch := _watch()
 	_settled(watch)
 	var sight := _sight()
 	sight["view_distance"] = REACH - 100.0
-	assert_bool(_due(watch, EYE + Vector2(1.0, 0.0), FACING, sight)).is_true()
+	assert_bool(_due(watch, EYE, FACING, sight)).is_true()
 
 
-func test_a_gap_of_one_rebuilds_every_changed_frame() -> void:
-	var watch := _watch()
-	_settled(watch)
-	var gap := VisionConfig.rebuild_gap
-	VisionConfig.rebuild_gap = 1
-	var due := _due(watch, EYE + Vector2(1.0, 0.0), FACING)
-	VisionConfig.rebuild_gap = gap
-	assert_bool(due).is_true()
-
-
-func test_a_solid_that_joins_is_rebuilt_at_once_whatever_the_pose() -> void:
+func test_a_solid_that_joins_is_due() -> void:
 	var watch := _watch()
 	_settled(watch)
 	_solid(Vector2(300.0, 0.0))
 	assert_bool(_due(watch, EYE + Vector2(1.0, 0.0), FACING)).is_true()
+
+
+func test_a_job_in_flight_does_not_ask_the_pose() -> void:
+	# `world_changed` has no pose to ask: nothing moved but the viewer, so the world is as the job
+	# began it.
+	var watch := _watch()
+	_settled(watch)
+	assert_bool(_changed(watch)).is_false()
+
+
+func test_a_job_in_flight_sees_a_blocker_that_moves() -> void:
+	var watch := _watch()
+	var near := _solid(Vector2(300.0, 0.0))
+	_settled(watch)
+	near.position += Vector2(0.0, 5.0)
+	assert_bool(_changed(watch)).is_true()
+
+
+func test_a_job_in_flight_does_not_see_a_blocker_that_moves_outside_its_reach() -> void:
+	var watch := _watch()
+	var far := _solid(FAR)
+	_settled(watch)
+	far.position += Vector2(0.0, 5.0)
+	assert_bool(_changed(watch)).is_false()
+
+
+func test_a_job_in_flight_sees_a_solid_that_joins() -> void:
+	var watch := _watch()
+	_settled(watch)
+	_solid(Vector2(300.0, 0.0))
+	assert_bool(_changed(watch)).is_true()
+
+
+func test_a_job_in_flight_sees_a_changed_sight_number() -> void:
+	var watch := _watch()
+	_settled(watch)
+	var sight := _sight()
+	sight["fov_degrees"] = 90.0
+	assert_bool(_changed(watch, sight)).is_true()
+
+
+func test_a_job_in_flight_is_held_to_the_pose_it_began_from() -> void:
+	# A solid beside the live eye that the job's own sector never reaches is no change to it: the
+	# sector stays that of the pose `look`/`stale` last took.
+	var watch := _watch()
+	_settled(watch)
+	var behind := _solid(Vector2(-1200.0, 0.0))
+	behind.position += Vector2(0.0, 5.0)
+	assert_bool(_changed(watch)).is_false()

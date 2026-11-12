@@ -121,7 +121,7 @@ var _costs: Array[float] = []
 var _ratios: Array[float] = []
 ## How many frames the view worked in, and how many of them rebuilt the cone.
 var _timed := 0
-var _rebuilt := 0
+var _rebuilt := 0  # job starts (`PlayerView.starts()`), restarts included
 ## The moving rounds' costs, reference ratios and proof that both viewer inputs changed each frame.
 var _moving_costs: Array[float] = []
 var _moving_ratios: Array[float] = []
@@ -182,8 +182,8 @@ func run(t: TestContext) -> void:
 	t.check(
 		float(_rebuilt) <= float(_timed) * PARKED_REBUILT_MAX,
 		(
-			"premise: the parked view rebuilt only for its backstop in the blocks it worked "
-			+ "(%d rebuilds in %d frames, at most %.0f %%)"
+			"premise: the parked view started a rebuild only for its backstop in the blocks worked "
+			+ "(%d starts in %d frames, at most %.0f %%)"
 			% [_rebuilt, _timed, PARKED_REBUILT_MAX * 100.0]
 		),
 	)
@@ -232,12 +232,12 @@ func _round_of_blocks(t: TestContext, view: PlayerView, moving := false) -> void
 	_watch.reset()
 	for on: bool in BLOCKS:
 		_switch(view, on)
-		var before := view.rebuilds()
+		var before := view.starts()
 		var stats := await Perf.frame_stats(t, BLOCK_FRAMES)
 		if on:
 			with_view += stats["avg_ms"] / float(BLOCKS.count(true))
 			if not moving:
-				_rebuilt += view.rebuilds() - before
+				_rebuilt += view.starts() - before
 				_timed += BLOCK_FRAMES
 		else:
 			without += stats["avg_ms"] / float(BLOCKS.count(false))

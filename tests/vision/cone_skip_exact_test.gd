@@ -133,9 +133,9 @@ func run(t: TestContext) -> void:
 ## The viewer stands still: it rebuilds far less often than every frame.
 func _still(t: TestContext, checker: Checker) -> void:
 	var frames := 60
-	var before := checker.view.rebuilds()
+	var before := checker.view.starts()
 	await t.frames(frames)
-	var rebuilds := checker.view.rebuilds() - before
+	var rebuilds := checker.view.starts() - before
 	t.check(
 		rebuilds <= int(ceilf(float(frames) / REBUILD_EVERY)) + 2,
 		"a still viewer rebuilds about every %d frames (%d in %d)"
@@ -144,21 +144,28 @@ func _still(t: TestContext, checker: Checker) -> void:
 	t.check(rebuilds >= 1, "a still viewer still rebuilds now and then (%d)" % rebuilds)
 
 
+## How many of `frames` frames a viewer that changes its pose in every one of them has a cone
+## published or a job started in: all of them while a job takes one frame, a fraction when a job is
+## cut into slices (`vision/cone_skip_exact_sliced`).
+func _per_job(frames: int) -> int:
+	return frames
+
+
 ## The viewer sweeps its facing across the room: each frame's cone is new, and exact.
 func _turning(t: TestContext, checker: Checker, eye: Node2D) -> void:
 	var changed := checker.changed
-	var before := checker.view.rebuilds()
+	var before := checker.view.starts()
 	for i in 90:
 		var angle := lerpf(-0.8, 0.8, float(i) / 89.0)
 		t.puppet(&"eye").aim_at(EYE_AT + Vector2.from_angle(angle) * 100.0)
 		await t.frames(1)
 	t.check(
-		checker.changed - changed >= 60,
+		checker.changed - changed >= _per_job(60),
 		"premise: a turning viewer's cone changes (%d frames of 90)" % (checker.changed - changed),
 	)
 	t.check(
-		checker.view.rebuilds() - before >= 60,
-		"a turning viewer rebuilds as it turns (%d in 90)" % (checker.view.rebuilds() - before),
+		checker.view.starts() - before >= _per_job(60),
+		"a turning viewer rebuilds as it turns (%d in 90)" % (checker.view.starts() - before),
 	)
 	t.require(await Probe.place(t, eye, EYE_AT, Vector2.RIGHT), "the viewer faces east again")
 
@@ -210,12 +217,12 @@ func _shove(t: TestContext, checker: Checker) -> void:
 		piece.global_position.distance_to(at) > 20.0,
 		"premise: the shoved wardrobe moved (%.0f px)" % piece.global_position.distance_to(at),
 	)
-	var before := checker.view.rebuilds()
+	var before := checker.view.starts()
 	await t.frames(40)
 	t.check(
-		checker.view.rebuilds() - before <= 4 + 2,
+		checker.view.starts() - before <= 4 + 2,
 		"the cone is not rebuilt each frame once the shoved wardrobe rests (%d in 40)"
-		% (checker.view.rebuilds() - before),
+		% (checker.view.starts() - before),
 	)
 
 
@@ -284,9 +291,9 @@ func _reach(t: TestContext) -> void:
 	await t.frames(30)
 	var checker := Checker.new(view, eye)
 	world.add_child(checker)
-	var before := view.rebuilds()
+	var before := view.starts()
 	await _creep(t, far, FAR_AT)
-	var rebuilds := view.rebuilds() - before
+	var rebuilds := view.starts() - before
 	t.check(
 		far.position.distance_to(FAR_AT) >= REACH_STEP * (REACH_FRAMES - 1),
 		"premise: the far solid moved (%.0f px)" % far.position.distance_to(FAR_AT),
@@ -300,9 +307,9 @@ func _reach(t: TestContext) -> void:
 		"a solid moved every frame far outside the reach forces no rebuild (%d in %d)"
 		% [rebuilds, REACH_FRAMES],
 	)
-	before = view.rebuilds()
+	before = view.starts()
 	await _creep(t, near, NEAR_AT)
-	rebuilds = view.rebuilds() - before
+	rebuilds = view.starts() - before
 	t.check(
 		rebuilds >= REACH_FRAMES - 2,
 		"a solid moved every frame within the reach forces a rebuild each frame (%d in %d)"
@@ -324,9 +331,9 @@ func _wide(t: TestContext, world: Node, view: PlayerView) -> void:
 	var wide := _solid_at(world, FAR_AT)
 	wide.get_child(0).scale = Vector2(WIDE_SCALE, 1.0)
 	await t.frames(15)
-	var before := view.rebuilds()
+	var before := view.starts()
 	await _creep(t, wide, FAR_AT)
-	var rebuilds := view.rebuilds() - before
+	var rebuilds := view.starts() - before
 	t.check(
 		rebuilds >= REACH_FRAMES - 2,
 		"a far solid with a stretched shape in range forces a rebuild each frame (%d in %d)"
@@ -406,21 +413,21 @@ func _arrives(
 	if arrival.has("late"):
 		arrival["late"].call(body)
 		await t.frames(15)
-	var before := view.rebuilds()
+	var before := view.starts()
 	await _creep(t, body, body.position, FAR_FRAMES)
 	t.check(
-		view.rebuilds() - before <= int(ceilf(float(FAR_FRAMES) / REBUILD_EVERY)) + 2,
+		view.starts() - before <= int(ceilf(float(FAR_FRAMES) / REBUILD_EVERY)) + 2,
 		"%s: moved every frame outside the reach it forces no rebuild (%d in %d)"
-		% [what, view.rebuilds() - before, FAR_FRAMES],
+		% [what, view.starts() - before, FAR_FRAMES],
 	)
 	await _just_rebuilt(t, view)
 	var wrong := checker.wrong()
 	var changed := checker.changed
-	before = view.rebuilds()
+	before = view.starts()
 	body.position = REACH_EYE + arrival["near"]
 	await t.frames(1)
 	t.check(
-		view.rebuilds() > before,
+		view.starts() > before,
 		"%s: moved from outside the reach into it it is a rebuild in that frame" % what,
 	)
 	await t.frames(5)
@@ -430,11 +437,11 @@ func _arrives(
 		await _just_rebuilt(t, view)
 		wrong = checker.wrong()
 		changed = checker.changed
-		before = view.rebuilds()
+		before = view.starts()
 		world.remove_child(body)
 		body.queue_free()
 		await t.frames(2)
-		t.check(view.rebuilds() > before, "%s: leaving the tree in reach is a rebuild" % what)
+		t.check(view.starts() > before, "%s: leaving the tree in reach is a rebuild" % what)
 		t.check(checker.changed > changed, "premise: %s: leaving changes what is seen" % what)
 		_same_as_fresh(t, checker, wrong, "%s: leaving" % what)
 	else:
@@ -454,10 +461,10 @@ func _same_as_fresh(t: TestContext, checker: Checker, wrong: int, what: String) 
 ## Wait for the view to rebuild: when this returns the frame just run was a rebuild's, so the next
 ## is the first since.
 func _just_rebuilt(t: TestContext, view: PlayerView) -> void:
-	var count := view.rebuilds()
+	var count := view.starts()
 	for i in REBUILD_EVERY * 2:
 		await t.frames(1)
-		if view.rebuilds() != count:
+		if view.starts() != count:
 			return
 	t.check(false, "the view rebuilt within %d frames" % (REBUILD_EVERY * 2))
 

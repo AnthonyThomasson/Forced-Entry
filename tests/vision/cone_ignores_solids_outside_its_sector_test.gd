@@ -51,9 +51,9 @@ func run(t: TestContext) -> void:
 	await t.frames(30)
 	var checker := Checker.new(view, eye)
 	t.world.add_child(checker)
-	var before := view.rebuilds()
+	var before := view.starts()
 	await _creep(t, behind, BEHIND_AT)
-	var rebuilds := view.rebuilds() - before
+	var rebuilds := view.starts() - before
 	t.check(
 		behind.position.distance_to(BEHIND_AT) >= STEP * (FRAMES - 1)
 		and (behind.position - EYE_AT).length() < view.viewer().sight()["view_distance"],
@@ -64,9 +64,9 @@ func run(t: TestContext) -> void:
 		"a solid moved each frame behind the viewer forces no rebuild but the backstop's (%d of %d)"
 			% [rebuilds, FRAMES],
 	)
-	before = view.rebuilds()
+	before = view.starts()
 	await _creep(t, ahead, AHEAD_AT)
-	rebuilds = view.rebuilds() - before
+	rebuilds = view.starts() - before
 	t.check(
 		rebuilds >= FRAMES - 2,
 		"a solid moved every frame in the cone forces a rebuild each (%d in %d)" % [

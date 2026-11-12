@@ -21,8 +21,12 @@ const Hall := preload("res://tests/_ai/investigate_probe.gd")
 const LEAD := Vector2(660, 190)
 ## The walk may stray this far from the navigated route's line, px (the steering rounds corners).
 const ROUTE_SLACK := 70.0
-## The cone's middle ray may differ from the defender's facing by this much, degrees.
+## The cone's middle ray may differ from the facing of the pose it was built for by this much,
+## degrees.
 const FACING_SLACK := 3.0
+## That pose may be this far (px) from where the defender is now: 4 frames of a run at 4.25 px a
+## frame (V1).
+const POSE_LAG_PX := 20.0
 ## The defender must turn by at least this much over the walk, degrees, or the test proves nothing.
 const MIN_TURN := 45.0
 ## The two runs' defenders may be this far apart (px) at the same tick, and may reach the gunfire
@@ -93,6 +97,7 @@ func _walk(t: TestContext, world: Node2D, viewed: bool) -> Dictionary:
 		"arrival": -1,
 		"stray": 0.0,
 		"eye_off": 0.0,
+		"pose_lag": 0.0,
 		"facing_off": 0.0,
 		"turned": 0.0,
 		"sent": false,
@@ -125,10 +130,16 @@ func _follow(out: Dictionary, npc: Node2D, view: PlayerView, last_facing: Vector
 	if cone.size() < 3:
 		return
 	var facing: Vector2 = npc.get("facing")
+	# The cone is the one of the pose published (the defender's pose when the job began), a pose
+	# it stood at a few frames ago (V1).
+	var pose := view.published_pose()
 	out["stray"] = maxf(out["stray"], _distance_to_route(npc.global_position))
-	out["eye_off"] = maxf(out["eye_off"], cone[0].distance_to(npc.global_position))
+	out["eye_off"] = maxf(out["eye_off"], cone[0].distance_to(pose["eye"]))
 	var middle := (cone[1] - cone[0]).normalized() + (cone[-1] - cone[0]).normalized()
-	out["facing_off"] = maxf(out["facing_off"], absf(rad_to_deg(middle.angle_to(facing))))
+	var published_facing: Vector2 = pose["facing"]
+	var off := absf(rad_to_deg(middle.angle_to(published_facing)))
+	out["facing_off"] = maxf(out["facing_off"], off)
+	out["pose_lag"] = maxf(out["pose_lag"], npc.global_position.distance_to(pose["eye"]))
 	out["turned"] += rad_to_deg(absf(last_facing.angle_to(facing)))
 
 
@@ -151,6 +162,10 @@ func _check_view(t: TestContext, viewed: Dictionary) -> void:
 	t.check(
 		viewed["eye_off"] <= 10.0,
 		"the polygon is drawn from its eye (%.1f px off)" % viewed["eye_off"],
+	)
+	t.check(
+		viewed["pose_lag"] <= POSE_LAG_PX,
+		"its cone's pose is one it stood at a few frames ago (%.1f px)" % viewed["pose_lag"],
 	)
 	t.check(
 		viewed["facing_off"] <= FACING_SLACK,
