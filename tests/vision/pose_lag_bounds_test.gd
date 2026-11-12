@@ -33,6 +33,8 @@ const FRAMES := 40
 ## The eye's jump (px) past the bound of the spec (48), and a turn at once (degrees).
 const JUMP := 60.0
 const SWING := 90.0
+## Half of `JUMP` (px): inside the bound by itself.
+const HALF_JUMP := 30.0
 ## The spec's restart cap, and the most frames between two publishes while the world changes in
 ## every one: a start, the restarts, and the whole build.
 const CAP := 2
@@ -203,6 +205,29 @@ func _jumps() -> void:
 	_t.check(
 		_view.rebuilds() == before and _view.building(),
 		"a facing turned %d degrees is a job over some frames, not a jump" % SWING,
+	)
+	await _jump_in_flight()
+
+
+## An eye that comes to be past the bound from the cone shown, while a job (begun from an eye still
+## inside the bound) is in flight, is built whole in that frame: the bound is the cone shown's, so
+## it is never more than the bound behind. Two steps of `HALF_JUMP` each: the first is a job, the
+## second is 60 px from the cone shown and 30 from the job's eye.
+func _jump_in_flight() -> void:
+	if not await _settled():
+		return
+	_eye.global_position += Vector2(0.0, HALF_JUMP)
+	if not _t.require(
+		await _t.until(func() -> bool: return _view.building(), 0.5), "a step of 30 px starts a job"
+	):
+		return
+	var before := _view.rebuilds()
+	var at := _eye.global_position + Vector2(0.0, HALF_JUMP)
+	_eye.global_position = at
+	await _t.frames(1)
+	_t.check(
+		_view.rebuilds() == before + 1 and _view.published_pose()["eye"] == at,
+		"an eye %d px from the cone shown, with a job in flight, is built whole at once" % JUMP,
 	)
 
 

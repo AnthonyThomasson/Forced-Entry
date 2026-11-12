@@ -13,7 +13,7 @@ frames old (a job of 3 slices). This record says why that latency is accepted an
   swapped in together (double-buffered, `ViewConeBuffer`), `SeenArea` is written and the memory paints from them.
 - It **never shows a mix of two worlds**: a change of the world between slices (a blocker moved, changed shape, joined or left, a
   blocking character, a changed sight number) drops the job and starts it again from the live pose. After `restart_cap` (2) restarts in
-  a row the next is built whole in one frame, so a world that changes every frame still gets a cone every fourth frame, as before.
+  a row the next is built whole in one frame, so a world that changes every frame still gets a cone, every fourth frame (a whole build a frame was the cost before).
 - It **never extrapolates**: the cone published is a fresh cone of an eye the viewer stood at, so the memory (V4, never cleared)
   never holds area no eye saw. A change of the viewer's pose alone lets the job finish on its start pose (restarting for it would
   mean a moving viewer never publishes).

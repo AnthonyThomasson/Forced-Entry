@@ -11,7 +11,8 @@ extends RefCounted
 ## - A change of the world between slices (`ViewWatch.world_changed`) restarts the job from the live
 ##   pose, so a published cone never mixes two worlds; the `restart_cap`th restart in a row, since
 ##   the last publish, is built whole in that frame.
-## - An eye farther than `jump_px` from the cone's pose (a teleport, a vehicle) and the first cone
+## - An eye farther than `jump_px` from the pose of the cone published (a teleport, a vehicle: so
+##   the cone shown is never more than that far behind, a job in flight or not) and the first cone
 ##   are built whole at once.
 
 const Cone := preload("res://scenes/vision/view_cone.gd")
@@ -25,8 +26,10 @@ var job_eye := Vector2.ZERO
 var job_facing := Vector2.ZERO
 var pose_eye := Vector2.ZERO
 var pose_facing := Vector2.ZERO
-## Restarts since the last publish.
+## Restarts since the last publish, and whether the view holds a cone (none after a drop: the next
+## is built whole, like the first).
 var _restarts := 0
+var _has_cone := false
 var _cone: Cone
 var _watch: Watch
 
@@ -46,14 +49,14 @@ func tick(
 	sight: Dictionary,
 ) -> bool:
 	if _cone.running():
-		if _jumped(eye, job_eye):
+		if _jumped(eye, pose_eye):
 			return _whole(space, eye, facing, exclude, sight)
 		if _watch.world_changed(sight):
 			return _restart(space, eye, facing, exclude, sight)
 		return _step()
 	if not _watch.stale(eye, facing, sight):
 		return false
-	if published == 0 or _jumped(eye, pose_eye):
+	if not _has_cone or _jumped(eye, pose_eye):
 		return _whole(space, eye, facing, exclude, sight)
 	_begin(space, eye, facing, exclude, sight)
 	return _step()
@@ -64,10 +67,11 @@ func running() -> bool:
 	return _cone.running()
 
 
-## Drop the job in flight (the view was lifted or disabled).
+## Drop the job in flight (the view was lifted or disabled): the next ask is a rebuild, built whole.
 func drop() -> void:
 	_cone.abort()
 	_watch.forget()
+	_has_cone = false
 	_restarts = 0
 
 
@@ -128,6 +132,7 @@ func _step() -> bool:
 ## The job is done (the cone swapped its result in): the pose it was begun for is the cone's.
 func _publish() -> bool:
 	published += 1
+	_has_cone = true
 	_restarts = 0
 	pose_eye = job_eye
 	pose_facing = job_facing

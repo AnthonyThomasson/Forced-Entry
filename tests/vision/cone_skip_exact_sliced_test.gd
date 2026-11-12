@@ -3,8 +3,8 @@ extends "res://tests/vision/cone_skip_exact_test.gd"
 ## houses of that test takes a few frames): every change it makes to the world falls between the
 ## slices of some job or other, and every cone the view publishes is still the reference cone of
 ## the pose it is of, held whole until the next, and no wait between two job starts goes past the
-## backstop. What a slice changes is how many frames a cone takes, so the counts that said "each
-## frame" say "each job" (`_per_job`).
+## backstop. What a slice changes is how many frames a cone takes, so the turning viewer's floors
+## are of a cone every fourth frame (`_turn_floor`).
 
 ## The slice (units): a job takes about three frames.
 const SLICED_UNITS := 90
@@ -26,6 +26,6 @@ func configure(s: TestSetup) -> void:
 	s.set_static(VisionSliceConfig, &"slice_units", SLICED_UNITS)
 
 
-## Three frames a cone, so a turning viewer is published a third as often.
-func _per_job(frames: int) -> int:
-	return int(float(frames) / 4.0)
+## A cycle of a job is about four frames here, so about 22 of the turning viewer's 90 frames.
+func _turn_floor() -> int:
+	return 20

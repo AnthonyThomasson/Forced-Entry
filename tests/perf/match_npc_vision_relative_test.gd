@@ -70,7 +70,7 @@ extends GameTest
 ## the pipeline and at it. The parked view read -0.14, -0.14 and -0.08 ms before, -0.17, -0.32 and
 ## -0.23 after, the cone at 0.08 and 0.09 of the reference's; the moving view 4.49, 4.67 and 4.36 ms
 ## before and 2.05, 2.00 and 2.00 after, its cone 0.44 to 0.45 of the reference's before and 0.25 to
-## 0.26 after. The premise counts `PlayerView.starts()`. `MOVING_BUDGET_MS` is 3.0.
+## 0.26 after. The premise counts `PlayerView.starts()`. `MOVING_BUDGET_MS` is 3.5.
 ##
 ## 2026-11-07, #192, two runs (not `--quiet`: the gate was bypassed, `perf-district.md`; load 3.2 to
 ## 6.7, six other Godot processes that were no test's): the parked view read 5.64 and 4.77 ms
@@ -102,12 +102,13 @@ const ROUNDS := 12
 const BLOCK_FRAMES := 25
 ## The most (ms a frame) the view may add to the same match without it (see the header).
 const BUDGET_MS := 3.2
-## The most (ms a frame) the moving view may cost: 1.5x the moving median of 2.0 ms with the sliced
-## cone (2.05, 2.00 and 2.00 ms, three `--quiet` runs on 2026-11-12, #195; the cone's job is one
-## slice a frame, so its cost is the slice's; it was 4.49, 4.67 and 4.36 ms at the commit before the
-## pipeline, 8.5 from about 6 ms, 20 from about 13). This departs from perf.md's 4x rule, because 4x
-## a per-frame cost would never trip.
-const MOVING_BUDGET_MS := 3.0
+## The most (ms a frame) the moving view may cost: 3.5 ms, 1.7x the median of six `--quiet` runs of
+## the sliced cone (2.05, 2.00, 2.00, 1.94, 2.04 and 2.14 ms on 2026-11-12, #195: the job is one
+## slice a frame, so its cost is the slice's, and the six medians spread 0.2 ms; single rounds reach
+## 3.1 ms, which is why the multiple is not 1.4x). The cone as it was before the pipeline read 4.49,
+## 4.67 and 4.36 ms, so 3.5 still fails it (it was 8.5 from about 6, 20 from about 13). This departs
+## from perf.md's 4x rule, because 4x a per-frame cost would never trip.
+const MOVING_BUDGET_MS := 3.5
 ## The most the live cone's cost a frame may be of the reference cone's, from the same eye (see the
 ## header).
 const RATIO_MAX := 0.75

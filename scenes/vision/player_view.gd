@@ -82,7 +82,7 @@ func _process(_delta: float) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if not is_instance_valid(_viewer) or is_queued_for_deletion():
+	if not is_instance_valid(_viewer):
 		return
 	var eye := _viewer.global_position
 	var facing: Vector2 = _viewer.get("facing")

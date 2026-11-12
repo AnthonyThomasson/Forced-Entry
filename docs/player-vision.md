@@ -54,11 +54,11 @@ of the world between slices restarts the job from the live pose** (a blocker wit
 character that blocks, a changed sight number or cone tuning, and the frame after a job began while a blocker within reach moved,
 which a query that frame may have read where it was): the readers keep the last cone published until a job completes. After
 `VisionSliceConfig.restart_cap` (2) restarts in a row, since the last publish, the next restart is built whole in that frame; so is the
-first cone of a view, and the cone for **an eye that jumped** past `jump_px` (48) from the pose of the cone published or in flight (a
-teleport, a vehicle): never more than that far behind. A lift (V9) drops a half job with the view. The old pose lag
+first cone of a view, and the cone for **an eye that jumped** past `jump_px` (48) from the pose of the cone published (a
+teleport, a vehicle), checked every tick: the cone shown is never more than that far behind. A lift (V9) drops a half job with the view. The old pose lag
 (`rebuild_gap`, an eye 5 px or a facing 1 degree off waiting a frame) is gone: the job's length is the lag. A mover entering or leaving
 the seen area (V11) shows when the next cone publishes.
-Tests: `vision/pose_lag_bounds` (the pipeline: a job of 3 slices is published a cone at most 4 frames old and of a pose the viewer stood at, a pose change alone restarts nothing, an eye jump of 60 px and a blocking character's every-frame change are built whole, the memory paints only published cones), `vision/cone_restarts_on_world_change` (a wardrobe moved or a solid joined between two slices restarts the job and the cone published is the reference cone of the world after, not of the one the job began on or a mix; a wardrobe moved every frame is built whole after two restarts, at least every fourth frame, of the live pose),  `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
+Tests: `vision/pose_lag_bounds` (the pipeline: a job of 3 slices is published a cone at most 4 frames old and of a pose the viewer stood at, a pose change alone restarts nothing, an eye jump of 60 px and a blocking character's every-frame change are built whole, the memory paints only published cones), `vision/cone_restarts_on_world_change` (a wardrobe moved or a solid joined between two slices restarts the job and the cone published is the reference cone of the world after, not of the one the job began on or a mix; a wardrobe moved every frame is built whole after two restarts, at least every fourth frame, of the live pose),  `vision/half_job_dropped` (the viewer killed, or the view disabled, with a job in flight: the job is dropped, the seen area cleared and not written by it again, and a view enabled again builds its first cone whole), `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
 the table and inside the cone are in the polygon; points behind the wardrobe, beyond the wall, behind the eye past 48 are not;
 points within 48 behind it are), `vision/cone_exact_at_corners` (eyes near the room corners and the doorway's ends, facing along
 and across the walls: no sampled point behind a corner is inside the polygon and every sampled point the eye sees is; a seen
@@ -68,7 +68,7 @@ cone, the plainest form of the cone, vertex for vertex, over a grid of eyes and 
 shove and a freed piece move through it), `vision/fan_hide_margin_keeps_grazing_corner` (a shelf's tip a hair off a fan ray whose hit the engine
 reports 0.02 px off the shelf is cast: the fan calls a corner hidden only when the two rays either side of it met one convex shape nearer
 than the corner and the corner is more than a quarter pixel, at its own distance, from either ray), `vision/cone_skip_exact` and `vision/cone_skip_exact_sliced` (the same run with the job cut into 90-unit slices) (a still then a turning viewer through a dent, a shove, a
-door's swing, panes shattered, a door knocked down, a piece added and freed, a posture change and a death: every cone published equals a fresh rebuild's from the pose it is of (`PlayerView.published_pose()`), vertex for vertex, and the cone held between two publishes is the one before; a still viewer starts far fewer jobs than there are frames and never goes more than
+door's swing, panes shattered, a door knocked down, a piece added and freed, a posture change and a death: every cone published equals a fresh rebuild's from the pose it is of (`PlayerView.published_pose()`), vertex for vertex, the cone held between two publishes is the one before, and a view settled on the viewer's pose shows the live pose's; a still viewer starts far fewer jobs than there are frames and never goes more than
 `rebuild_every` frames without starting one). `vision/cone_follows_sight` also hangs three doors in the wall the rooms share, and
 the eye stands before each in turn: the point beyond a shut solid door and one beyond a shut hollow door are not in the polygon,
 the point beyond a shut glass-panel door is, the solid door swung open shows the point through its gap and hides it again shut,
@@ -224,11 +224,11 @@ Tests: `vision/pose_lag_bounds` (`slice_units`, `jump_px`), `vision/cone_restart
 ## Measured cost
 
 **2026-11-12, the cone as a sliced job (#195; `--quiet` runs, none marked loaded, load 3.9 to 5.9, 0 to 2 busy Godot).** The same fight
-at the commit before the pipeline (`d3f40a8f`) and at it. `perf/match_npc_vision_relative`, three runs each: the moving view's cost over
-the unviewed match **4.49, 4.67 and 4.36 ms before, 2.05, 2.00 and 2.00 after** (the job is one slice, about 3.5 ms, a frame, where the
+at the commit before the pipeline (`d3f40a8f`) and at it. `perf/match_npc_vision_relative`, three runs before and six after: the moving view's cost over
+the unviewed match **4.49, 4.67 and 4.36 ms before, 2.05, 2.00, 2.00, 1.94, 2.04 and 2.14 after (six runs)** (the job is one slice, about 3.5 ms, a frame, where the
 whole rebuild fell in every moving frame), its cone 0.44 to 0.45 of the reference cone's before and 0.25 to 0.26 after; the parked view
--0.14, -0.14 and -0.08 ms before, -0.17, -0.32 and -0.23 after (no change: it rebuilds for its backstop only). `MOVING_BUDGET_MS` is
-3.0 ms, 1.5 times the new median. `perf_ab.sh` in same-fight mode (`--ids=perf/match_npc_vision`, 3 rounds, the fight is unchanged since
+-0.14, -0.14 and -0.08 ms before, -0.17, -0.32, -0.23, -0.07, -0.32 and -0.09 after (no change: it rebuilds for its backstop only). `MOVING_BUDGET_MS` is
+3.5 ms, 1.7 times the median of six runs of the sliced cone (2.05, 2.00, 2.00, 1.94, 2.04, 2.14 ms) and below the 4.36 to 4.67 of the cone before. `perf_ab.sh` in same-fight mode (`--ids=perf/match_npc_vision`, 3 rounds, the fight is unchanged since
 the view steers no NPC): the absolute guard's median avg frame 19.12 ms before and 17.75 after (-1.37 ms, -7.2 %), p95 31.70 and 29.17,
 max 47.44 and 42.37. (That guard's gain is smaller than the relative guard's: what share of its frame the view's cone is was not separated.) The age of the cone shown, 2 to 4 frames in a match, is V1's.
 Tests: `perf/match_npc_vision_relative`, `perf/match_npc_vision`.

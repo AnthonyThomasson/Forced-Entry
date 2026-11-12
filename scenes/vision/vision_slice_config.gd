@@ -15,6 +15,7 @@ static var slice_units: int = 450
 ## How many times a job in flight may be thrown away for a change of the world (a restart) before
 ## the next restart builds the cone whole in one frame (`ViewPipeline`); a publish resets the count.
 static var restart_cap: int = 2
-## An eye farther than this (px) from the pose of the cone published or in flight is a jump (a
-## teleport, a vehicle): the cone is built whole in that frame, so it is never that far behind.
+## An eye farther than this (px) from the pose of the cone published is a jump (a teleport, a
+## vehicle), checked every tick, a job in flight or not: the cone is built whole in that frame, so
+## the cone shown is never more than this behind the eye.
 static var jump_px: float = 48.0

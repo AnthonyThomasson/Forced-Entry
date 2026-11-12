@@ -95,60 +95,82 @@ func run(t: TestContext) -> void:
 	)
 
 
-## The wardrobe moves once, in the frame after a job began on the world with it at `WARDROBE_AT`.
+## The wardrobe moves once, from its own physics frame ahead of the view, in the frame after a job
+## began on the world with it at `WARDROBE_AT`; and in the frame a job begins, where the view's
+## first slice reads it where it was.
 func _moved_between_slices() -> void:
-	if not await _job_begun():
-		return
-	var then := _reference()
-	var starts := _view.starts()
-	_hand.arm(MOVED_TO)
-	if not await _settled():
-		return
-	var now := _reference()
-	_t.check(
-		Probe.polygons_differ(then.cone, then.bubble, now.cone, now.bubble) != "",
-		"premise: moving the wardrobe changes what the viewer sees",
+	await _change_world(
+		"a wardrobe moved between slices",
+		func() -> void: _hand.arm(MOVED_TO),
+		func() -> void: _wardrobe.position = WARDROBE_AT,
+		true,
+		1,
 	)
-	_t.check(
-		_view.starts() - starts >= 1,
-		"a wardrobe moved between slices restarts the job (%d starts since)"
-		% (_view.starts() - starts),
+	await _change_world(
+		"a wardrobe moved in the frame a job begins",
+		func() -> void: _hand.arm(MOVED_TO),
+		func() -> void: _wardrobe.position = WARDROBE_AT,
+		false,
+		2,
 	)
-	_t.check(_published_is(now), "the cone published is the reference cone of the world after")
-	_t.check(
-		not _published_is(then), "the cone published is not the one the job began on, nor a mix"
-	)
-	_wardrobe.position = WARDROBE_AT
-	await _settled()
 
 
 ## A solid joins the world between two slices.
 func _joined_between_slices() -> void:
-	_wardrobe.position = WARDROBE_AT
-	if not await _settled() or not await _job_begun():
+	var made: Array[StaticBody2D] = []
+	await _change_world(
+		"a solid that joins between slices",
+		func() -> void:
+			var body := StaticBody2D.new()
+			body.collision_layer = PhysicsLayers.SOLID
+			body.position = JOINS_AT
+			body.add_child(_shape())
+			_t.world.add_child(body)
+			made.append(body),
+		func() -> void: made[0].queue_free(),
+		true,
+		1,
+	)
+
+
+## Make `change` and check the first cone published after it: it is the reference cone of the world
+## as it is then, not of the one before and not a mix of the two, and the job was started again
+## (`min_starts` begun since: the restart, and for a mover of the frame a job begins the one the
+## flush quirk asks for). In flight, `change` is made a frame after a job of three slices began;
+## else from idle, with the viewer still, so the change is what starts the job.
+func _change_world(
+	what: String, change: Callable, undo: Callable, in_flight: bool, min_starts: int
+) -> void:
+	if not await _rested():
+		return
+	if in_flight and not await _job_begun():
 		return
 	var then := _reference()
 	var starts := _view.starts()
-	var body := StaticBody2D.new()
-	body.collision_layer = PhysicsLayers.SOLID
-	body.position = JOINS_AT
-	body.add_child(_shape())
-	_t.world.add_child(body)
-	if not await _settled():
+	var published := _view.rebuilds()
+	change.call()
+	if not _t.require(
+		await _t.until(func() -> bool: return _view.rebuilds() != published, 1.0),
+		"%s: a cone is published" % what,
+	):
 		return
 	var now := _reference()
 	_t.check(
 		Probe.polygons_differ(then.cone, then.bubble, now.cone, now.bubble) != "",
-		"premise: the solid that joins changes what the viewer sees",
+		"premise: %s changes what the viewer sees" % what,
 	)
 	_t.check(
-		_view.starts() - starts >= 1,
-		"a solid that joins between slices restarts the job (%d starts since)"
-		% (_view.starts() - starts),
+		_view.starts() - starts >= min_starts,
+		"%s starts the job again (%d starts since, %d wanted)"
+		% [what, _view.starts() - starts, min_starts],
 	)
-	_t.check(_published_is(now), "the cone published is the reference cone of the world after")
-	body.queue_free()
-	await _settled()
+	_t.check(
+		_published_is(now),
+		"%s: the first cone published is the reference cone of the world after" % what,
+	)
+	_t.check(not _published_is(then), "%s: it is not the one before the change" % what)
+	undo.call()
+	await _rested()
 
 
 ## The wardrobe moves in every frame: the job restarts every frame until the third restart builds
@@ -161,7 +183,8 @@ func _moved_every_frame() -> void:
 	var starts := _view.starts()
 	var published := _view.rebuilds()
 	var longest := 0
-	var gap := 0
+	# The hand moves the wardrobe a frame after it is armed: the first gap has that frame more.
+	var gap := -1
 	var live := 0
 	# The hand moves the wardrobe in the frame after it is armed, so the last place is reached in
 	# the frame after the loop's arming ends.
@@ -212,6 +235,18 @@ func _job_begun() -> bool:
 	):
 		return false
 	return _t.require(_view.building(), "the job started is in flight (it has slices to go)")
+
+
+## Wait until the world is as it was left (what a test changed is undone, and the view has had
+## the frames to start a job for it) and the cone published is the reference cone of it.
+func _rested() -> bool:
+	await _t.frames(3)
+	return _t.require(
+		await _t.until(
+			func() -> bool: return not _view.building() and _published_is(_reference()), 1.0
+		),
+		"the view's cone is the reference cone of the world as it stands",
+	)
 
 
 ## Wait until no job is in flight.

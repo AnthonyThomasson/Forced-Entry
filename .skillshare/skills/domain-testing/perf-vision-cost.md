@@ -6,6 +6,6 @@ interleaved on, off, off, on, because two plays of the match differ from each ot
 
 - It holds the median difference to `BUDGET_MS` and the live cone's cost to `RATIO_MAX` of the reference cone's from the same eye
   (`tests/_vision/reference_view_cone.gd`).
-- Its moving rounds hold `MOVING_BUDGET_MS`, 8.5 ms (about 1.4x the moving mean of about 6 ms after #192's Extension 3, 4.60 and
-  5.61; was 20), which departs from the 4x rule: 4x of a per-frame cost would never trip. Headless sees the CPU side only.
+- Its moving rounds hold `MOVING_BUDGET_MS`, 3.5 ms (1.7x the median of six runs of the sliced cone, 1.94 to 2.14 ms, #195; the cone before the
+  pipeline read 4.36 to 4.67; was 8.5, 20), which departs from the 4x rule: 4x of a per-frame cost would never trip. Headless sees the CPU side only.
 - `perf/match_npc_vision` is the absolute standard on the same match.
