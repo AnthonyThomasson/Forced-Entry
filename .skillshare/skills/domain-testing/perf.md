@@ -46,7 +46,8 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
   `perf/match_5v5_stress` is green on the district since #192; after Extensions 2 and 3 (2026-11-07) `perf/match_10v10_stress`,
   `perf/grenade_match_stress` and `perf/match_npc_vision` still miss and AC40 is not met; none is loosened, skipped or tagged:
   `perf-district-ext2.md`, `perf-district-ext3.md`, the gates the district moved: `perf-district.md`.
-  What one NPC costs a frame (measured, #195): `perf-npc-cost.md`.
+  What one NPC costs a frame (measured, #195): `perf-npc-cost.md`. A match's opening (`perf/match_10v10_opening`, from the first
+  sighting or shot) and the worst-frames report `--verbose` prints for every frame guard: `perf-opening.md`.
 - **A wall-clock budget belongs here and nowhere else:** the lint rule `timing_in_perf` fails a `Time.get_ticks_usec()`
   under `tests/` outside `tests/perf/` and `tests/_perf/`.
 
