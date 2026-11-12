@@ -11,13 +11,15 @@ extends UnitSuite
 
 const Job := preload("res://scenes/ai/decision/decision_job.gd")
 const Cadence := preload("res://scenes/ai/npc_cadence.gd")
+const Fakes := preload("res://tests/_ai/job_fakes.gd")
+const Builds := preload("res://tests/_ai/job_build_fakes.gd")
 
 ## The frame the test is on; each test starts on a frame of its own.
 static var _next_base := 5000
 
 var _frame := 0
-var _perception: FakePerception
-var _planner: FakePlanner
+var _perception: Fakes.FakePerception
+var _planner: Fakes.FakePlanner
 var _cadence: Cadence
 var _job: RefCounted
 var _decided := 0
@@ -30,14 +32,10 @@ func before_test() -> void:
 	_next_base += 1000
 	_frame = _next_base
 	DecisionBudget.frame_source = func() -> int: return _frame
-	DecisionBudget.per_frame = 1
-	DecisionBudget.cost_start = 1
-	DecisionBudget.cost_hostile = 0
-	DecisionBudget.cost_finish = 0
-	DecisionBudget.cost_refusal = 0
-	DecisionBudget.cost_level = 0
-	_perception = FakePerception.new()
-	_planner = FakePlanner.new()
+	DecisionBudget.reset()
+	_default_prices()
+	_perception = Fakes.FakePerception.new()
+	_planner = Fakes.FakePlanner.new()
 	_cadence = Cadence.new()
 	_decided = 0
 	_failed = 0
@@ -54,12 +52,21 @@ func before_test() -> void:
 func after_test() -> void:
 	DecisionBudget.frame_source = Callable()
 	DecisionBudget.reset()
+	_default_prices()
+
+
+## The pool and the prices as the game ships them.
+func _default_prices() -> void:
 	DecisionBudget.per_frame = 1
 	DecisionBudget.cost_start = 1
 	DecisionBudget.cost_hostile = 0
 	DecisionBudget.cost_finish = 0
 	DecisionBudget.cost_refusal = 0
 	DecisionBudget.cost_level = 0
+	DecisionBudget.cost_throw_block = 0
+	DecisionBudget.cost_throw_rank = 0
+	DecisionBudget.cost_throw_route = 0
+	DecisionBudget.throw_block = 16
 
 
 func _reads() -> Dictionary:
@@ -67,7 +74,7 @@ func _reads() -> Dictionary:
 
 
 ## What the reflexes' refresh gives: the live confinement as the NPC's own now.
-func _refreshed() -> FakeConfinement:
+func _refreshed() -> Builds.FakeConfinement:
 	return _perception.confinement
 
 
@@ -95,7 +102,7 @@ func test_a_job_builds_walks_and_decides_in_the_frame_it_was_claimed() -> void:
 func test_the_pool_is_shared_so_a_second_claim_waits_for_the_next_frame() -> void:
 	assert_bool(_job.request(false)).is_true()
 	var other: RefCounted = Job.new()
-	other.setup(FakePerception.new(), FakePlanner.new(), Cadence.new())
+	other.setup(Fakes.FakePerception.new(), Fakes.FakePlanner.new(), Cadence.new())
 	other.reads = _reads
 	other.ongoing = _is_running
 	other.refresh = _refreshed
@@ -123,7 +130,7 @@ func test_an_interrupt_cancels_a_job_half_built_and_starts_the_new_one() -> void
 	_frame += 1
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()
-	var half: FakeBuild = _perception.builds[1]
+	var half: Builds.FakeBuild = _perception.builds[1]
 	assert_int(half.piece).is_equal(1)  # the start only; the first hostile waits for a frame
 	assert_bool(_job.pending()).is_true()
 	_frame += 1
@@ -200,7 +207,7 @@ func test_a_piece_dearer_than_the_pool_runs_alone_on_a_fresh_frame() -> void:
 	_perception.hostiles = 1
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()
-	var build: FakeBuild = _perception.builds[0]
+	var build: Builds.FakeBuild = _perception.builds[0]
 	assert_int(build.piece).is_equal(1)  # the start used the pool: the hostile waits
 	_frame += 1
 	assert_bool(_job.pending()).is_true()
@@ -305,7 +312,7 @@ func test_a_build_is_frozen_from_its_start_to_its_walk() -> void:
 	assert_bool(_job.stale(&"combat")).is_true()  # a walk is compared with where it started
 
 
-func test_whether_the_last_choice_continues_is_judged_at_the_claim() -> void:
+func test_whether_the_last_choice_continues_is_judged_as_the_walk_begins() -> void:
 	DecisionBudget.cost_hostile = 1
 	_running = true
 	assert_bool(_job.request(false)).is_true()
@@ -315,7 +322,7 @@ func test_whether_the_last_choice_continues_is_judged_at_the_claim() -> void:
 		_frame += 1
 		_job.advance()
 	assert_int(_planner.begun).is_equal(1)  # premise: the walk has begun
-	assert_bool(_planner.continuing).is_true()
+	assert_bool(_planner.continuing).is_false()  # the walk is told what is so now, not at the claim
 
 
 func test_an_order_taken_during_the_build_is_not_refused_on_a_snapshot_made_without_it() -> void:
@@ -342,147 +349,46 @@ func test_a_carried_out_order_leaves_the_snapshot_as_built() -> void:
 	assert_bool(_cadence.last_facts.has("ordered")).is_false()
 
 
-## A confinement stand-in: the live one reads `label`, a copy keeps what it was when copied.
-class FakeConfinement:
-	extends RefCounted
-	var label := ""
-
-	func copy() -> FakeConfinement:
-		var c := FakeConfinement.new()
-		c.label = label
-		return c
-
-
-## The held order, and what was done to it.
-class FakeOrders:
-	extends RefCounted
-	var held := {}
-	var ended: Array = []
-
-	func current() -> Dictionary:
-		return held
-
-	func end(id: int, why: String) -> void:
-		ended.append([id, why])
+func test_an_answer_that_comes_at_once_does_not_run_advance_inside_itself() -> void:
+	_planner.levels = 3
+	_planner.answers_at_once = true
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	assert_int(_planner.stepped).is_equal(3)  # every level ran, the first one asking
+	assert_int(_planner.most_nested).is_equal(1)  # none inside another
+	assert_int(_decided).is_equal(1)
+	assert_bool(_job.pending()).is_false()
 
 
-## A snapshot being built: START, one HOSTILE piece per hostile, FINISH (the kinds of
-## `SnapshotBuild.Piece`: 0, 1, 2, then DONE = 3).
-class FakeBuild:
-	extends RefCounted
-	var perception: FakePerception
-	var number := 0
-	var hostiles := 0
-	var piece := 0
-	var steps := 0
-	var _taken := 0
-	var _confinement: FakeConfinement
-	var _result := {}
-
-	func next_piece() -> int:
-		return piece
-
-	func done() -> bool:
-		return piece == 3
-
-	func step() -> void:
-		steps += 1
-		match piece:
-			0:
-				_confinement = perception.confinement.copy()
-				piece = 1 if hostiles > 0 else 2
-			1:
-				_taken += 1
-				piece = 1 if _taken < hostiles else 2
-			2:
-				_result = {
-					"facts": { "build": number },
-					"sections": { "goal": "build %d" % number },
-					"demand": self,
-					"sections_per_target": { 7: "x" },
-					"options": { "order": { "options": perception.order_options } },
-					"confinement": _confinement,
-				}
-				piece = 3
-
-	func result() -> Dictionary:
-		return _result
+func test_an_order_overtakes_only_a_job_begun_before_it() -> void:
+	assert_bool(_job.overtaken_by_order()).is_false()  # nothing in flight
+	_cadence.decisions = 4  # the controller books the claim of the job in flight
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	assert_bool(_job.overtaken_by_order()).is_false()  # no order awaited
+	_cadence.order_from = 4  # an order taken while decision 4 was the latest
+	assert_bool(_job.overtaken_by_order()).is_true()  # made without it: restarted
+	_frame += 1
+	assert_bool(_job.request(true)).is_true()  # the restart
+	_cadence.decisions = 5  # booked
+	assert_bool(_job.overtaken_by_order()).is_false()  # made with the order: not restarted for it
 
 
-class FakePerception:
-	extends RefCounted
-	## The entry node the situation calls for now (`quick_facts`).
-	var entry := &"root"
-	var confinement := FakeConfinement.new()
-	var orders := FakeOrders.new()
-	var hostiles := 2
-	var order_options: Array = []
-	var builds: Array = []
-
-	func quick_facts() -> Dictionary:
-		return { "entry": entry }
-
-	func begin_sense(_goal: String, _activity: String, _engaged := 0) -> FakeBuild:
-		var b := FakeBuild.new()
-		b.perception = self
-		b.hostiles = hostiles
-		b.number = builds.size() + 1
-		builds.append(b)
-		return b
-
-
-## A walk of `levels` levels: a level asks Von and waits for `answer()`, the last one finishes.
-class FakePlanner:
-	extends RefCounted
-	signal decided(leaf: Dictionary)
-	signal failed()
-	signal piece_ready()
-	var driven := false
-	var levels := 2
-	var snapshot := {}
-	var continuing := false
-	var begun := 0
-	var cancelled := 0
-	var stepped := 0
-	var _level := 0
-	var _pending := false
-	var _ready := false
-
-	func begin(snap: Dictionary, ongoing: bool) -> void:
-		snapshot = snap
-		continuing = ongoing
-		begun += 1
-		_level = 0
-		_pending = true
-		_ready = true
-
-	func is_pending() -> bool:
-		return _pending
-
-	func has_piece() -> bool:
-		return _pending and _ready
-
-	func current_entry() -> StringName:
-		return &"root"
-
-	func entry_for(facts: Dictionary) -> StringName:
-		return facts["entry"]
-
-	func cancel() -> void:
-		if _pending:
-			cancelled += 1
-		_pending = false
-		_ready = false
-
-	func step() -> void:
-		stepped += 1
-		_ready = false
-		_level += 1
-		if _level >= levels:
-			_pending = false
-			decided.emit({ "path": ["leaf"] })
-
-	## Von's answer to the level asked.
-	func answer() -> void:
-		_ready = true
-		piece_ready.emit()
+func test_every_piece_kind_has_its_own_price_and_an_unknown_one_has_none() -> void:
+	DecisionBudget.cost_start = 3
+	DecisionBudget.cost_hostile = 5
+	DecisionBudget.cost_finish = 11
+	DecisionBudget.cost_throw_block = 2
+	DecisionBudget.cost_throw_rank = 4
+	DecisionBudget.cost_throw_route = 7
+	var build_kinds: Dictionary = Job.SnapshotBuild.Piece
+	assert_int(_job.cost_of(build_kinds.START)).is_equal(3)
+	assert_int(_job.cost_of(build_kinds.HOSTILE)).is_equal(5)
+	assert_int(_job.cost_of(build_kinds.FINISH)).is_equal(11)
+	assert_int(_job.cost_of(build_kinds.DONE)).is_equal(-1)  # nothing runs for it
+	assert_int(_job.cost_of(99)).is_equal(-1)  # never taken for a start
+	var throw_kinds: Dictionary = Job.ThrowSearch.Kind
+	assert_int(_job.throw_cost_of(throw_kinds.BLOCK)).is_equal(2)
+	assert_int(_job.throw_cost_of(throw_kinds.RANK)).is_equal(4)
+	assert_int(_job.throw_cost_of(throw_kinds.ROUTE)).is_equal(7)
+	assert_int(_job.throw_cost_of(99)).is_equal(-1)

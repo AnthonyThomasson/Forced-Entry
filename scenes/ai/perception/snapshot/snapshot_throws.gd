@@ -12,6 +12,8 @@ const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_voca
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentThrow = preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")
+const ThrowScan := preload("res://scenes/ai/perception/throw_scan.gd")
+const ThrowSearch := preload("res://scenes/ai/perception/snapshot/throw_search.gd")
 ## Where along the stretch of the line back from a shot that lies in the room the shots came from a
 ## grenade is aimed, in order of preference (shares of the stretch, from where the line comes into
 ## the room): its middle first, then either side of it.
@@ -19,15 +21,6 @@ const SHOT_AIM_SHARES := [0.5, 0.35, 0.65, 0.2, 0.8]
 
 ## The knowledge the perception hands in for this decision (see `AgentSnapshot.build()`).
 var know := {}
-## Throw spots worked out for this decision, by where the NPC stands, burst spot, reach and room
-## kept out of (`_throw_option`; cleared by `begin`).
-var _throw_spots := {}
-## The candidate points for those throw spots (`AgentTactics.throw_points`), by the same key: what
-## the existence search and the full one share.
-var _throw_points := {}
-## Whether a throw spot exists, by the same key, for the throws asked only whether one is possible
-## (`grenade_possible`, `shots_possible`).
-var _throw_exists := {}
 ## The shared vocabulary and tuning; see snapshot_vocab.gd.
 var _v: SnapshotVocab
 ## The agent's event memory (read-only here); see agent_memory.gd.
@@ -48,14 +41,6 @@ func setup(vocab: SnapshotVocab, sources: SnapshotSources) -> void:
 	_tactics = sources.tactics
 	_views = sources.views
 	_throw = sources.throw
-
-
-## Start a decision's option groups: forget what the last one worked out (`know` is set by the
-## caller).
-func begin() -> void:
-	_throw_spots.clear()
-	_throw_points.clear()
-	_throw_exists.clear()
 
 
 ## Throwing a grenade at hostile `t`, one option per kind carried (a frag first), offered against a
@@ -156,27 +141,22 @@ func shots_grenade_group(ctx: Dictionary, hostiles: Array) -> Dictionary:
 ## `not grenade_group(ctx, t, a)["options"].is_empty()`, without its tags, wording or the ally and
 ## escape checks, and with the throw-spot search stopped at the first walk that reaches one.
 func grenade_possible(ctx: Dictionary, t: Dictionary, a: Dictionary) -> bool:
-	var kinds: Array = know.get("carried_grenades", [])
-	var spot: Vector2 = t["pos"]
-	var held := _held_room(ctx, spot)
-	if kinds.is_empty() or (a["line"]["clear"] and held.is_empty()):
-		return false
-	var keep_out := Rect2() if held.is_empty() else held["rect"] as Rect2
-	return kinds.any(func(kind: StringName) -> bool:
-		return _throw_possible(ctx, kind, spot, keep_out, true))
+	return _run_search(ctx, [{ "of": "target", "t": t, "a": a }])
 
 
 ## Whether `shots_grenade_group` would offer a throw where the shots came from: the same as
 ## `not shots_grenade_group(ctx, hostiles)["options"].is_empty()`, by the cheap search of
 ## `grenade_possible`.
 func shots_possible(ctx: Dictionary, hostiles: Array) -> bool:
-	var kinds: Array = know.get("carried_grenades", [])
-	if kinds.is_empty() or not hostiles.is_empty() or not _memory.under_fire():
-		return false
-	var aims := _shots_aims(ctx)
-	return kinds.any(func(kind: StringName) -> bool:
-		return aims.any(func(aim: Dictionary) -> bool:
-			return _throw_possible(ctx, kind, aim["spot"], aim["room"]["rect"], aim["walk"])))
+	return _run_search(ctx, [{ "of": "shots", "hostiles": hostiles }])
+
+
+## The existence search over `plan` (`begin_search`), run to its end.
+func _run_search(ctx: Dictionary, plan: Array) -> bool:
+	var search := begin_search(ctx, plan, ThrowScan.WHOLE)
+	while not search.done():
+		search.step()
+	return search.found
 
 
 ## The room hostile-held spot `spot` lies in when the NPC is outside that room (outdoors, or in
@@ -289,57 +269,155 @@ func _throw_option(
 		"tags": { "inside": _v.is_inside(spot), "ally_in_blast": ally, "no_safe_spot": cornered } }
 
 
-## Whether `_throw_option` would give a throw of `kind` onto `spot`: a lob clear from where the NPC
-## stands, else (with `walk`) a throw spot a short walk away.
-func _throw_possible(
-	ctx: Dictionary,
-	kind: StringName,
-	spot: Vector2,
-	keep_out: Rect2,
-	walk: bool,
-) -> bool:
-	if _throw.can_lob(
-		ctx["space"],
-		ctx["self_pos"],
-		spot,
-		_throw.range_of(kind),
-		know["character_rids"],
-	):
-		return true
-	return walk and _throw_way_exists(ctx, kind, spot, keep_out)
-
-
 ## The throw spot to throw a grenade of `kind` onto `spot` from, never inside `keep_out`
 ## (`AgentTactics.throw_spot`: `{ point, route_len, ... }`, {} for none), worked out once per
 ## decision: a frag and a stun of the same reach share their throw spot.
 func _throw_way(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect2) -> Dictionary:
 	var key := _throw_key(ctx, kind, spot, keep_out)
-	if not _throw_spots.has(key):
+	var memo := memo_of(ctx)
+	var spots: Dictionary = memo["spots"]
+	if not spots.has(key):
 		var aim := _throw_aim(ctx, kind, spot, keep_out)
-		_throw_spots[key] = _tactics.throw_spot(
+		spots[key] = _tactics.throw_spot(
 			ctx, aim, know["character_rids"], _candidates(ctx, aim, key)
 		)
-	return _throw_spots[key]
+	return spots[key]
 
 
-## Whether `_throw_way` would find a throw spot, answered without choosing one: from the spot
-## already worked out when there is one, else by the search that stops at the first walk that
-## reaches (`AgentTactics.has_throw_spot`), once per decision.
-func _throw_way_exists(
-	ctx: Dictionary,
-	kind: StringName,
-	spot: Vector2,
-	keep_out: Rect2,
-) -> bool:
-	var key := _throw_key(ctx, kind, spot, keep_out)
-	if _throw_spots.has(key):
-		return not (_throw_spots[key] as Dictionary).is_empty()
-	if not _throw_exists.has(key):
-		var aim := _throw_aim(ctx, kind, spot, keep_out)
-		_throw_exists[key] = _tactics.has_throw_spot(
-			ctx, aim, know["character_rids"], _candidates(ctx, aim, key)
-		)
-	return _throw_exists[key]
+## What this decision has worked out for its throws, held by its context so that the decision that
+## made it is the only one to read it: `spots` (the throw spot by key, `_throw_way`), `points` (the
+## candidate points for a key: what the existence search and the full one share) and `exists`
+## (whether a throw spot exists, for the throws asked only whether one is possible). A context made
+## by hand holds none yet.
+func memo_of(ctx: Dictionary) -> Dictionary:
+	if not ctx.has("throw_memo"):
+		ctx["throw_memo"] = { "spots": {}, "points": {}, "exists": {} }
+	return ctx["throw_memo"]
+
+
+## Begin a search of the sources in `plan`, in order, for a throw the NPC could make: each
+## `{ of: "known", value }` (a group already built answers), `{ of: "shots", hostiles }` (the shots'
+## throws), `{ of: "target", t, a }` (a hostile's throws). A search is what `grenade_possible` and
+## `shots_possible` run, in steps of `block` raw candidates (`ThrowSearch`).
+func begin_search(ctx: Dictionary, plan: Array, block: int) -> ThrowSearch:
+	var search := ThrowSearch.new()
+	search.begin(self, ctx, plan, block)
+	return search
+
+
+## What a search's next step is, working through what needs no price first: a throw clear from where
+## the NPC stands, a spot already worked out, the next source's throws. Stops at the next block of
+## candidates, rank pass or route (`ThrowScan.Kind`), or the end (`DONE`, `found` the answer).
+func search_ready(search: ThrowSearch) -> int:
+	while not search.over and search.scan == null:
+		if search.at < search.queries.size():
+			_query(search, search.queries[search.at])
+		elif search.source < search.plan.size():
+			_expand(search, search.plan[search.source])
+			search.source += 1
+		else:
+			search.over = true
+	if search.over:
+		return ThrowScan.Kind.DONE
+	return search.scan.kind
+
+
+## Run a search's next step: a block, the rank pass or a route of the spot search in hand. A spot
+## search that ends is kept (the candidates, and whether a spot exists) for the decision's later
+## asks, and its answer is the query's.
+func search_step(search: ThrowSearch) -> void:
+	if search_ready(search) == ThrowScan.Kind.DONE:
+		return
+	var scan: ThrowScan = search.scan
+	scan.step(search.block)
+	var memo := memo_of(search.ctx)
+	if scan.candidates_done:
+		(memo["points"] as Dictionary)[search.key] = scan.points
+	if scan.done():
+		(memo["exists"] as Dictionary)[search.key] = scan.found
+		search.scan = null
+		search.found = scan.found
+		search.over = scan.found
+		search.at += 1
+
+
+## The queries of source `source` of a search, to try in order.
+func _expand(search: ThrowSearch, source: Dictionary) -> void:
+	search.at = 0
+	search.queries = []
+	match source["of"]:
+		"known":
+			search.found = source["value"]
+			search.over = search.found
+		"shots":
+			search.queries = _shots_queries(search.ctx, source["hostiles"])
+		"target":
+			search.queries = _target_queries(search.ctx, source["t"], source["a"])
+
+
+## The throws asked at the shots' origin (`shots_grenade_group`): per kind carried, the aims in
+## order, none unless under fire with no hostile known.
+func _shots_queries(ctx: Dictionary, hostiles: Array) -> Array:
+	var kinds: Array = know.get("carried_grenades", [])
+	if kinds.is_empty() or not hostiles.is_empty() or not _memory.under_fire():
+		return []
+	var aims := _shots_aims(ctx)
+	var out: Array = []
+	for kind: StringName in kinds:
+		for aim: Dictionary in aims:
+			out.append({
+				"kind": kind, "spot": aim["spot"], "keep_out": aim["room"]["rect"],
+				"walk": aim["walk"],
+			})
+	return out
+
+
+## The throws asked at hostile `t` (`grenade_group`): one per kind carried, from a throw spot when
+## not from where the NPC stands, none against a clear shot in the NPC's own room.
+func _target_queries(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Array:
+	var kinds: Array = know.get("carried_grenades", [])
+	var spot: Vector2 = t["pos"]
+	var held := _held_room(ctx, spot)
+	if kinds.is_empty() or (a["line"]["clear"] and held.is_empty()):
+		return []
+	var keep_out := Rect2() if held.is_empty() else held["rect"] as Rect2
+	return kinds.map(func(kind: StringName) -> Dictionary:
+		return { "kind": kind, "spot": spot, "keep_out": keep_out, "walk": true })
+
+
+## One query of a search (`_throw_option`'s possibility, `search_ready`): found when a lob is clear
+## from where the NPC stands, or (walking) a throw spot exists: from the spot already worked out,
+## or by a spot search that is begun (`search.scan`) for the steps to run. Not found: the next one.
+func _query(search: ThrowSearch, q: Dictionary) -> void:
+	var ctx := search.ctx
+	var kind: StringName = q["kind"]
+	if _throw.can_lob(
+		ctx["space"], ctx["self_pos"], q["spot"], _throw.range_of(kind), know["character_rids"],
+	):
+		search.found = true
+		search.over = true
+		return
+	if not q["walk"]:
+		search.at += 1
+		return
+	var key := _throw_key(ctx, kind, q["spot"], q["keep_out"])
+	var memo := memo_of(ctx)
+	var spots: Dictionary = memo["spots"]
+	var exists: Dictionary = memo["exists"]
+	if spots.has(key) or exists.has(key):
+		var yes: bool = not (spots[key] as Dictionary).is_empty() if spots.has(key) else exists[key]
+		search.found = yes
+		search.over = yes
+		search.at += 1
+		return
+	search.key = key
+	search.scan = ThrowScan.new(
+		_tactics,
+		ctx,
+		_throw_aim(ctx, kind, q["spot"], q["keep_out"]),
+		know["character_rids"],
+		(memo["points"] as Dictionary).get(key),
+	)
 
 
 ## What a decision's throw spots for one aim are keyed by: where the NPC stands, the burst spot,
@@ -372,9 +450,13 @@ func _throw_aim(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect
 
 ## The candidate throw points for `aim`, found once per decision and key.
 func _candidates(ctx: Dictionary, aim: ThrowAim, key: Array) -> Array:
-	if not _throw_points.has(key):
-		_throw_points[key] = _tactics.throw_points(ctx, aim)
-	return _throw_points[key]
+	var points: Dictionary = memo_of(ctx)["points"]
+	if not points.has(key):
+		var scan := ThrowScan.new(_tactics, ctx, aim, know["character_rids"])
+		while not scan.candidates_done:
+			scan.step(ThrowScan.WHOLE)
+		points[key] = scan.points
+	return points[key]
 
 
 ## Whether the NPC, throwing a grenade of `kind` and `radius` onto `spot` from `from`, would be in

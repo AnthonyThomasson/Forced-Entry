@@ -535,8 +535,9 @@ func _maybe_interrupt() -> void:
 	if _behavior.grenades.evading() or _character.stun.is_blind():
 		return
 	# An order taken since the walk in flight began always restarts it: that walk was made without
-	# the order, and a walk the order replaces stands until one made with it lands.
-	if (_cadence.order_from >= 0
+	# the order, and a walk the order replaces stands until one made with it lands. A decision
+	# begun after the order is not restarted for it again: its own events judge it (`stale`).
+	if (_job.overtaken_by_order()
 			or _job.stale(_job.planner.entry_for(_perception.quick_facts()))):
 		_request()
 	elif not _job.frozen():

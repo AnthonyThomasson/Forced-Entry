@@ -8,11 +8,11 @@
 
 | Piece | Runs | Work |
 |---|---|---|
-| `START` | once | calls `gather` for the knowledge, and `freeze` for the entries that go into the snapshot as they stand then; opens the decision's walked-route memo (`begin_decision`), sets `vocab.rooms`, the options' and throws' `know`; the context (`_context`, with `engaged_id`); picks the hostiles to analyse (`_analysed_ids`) |
+| `START` | once | calls `gather` for the knowledge, and `freeze` for the entries that go into the snapshot as they stand then; sets `vocab.rooms`, the options' and throws' `know`; the context (`_context`, with `engaged_id`, and the decision's own `throw_memo`); picks the hostiles to analyse (`_analysed_ids`) |
 | `HOSTILE` | one per hostile given full analysis | that hostile's geometry, option groups and sections (`_analyse_target`); the cheap `line` entry of every listed-but-unanalysed hostile ahead of it in the contacts' order, and of those after the last analysed one, rides with the piece |
-| `FINISH` | once | the shared parts, facts, option groups, the `SnapshotDemand` set-up, the sections; closes the memo |
+| `FINISH` | once | the shared parts, facts, option groups, the `SnapshotDemand` set-up, the sections |
 
-The work order is the one-shot build's, so the rays, routes and random draws are the same and a fight does not move. A lazy `SnapshotDemand` group, fact or section is still built when the walk first reads it, not by a piece.
+The work order is the one-shot build's, so the rays, routes and random draws are the same and a fight does not move. A lazy `SnapshotDemand` group, fact or section is still built when the walk first reads it, not by a piece; the one fact the decision job resolves ahead of the walk is `grenade_ready`, by its own throw piece (`decision-job.md`, `snapshot-demand.md`).
 
 ## `AgentPerception.begin_sense(goal, activity, engaged_id := 0)`
 
@@ -21,7 +21,8 @@ The work order is the one-shot build's, so the rays, routes and random draws are
 ## Rules
 
 - One build is in flight per author: its START sets the author's per-decision scratch (`vocab.rooms`, the options' and throws' `know`), so a build dropped for a new one is freed and never resumed. Nothing it did outside itself is undone, and nothing needs to be.
-- **`SnapshotDemand.complete()` is a hazard to a held build.** Completing an older snapshot (the debug overlay, `NpcCadence.complete()`, the spectator card, a test) hands the shared modules that decision's rooms and knowledge (`_open`). Every piece after START therefore re-asserts the build's own (`_own_scratch`) before it reads them. The throws' per-decision caches (`_throws.begin()`, START) are not re-asserted: anything built by a demand read in between, which is lazy, can use them.
-- The walked-route memo is open from START to FINISH, so with a build held across frames the behaviour-time walks in between reuse it (`perception-views.md`) and may be stale if a door or the map changed. The decision job spreads a build over frames when its pieces are priced above the pool: it must not rely on a fresh route there, and a build it drops (a claim over it) is freed, never resumed.
+- **`SnapshotDemand.complete()` is a hazard to a held build.** Completing an older snapshot (the debug overlay, `NpcCadence.complete()`, the spectator card, a test) hands the shared modules that decision's rooms and knowledge (`_open`). Every piece after START therefore re-asserts the build's own (`_own_scratch`) before it reads them. The throws' per-decision caches (`ctx["throw_memo"]`: the throw spots, their candidate points and whether a spot exists, by key) are the build's own, held by its context, so an older snapshot completed in between never reaches them and a newer build never reads this one's.
+- The walked-route memo (`hold_walks`, the doorway views' `begin_decision`) is held by whoever runs pieces together: `build()` / `sense()` for their whole run, the decision job for the pieces it runs in one `advance`. It is never open between frames, so a door turned or a re-bake between frames is never read through it, and never into the planner's walk (`perception-views.md`). A build it drops (a claim over it) is freed, never resumed.
+- `AgentSnapshot.reread_claims(snapshot, callouts)` (through `AgentPerception.reread_claims`) makes again what a snapshot made of the radio callouts (the flank sides' `held_by` and the options and sections made from them, the hostile group's allies, `stack_has_stun`) when they are not those the build read; nothing when they are the same (`ai/decision/claim_seen_at_refusal`).
 - `result()` asserts `done()`.
 - Tests: `ai/decision/staged_build_matches_whole` (a stepped build equals `sense()` in facts, sections, options, wording and the walk over it, with an older snapshot completed between every piece; the confinement view is frozen at the start), `ai/decision/staged_build_unanalysed_hostiles` (four hostiles, the third engaged: the line entries between and after the analysed ones, one piece per analysed hostile).
