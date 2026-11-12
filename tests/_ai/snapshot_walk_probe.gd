@@ -7,7 +7,7 @@ const DecisionPlanner := preload("res://scenes/ai/decision/decision_planner.gd")
 ## `snap` walked on a fresh planner with the NPC's own rules and scripted Von:
 ## `{ leaf, levels }` (the levels without their timings), or `{}` when it did not end.
 static func walk(t: TestContext, brain: Node, snap: Dictionary) -> Dictionary:
-	var own: Node = brain.get("_planner")
+	var own: Node = brain.get("_job").planner
 	var planner: Node = DecisionPlanner.new()
 	t.world.add_child(planner)
 	planner.entry_rules = own.entry_rules

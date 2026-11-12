@@ -17,7 +17,7 @@ The perception builds one `AgentDoorViews`, hands it to its `AgentEntry` (`cuts_
 - `held` (D38): the walk belongs to a held stack's member, whose `entering` room is the one `confinement.keep_out` names. Every walk of that entry is then judged from the doorway's outer side (`_outside_of`, `_goes_in`), so a member standing in the doorway is not in the room yet. A walk not `held` is judged from where it stands, so from inside the room its plain way goes. `views.walk_enters(to, key, on := RID(), from := Vector2.INF)` (`plain_enters`) asks the same of the route from `from` (INF: where the NPC stands) on map `on`.
 - `AgentSnapshot.build` opens a `begin_decision` scope and holds its token for the build. Within that scope, an identical
   `walk_route(from, to, entering, held)` on the same navigation map reuses its computed answer and returns deep copies of its
-  mutable arrays; releasing the last token clears the memo. Behaviour-time walks outside a build always recompute. Test:
+  mutable arrays; releasing the last token clears the memo. Behaviour-time walks outside a build recompute; a staged build held across frames (`snapshot-staged.md`) keeps the scope open, so a walk in between reuses it: stale if a door or the map changed meanwhile. Test:
   `ai/perception/walk_route_memo_matches_plain`.
 - `routes_ready()` / `warm`: the controller starts no decision until the avoid map of the NPC's room is baked (at most `WARM_CAP_MS` of game time), so the route bands a snapshot reads are the walked ones. `tests/ai/entry/entry_route_band_as_walked_test.gd`.
 

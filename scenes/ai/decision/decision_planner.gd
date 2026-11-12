@@ -18,6 +18,8 @@ extends Node
 signal decided(leaf: Dictionary)
 ## The walk could not finish (Von unreachable, or nothing to choose from).
 signal failed()
+## Driven only: Von answered, so a piece (the next level) is waiting to run (`step`).
+signal piece_ready()
 
 const DecisionTree := preload("res://scenes/ai/decision/decision_tree.gd")
 ## The Von transport it builds and owns (`setup`).
@@ -35,6 +37,9 @@ var node_overrides: Dictionary = {}
 var entry_rules: Dictionary = {}
 ## Take a level's only option without asking Von.
 var skip_single_option: bool = true
+## Whether a decision job runs the walk's pieces (`step`, one level each, when its budget allows),
+## instead of each following on by itself as it is ready (a hand-made walk, a test).
+var driven := false
 ## The Von transport (decision_client.gd), its own child.
 var _client: Node
 ## The tree with overrides merged, keyed by node id.
@@ -51,6 +56,9 @@ var _pending := false
 var _last_failed := false
 ## The walk in flight: its snapshot, level, bindings, path, options and per-level records.
 var _walk := DecisionWalk.new()
+## The piece that runs next (one level: follow a pick or enter the first node, then decide the
+## level it reaches), invalid while Von is asked or no walk is in flight.
+var _resume := Callable()
 
 
 ## Build the Von transport (its own child, asking `decision`'s `server_url` with its `model`) and
@@ -102,7 +110,8 @@ func entry_for(facts: Dictionary) -> StringName:
 
 ## Start a walk over `snapshot` ({ sections, sections_per_target, facts, options, confinement }: the
 ## NPC's confinement frozen as the snapshot was built, which keeps a `confine` subtree in bounds),
-## abandoning any walk in flight. `continuing` = the last adopted choice is still in progress, so
+## abandoning any walk in flight. Undriven, its first level is decided at once; driven, it waits
+## for `step`. `continuing` = the last adopted choice is still in progress, so
 ## the option that continues it is marked "(your current plan)"; a finished choice (arrived,
 ## interaction over) is not — otherwise Von would re-pick a completed tactic. Answers arrive
 ## asynchronously; the result is `decided` or `failed`.
@@ -122,14 +131,28 @@ func begin(snapshot: Dictionary, continuing: bool = true) -> void:
 			_entry = start
 			break
 	_pending = true
-	_enter(_entry)
+	_schedule(_enter.bind(_entry))
 
 
 ## Abandon the walk in flight (no signal is emitted for it).
 func cancel() -> void:
+	_resume = Callable()
 	if _pending:
 		_client.cancel()
 		_pending = false
+
+
+## Whether a piece waits to run (`step`): not while Von is being asked, nor with no walk in flight.
+func has_piece() -> bool:
+	return _resume.is_valid()
+
+
+## Run the waiting piece: one level, from following the pick or entering the first node to the
+## next question for Von, a lone option taken, or the leaf.
+func step() -> void:
+	var piece := _resume
+	_resume = Callable()
+	piece.call()
 
 
 ## Read-only: the walk in flight (or the last finished one) as structured data — per level, the
@@ -202,7 +225,7 @@ func _step() -> void:
 		_walk.levels.append({
 			"node": String(_walk.node), "offered": _criteria(), "auto": true, "ms": 0,
 		})
-		_choose(_walk.offered.keys()[0])
+		_schedule(_choose.bind(_walk.offered.keys()[0]))
 		return
 	var question := _fill(
 		node.get("bind_question" if _walk.bind_level else "question", "Choose one."),
@@ -240,13 +263,22 @@ func _on_answered(pick: String, probabilities: Dictionary) -> void:
 	level["pick"] = pick
 	level["probabilities"] = probabilities
 	level["ms"] = Time.get_ticks_msec() - _walk.asked_ms
-	_choose(pick)
+	_schedule(_choose.bind(pick))
+	if driven:
+		piece_ready.emit()
 
 
 ## The transport failed: abandon the walk.
 func _on_failed() -> void:
 	if _pending:
 		_fail_walk()
+
+
+## Queue `piece` to run next: at once undriven, else when the job steps it.
+func _schedule(piece: Callable) -> void:
+	_resume = piece
+	if not driven:
+		step()
 
 
 ## Follow the chosen option: bind it and re-decide the same node, step into a child node, or finish

@@ -36,8 +36,8 @@ extends Node
 
 const AgentPerception := preload("res://scenes/ai/perception/agent_perception.gd")
 const DecisionPlanner := preload("res://scenes/ai/decision/decision_planner.gd")
-## The frame's snapshot count (DecisionBudget).
-const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
+## One decision as a job: its claim, build and walk (`_job`).
+const DecisionJob := preload("res://scenes/ai/decision/decision_job.gd")
 const Behavior := preload("res://scenes/ai/behavior/behavior.gd")
 ## The decide cadence (`_cadence`).
 const Cadence := preload("res://scenes/ai/npc_cadence.gd")
@@ -80,9 +80,9 @@ var squad: Node = null
 var debug_focus := Vector2.INF
 ## SENSE sub-domain: knowledge, the decision snapshot, combat geometry.
 var _perception: Node
-## THINK policy: the decision-tree walk (decision/decision_planner.gd), which owns the Von
-## transport.
-var _planner: Node
+## THINK: the decision job (decision/decision_job.gd): the claim against the frame's budget, the
+## snapshot build and the walk of the decision tree (`_job.planner`, which owns the Von transport).
+var _job: RefCounted
 ## ACT sub-domain: runs the chosen primitive + holds commitment state.
 var _behavior: Node
 ## The character this controller drives, captured on first control.
@@ -116,9 +116,9 @@ func _ready() -> void:
 	# node_overrides is baked into the tree at setup() (construction-time only); the rest of the
 	# planner's config is applied by _apply_config(), which turns the policy primitives into tree
 	# config (pursuit starts at COMBAT once a hostile is known and never idles).
-	_planner = DecisionPlanner.new()
-	_planner.node_overrides = tuning.decision.node_overrides
-	add_child(_planner)
+	var planner := DecisionPlanner.new()
+	planner.node_overrides = tuning.decision.node_overrides
+	add_child(planner)
 	# ACT: the behaviour sub-domain (owns its own locomotion). It reads the world via perception and
 	# falls back to a steady stance when no decision can be had.
 	_behavior = Behavior.new()
@@ -127,10 +127,16 @@ func _ready() -> void:
 		nav_agent = get_node_or_null(nav_agent_path) as NavigationAgent2D
 	add_child(_behavior)
 	_behavior.setup(_perception, nav_agent, tuning)
+	# The job claims, builds and walks a decision; this controller only asks and advances it.
+	_job = DecisionJob.new()
+	_job.setup(_perception, planner, _cadence)
+	_job.reads = _job_reads
+	_job.ongoing = _behavior.ongoing
+	_job.refresh = _reflexes.refresh_confinement
 	_apply_config()
-	_planner.setup(tuning.decision)
-	_planner.decided.connect(_on_decided)
-	_planner.failed.connect(_behavior.fallback)
+	planner.setup(tuning.decision)
+	planner.decided.connect(_on_decided)
+	planner.failed.connect(_behavior.fallback)
 	EventBus.posted.connect(_on_event)
 
 
@@ -160,7 +166,7 @@ func _apply_config() -> void:
 			disabled.append(&"idle")
 		if not rules.has(&"hostile_known") and not rules.has("hostile_known"):
 			rules[&"hostile_known"] = &"combat"
-	_planner.skip_single_option = tuning.decision.skip_single_option
+	_job.planner.skip_single_option = tuning.decision.skip_single_option
 	# A follower picks no goal of its own (LD20): it follows its leader after the fight and order
 	# rules.
 	var lead: Node2D = _reflexes.leader_followed()
@@ -170,8 +176,8 @@ func _apply_config() -> void:
 				disabled.append(id)
 		if not rules.has(&"follows") and not rules.has("follows"):
 			rules[&"follows"] = &"follow"
-	_planner.disabled_nodes = disabled
-	_planner.entry_rules = rules
+	_job.planner.disabled_nodes = disabled
+	_job.planner.entry_rules = rules
 	_behavior.apply_config(squad)
 
 
@@ -249,8 +255,8 @@ func debug_state() -> Dictionary:
 		"facts": _cadence.last_facts,
 		"sections": _cadence.last_sections,
 	}
-	if _planner != null:
-		out["decision"] = _planner.debug_state()
+	if _job != null:
+		out["decision"] = _job.planner.debug_state()
 	if _perception != null:
 		out["under_fire"] = _perception.under_fire()
 		out["engaged_fresh"] = _perception.engaged_fresh()
@@ -361,10 +367,10 @@ func debug_sent_callout() -> Dictionary:
 ## failed (the behaviour then holds steady), the decide/force timers and why the last force fired,
 ## and the facts.
 func debug_brain() -> Dictionary:
-	if _planner == null:
+	if _job == null:
 		return {}
 	_cadence.complete()
-	var d: Dictionary = _planner.debug_state()
+	var d: Dictionary = _job.planner.debug_state()
 	var timers: Dictionary = (_behavior.fight.debug_combat().get("timers", {})
 			if _character != null
 			else {})
@@ -440,7 +446,7 @@ func _bind_body(character: Node) -> void:
 	_reflexes.bind(character)
 	_perception.bind(character)
 	_behavior.bind(character)
-	_planner.bind(_npc_name())
+	_job.planner.bind(_npc_name())
 
 
 ## SENSE: folds the queued events in, primes a posted ambusher (before the SEE pass, so the sight
@@ -478,14 +484,15 @@ func _take_resolved() -> void:
 			_perception.check_lead(lead) # Reached it and found nothing: don't send it back there.
 
 
-## THINK: restarts a decision walk a forced decision has overtaken, or starts one when free to
-## (`due`: the decide cadence has elapsed).
+## THINK: restarts a decision a forced decision has overtaken, or starts one when free to (`due`:
+## the decide cadence has elapsed), then runs the job's pieces the frame's budget allows.
 func _think(due: bool) -> void:
-	if _planner.is_pending():
+	if _job.pending():
 		if _cadence.forced:
 			_maybe_interrupt()
 	elif _should_decide(due):
-		_start_decision()
+		_request()
+	_job.advance()
 
 
 ## ACT: the behaviour carries out the running primitive, then the entry turn, the entry and throw
@@ -503,11 +510,10 @@ func _act(delta: float) -> void:
 	_comms.report_order()
 
 
-## Whether a new decision may start now: never while crossing a doorway (a forced one waits until
-## the NPC is through); always when forced; otherwise the behaviour decides whether its current
-## commitment still holds (a fight, a move, an approach) or the decide cadence has elapsed. One that
-## may must also get one of the frame's snapshots (`DecisionBudget`); refused, it keeps its wish
-## (`forced`, the elapsed timer) and asks again next frame. `due`: the decide cadence has elapsed.
+## Whether a new decision may be asked for now: never while crossing a doorway (a forced one waits
+## until the NPC is through); always when forced; otherwise the behaviour decides whether its
+## current commitment still holds (a fight, a move, an approach) or the decide cadence has elapsed.
+## `due`: the decide cadence has elapsed.
 func _should_decide(due: bool) -> bool:
 	if _behavior.committed() or _behavior.grenades.evading() or _character.stun.is_blind():
 		# A blinded NPC starts no new decision (G15), one running from a grenade none until the
@@ -519,10 +525,10 @@ func _should_decide(due: bool) -> bool:
 		# The routes it would weigh are still being measured (the avoid map is baking): a few
 		# frames. A forced decision does not wait.
 		return false
-	return Budget.claim()
+	return true
 
 
-## A salient event arrived while a walk is in flight: restart the walk only when the situation now
+## A salient event arrived while a decision is in flight: restart it only when the situation now
 ## calls for a different starting node (e.g. it came under fire mid-way through choosing a room to
 ## search → straight to COMBAT). Otherwise the walk in flight already fits; let it finish.
 func _maybe_interrupt() -> void:
@@ -531,16 +537,20 @@ func _maybe_interrupt() -> void:
 	# An order taken since the walk in flight began always restarts it: that walk was made without
 	# the order, and a walk the order replaces stands until one made with it lands.
 	if (_cadence.order_from >= 0
-			or _planner.entry_for(_perception.quick_facts()) != _planner.current_entry()):
-		if Budget.claim():  # Else `forced` stays and the restart is tried again next frame.
-			_start_decision()
-	else:
+			or _job.stale(_job.planner.entry_for(_perception.quick_facts()))):
+		_request()
+	elif not _job.frozen():
+		# The walk in flight fits: its wish is spent. A build already started has not seen what
+		# forced this: it stays until the walk begins.
 		_cadence.forced = false
 
 
-## Sense the situation and start a decision walk over it. The planner answers asynchronously via
-## `decided` / `failed` (the latter wired to the behaviour's steady-stance fallback).
-func _start_decision() -> void:
+## Ask the job for a decision and book it when it is claimed (any job in flight is dropped). The
+## job answers the frame's budget: refused, the wish (`forced`, its reason, the elapsed timer) stays
+## and is asked again next frame.
+func _request() -> void:
+	if not _job.request(_cadence.forced):
+		return
 	_cadence.decisions += 1
 	_cadence.decision_reason = _cadence.force_reason if _cadence.forced else "cadence"
 	if _cadence.forced:
@@ -549,22 +559,14 @@ func _start_decision() -> void:
 	_cadence.forced = false
 	_cadence.decide_timer = tuning.decision.decide_interval
 	_apply_config()  # Pick up any tunable retuned at runtime before sensing + deciding.
-	var snapshot: Dictionary = _perception.sense(
-		goal, _behavior.activity_text(), _behavior.fight.engage_id
-	)
-	_cadence.last_facts = snapshot["facts"]
-	_cadence.last_sections = snapshot["sections"]
-	_cadence.last_demand = snapshot["demand"]
-	_cadence.last_analysed = snapshot["sections_per_target"].keys()
-	var held: Dictionary = _perception.orders.current()
-	if not held.is_empty() and (snapshot["options"]["order"]["options"] as Array).is_empty():
-		# An order it cannot carry out (a room or doorway it does not know): said so, and dropped.
-		_perception.orders.end(held["id"], "refused")
-		_cadence.last_facts["ordered"] = false
-		# The walk is the NPC's own now: its confinement holds no order's rules, from this tick on
-		# and in the snapshot the walk decides over.
-		snapshot["confinement"] = _reflexes.refresh_confinement().copy()
-	_planner.begin(snapshot, _behavior.ongoing())
+
+
+## What a decision's build starts from: the goal, what the behaviour is doing and its engaged
+## contact (read by the job as the build starts).
+func _job_reads() -> Dictionary:
+	return {
+		"goal": goal, "activity": _behavior.activity_text(), "engaged": _behavior.fight.engage_id,
+	}
 
 
 ## Force a re-decision when the NPC's BELIEF about hostiles changes: one is spotted, lost or newly
@@ -619,7 +621,7 @@ func _on_decided(leaf: Dictionary) -> void:
 	if _cadence.salient_init:
 		_cadence.salient_key = _behavior.salient_key()
 	GameLog.say("%s (Von) %s  [%s]"
-			% [_npc_name(), " - ".join(leaf["labels"]), _planner.walk_digest()])
+			% [_npc_name(), " - ".join(leaf["labels"]), _job.planner.walk_digest()])
 	if tuning.radio.send_callouts and _character != null and not leaf["path"].is_empty() \
 			and str(leaf["path"][0]) in ["combat", "investigate"]:
 		_comms.post_callout(leaf)

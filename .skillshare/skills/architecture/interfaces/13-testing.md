@@ -31,7 +31,7 @@
       `DecisionStub.requests`, or (`requires_von`) replay the test's recording (`VonRecording`, `<name>_test.von.json`) through the stub's
       REPLAY mode, which `TestVonGate.mode_for` picks from the run flags (`--record-von`: RECORD, `--include-von` / `--require-von`: LIVE;
       a `live_only` test: no stub); the session's `von` part drives `DecisionServerLauncher` where a run needs the real server;
-      `DecisionBudget.per_frame` (snapshots a frame may start) is set the same way.
+      `DecisionBudget.per_frame` (work units a frame's decisions may spend, default 1) and its `cost_*` piece prices are set the same way; a native suite steps the decision job (`decision/decision_job.gd`, the controller's `_job`, a preloaded part with no `class_name`) by `DecisionBudget.frame_source`, ending with `DecisionBudget.reset()`.
     - **Runner:** `TestSetup.lock_interaction` (`camera` / `pause` / `overlays`) shuts out user input a test would trip over; the test
       sends its own through `TestContext.inject`, which the lock lets through. The runner builds the UI's `PerformanceOverlay` for the
       bar's `PERF` toggle and hands every other toggle to the world's `set_overlay`, which routes by the match's one rule
