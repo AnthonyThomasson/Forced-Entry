@@ -8,8 +8,8 @@ extends GameTest
 ## reads its join held for the go (D38's wording). The human crosses; both joiners follow it in,
 ## after it, and the kitchen is called clear.
 ##
-## Real Von, the whole pipeline; no switch. Each NPC carries one stun as a match arms an invader (a
-## test world keeps the default inventory): the premise that a bang could be thrown. The human (a
+## Recorded Von, the whole pipeline; no switch. Each NPC carries one stun as a match arms an invader
+## (a test world keeps the default inventory): the premise that a bang could be thrown. The human (a
 ## puppet) is never killed.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")

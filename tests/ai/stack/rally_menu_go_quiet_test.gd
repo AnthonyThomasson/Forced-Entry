@@ -5,9 +5,9 @@ extends GameTest
 ## stack carrying a stun into a bang one, E17), and the leader gives "Go into the kitchen (quiet)".
 ## No grenade is thrown; both AIs go in, the human not waited for (it never steps in).
 ##
-## Real Von, the whole pipeline; no switch. Each NPC carries one stun, as a match arms an invader:
-## the premise that a bang could be thrown. The gunfire is a `hit` event nobody known fired, in the
-## kitchen.
+## Recorded Von, the whole pipeline; no switch. Each NPC carries one stun, as a match arms an
+## invader: the premise that a bang could be thrown. The gunfire is a `hit` event nobody known
+## fired, in the kitchen.
 
 const Rally := preload("res://tests/_ai/rally_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

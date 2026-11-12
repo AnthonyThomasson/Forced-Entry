@@ -13,8 +13,8 @@ extends GameTest
 ## through the doorway runs into the human's body (sight looks over a person, a round does not), so
 ## a single-file stack behind the human has no shot from its slots.
 ##
-## Real Von, the whole pipeline; no switch. Premises: the defender (a puppet) and the joiners are
-## never killed (`max_health`), so the stack stays held through the fight; a joiner stands ready
+## Recorded Von, the whole pipeline; no switch. Premises: the defender (a puppet) and the joiners
+## are never killed (`max_health`), so the stack stays held through the fight; a joiner stands ready
 ## south of the door with a clear line (no wall or furniture) from its slot to `SPOT`.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")

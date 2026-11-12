@@ -6,6 +6,9 @@ Godot.
                                                 `<path> serve --host 127.0.0.1 --port <port> --device cpu` and
                                                 waited for (started True); with no path, none (live False)
   runner.stop_von(server)                       stops the server only if the run started it
+  runner.runs_von_tests(args)                   whether a run_tests.sh argument list runs Von tests against the live
+                                                server (--include-von, --require-von, --record-von); the run then
+                                                has a server ready
 
 A stand-in server answers the game launcher's health check (POST /v1/systemone) with 200, on a free port.
 """
@@ -95,6 +98,15 @@ class VonTests(unittest.TestCase):
         self.assertFalse(von.live)
         self.assertFalse(von.started)
         self.assertIn("server_path", von.note)
+
+    def test_each_flag_that_runs_von_tests_live_or_records_them_starts_a_server(self):
+        for flag in ("--include-von", "--require-von", "--record-von"):
+            with self.subTest(flag):
+                self.assertTrue(runner.runs_von_tests(["--domain=ai", flag]))
+
+    def test_a_replay_only_run_needs_no_server(self):
+        self.assertFalse(runner.runs_von_tests([]))
+        self.assertFalse(runner.runs_von_tests(["--domain=ai", "--id=ai/movement/follow_catches_up", "--repeat=3"]))
 
 
 if __name__ == "__main__":

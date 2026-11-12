@@ -2,8 +2,8 @@ extends GameTest
 ## Issue #53: a team on a tactical entry walks round its own members. A generated house, and four
 ## invaders placed and armed the way Main does (a match over the house, `tests/_ai/house_probe.gd`:
 ## in one group outside, out of the exterior doorways' views, heading for the front entrance, the
-## invader loadout with its stun and frag, in their side's squad), decide (real Von, the leader, its
-## team following it in) to stack on a doorway and go in. For the whole run (the approach, the
+## invader loadout with its stun and frag, in their side's squad), decide (recorded Von, the leader,
+## its team following it in) to stack on a doorway and go in. For the whole run (the approach, the
 ## stack, the bang, the crossing, the corners, the clear, and the walks after it) no invader walks
 ## into a teammate that stands still: it goes round it, or stops short and waits; and no two
 ## invaders that are both walking collide: one gives way to the other. "Walks into" is measured by

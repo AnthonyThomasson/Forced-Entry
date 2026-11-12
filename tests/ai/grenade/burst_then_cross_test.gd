@@ -6,8 +6,8 @@ extends GameTest
 ## against a defender barricaded in a room, G17 / R7); the invader carries a stun, takes GRENADE and
 ## stuns it, then goes in after it (G17: a blinded hostile is the moment to close in). The entry it
 ## goes in by never slices the pie: from its slot it crosses at once. The whole pipeline runs with
-## real Von; `require`s that the invader took GRENADE, that its own stun went off in the kitchen and
-## that it then went in by the back door come first, so a fight kept up from outside reads as a
+## recorded Von; `require`s that the invader took GRENADE, that its own stun went off in the kitchen
+## and that it then went in by the back door come first, so a fight kept up from outside reads as a
 ## set-up finding.
 ##
 ## Premises: the householder is a puppet that cannot be killed and never shoots (a defender that

@@ -3,8 +3,8 @@ extends GameTest
 ## ally in the hall is fighting a householder it sees in the kitchen through the hall door, and says
 ## so on the radio; the stack of two invaders, both carrying a stun, at the kitchen's back door
 ## (which cannot see the householder) takes STUN ENTRY into the kitchen, not the quiet ENTER. The
-## whole pipeline runs with real Von for the stack; a `require` that it went for the kitchen by its
-## back door comes first.
+## whole pipeline runs with recorded Von for the stack; a `require` that it went for the kitchen by
+## its back door comes first.
 ##
 ## Premises: the ally is a puppet whose radio call is posted first thing in `run` (a call that lands
 ## before the stack decides, as in a match where the fight started first: an NPC's own call would

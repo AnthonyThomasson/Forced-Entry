@@ -4,8 +4,8 @@ extends GameTest
 ## grenaded, not only shot at. A householder holds the kitchen's back doorway from just inside it,
 ## facing out; an invader in the garden with a frag sees it through the doorway with a clear shot.
 ## It throws the frag into the kitchen onto it (the lob, ally and self-safety rules unchanged: it
-## can step behind the wall out of the blast). The whole pipeline runs with real Von; a `require`
-## that the invader is fighting the householder from outside the kitchen comes first.
+## can step behind the wall out of the blast). The whole pipeline runs with recorded Von; a
+## `require` that the invader is fighting the householder from outside the kitchen comes first.
 ## (`grenade_not_offered_clear_shot` stays as it is: a hostile in the open in the NPC's own room, in
 ## its line of fire, is shot.)
 ##

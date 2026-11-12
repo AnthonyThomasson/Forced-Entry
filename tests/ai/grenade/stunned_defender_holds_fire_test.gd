@@ -8,7 +8,7 @@ extends GameTest
 ##
 ## Premises as `stunned_defender_blind`: the flash is `take_stun(6, 6)` called on the defender, as a
 ## grenade's flash would; the hostile is an invader *puppet* that cannot be killed and never shoots.
-## Real Von; everything else is on.
+## Recorded Von; everything else is on.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")

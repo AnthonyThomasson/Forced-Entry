@@ -9,7 +9,7 @@ extends GameTest
 ## there. The two free teammates in the back garden get the `join` and stack with the human; the
 ## defender is left out of it and keeps its defend order.
 ##
-## Real Von, the whole pipeline; no switch. The human (a puppet) is never killed.
+## Recorded Von, the whole pipeline; no switch. The human (a puppet) is never killed.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

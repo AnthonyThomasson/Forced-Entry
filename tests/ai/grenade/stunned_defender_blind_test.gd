@@ -10,7 +10,7 @@ extends GameTest
 ##
 ## Premises: the flash is `take_stun(6, 6)` called on the defender, as a grenade's flash would (the
 ## grenade's own throw is tested elsewhere); the hostile is an invader *puppet* that cannot be
-## killed and never shoots. Real Von; everything else is on.
+## killed and never shoots. Recorded Von; everything else is on.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")

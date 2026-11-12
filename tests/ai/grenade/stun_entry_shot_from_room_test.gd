@@ -5,7 +5,7 @@ extends GameTest
 ## nobody is seen. Shot at from a room they are outside of, they treat it as a barricaded hostile:
 ## neither walks in through that doorway unguarded (no LOCATE straight in under fire, the E9
 ## exemption does not cover a walk into the room the shots came from), and before anyone goes in the
-## stack takes STUN ENTRY or throws a grenade into the kitchen. Fully natural: real Von at every
+## stack takes STUN ENTRY or throws a grenade into the kitchen. Fully natural: recorded Von at every
 ## level, whatever it makes of the shot; a `require` that the shot registered (the stack was under
 ## fire, or remembers where it was shot at from) comes first.
 ##

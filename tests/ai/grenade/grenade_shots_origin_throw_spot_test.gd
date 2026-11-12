@@ -8,7 +8,7 @@ extends GameTest
 ## GRENADE is offered through a throw spot in front of the doorway: the invader steps there and
 ## throws the frag into the kitchen, where the shots came from.
 ##
-## The whole pipeline runs with real Von. `require`s come first: the shot registered and the
+## The whole pipeline runs with recorded Von. `require`s come first: the shot registered and the
 ## invader's line back from it runs into the kitchen, and from where it stood no point of that line
 ## in the kitchen (past the threshold: `INSIDE` px in) has a clear lob in range (550 px, the throw
 ## range). The check is on the first decision, made where it was shot at: without a throw spot it

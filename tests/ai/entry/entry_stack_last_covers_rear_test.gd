@@ -1,9 +1,9 @@
 extends GameTest
 ## E12: while the stack waits at the door, the last man faces back the way the team came and holds
 ## the approach, from reaching his slot until the member ahead of him goes (the point, meanwhile, is
-## slicing the pie). Real Von: three invaders in the back garden decide for themselves to stack on
-## the back door. The point's pie is slowed, so the last man reaches his slot while it still slices
-## and the stack has a real wait for him to cover.
+## slicing the pie). Recorded Von: three invaders in the back garden decide for themselves to stack
+## on the back door. The point's pie is slowed, so the last man reaches his slot while it still
+## slices and the stack has a real wait for him to cover.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")

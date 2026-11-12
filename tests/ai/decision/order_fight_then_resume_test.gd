@@ -1,9 +1,9 @@
 extends GameTest
 ## LD6 (`docs/leadership.md`): an ordered NPC that is shot at fights (the entry rules
 ## `under_fire → combat` and `engaged → combat` come before `ordered → order`), and goes back to its
-## order once the fight lapses. The whole pipeline runs with the real Von server: a defender in the
-## Terrace house's kitchen is ordered by its squad's leader to defend the kitchen; a hostile steps
-## up to the back door, fires at it and walks off out of sight.
+## order once the fight lapses. The whole pipeline runs with recorded Von answers: a defender in
+## the Terrace house's kitchen is ordered by its squad's leader to defend the kitchen; a hostile
+## steps up to the back door, fires at it and walks off out of sight.
 ##
 ## Premises: the defender and the shooter cannot be killed (the fight must lapse, not end in a
 ## death); the shooter is an invader puppet (the scripted world event); the order is given through

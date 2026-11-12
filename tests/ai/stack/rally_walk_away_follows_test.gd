@@ -6,7 +6,7 @@ extends GameTest
 ## withdraws its claim (`abort`), the squad cancels the joins, and both NPCs leave the stack and
 ## follow it. Neither crosses into the kitchen.
 ##
-## Real Von, the whole pipeline; no switch.
+## Recorded Von, the whole pipeline; no switch.
 
 const Rally := preload("res://tests/_ai/rally_probe.gd")
 const Follow := preload("res://tests/_ai/follow_probe.gd")

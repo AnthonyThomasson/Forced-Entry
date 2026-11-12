@@ -4,9 +4,9 @@ extends GameTest
 ## px. A one-room house with its front door in the south wall; the invader stands west of it and
 ## gunfire is heard east of it, outside. The plain way there runs along the south wall, through the
 ## view out of the front door (every point of the outdoor strip south of the house is in it); the
-## way round the north side is about 1.2 x as long, so it is the one walked. Real Von: the invader
-## hears the shots and decides for itself; a `require` that it went to the far side without going
-## into the house comes first, so a different Von choice reads as a set-up finding.
+## way round the north side is about 1.2 x as long, so it is the one walked. Recorded Von: the
+## invader hears the shots and decides for itself; a `require` that it went to the far side without
+## going into the house comes first, so a different Von choice reads as a set-up finding.
 ##
 ## Premise: the gunfire is one shot heard east of the house (a `hit` event nobody known fired, as
 ## tests/_ai/investigate_probe.gd posts it), first thing in `run`, the frame the invader spawns in,

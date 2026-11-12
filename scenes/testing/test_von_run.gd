@@ -77,9 +77,8 @@ func arm(setup: TestSetup) -> void:
 		setup.statics.append([DecisionStub, prop, armed[prop]])
 
 
-## Fail `ctx` for each ask the recording had no answer for and each one the server did not answer
-## (a recording cannot be written without it, and a live test cannot go on): the test cannot go on
-## without the answer. Returns whether it added any.
+## Fail `ctx` for each ask the recording had no answer for and each one the server did not answer,
+## since the test cannot go on without the answer. Returns whether it added any.
 func problems(ctx: TestContext) -> bool:
 	if misses.size() == _reported[0] and faults.size() == _reported[1]:
 		return false

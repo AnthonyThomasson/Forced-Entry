@@ -7,8 +7,8 @@ extends GameTest
 ## none crosses into the kitchen while held, nor goes after the defender lost in it
 ## (`HeldFight.AFTER` s).
 ##
-## Real Von, the whole pipeline; no switch. Premises: the defender (a puppet) and the invaders are
-## never killed (`max_health`), so the stack stays held through the fight.
+## Recorded Von, the whole pipeline; no switch. Premises: the defender (a puppet) and the invaders
+## are never killed (`max_health`), so the stack stays held through the fight.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")

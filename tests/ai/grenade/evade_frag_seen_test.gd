@@ -3,7 +3,7 @@ extends GameTest
 ## `grenade` callout and runs to the nearest escape spot it can reach before the fuse is out (out of
 ## the grenade's line, or beyond its radius), then holds and re-decides. A defender stands in the
 ## hall of the terrace house; a hostile invader at the far end throws a frag that lands beside it.
-## The whole pipeline runs (real Von, vision, hearing, the radio, the fight with the thrower);
+## The whole pipeline runs (recorded Von, vision, hearing, the radio, the fight with the thrower);
 ## nothing is scripted but the throw.
 ##
 ## Premise: the thrower is an invader *puppet* that cannot be killed, the scripted world event. It

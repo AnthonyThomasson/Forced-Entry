@@ -8,8 +8,8 @@ extends GameTest
 ## leader. The contrast, the same world with no squad bound, is `leash_free_chase`: there the NPC
 ## goes after the target past the leash, so the leash is what holds this one back.
 ##
-## Real Von, the whole pipeline; no switch (`Follow.chase_hall`). Premises: the leash is LD23's, the
-## target and the leader are never killed (`max_health`) and the target, a puppet, never shoots.
+## Recorded Von, the whole pipeline; no switch (`Follow.chase_hall`). Premises: the leash is LD23's,
+## the target and the leader are never killed (`max_health`) and the target, a puppet, never shoots.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

@@ -7,9 +7,9 @@ extends GameTest
 ## modes back (it decides again, on its own cadence, and what it decides is not FOLLOW); the trooper
 ## re-centres on it (its follow spot and its place come round the sergeant).
 ##
-## Real Von, the whole pipeline; no switch. The premise is the gunfire (a `hit` event nobody known
-## fired, as `tests/_ai/investigate_probe.gd` posts it): the open hall, seen whole at once, leaves
-## an invader nothing else to go to.
+## Recorded Von, the whole pipeline; no switch. The premise is the gunfire (a `hit` event nobody
+## known fired, as `tests/_ai/investigate_probe.gd` posts it): the open hall, seen whole at once,
+## leaves an invader nothing else to go to.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

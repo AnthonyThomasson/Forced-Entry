@@ -10,8 +10,8 @@ extends GameTest
 ## LD28) holds the trail, the leash and each member's own follow spot, its place in the file behind
 ## the human.
 ##
-## Real Von, the whole pipeline; no switch. The house is the bare Terrace house, so there is a house
-## to search: left to themselves the NPCs go in and search it.
+## Recorded Von, the whole pipeline; no switch. The house is the bare Terrace house, so there is a
+## house to search: left to themselves the NPCs go in and search it.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

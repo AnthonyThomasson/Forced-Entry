@@ -9,8 +9,8 @@ extends GameTest
 ## searched. A defender a little way into the room is ordered at once, by its squad's leader (a
 ## household puppet out in the street, out of the invaders' sight), to ambush the doorway from the
 ## room; its walk to its post is heard from the hall (footsteps heard there: a suspect room, so the
-## stack's entry is a bang one, E17). Nobody is scripted: real Von at every level, the rest of the
-## AI on.
+## stack's entry is a bang one, E17). Nobody is scripted: recorded Von at every level, the rest of
+## the AI on.
 ##
 ## Required first (set-up findings otherwise): both invaders claim the doorway, the defender radios
 ## `in_position` before the point goes in, and a stun bursts in the room. Then: the defender is not

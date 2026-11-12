@@ -16,7 +16,7 @@ extends GameTest
 ## puppet in the kitchen's far corner, out of the invaders' sight) to ambush that doorway from the
 ## living room: from the hall the stack sees only the west of the living room through the doorway,
 ## so its walk to an east post (the stand-in puppet's took 0.6 s) is out of their sight. Nobody is
-## scripted and the rest of the AI is on: real Von at every level for the invaders and for the
+## scripted and the rest of the AI is on: recorded Von at every level for the invaders and for the
 ## defender once its order ends.
 ##
 ## Required first (a set-up finding otherwise): both invaders claim slots at that doorway, the

@@ -7,7 +7,7 @@ extends GameTest
 ## rally's) and neither NPC goes in on the join. The new leader's next claim of its own then rallies
 ## the other, which holds no order (D24: the cancel freed it).
 ##
-## Real Von, the whole pipeline; no switch. Premise: nobody but the human is ever killed.
+## Recorded Von, the whole pipeline; no switch. Premise: nobody but the human is ever killed.
 
 const Rally := preload("res://tests/_ai/rally_probe.gd")
 const Follow := preload("res://tests/_ai/follow_probe.gd")

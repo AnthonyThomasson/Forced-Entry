@@ -6,7 +6,7 @@ extends GameTest
 ## call until the stun goes off, the human keeps its slot in its view and radios no `abort`: the
 ## stack it stands in is still forming, its only other member at the bang.
 ##
-## The whole AI pipeline with the real Von server; the human is a puppet with the invader faction,
+## The whole AI pipeline with recorded Von answers; the human is a puppet with the invader faction,
 ## given the stack radio and its squad the way a match gives them (`MatchBuilder.bind_player` and
 ## `bind_squad`, through `s.squads`), leading the squad. The AI carries one stun (armed as Main arms
 ## a loadout): the premise of a stun entry.

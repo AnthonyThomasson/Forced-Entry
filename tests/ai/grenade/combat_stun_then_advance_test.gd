@@ -1,8 +1,8 @@
 extends GameTest
 ## G17: an invader with only a stun grenade, a hostile hidden from its line of fire behind a sofa in
 ## a hall, flashes it and then closes in while it is blind: after a stun the tree naturally goes on
-## to ADVANCE or ENGAGE. The whole pipeline runs, real Von at every level. A `require` that the AI
-## took the GRENADE path comes first, so a different Von choice reads as a set-up finding.
+## to ADVANCE or ENGAGE. The whole pipeline runs, recorded Von at every level. A `require` that the
+## AI took the GRENADE path comes first, so a different Von choice reads as a set-up finding.
 ##
 ## The sofa stands against one wall of the hall and leaves a lane along the other, so the hostile
 ## can be reached and shot once it is passed. The hall is 140 px deep so that the lane is walkable

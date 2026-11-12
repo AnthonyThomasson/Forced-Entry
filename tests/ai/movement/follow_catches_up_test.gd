@@ -15,8 +15,9 @@ extends GameTest
 ## back because a plain pause does not do it: the NPC then sets off a step behind its leader and
 ## stays within `FOLLOW_STEP` of its spot, so it never runs.
 ##
-## Real Von, the whole pipeline; no switch. Nobody is hostile, so the follower has nothing to shoot
-## and puts no question to Von. The teammate is a puppet the test puts down and takes away.
+## The whole pipeline, no switch and no Von recording. Nobody is hostile, so the follower has
+## nothing to shoot and puts no question to Von (the test checks it asked none). The teammate is a
+## puppet the test puts down and takes away.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
@@ -62,8 +63,7 @@ func describe() -> Dictionary:
 			+ "back: its NPC follower, starting far behind, runs to catch up and keeps running "
 			+ "until it is back within SquadFollowConfig.caught_up of its spot, through a "
 			+ "teammate stepping into its way, and again after the pause.",
-		"tags": ["ai", "movement", "squad", "follow", "leadership", "run", "von"],
-		"requires_von": true,
+		"tags": ["ai", "movement", "squad", "follow", "leadership", "run"],
 		"timeout": 70.0,
 	}
 

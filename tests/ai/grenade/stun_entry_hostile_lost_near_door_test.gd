@@ -6,11 +6,11 @@ extends GameTest
 ## near the doorway and heading for it (it then goes in and hides in the kitchen's south-east
 ## corner, out of sight of the garden). The invader's first decision made with it lost is STUN ENTRY
 ## into the kitchen (alone, it is its own thrower), not an investigation of where it was last seen
-## or heading, nor the quiet ENTER. Real Von (whatever it does about the householder while it sees
-## it); a `require` that the householder was last seen outside the kitchen, near its doorway (so
-## this is not the "seen going in" case already built), and that the invader went for the kitchen by
-## its back door, comes before the check. A lone invader, so no teammate's radio of the same fight
-## is a lead of its own to weigh.
+## or heading, nor the quiet ENTER. Recorded Von (whatever it does about the householder while it
+## sees it); a `require` that the householder was last seen outside the kitchen, near its doorway
+## (so this is not the "seen going in" case already built), and that the invader went for the
+## kitchen by its back door, comes before the check. A lone invader, so no teammate's radio of the
+## same fight is a lead of its own to weigh.
 ##
 ## Premises: the householder is a puppet (unkillable, it never shoots) on a set walk; the wardrobe
 ## is the prop that loses it: it blocks the sight lines from the invader's corner of the garden to

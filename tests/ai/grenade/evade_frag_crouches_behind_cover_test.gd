@@ -5,7 +5,7 @@ extends GameTest
 ## 300 px off, by the living-room door); a hostile invader at the far end throws a frag that lands
 ## beside it (aimed 30 px past the defender: the burst comes to rest about 455 px along the hall).
 ## The couch is nearer, so the defender goes behind it and crouches, and is out of the blast. The
-## whole pipeline runs (real Von, vision, hearing, the radio, the fight with the thrower).
+## whole pipeline runs (recorded Von, vision, hearing, the radio, the fight with the thrower).
 ##
 ## The set-up keeps the shadow spot behind the couch (about x 262) well inside the blast radius,
 ## about 195 px from the burst (a 55 px margin), so the premise check below holds whatever the

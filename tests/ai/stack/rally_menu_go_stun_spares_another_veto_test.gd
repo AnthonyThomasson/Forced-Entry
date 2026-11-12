@@ -6,7 +6,8 @@ extends GameTest
 ## with stun": that claim is no joiner's, so it vetoes nothing; a stun goes off in the kitchen
 ## before any AI crosses, then both AIs go in.
 ##
-## Real Von, the whole pipeline; no switch. Each NPC carries one stun, as a match arms an invader.
+## Recorded Von, the whole pipeline; no switch. Each NPC carries one stun, as a match arms an
+## invader.
 
 const Rally := preload("res://tests/_ai/rally_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

@@ -5,7 +5,7 @@ extends GameTest
 ## carries the side), so each stands on its own side of the door and neither walks through its view
 ## before the entry. Each side's front man slices its own half of the pie; the point (the first
 ## claimer) crosses to the corner on the far side, and the other side's front man, after the point's
-## `in`, to the opposite corner. Real Von: both invaders decide for themselves; a `require` that
+## `in`, to the opposite corner. Recorded Von: both invaders decide for themselves; a `require` that
 ## both claimed the back door comes first, so a different Von choice reads as a set-up finding.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")

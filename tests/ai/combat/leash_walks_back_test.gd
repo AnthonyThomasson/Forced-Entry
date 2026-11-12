@@ -6,7 +6,7 @@ extends GameTest
 ## fights a household target in plain sight. Then the leader runs away down the hall, far past 1.3
 ## leashes. The NPC walks back to it: it comes within the leash of its leader again.
 ##
-## Real Von, the whole pipeline; no switch. Premises: the target and the leader are never killed
+## Recorded Von, the whole pipeline; no switch. Premises: the target and the leader are never killed
 ## (`max_health`), and the target, a puppet, never shoots.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
