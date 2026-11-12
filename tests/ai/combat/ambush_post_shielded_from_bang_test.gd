@@ -24,7 +24,7 @@ extends GameTest
 ## post, and the navmesh keeps every post 24 px clear of a piece's face, so a piece shields a post
 ## from a stun only on lines nearly along its face's normal; no post here has that on every
 ## landing's line (a wall would). A stun entry against a shielded ambusher is
-## `ambush_survives_stun_entry` (real Von).
+## `ambush_survives_stun_entry` (recorded Von).
 ## Scripted Von (the order is taken without asking); nobody fights.
 
 const Order := preload("res://tests/_ai/order_probe.gd")

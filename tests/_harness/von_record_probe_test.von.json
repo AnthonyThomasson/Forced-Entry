@@ -1,0 +1,18 @@
+{
+	"version": 1,
+	"entries": [
+		{
+			"state": "You are in the kitchen.",
+			"question": "What do you do?",
+			"options": [
+				"hide behind the table",
+				"shoot the intruder"
+			],
+			"pick": "hide",
+			"probabilities": {
+				"hide": 0.7,
+				"shoot": 0.3
+			}
+		}
+	]
+}

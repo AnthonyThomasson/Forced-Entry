@@ -16,8 +16,8 @@ extends GameTest
 ## placed the invader) may instead, in contact as it takes the order up, end it `done` at once
 ## (D18).
 ##
-## Real Von, the whole pipeline. Required first (set-up findings otherwise): the radio places the
-## invader, and the leader is still in the living room on the frame it orders. Premise: the
+## Recorded Von, the whole pipeline. Required first (set-up findings otherwise): the radio places
+## the invader, and the leader is still in the living room on the frame it orders. Premise: the
 ## defenders are unkillable (no death moves the lead), so the fight ends with the invader's.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -133,7 +133,9 @@ func _sightings(t: TestContext, crew: Array) -> Array:
 	return t.events_of(&"callout", func(c): return (
 		crew.has(c.get("speaker"))
 		and String(c.get("path", "")).begins_with("combat")
-		and c.get("target_pos", Vector2.INF) is Vector2
+		# null, not INF: an INF default passes `is`, and `c["target_pos"]` then errors on a callout
+		# without one
+		and c.get("target_pos", null) is Vector2
 		and (c["target_pos"] as Vector2).is_finite()
 	))
 

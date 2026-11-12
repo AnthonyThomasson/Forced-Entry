@@ -1,0 +1,54 @@
+{
+	"entries": [
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the north-west — unexplored — short route)",
+				"A doorway leads into a room where a hostile was heard, seen, radioed or shooting from (the doorway to the north-west — unexplored — short route)",
+				"an unexplored part of the house to the north — medium route",
+				"an unexplored part of the house to the north-east — long route"
+			],
+			"pick": "enter",
+			"probabilities": {
+				"enter": 0.3819,
+				"explore_north": 0.1639,
+				"explore_north_east": 0.1682,
+				"stun_entry": 0.286
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your SMG.\nYou are outside the house, holding a SMG. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the north-east — unexplored — short route)",
+				"A doorway leads into a room where a hostile was heard, seen, radioed or shooting from (the doorway to the north-east — unexplored — short route)",
+				"an unexplored part of the house to the east — medium route"
+			],
+			"pick": "enter",
+			"probabilities": {
+				"enter": 0.4003,
+				"explore_east": 0.3015,
+				"stun_entry": 0.2982
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your SMG.\nYou are in the security vestibule, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the north-west (waiting, for 19s).\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the east — unexplored — short route)",
+				"A doorway leads into a room where a hostile was heard, seen, radioed or shooting from (the doorway to the east — unexplored — short route)",
+				"an unexplored part of the house to the east — long route",
+				"the security vestibule — searched a while ago — short route"
+			],
+			"pick": "explore_east",
+			"probabilities": {
+				"enter": 0.3005,
+				"explore_east": 0.3496,
+				"room_security_vestibule": 0.1308,
+				"stun_entry": 0.2191
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your SMG.\nYou are in the living room, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the north-east (waiting, for 36s).\nDecided so far: SEARCH."
+		}
+	],
+	"version": 1
+}

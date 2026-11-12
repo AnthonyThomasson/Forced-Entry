@@ -1,0 +1,31 @@
+{
+	"version": 1,
+	"entries": [
+		{
+			"state": "You are in the kitchen.",
+			"question": "What do you do?",
+			"options": [
+				"hide behind the table",
+				"shoot the intruder"
+			],
+			"pick": "b",
+			"probabilities": {
+				"a": 0.3,
+				"b": 0.7
+			}
+		},
+		{
+			"state": "Two intruders are in view.",
+			"question": "Who do you fight first?",
+			"options": [
+				"Dana, close, in the open",
+				"Rob, far, behind a door"
+			],
+			"pick": "t_1",
+			"probabilities": {
+				"t_0": 0.3,
+				"t_1": 0.7
+			}
+		}
+	]
+}

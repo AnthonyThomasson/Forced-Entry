@@ -154,8 +154,9 @@ func _topic_row(parent: TreeItem, category: String, key: String) -> TreeItem:
 	return c
 
 
-## Test `t`'s row under `parent`: its last result's mark, name and "[Von]", coloured by that result
-## (a script error red); a checkbox unless it has a script error.
+## Test `t`'s row under `parent`: its last result's mark, name and how its Von decisions are
+## answered ("[Von replay]", "[Von live-only]", from the descriptor's `von_mode`), coloured by that
+## result (a script error red); a checkbox unless it has a script error.
 func _test_row(parent: TreeItem, t: Dictionary) -> TreeItem:
 	var item := create_item(parent)
 	if t.get("error", "") == "":
@@ -165,7 +166,9 @@ func _test_row(parent: TreeItem, t: Dictionary) -> TreeItem:
 	var status: String = results.get(t["id"], "")
 	var mark: String = STATUS_MARKS.get(status, " ")
 	var suffix := ""
-	if t.get("requires_von", false):
+	if t.get("von_mode", "") != "":
+		suffix += "  [Von %s]" % t["von_mode"]
+	elif t.get("requires_von", false):
 		suffix += "  [Von]"
 	item.set_text(0, "%s  %s%s" % [mark, t["name"], suffix])
 	if RESULT_HUD.STATUS_COLORS.has(status):

@@ -2,7 +2,7 @@ extends GameTest
 ## G18 as amended (issue #51, R6): footsteps heard in a room make it suspect, as gunfire heard there
 ## does. The stack of two invaders, both carrying a stun, in the back garden by the kitchen's back
 ## door hears someone walking about the kitchen's north-east corner, behind the wall and out of
-## their sight: it goes in by STUN ENTRY, not the quiet ENTER. The whole pipeline runs with real
+## their sight: it goes in by STUN ENTRY, not the quiet ENTER. The whole pipeline runs with recorded
 ## Von; a `require` that the stack went for the kitchen by its back door comes first.
 ## (`quiet_entry_unsuspected_room` is the control: nothing heard, ENTER.)
 ##

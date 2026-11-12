@@ -133,8 +133,8 @@ done
   `ERROR:`.
 - **Tests:** `tools/run_tests.sh --changed="$BASE" --summary`: the branch's commits, working tree and untracked files, and
   the tests of a doc paragraph it changed (`domain-testing` (`runner-flags-changed.md`)); a change that runs everything shards over the free Godot slots by
-  itself. Scripted-Von tests cover AI without a server; `--include-von` adds live-server
-  ones. Report the totals line and every FAIL / TIMEOUT with its ✗ lines. Changed behaviour with no test in
+  itself. Von tests replay their recordings (no server); a FAIL naming `--record-von` is a stale recording to refresh, and
+  `--require-von` runs them live. Report the totals line and every FAIL / TIMEOUT with its ✗ lines. Changed behaviour with no test in
   `tests/<domain>/` covering it is a finding (`domain-testing`). Each test whose checks (what it measures, a band, a
   threshold) the diff changes is compared against the ticket brief's acceptance criteria; one that checks something other
   than its criterion says is a finding.

@@ -1,0 +1,20 @@
+{
+	"entries": [
+		{
+			"options": [
+				"You have a clear shot at attacker, and you are not badly wounded (from where you stand)",
+				"Your line to attacker is blocked, or they are aiming at someone else (2 free sides; best: their left side via the arena, medium exposed route, in the open)",
+				"attacker looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Pistol)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.3712,
+				"engage": 0.372,
+				"flank": 0.2568
+			},
+			"question": "How should you fight attacker? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the arena, inside the house, holding a Pistol. You are hurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - LOCATE - toward the shots (en route, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at attacker from where you stand. You are exposed to their fire. They are aiming at you.\nattacker — HOSTILE (attacked you) — in sight — in pistol range, west of you, in the arena — standing still — aiming at you — holding a Pistol.\nFlanks on attacker (you are on their front): their left side — free, clear shot, in the open, medium exposed route; their right side — free, clear shot, in the open, medium exposed route; behind them — route passes attacker, clear shot, cover, medium exposed route.\nYou are being hit, from the west!\nDecided so far: COMBAT → attacker."
+		}
+	],
+	"version": 1
+}

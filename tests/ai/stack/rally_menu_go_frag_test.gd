@@ -5,8 +5,8 @@ extends GameTest
 ## (aimed per D16): a frag goes off in the kitchen before any AI crosses, and no stun is thrown;
 ## then both AIs go in, the human not waited for (it never steps in).
 ##
-## Real Von, the whole pipeline; no switch. Each NPC carries one frag, as a match arms an invader.
-## The human (a puppet) is never killed.
+## Recorded Von, the whole pipeline; no switch. Each NPC carries one frag, as a match arms an
+## invader. The human (a puppet) is never killed.
 
 const Rally := preload("res://tests/_ai/rally_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

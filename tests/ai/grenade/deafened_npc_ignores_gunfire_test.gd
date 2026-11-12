@@ -1,8 +1,8 @@
 extends GameTest
 ## G15, deaf: a deafened NPC hears no gunfire, hits elsewhere or radio callouts. Two defenders in
 ## the terrace house hear a shot fired in the kitchen: the one that can hear goes to investigate
-## (the control), the one deafened by a bang remembers no gunfire and does not. Real Von; everything
-## else is on.
+## (the control), the one deafened by a bang remembers no gunfire and does not. Recorded Von;
+## everything else is on.
 ##
 ## Premises: the gunfire is one shot heard from the kitchen (a `hit` event with nobody known behind
 ## it, as tests/_ai/investigate_probe.gd posts it); the deafness is `take_stun(0, 8)` on one

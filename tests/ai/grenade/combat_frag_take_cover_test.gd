@@ -4,9 +4,9 @@ extends GameTest
 ## frag stands 230 px from a hostile that is hidden behind a couch and a desk filling a hall, so the
 ## blast would reach it, but it is already on the near side of that cover, which shields a crouched
 ## body (G7). It throws, radios frag out, crouches and holds the crouch until the bang, and is
-## unharmed by it; then it goes back to its gun. The whole pipeline runs, real Von at every level. A
-## `require` that the AI took the GRENADE path comes first, so a different Von choice reads as a
-## set-up finding.
+## unharmed by it; then it goes back to its gun. The whole pipeline runs, recorded Von at every
+## level. A `require` that the AI took the GRENADE path comes first, so a different Von choice reads
+## as a set-up finding.
 ##
 ## Premises: the hostile is a household *puppet* that cannot be killed and never shoots; the invader
 ## is armed with one frag here because the test world keeps the default inventory, the way Main arms
@@ -26,6 +26,11 @@ func describe() -> Dictionary:
 			+ "the bang, takes no blast, and is back on its gun afterwards.",
 		"tags": ["ai", "grenade", "combat", "cover", "von"],
 		"requires_von": true,
+		# A frag shoves rigid furniture, and the engine settles touching bodies in the order of the
+		# slots they were allocated in, which follows what the process ran before: the snapshot's
+		# wording at a band edge then differs from the recording's. A fresh process plays it as it
+		# was recorded.
+		"own_process": true,
 		"timeout": 100.0,
 	}
 

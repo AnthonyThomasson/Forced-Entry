@@ -8,8 +8,9 @@ extends GameTest
 ## the NPC's walk to its new spot passes through the walker's course, crossed again in front of it,
 ## and it gives way as before.
 ##
-## Real Von, the whole pipeline; the leader and the walker are puppets moved by the test (the leader
-## put down at its second place, the walker at the start of each crossing). Nobody is hostile.
+## Recorded Von, the whole pipeline; the leader and the walker are puppets moved by the test (the
+## leader put down at its second place, the walker at the start of each crossing). Nobody is
+## hostile.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const HALL := Rect2(0, 0, 2000, 900)

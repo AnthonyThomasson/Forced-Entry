@@ -5,15 +5,15 @@ The header lists every flag; this file holds the rules and the reasons behind th
 - **Per-run output dir:** every process gets a fresh `mktemp -d` (`--log-file <dir>/godot.log`, `--out=<dir>`). The
   report, failure bundles, shots, gdUnit's reports (`gdunit/`) and its console (`gdunit.txt`) go there, and `LogWatch`
   follows that `godot.log` (`test_batch.gd` derives it from `--out`), so concurrent runs and a game played meanwhile never
-  share a log (the shared `user://logs/godot.log` is written by every start and never read: `log-gate.md`) or overwrite a report. A run without `--out` (the editor's GdUnit panel) writes no `report.json` and keeps
-  bundles in `user://test_failures/`.
+  share a log (the shared `user://logs/godot.log` is written by every start and never read: `log-gate.md`) or overwrite a
+  report. A run without `--out` (the GdUnit panel) writes no `report.json` and keeps bundles in `user://test_failures/`.
 - **Jobs:** the whole suite runs on `--jobs=auto`; any selection (words, `--id`, `--domain`, `--failed`, `--repeat`) runs
   one process, since a process costs about 3 s to start and filter words load every test script to match (about 10 s
   more). `--jobs` never starts more processes than the `--id` list has ids, and is not used with
-  `--list` / `--self-test`; `--windowed`, and `--shots` without `--jobs`, run in one process (the `_a` / `_b` restore pairs need one process in id order).
+  `--list` / `--self-test`; `--windowed`, and `--shots` without `--jobs`, run in one process (`_a` / `_b` restore pairs).
 - **Shards are balanced by measured cost:** the wrapper keeps each test's wall-clock ms in
   `$TMPDIR/example_godot_costs_<checkout hash>.json` (rewritten after all shards finish; none yet: the declared
-  `timeout`; an unmeasured id: the median) and passes `--costs=<file>`. Von tests and native suites stay in shard 0.
+  `timeout`; an unmeasured id: the median) and passes `--costs=<file>`. A live Von test and the native suites stay in shard 0; a replayed one is dealt by cost.
 - **The Godot slot pool:** every godot test process the wrapper starts (shard, perf phase, `--repeat` native rerun,
   `--base`, `--list`, `--self-test`, the first import) holds one of `max(1, cores / 2)` machine-wide slots (lock files
   `slot<i>.lock` in `$TMPDIR/forced-entry-godot-slots`, `GAME_TEST_SLOT_DIR` names another). `tools/godot_slot.py`
@@ -35,10 +35,31 @@ The header lists every flag; this file holds the rules and the reasons behind th
   one only if a `--list <words> --domain=perf` engine start lists a perf test. After `MINUTES` (default `timeout_min`) it
   runs anyway and marks that process's results `loaded`: a `loaded` result is no evidence of a regression. An unreadable
   `perf_quiet.conf` ends the run with exit 2. The wrapper appends `(load <x>, <n> busy Godot)` to every `PERF` line.
-- **The Von run for a change to the AI:** a change under `scenes/ai/` or `scenes/testing/` runs
-  `tools/run_tests.sh --domain=ai --require-von --summary` once, whatever its labels, because every other run skips
-  `requires_von` tests. The totals line names the skips (`N skipped (V need Von, not run: --require-von)`) and
-  `--changed` ends with `NOTE <n> Von test(s) in the changed domains were not run` when it skipped some.
+- **Von tests:** a `requires_von` test runs in every normal run (`--changed`, the pre-commit hook, `--base`) from `<name>_test.von.json` beside it (`VonRecording`, keyed as `domain-ai` (`decision-von.md`) says). Each answer lands 12 physics frames after its ask in replay, live and
+  record alike. No server or pacing; sharded as any test. An ask the recording lacks, or
+  a missing or unreadable file, FAILs naming the question and `tools/run_tests.sh --record-von --id=<id>` (a snapshot or
+  question wording change stales recordings): run it against a live Von on :8000 and commit the diff.
+  - `--record-von` runs the selected Von tests live and writes each passing test's recording whole (unused entries drop);
+    FAILs with no server, like `--require-von`. `--include-von` / `--require-von` run live and touch no recording. Live
+    and record runs are paced in real time, in shard 0.
+  - **Live-only** (`"live_only": true`, with `requires_von`): tests of the transport or the gate
+    (`ai/decision/von_request_across_pause`, `_harness/von_probe`) and one a replay cannot reproduce,
+    `ai/investigate/defenders_stay_in_house_quiet_von` (a 40 s generated-house fight a replay moves by a hair).
+    They never replay and are skipped without a server (FAIL under `--require-von`).
+  - **Own process** (`"own_process": true`; a last resort and a debt: needs a follow-up ticket): the wrapper leaves
+    the test out of the shards (`--skip-own-process`; ids go to `<out>/own_process.txt`) and runs it after them in an
+    engine process of its own, once per `--repeat` (`--fail-fast` stops at the first failure), its report merged in. The
+    engine orders touching rigid bodies' contacts by allocation slots, which follow what the process ran before, so a
+    replay whose snapshot wording turns on such a piece at a band edge matches its recording only in a fresh process.
+    Only `ai/grenade/combat_frag_take_cover` has it; only `run_tests.sh` honours it (the browser, the GdUnit panel and
+    a direct batch run share a process).
+  - **When a live check is worth it:** a recording freezes Von's answers, so a replay cannot see a change that moves them.
+    After a change to the decision tree, to the options or criteria wording Von scores, to `NpcDecisionTuning` or to the Von
+    model or version, run `--require-von --domain=ai`, then `--record-von` to refresh what it staled and commit the diff.
+    A new test is recorded in its commit.
+  - The totals line counts the Von tests not run: `N skipped (V need Von, not run: --require-von)` (live-only, or a live
+    run with no server); `--changed` adds a `NOTE` naming `--domain=<d> --require-von`. `--record-von` skips a live-only
+    test. `--list` marks each `von:replay`, `von:live-only` or `von:unrecorded` (no file: it FAILs).
 - **`--base=<rev>`:** the working tree's tests against `<rev>`'s code, in a temporary `git worktree` under `$TMPDIR` that
   gets the working tree's `tests/` whole (`.uid` files and helper folders included). It is removed also on ^C or a kill
   of the wrapper (`tools/godot_slot.py stop` ends the engines first). The working tree is never written, no lint. Combinations

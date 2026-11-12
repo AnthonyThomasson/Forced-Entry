@@ -1,7 +1,7 @@
 # Grenade tests (tag `grenade`)
 
 The rules are `docs/grenades.md` (G1 to G19, each with its tests named under it); `tools/run_tests.sh grenade` runs them, the
-scenario tests with `--include-von --require-von`. They are spread by domain (`tests/items/`, `tests/projectile/`,
+scenario tests replay recorded Von (`--record-von` refreshes, `--require-von` runs live). They are spread by domain (`tests/items/`, `tests/projectile/`,
 `tests/physics/`, `tests/character/stun_*`, `audio/grenade_sounds`, `general/camera_shakes_on_explosion`,
 `ui/stun_screen_whiteout`) with the AI ones in `tests/ai/grenade/`.
 

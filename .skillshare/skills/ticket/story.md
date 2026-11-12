@@ -60,7 +60,8 @@ green line.
 
 New tests pass (`--repeat=10` if timing-dependent), then `tools/run_tests.sh --changed=origin/main --summary` (the work is
 committed, so a bare `--changed` finds nothing), then `tools/run_tests.sh --summary --jobs=auto`. A change under
-`scenes/ai/` or `scenes/testing/` also runs `tools/run_tests.sh --domain=ai --require-von` once, whatever its labels
-(`domain-testing` (`runner-flags.md`)). A touched per-frame path: `tools/run_tests.sh --domain=perf --quiet` (judge only a
+`scenes/ai/` or `scenes/testing/` needs no separate Von run: Von tests replay in every run, and a recording a wording or
+snapshot change staled FAILs naming `tools/run_tests.sh --record-von --id=<id>`, which refreshes it against a live Von
+(commit the `.von.json`); a recording freezes Von's answers, so after a change to the decision tree, to the options or criteria wording Von scores, to `NpcDecisionTuning` or to the Von model, run `--require-von --domain=ai` live, then `--record-von` to refresh (`domain-testing` (`runner-flags.md`)). A touched per-frame path: `tools/run_tests.sh --domain=perf --quiet` (judge only a
 result not marked `loaded`). An older test now failing is your regression until shown otherwise. Update every changed
 domain's skill, `architecture` for an interface, and the `docs/` spec if there is one. Then "Feedback gate" (`SKILL.md`).

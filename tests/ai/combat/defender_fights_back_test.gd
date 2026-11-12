@@ -1,6 +1,6 @@
 extends GameTest
 ## A puppet shoots at the defender NPC in an arena: being attacked makes it hostile, it enters
-## combat (its decision path starts with `combat`) and shoots back. Needs the Von decision server.
+## combat (its decision path starts with `combat`) and shoots back. It replays its Von recording.
 
 
 func describe() -> Dictionary:

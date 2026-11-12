@@ -9,9 +9,9 @@ extends GameTest
 ## the doorway: the invader walks there, throws the frag into the living room onto the householder
 ## from within range, and the blast catches it.
 ##
-## The whole pipeline runs with real Von. `require`s come first: the invader fought the householder
-## from the kitchen, and its first COMBAT decision against it was made from out of throw range (so
-## the offer, if any, was through a throw spot, not R7's in place).
+## The whole pipeline runs with recorded Von. `require`s come first: the invader fought the
+## householder from the kitchen, and its first COMBAT decision against it was made from out of throw
+## range (so the offer, if any, was through a throw spot, not R7's in place).
 ##
 ## Premises: the householder is a puppet that cannot be killed and never shoots (a defender that
 ## holds the room whatever is fired at it); the invader is armed with one frag at the start of

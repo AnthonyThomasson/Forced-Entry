@@ -1,0 +1,29 @@
+{
+	"entries": [
+		{
+			"options": [
+				"All is quiet and there are rooms left to search (find your way into the house and explore it)",
+				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: gunfire heard to the east, outside the house))"
+			],
+			"pick": "investigate",
+			"probabilities": {
+				"investigate": 0.659,
+				"search": 0.341
+			},
+			"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nThere is trouble nearby, out of your sight. Allies near you: none.\nNobody else is in sight or known.\nGunfire heard to the east, outside the house, just now."
+		},
+		{
+			"options": [
+				"gunfire heard to the east, outside the house — just now — long route"
+			],
+			"pick": "lead_gunfire_3_1",
+			"probabilities": {
+				"lead_gunfire_3_1": 1.0
+			},
+			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nNobody else is in sight or known.\nGunfire heard to the east, outside the house, just now.\nDecided so far: INVESTIGATE."
+		}
+	],
+	"version": 1
+}

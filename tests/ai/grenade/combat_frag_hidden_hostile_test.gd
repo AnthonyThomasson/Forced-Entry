@@ -2,7 +2,7 @@ extends GameTest
 ## G17, the GRENADE tactic: an invader that carries a frag and knows a hostile hidden from its line
 ## of fire (behind low cover that stops a bullet but not a lob), within throw range with a clear
 ## path, throws the frag onto its spot instead of shooting at the cover. The whole pipeline runs:
-## vision (it sees the hostile over the sofa), the snapshot, real Von at every level, the throw
+## vision (it sees the hostile over the sofa), the snapshot, recorded Von at every level, the throw
 ## primitive, the radio.
 ##
 ## The world is a bare hall with a sofa and a coffee table across it, wall to wall, so no firing

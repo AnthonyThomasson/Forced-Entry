@@ -1,0 +1,44 @@
+{
+	"entries": [
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the west — unexplored — short route)",
+				"an unexplored part of the house to the west — medium route"
+			],
+			"pick": "enter",
+			"probabilities": {
+				"enter": 0.6119,
+				"explore_west": 0.3881
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the doorway to the west — unexplored — long route",
+				"the doorway to the west — unexplored — short route"
+			],
+			"pick": "door_840_190",
+			"probabilities": {
+				"door_0_415": 0.3831,
+				"door_840_190": 0.6169
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH → ENTER."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)",
+				"You are being shot at by someone you cannot see (the shots came from the east)"
+			],
+			"pick": "locate",
+			"probabilities": {
+				"locate": 0.8476,
+				"retreat": 0.1524
+			},
+			"question": "How should you fight the hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: SEARCH - ENTER - the doorway to the west (slicing the pie, for 1s).\nSomeone you cannot see is shooting at you. Allies near you: trooper, sergeant.\nYou are being shot at by someone you cannot see, from the east; you are exposed to their fire.\nNobody else is in sight or known.\ntrooper (radio, just now): ORDER - the doorway into the kitchen.\nsergeant (radio, just now): ORDER - the doorway into the kitchen.\nYou are being hit, from the east!\nDecided so far: COMBAT."
+		}
+	],
+	"version": 1
+}

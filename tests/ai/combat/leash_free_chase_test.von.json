@@ -1,0 +1,161 @@
+{
+	"entries": [
+		{
+			"options": [
+				"You have a clear shot at target, and you are not badly wounded (from where you stand)",
+				"Your line to target is blocked, or they are aiming at someone else (2 free sides; best: their left side via the arena, short hidden route, in the open)",
+				"target looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Unarmed)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.2441,
+				"engage": 0.5465,
+				"flank": 0.2094
+			},
+			"question": "How should you fight target? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the arena, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at target from where you stand. You are exposed to their fire.\ntarget — HOSTILE (seen) — in sight — in pistol range, east of you, in the arena — standing still — facing away from you — holding a Unarmed.\nFlanks on target (you are on behind them): their left side — free, clear shot, in the open, short hidden route; their right side — free, clear shot, in the open, short hidden route.\nDecided so far: COMBAT → target."
+		},
+		{
+			"options": [
+				"fire from the arena, north-west of them — clear shot — in the open — short exposed route",
+				"fire from the arena, south-west of them — clear shot — in the open — short exposed route",
+				"fire from the arena, west of them — clear shot — in the open — short exposed route",
+				"fire from where you stand (in the arena) — clear shot — in the open"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"fire_here": 0.3055,
+				"fire_north_west": 0.2384,
+				"fire_south_west": 0.2346,
+				"fire_west": 0.2215
+			},
+			"question": "Where should you fight target from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour pistol is loaded.\nYou have a clear shot at target from where you stand. You are exposed to their fire.\ntarget — HOSTILE (seen) — in sight — in pistol range, east of you, in the arena — standing still — facing away from you — holding a Unarmed.\nDecided so far: COMBAT → target → ENGAGE."
+		},
+		{
+			"options": [
+				"You have a clear shot at target, and you are not badly wounded (from the arena, west of them; they look hurt) (your current plan)",
+				"Your line to target is blocked, or they are aiming at someone else (2 free sides; best: their left side via the arena, medium hidden route, in the open)",
+				"target looks badly wounded, is unarmed, or is moving away from you (they are too far to shoot, moving east, away from you, holding a Unarmed, looks hurt)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.3828,
+				"engage": 0.3195,
+				"flank": 0.2976
+			},
+			"question": "How should you fight target? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the arena, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - target - ENGAGE - where you stand (in position, looking for a shot, for 3s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\ntarget is too far to shoot. They can see you.\ntarget — HOSTILE (seen) — in sight — too far to shoot, east of you, in the arena — moving east, away from you — facing away from you — holding a Unarmed — looks hurt.\nFlanks on target (you are on behind them): their left side — free, clear shot, in the open, medium hidden route; their right side — free, clear shot, in the open, medium hidden route.\nDecided so far: COMBAT → target."
+		},
+		{
+			"options": [
+				"advance halfway to them (in the arena) — in the open — clear shot from there",
+				"advance most of the way to them (in the arena) — in the open — clear shot from there",
+				"rush straight at where they are (in the arena) — medium exposed route — they hold a Unarmed"
+			],
+			"pick": "advance_close",
+			"probabilities": {
+				"advance_close": 0.3792,
+				"advance_half": 0.3315,
+				"rush": 0.2892
+			},
+			"question": "How should you close in on target? Prefer cover close to them and a hidden route; rush only when they are weak, fleeing or unarmed.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: COMBAT - target - ENGAGE - where you stand (in position, looking for a shot, for 3s).\nYour pistol is loaded.\ntarget is too far to shoot. They can see you.\ntarget — HOSTILE (seen) — in sight — too far to shoot, east of you, in the arena — moving east, away from you — facing away from you — holding a Unarmed — looks hurt.\nDecided so far: COMBAT → target → ADVANCE."
+		},
+		{
+			"options": [
+				"You have a clear shot at target, and you are not badly wounded (from the arena, west of them; they look hurt)",
+				"Your line to target is blocked, or they are aiming at someone else (2 free sides; best: their left side via the arena, medium hidden route, in the open)",
+				"target looks badly wounded, is unarmed, or is moving away from you (they are too far to shoot, moving east, away from you, holding a Unarmed, looks hurt)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.3445,
+				"engage": 0.38,
+				"flank": 0.2755
+			},
+			"question": "How should you fight target? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the arena, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - target - ADVANCE - close to them (reached it, for 2s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\ntarget is too far to shoot. They can see you.\ntarget — HOSTILE (seen) — in sight — too far to shoot, east of you, in the arena — moving east, away from you — facing away from you — holding a Unarmed — looks hurt.\nFlanks on target (you are on behind them): their left side — free, clear shot, in the open, medium hidden route; their right side — free, clear shot, in the open, medium hidden route.\nDecided so far: COMBAT → target."
+		},
+		{
+			"options": [
+				"fire from the arena, north-west of them — clear shot — in the open — short exposed route",
+				"fire from the arena, south of them — clear shot — in the open — medium exposed route",
+				"fire from the arena, south-west of them — clear shot — in the open — short exposed route",
+				"fire from the arena, west of them — clear shot — in the open — short exposed route"
+			],
+			"pick": "fire_south_west",
+			"probabilities": {
+				"fire_north_west": 0.2535,
+				"fire_south": 0.2504,
+				"fire_south_west": 0.2548,
+				"fire_west": 0.2413
+			},
+			"question": "Where should you fight target from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: COMBAT - target - ADVANCE - close to them (reached it, for 2s).\nYour pistol is loaded.\ntarget is too far to shoot. They can see you.\ntarget — HOSTILE (seen) — in sight — too far to shoot, east of you, in the arena — moving east, away from you — facing away from you — holding a Unarmed — looks hurt.\nDecided so far: COMBAT → target → ENGAGE."
+		},
+		{
+			"options": [
+				"You have a clear shot at target, and you are not badly wounded (from where you stand; they look badly wounded) (your current plan)",
+				"Your line to target is blocked, or they are aiming at someone else (2 free sides; best: their left side via the arena, medium hidden route, in the open)",
+				"Your pistol is nearly empty or empty, and you carry spare magazines",
+				"target looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Unarmed, looks badly wounded)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.5157,
+				"engage": 0.1751,
+				"flank": 0.1142,
+				"reload": 0.1949
+			},
+			"question": "How should you fight target? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the arena, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - target - ENGAGE - the arena, south-west of them (in position, ducking behind cover, for 5s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at target from where you stand. You are exposed to their fire.\ntarget — HOSTILE (seen) — in sight — in pistol range, east of you, in the arena — standing still — facing away from you — holding a Unarmed — looks badly wounded.\nFlanks on target (you are on behind them): their left side — free, clear shot, in the open, medium hidden route; their right side — free, clear shot, in the open, medium hidden route.\nDecided so far: COMBAT → target."
+		},
+		{
+			"options": [
+				"advance halfway to them (in the arena) — in the open — clear shot from there",
+				"advance most of the way to them (in the arena) — in the open — clear shot from there",
+				"rush straight at where they are (in the arena) — medium exposed route — they hold a Unarmed"
+			],
+			"pick": "advance_close",
+			"probabilities": {
+				"advance_close": 0.366,
+				"advance_half": 0.3381,
+				"rush": 0.2958
+			},
+			"question": "How should you close in on target? Prefer cover close to them and a hidden route; rush only when they are weak, fleeing or unarmed.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: COMBAT - target - ENGAGE - the arena, south-west of them (in position, ducking behind cover, for 5s).\nYour pistol is nearly empty. You carry spare magazines.\nYou have a clear shot at target from where you stand. You are exposed to their fire.\ntarget — HOSTILE (seen) — in sight — in pistol range, east of you, in the arena — standing still — facing away from you — holding a Unarmed — looks badly wounded.\nDecided so far: COMBAT → target → ADVANCE."
+		},
+		{
+			"options": [
+				"target is point-blank, right next to you (they are point-blank and hold a Unarmed)",
+				"target looks badly wounded, is unarmed, or is moving away from you (they are point-blank, standing still, holding a Unarmed, looks badly wounded)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.6713,
+				"melee": 0.3287
+			},
+			"question": "How should you fight target? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the arena, inside the house, holding a Pistol. You are unhurt.\nYou are reloading your pistol.\nCurrent activity: COMBAT - target - ADVANCE - rush them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at target from where you stand. You are exposed to their fire.\ntarget — HOSTILE (seen) — in sight — point-blank, east of you, in the arena — standing still — facing away from you — holding a Unarmed — looks badly wounded.\nFlanks on target (you are on their right side): their left side — route passes target, clear shot, in the open, short hidden route; behind them — free, clear shot, in the open, short hidden route.\nDecided so far: COMBAT → target."
+		},
+		{
+			"options": [
+				"You have a clear shot at target, and you are not badly wounded (from where you stand; they look badly wounded)",
+				"Your line to target is blocked, or they are aiming at someone else (1 free side; best: behind them via the arena, short hidden route, in the open)",
+				"target is point-blank, right next to you (they are point-blank and hold a Unarmed)",
+				"target looks badly wounded, is unarmed, or is moving away from you (they are point-blank, standing still, holding a Unarmed, looks badly wounded)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.4443,
+				"engage": 0.2758,
+				"flank": 0.116,
+				"melee": 0.1639
+			},
+			"question": "How should you fight target? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the arena, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - target - ADVANCE - rush them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at target from where you stand. You are exposed to their fire.\ntarget — HOSTILE (seen) — in sight — point-blank, east of you, in the arena — standing still — facing away from you — holding a Unarmed — looks badly wounded.\nFlanks on target (you are on their right side): their left side — route passes target, clear shot, in the open, short hidden route; behind them — free, clear shot, in the open, short hidden route.\nDecided so far: COMBAT → target."
+		}
+	],
+	"version": 1
+}

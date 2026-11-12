@@ -1,0 +1,44 @@
+{
+	"entries": [
+		{
+			"options": [
+				"the doorway to the east — unexplored — medium route",
+				"the doorway to the east — unexplored — short route",
+				"the doorway to the north-east — unexplored — short route"
+			],
+			"pick": "door_450_200",
+			"probabilities": {
+				"door_150_200": 0.3911,
+				"door_450_200": 0.4197,
+				"door_750_200": 0.1892
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH → ENTER."
+		},
+		{
+			"options": [
+				"All is quiet and there are rooms left to search (0 of 2 known rooms unsearched)",
+				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: gunfire heard to the east, in the kitchen))"
+			],
+			"pick": "investigate",
+			"probabilities": {
+				"investigate": 0.6042,
+				"search": 0.3958
+			},
+			"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the home office, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: SEARCH - ENTER - the doorway to the east (waiting, for 11s).\nThere is trouble nearby, out of your sight. Allies near you: none.\nNobody else is in sight or known."
+		},
+		{
+			"options": [
+				"gunfire heard to the east, in the kitchen — a while ago — medium route"
+			],
+			"pick": "lead_gunfire_3_0",
+			"probabilities": {
+				"lead_gunfire_3_0": 1.0
+			},
+			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the home office, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the east (waiting, for 11s).\nNobody else is in sight or known.\nDecided so far: INVESTIGATE."
+		}
+	],
+	"version": 1
+}

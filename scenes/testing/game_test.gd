@@ -13,7 +13,15 @@ class_name GameTest extends RefCounted
 ##   description: String   — longer text for the browser's details pane
 ##   tags: Array[String]   — extra search terms
 ##   timeout: float        — sim seconds before the test is stopped as TIMEOUT (default 10)
-##   requires_von: bool    — needs a live Von decision server; SKIPPED without one (default false)
+##   requires_von: bool    — its decisions come from Von: a normal run replays its recording
+##                           (`<name>_test.von.json` beside it, no server); `--record-von` writes
+##                           it; `--include-von` / `--require-von` run it live (default false)
+##   live_only: bool       — with requires_von: never replayed, always against the real server and
+##                           the real client (the HTTP transport itself, or a fight no replay
+##                           reproduces); SKIPPED without one (default false)
+##   own_process: bool     — a last resort: the runner plays it in an engine process of its own,
+##                           after the shards (the engine's contact order follows what the process
+##                           ran before; `runner-flags.md`) (default false)
 ##   (sandboxes — `res://sandboxes/*_sandbox.gd`, same base class — are played by hand: no
 ##   assertions, no timeout, never in a batch run) internal: bool        — a harness self-test:
 ##                           hidden from the browser and normal runs, run by

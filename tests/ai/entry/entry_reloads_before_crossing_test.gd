@@ -1,8 +1,8 @@
 extends GameTest
 ## E11: an entrant crosses with a topped-off gun. Its magazine is part spent (7 of 12, above the
 ## band Von calls low, so nothing but the entry itself has a reason to reload): the swap happens
-## while it is stacked, the one lull, and never in the threshold. Real Von: the invader stands in
-## the back garden and decides for itself how to get into the kitchen.
+## while it is stacked, the one lull, and never in the threshold. Recorded Von: the invader stands
+## in the back garden and decides for itself how to get into the kitchen.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")

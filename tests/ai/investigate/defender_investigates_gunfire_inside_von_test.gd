@@ -1,7 +1,7 @@
 extends GameTest
 ## Control for defender_stays_in_house_von: the same defender, the same gunfire, but heard INSIDE
 ## the house (in the kitchen). It still investigates, so the outside case above is Von weighing
-## where the gunfire is, not Von never investigating. Needs the Von decision server.
+## where the gunfire is, not Von never investigating. It replays its Von recording.
 
 const Probe := preload("res://tests/_ai/investigate_probe.gd")
 

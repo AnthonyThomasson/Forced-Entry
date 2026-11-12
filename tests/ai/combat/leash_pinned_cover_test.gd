@@ -6,9 +6,9 @@ extends GameTest
 ## retreats, the advances and flanks toward the gunman): it fights from cover within the leash (the
 ## sofa) or follows, and never stands farther than the leash (and a body's give) from its leader.
 ##
-## Real Von, the whole pipeline; no switch. Premises: nobody is killed (`max_health`), the gunman (a
-## puppet) keeps firing at the NPC, and every round flies at a pinned height (`projectile.flyover`
-## off: a shot that arrives lands, as in `posture_pinned_crouch`).
+## Recorded Von, the whole pipeline; no switch. Premises: nobody is killed (`max_health`), the
+## gunman (a puppet) keeps firing at the NPC, and every round flies at a pinned height
+## (`projectile.flyover` off: a shot that arrives lands, as in `posture_pinned_crouch`).
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

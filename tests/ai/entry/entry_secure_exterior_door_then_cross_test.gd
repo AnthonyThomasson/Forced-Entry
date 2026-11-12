@@ -5,8 +5,8 @@ extends GameTest
 ## as inside. The invader stands in the garden west of the Terrace house's living room and
 ## gunfire is heard in the garden south-west of the hall; the only short way there runs down the
 ## west side, across the view out of the front door; round the house's east side is more than twice
-## as far, past the cap. Real Von: the invader hears the shots and decides for itself; a `require`
-## that it went to the gunfire without going in comes first.
+## as far, past the cap. Recorded Von: the invader hears the shots and decides for itself; a
+## `require` that it went to the gunfire without going in comes first.
 ##
 ## Premise: the gunfire is one shot heard in the south-west garden (a `hit` event nobody known
 ## fired, as tests/_ai/investigate_probe.gd posts it), first thing in `run`, the frame the invader

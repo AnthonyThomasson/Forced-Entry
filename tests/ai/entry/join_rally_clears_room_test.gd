@@ -6,8 +6,8 @@ extends GameTest
 ## with mode `join` to both others, on that doorway. All three cross as one stack and the room is
 ## cleared.
 ##
-## Real Von, the whole pipeline; no switch. The premise is the leader's own claim: what doorway it
-## picks is Von's, and the test reads it off the radio.
+## Recorded Von, the whole pipeline; no switch. The premise is the leader's own claim: what doorway
+## it picks is Von's, and the test reads it off the radio.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

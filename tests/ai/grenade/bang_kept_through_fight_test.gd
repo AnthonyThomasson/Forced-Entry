@@ -18,9 +18,9 @@ extends GameTest
 ## release), not dropped. The householder steps back out of the doorway once the stun is thrown (so
 ## the crossing is not blocked by a body that cannot be killed).
 ##
-## The whole pipeline runs with real Von. `require`d first: the stack claimed the back door in bang
-## mode, a member left the stack for COMBAT before the stun left the thrower's hand, the bang was
-## called, and the thrower had the householder in view `LEAD` s or more before the release.
+## The whole pipeline runs with recorded Von. `require`d first: the stack claimed the back door in
+## bang mode, a member left the stack for COMBAT before the stun left the thrower's hand, the bang
+## was called, and the thrower had the householder in view `LEAD` s or more before the release.
 ##
 ## Premises: the gunfire is a `hit` event nobody known fired, inside the kitchen (as
 ## tests/_ai/investigate_probe.gd posts it), first thing in `run`; the householder is a puppet that

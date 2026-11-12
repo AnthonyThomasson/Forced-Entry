@@ -1,6 +1,7 @@
 extends GameTest
 ## Harness self-test: the catalog's selection helpers — comma lists, exact domain/id pre-filtering,
-## and shards that partition a run (disjoint, complete, Von tests together in shard 0).
+## and shards that partition a run (disjoint, complete; Von tests that run live together in shard 0,
+## replayed ones spread like any test).
 
 const Catalog = preload("res://scenes/testing/test_catalog.gd")
 
@@ -24,6 +25,8 @@ func run(t: TestContext) -> void:
 	_check_partition(t)
 	_check_balance(t)
 	_check_von_weight(t)
+	_check_von_shards(t)
+	_check_von_labels(t)
 	_check_costs_file(t)
 
 
@@ -67,7 +70,7 @@ func _check_filters(t: TestContext) -> void:
 	)
 
 
-## Shards partition a run: disjoint, complete, the Von tests in shard 0.
+## Shards partition a run: disjoint and complete.
 func _check_partition(t: TestContext) -> void:
 	var fake: Array = []
 	for i in 7:
@@ -78,11 +81,6 @@ func _check_partition(t: TestContext) -> void:
 		for e in part:
 			t.check(not seen.has(e["id"]), "%s lands in one shard only" % e["id"])
 			seen.append(e["id"])
-		if i != 0:
-			t.check(
-				not part.any(func(e): return e["requires_von"]),
-				"Von tests stay out of shard %d" % i,
-			)
 	t.expect_eq(seen.size(), fake.size(), "the shards together cover every test")
 	t.expect_eq(Catalog.shard(fake, "0/1").size(), fake.size(), "one shard is the whole run")
 
@@ -123,7 +121,8 @@ func _check_balance(t: TestContext) -> void:
 	t.check(landed, "and lands in a shard")
 
 
-## A Von test that will be skipped weighs nothing; one that will run keeps shard 0 to itself.
+## A Von test that runs live keeps shard 0 to itself; a replayed one weighs what it costs, where a
+## shard has room.
 func _check_von_weight(t: TestContext) -> void:
 	var light: Array = []
 	var light_costs := { "d/von": 100_000.0 }
@@ -134,13 +133,68 @@ func _check_von_weight(t: TestContext) -> void:
 	t.expect_eq(
 		Catalog.shard(light, "0/2", light_costs, true).size(),
 		1,
-		"a running Von test fills shard 0",
+		"a Von test run live fills shard 0",
 	)
 	t.expect_eq(
-		Catalog.shard(light, "0/2", light_costs, false).size(),
-		3,
-		"a skipped Von test does not",
+		Catalog.shard(light, "1/2", light_costs, false).size(),
+		4,
+		"a replayed Von test is dealt by its cost: the four light ones share the other shard",
 	)
+
+
+## A Von test is pinned to shard 0 only when the run asks the server for it; without that it is
+## replayed and spread like the rest.
+func _check_von_shards(t: TestContext) -> void:
+	var fake: Array = []
+	for i in 8:
+		fake.append({ "id": "d/r%d" % i, "requires_von": i < 6, "timeout": 10.0 })
+	for von_live in [false, true]:
+		var zero := Catalog.shard(fake, "0/2", {}, von_live).map(func(e): return e["id"])
+		var one := Catalog.shard(fake, "1/2", {}, von_live).map(func(e): return e["id"])
+		t.expect_eq(
+			zero.size() + one.size(),
+			fake.size(),
+			"the shards cover the run (live %s)" % von_live,
+		)
+		if von_live:
+			t.check(
+				["d/r0", "d/r5"].all(func(id): return zero.has(id) and not one.has(id)),
+				"every Von test of a live run is in shard 0",
+			)
+		else:
+			var replayed := ["d/r0", "d/r1", "d/r2", "d/r3", "d/r4"]
+			t.check(
+				replayed.any(func(id): return one.has(id)),
+				"replayed Von tests reach shard 1: " + str(one),
+			)
+
+
+## The listing's word for how a Von test is answered.
+func _check_von_labels(t: TestContext) -> void:
+	var plain := { "requires_von": false, "path": "res://tests/d/a_test.gd" }
+	var von := {
+		"requires_von": true,
+		"live_only": false,
+		"path": "res://tests/_harness/von_fixtures/ask_fixture.gd",
+	}
+	var live := { "requires_von": true, "live_only": true, "path": "res://tests/d/b_test.gd" }
+	t.expect_eq(Catalog.von_label(plain, true), "", "a test with no Von has no label")
+	t.expect_eq(Catalog.von_label(live), "live-only", "a live-only test says so")
+	t.expect_eq(Catalog.von_label(live, true, true), "live-only", "whatever the run does")
+	t.expect_eq(Catalog.von_label(von), "replay", "a test with its recording replays")
+	t.expect_eq(Catalog.von_label(von, true), "live", "a run that asks the server is live")
+	t.expect_eq(Catalog.von_label(von, true, true), "record", "and one that records records")
+	von["recording"] = "res://tests/_harness/von_fixtures/none.von.json"
+	t.expect_eq(Catalog.von_label(von), "unrecorded", "a test whose recording is missing says so")
+	# the descriptor carries the label as `von_mode`: a record's `von` is a bool (a skipped Von
+	# test)
+	var described := Catalog.describe("res://tests/_harness/von_fixtures/ask_fixture.gd")
+	t.expect_eq(
+		described.get("von_mode"),
+		"replay",
+		"a described Von test carries its label as von_mode",
+	)
+	t.check(not described.has("von"), "and has no `von` key, which a verdict record uses as a bool")
 
 
 ## The costs file: missing or blank is empty, a written one reads back (numbers only).

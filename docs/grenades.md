@@ -3,7 +3,7 @@
 Two throwable grenades, for the player and for NPCs: a **stun grenade** (flash and bang: blinds, deafens, disorients) and a
 **frag grenade** (a blast and real fragments). Behaviours G1 to G19 are the spec; each has a test, named under it, following the
 convention of `docs/tactical-entry.md` and `docs/flanking-behavior.md`. The tests are in `tests/<domain>/` and
-`tests/ai/grenade/` (`tools/run_tests.sh grenade`; the scenario tests with the real Von server need `--include-von --require-von`),
+`tests/ai/grenade/` (`tools/run_tests.sh grenade`; the scenario tests replay their recorded Von answers; `--record-von` refreshes them),
 and read the game only through the interfaces named in the rules, via `tests/_ai/grenade_probe.gd`.
 
 This file was written with the tests, before the feature (issue #35, tests first), and amended as the build and its tests taught what the
@@ -128,7 +128,10 @@ characters and objects alike through `take_hit` (so characters bleed, a characte
 characters (as knockback) and the ragdolls of the dead. The burst posts `&"explosion"` `{ position, kind, attacker, radius }`.
 Tests: `projectile/frag_blast_by_distance` (80 px dead, about 200 px hurt by the fall-off, 400 px no blast, an object struck),
 `projectile/frag_blast_blocked_by_wall`, `projectile/frag_blast_low_cover_by_posture` (behind couches: crouched, no blast; standing, the blast),
-`physics/frag_blast_pushes`.
+`physics/frag_blast_pushes`. *(Amended by issue #205.)* The blast strikes the bodies it reaches **nearest first** (a tie: the leftmost, then the topmost),
+not in the order the engine's shape query lists them (which follows what the process allocated earlier): every blast hit draws from the world's random
+stream, so the same fight must draw them for the same body each run; test `projectile/frag_blast_strikes_nearest_first` (five chairs round a frag, created in no
+order of distance, are struck in the order of their distance).
 
 **G8. Fragments.** `fragments` **40** real projectiles leave the blast point evenly round the circle (jittered), through
 `ProjectileSpawner`, with low power (`penetration` 0.4, `fragment_damage` 12, fast) and a short reach (`fragment_range` **500 px**: a
@@ -251,6 +254,7 @@ spot out of the line is planned before the burst), `ai/grenade/evade_waits_for_o
 own throw: its stun still goes onto its spot, then it runs), `ai/grenade/escape_cap_spreads_plans` (ten caught by one frag: at most three searches a frame, every plan within 3 frames, a replan never takes the last search of a frame nor one the frame after a first plan was refused), `ai/grenade/evade_wave_spots_match_own_plan` (five defenders round a frag an ally throws
 into the hall plan their escape together, at least three on one frame: the work that depends on the burst alone is shared among them on that frame,
 and every plan's spot is the one the NPC's own search, nothing shared, picks on that frame).
+*Gap (found by issue #205's recordings, `gap`-tagged `evade_wave_spots_match_own_plan`):* with every Von answer landing a fixed 12 frames after its ask, the wave's defender nearest the landing (`d2`, about 67 px from it, among the five the test stands round it) holds no evade spot on any frame of the wave and is caught by the frag still evading, while the other four each hold one. The rule above says every defender in the zone plans its escape (or, with no spot it can reach in time, crouches where it stands); the test asks that all five plan a spot. Passed with Von's own wall-clock latency (100 to 1060 ms) before the fixed hold. Drop the tag the day the five all plan; a follow-up ticket decides whether the AI or the test's premise is wrong.
 
 **G17. The GRENADE tactic (combat).** *(Amended after the tests phase: "frag out, take cover"; amended by issue #51, R7 and R10: a defender
 barricaded in a room, and the room the shots came from; R13 and R15: throw spots.)* A COMBAT tactic (decision-tree id `grenade`), offered when the NPC
@@ -291,7 +295,7 @@ by a search that stops at the first spot the NPC could throw from, and the answe
 options, with their tags and wording, are built only when the decision's walk reads them. Tests: `ai/grenade/grenade_ready_matches_full_search`,
 `ai/decision/lazy_groups_match_eager`.
 Its options are one per kind it carries (`frag`, `stun`). Measured with `tools/von_probe.py` (`tools/von_scenarios/grenade_*.json`, captured from the
-real-Von tests): the barricaded holder of a doorway GRENADE 0.49 to 0.51 against ENGAGE 0.32 to 0.40 (dropping the exposure sentence or the desc's
+recorded-Von tests): the barricaded holder of a doorway GRENADE 0.49 to 0.51 against ENGAGE 0.32 to 0.40 (dropping the exposure sentence or the desc's
 clause hands it back to ENGAGE; a desc that keeps "Your line to {target} is blocked" for it loses, 0.14 against 0.61); behind cover
 (GRENADE 0.43 to 0.52 against ENGAGE 0.23 to 0.29 on a decision taken while the first decision's ambush is under way, the level
 `grenade_hidden_behind_cover.json`; in the scene it was captured from, a householder crouched behind a sofa in the kitchen seen from the garden
@@ -346,10 +350,10 @@ returns to its gun after the bang; the near one crouches behind its couch until 
 is asked again, and a throw that follows leaves from a throw spot round the wardrobe),
 `ai/grenade/throw_committed_in_windup` (a wardrobe across the lob as the hand is drawn back: the grenade still leaves and is radioed);
 `ai/grenade/combat_frag_hidden_hostile` (a thrower outside its zone), `ai/grenade/combat_frag_take_cover` (inside it, with cover at hand: throws,
-crouches until the bang, unhurt), `ai/grenade/combat_stun_then_advance` (the scenarios, real Von); issue #51: `ai/grenade/grenade_door_holder`
+crouches until the bang, unhurt), `ai/grenade/combat_stun_then_advance` (the scenarios, recorded Von); issue #51: `ai/grenade/grenade_door_holder`
 (a householder holding the kitchen's back doorway in the line of fire of an invader in the garden: frag thrown into the kitchen onto it),
 `ai/grenade/grenade_barricaded_behind_cover` (crouched behind a sofa inside: the frag is lobbed over the sofa (G3) and catches it, the thrower
-clear), `ai/grenade/stun_entry_shot_from_room` (shot at from the kitchen: GRENADE offered at the shots, nobody walks in unguarded), real Von;
+clear), `ai/grenade/stun_entry_shot_from_room` (shot at from the kitchen: GRENADE offered at the shots, nobody walks in unguarded), recorded Von;
 scripted, `ai/combat/locate_not_into_shots_room` (shot at from the kitchen: GRENADE offered, no LOCATE) and `ai/combat/locate_toward_shots_from_open`
 (shot at from the open garden: LOCATE offered); the throw spots (R13, R15): `ai/grenade/grenade_throw_spot_out_of_range` (scripted: an invader 640 px from a
 hidden hostile walks to a throw spot and throws; with a frag whose zone reaches past the throw range the throw spot is tagged `no_safe_spot`),
@@ -362,8 +366,8 @@ decision at once and nothing thrown),
 a throw spot, not in place, and the stun goes in), `ai/grenade/grenade_lob_follows_throw_stance` (scripted: the same with the `throw` stance retuned to
 the left hand, whose lob clears the jamb: thrown from where it stands), `ai/grenade/shots_origin_not_the_landing_room` (scripted: shot at in the kitchen
 from the living room, then in the hall: the living room is suspect and grenaded, the kitchen neither),
-`ai/grenade/grenade_walks_to_throw_spot` (real Von: a householder holding the living room 650 px off through a doorway, fragged from a throw spot) and
-`ai/grenade/grenade_shots_origin_throw_spot` (real Von: shot at from the kitchen while beside its back door, the frag thrown from in front of the doorway),
+`ai/grenade/grenade_walks_to_throw_spot` (recorded Von: a householder holding the living room 650 px off through a doorway, fragged from a throw spot) and
+`ai/grenade/grenade_shots_origin_throw_spot` (recorded Von: shot at from the kitchen while beside its back door, the frag thrown from in front of the doorway),
 `ai/grenade/grenade_range_follows_the_item` (the frag's range retuned to 300 px: thrown from within 300 px after a walk),
 `ai/grenade/territorial_throw_from_inside` (scripted: a territorial defender with a frag inside by the front door, its hostile just outside
 behind a desk that stops its rounds: GRENADE is offered at COMBAT and the throw leaf's `from` is inside the house).
@@ -429,7 +433,7 @@ ENTER, but for gunfire heard, which the state's awareness line names too: either
 phrase; one listing every reason ("gunfire or footsteps were heard, shots came from, an ally radioed a fight ...")
 gives the bang to a plain unsearched room (0.41 against 0.36).
 Tests: `ai/grenade/stun_entry_suspect_room`, `ai/grenade/quiet_entry_unsuspected_room`, `ai/grenade/stun_entry_ally_radioed`, `ai/grenade/stun_entry_hostile_lost_near_door`,
-`ai/grenade/stun_entry_footsteps_heard`, `ai/grenade/stun_entry_shot_from_room` (the real Von server), the late reason (`quiet_entry_turns_bang`,
+`ai/grenade/stun_entry_footsteps_heard`, `ai/grenade/stun_entry_shot_from_room` (recorded Von), the late reason (`quiet_entry_turns_bang`,
 `quiet_entry_crossing_stays_quiet`, scripted), the guard's entry (`ai/entry/entry_guard_bang_suspect_room`: a search walk through the back door into a
 kitchen gunfire was heard in goes in with a bang; `entry_guard_quiet_unsuspected_room`: the same walk with nothing heard, quietly; scripted) and, scripted, one fallback each:
 `ai/grenade/bang_fallback_no_clear_lob` (wardrobes across the kitchen), and the aim into a room deeper than a stun reaches: `ai/grenade/bang_into_long_room`
@@ -569,7 +573,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
   were written.
 - **Cover** is read off `get_surface().coverage` of what lies between the blast and the character, against the character's own posture coverage;
   the tests read it with `GrenadeAi.shielded` (a ray from the blast, character bodies excluded).
-- **Scenario tests** run the whole pipeline with the real Von server, the rest of the AI on and nothing scripted. Their premises are the
+- **Scenario tests** run the whole pipeline with recorded Von answers (replayed, `--record-von` refreshes them), the rest of the AI on and nothing scripted. Their premises are the
   puppet thrower in the evade scenarios (an invader puppet that cannot be killed, armed with one grenade the way the match builder arms a spawn), the
   hostile puppet that cannot be killed and never shoots in the combat scenarios, the one shot of gunfire heard in the stun entry, and the
   `take_stun` call that stands in for a grenade in the two NPC-effect scenarios (the throw itself is tested elsewhere). No behaviour switch is used in

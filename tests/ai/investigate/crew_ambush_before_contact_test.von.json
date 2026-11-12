@@ -1,0 +1,29 @@
+{
+	"entries": [
+		{
+			"options": [
+				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: footsteps heard to the north, outside the house))"
+			],
+			"pick": "investigate",
+			"probabilities": {
+				"investigate": 1.0
+			},
+			"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the living room, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nThere is trouble nearby, out of your sight. Allies near you: d2.\nNobody else is in sight or known.\nFootsteps heard to the north, outside the house, just now."
+		},
+		{
+			"options": [
+				"You are inside the house and the gunfire is outside the house: hold your ground, do not chase anyone outside",
+				"footsteps heard to the north, outside the house — just now — long route"
+			],
+			"pick": "stay",
+			"probabilities": {
+				"lead_footsteps_1_-1": 0.204,
+				"stay": 0.796
+			},
+			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the living room, inside the house, holding a Pistol. You are unhurt.\nNobody else is in sight or known.\nd2 (ally) — in sight — south-west of you, in the living room — standing still.\nFootsteps heard to the north, outside the house, just now.\nDecided so far: INVESTIGATE."
+		}
+	],
+	"version": 1
+}

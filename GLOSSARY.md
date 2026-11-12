@@ -68,7 +68,24 @@ _Avoid_: lobby (a tower's front room), elevator
 A game test that declares a world (an arena, a hand-laid layout or a generated house), the actors and objects in it
 and which behaviours are on, runs it on the sim clock and asserts what happened: a `GameTest`, `tests/**/*_test.gd`,
 named by its id (`projectile/pistol_shot_wounds`). It is what proves a behaviour.
-_Avoid_: GdUnit test, integration test, scenario (the real-Von tests of one AI situation)
+_Avoid_: GdUnit test, integration test; for a test of one AI situation against Von, say scenario test (a Von test)
+
+**Von recording**:
+The Von answers of one `requires_von` test, kept beside it as `<name>_test.von.json`: each ask's key (state text, question
+and sorted option descriptions) with the pick Von gave. Replay answers from it, so the test needs no server.
+
+**Replay mode** / **record mode** / **live mode**:
+How a Von test's decisions are answered. Replay (every normal run) reads the recording; record (`--record-von`) asks a live
+server and rewrites the recording; live (`--include-von`, `--require-von`) asks the server and touches no file. All three
+deliver each answer the same number of physics frames after its ask.
+
+**Live-only test**:
+A `requires_von` test marked `live_only` that never replays: it tests the Von transport itself, or a fight no replay
+reproduces. It is skipped without a server.
+
+**Own-process test**:
+A test marked `own_process`, run by `run_tests.sh` after the others in an engine process of its own, because its replay
+matches its recording only in a fresh process (a debt that needs a follow-up ticket).
 
 **Wrapper suite**:
 The gdUnit4 suite that runs one folder's simulation tests unchanged, one case per test id, its cases read from the

@@ -2,7 +2,7 @@ extends GameTest
 ## G18, the control: the same stack of two invaders, both carrying a stun, at the same back door,
 ## but nothing says anyone is in the kitchen (no gunfire, nobody there). The quiet ENTER is the
 ## pick, the stack goes in without a bang and no grenade is thrown. The whole pipeline runs with
-## real Von; a `require` that the AI took ENTER comes first.
+## recorded Von; a `require` that the AI took ENTER comes first.
 ##
 ## Premise: both invaders are armed with a stun here because the test world keeps the default
 ## inventory, the way Main arms a spawn.

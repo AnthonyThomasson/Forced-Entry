@@ -2,7 +2,7 @@ extends GameTest
 ## Desired (the wiring): gunfire heard outside the house reaches Von worded as outside, and the
 ## INVESTIGATE level offers a way to decline the lead (STAY: hold your ground inside the house) next
 ## to the lead itself. Nothing removes the lead: Von decides, here scripted to decline, and the NPC
-## then stays put. What a real Von picks for a defender is `defender_stays_in_house_von`.
+## then stays put. What Von picks for a defender is `defender_stays_in_house_von`.
 
 const Probe := preload("res://tests/_ai/investigate_probe.gd")
 

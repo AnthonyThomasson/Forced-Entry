@@ -11,16 +11,15 @@ extends GameTest
 ## entry does (it keeps its claim live with the heartbeat). Once all three are ready they are
 ## watched holding for `HOLD` s; then the leader's go is posted through the squad.
 ##
-## The whole AI pipeline with the real Von server; the set-up `require`s that the members took the
+## The whole AI pipeline with recorded Von answers; the set-up `require`s that the members took the
 ## ordered path (their claims at the back door carry the order's id), so a different Von choice
 ## reads as a set-up finding. Premise: the earlier entry's member is a puppet radioing its claim on
 ## the bus (in the wire format's field names, interface 10), not an AI that cleared the kitchen: an
 ## AI's cover ends on its own clock (`tuning.entry.cover_time`) and its clear marks the room
-## cleared, which
-## changes what the ordered members do; the stack reads only the bus, so a puppet's claim is
-## exactly what it hears from an AI. The squad is built in the run over the leader and the three
-## (`Order.squad`, through `MatchBuilder.build_squads`), not declared with `s.squads`: the earlier
-## entry's puppet is an invader too, and no member of the held stack's squad.
+## cleared, which changes what the ordered members do; the stack reads only the bus, so a puppet's
+## claim is exactly what it hears from an AI. The squad is built in the run over the leader and the
+## three (`Order.squad`, through `MatchBuilder.build_squads`), not declared with `s.squads`: the
+## earlier entry's puppet is an invader too, and no member of the held stack's squad.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")

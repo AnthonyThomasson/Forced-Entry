@@ -5,7 +5,7 @@ extends GameTest
 ## The hand-laid house of `door_in_the_way`: a hall and a bedroom behind a shut hollow door that
 ## swings into the bedroom. Two defenders stand side by side near the door, so that both walk to it
 ## to search the bedroom (the one room left) and the second arrives while the first has the leaf
-## turning. Real Von, the whole pipeline: nothing is scripted and no switch is changed. The test
+## turning. Recorded Von, the whole pipeline: nothing is scripted and no switch is changed. The test
 ## requires that the second one reached the door before it was fully open before it asserts that the
 ## leaf never turned back toward shut.
 

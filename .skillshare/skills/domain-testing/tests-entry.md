@@ -2,7 +2,7 @@
 
 `tests/ai/entry/` pins `docs/tactical-entry.md` (E1 to E15 here, E16 to E22 in `tests-stack.md` and
 `tests-leadership.md`; each test header names its behaviour). `tools/run_tests.sh entry` runs them; the real-Von ones
-need `--include-von --require-von`.
+replay their recordings (`--record-von` refreshes them, `--require-von` runs them live).
 
 - **Scripted-Von tests** run on the Terrace house (`Maps.house(s, false)` in `tests/_ai/flank_maps.gd`, bare rooms so the
   geometry is clean) through `tests/_ai/entry_probe.gd` (`const Entry`): the rules that send an invader to a doorway
@@ -11,7 +11,7 @@ need `--include-von --require-von`.
   `radio_claim`, a puppet teammate's claim). The entry at a house door (`entry_*_door_*`, E3): `tests/_ai/entry_door_probe.gd` (`const DoorPie`: the Terrace house's back doorway with a 60 px hollow door, its hinges, `slicing`). A per-frame sampler and "it went in by entry" are
   `tests/_ai/entry_watch_probe.gd` (`const EntryWatch`: `watch`, `path_of`, `check_entered`, …). The brain is read through
   `debug_entry()` and `debug_room_zones()` on the controller.
-- **Real-Von tests** (`requires_von`, paced in real time, so timeouts are wall-clock) run the whole pipeline: plain
+- **Real-Von tests** (`requires_von`: replayed from a recording in a normal run, paced in real time when run live) run the whole pipeline: plain
   `invader`s with match defaults (no switch, no timer override, only a premise such as a part-spent magazine), the world
   placed so the doorway under test is the natural pick. Each test first `require`s that the AI claimed that doorway, so a
   different Von choice reads in the bundle as a set-up finding, not a doctrine gap. Their maps: the box room

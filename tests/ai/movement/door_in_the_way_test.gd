@@ -5,8 +5,8 @@ extends GameTest
 ##
 ## A hand-laid house: a hall (the exit to the garden on its west wall) and one bedroom behind a
 ## shut, hollow door in the wall between them, which swings into the bedroom. Two invaders stand in
-## the hall; the one room left to search is the bedroom. Real Von, the whole pipeline: nothing is
-## scripted and no switch is changed. The test requires that the invaders went for the bedroom
+## the hall; the one room left to search is the bedroom. Recorded Von, the whole pipeline: nothing
+## is scripted and no switch is changed. The test requires that the invaders went for the bedroom
 ## before it asserts what they did at the door.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")

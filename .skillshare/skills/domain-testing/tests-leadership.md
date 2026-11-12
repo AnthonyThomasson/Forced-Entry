@@ -1,7 +1,7 @@
 # Leadership tests (tag `leadership`): orders, the squad, the menu, the ambush
 
 The rules are `docs/leadership.md` (LD1 to LD29, each with its tests named under it); `tools/run_tests.sh leadership` runs
-them, its real-Von ones (`requires_von`) with `--include-von --require-von`. Following, the leash, the rally, held stacks
+them, its real-Von ones (`requires_von`) replay recordings (`--record-von` refreshes, `--require-von` runs live). Following, the leash, the rally, held stacks
 and slots: `tests-leadership-follow.md`.
 
 **Where the tests live** (spread by domain): the clock in `ai/perception/clock_pauses`; the order transport, the

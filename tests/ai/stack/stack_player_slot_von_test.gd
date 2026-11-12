@@ -1,8 +1,8 @@
 extends GameTest
-## Desired (E16), judged by the shipped AI: an invader with the real Von server walks up to the back
-## door of an unexplored house to enter it, and the human invader standing near the door is reserved
-## the slot behind it. Nothing is scripted: Von chooses to enter, and by which doorway. Needs the
-## Von decision server.
+## Desired (E16), judged by the shipped AI: an invader with recorded Von answers walks up to the
+## back door of an unexplored house to enter it, and the human invader standing near the door is
+## reserved the slot behind it. Nothing is scripted: Von chooses to enter, and by which doorway.
+## It replays its Von recording.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")

@@ -7,9 +7,9 @@ extends GameTest
 ## sergeant go in and clear the room before the trooper has reached its slot. The trooper's join is
 ## over: it follows the lead at once, and never goes in.
 ##
-## Real Von, the whole pipeline; no switch. Premise: the trooper walks slowly (`movement:speed` 60,
-## as `entry_waits_for_stack`'s straggler), so the room is cleared before it reaches the stack; the
-## test requires that it had not radioed ready (nor given its entry up) by the clear.
+## Recorded Von, the whole pipeline; no switch. Premise: the trooper walks slowly (`movement:speed`
+## 60, as `entry_waits_for_stack`'s straggler), so the room is cleared before it reaches the stack;
+## the test requires that it had not radioed ready (nor given its entry up) by the clear.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

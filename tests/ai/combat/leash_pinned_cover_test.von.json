@@ -1,0 +1,48 @@
+{
+	"entries": [
+		{
+			"options": [
+				"You have a clear shot at gunman, and you are not badly wounded (from where you stand)",
+				"gunman looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a SMG)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.2133,
+				"engage": 0.7867
+			},
+			"question": "How should you fight gunman? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the arena, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at gunman from where you stand. You are exposed to their fire.\ngunman — HOSTILE (seen) — in sight — in pistol range, east of you, in the arena — standing still — facing away from you — holding a SMG.\nFlanks on gunman (you are on behind them): their left side — free, clear shot, in the open, medium hidden route; their right side — free, clear shot, in the open, medium hidden route.\nDecided so far: COMBAT → gunman."
+		},
+		{
+			"options": [
+				"fire from the arena, north-west of them — clear shot — in the open — short exposed route",
+				"fire from the arena, south-west of them — clear shot — in the open — short exposed route",
+				"fire from the arena, west of them — clear shot — in the open — short exposed route",
+				"fire from where you stand (in the arena) — clear shot — in the open"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"fire_here": 0.363,
+				"fire_north_west": 0.2173,
+				"fire_south_west": 0.2167,
+				"fire_west": 0.203
+			},
+			"question": "Where should you fight gunman from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour pistol is loaded.\nYou have a clear shot at gunman from where you stand. You are exposed to their fire.\ngunman — HOSTILE (seen) — in sight — in pistol range, east of you, in the arena — standing still — facing away from you — holding a SMG.\nDecided so far: COMBAT → gunman → ENGAGE."
+		},
+		{
+			"options": [
+				"You have a clear shot at gunman, and you are not badly wounded (from where you stand; they look badly wounded) (your current plan)",
+				"Your pistol is nearly empty or empty, and you carry spare magazines"
+			],
+			"pick": "reload",
+			"probabilities": {
+				"engage": 0.373,
+				"reload": 0.627
+			},
+			"question": "How should you fight gunman? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the arena, inside the house, holding a Pistol. You are crouching. You are badly wounded.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - gunman - ENGAGE - where you stand (in position, ducking behind cover, for 3s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at gunman from where you stand. You are exposed to their fire. They are aiming at you.\ngunman — HOSTILE (attacked you) — in sight — in pistol range, east of you, in the arena — standing still — aiming at you — holding a SMG — reloading — looks badly wounded.\nFlanks on gunman (you are on their front): their left side — free, clear shot, in the open, short exposed route; their right side — free, clear shot, in the open, short exposed route; behind them — route passes gunman, clear shot, cover, medium exposed route.\nYou are being hit, from the east!\nDecided so far: COMBAT → gunman."
+		}
+	],
+	"version": 1
+}

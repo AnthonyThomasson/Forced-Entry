@@ -1,0 +1,131 @@
+{
+	"entries": [
+		{
+			"options": [
+				"The shots came from a room you are outside of and you can throw a grenade onto their spot (the shots came from the kitchen, a room you are outside of, within throwing range from a spot nearby)",
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)"
+			],
+			"pick": "grenade",
+			"probabilities": {
+				"grenade": 0.7771,
+				"retreat": 0.2229
+			},
+			"question": "How should you fight the hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nSomeone you cannot see is shooting at you. Allies near you: none.\nYou are being shot at by someone you cannot see, from the south-west; you are exposed to their fire. The shots came from the kitchen, a room you are outside of. You can throw a stun grenade where the shots came from.\nNobody else is in sight or known.\nYou are under fire: shots are landing near you, from the south-west!\nDecided so far: COMBAT."
+		},
+		{
+			"options": [
+				"The shots came from a room you are outside of and you can throw a grenade onto their spot (the shots came from the kitchen, a room you are outside of, within throwing range from a spot nearby)",
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)"
+			],
+			"pick": "grenade",
+			"probabilities": {
+				"grenade": 0.7312,
+				"retreat": 0.2688
+			},
+			"question": "How should you fight the hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: EVADE - a live stun grenade (waiting, for 1s).\nSomeone you cannot see is shooting at you. Allies near you: b.\nYou are being shot at by someone you cannot see, from the south-west; you are exposed to their fire. The shots came from the kitchen, a room you are outside of. You can throw a stun grenade where the shots came from.\nNobody else is in sight or known.\nb (ally) — in sight — north-east of you, outside the house — standing still.\nb (radio, recently): COMBAT - GRENADE - stun where the shots came from; under fire.\nYou are under fire: shots are landing near you, from the south-west!\nDecided so far: COMBAT."
+		},
+		{
+			"options": [
+				"All is quiet and there are rooms left to search (find your way into the house and explore it)",
+				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: support a, outside the house))"
+			],
+			"pick": "investigate",
+			"probabilities": {
+				"investigate": 0.6243,
+				"search": 0.3757
+			},
+			"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - RETREAT - behind the wall close by (reached it, for 0s).\nThere is trouble nearby, out of your sight. Allies near you: a.\nNobody else is in sight or known."
+		},
+		{
+			"options": [
+				"support a, outside the house — COMBAT - GRENADE - stun where the shots came from, south-east of you — radio just now; under fire"
+			],
+			"pick": "lead_ally_0",
+			"probabilities": {
+				"lead_ally_0": 1.0
+			},
+			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: COMBAT - RETREAT - behind the wall close by (reached it, for 0s).\nNobody else is in sight or known.\na (ally) — last seen just now — south-east of you, outside the house — was moving east, away from you.\na (radio, just now): COMBAT - GRENADE - stun where the shots came from; under fire.\nDecided so far: INVESTIGATE."
+		},
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the south — shots at you came from there — short route)",
+				"an unexplored part of the house to the south-west — long route"
+			],
+			"pick": "enter",
+			"probabilities": {
+				"enter": 0.607,
+				"explore_south_west": 0.393
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: EVADE - a live stun grenade (waiting, for 1s).\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"All is quiet and there are rooms left to search (find your way into the house and explore it)",
+				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: support a, outside the house))"
+			],
+			"pick": "investigate",
+			"probabilities": {
+				"investigate": 0.5879,
+				"search": 0.4121
+			},
+			"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: EVADE - a live stun grenade (waiting, for 1s).\nThere is trouble nearby, out of your sight. Allies near you: a.\nNobody else is in sight or known."
+		},
+		{
+			"options": [
+				"the doorway to the south — shots at you came from there — short route",
+				"the doorway to the south-west — unexplored — long route"
+			],
+			"pick": "door_840_190",
+			"probabilities": {
+				"door_0_415": 0.3936,
+				"door_840_190": 0.6064
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: EVADE - a live stun grenade (waiting, for 1s).\nDecided so far: SEARCH → ENTER."
+		},
+		{
+			"options": [
+				"support a, outside the house — COMBAT - GRENADE - stun where the shots came from, east of you — radio recently; under fire"
+			],
+			"pick": "lead_ally_0",
+			"probabilities": {
+				"lead_ally_0": 1.0
+			},
+			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: EVADE - a live stun grenade (waiting, for 1s).\nNobody else is in sight or known.\na (ally) — in sight — north of you, outside the house — standing still.\na (radio, recently): COMBAT - GRENADE - stun where the shots came from; under fire.\nDecided so far: INVESTIGATE."
+		},
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the south — shots at you came from there — short route)",
+				"an unexplored part of the house to the south-west — medium route"
+			],
+			"pick": "enter",
+			"probabilities": {
+				"enter": 0.6305,
+				"explore_south_west": 0.3695
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: INVESTIGATE - support a (reached it, for 0s).\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the doorway to the south — shots at you came from there — short route",
+				"the doorway to the south-west — unexplored — long route"
+			],
+			"pick": "door_840_190",
+			"probabilities": {
+				"door_0_415": 0.3785,
+				"door_840_190": 0.6215
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: INVESTIGATE - support a (reached it, for 0s).\nDecided so far: SEARCH → ENTER."
+		}
+	],
+	"version": 1
+}

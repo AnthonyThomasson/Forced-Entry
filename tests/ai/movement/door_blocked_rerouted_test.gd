@@ -5,8 +5,8 @@ extends GameTest
 ## A hand-laid house: a hall and one bedroom with two ways into it, a hollow door near the defender
 ## (door A) and a bare doorway further down the wall (B). A chair stands in door A's swing, so the
 ## leaf stops short against it and cannot open wide enough to pass. One defender stands in the hall
-## by door A; the one room left to search is the bedroom. Real Von, the whole pipeline: nothing is
-## scripted. The chair is the scenario's premise (what holds the door shut); nothing else is
+## by door A; the one room left to search is the bedroom. Recorded Von, the whole pipeline: nothing
+## is scripted. The chair is the scenario's premise (what holds the door shut); nothing else is
 ## changed. The test requires that the defender went to door A and tried it before it asserts that
 ## it got into the bedroom, through B.
 

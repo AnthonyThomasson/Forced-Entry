@@ -12,7 +12,7 @@ Tests in a window. The headless runs are `SKILL.md`'s "Running tests".
 - **The browser:** the setup window's **Tests** button opens `test_browser.tscn`: search, pick, then Play. The runner plays
   the test with its result banner, keeps the world running and offers Rerun and Back (to `main.tscn`). Engine metas
   `test_selection` / `test_results` / `test_filter` survive the round trip through a test. **Run all** and each
-  domain row's ▶ spawn `tools/run_tests.sh --include-von --no-lint` (`--domain=<name>`), console in
+  domain row's ▶ spawn `tools/run_tests.sh --no-lint` (Von tests replay; rows say `[Von replay]` or `[Von live-only]`) (`--domain=<name>`), console in
   `user://test_runs/<n>/run.log`, report folded into the browser's marks. `-- --play <filter>` on the command line opens
   the first matching test (a sandbox too) in the runner: launch `scenes/testing/test_runner.tscn` through Godot, since
   `run_tests.sh` refuses `--play`.

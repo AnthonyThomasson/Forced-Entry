@@ -7,7 +7,7 @@ extends GameTest
 ## replaces the entry and it radios `abort`. The squad cancels those join orders, and the sergeant
 ## and the trooper stop their entries and follow the lead again.
 ##
-## Real Von, the whole pipeline; no switch. Premises: the hit (a `hit` event on the lead, nobody
+## Recorded Von, the whole pipeline; no switch. Premises: the hit (a `hit` event on the lead, nobody
 ## known firing, as `tests/_ai/order_probe.gd`'s `gunfire_near` posts one) lands while the others
 ## are still far from the doorway, more than an awareness radius off, so only the lead is under
 ## fire; the lead is never killed (`max_health`).

@@ -59,7 +59,8 @@ VON_PORT = 8000
 VON_HEALTH = "/v1/systemone"
 VON_MODEL = "von-1.2.0"
 VON_READY_SECONDS = 90.0
-VON_TESTS_FLAGS = ("--include-von", "--require-von")
+# The flags that run Von tests against the live server (--record-von too: it writes into the copy only).
+VON_TESTS_FLAGS = ("--include-von", "--require-von", "--record-von")
 # How the copy is linted before its tests: what instrumenting breaks on purpose left out (the isolation rule, and
 # gdstyle: each probe shares its statement's line, so line numbers match the real tree).
 COPY_LINT = ("--skip-rule=coverage_isolation", "--no-gdstyle")
@@ -432,6 +433,11 @@ def crash_record(result: dict, hits_dir: Path, folder: Path, root: Path) -> dict
             "phase": AFTER_LAST_FLUSH, "log": str(out.relative_to(root)), "message": lines[-1] if lines else ""}
 
 
+def runs_von_tests(test_args) -> bool:
+    """Whether a run_tests.sh argument list runs Von tests against the live server (a flag of VON_TESTS_FLAGS)."""
+    return any(a in VON_TESTS_FLAGS for a in test_args)
+
+
 def run_tests(copy, args: list[str], hits_dir: Path, say=print) -> dict:
     """Lint the copy (its own tools/lint.sh, without what instrumenting breaks on purpose: the isolation rule, and the
     gdstyle pass, since each probe shares its statement's line), then run its tools/run_tests.sh with the
@@ -655,7 +661,7 @@ def run_once(root, source, matches, jobs, seed, endless_every, windowed, test_ar
             if missing:
                 problems.append(f"no hits from the process(es) of seed(s) {', '.join(map(str, missing))}")
         else:
-            if any(a in VON_TESTS_FLAGS for a in test_args):
+            if runs_von_tests(test_args):
                 von = ensure_von(copy, log_path=hits_dir / "von.log")
                 say(von.note)
             ran = run_tests(copy, list(test_args), hits_dir, say)

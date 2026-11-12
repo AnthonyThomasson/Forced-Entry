@@ -8,7 +8,7 @@ extends GameTest
 ## known the followers put no question to Von at all (counted per NPC from each one's decision
 ## walks).
 ##
-## Real Von, the whole pipeline: nothing is scripted; the one prop set is the leader's
+## Recorded Von, the whole pipeline: nothing is scripted; the one prop set is the leader's
 ## `tuning.entry.enabled` (below). The house is the furnished Terrace house and nobody is in it, so
 ## no hostile is ever known.
 

@@ -1,0 +1,59 @@
+{
+	"entries": [
+		{
+			"options": [
+				"an unexplored part of the house to the south-west — medium route",
+				"an unexplored part of the house to the west — short route",
+				"the front entrance — long route"
+			],
+			"pick": "entrance",
+			"probabilities": {
+				"entrance": 0.4475,
+				"explore_south_west": 0.2145,
+				"explore_west": 0.3381
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the kitchen — searched recently — medium route",
+				"the living room — unsearched — short route"
+			],
+			"pick": "room_kitchen",
+			"probabilities": {
+				"room_kitchen": 0.53,
+				"room_living_room": 0.47
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - the front entrance (en route, for 6s).\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the hallway — searched recently — medium route",
+				"the living room — searched recently — short route"
+			],
+			"pick": "room_hall",
+			"probabilities": {
+				"room_hall": 0.5824,
+				"room_living_room": 0.4176
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - the kitchen (reached it, for 5s).\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the kitchen — searched recently — medium route",
+				"the living room — searched recently — medium route"
+			],
+			"pick": "room_living_room",
+			"probabilities": {
+				"room_kitchen": 0.4668,
+				"room_living_room": 0.5332
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - the hallway (reached it, for 4s).\nDecided so far: SEARCH."
+		}
+	],
+	"version": 1
+}

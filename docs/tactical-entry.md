@@ -7,10 +7,10 @@ in `tests/ai/entry/` (`tools/run_tests.sh entry`; E16's in `tests/ai/stack/`), n
 `tests/_ai/flank_maps.gd`, read through `tests/_ai/entry_probe.gd`; E20 to E22 also sweep every generated floorplan
 (`tests/_ai/slots_probe.gd`), and the reach tests of E2 and E20 run ordered stacks across three floorplans (`tests/_ai/reach_probe.gd`).
 E10 (the clear-time benchmark) is met and its test is green. E1 to E9 are scripted-Von tests. E10 to E16 are tests that run
-the whole pipeline with the real Von server (`requires_von`, `--include-von --require-von`), as are E18's and E19's: the world gives the AI the situation
+the whole pipeline with recorded Von answers (`requires_von`: each test replays its recording, `--record-von` refreshes it), as are E18's and E19's: the world gives the AI the situation
 and the test judges what the shipped AI does with it; E15 and E18 also have scripted tests of their mechanism. A rule the AI does not
 follow yet is written the same way before it is built: the behaviour here, and a test that is red on purpose and tagged `gap`
-(`tools/run_tests.sh --include-von --require-von gap` lists them; one is open: `stack_slot_reached_through_another`, below).
+(`tools/run_tests.sh gap` lists them; one is open: `stack_slot_reached_through_another`, below).
 
 An *opening* is a doorway in a wall (`WorldGen.get_openings`: `pos`, `width`, `front`/`exit`, the rooms it
 joins). Doorways are open archways to the entry: a door may stand in one (`docs/doors.md`) but the entry does not work it beyond
@@ -127,7 +127,7 @@ makes a target and blocks the point man. The slots go by arrival: a member alrea
 while its holder is still on the way, and the latecomer comes in at the back without walking past it.
 Tests: `entry_stack_orders_slots`, `entry_stack_no_double_claim`, `entry_spots_clear_of_each_other`, `order_stack_hold_for_go` (the third
 member claims after the second has set off: the second's walk is re-planned to come in short of the third's slot, `docs/leadership.md` LD13), `entry_team_no_bumping` (four invaders
-placed as in a match, real Von: nobody walks into a teammate, standing or walking), `stack_move_up_keeps_slot_reachable` (a member moving up
+placed as in a match, recorded Von: nobody walks into a teammate, standing or walking), `stack_move_up_keeps_slot_reachable` (a member moving up
 leaves the latecomer a way into the slot it frees), `entry_held_walk_replans`, `stack_ai_goes_round_player_in_slot`
 (a match built as `main.gd` builds one: the AI goes round the human standing in its slot); the reach tests `stack_reach_terrace_back_door`,
 `stack_reach_terrace_hall_door`, `stack_reach_terrace_kitchen_six`, `stack_reach_garage_home_kitchen_door`, `stack_reach_garage_home_garage_exit`,
@@ -253,7 +253,7 @@ Tests: `entry_guard_explore`, `entry_guard_search_room`, `entry_guard_advance`, 
 `entry_guard_under_fire_exempt` (shot at from behind, in the garden: straight through), `entry_guard_shot_from_room_ahead` (shot at from the
 kitchen it is ordered to rush: fights from outside, in only by entry), `entry_guard_landing_room_not_the_shots` (shot at in the kitchen from the
 living room, then in the hall: straight back into the kitchen; scripted), `entry_guard_retreat_exempt`, `ai/grenade/stun_entry_shot_from_room`
-(R10, unseen shooter, real Von), `ai/combat/locate_not_into_shots_room` / `locate_toward_shots_from_open` (no LOCATE toward the shots' room, LOCATE
+(R10, unseen shooter, recorded Von), `ai/combat/locate_not_into_shots_room` / `locate_toward_shots_from_open` (no LOCATE toward the shots' room, LOCATE
 toward shots from the open; scripted), `entry_guard_bang_suspect_room` / `entry_guard_quiet_unsuspected_room` (a guard's entry into a suspect room
 goes in with a bang, into an unsuspected one quietly; scripted), `ai/combat/retreat_never_where_it_stands` (falling back to an ally it stands
 beside: a spot behind the ally, once), `ai/combat/locate_never_where_it_stands` (shot at from beyond the garden's walkable edge: no LOCATE onto
@@ -264,7 +264,7 @@ Von cannot be reached) and `entry_decision_in_flight_during_cross` (a decision a
 **E10. Clear an average room within the benchmark.** From the point's `going_in` to the `clear` call a team takes 6 s
 at most, the 5 to 6 second training target for an average room. Why: speed is the dynamic entry's protection; a team
 that lingers in a half-cleared room is a team in the open.
-Test: `entry_clear_within_benchmark` (a pair, the furnished kitchen; real Von, `requires_von`).
+Test: `entry_clear_within_benchmark` (a pair, the furnished kitchen; recorded Von, `requires_von`).
 
 **E11. Reload at the stack, never in the funnel.** An entrant crosses with a topped-off gun: a magazine part spent is
 swapped for a full one while it is stacked, the one lull before the crossing, and never in the threshold or the room
@@ -275,7 +275,7 @@ crosses, and again after the pie before the point crosses (a pie that fired); it
 hostile holds its eyes (it fires instead, E14), and not for more than `TOP_OFF_CAP` (8 s) in one entry. Nothing reloads in
 `cross`. A gun that is already full costs no time.
 Test: `entry_reloads_before_crossing` (7 of 12 rounds, above the band Von calls low, so only the entry has a reason to
-reload; real Von, `requires_von`).
+reload; recorded Von, `requires_von`).
 
 **E12. The last man covers the rear of the stack.** While the stack waits at the door, the last slot faces back the way
 the team came and holds the approach; the point and the second face the door. Why: the stack's rear is its blind side
@@ -286,7 +286,7 @@ it turns to cross in its turn (a threat in sight still takes its eyes first, `do
 rear guard, and the last man in the room still takes the rear watch there (E8). A stack split across the door (E19) has a rear guard
 per side: the last of each side's file that is not one of the two front men.
 Test: `entry_stack_last_covers_rear` (three invaders in the garden, the point's pie slowed so the last man reaches his slot while it
-still slices; judged from his `ready` to the `going_in` of the member ahead of him; real Von, `requires_von`).
+still slices; judged from his `ready` to the `going_in` of the member ahead of him; recorded Von, `requires_von`).
 
 **E13. Short room: two go in, the rest hold outside.** A room too small for the team is entered by two, who take its
 corners; the later slots hold the stack side as security and never step into the doorway. The game's rule for "too
@@ -298,7 +298,7 @@ carries a `capacity` (`AgentEntry.geometry`: 2 for a room with a side under `sho
 called clear, and radios `done` once a teammate that held the room has moved on (or `rear_security_time` after the call).
 It does not stand in for the two: with nobody ahead and the room not called clear (they died or gave up) it takes the lead,
 and it gives up after 30 s with the room never called clear.
-Test: `entry_short_room_two_go_in` (the box room of `flank_maps.gd`; three invaders in its corridor, real Von,
+Test: `entry_short_room_two_go_in` (the box room of `flank_maps.gd`; three invaders in its corridor, recorded Von,
 `requires_von`).
 
 **E14. Engage from outside; no crossing on a hostile in view.** A hostile seen through the door is fought from outside,
@@ -313,7 +313,7 @@ of view. This holds whatever order brought the NPC to the door: the ENTER tactic
 entry guard (E9) turns into an entry. Under fire from the room it is about to enter, it holds outside like any other time (E9);
 under fire from anywhere else it still gives a detour up and walks straight in (E9's exemption). For `BANG_WINDOW` (3 s) after a stun or frag its own team threw went off in the
 room, the hold does not apply (E17).
-Tests: `entry_hostile_in_view_holds_outside` (a defender that cannot be killed, in view from the pie arc; real Von,
+Tests: `entry_hostile_in_view_holds_outside` (a defender that cannot be killed, in view from the pie arc; recorded Von,
 `requires_von`), `entry_guard_shot_from_room_ahead` (the same under its fire, scripted).
 
 **E15. A doorway view a walk has to cross is secured first.** When the only way (E18) crosses the view of an open doorway into a
@@ -331,9 +331,9 @@ stack (an ENTER order, `entries._guard_approach`) secures the doors it passes th
 claimed does not (the team goes to its door as one, so the point is not left to go in alone). Exempt, as in E9: a retreat, an NPC
 under fire, and the doorway it is entering itself. Left open: a team passing a door on the way to its own is not made to secure it.
 Tests: `entry_secure_exterior_door_then_cross` (no way round the front door's view: it covers the door from the jamb, crosses
-without stopping, never goes in; real Von), `entry_pass_far_out_secured` (the view crossed 300 px out from its wall; real Von),
+without stopping, never goes in; recorded Von), `entry_pass_far_out_secured` (the view crossed 300 px out from its wall; recorded Von),
 `entry_corridor_doors_not_passed` (gunfire heard in the far room of the corridor spine draws the invader past two open
-doors; real Von, `requires_von`), `entry_guard_secures_passed_doorway` (the same walk as a plain investigation, scripted Von: both
+doors; recorded Von, `requires_von`), `entry_guard_secures_passed_doorway` (the same walk as a plain investigation, scripted Von: both
 doors covered from beside the jamb, neither entered, nothing claimed on the radio), `entry_guard_enter_walk_secures_passed_doorway`
 (an ENTER order for room C: each door secured once, then C stacked and entered) and
 `entry_guard_enter_walk_with_team_keeps_together` (an ally has claimed C's stack: nothing secured on the way).
@@ -366,9 +366,9 @@ at, and its squad brings the team in to it (`docs/leadership.md` LD24). Why: a s
 team can count on it to be there; the number says how many go in ahead.
 Tests: `stack_ai_goes_round_player_in_slot`, `stack_player_reserved_slot`, `stack_player_keeps_slot_late_ai_behind`, `stack_far_player_ignored`,
 `stack_point_waits_for_player`, `stack_point_goes_when_player_ready`, `stack_follower_waits_for_player`,
-`stack_player_idle_withdrawn`, `stack_player_leaving_withdraws`, `stack_defender_player_none`, `stack_player_slot_von` (the real
-Von server; `tools/run_tests.sh stack --include-von`), `stack_player_kept_through_bang` (the human's slot kept through its one
-AI teammate's bang, real Von), `stack_player_nobody_stacking_withdrawn` (withdrawn once its only teammate aborts),
+`stack_player_idle_withdrawn`, `stack_player_leaving_withdraws`, `stack_defender_player_none`, `stack_player_slot_von` (recorded
+Von; `tools/run_tests.sh stack`), `stack_player_kept_through_bang` (the human's slot kept through its one
+AI teammate's bang, recorded Von), `stack_player_nobody_stacking_withdrawn` (withdrawn once its only teammate aborts),
 `stack_player_dead_end_withdrawn` (E20, office_loft's bathroom), `stack_player_follows_team_side` (E19), `ui/stack_markers_draw`,
 `general/stack_player_wiring`; beneath them the unit suites `ai/stack_claim_suite` (the claim's codec) and `ai/door_stack_suite` (same-frame
 ties with the human, the human's slot never moved into).
@@ -423,7 +423,7 @@ the thrower's hand, clear of the jamb), a thrower that is not ready within `BANG
 `BANG_BURST_CAP` (5 s) of the call, the stack goes in quietly. Why: a stun grenade is how real teams take a room they think is
 occupied, and the entrants go in the moment it goes off; the stack stays beside the wall, out of the burst's line, turned away from the
 flash. Tests: `ai/grenade/stun_entry_suspect_room`, `quiet_entry_unsuspected_room`, `stun_entry_ally_radioed`, `stun_entry_hostile_lost_near_door`,
-`stun_entry_footsteps_heard` (the steps heard after the stack's first decision: R11) (the real Von server, `--include-von --require-von`) and, scripted, one fallback each:
+`stun_entry_footsteps_heard` (the steps heard after the stack's first decision: R11) (recorded Von) and, scripted, one fallback each:
 `ai/grenade/bang_fallback_no_clear_lob`, `bang_fallback_stun_lost`, `bang_fallback_never_called`, `bang_fallback_never_goes_off`, the aim into a room deeper than a
 stun reaches: `ai/grenade/bang_into_long_room` (scripted), and the late reason:
 `ai/grenade/quiet_entry_turns_bang` (gunfire heard while the quiet stack lines up: a bang before anyone goes in), `quiet_entry_crossing_stays_quiet`
@@ -431,8 +431,8 @@ stun reaches: `ai/grenade/bang_into_long_room` (scripted), and the late reason:
 the pie; a lone entrant without a stun does not hold), `quiet_entry_listen_turns_bang` (steps heard during the hold: a bang before anyone goes in),
 `quiet_entry_listen_ends_on_hit`, `quiet_entry_listen_ends_on_hostile_in_view`; the committed thrower: `ai/grenade/bang_kept_through_fight` (a householder
 shows itself in the doorway at the call: the point leaves for the fight, the thrower throws the planned stun, then fights, and a member at the door
-goes in on the burst; real Von); going in on the burst: `ai/grenade/burst_then_cross` (its own stun thrown by GRENADE at a householder
-holding the kitchen's back doorway from inside, in its line of fire, then the walk in: no pie, across from its slot at once; real Von); a guard's entry: `ai/entry/entry_guard_bang_suspect_room` (a search
+goes in on the burst; recorded Von); going in on the burst: `ai/grenade/burst_then_cross` (its own stun thrown by GRENADE at a householder
+holding the kitchen's back doorway from inside, in its line of fire, then the walk in: no pie, across from its slot at once; recorded Von); a guard's entry: `ai/entry/entry_guard_bang_suspect_room` (a search
 walk through the back door into a kitchen gunfire was heard in: a bang), `entry_guard_quiet_unsuspected_room` (the same walk, nothing heard: quiet), scripted;
 the ordered frag (scripted): `ai/grenade/order_frag_entry` (at the burst no member has a clear line to it within the zone; in on the burst, no pie),
 `order_frag_no_frag_goes_quiet`, `order_frag_held_then_go`.
@@ -463,8 +463,8 @@ walked ones.
 Tunables (the NPC's `tuning.entry_guard`): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack`, `pass_clear_time`. The entry plan overlay
 (`show_entry`) draws the views the NPC keeps out of.
 Tests: `entry_route_round_door_view_outside` (a one-room house, gunfire on its far side: the invader goes round the north side, never in
-the front door's view; real Von), `entry_route_round_door_view_inside` (a hall with a store room's view across it: it goes round the
-far end; real Von), `entry_cleared_room_pass_expires` (scripted: the cleared room is passed freely, a minute later its door is avoided or
+the front door's view; recorded Von), `entry_route_round_door_view_inside` (a hall with a store room's view across it: it goes round the
+far end; recorded Von), `entry_cleared_room_pass_expires` (scripted: the cleared room is passed freely, a minute later its door is avoided or
 covered), `entry_route_band_as_walked` (scripted: the lead's route band is the medium walked one, not the short plain one);
 `navigation/avoid_map_carves_the_views` (the map); `ai/movement/npc_doors_walk_round_body` / `npc_doors_walk_body_on_goal` (scripted: a teammate at
 rest on the way round a view, or on its end: gone round or stood short of, never pressed against); `ai/grenade/grenade_throw_walk_secures_doorway` (scripted: every throw spot in reach is past a
@@ -488,7 +488,7 @@ starts outside the doorway's view (E18) and crosses the door's axis inside it (a
 split the stack); `StackLayout.place` is a member's place in its side's file (its slot less the claims ahead of it on the other side), and
 `StackLayout.crossing_order` the order the stack crosses in. `entry.gd` reads both off the doorway's `DoorStack` (`AgentPerception.entry.stack`;
 `readiness.members_before`, `readiness.slices_own_half`, `readiness.follow`, `sweep._corner_for`); `PlayerStack` asks its own `DoorStack` the same for the human.
-Test: `entry_split_stack_criss_cross` (two invaders at the Terrace house's back door from its north and south; real Von, `requires_von`).
+Test: `entry_split_stack_criss_cross` (two invaders at the Terrace house's back door from its north and south; recorded Von, `requires_von`).
 
 **E20. Every slot in the stack's room.** Every slot of a stack, both sides and every row, lies in the room on the stack side of the
 doorway's wall (at an exterior door, outdoors: outside every room of the house and out from the wall): never across a wall, round a
@@ -559,7 +559,7 @@ the fatal funnel, with a sight line to the threshold and hidden from every slot 
 geometry, before it is snapped onto the navmesh: `AgentEntry.geometry`'s `lookouts`), crouched, its gun on the threshold, and fires the
 moment a line opens. So the pie (E3) sees nothing of it, and the first entrant into the funnel (E4) meets its fire. Its order ends at first
 contact, and it fights on its own. A stack's rules do not change for it. Tests: `ai/combat/ambush_door_post`, `ai/combat/ambush_ends_on_shot_at`,
-`ai/combat/ambush_vs_stack` (the real Von server: a real invader stack against it).
+`ai/combat/ambush_vs_stack` (recorded Von: a real invader stack against it).
 
 ## Situations
 

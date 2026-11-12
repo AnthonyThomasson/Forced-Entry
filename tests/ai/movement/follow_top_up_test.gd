@@ -6,8 +6,9 @@ extends GameTest
 ## spot on the ring round the still leader, and there, at rest, reloads (a `reload` start from it)
 ## while its decision walks put no question to Von.
 ##
-## Real Von, the whole pipeline; no switch. The premise is the part-spent magazine (`start_rounds`
-## 2 of the pistol's, with its default spares), on the bare Terrace house.
+## The whole pipeline, no switch and no Von recording: the follower puts no question to Von (the
+## test checks it asked none). The premise is the part-spent magazine (`start_rounds` 2 of the
+## pistol's, with its default spares), on the bare Terrace house.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
@@ -27,8 +28,7 @@ func describe() -> Dictionary:
 		"name": "A follower at rest tops up a low magazine without asking Von",
 		"description": "An invader following a still human leader with a part-spent pistol reaches "
 			+ "its spot on the ring and reloads there, with no Von request.",
-		"tags": ["ai", "movement", "squad", "follow", "reload", "von"],
-		"requires_von": true,
+		"tags": ["ai", "movement", "squad", "follow", "reload"],
 		"timeout": 60.0,
 	}
 

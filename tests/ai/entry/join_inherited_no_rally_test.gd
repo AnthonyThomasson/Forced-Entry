@@ -12,8 +12,8 @@ extends GameTest
 ## to rally. Once the join is over (the room cleared, `done`), the sergeant's next claim of its own
 ## at a doorway rallies the trooper.
 ##
-## Real Von, the whole pipeline; no switch. Premises: the sergeant starts far from the house, so it
-## is still radioing its claim when it takes over; the trooper's defend is issued, and later
+## Recorded Von, the whole pipeline; no switch. Premises: the sergeant starts far from the house, so
+## it is still radioing its claim when it takes over; the trooper's defend is issued, and later
 ## cancelled, through the squad (`Squad.issue`), standing in for the orders a leader gives (an NPC
 ## leader gives none of its own); nobody but the lead is ever killed. The lead is an NPC: a human
 ## leader's rally is cancelled on its death (D38, `rally_cancelled_on_leader_death`), so a join is

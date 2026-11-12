@@ -5,7 +5,7 @@ extends GameTest
 ## (its snapshot's `follows` fact is false), never carries out FOLLOW, and searches the house on its
 ## own: it claims a doorway of its own choosing and goes in.
 ##
-## Real Von, the whole pipeline; no switch.
+## Recorded Von, the whole pipeline; no switch.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

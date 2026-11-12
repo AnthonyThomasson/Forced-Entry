@@ -8,9 +8,10 @@ extends Node
 ## declared timeout; every engine error or warning the host's LogWatch reads meanwhile goes to the
 ## test and fails it at once (log_watch.gd), and one read while no test is open is kept in
 ## `stray_logs`. `close()` frees the world (restoring statics), lets the teardown's logs land on the
-## test and returns its verdict record. A requires_von test waits for the Von decision server (one
-## launcher kept under `von.launcher_parent` while it lives) and runs paced in real time, through
-## the `von` part (test_von_gate.gd).
+## test and returns its verdict record. A requires_von test replays its recording (VonRun) with no
+## server, or runs live / recording / live-only: it waits for the Von decision server (one launcher
+## kept under `von.launcher_parent` while it lives) and runs paced in real time, through the `von`
+## part (test_von_gate.gd).
 
 ## A status line for the host's banner ("Waiting for the decision server…").
 signal status(text: String)
@@ -23,11 +24,14 @@ signal world_built(setup: TestSetup)
 signal verdict_changed(result: Dictionary)
 
 const TestCatalog = preload("res://scenes/testing/test_catalog.gd")
+const TestBundle = preload("res://scenes/testing/test_bundle.gd")
 const TestWorldScript = preload("res://scenes/testing/test_world.gd")
 const LogWatch = preload("res://scenes/testing/log_watch.gd")
 const VonGate = preload("res://scenes/testing/test_von_gate.gd")
 ## The verdicts that carry a bundle (event log, final state, traces) and a `--shots` screenshot.
 const BUNDLED := ["FAIL", "TIMEOUT", "GAP"]
+## The skip reason of a live-only test in a `--record-von` run: nothing of it is recorded.
+const LIVE_ONLY_RECORD := "live-only: nothing to record (--require-von runs it against the server)"
 
 ## The engine log tail whose errors and warnings fail the open test (the host's; set before the
 ## first `start`).
@@ -54,6 +58,9 @@ var stray_logs: Array = []
 var _building := false
 ## Whether the open test's verdict has been taken (a later logged error then changes it).
 var _concluded := false
+## How the open requires_von test's Von decisions are answered, and what that run leaves behind
+## (its recording, the asks it had no answer for).
+var _von_run: VonRun = null
 ## Whether the open test was skipped for want of the Von decision server (its record says so).
 var _von_skipped := false
 
@@ -66,6 +73,7 @@ func _physics_process(delta: float) -> void:
 	poll_logs()
 	if get_tree().paused:
 		return  # the test clock (and so its timeout and waits) stops with the world
+	_fail_on_von_problems()
 	if ctx != null and not ctx.is_finished and not _building:
 		ctx.time += delta
 		if (not entry.get("manual", false)
@@ -95,19 +103,19 @@ func start(test_entry: Dictionary) -> void:
 	setup = null
 	_concluded = false
 	_von_skipped = false
-	var skip_reason := ""
-	if entry["requires_von"]:
-		skip_reason = await von.skip_reason(status.emit)
+	var skip_reason := await _begin_von()
 	ctx = TestContext.new(get_tree(), entry)
-	if skip_reason == VonGate.NOT_LIVE and von.require:
-		ctx.check(false, "The Von decision server is not live (--require-von)")
-		ctx.finish("FAIL")
+	if skip_reason == VonGate.NOT_LIVE and (von.require or von.record):
+		_fail_at_start("The Von decision server is not live (%s)"
+				% ("--record-von" if von.record else "--require-von"))
+		return
+	if _von_run.missing() != "":
+		_fail_at_start(_von_run.missing())
 		return
 	if shots:
 		ctx.bundle.shot_prefix = "%s/%s" % [bundle_dir, String(entry["id"]).replace("/", "__")]
 	if entry["error"] != "":
-		ctx.check(false, "Test script " + String(entry["error"]))
-		ctx.finish("FAIL")
+		_fail_at_start("Test script " + String(entry["error"]))
 		return
 	if skip_reason != "":
 		_von_skipped = true
@@ -120,6 +128,7 @@ func start(test_entry: Dictionary) -> void:
 	var extra: Dictionary = entry.get("extra_switches", {})
 	for switch_name: StringName in extra:
 		setup.switch(switch_name, extra[switch_name])
+	_von_run.arm(setup)
 	configured.emit(setup)
 	_open_world()
 	_building = true
@@ -135,6 +144,30 @@ func start(test_entry: Dictionary) -> void:
 	_drive(test, ctx)
 	if not ctx.is_finished:
 		await ctx.finished
+
+
+## Decide how the open test's Von decisions are answered (`_von_run`). Returns why it does not run
+## live, "" when it does (`TestVonGate.skip_reason`).
+func _begin_von() -> String:
+	var mode := von.mode_for(entry) if entry["requires_von"] else DecisionStub.Mode.SCRIPT
+	_von_run = VonRun.new(entry, mode)
+	if entry["requires_von"] and entry.get("live_only", false) and von.record:
+		return LIVE_ONLY_RECORD
+	if not entry["requires_von"] or _von_run.mode == DecisionStub.Mode.REPLAY:
+		return ""
+	return await von.skip_reason(status.emit, _von_run.mode == DecisionStub.Mode.RECORD)
+
+
+## End the open test as FAIL before its world is built, for `message`.
+func _fail_at_start(message: String) -> void:
+	ctx.verdict.hard_check(ctx, message)
+	ctx.finish("FAIL")
+
+
+## Fail the open test for the Von asks nothing answered (`VonRun.problems`).
+func _fail_on_von_problems() -> void:
+	if ctx != null and _von_run != null and _von_run.problems(ctx):
+		ctx.finish("FAIL")
 
 
 ## Add the open test's world (pausable), its direct children's arrivals and departures and every
@@ -172,7 +205,10 @@ func close() -> Dictionary:
 		await get_tree().physics_frame
 	poll_logs(true)
 	von.end()
+	_fail_on_von_problems()
 	var record := result(snapshot) if ctx != null else {}
+	if ctx != null:
+		_von_run.save(record["status"])
 	if ctx != null:
 		ctx.free()  # discards any test coroutine still parked on it
 	ctx = null
@@ -299,5 +335,5 @@ static func _write_bundle(r: Dictionary, dir: String) -> String:
 	var path := "%s/%s.json" % [dir, String(r["id"]).replace("/", "__")]
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f != null:
-		f.store_string(JSON.stringify(r, "  "))
+		f.store_string(TestBundle.json_text(r, "  "))
 	return ProjectSettings.globalize_path(path)

@@ -10,7 +10,7 @@
 # --changed run with nothing mapped, exit 0.
 #
 # Selecting tests
-#   tools/run_tests.sh                    every test (Von tests skipped)
+#   tools/run_tests.sh                    every test (a Von test replays its recording, no server; a live-only one is skipped)
 #   tools/run_tests.sh projectile         only tests matching "projectile" (id, name, domain, tag;
 #                                         every word must start a word of one of those)
 #   tools/run_tests.sh --domain=ai        only the tests of exactly that domain; comma list allowed
@@ -33,13 +33,14 @@
 #                                         Nothing mapped, or only domains --skip-domain leaves out: it says which
 #                                         and exits 0. It ends with a `NOTE <n> Von test(s) in the changed domains were
 #                                         not run: tools/run_tests.sh --domain=<d> --require-von` when the runs skipped
-#                                         Von tests (the totals line names those apart: `N skipped (V need Von, not run:
-#                                         --require-von)`). A changed docs/*.md paragraph runs the tests its `Test:` /
+#                                         live-only Von tests; a replayed test ran and is no part of it. The totals line
+#                                         names them: `N skipped (V need Von, not run: --require-von)`. A Von test with no
+#                                         recording is no skip: it FAILs naming `--record-von --id=`. A changed docs/*.md paragraph runs the tests its `Test:` /
 #                                         `Tests:` line (or the `Tests:`-only block that directly follows a paragraph
 #                                         naming none) names (tools/spec_tests.py; names resolve against the index under
 #                                         --staged), --repeat=5 (a larger --repeat given wins) under `== tests named by changed
-#                                         spec paragraphs ==` (with --include-von when a Von server is live; --skip-domain
-#                                         wins), also when their domain ran above; a paragraph that names no test, or a name with no test
+#                                         spec paragraphs ==` (--skip-domain
+#                                         wins; Von tests replay), also when their domain ran above; a paragraph that names no test, or a name with no test
 #                                         file, is a NOTE (never a failure).
 #   tools/run_tests.sh --changed=<ref>    the same for what changed since the merge-base of <ref> and HEAD, as a
 #                                         branch's whole work: its commits, the working tree and the untracked files
@@ -65,9 +66,16 @@
 #                                         line) with --changed (also =<ref>), --staged, --jobs above 1 and an unknown REV
 #                                         (--jobs=auto and --jobs=1 are the one process). Use it to see a fixed test
 #                                         still red on the old code.
-#   tools/run_tests.sh --list [words]     list matching tests (id, flags, tags, name) and exit
-#   tools/run_tests.sh --include-von ai   also run tests that need the Von decision server
-#   tools/run_tests.sh --require-von ai   Von tests FAIL instead of skipping when no server is live
+#   tools/run_tests.sh --list [words]     list matching tests (id, `von:replay` / `von:live-only` / `von:unrecorded` (no recording: it FAILs)
+#                                         for a Von test, tags, name) and exit
+#   tools/run_tests.sh --include-von ai   run the Von tests LIVE against the decision server (real-time pace, shard 0), not
+#                                         from their recordings; the live-only ones run too, skipped when no server is live
+#   tools/run_tests.sh --require-von ai   the same, and a Von test FAILs instead of skipping when no server is live. A
+#                                         live run never reads or writes a recording
+#   tools/run_tests.sh --record-von --id=ai/foo_bar
+#                                         run the selected Von tests live and write each one's recording beside its test
+#                                         (<name>_test.von.json, whole: unused entries drop) when it passes; FAILs when no
+#                                         server is live. Real-time pace, shard 0; commit the changed .von.json files
 #   tools/run_tests.sh gap                the tests tagged `gap`: specs the code does not meet yet, written first and
 #                                         left red; their failure is reported as GAP and does not fail the run, and one
 #                                         that passes FAILs ("drop the gap tag")
@@ -82,7 +90,13 @@
 #                   says so once ("waiting for a Godot slot (n of n taken)"). --jobs=N keeps N shards, each waiting for
 #                   its slot. GAME_TEST_JOBS=N caps the jobs of every run in a process tree (auto and --jobs=N alike).
 #                   The tests are dealt out to balance the shards by the wall-clock ms measured in earlier runs (kept in
-#                   $TMPDIR, falling back to the declared timeout); Von tests all stay in shard 0. One combined
+#                   $TMPDIR, falling back to the declared timeout); Von tests run live (--include-von, --require-von, --record-von) all stay in shard 0;
+#                   a replayed one is dealt like any test. A test with `own_process` in its describe() (a last resort,
+#                   domain-testing's runner-flags.md) is left out of every process (--skip-own-process, which the wrapper
+#                   adds itself) and runs after them, --repeat times, each in an engine process of its own; a hand-given
+#                   --shard and --list leave it where it is. A lone process's totals
+#                   line and `Report:` path are those of every process together (its report.json holds the own-process results
+#                   too). One combined
 #                   summary and slowest list is printed, the totals line ending with the 1-minute load, which a line
 #                   before the first test prints too; exit 1 if any shard failed. Not used with --list/--self-test.
 #                   With more than one process the perf-domain tests are held back from the shards and run after every
@@ -227,8 +241,8 @@ LOADED_RUN=""  # 1 while the process about to start gave up waiting for a quiet 
 # space (two flags quoted into one), is refused: the batch would drop it and run everything.
 # tools/tests/test_run_tests_flags.py checks that every flag the batch reads is in one of the two lists.
 BATCH_FLAGS=(--domain= --id= --skip-domain= --repeat= --seed= --shard= --list --self-test --include-von --require-von
-  --summary --verbose --json --shots --fail-fast)
-WRAPPER_FLAGS=(--out= --costs= --failed=)
+  --record-von --summary --verbose --json --shots --fail-fast)
+WRAPPER_FLAGS=(--out= --costs= --failed= --skip-own-process)
 batch_flag() {
   local f
   [[ "$1" == *[[:space:]]* ]] && return 1
@@ -723,17 +737,41 @@ perf_run() {
 # A process's lines left out where several processes make one run (a sharded run, a --repeat with native suites):
 # its banner, totals, FLAKY / FAILING lines and slowest list, printed once for every process together instead.
 QUIET='^(Godot Engine|Godot [0-9]|Running [0-9]+ test|[0-9]+ passed, |Report: |Slowest: |FLAKY |FAILING |$)'
+# What a lone process holds back of its own output when its own-process tests follow it: the same but the banner lines
+# (the run then ends on the totals and `Report:` of every process together).
+LONE_QUIET='^([0-9]+ passed, |Report: |Slowest: |FLAKY |FAILING )'
 
 # One gdUnit process (godot_run) in dir $1, its lines printed as they come but the QUIET ones (all of them kept in
 # $1/stdout.txt), then its log's scan (scan_log); returns 1 when either fails.
 live_run() {
   local out="$1" code
   set +e
-  godot_run "$@" 2>&1 | tee "$out/stdout.txt" | grep --line-buffered -Ev "$QUIET"
+  godot_run "$@" 2>&1 | tee "$out/stdout.txt" | grep --line-buffered -Ev "${LIVE_QUIET:-$QUIET}"
   code=${PIPESTATUS[0]}
   set -e
   scan_log "$out" 0 || code=1
   return $code
+}
+
+# Writes the results and stray logs of the report.json of every dir after the first into the first's report.json, so
+# the `Report:` path of a run holds the results of all its processes.
+merge_reports_into() {
+  python3 - "$@" <<'EOF'
+import json, os, sys
+first = os.path.join(sys.argv[1], "report.json")
+try:
+    merged = json.load(open(first))
+except Exception:
+    merged = {"results": [], "stray_logs": []}
+for d in sys.argv[2:]:
+    try:
+        data = json.load(open(os.path.join(d, "report.json")))
+    except Exception:
+        continue
+    merged.setdefault("results", []).extend(data.get("results", []))
+    merged.setdefault("stray_logs", []).extend(data.get("stray_logs", []))
+json.dump(merged, open(first, "w"))
+EOF
 }
 
 # The native suites met by the runs that wrote the dirs given (their records' `<suite id>::<case>` ids), as res://
@@ -755,18 +793,6 @@ print("\n".join(seen))
 EOF
 }
 
-# Whether a Von decision server answers: something listens on GAME_TEST_VON_PORT (the seam tools/test_log_gate.py makes
-# "no server" with), else on the launcher's port 8000.
-von_live() {
-  python3 - "${GAME_TEST_VON_PORT:-8000}" <<'EOF'
-import socket, sys
-try:
-    socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=1).close()
-except OSError:
-    sys.exit(1)
-EOF
-}
-
 # The Von tests the runs that wrote the dirs given skipped (the records the batch marked `"von": true`, as the totals
 # line counts them), appended to $VON_SKIPPED as one JSON `[domain, id]` line each for --changed's closing NOTE.
 note_von_skips() {
@@ -784,18 +810,19 @@ with open(sys.argv[1], "a") as out:
 EOF
 }
 
-# The closing NOTE of --changed: how many distinct Von tests the runs skipped, and the command that runs their domains.
+# The closing NOTE of --changed: the Von tests the runs skipped (live-only: they need the server) are run by
+# --require-von on their domains.
 von_note() {
   python3 - "$VON_SKIPPED" <<'EOF'
 import json, sys
-seen = {}
+live = {}
 for line in open(sys.argv[1]):
     domain, test_id = json.loads(line)
-    seen[test_id] = domain
-if seen:
-    domains = sorted({d for d in seen.values() if d})
+    live[test_id] = domain
+if live:
+    domains = sorted({d for d in live.values() if d})
     print("NOTE %d Von test(s) in the changed domains were not run: tools/run_tests.sh --domain=%s --require-von"
-          % (len(seen), ",".join(domains)))
+          % (len(live), ",".join(domains)))
 EOF
 }
 
@@ -812,8 +839,8 @@ run_header() {
 }
 
 # The one totals line of the processes whose output is in the files given: every `N passed, ...` line summed field by
-# field, the skips that need Von (named apart as each process names them) summed too, then $1 (the shard count) and the
-# 1-minute load.
+# field, the skips that need Von (as each process names them) summed too, then $1
+# (the shard count) and the 1-minute load.
 merged_totals() {
   local shards="$1"; shift
   python3 - "$shards" "$(load_1min)" "$@" <<'EOF'
@@ -833,6 +860,51 @@ print("%d passed, %d failed, %d timed out, %d skipped%s, %d gap%s  load %s" % (
 EOF
 }
 
+# The ids the runs that wrote the dirs given deferred (`--skip-own-process`: the batch lists the selected `own_process`
+# tests in <dir>/own_process.txt instead of running them), one per line, each once.
+own_deferred() {
+  local d
+  for d in "$@"; do cat "$d/own_process.txt" 2>/dev/null || true; done | sort -u | grep . || true
+}
+
+# The args of a run's own-process tests: the run's, less what selects tests or repeats them (each such test is selected
+# by its id, once a process), the shard, the costs and the flag that deferred them.
+own_process_args() {
+  local a
+  for a in "$@"; do
+    case "$a" in
+      -*) case "$a" in
+            --id=*|--domain=*|--skip-domain=*|--failed*|--repeat=*|--shard=*|--costs=*|--skip-own-process) ;;
+            *) echo "$a" ;;
+          esac ;;
+    esac
+  done
+}
+
+# Each deferred own-process test (own_deferred over the dirs given), --repeat times, in an engine process of its own
+# (a fresh process plays a test as its recording was made: `own_process` of domain-testing); the report dirs they
+# write are appended to OWN_DIRS (a global: bash returns no array). Returns 1 when one fails (--fail-fast stops there). $1: how many times each
+# runs; the dirs after it, the main runs'; OWN_ARGS: the run's args as own_process_args made them.
+OWN_ARGS=()
+OWN_DIRS=()
+own_process_runs() {
+  local times="$1" id k out status=0
+  shift
+  OWN_DIRS=()
+  while IFS= read -r id; do
+    [[ -z "$id" ]] && continue
+    for ((k = 0; k < times; k++)); do
+      out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
+      OWN_DIRS+=("$out")
+      LIVE_QUIET="${OWN_QUIET:-$QUIET}" perf_run live_run "$out" ${OWN_ARGS[@]+"${OWN_ARGS[@]}"} "--id=$id" </dev/null || status=1
+      OWN_QUIET=""   # only the first process of a lone run (when it is the run's first banner) keeps its banner
+      # --fail-fast (the caller's `fail_fast`): the first failure ends every id and repeat that is left
+      [[ ${fail_fast:-0} -eq 1 && $status -ne 0 ]] && break 2
+    done
+  done < <(own_deferred "$@")
+  return $status
+}
+
 # One run of the runner with the given selection args (all of them: `run` adds the command line's), split over several
 # processes when asked (see jobs_for). With --repeat=N every selected test is listed N times in its process, but a
 # native suite runs once a process: it runs N-1 times more, each in a process of its own given only the native suites the
@@ -846,6 +918,7 @@ run_with() {
     case "$x" in --repeat=*) repeat="${x#--repeat=}" ;; esac
   done
   if [[ "$repeat" =~ ^[0-9]+$ && "$(decimal "$repeat")" -gt 1 ]]; then repeat=$(decimal "$repeat"); sharded=1; else repeat=1; fi
+  local own_times=$repeat   # kept: a --self-test run leaves its --repeat to the batch, an own-process test still gets a process each
   for x in "$@"; do
     case "$x" in --shard=*) [[ $repeat -gt 1 ]] && once=1 ;; esac
     case "$x" in --list|--self-test|--shard=*) sharded=0; repeat=1 ;; esac
@@ -853,14 +926,50 @@ run_with() {
     case "$x" in --list) listing=1 ;; esac
   done
   [[ $listing -eq 0 ]] && run_header
-  local out
+  local out a own=1 shown=("$@")
+  for x in "$@"; do
+    case "$x" in --list|--shard=*) own=0 ;; esac
+  done
+  if [[ $own -eq 1 ]]; then
+    # An `own_process` test is left to a process of its own, run after the others (own_process_runs), and the run
+    # ends with its processes' reports and totals together.
+    OWN_ARGS=()
+    while IFS= read -r a; do [[ -n "$a" ]] && OWN_ARGS+=("$a"); done < <(own_process_args "$@")
+    set -- "$@" --skip-own-process
+  fi
   if [[ $sharded -eq 0 ]]; then
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     local code=0
     if [[ $listing -eq 1 ]]; then
       bg_wait godot_list "$out" "$@" || code=$?
+    elif [[ $own -eq 1 ]]; then
+      # Its totals and `Report:` lines are held back (live_run): the run prints them once, for every process together.
+      LIVE_QUIET="$LONE_QUIET" perf_run live_run "$out" "$@" || code=$?
     else
       perf_run godot_run "$out" "$@" || code=$?
+    fi
+    if [[ $own -eq 1 && $listing -eq 0 ]]; then
+      local own_dirs=() fail_fast=0 files=() d show_slowest=1
+      for x in "$@"; do
+        [[ "$x" == "--fail-fast" ]] && fail_fast=1
+        [[ "$x" == "--summary" ]] && show_slowest=0
+      done
+      if ! [[ $fail_fast -eq 1 && $code -ne 0 ]]; then
+        # The own-process tests it deferred run after it, each in a process of its own.
+        # when the lone process ran no test, the first own-process run's banner is the run's
+        OWN_QUIET=""
+        grep -q '^Running ' "$out/stdout.txt" 2>/dev/null || OWN_QUIET="$LONE_QUIET"
+        own_process_runs "$own_times" "$out" || code=1
+        OWN_QUIET=""
+        own_dirs=(${OWN_DIRS[@]+"${OWN_DIRS[@]}"})
+      fi
+      for d in "$out" ${own_dirs[@]+"${own_dirs[@]}"}; do files+=("$d/stdout.txt"); done
+      [[ ${#own_dirs[@]} -gt 0 ]] && merge_reports_into "$out" "${own_dirs[@]}"
+      [[ $keep -eq 1 ]] && { SLOWEST=$show_slowest save_reports "$out"; note_von_skips "$out"; }
+      merged_totals "" "${files[@]}"
+      [[ -f "$out/report.json" ]] && echo "Report: $out/report.json"
+      if no_test "$out"; then no_test_matched ${shown[@]+"${shown[@]}"}; code=1; fi
+      return $code
     fi
     [[ $keep -eq 1 ]] && { save_reports "$out"; note_von_skips "$out"; }
     scan_log "$out" $listing || code=1
@@ -868,7 +977,7 @@ run_with() {
       echo "NOTE native suites ran once (--shard)"
     fi
     if [[ $listing -eq 0 ]] && no_test "$out"; then
-      no_test_matched "$@"
+      no_test_matched ${shown[@]+"${shown[@]}"}
       code=1
     fi
     return $code
@@ -914,6 +1023,10 @@ run_with() {
     dirs+=("$out")
     perf_run live_run "$out" ${phase[@]+"${phase[@]}"} --domain=perf || status=1
   fi
+  if [[ $own -eq 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
+    own_process_runs "$own_times" "${dirs[@]}" || status=1
+    dirs+=(${OWN_DIRS[@]+"${OWN_DIRS[@]}"})
+  fi
   if [[ $repeat -gt 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
     # The native suites the run met, each run again in N-1 processes, one after another (a suite's own files are
     # never shared by two processes at once).
@@ -939,7 +1052,7 @@ run_with() {
   note_von_skips "${dirs[@]}"
   merged_totals "$shards" "${files[@]}"
   if no_test "${dirs[@]}"; then
-    no_test_matched "$@"
+    no_test_matched ${shown[@]+"${shown[@]}"}
     status=1
   fi
   return $status
@@ -1104,8 +1217,6 @@ if [[ $CHANGED -eq 1 ]]; then
     if [[ -n "$spec_ids" ]]; then
       ran=1
       echo "== tests named by changed spec paragraphs =="
-      von=()
-      von_live && von=(--include-von)
       # --repeat=5, or the user's own when it is larger. The user's flag is not passed on: the batch gets one.
       spec_repeat=5
       others=()
@@ -1120,7 +1231,7 @@ if [[ $CHANGED -eq 1 ]]; then
           *) others+=("$x") ;;
         esac
       done
-      run_with "--id=${spec_ids#,}" "--repeat=$spec_repeat" ${von[@]+"${von[@]}"} ${others[@]+"${others[@]}"} || status=1
+      run_with "--id=${spec_ids#,}" "--repeat=$spec_repeat" ${others[@]+"${others[@]}"} || status=1
     fi
   fi
   if [[ $self_test -eq 1 ]]; then

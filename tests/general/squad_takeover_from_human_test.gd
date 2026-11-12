@@ -10,7 +10,7 @@ extends GameTest
 ## kitchen; each member follows the sergeant once its order ends; and the sergeant's next claim of
 ## its own rallies them (a `join` order, the rally keyed on "the leader is not the human").
 ##
-## Real Von, the whole pipeline; no switch. Premises: the defender and the ambusher start in the
+## Recorded Von, the whole pipeline; no switch. Premises: the defender and the ambusher start in the
 ## house, in the rooms their orders name (the orders are the human's, so their walks are not what is
 ## tested), and nobody but the human is ever killed.
 

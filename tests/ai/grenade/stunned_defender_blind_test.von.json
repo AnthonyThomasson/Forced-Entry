@@ -1,0 +1,52 @@
+{
+	"entries": [
+		{
+			"options": [
+				"You have a clear shot at p, and you are not badly wounded (from where you stand)",
+				"Your line to p is blocked, or they are aiming at someone else (1 free side; best: their left side via the arena, medium hidden route, in the open)",
+				"p looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Unarmed)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.2237,
+				"engage": 0.507,
+				"flank": 0.2693
+			},
+			"question": "How should you fight p? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the arena, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at p from where you stand. You are exposed to their fire.\np — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the arena — standing still — facing away from you — holding a Unarmed.\nFlanks on p (you are on behind them): their left side — free, clear shot, in the open, medium hidden route; their right side — route passes p, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → p."
+		},
+		{
+			"options": [
+				"fire from behind the wall in the arena, west of them — clear shot — cover close by (the wall) — short exposed route",
+				"fire from the arena, north of them — clear shot — in the open — medium exposed route",
+				"fire from the arena, north-west of them — clear shot — in the open — short exposed route",
+				"fire from where you stand (in the arena) — clear shot — in the open"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"fire_here": 0.3495,
+				"fire_north": 0.221,
+				"fire_north_west": 0.2128,
+				"fire_west": 0.2167
+			},
+			"question": "Where should you fight p from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour pistol is loaded.\nYou have a clear shot at p from where you stand. You are exposed to their fire.\np — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the arena — standing still — facing away from you — holding a Unarmed.\nDecided so far: COMBAT → p → ENGAGE."
+		},
+		{
+			"options": [
+				"You have a clear shot at p, and you are not badly wounded (from where you stand; they look badly wounded) (your current plan)",
+				"Your line to p is blocked, or they are aiming at someone else (2 free sides; best: their right side via the arena, medium exposed route, cover)",
+				"p looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Unarmed, looks badly wounded)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.5814,
+				"engage": 0.2741,
+				"flank": 0.1445
+			},
+			"question": "How should you fight p? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the arena, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - p - ENGAGE - where you stand (in position, ducking behind cover, for 6s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at p from where you stand. You are exposed to their fire. They are aiming at you.\np — HOSTILE (trespassing) — in sight — in pistol range, north-east of you, in the arena — standing still — aiming at you — holding a Unarmed — looks badly wounded.\nFlanks on p (you are on their front): their left side — free, clear shot, in the open, medium exposed route; their right side — free, clear shot, cover, medium exposed route; behind them — route passes p, clear shot, cover, medium exposed route.\nDecided so far: COMBAT → p."
+		}
+	],
+	"version": 1
+}

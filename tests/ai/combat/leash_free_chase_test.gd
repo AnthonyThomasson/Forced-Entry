@@ -7,7 +7,7 @@ extends GameTest
 ## `leash_no_chase`, the same world with the squad bound, a follower that stays within the leash is
 ## held there by the leash, not by a target never worth chasing.
 ##
-## Real Von, the whole pipeline; no switch (`Follow.chase_hall`). Premises: the target and the
+## Recorded Von, the whole pipeline; no switch (`Follow.chase_hall`). Premises: the target and the
 ## puppet are never killed (`max_health`), and the target, a puppet, never shoots.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")

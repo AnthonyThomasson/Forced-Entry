@@ -11,7 +11,7 @@ extends GameTest
 ## nor has any crew member radioed a COMBAT callout.
 ##
 ## One room, so the crew has nothing to search: in the Terrace house its search walks the leader
-## from room to room, and Von keeps that plan until a walk ends. Real Von, the whole pipeline.
+## from room to room, and Von keeps that plan until a walk ends. Recorded Von, the whole pipeline.
 ## Required first (set-up findings otherwise): the leader heard the steps and took INVESTIGATE –
 ## STAY. Premise: the invader is a puppet (the thing to be heard: a real invader would come in),
 ## unkillable, that never shoots.

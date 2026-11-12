@@ -2,9 +2,9 @@ extends GameTest
 ## H1 (`docs/hearing.md`, issue #51, R5), the scenario: a heard footstep is an INVESTIGATE lead
 ## ("footsteps heard"), like gunfire. A defender in the Terrace house's living room hears an invader
 ## walking about the kitchen behind the wall, out of its sight, and goes to see: it takes
-## INVESTIGATE on the footsteps lead and heads for the kitchen. Real Von at every level; a `require`
-## that it heard the steps (its memory, `debug_memory()["footsteps"]`) comes first, so a deaf
-## defender reads as the missing hearing, not a Von choice.
+## INVESTIGATE on the footsteps lead and heads for the kitchen. Recorded Von at every level; a
+## `require` that it heard the steps (its memory, `debug_memory()["footsteps"]`) comes first, so a
+## deaf defender reads as the missing hearing, not a Von choice.
 ##
 ## Premise: the invader is a puppet (the thing to be heard) that paces a lane in the kitchen's
 ## south-west, hidden from the living room by the wall between, about 150 px from the defender;

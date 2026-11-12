@@ -4,9 +4,9 @@ extends GameTest
 ## Once the stack is ready the thrower (the slot-2 member when it carries a stun) radios `bang` and
 ## throws the stun to the room's far side through the doorway; every member holds its slot turned
 ## away from the door; on the detonation the point skips the pie and crosses at once. The defender
-## inside is blinded. The whole pipeline runs: the heard gunfire, the snapshot's entries, real Von
-## choosing STUN ENTRY over ENTER, the stack on the radio, the bang. A `require` that the AI took
-## STUN ENTRY comes first, so a different Von choice reads as a set-up finding.
+## inside is blinded. The whole pipeline runs: the heard gunfire, the snapshot's entries, recorded
+## Von choosing STUN ENTRY over ENTER, the stack on the radio, the bang. A `require` that the AI
+## took STUN ENTRY comes first, so a different Von choice reads as a set-up finding.
 ##
 ## Premises: the gunfire is one shot heard from the kitchen (`hit` event with nobody known behind
 ## it, as tests/_ai/investigate_probe.gd posts it), at the start so it is in the first decision;

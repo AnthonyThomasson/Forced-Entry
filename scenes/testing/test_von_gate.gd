@@ -1,10 +1,11 @@
 extends RefCounted
-## Testing domain: the test session's Von gate (test_session.gd's `von`). A requires_von test waits
-## here for the Von decision server (one launcher per process, kept under `launcher_parent` while it
-## lives) and, once it runs, is paced in real time (`pace`, each process frame) until `end`. It
-## holds its session (a Node): the launcher goes under it when no `launcher_parent` is given. The
-## wait is announced through the callable the session hands `skip_reason`, its `status` signal's
-## `emit`.
+## Testing domain: the test session's Von gate (test_session.gd's `von`). It decides how each
+## requires_von test's decisions are answered (`mode_for`): replayed from its recording, which needs
+## no server and no pacing, or live / recording / live-only, which wait here for the Von decision
+## server (one launcher per process, kept under `launcher_parent` while it lives) and, once they
+## run, are paced in real time (`pace`, each process frame) until `end`. It holds its session (a
+## Node): the launcher goes under it when no `launcher_parent` is given. The wait is announced
+## through the callable the session hands `skip_reason`, its `status` signal's `emit`.
 
 const LAUNCHER = preload("res://scenes/ai/decision/decision_server_launcher.gd")
 ## Frame rate a Von-dependent test is paced to in real time (matches the batch run's --fixed-fps
@@ -22,10 +23,18 @@ static var _launcher: Node = null
 ## The launcher's settled answer: whether a server is live.
 static var _von_live := false
 
-## Whether requires_von tests run (false: they are SKIPPED, a batch run without --include-von).
+## Whether a requires_von test that needs the server may run: a live-only one or one run live
+## (false: it is SKIPPED, "pass --include-von"). A test that replays its recording never asks.
+## The batch sets it for `--include-von`; a host with no run options leaves it.
 var include := true
 ## Whether a requires_von test FAILs instead of skipping when no server is live (--require-von).
 var require := false
+## Whether requires_von tests run LIVE, against the server, instead of replaying their recordings
+## (the host sets it for `--include-von` and `--require-von`).
+var live := false
+## Whether requires_von tests RECORD: live, each writing its recording (the host sets it for
+## `--record-von`, and only that does).
+var record := false
 ## Where the Von launcher lives: it is kept, with the server it started, as long as that node does.
 var launcher_parent: Node = null
 ## While true, each frame sleeps out the rest of 1/REALTIME_FPS of wall time (Engine.max_fps is not
@@ -53,11 +62,25 @@ func pace() -> void:
 	_last_frame_usec = now
 
 
-## Why the open Von test does not run, "" when it does: skipped unless Von tests are included, else
-## `NOT_LIVE` when the launcher finds no server. A Von test that runs is paced in real time.
-## `announce` is called with a status line for the host's banner while the server is awaited.
-func skip_reason(announce: Callable) -> String:
-	if not include and not require:
+## How the Von test `entry` is answered (`DecisionStub.Mode`): RECORD when the run records, LIVE
+## when the host asked for the server, else REPLAY of its recording. SCRIPT stands for no stub at
+## all: a `live_only` test (the HTTP transport itself) always meets the real client and server.
+func mode_for(entry: Dictionary) -> DecisionStub.Mode:
+	if entry.get("live_only", false):
+		return DecisionStub.Mode.SCRIPT
+	if record:
+		return DecisionStub.Mode.RECORD
+	return DecisionStub.Mode.LIVE if live else DecisionStub.Mode.REPLAY
+
+
+## Why the open Von test does not run live, "" when it does: skipped unless Von tests are included
+## (or `force`: a recording run), else `NOT_LIVE` when the launcher finds no server. A Von test that
+## runs live is paced in real time. `announce` is called with a status line for the host's banner
+## while the server is awaited. A replayed test never asks.
+func skip_reason(announce: Callable, force := false) -> String:
+	if DecisionStub.source.is_valid():
+		return ""  # a stand-in answer source replaces the server (the tests of the seam)
+	if not force and not include and not require:
 		return "needs the Von decision server (pass --include-von)"
 	# Von answers in real time: a batch run's `--fixed-fps` sim outpaces it (game-time timers like
 	# the HTTP timeout expire early), so pace this test in real time.
@@ -65,6 +88,11 @@ func skip_reason(announce: Callable) -> String:
 	if not await _await_von(announce):
 		return NOT_LIVE
 	return ""
+
+
+## Whether the open test is paced in real time (it runs live; a replayed one never is).
+func paced() -> bool:
+	return _realtime
 
 
 ## Stop pacing in real time (the session's `close`).
@@ -83,7 +111,7 @@ func _await_von(announce: Callable) -> bool:
 		var port := OS.get_environment(VON_PORT_ENV)
 		if port != "":
 			_launcher.port = int(port)
-		_launcher.resolved.connect(func(live: bool): _von_live = live)
+		_launcher.resolved.connect(func(is_live: bool): _von_live = is_live)
 		_von_live = false
 		(launcher_parent if launcher_parent != null else _session).add_child(_launcher)
 		if port != "":

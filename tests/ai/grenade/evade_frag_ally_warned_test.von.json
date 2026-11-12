@@ -1,0 +1,46 @@
+{
+	"entries": [
+		{
+			"options": [
+				"You are badly wounded and being hit (best: the kitchen, out of their sight; you are unhurt)",
+				"You have a clear shot at thrower, and you are not badly wounded (from where you stand)",
+				"thrower looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Pistol)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.1819,
+				"engage": 0.6832,
+				"retreat": 0.1348
+			},
+			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at thrower from where you stand. You are exposed to their fire. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, west of you, in the hallway — standing still — aiming at you — holding a Pistol.\nFlanks on thrower (you are on their front): their left side — route passes thrower, clear shot, in the open, medium exposed route; their right side — route passes thrower, line blocked, cover, medium hidden route; behind them — route passes thrower, clear shot, in the open, medium exposed route.\nDecided so far: COMBAT → thrower."
+		},
+		{
+			"options": [
+				"the kitchen — unsearched — short route",
+				"the living room — unsearched — medium route"
+			],
+			"pick": "room_living_room",
+			"probabilities": {
+				"room_kitchen": 0.4127,
+				"room_living_room": 0.5873
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are busy: Sit. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"fire from behind the wall in the hallway, east of them — clear shot — cover close by (the wall) — short exposed route",
+				"fire from where you stand (in the hallway) — clear shot — in the open"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"fire_east": 0.3913,
+				"fire_here": 0.6087
+			},
+			"question": "Where should you fight thrower from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour pistol is loaded.\nYou have a clear shot at thrower from where you stand. You are exposed to their fire. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, west of you, in the hallway — standing still — aiming at you — holding a Pistol.\nDecided so far: COMBAT → thrower → ENGAGE."
+		}
+	],
+	"version": 1
+}

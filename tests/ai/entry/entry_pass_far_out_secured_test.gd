@@ -5,8 +5,8 @@ extends GameTest
 ## body's width of the south wall, so there is no way round it. Gunfire is heard at the hall's east
 ## end; the invader at its west end walks there across the band 300 px out from the doorway: it
 ## first covers the doorway from beside the jamb, then crosses the band in one go, and never goes
-## in. Real Von: the invader hears the shots and decides for itself; a `require` that it went to the
-## gunfire without going into the store room comes first.
+## in. Recorded Von: the invader hears the shots and decides for itself; a `require` that it went to
+## the gunfire without going into the store room comes first.
 ##
 ## Premise: the gunfire is one shot heard at the hall's east end (a `hit` event nobody known fired,
 ## as tests/_ai/investigate_probe.gd posts it), first thing in `run`, the frame the invader spawns

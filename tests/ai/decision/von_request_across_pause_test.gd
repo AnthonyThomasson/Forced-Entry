@@ -19,6 +19,7 @@ func describe() -> Dictionary:
 			+ "answered and adopted after the resume, with no failure (LD2).",
 		"tags": ["ai", "decision", "leadership", "clock", "von"],
 		"requires_von": true,
+		"live_only": true,
 		"timeout": 60.0,
 	}
 

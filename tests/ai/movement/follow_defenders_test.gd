@@ -10,7 +10,7 @@ extends GameTest
 ## cannot reach counts as arrived); each follower's spot keeps to its place in the file or on the
 ## rings round a still leader.
 ##
-## Real Von, the whole pipeline; no switch, no premise but the house. Nothing is heard: the
+## Recorded Von, the whole pipeline; no switch, no premise but the house. Nothing is heard: the
 ## leader's own search walks it through the house (a threat heard outside the leader's room would
 ## post the crew at its room's doorway and hold it there, the defenders' ambush rule,
 ## `docs/leadership.md` LD29).

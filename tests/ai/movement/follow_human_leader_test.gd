@@ -10,8 +10,9 @@ extends GameTest
 ## LD28) holds the trail, the leash and each member's own follow spot, its place in the file behind
 ## the human.
 ##
-## Real Von, the whole pipeline; no switch. The house is the bare Terrace house, so there is a house
-## to search: left to themselves the NPCs go in and search it.
+## The whole pipeline, no switch and no Von recording: the followers put no question to Von (the
+## test checks it asked none). The house is the bare Terrace house, so there is a house to search:
+## left to themselves the NPCs go in and search it.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
@@ -39,8 +40,7 @@ func describe() -> Dictionary:
 		"description": "A puppet human leader walks a route along the garden: its two NPC "
 			+ "teammates follow it in a file, and ring it behind its facing, facing out, once it "
 			+ "stops.",
-		"tags": ["ai", "movement", "squad", "follow", "leadership", "human", "von"],
-		"requires_von": true,
+		"tags": ["ai", "movement", "squad", "follow", "leadership", "human"],
 		"timeout": 90.0,
 	}
 

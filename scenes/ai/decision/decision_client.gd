@@ -55,13 +55,7 @@ func ask(state_text: String, instructions: String, options: Dictionary) -> bool:
 		_stub_serial += 1
 		_answer_from_stub.call_deferred(_stub_serial, state_text, instructions, options)
 		return true
-	var body := {
-		"model": model,
-		"state": state_text,
-		"questions": {
-			"pick": { "type": "choice", "instructions": instructions, "criteria": options },
-		},
-	}
+	var body := VonWire.request_body(model, state_text, instructions, options)
 	var headers := PackedStringArray(["Content-Type: application/json"])
 	if _http.request(server_url, headers, HTTPClient.METHOD_POST, JSON.stringify(body)) == OK:
 		_pending = true
@@ -70,22 +64,37 @@ func ask(state_text: String, instructions: String, options: Dictionary) -> bool:
 	return false
 
 
-## Test seam (decision_stub.gd): answer the in-flight question from the scripted stub, a frame later
-## like a real reply (`DecisionStub.latency_frames` more physics frames when a test wants a slow
-## server). Dropped if the request was cancelled meanwhile.
+## Test seam (decision_stub.gd): answer the in-flight question from the stub, a frame later like a
+## real reply. A scripted answer waits `DecisionStub.latency_frames` more physics frames when a test
+## wants a slow server; a replayed, live or recorded one (`DecisionStub.holds()`) is decided now
+## (a live ask stalls the main thread until Von answers) and lands exactly
+## `DecisionStub.hold_frames` physics frames after the ask. Dropped if the request was cancelled
+## meanwhile.
 func _answer_from_stub(
 	serial: int,
 	state_text: String,
 	instructions: String,
 	options: Dictionary,
 ) -> void:
-	for i in DecisionStub.latency_frames:
+	if not _pending or serial != _stub_serial:
+		return  # cancelled before it was decided: never asked, never recorded, never a miss
+	var held := DecisionStub.holds()
+	var decided := {}
+	if held:
+		decided = DecisionStub.decide(state_text, instructions, options, server_url, model)
+	for i in (DecisionStub.hold_frames if held else DecisionStub.latency_frames):
 		if not is_inside_tree():
 			return
 		await get_tree().physics_frame
 	if not _pending or serial != _stub_serial:
 		return
 	_pending = false
+	if held:
+		if decided.is_empty():
+			_fail("no answer from the recording or the server")
+		else:
+			answered.emit(decided["pick"], decided["probabilities"])
+		return
 	var pick := DecisionStub.answer(state_text, instructions, options)
 	if pick == "":
 		_fail("scripted failure")
@@ -153,22 +162,7 @@ static func error_detail(body: PackedByteArray) -> String:
 	return text if text != "" else "(empty response body)"
 
 
-## The offered id Von ranks highest: its argmax `choice` when that is one of the offered options,
-## else the highest-probability offered id. Von's distributions are often flat (low confidence), so
-## taking the top pick — rather than sampling — keeps the NPC decisive instead of jittering. Empty
-## when no offered option is present.
+## The offered id Von ranks highest in `answer` (`VonWire.pick_from`), "" when no offered option is
+## present.
 func _pick(answer: Variant) -> String:
-	if not answer is Dictionary:
-		return ""
-	var choice = answer.get("choice")
-	if choice is String and _options.has(choice):
-		return choice
-	if not answer.get("probabilities") is Dictionary:
-		return ""
-	var best := ""
-	var best_p := -1.0
-	for id in answer["probabilities"]:
-		if _options.has(id) and float(answer["probabilities"][id]) > best_p:
-			best_p = float(answer["probabilities"][id])
-			best = id
-	return best
+	return VonWire.pick_from(answer, _options)

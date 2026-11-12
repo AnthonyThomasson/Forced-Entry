@@ -1,0 +1,80 @@
+{
+	"entries": [
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the south-west — unexplored — short route)",
+				"A doorway leads into a room where a hostile was heard, seen, radioed or shooting from (the doorway to the south-west — unexplored — short route)",
+				"an unexplored part of the house to the west — medium route"
+			],
+			"pick": "enter",
+			"probabilities": {
+				"enter": 0.4567,
+				"explore_west": 0.2559,
+				"stun_entry": 0.2873
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the doorway to the south-west — unexplored — short route",
+				"the doorway to the west — unexplored — long route"
+			],
+			"pick": "door_840_190",
+			"probabilities": {
+				"door_0_415": 0.3689,
+				"door_840_190": 0.6311
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nDecided so far: SEARCH → ENTER."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)",
+				"You have a clear shot at h, and you are not badly wounded (from where you stand)",
+				"h holds a room you are outside of and you can throw a grenade onto their spot (h holds the kitchen, a room you are outside of, within throwing range from a spot nearby)",
+				"h looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, standing still, holding a Unarmed)"
+			],
+			"pick": "grenade",
+			"probabilities": {
+				"advance": 0.0933,
+				"engage": 0.3649,
+				"grenade": 0.4835,
+				"retreat": 0.0582
+			},
+			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: SEARCH - ENTER - the doorway to the south-west (slicing the pie, for 5s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at h from where you stand. You are exposed to their fire. h holds the kitchen, a room you are outside of. You can throw a stun grenade onto their spot. They are aiming at you.\nh — HOSTILE (seen) — in sight — close, in pistol range, west of you, in the kitchen — standing still — aiming at you — holding a Unarmed.\nFlanks on h (you are on their front): their left side — route passes h, clear shot, in the open, short exposed route; their right side — route passes h, clear shot, cover, short exposed route; behind them — route passes h, clear shot, in the open, medium hidden route.\nDecided so far: COMBAT → h."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)",
+				"You have a clear shot at h, and you are not badly wounded (from behind the wall outside; they look hurt)",
+				"h is blinded by a flash and cannot see you, or h looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, was standing still, holding a Unarmed, looks hurt, blinded by a flash)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.6842,
+				"engage": 0.192,
+				"retreat": 0.1238
+			},
+			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: EVADE - a live stun grenade (waiting, for 1s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from h (the wall): your line to them is blocked. h is blinded by a flash and cannot see you.\nh — HOSTILE (seen) — last seen just now — close, in pistol range, north-west of you, in the kitchen — was standing still — blinded by a flash — holding a Unarmed — looks hurt.\nFlanks on h (you are on their front): their left side — route passes h, clear shot, in the open, short exposed route; their right side — route passes h, clear shot, cover, short exposed route; behind them — route passes h, clear shot, cover, medium hidden route.\nDecided so far: COMBAT → h."
+		},
+		{
+			"options": [
+				"advance halfway to them (in the kitchen) — cover close by (the wall) — clear shot from there",
+				"advance most of the way to them (in the kitchen) — in the open — clear shot from there",
+				"rush straight at where they are (in the kitchen) — short exposed route — they hold a Unarmed"
+			],
+			"pick": "advance_half",
+			"probabilities": {
+				"advance_close": 0.3614,
+				"advance_half": 0.3656,
+				"rush": 0.273
+			},
+			"question": "How should you close in on h? Prefer cover close to them and a hidden route; rush only when they are weak, fleeing or unarmed.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: EVADE - a live stun grenade (waiting, for 1s).\nYour pistol is loaded.\nYou are behind cover from h (the wall): your line to them is blocked. h is blinded by a flash and cannot see you.\nh — HOSTILE (seen) — last seen just now — close, in pistol range, north-west of you, in the kitchen — was standing still — blinded by a flash — holding a Unarmed — looks hurt.\nDecided so far: COMBAT → h → ADVANCE."
+		}
+	],
+	"version": 1
+}

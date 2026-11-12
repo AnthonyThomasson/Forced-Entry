@@ -18,6 +18,11 @@ func describe() -> Dictionary:
 			+ "match, real Von deciding: no defender ever steps outside.",
 		"tags": ["ai", "territory", "search", "von"],
 		"requires_von": true,
+		# A whole generated-house match for 40 s: its fight moves the NPCs by a hair differently in
+		# a replay than in the run that recorded it (the engine orders the contacts of touching
+		# bodies by what the process allocated), and a replay then meets a snapshot it has no answer
+		# for. It stays on the live server, as a test of Von's own run of a match.
+		"live_only": true,
 		"timeout": 80.0,
 		# Furniture shoved in a real match makes the nav re-baker now and then hand the engine
 		# overlapping footprints (see perf/match_5v5_stress); that is a nav bug this test is not

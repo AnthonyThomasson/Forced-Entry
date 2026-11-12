@@ -1,8 +1,8 @@
 extends GameTest
 ## Desired (E10): a team clears an average room within the 5 to 6 second training target. Two
 ## invaders enter the furnished kitchen (an island, a counter, a fridge: corners to look round) by
-## its back door: from the point's `going_in` to the `clear` call is 6 s at most. Real Von: the pair
-## stand in the back garden and decide for themselves to enter.
+## its back door: from the point's `going_in` to the `clear` call is 6 s at most. Recorded Von: the
+## pair stand in the back garden and decide for themselves to enter.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")

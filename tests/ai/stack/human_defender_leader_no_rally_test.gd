@@ -9,7 +9,7 @@ extends GameTest
 ## whole in a world of its own, as in `command_menu_wiring_test.gd`. The human walks up beside the
 ## hall doorway into the living room, where the first of a stack stands, and holds there.
 ##
-## Real Von, the whole pipeline; no switch. `Settings.path` points at a scratch file.
+## Recorded Von, the whole pipeline; no switch. `Settings.path` points at a scratch file.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Follow := preload("res://tests/_ai/follow_probe.gd")

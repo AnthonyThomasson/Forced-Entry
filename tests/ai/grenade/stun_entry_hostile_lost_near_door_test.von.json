@@ -1,0 +1,99 @@
+{
+	"entries": [
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wardrobe close by, out of their sight; you are unhurt)",
+				"You have a clear shot at hostile, and you are not badly wounded (from where you stand)",
+				"hostile looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, moving north-west, holding a Unarmed)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.2075,
+				"engage": 0.665,
+				"retreat": 0.1274
+			},
+			"question": "How should you fight hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at hostile from where you stand. You are exposed to their fire.\nhostile — HOSTILE (seen) — in sight — in pistol range, north of you, outside the house — moving north-west — facing away from you — holding a Unarmed.\nFlanks on hostile (you are on their left side): their right side — route passes hostile, clear shot, in the open, medium hidden route.\nDecided so far: COMBAT → hostile."
+		},
+		{
+			"options": [
+				"fire from behind the wardrobe outside, south of them — clear shot — cover close by (the wardrobe) — short exposed route",
+				"fire from outside, south-east of them — clear shot — in the open — short exposed route",
+				"fire from where you stand (outside) — clear shot — in the open",
+				"wait in ambush behind the wardrobe — you shoot when they show — they are moving elsewhere"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"ambush": 0.2087,
+				"fire_here": 0.3626,
+				"fire_south": 0.2021,
+				"fire_south_east": 0.2265
+			},
+			"question": "Where should you fight hostile from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour pistol is loaded. You carry a stun grenade.\nYou have a clear shot at hostile from where you stand. You are exposed to their fire.\nhostile — HOSTILE (seen) — in sight — in pistol range, north of you, outside the house — moving north-west — facing away from you — holding a Unarmed.\nDecided so far: COMBAT → hostile → ENGAGE."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wardrobe close by, out of their sight; you are unhurt)",
+				"You have a clear shot at hostile, and you are not badly wounded (from where you stand; they look hurt) (your current plan)",
+				"Your line to hostile is blocked, or they are aiming at someone else (1 free side; best: behind them outside, short hidden route, cover)",
+				"hostile looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, was moving north-west, holding a Unarmed, looks hurt)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"advance": 0.2481,
+				"engage": 0.3743,
+				"flank": 0.2077,
+				"retreat": 0.17
+			},
+			"question": "How should you fight hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: COMBAT - hostile - ENGAGE - where you stand (in position, ducking behind cover, for 3s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou have a clear shot at hostile from where you stand. You are exposed to their fire.\nhostile — HOSTILE (seen) — last seen recently — in pistol range, north of you, outside the house — was moving north-west — holding a Unarmed — looks hurt.\nFlanks on hostile (you are on their left side): their right side — route passes hostile, clear shot, in the open, medium hidden route; behind them — free, clear shot, cover, short hidden route.\nDecided so far: COMBAT → hostile."
+		},
+		{
+			"options": [
+				"fire from behind the wardrobe outside, south of them — clear shot — cover close by (the wardrobe) — short exposed route",
+				"fire from outside, south-east of them — clear shot — in the open — short exposed route",
+				"fire from where you stand (outside) — clear shot — cover close by (the wardrobe) (your current plan)",
+				"wait in ambush behind the wardrobe — you shoot when they show — they are moving elsewhere"
+			],
+			"pick": "fire_here",
+			"probabilities": {
+				"ambush": 0.2117,
+				"fire_here": 0.3419,
+				"fire_south": 0.2287,
+				"fire_south_east": 0.2178
+			},
+			"question": "Where should you fight hostile from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: COMBAT - hostile - ENGAGE - where you stand (in position, ducking behind cover, for 3s).\nYour pistol is loaded. You carry a stun grenade.\nYou have a clear shot at hostile from where you stand. You are exposed to their fire.\nhostile — HOSTILE (seen) — last seen recently — in pistol range, north of you, outside the house — was moving north-west — holding a Unarmed — looks hurt.\nDecided so far: COMBAT → hostile → ENGAGE."
+		},
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the north — a hostile lost by its doorway — short route)",
+				"A doorway leads into a room where a hostile was heard, seen, radioed or shooting from (the doorway to the north — a hostile lost by its doorway — short route)",
+				"an unexplored part of the house to the north-west — long route"
+			],
+			"pick": "stun_entry",
+			"probabilities": {
+				"enter": 0.349,
+				"explore_north_west": 0.2455,
+				"stun_entry": 0.4055
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: COMBAT - hostile - ENGAGE - where you stand (waiting, for 0s).\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the doorway to the north — a hostile lost by its doorway — short route",
+				"the doorway to the west — unexplored — long route"
+			],
+			"pick": "door_840_190",
+			"probabilities": {
+				"door_0_415": 0.3736,
+				"door_840_190": 0.6264
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: COMBAT - hostile - ENGAGE - where you stand (waiting, for 0s).\nDecided so far: SEARCH → STUN ENTRY."
+		}
+	],
+	"version": 1
+}

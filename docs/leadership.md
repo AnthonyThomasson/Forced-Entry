@@ -135,7 +135,7 @@ reaches (search, enter, investigate: the order takes the walk first) the sentenc
 is why it is shown only while ordered. "defend" and "hold" read alike (17 of 18 either way); "defend" is the menu's word.
 
 Tests: `ai/decision/order_node_no_von` (an order is adopted by a walk that starts at the ORDER node, every level auto, no question to
-Von), `ai/decision/order_fight_then_resume` (real Von: shot at, an ordered defender fights, then goes back to its order),
+Von), `ai/decision/order_fight_then_resume` (recorded Von: shot at, an ordered defender fights, then goes back to its order),
 `ai/decision/unordered_state_unchanged` (an unordered NPC's walk and state text match a capture taken before any of this),
 `ai/entry/stack_dead_end_refused` (the members refused a slot never move more than 6 px from where the order found them),
 `ai/decision/order_stops_walk` (a defender walking a search, ordered with shots landing by it, stands while the decision made with the
@@ -177,7 +177,7 @@ outside the room and closes on it when it is inside; melee closes in only on a c
 out of the room; once the grenade has burst it decides again, takes its order up and walks back in to its spot. "Never leaves the room" is
 a rule on its fight options, not on the reflex. The order lasts until it is cancelled or replaced.
 
-Tests: `ai/combat/defend_room_stays_inside` (real Von: an ordered defender shot at from the hall fights and never leaves the kitchen; its
+Tests: `ai/combat/defend_room_stays_inside` (recorded Von: an ordered defender shot at from the hall fights and never leaves the kitchen; its
 squad bound, `s.squads`, its leader left in the hall about 510 px off, beyond the leash, which binds no ordered member, LD23),
 `ai/combat/defend_room_shares_doorways` (two members, two doorways, one each, off-axis and back from the wall, guns on them),
 `ai/combat/defend_room_evade_returns` (a frag drives a defender out of the box room; after the burst it walks back in and holds).
@@ -410,10 +410,10 @@ markers say hold), `order_stack_hold_leader_dies` (D12: the leader killed while 
 it goes on its own), `ai/grenade/order_frag_held_then_go` (LD14: no bang call or throw while held), `general/squad_go_and_ambush` (the go's
 recipients, its latch in `view()`, the leader's death posting one `go` with `auto`), `general/squad_go_latched_off_claims` (a go read
 off the claims, `order_go` or a member crossing, stays latched in `view()` once the claims stop saying it),
-`order_stack_hold_ignores_earlier_entry` (real Von: a `cover` claim left from an earlier entry into the same room releases nothing; the
+`order_stack_hold_ignores_earlier_entry` (recorded Von: a `cover` claim left from an earlier entry into the same room releases nothing; the
 stack holds and `view()` says held until the leader's go), `ai/stack/stack_player_go_after_funnel_brush` (D14: the human brushes the
 funnel before the order and steps in after it; the squad's `view()` then no longer says held), `ai/door_stack_suite` (the rule:
-`released` against the order's frame), `general/command_menu_wiring` (LD16), `order_stack_hold_fights_stack_side` (real Von: a defender in
+`released` against the order's frame), `general/command_menu_wiring` (LD16), `order_stack_hold_fights_stack_side` (recorded Von: a defender in
 the kitchen seen through the back door and then hidden, the held members unkillable as the premise: a held member fires from the
 stack's side and none walks into the kitchen while held; once the fight lapses each is back in its slot),
 `order_stack_hold_retreat_stays_stack_side` (scripted: held members shot at from the kitchen, knowing the house, are offered no retreat
@@ -525,7 +525,7 @@ Tests (the Terrace house's `door_150_360`, ambushed from the living room): `ai/c
 unseen from every slot and pie step by the test's own copy of the entry geometry, crouched, gun on the threshold; a puppet steps into the
 doorway, it fires, its order ends and it fights on), `ai/combat/ambush_ends_on_shot_at` (scripted, D18: an intruder's footsteps behind the
 wall do not end it; the same intruder, still unseen in the hall, firing real pistol rounds into the wall beside its post does, not before
-the first shot), `ai/combat/ambush_vs_stack` (real Von, `--include-von --require-von`: an ambushing
+the first shot), `ai/combat/ambush_vs_stack` (recorded Von, replayed; `--record-von` refreshes it: an ambushing
 defender against a real invader stack, posted before the first `going_in`, shoots the first of them into the funnel before any of them
 fires), `ai/combat/ambush_contact_leashes_follower` (scripted, LD23: once an intruder in sight ends the ambush `done`, the first decision walk
 begun after it decides over a confinement carrying the leash round its leader), `general/squad_go_and_ambush` (the click side's room, the
@@ -535,7 +535,7 @@ shielded, crouched, from every landing of a frag thrown in by the doorway, both 
 frag only: no post in that room has furniture within the flash's cover reach on every landing's line, as above),
 `ai/combat/ambush_post_cover_through_body` (scripted: a body never takes a post's cover; a room where low cover on the line to the threshold
 decides among the hidden posts, a bystander standing between the post and its shoe rack, and the post keeps the rack on its line, bodies
-looked through), `ai/combat/ambush_survives_stun_entry` (real Von: a shielded ambusher against a real two-invader stack whose suspect-room entry bangs the
+looked through), `ai/combat/ambush_survives_stun_entry` (recorded Von: a shielded ambusher against a real two-invader stack whose suspect-room entry bangs the
 room is not blinded and fires before either invader does), `ai/combat/ambush_primed_fires_on_line_open` (scripted: an ambusher spawned
 before the entrant fires on the frame the entrant's step opens the line), `ui/command_menu_items`, `ui/order_markers_draw` (LD16); the
 bang's own landings are pinned unchanged by the `ai/grenade/bang_*` tests.
@@ -601,7 +601,7 @@ The rule is the same whoever leads: an AI leader, the human (its AI teammates fo
 defenders' crew's first spawned, from the start of the match. When the leader dies (LD4) the squad starts its trail afresh at the new
 leader within the frame, so every follower's spot comes round it, and the new leader, a follower no more, decides on its own again.
 
-Tests: `ai/movement/follow_leader_search` (real Von, three invaders on the furnished Terrace house: while the leader, its own entries off
+Tests: `ai/movement/follow_leader_search` (recorded Von, three invaders on the furnished Terrace house: while the leader, its own entries off
 (`tuning.entry.enabled`), searches the house, the two followers stay within a band of it (the median under its place in the file plus 45 px of walking lag,
 `Follow.band_p50`: 100 px for the first follower, 145 for the second, the lag measured 5 to 38 px; nine samples in ten under `BAND_P90`,
 260 px), go through two doorways after it and put no question to Von while no hostile is known), `ai/movement/follow_defenders` (three
@@ -687,12 +687,12 @@ leashed follower:
   once until it has been back within that; with no COMBAT option left within the leash the decision is FOLLOW, which fires at what it sees
   on the way.
 
-Tests: `ai/combat/leash_no_chase` (real Von: a target the follower fights flees far down an open hall; the follower never stands more than
+Tests: `ai/combat/leash_no_chase` (recorded Von: a target the follower fights flees far down an open hall; the follower never stands more than
 the leash and 40 px from its puppet leader), `ai/combat/leash_free_chase` (its contrast: the same hall with no squad bound, and the NPC goes
 after the target past the leash and 40 px from the puppet, so the leash is what holds the follower back), `ai/combat/leash_walks_back` (the leader runs 650 px off while the follower fights: it takes
 FOLLOW at or after the break and comes back within the leash), `ai/combat/leash_pinned_cover` (an SMG gunman pins the follower: it fights
 from cover within the leash, or follows, never more than the leash and 40 px from its leader). An ordered member off the leash:
-`ai/combat/ordered_melee_off_leash` (real Von: ordered to defend an open hall with a dry gun, its puppet leader more than two leashes off,
+`ai/combat/ordered_melee_off_leash` (recorded Von: ordered to defend an open hall with a dry gun, its puppet leader more than two leashes off,
 it closes on a gunman beyond the leash and strikes it, which a leash would hold it short of) and `ai/combat/defend_room_stays_inside`
 (LD8: its leader about 510 px off, the ordered defender still fights from inside the kitchen). The leash after an ambush's contact:
 `ai/combat/ambush_contact_leashes_follower` (LD15). The rules alone and combined (a leash circle crossing a room's wall):
@@ -756,7 +756,7 @@ takes over the lead while it holds a join rallies nobody on it; its next claim o
   the human is `in`), and the `go_timeout` withdrawal waits for somebody ahead of it; otherwise it is withdrawn as any reservation (the walk
   back past `reserve_range` x `leave_factor`, death). The human's other claims are E16's (`docs/tactical-entry.md`).
 
-Tests: `ai/entry/join_rally_clears_room` (real Von: the lead's own claim gives both others a join; all three go in within 15 s of each
+Tests: `ai/entry/join_rally_clears_room` (recorded Von: the lead's own claim gives both others a join; all three go in within 15 s of each
 other and the room is called clear), `ai/entry/join_suspect_room_bangs` (scripted: gunfire heard in the kitchen first, the stun the
 sergeant's: the join stack turns bang and a stun goes off in the kitchen before anyone goes in), `ai/entry/join_unsuspected_quiet`
 (scripted: nothing heard: each joiner's state reads the join's sentence above verbatim, no claim says bang, no stun goes off, all three go
@@ -806,7 +806,7 @@ its order ends, and the new leader's next own claim rallies the members then hol
 Tests: `general/squad_takeover_from_human` (a puppet human leader orders a defend, an ambush and a held stack, then dies: the sergeant leads
 within the frame; one `cancel`, to the defender and the ambusher; the held stack is released (`auto`), goes in and clears the kitchen; each
 member follows the sergeant once its order ends; the sergeant's next own claim gives a join to every member then holding no order and to
-nobody holding one), `ai/stack/rally_cancelled_on_leader_death` (real Von: the human dies while its rally holds at the back door: an NPC
+nobody holding one), `ai/stack/rally_cancelled_on_leader_death` (recorded Von: the human dies while its rally holds at the back door: an NPC
 leads within the frame, one `cancel` to both joiners and no `go`, neither goes in on the join, and the new leader's next own claim rallies
 the other).
 
@@ -889,11 +889,11 @@ leader's room orders nothing; a new doorway within the cool-down orders nothing,
 new leader orders the same doorway again within the old cool-down; members that radioed `refused` are ordered again),
 `general/squad_ambush_rule_off` (a human-led defender squad and the invaders' AI-led squad order nothing), `ai/investigate/investigate_callout_lead_pos`
 (`von_script`: an INVESTIGATE – STAY callout carries `lead_pos` at the fresher of two steps heard, an ally's fight radioed after them
-skipped), `ai/combat/crew_ambush_attack_door` (real Von: a crew of three in the living room, an invader in by the front door a few steps
+skipped), `ai/combat/crew_ambush_attack_door` (recorded Von: a crew of three in the living room, an invader in by the front door a few steps
 along the hall, in the next member's view through the hall's doorway, the leader by the north wall over two seconds' walk from that
 doorway, so the radio places the invader while the leader's first search still has it in the room (the leader in the living
 room on the order's own frame, `require`d); the leader and the next member hold the ambush of the hall's doorway, or end it
-`done` in contact, and the third, the rear guard, holds no order and follows), `ai/investigate/crew_ambush_before_contact` (real Von: a one-room house; the leader hears an
+`done` in contact, and the third, the rear guard, holds no order and follows), `ai/investigate/crew_ambush_before_contact` (recorded Von: a one-room house; the leader hears an
 invader walking outside, takes INVESTIGATE – STAY, `require`d, and the leader and the next member are at their posts on the front door
 before any defender sees it), and `ai/movement/follow_defenders` (nothing heard: the crew's own search walks its leader, which a heard threat
 outside its room would hold at its post).

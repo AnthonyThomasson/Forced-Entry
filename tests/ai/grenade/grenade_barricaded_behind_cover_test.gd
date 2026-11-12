@@ -5,8 +5,8 @@ extends GameTest
 ## frag takes GRENADE and lobs it through the doorway onto the householder's spot. G17 already
 ## offers GRENADE against a hostile hidden from the line of fire; this proves it holds for a hostile
 ## barricaded in a room the NPC is outside of, and whatever stops the throw there is to be fixed at
-## its cause. The whole pipeline runs with real Von; a `require` that the invader is fighting the
-## householder from outside the kitchen comes first.
+## its cause. The whole pipeline runs with recorded Von; a `require` that the invader is fighting
+## the householder from outside the kitchen comes first.
 ##
 ## Premises: the householder is a puppet that cannot be killed and never shoots, crouched behind the
 ## sofa from the start of `run`; the invader is armed with one frag at the start of `run`, the way

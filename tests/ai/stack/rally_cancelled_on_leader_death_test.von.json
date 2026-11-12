@@ -1,0 +1,31 @@
+{
+	"entries": [
+		{
+			"options": [
+				"A doorway leads into a room left to search (the doorway to the south — unexplored — short route)",
+				"an unexplored part of the house to the west — medium route"
+			],
+			"pick": "enter",
+			"probabilities": {
+				"enter": 0.6409,
+				"explore_west": 0.3591
+			},
+			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: ORDER - the doorway into the kitchen (stacked at the door, for 1s).\nDecided so far: SEARCH."
+		},
+		{
+			"options": [
+				"the doorway to the south — unexplored — short route",
+				"the doorway to the west — unexplored — long route"
+			],
+			"pick": "door_840_190",
+			"probabilities": {
+				"door_0_415": 0.4124,
+				"door_840_190": 0.5876
+			},
+			"question": "Which doorway should you go through? Prefer the shortest route.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: ORDER - the doorway into the kitchen (stacked at the door, for 1s).\nDecided so far: SEARCH → ENTER."
+		}
+	],
+	"version": 1
+}

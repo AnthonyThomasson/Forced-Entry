@@ -9,7 +9,7 @@ extends GameTest
 ## fire, the NPC fights it and closes on it to strike: a leash would hold it where it stands, since
 ## the gunman is off it, and it would never land a blow.
 ##
-## Real Von, the whole pipeline; no switch. Premises: nobody is killed (`max_health`), and the
+## Recorded Von, the whole pipeline; no switch. Premises: nobody is killed (`max_health`), and the
 ## gunman, a puppet, never moves.
 
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")

@@ -6,9 +6,9 @@ extends GameTest
 ## from its west end, straight through the band or round its far end, about 1.3 x as long. Gunfire
 ## is heard at the east end; the invader gets there the way round, never through the store room's
 ## view. (`entry_pass_far_out_secured` is the same hall with the band reaching the south wall: no
-## way round, so the doorway is secured and the band crossed.) Real Von: the invader hears the shots
-## and decides for itself; a `require` that it got to the east end without going into the store room
-## comes first.
+## way round, so the doorway is secured and the band crossed.) Recorded Von: the invader hears the
+## shots and decides for itself; a `require` that it got to the east end without going into the
+## store room comes first.
 ##
 ## Premise: the gunfire is one shot heard at the hall's east end (a `hit` event nobody known fired,
 ## as tests/_ai/investigate_probe.gd posts it), first thing in `run`, the frame the invader spawns
