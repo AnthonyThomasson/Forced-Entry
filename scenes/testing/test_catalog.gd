@@ -1,9 +1,8 @@
 extends RefCounted
 ## Testing domain: finds every test (`res://tests/**/*_test.gd`) and describes it as a plain dict
 ## the browser and runner work from:
-## { id, path, name, domain, category, description, tags, timeout, requires_von, live_only,
-## von_mode,
-##     own_process, manual, internal, switches, world, locked, error }
+##   { id, path, name, domain, category, description, tags, timeout, requires_von, live_only,
+##     von_mode, own_process, manual, internal, switches, world, locked, error }
 ## `id` is the path under tests/ without the suffix (e.g. "projectile/pistol_shot_wounds");
 ## `category` is the sub-folder between the domain and the file when there is one
 ## (`tests/ai/entry/…` -> "entry", else ""); `error` is set (and the rest defaulted) when the script
