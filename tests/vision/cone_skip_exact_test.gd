@@ -658,9 +658,9 @@ func _posture_and_death(t: TestContext) -> void:
 
 ## The tail of the posture world: nothing blocks, and the view settles.
 func _settle_posture_world(t: TestContext, checker: Checker, stander: Node2D) -> void:
-	# The viewer's own standing body is a character that blocks at this sight, so the world never
-	# settles. Once the other character is gone and the viewer looks over a standing body nothing
-	# blocks: the view settles, and its cone is held to the live pose's reference.
+	# A standing character of the first world, still in the tree, blocks at this sight (the check
+	# is not limited to reach), so the world never settles. Raising see_over to 100 looks over it:
+	# nothing blocks, the view settles, and its cone is held to the live pose's reference.
 	stander.queue_free()
 	CharacterVisionConfig.see_over_coverage = Probe.LOOK_OVER_LOW * 2.0
 	await t.frames(5)
