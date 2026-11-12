@@ -1,6 +1,6 @@
 # AI · Snapshot, built in pieces (`agent_snapshot.gd`, `snapshot/snapshot_build.gd`)
 
-`AgentSnapshot.build()` makes the whole snapshot in one call; the same build can run in resumable pieces, for a caller that spreads a decision over several steps or prices what each costs. `snapshot.md` holds the snapshot itself.
+`AgentSnapshot.build()` makes the whole snapshot in one call; the same build can run in resumable pieces, for a caller that spreads a decision over several steps or prices what each costs. `snapshot.md` holds the snapshot itself; the **decision job** (`decision.md`) is the caller that steps it, one piece per work unit of `DecisionBudget`.
 
 ## The build
 
@@ -22,6 +22,6 @@ The work order is the one-shot build's, so the rays, routes and random draws are
 
 - One build is in flight per author: its START sets the author's per-decision scratch (`vocab.rooms`, the options' and throws' `know`), so a build dropped for a new one is freed and never resumed. Nothing it did outside itself is undone, and nothing needs to be.
 - **`SnapshotDemand.complete()` is a hazard to a held build.** Completing an older snapshot (the debug overlay, `NpcCadence.complete()`, the spectator card, a test) hands the shared modules that decision's rooms and knowledge (`_open`). Every piece after START therefore re-asserts the build's own (`_own_scratch`) before it reads them. The throws' per-decision caches (`_throws.begin()`, START) are not re-asserted: anything built by a demand read in between, which is lazy, can use them.
-- The walked-route memo is open from START to FINISH, so with a build held across frames the behaviour-time walks in between reuse it (`perception-views.md`) and may be stale if a door or the map changed. A caller that spreads a build over frames (#195) must not rely on a fresh route there.
+- The walked-route memo is open from START to FINISH, so with a build held across frames the behaviour-time walks in between reuse it (`perception-views.md`) and may be stale if a door or the map changed. The decision job spreads a build over frames when its pieces are priced above the pool: it must not rely on a fresh route there, and a build it drops (a claim over it) is freed, never resumed.
 - `result()` asserts `done()`.
 - Tests: `ai/decision/staged_build_matches_whole` (a stepped build equals `sense()` in facts, sections, options, wording and the walk over it, with an older snapshot completed between every piece; the confinement view is frozen at the start), `ai/decision/staged_build_unanalysed_hostiles` (four hostiles, the third engaged: the line entries between and after the analysed ones, one piece per analysed hostile).

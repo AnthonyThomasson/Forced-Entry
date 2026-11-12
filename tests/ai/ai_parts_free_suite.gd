@@ -3,13 +3,15 @@ extends UnitSuite
 ## their parts hold no reference back to a `RefCounted` that holds them, so no `RefCounted` cycle
 ## keeps any of it alive: the entry's leaves (`state`, `world`) and its ten parts (`claim`, ...,
 ## `radio`, each handed the entry at the call) and the combat's throw part hold no owner, the
-## planner's walk, the perception's confinement and the controller's cadence are data that hold
-## none, and the other parts of a node (the behaviour's, Locomotion's, the controller's, the
-## perception's) hold it only as a node. Every preset, instanced, put in the tree (its controller
-## builds the AI in `_ready`) and freed, leaves a `WeakRef` to each piece that reads null. Each NPC
-## is made inside `_built_then_freed`, so no temporary of the calling test still holds a piece. The
-## doorway geometry (`AgentEntry`) and its three parts (`posts`, `slots`, `layouts`, each handed it
-## at the call) free themselves the same way, both bare (as `PlayerStack` builds one) and an NPC's.
+## planner's walk, the perception's confinement, the controller's cadence and its decision job
+## (`decision_job.gd`, handed the perception, the planner and the cadence, and three reads as
+## callables) are data that hold none, and the other parts of a node (the behaviour's, Locomotion's,
+## the controller's, the perception's) hold it only as a node. Every preset, instanced, put in the
+## tree (its controller builds the AI in `_ready`) and freed, leaves a `WeakRef` to each piece that
+## reads null. Each NPC is made inside `_built_then_freed`, so no temporary of the calling test
+## still holds a piece. The doorway geometry (`AgentEntry`) and its three parts (`posts`, `slots`,
+## `layouts`, each handed it at the call) free themselves the same way, both bare (as `PlayerStack`
+## builds one) and an NPC's.
 
 const Entry := preload("res://scenes/ai/behavior/entry.gd")
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
@@ -38,7 +40,8 @@ func _held(controller: Node) -> Dictionary:
 	var entry: Entry = behavior.get("_entry")
 	var combat: RefCounted = behavior.get("_combat")
 	var loco: Node = behavior.get("_loco")
-	var planner: Node = controller.get("_planner")
+	var job: RefCounted = controller.get("_job")
+	var planner: Node = job.planner
 	var perception: Node = controller.get("_perception")
 	var pieces := {
 		"behavior": behavior, "behavior.task": behavior.get("task"),
@@ -55,7 +58,7 @@ func _held(controller: Node) -> Dictionary:
 		"combat": combat, "combat.throw": combat.get("throw"),
 		"loco": loco, "loco.crowd": loco.get("crowd"), "loco.give_way": loco.get("give_way"),
 		"loco.stall": loco.get("stall"), "loco.doors": loco.get("doors"),
-		"planner": planner, "planner.walk": planner.get("_walk"),
+		"planner": planner, "planner.walk": planner.get("_walk"), "controller.job": job,
 		"controller.cadence": controller.get("_cadence"),
 		"controller.comms": controller.get("_comms"),
 		"controller.reflexes": controller.get("_reflexes"),
@@ -137,7 +140,7 @@ func test_a_doorway_geometry_and_its_parts_free_themselves() -> void:
 func test_every_npcs_ai_frees_itself_with_the_npc() -> void:
 	for path: String in NPCS:
 		var held := _built_then_freed(path)
-		assert_int(held.size()).is_equal(44)
+		assert_int(held.size()).is_equal(45)
 		for key: String in held:
 			var ref: WeakRef = held[key]
 			assert_object(ref).override_failure_message("%s: no %s" % [path, key]).is_not_null()

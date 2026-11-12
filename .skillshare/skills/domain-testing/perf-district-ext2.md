@@ -37,7 +37,7 @@ Frame sets per run: the lower half (the 150 or 280 fastest frames), the top 5 % 
 | | 10v10 lower half | 10v10 top 5 % | grenade lower half | grenade top 5 % |
 |---|---|---|---|---|
 | frame | 13.9 | **33.0** | 10.4 | **23.8** |
-| decisions (`_start_decision`; `snap.build` inside) | 0.1 (0.1) | **11.2 (7.3)** | 0.0 (0.0) | **3.3 (1.1)** |
+| decisions (the decision start, now the job; `snap.build` inside) | 0.1 (0.1) | **11.2 (7.3)** | 0.0 (0.0) | **3.3 (1.1)** |
 | per-NPC fixed: `observe` (`sight.see` inside) | 3.0 (2.3) | 3.4 (2.6) | 0.9 (0.5) | 1.0 (0.6) |
 | per-NPC fixed: `behavior.apply` | 3.3 | 4.8 | 1.1 | 2.3 |
 | other AI (`control` less decision, observe, apply, react) | 1.9 | 2.4 | 0.7 | 1.0 |

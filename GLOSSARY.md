@@ -168,6 +168,20 @@ Hits in the matches, none in the tests: live code no test holds in place.
 Code that is not play: the test harness, the dev command server, the debug overlays, the settings menu. Tagged, never
 hidden; matches never drive it, so its zeros say little.
 
+### The decision
+
+**Decision job**:
+One NPC decision as a resumable job (`decision_job.gd`): the claim against the frame's pool, the snapshot build, the order-refusal step and the planner's walk, run piece by piece. The controller only asks it for a decision (`request`) and advances it (`advance`); a claim over a job in flight drops that job without a signal, and a refused one leaves the job and the NPC's wish as they were.
+_Avoid_: decision walk (the planner's part of it), decision task
+
+**Work unit**:
+What `DecisionBudget` counts: a pool of `per_frame` units a physics frame shared by every NPC, spent by pieces at their static `cost_*`. Counted, never timed, so a decision starts the same frame on any machine. By default one whole decision is one unit.
+_Avoid_: tick, time slice, budget (the pool's own name is `DecisionBudget`)
+
+**Piece**:
+One step of a decision job with its own price: the snapshot build's start, one analysed hostile, its finish, the order-refusal step, or one planner level. A frame whose pool is untouched runs the next piece even if it costs more than the pool.
+_Avoid_: stage, chunk
+
 ### Where an NPC acts
 
 **Confinement**:

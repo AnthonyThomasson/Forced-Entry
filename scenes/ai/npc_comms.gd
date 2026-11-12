@@ -89,7 +89,7 @@ func on_entry_turned() -> void:
 	var labels: Array = order["labels"]
 	path[1] = &"stun_entry"
 	if labels.size() >= 2:
-		labels[1] = controller._planner.label_of(&"stun_entry")
+		labels[1] = controller._job.planner.label_of(&"stun_entry")
 	controller._behavior.entries.adopt_bang(path, labels)
 	GameLog.say("%s (suspect room) %s" % [controller._npc_name(), " - ".join(labels)])
 

@@ -28,7 +28,7 @@
 	  `--fixed-fps`, however far a headless run outpaces the wall clock), `GameClock.seconds() -> float`, `GameClock.frame() -> int`. Every
 	  AI ttl, timer and age reads it (`docs/leadership.md` LD1), so a pause of any length expires nothing; only what measures real time
 	  stays on `Time` (the Von launcher's boot timeout and the planner's per-level `ms`, Von's latency). A per-frame key that measures no
-	  age (`DecisionBudget`'s claim, the learn and sight offsets) may read `Engine.get_physics_frames()`.
+	  age (`DecisionBudget`'s pool, the learn and sight offsets) may read `Engine.get_physics_frames()`.
     - `FillBatch` (`general/fill_batch.gd`, `RefCounted`): plain-coloured shapes drawn as one triangle array instead of a command each,
 	  the engine's own triangles and pixels (`draw_circle`'s 64-gon included). `FillBatch.new(canvas, base := IDENTITY)`,
 	  `fill(poly, color, xform)`, `fill_convex(...)`, `circle(center, radius, color, xform)`, `flush()`; statics `FillBatch.unit_circle()`
