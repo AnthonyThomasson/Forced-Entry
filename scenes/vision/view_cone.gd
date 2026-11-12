@@ -53,11 +53,13 @@ var corner_rays := 0
 ## How many corners the last finished job read from the shapes about the eye (a test's read of the
 ## cost).
 var corners_read := 0
-## The engine work (units) and the `step` calls the last job took, as far as it has got.
-var work_units := 0
-var steps_taken := 0
-## The cone's width (rad) and the per-interval hide reaches of the even fan's rays (`_run_fan`), for
-## the job in flight: read for every corner, so held here and not in the job.
+## The job in flight reads these for every ray or corner, so they are held here, not in the job: the
+## world it casts in, the eye, the view distance, the bubble's radius, the cone's width (rad) and
+## the per-interval hide reaches of the even fan's rays (`_run_fan`).
+var _space: PhysicsDirectSpaceState2D
+var _from := Vector2.ZERO
+var _reach := 0.0
+var _near := 0.0
 var _fov := 0.0
 var _fan_hide := PackedFloat64Array()
 var _shapes := Shapes.new()
@@ -97,20 +99,27 @@ func begin(
 	exclude: Array,
 	sight: Dictionary,
 ) -> void:
-	_job.start(space, from, facing, exclude, sight)
-	_build.clear()
+	_space = space
+	_from = from
+	_reach = float(sight["view_distance"])
+	_near = float(sight["awareness_radius"])
 	_fov = deg_to_rad(float(sight["fov_degrees"]))
+	_job.start(facing, exclude, float(sight["see_over_coverage"]))
+	_build.clear()
 	_fan_hide = PackedFloat64Array()
 	_shapes.see_over = _job.see_over
 	_ray.looks_over = _job.see_over
 	_shapes.reset()
-	work_units = 0
-	steps_taken = 0
 
 
 ## Whether a job is in flight (`begin` has run and `step` has not yet said done).
 func running() -> bool:
 	return _job.stage != Job.Stage.DONE
+
+
+## The engine work (units) the job in flight, or the last one, has spent.
+func work_units() -> int:
+	return _job.work
 
 
 ## Run the job on until `units` of engine work are spent (a ray, a corner or the corners' query is
@@ -119,7 +128,6 @@ func running() -> bool:
 func step(units: int) -> bool:
 	if _job.stage == Job.Stage.DONE:
 		return true
-	steps_taken += 1
 	var until := _job.work + maxi(units, 1)
 	while _job.stage != Job.Stage.DONE and _job.work < until:
 		match _job.stage:
@@ -133,16 +141,13 @@ func step(units: int) -> bool:
 				_run_bubble(until)
 			Job.Stage.CONE:
 				_run_cone(until)
-	work_units = _job.work
 	return _job.stage == Job.Stage.DONE
 
 
 ## Stage 1: the shapes about the eye, in one piece (a shape query, asked again while it is full).
 func _read_corners() -> void:
 	var asked := _shapes.queries
-	_build.found = _shapes.corners(
-		_job.space, _job.eye, _job.reach, _job.exclude, _region(_job.eye, _job.facing)
-	)
+	_build.found = _shapes.corners(_space, _from, _reach, _job.exclude, _region(_from, _job.facing))
 	_job.work += (_shapes.queries - asked) * VisionSliceConfig.cost_shape
 	_build.corners_read = _build.found.size()
 	# Every low collider in reach is left out of the rays from here on: each meets the first blocker
@@ -155,127 +160,140 @@ func _read_corners() -> void:
 ## Stage 2: the even fan's rays, each with its end and the hide reach of the interval from the one
 ## before, until the work reaches `until` or the fan is done.
 func _run_fan(until: int) -> void:
-	var space := _job.space
-	var from := _job.eye
 	var work := _job.work
 	var index := _job.index
-	var cast_cost := VisionSliceConfig.cost_cast
-	var probe_cost := VisionSliceConfig.cost_probe
-	while index <= VisionConfig.cone_rays and work < until:
+	var last := VisionConfig.cone_rays
+	var previous := _build.previous
+	var previous_distance := _build.previous_distance
+	while index <= last and work < until:
 		var dir := _job.facing.rotated(_fan_angle(index))
-		var to := from + dir * _job.reach
-		work += cast_cost
-		var hit := _ray.cast(space, from, to)
+		var to := _from + dir * _reach
+		work += VisionSliceConfig.cost_cast
+		var hit := _ray.cast(_space, _from, to)
 		var distance := 0.0
 		if hit.is_empty():
 			_build.fan_ends.append(to)
 		else:
-			distance = from.distance_to(hit["position"])
-			work += probe_cost
-			_build.fan_ends.append(_far_face(space, hit, dir))
+			distance = _from.distance_to(hit["position"])
+			work += VisionSliceConfig.cost_probe
+			_build.fan_ends.append(_far_face(hit, dir))
 		if index > 0:
-			_fan_hide.append(
-				_hide_reach(_build.previous, _build.previous_distance, hit, distance)
-			)
-		_build.previous = hit
-		_build.previous_distance = distance
+			_fan_hide.append(_hide_reach(previous, previous_distance, hit, distance))
+		previous = hit
+		previous_distance = distance
 		index += 1
 	_job.work = work
 	_job.index = index
-	if index > VisionConfig.cone_rays:
+	_build.previous = previous
+	_build.previous_distance = previous_distance
+	if index > last:
 		_build.previous = {}
 		_job.index = 0
 		_job.stage = Job.Stage.VISIBLE
 
 
-## Stage 3: each corner, kept when the eye sees it. After the last, the bubble's rays are made.
+## Stage 3: each corner, kept when the eye sees it: within the view range, inside the cone or the
+## bubble, and with no blocker in the way (a corner behind a wall needs no rays: the wall's own ray
+## decides there; one the fan hides needs none either). After the last, the bubble's rays are made.
 func _run_visible(until: int) -> void:
 	var found := _build.found
 	var index := _job.index
-	var from := _job.eye
-	var reach := _job.reach
+	var facing := _job.facing
 	var work := _job.work
 	var cast_cost := VisionSliceConfig.cost_cast
 	while index < found.size() and work < until:
-		var to: Vector2 = found[index] - from
-		var dist := to.length()
-		# A corner beyond the view distance adds no ray.
-		if dist >= 1.0 and dist <= reach and _check_corner(found[index], to, dist):
-			work += cast_cost
+		var corner: Vector2 = found[index]
 		index += 1
+		var to := corner - _from
+		var dist := to.length()
+		if dist < 1.0 or dist > _reach:  # a corner beyond the view distance adds no ray
+			continue
+		var in_cone := facing != Vector2.ZERO and absf(facing.angle_to(to)) <= _fov * 0.5
+		if not (in_cone or dist <= _near):
+			continue
+		# A point 1 px short of the corner: the corner's own shape is not in the way of itself.
+		if in_cone and _fan_hides(facing.angle_to(to), dist - 1.0):
+			continue
+		_build.corner_rays += 1
+		work += cast_cost
+		if _ray.cast(_space, _from, _from + to * ((dist - 1.0) / dist)).is_empty():
+			_build.visible.append(corner)
 	_job.work = work
 	_job.index = index
 	if index >= found.size():
-		_build.rays = _bubble_angles(from, _build.visible)
+		_build.rays = _bubble_angles(_from, _build.visible)
 		_job.index = 0
 		_job.stage = Job.Stage.BUBBLE
 
 
-## Stage 4: the bubble's rays. After the last, the cone's rays are made (none with no facing: the
-## job is done).
+## Stage 4: the bubble's rays (each `[angle, direction, -1]`). After the last, the cone's rays are
+## made (none with no facing: the job is done).
 func _run_bubble(until: int) -> void:
+	var rays := _build.rays
 	var out := _build.bubble
 	_build.bubble = PackedVector2Array()
-	_run_sweep(until, _job.near, out, PackedVector2Array())
+	var work := _job.work
+	var index := _job.index
+	var cast_cost := VisionSliceConfig.cost_cast
+	while index < rays.size() and work < until:
+		var dir: Vector2 = rays[index][1]
+		var to := _from + dir * _near
+		work += cast_cost
+		var hit := _ray.cast(_space, _from, to)
+		if hit.is_empty():
+			out.append(to)
+		else:
+			work += VisionSliceConfig.cost_probe
+			out.append(_far_face(hit, dir))
+		index += 1
+	_job.work = work
+	_job.index = index
 	_build.bubble = out
-	if _job.index < _build.rays.size():
+	if index < rays.size():
 		return
 	_job.index = 0
 	if _job.facing == Vector2.ZERO:
 		_finish()
 		return
-	_build.rays = _cone_angles(_job.eye, _job.facing, _build.visible)
-	_build.cone = PackedVector2Array([_job.eye])
+	_build.rays = _cone_angles(_from, _job.facing, _build.visible)
+	_build.cone = PackedVector2Array([_from])
 	_job.stage = Job.Stage.CONE
 
 
-## Stage 5: the cone's rays (a fan ray takes its end from the fan's casts). After the last, done.
+## Stage 5: the cone's rays (each `[angle, direction, fan index]`): one with a fan index takes its
+## end from the fan's casts, uncast. After the last, done.
 func _run_cone(until: int) -> void:
+	var rays := _build.rays
 	var out := _build.cone
 	_build.cone = PackedVector2Array()
-	_run_sweep(until, _job.reach, out, _build.fan_ends)
-	_build.cone = out
-	if _job.index >= _build.rays.size():
-		_finish()
-
-
-## Cast the sweep's rays (`_build.rays`, each `[angle, direction, fan index]`) from the next one on,
-## `dist` long, appending each end to `out`, until the work reaches `until` or the rays are done. A
-## ray with a fan index in `known` takes its end from it, uncast.
-func _run_sweep(
-	until: int,
-	dist: float,
-	out: PackedVector2Array,
-	known: PackedVector2Array,
-) -> void:
-	var space := _job.space
-	var from := _job.eye
-	var rays := _build.rays
 	var work := _job.work
 	var index := _job.index
+	var cast_cost := VisionSliceConfig.cost_cast
 	while index < rays.size() and work < until:
-		var ray: Array = rays[index]
-		index += 1
-		var fan_index: int = ray[2]
-		if fan_index >= 0 and fan_index < known.size():
-			out.append(known[fan_index])
-			continue
-		var dir: Vector2 = ray[1]
-		var to := from + dir * dist
-		work += VisionSliceConfig.cost_cast
-		var hit := _ray.cast(space, from, to)
-		if hit.is_empty():
-			out.append(to)
+		var fan_index: int = rays[index][2]
+		if fan_index >= 0 and fan_index < _build.fan_ends.size():
+			out.append(_build.fan_ends[fan_index])
 		else:
-			work += VisionSliceConfig.cost_probe
-			out.append(_far_face(space, hit, dir))
+			var dir: Vector2 = rays[index][1]
+			var to := _from + dir * _reach
+			work += cast_cost
+			var hit := _ray.cast(_space, _from, to)
+			if hit.is_empty():
+				out.append(to)
+			else:
+				work += VisionSliceConfig.cost_probe
+				out.append(_far_face(hit, dir))
+		index += 1
 	_job.work = work
 	_job.index = index
+	_build.cone = out
+	if index >= rays.size():
+		_finish()
 
 
 ## The job is done: the back buffer becomes what readers see, all together.
 func _finish() -> void:
-	eye = _job.eye
+	eye = _from
 	corner_rays = _build.corner_rays
 	corners_read = _build.corners_read
 	bubble = _build.bubble
@@ -291,12 +309,12 @@ func _finish() -> void:
 ## is (`ViewShapes.corners` joins those), so it need not be read.
 func _region(from: Vector2, facing: Vector2) -> PackedVector2Array:
 	var points := PackedVector2Array()
-	var round_bubble := _job.near / cos(PI / float(REGION_SIDES))
+	var round_bubble := _near / cos(PI / float(REGION_SIDES))
 	for i in REGION_SIDES:
 		points.append(from + Vector2.from_angle(float(i) / REGION_SIDES * TAU) * round_bubble)
 	if facing != Vector2.ZERO:
 		var half := _fov * 0.5
-		var round_arc := _job.reach / cos(_fov / float(REGION_ARC) * 0.5)
+		var round_arc := _reach / cos(_fov / float(REGION_ARC) * 0.5)
 		for i in REGION_ARC + 1:
 			var angle := -half + float(i) / float(REGION_ARC) * _fov
 			points.append(from + facing.rotated(angle) * round_arc)
@@ -348,26 +366,6 @@ func _fan_hides(angle: float, reach: float) -> bool:
 	return angle - low > margin and high - angle > margin
 
 
-## Whether `corner` (`to` from the eye, `dist` away, within the view distance) is one the eye sees:
-## inside the cone or the bubble, and with no blocker in the way (a corner behind a wall needs no
-## rays: the wall's own ray decides there); kept in the buffer's `visible` when it is. True when
-## it cast a ray to find out.
-func _check_corner(corner: Vector2, to: Vector2, dist: float) -> bool:
-	var facing := _job.facing
-	var in_cone := facing != Vector2.ZERO and absf(facing.angle_to(to)) <= _fov * 0.5
-	if not (in_cone or dist <= _job.near):
-		return false
-	# A point 1 px short of the corner: the corner's own shape is not in the way of itself.
-	if in_cone and _fan_hides(facing.angle_to(to), dist - 1.0):
-		return false
-	var from := _job.eye
-	var short := from + to * ((dist - 1.0) / dist)
-	_build.corner_rays += 1
-	if _ray.cast(_job.space, from, short).is_empty():
-		_build.visible.append(corner)
-	return true
-
-
 ## The cone's rays as `[angle from the facing, direction, fan index]`, sorted by angle: the even
 ## fan, which holds the two edge rays (its index `i` is the ray's place in the buffer's `fan_ends`),
 ## and three rays at each visible corner inside the cone (index -1: cast on their own; one clamped
@@ -409,7 +407,7 @@ func _bubble_angles(from: Vector2, corners: Array) -> Array:
 		angles.append(float(i) / float(rays) * TAU)
 	for corner in corners:
 		var to: Vector2 = corner - from
-		if to.length() > _job.near:
+		if to.length() > _near:
 			continue
 		for shift in [-offset, 0.0, offset]:
 			angles.append(fposmod(to.angle() + shift, TAU))
@@ -423,9 +421,9 @@ func _bubble_angles(from: Vector2, corners: Array) -> Array:
 ## The far end of the blocker `hit` along `dir`: where the ray leaves the solid it met (the
 ## farthest face of the blocking shapes it runs into at the hit, so the engine's pick among
 ## overlapping shapes does not matter), at most `far_depth` in, else `far_bleed` px in.
-func _far_face(space: PhysicsDirectSpaceState2D, hit: Dictionary, dir: Vector2) -> Vector2:
+func _far_face(hit: Dictionary, dir: Vector2) -> Vector2:
 	var near: Vector2 = hit["position"]
-	var depth := _shapes.far_exit(space, hit, dir)
+	var depth := _shapes.far_exit(_space, hit, dir)
 	if depth < 0.0:
 		return near + dir * VisionConfig.far_bleed
 	return near + dir * minf(depth, VisionConfig.far_depth)
