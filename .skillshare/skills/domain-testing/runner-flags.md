@@ -35,9 +35,8 @@ The header lists every flag; this file holds the rules and the reasons behind th
   one only if a `--list <words> --domain=perf` engine start lists a perf test. After `MINUTES` (default `timeout_min`) it
   runs anyway and marks that process's results `loaded`: a `loaded` result is no evidence of a regression. An unreadable
   `perf_quiet.conf` ends the run with exit 2. The wrapper appends `(load <x>, <n> busy Godot)` to every `PERF` line.
-- **Von tests:** a `requires_von` test runs in every normal run (`--changed`, the pre-commit hook, `--base`) from `<name>_test.von.json` beside it (`VonRecording`; entries keyed by state + question + sorted
-  option descriptions, ids normalised to spawn order). Each answer lands 12 physics frames after its ask in replay, live and
-  record alike. No server, no pacing, sharded like any test. An ask the recording lacks, or
+- **Von tests:** a `requires_von` test runs in every normal run (`--changed`, the pre-commit hook, `--base`) from `<name>_test.von.json` beside it (`VonRecording`, keyed as `domain-ai` (`decision-von.md`) says). Each answer lands 12 physics frames after its ask in replay, live and
+  record alike. No server or pacing; sharded as any test. An ask the recording lacks, or
   a missing or unreadable file, FAILs naming the question and `tools/run_tests.sh --record-von --id=<id>` (a snapshot or
   question wording change stales recordings): run it against a live Von on :8000 and commit the diff.
   - `--record-von` runs the selected Von tests live and writes each passing test's recording whole (unused entries drop);

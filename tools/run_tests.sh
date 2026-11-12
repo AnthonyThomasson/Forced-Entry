@@ -94,7 +94,9 @@
 #                   a replayed one is dealt like any test. A test with `own_process` in its describe() (a last resort,
 #                   domain-testing's runner-flags.md) is left out of every process (--skip-own-process, which the wrapper
 #                   adds itself) and runs after them, --repeat times, each in an engine process of its own; a hand-given
-#                   --shard and --list leave it where it is. One combined
+#                   --shard and --list leave it where it is. A lone process's totals
+#                   line and `Report:` path are those of every process together (its report.json holds the own-process results
+#                   too). One combined
 #                   summary and slowest list is printed, the totals line ending with the 1-minute load, which a line
 #                   before the first test prints too; exit 1 if any shard failed. Not used with --list/--self-test.
 #                   With more than one process the perf-domain tests are held back from the shards and run after every
@@ -748,16 +750,25 @@ live_run() {
   return $code
 }
 
-# One gdUnit process (godot_run) in dir $1 like a lone run, its lines all printed (its `Report:` line too) and also kept in
-# $1/stdout.txt, for the totals of the own-process runs that follow it (run_with). Run through perf_run, so a signal to the
-# wrapper reaches it as it does a live_run.
-kept_run() {
-  local out="$1" code
-  set +e
-  godot_run "$@" 2>&1 | tee "$out/stdout.txt"
-  code=${PIPESTATUS[0]}
-  set -e
-  return $code
+# Writes the results and stray logs of the report.json of every dir after the first into the first's report.json, so
+# the `Report:` path of a run holds the results of all its processes.
+merge_reports_into() {
+  python3 - "$@" <<'EOF'
+import json, os, sys
+first = os.path.join(sys.argv[1], "report.json")
+try:
+    merged = json.load(open(first))
+except Exception:
+    merged = {"results": [], "stray_logs": []}
+for d in sys.argv[2:]:
+    try:
+        data = json.load(open(os.path.join(d, "report.json")))
+    except Exception:
+        continue
+    merged.setdefault("results", []).extend(data.get("results", []))
+    merged.setdefault("stray_logs", []).extend(data.get("stray_logs", []))
+json.dump(merged, open(first, "w"))
+EOF
 }
 
 # The native suites met by the runs that wrote the dirs given (their records' `<suite id>::<case>` ids), as res://
@@ -928,25 +939,28 @@ run_with() {
     if [[ $listing -eq 1 ]]; then
       bg_wait godot_list "$out" "$@" || code=$?
     elif [[ $own -eq 1 ]]; then
-      perf_run kept_run "$out" "$@" || code=$?
+      # Its totals and `Report:` lines are held back (live_run): the run prints them once, for every process together.
+      perf_run live_run "$out" "$@" || code=$?
     else
       perf_run godot_run "$out" "$@" || code=$?
     fi
-    local own_dirs=() fail_fast=0
-    for x in "$@"; do [[ "$x" == "--fail-fast" ]] && fail_fast=1; done
-    if [[ $own -eq 1 && $listing -eq 0 ]] && ! [[ $fail_fast -eq 1 && $code -ne 0 ]]; then
-      # The one process keeps its path and its `Report:` line; the own-process tests it deferred run after it, each in
-      # a process of its own, and then the totals are those of every process together.
-      own_process_runs "$own_times" "$out" || code=1
-      own_dirs=(${OWN_DIRS[@]+"${OWN_DIRS[@]}"})
-    fi
-    if [[ ${#own_dirs[@]} -gt 0 ]]; then
-      local all=("$out" "${own_dirs[@]}") files=() d
-      for d in "${all[@]}"; do files+=("$d/stdout.txt"); done
-      save_reports "${all[@]}"; note_von_skips "${all[@]}"
+    if [[ $own -eq 1 && $listing -eq 0 ]]; then
+      local own_dirs=() fail_fast=0 files=() d show_slowest=1
+      for x in "$@"; do
+        [[ "$x" == "--fail-fast" ]] && fail_fast=1
+        [[ "$x" == "--summary" ]] && show_slowest=0
+      done
+      if ! [[ $fail_fast -eq 1 && $code -ne 0 ]]; then
+        # The own-process tests it deferred run after it, each in a process of its own.
+        own_process_runs "$own_times" "$out" || code=1
+        own_dirs=(${OWN_DIRS[@]+"${OWN_DIRS[@]}"})
+      fi
+      for d in "$out" ${own_dirs[@]+"${own_dirs[@]}"}; do files+=("$d/stdout.txt"); done
+      [[ ${#own_dirs[@]} -gt 0 ]] && merge_reports_into "$out" "${own_dirs[@]}"
+      [[ $keep -eq 1 ]] && { SLOWEST=$show_slowest save_reports "$out"; note_von_skips "$out"; }
       merged_totals "" "${files[@]}"
-      scan_log "$out" 0 || code=1
-      if no_test "${all[@]}"; then no_test_matched ${shown[@]+"${shown[@]}"}; code=1; fi
+      [[ -f "$out/report.json" ]] && echo "Report: $out/report.json"
+      if no_test "$out"; then no_test_matched ${shown[@]+"${shown[@]}"}; code=1; fi
       return $code
     fi
     [[ $keep -eq 1 ]] && { save_reports "$out"; note_von_skips "$out"; }

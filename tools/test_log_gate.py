@@ -2247,6 +2247,22 @@ class GdUnitEngineTests(unittest.TestCase):
         self.assertEqual(run.summary, (1, 0, 0, 0, 0), run.out)
         self.assertNotIn("no test matched", run.out)
 
+    def test_a_lone_run_with_an_own_process_test_prints_one_totals_line_and_one_report(self):
+        # the lone process's own totals and Report: are held back: one of each, for every process together, and the
+        # report.json it names holds the own-process results too
+        run = self.run_tests("--self-test", f"--id={self.OWN}")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(sum(bool(SUMMARY_LINE.match(ln)) for ln in run.out.splitlines()), 1, run.out)
+        self.assertEqual(run.out.count("Report: "), 1, run.out)
+        self.assertIsNotNone(run.report_path, run.out)
+        self.assertEqual([r["id"] for r in run.report()["results"]], [self.OWN], run.out)
+        self.assertEqual(run.summary, (1, 0, 0, 0, 0), run.out)
+        run = self.run_tests("--self-test", f"--id={self.OWN},{self.PLAIN}")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.out.count("Report: "), 1, run.out)
+        self.assertEqual(sorted(r["id"] for r in run.report()["results"]), sorted([self.OWN, self.PLAIN]), run.out)
+        self.assertEqual(run.summary, (2, 0, 0, 0, 0), run.out)
+
     def test_an_own_process_test_that_fails_fails_the_run(self):
         run = self.run_tests("--self-test", f"--id={self.OWN}", "--repeat=2", GAME_TEST_OWN_FAIL="1")
         self.assertEqual(run.code, 1, run.out)
