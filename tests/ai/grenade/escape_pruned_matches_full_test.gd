@@ -74,6 +74,8 @@ func run(t: TestContext) -> void:
 	t.check(spotted >= 3, "at least three fixtures found a spot in time (%d)" % spotted)
 	_check_off_mesh(t, geometry, search["map"])
 	_check_tie(t, geometry, search["map"])
+	_check_points_sharing_a_spot(t, geometry, search["map"])
+	_check_far_points_unresolved(t, geometry, search["map"])
 
 
 ## One fixture: the pruned answer against the plain one, and the routes measured; true when it
@@ -136,7 +138,9 @@ func _check_off_mesh(t: TestContext, geometry: AgentThrow, map: RID) -> void:
 			var near := from + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(20.0, 320.0)
 			spots.append({ "spot": NavBuilder.snap(map, near), "crouch": i % 2 == 0 })
 		var allowed := rng.randf_range(80.0, 500.0)
-		var pruned: Dictionary = geometry._nearest_in_time(map, from, spots, allowed)
+		var pruned: Dictionary = geometry._nearest_in_time(
+			map, from, _points_of(spots), allowed, _resolver(spots),
+		)
 		var full := _measure_every(map, from, spots, allowed)
 		if pruned != full:
 			differing.append("from %s: %s, every spot %s" % [from.round(), pruned, full])
@@ -155,11 +159,66 @@ func _check_tie(t: TestContext, geometry: AgentThrow, map: RID) -> void:
 	var standing := { "spot": at, "crouch": false }
 	var crouched := { "spot": at, "crouch": true }
 	for spots: Array in [[standing, crouched], [crouched, standing]]:
-		var pruned: Dictionary = geometry._nearest_in_time(map, from, spots, 300.0)
+		var pruned: Dictionary = geometry._nearest_in_time(
+			map, from, _points_of(spots), 300.0, _resolver(spots),
+		)
 		t.check(
 			pruned["spot"] == at and pruned["crouch"] == spots[0]["crouch"],
 			"equal routes: the first listed spot wins (%s of %s)" % [pruned, spots],
 		)
+
+
+## Two points that land on one spot (over the living room's open floor), the nearer to the runner
+## listed second: the points are taken nearest first, yet the spot is the first listed one's (its
+## crouch): the farther point lies within `SNAP_TOLERANCE` of its spot, so it is still taken, and
+## its lower index wins the tie.
+func _check_points_sharing_a_spot(t: TestContext, geometry: AgentThrow, map: RID) -> void:
+	var from := NavBuilder.snap(map, Vector2(300, 250))
+	var at := NavBuilder.snap(map, from + Vector2(100, 0))
+	var far := at + Vector2(30, 0)
+	var spots := [{ "spot": at, "crouch": true }, { "spot": at, "crouch": false }]
+	var found: Dictionary = geometry._nearest_in_time(
+		map, from, [far, at], 300.0, _resolver(spots),
+	)
+	t.check(
+		found["spot"] == at and found["crouch"] == true,
+		"a spot reached by two points: the first listed point's crouch wins (%s)" % [found],
+	)
+
+
+## Points far past the best route are not resolved at all (no snapping, no judging): the nearest
+## safe spot is routed, and what the search would find by resolving every point is the same.
+func _check_far_points_unresolved(t: TestContext, geometry: AgentThrow, map: RID) -> void:
+	var from := NavBuilder.snap(map, Vector2(300, 250))
+	var near := NavBuilder.snap(map, from + Vector2(60, 0))
+	var spots: Array = [{ "spot": near, "crouch": false }]
+	for i in 12:
+		spots.append({ "spot": from + Vector2.from_angle(TAU * i / 12.0) * 900.0, "crouch": false })
+	var resolved: Array = []
+	var resolve := func(i: int) -> Dictionary:
+		resolved.append(i)
+		return spots[i]
+	var found: Dictionary = geometry._nearest_in_time(
+		map, from, _points_of(spots), 2000.0, resolve,
+	)
+	t.check(
+		found == _measure_every(map, from, [spots[0]], 2000.0) and found["spot"] == near,
+		"the near spot wins (%s)" % [found],
+	)
+	t.check(
+		resolved == [0],
+		"only the near point was resolved, the 12 far ones were not (%s)" % [resolved],
+	)
+
+
+## The candidate points of `spots` (each spot is its own point, no snapping pulls it).
+func _points_of(spots: Array) -> Array:
+	return spots.map(func(s: Dictionary) -> Vector2: return s["spot"])
+
+
+## What `AgentThrow._nearest_in_time` asks to turn the index of a point into its spot.
+func _resolver(spots: Array) -> Callable:
+	return func(i: int) -> Dictionary: return spots[i]
 
 
 ## The plain search over `spots` (`{ spot, crouch }`): every spot's route measured, the shortest
