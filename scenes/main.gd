@@ -285,8 +285,14 @@ func return_to_setup() -> void:
 ## human the stack markers, the stun screen and, when it leads, the command menu and order markers;
 ## the match HUD, for a match with no human the spectator inspector, and the overlay bar. The
 ## scene's own `Player` goes when the human is another character. Returns the match handle, or {}
-## when the match was torn down while it was built.
+## when the match was torn down while it was built. It first waits, a frame at a time, for the
+## sound pre-warm (a worker's, started at launch) to finish: a match fought before it does would
+## synthesize each sound it needs on the main thread, 9 to 35 ms apiece (`Sound.warming`).
 func start_match(spec: Dictionary) -> Dictionary:
+	while Sound.warming():
+		await get_tree().process_frame
+		if not is_inside_tree():
+			return {}
 	spec = MatchBuilder.spec(spec)
 	spec["overlays"] = _overlays.flags.duplicate()
 	var world := Node2D.new()
