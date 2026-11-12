@@ -737,13 +737,16 @@ perf_run() {
 # A process's lines left out where several processes make one run (a sharded run, a --repeat with native suites):
 # its banner, totals, FLAKY / FAILING lines and slowest list, printed once for every process together instead.
 QUIET='^(Godot Engine|Godot [0-9]|Running [0-9]+ test|[0-9]+ passed, |Report: |Slowest: |FLAKY |FAILING |$)'
+# What a lone process holds back of its own output when its own-process tests follow it: the same but the banner lines
+# (the run then ends on the totals and `Report:` of every process together).
+LONE_QUIET='^([0-9]+ passed, |Report: |Slowest: |FLAKY |FAILING )'
 
 # One gdUnit process (godot_run) in dir $1, its lines printed as they come but the QUIET ones (all of them kept in
 # $1/stdout.txt), then its log's scan (scan_log); returns 1 when either fails.
 live_run() {
   local out="$1" code
   set +e
-  godot_run "$@" 2>&1 | tee "$out/stdout.txt" | grep --line-buffered -Ev "$QUIET"
+  godot_run "$@" 2>&1 | tee "$out/stdout.txt" | grep --line-buffered -Ev "${LIVE_QUIET:-$QUIET}"
   code=${PIPESTATUS[0]}
   set -e
   scan_log "$out" 0 || code=1
@@ -893,7 +896,8 @@ own_process_runs() {
     for ((k = 0; k < times; k++)); do
       out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
       OWN_DIRS+=("$out")
-      perf_run live_run "$out" ${OWN_ARGS[@]+"${OWN_ARGS[@]}"} "--id=$id" </dev/null || status=1
+      LIVE_QUIET="${OWN_QUIET:-$QUIET}" perf_run live_run "$out" ${OWN_ARGS[@]+"${OWN_ARGS[@]}"} "--id=$id" </dev/null || status=1
+      OWN_QUIET=""   # only the first process of a lone run (when it is the run's first banner) keeps its banner
       # --fail-fast (the caller's `fail_fast`): the first failure ends every id and repeat that is left
       [[ ${fail_fast:-0} -eq 1 && $status -ne 0 ]] && break 2
     done
@@ -940,7 +944,7 @@ run_with() {
       bg_wait godot_list "$out" "$@" || code=$?
     elif [[ $own -eq 1 ]]; then
       # Its totals and `Report:` lines are held back (live_run): the run prints them once, for every process together.
-      perf_run live_run "$out" "$@" || code=$?
+      LIVE_QUIET="$LONE_QUIET" perf_run live_run "$out" "$@" || code=$?
     else
       perf_run godot_run "$out" "$@" || code=$?
     fi
@@ -952,7 +956,11 @@ run_with() {
       done
       if ! [[ $fail_fast -eq 1 && $code -ne 0 ]]; then
         # The own-process tests it deferred run after it, each in a process of its own.
+        # when the lone process ran no test, the first own-process run's banner is the run's
+        OWN_QUIET=""
+        grep -q '^Running ' "$out/stdout.txt" 2>/dev/null || OWN_QUIET="$LONE_QUIET"
         own_process_runs "$own_times" "$out" || code=1
+        OWN_QUIET=""
         own_dirs=(${OWN_DIRS[@]+"${OWN_DIRS[@]}"})
       fi
       for d in "$out" ${own_dirs[@]+"${own_dirs[@]}"}; do files+=("$d/stdout.txt"); done

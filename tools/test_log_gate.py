@@ -2254,12 +2254,16 @@ class GdUnitEngineTests(unittest.TestCase):
         self.assertEqual(run.code, 0, run.out)
         self.assertEqual(sum(bool(SUMMARY_LINE.match(ln)) for ln in run.out.splitlines()), 1, run.out)
         self.assertEqual(run.out.count("Report: "), 1, run.out)
+        # the banner the process prints stays: its Von mode line once, and the test count
+        self.assertEqual(len(re.findall(r"^Godot \S+.*Von tests: ", run.out, re.M)), 1, run.out)
+        self.assertRegex(run.out, r"(?m)^Running 1 test")
         self.assertIsNotNone(run.report_path, run.out)
         self.assertEqual([r["id"] for r in run.report()["results"]], [self.OWN], run.out)
         self.assertEqual(run.summary, (1, 0, 0, 0, 0), run.out)
         run = self.run_tests("--self-test", f"--id={self.OWN},{self.PLAIN}")
         self.assertEqual(run.code, 0, run.out)
         self.assertEqual(run.out.count("Report: "), 1, run.out)
+        self.assertEqual(len(re.findall(r"^Godot \S+.*Von tests: ", run.out, re.M)), 1, run.out)
         self.assertEqual(sorted(r["id"] for r in run.report()["results"]), sorted([self.OWN, self.PLAIN]), run.out)
         self.assertEqual(run.summary, (2, 0, 0, 0, 0), run.out)
 
