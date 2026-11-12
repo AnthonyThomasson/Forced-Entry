@@ -125,7 +125,6 @@ func _painter(t: TestContext, view: PlayerView) -> void:
 	var points: PackedVector2Array = painter.points()
 	var uvs: PackedVector2Array = painter.uvs()
 	t.check(uvs.size() == points.size(), "every point of the polygon has a texture coordinate")
-	var cam := t.world.get_viewport().get_canvas_transform()
 	var size: Vector2 = t.world.get_viewport().get_visible_rect().size
 	var missed := 0
 	var off := 0
@@ -133,7 +132,7 @@ func _painter(t: TestContext, view: PlayerView) -> void:
 		var k := points.find(corner)
 		if k < 0:
 			missed += 1
-		elif not uvs[k].is_equal_approx((cam * corner) / size):
+		elif not uvs[k].is_equal_approx(Pointer.screen_of(t.world, corner) / size):
 			off += 1
 	t.check(missed == 0, "the painter holds the cone's polygon (%d of %d missing)" % [
 		missed, cone.size(),
@@ -150,7 +149,7 @@ func _mask(t: TestContext, view: PlayerView) -> void:
 	t.check(mask.size == Vector2i(main.get_visible_rect().size), "the mask is screen sized")
 	t.check(painter.get_parent() == mask, "the mask painter draws into the mask")
 	t.check(painter.points().size() >= 3, "the mask draws the cone's polygon")
-	var reach: float = FEATHER / main.get_canvas_transform().get_scale().x
+	var reach: float = FEATHER / Pointer.screen_transform(t.world).get_scale().x
 	var shifts: PackedVector2Array = painter.offsets
 	var widest := 0.0
 	for shift in shifts:

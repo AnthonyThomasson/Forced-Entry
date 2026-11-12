@@ -14,7 +14,7 @@ const SIDES := {
 
 ## A click (press and release) of `button` at world point `at`'s place on screen.
 static func click(t: TestContext, at: Vector2, button: MouseButton) -> void:
-	await click_screen(t, t.world.get_viewport().get_canvas_transform() * at, button)
+	await click_screen(t, Pointer.screen_of(t.world, at), button)
 
 
 ## A right-click at world point `at`'s place on screen.

@@ -96,14 +96,14 @@ func _check_scrolling(t: TestContext, card: Control, viewport: Vector2) -> void:
 	)
 	t.check(not _inside(point, scroll), "the Point section starts out of view")
 
-	var zoom := t.world.get_viewport().get_canvas_transform().get_scale()
+	var zoom := Pointer.screen_transform(t.world).get_scale()
 	var at := card.get_global_rect().get_center()
 	await InspectorProbe.wheel(t, at, MOUSE_BUTTON_WHEEL_DOWN, 60)
 	t.check(_inside(point, scroll), "wheeling down over the card scrolls the Point into view")
 	rect = card.get_global_rect()
 	t.check(rect.end.y <= viewport.y, "the card still ends inside the viewport: %s" % rect)
 	t.check(
-		t.world.get_viewport().get_canvas_transform().get_scale().is_equal_approx(zoom),
+		Pointer.screen_transform(t.world).get_scale().is_equal_approx(zoom),
 		"the card swallowed the wheel: the camera did not zoom",
 	)
 	await InspectorProbe.wheel(t, at, MOUSE_BUTTON_WHEEL_UP, 60)

@@ -213,14 +213,14 @@ func _draw_shoulders(pose: Pose, lunge: Vector2, impacts: Array, damage_total: f
 	draw_order.append(&"torso")
 
 
-## Whether the body is within `CULL_MARGIN` px of the camera's view: the viewport's visible rect
-## taken back into world space through its canvas transform. A body outside it is not solved or
-## repainted (its last drawing stays, unseen); with no viewport it counts as in view.
+## Whether the body is within `CULL_MARGIN` px of the camera's view (`Pointer.visible_world_rect`).
+## A body outside it is not solved or repainted (its last drawing stays, unseen); with no viewport
+## it counts as in view (`visible_world_rect` is empty there, so the guard stays).
 func _in_view() -> bool:
 	var vp := get_viewport()
 	if vp == null:
 		return true
-	var seen: Rect2 = vp.get_canvas_transform().affine_inverse() * vp.get_visible_rect()
+	var seen := Pointer.visible_world_rect(self)
 	return seen.grow(CULL_MARGIN).has_point(global_position)
 
 

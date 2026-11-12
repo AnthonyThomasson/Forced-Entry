@@ -398,5 +398,5 @@ func _aim(world: Vector2) -> String:
 	var vp := get_viewport()
 	if vp == null:
 		return "no viewport"
-	Input.warp_mouse(vp.get_canvas_transform() * world)
+	Input.warp_mouse(Pointer.screen_of(self, world))
 	return "ok (windowed only)"

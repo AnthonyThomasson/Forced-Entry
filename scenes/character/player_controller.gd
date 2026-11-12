@@ -31,7 +31,7 @@ func _input(event: InputEvent) -> void:
 func control(character: CharacterBody2D, _delta: float) -> void:
 	character.movement.move_input = Keybinds.get_move_vector()
 	character.movement.run_input = Keybinds.is_run_pressed()
-	character.movement.aim_point = character.get_global_mouse_position()
+	character.movement.aim_point = Pointer.world_mouse(character)
 
 	var selected := Keybinds.get_selected_item()
 	if selected > 0:

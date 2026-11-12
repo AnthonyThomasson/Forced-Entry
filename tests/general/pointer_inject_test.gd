@@ -82,12 +82,23 @@ func _an_injected_point_stands_in(t: TestContext, you: Node) -> void:
 		Pointer.world_mouse(you), _world_under(you, FIRST), "the world point is under it",
 	)
 	await t.frames(3)
+	t.expect_eq(
+		you.movement.aim_point,
+		_world_under(you, FIRST),
+		"the human player's aim follows the injected point",
+	)
 	t.expect_eq(Pointer.screen_mouse(you), FIRST, "it holds through frames")
 	t.expect_eq(viewport.get_mouse_position(), REAL, "the inject did not warp the real mouse")
 
 	Pointer.inject(SECOND)
 	t.expect_eq(
 		Pointer.world_mouse(you), _world_under(you, SECOND), "injecting again moves the pointer",
+	)
+	await t.frames(2)
+	t.expect_eq(
+		you.movement.aim_point,
+		_world_under(you, SECOND),
+		"injecting again moves the player's aim",
 	)
 	t.expect_eq(viewport.get_mouse_position(), REAL, "the real mouse is still where it was")
 

@@ -52,10 +52,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(Keybinds.PAUSE) and not event.is_echo():
 		_set_paused(not get_tree().paused)
 	elif event is InputEventMouseButton and event.pressed:
+		# A click is placed by its event's own position, never the viewport's mouse position, which
+		# in a window is the system cursor and not where the event says the click was.
 		if event.button_index == MOUSE_BUTTON_RIGHT:
-			_on_right_click(_world_of(event.position))
+			_on_right_click(Pointer.world_of(self, event.position))
 		elif event.button_index == MOUSE_BUTTON_LEFT:
-			_on_left_click(_world_of(event.position))
+			_on_left_click(Pointer.world_of(self, event.position))
 
 
 ## Refresh the contact markers every frame so the rings track characters as they move (and as the
@@ -110,13 +112,6 @@ func set_scope(scope: String) -> void:
 ## Pause or resume the whole tree (this node keeps running — PROCESS_MODE_ALWAYS).
 func _set_paused(pause: bool) -> void:
 	get_tree().paused = pause
-
-
-## World point under screen point `screen` (the world's canvas transform: the framing camera's
-## view). A click is placed by its event's own position, never the viewport's mouse position, which
-## in a window is the system cursor and not where the event says the click was.
-func _world_of(screen: Vector2) -> Vector2:
-	return get_viewport().get_canvas_transform().affine_inverse() * screen
 
 
 ## A right-click selects the NPC under the cursor (opening its card), or clears the selection when

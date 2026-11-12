@@ -121,7 +121,7 @@ func _check_flash_on_screen(t: TestContext, light: Node2D) -> bool:
 	if not bursts.any(func(e: Dictionary) -> bool: return e["position"].distance_to(at) < 1.0):
 		return false
 	var on_screen := light.get_global_transform_with_canvas().origin
-	var expected := t.world.get_viewport().get_canvas_transform() * at
+	var expected := Pointer.screen_of(t.world, at)
 	t.check(
 		on_screen.distance_to(expected) < 0.5,
 		"%s lights the screen at %s, where its burst is (%s)" % [light.name, on_screen, expected],

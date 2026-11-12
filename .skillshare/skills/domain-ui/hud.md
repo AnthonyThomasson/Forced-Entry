@@ -25,7 +25,7 @@ Tests: `tests/ui/` — `match_hud_verdict_test.gd`, `inspector_right_click_card_
   (decided by `MatchVerdict.decide`, the rule the dev command server's `match` verb uses too) or `time_limit` passes ("TIME UP - DRAW").
   Nothing else shows but the timer and the banner.
 - **Spectator inspector.**
-  - Clicks are placed by the event's own position through the canvas transform, never the viewport mouse position (in a window that is the system cursor).
+  - Clicks are placed by the event's own position through `Pointer.world_of` (interface 26), never the viewport mouse position (in a window that is the system cursor).
   - A right-click on an NPC (nearest within `PICK_RADIUS`) selects it and opens its card; right-clicking it again or empty ground clears the selection and closes the card. A left-click never selects.
   - With an NPC selected, a left-click near one of its tactical points (`ZONE_PICK_RADIUS`, from `debug_zones()`) sets the controller's `debug_focus` (`Vector2.INF` clears) and
     fills the card's Point section with the zone's kind, label and Von's reasoning; a left-click elsewhere does nothing. A new selection clears the previous NPC's highlight.
