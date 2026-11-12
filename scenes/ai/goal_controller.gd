@@ -432,7 +432,6 @@ func _contact_digest() -> Array:
 ## carry out the running primitive.
 func control(character: Node, delta: float) -> void:
 	if character.is_dead:
-		_job.release()  # a dead NPC's decision never advances: it holds no one up in the pool
 		return
 	if _character == null:
 		_bind_body(character)
@@ -447,10 +446,17 @@ func control(character: Node, delta: float) -> void:
 	_act(delta)
 
 
+## The NPC died: the body no longer asks its controller to think, so its decision never advances
+## again and leaves the pool's roster at once instead of holding the next NPC up.
+func _on_died() -> void:
+	_job.release()
+
+
 ## Takes `character` as the NPC's body on its first tick: seeds the reflexes' RNG from its name and
 ## spawn spot, hands it to the perception and the behaviour, and its name to the planner.
 func _bind_body(character: Node) -> void:
 	_character = character
+	character.died.connect(_on_died)
 	_reflexes.bind(character)
 	_perception.bind(character)
 	_behavior.bind(character)
