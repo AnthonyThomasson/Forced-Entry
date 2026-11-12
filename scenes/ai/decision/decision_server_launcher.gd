@@ -38,6 +38,13 @@ const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
 ## Compute device passed to `von serve --device`. `cpu` is the default because PyTorch's Apple
 ## GPU backend (`mps`, which `auto` picks on a Mac) crashes the server on its first request.
 @export_enum("cpu", "auto", "mps", "cuda", "openvino") var device: String = "cpu"
+## Run the server under background QoS on macOS (`taskpolicy -b`). PyTorch on CPU bursts to 500 to
+## 1000% CPU for the first seconds of a fight and starves the game (measured: frames of 255 to 335
+## ms for about 15 s); background QoS cut the first 5 s to about 57 ms a frame, then 16 to 19 ms.
+## `renice` and the OMP / MKL / torch thread variables did not help. The trade-off: Von answers
+## slower (the first shot comes about 57 s after launch rather than 29 to 37 s). Other platforms
+## ignore it.
+@export var background_qos: bool = true
 ## Also print each server log line to the Output panel.
 @export var echo_to_output: bool = true
 ## How many times to probe `port` before giving up and launching our own server. Retries let a
@@ -243,15 +250,24 @@ func _end_probing() -> void:
 		_probe.request = null
 
 
+## The shell line that starts the server. `exec` makes the shell become the server, and
+## `taskpolicy` execs its program too, so the pid we kill is the server itself in either form.
+## On macOS with `background_qos` the server runs under `taskpolicy -b`.
+static func serve_command(
+		von: String, serve_port: int, serve_device: String, os_name: String, background: bool
+) -> String:
+	var prefix := "exec /usr/sbin/taskpolicy -b " if background and os_name == "macOS" else "exec "
+	return "%s'%s' serve --host 127.0.0.1 --port %d --device %s 2>&1" % [
+		prefix, von, serve_port, serve_device]
+
+
 ## Start `von serve` with its output piped back to us, and a thread to read it.
 func _launch() -> void:
 	if von_path.is_empty():
 		GameLog.say(("[von] No server on port %d and von_path is empty — set it on "
 					+ "DecisionServerLauncher to auto-start Von.") % port)
 		return
-	# `exec` makes the shell become the server, so the pid we kill is the server itself.
-	var command := ("exec '%s' serve --host 127.0.0.1 --port %d --device %s 2>&1"
-			% [von_path, port, device])
+	var command := serve_command(von_path, port, device, OS.get_name(), background_qos)
 	var process := OS.execute_with_pipe("/bin/sh", ["-c", command])
 	if process.is_empty():
 		push_warning("[von] Failed to start %s" % von_path)
