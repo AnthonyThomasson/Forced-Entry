@@ -4,12 +4,12 @@ extends RefCounted
 ## the decision SNAPSHOT the planner walks — named boolean `facts` the tree gates on, named state
 ## `sections` Von reads, and named option `groups` (places and things with the attributes a choice
 ## turns on). It is a pure transform: it reads the event memory and the tactics module, holds no
-## state between calls, and never writes memory, decides or picks. The work is split three ways
-## under `snapshot/`: the shared vocabulary and tuning (`vocab`), the state text (`_sections`) and
-## the option groups (`_options`, with the grenade throws in `_throws` and the leader's order in
-## `_orders`); this file assembles them. `agent_perception.gd` (the SEE half)
-## owns it, like it owns vision / hostility / memory / tactics, and calls `build()` once per
-## decision.
+## state between decisions (a build held between pieces carries its own, `snapshot_build.gd`), and
+## never writes memory, decides or picks. The work is split three ways under `snapshot/`: the
+## shared vocabulary and tuning (`vocab`), the state text (`_sections`) and the option groups
+## (`_options`, with the grenade throws in `_throws` and the leader's order in `_orders`); this
+## file assembles them. `agent_perception.gd` (the SEE half) owns it, like it owns vision /
+## hostility / memory / tactics, and calls `build()` once per decision.
 ##
 ## Everything Von reads is worded for a CLASSIFIER that picks the option whose text best matches the
 ## state and cannot do arithmetic: distances, routes and ages are BANDS ("in pistol range", "short
@@ -121,6 +121,16 @@ func advance_build(staged: SnapshotBuild) -> void:
 			_finish_build(staged)
 
 
+## Hand the author's modules the build's own decision again (`vocab.rooms`, the options' and
+## throws' `know`): what `SnapshotDemand` does as it builds an older snapshot's rest (`_open`), so
+## a pause between pieces in which an older snapshot was completed leaves the build's reads as
+## they were. Every piece that reads them calls it first.
+func _own_scratch(staged: SnapshotBuild) -> void:
+	vocab.rooms = staged.rooms
+	_options.know = staged.knowledge
+	_throws.know = staged.knowledge
+
+
 ## The START piece: the knowledge, the decision's per-build scratch and its context, and which
 ## hostiles get full analysis.
 func _start_build(staged: SnapshotBuild) -> void:
@@ -129,9 +139,7 @@ func _start_build(staged: SnapshotBuild) -> void:
 	if staged.freeze.is_valid():
 		staged.frozen = staged.freeze.call()
 	staged.token = _options.begin_decision()
-	vocab.rooms = staged.rooms
-	_options.know = knowledge
-	_throws.know = knowledge
+	_own_scratch(staged)
 	_throws.begin()
 	var ctx := _context(knowledge["contacts"], knowledge["callouts"])
 	ctx["engaged_id"] = int(knowledge.get("engaged_id", 0))
@@ -139,7 +147,7 @@ func _start_build(staged: SnapshotBuild) -> void:
 	staged.parts = { "per_target": {}, "per_sections": {}, "analyses": {}, "targets": {} }
 	staged.analysed = _analysed_ids(ctx)
 	staged.piece = SnapshotBuild.Piece.FINISH
-	if not staged.analysed.is_empty():
+	if not ctx["hostiles"].is_empty():
 		staged.piece = SnapshotBuild.Piece.HOSTILE
 
 
@@ -185,6 +193,7 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 ## hostile id; `targets` holds each hostile given full analysis with its geometry, for what `demand`
 ## builds of it later (its grenade throws and its exposure).
 func _hostile_piece(staged: SnapshotBuild) -> void:
+	_own_scratch(staged)
 	var ctx := staged.ctx
 	var hostiles: Array = ctx["hostiles"]
 	var analyses: Dictionary = staged.parts["analyses"]
@@ -201,9 +210,18 @@ func _hostile_piece(staged: SnapshotBuild) -> void:
 				analyses[t["id"]] = { "line": _line(ctx, t) }
 			continue
 		_analyse_target(staged, t)
-		if staged.parts["targets"].size() < staged.analysed.size():
+		if _analysed_ahead(staged):
 			return
 	staged.piece = SnapshotBuild.Piece.FINISH
+
+
+## Whether a hostile given full analysis is yet to come in the contacts' order.
+func _analysed_ahead(staged: SnapshotBuild) -> bool:
+	var hostiles: Array = staged.ctx["hostiles"]
+	for i in range(staged.cursor, hostiles.size()):
+		if staged.analysed.has(hostiles[i]["id"]):
+			return true
+	return false
 
 
 ## The full analysis of hostile `t`: its geometry, option groups and sections, into `staged.parts`.
@@ -225,6 +243,7 @@ func _analyse_target(staged: SnapshotBuild, t: Dictionary) -> void:
 ## The FINISH piece: what the whole decision shares, the facts, the option groups, the demand that
 ## builds the rest when the walk reads it, and the sections; the snapshot is done.
 func _finish_build(staged: SnapshotBuild) -> void:
+	_own_scratch(staged)
 	var knowledge := staged.knowledge
 	var ctx := staged.ctx
 	var parts := staged.parts

@@ -4,7 +4,9 @@ extends GameTest
 ## and the planner's walk over it takes the same path through the same levels. The pieces run in
 ## the order the build is made of: a start, one per hostile given full analysis, a finish. And the
 ## confinement the snapshot carries is the one at the build's start, whatever the live one becomes
-## by the time the build ends.
+## by the time the build ends, and a build the author is not asked to forget between its pieces
+## keeps reading its own decision when an older snapshot is completed in between (the debug
+## overlay does that): its facts are the ones of an uninterrupted build.
 ##
 ## Over two situations, nothing known (an entry) and two trespassers in plain sight (a fight, with
 ## the walk taking COMBAT and ENGAGE).
@@ -74,22 +76,15 @@ func run(t: TestContext) -> void:
 func _compare(
 		t: TestContext, brain: Node, label: String, rules: Array, hostiles: int,
 ) -> void:
-	var perception: Node = brain.get("_perception")
-	var goal: String = brain.get("goal")
 	DecisionStub.rules = rules
-	var whole: Dictionary = perception.sense(goal, "digging in", 0)
-	var staged = perception.begin_sense(goal, "digging in", 0)
-	var kinds: Array = []
-	while not staged.done():
-		kinds.append(staged.next_piece())
-		staged.step()
-	var stepped: Dictionary = staged.result()
+	var both := _build_both(t, brain)
+	var whole: Dictionary = both["whole"]
+	var stepped: Dictionary = both["stepped"]
 	var expected: Array = [START]
 	for i in hostiles:
 		expected.append(HOSTILE)
 	expected.append(FINISH)
-	t.expect_eq(kinds, expected, "%s: the pieces a build runs, in order" % label)
-	t.check(not stepped.is_empty(), "%s: the build ends with a snapshot" % label)
+	t.expect_eq(both["kinds"], expected, "%s: the pieces a build runs, in order" % label)
 	var walked_whole := await Walk.walk(t, brain, whole)
 	var walked_stepped := await Walk.walk(t, brain, stepped)
 	if t.require(
@@ -105,35 +100,71 @@ func _compare(
 	for key in ["facts", "sections", "options", "sections_per_target", "gun"]:
 		t.expect_eq(stepped[key], whole[key], "%s: the snapshot's %s" % [label, key])
 	t.expect_eq(
-		(stepped["confinement"] as RefCounted).confines(),
-		(whole["confinement"] as RefCounted).confines(),
-		"%s: the confinement" % label,
+		stepped["confinement"].view(), whole["confinement"].view(), "%s: the confinement" % label
 	)
 
 
-## The confinement the snapshot carries is a copy taken as the build starts: a rule that lifts
-## after the start still confines it, one that arrives after it does not, whatever the live
-## confinement is when the pieces end. The brain's tick would refresh the live one anyway.
+## `{ whole, stepped, kinds }`: the snapshot `sense()` builds and the one built piece by piece,
+## `kinds` the kinds of piece it ran. Older decisions of an NPC that thought it stood in a house
+## room are completed between the pieces, as the debug overlay does: a build that read their
+## room would have the `inside` fact true.
+func _build_both(t: TestContext, brain: Node) -> Dictionary:
+	var perception: Node = brain.get("_perception")
+	var goal: String = brain.get("goal")
+	var here: Vector2 = t.actor(&"npc").global_position
+	var old_rooms := [{
+		"key": "old", "type": "kitchen", "rect": Rect2(here - Vector2(50, 50), Vector2(100, 100)),
+	}]
+	var olds: Array = []
+	for i in 5:
+		olds.append(perception.sense(goal, "", 0))
+		olds[i]["demand"].rooms = old_rooms
+	var whole: Dictionary = perception.sense(goal, "digging in", 0)
+	var staged = perception.begin_sense(goal, "digging in", 0)
+	var kinds: Array = []
+	while not staged.done():
+		kinds.append(staged.next_piece())
+		staged.step()
+		olds[kinds.size() - 1]["demand"].complete()
+	return { "whole": whole, "stepped": staged.result(), "kinds": kinds }
+
+
+## The confinement the snapshot carries is a copy taken as the build starts: whatever the live
+## confinement is when the pieces end, the snapshot's is what it was at the start. The brain's
+## tick would refresh the live one anyway.
 func _confinement_is_frozen(t: TestContext, perception: Node) -> void:
 	var live = perception.confinement
 	var goal: String = t.controller(&"npc", &"debug_state").get("goal")
 	live.inside_only = true
-	var lifted = perception.begin_sense(goal, "", 0)
-	lifted.step()
+	live.room = "kitchen"
+	live.leash_center = Vector2(100, 200)
+	live.leash = 80.0
+	live.keep_out = "hall"
+	var staged = perception.begin_sense(goal, "", 0)
+	staged.step()
 	live.inside_only = false
-	while not lifted.done():
-		lifted.step()
-	t.check(
-		lifted.result()["confinement"].confines(),
-		"a territory lifted after the build began still confines the snapshot",
+	live.room = ""
+	live.leash_center = Vector2.INF
+	live.leash = 0.0
+	live.keep_out = ""
+	while not staged.done():
+		staged.step()
+	var at_start := {
+		"inside_only": true, "room": "kitchen", "leash_center": Vector2(100, 200), "leash": 80.0,
+		"keep_out": "hall", "confines": true,
+	}
+	t.expect_eq(
+		staged.result()["confinement"].view(), at_start, "the confinement of the build's start"
 	)
 	var imposed = perception.begin_sense(goal, "", 0)
 	imposed.step()
 	live.inside_only = true
+	live.keep_out = "hall"
 	while not imposed.done():
 		imposed.step()
 	live.inside_only = false
+	live.keep_out = ""
 	t.check(
-		not imposed.result()["confinement"].confines(),
-		"a territory imposed after the build began does not reach the snapshot",
+		not imposed.result()["confinement"].view()["confines"],
+		"rules imposed after the build began do not reach the snapshot",
 	)

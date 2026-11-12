@@ -67,8 +67,9 @@ func step() -> void:
 		author.advance_build(self)
 
 
-## The finished snapshot (empty until `done()`).
+## The finished snapshot (only once `done()`).
 func result() -> Dictionary:
+	assert(done(), "SnapshotBuild.result() before the build is done")
 	return _result
 
 

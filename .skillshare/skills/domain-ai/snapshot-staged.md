@@ -20,6 +20,8 @@ The work order is the one-shot build's, so the rays, routes and random draws are
 
 ## Rules
 
-- One build is in flight per author: its START sets the author's per-decision scratch, so a build dropped for a new one is freed and never resumed. Nothing it did outside itself is undone, and nothing needs to be.
-- The walked-route memo is open from START to FINISH, and with a build held across frames behaviour-time walks in between reuse it (`perception-views.md`): a caller that spreads a build over frames must not rely on a fresh route there.
-- Test: `ai/decision/staged_build_matches_whole` (a stepped build equals `sense()` in facts, sections, options, wording and the walk over it; the confinement is frozen at the start).
+- One build is in flight per author: its START sets the author's per-decision scratch (`vocab.rooms`, the options' and throws' `know`), so a build dropped for a new one is freed and never resumed. Nothing it did outside itself is undone, and nothing needs to be.
+- **`SnapshotDemand.complete()` is a hazard to a held build.** Completing an older snapshot (the debug overlay, `NpcCadence.complete()`, the spectator card, a test) hands the shared modules that decision's rooms and knowledge (`_open`). Every piece after START therefore re-asserts the build's own (`_own_scratch`) before it reads them. The throws' per-decision caches (`_throws.begin()`, START) are not re-asserted: anything built by a demand read in between, which is lazy, can use them.
+- The walked-route memo is open from START to FINISH, so with a build held across frames the behaviour-time walks in between reuse it (`perception-views.md`) and may be stale if a door or the map changed. A caller that spreads a build over frames (#195) must not rely on a fresh route there.
+- `result()` asserts `done()`.
+- Tests: `ai/decision/staged_build_matches_whole` (a stepped build equals `sense()` in facts, sections, options, wording and the walk over it, with an older snapshot completed between every piece; the confinement view is frozen at the start), `ai/decision/staged_build_unanalysed_hostiles` (four hostiles, the third engaged: the line entries between and after the analysed ones, one piece per analysed hostile).
