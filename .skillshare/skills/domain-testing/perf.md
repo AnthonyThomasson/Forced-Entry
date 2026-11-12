@@ -70,8 +70,10 @@ library's pre-warm renders on a worker thread (`domain-audio`).
 - A lambda captures ints by value (count into an Array).
 - **Compare two revisions with `tools/perf_ab.sh BASE TIP`, never by one run or a sim length:** it plays both in interleaved rounds on
   scratch worktrees, drops a `loaded` round, refuses ("fights differ from frame N") unless every round played the same fight, and
-  prints the medians and the delta against `--bar`. How it reads, what is deterministic: `perf-nondeterminism.md`; the fingerprint it
-  checks: `perf-fingerprint.md`.
+  prints the medians and the delta against `--bar`. A change that must not change the fight (a speed-up) uses that default; one
+  that changes it on purpose (a later decision, a late cone) uses `--different-fights` (10 rounds; each side must replay its own
+  fight, BASE and TIP need not; avg held to `--bar`; the report says "different fights"). How it reads: `perf-nondeterminism.md`;
+  the fingerprint: `perf-fingerprint.md`.
 - `nav.rebake` is off in tests that shove or shoot furniture into overlaps (re-baking overlapping holes logs a nav sync
   error); the match guards keep it on and allow that log (`MATCH_LOGS`).
 - World-gen's first run in a process is slower (cold caches), so its budget covers the cold case.

@@ -53,22 +53,18 @@ Compare two revisions only through it (`tools/perf_ab.py`'s header holds the fla
   read, not held.
 - The pass is a statement about the revisions' cost on *one* fight; a budget (`Perf.within_frames`) is still the standard
   (`perf.md`), and the bar never replaces it.
+- **`--different-fights`** (a slice that changes the fight on purpose): 10 rounds; BASE's fingerprints are not held against TIP's, but each
+  side's rounds against that side's first (a miss: exit 3, `<SIDE> does not replay its own fight, from frame N`). Medians are labelled
+  "different fights", with whether the sides happened to match; avg held to `--bar`. Judge an identical change by the default.
 
 A reading is only as quiet as its machine: quote the load of each `PERF` line (`perf.md`), and say when a run was not `--quiet`.
 
-## History: what was shown before #203 (2026-11-07, scratch traces, `Perf.configure_match` 5v5)
+## History (before #203, 2026-11-07 to 11-10)
 
-- Base 1afec1d2 alone was not deterministic (contact at 11.1, 13.0, 11.2 s; the traces first split at frame 78): the planning re-bake landed on a
-  worker thread, on a wall-clock frame. With it off each revision was stable run to run but played its own match, and 40 ms a frame
-  changed none of it; any change to what the process allocates moved it.
-- `perception_house.gd` phased each NPC's look by `perception.get_instance_id() % LEARN_EVERY_FRAMES`; ids step in fixed strides, so
-  the phases clustered and moved with allocations (merged: nine NPCs on one frame). Handed out in turn since (`look_phases.gd`; `ai/perception/
-  sight_learning_staggered`, `look_phases_two_worlds`, `house_look_cadence`). The sight cadence, the give-way order and the unseeded
-  global `randf` were left, and are #203's.
-
-## The fingerprint's first reading (2026-11-10, #203, before the determinism jobs)
-
-Each guard twice with the fingerprint, padding off and on, at load 14 to 18 with 20+ other Godot. No pair matched; the first differing
-frame, run 1 against 2, was 77 / 10 (5v5), 72 / 74 (grenade), 32 / 48 (10v10) and 57 / 31 (vision), off / on: a position a pixel or
-three off, a goal, or an NPC's health with no shot logged, all long before contact (6 s, frame 360, or later). Padding off against on
-differed too (frames 10, 120, 32, 49). Those are the jobs' starting point, not a state of the code.
+- Base 1afec1d2 alone was not deterministic (contact at 11.1, 13.0, 11.2 s; first split at frame 78): the planning re-bake landed on a
+  worker thread, on a wall-clock frame. With it off each revision was stable but played its own match, and any change to what the
+  process allocates moved it. `perception_house.gd` phased each NPC's look by instance id (ids step in fixed strides, so the phases
+  clustered and moved with allocations); handed out in turn since (`look_phases.gd`; `ai/perception/sight_learning_staggered`,
+  `look_phases_two_worlds`, `house_look_cadence`).
+- The fingerprint's first reading (load 14 to 18, 20+ other Godot): no pair of runs matched, padding off against on differed too; the
+  first differing frame was 10 to 77, long before contact (6 s, frame 360, or later). The jobs above fixed that.
