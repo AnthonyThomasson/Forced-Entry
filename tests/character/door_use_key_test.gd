@@ -149,9 +149,9 @@ func _reaches(t: TestContext, door: Node, angle: float) -> bool:
 	return await t.until(func(): return absf(door.angle() - angle) <= 0.1, 2.0)
 
 
-## Stand the player at `spot` and aim at the world point `toward`: the mouse is put on the screen
-## point that world point is at, again each frame, since the test camera is still easing toward
-## its framing and carries the point with it.
+## Stand the player at `spot` and aim at the world point `toward`: the pointer is injected on the
+## screen point that world point is at, again each frame, until the aim has held on it with the
+## camera settled (the test camera is still easing toward its framing and carries the point).
 func _place(t: TestContext, you: Node, spot: Vector2, toward: Vector2) -> void:
 	you.global_position = spot
 	await PlayerPointer.aim(t, you, toward)

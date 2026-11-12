@@ -24,7 +24,7 @@ const PUPPET_SPOT := Vector2(390, 225)
 ## A zoom that has not moved, to this much.
 const SAME_ZOOM := 0.001
 
-## Where the mouse is on the screen, as `PlayerPointer.aim` last put it.
+## Where the pointer is on the screen, as `PlayerPointer.aim` last injected it.
 var _pointer := Vector2.ZERO
 
 
@@ -254,8 +254,8 @@ func _settle(t: TestContext) -> void:
 	await t.seconds(DoorConfig.swing_time + 0.3)
 
 
-## One wheel notch, as the OS delivers it (with the pointer where it is: an event's position moves
-## the mouse), and a frame for it to land.
+## One wheel notch, as the OS delivers it (placed at the pointer, since an event carries a position
+## of its own), and a frame for it to land.
 func _wheel(t: TestContext, button: MouseButton) -> void:
 	var event := InputEventMouseButton.new()
 	event.button_index = button

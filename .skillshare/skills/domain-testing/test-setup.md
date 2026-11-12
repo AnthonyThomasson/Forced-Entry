@@ -16,10 +16,10 @@ only (the browser also calls it to list the switches).
   the puppet's `use()` / `turn_door(steps)`, or a `player` actor driven by injected events (`Input.action_press(Keybinds.USE)` for a tap
   or a hold, a wheel notch or a pan gesture through `TestContext.inject`; `tests/character/door_use_key_test.gd`,
   `door_scroll_open_test.gd`). A player's aim is the mouse: `tests/_character/player_pointer_probe.gd` (`PlayerPointer.aim(t, you, point)`
-  injects the screen point of a world point (`Pointer.inject`), again each frame, until the aim has held on it with the camera settled; `PlayerPointer.at(event, pointer)` gives an injected wheel
-  or pan event the pointer's place). A puppet's punch needs `start_slot: 2`. A generated house is built with its doors unless the switch
-  `worldgen.doors` (`WorldGenDoorConfig.enabled`) is off; the AI scenario families that predate doors turn it off (`# Doors off until
-  #159 makes this family door-aware.`).
+  injects the screen point of a world point (`Pointer.inject`), again each frame, until the aim has held on it with the camera
+  settled; `PlayerPointer.at(event, pointer)` gives an injected wheel or pan event the pointer's place). A puppet's punch needs
+  `start_slot: 2`. A generated house is built with its doors unless the switch `worldgen.doors` (`WorldGenDoorConfig.enabled`) is off;
+  the AI scenario families that predate doors turn it off (`# Doors off until #159 makes this family door-aware.`).
 - **Vehicles** are placed after the nav bake and are not carved (the AI ignores vehicles); the world then waits one
   physics frame before the actors, because a new body joins the physics space at the next step. A kind with no scene
   places nothing and `t.vehicle(id)` is null.
