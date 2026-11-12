@@ -18,10 +18,11 @@ extends RefCounted
 ## activity, the engaged contact (`reads`), the order held and the entry the decision starts from
 ## (the planner's entry rule over the perception's quick facts). The build's START freezes the
 ## knowledge and the confinement copy (`perception.md`). After the build, at the order-refusal step:
-## the radio callouts again (`reread_claims`), and the live confinement refreshed (`refresh`) when
-## the order the build saw is refused, replacing the snapshot's copy before the first level. As the
-## walk begins: whether the behaviour's last choice is still running (`ongoing`, judged for "(your
-## current plan)" on that state).
+## the live confinement refreshed (`refresh`) when the order the build saw is refused, replacing the
+## snapshot's copy before the first level. As the walk begins, after the throw piece, the last
+## things before the first level: the radio callouts again (`reread_claims`, so a claim radioed
+## while the build and the throw search spread over frames is seen), then whether the behaviour's
+## last choice is still running (`ongoing`, judged for "(your current plan)" on that state).
 ##
 ## Interrupting (`stale`, `frozen`): the controller applies one test to a job in flight. A walk is
 ## stale when the situation's entry (`entry_for(quick_facts)`) is not the one it started from; a
@@ -42,6 +43,12 @@ enum Stage {
 	REFUSAL,
 	THROW,
 	WALK,
+}
+## Whether `advance` is not running, running, or running with another round asked for.
+enum Run {
+	IDLE,
+	BUSY,
+	AGAIN,
 }
 
 ## The snapshot build's piece kinds (`SnapshotBuild.Piece`), to price them.
@@ -68,16 +75,18 @@ var refresh: Callable
 var _stage := Stage.IDLE
 var _build: RefCounted
 var _search: RefCounted
+## The kind of the throw search's next step as the search last said it (`ThrowSearch.Kind`, -1
+## before it has): asking prepares the step, so the job asks once and prices from this.
+var _throw_kind := -1
 ## The doorway views' walked-route memo, held while the job's pieces run together in a frame
 ## (`hold_walks`), never kept between frames, nor into the walk.
 var _walks: RefCounted
 var _snapshot := {}
 ## The id of the order the build started with (-1: none): the refusal step judges that one.
 var _order_seen := -1
-## Whether `advance` is running: a synchronous answer from Von must not run it again inside itself.
-var _busy := false
-## Whether such an answer asked for another run once this one ends.
-var _again := false
+## Whether `advance` is running (`Run`): a synchronous answer from Von must not run it again inside
+## itself, but asks for another round once this one ends.
+var _run_state := Run.IDLE
 ## The entry node the decision starts from, worked out at the claim: what a build is compared with.
 var _entry: StringName = &"root"
 
@@ -150,9 +159,24 @@ func cancel() -> void:
 	planner.cancel()
 	_build = null
 	_search = null
+	_throw_kind = -1
 	_walks = null
 	_snapshot = {}
 	_stage = Stage.IDLE
+	Roster.leave(get_instance_id())
+
+
+## The job's NPC does not think this frame (a service interaction holds its tick): no piece of its
+## will run, so it owes the pool nothing now. `advance` notes its cost again on the next frame it
+## runs.
+func rest() -> void:
+	if _stage != Stage.IDLE:
+		Roster.note(get_instance_id(), 0)
+
+
+## The job's NPC is gone (dead, or leaving the tree): it leaves the pool's roster without being
+## dropped, so what it needed next holds no one up.
+func release() -> void:
 	Roster.leave(get_instance_id())
 
 
@@ -161,15 +185,14 @@ func cancel() -> void:
 ## Von has answered. Never run inside itself: a transport that answers at once asks for another
 ## round when this one ends.
 func advance() -> void:
-	if _busy:
-		_again = true
+	if _run_state != Run.IDLE:
+		_run_state = Run.AGAIN
 		return
-	_busy = true
-	_again = true
-	while _again:
-		_again = false
+	_run_state = Run.AGAIN
+	while _run_state == Run.AGAIN:
+		_run_state = Run.BUSY
 		_run()
-	_busy = false
+	_run_state = Run.IDLE
 	_walks = null
 	if _stage == Stage.IDLE:
 		Roster.leave(get_instance_id())
@@ -228,17 +251,19 @@ func _refusal() -> bool:
 		return false
 	_refuse_order()
 	_search = _snapshot["demand"].throw_search(Budget.throw_block)
+	_throw_kind = -1
 	_stage = Stage.THROW
 	return true
 
 
-## The throw search's steps, when the pool allows; the walk begins as it ends. What the walk marks
-## "(your current plan)" is read as it begins, not at the claim: the build may have spread over
-## frames.
+## The throw search's steps, when the pool allows; the walk begins as it ends. What the walk is
+## told is read as it begins, not at the claim, the build and the search having spread over frames:
+## the radio callouts (a teammate's claim since is seen) and what it marks "(your current plan)".
 func _throw_piece() -> bool:
 	if not _throw_step():
 		return false
 	_search = null
+	perception.reread_claims(_snapshot)
 	planner.begin(_snapshot, bool(ongoing.call()))
 	_stage = Stage.WALK
 	return true
@@ -274,6 +299,7 @@ func _build_cost() -> int:
 func _throw_step() -> bool:
 	while _search != null:
 		var kind: int = _search.next_kind()
+		_throw_kind = kind
 		if kind == ThrowSearch.Kind.DONE:
 			return true
 		var cost := throw_cost_of(kind)
@@ -333,11 +359,12 @@ func _next_cost() -> int:
 	return 0
 
 
-## What the throw search's next step costs.
+## What the throw search's next step costs, from the kind it last said (`_throw_kind`): the search
+## is not asked again outside the pool's budget.
 func _throw_next_cost() -> int:
-	if _search == null or _search.next_kind() == ThrowSearch.Kind.DONE:
+	if _search == null or _throw_kind == ThrowSearch.Kind.DONE or _throw_kind < 0:
 		return 0
-	return maxi(0, throw_cost_of(_search.next_kind()))
+	return maxi(0, throw_cost_of(_throw_kind))
 
 
 ## The build is over: what it holds is the last decision's, for the observers.
@@ -351,13 +378,10 @@ func _complete_build() -> void:
 	_stage = Stage.REFUSAL
 
 
-## The order-refusal step: the radio callouts heard since the build began are read again (a
-## teammate's claim may have landed during it: the flank sides it holds, `reread_claims`), an order
-## it cannot carry out (a room or doorway it does not know) is said so and dropped, and the walk is
-## the NPC's own: its confinement holds no order's rules from this tick on, and in the snapshot the
-## walk decides over.
+## The order-refusal step: an order it cannot carry out (a room or doorway it does not know) is said
+## so and dropped, and the walk is the NPC's own: its confinement holds no order's rules from this
+## tick on, and in the snapshot the walk decides over.
 func _refuse_order() -> void:
-	perception.reread_claims(_snapshot)
 	var held: Dictionary = perception.orders.current()
 	if (held.is_empty()
 			or int(held["id"]) != _order_seen

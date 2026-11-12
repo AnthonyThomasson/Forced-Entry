@@ -290,11 +290,14 @@ func _finish_build(staged: SnapshotBuild) -> void:
 ## flanks sections), the allies on a hostile (the hostile group's wording), whether the stack holds
 ## a stun. A teammate's claim that came in while the build was spread over frames is seen, so two
 ## NPCs on one target take different sides. The groups, facts and sections built when the walk
-## first reads them read the callouts then, as they always have. Called at the decision job's
-## order-refusal step; nothing is made again when the callouts are as the build read them.
+## first reads them read the callouts then, as they always have. Called by the decision job as
+## its throw piece ends, the last thing before the walk; nothing is made again when the callouts
+## are as the build read them. Like every piece it first hands the authors the snapshot's own
+## decision (`SnapshotDemand.open`), whatever a decision begun since has left in them.
 func reread_claims(snapshot: Dictionary, callouts: Array) -> void:
 	var demand: SnapshotDemand = snapshot["demand"]
 	var ctx: Dictionary = demand.ctx
+	var _scope: RefCounted = demand.open()
 	if callouts == ctx["callouts"]:
 		return
 	ctx["callouts"] = callouts

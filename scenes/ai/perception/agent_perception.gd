@@ -181,7 +181,7 @@ func _apply_tactics(npc_tuning: NpcTuning) -> void:
 	_tactics.route_clearance = npc_tuning.tactics.route_clearance
 	_tactics.watch_arc = npc_tuning.tactics.watch_arc
 	_tactics.fire_spot_distances = npc_tuning.tactics.fire_spot_distances
-	_tactics.throw_spot_walk = npc_tuning.grenades.throw_spot_walk
+	_tactics.throws.spot_walk = npc_tuning.grenades.throw_spot_walk
 
 
 ## Set the doorway geometry's and the doorway views' tunables from `npc_tuning`, then push the walk

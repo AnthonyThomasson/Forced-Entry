@@ -21,8 +21,8 @@ extends RefCounted
 
 const Roster := preload("res://scenes/ai/decision/decision_roster.gd")
 
-## Work units that may be spent in one physics frame. A test raises it to see every NPC decide at
-## once.
+## Work units that may be spent in one physics frame. A test raises it to see the pieces of many
+## decisions run in one frame; it never lets two decisions start in one (`decision_roster.gd`).
 static var per_frame: int = 1
 ## What each kind of piece costs: a decision's first piece (the snapshot build's start; the claim),
 ## one analysed hostile, the build's finish, the order-refusal step, one planner level.

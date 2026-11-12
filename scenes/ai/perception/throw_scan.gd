@@ -1,6 +1,6 @@
 extends RefCounted
 ## AI PERCEPTION sub-domain — a throw-spot existence search in steps: whether a spot to throw a
-## grenade from, within the short walk, exists for one aim (`AgentTactics.throw_scan_step` does the
+## grenade from, within the short walk, exists for one aim (`ThrowSpots.scan_step` does the
 ## work of a step, this holds the search's state and what comes next, as `SnapshotBuild` does for
 ## the snapshot's author). The search is a fixed run of work: the raw candidates round the NPC and
 ## round the aim's spot, taken in blocks of a given count through the cheap tests (the navmesh snap,
@@ -70,7 +70,7 @@ func done() -> bool:
 
 ## Run the next step: at most `block` raw candidates, the rank pass, or one route.
 func step(block: int) -> void:
-	_tactics.throw_scan_step(self, block)
+	_tactics.throws.scan_step(_tactics, self, block)
 
 
 ## The blocks are through (`points` is complete): rank them when there are more than are routed,

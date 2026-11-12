@@ -229,7 +229,7 @@ func _shot_stretch(line: PackedVector2Array, at: Vector2, here: Dictionary) -> D
 
 ## One grenade throw of `kind` onto `spot`, with its params and the tags the GRENADE tactic drops it
 ## by, or {} when there is no lob onto it in range from where the NPC stands nor (with `walk`) from
-## a throw spot a short walk away (agent_tactics.gd `throw_spot`; never inside `keep_out`, the room
+## a throw spot a short walk away (`throw_spots.gd` `throw_spot`; never inside `keep_out`, the room
 ## the NPC is outside of that it throws into). `params.from` is where it throws from (where it
 ## stands, or the throw spot, with `params.walk`): the danger zone and the way out of it are judged
 ## from there. The caller words it (`id`, `label`, `desc`) and adds the hostile it is thrown at
@@ -270,7 +270,7 @@ func _throw_option(
 
 
 ## The throw spot to throw a grenade of `kind` onto `spot` from, never inside `keep_out`
-## (`AgentTactics.throw_spot`: `{ point, route_len, ... }`, {} for none), worked out once per
+## (`ThrowSpots.throw_spot`: `{ point, route_len, ... }`, {} for none), worked out once per
 ## decision: a frag and a stun of the same reach share their throw spot.
 func _throw_way(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect2) -> Dictionary:
 	var key := _throw_key(ctx, kind, spot, keep_out)
@@ -278,8 +278,8 @@ func _throw_way(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect
 	var spots: Dictionary = memo["spots"]
 	if not spots.has(key):
 		var aim := _throw_aim(ctx, kind, spot, keep_out)
-		spots[key] = _tactics.throw_spot(
-			ctx, aim, know["character_rids"], _candidates(ctx, aim, key)
+		spots[key] = _tactics.throws.throw_spot(
+			_tactics, ctx, aim, know["character_rids"], _candidates(ctx, aim, key)
 		)
 	return spots[key]
 

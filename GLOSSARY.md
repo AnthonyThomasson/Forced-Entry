@@ -171,7 +171,7 @@ hidden; matches never drive it, so its zeros say little.
 ### The decision
 
 **Decision job**:
-One NPC decision as a resumable job (`decision_job.gd`): the claim against the frame's pool, the snapshot build, the order-refusal step, the throw piece and the planner's walk, run piece by piece. The controller only asks it for a decision (`request`) and advances it (`advance`); a claim over a job in flight drops that job without a signal, and a refused one leaves the job and the NPC's wish as they were.
+One NPC decision as a resumable job (`decision_job.gd`): the claim against the frame's pool, the snapshot build, the order-refusal step, the throw piece and the planner's walk, run piece by piece (the radio callouts are read again as the throw piece ends, the last thing before the walk). The controller only asks it for a decision (`request`) and advances it (`advance`); a claim over a job in flight drops that job without a signal, and a refused one leaves the job and the NPC's wish as they were.
 _Avoid_: decision walk (the planner's part of it), decision task
 
 **Work unit**:
@@ -183,7 +183,7 @@ One step of a decision job with its own price: the snapshot build's start, one a
 _Avoid_: stage, chunk
 
 **Throw piece**:
-The decision job's piece between the order-refusal step and the walk: the `grenade_ready` search for a throw the NPC could make, in steps of a count (a block of raw throw-spot candidates, the rank pass, one route), each priced by `DecisionBudget`'s `cost_throw_*`. Its answer is the one-shot search's and lands in the snapshot's facts before the planner reads it (`ThrowSearch`, `ThrowScan`).
+The decision job's piece between the order-refusal step and the walk: the `grenade_ready` search for a throw the NPC could make, in steps of a count (a block of raw throw-spot candidates, the rank pass, one route), each priced by `DecisionBudget`'s `cost_throw_*`. Its answer is the one-shot search's and lands in the snapshot's facts before the planner reads it (`ThrowSearch`, `ThrowScan`; the spots themselves, `ThrowSpots`).
 _Avoid_: grenade piece, throw stage
 
 ### Where an NPC acts

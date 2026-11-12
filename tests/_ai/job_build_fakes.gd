@@ -84,8 +84,11 @@ class FakeSearch:
 	extends RefCounted
 	var kinds: Array = []
 	var steps := 0
+	## How often the job asked for the next step's kind (a real search does its free work then).
+	var kind_calls := 0
 
 	func next_kind() -> int:
+		kind_calls += 1
 		return kinds[steps] if steps < kinds.size() else 3
 
 	func step() -> void:

@@ -101,3 +101,44 @@ func test_the_pool_is_served_oldest_claim_first_whatever_the_tree_order() -> voi
 	assert_int(young.piece).is_equal(3)  # and the finish ran
 	_frame += 1
 	assert_bool(newest.request(false)).is_true()
+
+
+func test_a_job_that_never_runs_again_holds_no_one_up_once_released() -> void:
+	DecisionBudget.per_frame = 1
+	DecisionBudget.cost_hostile = 1
+	_perception.hostiles = 1
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()  # the start ran, its hostile piece waits for a frame: it needs a unit next
+	var young := _new_job()
+	_frame += 1
+	# The oldest NPC died (or left): it never advances, and nothing says it is gone.
+	assert_bool(young.request(false)).is_false()  # premise: it still owes the pool a unit
+	_job.release()  # the controller's exit on death
+	assert_bool(young.request(false)).is_true()
+
+
+func test_a_job_whose_npc_does_not_think_owes_the_pool_nothing() -> void:
+	DecisionBudget.per_frame = 1
+	DecisionBudget.cost_hostile = 1
+	_perception.hostiles = 1
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	var young := _new_job()
+	_frame += 1
+	assert_bool(young.request(false)).is_false()  # premise: it owes a unit
+	_job.rest()  # its NPC is in a service interaction this frame: no piece will run
+	assert_bool(young.request(false)).is_true()
+
+
+func test_a_job_the_pool_had_forgotten_takes_its_place_again_when_it_runs() -> void:
+	DecisionBudget.per_frame = 2
+	DecisionBudget.cost_hostile = 2
+	_perception.hostiles = 2
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	DecisionBudget.Roster.leave(_job.get_instance_id())  # forgotten: it was not served for a while
+	_frame += 1
+	_job.advance()  # its first hostile ran; the second waits for a frame: it needs 2 units
+	var young := _new_job()
+	_frame += 1
+	assert_bool(young.request(false)).is_false()  # the job is in the pool again, and first

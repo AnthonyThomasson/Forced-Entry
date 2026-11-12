@@ -1,10 +1,10 @@
 extends GameTest
-## A teammate's radio claim that lands while a snapshot is being built is seen when the build is
-## done: the decision job reads the callouts again at its order-refusal step
-## (`AgentPerception.reread_claims`) and the snapshot's flank sides, their summary and the allies
-## section are what a snapshot built after the claim holds, so two NPCs going for one target take
-## different sides even when their decisions are spread over frames. A claim that was heard before
-## the build began, or none at all, changes nothing.
+## A teammate's radio claim that lands while a snapshot is being built is seen when the walk begins:
+## the decision job reads the callouts again as its throw piece ends, the last thing before the
+## walk (`AgentPerception.reread_claims`) and the snapshot's flank sides, their summary and the
+## allies section are what a snapshot built after the claim holds, so two NPCs going for one target
+## take different sides even when their decisions are spread over frames. A claim that was heard
+## before the build began, or none at all, changes nothing.
 ##
 ## The living room as in `ai/flank/flank_side_held_by_radio`: the invader by the hall door sees a
 ## household puppet mid-room; an ally in the kitchen, out of its sight, radios the target's left
@@ -18,7 +18,7 @@ const TARGET_POS := Vector2(330, 170)
 
 func describe() -> Dictionary:
 	return {
-		"name": "A claim heard during a build is seen at the refusal step",
+		"name": "A claim heard during a build is seen as the walk begins",
 		"description": "A snapshot built before a teammate's radio claim, its callouts read "
 			+ "again: the claimed side reads taken by it and equals the snapshot built after "
 			+ "the claim; read again with nothing new, nothing changes.",

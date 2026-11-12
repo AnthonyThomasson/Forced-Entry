@@ -140,6 +140,12 @@ func _ready() -> void:
 	EventBus.posted.connect(_on_event)
 
 
+## The NPC leaves the tree: its decision leaves the pool's roster.
+func _exit_tree() -> void:
+	if _job != null:
+		_job.release()
+
+
 ## Configure the sub-domains from the tuning. The controller is the single authoring surface —
 ## every tunable lives in a topic node of its `tuning` — and this is where they reach the
 ## sub-modules: the perception takes the hub (`apply_config(tuning)`), reads its own tunables and
@@ -426,6 +432,7 @@ func _contact_digest() -> Array:
 ## carry out the running primitive.
 func control(character: Node, delta: float) -> void:
 	if character.is_dead:
+		_job.release()  # a dead NPC's decision never advances: it holds no one up in the pool
 		return
 	if _character == null:
 		_bind_body(character)
@@ -433,6 +440,7 @@ func control(character: Node, delta: float) -> void:
 	_sense(character, delta)
 	# An active interaction holds the tick; when it or a move resolves, re-decide at once.
 	if _behavior.errand.service_interaction(delta, _cadence.forced):
+		_job.rest()  # its tick is held: no piece of its decision runs this frame
 		return
 	_take_resolved()
 	_think(due)

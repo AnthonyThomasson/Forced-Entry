@@ -3,8 +3,8 @@ extends UnitSuite
 ## stepped by `DecisionBudget.frame_source` with no engine frames (`decision_job_suite` holds the
 ## rest of the job). A fake build is its own demand and hands the job a throw search of scripted
 ## steps; the job runs one step per priced unit between the order-refusal step and the walk, the
-## callouts read again at the refusal step, and the walked-route memo held only while the pieces
-## run together in a frame.
+## callouts read again as the search ends, the last thing before the walk, and the walked-route
+## memo held only while the pieces run together in a frame.
 
 const Job := preload("res://scenes/ai/decision/decision_job.gd")
 const Cadence := preload("res://scenes/ai/npc_cadence.gd")
@@ -61,10 +61,8 @@ func test_the_throw_search_is_a_piece_between_the_refusal_and_the_walk() -> void
 	_perception.search = search
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()
-	assert_int(_perception.rereads).is_equal(0)  # the refusal step has not run
 	_frame += 1
-	_job.advance()
-	assert_int(_perception.rereads).is_equal(1)  # the callouts are read again at the refusal step
+	_job.advance()  # the refusal step
 	assert_int(search.steps).is_equal(0)
 	assert_bool(_job.frozen()).is_true()  # what it knows is still the build's
 	for expected in [1, 2, 3]:
@@ -72,9 +70,13 @@ func test_the_throw_search_is_a_piece_between_the_refusal_and_the_walk() -> void
 		_job.advance()
 		assert_int(search.steps).is_equal(expected)
 		assert_int(_planner.begun).is_equal(0)  # the walk waits for the search
+		# A teammate's claim radioed during the search is not read yet: the callouts are read
+		# again when the search ends, the last thing before the walk.
+		assert_int(_perception.rereads).is_equal(0)
 	_frame += 1
 	_job.advance()
 	assert_int(search.steps).is_equal(4)
+	assert_int(_perception.rereads).is_equal(1)
 	assert_int(_planner.begun).is_equal(1)  # the walk began as the search ended
 	assert_bool(_job.frozen()).is_false()
 
@@ -123,3 +125,16 @@ func test_an_event_during_a_build_is_not_weighed_by_it_and_does_not_restart_it()
 	# Its start, its two hostiles and its finish: the three more spotted since were never weighed.
 	assert_int(_perception.builds[0].steps).is_equal(4)
 	assert_str(_planner.snapshot["confinement"].label).is_equal("the house")
+
+
+func test_noting_what_the_job_needs_next_does_not_run_the_throw_search_again() -> void:
+	DecisionBudget.cost_throw_block = 1  # the claim's unit is spent: the first step waits
+	var search := Builds.FakeSearch.new()
+	search.kinds = [0, 0]
+	_perception.search = search
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	assert_int(search.steps).is_equal(0)  # premise: the search is waiting for the pool
+	# Its first step's kind was asked once, to price it; what the job needs next is that kind, not
+	# a second ask (a real search lobs rays for it, outside the budget).
+	assert_int(search.kind_calls).is_equal(1)

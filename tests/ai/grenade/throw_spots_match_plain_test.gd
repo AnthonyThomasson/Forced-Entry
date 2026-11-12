@@ -29,7 +29,7 @@ func run(t: TestContext) -> void:
 	var tactics := AgentTactics.new()
 	tactics.vision = AgentVision.new()
 	tactics.cover_min = 40.0
-	tactics.throw_spot_walk = 250.0
+	tactics.throws.spot_walk = 250.0
 	var ctx := {
 		"space": npc.get_world_2d().direct_space_state,
 		"map": npc.get_world_2d().navigation_map,
@@ -47,7 +47,7 @@ func run(t: TestContext) -> void:
 	aim.lob = func(p: Vector2) -> bool:
 		calls.append(p)
 		return p != failed
-	var fast: Array = tactics._throw_found(ctx, aim, [])
+	var fast: Array = tactics.throws.found(tactics, ctx, aim, [])
 	var failed_calls := calls.count(failed)
 	aim.lob = func(p: Vector2) -> bool: return p != failed
 	var plain: Array = Plain.found(tactics, ctx, aim, [])
@@ -61,8 +61,8 @@ func run(t: TestContext) -> void:
 ## The first cheap-test-passing point produced by two raw candidates, or INF when there is none.
 func _repeated_point(tactics: RefCounted, ctx: Dictionary, aim: ThrowAim) -> Vector2:
 	var seen := {}
-	for r: Vector2 in tactics._throw_raw(ctx["self_pos"], aim):
-		var p: Vector2 = tactics._throw_point(ctx, r, aim)
+	for r: Vector2 in tactics.throws.raw(ctx["self_pos"], aim):
+		var p: Vector2 = tactics.throws.on_navmesh(tactics, ctx, r, aim)
 		if p == Vector2.INF:
 			continue
 		if seen.has(p):
