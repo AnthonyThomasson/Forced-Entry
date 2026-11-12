@@ -61,25 +61,12 @@ cause, each fix pinned to the old pixels or bytes by a windowed-only test (`test
 `tests/physics/debris_pages_match_one_batch_test.gd`, `tests/general/fill_batch_matches_draw_calls_test.gd`). The sound
 library's pre-warm renders on a worker thread (`domain-audio`).
 
-## Finding what costs, and gotchas
+## Comparing revisions, finding what costs
 
-- **Attribute by timing:** a frame's wall time is script time. A throwaway `Time.get_ticks_usec` accumulator around the
-  suspect functions (never committed), dumped at the end of the measured window, ranks them in minutes; switching a
-  feature off with `set_static` / `switch` shows what it is worth. Measure before reading: a per-frame cost is rarely
-  where the code suggests.
-- A lambda captures ints by value (count into an Array).
 - **Compare two revisions with `tools/perf_ab.sh BASE TIP`, never by one run or a sim length:** it plays both in interleaved rounds on
   scratch worktrees, drops a `loaded` round, refuses ("fights differ from frame N") unless every round played the same fight, and
   prints the medians and the delta against `--bar`. A change that must not change the fight (a speed-up) uses that default; one
-  that changes it on purpose (a later decision, a late cone) uses `--different-fights` (10 rounds; each side must replay its own
+  that changes it on purpose (a later decision, a late cone) uses `--different-fights` (10 rounds, 2 at least; each side must replay its own
   fight, BASE and TIP need not; avg held to `--bar`; the report says "different fights"). How it reads: `perf-nondeterminism.md`;
   the fingerprint: `perf-fingerprint.md`.
-- `nav.rebake` is off in tests that shove or shoot furniture into overlaps (re-baking overlapping holes logs a nav sync
-  error); the match guards keep it on and allow that log (`MATCH_LOGS`).
-- World-gen's first run in a process is slower (cold caches), so its budget covers the cold case.
-- Headless runs skip the sound pre-warm: a test that plays sound calls `Perf.warm_sounds()` first or turns `audio.sound`
-  off, or the first play of each variant lands in its worst frame.
-- A district holds hundreds of pieces, so a script callback on each is a cost of every frame (it lengthens every process group a match sorts and walks): a piece's visuals and its blood smear run none while it rests (`objects/resting_piece_runs_no_per_frame_callback`, `physics/object_smear_sleeps_at_rest`).
-- A speed-up must not change what the game does: where a fast path replaces a plain algorithm, a test pins its output to
-  the plain one (`navigation/furniture_union_fast_path`, `physics/blood_splat_merge_fast_path`,
-  `physics/convex_pieces_match_plain_scan`, `physics/shape_polygon_cache`).
+- **Finding what costs, and gotchas** (attribute by timing, a lambda's ints, `nav.rebake`, cold world-gen, headless sound, per-piece callbacks, a speed-up pinned to the plain algorithm): `perf-gotchas.md`.

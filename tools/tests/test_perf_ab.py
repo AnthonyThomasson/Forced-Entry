@@ -385,6 +385,24 @@ class PerfAbTests(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertEqual(self.names(), ["base", "tip"] * 10)
 
+    def test_different_fights_with_fewer_than_two_rounds_is_a_usage_error(self):
+        # One round gives no second play of a side to check against its first: the mode would accept a revision that never replays.
+        code, out = self.perf_ab(self.base, self.tip, "--different-fights", "--rounds=1")
+        self.assertEqual(code, 2, out)
+        self.assertIn("--different-fights wants --rounds=2 or more", out)
+        self.assertEqual(self.calls(), [])
+        self.assertEqual(self.trees(), [])
+        self.assertEqual(self.perf_ab(self.base, self.tip, "--different-fights", "--rounds=2", "--ids=perf/match_5v5_stress")[0], 0)
+
+    def test_the_two_refusals_say_which_one_they_are(self):
+        base, tip = self.revs(tip={"avgs": [10.0], "diverge": 3})
+        _, strict = self.perf_ab(base, tip, "--rounds=2", "--ids=perf/match_5v5_stress")
+        self.assertIn("perf_ab: fights differ from frame 3", strict)
+        _, own = self.perf_ab(self.base, self.tip, "--different-fights", "--rounds=2", "--ids=perf/match_5v5_stress",
+                              plan={"4": {"diverge": 2}})
+        self.assertIn("perf_ab: TIP does not replay its own fight, from frame 2", own)
+        self.assertNotIn("fights differ from frame", own)
+
     def test_rounds_given_beat_the_different_fights_default(self):
         code, out = self.perf_ab(self.base, self.tip, "--different-fights", "--rounds=3", "--ids=perf/match_5v5_stress")
         self.assertEqual(code, 0, out)
@@ -400,7 +418,7 @@ class PerfAbTests(unittest.TestCase):
     def test_the_same_pair_is_refused_without_the_mode_and_read_with_it(self):
         base, tip = self.revs(tip={"avgs": [10.0], "diverge": 3})
         self.assertEqual(self.perf_ab(base, tip, "--rounds=1", "--ids=perf/match_5v5_stress")[0], 3)
-        self.assertEqual(self.perf_ab(base, tip, "--different-fights", "--rounds=1", "--ids=perf/match_5v5_stress")[0], 0)
+        self.assertEqual(self.perf_ab(base, tip, "--different-fights", "--rounds=2", "--ids=perf/match_5v5_stress")[0], 0)
 
     def test_different_fights_labels_the_report_and_prints_the_medians_with_p95_and_max(self):
         base, tip = self.revs({"avgs": [10.0, 10.0, 100.0], "p95": 14.0, "max": 20.0},
@@ -414,10 +432,10 @@ class PerfAbTests(unittest.TestCase):
 
     def test_different_fights_says_per_test_whether_the_two_sides_played_the_same_fight(self):
         base, tip = self.revs(tip={"avgs": [10.0], "diverge": 4})
-        code, out = self.perf_ab(base, tip, "--different-fights", "--rounds=1", "--ids=perf/match_5v5_stress")
+        code, out = self.perf_ab(base, tip, "--different-fights", "--rounds=2", "--ids=perf/match_5v5_stress")
         self.assertEqual(code, 0, out)
         self.assertRegex(out, r"fights: BASE and TIP differ from frame 4")
-        code, out = self.perf_ab(self.base, self.tip, "--different-fights", "--rounds=1", "--ids=perf/match_5v5_stress")
+        code, out = self.perf_ab(self.base, self.tip, "--different-fights", "--rounds=2", "--ids=perf/match_5v5_stress")
         self.assertEqual(code, 0, out)
         self.assertRegex(out, r"fights: BASE and TIP played the same fight")
 
@@ -460,7 +478,7 @@ class PerfAbTests(unittest.TestCase):
 
     def test_different_fights_still_ends_on_a_missing_fingerprint(self):
         base = self.commit("base", avgs=[10.0], no_fingerprint=True)
-        code, out = self.perf_ab(base, base, "--different-fights", "--rounds=1", "--ids=perf/match_5v5_stress")
+        code, out = self.perf_ab(base, base, "--different-fights", "--rounds=2", "--ids=perf/match_5v5_stress")
         self.assertEqual(code, 2, out)
         self.assertIn("wrote no fight fingerprint", out)
 

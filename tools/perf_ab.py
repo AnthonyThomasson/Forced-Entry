@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Same-fight A/B of two revisions on the match guards (#203): tools/perf_ab.sh BASE TIP [options].
+"""A/B of two revisions on the match guards (#203, #195): tools/perf_ab.sh BASE TIP [options].
 
 A revision plays its own match, so two revisions' frame times are only comparable when they played the same fight (read
 .skillshare/skills/domain-testing/perf-nondeterminism.md and perf-fingerprint.md). This tool runs the match guards on both revisions in
 rounds (BASE, TIP, BASE, TIP ...), each through that revision's own tools/run_tests.sh with GAME_TEST_FINGERPRINT_DIR set
-to a directory of that round, checks every round's fight fingerprint against the first one of BASE and, only when every
-fight is the same, prints per test the medians of avg / p95 / max ms per frame for BASE and TIP and the delta.
+to a directory of that round. By default (same-fight mode) it checks every round's fight fingerprint against the first one of BASE
+and, only when every fight is the same, prints per test the medians of avg / p95 / max ms per frame for BASE and TIP and the delta.
+With --different-fights it checks each side's rounds against that side's own first round instead (below).
 
   tools/perf_ab.sh BASE TIP [--different-fights] [--ids=perf/a,perf/b] [--rounds=6] [--bar=5] [--retries=3] [--quiet=30] [--clean]
   tools/perf_ab.sh --clean
@@ -19,7 +20,8 @@ checks that each revision still replays its own, and the delta is a statement ab
   --ids=       the tests to run, a comma list (default: the four match guards: perf/match_5v5_stress,
                perf/grenade_match_stress, perf/match_10v10_stress, perf/match_npc_vision).
   --different-fights
-               BASE and TIP may play different fights (a behaviour-changing slice). Default rounds 10 (more rounds: the medians
+               BASE and TIP may play different fights (a behaviour-changing slice); at least 2 rounds (the replay of a side
+               cannot be checked with one: --rounds=1 is a usage error, exit 2). Default rounds 10 (more rounds: the medians
                of two different fights are noisier than of one). The rounds still interleave and a round marked loaded is still
                dropped. The refusal changes: BASE's fingerprints and TIP's are not compared with each other, but every round of a
                side is compared with that side's first round, and a round that differs ends the run (exit 3, `<SIDE> does not
@@ -47,9 +49,11 @@ lines are what is read. A round that wrote no fingerprint, or printed no PERF av
 Every round's run_tests.sh output is kept in its run directory (`run_tests.out`, named by a failure that read it); the run
 directories are removed when the run ends well and kept when it does not.
 
-Exit: 0 every test within the bar; 1 a delta over the bar (a regression); 3 the fights differ (a refusal, no delta is printed:
-`fights differ from frame N`, N the first frame of two fingerprints that differs, the files kept and named; with --different-fights only
-a side that differs from its own first round); 2 a usage error or a run that could not be read.
+Exit: 0 every test within the bar; 1 a delta over the bar (a regression); 3 a refusal, no delta is printed, the two fingerprint files
+kept and named; 2 a usage error or a run that could not be read. Exit 3 has two causes, told apart by the first words of the stderr
+line: `perf_ab: fights differ from frame N: <test>, ...` (same-fight mode: BASE and TIP, or two plays of one, played different
+matches) and `perf_ab: <BASE|TIP> does not replay its own fight, from frame N: <test>, ...` (--different-fights: that side's
+round differs from its own first round); N is the first frame of the two fingerprints that differs.
 """
 from __future__ import annotations
 
@@ -137,6 +141,8 @@ def parse_args(argv: list[str]) -> Options:
             o.revisions.append(a)
     if o.rounds is None:
         o.rounds = DEFAULT_ROUNDS_DIFFERENT_FIGHTS if o.different_fights else DEFAULT_ROUNDS
+    if o.different_fights and o.rounds < 2:
+        raise Fail("--different-fights wants --rounds=2 or more: a side's replay of its own fight is checked against its first round\n%s" % USAGE)
     if o.revisions == [] and o.clean:
         return o
     if len(o.revisions) != 2:
@@ -291,7 +297,7 @@ class Session:
         self.base_sha, self.tip_sha = shas
         self.trees = {sha: ensure_tree(sha) for sha in dict.fromkeys(shas)}
         self.runs = scratch_root() / "runs" / str(os.getpid())
-        self.reference: dict[str, tuple[Path, str]] = {}
+        self.reference: dict[str | tuple[str, str], tuple[Path, str]] = {}  # strict: test id; --different-fights: (side, test id)
         self.results = {"BASE": {i: {k: [] for k in METRICS} for i in options.ids},
                         "TIP": {i: {k: [] for k in METRICS} for i in options.ids}}
         self.keep_runs = False
