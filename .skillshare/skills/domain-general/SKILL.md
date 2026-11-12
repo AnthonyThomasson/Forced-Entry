@@ -1,11 +1,11 @@
 ---
 name: domain-general
-description: Use when editing scenes/general/: keybinds, settings, camera, command server, Pointer, PhysicsLayers, DrawLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, MatchVerdict.
+description: Use when editing scenes/general/: keybinds, settings, camera, command server, Pointer, PhysicsLayers, DrawLayers, ViewLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, MatchVerdict.
 ---
 
 # General domain (`scenes/general/`)
 
-Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `USE`), 26 (`Pointer`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, SightRay, SeenArea, verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
+Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `USE`), 26 (`Pointer`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, SightRay, SeenArea, Pointer (pointer_converts, pointer_inject), verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
 
 Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, plus Audio's `Sound`. The rest are `class_name` static holders (no instance). Tuning holders: `CameraConfig`, `CameraShakeConfig` (ADR 0003), read live, so a test may `set_static` them.
 
