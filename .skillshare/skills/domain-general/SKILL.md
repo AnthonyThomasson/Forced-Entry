@@ -1,6 +1,6 @@
 ---
 name: domain-general
-description: Use when editing scenes/general/: keybinds, settings, camera, command server, Pointer, PhysicsLayers, DrawLayers, ViewLayers, LightMasks, SightRay, FillBatch, WeightedPick, MatchVerdict, WorldRng.
+description: Use when editing scenes/general/: keybinds, settings, camera, command server, Pointer, PhysicsLayers, DrawLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, MatchVerdict.
 ---
 
 # General domain (`scenes/general/`)

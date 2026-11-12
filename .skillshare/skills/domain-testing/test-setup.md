@@ -15,8 +15,8 @@ only (the browser also calls it to list the switches).
   `name`, so `t.object(name)` finds it. The test works it through the door contract (`toggle`, `turn_by`, `open_fully`) or the Use key:
   the puppet's `use()` / `turn_door(steps)`, or a `player` actor driven by injected events (`Input.action_press(Keybinds.USE)` for a tap
   or a hold, a wheel notch or a pan gesture through `TestContext.inject`; `tests/character/door_use_key_test.gd`,
-  `door_scroll_open_test.gd`). A player's aim is the mouse: `tests/_character/player_pointer_probe.gd` (`Pointer.aim(t, you, point)`
-  puts a world point under it, again each frame while the test camera still eases; `Pointer.at(event, pointer)` gives an injected wheel
+  `door_scroll_open_test.gd`). A player's aim is the mouse: `tests/_character/player_pointer_probe.gd` (`PlayerPointer.aim(t, you, point)`
+  puts a world point under it, again each frame while the test camera still eases; `PlayerPointer.at(event, pointer)` gives an injected wheel
   or pan event the pointer's place). A puppet's punch needs `start_slot: 2`. A generated house is built with its doors unless the switch
   `worldgen.doors` (`WorldGenDoorConfig.enabled`) is off; the AI scenario families that predate doors turn it off (`# Doors off until
   #159 makes this family door-aware.`).
