@@ -123,16 +123,16 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	var screen: Vector2 = (event.position
 			if event is InputEventMouse
-			else get_viewport().get_mouse_position())
+			else Pointer.screen_mouse(self))
 	if event.is_action_pressed(Keybinds.COMMAND) and not event.is_echo():
 		if _may_open():
-			open_at(_world_of(screen))
+			open_at(Pointer.world_of(self, screen))
 			get_viewport().set_input_as_handled()
 	elif (_open
 			and event is InputEventMouseButton
 			and event.pressed
 			and event.button_index == MOUSE_BUTTON_LEFT):
-		var mate := _teammate_at(_world_of(screen))
+		var mate := _teammate_at(Pointer.world_of(self, screen))
 		if mate != null:
 			_toggle(mate, not _selection.has(mate))
 			get_viewport().set_input_as_handled()
@@ -511,21 +511,11 @@ func _may_open() -> bool:
 ## The screen points the panel keeps clear of: the click it is open on first, then each selected
 ## living teammate's body.
 func _dock_points() -> Array:
-	var points: Array = [_screen_of(_click)]
+	var points: Array = [Pointer.screen_of(self, _click)]
 	points.append_array(_selection.filter(_alive).map(
-		func(n: Node) -> Vector2: return _screen_of(n.global_position),
+		func(n: Node) -> Vector2: return Pointer.screen_of(self, n.global_position),
 	))
 	return points
-
-
-## Screen point of world point `world` (the world's canvas transform).
-func _screen_of(world: Vector2) -> Vector2:
-	return get_viewport().get_canvas_transform() * world
-
-
-## World point under screen point `screen` (the world's canvas transform).
-func _world_of(screen: Vector2) -> Vector2:
-	return get_viewport().get_canvas_transform().affine_inverse() * screen
 
 
 # --- The panel ------------------------------------------------------------------------------------
@@ -564,6 +554,6 @@ func _build() -> void:
 func _draw_mark() -> void:
 	if not _open:
 		return
-	var at := _screen_of(_click)
+	var at := Pointer.screen_of(self, _click)
 	_mark.draw_arc(at, MARK_RADIUS, 0.0, TAU, 24, MARK_COLOR, 3.0)
 	_mark.draw_circle(at, 3.0, MARK_COLOR)

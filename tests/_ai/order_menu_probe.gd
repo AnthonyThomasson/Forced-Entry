@@ -137,7 +137,7 @@ static func view_still(t: TestContext) -> bool:
 		var frame := Engine.get_process_frames()
 		if frame == last[1]:
 			return false
-		var origin := t.world.get_viewport().get_canvas_transform().origin
+		var origin := Pointer.screen_of(t.world, Vector2.ZERO)
 		last[2] = last[2] + 1 if origin.distance_to(last[0]) < 0.5 else 0
 		last[0] = origin
 		last[1] = frame
@@ -456,7 +456,7 @@ static func _check_uncovered(t: TestContext, rect: Rect2, at: Vector2, mates: Ar
 
 ## Where world point `p` is on the screen of the test world's viewport (what a click there sends).
 static func _screen_of(t: TestContext, p: Vector2) -> Vector2:
-	return t.world.get_viewport().get_canvas_transform() * p
+	return Pointer.screen_of(t.world, p)
 
 
 ## Click mouse button `button` at world point `p` (a motion there first, so the pointer is where the

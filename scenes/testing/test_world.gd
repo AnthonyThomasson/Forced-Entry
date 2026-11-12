@@ -178,9 +178,11 @@ func _build_squads(setup: TestSetup) -> void:
 	_leader_overlay = built["leader_overlay"]
 
 
-## Undo every static override (call after freeing the world, or before rebuilding).
+## Undo every static override (call after freeing the world, or before rebuilding), and release an
+## injected pointer (`Pointer.inject`) so no test leaks one into the next.
 func restore() -> void:
 	AllocationPadding.release()
+	Pointer.release()
 	for i in range(_saved_statics.size() - 1, -1, -1):
 		var s: Array = _saved_statics[i]
 		(s[0] as Script).set(s[1], s[2])

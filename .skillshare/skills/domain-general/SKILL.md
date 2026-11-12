@@ -1,11 +1,11 @@
 ---
 name: domain-general
-description: Use when editing scenes/general/: keybinds, settings, camera, command server, PhysicsLayers, DrawLayers, ViewLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, MatchVerdict, WorldRng.
+description: Use when editing scenes/general/: keybinds, settings, camera, command server, Pointer, PhysicsLayers, DrawLayers, ViewLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, MatchVerdict.
 ---
 
 # General domain (`scenes/general/`)
 
-Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `USE`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, SightRay, SeenArea, verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
+Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `USE`), 26 (`Pointer`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, SightRay, SeenArea, Pointer (pointer_converts, pointer_inject), verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
 
 Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, plus Audio's `Sound`. The rest are `class_name` static holders (no instance). Tuning holders: `CameraConfig`, `CameraShakeConfig` (ADR 0003), read live, so a test may `set_static` them.
 
@@ -20,6 +20,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 | `despawner.gd` | cap on transient bodies |
 | `camera_controller.gd` (+ the two config holders) | `Camera2D` |
 | `command_server.gd` | dev command server |
+| `pointer.gd` | `Pointer` (26; `pointer.md`) |
 | `physics_layers.gd`, `draw_layers.gd`, `view_layers.gd`, `light_masks.gd` | shared ids |
 | `world_rng.gd` | each world's random stream and its characters' spawn order (`helpers.md`) |
 | `fill_batch.gd`, `weighted_pick.gd`, `match_verdict.gd`, `sight_ray.gd`, `seen_area.gd` | shared helpers (`helpers.md`) |
@@ -77,6 +78,10 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 - **Hand pan** (framing only): camera keys, or the mouse within `edge_pan_margin` of an edge (only once the pointer was seen moving over the window, cleared on mouse-exit / focus-out), set `_manual`, which suspends the framing position; `manual_hold` seconds without panning eases back in. Test: `tests/general/camera_manual_pan_test.gd`.
 - **Driving zoom-out**: `_drive_zoom_out` reads `who.use.vehicle().view_zoom_out()` duck-typed (interface 19) and never `VehicleDriveConfig`. Test: `camera_zooms_out_driving_test.gd`.
 - **Explosion shake** (`&"explosion"`): trauma from the kind's strength and nearness, applied through `Camera2D.offset` only, never `global_position`, so following and framing are unchanged. Test: `camera_shakes_on_explosion_test.gd`.
+
+## Pointer
+
+`Pointer` (interface 26): the one screen ↔ world conversion and the injectable pointer; `pointer.md`.
 
 ## Despawner
 

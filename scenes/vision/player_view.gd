@@ -70,7 +70,7 @@ func _process(_delta: float) -> void:
 	if not is_instance_valid(_viewer):
 		return
 	var main := get_viewport()
-	var cam := main.get_canvas_transform()
+	var cam := Pointer.screen_transform(self)
 	var size := Vector2i(main.get_visible_rect().size).max(Vector2i.ONE)
 	_memory.follow(cam, size)
 	_mask.follow(cam, size)

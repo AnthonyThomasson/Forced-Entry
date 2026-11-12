@@ -218,7 +218,7 @@ func _calculate_target_position() -> Vector2:
 	var half := get_viewport_rect().size * 0.5
 	if half.x <= 0.0 or half.y <= 0.0:
 		return player_pos
-	var from_centre := (get_viewport().get_mouse_position() - half) / half
+	var from_centre := (Pointer.screen_mouse(self) - half) / half
 	var reach := (half - Vector2.ONE * CameraConfig.look_ahead_edge_margin).max(Vector2.ZERO) / zoom
 	return player_pos + Vector2(_lead(from_centre.x), _lead(from_centre.y)) * reach
 

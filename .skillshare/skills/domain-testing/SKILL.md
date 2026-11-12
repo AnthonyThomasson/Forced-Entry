@@ -160,6 +160,19 @@ switches; a row's `default` applies when a test names no value (`vision.enabled`
 assigning a config holder. To add a switch, add a row; when the behaviour has no knob, add a master `static var` to the
 domain's config holder, guarded at its one spawn point (as `BloodConfig.enabled` gates `BloodWound.record`).
 
+## Aiming a human-driven player
+
+- A player's aim and the camera's look-ahead read the pointer through `Pointer` (`architecture` interface 26). A test holds a world
+  point under the pointer with `Pointer.inject(screen)` (the screen point of the world point, from `Pointer.screen_of`) instead of
+  sending mouse-motion events; it never warps the real mouse, so a windowed run's real mouse cannot override it.
+- Re-inject each frame while the camera eases, since its zoom carries the point: `PlayerPointer.aim` (`test-setup.md`) does, until
+  the aim holds with the camera settled.
+- A test that clicks or reads a world point's place on the screen converts through `Pointer.screen_of` (`tests/_ui/inspector_probe.gd`,
+  `_ai/order_menu_probe.gd`, `_vision/vision_probe.gd`), not the canvas transform; only a test that asserts a capture
+  viewport's transform equals the main one reads the transform.
+- `TestWorld.restore` calls `Pointer.release()`, so no test leaks an injection into the next; a test may `release()` earlier to read
+  the real mouse again (`tests/general/pointer_inject_test.gd`).
+
 ## Gotchas
 
 A body added this frame, a click at a world point, a test camera, Von pacing, an NPC's first tick, the defender preset: `gotchas.md`.

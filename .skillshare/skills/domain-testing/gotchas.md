@@ -5,7 +5,7 @@ Side file of `domain-testing` (`SKILL.md`).
 - **A body added this frame is not in the physics space:** a shape query or ray on that frame misses it (`TestWorld`
   waits one physics frame after placing vehicles).
 - **A click at a world point needs a still view.** The test camera eases in from where the last test left it and an
-  injected mouse event is handled a frame after it was aimed. Wait for the canvas transform to hold still first
+  injected mouse event is handled a frame after it was aimed. Wait for the view (`Pointer.screen_of`) to hold still first
   (`OrderMenu.view_still`, `tests/_ai/order_menu_probe.gd`); it counts drawn frames (`Engine.get_process_frames()`), since
   a window's first frames run several physics frames each.
 - **A test camera reads its screen centre only while current:** a test that adds its own camera calls `make_current()`

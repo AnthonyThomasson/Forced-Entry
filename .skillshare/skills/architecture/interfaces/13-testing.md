@@ -39,6 +39,9 @@
       `invaders`, `all`, default `all`) reaches the world's `set_overlay_scope(scope)`, which re-applies every toggle at once by `MatchBuilder.set_overlay_scope`. Its scene carries General's camera (`general/camera_controller.gd`; `GameTestSuite`
       makes one of its own): `frame(targets)` points it at the setup's camera targets (every actor by default); clear `pan_enabled` where a
       human-driven player walks on WASD or the test locks the camera.
+    - **Pointer:** `Pointer.inject(screen)` (26) stands a screen point in for the mouse wherever its position is polled (the player's aim,
+      the camera's look-ahead, the command menu's non-mouse fallback) until `Pointer.release()`, and never warps the real mouse; the test
+      re-injects each frame to hold a world point under the pointer while the camera eases. `TestWorld.restore` releases it after each test.
     - **Sandboxes** (`sandboxes/`) may draw through Art (12: their own painter on `PixelCanvas`, rendered by `PixelArt.render` /
       `render_turned`) and render a sound with `SoundBank.recipe_for(profile)` / `SoundSynth.render(recipe, seed_value) ->
       AudioStreamWAV`, played on their own `AudioStreamPlayer2D`; the `Sound` service hears nothing of it (16).

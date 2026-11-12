@@ -286,7 +286,7 @@ static func view_still(t: TestContext) -> bool:
 			var frame := Engine.get_process_frames()
 			if frame == last[1]:
 				return false
-			var origin := t.world.get_viewport().get_canvas_transform().origin
+			var origin := Pointer.screen_of(t.world, Vector2.ZERO)
 			last[2] = last[2] + 1 if origin.distance_to(last[0]) < 0.5 else 0
 			last[0] = origin
 			last[1] = frame
