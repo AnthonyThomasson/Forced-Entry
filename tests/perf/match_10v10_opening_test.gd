@@ -2,17 +2,17 @@ extends GameTest
 ## Performance guard for the opening of the largest match the game means to carry: the same 10v10 as
 ## `perf/match_10v10_stress` (`Perf.configure_match`: the downtown district, the largest plan, the
 ## squads, scripted Von), but its window opens at the fight's first sign, the first shot or the
-## first NPC knowing a hostile, whichever comes first, and runs `Perf.OPENING_FRAMES` (240, four
+## first NPC knowing a hostile, whichever comes first, and runs `Perf.OPENING_FRAMES` (300, five
 ## seconds) from there. The stress guard opens its window only once a shot has been fired AND some
 ## NPC knows a hostile, 6 s of warm-up and the wait for contact in: at 8.8 s of test time in this
 ## match, where the first sighting comes at 4.2 s, so the first sightings, the first decisions of
 ## the NPCs that met, the first throws and the first escape searches were never in a window, and a
-## player feels those as the stutter at a fight's start. The frames are held to the same standard,
-## with no looser tail: `Perf.within_frames` (avg 16.7, p95 20, max 33.4 ms). On a red run
-## `--verbose` names the
-## worst frames and what ran in each (`perf-opening.md`).
-## The premises: the window opens at the first contact (at most `MOST_SHOTS_BEFORE` shots before it)
-## and holds a shot and decisions asked.
+## player feels those as the stutter at a fight's start. This window ends at 9.2 s, so it overlaps
+## the start of the stress window and nothing between them goes unmeasured. The frames are held to
+## the same standard, with no looser tail: `Perf.within_frames` (avg 16.7, p95 20, max 33.4 ms). On
+## a red run `--verbose` names the worst frames and what ran in each (`perf-opening.md`).
+## The premises: the window opens at the first contact (at most `MOST_SHOTS_BEFORE` shots before
+## it) and holds a shot and decisions asked.
 ## Known red until the decision slicing lands (#195): see `perf-opening.md` for the numbers.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
@@ -29,7 +29,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "The opening of a 10v10 match runs without frame loss",
 		"description": "The 10v10 of the stress guard measured from the first shot or the first "
-			+ "sighting for four seconds: the average frame stays under 16.7 ms, the 95th "
+			+ "sighting for five seconds: the average frame stays under 16.7 ms, the 95th "
 			+ "percentile under 20 and no frame takes over two.",
 		"tags": ["match", "ai", "scripted", "crowd", "opening"],
 		"timeout": 60.0,
@@ -76,8 +76,13 @@ func run(t: TestContext) -> void:
 		"PERF 10v10 opening window: opened by a %s, %d shots, %d decisions asked"
 			% [cause, shots, asks]
 	)
-	t.check(shots > 0, "premise: a shot is fired in the opening window (%d)" % shots)
-	t.check(asks > 0, "premise: the NPCs ask for decisions in the opening window (%d)" % asks)
+	if not t.require(shots > 0, "premise: a shot is fired in the opening window (%d)" % shots):
+		return
+	if not t.require(
+			asks > 0,
+			"premise: the NPCs ask for decisions in the opening window (%d)" % asks,
+	):
+		return
 	Perf.within_frames(t, "10v10 opening", stats)
 	var grown := Perf.nodes() - nodes_before
 	t.trace("node growth", grown)

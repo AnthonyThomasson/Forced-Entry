@@ -5,19 +5,15 @@ extends RefCounted
 ## counters while the game's log is on (`--verbose`) and `Perf.within_frames` prints the report.
 ## Not a test (no `_test.gd` suffix).
 ##
-## What ran is read off counters the game already keeps, cheap ints and no clock, so no
-## production path gains a line (the wall clock stays in tests/perf and tests/_perf, lint rule
-## `timing_in_perf`): the decisions claimed (the roster's claim count, read where it is kept: the
-## snapshot build runs in its claim's frame and Von's answer lands later), the shots, grenades
-## thrown, explosions, radio callouts and deaths posted (the
-## event log), the asks made of Von
-## (`DecisionStub.requests`, one a planner level, so a decision is one or more), the cone rebuilds
-## a view started and published (`PlayerView.starts`, `rebuilds`), the nav bakes started and the
-## late ones (`NavBake`). The pure part (`worst`, `deltas`, `ran_between`, `line`) is
-## `tests/perf/frame_report_suite.gd`.
+## What ran is read off counters the game keeps, cheap ints and no clock (the wall clock stays in
+## tests/perf and tests/_perf, lint rule `timing_in_perf`; the one counter added to the game is the
+## roster's claim count): the decisions claimed (`DecisionRoster.claims()`: the snapshot build runs
+## in its claim's frame and Von's answer lands later), the shots, grenades thrown, explosions, radio
+## callouts and deaths posted (the event log), the asks made of Von (`DecisionStub.requests`, one a
+## planner level, so a decision is one or more), the cone rebuilds a view started and published
+## (`PlayerView.starts`, `rebuilds`), the nav bakes started and the late ones (`NavBake`). The pure
+## part (`worst`, `deltas`, `ran_between`, `line`) is `tests/perf/frame_report_suite.gd`.
 
-## Where the claim count of the decisions is kept.
-const Roster: Script = preload("res://scenes/ai/decision/decision_roster.gd")
 ## The event log's topics that are counters, and the key each counts under.
 const EVENTS := {
 	&"shot": "shots", &"throw": "throws", &"explosion": "explosions",
@@ -83,7 +79,7 @@ func _read() -> Dictionary:
 			starts += view.starts()
 			publishes += view.rebuilds()
 	return {
-		"claims": int(Roster.get("_seq")),
+		"claims": DecisionBudget.Roster.claims(),
 		"asks": DecisionStub.requests.size(),
 		"shots": _events.get("shots", 0),
 		"throws": _events.get("throws", 0),

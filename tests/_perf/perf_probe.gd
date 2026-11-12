@@ -44,9 +44,9 @@ const MATCH_WARMUP_S := 6.0
 ## in the district (a house: 21 s), so the window is a half again as long.
 const MATCH_CONTACT_WITHIN := 30.0
 ## Frames of a match's opening the opening guard (`perf/match_10v10_opening`) measures from the
-## first contact: four seconds at 60 fps, the first sighting, the first decisions and the first
+## first contact: five seconds at 60 fps, the first sighting, the first decisions and the first
 ## shots, the first grenade throws and the first escape searches (`perf-opening.md`).
-const OPENING_FRAMES := 240
+const OPENING_FRAMES := 300
 ## How many frames the worst-frames report names (`within_frames`).
 const WORST_FRAMES := 5
 ## The engine lines a match guard allows (`allowed_logs`): a real match re-bakes the navmesh while
@@ -166,8 +166,9 @@ static func time_ms(work: Callable) -> float:
 
 
 ## Wall-clock cost of `frames` physics frames of the running test: `{ avg_ms, p95_ms, max_ms,
-## samples, ran }`: the ms of each frame, and, only while the game's log is on (`--verbose`: nothing
-## is counted otherwise), what ran in each (`frame_report.gd`, `report_worst`).
+## samples, ran }`: the ms of each frame, and `ran`, what ran in each (`frame_report.gd`,
+## `report_worst`): an empty Array unless the game's log is on (`--verbose`; nothing is counted
+## otherwise).
 ## `each`, if valid, is called with the frame index at the start of every measured frame (to keep
 ## applying load). A frame costs the main-loop iteration it ran in. Under `--fixed-fps`
 ## (tools/run_tests.sh) every iteration steps physics once and the next one follows at once, so
@@ -176,13 +177,14 @@ static func time_ms(work: Callable) -> float:
 ## physics while it waits for the next step: a frame followed by one ends where that iteration's
 ## process frame begins, so a budget measures the work and not the 60 Hz pace.
 static func frame_stats(t: TestContext, frames: int, each := Callable()) -> Dictionary:
+	var tree := t.world.get_tree()
 	# Main-loop iteration (`Engine.get_process_frames()`) -> usec of its process frame.
 	var processed := {}
 	var mark := func() -> void: processed[Engine.get_process_frames()] = Time.get_ticks_usec()
 	var stop := func() -> void:
-		if t.world.get_tree().process_frame.is_connected(mark):
-			t.world.get_tree().process_frame.disconnect(mark)
-	t.world.get_tree().process_frame.connect(mark)
+		if tree.process_frame.is_connected(mark):
+			tree.process_frame.disconnect(mark)
+	tree.process_frame.connect(mark)
 	t.world.tree_exiting.connect(stop)  # a test that ends mid-measurement
 	var samples: Array[float] = []
 	var counters: RefCounted = Report.counters_of(t) if GameLog.enabled else null

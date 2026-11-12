@@ -28,6 +28,8 @@ static var _entries := {}
 static var _seq := 0
 ## The physics frame a decision last began on.
 static var _start_frame := -1
+## How many decisions have begun (`began` calls) since the last `reset`.
+static var _claims := 0
 
 
 ## Whether no decision has begun in this physics frame yet.
@@ -40,6 +42,7 @@ static func may_start() -> bool:
 ## (their NPC freed) are forgotten.
 static func began(job: int) -> void:
 	_start_frame = DecisionBudget.frame()
+	_claims += 1
 	for id in _entries.keys():
 		if _entries[id]["frame"] < _start_frame - 2:
 			_entries.erase(id)
@@ -81,8 +84,16 @@ static func owed(job: int, fresh := false) -> int:
 	return total
 
 
+## How many decisions have begun, each `began` one claim, since the last `reset`: a job the roster
+## forgot that runs again (`note` re-registers it) is not counted. A perf test's worst-frames
+## report reads the rise of it between frames (`tests/_perf/frame_report.gd`).
+static func claims() -> int:
+	return _claims
+
+
 ## Forget every job and the frame a decision last began on (a test's cleanup).
 static func reset() -> void:
 	_entries.clear()
 	_seq = 0
+	_claims = 0
 	_start_frame = -1
