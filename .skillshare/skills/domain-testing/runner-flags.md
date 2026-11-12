@@ -35,30 +35,32 @@ The header lists every flag; this file holds the rules and the reasons behind th
   one only if a `--list <words> --domain=perf` engine start lists a perf test. After `MINUTES` (default `timeout_min`) it
   runs anyway and marks that process's results `loaded`: a `loaded` result is no evidence of a regression. An unreadable
   `perf_quiet.conf` ends the run with exit 2. The wrapper appends `(load <x>, <n> busy Godot)` to every `PERF` line.
-- **Von tests:** a `requires_von` test with a recording runs in every normal run, `--changed`, the pre-commit hook and
-  `--base` included, from `<name>_test.von.json` beside it (`VonRecording`; entries keyed by state + question + sorted
-  option descriptions, ids normalised to spawn order). Each answer lands 12 physics frames after its ask, as live does, so
-  record, live and replay play the same frames. No server, no pacing, sharded like any test. An ask the recording lacks, or
-  a missing or unreadable file, FAILs naming the question and `tools/run_tests.sh --record-von --id=<id>`: a wording change
-  in a snapshot or a question makes recordings stale; run that command (it needs a live Von on :8000) and commit the diff.
+- **Von tests:** a `requires_von` test runs in every normal run (`--changed`, the pre-commit hook, `--base`) from `<name>_test.von.json` beside it (`VonRecording`; entries keyed by state + question + sorted
+  option descriptions, ids normalised to spawn order). Each answer lands 12 physics frames after its ask in replay, live and
+  record alike. No server, no pacing, sharded like any test. An ask the recording lacks, or
+  a missing or unreadable file, FAILs naming the question and `tools/run_tests.sh --record-von --id=<id>` (a snapshot or
+  question wording change stales recordings): run it against a live Von on :8000 and commit the diff.
   - `--record-von` runs the selected Von tests live and writes each passing test's recording whole (unused entries drop);
-    FAILs with no server, like `--require-von`. `--include-von` and `--require-von` run live and never read or write a
-    recording. Live and record runs are paced in real time and kept in shard 0.
+    FAILs with no server, like `--require-von`. `--include-von` / `--require-von` run live and touch no recording. Live
+    and record runs are paced in real time, in shard 0.
   - **Live-only** (`"live_only": true`, with `requires_von`): tests of the transport or the gate
     (`ai/decision/von_request_across_pause`, `_harness/von_probe`) and one a replay cannot reproduce,
-    `ai/investigate/defenders_stay_in_house_quiet_von` (a 40 s generated-house match whose fight moves the NPCs by a
-    hair differently in a replay). They never replay and are skipped without a server (FAIL under `--require-von`).
+    `ai/investigate/defenders_stay_in_house_quiet_von` (a 40 s generated-house fight a replay moves by a hair).
+    They never replay and are skipped without a server (FAIL under `--require-von`).
   - **Own process** (`"own_process": true`; a last resort and a debt: needs a follow-up ticket): the wrapper leaves
     the test out of the shards (`--skip-own-process`; ids go to `<out>/own_process.txt`) and runs it after them in an
     engine process of its own, once per `--repeat` (`--fail-fast` stops at the first failure), its report merged in. The
-    engine orders the contacts of touching rigid bodies by allocation slots, which follow what the process ran
-    before, so a replay whose snapshot wording turns on such a piece at a band edge matches its recording only in a
-    fresh process. Only `ai/grenade/combat_frag_take_cover` has it (20 of 20 fresh-process replays pass). Only
-    `run_tests.sh` honours it: the browser, the GdUnit panel and a direct batch run use the shared process.
-  - A Von test with no recording FAILs naming `tools/run_tests.sh --record-von --id=<id>`; record a new one in its commit.
-  - The totals line counts only the Von tests not run: `N skipped (V need Von, not run: --require-von)` (live-only,
-    or a live run with no server). `--changed` ends with `NOTE <n> Von test(s) in the changed domains were not run:
-    tools/run_tests.sh --domain=<d> --require-von` when it skipped any. `--record-von` skips a live-only test. `--list` marks each `von:replay`, `von:live-only` or `von:unrecorded` (no file: it FAILs).
+    engine orders touching rigid bodies' contacts by allocation slots, which follow what the process ran before, so a
+    replay whose snapshot wording turns on such a piece at a band edge matches its recording only in a fresh process.
+    Only `ai/grenade/combat_frag_take_cover` has it; only `run_tests.sh` honours it (the browser, the GdUnit panel and
+    a direct batch run share a process).
+  - **When a live check is worth it:** a recording freezes Von's answers, so a replay cannot see a change that moves them.
+    After a change to the decision tree, to the options or criteria wording Von scores, to `NpcDecisionTuning` or to the Von
+    model or version, run `--require-von --domain=ai`, then `--record-von` to refresh what it staled and commit the diff.
+    A new test is recorded in its commit.
+  - The totals line counts the Von tests not run: `N skipped (V need Von, not run: --require-von)` (live-only, or a live
+    run with no server); `--changed` adds a `NOTE` naming `--domain=<d> --require-von`. `--record-von` skips a live-only
+    test. `--list` marks each `von:replay`, `von:live-only` or `von:unrecorded` (no file: it FAILs).
 - **`--base=<rev>`:** the working tree's tests against `<rev>`'s code, in a temporary `git worktree` under `$TMPDIR` that
   gets the working tree's `tests/` whole (`.uid` files and helper folders included). It is removed also on ^C or a kill
   of the wrapper (`tools/godot_slot.py stop` ends the engines first). The working tree is never written, no lint. Combinations

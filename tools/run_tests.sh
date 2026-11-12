@@ -748,6 +748,18 @@ live_run() {
   return $code
 }
 
+# One gdUnit process (godot_run) in dir $1 like a lone run, its lines all printed (its `Report:` line too) and also kept in
+# $1/stdout.txt, for the totals of the own-process runs that follow it (run_with). Run through perf_run, so a signal to the
+# wrapper reaches it as it does a live_run.
+kept_run() {
+  local out="$1" code
+  set +e
+  godot_run "$@" 2>&1 | tee "$out/stdout.txt"
+  code=${PIPESTATUS[0]}
+  set -e
+  return $code
+}
+
 # The native suites met by the runs that wrote the dirs given (their records' `<suite id>::<case>` ids), as res://
 # paths, one per line.
 native_suites_met() {
@@ -904,20 +916,38 @@ run_with() {
     case "$x" in --list|--shard=*) own=0 ;; esac
   done
   if [[ $own -eq 1 ]]; then
-    # An `own_process` test is left to a process of its own, run after the others (own_process_runs); every run, a
-    # lone process too, ends as a run of several does: its processes' reports and totals together.
+    # An `own_process` test is left to a process of its own, run after the others (own_process_runs), and the run
+    # ends with its processes' reports and totals together.
     OWN_ARGS=()
     while IFS= read -r a; do [[ -n "$a" ]] && OWN_ARGS+=("$a"); done < <(own_process_args "$@")
     set -- "$@" --skip-own-process
-    sharded=1
   fi
   if [[ $sharded -eq 0 ]]; then
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     local code=0
     if [[ $listing -eq 1 ]]; then
       bg_wait godot_list "$out" "$@" || code=$?
+    elif [[ $own -eq 1 ]]; then
+      perf_run kept_run "$out" "$@" || code=$?
     else
       perf_run godot_run "$out" "$@" || code=$?
+    fi
+    local own_dirs=() fail_fast=0
+    for x in "$@"; do [[ "$x" == "--fail-fast" ]] && fail_fast=1; done
+    if [[ $own -eq 1 && $listing -eq 0 ]] && ! [[ $fail_fast -eq 1 && $code -ne 0 ]]; then
+      # The one process keeps its path and its `Report:` line; the own-process tests it deferred run after it, each in
+      # a process of its own, and then the totals are those of every process together.
+      own_process_runs "$own_times" "$out" || code=1
+      own_dirs=(${OWN_DIRS[@]+"${OWN_DIRS[@]}"})
+    fi
+    if [[ ${#own_dirs[@]} -gt 0 ]]; then
+      local all=("$out" "${own_dirs[@]}") files=() d
+      for d in "${all[@]}"; do files+=("$d/stdout.txt"); done
+      save_reports "${all[@]}"; note_von_skips "${all[@]}"
+      merged_totals "" "${files[@]}"
+      scan_log "$out" 0 || code=1
+      if no_test "${all[@]}"; then no_test_matched ${shown[@]+"${shown[@]}"}; code=1; fi
+      return $code
     fi
     [[ $keep -eq 1 ]] && { save_reports "$out"; note_von_skips "$out"; }
     scan_log "$out" $listing || code=1

@@ -133,6 +133,8 @@ func _sightings(t: TestContext, crew: Array) -> Array:
 	return t.events_of(&"callout", func(c): return (
 		crew.has(c.get("speaker"))
 		and String(c.get("path", "")).begins_with("combat")
+		# null, not INF: an INF default passes `is`, and `c["target_pos"]` then errors on a callout
+		# without one
 		and c.get("target_pos", null) is Vector2
 		and (c["target_pos"] as Vector2).is_finite()
 	))

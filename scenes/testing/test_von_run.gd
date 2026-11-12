@@ -96,9 +96,16 @@ func problems(ctx: TestContext) -> bool:
 	return true
 
 
-## The advice a recording problem ends with.
+## The advice a recording problem ends with. An `own_process` test matches its recording only in a
+## process of its own, so its miss may be process order, not a stale recording.
 func _rerecord() -> String:
-	return "re-record with " + command()
+	if not _entry.get("own_process", false):
+		return "re-record with " + command()
+	return (
+		"the miss may be process order (this test replays only in a process of its own): run it"
+		+ " through tools/run_tests.sh --id=%s, and re-record with %s only if it misses there too"
+		% [_entry["id"], command()]
+	)
 
 
 ## The miss reason `why` as the middle of a sentence about the recording.

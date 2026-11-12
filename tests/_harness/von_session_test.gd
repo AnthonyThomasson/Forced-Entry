@@ -43,6 +43,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await _replay(t)
 	await _miss(t)
+	await _miss_own_process(t)
 	await _missing_file(t)
 	await _unreadable_file(t)
 	await _gap_tagged(t)
@@ -81,6 +82,7 @@ func _play(t: TestContext, recording: String, mode: String, opts := {}) -> Dicti
 	var entry := Catalog.describe(FIXTURE_PATH)
 	entry["recording"] = recording
 	entry["tags"] = (entry["tags"] as Array) + opts.get("tags", [])
+	entry["own_process"] = opts.get("own_process", false)
 	await session.start(entry)
 	var record: Dictionary = await session.close()
 	session.queue_free()
@@ -141,6 +143,22 @@ func _miss(t: TestContext) -> void:
 	var asks: Array = played["log"]
 	t.check(asks.size() == 3 and asks[2]["pick"] == "" and asks[2]["answered"] < 0,
 			"the ask got no answer, never a silent pick")
+
+
+func _miss_own_process(t: TestContext) -> void:
+	# an own_process test's replay can miss only because this process ran other things first: its
+	# failure says so, and names the command that plays it in a process of its own
+	Fixture.extra_ask = true
+	var plain := await _play(t, COMMITTED, "replay")
+	var own := await _play(t, COMMITTED, "replay", { "own_process": true })
+	Fixture.extra_ask = false
+	t.check(not _failures(plain["record"]).contains("process order"),
+			"a test that shares the process is told to re-record only")
+	var said := _failures(own["record"])
+	t.check(said.contains("process order"), "an own_process miss names process order: " + said)
+	t.check(said.contains("tools/run_tests.sh --id=" + String(own["record"]["id"])),
+			"and the run that plays it in a process of its own: " + said)
+	t.check(said.contains("--record-von"), "and still the command that records it: " + said)
 
 
 func _missing_file(t: TestContext) -> void:

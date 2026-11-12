@@ -7,8 +7,9 @@ extends RefCounted
 ## the " (your current plan)" mark an NPC's previous plan gets is part of a description and stays.
 ## An option id still carries an instance id (`t_<id>`, `do_<object id>_<action>`,
 ## `lead_seen_<id>`, `lead_heading_<id>`, `lead_ally_<id>`), which follows what the process
-## allocated earlier: a recorded pick is stored under the id with that number replaced by its spawn
-## order (`WorldRng.order_of`), and maps back to the offered id by that normalised id.
+## allocated earlier: a recorded pick is stored under the id with a character's number replaced by
+## its spawn order (`WorldRng.order_of`; a `do_` id drops its object), and maps back to the offered
+## id by that normalised id.
 
 ## Separates the key's parts; no state, question or description holds it.
 const SEP := "\u0001"

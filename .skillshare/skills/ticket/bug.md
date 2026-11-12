@@ -33,7 +33,8 @@ An `ai` label: the regression test is scripted Von (`von_script`, one mechanism)
 "`von_script` never replaces scenario tests"; a bug in what Von picks gets a real-Von scenario test per `ai.md`.
 
 A fix under `scenes/ai/` or `scenes/testing/` needs no separate Von run at green: Von tests replay in the whole-suite run,
-and a stale recording is refreshed with `--record-von` (`domain-testing` (`runner-flags.md`)), as `story.md` section 4 says.
+and a stale recording is refreshed with `--record-von` (`domain-testing` (`runner-flags.md`)), as `story.md` section 4 says. A fix to
+the decision tree, to what Von scores or to `NpcDecisionTuning` is worth a live `--require-von --domain=ai` (replays cannot see it).
 
 **Fix gate:** once the root cause is known (`fix` step 4) and before any production change, the planned fix goes to the
 user as a `change-report` whose **Cause** section holds the cause, then an acceptance question. A fix that widens while it

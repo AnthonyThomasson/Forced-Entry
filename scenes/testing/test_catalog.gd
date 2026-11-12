@@ -1,7 +1,8 @@
 extends RefCounted
 ## Testing domain: finds every test (`res://tests/**/*_test.gd`) and describes it as a plain dict
 ## the browser and runner work from:
-##   { id, path, name, domain, category, description, tags, timeout, requires_von, live_only, von,
+## { id, path, name, domain, category, description, tags, timeout, requires_von, live_only,
+## von_mode,
 ##     own_process, manual, internal, switches, world, locked, error }
 ## `id` is the path under tests/ without the suffix (e.g. "projectile/pistol_shot_wounds");
 ## `category` is the sub-folder between the domain and the file when there is one
@@ -80,7 +81,7 @@ static func describe(path: String, root := "") -> Dictionary:
 		"id": rel, "path": path, "name": parts[parts.size() - 1].capitalize(),
 		"domain": parts[0] if parts.size() > 1 else "general",
 		"category": parts[1] if parts.size() > 2 else "", "description": "", "tags": [],
-		"timeout": DEFAULT_TIMEOUT, "requires_von": false, "live_only": false, "von": "",
+		"timeout": DEFAULT_TIMEOUT, "requires_von": false, "live_only": false, "von_mode": "",
 		"own_process": false,
 		"manual": sandbox, "internal": false,
 		"switches": {}, "world": "", "locked": [], "error": "",
@@ -97,7 +98,7 @@ static func describe(path: String, root := "") -> Dictionary:
 	for key in info:
 		entry[key] = info[key]
 	entry["manual"] = sandbox
-	entry["von"] = von_label(entry)
+	entry["von_mode"] = von_label(entry)
 	var setup := TestSetup.new()
 	test.configure(setup)
 	entry["switches"] = setup.switches

@@ -186,6 +186,15 @@ func _check_von_labels(t: TestContext) -> void:
 	t.expect_eq(Catalog.von_label(von, true, true), "record", "and one that records records")
 	von["recording"] = "res://tests/_harness/von_fixtures/none.von.json"
 	t.expect_eq(Catalog.von_label(von), "unrecorded", "a test whose recording is missing says so")
+	# the descriptor carries the label as `von_mode`: a record's `von` is a bool (a skipped Von
+	# test)
+	var described := Catalog.describe("res://tests/_harness/von_fixtures/ask_fixture.gd")
+	t.expect_eq(
+		described.get("von_mode"),
+		"replay",
+		"a described Von test carries its label as von_mode",
+	)
+	t.check(not described.has("von"), "and has no `von` key, which a verdict record uses as a bool")
 
 
 ## The costs file: missing or blank is empty, a written one reads back (numbers only).

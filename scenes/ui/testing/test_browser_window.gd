@@ -258,7 +258,7 @@ func _setup_lines(t: Dictionary) -> PackedStringArray:
 		lines.append("Switches: %s" % ", ".join(parts))
 	if not (t.get("locked", []) as Array).is_empty():
 		lines.append("Locked while it runs: %s" % ", ".join(t["locked"]))
-	match t.get("von", ""):
+	match t.get("von_mode", ""):
 		"replay":
 			lines.append("Von decisions replay from its recording (no server needed).")
 		"live-only":

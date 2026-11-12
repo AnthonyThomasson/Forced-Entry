@@ -59,7 +59,8 @@ VON_PORT = 8000
 VON_HEALTH = "/v1/systemone"
 VON_MODEL = "von-1.2.0"
 VON_READY_SECONDS = 90.0
-VON_TESTS_FLAGS = ("--include-von", "--require-von")
+# The flags that run Von tests against the live server (--record-von too: it writes into the copy only).
+VON_TESTS_FLAGS = ("--include-von", "--require-von", "--record-von")
 # How the copy is linted before its tests: what instrumenting breaks on purpose left out (the isolation rule, and
 # gdstyle: each probe shares its statement's line, so line numbers match the real tree).
 COPY_LINT = ("--skip-rule=coverage_isolation", "--no-gdstyle")

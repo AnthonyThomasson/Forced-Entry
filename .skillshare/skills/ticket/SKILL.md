@@ -135,7 +135,7 @@ disagree), and ask (recommended first): fix all, then feedback; feedback first, 
 Each behaviour defect is fixed as a `tdd` slice; a test set-up mistake only as the report names it, with no assertion
 loosened. After the fixes rerun the green checks: new tests `--repeat=10`, `tools/tool_tests.sh`, the whole suite, perf
 with `tools/run_tests.sh --domain=perf --quiet`, and, for a change under `scenes/ai/` or `scenes/testing/`, recordings refreshed with
-`--record-von` where it staled them (the whole suite replays them); no doc or skill may claim a run that did not happen. Fixes beyond the
+`--record-von` where it staled them (the whole suite replays them) and, when the change moves what Von answers (decision tree, scored wording, `NpcDecisionTuning`, model), a live `--require-von --domain=ai` first; no doc or skill may claim a run that did not happen. Fixes beyond the
 report's list, or added behaviour, get a second audit.
 
 ### Report
