@@ -1,7 +1,7 @@
 extends GameTest
 ## Control for defender_stays_in_house_von: an invader (no hold-your-ground in its goal) hears the
 ## same gunfire out in the garden and still investigates it. What keeps a defender in is its goal,
-## not a rule that applies to every NPC. Needs the Von decision server.
+## not a rule that applies to every NPC. It replays its Von recording.
 
 const Probe := preload("res://tests/_ai/investigate_probe.gd")
 
