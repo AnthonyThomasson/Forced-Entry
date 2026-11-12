@@ -101,3 +101,25 @@ func test_the_walked_route_memo_is_held_only_while_pieces_run_together() -> void
 	assert_int(_planner.begun).is_equal(1)  # premise: the walk has begun
 	assert_object(_job.get("_walks")).is_null()
 	assert_int(_perception.memos_held).is_equal(3)  # a frame the build ran in, not the walk
+
+
+func test_an_event_during_a_build_is_not_weighed_by_it_and_does_not_restart_it() -> void:
+	DecisionBudget.cost_hostile = 1
+	_perception.confinement.label = "the house"
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	assert_bool(_job.frozen()).is_true()  # premise: the build's start has run
+	# A hostile is spotted meanwhile: the wish is forced, the world has changed.
+	_cadence.force("hostile belief changed")
+	_perception.hostiles = 5
+	_perception.confinement.label = "the street"
+	assert_bool(_job.stale(&"root")).is_false()  # the same starting node: no restart
+	assert_bool(_job.overtaken_by_order()).is_false()
+	for i in 4:
+		_frame += 1
+		_job.advance()
+	assert_int(_planner.begun).is_equal(1)  # premise: the walk has begun
+	assert_int(_perception.builds.size()).is_equal(1)  # one build, not begun again for the event
+	# Its start, its two hostiles and its finish: the three more spotted since were never weighed.
+	assert_int(_perception.builds[0].steps).is_equal(4)
+	assert_str(_planner.snapshot["confinement"].label).is_equal("the house")
