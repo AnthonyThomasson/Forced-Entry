@@ -7,7 +7,7 @@ description: Use when editing scenes/audio/, adding or retuning a sound (guns, i
 
 A leaf: it imports only General's `EventBus`. Other domains **post EventBus events**; the `Sound` autoload listens and plays.
 There are no audio files: `SoundSynth` renders every sound from a recipe into an `AudioStreamWAV`, so a new material or gun is a
-row in a table. Interfaces: 10 (the topics below, and the `&"sound"` it posts), 13 (`audio.sound`, a sandbox's own voice), 16 (`SoundSurface`), 18 (`Sound.focus`), 19 (the
+row in a table. Interfaces: 10 (the topics below, and the `&"sound"` it posts), 13 (`audio.sound`, a sandbox's own voice), 16 (`SoundSurface`), 18 (`Sound.focus`, `warming()`), 19 (the
 vehicle a loop follows). Tests: `tests/audio/` (`tools/run_tests.sh audio`); NPC hearing of footsteps is `docs/hearing.md`.
 
 A sandbox renders a sound itself: `SoundBank.recipe_for` / `SoundSynth.render` → `AudioStreamWAV` on its own `AudioStreamPlayer2D`; `Sound` hears nothing of it.
@@ -112,14 +112,8 @@ stopped, or its voice taken by a newer one of the category. `loop_of(vehicle, ki
   mid-sound reports leaked `AudioStreamPlaybackWAV` objects.
 - With a camera present (the test runner has one) range culling is live: audio tests not about distance set
   `SoundConfig.category_range` to `Probe.EVERYWHERE` (`tests/_audio/sound_probe.gd`).
-- Sounds render lazily (1–33 ms each); with a display they are pre-rendered after launch, every variant of every profile (the
-  count per profile follows `_variant_count(_category_of(profile))`: a vehicle's ignition, door and crash count as `vehicle`),
-  because a variant first synthesised in a fight is a 9–35 ms hitch. **The pre-warm renders on a worker thread** (`Sound.warm`:
-  one `WorkerThreadPool` task calling `SoundBank.render`, which touches nothing shared); the main thread files each finished sound
-  into the cache at the next `_process` (`SoundBank.file`, main thread only, keeps a variant rendered on demand meanwhile).
-  `warming()` / `finish_warming()` and `_exit_tree` wait for the worker. Headless tests render on first use
-  (`Perf.warm_sounds()` in `tests/_perf/perf_probe.gd` does what the pre-warm would have). Tests: `prewarm_off_main_thread_test.gd`,
-  `prewarm_covers_every_variant_test.gd`; the library's time is `perf/audio_bank_render`.
+- Sounds render lazily (1–33 ms each); with a display a worker pre-renders the whole library after launch, and `Main.start_match`
+  waits on `Sound.warming()` before a match builds, so a variant is never first synthesised in a fight (a 9–35 ms hitch): `prewarm.md`.
 - Headless uses the Dummy audio driver: playback is accepted and silent; assert on `&"sound"` events, `active()`, `muffled()`, `loop_of`.
 
 ## Adding to it

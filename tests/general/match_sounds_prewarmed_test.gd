@@ -86,5 +86,46 @@ func run(t: TestContext) -> void:
 				"no sound was synthesized on the main thread up to the first gunfire",
 			)
 	await MainProbe.close(t, viewport)
+	await _check_setup_window_stays_up(t)
 	SoundBank.clear_cache()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
+
+
+## The setup window's Start, clicked while the pre-warm runs, keeps the window up (with a status
+## line) until the sounds are ready, then hands over to the match: a window freed at once would
+## leave an empty screen for the wait.
+func _check_setup_window_stays_up(t: TestContext) -> void:
+	Sound.finish_warming()
+	SoundBank.clear_cache()
+	Sound.warm(Sound.library())
+	var viewport := MainProbe.viewport(t)
+	var main = MainProbe.open(viewport)
+	var menu := MainProbe.setup_menu(main)
+	if t.require(
+			menu != null and Sound.warming(),
+			"premise: the setup window is open and the pre-warm under way",
+	):
+		menu.start_requested.emit({
+			"mode": "watch",
+			"seed": MATCH_SEED,
+			"defenders": { "count": 1 },
+			"invaders": { "count": 1 },
+		})
+		await t.frames(3)
+		t.check(
+			is_instance_valid(menu) and not menu.is_queued_for_deletion(),
+			"Start while the sounds warm up keeps the setup window up",
+		)
+		var give_up := Time.get_ticks_msec() + WORKER_WAIT_MS
+		while (
+				is_instance_valid(menu) and not menu.is_queued_for_deletion()
+				and Time.get_ticks_msec() < give_up
+		):
+			OS.delay_msec(5)
+			await t.frames(1)
+		t.check(
+			not is_instance_valid(menu) or menu.is_queued_for_deletion(),
+			"the window hands over to the match once the pre-warm is done",
+		)
+		t.check(not Sound.warming(), "and the pre-warm is over by then")
+	await MainProbe.close(t, viewport)

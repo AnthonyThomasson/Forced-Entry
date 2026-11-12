@@ -186,6 +186,11 @@ func _on_setup_chosen(config: Dictionary) -> void:
 	await _await_decision_server()
 	if not is_inside_tree():
 		return  # Escape returned us to setup (reloading the scene) while we were waiting.
+	if Sound.warming():  # a Start in the launch's first seconds: say why the window stays up
+		_setup_menu.set_status("Warming up the sounds…")
+		await _await_sound_warm()
+		if not is_inside_tree():
+			return
 	_setup_menu.queue_free()
 	_play(spec)
 
@@ -266,6 +271,14 @@ func _await_decision_server() -> void:
 		)
 
 
+## Wait, a frame at a time, until the sound pre-warm (a worker's, started at launch, ~9 s) is done
+## or Main leaves the tree. `start_match` waits here too, so a start that skips the setup window
+## (the `restart` verb) and a test's wait the same.
+func _await_sound_warm() -> void:
+	while Sound.warming() and is_inside_tree():
+		await get_tree().process_frame
+
+
 ## Reopen the pre-game setup window for a fresh match: drop the `skip_setup` and `match_seed` metas
 ## a scripted restart may have set (so the reloaded scene shows the window again and the window's
 ## own seed choice — not a stale pin — decides the layout) and reload the scene. Also the `menu`
@@ -289,10 +302,9 @@ func return_to_setup() -> void:
 ## sound pre-warm (a worker's, started at launch) to finish: a match fought before it does would
 ## synthesize each sound it needs on the main thread, 9 to 35 ms apiece (`Sound.warming`).
 func start_match(spec: Dictionary) -> Dictionary:
-	while Sound.warming():
-		await get_tree().process_frame
-		if not is_inside_tree():
-			return {}
+	await _await_sound_warm()
+	if not is_inside_tree():
+		return {}
 	spec = MatchBuilder.spec(spec)
 	spec["overlays"] = _overlays.flags.duplicate()
 	var world := Node2D.new()

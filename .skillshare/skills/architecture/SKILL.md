@@ -55,7 +55,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 15. **Any domain → General (`GameLog`).** Read to print to the game's log: `interfaces/15-gamelog.md`
 16. **Objects → Audio: `SoundSurface`.** Read for what a floor tells Audio: `interfaces/16-soundsurface.md`
 17. **Main / Testing → AI team: the human's place in a stack.** Read for `PlayerStack` and the human on the entry radio: `interfaces/17-player-stack.md`
-18. **Main → Audio: `Sound.focus`.** Read for whose ears the player has: `interfaces/18-sound-focus.md`
+18. **Main → Audio: `Sound.focus`, `Sound.warming()`.** Read for whose ears the player has and the sound pre-warm Main waits on: `interfaces/18-sound-focus.md`
 19. **Character ↔ Vehicle: the drivable contract.** Read for getting in, driving, and a vehicle striking a character: `interfaces/19-drivable-contract.md`
 20. **Main / Testing → Lighting; the world's lights and shadows.** Read to light the world or add a light or an occluder: `interfaces/20-lighting.md`
 21. **Main / Testing → AI team: squads, leaders, orders.** Read for `Squad`, leaders, orders and following: `interfaces/21-squads.md`

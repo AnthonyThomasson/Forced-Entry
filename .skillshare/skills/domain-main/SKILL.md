@@ -46,7 +46,8 @@ A fresh launch starts `WorldGen.prewarm` (the district's shared pixel art on a w
 
 Main's one way into a match (a coroutine; the tests call it). It first waits, a frame at a time, while `Sound.warming()` (the
 sound pre-warm's worker, ~9 s from launch; headless never warms): a match fought before it ends renders its sounds on the main
-thread (`tests/general/match_sounds_prewarmed_test.gd`). It lays `spec` over `MatchBuilder.spec`, replaces the spec's
+thread (`tests/general/match_sounds_prewarmed_test.gd`); a Start clicked meanwhile keeps the setup window up with a status line, and a
+windowed start that skips setup (the `restart` verb) waits too. It lays `spec` over `MatchBuilder.spec`, replaces the spec's
 `overlays` with Main's own flags, adds a fresh `World` node (group `match_world`: how the dev command server finds the match)
 and awaits `MatchBuilder.build`. A match torn down during the build returns `{}` and wires nothing. Then the UI over the handle
 (`_match`):
