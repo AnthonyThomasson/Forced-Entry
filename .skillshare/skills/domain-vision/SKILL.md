@@ -24,16 +24,18 @@ debug overlays, Navigation and the UI are overlays (`ViewLayers.overlay`); Gener
 | `view_cone.gd`, `view_shapes.gd`, `view_watch.gd` | The exact polygon (`ViewCone`, a job: `cone-job.md`), the blocking shapes round the eye (`ViewShapes`: a shape query, never a tree walk) and what says a rebuild is due (`ViewWatch`). Private. |
 | `view_memory.gd`, `view_fan.gd`, `view_mask.gd`, `view_composite.gd` | The capture and memory viewports and the wipe, the triangle-fan painter both painters are, the feathered mask, the composite over the world. Private. |
 | `memory_paint`, `memory_wipe`, `view_composite` (`.gdshader`) | Paints the capture into the memory without blending; writes "nothing seen"; cuts the live world out and draws the memory in the look. |
-| `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, `memory_scale`, the rays, `far_depth`, `far_bleed`, `rebuild_every`, `rebuild_gap`; the sliced rebuild's: `VisionSliceConfig`. |
+| `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, `memory_scale`, the rays, `far_depth`, `far_bleed`, `rebuild_every`; the sliced rebuild's: `VisionSliceConfig`. |
+| `view_pipeline.gd` (`ViewPipeline`) | Starts, steps, restarts and publishes the `ViewCone` job (`cone-job.md`). Private. |
 
 What a character sees by (110° cone, 2520 px, a 48 px bubble, looking over coverage 60) is Character's `CharacterVisionConfig`,
 read through `character.sight()`: any character can be the viewer.
 
 ## Each frame
 
-- **Physics, priority 100** (after the characters have moved): `ViewWatch.stale(eye, facing, sight)`; when it says so,
-  `ViewCone.rebuild` (cone and bubble), `ViewWatch.built`, then `SeenArea.set_area(polygons, bounds)`. Written in the physics
-  tick, read in `_process` (Character's visuals, `BloodPool`), so a repaint is decided on the frame's own area.
+- **Physics, priority 100** (after the characters have moved): `ViewPipeline.tick` steps the cone's job a slice (or starts one
+  when `ViewWatch.stale` says so); a completed job writes `SeenArea.set_area(polygons, bounds)`. Written in the physics tick, read
+  in `_process` (Character's visuals, `BloodPool`), so a repaint is decided on the frame's own area. **The cone shown is the exact
+  cone of the pose its job started from, 2 to 4 frames old** (V1): tests compare to `published_pose()`.
 - **`_process`:** the capture, memory, mask and composite follow the main viewport's view (`Pointer.screen_transform`, interface 26) and size; the memory's
   painter paints the cone polygon from the capture, the mask's painter draws the polygon once per tap of the feather (32 shifted
   copies, a disc, laid inside the edge).
@@ -55,9 +57,8 @@ read through `character.sight()`: any character can be the viewer.
   by signal a blocker's shapes coming or going (a dent or a wall re-cut frees shapes and adds new with no move of the body),
   leaving the tree, or a door's `changed`; a collider that entered the tree; a character that blocks (its posture covers more
   than the viewer looks over: rebuilt every frame it does, and the frame after); and every `rebuild_every` (10) frames, the
-  backstop for a change it cannot see. **The pose lag (`vision/pose_lag_bounds`, V1):** an eye at most 5 px and a facing at most 1 degree off the last rebuild's wait for
-  `VisionConfig.rebuild_gap` (2) frames (`ViewWatch._lagging`), holding the last rebuild's exact cone, so the memory never paints a
-  made-up one; any other change above is due at once, a changed sight number too; gap 1 = every frame. A low piece is in no ray, so it is not watched. A frame that rebuilds nothing measures no
+  backstop for a change it cannot see. `stale` asks all of it for the next job; `world_changed` all but the eye and facing, each
+  tick of a job in flight (`cone-job.md`). The job length is the lag (V1). A low piece is in no ray, so it is not watched. A frame that rebuilds nothing measures no
   shape and builds no Array for the key (`vision/view_watch_suite` holds the first): keep it so.
 - **A rebuild keeps what a plain one would re-read (#192; the polygon is vertex for vertex the reference's, `vision/cone_same_after_savings`).**
   `ViewShapes` keeps a non-character shape's world polygon across rebuilds, keyed by collider and shape index with the transform and

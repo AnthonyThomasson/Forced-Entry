@@ -65,6 +65,13 @@ extends GameTest
 ## frame, a per-frame cost, and 4x of it (about 52 ms) would never trip. A loaded result says
 ## nothing about it.
 ##
+## 2026-11-12, #195, the cone as a sliced job (`docs/player-vision.md` V1): three `--quiet` runs
+## each (none marked loaded; load 3.9 to 5.9, 0 to 2 busy Godot) of this guard at the commit before
+## the pipeline and at it. The parked view read -0.14, -0.14 and -0.08 ms before, -0.17, -0.32 and
+## -0.23 after, the cone at 0.08 and 0.09 of the reference's; the moving view 4.49, 4.67 and 4.36 ms
+## before and 2.05, 2.00 and 2.00 after, its cone 0.44 to 0.45 of the reference's before and 0.25 to
+## 0.26 after. The premise counts `PlayerView.starts()`. `MOVING_BUDGET_MS` is 3.0.
+##
 ## 2026-11-07, #192, two runs (not `--quiet`: the gate was bypassed, `perf-district.md`; load 3.2 to
 ## 6.7, six other Godot processes that were no test's): the parked view read 5.64 and 4.77 ms
 ## against `BUDGET_MS` 3.2, red as on 2026-11-02 (4.9 and 5.2), rounds from 1.0 to 11.7 ms; the
@@ -95,10 +102,12 @@ const ROUNDS := 12
 const BLOCK_FRAMES := 25
 ## The most (ms a frame) the view may add to the same match without it (see the header).
 const BUDGET_MS := 3.2
-## The most (ms a frame) the moving view may cost: about 1.4x the moving median of about 6 ms (6.74
-## and 5.02 ms, two runs on 2026-11-07 after the pose lag; it was 20 ms from about 13, then 11.9 and
-## 10.9). This departs from perf.md's 4x rule, because 4x a per-frame cost would never trip.
-const MOVING_BUDGET_MS := 8.5
+## The most (ms a frame) the moving view may cost: 1.5x the moving median of 2.0 ms with the sliced
+## cone (2.05, 2.00 and 2.00 ms, three `--quiet` runs on 2026-11-12, #195; the cone's job is one
+## slice a frame, so its cost is the slice's; it was 4.49, 4.67 and 4.36 ms at the commit before the
+## pipeline, 8.5 from about 6 ms, 20 from about 13). This departs from perf.md's 4x rule, because 4x
+## a per-frame cost would never trip.
+const MOVING_BUDGET_MS := 3.0
 ## The most the live cone's cost a frame may be of the reference cone's, from the same eye (see the
 ## header).
 const RATIO_MAX := 0.75

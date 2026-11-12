@@ -302,6 +302,14 @@ The exact area one character sees right now: the cone round its facing out to it
 it, bounded by whatever breaks its line of sight (walls and tall furniture, not low furniture or a glass-panel door).
 _Avoid_: field of view (only the cone's angle), sight cone, vision cone (the NPCs' debug drawing of the same area)
 
+**Cone job**:
+One rebuild of the view cone, stepped `slice_units` of engine work a physics tick (`ViewCone.begin` / `step`, run by `ViewPipeline`) and published when done: the cone shown is the exact cone of the pose the job started from, 2 to 4 frames old, in the world as it was then. A change of the world between slices restarts it from the live pose; a change of the viewer's pose alone does not.
+_Avoid_: rebuild (the whole of it in one frame is still `ViewCone.rebuild`), pose lag (the old one-frame wait, gone), decision job (the AI's)
+
+**Published pose**:
+The eye and facing a cone job started from, which the cone shown is the exact cone of (`PlayerView.published_pose()`): a pose the viewer stood at 2 to 4 frames ago, never one made up.
+_Avoid_: current pose, live pose (the viewer's now)
+
 **Memory**:
 The picture of the world as the human last saw it, drawn in greyscale outside the view cone and black where it never looked. It
 holds only what was on screen when seen, starts empty with the match and never fades.
@@ -314,7 +322,7 @@ sleeps, a dropped item, a spent casing, a grenade lying still, a parked vehicle 
 _Avoid_: dynamic / static, live / baked
 
 **Seen area**:
-The part of the world the view cone shows live this frame. A character or a blood pool wholly outside it is not repainted, since
+The part of the world the view cone shows live this frame (the cone last published). A character or a blood pool wholly outside it is not repainted, since
 nothing would show it.
 _Avoid_: visible region, culled
 

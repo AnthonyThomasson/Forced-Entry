@@ -26,9 +26,12 @@ seam (bodies in the tree, `stale` asked each frame), beside the simulation tests
   are the plainest form of the cone (it keeps nothing from one build to the next, reads every shape and coverage anew and casts
   every ray plainly, with the determinism rules of `docs/player-vision.md`). `cone_same_after_savings` holds the live cone to it
   over a grid of eyes and facings in generated houses and after a door, a shove and a freed piece; `cone_skip_exact` runs
-  `cone_checker.gd` after the view every physics frame, so a frame the view skipped must hold the polygon a fresh rebuild draws
-  **from the pose of the last rebuild**, not the current one: `cone_checker.gd` compares against the cone of the last rebuild's eye and
-  facing (the pose lag, `docs/player-vision.md` V1, `VisionConfig.rebuild_gap`; `vision/pose_lag_bounds` pins the lag's bounds)
-  (`physics_mover.gd` moves a body from its own `_physics_process`, as a door or a walker moves: a query later in that frame,
+  `cone_checker.gd` after the view every physics frame: in a frame the view published a cone it must be the polygon a fresh rebuild
+  draws **from the published pose**, not the viewer's live one (`PlayerView.published_pose()`, `docs/player-vision.md` V1: the cone
+  is 2 to 4 frames old); in any other frame it must be the cone held before. `cone_age.gd` says how old the cone is
+  (`vision/pose_lag_bounds` pins that). The cone is a job of a few frames only with a small slice: a test that needs that sets
+  `VisionSliceConfig.slice_units` (90 for the test houses), `cone_skip_exact_sliced` is `cone_skip_exact` at 90, and a test that
+  reads the cone of a pose waits for it (`Probe.place`), never a fixed count of frames. A "rebuilt every frame" premise counts
+  `starts()` (a job begun or restarted), not `rebuilds()` (published) (`physics_mover.gd` moves a body from its own `_physics_process`, as a door or a walker moves: a query later in that frame,
   the view's, still finds it where it was).
 - **Perf:** `perf/match_npc_vision` and `perf/match_npc_vision_relative` (`perf.md`): the 10v10 with the view on an NPC (`s.view`).
