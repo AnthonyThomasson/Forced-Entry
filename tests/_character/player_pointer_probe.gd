@@ -1,10 +1,11 @@
 extends RefCounted
 ## Shared helper for the tests that drive a `player` actor's aim and scroll (not a test itself):
-## `const Pointer := preload("res://tests/_character/player_pointer_probe.gd")`. A player's aim is
-## the mouse, so a test puts the mouse where a world point is on the screen. The test camera is
-## still easing toward its framing and its zoom carries that point with it, so `aim` puts it there
-## again each frame until the aim is on it. An injected wheel or pan event carries a position of its
-## own (default (0, 0)) and so moves the mouse and the aim: `at` gives one the pointer's place.
+## `const PlayerPointer := preload("res://tests/_character/player_pointer_probe.gd")`. A player's
+## aim is the mouse, so a test puts the mouse where a world point is on the screen. The test camera
+## is still easing toward its framing and its zoom carries that point with it, so `aim` puts it
+## there again each frame until the aim is on it. An injected wheel or pan event carries a position
+## of its own (default (0, 0)) and so moves the mouse and the aim: `at` gives one the pointer's
+## place.
 
 
 ## Turn the player `you` toward the world point `toward`: the mouse is put on the screen point it is

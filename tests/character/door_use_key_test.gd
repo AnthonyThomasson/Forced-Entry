@@ -11,7 +11,7 @@ extends GameTest
 ## 42.5 px below the wall. A second wall, at x = 760, has a doorway at y = 250 whose door `e` stands
 ## open, in the seat's line east. The player is always at one of the spots below.
 
-const Pointer := preload("res://tests/_character/player_pointer_probe.gd")
+const PlayerPointer := preload("res://tests/_character/player_pointer_probe.gd")
 const ALONE := Vector2(580, 140)
 ## West of the open leaf, its end 19 px away, with the car's rear-left handle 45 px away, within
 ## its 60 px reach: the door is the nearer.
@@ -154,7 +154,7 @@ func _reaches(t: TestContext, door: Node, angle: float) -> bool:
 ## its framing and carries the point with it.
 func _place(t: TestContext, you: Node, spot: Vector2, toward: Vector2) -> void:
 	you.global_position = spot
-	await Pointer.aim(t, you, toward)
+	await PlayerPointer.aim(t, you, toward)
 
 
 ## Tap E: press for a few frames, then release.

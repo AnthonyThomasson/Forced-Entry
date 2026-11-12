@@ -8,7 +8,7 @@ extends GameTest
 ## Degrees one wheel notch turns a door (the brief's number).
 const NOTCH := 20.0
 const CameraController = preload("res://scenes/general/camera_controller.gd")
-const Pointer := preload("res://tests/_character/player_pointer_probe.gd")
+const PlayerPointer := preload("res://tests/_character/player_pointer_probe.gd")
 ## A trackpad scroll of this much (up), as the OS delivers it.
 const PAN := -30.0
 ## Beside the shut door, aimed at it, and well away from it.
@@ -24,7 +24,7 @@ const PUPPET_SPOT := Vector2(390, 225)
 ## A zoom that has not moved, to this much.
 const SAME_ZOOM := 0.001
 
-## Where the mouse is on the screen, as `Pointer.aim` last put it.
+## Where the mouse is on the screen, as `PlayerPointer.aim` last put it.
 var _pointer := Vector2.ZERO
 
 
@@ -69,10 +69,10 @@ func run(t: TestContext) -> void:
 	var camera := _own_camera(t, you)
 	if not t.require(door != null and other != null, "the two doors are there"):
 		return
-	_pointer = await Pointer.aim(t, you, AT_THE_DOOR)
+	_pointer = await PlayerPointer.aim(t, you, AT_THE_DOOR)
 	await _camera_rests(t, camera)  # it settles on its framing
 	var scroll_notches := await _notches_of_a_scroll(t, camera)
-	_pointer = await Pointer.aim(t, you, AT_THE_DOOR)
+	_pointer = await PlayerPointer.aim(t, you, AT_THE_DOOR)
 	var zoom := camera.zoom.x
 	await _wheel_steps(t, door, camera, zoom)
 	await _trackpad_steps(t, door, camera, zoom, scroll_notches)
@@ -184,10 +184,10 @@ func _the_door_held_is_the_door_turned(
 	t: TestContext, you: Node, door: Node, other: Node
 ) -> void:
 	you.global_position = BETWEEN
-	_pointer = await Pointer.aim(t, you, Vector2(440, 150))
+	_pointer = await PlayerPointer.aim(t, you, Vector2(440, 150))
 	Input.action_press(Keybinds.USE)
 	await t.frames(2)
-	_pointer = await Pointer.aim(t, you, AT_THE_OTHER)
+	_pointer = await PlayerPointer.aim(t, you, AT_THE_OTHER)
 	t.check(you.use.doors.door_in_reach() == other, "the aim is nearest the second door now")
 	await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
 	await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
@@ -260,7 +260,7 @@ func _wheel(t: TestContext, button: MouseButton) -> void:
 	var event := InputEventMouseButton.new()
 	event.button_index = button
 	event.pressed = true
-	Pointer.at(event, _pointer)
+	PlayerPointer.at(event, _pointer)
 	TestContext.inject(event)
 	await t.frames(1)
 
@@ -269,5 +269,5 @@ func _wheel(t: TestContext, button: MouseButton) -> void:
 func _scroll(amount: float) -> void:
 	var event := InputEventPanGesture.new()
 	event.delta = Vector2(0.0, amount)
-	Pointer.at(event, _pointer)
+	PlayerPointer.at(event, _pointer)
 	TestContext.inject(event)
