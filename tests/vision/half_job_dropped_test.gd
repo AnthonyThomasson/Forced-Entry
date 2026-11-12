@@ -3,8 +3,9 @@ extends GameTest
 ## small (a job of this house takes three frames), and
 ## - the viewer dies with a job in flight: the view's nodes are gone within a frame, the seen area
 ##   is cleared at once and stays cleared; the viewer dies in a physics frame ahead of the view's,
-##   as a hit does, with the next slice enough to finish the job, which must not publish after the
-##   lift (a queued view's tick is not run in that frame: engine behaviour this test holds);
+##   as a hit does, with the next slice enough to finish the job. The lifted view is queued for
+##   deletion and still ticks in that frame: it must start, build and publish nothing in it, and
+##   the area is still cleared after its tick (an observer ticking after it, in the same frame);
 ## - the view is disabled with a job in flight (as the perf guards switch it off): the job is gone
 ##   at once (`building()` false), the seen area is cleared, nothing is stepped or published while
 ##   it is off, and when it is enabled again the first cone is built whole in that frame, of the
@@ -101,11 +102,23 @@ func _lifted_with_a_job() -> void:
 	# The next slice would finish the job; the viewer dies in the frame it is stepped in, before
 	# the view's tick.
 	VisionSliceConfig.slice_units = 1 << 30
+	var starts := _view.starts()
+	var published := _view.rebuilds()
 	var hand := _Killer.new(_eye)
+	var after := _After.new(_view, func() -> bool: return _reached(far))
 	_t.world.add_child(hand)
+	_t.world.add_child(after)
 	await _t.frames(1)
 	hand.queue_free()
+	after.queue_free()
 	_t.check(_eye.is_dead, "premise: the viewer is dead")
+	_t.check(after.ticked, "premise: the view still ticked in the frame it was lifted")
+	_t.check(
+		after.starts == starts and after.published == published,
+		"the lifted view starts and publishes nothing in that frame (%d started, %d published)"
+		% [after.starts - starts, after.published - published],
+	)
+	_t.check(after.cleared, "the area is still cleared after the lifted view's own tick")
 	_t.check(Probe.views_under(_t.world).is_empty(), "the view is gone within a frame")
 	_t.check(_reached(far), "the area is cleared: a far place reaches it")
 	await _t.frames(AFTERWARDS)
@@ -133,3 +146,29 @@ class _Killer:
 	func _physics_process(_delta: float) -> void:
 		if is_instance_valid(_who) and not _who.is_dead:
 			_who.take_damage(1000.0)
+
+
+## Reads the view in the physics frame after its own tick (priority 150): the jobs it has started
+## and cones it has published, and whether the area is cleared.
+class _After:
+	extends Node
+
+	var ticked := false
+	var starts := 0
+	var published := 0
+	var cleared := false
+	var _view: PlayerView
+	var _cleared: Callable
+
+	func _init(view: PlayerView, is_cleared: Callable) -> void:
+		_view = view
+		_cleared = is_cleared
+		process_physics_priority = 150
+
+	func _physics_process(_delta: float) -> void:
+		if not is_instance_valid(_view) or not _view.is_queued_for_deletion():
+			return
+		ticked = true
+		starts = _view.starts()
+		published = _view.rebuilds()
+		cleared = _cleared.call()

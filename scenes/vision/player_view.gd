@@ -82,7 +82,8 @@ func _process(_delta: float) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if not is_instance_valid(_viewer):
+	# A lifted view is queued for deletion but still ticks this frame: it builds and writes nothing.
+	if not is_instance_valid(_viewer) or is_queued_for_deletion():
 		return
 	var eye := _viewer.global_position
 	var facing: Vector2 = _viewer.get("facing")

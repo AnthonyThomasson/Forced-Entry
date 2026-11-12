@@ -650,9 +650,27 @@ func _posture_and_death(t: TestContext) -> void:
 	stander.take_damage(10_000.0)
 	await t.frames(90)
 	t.check(stander.is_dead, "premise: the character died")
+	await _settle_posture_world(t, checker, stander)
 	_check_whole(t, checker, "the posture world", false)
 	checker.queue_free()
 	await Probe.drop_world(t, world)
+
+
+## The tail of the posture world: nothing blocks, and the view settles.
+func _settle_posture_world(t: TestContext, checker: Checker, stander: Node2D) -> void:
+	# The viewer's own standing body is a character that blocks at this sight, so the world never
+	# settles. Once the other character is gone and the viewer looks over a standing body nothing
+	# blocks: the view settles, and its cone is held to the live pose's reference.
+	stander.queue_free()
+	CharacterVisionConfig.see_over_coverage = Probe.LOOK_OVER_LOW * 2.0
+	await t.frames(5)
+	var settled := checker.settled
+	await t.frames(40)
+	t.check(
+		checker.settled - settled >= 20,
+		"premise: the posture world: with nothing blocking the view was settled in %d frames"
+		% (checker.settled - settled),
+	)
 
 
 ## The checker's whole run: every cone published was the reference cone of its pose, the cone was
