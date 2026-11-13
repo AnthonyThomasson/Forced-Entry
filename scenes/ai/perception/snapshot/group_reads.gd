@@ -2,10 +2,10 @@ extends RefCounted
 ## AI PERCEPTION sub-domain — what the leads and the entries a snapshot's group piece builds ahead
 ## of the walk read of the radio, kept to see whether it is out of date by the time the walk begins
 ## (`SnapshotDemand.forget_stale_groups`). A group's key is what it read when it began: the allies'
-## combat calls (without their ages: time passing is no change) and, for the entries, the claims on
-## the doorways' slots (`ClaimLedger.heard_key`); a later key that differs means a call or a claim
-## came in, changed or lapsed since. Also holds the rooms the entries lead into, which the leads
-## leave out while a stun can be thrown: derived from the entries, so it goes with them.
+## combat calls (by ally, without their ages: time passing is no change) and, for the entries, the
+## claims on the doorways' slots (`ClaimLedger.heard_key`); a later key that differs means a call or
+## a claim came in, changed or lapsed since. Also holds the rooms the entries lead into, which the
+## leads leave out while a stun can be thrown: derived from the entries, so it goes with them.
 
 ## The allies' entry claims heard on the radio; see stack/claim_ledger.gd.
 var ledger: RefCounted
@@ -16,14 +16,16 @@ var entered: Variant = null
 var _keys := {}
 
 
-## What group `name` (`entries` or `leads`) reads of the radio, of the decision's context `ctx`.
+## What group `name` (`entries` or `leads`) reads of the radio, of the decision's context `ctx`:
+## each ally's combat call by the ally's id, so the order the calls are listed in (a call radioed
+## again moves to the end of the list) is no change.
 func key(ctx: Dictionary, name: String) -> Dictionary:
-	var calls: Array = []
+	var calls := {}
 	for c: Dictionary in ctx["callouts"]:
 		if str(c.get("path", "")).begins_with("combat"):
 			var said := c.duplicate()
 			said.erase("age")
-			calls.append(said)
+			calls[c["id"]] = said
 	return { "calls": calls, "claims": ledger.heard_key() if name == "entries" else {} }
 
 
