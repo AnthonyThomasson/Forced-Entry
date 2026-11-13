@@ -138,6 +138,11 @@ func _ready() -> void:
 	planner.decided.connect(_on_decided)
 	planner.failed.connect(_behavior.fallback)
 	EventBus.posted.connect(_on_event)
+	# The body's death is heard from the start: one dead before its first tick never reaches
+	# `control` (and `_bind_body`), yet it has been listening since here.
+	var body := get_parent()
+	if body != null and body.has_signal(&"died"):
+		body.connect(&"died", _on_died)
 
 
 ## The NPC is freed: its decision leaves the pool's roster. Only a freed NPC, not one that merely
@@ -465,7 +470,6 @@ func _on_died() -> void:
 ## spawn spot, hands it to the perception and the behaviour, and its name to the planner.
 func _bind_body(character: Node) -> void:
 	_character = character
-	character.died.connect(_on_died)
 	_reflexes.bind(character)
 	_perception.bind(character)
 	_behavior.bind(character)

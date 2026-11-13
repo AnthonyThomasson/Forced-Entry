@@ -4,7 +4,9 @@ extends GameTest
 ## cadence, the pool starts one a frame, and the second's snapshot is built while the first's walk
 ## runs and radios its side. The second reads the callouts again as its walk begins
 ## (`AgentPerception.reread_claims`), so it is offered the side the first claimed as taken and
-## goes to another (`docs/flanking-behavior.md` B3, B4).
+## goes to another (`docs/flanking-behavior.md` B3, B4). The re-read itself is pinned by
+## `claim_seen_during_throw_piece` and `claim_seen_as_the_walk_begins`: with one start a frame and
+## an oldest-first pool this scene stays green without it.
 ##
 ## The scene of `ai/flank/flank_two_invaders_split_sides` with the one thing taken out of it: the
 ## different cadences, which kept the two from deciding together (a tie claimed one side twice
