@@ -18,6 +18,7 @@ stopping re-bakes one to four tiles: ~5 ms a tick, not ~57
   order. Reaches that are not a steering-tile grid (the planning ring's one large footprint) keep the every-reach scan. Bounds
   are remembered by outline contents, so unchanged furniture is not measured again and a moved outline gets a fresh bound.
   Test: `navigation/steering_bins_match_full_scan`.
+- **A district's steering tiles bake one a frame and land together** (`rebake.md`): a tick with several tiles due bakes them a physics frame each (a moving walker's own first) and lands them in one frame, one steering-map sync.
 - **The steering re-bake lands in its tick's frame, house or district** (`nav_updater.gd`; `steering_rebake_lands_in_its_tick_test.gd`): a
   held walker re-looks for a way round a body every `RECHECK` s and the map answers a frame after the re-bake, so a late one costs a whole
   `RECHECK`. A district's planning gather is not in the tick: it runs a step a physics frame after it (`NavGather`, `rebake.md`) and its

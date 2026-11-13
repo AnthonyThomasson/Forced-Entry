@@ -19,6 +19,15 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   tick to the landing: a move meanwhile waits for the next tick. A torn-down match (`_alive()`) drops the gather. A lone house's
   gather stays in its tick (`_rebake_planning`, walls shared with its steering bake). The fusing (`NavUnion`, fed in chunks) is nine tenths
   of the gather.
+- **A district's steering tiles bake one a physics frame and land together** (`nav_updater.gd`, `nav_tile_burst.gd` (`NavTileBurst`), `NavTiles.due_tiles` /
+  `parse_for` / `prepare` / `land` / `walking_at`; `navigation/tile_rebake_one_a_frame`, `district_steering_rebake_lands_in_its_tick`): every frame that
+  gives a tile its polygon pays one **steering-map sync** (~12 ms in a district: every region's edges re-linked, the same for 1 tile or 5), so a tick's
+  due tiles are baked a frame each and **landed in one**. Order: tiles holding a **moving walker** first (a living character moving at `REST_SPEED` or more),
+  by squared distance from the nearest walker to the tile's rect (0 inside it), then the rest, ties and a still scene in the grid's order, fixed at the tick.
+  The tick bakes the first (`prepare` holds the polygon), `_physics_process` one more a `GameClock` frame (none on a frame that baked one), and the last
+  `land`s them all: k tiles land k-1 frames after the tick, a lone one in it; a walker sees a body that stopped up to k-1 frames later (accepted). The walls are
+  parsed once per burst; a next tick lands what is held. A lone house's region is baked whole in its tick, as are `rebake_steering` and `build`'s first bake.
+  `NavTiles.baked_total` counts tiles when baked (not landed: the frame report's tile bakes), `baked_log` their order.
 - **A bake lands on a fixed frame** (`nav_bake.gd`, `nav_bake_config.gd`; `navigation/rebake_lands_on_its_frame`, `avoid_map_lands_on_its_frame`,
   `rebake_waits_for_a_late_thread`, `perf/nav_rebake_lands_in_a_match`). `NavRebake._bake_async` and `NavBuilder._bake_avoid` start the bake on a
   `WorkerThreadPool` task (the server's sync `bake_from_source_geometry_data`) through `NavBake.start`, which takes its result in (weld, assign to the

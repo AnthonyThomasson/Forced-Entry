@@ -24,6 +24,8 @@ const HOLES_META := "nav_tile_holes"
 const WALL_CACHE_META := "nav_wall_cache"
 ## How many outline bounds are remembered; a full cache starts afresh rather than growing forever.
 const BOUNDS_KEPT := 4096
+const PREPARED_KEPT := 256
+const BAKED_KEPT := 256
 
 ## Outline contents -> their bounds. A piece that moves has a different outline and is measured
 ## again; identical static outlines share one entry even when the hull helper returns a copy.
@@ -31,9 +33,13 @@ static var _bounds: Dictionary = {}
 ## Actual bounds measurements and candidate rectangle checks, observables of the two fast paths.
 static var bounds_measures := 0
 static var intersection_tests := 0
-## How many steering tiles `rebake` has baked since the process began (a perf probe's read of what
-## a tick's re-bake cost).
+## How many steering tiles have been baked since the process began, by `rebake` and `prepare`
+## alike (a perf probe's read of what a tick's re-bake cost; a tile whose job was empty is no
+## bake), and the names of the last `BAKED_KEPT` of those `prepare` baked, in the order they were
+## baked: observables of the burst's one a frame and its order. A tile counts when it is baked, not
+## when it lands (`land`).
 static var baked_total := 0
+static var baked_log: Array[String] = []
 
 
 ## The tiles that cover `footprint` (the house's local frame), row by row; the last of a row or a
@@ -97,6 +103,114 @@ static func rebake(
 	return baked
 
 
+## The steering tiles of `region` that `furniture` and `characters` (this tick's footprints) leave
+## due, as `{ tile, holes }` in the order they are baked (`prepare`): first the tiles that hold a
+## moving walker (a living character `walking_at` finds), nearest first, then the rest. A tile's
+## distance is that of the nearest walker to the tile's own rect (its rect, not the `BORDER` round
+## it), 0 for the tile holding it; equal distances, and every tile when nothing walks, go in the
+## grid's order (the tiles' own). `walkers` are world points. Where `rebake` bakes every due tile
+## now, the updater bakes the first at once and one more each physics frame, and lands them
+## together.
+static func due_tiles(
+	region: NavigationRegion2D,
+	site: NavSite,
+	furniture: Array,
+	characters: Array,
+	walkers: Array[Vector2] = [],
+) -> Array[Dictionary]:
+	var tiles := NavBuilder.steering_regions(region)
+	var hole_bins := bin(furniture + characters, _reaches(tiles), site.house.position)
+	var keyed: Array[Dictionary] = []
+	for i in tiles.size():
+		if _holes_unchanged(tiles[i], hole_bins[i]):
+			continue
+		var rect: Rect2 = tiles[i].get_meta(RECT_META)
+		var gap := _gap(rect, walkers, site)
+		keyed.append({ "tile": tiles[i], "holes": hole_bins[i], "gap": gap, "i": i })
+	keyed.sort_custom(_nearer)
+	return keyed
+
+
+## The walls (`NavSource.walls`' shape) that reach any of the tiles of `entries` (`due_tiles`'
+## entries), parsed once for a whole burst: the towers that do, parsed afresh, as `rebake` parses
+## them for all its due tiles at once.
+static func parse_for(
+	region: NavigationRegion2D,
+	site: NavSite,
+	entries: Array,
+) -> Dictionary:
+	var reaches: Array[Rect2] = []
+	for entry: Dictionary in entries:
+		if is_instance_valid(entry["tile"]):
+			reaches.append(_reach(entry["tile"]))
+	return NavSource.walls(walls_reaching(region, site, reaches))
+
+
+## Bake one entry of `due_tiles` (`{ tile, holes }`) from `parsed` (`parse_for`) and the holes it
+## was due with, and hold the polygon: nothing on the tile changes until `land`. Returns the held
+## bake `{ tile, poly, walls, holes }`, `{}` when nothing was baked (the tile was freed meanwhile,
+## was baked from exactly these already, or the site has nothing to bake).
+static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> Dictionary:
+	var tile := entry["tile"] as NavigationRegion2D
+	if not is_instance_valid(tile) or not tile.is_inside_tree():
+		return {}
+	var reaches: Array[Rect2] = [_reach(tile)]
+	var walls: Array = bin(parsed["obstruction"], reaches, Vector2.ZERO)[0]
+	if _baked_from(tile, walls, entry["holes"]):
+		return {}
+	var reached := NavSource.walls(walls, parsed["traversable"], parsed["projected"])
+	var poly := _baked_poly(tile, site, reached, entry["holes"])
+	if poly == null:
+		return {}
+	baked_total += 1
+	if baked_log.size() >= BAKED_KEPT:
+		baked_log.clear()
+	baked_log.append(String(tile.name))
+	return { "tile": tile, "poly": poly, "walls": reached, "holes": entry["holes"] }
+
+
+## Give the tiles of the held bakes `held` (`prepare`) their polygons, all in this call: the
+## steering map takes them in with one synchronisation (about 12 ms in a district, whatever the
+## count), so a burst lands whole. A tile freed meanwhile is skipped.
+static func land(held: Array) -> void:
+	for bake: Dictionary in held:
+		var tile := bake["tile"] as NavigationRegion2D
+		if is_instance_valid(tile):
+			_assign(tile, bake["poly"], bake["walls"], bake["holes"])
+
+
+## The world points of the living characters under `root` that are walking (collision layer still
+## set, moving at `NavBuilder.REST_SPEED` or more): the complement of `NavBuilder.character_holes`.
+static func walking_at(root: Node) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	if root == null:
+		return out
+	for node in root.get_children():
+		var body := node as CharacterBody2D
+		if (body != null
+				and body.collision_layer != 0
+				and body.get_real_velocity().length() >= NavBuilder.REST_SPEED):
+			out.append(body.global_position)
+	return out
+
+
+## The squared distance from the nearest of the world points `walkers` to `rect` (the house's local
+## frame); INF with none.
+static func _gap(rect: Rect2, walkers: Array[Vector2], site: NavSite) -> float:
+	var best := INF
+	for point in walkers:
+		var local := point - site.house.position
+		best = minf(best, (local.clamp(rect.position, rect.end) - local).length_squared())
+	return best
+
+
+## Whether the due entry `a` is baked before `b`: the nearer to a walker, then the grid's order.
+static func _nearer(a: Dictionary, b: Dictionary) -> bool:
+	if a["gap"] != b["gap"]:
+		return a["gap"] < b["gap"]
+	return a["i"] < b["i"]
+
+
 ## `tile` baked from `walls` (a parse's shape) and the `holes` that reach it, which it keeps to see
 ## whether they change. False when the site has nothing to bake.
 static func _bake_tile(
@@ -105,16 +219,39 @@ static func _bake_tile(
 	walls: Dictionary,
 	holes: Array,
 ) -> bool:
+	var poly := _baked_poly(tile, site, walls, holes)
+	if poly == null:
+		return false
+	_assign(tile, poly, walls, holes)
+	return true
+
+
+## The polygon of `tile` baked from `walls` and `holes`; null when the site has nothing to bake.
+static func _baked_poly(
+	tile: NavigationRegion2D,
+	site: NavSite,
+	walls: Dictionary,
+	holes: Array,
+) -> NavigationPolygon:
 	var job := NavSource.job(site, holes, [], walls)
 	if job.is_empty():
-		return false
+		return null
 	var nav_poly: NavigationPolygon = job["poly"]
 	nav_poly.baking_rect = _reach(tile)
 	nav_poly.border_size = BORDER
-	tile.navigation_polygon = NavSource.bake(job, site.house.position)
+	return NavSource.bake(job, site.house.position)
+
+
+## `tile` takes `poly`, baked from `walls` and `holes`, which it keeps.
+static func _assign(
+	tile: NavigationRegion2D,
+	poly: NavigationPolygon,
+	walls: Dictionary,
+	holes: Array,
+) -> void:
+	tile.navigation_polygon = poly
 	tile.set_meta(WALLS_META, walls["obstruction"])
 	tile.set_meta(HOLES_META, holes)
-	return true
 
 
 ## The wall outlines (the house's local frame, on the map's 1 px grid) of the towers whose walls

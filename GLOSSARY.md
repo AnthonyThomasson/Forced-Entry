@@ -56,6 +56,10 @@ partition walls, bare, under construction or derelict. It cannot be entered, is 
 navigation map.
 _Avoid_: ruin, building (a tower)
 
+**Steering tile**:
+One 512 px region of a district's steering map (`NavTiles`), re-baked only when what reaches it changed. A tick that finds several due bakes one a physics frame, never two on a frame (the tiles holding a walker, a living character moving at `REST_SPEED` or more, first, nearest first, then the grid's order), and lands them all in the frame of the last: the steering map synchronises (~12 ms) once a tick, not once a tile.
+_Avoid_: chunk, nav cell
+
 **Elevator lobby**:
 The empty placeholder room in every tower, marked on its floor "WIP ELEVATOR LOBBY", where stairs and elevators to
 the upper floors will go. It holds no furniture and has one interior doorway and no door to the street. In the house it
