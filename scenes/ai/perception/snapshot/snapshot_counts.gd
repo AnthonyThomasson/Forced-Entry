@@ -2,7 +2,9 @@ class_name SnapshotCounts extends RefCounted
 ## AI PERCEPTION sub-domain — SNAPSHOT COUNTS. How many times each lazy build of `SnapshotDemand`
 ## has run since the process began, by name: the groups (`leads`, `entries`, `search_rooms`,
 ## `explore`, `interactions`, `rooms`, `grenade_throws`), a hostile's throws (`target_throws`) and
-## the facts' two searches (`lead_outside`, `grenade_ready`: a search begun, one-shot or stepped).
+## the facts' two searches (`lead_outside`, `grenade_ready`: a search begun, one-shot or stepped),
+## and the groups built ahead of the walk that a claim came too late for (`forgotten_entries`,
+## `forgotten_leads`: built again by the walk, `SnapshotDemand.forget_stale_groups`).
 ## A plain running total, read by a perf probe (`tests/_perf/frame_report.gd`) to name what a frame
 ## spent its time on; it changes nothing a decision does.
 

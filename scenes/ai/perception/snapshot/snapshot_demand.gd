@@ -303,11 +303,13 @@ func forget_leads() -> void:
 func forget_stale_groups() -> void:
 	var entries_stale: bool = groups.has("entries") and reads.stale(ctx, "entries")
 	if entries_stale:
+		SnapshotCounts.note("forgotten_entries")
 		groups.erase("entries")
 		built.erase("entries")
 		reads.forget("entries")
 	var leads_stale: bool = groups.has("leads") and reads.stale(ctx, "leads")
-	if leads_stale or (entries_stale and stun_stack):
+	if (leads_stale or (entries_stale and stun_stack)) and groups.has("leads"):
+		SnapshotCounts.note("forgotten_leads")
 		forget_leads()
 
 
