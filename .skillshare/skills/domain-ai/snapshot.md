@@ -9,7 +9,7 @@ The BUILD half of perception: from what the NPC knows (contacts, memory, learned
 - `snapshot/snapshot_vocab.gd` (`SnapshotVocab`) — the shared vocabulary and tuning: `COMPASS`, the band and wording helpers (`dist_band`, `recency`, `route_band`, `place`, `where`, ...), the house `rooms` of the decision in build, the NPC's `character` (set by `bind`). Tunables are read live off `vocab.tuning` (`NpcTuning` topics, handed in by `apply_config`).
 - `snapshot/snapshot_sections.gd` — the `*_text` functions behind the sections.
 - `snapshot/snapshot_options.gd` — the `*_group` option groups; `snapshot/snapshot_throws.gd` — the grenade groups; `snapshot/snapshot_orders.gd` — the ORDER group. They read per-decision `know` set by `build()`.
-- `snapshot/snapshot_demand.gd` (`SnapshotDemand`) — the groups, facts and sections built on demand (below); `snapshot/snapshot_lead_memo.gd` (`SnapshotLeadMemo`) — the heard leads' walk memo (below).
+- `snapshot/snapshot_demand.gd` (`SnapshotDemand`) — the groups, facts and sections built on demand (below); `snapshot/snapshot_lead_memo.gd` (`SnapshotLeadMemo`) — the heard leads' walk memo (below); `snapshot/snapshot_counts.gd` — lazy-build totals by name.
 
 ## Adding to it
 

@@ -19,6 +19,8 @@ extends RefCounted
 ## (`SnapshotCounts.built`, a key `demand:<name>`), the ragdoll steps (`Ragdoll.steps_total`) and
 ## the sounds played (the event log's `sound`).
 ##
+## No ms for the cone or nav tick (it needs a game hook): `cone_units` stands in.
+##
 ## No milliseconds for the cone's tick or the nav tick: both run in a node's `_physics_process`, and
 ## a probe can time only a call it makes. Wrapping one would mean a hook in game code (or calling
 ## the tick from the probe, which moves it in the frame), so each is a counter: `cone_units` (the

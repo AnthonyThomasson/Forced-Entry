@@ -43,7 +43,7 @@ whether a cone was published in it, and then the view writes `SeenArea`.
   job's pose: not the eye or facing) restarts the job from the live pose; else one slice. Restart number `restart_cap` + 1 in a row
   (reset by a publish) builds whole. The first cone and a jump from idle build whole.
 - **Counts:** `started` (every begin: a start, a restart, a whole build), `published`, the pose the cone shown is of (`pose_eye`,
-  `pose_facing`): `PlayerView.starts()`, `rebuilds()`, `published_pose()`. `drop()` (a lift, a disabled view) aborts the job and
+  `pose_facing`): `PlayerView.starts()`, `rebuilds()`, `published_pose()`. `causes` (`restarts`, whole builds by cause `first` / `jump` / `cap`, engine `units` stepped), read by a perf probe through `PlayerView.rebuild_causes()` (interface 25). `drop()` (a lift, a disabled view) aborts the job and
   makes the next ask a rebuild.
 - The sector `ViewWatch` measures "within reach" by stays the job's pose during a job (a blocker moving near the live eye only is
   not a change to the job), and is set again at each begin. A blocker moved after a job began is seen at the next tick's
