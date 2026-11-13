@@ -108,6 +108,7 @@ func _await_von(announce: Callable) -> bool:
 	if not is_instance_valid(_launcher):
 		_launcher = LAUNCHER.new()
 		_launcher.name = "DecisionServerLauncher"
+		_launcher.background_qos = false  # A live ask is capped at 10 s: no slowed server here.
 		var port := OS.get_environment(VON_PORT_ENV)
 		if port != "":
 			_launcher.port = int(port)

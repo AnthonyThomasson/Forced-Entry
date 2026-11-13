@@ -38,12 +38,15 @@ const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
 ## Compute device passed to `von serve --device`. `cpu` is the default because PyTorch's Apple
 ## GPU backend (`mps`, which `auto` picks on a Mac) crashes the server on its first request.
 @export_enum("cpu", "auto", "mps", "cuda", "openvino") var device: String = "cpu"
-## Run the server under background QoS on macOS (`taskpolicy -b`). PyTorch on CPU bursts to 500 to
-## 1000% CPU for the first seconds of a fight and starves the game (measured: frames of 255 to 335
-## ms for about 15 s); background QoS cut the first 5 s to about 57 ms a frame, then 16 to 19 ms.
-## `renice` and the OMP / MKL / torch thread variables did not help. The trade-off: Von answers
-## slower (the first shot comes about 57 s after launch rather than 29 to 37 s). Other platforms
-## ignore it.
+## Once our server answers its readiness probe, move it to macOS background QoS
+## (`taskpolicy -b -p <pid>`), which keeps it on the efficiency cores. Measured on macOS (job
+## first-use of #195, 2026-11-12): PyTorch on CPU burst to 500 to 1000% CPU at fight start and
+## starved the game (frames of 255 to 335 ms for about 15 s); background QoS cut the first 5 s to
+## about 57 ms a frame, then 16 to 19 ms. `renice` and the OMP / MKL / torch thread variables did
+## not help. It is applied AFTER the first answer, not at launch, so the boot and the readiness
+## probe keep their full speed (a QoS launch took about 57 s to its first shot against 29 to 37 s).
+## The trade-off: Von answers slower for the rest of the run. Other platforms ignore it. Off for the
+## test runner's gate, whose asks are capped at 10 s (`TestVonGate`).
 @export var background_qos: bool = true
 ## Also print each server log line to the Output panel.
 @export var echo_to_output: bool = true
@@ -238,6 +241,9 @@ func _announce_ready() -> void:
 	if _pid > 0:
 		GameLog.say("[von] Decision server live on port %d, %.1fs after scene load (pid %d)."
 				% [port, secs, _pid])
+		var args := qos_args(_pid, OS.get_name(), background_qos)
+		if not args.is_empty():
+			OS.execute("/usr/sbin/taskpolicy", args)
 	else:
 		GameLog.say("[von] Reusing the decision server already running on port %d." % port)
 	_resolve(true)
@@ -250,15 +256,12 @@ func _end_probing() -> void:
 		_probe.request = null
 
 
-## The shell line that starts the server. `exec` makes the shell become the server, and
-## `taskpolicy` execs its program too, so the pid we kill is the server itself in either form.
-## On macOS with `background_qos` the server runs under `taskpolicy -b`.
-static func serve_command(
-		von: String, serve_port: int, serve_device: String, os_name: String, background: bool
-) -> String:
-	var prefix := "exec /usr/sbin/taskpolicy -b " if background and os_name == "macOS" else "exec "
-	return "%s'%s' serve --host 127.0.0.1 --port %d --device %s 2>&1" % [
-		prefix, von, serve_port, serve_device]
+## The arguments for `/usr/sbin/taskpolicy` that move the running server `pid` to background QoS
+## (`-b -p <pid>`); empty when it does not apply: not macOS, `background` off, or no server of ours.
+static func qos_args(pid: int, os_name: String, background: bool) -> PackedStringArray:
+	if not background or os_name != "macOS" or pid <= 0:
+		return PackedStringArray()
+	return PackedStringArray(["-b", "-p", str(pid)])
 
 
 ## Start `von serve` with its output piped back to us, and a thread to read it.
@@ -267,7 +270,9 @@ func _launch() -> void:
 		GameLog.say(("[von] No server on port %d and von_path is empty — set it on "
 					+ "DecisionServerLauncher to auto-start Von.") % port)
 		return
-	var command := serve_command(von_path, port, device, OS.get_name(), background_qos)
+	# `exec` makes the shell become the server, so the pid we kill is the server itself.
+	var command := ("exec '%s' serve --host 127.0.0.1 --port %d --device %s 2>&1"
+			% [von_path, port, device])
 	var process := OS.execute_with_pipe("/bin/sh", ["-c", command])
 	if process.is_empty():
 		push_warning("[von] Failed to start %s" % von_path)

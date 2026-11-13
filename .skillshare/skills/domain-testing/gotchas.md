@@ -12,7 +12,8 @@ Side file of `domain-testing` (`SKILL.md`).
   (`tests/general/camera_zooms_out_driving_test.gd`).
 - **A replayed Von test is a normal test** (no pacing, any shard); a live, recording or live-only one is paced in real time.
   `--fixed-fps 60` outruns the wall clock, so game-time timers (HTTP timeouts, the launcher's probe) would fire early; the
-  session sleeps each frame to 1/60 s while such a test is open. A cold Von start takes about 5 s. A live or recording
+  session sleeps each frame to 1/60 s while such a test is open. A cold Von start takes about 5 s (the server's boot to its first answer, as the gate
+  launches it; the 29 to 37 s measured in the `domain-ai` skill's Von notes is a real match's first shot after launch, a different measure). A live or recording
   ask stalls the main thread until Von answers (`VonBlockingAsk`, 10 s at most, then the test FAILs), so no game time
   passes meanwhile and the answer lands on the same frame as in a replay.
 - **Recordings** are `<name>_test.von.json` beside a `requires_von` test. Everything the NPCs read in a test goes into the key
