@@ -28,9 +28,11 @@ func begin(demand_: RefCounted, jobs: Array) -> RefCounted:
 
 
 ## What the next step is (`Kind`): works through what needs no price first (the next group's begin,
-## a group the demand holds already), a few reads at most.
+## a group the demand holds already, or came to hold while it was in hand), a few reads at most.
 func next_kind() -> int:
 	var _scope: RefCounted = demand.open()
+	if _build != null and demand.holds(_job["name"], _job["id"]):
+		_build = null  # Built whole meanwhile (a reader of everything): its steps are not wanted.
 	while _build == null and not _jobs.is_empty():
 		_job = _jobs.pop_front()
 		if demand.holds(_job["name"], _job["id"]):

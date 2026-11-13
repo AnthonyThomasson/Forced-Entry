@@ -223,3 +223,49 @@ func test_noting_what_the_job_needs_next_does_not_ask_the_group_steps_again() ->
 	_job.advance()
 	assert_int(groups.steps).is_equal(0)
 	assert_int(groups.kind_calls).is_equal(1)  # priced once, not asked again to note the cost
+
+
+func test_a_job_cancelled_in_its_group_piece_asks_the_group_steps_no_more() -> void:
+	DecisionBudget.cost_group_unit = 1
+	var groups := Builds.FakeSearch.new()
+	groups.done_kind = 2
+	groups.kinds = [0, 0, 0]
+	_perception.groups = groups
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	_frame += 1
+	_job.advance()
+	assert_int(groups.steps).is_equal(1)  # in the group piece
+	var asked: int = groups.kind_calls
+	_job.cancel()
+	assert_bool(_job.pending()).is_false()
+	for i in 4:
+		_frame += 1
+		_job.advance()
+	assert_int(groups.steps).is_equal(1)
+	assert_int(groups.kind_calls).is_equal(asked)  # nothing asks the pool for its next unit
+	assert_int(_planner.begun).is_equal(0)
+	assert_int(_perception.rereads).is_equal(0)
+
+
+func test_a_job_cancelled_in_its_grenade_piece_asks_the_grenade_steps_no_more() -> void:
+	DecisionBudget.cost_group_unit = 1
+	var grenades := Builds.FakeSearch.new()
+	grenades.done_kind = 2
+	grenades.kinds = [0, 0, 0]
+	_perception.grenades = grenades
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	_frame += 1
+	_job.advance()
+	assert_int(grenades.steps).is_equal(1)  # in the grenade piece
+	var asked: int = grenades.kind_calls
+	_job.cancel()
+	assert_bool(_job.pending()).is_false()
+	for i in 4:
+		_frame += 1
+		_job.advance()
+	assert_int(grenades.steps).is_equal(1)
+	assert_int(grenades.kind_calls).is_equal(asked)
+	assert_int(_planner.begun).is_equal(0)
+	assert_int(_perception.rereads).is_equal(0)

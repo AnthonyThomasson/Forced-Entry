@@ -1,7 +1,7 @@
 extends GameTest
 ## A teammate's radio claim that lands while the decision job is searching for a throw (its priced
 ## throw piece spanning frames, between the build and the walk) is in the snapshot the walk begins
-## with: the callouts are read again as the throw piece ends, the last thing before the walk
+## with: the callouts are read again as the grenade piece ends, the last thing before the walk
 ## (`AgentPerception.reread_claims`), not at the order-refusal step before the search. Two NPCs on
 ## one target then take different sides however long a decision takes.
 ##

@@ -1,6 +1,6 @@
 extends GameTest
 ## A teammate's radio claim that lands while a snapshot is being built is seen when the walk begins:
-## the decision job reads the callouts again as its throw piece ends, the last thing before the
+## the decision job reads the callouts again as its grenade piece ends, the last thing before the
 ## walk (`AgentPerception.reread_claims`) and the snapshot's flank sides, their summary and the
 ## allies section are what a snapshot built after the claim holds, so two NPCs going for one target
 ## take different sides even when their decisions are spread over frames. A claim that was heard

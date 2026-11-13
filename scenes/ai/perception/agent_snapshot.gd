@@ -43,6 +43,8 @@ var _throws := SnapshotThrows.new()
 var _orders := SnapshotOrders.new()
 ## The agent's event memory (read-only here); see agent_memory.gd.
 var _memory: RefCounted
+## The allies' entry claims heard on the radio; see stack/claim_ledger.gd.
+var _ledger: RefCounted
 ## The combat geometry; see agent_tactics.gd.
 var _tactics: RefCounted
 ## The NPC's body, handed in once by `bind`.
@@ -56,6 +58,7 @@ var _character: Node
 ## no separate configure step.
 func setup(sources: SnapshotSources) -> void:
 	_memory = sources.memory
+	_ledger = sources.ledger
 	_tactics = sources.tactics
 	_sections.setup(vocab, sources.memory, sources.tactics)
 	_options.setup(vocab, sources)
@@ -262,6 +265,7 @@ func _finish_build(staged: SnapshotBuild) -> void:
 	var options := _option_groups(ctx, parts, knowledge)
 	var demand := SnapshotDemand.new()
 	demand.options = _options
+	demand.reads.ledger = _ledger
 	demand.texts = _sections
 	demand.throws = _throws
 	demand.targets = parts["targets"]
@@ -290,10 +294,12 @@ func _finish_build(staged: SnapshotBuild) -> void:
 ## flanks sections), the allies on a hostile (the hostile group's wording), whether the stack holds
 ## a stun. A teammate's claim that came in while the build was spread over frames is seen, so two
 ## NPCs on one target take different sides. The groups, facts and sections built when the walk
-## first reads them read the callouts then, as they always have. Called by the decision job as
-## its throw piece ends, the last thing before the walk; nothing is made again when the callouts
-## are as the build read them. Like every piece it first hands the authors the snapshot's own
-## decision (`SnapshotDemand.open`), whatever a decision begun since has left in them.
+## first reads them read the callouts then, as they always have; the leads and entries the group
+## piece built ahead are forgotten when a call or a slot claim they read came in since
+## (`SnapshotDemand.forget_stale_groups`), and the walk builds them again. Called by the decision
+## job as its grenade piece ends, the last thing before the walk; nothing is made again when the
+## callouts are as the build read them. Like every piece it first hands the authors the snapshot's
+## own decision (`SnapshotDemand.open`), whatever a decision begun since has left in them.
 func reread_claims(snapshot: Dictionary, callouts: Array) -> void:
 	var demand: SnapshotDemand = snapshot["demand"]
 	var ctx: Dictionary = demand.ctx
@@ -323,6 +329,7 @@ func reread_claims(snapshot: Dictionary, callouts: Array) -> void:
 	if stun_stack != demand.stun_stack:
 		demand.forget_leads()  # Made with other rooms left out of them than the stack now says.
 	demand.stun_stack = stun_stack
+	demand.forget_stale_groups()
 	snapshot["facts"]["stack_has_stun"] = demand.stun_stack
 	for name in ["allies", "flanks"]:
 		snapshot["sections"][name] = _primary_section(snapshot, ctx, name)

@@ -18,9 +18,10 @@ extends RefCounted
 ## (the planner's entry rule over the perception's quick facts). The build's START freezes the
 ## knowledge and the confinement copy (`perception.md`). After the build, at the order-refusal step:
 ## the live confinement refreshed (`refresh`) when the order the build saw is refused, replacing the
-## snapshot's copy before the first level. As the walk begins, after the throw piece, the last
+## snapshot's copy before the first level. As the walk begins, after the grenade piece, the last
 ## things before the first level: the radio callouts again (`reread_claims`, so a claim radioed
-## while the build and the throw search spread over frames is seen), then whether the behaviour's
+## while the build, the groups and the throw search spread over frames is seen, and the leads and
+## entries built ahead that it came too late for are built again), then whether the behaviour's
 ## last choice is still running (`ongoing`, judged for "(your current plan)" on that state).
 ##
 ## Interrupting (`stale`, `frozen`): the controller applies one test to a job in flight. A walk is

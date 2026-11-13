@@ -30,6 +30,7 @@ const ThrowScan := preload("res://scenes/ai/perception/throw_scan.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd")
 const GroupSteps := preload("res://scenes/ai/perception/snapshot/group_steps.gd")
+const GroupReads := preload("res://scenes/ai/perception/snapshot/group_reads.gd")
 const ThrowSearch := preload("res://scenes/ai/perception/snapshot/throw_search.gd")
 ## The option groups built on demand (the global ones; a hostile's grenade throws are
 ## `target_group`'s).
@@ -76,9 +77,9 @@ var facts := {}
 var sections := {}
 ## The snapshot's own `sections_per_target`, which a hostile's section is stored in once written.
 var per_sections := {}
-## The rooms a doorway of ENTER leads into (`SnapshotOptions.entry_rooms`), once worked out (null
-## before).
-var _entered: Variant = null
+## What the leads and entries built ahead of the walk read of the radio (`group_reads.gd`), and the
+## rooms the entries lead into.
+var reads := GroupReads.new()
 
 
 ## The kinds (`frag` / `stun`) of the throws in grenade group `throw_group` the GRENADE tactic would
@@ -97,6 +98,7 @@ func group(name: String) -> Dictionary:
 		return {}
 	var _scope: RefCounted = open()
 	SnapshotCounts.note(name)
+	reads.note(ctx, name)
 	var out := _build(name)
 	store(name, GLOBAL, out)
 	return out
@@ -288,15 +290,32 @@ func holds(name: String, id: int) -> bool:
 func forget_leads() -> void:
 	if groups.erase("leads"):
 		built.erase("leads")
+		reads.forget("leads")
 	facts.erase("leads")
 	facts.erase("lead_outside")
 	sections.erase("odds")
+
+
+## Forget the leads and the entries built ahead of the walk that a call or a slot claim came in
+## since (`AgentSnapshot.reread_claims`, the callouts now in `ctx`): the walk builds them again as
+## it reads them, so two NPCs bound for one doorway take different slots however long the build
+## took. The leads go too when the entries they leave out the rooms of go and a stun can be thrown.
+func forget_stale_groups() -> void:
+	var entries_stale: bool = groups.has("entries") and reads.stale(ctx, "entries")
+	if entries_stale:
+		groups.erase("entries")
+		built.erase("entries")
+		reads.forget("entries")
+	var leads_stale: bool = groups.has("leads") and reads.stale(ctx, "leads")
+	if leads_stale or (entries_stale and stun_stack):
+		forget_leads()
 
 
 ## Begin group `name` (of hostile `id`, or `GLOBAL`) in steps (`GroupBuild`): the group the same
 ## as when the walk first reads it.
 func begin_group(name: String, id: int) -> RefCounted:
 	SnapshotCounts.note(name if id == GLOBAL else "target_throws")  # one a group, not a step
+	reads.note(ctx, name)
 	if id != GLOBAL:
 		return throws.begin_grenade_group(ctx, targets[id]["t"], targets[id]["a"])
 	match name:
@@ -311,6 +330,8 @@ func begin_group(name: String, id: int) -> RefCounted:
 
 ## Keep group `name` (of hostile `id`, or `GLOBAL`) as built, in the snapshot's own dictionaries.
 func store(name: String, id: int, out: Dictionary) -> void:
+	if holds(name, id):
+		return  # Built already (a group is built once): the first stays.
 	if id == GLOBAL:
 		groups[name] = out
 		built.append(name)
@@ -366,9 +387,9 @@ func _build(name: String) -> Dictionary:
 
 ## The rooms a doorway of ENTER leads into.
 func _entered_rooms() -> Dictionary:
-	if _entered == null:
-		_entered = SnapshotOptions.entry_rooms(group("entries"))
-	return _entered
+	if reads.entered == null:
+		reads.entered = SnapshotOptions.entry_rooms(group("entries"))
+	return reads.entered
 
 
 ## What the leads leave out: the rooms the entries lead into, while a stun can be thrown (the

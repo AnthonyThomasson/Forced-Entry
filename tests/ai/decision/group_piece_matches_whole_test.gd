@@ -118,6 +118,7 @@ func _compare(
 	_run(t, perception.sense(goal, "", 0)["demand"].group_steps(), 1, {}, label)
 	t.expect_eq(_rise(counted, "leads"), 1, "%s: the leads are counted once" % label)
 	t.expect_eq(_rise(counted, "entries"), 1 if stun else 0, "%s: the entries too" % label)
+	_built_whole_midway(t, perception.sense(goal, "", 0)["demand"], label)
 	for pace: int in PACES:
 		var tag := "%s, %d at a time" % [label, pace]
 		var snap: Dictionary = perception.sense(goal, "", 0)
@@ -137,6 +138,25 @@ func _compare(
 			want["leads"].get("lead_pos"),
 			"%s: lead_pos" % tag,
 		)
+
+
+## A reader of everything (`complete()`: the debug overlay, the spectator card) building the groups
+## whole while the steps have one in hand: the steps drop it, and no group is stored (or listed as
+## built) twice.
+func _built_whole_midway(t: TestContext, demand: RefCounted, label: String) -> void:
+	var steps: RefCounted = demand.group_steps()
+	steps.step()
+	demand.complete()
+	var guard := 0
+	while steps.next_kind() != Kind.DONE and guard < 50:
+		steps.step()
+		guard += 1
+	t.check(guard < 50, "%s: the steps end after a whole build" % label)
+	var built: Array = demand.built
+	var once := {}
+	for name: String in built:
+		once[name] = true
+	t.expect_eq(built.size(), once.size(), "%s: no group is built twice (%s)" % [label, built])
 
 
 ## How many builds of `name` were counted since `before` (`SnapshotCounts.built`).

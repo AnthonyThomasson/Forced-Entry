@@ -321,9 +321,11 @@ func _throw_way(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect
 
 ## What this decision has worked out for its throws, held by its context so that the decision that
 ## made it is the only one to read it: `spots` (the throw spot by key, `_throw_way`), `points` (the
-## candidate points for a key: what the existence search and the full one share) and `exists`
-## (whether a throw spot exists, for the throws asked only whether one is possible). A context made
-## by hand holds none yet.
+## candidate points for a key: what the existence search and the full one share), `exists`
+## (whether a throw spot exists, for the throws asked only whether one is possible) and `source`
+## (the hostile, or the shots' origin, the throw search found a throw at: the one the grenade piece
+## builds the throws for, `SnapshotDemand.found_at`; set only by a search that found one). A context
+## made by hand holds none yet.
 func memo_of(ctx: Dictionary) -> Dictionary:
 	if not ctx.has("throw_memo"):
 		ctx["throw_memo"] = { "spots": {}, "points": {}, "exists": {} }
