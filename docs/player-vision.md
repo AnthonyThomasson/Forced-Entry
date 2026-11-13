@@ -226,6 +226,18 @@ Tests: `vision/pose_lag_bounds` (`slice_units`, `jump_px`), `vision/cone_restart
 
 ## Measured cost
 
+**2026-11-12, the corners priced at a slice (#195, cone-start; `--quiet` runs, none marked loaded, load 4.7 to 7.5, 0 busy Godot).**
+`perf/cone_corner_cost` (the 10v10 district, 168 reads: a grid of eyes and facings, each the median of 5): the corners (`begin` and the first
+step: the region shape query, its polygons, the dedupe) took **1,982 and 1,937 µs** against **5.51 and 5.35 µs** a unit of the rest of the job
+(rays, far-face probes, visibility casts), so **372 to 374 units** (p25 168, p75 627 by eye), where `cost_shape` had been 1. It is 450 now, a
+slice, so the tick that starts a job holds the corners (about 2 ms) and no rays, not the corners plus 449 units (about 6 to 7 ms). The
+cost is a tick more a job: at the default slice a district job was a median 2 ticks (max 5; 11 % over 3) and is a median **3 (max 6; 26 % over
+3)**; the cone shown is 2 times (ticks - 1) frames old at most, so 3 ticks is V1's 2 to 4 and 4 ticks is 6. `perf_ab.sh` same-fight, base `5343aa38`,
+tip `dc3fa0dc`, 4 rounds, the fight unchanged (the cone steers no NPC): `perf/match_npc_vision` avg 16.94 to 16.29 ms (-0.65), p95 28.83 to
+28.52, max 43.52 to 39.19 (-4.33); the three guards with no view moved by noise (avg +0.03, +0.06, +0.34). `perf/match_npc_vision_relative`, one run:
+parked -0.13 ms, ratio 0.08; moving 1.34 ms (2.0 to 2.1 before), ratio 0.19 (0.25 to 0.26 before).
+Tests: `perf/cone_corner_cost`, `vision/cone_corners_priced`, `perf/match_npc_vision`, `perf/match_npc_vision_relative`.
+
 **2026-11-12, the cone as a sliced job (#195; `--quiet` runs, none marked loaded, load 3.9 to 5.9, 0 to 2 busy Godot).** The same fight
 at the commit before the pipeline (`d3f40a8f`) and at it. `perf/match_npc_vision_relative`, three runs before and six after: the moving view's cost over
 the unviewed match **4.49, 4.67 and 4.36 ms before, 2.05, 2.00, 2.00, 1.94, 2.04 and 2.14 after (six runs)** (the job is one slice, about 3.5 ms, a frame, where the
