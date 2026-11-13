@@ -24,8 +24,9 @@ const Checker := preload("res://tests/_vision/cone_checker.gd")
 const EYE_AT := Vector2(200, 300)
 ## A character in the viewer's way, east of it.
 const STANDER_AT := Vector2(400, 300)
-## The slice (units) that makes a job of this house three frames.
-const SLICE := 90
+## The slice (units) that makes a job of this house three frames: the corners take one,
+## priced at a slice as the default price is (`cost_shape`), and the rays two.
+const SLICE := 140
 ## The viewer's step in a frame (px) and its turn (degrees).
 const WALK := Vector2(2.0, 0.0)
 const TURN := 0.5
@@ -69,6 +70,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"vision.enabled", true)
 	s.set_static(CharacterVisionConfig, &"see_over_coverage", Probe.LOOK_OVER_LOW)
 	s.set_static(VisionSliceConfig, &"slice_units", SLICE)
+	s.set_static(VisionSliceConfig, &"cost_shape", SLICE)
 	s.actor(&"stander", &"puppet", STANDER_AT)
 	s.view(&"eye")
 

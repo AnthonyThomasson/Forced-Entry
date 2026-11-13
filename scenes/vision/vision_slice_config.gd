@@ -8,7 +8,10 @@ class_name VisionSliceConfig
 ## What a piece of engine work costs, in units: a ray cast, a region shape query (the corners'),
 ## and a far-face probe (a point query) after a ray that met a blocker.
 static var cost_cast: int = 1
-static var cost_shape: int = 1
+## The corners (the region shape query, its polygons, the dedupe) cost about 2.1 ms against 5.7 us
+## a unit, about 380 units (`perf/cone_corner_cost`; 180 to 640 by eye), so a query fills a slice,
+## 450: the step that starts a job ends after the corners and its rays begin the next frame.
+static var cost_shape: int = 450
 static var cost_probe: int = 1
 ## The units one `step` runs: about 3.5 ms of a physics frame.
 static var slice_units: int = 450

@@ -21,8 +21,9 @@ const Checker := preload("res://tests/_vision/cone_checker.gd")
 const Mover := preload("res://tests/_vision/physics_mover.gd")
 const Reference := preload("res://tests/_vision/reference_view_cone.gd")
 const EYE_AT := Vector2(200, 300)
-## The slice (units) that makes a job of this house three frames.
-const SLICE := 90
+## The slice (units) that makes a job of this house three frames: the corners take one,
+## priced at a slice as the default price is (`cost_shape`), and the rays two.
+const SLICE := 140
 ## Where the wardrobe stands, in the cone, and where it is moved to (and then creeps from).
 const WARDROBE_AT := Vector2(450, 300)
 const MOVED_TO := Vector2(450, 220)
@@ -62,6 +63,7 @@ func configure(s: TestSetup) -> void:
 	Probe.building(s, EYE_AT)
 	s.switch(&"vision.enabled", true)
 	s.set_static(VisionSliceConfig, &"slice_units", SLICE)
+	s.set_static(VisionSliceConfig, &"cost_shape", SLICE)
 	s.view(&"eye")
 
 

@@ -31,7 +31,7 @@ const FACING_SLACK := 3.0
 const MAX_AGE_FRAMES := 4
 const POSE_LAG_PX := MAX_AGE_FRAMES * 4.25
 ## The slice (units) that makes a job of this house about three frames.
-const SLICE := 90
+const SLICE := 140
 ## Slack (degrees) on the facing bound, for the float.
 const TURN_SLACK := 0.5
 ## The defender must turn by at least this much over the walk, degrees, or the test proves nothing.
@@ -85,6 +85,7 @@ func _twin(t: TestContext, viewed: bool) -> Dictionary:
 	if viewed:
 		s.view(&"npc")
 		s.set_static(VisionSliceConfig, &"slice_units", SLICE)
+		s.set_static(VisionSliceConfig, &"cost_shape", SLICE)
 	s.von_script([{ "pick": "investigate" }])
 	var world: Node2D = await Probe.build_world(t, s)
 	var out := await _walk(t, world, viewed)

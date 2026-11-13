@@ -13,8 +13,9 @@ extends GameTest
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const EYE_AT := Vector2(200, 300)
-## The slice (units) that makes a job of this house three frames.
-const SLICE := 90
+## The slice (units) that makes a job of this house three frames: the corners take one,
+## priced at a slice as the default price is (`cost_shape`), and the rays two.
+const SLICE := 140
 ## A place this far west of the viewer is far outside its cone and bubble.
 const FAR := 3000.0
 const OFF_FRAMES := 8
@@ -41,6 +42,7 @@ func configure(s: TestSetup) -> void:
 	Probe.building(s, EYE_AT)
 	s.switch(&"vision.enabled", true)
 	s.set_static(VisionSliceConfig, &"slice_units", SLICE)
+	s.set_static(VisionSliceConfig, &"cost_shape", SLICE)
 	s.view(&"eye")
 
 

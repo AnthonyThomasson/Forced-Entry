@@ -147,10 +147,12 @@ func _still(t: TestContext, checker: Checker) -> void:
 
 
 ## The fewest cones published (and frames the cone changes in, and jobs started) over the 90
-## frames of the turning viewer: a job of a frame publishes in most of them (60); sliced, a cycle
-## of a job is about four frames (`vision/cone_skip_exact_sliced`).
+## frames of the turning viewer: a job of these houses is two frames (the corners fill a slice,
+## `VisionSliceConfig.cost_shape`, and the rays are the next), so a cone is published every other
+## frame, 45 of them (40); sliced, a cycle of a job is about five frames
+## (`vision/cone_skip_exact_sliced`).
 func _turn_floor() -> int:
-	return 60
+	return 40
 
 
 ## The viewer sweeps its facing across the room: each cone published is new, and exact.
@@ -443,6 +445,7 @@ func _arrives(
 		world.remove_child(body)
 		body.queue_free()
 		await t.frames(2)
+		await t.until(func() -> bool: return not view.building(), 1.0)
 		t.check(view.starts() > before, "%s: leaving the tree in reach is a rebuild" % what)
 		t.check(checker.changed > changed, "premise: %s: leaving changes what is seen" % what)
 		_same_as_fresh(t, checker, wrong, "%s: leaving" % what)

@@ -28,8 +28,9 @@ const DENSE_AREA := Rect2(300, -500, 1400, 1000)
 const DENSE_STEP := 45.0
 const ARENA_EYES := [Vector2(0, 0), Vector2(0, 100), Vector2(-200, -100)]
 const ARENA_FACINGS := [0.0, 20.0]
-## The prices tried besides the defaults: distinct, so each kind of work is told apart.
-const PRICES := [3, 5, 7]
+## The prices tried besides the defaults: distinct, so each kind of work is told apart, and each
+## dearer than its default (the shape's default is a whole slice).
+const PRICES := [3, 900, 7]
 const SIZES := [1, 7, 64, 0]
 const MIN_REASKS := 1
 

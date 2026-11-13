@@ -7,7 +7,7 @@ extends "res://tests/vision/cone_skip_exact_test.gd"
 ## are of a cone every fourth frame (`_turn_floor`).
 
 ## The slice (units): a job takes about three frames.
-const SLICED_UNITS := 90
+const SLICED_UNITS := 140
 
 
 func describe() -> Dictionary:
@@ -24,6 +24,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	super.configure(s)
 	s.set_static(VisionSliceConfig, &"slice_units", SLICED_UNITS)
+	s.set_static(VisionSliceConfig, &"cost_shape", SLICED_UNITS)
 
 
 ## A cycle of a job is about four frames here, so about 22 of the turning viewer's 90 frames.
