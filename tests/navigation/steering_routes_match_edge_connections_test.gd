@@ -1,12 +1,12 @@
 extends GameTest
 ## A district's steering map answers the same routes with its edge-connection pass off as on, so it
-## could leave the pass off (it costs ~10 ms every time a tile's polygon changes; the tiles are
+## leaves the pass off (it costs ~10 ms every time a tile's polygon changes; the tiles are
 ## welded: `steering_seams_welded`). Asked every ordered pair of the tiles' probe points and both
 ## ways across every seam edge, the map answers with the pass off and then on, and the paths are
 ## the same points, as built and after a character stops on a corner of four tiles (the updater
-## re-bakes and lands them). Seeds where it holds: a few districts and a lone house; other seeds
-## (24, 4, 6, 2, ...) answer a route or two a hundred differently, the pass off never the longer
-## (`steering-edge-connections.md`).
+## re-bakes and lands them). That holds on these seeds and on a lone house; on others
+## (`_other_routes_test`) a route in a hundred differs, the pass off never the longer
+## (`steering-edge-connections.md`). The steering map is built without the pass.
 
 const Seams := preload("res://tests/_navigation/seam_probe.gd")
 const SEED := 7
@@ -56,6 +56,10 @@ func run(t: TestContext) -> void:
 	var map := NavBuilder.steering_map(t.world.get_world_2d().navigation_map)
 	if not t.require(not tiles.is_empty() and map.is_valid(), "premise: a steering map"):
 		return
+	t.check(
+		not NavigationServer2D.map_get_use_edge_connections(map),
+		"the steering map is built without its edge-connection pass",
+	)
 	_expect_same(t, map, tiles, "as built")
 	for fraction: float in _stops():
 		var tile: NavigationRegion2D = tiles[int(tiles.size() * fraction)]
@@ -93,15 +97,40 @@ func _set_edge_connections(map: RID, on: bool) -> void:
 	NavigationServer2D.map_force_update(map)
 
 
-## `difference` (`Seams.compare`) holds no route that differs by over `SAME`.
+## The most (px) a route may be shorter with the pass off than on; negative: no route differs
+## (over `SAME`), the seeds where the pass joins nothing the welded tiles do not.
+func _gain_bound() -> float:
+	return -1.0
+
+
+## The most routes that may be longer with the pass off than on, and by how much (px): the pass
+## links two tiles through the point where four meet, between two obstacle corners that only touch,
+## which no shared edge does, and a route through it is shorter than the one round.
+func _longer_bound() -> Vector2:
+	return Vector2.ZERO
+
+
+## `difference` (`Seams.compare`) is what the seed allows: no route that differs by over `SAME`
+## (`_gain_bound` negative), else at most `_longer_bound` routes longer with the pass off, none that
+## only the pass finds a way to, and none shorter by over the bound.
 func _check(t: TestContext, difference: Dictionary, what: String) -> void:
-	t.check(
-		difference["pairs"] == 0 or difference["worst"] <= SAME,
+	var message := (
 		(
-			"%s are the same paths with the pass off as on; %d differ, the worst by %.2f px, "
-			+ "%d longer (by up to %.2f px), %d shorter, %d reached by one only"
-		) % [
+			"%s with the pass off as on; %d differ, the worst by %.2f px, %d longer (by up to "
+			+ "%.2f px), %d shorter (by up to %.2f px), %d reached by one only"
+		)
+		% [
 			what, difference["pairs"], difference["worst"], difference["longer"],
-			difference["detour"], difference["shorter"], difference["reach"],
-		],
+			difference["detour"], difference["shorter"], difference["gain"], difference["reach"],
+		]
+	)
+	if _gain_bound() < 0.0:
+		t.check(difference["pairs"] == 0 or difference["worst"] <= SAME, message)
+		return
+	t.check(
+		difference["longer"] <= _longer_bound().x
+		and difference["detour"] <= _longer_bound().y
+		and difference["reach"] == 0
+		and difference["gain"] <= _gain_bound(),
+		message,
 	)

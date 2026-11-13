@@ -286,11 +286,13 @@ static func _on_steering_region_exited(planning_map: RID) -> void:
 ## The steering map for the world map `planning_map`, created on first use (regions come and go with
 ## each world, the way they do on the world's own map). It gets the project's
 ## 2D navigation defaults, which are what the world's own map is made with (a freshly made map has
-## the 3D ones, and the server refuses a navmesh baked with another cell size).
+## the 3D ones, and the server refuses a navmesh baked with another cell size), but for the
+## edge-connection pass, off: the tiles' borders are welded (`NavSeams`), so each change to a tile's
+## polygon costs a sync of ~0.3 ms, not ~10 (`steering-edge-connections.md`).
 static func _steering_map_for(planning_map: RID) -> RID:
 	if _steering_maps.has(planning_map):
 		return _steering_maps[planning_map]
-	var map := NavSource.new_map()
+	var map := NavSource.new_map(false)
 	_steering_maps[planning_map] = map
 	return map
 
