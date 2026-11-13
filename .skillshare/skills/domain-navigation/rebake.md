@@ -44,7 +44,7 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   It costs the main thread almost nothing: within 0.4 ms of the async average on a same fight (`domain-testing`, its perf side files).
 - The tick's own re-bakes take the footprints it just measured, so it measures furniture
   once and parses the walls once. The public `rebake`,
-  `rebake_async`, `rebake_steering` are **test-facing seams** that measure their own footprints; only tests call them.
+  `rebake_async`, `rebake_steering` are **test-facing seams** that measure their own footprints, like `NavUpdater.tiles_in_play`; tests only.
 - `rebake` re-bakes a region's polygon in place with holes re-measured at the furniture's **current** `global_transform`.
   `rebake_async` gathers the geometry on the main thread and assigns the polygon on the bake's fixed frame, then runs `done`; the
   landing holds the region by a `WeakRef` (a lambda capturing a node freed before it runs logs an engine error:
