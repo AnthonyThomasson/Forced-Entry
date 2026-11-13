@@ -243,7 +243,9 @@ func _announce_ready() -> void:
 				% [port, secs, _pid])
 		var args := qos_args(_pid, OS.get_name(), background_qos)
 		if not args.is_empty():
-			OS.execute("/usr/sbin/taskpolicy", args)
+			var code := OS.execute("/usr/sbin/taskpolicy", args)
+			if code != 0:
+				GameLog.say("[von] QoS not applied (exit %d)." % code)
 	else:
 		GameLog.say("[von] Reusing the decision server already running on port %d." % port)
 	_resolve(true)
