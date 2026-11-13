@@ -33,9 +33,12 @@ static func configure(s: TestSetup) -> void:
 
 
 ## Both want a decision on the first frame; the elder claims and is left mid-build, the younger
-## waits. Then `remove` takes the elder out of the match, and the younger must claim on the very
-## next frame (not three frames later, when the roster would forget the elder).
-static func run(t: TestContext, remove: Callable) -> void:
+## waits. Then `remove` does something to the elder, `confirm` (a premise, checked a frame later)
+## says it happened, and the younger either claims on the very next frame (`frees`: the elder is
+## gone, not three frames later when the roster would forget it) or waits behind the elder, which
+## still owes the pool (not `frees`: it is only moved, and keeps its place). Each frame counts
+## physics frames, so the younger's wait is exact whatever the machine's load.
+static func run(t: TestContext, remove: Callable, confirm: Callable, frees := true) -> void:
 	var elder := t.controller(&"inv0", &"debug_state")
 	var younger := t.controller(&"inv1", &"debug_state")
 	for brain in [elder, younger]:
@@ -54,6 +57,8 @@ static func run(t: TestContext, remove: Callable) -> void:
 	)
 	remove.call()
 	await t.frames(1)
+	if not t.require(confirm.call(), "set-up: the elder is as the test left it"):
+		return
 	var claimed := int(younger.debug_state()["decisions"]) > 0
 	var waited := 1
 	while not claimed and waited < WATCH_FRAMES:
@@ -61,4 +66,11 @@ static func run(t: TestContext, remove: Callable) -> void:
 		waited += 1
 		claimed = int(younger.debug_state()["decisions"]) > 0
 	t.check(claimed, "the younger claimed at all")
-	t.expect_eq(waited, 1, "the younger claimed on the very next frame after the elder was gone")
+	if frees:
+		t.expect_eq(
+			waited,
+			1,
+			"the younger claimed on the very next frame after the elder was gone",
+		)
+	else:
+		t.check(waited > 1, "the younger waited behind the elder, which still owes the pool")

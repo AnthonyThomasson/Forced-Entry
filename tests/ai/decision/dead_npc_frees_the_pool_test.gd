@@ -24,4 +24,5 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Probe.run(t, func(): t.actor(&"inv0").take_damage(1_000_000.0))
+	var elder := t.actor(&"inv0")
+	await Probe.run(t, func(): elder.take_damage(1_000_000.0), func(): return elder.is_dead)

@@ -140,9 +140,10 @@ func _ready() -> void:
 	EventBus.posted.connect(_on_event)
 
 
-## The NPC leaves the tree: its decision leaves the pool's roster.
-func _exit_tree() -> void:
-	if _job != null:
+## The NPC is freed: its decision leaves the pool's roster. Only a freed NPC, not one that merely
+## leaves the tree (moved under another parent, still in its match with its decision in flight).
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and _job != null:
 		_job.release()
 
 
@@ -449,10 +450,15 @@ func control(character: Node, delta: float) -> void:
 	_act(delta)
 
 
-## The NPC died: the body no longer asks its controller to think, so its decision never advances
-## again and leaves the pool's roster at once instead of holding the next NPC up.
+## The NPC died: the body no longer asks its controller to think, so nothing it has in flight ever
+## advances again, and nothing would read what it hears. Its decision is dropped (a Von answer on
+## its way then walks no further level and adopts no leaf on the corpse, and it leaves the pool's
+## roster at once instead of holding the next NPC up) and it stops listening to the match.
 func _on_died() -> void:
-	_job.release()
+	_job.cancel()
+	if EventBus.posted.is_connected(_on_event):
+		EventBus.posted.disconnect(_on_event)
+	_comms.event_queue.clear()
 
 
 ## Takes `character` as the NPC's body on its first tick: seeds the reflexes' RNG from its name and

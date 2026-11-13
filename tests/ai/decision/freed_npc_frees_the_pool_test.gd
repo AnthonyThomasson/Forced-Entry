@@ -23,4 +23,8 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Probe.run(t, func(): t.actor(&"inv0").free())
+	var elder := t.actor(&"inv0")
+	var id := elder.get_instance_id()
+	await Probe.run(
+		t, func(): elder.free(), func(): return not is_instance_valid(instance_from_id(id))
+	)
