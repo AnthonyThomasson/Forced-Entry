@@ -34,13 +34,16 @@ extends RefCounted
 ## controller hands it and three reads of the behaviour and reflexes as `Callable`s.
 
 ## Where the job is: claimed (its start still to run, paid for by the claim), building, taking its
-## order-refusal step, searching for a throw (the `grenade_ready` fact), or walking.
+## order-refusal step, building the groups the root reads (`GROUP`), searching for a throw (the
+## `grenade_ready` fact), building the throws it found (`GRENADE`), or walking.
 enum Stage {
 	IDLE,
 	CLAIMED,
 	BUILD,
 	REFUSAL,
+	GROUP,
 	THROW,
+	GRENADE,
 	WALK,
 }
 ## Whether `advance` is not running, running, or running with another round asked for.
@@ -56,6 +59,8 @@ const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
 const Roster := preload("res://scenes/ai/decision/decision_roster.gd")
 ## The throw search's step kinds (`ThrowSearch.Kind`), to price them.
 const ThrowSearch := preload("res://scenes/ai/perception/snapshot/throw_search.gd")
+## The group builds' step kinds (`GroupBuild.Kind`), to price them.
+const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd")
 
 ## The planner that walks the snapshot, driven by this job (`driven`): the controller reads its
 ## config, signals and debug state through here.
@@ -73,10 +78,11 @@ var ongoing: Callable
 var refresh: Callable
 var _stage := Stage.IDLE
 var _build: RefCounted
-var _search: RefCounted
-## The kind of the throw search's next step as the search last said it (`ThrowSearch.Kind`, -1
-## before it has): asking prepares the step, so the job asks once and prices from this.
-var _throw_kind := -1
+## The steps in hand, in the group, throw or grenade stage: a `GroupSteps` or a `ThrowSearch`.
+var _steps: RefCounted
+## The kind of the steps' next one as they last said it (`GroupBuild.Kind` or `ThrowSearch.Kind`, -1
+## before they have): asking prepares the step, so the job asks once and prices from this.
+var _step_kind := -1
 ## The doorway views' walked-route memo, held while the job's pieces run together in a frame
 ## (`hold_walks`), never kept between frames, nor into the walk.
 var _walks: RefCounted
@@ -116,7 +122,8 @@ func walking() -> bool:
 ## Whether the build's START has run and its walk has not begun: what it knows is frozen, and a
 ## forced decision since has not been weighed in it.
 func frozen() -> bool:
-	return _stage == Stage.BUILD or _stage == Stage.REFUSAL or _stage == Stage.THROW
+	return (_stage == Stage.BUILD or _stage == Stage.REFUSAL or _stage == Stage.GROUP
+			or _stage == Stage.THROW or _stage == Stage.GRENADE)
 
 
 ## Whether the job in flight no longer fits a situation that starts at node `entry`: a walk that
@@ -157,8 +164,8 @@ func request(forced: bool) -> bool:
 func cancel() -> void:
 	planner.cancel()
 	_build = null
-	_search = null
-	_throw_kind = -1
+	_steps = null
+	_step_kind = -1
 	_walks = null
 	_snapshot = {}
 	_stage = Stage.IDLE
@@ -215,8 +222,12 @@ func _run() -> void:
 				go = _build_piece()
 			Stage.REFUSAL:
 				go = _refusal()
+			Stage.GROUP:
+				go = _group_piece()
 			Stage.THROW:
 				go = _throw_piece()
+			Stage.GRENADE:
+				go = _grenade_piece()
 			Stage.WALK:
 				go = _walk_piece()
 			_:
@@ -244,24 +255,49 @@ func _build_piece() -> bool:
 	return true
 
 
-## The order-refusal step, when the pool allows; the throw search is made ready after it.
+## The order-refusal step, when the pool allows; the groups the root reads are made ready after it
+## (only for a decision that starts at the root: a fight or an order starts deeper and never reads
+## them).
 func _refusal() -> bool:
 	if not _take(Budget.cost_refusal):
 		return false
 	_refuse_order()
-	_search = _snapshot["demand"].throw_search(Budget.throw_block)
-	_throw_kind = -1
+	_steps = _snapshot["demand"].group_steps() if _entry == &"root" else null
+	_step_kind = -1
+	_stage = Stage.GROUP
+	return true
+
+
+## The group piece, when the pool allows: the leads (and the entries, while a stun can be thrown)
+## the root reads whatever the situation, built a lead or a doorway a step so the planner finds them
+## in the snapshot, not one frame's heavy lump. The throw search is made ready as it ends.
+func _group_piece() -> bool:
+	if not _run_steps(group_cost_of, GroupBuild.Kind.DONE):
+		return false
+	_steps = _snapshot["demand"].throw_search(Budget.throw_block)
+	_step_kind = -1
 	_stage = Stage.THROW
 	return true
 
 
-## The throw search's steps, when the pool allows; the walk begins as it ends. What the walk is
-## told is read as it begins, not at the claim, the build and the search having spread over frames:
-## the radio callouts (a teammate's claim since is seen) and what it marks "(your current plan)".
+## The throw search's steps, when the pool allows; the throws it found are made ready as it ends.
 func _throw_piece() -> bool:
-	if not _throw_step():
+	if not _run_steps(throw_cost_of, ThrowSearch.Kind.DONE):
 		return false
-	_search = null
+	_steps = _snapshot["demand"].grenade_steps()
+	_step_kind = -1
+	_stage = Stage.GRENADE
+	return true
+
+
+## The grenade piece, when the pool allows: the throws at the hostile the search found one at, a
+## kind a step; the walk begins as it ends. What the walk is told is read as it begins, not at the
+## claim, the build and the pieces after it having spread over frames: the radio callouts (a
+## teammate's claim since is seen) and what it marks "(your current plan)".
+func _grenade_piece() -> bool:
+	if not _run_steps(group_cost_of, GroupBuild.Kind.DONE):
+		return false
+	_steps = null
 	perception.reread_claims(_snapshot)
 	planner.begin(_snapshot, bool(ongoing.call()))
 	_stage = Stage.WALK
@@ -294,20 +330,22 @@ func _build_cost() -> int:
 	return cost
 
 
-## The throw search's steps, as many as the pool allows: whether the search is over.
-func _throw_step() -> bool:
-	while _search != null:
-		var kind: int = _search.next_kind()
-		_throw_kind = kind
-		if kind == ThrowSearch.Kind.DONE:
+## The steps in hand, as many as the pool allows, each priced by `prices` (a step's kind to its
+## units, -1 for a kind with no price): whether they are over (`done_kind` is the kind they say
+## then).
+func _run_steps(prices: Callable, done_kind: int) -> bool:
+	while _steps != null:
+		var kind: int = _steps.next_kind()
+		_step_kind = kind
+		if kind == done_kind:
 			return true
-		var cost := throw_cost_of(kind)
+		var cost: int = prices.call(kind)
 		if cost < 0:
-			push_error("DecisionJob: a throw search step of kind %d has no price" % kind)
+			push_error("DecisionJob: a step of kind %d has no price" % kind)
 			cost = 0
 		if not _take(cost):
 			return false
-		_search.step()
+		_steps.step()
 	return true
 
 
@@ -331,6 +369,18 @@ func cost_of(kind: int) -> int:
 	return -1
 
 
+## What a group build step of `kind` (`GroupBuild.Kind`) costs, or -1 for an unknown kind: a unit of
+## work (a lead, a doorway, one kind of grenade) or the finish, which sorts and caps and costs
+## nothing.
+func group_cost_of(kind: int) -> int:
+	match kind:
+		GroupBuild.Kind.UNIT:
+			return Budget.cost_group_unit
+		GroupBuild.Kind.FINISH:
+			return Budget.cost_group_finish
+	return -1
+
+
 ## What a throw search step of `kind` (`ThrowSearch.Kind`) costs, or -1 for an unknown kind.
 func throw_cost_of(kind: int) -> int:
 	match kind:
@@ -351,19 +401,21 @@ func _next_cost() -> int:
 			return maxi(0, cost_of(_build.next_piece()))
 		Stage.REFUSAL:
 			return Budget.cost_refusal
+		Stage.GROUP, Stage.GRENADE:
+			return _steps_next_cost(group_cost_of, GroupBuild.Kind.DONE)
 		Stage.THROW:
-			return _throw_next_cost()
+			return _steps_next_cost(throw_cost_of, ThrowSearch.Kind.DONE)
 		Stage.WALK:
 			return Budget.cost_level if planner.has_piece() else 0
 	return 0
 
 
-## What the throw search's next step costs, from the kind it last said (`_throw_kind`): the search
-## is not asked again outside the pool's budget.
-func _throw_next_cost() -> int:
-	if _search == null or _throw_kind == ThrowSearch.Kind.DONE or _throw_kind < 0:
+## What the steps' next one costs, from the kind they last said (`_step_kind`): they are not asked
+## again outside the pool's budget.
+func _steps_next_cost(prices: Callable, done_kind: int) -> int:
+	if _steps == null or _step_kind == done_kind or _step_kind < 0:
 		return 0
-	return maxi(0, throw_cost_of(_throw_kind))
+	return maxi(0, prices.call(_step_kind))
 
 
 ## The build is over: what it holds is the last decision's, for the observers.

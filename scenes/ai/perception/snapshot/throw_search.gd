@@ -12,6 +12,8 @@ extends RefCounted
 ## search's. A search begun by a snapshot's demand writes its answer into the snapshot's facts as it
 ## ends.
 
+## The id of no source, in `ids` and as `found_id`.
+const NO_SOURCE := -2
 ## What the next step is (`ThrowScan.Kind`): a block of raw candidates, the rank pass, one route, or
 ## nothing (the search is over).
 const Kind := preload("res://scenes/ai/perception/throw_scan.gd").Kind
@@ -31,6 +33,9 @@ var at := 0
 ## The spot search in hand for the query at `at` (null: none), and the key its answer is kept by.
 var scan: RefCounted
 var key: Array = []
+## The hostile each source of the plan is of (the demand's: `SnapshotDemand.GLOBAL` the shots'
+## origin, `NO_SOURCE` a group already built).
+var ids: Array = []
 ## The raw candidates a block step works through.
 var block := 16
 ## The snapshot's demand, whose scratch each step takes (`open`) and whose facts take the answer
@@ -71,8 +76,14 @@ func step() -> void:
 		_publish()
 
 
+## The hostile the throw was found at (an entry of `ids`), `NO_SOURCE` with none found.
+func found_id() -> int:
+	return ids[source - 1] if found and source >= 1 and source <= ids.size() else NO_SOURCE
+
+
 ## The answer into the snapshot's facts, once.
 func _publish() -> void:
 	if demand != null and not _published:
 		_published = true
 		demand.facts["grenade_ready"] = found
+		demand.found_at(found_id())

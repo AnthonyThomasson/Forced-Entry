@@ -68,7 +68,7 @@ func run(t: TestContext) -> void:
 	t.expect_eq(before["tags"]["held_by"], "", "premise: the side is free as the search begins")
 	Flank.radio(t, &"radio_ally", left)
 	var frames := 0
-	while job.get("_stage") == Job.Stage.THROW and frames < 60:
+	while _building(job) and frames < 60:
 		await t.frames(1)
 		frames += 1
 	# The claim was heard while the search went on (two frames at least: it is posted, then read).
@@ -85,6 +85,12 @@ func run(t: TestContext) -> void:
 		"radio_ally (radio)",
 		"the left side is the ally's in the walk's snapshot",
 	)
+
+
+## Whether the decision's walk has not begun: its throw search or the throws it found are being
+## built (the callouts are read again as the last of them ends).
+func _building(job: RefCounted) -> bool:
+	return job.get("_stage") == Job.Stage.THROW or job.get("_stage") == Job.Stage.GRENADE
 
 
 ## The flank option of the target's left side in `snapshot`, or {}.

@@ -318,8 +318,11 @@ func reread_claims(snapshot: Dictionary, callouts: Array) -> void:
 		ctx, ctx["hostiles"], ctx["analyses"]
 	)
 	var carried: Array = demand.know["carried_grenades"]
-	demand.stun_stack = (carried.has(&"stun")
+	var stun_stack: bool = (carried.has(&"stun")
 			or callouts.any(func(c): return int(StackClaim.decode(c).get("stuns", 0)) > 0))
+	if stun_stack != demand.stun_stack:
+		demand.forget_leads()  # Made with other rooms left out of them than the stack now says.
+	demand.stun_stack = stun_stack
 	snapshot["facts"]["stack_has_stun"] = demand.stun_stack
 	for name in ["allies", "flanks"]:
 		snapshot["sections"][name] = _primary_section(snapshot, ctx, name)

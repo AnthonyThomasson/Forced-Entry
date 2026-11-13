@@ -1,10 +1,11 @@
 extends UnitSuite
-## Native unit suite (pure logic): the decision job's throw piece and the memo it holds (#195),
-## stepped by `DecisionBudget.frame_source` with no engine frames (`decision_job_suite` holds the
-## rest of the job). A fake build is its own demand and hands the job a throw search of scripted
-## steps; the job runs one step per priced unit between the order-refusal step and the walk, the
-## callouts read again as the search ends, the last thing before the walk, and the walked-route
-## memo held only while the pieces run together in a frame.
+## Native unit suite (pure logic): the decision job's group piece, throw piece and grenade piece and
+## the memo it holds, stepped by `DecisionBudget.frame_source` with no engine frames
+## (`decision_job_suite` holds the rest of the job). A fake build is its own demand and hands the
+## job steps of scripted kinds; the job runs one step per priced unit between the order-refusal
+## step and the walk (the groups, the throw search, the throws it found), the callouts read again
+## as the last of them ends, the last thing before the walk, and the walked-route memo held only
+## while the pieces run together in a frame.
 
 const Job := preload("res://scenes/ai/decision/decision_job.gd")
 const Cadence := preload("res://scenes/ai/npc_cadence.gd")
@@ -133,3 +134,92 @@ func test_noting_what_the_job_needs_next_does_not_run_the_throw_search_again() -
 	# Its first step's kind was asked once, to price it; what the job needs next is that kind, not
 	# a second ask (a real search lobs rays for it, outside the budget).
 	assert_int(search.kind_calls).is_equal(1)
+
+
+func test_the_group_piece_runs_between_the_refusal_and_the_throw_search_a_unit_a_step() -> void:
+	DecisionBudget.cost_group_unit = 1
+	var groups := Builds.FakeSearch.new()
+	groups.done_kind = 2
+	groups.kinds = [0, 0, 0, 1]  # three units of work, then the finish (free)
+	_perception.groups = groups
+	var search := Builds.FakeSearch.new()
+	search.kinds = [0]
+	_perception.search = search
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	assert_int(groups.steps).is_equal(0)  # the pool's one unit went to the claim
+	for expected in [1, 2]:
+		_frame += 1
+		_job.advance()
+		assert_int(groups.steps).is_equal(expected)
+		assert_int(search.steps).is_equal(0)  # the throw search waits for the groups
+		assert_bool(_job.frozen()).is_true()
+	_frame += 1
+	_job.advance()  # the third unit, the free finish after it, and the search (free) after that
+	assert_int(groups.steps).is_equal(4)
+	assert_int(search.steps).is_equal(1)
+	assert_int(_planner.begun).is_equal(1)
+
+
+func test_the_claims_are_read_again_after_the_group_piece_not_before_it() -> void:
+	DecisionBudget.cost_group_unit = 1
+	var groups := Builds.FakeSearch.new()
+	groups.done_kind = 2
+	groups.kinds = [0, 0]
+	_perception.groups = groups
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	_frame += 1
+	_job.advance()
+	assert_int(groups.steps).is_equal(1)
+	assert_int(_perception.rereads).is_equal(0)  # a claim heard now is not read yet
+	_frame += 1
+	_job.advance()
+	assert_int(_perception.rereads).is_equal(1)  # read as the last piece ends
+	assert_int(_planner.begun).is_equal(1)
+
+
+func test_the_grenade_piece_follows_the_throw_search_and_the_walk_waits_for_it() -> void:
+	DecisionBudget.cost_group_unit = 1
+	var grenades := Builds.FakeSearch.new()
+	grenades.done_kind = 2
+	grenades.kinds = [0, 0]  # one grenade kind's throw each
+	_perception.grenades = grenades
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	assert_int(grenades.steps).is_equal(0)
+	_frame += 1
+	_job.advance()
+	assert_int(grenades.steps).is_equal(1)
+	assert_int(_planner.begun).is_equal(0)
+	assert_int(_perception.rereads).is_equal(0)
+	_frame += 1
+	_job.advance()
+	assert_int(grenades.steps).is_equal(2)
+	assert_int(_planner.begun).is_equal(1)
+	assert_int(_perception.rereads).is_equal(1)
+
+
+func test_a_decision_that_starts_below_the_root_builds_no_groups() -> void:
+	DecisionBudget.cost_group_unit = 1
+	_perception.entry = &"combat"  # a fight reads none of what the root does
+	var groups := Builds.FakeSearch.new()
+	groups.done_kind = 2
+	groups.kinds = [0, 0]
+	_perception.groups = groups
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	assert_int(groups.steps).is_equal(0)
+	assert_int(_planner.begun).is_equal(1)  # the walk began, the groups were never asked for
+
+
+func test_noting_what_the_job_needs_next_does_not_ask_the_group_steps_again() -> void:
+	DecisionBudget.cost_group_unit = 1  # the claim's unit is spent: the first step waits
+	var groups := Builds.FakeSearch.new()
+	groups.done_kind = 2
+	groups.kinds = [0, 0]
+	_perception.groups = groups
+	assert_bool(_job.request(false)).is_true()
+	_job.advance()
+	assert_int(groups.steps).is_equal(0)
+	assert_int(groups.kind_calls).is_equal(1)  # priced once, not asked again to note the cost

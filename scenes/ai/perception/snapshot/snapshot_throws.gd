@@ -14,6 +14,7 @@ const AgentThrow = preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")
 const ThrowScan := preload("res://scenes/ai/perception/throw_scan.gd")
 const ThrowSearch := preload("res://scenes/ai/perception/snapshot/throw_search.gd")
+const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd")
 ## Where along the stretch of the line back from a shot that lies in the room the shots came from a
 ## grenade is aimed, in order of preference (shares of the stretch, from where the line comes into
 ## the room): its middle first, then either side of it.
@@ -56,40 +57,60 @@ func setup(vocab: SnapshotVocab, sources: SnapshotSources) -> void:
 ## shot at a hostile in the NPC's own room (or outside with it), no lob from anywhere near or no
 ## known spot.
 func grenade_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Dictionary:
+	return begin_grenade_group(ctx, t, a).run()
+
+
+## `grenade_group` in steps (`GroupBuild`): one unit for each kind carried (its throw,
+## `_throw_option`, worded), in the one-shot's order; the finish words the group.
+func begin_grenade_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> RefCounted:
 	var kinds: Array = know.get("carried_grenades", [])
-	var spot: Vector2 = t["pos"]
-	var held := _held_room(ctx, spot)
+	var held := _held_room(ctx, t["pos"])
 	var hidden: bool = not a["line"]["clear"]
 	if kinds.is_empty() or (not hidden and held.is_empty()):
+		return GroupBuild.new().already({ "summary": "", "options": [] })
+	var options: Array = []
+	var units: Array[Callable] = []
+	for kind: StringName in kinds:
+		units.append(_target_throw.bind(ctx, t, a, kind, options))
+	return GroupBuild.new().begin(units, _target_summary.bind(t, a, options, hidden, held))
+
+
+## One unit of `begin_grenade_group`: the throw of `kind` at hostile `t` (analysis `a`), worded,
+## into `options` when there is one.
+func _target_throw(
+	ctx: Dictionary, t: Dictionary, a: Dictionary, kind: StringName, options: Array
+) -> void:
+	var held := _held_room(ctx, t["pos"])
+	var hidden: bool = not a["line"]["clear"]
+	var what := "frag" if kind == &"frag" else "stun"
+	var option := _throw_option(
+		ctx, kind, t["pos"], Rect2() if held.is_empty() else held["rect"], true
+	)
+	if option.is_empty():
+		return
+	if t["id"] != 0:
+		option["params"]["target_id"] = t["id"]
+	var room := "" if held.is_empty() else _v.room_name(held["type"])
+	option["id"] = what
+	option["label"] = (("%s %s behind their cover" % [what, t["name"]])
+			if hidden
+			else ("%s %s in the %s" % [what, t["name"], room]))
+	option["desc"] = ((("%s grenade onto where %s is hidden, behind the %s"
+			% [what, t["name"], a["line"]["blocker"]])
+			if hidden
+			else ("%s grenade into the %s, onto where %s holds it" % [what, room, t["name"]]))
+			+ _throw_from_text(ctx, option))
+	options.append(option)
+
+
+## The group of the throws at hostile `t` (`options`, as `begin_grenade_group` made them).
+func _target_summary(
+	t: Dictionary, a: Dictionary, options: Array, hidden: bool, held: Dictionary
+) -> Dictionary:
+	if options.is_empty():
 		return { "summary": "", "options": [] }
 	var cover: String = a["line"]["blocker"]
 	var room := "" if held.is_empty() else _v.room_name(held["type"])
-	var options: Array = []
-	for kind: StringName in kinds:
-		var what := "frag" if kind == &"frag" else "stun"
-		var option := _throw_option(
-			ctx,
-			kind,
-			spot,
-			Rect2() if held.is_empty() else held["rect"],
-			true,
-		)
-		if option.is_empty():
-			continue
-		if t["id"] != 0:
-			option["params"]["target_id"] = t["id"]
-		option["id"] = what
-		option["label"] = (("%s %s behind their cover" % [what, t["name"]])
-				if hidden
-				else ("%s %s in the %s" % [what, t["name"], room]))
-		option["desc"] = ((("%s grenade onto where %s is hidden, behind the %s"
-				% [what, t["name"], cover])
-				if hidden
-				else ("%s grenade into the %s, onto where %s holds it" % [what, room, t["name"]]))
-				+ _throw_from_text(ctx, option))
-		options.append(option)
-	if options.is_empty():
-		return { "summary": "", "options": [] }
 	var reach := _throw_reach_text(options)
 	if hidden:
 		return {
@@ -110,23 +131,37 @@ func grenade_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Dictionary:
 ## Only while under fire with no hostile known (the unbound COMBAT level, where LOCATE is not
 ## offered toward such a room: `shooter_group`); empty otherwise.
 func shots_grenade_group(ctx: Dictionary, hostiles: Array) -> Dictionary:
+	return begin_shots_group(ctx, hostiles).run()
+
+
+## `shots_grenade_group` in steps (`GroupBuild`): one unit for each kind carried (its aim and throw,
+## `_shots_aim`), in the one-shot's order; the finish words the group.
+func begin_shots_group(ctx: Dictionary, hostiles: Array) -> RefCounted:
 	var kinds: Array = know.get("carried_grenades", [])
 	if kinds.is_empty() or not hostiles.is_empty() or not _memory.under_fire():
-		return { "summary": "", "options": [] }
+		return GroupBuild.new().already({ "summary": "", "options": [] })
 	var options: Array = []
-	var room := ""
+	var room := [""]
+	var units: Array[Callable] = []
 	for kind: StringName in kinds:
-		var aim := _shots_aim(ctx, kind)
-		if aim.is_empty():
-			continue
-		var option: Dictionary = aim["option"]
-		var what := "frag" if kind == &"frag" else "stun"
-		room = _v.room_name(aim["room"]["type"])
-		option["id"] = what
-		option["label"] = "%s where the shots came from" % what
-		option["desc"] = ("%s grenade into the %s, where the shots came from%s"
-				% [what, room, _throw_from_text(ctx, option)])
-		options.append(option)
+		units.append(func():
+			var aim := _shots_aim(ctx, kind)
+			if aim.is_empty():
+				return
+			var option: Dictionary = aim["option"]
+			var what := "frag" if kind == &"frag" else "stun"
+			room[0] = _v.room_name(aim["room"]["type"])
+			option["id"] = what
+			option["label"] = "%s where the shots came from" % what
+			option["desc"] = ("%s grenade into the %s, where the shots came from%s"
+					% [what, room[0], _throw_from_text(ctx, option)])
+			options.append(option))
+	return GroupBuild.new().begin(units, func(): return _shots_summary(options, room[0]))
+
+
+## The group of the throws at the shots (`options`, as `begin_shots_group` made them), `room` the
+## room the last of them is thrown into.
+func _shots_summary(options: Array, room: String) -> Dictionary:
 	if options.is_empty():
 		return { "summary": "", "options": [] }
 	return {

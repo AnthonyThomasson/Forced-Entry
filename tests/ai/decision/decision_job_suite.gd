@@ -370,6 +370,8 @@ func test_every_piece_kind_has_its_own_price_and_an_unknown_one_has_none() -> vo
 	DecisionBudget.cost_throw_block = 2
 	DecisionBudget.cost_throw_rank = 4
 	DecisionBudget.cost_throw_route = 7
+	DecisionBudget.cost_group_unit = 3
+	DecisionBudget.cost_group_finish = 0
 	var build_kinds: Dictionary = Job.SnapshotBuild.Piece
 	assert_int(_job.cost_of(build_kinds.START)).is_equal(3)
 	assert_int(_job.cost_of(build_kinds.HOSTILE)).is_equal(5)
@@ -381,3 +383,19 @@ func test_every_piece_kind_has_its_own_price_and_an_unknown_one_has_none() -> vo
 	assert_int(_job.throw_cost_of(throw_kinds.RANK)).is_equal(4)
 	assert_int(_job.throw_cost_of(throw_kinds.ROUTE)).is_equal(7)
 	assert_int(_job.throw_cost_of(99)).is_equal(-1)
+	var group_kinds: Dictionary = Job.GroupBuild.Kind
+	assert_int(_job.group_cost_of(group_kinds.UNIT)).is_equal(3)
+	assert_int(_job.group_cost_of(group_kinds.FINISH)).is_equal(0)  # the sort and the cap: free
+	assert_int(_job.group_cost_of(group_kinds.DONE)).is_equal(-1)  # nothing runs for it
+	assert_int(_job.group_cost_of(99)).is_equal(-1)
+	# Every kind of every enum a piece is run by, but the end of each, has a price: a kind added
+	# without one fails here, not as a lump of work that costs a start.
+	for kind_name: String in build_kinds:
+		if kind_name != "DONE":
+			assert_int(_job.cost_of(build_kinds[kind_name])).is_greater_equal(0)
+	for kind_name: String in throw_kinds:
+		if kind_name != "DONE":
+			assert_int(_job.throw_cost_of(throw_kinds[kind_name])).is_greater_equal(0)
+	for kind_name: String in group_kinds:
+		if kind_name != "DONE":
+			assert_int(_job.group_cost_of(group_kinds[kind_name])).is_greater_equal(0)

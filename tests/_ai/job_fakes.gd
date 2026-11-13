@@ -9,7 +9,8 @@ const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
 ## The pool and prices of `DecisionBudget`, by name.
 const PRICES := [
 	"per_frame", "cost_start", "cost_hostile", "cost_finish", "cost_refusal", "cost_level",
-	"cost_throw_block", "cost_throw_rank", "cost_throw_route", "throw_block",
+	"cost_throw_block", "cost_throw_rank", "cost_throw_route", "throw_block", "cost_group_unit",
+	"cost_group_finish",
 ]
 
 
@@ -36,7 +37,7 @@ static func whole_prices() -> void:
 	set_prices({
 		"per_frame": 1, "cost_start": 1, "cost_hostile": 0, "cost_finish": 0, "cost_refusal": 0,
 		"cost_level": 0, "cost_throw_block": 0, "cost_throw_rank": 0, "cost_throw_route": 0,
-		"throw_block": 16,
+		"throw_block": 16, "cost_group_unit": 0, "cost_group_finish": 0,
 	})
 
 
@@ -51,6 +52,10 @@ class FakePerception:
 	var builds: Array = []
 	## The throw search the next build's demand hands out (null: none).
 	var search: RefCounted
+	## The group steps (leads, entries) and the throws' the next build's demand hands out (null:
+	## none).
+	var groups: RefCounted
+	var grenades: RefCounted
 	var rereads := 0
 	var memos_held := 0
 

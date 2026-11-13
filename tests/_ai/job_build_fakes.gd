@@ -78,18 +78,32 @@ class FakeBuild:
 		perception.search = null
 		return search
 
+	## The demand's group steps (`perception.groups` once, or none) and the throws' after the throw
+	## search (`perception.grenades`).
+	func group_steps() -> RefCounted:
+		var groups: RefCounted = perception.groups
+		perception.groups = null
+		return groups
 
-## A throw search of scripted steps: each kind in `kinds` (`ThrowSearch.Kind`) is a step, then done.
+	func grenade_steps() -> RefCounted:
+		var grenades: RefCounted = perception.grenades
+		perception.grenades = null
+		return grenades
+
+
+## A throw search of scripted steps: each kind in `kinds` (`ThrowSearch.Kind`) is a step, then done
+## (`done_kind`: 3 for a throw search; `GroupBuild.Kind.DONE`, 2, for group steps).
 class FakeSearch:
 	extends RefCounted
 	var kinds: Array = []
 	var steps := 0
+	var done_kind := 3
 	## How often the job asked for the next step's kind (a real search does its free work then).
 	var kind_calls := 0
 
 	func next_kind() -> int:
 		kind_calls += 1
-		return kinds[steps] if steps < kinds.size() else 3
+		return kinds[steps] if steps < kinds.size() else done_kind
 
 	func step() -> void:
 		steps += 1

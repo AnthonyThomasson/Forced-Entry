@@ -171,7 +171,7 @@ hidden; matches never drive it, so its zeros say little.
 ### The decision
 
 **Decision job**:
-One NPC decision as a resumable job (`decision_job.gd`): the claim against the frame's pool, the snapshot build, the order-refusal step, the throw piece and the planner's walk, run piece by piece (the radio callouts are read again as the throw piece ends, the last thing before the walk). The controller only asks it for a decision (`request`) and advances it (`advance`); a claim over a job in flight drops that job without a signal, and a refused one leaves the job and the NPC's wish as they were.
+One NPC decision as a resumable job (`decision_job.gd`): the claim against the frame's pool, the snapshot build, the order-refusal step, the group piece, the throw piece, the grenade piece and the planner's walk, run piece by piece (the radio callouts are read again as the last of them ends, the last thing before the walk). The controller only asks it for a decision (`request`) and advances it (`advance`); a claim over a job in flight drops that job without a signal, and a refused one leaves the job and the NPC's wish as they were.
 _Avoid_: decision walk (the planner's part of it), decision task
 
 **Work unit**:
@@ -179,12 +179,16 @@ What `DecisionBudget` counts: a pool of `per_frame` units a physics frame shared
 _Avoid_: tick, time slice, budget (the pool's own name is `DecisionBudget`)
 
 **Piece**:
-One step of a decision job with its own price: the snapshot build's start, one analysed hostile, its finish, the order-refusal step, a step of the throw piece, or one planner level. A frame whose pool is untouched runs the next piece even if it costs more than the pool.
+One step of a decision job with its own price: the snapshot build's start, one analysed hostile, its finish, the order-refusal step, a step of the group, throw or grenade piece, or one planner level. A frame whose pool is untouched runs the next piece even if it costs more than the pool.
 _Avoid_: stage, chunk
 
 **Throw piece**:
 The decision job's piece between the order-refusal step and the walk: the `grenade_ready` search for a throw the NPC could make, in steps of a count (a block of raw throw-spot candidates, the rank pass, one route), each priced by `DecisionBudget`'s `cost_throw_*`. Its answer is the one-shot search's and lands in the snapshot's facts before the planner reads it (`ThrowSearch`, `ThrowScan`; the spots themselves, `ThrowSpots`).
-_Avoid_: grenade piece, throw stage
+_Avoid_: grenade piece (the other piece's name), throw stage
+
+**Group piece**:
+The decision job's piece between the order-refusal step and the throw piece: it builds ahead of the walk the option groups the root reads whatever the situation, `leads` (and `entries` first while a stun can be thrown), a lead or a doorway a step (`GroupBuild`, `GroupSteps`, priced by `DecisionBudget`'s `cost_group_unit`), only for a decision that starts at the root. Its groups equal the one-shot build's and are stored in the snapshot's demand, so the planner finds them built. The **grenade piece**, after the throw piece, builds the throws at the hostile the search found one at, one grenade kind a step (`decision-groups.md`).
+_Avoid_: lead piece, prefetch
 
 ### Where an NPC acts
 

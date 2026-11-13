@@ -18,7 +18,7 @@ Every "short / medium / long route" in an option (`SnapshotOptions._route_len`) 
 
 ## Suspect rooms (`docs/grenades.md` G18)
 
-The `entries` options say why a room is suspect instead of "unexplored" / "unsearched", from `AgentSuspicion.rooms_suspected` (room key → reason ids), worded by `SnapshotOptions.SUSPECT_PHRASES`, one phrase per fact in `AgentSuspicion.ORDER`; a suspect doorway is listed first. The entry reads the same reasons through `hearing.room_suspicion` to make any entry into a suspect room a bang one (E17).
+The `entries` options say why a room is suspect instead of "unexplored" / "unsearched", from `AgentSuspicion.rooms_suspected` (room key → reason ids), worded by `SnapshotVocab.SUSPECT_PHRASES`, one phrase per fact in `AgentSuspicion.ORDER`; a suspect doorway is listed first. The entry reads the same reasons through `hearing.room_suspicion` to make any entry into a suspect room a bang one (E17).
 
 With a stun in the stack (`stack_has_stun`) no `leads` option names a fact about a room an entry doorway leads into: the lost hostile's leads, gunfire and footsteps there, the unseen-shooter lead whose `shot_from` line runs into it, an ally's support call whose `target_pos` is in it. The way into that room is an entry (ENTER / STUN ENTRY), whose option says why. Without a stun the leads are unchanged. The `leads` group also offers footsteps heard, and the awareness section says so while no hostile is known (H1).
 
