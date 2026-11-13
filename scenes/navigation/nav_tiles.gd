@@ -24,8 +24,6 @@ const HOLES_META := "nav_tile_holes"
 const WALL_CACHE_META := "nav_wall_cache"
 ## How many outline bounds are remembered; a full cache starts afresh rather than growing forever.
 const BOUNDS_KEPT := 4096
-const PREPARED_KEPT := 256
-const BAKED_KEPT := 256
 
 ## Outline contents -> their bounds. A piece that moves has a different outline and is measured
 ## again; identical static outlines share one entry even when the hull helper returns a copy.
@@ -35,11 +33,8 @@ static var bounds_measures := 0
 static var intersection_tests := 0
 ## How many steering tiles have been baked since the process began, by `rebake` and `prepare`
 ## alike (a perf probe's read of what a tick's re-bake cost; a tile whose job was empty is no
-## bake), and the names of the last `BAKED_KEPT` of those `prepare` baked, in the order they were
-## baked: observables of the burst's one a frame and its order. A tile counts when it is baked, not
-## when it lands (`land`).
+## bake). A tile counts when it is baked, not when it lands (`land`).
 static var baked_total := 0
-static var baked_log: Array[String] = []
 
 
 ## The tiles that cover `footprint` (the house's local frame), row by row; the last of a row or a
@@ -163,9 +158,6 @@ static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> Dic
 	if poly == null:
 		return {}
 	baked_total += 1
-	if baked_log.size() >= BAKED_KEPT:
-		baked_log.clear()
-	baked_log.append(String(tile.name))
 	return { "tile": tile, "poly": poly, "walls": reached, "holes": entry["holes"] }
 
 

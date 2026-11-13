@@ -38,11 +38,23 @@ func run(t: TestContext) -> void:
 		region, district, rooms, NavBuilder.AGENT_RADIUS,
 		func() -> void: landed_at[0] = Engine.get_physics_frames(),
 	)
-	if not t.require(await t.until(func(): return landed_at[0] >= 0, 5.0), "the bake lands"):
+	var planning_at := -1  # the frame the planning region's polygon changed
+	for _frame in 20:
+		await t.frames(1)
+		if planning_at < 0 and region.navigation_polygon != before:
+			planning_at = Engine.get_physics_frames()
+		if landed_at[0] >= 0:
+			break
+	if not t.require(landed_at[0] >= 0, "the bake lands"):
 		return
 	t.check(
+		planning_at - started == 1,
+		"the planning bake lands on its frame (%d on)" % (planning_at - started),
+	)
+	t.check(
 		landed_at[0] - started == 2,
-		"it lands on its frame, the ring's the one after (%d on)" % (landed_at[0] - started),
+		"`done` is called when the ring's bake has landed, the frame after (%d on)"
+			% (landed_at[0] - started),
 	)
 	t.check(
 		bakes.size() == 2 and bakes[0].was_late,

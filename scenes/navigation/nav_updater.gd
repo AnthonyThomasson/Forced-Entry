@@ -74,6 +74,11 @@ func _physics_process(_delta: float) -> void:
 		set_physics_process(false)
 
 
+## The steering tiles of a district still to bake or landing with this tick's burst, for tests.
+func tiles_in_play() -> Array[NavigationRegion2D]:
+	return _burst.tiles_in_play()
+
+
 ## Wire the updater to the baked map and start the interval. `region` is NavBuilder.build's result,
 ## `house`/`rooms`/`agent_radius` are what a re-bake needs, `nav_debug` is the optional overlay to
 ## refresh. Captures the current furniture layout as the baseline and starts a repeating Timer.
@@ -128,6 +133,7 @@ func _on_tick() -> void:
 	if planning and not staged:
 		walls = _rebake_planning(site, furniture)
 	if staged:
+		_burst.land()  # a burst still open: what it holds is on its tiles before they are read
 		_burst.begin(NavTiles.due_tiles(
 			_region,
 			site,

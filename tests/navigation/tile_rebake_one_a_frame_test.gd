@@ -7,8 +7,7 @@ extends GameTest
 ## (`NavTiles.due_tiles`), the polygons held until the last is baked and landed in that frame
 ## (`NavTiles.prepare`, `land`): one synchronisation a tick, and the baking spread.
 ## Three puppets stop in three tiles of a row and a fourth, that stood in a tile of its own, walks
-## off: five to seven tiles go due in one tick, the walker's tile among them and after the others
-## in the grid's order.
+## off: five to seven tiles go due in one tick.
 
 const SEED := 7
 ## A character stands this far (px) in from the corner of the streets' rect.
@@ -26,10 +25,10 @@ var _seen: Array[NavigationPolygon] = []
 
 func describe() -> Dictionary:
 	return {
-		"name": "A district's steering tiles re-bake one a frame, the walker's own first",
+		"name": "A district's steering tiles are baked one a frame and land together",
 		"description": "Several characters stop in different tiles at once and one walks off: "
-			+ "no physics frame bakes two tiles, the tile that holds the walker is first, and "
-			+ "every due tile lands within as many frames as there are tiles.",
+			+ "no physics frame bakes two tiles, and every due tile lands, all on one frame, "
+			+ "within as many frames as there are tiles.",
 		"tags": ["navigation", "district", "rebake", "steering"],
 		"timeout": 40.0,
 	}
@@ -63,7 +62,6 @@ func run(t: TestContext) -> void:
 	walker.global_position = district.to_global(centre)
 	await t.seconds(2.0)  # the ticks that take them in
 	_remember()
-	NavTiles.baked_log.clear()
 	var prepared_before := NavTiles.baked_total
 	for puppet in stopped:
 		puppet.global_position += Vector2(300, 0)
@@ -79,7 +77,7 @@ func run(t: TestContext) -> void:
 		prepared_before = NavTiles.baked_total
 		if _first_baked(frames) >= 0 and frames.size() - _first_baked(frames) > AFTER_FRAMES:
 			break  # the next tick is 45 frames on
-	_judge(t, frames, walker_tile)
+	_judge(t, frames)
 
 
 ## The index of the first of `frames` that baked a tile, -1 for none.
@@ -92,8 +90,9 @@ func _first_baked(frames: Array) -> int:
 
 ## `frames`, one entry for each physics frame after the move (`prepared`: the tiles baked since
 ## the one before; `landed`: the tiles that took a polygon): at most one tile baked a frame, every
-## baked tile landed on one frame, within the burst's frames of the first bake, the walker's first.
-func _judge(t: TestContext, frames: Array, walker_tile: NavigationRegion2D) -> void:
+## baked tile landed on one frame, within the burst's frames of the first bake (the order the tiles
+## are baked in is `tile_due_order_test.gd`'s).
+func _judge(t: TestContext, frames: Array) -> void:
 	var baked := 0
 	var worst := 0
 	var first_baked := -1
@@ -121,11 +120,6 @@ func _judge(t: TestContext, frames: Array, walker_tile: NavigationRegion2D) -> v
 		landing_frames.size() == 1 and landing_frames[0] - first_baked <= baked - 1,
 		"the burst of %d tiles landed within %d frames of its first bake (first %d, landed %s)"
 			% [baked, baked, first_baked, str(landing_frames)],
-	)
-	t.expect_eq(
-		NavTiles.baked_log[0] if not NavTiles.baked_log.is_empty() else "",
-		String(walker_tile.name),
-		"the first tile baked is the one holding the walker",
 	)
 
 

@@ -16,15 +16,25 @@ var _walls: Dictionary = {}
 var _frame := -1
 
 
-## Land what is held and start over with `due` (`NavTiles.due_tiles`).
+## Start over with `due` (`NavTiles.due_tiles`), read after `land`: the held tiles took their
+## polygons, so what is due is what is still due by the tiles as they stand.
 func begin(due: Array[Dictionary]) -> void:
-	land()
 	tiles = due
 
 
 ## Whether a tile is still to bake.
 func pending() -> bool:
 	return not tiles.is_empty()
+
+
+## The tiles whose polygon is still to be assigned this burst: those still to bake and those baked
+## and held. A tile due by the footprints of the moment is in this list or has been landed with
+## them (`navigation/tile_burst_lands_before_next_tick`).
+func tiles_in_play() -> Array[NavigationRegion2D]:
+	var out: Array[NavigationRegion2D] = []
+	for entry in tiles + _held:
+		out.append(entry["tile"])
+	return out
 
 
 ## Bake the first of the tiles still to bake and hold it, on a `GameClock` frame none was baked on

@@ -21,13 +21,13 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   of the gather.
 - **A district's steering tiles bake one a physics frame and land together** (`nav_updater.gd`, `nav_tile_burst.gd` (`NavTileBurst`), `NavTiles.due_tiles` /
   `parse_for` / `prepare` / `land` / `walking_at`; `navigation/tile_rebake_one_a_frame`, `district_steering_rebake_lands_in_its_tick`): every frame that
-  gives a tile its polygon pays one **steering-map sync** (~12 ms in a district: every region's edges re-linked, the same for 1 tile or 5), so a tick's
+  gives a tile its polygon pays one **steering-map sync** (~12 ms in a district, the same for 1 tile or 5), so a tick's
   due tiles are baked a frame each and **landed in one**. Order: tiles holding a **moving walker** first (a living character moving at `REST_SPEED` or more),
   by squared distance from the nearest walker to the tile's rect (0 inside it), then the rest, ties and a still scene in the grid's order, fixed at the tick.
   The tick bakes the first (`prepare` holds the polygon), `_physics_process` one more a `GameClock` frame (none on a frame that baked one), and the last
   `land`s them all: k tiles land k-1 frames after the tick, a lone one in it; a walker sees a body that stopped up to k-1 frames later (accepted). The walls are
-  parsed once per burst; a next tick lands what is held. A lone house's region is baked whole in its tick, as are `rebake_steering` and `build`'s first.
-  `NavTiles.baked_total` counts tiles when baked, not landed (the frame report's tile bakes); `baked_log` their order.
+  parsed once per burst. A lone house's region is baked whole in its tick, as are `rebake_steering` and `build`'s first.
+  `NavTiles.baked_total` counts tiles when baked, not landed (the frame report's tile bakes). `tile_due_order` pins the order; a tick lands an open burst before reading what is due.
 - **A bake lands on a fixed frame** (`nav_bake.gd`, `nav_bake_config.gd`; `navigation/rebake_lands_on_its_frame`, `avoid_map_lands_on_its_frame`,
   `rebake_waits_for_a_late_thread`, `landings_one_a_frame`, `perf/nav_rebake_lands_in_a_match`). One lands a frame: a bake due on a frame that took one slips to the next, in start order (a planning bake's ring after it). `NavRebake._bake_async` and `NavBuilder._bake_avoid` start the bake on a
   `WorkerThreadPool` task (the server's sync bake) through `NavBake.start`, which takes its result in (weld, assign to the
