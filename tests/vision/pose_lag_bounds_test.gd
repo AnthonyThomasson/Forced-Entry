@@ -51,6 +51,8 @@ const YOUNGEST := 2
 const LONG_SLICE := 50
 const LONG_TICKS := 6
 const OLDEST_LONG := 10
+## The age the long job's cone must reach, or the bound above is not pinned from below.
+const LONGEST_SEEN := 8
 
 var _t: TestContext
 var _view: PlayerView
@@ -192,8 +194,11 @@ func _long_job() -> void:
 		% [longest, OLDEST_LONG, _checker.age.max_age],
 	)
 	_t.check(
-		_checker.age.max_age > OLDEST,
-		"premise: the long job's cone lags more than a job of three (%d)" % _checker.age.max_age,
+		_checker.age.max_age >= LONGEST_SEEN,
+		"premise: the long job's cone reaches %d frames old (%d)" % [
+			LONGEST_SEEN,
+			_checker.age.max_age,
+		],
 	)
 	if not await _settled():
 		return

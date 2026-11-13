@@ -9,8 +9,8 @@ whether it is done; `running()` says whether one is in flight; `work_units()` is
 
 **Units.** A unit is a price in `VisionSliceConfig` (`cost_cast` and `cost_probe` 1, `cost_shape` 450): a ray cast
 (`SightRay.cast`), a region shape query (`ViewShapes.queries`, re-asks included), a far-face probe (`far_exit`).
-**The corners are priced at a slice** (`cost_shape` 450): the query, its polygons, the dedupe and the lows' leave-out cost about 2.1 ms,
-380 units at 5.7 µs (`perf/cone_corner_cost` measures it; 180 to 640 by eye), so `begin` and the first step do the corners and cast no ray
+**The corners are priced at a slice** (`cost_shape` 450): the query, its polygons, the dedupe and the lows' leave-out cost about 1.95 ms,
+372 to 374 units at 5.4 to 5.5 µs (`perf/cone_corner_cost` measures it; p25 168, p75 627 by eye), so `begin` and the first step do the corners and cast no ray
 (`vision/cone_corners_priced`), and the rays begin the next tick. Priced as one unit they made a start tick the corners plus 449 units of
 rays, about 6 to 7 ms. A job is the corners' tick plus ceil(rays / slice) ticks, and its cone is at most 2 (ticks - 1) frames old: 3 ticks (rays
 at most two slices) is 2 to 4, 4 ticks 6, the longest district job (6 ticks) 10 (`vision/pose_lag_bounds` pins 3 and 6 ticks; the user accepted it, 2026-11-12), and a test that cuts `slice_units` cuts `cost_shape` to it. `vision/cone_slice_units` holds `work_units()` to casts, queries and probes counted by subclasses, at every step size and at

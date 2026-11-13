@@ -39,8 +39,7 @@ seen area (V11) shows when the next cone publishes.
   engine's ray casts and shape query, and it adds a native build step to a project that is pure GDScript. The slice is a bound on a tick whatever the code is made of; a native port would shorten the job,
   not remove the need to cut it.
 - **Two slices instead of a work-unit budget.** Half the cone in each of two frames halves the age but leaves a 5 ms tick, and the
-  cost of a world with more shapes grows with no bound. Units bound the tick, and what a job costs (1,100 to 1,400 units in a match's
-  view, a house's far fewer) decides its length, not the other way about.
+  cost of a world with more shapes grows with no bound. Units bound the tick, and what a job costs (the rays of a district job a median 511 units and the corners about 370, a house's rays far fewer) decides its length, not the other way about.
 - **Freezing the world for the job** (a snapshot of the blockers). The rays read the live physics space, so a snapshot would have
   to copy every shape in reach each job; checking `ViewWatch` each slice (0.005 ms) and restarting costs less and keeps the cone
   the plain one's, vertex for vertex.

@@ -49,9 +49,9 @@ the fresh cone of the pose the job started from, in the world as it was then: th
 mix and never extrapolated** (the memory, V4, never holds area no eye saw). It is as old as the job is long: a job of k ticks started
 in tick f publishes in tick f+k-1 and the next starts in f+k, so the cone shown is at most 2 (k - 1) frames old. **Usually that is 3 ticks, 2 to 4
 frames; a job of 4 ticks is up to 6 frames old, and the longest of a district (6 ticks) up to 10.** In the 10v10 district's grid of eyes (`perf/cone_corner_cost`) a job was a median 3 ticks, 26 % took more
-than 3 and the most took 6 (a whole 10v10 rebuild is 1,100 to 1,400 units, and a house's about 270 plus the corners). The bound is longer than the 2 to 4 of the cone as first
+than 3 and the most took 6 (the rays of a district job were a median 511 units, so at 450 a slice the median job is the corners' tick and two of rays; a house's rays, about 270, are one). The bound is longer than the 2 to 4 of the cone as first
 sliced because its corners are priced honestly, below; the user accepted that (2026-11-12). **The corners are priced at a slice** (`cost_shape` 450: the region shape query and its
-polygons cost about 2.1 ms, about 380 units of ray work at 5.7 µs), so the tick that starts a job does the corners and no rays, and the
+polygons cost about 1.95 ms, 372 to 374 units of ray work at 5.4 to 5.5 µs), so the tick that starts a job does the corners and no rays, and the
 rays begin the next tick: a start tick is about 2 ms, not 6 to 7, and a job is the corners' tick plus its rays' ticks (a house's is two
 ticks, a 10v10 district's three for most eyes). What the viewer's pose does meanwhile is not asked: **a change of
 the eye or the facing alone lets the job finish on the pose it started from**, and the next job starts from the live pose. **A change
