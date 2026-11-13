@@ -28,6 +28,8 @@ const TOP := 2
 const BOTTOM := 3
 ## How near (px) a vertex lies to its tile's border to be on it.
 const ON_LINE := 0.01
+## The most (px squared) the cross product of two edges may be for them to be in one line.
+const IN_LINE := 0.01
 
 
 ## The polygon `poly`, just baked for `tile`, is what `tile` was baked to: kept raw, with its
@@ -188,7 +190,7 @@ static func _emit(ring: PackedInt32Array, cut: Dictionary, rings: Array[PackedIn
 
 ## Whether the corner `b` of the points `a`, `b`, `c` is a turn (they are not in one line).
 static func _bends(verts: PackedVector2Array, a: int, b: int, c: int) -> bool:
-	return absf((verts[b] - verts[a]).cross(verts[c] - verts[b])) > ON_LINE
+	return absf((verts[b] - verts[a]).cross(verts[c] - verts[b])) > IN_LINE
 
 
 ## The indices of the vertices to put between `a` and `b` of a polygon: when they lie on one border

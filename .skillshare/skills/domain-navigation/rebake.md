@@ -20,9 +20,8 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   gather stays in its tick (`_rebake_planning`, walls shared with its steering bake). The fusing (`NavUnion`, fed in chunks) is nine tenths
   of the gather.
 - **A district's steering tiles bake one a physics frame and land together** (`nav_updater.gd`, `nav_tile_burst.gd` (`NavTileBurst`), `NavTiles.due_tiles` /
-  `parse_for` / `prepare` / `land` / `walking_at`; `navigation/tile_rebake_one_a_frame`, `district_steering_rebake_lands_in_its_tick`): every frame that
-  gives a tile its polygon pays one **steering-map sync** (~12 ms in a district, the same for 1 tile or 5), so a tick's
-  due tiles are baked a frame each and **landed in one**. Order: tiles holding a **moving walker** first (a living character moving at `REST_SPEED` or more),
+  `parse_for` / `prepare` / `land` / `walking_at`; `navigation/tile_rebake_one_a_frame`, `district_steering_rebake_lands_in_its_tick`): a tick's due tiles are baked a frame each and **landed in one**
+  (a sync of the steering map was ~12 ms a frame while its edge connections were on, now ~0.3 ms: `steering-edge-connections.md`). Order: tiles holding a **moving walker** first (a living character moving at `REST_SPEED` or more),
   by squared distance from the nearest walker to the tile's rect (0 inside it), then the rest, ties and a still scene in the grid's order, fixed at the tick.
   The tick bakes the first (`prepare` holds the polygon), `_physics_process` one more a `GameClock` frame (none on a frame that baked one), and the last
   `land`s them all: k tiles land k-1 frames after the tick, a lone one in it; a walker sees a body that stopped up to k-1 frames later (accepted). The walls are
