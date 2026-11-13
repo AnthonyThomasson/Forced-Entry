@@ -5,9 +5,8 @@ extends RefCounted
 ## frame), the snapshot build in its pieces (`AgentPerception.begin_sense`), the order-refusal step,
 ## the throw piece (the `grenade_ready` search, in steps) and the planner's walk, one piece per
 ## level. Every piece is priced in `DecisionBudget` and runs
-## only when the frame's pool allows, so at the default prices (the claim's start costs the pool's
-## one unit, every later piece nothing) a whole decision runs in the frame it was claimed and each
-## later level as Von answers it, and a re-pricing slices it over frames.
+## only when the frame's pool allows, so a decision of a few units lands over two to four frames
+## (and runs whole in its claim frame when its pieces are priced at nothing).
 ##
 ## A claim made while a job is in flight (half-built, or walking) drops that job without a signal
 ## and starts the new one; refused, the job in flight carries on. A dropped build is freed, never

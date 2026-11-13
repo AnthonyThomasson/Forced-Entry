@@ -5,6 +5,39 @@ extends RefCounted
 ## each level waiting for a scripted answer (`answer`).
 
 const Builds := preload("res://tests/_ai/job_build_fakes.gd")
+const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
+## The pool and prices of `DecisionBudget`, by name.
+const PRICES := [
+	"per_frame", "cost_start", "cost_hostile", "cost_finish", "cost_refusal", "cost_level",
+	"cost_throw_block", "cost_throw_rank", "cost_throw_route", "throw_block",
+]
+
+
+## The pool and prices as they stand now (a suite keeps the game's own to put back).
+static func prices() -> Dictionary:
+	var budget: Object = Budget
+	var out := {}
+	for name: String in PRICES:
+		out[name] = budget.get(name)
+	return out
+
+
+## Put `values` (from `prices`) back.
+static func set_prices(values: Dictionary) -> void:
+	var budget: Object = Budget
+	for name: String in values:
+		budget.set(name, values[name])
+
+
+## The whole prices: a pool of one unit, the claim's start the one thing that costs, every later
+## piece free, so a decision runs whole in the frame it was claimed (what a suite that steps
+## pieces by hand starts from, then prices the pieces it means to).
+static func whole_prices() -> void:
+	set_prices({
+		"per_frame": 1, "cost_start": 1, "cost_hostile": 0, "cost_finish": 0, "cost_refusal": 0,
+		"cost_level": 0, "cost_throw_block": 0, "cost_throw_rank": 0, "cost_throw_route": 0,
+		"throw_block": 16,
+	})
 
 
 class FakePerception:

@@ -18,9 +18,13 @@ var _perception: Fakes.FakePerception
 var _planner: Fakes.FakePlanner
 var _cadence: Cadence
 var _job: RefCounted
+## The game's pool and prices, put back after each test.
+var _shipped := {}
 
 
 func before_test() -> void:
+	_shipped = Fakes.prices()
+	Fakes.whole_prices()
 	_next_base += 1000
 	_frame = _next_base
 	DecisionBudget.frame_source = func() -> int: return _frame
@@ -38,16 +42,7 @@ func before_test() -> void:
 func after_test() -> void:
 	DecisionBudget.frame_source = Callable()
 	DecisionBudget.reset()
-	DecisionBudget.per_frame = 1
-	DecisionBudget.cost_start = 1
-	DecisionBudget.cost_hostile = 0
-	DecisionBudget.cost_finish = 0
-	DecisionBudget.cost_refusal = 0
-	DecisionBudget.cost_level = 0
-	DecisionBudget.cost_throw_block = 0
-	DecisionBudget.cost_throw_rank = 0
-	DecisionBudget.cost_throw_route = 0
-	DecisionBudget.throw_block = 16
+	Fakes.set_prices(_shipped)
 
 
 ## A job with a fake perception, planner and cadence of its own, on the same pool.

@@ -175,7 +175,7 @@ One NPC decision as a resumable job (`decision_job.gd`): the claim against the f
 _Avoid_: decision walk (the planner's part of it), decision task
 
 **Work unit**:
-What `DecisionBudget` counts: a pool of `per_frame` units a physics frame shared by every NPC, spent by pieces at their static `cost_*`. Counted, never timed, so a decision starts the same frame on any machine. By default one whole decision is one unit. The pool is served oldest claim first (`decision_roster.gd`), at most one decision beginning in a frame.
+What `DecisionBudget` counts: a pool of `per_frame` units a physics frame shared by every NPC, spent by pieces at their static `cost_*`. Counted, never timed, so a decision starts the same frame on any machine. A unit is about a millisecond (`decision-prices.md`): the default pool is 4 a frame and a typical decision lands over two to three frames. The pool is served oldest claim first (`decision_roster.gd`), at most one decision beginning in a frame.
 _Avoid_: tick, time slice, budget (the pool's own name is `DecisionBudget`)
 
 **Piece**:

@@ -11,9 +11,12 @@ extends RefCounted
 ## claim the same flank side on one frame decide on different ones, each hearing the other's radio
 ## first (`tests/ai/decision/decisions_spread_over_frames_test.gd`).
 ##
-## At the default prices a decision's first piece costs the one unit the pool holds and every later
-## piece nothing, so one whole decision is one unit: it starts and finishes in a frame as it always
-## has. Re-pricing the pieces is what slices a decision over frames.
+## One unit is about a millisecond of the piece's work, measured per piece in the 10v10 and grenade
+## matches (`decision-job.md`, "Prices"): a decision of a few units lands over two to four frames
+## and a frame's decisions stay near the pool's few milliseconds. A piece that costs nothing is
+## too cheap to price (the order-refusal step, a planner level, each well under a millisecond), so
+## it runs whenever its turn comes. A test that means a decision to run whole in one frame sets
+## the pool to one and every piece but the claim's start to nothing (`tests/_ai/job_fakes.gd`).
 ##
 ## The pool is served oldest claim first, whatever order NPCs take their turn in, and at most one
 ## decision begins in a frame whatever the pool holds (`decision_roster.gd`): `take`'s `owed` is
@@ -21,24 +24,27 @@ extends RefCounted
 
 const Roster := preload("res://scenes/ai/decision/decision_roster.gd")
 
-## Work units that may be spent in one physics frame. A test raises it to see the pieces of many
-## decisions run in one frame; it never lets two decisions start in one (`decision_roster.gd`).
-static var per_frame: int = 1
-## What each kind of piece costs: a decision's first piece (the snapshot build's start; the claim),
-## one analysed hostile, the build's finish, the order-refusal step, one planner level.
+## Work units that may be spent in one physics frame: about 4 ms of decision work, a typical
+## decision landing over two to three frames. A test raises it to see the pieces of many decisions
+## run in one frame; it never lets two decisions start in one (`decision_roster.gd`).
+static var per_frame: int = 4
+## What each kind of piece costs: a decision's first piece (the snapshot build's start; the claim:
+## 0.3 ms measured), one analysed hostile (1.8 ms), the build's finish (0.8 ms), the order-refusal
+## step (0.01 ms) and one planner level (0.1 ms, the odd level that builds a lazy group 2 to 7).
 static var cost_start: int = 1
-static var cost_hostile: int = 0
-static var cost_finish: int = 0
+static var cost_hostile: int = 2
+static var cost_finish: int = 1
 static var cost_refusal: int = 0
 static var cost_level: int = 0
 ## What a step of the throw search costs (the piece between the order-refusal step and the walk,
-## which resolves the `grenade_ready` fact): a block of `throw_block` raw candidates, the rank pass,
-## one route. The default, nothing, keeps the search whole in the frame its decision's walk begins.
-static var cost_throw_block: int = 0
-static var cost_throw_rank: int = 0
-static var cost_throw_route: int = 0
-## Raw throw-spot candidates one block step works through.
-static var throw_block: int = 16
+## which resolves the `grenade_ready` fact): a block of `throw_block` raw candidates (0.3 to 0.9
+## ms), the rank pass (0.2 to 0.5 ms), one route (0.4 to 0.8 ms).
+static var cost_throw_block: int = 1
+static var cost_throw_rank: int = 1
+static var cost_throw_route: int = 1
+## Raw throw-spot candidates one block step works through: three of the 16-candidate blocks a
+## 0.13 to 0.3 ms step measured, a unit's worth.
+static var throw_block: int = 48
 ## Where the frame number comes from, when not the engine's physics frame: a unit test steps frames
 ## by it, with no engine running them (the way `DecisionStub.source` stands in for the server).
 static var frame_source := Callable()

@@ -28,7 +28,7 @@ The **stack seam** is `perception/stack/` (`StackClaim`, `ClaimLedger`, `DoorSta
 
 Orchestrator and decision flow
 - `orchestrator.md` — editing `goal_controller.gd`, `npc_cadence.gd`, `npc_comms.gd` or `npc_reflexes.gd`; when a decision starts or is interrupted, how orders and following reach the loop, ambush priming, the EventBus intake.
-- `decision.md` — editing `scenes/ai/decision/`: the decision tree, adding a mode or tactic, entry rules (under fire → combat), what Von is asked at each level, how an option is chosen, the confinement filter. Then `decision-job.md` for one decision as a job against the work-unit pool (`DecisionBudget`, `decision_job.gd`: claim, pieces, interrupt), and `decision-von.md` for the Von transport, the server-down fallback, `DecisionStub`, and auto-starting or reusing the Von server.
+- `decision.md` — editing `scenes/ai/decision/`: the decision tree, adding a mode or tactic, entry rules (under fire → combat), what Von is asked at each level, how an option is chosen, the confinement filter. Then `decision-job.md` for one decision as a job against the work-unit pool (`DecisionBudget`, `decision_job.gd`: claim, pieces, interrupt) and `decision-prices.md` for the pieces' prices, measured, and how a test observes a landing, and `decision-von.md` for the Von transport, the server-down fallback, `DecisionStub`, and auto-starting or reusing the Von server.
 
 Perception (what the NPC knows)
 - `perception.md` — editing `scenes/ai/perception/` (except the snapshot): vision, memory and eviction, hostility, hearing, orders intake, the confinement rules. It lists the parts and points on.

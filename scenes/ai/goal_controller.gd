@@ -244,7 +244,8 @@ func debug_status() -> String:
 ## last walk (the exact state and question Von saw, the options, its probabilities and pick,
 ## auto-picks and timings), what the NPC knows (`contacts`), the running primitive and pathing, how
 ## many decision walks it has started and why the latest one started (`decisions`,
-## `decision_reason`: the force reason, e.g. "task resolved" or "way blocked", or "cadence"), and
+## `decision_reason`: the force reason, e.g. "task resolved" or "way blocked", or "cadence"; a
+## decision has landed when `decisions` has grown and `decision.pending` is false), and
 ## where it may act now (`confinement`, the perception's confinement's `view()`). It completes the
 ## last decision's snapshot (builds the groups the walk did not read, `SnapshotDemand.complete`),
 ## which changes no decision the NPC makes.
@@ -263,6 +264,7 @@ func debug_state() -> Dictionary:
 	}
 	if _job != null:
 		out["decision"] = _job.planner.debug_state()
+		out["decision"]["pending"] = _job.pending()
 	if _perception != null:
 		out["under_fire"] = _perception.under_fire()
 		out["engaged_fresh"] = _perception.engaged_fresh()
@@ -368,8 +370,9 @@ func debug_sent_callout() -> Dictionary:
 	return _comms.last_callout
 
 
-## Read-only: the decision machinery's live state for the brain overlay — whether Von is being asked
-## (`pending`), the last walk's levels (state, offered options, probabilities, pick), whether it
+## Read-only: the decision machinery's live state for the brain overlay — whether a decision is in
+## flight (`pending`: claimed, being built, searching for a throw or being walked), the last walk's
+## levels (state, offered options, probabilities, pick), whether it
 ## failed (the behaviour then holds steady), the decide/force timers and why the last force fired,
 ## and the facts.
 func debug_brain() -> Dictionary:
@@ -381,7 +384,7 @@ func debug_brain() -> Dictionary:
 			if _character != null
 			else {})
 	return {
-		"pending": d.get("pending", false),
+		"pending": _job.pending(),
 		"failed": d.get("last_failed", false),
 		"entry": d.get("entry", ""),
 		"levels": d.get("levels", []),

@@ -26,6 +26,8 @@ var _decided := 0
 var _failed := 0
 ## What the behaviour says of its last choice still running.
 var _running := false
+## The game's pool and prices, put back after each test.
+var _shipped := {}
 
 
 func before_test() -> void:
@@ -33,7 +35,8 @@ func before_test() -> void:
 	_frame = _next_base
 	DecisionBudget.frame_source = func() -> int: return _frame
 	DecisionBudget.reset()
-	_default_prices()
+	_shipped = Fakes.prices()
+	Fakes.whole_prices()
 	_perception = Fakes.FakePerception.new()
 	_planner = Fakes.FakePlanner.new()
 	_cadence = Cadence.new()
@@ -52,21 +55,7 @@ func before_test() -> void:
 func after_test() -> void:
 	DecisionBudget.frame_source = Callable()
 	DecisionBudget.reset()
-	_default_prices()
-
-
-## The pool and the prices as the game ships them.
-func _default_prices() -> void:
-	DecisionBudget.per_frame = 1
-	DecisionBudget.cost_start = 1
-	DecisionBudget.cost_hostile = 0
-	DecisionBudget.cost_finish = 0
-	DecisionBudget.cost_refusal = 0
-	DecisionBudget.cost_level = 0
-	DecisionBudget.cost_throw_block = 0
-	DecisionBudget.cost_throw_rank = 0
-	DecisionBudget.cost_throw_route = 0
-	DecisionBudget.throw_block = 16
+	Fakes.set_prices(_shipped)
 
 
 func _reads() -> Dictionary:
@@ -88,7 +77,7 @@ func test_a_job_builds_walks_and_decides_in_the_frame_it_was_claimed() -> void:
 	assert_bool(_job.request(false)).is_true()
 	assert_int(_cadence.last_facts.size()).is_equal(0)  # premise: nothing built yet
 	_job.advance()
-	# Default prices: the build ran whole in the claim frame and the walk is asking Von.
+	# Whole prices: the build ran whole in the claim frame and the walk is asking Von.
 	assert_dict(_cadence.last_facts).is_equal({ "build": 1 })
 	assert_int(_planner.begun).is_equal(1)
 	assert_bool(_job.pending()).is_true()

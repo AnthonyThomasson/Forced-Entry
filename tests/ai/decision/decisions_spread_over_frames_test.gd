@@ -27,8 +27,10 @@ func configure(s: TestSetup) -> void:
 	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])
 	s.switch(&"ai.callouts", false)
 	s.switch(&"ai.territory", false)
-	# The default, pinned: the first half asserts on it.
-	s.set_static(DecisionBudget, "per_frame", 1)
+	# The pool and the prices are the game's own: eight decisions of a few pieces each, on the pool
+	# the match shares. Registered at its own value so the harness puts the pool back after the test
+	# raises it below (`TestWorld.restore`): a pool of eight left behind would change the next test.
+	s.set_static(DecisionBudget, "per_frame", DecisionBudget.per_frame)
 	for i in COUNT:
 		var at := Vector2(150 + i * 200, 300)
 		s.actor(
