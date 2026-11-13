@@ -296,6 +296,7 @@ func forget_leads() -> void:
 ## Begin group `name` (of hostile `id`, or `GLOBAL`) in steps (`GroupBuild`): the group the same
 ## as when the walk first reads it.
 func begin_group(name: String, id: int) -> RefCounted:
+	SnapshotCounts.note(name if id == GLOBAL else "target_throws")  # one a group, not a step
 	if id != GLOBAL:
 		return throws.begin_grenade_group(ctx, targets[id]["t"], targets[id]["a"])
 	match name:

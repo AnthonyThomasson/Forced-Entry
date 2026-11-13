@@ -112,6 +112,12 @@ func _compare(
 		not (want["throws"]["options"] as Array).is_empty(),
 		"%s: the world has a throw to build" % label,
 	)
+	# One count for each group built, whatever the pace (not one a step): on a snapshot of its own,
+	# no older one completed beside it.
+	var counted: Dictionary = SnapshotCounts.built.duplicate()
+	_run(t, perception.sense(goal, "", 0)["demand"].group_steps(), 1, {}, label)
+	t.expect_eq(_rise(counted, "leads"), 1, "%s: the leads are counted once" % label)
+	t.expect_eq(_rise(counted, "entries"), 1 if stun else 0, "%s: the entries too" % label)
 	for pace: int in PACES:
 		var tag := "%s, %d at a time" % [label, pace]
 		var snap: Dictionary = perception.sense(goal, "", 0)
@@ -131,6 +137,11 @@ func _compare(
 			want["leads"].get("lead_pos"),
 			"%s: lead_pos" % tag,
 		)
+
+
+## How many builds of `name` were counted since `before` (`SnapshotCounts.built`).
+func _rise(before: Dictionary, name: String) -> int:
+	return int(SnapshotCounts.built.get(name, 0)) - int(before.get(name, 0))
 
 
 ## The leads built while no stun was in the stack are forgotten when the stack says one is
@@ -166,7 +177,8 @@ func _run(t: TestContext, steps: RefCounted, pace: int, older: Dictionary, tag: 
 				break
 			units += 1 if kind == Kind.UNIT else 0
 			steps.step()
-		older["demand"].complete()
+		if not older.is_empty():
+			older["demand"].complete()
 		guard += 1
 	t.check(guard < 500, "%s: the steps end" % tag)
 	return units
