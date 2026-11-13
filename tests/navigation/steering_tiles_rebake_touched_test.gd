@@ -3,8 +3,9 @@ extends GameTest
 ## re-bakes the tiles it reaches (#182). The whole footprint in one region is a bake of every wall
 ## and piece of furniture of the district on the main thread each time a character stops; each tile
 ## is baked from what reaches it and again only when that changed. A tile re-baked is one whose
-## `navigation_polygon` was replaced (a new resource), read off every tile before and after
-## `NavBuilder.rebake_steering`.
+## baked polygon (`NavSeams.RAW_META`) was replaced (a new resource), read off every tile before and
+## after `NavBuilder.rebake_steering`: a tile whose border edges were split because its neighbour
+## was re-baked holds a new `navigation_polygon` but was not baked.
 
 const SEED := 7
 ## A character stands this far (px) in from the corner of the streets' rect.
@@ -72,15 +73,20 @@ func run(t: TestContext) -> void:
 	)
 
 
-## How many of the steering tiles have a polygon other than before `NavBuilder.rebake_steering`
-## (a re-bake replaces it).
+## How many of the steering tiles have a baked polygon other than before
+## `NavBuilder.rebake_steering` (a re-bake replaces it).
 func _rebaked() -> int:
 	var before: Array = _tiles.map(
-		func(tile: NavigationRegion2D) -> NavigationPolygon: return tile.navigation_polygon,
+		func(tile: NavigationRegion2D) -> NavigationPolygon: return _baked(tile),
 	)
 	NavBuilder.rebake_steering(_region, _district, _rooms)
 	var changed := 0
 	for i in _tiles.size():
-		if (_tiles[i] as NavigationRegion2D).navigation_polygon != before[i]:
+		if _baked(_tiles[i]) != before[i]:
 			changed += 1
 	return changed
+
+
+## The polygon `tile` was baked to (null before its first bake).
+func _baked(tile: NavigationRegion2D) -> NavigationPolygon:
+	return tile.get_meta(NavSeams.RAW_META, null)

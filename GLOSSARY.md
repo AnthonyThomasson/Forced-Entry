@@ -57,7 +57,7 @@ navigation map.
 _Avoid_: ruin, building (a tower)
 
 **Steering tile**:
-One 512 px region of a district's steering map (`NavTiles`), re-baked only when what reaches it changed. A tick that finds several due bakes one a physics frame, never two on a frame (the tiles holding a walker, a living character moving at `REST_SPEED` or more, first, nearest first, then the grid's order), and lands them all in the frame of the last: the steering map synchronises (~12 ms) once a tick, not once a tile.
+One 512 px region of a district's steering map (`NavTiles`), re-baked only when what reaches it changed. A tick that finds several due bakes one a physics frame, never two on a frame (the tiles holding a walker, a living character moving at `REST_SPEED` or more, first, nearest first, then the grid's order), and lands them all in the frame of the last: the steering map synchronises (~12 ms) once a tick, not once a tile. A tile's polygon edges along a border are split at the vertices its neighbour has there (the **seam weld**, `NavSeams`), so both sides hold the same edges to the server; the tiles lie on a grid of whole pixels (`NavTiles.whole_pixels`).
 _Avoid_: chunk, nav cell
 
 **Elevator lobby**:

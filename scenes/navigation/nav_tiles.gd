@@ -37,8 +37,17 @@ static var intersection_tests := 0
 static var baked_total := 0
 
 
-## The tiles that cover `footprint` (the house's local frame), row by row; the last of a row or a
-## column is the remainder.
+## `footprint` (the house's local frame) grown to whole pixels: the rect the tiles are laid over.
+## The baker rounds a bake's rect to whole pixels (toward zero, a corner and a side apart), so tiles
+## whose edges fall between pixels would be baked to edges a pixel apart; on whole pixels every
+## tile's edge is the edge of its neighbour, which `NavSeams` welds.
+static func whole_pixels(footprint: Rect2) -> Rect2:
+	var from := footprint.position.floor()
+	return Rect2(from, footprint.end.ceil() - from)
+
+
+## The tiles that cover `footprint` (`whole_pixels`), row by row; the last of a row or a column is
+## the remainder.
 static func grid(footprint: Rect2) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	var y := footprint.position.y
@@ -51,7 +60,7 @@ static func grid(footprint: Rect2) -> Array[Rect2]:
 	return out
 
 
-## The name of the tile region over `rect`, a tile of the grid over `footprint`.
+## The name of the tile region over `rect`, a tile of the grid over `footprint` (`whole_pixels`).
 static func name_of(rect: Rect2, footprint: Rect2) -> String:
 	var column := int((rect.position.x - footprint.position.x) / SIZE)
 	var row := int((rect.position.y - footprint.position.y) / SIZE)
@@ -86,16 +95,17 @@ static func rebake(
 	if parsed.is_empty():
 		parsed = NavSource.walls(walls_reaching(region, site, reaches))
 	var wall_bins := bin(parsed["obstruction"], reaches, Vector2.ZERO)
-	var baked := 0
+	var baked: Array = []
 	for k in due.size():
 		var tile: NavigationRegion2D = tiles[due[k]]
 		if _baked_from(tile, wall_bins[k], hole_bins[due[k]]):
 			continue
 		var reached := NavSource.walls(wall_bins[k], parsed["traversable"], parsed["projected"])
 		if _bake_tile(tile, site, reached, hole_bins[due[k]]):
-			baked += 1
-	baked_total += baked
-	return baked
+			baked.append(tile)
+	NavSeams.weld(baked)
+	baked_total += baked.size()
+	return baked.size()
 
 
 ## The steering tiles of `region` that `furniture` and `characters` (this tick's footprints) leave
@@ -165,10 +175,13 @@ static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> Dic
 ## steering map takes them in with one synchronisation (about 12 ms in a district, whatever the
 ## count), so a burst lands whole. A tile freed meanwhile is skipped.
 static func land(held: Array) -> void:
+	var landed: Array = []
 	for bake: Dictionary in held:
 		var tile := bake["tile"] as NavigationRegion2D
 		if is_instance_valid(tile):
 			_assign(tile, bake["poly"], bake["walls"], bake["holes"])
+			landed.append(tile)
+	NavSeams.weld(landed)
 
 
 ## The world points of the living characters under `root` that are walking (collision layer still
@@ -241,6 +254,7 @@ static func _assign(
 	walls: Dictionary,
 	holes: Array,
 ) -> void:
+	NavSeams.take(tile, poly)
 	tile.navigation_polygon = poly
 	tile.set_meta(WALLS_META, walls["obstruction"])
 	tile.set_meta(HOLES_META, holes)

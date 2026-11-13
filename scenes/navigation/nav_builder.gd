@@ -233,7 +233,7 @@ static func _add_steering_region(
 ## The steering regions of a district: a tile over each part of its footprint (`NavTiles`), baked
 ## from the furniture and the characters at rest as they stand.
 static func _add_steering_tiles(region: NavigationRegion2D, map: RID, site: NavSite) -> void:
-	var footprint := site.footprint()
+	var footprint := NavTiles.whole_pixels(site.footprint())
 	for rect in NavTiles.grid(footprint):
 		var tile := _add_steering(
 			region,
