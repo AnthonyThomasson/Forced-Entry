@@ -19,6 +19,8 @@ class_name NavBake extends RefCounted
 ## has fallen behind the thread).
 static var started_total := 0
 static var late_total := 0
+## How many bakes have landed (their polygon taken in) since the process began.
+static var landed_total := 0
 ## The bakes between their start and their landing.
 static var _flying: Array[NavBake] = []
 ## Whether the root window's exit has been hooked to finish the bakes (`_finish_all`).
@@ -117,6 +119,7 @@ func _land() -> void:
 		late_total += 1
 	WorkerThreadPool.wait_for_task_completion(_task)
 	_task = -1
+	landed_total += 1
 	var target := _region_ref.get_ref() as NavigationRegion2D
 	if target != null:
 		NavWeld.finish(_poly, _origin)

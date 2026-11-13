@@ -88,6 +88,7 @@ func group(name: String) -> Dictionary:
 	if not GROUPS.has(name):
 		return {}
 	var _scope: RefCounted = open()
+	SnapshotCounts.note(name)
 	var out := _build(name)
 	groups[name] = out
 	built.append(name)
@@ -103,6 +104,7 @@ func target_group(name: String, target_id: int) -> Variant:
 	if per.has(name):
 		return per[name]
 	var _scope: RefCounted = open()
+	SnapshotCounts.note("target_throws")
 	var target: Dictionary = targets[target_id]
 	per[name] = throws.grenade_group(ctx, target["t"], target["a"])
 	built.append("%s:%d" % [name, target_id])
@@ -185,6 +187,7 @@ func open() -> RefCounted:
 
 ## Whether the NPC is in a room and a lead lies outside the house.
 func _lead_outside() -> bool:
+	SnapshotCounts.note("lead_outside")
 	if HouseRooms.at(ctx["self_pos"], rooms).is_empty():
 		return false
 	return (group("leads")["options"] as Array).any(func(o): return not o["tags"]["inside"])
@@ -208,6 +211,7 @@ func _grenade_ready() -> bool:
 func throw_search(block: int) -> RefCounted:
 	if facts.has("grenade_ready"):
 		return null
+	SnapshotCounts.note("grenade_ready")
 	var plan: Array = []
 	if groups.has("grenade_throws"):
 		plan.append({ "of": "known", "value": _offers(groups["grenade_throws"]) })

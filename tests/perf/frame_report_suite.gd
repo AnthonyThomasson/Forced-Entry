@@ -76,3 +76,35 @@ func test_plural_labels_follow_the_count() -> void:
 	assert_str(Report.line(entry)).is_equal(
 		"#0 20.0 ms: 3 shots, 2 nav bakes, 1 late bake"
 	)
+
+
+func test_the_tail_counters_have_their_words() -> void:
+	var entry := {
+		"frame": 7, "ms": 31.0,
+		"ran": {
+			"tile_bakes": 2, "landings": 1, "avoid_starts": 1, "avoid_rebakes": 3,
+			"cone_restarts": 1, "cone_first": 1, "cone_jump": 2, "cone_cap": 1, "cone_units": 90,
+			"ragdolls": 4, "sounds": 1,
+		},
+	}
+	assert_str(Report.line(entry)).is_equal(
+		"#7 31.0 ms: 1 sound, 4 ragdoll steps, 1 bake landing, 2 steering tile bakes, "
+		+ "1 avoid map start, 3 avoid map re-bakes, 1 cone restart, 1 first whole cone, "
+		+ "2 jump whole cones, 1 cap whole cone, 90 cone work units"
+	)
+
+
+func test_a_lazy_build_is_named_by_what_it_built() -> void:
+	var entry := {
+		"frame": 3, "ms": 22.0,
+		"ran": { "demand:leads": 1, "demand:grenade_ready": 2, "shots": 1 },
+	}
+	assert_str(Report.line(entry)).is_equal(
+		"#3 22.0 ms: 1 shot, 2 grenade_ready builds, 1 leads build"
+	)
+
+
+func test_a_lazy_build_that_first_appears_is_a_rise_from_nothing() -> void:
+	var first := { "shots": 1 }
+	var then := { "shots": 1, "demand:entries": 2 }
+	assert_dict(Report.deltas(first, then)).is_equal({ "demand:entries": 2 })

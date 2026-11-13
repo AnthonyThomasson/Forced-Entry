@@ -18,6 +18,10 @@ const LIMIT_STIFFNESS := 0.6
 ## the correction never becomes a burst of speed.
 const LIMIT_MAX_TURN := 0.3
 
+## How many steps (one body, one physics frame, asleep ones not counted) ragdolls have run since
+## the process began: a frame's rise is the bodies still falling (a perf probe's read).
+static var steps_total := 0
+
 ## True once the body has come to rest (or timed out); step() then does nothing.
 var asleep := false
 ## Colliders the wall sweep ignores (e.g. the owner's own body).
@@ -157,6 +161,7 @@ func wake() -> void:
 func step(delta: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> void:
 	if asleep or delta <= 0.0:
 		return
+	steps_total += 1
 	if not _primed:
 		_primed = true
 		_pull_out_of_walls(space, origin)

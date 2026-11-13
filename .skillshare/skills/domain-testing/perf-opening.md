@@ -24,7 +24,13 @@ Sliced decisions (job dec-price) are expected to change this.
 What ran is the rise of counters between a frame's start and the next (`tests/_perf/frame_report.gd`): decisions claimed (`DecisionRoster.claims()`, a forgotten job that
 runs again not counted: a decision's build runs in its claim frame), decisions asked (`DecisionStub.requests`, one a
 level), cone starts and publishes (`PlayerView.starts` / `rebuilds`, when a view is on), grenades thrown, explosions, callouts,
-deaths and shots (the event log) and nav bakes started and late. Nothing is counted without `--verbose` and no game code gained a
-line; the counters' reads (a few ints) are in the verbose run's frames. The pure part is `tests/perf/frame_report_suite.gd`.
+deaths, shots and sounds (the event log) and nav bakes started, late and landed. Nothing is counted without `--verbose`.
+**The tail counters (#195 rule 11 a)** are running totals the game keeps, no clock, changing nothing it does (a same-fight A/B holds): `tile_bakes`
+(`NavTiles.baked_total`), `avoid_starts` / `avoid_rebakes` (`NavBuilder`), `landings` (`NavBake.landed_total`), the cone's `cone_restarts`, whole
+builds by cause `cone_first` / `cone_jump` / `cone_cap` and `cone_units` (engine work stepped, about a ms a unit; `PlayerView.rebuild_causes()`, interface 25),
+`ragdolls` (`Ragdoll.steps_total`: bodies stepped) and `demand:<name>` (`SnapshotCounts.built`: a lazy group or search begun: `leads`, `entries`,
+`grenade_ready` ...; the throw piece's search counts when it begins). No ms for the cone or nav tick: both run in a node's `_physics_process`, and timing
+one needs a hook in game code (or calling the tick from the probe, which moves it in the frame), so a counter stands in (`cone_units`). The pure part is `tests/perf/frame_report_suite.gd`.
 A frame with nothing counted is not a decision and not yet attributed (an escape search, a nav tick or the engine?): attribute it by timing (`perf-gotchas.md`).
-`perf/frame_report_counters` checks the counters on a live world (every count an int, a shot in its frame; nothing counted with the log off).
+`perf/frame_report_counters` checks the counters on a live world (every count an int, a shot and its sound in its frame, a death's ragdoll steps; nothing counted
+with the log off); `frame_report_view_counters`, `_nav_counters` and `_demand_counters` check each tail counter in a frame its work ran in.

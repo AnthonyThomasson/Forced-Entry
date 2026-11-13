@@ -22,6 +22,11 @@ const Watch := preload("res://scenes/vision/view_watch.gd")
 ## Jobs begun, restarts and whole builds included; cones published.
 var started := 0
 var published := 0
+## A perf probe's read of what the pipeline spent: `restarts` (a job begun again after the world
+## changed), the whole builds by cause (`first`: no cone yet, `jump`: the eye moved past `jump_px`,
+## `cap`: the restart cap) and `units` (the engine work stepped, `VisionSliceConfig` units). Running
+## totals since the view was built; nothing in the pipeline reads them.
+var causes := { "restarts": 0, "first": 0, "jump": 0, "cap": 0, "units": 0 }
 ## The pose the cone in flight is being built for, and the one the published cone is of.
 var job_eye := Vector2.ZERO
 var job_facing := Vector2.ZERO
@@ -51,6 +56,7 @@ func tick(
 ) -> bool:
 	if _cone.running():
 		if _jumped(eye, pose_eye):
+			causes["jump"] += 1
 			return _whole(space, eye, facing, exclude, sight)
 		if _watch.world_changed(sight):
 			return _restart(space, eye, facing, exclude, sight)
@@ -58,6 +64,7 @@ func tick(
 	if not _watch.stale(eye, facing, sight):
 		return false
 	if not _has_cone or _jumped(eye, pose_eye):
+		causes["jump" if _has_cone else "first"] += 1
 		return _whole(space, eye, facing, exclude, sight)
 	_begin(space, eye, facing, exclude, sight)
 	return _step()
@@ -107,7 +114,9 @@ func _restart(
 ) -> bool:
 	_restarts += 1
 	if _restarts > VisionSliceConfig.restart_cap:
+		causes["cap"] += 1
 		return _whole(space, eye, facing, exclude, sight)
+	causes["restarts"] += 1
 	_begin(space, eye, facing, exclude, sight)
 	return _step()
 
@@ -122,12 +131,16 @@ func _whole(
 ) -> bool:
 	_begin(space, eye, facing, exclude, sight)
 	_cone.step(1 << 60)
+	causes["units"] += _cone.work_units()
 	return _publish()
 
 
 ## Step the job one slice; true when it is done and published.
 func _step() -> bool:
-	return _cone.step(VisionSliceConfig.slice_units) and _publish()
+	var before := _cone.work_units()
+	var done := _cone.step(VisionSliceConfig.slice_units)
+	causes["units"] += _cone.work_units() - before
+	return done and _publish()
 
 
 ## The job is done (the cone swapped its result in): the pose it was begun for is the cone's.

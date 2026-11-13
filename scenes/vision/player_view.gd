@@ -144,6 +144,12 @@ func starts() -> int:
 	return _pipeline.started
 
 
+## What the cone's pipeline has spent, running totals (a perf probe's read, interface 25):
+## `restarts`, whole builds by cause (`first`, `jump`, `cap`) and `units` of engine work stepped.
+func rebuild_causes() -> Dictionary:
+	return _pipeline.causes.duplicate()
+
+
 ## Whether a rebuild is in flight: the cone published is older than the world and the viewer.
 func building() -> bool:
 	return _pipeline.running()

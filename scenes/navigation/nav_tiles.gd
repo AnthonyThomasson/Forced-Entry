@@ -31,6 +31,9 @@ static var _bounds: Dictionary = {}
 ## Actual bounds measurements and candidate rectangle checks, observables of the two fast paths.
 static var bounds_measures := 0
 static var intersection_tests := 0
+## How many steering tiles `rebake` has baked since the process began (a perf probe's read of what
+## a tick's re-bake cost).
+static var baked_total := 0
 
 
 ## The tiles that cover `footprint` (the house's local frame), row by row; the last of a row or a
@@ -90,6 +93,7 @@ static func rebake(
 		var reached := NavSource.walls(wall_bins[k], parsed["traversable"], parsed["projected"])
 		if _bake_tile(tile, site, reached, hole_bins[due[k]]):
 			baked += 1
+	baked_total += baked
 	return baked
 
 

@@ -61,6 +61,10 @@ static var _avoid_maps: Dictionary = {}
 ## in frames so a run frees the same maps on the same frame whatever the machine's speed) is freed
 ## by the next ask for another set (`avoid_map`).
 static var avoid_idle_frames: int = 1200
+## How many avoid maps have been made (their first bake started) and how many re-baked after the
+## planning bake changed, since the process began (a perf probe's read).
+static var avoid_starts := 0
+static var avoid_rebakes := 0
 
 
 ## Build and add a NavigationRegion2D under `parent`, covering `rooms` (each `{ key, type, rect }`
@@ -413,6 +417,7 @@ static func avoid_map(region: NavigationRegion2D, key: String, holes: Array) -> 
 		var kept: Dictionary = entries[key]
 		kept["asked_frame"] = now
 		if not bool(kept["baking"]) and int(kept["version"]) != int(stored["version"]):
+			avoid_rebakes += 1
 			_bake_avoid(region, kept, holes)
 		return kept["map"]
 	var map := NavSource.new_map()
@@ -430,6 +435,7 @@ static func avoid_map(region: NavigationRegion2D, key: String, holes: Array) -> 
 	region.add_child(avoid_region)
 	NavReady.await_region(map, avoid_region, region.global_position)
 	avoid_region.tree_exited.connect(_on_avoid_region_exited.bind(planning_map, key, map))
+	avoid_starts += 1
 	_bake_avoid(region, entry, holes)
 	return map
 
