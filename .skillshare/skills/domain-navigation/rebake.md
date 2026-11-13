@@ -26,11 +26,11 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   by squared distance from the nearest walker to the tile's rect (0 inside it), then the rest, ties and a still scene in the grid's order, fixed at the tick.
   The tick bakes the first (`prepare` holds the polygon), `_physics_process` one more a `GameClock` frame (none on a frame that baked one), and the last
   `land`s them all: k tiles land k-1 frames after the tick, a lone one in it; a walker sees a body that stopped up to k-1 frames later (accepted). The walls are
-  parsed once per burst; a next tick lands what is held. A lone house's region is baked whole in its tick, as are `rebake_steering` and `build`'s first bake.
-  `NavTiles.baked_total` counts tiles when baked (not landed: the frame report's tile bakes), `baked_log` their order.
+  parsed once per burst; a next tick lands what is held. A lone house's region is baked whole in its tick, as are `rebake_steering` and `build`'s first.
+  `NavTiles.baked_total` counts tiles when baked, not landed (the frame report's tile bakes); `baked_log` their order.
 - **A bake lands on a fixed frame** (`nav_bake.gd`, `nav_bake_config.gd`; `navigation/rebake_lands_on_its_frame`, `avoid_map_lands_on_its_frame`,
-  `rebake_waits_for_a_late_thread`, `perf/nav_rebake_lands_in_a_match`). `NavRebake._bake_async` and `NavBuilder._bake_avoid` start the bake on a
-  `WorkerThreadPool` task (the server's sync `bake_from_source_geometry_data`) through `NavBake.start`, which takes its result in (weld, assign to the
+  `rebake_waits_for_a_late_thread`, `landings_one_a_frame`, `perf/nav_rebake_lands_in_a_match`). One lands a frame: a bake due on a frame that took one slips to the next, in start order (a planning bake's ring after it). `NavRebake._bake_async` and `NavBuilder._bake_avoid` start the bake on a
+  `WorkerThreadPool` task (the server's sync bake) through `NavBake.start`, which takes its result in (weld, assign to the
   region, `landed`) on the physics frame the caller's count says after the start, not when the thread finishes (`domain-testing`: the perf
   nondeterminism note). A thread not done by then is waited for, which holds that frame (`NavBake.was_late` of that bake, `late_total` of all; the match
   guards log `PERF <label> nav bakes late N of M`); one on time costs the frame its weld and assignment only. `NavBake.frames_for(region, avoid, ring)`
@@ -41,8 +41,7 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   alone and `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`).
 - **A map syncs on the main thread** (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`): the server's
   async sync would show a landed bake on a frame that follows the machine's load, so a match was a different fight run to run whatever the landing frames.
-  It costs the main thread almost nothing in the perf guards: 5v5 avg 6.8 ms, max 28.6; 10v10 avg 12.6, max 31.5 (under `SMOOTH_MAX_MS` 33.4), within 0.4 ms of the async average on a same fight
-  (`domain-testing`, its perf side files).
+  It costs the main thread almost nothing: within 0.4 ms of the async average on a same fight (`domain-testing`, its perf side files).
 - The tick's own re-bakes take the footprints it just measured, so it measures furniture
   once and parses the walls once. The public `rebake`,
   `rebake_async`, `rebake_steering` are **test-facing seams** that measure their own footprints; only tests call them.

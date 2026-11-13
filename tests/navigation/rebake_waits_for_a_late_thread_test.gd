@@ -3,7 +3,8 @@ extends GameTest
 ## takes tens of ms, the frame count here is one, so the thread is still running when the frame
 ## comes and the result is waited for. It lands on the frame anyway, whole (the polygon has its
 ## mesh), and the bake says it was late (`NavBake.was_late`, per bake: a match's other bakes
-## are no part of it).
+## are no part of it). The ring's bake is due on the same frame and lands the frame after it (one
+## landing a frame, `landings_one_a_frame_test.gd`), where `done` is called: two frames on.
 
 
 func describe() -> Dictionary:
@@ -39,7 +40,10 @@ func run(t: TestContext) -> void:
 	)
 	if not t.require(await t.until(func(): return landed_at[0] >= 0, 5.0), "the bake lands"):
 		return
-	t.check(landed_at[0] - started == 1, "it lands on its frame (%d on)" % (landed_at[0] - started))
+	t.check(
+		landed_at[0] - started == 2,
+		"it lands on its frame, the ring's the one after (%d on)" % (landed_at[0] - started),
+	)
 	t.check(
 		bakes.size() == 2 and bakes[0].was_late,
 		"the planning bake's thread was late and was waited for",
