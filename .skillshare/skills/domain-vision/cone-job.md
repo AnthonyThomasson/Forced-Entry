@@ -7,9 +7,13 @@ finished job's polygons until the new one completes); `step(units)` runs it on u
 whether it is done; `running()` says whether one is in flight; `work_units()` is the work the job has spent. `rebuild` is
 `begin` plus `step` to the end, so it is the whole rebuild every existing cone test and `PlayerView` use.
 
-**Units.** A unit is a price in `VisionSliceConfig` (`cost_cast`, `cost_shape`, `cost_probe`, 1 each): a ray cast
+**Units.** A unit is a price in `VisionSliceConfig` (`cost_cast` and `cost_probe` 1, `cost_shape` 450): a ray cast
 (`SightRay.cast`), a region shape query (`ViewShapes.queries`, re-asks included), a far-face probe (`far_exit`).
-`vision/cone_slice_units` holds `work_units()` to casts, queries and probes counted by subclasses, at every step size and at
+**The corners are priced at a slice** (`cost_shape` 450): the query, its polygons, the dedupe and the lows' leave-out cost about 2.1 ms,
+380 units at 5.7 µs (`perf/cone_corner_cost` measures it; 180 to 640 by eye), so `begin` and the first step do the corners and cast no ray
+(`vision/cone_corners_priced`), and the rays begin the next tick. Priced as one unit they made a start tick the corners plus 449 units of
+rays, about 6 to 7 ms. A job is the corners' tick plus ceil(rays / slice) ticks: it keeps within 3 ticks (age 2 to 4) while its rays are
+at most two slices, and a test that cuts `slice_units` cuts `cost_shape` to it. `vision/cone_slice_units` holds `work_units()` to casts, queries and probes counted by subclasses, at every step size and at
 other prices (which change the count, never the polygon).
 
 **Stages**, in order: the corners (one piece), the even fan by ray, which corners the eye sees by corner, the sort of the ray
@@ -47,7 +51,7 @@ whether a cone was published in it, and then the view writes `SeenArea`.
 - A standing character anywhere in the tree whose coverage is above the viewer's `see_over` makes every tick a restart (a whole build
   every 4th frame): `_blocking_now` is not limited to reach. The default sight (60) never triggers it.
 - **Tests:** a job is a few frames only when the slice is small: a test that needs a lag, a restart or a cap sets
-  `VisionSliceConfig.slice_units` (90 makes the test houses' jobs three frames, `vision/pose_lag_bounds`,
+  `VisionSliceConfig.slice_units` and `cost_shape` (140 for both makes the test houses' jobs three frames, `vision/pose_lag_bounds`,
   `vision/cone_restarts_on_world_change`, `vision/cone_skip_exact_sliced`, `vision/half_job_dropped`), and one that reads the cone of a pose waits for it
   (`Probe.place` waits for the published pose; `tests/_vision/cone_checker.gd` compares each published cone to the reference cone
   of `published_pose()`).

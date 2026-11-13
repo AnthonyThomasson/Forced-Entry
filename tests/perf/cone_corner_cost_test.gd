@@ -64,16 +64,16 @@ func run(t: TestContext) -> void:
 			"PERF cone corners: %d reads, corners median %.0f us, unit median %.2f us, corners = "
 			+ "%.0f units (median of ratios; p25 %.0f, p75 %.0f), corner units median %.0f, the "
 			+ "rest median %.0f units, cost_shape now %d, job ticks: median %.0f, max %.0f, "
-			+ "over three %.0f %%"
+			+ "over three %.0f %% (corners priced 1: median %.0f, max %.0f, over three %.0f %%)"
 		)
 		% [
 			reads["ratio"].size(), _median(reads["corners_us"]), _median(reads["unit_us"]), ratio,
 			_quantile(reads["ratio"], 0.25), _quantile(reads["ratio"], 0.75),
 			_median(reads["corner_units"]), _median(reads["rest_units"]),
 			VisionSliceConfig.cost_shape,
-			_median(reads["ticks"]), _quantile(reads["ticks"], 1.0),
-			100.0 * float(reads["ticks"].filter(func(n: int) -> bool: return n > 3).size())
-				/ float(reads["ticks"].size()),
+			_median(reads["ticks"]), _quantile(reads["ticks"], 1.0), _over_three(reads["ticks"]),
+			_median(reads["ticks_unpriced"]), _quantile(reads["ticks_unpriced"], 1.0),
+			_over_three(reads["ticks_unpriced"]),
 		]
 	)
 	t.trace("cone corners in units", ratio)
@@ -96,6 +96,7 @@ func _read_grid(t: TestContext, bounds: Rect2, sight: Dictionary) -> Dictionary:
 		"corner_units": [],
 		"rest_units": [],
 		"ticks": [],
+		"ticks_unpriced": [],
 	}
 	for i in GRID:
 		for j in GRID:
@@ -141,24 +142,37 @@ func _measure(
 		"corner_units": corner_units,
 		"rest_units": rest_units,
 		"ticks": _ticks(space, at, facing, sight),
+		"ticks_unpriced": _ticks(space, at, facing, sight, 1),
 	}
 
 
-## The physics ticks a job from `at` takes at the default slice and prices (the pipeline's: the
-## first tick starts it and steps it, each next steps it on): its pose's age when published is up to
-## twice this less one (`docs/player-vision.md` V1: 2 to 4 frames old is three ticks).
+## The physics ticks a job from `at` takes at the default slice and prices, or with the corners at
+## `corners_price` when given (the pipeline's: the first tick starts it and steps it, each next
+## steps it on): the cone shown is up to twice this less one frames old (`docs/player-vision.md` V1:
+## 2 to 4 frames old is three ticks).
 func _ticks(
 	space: PhysicsDirectSpaceState2D,
 	at: Vector2,
 	facing: Vector2,
 	sight: Dictionary,
+	corners_price := 0,
 ) -> int:
+	var kept := VisionSliceConfig.cost_shape
+	if corners_price > 0:
+		VisionSliceConfig.cost_shape = corners_price
 	var cone := Cone.new()
 	cone.begin(space, at, facing, [], sight)
 	var ticks := 1
 	while not cone.step(VisionSliceConfig.slice_units) and ticks < 100:
 		ticks += 1
+	VisionSliceConfig.cost_shape = kept
 	return ticks
+
+
+## The share (percent) of `ticks` over three.
+func _over_three(ticks: Array) -> float:
+	var over := ticks.filter(func(n: int) -> bool: return n > 3)
+	return 100.0 * float(over.size()) / float(ticks.size())
 
 
 func _median(values: Array) -> float:

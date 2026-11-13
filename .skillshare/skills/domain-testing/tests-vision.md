@@ -30,7 +30,7 @@ seam (bodies in the tree, `stale` asked each frame), beside the simulation tests
   draws **from the published pose**, not the viewer's live one (`PlayerView.published_pose()`, `docs/player-vision.md` V1: the cone
   is 2 to 4 frames old); in any other frame it must be the cone held before. `cone_age.gd` says how old the cone is
   (`vision/pose_lag_bounds` pins that). The cone is a job of a few frames only with a small slice: a test that needs that sets
-  `VisionSliceConfig.slice_units` (90 for the test houses), `cone_skip_exact_sliced` is `cone_skip_exact` at 90, and a test that
+  `VisionSliceConfig.slice_units` (140 for the test houses, with `cost_shape` at the same 140: the corners fill a slice), `cone_skip_exact_sliced` is `cone_skip_exact` at 140, and a test that
   reads the cone of a pose waits for it (`Probe.place`), never a fixed count of frames. A "rebuilt every frame" premise counts
   `starts()` (a job begun or restarted), not `rebuilds()` (published) (`physics_mover.gd` moves a body from its own `_physics_process`, as a door or a walker moves: a query later in that frame,
   the view's, still finds it where it was).

@@ -48,7 +48,10 @@ publishes it (`SeenArea`, the memory's paint, the composite read the cone, the b
 the fresh cone of the pose the job started from, in the world as it was then: the exact cone of one eye in one world state, never a
 mix and never extrapolated** (the memory, V4, never holds area no eye saw). It is as old as the job is long: a job of 3 slices started
 in tick f publishes in tick f+2, the next starts in f+3, so the cone shown is 2 to 4 frames old (a whole 10v10 rebuild is 1,100 to
-1,400 units; a small house's is a single slice and no age at all). What the viewer's pose does meanwhile is not asked: **a change of
+1,400 units, and a house's about 270 plus the corners). **The corners are priced at a slice** (`cost_shape` 450: the region shape query and its
+polygons cost about 2.1 ms, about 380 units of ray work at 5.7 µs), so the tick that starts a job does the corners and no rays, and the
+rays begin the next tick: a start tick is about 2 ms, not 6 to 7, and a job is the corners' tick plus its rays' ticks (a house's is two
+ticks, a 10v10 district's three for most eyes). What the viewer's pose does meanwhile is not asked: **a change of
 the eye or the facing alone lets the job finish on the pose it started from**, and the next job starts from the live pose. **A change
 of the world between slices restarts the job from the live pose** (a blocker within reach moved, changed shape, joined or left, a
 character that blocks, a changed sight number or cone tuning, and the frame after a job began while a blocker within reach moved,
@@ -215,7 +218,7 @@ backstop that bounds it; a feature that makes one change must tell `ViewShapes` 
 `VisionConfig`: `enabled` true; the look `grey` 1.0, `contrast` 0.9, `pivot` 0.3, `brightness` 0.55, `tint` (0.88, 0.96, 1.12);
 `feather` 16; `memory_scale` 2; `cone_rays` 64, `bubble_rays` 48, `corner_offset` 0.0002 rad; `far_depth` 120, `far_bleed` 14;
 `rebuild_every` 10. `VisionSliceConfig`: `slice_units` 450 (about 3.5 ms of engine work a physics tick; a unit is a ray cast, a region shape
-query or a far-face probe, priced `cost_cast`, `cost_shape`, `cost_probe` 1), `restart_cap` 2, `jump_px` 48. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48,
+query or a far-face probe, priced `cost_cast` 1, `cost_shape` 450 and `cost_probe` 1: the corners fill a slice), `restart_cap` 2, `jump_px` 48. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48,
 `see_over_coverage` 60. The repaint reach is `CharacterVisuals.SEEN_REACH` (60). The look and the 16 px edge were picked by eye,
 against a flat 45 % grey (too dark and flat), a full-brightness grey (too close to the live world), a hard edge (a harsh line) and
 a 40 px feather (it smears the cone).
