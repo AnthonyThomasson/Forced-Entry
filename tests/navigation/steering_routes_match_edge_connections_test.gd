@@ -5,8 +5,9 @@ extends GameTest
 ## ways across every seam edge, the map answers with the pass off and then on, and the paths are
 ## the same points, as built and after a character stops on a corner of four tiles (the updater
 ## re-bakes and lands them). That holds on these seeds and on a lone house; on others
-## (`_other_routes_test`) a route in a hundred differs, the pass off never the longer
-## (`steering-edge-connections.md`). The steering map is built without the pass.
+## (`steering_routes_other_seeds_edge_connections`, and `_six`) a route in a hundred differs, the
+## pass off never the longer (`steering-edge-connections.md`). The steering map is built without the
+## pass.
 
 const Seams := preload("res://tests/_navigation/seam_probe.gd")
 const SEED := 7

@@ -31,6 +31,10 @@ const ON_LINE := 0.01
 ## The most (px squared) the cross product of two edges may be for them to be in one line.
 const IN_LINE := 0.01
 
+## How many edges `_emit` found cut but in one line with the corners round it, so left as they are
+## (unwelded): a real bake has none (`steering_seams_welded` checks it).
+static var unsplit_total := 0
+
 
 ## The polygon `poly`, just baked for `tile`, is what `tile` was baked to: kept raw, with its
 ## border's vertices read off (`weld` then splits it against the neighbours').
@@ -48,14 +52,25 @@ static func take(tile: NavigationRegion2D, poly: NavigationPolygon) -> void:
 ## tiles of one landing are welded together, so the map takes them in with one synchronisation.
 static func weld(changed: Array) -> void:
 	var fit := {}
-	for tile: NavigationRegion2D in changed:
-		if not is_instance_valid(tile):
+	for item: Variant in changed:
+		if not _live(item):
 			continue
+		var tile := item as NavigationRegion2D
 		fit[tile] = true
 		for entry: Dictionary in neighbours(tile):
-			fit[entry["tile"]] = true
-	for tile: NavigationRegion2D in fit:
-		_fit(tile)
+			if _live(entry["tile"]):
+				fit[entry["tile"]] = true
+	for item: Variant in fit:
+		if _live(item):
+			_fit(item as NavigationRegion2D)
+
+
+## Whether `tile` is a tile still in the tree (one freed, or taken out, meanwhile is left as it is).
+static func _live(tile: Variant) -> bool:
+	if not is_instance_valid(tile):
+		return false
+	var region := tile as NavigationRegion2D
+	return region != null and region.is_inside_tree()
 
 
 ## The tiles that share a stretch of border with `tile`, `{ tile, side }`, kept on the tile (a
@@ -96,6 +111,8 @@ static func _missing_points(tile: NavigationRegion2D) -> Array:
 	var mine: Array = tile.get_meta(POINTS_META)
 	var offset := tile.to_global(Vector2.ZERO)
 	for entry: Dictionary in neighbours(tile):
+		if not _live(entry["tile"]):
+			continue
 		var other: NavigationRegion2D = entry["tile"]
 		if not other.has_meta(POINTS_META):
 			continue
@@ -171,7 +188,9 @@ static func _emit(ring: PackedInt32Array, cut: Dictionary, rings: Array[PackedIn
 		var corner := ring[(k + 2) % n] if forward else ring[(k + n - 1) % n]
 		if not forward and not _bends(
 				cut["verts"], ring[(k + n - 1) % n], ring[k], ring[(k + 1) % n]):
-			continue  # the whole run is in one line: left as it is
+			unsplit_total += 1
+			push_error("NavSeams: an edge to cut lies in one line with the corners round it")
+			continue
 		var along: Array[int] = [ring[k]]
 		along.append_array(chain)
 		along.append(ring[(k + 1) % n])

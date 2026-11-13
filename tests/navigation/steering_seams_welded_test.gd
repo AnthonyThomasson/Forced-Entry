@@ -61,3 +61,4 @@ func _expect_welded(t: TestContext, tiles: Array, what: String) -> void:
 		faults.is_empty(),
 		"every shared border is welded %s; not: %s" % [what, faults.slice(0, 6)],
 	)
+	t.expect_eq(NavSeams.unsplit_total, 0, "no edge of a real bake was left uncut %s" % what)

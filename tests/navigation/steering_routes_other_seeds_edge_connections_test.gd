@@ -4,11 +4,11 @@ extends "res://tests/navigation/steering_routes_match_edge_connections_test.gd"
 ## point-like link): the routes differ, but with the pass off at most `_longer_bound` routes are
 ## longer, every destination
 ## the pass reaches is reached, and none is shorter by more than `GAIN` px (measured: seed 24
-## 224 px, a route in about fourteen; the bound is a little over it). A change that makes a route
-## longer (beyond the pinch of `_longer_bound`) or a destination unreachable fails this.
+## 223.8 px, a route in about fourteen; the bound is the next whole px over it). A change that makes
+## a route longer (beyond the pinch of `_longer_bound`) or a destination unreachable fails this.
 
 const OTHER_SEED := 24
-const GAIN := 240.0
+const GAIN := 225.0
 
 
 func describe() -> Dictionary:

@@ -5,8 +5,10 @@ class_name NavTiles extends RefCounted
 ## it (its walls, its furniture and its characters), and only when that has changed since its last
 ## bake, so a character stopping re-bakes the one tile it stands in (two or four on a seam). The
 ## tiles are regions on the steering map, children of the planning region, baked to meet at their
-## edges (`BORDER`: the baker sees past the tile's edge so the agent's erosion does not shrink it,
-## and the 1 px grid the bake is welded to puts the neighbours' vertices on the same points).
+## edges (`BORDER`: the baker sees past the tile's edge so the agent's erosion does not shrink it;
+## the grid lies on whole pixels, `whole_pixels`, and `NavSeams` splits each border edge at the
+## vertices its neighbour has there, so the server joins them by the edge they share and the map
+## needs no edge-connection pass).
 ## `NavBuilder` builds the tiles and hands each tick's footprints to `rebake`.
 
 ## A tile's side, px.
@@ -173,12 +175,15 @@ static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> Dic
 
 ## Give the tiles of the held bakes `held` (`prepare`) their polygons, all in this call: the
 ## steering map takes them in with one synchronisation (about 0.3 ms with its edge connections off,
-## it was 12 ms with them on), so a burst lands whole. A tile freed meanwhile is skipped.
+## it was 12 ms with them on), so a burst lands whole. A tile freed or taken out of the tree
+## meanwhile is skipped.
 static func land(held: Array) -> void:
 	var landed: Array = []
 	for bake: Dictionary in held:
+		if not is_instance_valid(bake["tile"]):
+			continue
 		var tile := bake["tile"] as NavigationRegion2D
-		if is_instance_valid(tile):
+		if tile.is_inside_tree():
 			_assign(tile, bake["poly"], bake["walls"], bake["holes"])
 			landed.append(tile)
 	NavSeams.weld(landed)

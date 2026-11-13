@@ -4,9 +4,9 @@ extends "res://tests/navigation/steering_routes_other_seeds_edge_connections_tes
 ## 105 px, where the pass links two obstacle corners that only touch).
 
 const SIX := 6
-const SIX_GAIN := 60.0
-## Measured: 3 routes, 105 px.
-const SIX_LONGER := Vector2(3, 110)
+const SIX_GAIN := 56.0
+## Measured: 3 routes, 105 px (the bound the next whole px over).
+const SIX_LONGER := Vector2(3, 106)
 
 
 func describe() -> Dictionary:
