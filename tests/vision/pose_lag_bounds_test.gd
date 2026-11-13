@@ -5,7 +5,8 @@ extends GameTest
 ## job of 3 slices), never a made-up pose. A checker (`tests/_vision/cone_checker.gd`) holds every
 ## published cone to a fresh reference cone of the pose the view says it is of, and the cone held
 ## between two publishes to the one before; `tests/_vision/cone_age.gd` says how old each frame's
-## cone is. The slice is small here so that a job of this little house takes three frames. Then
+## cone is. The slice is small here so that a job of this little house takes three frames (and in
+## `_long_job` six, the longest a district's job takes: at most 10 frames old). Then
 ## - a walking viewer (2 px a frame) and a turning one (0.5 degrees a frame) show cones at most 4
 ##   frames old, every one of a pose the viewer stood at, and a pose change alone never restarts a
 ##   job (a job is started per cone published, one in flight apart);
@@ -44,6 +45,12 @@ const MOST_BETWEEN := CAP + 2
 ## to prove the job is sliced.
 const OLDEST := 4
 const YOUNGEST := 2
+## A long job (#195, the user's choice 2026-11-12: the corners are priced honestly, so a job is the
+## corners' tick and its rays' ticks): the slice (units) that makes this house's job six ticks, the
+## longest a district's job takes, and the oldest its cone may be then, twice the ticks less one.
+const LONG_SLICE := 50
+const LONG_TICKS := 6
+const OLDEST_LONG := 10
 
 var _t: TestContext
 var _view: PlayerView
@@ -91,6 +98,7 @@ func run(t: TestContext) -> void:
 		return
 	await _walking()
 	await _turning()
+	await _long_job()
 	await _jumps()
 	_whole()
 
@@ -147,6 +155,49 @@ func _turning() -> void:
 		await _t.frames(1)
 		_paint_sample()
 	_age_checks("a turning viewer", before)
+
+
+## The viewer walks `FRAMES` * 2 frames with the slice cut so that a job is `LONG_TICKS` ticks: the
+## cone is at most twice the ticks less one frames old (`OLDEST_LONG` for six), never older.
+func _long_job() -> void:
+	var slice := VisionSliceConfig.slice_units
+	var price := VisionSliceConfig.cost_shape
+	VisionSliceConfig.slice_units = LONG_SLICE
+	VisionSliceConfig.cost_shape = LONG_SLICE
+	if not await _settled():
+		return
+	_checker.age.max_age = 0
+	var starts := _view.starts()
+	var published := _view.rebuilds()
+	var start_frame := -1
+	var longest := 0
+	for frame in FRAMES * 2:
+		_eye.global_position += WALK
+		await _t.frames(1)
+		if _view.starts() > starts:
+			start_frame = frame
+			starts = _view.starts()
+		if _view.rebuilds() > published:
+			longest = maxi(longest, frame - start_frame + 1)
+			published = _view.rebuilds()
+	VisionSliceConfig.slice_units = slice
+	VisionSliceConfig.cost_shape = price
+	_t.check(
+		longest == LONG_TICKS,
+		"premise: a job takes %d ticks here (the longest was %d)" % [LONG_TICKS, longest],
+	)
+	_t.check(
+		_checker.age.max_age <= OLDEST_LONG and _checker.age.max_age <= 2 * (longest - 1),
+		"a cone of a %d-tick job is at most %d frames old (%d)"
+		% [longest, OLDEST_LONG, _checker.age.max_age],
+	)
+	_t.check(
+		_checker.age.max_age > OLDEST,
+		"premise: the long job's cone lags more than a job of three (%d)" % _checker.age.max_age,
+	)
+	if not await _settled():
+		return
+	await _t.frames(1)
 
 
 ## `[starts, publishes]`.

@@ -35,7 +35,7 @@ read through `character.sight()`: any character can be the viewer.
 - **Physics, priority 100** (after the characters have moved): `ViewPipeline.tick` steps the cone's job a slice (or starts one
   when `ViewWatch.stale` says so); a completed job writes `SeenArea.set_area(polygons, bounds)`. Written in the physics tick, read
   in `_process` (Character's visuals, `BloodPool`), so a repaint is decided on the frame's own area. **The cone shown is the exact
-  cone of the pose its job started from, 2 to 4 frames old** (V1): tests compare to `published_pose()`.
+  cone of the pose its job started from, usually 2 to 4 frames old, at most 10** (V1): tests compare to `published_pose()`.
 - **`_process`:** the capture, memory, mask and composite follow the main viewport's view (`Pointer.screen_transform`, interface 26) and size; the memory's
   painter paints the cone polygon from the capture, the mask's painter draws the polygon once per tap of the feather (32 shifted
   copies, a disc, laid inside the edge).

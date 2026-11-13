@@ -12,8 +12,8 @@ whether it is done; `running()` says whether one is in flight; `work_units()` is
 **The corners are priced at a slice** (`cost_shape` 450): the query, its polygons, the dedupe and the lows' leave-out cost about 2.1 ms,
 380 units at 5.7 µs (`perf/cone_corner_cost` measures it; 180 to 640 by eye), so `begin` and the first step do the corners and cast no ray
 (`vision/cone_corners_priced`), and the rays begin the next tick. Priced as one unit they made a start tick the corners plus 449 units of
-rays, about 6 to 7 ms. A job is the corners' tick plus ceil(rays / slice) ticks: it keeps within 3 ticks (age 2 to 4) while its rays are
-at most two slices, and a test that cuts `slice_units` cuts `cost_shape` to it. `vision/cone_slice_units` holds `work_units()` to casts, queries and probes counted by subclasses, at every step size and at
+rays, about 6 to 7 ms. A job is the corners' tick plus ceil(rays / slice) ticks, and its cone is at most 2 (ticks - 1) frames old: 3 ticks (rays
+at most two slices) is 2 to 4, 4 ticks 6, the longest district job (6 ticks) 10 (`vision/pose_lag_bounds` pins 3 and 6 ticks; the user accepted it, 2026-11-12), and a test that cuts `slice_units` cuts `cost_shape` to it. `vision/cone_slice_units` holds `work_units()` to casts, queries and probes counted by subclasses, at every step size and at
 other prices (which change the count, never the polygon).
 
 **Stages**, in order: the corners (one piece), the even fan by ray, which corners the eye sees by corner, the sort of the ray
@@ -37,7 +37,7 @@ houses, 8 to 9 in a match's view. `restart_cap` (2) and `jump_px` (48) are `View
 `PlayerView._physics_process` calls `ViewPipeline.tick(space, eye, facing, exclude, sight)` once a tick (priority 100); it says
 whether a cone was published in it, and then the view writes `SeenArea`.
 - **Idle:** `ViewWatch.stale` (any input changed, the pose too) starts a job from the live pose (`look`, `ViewCone.begin`,
-  `ViewWatch.built`) and steps it. A job of 3 slices started in tick f publishes in f+2; the next starts in f+3: 2 to 4 frames old.
+  `ViewWatch.built`) and steps it. A job of 3 ticks started in tick f publishes in f+2; the next starts in f+3: 2 to 4 frames old (a job of k ticks: at most 2 (k - 1)).
 - **In flight:** an eye farther than `jump_px` from the published pose builds whole at once; else `ViewWatch.world_changed(sight)`
   (the sight and cone tuning, the dirty flag, a blocking character, the `_moved_then` flush quirk, a blocker moved in reach of the
   job's pose: not the eye or facing) restarts the job from the live pose; else one slice. Restart number `restart_cap` + 1 in a row

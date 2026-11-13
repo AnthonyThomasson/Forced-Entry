@@ -1,11 +1,11 @@
-# The player's view cone is rebuilt in slices, and the cone shown is 2 to 4 frames old
+# The player's view cone is rebuilt in slices, and the cone shown is usually 2 to 4 frames old, at most 10
 
 The view's cone (`docs/player-vision.md` V1) costs 6 to 11 ms a physics frame in a district match while the viewer walks or turns:
 it is rebuilt almost every frame (the eye changes every frame), whole, in one tick. In a 10v10 with the view on an NPC that tick is
 what the match's frame budget cannot spare (issue #195). The rebuild is now a **job stepped by work units** (`ViewCone.begin` / `step`, a unit being a ray cast, a
 region shape query or a far-face probe), run `VisionSliceConfig.slice_units` (about 3.5 ms) a physics tick by `ViewPipeline`, and the
-cone is published when the job is done. The cone the player sees is therefore the exact cone of the pose the job started from, 2 to 4
-frames old (a job of 3 slices). This record says why that latency is accepted and what was not done.
+cone is published when the job is done. The cone the player sees is therefore the exact cone of the pose the job started from, usually 2 to 4
+frames old (a job of 3 ticks), up to 6 (4 ticks) and at most 10 (the 6 ticks of the longest district job). This record says why that latency is accepted and what was not done.
 
 ## What the pipeline does, and what it never does
 
@@ -22,8 +22,12 @@ frames old (a job of 3 slices). This record says why that latency is accepted an
 
 ## The latency accepted
 
-A walking viewer's cone is up to 4 frames (about 17 px at a run, 10 px walking) behind its eye, the facing 2 to 4 frames behind its
-turn. The user accepted that (issue #195, Agent Brief rule 7) because the alternative is a frame budget the 10v10 cannot meet. It
+A walking viewer's cone is usually up to 4 frames (about 17 px at a run, 10 px walking) behind its eye, the facing 2 to 4 frames behind its
+turn; in about a quarter of a district's views (a job of 4 ticks or more) up to 6 frames, and at most 10 (about 42 px at a run). The longer bound is the
+corners' price: they cost about 2 ms, as much as a slice of rays, and priced as one unit they made a start tick of 6 to 7 ms. `cost_shape` is 450, so
+a job is the corners' tick plus its rays' ticks, one more than before (a district job a median 3 ticks, 26 % over 3, the most 6; before a median 2,
+11 % over 3, the most 5). The user accepted the longer lag on 2026-11-12 (#195, the frame tail) over a larger slice or a cheaper price that would fit a start tick
+with some rays. The user accepted that (issue #195, Agent Brief rule 7) because the alternative is a frame budget the 10v10 cannot meet. It
 replaces the earlier pose lag (`rebuild_gap`: an eye 5 px or a facing 1 degree off waited one frame), which was the same trade at
 one frame, and only for a slow walker: a quick turn (6 degrees a frame) was past its bounds and rebuilt every frame.
 Now the job's length is the lag and a moving viewer's cost is a slice a frame, whatever the pose does. A mover entering or leaving the

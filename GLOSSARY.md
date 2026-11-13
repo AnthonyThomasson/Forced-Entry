@@ -303,11 +303,11 @@ it, bounded by whatever breaks its line of sight (walls and tall furniture, not 
 _Avoid_: field of view (only the cone's angle), sight cone, vision cone (the NPCs' debug drawing of the same area)
 
 **Cone job**:
-One rebuild of the view cone, stepped `slice_units` of engine work a physics tick (`ViewCone.begin` / `step`, run by `ViewPipeline`) and published when done: the cone shown is the exact cone of the pose the job started from, 2 to 4 frames old, in the world as it was then. A change of the world between slices restarts it from the live pose; a change of the viewer's pose alone does not.
+One rebuild of the view cone, stepped `slice_units` of engine work a physics tick (`ViewCone.begin` / `step`, run by `ViewPipeline`) and published when done: the cone shown is the exact cone of the pose the job started from, usually 2 to 4 frames old (up to 6, at most 10 for the longest job), in the world as it was then. A change of the world between slices restarts it from the live pose; a change of the viewer's pose alone does not.
 _Avoid_: rebuild (the whole of it in one frame is still `ViewCone.rebuild`), pose lag (the old one-frame wait, gone), decision job (the AI's)
 
 **Published pose**:
-The eye and facing a cone job started from, which the cone shown is the exact cone of (`PlayerView.published_pose()`): a pose the viewer stood at 2 to 4 frames ago, never one made up.
+The eye and facing a cone job started from, which the cone shown is the exact cone of (`PlayerView.published_pose()`): a pose the viewer stood at usually 2 to 4 frames ago (at most 10), never one made up.
 _Avoid_: current pose, live pose (the viewer's now)
 
 **Memory**:
