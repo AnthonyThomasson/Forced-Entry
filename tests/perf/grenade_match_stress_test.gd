@@ -19,10 +19,9 @@ extends GameTest
 ## every body a player would see is drawn. Headless measures the CPU only (the drawing calls
 ## included, not the GPU); `tools/run_tests.sh --windowed` measures the render too.
 ## Budget: average 16.7 ms and worst frame 33.4 ms, the smooth standard; p95 `P95_MS` = 25 ms, its
-## own by the decision on #195, item 4 (every other guard holds 20). Measured on b9f9a071 (the
-## code without the decision), the fight's p95 reads 20.9 to 22.6 ms at load about 3 and 23.0 to
-## 24.2 ms at load 4 to 4.9, with no single cause left to cut. `Perf.within_frames` takes it as
-## `p95_limit`.
+## own by the decision on #195, item 4 (every other guard holds 20). Measured at the standard's 20,
+## the fight's p95 reads 20.9 to 22.6 ms at load about 3 and 23.0 to 24.2 ms at load 4 to 4.9, with
+## no single cause left to cut. `Perf.within_frames` takes it as `p95_limit`.
 ## Baseline in the district on a loaded machine (load 4 to 7, three or more other Godot: no run was
 ## quiet enough to judge): avg 15 to 17 ms, p95 27 to 34, max 56 to 69; contact came at 20 to 28 s
 ## (in one run in four not within 20 s, hence `Perf.MATCH_CONTACT_WITHIN`).

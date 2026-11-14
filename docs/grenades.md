@@ -467,7 +467,8 @@ characters (blood, debris, hit particles and sound on). Measured over the burst 
 **How they measure.** Each test frames the whole fight with the test camera, as a player's screen would show it, so every body is drawn.
 Headless (the default) the frame time is the CPU's work, the drawing calls included; `tools/run_tests.sh --windowed` runs the same test in a
 window with vsync off, so the render is in each frame too. The absolute budgets stay as they are in both modes: a red windowed run is the
-honest state of the game's performance, not a test to loosen.
+honest state of the game's performance, not a test to loosen. P1's p95 of 25 is the one budget moved, by the decision on #195 (item 4); the
+dated windowed p95 of 21.98 below was read against 20, the budget of that day.
 
 **Before** (origin/main `7428c4a`, before issue #56's fixes; one run each at a 1-minute load of about 2.9, ms a frame):
 
