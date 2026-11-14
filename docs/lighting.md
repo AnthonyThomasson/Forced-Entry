@@ -11,6 +11,13 @@ domains' (interface 20).
 All distances are px and times seconds. The numbers are the Lighting holders' (`LightingConfig`, `LightingFixtureConfig`, `LightingTextureConfig`, in `scenes/lighting/`) and, for what
 each piece gives, `ObjectArtLightConfig.specs`.
 
+## The 3D render mode
+
+A match played in the 3D render mode (`Settings.render_mode`, `architecture` interface 27) builds none of this: the match builder's spec says
+`render` is 3D and `MatchBuilder.stage` does not call `WorldLighting.light`, since the 2D world is hidden and never drawn; the 3D view has one
+directional light with hard shadows over a flat ambient (`RenderLightConfig`) until the lighting jobs of #193 turn the dusk, the fixtures and the
+flashes into 3D lights. Everything below describes the 2D render, which is the default.
+
 ## What is built
 
 `WorldLighting.light(root, seed_value, rooms)` (the match builder's world stage, `MatchBuilder.stage`, after the nav bake, for Main's match and the Testing world alike) adds one `WorldLighting`

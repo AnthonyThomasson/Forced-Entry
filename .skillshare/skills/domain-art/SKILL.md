@@ -6,14 +6,15 @@ description: Use when editing scenes/art/, writing or debugging a painter (furni
 # Art domain (`scenes/art/`)
 
 A leaf: the procedural pixel-art engine. It knows nothing of furniture, characters or items; each domain owns its painters and
-renders them through here. Depends only on Godot's `Image`. Interfaces: 12 (Objects / Character / Items / Vehicles → Art) and 13
-(a sandbox's own painter, as an assets ticket's showroom has).
+renders them through here. Depends only on Godot's `Image` (and, for the 3D mirror, General's `RenderConfig`). Interfaces: 12 (Objects / Character / Items / Vehicles → Art), 13
+(a sandbox's own painter, as an assets ticket's showroom has) and 27 (the 3D mirror).
 
 | File | Role |
 |---|---|
 | `pixel_art.gd` (`PixelArt`) | The cached renderer. |
 | `pixel_canvas.gd` (`PixelCanvas`) | The drawing surface: RGBA image plus coverage and height layers; shading, finishes, `glowing`. |
 | `pixel_shape.gd` (`PixelShape`), `pixel_convex_shape.gd` (`PixelConvexShape`) | The shapes a canvas fills. |
+| `mirror/` (`WorldMirror`, `MirrorProxy`, `MirrorConfig`, `mirror_proxy.gdshader`) | The 3D mirror of the 2D bodies (below). |
 | `art_canvas_config.gd`, `art_surface_config.gd` | Tuning: `ArtCanvasConfig` is what every painting shares (`pixel_size`, `light_from`, `turn_steps`, drop and cast shadow); `ArtSurfaceConfig` is how a surface is shaded (the `tones(base)` ramp, finish densities). A domain's own proportions and colours stay in its own config (`ObjectArt*Config`, `CharacterArtConfig`); a painter knob reads `opts.get(key, <DomainConfig>.<painter>_<key>)`. |
 
 ## Painters
@@ -50,6 +51,17 @@ Invariants:
   (`tests/art/pixel_art_turned_cache_test.gd`).
 - `PixelArt.TurnedLast` is a caller's slot for one part (`slot.render(painter, size, color, angle, opts)` = `render_turned`, answered by a compare against the last call's values; `PixelArt.last_hits` counts the answers). The character body keeps one per part (Character domain: `domain-character`, draw caches).
 - `away_from_light(node)` gives the direction a drop shadow falls; every visual offsets its shadow by it.
+
+## The 3D mirror (`mirror/`, interface 27)
+
+In the 3D render mode (#193) the 2D world is not drawn: `WorldMirror` (a `Node3D`, `mirror(root)`) follows every `PhysicsBody2D` under `root` as
+a proxy per collision shape (a box, a cylinder, a character's capsule; floors flat slabs) at 2D `(x, y)` -> 3D `(x * unit, 0, y * unit)`, the one scale
+`RenderConfig.unit` (General). It reads bodies duck-typed (the groups `characters`, `vehicles`, `doors`, `floors`; `wall_thickness`, `art_color`, `color`,
+`faction`), never a domain's class. The update rule is the spike's lesson: write only when the shape's 2D transform changed, skip a sleeping
+`RigidBody2D` (read once more as it falls asleep), check a freed shape untyped (`is_instance_valid` on a Variant), add a spawned body on the next frame
+(its `_ready` builds its shapes first), drop a despawned body's proxies. `builders` (body kind -> `Callable(body) -> Node3D`) is the hook a domain's
+own mesh plugs into (phase 2 of #193); `MirrorConfig` holds the proxy heights and colours. Tests: `tests/art/mirror_follows_bodies_test.gd`,
+`mirror_mesh_hook_test.gd`. Shaders compile only windowed, so a change to `mirror_proxy.gdshader` needs one windowed run (`tools/run_tests.sh --windowed`).
 
 ## PixelCanvas gotchas
 

@@ -84,7 +84,8 @@ const CLAIM_TTL_OF_NPCS := -1.0
 ## `spawn_clearance` (px a character is dropped clear of furniture, twice that of another combatant;
 ## 20), `invader_margin` (px out of the house the invaders' group point is drawn; 80), `front_step`
 ## (px out of the house's front door, along its way out, an invading human with no `at` starts; 0:
-## where it stands) and `overlays`
+## where it stands), `render` (`Settings.RENDER_2D` or `RENDER_3D`, how the match is drawn: the 3D
+## render builds no 2D lights, the 2D world being hidden; `2d`) and `overlays`
 ## (the debug overlays the match starts with, `{ show_<x>: bool }` by `OverlayRegistry` flag: the
 ## navigation holes, the squad leaders and each NPC's own; a flag it does not name starts off;
 ## `{}`).
@@ -101,6 +102,7 @@ static func spec(overrides: Dictionary = {}) -> Dictionary:
 		"spawn_clearance": 20.0,
 		"invader_margin": 80.0,
 		"front_step": 0.0,
+		"render": Settings.RENDER_2D,
 		"overlays": {},
 	}
 	for key in overrides:
@@ -585,7 +587,9 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	nav_updater.name = "NavUpdater"
 	world.add_child(nav_updater)
 	nav_updater.setup(nav_region, root, site_rooms, nav_debug)
-	WorldLighting.light(world, int(match_spec["seed"]), site_rooms)
+	if match_spec.get("render", Settings.RENDER_2D) != Settings.RENDER_3D:
+		# The 3D render lights its own world (one sun); the 2D lights would only be built unseen.
+		WorldLighting.light(world, int(match_spec["seed"]), site_rooms)
 	if bool(match_spec["wait_nav"]):
 		await _wait_nav(world)
 		if not is_instance_valid(world):

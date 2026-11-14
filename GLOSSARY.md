@@ -334,6 +334,29 @@ The part of the world the view cone shows live this frame (the cone last publish
 nothing would show it.
 _Avoid_: visible region, culled
 
+### The 3D render
+
+**Render mode**:
+How a match is drawn, 2D (the top-down game as it was) or 3D (the isometric view that mirrors it), a saved setting
+(`Settings.render_mode`) read when a match starts: a change applies at the next match, never to the one that runs. In 3D the 2D world
+is not drawn.
+_Avoid_: view mode, graphics setting, switching live
+
+**3D mirror**:
+The registry (`WorldMirror`, Art) that follows every drawn 2D body in a 3D world each frame, so the 3D view shows what the sim does
+without simulating it: 2D `(x, y)` becomes 3D `(x, 0, y)` at the one scale `RenderConfig.unit`, and height is visual only.
+_Avoid_: 3D world (the sim is still 2D), scene graph copy
+
+**Proxy**:
+The coloured box, cylinder or capsule the 3D mirror shows a collision shape as, sized from the shape (walls full height, floors flat),
+until a domain's own mesh replaces it through the mirror's hook.
+_Avoid_: placeholder, stand-in
+
+**Ground plane**:
+The flat 3D plane the 2D world lies on (`y = 0`); a 2D point is a point on it, and the 2D overlays (the view cone, debug markings) are
+drawn on it.
+_Avoid_: floor (a room's `Floor` object), map
+
 ### Lint
 
 **Lint rule**:

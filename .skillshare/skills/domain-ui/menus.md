@@ -25,8 +25,8 @@ Two full-screen, code-built windows that take plain data and emit signals. They 
 
 ## `settings_menu.gd` — the settings page (`SettingsMenu`, CanvasLayer layer 20, over the setup window)
 
-- `open({ debug, rows })` and `set_rows(rows)` take `rows` = `{ action, label, group, text, conflicts, changed }` in display order. Signals:
-  `debug_changed(on)`, `rebind_requested(action, event)`, `reset_requested(action)`, `reset_all_requested`, `back_requested`. Main applies each change
+- `open({ debug, render_mode, rows })` and `set_rows(rows)` take `rows` = `{ action, label, group, text, conflicts, changed }` in display order. Signals:
+  `debug_changed(on)`, `render_mode_changed(mode)` (`"2d"` / `"3d"`, a drop-down beside Debug, labelled "next match"), `rebind_requested(action, event)`, `reset_requested(action)`, `reset_all_requested`, `back_requested`. Main applies each change
   and answers with `set_rows`; a redraw keeps the scroll position. It names no action: the rows come from `Settings.binding_rows()`, so Interact
   (`Keybinds.INTERACT`, "Interact (sit, door, vehicle)", "Interaction" group, default Space) and the camera turn keys (`CAMERA_TURN_LEFT` / `CAMERA_TURN_RIGHT`, "Camera" group, default Q / E) are listed from `Keybinds.LABELS`.
 - **Capture:** a key button swaps to "Press a key…"; the next key or mouse-button press goes out as `rebind_requested` (the host may refuse it);

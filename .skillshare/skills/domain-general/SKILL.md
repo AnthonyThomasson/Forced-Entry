@@ -51,7 +51,7 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 
 ## Saved settings
 
-`Settings` keeps `debug` (the master switch for the AI overlays), the setup window's last choices, the overlay toggles with their scope per mode and the key-binding overrides in `user://settings.json` (`Settings.path`). Only differences from the defaults are stored, so a changed default still reaches an action the player never touched.
+`Settings` keeps `debug` (the master switch for the AI overlays), `render_mode`, the setup window's last choices, the overlay toggles with their scope per mode and the key-binding overrides in `user://settings.json` (`Settings.path`). Only differences from the defaults are stored, so a changed default still reaches an action the player never touched.
 
 - Main calls `Settings.load_file()` once in `_ready`, after seeding `Settings.debug` from its export. Nothing else does, so the headless runner (never loads `main.tscn`) never reads a developer's file.
 - A missing file keeps the defaults; an unreadable one `push_warning`s and does the same; a file without `debug` leaves it as it was.
@@ -78,6 +78,10 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 - **Hand pan** (framing only): camera keys, or the mouse within `edge_pan_margin` of an edge (only once the pointer was seen moving over the window, cleared on mouse-exit / focus-out), set `_manual`, which suspends the framing position; `manual_hold` seconds without panning eases back in. Test: `tests/general/camera_manual_pan_test.gd`.
 - **Driving zoom-out**: `_drive_zoom_out` reads `who.use.vehicle().view_zoom_out()` duck-typed (interface 19) and never `VehicleDriveConfig`. Test: `camera_zooms_out_driving_test.gd`.
 - **Explosion shake** (`&"explosion"`): trauma from the kind's strength and nearness, applied through `Camera2D.offset` only, never `global_position`, so following and framing are unchanged. Test: `camera_shakes_on_explosion_test.gd`.
+
+## The 3D camera rig
+
+`camera_rig.gd`, `render_*config.gd` (27): `camera3d.md`.
 
 ## Pointer
 

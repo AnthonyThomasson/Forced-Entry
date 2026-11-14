@@ -10,6 +10,7 @@ var _menu: CanvasLayer
 var _rebinds: Array = []
 var _resets: Array = []
 var _debugs: Array = []
+var _modes: Array = []
 var _backs := 0
 
 
@@ -30,9 +31,11 @@ func run(t: TestContext) -> void:
 	_menu.rebind_requested.connect(func(action, event): _rebinds.append([action, event]))
 	_menu.reset_requested.connect(func(action): _resets.append(action))
 	_menu.debug_changed.connect(func(on): _debugs.append(on))
+	_menu.render_mode_changed.connect(func(mode): _modes.append(mode))
 	_menu.back_requested.connect(func(): _backs += 1)
-	_menu.open({ "debug": true, "rows": _rows() })
+	_menu.open({ "debug": true, "render_mode": "3d", "rows": _rows() })
 	_check_rows(t)
+	_check_render_mode(t)
 	_check_debug_and_escape(t)
 	if not _check_capture(t):
 		return
@@ -49,6 +52,23 @@ func _check_rows(t: TestContext) -> void:
 	t.expect_eq(_note("Move up").text, "", "an unshared one has no note")
 	t.check(not _reset_button("Punch").disabled, "a changed row can be reset")
 	t.check(_reset_button("Move up").disabled, "an unchanged row has nothing to reset")
+
+
+## The render mode picker sits beside Debug, starts on the mode it is given and reports a pick.
+func _check_render_mode(t: TestContext) -> void:
+	var picks := _menu.find_children("*", "OptionButton", true, false)
+	if not t.require(picks.size() == 1, "one render mode picker on the page"):
+		return
+	var pick: OptionButton = picks[0]
+	t.expect_eq(pick.item_count, 2, "it offers 2D and 3D")
+	t.check(pick.get_item_text(pick.selected).begins_with("3D"), "it starts on the saved mode, 3D")
+	t.check(_modes.is_empty(), "seeding the mode emits nothing")
+	var debug_check: CheckBox = _menu.find_children("*", "CheckBox", true, false)[0]
+	t.check(pick.get_parent() == debug_check.get_parent(), "it sits beside Debug")
+	pick.item_selected.emit(0)
+	t.expect_eq(_modes, ["2d"], "picking 2D is reported as 2d")
+	pick.item_selected.emit(1)
+	t.expect_eq(_modes, ["2d", "3d"], "picking 3D is reported as 3d")
 
 
 ## The Debug checkbox starts as given and reports a change; Escape with nothing being captured goes

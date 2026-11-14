@@ -1,6 +1,6 @@
 20. **Main / Testing (through `MatchBuilder`) → Lighting, and the world's lights and shadows** (`scenes/lighting/`; spec `docs/lighting.md`;
     Lighting is a leaf: it imports only General and reads the world duck-typed)
-    - `WorldLighting.light(root: Node2D, seed_value: int, rooms: Array = []) -> WorldLighting` lights the built world under `root`: adds one
+    - `WorldLighting.light(root: Node2D, seed_value: int, rooms: Array = []) -> WorldLighting` lights the built world under `root` (the match builder does not call it for a match in the 3D render mode, `render` of the spec, 23, 27: the 2D world is not drawn and the 3D view has one sun and a flat ambient until the lighting jobs of #193): adds one
       `WorldLighting` node (group `world_lighting`) and returns it; `rooms` = `WorldGen.get_rooms`, or `WorldGen.district_rooms` for a district (every tower's rooms, keys unique, so each gets a fixture or a
       piece's light; a shell is no room and gets none), for the fixtures; `seed_value` seeds the
       rhythms. It builds nothing and returns null while `LightingConfig.enabled` is off. The match builder's `stage` (23) calls it after the

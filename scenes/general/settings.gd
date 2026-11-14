@@ -1,21 +1,29 @@
 class_name Settings
-## General domain: the player's saved settings — the debug switch, the key bindings that differ from
-## the defaults, the last match-setup choices, the overlay toggles and their scope — kept in one
-## JSON file. A `class_name` holder of `static var`s and static functions, read as
+## General domain: the player's saved settings — the debug switch, the render mode, the key bindings
+## that differ from the defaults, the last match-setup choices, the overlay toggles and their scope
+## — kept in one JSON file. A `class_name` holder of `static var`s and static functions, read as
 ## `Settings.<name>`; there is no instance and no autoload.
 ##
 ## Main loads it once at startup (`load_file()`), so the headless test runner, which never loads
 ## `main.tscn`, never reads a developer's real file. The settings page's changes come back through
-## the mutators here (`set_debug`, `set_setup`, `set_overlay`, `rebind`, `reset`, `reset_all`), each
-## of which saves at once.
+## the mutators here (`set_debug`, `set_render_mode`, `set_setup`, `set_overlay`, `rebind`, `reset`,
+## `reset_all`), each of which saves at once.
 ## Bindings live in `Keybinds.bindings`; this file only persists them and reshapes them for the
 ## page.
+
+## The render modes (`render_mode`): the 2D render, and the isometric 3D render that mirrors the 2D
+## simulation (`docs/adr/0013-the-3d-render-mirrors-the-2d-sim.md`).
+const RENDER_2D := "2d"
+const RENDER_3D := "3d"
 
 ## Where the settings are stored. A test points it at a scratch file.
 static var path: String = "user://settings.json"
 ## Master switch for the AI debug overlays and their in-game toggle bar. Main seeds it from its own
 ## export before `load_file()`, so a file that doesn't name it leaves that value standing.
 static var debug: bool = true
+## How the next match is drawn, `RENDER_2D` or `RENDER_3D`. Main reads it when a match starts
+## (`Main.start_match`), so a change applies at the next match, never to the one that runs.
+static var render_mode: String = RENDER_2D
 ## The match-setup window's last choices (`{ side, seed, lead, defenders, invaders }`, plain data as
 ## the window emits them), so it reopens the way it was left. Empty until something has been chosen.
 static var setup: Dictionary = {}
@@ -42,6 +50,8 @@ static func load_file() -> void:
 	var data: Dictionary = json.data
 	if data.get("debug") is bool:
 		debug = data["debug"]
+	if data.get("render_mode") in [RENDER_2D, RENDER_3D]:
+		render_mode = data["render_mode"]
 	if data.get("setup") is Dictionary:
 		setup = data["setup"]
 	_load_overlays(data)
@@ -72,6 +82,7 @@ static func save() -> void:
 		return
 	file.store_string(JSON.stringify({
 		"debug": debug,
+		"render_mode": render_mode,
 		"setup": setup,
 		"overlays": overlays,
 		"overlay_scopes": overlay_scopes,
@@ -82,6 +93,15 @@ static func save() -> void:
 ## Set the Debug switch and save.
 static func set_debug(on: bool) -> void:
 	debug = on
+	save()
+
+
+## Set the render mode (`RENDER_2D` or `RENDER_3D`, anything else is refused) and save.
+static func set_render_mode(mode: String) -> void:
+	if mode != RENDER_2D and mode != RENDER_3D:
+		push_warning("Settings: %s is not a render mode (2d or 3d)." % mode)
+		return
+	render_mode = mode
 	save()
 
 

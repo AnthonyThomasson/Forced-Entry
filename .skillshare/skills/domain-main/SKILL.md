@@ -66,6 +66,10 @@ and awaits `MatchBuilder.build`. A match torn down during the build returns `{}`
 
 `_teardown_world` frees `World` and everything the match left, and clears `Sound.focus`, `_match`, `_human`, `_overlays.inspector`.
 
+## The 3D render mode
+
+`Settings.render_mode` is read in `start_match` and decides how a match is drawn: with 3D, Main hides the `World` before it is built and builds the 3D view (`main_view3d.gd`) that mirrors the match; a 2D match is the game as it was. Details and tests: `render3d.md`. Interface 27.
+
 ## Overlays
 
 `_overlays.flags` has one entry per `OverlayRegistry` row; the bar's toggles and its "Show on" scope reach Main's public `set_overlay(flag, on)` and `set_overlay_scope(scope)`,
