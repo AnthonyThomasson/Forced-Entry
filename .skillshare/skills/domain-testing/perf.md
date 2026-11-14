@@ -23,7 +23,8 @@ guard measures the planning bake whole, what a frame pays to start one and a ste
 
 A match runs without frame loss, so every frame-based test holds `Perf.SMOOTH_AVG_MS` (16.7, one 60 fps frame),
 `SMOOTH_P95_MS` (20) and `SMOOTH_MAX_MS` (33.4, two frames) through `Perf.within_frames(t, label, stats)`, at the scale of
-the largest match (twenty characters), with no looser tail (the one decided exception: `grenade_match_stress`'s p95 is 25, its own `P95_MS` passed as `p95_limit`). One-shot work (`Perf.time_ms`) keeps a `const` budget at the
+the largest match (twenty characters), with no looser tail. The one exception is `grenade_match_stress`'s p95, 25 by the #195 decision: its own `P95_MS`, passed to `within_frames` as `p95_limit`.
+One-shot work (`Perf.time_ms`) keeps a `const` budget at the
 top of its test, about 4x the baseline stated in the comment above it. `Perf.within` prints `PERF <label> <value>
 (budget <limit>)`, traces it and fails the check with the value. Counts (nodes, dents, pools) are asserted tightly.
 
@@ -44,7 +45,7 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
 - **What the player's view costs is held as a difference** (`perf/match_npc_vision_relative`: one 10v10 in one process, blocks of frames
   with the view on and off, interleaved, since two plays of a match differ by far more than the view costs): `perf-vision-cost.md` (split out to keep this file under the 8192-byte cap).
   `perf/match_5v5_stress` is green on the district since #192; after Extensions 2 and 3 (2026-11-07) `perf/match_10v10_stress`,
-  `perf/grenade_match_stress` and `perf/match_npc_vision` still miss and AC40 is not met; none is loosened, skipped or tagged:
+  `perf/grenade_match_stress` and `perf/match_npc_vision` still miss and AC40 is not met; none is skipped or tagged, and none is loosened but `grenade_match_stress`'s p95 (25, above):
   `perf-district-ext2.md`, `perf-district-ext3.md`, the gates the district moved: `perf-district.md`.
   What one NPC costs a frame (measured, #195): `perf-npc-cost.md`. A match's opening (`perf/match_10v10_opening`, from the first
   sighting or shot) and the worst-frames report `--verbose` prints for every frame guard: `perf-opening.md`.

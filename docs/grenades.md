@@ -451,8 +451,7 @@ Test: `ai/grenade/grenade_overlay_draws`.
 *(Added by issue #56.)* Grenades going off must not make the game stutter. Two perf tests hold them to the smooth standard every frame-based
 perf test holds (`Perf.SMOOTH_*` in `tests/_perf/perf_probe.gd`): **average ≤ 16.7 ms** a frame (one 60 fps frame),
 **p95 ≤ 20 ms** and **no frame over 33.4 ms** (two frames). The one exception is P1's p95, **≤ 25 ms** (its own `P95_MS`, passed to
-`Perf.within_frames` as `p95_limit`): its p95 reads 20.9 to 22.6 ms at load about 3 and 23.0 to 24.2 ms at load 4 to 4.9, the slow frames the blast's aftermath with no single cause
-left to cut (decision on #195, item 4).
+`Perf.within_frames` as `p95_limit`): its p95 reads 20.9 to 22.6 ms at load about 3 and 23.0 to 24.2 ms at load 4 to 4.9, with no single cause left to cut (decision on #195, item 4).
 
 **P1. Grenades in a match** (`perf/grenade_match_stress`). The 5v5 of `perf/match_5v5_stress` (a generated house on its largest plan, the match built
 as Main builds one through `MatchBuilder`: the invader team beside the front door with its plates and a stun and a frag each, styled and ranked, one

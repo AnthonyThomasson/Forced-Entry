@@ -13,17 +13,16 @@ extends GameTest
 ## its first throw, out of the warm-up and the placement. So the burst's whole cost is in the
 ## window: the blast and its fragments, the flash and bang, the FX, scorch, blood and debris, the
 ## sounds, and every NPC's grenade perception, evade planning and re-decision. From the puppet's
-## first throw to 3 s after its last burst the frames meet the smooth standard (`Perf.SMOOTH_*`); a
-## grenade an NPC throws meanwhile is part of the load. The camera frames the fighters as Main's
-## spectator view does, on a player's screen, so every body a player would see is drawn. Headless
-## measures the CPU only (the drawing calls included, not the GPU); `tools/run_tests.sh --windowed`
-## measures the render too.
+## first throw to 3 s after its last burst the frames meet the smooth standard (`Perf.SMOOTH_*`) in
+## average and worst frame, and `P95_MS` in p95; a grenade an NPC throws meanwhile is part of the
+## load. The camera frames the fighters as Main's spectator view does, on a player's screen, so
+## every body a player would see is drawn. Headless measures the CPU only (the drawing calls
+## included, not the GPU); `tools/run_tests.sh --windowed` measures the render too.
 ## Budget: average 16.7 ms and worst frame 33.4 ms, the smooth standard; p95 `P95_MS` = 25 ms, its
-## own (the decision on #195, item 4). The fight's p95 reads 20.9 to 22.6 ms on a quiet machine
-## (load about 3) and 23.0 to 24.2 ms at load 4 to 4.9, on the code before that decision: the slow
-## frames are the blast's aftermath (sounds, bodies' ragdoll steps, nav tile bakes, an NPC's grenade
-## and throw builds in the same frames), with no single cause left to cut. No other guard's p95
-## changed (`Perf.within_frames`' `p95_limit`).
+## own by the decision on #195, item 4 (every other guard holds 20). Measured on b9f9a071 (the
+## code without the decision), the fight's p95 reads 20.9 to 22.6 ms at load about 3 and 23.0 to
+## 24.2 ms at load 4 to 4.9, with no single cause left to cut. `Perf.within_frames` takes it as
+## `p95_limit`.
 ## Baseline in the district on a loaded machine (load 4 to 7, three or more other Godot: no run was
 ## quiet enough to judge): avg 15 to 17 ms, p95 27 to 34, max 56 to 69; contact came at 20 to 28 s
 ## (in one run in four not within 20 s, hence `Perf.MATCH_CONTACT_WITHIN`).
@@ -33,11 +32,11 @@ extends GameTest
 ## 18.54, max 37.70 and 35.51 ms. No snapshot builds over 8.4 ms any more; what is left is the
 ## escape search a grenade's landing sets off in every NPC near it (`AgentThrow.escape`, reached
 ## through `react_to_grenades`, about 4.4 ms a call, several NPCs in one frame: 49 to 53 calls in 28
-## or 29 frames of the 560, the worst frame spends 22.4 ms of 31.7 in that reflex). The budgets are
-## not loosened and the test is neither skipped nor tagged.
-## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
-## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
-## one fight per seed, seed 2 now (`perf_probe.gd`), contact at 8.1 s every
+## or 29 frames of the 560, the worst frame spends 22.4 ms of 31.7 in that reflex). The average and
+## worst-frame budgets are the standard's, p95 is `P95_MS`, and the test is neither skipped nor
+## tagged. #203: the numbers above are seed 7's fight, another fight than this guard plays now (not
+## a baseline to read a change by, nor a sign of the guard getting faster or slower). The match
+## plays one fight per seed, seed 2 now (`perf_probe.gd`), contact at 8.1 s every
 ## run; four runs (load 5 to 6, not `--quiet`): avg 9.96 to 12.50, p95 19.78 to 22.39, max 28.33 to
 ## 35.63 ms.
 
