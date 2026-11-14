@@ -3,8 +3,10 @@
 The isometric 3D render (issue #193) is a second way to draw the match, not a second simulation. The sim (physics, collision, navigation,
 AI, bullets, grenades, the view cone) stays 2D and untouched; in the 3D render mode a **3D mirror** (`WorldMirror`, interface 27) follows
 every drawn 2D body in a 3D world each frame, 2D `(x, y)` to 3D `(x, 0, y)` at the one scale `RenderConfig.unit`, and an orthographic camera
-rig follows the sim's `Camera2D`. The 2D world is not drawn in that mode (hidden before the match is built, no 2D lights built), which is the
-whole of the frame-time win the spike measured (2D 18.8 ms, 3D proxies 11.1 ms mean at 1152x648 in the 10v10 district); height is visual only.
+rig follows the sim's `Camera2D`. The 2D world is not drawn in that mode (hidden before the match is built) and its 2D lights are not built;
+the painters' textures and `LightOccluder2D`s still are, and the hidden vision-capture `SubViewport` still renders, until the pixel-post job
+stops it and phase 3 deletes the 2D render. The spike measured its win (2D 18.8 ms, 3D proxies 11.1 ms mean at 1152x648 in the 10v10
+district) with none of that 2D work, so the rest of it is carried to those jobs; height is visual only.
 
 ## Considered options
 
@@ -14,9 +16,11 @@ whole of the frame-time win the spike measured (2D 18.8 ms, 3D proxies 11.1 ms m
 - **The mirror's own rule for what to follow.** A scene-side `Node3D` per object (each domain adds its mesh to its own scene) was rejected: it
   spreads the 2D-to-3D mapping over every factory and every body, so two scales and two orders could drift. One registry in Art holds the
   mapping, the update rule and the per-kind mesh hook; each domain supplies its mesh through the hook and never moves it.
-- **The render mode as a second build of the world.** 3D mode builds the same bodies as 2D (so the sim is the same), and only what exists to
-  be drawn is skipped where that is cheap and safe (the 2D lights; the world is hidden for the rest). Skipping every painter would change what
-  a `Node2D` is and break the tests that read them, for a saving the hidden world already gives.
+- **The render mode as a second build of the world.** 3D mode builds the same bodies as 2D (so the sim is the same), and of what exists only
+  to be drawn it skips the 2D lights (the dusk's `CanvasModulate`, the `PointLight2D`s and the `WorldLighting` node: nothing but the 2D render
+  reads them) and does not draw the world, which is hidden. The painters' textures and the `LightOccluder2D`s are still built: skipping them
+  would change what a `Node2D` is and break the tests that read them, so they go when phase 3 deletes the 2D render, and the vision capture
+  stops with the pixel-post job.
 
 ## Consequences
 

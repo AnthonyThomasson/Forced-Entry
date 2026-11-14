@@ -53,7 +53,8 @@ static func kind_of(body: Node) -> StringName:
 ## the mirror does not show. A row is `{ node, shape, body, last, size3, half_height, offset, rigid,
 ## asleep }`: `shape` the 2D node whose transform the proxy follows, `offset` where its centre sits
 ## in that node's frame, `size3` the scale the shared unit mesh is given, `rigid` the body when it
-## is a `RigidBody2D` (it sleeps) and `asleep` whether the mirror last found it so.
+## is a `RigidBody2D` (it sleeps), `asleep` whether the mirror last found it so and `shown` whether
+## the proxy shows (a disabled shape or a hidden body hides it).
 func make(body: PhysicsBody2D, kind: StringName, shape_node: CollisionShape2D) -> Dictionary:
 	var shape := shape_node.shape
 	var rect := rect_of(shape)
@@ -76,7 +77,7 @@ func make(body: PhysicsBody2D, kind: StringName, shape_node: CollisionShape2D) -
 	return {
 		"node": node, "shape": shape_node, "body": body, "last": Transform2D(), "size3": size3,
 		"half_height": height * 0.5, "offset": rect.get_center(),
-		"rigid": body if body is RigidBody2D else null, "asleep": false,
+		"rigid": body if body is RigidBody2D else null, "asleep": false, "shown": true,
 	}
 
 
@@ -86,7 +87,7 @@ func own_row(body: PhysicsBody2D, node: Node3D) -> Dictionary:
 	return {
 		"node": node, "shape": body, "body": body, "last": Transform2D(), "size3": Vector3.ONE,
 		"half_height": 0.0, "offset": Vector2.ZERO, "rigid": body if body is RigidBody2D else null,
-		"asleep": false,
+		"asleep": false, "shown": true,
 	}
 
 

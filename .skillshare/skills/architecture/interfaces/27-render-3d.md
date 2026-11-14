@@ -3,17 +3,21 @@
     the 2D world, it follows every drawn 2D body in a 3D world seen through an orthographic camera.
     - **The mode:** `Main.start_match` reads `Settings.render_mode` (`RENDER_2D` `"2d"`, the default, or `RENDER_3D` `"3d"`) when a match starts
       and puts it in the spec as `render` (23; a spec of the caller's that names `render` keeps it): a change applies at the next match, never to the one that runs. With 3D, Main hides the `World` before
-      it is built, so not one frame of the 2D world is drawn, `MatchBuilder.stage` builds no 2D lights (20), and Main builds the 3D view
+      it is built, so not one frame of the 2D world is drawn, `MatchBuilder.stage` builds no 2D lights (20: the dusk's `CanvasModulate`, the
+      `PointLight2D`s and the `WorldLighting` node; the painters' textures and occluders are still built until phase 3 deletes the 2D render, and the
+      hidden vision-capture `SubViewport` still renders until the pixel-post job), and Main builds the 3D view
       (`View3D`, a `CanvasLayer` on `RenderConfig.canvas_layer`, below the HUD: a `TextureRect` showing a `SubViewport` with the rig, one sun
       over a flat ambient, and the mirror); the sim (bodies, nav, AI, the view cone) is untouched, and the 2D vision and debug overlays, drawn
       under the hidden `World`, are not shown until the ground-plane overlay layer of the pixel-post job.
     - **`WorldMirror`** (`art/mirror/world_mirror.gd`, `class_name`, a `Node3D` made by `WorldMirror.new()`; Art imports nothing but
       General's `RenderConfig`, and reads the bodies duck-typed: the groups `characters`, `vehicles`, `doors` and `floors`, and the properties
       `wall_thickness`, `art_color`, `color`, `faction`, `size`):
-      - `mirror(root: Node) -> void` gives every `PhysicsBody2D` under `root` a proxy per enabled collision shape and every `floors` member a flat
-        slab; 2D `(x, y)` is 3D `(x * unit, 0, y * unit)` with `unit` = `RenderConfig.unit`, **the one scale** (heights scale with it). A body that
-        spawns later is mirrored on the next frame, one that leaves the tree loses its proxies, a collider rebuilt under a body re-mirrors it, a
-        character who dies is hidden.
+      - `mirror(root: Node) -> void` gives every `PhysicsBody2D` under `root` a proxy per collision shape and every `floors` member a flat slab;
+        2D `(x, y)` is 3D `(x * unit, 0, y * unit)` with `unit` = `RenderConfig.unit`, **the one scale** (heights scale with it). A body or floor
+        that spawns later is mirrored on the next frame (a floor once it has joined `floors`), one that leaves the tree loses its proxies, a
+        collision shape added to or removed from a mirrored body (a hit wall's rebuilt colliders) re-mirrors that body, a character who dies is
+        hidden. A proxy is hidden while its shape is disabled (a character seated in a vehicle) or its body's own `visible` is false (not
+        `is_visible_in_tree`: the 2D `World` is hidden in 3D), and shown again when neither is; a body seen with its shape disabled is mirrored (hidden).
       - The proxy: a box (walls full height, doors their leaf, furniture a height from its footprint, vehicles low), a cylinder for a round
         non-character, a capsule for a character; one shared mesh per shape kind and one shared material (`mirror_proxy.gdshader`) with a colour
         per instance, from the body's `art_color` / `color`, a faction's name hash for a character, else a hash of the node's name. Heights and
@@ -26,7 +30,9 @@
       - **The mesh hook** (phase 2's `meshkit` and the domains' meshes plug in here): `builders: Dictionary`, body kind -> `Callable(body:
         Node2D) -> Node3D`, set before `mirror()`; the kinds are `MirrorProxy.WALL`, `DOOR`, `CHARACTER`, `VEHICLE`, `FURNITURE`. A node it returns
         replaces the kind's per-shape proxies and follows the **body's** whole transform (a local frame whose origin is the body's, turned about
-        the up axis by the 2D turn); null keeps the proxy. A floor is not a body and has no hook yet, and floors are mirrored when `mirror()` runs (they do not spawn mid-match).
+        the up axis by the 2D turn); null keeps the proxy. A builder returns its node in **3D units** (it applies `RenderConfig.unit` itself); `FURNITURE` covers every `ObjectArt`
+        kind (the builder dispatches on the piece). A floor is not a body and has no hook yet; floors are mirrored when `mirror()` runs and when
+        one joins the `floors` group mid-match.
     - **`CameraRig`** (`general/camera_rig.gd`, `class_name`, a `Node3D` that owns an orthographic `Camera3D` as `camera`): `bind(source: Camera2D,
       viewport: SubViewport, rect: Control = null)` follows the sim's `Camera2D`, which stays the focus, zoom and shake source (Sound, the cull and
       the tests read it): each frame the camera frames `source.get_screen_center_position()` (focus plus shake offset) at `source.zoom` (the ortho
@@ -37,5 +43,6 @@
       pixel covers.
     - **Tuning:** `RenderConfig` (General: `unit`, `pitch_degrees`, `yaw_degrees`, `distance`, `near`, `far`, `internal_lines`, `canvas_layer`),
       `RenderLightConfig` (General, the interim sun and ambient until the lighting job moves them to Lighting) and `MirrorConfig` (Art).
-    - **Not yet:** the mouse and keys stay world-relative (the turn-control job gives `Pointer` its 3D body, 26); there is no pixel post and the
+    - **Not yet:** things drawn that are not physics bodies (dropped items, debris, bullets, casings, grenades in flight) have no 3D counterpart until
+      phase 2; the mouse and keys stay world-relative (the turn-control job gives `Pointer` its 3D body, 26); there is no pixel post and the
       2D vision and debug overlays are hidden in 3D mode (the pixel-post job); the meshes are proxies (phase 2).

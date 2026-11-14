@@ -9,10 +9,13 @@ extends Node3D
 ##
 ## It follows the bodies that move: each frame a moving body's shape transform is read and the proxy
 ## written only when it changed; a sleeping `RigidBody2D` is not even read, and a wall or any
-## body that never moves is written once. A body that spawns later (`SceneTree.node_added`) is
-## mirrored on the next frame, once its own `_ready` has built its collision shapes; one that
-## despawns (`tree_exiting`) loses its proxies; a collider rebuilt under a body (a hit furniture
-## piece's) re-mirrors it; a character who dies is hidden (the ragdoll's mirror is a later job).
+## body that never moves is written once. A body or floor that spawns later
+## (`SceneTree.node_added`) is mirrored on the next frame, once its own `_ready` has built its
+## collision shapes (a floor has joined the group `floors`); one that despawns (`tree_exiting`)
+## loses its proxies; a collision shape added to or removed from a mirrored body (a hit wall's or
+## furniture piece's rebuilt collider) re-mirrors that body. A proxy is hidden while its shape is
+## disabled (a character seated in a vehicle) or its body's own `visible` is false, and shown again
+## when they are not; a character who dies is hidden (the ragdoll's mirror is a later job).
 ##
 ## A domain's own mesh replaces the proxy per body kind through `builders` (kind -> `Callable`:
 ## `(body: Node2D) -> Node3D`, a node of the body's own mesh in a local frame where its origin is
@@ -33,7 +36,8 @@ var _root: Node
 var _rows: Dictionary = {}
 ## The rows that follow a moving body, swap-removed when a body leaves.
 var _moving: Array[Dictionary] = []
-## Bodies that entered the tree (or lost a collider) since the last update, mirrored next.
+## Bodies and floors that entered the tree (or gained or lost a collision shape) since the last
+## update, mirrored next.
 var _pending: Dictionary = {}
 
 
@@ -89,6 +93,10 @@ func update() -> void:
 		else:
 			row["asleep"] = false
 		followed += 1
+		var shown := _shown(row)
+		if shown != row["shown"]:
+			row["shown"] = shown
+			(row["node"] as Node3D).visible = shown
 		var xf: Transform2D = (shape as Node2D).global_transform
 		if xf != row["last"]:
 			row["last"] = xf
@@ -107,21 +115,45 @@ func _retire(row: Dictionary, index: int) -> void:
 		_pending[(body as Node).get_instance_id()] = body
 
 
-## Mirror the bodies that spawned (or lost a collider) since the last update.
+## Mirror the bodies and floors that spawned (or gained or lost a collision shape) since the last
+## update. A floor joins its group in its own `_ready`, after it entered the tree: that is checked
+## here.
 func _mirror_pending() -> void:
 	if _pending.is_empty():
 		return
 	var batch := _pending.values()
 	_pending = {}
-	for body: Variant in batch:
-		if is_instance_valid(body) and (body as Node).is_inside_tree():
-			_add_body(body as PhysicsBody2D)
+	for node: Variant in batch:
+		if not is_instance_valid(node) or not (node as Node).is_inside_tree():
+			continue
+		if node is PhysicsBody2D:
+			_add_body(node as PhysicsBody2D)
+		elif ((node as Node).is_in_group(&"floors")
+				and not _rows.has((node as Node).get_instance_id())):
+			_add_floor(node as Node2D)
 
 
-## A node entered the tree: a physics body under the root is mirrored on the next update.
+## A node entered the tree: a physics body under the root, or a node that may turn out a floor
+## (a `Node2D` with a `size` and a `color`: it joins its group in its own `_ready`), is mirrored on
+## the next update.
 func _on_node_added(node: Node) -> void:
-	if node is PhysicsBody2D and _root != null and _root.is_ancestor_of(node):
+	if _root == null or not _root.is_ancestor_of(node):
+		return
+	if node is PhysicsBody2D or _may_be_floor(node):
 		_pending[node.get_instance_id()] = node
+
+
+## Whether `node` could be a floor: a `Node2D` that has a `size` and a `color` (read duck-typed, as
+## a floor is in the Objects domain).
+func _may_be_floor(node: Node) -> bool:
+	return node is Node2D and node.get("size") is Vector2 and node.get("color") is Color
+
+
+## A collision shape came or went under a mirrored body: the body is mirrored again on the next
+## update.
+func _on_shape_changed(child: Node, body: Node) -> void:
+	if child is CollisionShape2D and is_instance_valid(body):
+		_pending[body.get_instance_id()] = body
 
 
 ## Mirror `body`'s shapes (or its kind's own mesh), replacing any proxies it already has.
@@ -137,14 +169,18 @@ func _add_body(body: PhysicsBody2D) -> void:
 		var xf := (row["shape"] as Node2D).global_transform
 		(row["node"] as Node3D).transform = MirrorProxy.lift(xf, row)
 		row["last"] = xf
-		if moving:
+		row["shown"] = _shown(row)
+		(row["node"] as Node3D).visible = row["shown"]
+		# A shape that is off now may come on (a static body's too): that row is read each frame.
+		if moving or not row["shown"]:
 			_moving.append(row)
 	_rows[body.get_instance_id()] = rows
 	_watch(body)
 
 
 ## The rows `body` is shown by: its kind's own mesh when a builder gives one, else one proxy per
-## enabled collision shape.
+## collision shape (a disabled one too: it is hidden until it is enabled), not counting a shape on
+## its way out.
 func _rows_of(body: PhysicsBody2D) -> Array[Dictionary]:
 	var kind := MirrorProxy.kind_of(body)
 	var rows: Array[Dictionary] = []
@@ -155,7 +191,7 @@ func _rows_of(body: PhysicsBody2D) -> Array[Dictionary]:
 			return rows
 	for child in body.get_children():
 		var shape_node := child as CollisionShape2D
-		if shape_node == null or shape_node.disabled or shape_node.shape == null:
+		if shape_node == null or shape_node.shape == null or shape_node.is_queued_for_deletion():
 			continue
 		var row := _proxies.make(body, kind, shape_node)
 		if not row.is_empty():
@@ -186,11 +222,28 @@ func _drop(body: Node) -> void:
 	_rows.erase(id)
 
 
-## Watch `body` leave the tree and, if it can die, die.
+## Whether `row`'s proxy shows: its collision shape is enabled and its body's own `visible` is on
+## (not `is_visible_in_tree`: the 2D World is hidden in 3D). A mesh of a domain's own follows the
+## body, which has no shape to be disabled.
+func _shown(row: Dictionary) -> bool:
+	var shape: Variant = row["shape"]
+	var body: Variant = row["body"]
+	if not is_instance_valid(shape) or not is_instance_valid(body):
+		return false
+	if shape is CollisionShape2D and (shape as CollisionShape2D).disabled:
+		return false
+	return (body as CanvasItem).visible
+
+
+## Watch `body` leave the tree, gain or lose a collision shape and, if it can die, die.
 func _watch(body: Node) -> void:
 	var leaving := _on_body_exiting.bind(body)
 	if not body.tree_exiting.is_connected(leaving):
 		body.tree_exiting.connect(leaving)
+	var changed := _on_shape_changed.bind(body)
+	if not body.child_entered_tree.is_connected(changed):
+		body.child_entered_tree.connect(changed)
+		body.child_exiting_tree.connect(changed)
 	if body.has_signal(&"died"):
 		var dying := _on_body_died.bind(body)
 		if not body.is_connected(&"died", dying):

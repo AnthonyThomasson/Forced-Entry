@@ -53,6 +53,7 @@ func run(t: TestContext) -> void:
 	await _check_sleeping_and_following(t)
 	await _check_turning(t)
 	await _check_spawn_and_despawn(t)
+	await _check_floor_added(t)
 	await _check_death(t)
 
 
@@ -249,6 +250,27 @@ func _check_spawn_and_despawn(t: TestContext) -> void:
 	for child in _mirror.get_children():
 		left += 1
 	t.expect_eq(left, before, "the proxy node itself is gone, not hidden")
+
+
+## A floor added after the mirror started (it joins the group `floors` in its own `_ready`) is
+## mirrored as a flat slab over its rect, and loses it when it leaves.
+func _check_floor_added(t: TestContext) -> void:
+	var before: int = _mirror.count
+	var floor_node: Node2D = load("res://scenes/objects/floor/floor.gd").new()
+	floor_node.set("size", Vector2(120, 80))
+	floor_node.position = Vector2(500, 60)
+	t.world.add_child(floor_node)
+	await t.frames(3)
+	var slabs: Array = _mirror.proxies_of(floor_node)
+	if not t.require(slabs.size() == 1, "a floor added mid-match gets a slab"):
+		return
+	var box := _box(slabs[0])
+	t.expect_near(box.size.x, 120.0 * SCALE, 0.5, "as wide as the floor, scaled")
+	t.expect_near(box.get_center().z, (60.0 + 40.0) * SCALE, 0.5, "over the floor's rect")
+	t.expect_eq(_mirror.count, before + 1, "and the count grows by one")
+	floor_node.queue_free()
+	await t.frames(3)
+	t.expect_eq(_mirror.count, before, "the slab goes with its floor")
 
 
 ## A character who dies no longer stands in the 3D view.

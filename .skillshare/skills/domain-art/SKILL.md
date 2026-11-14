@@ -58,10 +58,12 @@ In the 3D render mode (#193) the 2D world is not drawn: `WorldMirror` (a `Node3D
 a proxy per collision shape (a box, a cylinder, a character's capsule; floors flat slabs) at 2D `(x, y)` -> 3D `(x * unit, 0, y * unit)`, the one scale
 `RenderConfig.unit` (General). It reads bodies duck-typed (the groups `characters`, `vehicles`, `doors`, `floors`; `wall_thickness`, `art_color`, `color`,
 `faction`), never a domain's class. The update rule is the spike's lesson: write only when the shape's 2D transform changed, skip a sleeping
-`RigidBody2D` (read once more as it falls asleep), check a freed shape untyped (`is_instance_valid` on a Variant), add a spawned body on the next frame
-(its `_ready` builds its shapes first), drop a despawned body's proxies. `builders` (body kind -> `Callable(body) -> Node3D`) is the hook a domain's
-own mesh plugs into (phase 2 of #193); `MirrorConfig` holds the proxy heights and colours. Tests: `tests/art/mirror_follows_bodies_test.gd`,
-`mirror_mesh_hook_test.gd`. Shaders compile only windowed, so a change to `mirror_proxy.gdshader` needs one windowed run (`tools/run_tests.sh --windowed`).
+`RigidBody2D` (read once more as it falls asleep), check a freed shape untyped (`is_instance_valid` on a Variant), add a spawned body or floor on the next
+frame (its `_ready` builds its shapes first; a floor joins `floors` there), drop a despawned body's proxies. A shape added to or removed from a mirrored body
+(a hit wall's rebuilt colliders) re-mirrors it; a proxy is hidden while its shape is disabled (a seated character) or its body's own `visible` is false.
+`builders` (body kind -> `Callable(body) -> Node3D` in 3D units, `FURNITURE` for every `ObjectArt` kind) is the hook a domain's own mesh plugs into (phase 2
+of #193); a non-physics drawn thing (dropped item, debris, bullet) has no 3D counterpart until then; `MirrorConfig` holds the proxy heights and colours.
+Tests: `tests/art/mirror_follows_bodies_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`, `mirror_hides_seated_character_test.gd`, `mirror_mesh_hook_test.gd`. Shaders compile only windowed, so a change to `mirror_proxy.gdshader` needs one windowed run (`tools/run_tests.sh --windowed`).
 
 ## PixelCanvas gotchas
 

@@ -14,7 +14,7 @@ each piece gives, `ObjectArtLightConfig.specs`.
 ## The 3D render mode
 
 A match played in the 3D render mode (`Settings.render_mode`, `architecture` interface 27) builds none of this: the match builder's spec says
-`render` is 3D and `MatchBuilder.stage` does not call `WorldLighting.light`, since the 2D world is hidden and never drawn; the 3D view has one
+`render` is 3D and `MatchBuilder.stage` does not call `WorldLighting.light`, since the 2D world is hidden and never drawn (`tests/general/render_spec_builds_no_2d_lights_test.gd`: no `CanvasModulate`, `PointLight2D` or `WorldLighting` node is built); the 3D view has one
 directional light with hard shadows over a flat ambient (`RenderLightConfig`) until the lighting jobs of #193 turn the dusk, the fixtures and the
 flashes into 3D lights. Everything below describes the 2D render, which is the default.
 
