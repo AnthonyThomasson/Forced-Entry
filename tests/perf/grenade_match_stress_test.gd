@@ -18,6 +18,12 @@ extends GameTest
 ## spectator view does, on a player's screen, so every body a player would see is drawn. Headless
 ## measures the CPU only (the drawing calls included, not the GPU); `tools/run_tests.sh --windowed`
 ## measures the render too.
+## Budget: average 16.7 ms and worst frame 33.4 ms, the smooth standard; p95 `P95_MS` = 25 ms, its
+## own (the decision on #195, item 4). The fight's p95 reads 20.9 to 22.6 ms on a quiet machine
+## (load about 3) and 23.0 to 24.2 ms at load 4 to 4.9, on the code before that decision: the slow
+## frames are the blast's aftermath (sounds, bodies' ragdoll steps, nav tile bakes, an NPC's grenade
+## and throw builds in the same frames), with no single cause left to cut. No other guard's p95
+## changed (`Perf.within_frames`' `p95_limit`).
 ## Baseline in the district on a loaded machine (load 4 to 7, three or more other Godot: no run was
 ## quiet enough to judge): avg 15 to 17 ms, p95 27 to 34, max 56 to 69; contact came at 20 to 28 s
 ## (in one run in four not within 20 s, hence `Perf.MATCH_CONTACT_WITHIN`).
@@ -55,6 +61,8 @@ const THROW_DISTANCE := 200.0
 const MEASURE_FRAMES := 560
 const AFTER_LAST_S := 3.0
 const NODE_GROWTH := 2500
+## This guard's p95 budget, ms (the smooth standard's is `Perf.SMOOTH_P95_MS`).
+const P95_MS := 25.0
 
 
 func describe() -> Dictionary:
@@ -62,7 +70,7 @@ func describe() -> Dictionary:
 		"name": "Grenades in a 5v5 match keep it smooth",
 		"description": "In the 5v5 match of perf/match_5v5_stress a puppet throws 3 frags and 3 "
 			+ "stuns among the fighters over ~3 s; from the first throw to 3 s after the last "
-			+ "burst the average frame stays under 16.7 ms, p95 under 20 and no frame over 33.4.",
+			+ "burst the average frame stays under 16.7 ms, p95 under 25 and no frame over 33.4.",
 		"tags": ["match", "ai", "scripted", "crowd", "grenade", "frag", "stun"],
 		"timeout": 60.0,
 		"allowed_logs": Perf.MATCH_LOGS,
@@ -104,7 +112,7 @@ func run(t: TestContext) -> void:
 	)
 	if not _window_holds_bursts(t, booms, start, end, targets):
 		return
-	Perf.within_frames(t, "grenades in a 5v5 match", stats)
+	Perf.within_frames(t, "grenades in a 5v5 match", stats, P95_MS)
 	_check_struck(t, booms, nodes_before)
 
 

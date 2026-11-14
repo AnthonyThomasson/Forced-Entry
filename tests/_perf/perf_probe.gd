@@ -245,12 +245,18 @@ static func log_late_bakes(label: String) -> void:
 
 ## `within` for each of a `frame_stats` result's average, 95th percentile and worst frame (ms),
 ## against the frame standard every frame-based test holds: `SMOOTH_AVG_MS`, `SMOOTH_P95_MS`,
-## `SMOOTH_MAX_MS`.
-static func within_frames(t: TestContext, label: String, stats: Dictionary) -> void:
+## `SMOOTH_MAX_MS`. A guard whose p95 has its own decided budget passes it as `p95_limit`; the
+## average and the worst frame keep the standard.
+static func within_frames(
+	t: TestContext,
+	label: String,
+	stats: Dictionary,
+	p95_limit := SMOOTH_P95_MS,
+) -> void:
 	log_late_bakes(label)
 	report_worst(label, stats)
 	within(t, label + " avg ms/frame", stats["avg_ms"], SMOOTH_AVG_MS)
-	within(t, label + " p95 ms/frame", stats["p95_ms"], SMOOTH_P95_MS)
+	within(t, label + " p95 ms/frame", stats["p95_ms"], p95_limit)
 	within(t, label + " max ms/frame", stats["max_ms"], SMOOTH_MAX_MS)
 
 

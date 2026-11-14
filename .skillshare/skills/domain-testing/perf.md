@@ -23,7 +23,7 @@ guard measures the planning bake whole, what a frame pays to start one and a ste
 
 A match runs without frame loss, so every frame-based test holds `Perf.SMOOTH_AVG_MS` (16.7, one 60 fps frame),
 `SMOOTH_P95_MS` (20) and `SMOOTH_MAX_MS` (33.4, two frames) through `Perf.within_frames(t, label, stats)`, at the scale of
-the largest match (twenty characters), with no looser tail. One-shot work (`Perf.time_ms`) keeps a `const` budget at the
+the largest match (twenty characters), with no looser tail (the one decided exception: `grenade_match_stress`'s p95 is 25, its own `P95_MS` passed as `p95_limit`). One-shot work (`Perf.time_ms`) keeps a `const` budget at the
 top of its test, about 4x the baseline stated in the comment above it. `Perf.within` prints `PERF <label> <value>
 (budget <limit>)`, traces it and fails the check with the value. Counts (nodes, dents, pools) are asserted tightly.
 
