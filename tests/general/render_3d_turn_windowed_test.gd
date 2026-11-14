@@ -5,7 +5,8 @@ extends GameTest
 ## in a `SubViewport` the size of the window, a match with a human started with 3D chosen by its
 ## spec, Debug overlays toggled on, the camera framing the human; after the camera has turned a
 ## quarter of the way round the picture is read back: it holds the 3D floor and walls, the view's
-## cone clear of the black the composite draws outside it, and the log gate fails the test on any
+## cone clear of the composite, the ground outside it dimmed but still there (not black), and the
+## log gate fails the test on any
 ## shader or engine error or warning. With `RENDER3D_SHOT=<file.png>` set it saves the picture.
 ## Run: `tools/run_tests.sh --windowed --id=general/render_3d_turn_windowed`.
 
@@ -23,11 +24,11 @@ const SPEC := {
 const PLAY_FRAMES := 180
 const TURN_SECONDS := 1.0
 ## What the picture must show: tones on a grid of samples, the share that is not the background
-## colour, and the share of near-black the composite draws outside the cone (the cone is a small
-## part of the picture, but it must be cut out of the black).
+## colour, and the share of near-black pixels: outside the cone the composite dims the 3D scene
+## (`RenderConfig.unseen_dim`) instead of blacking it out, so the ground shows there, darker.
 const MIN_TONES := 8
 const MIN_NOT_BACKGROUND := 0.04
-const MAX_BLACK := 0.97
+const MAX_BLACK := 0.35
 
 
 func describe() -> Dictionary:
@@ -36,8 +37,8 @@ func describe() -> Dictionary:
 			+ "(windowed)",
 		"description": "Main run whole in a window over a played 3D match, vision and debug "
 			+ "overlays on, E held to turn the camera a quarter turn: the picture holds the 3D "
-			+ "world with the cone cut out, and no shader or engine error is logged. Windowed "
-			+ "only.",
+			+ "world, dimmed outside the cone and not black, and no shader or engine error is "
+			+ "logged. Windowed only.",
 		"tags": ["render", "3d", "vision", "overlays", "windowed"],
 		"timeout": 90.0,
 	}
@@ -128,5 +129,5 @@ func _check_picture(t: TestContext, image: Image) -> void:
 	var dark := float(black) / float(maxi(samples, 1))
 	t.check(
 		dark <= MAX_BLACK,
-		"the view's cone is cut out of the black (%.0f%% black)" % (dark * 100.0),
+		"outside the cone the ground is dimmed, not black (%.0f%% black)" % (dark * 100.0),
 	)

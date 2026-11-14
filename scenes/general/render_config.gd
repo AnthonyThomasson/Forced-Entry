@@ -37,5 +37,9 @@ static var canvas_layer: int = -2
 ## overlays, as in 2D.
 static var vision_layer: int = -1
 static var overlay_layer: int = 0
+## How dark the view composite lays the ground outside the player's cone in 3D mode, 0 (not at all)
+## to 1 (black, as in 2D): the 2D memory is not drawn there, so until the lighting and vision jobs
+## draw it from the 3D scene the unseen ground is only dimmed, to stay readable.
+static var unseen_dim: float = 0.6
 ## How fast a held camera-turn key (Q / E) turns the camera round its focus, in degrees a second.
 static var turn_speed_degrees: float = 90.0
