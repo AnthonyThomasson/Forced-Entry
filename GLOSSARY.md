@@ -363,6 +363,11 @@ The flat 3D plane the 2D world lies on (`y = 0`); a 2D point is a point on it, a
 drawn on it.
 _Avoid_: floor (a room's `Floor` object), map
 
+**Ground layer**:
+The `CanvasLayer` (`GroundLayer`) a 2D overlay (the player's view, a debug overlay) is moved under in the 3D render mode, so it draws over the 3D view
+flat on the ground plane: its transform is the 3D camera's ground-to-screen affine, so it lies on the floor at any yaw.
+_Avoid_: overlay canvas, HUD layer
+
 ### Lint
 
 **Lint rule**:

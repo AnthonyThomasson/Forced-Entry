@@ -19,6 +19,7 @@ func _init() -> void:
 	z_index = DrawLayers.VISION
 	z_as_relative = false
 	visibility_layer = ViewLayers.OVERLAY
+	GroundLayer.adopt(self, RenderConfig.vision_layer)  # flat on the ground in the 3D render mode
 	_material.shader = SHADER
 	material = _material
 

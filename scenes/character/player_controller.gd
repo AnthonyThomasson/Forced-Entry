@@ -29,7 +29,7 @@ func _input(event: InputEvent) -> void:
 ## Called by the character at the top of its _physics_process, so the intent we write is
 ## used the same frame.
 func control(character: CharacterBody2D, _delta: float) -> void:
-	character.movement.move_input = Keybinds.get_move_vector()
+	character.movement.move_input = _move_keys(character)
 	character.movement.run_input = Keybinds.is_run_pressed()
 	character.movement.aim_point = Pointer.world_mouse(character)
 
@@ -48,6 +48,17 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 	if Keybinds.is_reload_just_pressed():
 		character.ammo.reload()
 	_interact(character)
+
+
+## The movement keys as a direction in the world. In the 3D render mode the keys are relative to the
+## screen (W is up the screen at any camera yaw, `Pointer.world_direction`); in 2D the screen is the
+## world, so they are as pressed. Seated in a vehicle they stay raw: they are the vehicle's throttle
+## and steer, never turned by the camera (`docs/vehicles.md`).
+func _move_keys(character: CharacterBody2D) -> Vector2:
+	var keys := Keybinds.get_move_vector()
+	if character.use.is_in_vehicle():
+		return keys
+	return Pointer.world_direction(character, keys)
 
 
 ## Space acts on what is nearest the mouse (`use.interact_target`): a chair, a vehicle's door and

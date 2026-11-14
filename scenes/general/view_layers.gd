@@ -18,11 +18,13 @@ const OVERLAY := 4
 
 ## Make `item` an overlay: drawn at `DrawLayers.OVERLAY` whatever its parent's z (absolute, so over
 ## the player's view at `DrawLayers.VISION`) and on `OVERLAY`, which the view's capture leaves out,
-## so it is never remembered.
+## so it is never remembered. In the 3D render mode it is also handed to `GroundLayer`, which draws
+## it flat on the ground over the 3D view.
 static func overlay(item: CanvasItem) -> void:
 	item.z_index = DrawLayers.OVERLAY
 	item.z_as_relative = false
 	item.visibility_layer = OVERLAY
+	GroundLayer.adopt(item, RenderConfig.overlay_layer)
 
 
 ## Put `item` on `MOVING` (it moves: drawn only inside the cone) or back on `WORLD` (it is at rest:

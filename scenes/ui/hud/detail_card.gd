@@ -234,9 +234,10 @@ func _grenade_text() -> String:
 	return "Grenades: %s" % (", ".join(carried) if not carried.is_empty() else "—")
 
 
-## The `card_lines()` of the NPC's child `child_name`, none if it has no such child.
+## The `card_lines()` of the NPC's overlay `child_name` (its child, or in 3D the child of its ground
+## layer), none if it has no such overlay.
 func _overlay_lines(child_name: String) -> Array:
-	var overlay := _npc.get_node_or_null(child_name)
+	var overlay := OverlayRegistry.overlay_of(_npc, child_name)
 	if overlay == null or not overlay.has_method(&"card_lines"):
 		return []
 	return Array(overlay.card_lines())

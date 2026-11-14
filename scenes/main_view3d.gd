@@ -43,11 +43,13 @@ func _process(_delta: float) -> void:
 
 
 func _exit_tree() -> void:
+	GroundLayer.enabled = false
 	RenderingServer.directional_soft_shadow_filter_set_quality(_project_shadow_quality())
 
 
 ## Build the view following `camera` (the sim's `Camera2D`).
 func begin(camera: Camera2D) -> void:
+	GroundLayer.enabled = true  # the view's overlays draw flat over this picture
 	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	rect.stretch_mode = TextureRect.STRETCH_SCALE
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

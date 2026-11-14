@@ -132,7 +132,12 @@ func _steer_by_hand(delta: float) -> void:
 			else Vector2.ZERO)
 	if pan != Vector2.ZERO:
 		_take_over()
-		global_position += pan * CameraConfig.pan_speed * delta / zoom.x
+		# The keys and the edge are screen directions: in the 3D render mode the ground direction
+		# that shows that way at the camera's yaw (in 2D the screen is the world, unchanged).
+		global_position += Pointer.world_direction(
+			self,
+			pan,
+		) * CameraConfig.pan_speed * delta / zoom.x
 	elif _manual:
 		_idle += delta
 		if _idle >= CameraConfig.manual_hold:
@@ -219,8 +224,11 @@ func _calculate_target_position() -> Vector2:
 	if half.x <= 0.0 or half.y <= 0.0:
 		return player_pos
 	var from_centre := (Pointer.screen_mouse(self) - half) / half
-	var reach := (half - Vector2.ONE * CameraConfig.look_ahead_edge_margin).max(Vector2.ZERO) / zoom
-	return player_pos + Vector2(_lead(from_centre.x), _lead(from_centre.y)) * reach
+	var reach := (half - Vector2.ONE * CameraConfig.look_ahead_edge_margin).max(Vector2.ZERO)
+	var lead := Vector2(_lead(from_centre.x), _lead(from_centre.y))
+	if Pointer.is_3d(self):  # the ground the camera's yaw shows that far along the screen
+		return player_pos + Pointer.world_vector(self, lead * reach)
+	return player_pos + lead * (reach / zoom)
 
 
 ## The lead (-1..1) along one screen axis for the mouse `u` of the half-screen from the centre.

@@ -11,11 +11,11 @@ extends Node3D
 ## The 3D picture is a `SubViewport` the rig sizes so a picture pixel is a whole number of screen
 ## pixels (`RenderConfig.reference_height` over `internal_lines`, 3: 216 rows at a 648-high window)
 ## at any window size, with as many rows and columns as cover the window, times `oversample`, plus
-## a one-pixel margin all round. The
-## focus is snapped to the picture's pixel grid along the camera's right and up and the shown
-## rectangle is shifted back by what was snapped away, so a following camera never shimmers. The rig
-## runs after the `Camera2D` (it is a later node and `process_priority` 100) and, like it, while the
-## tree is paused.
+## a one-pixel margin all round. The focus is snapped to the picture's pixel grid along the camera's
+## right and up and the shown rectangle is shifted back by what was snapped away, so a following
+## camera never shimmers. The rig runs after the `Camera2D` (it is a later node and
+## `process_priority` 50, before the player's view and the ground layer that read it) and, like it,
+## while the tree is paused.
 
 ## The camera's yaw round the focus, in degrees (45: the world's corner faces the camera).
 var yaw: float = RenderConfig.yaw_degrees
@@ -37,7 +37,7 @@ var _pixel := 3.0
 
 func _init() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	process_priority = 100
+	process_priority = 50
 	camera = Camera3D.new()
 	camera.name = "Camera3D"
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -45,7 +45,12 @@ func _init() -> void:
 	add_child(camera)
 
 
-func _process(_delta: float) -> void:
+func _exit_tree() -> void:
+	Pointer.unbind_3d(camera)
+
+
+func _process(delta: float) -> void:
+	_turn(delta)
 	_place()
 
 
@@ -58,6 +63,7 @@ func bind(source: Camera2D, viewport: SubViewport, rect: Control = null) -> void
 	camera.near = RenderConfig.near
 	camera.far = RenderConfig.far
 	camera.current = true
+	Pointer.bind_3d(camera, rect, source.get_viewport())
 	_place()
 
 
@@ -66,7 +72,15 @@ func internal_size() -> Vector2i:
 	return _internal
 
 
-## The 3D units one picture pixel covers.
+## Turn the camera round its focus while a camera-turn key is held (`Keybinds.get_camera_turn`),
+## freely and at `RenderConfig.turn_speed_degrees`; released, it stops where it is.
+func _turn(delta: float) -> void:
+	var held := Keybinds.get_camera_turn()
+	if held != 0.0:
+		yaw = fposmod(yaw + held * RenderConfig.turn_speed_degrees * delta, 360.0)
+
+
+## The 3D units one picture pixel covers along the screen's height.
 func texel() -> float:
 	return _pixel
 

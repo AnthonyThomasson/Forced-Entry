@@ -29,5 +29,13 @@ static var far: float = 1500.0
 static var internal_lines: int = 216
 static var reference_height: int = 648
 ## The canvas layer the 3D view is drawn on: below the HUD (layer 1) and the overlay bar and
-## everything over it, under the 2D world's default layer 0 (which is not drawn in 3D mode).
-static var canvas_layer: int = -1
+## everything over it, under the layers the flat overlays draw on (and the 2D world's default
+## layer 0, which is not drawn in 3D mode).
+static var canvas_layer: int = -2
+## The canvas layers the player's view and the debug overlays draw on in 3D mode (`GroundLayer`):
+## flat on the ground plane, over the 3D view and under the HUD. The view's composite is under the
+## overlays, as in 2D.
+static var vision_layer: int = -1
+static var overlay_layer: int = 0
+## How fast a held camera-turn key (Q / E) turns the camera round its focus, in degrees a second.
+static var turn_speed_degrees: float = 90.0

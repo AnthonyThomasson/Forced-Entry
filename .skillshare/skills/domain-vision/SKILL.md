@@ -67,12 +67,12 @@ read through `character.sight()`: any character can be the viewer.
   one rebuild (`_memo`): a polygon is checked against its body once, then served from it (a rebuild asks about 1,300 times), and it is
   emptied by `reset()`, when polygons are cleared and when a collider leaves the tree, so it never serves a polygon across jobs. The check allocates
   nothing (the transform and the shape resource are compared in place). The far face (`far_exit(space, hit, dir)`) reads the blocking
-  shapes holding the probe point afresh each ray: reusing the previous ray's polygons cost more than it saved (`docs/player-vision.md`), so it is gone; keep it out.
-  The angles are built without lambda sort or map. `polygon_reuses`, `memo_hits` and `validations` count for the test.
-- **The look:** the capture shares the main world and leaves `MOVING` and `OVERLAY` out of its cull mask; the memory is a
+  shapes holding the probe point afresh each ray: reusing the previous ray's polygons cost more than it saved (`docs/player-vision.md`); keep it out.
+  Angles are built without lambda sort or map; `polygon_reuses`, `memo_hits`, `validations` count for tests.
+- **The look:** the capture shares the main world, `MOVING` and `OVERLAY` out of its cull mask; the memory is a
   world-space `SubViewport` over the floors' bounds at `memory_scale` texels a px (less when the world is wider than 16 384),
   never cleared, wiped for its first two frames; the composite is a screen-sized polygon at `DrawLayers.VISION` (absolute, bit
-  `OVERLAY`): clear inside the cone, the memory in the look outside it, black where nothing was seen.
+  `OVERLAY`) (in 3D on a `GroundLayer`: `domain-general/camera3d.md`): clear in the cone, memory in the look outside, black unseen.
 - **The lift:** `died` or `tree_exiting` on the viewer runs `SeenArea.clear()` at once and frees the view (composite, viewports)
   that frame; a viewer already dead gets no view (`watch` returns null). A view whose node is disabled (the perf guard's "off")
   clears `SeenArea` too, and the whole world is repainted.

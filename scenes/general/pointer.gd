@@ -6,6 +6,14 @@ class_name Pointer
 ## transform: the active `Camera2D`'s view, the identity in a world with no camera. #193's 3D view
 ## swaps the bodies for a camera ray meeting the ground plane; no caller changes.
 ##
+## In the 3D render mode (#193) the `CameraRig` binds itself (`bind_3d`) and every node of the
+## viewport the sim's `Camera2D` serves converts through the orthographic camera instead: a screen
+## point is the camera ray that meets the ground plane y = 0, and the world's place on the screen is
+## the exact ground-to-screen affine of that camera, read through the DISPLAYED rect of the 3D
+## view (the control that shows the picture), never the picture's internal size, so the internal
+## resolution changes nothing. A node of any other viewport still converts by its own canvas
+## transform.
+##
 ## `inject` stands a screen point in for the mouse wherever its position is polled
 ## (`screen_mouse`, `world_mouse`) until `release`. It never warps the real mouse, and an input
 ## event keeps the position it carries. The injected point is one static, released by
@@ -15,11 +23,61 @@ class_name Pointer
 static var _injected_point := Vector2.ZERO
 ## Whether a screen point stands in for the mouse (`inject` sets it, `release` clears it).
 static var _injected := false
+## The 3D render mode's camera, the control that shows its picture and the viewport the sim's
+## screen is (all null while the 2D body is in use). Untyped so a freed one is checked, not read.
+static var _camera: Variant = null
+static var _rect: Variant = null
+static var _screen: Variant = null
 
 
 ## The world point under `screen`, a point of `node`'s viewport (the inverse of `screen_transform`).
 static func world_of(node: Node, screen: Vector2) -> Vector2:
 	return screen_transform(node).affine_inverse() * screen
+
+
+## Whether `node` is converted through the 3D camera (the rig is bound and `node` is in the viewport
+## the sim's camera serves) rather than its viewport's canvas transform.
+static func is_3d(node: Node) -> bool:
+	return (
+		is_instance_valid(_camera)
+		and is_instance_valid(_screen)
+		and (_camera as Camera3D).is_inside_tree()
+		and node.get_viewport() == _screen
+	)
+
+
+## The world vector that `screen_vector`, a step on the screen, is a step along (the linear part of
+## `screen_transform` inverted, so no origin): in 3D the ground vector that shows as that step, in
+## 2D the canvas transform's own. A 3D controller turns a screen direction into a ground one by it.
+static func world_vector(node: Node, screen_vector: Vector2) -> Vector2:
+	return screen_transform(node).affine_inverse().basis_xform(screen_vector)
+
+
+## A screen direction as a world direction of the same length, for 3D's screen-relative controls:
+## W up the screen is the ground direction that shows as up at any camera yaw. A 2D world, whose
+## screen already is the world, gets `screen_dir` back untouched.
+static func world_direction(node: Node, screen_dir: Vector2) -> Vector2:
+	if screen_dir == Vector2.ZERO or not is_3d(node):
+		return screen_dir
+	return world_vector(node, screen_dir).normalized() * screen_dir.length()
+
+
+## Bind the 3D render mode's camera (the `CameraRig` calls this in its `bind`): `camera` is the
+## orthographic `Camera3D`, `rect` the control that shows its picture on the screen (null: the
+## picture fills the screen) and `screen` the viewport the sim's `Camera2D` serves, whose nodes
+## convert through it from now on. Left bound until `unbind_3d`.
+static func bind_3d(camera: Camera3D, rect: Control, screen: Viewport) -> void:
+	_camera = camera
+	_rect = rect
+	_screen = screen
+
+
+## Put the 2D body back, when `camera` is the one bound (the rig leaving the tree calls it).
+static func unbind_3d(camera: Camera3D) -> void:
+	if _camera == camera:
+		_camera = null
+		_rect = null
+		_screen = null
 
 
 ## The screen point of `node`'s viewport that shows `world` (`screen_transform` applied to it).
@@ -47,15 +105,60 @@ static func visible_world_rect(node: Node) -> Rect2:
 	var viewport := node.get_viewport()
 	if viewport == null:
 		return Rect2()
-	return screen_transform(node).affine_inverse() * viewport.get_visible_rect()
+	var screen := screen_transform(node).affine_inverse()
+	if not is_3d(node):
+		return screen * viewport.get_visible_rect()
+	# A turned view shows a diamond of ground: the rect that bounds the screen's four corners.
+	var size := viewport.get_visible_rect().size
+	var bounds := Rect2(screen * Vector2.ZERO, Vector2.ZERO)
+	for corner: Vector2 in [Vector2(size.x, 0.0), size, Vector2(0.0, size.y)]:
+		bounds = bounds.expand(screen * corner)
+	return bounds
 
 
 ## The transform from world points to `node`'s viewport's screen points: its canvas transform (the
 ## active camera's view; the identity with no camera or no viewport). The player's view copies it
 ## into the viewports it renders the world through, so they show what the main one shows.
 static func screen_transform(node: Node) -> Transform2D:
+	if is_3d(node):
+		return _ground_to_screen()
 	var viewport := node.get_viewport()
 	return viewport.get_canvas_transform() if viewport != null else Transform2D.IDENTITY
+
+
+## The exact affine of the orthographic camera from the ground plane (a 2D world point (x, y) is
+## the 3D point (x, 0, y) times `RenderConfig.unit`) to the screen: the camera's right and up axes
+## on the ground, scaled to the picture's pixels, then through where the control that shows the
+## picture puts it. Built from the camera's own transform and size, in doubles, not from projected
+## sample points, so it is exact far from the origin.
+static func _ground_to_screen() -> Transform2D:
+	var camera := _camera as Camera3D
+	var picture := camera.get_viewport().get_visible_rect().size
+	var rect := _rect as Control
+	var shown: Vector2 = _screen.get_visible_rect().size if rect == null else rect.size
+	var corner: Vector2 = Vector2.ZERO if rect == null else rect.global_position
+	var in_picture := _ground_to_picture(camera, picture)
+	var to_screen := shown / picture
+	return Transform2D(
+		in_picture.x * to_screen, in_picture.y * to_screen, corner + in_picture.origin * to_screen
+	)
+
+
+## The ground's place in the camera's picture, in picture pixels (y down): the camera's right and up
+## axes on the ground times the pixels a 3D unit covers, about the picture's middle.
+static func _ground_to_picture(camera: Camera3D, picture: Vector2) -> Transform2D:
+	var pose := camera.global_transform
+	var right := pose.basis.x
+	var up := pose.basis.y
+	var eye := pose.origin
+	var depth := picture.y if camera.keep_aspect == Camera3D.KEEP_HEIGHT else picture.x
+	var per_unit := depth / camera.size * RenderConfig.unit
+	var lift := Vector2(eye.dot(right), eye.dot(up)) * depth / camera.size
+	return Transform2D(
+		Vector2(right.x, -up.x) * per_unit,
+		Vector2(right.z, -up.z) * per_unit,
+		Vector2(picture.x * 0.5 - lift.x, picture.y * 0.5 + lift.y),
+	)
 
 
 ## Make `screen`, a point of the viewport, stand in for the mouse until `release`: `screen_mouse`

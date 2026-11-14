@@ -7,19 +7,18 @@
       `PointLight2D`s and the `WorldLighting` node; the painters' textures and occluders are still built until phase 3 deletes the 2D render, and the
       vision-capture `SubViewport` of Vision is stopped in 3D, 25), and Main builds the 3D view
       (`View3D`, a `CanvasLayer` on `RenderConfig.canvas_layer`, below the HUD: a `TextureRect` showing a `SubViewport` with the rig, one sun
-      over a flat ambient, and the mirror); the sim (bodies, nav, AI, the view cone) is untouched, and the 2D vision and debug overlays, drawn
-      under the hidden `World`, are not shown until the ground-plane overlay layer of the turn-control job.
+      over a flat ambient, and the mirror); the sim (bodies, nav, AI, the view cone) is untouched, and the vision and debug overlays draw
+      flat on the ground (below).
     - **`WorldMirror`** (`art/mirror/world_mirror.gd`, `class_name`, a `Node3D` made by `WorldMirror.new()`; Art imports nothing but
       General's `RenderConfig`, and reads the bodies duck-typed: the groups `characters`, `vehicles`, `doors` and `floors`, and the properties
       `wall_thickness`, `art_color`, `color`, `faction`, `size`):
       - `mirror(root: Node) -> void` gives every `PhysicsBody2D` under `root` a proxy per collision shape and every `floors` member a flat slab;
         2D `(x, y)` is 3D `(x * unit, 0, y * unit)` with `unit` = `RenderConfig.unit`, **the one scale** (heights scale with it). A body or floor
-        that spawns later is mirrored on the next frame (a floor once it has joined `floors`), one that leaves the tree loses its proxies, a
-        collision shape added to or removed from a mirrored body (a hit wall's rebuilt colliders) re-mirrors that body, a character who dies is
-        hidden. A proxy is hidden while its shape is disabled (a character seated in a vehicle) or its body's own `visible` is false (not
+        that spawns later is mirrored on the next frame, one that leaves the tree loses its proxies, a changed collision shape (a hit wall's
+        rebuilt colliders) re-mirrors its body, a character who dies is hidden. A proxy is hidden while its shape is disabled (a character seated in a vehicle) or its body's own `visible` is false (not
         `is_visible_in_tree`: the 2D `World` is hidden in 3D), and shown again when neither is; a body seen with its shape disabled is mirrored (hidden).
       - The proxy: a box (walls full height, doors their leaf, furniture a height from its footprint, vehicles low), a cylinder for a round
-        non-character, a capsule for a character; one shared mesh per shape kind and one shared toon material (`ToonMaterial`, Art's `post/`: the pixel post, below) with a colour
+        non-character, a capsule for a character; one shared mesh per shape kind and one shared toon material (`ToonMaterial`, below) with a colour
         per instance, from the body's `art_color` / `color`, a faction's name hash for a character, else a hash of the node's name. Heights and
         colours are `MirrorConfig` (Art's holder; heights in 2D px).
       - **The update rule** (each frame, by `_process`, or `update()` by hand): a moving body (`CharacterBody2D`, `AnimatableBody2D`,
@@ -37,8 +36,10 @@
       viewport: SubViewport, rect: Control = null)` follows the sim's `Camera2D`, which stays the focus, zoom and shake source (Sound, the cull and
       the tests read it): each frame the camera frames `source.get_screen_center_position()` (focus plus shake offset) at `source.zoom` (the ortho
       size is the screen's height in 2D px over the zoom, times `unit`: 1 screen px to a world px at zoom 1), at the pitch `RenderConfig.pitch_degrees`
-      (35.264: true isometric) and `yaw` (a property in degrees, `RenderConfig.yaw_degrees` to start; the camera-turn controls set it). The rig sizes the
-      `SubViewport` so a picture pixel is a whole number of screen pixels at any window size (`reference_height / internal_lines` rounded: 216 rows at 648 is 3; 0 is 1), with the rows and columns that cover the window (334 rows at a height of 1000) times `oversample`, plus a 1 px margin, snaps the focus to that pixel grid along the camera's
+      (35.264: true isometric) and `yaw` (a property in degrees, `RenderConfig.yaw_degrees` to start). **Q / E turn it:** a held camera-turn key
+      (`Keybinds.get_camera_turn()`) turns `yaw` freely at `RenderConfig.turn_speed_degrees` (90 a second), paused or not; a 2D match has no rig.
+      The rig binds `Pointer` (26) to its camera and the picture's displayed rect (larger than the window). It sizes the
+      `SubViewport` so a picture pixel is a whole number of screen pixels at any window size (`reference_height / internal_lines` rounded: 216 rows at 648 is 3; 0 is 1), with the rows and columns that cover the window times `oversample`, plus a 1 px margin, snaps the focus to that pixel grid along the camera's
       right and up and shifts and sizes `rect` back by the remainder, so following does not shimmer. `texel() -> float` is the world units a picture
       pixel covers; `internal_size() -> Vector2i` the picture's size in pixels, margin included.
     - **The pixel post** (rule 6; Art `art/post/`, tuning `PixelPostConfig`): the view's meshes share one toon `ShaderMaterial` (`ToonMaterial.make()`; a colour per
@@ -47,8 +48,12 @@
       or the normal creases, `crease_px`; `PixelPost.refresh(node, oversample)` pushes the holder). Main's `View3D` shows the picture through a nearest-filtered
       `TextureRect` (`View3D.rect`, covering the window); with `PixelPostConfig.supersample` above 1 the 3D picture (`View3D.viewport`) is rendered that many times
       larger and averaged down through a filtered stage (`View3D.shown`) to the picture's size first.
-    - **Tuning:** `RenderConfig` (General: `unit`, `pitch_degrees`, `yaw_degrees`, `distance`, `near`, `far`, `internal_lines`, `reference_height`, `canvas_layer`),
+    - **The flat overlays** (`GroundLayer`, `general/ground_layer.gd`, interim until phase 3; `domain-general/camera3d.md`): the hidden 2D world
+      draws nothing, so while `GroundLayer.enabled` (Main's view sets it) `ViewLayers.overlay` and the view's composite move the player's view
+      and every debug overlay under a `CanvasLayer` (`RenderConfig.vision_layer`, `overlay_layer`) whose `transform` is `Pointer.screen_transform`:
+      they lie flat on the 3D floor at any yaw, over the picture and under the HUD. Look an overlay up with `OverlayRegistry.overlays_of` /
+      `overlay_of`. Outside the cone the composite is black until phase 3's memory.
+    - **Tuning:** `RenderConfig` (General: the camera, the picture's lines, `canvas_layer`, `vision_layer`, `overlay_layer`, `turn_speed_degrees`),
       `RenderLightConfig` (General, the interim sun and ambient until the lighting job moves them to Lighting), `MirrorConfig` and `PixelPostConfig` (Art).
     - **Not yet:** things drawn that are not physics bodies (dropped items, debris, bullets, casings, grenades in flight) have no 3D counterpart until
-      phase 2; the mouse and keys stay world-relative (the turn-control job gives `Pointer` its 3D body, 26); the
-      2D vision and debug overlays are hidden in 3D mode (the turn-control job's ground overlay); the meshes are proxies (phase 2).
+      phase 2; the meshes are proxies (phase 2).

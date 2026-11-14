@@ -96,7 +96,7 @@ stays there).
 ### Driving
 
 **V5. Driving: arcade-real, car-relative.** W is throttle; S brakes, then reverses once the vehicle rolls slower than
-`reverse_engage_speed` **2** (likewise W against a reverse); A/D steer relative to the vehicle; the run key (Shift) is the handbrake.
+`reverse_engage_speed` **2** (likewise W against a reverse); A/D steer relative to the vehicle; the run key (Shift) is the handbrake. The keys are raw while seated: in the 3D render mode WASD is screen-relative on foot, but a seated driver's keys are the throttle and steer and are never turned by the camera.
 The model is a bicycle. The engine pushes from `engine_force / mass` at rest and tapers (by the cube of the speed's share of the top
 speed) to exactly the rolling resistance and air drag at the top speed, so full throttle really reaches `top_speed` (**1280** car,
 **880** van) and settles there; a lighter throttle settles lower. It launches hard: the car reaches 640 px/s within 1.1 s and the van

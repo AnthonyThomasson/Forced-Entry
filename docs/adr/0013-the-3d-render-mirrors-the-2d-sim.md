@@ -28,5 +28,7 @@ district) with none of that 2D work, so the rest of it is carried to those jobs;
   compile pipelines and re-showing the 2D world costs a one-off hitch).
 - The mirror's update rule is a hot loop: write only when a body's 2D transform changed, skip a sleeping `RigidBody2D`, check a freed body untyped.
 - The picture is drawn at a low internal resolution and upscaled with nearest filtering through a toon material and an outline pass (the pixel post, Art).
-- The player's aim and keys stay world-relative until the camera-turn jobs give `Pointer` its 3D body; vision and debug overlays are drawn flat on
-  the ground plane in later jobs. A 2D match is the game as it was, and the 2D render is deleted only at the end of #193.
+- `Pointer` has a 3D body (a screen point is the camera ray meeting the ground, through the displayed rect of the 3D view), WASD and the spectator's pan are
+  screen-relative in 3D (a seated driver's keys stay raw) and Q / E turn the camera freely. The vision and debug overlays draw flat on the ground plane over
+  the 3D view: each is moved under a `CanvasLayer` (`GroundLayer`) that follows the camera's ground-to-screen affine, because a hidden `CanvasItem` draws nothing.
+  A 2D match is the game as it was, and the 2D render is deleted only at the end of #193.

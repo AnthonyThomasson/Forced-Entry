@@ -21,6 +21,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 | `camera_controller.gd` (+ the two config holders) | `Camera2D` |
 | `command_server.gd` | dev command server |
 | `pointer.gd` | `Pointer` (26; `pointer.md`) |
+| `ground_layer.gd` | `GroundLayer`: flat 3D overlays (`camera3d.md`) |
 | `physics_layers.gd`, `draw_layers.gd`, `view_layers.gd`, `light_masks.gd` | shared ids |
 | `world_rng.gd` | each world's random stream and its characters' spawn order (`helpers.md`) |
 | `fill_batch.gd`, `weighted_pick.gd`, `match_verdict.gd`, `sight_ray.gd`, `seen_area.gd` | shared helpers (`helpers.md`) |
@@ -89,7 +90,7 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 
 ## Despawner
 
-Global cap (`max_scene_objects`) for transient bodies: domains hand their spawns to `Despawner.track`. Physics' `DebrisLayer` and `ScorchDecals` read the same cap for landed chips and scorch marks. Entries live in an insertion-ordered dictionary (ticket -> instance id) beside an id -> ticket index, so cap eviction (the first key) and a `tree_exited` removal are O(1) and nothing points at anything else (no cycles to leak). A node tracked twice is two entries, as in the array this replaced (one connection; its exit drops the oldest entry); lowering the cap keeps the original deferred enforcement on the next `track`. Test: `despawner_evicts_oldest_test.gd`.
+Global cap (`max_scene_objects`) for transient bodies: domains hand their spawns to `Despawner.track`. Physics' `DebrisLayer` and `ScorchDecals` read the same cap for landed chips and scorch marks. Entries live in an insertion-ordered dictionary (ticket -> instance id) beside an id -> ticket index, so cap eviction and a `tree_exited` removal are O(1) with no cycles to leak. A node tracked twice is two entries (its exit drops the oldest); lowering the cap keeps the original deferred enforcement on the next `track`. T: `despawner_evicts_oldest_test.gd`.
 
 ## Shared helpers
 
