@@ -450,8 +450,8 @@ Test: `ai/grenade/grenade_overlay_draws`.
 
 *(Added by issue #56.)* Grenades going off must not make the game stutter. Two perf tests hold them to the smooth standard every frame-based
 perf test holds (`Perf.SMOOTH_*` in `tests/_perf/perf_probe.gd`): **average ≤ 16.7 ms** a frame (one 60 fps frame),
-**p95 ≤ 20 ms** and **no frame over 33.4 ms** (two frames). The one exception is P1's p95, **≤ 25 ms** (its own `P95_MS`, passed to
-`Perf.within_frames` as `p95_limit`): its p95 reads 20.9 to 22.6 ms at load about 3 and 23.0 to 24.2 ms at load 4 to 4.9, with no single cause left to cut (decision on #195, item 4).
+**p95 ≤ 20 ms** and **no frame over 33.4 ms** (two frames). The one exception is P1, whose p95 is **≤ 25 ms** and whose worst frame is **≤ 37 ms** (its own `P95_MS` and `MAX_MS`, passed to
+`Perf.within_frames` as `p95_limit` and `max_limit`): its p95 reads 20.9 to 22.6 ms at load about 3 and 23.0 to 24.2 ms at load 4 to 4.9, with no single cause left to cut (decision on #195, item 4); its worst frame reads 27 to 31 ms in single runs but 34.75 to 36.02 ms inside the full perf run, against the standard's 33.4 (decision on #195, rule 13).
 
 **P1. Grenades in a match** (`perf/grenade_match_stress`). The 5v5 of `perf/match_5v5_stress` (a generated house on its largest plan, the match built
 as Main builds one through `MatchBuilder`: the invader team beside the front door with its plates and a stun and a frag each, styled and ranked, one
@@ -467,7 +467,7 @@ characters (blood, debris, hit particles and sound on). Measured over the burst 
 **How they measure.** Each test frames the whole fight with the test camera, as a player's screen would show it, so every body is drawn.
 Headless (the default) the frame time is the CPU's work, the drawing calls included; `tools/run_tests.sh --windowed` runs the same test in a
 window with vsync off, so the render is in each frame too. The absolute budgets stay as they are in both modes: a red windowed run is the
-honest state of the game's performance, not a test to loosen. P1's p95 of 25 is the one budget moved, by the decision on #195 (item 4); the
+honest state of the game's performance, not a test to loosen. P1's p95 of 25 and worst frame of 37 are the only budgets moved, by the decisions on #195 (item 4, rule 13); the
 dated windowed p95 of 21.98 below was read against 20, the budget of that day.
 
 **Before** (origin/main `7428c4a`, before issue #56's fixes; one run each at a 1-minute load of about 2.9, ms a frame):

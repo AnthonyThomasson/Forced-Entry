@@ -24,14 +24,15 @@ guard measures the planning bake whole, what a frame pays to start one and a ste
 A match runs without frame loss, so every frame-based test holds `Perf.SMOOTH_AVG_MS` (16.7, one 60 fps frame),
 `SMOOTH_P95_MS` (20) and `SMOOTH_MAX_MS` (33.4, two frames) through `Perf.within_frames(t, label, stats)`, at the scale of
 the largest match (twenty characters), with no looser tail.
-The one exception is `grenade_match_stress`'s p95: 25, by the user's decision on #195 (item 4), through its own `P95_MS` passed to
-`within_frames` as `p95_limit`; its average and worst frame stay 16.7 and 33.4.
+The one exception is `grenade_match_stress`: p95 25 and worst frame 37, by the user's decisions on #195 (item 4, rule 13), through its own
+`P95_MS` and `MAX_MS` passed to `within_frames` as `p95_limit` and `max_limit`; its average stays 16.7. Its worst frame reads 27-31 ms
+in single runs but 34.75-36.02 inside the full perf run, at the standard's 33.4.
 One-shot work (`Perf.time_ms`) keeps a `const` budget at the
 top of its test, about 4x the baseline stated in the comment above it. `Perf.within` prints `PERF <label> <value>
 (budget <limit>)`, traces it and fails the check with the value. Counts (nodes, dents, pools) are asserted tightly.
 
 **The standard is never loosened to fit a slower game:** make the game faster, or state in the test why one load is
-heavier than a match. A budget moves only by the user's decision on a ticket (#195 item 4, for `grenade_match_stress`'s p95).
+heavier than a match. A budget moves only by the user's decision on a ticket (#195 item 4 and rule 13, for `grenade_match_stress`'s p95 and worst frame).
 Update the "before" numbers in a test's comment only when its load changes.
 
 ## The helper (`tests/_perf/perf_probe.gd`, `const Perf := preload(...)`)
@@ -48,7 +49,7 @@ Update the "before" numbers in a test's comment only when its load changes.
 - **What the player's view costs is held as a difference** (`perf/match_npc_vision_relative`: one 10v10 in one process, blocks of frames
   with the view on and off, interleaved, since two plays of a match differ by far more than the view costs): `perf-vision-cost.md` (split out to keep this file under the 8192-byte cap).
   State since #195: `perf/match_10v10_stress`, `match_10v10_opening` and `match_5v5_stress` pass; `grenade_match_stress` passes at its
-  p95 of 25 (the one budget moved, above); `match_npc_vision` is red pending #223. None is skipped or tagged. History and the
+  p95 of 25 and worst frame of 37 (the only budgets moved, above); `match_npc_vision` is red pending #223. None is skipped or tagged. History and the
   gates the district moved: `perf-district.md`, `perf-district-ext2.md`, `perf-district-ext3.md`.
   What one NPC costs a frame (measured, #195): `perf-npc-cost.md`. A match's opening (`perf/match_10v10_opening`, from the first
   sighting or shot) and the worst-frames report `--verbose` prints for every frame guard: `perf-opening.md`.
