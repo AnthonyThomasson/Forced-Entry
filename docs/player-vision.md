@@ -234,7 +234,7 @@ step: the region shape query, its polygons, the dedupe) took **1,982 and 1,937 Â
 (rays, far-face probes, visibility casts), so **372 to 374 units** (p25 168, p75 627 by eye), where `cost_shape` had been 1. It is 450 now, a
 slice, so the tick that starts a job holds the corners (about 2 ms) and no rays, not the corners plus 449 units (about 6 to 7 ms). The
 cost is a tick more a job: at the default slice a district job was a median 2 ticks (max 5; 11 % over 3) and is a median **3 (max 6; 26 % over
-3)**; the cone shown is 2 times (ticks - 1) frames old at most, (V1 has the figures). `perf_ab.sh` same-fight, base `5343aa38`,
+3)**; the cone shown is 2 times (ticks - 1) frames old at most (V1 has the figures). `perf_ab.sh` same-fight, base `5343aa38`,
 tip `dc3fa0dc`, 4 rounds, the fight unchanged (the cone steers no NPC): `perf/match_npc_vision` avg 16.94 to 16.29 ms (-0.65), p95 28.83 to
 28.52, max 43.52 to 39.19 (-4.33); the three guards with no view moved by noise (avg +0.03, +0.06, +0.34). `perf/match_npc_vision_relative`, one run:
 parked -0.13 ms, ratio 0.08; moving 1.34 ms (2.0 to 2.1 before), ratio 0.19 (0.25 to 0.26 before).

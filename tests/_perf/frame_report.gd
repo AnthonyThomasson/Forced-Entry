@@ -9,9 +9,8 @@ extends RefCounted
 ## tests/perf and tests/_perf, lint rule `timing_in_perf`; the game keeps only running totals, which
 ## change nothing it does): the decisions claimed (`DecisionRoster.claims()`: only the
 ## decision's start runs in its claim's frame, its snapshot pieces follow as the pool allows and
-## Von's
-## answer lands later; `decision-prices.md`), the shots, grenades thrown, explosions,
-## radio callouts and deaths posted (the event log), the asks made of Von (`DecisionStub.requests`,
+## Von's answer lands later; `decision-prices.md`), the shots, grenades thrown, explosions, radio
+## callouts and deaths posted (the event log), the asks made of Von (`DecisionStub.requests`,
 ## one a planner level, so a decision is one or more), the cone rebuilds a view started and
 ## published (`PlayerView.starts`, `rebuilds`), the nav bakes started, landed and the late ones
 ## (`NavBake`). Added for the tail (#195 rule 11 a): the steering tiles baked
