@@ -4,13 +4,11 @@ extends GameTest
 ## act-on-release (a tap toggles it at the let-go) and is only a candidate while ahead of the
 ## character; a chair and a vehicle act on the press. What decides is the mouse, not the body: the
 ## things below are placed so the one nearest the body is not the one nearest the mouse.
-## A south room holds a car (220 x 110 at (620, 300): front-left handle (600, 245)) under a wall, y
-## =
-## 170, with a doorway at x = 580 whose hollow door `d` is hinged on
-## its
-## west jamb (560, 170) and swings down into the room (shut, its leaf runs along the wall to
-## x = 612; open, it stands 3 px east of the hinge, from 3.5 to 42.5 px below the wall). A chair
-## sits at (650, 200).
+##
+## A south room holds a car (220 x 110 at (620, 300): front-left handle (600, 245)) under a wall,
+## y = 170, with a doorway at x = 580 whose hollow door `d` is hinged on its west jamb (560, 170)
+## and swings down into the room (shut, its leaf runs along the wall to x = 612; open, it stands 3
+## px east of the hinge, from 3.5 to 42.5 px below the wall). A chair sits at (650, 200).
 
 const PlayerPointer := preload("res://tests/_character/player_pointer_probe.gd")
 ## Under the doorway, all three in reach: the shut leaf 34 px north, the chair's edge 40 px east,

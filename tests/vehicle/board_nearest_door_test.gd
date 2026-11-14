@@ -1,8 +1,8 @@
 extends GameTest
-## V1 (ticket #54): E boards by the door whose handle is nearest the character, among those within
-## reach (60 px). A character standing just out of the front-left door, with the rear-left handle
-## also in reach, gets in at the front left and takes the driver's seat; one at the rear right gets
-## in there and takes the rear-right seat. Only the chosen door opens.
+## V1 (ticket #54): Space boards by the door whose handle is nearest the character, among those
+## within reach (60 px). A character standing just out of the front-left door, with the rear-left
+## handle also in reach, gets in at the front left and takes the driver's seat; one at the rear
+## right gets in there and takes the rear-right seat. Only the chosen door opens.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")

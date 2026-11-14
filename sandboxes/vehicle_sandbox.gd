@@ -11,10 +11,11 @@ extends GameTest
 func describe() -> Dictionary:
 	return {
 		"name": "Vehicle yard",
-		"description": "Player-controlled sandbox with a car and a van: E gets in by the nearest "
-			+ "door (and out again), W throttle, S brake then reverse, A/D steer, Shift handbrake "
-			+ "(a slide), mouse wheel zoom. On foot: WASD to walk, LMB to fire (dents the "
-			+ "bodywork). Crash into the walls, shove the furniture, bump the dummies.",
+		"description": "Player-controlled sandbox with a car and a van: Space gets in by "
+			+ "the nearest door (and out again), W throttle, S brake then reverse, A/D steer, "
+			+ "Shift handbrake (a slide), mouse wheel zoom. On foot: WASD to walk, LMB to fire "
+			+ "(dents the bodywork). Crash into the walls, shove the furniture, bump the "
+			+ "dummies.",
 		"tags": ["sandbox", "player", "vehicle", "car", "van", "drive"],
 		"manual": true,
 	}

@@ -1,21 +1,21 @@
 extends GameTest
-## V4 (ticket #54): above exit_max_speed (20 px/s), E first brakes the vehicle to a stop, then gets
-## out. No door opens and the driver stays seated while the car is faster than that, and it comes
-## down to it much sooner than it would coasting (the reference: the same car let go at the same
-## speed with no E).
+## V4 (ticket #54): above exit_max_speed (20 px/s), Space first brakes the vehicle to a stop, then
+## gets out. No door opens and the driver stays seated while the car is faster than that, and it
+## comes down to it much sooner than it would coasting (the reference: the same car let go at the
+## same speed with no Space).
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
 const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
-## The speed (px/s) the car is driven up to before it is let go, coasting or with E.
+## The speed (px/s) the car is driven up to before it is let go, coasting or with Space.
 const CRUISE := 70.0
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Exiting at speed brakes first",
-		"description": "At 70 px/s, E keeps the driver in until the car is under 20 px/s, which it "
-			+ "reaches in well under the coasting time, then the driver gets out.",
+		"description": "At 70 px/s, Space keeps the driver in until the car is under 20 px/s, "
+			+ "which it reaches in well under the coasting time, then the driver gets out.",
 		"tags": ["vehicle", "car", "exit", "brake"],
 		"timeout": 60.0,
 	}
@@ -43,7 +43,7 @@ func run(t: TestContext) -> void:
 	if coast_time < 0.0:
 		return
 
-	# --- E at CRUISE.
+	# --- Space at CRUISE.
 	if not t.require(
 			await VehicleRide.reach_speed(t, &"me", car, CRUISE, 6.0),
 			"the car reaches %.0f px/s again" % CRUISE,
@@ -72,7 +72,7 @@ func run(t: TestContext) -> void:
 	)
 	t.check(
 		slow_at >= 0.0 and slow_at < coast_time * 0.6,
-		"E brakes: down to %.0f px/s in %.2f s, against %.2f s coasting"
+		"Space brakes: down to %.0f px/s in %.2f s, against %.2f s coasting"
 			% [Probe.EXIT_MAX_SPEED, slow_at, coast_time],
 	)
 

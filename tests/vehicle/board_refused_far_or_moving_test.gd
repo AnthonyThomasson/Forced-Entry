@@ -1,8 +1,8 @@
 extends GameTest
-## V1 (ticket #54): E does nothing when no door is usable: with every handle out of reach (more than
-## 60 px), or while the vehicle moves at board_max_speed (20 px/s) or faster. Nothing opens and the
-## character stays on foot. Then, in reach of a stopped car, the same press boards (so the refusals
-## are the rule, not a car that never takes anyone).
+## V1 (ticket #54): Space does nothing when no door is usable: with every handle out of reach (more
+## than 60 px), or while the vehicle moves at board_max_speed (20 px/s) or faster. Nothing opens and
+## the character stays on foot. Then, in reach of a stopped car, the same press boards (so the
+## refusals are the rule, not a car that never takes anyone).
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
@@ -12,8 +12,9 @@ const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 func describe() -> Dictionary:
 	return {
 		"name": "Boarding is refused out of reach or while rolling",
-		"description": "E 75 px from the nearest handle, and E beside a car rolling at 80 px/s, "
-			+ "open nothing and leave the puppet on foot; beside the stopped car E boards.",
+		"description": "Space 75 px from the nearest handle, and Space beside a car rolling at "
+			+ "80 px/s, open nothing and leave the puppet on foot; beside the stopped car "
+			+ "Space boards.",
 		"tags": ["vehicle", "car", "board", "door", "reach"],
 		"timeout": 30.0,
 	}
@@ -26,7 +27,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"me", &"puppet", Vector2(150, 520))
 
 
-## Press E and watch 1.5 s: true when nothing opened and the character stayed on foot.
+## Press Space and watch 1.5 s: true when nothing opened and the character stayed on foot.
 func _refused(t: TestContext, car: Node2D, me: Node) -> bool:
 	t.puppet(&"me").use()
 	var watched: Dictionary = await Probe.watch_doors(t, car, func(): return false, 1.5)
@@ -63,7 +64,7 @@ func run(t: TestContext) -> void:
 	await VehicleRide.place(t, &"me", far)
 	t.check(
 		await _refused(t, car, me),
-		"out of reach, E opens nothing and the character stays on foot",
+		"out of reach, Space opens nothing and the character stays on foot",
 	)
 
 	# --- Rolling: beside the front-left handle while the car rolls forward at 80 px/s.
@@ -72,15 +73,15 @@ func run(t: TestContext) -> void:
 	await t.frames(1)
 	t.check(
 		car.speed() > Probe.BOARD_MAX_SPEED,
-		"the car is rolling faster than board_max_speed when E is pressed (%.0f px/s)"
+		"the car is rolling faster than board_max_speed when Space is pressed (%.0f px/s)"
 			% car.speed(),
 	)
 	t.check(
 		await _refused(t, car, me),
-		"while the car rolls, E opens nothing and the character stays on foot",
+		"while the car rolls, Space opens nothing and the character stays on foot",
 	)
 
-	# --- Stopped and in reach: E boards.
+	# --- Stopped and in reach: Space boards.
 	if not t.require(
 			await t.until(func(): return car.speed() < 1.0, 10.0),
 			"the car rolls to a stop",
@@ -88,5 +89,5 @@ func run(t: TestContext) -> void:
 		return
 	t.check(
 		await VehicleRide.board_by(t, &"me", car, &"front_left"),
-		"beside the stopped car, E boards",
+		"beside the stopped car, Space boards",
 	)

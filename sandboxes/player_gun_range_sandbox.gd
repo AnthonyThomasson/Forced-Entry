@@ -29,10 +29,10 @@ extends GameTest
 ## out into the range), a riveted steel one (shut: the tough one to kick or shoot open) and a
 ## glass-panel one (shut, with a dummy inside the room, seen through the panes). Between the rooms
 ## a hollow panelled door (shut), a solid plank door (ajar) and a steel peephole door (open) join
-## each pair. E opens and shuts a door in reach, held E and the wheel open it by steps; kick a shut
-## one from the push side (the side it swings away from) to burst its latch; an ajar or open door
-## has no latch (one kick throws it open, steel too) and turns about its hinge as you walk into it;
-## shoot or kick a door down, and shoot the glass door's panes to shatter them.
+## each pair. Space opens and shuts a door in reach, held Space and the wheel open it by steps; kick
+## a shut one from the push side (the side it swings away from) to burst its latch; an ajar or open
+## door has no latch (one kick throws it open, steel too) and turns about its hinge as you walk into
+## it; shoot or kick a door down, and shoot the glass door's panes to shatter them.
 
 const OutfitLines := preload("res://scenes/ui/hud/outfit_lines.gd")
 const ARENA := Rect2(-680, 0, 1680, 1300)
@@ -168,25 +168,26 @@ const LANES := [
 func describe() -> Dictionary:
 	return {
 		"name": "Gun range",
-		"description": "Player-controlled sandbox: WASD to move, mouse to aim, LMB to fire (hold "
-			+ "it for the SMG and rifle) or throw, R to reload, F to punch, V to kick, E to use a "
-			+ "door, 2 fists, 3 pistol, 5 SMG, 6 rifle, 7 stun grenades, 8 frag grenades (3 of "
-			+ "each, topped back up 2 s after the last one goes off; the range restocks the guns "
-			+ "and spare magazines with them). Press a long gun against a wall or a chair to see "
-			+ "it raised. West of the start a dummy crouches behind a couch: throw a grenade short "
-			+ "of the couch to see its cover, over it to see none. South of it, the armour range: "
-			+ "nine lanes off a firing line, each dummy (1000 health) in one outfit — plain "
-			+ "clothes, helmet, tactical vest, plate carrier empty and with soft IIIA, steel III "
-			+ "or ceramic IV, the invader kit turned away (back plate) and a ceramic carrier side "
-			+ "on (flank). Shoot each from its lane mark, watch its plates wear on the floor label "
-			+ "and compare front, back and flank. North of the range, built onto its north wall, "
-			+ "four small rooms with seven doors, one of each material and style, a floor label "
-			+ "naming each door that opens onto the range: tap E beside a door to open or shut "
-			+ "it, hold E and scroll to open it by steps, kick it (V) from the push side, the side "
-			+ "it swings away from, to burst its latch (hollow: two kicks, steel: never; an ajar "
-			+ "door has no latch: one kick opens it), walk into an ajar door to push it about its "
-			+ "hinge, shoot a door down (steel stops the pistol, not the rifle), and look through "
-			+ "the glass door's panes at the dummy in its room, then shoot them out.",
+		"description": "Player-controlled sandbox: WASD to move, mouse to aim, LMB to fire"
+			+ " (hold it for the SMG and rifle) or throw, R to reload, F to punch, V to kick, "
+			+ "Space to use a door, 2 fists, 3 pistol, 5 SMG, 6 rifle, 7 stun grenades, 8 frag "
+			+ "grenades (3 of each, topped back up 2 s after the last one goes off; the range "
+			+ "restocks the guns and spare magazines with them). Press a long gun against a "
+			+ "wall or a chair to see it raised. West of the start a dummy crouches behind a "
+			+ "couch: throw a grenade short of the couch to see its cover, over it to see none."
+			+ " South of it, the armour range: nine lanes off a firing line, each dummy (1000 "
+			+ "health) in one outfit — plain clothes, helmet, tactical vest, plate carrier "
+			+ "empty and with soft IIIA, steel III or ceramic IV, the invader kit turned away "
+			+ "(back plate) and a ceramic carrier side on (flank). Shoot each from its lane "
+			+ "mark, watch its plates wear on the floor label and compare front, back and "
+			+ "flank. North of the range, built onto its north wall, four small rooms with "
+			+ "seven doors, one of each material and style, a floor label naming each door that"
+			+ " opens onto the range: tap Space beside a door to open or shut it, hold Space "
+			+ "and scroll to open it by steps, kick it (V) from the push side, the side it "
+			+ "swings away from, to burst its latch (hollow: two kicks, steel: never; an ajar "
+			+ "door has no latch: one kick opens it), walk into an ajar door to push it about "
+			+ "its hinge, shoot a door down (steel stops the pistol, not the rifle), and look "
+			+ "through the glass door's panes at the dummy in its room, then shoot them out.",
 		"tags": [
 			"sandbox", "player", "gun", "pistol", "smg", "rifle", "grenade", "stun", "frag",
 			"cover", "outfit", "armour", "plate", "door",

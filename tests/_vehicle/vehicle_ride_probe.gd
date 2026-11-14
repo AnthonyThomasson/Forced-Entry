@@ -29,15 +29,15 @@ static func move_vehicle(t: TestContext, v: Node2D, pos: Vector2, rot: float) ->
 	await t.frames(2)
 
 
-## Press E for puppet `id` and wait until it is seated (true) or `timeout` passes.
+## Press Space for puppet `id` and wait until it is seated (true) or `timeout` passes.
 static func _board(t: TestContext, id: StringName, timeout := 6.0) -> bool:
 	var c := t.actor(id)
 	t.puppet(id).use()
 	return await t.until(func(): return c.use.is_in_vehicle(), timeout)
 
 
-## Press E for seated puppet `id` and wait until it is out (its `use.vehicle()` null) or `timeout`
-## passes.
+## Press Space for seated puppet `id` and wait until it is out (its `use.vehicle()` null) or
+## `timeout` passes.
 static func exit(t: TestContext, id: StringName, timeout := 8.0) -> bool:
 	var c := t.actor(id)
 	t.puppet(id).use()

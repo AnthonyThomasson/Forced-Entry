@@ -1,5 +1,5 @@
 extends GameTest
-## V4 (ticket #54): with no clear door, E leaves the character in: characters stand in all four
+## V4 (ticket #54): with no clear door, Space leaves the character in: characters stand in all four
 ## doors' swing, the driver presses Space and nothing opens. Once one door is cleared, Space gets it
 ## out by that door.
 
@@ -15,9 +15,9 @@ const BLOCKERS := {
 func describe() -> Dictionary:
 	return {
 		"name": "With every door blocked the character stays in",
-		"description": "Four puppets stand in the swing of the car's four doors: the driver's E "
-			+ "opens nothing and it stays seated; with the front-right blocker gone, E gets it "
-			+ "out there.",
+		"description": "Four puppets stand in the swing of the car's four doors: the driver's "
+			+ "Space opens nothing and it stays seated; with the front-right blocker gone, "
+			+ "Space gets it out there.",
 		"tags": ["vehicle", "car", "exit", "door", "blocked"],
 		"timeout": 25.0,
 	}
@@ -61,6 +61,6 @@ func run(t: TestContext) -> void:
 	await VehicleRide.place(t, &"block_fr", Vector2(820, 560))
 	t.puppet(&"me").use()
 	watched = await Probe.watch_doors(t, car, func(): return me.use.vehicle() == null, 8.0)
-	if not t.require(watched["done"], "with the front right cleared, E gets the character out"):
+	if not t.require(watched["done"], "with the front right cleared, Space gets the character out"):
 		return
 	t.expect_eq(Probe.opened(watched, 0.05), [&"front_right"], "by the front-right door")
