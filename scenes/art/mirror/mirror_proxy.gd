@@ -33,11 +33,6 @@ func _init() -> void:
 	_cylinder.rings = 1
 
 
-## The one toon material every proxy shares.
-func material() -> ShaderMaterial:
-	return _material
-
-
 ## The kind of `body`: a character, vehicle, door or wall by what it says it is (the group or the
 ## property the owning domain gives it), else a piece of furniture.
 static func kind_of(body: Node) -> StringName:

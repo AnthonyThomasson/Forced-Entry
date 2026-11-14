@@ -8,9 +8,10 @@ extends Node3D
 ## 2D-to-3D scale). Its `yaw` is a property, in degrees, that the camera-turn controls set; the
 ## pitch is `RenderConfig.pitch_degrees`.
 ##
-## The 3D picture is a `SubViewport` the rig sizes to `RenderConfig.internal_lines` rows at the
-## reference window height (scaled with the window's, so a picture pixel stays about 3 screen
-## pixels; the window's own rows when 0), times `oversample`, plus a one-pixel margin all round. The
+## The 3D picture is a `SubViewport` the rig sizes so a picture pixel is a whole number of screen
+## pixels (`RenderConfig.reference_height` over `internal_lines`, 3: 216 rows at a 648-high window)
+## at any window size, with as many rows and columns as cover the window, times `oversample`, plus
+## a one-pixel margin all round. The
 ## focus is snapped to the picture's pixel grid along the camera's right and up and the shown
 ## rectangle is shifted back by what was snapped away, so a following camera never shimmers. The rig
 ## runs after the `Camera2D` (it is a later node and `process_priority` 100) and, like it, while the
@@ -29,6 +30,9 @@ var _rect: Control
 var _source: Camera2D
 var _viewport: SubViewport
 var _internal := Vector2i(2, 2)
+## Screen pixels to a picture pixel (whole), and the 3D units a picture pixel covers.
+var _scale := 3
+var _pixel := 3.0
 
 
 func _init() -> void:
@@ -62,9 +66,9 @@ func internal_size() -> Vector2i:
 	return _internal
 
 
-## The 3D units one picture pixel covers along the screen's height.
+## The 3D units one picture pixel covers.
 func texel() -> float:
-	return _world_height() / float(maxi(_internal.y - 2, 1))
+	return _pixel
 
 
 ## Place the camera on the source's focus at its zoom, size the picture and shift it by the snap.
@@ -74,51 +78,48 @@ func _place() -> void:
 	var screen := _source.get_viewport().get_visible_rect().size
 	if screen.x <= 0.0 or screen.y <= 0.0:
 		return
-	var lines := _lines_of(screen.y)
-	_internal = Vector2i(int(ceilf(float(lines) * screen.x / screen.y)) + 2, lines + 2)
-	if _viewport.size != _internal * maxi(oversample, 1):
-		_viewport.size = _internal * maxi(oversample, 1)
-	var pixel := _world_height() / float(lines)
-	camera.size = pixel * float(_internal.y)
-	if camera.near != RenderConfig.near or camera.far != RenderConfig.far:
-		camera.near = RenderConfig.near
-		camera.far = RenderConfig.far
+	_size_picture(screen)
 	var turned := Basis.from_euler(
 		Vector3(deg_to_rad(-RenderConfig.pitch_degrees), deg_to_rad(yaw), 0.0)
 	)
 	var focus := _source.get_screen_center_position()
 	var ground := Vector3(focus.x, 0.0, focus.y) * RenderConfig.unit
-	ground += turned.x * _across(screen, lines) * pixel
+	var middle := _middle(screen)
+	ground += (turned.x * middle.x - turned.y * middle.y) * _pixel
 	var offset := Vector2(ground.dot(turned.x), ground.dot(turned.y))
-	var snapped_offset := (offset / pixel).round() * pixel
+	var snapped_offset := (offset / _pixel).round() * _pixel
 	var snap := snapped_offset - offset
 	camera.global_transform = Transform3D(
 		turned, ground + turned.x * snap.x + turned.y * snap.y + turned.z * RenderConfig.distance
 	)
 	if _rect != null:
-		var scale_up := screen.y / float(lines)
-		_rect.size = Vector2(_internal) * scale_up
-		_rect.position = (Vector2(snap.x, -snap.y) / pixel - Vector2.ONE) * scale_up
+		_rect.size = Vector2(_internal * _scale)
+		_rect.position = (Vector2(snap.x, -snap.y) / _pixel - Vector2.ONE) * float(_scale)
 
 
-## How many picture pixels the window's middle sits left of the picture's: the picture is whole
-## pixels wide and the window is not, so the camera frames that much to the right of the focus.
-func _across(screen: Vector2, lines: int) -> float:
-	return float(_internal.x) * 0.5 - 1.0 - screen.x * 0.5 * float(lines) / screen.y
+## Size the picture for a window of `screen`: a whole number of screen pixels to a picture pixel
+## (`RenderConfig.reference_height` over `internal_lines`, rounded: 3 at the reference; 1 when
+## `internal_lines` is 0) and as many picture rows and columns as cover the window plus the
+## one-pixel margin, so the upscale is exact at any window size; the camera and the 3D viewport
+## follow.
+func _size_picture(screen: Vector2) -> void:
+	_scale = 1
+	if RenderConfig.internal_lines > 0:
+		var wanted := float(RenderConfig.reference_height) / float(RenderConfig.internal_lines)
+		_scale = maxi(roundi(wanted), 1)
+	_internal = Vector2i(ceili(screen.x / float(_scale)) + 2, ceili(screen.y / float(_scale)) + 2)
+	_pixel = float(_scale) / maxf(_source.zoom.y, 0.001) * RenderConfig.unit
+	var rendered := _internal * maxi(oversample, 1)
+	if _viewport.size != rendered:
+		_viewport.size = rendered
+	camera.size = _pixel * float(_internal.y)
+	if camera.near != RenderConfig.near or camera.far != RenderConfig.far:
+		camera.near = RenderConfig.near
+		camera.far = RenderConfig.far
 
 
-## The picture's rows for a window `height` high: `RenderConfig.internal_lines` at the reference
-## height, scaled with the window's (the window's own rows when 0).
-func _lines_of(height: float) -> int:
-	if RenderConfig.internal_lines <= 0:
-		return int(height)
-	var reference := maxf(RenderConfig.reference_height, 1.0)
-	var scaled := height * float(RenderConfig.internal_lines) / reference
-	return maxi(int(roundf(scaled)), 4)
-
-
-## The ground height the picture's rows show, in 3D units: the screen's height in 2D pixels at the
-## source's zoom, times the scale.
-func _world_height() -> float:
-	var screen := _source.get_viewport().get_visible_rect().size
-	return screen.y / maxf(_source.zoom.y, 0.001) * RenderConfig.unit
+## How many picture pixels the window's middle sits left of (x) and above (y) the picture's: the
+## picture covers whole pixels and the window need not, so the camera frames that much to the
+## right of the focus and below it.
+func _middle(screen: Vector2) -> Vector2:
+	return (Vector2(_internal) * 0.5 - Vector2.ONE) - screen * 0.5 / float(_scale)

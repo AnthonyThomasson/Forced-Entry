@@ -21,11 +21,11 @@ static var distance: float = 900.0
 ## reads keeps its precision.
 static var near: float = 300.0
 static var far: float = 1500.0
-## The internal height of the 3D picture, in pixels, at a window `reference_height` high: before it
-## is scaled up to the window with nearest filtering, 216 rows at 648 is 3 screen pixels to a
-## picture pixel. The picture's rows scale with the window's height, so a picture pixel stays
-## about that size on any screen. 0 renders at the window's own height (one pixel to a screen
-## pixel).
+## The pixel of the 3D picture: it is drawn at `internal_lines` rows in a window `reference_height`
+## high and shown with nearest filtering, so a picture pixel is `reference_height / internal_lines`
+## screen pixels (216 rows at 648: 3), rounded to a whole number so the upscale is exact at any
+## window height, and the same size on every window (more rows on a taller one). 0 draws a picture
+## pixel to a screen pixel.
 static var internal_lines: int = 216
 static var reference_height: int = 648
 ## The canvas layer the 3D view is drawn on: below the HUD (layer 1) and the overlay bar and

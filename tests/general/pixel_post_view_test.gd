@@ -18,14 +18,15 @@ const SPEC := {
 }
 const REFERENCE := Vector2i(1152, 648)
 const BIG := Vector2i(2304, 1296)
+const ODD := Vector2i(1776, 1000)
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "The 3D view renders at the internal resolution and upscales with nearest",
-		"description": "216 lines at 1152x648 (432 at 2304x1296), a nearest-filtered picture "
-			+ "covering the window at ~3 px a pixel, the outline quad under the camera from "
-			+ "PixelPostConfig, and the supersampled chain when it is on.",
+		"description": "216 lines at 1152x648 (432 at 2304x1296, 334 at a height of 1000), a "
+			+ "nearest-filtered picture covering the window at a whole 3 px a pixel, the outline "
+			+ "quad under the camera from PixelPostConfig, and the supersampled chain when on.",
 		"tags": ["render", "3d", "pixel", "settings"],
 		"timeout": 40.0,
 	}
@@ -55,6 +56,17 @@ func run(t: TestContext) -> void:
 		return
 	t.expect_eq(big.viewport.size, Vector2i(770, 434), "2304x1296: 432 lines plus the margin")
 	_check_shown(t, big, BIG, 3.0)
+	# A window height 3 does not divide: the upscale is still a whole 3 screen pixels, with the
+	# rows that cover the window (334 of them, a third of a pixel more than 1000) plus the margin.
+	var odd := await _start(t, ODD)
+	if not t.require(odd != null, "a 3D match started in a window 1000 high"):
+		return
+	t.expect_eq(
+		odd.viewport.size,
+		Vector2i(594, 336),
+		"1776x1000: 334 rows by 592 columns plus the margin",
+	)
+	_check_shown(t, odd, ODD, 3.0)
 	PixelPostConfig.supersample = 2
 	var fine := await _start(t, REFERENCE)
 	if not t.require(fine != null, "a 3D match started with the supersample on"):

@@ -28,7 +28,6 @@ var mirror: WorldMirror
 var viewport := SubViewport.new()
 var rect := TextureRect.new()
 var shown: SubViewport = viewport
-var _outline: MeshInstance3D
 var _stage: SubViewport
 
 
@@ -64,7 +63,7 @@ func begin(camera: Camera2D) -> void:
 	rig.oversample = maxi(PixelPostConfig.supersample, 1)
 	viewport.add_child(rig)
 	rig.bind(camera, viewport, rect)
-	_outline = PixelPost.attach(rig.camera, rig.oversample)
+	PixelPost.attach(rig.camera, rig.oversample)
 	_show(rig.oversample)
 	viewport.add_child(_environment())
 	viewport.add_child(_sun())
@@ -96,13 +95,6 @@ func _show(oversample: int) -> void:
 	add_child(_stage)
 	shown = _stage
 	rect.texture = _stage.get_texture()
-
-
-## Push `PixelPostConfig`'s bands, tone ramp and outline into the view (after a tuning change).
-## The supersample is read once, when the view begins: it applies at the next match.
-func refresh_post() -> void:
-	PixelPost.refresh(_outline, rig.oversample)
-	ToonMaterial.refresh(mirror.material())
 
 
 ## Mirror the 2D bodies under `world`: from now on the view follows them.

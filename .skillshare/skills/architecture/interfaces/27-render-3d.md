@@ -38,7 +38,7 @@
       the tests read it): each frame the camera frames `source.get_screen_center_position()` (focus plus shake offset) at `source.zoom` (the ortho
       size is the screen's height in 2D px over the zoom, times `unit`: 1 screen px to a world px at zoom 1), at the pitch `RenderConfig.pitch_degrees`
       (35.264: true isometric) and `yaw` (a property in degrees, `RenderConfig.yaw_degrees` to start; the camera-turn controls set it). The rig sizes the
-      `SubViewport` to `RenderConfig.internal_lines` rows at a window `reference_height` high (216 at 648: 3 screen px to a picture pixel at any window size, the rows scaling with its height; 0: the window's own) times `oversample`, plus a 1 px margin, snaps the focus to that pixel grid along the camera's
+      `SubViewport` so a picture pixel is a whole number of screen pixels at any window size (`reference_height / internal_lines` rounded: 216 rows at 648 is 3; 0 is 1), with the rows and columns that cover the window (334 rows at a height of 1000) times `oversample`, plus a 1 px margin, snaps the focus to that pixel grid along the camera's
       right and up and shifts and sizes `rect` back by the remainder, so following does not shimmer. `texel() -> float` is the world units a picture
       pixel covers; `internal_size() -> Vector2i` the picture's size in pixels, margin included.
     - **The pixel post** (rule 6; Art `art/post/`, tuning `PixelPostConfig`): the view's meshes share one toon `ShaderMaterial` (`ToonMaterial.make()`; a colour per
@@ -46,10 +46,9 @@
       ambient; `PixelPost.attach(camera, oversample)` adds a full-screen outline quad under the camera (a dark line where the depth steps, `silhouette_px` wide,
       or the normal creases, `crease_px`; `PixelPost.refresh(node, oversample)` pushes the holder). Main's `View3D` shows the picture through a nearest-filtered
       `TextureRect` (`View3D.rect`, covering the window); with `PixelPostConfig.supersample` above 1 the 3D picture (`View3D.viewport`) is rendered that many times
-      larger and averaged down through a filtered stage (`View3D.shown`) to the picture's size first. `View3D.refresh_post()` re-reads the holders; `WorldMirror.material()`
-      is the shared material.
+      larger and averaged down through a filtered stage (`View3D.shown`) to the picture's size first.
     - **Tuning:** `RenderConfig` (General: `unit`, `pitch_degrees`, `yaw_degrees`, `distance`, `near`, `far`, `internal_lines`, `reference_height`, `canvas_layer`),
-      `RenderLightConfig` (General, the interim sun and ambient until the lighting job moves them to Lighting) `MirrorConfig` and `PixelPostConfig` (Art).
+      `RenderLightConfig` (General, the interim sun and ambient until the lighting job moves them to Lighting), `MirrorConfig` and `PixelPostConfig` (Art).
     - **Not yet:** things drawn that are not physics bodies (dropped items, debris, bullets, casings, grenades in flight) have no 3D counterpart until
       phase 2; the mouse and keys stay world-relative (the turn-control job gives `Pointer` its 3D body, 26); the
       2D vision and debug overlays are hidden in 3D mode (the turn-control job's ground overlay); the meshes are proxies (phase 2).

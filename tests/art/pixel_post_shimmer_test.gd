@@ -9,7 +9,10 @@ extends GameTest
 ## (`PixelPostConfig.supersample`, `silhouette_px`) against the plain post; the default the holder
 ## ships must flicker no more than the plain one. `PIXELPOST_OUT=<file.json>` writes the numbers,
 ## `PIXELPOST_SHOTS=<dir>` saves two consecutive mid-turn frames per variant.
-## Run: `tools/run_tests.sh --windowed --id=art/pixel_post_shimmer`.
+## A measurement probe, not a guard of a behaviour: it prints the numbers (`SHIMMER` lines) that
+## picked the shipped default, and fails only if the picture does not turn at all or the default
+## flickers more than the plain post. Run:
+## `tools/run_tests.sh --windowed --id=art/pixel_post_shimmer`.
 
 const ViewScript := preload("res://scenes/main_view3d.gd")
 const SIZE := Vector2i(1152, 648)
@@ -86,6 +89,10 @@ func run(t: TestContext) -> void:
 
 
 ## Turn the room under the post set by `variant` and count the flicker; `{ flicker, changed }`.
+## The variant's window is built once and stopped when its turn ends but never freed here: the
+## test world frees everything at the very end (a freed viewport chain mid-run crashed the engine
+## in 2 of 4 loaded runs, in script code resumed from `frame_post_draw`), and the code resumed
+## there only reads the picture back (a native call); the sampling waits until the turn is done.
 func _turn(t: TestContext, key: String, variant: Dictionary) -> Dictionary:
 	PixelPostConfig.supersample = variant["supersample"]
 	PixelPostConfig.silhouette_px = variant["silhouette_px"]
@@ -102,20 +109,20 @@ func _turn(t: TestContext, key: String, variant: Dictionary) -> Dictionary:
 	_room(view.viewport)
 	view.rig.yaw = START_YAW
 	await t.frames(6)
-	var frames: Array[PackedInt32Array] = []
+	var pictures: Array[Image] = []
 	var shots := OS.get_environment("PIXELPOST_SHOTS")
 	for n in FRAMES:
 		view.rig.yaw = START_YAW + float(n) * STEP
 		await t.frames(1)
 		await RenderingServer.frame_post_draw
 		var image := window.get_texture().get_image()
-		frames.append(_sample(image))
 		if shots != "" and (n == 20 or n == 21):
 			image.save_png("%s/%s_%d.png" % [shots, key, n])
+		pictures.append(image)
 	window.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	await t.frames(1)
-	window.queue_free()
-	await t.frames(2)
+	var frames: Array[PackedInt32Array] = []
+	for image in pictures:
+		frames.append(_sample(image))
 	return _count(frames)
 
 
