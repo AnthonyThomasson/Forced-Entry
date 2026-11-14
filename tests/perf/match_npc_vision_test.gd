@@ -22,25 +22,30 @@ extends GameTest
 ## the test is neither skipped nor tagged.
 ## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
 ## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
-## one fight per seed, seed 2 now (`perf_probe.gd`), contact at 6.0 s every run, so the window is
-## 6.0 to 11.0 s of the fight.
-## Where the viewed invader stands decides whether the window sees the viewer alive (the premise
-## below). The match's nine invaders start in a pack in the street, the defenders in the house to
-## the south. Beside the first, the third or the eighth invader the viewed one is shot dead (and
-## its fight reaches contact later, at 9.4 s); beside the last it is not hit at all (health 50.0
-## through the window), the fight reaches contact at 6.0 s and the window is 6.0 to 11.0 s. So it
-## stands `BESIDE` the last invader of the match. Only where it stands is set here: the seed,
+## one fight per seed, seed 2 now (`perf_probe.gd`).
+## Where the viewed invader stands decides what the window shows of it, and the guard means the
+## view of an invader while it fights, alive (the premise below). The match's nine invaders start
+## in a pack in the street, the defenders in the house to the south. Placed 40 px east of each:
+## beside the first, second, third, fourth, sixth or eighth the viewed invader is shot dead;
+## beside the fifth and the ninth it lives but never fights (retreat, evade and investigate acts,
+## never nearer than 255 px to a defender); beside the seventh the sides make no contact in 30 s.
+## Beside the fourth, 40 px west, it lives through the window (health 26.7 of 50), engages in 243
+## of the 300 frames (`engage/fire_east`, then `advance`), knows a hostile in all of them and
+## comes within 97 px of a defender; contact is at 8.2 s, the window 8.2 to 13.2 s. So it stands
+## `BESIDE` the invader `BESIDE_INVADER` of the match. Only where it stands is set here: the seed,
 ## `Perf.configure_match` and the budgets are those of every match guard.
-## Three `--quiet` runs (load 4.3 to 6.7): avg 19.32, 19.50 and 19.05, p95 28.50,
-## 28.82 and 28.35, max 33.85, 34.21 and 33.51 ms. The budgets stay red (accepted, #223).
+## Three `--quiet` runs (load 3.7 to 4.4): avg 20.06, 20.06 and 20.11, p95 26.73, 26.74 and 26.62,
+## max 33.86, 32.71 and 33.14 ms. The budgets stay red (accepted, #223).
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const PER_SIDE := 10
 const MEASURE_FRAMES := 300
 const NODE_GROWTH := 5000
-## The viewed invader stands this far (px) beside the last invader of the match.
-const BESIDE := Vector2(40.0, 0.0)
+## The viewed invader stands this far (px) beside the invader `BESIDE_INVADER` of the match.
+const BESIDE := Vector2(-40.0, 0.0)
+## Which of the match's nine invaders (spawn order, from 0) it stands beside: the fourth.
+const BESIDE_INVADER := 3
 
 
 func describe() -> Dictionary:
@@ -82,7 +87,8 @@ func run(t: TestContext) -> void:
 			"premise: one view, of the viewed invader (%d views)" % views.size(),
 	):
 		return
-	var beside: Node2D = characters.filter(func(c): return c.get("faction") == &"invader")[-1]
+	var invaders := characters.filter(func(c): return c.get("faction") == &"invader")
+	var beside: Node2D = invaders[BESIDE_INVADER]
 	viewed.global_position = beside.global_position + BESIDE
 	characters.append(viewed)
 	Perf.record_fight(t, self, characters)
