@@ -1,24 +1,27 @@
 extends GameTest
-## Spike of #193: 3D runs under the headless test runner. An orthographic Camera3D, a MeshInstance3D
-## and a shadow-casting DirectionalLight3D go into a SubViewport (the shape the 3D render will take
-## under a CanvasLayer), enter the tree, process for a few frames and project a ground point through
-## the camera without the engine logging an error or a warning (the log gate fails the test if it
-## does). The projection is the isometric ground (x, 0, y) the mirror of #193 will rely on: the
-## world's origin at the viewport's centre, +x down-right and +z down-left, at the 2:1 diamond's
-## slope.
+## Spike of #193: the 3D wiring and the camera math run under the headless test runner. The dummy
+## renderer draws nothing, so this proves what a headless run can: an orthographic Camera3D, a
+## MeshInstance3D and a shadow-casting DirectionalLight3D go into a SubViewport of its own 3D world
+## (the shape the 3D render will take under a CanvasLayer), enter the tree and process for a few
+## frames with no engine error or warning (the log gate fails the test if there is one), and the
+## camera projects the isometric ground (x, 0, y) the mirror of #193 relies on: the world's origin
+## at the viewport's centre, +x down-right and +z down-left at the 2:1 diamond's slope, and height
+## up the screen by cos(pitch). What the pixels look like is the windowed showroom's to judge.
 
 const SIZE := Vector2i(320, 180)
 const PITCH_DEG := 35.264
 const YAW_DEG := 45.0
 const DISTANCE := 400.0
+const ORTHO_SIZE := 200.0
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "3D renders headless: an orthographic camera, a mesh and a shadowed light",
+		"name": "3D wiring and camera math work headless (the dummy renderer draws nothing)",
 		"description": "A SubViewport with an orthographic Camera3D, a box MeshInstance3D and a "
 			+ "shadow-casting DirectionalLight3D enters the tree and processes with no engine "
-			+ "error; the camera projects the ground (x, 0, y) as an isometric view.",
+			+ "error; the camera projects the ground (x, 0, y) and a height as an isometric view. "
+			+ "Nothing is drawn headless.",
 		"tags": ["spike", "3d", "render"],
 		"timeout": 5.0,
 	}
@@ -45,7 +48,6 @@ func run(t: TestContext) -> void:
 		"the mesh and the light entered the tree",
 	)
 	t.check(viewport.get_camera_3d() == camera, "the SubViewport's current camera is ours")
-	t.check(sun.shadow_enabled and box.is_visible_in_tree(), "the light shadows a visible mesh")
 	t.check(
 		viewport.world_3d != t.world.get_viewport().world_3d,
 		"the SubViewport has a 3D world of its own (nothing leaks into the game's)",
@@ -56,7 +58,7 @@ func run(t: TestContext) -> void:
 func _camera(viewport: SubViewport) -> Camera3D:
 	var camera := Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 200.0
+	camera.size = ORTHO_SIZE
 	camera.near = 1.0
 	camera.far = 2000.0
 	viewport.add_child(camera)
@@ -95,3 +97,9 @@ func _check_ground(t: TestContext, camera: Camera3D) -> void:
 	t.check(along_x.x > 0.0 and along_x.y > 0.0, "ground +x runs down-right (%s)" % along_x)
 	t.check(along_z.x < 0.0 and along_z.y > 0.0, "ground +z runs down-left (%s)" % along_z)
 	t.expect_near(absf(along_x.y / along_x.x), 0.577, 0.05, "the ground's slope is isometric")
+	# A point 40 units up lands 40 * cos(35.264 deg) = 32.7 units up the screen, at SIZE.y px for
+	# ORTHO_SIZE units: 0.9 px a unit.
+	var up := centre - camera.unproject_position(Vector3(0, 40, 0))
+	var expected := 40.0 * 0.8165 * float(SIZE.y) / ORTHO_SIZE
+	t.expect_near(up.y, expected, 1.0, "40 units of height lift the point %.1f px up" % expected)
+	t.expect_near(up.x, 0.0, 1.0, "height moves straight up the screen")

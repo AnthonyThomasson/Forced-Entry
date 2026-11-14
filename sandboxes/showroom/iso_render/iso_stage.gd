@@ -26,16 +26,24 @@ func _physics_process(_delta: float) -> void:
 	var screen_y := _axis(KEY_W, KEY_S)
 	var up: Vector2 = view.screen_up_on_ground()
 	var world := Vector2(-up.y, up.x) * screen_x + up * screen_y
-	Input.action_press(Keybinds.MOVE_RIGHT, maxf(world.x, 0.0))
-	Input.action_press(Keybinds.MOVE_LEFT, maxf(-world.x, 0.0))
-	Input.action_press(Keybinds.MOVE_DOWN, maxf(world.y, 0.0))
-	Input.action_press(Keybinds.MOVE_UP, maxf(-world.y, 0.0))
+	_drive(Keybinds.MOVE_RIGHT, world.x)
+	_drive(Keybinds.MOVE_LEFT, -world.x)
+	_drive(Keybinds.MOVE_DOWN, world.y)
+	_drive(Keybinds.MOVE_UP, -world.y)
 
 
 func _exit_tree() -> void:
 	for action: String in [
 		Keybinds.MOVE_RIGHT, Keybinds.MOVE_LEFT, Keybinds.MOVE_DOWN, Keybinds.MOVE_UP,
 	]:
+		Input.action_release(action)
+
+
+## Hold `action` at `strength` (released at none), whatever the real key's own event says.
+func _drive(action: String, strength: float) -> void:
+	if strength > 0.0:
+		Input.action_press(action, strength)
+	else:
 		Input.action_release(action)
 
 
@@ -66,6 +74,8 @@ func setup(world: Node2D, walker: Node2D, heights: Dictionary) -> void:
 	for argument in OS.get_cmdline_user_args():
 		if argument.begins_with("--showroom-cycle="):
 			_cycle(float(argument.get_slice("=", 1)))
+		elif argument == "--showroom-walk":
+			_walk_check()
 		elif argument.begins_with("--showroom-shots="):
 			_shots(argument.get_slice("=", 1))
 
@@ -80,6 +90,38 @@ func _show(index: int) -> void:
 func _frames(count: int) -> void:
 	for i in count:
 		await get_tree().process_frame
+
+
+## Press W, then D, as real key events at two yaws and print where the player went against the
+## screen's up and right on the ground (`ok` when within about 25 degrees), then quit.
+func _walk_check() -> void:
+	await _frames(40)
+	for yaw in [45.0, 120.0]:
+		view.yaw = yaw
+		await _frames(5)
+		var up: Vector2 = view.screen_up_on_ground()
+		for key: Key in [KEY_W, KEY_D]:
+			var wanted := up if key == KEY_W else Vector2(-up.y, up.x)
+			var start := _walker.global_position
+			_key(key, true)
+			await _frames(30)
+			_key(key, false)
+			await _frames(10)
+			var moved := _walker.global_position - start
+			var along := moved.normalized().dot(wanted) if moved.length() > 1.0 else 0.0
+			print("showroom walk: yaw %d key %s moved %s cos %.2f %s" % [
+				int(yaw), OS.get_keycode_string(key), moved.round(), along,
+				"ok" if along > 0.9 else "WRONG",
+			])
+	get_tree().quit()
+
+
+func _key(key: Key, pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.physical_keycode = key
+	event.keycode = key
+	event.pressed = pressed
+	Input.parse_input_event(event)
 
 
 func _cycle(seconds: float) -> void:

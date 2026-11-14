@@ -11,6 +11,10 @@ extends GameTest
 ## mirrors every collision shape as a box or capsule (`ProxyMirror`) under one shadow-casting
 ## sun. Run: `tools/run_tests.sh --windowed --quiet --id=perf/iso_render_cost` (add `--verbose`);
 ## the numbers print as `ISO` lines and, with `ISO_PROBE_OUT=<file>` set, as JSON.
+##
+## It preloads the showroom's `iso_view.gd` (and through it `proxy_mirror.gd`), so it goes when the
+## showroom does (the 2D render's deletion, #193 phase 3); the cost guard then moves to the real
+## mirror.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const IsoView := preload("res://sandboxes/showroom/iso_render/iso_view.gd")
@@ -60,14 +64,44 @@ func run(t: TestContext) -> void:
 	centre /= float(characters.size())
 	_set_up(t)
 	var results := {}
+	var original := DisplayServer.window_get_size()
 	for size in SIZES:
 		DisplayServer.window_set_size(size)
 		await t.frames(10)
 		var actual := t.world.get_tree().root.get_visible_rect().size
 		t.require(Vector2i(actual) == size, "the window is %s (is %s)" % [size, actual])
 		results[str(size)] = await _rounds(t, centre, actual)
+	DisplayServer.window_set_size(original)
+	_restore(t)
 	_report(results)
-	t.check(true, "measured")
+	_check(t, results)
+
+
+## The window and the world as the probe found them: the 2D world shown, the camera's own scripts
+## on.
+func _restore(t: TestContext) -> void:
+	t.world.visible = true
+	_view.set_enabled(false)
+	_camera.set_process(true)
+	_camera.set_physics_process(true)
+
+
+## Every mode at every size recorded all its frames, each a finite positive time.
+func _check(t: TestContext, results: Dictionary) -> void:
+	for size: String in results:
+		for mode: String in results[size]:
+			var frame: Dictionary = results[size][mode]["frame"]
+			var label := "%s %s" % [size, mode]
+			t.check(
+				int(frame["count"]) == FRAMES * ROUNDS,
+				"%s: %d frames recorded (%d)" % [label, int(frame["count"]), FRAMES * ROUNDS],
+			)
+			for key: String in ["mean", "p95", "max"]:
+				var value: float = frame[key]
+				t.check(
+					is_finite(value) and value > 0.0,
+					"%s: %s frame time is %s" % [label, key, value],
+				)
 
 
 func _set_up(t: TestContext) -> void:
@@ -170,6 +204,7 @@ func _stats(values: Array, over_limit: bool) -> Dictionary:
 	for v: float in sorted:
 		total += v
 	var out := {
+		"count": sorted.size(),
 		"mean": total / float(sorted.size()),
 		"p95": sorted[mini(sorted.size() - 1, int(sorted.size() * 0.95))],
 		"max": sorted[sorted.size() - 1],
@@ -207,4 +242,9 @@ func _report(results: Dictionary) -> void:
 			)
 	var path := OS.get_environment("ISO_PROBE_OUT")
 	if path != "":
-		FileAccess.open(path, FileAccess.WRITE).store_string(text)
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		if file == null:
+			var why := FileAccess.get_open_error()
+			push_error("ISO_PROBE_OUT %s cannot be written (%s)" % [path, why])
+			return
+		file.store_string(text)
