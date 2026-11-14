@@ -35,16 +35,22 @@ func try_use_vehicle() -> void:
 			return
 
 
-## How far (px) from `point` (the mouse) the nearest door a character on foot could board by is: the
-## handle nearest `point` among those within `VehicleBoardingConfig.door_reach` of the body of a
-## vehicle moving slower than `board_max_speed`; `INF` when there is none or the character is
-## already in a vehicle. The character's `use` weighs it against a chair and a house door.
+## How far (px) from `point` (the mouse) the nearest vehicle a character on foot could board is: the
+## distance to its outline, 0 with the mouse on it, over the vehicles with a door the character
+## could board by now (`_candidates`: in reach, slow enough, and `can_board`: a blocked door or a
+## taken seat is no candidate); `INF` when there is none or the character is already in a vehicle.
+## The character's `use` weighs it against a chair and a house door.
 func nearest_door_distance(point: Vector2) -> float:
 	if _ride != null:
 		return INF
 	var nearest := INF
+	var seen := []
 	for c: Dictionary in _candidates():
-		nearest = minf(nearest, c["handle"].distance_to(point))
+		var body: Node2D = c["vehicle"]
+		if seen.has(body):
+			continue
+		seen.append(body)
+		nearest = minf(nearest, _gap_to(body, point))
 	return nearest
 
 
@@ -59,8 +65,8 @@ func is_in_vehicle() -> bool:
 
 
 ## The doors a character on foot could board by, nearest handle first: each `{ vehicle, door,
-## distance, handle }`, the handle within `VehicleBoardingConfig.door_reach` of a vehicle slower
-## than `board_max_speed`.
+## distance }`, the handle within `VehicleBoardingConfig.door_reach` of a vehicle slower than
+## `board_max_speed`, the door one the character `can_board` by now.
 func _candidates() -> Array:
 	var candidates := []
 	for near in _character.get_tree().get_nodes_in_group(&"vehicles"):
@@ -68,13 +74,10 @@ func _candidates() -> Array:
 			continue
 		for door: Dictionary in near.doors():
 			var distance: float = _character.global_position.distance_to(door["handle"])
-			if distance <= VehicleBoardingConfig.door_reach:
-				candidates.append({
-					"vehicle": near,
-					"door": door["id"],
-					"distance": distance,
-					"handle": door["handle"],
-				})
+			if distance <= VehicleBoardingConfig.door_reach and near.can_board(
+					_character, door["id"]
+			):
+				candidates.append({ "vehicle": near, "door": door["id"], "distance": distance })
 	candidates.sort_custom(func(a, b): return a["distance"] < b["distance"])
 	return candidates
 
@@ -110,3 +113,18 @@ func abandon() -> void:
 		_character.use.keep_clear_of(_ride.vehicle)
 	_ride = null
 	_character.use.end_ride()
+
+
+## How far (px) `point` is from `body`'s outline (0 inside it).
+func _gap_to(body: Node2D, point: Vector2) -> float:
+	var local: Vector2 = body.to_local(point)
+	var outline: PackedVector2Array = body.outline()
+	if Geometry2D.is_point_in_polygon(local, outline):
+		return 0.0
+	var best := INF
+	for i in outline.size():
+		var near := Geometry2D.get_closest_point_to_segment(
+			local, outline[i], outline[(i + 1) % outline.size()]
+		)
+		best = minf(best, near.distance_to(local))
+	return best

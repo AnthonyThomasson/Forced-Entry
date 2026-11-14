@@ -2,7 +2,7 @@
     - **The character's side.** `character.use` (`character/character_use.gd`, `CharacterUse`) composes the Vehicles domain's
       `CharacterVehicleUse` (`vehicle/character_vehicle_use.gd`) and forwards opaque calls: `use.try_interact()` (Space; refused while dead; seated it gets out, on foot it boards by
       the door whose handle is nearest when a vehicle's door is the thing nearest the mouse, else it works the chair or standing house door that is,
-      interfaces 8, 24), `nearest_door_distance(point) -> float` (on `CharacterVehicleUse`: how far the handle nearest `point`, the mouse, among those a character
+      interfaces 8, 24), `nearest_door_distance(point) -> float` (on `CharacterVehicleUse`: how far the outline of the nearest vehicle with a door a character
       on foot could board by is, `INF` with none or riding; `use.interact_target()` weighs it against a chair and a house door), `use.vehicle() -> Node` (the vehicle it is boarding,
       riding in or leaving; null on foot) and `use.is_in_vehicle()` (test read: seated only). The character steps the component once a
       physics frame right after its controller (`control(delta)`), so a ride overrides that frame's intent, and calls `abandon()` from `_die`
@@ -20,7 +20,7 @@
       `use.stop_clearing(body)`.
     - **The vehicle** (`vehicle.gd`, a `RigidBody2D` on `PhysicsLayers.SOLID`, group `vehicles`): `doors() -> Array` (`[{ id, kind`
       (`swing` / `slide` / `rear`)`, seat, handle, open` (0..1)`, hinge, angle, offset }]`, world space), `seats() -> Array`
-      (`[{ id, occupant }]`), `driver() -> Node`, `board(character, door_id) -> RefCounted` (the ride, or null when that door cannot be used
+      (`[{ id, occupant }]`), `driver() -> Node`, `can_board(character, door_id) -> bool` (the checks of `board`, changing nothing) and `board(character, door_id) -> RefCounted` (the ride, or null when that door cannot be used
       now), `exit(character) -> bool`, `drive_input(character, throttle, steer, handbrake)` (driver only, engine running), and the reads
       `speed()` (px/s, unsigned), `engine_state()` (`{ running, rpm, load }`), `slip()` (0 while the tyres grip), `wheel_angle()`,
       `brake_lights()`, `view_zoom_out()` (`VehicleDriveConfig.zoom_out` × speed / top speed: how far a camera following someone aboard zooms

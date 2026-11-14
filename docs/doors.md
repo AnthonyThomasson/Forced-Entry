@@ -105,9 +105,11 @@ shut door's doorway).
 The one action is Interact (`Keybinds.INTERACT`, default Space, label "Interact (sit, door, vehicle)", rebindable): the old Use action
 (E) merged into it, so a saved `use` or `use_vehicle` binding is dropped when settings load and E belongs to the camera turn
 (`camera_turn_right`). In a vehicle, Space gets out, even with a door in reach. Otherwise it acts on the reachable thing nearest the
-mouse (`CharacterUse.interact_target()`): an object advertising interactions (a chair, a bed, a toggle; its centre to the mouse), a
-standing door in reach ahead (the mouse to the door's leaf, at its nearest point), or a vehicle's door to get in by (the mouse to the
-handle). A door is in reach (`character.use.doors.door_in_reach()`) when its leaf has a point within
+mouse (`CharacterUse.interact_target()`): an object advertising interactions (a chair, a bed, a toggle), a
+standing door in reach ahead, or a vehicle with a door the character could get in by now. Each is measured the same way, by the gap from the
+mouse to its nearest point (an object's colliders, the door's leaf, the vehicle's outline; 0 with the mouse on it), so the mouse on a large
+piece picks the piece. A candidate that cannot act (a vehicle whose doors are all blocked, or whose seats are taken) is skipped and the next
+nearest acts. A door is in reach (`character.use.doors.door_in_reach()`) when its leaf has a point within
 `CharacterDoorConfig.reach` (48 px) of the body that lies ahead of it (the side the character faces); of those, the one whose leaf is
 nearest the aim. A knocked-down door is none. Tap: an open door (or one swinging open) swings shut, a shut or ajar one swings fully
 open, in `DoorConfig.swing_time` (0.4 s). A chair, a bed and a vehicle are acted on at the press; a door's toggle comes at the release of the
@@ -117,6 +119,8 @@ Tests: `character/door_use_key` (Space held moves nothing, its release opens a s
 car's door both in reach Space acts on the one nearest the mouse, and leaves the open door as it is;
 seated, Space gets out with a door in reach; an ajar door swings fully open), `interaction/space_picks_nearest_to_mouse` (a chair, a shut or
 open door and a car's door in reach together: the mouse picks, the door at its release, even with another nearer the body),
+`interaction/space_picks_piece_under_mouse` (the mouse on a bed beside a door uses the bed though the leaf is nearer than its centre),
+`interaction/space_skips_blocked_vehicle_door` (an armchair blocks the car's door: Space sits on it; with it gone the same press boards),
 `general/space_vehicle_key` (the action, its default, label, group, settings row, no clash; a `player` boards and gets out),
 `general/camera_turn_keys` (Q and E are the camera turn actions and no Use action exists), `general/settings_file` (a saved `use` or
 `use_vehicle` binding is dropped).

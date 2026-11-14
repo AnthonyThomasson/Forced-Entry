@@ -70,17 +70,20 @@ func end_interaction() -> void:
 
 
 ## The reachable object (advertising a valid action) nearest the mouse (`movement.aim_point`), as
-## `{ object, specs, gap }` (`gap`: px from its centre to the mouse); empty when nothing is in
-## reach. The character's `use` weighs it against a door and a vehicle's door (Space acts on the
-## nearest).
+## `{ object, specs, gap }` (`gap`: px from the mouse to the nearest point of its colliders, 0 with
+## the mouse on it; two at one gap go to the one whose centre is nearer); empty when nothing is in
+## reach. The character's `use` weighs it against a door and a vehicle (Space acts on the nearest).
 func nearest_in_reach() -> Dictionary:
 	var best := {}
 	var best_gap := INF
+	var best_centre := INF
 	var aim: Vector2 = _character.movement.aim_point
 	for entry in _query_reachable():
-		var gap: float = entry["object"].global_position.distance_to(aim)
-		if gap < best_gap:
+		var gap := _gap_to(entry["object"], aim)
+		var centre: float = entry["object"].global_position.distance_to(aim)
+		if gap < best_gap or (is_equal_approx(gap, best_gap) and centre < best_centre):
 			best_gap = gap
+			best_centre = centre
 			best = { "object": entry["object"], "specs": entry["specs"], "gap": gap }
 	return best
 
@@ -155,3 +158,34 @@ func _teardown() -> void:
 		_character.use.keep_clear_of(_active_object)
 	_active = {}
 	_active_object = null
+
+
+## How far (px) `point` is from the nearest point of `object`'s colliders (0 inside one); its
+## centre's distance when it has none of a shape this knows (a rectangle, a circle, a convex
+## polygon).
+func _gap_to(object: Node2D, point: Vector2) -> float:
+	var best := INF
+	for child in object.get_children():
+		if child is CollisionShape2D and not child.disabled:
+			var local: Vector2 = child.global_transform.affine_inverse() * point
+			best = minf(best, _shape_gap(child.shape, local))
+	return best if best < INF else object.global_position.distance_to(point)
+
+
+## `point`'s distance from `shape`, both in the shape's own frame.
+func _shape_gap(shape: Shape2D, point: Vector2) -> float:
+	if shape is RectangleShape2D:
+		var past: Vector2 = point.abs() - shape.size * 0.5
+		return Vector2(maxf(past.x, 0.0), maxf(past.y, 0.0)).length()
+	if shape is CircleShape2D:
+		return maxf(point.length() - shape.radius, 0.0)
+	if shape is ConvexPolygonShape2D:
+		var hull := Geometry2D.convex_hull(shape.points)
+		if Geometry2D.is_point_in_polygon(point, hull):
+			return 0.0
+		var best := INF
+		for i in hull.size() - 1:
+			var near := Geometry2D.get_closest_point_to_segment(point, hull[i], hull[i + 1])
+			best = minf(best, near.distance_to(point))
+		return best
+	return INF

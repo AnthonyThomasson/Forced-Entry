@@ -33,7 +33,8 @@ side door on its right and rear double doors. A door that cannot open is skipped
 something solid (a wall, furniture, a character, another vehicle) stands in its swing arc (a sliding door's track) or where the
 character would stand to use it, or when the seat behind it is taken. With no usable door, nothing happens. Space is ignored while the
 character is dead; in an object interaction it stands up. Space acts on the reachable thing nearest the mouse: a handle in reach is a
-candidate beside a chair, a bed and a standing door in reach ahead, and the nearest to the mouse wins (`docs/doors.md` DR6).
+candidate beside a chair, a bed and a standing door in reach ahead, and the nearest to the mouse wins, a vehicle by the gap to its outline; a vehicle none of whose doors in reach can open is no candidate, so Space
+falls to the next nearest (`docs/doors.md` DR6).
 Tests: `vehicle/board_nearest_door` (the front-left door when nearest, the rear-right when nearest, no other door opens),
 `vehicle/board_skips_blocked_door` (an armchair in the rear-left door's swing: the front-left door instead),
 `vehicle/board_skips_taken_seat` (the driver's seat taken: the rear-left door instead), `vehicle/board_refused_far_or_moving` (75 px

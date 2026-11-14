@@ -110,20 +110,25 @@ func driver() -> Node:
 	return cabin.occupant(&"driver")
 
 
+## Whether `character` could board by door `door_id` now: the vehicle moves slower than
+## `board_max_speed`, the character is not riding, the seat behind the door is free and the door's
+## swing (and the stand point beside it) is clear. Changes nothing.
+func can_board(character: Node2D, door_id: StringName) -> bool:
+	var by := cabin.door(door_id)
+	return (by != null
+			and speed() < VehicleBoardingConfig.board_max_speed
+			and cabin.ride_of(character) == null
+			and cabin.is_free(by.seat)
+			and by.is_clear(self, [get_rid(), character.get_rid()], character.radius))
+
+
 ## Start `character` boarding by door `door_id`: it walks to the door, which opens, and gets in to
 ## the seat behind it. Returns the ride for its CharacterVehicleUse to step, or null when that door
-## cannot be used now: the vehicle moves at `board_max_speed` or faster, the seat is taken, or the
-## door's swing (or the stand point beside it) is blocked.
+## cannot be used now (`can_board`).
 func board(character: Node2D, door_id: StringName) -> RefCounted:
-	var by := cabin.door(door_id)
-	if (by == null
-			or speed() >= VehicleBoardingConfig.board_max_speed
-			or cabin.ride_of(character) != null
-			or not cabin.is_free(by.seat)):
+	if not can_board(character, door_id):
 		return null
-	if not by.is_clear(self, [get_rid(), character.get_rid()], character.radius):
-		return null
-	var ride := cabin.take_seat(character, by)
+	var ride := cabin.take_seat(character, cabin.door(door_id))
 	character.add_collision_exception_with(self)
 	return ride
 
