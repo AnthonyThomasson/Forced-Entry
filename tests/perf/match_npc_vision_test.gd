@@ -22,16 +22,24 @@ extends GameTest
 ## the test is neither skipped nor tagged.
 ## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
 ## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
-## one fight per seed, seed 2 now (`perf_probe.gd`), contact at 6.0 s every
-## run; four runs (load 5 to 6.4, not `--quiet`): avg 15.56 to 17.05, p95 22.57 to 24.48, max 31.90
-## to 38.25 ms (one run 146.63, a stall on the loaded machine).
+## one fight per seed, seed 2 now (`perf_probe.gd`), contact at 6.0 s every run, so the window is
+## 6.0 to 11.0 s of the fight.
+## Where the viewed invader stands decides whether the window sees the viewer alive (the premise
+## below). The match's nine invaders start in a pack in the street, the defenders in the house to
+## the south. Beside the first, the third or the eighth invader the viewed one is shot dead (and
+## its fight reaches contact later, at 9.4 s); beside the last it is not hit at all (health 50.0
+## through the window), the fight reaches contact at 6.0 s and the window is 6.0 to 11.0 s. So it
+## stands `BESIDE` the last invader of the match. Only where it stands is set here: the seed,
+## `Perf.configure_match` and the budgets are those of every match guard.
+## Three `--quiet` runs (load 4.3 to 6.7): avg 19.32, 19.50 and 19.05, p95 28.50,
+## 28.82 and 28.35, max 33.85, 34.21 and 33.51 ms. The budgets stay red (accepted, #223).
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const PER_SIDE := 10
 const MEASURE_FRAMES := 300
 const NODE_GROWTH := 5000
-## The viewed invader stands this far (px) beside the first invader of the match.
+## The viewed invader stands this far (px) beside the last invader of the match.
 const BESIDE := Vector2(40.0, 0.0)
 
 
@@ -74,7 +82,7 @@ func run(t: TestContext) -> void:
 			"premise: one view, of the viewed invader (%d views)" % views.size(),
 	):
 		return
-	var beside: Node2D = characters.filter(func(c): return c.get("faction") == &"invader")[0]
+	var beside: Node2D = characters.filter(func(c): return c.get("faction") == &"invader")[-1]
 	viewed.global_position = beside.global_position + BESIDE
 	characters.append(viewed)
 	Perf.record_fight(t, self, characters)
