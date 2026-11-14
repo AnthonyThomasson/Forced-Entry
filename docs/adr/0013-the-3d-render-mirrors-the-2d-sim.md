@@ -4,8 +4,8 @@ The isometric 3D render (issue #193) is a second way to draw the match, not a se
 AI, bullets, grenades, the view cone) stays 2D and untouched; in the 3D render mode a **3D mirror** (`WorldMirror`, interface 27) follows
 every drawn 2D body in a 3D world each frame, 2D `(x, y)` to 3D `(x, 0, y)` at the one scale `RenderConfig.unit`, and an orthographic camera
 rig follows the sim's `Camera2D`. The 2D world is not drawn in that mode (hidden before the match is built) and its 2D lights are not built;
-the painters' textures and `LightOccluder2D`s still are, and the hidden vision-capture `SubViewport` still renders, until the pixel-post job
-stops it and phase 3 deletes the 2D render. The spike measured its win (2D 18.8 ms, 3D proxies 11.1 ms mean at 1152x648 in the 10v10
+the painters' textures and `LightOccluder2D`s still are until phase 3 deletes the 2D render. The vision memory's capture `SubViewport`, which would photograph
+the hidden 2D world every frame, is stopped in 3D (`PlayerView.capture_on`); the memory is not painted from the world until phase 3 projects the view. The spike measured its win (2D 18.8 ms, 3D proxies 11.1 ms mean at 1152x648 in the 10v10
 district) with none of that 2D work, so the rest of it is carried to those jobs; height is visual only.
 
 ## Considered options
@@ -27,5 +27,6 @@ district) with none of that 2D work, so the rest of it is carried to those jobs;
 - The render mode is a saved setting applied at the next match. A running match keeps its mode; there is no live switch (the first 3D frames
   compile pipelines and re-showing the 2D world costs a one-off hitch).
 - The mirror's update rule is a hot loop: write only when a body's 2D transform changed, skip a sleeping `RigidBody2D`, check a freed body untyped.
+- The picture is drawn at a low internal resolution and upscaled with nearest filtering through a toon material and an outline pass (the pixel post, Art).
 - The player's aim and keys stay world-relative until the camera-turn jobs give `Pointer` its 3D body; vision and debug overlays are drawn flat on
   the ground plane in later jobs. A 2D match is the game as it was, and the 2D render is deleted only at the end of #193.

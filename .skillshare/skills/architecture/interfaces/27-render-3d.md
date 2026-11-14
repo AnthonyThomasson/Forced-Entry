@@ -5,10 +5,10 @@
       and puts it in the spec as `render` (23; a spec of the caller's that names `render` keeps it): a change applies at the next match, never to the one that runs. With 3D, Main hides the `World` before
       it is built, so not one frame of the 2D world is drawn, `MatchBuilder.stage` builds no 2D lights (20: the dusk's `CanvasModulate`, the
       `PointLight2D`s and the `WorldLighting` node; the painters' textures and occluders are still built until phase 3 deletes the 2D render, and the
-      hidden vision-capture `SubViewport` still renders until the pixel-post job), and Main builds the 3D view
+      vision-capture `SubViewport` of Vision is stopped in 3D, 25), and Main builds the 3D view
       (`View3D`, a `CanvasLayer` on `RenderConfig.canvas_layer`, below the HUD: a `TextureRect` showing a `SubViewport` with the rig, one sun
       over a flat ambient, and the mirror); the sim (bodies, nav, AI, the view cone) is untouched, and the 2D vision and debug overlays, drawn
-      under the hidden `World`, are not shown until the ground-plane overlay layer of the pixel-post job.
+      under the hidden `World`, are not shown until the ground-plane overlay layer of the turn-control job.
     - **`WorldMirror`** (`art/mirror/world_mirror.gd`, `class_name`, a `Node3D` made by `WorldMirror.new()`; Art imports nothing but
       General's `RenderConfig`, and reads the bodies duck-typed: the groups `characters`, `vehicles`, `doors` and `floors`, and the properties
       `wall_thickness`, `art_color`, `color`, `faction`, `size`):
@@ -19,7 +19,7 @@
         hidden. A proxy is hidden while its shape is disabled (a character seated in a vehicle) or its body's own `visible` is false (not
         `is_visible_in_tree`: the 2D `World` is hidden in 3D), and shown again when neither is; a body seen with its shape disabled is mirrored (hidden).
       - The proxy: a box (walls full height, doors their leaf, furniture a height from its footprint, vehicles low), a cylinder for a round
-        non-character, a capsule for a character; one shared mesh per shape kind and one shared material (`mirror_proxy.gdshader`) with a colour
+        non-character, a capsule for a character; one shared mesh per shape kind and one shared toon material (`ToonMaterial`, Art's `post/`: the pixel post, below) with a colour
         per instance, from the body's `art_color` / `color`, a faction's name hash for a character, else a hash of the node's name. Heights and
         colours are `MirrorConfig` (Art's holder; heights in 2D px).
       - **The update rule** (each frame, by `_process`, or `update()` by hand): a moving body (`CharacterBody2D`, `AnimatableBody2D`,
@@ -38,11 +38,18 @@
       the tests read it): each frame the camera frames `source.get_screen_center_position()` (focus plus shake offset) at `source.zoom` (the ortho
       size is the screen's height in 2D px over the zoom, times `unit`: 1 screen px to a world px at zoom 1), at the pitch `RenderConfig.pitch_degrees`
       (35.264: true isometric) and `yaw` (a property in degrees, `RenderConfig.yaw_degrees` to start; the camera-turn controls set it). The rig sizes the
-      `SubViewport` to `RenderConfig.internal_lines` rows (0: the window's) plus a 1 px margin, snaps the focus to that pixel grid along the camera's
+      `SubViewport` to `RenderConfig.internal_lines` rows at a window `reference_height` high (216 at 648: 3 screen px to a picture pixel at any window size, the rows scaling with its height; 0: the window's own) times `oversample`, plus a 1 px margin, snaps the focus to that pixel grid along the camera's
       right and up and shifts and sizes `rect` back by the remainder, so following does not shimmer. `texel() -> float` is the world units a picture
-      pixel covers.
-    - **Tuning:** `RenderConfig` (General: `unit`, `pitch_degrees`, `yaw_degrees`, `distance`, `near`, `far`, `internal_lines`, `canvas_layer`),
-      `RenderLightConfig` (General, the interim sun and ambient until the lighting job moves them to Lighting) and `MirrorConfig` (Art).
+      pixel covers; `internal_size() -> Vector2i` the picture's size in pixels, margin included.
+    - **The pixel post** (rule 6; Art `art/post/`, tuning `PixelPostConfig`): the view's meshes share one toon `ShaderMaterial` (`ToonMaterial.make()`; a colour per
+      instance) whose light steps N.L times the shadow into `PixelPostConfig.bands` bands (3: the shadow, base and light tones of `ArtSurfaceConfig.tones`), with no
+      ambient; `PixelPost.attach(camera, oversample)` adds a full-screen outline quad under the camera (a dark line where the depth steps, `silhouette_px` wide,
+      or the normal creases, `crease_px`; `PixelPost.refresh(node, oversample)` pushes the holder). Main's `View3D` shows the picture through a nearest-filtered
+      `TextureRect` (`View3D.rect`, covering the window); with `PixelPostConfig.supersample` above 1 the 3D picture (`View3D.viewport`) is rendered that many times
+      larger and averaged down through a filtered stage (`View3D.shown`) to the picture's size first. `View3D.refresh_post()` re-reads the holders; `WorldMirror.material()`
+      is the shared material.
+    - **Tuning:** `RenderConfig` (General: `unit`, `pitch_degrees`, `yaw_degrees`, `distance`, `near`, `far`, `internal_lines`, `reference_height`, `canvas_layer`),
+      `RenderLightConfig` (General, the interim sun and ambient until the lighting job moves them to Lighting) `MirrorConfig` and `PixelPostConfig` (Art).
     - **Not yet:** things drawn that are not physics bodies (dropped items, debris, bullets, casings, grenades in flight) have no 3D counterpart until
-      phase 2; the mouse and keys stay world-relative (the turn-control job gives `Pointer` its 3D body, 26); there is no pixel post and the
-      2D vision and debug overlays are hidden in 3D mode (the pixel-post job); the meshes are proxies (phase 2).
+      phase 2; the mouse and keys stay world-relative (the turn-control job gives `Pointer` its 3D body, 26); the
+      2D vision and debug overlays are hidden in 3D mode (the turn-control job's ground overlay); the meshes are proxies (phase 2).

@@ -62,6 +62,15 @@ func build(world_bounds: Rect2, want: float, main: Viewport) -> void:
 	_wipe_frames = WIPE_FRAMES
 
 
+## Render the capture every frame (true, the default) or not at all (false: the 3D render mode,
+## whose 2D world is hidden, so a render of it would be a hidden cost; the memory then paints
+## from the last picture the capture held).
+func set_capture_updating(on: bool) -> void:
+	capture.render_target_update_mode = (
+		SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+	)
+
+
 ## Whether the memory is still being emptied.
 func wiping() -> bool:
 	return _wipe_frames > 0

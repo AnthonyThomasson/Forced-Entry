@@ -334,6 +334,9 @@ func start_match(spec: Dictionary) -> Dictionary:
 	_match = built
 	if _view3d != null:
 		_view3d.mirror_world(world)
+		var view: Variant = built.get("view")
+		if is_instance_valid(view):
+			(view as PlayerView).capture_on = false  # the hidden 2D world is not photographed
 	var human: Variant = (spec["human"] as Dictionary).get("node")
 	_human = human if is_instance_valid(human) else null
 	var combatants: Array = built["combatants"]
@@ -384,6 +387,7 @@ func _base_spec() -> Dictionary:
 		"defenders": { "count": run.defender_count },
 		"invaders": { "count": run.invader_count },
 		"human": human,
+		"render": Settings.render_mode,  # the spec's own default (2D) would beat the setting
 		"spawn_clearance": run.spawn_clearance,
 		"invader_margin": run.invader_margin,
 	})

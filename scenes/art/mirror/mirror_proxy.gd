@@ -3,11 +3,10 @@ extends RefCounted
 ## Art domain, the 3D mirror (`world_mirror.gd`'s helper; its kind names are the keys of the mesh
 ## hook): builds the proxy of one collision shape of a 2D body, a box or cylinder (a character: a
 ## capsule) sized from the shape and coloured from the body, one shared mesh per shape kind and one
-## shared material (a colour per instance). Reads the bodies duck-typed (groups `characters`,
-## `vehicles`, `doors`, the properties `wall_thickness`, `art_color`, `color`, `faction`), so Art
-## imports nothing from the domains that own them.
+## shared toon material (`ToonMaterial`, a colour per instance). Reads the bodies duck-typed (groups
+## `characters`, `vehicles`, `doors`, the properties `wall_thickness`, `art_color`, `color`,
+## `faction`), so Art imports nothing from the domains that own them.
 
-const SHADER := preload("res://scenes/art/mirror/mirror_proxy.gdshader")
 ## The kinds a body is sorted into (`kind_of`): the hook of `WorldMirror.builders` is keyed by them.
 const WALL := &"wall"
 const DOOR := &"door"
@@ -17,7 +16,7 @@ const FURNITURE := &"furniture"
 const FLOOR := &"floor"
 
 ## The one material every proxy shares (a colour per instance).
-var _material := ShaderMaterial.new()
+var _material := ToonMaterial.make()
 ## The unit box and unit cylinder every box and cylinder proxy shares, scaled by its node.
 var _box := BoxMesh.new()
 var _cylinder := CylinderMesh.new()
@@ -26,13 +25,17 @@ var _capsules: Dictionary = {}
 
 
 func _init() -> void:
-	_material.shader = SHADER
 	_box.size = Vector3.ONE
 	_cylinder.top_radius = 1.0
 	_cylinder.bottom_radius = 1.0
 	_cylinder.height = 1.0
 	_cylinder.radial_segments = 12
 	_cylinder.rings = 1
+
+
+## The one toon material every proxy shares.
+func material() -> ShaderMaterial:
+	return _material
 
 
 ## The kind of `body`: a character, vehicle, door or wall by what it says it is (the group or the

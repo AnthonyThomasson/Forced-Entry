@@ -5,23 +5,42 @@ extends CanvasLayer
 ## a `SubViewport` of a 3D world of its own: General's `CameraRig` (an orthographic `Camera3D`
 ## following the sim's `Camera2D`), one shadow-casting sun with a flat ambient
 ## (`RenderLightConfig`) and Art's `WorldMirror` of the match's 2D bodies (interface 27). The
-## picture is nearest-filtered and the viewport sized by the rig (`RenderConfig.internal_lines`),
-## so the pixel post can drop it to an internal resolution.
+## picture is nearest-filtered and the viewport sized by the rig (`RenderConfig.internal_lines`:
+## the internal resolution of the pixel post), drawn through Art's toon material and an outline
+## quad under the camera (`PixelPost`, `PixelPostConfig`). With `PixelPostConfig.supersample` above
+## 1 the 3D picture is rendered that many times larger and averaged down, through a filtered
+## stage, to the internal size before the nearest upscale (the shimmer mitigation of a turning
+## camera).
 ##
 ## Main builds it before the match (`begin`, so no frame of the 2D world is ever drawn) and mirrors
 ## the match once it is built (`mirror_world`). The hard shadow filter is a global of the
 ## renderer: it is set here and put back to the project's value when the view leaves the tree.
 
+## The view runs after the camera rig (`process_priority` 100) so the stage that averages the 3D
+## picture down is sized in the frame the rig sizes the picture.
+const STAGE_PRIORITY := 200
+
 ## The camera rig and the mirror, for a caller that reads them (the tests, the pixel post).
 var rig: CameraRig
 var mirror: WorldMirror
-var _viewport := SubViewport.new()
-var _rect := TextureRect.new()
+## The 3D world's viewport, the rect that shows the picture on screen (it covers the window) and the
+## viewport the rect shows: the 3D one, or the averaged-down stage after it when supersampling.
+var viewport := SubViewport.new()
+var rect := TextureRect.new()
+var shown: SubViewport = viewport
+var _outline: MeshInstance3D
+var _stage: SubViewport
 
 
 func _init() -> void:
 	name = "View3D"
 	layer = RenderConfig.canvas_layer
+	process_priority = STAGE_PRIORITY  # after the rig, which sizes the 3D picture this frame
+
+
+func _process(_delta: float) -> void:
+	if _stage != null and rig != null and _stage.size != rig.internal_size():
+		_stage.size = rig.internal_size()
 
 
 func _exit_tree() -> void:
@@ -30,26 +49,60 @@ func _exit_tree() -> void:
 
 ## Build the view following `camera` (the sim's `Camera2D`).
 func begin(camera: Camera2D) -> void:
-	_rect.texture = _viewport.get_texture()
-	_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_rect)
-	_viewport.own_world_3d = true
-	_viewport.msaa_3d = Viewport.MSAA_DISABLED
-	_viewport.use_debanding = false
-	_viewport.gui_disable_input = true
-	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	add_child(_viewport)
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(rect)
+	viewport.own_world_3d = true
+	viewport.msaa_3d = Viewport.MSAA_DISABLED
+	viewport.use_debanding = false
+	viewport.gui_disable_input = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(viewport)
 	rig = CameraRig.new()
-	_viewport.add_child(rig)
-	rig.bind(camera, _viewport, _rect)
-	_viewport.add_child(_environment())
-	_viewport.add_child(_sun())
+	rig.oversample = maxi(PixelPostConfig.supersample, 1)
+	viewport.add_child(rig)
+	rig.bind(camera, viewport, rect)
+	_outline = PixelPost.attach(rig.camera, rig.oversample)
+	_show(rig.oversample)
+	viewport.add_child(_environment())
+	viewport.add_child(_sun())
 	mirror = WorldMirror.new()
-	_viewport.add_child(mirror)
+	viewport.add_child(mirror)
 	RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
+
+
+## Show the 3D picture on the rect: directly, or (`oversample` above 1) through a stage that
+## averages it down to the picture's size with a filtered, exactly `oversample`-to-1 sample.
+func _show(oversample: int) -> void:
+	if oversample <= 1:
+		rect.texture = viewport.get_texture()
+		return
+	_stage = SubViewport.new()
+	_stage.name = "Stage"
+	_stage.size = rig.internal_size()
+	_stage.disable_3d = true
+	_stage.gui_disable_input = true
+	_stage.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	var average := TextureRect.new()
+	average.texture = viewport.get_texture()
+	average.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	average.stretch_mode = TextureRect.STRETCH_SCALE
+	average.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	average.set_anchors_preset(Control.PRESET_FULL_RECT)
+	average.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stage.add_child(average)
+	add_child(_stage)
+	shown = _stage
+	rect.texture = _stage.get_texture()
+
+
+## Push `PixelPostConfig`'s bands, tone ramp and outline into the view (after a tuning change).
+## The supersample is read once, when the view begins: it applies at the next match.
+func refresh_post() -> void:
+	PixelPost.refresh(_outline, rig.oversample)
+	ToonMaterial.refresh(mirror.material())
 
 
 ## Mirror the 2D bodies under `world`: from now on the view follows them.

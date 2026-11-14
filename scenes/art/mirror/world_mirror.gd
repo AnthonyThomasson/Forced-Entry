@@ -71,6 +71,11 @@ func proxies_of(body: Node) -> Array[Node3D]:
 	return out
 
 
+## The toon material every proxy shares (`ToonMaterial`), for a view that retunes it.
+func material() -> ShaderMaterial:
+	return _proxies.material()
+
+
 ## One frame of following: mirror what spawned, then write the proxy of each moving body whose 2D
 ## transform changed.
 func update() -> void:

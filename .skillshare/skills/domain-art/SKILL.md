@@ -14,7 +14,8 @@ renders them through here. Depends only on Godot's `Image` (and, for the 3D mirr
 | `pixel_art.gd` (`PixelArt`) | The cached renderer. |
 | `pixel_canvas.gd` (`PixelCanvas`) | The drawing surface: RGBA image plus coverage and height layers; shading, finishes, `glowing`. |
 | `pixel_shape.gd` (`PixelShape`), `pixel_convex_shape.gd` (`PixelConvexShape`) | The shapes a canvas fills. |
-| `mirror/` (`WorldMirror`, `MirrorProxy`, `MirrorConfig`, `mirror_proxy.gdshader`) | The 3D mirror of the 2D bodies (below). |
+| `mirror/` (`WorldMirror`, `MirrorProxy`, `MirrorConfig`) | The 3D mirror of the 2D bodies (below). |
+| `post/` (`PixelPostConfig`, `ToonMaterial`, `PixelPost`, `toon.gdshader`, `outline.gdshader`) | The pixel post of the 3D render: the toon material and the outline pass (below). |
 | `art_canvas_config.gd`, `art_surface_config.gd` | Tuning: `ArtCanvasConfig` is what every painting shares (`pixel_size`, `light_from`, `turn_steps`, drop and cast shadow); `ArtSurfaceConfig` is how a surface is shaded (the `tones(base)` ramp, finish densities). A domain's own proportions and colours stay in its own config (`ObjectArt*Config`, `CharacterArtConfig`); a painter knob reads `opts.get(key, <DomainConfig>.<painter>_<key>)`. |
 
 ## Painters
@@ -63,7 +64,18 @@ frame (its `_ready` builds its shapes first; a floor joins `floors` there), drop
 (a hit wall's rebuilt colliders) re-mirrors it; a proxy is hidden while its shape is disabled (a seated character) or its body's own `visible` is false.
 `builders` (body kind -> `Callable(body) -> Node3D` in 3D units, `FURNITURE` for every `ObjectArt` kind) is the hook a domain's own mesh plugs into (phase 2
 of #193); a non-physics drawn thing (dropped item, debris, bullet) has no 3D counterpart until then; `MirrorConfig` holds the proxy heights and colours.
-Tests: `tests/art/mirror_follows_bodies_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`, `mirror_hides_seated_character_test.gd`, `mirror_mesh_hook_test.gd`. Shaders compile only windowed, so a change to `mirror_proxy.gdshader` needs one windowed run (`tools/run_tests.sh --windowed`).
+Tests: `tests/art/mirror_follows_bodies_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`, `mirror_hides_seated_character_test.gd`, `mirror_mesh_hook_test.gd`. Shaders compile only windowed, so a change to a shader needs one windowed run (`tools/run_tests.sh --windowed`).
+
+## The pixel post (`post/`, interface 27)
+
+The 3D picture is made to read as pixel art (#193 rule 6): drawn at a low internal resolution (General's `RenderConfig.internal_lines`) and shown with nearest
+filtering, through two things Art owns, tuned in `PixelPostConfig` (ADR 0003). **`ToonMaterial.make()`** is the one `ShaderMaterial` (`toon.gdshader`) every mesh of
+the 3D view shares, a colour per instance (`base_color`, an instance uniform): the light's N.L times the shadow steps into `bands` bands (3), each a tone of
+`ArtSurfaceConfig.tones` (the ramp as `(mul, lift)`: a tone is `base * mul + (1 - base) * lift`), no ambient. **`PixelPost.attach(camera, oversample)`** adds the
+outline quad (`outline.gdshader`) under the view's camera: a dark line where the depth's second difference steps (a silhouette, `silhouette_px` wide) or the normal
+creases (`crease_px`), so a floor seen at an angle stays clean. `supersample` is the shimmer mitigation of a turning camera (Main's `View3D` renders larger and
+averages down). Tests: `tests/art/mirror_proxies_use_toon_material_test.gd`, `tests/general/pixel_post_view_test.gd`; the look itself is only judged windowed
+(`general/render_3d_match_windowed`, `art/pixel_post_shimmer`).
 
 ## PixelCanvas gotchas
 

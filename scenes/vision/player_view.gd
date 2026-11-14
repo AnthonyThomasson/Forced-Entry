@@ -20,6 +20,15 @@ const Pipeline := preload("res://scenes/vision/view_pipeline.gd")
 ## It runs after the characters it watches (their default priority is 0).
 const PRIORITY := 100
 
+## Whether the memory's capture renders the world every frame (the default). Main turns it off for
+## a match in the 3D render mode (interface 25): the 2D world is hidden there, so the capture would
+## render a world nobody sees. The cone, the mask and the SeenArea go on as they are; the memory
+## is not painted from the world until phase 3 projects the view onto the 3D scene.
+var capture_on := true:
+	set(value):
+		capture_on = value
+		if _memory.capture != null:
+			_memory.set_capture_updating(value)
 ## The character whose sight this is.
 var _viewer: Node2D
 var _cone := Cone.new()

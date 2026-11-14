@@ -352,6 +352,12 @@ The coloured box, cylinder or capsule the 3D mirror shows a collision shape as, 
 until a domain's own mesh replaces it through the mirror's hook.
 _Avoid_: placeholder, stand-in
 
+**Pixel post**:
+What makes the 3D picture read as pixel art (`PixelPostConfig`, Art): the scene is drawn at a low internal resolution (`RenderConfig.internal_lines`,
+216 rows at a 648-high window, so a picture pixel is about 3 screen pixels) and shown with nearest filtering, through one toon material that steps
+the light into bands of `ArtSurfaceConfig`'s tones and an outline pass under the camera.
+_Avoid_: shader (it is the material, the outline and the resolution together), filter
+
 **Ground plane**:
 The flat 3D plane the 2D world lies on (`y = 0`); a 2D point is a point on it, and the 2D overlays (the view cone, debug markings) are
 drawn on it.
