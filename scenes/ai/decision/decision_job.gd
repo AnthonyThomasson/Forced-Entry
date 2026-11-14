@@ -1,35 +1,9 @@
 extends RefCounted
 ## AI DECISION sub-domain: ONE decision as a job the controller drives with `request(forced)` and a
-## per-frame `advance()`. It owns the claim (the budget's pool, `decision_budget.gd`), the retry
-## (a refused claim changes nothing, so the controller's wish stands and is asked again next
-## frame), the snapshot build in its pieces (`AgentPerception.begin_sense`), the order-refusal step,
-## the throw piece (the `grenade_ready` search, in steps) and the planner's walk, one piece per
-## level. Every piece is priced in `DecisionBudget` and runs
-## only when the frame's pool allows, so a decision of a few units lands over two to four frames
-## (and runs whole in its claim frame when its pieces are priced at nothing).
-##
-## A claim made while a job is in flight (half-built, or walking) drops that job without a signal
-## and starts the new one; refused, the job in flight carries on. A dropped build is freed, never
-## resumed (`snapshot-staged.md`). What the last decision knew (`last_facts`, `last_sections`,
-## `last_demand`, `last_analysed`, on the cadence) changes only when a build completes.
-##
-## What is read when. At the claim (the build's first `advance`, the claim frame's): the goal, the
-## activity, the engaged contact (`reads`), the order held and the entry the decision starts from
-## (the planner's entry rule over the perception's quick facts). The build's START freezes the
-## knowledge and the confinement copy (`perception.md`). After the build, at the order-refusal step:
-## the live confinement refreshed (`refresh`) when the order the build saw is refused, replacing the
-## snapshot's copy before the first level. As the walk begins, after the grenade piece, the last
-## things before the first level: the radio callouts again (`reread_claims`, so a claim radioed
-## while the build, the groups and the throw search spread over frames is seen, and the leads and
-## entries built ahead that it came too late for are built again), then whether the behaviour's
-## last choice is still running (`ongoing`, judged for "(your current plan)" on that state).
-##
-## Interrupting (`stale`, `frozen`): the controller applies one test to a job in flight. A walk is
-## stale when the situation's entry (`entry_for(quick_facts)`) is not the one it started from; a
-## build is stale when it is not the one the build started from (its start-time facts). Stale, a
-## forced decision claims over it. Not stale, a walk is left to finish and the wish is dropped; a
-## build whose START has run (`frozen`) has not seen what forced it, so the wish is kept until the
-## walk begins.
+## per-frame `advance()`: the claim on the budget's pool (`decision_budget.gd`), the snapshot build,
+## the order-refusal step, the group and throw pieces and the planner's walk, each piece priced in
+## `DecisionBudget` and run only when the frame's pool allows. What is read when, the interrupt
+## rules (`stale`, `frozen`) and the retry of a refused claim: `decision-job.md`.
 ##
 ## A data part, no owner (ADR 0006): it holds the perception, the planner and the cadence its
 ## controller hands it and three reads of the behaviour and reflexes as `Callable`s.
@@ -322,7 +296,10 @@ func _take(cost: int) -> bool:
 	return Budget.take(cost, Roster.owed(get_instance_id()))
 
 
-## What the build's next piece costs; a kind with no price is an error, then run as free.
+## What the build's next piece costs. A kind with no price is a loud error (`push_error` fails every
+## test through the log gate; the suite pins that every kind is priced) and then runs as free, not
+## never: a shipped build keeps deciding rather than freezing an NPC's brain on a piece the pool
+## cannot price.
 func _build_cost() -> int:
 	var cost := cost_of(_build.next_piece())
 	if cost < 0:
@@ -332,8 +309,8 @@ func _build_cost() -> int:
 
 
 ## The steps in hand, as many as the pool allows, each priced by `prices` (a step's kind to its
-## units, -1 for a kind with no price): whether they are over (`done_kind` is the kind they say
-## then).
+## units, -1 for a kind with no price, a loud error run as free, as `_build_cost`): whether they
+## are over (`done_kind` is the kind they say then).
 func _run_steps(prices: Callable, done_kind: int) -> bool:
 	while _steps != null:
 		var kind: int = _steps.next_kind()

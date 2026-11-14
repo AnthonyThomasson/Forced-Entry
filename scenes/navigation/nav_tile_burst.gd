@@ -1,10 +1,9 @@
 class_name NavTileBurst extends RefCounted
 ## Navigation domain: one tick's steering tiles of a district, baked one a physics frame and landed
 ## together (`nav_updater.gd` steps it from its physics process). Each frame that gives a tile its
-## polygon pays a synchronisation of the whole steering map (it was about 12 ms in a district, with
-## the map's edge connections on; they are off, about 0.3 ms), so the baking is spread
-## (`NavTiles.prepare`: the polygons held) and the last tile's frame lands them all
-## (`NavTiles.land`). The walls the tiles are baked from are parsed once, with the first.
+## polygon pays a synchronisation of the whole steering map (about 0.3 ms in a district), so the
+## baking is spread (`NavTiles.prepare`: the polygons held) and the last tile's frame lands them
+## all (`NavTiles.land`). The walls the tiles are baked from are parsed once, with the first.
 
 ## The tiles still to bake (`NavTiles.due_tiles`), in the order they are.
 var tiles: Array[Dictionary] = []

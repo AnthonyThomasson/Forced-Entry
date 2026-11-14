@@ -61,7 +61,7 @@ the plain-coloured shapes.
 **Windowed keeps the same budgets:** no windowed exemption and no looser number; what a window costs is fixed at its
 cause, each fix pinned to the old pixels or bytes by a windowed-only test (`tests/character/body_mesh_matches_polygons_test.gd`,
 `tests/physics/debris_pages_match_one_batch_test.gd`, `tests/general/fill_batch_matches_draw_calls_test.gd`). The sound
-library's pre-warm renders on a worker thread (`domain-audio`).
+library's pre-warm renders on a worker thread (`domain-audio`); a sound is the only first use that hitches a fight (no shader, pipeline, effect or light does: #195, `domain-audio`).
 
 ## Comparing revisions, finding what costs
 

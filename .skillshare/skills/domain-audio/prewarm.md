@@ -13,3 +13,5 @@ first synthesised in a fight is a 9–35 ms hitch.
   cached and `SoundBank.main_thread_renders` stays put through the first gunfire (`tests/general/match_sounds_prewarmed_test.gd`).
 - Headless tests render on first use (`Perf.warm_sounds()` in `tests/_perf/perf_probe.gd` does what the pre-warm would have).
 - Tests: `prewarm_off_main_thread_test.gd`, `prewarm_covers_every_variant_test.gd`; the library's time is `perf/audio_bank_render`.
+
+**What a first use costs (measured in #195, commits `aa5f45d1`, `cc340dc2`).** A fight's first-use hitch was hunted across the sounds, the shaders and pipelines, the hit and burst effects and the lights. Only the sounds hitch (9–35 ms a variant rendered on the main thread, above); no shader, pipeline, effect or light costs more on its first use than on any later one (the grenade burst's frame is no first use either: `docs/grenades.md`). So the pre-warm and the wait on it are the whole fix, and no shader or effect pre-warm is built. Pin: `match_sounds_prewarmed_test.gd`.

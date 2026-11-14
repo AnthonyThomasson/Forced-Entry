@@ -159,7 +159,7 @@ box reach it, so no repaint is skipped).
 
 **V11. Unseen characters are not repainted.** A character whose drawn reach (a 60 px disc round it) lies wholly outside the cone
 and bubble is not repainted while it stays there; its pose, aim, hands, footsteps and ragdoll keep running (gameplay reads those,
-never the drawing). The frame any of its reach enters the cone published (V1: the cone shown, usually 2 to 4 frames old, at most 10, while a job runs) it is repainted before it is drawn. A dead body at rest keeps its
+never the drawing). The frame any of its reach enters the cone published (V1: the cone shown is a job old while one runs) it is repainted before it is drawn. A dead body at rest keeps its
 last drawing (it is remembered). A blood pool is not redrawn while the box its cells cover is wholly outside the cone, and is
 redrawn the frame the cone reaches it. With no view (Watch, Endless, the switch off, the view lifted) everything is repainted as
 before. The seen area is General's `SeenArea`: Vision writes the cone's polygons each time a cone is published (a job done) and clears them on a lift; a disc
@@ -234,7 +234,7 @@ step: the region shape query, its polygons, the dedupe) took **1,982 and 1,937 Â
 (rays, far-face probes, visibility casts), so **372 to 374 units** (p25 168, p75 627 by eye), where `cost_shape` had been 1. It is 450 now, a
 slice, so the tick that starts a job holds the corners (about 2 ms) and no rays, not the corners plus 449 units (about 6 to 7 ms). The
 cost is a tick more a job: at the default slice a district job was a median 2 ticks (max 5; 11 % over 3) and is a median **3 (max 6; 26 % over
-3)**; the cone shown is 2 times (ticks - 1) frames old at most, so 3 ticks is V1's usual 2 to 4, 4 ticks is 6 and 6 ticks is 10. `perf_ab.sh` same-fight, base `5343aa38`,
+3)**; the cone shown is 2 times (ticks - 1) frames old at most, (V1 has the figures). `perf_ab.sh` same-fight, base `5343aa38`,
 tip `dc3fa0dc`, 4 rounds, the fight unchanged (the cone steers no NPC): `perf/match_npc_vision` avg 16.94 to 16.29 ms (-0.65), p95 28.83 to
 28.52, max 43.52 to 39.19 (-4.33); the three guards with no view moved by noise (avg +0.03, +0.06, +0.34). `perf/match_npc_vision_relative`, one run:
 parked -0.13 ms, ratio 0.08; moving 1.34 ms (2.0 to 2.1 before), ratio 0.19 (0.25 to 0.26 before).
@@ -247,7 +247,7 @@ whole rebuild fell in every moving frame), its cone 0.44 to 0.45 of the referenc
 -0.14, -0.14 and -0.08 ms before, -0.17, -0.32, -0.23, -0.07, -0.32 and -0.09 after (no change: it rebuilds for its backstop only). `MOVING_BUDGET_MS` is
 3.5 ms, 1.7 times the median of six runs of the sliced cone (2.05, 2.00, 2.00, 1.94, 2.04, 2.14 ms) and below the 4.36 to 4.67 of the cone before. `perf_ab.sh` in same-fight mode (`--ids=perf/match_npc_vision`, 3 rounds, the fight is unchanged since
 the view steers no NPC): the absolute guard's median avg frame 19.12 ms before and 17.75 after (-1.37 ms, -7.2 %), p95 31.70 and 29.17,
-max 47.44 and 42.37. (That guard's gain is smaller than the relative guard's: what share of its frame the view's cone is was not separated.) The age of the cone shown, 2 to 4 frames in a match (up to 6 or 10 after the corners' price, below), is V1's.
+max 47.44 and 42.37. (That guard's gain is smaller than the relative guard's: what share of its frame the view's cone is was not separated.) The age of the cone shown is V1's.
 Tests: `perf/match_npc_vision_relative`, `perf/match_npc_vision`.
 
 **2026-11-07, the pose lag and the fan table (not `--quiet`: load 10 to 12, 29 other Godot).** `perf/match_npc_vision_relative` with the parked

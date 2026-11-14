@@ -7,8 +7,10 @@ extends RefCounted
 ##
 ## What ran is read off counters the game keeps, cheap ints and no clock (the wall clock stays in
 ## tests/perf and tests/_perf, lint rule `timing_in_perf`; the game keeps only running totals, which
-## change nothing it does): the decisions claimed (`DecisionRoster.claims()`: the snapshot build
-## runs in its claim's frame and Von's answer lands later), the shots, grenades thrown, explosions,
+## change nothing it does): the decisions claimed (`DecisionRoster.claims()`: only the
+## decision's start runs in its claim's frame, its snapshot pieces follow as the pool allows and
+## Von's
+## answer lands later; `decision-prices.md`), the shots, grenades thrown, explosions,
 ## radio callouts and deaths posted (the event log), the asks made of Von (`DecisionStub.requests`,
 ## one a planner level, so a decision is one or more), the cone rebuilds a view started and
 ## published (`PlayerView.starts`, `rebuilds`), the nav bakes started, landed and the late ones
@@ -23,7 +25,9 @@ extends RefCounted
 ## a probe can time only a call it makes. Wrapping one would mean a hook in game code (or calling
 ## the tick from the probe, which moves it in the frame), so each is a counter: `cone_units` (the
 ## engine work a cone's slices spent, a unit about a millisecond) stands for the cone's ms, and
-## `tile_bakes`, `landings` and the avoid counts for the nav tick's. The pure part (`worst`,
+## `tile_bakes`, `landings` and the avoid counts for the nav tick's. The steering burst lands in the
+## frame of its last tile bake, so `tile_bakes` includes the landing frame (about 0.3 ms of sync)
+## and a frame of one is not told from a frame of the last of several. The pure part (`worst`,
 ## `deltas`, `ran_between`, `line`) is `tests/perf/frame_report_suite.gd`.
 
 ## The event log's topics that are counters, and the key each counts under.

@@ -174,9 +174,8 @@ static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> Dic
 
 
 ## Give the tiles of the held bakes `held` (`prepare`) their polygons, all in this call: the
-## steering map takes them in with one synchronisation (about 0.3 ms with its edge connections off,
-## it was 12 ms with them on), so a burst lands whole. A tile freed or taken out of the tree
-## meanwhile is skipped.
+## steering map takes them in with one synchronisation (about 0.3 ms), so a burst lands whole.
+## A tile freed or taken out of the tree meanwhile is skipped.
 static func land(held: Array) -> void:
 	var landed: Array = []
 	for bake: Dictionary in held:

@@ -13,7 +13,8 @@ extends GameTest
 ## a red run `--verbose` names the worst frames and what ran in each (`perf-opening.md`).
 ## The premises: the window opens at the first contact (at most `MOST_SHOTS_BEFORE` shots before
 ## it) and holds a shot and decisions asked.
-## Known red until the decision slicing lands (#195): see `perf-opening.md` for the numbers.
+## With the decisions sliced it still read red on p95 (22 to 24 ms against 20) at the last
+## measurement: the worst frames and what ran in them are in `perf-opening.md`.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const PER_SIDE := 10

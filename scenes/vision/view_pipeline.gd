@@ -4,8 +4,8 @@ extends RefCounted
 ##
 ## A stale view (`ViewWatch.stale`) starts a job from the live eye, facing and sight and steps it
 ## `VisionSliceConfig.slice_units` each tick until it is done; the swapped-in cone is then the
-## exact cone of that one eye in one world state, usually 2 to 4 frames old (at most 2 (ticks - 1):
-## 10 for the longest job), and what is published (`SeenArea`, the memory's paint) reads cone,
+## exact cone of that one eye in one world state, as old as the job is long
+## (`docs/player-vision.md` V1), and what is published (`SeenArea`, the memory's paint) reads cone,
 ## bubble and eye together. Never extrapolated.
 ## - A change of the viewer's pose only (eye, facing) lets the job finish on its start pose; the
 ##   next job starts from the live pose.

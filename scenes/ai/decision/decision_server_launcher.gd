@@ -39,14 +39,11 @@ const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
 ## GPU backend (`mps`, which `auto` picks on a Mac) crashes the server on its first request.
 @export_enum("cpu", "auto", "mps", "cuda", "openvino") var device: String = "cpu"
 ## Once our server answers its readiness probe, move it to macOS background QoS
-## (`taskpolicy -b -p <pid>`), which keeps it on the efficiency cores. Measured on macOS (job
-## first-use of #195, 2026-11-12): PyTorch on CPU burst to 500 to 1000% CPU at fight start and
-## starved the game (frames of 255 to 335 ms for about 15 s); background QoS cut the first 5 s to
-## about 57 ms a frame, then 16 to 19 ms. `renice` and the OMP / MKL / torch thread variables did
-## not help. It is applied AFTER the first answer, not at launch, so the boot and the readiness
-## probe keep their full speed (a QoS launch took about 57 s to its first shot against 29 to 37 s).
-## The trade-off: Von answers slower for the rest of the run. Other platforms ignore it. Off for the
-## test runner's gate, whose asks are capped at 10 s (`TestVonGate`).
+## (`taskpolicy -b -p <pid>`), which keeps PyTorch's CPU bursts on the efficiency cores so they do
+## not starve the game. It is applied AFTER the first answer, not at launch, so the boot and the
+## readiness probe keep their full speed. The cost: Von answers slower for the rest of the run.
+## Other platforms ignore it. Off for the test runner's gate, whose asks are capped at 10 s
+## (`TestVonGate`). The measurements: `decision-von.md`.
 @export var background_qos: bool = true
 ## Also print each server log line to the Output panel.
 @export var echo_to_output: bool = true
@@ -243,9 +240,9 @@ func _announce_ready() -> void:
 				% [port, secs, _pid])
 		var args := qos_args(_pid, OS.get_name(), background_qos)
 		if not args.is_empty():
-			var code := OS.execute("/usr/sbin/taskpolicy", args)
-			if code != 0:
-				GameLog.say("[von] QoS not applied (exit %d)." % code)
+			var line := qos_failure_line(OS.execute("/usr/sbin/taskpolicy", args))
+			if not line.is_empty():
+				GameLog.say(line)
 	else:
 		GameLog.say("[von] Reusing the decision server already running on port %d." % port)
 	_resolve(true)
@@ -264,6 +261,14 @@ static func qos_args(pid: int, os_name: String, background: bool) -> PackedStrin
 	if not background or os_name != "macOS" or pid <= 0:
 		return PackedStringArray()
 	return PackedStringArray(["-b", "-p", str(pid)])
+
+
+## The log line for a `taskpolicy` run that ended with `exit_code`: empty on 0, otherwise the line
+## that says the QoS was not applied (70 is a dead pid, -1 a `taskpolicy` that could not start).
+static func qos_failure_line(exit_code: int) -> String:
+	if exit_code == 0:
+		return ""
+	return "[von] QoS not applied (exit %d)." % exit_code
 
 
 ## Start `von serve` with its output piped back to us, and a thread to read it.

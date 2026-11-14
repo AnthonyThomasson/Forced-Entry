@@ -10,7 +10,7 @@ class_name NavBake extends RefCounted
 ## next, in the order the bakes were started (`navigation/landings_one_a_frame`). A late bake is one
 ## whose thread is not done on its landing frame: the frame waits for it (the threads run side by
 ## side on the pool, so waits in one frame cost about the longest, not the sum, unless more are
-## running than the pool has workers); with one landing a frame its wait no longer stacks with
+## running than the pool has workers); with one landing a frame its wait does not stack with
 ## another's weld.
 ##
 ## A "frame" is counted on `GameClock.frame()`, the AI's own frame (`WorldRng.frame_of`, every

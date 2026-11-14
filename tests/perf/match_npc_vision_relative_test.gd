@@ -85,11 +85,12 @@ extends GameTest
 ## bubble hold none of them), so the guard measures a parked view and not a view the fight rebuilds
 ## on a third to every frame (the largest room of the centre house: a rebuild on 28 to 100 % of the
 ## frames, measured in the Extension 3 spike). The premise now holds the parked rebuilds to the
-## backstop's. With the pose lag (V1) and the fan table the moving rounds read 6.74 and 5.02 ms
-## (two runs, not `--quiet`, load 10 to 12 and 29 other Godot, the parked view -0.82 and -0.64 ms
-## against 3.2): `MOVING_BUDGET_MS` is set again to 8.5 ms, about 1.4x of their mean, tightened from
-## 20. The moving loop turns its aim 6 degrees a frame, past the lag's 1 degree, so the moving view
-## still rebuilds every frame there; which of the fan table and the open corner lowered it was not
+## backstop's. With the fan table the moving rounds read 6.74 and 5.02 ms (two runs, not `--quiet`,
+## load 10 to 12 and 29 other Godot, the parked view -0.82 and -0.64 ms against 3.2), so the budget
+## went from 20 to 8.5 ms, about 1.4x of their mean; the sliced cone (above) took it to 3.5. The
+## moving loop turns its aim 6 degrees a frame, so the moving view's cone is built job after job
+## with no frame it skips: the round's cost is the cone's whole work, which is why it has a budget
+## apart from the parked view's. Which of the fan table and the open corner lowered it was not
 ## isolated.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")

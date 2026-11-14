@@ -37,7 +37,7 @@ houses, 8 to 9 in a match's view. `restart_cap` (2) and `jump_px` (48) are `View
 `PlayerView._physics_process` calls `ViewPipeline.tick(space, eye, facing, exclude, sight)` once a tick (priority 100); it says
 whether a cone was published in it, and then the view writes `SeenArea`.
 - **Idle:** `ViewWatch.stale` (any input changed, the pose too) starts a job from the live pose (`look`, `ViewCone.begin`,
-  `ViewWatch.built`) and steps it. A job of 3 ticks started in tick f publishes in f+2; the next starts in f+3: 2 to 4 frames old (a job of k ticks: at most 2 (k - 1)).
+  `ViewWatch.built`) and steps it. A job of 3 ticks started in tick f publishes in f+2; the next starts in f+3 (the cone's age: `docs/player-vision.md` V1).
 - **In flight:** an eye farther than `jump_px` from the published pose builds whole at once; else `ViewWatch.world_changed(sight)`
   (the sight and cone tuning, the dirty flag, a blocking character, the `_moved_then` flush quirk, a blocker moved in reach of the
   job's pose: not the eye or facing) restarts the job from the live pose; else one slice. Restart number `restart_cap` + 1 in a row

@@ -110,8 +110,8 @@ func setup(
 ## place; if only a character has, re-carve the steering region. Refreshes the overlay after either.
 ## Nothing moved, nothing baked. A lone house's steering region lands in the tick's own frame; a
 ## district's due tiles are baked one a physics frame, the walker's own first, and land together
-## with the last (`NavTileBurst`: one steering-map sync a tick, as a bake of them all at once
-## had), so a walker looking for a way round a body at rest sees it up to the burst's frames later
+## with the last (`NavTileBurst`: one steering-map sync a tick), so a walker looking for a way round
+## a body at rest sees it up to the burst's frames later
 ## (`navigation/steering_rebake_lands_in_its_tick`, `navigation/tile_rebake_one_a_frame`). A lone
 ## house's planning gather goes with it; a district's is a job of a few physics frames (`NavGather`,
 ## `_physics_process`), swapped in whole and baked on the worker thread, and a move meanwhile waits
