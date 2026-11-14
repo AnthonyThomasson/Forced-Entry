@@ -1,9 +1,11 @@
 extends GameTest
-## V1 cost (`docs/player-vision.md`): the view rebuilds its cone only when its output can change,
-## and a frame it skips holds exactly the cone a fresh rebuild would give. A checker
-## (`tests/_vision/cone_checker.gd`) runs after the view in every physics frame, builds a fresh cone
-## from the viewer's place by the reference algorithm and holds the view's polygon to it, vertex for
-## vertex. The viewer stands in two rooms joined by doorways, a wooden door, a glass-panel door and
+## V1 cost (`docs/player-vision.md`): the view starts a rebuild only when its output can change; the
+## cone it shows is the cone a fresh rebuild gives from the pose it was started from. A checker
+## (`tests/_vision/cone_checker.gd`) runs after the view in every physics frame and holds the view's
+## polygon, vertex for vertex, to the reference algorithm's cone: in a frame a cone is published,
+## from the published pose; in a frame none is, to the cone held before; and once the view is
+## settled, to the live pose. The viewer stands in two rooms joined by doorways, a wooden door, a
+## glass-panel door and
 ## a hollow one in them, and the test changes what the cone can see in every way the spec lists:
 ##   - the viewer still, then turning;
 ##   - a wardrobe and the walls dented again and again (their colliders cut into more shapes);
@@ -12,10 +14,10 @@ extends GameTest
 ##   - in a world of its own, a character that blocks the viewer's sight standing and not crouched
 ##     changing its posture, and dying.
 ## And the reach, in a world of its own: a solid moved every frame far outside the viewer's reach
-## forces no rebuild, one moved within reach forces one each frame. Then a checker holds every
-## frame's polygon to a fresh rebuild's while a solid, built each way a body can reach further than
-## its origin does (a shape offset 2000 px, a shape turned a quarter, a polygon, a scaled body, a
-## shape scaled and mirrored, a shape set after the body is placed, the shapes cut anew, a body
+## forces no rebuild, one moved within reach starts or restarts one each frame. Then a checker holds
+## every cone published to a fresh rebuild's while a solid, built each way a body can reach further
+## than its origin does (a shape offset 2000 px, a shape turned a quarter, a polygon, a scaled body,
+## a shape scaled and mirrored, a shape set after the body is placed, the shapes cut anew, a body
 ## that says `changed`), moves from outside the reach into it; the frame after a rebuild, so that
 ## the backstop cannot be what rebuilds, and again when it is taken out of the tree.
 ## And the rebuilds themselves: a still viewer rebuilds far less often than every frame, and the
@@ -81,11 +83,11 @@ var _t: TestContext
 
 func describe() -> Dictionary:
 	return {
-		"name": "A skipped cone frame holds the cone a fresh rebuild would give",
+		"name": "The cone shown is the cone a fresh rebuild gives from its pose",
 		"description": "Through a still and a turning viewer, dents, a shove, a piece freed and "
 			+ "added, a door's swing, shattered panes and a fall, a posture change and a death, "
-			+ "every frame's polygon equals a fresh rebuild's; a still viewer rebuilds far less "
-			+ "often, and never goes more than ten frames without one.",
+			+ "every cone published equals a fresh rebuild's of its pose; a still viewer rebuilds "
+			+ "far less often, and never goes more than ten frames without a start.",
 		"tags": ["vision", "scripted"],
 		"timeout": 120.0,
 	}
@@ -133,9 +135,9 @@ func run(t: TestContext) -> void:
 ## The viewer stands still: it rebuilds far less often than every frame.
 func _still(t: TestContext, checker: Checker) -> void:
 	var frames := 60
-	var before := checker.view.rebuilds()
+	var before := checker.view.starts()
 	await t.frames(frames)
-	var rebuilds := checker.view.rebuilds() - before
+	var rebuilds := checker.view.starts() - before
 	t.check(
 		rebuilds <= int(ceilf(float(frames) / REBUILD_EVERY)) + 2,
 		"a still viewer rebuilds about every %d frames (%d in %d)"
@@ -144,21 +146,31 @@ func _still(t: TestContext, checker: Checker) -> void:
 	t.check(rebuilds >= 1, "a still viewer still rebuilds now and then (%d)" % rebuilds)
 
 
-## The viewer sweeps its facing across the room: each frame's cone is new, and exact.
+## The fewest cones published (and frames the cone changes in, and jobs started) over the 90
+## frames of the turning viewer: a job of these houses is two frames (the corners fill a slice,
+## `VisionSliceConfig.cost_shape`, and the rays are the next), so a cone is published every other
+## frame, 45 of them (40: it was 60 when the corners were priced as one unit and a house's job was
+## one frame; the longer lag is the user's choice, 2026-11-12, #195); sliced, a cycle of a job is
+## about five frames (`vision/cone_skip_exact_sliced`).
+func _turn_floor() -> int:
+	return 40
+
+
+## The viewer sweeps its facing across the room: each cone published is new, and exact.
 func _turning(t: TestContext, checker: Checker, eye: Node2D) -> void:
 	var changed := checker.changed
-	var before := checker.view.rebuilds()
+	var before := checker.view.starts()
 	for i in 90:
 		var angle := lerpf(-0.8, 0.8, float(i) / 89.0)
 		t.puppet(&"eye").aim_at(EYE_AT + Vector2.from_angle(angle) * 100.0)
 		await t.frames(1)
 	t.check(
-		checker.changed - changed >= 60,
+		checker.changed - changed >= _turn_floor(),
 		"premise: a turning viewer's cone changes (%d frames of 90)" % (checker.changed - changed),
 	)
 	t.check(
-		checker.view.rebuilds() - before >= 60,
-		"a turning viewer rebuilds as it turns (%d in 90)" % (checker.view.rebuilds() - before),
+		checker.view.starts() - before >= _turn_floor(),
+		"a turning viewer rebuilds as it turns (%d in 90)" % (checker.view.starts() - before),
 	)
 	t.require(await Probe.place(t, eye, EYE_AT, Vector2.RIGHT), "the viewer faces east again")
 
@@ -210,12 +222,12 @@ func _shove(t: TestContext, checker: Checker) -> void:
 		piece.global_position.distance_to(at) > 20.0,
 		"premise: the shoved wardrobe moved (%.0f px)" % piece.global_position.distance_to(at),
 	)
-	var before := checker.view.rebuilds()
+	var before := checker.view.starts()
 	await t.frames(40)
 	t.check(
-		checker.view.rebuilds() - before <= 4 + 2,
+		checker.view.starts() - before <= 4 + 2,
 		"the cone is not rebuilt each frame once the shoved wardrobe rests (%d in 40)"
-		% (checker.view.rebuilds() - before),
+		% (checker.view.starts() - before),
 	)
 
 
@@ -284,9 +296,9 @@ func _reach(t: TestContext) -> void:
 	await t.frames(30)
 	var checker := Checker.new(view, eye)
 	world.add_child(checker)
-	var before := view.rebuilds()
+	var before := view.starts()
 	await _creep(t, far, FAR_AT)
-	var rebuilds := view.rebuilds() - before
+	var rebuilds := view.starts() - before
 	t.check(
 		far.position.distance_to(FAR_AT) >= REACH_STEP * (REACH_FRAMES - 1),
 		"premise: the far solid moved (%.0f px)" % far.position.distance_to(FAR_AT),
@@ -300,9 +312,9 @@ func _reach(t: TestContext) -> void:
 		"a solid moved every frame far outside the reach forces no rebuild (%d in %d)"
 		% [rebuilds, REACH_FRAMES],
 	)
-	before = view.rebuilds()
+	before = view.starts()
 	await _creep(t, near, NEAR_AT)
-	rebuilds = view.rebuilds() - before
+	rebuilds = view.starts() - before
 	t.check(
 		rebuilds >= REACH_FRAMES - 2,
 		"a solid moved every frame within the reach forces a rebuild each frame (%d in %d)"
@@ -324,9 +336,9 @@ func _wide(t: TestContext, world: Node, view: PlayerView) -> void:
 	var wide := _solid_at(world, FAR_AT)
 	wide.get_child(0).scale = Vector2(WIDE_SCALE, 1.0)
 	await t.frames(15)
-	var before := view.rebuilds()
+	var before := view.starts()
 	await _creep(t, wide, FAR_AT)
-	var rebuilds := view.rebuilds() - before
+	var rebuilds := view.starts() - before
 	t.check(
 		rebuilds >= REACH_FRAMES - 2,
 		"a far solid with a stretched shape in range forces a rebuild each frame (%d in %d)"
@@ -406,21 +418,21 @@ func _arrives(
 	if arrival.has("late"):
 		arrival["late"].call(body)
 		await t.frames(15)
-	var before := view.rebuilds()
+	var before := view.starts()
 	await _creep(t, body, body.position, FAR_FRAMES)
 	t.check(
-		view.rebuilds() - before <= int(ceilf(float(FAR_FRAMES) / REBUILD_EVERY)) + 2,
+		view.starts() - before <= int(ceilf(float(FAR_FRAMES) / REBUILD_EVERY)) + 2,
 		"%s: moved every frame outside the reach it forces no rebuild (%d in %d)"
-		% [what, view.rebuilds() - before, FAR_FRAMES],
+		% [what, view.starts() - before, FAR_FRAMES],
 	)
 	await _just_rebuilt(t, view)
 	var wrong := checker.wrong()
 	var changed := checker.changed
-	before = view.rebuilds()
+	before = view.starts()
 	body.position = REACH_EYE + arrival["near"]
 	await t.frames(1)
 	t.check(
-		view.rebuilds() > before,
+		view.starts() > before,
 		"%s: moved from outside the reach into it it is a rebuild in that frame" % what,
 	)
 	await t.frames(5)
@@ -430,11 +442,12 @@ func _arrives(
 		await _just_rebuilt(t, view)
 		wrong = checker.wrong()
 		changed = checker.changed
-		before = view.rebuilds()
+		before = view.starts()
 		world.remove_child(body)
 		body.queue_free()
 		await t.frames(2)
-		t.check(view.rebuilds() > before, "%s: leaving the tree in reach is a rebuild" % what)
+		await t.until(func() -> bool: return not view.building(), 1.0)
+		t.check(view.starts() > before, "%s: leaving the tree in reach is a rebuild" % what)
 		t.check(checker.changed > changed, "premise: %s: leaving changes what is seen" % what)
 		_same_as_fresh(t, checker, wrong, "%s: leaving" % what)
 	else:
@@ -454,10 +467,10 @@ func _same_as_fresh(t: TestContext, checker: Checker, wrong: int, what: String) 
 ## Wait for the view to rebuild: when this returns the frame just run was a rebuild's, so the next
 ## is the first since.
 func _just_rebuilt(t: TestContext, view: PlayerView) -> void:
-	var count := view.rebuilds()
+	var count := view.starts()
 	for i in REBUILD_EVERY * 2:
 		await t.frames(1)
-		if view.rebuilds() != count:
+		if view.starts() != count:
 			return
 	t.check(false, "the view rebuilt within %d frames" % (REBUILD_EVERY * 2))
 
@@ -641,15 +654,42 @@ func _posture_and_death(t: TestContext) -> void:
 	stander.take_damage(10_000.0)
 	await t.frames(90)
 	t.check(stander.is_dead, "premise: the character died")
-	_check_whole(t, checker, "the posture world")
+	await _settle_posture_world(t, checker, stander)
+	_check_whole(t, checker, "the posture world", false)
 	checker.queue_free()
 	await Probe.drop_world(t, world)
 
 
-## The checker's whole run: every frame's polygon was the fresh cone's, and no wait was longer than
-## the backstop.
-func _check_whole(t: TestContext, checker: Checker, where: String) -> void:
+## The tail of the posture world: nothing blocks, and the view settles.
+func _settle_posture_world(t: TestContext, checker: Checker, stander: Node2D) -> void:
+	# A standing character of the first world, still in the tree, blocks at this sight (the check
+	# is not limited to reach), so the world never settles. Raising see_over to 100 looks over it:
+	# nothing blocks, the view settles, and its cone is held to the live pose's reference.
+	stander.queue_free()
+	CharacterVisionConfig.see_over_coverage = Probe.LOOK_OVER_LOW * 2.0
+	await t.frames(5)
+	var settled := checker.settled
+	await t.frames(40)
+	t.check(
+		checker.settled - settled >= 20,
+		"premise: the posture world: with nothing blocking the view was settled in %d frames"
+		% (checker.settled - settled),
+	)
+
+
+## The checker's whole run: every cone published was the reference cone of its pose, the cone was
+## held whole between publishes, and (where the world settles) was the live pose's reference when
+## settled; and no wait between two job starts was longer than the backstop.
+func _check_whole(t: TestContext, checker: Checker, where: String, settles := true) -> void:
 	t.check(checker.frames >= 100, "premise: %s: %d frames compared" % [where, checker.frames])
+	# A world with a character that blocks changes in every frame: it is never settled.
+	t.check(
+		not settles or checker.settled >= 30,
+		"premise: %s: the view was settled in %d frames, held to the live pose" % [
+			where,
+			checker.settled,
+		],
+	)
 	t.check(
 		checker.wrong() == 0,
 		"%s: %d frames held a cone other than a fresh rebuild's: %s"

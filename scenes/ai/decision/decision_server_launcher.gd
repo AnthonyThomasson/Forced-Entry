@@ -38,6 +38,13 @@ const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
 ## Compute device passed to `von serve --device`. `cpu` is the default because PyTorch's Apple
 ## GPU backend (`mps`, which `auto` picks on a Mac) crashes the server on its first request.
 @export_enum("cpu", "auto", "mps", "cuda", "openvino") var device: String = "cpu"
+## Once our server answers its readiness probe, move it to macOS background QoS
+## (`taskpolicy -b -p <pid>`), which keeps PyTorch's CPU bursts on the efficiency cores so they do
+## not starve the game. It is applied AFTER the first answer, not at launch, so the boot and the
+## readiness probe keep their full speed. The cost: Von answers slower for the rest of the run.
+## Other platforms ignore it. Off for the test runner's gate, whose asks are capped at 10 s
+## (`TestVonGate`). The measurements: `decision-von.md`.
+@export var background_qos: bool = true
 ## Also print each server log line to the Output panel.
 @export var echo_to_output: bool = true
 ## How many times to probe `port` before giving up and launching our own server. Retries let a
@@ -231,6 +238,11 @@ func _announce_ready() -> void:
 	if _pid > 0:
 		GameLog.say("[von] Decision server live on port %d, %.1fs after scene load (pid %d)."
 				% [port, secs, _pid])
+		var args := qos_args(_pid, OS.get_name(), background_qos)
+		if not args.is_empty():
+			var line := qos_failure_line(OS.execute("/usr/sbin/taskpolicy", args))
+			if not line.is_empty():
+				GameLog.say(line)
 	else:
 		GameLog.say("[von] Reusing the decision server already running on port %d." % port)
 	_resolve(true)
@@ -241,6 +253,22 @@ func _end_probing() -> void:
 	if _probe.request != null:
 		_probe.request.queue_free()
 		_probe.request = null
+
+
+## The arguments for `/usr/sbin/taskpolicy` that move the running server `pid` to background QoS
+## (`-b -p <pid>`); empty when it does not apply: not macOS, `background` off, or no server of ours.
+static func qos_args(pid: int, os_name: String, background: bool) -> PackedStringArray:
+	if not background or os_name != "macOS" or pid <= 0:
+		return PackedStringArray()
+	return PackedStringArray(["-b", "-p", str(pid)])
+
+
+## The log line for a `taskpolicy` run that ended with `exit_code`: empty on 0, otherwise the line
+## that says the QoS was not applied (70 is a dead pid, -1 a `taskpolicy` that could not start).
+static func qos_failure_line(exit_code: int) -> String:
+	if exit_code == 0:
+		return ""
+	return "[von] QoS not applied (exit %d)." % exit_code
 
 
 ## Start `von serve` with its output piped back to us, and a thread to read it.

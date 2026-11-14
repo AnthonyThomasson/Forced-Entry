@@ -158,8 +158,10 @@ static func remember(region: NavigationRegion2D, baked: Dictionary) -> void:
 
 ## A new active map with the project's 2D navigation defaults (what the world's own map is made
 ## with: a freshly made map has the 3D ones, and the server refuses a navmesh baked with another
-## cell size).
-static func new_map() -> RID:
+## cell size). `edge_connections` is whether the map runs the server's edge-connection pass (the
+## project's setting by default): it joins free edges of different regions within a pixel, which
+## rebuilds the whole map's links on every change (`steering-edge-connections.md`).
+static func new_map(edge_connections := true) -> RID:
 	var map := NavigationServer2D.map_create()
 	NavigationServer2D.map_set_cell_size(
 		map,
@@ -175,7 +177,10 @@ static func new_map() -> RID:
 	)
 	NavigationServer2D.map_set_use_edge_connections(
 		map,
-		bool(ProjectSettings.get_setting("navigation/2d/use_edge_connections", true)),
+		(
+			edge_connections
+			and bool(ProjectSettings.get_setting("navigation/2d/use_edge_connections", true))
+		),
 	)
 	NavigationServer2D.map_set_active(map, true)
 	return map

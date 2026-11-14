@@ -11,19 +11,8 @@ const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_voca
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")
 const StackMember := preload("res://scenes/ai/perception/stack/stack_member.gd")
+const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd")
 const SnapshotLeadMemo = preload("res://scenes/ai/perception/snapshot/snapshot_lead_memo.gd")
-## How a doorway's option says why its room is suspect (docs/grenades.md G18), one phrase per
-## `AgentSuspicion` reason, measured with tools/von_probe.py
-## (tools/von_scenarios/stun_entry_*.json).
-const SUSPECT_PHRASES := {
-	AgentSuspicion.GUNFIRE: "gunfire heard there",
-	AgentSuspicion.FOOTSTEPS: "footsteps heard there",
-	AgentSuspicion.SHOT_FROM: "shots at you came from there",
-	AgentSuspicion.ALLY_FIGHT: "an ally radioed a fight there",
-	AgentSuspicion.SEEN_IN: "a hostile seen going in",
-	AgentSuspicion.LOST_BY_DOOR: "a hostile lost by its doorway",
-	AgentSuspicion.HEADING_IN: "a hostile seen heading in",
-}
 ## How far (px) out of its held room's doorway a held stack's member is back on its stack's side
 ## (`_held_back_point`): past the doorway's funnel (`StackClaim.FUNNEL_DEPTH`, 40 px), where its
 ## stack stands.
@@ -415,13 +404,34 @@ func _retreat_name(s: Dictionary) -> Array:
 ## freshest lead that places one (over them all before the option cap), `Vector2.INF` with none: an
 ## INVESTIGATE decision radios it (the defenders' ambush rule).
 func lead_group(ctx: Dictionary, hostiles: Array, entered := {}) -> Dictionary:
-	var leads: Array = (_lost_leads(ctx, entered)
-			+ _heard_leads(ctx, &"heard_gunfire", "gunfire", entered)
-			+ _heard_leads(ctx, &"heard_footsteps", "footsteps", entered)
-			+ _shooter_lead(ctx, hostiles, entered)
-			+ _ally_leads(ctx, entered))
-	# A lead checked more recently than the event behind it is spent (fresh news there is offered
-	# again).
+	return begin_lead_group(ctx, hostiles, entered).run()
+
+
+## `lead_group` in steps (`GroupBuild`): one unit for each lost hostile, each point heard, the
+## shots' origin and the allies' calls together (the routes and snaps are the work), in the
+## one-shot's order; the finish ages, sorts and caps the leads. What each unit reads live it reads
+## as it runs.
+func begin_lead_group(ctx: Dictionary, hostiles: Array, entered := {}) -> RefCounted:
+	var leads: Array = []
+	var units: Array[Callable] = []
+	for c in know["lost"].filter(
+			func(c): return not _entered_any(entered, _suspicion.lost_rooms(_v.rooms, c).keys()),
+	):
+		units.append(func(): leads.append_array(_lost_lead(ctx, c)))
+	for heard: Array in [[&"heard_gunfire", "gunfire"], [&"heard_footsteps", "footsteps"]]:
+		for rec in _memory.recall_aged(heard[0]):
+			if not _entered_at(entered, rec["data"]["pos"]):
+				units.append(func(): leads.append(_heard_lead(ctx, rec, heard[1])))
+	if _memory.under_fire() and hostiles.is_empty():
+		units.append(func(): leads.append_array(_shooter_lead(ctx, entered)))
+	if ctx["callouts"].any(func(c): return str(c.get("path", "")).begins_with("combat")):
+		units.append(func(): leads.append_array(_ally_leads(ctx, entered)))
+	return GroupBuild.new().begin(units, _lead_options.bind(leads))
+
+
+## The leads made into the group: a lead checked more recently than the event behind it is spent
+## (fresh news there is offered again), freshest first, capped.
+func _lead_options(leads: Array) -> Dictionary:
 	leads = leads.filter(
 		func(l): return not _memory.age_of(&"checked_lead", "id", l["id"]) < l["age"],
 	)
@@ -445,74 +455,63 @@ func lead_group(ctx: Dictionary, hostiles: Array, entered := {}) -> Dictionary:
 	return { "summary": summary, "options": options, "lead_pos": lead_pos }
 
 
-## The leads of the hostiles the NPC has lost track of: where it last saw each, and where a moving
-## one was heading; none for a hostile whose room is one of `entered`.
-func _lost_leads(ctx: Dictionary, entered: Dictionary) -> Array:
+## The leads of hostile `c` the NPC has lost track of: where it last saw it, and where a moving one
+## was heading.
+func _lost_lead(ctx: Dictionary, c: Dictionary) -> Array:
 	var leads: Array = []
-	for c in know["lost"].filter(
-			func(c): return not _entered_any(entered, _suspicion.lost_rooms(_v.rooms, c).keys()),
-	):
-		var moving: bool = (c["vel"] as Vector2).length() >= _v.tuning.context.still_speed
+	var moving: bool = (c["vel"] as Vector2).length() >= _v.tuning.context.still_speed
+	leads.append({
+		"age": c["age"], "id": "lead_seen_%d" % c["id"],
+		"label": "where you last saw %s" % c["name"],
+		"desc": "where you last saw %s, %s — %s — %s route%s" % [
+			c["name"], _v.where(c), _v.recency(c["age"]),
+			_v.route_band(_route_len(ctx, c["pos"])),
+			("; they were moving %s" % _v.compass(c["vel"])) if moving else "",
+		],
+		"point": c["pos"],
+		"places_hostile": true,
+	})
+	if moving:
+		var ahead: Vector2 = NavBuilder.snap(
+			ctx["map"],
+			c["pos"] + c["vel"] * minf(c["age"], _v.tuning.context.extrapolate_cap),
+		)
 		leads.append({
-			"age": c["age"], "id": "lead_seen_%d" % c["id"],
-			"label": "where you last saw %s" % c["name"],
-			"desc": "where you last saw %s, %s — %s — %s route%s" % [
-				c["name"], _v.where(c), _v.recency(c["age"]),
-				_v.route_band(_route_len(ctx, c["pos"])),
-				("; they were moving %s" % _v.compass(c["vel"])) if moving else "",
+			"age": c["age"] + 0.01, "id": "lead_heading_%d" % c["id"],
+			"label": "where %s was heading" % c["name"],
+			"desc": "where %s was heading, %s — %s of where you last saw them — %s route" % [
+				c["name"], _v.place(ahead), _v.compass(c["vel"]),
+				_v.route_band(_route_len(ctx, ahead)),
 			],
-			"point": c["pos"],
+			"point": ahead,
 			"places_hostile": true,
 		})
-		if moving:
-			var ahead: Vector2 = NavBuilder.snap(
-				ctx["map"],
-				c["pos"] + c["vel"] * minf(c["age"], _v.tuning.context.extrapolate_cap),
-			)
-			leads.append({
-				"age": c["age"] + 0.01, "id": "lead_heading_%d" % c["id"],
-				"label": "where %s was heading" % c["name"],
-				"desc": "where %s was heading, %s — %s of where you last saw them — %s route" % [
-					c["name"], _v.place(ahead), _v.compass(c["vel"]),
-					_v.route_band(_route_len(ctx, ahead)),
-				],
-				"point": ahead,
-				"places_hostile": true,
-			})
 	return leads
 
 
-## The leads of what the NPC heard, memory topic `topic` (`heard_gunfire` / `heard_footsteps`)
-## worded as `what` (`gunfire` / `footsteps`): one per point heard, none in a room of `entered`.
-func _heard_leads(ctx: Dictionary, topic: StringName, what: String, entered: Dictionary) -> Array:
+## The lead of one point heard, memory record `rec`, worded as `what` (`gunfire` / `footsteps`).
+func _heard_lead(ctx: Dictionary, rec: Dictionary, what: String) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
-	var leads: Array = []
-	for rec in _memory.recall_aged(topic):
-		var pos: Vector2 = rec["data"]["pos"]
-		if _entered_at(entered, pos):
-			continue
-		var walk := _lead_walk(ctx, pos)
-		leads.append({
-			"age": rec["age"],
-			"id": "lead_%s_%d_%d" % [what, floori(pos.x / 200.0), floori(pos.y / 200.0)],
-			"label": "%s to the %s" % [what, _v.compass(pos - self_pos)],
-			"desc": "%s heard to the %s, %s — %s — %s route" % [
-				what, _v.compass(pos - self_pos), _v.place(pos), _v.recency(rec["age"]),
-				_v.route_band(walk["len"]),
-			],
-			"point": walk["snap"],
-			"places_hostile": true,
-		})
-	return leads
+	var pos: Vector2 = rec["data"]["pos"]
+	var walk := _lead_walk(ctx, pos)
+	return {
+		"age": rec["age"],
+		"id": "lead_%s_%d_%d" % [what, floori(pos.x / 200.0), floori(pos.y / 200.0)],
+		"label": "%s to the %s" % [what, _v.compass(pos - self_pos)],
+		"desc": "%s heard to the %s, %s — %s — %s route" % [
+			what, _v.compass(pos - self_pos), _v.place(pos), _v.recency(rec["age"]),
+			_v.route_band(walk["len"]),
+		],
+		"point": walk["snap"],
+		"places_hostile": true,
+	}
 
 
-## The lead toward where the shots at the NPC came from, under fire with no hostile known: `[lead]`,
-## or `[]` when the line back from the newest shot runs into a room of `entered` or the walk there
-## ends where the NPC stands.
-func _shooter_lead(ctx: Dictionary, hostiles: Array, entered: Dictionary) -> Array:
+## The lead toward where the shots at the NPC came from (asked only under fire with no hostile
+## known): `[lead]`, or `[]` when the line back from the newest shot runs into a room of `entered`
+## or the walk there ends where the NPC stands.
+func _shooter_lead(ctx: Dictionary, entered: Dictionary) -> Array:
 	var shot: Dictionary = _memory.recall(&"shot_from")
-	if not _memory.under_fire() or not hostiles.is_empty():
-		return []
 	if not shot.is_empty() and _entered_any(entered, AgentSuspicion.shot_rooms(_v.rooms, shot)):
 		return []
 	var from: Vector2 = _memory.under_fire_from()
@@ -670,17 +669,31 @@ func _search_option(c: Dictionary) -> Dictionary:
 ## doorway's view), out of the doorway's line of sight; the behaviour runs the entry from there.
 ## A room a hostile is suspected in first, then nearest; capped.
 func entry_group(ctx: Dictionary, rooms: Array) -> Dictionary:
+	return begin_entry_group(ctx, rooms).run()
+
+
+## `entry_group` in steps (`GroupBuild`): one unit for each doorway (its pick: the geometry, the
+## slot claimed, the route), in the one-shot's order; the finish sorts, caps and words the options.
+func begin_entry_group(ctx: Dictionary, rooms: Array) -> RefCounted:
 	if not know.get("entry_enabled", false):
-		return { "summary": "", "options": [] }
+		return GroupBuild.new().already({ "summary": "", "options": [] })
 	var self_pos: Vector2 = ctx["self_pos"]
 	var here := HouseRooms.at(self_pos, rooms)
 	var known: Dictionary = know["known_room_keys"]
 	var why: Dictionary = _suspicion.rooms_suspected(rooms, know["lost"], ctx["callouts"])
 	var picks: Array = []
+	var units: Array[Callable] = []
 	for e in _entry.entries_from(str(here.get("key", ""))):
-		var pick := _entry_pick(ctx, e, known, why)
-		if not pick.is_empty():
-			picks.append(pick)
+		units.append(func():
+			var pick := _entry_pick(ctx, e, known, why)
+			if not pick.is_empty():
+				picks.append(pick))
+	return GroupBuild.new().begin(units, _entry_options.bind(picks, rooms, self_pos, here))
+
+
+## The entry picks made into the group: a room a hostile is suspected in first, then nearest;
+## capped.
+func _entry_options(picks: Array, rooms: Array, self_pos: Vector2, here: Dictionary) -> Dictionary:
 	picks.sort_custom(func(x, y):
 		if x["suspect"].is_empty() != y["suspect"].is_empty():
 			return not x["suspect"].is_empty()  # A room a hostile is suspected in first.
@@ -725,7 +738,7 @@ func _entry_pick(ctx: Dictionary, e: Dictionary, known: Dictionary, why: Diction
 	return {
 		"e": e, "status": status, "point": point, "slot": at["slot"],
 		"len": _route_len(ctx, point),
-		"suspect": why.get(into, []).map(func(w): return SUSPECT_PHRASES[w]),
+		"suspect": why.get(into, []).map(func(w): return SnapshotVocab.SUSPECT_PHRASES[w]),
 	}
 
 

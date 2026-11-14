@@ -41,10 +41,14 @@ Why: blue-on-blue; the assault must land where the base of fire is not shooting.
 **B4. One flanker per side.** A side an ally holds, standing on it where the NPC can see it or by radio
 callout, is not offered; with every side held there is no FLANK tactic and the NPC fights directly. Allies
 decide at different moments and each radios its side, so they end on different sides. Without the radio
-they can collide (the contrast case).
+they can collide (the contrast case). A decision takes a few frames (its pieces share a pool, one
+decision starting a frame): the radio's claims are read again as its walk begins, so a claim an ally
+radioed meanwhile is seen, and two NPCs on one target, deciding together, take different sides.
 Why: surround only with surplus force; a stacked side adds no angle.
 Tests: `flank_all_sides_held`, `flank_side_held_by_radio`, `flank_side_held_by_seen_ally`,
-`flank_two_invaders_split_sides`, `flank_three_invaders_exhaust_sides`, `flank_without_callouts_collide`.
+`flank_two_invaders_split_sides`, `flank_three_invaders_exhaust_sides`, `flank_without_callouts_collide`,
+`sliced_flank_sides_differ`, `claim_seen_during_throw_piece`, `claim_seen_as_the_walk_begins`
+(the re-read of the radio is pinned by the last two; `sliced_flank_sides_differ` stays green without it).
 
 **B5. Terrain that denies a flank means no flank.** At a corridor's dead end, against a wall, or in a
 doorway funnel every side lies behind a wall or past the target. The FLANK tactic is absent and the NPC

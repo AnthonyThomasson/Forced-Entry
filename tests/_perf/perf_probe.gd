@@ -9,6 +9,7 @@ extends RefCounted
 ## test.
 
 const Fingerprint := preload("res://tests/_perf/fight_fingerprint.gd")
+const Report := preload("res://tests/_perf/frame_report.gd")
 ## The standard a running match must meet, for every frame-based stress test: the average frame fits
 ## in one 60 fps frame (16.7 ms, the Performance overlay's target), the 95th percentile stays near
 ## it, and no frame takes over two.
@@ -42,6 +43,12 @@ const MATCH_WARMUP_S := 6.0
 ## outside the front door and the 5v5 fight took 18 to 26 s of test time to start over a dozen runs
 ## in the district (a house: 21 s), so the window is a half again as long.
 const MATCH_CONTACT_WITHIN := 30.0
+## Frames of a match's opening the opening guard (`perf/match_10v10_opening`) measures from the
+## first contact: five seconds at 60 fps, the first sighting, the first decisions and the first
+## shots, the first grenade throws and the first escape searches (`perf-opening.md`).
+const OPENING_FRAMES := 300
+## How many frames the worst-frames report names (`within_frames`).
+const WORST_FRAMES := 5
 ## The engine lines a match guard allows (`allowed_logs`): a real match re-bakes the navmesh while
 ## furniture is shoved around, and now and then the bake of overlapping footprints is rejected by
 ## the engine (about one run in five). That is a nav bug no guard is about; the bake's cost is part
@@ -83,7 +90,7 @@ static func record_fight(t: TestContext, test: GameTest, npcs: Array) -> void:
 ## (`await_contact` over `characters`, at most `MATCH_CONTACT_WITHIN` s more), `require`d as the
 ## guard's premise. Returns whether it held (false: the test has ended).
 static func warm_until_contact(t: TestContext, label: String, characters: Array) -> bool:
-	_bakes_mark = [NavBake.started_total, NavBake.late_total]
+	mark_bakes()
 	await t.seconds(MATCH_WARMUP_S)
 	return t.require(
 		await await_contact(t, label, characters, MATCH_CONTACT_WITHIN),
@@ -91,6 +98,32 @@ static func warm_until_contact(t: TestContext, label: String, characters: Array)
 				+ "knowing a hostile (%.1f s)")
 			% [MATCH_CONTACT_WITHIN, t.time],
 	)
+
+
+## Take the nav bakes' counts now, for `log_late_bakes` (a guard whose window opens by itself, not
+## through `warm_until_contact`, marks where it opens).
+static func mark_bakes() -> void:
+	_bakes_mark = [NavBake.started_total, NavBake.late_total]
+
+
+## Wait for the fight's first sign: a shot fired or some NPC among `characters` knowing a hostile,
+## whichever comes first, at most `limit_s` s of test time (the guard of a match's opening opens its
+## window there, `perf-opening.md`). Logs when it came (`PERF <label> first contact at <s> s`).
+## Returns what it was, `"shot"` or `"sighting"`, or `""` when none came; the caller `require`s it.
+static func await_first_contact(
+	t: TestContext, label: String, characters: Array, limit_s: float,
+) -> String:
+	var cause := [""]
+	var on := func() -> bool:
+		if t.happened(&"shot"):
+			cause[0] = "shot"
+		elif characters.any(func(c): return knows_hostile(c)):
+			cause[0] = "sighting"
+		return cause[0] != ""
+	if not await t.until(on, limit_s):
+		return ""
+	GameLog.say("PERF %s first contact at %.2f s (a %s)" % [label, t.time, cause[0]])
+	return cause[0]
 
 
 ## Run a match guard's warm-up on until its sides are in contact: a shot has been fired and some
@@ -132,7 +165,10 @@ static func time_ms(work: Callable) -> float:
 	return (Time.get_ticks_usec() - start) / 1000.0
 
 
-## Wall-clock cost of `frames` physics frames of the running test: `{ avg_ms, p95_ms, max_ms }`.
+## Wall-clock cost of `frames` physics frames of the running test: `{ avg_ms, p95_ms, max_ms,
+## samples, ran }`: the ms of each frame, and `ran`, what ran in each (`frame_report.gd`,
+## `report_worst`): an empty Array unless the game's log is on (`--verbose`; nothing is counted
+## otherwise).
 ## `each`, if valid, is called with the frame index at the start of every measured frame (to keep
 ## applying load). A frame costs the main-loop iteration it ran in. Under `--fixed-fps`
 ## (tools/run_tests.sh) every iteration steps physics once and the next one follows at once, so
@@ -151,23 +187,30 @@ static func frame_stats(t: TestContext, frames: int, each := Callable()) -> Dict
 	tree.process_frame.connect(mark)
 	t.world.tree_exiting.connect(stop)  # a test that ends mid-measurement
 	var samples: Array[float] = []
+	var counters: RefCounted = Report.counters_of(t) if GameLog.enabled else null
 	await t.frames(1)
 	var last := Time.get_ticks_usec()
 	var last_iteration := Engine.get_process_frames()
 	for i in frames:
 		if each.is_valid():
 			each.call(i)
+		if counters != null:
+			counters.sample()
 		await t.frames(1)
 		var now := Time.get_ticks_usec()
-		var iteration := Engine.get_process_frames()
 		var ended := now
-		if iteration > last_iteration + 1:
+		if Engine.get_process_frames() > last_iteration + 1:
 			ended = processed.get(last_iteration + 1, now)
 		samples.append((ended - last) / 1000.0)
 		last = now
-		last_iteration = iteration
+		last_iteration = Engine.get_process_frames()
 	stop.call()
-	return _stats_of(samples)
+	if counters != null:
+		counters.sample()
+	return _stats_of(samples).merged({
+		"samples": samples,
+		"ran": counters.ran_per_frame() if counters != null else [],
+	})
 
 
 ## Live nodes in the whole scene tree (and detached trees), for leak checks.
@@ -202,12 +245,33 @@ static func log_late_bakes(label: String) -> void:
 
 ## `within` for each of a `frame_stats` result's average, 95th percentile and worst frame (ms),
 ## against the frame standard every frame-based test holds: `SMOOTH_AVG_MS`, `SMOOTH_P95_MS`,
-## `SMOOTH_MAX_MS`.
-static func within_frames(t: TestContext, label: String, stats: Dictionary) -> void:
+## `SMOOTH_MAX_MS`. A guard whose p95 or worst frame has its own decided budget passes it as
+## `p95_limit` or `max_limit`; the average and whichever of the two it does not pass keep the
+## standard.
+static func within_frames(
+	t: TestContext,
+	label: String,
+	stats: Dictionary,
+	p95_limit := SMOOTH_P95_MS,
+	max_limit := SMOOTH_MAX_MS,
+) -> void:
 	log_late_bakes(label)
+	report_worst(label, stats)
 	within(t, label + " avg ms/frame", stats["avg_ms"], SMOOTH_AVG_MS)
-	within(t, label + " p95 ms/frame", stats["p95_ms"], SMOOTH_P95_MS)
-	within(t, label + " max ms/frame", stats["max_ms"], SMOOTH_MAX_MS)
+	within(t, label + " p95 ms/frame", stats["p95_ms"], p95_limit)
+	within(t, label + " max ms/frame", stats["max_ms"], max_limit)
+
+
+## Print (`PERF <label> worst frames:` and a line each) the `WORST_FRAMES` slowest frames of a
+## `frame_stats` result, each with what ran in it (`frame_report.gd`: decisions claimed and asked,
+## shots, cone starts and publishes, nav bakes), so a red run names its spike. Nothing without
+## `--verbose`.
+static func report_worst(label: String, stats: Dictionary) -> void:
+	if not GameLog.enabled or not stats.has("samples"):
+		return
+	GameLog.say("PERF %s worst frames:" % label)
+	for entry in Report.worst(stats["samples"], stats.get("ran", []), WORST_FRAMES):
+		GameLog.say("PERF %s   %s" % [label, Report.line(entry)])
 
 
 ## The `{ avg_ms, p95_ms, max_ms }` of the frame times `samples` (ms), zeros for none.

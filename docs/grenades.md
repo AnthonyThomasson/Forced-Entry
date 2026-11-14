@@ -292,8 +292,9 @@ self-safety tags are judged from there (an NPC that stands outside the zone but 
 walk. `debug_zones()` lists every throw weighed (dropped ones too) as zones of category `grenade` with `point` (the burst spot), `from` and `tags`.
 Whether a legal throw exists at all (`grenade_ready`, the fact that gates the tactic and the unbound level's throw onto the shots' origin) is answered
 by a search that stops at the first spot the NPC could throw from, and the answer is always the one the full search gives ("it found a spot"); the full
-options, with their tags and wording, are built only when the decision's walk reads them. Tests: `ai/grenade/grenade_ready_matches_full_search`,
-`ai/decision/lazy_groups_match_eager`.
+options, with their tags and wording, are built only when the decision's walk reads them. The decision job runs that search as its throw piece,
+in steps of a fixed count of candidates (#195), and its answer is the one-shot search's at every step size. Tests: `ai/grenade/grenade_ready_matches_full_search`,
+`ai/decision/lazy_groups_match_eager`, `ai/decision/throw_piece_matches_whole`.
 Its options are one per kind it carries (`frag`, `stun`). Measured with `tools/von_probe.py` (`tools/von_scenarios/grenade_*.json`, captured from the
 recorded-Von tests): the barricaded holder of a doorway GRENADE 0.49 to 0.51 against ENGAGE 0.32 to 0.40 (dropping the exposure sentence or the desc's
 clause hands it back to ENGAGE; a desc that keeps "Your line to {target} is blocked" for it loses, 0.14 against 0.61); behind cover
@@ -449,7 +450,8 @@ Test: `ai/grenade/grenade_overlay_draws`.
 
 *(Added by issue #56.)* Grenades going off must not make the game stutter. Two perf tests hold them to the smooth standard every frame-based
 perf test holds (`Perf.SMOOTH_*` in `tests/_perf/perf_probe.gd`): **average ≤ 16.7 ms** a frame (one 60 fps frame),
-**p95 ≤ 20 ms** and **no frame over 33.4 ms** (two frames).
+**p95 ≤ 20 ms** and **no frame over 33.4 ms** (two frames). The one exception is P1, whose p95 is **≤ 25 ms** and whose worst frame is **≤ 37 ms** (its own `P95_MS` and `MAX_MS`, passed to
+`Perf.within_frames` as `p95_limit` and `max_limit`): its p95 reads 20.9 to 22.6 ms at load about 3 and 23.0 to 24.2 ms at load 4 to 4.9, with no single cause left to cut (decision on #195, item 4); its worst frame reads 27 to 31 ms in single runs but 34.75 to 36.02 ms inside the full perf run, against the standard's 33.4 (decision on #195, rule 13).
 
 **P1. Grenades in a match** (`perf/grenade_match_stress`). The 5v5 of `perf/match_5v5_stress` (a generated house on its largest plan, the match built
 as Main builds one through `MatchBuilder`: the invader team beside the front door with its plates and a stun and a frag each, styled and ranked, one
@@ -465,7 +467,8 @@ characters (blood, debris, hit particles and sound on). Measured over the burst 
 **How they measure.** Each test frames the whole fight with the test camera, as a player's screen would show it, so every body is drawn.
 Headless (the default) the frame time is the CPU's work, the drawing calls included; `tools/run_tests.sh --windowed` runs the same test in a
 window with vsync off, so the render is in each frame too. The absolute budgets stay as they are in both modes: a red windowed run is the
-honest state of the game's performance, not a test to loosen.
+honest state of the game's performance, not a test to loosen. P1's p95 of 25 and worst frame of 37 are the only budgets moved, by the decisions on #195 (item 4, rule 13); the
+dated windowed p95 of 21.98 below was read against 20, the budget of that day.
 
 **Before** (origin/main `7428c4a`, before issue #56's fixes; one run each at a 1-minute load of about 2.9, ms a frame):
 

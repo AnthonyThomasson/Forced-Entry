@@ -13,6 +13,7 @@ extends RefCounted
 ## A target's FLANKS are measured in its own frame: its front is where it was last seen facing (when
 ## recent), else the side facing this NPC. Left/right are the target's own left/right.
 
+const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
 ## The flanking sides offered, as degrees off the target's front (screen space, +y down).
 const SIDES := { "left": -90.0, "right": 90.0, "rear": 180.0 }
 ## How far (px) a sampled point may be pulled by navmesh snapping before it counts as unreachable.
@@ -30,18 +31,14 @@ const TAKEN := 32.0
 ## How far (px) from an ally lies the spot beside it that the NPC falls back to: a body clear of it
 ## (the stack's spacing).
 const BESIDE_ALLY := 44.0
-## Rings (px from the NPC, and shares of the throw reach from the burst spot) and directions the
-## throw spots are sampled on, and the most candidates routed per call.
-const THROW_RINGS := [48.0, 96.0, 144.0, 192.0, 240.0]
-const THROW_REACH_SHARES := [0.95, 0.8]
-const THROW_DIRECTIONS := 16
-const THROW_ROUTES := 10
 
 ## The perception's sight sense; owner of the ray queries.
 var vision: RefCounted
+## Where to throw a grenade from (`throw_spots.gd`): the part reads this geometry at each call.
+var throws := ThrowSpots.new()
 # --- Config fields the perception's apply_config() sets from the NPC's tuning (`NpcTuning`: the
 # `tactics` topic's of the same name, `shoot_range` and the ring off `combat`, `still_speed` off
-# `context`, `throw_spot_walk` off `grenades`).
+# `context`; `throw_spot_walk` off `grenades` is `throws.spot_walk`).
 ## Surface coverage at or above which a blocking object is cover.
 var cover_min: float
 ## Distance (px) from the target a flanking spot is sought at.
@@ -64,8 +61,6 @@ var route_clearance: float
 var watch_arc: float
 ## Distances (px) from a target at which firing spots are sampled.
 var fire_spot_distances: Array[float]
-## Longest walk (px of route) to a throw spot (`throw_spot`).
-var throw_spot_walk: float
 ## Actual route and `_cover_near` queries made by this geometry object (reuse observables).
 var route_queries := 0
 var cover_queries := 0
@@ -222,7 +217,7 @@ func _cover_near(
 
 ## `_cover_near` for a point and hostile, reused when the same candidate is annotated again or
 ## another target's watch test asks it. Exclusions are part of the key; nothing leaves the snapshot.
-func _cover_cached(ctx: Dictionary, p: Vector2, threat: Vector2, ex: Array) -> String:
+func cover_cached(ctx: Dictionary, p: Vector2, threat: Vector2, ex: Array) -> String:
 	var cache := _cache_bucket(ctx, "cover")
 	var key := [p, threat, ex]
 	if not cache.has(key):
@@ -249,7 +244,7 @@ func exposed_to(
 
 
 ## The ally (perceived, or via a radio callout) holding side `side` of a target, or "".
-func _side_holder(
+func side_holder(
 	target: Dictionary,
 	front: float,
 	side: String,
@@ -336,7 +331,7 @@ func _watched_in_open(
 		if (_looking_at(hpos, front, p, half)
 				and hpos.distance_to(p) <= shoot_range * 1.5
 				and not blocked(ctx["space"], hpos, p, ex)
-				and _cover_cached(ctx, p, hpos, ex) == ""):
+				and cover_cached(ctx, p, hpos, ex) == ""):
 			return h["name"]
 		if path.size() >= 2 and _eyes_route(ctx, h, front, path, ex):
 			return h["name"]
@@ -369,7 +364,7 @@ func _covered_from(ctx: Dictionary, h: Dictionary, ex: Array) -> bool:
 	var hpos: Vector2 = h["pos"]
 	var self_pos: Vector2 = ctx["self_pos"]
 	var covered: bool = (blocked(ctx["space"], hpos, self_pos, ex)
-			or _cover_cached(ctx, self_pos, hpos, ex) != "")
+			or cover_cached(ctx, self_pos, hpos, ex) != "")
 	covered_from[h["id"]] = covered
 	return covered
 
@@ -404,7 +399,7 @@ func flank_sides(ctx: Dictionary, target: Dictionary, front: float) -> Array:
 		a.merge({
 			"route_exposed": _route_exposed(ctx["space"], path, tpos, ex, front),
 			"crosses": _route_crosses(path, ctx["hostiles"]),
-			"held_by": _side_holder(target, front, side, ctx["allies"], ctx["callouts"]),
+			"held_by": side_holder(target, front, side, ctx["allies"], ctx["callouts"]),
 			"heading_toward": vel.length() >= still_speed
 				and absf(vel.angle_to(p - tpos)) < PI / 3.0,
 			"ally_lane": _ally_lane(p, tpos, ctx["allies"], path),
@@ -586,6 +581,24 @@ func _route(ctx: Dictionary, p: Vector2) -> PackedVector2Array:
 	return cache[p]
 
 
+## The walk to `point` (`route`: `{ path, len, detour }`, else the plain route with no detour) as
+## `{ route_len, detour }`, or {} when it does not qualify: it must end within 12 px of the point,
+## be at most `max_len` long and pass no known hostile (the throw spots' walk, `throw_spots.gd`).
+func walk_leg(ctx: Dictionary, point: Vector2, route: Callable, max_len: float) -> Dictionary:
+	var way: Dictionary = route.call(point) if route.is_valid() else {}
+	if way.is_empty():
+		var plain := _route(ctx, point)
+		way = { "path": plain, "len": NavBuilder.path_length(plain), "detour": false }
+	var path: PackedVector2Array = way["path"]
+	var length: float = way["len"]
+	if (length > max_len
+			or path.is_empty()
+			or path[path.size() - 1].distance_to(point) > 12.0
+			or _route_crosses(path, ctx["hostiles"]) != ""):
+		return {}
+	return { "route_len": length, "detour": bool(way.get("detour", false)) }
+
+
 ## The firing spots against `target` from `candidates`: the best per 8-way sector round it (cover
 ## close by first, then the shortest step) that passes `_safe_spot`, sorted cover close by first,
 ## then a hidden route, then the shortest.
@@ -626,7 +639,7 @@ func _by_sector(ctx: Dictionary, tpos: Vector2, candidates: Array, ex: Array) ->
 		var sector := posmod(int(round((p - tpos).angle() / (TAU / 8.0))), 8)
 		if not sectors.has(sector):
 			sectors[sector] = []
-		sectors[sector].append({ "point": p, "cover": _cover_cached(ctx, p, tpos, ex) })
+		sectors[sector].append({ "point": p, "cover": cover_cached(ctx, p, tpos, ex) })
 	return sectors
 
 
@@ -639,175 +652,6 @@ func _ambush_from(ctx: Dictionary, target: Dictionary, cover_spots: Array, ex: A
 			amb["cover"] = object_label(blocker(ctx["space"], p, target["pos"], ex))
 			return amb
 	return {}
-
-
-## Where to throw a grenade onto `aim.spot` from when it cannot be thrown from where the NPC stands
-## (out of range, or no clear lob: docs/grenades.md G17): a point on the navmesh within `aim.reach`
-## of the spot from which `aim.lob` holds (the lob from there is clear), a walk of at most
-## `throw_spot_walk` along a route that passes no known hostile, and not inside the rect
-## `aim.keep_out` (the room the hostile holds, which the NPC is outside of; an empty rect for none).
-## `aim.route` is the walk there as the NPC would walk it and whether it would be stopped on the way
-## to go into or secure a doorway (the entry guard, E9 / E15 / E18); invalid, the plain route, no
-## detour. Chosen as the fire spots are, and so that the walk needs no detour: one that needs none
-## first, then out of the line from the spot (low furniture between: hidden from whoever is there),
-## then with cover close by against it (a doorway's jamb, a piece), then the shortest walk.
-## `{ point, route_len, hidden, cover, detour }`, or {} when there is none.
-func throw_spot(ctx: Dictionary, aim: ThrowAim, ex: Array, points: Variant = null) -> Dictionary:
-	var found: Array = _throw_ranked(ctx, aim, ex, _points_of(ctx, aim, points))
-	var walkable := _throw_walkable(ctx, found.slice(0, THROW_ROUTES), aim.route)
-	if walkable.is_empty():
-		return {}
-	walkable.sort_custom(func(a, b):
-		if a["detour"] != b["detour"]:
-			return not a["detour"]
-		if _throw_rank(a) != _throw_rank(b):
-			return _throw_rank(a) < _throw_rank(b)
-		return a["route_len"] < b["route_len"])
-	return walkable[0]
-
-
-## Whether `throw_spot` would find a spot (`not throw_spot(...).is_empty()`), without choosing it:
-## the candidates that would be routed (the first `THROW_ROUTES` by rank, every one of them when
-## there are no more than that) are routed one at a time and the search stops at the first the walk
-## reaches. With no more candidates than routes, nothing is ranked. `points` are the candidates
-## `throw_points` found, for a caller that has them (null: found here).
-func has_throw_spot(ctx: Dictionary, aim: ThrowAim, ex: Array, points: Variant = null) -> bool:
-	var found: Array = _points_of(ctx, aim, points)
-	var routed: Array
-	if found.size() > THROW_ROUTES:
-		routed = _throw_ranked(ctx, aim, ex, found).slice(0, THROW_ROUTES)
-	else:
-		routed = found.map(func(p): return { "point": p })
-	for c: Dictionary in routed:
-		if not _throw_leg(ctx, c["point"], aim.route).is_empty():
-			return true
-	return false
-
-
-## `points` (`throw_points`), or the points found now when null.
-func _points_of(ctx: Dictionary, aim: ThrowAim, points: Variant) -> Array:
-	return points if points != null else throw_points(ctx, aim)
-
-
-## The candidate throw spots for `aim` that pass the cheap tests (`_throw_point`, then not within 12
-## px of one already found, then the lob), in the order they are found. A snapped point is
-## lob-tested once whether its first try qualified or not. Worked out once for a spot and shared by
-## `throw_spot` and `has_throw_spot`.
-func throw_points(ctx: Dictionary, aim: ThrowAim) -> Array:
-	var self_pos: Vector2 = ctx["self_pos"]
-	var points: Array = []
-	var tried := {}
-	for r: Vector2 in _throw_raw(self_pos, aim):
-		var p := _throw_point(ctx, r, aim)
-		if p == Vector2.INF or tried.has(p):
-			continue
-		tried[p] = true
-		if (points.any(func(q): return (q as Vector2).distance_to(p) < 12.0)
-				or not aim.lob.call(p)):
-			continue
-		points.append(p)
-	return points
-
-
-## The candidate throw spots for `aim` (`throw_points`), each `{ point, hidden, cover }` (hidden
-## from the burst spot, else the cover close by against it), sorted by `_throw_rank`, then the
-## straight distance.
-func _throw_found(ctx: Dictionary, aim: ThrowAim, ex: Array) -> Array:
-	return _throw_ranked(ctx, aim, ex, throw_points(ctx, aim))
-
-
-## `points` annotated (`{ point, hidden, cover }`) and sorted by `_throw_rank`, then the straight
-## distance from the NPC.
-func _throw_ranked(ctx: Dictionary, aim: ThrowAim, ex: Array, points: Array) -> Array:
-	var self_pos: Vector2 = ctx["self_pos"]
-	var found: Array = []
-	for p: Vector2 in points:
-		var hidden := blocked(ctx["space"], aim.spot, p, ex)
-		found.append({
-			"point": p,
-			"hidden": hidden,
-			"cover": "" if hidden else _cover_cached(ctx, p, aim.spot, ex),
-		})
-	found.sort_custom(func(a, b):
-		var ra := _throw_rank(a)
-		var rb := _throw_rank(b)
-		if ra != rb:
-			return ra < rb
-		return self_pos.distance_squared_to(a["point"]) < self_pos.distance_squared_to(b["point"]))
-	return found
-
-
-## The raw candidates for a throw spot, unsnapped: the `THROW_RINGS` round the NPC at `self_pos` out
-## to `throw_spot_walk`, then the rings round the aim's spot at each of `THROW_REACH_SHARES` of its
-## reach, `THROW_DIRECTIONS` points each.
-func _throw_raw(self_pos: Vector2, aim: ThrowAim) -> Array:
-	var raw: Array = []
-	for radius: float in THROW_RINGS:
-		if radius > throw_spot_walk:
-			break
-		for i in THROW_DIRECTIONS:
-			raw.append(self_pos + Vector2.RIGHT.rotated(TAU * i / THROW_DIRECTIONS) * radius)
-	for share: float in THROW_REACH_SHARES:
-		for i in THROW_DIRECTIONS:
-			raw.append(
-				aim.spot + Vector2.RIGHT.rotated(TAU * i / THROW_DIRECTIONS) * aim.reach * share
-			)
-	return raw
-
-
-## Raw candidate `r` on the navmesh, or `Vector2.INF` when it fails the cheap tests: past the walk
-## or past the reach even once snapped (no navmesh query then), pulled more than `SNAP_TOLERANCE` by
-## the snap, past the reach of the aim's spot, within a `STRIDE` of the NPC, or inside the room to
-## keep out of.
-func _throw_point(ctx: Dictionary, r: Vector2, aim: ThrowAim) -> Vector2:
-	var self_pos: Vector2 = ctx["self_pos"]
-	if (self_pos.distance_to(r) > throw_spot_walk
-			or r.distance_to(aim.spot) > aim.reach + SNAP_TOLERANCE):
-		return Vector2.INF
-	var p := snap(ctx, r)
-	if (p.distance_to(r) > SNAP_TOLERANCE
-			or p.distance_to(aim.spot) > aim.reach
-			or self_pos.distance_to(p) < STRIDE):
-		return Vector2.INF
-	if aim.keep_out.has_area() and aim.keep_out.has_point(p):
-		return Vector2.INF
-	return p
-
-
-## Of the throw spots `found`, those the walk there reaches (its end within 12 px of the spot), at
-## most `throw_spot_walk` long and passing no known hostile, each with its `route_len` and `detour`.
-## The walk is `route` (`{ path, len, detour }`), else the plain route with no detour.
-func _throw_walkable(ctx: Dictionary, found: Array, route: Callable) -> Array:
-	var walkable: Array = []
-	for c: Dictionary in found:
-		var leg := _throw_leg(ctx, c["point"], route)
-		if not leg.is_empty():
-			walkable.append(c.merged(leg))
-	return walkable
-
-
-## The walk to throw spot `point` (`route`: `{ path, len, detour }`, else the plain route with no
-## detour) as `{ route_len, detour }`, or {} when it does not qualify: it must end within 12 px of
-## the spot, be at most `throw_spot_walk` long and pass no known hostile.
-func _throw_leg(ctx: Dictionary, point: Vector2, route: Callable) -> Dictionary:
-	var way: Dictionary = route.call(point) if route.is_valid() else {}
-	if way.is_empty():
-		var plain := _route(ctx, point)
-		way = { "path": plain, "len": NavBuilder.path_length(plain), "detour": false }
-	var path: PackedVector2Array = way["path"]
-	var length: float = way["len"]
-	if (length > throw_spot_walk
-			or path.is_empty()
-			or path[path.size() - 1].distance_to(point) > 12.0
-			or _route_crosses(path, ctx["hostiles"]) != ""):
-		return {}
-	return { "route_len": length, "detour": bool(way.get("detour", false)) }
-
-
-## How a throw spot ranks (lower first): hidden from the burst spot, then covered against it, then
-## in the open.
-static func _throw_rank(c: Dictionary) -> int:
-	return 0 if c["hidden"] else (1 if c["cover"] != "" else 2)
 
 
 ## `p` annotated as a place to fight `target` from (with its route's exposure to the target), or
@@ -925,7 +769,7 @@ func _annotate_retreat(
 		return false
 	var cover := ""
 	if not threats.is_empty():
-		cover = _cover_cached(ctx, c["point"], threats[0], ex)
+		cover = cover_cached(ctx, c["point"], threats[0], ex)
 	c["hidden"] = hidden
 	c["cover"] = cover
 	c["route_len"] = route_len
@@ -973,7 +817,7 @@ func _annotate(
 	return {
 		"point": p,
 		"clear_shot": not blocked(ctx["space"], p, tpos, ex),
-		"cover": _cover_cached(ctx, p, tpos, ex),
+		"cover": cover_cached(ctx, p, tpos, ex),
 		"route_len": NavBuilder.path_length(path),
 		"route_exposed": false,
 		"exposed_to": exposed_to(ctx["space"], p, ctx["hostiles"], target["id"], ctx["exclude"]),

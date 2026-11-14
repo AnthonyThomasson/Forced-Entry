@@ -41,6 +41,9 @@ var _baking := false
 ## A district's planning gather in progress, a step a physics frame (`_physics_process`). Null
 ## between gathers.
 var _gather: NavGather = null
+## A district's steering tiles of this tick, baked one a physics frame (`_physics_process`) and
+## landed together (`NavTileBurst`).
+var _burst := NavTileBurst.new()
 
 
 ## A script-only node: the gather's steps run in `_physics_process`, only while there is one (the
@@ -49,24 +52,31 @@ func _ready() -> void:
 	set_physics_process(false)
 
 
-## One step of the district's planning gather; the finished gather is swapped in, whole, and baked.
-## A match torn down meanwhile leaves the gather unfinished and nothing started.
+## One physics frame of the updater's work: the next due steering tile is baked (never a second on
+## a frame the tick already baked one on), and one step of the district's planning gather runs; the
+## finished gather is swapped in, whole, and baked. A match torn down meanwhile leaves the tiles and
+## the gather unfinished and nothing started.
 func _physics_process(_delta: float) -> void:
-	if _gather == null:
-		set_physics_process(false)
-		return
 	if not _alive():
+		_burst.clear()
 		_gather = null
 		_baking = false
+	elif _burst.pending():
+		_burst.step(_region, NavBuilder.site_of(_region, _house, _rooms, _agent_radius))
+	if _gather != null and _gather.step():
+		var gathered := _gather
+		_gather = null
+		NavRebake.swap(
+			_region, gathered.site, gathered.job, gathered.ring,
+			_on_landed.bind(gathered.furniture),
+		)
+	if _gather == null and not _burst.pending():
 		set_physics_process(false)
-		return
-	if not _gather.step():
-		return
-	var gathered := _gather
-	_gather = null
-	set_physics_process(false)
-	var furniture := gathered.furniture
-	NavRebake.swap(_region, gathered.site, gathered.job, gathered.ring, _on_landed.bind(furniture))
+
+
+## The steering tiles of a district still to bake or landing with this tick's burst, for tests.
+func tiles_in_play() -> Array[NavigationRegion2D]:
+	return _burst.tiles_in_play()
 
 
 ## Wire the updater to the baked map and start the interval. `region` is NavBuilder.build's result,
@@ -98,11 +108,14 @@ func setup(
 ## holes at the live positions, baked on a worker thread (`NavRebake.planning`; a
 ## furniture move while one is in flight waits for the next tick) and the steering region's in
 ## place; if only a character has, re-carve the steering region. Refreshes the overlay after either.
-## Nothing moved, nothing baked. The steering re-bake lands in the tick's own frame, so a walker
-## looking for a way round a body at rest finds it on its next look
-## (`navigation/steering_rebake_lands_in_its_tick`). A lone house's planning gather goes with it; a
-## district's is a job of a few physics frames (`NavGather`, `_physics_process`), swapped in whole
-## and baked on the worker thread, and a move meanwhile waits for the next tick after it.
+## Nothing moved, nothing baked. A lone house's steering region lands in the tick's own frame; a
+## district's due tiles are baked one a physics frame, the walker's own first, and land together
+## with the last (`NavTileBurst`: one steering-map sync a tick), so a walker looking for a way round
+## a body at rest sees it up to the burst's frames later
+## (`navigation/steering_rebake_lands_in_its_tick`, `navigation/tile_rebake_one_a_frame`). A lone
+## house's planning gather goes with it; a district's is a job of a few physics frames (`NavGather`,
+## `_physics_process`), swapped in whole and baked on the worker thread, and a move meanwhile waits
+## for the next tick after it.
 func _on_tick() -> void:
 	if not enabled or _region == null or not is_instance_valid(_house):
 		return
@@ -119,13 +132,24 @@ func _on_tick() -> void:
 	var walls := {}
 	if planning and not staged:
 		walls = _rebake_planning(site, furniture)
-	NavRebake.steering(_region, site, furniture, characters, walls)
+	if staged:
+		_burst.land()  # a burst still open: what it holds is on its tiles before they are read
+		_burst.begin(NavTiles.due_tiles(
+			_region,
+			site,
+			furniture,
+			characters,
+			NavTiles.walking_at(_house.get_parent()),
+		))
+		_burst.step(_region, site)
+	else:
+		NavRebake.steering(_region, site, furniture, characters, walls)
 	_character_baseline = characters
 	_refresh_overlay()
 	if planning and staged:
 		_baking = true
 		_gather = NavGather.new(_region, site, _baseline, furniture)
-		set_physics_process(true)
+	set_physics_process(_gather != null or _burst.pending())
 
 
 ## What a planning bake's landing does: the baseline is what it carved (`furniture`), the next move

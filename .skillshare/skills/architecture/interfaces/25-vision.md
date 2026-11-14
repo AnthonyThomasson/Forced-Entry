@@ -11,13 +11,13 @@
       once, so everything is drawn and repainted again, live, for the rest of the match).
     - **What it reads of the world:** the physics space (`SightRay`, 11, on `PhysicsLayers.SOLID`), the groups `floors` (the memory's
       bounds) and, through each blocker, `get_surface()` (`coverage`, `transparent`) and the signal `changed` (a door). It writes `SeenArea`
-      (11) each rebuild. It draws at `DrawLayers.VISION` and sorts the world by `ViewLayers` (11): its capture leaves `MOVING` and `OVERLAY`
+      (11) each time a cone is published. It draws at `DrawLayers.VISION` and sorts the world by `ViewLayers` (11): its capture leaves `MOVING` and `OVERLAY`
       out of its cull mask.
     - **Test reads** on a `PlayerView` (helpers in `tests/_vision/vision_probe.gd`): `viewer()`, `cone() -> PackedVector2Array` (the eye, then
-      one corner per ray; empty without a facing), `bubble()`, `sees(point) -> bool`, `rebuilds() -> int` (how often the cone was rebuilt), `corner_rays() -> int` and `corners_read() -> int` (the last rebuild's rays to corners and corners read: its cost),
+      one corner per ray; empty without a facing), `bubble()`, `sees(point) -> bool`, `rebuilds() -> int` (how many cones were published: a cone job that ran to its end, or a whole build), `starts() -> int` (how many jobs were begun, restarts and whole builds included), `building() -> bool` (a job is in flight, so the cone shown is older than the world and the viewer), `published_pose() -> Dictionary` (`{eye, facing}`: the viewer's pose when the job that built the cone shown started, 2 to 4 frames behind the viewer; `cone()`, `bubble()` and the memory's paint are the exact cone of that pose: tests compare against it, never against the live pose, `tests/_vision/cone_checker.gd`), `rebuild_causes() -> Dictionary` (running totals the perf probe reads: `restarts`, whole builds by cause `first` / `jump` / `cap`, and `units` of engine work stepped), `corner_rays() -> int` and `corners_read() -> int` (the last published job's rays to corners and corners read: its cost),
       `memory()`, `capture()`, `mask()` (the `SubViewport`s), `painter()`, `mask_painter()`, `composite()`, `memory_scale()`, `wiping()`.
     - **Tuning:** `VisionConfig` (`enabled`, the look `grey` / `contrast` / `pivot` / `brightness` / `tint`, `feather`, `memory_scale`,
-      `cone_rays`, `bubble_rays`, `corner_offset`, `far_depth`, `far_bleed`, `rebuild_every`, `rebuild_gap`: the cone's rebuild gap in frames while only the eye or facing moved a little, 1 = no lag); what a character sees by is Character's
+      `cone_rays`, `bubble_rays`, `corner_offset`, `far_depth`, `far_bleed`, `rebuild_every`) and `VisionSliceConfig` (`slice_units`, the cost of a cone job's physics tick; `restart_cap`; `jump_px`; the unit prices); what a character sees by is Character's
       `CharacterVisionConfig` (7). The Testing switch `vision.enabled` sets `VisionConfig.enabled`.
     - **Owners of the moving and overlay bits** (11): Character, Items, Projectile, Physics and Vehicles put what they own on `MOVING` and back
       on `WORLD` at rest; the AI's debug overlays, Navigation's `NavDebug` and the UI's markers are overlays; Lighting keeps its flash lights

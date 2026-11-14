@@ -47,6 +47,8 @@ var memo_hits := 0
 ## How many polygon reads checked a non-character shape against its body: at most one a polygon a
 ## rebuild (a fast-path test's observable).
 var validations := 0
+## How many shape queries `corners` has asked in all (a job counts them as engine work).
+var queries := 0
 ## The rids of the colliders in reach that sight looks over (coverage at or below `see_over`), read
 ## by `corners` for one build, and the instance ids already in it.
 var _lows: Array = []
@@ -127,9 +129,11 @@ func _note_low(hit: Dictionary) -> void:
 ## asked for, so a result that comes back full is asked again with a larger cap.
 func _shapes_in_reach(space: PhysicsDirectSpaceState2D) -> Array[Dictionary]:
 	var cap := FIRST_RESULTS
+	queries += 1
 	var hits := space.intersect_shape(_query, cap)
 	while hits.size() >= cap:
 		cap *= GROWTH
+		queries += 1
 		hits = space.intersect_shape(_query, cap)
 	return hits
 

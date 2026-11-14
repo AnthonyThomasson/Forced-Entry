@@ -5,16 +5,16 @@
 	 solid furniture footprint** (every `RigidBody2D` with a collider, anchored pieces frozen static among them; walk-over decor has none).
 	 **Doors are left out of every bake** (planning, steering and avoid maps): the bodies of the group `doors` (interface 24, an
 	 `AnimatableBody2D`, a static collider to the parse) are taken off the solid layer for the parse, so paths cross a doorway as if open and
-	 the walker opens the door (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`). **A door at its open stop** (within
+	 the walker opens the door (ADR 0010). **A door at its open stop** (within
 	 `NavLeaves.OPEN_SLACK`, 10°, standing) is carved where its leaf stands, as a 2 px strip along the leaf (a furniture hole, so every bake,
 	 re-bake and the overlay take it) where at least `NavLeaves.MIN_PASS` (4 px) of way past it stays open (not in a 52 px doorway): its
 	 doorway stays open past it and a path goes round the leaf in the room it swings into. `NavBuilder.leaf_in_map(door) -> bool` tells
 	 whether a door's leaf is in the map so (the walker goes through any other door by a clean gap or opens it, DR14).
    - **Re-bake** is the Navigation domain's own: `nav_updater.gd` (built by `MatchBuilder.stage`) re-carves the furniture holes in place at
-	 the pieces' **current** positions, only when a piece has moved, the planning bake on a worker thread, landing on a fixed physics frame (`NavBakeConfig`). The steering re-bake lands in the frame of the tick that measured the change (house and district alike: the AI's held walkers look for a way round a body on a timer, and a late map misses the look); a district's planning re-bake is not in the tick: a job of `NavGather` steps over 7 physics frames into a second buffer nothing reads, swapped in whole by `NavRebake`'s swap when complete, so a read during it sees the previous map (`domain-navigation`, its re-bake side file).
+	 the pieces' **current** positions, only when a piece has moved, the planning bake on a worker thread, landing on a fixed physics frame (`NavBakeConfig`). The steering re-bake lands in the tick's frame (a held walker looks for a way round a body on a timer) in a house; a district's due tiles are baked a frame each and land together; a district's planning re-bake is not in the tick: a job of `NavGather` steps over 7 physics frames into a second buffer nothing reads, swapped in whole by `NavRebake`'s swap when complete, so a read during it sees the previous map (`domain-navigation`, its re-bake side file).
 	 `NavBuilder.rebake` / `rebake_async` / `rebake_steering` are test-facing seams, not this surface (`domain-navigation`): `rebake_async`,
-	 `NavRebake.planning` and `swap` return `Array[NavBake]` (a bake's `was_late`); tests and the perf probe read `NavBake.started_total` /
-	 `late_total`. A bake lands on a `GameClock` frame, so a pause defers it.
+	 `NavRebake.planning` and `swap` return `Array[NavBake]` (`was_late`); the perf probe reads `NavBake.started_total` /
+	 `late_total` / `landed_total`, `NavTiles.baked_total`, `NavBuilder.avoid_starts` / `avoid_rebakes`. A bake lands on a `GameClock` frame; a pause defers it.
    - `NavBuilder.furniture_holes(house) -> Array` — the carved footprints (anchored pieces and open door leaves included) as world-space polygons: what
 	 `nav_debug.gd` draws, `nav_updater.gd` watches for a moved piece, and `match_spawner.gd` keeps a spawn's clearance from.
    - **Characters at rest are holes too, on a second map.** `NavBuilder.character_holes(root) -> Array` (footprints of the living characters

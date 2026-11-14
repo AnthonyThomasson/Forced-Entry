@@ -41,15 +41,29 @@ full, so no cap drops one). Doors (`docs/doors.md`) follow the same rule: a shut
 only when its output can change: the eye moved or turned, the viewer's sight numbers changed, or where a ray can pass (the sector the viewer looks along and the bubble round it,
 within the view distance) a blocker moved,
 changed shape (a dent, a wall re-cut, a door's swing, fall or shattered panes) or joined or left; plus a forced rebuild every
-`VisionConfig.rebuild_every` (10) physics frames, a backstop. A frame skipped because nothing changed shows the cone a fresh
-rebuild would draw, vertex for vertex. **The pose lag:** while only the viewer's eye (moved at most 5 px) or facing (turned at
-most 1°) differs from the last rebuild's, the cone is rebuilt at most every `VisionConfig.rebuild_gap` (2) physics frames (1 =
-every frame, with no lag); a frame in between shows the exact cone of the last rebuild, which is a fresh cone of an eye the viewer
-really stood at, so the memory (V4) never holds area the eye did not see. The lag is at most one frame of the eye's walk (2.5 px
-a frame at 150 px/s, 4.25 px running) and of its turn; a mover entering or leaving the seen area (V11) may show one frame late.
-A change the pose does not explain is not lagged: a blocker in reach that moved, changed or joined or left, a character that
-blocks, a changed sight number or cone tuning, an eye or facing past the bounds, and the backstop rebuild in that very frame.
-Tests: `vision/pose_lag_bounds` (the lag and its bounds),  `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
+`VisionConfig.rebuild_every` (10) physics frames, a backstop. A frame that starts nothing shows the cone the last job published.
+**The cone is a job (#195).** A rebuild is not one frame's work: the view starts a job from the viewer's live eye, facing and sight
+and steps it `VisionSliceConfig.slice_units` (450, about 3.5 ms) of engine work in each physics tick until it is done, and only then
+publishes it (`SeenArea`, the memory's paint, the composite read the cone, the bubble and the eye together). **The published cone is
+the fresh cone of the pose the job started from, in the world as it was then: the exact cone of one eye in one world state, never a
+mix and never extrapolated** (the memory, V4, never holds area no eye saw). It is as old as the job is long: a job of k ticks started
+in tick f publishes in tick f+k-1 and the next starts in f+k, so the cone shown is at most 2 (k - 1) frames old. **Usually that is 3 ticks, 2 to 4
+frames; a job of 4 ticks is up to 6 frames old, and the longest of a district (6 ticks) up to 10.** In the 10v10 district's grid of eyes (`perf/cone_corner_cost`) a job was a median 3 ticks, 26 % took more
+than 3 and the most took 6 (the rays of a district job were a median 511 units, so at 450 a slice the median job is the corners' tick and two of rays; a house's rays, about 270, are one). The bound is longer than the 2 to 4 of the cone as first
+sliced because its corners are priced honestly, below; the user accepted that (2026-11-12). **The corners are priced at a slice** (`cost_shape` 450: the region shape query and its
+polygons cost about 1.95 ms, 372 to 374 units of ray work at 5.4 to 5.5 µs), so the tick that starts a job does the corners and no rays, and the
+rays begin the next tick: a start tick is about 2 ms, not 6 to 7, and a job is the corners' tick plus its rays' ticks (a house's is two
+ticks, a 10v10 district's three for most eyes). What the viewer's pose does meanwhile is not asked: **a change of
+the eye or the facing alone lets the job finish on the pose it started from**, and the next job starts from the live pose. **A change
+of the world between slices restarts the job from the live pose** (a blocker within reach moved, changed shape, joined or left, a
+character that blocks, a changed sight number or cone tuning, and the frame after a job began while a blocker within reach moved,
+which a query that frame may have read where it was): the readers keep the last cone published until a job completes. After
+`VisionSliceConfig.restart_cap` (2) restarts in a row, since the last publish, the next restart is built whole in that frame; so is the
+first cone of a view, and the cone for **an eye that jumped** past `jump_px` (48) from the pose of the cone published (a
+teleport, a vehicle), checked every tick: the cone shown is never more than that far behind. A lift (V9) drops a half job with the view. The old pose lag
+(`rebuild_gap`, an eye 5 px or a facing 1 degree off waiting a frame) is gone: the job's length is the lag. A mover entering or leaving
+the seen area (V11) shows when the next cone publishes.
+Tests: `vision/pose_lag_bounds` (the pipeline: a job of 3 slices is published a cone at most 4 frames old, a job of 6 ticks one at most 10 frames old, and of a pose the viewer stood at, a pose change alone restarts nothing, an eye jump of 60 px and a blocking character's every-frame change are built whole, the memory paints only published cones), `vision/cone_restarts_on_world_change` (a wardrobe moved or a solid joined between two slices restarts the job and the cone published is the reference cone of the world after, not of the one the job began on or a mix; a wardrobe moved every frame is built whole after two restarts, at least every fourth frame, of the live pose),  `vision/half_job_dropped` (the viewer killed, or the view disabled, with a job in flight: the job is dropped, the seen area cleared and not written by it again, and a view enabled again builds its first cone whole), `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
 the table and inside the cone are in the polygon; points behind the wardrobe, beyond the wall, behind the eye past 48 are not;
 points within 48 behind it are), `vision/cone_exact_at_corners` (eyes near the room corners and the doorway's ends, facing along
 and across the walls: no sampled point behind a corner is inside the polygon and every sampled point the eye sees is; a seen
@@ -58,10 +72,9 @@ than any query cap: every wardrobe keeps its corner rays), `vision/cone_same_aft
 cone, the plainest form of the cone, vertex for vertex, over a grid of eyes and facings in generated houses and after a door, a
 shove and a freed piece move through it), `vision/fan_hide_margin_keeps_grazing_corner` (a shelf's tip a hair off a fan ray whose hit the engine
 reports 0.02 px off the shelf is cast: the fan calls a corner hidden only when the two rays either side of it met one convex shape nearer
-than the corner and the corner is more than a quarter pixel, at its own distance, from either ray), `vision/cone_skip_exact` (a still then a turning viewer through a dent, a shove, a
-door's swing, panes shattered, a door knocked down, a piece added and freed, a posture change and a death: every frame the
-polygon equals a fresh rebuild's from the pose of the last rebuild (the pose lag), vertex for vertex; a still viewer rebuilds far less than every frame and never goes more than
-`rebuild_every` frames without a rebuild). `vision/cone_follows_sight` also hangs three doors in the wall the rooms share, and
+than the corner and the corner is more than a quarter pixel, at its own distance, from either ray), `vision/cone_skip_exact` and `vision/cone_skip_exact_sliced` (the same run with the job cut into 90-unit slices) (a still then a turning viewer through a dent, a shove, a
+door's swing, panes shattered, a door knocked down, a piece added and freed, a posture change and a death: every cone published equals a fresh rebuild's from the pose it is of (`PlayerView.published_pose()`), vertex for vertex, the cone held between two publishes is the one before, and a view settled on the viewer's pose shows the live pose's; a still viewer starts far fewer jobs than there are frames and never goes more than
+`rebuild_every` frames without starting one). `vision/cone_follows_sight` also hangs three doors in the wall the rooms share, and
 the eye stands before each in turn: the point beyond a shut solid door and one beyond a shut hollow door are not in the polygon,
 the point beyond a shut glass-panel door is, the solid door swung open shows the point through its gap and hides it again shut,
 and a hollow door knocked down does not hide it (`objects/door_blocks` holds the rule for an NPC's sight).
@@ -146,15 +159,15 @@ box reach it, so no repaint is skipped).
 
 **V11. Unseen characters are not repainted.** A character whose drawn reach (a 60 px disc round it) lies wholly outside the cone
 and bubble is not repainted while it stays there; its pose, aim, hands, footsteps and ragdoll keep running (gameplay reads those,
-never the drawing). The frame any of its reach enters the cone it is repainted before it is drawn. A dead body at rest keeps its
+never the drawing). The frame any of its reach enters the cone published (V1: the cone shown is a job old while one runs) it is repainted before it is drawn. A dead body at rest keeps its
 last drawing (it is remembered). A blood pool is not redrawn while the box its cells cover is wholly outside the cone, and is
 redrawn the frame the cone reaches it. With no view (Watch, Endless, the switch off, the view lifted) everything is repainted as
-before. The seen area is General's `SeenArea`: Vision writes the cone's polygons each rebuild and clears them on a lift; a disc
+before. The seen area is General's `SeenArea`: Vision writes the cone's polygons each time a cone is published (a job done) and clears them on a lift; a disc
 (`reaches`) or a box (`reaches_rect`) asks it. The one test of a point inside a polygon is `SeenArea.contains`, an even-odd rule (the view's `sees` asks it too), since the engine's
 `Geometry2D.is_point_in_polygon` said inside for points well outside a cone with many collinear corners; a pool asks about its
 box, not the circle round it, whose radius reaches into the viewer's 48 px bubble when the box does not. A character decides in
 `_process` and a pool in `_process` too (marked stale in physics), after the view has written the frame's area in its physics tick,
-so a repaint is never a frame late. Tests: `vision/unseen_not_repainted` (a walker outside the cone: its repaint count is flat and
+so a repaint is never later than the publish of the cone that reaches it: V1's job length, not a frame more. Tests: `vision/unseen_not_repainted` (a walker outside the cone: its repaint count is flat and
 its pose keeps updating, a bullet hits the same zone with and without the view; walking in, it is repainted the frame its reach
 enters; a settled body outside keeps its drawing; a pool outside is never redrawn and is redrawn the frame the cone sweeps onto
 it; repainted again when the view lifts), `general/seen_area_suite` and `general/seen_area_rect_suite` (native: the disc and box
@@ -206,13 +219,36 @@ backstop that bounds it; a feature that makes one change must tell `ViewShapes` 
 
 `VisionConfig`: `enabled` true; the look `grey` 1.0, `contrast` 0.9, `pivot` 0.3, `brightness` 0.55, `tint` (0.88, 0.96, 1.12);
 `feather` 16; `memory_scale` 2; `cone_rays` 64, `bubble_rays` 48, `corner_offset` 0.0002 rad; `far_depth` 120, `far_bleed` 14;
-`rebuild_every` 10, `rebuild_gap` 2. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48,
+`rebuild_every` 10. `VisionSliceConfig`: `slice_units` 450 (about 3.5 ms of engine work a physics tick; a unit is a ray cast, a region shape
+query or a far-face probe, priced `cost_cast` 1, `cost_shape` 450 and `cost_probe` 1: the corners fill a slice), `restart_cap` 2, `jump_px` 48. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48,
 `see_over_coverage` 60. The repaint reach is `CharacterVisuals.SEEN_REACH` (60). The look and the 16 px edge were picked by eye,
 against a flat 45 % grey (too dark and flat), a full-brightness grey (too close to the live world), a hard edge (a harsh line) and
 a 40 px feather (it smears the cone).
-Tests: `vision/pose_lag_bounds` (`rebuild_gap` and its bounds), `vision/cone_skip_exact` (`rebuild_every`).
+Tests: `vision/pose_lag_bounds` (`slice_units`, `jump_px`), `vision/cone_restarts_on_world_change` (`restart_cap`), `vision/cone_skip_exact` (`rebuild_every`).
 
 ## Measured cost
+
+**2026-11-12, the corners priced at a slice (#195, cone-start; `--quiet` runs, none marked loaded, load 4.7 to 7.5, 0 busy Godot).**
+`perf/cone_corner_cost` (the 10v10 district, 168 reads: a grid of eyes and facings, each the median of 5): the corners (`begin` and the first
+step: the region shape query, its polygons, the dedupe) took **1,982 and 1,937 µs** against **5.51 and 5.35 µs** a unit of the rest of the job
+(rays, far-face probes, visibility casts), so **372 to 374 units** (p25 168, p75 627 by eye), where `cost_shape` had been 1. It is 450 now, a
+slice, so the tick that starts a job holds the corners (about 2 ms) and no rays, not the corners plus 449 units (about 6 to 7 ms). The
+cost is a tick more a job: at the default slice a district job was a median 2 ticks (max 5; 11 % over 3) and is a median **3 (max 6; 26 % over
+3)**; the cone shown is 2 times (ticks - 1) frames old at most (V1 has the figures). `perf_ab.sh` same-fight, base `5343aa38`,
+tip `dc3fa0dc`, 4 rounds, the fight unchanged (the cone steers no NPC): `perf/match_npc_vision` avg 16.94 to 16.29 ms (-0.65), p95 28.83 to
+28.52, max 43.52 to 39.19 (-4.33); the three guards with no view moved by noise (avg +0.03, +0.06, +0.34). `perf/match_npc_vision_relative`, one run:
+parked -0.13 ms, ratio 0.08; moving 1.34 ms (2.0 to 2.1 before), ratio 0.19 (0.25 to 0.26 before).
+Tests: `perf/cone_corner_cost`, `vision/cone_corners_priced`, `perf/match_npc_vision`, `perf/match_npc_vision_relative`.
+
+**2026-11-12, the cone as a sliced job (#195; `--quiet` runs, none marked loaded, load 3.9 to 5.9, 0 to 2 busy Godot).** The same fight
+at the commit before the pipeline (`d3f40a8f`) and at it. `perf/match_npc_vision_relative`, three runs before and six after: the moving view's cost over
+the unviewed match **4.49, 4.67 and 4.36 ms before, 2.05, 2.00, 2.00, 1.94, 2.04 and 2.14 after (six runs)** (the job is one slice, about 3.5 ms, a frame, where the
+whole rebuild fell in every moving frame), its cone 0.44 to 0.45 of the reference cone's before and 0.25 to 0.26 after; the parked view
+-0.14, -0.14 and -0.08 ms before, -0.17, -0.32, -0.23, -0.07, -0.32 and -0.09 after (no change: it rebuilds for its backstop only). `MOVING_BUDGET_MS` is
+3.5 ms, 1.7 times the median of six runs of the sliced cone (2.05, 2.00, 2.00, 1.94, 2.04, 2.14 ms) and below the 4.36 to 4.67 of the cone before. `perf_ab.sh` in same-fight mode (`--ids=perf/match_npc_vision`, 3 rounds, the fight is unchanged since
+the view steers no NPC): the absolute guard's median avg frame 19.12 ms before and 17.75 after (-1.37 ms, -7.2 %), p95 31.70 and 29.17,
+max 47.44 and 42.37. (That guard's gain is smaller than the relative guard's: what share of its frame the view's cone is was not separated.) The age of the cone shown is V1's.
+Tests: `perf/match_npc_vision_relative`, `perf/match_npc_vision`.
 
 **2026-11-07, the pose lag and the fan table (not `--quiet`: load 10 to 12, 29 other Godot).** `perf/match_npc_vision_relative` with the parked
 viewer moved to the district's outer corner facing away from the fight (a viewer in the centre house's largest room rebuilt on 28 to 100 %

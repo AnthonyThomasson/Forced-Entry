@@ -1,19 +1,36 @@
 #!/usr/bin/env python3
-"""Same-fight A/B of two revisions on the match guards (#203): tools/perf_ab.sh BASE TIP [options].
+"""A/B of two revisions on the match guards (#203, #195): tools/perf_ab.sh BASE TIP [options].
 
 A revision plays its own match, so two revisions' frame times are only comparable when they played the same fight (read
 .skillshare/skills/domain-testing/perf-nondeterminism.md and perf-fingerprint.md). This tool runs the match guards on both revisions in
 rounds (BASE, TIP, BASE, TIP ...), each through that revision's own tools/run_tests.sh with GAME_TEST_FINGERPRINT_DIR set
-to a directory of that round, checks every round's fight fingerprint against the first one of BASE and, only when every
-fight is the same, prints per test the medians of avg / p95 / max ms per frame for BASE and TIP and the delta.
+to a directory of that round. By default (same-fight mode) it checks every round's fight fingerprint against the first one of BASE
+and, only when every fight is the same, prints per test the medians of avg / p95 / max ms per frame for BASE and TIP and the delta.
+With --different-fights it checks each side's rounds against that side's own first round instead (below).
 
-  tools/perf_ab.sh BASE TIP [--ids=perf/a,perf/b] [--rounds=6] [--bar=5] [--retries=3] [--quiet=30] [--clean]
+  tools/perf_ab.sh BASE TIP [--different-fights] [--ids=perf/a,perf/b] [--rounds=6] [--bar=5] [--retries=3] [--quiet=30] [--clean]
   tools/perf_ab.sh --clean
+
+Two modes. Use the default (same fight) for a change that keeps every result identical (a speed-up that must not change what the
+game does): it proves the fight is the same and the delta is the code's. Use --different-fights for a change that changes the
+fight on purpose (a decision that lands later, a cone published late): the two revisions cannot play one fight, so it only
+checks that each revision still replays its own, and the delta is a statement about two different matches' cost.
 
   BASE, TIP    two revisions (anything `git rev-parse` resolves), resolved to shas first: BASE and TIP may be the same sha.
   --ids=       the tests to run, a comma list (default: the four match guards: perf/match_5v5_stress,
                perf/grenade_match_stress, perf/match_10v10_stress, perf/match_npc_vision).
-  --rounds=N   rounds of BASE then TIP (default 6).
+  --different-fights
+               BASE and TIP may play different fights (a behaviour-changing slice); at least 2 rounds (the replay of a side
+               cannot be checked with one: --rounds=1 is a usage error, exit 2). Default rounds 10 (more rounds: the medians
+               of two different fights are noisier than of one). The rounds still interleave and a round marked loaded is still
+               dropped. The refusal changes: BASE's fingerprints and TIP's are not compared with each other, but every round of a
+               side is compared with that side's first round, and a round that differs ends the run (exit 3, `<SIDE> does not
+               replay its own fight: frame N`, the side, the test and the files named): frame times of a revision that plays a
+               different match every round say nothing. The report is labelled DIFFERENT FIGHTS, says per test whether BASE and
+               TIP happened to play the same fight (and from which frame they differ), prints the medians of avg / p95 / max and
+               their deltas, and holds the avg delta to --bar as ever (p95 and max are printed, not held). Without the flag the
+               strict same-fight mode is unchanged.
+  --rounds=N   rounds of BASE then TIP (default 6; 10 with --different-fights).
   --bar=P      the delta of the median avg, in percent of BASE's median avg, a TIP may not exceed (default 5); the run
                exits 1 past it. p95 and max are printed as percent of BASE's avg too, and are not held.
   --retries=N  a round whose result is marked `loaded` (run_tests.sh --quiet gave up waiting for a quiet machine) is
@@ -32,9 +49,11 @@ lines are what is read. A round that wrote no fingerprint, or printed no PERF av
 Every round's run_tests.sh output is kept in its run directory (`run_tests.out`, named by a failure that read it); the run
 directories are removed when the run ends well and kept when it does not.
 
-Exit: 0 every test within the bar; 1 a delta over the bar (a regression); 3 the fights differ (a refusal, no delta is printed:
-`fights differ from frame N`, N the first frame of two fingerprints that differs, the files kept and named); 2 a usage error or a run
-that could not be read.
+Exit: 0 every test within the bar; 1 a delta over the bar (a regression); 3 a refusal, no delta is printed, the two fingerprint files
+kept and named; 2 a usage error or a run that could not be read. Exit 3 has two causes, told apart by the first words of the stderr
+line: `perf_ab: fights differ from frame N: <test>, ...` (same-fight mode: BASE and TIP, or two plays of one, played different
+matches) and `perf_ab: <BASE|TIP> does not replay its own fight, from frame N: <test>, ...` (--different-fights: that side's
+round differs from its own first round); N is the first frame of the two fingerprints that differs.
 """
 from __future__ import annotations
 
@@ -51,6 +70,7 @@ REPO = Path(__file__).resolve().parents[1]
 SCRATCH_NAME = "forced-entry-perf-ab"
 DEFAULT_IDS = ("perf/match_5v5_stress", "perf/grenade_match_stress", "perf/match_10v10_stress", "perf/match_npc_vision")
 DEFAULT_ROUNDS = 6
+DEFAULT_ROUNDS_DIFFERENT_FIGHTS = 10
 DEFAULT_BAR = 5.0
 DEFAULT_RETRIES = 3
 METRICS = ("avg", "p95", "max")
@@ -61,7 +81,7 @@ LOADED_SUFFIX = re.compile(r"  loaded$")
 EXIT_OVER_BAR = 1
 EXIT_UNREADABLE = 2
 EXIT_FIGHTS_DIFFER = 3
-USAGE = "usage: tools/perf_ab.sh BASE TIP [--ids=perf/a,perf/b] [--rounds=6] [--bar=5] [--retries=3] [--quiet=30] [--clean]   |   tools/perf_ab.sh --clean"
+USAGE = "usage: tools/perf_ab.sh BASE TIP [--different-fights] [--ids=perf/a,perf/b] [--rounds=6] [--bar=5] [--retries=3] [--quiet=30] [--clean]   |   tools/perf_ab.sh --clean"
 
 
 class Fail(Exception):
@@ -76,7 +96,8 @@ class Options:
     def __init__(self):
         self.revisions: list[str] = []
         self.ids = list(DEFAULT_IDS)
-        self.rounds = DEFAULT_ROUNDS
+        self.rounds: int | None = None  # None: the mode's default (settled after the flags are read)
+        self.different_fights = False
         self.bar = DEFAULT_BAR
         self.retries = DEFAULT_RETRIES
         self.quiet = "--quiet"
@@ -88,6 +109,8 @@ def parse_args(argv: list[str]) -> Options:
     for a in argv:
         if a == "--clean":
             o.clean = True
+        elif a == "--different-fights":
+            o.different_fights = True
         elif a.startswith("--ids="):
             o.ids = [i for i in a[len("--ids="):].split(",") if i]
             if not o.ids or any(not re.fullmatch(r"[\w/.-]+", i) for i in o.ids):
@@ -116,6 +139,10 @@ def parse_args(argv: list[str]) -> Options:
             raise Fail("unknown flag: %s\n%s" % (a, USAGE))
         else:
             o.revisions.append(a)
+    if o.rounds is None:
+        o.rounds = DEFAULT_ROUNDS_DIFFERENT_FIGHTS if o.different_fights else DEFAULT_ROUNDS
+    if o.different_fights and o.rounds < 2:
+        raise Fail("--different-fights wants --rounds=2 or more: a side's replay of its own fight is checked against its first round\n%s" % USAGE)
     if o.revisions == [] and o.clean:
         return o
     if len(o.revisions) != 2:
@@ -270,7 +297,7 @@ class Session:
         self.base_sha, self.tip_sha = shas
         self.trees = {sha: ensure_tree(sha) for sha in dict.fromkeys(shas)}
         self.runs = scratch_root() / "runs" / str(os.getpid())
-        self.reference: dict[str, tuple[Path, str]] = {}
+        self.reference: dict[str | tuple[str, str], tuple[Path, str]] = {}  # strict: test id; --different-fights: (side, test id)
         self.results = {"BASE": {i: {k: [] for k in METRICS} for i in options.ids},
                         "TIP": {i: {k: [] for k in METRICS} for i in options.ids}}
         self.keep_runs = False
@@ -302,25 +329,42 @@ class Session:
             if not path.is_file():
                 raise Fail("%s: %s wrote no fight fingerprint (%s): does that revision's test call Perf.record_fight?"
                            % (where, test_id, path))
-            if test_id not in self.reference:
-                self.reference[test_id] = (path, "%s %s round %d" % (side, self.sha_of(side)[:8], number))
+            key = (side, test_id) if self.o.different_fights else test_id  # strict: one reference, BASE's first round
+            if key not in self.reference:
+                self.reference[key] = (path, "%s %s round %d" % (side, self.sha_of(side)[:8], number))
                 continue
-            ref_path, ref_where = self.reference[test_id]
+            ref_path, ref_where = self.reference[key]
             frame = first_difference(ref_path, path)
-            if frame is not None:
-                self.keep_runs = True
-                raise Fail("fights differ from frame %d: %s, %s against %s %s round %d\n  %s\n  %s\nthe frame times are not compared: the "
-                           "revisions (or two plays of one) did not play the same match (perf-nondeterminism.md)"
-                           % (frame, test_id, ref_where, side, self.sha_of(side)[:8], number, ref_path, path), EXIT_FIGHTS_DIFFER)
+            if frame is None:
+                continue
+            self.keep_runs = True
+            if self.o.different_fights:
+                raise Fail("%s does not replay its own fight, from frame %d: %s, %s against %s %s round %d\n  %s\n  %s\nthe frame times are not "
+                           "compared: a revision that plays another match every round says nothing, different fights or not "
+                           "(perf-nondeterminism.md)"
+                           % (side, frame, test_id, ref_where, side, self.sha_of(side)[:8], number, ref_path, path), EXIT_FIGHTS_DIFFER)
+            raise Fail("fights differ from frame %d: %s, %s against %s %s round %d\n  %s\n  %s\nthe frame times are not compared: the "
+                       "revisions (or two plays of one) did not play the same match (perf-nondeterminism.md)"
+                       % (frame, test_id, ref_where, side, self.sha_of(side)[:8], number, ref_path, path), EXIT_FIGHTS_DIFFER)
+
+    def fights_line(self, test_id: str) -> str:
+        """Different-fights mode: whether BASE's first fight and TIP's first fight of a test are the same one."""
+        frame = first_difference(self.reference[("BASE", test_id)][0], self.reference[("TIP", test_id)][0])
+        return "BASE and TIP played the same fight" if frame is None else "BASE and TIP differ from frame %d" % frame
 
     def report(self) -> int:
         o = self.o
         print("\nperf_ab: BASE %s  TIP %s  %d rounds each, medians, bar %g%% of BASE avg" % (self.base_sha[:8], self.tip_sha[:8], o.rounds, o.bar))
+        if o.different_fights:
+            print("perf_ab: DIFFERENT FIGHTS mode: each side replayed its own fight every round, BASE and TIP are not required to have played the same one;\n"
+                  "         the deltas compare two matches' cost, not one fight's: read them as a measure of the matches, not of the code alone")
         failed = []
         for test_id in o.ids:
             base = {k: statistics.median(self.results["BASE"][test_id][k]) for k in METRICS}
             tip = {k: statistics.median(self.results["TIP"][test_id][k]) for k in METRICS}
-            print("\n%s" % test_id)
+            print("\n%s%s" % (test_id, "  (different fights)" if o.different_fights else ""))
+            if o.different_fights:
+                print("  fights: %s" % self.fights_line(test_id))
             for k in METRICS:
                 delta = tip[k] - base[k]
                 pct = delta / base["avg"] * 100 if base["avg"] else 0.0
@@ -330,7 +374,7 @@ class Session:
             print("  %s: avg delta %+.1f%% of BASE avg, bar %g%%" % ("PASS" if ok else "FAIL", pct, o.bar))
             if not ok:
                 failed.append(test_id)
-        print("\nperf_ab: %s" % ("FAIL: over the bar: " + ", ".join(failed) if failed else "PASS"))
+        print("\nperf_ab: %s%s" % ("FAIL: over the bar: " + ", ".join(failed) if failed else "PASS", " (different fights)" if o.different_fights else ""))
         return EXIT_OVER_BAR if failed else 0
 
     def finish(self) -> None:

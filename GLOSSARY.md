@@ -56,6 +56,10 @@ partition walls, bare, under construction or derelict. It cannot be entered, is 
 navigation map.
 _Avoid_: ruin, building (a tower)
 
+**Steering tile**:
+One 512 px region of a district's steering map (`NavTiles`), re-baked only when what reaches it changed. A tick that finds several due bakes one a physics frame, never two on a frame (the tiles holding a walker, a living character moving at `REST_SPEED` or more, first, nearest first, then the grid's order), and lands them all in the frame of the last: the steering map synchronises once a tick, not once a tile (its edge-connection pass is off: ~0.3 ms, it was ~12 ms). A tile's polygon edges along a border are split at the vertices its neighbour has there (the **seam weld**, `NavSeams`), so both sides hold the same edges to the server; the tiles lie on a grid of whole pixels (`NavTiles.whole_pixels`).
+_Avoid_: chunk, nav cell
+
 **Elevator lobby**:
 The empty placeholder room in every tower, marked on its floor "WIP ELEVATOR LOBBY", where stairs and elevators to
 the upper floors will go. It holds no furniture and has one interior doorway and no door to the street. In the house it
@@ -171,16 +175,24 @@ hidden; matches never drive it, so its zeros say little.
 ### The decision
 
 **Decision job**:
-One NPC decision as a resumable job (`decision_job.gd`): the claim against the frame's pool, the snapshot build, the order-refusal step and the planner's walk, run piece by piece. The controller only asks it for a decision (`request`) and advances it (`advance`); a claim over a job in flight drops that job without a signal, and a refused one leaves the job and the NPC's wish as they were.
+One NPC decision as a resumable job (`decision_job.gd`): the claim against the frame's pool, the snapshot build, the order-refusal step, the group piece, the throw piece, the grenade piece and the planner's walk, run piece by piece (the radio callouts are read again as the last of them ends, the last thing before the walk). The controller only asks it for a decision (`request`) and advances it (`advance`); a claim over a job in flight drops that job without a signal, and a refused one leaves the job and the NPC's wish as they were.
 _Avoid_: decision walk (the planner's part of it), decision task
 
 **Work unit**:
-What `DecisionBudget` counts: a pool of `per_frame` units a physics frame shared by every NPC, spent by pieces at their static `cost_*`. Counted, never timed, so a decision starts the same frame on any machine. By default one whole decision is one unit.
+What `DecisionBudget` counts: a pool of `per_frame` units a physics frame shared by every NPC, spent by pieces at their static `cost_*`. Counted, never timed, so a decision starts the same frame on any machine. A unit is about a millisecond (`decision-prices.md`): the default pool is 4 a frame and a typical decision lands over two to three frames. The pool is served oldest claim first (`decision_roster.gd`), at most one decision beginning in a frame.
 _Avoid_: tick, time slice, budget (the pool's own name is `DecisionBudget`)
 
 **Piece**:
-One step of a decision job with its own price: the snapshot build's start, one analysed hostile, its finish, the order-refusal step, or one planner level. A frame whose pool is untouched runs the next piece even if it costs more than the pool.
+One step of a decision job with its own price: the snapshot build's start, one analysed hostile, its finish, the order-refusal step, a step of the group, throw or grenade piece, or one planner level. A frame whose pool is untouched runs the next piece even if it costs more than the pool.
 _Avoid_: stage, chunk
+
+**Throw piece**:
+The decision job's piece between the order-refusal step and the walk: the `grenade_ready` search for a throw the NPC could make, in steps of a count (a block of raw throw-spot candidates, the rank pass, one route), each priced by `DecisionBudget`'s `cost_throw_*`. Its answer is the one-shot search's and lands in the snapshot's facts before the planner reads it (`ThrowSearch`, `ThrowScan`; the spots themselves, `ThrowSpots`).
+_Avoid_: grenade piece (the other piece's name), throw stage
+
+**Group piece**:
+The decision job's piece between the order-refusal step and the throw piece: it builds ahead of the walk the option groups the root reads whatever the situation, `leads` (and `entries` first while a stun can be thrown), a lead or a doorway a step (`GroupBuild`, `GroupSteps`, priced by `DecisionBudget`'s `cost_group_unit`), only for a decision that starts at the root. Its groups equal the one-shot build's and are stored in the snapshot's demand, so the planner finds them built. The **grenade piece**, after the throw piece, builds the throws at the hostile the search found one at, one grenade kind a step (`decision-groups.md`).
+_Avoid_: lead piece, prefetch
 
 ### Where an NPC acts
 
@@ -298,6 +310,14 @@ The exact area one character sees right now: the cone round its facing out to it
 it, bounded by whatever breaks its line of sight (walls and tall furniture, not low furniture or a glass-panel door).
 _Avoid_: field of view (only the cone's angle), sight cone, vision cone (the NPCs' debug drawing of the same area)
 
+**Cone job**:
+One rebuild of the view cone, stepped `slice_units` of engine work a physics tick (`ViewCone.begin` / `step`, run by `ViewPipeline`) and published when done: the cone shown is the exact cone of the pose the job started from, usually 2 to 4 frames old (up to 6, at most 10 for the longest job), in the world as it was then. A change of the world between slices restarts it from the live pose; a change of the viewer's pose alone does not.
+_Avoid_: rebuild (the whole of it in one frame is still `ViewCone.rebuild`), pose lag (the old one-frame wait, gone), decision job (the AI's)
+
+**Published pose**:
+The eye and facing a cone job started from, which the cone shown is the exact cone of (`PlayerView.published_pose()`): a pose the viewer stood at usually 2 to 4 frames ago (at most 10), never one made up.
+_Avoid_: current pose, live pose (the viewer's now)
+
 **Memory**:
 The picture of the world as the human last saw it, drawn in greyscale outside the view cone and black where it never looked. It
 holds only what was on screen when seen, starts empty with the match and never fades.
@@ -310,7 +330,7 @@ sleeps, a dropped item, a spent casing, a grenade lying still, a parked vehicle 
 _Avoid_: dynamic / static, live / baked
 
 **Seen area**:
-The part of the world the view cone shows live this frame. A character or a blood pool wholly outside it is not repainted, since
+The part of the world the view cone shows live this frame (the cone last published). A character or a blood pool wholly outside it is not repainted, since
 nothing would show it.
 _Avoid_: visible region, culled
 

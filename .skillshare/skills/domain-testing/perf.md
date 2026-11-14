@@ -23,12 +23,17 @@ guard measures the planning bake whole, what a frame pays to start one and a ste
 
 A match runs without frame loss, so every frame-based test holds `Perf.SMOOTH_AVG_MS` (16.7, one 60 fps frame),
 `SMOOTH_P95_MS` (20) and `SMOOTH_MAX_MS` (33.4, two frames) through `Perf.within_frames(t, label, stats)`, at the scale of
-the largest match (twenty characters), with no looser tail. One-shot work (`Perf.time_ms`) keeps a `const` budget at the
+the largest match (twenty characters), with no looser tail.
+The one exception is `grenade_match_stress`: p95 25 and worst frame 37, by the user's decisions on #195 (item 4, rule 13), through its own
+`P95_MS` and `MAX_MS` passed to `within_frames` as `p95_limit` and `max_limit`; its average stays 16.7. Its worst frame reads 27-31 ms
+in single runs but 34.75-36.02 inside the full perf run, at the standard's 33.4.
+One-shot work (`Perf.time_ms`) keeps a `const` budget at the
 top of its test, about 4x the baseline stated in the comment above it. `Perf.within` prints `PERF <label> <value>
 (budget <limit>)`, traces it and fails the check with the value. Counts (nodes, dents, pools) are asserted tightly.
 
 **The standard is never loosened to fit a slower game:** make the game faster, or state in the test why one load is
-heavier than a match. Update the "before" numbers in a test's comment only when its load changes.
+heavier than a match. A budget moves only by the user's decision on a ticket (#195 item 4 and rule 13, for `grenade_match_stress`'s p95 and worst frame).
+Update the "before" numbers in a test's comment only when its load changes.
 
 ## The helper (`tests/_perf/perf_probe.gd`, `const Perf := preload(...)`)
 
@@ -43,9 +48,11 @@ heavier than a match. Update the "before" numbers in a test's comment only when 
   knowing a hostile, `knows_hostile`), and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines).
 - **What the player's view costs is held as a difference** (`perf/match_npc_vision_relative`: one 10v10 in one process, blocks of frames
   with the view on and off, interleaved, since two plays of a match differ by far more than the view costs): `perf-vision-cost.md` (split out to keep this file under the 8192-byte cap).
-  `perf/match_5v5_stress` is green on the district since #192; after Extensions 2 and 3 (2026-11-07) `perf/match_10v10_stress`,
-  `perf/grenade_match_stress` and `perf/match_npc_vision` still miss and AC40 is not met; none is loosened, skipped or tagged:
-  `perf-district-ext2.md`, `perf-district-ext3.md`, the gates the district moved: `perf-district.md`.
+  State since #195: `perf/match_10v10_stress`, `match_10v10_opening` and `match_5v5_stress` pass; `grenade_match_stress` passes at its
+  p95 of 25 and worst frame of 37 (the only budgets moved, above); `match_npc_vision` is red pending #223. None is skipped or tagged. History and the
+  gates the district moved: `perf-district.md`, `perf-district-ext2.md`, `perf-district-ext3.md`.
+  What one NPC costs a frame (measured, #195): `perf-npc-cost.md`. A match's opening (`perf/match_10v10_opening`, from the first
+  sighting or shot) and the worst-frames report `--verbose` prints for every frame guard: `perf-opening.md`.
 - **A wall-clock budget belongs here and nowhere else:** the lint rule `timing_in_perf` fails a `Time.get_ticks_usec()`
   under `tests/` outside `tests/perf/` and `tests/_perf/`.
 
@@ -59,25 +66,14 @@ the plain-coloured shapes.
 **Windowed keeps the same budgets:** no windowed exemption and no looser number; what a window costs is fixed at its
 cause, each fix pinned to the old pixels or bytes by a windowed-only test (`tests/character/body_mesh_matches_polygons_test.gd`,
 `tests/physics/debris_pages_match_one_batch_test.gd`, `tests/general/fill_batch_matches_draw_calls_test.gd`). The sound
-library's pre-warm renders on a worker thread (`domain-audio`).
+library's pre-warm renders on a worker thread (`domain-audio`); a sound was the only first use that hitched a fight in the frame logging of #195 (`domain-audio`).
 
-## Finding what costs, and gotchas
+## Comparing revisions, finding what costs
 
-- **Attribute by timing:** a frame's wall time is script time. A throwaway `Time.get_ticks_usec` accumulator around the
-  suspect functions (never committed), dumped at the end of the measured window, ranks them in minutes; switching a
-  feature off with `set_static` / `switch` shows what it is worth. Measure before reading: a per-frame cost is rarely
-  where the code suggests.
-- A lambda captures ints by value (count into an Array).
 - **Compare two revisions with `tools/perf_ab.sh BASE TIP`, never by one run or a sim length:** it plays both in interleaved rounds on
   scratch worktrees, drops a `loaded` round, refuses ("fights differ from frame N") unless every round played the same fight, and
-  prints the medians and the delta against `--bar`. How it reads, what is deterministic: `perf-nondeterminism.md`; the fingerprint it
-  checks: `perf-fingerprint.md`.
-- `nav.rebake` is off in tests that shove or shoot furniture into overlaps (re-baking overlapping holes logs a nav sync
-  error); the match guards keep it on and allow that log (`MATCH_LOGS`).
-- World-gen's first run in a process is slower (cold caches), so its budget covers the cold case.
-- Headless runs skip the sound pre-warm: a test that plays sound calls `Perf.warm_sounds()` first or turns `audio.sound`
-  off, or the first play of each variant lands in its worst frame.
-- A district holds hundreds of pieces, so a script callback on each is a cost of every frame (it lengthens every process group a match sorts and walks): a piece's visuals and its blood smear run none while it rests (`objects/resting_piece_runs_no_per_frame_callback`, `physics/object_smear_sleeps_at_rest`).
-- A speed-up must not change what the game does: where a fast path replaces a plain algorithm, a test pins its output to
-  the plain one (`navigation/furniture_union_fast_path`, `physics/blood_splat_merge_fast_path`,
-  `physics/convex_pieces_match_plain_scan`, `physics/shape_polygon_cache`).
+  prints the medians and the delta against `--bar`. A change that must not change the fight (a speed-up) uses that default; one
+  that changes it on purpose (a later decision, a late cone) uses `--different-fights` (10 rounds, 2 at least; each side must replay its own
+  fight, BASE and TIP need not; avg held to `--bar`; the report says "different fights"). How it reads: `perf-nondeterminism.md`;
+  the fingerprint: `perf-fingerprint.md`.
+- **Finding what costs, and gotchas** (attribute by timing, a lambda's ints, `nav.rebake`, cold world-gen, headless sound, per-piece callbacks, a speed-up pinned to the plain algorithm): `perf-gotchas.md`.

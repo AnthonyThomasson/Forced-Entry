@@ -10,6 +10,7 @@ region, `steering_regions(region)`). A tile is baked from its own walls, furnitu
 stopping re-bakes one to four tiles: ~5 ms a tick, not ~57
 (`steering_tiles_rebake_touched_test.gd`, `perf/bake_and_path_stress`). A lone house keeps one `NavSteering` region.
 
+- **The grid is on whole pixels, and its borders are welded** (`NavTiles.whole_pixels`, `nav_seams.gd`; `navigation/steering_seams_welded`, `seams_split_at_neighbour_vertices`): the baker rounds a bake's rect to whole pixels (toward zero), so tiles laid on a fractional footprint were baked to edges a pixel apart; `whole_pixels` grows the footprint to whole pixels first. Along a border a tile's polygon edge spans a stretch where its neighbour's has more vertices (a wall tip or a hole edge on the line); the server joins two polygons by an edge both hold (the same two 1 px cells), and joins the rest only in its edge-connection pass. `NavSeams.weld` therefore splits each tile's border edges at the vertices the neighbour has there, in a cell of their own (a polygon whose edge is cut is fanned into triangles from its next corner: three collinear vertices on a polygon make the server's queries answer wrongly), after a bake lands (`NavTiles.rebake`, `land`) for the tiles that landed and their neighbours. The tile keeps the polygon it was baked with (`NavSeams.RAW_META`) and holds a split copy, so a neighbour's re-bake always splits from the baked one, and a vertex a hair (the baker's 1/128 px) off the border is put on it. The steering map's edge-connection pass: `steering-edge-connections.md`.
 - **Walls are parsed tower by tower** and kept on the planning region (`NavTiles.walls_reaching`, or `walls_all` for every tower): a tile re-parses the towers reaching it,
   the planning re-bake takes every tower's from the cache and re-parses those near a moved piece. A wall shot up where nothing stands or
   moves waits for the next change there (a trade-off accepted for the district's speed; no test pins it).
@@ -18,9 +19,10 @@ stopping re-bakes one to four tiles: ~5 ms a tick, not ~57
   order. Reaches that are not a steering-tile grid (the planning ring's one large footprint) keep the every-reach scan. Bounds
   are remembered by outline contents, so unchanged furniture is not measured again and a moved outline gets a fresh bound.
   Test: `navigation/steering_bins_match_full_scan`.
-- **The steering re-bake lands in its tick's frame, house or district** (`nav_updater.gd`; `steering_rebake_lands_in_its_tick_test.gd`): a
-  held walker re-looks for a way round a body every `RECHECK` s and the map answers a frame after the re-bake, so a late one costs a whole
-  `RECHECK`. A district's planning gather is not in the tick: it runs a step a physics frame after it (`NavGather`, `rebake.md`) and its
+- **A district's steering tiles bake one a frame and land together** (`rebake.md`): a tick with several tiles due bakes them a physics frame each (a moving walker's own first) and lands them in one frame, one steering-map sync.
+- **A lone house's steering re-bake lands in its tick's frame** (`nav_updater.gd`; `steering_rebake_lands_in_its_tick_test.gd`; a district's
+  tiles land as a burst, above): a held walker re-looks for a way round a body every `RECHECK` s and the map answers a frame after the
+  re-bake, so a late one costs a whole `RECHECK`. A district's planning gather is not in the tick: it runs a step a physics frame after it (`NavGather`, `rebake.md`) and its
   bake is async; the planning region stays whole, swapped in as one.
 
 ## Avoid maps (`avoid_map`)

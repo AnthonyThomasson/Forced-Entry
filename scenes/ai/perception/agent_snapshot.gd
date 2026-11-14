@@ -43,6 +43,8 @@ var _throws := SnapshotThrows.new()
 var _orders := SnapshotOrders.new()
 ## The agent's event memory (read-only here); see agent_memory.gd.
 var _memory: RefCounted
+## The allies' entry claims heard on the radio; see stack/claim_ledger.gd.
+var _ledger: RefCounted
 ## The combat geometry; see agent_tactics.gd.
 var _tactics: RefCounted
 ## The NPC's body, handed in once by `bind`.
@@ -56,6 +58,7 @@ var _character: Node
 ## no separate configure step.
 func setup(sources: SnapshotSources) -> void:
 	_memory = sources.memory
+	_ledger = sources.ledger
 	_tactics = sources.tactics
 	_sections.setup(vocab, sources.memory, sources.tactics)
 	_options.setup(vocab, sources)
@@ -84,6 +87,7 @@ func bind(character: Node) -> void:
 ## of a staged build (`begin_build`) in one go.
 func build(rooms: Array, goal: String, activity: String, knowledge: Dictionary) -> Dictionary:
 	var staged := begin_build(rooms, goal, activity, func() -> Dictionary: return knowledge)
+	var _walks: RefCounted = hold_walks()
 	while not staged.done():
 		staged.step()
 	return staged.result()
@@ -121,6 +125,14 @@ func advance_build(staged: SnapshotBuild) -> void:
 			_finish_build(staged)
 
 
+## Open the walked-route memo of the doorway views (`begin_decision`), for as long as the returned
+## token is held: the pieces of a build that run together (one `build()`, or what one frame's pool
+## lets the decision job run) reuse each other's walks. A build must not hold it across frames, when
+## a door or the map may have changed (`snapshot-staged.md`).
+func hold_walks() -> RefCounted:
+	return _options.begin_decision()
+
+
 ## Hand the author's modules the build's own decision again (`vocab.rooms`, the options' and
 ## throws' `know`): what `SnapshotDemand` does as it builds an older snapshot's rest (`_open`), so
 ## a pause between pieces in which an older snapshot was completed leaves the build's reads as
@@ -138,9 +150,7 @@ func _start_build(staged: SnapshotBuild) -> void:
 	staged.knowledge = knowledge
 	if staged.freeze.is_valid():
 		staged.frozen = staged.freeze.call()
-	staged.token = _options.begin_decision()
 	_own_scratch(staged)
-	_throws.begin()
 	var ctx := _context(knowledge["contacts"], knowledge["callouts"])
 	ctx["engaged_id"] = int(knowledge.get("engaged_id", 0))
 	staged.ctx = ctx
@@ -174,6 +184,9 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 		"covered_from": {},
 		# Snapshot-scoped tactics geometry: routes, self rings and per-(point, hostile) cover.
 		"tactics_cache": {},
+		# What this decision's throws worked out (`SnapshotThrows.memo_of`): its own, never an
+		# older build's.
+		"throw_memo": { "spots": {}, "points": {}, "exists": {} },
 	}
 	# Each hostile's front (its last-seen facing while recent, else toward this NPC): the frame its
 	# flanks are measured in, and where it is looking when a spot is judged watched.
@@ -252,6 +265,7 @@ func _finish_build(staged: SnapshotBuild) -> void:
 	var options := _option_groups(ctx, parts, knowledge)
 	var demand := SnapshotDemand.new()
 	demand.options = _options
+	demand.reads.ledger = _ledger
 	demand.texts = _sections
 	demand.throws = _throws
 	demand.targets = parts["targets"]
@@ -265,12 +279,70 @@ func _finish_build(staged: SnapshotBuild) -> void:
 	demand.facts = facts
 	var sections := _state_sections(ctx, parts, staged.goal, staged.activity, knowledge)
 	demand.sections = sections
+	ctx["analyses"] = parts["analyses"]
 	var snapshot := {
 		"facts": facts, "sections": sections, "sections_per_target": parts["per_sections"],
 		"options": options, "gun": vocab.gun_noun(parts["gun"]), "demand": demand,
 	}
 	snapshot.merge(staged.frozen)
 	staged.finish(snapshot)
+
+
+## The radio callouts read again for a snapshot built some frames ago (`callouts`: what the NPC
+## hears now), and what the snapshot made of the ones it was built with made again: who holds each
+## flank side of a hostile (`held_by`, so the flank options, their summary and the allies and
+## flanks sections), the allies on a hostile (the hostile group's wording), whether the stack holds
+## a stun. A teammate's claim that came in while the build was spread over frames is seen, so two
+## NPCs on one target take different sides. The groups, facts and sections built when the walk
+## first reads them read the callouts then, as they always have; the leads and entries the group
+## piece built ahead are forgotten when a call or a slot claim they read came in since
+## (`SnapshotDemand.forget_stale_groups`), and the walk builds them again. Called by the decision
+## job as its grenade piece ends, the last thing before the walk; nothing is made again when the
+## callouts are as the build read them. Like every piece it first hands the authors the snapshot's
+## own decision (`SnapshotDemand.open`), whatever a decision begun since has left in them.
+func reread_claims(snapshot: Dictionary, callouts: Array) -> void:
+	var demand: SnapshotDemand = snapshot["demand"]
+	var ctx: Dictionary = demand.ctx
+	var _scope: RefCounted = demand.open()
+	if callouts == ctx["callouts"]:
+		return
+	ctx["callouts"] = callouts
+	demand.know["callouts"] = callouts
+	for id in demand.targets:
+		var target: Dictionary = demand.targets[id]
+		for side: Dictionary in target["a"]["flanks"]:
+			side["held_by"] = _tactics.side_holder(
+				target["t"], target["a"]["front"], side["side"], ctx["allies"], callouts
+			)
+		snapshot["options"]["per_target"][id]["flank_sides"] = _options.flank_group(
+			target["t"], target["a"], demand.rooms
+		)
+		var texts := _target_sections(ctx, target["t"], target["a"])
+		for name in texts:
+			demand.per_sections[id][name] = texts[name]
+	snapshot["options"]["hostiles"] = _options.hostile_group(
+		ctx, ctx["hostiles"], ctx["analyses"]
+	)
+	var carried: Array = demand.know["carried_grenades"]
+	var stun_stack: bool = (carried.has(&"stun")
+			or callouts.any(func(c): return int(StackClaim.decode(c).get("stuns", 0)) > 0))
+	if stun_stack != demand.stun_stack:
+		demand.forget_leads()  # Made with other rooms left out of them than the stack now says.
+	demand.stun_stack = stun_stack
+	demand.forget_stale_groups()
+	snapshot["facts"]["stack_has_stun"] = demand.stun_stack
+	for name in ["allies", "flanks"]:
+		snapshot["sections"][name] = _primary_section(snapshot, ctx, name)
+
+
+## The state section `name` (`allies` or `flanks`) of the snapshot, taken from the nearest hostile
+## with full analysis as `_state_sections` does.
+func _primary_section(snapshot: Dictionary, ctx: Dictionary, name: String) -> String:
+	var per_sections: Dictionary = snapshot["sections_per_target"]
+	for h: Dictionary in ctx["hostiles"]:
+		if per_sections.has(h["id"]):
+			return per_sections[h["id"]][name]
+	return _sections.allies_text(ctx, {}, {}) if name == "allies" else ""
 
 
 ## The ids of the hostiles that get full analysis (fire, flank, advance and melee options, and

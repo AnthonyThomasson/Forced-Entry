@@ -13,11 +13,17 @@ extends GameTest
 ## its first throw, out of the warm-up and the placement. So the burst's whole cost is in the
 ## window: the blast and its fragments, the flash and bang, the FX, scorch, blood and debris, the
 ## sounds, and every NPC's grenade perception, evade planning and re-decision. From the puppet's
-## first throw to 3 s after its last burst the frames meet the smooth standard (`Perf.SMOOTH_*`); a
-## grenade an NPC throws meanwhile is part of the load. The camera frames the fighters as Main's
-## spectator view does, on a player's screen, so every body a player would see is drawn. Headless
-## measures the CPU only (the drawing calls included, not the GPU); `tools/run_tests.sh --windowed`
-## measures the render too.
+## first throw to 3 s after its last burst the frames meet the smooth standard (`Perf.SMOOTH_*`) in
+## average, `P95_MS` in p95 and `MAX_MS` in worst frame; a grenade an NPC throws meanwhile is part
+## of the load. The camera frames the fighters as Main's spectator view does, on a player's screen,
+## so every body a player would see is drawn. Headless measures the CPU only (the drawing calls
+## included, not the GPU); `tools/run_tests.sh --windowed` measures the render too.
+## Budget: average 16.7 ms, the smooth standard; p95 `P95_MS` = 25 ms and worst frame `MAX_MS` =
+## 37 ms, each its own by the decisions on #195 (item 4, rule 13; every other guard holds 20 and
+## 33.4). Measured at the standard's 20, the fight's p95 reads 20.9 to 22.6 ms at load about 3 and
+## 23.0 to 24.2 ms at load 4 to 4.9, with no single cause left to cut. Its worst frame reads 27 to
+## 31 ms in single runs, but 34.75 to 36.02 ms inside the full `--domain=perf` run, against the
+## standard's 33.4. `Perf.within_frames` takes them as `p95_limit` and `max_limit`.
 ## Baseline in the district on a loaded machine (load 4 to 7, three or more other Godot: no run was
 ## quiet enough to judge): avg 15 to 17 ms, p95 27 to 34, max 56 to 69; contact came at 20 to 28 s
 ## (in one run in four not within 20 s, hence `Perf.MATCH_CONTACT_WITHIN`).
@@ -27,11 +33,11 @@ extends GameTest
 ## 18.54, max 37.70 and 35.51 ms. No snapshot builds over 8.4 ms any more; what is left is the
 ## escape search a grenade's landing sets off in every NPC near it (`AgentThrow.escape`, reached
 ## through `react_to_grenades`, about 4.4 ms a call, several NPCs in one frame: 49 to 53 calls in 28
-## or 29 frames of the 560, the worst frame spends 22.4 ms of 31.7 in that reflex). The budgets are
-## not loosened and the test is neither skipped nor tagged.
-## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
-## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
-## one fight per seed, seed 2 now (`perf_probe.gd`), contact at 8.1 s every
+## or 29 frames of the 560, the worst frame spends 22.4 ms of 31.7 in that reflex). The average
+## budget is the standard's, p95 is `P95_MS`, the worst frame `MAX_MS`, and the test is neither
+## skipped nor tagged. #203: the numbers above are seed 7's fight, another fight than this guard
+## plays now (not a baseline to read a change by, nor a sign of the guard getting faster or slower).
+## The match plays one fight per seed, seed 2 now (`perf_probe.gd`), contact at 8.1 s every
 ## run; four runs (load 5 to 6, not `--quiet`): avg 9.96 to 12.50, p95 19.78 to 22.39, max 28.33 to
 ## 35.63 ms.
 
@@ -55,6 +61,10 @@ const THROW_DISTANCE := 200.0
 const MEASURE_FRAMES := 560
 const AFTER_LAST_S := 3.0
 const NODE_GROWTH := 2500
+## This guard's p95 budget, ms (the smooth standard's is `Perf.SMOOTH_P95_MS`).
+const P95_MS := 25.0
+## This guard's worst-frame budget, ms (the smooth standard's is `Perf.SMOOTH_MAX_MS`).
+const MAX_MS := 37.0
 
 
 func describe() -> Dictionary:
@@ -62,7 +72,7 @@ func describe() -> Dictionary:
 		"name": "Grenades in a 5v5 match keep it smooth",
 		"description": "In the 5v5 match of perf/match_5v5_stress a puppet throws 3 frags and 3 "
 			+ "stuns among the fighters over ~3 s; from the first throw to 3 s after the last "
-			+ "burst the average frame stays under 16.7 ms, p95 under 20 and no frame over 33.4.",
+			+ "burst the average frame stays under 16.7 ms, p95 under 25 and no frame over 37.",
 		"tags": ["match", "ai", "scripted", "crowd", "grenade", "frag", "stun"],
 		"timeout": 60.0,
 		"allowed_logs": Perf.MATCH_LOGS,
@@ -104,7 +114,7 @@ func run(t: TestContext) -> void:
 	)
 	if not _window_holds_bursts(t, booms, start, end, targets):
 		return
-	Perf.within_frames(t, "grenades in a 5v5 match", stats)
+	Perf.within_frames(t, "grenades in a 5v5 match", stats, P95_MS, MAX_MS)
 	_check_struck(t, booms, nodes_before)
 
 

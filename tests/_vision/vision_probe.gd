@@ -146,13 +146,37 @@ static func drop_world(t: TestContext, world: Node2D) -> void:
 
 
 ## Put `who` at `at` facing along `dir` and wait until its facing (derived from its aim a frame
-## later) and the view have caught up. False when its facing never comes round.
+## later) has come round and the cone the views of the world show is of that pose (a job of some
+## frames has published it). False when its facing never comes round or no cone catches up.
 static func place(t: TestContext, who: Node2D, at: Vector2, dir: Vector2) -> bool:
 	who.global_position = at
 	t.puppet(&"eye").aim_at(at + dir * 100.0)
 	for _i in 3:
 		await t.frames(1)
-	return (who.get("facing") as Vector2).distance_to(dir.normalized()) < 0.01
+	if (who.get("facing") as Vector2).distance_to(dir.normalized()) >= 0.01:
+		return false
+	return await _caught_up(t, who)
+
+
+## Wait until every view of the world that is of `who` shows a cone of the pose `who` has now
+## (`PlayerView.published_pose()`) with no job in flight: the cone a test reads is the current one.
+## False when one does not within 3 s.
+static func _caught_up(t: TestContext, who: Node2D) -> bool:
+	return await t.until(
+		func() -> bool:
+			for of in views(t):
+				if of.viewer() != who:
+					continue
+				var pose := of.published_pose()
+				if (
+					of.building()
+					or pose["eye"] != who.global_position
+					or pose["facing"] != who.get("facing")
+				):
+					return false
+			return true,
+		3.0,
+	)
 
 
 ## The physics space of the test world.

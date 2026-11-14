@@ -69,9 +69,10 @@ const REACH_SLACK := 15.0
 ## the spots are snapped onto the navmesh, so a route that reaches one ends on it, while one to a
 ## region the NPC cannot walk to (past a wall with no door) ends at the nearest point it can reach.
 const ROUTE_REACH := 2.0
-## How far (px) past the best route (or the distance it may run) a spot's straight line may lie
-## and still be measured, beyond what `_nearest_in_time` allows for a runner off the navmesh and a
-## route ending short: float noise in a path's length must never prune a spot that ties or wins.
+## How far (px) past the best route (or the distance it may run) a candidate's straight line may lie
+## and still be taken (snapped, judged, routed), beyond what `_nearest_in_time` allows for a
+## runner off the navmesh, a route ending short and the snap's pull (`SNAP_TOLERANCE`): float noise
+## in a path's length must never prune a candidate that ties or wins.
 const PRUNE_SLACK := 0.01
 ## The inventory slot of each kind of grenade (Items: `ItemRegistry`).
 const SLOTS := { &"frag": ItemRegistry.FRAG_SLOT, &"stun": ItemRegistry.STUN_SLOT }
@@ -241,9 +242,12 @@ func cover_reach(kind: StringName) -> float:
 ## zone, the shadows behind whatever stands round the burst and a ring round the NPC; each is
 ## snapped onto the navmesh and judged by the shielding rule, every one that passes is routed (a
 ## straight line says nothing: a spot just behind a wall can be a house away by walking) and the
-## shortest route that is in time wins. What depends on the burst alone (the candidates round it,
-## each candidate's spot on the navmesh, each spot's verdict) is shared with every NPC that asks
-## about the same burst on the same physics frame (`_shared_burst`); the routes are the NPC's own.
+## shortest route that is in time wins. The candidates are taken nearest the runner first and only
+## as far as a route could still win (`_nearest_in_time`), so a far candidate is neither snapped
+## nor judged: the answer is the one snapping, judging and routing every candidate gives. What
+## depends on the burst alone (the candidates round it, each candidate's spot on the navmesh, each
+## spot's verdict) is shared with every NPC that asks about the same burst on the same physics
+## frame (`_shared_burst`); the routes are the NPC's own.
 func escape(
 	space: PhysicsDirectSpaceState2D,
 	map: RID,
@@ -251,36 +255,41 @@ func escape(
 	runner: GrenadeRunner,
 	exclude: Array,
 ) -> Dictionary:
-	var from := runner.from
-	var out_r := _out_radius(threat)
-	var standing := _cover_rule(_stand, exclude, cover_reach(threat.kind))
-	# Candidates often repeat (the standing and the crouching probe meet the same wall) and snap
-	# onto the same spot, so each point is snapped, each spot judged and each route measured once:
-	# the same answers, in the same order.
-	var shared := _shared_burst(space, threat.burst, out_r, exclude, threat.kind)
-	var on_mesh: Dictionary = _shared_snaps(map)  # candidate -> its spot on the navmesh
-	# spot -> its verdict (`SAFE_STANDING` / `SAFE_CROUCHED` / `NOT_SAFE`)
-	var judged: Dictionary = shared["judged"]
-	var spots: Array = []
-	for p in _candidates(from, shared["around"]):
-		var q: Vector2 = on_mesh.get(p, Vector2.INF)
-		if q == Vector2.INF:
-			q = NavBuilder.snap(map, p)
-			on_mesh[p] = q
-		if q.distance_to(p) > SNAP_TOLERANCE:
-			continue
-		var verdict: int = judged.get(q, UNJUDGED)
-		if verdict == UNJUDGED:
-			verdict = _judge(space, threat, q, standing)
-			judged[q] = verdict
-		if verdict != NOT_SAFE:
-			spots.append({ "spot": q, "crouch": verdict == SAFE_CROUCHED })
+	var shared := _shared_burst(space, threat.burst, _out_radius(threat), exclude, threat.kind)
+	var judging := {
+		"space": space,
+		"map": map,
+		"threat": threat,
+		"standing": _cover_rule(_stand, exclude, cover_reach(threat.kind)),
+		"judged": shared["judged"],  # spot -> its verdict
+		"on_mesh": _shared_snaps(map),  # candidate -> its spot on the navmesh
+	}
+	var points := _candidates(runner.from, shared["around"])
 	return _nearest_in_time(
 		map,
-		from,
-		spots,
+		runner.from,
+		points,
 		maxf(threat.fuse_left - ARRIVE_MARGIN, 0.0) * runner.speed,
+		func(i: int) -> Dictionary: return _safe_spot(judging, points[i]),
 	)
+
+
+## Candidate `p` as a safe spot, `{ spot, crouch }`, or {} when it is dropped: it snaps (`judging`'s
+## shared `on_mesh`) farther than `SNAP_TOLERANCE` off it, or the spot it lands on is `NOT_SAFE`.
+func _safe_spot(judging: Dictionary, p: Vector2) -> Dictionary:
+	var on_mesh: Dictionary = judging["on_mesh"]
+	var q: Vector2 = on_mesh.get(p, Vector2.INF)
+	if q == Vector2.INF:
+		q = NavBuilder.snap(judging["map"], p)
+		on_mesh[p] = q
+	if q.distance_to(p) > SNAP_TOLERANCE:
+		return {}
+	var judged: Dictionary = judging["judged"]
+	var verdict: int = judged.get(q, UNJUDGED)
+	if verdict == UNJUDGED:
+		verdict = _judge(judging["space"], judging["threat"], q, judging["standing"])
+		judged[q] = verdict
+	return {} if verdict == NOT_SAFE else { "spot": q, "crouch": verdict == SAFE_CROUCHED }
 
 
 ## Whether `escape` would find any safe spot in time, stopping at the first reachable one rather
@@ -339,44 +348,64 @@ func _judge(
 	return SAFE_CROUCHED if _covered(space, threat.burst, q, crouched) else NOT_SAFE
 
 
-## Of `spots` (`{ spot, crouch }`, safe ones), the one with the shortest route from `from` on
-## navigation `map` that is at most `allowed` px long: `{ spot, crouch, route }`, or
-## `{ spot: Vector2.INF }` when none is. A spot the route ends short of (`ROUTE_REACH`) cannot be
-## reached at all. A route is never shorter than the straight line to its spot, less what a path
-## may start off it (it begins at the navmesh point nearest the runner, `from` itself when it stands
-## on it) and what it may end short (`ROUTE_REACH`), so the spots are measured nearest first (by
-## straight line, the candidate order among equals) and the search stops at the first one more than
-## that past both the best route so far and `allowed` (and `PRUNE_SLACK` for float noise): the
-## answer is the one measuring every spot gives, a tie going to the first in `spots`.
-## `escape_routes_measured` counts the routes it measured.
-func _nearest_in_time(map: RID, from: Vector2, spots: Array, allowed: float) -> Dictionary:
+## Of the candidate `points`, the safe spot with the shortest route from `from` on navigation `map`
+## that is at most `allowed` px long: `{ spot, crouch, route }`, or `{ spot: Vector2.INF }` when
+## none is. `resolve` turns the index of a point into its spot, `{ spot, crouch }` (a spot lies at
+## most `SNAP_TOLERANCE` px from its point), or {} when the point is no safe spot. A spot the route
+## ends short of (`ROUTE_REACH`) cannot be reached at all, and one reached by several points is
+## routed once. A route is never shorter than the straight line to its spot, less what a path may
+## start off it (it begins at the navmesh point nearest the runner, `from` itself when it stands on
+## it) and what it may end short (`ROUTE_REACH`), and a spot lies at most `SNAP_TOLERANCE` from its
+## point. So the points are taken nearest first (by straight line, the order among equals) and
+## the search stops at the first whose straight line, less `SNAP_TOLERANCE`, is more than that
+## past both the best route so far and `allowed` (and `PRUNE_SLACK` for float noise): the points
+## after it are never resolved, and the answer is the one resolving and measuring every point
+## gives, a tie going to the first of the `points`. `escape_routes_measured` counts the routes it
+## measured.
+func _nearest_in_time(
+	map: RID,
+	from: Vector2,
+	points: Array,
+	allowed: float,
+	resolve: Callable,
+) -> Dictionary:
 	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
 	var best_index := -1
 	var slack := from.distance_to(NavBuilder.snap(map, from)) + ROUTE_REACH + PRUNE_SLACK
 	escape_routes_measured = 0
-	var order: Array = []  # [straight distance, index in `spots`], each distinct spot once
-	var seen := {}
-	for i in spots.size():
-		var spot: Vector2 = spots[i]["spot"]
-		if not seen.has(spot):
-			seen[spot] = true
-			order.append([from.distance_to(spot), i])
-	order.sort_custom(func(a: Array, b: Array) -> bool:
-		return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
-	for entry: Array in order:
-		if entry[0] > minf(allowed, best["route"]) + slack:
+	# Vector2 sorts by x, then y: (straight distance, index in `points`), a native sort.
+	var order: Array = []
+	for i in points.size():
+		order.append(Vector2(from.distance_to(points[i]), i))
+	order.sort()
+	var lengths := {}  # spot -> its route's length, INF when the route ends short of it
+	for entry: Vector2 in order:
+		if entry.x - SNAP_TOLERANCE > minf(allowed, best["route"]) + slack:
 			break
-		var s: Dictionary = spots[entry[1]]
-		var path := NavBuilder.route(map, from, s["spot"])
-		escape_routes_measured += 1
-		if path[path.size() - 1].distance_to(s["spot"]) > ROUTE_REACH:
+		var index := int(entry.y)
+		var s: Dictionary = resolve.call(index)
+		if s.is_empty():
 			continue
-		var length := NavBuilder.path_length(path)
+		var length := _route_length(map, from, s["spot"], lengths)
 		if length <= allowed and (length < best["route"]
-				or (length == best["route"] and entry[1] < best_index)):
+				or (length == best["route"] and index < best_index)):
 			best = { "spot": s["spot"], "crouch": s["crouch"], "route": length }
-			best_index = entry[1]
+			best_index = index
 	return best
+
+
+## The length of the route from `from` to `spot` on `map`, INF when it ends short of the spot
+## (`ROUTE_REACH`); measured once, then read from `lengths`.
+func _route_length(map: RID, from: Vector2, spot: Vector2, lengths: Dictionary) -> float:
+	if lengths.has(spot):
+		return lengths[spot]
+	var path := NavBuilder.route(map, from, spot)
+	escape_routes_measured += 1
+	var length := (NavBuilder.path_length(path)
+			if path[path.size() - 1].distance_to(spot) <= ROUTE_REACH
+			else INF)
+	lengths[spot] = length
+	return length
 
 
 ## The cover rule of a body `height` tall on lines through the rids `exclude` (bodies stop nothing),

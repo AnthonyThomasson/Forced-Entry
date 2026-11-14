@@ -104,6 +104,7 @@ local floor plane (x, y) plus z = height; gravity pulls to z = 0.
 - It sleeps once every point stays under `sleep_speed` for `sleep_time`, or after `max_time`. `wake()` clears `asleep` and both
   clocks (`_time`, `_still`); without that, a body that slept through `max_time` goes straight back to sleep after one step of an
   explosion's push. `CharacterRagdoll.blast` calls it (`tests/physics/frag_blast_pushes_test.gd`).
+- `Ragdoll.steps_total` counts the steps run (a sleeping body's not), a running total a perf probe reads for the worst-frames report.
 
 ## Explosion look
 

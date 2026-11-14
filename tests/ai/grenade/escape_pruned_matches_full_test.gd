@@ -1,10 +1,12 @@
 extends GameTest
-## G16's escape spot, pruned (#192 rule 30): `AgentThrow.escape` measures the routes to the safe
-## candidates nearest the runner first (by straight line) and stops once the next one lies past
-## both the best route found and the distance it may run in time, since a route is never shorter
-## than its straight line. The answer must be the one measuring every safe candidate gives (spot,
-## crouch and route, the first in the candidate order winning a tie), and over an open floor and
-## through a doorway it measures fewer routes. `escape_routes_measured` counts them.
+## G16's escape spot, pruned (#192 rule 30, lazy since #195): `AgentThrow.escape` takes the
+## candidates nearest the runner first (by straight line), snaps, judges and routes each, and stops
+## once the next one lies past both the best route found and the distance it may run in time, since
+## a route is never shorter than its straight line (less what an off-mesh start, a route ending
+## short and the snap's pull `SNAP_TOLERANCE` allow): a far candidate is neither snapped nor judged.
+## The answer must be the one measuring every safe candidate gives (spot, crouch and route, the
+## first in the candidate order winning a tie), and over an open floor and through a doorway it
+## measures fewer routes. `escape_routes_measured` counts them.
 ##
 ## Five fixtures in the furnished terrace house, each a burst and a runner: open floor (the living
 ## room), a wall corner (the runner round the kitchen's wall from the burst), a doorway (the runner
@@ -40,10 +42,10 @@ const FIXTURES := [
 func describe() -> Dictionary:
 	return {
 		"name": "The pruned escape search finds what measuring every candidate finds",
-		"description": "AgentThrow.escape, measuring routes nearest-first and stopping past the "
-			+ "best, gives the same spot, crouch and route as measuring every safe candidate "
-			+ "over open floor, a wall corner, a doorway, cover furniture and no spot in time, "
-			+ "and measures fewer routes over open floor and a doorway.",
+		"description": "AgentThrow.escape, taking candidates nearest-first (snap, judge, route) "
+			+ "and stopping past the best, gives the same spot, crouch and route as measuring "
+			+ "every safe candidate over open floor, a wall corner, a doorway, cover furniture and "
+			+ "no spot in time, and measures fewer routes over open floor and a doorway.",
 		"tags": ["ai", "grenade", "evade", "perf"],
 		"timeout": 30.0,
 	}
@@ -73,7 +75,10 @@ func run(t: TestContext) -> void:
 		spotted += 1 if _check_fixture(t, geometry, search, f) else 0
 	t.check(spotted >= 3, "at least three fixtures found a spot in time (%d)" % spotted)
 	_check_off_mesh(t, geometry, search["map"])
+	_check_route_ending_short(t, geometry, search["map"])
 	_check_tie(t, geometry, search["map"])
+	_check_points_sharing_a_spot(t, geometry, search["map"])
+	_check_far_points_unresolved(t, geometry, search["map"])
 
 
 ## One fixture: the pruned answer against the plain one, and the routes measured; true when it
@@ -117,9 +122,12 @@ func _check_fixture(
 
 ## A runner standing off the navmesh (a character squeezed into a wall's thickness or a furniture
 ## hole): a path starts from the mesh point nearest it, and one may end `ROUTE_REACH` short of its
-## spot, so a route can be shorter than the straight line from where the runner stands. Over drawn
-## runners that far off the mesh and drawn safe spots, the pruned search still picks what measuring
-## every spot picks.
+## spot, so a route can be shorter than the straight line from where the runner stands. Each spot
+## also comes from a point up to `SNAP_TOLERANCE` px off it (the candidate it snapped from), half of
+## them exactly that far straight away from the runner, and the first spots listed are a second
+## point of a later one (a spot reached by two points), so the off-mesh start, the end short and the
+## snap's pull all combine. Over drawn runners that far off the mesh, the pruned search still picks
+## what measuring every spot picks.
 func _check_off_mesh(t: TestContext, geometry: AgentThrow, map: RID) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2929
@@ -131,13 +139,12 @@ func _check_off_mesh(t: TestContext, geometry: AgentThrow, map: RID) -> void:
 		if NavBuilder.snap(map, from).distance_to(from) < 4.0:
 			continue
 		cases += 1
-		var spots: Array = []
-		for i in 8:
-			var near := from + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(20.0, 320.0)
-			spots.append({ "spot": NavBuilder.snap(map, near), "crouch": i % 2 == 0 })
+		var listed := _drawn_spots(rng, map, from)
 		var allowed := rng.randf_range(80.0, 500.0)
-		var pruned: Dictionary = geometry._nearest_in_time(map, from, spots, allowed)
-		var full := _measure_every(map, from, spots, allowed)
+		var pruned: Dictionary = geometry._nearest_in_time(
+			map, from, listed["points"], allowed, _resolver(listed["spots"]),
+		)
+		var full := _measure_every(map, from, listed["spots"], allowed)
 		if pruned != full:
 			differing.append("from %s: %s, every spot %s" % [from.round(), pruned, full])
 	t.check(
@@ -145,6 +152,73 @@ func _check_off_mesh(t: TestContext, geometry: AgentThrow, map: RID) -> void:
 		"%d of %d off-mesh runners differ from measuring every spot: %s"
 			% [differing.size(), OFF_MESH_CASES, differing.slice(0, 2)],
 	)
+
+
+## Drawn spots round `from` and the points they come from: `{ spots, points }`, the same length.
+## The first four are crouched copies of four of the eight others (listed first, so they win a tie)
+## each from a point `SNAP_TOLERANCE` px farther from `from` than the spot; the others come from a
+## point off the spot by a drawn distance up to `SNAP_TOLERANCE`, a drawn way.
+func _drawn_spots(rng: RandomNumberGenerator, map: RID, from: Vector2) -> Dictionary:
+	var plain: Array = []
+	var points_plain: Array = []
+	for i in 8:
+		var near := from + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(20.0, 320.0)
+		var spot := NavBuilder.snap(map, near)
+		plain.append({ "spot": spot, "crouch": false })
+		points_plain.append(spot + Vector2.from_angle(rng.randf() * TAU)
+				* rng.randf_range(0.0, AgentThrow.SNAP_TOLERANCE))
+	var spots: Array = []
+	var points: Array = []
+	for i in 4:
+		var spot: Vector2 = plain[i]["spot"]
+		spots.append({ "spot": spot, "crouch": true })
+		points.append(spot + (spot - from).normalized() * AgentThrow.SNAP_TOLERANCE)
+	return { "spots": spots + plain, "points": points + points_plain }
+
+
+## A spot just off the navmesh's edge (within `ROUTE_REACH`, so the route that ends short of it
+## reaches it) is closer by route than by straight line, and its point lies `SNAP_TOLERANCE` px
+## past it: the straight line to the point is the route's length, plus what the route ends short,
+## plus `SNAP_TOLERANCE`, and the point still has to be taken. With the distance the runner may run
+## exactly that route, the spot is the one answer; a search that cuts the tolerance or the end's
+## slack short drops it. Spots like it are found by walking straight out from the runner to the
+## mesh's edge in each of 24 directions.
+func _check_route_ending_short(t: TestContext, geometry: AgentThrow, map: RID) -> void:
+	var from := NavBuilder.snap(map, Vector2(300, 250))
+	var shortened := 0
+	var differing: Array = []
+	for d in 24:
+		var dir := Vector2.from_angle(TAU * d / 24.0)
+		var edge := _edge_spot(map, from, dir)
+		if edge.is_empty():
+			continue
+		shortened += 1
+		var spot: Vector2 = edge["spot"]
+		var spots: Array = [{ "spot": spot, "crouch": false }]
+		var pruned: Dictionary = geometry._nearest_in_time(
+			map, from, [spot + dir * AgentThrow.SNAP_TOLERANCE], edge["route"], _resolver(spots),
+		)
+		var full := _measure_every(map, from, spots, edge["route"])
+		if pruned != full or pruned["spot"] != spot:
+			differing.append("%s: %s, every spot %s" % [dir.round(), pruned, full])
+	t.check(shortened >= 3, "routes ending short of an edge spot found (%d of 24)" % shortened)
+	t.check(differing.is_empty(), "edge spots the pruned search misses: %s" % [differing])
+
+
+## The spot just off the mesh's edge straight out from `from` along `dir`, `{ spot, route }`, or {}
+## when the route to it is not at least 1.2 px shorter than the straight line (or does not reach
+## it).
+func _edge_spot(map: RID, from: Vector2, dir: Vector2) -> Dictionary:
+	var edge := from
+	while NavBuilder.snap(map, edge + dir).distance_to(edge + dir) < 0.5:
+		edge += dir
+	var spot := edge + dir * (AgentThrow.ROUTE_REACH - 0.1)
+	var path := NavBuilder.route(map, from, spot)
+	var length := NavBuilder.path_length(path)
+	if (path[path.size() - 1].distance_to(spot) > AgentThrow.ROUTE_REACH
+			or from.distance_to(spot) - length < 1.2):
+		return {}
+	return { "spot": spot, "route": length }
 
 
 ## One spot listed twice, once crouched and once not: the routes are exactly equal and the one
@@ -155,11 +229,66 @@ func _check_tie(t: TestContext, geometry: AgentThrow, map: RID) -> void:
 	var standing := { "spot": at, "crouch": false }
 	var crouched := { "spot": at, "crouch": true }
 	for spots: Array in [[standing, crouched], [crouched, standing]]:
-		var pruned: Dictionary = geometry._nearest_in_time(map, from, spots, 300.0)
+		var pruned: Dictionary = geometry._nearest_in_time(
+			map, from, _points_of(spots), 300.0, _resolver(spots),
+		)
 		t.check(
 			pruned["spot"] == at and pruned["crouch"] == spots[0]["crouch"],
 			"equal routes: the first listed spot wins (%s of %s)" % [pruned, spots],
 		)
+
+
+## Two points that land on one spot (over the living room's open floor), the nearer to the runner
+## listed second: the points are taken nearest first, yet the spot is the first listed one's (its
+## crouch): the farther point lies within `SNAP_TOLERANCE` of its spot, so it is still taken, and
+## its lower index wins the tie.
+func _check_points_sharing_a_spot(t: TestContext, geometry: AgentThrow, map: RID) -> void:
+	var from := NavBuilder.snap(map, Vector2(300, 250))
+	var at := NavBuilder.snap(map, from + Vector2(100, 0))
+	var far := at + Vector2(30, 0)
+	var spots := [{ "spot": at, "crouch": true }, { "spot": at, "crouch": false }]
+	var found: Dictionary = geometry._nearest_in_time(
+		map, from, [far, at], 300.0, _resolver(spots),
+	)
+	t.check(
+		found["spot"] == at and found["crouch"] == true,
+		"a spot reached by two points: the first listed point's crouch wins (%s)" % [found],
+	)
+
+
+## Points far past the best route are not resolved at all (no snapping, no judging): the nearest
+## safe spot is routed, and what the search would find by resolving every point is the same.
+func _check_far_points_unresolved(t: TestContext, geometry: AgentThrow, map: RID) -> void:
+	var from := NavBuilder.snap(map, Vector2(300, 250))
+	var near := NavBuilder.snap(map, from + Vector2(60, 0))
+	var spots: Array = [{ "spot": near, "crouch": false }]
+	for i in 12:
+		spots.append({ "spot": from + Vector2.from_angle(TAU * i / 12.0) * 900.0, "crouch": false })
+	var resolved: Array = []
+	var resolve := func(i: int) -> Dictionary:
+		resolved.append(i)
+		return spots[i]
+	var found: Dictionary = geometry._nearest_in_time(
+		map, from, _points_of(spots), 2000.0, resolve,
+	)
+	t.check(
+		found == _measure_every(map, from, [spots[0]], 2000.0) and found["spot"] == near,
+		"the near spot wins (%s)" % [found],
+	)
+	t.check(
+		resolved == [0],
+		"only the near point was resolved, the 12 far ones were not (%s)" % [resolved],
+	)
+
+
+## The candidate points of `spots` (each spot is its own point, no snapping pulls it).
+func _points_of(spots: Array) -> Array:
+	return spots.map(func(s: Dictionary) -> Vector2: return s["spot"])
+
+
+## What `AgentThrow._nearest_in_time` asks to turn the index of a point into its spot.
+func _resolver(spots: Array) -> Callable:
+	return func(i: int) -> Dictionary: return spots[i]
 
 
 ## The plain search over `spots` (`{ spot, crouch }`): every spot's route measured, the shortest

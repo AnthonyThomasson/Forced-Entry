@@ -26,7 +26,12 @@ const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_voca
 const SnapshotOptions = preload("res://scenes/ai/perception/snapshot/snapshot_options.gd")
 const SnapshotSections = preload("res://scenes/ai/perception/snapshot/snapshot_sections.gd")
 const SnapshotThrows = preload("res://scenes/ai/perception/snapshot/snapshot_throws.gd")
+const ThrowScan := preload("res://scenes/ai/perception/throw_scan.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
+const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd")
+const GroupSteps := preload("res://scenes/ai/perception/snapshot/group_steps.gd")
+const GroupReads := preload("res://scenes/ai/perception/snapshot/group_reads.gd")
+const ThrowSearch := preload("res://scenes/ai/perception/snapshot/throw_search.gd")
 ## The option groups built on demand (the global ones; a hostile's grenade throws are
 ## `target_group`'s).
 const GROUPS: Array[String] = [
@@ -36,6 +41,11 @@ const GROUPS: Array[String] = [
 const FACTS: Array[String] = ["leads", "lead_outside", "grenade_ready"]
 ## The state sections written on demand.
 const SECTIONS: Array[String] = ["odds", "exposure"]
+## The id of a global group in `GroupSteps`' jobs (a hostile's group has its hostile's id), and of
+## the source of a throw when the shots' origin is it.
+const GLOBAL := -1
+## No source: the throw search found none, or its answer was a group already built.
+const NO_SOURCE := ThrowSearch.NO_SOURCE
 
 ## The names of the groups built so far, in the order they were built (one entry per group: a
 ## group is built once; a hostile's grenade throws are `grenade_throws:<its id>`). A test reads it
@@ -67,9 +77,9 @@ var facts := {}
 var sections := {}
 ## The snapshot's own `sections_per_target`, which a hostile's section is stored in once written.
 var per_sections := {}
-## The rooms a doorway of ENTER leads into (`SnapshotOptions.entry_rooms`), once worked out (null
-## before).
-var _entered: Variant = null
+## What the leads and entries built ahead of the walk read of the radio (`group_reads.gd`), and the
+## rooms the entries lead into.
+var reads := GroupReads.new()
 
 
 ## The kinds (`frag` / `stun`) of the throws in grenade group `throw_group` the GRENADE tactic would
@@ -86,10 +96,11 @@ func group(name: String) -> Dictionary:
 		return groups[name]
 	if not GROUPS.has(name):
 		return {}
-	var _scope: RefCounted = _open()
+	var _scope: RefCounted = open()
+	SnapshotCounts.note(name)
+	reads.note(ctx, name)
 	var out := _build(name)
-	groups[name] = out
-	built.append(name)
+	store(name, GLOBAL, out)
 	return out
 
 
@@ -101,10 +112,10 @@ func target_group(name: String, target_id: int) -> Variant:
 	var per: Dictionary = groups["per_target"][target_id]
 	if per.has(name):
 		return per[name]
-	var _scope: RefCounted = _open()
+	var _scope: RefCounted = open()
+	SnapshotCounts.note("target_throws")
 	var target: Dictionary = targets[target_id]
-	per[name] = throws.grenade_group(ctx, target["t"], target["a"])
-	built.append("%s:%d" % [name, target_id])
+	store(name, target_id, throws.grenade_group(ctx, target["t"], target["a"]))
 	return per[name]
 
 
@@ -175,7 +186,7 @@ func complete() -> void:
 ## Hand the author's modules the decision this builds for (they read it from themselves, whatever
 ## a decision begun since has left there) and open the walked-route memo of the build: hold the
 ## returned token for the whole build.
-func _open() -> RefCounted:
+func open() -> RefCounted:
 	options.know = know
 	throws.know = know
 	vocab.rooms = rooms
@@ -184,28 +195,156 @@ func _open() -> RefCounted:
 
 ## Whether the NPC is in a room and a lead lies outside the house.
 func _lead_outside() -> bool:
+	SnapshotCounts.note("lead_outside")
 	if HouseRooms.at(ctx["self_pos"], rooms).is_empty():
 		return false
 	return (group("leads")["options"] as Array).any(func(o): return not o["tags"]["inside"])
 
 
 ## Whether a legal throw exists (docs/grenades.md G17, G18): one at a hostile given full analysis,
-## or one where the shots came from. What is already built answers from it; the rest by the search
-## that stops at the first throw the NPC could make.
+## or one where the shots came from. The search that stops at the first throw the NPC could make,
+## run to its end (`throw_search`).
 func _grenade_ready() -> bool:
-	var _scope: RefCounted = _open()
-	var shots := (not (groups["grenade_throws"]["options"] as Array).is_empty()
-			if groups.has("grenade_throws")
-			else throws.shots_possible(ctx, ctx["hostiles"]))
-	return shots or targets.keys().any(_target_throws)
+	var search := throw_search(ThrowScan.WHOLE)
+	while not search.done():
+		search.step()
+	return search.found
 
 
-## Whether a throw at hostile `id` is possible: its built group holds an option, else the search.
-func _target_throws(id: int) -> bool:
-	var per: Dictionary = groups["per_target"][id]
-	if per.has("grenade_throws"):
-		return not (per["grenade_throws"]["options"] as Array).is_empty()
-	return throws.grenade_possible(ctx, targets[id]["t"], targets[id]["a"])
+## The `grenade_ready` search in steps of `block` raw candidates (`ThrowSearch`), or null when the
+## fact is already worked out. What is already built answers from it (a group's options); the rest
+## by the search of each source in the order of the one-shot's: the shots' origin, then each hostile
+## given full analysis. Its answer goes into the snapshot's facts as it ends. The decision job runs
+## it as the throw piece (`decision-job.md`).
+func throw_search(block: int) -> RefCounted:
+	if facts.has("grenade_ready"):
+		return null
+	SnapshotCounts.note("grenade_ready")
+	var plan: Array = []
+	var ids: Array = []
+	if groups.has("grenade_throws"):
+		plan.append({ "of": "known", "value": _offers(groups["grenade_throws"]) })
+		ids.append(NO_SOURCE)
+	else:
+		plan.append({ "of": "shots", "hostiles": ctx["hostiles"] })
+		ids.append(GLOBAL)
+	for id: int in targets:
+		var per: Dictionary = groups["per_target"][id]
+		if per.has("grenade_throws"):
+			plan.append({ "of": "known", "value": _offers(per["grenade_throws"]) })
+			ids.append(NO_SOURCE)
+		else:
+			plan.append({ "of": "target", "t": targets[id]["t"], "a": targets[id]["a"] })
+			ids.append(id)
+	var search: RefCounted = throws.begin_search(ctx, plan, block)
+	search.demand = self
+	search.ids = ids
+	return search
+
+
+## Note the hostile (`GLOBAL`: the shots' origin, `NO_SOURCE`: none) the throw search found a throw
+## at: the one the grenade piece builds the throws for (`grenade_steps`).
+func found_at(id: int) -> void:
+	throws.memo_of(ctx)["source"] = id
+
+
+## The leads group, and the entries it needs while a stun can be thrown, in steps (`GroupSteps`),
+## or null when both are built: what the decision's root reads whatever the situation, so the job
+## builds it ahead of the walk (`decision-job.md`, the group piece).
+func group_steps() -> RefCounted:
+	var jobs: Array = []
+	if stun_stack:
+		jobs.append({ "name": "entries", "id": GLOBAL })
+	jobs.append({ "name": "leads", "id": GLOBAL })
+	return _steps(jobs)
+
+
+## The throws at the hostile (or the shots' origin) the throw search found one at, in steps, or null
+## when there are none to build (no throw found by that search, or its group is built).
+func grenade_steps() -> RefCounted:
+	var source: int = throws.memo_of(ctx).get("source", NO_SOURCE)
+	if source == NO_SOURCE or not facts.get("grenade_ready", false):
+		return null
+	return _steps([{ "name": "grenade_throws", "id": source }])
+
+
+## A run of the groups in `jobs`, those not built yet, or null when all are.
+func _steps(jobs: Array) -> RefCounted:
+	jobs = jobs.filter(func(j): return not holds(j["name"], j["id"]))
+	if jobs.is_empty():
+		return null
+	return GroupSteps.new().begin(self, jobs)
+
+
+## Whether group `name` (of hostile `id`, or `GLOBAL`) is built.
+func holds(name: String, id: int) -> bool:
+	if id == GLOBAL:
+		return groups.has(name)
+	return not targets.has(id) or (groups["per_target"][id] as Dictionary).has(name)
+
+
+## Forget the leads built ahead of the walk, and what is made of them: they were made while a stun
+## could (not) be thrown, so with the entries' rooms left out (or in), and the stack since says
+## otherwise (`AgentSnapshot.reread_claims`). The walk builds them again as it reads them; the
+## entries do not depend on the stun and stay.
+func forget_leads() -> void:
+	if groups.erase("leads"):
+		built.erase("leads")
+		reads.forget("leads")
+	facts.erase("leads")
+	facts.erase("lead_outside")
+	sections.erase("odds")
+
+
+## Forget the leads and the entries built ahead of the walk that a call or a slot claim came in
+## since (`AgentSnapshot.reread_claims`, the callouts now in `ctx`): the walk builds them again as
+## it reads them, so two NPCs bound for one doorway take different slots however long the build
+## took. The leads go too when the entries they leave out the rooms of go and a stun can be thrown.
+func forget_stale_groups() -> void:
+	var entries_stale: bool = groups.has("entries") and reads.stale(ctx, "entries")
+	if entries_stale:
+		SnapshotCounts.note("forgotten_entries")
+		groups.erase("entries")
+		built.erase("entries")
+		reads.forget("entries")
+	var leads_stale: bool = groups.has("leads") and reads.stale(ctx, "leads")
+	if (leads_stale or (entries_stale and stun_stack)) and groups.has("leads"):
+		SnapshotCounts.note("forgotten_leads")
+		forget_leads()
+
+
+## Begin group `name` (of hostile `id`, or `GLOBAL`) in steps (`GroupBuild`): the group the same
+## as when the walk first reads it.
+func begin_group(name: String, id: int) -> RefCounted:
+	SnapshotCounts.note(name if id == GLOBAL else "target_throws")  # one a group, not a step
+	reads.note(ctx, name)
+	if id != GLOBAL:
+		return throws.begin_grenade_group(ctx, targets[id]["t"], targets[id]["a"])
+	match name:
+		"entries":
+			return options.begin_entry_group(ctx, rooms)
+		"leads":
+			return options.begin_lead_group(ctx, ctx["hostiles"], _entered_for_leads())
+		"grenade_throws":
+			return throws.begin_shots_group(ctx, ctx["hostiles"])
+	return GroupBuild.new().already(_build(name))
+
+
+## Keep group `name` (of hostile `id`, or `GLOBAL`) as built, in the snapshot's own dictionaries.
+func store(name: String, id: int, out: Dictionary) -> void:
+	if holds(name, id):
+		return  # Built already (a group is built once): the first stays.
+	if id == GLOBAL:
+		groups[name] = out
+		built.append(name)
+		return
+	groups["per_target"][id][name] = out
+	built.append("%s:%d" % [name, id])
+
+
+## Whether a built grenade group holds an option.
+func _offers(throw_group: Dictionary) -> bool:
+	return not (throw_group["options"] as Array).is_empty()
 
 
 ## The odds: how many hostiles against which allies; with none known, whether it is quiet or there
@@ -250,9 +389,9 @@ func _build(name: String) -> Dictionary:
 
 ## The rooms a doorway of ENTER leads into.
 func _entered_rooms() -> Dictionary:
-	if _entered == null:
-		_entered = SnapshotOptions.entry_rooms(group("entries"))
-	return _entered
+	if reads.entered == null:
+		reads.entered = SnapshotOptions.entry_rooms(group("entries"))
+	return reads.entered
 
 
 ## What the leads leave out: the rooms the entries lead into, while a stun can be thrown (the

@@ -181,7 +181,7 @@ func _apply_tactics(npc_tuning: NpcTuning) -> void:
 	_tactics.route_clearance = npc_tuning.tactics.route_clearance
 	_tactics.watch_arc = npc_tuning.tactics.watch_arc
 	_tactics.fire_spot_distances = npc_tuning.tactics.fire_spot_distances
-	_tactics.throw_spot_walk = npc_tuning.grenades.throw_spot_walk
+	_tactics.throws.spot_walk = npc_tuning.grenades.throw_spot_walk
 
 
 ## Set the doorway geometry's and the doorway views' tunables from `npc_tuning`, then push the walk
@@ -370,6 +370,7 @@ func observe(rooms: Array) -> void:
 ## policy. This builds the whole snapshot in one call: `begin_sense` stepped to its end.
 func sense(goal: String, activity: String, engaged_id := 0) -> Dictionary:
 	var staged := begin_sense(goal, activity, engaged_id)
+	var _walks: RefCounted = hold_walks()
 	while not staged.done():
 		staged.step()
 	return staged.result()
@@ -388,6 +389,19 @@ func begin_sense(goal: String, activity: String, engaged_id := 0) -> RefCounted:
 		_gather_knowledge.bind(engaged_id),
 		_frozen_entries,
 	)
+
+
+## Open the doorway views' walked-route memo for as long as the returned token is held (the pieces
+## of a build that run together share the walks they make; never held across frames,
+## `snapshot-staged.md`).
+func hold_walks() -> RefCounted:
+	return _snapshot.hold_walks()
+
+
+## Read the radio callouts again for the snapshot built some frames ago and make what it made of
+## them again (`AgentSnapshot.reread_claims`).
+func reread_claims(snapshot: Dictionary) -> void:
+	_snapshot.reread_claims(snapshot, hearing.callouts())
 
 
 ## What the NPC knows as a build starts (what the snapshot author reads).

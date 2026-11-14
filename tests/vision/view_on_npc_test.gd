@@ -16,13 +16,24 @@ extends GameTest
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Hall := preload("res://tests/_ai/investigate_probe.gd")
+const Age := preload("res://tests/_vision/cone_age.gd")
 ## The heard gunfire: the middle of the kitchen, the way in the hall, a living room and two
 ## doorways apart.
 const LEAD := Vector2(660, 190)
 ## The walk may stray this far from the navigated route's line, px (the steering rounds corners).
 const ROUTE_SLACK := 70.0
-## The cone's middle ray may differ from the defender's facing by this much, degrees.
+## The cone's middle ray may differ from the facing of the pose it was built for by this much,
+## degrees.
 const FACING_SLACK := 3.0
+## The cone may be this many frames old (V1: a job of 3 slices), and the pose it is of this far (px)
+## from where the defender is now: those frames of a run at 4.25 px a frame (`docs/player-vision.md`
+## V1, the run speed).
+const MAX_AGE_FRAMES := 4
+const POSE_LAG_PX := MAX_AGE_FRAMES * 4.25
+## The slice (units) that makes a job of this house about three frames.
+const SLICE := 140
+## Slack (degrees) on the facing bound, for the float.
+const TURN_SLACK := 0.5
 ## The defender must turn by at least this much over the walk, degrees, or the test proves nothing.
 const MIN_TURN := 45.0
 ## The two runs' defenders may be this far apart (px) at the same tick, and may reach the gunfire
@@ -73,6 +84,8 @@ func _twin(t: TestContext, viewed: bool) -> Dictionary:
 	s.switch(&"vision.enabled", viewed)
 	if viewed:
 		s.view(&"npc")
+		s.set_static(VisionSliceConfig, &"slice_units", SLICE)
+		s.set_static(VisionSliceConfig, &"cost_shape", SLICE)
 	s.von_script([{ "pick": "investigate" }])
 	var world: Node2D = await Probe.build_world(t, s)
 	var out := await _walk(t, world, viewed)
@@ -93,11 +106,21 @@ func _walk(t: TestContext, world: Node2D, viewed: bool) -> Dictionary:
 		"arrival": -1,
 		"stray": 0.0,
 		"eye_off": 0.0,
+		"pose_lag": 0.0,
+		"turn_off": 0.0,
+		"step_turn": 0.0,
+		"age": Age.new(),
+		"published": views[0].rebuilds() if not views.is_empty() else 0,
 		"facing_off": 0.0,
 		"turned": 0.0,
 		"sent": false,
 	}
-	await t.seconds(0.5)
+	# The half second before the gunfire, a frame at a time, so the cone's age is told from the
+	# start.
+	for _i in 30:
+		await t.frames(1)
+		if viewed and not views.is_empty():
+			_track_age(out, npc, views[0])
 	_route = NavBuilder.route(world.get_world_2d().navigation_map, npc.global_position, LEAD)
 	out["route_points"] = _route.size()
 	Hall.gunfire(LEAD)
@@ -118,18 +141,36 @@ func _walk(t: TestContext, world: Node2D, viewed: bool) -> Dictionary:
 	return out
 
 
+## One frame of the cone's age (`tests/_vision/cone_age.gd`): the defender's pose and the cone's.
+func _track_age(out: Dictionary, npc: Node2D, view: PlayerView) -> void:
+	var age: Age = out["age"]
+	var published: bool = view.rebuilds() != out["published"]
+	age.frame(npc.global_position, npc.get("facing"), view.published_pose(), view.cone(), published)
+	out["published"] = view.rebuilds()
+
+
 ## How far the view's polygon is from the defender's place and facing, and how far it strayed from
 ## the navigated route.
 func _follow(out: Dictionary, npc: Node2D, view: PlayerView, last_facing: Vector2) -> void:
 	var cone := view.cone()
+	var facing: Vector2 = npc.get("facing")
+	_track_age(out, npc, view)
 	if cone.size() < 3:
 		return
-	var facing: Vector2 = npc.get("facing")
+	# The cone is the one of the pose published (the defender's pose when the job began), a pose
+	# it stood at a few frames ago (V1).
+	var pose := view.published_pose()
 	out["stray"] = maxf(out["stray"], _distance_to_route(npc.global_position))
-	out["eye_off"] = maxf(out["eye_off"], cone[0].distance_to(npc.global_position))
+	out["eye_off"] = maxf(out["eye_off"], cone[0].distance_to(pose["eye"]))
 	var middle := (cone[1] - cone[0]).normalized() + (cone[-1] - cone[0]).normalized()
-	out["facing_off"] = maxf(out["facing_off"], absf(rad_to_deg(middle.angle_to(facing))))
-	out["turned"] += rad_to_deg(absf(last_facing.angle_to(facing)))
+	var published_facing: Vector2 = pose["facing"]
+	var off := absf(rad_to_deg(middle.angle_to(published_facing)))
+	out["facing_off"] = maxf(out["facing_off"], off)
+	out["pose_lag"] = maxf(out["pose_lag"], npc.global_position.distance_to(pose["eye"]))
+	var step := rad_to_deg(absf(last_facing.angle_to(facing)))
+	out["turned"] += step
+	out["step_turn"] = maxf(out["step_turn"], step)
+	out["turn_off"] = maxf(out["turn_off"], rad_to_deg(absf(published_facing.angle_to(facing))))
 
 
 ## What the viewed run shows of the view itself.
@@ -152,6 +193,7 @@ func _check_view(t: TestContext, viewed: Dictionary) -> void:
 		viewed["eye_off"] <= 10.0,
 		"the polygon is drawn from its eye (%.1f px off)" % viewed["eye_off"],
 	)
+	_check_lag(t, viewed)
 	t.check(
 		viewed["facing_off"] <= FACING_SLACK,
 		"the polygon follows its facing (%.1f degrees off)" % viewed["facing_off"],
@@ -159,6 +201,34 @@ func _check_view(t: TestContext, viewed: Dictionary) -> void:
 	t.check(
 		viewed["turned"] >= MIN_TURN,
 		"premise: it turned %.0f degrees on the way" % viewed["turned"],
+	)
+
+
+## What the cone's age is, and how far it is from the defender: a pose it stood at, at most
+## `MAX_AGE_FRAMES` ago, so at most that many frames of its walk and of its turn off.
+func _check_lag(t: TestContext, viewed: Dictionary) -> void:
+	var age: Age = viewed["age"]
+	t.check(
+		age.foreign == 0,
+		"the pose its cone is of is one it stood at (%d frames were not)" % age.foreign,
+	)
+	t.check(
+		age.max_age <= MAX_AGE_FRAMES,
+		"its cone is at most %d frames old (%d)" % [MAX_AGE_FRAMES, age.max_age],
+	)
+	t.check(
+		age.max_age >= 1,
+		"premise: the cone lags, so the job has slices (oldest %d frames)" % age.max_age,
+	)
+	t.check(
+		viewed["pose_lag"] <= POSE_LAG_PX,
+		"the cone's eye is within %d frames of its walk of where it stands (%.1f px)"
+		% [MAX_AGE_FRAMES, viewed["pose_lag"]],
+	)
+	t.check(
+		viewed["turn_off"] <= MAX_AGE_FRAMES * viewed["step_turn"] + TURN_SLACK,
+		"the cone's facing is within %d frames of its fastest turn (%.1f degrees off, %.1f a frame)"
+		% [MAX_AGE_FRAMES, viewed["turn_off"], viewed["step_turn"]],
 	)
 
 

@@ -3,8 +3,8 @@ extends GameTest
 ## not all in one (`DecisionBudget`): eight invaders spawned together all see a hostile from their
 ## first frame; at most one of them starts a decision each frame (a choice that is done on arrival,
 ## like firing from where it stands, is decided again on the next), every one of them has decided
-## within two frames apiece (none starves), and with the limit raised to all eight they go on
-## deciding together at their cadence.
+## within two frames apiece (none starves), and with the pool raised to all eight they go on
+## deciding at their cadence (the starts are still one a frame, whatever the pool holds).
 
 const COUNT := 8
 const SPREAD_FRAMES := 2 * COUNT + 4
@@ -15,8 +15,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "Decisions are spread over frames",
 		"description": "Eight invaders spawned together start at most one decision per frame and "
-			+ "all decide within two frames apiece; with the limit raised they keep deciding at "
-			+ "their cadence.",
+			+ "all decide within two frames apiece; with the pool raised they keep deciding at "
+			+ "their cadence, still one start a frame.",
 		"tags": ["ai", "decision", "scripted"],
 		"timeout": 12.0,
 	}
@@ -27,8 +27,10 @@ func configure(s: TestSetup) -> void:
 	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])
 	s.switch(&"ai.callouts", false)
 	s.switch(&"ai.territory", false)
-	# The default, pinned: the first half asserts on it.
-	s.set_static(DecisionBudget, "per_frame", 1)
+	# The pool and the prices are the game's own: eight decisions of a few pieces each, on the pool
+	# the match shares. Registered at its own value so the harness puts the pool back after the test
+	# raises it below (`TestWorld.restore`): a pool of eight left behind would change the next test.
+	s.set_static(DecisionBudget, "per_frame", DecisionBudget.per_frame)
 	for i in COUNT:
 		var at := Vector2(150 + i * 200, 300)
 		s.actor(
@@ -74,14 +76,16 @@ func run(t: TestContext) -> void:
 			% [COUNT, SPREAD_FRAMES, decided_after],
 	)
 
-	# Every NPC may decide on one frame (the test harness restores the static afterwards).
+	# The pool raised to hold every NPC's pieces (the test harness restores the static afterwards):
+	# still one decision starts a frame (`DecisionRoster.may_start`), so they decide again a frame
+	# apiece, within their cadence.
 	DecisionBudget.per_frame = COUNT
 	var asked_before: int = DecisionStub.requests.size()
 	await t.seconds(1.5)
 	var asked: int = DecisionStub.requests.size() - asked_before
 	t.check(
 		asked >= COUNT,
-		"with the limit raised every NPC decided again within 1.5 s (%d asks)" % asked,
+		"with the pool raised every NPC decided again within 1.5 s (%d asks)" % asked,
 	)
 
 

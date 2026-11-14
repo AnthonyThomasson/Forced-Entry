@@ -66,6 +66,16 @@ func hear(data: Dictionary, listener_pos := Vector2.INF) -> void:
 	_frame = -1
 
 
+## The claims heard and standing, speaker instance id -> decoded claim (no ages): what two moments
+## of one ledger are compared by, to see whether a claim came in, changed or lapsed between them.
+func heard_key() -> Dictionary:
+	_refresh()
+	var out := {}
+	for id in _heard:
+		out[id] = _heard[id]["claim"]
+	return out
+
+
 ## The live claims on doorway `opening` (`StackClaim.decode`, with `age` the seconds since each was
 ## heard): one per speaker, none `ENDED`, lowest slot first (then lowest instance id). The list is
 ## shared until the next frame or claim heard: read it, never change it.

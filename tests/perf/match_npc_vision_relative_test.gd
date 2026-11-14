@@ -65,6 +65,13 @@ extends GameTest
 ## frame, a per-frame cost, and 4x of it (about 52 ms) would never trip. A loaded result says
 ## nothing about it.
 ##
+## 2026-11-12, #195, the cone as a sliced job (`docs/player-vision.md` V1): three `--quiet` runs
+## each (none marked loaded; load 3.9 to 5.9, 0 to 2 busy Godot) of this guard at the commit before
+## the pipeline and at it. The parked view read -0.14, -0.14 and -0.08 ms before, -0.17, -0.32 and
+## -0.23 after, the cone at 0.08 and 0.09 of the reference's; the moving view 4.49, 4.67 and 4.36 ms
+## before and 2.05, 2.00 and 2.00 after, its cone 0.44 to 0.45 of the reference's before and 0.25 to
+## 0.26 after. The premise counts `PlayerView.starts()`. `MOVING_BUDGET_MS` is 3.5.
+##
 ## 2026-11-07, #192, two runs (not `--quiet`: the gate was bypassed, `perf-district.md`; load 3.2 to
 ## 6.7, six other Godot processes that were no test's): the parked view read 5.64 and 4.77 ms
 ## against `BUDGET_MS` 3.2, red as on 2026-11-02 (4.9 and 5.2), rounds from 1.0 to 11.7 ms; the
@@ -78,11 +85,12 @@ extends GameTest
 ## bubble hold none of them), so the guard measures a parked view and not a view the fight rebuilds
 ## on a third to every frame (the largest room of the centre house: a rebuild on 28 to 100 % of the
 ## frames, measured in the Extension 3 spike). The premise now holds the parked rebuilds to the
-## backstop's. With the pose lag (V1) and the fan table the moving rounds read 6.74 and 5.02 ms
-## (two runs, not `--quiet`, load 10 to 12 and 29 other Godot, the parked view -0.82 and -0.64 ms
-## against 3.2): `MOVING_BUDGET_MS` is set again to 8.5 ms, about 1.4x of their mean, tightened from
-## 20. The moving loop turns its aim 6 degrees a frame, past the lag's 1 degree, so the moving view
-## still rebuilds every frame there; which of the fan table and the open corner lowered it was not
+## backstop's. With the fan table the moving rounds read 6.74 and 5.02 ms (two runs, not `--quiet`,
+## load 10 to 12 and 29 other Godot, the parked view -0.82 and -0.64 ms against 3.2), so the budget
+## went from 20 to 8.5 ms, about 1.4x of their mean; the sliced cone (above) took it to 3.5. The
+## moving loop turns its aim 6 degrees a frame, so the moving view's cone is built job after job
+## with no frame it skips: the round's cost is the cone's whole work, which is why it has a budget
+## apart from the parked view's. Which of the fan table and the open corner lowered it was not
 ## isolated.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
@@ -95,10 +103,13 @@ const ROUNDS := 12
 const BLOCK_FRAMES := 25
 ## The most (ms a frame) the view may add to the same match without it (see the header).
 const BUDGET_MS := 3.2
-## The most (ms a frame) the moving view may cost: about 1.4x the moving median of about 6 ms (6.74
-## and 5.02 ms, two runs on 2026-11-07 after the pose lag; it was 20 ms from about 13, then 11.9 and
-## 10.9). This departs from perf.md's 4x rule, because 4x a per-frame cost would never trip.
-const MOVING_BUDGET_MS := 8.5
+## The most (ms a frame) the moving view may cost: 3.5 ms, 1.7x the median of six `--quiet` runs of
+## the sliced cone (2.05, 2.00, 2.00, 1.94, 2.04 and 2.14 ms on 2026-11-12, #195: the job is one
+## slice a frame, so its cost is the slice's, and the six medians spread 0.2 ms; single rounds reach
+## 3.1 ms, which is why the multiple is not 1.4x). The cone as it was before the pipeline read 4.49,
+## 4.67 and 4.36 ms, so 3.5 still fails it (it was 8.5 from about 6, 20 from about 13). This departs
+## from perf.md's 4x rule, because 4x a per-frame cost would never trip.
+const MOVING_BUDGET_MS := 3.5
 ## The most the live cone's cost a frame may be of the reference cone's, from the same eye (see the
 ## header).
 const RATIO_MAX := 0.75
@@ -121,7 +132,7 @@ var _costs: Array[float] = []
 var _ratios: Array[float] = []
 ## How many frames the view worked in, and how many of them rebuilt the cone.
 var _timed := 0
-var _rebuilt := 0
+var _rebuilt := 0  # job starts (`PlayerView.starts()`), restarts included
 ## The moving rounds' costs, reference ratios and proof that both viewer inputs changed each frame.
 var _moving_costs: Array[float] = []
 var _moving_ratios: Array[float] = []
@@ -182,8 +193,8 @@ func run(t: TestContext) -> void:
 	t.check(
 		float(_rebuilt) <= float(_timed) * PARKED_REBUILT_MAX,
 		(
-			"premise: the parked view rebuilt only for its backstop in the blocks it worked "
-			+ "(%d rebuilds in %d frames, at most %.0f %%)"
+			"premise: the parked view started a rebuild only for its backstop in the blocks worked "
+			+ "(%d starts in %d frames, at most %.0f %%)"
 			% [_rebuilt, _timed, PARKED_REBUILT_MAX * 100.0]
 		),
 	)
@@ -232,12 +243,12 @@ func _round_of_blocks(t: TestContext, view: PlayerView, moving := false) -> void
 	_watch.reset()
 	for on: bool in BLOCKS:
 		_switch(view, on)
-		var before := view.rebuilds()
+		var before := view.starts()
 		var stats := await Perf.frame_stats(t, BLOCK_FRAMES)
 		if on:
 			with_view += stats["avg_ms"] / float(BLOCKS.count(true))
 			if not moving:
-				_rebuilt += view.rebuilds() - before
+				_rebuilt += view.starts() - before
 				_timed += BLOCK_FRAMES
 		else:
 			without += stats["avg_ms"] / float(BLOCKS.count(false))

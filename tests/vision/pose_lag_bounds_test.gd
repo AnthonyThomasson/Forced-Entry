@@ -1,42 +1,58 @@
 extends GameTest
-## V1 (`docs/player-vision.md`), the pose lag: while only the viewer's eye (moved at most 5 px) or
-## facing (turned at most 1 degree) differs from the last rebuild's, the cone is rebuilt at most
-## every `VisionConfig.rebuild_gap` (2) physics frames, and a frame in between shows the exact cone
-## of the last rebuild: a fresh cone of an eye the viewer stood at. A checker
-## (`tests/_vision/cone_checker.gd`) holds every frame's polygon to a fresh reference cone of the
-## pose the view last rebuilt at, counts the frames rebuilt right after a rebuilt one, and the
-## frames the view held a cone while the viewer was past the bounds. Then
-## - a walking viewer (2 px a frame) and a turning one (0.5 degrees a frame) rebuild at most every
-##   second frame;
-## - an eye moved 8 px, or a facing turned 3 degrees, in the frame after a rebuild (a frame the lag
-##   would skip) is rebuilt at once;
-## - a solid that comes into the world in such a frame is rebuilt at once;
+## V1 (`docs/player-vision.md`), the cone's pipeline: a stale view starts a job from the viewer's
+## live pose and steps it a slice each physics frame (`VisionSliceConfig.slice_units`); the cone it
+## publishes is the exact cone of that pose, so it is as old as the job is long (2 to 4 frames for a
+## job of 3 slices), never a made-up pose. A checker (`tests/_vision/cone_checker.gd`) holds every
+## published cone to a fresh reference cone of the pose the view says it is of, and the cone held
+## between two publishes to the one before; `tests/_vision/cone_age.gd` says how old each frame's
+## cone is. The slice is small here so that a job of this little house takes three frames (and in
+## `_long_job` six, the longest a district's job takes: at most 10 frames old). Then
+## - a walking viewer (2 px a frame) and a turning one (0.5 degrees a frame) show cones at most 4
+##   frames old, every one of a pose the viewer stood at, and a pose change alone never restarts a
+##   job (a job is started per cone published, one in flight apart);
+## - an eye jumped past the bound (a teleport, a vehicle: 60 px) has its cone built whole in that
+##   very frame, and a facing turned 90 degrees at once is not a jump but a pose change;
 ## - a character that blocks (the viewer looks over only what is lower than a standing body, and
-##   one stands in the way) is rebuilt every frame the viewer walks, and the frame after;
-## - the memory paints only cones the view built.
-## The sight numbers' own case is `vision/view_watch_suite`'s.
+##   one stands in the way) is a change of the world in every frame: a job is started or restarted
+##   every frame, and after two restarts in a row the third frame builds the cone whole, so a cone
+##   is published at least every fourth frame;
+## - the memory paints only cones the view published.
+## The sight numbers' own case is `vision/view_watch_suite`'s; a world that changes between slices:
+## `vision/cone_restarts_on_world_change`.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Checker := preload("res://tests/_vision/cone_checker.gd")
 const EYE_AT := Vector2(200, 300)
 ## A character in the viewer's way, east of it.
 const STANDER_AT := Vector2(400, 300)
-## The viewer's step in a frame (px) and its turn (degrees): inside the lag's bounds (5 px, 1
-## degree).
+## The slice (units) that makes a job of this house three frames: the corners take one,
+## priced at a slice as the default price is (`cost_shape`), and the rays two.
+const SLICE := 140
+## The viewer's step in a frame (px) and its turn (degrees).
 const WALK := Vector2(2.0, 0.0)
 const TURN := 0.5
 const FRAMES := 40
-## A jump past the bounds: px, degrees.
-const JUMP := 8.0
-const SWING := 3.0
-## The most rebuilds in `FRAMES` frames at one every second frame, and the fewest that show the
-## pose did change the cone.
-const MOST := 21
-const LEAST := 15
-## How long to wait for a rebuild to line the next frame up as one the lag would skip.
-const SYNC_FRAMES := 14
-## A solid that comes into the cone, in the world.
-const NEW_SOLID_AT := Vector2(450, 330)
+## The eye's jump (px) past the bound of the spec (48), and a turn at once (degrees).
+const JUMP := 60.0
+const SWING := 90.0
+## Half of `JUMP` (px): inside the bound by itself.
+const HALF_JUMP := 30.0
+## The spec's restart cap, and the most frames between two publishes while the world changes in
+## every one: a start, the restarts, and the whole build.
+const CAP := 2
+const MOST_BETWEEN := CAP + 2
+## The oldest a cone may be in a job of three slices (frames), and the youngest the walk must show
+## to prove the job is sliced.
+const OLDEST := 4
+const YOUNGEST := 2
+## A long job (#195, the user's choice 2026-11-12: the corners are priced honestly, so a job is the
+## corners' tick and its rays' ticks): the slice (units) that makes this house's job six ticks, the
+## longest a district's job takes, and the oldest its cone may be then, twice the ticks less one.
+const LONG_SLICE := 50
+const LONG_TICKS := 6
+const OLDEST_LONG := 10
+## The age the long job's cone must reach, or the bound above is not pinned from below.
+const LONGEST_SEEN := 8
 
 var _t: TestContext
 var _view: PlayerView
@@ -48,11 +64,11 @@ var _painted: Array[PackedVector2Array] = []
 
 func describe() -> Dictionary:
 	return {
-		"name": "The cone lags a little pose change by at most a frame",
-		"description": "While only the eye (5 px) or the facing (1 degree) changes the cone is "
-			+ "rebuilt at most every second frame, a skipped frame shows the last rebuild's "
-			+ "exact cone, and a jump past the bounds, a new solid or a character that blocks "
-			+ "is rebuilt at once.",
+		"name": "The cone is as old as its job is long, and of a pose the viewer stood at",
+		"description": "A job steps a slice a frame from the viewer's pose and publishes its exact "
+			+ "cone: at most 4 frames old for 3 slices; a pose change alone never restarts it; a "
+			+ "jump past the bound is built whole at once; a world that changes every frame is "
+			+ "restarted twice and then built whole.",
 		"tags": ["vision"],
 		"timeout": 40.0,
 	}
@@ -62,6 +78,8 @@ func configure(s: TestSetup) -> void:
 	Probe.building(s, EYE_AT)
 	s.switch(&"vision.enabled", true)
 	s.set_static(CharacterVisionConfig, &"see_over_coverage", Probe.LOOK_OVER_LOW)
+	s.set_static(VisionSliceConfig, &"slice_units", SLICE)
+	s.set_static(VisionSliceConfig, &"cost_shape", SLICE)
 	s.actor(&"stander", &"puppet", STANDER_AT)
 	s.view(&"eye")
 
@@ -82,23 +100,29 @@ func run(t: TestContext) -> void:
 		return
 	await _walking()
 	await _turning()
+	await _long_job()
 	await _jumps()
-	await _new_solid()
 	_whole()
 
 
-## The character stands in the way and blocks the viewer's sight: every frame of a walk rebuilds.
+## The character stands in the way and blocks the viewer's sight: the world changes every frame,
+## so a job is started or restarted every frame, and the third restart is a whole build.
 func _blocking_character() -> void:
-	var before := _view.rebuilds()
+	var starts := _view.starts()
+	var published := _view.rebuilds()
 	for i in 12:
 		_eye.global_position += WALK
 		await _t.frames(1)
 	_t.check(
-		_view.rebuilds() - before == 12,
-		"a viewer walking before a character that blocks rebuilds every frame (%d in 12)"
-		% (_view.rebuilds() - before),
+		_view.starts() - starts == 12,
+		"a viewer walking before a blocker starts or restarts a job every frame (%d in 12)"
+		% (_view.starts() - starts),
 	)
-	_t.check(_checker.lag.back_to_back >= 11, "premise: those rebuilds came back to back")
+	_t.check(
+		_view.rebuilds() - published >= 12.0 / MOST_BETWEEN,
+		"a cone is published at least every %d frames (%d in 12)"
+		% [MOST_BETWEEN, _view.rebuilds() - published],
+	)
 
 
 ## The character crouches and no longer blocks; the viewer is put back where it started.
@@ -109,93 +133,166 @@ func _crouch_stander() -> bool:
 		"the character crouches",
 	):
 		return false
-	await _t.frames(5)
-	return _t.require(await Probe.place(_t, _eye, EYE_AT, Vector2.RIGHT), "the viewer faces east")
+	await _t.frames(8)
+	if not _t.require(await Probe.place(_t, _eye, EYE_AT, Vector2.RIGHT), "the viewer faces east"):
+		return false
+	return await _settled()
 
 
 ## The viewer walks `FRAMES` frames at `WALK` a frame.
 func _walking() -> void:
-	var before := _view.rebuilds()
-	var back := _checker.lag.back_to_back
+	var before := _counts()
 	for i in FRAMES:
 		_eye.global_position += WALK
 		await _t.frames(1)
 		_paint_sample()
-	_lag_checks("a walking viewer", before, back)
+	_age_checks("a walking viewer", before)
 
 
 ## The viewer turns `FRAMES` frames at `TURN` degrees a frame.
 func _turning() -> void:
-	var before := _view.rebuilds()
-	var back := _checker.lag.back_to_back
+	var before := _counts()
 	for i in FRAMES:
 		_aim(float(i + 1) * TURN)
 		await _t.frames(1)
 		_paint_sample()
-	_lag_checks("a turning viewer", before, back)
+	_age_checks("a turning viewer", before)
 
 
-func _lag_checks(who: String, before: int, back: int) -> void:
-	var rebuilds := _view.rebuilds() - before
+## The viewer walks `FRAMES` * 2 frames with the slice cut so that a job is `LONG_TICKS` ticks: the
+## cone is at most twice the ticks less one frames old (`OLDEST_LONG` for six), never older.
+func _long_job() -> void:
+	var slice := VisionSliceConfig.slice_units
+	var price := VisionSliceConfig.cost_shape
+	VisionSliceConfig.slice_units = LONG_SLICE
+	VisionSliceConfig.cost_shape = LONG_SLICE
+	if not await _settled():
+		return
+	_checker.age.max_age = 0
+	var starts := _view.starts()
+	var published := _view.rebuilds()
+	var start_frame := -1
+	var longest := 0
+	for frame in FRAMES * 2:
+		_eye.global_position += WALK
+		await _t.frames(1)
+		if _view.starts() > starts:
+			start_frame = frame
+			starts = _view.starts()
+		if _view.rebuilds() > published:
+			longest = maxi(longest, frame - start_frame + 1)
+			published = _view.rebuilds()
+	VisionSliceConfig.slice_units = slice
+	VisionSliceConfig.cost_shape = price
 	_t.check(
-		rebuilds <= MOST,
-		"%s rebuilds at most every second frame (%d in %d)" % [who, rebuilds, FRAMES],
+		longest == LONG_TICKS,
+		"premise: a job takes %d ticks here (the longest was %d)" % [LONG_TICKS, longest],
 	)
 	_t.check(
-		rebuilds >= LEAST,
-		"premise: %s changes the cone, so it still rebuilds (%d in %d)" % [who, rebuilds, FRAMES],
+		_checker.age.max_age <= OLDEST_LONG and _checker.age.max_age <= 2 * (longest - 1),
+		"a cone of a %d-tick job is at most %d frames old (%d)"
+		% [longest, OLDEST_LONG, _checker.age.max_age],
 	)
 	_t.check(
-		_checker.lag.back_to_back == back,
-		"%s never rebuilds in two frames running (%d did)" % [
-			who,
-			_checker.lag.back_to_back - back,
+		_checker.age.max_age >= LONGEST_SEEN,
+		"premise: the long job's cone reaches %d frames old (%d)" % [
+			LONGEST_SEEN,
+			_checker.age.max_age,
 		],
 	)
-
-
-## A jump past the bounds in a frame the lag would skip is rebuilt in that frame.
-func _jumps() -> void:
-	_t.require(await Probe.place(_t, _eye, EYE_AT, Vector2.RIGHT), "the viewer faces east")
-	await _sync()
-	var before := _view.rebuilds()
-	_eye.global_position += Vector2(0.0, JUMP)
+	if not await _settled():
+		return
 	await _t.frames(1)
-	_t.check(_view.rebuilds() == before + 1, "an eye moved %d px is rebuilt at once" % JUMP)
-	await _sync()
-	before = _view.rebuilds()
-	_aim(SWING)
-	await _t.frames(2)
+
+
+## `[starts, publishes]`.
+func _counts() -> Array[int]:
+	return [_view.starts(), _view.rebuilds()]
+
+
+func _age_checks(who: String, before: Array[int]) -> void:
+	var published := _view.rebuilds() - before[1]
+	var started := _view.starts() - before[0]
 	_t.check(
-		_view.rebuilds() == before + 1,
-		"a facing turned %d degrees is rebuilt as soon as it has turned" % SWING,
+		_checker.age.max_age <= OLDEST,
+		"%s's cone is at most %d frames old (%d)" % [who, OLDEST, _checker.age.max_age],
+	)
+	_t.check(
+		_checker.age.max_age >= YOUNGEST,
+		"premise: %s's job takes frames, so its cone lags (oldest %d)" % [
+			who,
+			_checker.age.max_age,
+		],
+	)
+	_t.check(
+		published >= float(FRAMES) / (OLDEST + 1) and published <= float(FRAMES) / 2.0,
+		"premise: %s still publishes, one cone per job (%d in %d)" % [who, published, FRAMES],
+	)
+	_t.check(
+		started - published <= 1,
+		"%s changes the pose only, so no job is restarted (%d started, %d published)"
+		% [who, started, published],
+	)
+	_t.check(
+		_checker.age.foreign == 0,
+		"%s's cone was always of a pose the viewer stood at (%d frames were not)"
+		% [who, _checker.age.foreign],
 	)
 
 
-## A solid that joins the world with the eye moved a pixel is rebuilt in that frame.
-func _new_solid() -> void:
-	await _sync()
+## An eye past the bound is built whole in the frame it jumps in; a facing turned at once is a
+## pose change.
+func _jumps() -> void:
+	_t.require(await Probe.place(_t, _eye, EYE_AT, Vector2.RIGHT), "the viewer faces east")
+	if not await _settled():
+		return
 	var before := _view.rebuilds()
-	var body := StaticBody2D.new()
-	body.collision_layer = PhysicsLayers.SOLID
-	body.position = NEW_SOLID_AT
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(30.0, 30.0)
-	shape.shape = rect
-	body.add_child(shape)
-	_t.world.add_child(body)
-	_eye.global_position += Vector2(1.0, 0.0)
+	var at := _eye.global_position + Vector2(0.0, JUMP)
+	_eye.global_position = at
 	await _t.frames(1)
-	_t.check(_view.rebuilds() == before + 1, "a solid that joins the world is rebuilt at once")
+	_t.check(_view.rebuilds() == before + 1, "an eye moved %d px is built whole at once" % JUMP)
+	_t.check(
+		_view.published_pose()["eye"] == at and not _view.building(),
+		"the cone built whole is of the eye's new place",
+	)
+	if not await _settled():
+		return
+	before = _view.rebuilds()
+	_aim(SWING)
+	await _t.frames(1)
+	_t.check(
+		_view.rebuilds() == before and _view.building(),
+		"a facing turned %d degrees is a job over some frames, not a jump" % SWING,
+	)
+	await _jump_in_flight()
 
 
-## Wait until the view has just rebuilt, so that the next frame is one the lag would skip.
-func _sync() -> void:
+## An eye that comes to be past the bound from the cone shown, while a job (begun from an eye still
+## inside the bound) is in flight, is built whole in that frame: the bound is the cone shown's, so
+## it is never more than the bound behind. Two steps of `HALF_JUMP` each: the first is a job, the
+## second is 60 px from the cone shown and 30 from the job's eye.
+func _jump_in_flight() -> void:
+	if not await _settled():
+		return
+	_eye.global_position += Vector2(0.0, HALF_JUMP)
+	if not _t.require(
+		await _t.until(func() -> bool: return _view.building(), 0.5), "a step of 30 px starts a job"
+	):
+		return
 	var before := _view.rebuilds()
-	_t.require(
-		await _t.until(func() -> bool: return _view.rebuilds() != before, 0.25),
-		"the view rebuilds (the backstop) within %d frames" % SYNC_FRAMES,
+	var at := _eye.global_position + Vector2(0.0, HALF_JUMP)
+	_eye.global_position = at
+	await _t.frames(1)
+	_t.check(
+		_view.rebuilds() == before + 1 and _view.published_pose()["eye"] == at,
+		"an eye %d px from the cone shown, with a job in flight, is built whole at once" % JUMP,
+	)
+
+
+## Wait until the view is not building (a published cone is the newest there is).
+func _settled() -> bool:
+	return _t.require(
+		await _t.until(func() -> bool: return not _view.building(), 0.5), "the view's job ends"
 	)
 
 
@@ -213,18 +310,15 @@ func _paint_sample() -> void:
 func _whole() -> void:
 	_t.check(
 		_checker.wrong() == 0,
-		"every frame held a fresh cone of the pose of the last rebuild: %s" % _checker.report(),
-	)
-	_t.check(
-		_checker.lag.past_bounds == 0,
-		"%d frames held a cone past the lag's bounds" % _checker.lag.past_bounds,
+		"every published cone was a fresh cone of its pose, and held until the next: %s"
+		% _checker.report(),
 	)
 	var foreign := 0
 	for painted in _painted:
-		if not _checker.lag.real_cones.has(painted):
+		if not _checker.age.real_cones.has(painted):
 			foreign += 1
 	_t.check(
 		_painted.size() >= 2 * FRAMES and foreign == 0,
-		"the memory painted only cones the view built (%d of %d were not)"
+		"the memory painted only cones the view published (%d of %d were not)"
 		% [foreign, _painted.size()],
 	)

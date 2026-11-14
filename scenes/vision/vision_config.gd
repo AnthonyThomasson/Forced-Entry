@@ -35,8 +35,3 @@ static var far_bleed: float = 14.0
 ## seen change: a backstop for a change it cannot see. Between two rebuilds it holds the polygon it
 ## has, which a fresh rebuild would draw again, vertex for vertex.
 static var rebuild_every: int = 10
-## While only the viewer's eye (moved at most 5 px) or facing (turned at most 1 degree) differs from
-## the last rebuild's, the cone is rebuilt at most every this many physics frames; the frames
-## between show the exact cone of the last rebuild. 1 = every frame, no lag (`docs/player-vision.md`
-## V1).
-static var rebuild_gap: int = 2

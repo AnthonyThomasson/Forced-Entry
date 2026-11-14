@@ -8,6 +8,7 @@ extends RefCounted
 ## `agent_snapshot.gd`): bands not numbers, no negations.
 
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
+const AgentSuspicion := preload("res://scenes/ai/perception/agent_suspicion.gd")
 ## Compass names for an 8-wind direction, indexed clockwise from east (screen +y is south).
 const COMPASS := [
 	"east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east",
@@ -16,6 +17,18 @@ const COMPASS := [
 const SIDE_WORDS := {
 	"left": "their left side", "right": "their right side", "rear": "behind them",
 	"front": "their front",
+}
+## How a doorway's option says why its room is suspect (docs/grenades.md G18), one phrase per
+## `AgentSuspicion` reason, measured with tools/von_probe.py
+## (tools/von_scenarios/stun_entry_*.json).
+const SUSPECT_PHRASES := {
+	AgentSuspicion.GUNFIRE: "gunfire heard there",
+	AgentSuspicion.FOOTSTEPS: "footsteps heard there",
+	AgentSuspicion.SHOT_FROM: "shots at you came from there",
+	AgentSuspicion.ALLY_FIGHT: "an ally radioed a fight there",
+	AgentSuspicion.SEEN_IN: "a hostile seen going in",
+	AgentSuspicion.LOST_BY_DOOR: "a hostile lost by its doorway",
+	AgentSuspicion.HEADING_IN: "a hostile seen heading in",
 }
 
 ## The NPC's tuning topics (`NpcTuning`), handed in by the perception's apply_config(): the

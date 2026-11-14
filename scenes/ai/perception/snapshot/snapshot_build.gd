@@ -9,9 +9,9 @@ extends RefCounted
 ## prices the pieces.
 ##
 ## This is a record of the build in progress: the author holds the logic, this holds the state, so
-## the author keeps none between decisions. A build dropped half-way is simply freed (its
-## walked-route token with it); nothing outside it has changed but the author's per-decision
-## scratch, which the next build's START resets.
+## the author keeps none between decisions. A build dropped half-way is simply freed; nothing
+## outside it has changed but the author's per-decision scratch, which the next build's START
+## resets.
 
 ## The kinds of piece, in the order they run. DONE once the result is ready.
 enum Piece {
@@ -46,8 +46,6 @@ var analysed: Array = []
 var cursor := 0
 ## The kind of piece that runs next.
 var piece := Piece.START
-## The doorway views' walked-route memo, open from START to FINISH (`begin_decision`).
-var token: RefCounted
 var _result := {}
 
 
@@ -76,5 +74,4 @@ func result() -> Dictionary:
 ## Hand over the finished snapshot and close the build. Called by the author's FINISH piece.
 func finish(snapshot: Dictionary) -> void:
 	_result = snapshot
-	token = null
 	piece = Piece.DONE

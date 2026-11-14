@@ -138,6 +138,18 @@ func _ready() -> void:
 	planner.decided.connect(_on_decided)
 	planner.failed.connect(_behavior.fallback)
 	EventBus.posted.connect(_on_event)
+	# The body's death is heard from the start: one dead before its first tick never reaches
+	# `control` (and `_bind_body`), yet it has been listening since here.
+	var body := get_parent()
+	if body != null and body.has_signal(&"died"):
+		body.connect(&"died", _on_died)
+
+
+## The NPC is freed: its decision leaves the pool's roster. Only a freed NPC, not one that merely
+## leaves the tree (moved under another parent, still in its match with its decision in flight).
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and _job != null:
+		_job.release()
 
 
 ## Configure the sub-domains from the tuning. The controller is the single authoring surface —
@@ -238,7 +250,8 @@ func debug_status() -> String:
 ## last walk (the exact state and question Von saw, the options, its probabilities and pick,
 ## auto-picks and timings), what the NPC knows (`contacts`), the running primitive and pathing, how
 ## many decision walks it has started and why the latest one started (`decisions`,
-## `decision_reason`: the force reason, e.g. "task resolved" or "way blocked", or "cadence"), and
+## `decision_reason`: the force reason, e.g. "task resolved" or "way blocked", or "cadence"; a
+## decision has landed when `decisions` has grown and `decision.pending` is false), and
 ## where it may act now (`confinement`, the perception's confinement's `view()`). It completes the
 ## last decision's snapshot (builds the groups the walk did not read, `SnapshotDemand.complete`),
 ## which changes no decision the NPC makes.
@@ -257,6 +270,7 @@ func debug_state() -> Dictionary:
 	}
 	if _job != null:
 		out["decision"] = _job.planner.debug_state()
+		out["decision"]["pending"] = _job.pending()
 	if _perception != null:
 		out["under_fire"] = _perception.under_fire()
 		out["engaged_fresh"] = _perception.engaged_fresh()
@@ -362,8 +376,9 @@ func debug_sent_callout() -> Dictionary:
 	return _comms.last_callout
 
 
-## Read-only: the decision machinery's live state for the brain overlay — whether Von is being asked
-## (`pending`), the last walk's levels (state, offered options, probabilities, pick), whether it
+## Read-only: the decision machinery's live state for the brain overlay — whether a decision is in
+## flight (`pending`: claimed, being built, searching for a throw or being walked), the last walk's
+## levels (state, offered options, probabilities, pick), whether it
 ## failed (the behaviour then holds steady), the decide/force timers and why the last force fired,
 ## and the facts.
 func debug_brain() -> Dictionary:
@@ -375,7 +390,7 @@ func debug_brain() -> Dictionary:
 			if _character != null
 			else {})
 	return {
-		"pending": d.get("pending", false),
+		"pending": _job.pending(),
 		"failed": d.get("last_failed", false),
 		"entry": d.get("entry", ""),
 		"levels": d.get("levels", []),
@@ -433,10 +448,22 @@ func control(character: Node, delta: float) -> void:
 	_sense(character, delta)
 	# An active interaction holds the tick; when it or a move resolves, re-decide at once.
 	if _behavior.errand.service_interaction(delta, _cadence.forced):
+		_job.rest()  # its tick is held: no piece of its decision runs this frame
 		return
 	_take_resolved()
 	_think(due)
 	_act(delta)
+
+
+## The NPC died: the body no longer asks its controller to think, so nothing it has in flight ever
+## advances again, and nothing would read what it hears. Its decision is dropped (a Von answer on
+## its way then walks no further level and adopts no leaf on the corpse, and it leaves the pool's
+## roster at once instead of holding the next NPC up) and it stops listening to the match.
+func _on_died() -> void:
+	_job.cancel()
+	if EventBus.posted.is_connected(_on_event):
+		EventBus.posted.disconnect(_on_event)
+	_comms.event_queue.clear()
 
 
 ## Takes `character` as the NPC's body on its first tick: seeds the reflexes' RNG from its name and
@@ -535,8 +562,9 @@ func _maybe_interrupt() -> void:
 	if _behavior.grenades.evading() or _character.stun.is_blind():
 		return
 	# An order taken since the walk in flight began always restarts it: that walk was made without
-	# the order, and a walk the order replaces stands until one made with it lands.
-	if (_cadence.order_from >= 0
+	# the order, and a walk the order replaces stands until one made with it lands. A decision
+	# begun after the order is not restarted for it again: its own events judge it (`stale`).
+	if (_job.overtaken_by_order()
 			or _job.stale(_job.planner.entry_for(_perception.quick_facts()))):
 		_request()
 	elif not _job.frozen():
