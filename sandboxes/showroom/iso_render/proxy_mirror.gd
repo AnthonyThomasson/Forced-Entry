@@ -57,8 +57,8 @@ func update() -> void:
 	var i := 0
 	while i < _moving.size():
 		var row: Dictionary = _moving[i]
-		var shape: Node2D = row["shape"]
-		if not is_instance_valid(shape) or not is_instance_valid(row["node"]):
+		var shape: Variant = row["shape"]  # untyped: a freed node may not be assigned to a Node2D
+		if not is_instance_valid(shape):
 			(row["node"] as Node).queue_free()
 			_moving.remove_at(i)
 			continue
@@ -66,7 +66,7 @@ func update() -> void:
 		if body is RigidBody2D and (body as RigidBody2D).sleeping:
 			i += 1
 			continue
-		var xf := shape.global_transform
+		var xf: Transform2D = (shape as Node2D).global_transform
 		if xf != row["last"]:
 			row["last"] = xf
 			(row["node"] as Node3D).transform = _lift(xf, row["size3"], row["half_height"])
