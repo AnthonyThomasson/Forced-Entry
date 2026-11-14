@@ -114,8 +114,8 @@ func run(t: TestContext) -> void:
   children. `t.world` is typed `Node2D`, so a `var` off it takes an explicit type (`t.world.match_handle`,
   `t.world.squad(faction)`, `t.world.player_stack`).
 - **Puppet** (`scripted_controller.gd`): its actions run on the character's next frame, and `facing` follows the aim
-  one frame later: aim, wait, then fire. `use()` presses E (nearer of a door and a vehicle); `turn_door(steps)`
-  is the wheel with E held.
+  one frame later: aim, wait, then fire. `use()` presses Space (what is nearest its aim); `turn_door(steps)`
+  is the wheel with Space held.
 - Make randomness deterministic where the assertion depends on it (`projectile.flyover` off: a character is partial cover).
 
 ### Native unit suites (pure logic only)

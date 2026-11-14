@@ -4,7 +4,7 @@ extends Node
 ## character's own frame, through only the published controller API (`movement.move_input`,
 ## `movement.aim_point`, `movement.run_input`, `movement.set_posture`, `weapon.melee`,
 ## `anatomy.leg_kick`, `weapon.shoot`, `ammo.reload`, `inventory.select_slot`, `use.interact_with`,
-## `use.end_interaction`, `use.try_use`).
+## `use.end_interaction`, `use.try_interact`).
 ##
 ## Commands return at once; wait on their effect through the TestContext, e.g.
 ## `p.walk_to(spot)` then `await t.until(p.has_arrived, 3.0, "never arrived")`.
@@ -134,17 +134,18 @@ func interact(object: Node, id: String) -> void:
 			failed_interactions.append([object, id]))
 
 
-## Press E once (the player's Use key), acting at once on the nearer of a door in reach and a
-## vehicle's door: a door toggles, the vehicle is boarded by the nearest door's seat or got out of.
-## A character without a `use` (`use.try_use`) ignores it, so a test written before the feature
-## fails on its own `require`.
+## Press Space once (the player's Interact key), acting at once on what is nearest its aim: a chair
+## is sat on, a door toggles, a vehicle is boarded by the nearest door's seat or got out of, an
+## interaction in progress ends. `aim_at` first when more than one thing is in reach. A character
+## without a `use` (`use.try_interact`) ignores it, so a test written before the feature fails on
+## its own `require`.
 func use() -> void:
 	_pending.append(func(c):
 		if "use" in c:
-			c.use.try_use())
+			c.use.try_interact())
 
 
-## Turn the door in reach by `steps` notches of the wheel while Use is held (`use.doors.turn`, a
+## Turn the door in reach by `steps` notches of the wheel while Space is held (`use.doors.turn`, a
 ## notch `DoorConfig.step_degrees`; positive opens, negative shuts). A character without a `use`
 ## ignores it.
 func turn_door(steps: float) -> void:

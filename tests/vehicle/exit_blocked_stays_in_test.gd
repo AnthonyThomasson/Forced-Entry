@@ -1,7 +1,7 @@
 extends GameTest
 ## V4 (ticket #54): with no clear door, E leaves the character in: characters stand in all four
-## doors' swing, the driver presses E and nothing opens. Once one door is cleared, E gets it out by
-## that door.
+## doors' swing, the driver presses Space and nothing opens. Once one door is cleared, Space gets it
+## out by that door.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")

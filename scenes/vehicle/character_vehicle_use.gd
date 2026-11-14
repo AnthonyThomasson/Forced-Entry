@@ -1,7 +1,7 @@
 extends Node
 ## Vehicles domain: a character's use of vehicles (interface 19), composed by the character's `use`
 ## (`CharacterUse`) like its CharacterInteraction, which only forwards opaque calls to it:
-## `try_use_vehicle()` (E: board by the nearest usable door, or get out), `vehicle()`,
+## `try_use_vehicle()` (Space: board by the nearest usable door, or get out), `vehicle()`,
 ## `is_in_vehicle()`, and once a physics frame `control(delta)` (after its controller, so the ride
 ## overrides that frame's intent) and `abandon()` on death. It finds vehicles through the group
 ## `vehicles` and steps the character's ride (vehicle_boarding.gd), which moves the character
@@ -10,15 +10,15 @@ extends Node
 ## to the character's `use.keep_clear_of`, which drops the exception as soon as the body has cleared
 ## the vehicle, so getting out never shoves it.
 
-## The ride under way (VehicleBoarding), from the E press to the last step out; null on foot.
+## The ride under way (VehicleBoarding), from the Space press to the last step out; null on foot.
 var _ride: RefCounted
 
 ## The character that composes it (character.gd).
 @onready var _character: Node2D = get_parent()
 
 
-## E: seated, get out (braking or waiting for the vehicle to slow first); on foot, board by the door
-## whose handle is nearest, among those within `VehicleBoardingConfig.door_reach` of a vehicle
+## Space: seated, get out (braking or waiting for the vehicle to slow first); on foot, board by the
+## door whose handle is nearest, among those within `VehicleBoardingConfig.door_reach` of a vehicle
 ## moving slower than `board_max_speed`, skipping a door that cannot open for the next nearest.
 ## Nothing happens on the way in or out, or with no usable door.
 func try_use_vehicle() -> void:
@@ -35,15 +35,17 @@ func try_use_vehicle() -> void:
 			return
 
 
-## How far (px) the nearest door a character on foot could board by is: the nearest handle within
-## `VehicleBoardingConfig.door_reach` of a vehicle moving slower than `board_max_speed`; `INF` when
-## there is none or the character is already in a vehicle. The character's `use` weighs it against a
-## door in reach.
-func nearest_door_distance() -> float:
+## How far (px) from `point` (the mouse) the nearest door a character on foot could board by is: the
+## handle nearest `point` among those within `VehicleBoardingConfig.door_reach` of the body of a
+## vehicle moving slower than `board_max_speed`; `INF` when there is none or the character is
+## already in a vehicle. The character's `use` weighs it against a chair and a house door.
+func nearest_door_distance(point: Vector2) -> float:
 	if _ride != null:
 		return INF
-	var candidates := _candidates()
-	return candidates[0]["distance"] if not candidates.is_empty() else INF
+	var nearest := INF
+	for c: Dictionary in _candidates():
+		nearest = minf(nearest, c["handle"].distance_to(point))
+	return nearest
 
 
 ## The vehicle the character is boarding, riding in or getting out of; null on foot.
@@ -57,8 +59,8 @@ func is_in_vehicle() -> bool:
 
 
 ## The doors a character on foot could board by, nearest handle first: each `{ vehicle, door,
-## distance }`, the handle within `VehicleBoardingConfig.door_reach` of a vehicle slower than
-## `board_max_speed`.
+## distance, handle }`, the handle within `VehicleBoardingConfig.door_reach` of a vehicle slower
+## than `board_max_speed`.
 func _candidates() -> Array:
 	var candidates := []
 	for near in _character.get_tree().get_nodes_in_group(&"vehicles"):
@@ -67,12 +69,17 @@ func _candidates() -> Array:
 		for door: Dictionary in near.doors():
 			var distance: float = _character.global_position.distance_to(door["handle"])
 			if distance <= VehicleBoardingConfig.door_reach:
-				candidates.append({ "vehicle": near, "door": door["id"], "distance": distance })
+				candidates.append({
+					"vehicle": near,
+					"door": door["id"],
+					"distance": distance,
+					"handle": door["handle"],
+				})
 	candidates.sort_custom(func(a, b): return a["distance"] < b["distance"])
 	return candidates
 
 
-## True from the E press to the last step out: the character is busy.
+## True from the Space press to the last step out: the character is busy.
 func is_active() -> bool:
 	return _ride != null
 

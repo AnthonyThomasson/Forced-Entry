@@ -1,7 +1,7 @@
 class_name CharacterDoors extends RefCounted
 ## A character's use of doors (`character.gd`'s `doors`, interface 7, `docs/doors.md` DR6 and DR7):
 ## which standing door is in reach (`door_in_reach`), working it (`use`, `turn`). It takes no input
-## events: the human's controller turns the Use key and the wheel into these calls, and an NPC's
+## events: the human's controller turns Space and the wheel into these calls, and an NPC's
 ## will call them as they are. The door is the Objects domain's `Door` (interface 24), held
 ## duck-typed. Tuning: `CharacterDoorConfig`.
 
@@ -26,8 +26,7 @@ func door_in_reach() -> Node2D:
 	for door: Node2D in character.get_tree().get_nodes_in_group(&"doors"):
 		if not reaches(door):
 			continue
-		var aim: Vector2 = character.movement.aim_point
-		var gap := _closest_to(door, aim).distance_to(aim)
+		var gap := gap_to(door, character.movement.aim_point)
 		if gap < best_gap:
 			best = door
 			best_gap = gap
@@ -36,7 +35,8 @@ func door_in_reach() -> Node2D:
 
 ## Whether `door` is in reach ahead: it stands (is not knocked down) and its leaf's nearest point
 ## to the body is within `CharacterDoorConfig.reach` and on the side `facing` points to. A
-## character holding Use on a door asks it of that door, whichever door its aim is nearest by then.
+## character holding Space on a door asks it of that door, whichever door its aim is nearest by
+## then.
 func reaches(door: Node2D) -> bool:
 	if character.is_dead or door.is_down():
 		return false
@@ -47,9 +47,10 @@ func reaches(door: Node2D) -> bool:
 	)
 
 
-## How far (px) `door`'s leaf is from the character's centre, at its nearest point.
-func distance_to(door: Node2D) -> float:
-	return _closest_to(door, character.global_position).distance_to(character.global_position)
+## How far (px) `door`'s leaf is from `point`, at its nearest point: from the mouse, the gap Space
+## weighs a door by against a chair and a vehicle's door (`CharacterUse.interact_target`).
+func gap_to(door: Node2D, point: Vector2) -> float:
+	return _closest_to(door, point).distance_to(point)
 
 
 ## Use `door` (the door in reach when none is given, a held one that is still `reaches`): an open

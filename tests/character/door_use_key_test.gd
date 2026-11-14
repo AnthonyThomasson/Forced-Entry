@@ -1,8 +1,8 @@
 extends GameTest
-## DR6 (ticket #21): the Use key (E) works a door. A tap swings a shut door fully open and a second
+## DR6 (tickets #21, #193): Space works a door. A tap swings a shut door fully open and a second
 ## shuts it again, the door turning at the release of the key (a hold is for scrolling, DR7); with a
-## door and a vehicle's door both in reach E acts on the nearer; in a vehicle E gets out, though a
-## door stands in reach.
+## door and a vehicle's door both in reach Space acts on the one nearest the mouse; in a vehicle
+## Space gets out, though a door stands in reach.
 ##
 ## A south room holds a car (220 x 110 at (620, 300): its front-left handle at (600, 245), its
 ## rear-left one at (550, 245), the driver's seat at (630, 275) facing east). The wall above it,
@@ -17,8 +17,11 @@ const ALONE := Vector2(580, 140)
 ## its 60 px reach: the door is the nearer.
 const BY_THE_DOOR := Vector2(544, 200)
 ## Beside the car's front-left handle (18 px) with the open leaf's end 43 px away, within the door
-## reach of 48 px: the car's door is the nearer.
+## reach of 48 px.
 const BY_THE_CAR := Vector2(603, 227)
+## The mouse just off that handle (11 px), 39 px from the open leaf: the car's door is the one
+## nearest the mouse, with the open leaf still ahead of a player facing it.
+const AT_THE_HANDLE := Vector2(595, 235)
 ## The middle of `d`'s leaf standing open.
 const OPEN_LEAF := Vector2(563, 193)
 ## The door reach a seated player is given: from the seat the doorway is far, whatever is near the
@@ -32,10 +35,10 @@ const FULL := 90.0
 
 func describe() -> Dictionary:
 	return {
-		"name": "Use opens and shuts a door, or acts on the nearer of door and vehicle",
-		"description": "E tapped swings a shut door open and again shuts it (turning at the "
-			+ "release); beside a door and a car's door it acts on the nearer, either way; seated, "
-			+ "it gets out with a door in reach.",
+		"name": "Space opens and shuts a door, or acts on the door or vehicle nearest the mouse",
+		"description": "Space tapped swings a shut door open and again shuts it (turning at the "
+			+ "release); beside a door and a car's door it acts on the one nearest the mouse, "
+			+ "either way; seated, it gets out with a door in reach.",
 		"tags": ["door", "player", "input", "keybinds", "vehicle"],
 		"timeout": 30.0,
 	}
@@ -87,51 +90,52 @@ func run(t: TestContext) -> void:
 ## Alone with the door: held, nothing moves; a tap opens it at the release and the next shuts it.
 func _tap_opens_and_shuts(t: TestContext, you: Node, door: Node) -> void:
 	await _place(t, you, ALONE, Vector2(580, 230))
-	Input.action_press(Keybinds.USE)
+	Input.action_press(Keybinds.INTERACT)
 	await t.seconds(0.25)
-	t.expect_near(door.angle(), 0.0, 0.01, "the door does not move while E is held")
-	Input.action_release(Keybinds.USE)
-	t.check(await _reaches(t, door, FULL), "E opens a shut door fully")
+	t.expect_near(door.angle(), 0.0, 0.01, "the door does not move while Space is held")
+	Input.action_release(Keybinds.INTERACT)
+	t.check(await _reaches(t, door, FULL), "Space opens a shut door fully")
 	t.expect_near(door.angle(), FULL, 0.1, "the door is open 90 degrees")
 	await _tap(t)
-	t.check(await _reaches(t, door, 0.0), "E again shuts it")
+	t.check(await _reaches(t, door, 0.0), "Space again shuts it")
 	door.turn_by(AJAR, null)
 	await _reaches(t, door, AJAR)
 	await _tap(t)
-	t.check(await _reaches(t, door, FULL), "E swings an ajar door fully open")
+	t.check(await _reaches(t, door, FULL), "Space swings an ajar door fully open")
 	await _tap(t)
 	t.check(await _reaches(t, door, 0.0), "and shuts it again")
 
 
-## Both in reach, the door the nearer: E works the door and the car stays.
+## Both in reach, the door nearest the mouse: Space works the door and the car stays.
 func _door_nearer(t: TestContext, you: Node, door: Node) -> void:
 	door.open_fully(null)
 	await _reaches(t, door, FULL)
 	await _place(t, you, BY_THE_DOOR, OPEN_LEAF)
 	t.check(you.use.doors.door_in_reach() == door, "the door is in reach beside the car")
 	await _tap(t)
-	t.check(await _reaches(t, door, 0.0), "nearer the door, E works it (it shuts)")
+	t.check(await _reaches(t, door, 0.0), "mouse nearest the door, Space works it (it shuts)")
 	await t.seconds(0.5)
 	t.check(not you.use.is_busy(), "and does not board the car")
 
 
-## The car's handle the nearer: E boards, the open door stays as it is (false: ends the test).
+## The car's handle nearest the mouse: Space boards, the open door stays as it is (false: ends the
+## test).
 func _vehicle_nearer(t: TestContext, you: Node, door: Node) -> bool:
 	door.open_fully(null)
 	await _reaches(t, door, FULL)
-	await _place(t, you, BY_THE_CAR, Vector2(590, 100))
+	await _place(t, you, BY_THE_CAR, AT_THE_HANDLE)
 	t.check(you.use.doors.door_in_reach() == door, "the door is in reach beside the car's door too")
 	await _tap(t)
 	if not t.require(
 			await t.until(func(): return you.use.is_in_vehicle(), 6.0),
-			"nearer the car's door, E gets in",
+			"mouse nearest the car's door, Space gets in",
 	):
 		return false
 	t.expect_near(door.angle(), FULL, 0.1, "and the open door is left open")
 	return true
 
 
-## Seated, a door in reach ahead: E gets out and leaves the door as it is.
+## Seated, a door in reach ahead: Space gets out and leaves the door as it is.
 func _seated_beside_a_door(t: TestContext, you: Node, east: Node) -> void:
 	CharacterDoorConfig.reach = SEATED_REACH
 	await t.seconds(0.5)
@@ -139,7 +143,7 @@ func _seated_beside_a_door(t: TestContext, you: Node, east: Node) -> void:
 	await _tap(t)
 	t.check(
 		await t.until(func(): return you.use.vehicle() == null, 8.0),
-		"in a vehicle, E gets out",
+		"in a vehicle, Space gets out",
 	)
 	t.expect_near(east.angle(), FULL, 0.1, "and the open door is left open")
 
@@ -157,9 +161,9 @@ func _place(t: TestContext, you: Node, spot: Vector2, toward: Vector2) -> void:
 	await PlayerPointer.aim(t, you, toward)
 
 
-## Tap E: press for a few frames, then release.
+## Tap Space: press for a few frames, then release.
 func _tap(t: TestContext) -> void:
-	Input.action_press(Keybinds.USE)
+	Input.action_press(Keybinds.INTERACT)
 	await t.frames(2)
-	Input.action_release(Keybinds.USE)
+	Input.action_release(Keybinds.INTERACT)
 	await t.frames(1)

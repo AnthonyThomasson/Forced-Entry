@@ -34,7 +34,7 @@ func run(t: TestContext) -> void:
 	_check_rows(t)
 	_check_reset(t)
 	_check_partial(t)
-	_check_use_alias(t)
+	_check_dropped_use(t)
 	await _check_unreadable(t)
 	Keybinds.bindings.reset_all()
 	_remove_scratch()
@@ -130,25 +130,32 @@ func _check_partial(t: TestContext) -> void:
 	t.check(_key(KEY_UP).is_action(Keybinds.MOVE_UP), "the bindings it names are applied")
 
 
-## A binding saved under `use_vehicle`, an alias of the Use action, comes back as `use`, is saved
-## under `use` from then on, and loses to a `use` binding saved beside it.
-func _check_use_alias(t: TestContext) -> void:
-	_write('{ "keybinds": { "use_vehicle": { "key": %d } } }' % KEY_G)
+## The Use action is gone (it merged into Interact, ticket #193): a file saved with a `use` or
+## `use_vehicle` binding loads without it, binds nothing, and is never written back; the bindings
+## beside it still apply.
+func _check_dropped_use(t: TestContext) -> void:
+	_write(
+		(
+			'{ "keybinds": { "use": { "key": %d }, "use_vehicle": { "key": %d },'
+			+ ' "move_up": { "key": %d } } }'
+		) % [KEY_G, KEY_H, KEY_UP]
+	)
 	Settings.load_file()
-	t.check(_key(KEY_G).is_action(Keybinds.USE), "a saved use_vehicle binding comes back as use")
+	t.check(not InputMap.has_action("use"), "no use action comes back from the file")
+	t.check(not InputMap.has_action("use_vehicle"), "nor a use_vehicle one")
+	t.check(_key(KEY_UP).is_action(Keybinds.MOVE_UP), "the binding beside them still applies")
 	t.expect_eq(
 		Keybinds.bindings.overrides().keys(),
-		[Keybinds.USE],
-		"and only use differs from the defaults",
+		[Keybinds.MOVE_UP],
+		"only the real action differs from the defaults",
 	)
 	Settings.save()
 	var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string(SCRATCH))
-	t.expect_eq(saved["keybinds"].keys(), ["use"], "the file holds it under use")
-	_write(
-		'{ "keybinds": { "use_vehicle": { "key": %d }, "use": { "key": %d } } }' % [KEY_G, KEY_H]
+	t.expect_eq(saved["keybinds"].keys(), ["move_up"], "the file is written without them")
+	t.check(
+		not Keybinds.bindings.actions().has("use"),
+		"the rebinding store does not list a use action",
 	)
-	Settings.load_file()
-	t.check(_key(KEY_H).is_action(Keybinds.USE), "a use binding beside an aliased one wins")
 	Settings.reset_all()
 
 

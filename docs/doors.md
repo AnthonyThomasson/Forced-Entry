@@ -100,35 +100,39 @@ It is in neither nav bake (planning, steering): paths go through a doorway as th
 Tests: `objects/door_blocks` (the body, the rounds, sight and the shadow), `navigation/door_not_baked` (both maps path through a
 shut door's doorway).
 
-## DR6. Use (E)
+## DR6. Space
 
-The Use action is `use` (`Keybinds.USE`, default E, label "Use (door, vehicle)", rebindable; a binding saved under the alias
-`use_vehicle` comes back as `use`, and one saved under `use` beside it wins). In a vehicle, Use gets out, even with a door in
-reach. Otherwise it acts on whichever is nearest: a standing door in reach ahead, or a vehicle's door to get in by
-(`CharacterUse.use_target()`: the distance from the body to the door's leaf, at its nearest point, against the distance to the
-vehicle door's handle). A door is in reach (`character.use.doors.door_in_reach()`) when its leaf has a point within
+The one action is Interact (`Keybinds.INTERACT`, default Space, label "Interact (sit, door, vehicle)", rebindable): the old Use action
+(E) merged into it, so a saved `use` or `use_vehicle` binding is dropped when settings load and E belongs to the camera turn
+(`camera_turn_right`). In a vehicle, Space gets out, even with a door in reach. Otherwise it acts on the reachable thing nearest the
+mouse (`CharacterUse.interact_target()`): an object advertising interactions (a chair, a bed, a toggle; its centre to the mouse), a
+standing door in reach ahead (the mouse to the door's leaf, at its nearest point), or a vehicle's door to get in by (the mouse to the
+handle). A door is in reach (`character.use.doors.door_in_reach()`) when its leaf has a point within
 `CharacterDoorConfig.reach` (48 px) of the body that lies ahead of it (the side the character faces); of those, the one whose leaf is
 nearest the aim. A knocked-down door is none. Tap: an open door (or one swinging open) swings shut, a shut or ajar one swings fully
-open, in `DoorConfig.swing_time` (0.4 s). A vehicle is acted on at the press; a door's toggle comes at the release of the
-key, so that a hold can scroll instead (DR7), and a hold that does not scroll toggles at its release. The player's controller remembers the door the key went down on, so the release and the wheel act on that door while it stays in reach, whichever door the aim is nearest by then (`use(door)`, `turn(steps, door)`). `character.use.doors` takes no input event: the test puppet's `use()` / `turn_door(steps)` call `character.use.try_use()` / `character.use.doors.turn(steps)` as the player's controller does, and the AI (DR14) works a door with `character.use.doors.open_fully(door)`.
+open, in `DoorConfig.swing_time` (0.4 s). A chair, a bed and a vehicle are acted on at the press; a door's toggle comes at the release of the
+key, so that a hold can scroll instead (DR7), and a hold that does not scroll toggles at its release. The player's controller remembers the door the key went down on, so the release and the wheel act on that door while it stays in reach, whichever door the aim is nearest by then (`use(door)`, `turn(steps, door)`). `character.use.doors` takes no input event: the test puppet's `use()` / `turn_door(steps)` call `character.use.try_interact()` / `character.use.doors.turn(steps)` as the player's controller does, and the AI (DR14) works a door with `character.use.doors.open_fully(door)`.
 
-Tests: `character/door_use_key` (E held moves nothing, its release opens a shut door fully and the next E shuts it; with a door and a
-car's door both in reach E acts on the door when it is the nearer and boards when the handle is, and leaves the open door as it is;
-seated, E gets out with a door in reach; an ajar door swings fully open), `general/use_vehicle_key` (the `use` action, its default, label, group, settings row, no
-clash; a `player` boards and gets out), `general/settings_file` (a binding saved under the alias `use_vehicle` comes back as `use`).
+Tests: `character/door_use_key` (Space held moves nothing, its release opens a shut door fully and the next Space shuts it; with a door and a
+car's door both in reach Space acts on the one nearest the mouse, and leaves the open door as it is;
+seated, Space gets out with a door in reach; an ajar door swings fully open), `interaction/space_picks_nearest_to_mouse` (a chair, a shut or
+open door and a car's door in reach together: the mouse picks, the door at its release, even with another nearer the body),
+`general/space_vehicle_key` (the action, its default, label, group, settings row, no clash; a `player` boards and gets out),
+`general/camera_turn_keys` (Q and E are the camera turn actions and no Use action exists), `general/settings_file` (a saved `use` or
+`use_vehicle` binding is dropped).
 
 ## DR7. Gradual opening
 
-While Use is held on a door (the press began on one), each wheel notch turns it by `DoorConfig.step_degrees` (20°: about five notches open a door fully, the last
+While Space is held on a door (the press began on one), each wheel notch turns it by `DoorConfig.step_degrees` (20°: about five notches open a door fully, the last
 stopping at `open_angle`), wheel up
 (`ZOOM_IN`) opening and down (`ZOOM_OUT`) closing, between shut and fully open, and it stays there. A trackpad's two-finger scroll turns
 it by the notches the camera counts that scroll as (`Keybinds.scroll_notches`: `CameraConfig.trackpad_zoom_sensitivity` notches per unit
 of `delta.y`). The player's controller takes those events before the camera reads them, so the camera does not zoom meanwhile, and
-releasing Use after scrolling does not toggle. With Use not held, or no door in reach (`doors.turn` is false), the scroll goes on to the
+releasing Space after scrolling does not toggle. With Space not held, or no door in reach (`doors.turn` is false), the scroll goes on to the
 camera, which zooms.
 
 Tests: `character/door_scroll_open` (three notches up turn the door 60°, a notch down back to 40°, two more 80° and the next stops at
-fully open, 90°, the camera not zooming, E let go leaves the angle; a trackpad scroll turns it by the notches the camera counts it for; fully open and shut are the limits; between two doors the one E went down on is turned, not the one the aim moves to; the puppet's `turn_door` and `use`; with E not held
+fully open, 90°, the camera not zooming, Space let go leaves the angle; a trackpad scroll turns it by the notches the camera counts it for; fully open and shut are the limits; between two doors the one Space went down on is turned, not the one the aim moves to; the puppet's `turn_door` and `use`; with Space not held
 or held with no door in reach the wheel zooms), `general/camera_wheel_zoom` (the wheel zooms with no door held).
 
 ## DR8. A swing meets something
@@ -185,14 +189,14 @@ stops: no spring-back, no wobble. A walker 30 px from the hinge turns a hollow d
 quarter of that. It turns within shut and `open_angle` and is stopped by what it meets as a swing is (DR8): furniture, a wall and a
 body in its arc, which it never pushes through and, unlike a swing, never nudges aside: it stops touching it (nor does it nudge the
 walker pushing it, who stands on the side it turns away from). Reaching shut it latches (the shut sound, DR12) and is a shut door
-again: rigid to walkers and latched. A hand or a burst swinging the leaf (a Use, a notch of the scroll, a burst latch)
+again: rigid to walkers and latched. A hand or a burst swinging the leaf (a Space press, a notch of the scroll, a burst latch)
 takes it over from a push, and a shove during a swing does nothing. A punch counts against the door by DR9's factor and gives its
 shove like a walker's. The AI walks doors open (DR14) and passes through open ones.
 
 **A fully open door stays open for a walker.** A leaf at its open stop (`open_angle`) ignores a walking push toward shut: a walker
 meeting the free end of a leaf lying along the wall nearly head on, or brushing past it, would otherwise turn it by the shove's
 off-axis moment and shut it behind them. What turns the leaf toward shut counts as a walker's when no hit, blast or blow struck
-the leaf within a frame of the shove (`door.push.walker_shuts_open_leaf`); Use, a kick, a punch or a blast (its `take_blow` / `take_hit` lands with
+the leaf within a frame of the shove (`door.push.walker_shuts_open_leaf`); Space, a kick, a punch or a blast (its `take_blow` / `take_hit` lands with
 its shove; a vehicle's shove has none and counts as a walker's) and a walker's push on a door open short of the stop (70°, ajar) behave as before. A walker's push toward open from the
 open stop is held at `open_angle` as ever.
 
@@ -204,7 +208,7 @@ into an ajar door from its pull side turns it shut, it latches with the shut sou
 body in its arc and does not nudge it), `objects/door_push_stops` (a leaf shoved every frame stops at a fridge in its arc and
 leaves it where it stood), `objects/door_push_open_limit` (a leaf shoved as hard as the rules let it spin never turns past 90°),
 `objects/door_open_stop_ignores_walkers` (a puppet brushing past and walking through a fully open door from its pull side leaves it at
-90°, the same walk turns a door open to 70° toward shut, Use still shuts the open door and a kick on its pull side still turns it),
+90°, the same walk turns a door open to 70° toward shut, Space still shuts the open door and a kick on its pull side still turns it),
 `objects/door_blast_ajar` (a frag on an ajar steel door's push side throws it fully open, one on its pull side does not),
 `objects/door_hard_punch_stays_a_punch` (a punch as hard as a kick bursts nothing).
 
@@ -230,7 +234,7 @@ panes) is its material's own.
 
 | Stage | Posted when | Sounds like (profile) |
 |---|---|---|
-| `open` | a swing starts to open (a Use, a notch of the scroll) | the latch (`leaf/latch`): a click, the latch seating and the leaf's thud, the solid wood door's shut, for every material; no creak |
+| `open` | a swing starts to open (a Space press, a notch of the scroll) | the latch (`leaf/latch`): a click, the latch seating and the leaf's thud, the solid wood door's shut, for every material; no creak |
 | `shut` | the leaf arrives at shut: a swing, or a walker pushing it home (DR10) | the same latch, `leaf/latch` |
 | `burst` | the latch gives, or an ajar door is thrown open (DR10) | the bang (`leaf/burst`): the latch cracking and the leaf slamming the wall, wood splintering; the solid wood door's, for every material |
 | `down` | the leaf falls (DR11) | the splinter and thud of the fall, per material (`leaf/<material>/down`); a steel door's is a heavy clang that rings on |
@@ -274,7 +278,7 @@ cover, and steel stops a pistol, not a rifle (research §3, §4). The catalogue 
 style; the leaf's art and a knocked-down door's face are the door painter's.
 
 Tests: `objects/door_materials` (every material and style spawns, draws, each style differently, with its HP and penetration);
-`objects/door_contract` (the contract the Use key and the AI drive).
+`objects/door_contract` (the contract the Space key and the AI drive).
 
 ## DR14. The AI opens doors in its way
 
@@ -321,7 +325,7 @@ opening onto the range through a 60 px doorway, and a 60 px doorway between each
 On the range side, each with a floor label naming its material: a hollow-core `flush` door (shut, swinging into its room), a solid
 wood `panelled` one (ajar, swinging out into the range), a steel `riveted` one (shut, swinging into its room) and a glass-panel
 `panes` one (shut, swinging into its room, with a dummy inside it seen through the panes). Between the rooms: a hollow `panelled`
-door (shut), a solid `plank` one (ajar) and a steel `peephole` one (open). Tap E beside a door to open or shut it (DR6), hold E and
+door (shut), a solid `plank` one (ajar) and a steel `peephole` one (open). Tap Space beside a door to open or shut it (DR6), hold Space and
 scroll to open it by steps (DR7), kick it (V) from the push side to burst its latch (DR10; hollow gives to the second kick, steel to
 none; an ajar or open door has no latch, so one kick throws it open, steel too), walk into an ajar or open door to push it about its
 hinge (away from you, the heavier the door the slower; from the pull side it turns toward shut and latches), shoot or kick a door down (DR9, DR11; the pistol stops in steel, the rifle does not) and shoot out the glass door's panes

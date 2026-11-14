@@ -14,8 +14,8 @@
     - **Actors:** character scenes plus the controller contract (7): a puppet `ScriptedController` or `player_controller.gd` on
       `character/character_base.tscn` (controller-less). `TestSetup.vehicle(id, kind, pos, rotation := 0.0, props := {})` instances
       `res://scenes/vehicle/<kind>.tscn` under the world root after the bake (not carved) and waits one physics frame; `t.vehicle(id)` reads
-      it back (19); the puppet presses E with `use()` (the nearer of a door in reach and a vehicle), turns a door with `turn_door(steps)` (the wheel
-      with E held) and drives with `drive(throttle, steer, handbrake)`, writing `movement.move_input` / `movement.run_input` as the
+      it back (19); the puppet presses Space with `use()` (what is nearest its aim: a chair, a door in reach or a vehicle), turns a door with `turn_door(steps)` (the wheel
+      with Space held) and drives with `drive(throttle, steer, handbrake)`, writing `movement.move_input` / `movement.run_input` as the
       player's keys do.
     - **Doors:** a hand-laid layout's doorway may declare `door: { material, style, hinge, swing_into, angle?, name? }`; the layout builder
       builds it with `WorldGen.door_definition` and `DoorFactory.spawn` (1, 2, 24) and `t.object(name)` finds it. A generated house is

@@ -2,8 +2,8 @@
     - `Settings` (`general/settings.gd`, static holder) persists to `user://settings.json`: the Debug switch (`debug`), the setup window's last
       choices (`setup`), the overlay toggles (`overlays`), the scope they show on per mode (`overlay_scopes`, `{ play, watch }`, only the modes the player chose a scope for; a mode with none starts on
       `OverlayRegistry.DEFAULT_SCOPES`, which Main reads: `Settings` depends on no UI) and the `Keybinds` bindings that differ from the defaults
-      (`Keybinds.bindings.overrides()` / `apply_overrides`, the rebinding store the autoload holds as its `bindings` part; a binding saved under an
-      alias, `Keybinds.ALIASES` (`use_vehicle` → `use`), is read as the action's, the action's own name winning). Main calls
+      (`Keybinds.bindings.overrides()` / `apply_overrides`, the rebinding store the autoload holds as its `bindings` part; a saved binding of an action
+      that no longer exists, as the old `use` / `use_vehicle`, is dropped, and the camera turn actions `camera_turn_left` / `camera_turn_right`, default Q / E, are rows like the others). Main calls
       `load_file()` once in `_ready`, after seeding `Settings.debug` from `run.debug_overlays`; `Keybinds._ready` does not, so tests never
       read a developer's file. Mutators save: `set_debug(on)`, `set_setup(config)`, `set_overlay(flag, on)`, `set_overlay_scope(mode, scope)`, `rebind(action, event) -> bool`,
       `reset(action)`, `reset_all()`; `binding_rows() -> Array` gives the page plain dicts.

@@ -12,7 +12,7 @@ Owns the player character, built so other character types can exist. It reads in
 - Firing, reload and magazines, the raise against a wall, loadout, grenade reads, the stunned look and one-handed fire → `weapon.md`.
 - Style, outfit, hit zones, armour in `take_hit`, weight → `wardrobe.md`.
 - The body (skeleton, pose, rig, hands, punch, kick, legs, ragdoll fall, all pixel art and the redraw key) → `body.md`.
-- The Use key, a house door in reach, the scroll that turns it, a door in the way → `doors.md`.
+- Space on a door, a house door in reach, the scroll that turns it, a door in the way → `doors.md`.
 
 ## Components
 
@@ -65,7 +65,7 @@ A living character casts a shadow: `anatomy.attach()` builds a `LightOccluder2D`
 
 ## Riding a vehicle (interface 19, `docs/vehicles.md`)
 
-`use` composes the Vehicles domain's `CharacterVehicleUse` (preloaded and added by `use.attach()` in `_ready`) and forwards its vehicle calls; `use.try_use()` is the one entry for E (`doors.md`; refused while dead or in an object interaction, and stands a crouched character up), `use.vehicle()`, `use.is_in_vehicle()`. While the ride lasts, `use.is_busy()` is true and `try_interact` / `interact_with` are refused.
+`use` composes the Vehicles domain's `CharacterVehicleUse` (preloaded and added by `use.attach()` in `_ready`) and forwards its vehicle calls; `use.try_interact()` is the one entry for Space (`doors.md`; it acts on the chair, door or vehicle door nearest the mouse, ends an interaction in progress, gets out of a vehicle, and stands a crouched character up), `use.vehicle()`, `use.is_in_vehicle()`. While the ride lasts, `use.is_busy()` is true and `try_interact` / `interact_with` are refused.
 
 The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, step)`: the first pose cancels a reload and disables the collision shape (`set_deferred`); each pose sets position, `facing`, aim and the drawn height (`movement.fold`) and drops the cached rig. While riding, `inventory.current_item()` returns null (the item put away: nothing fires or draws in the hands) and `use.hold_frame` replaces the rest of the frame: no movement, knockback or push, stamina refilling, `anatomy.pose.update` with the ride's step as the motion and no stun look. `use.end_ride()` re-enables the shape.
 

@@ -3,7 +3,7 @@ extends RefCounted
 ## ride (boarding by a door, getting out) and driving to a speed. `const VehicleRide :=
 ## preload("res://tests/_vehicle/vehicle_ride_probe.gd")`, beside `vehicle_probe.gd` (`Probe`) and
 ## `vehicle_frame_probe.gd` (`VehicleFrame`: where a door's user stands). The character is a puppet:
-## it presses E (`use()`) and drives (`drive(throttle, steer, handbrake)`).
+## it presses Space (`use()`) and drives (`drive(throttle, steer, handbrake)`).
 
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
 
@@ -44,8 +44,8 @@ static func exit(t: TestContext, id: StringName, timeout := 8.0) -> bool:
 	return await t.until(func(): return c.use.vehicle() == null, timeout)
 
 
-## Walk puppet `id` to door `door_id`'s stand point, press E and wait until seated. False when it
-## never sits.
+## Walk puppet `id` to door `door_id`'s stand point, press Space and wait until seated. False when
+## it never sits.
 static func board_by(
 	t: TestContext,
 	id: StringName,

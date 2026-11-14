@@ -6,11 +6,12 @@ extends Node2D
 ## it and returns the character to where it started. A `move_to` action additionally snaps the
 ## character onto the object and lets the two bodies overlap (a temporary collision exception, so
 ## sitting/lying puts the character ON the object without either ejecting or shoving the other);
-## actions without `move_to` act in place. The character's `use` (`CharacterUse`) forwards
-## `try_interact()` (the player's
-## random toggle) plus `interactions_in_reach()` / `interact_with(object, id)` / `end_interaction()`
-## (a controller picking a specific object + action), and reads `is_busy()` / `active_label()`;
-## it never learns what an interaction means, so this system can be iterated on its own.
+## actions without `move_to` act in place. The character's `use` (`CharacterUse`) weighs
+## `nearest_in_reach()` against a door and a vehicle's door and calls `begin_random(entry)` when the
+## object is the nearest to the mouse (the player's Space); it forwards `interactions_in_reach()` /
+## `interact_with(object, id)` / `end_interaction()` (a controller picking a specific object +
+## action) and reads `is_busy()` / `active_label()`; it never learns what an interaction means, so
+## this system can be iterated on its own.
 
 ## Physics layer the reach query tests (General's `PhysicsLayers.SOLID` — walls + solid furniture).
 const QUERY_MASK := PhysicsLayers.SOLID
@@ -31,14 +32,6 @@ var _return_position := Vector2.ZERO
 @onready var _character := get_parent()
 
 
-## Toggle interaction: end the current one (moving back), or start the best one in range.
-func try_interact() -> void:
-	if is_busy():
-		_end()
-	else:
-		_begin_best()
-
-
 ## True while an interaction is in progress (the character is locked).
 func is_busy() -> bool:
 	return not _active.is_empty()
@@ -56,7 +49,7 @@ func interactions_in_reach() -> Array:
 
 
 ## Begin action `id` on `object` if it is reachable, valid and we are idle; true on success.
-## Unlike `try_interact()`, the caller picks both the object and the action (no nearest/random).
+## The caller picks both the object and the action (no nearest/random).
 func interact_with(object: Node, id: String) -> bool:
 	if is_busy():
 		return false
@@ -70,33 +63,36 @@ func interact_with(object: Node, id: String) -> bool:
 	return false
 
 
-## End the active interaction, if any (explicit stop for a controller, vs try_interact's toggle).
+## End the active interaction, if any (explicit stop).
 func end_interaction() -> void:
 	if is_busy():
 		_end()
 
 
-## Find every reachable object advertising a valid action, target the one nearest the mouse, and
-## begin a random one of its valid actions. Does nothing if nothing valid is in range.
-func _begin_best() -> void:
-	var target: Node = null
-	var target_specs: Array = []
-	var best_dist := INF
+## The reachable object (advertising a valid action) nearest the mouse (`movement.aim_point`), as
+## `{ object, specs, gap }` (`gap`: px from its centre to the mouse); empty when nothing is in
+## reach. The character's `use` weighs it against a door and a vehicle's door (Space acts on the
+## nearest).
+func nearest_in_reach() -> Dictionary:
+	var best := {}
+	var best_gap := INF
 	var aim: Vector2 = _character.movement.aim_point
 	for entry in _query_reachable():
-		# Prefer whichever reachable object sits closest to the mouse cursor.
-		var dist: float = entry["object"].global_position.distance_squared_to(aim)
-		if dist < best_dist:
-			best_dist = dist
-			target = entry["object"]
-			target_specs = entry["specs"]
+		var gap: float = entry["object"].global_position.distance_to(aim)
+		if gap < best_gap:
+			best_gap = gap
+			best = { "object": entry["object"], "specs": entry["specs"], "gap": gap }
+	return best
 
-	if target:
-		_begin(target_specs.pick_random(), target)
+
+## Begin a random valid action of `entry`'s object (an `nearest_in_reach()` entry) when idle.
+func begin_random(entry: Dictionary) -> void:
+	if not is_busy():
+		_begin(entry["specs"].pick_random(), entry["object"])
 
 
 ## Every object within reach that advertises at least one valid action, as `[{ object, specs }]`
-## (specs already item-gated). Shared by the player's `_begin_best` and the AI-facing queries.
+## (specs already item-gated). Shared by `nearest_in_reach` and the AI-facing queries.
 func _query_reachable() -> Array:
 	var center: Vector2 = _character.global_position + _character.facing * front_offset
 	var shape := CircleShape2D.new()
@@ -142,7 +138,7 @@ func _begin(spec: Dictionary, object: Node) -> void:
 		_character.global_position = object.global_position
 
 
-## End the active interaction. try_interact() runs inside the character's physics step, so the
+## End the active interaction. A controller's call runs inside the character's physics step, so the
 ## actual teardown is deferred to after the step: moving the body and re-enabling its collision
 ## mid-solve — then having move_and_slide() run the same frame — is what made the physics lurch.
 ## The character stays frozen (still busy) for this frame; _teardown runs before the next one.

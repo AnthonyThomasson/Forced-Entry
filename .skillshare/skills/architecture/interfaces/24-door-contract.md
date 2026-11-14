@@ -1,5 +1,5 @@
 24. **The door contract: Objects' `Door` ↔ Character, AI, Testing** (`scenes/objects/door/door.gd`; spec `docs/doors.md`; World-Gen builds
-    it through 2, the Use key and the AI drive it through this one)
+    it through 2, the Space key and the AI drive it through this one)
     A `Door` is an `AnimatableBody2D` on `PhysicsLayers.SOLID` in the group `doors` (the one name Navigation, Testing and the AI find a door
     by), one per doorway, driven by code (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`); its origin is the middle of
     its leaf, angles are degrees from shut. A caller reads and calls only what is listed here.
@@ -24,18 +24,18 @@
       `CharacterDoorConfig.reach` of the body and ahead of it, else null), `reaches(door) -> bool`, `use(door := null) -> bool`
       (`door.toggle`), `open_fully(door := null) -> bool` (never shut: how the AI works a door in its way, DR14) and
       `turn(steps, door := null) -> bool` (`turn_by(steps * DoorConfig.step_degrees)`; `steps` may be a share of a notch); each acts on
-      the door given while it is in reach, false with none. `use.use_target() -> StringName` is `&"door"` when a door in reach is nearer
-      than every boardable vehicle handle (19), `&"vehicle"`, or `&""`; `use.try_use()` acts on it at once, while the human's controller
+      the door given while it is in reach, false with none. `gap_to(door, point) -> float` is how far the leaf is from `point` at its nearest point. `use.interact_target()` is `{ kind: &"door", object }` when a door in reach ahead is the
+      thing nearest the mouse among the objects, doors and boardable vehicle handles (8, 19); `use.try_interact()` acts on it at once, while the human's controller
       holds a door back to the key's release unless the wheel turned it meanwhile.
     - **What a door asks of a character** (so a swing clears one, DR8): the group `characters`, the exported `radius` (7), the body's
       `test_move` / `move_and_collide` and its collision exceptions, duck-typed; the door imports nothing of Character.
     - **Tuning read across the boundary:** `DoorConfig.step_degrees` (the Character's wheel step, `turn`), `DoorConfig.open_angle` (the
       angle World-Gen gives a door that starts open: `Door.open_angle` is the same number) and `DoorConfig.swing_time`; the rest of
       `DoorConfig` stays in Objects.
-    - **Callers:** the human's Use key (`Keybinds.USE`, E; `Keybinds.scroll_notches(event)` while it is held, DR6, DR7); the AI's
+    - **Callers:** the human's Space key (`Keybinds.INTERACT`; `Keybinds.scroll_notches(event)` while it is held, DR6, DR7); the AI's
       locomotion (DR14: finds a door on its walk by the group and reads `gap()`, `is_down()`, `angle()`, `leaf_pose`, `leaf_size()`, `width`,
       `swing_into` and `latch_side_spot(from)`, duck-typed, and calls `use.doors.open_fully` on any door not at its open stop, which it tells
       by `NavBuilder.leaf_in_map` (9); the entry's pie skip asks whether a doorway's standing door
-      shuts the view, reading `is_down()`, `gap()`, `width` and `get_surface()` (`transparent`), DR14, `docs/tactical-entry.md` E3); Testing (13: `use()`, `turn_door(steps)`, a layout's `door`).
+      shuts the view, reading `is_down()`, `gap()`, `width` and `get_surface()` (`transparent`), DR14, `docs/tactical-entry.md` E3); Testing (13: `use()` (Space), `turn_door(steps)`, a layout's `door`).
     - **Built by** `DoorFactory.spawn` (2). **Left out of every nav bake** (9) **but at its open stop**: then Navigation carves its leaf
       where it stands, reading `is_down()`, `angle()`, `open_angle`, `leaf_pose(angle)` and `leaf_size()` duck-typed (`NavLeaves`, 9). Its **shadow** is an occluder child on `LightMasks.WALL` (20).

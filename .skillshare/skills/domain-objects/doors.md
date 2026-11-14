@@ -1,7 +1,7 @@
 # Doors (`objects/door/`; spec `docs/doors.md`)
 
 A door is neither furniture nor a wall: `Door` (`door/door.gd`, an `AnimatableBody2D` in the group `doors`) is a hinged leaf in a doorway,
-moved kinematically by code (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`). Its surface (state, Use, hits, pushes)
+moved kinematically by code (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`). Its surface (state, the Space toggle, hits, pushes)
 is interface 24; `DoorFactory.spawn(opening, definition, parent)` builds it from World-Gen's `DoorCatalog` definition (interface 2).
 
 Tuning: `DoorConfig` (swing time, `step_degrees`, burst, nudge, the leaf's size, the latch gap `latch_gap`, dents), `DoorPushConfig` (a
@@ -37,7 +37,7 @@ its chips and sparks are styled as.
   (`_hurt`); on a shut door it wears `door.damage.latch` by the strike's damage (a kick only where the material has `kicks_latch`), and a
   latch that gives bursts it open. At 0 HP `_fall`: the door lies flat beyond the doorway on the side of the blow (the room it swings
   into when the blow had no direction), `collision_layer` 0, its occluder freed, drawn lying (`part: "fallen"`) at `DrawLayers.LYING`;
-  `angle()` is `open_angle`, `gap()` the width, the Use calls do nothing. Tests: `tests/objects/door_damage_test.gd`,
+  `angle()` is `open_angle`, `gap()` the width, the Space calls do nothing. Tests: `tests/objects/door_damage_test.gd`,
   `door_kick_burst_test.gd`, `door_blast_burst_test.gd`, `door_blast_ajar_test.gd`, `door_hard_punch_stays_a_punch_test.gd`,
   `door_knocked_down_test.gd`, `door_materials_test.gd` there.
 - **Art** (`art/door_painter.gd`, `door` in `ObjectArt.PAINTERS`): drawn through `ObjectArt.turned` (`PixelArt.render_turned` at the
@@ -53,4 +53,4 @@ its chips and sparks are styled as.
   (`_physics_process` when a swing ends at 0, `_pushed` when a walker pushes it home), `burst` (`_burst`), `down` (`_fall`) and `glass`
   (`_shatter`). The door knows nothing of Audio (`tests/audio/door_sounds_test.gd`).
 - **Used by** `character.use.doors` and the AI's locomotion through interface 24. Tests: `tests/objects/door_contract_test.gd` and the
-  other `door_*_test.gd` there; the Use key's are `tests/character/door_use_key_test.gd`, `door_scroll_open_test.gd`.
+  other `door_*_test.gd` there; the Space key's are `tests/character/door_use_key_test.gd`, `door_scroll_open_test.gd`.
