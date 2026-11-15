@@ -1,150 +1,139 @@
 class_name GunMesh
 extends RefCounted
-## Items domain, a held gun's 3D mesh (#193 phase 2, `domain-art/meshes.md`): low-poly solids of
-## Art's mesh kit in the colours of the gun's look (`GunConfig.look`: body, stock, guard, grip,
-## barrel, magazine), sized from its row (`art_size` across and along, `grip_back`) and chunked by
-## `ItemMeshConfig.thickness`. One mesh per gun and look, shared by every character holding it
-## (`MeshCache`); the character's body places it (`GunArt.held_mesh`, `domain-character`).
+## Items domain, a gun's 3D mesh and its art (#193, `domain-art/meshes.md`): the 2D gun, stood up.
+## The mesh is the silhouette of the painter's flat render (`PixelArt.render_flat`, the pixels it
+## drew) lifted to a height per part (`ItemSolid`), its barrel round, and the very same flat art is
+## projected straight down onto it (`MeshNodes.textured`, rect from `held_rect` / `lying_rect`), so
+## seen from above the held gun is the 2D gun, at the size of the 2D gun. One mesh and one texture
+## per gun and look, shared by every character holding it (`MeshCache`, `PixelArt`'s cache); the
+## character's body places it (`GunArt.held_mesh`, `domain-character`).
 ##
-## The frame is the one the 2D art is drawn in, turned to 3D: the origin is the weapon hand's grip
-## and the muzzle leads along +z (2D "ahead"), the butt `grip_back` behind the origin, up is +y.
-## A long gun (`raises_at_contact`) is a stock, a receiver, a hand guard, a barrel, a magazine and a
-## grip; a pistol is a slide over a grip with its frame. A shape is a share of the gun's length
-## and width, so a row with other sizes is built from the same recipe.
+## Held, the frame is the one the 2D art is drawn in, turned to 3D: the origin is the weapon hand's
+## grip and the muzzle leads along +z (2D "ahead"), the butt `grip_back` behind the origin, up is
+## +y, the gun centred about the hand's height (`ItemMeshConfig.held_base`). Lying, it is the side
+## profile (`opts.flat` of the painter) lifted as thick as the gun is wide, centred on the origin,
+## muzzle along +z, its underside on y = 0.
 
-## Where along the length (share, from the butt) each long-gun part ends: the stock, the receiver,
-## the hand guard (the barrel runs on to the muzzle).
-const STOCK_END := 0.28
-const RECEIVER_END := 0.62
-const GUARD_END := 0.84
-## The same for a pistol's grip and its frame under the slide, and how much of the muzzle end is
-## the barrel's colour.
-const PISTOL_GRIP_END := 0.38
-const PISTOL_FRAME_END := 0.75
-const PISTOL_MUZZLE := 0.15
+const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
+## How many flat faces round the barrel (a vertex up and one to each side, so its width is the
+## art's).
+const BARREL_FACETS := 8
 
 
-## The mesh of `gun` (a `GunConfig` row id) drawn in `look` (`GunConfig.look`), cached by the row's
-## sizes, the look's colours and the tuning.
-static func of(gun: StringName, look: Dictionary) -> Mesh:
+## The mesh of `gun` (a `GunConfig` row id) held, drawn in `look` (`GunConfig.look`, `handle` its
+## `PixelArt.handle`), cached by the row's size, the look and the tuning. Null for an unknown gun.
+static func held(gun: StringName, look: Dictionary, handle: int) -> Mesh:
 	var row := GunConfig.row(gun)
 	if row.is_empty() or look.is_empty():
 		return null
+	var art: Vector2 = row["art_size"]
+	var key := MeshCache.key("held_gun", art, look["body"], _opts(look, {
+		"grip": float(row["grip_back"]), "thickness": ItemMeshConfig.thickness,
+		"base": ItemMeshConfig.held_base, "facets": BARREL_FACETS,
+	}))
+	return MeshCache.fetch(key, _make_held.bind(gun, look, handle))
+
+
+## The mesh of `gun` lying on its side (`flip`: the side up), in `look`: its profile's silhouette,
+## as thick as the gun is wide.
+static func lying(gun: StringName, look: Dictionary, handle: int, flip: bool) -> Mesh:
+	var row := GunConfig.row(gun)
+	if row.is_empty() or look.is_empty():
+		return null
+	var key := MeshCache.key("lying_gun", row["flat_size"], look["body"], _opts(look, {
+		"width": float((row["art_size"] as Vector2).x), "thickness": ItemMeshConfig.thickness,
+		"flip": flip,
+	}))
+	return MeshCache.fetch(key, _make_lying.bind(gun, look, handle, flip))
+
+
+## The flat art of `gun` held (the painter's unlit render, muzzle toward +y), the texture of
+## `held`'s mesh; null for an unknown gun.
+static func held_texture(gun: StringName, look: Dictionary, handle: int) -> Texture2D:
+	var row := GunConfig.row(gun)
+	if row.is_empty() or look.is_empty():
+		return null
+	return PixelArt.render_flat(
+		look["painter"], row["art_size"], look["body"],
+		{ "gun": gun, "look": handle, "material": look["finish"] },
+	)
+
+
+## The flat art of `gun` lying on its side (`flip`: the side up), the texture of `lying`'s mesh.
+static func lying_texture(gun: StringName, look: Dictionary, handle: int, flip: bool) -> Texture2D:
+	var row := GunConfig.row(gun)
+	if row.is_empty() or look.is_empty():
+		return null
+	return PixelArt.render_flat(
+		look["painter"], row["flat_size"], look["body"],
+		{ "gun": gun, "look": handle, "flat": true, "flip": flip, "material": look["finish"] },
+	)
+
+
+## Where the held art lies in the held mesh's frame (px): the art's footprint, its butt `grip_back`
+## behind the origin; the `rect` `MeshNodes.textured` is given.
+static func held_rect(gun: StringName) -> Rect2:
+	var row := GunConfig.row(gun)
 	var art: Vector2 = row.get("art_size", Vector2.ZERO)
-	var grip := float(row.get("grip_back", 0.0))
-	var long: bool = row.get("raises_at_contact", false)
-	var colours := {}
-	for part in ["body", "stock", "guard", "grip", "barrel", "magazine"]:
-		colours[part] = look.get(part, look["body"])
-	var opts := {
-		"grip": grip,
-		"long": long,
-		"colours": colours,
-		"thickness": ItemMeshConfig.thickness,
-		"sides": ItemMeshConfig.sides,
-	}
-	var key := MeshCache.key("held_gun", art, look["body"], opts)
-	return MeshCache.fetch(key, _make.bind(art, grip, long, colours))
+	return Rect2(Vector2(-art.x * 0.5, -float(row.get("grip_back", 0.0))), art)
 
 
-## The kit's mesh: a gun `art` px (across, along) with its butt `grip` behind the origin.
-static func _make(art: Vector2, grip: float, long: bool, colours: Dictionary) -> Mesh:
+## Where the flat art lies in the lying mesh's frame (px): its footprint about the origin.
+static func lying_rect(gun: StringName) -> Rect2:
+	var flat: Vector2 = GunConfig.row(gun).get("flat_size", Vector2.ZERO)
+	return Rect2(-flat * 0.5, flat)
+
+
+## The held gun: its silhouette lifted part by part, the barrel round.
+static func _make_held(gun: StringName, look: Dictionary, handle: int) -> Mesh:
 	var kit := MeshKit.new()
-	kit.sides = ItemMeshConfig.sides
-	var width := art.x * ItemMeshConfig.thickness
-	var butt := -grip
-	var length := art.y
-	if long:
-		_long_gun(kit, colours, width, butt, length)
-	else:
-		_pistol(kit, colours, width, butt, length)
+	kit.sides = BARREL_FACETS
+	var image := held_texture(gun, look, handle).get_image()
+	var solid := ItemSolid.of(image, held_rect(gun))
+	var parts := _parts(gun, look, image.get_size())
+	var barrel_from := solid.runs.size()
+	if parts.has("barrel"):
+		barrel_from = (parts["barrel"] as Rect2i).position.y + 1
+	var height := func(row: int) -> float:
+		return _part_height(parts, row) * ItemMeshConfig.thickness
+	solid.slab(kit, ItemMeshConfig.held_base, height, 0, barrel_from)
+	solid.bar(kit, ItemMeshConfig.held_base, barrel_from)
 	return kit.build()
 
 
-## A stock, a receiver with a grip and a magazine under it, a hand guard and a barrel, from `butt`
-## (z) `length` along, `width` across.
-static func _long_gun(
-	kit: MeshKit,
-	colours: Dictionary,
-	width: float,
-	butt: float,
-	length: float,
-) -> void:
-	var stock := butt + length * STOCK_END
-	var receiver := butt + length * RECEIVER_END
-	var guard := butt + length * GUARD_END
-	_block(kit, colours["stock"], width * 0.36, Vector2(-0.5, 0.95) * width, Vector2(butt, stock))
-	_block(
-		kit, colours["body"], width * 0.5, Vector2(-0.25, 1.05) * width, Vector2(stock, receiver)
-	)
-	_block(
-		kit, colours["guard"], width * 0.42, Vector2(0.0, 0.85) * width, Vector2(receiver, guard)
-	)
-	_block(
-		kit,
-		colours["grip"],
-		width * 0.28,
-		Vector2(-0.95, -0.25) * width,
-		Vector2(stock, stock + length * 0.1),
-	)
-	_block(
-		kit,
-		colours["magazine"],
-		width * 0.26,
-		Vector2(-1.15, -0.25) * width,
-		Vector2(butt + length * 0.4, butt + length * 0.5),
-	)
-	_barrel(
-		kit,
-		colours["barrel"],
-		Vector2(width * 0.2, width * 0.5),
-		Vector2(guard, butt + length),
-	)
+## The gun lying on its side: the profile's silhouette, a slab as thick as the gun is wide.
+static func _make_lying(gun: StringName, look: Dictionary, handle: int, flip: bool) -> Mesh:
+	var kit := MeshKit.new()
+	var image := lying_texture(gun, look, handle, flip).get_image()
+	var thick: float = (GunConfig.row(gun)["art_size"] as Vector2).x * ItemMeshConfig.thickness
+	ItemSolid.of(image, lying_rect(gun)).slab(kit, 0.0, func(_row: int) -> float: return thick)
+	return kit.build()
 
 
-## A slide over a frame and a grip, its muzzle end in the barrel's colour.
-static func _pistol(
-	kit: MeshKit,
-	colours: Dictionary,
-	width: float,
-	butt: float,
-	length: float,
-) -> void:
-	var muzzle := butt + length
-	_block(kit, colours["body"], width * 0.42, Vector2(0.1, 0.95) * width, Vector2(butt, muzzle))
-	_block(
-		kit,
-		colours["barrel"],
-		width * 0.3,
-		Vector2(0.2, 0.85) * width,
-		Vector2(muzzle - length * PISTOL_MUZZLE, muzzle),
-	)
-	_block(
-		kit,
-		colours["guard"],
-		width * 0.3,
-		Vector2(-0.1, 0.15) * width,
-		Vector2(butt + length * 0.3, butt + length * PISTOL_FRAME_END),
-	)
-	_block(
-		kit,
-		colours["grip"],
-		width * 0.36,
-		Vector2(-1.2, 0.1) * width,
-		Vector2(butt, butt + length * PISTOL_GRIP_END),
-	)
+## The rects of the held gun's parts on a picture of `size` px (`WeaponArt.held_parts`).
+static func _parts(gun: StringName, look: Dictionary, size: Vector2i) -> Dictionary:
+	var painter: Script = look["painter"]
+	var silhouette: Dictionary = painter.get_script_constant_map().get("SILHOUETTE", {})
+	var canvas := PixelCanvas.new(size.x, size.y, 0, Vector2.ZERO)
+	return WeaponArt.held_parts(canvas, gun, silhouette.get("crude", false))
 
 
-## A box `half` px each side of the middle, from height `y.x` to `y.y` and from `span.x` to `span.y`
-## along z.
-static func _block(kit: MeshKit, color: Color, half: float, y: Vector2, span: Vector2) -> void:
-	var size := Vector3(half * 2.0, y.y - y.x, span.y - span.x)
-	kit.box(AABB(Vector3(-half, y.x, span.x), size), color)
+## How tall (px) the held gun stands at picture row `row`: the tallest part that covers it
+## (`WeaponArt.HELD_PARTS` heights, the ones the 2D art casts its shadows by).
+static func _part_height(parts: Dictionary, row: int) -> float:
+	var tallest := 0
+	for part: String in parts:
+		var rect: Rect2i = parts[part]
+		if row >= rect.position.y and row < rect.end.y:
+			tallest = maxi(tallest, WeaponArt.HELD_PARTS[part])
+	return float(tallest)
 
 
-## A round barrel (`bore`: its radius and its height) from `span.x` to `span.y` along z: an upright
-## cylinder laid down about the x axis.
-static func _barrel(kit: MeshKit, color: Color, bore: Vector2, span: Vector2) -> void:
-	kit.pose(Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.0, bore.y, span.x)))
-	kit.cylinder(Vector3.ZERO, bore.x, span.y - span.x, color)
-	kit.pose(Transform3D.IDENTITY)
+## `extra` with every colour `look` names added (the mesh key's options).
+static func _opts(look: Dictionary, extra: Dictionary) -> Dictionary:
+	var opts := extra.duplicate()
+	opts["painter"] = (look["painter"] as Script).resource_path
+	for name: String in look:
+		if look[name] is Color:
+			opts[name] = (look[name] as Color).to_html()
+	return opts

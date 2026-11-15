@@ -6,7 +6,8 @@ extends GameTest
 ## test on any shader or engine error. The look itself is not asserted: with `HELD_SHOTS=<dir>` set
 ## it saves a picture of a rifle and of a pistol held toward the camera and across it, a grenade
 ## wound up for the throw, a rifle raised off a wall and the body dead, at zoom 3 and zoom 1, for
-## the phase gate. Run: `tools/run_tests.sh --windowed --id=character/character_held_mesh_windowed`.
+## the phase gate (`HELD_PITCH=<degrees>` tips the camera). Run:
+## `tools/run_tests.sh --windowed --id=character/character_held_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -39,6 +40,8 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(Settings, &"path", SCRATCH)
 	s.set_static(Settings, &"render_mode", Settings.RENDER_3D)
+	if OS.get_environment("HELD_PITCH") != "":
+		s.set_static(RenderConfig, &"pitch_degrees", float(OS.get_environment("HELD_PITCH")))
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)

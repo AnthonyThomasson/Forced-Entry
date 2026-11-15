@@ -39,12 +39,32 @@ func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 
 ## The grenade's 3D mesh in the hand (`GrenadeMesh`), the lever held down.
 func held_mesh() -> Mesh:
-	return GrenadeMesh.of(kind, look())
+	var drawn := look()
+	return GrenadeMesh.of(kind, drawn, _look_handle(drawn))
+
+
+## The held art the mesh wears (the lever on it): the painter's unlit render, projected straight
+## down.
+func held_texture() -> Texture2D:
+	var drawn := look()
+	return GrenadeMesh.texture(kind, drawn, _look_handle(drawn))
+
+
+## Where the art lies in the mesh's frame.
+func held_rect() -> Rect2:
+	return GrenadeMesh.rect(kind)
 
 
 ## The grenade's 3D mesh in the air or on the floor: the lever gone.
-func dropped_mesh() -> Mesh:
-	return GrenadeMesh.of(kind, look(), false)
+func dropped_mesh(_flipped := false) -> Mesh:
+	var drawn := look()
+	return GrenadeMesh.of(kind, drawn, _look_handle(drawn), false)
+
+
+## The art of the grenade in the air or on the floor: the lever gone.
+func dropped_texture(_flipped := false) -> Texture2D:
+	var drawn := look()
+	return GrenadeMesh.texture(kind, drawn, _look_handle(drawn), false)
 
 
 ## The grenade in the air or on the floor (the lever gone), centered at `at` and pointing along

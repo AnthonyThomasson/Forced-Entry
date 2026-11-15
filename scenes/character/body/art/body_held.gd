@@ -38,6 +38,12 @@ func sample(body: Node2D, dead: bool) -> Vector3:
 		_style = style
 		var mesh: Mesh = item.art.held_mesh() if item != null else null
 		node.mesh = mesh
+		# The item's own flat art on its top (the held mesh is the 2D art stood up); none: plain.
+		MeshNodes.textured(
+			node,
+			item.art.held_texture() if mesh != null else null,
+			item.art.held_rect() if mesh != null else Rect2(),
+		)
 		node.visible = mesh != null
 		hand = item.weapon_hand() if item != null else 0
 		swapped = true

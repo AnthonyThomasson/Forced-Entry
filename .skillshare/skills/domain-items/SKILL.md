@@ -16,7 +16,7 @@ Owns what a character holds and does with it, and what it wears. Fire-rate and a
 - `gun.gd` (`GunItem`) + `pistol.gd` / `smg.gd` / `rifle.gd` (each only names its row: `const GUN`, `super(GUN)`); `gun_config.gd` (`GunConfig`); `magazine.gd` + `magazine_config.gd`; `gun_ammo.gd`; `item_strike.gd`.
 - `fists.gd`, `unarmed.gd`, `key.gd`; `dropped_item.gd` + `dropped_item_config.gd`.
 - `outfit.gd` + `outfit_config.gd`; `loadout_config.gd` + `character_kit.gd`.
-- `item_mesh_config.gd` (`ItemMeshConfig`), `art/gun_mesh.gd` (`GunMesh`), `art/grenade_mesh.gd` (`GrenadeMesh`): the held item's 3D mesh; `item_meshes.gd` (`ItemMeshes`), `art/lying_item_mesh.gd` (`LyingItemMesh`): a loose item's (`weapon-looks.md`).
+- `item_mesh_config.gd` (`ItemMeshConfig`), `art/gun_mesh.gd` (`GunMesh`), `art/grenade_mesh.gd` (`GrenadeMesh`), `art/item_solid.gd` (`ItemSolid`): the held item's 3D mesh, raised from its 2D art; `item_meshes.gd` (`ItemMeshes`), `art/lying_item_mesh.gd` (`LyingItemMesh`): a loose item's (`weapon-looks.md`).
 - Grenades and art: see the side files.
 
 ## Guns

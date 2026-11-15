@@ -78,16 +78,34 @@ func held_mesh() -> Mesh:
 	return null
 
 
-## The item's 3D mesh lying loose or in the air (`DroppedItem`, `ThrownGrenade`; `LyingItemMesh`),
-## in the held mesh's frame: by default the held mesh itself. Null: nothing is shown.
-func dropped_mesh() -> Mesh:
+## The flat 2D art the held mesh wears (`PixelArt.render_flat` of the item's painter, projected
+## straight down onto it: `MeshNodes.textured`), and `held_rect` where it lies in the mesh's frame
+## (px). Null: the mesh is plain (the default).
+func held_texture() -> Texture2D:
+	return null
+
+
+## Where the held art lies in the held mesh's frame (px).
+func held_rect() -> Rect2:
+	return Rect2()
+
+
+## The item's 3D mesh lying loose or in the air (`DroppedItem`, `ThrownGrenade`; `LyingItemMesh`):
+## by default the held mesh itself. `flipped` is the side of a gun lying on its side that faces up
+## (`DroppedItem.flipped`). Null: nothing is shown.
+func dropped_mesh(_flipped := false) -> Mesh:
 	return held_mesh()
 
 
-## How far (radians) the item lies rolled onto its side about its length when loose: a gun lies on
-## its side, the held mesh standing on its grip. Zero by default.
-func dropped_roll() -> float:
-	return 0.0
+## The flat art the loose mesh wears, and `dropped_rect` where it lies in the mesh's frame (px): by
+## default the held art. Null: the mesh is plain.
+func dropped_texture(_flipped := false) -> Texture2D:
+	return held_texture()
+
+
+## Where the loose art lies in the loose mesh's frame (px).
+func dropped_rect() -> Rect2:
+	return held_rect()
 
 
 ## The flat direction the held mesh points along, as the 2D art is drawn (a unit vector): the

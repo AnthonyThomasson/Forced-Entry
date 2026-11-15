@@ -11,16 +11,28 @@ const METAL_COLOR := Color(0.62, 0.64, 0.68)
 const METAL := { "material": "metal" }
 
 
-## The spoon's 3D mesh: a thin steel strip as long as its art, lying along z.
-func dropped_mesh() -> Mesh:
+## The spoon's 3D mesh: its art's silhouette (the curved strip and its loop) lifted a thin steel
+## strip, lying along z.
+func dropped_mesh(_flipped := false) -> Mesh:
 	var key := MeshCache.key("spoon", SIZE, METAL_COLOR, { "height": ItemMeshConfig.spoon_height })
 	return MeshCache.fetch(key, func() -> Mesh:
-		var half := SIZE * 0.5
-		var volume := AABB(
-			Vector3(-half.x, 0.0, -half.y), Vector3(SIZE.x, ItemMeshConfig.spoon_height, SIZE.y)
+		var image := dropped_texture().get_image()
+		var kit := MeshKit.new()
+		ItemSolid.of(image, dropped_rect()).slab(
+			kit, 0.0, func(_row: int) -> float: return ItemMeshConfig.spoon_height
 		)
-		return MeshKit.new().box(volume, METAL_COLOR).build()
+		return kit.build()
 	)
+
+
+## The spoon's art, unlit, projected straight down onto its strip.
+func dropped_texture(_flipped := false) -> Texture2D:
+	return PixelArt.render_flat(SpoonPainter, SIZE, METAL_COLOR, METAL)
+
+
+## Where the art lies in the strip's frame: about the origin.
+func dropped_rect() -> Rect2:
+	return Rect2(-SIZE * 0.5, SIZE)
 
 
 ## The spoon lying on the floor, centered at `at` along `angle`, tinted by `modulate`.

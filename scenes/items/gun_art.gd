@@ -48,14 +48,38 @@ func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 	_draw_art(canvas, centre, facing, size)
 
 
-## The gun's 3D mesh in the hand (`GunMesh`): its row's sizes in its look's colours.
+## The gun's 3D mesh in the hand (`GunMesh`): the silhouette of its held art, stood up.
 func held_mesh() -> Mesh:
-	return GunMesh.of(gun, look())
+	var drawn := look()
+	return GunMesh.held(gun, drawn, _look_handle(drawn))
 
 
-## A gun lies on its side (the 2D art's `flat`), a quarter turn about its length.
-func dropped_roll() -> float:
-	return PI * 0.5
+## The held art the mesh wears: the painter's unlit render, projected straight down.
+func held_texture() -> Texture2D:
+	var drawn := look()
+	return GunMesh.held_texture(gun, drawn, _look_handle(drawn))
+
+
+## Where the held art lies in the mesh's frame.
+func held_rect() -> Rect2:
+	return GunMesh.held_rect(gun)
+
+
+## The gun lying on its side: the silhouette of its flat (side-profile) art, `flipped` the side up.
+func dropped_mesh(flipped := false) -> Mesh:
+	var drawn := look()
+	return GunMesh.lying(gun, drawn, _look_handle(drawn), flipped)
+
+
+## The flat art of the gun lying on its side, the side up that `flipped` says.
+func dropped_texture(flipped := false) -> Texture2D:
+	var drawn := look()
+	return GunMesh.lying_texture(gun, drawn, _look_handle(drawn), flipped)
+
+
+## Where the lying art lies in the lying mesh's frame.
+func dropped_rect() -> Rect2:
+	return GunMesh.lying_rect(gun)
 
 
 ## The direction the gun points, as `draw_weapon` draws it: the weapon's facing, turned about the

@@ -1,21 +1,23 @@
 class_name ItemMeshConfig
-## Items domain, the 3D meshes of the held items (`items/art/gun_mesh.gd`, `grenade_mesh.gd`; #193
-## phase 2, `domain-art/meshes.md`): how chunky a held item is drawn against its config row's art.
-## A `class_name` holder of `static var`s, read as `ItemMeshConfig.<name>` (ADR 0003). The sizes
-## themselves are the rows' (`GunConfig` / `GrenadeConfig` `art_size`, `grip_back`), the colours the
-## look's; only what a low-poly solid needs more than a 2D drawing is here.
+## Items domain, the 3D meshes of the items (`items/art/gun_mesh.gd`, `grenade_mesh.gd`,
+## `spoon_art.gd`; #193, `domain-art/meshes.md`): how tall an item stands over its 2D art. The
+## footprint is the art's own (the silhouette of the painter's flat render, `ItemSolid`), as are the
+## sizes (`GunConfig` / `GrenadeConfig` `art_size`, `flat_size`, `grip_back`) and colours; only what
+## a solid needs more than a drawing is here. A `class_name` holder of `static var`s, read as
+## `ItemMeshConfig.<name>` (ADR 0003).
 
-## How much deeper and taller than the 2D art's width a gun or grenade is, the 2D art being a
-## top-down drawing a speck at the pixel post's resolution: so a pistol still reads in a hand.
+## How much taller than the 2D art's own heights (`WeaponArt.HELD_PARTS`, the ones its shadows are
+## cast by) a gun is, and how much thicker than its width one lying on its side is.
 static var thickness: float = 1.3
-## Flat faces round a barrel and a grenade's body.
-static var sides: int = 6
+## Where a held gun's underside is (px, from the weapon hand's height): below the hand, so the gun
+## is about the hand's height.
+static var held_base: float = -2.5
+## Flat faces round a grenade's body: a vertex up and one to each side, so its width is the art's.
+static var grenade_sides: int = 12
 ## How far ahead of the hand (px) a grenade sits: its row's art is drawn this far along the aim
 ## from the weapon hand (`GrenadeArt.draw_weapon`).
 static var grenade_ahead: float = 2.0
-## A grenade's lever: how far it stands off the body (share of the body's width), and its width
-## (share).
-static var lever_lift: float = 0.14
-static var lever_width: float = 0.22
+## A grenade's lever held down: how far (px) it stands off the body's top.
+static var lever_height: float = 1.0
 ## A grenade's spoon lying loose: how thick the strip is (px).
 static var spoon_height: float = 0.8

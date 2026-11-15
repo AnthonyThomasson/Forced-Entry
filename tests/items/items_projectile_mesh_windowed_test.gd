@@ -5,7 +5,8 @@ extends GameTest
 ## the air, casings on the floor), a frag grenade thrown slowly (in the air, then lying) and the
 ## character dead beside the rifle it let go of; the picture is drawn, and the log gate fails the
 ## test on any shader or engine error. The look itself is not asserted: with `ITEMS_SHOTS=<dir>` set
-## it saves a picture of each at zoom 3 and at the game's default zoom 1, for the phase gate. Run:
+## it saves a picture of each at zoom 3 and at the game's default zoom 1, for the phase gate
+## (`ITEMS_PITCH=<degrees>` tips the camera). Run:
 ## `tools/run_tests.sh --windowed --id=items/items_projectile_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
@@ -40,6 +41,8 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(Settings, &"path", SCRATCH)
 	s.set_static(Settings, &"render_mode", Settings.RENDER_3D)
+	if OS.get_environment("ITEMS_PITCH") != "":
+		s.set_static(RenderConfig, &"pitch_degrees", float(OS.get_environment("ITEMS_PITCH")))
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)

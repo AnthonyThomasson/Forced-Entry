@@ -4,17 +4,16 @@
    `docs/grenades.md` G13), `primary(user)` (F), `secondary(user) -> bool` (LMB; true = a round left the barrel), `tick(delta)` (every
    carried item, each physics frame), `is_automatic()`, `weapon_hand()`, `muzzle_ahead()` (negative = the
    character's `CharacterStanceConfig.muzzle_ahead`), `raises_at_contact()` / `raised_stance(hand)` (a long gun's barrel against a wall:
-   held up, cannot fire), `gun_id()` (`GunConfig` id, `&""` for a non-gun), `round_power()` (1 for a non-gun; the character reads both for
+   held up), `gun_id()` (`GunConfig` id, `&""` for a non-gun), `round_power()` (1 for a non-gun; the character reads both for
    its `reload` event), `drop(user, velocity) -> Node2D` (on the user's death: a gun leaves a skidding `DroppedItem` whose
-   `DroppedItem.item` is that item, the default nothing). A `DroppedItem` (group `dropped_items`) and a `ThrownGrenade` give the 3D mirror
-   (`ItemMeshes`) their `item`, `altitude()`, `heading()`, `flipped()` (a `DroppedItem`) and the signal `shifted` while they move.
+   `DroppedItem.item` is that item, the default nothing). A `DroppedItem` and a `ThrownGrenade` give the 3D mirror (`ItemMeshes`) their `item`, `altitude()`, `heading()`, `flipped()` (a `DroppedItem`) and the signal `shifted` while they move.
 
    Typed parts, each built once with the item, a base the kind subclasses and hands up through `super(...)`
-   (`docs/adr/0005-items-and-vehicle-split-into-typed-parts.md`):
+   (ADR 0005):
    - **`strike`** (`ItemStrike`): the melee geometry the hands read (`ahead`, `turn`, `short`, `support_gap`, `tempo`, `hand`). A fist's are
      the defaults; a long gun's swing it across the body, butt first.
    - **`art`** (`ItemArt`; `GunArt`, `GrenadeArt`, `SpoonArt`): `style` (the weapon style, below), `draw_weapon(canvas, user)`,
-     `draw_dropped(canvas, at, angle, modulate, opts)` (`opts.flip`: which side landed up), `prepaint()`, the 3D render's `held_mesh() -> Mesh` (`GunMesh` / `GrenadeMesh`; null: none), `held_aim(user)`, `held_lift(user)` (`BodyHeld` places it), and the test read
+     `draw_dropped(canvas, at, angle, modulate, opts)` (`opts.flip`: which side landed up), `prepaint()`, the 3D render's `held_mesh() -> Mesh` (`GunMesh` / `GrenadeMesh`; null: none) `held_texture()` / `held_rect()`, `dropped_mesh(flipped)`, `dropped_texture(flipped)`, `dropped_rect()`, `held_aim(user)`, `held_lift(user)` (`BodyHeld` places it), and the test read
      `drawn_art() -> Array` (its last draw's textures, like `CharacterVisuals.drawn_art()`).
    - **`ammo`** (`ItemAmmo`; `GunAmmo`): `rounds_loaded()` / `capacity()` (-1 = no ammo), `reload_time()`, `can_reload(user)`,
      `finish_reload(user)`; the `reloading` flag the character sets; a gun's loaded `magazine`.
@@ -44,8 +43,8 @@
 
    **Weapon style.** Every item's `art.style` (`&"police"` invaders, `&"scrap"` / `&"pipe"` defenders; default `police`): how it is drawn,
    never what it does. A gun or grenade draws its row's `looks` entry for the style (`GunConfig.look(gun, style)` /
-   `GrenadeConfig.look(kind, style)`; none: `default_style`'s), held, dropped, and for a grenade in flight and at
-   rest. A dropped gun is the item it was; a thrown grenade's `item` takes its thrower's item's style.
+   `GrenadeConfig.look(kind, style)`; none: `default_style`'s), held, dropped and thrown. A dropped gun is the item it was; a thrown
+   grenade takes its thrower's item's style.
 
    **Outfits** (`docs/outfits.md`). `OutfitConfig` (static): garment and plate rows, a garment's `looks` per character style
    (`zenitex`, `trauma`, `merc`, `borg`; `default_style` for a style it has no row for), `GARMENT_SLOTS` / `PLATE_SLOTS` (String keys

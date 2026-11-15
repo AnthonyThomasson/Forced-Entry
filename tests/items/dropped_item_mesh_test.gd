@@ -1,23 +1,23 @@
 extends GameTest
 ## A dropped item is a mesh on the 3D floor (#193 phase 2, Items): the gun a dead hand let go of is
-## the very mesh it was held as, lying flat at its 2D place and turn, falling from the hand while it
+## its side profile lifted, lying flat at its 2D place and turn, falling from the hand while it
 ## falls, following its 2D node as it skids, and gone with its node. Asserted at the seams: the mesh
 ## the mirror shows a `DroppedItem` by (`ItemMeshes.register`), its world bounds (the spec numbers
 ## are copied here: a rifle's art is 36 px long, a pistol's 13) and the mirror's write count. What
 ## it looks like is judged in a window, `items_projectile_mesh_windowed_test.gd`.
 
 const SCRATCH := "user://settings_dropped_item_mesh_test.json"
-## The rifle's and the pistol's length (px), `GunConfig`'s `art_size.y`, copied.
-const RIFLE := 36.0
-const PISTOL := 13.0
+## The rifle's and the pistol's length lying (px), `GunConfig`'s `flat_size.y`, copied.
+const RIFLE := 38.0
+const PISTOL := 14.0
 ## The slack (px) of a position or an extent: a mesh is a low-poly solid.
 const SLACK := 1.5
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "A dropped item is its held mesh lying flat on the 3D floor",
-		"description": "A dropped rifle is the mesh it is held as, flat on the floor at its 2D "
+		"name": "A dropped item is its flat-art mesh lying on the 3D floor",
+		"description": "A dropped rifle is its side profile lifted, flat on the floor at its 2D "
 			+ "place along its 2D angle, high while it falls, following its node as it skids, "
 			+ "costing no write once it lies still and gone with its node.",
 		"tags": ["mirror", "3d", "render", "items", "dropped"],
@@ -57,7 +57,7 @@ func _check_falls_then_lies(t: TestContext, mirror: WorldMirror) -> void:
 	if shown == null:
 		return
 	var rifle_mesh := shown.mesh
-	t.check(rifle_mesh == item.art.held_mesh(), "it is the mesh the rifle is held as")
+	t.check(rifle_mesh == item.art.dropped_mesh(rifle.flipped()), "it is the rifle's lying mesh")
 	t.check(_bounds(shown).position.y > 10.0, "falling from the hand it is well off the floor")
 	await _rest(t, rifle)
 	var box := _bounds(shown)
