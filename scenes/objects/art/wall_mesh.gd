@@ -1,32 +1,73 @@
-extends RefCounted
+class_name WallMesh
+extends Node3D
 ## Objects domain, the 3D mesh of a room's walls (`structure_meshes.gd`, `domain-art/meshes.md`):
 ## every wall segment a full-height solid at its collider's own footprint (its real thickness, the
 ## doorways and gaps left open), the cap's colour on its sides and a lighter tone on top. Each
 ## segment is its own `MeshInstance3D` (`Segment<i>`, the segment's index in `wall_segments()`), so
 ## the wall-fade job fades them one by one. A whole segment is the one cached box every segment of
-## that size and colour shares; a dented one is built from the convex pieces of its collider, so a
-## wall hit and rebuilt (the mirror builds it again when its colliders change) shows its dents.
+## that size and colour shares; a dented one is built from the convex pieces of its collider.
+##
+## The node follows its wall's colliders itself (`follows_shapes`: the mirror leaves it alone when
+## a collider comes or goes): when a hit rebuilds segment `i` the wall says so (`segment_rebuilt`)
+## and only `Segment<i>` is replaced, by a new instance (`segment_replaced`: a fade set on the old
+## one is gone, so whoever fades a wall sets it again on the new part).
+
+## `Segment<index>` was rebuilt: `part` is its new mesh instance.
+signal segment_replaced(index: int, part: MeshInstance3D)
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
+
+## How many segments this node has rebuilt since it was made (a test reads it).
+var rebuilds := 0
+## The wall (a `Wall`) and the cap colour its segments are built in.
+var _wall: Node2D
+var _colour := Color.WHITE
 
 
 ## The node a `wall` (a `Wall`: `segment_shapes()`, `art`, `art_color`) is shown by, in 3D units in
 ## the wall's own frame; null for a body that is no wall.
 static func build(wall: Node2D) -> Node3D:
-	if not wall.has_method(&"segment_shapes"):
+	if not wall.has_method(&"segment_shapes") or not wall.has_signal(&"segment_rebuilt"):
 		return null
-	var colour := colour_of(wall)
+	var node := WallMesh.new()
+	node.name = "WallMesh"
+	node._wall = wall
+	node._colour = colour_of(wall)
 	var shapes: Dictionary = wall.call(&"segment_shapes")
 	var indices: Array = shapes.keys()
 	indices.sort()
-	var root := Node3D.new()
-	root.name = "WallMesh"
 	for i: int in indices:
-		var part := _segment(shapes[i], colour)
-		if part != null:
-			part.name = "Segment%d" % i
-			root.add_child(part)
-	return root
+		node._put(i, shapes[i])
+	wall.connect(&"segment_rebuilt", node.rebuild_segment)
+	return node
+
+
+## Tell the mirror this mesh keeps up with the wall's colliders itself.
+func follows_shapes() -> bool:
+	return true
+
+
+## Replace `Segment<index>` by one built from the wall's colliders for it now.
+func rebuild_segment(index: int) -> void:
+	if not is_instance_valid(_wall):
+		return
+	var old := get_node_or_null("Segment%d" % index)
+	if old != null:
+		remove_child(old)
+		old.queue_free()
+	var part := _put(index, (_wall.call(&"segment_shapes") as Dictionary).get(index, []))
+	rebuilds += 1
+	if part != null:
+		segment_replaced.emit(index, part)
+
+
+## Add the instance of segment `index` (its collider `shapes`) as a child; null when it has none.
+func _put(index: int, shapes: Array) -> MeshInstance3D:
+	var part := _segment(shapes, _colour)
+	if part != null:
+		part.name = "Segment%d" % index
+		add_child(part)
+	return part
 
 
 ## The cap colour as drawn: the painter's run-down grade of `art_color`, or the flat line's own

@@ -21,3 +21,5 @@ static var lane_end_clear: float = 34.0
 ## `curb_line` wide inside it (the colours of the 2D curb).
 static var curb_band: float = 2.0
 static var curb_line: float = 1.0
+## How much lighter the kerb's inner line is than its band.
+static var curb_line_lighten: float = 0.25

@@ -1,10 +1,10 @@
 extends GameTest
 ## The building's structure of a 3D match in a real window (windowed only: the headless renderer
 ## draws nothing and compiles no shader; #193 phase 2, Objects). A Watch match started with 3D
-## chosen, the camera parked over a doorway, the street and the whole house in turn: walls, doors,
-## floors and the street are shown by the mesh kit (Main's view registered the builders) and the
-## log gate fails the test on any shader or engine error. With `STRUCTURE_SHOT_DIR=<dir>` set it
-## saves a picture of each. Run:
+## chosen, the camera parked over a doorway, the street and the whole house in turn (the house again
+## at four more camera turns): walls, doors, floors and the street are shown by the mesh kit
+## (Main's view registered the builders) and the log gate fails the test on any shader or engine
+## error. With `STRUCTURE_SHOT_DIR=<dir>` set it saves a picture of each. Run:
 ## `tools/run_tests.sh --windowed --id=objects/structure_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
@@ -74,7 +74,14 @@ func run(t: TestContext) -> void:
 	var street := _first_street(world)
 	if t.require(street != null, "the match has a street"):
 		await _shoot(t, camera, street.global_position + street.size * 0.5, 1.6, "street")
-	await _shoot(t, camera, _centre_of_floors(world), 1.0, "house")
+	var centre := _centre_of_floors(world)
+	await _shoot(t, camera, centre, 1.0, "house")
+	# Turn the camera over the house: the floor slabs lie inside the district's pavement slab, and
+	# a coplanar top would speckle as the view turns (a picture at each yaw shows none).
+	var rig: CameraRig = main.get_node("View3D").rig
+	for yaw in [100.0, 160.0, 225.0, 300.0]:
+		rig.yaw = yaw
+		await _shoot(t, camera, centre, 2.0, "house_yaw%d" % int(yaw))
 	await MainProbe.close(t, window)
 
 

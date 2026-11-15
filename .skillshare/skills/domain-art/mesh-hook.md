@@ -28,6 +28,7 @@ mirror turns it with the body (a 2D turn clockwise is `-angle` about +y). It fol
 |---|---|
 | a **pose** that changes often without the 2D transform changing (a limb, a facing, a wheel's spin, an open lid) | a `mirror_update(body: Node2D)` method on the mesh node: called each frame the mesh **shows** (not while hidden; a sleeping or static body's too), after the transform is written. Set transforms of the node's parts there, cheaply: nothing is rebuilt. |
 | a **shape** that changes now and then (a dent, a new outfit, a posture that changes the solids) | `WorldMirror.remirror(node)` (a physics body, a floor or a tracked node): builds the mesh again at once through its builder and frees the old one. The domain asks Main to call it from the signal it already has (a hit, a posture change); `MeshCache` makes a repeat cheap. |
+| a **shape that follows the body's own colliders** (a wall's segments) | `follows_shapes() -> true` on the mesh node: the mirror does not build it again when a collision shape comes or goes (a shape queued to be freed never does); the mesh listens to its body's own signal and replaces what changed. |
 | a mesh of one node that needs neither | a `_process` on the mesh node itself also works (it runs hidden too), the simplest thing for a spinning fan; nothing in the mirror is needed. |
 
 - **A mesh unique to one node** (a dented panel, a posed limb) is `MeshKit.build()` straight into `MeshNodes.instance`, freed with its node: only meshes many pieces share go through `MeshCache`

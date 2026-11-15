@@ -278,10 +278,28 @@ func _may_be_floor(node: Node) -> bool:
 
 
 ## A collision shape came or went under a mirrored body: the body is mirrored again on the next
-## update.
+## update (unless the shape is queued to be freed, or its mesh follows the shapes itself).
 func _on_shape_changed(child: Node, body: Node) -> void:
-	if child is CollisionShape2D and is_instance_valid(body):
-		_pending[body.get_instance_id()] = body
+	if not child is CollisionShape2D or not is_instance_valid(body):
+		return
+	if child.is_queued_for_deletion() or _mesh_follows_shapes(body):
+		return  # a shape on its way out is no change: its replacement already came in
+	_pending[body.get_instance_id()] = body
+
+
+## Whether `body` is shown by a mesh that follows its collision shapes itself (a method
+## `follows_shapes() -> true`: a wall's, which meshes the one segment that was rebuilt), so the
+## mirror does not build it again.
+func _mesh_follows_shapes(body: Node) -> bool:
+	var rows: Array = _rows.get(body.get_instance_id(), [])
+	if rows.size() != 1:
+		return false
+	var mesh: Variant = (rows[0] as Dictionary).get("node")
+	return (
+		is_instance_valid(mesh)
+		and (mesh as Object).has_method(&"follows_shapes")
+		and (mesh as Object).call(&"follows_shapes") == true
+	)
 
 
 ## Mirror `body`'s shapes (or its kind's own mesh), replacing any proxies it already has.

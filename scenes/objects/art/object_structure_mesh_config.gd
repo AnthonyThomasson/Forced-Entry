@@ -15,6 +15,10 @@ static var wall_side_tone: String = "base"
 ## its edge is a darker tone of its colour.
 static var floor_thickness: float = 2.0
 static var floor_edge_tone: String = "shadow"
+## A room's floor stands this far (px) over the ground plane, so it never fights the pavement slab
+## of the district block it lies inside (both are level with the ground): thin enough to be flat,
+## under `MeshKitConfig.decal_lift` so a decal still lies over it.
+static var floor_lift: float = 0.1
 ## A door's leaf stands this high (a little under the wall), a handle at the latch end of its
 ## `door_handle_height`: `door_handle_length` along the leaf, `door_handle_thick` tall and standing
 ## `door_handle_proud` px off each face.

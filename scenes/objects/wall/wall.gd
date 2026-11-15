@@ -7,6 +7,9 @@ extends StaticBody2D
 ## collider's rect, on the General's `LightMasks.WALL`, built with the colliders (none while
 ## `LightMasks.shadows` is off).
 
+## Segment `index` (into `wall_segments()`) has new colliders: its dents were rebuilt.
+signal segment_rebuilt(index: int)
+
 enum Side {
 	NONE,
 	TOP,
@@ -79,9 +82,9 @@ func _prepare_cut(i: int) -> Callable:
 ## Segment index (into `wall_segments()`) -> the `CollisionShape2D`s that stand for that segment
 ## now, in this node's frame: one rectangle while it is whole, the convex pieces of its dented
 ## outline after a hit. What the 3D mesh (`art/wall_mesh.gd`) is built from, so it matches the
-## colliders.
+## colliders. A copy: the arrays are the wall's own, read them only.
 func segment_shapes() -> Dictionary:
-	return _seg_colliders
+	return _seg_colliders.duplicate()
 
 
 ## The wall's ballistic surface: full cover, hard to shoot through, debris in the colour its cap is
@@ -283,3 +286,4 @@ func _rebuild_segment(i: int) -> void:
 		add_child(col)
 		cols.append(col)
 	_seg_colliders[i] = cols
+	segment_rebuilt.emit(i)

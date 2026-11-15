@@ -99,6 +99,7 @@ static func _tuning() -> Dictionary:
 		"clear": ObjectStreetMeshConfig.lane_end_clear,
 		"band": ObjectStreetMeshConfig.curb_band,
 		"line": ObjectStreetMeshConfig.curb_line,
+		"lighten": ObjectStreetMeshConfig.curb_line_lighten,
 		"curb": ObjectArtStreetConfig.curb_color.to_html(),
 		"lane_paint": ObjectArtStreetConfig.lane_color.to_html(),
 		"cross_paint": ObjectArtCrossingConfig.crossing_color.to_html(),
@@ -181,7 +182,12 @@ static func _curb(kit: MeshKit, size: Vector2, edges: Array) -> void:
 	var line := ObjectStreetMeshConfig.curb_line
 	for side: Vector2 in edges:
 		_flat(kit, _edge_band(size, side, 0.0, band), 0.0, curb)
-		_flat(kit, _edge_band(size, side, band, line), 0.0, curb.lightened(0.25))
+		_flat(
+			kit,
+			_edge_band(size, side, band, line),
+			0.0,
+			curb.lightened(ObjectStreetMeshConfig.curb_line_lighten),
+		)
 
 
 ## The band `width` px wide, `inset` px in from the `side` edge of a piece `size` px, along it.

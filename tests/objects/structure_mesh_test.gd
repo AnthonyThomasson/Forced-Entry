@@ -16,6 +16,8 @@ const SCRATCH := "user://settings_structure_mesh_test.json"
 const WALL_HEIGHT := 96.0
 const DOOR_HEIGHT := 84.0
 const FLOOR_THICKNESS := 2.0
+## How far a room floor's top stands over the ground (clear of the pavement slab it lies in).
+const FLOOR_LIFT := 0.1
 const KERB := 3.0
 const MARK_LIFT := 0.3
 const THICKNESS := 12.0
@@ -28,6 +30,9 @@ const MATCH := {
 	"defenders": { "count": 1 },
 	"invaders": { "count": 1 },
 }
+
+## How many times the wall builder has been asked.
+var wall_builds := 0
 
 
 func describe() -> Dictionary:
@@ -76,6 +81,10 @@ func run(t: TestContext) -> void:
 	await t.frames(5)
 	var mirror := _mirror(t)
 	ObjectMeshes.register(mirror.builders)
+	var wall_builder: Callable = mirror.builders[MirrorProxy.WALL]
+	mirror.builders[MirrorProxy.WALL] = func(body: Node2D) -> Node3D:
+		wall_builds += 1
+		return wall_builder.call(body)
 	for key: StringName in [
 		MirrorProxy.WALL, MirrorProxy.DOOR, MirrorProxy.FLOOR, MirrorProxy.floor_key("street"),
 	]:
@@ -185,7 +194,12 @@ func _floors(t: TestContext, mirror: WorldMirror) -> void:
 		t.expect_near(box.size.x, size.x, 0.01, "%s: as wide as the floor" % floor_node.name)
 		t.expect_near(box.size.z, size.y, 0.01, "%s: as deep as the floor" % floor_node.name)
 		t.expect_near(box.size.y, FLOOR_THICKNESS, 0.01, "%s: a thin slab" % floor_node.name)
-		t.expect_near(box.end.y, 0.0, 0.01, "%s: its top level with the ground" % floor_node.name)
+		t.expect_near(
+			box.end.y,
+			FLOOR_LIFT,
+			0.01,
+			"%s: its top just over the ground" % floor_node.name,
+		)
 		t.expect_near(node.global_position.x, floor_node.global_position.x, 0.01,
 				"%s: at the floor's corner (x)" % floor_node.name)
 		t.expect_near(node.global_position.z, floor_node.global_position.y, 0.01,
@@ -314,29 +328,35 @@ func _check_road(t: TestContext, road_node: MeshInstance3D) -> void:
 	)
 
 
-## A wall hit and rebuilt is meshed again: a new node, every segment still its own instance.
+## A wall hit meshes only the struck segment, once: the node stays, the builder is not asked
+## again, one segment instance is replaced and the others are the very same.
 func _hit_wall(t: TestContext, mirror: WorldMirror) -> void:
 	var wall := _walls_of(t)[0]
-	var before := _own_mesh(mirror, wall)
-	var segments: int = before.get_child_count()
-	for k in 4:
-		var hit := HitInfo.new()
-		hit.position = wall.to_global(Vector2(60.0 + 40.0 * k, 0.0))
-		hit.normal = Vector2.DOWN
-		hit.direction = Vector2.UP
-		hit.damage = 40.0
-		hit.speed_factor = 1.0
-		wall.take_hit(hit)
+	var before := _own_mesh(mirror, wall) as WallMesh
+	var ids: Array[int] = []
+	for part in before.get_children():
+		ids.append(part.get_instance_id())
+	var builds := wall_builds
+	var hit := HitInfo.new()
+	hit.position = wall.to_global(Vector2(60.0, 0.0))
+	hit.normal = Vector2.DOWN
+	hit.direction = Vector2.UP
+	hit.damage = 60.0
+	hit.speed_factor = 1.0
+	wall.take_hit(hit)
 	await t.frames(6)
-	var after := _own_mesh(mirror, wall)
-	if not t.require(after != null, "a hit wall is still shown by a mesh"):
-		return
-	t.check(after != before, "a hit wall is meshed again")
-	t.expect_eq(after.get_child_count(), segments, "every segment is still its own instance")
+	t.check(_own_mesh(mirror, wall) == before, "a hit wall keeps its mesh node")
+	t.expect_eq(wall_builds, builds, "a hit does not build the wall's mesh again")
+	t.expect_eq(before.rebuilds, 1, "a hit rebuilds one segment, once")
+	var after: Array[Node] = before.get_children()
+	t.expect_eq(after.size(), ids.size(), "every segment is still its own instance")
+	var replaced := 0
+	for part in after:
+		replaced += 0 if ids.has(part.get_instance_id()) else 1
+	t.expect_eq(replaced, 1, "only the struck segment's instance was replaced")
 	var dented := 0
-	for part: MeshInstance3D in after.get_children():
-		if _vertex_count(part.mesh) > 36:
-			dented += 1
+	for part: MeshInstance3D in after:
+		dented += 1 if _vertex_count(part.mesh) > 36 else 0
 	t.check(dented >= 1, "the struck segment is built from its dented colliders")
 
 
