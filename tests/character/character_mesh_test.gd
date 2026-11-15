@@ -38,7 +38,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.set_static(RenderConfig, &"unit", 1.0)
 	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
-	s.set_static(CharacterPoseHeadConfig, &"breath", 0.0)  # a breath moves the head: not idle
 	s.set_static(Settings, &"path", SCRATCH)
 	s.set_static(Settings, &"render_mode", Settings.RENDER_3D)
 	s.set_static(Settings, &"setup", {})
@@ -264,16 +263,30 @@ func _check_outfit(
 	)
 
 
-## An idle body writes no transform: a mark put on a part stays through frames of standing still.
+## A body standing still, breathing as the game has it, is posed again on few frames: a mark put on
+## a
+## part is overwritten only when the head's breath has drifted past `BodyMesh.MOVED`, so over a
+## full breath period (3.8 s) fewer than one frame in ten writes.
 func _check_idle(t: TestContext, mirror: WorldMirror) -> void:
 	var body := _body_of(t, mirror, &"east")
 	if body == null:
 		return
 	var trunk := body.get_child(BodyMesh.TORSO) as Node3D
 	var mark := Transform3D(Basis(), Vector3(999.0, 0.0, 0.0))
-	trunk.transform = mark
-	await t.frames(6)
-	t.check(trunk.transform == mark, "a body standing still writes no transform")
+	var frames := ceili(CharacterPoseHeadConfig.breath_period * 60.0) + 30
+	var writes := 0
+	for i in frames:
+		trunk.transform = mark
+		await t.frames(1)
+		if trunk.transform != mark:
+			writes += 1
+	t.check(
+		writes * 10 < frames,
+		"a standing, breathing body is posed on %d of %d frames (under one in ten)" % [
+			writes,
+			frames,
+		],
+	)
 
 
 ## A part that is not shown is not placed, and is placed when a look shows it: a walker's hidden

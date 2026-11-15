@@ -54,9 +54,11 @@ const SMALL := [
 ## the last: the rig's seventeen joints, the two feet's toes and the face.
 const JOINTS := 17
 const SAMPLE := 20
-## How far (px, or a direction's length) a joint must move from the pose the parts are in to pose
-## them again: a body at rest, its head's spring still settling, is not re-placed every frame.
-const MOVED := 0.02
+## How far a joint (px) or a flat direction (its length, about 1 degree for 0.02) must move from the
+## pose the parts are in to pose them again: a body at rest, its breath and its head's spring still
+## settling, is not re-placed every frame. A joint's is under one pixel of the 3D picture.
+const MOVED := 0.2
+const TURNED := 0.02
 ## How far down the shin (0 knee .. 1 ankle) a boot's shaft starts, and how much wider than the
 ## shin it is.
 const BOOT_TOP := 0.62
@@ -239,11 +241,12 @@ func _pose(rig: Rig) -> void:
 		_pose_limbs(i)
 
 
-## Whether every joint and direction of `_sample` is within `MOVED` of the pose the parts are in
-## (a spring settling to its rest keeps moving by far less than a pixel).
+## Whether every joint of `_sample` is within `MOVED`, and every direction within `TURNED`, of the
+## pose the parts are in.
 func _unmoved() -> bool:
 	for i in SAMPLE:
-		if _sample[i].distance_squared_to(_last[i]) > MOVED * MOVED:
+		var step := MOVED if i < JOINTS else TURNED
+		if _sample[i].distance_squared_to(_last[i]) > step * step:
 			return false
 	return true
 
