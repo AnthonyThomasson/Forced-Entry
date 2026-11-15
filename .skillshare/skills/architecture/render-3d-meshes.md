@@ -21,6 +21,8 @@ A mesh node the mirror shows may carry (all duck-typed, all optional):
 | Character | the body (`CharacterMeshes`) | `CharacterMeshes.register(builders)` |
 | Items | loose items (`ItemMeshes`) | `ItemMeshes.register(mirror)` |
 | Projectile | shots (`ProjectileMeshes`: 12) | `ProjectileMeshes.install(mirror, world)` |
-| Physics | debris chips, hit particles, blood (splats, prints, smears, pools), an explosion's fireball, smoke and scorch (`PhysicsMeshes`: `domain-physics/meshes.md`) | `PhysicsMeshes.install(mirror)` |
+| Physics | debris chips, hit particles, blood (splats, prints, smears, pools), an explosion's fireball, smoke and scorch (`PhysicsMeshes`: `domain-physics/meshes.md`) | `PhysicsMeshes.install(mirror, ground)`; `ground` is Objects' `StreetGround.offset_at` (the road a kerb lower) |
 
 Main's `main_view3d.gd` `_register_meshes()` calls each. Objects' wear and decals: `domain-objects/meshes.md`.
+
+Known cost: Physics' ink rebuilds a whole 128 px chunk when one mark in it changes (dries a step, a smear grows), O(marks in the chunk); the pool and blast cost is one pool a frame.

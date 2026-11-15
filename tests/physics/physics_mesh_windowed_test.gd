@@ -84,6 +84,7 @@ func run(t: TestContext) -> void:
 	_world = built["world"]
 	var focus := victim.global_position
 	await _firefight(t, focus)
+	await _road_firefight(t)
 	await _bleed(t, victim)
 	await _blast(t, focus + Vector2(70, 0))
 	await MainProbe.close(t, _window)
@@ -103,6 +104,58 @@ func _firefight(t: TestContext, focus: Vector2) -> void:
 		await t.seconds(1.5)
 		t.check(_layer.debris.lying() > 0, "chips lie after it at zoom %d" % int(zoom))
 		await _save(t, "firefight_after_zoom%d" % int(zoom))
+
+
+## The same firefight on a road (a kerb lower than the pavement), its blood and chips lying on it.
+func _road_firefight(t: TestContext) -> void:
+	var road := _road(_world)
+	if not t.require(road.size != Vector2.ZERO, "the match has a road"):
+		return
+	var focus := road.get_center()
+	var ground := StreetGround.new()
+	ground.refresh(_world)
+	t.check(ground.offset_at(focus) < 0.0, "the ground is a kerb lower at its middle")
+	for zoom: float in ZOOMS:
+		_camera.zoom = Vector2(zoom, zoom)
+		_camera.global_position = focus
+		for i in HITS:
+			_hit(_world, focus + Vector2(randf_range(-50, 50), randf_range(-30, 30)), i)
+			if i % 6 == 0:
+				_splat(_world, focus + Vector2(randf_range(-40, 40), randf_range(-25, 25)))
+			await t.frames(1)
+			if i == int(HITS * 0.5):
+				await _save(t, "road_firefight_zoom%d" % int(zoom))
+		await t.seconds(1.5)
+		await _save(t, "road_firefight_after_zoom%d" % int(zoom))
+		Physics.spawn_explosion(_world, focus, &"frag")
+		await t.seconds(0.15)
+		await _save(t, "road_blast_zoom%d" % int(zoom))
+		await t.seconds(4.5)
+
+
+## One splat of blood at `at`.
+func _splat(world: Node, at: Vector2) -> void:
+	var throw := BloodThrow.new()
+	throw.size = 3.5
+	throw.energy = 0.6
+	BloodSpawner.splat(world, at, throw)
+
+
+## The first road floor of the match (a street floor that is not the sidewalk), or an empty rect.
+func _road(world: Node) -> Rect2:
+	for node: Node in get_tree_floors(world):
+		var opts: Variant = node.get("art_opts")
+		var kind := String(opts.get("kind", "asphalt")) if opts is Dictionary else "asphalt"
+		if MirrorProxy.art_of(node) == "street" and kind != "sidewalk":
+			return Rect2((node as Node2D).global_position, node.get("size"))
+	return Rect2()
+
+
+## The floors in `world`.
+func get_tree_floors(world: Node) -> Array[Node]:
+	return world.get_tree().get_nodes_in_group(&"floors").filter(
+		func(n: Node) -> bool: return world.is_ancestor_of(n)
+	)
 
 
 ## The character dead: splats at once, its pool filling.

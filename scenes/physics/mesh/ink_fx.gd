@@ -34,12 +34,17 @@ var _wet: Array[InkMark] = []
 ## The timer that dries the wet marks a step at a time, and how many scorches the world keeps.
 var _timer := Timer.new()
 var _cap := 1
-## The smear ribbon that grew last: the next growth is nearly always its own.
-var _last_ribbon: InkMark
+## The smear ribbons by the id this layer gave their 2D mark (`ink_id` in it), the next id, and the
+## ground the marks lie on (the road a kerb lower).
+var _ribbons := {}
+var _next_ribbon := 0
+var _world: FxWorld
 
 
-## Marks under `parent` (the 3D world's frame), `cap` scorches kept (the `Despawner`'s).
-func _init(parent: Node3D, cap: int) -> void:
+## Marks under `parent` (the 3D world's frame), `cap` scorches kept (the `Despawner`'s), over the
+## ground of `world`.
+func _init(parent: Node3D, cap: int, world: FxWorld) -> void:
+	_world = world
 	_parent = parent
 	_cap = maxi(cap, 1)
 	_timer.name = "Drying"
@@ -89,14 +94,15 @@ func splat_made(splat: Node2D) -> void:
 	mark.node_id = splat.get_instance_id()
 	mark.dry_time = BloodSplatConfig.dry_time
 	var to_world := splat.global_transform
+	var ground := _world.ground_at(splat.global_position)
 	for poly: PackedVector2Array in splat.shapes:
-		_fan(mark, to_world * poly, lift_of(PhysicsInkConfig.splat_layer))
+		_fan(mark, to_world * poly, lift_of(PhysicsInkConfig.splat_layer) + ground)
 	mark.body = mark.verts.size()
 	var fleck := splat.get_node_or_null("Highlight")
 	if fleck is Polygon2D:
 		mark.fleck = (fleck as Polygon2D).color
 		_fan(mark, to_world * (fleck as Polygon2D).polygon,
-			lift_of(PhysicsInkConfig.splat_layer + PhysicsInkConfig.over_layer))
+			lift_of(PhysicsInkConfig.splat_layer + PhysicsInkConfig.over_layer) + ground)
 	if mark.body == 0:
 		return
 	_splats[mark.node_id] = mark
@@ -113,41 +119,31 @@ func print_made(poly: PackedVector2Array, alpha: float) -> void:
 	var mark := _new(InkMark.Kind.PRINT, poly[0])
 	mark.alpha = alpha
 	mark.dry_time = BloodConfig.print_dry_time
-	_fan(mark, poly, lift_of(PhysicsInkConfig.print_layer))
+	_fan(mark, poly, lift_of(PhysicsInkConfig.print_layer) + _world.ground_at(poly[0]))
 	mark.body = mark.verts.size()
 	_keep(mark)
 
 
-## A smear ribbon the 2D `BloodDecals` began (`source` is its own mark: points, widths, alphas).
+## A smear ribbon the 2D `BloodDecals` began (`source` is its own mark: points, widths, alphas). It
+## is given an `ink_id` in that mark, which its growth finds it by.
 func ribbon_begun(source: Dictionary) -> void:
 	var mark := _new(InkMark.Kind.RIBBON, (source["points"] as PackedVector2Array)[0])
 	mark.source = source
 	mark.dry_time = BloodConfig.print_dry_time
+	mark.node_id = _next_ribbon
+	source["ink_id"] = mark.node_id
+	_next_ribbon += 1
+	_ribbons[mark.node_id] = mark
 	_keep(mark)
 
 
-## A smear ribbon grew (`source` is the 2D mark): built again.
+## A smear ribbon grew (`source` is the 2D mark): the new segments are laid, the old ones stay.
 func ribbon_grew(source: Dictionary) -> void:
-	var mark := _last_ribbon
-	if mark == null or not is_same(mark.source, source):
-		mark = _ribbon_of(source)
-	if mark == null:
+	var mark: InkMark = _ribbons.get(int(source.get("ink_id", -1)))
+	if mark == null or not mark.alive:
 		return
-	_last_ribbon = mark
-	_ribbon(mark)
-	_paint(mark, mark.step)
+	_ribbon_grow(mark)
 	_dirty[mark.cell] = true
-
-
-## The smear ribbon made from `source` (the very 2D mark), the newest first; null when it is gone.
-func _ribbon_of(source: Dictionary) -> InkMark:
-	var items := _prints.items()
-	var i := items.size() - 1
-	while i >= 0:
-		if is_same(items[i].source, source):
-			return items[i]
-		i -= 1
-	return null
 
 
 ## A scorch of the 2D `ScorchDecals`: its stepped rows (`rects`, world px, and a colour for each,
@@ -157,12 +153,12 @@ func scorch_burned(rects: Array[Rect2], tones: Array[Color]) -> void:
 		return
 	var mark := _new(InkMark.Kind.SCORCH, rects[0].get_center())
 	var core := PhysicsExplosionConfig.scorch_color.a - 0.001
+	var ground := _world.ground_at(rects[0].get_center())
 	for i in rects.size():
 		var layer := PhysicsInkConfig.scorch_layer
 		if tones[i].a >= core:
 			layer += PhysicsInkConfig.over_layer
-		var lift := lift_of(layer)
-		_quad(mark, rects[i], lift, _opaque(tones[i]))
+		_quad(mark, rects[i], lift_of(layer) + ground, _opaque(tones[i]))
 	mark.body = mark.verts.size()
 	_scorches.append(mark)
 	_file(mark)
@@ -173,7 +169,9 @@ func scorch_burned(rects: Array[Rect2], tones: Array[Color]) -> void:
 ## Build the chunks that changed; the marks are not moving, so this is all the work there is.
 func process() -> void:
 	for cell: Vector2i in _dirty:
-		var chunk: InkChunk = _chunks[cell]
+		var chunk: Variant = _chunks.get(cell)
+		if not is_instance_valid(chunk):
+			continue
 		chunk.rebuild()
 		rebuilds += 1
 		if chunk.marks.is_empty():
@@ -204,7 +202,7 @@ func _new(kind: InkMark.Kind, at: Vector2) -> InkMark:
 ## File a print or a smear, the newest, painted wet, and drop the oldest past the 2D cap.
 func _keep(mark: InkMark) -> void:
 	if mark.kind == InkMark.Kind.RIBBON:
-		_ribbon(mark)
+		_ribbon_grow(mark)
 	_prints.append(mark)
 	_paint(mark, 0 if mark.dry_time > 0.0 else _steps())
 	_file(mark)
@@ -212,6 +210,7 @@ func _keep(mark: InkMark) -> void:
 	while _prints.size() > BloodConfig.print_max:
 		var old: InkMark = _prints.pop()
 		_wet.erase(old)
+		_ribbons.erase(old.node_id if old.kind == InkMark.Kind.RIBBON else -1)
 		_unfile(old)
 
 
@@ -228,6 +227,7 @@ func _file(mark: InkMark) -> void:
 
 ## Take `mark` out of its chunk.
 func _unfile(mark: InkMark) -> void:
+	mark.alive = false
 	var chunk: Variant = _chunks.get(mark.cell)
 	if is_instance_valid(chunk):
 		chunk.marks.erase(mark)
@@ -314,22 +314,38 @@ func _paint_ribbon(mark: InkMark, blood: Color) -> void:
 	mark.colors = tones
 
 
-## The triangles of ribbon `mark`'s 2D mark as it is now: a flat band a segment at a time.
-func _ribbon(mark: InkMark) -> void:
+## Lay the segments of ribbon `mark`'s 2D mark it has not got yet, a flat band each, in the colour
+## the mark has now (a segment is six vertices).
+func _ribbon_grow(mark: InkMark) -> void:
 	var points: PackedVector2Array = mark.source["points"]
 	var widths: PackedFloat32Array = mark.source["widths"]
-	mark.verts.clear()
-	for i in points.size() - 1:
-		if points[i].distance_squared_to(points[i + 1]) < 0.0001:
-			points[i + 1] = points[i] + Vector2(0.001, 0.0)
-		var along := (points[i + 1] - points[i]).normalized()
-		var side := along.orthogonal()
-		var from := side * widths[i] * 0.5
-		var to := side * widths[i + 1] * 0.5
-		var lift := lift_of(PhysicsInkConfig.print_layer)
-		_quad_points(mark, [points[i] - from, points[i] + from, points[i + 1] + to,
-			points[i + 1] - to], lift)
+	var alphas: PackedFloat32Array = mark.source["alphas"]
+	var blood := BloodConfig.color.lerp(BloodConfig.dried_color, float(mark.step) / float(_steps()))
+	for i in range(mark.laid, points.size() - 1):
+		_segment(mark, points, widths, i)
+		var tone := blood
+		tone.a *= alphas[i]
+		mark.colors.append_array(_filled(6, _linear(tone, true)))
+	mark.laid = maxi(points.size() - 1, 0)
 	mark.body = mark.verts.size()
+
+
+## The band of segment `i` of a ribbon (its `points` and `widths`), over the ground at its start.
+func _segment(
+	mark: InkMark,
+	points: PackedVector2Array,
+	widths: PackedFloat32Array,
+	i: int,
+) -> void:
+	var to := points[i + 1]
+	if points[i].distance_squared_to(to) < 0.0001:
+		to = points[i] + Vector2(0.001, 0.0)
+	var side := (to - points[i]).normalized().orthogonal()
+	var from_edge := side * widths[i] * 0.5
+	var to_edge := side * widths[i + 1] * 0.5
+	var lift := lift_of(PhysicsInkConfig.print_layer) + _world.ground_at(points[i])
+	_quad_points(mark, [points[i] - from_edge, points[i] + from_edge, to + to_edge,
+		to - to_edge], lift)
 
 
 ## `places` copies of `tone`.

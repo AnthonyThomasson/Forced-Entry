@@ -17,10 +17,14 @@ var _flying: Array[FxPiece] = []
 var _lying := PieceQueue.new()
 ## How many chips the world keeps at most (the `Despawner`'s cap when the effects were built).
 var _cap := 1
+## The ground the chips lie on (the road a kerb lower).
+var _world: FxWorld
 
 
-## Batches under `parent` (the 3D world's frame), each as big as `cap`, the most chips shown.
-func _init(parent: Node3D, cap: int) -> void:
+## Batches under `parent` (the 3D world's frame), each as big as `cap`, the most chips shown, over
+## the ground of `world`.
+func _init(parent: Node3D, cap: int, world: FxWorld) -> void:
+	_world = world
 	_cap = maxi(cap, 1)
 	for shape: String in ["rect", "tri", "circle"]:
 		var batch := FxBatch.new(_mesh(shape), _cap + PhysicsMeshConfig.flying_room)
@@ -82,12 +86,12 @@ func fly(chip: Node2D, height: float) -> void:
 ## oldest chip that lies goes past the cap, as in `DebrisLayer`.
 func land(chip: Node2D) -> void:
 	var piece := _flying_piece(chip)
+	while _lying.size() >= _cap:
+		_forget(_lying.pop())
 	if piece == null:
 		piece = _take(chip)
 	if piece == null:
 		return
-	while _lying.size() >= _cap:
-		_forget(_lying.pop())
 	_follow(piece, chip)
 	piece.age = piece.life
 	_write(piece)
@@ -155,7 +159,7 @@ func _write(piece: FxPiece) -> void:
 	var u := clampf(piece.age / piece.life, 0.0, 1.0)
 	var arc := PhysicsMeshConfig.chip_arc * 4.0 * u * (1.0 - u)
 	var lift := piece.start_height * (1.0 - u * u) + arc
-	var base := PhysicsMeshConfig.rest_height + lift
+	var base := PhysicsMeshConfig.rest_height + lift + _world.ground_at(piece.at)
 	var scale := Vector3(piece.size.x, PhysicsMeshConfig.chip_thickness, piece.size.y)
 	var basis := Basis(Vector3.UP, -piece.turn) * Basis.from_scale(scale)
 	var origin := Vector3(piece.at.x, base, piece.at.y) * RenderConfig.unit

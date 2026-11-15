@@ -10,10 +10,10 @@ extends RefCounted
 var _rigs: Array[BlastRig] = []
 
 
-## The rigs, as parts of `parent`.
-func _init(parent: Node3D) -> void:
+## The rigs, as parts of `parent`, in `world`.
+func _init(parent: Node3D, world: FxWorld) -> void:
 	for i in PhysicsBlastMeshConfig.rigs:
-		_rigs.append(BlastRig.new(parent))
+		_rigs.append(BlastRig.new(parent, world))
 
 
 ## How many blasts are showing.

@@ -1,7 +1,7 @@
 # Physics in the 3D render (`scenes/physics/mesh/`)
 
 The sim stays 2D; in the 3D render mode (interface 27) Physics' effects are shown by one layer, `FxLayer` (a `Node3D` under the
-`WorldMirror`), that Main's `View3D.begin()` installs: `PhysicsMeshes.install(mirror) -> FxLayer` (interface 12). The 2D spawners
+`WorldMirror`), that Main's `View3D.begin()` installs: `PhysicsMeshes.install(mirror, ground := Callable()) -> FxLayer` (interfaces 4, 12). The 2D spawners
 call static hooks on `PhysicsFxHook` as they make a thing (`chip_flew`, `chip_landed`, `burst_made`, `splat_made`, `print_made`,
 `ribbon_begun`, `ribbon_grew`, `scorch_burned`, `pool_made`, `pool_changed`, `blast_made`); with no layer installed (2D, a test world)
 each is one `is_instance_valid(sink)` check. The 2D nodes are still made (hidden in 3D), and their configs are read again, not copied:
@@ -11,13 +11,14 @@ same colours, sizes, counts, lifetimes and caps. Imports: General and Art's mesh
 
 | File | Role |
 |---|---|
+| `fx_world.gd` | What the effects share: `ground_at(point)` (the `ground` Callable Main gave, 0 when none) and `rng`, a private `RandomNumberGenerator` (the 3D look never draws from global `randf`, so a seeded 2D sim is the same in either mode). |
 | `physics_meshes.gd`, `physics_fx_hook.gd`, `fx_layer.gd` | The install, the hooks, the layer: it runs `_process` only while a chip flies, bits move, a pool soaks or a blast burns; at rest nothing runs or is written. |
 | `fx_batch.gd`, `fx_piece.gd`, `piece_queue.gd` | A `MeshNodes.batch` with a colour per part (`colored`, `batch_color`), a free list of preallocated pieces (no allocation in play), a FIFO. |
 | `debris_fx.gd` | Chips: a flying chip follows its 2D node (height `start*(1-u²)+arc*4u(1-u)`), lands where 2D rests; lying chips capped by `Despawner.max_scene_objects`. |
 | `burst_fx.gd` | Hit particles: bits and sparks (glowing, `MeshNodes.glow`, no light) from the 2D emitter's amount, cone, speeds, damping, scale, life and colour; gravity, floor, shrink out. |
 | `ink_fx.gd`, `ink_chunk.gd`, `ink_mark.gd` | Flat marks on the floor in 128 px chunks, one `ArrayMesh` per chunk rebuilt once a frame when dirty: splats, prints, smear ribbons, scorch. |
-| `pool_ink.gd` | A bleed-out pool: a `MeshNodes.decal` of `BloodPoolVisuals.field_bytes`, upscaled, in rim / deep / soaked tones, redrawn at most every `pool_interval` while it changes. |
-| `blast_fx.gd`, `blast_rig.gd` | An explosion: `PhysicsBlastMeshConfig.rigs` reusable rigs (flash discs, shock ring, fireball of spheres, smoke puffs). |
+| `pool_ink.gd` | A bleed-out pool: a decal of `BloodPoolVisuals.field_bytes` (one shared unit quad, scaled to its box), bilinear-upscaled, in rim / deep / soaked tones. At most one stale pool is built a frame, in turn, each at most every `pool_interval`. |
+| `blast_fx.gd`, `blast_rig.gd` | An explosion: `PhysicsBlastMeshConfig.rigs` reusable rigs: flash discs, shock ring, a flattened fireball dome (`fire_squash`, `fire_body`, alpha capped at `fire_opacity` so it dithers early; it hides a character no more than the 2D disc), smoke puffs resting on the ground (`smoke_squash`; not outlined by the pixel post). |
 | `physics_mesh_config.gd`, `physics_ink_config.gd`, `physics_blast_config.gd` | Tuning only the 3D has: heights, lifts, capacities, steps, rigs. |
 
 ## Rules
@@ -35,11 +36,12 @@ same colours, sizes, counts, lifetimes and caps. Imports: General and Art's mesh
 ## Tests
 
 `tests/physics/`: `debris_mesh_test`, `hit_particles_mesh_test`, `blood_mesh_test`, `blood_pool_mesh_test`, `explosion_mesh_test`
-(headless: place, height, life, expiry, bounds, nothing written at rest); `physics_mesh_windowed_test` (windowed; `PHYSICS_SHOTS=<dir>`
-saves a firefight, bleeding and a blast at zoom 3 and 1).
+(headless: place, height, life, expiry, bounds, nothing written at rest), `fx_ground_mesh_test` (the road a kerb lower), `blood_pools_turns_mesh_test`
+(one pool a frame), `blood_ribbon_mesh_test`, `fx_own_random_test`; `physics_mesh_windowed_test` (windowed; `PHYSICS_SHOTS=<dir>` saves a firefight,
+a road firefight and blast, bleeding and a blast at zoom 3 and 1).
 
 ## Known limits
 
-Blood on a road sits at pavement height (no ground-height query). Smears lose their feathered edge; pool soak tufts are one tone. A chip
+Smears lose their feathered edge; pool soak tufts are one tone. A chip
 lags its 2D node by a frame, and one past `flying_room` is shown from where it lands. Debris and bits are 2D-sized, so sub-pixel at zoom 1.
 Object dents and the bloody mark under a hole are Objects' and Vehicles' meshes. The shock ring is 3D only.

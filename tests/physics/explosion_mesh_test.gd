@@ -60,7 +60,7 @@ func _check_a_frag(t: TestContext, layer: FxLayer) -> void:
 	t.expect_near(_flat(rig.fire[0]).distance_to(AT), 0.0, 0.5, "the fireball is at the burst")
 	t.expect_near(_flat(rig.flash[0]).distance_to(AT), 0.0, 0.5, "and so is the flash")
 	var early := rig.fire[0].transform.basis.get_scale().x
-	var first_tone: Color = rig.fire[0].get_meta(&"tint")
+	var first_tone: Color = rig.fire[0].get_meta(&"fx_tint")
 	var glow: Variant = rig.fire[0].get_instance_shader_parameter(&"emissive")
 	t.check(glow != null and glow.a > 0.0, "the fireball glows whatever the light")
 	t.check(
@@ -74,7 +74,7 @@ func _check_a_frag(t: TestContext, layer: FxLayer) -> void:
 		rig.fire[0].transform.basis.get_scale().x > early, "and has swollen (%.1f)" % early
 	)
 	await t.seconds(float(look["fireball_time"]))
-	var late: Color = rig.fire[0].get_meta(&"tint")
+	var late: Color = rig.fire[0].get_meta(&"fx_tint")
 	t.check(late != first_tone, "the fireball cooled through its tones")
 	t.check(not rig.fire[0].visible and not rig.ring.visible, "the fireball and ring are gone")
 	t.check(_puffs(rig) > 0, "the smoke has begun and lingers (every puff has begun by now)")

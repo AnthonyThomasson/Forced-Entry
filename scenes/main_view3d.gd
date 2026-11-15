@@ -31,6 +31,9 @@ var viewport := SubViewport.new()
 var rect := TextureRect.new()
 var shown: SubViewport = viewport
 var _stage: SubViewport
+## How far below the pavement the road lies at a spot (Objects' street, read from the world): what
+## the effects that lie on the ground are put lower by.
+var _ground := StreetGround.new()
 
 
 func _init() -> void:
@@ -75,7 +78,8 @@ func begin(camera: Camera2D) -> void:
 	viewport.add_child(_sun())
 	mirror = WorldMirror.new()
 	viewport.add_child(mirror)
-	PhysicsMeshes.install(mirror)  # debris, bursts, blood and blasts show from the first frame
+	# debris, bursts, blood and blasts show from the first frame, on the road a kerb lower
+	PhysicsMeshes.install(mirror, _ground.offset_at)
 	fade = WallFade.new()
 	fade.rig = rig
 	fade.source = camera
@@ -113,6 +117,7 @@ func _show(oversample: int) -> void:
 ## (tracers, casings) are shown by their layer.
 func mirror_world(world: Node) -> void:
 	_register_meshes()
+	_ground.refresh(world)
 	mirror.mirror(world)
 	ProjectileMeshes.install(mirror, world)
 

@@ -9,4 +9,6 @@ What the 2D draws as wear is a decal (`MeshNodes.decal`, a flat textured quad, `
 - **The street** (`WearMesh.attach_street`, from `StreetMesh.build`): marks lie at the pavement's height (0) and on the road a kerb lower (`-ObjectStreetMeshConfig.kerb`, 3), not at the ground; overlapping marks keep their draw order by the layers above. The lane's dashes and the crossings are the street mesh's own (`street_drawn`: not laid twice); the lane glyphs, cracks, patches, stains, gum, weeds, slab shades and litter are decals. The kerb is the mesh's.
 - **Stencils** are `StencilMesh`'s (`meshes.md`): its decal lies on `tier_stencil`, over every mark of the floor or street under it and never at the height of one; drawn once. A tower's `DecalFactory.shadow` is not drawn: the 3D sun casts a real one (phase 3 owns the light).
 
+`StreetGround` (`art/street_ground.gd`) answers the same question for other domains: `refresh(world)` reads the road floors (art `street`, kind not `sidewalk`) in a 128 px grid, `offset_at(point)` is `-kerb` on a road and 0 elsewhere. Main hands it to Physics' effects (interface 4), which lie on the road a kerb lower; `tests/objects/street_ground_test.gd`.
+
 Tests: `tests/objects/wear_mesh_test.gd`, `wear_mesh_windowed_test.gd` (`WEAR_SHOT_DIR=<dir>` saves the worn room, the road's glyph and a lobby stencil at zoom 1 and 3).

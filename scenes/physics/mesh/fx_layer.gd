@@ -35,14 +35,15 @@ func _process(delta: float) -> void:
 	set_process(chips or bits or waiting or blast or ink.pending())
 
 
-## Build the parts: `cap` is the most things of a kind the world keeps (the `Despawner`'s).
-func build(cap: int) -> void:
-	debris = DebrisFx.new(self, cap)
-	bursts = BurstFx.new(self)
-	ink = InkFx.new(self, cap)
+## Build the parts: `cap` is the most things of a kind the world keeps (the `Despawner`'s), `world`
+## the ground they lie on and their random numbers.
+func build(cap: int, world: FxWorld) -> void:
+	debris = DebrisFx.new(self, cap, world)
+	bursts = BurstFx.new(self, world)
+	ink = InkFx.new(self, cap, world)
 	ink.went_dry.connect(set_process.bind(true))
-	pools = PoolInk.new(self)
-	blasts = BlastFx.new(self)
+	pools = PoolInk.new(self, world)
+	blasts = BlastFx.new(self, world)
 
 
 ## A chip left a surface at `height` (0..100 cover scale, negative: the floor): it flies.

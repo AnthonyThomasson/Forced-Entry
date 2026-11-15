@@ -8,10 +8,13 @@ extends RefCounted
 
 
 ## Add the effects' layer to `mirror` (it follows the mirror's frame) and have the 2D Physics code
-## tell it what it makes. Returns the layer; it stops being told when it leaves the tree.
-static func install(mirror: WorldMirror) -> FxLayer:
+## tell it what it makes. `ground` is a `Callable(Vector2) -> float`, the height of the ground (px,
+## 0 on the pavement) at a world point, which Main builds from the street (a road lies a kerb
+## lower); none is a flat ground. Returns the layer; it stops being told when it leaves the tree.
+## The hook is process-wide: one 3D view at a time.
+static func install(mirror: WorldMirror, ground := Callable()) -> FxLayer:
 	var layer := FxLayer.new()
-	layer.build(Despawner.max_scene_objects)
+	layer.build(Despawner.max_scene_objects, FxWorld.new(ground))
 	mirror.add_child(layer)
 	PhysicsFxHook.sink = layer
 	layer.tree_exiting.connect(func() -> void:

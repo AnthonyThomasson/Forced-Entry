@@ -59,5 +59,8 @@
 
    Physics imports nothing from other domains but General's infrastructure: `Despawner` (debris, hit particles, blood, explosion fx),
    `PhysicsLayers` (`PhysicsConfig.wall_mask`), `DrawLayers` (its z knobs), `FillBatch`; and, for the 3D render (27), Art's mesh kit (12).
-   - `PhysicsMeshes.install(mirror: WorldMirror) -> FxLayer` (Main's `View3D`, once, before the match makes anything): the 3D look of everything above
+   - `PhysicsMeshes.install(mirror: WorldMirror, ground := Callable()) -> FxLayer` (Main's `View3D`, once, before the match makes anything): the 3D look of everything above
      (`domain-physics/meshes.md`). The spawners tell it through `PhysicsFxHook` (static, a no-op when none is installed); `spawn_debris` sets `PhysicsFxHook.hit_height`.
+     `ground` is `func(at: Vector2) -> float`, the height offset (px, 0 on the pavement, a kerb lower on the road) of the ground under a world point: Main builds it
+     from the street (Objects' `StreetGround.offset_at`) so Physics imports nothing of Objects; every mark, chip, bit and blast lies on it; none is a flat ground.
+     The sink is process-wide (`PhysicsFxHook.sink`): one 3D view at a time, the last installed wins.

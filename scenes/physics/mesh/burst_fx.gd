@@ -16,10 +16,13 @@ var _bits: FxBatch
 var _sparks: FxBatch
 ## The bits and sparks alive.
 var _live: Array[FxPiece] = []
+## The ground the bits fall to (the road a kerb lower) and the random numbers they are thrown by.
+var _world: FxWorld
 
 
-## Batches under `parent` (the 3D world's frame).
-func _init(parent: Node3D) -> void:
+## Batches under `parent` (the 3D world's frame), over the ground of `world`.
+func _init(parent: Node3D, world: FxWorld) -> void:
+	_world = world
 	var cube := _cube()
 	_bits = FxBatch.new(cube, PhysicsMeshConfig.bit_capacity)
 	_bits.node.name = "Bits"
@@ -89,18 +92,18 @@ func process(delta: float) -> bool:
 ## and a size and a life within its ranges.
 func _throw(piece: FxPiece, emitter: CPUParticles2D, lift: float) -> void:
 	var spread := deg_to_rad(emitter.spread)
-	var way := emitter.direction.rotated(randf_range(-spread, spread))
-	var speed := randf_range(emitter.initial_velocity_min, emitter.initial_velocity_max)
+	var way := emitter.direction.rotated(_world.rng.randf_range(-spread, spread))
+	var speed := _world.rng.randf_range(emitter.initial_velocity_min, emitter.initial_velocity_max)
 	piece.at = emitter.global_position
 	piece.velocity = way * speed
 	piece.rise = speed * PhysicsMeshConfig.bit_lift
 	piece.height = lift
-	piece.damping = randf_range(emitter.damping_min, emitter.damping_max)
-	var side := randf_range(emitter.scale_amount_min, emitter.scale_amount_max)
+	piece.damping = _world.rng.randf_range(emitter.damping_min, emitter.damping_max)
+	var side := _world.rng.randf_range(emitter.scale_amount_min, emitter.scale_amount_max)
 	piece.size = Vector2(side, side)
-	piece.turn = randf() * TAU
+	piece.turn = _world.rng.randf() * TAU
 	piece.age = 0.0
-	piece.life = emitter.lifetime * (1.0 - emitter.lifetime_randomness * randf())
+	piece.life = emitter.lifetime * (1.0 - emitter.lifetime_randomness * _world.rng.randf())
 
 
 ## One step of a bit's flight: slowed along its heading, falling under gravity, stopped by the
@@ -122,7 +125,7 @@ func _write(piece: FxPiece) -> void:
 	var left := 1.0 - piece.age / piece.life
 	var shrink := clampf(left / PhysicsMeshConfig.bit_shrink, 0.0, 1.0)
 	var side := piece.size.x * shrink
-	var base := PhysicsMeshConfig.rest_height + piece.height
+	var base := PhysicsMeshConfig.rest_height + piece.height + _world.ground_at(piece.at)
 	var basis := Basis(Vector3.UP, piece.turn) * Basis.from_scale(Vector3.ONE * side)
 	var origin := Vector3(piece.at.x, base, piece.at.y) * RenderConfig.unit
 	piece.batch.place(piece, Transform3D(basis, origin))

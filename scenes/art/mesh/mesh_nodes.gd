@@ -134,6 +134,12 @@ static func batch_show(node: MultiMeshInstance3D, shown: int) -> void:
 	node.multimesh.visible_instance_count = clampi(shown, 0, node.multimesh.instance_count)
 
 
+## `node` tinted `color`: the instance's base colour, times the mesh's own colours (white leaves
+## them; black shows only a glow, `glow`). Any toon node or decal.
+static func base_color(node: GeometryInstance3D, color: Color) -> void:
+	node.set_instance_shader_parameter(&"base_color", color)
+
+
 ## `node` shown `amount` of the way (1 whole, 0 gone): a dither of the pixels the picture's own
 ## size, so a wall between the camera and the player thins out instead of blending. Any toon node
 ## or decal; 1 costs a branch the shader never takes.

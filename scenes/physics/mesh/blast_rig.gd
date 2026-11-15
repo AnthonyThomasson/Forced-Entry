@@ -25,10 +25,14 @@ var lobes := PackedVector2Array()
 var puff_at := PackedVector2Array()
 var puff_drift := PackedVector2Array()
 var puff_look := PackedVector2Array()
+## The ground the burst lies on (the road a kerb lower) and its height at the burst's place.
+var _world: FxWorld
+var _ground := 0.0
 
 
-## The parts under `parent`, hidden.
-func _init(parent: Node3D) -> void:
+## The parts under `parent`, hidden, over the ground of `world`.
+func _init(parent: Node3D, world: FxWorld) -> void:
+	_world = world
 	var sphere := _unit("blast_sphere")
 	var disc := _unit("blast_disc")
 	for i in 2:
@@ -37,7 +41,7 @@ func _init(parent: Node3D) -> void:
 	for i in 2 + ExplosionFx.LOBES:
 		fire.append(_part(parent, sphere))
 	for i in _most_puffs():
-		puffs.append(_part(parent, sphere))
+		puffs.append(_part(parent, sphere, false))
 
 
 ## Begin showing a burst of `row` (a `PhysicsExplosionConfig.looks` row) at world `place`.
@@ -46,6 +50,7 @@ func start(place: Vector2, row: Dictionary) -> void:
 	look = row
 	age = 0.0
 	live = true
+	_ground = _world.ground_at(place)
 	_draw_lobes()
 	_draw_puffs()
 	update(0.0)
@@ -89,10 +94,11 @@ func _progress(key: String) -> float:
 ## Draw the fireball's lumps: each a direction round the burst and a size share.
 func _draw_lobes() -> void:
 	lobes.resize(ExplosionFx.LOBES)
-	var turn := randf() * TAU
+	var turn := _world.rng.randf() * TAU
 	for i in ExplosionFx.LOBES:
-		var way := turn + TAU * float(i) / float(ExplosionFx.LOBES) + randf_range(-0.3, 0.3)
-		lobes[i] = Vector2(way, randf_range(0.5, 0.7))
+		var way := turn + TAU * float(i) / float(ExplosionFx.LOBES)
+		way += _world.rng.randf_range(-0.3, 0.3)
+		lobes[i] = Vector2(way, _world.rng.randf_range(0.5, 0.7))
 
 
 ## Draw the smoke's puffs: where each starts, where it drifts to, how big and how late.
@@ -103,12 +109,15 @@ func _draw_puffs() -> void:
 	puff_drift.resize(count)
 	puff_look.resize(count)
 	for i in count:
-		var way := Vector2.from_angle(randf() * TAU)
-		puff_at[i] = way * radius * randf_range(0.2, 0.9)
+		var way := Vector2.from_angle(_world.rng.randf() * TAU)
+		puff_at[i] = way * radius * _world.rng.randf_range(0.2, 0.9)
 		puff_drift[i] = (
-			way * radius * randf_range(0.3, 0.8) + Vector2(randf_range(-6.0, 6.0), -10.0)
+			way * radius * _world.rng.randf_range(
+				0.3,
+				0.8,
+			) + Vector2(_world.rng.randf_range(-6.0, 6.0), -10.0)
 		)
-		puff_look[i] = Vector2(randf_range(0.6, 1.0), randf_range(0.0, 0.12))
+		puff_look[i] = Vector2(_world.rng.randf_range(0.6, 1.0), _world.rng.randf_range(0.0, 0.12))
 
 
 ## The flash: a pale disc over a white one, fading fast, swelling a little.
@@ -130,33 +139,34 @@ func _ring() -> void:
 	var reach := radius * lerpf(0.4, PhysicsBlastMeshConfig.ring_reach, 1.0 - pow(1.0 - t, 2.0))
 	var up := PhysicsBlastMeshConfig.ring_height
 	var lift := PhysicsBlastMeshConfig.ring_lift + up * 0.5
-	_tone(ring, PhysicsBlastMeshConfig.ring_color, PhysicsBlastMeshConfig.flash_glow)
+	_tone(ring, PhysicsBlastMeshConfig.ring_color, PhysicsBlastMeshConfig.glow)
 	_shape(ring, Vector3(at.x, lift, at.y), Vector3(reach, up, reach), fade)
 
 
 ## The fireball: lumps round a body and a core, cooling from a yellow core to deep red in steps,
-## fading over its last stretch.
+## a dome that dithers away over its life.
 func _fireball() -> void:
 	var radius := float(look.get("fireball_radius", 0.0))
 	var t := _progress("fireball_time")
 	var swell := radius * (1.0 - pow(1.0 - t, 2.5)) * 0.9 + 6.0
 	var alpha := 0.0
 	if radius > 0.0 and age < _life("fireball_time"):
-		alpha = clampf((1.0 - t) / 0.45, 0.0, 1.0)
+		alpha = minf(clampf((1.0 - t) / 0.45, 0.0, 1.0), PhysicsBlastMeshConfig.fire_opacity)
+	var body := PhysicsBlastMeshConfig.fire_body
 	var centre := Vector3(at.x, swell * PhysicsBlastMeshConfig.fire_height, at.y)
 	_blob(
 		fire[0],
 		centre,
-		swell * 0.85,
+		swell * body,
 		_heat(ExplosionFx.FIRE_MID, ExplosionFx.FIRE_EDGE, t),
 		alpha,
 	)
-	_blob(fire[1], centre, swell * (0.5 - 0.3 * t),
+	_blob(fire[1], centre, swell * (0.5 - 0.3 * t) * body / 0.85,
 		_heat(ExplosionFx.FIRE_CORE, ExplosionFx.FIRE_MID, t), alpha)
 	for i in ExplosionFx.LOBES:
-		var out := Vector2.from_angle(lobes[i].x) * swell * ExplosionFx.LOBE_REACH
+		var out := Vector2.from_angle(lobes[i].x) * swell * ExplosionFx.LOBE_REACH * body / 0.85
 		var place := centre + Vector3(out.x, 0.0, out.y)
-		_blob(fire[2 + i], place, swell * lobes[i].y, ExplosionFx.FIRE_EDGE, alpha)
+		_blob(fire[2 + i], place, swell * lobes[i].y * body / 0.85, ExplosionFx.FIRE_EDGE, alpha)
 
 
 ## The smoke: puffs that drift out, swell, rise and thin out.
@@ -176,13 +186,14 @@ func _puff(part: MeshInstance3D, i: int, t: float) -> void:
 	var own := clampf((t - puff_look[i].y) / maxf(1.0 - puff_look[i].y, 0.001), 0.0, 1.0)
 	var place := puff_at[i] + puff_drift[i] * (1.0 - pow(1.0 - own, 2.0))
 	var size := radius * puff_look[i].x * (0.4 + 0.6 * sqrt(own))
-	var rise := PhysicsBlastMeshConfig.smoke_base + PhysicsBlastMeshConfig.smoke_rise * own
+	var rise := PhysicsBlastMeshConfig.smoke_rise * own
+	var tall := PhysicsBlastMeshConfig.smoke_squash
 	var fade := float(look.get("smoke_alpha", 0.5)) * minf(own / 0.1, 1.0) * (1.0 - own)
 	_tone(part, look.get("smoke_color", Color.GRAY), 0.0)
 	_shape(
 		part,
-		Vector3(at.x + place.x, rise + size * 0.5, at.y + place.y),
-		Vector3.ONE * size,
+		Vector3(at.x + place.x, rise + size * tall, at.y + place.y),
+		Vector3(size, size * tall, size),
 		fade,
 	)
 
@@ -196,14 +207,15 @@ func _heat(hot: Color, cool: Color, t: float) -> Color:
 
 ## A flat disc of `radius` px, glowing `tint`, thinning by `fade`, `up` px up.
 func _disc(part: MeshInstance3D, radius: float, tint: Color, fade: float, up: float) -> void:
-	_tone(part, tint, PhysicsBlastMeshConfig.flash_glow)
+	_tone(part, tint, PhysicsBlastMeshConfig.glow)
 	_shape(part, Vector3(at.x, up, at.y), Vector3(radius, 1.0, radius), fade)
 
 
 ## A glowing ball of fire of `radius` px at `place` (px: x, up, y), in `tint`, thinned by `alpha`.
 func _blob(part: MeshInstance3D, place: Vector3, radius: float, tint: Color, alpha: float) -> void:
-	_tone(part, tint, PhysicsBlastMeshConfig.fire_glow)
-	_shape(part, place, Vector3.ONE * maxf(radius, 0.01), alpha)
+	_tone(part, tint, PhysicsBlastMeshConfig.glow)
+	var wide := maxf(radius, 0.01)
+	_shape(part, place, Vector3(wide, wide * PhysicsBlastMeshConfig.fire_squash, wide), alpha)
 
 
 ## `part` at `place` (px: x, up, y) scaled by `size`, thinned to `amount` (0: hidden).
@@ -213,19 +225,20 @@ func _shape(part: MeshInstance3D, place: Vector3, size: Vector3, amount: float) 
 	part.visible = step > 0.0
 	if not part.visible:
 		return
-	part.transform = Transform3D(Basis.from_scale(size), place * RenderConfig.unit)
-	if part.get_meta(&"fade", -1.0) != step:
-		part.set_meta(&"fade", step)
+	var lifted := Vector3(place.x, place.y + _ground, place.z)
+	part.transform = Transform3D(Basis.from_scale(size), lifted * RenderConfig.unit)
+	if part.get_meta(&"fx_step", -1.0) != step:
+		part.set_meta(&"fx_step", step)
 		MeshNodes.fade(part, step)
 
 
 ## `part`'s colour: it glows `tint` by `glow` (a glowing part has no lit colour of its own, so the
 ## step of its tone is what shows), or is lit `tint` when `glow` is 0; written only when it changed.
 func _tone(part: MeshInstance3D, tint: Color, glow: float) -> void:
-	if part.get_meta(&"tint", Color.TRANSPARENT) == tint:
+	if part.get_meta(&"fx_tint", Color.TRANSPARENT) == tint:
 		return
-	part.set_meta(&"tint", tint)
-	part.set_instance_shader_parameter(&"base_color", Color.BLACK if glow > 0.0 else tint)
+	part.set_meta(&"fx_tint", tint)
+	MeshNodes.base_color(part, Color.BLACK if glow > 0.0 else tint)
 	MeshNodes.glow(part, tint, glow)
 
 
@@ -237,12 +250,12 @@ func _most_puffs() -> int:
 	return most
 
 
-## A part under `parent`: `mesh` in the shared toon material, no shadow, no crease lines (its
-## silhouette only), hidden.
-func _part(parent: Node3D, mesh: Mesh) -> MeshInstance3D:
+## A part under `parent`: `mesh` in the shared toon material, no shadow, hidden; `figured` draws its
+## silhouette only, no crease lines.
+func _part(parent: Node3D, mesh: Mesh, figured := true) -> MeshInstance3D:
 	var part := MeshNodes.instance(mesh, Color.WHITE, false)
 	part.visible = false
-	MeshNodes.figure(part)
+	MeshNodes.figure(part, figured)
 	parent.add_child(part)
 	return part
 

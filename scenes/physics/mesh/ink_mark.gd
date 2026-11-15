@@ -36,3 +36,7 @@ var fleck := Color.TRANSPARENT
 ## dictionary, read again as it grows).
 var node_id := 0
 var source: Dictionary = {}
+## How many segments of a smear's 2D mark it has laid, and whether it is still filed in its chunk
+## (a mark dropped by a cap is not: nothing is written to it).
+var laid := 0
+var alive := true

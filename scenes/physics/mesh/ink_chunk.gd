@@ -13,7 +13,7 @@ func _init() -> void:
 	mesh = ArrayMesh.new()
 	material_override = ToonMaterial.shared()
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	set_instance_shader_parameter(&"base_color", Color.WHITE)
+	MeshNodes.base_color(self, Color.WHITE)
 
 
 ## Build the mesh again from the marks.
