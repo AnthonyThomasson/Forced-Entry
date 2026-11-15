@@ -101,6 +101,11 @@ func _physics_process(delta: float) -> void:
 			return
 
 
+## How far (px) the bullet still has to fly before its range runs out.
+func range_left() -> float:
+	return max_distance - _traveled
+
+
 ## Post the world `&"hit"` event for `info` striking `body`, so decoupled listeners (the AI's combat
 ## awareness, the Audio domain) learn that something was struck, where, and by whom (`attacker`, or
 ## null). The event also says how the striker met the surface: `outcome` (a bullet's &"ricochet" /

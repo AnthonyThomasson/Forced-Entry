@@ -17,3 +17,5 @@ static var grenade_ahead: float = 2.0
 ## (share).
 static var lever_lift: float = 0.14
 static var lever_width: float = 0.22
+## A grenade's spoon lying loose: how thick the strip is (px).
+static var spoon_height: float = 0.8

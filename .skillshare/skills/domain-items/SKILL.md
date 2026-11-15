@@ -16,7 +16,7 @@ Owns what a character holds and does with it, and what it wears. Fire-rate and a
 - `gun.gd` (`GunItem`) + `pistol.gd` / `smg.gd` / `rifle.gd` (each only names its row: `const GUN`, `super(GUN)`); `gun_config.gd` (`GunConfig`); `magazine.gd` + `magazine_config.gd`; `gun_ammo.gd`; `item_strike.gd`.
 - `fists.gd`, `unarmed.gd`, `key.gd`; `dropped_item.gd` + `dropped_item_config.gd`.
 - `outfit.gd` + `outfit_config.gd`; `loadout_config.gd` + `character_kit.gd`.
-- `item_mesh_config.gd` (`ItemMeshConfig`), `art/gun_mesh.gd` (`GunMesh`), `art/grenade_mesh.gd` (`GrenadeMesh`): the held item's 3D mesh (`weapon-looks.md`).
+- `item_mesh_config.gd` (`ItemMeshConfig`), `art/gun_mesh.gd` (`GunMesh`), `art/grenade_mesh.gd` (`GrenadeMesh`): the held item's 3D mesh; `item_meshes.gd` (`ItemMeshes`), `art/lying_item_mesh.gd` (`LyingItemMesh`): a loose item's (`weapon-looks.md`).
 - Grenades and art: see the side files.
 
 ## Guns
@@ -53,6 +53,6 @@ What the match builder hands a character (`MatchBuilder.arm`, interface 23). `no
 
 ## Dropping on death
 
-The character calls `item.drop(user, velocity)`; the base `Item` leaves nothing, a gun spawns a `DroppedItem` where its art was drawn (pulled back toward the hand, `held_from`, if that spot is inside a wall). It falls on a pseudo-height, bounces, skids and glances off walls and solid furniture, draws through `item.art.draw_dropped` at `DrawLayers.LYING` and stops processing at rest. Visual only: nothing picks it up and the `Despawner` never frees it. A grenade is never dropped. Tuning: `DroppedItemConfig`.
+The character calls `item.drop(user, velocity)`; the base `Item` leaves nothing, a gun spawns a `DroppedItem` where its art was drawn (pulled back toward the hand, `held_from`, if that spot is inside a wall). It falls on a pseudo-height, bounces, skids and glances off walls and solid furniture, draws through `item.art.draw_dropped` at `DrawLayers.LYING` and stops processing at rest. Visual only: nothing picks it up and the `Despawner` never frees it. A grenade is never dropped. Tuning: `DroppedItemConfig`. In 3D it, a spoon and a grenade in the air are `LyingItemMesh`es (`weapon-looks.md`).
 
 **Interfaces:** 6 (Items ↔ Character, with `Outfit` / `OutfitConfig`), 10 (`&"shot"`, `&"throw"`, `&"grenade"`), 11 (`DrawLayers`), 12 (Art). Into the Projectile System in two places only: a gun's `ProjectileSpawner.spawn` / `CasingSpawner.spawn`, and a `ThrownGrenade`'s `Explosion.frag` / `Explosion.stun` (`domain-projectile`).

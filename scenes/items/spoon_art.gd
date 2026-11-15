@@ -5,8 +5,22 @@ class_name SpoonArt extends ItemArt
 const SpoonPainter = preload("res://scenes/items/art/spoon_painter.gd")
 ## The spoon's footprint lying flat (px): across, along.
 const SIZE := Vector2(3.0, 8.0)
+## Its steel, in the 3D mesh (the painter's own metal tone).
+const METAL_COLOR := Color(0.62, 0.64, 0.68)
 ## Its painter's options: painted in metal (`PixelArt`'s `material`).
 const METAL := { "material": "metal" }
+
+
+## The spoon's 3D mesh: a thin steel strip as long as its art, lying along z.
+func dropped_mesh() -> Mesh:
+	var key := MeshCache.key("spoon", SIZE, METAL_COLOR, { "height": ItemMeshConfig.spoon_height })
+	return MeshCache.fetch(key, func() -> Mesh:
+		var half := SIZE * 0.5
+		var volume := AABB(
+			Vector3(-half.x, 0.0, -half.y), Vector3(SIZE.x, ItemMeshConfig.spoon_height, SIZE.y)
+		)
+		return MeshKit.new().box(volume, METAL_COLOR).build()
+	)
 
 
 ## The spoon lying on the floor, centered at `at` along `angle`, tinted by `modulate`.

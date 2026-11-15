@@ -17,6 +17,10 @@ class_name ThrownGrenade extends Node2D
 ## the piece, to touch down past it. On the fuse's end it calls the Projectile System's
 ## `Explosion.frag` / `Explosion.stun` with its `GrenadeConfig` row.
 
+## It moved, turned or changed height (once per physics frame until it lies still): the 3D mesh
+## that shows it (`LyingItemMesh`) follows it.
+signal shifted
+
 ## Physics layers it strikes (walls + solid furniture + the living).
 const SOLID_MASK := PhysicsLayers.SOLID
 ## What a collider with no surface of its own counts as: it always stops a grenade.
@@ -100,6 +104,7 @@ func _physics_process(delta: float) -> void:
 		_spin = 0.0
 		_post(&"rest")
 	queue_redraw()
+	shifted.emit()
 
 
 func _draw() -> void:
@@ -268,6 +273,16 @@ static func _sweep_query(size: float) -> PhysicsShapeQueryParameters2D:
 	query.shape = circle
 	query.collision_mask = SOLID_MASK
 	return query
+
+
+## How high it is off the floor (px): the lob's arc, then 0 where it lies.
+func altitude() -> float:
+	return _motion.height
+
+
+## Which way its art points (rad), as it is drawn.
+func heading() -> float:
+	return _angle
 
 
 ## Seconds until it goes off.

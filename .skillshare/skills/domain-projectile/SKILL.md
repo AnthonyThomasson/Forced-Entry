@@ -12,6 +12,7 @@ Owns shooting and a grenade's burst. Specs: `docs/cover-and-stance.md` (H1, H2: 
 - `projectile.gd` (control) + `projectile_visuals.gd` (draw); `casing.gd` + `casing_visuals.gd`; `projectile_spawner.gd` / `casing_spawner.gd` are the entry points the guns call (a bullet is named `Projectile`, `Projectile2`, … and the tests count by that name).
 - `shot.gd` (`Shot`): a bullet's ballistics (`damage`, `muzzle_speed`, `penetration`, `max_range`, `strikes_shooter`, …), where a field left alone is the pistol round's. A gun and a grenade's fragments each fill one.
 - `explosion.gd` (`Explosion`), `cover_rule.gd` (`CoverRule`).
+- 3D (#193): `projectile_mesh_config.gd` (`ProjectileMeshConfig`), `art/projectile_meshes.gd` (`ProjectileMeshes`), `art/shot_layer.gd` (`ShotLayer`): see "Tracers and casings in 3D".
 - Tuning: `BallisticsFlightConfig` (speeds, `bullet_height`, `cover_flyover_scale`, the surfaceless-collider `wall_*`), `BallisticsPenetrationConfig` (penetration, exit probe, blood carry), `BallisticsRicochetConfig`. The burst's numbers are the grenade's row in `GrenadeConfig` (Items), received as a plain dict.
 
 ## Impact model
@@ -39,6 +40,14 @@ Damage scales by squareness and `speed_factor` (speed / the round's own `muzzle_
 
 `CasingSpawner` tracks them with the `Despawner`; the toss is `Debris.toss` (Physics, interface 4; `casing.gd` preloads `physics/debris.gd` as `Debris`), then the casing rests at `DrawLayers.LYING`.
 
+## Tracers and casings in 3D (`ProjectileMeshes`, `ShotLayer`; interface 27)
+
+Main's 3D view calls `ProjectileMeshes.install(mirror, world)` once the match is built: a `ShotLayer` (a `Node3D` under the mirror) follows the children of `world` that join and leave (`child_entered_tree`, matched by script: a `Projectile`, a `Casing`), so a spawner changes nothing and nothing is looked up per frame. Hundreds a second are too many for a node each, so each kind is one `MeshNodes.batch` in a `MeshPool` (Art): nothing is allocated while the game runs.
+
+- **Tracer:** a bright bar (`tracer_length` × `tracer_width` px, `MeshNodes.glow`: lit whatever the light, no real light) along the bullet's `direction`, its tip on the bullet, at the bullet's `height` (0..100 times `height_scale`, never under `tracer_floor`). Over the last `tracer_fade` px of `range_left()` it shortens to nothing; it goes with the bullet (a hit, the range, a penetration spent). Written each frame a bullet flies (it moves each frame); the layer does not process while none does. `tracer_capacity` places: a bullet past them shows none.
+- **Casing:** a brass box as long and wide as the 2D art (`casing_size`), one `casing_capacity` batch, at least the `Despawner`'s cap, so the 3D shows what the 2D world keeps and loses one when the `Despawner` frees it. Arcs `casing_arc` px up over its `eject_time` (a frame behind the tween: it moves after the layer runs), then is written once where its node came to rest and turned as it is: nothing runs once they all lie.
+- Tests: `tests/projectile/tracer_mesh_test.gd`, `casing_mesh_test.gd` (headless, read the layer's `tracer_frame` / `casing_frame`); pictures `tests/items/items_projectile_mesh_windowed_test.gd`. Hit particles, debris and the explosion's look are Physics' (`phys-fx`).
+
 ## Explosion: a grenade's burst
 
 `ThrownGrenade` (Items) calls `Explosion.frag` / `Explosion.stun` when its fuse is out. Both post `&"explosion"`, call `Physics.spawn_explosion`, then do their work on the group `characters` under `world` (dead ones included).
@@ -50,4 +59,4 @@ Damage scales by squareness and `speed_factor` (speed / the round's own `muzzle_
 - **Fragments** (`_fragments`) are real bullets from one shared `Shot` with `strikes_shooter` on, so cover, penetration, ricochet, blood and impact sounds all apply. The row's `fragment_damage` is set as the `Shot`'s `damage` outright (not added to a base).
 - **Stun**: flash by sight and bang by range, both through `Character.take_stun(blind, deaf)`; within `point_blank` also `take_damage`.
 
-**Interfaces:** 3 (hittable, a door too), 4 (`Physics.spawn_explosion`, `Debris.toss`), 5 (pushable), 6 (guns → `ProjectileSpawner` / `CasingSpawner`; `ThrownGrenade` → `Explosion`), 7 (what `Explosion` calls on a character), 10 (`&"hit"`, `&"explosion"`), 11 (`PhysicsLayers`, `DrawLayers.LYING`), 15 (`GameLog`: the shot lines).
+**Interfaces:** 12 and 27 (meshes: Art's mesh kit, the `WorldMirror`), 3 (hittable, a door too), 4 (`Physics.spawn_explosion`, `Debris.toss`), 5 (pushable), 6 (guns → `ProjectileSpawner` / `CasingSpawner`; `ThrownGrenade` → `Explosion`), 7 (what `Explosion` calls on a character), 10 (`&"hit"`, `&"explosion"`), 11 (`PhysicsLayers`, `DrawLayers.LYING`), 15 (`GameLog`: the shot lines).

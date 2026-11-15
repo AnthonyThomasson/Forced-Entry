@@ -42,6 +42,11 @@ func held_mesh() -> Mesh:
 	return GrenadeMesh.of(kind, look())
 
 
+## The grenade's 3D mesh in the air or on the floor: the lever gone.
+func dropped_mesh() -> Mesh:
+	return GrenadeMesh.of(kind, look(), false)
+
+
 ## The grenade in the air or on the floor (the lever gone), centered at `at` and pointing along
 ## `angle`.
 func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color = Color.WHITE,

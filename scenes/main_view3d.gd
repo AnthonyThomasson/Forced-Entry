@@ -108,10 +108,12 @@ func _show(oversample: int) -> void:
 	rect.texture = _stage.get_texture()
 
 
-## Mirror the 2D bodies under `world`: from now on the view follows them.
+## Mirror the 2D bodies under `world`: from now on the view follows them, and the shots made in it
+## (tracers, casings) are shown by their layer.
 func mirror_world(world: Node) -> void:
 	_register_meshes()
 	mirror.mirror(world)
+	ProjectileMeshes.install(mirror, world)
 
 
 ## Plug each domain's own meshes into the mirror (its builders, `WorldMirror.builders`), so a body
@@ -120,6 +122,7 @@ func _register_meshes() -> void:
 	ObjectMeshes.register(mirror.builders)
 	VehicleMeshes.register(mirror.builders)
 	CharacterMeshes.register(mirror.builders)
+	ItemMeshes.register(mirror)
 
 
 ## One directional light with hard shadows (`RenderLightConfig`).

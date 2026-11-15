@@ -13,8 +13,9 @@ const CAP_LENGTH := 0.25
 const CAP_WIDTH := 0.64
 
 
-## The mesh of grenade `kind` (a `GrenadeConfig` row id) drawn in `look` (`GrenadeConfig.look`).
-static func of(kind: StringName, look: Dictionary) -> Mesh:
+## The mesh of grenade `kind` (a `GrenadeConfig` row id) drawn in `look` (`GrenadeConfig.look`),
+## with the lever held down unless `lever` is off (a grenade thrown has let it go).
+static func of(kind: StringName, look: Dictionary, lever := true) -> Mesh:
 	var row := GrenadeConfig.row(kind)
 	if row.is_empty() or look.is_empty():
 		return null
@@ -29,14 +30,14 @@ static func of(kind: StringName, look: Dictionary) -> Mesh:
 		"thickness": ItemMeshConfig.thickness,
 		"sides": ItemMeshConfig.sides,
 		"ahead": ItemMeshConfig.grenade_ahead,
-		"lever": [ItemMeshConfig.lever_lift, ItemMeshConfig.lever_width],
+		"lever": [ItemMeshConfig.lever_lift, ItemMeshConfig.lever_width] if lever else [],
 	}
 	var key := MeshCache.key("held_grenade", art, look["shell"], opts)
-	return MeshCache.fetch(key, _make.bind(art, colours))
+	return MeshCache.fetch(key, _make.bind(art, colours, lever))
 
 
-## The kit's mesh: a grenade `art` px (across, along).
-static func _make(art: Vector2, colours: Dictionary) -> Mesh:
+## The kit's mesh: a grenade `art` px (across, along), with its lever when `lever`.
+static func _make(art: Vector2, colours: Dictionary, lever: bool) -> Mesh:
 	var kit := MeshKit.new()
 	kit.sides = ItemMeshConfig.sides
 	var width := art.x * ItemMeshConfig.thickness
@@ -45,6 +46,8 @@ static func _make(art: Vector2, colours: Dictionary) -> Mesh:
 	var cap_from := front - art.y * CAP_LENGTH
 	_cylinder(kit, colours["shell"], width * 0.5, back, cap_from)
 	_cylinder(kit, colours["cap"], width * 0.5 * CAP_WIDTH, cap_from, front)
+	if not lever:
+		return kit.build()
 	var lift: float = width * ItemMeshConfig.lever_lift
 	var half: float = width * ItemMeshConfig.lever_width * 0.5
 	kit.box(

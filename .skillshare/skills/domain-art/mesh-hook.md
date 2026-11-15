@@ -19,7 +19,7 @@ mirror turns it with the body (a 2D turn clockwise is `-angle` about +y). It fol
 - **`track_group(group, builder)`**: every node of `group` under the root, those already there (also when called before `mirror()`) and each as it joins, on the next frame once its `_ready` has run;
   the spawning domain only `add_to_group`s, never holds the mirror. A physics body of a tracked group is shown by that builder, not by proxies. A node is built once; a builder that gives null for
   it leaves a physics body its proxies and any other node unshown, and is not asked again until `remirror`. A node must be in the group by the end of its `_ready` (the mirror looks next frame); one that joins later is taken up by `mirror.remirror(node)`. While a group is tracked every `Node2D` that enters the tree is queued (a dictionary entry),
-  so for hundreds of short-lived pieces a second (a casing, a spark) use `MeshNodes.batch` instead of a node and a mesh each.
+  so for hundreds of short-lived pieces a second (a casing, a spark) use `MeshNodes.batch` with a `MeshPool` (its places taken and given back, no hole; Projectile's `ShotLayer` does) instead of a node and a mesh each.
 - Tests: `tests/art/mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mirror_mesh_lifecycle_test.gd`.
 
 ## Keeping a mesh in step: which to use

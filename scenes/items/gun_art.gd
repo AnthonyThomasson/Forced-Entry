@@ -53,6 +53,11 @@ func held_mesh() -> Mesh:
 	return GunMesh.of(gun, look())
 
 
+## A gun lies on its side (the 2D art's `flat`), a quarter turn about its length.
+func dropped_roll() -> float:
+	return PI * 0.5
+
+
 ## The direction the gun points, as `draw_weapon` draws it: the weapon's facing, turned about the
 ## grip by a punch (a long gun swung butt first).
 func held_aim(user: Object) -> Vector2:

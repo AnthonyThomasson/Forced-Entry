@@ -78,6 +78,18 @@ func held_mesh() -> Mesh:
 	return null
 
 
+## The item's 3D mesh lying loose or in the air (`DroppedItem`, `ThrownGrenade`; `LyingItemMesh`),
+## in the held mesh's frame: by default the held mesh itself. Null: nothing is shown.
+func dropped_mesh() -> Mesh:
+	return held_mesh()
+
+
+## How far (radians) the item lies rolled onto its side about its length when loose: a gun lies on
+## its side, the held mesh standing on its grip. Zero by default.
+func dropped_roll() -> float:
+	return 0.0
+
+
 ## The flat direction the held mesh points along, as the 2D art is drawn (a unit vector): the
 ## weapon's facing, or what a blow turns it to. Read each frame.
 func held_aim(user: Object) -> Vector2:

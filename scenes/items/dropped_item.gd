@@ -6,6 +6,10 @@ class_name DroppedItem extends Node2D
 ## nothing picks it up, and a dropped weapon is never despawned (a grenade's spoon is,
 ## grenade_spoon.gd).
 
+## It moved, turned or changed height (once per physics frame while it is not at rest): the 3D
+## mesh that shows it (`LyingItemMesh`) follows it.
+signal shifted
+
 ## Physics layers it glances off (walls + solid furniture).
 const WALL_MASK := PhysicsLayers.SOLID
 
@@ -28,6 +32,7 @@ var _query: PhysicsShapeQueryParameters2D
 
 
 func _ready() -> void:
+	add_to_group(&"dropped_items")  # the 3D mirror shows each (`ItemMeshes`)
 	z_index = DrawLayers.LYING  # Beneath the living and a vehicle's chassis, like a fallen body.
 	ViewLayers.set_moving(self, true)
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -51,6 +56,7 @@ func _physics_process(delta: float) -> void:
 	_slide(_velocity * delta)
 	_angle += _spin * delta
 	queue_redraw()
+	shifted.emit()
 	if grounded and _rise == 0.0 and _velocity.length_squared() < 1.0 and absf(_spin) < 0.05:
 		set_physics_process(false)  # At rest for good.
 		ViewLayers.set_moving(self, false)
@@ -80,6 +86,21 @@ static func spawn(dropped: Item, angle: float, velocity: Vector2) -> DroppedItem
 	node._spin = randf_range(6.0, 14.0) * (1.0 if randf() < 0.5 else -1.0)
 	node._landing = { "flip": randf() < 0.5 }
 	return node
+
+
+## How high the item is off the floor (px).
+func altitude() -> float:
+	return _height
+
+
+## Which way the item's art points (rad), as it is drawn.
+func heading() -> float:
+	return _angle
+
+
+## Which side faces up (`_landing.flip`): the side a loose gun lies on in 3D.
+func flipped() -> bool:
+	return _landing.get("flip", false)
 
 
 ## Put the item let go into `parent` at world point `at`. `held_from` is a clear point it was held
