@@ -36,7 +36,10 @@ static func build(source: Node2D) -> Node3D:
 func _show(art: ItemArt, mesh: Mesh, flipped: bool) -> void:
 	var box := mesh.get_aabb()
 	var shown := MeshNodes.instance(mesh)
-	MeshNodes.textured(shown, art.dropped_texture(flipped), art.dropped_rect())
+	var glow := ItemMeshConfig.lying_brighten
+	MeshNodes.textured(
+		shown, art.dropped_texture(flipped), art.dropped_rect(), { "tint": Color(glow, glow, glow) }
+	)
 	MeshNodes.figure(shown)  # a speck at zoom 1: the silhouette only, as a held item
 	shown.position = Vector3(-box.get_center().x, -box.position.y, -box.get_center().z)
 	_pivot.add_child(shown)

@@ -42,6 +42,11 @@ static func lying(gun: StringName, look: Dictionary, handle: int, flip: bool) ->
 		return null
 	var key := MeshCache.key("lying_gun", row["flat_size"], look["body"], _opts(look, {
 		"width": float((row["art_size"] as Vector2).x), "thickness": ItemMeshConfig.thickness,
+		"shares": [
+			ItemMeshConfig.lying_stock,
+			ItemMeshConfig.lying_guard,
+			ItemMeshConfig.lying_barrel,
+		],
 		"flip": flip,
 	}))
 	return MeshCache.fetch(key, _make_lying.bind(gun, look, handle, flip))
@@ -106,16 +111,41 @@ static func _make_lying(gun: StringName, look: Dictionary, handle: int, flip: bo
 	var kit := MeshKit.new()
 	var image := lying_texture(gun, look, handle, flip).get_image()
 	var thick: float = (GunConfig.row(gun)["art_size"] as Vector2).x * ItemMeshConfig.thickness
-	ItemSolid.of(image, lying_rect(gun)).slab(kit, 0.0, func(_row: int) -> float: return thick)
+	var profile := _profile(gun, look, image.get_size())
+	var height := func(row: int) -> float: return thick * _lying_share(profile, row)
+	ItemSolid.of(image, lying_rect(gun)).slab(kit, 0.0, height)
 	return kit.build()
+
+
+## The side profile's measures on a picture of `size` px (`WeaponArt.flat_profile`).
+static func _profile(gun: StringName, look: Dictionary, size: Vector2i) -> Dictionary:
+	var canvas := PixelCanvas.new(size.x, size.y, 0, Vector2.ZERO)
+	return WeaponArt.flat_profile(canvas, gun, _crude(look))
+
+
+## How much of the gun's full thickness a lying gun has at picture row `row`: the stock, the
+## receiver, the hand guard and the barrel post each their own (`ItemMeshConfig.lying_*`).
+static func _lying_share(profile: Dictionary, row: int) -> float:
+	if row > int(profile["guard_end"]):
+		return ItemMeshConfig.lying_barrel
+	if row > int(profile["body_end"]):
+		return ItemMeshConfig.lying_guard
+	if row < int(profile["stock_end"]):
+		return ItemMeshConfig.lying_stock
+	return 1.0
+
+
+## Whether the look's painter draws the crude (pipe) silhouette (its `SILHOUETTE` constant).
+static func _crude(look: Dictionary) -> bool:
+	var painter: Script = look["painter"]
+	var silhouette: Dictionary = painter.get_script_constant_map().get("SILHOUETTE", {})
+	return silhouette.get("crude", false)
 
 
 ## The rects of the held gun's parts on a picture of `size` px (`WeaponArt.held_parts`).
 static func _parts(gun: StringName, look: Dictionary, size: Vector2i) -> Dictionary:
-	var painter: Script = look["painter"]
-	var silhouette: Dictionary = painter.get_script_constant_map().get("SILHOUETTE", {})
 	var canvas := PixelCanvas.new(size.x, size.y, 0, Vector2.ZERO)
-	return WeaponArt.held_parts(canvas, gun, silhouette.get("crude", false))
+	return WeaponArt.held_parts(canvas, gun, _crude(look))
 
 
 ## How tall (px) the held gun stands at picture row `row`: the tallest part that covers it

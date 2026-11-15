@@ -12,6 +12,14 @@ static var thickness: float = 1.3
 ## Where a held gun's underside is (px, from the weapon hand's height): below the hand, so the gun
 ## is about the hand's height.
 static var held_base: float = -2.5
+## How much brighter a loose item's art is tinted (a multiplier on its colours, 1 = as painted): the
+## gun and grenade art is gunmetal, which the toon bands darken to near black on the floor.
+static var lying_brighten: float = 2.0
+## How tall a gun lying on its side is along its profile, as a share of the gun's width: its stock,
+## its hand guard and its barrel (the receiver is the whole width).
+static var lying_stock: float = 0.8
+static var lying_guard: float = 0.7
+static var lying_barrel: float = 0.45
 ## Flat faces round a grenade's body: a vertex up and one to each side, so its width is the art's.
 static var grenade_sides: int = 12
 ## How far ahead of the hand (px) a grenade sits: its row's art is drawn this far along the aim

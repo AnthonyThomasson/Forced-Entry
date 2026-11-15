@@ -97,6 +97,7 @@ func _check_each_item(t: TestContext, mirror: WorldMirror) -> void:
 			held.get_instance_shader_parameter(&"figure") == 1.0,
 			"slot %d: the item is a figure for the pixel post" % slot,
 		)
+		_check_wears_its_art(t, held, t.actor(StringName("slot%d" % slot)).inventory.current_item())
 		t.check(
 			held.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
 			"slot %d: a held item is too small to cast a shadow" % slot,
@@ -104,6 +105,24 @@ func _check_each_item(t: TestContext, mirror: WorldMirror) -> void:
 	for id: StringName in [&"fists", &"empty"]:
 		var held := _held(t, mirror, id)
 		t.check(held == null or not held.visible, "%s: nothing is drawn in the hand" % id)
+
+
+## The held node wears the item's flat art: the textured toon of `held_texture()`, its rect in
+## units.
+func _check_wears_its_art(t: TestContext, held: MeshInstance3D, item: Item) -> void:
+	var texture := item.art.held_texture()
+	t.check(
+		held.material_override == ToonMaterial.textured(texture),
+		"%s: the node wears its flat art" % item.display_name,
+	)
+	var rect := item.art.held_rect()
+	var got: Variant = held.get_instance_shader_parameter(&"uv_rect")
+	t.check(
+		got is Vector4 and (got as Vector4).is_equal_approx(
+			Vector4(rect.position.x, rect.position.y, rect.size.x, rect.size.y) * RenderConfig.unit
+		),
+		"%s: over the art's footprint in the hand's frame" % item.display_name,
+	)
 
 
 ## Two pistols share one mesh; a rifle has its own.
@@ -194,6 +213,7 @@ func _check_swap(t: TestContext, mirror: WorldMirror) -> void:
 	await t.frames(4)
 	t.check(held.visible, "the rifle is shown after the swap")
 	t.expect_near(held.mesh.get_aabb().size.z, 36.0, 1.0, "the mesh is now the rifle's")
+	_check_wears_its_art(t, held, t.actor(&"swapper").inventory.current_item())
 	t.puppet(&"swapper").select_slot(1)
 	await t.frames(4)
 	t.check(not held.visible, "an empty hand shows nothing")
@@ -201,6 +221,7 @@ func _check_swap(t: TestContext, mirror: WorldMirror) -> void:
 	await t.frames(4)
 	t.check(held.visible, "and the item is back when one is held again")
 	t.expect_near(held.mesh.get_aabb().size.z, 28.0, 1.0, "as the SMG's mesh")
+	_check_wears_its_art(t, held, t.actor(&"swapper").inventory.current_item())
 
 
 ## A gun held still (the rifle and the pistol) is written on few frames: a mark put on the mesh is
