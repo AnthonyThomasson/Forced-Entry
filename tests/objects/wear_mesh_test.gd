@@ -22,6 +22,9 @@ const DECAL_LIFT := 0.15
 const LAYER_STEP := 0.25
 const TIERS := { &"slab": 0.0, &"chip": 1.0, &"glyph": 3.0 }
 const TIER_MARK := 2.0
+## A rug's top over the ground (`ObjectMeshDecorConfig.rug_height`): the 2D layer draws wear under
+## it.
+const RUG_TOP := 0.6
 const TIER_STENCIL := 4.0
 const ORDER_FRACTION := 0.9
 ## How far the road lies below the pavement.
@@ -131,7 +134,7 @@ func _floor_wear(t: TestContext, mirror: WorldMirror, worn: Array) -> void:
 				"%s floor mark %d" % [wear.name, i],
 				decals[i],
 				marks[i],
-				_layer(marks, i),
+				_order(i, marks.size()),
 			)
 		_stacked(t, "%s floor" % wear.name, decals, true)
 		marks_seen += marks.size()
@@ -144,15 +147,23 @@ func _floor_mark(
 	what: String,
 	decal: MeshInstance3D,
 	mark: Array,
-	layer: float,
+	order: float,
 ) -> void:
 	var rect: Rect2 = mark[1]
 	var size := decal.mesh.get_aabb().size
+	t.check(
+		decal.position.y < RUG_TOP,
+		"%s: below a rug's top, which covers it as in 2D (%.3f < %.1f)" % [
+			what,
+			decal.position.y,
+			RUG_TOP,
+		],
+	)
 	t.expect_near(decal.position.x, rect.get_center().x, 0.01, "%s: at its x" % what)
 	t.expect_near(decal.position.z, rect.get_center().y, 0.01, "%s: at its z" % what)
 	t.expect_near(
-		decal.position.y, FLOOR_LIFT + DECAL_LIFT + layer * LAYER_STEP, 0.0001,
-		"%s: on the floor's top, a lift over it and its layer's" % what,
+		decal.position.y, FLOOR_LIFT + DECAL_LIFT + order * LAYER_STEP, 0.0001,
+		"%s: on the floor's top, a lift over it and its order's step" % what,
 	)
 	t.expect_near(size.x, rect.size.x, 0.01, "%s: as wide" % what)
 	t.expect_near(size.z, rect.size.y, 0.01, "%s: as deep" % what)
