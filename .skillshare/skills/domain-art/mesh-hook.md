@@ -17,9 +17,29 @@ mirror turns it with the body (a 2D turn clockwise is `-angle` about +y). It fol
   tracked), in a frame with the node's origin. Same rules as a body: written only when its transform changed, hidden while its `visible` is false, freed when it leaves the tree. A node's
   height off the ground is its mesh's own.
 - **`track_group(group, builder)`**: every node of `group` under the root, those already there (also when called before `mirror()`) and each as it joins, on the next frame once its `_ready` has run;
-  the spawning domain only `add_to_group`s, never holds the mirror. A physics body of a tracked group is shown by that builder, not by proxies. A node is built once; a builder that gives null for it
-  leaves it unshown.
-- Tests: `tests/art/mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`.
+  the spawning domain only `add_to_group`s, never holds the mirror. A physics body of a tracked group is shown by that builder, not by proxies. A node is built once; a builder that gives null for
+  it leaves a physics body its proxies and any other node unshown, and is not asked again until `remirror`. A node must be in the group by the end of its `_ready` (the mirror looks next frame); one that joins later is taken up by `mirror.remirror(node)`. While a group is tracked every `Node2D` that enters the tree is queued (a dictionary entry),
+  so for hundreds of short-lived pieces a second (a casing, a spark) use `MeshNodes.batch` instead of a node and a mesh each.
+- Tests: `tests/art/mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mirror_mesh_lifecycle_test.gd`.
+
+## Keeping a mesh in step: which to use
+
+| The mesh changes by | Use |
+|---|---|
+| a **pose** that changes often without the 2D transform changing (a limb, a facing, a wheel's spin, an open lid) | a `mirror_update(body: Node2D)` method on the mesh node: called each frame the mesh **shows** (not while hidden; a sleeping or static body's too), after the transform is written. Set transforms of the node's parts there, cheaply: nothing is rebuilt. |
+| a **shape** that changes now and then (a dent, a new outfit, a posture that changes the solids) | `WorldMirror.remirror(node)` (a physics body, a floor or a tracked node): builds the mesh again at once through its builder and frees the old one. The domain asks Main to call it from the signal it already has (a hit, a posture change); `MeshCache` makes a repeat cheap. |
+| a mesh of one node that needs neither | a `_process` on the mesh node itself also works (it runs hidden too), the simplest thing for a spinning fan; nothing in the mirror is needed. |
+
+- **A mesh unique to one node** (a dented panel, a posed limb) is `MeshKit.build()` straight into `MeshNodes.instance`, freed with its node: only meshes many pieces share go through `MeshCache`
+  (bounded by `MeshKitConfig.cache_limit`, the one asked for longest ago dropped), and a decal's material and texture go with its last decal.
+- **Death.** A mirrored body with a `died` signal has its mesh hidden and no longer followed when it dies. A mesh node with `on_body_died(body: Node2D) -> bool` decides: true keeps it shown and
+  following (and `mirror_update` running), so the same mesh can switch to a dead pose. A **ragdoll** is a later job's own mirror: its parts are a group `track_group`ed with their own builder, and the
+  character's mesh (no `on_body_died`) goes with the death.
+- **Reparenting.** A tracked node (`track`, `track_group`) survives `reparent` or a `remove_child` and re-add: out of the tree its mesh is hidden and not followed; back in, shown and placed. Freed out
+  of the tree, its mesh is freed with it; one kept out (a pool) keeps its hidden mesh and a row, so a pool is bounded. A queued-free node's mesh goes at once. A body (not tracked) that leaves the tree loses its mesh and gets a new one when it returns.
+- **Own meshes hide with their body's shapes:** while a body has collision shapes and every one is disabled (a character seated in a vehicle) its own mesh is hidden, as its proxies are.
+- **Not followed:** a `StaticBody2D` moved by a script is written once, so it does not follow (use an `AnimatableBody2D`, or give its mesh a `mirror_update`, even an empty one, and it is read each frame). A
+  tracked node is shown by its own `visible`, not `is_visible_in_tree`: under a hidden parent it stays shown, so hide the node itself (the 2D `World` is hidden in 3D, so the parent is hidden always).
 
 ## The vision hook (phase 3's mask; `ToonMask`, `toon.gdshader`, `decal.gdshader`)
 
@@ -27,4 +47,9 @@ Three global shader uniforms, declared by `ToonMaterial.make()` / `ToonMaterial.
 `vision_mask_xf` (world `(x, z)` in 3D units to the mask's uv) and `vision_unseen` (the brightness an unseen spot keeps; **1 by default: everything visible**, whatever the mask holds).
 `ToonMask.set_mask(texture, world_rect_px, unseen_brightness)`, `clear()`, `mask_active()`, `mask_world_rect()` are the whole interface. The mask is read only while `vision_unseen` is below 1
 (a uniform branch: the default costs nothing) and scales the light, not the albedo (the highlight term adds `1 - albedo`, which a dimmed albedo would brighten). Art builds no mask; the
-outline pass is not masked. Test (windowed: shaders compile only there): `tests/art/toon_vision_hook_windowed_test.gd`.
+outline pass is not masked.
+
+**Fade and glow** (per instance, default off, a branch the shader does not take): `MeshNodes.fade(node, amount)` (1 whole, 0 gone) drops pixels by an ordered dither of the picture's own pixels, so a wall between
+the camera and the player thins out as pixel art with no blending or sorting; `MeshNodes.glow(node, color, strength)` is a glow whatever the light (a lamp, a screen, a flash), dimmed by the vision mask. Both work on
+a toon node and a decal, not a batch part. **A wall that must fade is its own instance** (never merged into one mesh with its neighbours): the wall-fade job fades one by one. Test:
+`tests/art/toon_decal_fade_glow_windowed_test.gd` (a decal takes the shadow too). Test (windowed: shaders compile only there): `tests/art/toon_vision_hook_windowed_test.gd`.

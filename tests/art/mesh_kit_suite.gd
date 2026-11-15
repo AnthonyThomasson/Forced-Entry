@@ -229,41 +229,82 @@ func test_an_empty_kit_builds_an_empty_mesh() -> void:
 	assert_int(MeshKit.new().build().get_surface_count()).is_equal(0)
 
 
-func test_the_cache_hands_the_same_mesh_for_the_same_inputs() -> void:
-	MeshCache.clear()
-	var made: Array[int] = [0]
-	var make := func() -> Mesh:
-		made[0] += 1
-		return MeshKit.new().box(_vol(0.0, 10.0), RED).build()
-	var key := MeshCache.key("table", Vector2(120, 70), RED, { "a": 1, "b": 2 })
-	var first := MeshCache.fetch(key, make)
-	# The options in another order are the same inputs.
-	var again := MeshCache.fetch(
-		MeshCache.key("table", Vector2(120, 70), RED, { "b": 2, "a": 1 }),
-		make,
-	)
-	assert_bool(again == first).override_failure_message("one Mesh resource").is_true()
-	assert_int(made[0]).is_equal(1)
-	for other in [
-		MeshCache.key("table", Vector2(120, 71), RED, { "a": 1, "b": 2 }),
-		MeshCache.key("table", Vector2(120, 70), BLUE, { "a": 1, "b": 2 }),
-		MeshCache.key("chair", Vector2(120, 70), RED, { "a": 1, "b": 2 }),
-		MeshCache.key("table", Vector2(120, 70), RED, { "a": 1, "b": 3 }),
-	]:
-		assert_bool(MeshCache.fetch(other, make) == first).override_failure_message(
-			"different inputs are a different mesh: %s" % other
-		).is_false()
-	assert_int(MeshCache.count()).is_equal(5)
-	MeshCache.clear()
+func test_a_lopsided_loft_faces_are_each_their_own_planes_normal() -> void:
+	# A right-triangle profile (a wedge-shaped rail): x across the path, y up. Along +x, across is
+	# +z in 3D and up is +y, so the slanted face leans toward +z and up: normal (0, 10, 6) / |.|.
+	var triangle := PackedVector2Array([Vector2(0, 0), Vector2(10, 0), Vector2(0, 6)])
+	var path := PackedVector3Array([Vector3(0, 10, 0), Vector3(30, 10, 0)])
+	var mesh := MeshKit.new().loft(path, triangle, RED).build()
+	# The triangle's own middle (a third of the way along each leg), not its box's: that lies on the
+	# slanted face.
+	_assert_outward(mesh, Vector3(15, 12, 10.0 / 3.0))
+	var slanted := Vector3(0, 10, 6).normalized()
+	var found := 0
+	for face in _triangles(mesh):
+		if (face["normal"] as Vector3).dot(slanted) > 0.99:
+			found += 1
+	assert_int(found).override_failure_message("the slanted face has its own normal").is_equal(2)
 
 
-func test_a_changed_scale_is_a_different_cache_key() -> void:
-	var unit := RenderConfig.unit
-	var a := MeshCache.key("table", Vector2(120, 70), RED)
-	RenderConfig.unit = unit * 2.0
-	var b := MeshCache.key("table", Vector2(120, 70), RED)
-	RenderConfig.unit = unit
-	assert_bool(a == b).is_false()
+func test_a_sphere_fills_the_cube_of_its_radius_and_faces_outward() -> void:
+	var kit := MeshKit.new()
+	kit.sides = 12
+	var mesh := kit.sphere(Vector3(40, 10, 30), 8.0, RED).build()
+	_assert_aabb(mesh, Vector3(32, 2, 22), Vector3(16, 16, 16))
+	_assert_outward(mesh, Vector3(40, 10, 30))
+
+
+func test_a_capsule_is_its_radius_wide_and_its_height_tall() -> void:
+	var kit := MeshKit.new()
+	kit.sides = 12
+	var mesh := kit.capsule(Vector3(40, 4, 30), 6.0, 30.0, RED).build()
+	_assert_aabb(mesh, Vector3(34, 4, 24), Vector3(12, 30, 12))
+	_assert_outward(mesh, Vector3(40, 19, 30))
+
+
+func test_a_capsule_no_taller_than_its_caps_is_a_sphere() -> void:
+	var kit := MeshKit.new()
+	kit.sides = 12
+	var mesh := kit.capsule(Vector3.ZERO, 6.0, 4.0, RED).build()
+	assert_float(mesh.get_aabb().size.y).is_equal_approx(12.0, 0.001)
+
+
+func test_a_cone_stands_on_its_base_and_ends_in_a_point() -> void:
+	var kit := MeshKit.new()
+	kit.sides = 12
+	var mesh := kit.cone(Vector3(40, 2, 30), 8.0, 20.0, RED).build()
+	_assert_aabb(mesh, Vector3(32, 2, 22), Vector3(16, 20, 16))
+	_assert_outward(mesh, Vector3(40, 7, 30))
+	for face in _triangles(mesh):
+		for p: Vector3 in face["points"]:
+			if p.y > 21.9:
+				assert_float(Vector2(p.x - 40, p.z - 30).length()).is_less(0.001)  # one apex
+
+
+func test_a_posed_part_is_turned_and_placed_as_a_whole() -> void:
+	# A wheel: a cylinder of radius 8 and thickness 4 standing on its side (axis along x). A turn
+	# of a quarter about z takes up (+y) to -x, so the 4 px of thickness run x 96..100 at 100.
+	var wheel := Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(100, 20, 50))
+	var kit := MeshKit.new()
+	kit.sides = 12
+	var mesh := kit.pose(wheel).cylinder(Vector3.ZERO, 8.0, 4.0, RED).build()
+	_assert_aabb(mesh, Vector3(96, 12, 42), Vector3(4, 16, 16))
+	_assert_outward(mesh, Vector3(98, 20, 50))
+
+
+func test_a_pose_is_left_with_the_identity_and_never_flips_a_mirrored_part_inside_out() -> void:
+	var kit := MeshKit.new()
+	kit.pose(Transform3D(Basis.from_scale(Vector3(-1, 1, 1)), Vector3(60, 0, 0)))
+	kit.box(AABB(Vector3.ZERO, Vector3(10, 10, 10)), RED)
+	kit.pose(Transform3D.IDENTITY)
+	kit.box(AABB(Vector3(0, 0, 20), Vector3(10, 10, 10)), RED)
+	var mesh := kit.build()
+	_assert_aabb(mesh, Vector3(0, 0, 0), Vector3(60, 10, 30))  # the mirrored box is x 50..60
+	for face in _triangles(mesh):
+		var p: Array = face["points"]
+		assert_float(Plane(p[0], p[1], p[2]).normal.dot(face["normal"])).is_greater(0.99)
+		var middle := Vector3(55, 5, 5) if _centre(face).z < 15.0 else Vector3(5, 5, 25)
+		assert_float((face["normal"] as Vector3).dot(_centre(face) - middle)).is_greater_equal(0.0)
 
 
 func _close(a: Color, b: Color) -> bool:

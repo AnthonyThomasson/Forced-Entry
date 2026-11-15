@@ -6,7 +6,9 @@ extends GameTest
 ## mirror first sees it is still mirrored (hidden), so it shows when the shape is enabled; and a
 ## body whose own `visible` is false is hidden whatever its shape (the 2D World is hidden in 3D, so
 ## a node's own `visible`, not its `is_visible_in_tree`, says whether the 2D game draws it). The
-## ride is the puppet's, as `tests/vehicle/board_nearest_door_test.gd` boards one.
+## ride is the puppet's, as `tests/vehicle/board_nearest_door_test.gd` boards one. A second mirror
+## shows characters by a mesh of a domain's own (a registered `CHARACTER` builder): that mesh has no
+## collision shape of its own to be disabled, so it is hidden with the body's shapes just the same.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
@@ -50,6 +52,10 @@ func run(t: TestContext) -> void:
 	if capsule == null:
 		return
 	t.check(capsule.visible, "premise: the standing character's capsule shows")
+	var own := _own_mesh(t, rider)
+	if own == null:
+		return
+	t.check(own.visible, "premise: the standing character's own mesh shows")
 	if not t.require(
 			await VehicleRide.board_by(t, &"rider", car, &"front_left"),
 			"premise: the puppet boards the car",
@@ -57,11 +63,28 @@ func run(t: TestContext) -> void:
 		return
 	await t.frames(3)
 	t.check(not capsule.visible, "a seated character's capsule is hidden")
+	t.check(not own.visible, "a seated character's own mesh is hidden too")
 	if not t.require(await VehicleRide.exit(t, &"rider"), "premise: the puppet gets out"):
 		return
 	await t.frames(30)
 	t.check(capsule.visible, "the character's capsule is back once it is out")
+	t.check(own.visible, "and its own mesh")
 	await _check_disabled_and_hidden(t)
+
+
+## The mesh a second mirror shows `body` by, from a `CHARACTER` builder, or null (the test ends).
+func _own_mesh(t: TestContext, body: Node) -> Node3D:
+	var view := SubViewport.new()
+	view.own_world_3d = true
+	t.world.add_child(view)
+	var own := WorldMirror.new()
+	own.builders[MirrorProxy.CHARACTER] = func(_body: Node2D) -> Node3D: return Node3D.new()
+	view.add_child(own)
+	own.mirror(t.world)
+	var shown := own.proxies_of(body)
+	if not t.require(shown.size() == 1, "premise: the character has one own mesh"):
+		return null
+	return shown[0]
 
 
 ## The character's one capsule, or null (the test ends).

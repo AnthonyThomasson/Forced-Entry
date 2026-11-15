@@ -16,13 +16,32 @@ global uniform vec4 vision_mask_xf;
 global uniform float vision_unseen;
 
 instance uniform vec4 base_color : source_color = vec4(0.7, 0.7, 0.7, 1.0);
+// A glow whatever the light (Art, `MeshNodes.glow`): rgb the colour, a the strength; 0 is none.
+instance uniform vec4 emissive : source_color = vec4(0.0);
 uniform int count = 3;
 uniform vec2 ramp[5];
 uniform int pick[5];
 
 varying float seen;
 
+// The fade (Art, `MeshNodes.fade`; instance uniform, 1 = whole): below 1 a pixel is dropped where
+// an ordered 4 x 4 dither of the screen pixel says, so a thinning wall stays opaque pixels (no
+// blend, no sorting) and reads as the pixel art it is. At 1 the branch is never taken.
+instance uniform float fade : hint_range(0.0, 1.0) = 1.0;
+
+const float BAYER[16] = float[16](
+	0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0
+);
+
+float dither_keep(vec2 pixel) {
+	ivec2 p = ivec2(pixel) & ivec2(3);
+	return (BAYER[p.x + p.y * 4] + 0.5) / 16.0;
+}
+
 void fragment() {
+	if (fade < 1.0 && dither_keep(FRAGCOORD.xy) >= fade) {
+		discard;
+	}
 	// The mask is read only while one is set (vision_unseen below 1: a uniform branch), so the
 	// default costs the fragment nothing. It scales the light (light() below), not the albedo:
 	// the highlight term adds (1 - ALBEDO), which a dimmed albedo would brighten.
@@ -33,6 +52,7 @@ void fragment() {
 		seen = mix(vision_unseen, 1.0, textureLod(vision_mask, mask_uv, 0.0).r);
 	}
 	ALBEDO = base_color.rgb * COLOR.rgb;
+	EMISSION = emissive.rgb * emissive.a * seen;
 	ROUGHNESS = 1.0;
 }
 

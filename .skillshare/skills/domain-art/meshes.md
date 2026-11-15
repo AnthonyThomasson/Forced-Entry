@@ -9,10 +9,10 @@ domain plugs them into the mirror's hook. The pattern, proved on the table (`Obj
 
 | Part | Role |
 |---|---|
-| `MeshKit` (`mesh/mesh_kit.gd`) | A chain of solids, one `ArrayMesh` from `build()`: `box`, `wedge` (a ramp or headboard), `cylinder`, `extrude` (a 2D polygon and a height: a rounded top, an L-shaped counter; a prism is a triangle extruded), `loft` (a convex profile swept along a path: a rail, a pipe, a roofline). Flat-shaded, one colour per face in the vertex colour. |
-| `MeshCache` (`mesh/mesh_cache.gd`) | `MeshCache.fetch(MeshCache.key(id, size, color, opts), make)`: the same inputs give the same `Mesh` resource, shared by every piece, as `PixelArt` shares a texture. **The key must name every input the shape reads:** `opts` holds the piece's options and every tuning value the builder reads (`TableMesh._tuning()`), so a retuned holder is another mesh; the scale (`RenderConfig.unit`) is in the key already. |
-| `MeshNodes` (`mesh/mesh_nodes.gd`) | `instance(mesh, tint)` a `MeshInstance3D` in the shared toon material; `place(node, at_px, yaw)`; `surface_frame` and `decal` (a flat quad, textured or plain, laid on a surface: wear, stencils, stains; its material is `ToonMaterial.decal(texture)`, one per texture, retuned with the shared one). |
-| `MeshKitConfig` | `cylinder_sides`, `decal_lift`. |
+| `MeshKit` (`mesh/mesh_kit.gd`) | A chain of solids, one `ArrayMesh` from `build()`: `box`, `wedge` (a ramp or headboard), `cylinder`, `sphere`, `capsule`, `cone`, `revolve` (a profile turned about the vertical axis: a lathe post, a vase), `extrude` (a 2D polygon and a height: a rounded top, an L-shaped counter; a prism is a triangle extruded), `loft` (a convex profile swept along a path: a rail, a pipe, a roofline). **`pose(Transform3D)` turns and places every solid added after it**: a wheel on its side is the cylinder at the origin under `pose(Transform3D(Basis(Vector3.BACK, PI / 2), at))`, an aimed barrel or a tilted chair back the same; `pose(Transform3D.IDENTITY)` ends it. Flat-shaded, one colour per face in the vertex colour. |
+| `MeshCache` (`mesh/mesh_cache.gd`) | `MeshCache.fetch(MeshCache.key(id, size, color, opts), make)`: the same inputs give the same `Mesh` resource, shared by every piece, as `PixelArt` shares a texture. **The key must name every input the shape reads:** `opts` holds the piece's options and every tuning value the builder reads (`TableMesh._tuning()`), so a retuned holder is another mesh; the scale (`RenderConfig.unit`) and the kit's own tunables (the tone ramp, `cylinder_sides`) are in the key already. Bounded (`MeshKitConfig.cache_limit`); a mesh unique to one node skips it (`mesh-hook.md`). |
+| `MeshNodes` (`mesh/mesh_nodes.gd`) | `instance(mesh, tint)` a `MeshInstance3D` in the shared toon material; `place(node, at_px, yaw)`; `surface_frame` (upright and unmirrored on a wall's four facings) and `decal` (a flat quad, textured or plain, laid on a surface: wear, stencils, stains; lit and shadowed like the surface; its material goes with its last decal); `batch(mesh, count)` with `batch_place` / `batch_show` (many small short-lived parts in one draw, no shadow: casings, sparks); `fade`, `glow` (`mesh-hook.md`). |
+| `MeshKitConfig` | `cylinder_sides`, `decal_lift`, `cache_limit`. |
 | `ToonMask` (`post/toon_mask.gd`) | Phase 3's vision hook (`mesh-hook.md`): not for a mesh job to touch. |
 
 ## Units: px in, 3D units out, converted once
@@ -34,7 +34,7 @@ finish term); a vertex colour is the whole of what a face carries.
 
 ## Registering a builder
 
-1. Write `static func build(body: Node2D) -> Node3D` beside the painter: read the body's data (`size`, `color`, `look.art_opts`), build the mesh
+1. Write `static func build(body: Node2D) -> Node3D` beside the painter: read the body's data (`size`, `color`, `look.art_opts`; a height from the piece's own data or a rule of its size, as `TableMesh.height_of(size, art_opts)`: `art_opts.height`, else a low table for a small footprint, so a side table is not a dining table), build the mesh
    through `MeshCache.fetch` (key = id + footprint + colour + the options that change the shape), return `MeshNodes.instance(mesh)` (a node
    with child nodes for parts that move: a door's leaf, a wheel).
 2. List it in the domain's registry (`ObjectMeshes.BUILDERS`: art id -> script) whose `register(builders)` puts each under its hook key.
@@ -51,7 +51,7 @@ Plausible, not exact; one number per class, tuned at the phase gate in the game,
 | Class | Height | Class | Height |
 |---|---|---|---|
 | Wall | 96 (`MirrorConfig.wall_height`) | Door leaf | 84 |
-| Character standing | 58 | Character crouched | 38 (the cover posture, `docs/cover-and-stance.md`) |
+| Character standing | 58 | Character crouched | `CharacterPostureConfig`'s crouch `height` times standing (`docs/cover-and-stance.md`) |
 | Table, desk, bench top | 30 (top 4 thick) | Coffee table, side table | 18 to 22 |
 | Chair seat / back | 18 / 36 | Sofa seat / back | 18 / 38 |
 | Bed frame / mattress top | 14 / 22 | Counter, island | 34 |
@@ -60,8 +60,8 @@ Plausible, not exact; one number per class, tuned at the phase gate in the game,
 | Streetlight post | 130 | Car body / roof | 36 / 52 |
 | Rug, mat, floor stencil | 0.5 (a decal, not a solid) | Dropped item, casing | 2 to 6 |
 
-A tall solid (a wall, a wardrobe) hides what is behind it: the wall-fade job (rule 9) fades those near the player, so a mesh job does not shorten a
-wall to keep the view clear.
+A tall solid (a wall, a wardrobe) hides what is behind it: the wall-fade job (rule 9) fades those near the player (`MeshNodes.fade`), so a mesh job does not shorten a
+wall to keep the view clear, and a wall is its own instance, never merged with its neighbours.
 
 ## Tests
 

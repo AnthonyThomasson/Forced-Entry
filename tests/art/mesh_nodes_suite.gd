@@ -82,3 +82,73 @@ func test_a_decal_material_follows_a_retuned_band_count() -> void:
 	ToonMaterial.refresh_all()
 	assert_int(got).is_equal(4)
 	assert_object(ToonMaterial.decal(null)).is_same(material)  # one per texture
+
+
+func test_a_texture_on_every_wall_facing_stands_upright_and_reads_left_to_right() -> void:
+	# Seen from outside the wall (looking along minus its normal, up the screen), the texture's top
+	# (local -z) points up and its right (local +x, the way u grows) is the viewer's right: the
+	# right of a viewer looking along `look` with `up` above is look x up.
+	for normal in [Vector3.BACK, Vector3.FORWARD, Vector3.RIGHT, Vector3.LEFT]:
+		var frame := MeshNodes.surface_frame(Vector3.ZERO, normal)
+		assert_vector(frame.basis.y).is_equal_approx(normal, Vector3.ONE * 0.001)
+		assert_vector(-frame.basis.z).override_failure_message(
+			"the top of a texture on a wall facing %s points up" % normal
+		).is_equal_approx(Vector3.UP, Vector3.ONE * 0.001)
+		assert_vector(frame.basis.x).override_failure_message(
+			"a texture on a wall facing %s is not mirrored" % normal
+		).is_equal_approx((-normal).cross(Vector3.UP), Vector3.ONE * 0.001)
+		assert_float(frame.basis.determinant()).is_equal_approx(1.0, 0.001)
+
+
+func test_a_spun_wall_decal_turns_about_its_normal() -> void:
+	for normal in [Vector3.BACK, Vector3.FORWARD, Vector3.RIGHT, Vector3.LEFT]:
+		var plain := MeshNodes.surface_frame(Vector3.ZERO, normal)
+		var turned := MeshNodes.surface_frame(Vector3.ZERO, normal, 0.7)
+		assert_vector(turned.basis.y).is_equal_approx(normal, Vector3.ONE * 0.001)
+		assert_vector(-turned.basis.z).is_equal_approx(
+			Vector3.UP.rotated(normal, 0.7), Vector3.ONE * 0.001
+		)
+		assert_vector(turned.basis.x).is_equal_approx(
+			plain.basis.x.rotated(normal, 0.7), Vector3.ONE * 0.001
+		)
+
+
+func test_a_decal_material_goes_with_its_last_decal() -> void:
+	var held := ToonMaterial.decal_count()
+	var image := Image.create(2, 2, false, Image.FORMAT_RGBA8)
+	var texture := ImageTexture.create_from_image(image)
+	var seen: WeakRef = weakref(texture)
+	var decal := MeshNodes.decal(Vector2(4, 4), Transform3D(), texture)
+	var again := MeshNodes.decal(Vector2(6, 6), Transform3D(), texture)
+	texture = null
+	assert_bool(decal.material_override == again.material_override).is_true()  # one per texture
+	assert_int(ToonMaterial.decal_count()).is_equal(held + 1)
+	decal.free()
+	assert_int(ToonMaterial.decal_count()).is_equal(held + 1)  # the other still shows it
+	again.free()
+	assert_int(ToonMaterial.decal_count()).is_equal(held)
+	assert_object(seen.get_ref()).override_failure_message("its texture is freed").is_null()
+
+
+func test_a_batch_is_one_node_of_many_parts_with_no_shadow() -> void:
+	var mesh := MeshKit.new().box(AABB(Vector3.ZERO, Vector3.ONE), Color.WHITE).build()
+	var batch := MeshNodes.batch(mesh, 100)
+	assert_int(batch.multimesh.instance_count).is_equal(100)
+	assert_object(batch.multimesh.mesh).is_same(mesh)
+	assert_object(batch.material_override).is_same(ToonMaterial.shared())
+	assert_int(batch.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	assert_int(batch.multimesh.visible_instance_count).is_equal(0)  # nothing till shown
+	MeshNodes.batch_show(batch, 7)
+	assert_int(batch.multimesh.visible_instance_count).is_equal(7)
+	MeshNodes.batch_show(batch, 500)
+	assert_int(batch.multimesh.visible_instance_count).is_equal(100)  # no more than it holds
+	batch.free()
+
+
+func test_a_part_of_a_batch_stands_where_place_would_put_a_node() -> void:
+	var unit := RenderConfig.unit
+	RenderConfig.unit = 0.5
+	var frame := MeshNodes.part_frame(Vector3(10, 20, 30), 0.5)
+	RenderConfig.unit = unit
+	assert_vector(frame.origin).is_equal_approx(Vector3(5, 10, 15), Vector3.ONE * 0.001)
+	assert_float(frame.basis.get_euler().y).is_equal_approx(0.5, 0.001)

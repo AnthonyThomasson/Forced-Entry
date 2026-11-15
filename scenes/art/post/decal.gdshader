@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode specular_disabled, diffuse_lambert, ambient_light_disabled, shadows_disabled;
+render_mode specular_disabled, diffuse_lambert, ambient_light_disabled;
 // The mesh kit's decal (Art, `MeshNodes.decal`; #193 phase 2): a flat quad laid on a surface,
 // showing a texture whose alpha cuts it out, lit by the same toon bands as `toon.gdshader` (the
 // light() function is the same; keep the two in step) and dimmed by the same vision hook.
@@ -16,7 +16,24 @@ uniform int pick[5];
 
 varying float seen;
 
+// The fade (Art, `MeshNodes.fade`; instance uniform, 1 = whole): below 1 a pixel is dropped where
+// an ordered 4 x 4 dither of the screen pixel says, so a thinning wall stays opaque pixels (no
+// blend, no sorting) and reads as the pixel art it is. At 1 the branch is never taken.
+instance uniform float fade : hint_range(0.0, 1.0) = 1.0;
+
+const float BAYER[16] = float[16](
+	0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0
+);
+
+float dither_keep(vec2 pixel) {
+	ivec2 p = ivec2(pixel) & ivec2(3);
+	return (BAYER[p.x + p.y * 4] + 0.5) / 16.0;
+}
+
 void fragment() {
+	if (fade < 1.0 && dither_keep(FRAGCOORD.xy) >= fade) {
+		discard;
+	}
 	vec4 texel = texture(albedo_texture, UV) * base_color;
 	seen = 1.0;
 	if (vision_unseen < 1.0) {

@@ -99,17 +99,42 @@ func make(body: PhysicsBody2D, kind: StringName, shape_node: CollisionShape2D) -
 		"node": node, "shape": shape_node, "body": body, "last": Transform2D(), "size3": size3,
 		"half_height": height * 0.5, "offset": rect.get_center(),
 		"rigid": body if body is RigidBody2D else null, "asleep": false, "shown": true,
+		"update": Callable(),
 	}
 
 
 ## The row of a mesh a domain's builder made for `body` (`WorldMirror.builders`): the node follows
-## the whole body, so its origin and turn are the body's.
+## the whole body, so its origin and turn are the body's. `shapes` are the body's own collision
+## shapes (while all are disabled the mesh hides: `shapes_all_off`); `update` the mesh's
+## `mirror_update(body)` when it has one (else an invalid `Callable`).
 func own_row(body: Node2D, node: Node3D) -> Dictionary:
+	var shapes: Array[Node] = []
+	for child in body.get_children():
+		if child is CollisionShape2D or child is CollisionPolygon2D:
+			shapes.append(child)
 	return {
 		"node": node, "shape": body, "body": body, "last": Transform2D(), "size3": Vector3.ONE,
 		"half_height": 0.0, "offset": Vector2.ZERO, "rigid": body if body is RigidBody2D else null,
-		"asleep": false, "shown": true,
+		"asleep": false, "shown": true, "shapes": shapes,
+		"update": Callable(
+			node,
+			&"mirror_update",
+		) if node.has_method(&"mirror_update") else Callable(),
 	}
+
+
+## Whether `row` is the mesh of a body that has collision shapes and every one is disabled (a
+## character seated in a vehicle): such a mesh has no shape of its own to be disabled. A body with
+## no shape, and a row of a shape's own proxy, is not.
+static func shapes_all_off(row: Dictionary) -> bool:
+	var any := false
+	for shape: Variant in row.get("shapes", []):
+		if not is_instance_valid(shape) or (shape as Node).is_queued_for_deletion():
+			continue
+		any = true
+		if (shape as Node).get("disabled") != true:
+			return false
+	return any
 
 
 ## The slab of a floor (`floor_node`, a Node2D with a `size` and a `color`): a row like `make`'s,

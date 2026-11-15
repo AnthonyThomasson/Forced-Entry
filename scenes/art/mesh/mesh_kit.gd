@@ -17,6 +17,12 @@ extends RefCounted
 ## Build a mesh once per distinct piece: `MeshCache.fetch` shares it between every piece asking
 ## for the same inputs. `MeshNodes.instance` puts it on a node in the shared toon material.
 ##
+## **Posing.** `pose(transform)` turns and places every solid added after it (in px, in the piece's
+## frame), so a wheel on its side, an aimed barrel or a tilted chair back is the plain solid built
+## at the origin and posed: `kit.pose(Transform3D(Basis(Vector3.BACK, PI / 2), at))`. `pose(
+## Transform3D.IDENTITY)` ends it. A piece unique to one node needs no cache: `kit.build()` straight
+## into `MeshNodes.instance` (only shared meshes go through `MeshCache`).
+##
 ## Each method returns the kit, so a piece reads as a chain.
 
 ## A top colour that means "the same as the sides".
@@ -28,6 +34,9 @@ var sides := 0
 var _points := PackedVector3Array()
 var _normals := PackedVector3Array()
 var _colors := PackedColorArray()
+## The pose faces are added under (`pose`), and what turns a normal with it.
+var _pose := Transform3D.IDENTITY
+var _pose_normals := Basis.IDENTITY
 
 
 ## The tone `name` (`outline`, `shadow`, `dark`, `base`, `light`, `highlight`) of
@@ -91,7 +100,7 @@ func wedge(wedge_volume: AABB, rises_toward: Vector2, color: Color, top_color :=
 ## `height` tall, `sides` flat faces round (0: `MeshKitConfig.cylinder_sides`), `top_color` its lid.
 func cylinder(at: Vector3, radius: float, height: float, color: Color,
 		top_color := SAME) -> MeshKit:
-	var count := sides if sides >= 3 else MeshKitConfig.cylinder_sides
+	var count := _sides()
 	var ring := PackedVector2Array()
 	for i in count:
 		var angle := TAU * float(i) / float(count)
@@ -139,16 +148,64 @@ func loft(path: PackedVector3Array, profile: PackedVector2Array, color: Color) -
 		headings.append(heading)
 		rings.append(_ring(path[i], heading, profile))
 	for i in range(path.size() - 1):
-		for k in profile.size():
-			var next := (k + 1) % profile.size()
-			var a: Vector3 = rings[i][k]
-			var b: Vector3 = rings[i][next]
-			var c: Vector3 = rings[i + 1][next]
-			var d: Vector3 = rings[i + 1][k]
-			var away := ((a + b + c + d) * 0.25) - _centre_of(rings[i], rings[i + 1])
-			_quad([a, b, c, d], away.normalized(), color)
+		_sweep(rings[i], rings[i + 1], color)
 	_cap(rings[0], -(headings[0] as Vector3), color)
 	_cap(rings[rings.size() - 1], headings[headings.size() - 1], color)
+	return self
+
+
+## Every solid added after this is turned and placed by `placing` (px, in the piece's frame; a
+## scale or a mirror too, faces still face out). `Transform3D.IDENTITY` ends it.
+func pose(placing: Transform3D) -> MeshKit:
+	if absf(placing.basis.determinant()) < 0.000001:
+		push_error("MeshKit.pose: a pose with a flat axis has no normals; ignored")
+		return self
+	_pose = placing
+	_pose_normals = placing.basis.inverse().transposed()
+	return self
+
+
+## A sphere of `radius` px centred at `at` (`x`, height, `y`), `sides` flat faces round (0:
+## `MeshKitConfig.cylinder_sides`) and half as many bands tall.
+func sphere(at: Vector3, radius: float, color: Color) -> MeshKit:
+	var bands := maxi(_sides() >> 1, 2)
+	var profile := PackedVector2Array()
+	for j in bands + 1:
+		profile.append(_arc(radius, -PI * 0.5 + PI * float(j) / float(bands)))
+	return revolve(profile, at, color)
+
+
+## An upright capsule (a cylinder with a half sphere on each end) of `radius` px and `height` px in
+## all (at least two radii: shorter is a sphere), standing at `at` (`x`, the height of its
+## underside, `y`): a trunk, a limb, a bollard, a pill.
+func capsule(at: Vector3, radius: float, height: float, color: Color) -> MeshKit:
+	var bands := maxi(_sides() >> 2, 2)
+	var rise := maxf(height - 2.0 * radius, 0.0)
+	var profile := PackedVector2Array()
+	for j in bands + 1:
+		var low := _arc(radius, -PI * 0.5 + PI * 0.5 * float(j) / float(bands))
+		profile.append(low + Vector2(0.0, radius))
+	for j in bands + 1:
+		var high := _arc(radius, PI * 0.5 * float(j) / float(bands))
+		profile.append(high + Vector2(0.0, radius + rise))
+	return revolve(profile, at, color)
+
+
+## An upright cone of `radius` px at its base, `height` tall, standing at `at` (`x`, the height of
+## its base, `y`): a lampshade, a roof spike, a cone on a road.
+func cone(at: Vector3, radius: float, height: float, color: Color) -> MeshKit:
+	return revolve(PackedVector2Array([Vector2(0, 0), Vector2(radius, 0), Vector2(0, height)]),
+		at, color)
+
+
+## A solid turned about the vertical axis through `at` (`x`, height, `y`): `profile` (px; `x` the
+## distance from the axis, `y` the height above `at`) runs from the bottom up along the outside, so
+## a point on the axis at each end closes it. What `sphere`, `capsule` and `cone` are made with: a
+## lathe-turned post, a vase or a bowl is one more profile.
+func revolve(profile: PackedVector2Array, at: Vector3, color: Color) -> MeshKit:
+	var count := _sides()
+	for k in range(profile.size() - 1):
+		_band(profile[k], profile[k + 1], at, count, color)
 	return self
 
 
@@ -175,10 +232,11 @@ func build() -> ArrayMesh:
 
 ## One triangle of `corners` facing `outward`, colour `color`: wound the way the engine draws its
 ## front (clockwise seen from the front), whichever way round the corners were given.
-func _tri(corners: Array, outward: Vector3, color: Color) -> void:
-	var a: Vector3 = corners[0]
-	var b: Vector3 = corners[1]
-	var c: Vector3 = corners[2]
+func _tri(corners: Array, outward_in: Vector3, color: Color) -> void:
+	var a: Vector3 = _pose * (corners[0] as Vector3)
+	var b: Vector3 = _pose * (corners[1] as Vector3)
+	var c: Vector3 = _pose * (corners[2] as Vector3)
+	var outward := _pose_normals * outward_in
 	var normal := (b - a).cross(c - a)
 	if normal.length_squared() < 0.000001:
 		return
@@ -192,10 +250,59 @@ func _tri(corners: Array, outward: Vector3, color: Color) -> void:
 		_colors.append(color)
 
 
+## The flat faces of one profile segment (`low` to `high`: radius, height) turned about the axis
+## through `at`, `count` round, facing away from the axis (the segment's own outward side).
+func _band(low: Vector2, high: Vector2, at: Vector3, count: int, color: Color) -> void:
+	var edge := high - low
+	var across := Vector2(edge.y, -edge.x)
+	for i in count:
+		var from := TAU * float(i) / float(count)
+		var to := TAU * float(i + 1) / float(count)
+		var mid := (from + to) * 0.5
+		_quad([
+			_turned(at, low, from), _turned(at, low, to), _turned(at, high, to),
+			_turned(at, high, from),
+		], Vector3(across.x * cos(mid), across.y, across.x * sin(mid)), color)
+
+
+## The point `radius_height` (radius, height) turned `angle` about the axis through `at`.
+func _turned(at: Vector3, radius_height: Vector2, angle: float) -> Vector3:
+	return at + Vector3(
+		radius_height.x * cos(angle), radius_height.y, radius_height.x * sin(angle)
+	)
+
+
+## `sides`, or the holder's count when it names none.
+func _sides() -> int:
+	return sides if sides >= 3 else MeshKitConfig.cylinder_sides
+
+
+## A point of a round profile: `radius` out at `angle` (0 the equator), as (distance from the axis,
+## height); a pole sits exactly on the axis, not a rounding error off it.
+func _arc(radius: float, angle: float) -> Vector2:
+	var out := cos(angle) * radius
+	return Vector2(0.0 if absf(out) < 0.00001 else out, sin(angle) * radius)
+
+
 ## A quad (four corners in order round it) as two triangles facing `outward`.
 func _quad(corners: Array, outward: Vector3, color: Color) -> void:
 	_tri([corners[0], corners[1], corners[2]], outward, color)
 	_tri([corners[0], corners[2], corners[3]], outward, color)
+
+
+## The faces between two neighbouring rings of a loft, each its own plane's normal (a profile that
+## is lopsided has no face looking straight away from the middle), turned to face away from it.
+func _sweep(from: Array, to: Array, color: Color) -> void:
+	var middle := _centre_of(from, to)
+	for k in from.size():
+		var next := (k + 1) % from.size()
+		var a: Vector3 = from[k]
+		var b: Vector3 = from[next]
+		var c: Vector3 = to[next]
+		var d: Vector3 = to[k]
+		var facing := (c - a).cross(d - b)  # the face's own normal (any warp averaged out)
+		var away := (a + b + c + d) * 0.25 - middle
+		_quad([a, b, c, d], facing if facing.dot(away) >= 0.0 else -facing, color)
 
 
 ## The profile's points placed round `at`, turned to look along `heading`.

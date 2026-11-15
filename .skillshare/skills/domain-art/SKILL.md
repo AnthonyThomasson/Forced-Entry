@@ -62,11 +62,11 @@ a proxy per collision shape (a box, a cylinder, a character's capsule; floors fl
 `faction`), never a domain's class. The update rule is the spike's lesson: write only when the shape's 2D transform changed, skip a sleeping
 `RigidBody2D` (read once more as it falls asleep), check a freed shape untyped (`is_instance_valid` on a Variant), add a spawned body or floor on the next
 frame (its `_ready` builds its shapes first; a floor joins `floors` there), drop a despawned body's proxies. A shape added to or removed from a mirrored body
-(a hit wall's rebuilt colliders) re-mirrors it; a proxy is hidden while its shape is disabled (a seated character) or its body's own `visible` is false.
+(a hit wall's rebuilt colliders) re-mirrors it; a proxy (or an own mesh, when every shape of its body is) is hidden while its shape is disabled (a seated character) or its body's own `visible` is false; a mesh keeps itself in step by `mirror_update`, `remirror` and `on_body_died` (`mesh-hook.md`).
 `builders` (hook key -> `Callable(node) -> Node3D` in 3D units: a kind, `FURNITURE` for every `ObjectArt` piece, or a finer key for one art id; `FLOOR` for the floors) is the hook a domain's own mesh plugs into
 (`meshes.md`); `track(node, builder)` and `track_group(group, builder)` mirror a drawn thing that is no physics body (a dropped item, debris, a bullet) by the same rules;
 `MirrorConfig` holds the proxy heights and colours. **Giving a domain's things a 3D mesh: `meshes.md`** (the kit, units, colours from the tones, cache keys, heights, where meshes live); the hook's keys and rules, and the vision-mask globals: `mesh-hook.md`.
-Tests: `tests/art/mirror_follows_bodies_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`, `mirror_hides_seated_character_test.gd`, `mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mesh_kit_suite.gd`. Shaders compile only windowed, so a change to a shader needs one windowed run (`tools/run_tests.sh --windowed`).
+Tests: `tests/art/mirror_follows_bodies_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`, `mirror_hides_seated_character_test.gd`, `mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mirror_mesh_lifecycle_test.gd`, `mesh_kit_suite.gd`, `mesh_cache_suite.gd`, `mesh_nodes_suite.gd`. Shaders compile only windowed, so a change to a shader needs one windowed run (`tools/run_tests.sh --windowed`).
 
 ## The pixel post (`post/`, interface 27)
 

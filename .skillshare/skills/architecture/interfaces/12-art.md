@@ -32,10 +32,10 @@
     - **The mesh kit** (`art/mesh/`, the 3D render's counterpart of the painters; how-to `domain-art/meshes.md`) — each domain builds its own meshes from it, beside its painters:
       `MeshKit` (instance; works in px, `build() -> ArrayMesh` converts with `RenderConfig.unit` once): `MeshKit.volume(footprint: Rect2, base, height) -> AABB`, `box(volume, color,
       top_color)`, `wedge(volume, rises_toward: Vector2, color, top_color)`, `cylinder(at: Vector3, radius, height, color, top_color)` (`sides`), `extrude(polygon, base, height, color,
-      top_color)` (a prism is a triangle extruded), `loft(path: PackedVector3Array, profile: PackedVector2Array, color)`; each returns the kit; flat-shaded, a colour per face in the
+      top_color)` (a prism is a triangle extruded), `loft(path: PackedVector3Array, profile: PackedVector2Array, color)`, `sphere(at, radius, color)`, `capsule(at, radius, height, color)`, `cone(at, radius, height, color)`, `revolve(profile, at, color)`, and `pose(Transform3D)` (turns and places every solid added after it); each returns the kit; flat-shaded, a colour per face in the
       vertex colour; `MeshKit.tone(base, name)` picks a tone of `ArtSurfaceConfig.tones`. `MeshCache.key(id, size, color, opts)` + `MeshCache.fetch(key, make) -> Mesh`: the same inputs, the
-      same `Mesh` (the key holds `RenderConfig.unit`). `MeshNodes.instance(mesh, tint, casts_shadow) -> MeshInstance3D` (the shared toon material, `ToonMaterial.shared()`), `place(node, at_px, yaw)`,
-      `surface_frame(at, normal, spin) -> Transform3D` and `decal(size, frame, texture, tint) -> MeshInstance3D` (a flat quad on a surface, `decal.gdshader`, the texture's alpha cuts it).
+      same `Mesh` (the key holds `RenderConfig.unit` and the kit's tunables; bounded by `MeshKitConfig.cache_limit`). `MeshNodes.instance(mesh, tint, casts_shadow) -> MeshInstance3D` (the shared toon material, `ToonMaterial.shared()`), `place(node, at_px, yaw)`,
+      `surface_frame(at, normal, spin) -> Transform3D` and `decal(size, frame, texture, tint) -> MeshInstance3D` (a flat quad on a surface, `decal.gdshader`, the texture's alpha cuts it), `batch(mesh, count)` / `batch_place` / `batch_show` (many small parts in one draw), `fade(node, amount)`, `glow(node, color, strength)`.
       The mirror's hook that takes the meshes is interface 27. Reached by the domains that own a mesh (Objects now; Character, Items and Vehicles as their jobs land, Projectile and Physics for their effects), through the builders they register; Art imports nothing from them.
     - Tuning: `ArtCanvasConfig` (static holder: the art pixel's size, where the light falls from, the turn steps, the drop and cast
 	  shadows), `ArtSurfaceConfig` (tone ramp, tone jitter, surface finishes).

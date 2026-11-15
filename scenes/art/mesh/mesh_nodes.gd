@@ -32,12 +32,15 @@ static func place(node: Node3D, at: Vector3, yaw := 0.0) -> void:
 ## The frame (px, in the frame of the surface's owner) of a spot on a surface: at `at`, facing
 ## `normal` (up for a floor or a table top, sideways for a wall) and turned `spin` radians about the
 ## normal. What `decal` is laid by. Facing up it is the identity (a texture's top-left corner at
-## `x`, `z` smallest, its top toward `-z`); facing sideways the texture stands upright.
+## `x`, `z` smallest, its top toward `-z`); facing sideways the texture stands upright and reads
+## left to right seen from outside, on any of a wall's four facings.
 static func surface_frame(at: Vector3, normal := Vector3.UP, spin := 0.0) -> Transform3D:
 	var up := normal.normalized()
-	var toward := Vector3.RIGHT if absf(up.dot(Vector3.RIGHT)) < 0.9 else Vector3.FORWARD
-	var right := (toward - up * up.dot(toward)).normalized()
-	var turned := Basis(right, up, right.cross(up)).rotated(up, spin)
+	# The texture's top (local -z) runs up a wall, so a texture reads upright and left to right
+	# from outside; on a floor or ceiling, which has no up, it runs toward -z.
+	var rise := Vector3.UP - up * up.dot(Vector3.UP)
+	var back := Vector3.BACK if rise.length_squared() < 0.0001 else -rise.normalized()
+	var turned := Basis(up.cross(back), up, back).rotated(up, spin)
 	return Transform3D(turned, at)
 
 
@@ -78,3 +81,57 @@ static func _quad(size: Vector2) -> Mesh:
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		return mesh
 	)
+
+
+## A batch of `count` copies of `mesh` in one draw (a `MultiMeshInstance3D` in the shared toon
+## material, tinted `tint`, casting no shadow unless `casts_shadow`): for many small short-lived
+## things (casings, sparks, debris) where a node each is too dear. None shows until `batch_show`;
+## `batch_place` puts one by index (a pool: a spawn takes the next index, a retired one is
+## overwritten), `batch_show` says how many, from the first, are drawn.
+static func batch(mesh: Mesh, count: int, tint := Color.WHITE,
+		casts_shadow := false) -> MultiMeshInstance3D:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = count
+	multi.visible_instance_count = 0
+	var node := MultiMeshInstance3D.new()
+	node.multimesh = multi
+	node.material_override = ToonMaterial.shared()
+	node.set_instance_shader_parameter(&"base_color", tint)
+	node.cast_shadow = (
+		GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		if casts_shadow
+		else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	)
+	return node
+
+
+## Part `index` of `batch` placed at `at` (2D `x`, height, 2D `y`, px) turned `yaw` radians about up
+## (as `place`).
+static func batch_place(node: MultiMeshInstance3D, index: int, at: Vector3, yaw := 0.0) -> void:
+	node.multimesh.set_instance_transform(index, part_frame(at, yaw))
+
+
+## The frame (3D units, in the frame of its parent) of a part at `at` (px) turned `yaw` about up:
+## what `place` gives a node and `batch_place` a part of a batch.
+static func part_frame(at: Vector3, yaw := 0.0) -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, yaw), at * RenderConfig.unit)
+
+
+## The first `shown` parts of `batch` are drawn (at most all it holds).
+static func batch_show(node: MultiMeshInstance3D, shown: int) -> void:
+	node.multimesh.visible_instance_count = clampi(shown, 0, node.multimesh.instance_count)
+
+
+## `node` shown `amount` of the way (1 whole, 0 gone): a dither of the pixels the picture's own
+## size, so a wall between the camera and the player thins out instead of blending. Any toon node
+## or decal; 1 costs a branch the shader never takes.
+static func fade(node: GeometryInstance3D, amount: float) -> void:
+	node.set_instance_shader_parameter(&"fade", clampf(amount, 0.0, 1.0))
+
+
+## `node` glowing `color` (times `strength`) whatever the light: a lamp's shade, a screen, a muzzle
+## flash; black or a strength of 0 is no glow. Dimmed by the vision mask like the rest.
+static func glow(node: GeometryInstance3D, color: Color, strength := 1.0) -> void:
+	node.set_instance_shader_parameter(&"emissive", Color(color.r, color.g, color.b, strength))
