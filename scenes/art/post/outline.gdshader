@@ -36,11 +36,14 @@ void fragment() {
 	vec2 texel = 1.0 / vec2(textureSize(screen_tex, 0));
 	vec3 base = texture(screen_tex, SCREEN_UV).rgb;
 	float d = texture(depth_tex, SCREEN_UV).r;
-	vec3 n = texture(normal_tex, SCREEN_UV).xyz * 2.0 - 1.0;
+	vec4 n_raw = texture(normal_tex, SCREEN_UV);
+	vec3 n = n_raw.xyz * 2.0 - 1.0;
 	vec2 axes[2] = vec2[](vec2(texel.x, 0.0), vec2(0.0, texel.y));
-	bool figure = figure_at(SCREEN_UV);
+	bool figure = n_raw.a < 0.5;
 	vec3 line = base;
-	float darken = outline_darken;
+	// A crease takes its own pixel's colour (a figure's, when the figure is creased), a silhouette
+	// the nearer side's (below).
+	float darken = figure ? figure_darken : outline_darken;
 	float edge = 0.0;
 	for (int i = 0; i < 2; i++) {
 		vec2 sil = axes[i] * silhouette_px;
@@ -61,10 +64,11 @@ void fragment() {
 		// silhouette the depth test above draws the line, so the normals are not asked: they would
 		// mark the near side of it as well and make it two pixels thick on its left and top.
 		vec2 before = SCREEN_UV - axes[i] * crease_px;
-		vec3 n_before = texture(normal_tex, before).xyz * 2.0 - 1.0;
+		vec4 raw_before = texture(normal_tex, before);
+		vec3 n_before = raw_before.xyz * 2.0 - 1.0;
 		float joined = step(abs(texture(depth_tex, before).r - d), crease_gap);
 		float creased = step(normal_step, length(n_before - n)) * joined;
-		if (!figure_creases && (figure || figure_at(before))) {
+		if (creased > 0.0 && !figure_creases && (figure || raw_before.a < 0.5)) {
 			creased = 0.0;
 		}
 		edge = max(edge, creased);

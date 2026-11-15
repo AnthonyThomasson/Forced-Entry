@@ -25,6 +25,12 @@ const ZOOMS := [3.0, 1.0]
 const BLACK := 0.12
 ## The window round the character (screen px) whose near-black share is counted at zoom 1.
 const BODY_BOX := 30
+## The box over a standing character at zoom 1 (screen px from the picture's centre, where the
+## camera is over its feet: the body stands up from there), and how many pixels differ with the
+## creases off: at least this many of the world's, at most this many over the body.
+const FIGURE_BOX := Rect2i(-12, -54, 26, 46)
+const WORLD_CREASES := 100
+const BODY_CREASES := 9
 
 ## What a shot is taken with: the window, the camera over the character, the character and the
 ## outline quad of the view (set by `run`).
@@ -96,7 +102,13 @@ func run(t: TestContext) -> void:
 	_character.movement.aim_point = character.global_position + Vector2(200.0, 200.0)
 	await t.seconds(0.6)
 	var now := await _round(t, "", true)
-	var old := await _round(t, "before_", false)
+	_check_buried(t, now, await _round(t, "before_", false))
+	await _check_creases(t)
+	await MainProbe.close(t, window)
+
+
+## The body is not buried in near-black, as it was with the old line.
+func _check_buried(t: TestContext, now: Dictionary, old: Dictionary) -> void:
 	t.check(
 		now["black"] < 0.1,
 		"at zoom 1 under 10%% of the body's pixels are near-black (%.2f)" % now["black"],
@@ -108,7 +120,47 @@ func run(t: TestContext) -> void:
 	t.check(now["colours"] > old["colours"], "and more colours: %d against %d" % [
 		now["colours"], old["colours"],
 	])
-	await MainProbe.close(t, window)
+
+
+## The creases are drawn on the world and not on the figure: the same standing shot at zoom 1 with
+## creases and with none (`normal_step` far above any difference of normals) differs, beyond the
+## body, where walls and furniture meet at an edge (a flag read as set on every pixel would lose
+## them), and does not differ over the body (the silhouette is all that outlines it).
+func _check_creases(t: TestContext) -> void:
+	_character.movement.set_posture(&"stand")
+	_character.movement.aim_point = _character.global_position + Vector2(200.0, 200.0)
+	await t.seconds(0.6)
+	# The game's time stopped, so the breath does not move the body between the two shots.
+	Engine.time_scale = 0.0001
+	var creased := await _shoot(t, 1.0)
+	var normal_step := PixelPostConfig.normal_step
+	PixelPostConfig.normal_step = 100.0
+	PixelPost.refresh(_quad, _oversample)
+	var plain := await _shoot(t, 1.0)
+	Engine.time_scale = 1.0
+	PixelPostConfig.normal_step = normal_step
+	PixelPost.refresh(_quad, _oversample)
+	_save(creased, "creased_zoom1")
+	_save(plain, "plain_zoom1")
+	var centre := creased.get_size() / 2
+	var body := Rect2i(centre + FIGURE_BOX.position, FIGURE_BOX.size)
+	var on_body := 0
+	var on_world := 0
+	for y in creased.get_height():
+		for x in creased.get_width():
+			if creased.get_pixel(x, y) != plain.get_pixel(x, y):
+				if body.has_point(Vector2i(x, y)):
+					on_body += 1
+				else:
+					on_world += 1
+	t.check(
+		on_world >= WORLD_CREASES,
+		"the world keeps its creases: %d pixels differ beyond the body" % on_world,
+	)
+	t.check(
+		on_body <= BODY_CREASES,
+		"the body has none: %d pixels differ over it" % on_body,
+	)
 
 
 ## The shots of one look of the outline (`now`: the holder's, else the old line), the body's
