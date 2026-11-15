@@ -26,9 +26,12 @@ const BLACK := 0.12
 ## The window round the character (screen px) whose near-black share is counted at zoom 1.
 const BODY_BOX := 30
 ## The box over a standing character at zoom 1 (screen px from the picture's centre, where the
-## camera is over its feet: the body stands up from there), and how many pixels differ with the
-## creases off: at least this many of the world's, at most this many over the body.
-const FIGURE_BOX := Rect2i(-12, -54, 26, 46)
+## camera is over it: the body, 74 px tall, seen from the 80 degrees above, about 30 by 40 px), and
+## how many pixels differ with the creases off: at least this many of the world's, at most this many
+## over the body. A body's textured art can move by a pixel between shots (a sleeve's plate lines
+## shift with the sub-pixel breath), so a pixel that also differs between two shots with the same
+## settings is not a crease and is not counted.
+const FIGURE_BOX := Rect2i(-18, -26, 38, 52)
 const WORLD_CREASES := 100
 const BODY_CREASES := 9
 
@@ -133,6 +136,7 @@ func _check_creases(t: TestContext) -> void:
 	# The game's time stopped, so the breath does not move the body between the two shots.
 	Engine.time_scale = 0.0001
 	var creased := await _shoot(t, 1.0)
+	var again := await _shoot(t, 1.0)
 	var normal_step := PixelPostConfig.normal_step
 	PixelPostConfig.normal_step = 100.0
 	PixelPost.refresh(_quad, _oversample)
@@ -148,11 +152,12 @@ func _check_creases(t: TestContext) -> void:
 	var on_world := 0
 	for y in creased.get_height():
 		for x in creased.get_width():
-			if creased.get_pixel(x, y) != plain.get_pixel(x, y):
-				if body.has_point(Vector2i(x, y)):
-					on_body += 1
-				else:
-					on_world += 1
+			if creased.get_pixel(x, y) == plain.get_pixel(x, y):
+				continue
+			if not body.has_point(Vector2i(x, y)):
+				on_world += 1
+			elif creased.get_pixel(x, y) == again.get_pixel(x, y):
+				on_body += 1  # a pixel that moved between two like shots is jitter, not a crease
 	t.check(
 		on_world >= WORLD_CREASES,
 		"the world keeps its creases: %d pixels differ beyond the body" % on_world,
