@@ -54,4 +54,4 @@
     - **Tuning:** `RenderConfig` (General: the camera, the picture's lines, `canvas_layer`, `vision_layer`, `overlay_layer`, `turn_speed_degrees`, `unseen_dim`),
       `RenderLightConfig` (General, the interim sun and ambient), `MirrorConfig` and `PixelPostConfig` (Art).
     - **The vision hook** (phase 3's mask): global shader uniforms, `ToonMask.set_mask(texture, world_rect_px, unseen_brightness)` / `clear()`; default everything visible.
-    - **Not yet:** meshes are proxies but for the table (Objects' `ObjectMeshes`, the pattern); the rest are phase 2's per-domain jobs.
+    - **Not yet:** meshes are proxies but for the table (Objects' `ObjectMeshes`, the pattern) and the vehicles (`VehicleMeshes`); the rest are phase 2's per-domain jobs.

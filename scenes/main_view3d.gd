@@ -111,6 +111,7 @@ func mirror_world(world: Node) -> void:
 ## of a kind that has one is shown by it and the rest by their proxies.
 func _register_meshes() -> void:
 	ObjectMeshes.register(mirror.builders)
+	VehicleMeshes.register(mirror.builders)
 
 
 ## One directional light with hard shadows (`RenderLightConfig`).

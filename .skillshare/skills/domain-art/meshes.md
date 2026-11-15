@@ -3,7 +3,7 @@
 The 3D render (#193, ADR 0013) shows every 2D body by a proxy box until its domain gives it a mesh. Each domain owns its meshes, as it
 owns its painters: the builders live **beside the painters** (`scenes/objects/art/table_mesh.gd`), built from Art's **mesh kit**, and the
 domain plugs them into the mirror's hook. The pattern, proved on the table (`ObjectMeshes`, `TableMesh`, `ObjectMeshConfig`,
-`tests/objects/table_mesh_test.gd`), is what every per-domain job copies.
+`tests/objects/table_mesh_test.gd`), is what every per-domain job copies. A piece with moving parts (doors that swing, wheels that steer, lamps that glow, dents) is Vehicles' `VehicleMeshRig` (`domain-vehicle/art.md`): a cached hull, parts on child nodes and a `mirror_update` that sets their transforms.
 
 ## The parts
 
@@ -57,7 +57,7 @@ Plausible, not exact; one number per class, tuned at the phase gate in the game,
 | Bed frame / mattress top | 14 / 22 | Counter, island | 34 |
 | Shelf, cabinet, wardrobe | 70 to 80 | Fridge, vending machine | 70 |
 | Toilet, bath rim | 20 | Plant | 30 to 40 |
-| Streetlight post | 130 | Car body / roof | 36 / 52 |
+| Streetlight post | 130 | Car body / roof | 36 / 52 (a van 46 / 78) |
 | Rug, mat, floor stencil | 0.5 (a decal, not a solid) | Dropped item, casing | 2 to 6 |
 
 A tall solid (a wall, a wardrobe) hides what is behind it: the wall-fade job (rule 9) fades those near the player (`MeshNodes.fade`), so a mesh job does not shorten a

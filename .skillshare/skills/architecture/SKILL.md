@@ -72,7 +72,7 @@ An arrow is "code references" (class names or preloads). No cycles.
 
 ```
 main ──▶ worldgen, navigation, lighting, vision, ai, items, character, audio, ui   (a match is built by MatchBuilder)
-main ──(3D render mode: main_view3d.gd)──▶ art (WorldMirror), general (CameraRig, RenderConfig), objects (ObjectMeshes): mirrors the 2D bodies, duck-typed (27)
+main ──(3D render mode: main_view3d.gd)──▶ art (WorldMirror), general (CameraRig, RenderConfig), objects (ObjectMeshes), vehicle (VehicleMeshes): mirrors the 2D bodies, duck-typed (27)
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D

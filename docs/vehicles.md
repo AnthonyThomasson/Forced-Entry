@@ -206,7 +206,7 @@ vehicle; nothing under
   contract, the hittable, the events), `vehicle_cabin.gd` (seats and doors), `vehicle_contacts.gd` (contacts and harm),
   `vehicle_drive.gd` (the bicycle, the drive intent, the engine and the skids), `vehicle_door.gd` (the open
   amount, the pose, the stand point, the blocked check), `vehicle_boarding.gd` (the ride's phase machine), `character_vehicle_use.gd` (the
-  character's component), `vehicle_visuals.gd` and `art/` (the chassis and roof layers and their painters).
+  character's component), `vehicle_visuals.gd` and `art/` (the chassis and roof layers and their painters; the 3D meshes: `art/vehicle_mesh*.gd`, `VehicleMeshConfig`).
 - **Character**: the forwards `use.try_interact()` (Space: a chair, a door or the vehicle, `docs/doors.md` DR6), `use.vehicle()`, `use.is_in_vehicle()`, the ride API `use.set_ride_pose` / `use.end_ride`, `use.is_busy()`
   over the ride, `inventory.current_item()` null while posed, `_die` abandoning the ride. **General**: `Keybinds.INTERACT` and the camera's zoom
   out. **Audio**: the `vehicle`, `engine` and `skid` topics, the profiles and the loops. **Testing**: `TestSetup.vehicle`, `t.vehicle`,
