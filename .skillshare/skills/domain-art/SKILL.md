@@ -36,6 +36,7 @@ Pick the entry point by how the thing turns:
 - `render_turned` — the image stays canonical and is lit as if turned by `angle`; the caller draws it rotated (characters,
   hands, guns, vehicle bodies, doors, wheels, lamps). Callers pass `snap_angle(angle)` (one of `ArtCanvasConfig.turn_steps`) and
   rotate to the exact angle when drawing: few cached textures, smooth turning, world-consistent light.
+- `render_flat` — the painter's albedo for the 3D render: no light, canonical, one texture per piece (`flat-paint.md`).
 - `emissive` — the twin of `render`'s texture holding only what the painter drew `glowing`; null when nothing glows. Kept from
   the same paint, so it costs no second paint; `render_turned` keeps none.
 

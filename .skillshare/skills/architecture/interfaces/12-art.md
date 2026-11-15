@@ -7,6 +7,9 @@
 	  `material`, the rest as its `opts`.
     - `PixelArt.render_turned(painter, size, color, angle, opts := {}) -> Texture2D` + `PixelArt.snap_angle(angle)` — canonical art lit for
 	  a snapped angle, drawn rotated by the caller to the exact one: characters, hands, guns, a vehicle's body, doors, wheels, lamps.
+    - `PixelArt.render_flat(painter, size, color, opts := {}) -> Texture2D` + `PixelArt.emissive_flat(...)` — a painter's ALBEDO for the 3D render:
+	  painted with no light (no bevel, cast shadow or glare), canonical (no facing, no angle step: one texture per piece and look), under the
+	  `|flat` cache key; a `warm` request with `"flat": true` (and no `facing`) prewarms it. Details: the flat-paint side file of `domain-art`.
     - `PixelArt.TurnedLast` — the arguments of one caller's last `render_turned` call and the texture they got (`render(...)` is
 	  `render_turned` answered from that call, or the plain call when `plain`): owned by the caller, one per part it draws every
 	  frame (Character's `BodyDrawCache` slots).

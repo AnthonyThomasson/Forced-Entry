@@ -63,6 +63,35 @@ static func render(painter: Script, size: Vector2, color: Color, facing: Vector2
 	})
 
 
+## `painter`'s ALBEDO for a footprint of `size` world px: the 3D render's texture of a piece (#193),
+## shaded by the 3D lights instead of painted lit. The painter runs on a canvas whose light is
+## `Vector2.ZERO`, so `bevel`, `bevel_relative` and `cast_shadows` do nothing and `glare` is
+## skipped; the art stays in the painter's canonical frame (no facing turn, no lighting angle), so
+## one texture serves the piece whatever way it turns. The surface finishes (grain, speckle,
+## fleck) stay, seeded as the lit paint is. `opts` as `render`'s. Cached under the lit key plus
+## `|flat`, so no 2D key or pixel changes. A `warm` request with `"flat": true` paints the same.
+static func render_flat(painter: Script, size: Vector2, color: Color,
+		opts: Dictionary = {}) -> Texture2D:
+	var key := _flat_key(_key(painter, size, color, opts))
+	var cached := _cached(key)
+	if cached != null:
+		return cached
+	return _paint_and_store({
+		"painter": painter, "size": size, "color": color, "opts": opts, "flat": true,
+	})
+
+
+## The emissive twin of `render_flat`'s texture: only what the painter drew `glowing`, in the art's
+## colours, transparent elsewhere; null when it drew nothing glowing.
+static func emissive_flat(painter: Script, size: Vector2, color: Color,
+		opts: Dictionary = {}) -> Texture2D:
+	render_flat(painter, size, color, opts)
+	_warm_lock.lock()
+	var texture: Texture2D = _emissive.get(_flat_key(_key(painter, size, color, opts)))
+	_warm_lock.unlock()
+	return texture
+
+
 ## Paint every cold shared request on one worker (as Sound's library warm does). Painters read only
 ## constant tables and static tuning, so a main-thread paint may overlap it. Cache reads and writes
 ## are mutexed. A `render` never waits for it: it files the image the worker already painted for its
@@ -74,10 +103,7 @@ static func warm(requests: Array) -> void:
 	_warm_lock.lock()
 	var seen := {}
 	for request: Dictionary in requests:
-		var key := _render_key(
-			_key(request["painter"], request["size"], request["color"], request["opts"]),
-			_turns(request["facing"]),
-		)
+		var key := _request_key(request)
 		if not _cache.has(key) and not seen.has(key):
 			seen[key] = true
 			_warm_requests.append({ "key": key, "request": request })
@@ -141,10 +167,18 @@ static func _paint_and_store(request: Dictionary) -> Texture2D:
 ## Paint a request into ordinary and emissive Images, with no texture or cache access. Pure image
 ## work is what the warm's worker runs.
 static func _paint_images(request: Dictionary) -> Dictionary:
-	var turns := _turns(request["facing"])
 	var base_key := _key(
 		request["painter"], request["size"], request["color"], request["opts"],
 	)
+	if request.get("flat", false):
+		var flat := _paint(
+			request["painter"],
+			_flat_canvas(_resolution(request["size"]), base_key),
+			request["color"],
+			request["opts"],
+		)
+		return { "key": _flat_key(base_key), "image": flat.img, "glow": flat.emissive() }
+	var turns := _turns(request["facing"])
 	var res := _resolution(request["size"])
 	var canon := Vector2i(res.y, res.x) if turns % 2 == 1 else res
 	var canvas := _paint(
@@ -206,6 +240,20 @@ static func _turns(facing: Vector2) -> int:
 ## `render`'s cache key (and `_emissive`'s) for the inputs' `_key` at `turns` quarter turns.
 static func _render_key(base_key: String, turns: int) -> String:
 	return "%s|f%d" % [base_key, turns]
+
+
+## `render_flat`'s cache key (and `_emissive`'s) for the inputs' `_key`.
+static func _flat_key(base_key: String) -> String:
+	return base_key + "|flat"
+
+
+## The cache key a warm request will be filed under: a `"flat": true` request is `render_flat`'s,
+## any other `render`'s.
+static func _request_key(request: Dictionary) -> String:
+	var base_key := _key(request["painter"], request["size"], request["color"], request["opts"])
+	if request.get("flat", false):
+		return _flat_key(base_key)
+	return _render_key(base_key, _turns(request["facing"]))
 
 
 ## `img` turned by `turns` clockwise quarter turns.
@@ -297,6 +345,11 @@ static func _canvas(res: Vector2i, light_turn: float, seed_key: String) -> Pixel
 		hash(seed_key),
 		ArtCanvasConfig.light_from.rotated(light_turn),
 	)
+
+
+## A fresh canvas of `res` with no light (`render_flat`), seeded as the lit canvas is.
+static func _flat_canvas(res: Vector2i, seed_key: String) -> PixelCanvas:
+	return PixelCanvas.new(res.x, res.y, hash(seed_key), Vector2.ZERO)
 
 
 ## Paint `painter` onto `canvas` (`_canvas`), handing it `opts`' `material` as its own argument and

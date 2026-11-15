@@ -19,7 +19,8 @@ var w: int
 var h: int
 ## Seeded per texture, so a piece paints identically every time.
 var rng := RandomNumberGenerator.new()
-## Direction the light comes FROM, in this canvas's frame (normalized).
+## Direction the light comes FROM, in this canvas's frame (normalized); `Vector2.ZERO` on a flat
+## (albedo-only) canvas, where `bevel`, `bevel_relative`, `cast_shadows` and `glare` do nothing.
 var light: Vector2
 ## Coverage layer (R8): non-zero where something is drawn.
 var _cov: Image
@@ -254,6 +255,8 @@ func cast_shadows() -> void:
 
 ## A soft glare: short diagonal streaks of `glint` near the lit corner of `s` (glaze, glass).
 func glare(s: PixelShape, glint: Color, streaks: int = 2) -> void:
+	if light == Vector2.ZERO:
+		return
 	var r := s.bounds
 	var corner := Vector2(r.position) + Vector2(r.size) * (Vector2(0.5, 0.5) + light * 0.32)
 	var along := Vector2(light.y, -light.x)  # Across the light: streaks run perpendicular to it.
