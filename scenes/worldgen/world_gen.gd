@@ -16,7 +16,7 @@ class_name WorldGen
 static func prewarm() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	PixelArt.warm(DistrictPrewarm.requests())
+	PixelArt.warm(DistrictPrewarm.requests() + DistrictPrewarm.furniture_requests())
 
 
 ## Build a house and return its root Node2D (parented under `parent`). `rng_seed` of 0 picks a

@@ -216,8 +216,14 @@ func outline_relative(s: PixelShape, amount: float) -> void:
 			img.set_pixel(x, y, img.get_pixel(x, y).darkened(amount))
 
 
-## A 1px ring just inside a shape's edge.
+## A 1px ring just inside a shape's edge. On a flat canvas (no light: the 3D render's albedo, which
+## the post outlines itself) the ring is not `c`, a dark line that would double the post's and make
+## a side face read black, but the pixel already drawn there darkened a step
+## (`ArtCanvasConfig.flat_outline_darken`).
 func outline(s: PixelShape, c: Color) -> void:
+	if light == Vector2.ZERO:
+		outline_relative(s, ArtCanvasConfig.flat_outline_darken)
+		return
 	var pts := s.edge_pixels(1)
 	for i in range(0, pts.size(), 2):
 		var x := pts[i]

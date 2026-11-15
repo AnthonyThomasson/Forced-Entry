@@ -158,7 +158,7 @@ static func _drum(c: PixelCanvas, base: Color, t: Dictionary, washer: bool, glow
 	var o := Vector2i(int(c.w / 2.0), panel_h + 2 + int((c.h - panel_h - 2) / 2.0))
 	var rad := maxi(3, int(mini(c.w, c.h - panel_h) * 3 / 10.0))
 	var ring := PixelShape.disc(o, rad)
-	c.fill(ring, t.light)
+	c.fill(ring, t.light if c.light != Vector2.ZERO else base)
 	c.outline(ring, t.shadow)
 	if washer:
 		var glass := PixelShape.disc(o, rad - 2)

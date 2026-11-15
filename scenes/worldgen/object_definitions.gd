@@ -26,6 +26,11 @@ static func _all() -> Dictionary:
 	return _catalog
 
 
+## Every catalogued object key.
+static func keys() -> Array:
+	return _all().keys()
+
+
 ## The object definition for `key`, or {} if unknown.
 static func get_definition(key: String) -> Dictionary:
 	return _all().get(key, {})

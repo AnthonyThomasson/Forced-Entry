@@ -27,11 +27,15 @@ var _glow_strengths: Array[float] = []
 var _tint := Color.WHITE
 ## Every solid that takes the damage tint (the body and any part added by `add_part`).
 var _solids: Array[MeshInstance3D] = []
+## The art the solids wear (`FurnitureArt.of`: `{ texture, rect }`; empty for a piece with none).
+var _art: Dictionary = {}
 
 
 ## Show `mesh` as the body of `piece`'s rig and follow the piece's dents.
 func with_body(piece: Node2D, mesh: Mesh) -> FurnitureRig:
+	_art = FurnitureArt.of(FurnitureSpec.of(piece))
 	body = MeshNodes.instance(mesh)
+	_dress(body)
 	body.name = "Body"
 	add_child(body)
 	_solids.append(body)
@@ -49,6 +53,7 @@ func with_body(piece: Node2D, mesh: Mesh) -> FurnitureRig:
 func add_part(part_name: String, mesh: Mesh, at: Vector3) -> MeshInstance3D:
 	var part := MeshNodes.instance(mesh, _tint)
 	part.name = part_name
+	_dress(part)
 	MeshNodes.place(part, at)
 	add_child(part)
 	_solids.append(part)
@@ -78,6 +83,13 @@ func set_lit(on: bool) -> void:
 	lit = on
 	for i in glows.size():
 		MeshNodes.glow(glows[i], _glow_colors[i], _glow_strengths[i] if on else 0.0)
+
+
+## Put the piece's 2D art on `solid` (the toon's textured material; a piece with no art keeps the
+## shared one): the art is projected straight down, so a part raised on its own node wears the same.
+func _dress(solid: MeshInstance3D) -> void:
+	if not _art.is_empty():
+		MeshNodes.textured(solid, _art["texture"], _art["rect"])
 
 
 ## The damage tint the solids carry now.

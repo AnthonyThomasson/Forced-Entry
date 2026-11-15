@@ -94,8 +94,10 @@ static func _arms(c: PixelCanvas, base: Color, arm_w: int) -> void:
 		c.bevel(arm, 2, 2, t.highlight, t.shadow)
 		c.bevel(arm, 3, 3, t.light, t.dark)
 		var ridge := x + int(arm_w / 2.0) + (-1 if c.light.x < 0.0 else 0)
+		# The ridge is the light catching the roll: an unlit (3D) paint has none.
+		var ridge_tone: Color = t.light if c.light != Vector2.ZERO else base
 		for y in range(4, c.h - 4):
-			c.px(ridge, y, t.light)
+			c.px(ridge, y, ridge_tone)
 		c.outline(arm, t.outline)
 
 

@@ -20,6 +20,12 @@ var size := Vector2.ZERO
 var color := Color.WHITE
 ## The painter's options (`look.art_opts`).
 var opts: Dictionary = {}
+## The painter's id (`look.art`) and the surface finish it is drawn in (`object_material`): what
+## the piece's flat texture is painted from (`FurnitureArt`).
+var art := ""
+var material := ""
+## The piece's own colour, not yet run down (`ObjectArt` grades the colour it paints in).
+var paint := Color.WHITE
 ## Clockwise quarter turns from the canonical front (+y) to the piece's facing (0 to 3).
 var turns := 0
 ## The part that reaches beyond the footprint (a streetlight's arm and head, an awning), in the
@@ -32,7 +38,8 @@ var overhang := Rect2()
 static func of(piece: Node2D) -> FurnitureSpec:
 	var spec := FurnitureSpec.new()
 	var body_size: Vector2 = piece.get("size")
-	spec.color = ObjectArt.drawn_color(piece.get("color"))
+	spec.paint = piece.get("color")
+	spec.color = ObjectArt.drawn_color(spec.paint)
 	var look: Variant = piece.get("look")
 	var facing := Vector2.DOWN
 	if look is Object:
@@ -40,6 +47,9 @@ static func of(piece: Node2D) -> FurnitureSpec:
 		spec.opts = options if options is Dictionary else {}
 		var face: Variant = (look as Object).get("facing")
 		facing = face if face is Vector2 else Vector2.DOWN
+	spec.art = String(look.get("art")) if look is Object else ""
+	var finish: Variant = piece.get("object_material")
+	spec.material = String(finish) if finish != null else ""
 	spec.turns = posmod(roundi(Vector2.DOWN.angle_to(facing) / (PI * 0.5)), 4)
 	spec.size = Vector2(body_size.y, body_size.x) if spec.turns % 2 == 1 else body_size
 	spec._read_overhang(piece)

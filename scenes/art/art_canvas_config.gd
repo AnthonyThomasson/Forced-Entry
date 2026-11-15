@@ -24,3 +24,7 @@ static var drop_shadow_alpha: float = 0.28
 ## beside it, and how much it darkens it.
 static var cast_shadow_px: int = 2
 static var cast_shadow_darken: float = 0.22
+## How much a flat (unlit, 3D) paint darkens the ring a painter outlines a shape with, in place of
+## drawing it in the painter's dark outline colour (the 3D post draws the outline; this keeps a
+## hint of the shape's edge, and the colour a side face reads from the edge texel).
+static var flat_outline_darken: float = 0.12

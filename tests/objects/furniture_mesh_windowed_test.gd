@@ -5,7 +5,10 @@ extends GameTest
 ## home, the study of the office loft and the kitchenette of the micro flat, and close on each kind:
 ## each piece is shown by its kit mesh (Main's view registered the builders), the toon bands,
 ## outline and glows are in the picture, and the log gate fails the test on any shader or engine
-## error. With `FURNITURE_SHOT_DIR=<dir>` set it saves one picture per room. Run:
+## error. With `FURNITURE_SHOT_DIR=<dir>` set it saves one picture per room;
+## `FURNITURE_PITCH=<degrees>`
+## tips the camera and `FURNITURE_ZOOM=<z>` sets the room pictures' zoom (the close-ups'
+## are 2.5 times it). Run:
 ## `FURNITURE_SHOT_DIR=<dir> tools/run_tests.sh --windowed --id=objects/furniture_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
@@ -73,6 +76,8 @@ func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
+	if OS.get_environment("FURNITURE_PITCH") != "":
+		s.set_static(RenderConfig, &"pitch_degrees", float(OS.get_environment("FURNITURE_PITCH")))
 	s.lock_interaction([&"camera"])
 	s.von_script([])
 
@@ -112,12 +117,15 @@ func _photograph(t: TestContext, home: Dictionary) -> void:
 	_world = built["world"]
 	await _rooms(t, built["rooms"], home["rooms"])
 	await _close_ups(t, home["kinds"])
+	var alive := ToonMaterial.textured_count()
+	print("FURNITURE %s: %d textured materials alive" % [home["plan"], alive])
 	await MainProbe.close(t, _window)
 
 
 ## One picture of each of `wanted` rooms, the camera over its middle.
 func _rooms(t: TestContext, rooms: Array, wanted: Array) -> void:
-	_camera.zoom = Vector2(ZOOM, ZOOM)
+	var zoom := _env_zoom(ZOOM)
+	_camera.zoom = Vector2(zoom, zoom)
 	for room: Array in wanted:
 		var rect := _rect_of(rooms, room[1])
 		var piece := _first_of(room[2])
@@ -132,7 +140,8 @@ func _rooms(t: TestContext, rooms: Array, wanted: Array) -> void:
 
 ## A close-up of a piece of each of `kinds`.
 func _close_ups(t: TestContext, kinds: Array) -> void:
-	_camera.zoom = Vector2(CLOSE_ZOOM, CLOSE_ZOOM)
+	var zoom := _env_zoom(ZOOM) * CLOSE_ZOOM / ZOOM
+	_camera.zoom = Vector2(zoom, zoom)
 	for art: String in kinds:
 		var piece := _first_of(art)
 		if not t.require(piece != null, "the home has a %s" % art):
@@ -142,6 +151,12 @@ func _close_ups(t: TestContext, kinds: Array) -> void:
 		_check_rig(t, piece, "a %s" % art)
 		await RenderingServer.frame_post_draw
 		_save("kind_%s" % art)
+
+
+## The room pictures' zoom: `FURNITURE_ZOOM` when set, else `fallback`.
+func _env_zoom(fallback: float) -> float:
+	var named := OS.get_environment("FURNITURE_ZOOM")
+	return float(named) if named != "" else fallback
 
 
 ## `piece` is shown by a furniture rig, not its proxy box.

@@ -19,5 +19,9 @@ no light of its own. `render_flat(painter, size, color, opts := {})` paints the 
   `finish_warming` files them. The worker paints flat requests the same way (`_paint_images`).
 - **Painters that read `c.light` directly** degrade to a fixed side: cabinet takes its neutral front tone (`base.darkened(0.05)`, so not plain albedo), plant its fixed lit
   side, sofa its fixed arm ridge; shadow_painter drags by zero (not meshed).
-- **Residue the flag cannot remove:** tones a painter picks by hand (`t.light` rim lines in table, wall, counter, head…) and
-  its own `outline()` rings stay painted. A painter that must drop them reads `c.light == Vector2.ZERO` itself.
+- **Residue the flag cannot remove:** tones a painter picks by hand drawn outside a `bevel` (`t.light` lines and fills in wall, head…)
+  stay painted; a painter that must drop them reads `c.light == Vector2.ZERO` itself (below). `outline()` rings are handled centrally.
+
+## Outline rings on a flat canvas
+
+`PixelCanvas.outline(shape, c)` on a flat canvas (`light == Vector2.ZERO`) does not draw `c`: it darkens the pixel already there by `ArtCanvasConfig.flat_outline_darken` (`outline_relative`). The 3D post draws the outline, a dark ring would double it, and a side face of a textured mesh reads the art's edge texel (a black ring made every side black). A painter that picks a light tone by hand reads `c.light != Vector2.ZERO` itself (sofa ridge, counter splash edge, appliance lid use the base/dark tone flat). Test: `tests/art/flat_outline_test.gd`.

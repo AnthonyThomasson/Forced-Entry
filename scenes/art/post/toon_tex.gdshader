@@ -21,7 +21,8 @@ render_mode specular_disabled, diffuse_lambert, ambient_light_disabled;
 //     wall side repeats the art's edge instead of smearing one texel column;
 //   * is darkened by `side_dim` (a step, tuned in `MeshKitConfig.textured_side_dim`) so the edge
 //     reads as a side and not as a second top.
-// Where the art is clear (alpha < 0.5) the pixel is the vertex colour instead (times base_color),
+// Where the art is clear (alpha < 0.5) the pixel is the vertex colour instead (times base_color; an
+// opaque texel is the art times base_color alone: white vertex colour or tones, the art is the albedo),
 // so a mesh is whole where its art does not reach. A top is `tiled` when the art repeats (a floor
 // tile, a road strip): uv wraps by `fract`, the footprint `uv_rect` is one tile. A skinned mesh
 // (`Skeleton3D`) would slide the art over its bones (model space is the rest pose): none is used.
@@ -72,8 +73,9 @@ void fragment() {
 		uv = clamp(uv, half_texel, 1.0 - half_texel);
 	}
 	vec4 art = texture(albedo_texture, uv);
-	vec3 tint = base_color.rgb * COLOR.rgb;
-	vec3 colour = art.a >= 0.5 ? art.rgb * tint : tint;
+	// The art is the albedo: it is NOT multiplied by the vertex colour (a furniture mesh carries
+	// its parts' tones there, which the art already paints). A clear texel shows the vertex colour.
+	vec3 colour = art.a >= 0.5 ? art.rgb * base_color.rgb : base_color.rgb * COLOR.rgb;
 	ALBEDO = top ? colour : colour * side_dim;
 	EMISSION = emissive.rgb * emissive.a * seen;
 	ROUGHNESS = 1.0 - figure;

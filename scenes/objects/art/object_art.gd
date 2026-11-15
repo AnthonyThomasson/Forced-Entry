@@ -136,6 +136,45 @@ static func tile_emissive(
 	return emissive(art, painter.tile_size(opts), color, Vector2.DOWN, _finished(opts, material))
 
 
+## The ALBEDO of an `art` piece with canonical footprint `size` (front +y, width across; a piece
+## facing left or right swaps its sides), for the 3D render's textured meshes: the painter with no
+## light (`PixelArt.render_flat`), in the run-down look, never turned (the caller turns the mesh).
+## `opts` are the painter's, with its `material`. Null for an unknown art id.
+static func flat(art: String, size: Vector2, color: Color, opts: Dictionary = {}) -> Texture2D:
+	if not PAINTERS.has(art):
+		push_error("ObjectArt: unknown art '%s'" % art)
+		return null
+	return PixelArt.render_flat(PAINTERS[art], size, _color(art, color), _art_opts(art, opts))
+
+
+## The emissive twin of `flat` (what the painter drew glowing; null when nothing does).
+static func emissive_flat(
+	art: String,
+	size: Vector2,
+	color: Color,
+	opts: Dictionary = {},
+) -> Texture2D:
+	if not PAINTERS.has(art):
+		return null
+	return PixelArt.emissive_flat(PAINTERS[art], size, _color(art, color), _art_opts(art, opts))
+
+
+## The `PixelArt.warm` request of `flat` for the same inputs (the district's pre-warm).
+static func flat_request(
+	art: String,
+	size: Vector2,
+	color: Color,
+	opts: Dictionary = {},
+) -> Dictionary:
+	return {
+		"painter": PAINTERS[art],
+		"size": size,
+		"color": _color(art, color),
+		"opts": _art_opts(art, opts),
+		"flat": true,
+	}
+
+
 ## The colour the run-down look draws `color` in: what a piece's debris and a wall's chips take, so
 ## they match its art.
 static func drawn_color(color: Color) -> Color:
@@ -180,6 +219,20 @@ static func light_kind(art: String, opts: Dictionary) -> String:
 		"noodle":
 			row = "menu_board" if kind == "menu" else ""
 	return row
+
+
+## The neon trims a piece drawn by `art` with `opts` can come in (`neon_for`'s answers): `[""]` for
+## a piece that never takes one, else with `"cyan"` and `"magenta"` too.
+static func neon_variants(art: String, opts: Dictionary) -> Array:
+	var kind := art
+	var own := light_kind(art, opts)
+	if BY_KIND.has(art):
+		kind = String(opts.get("kind", ""))
+	elif own != "":
+		kind = own
+	elif art == "table":
+		return [""]
+	return ["", "cyan", "magenta"] if ObjectArtLightConfig.neon_share.get(kind, 0.0) > 0.0 else [""]
 
 
 ## The neon a piece drawn by `art` with `opts` takes, picked per piece from `piece_seed`
