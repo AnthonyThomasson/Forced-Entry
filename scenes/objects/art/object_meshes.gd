@@ -7,9 +7,43 @@ extends RefCounted
 ## proxy box. Main's 3D view registers them (`register`) before it mirrors the match.
 
 const TableMesh = preload("res://scenes/objects/art/table_mesh.gd")
+const SofaMesh = preload("res://scenes/objects/art/sofa_mesh.gd")
+const ChairMesh = preload("res://scenes/objects/art/chair_mesh.gd")
+const CabinetMesh = preload("res://scenes/objects/art/cabinet_mesh.gd")
+const ShelfMesh = preload("res://scenes/objects/art/shelf_mesh.gd")
+const CounterMesh = preload("res://scenes/objects/art/counter_mesh.gd")
+const ApplianceMesh = preload("res://scenes/objects/art/appliance_mesh.gd")
+const BedMesh = preload("res://scenes/objects/art/bed_mesh.gd")
+const OfficeChairMesh = preload("res://scenes/objects/art/office_chair_mesh.gd")
+const ToiletMesh = preload("res://scenes/objects/art/toilet_mesh.gd")
+const BathMesh = preload("res://scenes/objects/art/bath_mesh.gd")
+const RugMesh = preload("res://scenes/objects/art/rug_mesh.gd")
+const PlantMesh = preload("res://scenes/objects/art/plant_mesh.gd")
+const LampMesh = preload("res://scenes/objects/art/lamp_mesh.gd")
+const CoatRackMesh = preload("res://scenes/objects/art/coat_rack_mesh.gd")
+const ReclinerMesh = preload("res://scenes/objects/art/recliner_mesh.gd")
+const FixtureMesh = preload("res://scenes/objects/art/fixture_mesh.gd")
+const HotplateMesh = preload("res://scenes/objects/art/hotplate_mesh.gd")
 ## The builder script per `ObjectArt` id.
 const BUILDERS := {
 	"table": TableMesh,
+	"sofa": SofaMesh,
+	"chair": ChairMesh,
+	"cabinet": CabinetMesh,
+	"shelf": ShelfMesh,
+	"counter": CounterMesh,
+	"appliance": ApplianceMesh,
+	"bed": BedMesh,
+	"office_chair": OfficeChairMesh,
+	"toilet": ToiletMesh,
+	"bath": BathMesh,
+	"rug": RugMesh,
+	"plant": PlantMesh,
+	"lamp": LampMesh,
+	"coat_rack": CoatRackMesh,
+	"recliner": ReclinerMesh,
+	"fixture": FixtureMesh,
+	"hotplate": HotplateMesh,
 }
 
 
