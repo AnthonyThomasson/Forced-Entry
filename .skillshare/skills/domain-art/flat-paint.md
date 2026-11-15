@@ -11,11 +11,13 @@ no light of its own. `render_flat(painter, size, color, opts := {})` paints the 
 - **Canonical, one texture.** No facing turn and no lighting step: the texture is the same whatever way the piece turns, so the
   caller turns the mesh, not the art. The key is `_key(...) + "|flat"`; 2D keys end `|f<turns>` or `|a<angle>`, so they and their
   pixels are untouched (`tests/art/flat_paint_albedo_test.gd`).
+- **Size is the canvas-canonical size.** Flat never swaps w/h for an odd turn (`render` does): a caller passes the footprint as
+  the painter draws it (front +y, width across), and turns the mesh, not the art.
 - **Emissive twin.** `emissive_flat(...)` is what the painter drew `glowing`, in the art's colours (null when nothing glows), filed
   from the same paint.
 - **Prewarm.** `PixelArt.warm` takes `{ painter, size, color, opts, "flat": true }` (no `facing`) beside `render` requests;
   `finish_warming` files them. The worker paints flat requests the same way (`_paint_images`).
-- **Painters that read `c.light` directly** degrade to a fixed side: cabinet takes its neutral front tone, plant its fixed lit
+- **Painters that read `c.light` directly** degrade to a fixed side: cabinet takes its neutral front tone (`base.darkened(0.05)`, so not plain albedo), plant its fixed lit
   side, sofa its fixed arm ridge; shadow_painter drags by zero (not meshed).
 - **Residue the flag cannot remove:** tones a painter picks by hand (`t.light` rim lines in table, wall, counter, head…) and
   its own `outline()` rings stay painted. A painter that must drop them reads `c.light == Vector2.ZERO` itself.

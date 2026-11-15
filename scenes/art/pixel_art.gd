@@ -3,10 +3,13 @@ class_name PixelArt
 ## Character, Items and Vehicles domains paint through). A PAINTER is any script with
 ## `static func paint(canvas: PixelCanvas, base: Color, material: String, opts: Dictionary)` that
 ## draws in a canonical frame — front toward +y, width across the front — under `canvas.light`,
-## the world light already turned into that frame. Two ways to orient the result:
+## the world light already turned into that frame. Two ways to orient the result (and a third,
+## unlit):
 ##   • render(): `facing` is a cardinal direction and the image itself is turned to it (furniture).
 ##   • render_turned(): the image stays canonical but is lit as if turned by `angle`; the caller
 ##     draws it rotated by that angle (freely turning things: characters, held items, vehicles).
+##   • render_flat() / emissive_flat(): the painter's unlit albedo for the 3D render, one canonical
+##     texture per piece (no facing, no angle), under the `|flat` key.
 ## Either way the lighting stays consistent in the world. Textures are cached by their inputs
 ## (static, so they survive scene reloads); a piece's random detail is seeded by its inputs minus
 ## its orientation, so it doesn't change as the piece turns.

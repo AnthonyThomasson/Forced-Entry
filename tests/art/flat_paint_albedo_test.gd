@@ -11,6 +11,9 @@ const Sofa := preload("res://scenes/objects/art/sofa_painter.gd")
 const Table := preload("res://scenes/objects/art/table_painter.gd")
 const SIZE := Vector2(32, 24)
 const COLOR := Color(0.5, 0.4, 0.3)
+## Pixel hashes of fresh 2D paints of the Table above, taken before `render_flat` existed.
+const GOLDEN_RENDER := { Vector2.DOWN: 488_484_433, Vector2.RIGHT: 1_056_853_277 }
+const GOLDEN_TURNED := 959_718_415
 
 
 func describe() -> Dictionary:
@@ -32,23 +35,37 @@ func run(t: TestContext) -> void:
 	_warm(t)
 
 
-## Rendering flat leaves the 2D art (its keys and pixels) as it was.
+## Rendering flat leaves the 2D art as it was: the keys keep their exact form, and a fresh
+## (uncached) paint of the non-flat path has the pixels it had before `render_flat` existed.
 func _two_d_untouched(t: TestContext) -> void:
-	var before := PixelArt.render(Probe, SIZE, COLOR, Vector2.DOWN, { "material": "ceramic" })
-	var before_data := before.get_image().get_data()
-	var keys_before := PixelArt._cache.size()
-	PixelArt.render_flat(Probe, SIZE, COLOR, { "material": "ceramic" })
-	t.check(PixelArt._cache.size() == keys_before + 1, "a flat render files exactly one entry")
-	var after := PixelArt.render(Probe, SIZE, COLOR, Vector2.DOWN, { "material": "ceramic" })
-	t.check(after == before, "the lit render is still the same cached texture")
-	t.check(after.get_image().get_data() == before_data, "and its pixels are unchanged")
-	for key: String in PixelArt._cache:
-		if key.ends_with("|flat"):
-			continue
+	var opts := { "material": "wood" }
+	var base := PixelArt._key(Table, SIZE, COLOR, opts)
+	PixelArt.render_flat(Table, SIZE, COLOR, opts)
+	for facing in [Vector2.DOWN, Vector2.RIGHT]:
+		var key := base + "|f%d" % PixelArt._turns(facing)
+		PixelArt._cache.erase(key)
+		var fresh := PixelArt.render(Table, SIZE, COLOR, facing, opts)
+		t.check(PixelArt._cache.get(key) == fresh, "render files %s under %s" % [facing, key])
 		t.check(
-			key.contains("|f") or key.contains("|a"),
-			"a 2D key keeps its |f / |a suffix: %s" % key,
+			hash(fresh.get_image().get_data()) == GOLDEN_RENDER[facing],
+			"a fresh 2D render facing %s has its old pixels (%d)" % [
+				facing,
+				hash(fresh.get_image().get_data()),
+			],
 		)
+	var turned_key := base + "|a%.4f" % 1.5
+	PixelArt._cache.erase(turned_key)
+	PixelArt._turned_memo.clear()
+	var turned := PixelArt.render_turned(Table, SIZE, COLOR, 1.5, opts)
+	t.check(PixelArt._cache.get(turned_key) == turned, "render_turned files %s" % turned_key)
+	t.check(
+		hash(turned.get_image().get_data()) == GOLDEN_TURNED,
+		"a fresh render_turned has its old pixels (%d)" % hash(turned.get_image().get_data()),
+	)
+	t.check(
+		PixelArt._flat_key(base) == base + "|flat" and base + "|flat" != base + "|f0",
+		"the flat key is the lit base key plus |flat, distinct from any 2D key",
+	)
 
 
 ## The probe's bevels, cast shadow and glare leave no trace on a flat canvas: every pixel of the
@@ -124,25 +141,32 @@ func _key_and_emissive(t: TestContext) -> void:
 	)
 
 
-## Painters that read `c.light` directly degrade to a fixed neutral side, the same every time.
+## Painters that read `c.light` directly paint a fixed neutral side: the same pixels whatever the
+## world light, and not the lit paint's.
 func _light_reading_painters(t: TestContext) -> void:
+	var light := ArtCanvasConfig.light_from
 	for painter: Script in [Cabinet, Plant, Sofa]:
+		var name := painter.resource_path.get_file()
 		var size := Vector2(40, 28)
-		var texture := PixelArt.render_flat(painter, size, COLOR)
-		t.require(texture != null, "%s paints flat" % painter.resource_path)
-		var image := texture.get_image()
+		var key := PixelArt._flat_key(PixelArt._key(painter, size, COLOR, {}))
+		var image := PixelArt.render_flat(painter, size, COLOR).get_image()
 		var drawn := 0
 		for y in image.get_height():
 			for x in image.get_width():
 				if image.get_pixel(x, y).a > 0.0:
 					drawn += 1
-		t.check(drawn > 0, "%s draws something" % painter.resource_path.get_file())
-		PixelArt._cache.erase(PixelArt._flat_key(PixelArt._key(painter, size, COLOR, {})))
-		t.check(
-			PixelArt.render_flat(painter, size, COLOR).get_image().get_data()
-				== image.get_data(),
-			"%s repaints identically (seeded, no light)" % painter.resource_path.get_file(),
-		)
+		t.check(drawn > 0, "%s draws something" % name)
+		for turn in [1.0, 2.5, 4.0]:
+			PixelArt._cache.erase(key)
+			ArtCanvasConfig.light_from = light.rotated(turn)
+			var again := PixelArt.render_flat(painter, size, COLOR).get_image()
+			ArtCanvasConfig.light_from = light
+			t.check(
+				again.get_data() == image.get_data(),
+				"%s flat pixels ignore a world light turned by %s" % [name, turn],
+			)
+		var lit := PixelArt.render(painter, size, COLOR, Vector2.DOWN).get_image()
+		t.check(lit.get_data() != image.get_data(), "%s flat is not the lit paint" % name)
 
 
 ## A flat warm request is filed under the |flat key with the synchronous paint's pixels.
