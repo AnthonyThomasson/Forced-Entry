@@ -21,7 +21,7 @@ unshaded overlays), 24 (the door contract).
 | `door/` (`door.gd` and its parts), `door_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
 | `collider_cuts.gd` (`ColliderCuts`) | The shared queue of convex collider cuts, run on worker threads. |
 | `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`, `decal_factory.gd` (`DecalFactory`: the floor stencil and the tower shadow). |
-| `art/` | The painters and their holders (the door's: `art/door_painter.gd`): `art.md`. |
+| `art/` | The painters and their holders (the door's: `art/door_painter.gd`): `art.md`. `art.md`. |
 
 Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry, colliders and look data and never draw; their
 `*_visuals` child `Node2D`s read them and draw. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`),

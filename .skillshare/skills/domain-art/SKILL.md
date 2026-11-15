@@ -6,7 +6,7 @@ description: Use when editing scenes/art/, writing or debugging a painter (furni
 # Art domain (`scenes/art/`)
 
 A leaf: the procedural pixel-art engine. It knows nothing of furniture, characters or items; each domain owns its painters and
-renders them through here. Depends only on Godot's `Image` (and, for the 3D mirror, General's `RenderConfig`). Interfaces: 12 (Objects / Character / Items / Vehicles → Art), 13
+renders them through here. Depends only on Godot's `Image` (and, for the 3D mirror, General's `RenderConfig`). Interfaces: 12 (Objects / Character / Items / Vehicles → Art, the mesh kit too), 13
 (a sandbox's own painter, as an assets ticket's showroom has) and 27 (the 3D mirror).
 
 | File | Role |
@@ -15,7 +15,8 @@ renders them through here. Depends only on Godot's `Image` (and, for the 3D mirr
 | `pixel_canvas.gd` (`PixelCanvas`) | The drawing surface: RGBA image plus coverage and height layers; shading, finishes, `glowing`. |
 | `pixel_shape.gd` (`PixelShape`), `pixel_convex_shape.gd` (`PixelConvexShape`) | The shapes a canvas fills. |
 | `mirror/` (`WorldMirror`, `MirrorProxy`, `MirrorConfig`) | The 3D mirror of the 2D bodies (below). |
-| `post/` (`PixelPostConfig`, `ToonMaterial`, `PixelPost`, `toon.gdshader`, `outline.gdshader`) | The pixel post of the 3D render: the toon material and the outline pass (below). |
+| `post/` (`PixelPostConfig`, `ToonMaterial`, `ToonMask`, `PixelPost`, `toon.gdshader`, `decal.gdshader`, `outline.gdshader`) | The pixel post of the 3D render: the toon material (the one every mesh shares, with phase 3's vision-mask globals) and the outline pass (below). |
+| `mesh/` (`MeshKit`, `MeshCache`, `MeshNodes`, `MeshKitConfig`) | The mesh kit: code-built low-poly solids, the mesh cache, the node and decal helpers every domain's 3D meshes are built from (`meshes.md`). |
 | `art_canvas_config.gd`, `art_surface_config.gd` | Tuning: `ArtCanvasConfig` is what every painting shares (`pixel_size`, `light_from`, `turn_steps`, drop and cast shadow); `ArtSurfaceConfig` is how a surface is shaded (the `tones(base)` ramp, finish densities). A domain's own proportions and colours stay in its own config (`ObjectArt*Config`, `CharacterArtConfig`); a painter knob reads `opts.get(key, <DomainConfig>.<painter>_<key>)`. |
 
 ## Painters
@@ -62,20 +63,23 @@ a proxy per collision shape (a box, a cylinder, a character's capsule; floors fl
 `RigidBody2D` (read once more as it falls asleep), check a freed shape untyped (`is_instance_valid` on a Variant), add a spawned body or floor on the next
 frame (its `_ready` builds its shapes first; a floor joins `floors` there), drop a despawned body's proxies. A shape added to or removed from a mirrored body
 (a hit wall's rebuilt colliders) re-mirrors it; a proxy is hidden while its shape is disabled (a seated character) or its body's own `visible` is false.
-`builders` (body kind -> `Callable(body) -> Node3D` in 3D units, `FURNITURE` for every `ObjectArt` kind) is the hook a domain's own mesh plugs into (phase 2
-of #193); a non-physics drawn thing (dropped item, debris, bullet) has no 3D counterpart until then; `MirrorConfig` holds the proxy heights and colours.
-Tests: `tests/art/mirror_follows_bodies_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`, `mirror_hides_seated_character_test.gd`, `mirror_mesh_hook_test.gd`. Shaders compile only windowed, so a change to a shader needs one windowed run (`tools/run_tests.sh --windowed`).
+`builders` (hook key -> `Callable(node) -> Node3D` in 3D units: a kind, `FURNITURE` for every `ObjectArt` piece, or a finer key for one art id; `FLOOR` for the floors) is the hook a domain's own mesh plugs into
+(`meshes.md`); `track(node, builder)` and `track_group(group, builder)` mirror a drawn thing that is no physics body (a dropped item, debris, a bullet) by the same rules;
+`MirrorConfig` holds the proxy heights and colours. **Giving a domain's things a 3D mesh: `meshes.md`** (the kit, units, colours from the tones, cache keys, heights, where meshes live); the hook's keys and rules, and the vision-mask globals: `mesh-hook.md`.
+Tests: `tests/art/mirror_follows_bodies_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`, `mirror_hides_seated_character_test.gd`, `mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mesh_kit_suite.gd`. Shaders compile only windowed, so a change to a shader needs one windowed run (`tools/run_tests.sh --windowed`).
 
 ## The pixel post (`post/`, interface 27)
 
 The 3D picture is made to read as pixel art (#193 rule 6): drawn at a low internal resolution (General's `RenderConfig.internal_lines`) and shown with nearest
-filtering, through two things Art owns, tuned in `PixelPostConfig` (ADR 0003). **`ToonMaterial.make()`** is the one `ShaderMaterial` (`toon.gdshader`) every mesh of
+filtering, through two things Art owns, tuned in `PixelPostConfig` (ADR 0003). **`ToonMaterial.shared()`** (made by `make()`) is the one `ShaderMaterial` (`toon.gdshader`) every mesh of
 the 3D view shares, a colour per instance (`base_color`, an instance uniform): the light's N.L times the shadow steps into `bands` bands (3), each a tone of
 `ArtSurfaceConfig.tones` (the ramp as `(mul, lift)`: a tone is `base * mul + (1 - base) * lift`), no ambient. **`PixelPost.attach(camera, oversample)`** adds the
 outline quad (`outline.gdshader`) under the view's camera: a dark line where the depth's second difference steps (a silhouette, `silhouette_px` wide) or the normal
 creases (`crease_px`), so a floor seen at an angle stays clean. `supersample` is the shimmer mitigation of a turning camera (Main's `View3D` renders larger and
-averages down). Tests: `tests/art/mirror_proxies_use_toon_material_test.gd`, `tests/general/pixel_post_view_test.gd`; the look itself is only judged windowed
-(`general/render_3d_match_windowed`, `art/pixel_post_shimmer`).
+averages down). A face of a mesh-kit mesh carries its own colour in the vertex colour (`COLOR`, times the instance's `base_color`). Three **global shader uniforms** (`ToonMask`:
+`vision_mask`, `vision_mask_xf`, `vision_unseen`; default "everything visible") are phase 3's vision-mask hook, read by `toon.gdshader` and the kit's `decal.gdshader`, so the
+vision job needs no per-mesh edit (`meshes.md`). Tests: `tests/art/mirror_proxies_use_toon_material_test.gd`, `tests/general/pixel_post_view_test.gd`; the look itself is only judged windowed
+(`general/render_3d_match_windowed`, `art/pixel_post_shimmer`, `art/toon_vision_hook_windowed`).
 
 ## PixelCanvas gotchas
 

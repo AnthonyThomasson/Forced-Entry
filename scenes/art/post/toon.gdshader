@@ -6,13 +6,33 @@ render_mode specular_disabled, diffuse_lambert, ambient_light_disabled;
 // domain's `ArtSurfaceConfig.tones` ramp; there is no ambient term, the shadow tone is the floor.
 // count = 0 steps nothing: a smooth ramp, the unposted reference.
 
+// The mesh kit's faces carry their own colour (the vertex colour, white on a mesh without one);
+// base_color tints the whole instance. The three globals are phase 3's vision hook (Art,
+// `toon_mask.gd`): a spot of the ground the mask leaves unseen keeps only vision_unseen of its
+// light, and the default (vision_unseen 1) shows everything.
+
+global uniform sampler2D vision_mask : repeat_disable, filter_linear;
+global uniform vec4 vision_mask_xf;
+global uniform float vision_unseen;
+
 instance uniform vec4 base_color : source_color = vec4(0.7, 0.7, 0.7, 1.0);
 uniform int count = 3;
 uniform vec2 ramp[5];
 uniform int pick[5];
 
+varying float seen;
+
 void fragment() {
-	ALBEDO = base_color.rgb;
+	// The mask is read only while one is set (vision_unseen below 1: a uniform branch), so the
+	// default costs the fragment nothing. It scales the light (light() below), not the albedo:
+	// the highlight term adds (1 - ALBEDO), which a dimmed albedo would brighten.
+	seen = 1.0;
+	if (vision_unseen < 1.0) {
+		vec3 world_pos = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		vec2 mask_uv = world_pos.xz * vision_mask_xf.xy + vision_mask_xf.zw;
+		seen = mix(vision_unseen, 1.0, textureLod(vision_mask, mask_uv, 0.0).r);
+	}
+	ALBEDO = base_color.rgb * COLOR.rgb;
 	ROUGHNESS = 1.0;
 }
 
@@ -25,6 +45,6 @@ void light() {
 	} else {
 		tone = mix(ramp[0], ramp[4], lit);
 	}
-	DIFFUSE_LIGHT += vec3(tone.x);
-	SPECULAR_LIGHT += (vec3(1.0) - ALBEDO) * tone.y;
+	DIFFUSE_LIGHT += vec3(tone.x) * seen;
+	SPECULAR_LIGHT += (vec3(1.0) - ALBEDO) * tone.y * seen;
 }

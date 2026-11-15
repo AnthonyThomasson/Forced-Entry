@@ -8,6 +8,12 @@ the painters' textures and `LightOccluder2D`s still are until phase 3 deletes th
 the hidden 2D world every frame, is stopped in 3D (`PlayerView.capture_on`); the memory is not painted from the world until phase 3 projects the view. The spike measured its win (2D 18.8 ms, 3D proxies 11.1 ms mean at 1152x648 in the 10v10
 district) with none of that 2D work, so the rest of it is carried to those jobs; height is visual only.
 
+**The meshes (phase 2).** Each domain owns the mesh of what it owns, as it owns its painters; Art gives them one kit (`MeshKit`, `MeshCache`, `MeshNodes`: low-poly
+solids built in code in the art's px, converted by `RenderConfig.unit` in one place, one colour per face, one `Mesh` per distinct input) and the mirror one hook:
+`builders[key]`, a kind or a finer key for one art id, `track` and `track_group` for what is drawn but no physics body. A domain registers its builders and Main plugs them into the
+mirror, so Art imports none of them and a body with no builder is still its proxy. The toon material also carries phase 3's vision mask as global shader uniforms (default: everything
+visible), so the mask needs no per-mesh edit. The design did not shift: the mirror's mapping, update rule and fallback are as above.
+
 ## Considered options
 
 - **Move the simulation to 3D.** Grenade arcs, real line-of-sight cover, storeys, a 3D ragdoll and 3D navigation, but it rewrites the physics,

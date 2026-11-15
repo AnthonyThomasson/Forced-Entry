@@ -15,8 +15,9 @@ const VEHICLE := &"vehicle"
 const FURNITURE := &"furniture"
 const FLOOR := &"floor"
 
-## The one material every proxy shares (a colour per instance).
-var _material := ToonMaterial.make()
+## The one material every proxy shares (a colour per instance), the one a domain's own meshes
+## share too, pushed the holders' tuning anew with each mirror.
+var _material := ToonMaterial.shared()
 ## The unit box and unit cylinder every box and cylinder proxy shares, scaled by its node.
 var _box := BoxMesh.new()
 var _cylinder := CylinderMesh.new()
@@ -25,6 +26,7 @@ var _capsules: Dictionary = {}
 
 
 func _init() -> void:
+	ToonMaterial.refresh_all()
 	_box.size = Vector3.ONE
 	_cylinder.top_radius = 1.0
 	_cylinder.bottom_radius = 1.0
@@ -45,6 +47,27 @@ static func kind_of(body: Node) -> StringName:
 	if body.get("wall_thickness") != null:
 		return WALL
 	return FURNITURE
+
+
+## The hook key of the furniture painted by `art` (an `ObjectArt` id): a builder under it wins over
+## the `FURNITURE` kind's, for a piece of that art alone.
+static func furniture_key(art: String) -> StringName:
+	return StringName("%s:%s" % [FURNITURE, art])
+
+
+## The hook key of the floor painted by `art`: a builder under it wins over `FLOOR`'s.
+static func floor_key(art: String) -> StringName:
+	return StringName("%s:%s" % [FLOOR, art])
+
+
+## The art id of `node`, read duck-typed: a piece's `look.art`, a floor's `art`; "" for a node that
+## names none.
+static func art_of(node: Node) -> String:
+	var look: Variant = node.get("look")
+	if look is Object and (look as Object).get("art") is String:
+		return (look as Object).get("art")
+	var own: Variant = node.get("art")
+	return own if own is String else ""
 
 
 ## The proxy of `shape_node` (a CollisionShape2D of `body`, of `kind`) as a row, or {} for a shape
@@ -81,7 +104,7 @@ func make(body: PhysicsBody2D, kind: StringName, shape_node: CollisionShape2D) -
 
 ## The row of a mesh a domain's builder made for `body` (`WorldMirror.builders`): the node follows
 ## the whole body, so its origin and turn are the body's.
-func own_row(body: PhysicsBody2D, node: Node3D) -> Dictionary:
+func own_row(body: Node2D, node: Node3D) -> Dictionary:
 	return {
 		"node": node, "shape": body, "body": body, "last": Transform2D(), "size3": Vector3.ONE,
 		"half_height": 0.0, "offset": Vector2.ZERO, "rigid": body if body is RigidBody2D else null,

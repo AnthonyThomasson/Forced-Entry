@@ -17,13 +17,18 @@ extends Node3D
 ## disabled (a character seated in a vehicle) or its body's own `visible` is false, and shown again
 ## when they are not; a character who dies is hidden (the ragdoll's mirror is a later job).
 ##
-## A domain's own mesh replaces the proxy per body kind through `builders` (kind -> `Callable`:
+## A domain's own mesh replaces the proxy per body kind through `builders` (key -> `Callable`:
 ## `(body: Node2D) -> Node3D`, a node of the body's own mesh in a local frame where its origin is
 ## the body's, or null to keep the proxy); the node then follows the body's whole transform instead
-## of a shape's, and the kinds are `MirrorProxy.WALL`, `DOOR`, `CHARACTER`, `VEHICLE` and
-## `FURNITURE`.
+## of a shape's. The keys are the kinds `MirrorProxy.WALL`, `DOOR`, `CHARACTER`, `VEHICLE`,
+## `FURNITURE` and `FLOOR`, and a finer key for one art id (`MirrorProxy.furniture_key`,
+## `floor_key`) that wins over its kind. A floor's builder is given the floor and returns its mesh
+## in a frame whose origin is the floor's corner. A thing drawn that is no physics body (a dropped
+## item, a bullet, debris) is mirrored the same way by `track` (one node) and `track_group` (every
+## node of a group, as it joins).
 
-## The mesh hook: kind -> `Callable(body) -> Node3D`. Set before `mirror()`.
+## The mesh hook: key (a kind, or a finer key) -> `Callable(node) -> Node3D`. Set before
+## `mirror()`.
 var builders: Dictionary = {}
 ## How many proxies exist, how many moving ones an update read and how many it wrote (the
 ## numbers the tests and the perf probes read).
@@ -39,6 +44,8 @@ var _moving: Array[Dictionary] = []
 ## Bodies and floors that entered the tree (or gained or lost a collision shape) since the last
 ## update, mirrored next.
 var _pending: Dictionary = {}
+## Group name -> the `Callable` that builds the mesh of a node of that group (`track_group`).
+var _group_builders: Dictionary = {}
 
 
 func _exit_tree() -> void:
@@ -58,7 +65,10 @@ func mirror(root: Node) -> void:
 		if root.is_ancestor_of(floor_node):
 			_add_floor(floor_node as Node2D)
 	for body: Node in root.find_children("*", "PhysicsBody2D", true, false):
-		_add_body(body as PhysicsBody2D)
+		if not _tracked_by_group(body):
+			_add_body(body as PhysicsBody2D)
+	for group: StringName in _group_builders:
+		_scan_group(group)
 	if not root.get_tree().node_added.is_connected(_on_node_added):
 		root.get_tree().node_added.connect(_on_node_added)
 
@@ -69,6 +79,28 @@ func proxies_of(body: Node) -> Array[Node3D]:
 	for row: Dictionary in _rows.get(body.get_instance_id(), []):
 		out.append(row["node"])
 	return out
+
+
+## Show `node` (a `Node2D` that is no physics body: a dropped item, a bullet) by the mesh
+## `builder(node)` makes, a `Node3D` in 3D units in a frame whose origin is the node's, followed
+## like a body: written only when the node's transform changed, hidden with the node's `visible`,
+## freed when the node leaves the tree. The node must be in the tree. Returns the mesh, or null
+## when the builder gave none.
+func track(node: Node2D, builder: Callable) -> Node3D:
+	var made: Variant = builder.call(node)
+	if not made is Node3D:
+		return null
+	_drop(node)
+	_add_tracked(node, made)
+	return made
+
+
+## Track every node of `group` under the mirrored root with `builder`: the ones already there now,
+## the others as they join (mirrored on the next frame, once their `_ready` has run, as a body is).
+## A node of a tracked group that is a physics body is shown by the builder, not by proxies.
+func track_group(group: StringName, builder: Callable) -> void:
+	_group_builders[group] = builder
+	_scan_group(group)
 
 
 ## One frame of following: mirror what spawned, then write the proxy of each moving body whose 2D
@@ -126,11 +158,22 @@ func _mirror_pending() -> void:
 	for node: Variant in batch:
 		if not is_instance_valid(node) or not (node as Node).is_inside_tree():
 			continue
+		if _tracked_by_group(node):
+			continue
 		if node is PhysicsBody2D:
 			_add_body(node as PhysicsBody2D)
 		elif ((node as Node).is_in_group(&"floors")
 				and not _rows.has((node as Node).get_instance_id())):
 			_add_floor(node as Node2D)
+
+
+## Queue the nodes of `group` already under the root to be tracked on the next update.
+func _scan_group(group: StringName) -> void:
+	if _root == null:
+		return
+	for node: Node in _root.get_tree().get_nodes_in_group(group):
+		if _root.is_ancestor_of(node) and node is Node2D:
+			_pending[node.get_instance_id()] = node
 
 
 ## A node entered the tree: a physics body under the root, or a node that may turn out a floor
@@ -139,7 +182,11 @@ func _mirror_pending() -> void:
 func _on_node_added(node: Node) -> void:
 	if _root == null or not _root.is_ancestor_of(node):
 		return
-	if node is PhysicsBody2D or _may_be_floor(node):
+	if (
+		node is PhysicsBody2D
+		or _may_be_floor(node)
+		or (not _group_builders.is_empty() and node is Node2D)
+	):
 		_pending[node.get_instance_id()] = node
 
 
@@ -184,8 +231,9 @@ func _add_body(body: PhysicsBody2D) -> void:
 func _rows_of(body: PhysicsBody2D) -> Array[Dictionary]:
 	var kind := MirrorProxy.kind_of(body)
 	var rows: Array[Dictionary] = []
-	if builders.has(kind):
-		var made: Variant = (builders[kind] as Callable).call(body)
+	var builder := _builder_for(body, kind)
+	if builder.is_valid():
+		var made: Variant = builder.call(body)
 		if made is Node3D:
 			rows.append(_proxies.own_row(body, made))
 			return rows
@@ -199,13 +247,69 @@ func _rows_of(body: PhysicsBody2D) -> Array[Dictionary]:
 	return rows
 
 
-## Mirror a floor as a flat slab; it never moves.
+## The builder of `node` of `kind`: the one under its finer key (kind and art id), else the kind's;
+## an invalid `Callable` for none.
+func _builder_for(node: Node, kind: StringName) -> Callable:
+	if kind == MirrorProxy.FURNITURE or kind == MirrorProxy.FLOOR:
+		var art := MirrorProxy.art_of(node)
+		var key := MirrorProxy.floor_key(art) if kind == MirrorProxy.FLOOR else (
+			MirrorProxy.furniture_key(art)
+		)
+		if art != "" and builders.has(key):
+			return builders[key]
+	return builders.get(kind, Callable())
+
+
+## Mirror a floor: its kind's own mesh when a builder gives one (in a frame at the floor's corner),
+## else a flat slab; it never moves.
 func _add_floor(floor_node: Node2D) -> void:
-	var row := _proxies.make_floor(floor_node)
+	var row := {}
+	var builder := _builder_for(floor_node, MirrorProxy.FLOOR)
+	if builder.is_valid():
+		var made: Variant = builder.call(floor_node)
+		if made is Node3D:
+			row = _proxies.own_row(floor_node, made)
+			(made as Node3D).transform = MirrorProxy.lift(floor_node.global_transform, row)
+	if row.is_empty():
+		row = _proxies.make_floor(floor_node)
 	add_child(row["node"])
 	count += 1
 	_rows[floor_node.get_instance_id()] = [row]
 	_watch(floor_node)
+
+
+## Whether `node` is of a tracked group (`track_group`): it is then shown by that group's builder.
+## Returns true once it is tracked (or the builder gave none and the node is left to its proxies).
+func _tracked_by_group(node: Node) -> bool:
+	if _group_builders.is_empty() or not node is Node2D:
+		return false
+	var rows: Array = _rows.get(node.get_instance_id(), [])
+	if not rows.is_empty() and (rows[0] as Dictionary).get("tracked", false):
+		return true  # already shown by its group's builder: not built twice
+	for group: StringName in _group_builders:
+		if node.is_in_group(group):
+			var made: Variant = (_group_builders[group] as Callable).call(node)
+			if made is Node3D:
+				_drop(node)
+				_add_tracked(node as Node2D, made)
+				return true
+	return false
+
+
+## Show `node` by `made` and follow it like a moving body.
+func _add_tracked(node: Node2D, made: Node3D) -> void:
+	var row := _proxies.own_row(node, made)
+	row["tracked"] = true
+	add_child(made)
+	count += 1
+	var xf := node.global_transform
+	made.transform = MirrorProxy.lift(xf, row)
+	row["last"] = xf
+	row["shown"] = _shown(row)
+	made.visible = row["shown"]
+	_moving.append(row)
+	_rows[node.get_instance_id()] = [row]
+	_watch(node, false)
 
 
 ## Drop `body`'s proxies (freed at once, so the count is exact) and its rows.
@@ -235,13 +339,14 @@ func _shown(row: Dictionary) -> bool:
 	return (body as CanvasItem).visible
 
 
-## Watch `body` leave the tree, gain or lose a collision shape and, if it can die, die.
-func _watch(body: Node) -> void:
+## Watch `body` leave the tree, gain or lose a collision shape (`shapes`: not for a node that is
+## shown by a mesh of its own) and, if it can die, die.
+func _watch(body: Node, shapes := true) -> void:
 	var leaving := _on_body_exiting.bind(body)
 	if not body.tree_exiting.is_connected(leaving):
 		body.tree_exiting.connect(leaving)
 	var changed := _on_shape_changed.bind(body)
-	if not body.child_entered_tree.is_connected(changed):
+	if shapes and not body.child_entered_tree.is_connected(changed):
 		body.child_entered_tree.connect(changed)
 		body.child_exiting_tree.connect(changed)
 	if body.has_signal(&"died"):

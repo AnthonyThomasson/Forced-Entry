@@ -352,6 +352,16 @@ The coloured box, cylinder or capsule the 3D mirror shows a collision shape as, 
 until a domain's own mesh replaces it through the mirror's hook.
 _Avoid_: placeholder, stand-in
 
+**Mesh kit**:
+Art's code-built low-poly solids (`MeshKit`: box, wedge, cylinder, extrude, loft), their cache (`MeshCache`: the same inputs, the same `Mesh`) and node helpers (`MeshNodes`: the
+shared toon material, a decal), in the art's px so a builder never multiplies by `RenderConfig.unit`. Each domain builds the meshes of its own things from it, beside its painters.
+_Avoid_: model, asset (no model files are imported)
+
+**Mesh hook**:
+The mirror's `builders`, a key (a body kind, or a finer key for one `ObjectArt` id) to the domain's function that builds a body's mesh; with `track` / `track_group` for drawn things that are no physics body.
+A body no builder answers keeps its proxy.
+_Avoid_: plugin, mesh registry
+
 **Pixel post**:
 What makes the 3D picture read as pixel art (`PixelPostConfig`, Art): the scene is drawn at a low internal resolution (`RenderConfig.internal_lines`,
 216 rows at a 648-high window, so a picture pixel is a whole 3 screen pixels) and shown with nearest filtering, through one toon material that steps

@@ -26,12 +26,10 @@
         once more as it falls asleep, for its last step); a body that never moves is written once. A freed shape is checked untyped
         (`is_instance_valid` on a Variant). Read-outs for tests and probes: `count` (proxies), `followed` (moving proxies read last update),
         `written`, `proxies_of(body) -> Array[Node3D]`.
-      - **The mesh hook** (phase 2's `meshkit` and the domains' meshes plug in here): `builders: Dictionary`, body kind -> `Callable(body:
-        Node2D) -> Node3D`, set before `mirror()`; the kinds are `MirrorProxy.WALL`, `DOOR`, `CHARACTER`, `VEHICLE`, `FURNITURE`. A node it returns
-        replaces the kind's per-shape proxies and follows the **body's** whole transform (a local frame whose origin is the body's, turned about
-        the up axis by the 2D turn); null keeps the proxy. A builder returns its node in **3D units** (it applies `RenderConfig.unit` itself); `FURNITURE` covers every `ObjectArt`
-        kind (the builder dispatches on the piece). A floor is not a body and has no hook yet; floors are mirrored when `mirror()` runs and when
-        one joins the `floors` group mid-match.
+      - **The mesh hook** (full rules `domain-art/mesh-hook.md`): `builders: Dictionary`, a key -> `Callable(node: Node2D) -> Node3D` in **3D units**, set before
+        `mirror()` (Main's `_register_meshes()` calls each domain's `register(mirror.builders)`). Keys: a kind (`MirrorProxy.WALL`, `DOOR`, `CHARACTER`, `VEHICLE`, `FURNITURE`, `FLOOR`) or a finer key that wins
+        (`MirrorProxy.furniture_key(art)`, `floor_key(art)`). The node replaces the body's proxies and follows it; null or no key keeps the proxy. `track(node, builder)` and
+        `track_group(group, builder)` do the same for drawn things that are no physics body (dropped items, bullets).
     - **`CameraRig`** (`general/camera_rig.gd`, `class_name`, a `Node3D` that owns an orthographic `Camera3D` as `camera`): `bind(source: Camera2D,
       viewport: SubViewport, rect: Control = null)` follows the sim's `Camera2D`, which stays the focus, zoom and shake source (Sound, the cull and
       the tests read it): each frame the camera frames `source.get_screen_center_position()` (focus plus shake offset) at `source.zoom` (the ortho
@@ -54,5 +52,5 @@
       they lie flat on the 3D floor at any yaw, over the picture and under the HUD. Look an overlay up with `OverlayRegistry.overlays_of` / `overlay_of`. Outside the cone the composite dims the 3D ground by `unseen_dim` (not black) until phase 3's memory.
     - **Tuning:** `RenderConfig` (General: the camera, the picture's lines, `canvas_layer`, `vision_layer`, `overlay_layer`, `turn_speed_degrees`, `unseen_dim`),
       `RenderLightConfig` (General, the interim sun and ambient until the lighting job moves them to Lighting), `MirrorConfig` and `PixelPostConfig` (Art).
-    - **Not yet:** things drawn that are not physics bodies (dropped items, debris, bullets, casings, grenades in flight) have no 3D counterpart until
-      phase 2; the meshes are proxies (phase 2).
+    - **The vision hook** (phase 3's mask): global shader uniforms, `ToonMask.set_mask(texture, world_rect_px, unseen_brightness)` / `clear()`; default everything visible.
+    - **Not yet:** meshes are proxies but for the table (Objects' `ObjectMeshes`, the pattern); the rest are phase 2's per-domain jobs.

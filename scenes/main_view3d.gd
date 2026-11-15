@@ -103,7 +103,14 @@ func _show(oversample: int) -> void:
 
 ## Mirror the 2D bodies under `world`: from now on the view follows them.
 func mirror_world(world: Node) -> void:
+	_register_meshes()
 	mirror.mirror(world)
+
+
+## Plug each domain's own meshes into the mirror (its builders, `WorldMirror.builders`), so a body
+## of a kind that has one is shown by it and the rest by their proxies.
+func _register_meshes() -> void:
+	ObjectMeshes.register(mirror.builders)
 
 
 ## One directional light with hard shadows (`RenderLightConfig`).

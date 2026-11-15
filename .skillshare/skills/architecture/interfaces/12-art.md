@@ -29,6 +29,14 @@
     - A painter's options carry a big look (a character style's resolved look, a weapon style's colours) as an int handle, never the look
 	  itself: `PixelArt.handle(look) -> int` registers it (the look's hash), `PixelArt.look_of(opts) -> Dictionary` reads `opts.look` back
 	  (`{}` for none); the Character's and Items' painters and their callers use them.
+    - **The mesh kit** (`art/mesh/`, the 3D render's counterpart of the painters; how-to `domain-art/meshes.md`) — each domain builds its own meshes from it, beside its painters:
+      `MeshKit` (instance; works in px, `build() -> ArrayMesh` converts with `RenderConfig.unit` once): `MeshKit.volume(footprint: Rect2, base, height) -> AABB`, `box(volume, color,
+      top_color)`, `wedge(volume, rises_toward: Vector2, color, top_color)`, `cylinder(at: Vector3, radius, height, color, top_color)` (`sides`), `extrude(polygon, base, height, color,
+      top_color)` (a prism is a triangle extruded), `loft(path: PackedVector3Array, profile: PackedVector2Array, color)`; each returns the kit; flat-shaded, a colour per face in the
+      vertex colour; `MeshKit.tone(base, name)` picks a tone of `ArtSurfaceConfig.tones`. `MeshCache.key(id, size, color, opts)` + `MeshCache.fetch(key, make) -> Mesh`: the same inputs, the
+      same `Mesh` (the key holds `RenderConfig.unit`). `MeshNodes.instance(mesh, tint, casts_shadow) -> MeshInstance3D` (the shared toon material, `ToonMaterial.shared()`), `place(node, at_px, yaw)`,
+      `surface_frame(at, normal, spin) -> Transform3D` and `decal(size, frame, texture, tint) -> MeshInstance3D` (a flat quad on a surface, `decal.gdshader`, the texture's alpha cuts it).
+      The mirror's hook that takes the meshes is interface 27. Reached by the domains that own a mesh (Objects now; Character, Items and Vehicles as their jobs land, Projectile and Physics for their effects), through the builders they register; Art imports nothing from them.
     - Tuning: `ArtCanvasConfig` (static holder: the art pixel's size, where the light falls from, the turn steps, the drop and cast
 	  shadows), `ArtSurfaceConfig` (tone ramp, tone jitter, surface finishes).
 
