@@ -7,7 +7,7 @@ class_name MirrorConfig
 ## How tall each kind of body stands: a wall (full height), a door's leaf, a character, a vehicle.
 static var wall_height: float = 96.0
 static var door_height: float = 84.0
-static var character_height: float = 58.0
+static var character_height: float = 74.0
 static var vehicle_height: float = 40.0
 ## A piece of furniture is its footprint's narrow side times this, clamped between its own least
 ## (never more than the footprint's narrow side, so a casing stays a speck) and most.

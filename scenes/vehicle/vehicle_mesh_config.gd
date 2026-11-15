@@ -7,7 +7,7 @@ class_name VehicleMeshConfig
 ## as `VehicleMeshConfig.<name>` (ADR 0003). Lengths are 2D pixels, the art's units: the mesh kit
 ## converts them to 3D units in one place, so nothing here is multiplied by `RenderConfig.unit`.
 
-## Per kind, heights above the ground (a standing character is 58): `sill` the underside of the
+## Per kind, heights above the ground (a standing character is 74): `sill` the underside of the
 ## body (the wheels stand in the gap), `belt` the top of the body and of the doors, `roof` the top
 ## of the cabin, `lamp` the [low, high] of the head and tail lamps.
 static var heights := {

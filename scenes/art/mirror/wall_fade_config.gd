@@ -15,7 +15,7 @@ static var fade_time: float = 0.25
 ## pixels): 1 whole, 0 gone. Low enough to see the character through, not gone, so a wall still
 ## reads as a wall.
 static var faded_amount: float = 0.2
-## A piece fades only if it stands at least this tall (a standing character is 58, a wall 96):
+## A piece fades only if it stands at least this tall (a standing character is 74, a wall 96):
 ## a low table or crate never hides anyone, so it is never looked at.
 static var tall_height: float = 48.0
 ## The character's half width: a piece fades when the line from a focus to the camera passes within

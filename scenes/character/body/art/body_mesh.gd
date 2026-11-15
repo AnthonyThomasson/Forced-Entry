@@ -53,9 +53,10 @@ const NECK := 23
 ## The held item's node, after the parts (it is not one of the character's own).
 const HELD := 24
 ## The parts too small to throw a shadow worth its cost (the face's band, the fists, the plates, the
-## shoes and a boot's shaft, the hair and the headwear): the other twelve parts cast one.
+## shoes and a boot's shaft, the hair, the headwear and the neck): twelve of the twenty-four, the
+## other twelve cast one.
 const SMALL := [
-	PLATE, PLATE + 1, HAIR, HEADWEAR, FACE, HAND, HAND + 1, BOOT, BOOT + 1, FOOT, FOOT + 1,
+	PLATE, PLATE + 1, HAIR, HEADWEAR, FACE, HAND, HAND + 1, BOOT, BOOT + 1, FOOT, FOOT + 1, NECK,
 ]
 ## The joints and the flat directions the pose is made from, in one array to compare a frame's with
 ## the last: the rig's seventeen joints, the two feet's toes and the face, and what the held item
@@ -71,6 +72,8 @@ const TURNED := 0.02
 ## shin it is.
 const BOOT_TOP := 0.62
 const BOOT_GROW := 1.05
+## A shoe's length over the 2D art's foot (`CharacterBodyConfig.foot`): a shoe is about a head long.
+const SHOE_LENGTH := 0.8
 ## How many physics frames a fallen body's joints take to rise to their clearance over the floor.
 const LIE_FRAMES := 18
 ## The held item's sample: its index among the joints.
@@ -269,6 +272,7 @@ func _dress_parts() -> void:
 	_tint(_parts[PACK], _colour(look.get("pack_col")))
 	_parts[PACK].visible = bool(look.get("pack", false))
 	_tint(_parts[HEAD], skin)
+	_tint(_parts[NECK], skin)
 	_tint(_parts[FACE], _band_colour(skin))
 	var worn := String(look.get("head", ""))
 	var covered := worn == "helmet" or worn == "cap"
@@ -446,9 +450,9 @@ func _pose_leg(i: int, thick: float) -> void:
 	_segment(_parts[BOOT + i], knee.lerp(ankle, BOOT_TOP), ankle, shin * BOOT_GROW)
 	var shoes := CharacterArtConfig.body_shoe_widths
 	var size := Vector3(
-		(shoes[0] + shoes[1]) * 0.5 * _r * CharacterMeshConfig.limb_scale,
+		(shoes[0] + shoes[1]) * 0.5 * _r,
 		CharacterMeshConfig.foot_height * _r,
-		CharacterBodyConfig.foot * _r,
+		CharacterBodyConfig.foot * _r * SHOE_LENGTH,
 	)
 	var frame := _frame_of(Vector3.UP, _last[JOINTS + i])
 	var at := Vector3(ankle.x, maxf(ankle.y - size.y * 0.5, 0.0), ankle.z)

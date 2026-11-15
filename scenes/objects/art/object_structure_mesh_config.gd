@@ -6,7 +6,7 @@ class_name ObjectStructureMeshConfig
 ## kit converts them to 3D units in one place. The street's own numbers are
 ## `ObjectStreetMeshConfig`; furniture's are `ObjectMeshConfig`.
 
-## A wall stands this high (the tallest thing: a standing character is 58), its top a lighter tone
+## A wall stands this high (the tallest thing: a standing character is 74), its top a lighter tone
 ## of the cap colour and its sides the cap colour itself (`ArtSurfaceConfig.tones` names).
 static var wall_height: float = 96.0
 static var wall_top_tone: String = "light"

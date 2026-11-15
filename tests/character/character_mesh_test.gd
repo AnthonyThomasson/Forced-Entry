@@ -265,6 +265,7 @@ func _check_colours(t: TestContext, body: BodyMesh, dress: BodyDress) -> void:
 		"the trunk is the shirt's colour the painters draw (%s)" % dress.shirt,
 	)
 	t.check(_tint(body, BodyMesh.HEAD) == dress.skin, "the head is the skin's")
+	t.check(_tint(body, BodyMesh.NECK) == dress.skin, "the neck is the skin's")
 	t.check(
 		_tint(body, BodyMesh.THIGH) == dress.pants,
 		"the thigh is the trousers' colour",

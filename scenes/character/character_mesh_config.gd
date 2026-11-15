@@ -33,7 +33,7 @@ static var pack_height: float = 0.7
 ## How much thicker than the 2D art's drawn widths (`CharacterArtConfig.body_arm_widths`, ...) a
 ## limb is (near 1: the drawing's own), and how tall a shoe is (body radii).
 static var limb_scale: float = 1.1
-static var foot_height: float = 0.3
+static var foot_height: float = 0.22
 ## A fallen body's limbs rest on the floor by their own thickness: a joint below this height (px of
 ## the 2D drawing) is not squeezed to the standing height, so the body lies on the floor and does
 ## not sink into it. Standing joints are above it (the squeeze is the same either side).

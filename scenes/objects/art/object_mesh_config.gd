@@ -4,7 +4,7 @@ class_name ObjectMeshConfig
 ## as `ObjectMeshConfig.<name>` (ADR 0003). Lengths are 2D pixels, the art's units: the mesh kit
 ## converts them to 3D units in one place, so nothing here is multiplied by `RenderConfig.unit`.
 
-## A table: the height of its top above the floor (a standing character is 58), how thick the top
+## A table: the height of its top above the floor (a standing character is 74), how thick the top
 ## slab is, how wide each leg is and how far a leg stands in from the corner of the footprint.
 static var table_height: float = 30.0
 ## A small table (a footprint of at most `table_low_area` px squared: a side table) stands this high

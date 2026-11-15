@@ -14,10 +14,10 @@ In the 3D render (#193) the mirror shows a living character by `BodyMesh`, a low
 | `FACE` | box, a wide visor band across the front, near black on a light skin and near white on a dark one | none | always: how the head's facing reads |
 | `UPPER`, `FORE`, `THIGH`, `SHIN` x2 | tapered limb lathe (the widths of `CharacterArtConfig.body_arm_widths` / `body_leg_widths`) | casts | always |
 | `NECK` | tapered limb, chest joint to head | none | always |
-| `HAND`, `FOOT` x2 | ball, extruded shoe outline | none | always |
+| `HAND`, `FOOT` x2 | ball, extruded shoe outline (`SHOE_LENGTH` 0.8 of the 2D foot) | none | always |
 | `BOOT` x2 (a boot's shaft) | straight limb lathe | none | boots worn |
 
-Twelve parts cast a shadow (the trunk, vest, pack, head and the eight limb segments), twelve do not (the small ones, the neck among them: a shadow of a plate, a fist or a shoe adds draw cost the pixel post's resolution does not show). The head's size (`head_scale` 1) and the limbs' (`limb_scale` 1.1) are the 2D art's own; at the game's default zoom the outline pass dominates a 30 px figure and the face band is lost, which only the outline weight (`PixelPostConfig`, Art) would change. The windowed test's pictures: standing, facing away and crouched, at zoom 3 and zoom 1.
+Twelve parts cast a shadow (the trunk, vest, pack, head and the eight limb segments), twelve do not (the small ones, the neck among them, skin-tinted: a shadow of a plate, a fist or a shoe adds draw cost the pixel post's resolution does not show). The head's size (`head_scale` 1) and the limbs' (`limb_scale` 1.1) are the 2D art's own; at the game's default zoom the outline pass dominates a 30 px figure and the face band is lost, which only the outline weight (`PixelPostConfig`, Art) would change. The windowed test's pictures: standing, facing away and crouched, at zoom 3 and zoom 1.
 
 Every part is a **figure** for the pixel post (`MeshNodes.figure`, set in `_make`): the outline draws its silhouette only, no crease on a facet, and in its outfit's darkened colour (`domain-art`, the pixel post), so the outfit and the face band read at zoom 1.
 

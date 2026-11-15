@@ -5,8 +5,9 @@ extends RefCounted
 ## in place by `BodyMesh` by scaling its axes. A shaped part, not a box or a ball: a trunk with a
 ## waist and a chest, an egg-shaped head, tapered limbs that bulge where the 2D art's widths do
 ## (`CharacterArtConfig.body_arm_widths`, `body_leg_widths`), a neck, a shoe with a rounded toe.
-## Each is a lathe (`MeshKit.revolve`) or an extrusion (`MeshKit.extrude`) whose top is one flat
-## face, so a top-down picture (the 2D art) can be laid on it.
+## Each is a lathe (`MeshKit.revolve`) or an extrusion (`MeshKit.extrude`). The trunk, the limbs,
+## the neck and the shoe end in flat faces; the head (and the hair and the headwear over it, balls)
+## is a dome, with no flat top, so a top-down picture projected on it stretches toward its rim.
 ##
 ## The frames: a round solid stands on the origin along +y, one unit tall, its radii the part's own
 ## width over the scale `BodyMesh` gives it; the head's own unit is a radius of 1 round the origin;
