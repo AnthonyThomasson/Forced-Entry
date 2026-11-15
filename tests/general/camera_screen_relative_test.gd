@@ -3,12 +3,13 @@ extends GameTest
 ## keys and the mouse at a screen edge pan the framing camera up, down, left or right ON THE SCREEN
 ## at any camera yaw, at the same speed on the screen whichever way it goes, a following camera
 ## leads toward the mouse on the screen, and the spectator's framing fits the combatants' extent on
-## the screen at the current yaw. Judged by WORLD deltas worked by hand from the isometric
-## projection (pitch 35.264, sin 0.57735): a ground step (dx, dy) shows as (dx cos(yaw) - dy
-## sin(yaw), 0.57735 * (dx sin(yaw) + dy cos(yaw))) on the screen, so the ground direction that
-## shows as screen up is (-sin(yaw), -cos(yaw)) and as screen right (cos(yaw), -sin(yaw)); one
-## screen px up costs
-## 1 / 0.57735 ground px and one right 1, so up is 1.732 times the ground distance of right. It runs
+## the screen at the current yaw. Judged by WORLD deltas worked by hand from the near top-down
+## projection (pitch 80, sin 0.98481): a ground step (dx, dy) shows as (dx cos(yaw) - dy sin(yaw),
+## 0.98481 * (dx sin(yaw) + dy cos(yaw))) on the screen, so the ground direction that shows as
+## screen
+## up is (-sin(yaw), -cos(yaw)) and as screen right (cos(yaw), -sin(yaw)); one screen px up costs
+## 1 / 0.98481 ground px and one right 1, so up is 1.0154 times the ground distance of right. The
+## framing's zoom is a whole step of the 3D zoom (0.5, 1, 2, 3), the largest not over the fit.
 ## in a window-sized `SubViewport` of its own (the test world's viewport is 64 px square).
 
 const CameraController := preload("res://scenes/general/camera_controller.gd")
@@ -19,9 +20,9 @@ const PAN := 0.5
 const SIZE := Vector2i(1152, 648)
 ## The two combatants of the framing case are this far apart along the ground diagonal, and the
 ## framing's margin is held at a known value, so the fit is worked by hand: at yaw 45 the diagonal
-## (d, d) shows straight down the screen, 0.57735 * 1.41421 * d = 0.81650 * d px tall at zoom 1, and
+## (d, d) shows straight down the screen, 0.98481 * 1.41421 * d = 1.3928 * d px tall at zoom 1, and
 ## the framing grows it by the margin each side.
-const APART := 800.0
+const APART := 100.0
 const MARGIN := 100.0
 
 var _screen: SubViewport
@@ -36,7 +37,7 @@ func describe() -> Dictionary:
 		"name": "The camera pans, leads and frames by the screen in 3D",
 		"description": "At yaw 90 and 45 the spectator's up and right keys and the top screen "
 			+ "edge pan the framing camera along the ground direction that shows as up or right, "
-			+ "up a ground distance 1.732 times right's (the same speed on the screen), a "
+			+ "up a ground distance 1.015 times right's (the same speed on the screen), a "
 			+ "following camera leads toward the mouse on the screen, and the framing fits the "
 			+ "combatants' extent on the screen.",
 		"tags": ["camera", "3d", "pan", "input"],
@@ -99,7 +100,7 @@ func _settle(t: TestContext) -> Vector2:
 
 
 ## Each pan key moves the focus along the ground direction that shows as its way on the screen, and
-## up goes 1.732 times as far over the ground as right (the same distance on the screen).
+## up goes 1.0154 times as far over the ground as right (the same distance on the screen).
 func _pan_by_keys(t: TestContext, yaw: float) -> void:
 	var travelled := {}
 	for step: Dictionary in [
@@ -123,8 +124,8 @@ func _pan_by_keys(t: TestContext, yaw: float) -> void:
 			],
 		)
 	t.check(
-		absf(travelled["up"] / maxf(travelled["right"], 0.001) - 1.0 / 0.57735) < 0.09,
-		"at yaw %d up pans 1.732 times the ground of right (%.0f and %.0f px)" % [
+		absf(travelled["up"] / maxf(travelled["right"], 0.001) - 1.0 / 0.98481) < 0.09,
+		"at yaw %d up pans 1.015 times the ground of right (%.0f and %.0f px)" % [
 			yaw,
 			travelled["up"],
 			travelled["right"],
@@ -168,19 +169,17 @@ func _lead_toward_the_mouse(t: TestContext, yaw: float) -> void:
 
 ## The spectator's framing zooms to the combatants' extent on the screen at yaw 45, where two
 ## combatants on the ground diagonal stand one above the other: the fit is the screen height over
-## (0.8165 * apart + 2 margins), not the world box's.
+## (1.3928 * apart + 2 margins) = 1.91, which takes the whole step under it, 1, where the world
+## box's fit (2.16, held at the 2.0 max) would take 2: the zoom is the step and shows both.
 func _framing_fits_the_screen_extent(t: TestContext) -> void:
 	_rig.yaw = 45.0
 	_b.global_position = _a.global_position + Vector2(APART, APART)
 	_camera.frame([_a, _b])
 	await t.seconds(4.0)
-	var want := float(SIZE.y) / (0.8165 * APART + 2.0 * MARGIN)
 	t.check(
-		absf(_camera.zoom.x - want) < 0.03,
-		"the framing zoom fits the screen extent at yaw 45 (%.3f, worked %.3f)" % [
-			_camera.zoom.x,
-			want,
-		],
+		absf(_camera.zoom.x - 1.0) < 0.001,
+		"the framing zoom is the whole step under the screen fit at yaw 45 (%.3f, worked 1)"
+		% _camera.zoom.x,
 	)
 	var middle := (_a.global_position + _b.global_position) * 0.5
 	t.check(

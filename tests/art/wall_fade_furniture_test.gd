@@ -10,7 +10,9 @@ const SPOTS := {
 	"fridge": Vector2(400, 0),
 	"dining_table": Vector2(800, 0),
 }
-const STANDOFF := 40.0
+## The gap between a piece's back face and the focus behind it: at the 80 degree pitch a piece
+## hides only what stands within its height over tan 80 of it.
+const GAP := 3.0
 const STEP := 0.05
 
 
@@ -53,7 +55,7 @@ func run(t: TestContext) -> void:
 		var parts := _parts_of(mirror, t.object(StringName(id)))
 		if not t.require(not parts.is_empty(), "premise: %s is shown by a mesh" % id):
 			return
-		var focus: Vector2 = SPOTS[id] - back * STANDOFF
+		var focus: Vector2 = SPOTS[id] - back * (_half_depth(parts) + GAP)
 		_run_fade(fade, [focus], 14)
 		if id == "dining_table":
 			t.check(
@@ -85,6 +87,17 @@ func _parts_of(mirror: WorldMirror, body: Node) -> Array:
 			parts.append(mesh)
 		parts.append_array(mesh.find_children("*", "GeometryInstance3D", true, false))
 	return parts
+
+
+## Half the depth (along the ground's z, the camera's line at yaw 0) of the pieces' instances
+## together.
+func _half_depth(parts: Array) -> float:
+	var box := AABB()
+	for i in parts.size():
+		var part := parts[i] as GeometryInstance3D
+		var world_box: AABB = part.global_transform * part.get_aabb()
+		box = world_box if i == 0 else box.merge(world_box)
+	return box.size.z * 0.5
 
 
 func _level(part: Node) -> float:

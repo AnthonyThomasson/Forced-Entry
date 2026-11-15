@@ -16,8 +16,12 @@ const MATCH := {
 	"defenders": { "count": 2 },
 	"invaders": { "count": 2 },
 }
-## How far a character stands from the wall segment it is behind, along the camera's line.
-const STANDOFF := 30.0
+## How far a character stands from the middle of the wall segment it is behind, along the camera's
+## line: just past its face, since at the 80 degree pitch a 96 px wall hides only what stands within
+## 17 px of it.
+const STANDOFF := 9.0
+## The gap between a door's face and the character behind it.
+const DOOR_GAP := 4.0
 ## Walls whose segments are this far apart do not fade for each other's characters.
 const APART := 400.0
 
@@ -151,7 +155,8 @@ func _a_door_fades(t: TestContext, back: Vector2) -> void:
 		var world_box: AABB = part.global_transform * part.get_aabb()
 		box = world_box if i == 0 else box.merge(world_box)
 	var marker := Node2D.new()
-	marker.position = Vector2(box.get_center().x, box.get_center().z) - back * STANDOFF
+	var depth := absf(back.x) * box.size.x * 0.5 + absf(back.y) * box.size.z * 0.5
+	marker.position = Vector2(box.get_center().x, box.get_center().z) - back * (depth + DOOR_GAP)
 	_world.add_child(marker)
 	_stand_in.targets = [marker]
 	await t.seconds(0.8)

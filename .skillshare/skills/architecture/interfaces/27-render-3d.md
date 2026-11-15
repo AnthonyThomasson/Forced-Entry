@@ -25,10 +25,10 @@
     - **`CameraRig`** (`general/camera_rig.gd`, `class_name`, a `Node3D` that owns an orthographic `Camera3D` as `camera`): `bind(source: Camera2D,
       viewport: SubViewport, rect: Control = null)` follows the sim's `Camera2D`, which stays the focus, zoom and shake source (Sound, the cull and
       the tests read it): each frame the camera frames `source.get_screen_center_position()` (focus plus shake offset) at `source.zoom` (ortho size: the screen's height in 2D px over the zoom, times
-      `unit`), at the pitch `RenderConfig.pitch_degrees` (35.264: true isometric) and `yaw` (degrees, `RenderConfig.yaw_degrees` to start). **Q / E turn it:** a held camera-turn key
-      (`Keybinds.get_camera_turn()`) turns `yaw` freely at `RenderConfig.turn_speed_degrees` (90 a second), paused or not.
+      `unit`), at the pitch `RenderConfig.pitch_degrees` (80, near top-down) and `yaw` (degrees, `RenderConfig.yaw_degrees` 0 to start: north up). **Q / E turn it a quarter:** a press of a camera-turn key
+      (`Keybinds.get_camera_turn()`) steps `yaw` `CameraTurnConfig.step_degrees` (90), eased, ending exactly on N, E, S or W (`turning()`).
       The rig binds `Pointer` (26) to its camera and the picture's rect (larger than the window). It sizes the `SubViewport` so a picture pixel is a whole number of screen
-      pixels at any window size (`reference_height / internal_lines` rounded: 216 rows at 648 is 3; 0 is 1; rows and columns cover the window times `oversample`, plus 1 px), and snaps the focus to
+      pixels at any window size (`texel_match`: `round(zoom)`, one art pixel a picture pixel at a whole zoom; rows and columns cover the window times `oversample`, plus 1 px). In 3D the controller's zoom is a whole step of `CameraConfig.zoom_steps_3d`, and snaps the focus to
       that grid along the camera's right and up, shifting `rect` back by the remainder, so following does not shimmer. `texel() -> float` is the world units a picture
       pixel covers; `internal_size() -> Vector2i` the picture's size in pixels (margin included).
     - **The pixel post** (Art `art/post/`, `PixelPostConfig`): the view's meshes share one toon `ShaderMaterial` (`ToonMaterial.make()`; a colour per instance) whose light steps N.L times the

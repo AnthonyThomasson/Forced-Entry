@@ -223,7 +223,7 @@ func _report(results: Dictionary) -> void:
 		"gpu": RenderingServer.get_video_adapter_name(),
 		"proxies": _view.mirror.count,
 		"moving_proxies": _view.mirror.followed,
-		"internal_lines": RenderConfig.internal_lines,
+		"texel_match": RenderConfig.texel_match,
 		"supersample": PixelPostConfig.supersample,
 		"frames_per_block": FRAMES,
 		"rounds": ROUNDS,

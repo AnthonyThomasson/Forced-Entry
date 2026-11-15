@@ -2,12 +2,12 @@ extends GameTest
 ## Screen-relative controls (#193 rule 5): in the 3D render mode WASD moves the human relative to
 ## the screen, so W goes up the screen at any camera yaw; a driver seated in a vehicle keeps raw
 ## keys (W throttle, A / D steer: G7), never turned by the camera. Judged by the WORLD direction the
-## player walks, worked by hand from the isometric projection (a ground step (dx, dy) shows as
-## (dx cos(yaw) - dy sin(yaw), 0.57735 * (dx sin(yaw) + dy cos(yaw))) on the screen): the ground
-## direction that shows as screen up is (-sin(yaw), -cos(yaw)) and as screen right (cos(yaw),
-## -sin(yaw)); down and left are their opposites. At yaw 90 that is W -x, S +x, D -y, A +y; at yaw
-## 45 W (-0.7071, -0.7071) and D (0.7071, -0.7071). The car is judged by its own front. With no rig
-## (the 2D render) W is up the world.
+## player walks, worked by hand from the near top-down projection at pitch 80 (a ground step (dx,
+## dy) shows as (dx cos(yaw) - dy sin(yaw), 0.98481 * (dx sin(yaw) + dy cos(yaw))) on the screen):
+## the ground direction that shows as screen up is (-sin(yaw), -cos(yaw)) and as screen right
+## (cos(yaw), -sin(yaw)); down and left are their opposites. At yaw 90 that is W -x, S +x, D -y, A
+## +y; at yaw 45 W (-0.7071, -0.7071) and D (0.7071, -0.7071). The car is judged by its own front.
+## With no rig (the 2D render) W is up the world.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")

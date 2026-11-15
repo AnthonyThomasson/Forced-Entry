@@ -2,24 +2,27 @@ extends GameTest
 ## The wall fade's rules (#193 rule 9, Art's `WallFade`, interface 27), on a stand-in wall of
 ## separable segments and a few pieces of furniture stepped by hand: a wall between the camera and
 ## a focus fades, one behind it does not, turning the camera swaps them, one past the radius (or too
-## far for its height to hide anyone) stays whole, a tall piece fades but a low one is never looked
-## at, spectating fades around every focus, a fade comes and goes over `WallFadeConfig.fade_time`
-## without a pop, a rebuilt segment or a piece built again keeps its fade, and a still view writes
-## nothing. The camera's back direction at yaw 0 is +z (the screen's down), at 180 it is -z; the
-## expected numbers are the spec's (reach `radius` px, a wall's height over the camera's tangent),
-## not the fade's own arithmetic.
+## far for its height to hide anyone, at the 80 degree pitch a wall 17 px away) stays whole, a tall
+## piece fades but a low one is never looked at, spectating fades around every focus, a fade comes
+## and goes over `WallFadeConfig.fade_time` without a pop, a rebuilt segment or a piece built again
+## keeps its fade, and a still view writes nothing. The camera's back direction at yaw 0 is +z (the
+## screen's down), at 180 it is -z; the expected numbers are the spec's (reach `radius` px, a wall's
+## height over the camera's tangent: 96 over tan 80 is 16.9 px; a wall must overlap the character's
+## 28 px width to fade), not the fade's own arithmetic.
 
 const WALL_HEIGHT := 96.0
 const STEP := 0.05
 ## One segment of the stand-in wall: where it stands (x, z), how long (along x) and how thick.
 const SEGMENTS := [
-	{ "name": "near", "at": Vector2(0, 60), "len": 200.0 },
-	{ "name": "behind", "at": Vector2(0, -60), "len": 200.0 },
+	{ "name": "near", "at": Vector2(0, 12), "len": 200.0 },
+	{ "name": "behind", "at": Vector2(0, -12), "len": 200.0 },
 	{ "name": "past_radius", "at": Vector2(0, 200), "len": 200.0 },
-	{ "name": "too_far_to_hide", "at": Vector2(0, 165), "len": 200.0 },
-	{ "name": "beside", "at": Vector2(150, 60), "len": 40.0 },
-	{ "name": "near_second", "at": Vector2(600, 60), "len": 200.0 },
-	{ "name": "between", "at": Vector2(300, 60), "len": 40.0 },
+	{ "name": "too_far_to_hide", "at": Vector2(0, 24), "len": 200.0 },
+	{ "name": "beside", "at": Vector2(150, 12), "len": 40.0 },
+	{ "name": "near_second", "at": Vector2(600, 12), "len": 200.0 },
+	{ "name": "between", "at": Vector2(300, 12), "len": 40.0 },
+	{ "name": "clips_shoulder", "at": Vector2(25, 12), "len": 30.0 },
+	{ "name": "clears_shoulder", "at": Vector2(46, 12), "len": 30.0 },
 ]
 const THICK := 8.0
 
@@ -43,7 +46,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.set_static(RenderConfig, &"unit", 1.0)
-	s.set_static(RenderConfig, &"pitch_degrees", 35.264)
+	s.set_static(RenderConfig, &"pitch_degrees", 80.0)
 	s.set_static(WallFadeConfig, &"radius", 160.0)
 	s.set_static(WallFadeConfig, &"fade_time", 0.25)
 	s.set_static(WallFadeConfig, &"faded_amount", 0.25)
@@ -85,8 +88,8 @@ func _build(t: TestContext) -> void:
 	for i in SEGMENTS.size():
 		_wall.put(i)
 	_fade.watch(_wall, 1, false)
-	_tall = _piece(view, "tall", Vector3(0, 0, 40), Vector3(40, 70, 40))
-	_low = _piece(view, "low", Vector3(0, 0, 40), Vector3(40, 30, 40))
+	_tall = _piece(view, "tall", Vector3(0, 0, 28), Vector3(40, 70, 40))
+	_low = _piece(view, "low", Vector3(0, 0, 28), Vector3(40, 30, 40))
 	_fade.watch(_tall, 2, true)
 	_fade.watch(_low, 3, true)
 
@@ -141,11 +144,19 @@ func _faded_level() -> float:
 func _one_focus_one_yaw(t: TestContext) -> void:
 	settle(0.6, 0.0, [Vector2.ZERO])
 	t.expect_near(shown(_segment_named("near")), _faded_level(), 0.07, "the wall in the way fades")
-	for piece_name in ["behind", "past_radius", "too_far_to_hide", "beside", "between"]:
+	t.expect_near(
+		shown(_segment_named("clips_shoulder")),
+		_faded_level(),
+		0.07,
+		"a wall at the shoulder fades",
+	)
+	for piece_name in [
+		"behind", "past_radius", "too_far_to_hide", "beside", "between", "clears_shoulder",
+	]:
 		t.expect_near(shown(_segment_named(piece_name)), 1.0, 0.001, "%s stays whole" % piece_name)
 	t.expect_near(shown(_tall.get_child(0)), _faded_level(), 0.07, "a tall piece in the way fades")
 	t.expect_near(shown(_low.get_child(0)), 1.0, 0.001, "a low piece is never looked at")
-	t.expect_eq(_fade.fading, 2, "two units are not whole")
+	t.expect_eq(_fade.fading, 3, "three units are not whole")
 
 
 ## It goes from whole to faded over the fade time: partway after a step, there after the time, and
@@ -241,13 +252,13 @@ func _spectating(t: TestContext) -> void:
 ## A shorter radius leaves a wall that was in reach whole; the tunable is put back.
 func _radius_is_tunable(t: TestContext) -> void:
 	var was := WallFadeConfig.radius
-	WallFadeConfig.radius = 30.0
+	WallFadeConfig.radius = 5.0
 	settle(0.6, 0.0, [Vector2.ZERO])
 	t.expect_near(
 		shown(_segment_named("near")),
 		1.0,
 		0.001,
-		"radius 30: the wall 42 px away is whole",
+		"radius 5: the wall 8 px away is whole",
 	)
 	WallFadeConfig.radius = was
 	settle(0.6, 0.0, [Vector2.ZERO])
@@ -306,7 +317,7 @@ func _a_faded_unit_casts_no_shadow(t: TestContext) -> void:
 	_fade.set_process(false)
 	var pieces: Array[Node3D] = []
 	for key in 2:
-		var piece := _piece(view, "shadowed", Vector3(0, 0, 40), Vector3(40, 70, 40))
+		var piece := _piece(view, "shadowed", Vector3(0, 0, 28), Vector3(40, 70, 40))
 		var handle := MeshInstance3D.new()
 		handle.mesh = BoxMesh.new()
 		handle.cast_shadow = off
@@ -361,7 +372,7 @@ func _a_moved_piece_is_found_where_it_went(t: TestContext) -> void:
 	var piece := _fade.unit_of(1000)
 	t.check(piece != null and piece.movable, "premise: a far movable piece")
 	var mesh := piece.anchor
-	mesh.position = Vector3(0, 0, 40)
+	mesh.position = Vector3(0, 0, 20)
 	for i in WallFadeConfig.poll_frames + 2:
 		step(STEP, 0.0, [Vector2.ZERO])
 	settle(0.6, 0.0, [Vector2.ZERO])

@@ -31,6 +31,8 @@ var _idle: float = 0.0
 var _base_zoom: float = 1.0
 ## The wheel's lasting scale on `_base_zoom`.
 var _zoom_bias: float = 1.0
+## The 3D render's zoom in whole steps and the wheel's place in them.
+var _steps := ZoomSteps.new()
 ## Last mouse position seen over the window.
 var _mouse_pos := Vector2.ZERO
 ## Edge panning needs a live pointer: not yet seen, or left, = off.
@@ -70,6 +72,9 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	var notches := Keybinds.scroll_notches(event)  # signed: positive zooms in
 	if notches == 0.0:
+		return
+	if Pointer.is_3d(self):
+		_steps.wheel(notches)
 		return
 	_zoom_bias = clampf(_zoom_bias * pow(CameraConfig.zoom_step, notches),
 			CameraConfig.wheel_min_zoom / _base_zoom, CameraConfig.wheel_max_zoom / _base_zoom)
@@ -164,8 +169,12 @@ func _take_over() -> void:
 
 
 ## Ease the zoom toward the automatic zoom scaled by the wheel (and by `out_scale`: under 1 zooms
-## out).
+## out). In the 3D render it does not ease: it takes its whole step (`ZoomSteps`).
 func _ease_zoom(out_scale := 1.0) -> void:
+	if Pointer.is_3d(self):
+		var step := _steps.snap(_base_zoom * out_scale, _frame_mode)
+		zoom = Vector2(step, step)
+		return
 	var z := clampf(
 		_base_zoom * _zoom_bias * out_scale,
 		CameraConfig.wheel_min_zoom,

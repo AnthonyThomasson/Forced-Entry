@@ -5,8 +5,11 @@ class_name RenderLightConfig
 ## holder of `static var`s, read as `RenderLightConfig.<name>`.
 
 ## The sun's rotation in degrees (pitch, yaw, roll): down onto the floor from a quarter off the
-## camera's side, so walls throw a readable shadow.
-static var sun_rotation: Vector3 = Vector3(-50.0, -17.0, 0.0)
+## camera's side, so walls throw a readable shadow. At 36 degrees of elevation a top face lies at
+## N.L = sin 36 = 0.588, the middle of the toon material's base band (a third to two thirds of the
+## three bands), so every flat top shows its painted colour as it is and only a slope or a shadow
+## steps to another tone (the camera looks nearly straight down, so tops are most of the picture).
+static var sun_rotation: Vector3 = Vector3(-36.0, -17.0, 0.0)
 ## The sun's strength and tint.
 static var sun_energy: float = 1.0
 static var sun_color: Color = Color(1.0, 0.96, 0.9)

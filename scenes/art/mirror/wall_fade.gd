@@ -117,17 +117,17 @@ func _look_in_grid(from: Vector2, back: Vector2, reach: float, rise: float) -> v
 					_look(unit, from, back, reach, rise)
 
 
-## Mark `unit` as in the way when the line from `from` toward the camera meets it within `reach` and
-## under its top.
+## Mark `unit` as in the way when the strip of the character's width from `from` toward the camera
+## meets it within `reach` and under its top.
 func _look(unit: FadeUnit, from: Vector2, back: Vector2, reach: float, rise: float) -> void:
 	if unit.hit_frame == _frame:
 		return
-	var pad := WallFadeConfig.half_width * RenderConfig.unit
+	var width := WallFadeConfig.half_width * RenderConfig.unit
 	var box := unit.box
-	var near := reach + box.bound + pad
+	var near := reach + box.bound + width
 	if from.distance_squared_to(box.centre) > near * near:
 		return
-	var along := box.entry(from, back, pad)
+	var along := box.strip_entry(from, back, width)
 	if along < 0.0 or along > reach or along * rise > box.top:
 		return
 	_mark(unit)

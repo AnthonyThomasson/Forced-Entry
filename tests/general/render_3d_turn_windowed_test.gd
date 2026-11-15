@@ -1,12 +1,12 @@
 extends GameTest
 ## A played match in the 3D render mode, with the player's view and debug overlays on, drawn in a
-## real window while the camera turns on a held E (windowed only: the headless renderer draws
-## nothing and compiles no shader, so an error in the flat overlays shows only here). Main run whole
-## in a `SubViewport` the size of the window, a match with a human started with 3D chosen by its
-## spec, Debug overlays toggled on, the camera framing the human; after the camera has turned a
-## quarter of the way round the picture is read back: it holds the 3D floor and walls, the view's
-## cone clear of the composite, the ground outside it dimmed but still there (not black), and the
-## log gate fails the test on any
+## real window while the camera turns a quarter on a press of E (windowed only: the headless
+## renderer draws nothing and compiles no shader, so an error in the flat overlays shows only here).
+## Main run whole in a `SubViewport` the size of the window, a match with a human started with 3D
+## chosen by its spec, Debug overlays toggled on, the camera framing the human; after the camera has
+## turned a quarter of the way round the picture is read back: it holds the 3D floor and walls, the
+## view's cone clear of the composite, the ground outside it dimmed but still there (not black), and
+## the log gate fails the test on any
 ## shader or engine error or warning. With `RENDER3D_SHOT=<file.png>` set it saves the picture.
 ## Run: `tools/run_tests.sh --windowed --id=general/render_3d_turn_windowed`.
 
@@ -19,8 +19,7 @@ const SPEC := {
 	"defenders": { "count": 3 },
 	"invaders": { "count": 3 },
 }
-## Frames of play before the camera turns, and the seconds E is held: a quarter turn at 90 degrees
-## a second.
+## Frames of play before the camera turns, and the seconds the quarter turn is given.
 const PLAY_FRAMES := 180
 const TURN_SECONDS := 1.0
 ## What the picture must show: tones on a grid of samples, the share that is not the background
@@ -84,11 +83,11 @@ func run(t: TestContext) -> void:
 	var view: CanvasLayer = main.get_node("View3D")
 	var before: float = view.rig.yaw
 	Input.action_press("camera_turn_right")
-	await t.seconds(TURN_SECONDS)
+	await t.frames(3)
 	Input.action_release("camera_turn_right")
-	await t.frames(30)
+	await t.seconds(TURN_SECONDS)
 	t.expect_near(
-		wrapf(view.rig.yaw - before, -180.0, 180.0), 90.0 * TURN_SECONDS, 6.0, "E turned the camera"
+		wrapf(view.rig.yaw - before, -180.0, 180.0), 90.0, 0.001, "E turned the camera a quarter"
 	)
 	await RenderingServer.frame_post_draw
 	_check_picture(t, window.get_texture().get_image())

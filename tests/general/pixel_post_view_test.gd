@@ -1,13 +1,13 @@
 extends GameTest
 ## The pixel post in Main's 3D view (#193 rule 6, interface 27): in the 3D render mode the scene is
-## drawn at a low internal resolution, 216 lines at the reference window of 1152x648 (3x), and
-## shown with nearest filtering so each internal pixel is about 3 screen pixels at any window
-## size; the picture keeps covering the whole window; the outline pass is a quad under the
+## drawn at a low internal resolution, a picture pixel being one art pixel (`RenderConfig.art_pixel`
+## 2D px) and the zoom (1x, 2x, 3x) screen pixels wide, and shown with nearest filtering at any
+## window size; the picture keeps covering the whole window; the outline pass is a quad under the
 ## camera that takes its widths from `PixelPostConfig`. With `supersample` 2 the 3D picture is
 ## rendered at twice its size and averaged down (a linear stage) before the nearest upscale.
-## Expected numbers are the spec's: 216 lines and a 3 px pixel at 648 high, hence 432 lines at
-## 1296, a 16:9 picture 384 wide plus the one-pixel margin all round. Headless proves the wiring,
-## not the look (`general/render_3d_match_windowed` draws it).
+## Expected numbers are the spec's: at 3x a 1152x648 window is 216 lines of 3 px (384 columns), 432
+## lines at 1296, plus the one-pixel margin all round; at 2x 324 lines, at 1x one to a screen pixel.
+## Headless proves the wiring, not the look (`general/render_3d_match_windowed` draws it).
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const SCRATCH := "user://settings_pixel_post_view_test.json"
@@ -24,9 +24,10 @@ const ODD := Vector2i(1776, 1000)
 func describe() -> Dictionary:
 	return {
 		"name": "The 3D view renders at the internal resolution and upscales with nearest",
-		"description": "216 lines at 1152x648 (432 at 2304x1296, 334 at a height of 1000), a "
-			+ "nearest-filtered picture covering the window at a whole 3 px a pixel, the outline "
-			+ "quad under the camera from PixelPostConfig, and the supersampled chain when on.",
+		"description": "At 3x zoom 216 lines at 1152x648 (432 at 2304x1296, 334 at a height of "
+			+ "1000), at 2x 324 and at 1x 648; a nearest-filtered picture covering the window at "
+			+ "the zoom's whole pixels a pixel, the outline quad under the camera from "
+			+ "PixelPostConfig, and the supersampled chain when on.",
 		"tags": ["render", "3d", "pixel", "settings"],
 		"timeout": 40.0,
 	}
@@ -45,20 +46,21 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var view := await _start(t, REFERENCE)
+	var view := await _start(t, REFERENCE, 3.0)
 	if not t.require(view != null, "a 3D match started"):
 		return
-	t.expect_eq(view.viewport.size, Vector2i(386, 218), "1152x648: 216 lines plus the margin")
+	t.expect_eq(view.viewport.size, Vector2i(386, 218), "1152x648 at 3x: 216 lines plus the margin")
 	_check_shown(t, view, REFERENCE, 3.0)
 	_check_outline(t, view)
-	var big := await _start(t, BIG)
+	await _zoom_steps(t)
+	var big := await _start(t, BIG, 3.0)
 	if not t.require(big != null, "a 3D match started in a bigger window"):
 		return
 	t.expect_eq(big.viewport.size, Vector2i(770, 434), "2304x1296: 432 lines plus the margin")
 	_check_shown(t, big, BIG, 3.0)
 	# A window height 3 does not divide: the upscale is still a whole 3 screen pixels, with the
 	# rows that cover the window (334 of them, a third of a pixel more than 1000) plus the margin.
-	var odd := await _start(t, ODD)
+	var odd := await _start(t, ODD, 3.0)
 	if not t.require(odd != null, "a 3D match started in a window 1000 high"):
 		return
 	t.expect_eq(
@@ -68,7 +70,7 @@ func run(t: TestContext) -> void:
 	)
 	_check_shown(t, odd, ODD, 3.0)
 	PixelPostConfig.supersample = 2
-	var fine := await _start(t, REFERENCE)
+	var fine := await _start(t, REFERENCE, 3.0)
 	if not t.require(fine != null, "a 3D match started with the supersample on"):
 		return
 	t.expect_eq(
@@ -94,8 +96,23 @@ func run(t: TestContext) -> void:
 	t.check(linear, "the 3D picture is averaged down through a filtered stage")
 
 
-## A 3D match in a Main whose window is `size`; the 3D view once its picture is sized, or null.
-func _start(t: TestContext, size: Vector2i) -> Node:
+## The same window at 2x and 1x: a picture pixel is 2 and 1 screen pixels.
+func _zoom_steps(t: TestContext) -> void:
+	var twice := await _start(t, REFERENCE, 2.0)
+	t.expect_eq(
+		twice.viewport.size,
+		Vector2i(578, 326),
+		"1152x648 at 2x: 324 lines plus the margin",
+	)
+	_check_shown(t, twice, REFERENCE, 2.0)
+	var once := await _start(t, REFERENCE, 1.0)
+	t.expect_eq(once.viewport.size, Vector2i(1154, 650), "1152x648 at 1x: a pixel to a pixel")
+	_check_shown(t, once, REFERENCE, 1.0)
+
+
+## A 3D match at `zoom` in a Main whose window is `size`; the 3D view once its picture is sized, or
+## null.
+func _start(t: TestContext, size: Vector2i, zoom: float) -> Node:
 	for old in t.world.find_children("MainViewport", "SubViewport", false, false):
 		await MainProbe.close(t, old)
 	var window := MainProbe.viewport(t)
@@ -104,6 +121,7 @@ func _start(t: TestContext, size: Vector2i) -> Node:
 	MainProbe.setup_menu(main).queue_free()
 	var camera := Camera2D.new()
 	camera.name = "MainCamera"
+	camera.zoom = Vector2(zoom, zoom)
 	main.add_child(camera)
 	var built: Dictionary = await main.start_match(SPEC.duplicate(true))
 	if built.is_empty():

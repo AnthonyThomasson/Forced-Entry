@@ -31,7 +31,7 @@ const _ROW_FONT := 22
 const _CONFLICT_COLOR := Color(1.0, 0.45, 0.35)
 const _PROMPT := "Press a key…"
 ## The render modes the page offers, in order: `[value, label]`.
-const _RENDER_MODES := [["2d", "2D (top-down)"], ["3d", "3D (isometric)"]]
+const _RENDER_MODES := [["2d", "2D (top-down)"], ["3d", "3D"]]
 
 ## The Debug checkbox.
 var _debug_check: CheckBox

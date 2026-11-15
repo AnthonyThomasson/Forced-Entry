@@ -12,8 +12,8 @@ class_name Settings
 ## Bindings live in `Keybinds.bindings`; this file only persists them and reshapes them for the
 ## page.
 
-## The render modes (`render_mode`): the 2D render, and the isometric 3D render that mirrors the 2D
-## simulation (`docs/adr/0013-the-3d-render-mirrors-the-2d-sim.md`).
+## The render modes (`render_mode`): the 2D render, and the near top-down 3D render that mirrors the
+## 2D simulation (`docs/adr/0013-the-3d-render-mirrors-the-2d-sim.md`).
 const RENDER_2D := "2d"
 const RENDER_3D := "3d"
 

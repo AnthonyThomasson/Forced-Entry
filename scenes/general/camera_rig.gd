@@ -1,7 +1,7 @@
 class_name CameraRig
 extends Node3D
 ## General domain, camera: the 3D view's camera (interface 27). An orthographic `Camera3D` at the
-## isometric pitch that frames what the sim's `Camera2D` frames. The `Camera2D` stays the focus,
+## near top-down pitch that frames what the sim's `Camera2D` frames. The `Camera2D` stays the focus,
 ## zoom and shake source (the Sound, the cull and the tests read it), so each frame the rig reads
 ## its screen centre (the focus plus its shake `offset`) and its `zoom` and places the 3D camera on
 ## the same ground point at 1 screen pixel to a world pixel at zoom 1 (`RenderConfig.unit` is the
@@ -9,16 +9,22 @@ extends Node3D
 ## pitch is `RenderConfig.pitch_degrees`.
 ##
 ## The 3D picture is a `SubViewport` the rig sizes so a picture pixel is a whole number of screen
-## pixels (`RenderConfig.reference_height` over `internal_lines`, 3: 216 rows at a 648-high window)
-## at any window size, with as many rows and columns as cover the window, times `oversample`, plus
-## a one-pixel margin all round. The focus is snapped to the picture's pixel grid along the camera's
-## right and up and the shown rectangle is shifted back by what was snapped away, so a following
-## camera never shimmers. The rig runs after the `Camera2D` (it is a later node and
-## `process_priority` 50, before the player's view and the ground layer that read it) and, like it,
-## while the tree is paused.
+## pixels: with `RenderConfig.texel_match` one art pixel (`RenderConfig.art_pixel` 2D pixels) is one
+## picture pixel and the picture pixel is `round(zoom)` screen pixels (the camera controller snaps
+## the 3D zoom to whole steps, so 1x, 2x or 3x), with as many rows and columns as cover the window,
+## times `oversample`, plus a one-pixel margin all round. The focus is snapped to the picture's
+## pixel grid along the camera's right and up and the shown rectangle is shifted back by what was
+## snapped away, so a following camera never shimmers. The rig runs after the `Camera2D` (it is a
+## later node and `process_priority` 50, before the player's view and the ground layer that read it)
+## and, like it, while the tree is paused.
 
-## The camera's yaw round the focus, in degrees (45: the world's corner faces the camera).
-var yaw: float = RenderConfig.yaw_degrees
+## The camera's yaw round the focus, in degrees (0: north, the 2D view's up, is up the screen). It
+## rests at 0, 90, 180 or 270 and eases between them when a turn key steps it; setting it puts it
+## (and the turn's target) there at once.
+var yaw: float = RenderConfig.yaw_degrees:
+	set(value):
+		yaw = value
+		_target_yaw = value
 ## How many times the picture's size the 3D viewport is rendered at (the pixel post's supersample,
 ## set by the view that averages it back down): 1 renders it at the picture's own size.
 var oversample: int = 1
@@ -28,6 +34,9 @@ var camera: Camera3D
 ## when nothing shows it.
 var _rect: Control
 var _source: Camera2D
+## The yaw the eased turn is heading to, and the turn key's last reading (a step is a press).
+var _target_yaw: float = RenderConfig.yaw_degrees
+var _held := 0.0
 var _viewport: SubViewport
 var _internal := Vector2i(2, 2)
 ## Screen pixels to a picture pixel (whole), and the 3D units a picture pixel covers.
@@ -72,12 +81,34 @@ func internal_size() -> Vector2i:
 	return _internal
 
 
-## Turn the camera round its focus while a camera-turn key is held (`Keybinds.get_camera_turn`),
-## freely and at `RenderConfig.turn_speed_degrees`; released, it stops where it is.
+## A press of a camera-turn key (`Keybinds.get_camera_turn`) steps the yaw a quarter, about the
+## focus (`CameraTurnConfig.step_degrees`, E one way and Q the other; a press while it still turns
+## queues another); the yaw eases to that target and ends on it exactly, so it rests only at
+## north, east, south or west. Holding the key does not turn on.
 func _turn(delta: float) -> void:
 	var held := Keybinds.get_camera_turn()
-	if held != 0.0:
-		yaw = fposmod(yaw + held * RenderConfig.turn_speed_degrees * delta, 360.0)
+	if held != 0.0 and held != _held:
+		_target_yaw += held * CameraTurnConfig.step_degrees
+	_held = held
+	var left := _target_yaw - yaw
+	if left == 0.0:
+		return
+	var rate := clampf(
+		absf(left) * CameraTurnConfig.ease_rate,
+		CameraTurnConfig.min_speed_degrees,
+		CameraTurnConfig.speed_degrees,
+	)
+	var target := _target_yaw
+	if absf(left) <= rate * delta:
+		yaw = fposmod(target, 360.0)  # arrived: wrapped, so it rests in [0, 360)
+	else:
+		yaw += signf(left) * rate * delta
+		_target_yaw = target  # the setter moved the target with the yaw
+
+
+## Whether the camera is between two cardinals (a turn is under way).
+func turning() -> bool:
+	return _target_yaw != yaw
 
 
 ## The 3D units one picture pixel covers along the screen's height.
@@ -113,17 +144,19 @@ func _place() -> void:
 
 
 ## Size the picture for a window of `screen`: a whole number of screen pixels to a picture pixel
-## (`RenderConfig.reference_height` over `internal_lines`, rounded: 3 at the reference; 1 when
-## `internal_lines` is 0) and as many picture rows and columns as cover the window plus the
+## (`round(zoom)`, at least 1, with `RenderConfig.texel_match`, so an art pixel is a picture pixel
+## at a whole zoom; 1 without) and as many picture rows and columns as cover the window plus the
 ## one-pixel margin, so the upscale is exact at any window size; the camera and the 3D viewport
-## follow.
+## follow. A zoom below 1 draws a picture pixel of several art pixels (the picture decimates the
+## art).
 func _size_picture(screen: Vector2) -> void:
+	var zoom := maxf(_source.zoom.y, 0.001)
 	_scale = 1
-	if RenderConfig.internal_lines > 0:
-		var wanted := float(RenderConfig.reference_height) / float(RenderConfig.internal_lines)
-		_scale = maxi(roundi(wanted), 1)
+	_pixel = 1.0 / zoom * RenderConfig.unit
+	if RenderConfig.texel_match:
+		_scale = maxi(roundi(zoom), 1)
+		_pixel = float(_scale) / zoom * RenderConfig.art_pixel * RenderConfig.unit
 	_internal = Vector2i(ceili(screen.x / float(_scale)) + 2, ceili(screen.y / float(_scale)) + 2)
-	_pixel = float(_scale) / maxf(_source.zoom.y, 0.001) * RenderConfig.unit
 	var rendered := _internal * maxi(oversample, 1)
 	if _viewport.size != rendered:
 		_viewport.size = rendered

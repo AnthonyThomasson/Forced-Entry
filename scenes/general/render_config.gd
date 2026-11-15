@@ -7,13 +7,15 @@ class_name RenderConfig
 
 ## 3D units per 2D pixel: the one scale of the mirror, 2D `(x, y)` -> 3D `(x, 0, y) * unit`.
 static var unit: float = 1.0
-## The camera's elevation above the ground plane, in degrees. 35.264 is the true isometric angle
-## (a 2:1-ish diamond that shows the most floor behind a wall); 26.565 is the 2:1 dimetric
-## pixel-art staple and 30 the ticket's "about 30".
-static var pitch_degrees: float = 35.264
-## The yaw the camera starts at, in degrees: 45 looks at the world's corner. The rig's `yaw` is the
-## live value, a property the camera-turn controls set.
-static var yaw_degrees: float = 45.0
+## The camera's elevation above the ground plane, in degrees. 80 is the near top-down view of the
+## 2D game (#193 phase 2b, G11): the ground is foreshortened to sin(80) = 0.985 and the side of a
+## wall or a body shows as a thin sliver, so the 2D painters' top views are what the picture shows.
+## 90 would show no side at all; 35.264 was the isometric angle of phases 1 and 2.
+static var pitch_degrees: float = 80.0
+## The yaw the camera starts at, in degrees: 0 is the 2D view's own orientation (north, -y, up the
+## screen). The rig's `yaw` is the live value; the camera-turn keys step it a quarter at a time
+## (`CameraTurnConfig.step_degrees`), so it rests at 0, 90, 180 and 270 only.
+static var yaw_degrees: float = 0.0
 ## How far the camera sits from its focus along its axis, in 3D units. An orthographic camera's
 ## distance changes nothing on the screen; it only has to clear the tallest thing.
 static var distance: float = 900.0
@@ -21,13 +23,15 @@ static var distance: float = 900.0
 ## reads keeps its precision.
 static var near: float = 300.0
 static var far: float = 1500.0
-## The pixel of the 3D picture: it is drawn at `internal_lines` rows in a window `reference_height`
-## high and shown with nearest filtering, so a picture pixel is `reference_height / internal_lines`
-## screen pixels (216 rows at 648: 3), rounded to a whole number so the upscale is exact at any
-## window height, and the same size on every window (more rows on a taller one). 0 draws a picture
-## pixel to a screen pixel.
-static var internal_lines: int = 216
-static var reference_height: int = 648
+## Whether the picture's pixel is the art's pixel times the zoom (#193 phase 2b, G13): the picture
+## is drawn `art_pixel` 2D px to a picture pixel and shown with nearest filtering, a whole number
+## of screen pixels to a picture pixel (the zoom, 1 to 3 in the 3D view: the camera controller
+## snaps it to whole steps), so one pixel of a 2D painter's art is one picture pixel times the zoom
+## and its texels stay crisp. Off draws a picture pixel to a screen pixel whatever the zoom.
+static var texel_match: bool = true
+## The 2D pixels one art pixel covers (`ArtCanvasConfig.pixel_size`, which a test pins it to;
+## General cannot read Art).
+static var art_pixel: float = 1.0
 ## The canvas layer the 3D view is drawn on: below the HUD (layer 1) and the overlay bar and
 ## everything over it, under the layers the flat overlays draw on (and the 2D world's default
 ## layer 0, which is not drawn in 3D mode).
@@ -42,5 +46,3 @@ static var overlay_layer: int = 0
 ## draw it from the 3D scene the unseen ground is only dimmed, to stay readable. Read when the
 ## view's composite is built, so a change applies from the next match.
 static var unseen_dim: float = 0.6
-## How fast a held camera-turn key (Q / E) turns the camera round its focus, in degrees a second.
-static var turn_speed_degrees: float = 90.0

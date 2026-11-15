@@ -62,6 +62,55 @@ func entry(from: Vector2, dir: Vector2, pad: float) -> float:
 	return near if far >= near else -1.0
 
 
+## How far along the unit line `dir` from `from` the box is first met by a strip of half width
+## `width` laid along the line (the line grown across it only, not ahead): 0 when the strip already
+## overlaps the box at `from`, -1 when the box lies behind `from` or off to the side. The strip is
+## the character's width seen from the camera, so a wall beside the character, not across the
+## line to the camera, is missed however near.
+func strip_entry(from: Vector2, dir: Vector2, width: float) -> float:
+	var across := Vector2(-axis.y, axis.x)
+	var corners := [
+		centre + axis * half.x + across * half.y, centre - axis * half.x + across * half.y,
+		centre - axis * half.x - across * half.y, centre + axis * half.x - across * half.y,
+	]
+	var first := INF
+	var last := -INF
+	for i in 4:
+		var a: Vector2 = corners[i] - from
+		var b: Vector2 = corners[(i + 1) % 4] - from
+		var span := _clip_to_strip(
+			Vector2(a.dot(dir), a.cross(dir)),
+			Vector2(b.dot(dir), b.cross(dir)),
+			width,
+		)
+		first = minf(first, span.x)
+		last = maxf(last, span.y)
+	if last < 0.0 or first == INF:
+		return -1.0
+	return maxf(first, 0.0)
+
+
+## The lowest and highest along-line coordinate (x) of the part of the segment `a`-`b`, both given
+## as (along, across), that lies within `width` across the line; (INF, -INF) when none does.
+static func _clip_to_strip(a: Vector2, b: Vector2, width: float) -> Vector2:
+	var none := Vector2(INF, -INF)
+	var lo := 0.0
+	var hi := 1.0
+	var step := b.y - a.y
+	if absf(step) >= 0.000001:
+		var t1 := (-width - a.y) / step
+		var t2 := (width - a.y) / step
+		lo = maxf(lo, minf(t1, t2))
+		hi = minf(hi, maxf(t1, t2))
+	elif absf(a.y) > width:
+		return none
+	if lo > hi:
+		return none
+	var p := a.lerp(b, lo).x
+	var q := a.lerp(b, hi).x
+	return Vector2(minf(p, q), maxf(p, q))
+
+
 ## The extent along each ground axis of the turned box: its half sizes projected onto them.
 func _spread() -> Vector2:
 	var across := Vector2(-axis.y, axis.x)

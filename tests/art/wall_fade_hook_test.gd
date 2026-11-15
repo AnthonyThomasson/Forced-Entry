@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 	mirror.builders[MirrorProxy.WALL] = _builder
 	mirror.builders[MirrorProxy.DOOR] = _builder
 	var bodies := {
-		"piece": _body(t, StaticBody2D.new(), "piece", Vector2(0, 40)),
+		"piece": _body(t, StaticBody2D.new(), "piece", Vector2(0, 24)),
 		"shoved": _body(t, RigidBody2D.new(), "shoved", Vector2(2000, 40)),
 		"wall": _body(t, StandInWall.new(), "wall", Vector2(0, 400)),
 		"door": _body(t, AnimatableBody2D.new(), "door", Vector2(0, 800)),

@@ -5,7 +5,7 @@ extends GameTest
 ## spectating (the camera framing three characters each behind a wall): the picture round the
 ## wall changes when it fades (the same view with the fade turned off differs), and the log gate
 ## fails the test on any shader or engine error. With `WALL_FADE_SHOT_DIR=<dir>` set it saves a
-## picture of each (`player_yaw45`, `player_yaw45_no_fade`, `player_yaw135`, `spectating`). Run:
+## picture of each (`player_yaw0`, `player_yaw0_no_fade`, `player_yaw90`, `spectating`). Run:
 ## `tools/run_tests.sh --windowed --id=art/wall_fade_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
@@ -18,8 +18,9 @@ const SPEC := {
 	"defenders": { "count": 3 },
 	"invaders": { "count": 3 },
 }
-## How far behind its wall the player stands, and how far walls stand apart.
-const STANDOFF := 36.0
+## How far behind the middle of its wall the player stands (just past its face: at the 80 degree
+## pitch a 96 px wall hides only what stands within 17 px of it), and how far walls stand apart.
+const STANDOFF := 9.0
 const APART := 200.0
 ## The share of the picture that must change between the fade and no fade, with the player at a
 ## wall: a wall's worth of pixels, a few percent of the window at this zoom.
@@ -77,9 +78,9 @@ func run(t: TestContext) -> void:
 	t.check(
 		changed >= MIN_CHANGED, "the wall's fade changes the picture (%.2f%%)" % (changed * 100.0)
 	)
-	_rig.yaw = 135.0
-	await _stand_player(t, walls[0], Probe.back_of(135.0))
-	await _shoot(t, "player_yaw135")
+	_rig.yaw = 90.0
+	await _stand_player(t, walls[0], Probe.back_of(90.0))
+	await _shoot(t, "player_yaw90")
 	await _spectate(t, walls)
 	await MainProbe.close(t, _window)
 
@@ -125,7 +126,7 @@ func _inside_house(centre: Vector2) -> bool:
 func _stand_player(t: TestContext, wall: Dictionary, back: Vector2) -> void:
 	_player.global_position = Probe.behind(wall, back, STANDOFF)
 	_camera.global_position = _player.global_position
-	_camera.zoom = Vector2(2.5, 2.5)
+	_camera.zoom = Vector2(3.0, 3.0)
 	_camera.set_process(false)  # stays on the player: no look-ahead toward the mouse
 	await t.frames(1)
 

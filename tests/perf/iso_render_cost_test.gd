@@ -1,5 +1,5 @@
 extends GameTest
-## Probe of #193's spike (windowed only: headless draws nothing): what the isometric 3D render
+## Probe of #193's spike (windowed only: headless draws nothing): what the 3D render
 ## costs a frame against today's 2D render, in the downtown district `perf/match_10v10_stress`
 ## builds. The 10v10 match plays on; in blocks that alternate (2D, 3D with the pixel post, 3D raw,
 ## round after round, the order reversed on odd rounds so a fight's drift evens out) the camera
@@ -34,7 +34,7 @@ var _root_rid: RID
 func describe() -> Dictionary:
 	return {
 		"name": "Isometric 3D render cost against 2D (probe)",
-		"description": "Spike of the isometric 3D render: the same camera route in the 10v10 "
+		"description": "Spike of the 3D render: the same camera route in the 10v10 "
 			+ "district under the 2D render and the 3D proxy mirror, frame and GPU times at two "
 			+ "resolutions. Windowed only.",
 		"tags": ["spike", "perf", "render", "3d"],

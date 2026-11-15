@@ -337,7 +337,7 @@ _Avoid_: visible region, culled
 ### The 3D render
 
 **Render mode**:
-How a match is drawn, 2D (the top-down game as it was) or 3D (the isometric view that mirrors it), a saved setting
+How a match is drawn, 2D (the top-down game as it was) or 3D (the near top-down view that mirrors it), a saved setting
 (`Settings.render_mode`) read when a match starts: a change applies at the next match, never to the one that runs. In 3D the 2D world
 is not drawn.
 _Avoid_: view mode, graphics setting, switching live

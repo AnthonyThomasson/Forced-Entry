@@ -16,6 +16,11 @@ const HUNG := [
 ]
 ## Where the free-standing piece stands, well off any wall.
 const FREE := Vector2(700, 350)
+## How far behind a wall's face (or a piece's middle) the character stands: at the 80 degree pitch
+## a piece hides only what stands within its height over tan 80 of it.
+const BEHIND := 3.0
+## The free menu board's middle is 7.75 px north of FREE and it is 4.5 deep: the same gap behind it.
+const FREE_BEHIND := 13.0
 
 var _mirror: WorldMirror
 var _fade: WallFade
@@ -76,7 +81,7 @@ func _hung_pieces_fade_with_the_wall(
 	t: TestContext, wall: Dictionary, pieces: Dictionary, box: AABB
 ) -> void:
 	var back := Probe.back_of(0.0)
-	var far := Vector2(box.end.x - 40.0, box.position.z) - back * 30.0
+	var far := Vector2(box.end.x - 40.0, box.position.z) - back * BEHIND
 	_run_fade([far], 20)
 	t.check(Probe.level(wall["part"]) < 0.5, "premise: the wall segment fades for that character")
 	for id: StringName in pieces:
@@ -109,7 +114,7 @@ func _hung_pieces_fade_with_the_wall(
 func _a_free_piece_fades_alone(t: TestContext) -> void:
 	var free := _parts_of(t.object(&"free_menu"))
 	_run_fade([], WallFadeConfig.hang_frames + 2)  # it looks for a wall that is not there
-	_run_fade([FREE - Probe.back_of(0.0) * 30.0], 20)
+	_run_fade([FREE - Probe.back_of(0.0) * FREE_BEHIND], 20)
 	t.check(
 		free.all(func(p: Node) -> bool: return Probe.level(p) < 0.5),
 		"a menu board with no wall behind it fades by its own place, as a tall piece does",

@@ -6,10 +6,10 @@ extends GameTest
 ## with 3D chosen by the spec: the view's composite and every NPC overlay and the navigation holes
 ## are visible in the tree on a ground layer (one shared layer for all the overlays, not one per
 ## NPC) whose transform is the 3D camera's ground-to-screen
-## affine (hand-worked at yaw 120: 100 px of ground along +x shows (-50, 50) px from the screen's
-## middle, the focus at the middle), so they line up with the 3D floor at any yaw; an overlay flag
-## still reaches the moved overlays and the detail card finds them by name; a 2D match moves
-## nothing.
+## affine (hand-worked at yaw 120 and pitch 80: 100 px of ground along +x shows (-50, 85.287) px
+## from the screen's middle, the focus at the middle), so they line up with the 3D floor at any yaw;
+## an overlay flag still reaches the moved overlays and the detail card finds them by name; a 2D
+## match moves nothing.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const OverlayRegistryProbe := preload("res://tests/_general/overlay_lookup_probe.gd")
@@ -227,7 +227,8 @@ func _flags_reach_the_moved_overlays(t: TestContext, main: Node, built: Dictiona
 
 
 ## The layer's transform is the 3D camera's affine from the ground to the screen, worked by hand at
-## yaw 120 and zoom 1: the focus is the screen's middle and 100 px along +x is (-50, 50) from it.
+## yaw 120 and zoom 1: the focus is the screen's middle and 100 px along +x is (-50, 85.287) from it
+## (sin 80 * 100 * sin 120).
 func _layer_is_the_cameras_affine(t: TestContext, viewport: SubViewport, built: Dictionary) -> void:
 	var holes: Node = built.get("nav_debug")
 	if holes == null or _layer_of(holes) == null:
@@ -241,6 +242,6 @@ func _layer_is_the_cameras_affine(t: TestContext, viewport: SubViewport, built: 
 		"the focus is mid-screen on the layer (%s)" % at_focus,
 	)
 	t.check(
-		along_x.distance_to(middle + Vector2(-50.0, 50.0)) < 0.3,
-		"100 px along +x lands (-50, 50) px from the middle at yaw 120 (%s)" % along_x,
+		along_x.distance_to(middle + Vector2(-50.0, 85.287)) < 0.3,
+		"100 px along +x lands (-50, 85.287) px from the middle at yaw 120 (%s)" % along_x,
 	)
