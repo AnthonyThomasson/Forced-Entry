@@ -71,7 +71,8 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 ## One shared bevel and outline over the skin and what covers it.
 static func _shade(c: PixelCanvas, head: PixelShape) -> void:
 	c.bevel_relative(head, 1, 2, 0.16, 0.22)
-	c.outline_relative(head, 0.45)
+	if not StyleArt.flat(c):
+		c.outline_relative(head, 0.45)
 
 
 ## Whether a pixel of the head lies behind the face (the face is the head's front cap): what hair
@@ -93,7 +94,8 @@ static func _long_hair(c: PixelCanvas, o: Vector2i, r: int, hair: Color) -> void
 	var ht := ArtSurfaceConfig.tones(hair)
 	var fall := PixelShape.ellipse(Rect2i(o.x - r - 1, o.y - r - 4, r * 2 + 3, r + 6))
 	c.fill(fall, hair, _HAIR)
-	c.outline(fall, ht.outline)
+	if not StyleArt.flat(c):
+		c.outline(fall, ht.outline)
 	for dx in [-2, 0, 2]:
 		c.line(Vector2i(o.x + dx, o.y - r - 2), Vector2i(o.x + dx, o.y - 2), ht.dark)
 
@@ -120,9 +122,11 @@ static func _hair(
 			_crop(c, o, r, look, head)
 	match style:
 		"mohawk":
-			c.px(o.x, o.y + r - 1, ht.highlight, _HAIR + 2)  # The crest's tip over the brow.
+			# The crest's tip over the brow.
+			c.px(o.x, o.y + r - 1, _hair_or(c, ht.highlight, ht.base), _HAIR + 2)
 		"short", "long":
-			c.line(Vector2i(o.x, o.y - int(r / 3.0)), Vector2i(o.x - r + 1, o.y - 1), ht.light)
+			var part: Color = _hair_or(c, ht.light, ht.base)  # The parting's lit edge.
+			c.line(Vector2i(o.x, o.y - int(r / 3.0)), Vector2i(o.x - r + 1, o.y - 1), part)
 	if look.get("tattoo", false) and style in ["bald", "buzz", "mohawk"]:
 		var ink: Color = look.get("ink", Color.BLACK)
 		var at := Vector2i(o.x - 3 if c.rng.randf() < 0.5 else o.x + 2, o.y - 2)
@@ -181,7 +185,7 @@ static func _mohawk(
 			if not covered.call(x, y):
 				continue
 			if absi(x - o.x) <= 1:
-				c.px(x, y, ht.light if x == o.x else hair, _HAIR + 2)
+				c.px(x, y, _hair_or(c, ht.light, hair) if x == o.x else hair, _HAIR + 2)
 			elif c.rng.randf() < 0.25:
 				c.px(x, y, skin.darkened(0.12))  # Shaved sides: stubble.
 
@@ -212,7 +216,8 @@ static func _cap(
 		"zenitex", "trauma":
 			_duty_cap(c, o, r, look)
 		"merc":
-			c.fill(PixelShape.disc(Vector2i(o.x, o.y - int(r / 3.0)), 1), t.light, _HEAD + 1)
+			var knot: Color = _hair_or(c, t.light, t.base)
+			c.fill(PixelShape.disc(Vector2i(o.x, o.y - int(r / 3.0)), 1), knot, _HEAD + 1)
 		_:
 			c.px(o.x, o.y - r, t.dark, _BRIM)
 			c.px(o.x - 1, o.y - r - 1, col, _BRIM)
@@ -227,7 +232,8 @@ static func _duty_cap(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> 
 	c.line(Vector2i(o.x, o.y - r + 1), Vector2i(o.x, o.y + int(r / 2.0)), t.dark)
 	var brim := PixelShape.ellipse(Rect2i(o.x - r + 1, o.y + int(r / 2.0), r * 2 - 1, r))
 	c.fill(brim, t.shadow, _BRIM)
-	c.outline(brim, t.outline)
+	if not StyleArt.flat(c):
+		c.outline(brim, t.outline)
 	if String(look.get("style", "")) == "zenitex":
 		for x in range(o.x - r + 1, o.x + r):
 			if (x - o.x) % 3 != 0:
@@ -251,7 +257,8 @@ static func _helmet(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> vo
 	c.surface(shell, "metal" if style == "borg" else "plastic", col)
 	c.bevel(shell, 2, 3, t.light, t.dark)
 	StyleArt.edge(c, shell, look)  # The Zenitex's light rim round its charcoal shell.
-	c.outline(shell, t.outline)
+	if not StyleArt.flat(c):
+		c.outline(shell, t.outline)
 	match style:
 		"zenitex":
 			_zenitex_helmet(c, at, r, shell, look)
@@ -269,6 +276,12 @@ static func _helmet(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> vo
 			trim.lightened(0.2),
 			_SHELL + 1,
 		)
+
+
+## `lit` on a lit canvas, `unlit` on a flat one (the 3D render: a hand-picked light tone is a baked
+## highlight there).
+static func _hair_or(c: PixelCanvas, lit: Color, unlit: Color) -> Color:
+	return unlit if StyleArt.flat(c) else lit
 
 
 ## How far a style's helmet shell stands out past the head (px): the Zenitex's and a borg's two.

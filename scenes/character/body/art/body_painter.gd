@@ -40,7 +40,8 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	c.surface(shoulders, material, base)
 	c.bevel(shoulders, 1, 2, t.light, t.dark)
 	StyleArt.edge(c, shoulders, look)
-	c.outline(shoulders, t.outline)
+	if not StyleArt.flat(c):
+		c.outline(shoulders, t.outline)
 	_sleeve_ends(c, o, span, shoulders, look)
 	if look.get("police", false):
 		_uniform(c, o, shoulders, look, t)
@@ -217,7 +218,8 @@ static func _shoulder_plate(
 	var plate := PixelShape.rounded(r, 2)
 	c.fill(plate, t.base.lightened(0.06), _PAD)
 	c.bevel(plate, 1, 1, edge, edge.darkened(0.45))
-	c.outline(plate, t.outline)
+	if not StyleArt.flat(c):
+		c.outline(plate, t.outline)
 	c.line(
 		Vector2i(plate.bounds.position.x + 1, row),
 		Vector2i(plate.bounds.end.x - 2, row),
@@ -280,7 +282,8 @@ static func _pack(c: PixelCanvas, o: Vector2i, span: Rect2i, look: Dictionary) -
 	c.fill(pack, col, _PACK)
 	c.surface(pack, "fabric", col)
 	c.bevel(pack, 1, 1, pt.light, pt.dark)
-	c.outline(pack, pt.outline)
+	if not StyleArt.flat(c):
+		c.outline(pack, pt.outline)
 	if String(look.get("pack_kind", "")) == "medic":
 		StyleArt.cross(c, r.get_center(), look.get("trim", Color.RED), _PACK + 1)
 	elif not look.get("police", false):

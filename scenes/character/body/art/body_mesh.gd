@@ -62,7 +62,7 @@ const SMALL := [
 ## the last: the rig's seventeen joints, the two feet's toes and the face, and what the held item
 ## points along (flat x, y) and how far it is pitched up (z).
 const JOINTS := 17
-const SAMPLE := 21
+const SAMPLE := 23
 ## How far a joint (px) or a flat direction (its length, about 1 degree for 0.02) must move from the
 ## pose the parts are in to pose them again: a body at rest, its breath and its head's spring still
 ## settling, is not re-placed every frame. A joint's is under one pixel of the 3D picture.
@@ -78,6 +78,12 @@ const SHOE_LENGTH := 0.8
 const LIE_FRAMES := 18
 ## The held item's sample: its index among the joints.
 const AIM := JOINTS + 3
+## The fists' own sample: the way each one faces (a flat direction), after the held item's.
+const FISTS := JOINTS + 4
+## How a limb's top (the face its art lies on) is chosen: up, but for a limb steeper than this
+## (the height of its unit direction, from where to where) it turns toward the face, so a hanging
+## arm's strip lies on its front.
+const STEEP := Vector2(0.6, 0.95)
 ## How far over the head's middle its crown and its covering reach (over its radius): the part of
 ## the standing height above the head's joint.
 const HEAD_TOP := 1.2
@@ -114,8 +120,6 @@ var _last := PackedVector3Array()
 var _sample := PackedVector3Array()
 var _posed := false
 var _look_key := -1
-## Whether the head covering is a cap (else a helmet).
-var _cap := false
 ## The parts, by the indices above (a sided part's own is its index plus the side).
 var _parts: Array[MeshInstance3D] = []
 ## What the character holds (`BodyHeld`: its node is the last child, `HELD`).
@@ -276,7 +280,6 @@ func _dress_parts() -> void:
 	_tint(_parts[FACE], _band_colour(skin))
 	var worn := String(look.get("head", ""))
 	var covered := worn == "helmet" or worn == "cap"
-	_cap = worn == "cap"
 	_parts[HEADWEAR].visible = covered
 	_tint(_parts[HEADWEAR], _colour(look.get("helm")))
 	_parts[HAIR].visible = not covered and String(look.get("hair_style", "short")) != "bald"
@@ -290,6 +293,7 @@ func _dress_parts() -> void:
 		_parts[BOOT + i].visible = _dress.boots
 		_tint(_parts[BOOT + i], _dress.shoes)
 		_tint(_parts[FOOT + i], _dress.shoes)
+	BodyTextures.apply(_parts, _dress, _r, _hand_radius)
 
 
 ## Place every part between the joints of `rig` (the standing skeleton, or a ragdoll: the same
@@ -306,6 +310,8 @@ func _pose(rig: Object, body: Node2D) -> void:
 		_sample[JOINTS + i] = _dir(rig.toes(i))
 	_sample[JOINTS + 2] = _dir(rig.face())
 	_sample[AIM] = _held.sample(body, _died >= 0)
+	for i in 2:
+		_sample[FISTS + i] = _fist_dir(rig, body, i)
 	if _held.swapped:
 		_held.swapped = false
 		_posed = false  # a new item has not been placed
@@ -337,7 +343,7 @@ func _pose_trunk() -> void:
 	var pelvis := _last[Rig.PELVIS]
 	var up := _last[Rig.CHEST] - pelvis
 	var frame := _frame_of(up, _last[Rig.BELLY] - _last[Rig.SPINE])
-	var half := _trunk_half()
+	var half := trunk_half(_r)
 	var length := up.length() + CharacterMeshConfig.torso_overshoot * _r
 	_place(_parts[TORSO], frame, Vector3(half.x, length, half.y), pelvis)
 	_pose_vest(frame, pelvis, length, half)
@@ -348,12 +354,23 @@ func _pose_trunk() -> void:
 	_segment(_parts[NECK], base, _last[Rig.HEAD], neck)
 
 
-## The trunk's half width and half depth (px).
-func _trunk_half() -> Vector2:
+## The trunk's half width and half depth (px) of a body of radius `r`.
+static func trunk_half(r: float) -> Vector2:
 	return Vector2(
 		CharacterMeshConfig.torso_width,
 		CharacterArtConfig.shoulder_depth * CharacterMeshConfig.torso_depth,
-	) * _r
+	) * r
+
+
+## How thick a limb is (the px a unit of its solid's radius is) on a body of radius `r`.
+static func limb_thick(r: float) -> float:
+	return r * 0.5 * CharacterMeshConfig.limb_scale
+
+
+## A boot's shaft's radius (px): a bit over the shin's mean width.
+static func boot_radius(r: float) -> float:
+	var legs := CharacterArtConfig.body_leg_widths
+	return (legs[1] + legs[2] + legs[3]) / 3.0 * limb_thick(r) * BOOT_GROW
 
 
 ## The vest over the trunk (`frame` from `pelvis`, `length` long, `half` its half width and depth),
@@ -404,7 +421,7 @@ func _pose_head() -> void:
 	_cover(
 		_parts[HEADWEAR],
 		frame,
-		CAP_SHAPE if _cap else HELMET_SHAPE,
+		CAP_SHAPE if String(_look().get("head", "")) == "cap" else HELMET_SHAPE,
 		at,
 	)
 	_place(
@@ -434,7 +451,12 @@ func _pose_limbs(i: int) -> void:
 	var hand := _last[Rig.HAND[i]]
 	_segment(_parts[UPPER + i], _last[Rig.SHOULDER[i]], elbow, thick)
 	_segment(_parts[FORE + i], elbow, hand, thick)
-	_place(_parts[HAND + i], Basis.IDENTITY, Vector3.ONE * _hand_radius, hand)
+	_place(
+		_parts[HAND + i],
+		_frame_of(Vector3.UP, _last[FISTS + i]),
+		Vector3.ONE * _hand_radius,
+		hand,
+	)
 	_pose_leg(i, thick)
 
 
@@ -459,15 +481,30 @@ func _pose_leg(i: int, thick: float) -> void:
 	_place(_parts[FOOT + i], frame, size, at + frame.z * size.z * 0.25)
 
 
-## `node` (a unit cylinder) laid from `from` to `to`, `radius` px across.
+## `node` (a limb solid, lying along its z) laid from `from` to `to`, `radius` px across.
 func _segment(node: MeshInstance3D, from: Vector3, to: Vector3, radius: float) -> void:
 	var along := to - from
 	_place(
 		node,
-		_frame_of(along, Vector3.BACK),
-		Vector3(radius, maxf(along.length(), 0.01), radius),
+		_limb_frame(along),
+		Vector3(radius, radius, maxf(along.length(), 0.01)),
 		from,
 	)
+
+
+## The frame of a limb along `along`: its z along it, its y (the top its art lies on) up, or toward
+## the way the body faces for a steep limb, so a hanging arm's strip lies on its front; x is y cross
+## z (the art's across, right of the body as it faces), as everywhere.
+func _limb_frame(along: Vector3) -> Basis:
+	var z := along.normalized() if along.length_squared() > 0.000001 else Vector3.DOWN
+	var face := Vector3(_last[JOINTS + 2].x, 0.0, _last[JOINTS + 2].z)
+	var toward := face.normalized() if face.length_squared() > 0.000001 else Vector3.BACK
+	var hint := Vector3.UP.lerp(toward, smoothstep(STEEP.x, STEEP.y, absf(z.y)))
+	var y := hint - z * hint.dot(z)
+	if y.length_squared() < 0.000001:
+		y = z.cross(Vector3.RIGHT)
+	y = y.normalized()
+	return Basis(y.cross(z), y, z)
 
 
 ## `node` turned to `frame`, `size` px along its three axes, its origin at `at` px; a part not shown
@@ -535,6 +572,16 @@ func _floor_clearance() -> float:
 		return 0.0
 	var eased := clampf(float(Engine.get_physics_frames() - _died) / LIE_FRAMES, 0.0, 1.0)
 	return CharacterMeshConfig.lying_clear * eased
+
+
+## The way fist `i` faces, flat: the 2D hand's own angle while the body lives (what the painter
+## turns the fist by), else along the forearm.
+func _fist_dir(rig: Object, body: Node2D, i: int) -> Vector3:
+	if _died < 0:
+		var angle: float = body.anatomy.pose.hand_angles[i]
+		return Vector3(cos(angle), 0.0, sin(angle))
+	var forearm: Vector3 = rig.point(Rig.HAND[i]) - rig.point(Rig.ELBOW[i])
+	return Vector3(forearm.x, 0.0, forearm.y)
 
 
 ## A direction of the rig (x, y over the floor, z up: flat for a standing body, tipped for a fallen

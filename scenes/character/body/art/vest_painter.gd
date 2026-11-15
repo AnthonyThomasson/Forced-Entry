@@ -234,7 +234,8 @@ static func _fill(
 	c.surface(s, finish, col)
 	c.bevel(s, 1, 2 if plated else 1, t.highlight if plated else t.light, t.dark)
 	StyleArt.edge(c, s, look)
-	c.outline(s, t.outline)
+	if not StyleArt.flat(c):
+		c.outline(s, t.outline)
 
 
 ## `count` pouches side by side across `r`, a shade darker than `col`, each with its flap.
@@ -248,11 +249,13 @@ static func _pouches(c: PixelCanvas, r: Rect2i, count: int, col: Color) -> void:
 			0,
 		)
 		c.fill(pouch, pc, _POUCH)
-		c.outline(pouch, t.outline)
+		var flap: Color = t.base if StyleArt.flat(c) else t.light  # The flap's lit edge.
+		if not StyleArt.flat(c):
+			c.outline(pouch, t.outline)
 		c.line(
 			Vector2i(pouch.bounds.position.x, r.position.y),
 			Vector2i(pouch.bounds.end.x - 1, r.position.y),
-			t.light,
+			flap,
 			_POUCH,
 		)
 

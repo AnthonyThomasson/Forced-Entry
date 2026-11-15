@@ -9,9 +9,11 @@ extends RefCounted
 ## the neck and the shoe end in flat faces; the head (and the hair and the headwear over it, balls)
 ## is a dome, with no flat top, so a top-down picture projected on it stretches toward its rim.
 ##
-## The frames: a round solid stands on the origin along +y, one unit tall, its radii the part's own
-## width over the scale `BodyMesh` gives it; the head's own unit is a radius of 1 round the origin;
-## a shoe is a box one unit each way over the origin, its toe along +z.
+## The frames: the trunk stands on the origin along +y, one unit tall, its radii the part's own
+## width over the scale `BodyMesh` gives it; a limb (and the neck, a boot's shaft) lies along +z
+## instead, from the origin to one unit, so the textured toon's straight-down projection of the 2D
+## strip (across it x, along it z) lands on its top; the head's own unit is a radius of 1 round the
+## origin; a shoe is a box one unit each way over the origin, its toe along +z.
 
 ## The trunk's width over its half width (`k`) by the share of its height (`t`), pelvis to neck:
 ## the hips, the waist, the chest and the slope of the shoulders into the neck.
@@ -89,6 +91,7 @@ static func _make(shape: StringName, opts: Dictionary) -> Mesh:
 			kit.sphere(Vector3.ZERO, 1.0, Color.WHITE)
 		&"limb":
 			kit.sides = LIMB_SIDES
+			kit.pose(Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3.ZERO))  # along +z
 			kit.revolve(_limb_profile(opts["radii"]), Vector3.ZERO, Color.WHITE)
 		&"shoe":
 			kit.extrude(PackedVector2Array(SHOE), 0.0, 1.0, Color.WHITE)

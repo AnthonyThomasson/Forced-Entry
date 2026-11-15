@@ -13,6 +13,8 @@ extends GameTest
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const Style := preload("res://scenes/character/body/character_style.gd")
+const BodyPainter := preload("res://scenes/character/body/art/body_painter.gd")
+const HandPainter := preload("res://scenes/character/body/art/hand_painter.gd")
 const SCRATCH := "user://settings_character_mesh_test.json"
 ## The how-to's standing character (`meshes.md` heights): px from the floor to the top of the head.
 const STANDING_HEIGHT := 74.0
@@ -117,10 +119,15 @@ func _check_shape(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
 		"two bodies share one head solid",
 	)
 	t.check(
-		(east.get_child(BodyMesh.HEAD) as MeshInstance3D).material_override
+		(east.get_child(BodyMesh.NECK) as MeshInstance3D).material_override
 			== ToonMaterial.shared(),
-		"it is drawn in the one shared toon material",
+		"a part with no art of its own (the neck) is drawn in the one shared toon material",
 	)
+	for index in [BodyMesh.HEAD, BodyMesh.TORSO, BodyMesh.UPPER, BodyMesh.THIGH, BodyMesh.FOOT]:
+		t.check(
+			_art(east, index) != null,
+			"the part %d is drawn in the textured toon, with its 2D art" % index,
+		)
 
 
 ## A natural body, not a blocky one: three quarters of a wall tall, a trunk narrower than the
@@ -241,6 +248,13 @@ func _check_dress(t: TestContext, mirror: WorldMirror) -> void:
 		return
 	var dress: BodyDress = t.actor(&"dressed").get_node("Visuals").dress
 	_check_colours(t, body, dress)
+	var made := ToonMaterial.textured_count()
+	await t.frames(30)
+	t.expect_eq(
+		ToonMaterial.textured_count(),
+		made,
+		"the art is made once per look: no textured material is made as the bodies move",
+	)
 	await _check_outfit(t, mirror, body, dress)
 
 
@@ -258,23 +272,40 @@ func _check_figure(t: TestContext, body: BodyMesh) -> void:
 	)
 
 
-## The parts are the colours the painters draw them in (`dress`).
+## The parts are the art the painters draw them in (`dress`): the flat render of the painter, as
+## `PixelArt` caches it, tinted white so it shows as painted; the neck stays the skin's colour.
 func _check_colours(t: TestContext, body: BodyMesh, dress: BodyDress) -> void:
+	var actor: Node = t.actor(&"dressed")
+	var r: float = actor.radius
 	t.check(
-		_tint(body, BodyMesh.TORSO) == dress.shirt,
-		"the trunk is the shirt's colour the painters draw (%s)" % dress.shirt,
+		_art(body, BodyMesh.TORSO)
+			== PixelArt.render_flat(
+				BodyPainter,
+				Vector2(r * 2.0, r * 2.0),
+				dress.shirt,
+				dress.shoulder_opts,
+			),
+		"the trunk wears the shoulders' flat art in the shirt's colour (%s)" % dress.shirt,
 	)
-	t.check(_tint(body, BodyMesh.HEAD) == dress.skin, "the head is the skin's")
+	t.check(_art(body, BodyMesh.VEST) == _art(body, BodyMesh.TORSO), "the vest wears it too")
+	t.check(_tint(body, BodyMesh.TORSO) == Color.WHITE, "the art is not tinted again")
 	t.check(_tint(body, BodyMesh.NECK) == dress.skin, "the neck is the skin's")
+	var hand: Dictionary = dress.hand_parts[0]
+	var diameter: float = 2.0 * actor.get_node("Hands").hand_radius + 2.0
 	t.check(
-		_tint(body, BodyMesh.THIGH) == dress.pants,
-		"the thigh is the trousers' colour",
+		_art(body, BodyMesh.HAND)
+			== PixelArt.render_flat(
+				HandPainter,
+				Vector2(diameter, diameter),
+				hand["color"],
+				hand["opts"],
+			),
+		"the fist wears the hand's flat art in the glove's colour",
 	)
-	t.check(_tint(body, BodyMesh.FOOT) == dress.shoes, "the shoe is the shoes' colour")
 	t.check(
-		(body.get_child(BodyMesh.HAND) as MeshInstance3D).visible
-			and _tint(body, BodyMesh.HAND) == dress.hand_parts[0]["color"],
-		"the fist is the glove's colour",
+		_art(body, BodyMesh.HEAD) == _art(body, BodyMesh.HAIR)
+			and _art(body, BodyMesh.HEAD) == _art(body, BodyMesh.HEADWEAR),
+		"the head's art is on the head and on what covers it",
 	)
 
 
@@ -294,7 +325,7 @@ func _check_outfit(
 		not _shown(body, BodyMesh.PLATE) and not _shown(body, BodyMesh.PLATE + 1),
 		"and no plates",
 	)
-	var before := _tint(body, BodyMesh.TORSO)
+	var before := _art(body, BodyMesh.TORSO)
 	wardrobe.outfit.set_ids({
 		"vest": &"plate_carrier", "front_plate": &"ceramic_iv", "body": &"shirt",
 	})
@@ -306,16 +337,16 @@ func _check_outfit(
 	)
 	var look := PixelArt.look_of(dress.head_opts)
 	t.check(
-		_tint(body, BodyMesh.VEST) == look["vest_col"],
-		"the vest is the colour its look gives (%s)" % look["vest_col"],
+		_art(body, BodyMesh.VEST) != null and _art(body, BodyMesh.VEST) != before,
+		"the vest wears the shoulders' art with the vest on it (%s)" % look["vest_col"],
 	)
 	t.check(
 		_tint(body, BodyMesh.PLATE) == dress.shoulder_opts["front_plate"],
 		"the plate is the plate's colour",
 	)
 	t.check(
-		_tint(body, BodyMesh.TORSO) == dress.shirt,
-		"the same body is dressed again, the trunk in the new shirt (%s)" % before,
+		_art(body, BodyMesh.TORSO) != before,
+		"the same body is dressed again: the trunk wears the art of the new look",
 	)
 	t.check(
 		mirror.proxies_of(t.actor(&"dressed"))[0] == body,
@@ -539,6 +570,14 @@ func _flat(node: Node3D) -> Vector2:
 func _tint(body: BodyMesh, index: int) -> Color:
 	var part := body.get_child(index) as MeshInstance3D
 	return part.get_instance_shader_parameter(&"base_color")
+
+
+## The texture part `index` of `body` wears (null for the shared toon material).
+func _art(body: BodyMesh, index: int) -> Texture2D:
+	var material := (body.get_child(index) as MeshInstance3D).material_override
+	if material is ShaderMaterial:
+		return (material as ShaderMaterial).get_shader_parameter(&"albedo_texture")
+	return null
 
 
 ## Whether part `index` of `body` shows.

@@ -7,6 +7,7 @@ extends RefCounted
 ## Options: `look`, `side` (-1 = left hand, thumb toward +x; 1 = right hand, thumb toward -x),
 ## `chrome`.
 
+const StyleArt = preload("res://scenes/character/body/art/style_art.gd")
 ## Heights for cast shadows: the thumb sits over the fist.
 const _FIST := 3
 const _THUMB := 5
@@ -27,7 +28,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	# Knuckles: a row of bumps along the front with creases between them.
 	var ky := o.y + r - 2
 	for x in range(o.x - r + 2, o.x + r - 1, 2):
-		c.px(x, ky, t.highlight)
+		c.px(x, ky, base if StyleArt.flat(c) else t.highlight)
 		c.px(x + 1, ky + 1, t.dark)
 	var skin: Color = look.get("skin", base)
 	if chrome:
@@ -45,7 +46,8 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		# Fingerless: the fingers' skin past the glove.
 		for x in range(o.x - r + 2, o.x + r - 1, 2):
 			c.px(x, ky + 1, skin)
-	c.outline(fist, t.outline)
+	if not StyleArt.flat(c):
+		c.outline(fist, t.outline)
 	var side := int(opts.get("side", 1))
 	var thumb := PixelShape.disc(o + Vector2i(-side * (r - 2), 0), maxi(1, int(r / 2.0) - 1))
 	c.fill(thumb, base.lightened(0.04), _THUMB)

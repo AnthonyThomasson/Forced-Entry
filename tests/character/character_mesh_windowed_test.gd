@@ -5,7 +5,8 @@ extends GameTest
 ## registered the builder), the picture is drawn, and the log gate fails the test on any shader or
 ## engine error. The look itself is not asserted: with `CHARMESH_SHOTS=<dir>` set it saves a
 ## picture of the body standing, crouched and fallen at zoom 3 and at 1 (the game's default), for
-## the phase gate (`CHARMESH_PITCH=<degrees>` tips the camera). Run:
+## the phase gate (`CHARMESH_PITCH=<degrees>` tips the camera; `CHARMESH_MODE=2d` draws the match
+## in 2D and saves only the standing shots: the 2D art to compare the body against). Run:
 ## `tools/run_tests.sh --windowed --id=character/character_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
@@ -35,7 +36,8 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(Settings, &"path", SCRATCH)
-	s.set_static(Settings, &"render_mode", Settings.RENDER_3D)
+	var two_d := OS.get_environment("CHARMESH_MODE") == "2d"  # the reference shots of the 2D art
+	s.set_static(Settings, &"render_mode", Settings.RENDER_2D if two_d else Settings.RENDER_3D)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
@@ -70,8 +72,10 @@ func run(t: TestContext) -> void:
 	camera.set_process(false)
 	camera.set_physics_process(false)
 	await t.frames(30)
-	var view: Node = main.get_node("View3D")
-	var mirror: WorldMirror = view.mirror
+	if OS.get_environment("CHARMESH_MODE") == "2d":
+		await _reference(t, window, camera, built["world"], character)
+		return
+	var mirror: WorldMirror = main.get_node("View3D").mirror
 	_hide_walls(built["world"], mirror)  # full-height walls would stand between the camera and it
 	var shown := mirror.proxies_of(character)
 	t.check(
@@ -91,6 +95,19 @@ func run(t: TestContext) -> void:
 	for zoom: float in ZOOMS:
 		camera.zoom = Vector2(zoom, zoom)
 		await _shoot(t, window, camera, character, "fallen_zoom%d" % int(zoom))
+	await MainProbe.close(t, window)
+
+
+## The 2D match's standing shots (`CHARMESH_MODE=2d`): the art the body is compared against.
+func _reference(
+	t: TestContext,
+	window: SubViewport,
+	camera: Camera2D,
+	world: Node,
+	character: Node2D,
+) -> void:
+	_send_others_away(world, character)
+	await _shoot_standing(t, window, camera, character)
 	await MainProbe.close(t, window)
 
 

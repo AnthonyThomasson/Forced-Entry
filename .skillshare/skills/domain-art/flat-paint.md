@@ -20,7 +20,7 @@ no light of its own. `render_flat(painter, size, color, opts := {})` paints the 
 - **Painters that read `c.light` directly** degrade to a fixed side: cabinet takes its neutral front tone (`base.darkened(0.05)`, so not plain albedo), plant its fixed lit
   side, sofa its fixed arm ridge; shadow_painter drags by zero (not meshed).
 - **Residue the flag cannot remove:** tones a painter picks by hand drawn outside a `bevel` (`t.light` lines and fills in wall, head…)
-  stay painted; a painter that must drop them reads `c.light == Vector2.ZERO` itself (below; `wall_painter.gd`: no trim or outline rows, brick courses to the edge; `door_painter.gd`: no painted handle on a standing leaf, the 3D door has a mesh one). `outline()` rings are handled centrally.
+  stay painted; a painter that must drop them reads `c.light == Vector2.ZERO` itself (below; `wall_painter.gd`: no trim or outline rows, brick courses to the edge; `door_painter.gd`: no painted handle on a standing leaf, the 3D door has a mesh one). `outline()` rings are handled centrally. The character painters (head, shoulders and pack, fist, shoe and shaft, vest) also skip their rings and rims through `StyleArt.flat(c)` (`domain-character/body-textures.md`).
 
 ## Outline rings on a flat canvas
 
