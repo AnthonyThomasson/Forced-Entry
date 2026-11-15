@@ -40,6 +40,7 @@ static func _tuning(spec: FurnitureSpec) -> Dictionary:
 		"height": ObjectMeshDecorConfig.fixture_mirror_height,
 		"bar": ObjectMeshDecorConfig.fixture_bar_height,
 		"frame": ObjectArtDecorConfig.fixture_frame_color,
+		"props": ObjectArtDecorConfig.prop_colors,
 	}
 
 

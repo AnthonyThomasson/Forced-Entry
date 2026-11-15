@@ -23,7 +23,7 @@ const MATCH := {
 ## width and depth it covers, and `wall` for a piece that hangs thin against the wall at the back of
 ## its footprint. Heights are the how-to's class heights; the few that rise past the class number
 ## are the part on top: the toilet's flush button (cistern 30 + 1), the bath's tap (rim 20 + 6), the
-## coat rack's hat (post 64 + 4), the rug's three medallion steps (border and field .9 + .9).
+## coat rack's hat (post 64 + 4), the rug's border, and field with its flat medallion (.6 + .3).
 const KINDS := {
 	&"sofa": { "art": "sofa", "top": 38.0, "base": 0.0, "cover": 0.95 },
 	&"chair": { "art": "chair", "top": 36.0, "base": 0.0, "cover": 0.8 },
@@ -35,7 +35,7 @@ const KINDS := {
 	&"office_chair": { "art": "office_chair", "top": 42.0, "tol": 0.3, "cover": 0.5 },
 	&"toilet": { "art": "toilet", "top": 31.0, "cover": 0.5 },
 	&"bathtub": { "art": "bath", "top": 26.0, "cover": 0.95 },
-	&"rug": { "art": "rug", "top": 1.8, "cover": 0.9 },
+	&"rug": { "art": "rug", "top": 0.9, "cover": 0.9 },
 	&"plant": { "art": "plant", "top": 36.0, "tol": 0.3, "cover": 0.5 },
 	&"lamp": { "art": "lamp", "top": 52.0, "base": 0.0, "cover": 0.5 },
 	&"coat_rack": { "art": "coat_rack", "top": 68.0, "cover": 0.3 },
@@ -206,7 +206,7 @@ func _check_lamp(t: TestContext, mirror: WorldMirror) -> void:
 		return
 	var glow := rig.glows[0]
 	t.check(rig.lit, "a lamp is lit to begin with")
-	t.expect_near(_strength(glow), 1.0, 0.001, "its glow is on")
+	t.expect_near(_strength(glow), 0.6, 0.001, "its bulb glows at the dim strength")
 	rig.set_lit(false)
 	t.expect_near(_strength(glow), 0.0, 0.001, "switched off, it does not glow")
 	glow.set_instance_shader_parameter(&"emissive", Color(1, 2, 3, 4))
@@ -217,9 +217,21 @@ func _check_lamp(t: TestContext, mirror: WorldMirror) -> void:
 		"switching off a dark lamp writes nothing",
 	)
 	rig.set_lit(true)
-	t.expect_near(_strength(glow), 1.0, 0.001, "lit again, it glows")
+	t.expect_near(_strength(glow), 0.6, 0.001, "lit again, the bulb is back at its own strength")
 	var stove := _rig_of(mirror, t.object(&"hotplate"))
-	t.check(stove != null and stove.glows.size() == 1, "the hotplate glows too (its hot ring)")
+	if t.require(
+		stove != null and stove.glows.size() == 1,
+		"the hotplate glows too (its hot ring)",
+	):
+		t.expect_near(
+			_strength(stove.glows[0]),
+			1.0,
+			0.001,
+			"its hot ring glows brighter than a bulb",
+		)
+		stove.set_lit(false)
+		stove.set_lit(true)
+		t.expect_near(_strength(stove.glows[0]), 1.0, 0.001, "and is back at full after a cycle")
 	t.check(
 		glow.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "a glow casts no shadow"
 	)
@@ -251,7 +263,8 @@ func _check_dent_tint(t: TestContext, mirror: WorldMirror) -> void:
 	await t.frames(1)
 
 
-## A bed's blanket lies flat while a character lies on the bed and rises when they get up.
+## A bed's blanket lies flat while a character lies on the bed (not while hiding under it) and
+## rises when they get up.
 func _check_bed(t: TestContext, mirror: WorldMirror) -> void:
 	var bed := t.object(&"bed")
 	var rig := _rig_of(mirror, bed) as FurnitureBedRig
@@ -261,6 +274,16 @@ func _check_bed(t: TestContext, mirror: WorldMirror) -> void:
 	t.expect_near(rig.blanket.scale.y, 1.0, 0.001, "its blanket is raised")
 	var sleeper := t.actor(&"sleeper")
 	var puppet := t.puppet(&"sleeper")
+	sleeper.global_position = bed.global_position + Vector2(0.0, 30.0)
+	await t.frames(2)
+	puppet.interact(bed, "hide")
+	await t.frames(ObjectMeshStateConfig.occupied_every * 2 + 2)
+	t.check(not rig.occupied, "hiding under the bed is not lying on it")
+	t.expect_near(rig.blanket.scale.y, 1.0, 0.001, "the blanket stays raised over someone hiding")
+	puppet.end_interaction()
+	await t.until(
+		func() -> bool: return not sleeper.use.is_busy(), 3.0, "the sleeper stands up from hiding"
+	)
 	sleeper.global_position = bed.global_position + Vector2(0.0, 30.0)
 	await t.frames(2)
 	puppet.interact(bed, "lie")

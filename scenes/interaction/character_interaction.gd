@@ -42,6 +42,14 @@ func active_label() -> String:
 	return _active.get("label", "")
 
 
+## The active interaction as `{ object, id }` (the object it acts on and its action's id: `lie`,
+## `sit`, `hide`, ...), empty when idle. Read by a mesh that shows who lies on a bed.
+func active() -> Dictionary:
+	if not is_busy():
+		return {}
+	return { "object": _active_object, "id": _active.get("id", "") }
+
+
 ## The reachable objects and their valid actions, as `[{ object, specs }]` (empty when none in
 ## range). Lets a controller (an AI) see its options and choose deliberately via `interact_with`.
 func interactions_in_reach() -> Array:

@@ -51,8 +51,14 @@ static func _tuning(spec: FurnitureSpec) -> Dictionary:
 			ObjectMeshChairConfig.recliner_leg_height,
 		],
 		"arm": ObjectMeshChairConfig.recliner_arm_height,
+		"surgical": [
+			ObjectMeshClinicConfig.head_height,
+			ObjectMeshClinicConfig.back_height,
+			ObjectMeshClinicConfig.foot_height,
+		],
 		"lamp": ObjectMeshChairConfig.recliner_lamp_height,
 		"vinyl": ObjectArtClinicConfig.recliner_vinyl_color,
+		"lamp_colour": ObjectArtClinicConfig.recliner_lamp_color,
 		"frame_colour": ObjectArtClinicConfig.recliner_frame_color,
 		"dark": ObjectArtTechConfig.tech_dark_color,
 	}
@@ -86,9 +92,12 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 	return kit.build()
 
 
-## The four padded sections (headrest, backrest, seat, leg rest) down the chair's `inner` rect.
+## The four padded sections (headrest, backrest, seat, leg rest) down the chair's `inner` rect. The
+## rig's are flat blocks; the surgical chair's back is a slope up toward the head and its leg rest
+## a slope down toward the feet (`_surgical_pads`), so it reads as a tilted chair.
 static func _pads(spec: FurnitureSpec, kit: MeshKit, inner: Rect2) -> void:
-	var pad := ObjectArtClinicConfig.recliner_vinyl_color if _surgical(spec) else spec.color
+	var surgical := _surgical(spec)
+	var pad := ObjectArtClinicConfig.recliner_vinyl_color if surgical else spec.color
 	var frame_h := ObjectMeshChairConfig.recliner_frame_height
 	var heights := [
 		ObjectMeshChairConfig.recliner_head_height,
@@ -96,6 +105,8 @@ static func _pads(spec: FurnitureSpec, kit: MeshKit, inner: Rect2) -> void:
 		ObjectMeshChairConfig.recliner_seat_height,
 		ObjectMeshChairConfig.recliner_leg_height,
 	]
+	if surgical:
+		heights[0] = ObjectMeshClinicConfig.head_height
 	for k in SECTIONS.size():
 		var y0 := inner.position.y + roundf(inner.size.y * SECTIONS[k][0])
 		var y1 := inner.position.y + roundf(inner.size.y * SECTIONS[k][1])
@@ -103,9 +114,22 @@ static func _pads(spec: FurnitureSpec, kit: MeshKit, inner: Rect2) -> void:
 		var rect := spec.area(
 			inner.position.x + narrow, y0, inner.size.x - narrow * 2.0, y1 - y0 - 1.0
 		)
-		kit.box(
-			MeshKit.volume(rect, frame_h, heights[k] - frame_h), MeshKit.tone(pad, &"dark"), pad
-		)
+		var top: float = heights[k]
+		var slope := 0.0
+		if surgical and k == 1:
+			top = ObjectMeshChairConfig.recliner_seat_height
+			slope = ObjectMeshClinicConfig.back_height - top
+		elif surgical and k == 3:
+			top = ObjectMeshClinicConfig.foot_height
+			slope = ObjectMeshChairConfig.recliner_seat_height - top
+		kit.box(MeshKit.volume(rect, frame_h, top - frame_h), MeshKit.tone(pad, &"dark"), pad)
+		if slope > 0.0:
+			kit.wedge(
+				MeshKit.volume(rect, top, slope),
+				Vector2.UP,
+				pad,
+				MeshKit.tone(pad, &"light"),
+			)
 
 
 ## The surgical chair's two straps across the pads and the lamp's pole, arm and head.
@@ -113,11 +137,15 @@ static func _straps_and_lamp(spec: FurnitureSpec, kit: MeshKit, inner: Rect2) ->
 	var w := spec.size.x
 	var d := spec.size.y
 	var frame_colour := ObjectArtClinicConfig.recliner_frame_color
-	for f in [0.36, 0.62]:
+	var seat := ObjectMeshChairConfig.recliner_seat_height
+	# one across the sloping back (halfway up it), one across the seat
+	var strap_tops := {
+		0.36: (seat + ObjectMeshClinicConfig.back_height) * 0.5 + 1.5, 0.62: seat + 1.5,
+	}
+	for f: float in strap_tops:
 		var y := inner.position.y + roundf(inner.size.y * f)
 		kit.box(
-			MeshKit.volume(spec.area(inner.position.x, y, inner.size.x, 1.6), 0.0,
-				ObjectMeshChairConfig.recliner_seat_height + 1.5),
+			MeshKit.volume(spec.area(inner.position.x, y, inner.size.x, 1.6), 0.0, strap_tops[f]),
 			ObjectArtTechConfig.tech_dark_color,
 		)
 	var lamp_at := Vector2(w * 0.5, d * 0.42) - spec.half()

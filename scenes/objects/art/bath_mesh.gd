@@ -30,6 +30,7 @@ static func _tuning(spec: FurnitureSpec) -> Dictionary:
 		"water": ObjectMeshRoomConfig.bath_water_height,
 		"tray": ObjectMeshRoomConfig.bath_tray_height,
 		"screen": ObjectMeshRoomConfig.bath_screen_height,
+		"head": ObjectMeshRoomConfig.bath_head_height,
 		"water_colour": ObjectArtKitchenBathConfig.bath_water_color,
 		"glass": ObjectArtKitchenBathConfig.bath_shower_glass_color,
 		"tap": ObjectArtKitchenBathConfig.counter_tap_color,
@@ -97,6 +98,7 @@ static func _shower_mesh(spec: FurnitureSpec, kit: MeshKit) -> void:
 	var d := spec.size.y
 	var glass := ObjectArtKitchenBathConfig.bath_shower_glass_color
 	var screen := ObjectMeshRoomConfig.bath_screen_height
+	var head_at := ObjectMeshRoomConfig.bath_head_height
 	var metal := ObjectArtKitchenBathConfig.counter_tap_color
 	kit.box(
 		MeshKit.volume(spec.area(0, 0, w, d), 0.0, ObjectMeshRoomConfig.bath_tray_height),
@@ -106,7 +108,7 @@ static func _shower_mesh(spec: FurnitureSpec, kit: MeshKit) -> void:
 	kit.box(MeshKit.volume(spec.area(0, d - 2, w, 2), 0.0, screen), glass)
 	kit.box(MeshKit.volume(spec.area(w - 2, 0, 2, d - 2), 0.0, screen), glass)
 	var head := Vector2(roundf(w * 0.22), roundf(d * 0.16))
-	kit.box(MeshKit.volume(spec.area(head.x - 1, 0, 2, 2), 0.0, screen + 6.0), metal)
-	kit.box(MeshKit.volume(spec.area(head.x - 1, 0, 2, head.y), screen + 4.0, 2.0), metal)
+	kit.box(MeshKit.volume(spec.area(head.x - 1, 0, 2, 2), 0.0, head_at + 6.0), metal)
+	kit.box(MeshKit.volume(spec.area(head.x - 1, 0, 2, head.y), head_at + 4.0, 2.0), metal)
 	var at := head - spec.half()
-	kit.cylinder(Vector3(at.x, screen + 3.0, at.y), maxf(2.0, floorf(w / 18.0)), 2.0, metal)
+	kit.cylinder(Vector3(at.x, head_at + 3.0, at.y), maxf(2.0, floorf(w / 18.0)), 2.0, metal)

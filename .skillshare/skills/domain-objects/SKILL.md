@@ -21,11 +21,10 @@ unshaded overlays), 24 (the door contract).
 | `door/` (`door.gd` and its parts), `door_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
 | `collider_cuts.gd` (`ColliderCuts`) | The shared queue of convex collider cuts, run on worker threads. |
 | `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`, `decal_factory.gd` (`DecalFactory`: the floor stencil and the tower shadow). |
-| `art/` | Painters and their holders (door: `art/door_painter.gd`): `art.md`, `structure-meshes.md`. |
+| `art/` | Painters and holders (door: `art/door_painter.gd`): `art.md`, `meshes.md`, `structure-meshes.md`. |
 
 Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry, colliders and look data and never draw; their
-`*_visuals` child `Node2D`s read them and draw. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`),
-so the editor's "no shape" warning on each `Wall` is expected.
+`*_visuals` child `Node2D`s read them and draw. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`): the editor's "no shape" warning on a `Wall` is expected.
 
 ## The contracts
 
@@ -43,8 +42,7 @@ so the editor's "no shape" warning on each `Wall` is expected.
 ## Physics parts
 
 `object_physics.gd` (`compose()`, `add_smear()`, `soak()`, `release()`) adds the Physics components as child nodes and holds them
-(`physics.knockback`, `physics.deformable`), the collider and its rebuild. A collider exists only when `solid`; non-solid decor is
-frozen with no shape and draws at `DrawLayers.RUG` (`ObjectArtLayerConfig.rug_z_index`). A non-solid piece of cloth (`material`
+(`physics.knockback`, `physics.deformable`), the collider and its rebuild. A collider exists only when `solid`; non-solid decor is frozen, shapeless, and draws at `DrawLayers.RUG` (`ObjectArtLayerConfig.rug_z_index`). A non-solid piece of cloth (`material`
 `fabric`: rug, mat, cardboard) registers a porous `BloodSurface` rect; other walk-over decor registers none. `BloodSmear` goes on
 solid pieces only, re-fed the footprint polygon when the collider is rebuilt.
 

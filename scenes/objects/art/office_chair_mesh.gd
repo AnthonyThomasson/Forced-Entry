@@ -47,9 +47,10 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 		kit.cylinder(Vector3(reach, 0.0, 0.0), 1.4, 3.5, MeshKit.tone(metal, &"shadow"))
 	spec.level(kit)
 	kit.cylinder(Vector3(0.0, 3.5, 0.0), ObjectMeshChairConfig.office_column, seat_low - 3.5, metal)
+	var reach_back := minf(d * 0.28, _back_pivot())
 	kit.box(
 		MeshKit.volume(
-			spec.area(4, d * 0.28, w - 8, d - d * 0.28 - 3), seat_low, seat_top - seat_low
+			spec.area(4, reach_back, w - 8, d - reach_back - 3), seat_low, seat_top - seat_low
 		),
 		MeshKit.tone(base, &"dark"),
 		base,
@@ -64,6 +65,13 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 	return kit.build()
 
 
+## How far (px) from the back edge of the footprint the backrest's pivot stands: in by what it leans
+## and half its thickness, so it stays within the footprint. The seat reaches back to it.
+static func _back_pivot() -> float:
+	var rise := ObjectMeshChairConfig.office_back_height - ObjectMeshChairConfig.office_seat_height
+	return 1.5 + sin(ObjectMeshChairConfig.office_back_lean) * rise
+
+
 ## The backrest, a slab leaning away over the rear edge: its pivot stands in by what it leans, so
 ## it stays within the footprint.
 static func _back(spec: FurnitureSpec, kit: MeshKit) -> void:
@@ -72,7 +80,7 @@ static func _back(spec: FurnitureSpec, kit: MeshKit) -> void:
 	var lean := ObjectMeshChairConfig.office_back_lean
 	var rise := ObjectMeshChairConfig.office_back_height - seat_top
 	var back_w := spec.size.x - 8.0
-	var pivot := Vector3(0.0, seat_top, -spec.size.y * 0.5 + 1.5 + sin(lean) * rise)
+	var pivot := Vector3(0.0, seat_top, -spec.size.y * 0.5 + _back_pivot())
 	spec.level(kit, Transform3D(Basis(Vector3.RIGHT, -lean), pivot))
 	kit.box(
 		MeshKit.volume(Rect2(-back_w * 0.5, -1.5, back_w, 3.0), 0.0, rise),

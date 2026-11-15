@@ -23,7 +23,7 @@ static func build(piece: Node2D) -> Node3D:
 		var glow := FurnitureMesh.fetch_glow(
 			"appliance", spec, tuning, func() -> Mesh: return _glow(spec)
 		)
-		rig.add_glow(glow, Decay.screen_color(spec.opts))
+		rig.add_glow(glow, Decay.screen_color(spec.opts), ObjectMeshStateConfig.screen_strength)
 	return rig
 
 

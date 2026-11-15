@@ -20,6 +20,7 @@ static func _tuning() -> Dictionary:
 	return {
 		"height": ObjectMeshDecorConfig.coat_rack_height,
 		"coat": ObjectMeshDecorConfig.coat_rack_coat,
+		"props": ObjectArtDecorConfig.prop_colors,
 	}
 
 

@@ -18,7 +18,8 @@ static var bath_rim_height: float = 20.0
 static var bath_floor_height: float = 4.0
 static var bath_water_height: float = 14.0
 static var bath_tray_height: float = 3.0
-static var bath_screen_height: float = 70.0
+static var bath_screen_height: float = 38.0
+static var bath_head_height: float = 70.0
 ## A toilet: the bowl's rim, the pedestal under it and the cistern's top.
 static var toilet_bowl_height: float = 18.0
 static var toilet_pedestal_height: float = 8.0

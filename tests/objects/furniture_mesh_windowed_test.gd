@@ -2,10 +2,10 @@ extends GameTest
 ## The domestic furniture of a 3D match in a real window (windowed only: the headless renderer
 ## draws nothing and compiles no shader; #193 phase 2, Objects). A Watch match started with 3D
 ## chosen, the camera parked over the living room, bedroom, bathroom and kitchen of the starter
-## home the match built: each piece is shown by its kit mesh (Main's view registered the
-## builders), the toon bands, outline and glows are in the picture, and the log gate fails the test
-## on any shader or engine error. With `FURNITURE_SHOT_DIR=<dir>` set it saves one picture per room.
-## Run:
+## home, the study of the office loft and the kitchenette of the micro flat, and close on each kind:
+## each piece is shown by its kit mesh (Main's view registered the builders), the toon bands,
+## outline and glows are in the picture, and the log gate fails the test on any shader or engine
+## error. With `FURNITURE_SHOT_DIR=<dir>` set it saves one picture per room. Run:
 ## `FURNITURE_SHOT_DIR=<dir> tools/run_tests.sh --windowed --id=objects/furniture_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
@@ -14,24 +14,39 @@ const SCRATCH := "user://settings_furniture_mesh_windowed_test.json"
 const SIZE := Vector2i(1152, 648)
 const SPEC := {
 	"seed": 2,
-	"plan": "starter_home",
 	"defenders": { "count": 2 },
 	"invaders": { "count": 1 },
 }
 const ZOOM := 1.6
 ## The close-up of one piece of each kind the match has: the zoom.
 const CLOSE_ZOOM := 4.0
-const KINDS := [
-	"sofa", "chair", "cabinet", "shelf", "counter", "appliance", "bed", "office_chair", "toilet",
-	"bath", "rug", "plant", "lamp", "coat_rack", "recliner", "fixture", "hotplate",
-]
-## The rooms of the starter home to photograph: a picture name, the room's type and the art of a
-## piece that stands in it.
-const ROOMS := [
-	["living_room", "living_room", "sofa"],
-	["bedroom", "bedroom", "bed"],
-	["bathroom", "bathroom", "bath"],
-	["kitchen", "kitchen", "counter"],
+## The homes to build, each a floorplan, the rooms of it to photograph (a picture name, the room's
+## type and the art of a piece that stands in it) and the kinds to take a close-up of, a piece of
+## each.
+const HOMES := [
+	{
+		"plan": "starter_home",
+		"rooms": [
+			["living_room", "living_room", "sofa"],
+			["bedroom", "bedroom", "bed"],
+			["bathroom", "bathroom", "bath"],
+			["kitchen", "kitchen", "counter"],
+		],
+		"kinds": [
+			"sofa", "chair", "cabinet", "shelf", "counter", "appliance", "bed", "toilet", "bath",
+			"rug", "plant", "lamp", "coat_rack", "recliner", "fixture",
+		],
+	},
+	{
+		"plan": "office_loft",
+		"rooms": [["study", "home_office", "office_chair"]],
+		"kinds": ["office_chair"],
+	},
+	{
+		"plan": "micro_flat",
+		"rooms": [["kitchenette", "kitchenette", "hotplate"]],
+		"kinds": ["hotplate"],
+	},
 ]
 
 var _window: SubViewport
@@ -47,7 +62,7 @@ func describe() -> Dictionary:
 			+ "bedroom, bathroom and kitchen: the furniture is shown by its kit meshes and "
 			+ "the pictures are drawn. Windowed only.",
 		"tags": ["render", "3d", "windowed", "meshkit", "furniture"],
-		"timeout": 150.0,
+		"timeout": 240.0,
 	}
 
 
@@ -66,6 +81,12 @@ func run(t: TestContext) -> void:
 	if DisplayServer.get_name() == "headless":
 		t.skip("windowed only: headless draws nothing (tools/run_tests.sh --windowed)")
 		return
+	for home: Dictionary in HOMES:
+		await _photograph(t, home)
+
+
+## Build the home of `home` in a window of its own and take its pictures.
+func _photograph(t: TestContext, home: Dictionary) -> void:
 	_window = SubViewport.new()
 	_window.size = SIZE
 	_window.world_2d = World2D.new()
@@ -78,8 +99,10 @@ func run(t: TestContext) -> void:
 	_camera.set_script(CameraScript)
 	main.add_child(_camera)
 	_camera.make_current()
-	var built: Dictionary = await main.start_match(SPEC.duplicate(true))
-	if not t.require(not built.is_empty(), "a Watch match started in 3D"):
+	var spec := SPEC.duplicate(true)
+	spec["plan"] = home["plan"]
+	var built: Dictionary = await main.start_match(spec)
+	if not t.require(not built.is_empty(), "a Watch match started in 3D (%s)" % home["plan"]):
 		return
 	_camera.set_process(false)
 	_camera.set_physics_process(false)
@@ -87,16 +110,15 @@ func run(t: TestContext) -> void:
 	_mirror = main.get_node("View3D").mirror
 	_hide_walls(built["world"])  # full-height walls would stand between the camera and it
 	_world = built["world"]
-	await _rooms(t, built["rooms"])
-	await _close_ups(t)
+	await _rooms(t, built["rooms"], home["rooms"])
+	await _close_ups(t, home["kinds"])
 	await MainProbe.close(t, _window)
 
 
-## One picture of each room of the starter home, the camera over its middle.
-func _rooms(t: TestContext, rooms: Array) -> void:
+## One picture of each of `wanted` rooms, the camera over its middle.
+func _rooms(t: TestContext, rooms: Array, wanted: Array) -> void:
 	_camera.zoom = Vector2(ZOOM, ZOOM)
-	var shown := 0
-	for room: Array in ROOMS:
+	for room: Array in wanted:
 		var rect := _rect_of(rooms, room[1])
 		var piece := _first_of(room[2])
 		if not t.require(rect.has_area() and piece != null, "the home has a %s" % room[0]):
@@ -106,16 +128,14 @@ func _rooms(t: TestContext, rooms: Array) -> void:
 		_check_rig(t, piece, "the %s of the %s" % [room[2], room[0]])
 		await RenderingServer.frame_post_draw
 		_save(room[0])
-		shown += 1
-	t.expect_eq(shown, ROOMS.size(), "every room was photographed")
 
 
-## A close-up of a piece of each kind the match has.
-func _close_ups(t: TestContext) -> void:
+## A close-up of a piece of each of `kinds`.
+func _close_ups(t: TestContext, kinds: Array) -> void:
 	_camera.zoom = Vector2(CLOSE_ZOOM, CLOSE_ZOOM)
-	for art: String in KINDS:
+	for art: String in kinds:
 		var piece := _first_of(art)
-		if piece == null:
+		if not t.require(piece != null, "the home has a %s" % art):
 			continue
 		_camera.global_position = piece.global_position
 		await t.frames(8)

@@ -10,6 +10,7 @@ const Probe := preload("res://tests/_objects/furniture_piece_probe.gd")
 const HOLDERS := [
 	"res://scenes/objects/art/object_mesh_config.gd",
 	"res://scenes/objects/art/object_mesh_chair_config.gd",
+	"res://scenes/objects/art/object_mesh_clinic_config.gd",
 	"res://scenes/objects/art/object_mesh_decor_config.gd",
 	"res://scenes/objects/art/object_mesh_kitchen_config.gd",
 	"res://scenes/objects/art/object_mesh_room_config.gd",
@@ -80,27 +81,49 @@ func _fingerprint(look: Array, identity := false) -> int:
 	return hash(found)
 
 
-## The numeric `static var`s of the holder script at `path`, field -> value.
-func _numbers_of(path: String) -> Dictionary:
+## The `static var`s of the holder script at `path` a retune can change, field -> value.
+func _tunables_of(path: String) -> Dictionary:
 	var holder: Object = load(path)
 	var out := {}
 	var pattern := RegEx.create_from_string("(?m)^static var (\\w+)")
 	for found in pattern.search_all(FileAccess.get_file_as_string(path)):
 		var field := found.get_string(1)
-		var value: Variant = holder.get(field)
-		if value is float or value is int:
-			out[field] = value
+		if _retuned(holder.get(field)) != null:
+			out[field] = holder.get(field)
 	return out
 
 
-## Whether `field` of the holder at `path`, doubled and a bit more, leaves the mesh of `look`
-## what the empty cache builds: the warm cache must not answer with the mesh of the old value.
+## `value` changed the way a retune would (a number doubled and a bit more, a colour inverted, a
+## vector, an array or a dictionary of them each changed); null for a value there is no retune of
+## (a name, a flag).
+func _retuned(value: Variant) -> Variant:
+	if value is float or value is int:
+		return value * 2 + 3
+	if value is Color:
+		return Color(1.0 - value.r, 1.0 - value.g, 1.0 - value.b, value.a)
+	if value is Vector2:
+		return value * 2.0 + Vector2.ONE
+	if value is Array:
+		var out: Array = []
+		for item in value:
+			out.append(_retuned(item) if _retuned(item) != null else item)
+		return out
+	if value is Dictionary:
+		var out := {}
+		for key in value:
+			out[key] = _retuned(value[key]) if _retuned(value[key]) != null else value[key]
+		return out
+	return null
+
+
+## Whether `field` of the holder at `path`, retuned, leaves the mesh of `look` what the empty cache
+## builds: the warm cache must not answer with the mesh of the old value.
 func _key_names(path: String, field: String, look: Array) -> bool:
 	var holder: Object = load(path)
 	var was: Variant = holder.get(field)
 	MeshCache.clear()
 	_fingerprint(look)
-	holder.set(field, was * 2 + 3)
+	holder.set(field, _retuned(was))
 	var warm := _fingerprint(look)
 	MeshCache.clear()
 	var cold := _fingerprint(look)
@@ -110,8 +133,10 @@ func _key_names(path: String, field: String, look: Array) -> bool:
 
 func test_every_tuning_value_a_furniture_mesh_reads_is_in_its_cache_key() -> void:
 	var stale: Array[String] = []
-	for path: String in HOLDERS:
-		for field: String in _numbers_of(path):
+	var paths := HOLDERS.duplicate()
+	paths.append_array(_art_holders())
+	for path: String in paths:
+		for field: String in _tunables_of(path):
 			for look: Array in LOOKS:
 				if not _key_names(path, field, look):
 					stale.append("%s.%s: %s %s" % [path.get_file(), field, look[0], look[2]])
@@ -121,6 +146,16 @@ func test_every_tuning_value_a_furniture_mesh_reads_is_in_its_cache_key() -> voi
 	).is_empty()
 
 
+## The painters' holders (`ObjectArt*Config`): the colours and proportions a mesh reads off them
+## as its painter does.
+func _art_holders() -> Array:
+	var out: Array = []
+	for file in DirAccess.get_files_at("res://scenes/objects/art"):
+		if file.begins_with("object_art_") and file.ends_with("_config.gd"):
+			out.append("res://scenes/objects/art/%s" % file)
+	return out
+
+
 func test_pieces_of_one_look_share_their_meshes_and_a_turn_is_another_mesh() -> void:
 	MeshCache.clear()
 	for look: Array in LOOKS:
@@ -128,4 +163,83 @@ func test_pieces_of_one_look_share_their_meshes_and_a_turn_is_another_mesh() -> 
 	var sofa: Array = LOOKS[0]
 	var turned: Array = [sofa[0], sofa[1], sofa[2], Vector2.LEFT]
 	assert_int(_fingerprint(sofa)).is_not_equal(_fingerprint(turned))
+	MeshCache.clear()
+
+
+func test_beds_look_on_staggered_frames() -> void:
+	var waits := {}
+	for id in range(1000, 1000 + ObjectMeshStateConfig.occupied_every):
+		waits[FurnitureBedRig.first_wait(id)] = true
+		var wait := FurnitureBedRig.first_wait(id)
+		assert_int(wait).is_equal(id % ObjectMeshStateConfig.occupied_every)
+	assert_int(waits.size()).is_equal(ObjectMeshStateConfig.occupied_every)
+
+
+## The body mesh of a rig built for `art` of `size` facing `facing`.
+func _body_mesh(art: String, size: Vector2, facing: Vector2) -> ArrayMesh:
+	var piece := Probe.new()
+	piece.size = size
+	piece.look.art_opts = {}
+	piece.look.facing = facing
+	var rig: FurnitureRig = ObjectMeshes.BUILDERS[art].build(piece)
+	var mesh := rig.body.mesh as ArrayMesh
+	rig.free()
+	piece.free()
+	return mesh
+
+
+## The ground point (2D `x`, `y` as 3D `x`, `z`) the highest vertices of `mesh` average to.
+func _top_centre(mesh: ArrayMesh) -> Vector2:
+	var vertices: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var top := mesh.get_aabb().end.y
+	var sum := Vector2.ZERO
+	var count := 0
+	for v in vertices:
+		if v.y > top - 0.01:
+			sum += Vector2(v.x, v.z)
+			count += 1
+	return sum / count
+
+
+## Whether `box` (a mesh's bounds in the body's frame) lies inside a footprint of `size` centred
+## on the origin.
+func _inside(box: AABB, size: Vector2) -> bool:
+	var half := size / 2.0 + Vector2(0.01, 0.01)
+	return (
+		box.position.x >= -half.x
+		and box.end.x <= half.x
+		and box.position.z >= -half.y
+		and box.end.z <= half.y
+	)
+
+
+## `art` of `size` facing `facing`: inside its size, its highest part (a sofa's back, a fixture's
+## frame) on the side of the footprint away from the front. Returns the mesh's vertices for the
+## caller to compare.
+func _turned_case(art: String, size: Vector2, facing: Vector2) -> PackedVector3Array:
+	var mesh := _body_mesh(art, size, facing)
+	var box := mesh.get_aabb()
+	var at := "%s facing %s" % [art, facing]
+	assert_bool(_inside(box, size)).override_failure_message(
+		"%s is not inside its size %s: %s" % [at, size, box]
+	).is_true()
+	var top := _top_centre(mesh)
+	assert_float(top.dot(facing)).override_failure_message(
+		"%s has its highest part toward the front: %s" % [at, top]
+	).is_less(-1.0)
+	return mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+
+
+func test_a_sofa_and_a_wall_fixture_turn_to_every_facing() -> void:
+	# [art, the piece's size facing down or up]: a wall fixture hangs at the back of its footprint
+	var cases := [["sofa", Vector2(150, 70)], ["fixture", Vector2(44, 12)]]
+	for case: Array in cases:
+		var seen := {}
+		for facing: Vector2 in [Vector2.DOWN, Vector2.LEFT, Vector2.UP, Vector2.RIGHT]:
+			var size: Vector2 = case[1]
+			size = Vector2(size.y, size.x) if facing.x != 0.0 else size
+			seen[hash([_turned_case(case[0], size, facing)])] = true
+		assert_int(seen.size()).override_failure_message(
+			"%s: the four facings are not four meshes" % case[0]
+		).is_equal(4)
 	MeshCache.clear()

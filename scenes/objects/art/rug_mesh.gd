@@ -55,15 +55,15 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 		),
 		border_colour,
 	)
-	kit.box(
-		MeshKit.volume(
-			spec.area(field.position.x, field.position.y, field.size.x, field.size.y),
-			thick,
-			ObjectMeshDecorConfig.rug_field_lift,
-		),
-		base,
-	)
 	if pattern == "stripes":
+		kit.box(
+			MeshKit.volume(
+				spec.area(field.position.x, field.position.y, field.size.x, field.size.y),
+				thick,
+				ObjectMeshDecorConfig.rug_field_lift,
+			),
+			base,
+		)
 		_stripes(spec, kit, field, along_x)
 	else:
 		_medallion(spec, kit, field, border_colour)
@@ -106,23 +106,60 @@ static func _stripes(spec: FurnitureSpec, kit: MeshKit, field: Rect2, along_x: b
 		a += band * 2.0
 
 
-## Three nested diamonds in the middle of the field: the outer in a darker tone of the field, the
-## middle in the border's, the centre pale.
+## The field with three nested diamonds in the middle (the outer ring in a darker tone of the field,
+## the middle in the border's, the centre pale), laid as one flat piece at one height: the field
+## around the diamonds is eight triangles and each ring four trapezoids, none over another, so
+## there is no stepped edge for the outline pass to break into dashes.
 static func _medallion(
 	spec: FurnitureSpec,
 	kit: MeshKit,
 	field: Rect2,
 	border_colour: Color,
 ) -> void:
+	_field_around(spec, kit, field)
 	var base := spec.color
-	var lift := ObjectMeshDecorConfig.rug_field_lift
-	var at := ObjectMeshDecorConfig.rug_height + lift
 	var rows := [
-		[1.0, base.darkened(0.12)], [0.55, border_colour], [0.3, base.lightened(0.28)],
+		[1.0, 0.55, base.darkened(0.12)],
+		[0.55, 0.3, border_colour],
+		[0.3, 0.0, base.lightened(0.28)],
 	]
 	for row: Array in rows:
-		kit.extrude(_diamond(field, spec, row[0]), at, lift, row[1])
-		at += lift
+		_ring(spec, kit, field, row)
+
+
+## The field's four side triangles and four corner triangles round the outer diamond.
+static func _field_around(spec: FurnitureSpec, kit: MeshKit, field: Rect2) -> void:
+	var thick := ObjectMeshDecorConfig.rug_height
+	var lift := ObjectMeshDecorConfig.rug_field_lift
+	var outer := _diamond(field, spec, 1.0)
+	var corners := PackedVector2Array([
+		field.position - spec.half(),
+		Vector2(field.end.x, field.position.y) - spec.half(),
+		field.end - spec.half(),
+		Vector2(field.position.x, field.end.y) - spec.half(),
+	])
+	# diamond points: 0 top, 1 right, 2 bottom, 3 left; corners: 0 top-left ... 3 bottom-left
+	for i in 4:
+		var next := (i + 1) % 4
+		var side := PackedVector2Array([corners[i], corners[next], outer[i]])
+		kit.extrude(side, thick, lift, spec.color)
+		var corner := PackedVector2Array([corners[next], outer[next], outer[i]])
+		kit.extrude(corner, thick, lift, spec.color)
+
+
+## The ring of `row` (`[outer k, inner k, colour]`) between two diamonds: four trapezoids, or the
+## whole diamond for an inner `k` of 0.
+static func _ring(spec: FurnitureSpec, kit: MeshKit, field: Rect2, row: Array) -> void:
+	var thick := ObjectMeshDecorConfig.rug_height
+	var lift := ObjectMeshDecorConfig.rug_field_lift
+	var out := _diamond(field, spec, row[0])
+	if row[1] == 0.0:
+		kit.extrude(out, thick, lift, row[2])
+		return
+	var inner := _diamond(field, spec, row[1])
+	for i in 4:
+		var j := (i + 1) % 4
+		kit.extrude(PackedVector2Array([out[i], out[j], inner[j], inner[i]]), thick, lift, row[2])
 
 
 ## A diamond `k` of the way out to the medallion's corners (0.32 of the field each way).

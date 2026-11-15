@@ -5,7 +5,7 @@ description: Use before planning any change or exploring the code, and to find w
 
 # Forced-Entry architecture
 
-A top-down Godot 4.4 demo: a pixel-art character in a procedurally furnished house lit at dusk, plus AI defenders and invaders. The code is **seventeen isolated domains**, one folder each under `scenes/`. Keep a change inside its domain and cross a boundary only through an interface below. Inside a domain, also load its `domain-<name>` skill. `GLOSSARY.md` holds the terms.
+A top-down Godot 4.4 demo: a pixel-art character in a procedurally furnished house lit at dusk, plus AI defenders and invaders. The code is **seventeen isolated domains**, one folder each under `scenes/`. Keep a change inside its domain; cross a boundary only through an interface below. Inside a domain, also load its `domain-<name>` skill. `GLOSSARY.md` holds the terms.
 
 ## The seventeen domains
 
@@ -49,7 +49,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 9. **Main / Testing / AI → Navigation.** Read to bake, query or path the nav map: `interfaces/09-navigation.md`
 10. **Any domain ↔ General (`EventBus`).** Read to post or listen to an event and for every topic's payload: `interfaces/10-eventbus.md`
 11. **General → every domain: shared ids and rules.** Read for `PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `FillBatch`, `WeightedPick`, `MatchVerdict`: `interfaces/11-general-shared-ids-and-rules.md`
-12. **Objects / Character / Items / Vehicles / World Generation → Art.** Read to render pixel art, build 3D meshes or pre-warm the shared district textures: `interfaces/12-art.md`
+12. **Objects / Character / Items / Vehicles / World Generation → Art.** Read to render pixel art, build 3D meshes or pre-warm district textures: `interfaces/12-art.md`
 13. **Testing → every domain.** Read for what a test world (house, arena or district) may build and call: `interfaces/13-testing.md`
 14. **Main → General settings, UI settings page.** Read for saved settings and key rebinding: `interfaces/14-settings.md`
 15. **Any domain → General (`GameLog`).** Read to print to the game's log: `interfaces/15-gamelog.md`
@@ -77,7 +77,7 @@ main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
 worldgen ──▶ objects (the six factories, `DecalFactory` among them, RoomWalls, WearPlan, `SharedTextures`, and `DoorConfig.open_angle`: 24), art (`PixelArt.warm`: 12)
-objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake leaves the group `doors` out but carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24)
+objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24; a bed's mesh reads `use.active_interaction()`, duck-typed: 8)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
 items ──▶ projectile, art          projectile ──▶ physics          vehicle ──▶ physics, art
 ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement)   (and a house door, duck-typed: 24)
@@ -86,7 +86,7 @@ art ──▶ general (RenderConfig: the one 2D-to-3D scale)
 every domain ──▶ general
 ```
 
-- Which domains are leaves, which are reached duck-typed, what `EventBus` carries, and the AI's own seams: `dependency-notes.md`. A new edge, façade, contract method or signal goes into this graph or the interfaces (`audit` checks it).
+- Leaves, the duck-typed reaches, what `EventBus` carries and the AI's seams: `dependency-notes.md`. A new edge, façade, contract method or signal goes into this graph or the interfaces (`audit` checks it).
 
 ## Cross-cutting conventions
 

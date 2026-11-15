@@ -53,6 +53,7 @@ static func _tuning(spec: FurnitureSpec) -> Dictionary:
 		"side": ObjectMeshStorageConfig.shelf_side,
 		"level": ObjectMeshStorageConfig.shelf_level,
 		"box": ObjectArtStorageConfig.shelf_box_color,
+		"props": ObjectArtDecorConfig.prop_colors,
 	}
 
 

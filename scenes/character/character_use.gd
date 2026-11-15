@@ -131,6 +131,12 @@ func interaction_label() -> String:
 	return _interaction.active_label()
 
 
+## The active object interaction as `{ object, id }` (`id`: `lie`, `sit`, `hide`, ...), empty when
+## idle: what a mesh reads to show who lies on a bed (`is_busy` says first whether to ask).
+func active_interaction() -> Dictionary:
+	return _interaction.active()
+
+
 ## True while locked in an object interaction (sitting, lying, …) or using a vehicle (boarding,
 ## riding, getting out).
 func is_busy() -> bool:
