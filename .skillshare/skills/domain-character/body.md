@@ -7,6 +7,7 @@ Everything that gives the character a body. `character.gd` (`SKILL.md`) owns sta
 - Hands, punch, kick, legs against walls → `body-melee.md`.
 - Ragdoll fall and the fallen body's drawing → `body-fall.md`.
 - Pixel-art painters and the resolved look (style, outfit, plates) → `body-art.md`.
+- The 3D body mesh (#193) → `body-mesh.md`.
 
 ## Files
 

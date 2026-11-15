@@ -112,6 +112,7 @@ func mirror_world(world: Node) -> void:
 func _register_meshes() -> void:
 	ObjectMeshes.register(mirror.builders)
 	VehicleMeshes.register(mirror.builders)
+	CharacterMeshes.register(mirror.builders)
 
 
 ## One directional light with hard shadows (`RenderLightConfig`).
