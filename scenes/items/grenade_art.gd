@@ -37,6 +37,11 @@ func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
+## The grenade's 3D mesh in the hand (`GrenadeMesh`), the lever held down.
+func held_mesh() -> Mesh:
+	return GrenadeMesh.of(kind, look())
+
+
 ## The grenade in the air or on the floor (the lever gone), centered at `at` and pointing along
 ## `angle`.
 func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color = Color.WHITE,

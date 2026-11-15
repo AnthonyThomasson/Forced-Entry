@@ -1,21 +1,20 @@
 6. **Items ↔ Character**
    `Item` (`items/item.gd`): `display_name`, `reach`, `hand_stance(hand) -> StringName` (a `CharacterStanceConfig.stances` entry name; the
    character overrides it with `run` while running, and blind puts the free hand in `eyes` and a gun's weapon hand in `one_hand`,
-   `docs/grenades.md` G13), `primary(user)` (F), `secondary(user) -> bool` (LMB; true = a round left the barrel), `tick(delta)` (the
-   character ticks every carried item each physics frame), `is_automatic()`, `weapon_hand()`, `muzzle_ahead()` (negative = the
+   `docs/grenades.md` G13), `primary(user)` (F), `secondary(user) -> bool` (LMB; true = a round left the barrel), `tick(delta)` (every
+   carried item, each physics frame), `is_automatic()`, `weapon_hand()`, `muzzle_ahead()` (negative = the
    character's `CharacterStanceConfig.muzzle_ahead`), `raises_at_contact()` / `raised_stance(hand)` (a long gun's barrel against a wall:
    held up, cannot fire), `gun_id()` (`GunConfig` id, `&""` for a non-gun), `round_power()` (1 for a non-gun; the character reads both for
-   its `reload` event), `drop(user, velocity) -> Node2D` (called on the user's death: a gun leaves a skidding `DroppedItem` whose
-   `DroppedItem.item` is that very item, the default leaves nothing).
+   its `reload` event), `drop(user, velocity) -> Node2D` (on the user's death: a gun leaves a skidding `DroppedItem` whose
+   `DroppedItem.item` is that item, the default nothing).
 
    Typed parts, each built once with the item, a base the kind subclasses and hands up through `super(...)`
    (`docs/adr/0005-items-and-vehicle-split-into-typed-parts.md`):
    - **`strike`** (`ItemStrike`): the melee geometry the hands read (`ahead`, `turn`, `short`, `support_gap`, `tempo`, `hand`). A fist's are
      the defaults; a long gun's swing it across the body, butt first.
    - **`art`** (`ItemArt`; `GunArt`, `GrenadeArt`, `SpoonArt`): `style` (the weapon style, below), `draw_weapon(canvas, user)`,
-     `draw_dropped(canvas, at, angle, modulate, opts)` (`opts.flip`: which side landed up), `prepaint()`, and the test read
-     `drawn_art() -> Array` (the textures of its last draw; pixel art is cached by what it depicts, so tests compare by these, like
-     `CharacterVisuals.drawn_art()`).
+     `draw_dropped(canvas, at, angle, modulate, opts)` (`opts.flip`: which side landed up), `prepaint()`, the 3D render's `held_mesh() -> Mesh` (`GunMesh` / `GrenadeMesh`; null: none), `held_aim(user)`, `held_lift(user)` (`BodyHeld` places it), and the test read
+     `drawn_art() -> Array` (the textures of its last draw; tests compare by these, like `CharacterVisuals.drawn_art()`).
    - **`ammo`** (`ItemAmmo`; `GunAmmo`): `rounds_loaded()` / `capacity()` (-1 = no ammo), `reload_time()`, `can_reload(user)`,
      `finish_reload(user)`; the `reloading` flag the character sets; a gun's loaded `magazine`.
 
@@ -27,9 +26,9 @@
    store), `random_gun_slot(rng)`, `loadout_for(gun_slot, stuns, frags)`, `spares_for(gun_slot)`.
 
    **Grenades** (`docs/grenades.md`) are `Item`s: a *count* carried (`Item.uses_left()`, -1 = unlimited; `Item.is_throwable()`). `Item.throw_stats() -> Dictionary` is `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`
-   for a grenade (from `GrenadeConfig.stats_of(kind, source := {})`: the kind's own row when no `source` row), `{}` otherwise;
-   `ThrownGrenade.throw_stats()` answers the same for a live one, and the AI's perception calls `GrenadeConfig.stats_of` directly for a
-   grenade nobody holds (the frag and stun an entry may throw in, an ambush post, `docs/leadership.md` LD15). `secondary` throws after a
+   for a grenade (`GrenadeConfig.stats_of(kind, source := {})`: the kind's own row without `source`), `{}` otherwise;
+   `ThrownGrenade.throw_stats()` answers the same for a live one, and the AI's perception calls `GrenadeConfig.stats_of` for a
+   grenade nobody holds (an entry's throw, an ambush post, `docs/leadership.md` LD15). `secondary` throws after a
    `windup` in the `throw` stance (`GrenadeItem` posts `&"throw"` as it leaves the hand) a `ThrownGrenade` (a node in the group
    `live_grenades`: `kind`, `fuse_left()`, `throw_stats()`, `thrower`, `item` = the grenade item that draws it, in the thrown item's
    weapon style); it posts `&"grenade"` and, when the fuse ends, calls `Explosion.frag` / `Explosion.stun` `(at, world, source, row)`.

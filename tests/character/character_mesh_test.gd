@@ -7,8 +7,9 @@ extends GameTest
 ## 2D body faces, a crouch lowers the hips by `CharacterPostureConfig`'s crouch height, the legs
 ## stride when the character walks and rest when it stands, the outfit's vest, plates and the
 ## style's colours reach the parts and a changed outfit re-dresses the body in place, a body seated
-## (its shapes disabled) or dead is hidden, and Main's 3D view registers the builder. What the body
-## looks like is judged in a window, `character_mesh_windowed_test.gd`.
+## (its shapes disabled) is hidden, a dead one stays shown (`character_ragdoll_mesh_test.gd`), and
+## Main's 3D view registers the builder. What the body looks like is judged in a window,
+## `character_mesh_windowed_test.gd`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const Style := preload("res://scenes/character/body/character_style.gd")
@@ -27,7 +28,7 @@ func describe() -> Dictionary:
 		"name": "A character is shown by a low-poly body that follows its rig",
 		"description": "Character's builder gives the mirror a body of kit solids: 58 px tall, "
 			+ "facing the character's facing, folded by a crouch, striding with the gait, in the "
-			+ "outfit's and the style's colours, hidden when seated or dead.",
+			+ "outfit's and the style's colours, hidden when seated, lying when dead.",
 		"tags": ["mirror", "3d", "render", "meshkit", "character", "posture"],
 		"timeout": 60.0,
 	}
@@ -397,7 +398,7 @@ func _check_culled(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## A body seated (its collision shapes disabled) is hidden and back when they are enabled; a dead
-## one goes with its death.
+## one stays shown.
 func _check_hidden(t: TestContext, mirror: WorldMirror, east: BodyMesh) -> void:
 	var shape := _shape_of(t.actor(&"east"))
 	shape.set_deferred(&"disabled", true)
@@ -412,7 +413,7 @@ func _check_hidden(t: TestContext, mirror: WorldMirror, east: BodyMesh) -> void:
 	t.check(dying.visible, "premise: the living body shows")
 	t.actor(&"dying").take_damage(1000.0)
 	await t.frames(4)
-	t.check(not dying.visible, "a dead character's body is hidden (the ragdoll is its own mirror)")
+	t.check(dying.visible, "a dead character's body stays shown, lying where the ragdoll lays it")
 
 
 ## At half the scale every length of the body halves: the unit conversion is the kit's.

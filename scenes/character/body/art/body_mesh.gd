@@ -18,13 +18,19 @@ extends Node3D
 ## `MeshCache`) scaled and placed between the rig's joints by `mirror_update(body)` (the mirror
 ## calls
 ## it each frame the mesh shows), only when a joint moved; a new look (an outfit, a style) only
-## re-tints and shows or hides the optional parts (`_dress_parts`). A dead character's mesh goes
-## with
-## its death (the ragdoll is a later job's own mirror) and a seated one's hides with its shapes,
-## both
-## the mirror's.
+## re-tints and shows or hides the optional parts (`_dress_parts`).
+## **What it holds** is one more node, `held()`: the mesh the held item's art gives
+## (`item.art.held_mesh()`, Items: from the item's config row, shared by kind and look), placed at
+## the weapon hand's joint, pointing where the 2D art draws the weapon and pitched up as it is
+## raised off a wall; it swaps with the held slot and shows nothing for a fist or an empty hand
+## (`BodyHeld`). A seated body's hides with its shapes (the mirror's).
+## **Once dead** (`on_body_died` answers true) the body follows the 2D ragdoll's joints
+## (`anatomy.ragdoll`, the same indices and reads as the rig), flat on the floor, written only as a
+## joint moves and not at all once the ragdoll has settled; the held item is gone (the 2D drops a
+## gun as a `DroppedItem`, a grenade is not drawn on a fallen body).
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
+const Fallen = preload("res://scenes/character/body/character_ragdoll.gd")
 ## Sides of the shared round solids: the limbs, the trunk and the balls.
 const LIMB_SIDES := 6
 const TORSO_SIDES := 10
@@ -45,15 +51,18 @@ const THIGH := 15
 const SHIN := 17
 const BOOT := 19
 const FOOT := 21
+## The held item's node, after the parts (it is not one of the character's own).
+const HELD := 23
 ## The parts too small to throw a shadow worth its cost (the face's band, the fists, the plates, the
 ## shoes and a boot's shaft, the hair and the headwear): the other twelve parts cast one.
 const SMALL := [
 	PLATE, PLATE + 1, HAIR, HEADWEAR, FACE, HAND, HAND + 1, BOOT, BOOT + 1, FOOT, FOOT + 1,
 ]
 ## The joints and the flat directions the pose is made from, in one array to compare a frame's with
-## the last: the rig's seventeen joints, the two feet's toes and the face.
+## the last: the rig's seventeen joints, the two feet's toes and the face, and what the held item
+## points along (flat x, y) and how far it is pitched up (z).
 const JOINTS := 17
-const SAMPLE := 20
+const SAMPLE := 21
 ## How far a joint (px) or a flat direction (its length, about 1 degree for 0.02) must move from the
 ## pose the parts are in to pose them again: a body at rest, its breath and its head's spring still
 ## settling, is not re-placed every frame. A joint's is under one pixel of the 3D picture.
@@ -63,6 +72,10 @@ const TURNED := 0.02
 ## shin it is.
 const BOOT_TOP := 0.62
 const BOOT_GROW := 1.15
+## How many physics frames a fallen body's joints take to rise to their clearance over the floor.
+const LIE_FRAMES := 18
+## The held item's sample: its index among the joints.
+const AIM := JOINTS + 3
 ## The head's parts over its radius: the hair (size, how far up and back), a cap's and a helmet's,
 ## the face band's size (width across, height, depth) and how far forward its middle sits, all over
 ## the head's radius, and the band's own height above the head's middle.
@@ -94,6 +107,12 @@ var _look_key := -1
 var _cap := false
 ## The parts, by the indices above (a sided part's own is its index plus the side).
 var _parts: Array[MeshInstance3D] = []
+## What the character holds (`BodyHeld`: its node is the last child, `HELD`).
+var _held := BodyHeld.new()
+## The physics frame the body died in (-1 while it lives: it follows the ragdoll from then), and
+## whether it was posed at rest (the ragdoll asleep).
+var _died := -1
+var _at_rest := false
 
 
 ## The body of `body` (a character with its `Visuals` dress), or null for a node that is none: the
@@ -112,18 +131,44 @@ static func build(body: Node2D) -> Node3D:
 ## Place the parts between the joints the rig holds now, once for each physics frame and only when a
 ## joint moved, and dress them again when the look changed.
 func mirror_update(body: Node2D) -> void:
-	# The 2D visuals refresh the dress only for a body inside the 2D view, which the 3D camera
-	# outruns; the call is cheap and answers at once when nothing changed.
-	_dress.refresh(body.wardrobe)
-	if _dress.look_key != _look_key:
-		_dress_parts()
-		_frame = -1  # a new look may resize parts (a cap for a helmet) even with no joint moved
-		_posed = false  # and a part it shows has not been placed while it was hidden
+	if _died < 0:
+		# The 2D visuals refresh the dress only for a body inside the 2D view, which the 3D camera
+		# outruns; the call is cheap and answers at once when nothing changed.
+		_dress.refresh(body.wardrobe)
+		if _dress.look_key != _look_key:
+			_dress_parts()
+			_frame = -1  # a new look may resize parts (a cap for a helmet) even with no joint moved
+			_posed = false  # and a part it shows has not been placed while it was hidden
 	var frame := Engine.get_physics_frames()
 	if frame == _frame:
 		return
 	_frame = frame
-	_pose(body.anatomy.rig())
+	if _died < 0:
+		_pose(body.anatomy.rig(), body)
+		return
+	var ragdoll: Fallen = body.anatomy.ragdoll
+	if _at_rest and ragdoll.is_settled():
+		return  # a settled body costs nothing more until a blast wakes it
+	_at_rest = ragdoll.is_settled()
+	_pose(ragdoll, body)
+
+
+## The body died: it keeps following, now the 2D ragdoll's joints, unless the ragdoll is not there
+## (then the mirror hides it). The held item goes with the hand that held it.
+func on_body_died(body: Node2D) -> bool:
+	if not body.anatomy.ragdoll is Fallen:
+		return false
+	_died = Engine.get_physics_frames()
+	_at_rest = false
+	_posed = false
+	_frame = -1
+	return true
+
+
+## The node showing what the character holds, hidden while nothing is (the held slot's item has no
+## mesh: fists, an empty hand, a key), or the body is dead.
+func held() -> MeshInstance3D:
+	return _held.node
 
 
 ## Make the parts of `body`, dressed in `dress`, and pose them.
@@ -157,8 +202,10 @@ func _make(body: CharacterBody2D, dress: BodyDress) -> void:
 		add_child(node)
 		_parts.append(node)
 	assert(_parts.size() == FOOT + 2, "BodyMesh: the shapes list and the part indices disagree")
+	add_child(_held.node)
+	assert(_held.node.get_index() == HELD, "BodyMesh: the held item's node is not after the parts")
 	_dress_parts()
-	_pose(body.anatomy.rig())
+	_pose(body.anatomy.rig(), body)
 
 
 ## The shared unit solid `shape` (a cylinder of radius 1 px and height 1 px from the origin up, a
@@ -224,13 +271,20 @@ func _dress_parts() -> void:
 		_tint(_parts[FOOT + i], _dress.shoes)
 
 
-## Place every part between the joints of `rig`, unless none moved since the last time.
-func _pose(rig: Rig) -> void:
+## Place every part between the joints of `rig` (the standing skeleton, or a ragdoll: the same
+## indices and reads), unless none moved since the last time. `body` is the character, whose held
+## item rides on the hand.
+func _pose(rig: Object, body: Node2D) -> void:
+	var clear := _floor_clearance()
 	for i in JOINTS:
-		_sample[i] = _lift(rig.point(i))
+		_sample[i] = _lift(rig.point(i), clear)
 	for i in 2:
-		_sample[JOINTS + i] = _flat(rig.toes(i))
-	_sample[JOINTS + 2] = _flat(rig.face())
+		_sample[JOINTS + i] = _dir(rig.toes(i))
+	_sample[JOINTS + 2] = _dir(rig.face())
+	_sample[AIM] = _held.sample(body, _died >= 0)
+	if _held.swapped:
+		_held.swapped = false
+		_posed = false  # a new item has not been placed
 	if _posed and _unmoved():
 		return
 	_posed = true
@@ -240,6 +294,7 @@ func _pose(rig: Rig) -> void:
 	_pose_head()
 	for i in 2:
 		_pose_limbs(i)
+	_held.place(_last[AIM], _last[Rig.HAND[_held.hand]])
 
 
 ## Whether every joint of `_sample` is within `MOVED`, and every direction within `TURNED`, of the
@@ -311,7 +366,9 @@ func _pose_pack(frame: Basis, pelvis: Vector3, spine: float, half: Vector2) -> v
 ## looks.
 func _pose_head() -> void:
 	var at := _last[Rig.HEAD]
-	var frame := _frame_of(Vector3.UP, _last[JOINTS + 2])
+	# A living head is upright on its neck; a fallen one lies as its neck does.
+	var up := _last[Rig.HEAD] - _last[Rig.CHEST] if _died >= 0 else Vector3.UP
+	var frame := _frame_of(up, _last[JOINTS + 2])
 	var r := _head_radius
 	_place(_parts[HEAD], frame, Vector3(r, r, r), at)
 	_cover(_parts[HAIR], frame, HAIR_SHAPE, at)
@@ -410,14 +467,26 @@ static func _frame_of(up: Vector3, out: Vector3) -> Basis:
 
 
 ## A rig point (local x, y, height in px) as the 3D px point: 2D `(x, y)` is `(x, height, y)`, the
-## height squeezed.
-func _lift(point: Vector3) -> Vector3:
-	return Vector3(point.x, point.z * _squeeze, point.y)
+## height squeezed (but a lying body's low joints are held up by `CharacterMeshConfig.lying_clear`,
+## so its limbs rest on the floor, not in it).
+func _lift(point: Vector3, clear: float) -> Vector3:
+	return Vector3(point.x, maxf(point.z * _squeeze, clear), point.y)
 
 
-## A flat direction of the rig (x, y) as a direction on the 3D ground.
-static func _flat(direction: Vector3) -> Vector3:
-	return Vector3(direction.x, 0.0, direction.y)
+## How high a joint is held over the floor now: nothing while the body lives, then
+## `CharacterMeshConfig.lying_clear` eased in over `LIE_FRAMES` after it died, so a joint near the
+## floor does not jump at the moment of death.
+func _floor_clearance() -> float:
+	if _died < 0:
+		return 0.0
+	var eased := clampf(float(Engine.get_physics_frames() - _died) / LIE_FRAMES, 0.0, 1.0)
+	return CharacterMeshConfig.lying_clear * eased
+
+
+## A direction of the rig (x, y over the floor, z up: flat for a standing body, tipped for a fallen
+## one) as a direction in 3D.
+func _dir(direction: Vector3) -> Vector3:
+	return Vector3(direction.x, direction.z * _squeeze, direction.y)
 
 
 ## The look the dress resolved (what the painters read through the handle).

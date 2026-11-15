@@ -48,6 +48,24 @@ func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 	_draw_art(canvas, centre, facing, size)
 
 
+## The gun's 3D mesh in the hand (`GunMesh`): its row's sizes in its look's colours.
+func held_mesh() -> Mesh:
+	return GunMesh.of(gun, look())
+
+
+## The direction the gun points, as `draw_weapon` draws it: the weapon's facing, turned about the
+## grip by a punch (a long gun swung butt first).
+func held_aim(user: Object) -> Vector2:
+	return strike.direction(user.weapon.facing(), user.anatomy.hands.punch_amount(strike.hand))
+
+
+## How far a gun held up off a wall is pitched: the 2D art shortens the barrel to `RAISED_LENGTH`
+## at full raise, which a barrel pointing up shows from above, so the pitch is the angle whose
+## cosine is that length.
+func held_lift(user: Object) -> float:
+	return acos(lerpf(1.0, RAISED_LENGTH, clampf(float(user.weapon.raise()), 0.0, 1.0)))
+
+
 ## The gun lying flat on its side, centered at `at`, its muzzle along `angle`, in its look's painter
 ## lying (`flat`); `opts.flip` picks the side facing up.
 func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color = Color.WHITE,

@@ -34,8 +34,8 @@ mirror turns it with the body (a 2D turn clockwise is `-angle` about +y). It fol
 - **A mesh unique to one node** (a dented panel, a posed limb) is `MeshKit.build()` straight into `MeshNodes.instance`, freed with its node: only meshes many pieces share go through `MeshCache`
   (bounded by `MeshKitConfig.cache_limit`, the one asked for longest ago dropped), and a decal's material and texture go with its last decal.
 - **Death.** A mirrored body with a `died` signal has its mesh hidden and no longer followed when it dies. A mesh node with `on_body_died(body: Node2D) -> bool` decides: true keeps it shown and
-  following (and `mirror_update` running), so the same mesh can switch to a dead pose. A **ragdoll** is a later job's own mirror: its parts are a group `track_group`ed with their own builder, and the
-  character's mesh (no `on_body_died`) goes with the death.
+  following (and `mirror_update` running), so the same mesh can switch to a dead pose: Character's `BodyMesh` does, following the 2D ragdoll's joints. A separate set of parts is a group `track_group`ed with
+  their own builder.
 - **Reparenting.** A tracked node (`track`, `track_group`) survives `reparent` or a `remove_child` and re-add: out of the tree its mesh is hidden and not followed; back in, shown and placed. Freed out
   of the tree, its mesh is freed with it; one kept out (a pool) keeps its hidden mesh and a row, so a pool is bounded. A queued-free node's mesh goes at once. A body (not tracked) that leaves the tree loses its mesh and gets a new one when it returns.
 - **Own meshes hide with their body's shapes:** while a body has collision shapes and every one is disabled (a character seated in a vehicle) its own mesh is hidden, as its proxies are.

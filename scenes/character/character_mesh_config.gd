@@ -34,3 +34,7 @@ static var pack_height: float = 0.7
 ## limb is, and how tall a shoe is (body radii).
 static var limb_scale: float = 1.4
 static var foot_height: float = 0.28
+## A fallen body's limbs rest on the floor by their own thickness: a joint below this height (px of
+## the 2D drawing) is not squeezed to the standing height, so the body lies on the floor and does
+## not sink into it. Standing joints are above it (the squeeze is the same either side).
+static var lying_clear: float = 8.0

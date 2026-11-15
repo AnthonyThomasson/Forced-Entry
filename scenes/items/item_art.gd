@@ -68,3 +68,23 @@ func draw_weapon(_canvas: CanvasItem, _user: Object) -> void:
 func draw_dropped(_canvas: CanvasItem, _at: Vector2, _angle: float, _modulate: Color = Color.WHITE,
 		_opts: Dictionary = {}) -> void:
 	pass
+
+
+## The item's 3D mesh in a hand, for the 3D render (#193; `GunMesh`, `GrenadeMesh`): shared by kind
+## and look, its origin the weapon hand and its front along +z, sized and coloured from the config
+## row the 2D art reads. Null: nothing is shown (the default: fists, unarmed, key, magazine). A
+## character's body places it (`domain-character`, `body-mesh.md`); Items builds no node.
+func held_mesh() -> Mesh:
+	return null
+
+
+## The flat direction the held mesh points along, as the 2D art is drawn (a unit vector): the
+## weapon's facing, or what a blow turns it to. Read each frame.
+func held_aim(user: Object) -> Vector2:
+	return user.weapon.facing()
+
+
+## How far the held mesh is pitched up (radians) about the hand: a long gun held up off a wall,
+## which the 2D art shows foreshortened. Zero by default.
+func held_lift(_user: Object) -> float:
+	return 0.0
