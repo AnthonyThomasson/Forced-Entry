@@ -93,6 +93,8 @@ static func _bonnet(v: VehiclePaint) -> void:
 			Art.at(v, Vector2(bonnet + 3.0, side * 21.0)),
 			t["dark"],
 		)
+		if v.flat:
+			continue  # the light crease is a baked highlight
 		c.line(
 			Art.at(v, Vector2(half.x - bumper - 7.0, side * 18.0)),
 			Art.at(v, Vector2(bonnet + 3.0, side * 22.0)),
@@ -233,10 +235,11 @@ static func _roof_panel(v: VehiclePaint) -> void:
 		Art.box(v, roof.y, roof.x, -roof_half, roof_half),
 		roundi(7 * v.k),
 	)
-	c.fill(panel, t["light"], _ROOF)
+	c.fill(panel, v.lit(t["light"], v.base), _ROOF)
 	c.bevel(panel, 1, 2, t["highlight"], t["dark"])
 	c.glare(panel, v.base.lightened(0.42), 2)
-	c.outline(panel, t["shadow"])
+	if v.ring():
+		c.outline(panel, t["shadow"])
 
 
 ## Glass in `shape`: the tint, a glint, a rubber seal round it.

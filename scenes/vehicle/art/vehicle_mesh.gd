@@ -3,11 +3,15 @@ extends RefCounted
 ## hull at the kind's footprint with its door spans cut out, a cabin of glass under a roof slab with
 ## a sloped windscreen and rear window, a leaf for each door that opens with the 2D door's state,
 ## wheels on their sides that steer and turn, head and tail lamps, bumpers and wing mirrors. Every
-## measure is the kind's `VehicleConfig` row and `looks` (the painters' own), the colours the
-## vehicle's `color` and `VehicleArtConfig`, the heights `VehicleMeshConfig`; Art's kit does the
-## rest, in px. The hull, each door, the wheel and the tail lamps are `MeshCache` meshes shared by
-## every vehicle of the kind and colour; `VehicleMeshRig` (the node returned) moves them. Dents are
-## patches on the rig, not a rebuilt hull, so the cache stays bounded however many hits there are.
+## measure is the kind's `VehicleConfig` row and `looks` (the painters' own), the heights
+## `VehicleMeshConfig`; Art's kit does the rest, in px. The hull and each door leaf carry the 2D
+## art (#193 phase 2b, `VehicleSkin`: the car and van painters' flat paint of the vehicle's `color`
+## projected straight down, white vertex colours so the art shows as painted), so a car seen from
+## above reads as the 2D car does; the wheels and the tail lamps keep the kit's own colours. The
+## hull, each door, the wheel and the tail lamps are `MeshCache` meshes shared by every vehicle of
+## the kind (the paint is in the texture, one per kind and paint); `VehicleMeshRig` (the node
+## returned) moves them. Dents are patches on the rig, not a rebuilt hull, so the cache stays
+## bounded however many hits there are.
 
 const Vehicle = preload("res://scenes/vehicle/vehicle.gd")
 const Art = preload("res://scenes/vehicle/art/vehicle_art.gd")
@@ -29,22 +33,9 @@ static func build(body: Node2D) -> Node3D:
 	var look: Dictionary = VehicleConfig.looks[car.kind]
 	var tuning := _tuning(car.kind, row, look)
 	var rig := Rig.new()
-	var hull_key := MeshCache.key("vehicle_hull", row["size"], car.color, tuning)
-	rig.hull = MeshNodes.instance(MeshCache.fetch(
-		hull_key, func() -> Mesh: return hull(car.kind, row, look, car.color, car.outline())
-	))
-	rig.hull.name = "Hull"
-	rig.add_child(rig.hull)
+	_add_hull(rig, car, tuning)
 	for def: Dictionary in row["doors"]:
-		var key := MeshCache.key("vehicle_door:%s" % def["id"], row["size"], car.color, tuning)
-		var leaf := MeshNodes.instance(MeshCache.fetch(
-			key, func() -> Mesh: return door(car.kind, look, def, car.color, car.outline())
-		))
-		leaf.name = "Door_%s" % def["id"]
-		var hinge: Vector2 = def["hinge"]
-		MeshNodes.place(leaf, Vector3(hinge.x, 0.0, hinge.y))
-		rig.add_child(leaf)
-		rig.add_door(def["id"], leaf, hinge, _span(def, look["door_depth"], true))
+		_add_door(rig, car, def, tuning)
 	_add_wheels(rig, row, tuning)
 	var tail_key := MeshCache.key("vehicle_tail", row["size"], Color.WHITE, tuning)
 	rig.tail = MeshNodes.instance(MeshCache.fetch(
@@ -56,9 +47,43 @@ static func build(body: Node2D) -> Node3D:
 	return rig
 
 
+## The hull on `rig`: one cached mesh per kind, textured with the body's 2D art in its paint.
+static func _add_hull(rig: Rig, car: Vehicle, tuning: Dictionary) -> void:
+	var row: Dictionary = car.row()
+	var look: Dictionary = VehicleConfig.looks[car.kind]
+	var key := MeshCache.key("vehicle_hull", row["size"], Color.WHITE, tuning)
+	var skin := VehicleSkin.body(car.kind, car.color)
+	rig.hull = MeshNodes.textured(
+		MeshCache.fetch(key, func() -> Mesh: return hull(car.kind, row, look, car.outline())),
+		skin["texture"],
+		skin["rect"],
+	) as MeshInstance3D
+	rig.hull.name = "Hull"
+	rig.add_child(rig.hull)
+
+
+## The leaf of door `def` on `rig`, at its hinge, textured with the door panel's 2D art.
+static func _add_door(rig: Rig, car: Vehicle, def: Dictionary, tuning: Dictionary) -> void:
+	var row: Dictionary = car.row()
+	var look: Dictionary = VehicleConfig.looks[car.kind]
+	var key := MeshCache.key("vehicle_door:%s" % def["id"], row["size"], Color.WHITE, tuning)
+	var skin := VehicleSkin.door(car.kind, def, car.color)
+	var leaf := MeshNodes.textured(
+		MeshCache.fetch(key, func() -> Mesh: return door(car.kind, look, def, car.outline())),
+		skin["texture"],
+		skin["rect"],
+	) as MeshInstance3D
+	leaf.name = "Door_%s" % def["id"]
+	var hinge: Vector2 = def["hinge"]
+	MeshNodes.place(leaf, Vector3(hinge.x, 0.0, hinge.y))
+	rig.add_child(leaf)
+	rig.add_door(def["id"], leaf, hinge, _span(def, look["door_depth"], true))
+
+
 ## The hull: the body's outline cut at every door's span, from the sill to the belt, with the dark
-## recess behind each cut, the bumpers and head lamps, and the cabin over it.
-static func hull(kind: StringName, row: Dictionary, look: Dictionary, paint: Color,
+## recess behind each cut, the bumpers and head lamps, and the cabin over it. Every face is white:
+## the art is the texture's (`VehicleSkin.body`), the shape only the mesh's.
+static func hull(kind: StringName, row: Dictionary, look: Dictionary,
 		outline: PackedVector2Array) -> Mesh:
 	var heights: Dictionary = VehicleMeshConfig.heights[kind]
 	var sill: float = heights["sill"]
@@ -68,25 +93,22 @@ static func hull(kind: StringName, row: Dictionary, look: Dictionary, paint: Col
 	var depth: float = look["door_depth"]
 	for def: Dictionary in row["doors"]:
 		shape = _cut(shape, _span(def, depth, true))
-	kit.extrude(shape, sill, belt - sill, paint)
+	kit.extrude(shape, sill, belt - sill, Color.WHITE)
 	for def: Dictionary in row["doors"]:
 		var span := _span(def, depth, false)
 		var inner := _inner_wall(span, _outward(def))
-		kit.box(MeshKit.volume(span, sill, 2.0), VehicleArtConfig.interior_color)
-		kit.box(
-			MeshKit.volume(inner, sill + 2.0, belt - sill - 2.0),
-			VehicleArtConfig.interior_color,
-		)
+		kit.box(MeshKit.volume(span, sill, 2.0), Color.WHITE)
+		kit.box(MeshKit.volume(inner, sill + 2.0, belt - sill - 2.0), Color.WHITE)
 	_bumpers(kit, row, look, sill)
 	_head_lamps(kit, kind, row, look)
-	_cabin(kit, kind, look, paint)
+	_cabin(kit, kind, look)
 	return kit.build()
 
 
 ## One door's leaf, at the shut pose and in the frame of its hinge (the rig places it there and
 ## turns it): a slab from the sill to the belt that fits its notch with a seam, and a wing mirror on
-## the doors that carry one.
-static func door(kind: StringName, look: Dictionary, def: Dictionary, paint: Color,
+## the doors that carry one. White, as the hull is: the panel's art is `VehicleSkin.door`.
+static func door(kind: StringName, look: Dictionary, def: Dictionary,
 		outline: PackedVector2Array) -> Mesh:
 	var heights: Dictionary = VehicleMeshConfig.heights[kind]
 	var sill: float = heights["sill"]
@@ -99,7 +121,7 @@ static func door(kind: StringName, look: Dictionary, def: Dictionary, paint: Col
 	var shape := _largest(Geometry2D.intersect_polygons(_ring(leaf), outline))
 	if shape.size() < 3:
 		push_warning("VehicleMesh: door '%s' lies outside the %s's outline" % [def["id"], kind])
-	kit.extrude(shape, sill, belt - sill, paint)
+	kit.extrude(shape, sill, belt - sill, Color.WHITE)
 	if def["kind"] != &"rear" and (look["mirror"] as Array).has(def["id"]):
 		_mirror(kit, def, belt)
 	return kit.build()
@@ -178,10 +200,7 @@ static func _bumpers(kit: MeshKit, row: Dictionary, look: Dictionary, sill: floa
 			Vector2(minf(near, far), -across),
 			Vector2(absf(far - near), 2.0 * across),
 		)
-		kit.box(
-			MeshKit.volume(rect, sill, VehicleMeshConfig.bumper_height),
-			VehicleArtConfig.trim_color,
-		)
+		kit.box(MeshKit.volume(rect, sill, VehicleMeshConfig.bumper_height), Color.WHITE)
 
 
 ## The head lamps at the nose's corners.
@@ -197,13 +216,13 @@ static func _head_lamps(kit: MeshKit, kind: StringName, row: Dictionary, look: D
 			Vector2(half.x - length, y0),
 			Vector2(length + VehicleMeshConfig.proud, absf(span.y - span.x)),
 		)
-		kit.box(MeshKit.volume(rect, lamp.x, lamp.y - lamp.x), VehicleArtConfig.headlight_color)
+		kit.box(MeshKit.volume(rect, lamp.x, lamp.y - lamp.x), Color.WHITE)
 
 
 ## The cabin over the belt: a roof slab on the roof's span, the dark glass under it (the doors'
 ## windows) between the pillars, a sloped windscreen in front and rear window behind. A van's
-## cargo behind its cab windows is one solid block in the body's colour.
-static func _cabin(kit: MeshKit, kind: StringName, look: Dictionary, paint: Color) -> void:
+## cargo behind its cab windows is one solid block.
+static func _cabin(kit: MeshKit, kind: StringName, look: Dictionary) -> void:
 	var heights: Dictionary = VehicleMeshConfig.heights[kind]
 	var belt: float = heights["belt"]
 	var roof: float = heights["roof"]
@@ -214,11 +233,11 @@ static func _cabin(kit: MeshKit, kind: StringName, look: Dictionary, paint: Colo
 	var slab := VehicleMeshConfig.roof_thickness
 	if band_back > back:
 		var block := Rect2(back, -half, band_back - back, 2.0 * half)
-		kit.box(MeshKit.volume(block, belt, roof - belt), paint)
+		kit.box(MeshKit.volume(block, belt, roof - belt), Color.WHITE)
 	var band := Rect2(band_back, -half, front - band_back, 2.0 * half)
-	kit.box(MeshKit.volume(band, belt, roof - belt - slab), _glass())
-	kit.box(MeshKit.volume(band, roof - slab, slab), paint)
-	_pillars(kit, look, belt, roof, paint)
+	kit.box(MeshKit.volume(band, belt, roof - belt - slab), Color.WHITE)
+	kit.box(MeshKit.volume(band, roof - slab, slab), Color.WHITE)
+	_pillars(kit, look, belt, roof)
 	_screens(kit, look, belt, roof)
 
 
@@ -234,20 +253,14 @@ static func _band_back(look: Dictionary) -> float:
 
 
 ## The fixed pillars between the door windows, as wide as the roof (a little more).
-static func _pillars(
-	kit: MeshKit,
-	look: Dictionary,
-	belt: float,
-	roof: float,
-	paint: Color,
-) -> void:
+static func _pillars(kit: MeshKit, look: Dictionary, belt: float, roof: float) -> void:
 	var wide: float = float(look["roof_half"]) + VehicleMeshConfig.proud
 	for pillar: Vector2 in look["pillars"]:
 		var from := maxf(pillar.x, _band_back(look))
 		var to := minf(pillar.y, (look["roof"] as Vector2).x)
 		if to > from:
 			var post := Rect2(from, -wide, to - from, 2.0 * wide)
-			kit.box(MeshKit.volume(post, belt, roof - belt), paint)
+			kit.box(MeshKit.volume(post, belt, roof - belt), Color.WHITE)
 
 
 ## The sloped windscreen from the roof's front to the bonnet, and the rear window from the roof's
@@ -257,11 +270,11 @@ static func _screens(kit: MeshKit, look: Dictionary, belt: float, roof: float) -
 	var front: float = (look["roof"] as Vector2).x
 	var back: float = (look["roof"] as Vector2).y
 	var screen := Rect2(front, -half, float(look["bonnet"]) - front, 2.0 * half)
-	kit.wedge(MeshKit.volume(screen, belt, roof - belt), Vector2.LEFT, _glass())
+	kit.wedge(MeshKit.volume(screen, belt, roof - belt), Vector2.LEFT, Color.WHITE)
 	var boot: float = look["boot"]
 	if float(look["rear_half"]) > 0.0 and boot < back:
 		var rear := Rect2(boot, -half, back - boot, 2.0 * half)
-		kit.wedge(MeshKit.volume(rear, belt, roof - belt), Vector2.RIGHT, _glass())
+		kit.wedge(MeshKit.volume(rear, belt, roof - belt), Vector2.RIGHT, Color.WHITE)
 
 
 ## The wing mirror on a front door: out from the door's skin near its hinge, just over the belt.
@@ -276,16 +289,7 @@ static func _mirror(kit: MeshKit, def: Dictionary, belt: float) -> void:
 	var y0 := hinge.y
 	var y1 := hinge.y + out.y * size.x
 	var rect := Rect2(Vector2(minf(x0, x1), minf(y0, y1)), Vector2(absf(x1 - x0), absf(y1 - y0)))
-	kit.box(
-		MeshKit.volume(rect, belt + VehicleMeshConfig.mirror_lift, size.z),
-		VehicleArtConfig.trim_color,
-	)
-
-
-## The glass: the tint laid over the cabin's interior, as the painters' see-through glass looks.
-static func _glass() -> Color:
-	var tint := VehicleArtConfig.glass_color
-	return VehicleArtConfig.interior_color.lerp(Color(tint.r, tint.g, tint.b), tint.a)
+	kit.box(MeshKit.volume(rect, belt + VehicleMeshConfig.mirror_lift, size.z), Color.WHITE)
 
 
 ## Out of the body through `def`'s door (unit): a rear door out of the tail, the others the side.
@@ -368,7 +372,7 @@ static func _ring(rect: Rect2) -> PackedVector2Array:
 
 
 ## Every value the shapes read, so a retuned holder is another mesh: the kind's rows (as text), the
-## mesh holder's numbers, and the colours the art holder gives.
+## mesh holder's numbers, and the colours the wheels and tail lamps (the kit's own) take.
 static func _tuning(kind: StringName, row: Dictionary, look: Dictionary) -> Dictionary:
 	return {
 		"kind": String(kind), "row": str(row), "look": str(look),
@@ -381,8 +385,6 @@ static func _tuning(kind: StringName, row: Dictionary, look: Dictionary) -> Dict
 		],
 		"art": [
 			str(VehicleArtConfig.tyre_color), str(VehicleArtConfig.hub_color),
-			str(VehicleArtConfig.glass_color), str(VehicleArtConfig.interior_color),
-			str(VehicleArtConfig.trim_color), str(VehicleArtConfig.headlight_color),
 			str(VehicleArtConfig.tail_off_color),
 		],
 	}

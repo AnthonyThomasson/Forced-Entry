@@ -252,14 +252,15 @@ static func _seat(v: VehiclePaint, p: Vector2, bench: bool) -> void:
 		box(v, p.x - 16.0, p.x - 9.0, p.y - half, p.y + half),
 		roundi(2 * k),
 	)
-	c.fill(back, t["light"], 4)
+	c.fill(back, v.lit(t["light"], cloth), 4)
 	c.bevel(back, 1, 1, t["highlight"], t["dark"])
 	var rest := PixelShape.rounded(
 		box(v, p.x - 15.0, p.x - 11.0, p.y - 5.0, p.y + 5.0),
 		roundi(1 * k),
 	)
 	c.fill(rest, t["dark"], 6)
-	c.outline(rest, t["shadow"])
+	if v.ring():
+		c.outline(rest, t["shadow"])
 	if not bench:
 		# the bucket's seam
 		c.line(at(v, Vector2(p.x - 7.0, p.y)), at(v, Vector2(p.x + 7.0, p.y)), t["dark"])

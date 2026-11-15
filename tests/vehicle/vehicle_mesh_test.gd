@@ -71,6 +71,7 @@ func run(t: TestContext) -> void:
 	_check_hull(t, rig, car, CAR, 1.0)
 	_check_hull(t, van_rig, van, VAN, 1.0)
 	_check_sharing(t, mirror, rig)
+	_check_leaves(t, rig, car)
 	_check_wheels(t, rig, car)
 	_check_wheels(t, van_rig, van)
 	_check_turned(t, mirror)
@@ -113,31 +114,29 @@ func _check_hull(t: TestContext, rig: VehicleMeshRig, body: Node2D, spec: Dictio
 	t.expect_near(box.position.y, float(spec["sill"]) * factor, 0.01, "its underside is the sill")
 	t.expect_near(box.get_center().x, 0.0, 2.0 * factor, "centred on the body (x)")
 	t.expect_near(box.get_center().z, 0.0, 2.0 * factor, "centred on the body (z)")
-	var top_seen := false
-	var belt_seen := false
-	var paint: Color = body.get("color")
+	var white := true
 	var arrays := (_hull(rig).mesh as ArrayMesh).surface_get_arrays(0)
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
-	for i in vertices.size():
-		var colour := colours[i].linear_to_srgb()
-		if (normals[i].dot(Vector3.UP) > 0.99
-				and is_equal_approx(vertices[i].y, float(spec["roof"]) * factor)):
-			top_seen = true
-			t.check(_near(colour, paint), "the roof is the vehicle's paint (%s)" % colour)
-		elif (normals[i].dot(Vector3.UP) > 0.99
-				and is_equal_approx(vertices[i].y, float(spec["belt"]) * factor)):
-			belt_seen = belt_seen or _near(colour, paint)
-	t.check(top_seen, "the hull has a roof")
-	t.check(belt_seen, "and a bonnet in the vehicle's paint")
+	for colour: Color in arrays[Mesh.ARRAY_COLOR]:
+		white = white and colour.is_equal_approx(Color.WHITE)
+	t.check(white, "every face is white: the art is the texture's, the shape the mesh's")
+	var skin := VehicleSkin.body(body.get("kind"), body.get("color"))
 	t.check(
-		_hull(rig).material_override == ToonMaterial.shared(),
-		"it is drawn in the one shared toon material",
+		_hull(rig).material_override == ToonMaterial.textured(skin["texture"], false),
+		"it wears the 2D art of its kind and paint (the textured toon)",
+	)
+	var rect: Vector4 = Vector4(
+		(skin["rect"] as Rect2).position.x * factor,
+		(skin["rect"] as Rect2).position.y * factor,
+		(skin["rect"] as Rect2).size.x * factor,
+		(skin["rect"] as Rect2).size.y * factor,
+	)
+	var set_rect: Vector4 = _hull(rig).get_instance_shader_parameter(&"uv_rect")
+	t.check(
+		set_rect.is_equal_approx(rect), "the art covers the body's footprint (%s)" % set_rect
 	)
 
 
-## Vehicles of one kind and paint share one hull; another paint has its own.
+## Vehicles of one kind share one hull mesh; one paint shares a texture, another has its own.
 func _check_sharing(t: TestContext, mirror: WorldMirror, rig: VehicleMeshRig) -> void:
 	var twin := _rig_of(mirror, t.vehicle(&"twin"))
 	var blue := _rig_of(mirror, t.vehicle(&"blue"))
@@ -146,16 +145,41 @@ func _check_sharing(t: TestContext, mirror: WorldMirror, rig: VehicleMeshRig) ->
 		"two cars of one paint share the one hull mesh",
 	)
 	t.check(
-		blue != null and _hull(blue).mesh != _hull(rig).mesh,
-		"a car of another paint has a hull of its own",
+		twin != null and _hull(twin).material_override == _hull(rig).material_override,
+		"and the one textured material",
+	)
+	t.check(
+		blue != null and _hull(blue).mesh == _hull(rig).mesh,
+		"a car of another paint shares the mesh (the paint is in the texture)",
 	)
 	if blue != null:
-		var arrays := (_hull(blue).mesh as ArrayMesh).surface_get_arrays(0)
-		var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		t.check(
+			_hull(blue).material_override != _hull(rig).material_override,
+			"but has a texture and material of its own",
+		)
+		var image := (VehicleSkin.body(&"car", BLUE)["texture"] as Texture2D).get_image()
 		var found := false
-		for c in colours:
-			found = found or _near(c.linear_to_srgb(), BLUE)
+		for y in image.get_height():
+			for x in image.get_width():
+				found = found or _near(image.get_pixel(x, y), BLUE)
 		t.check(found, "and it is painted in that paint")
+
+
+## Each door leaf wears its own panel's 2D art, and the textured materials are one per texture:
+## a hull and a leaf each, per kind and paint (two cars and a van here), not per vehicle.
+func _check_leaves(t: TestContext, rig: VehicleMeshRig, car: Node2D) -> void:
+	for def: Dictionary in VehicleConfig.kinds[&"car"]["doors"]:
+		var skin := VehicleSkin.door(&"car", def, car.get("color"))
+		var leaf: MeshInstance3D = rig.doors[def["id"]]["node"]
+		t.check(
+			leaf.material_override == ToonMaterial.textured(skin["texture"], false),
+			"the %s leaf wears its panel's art" % def["id"],
+		)
+	var count := ToonMaterial.textured_count()
+	t.check(
+		count >= 11 and count <= 16,
+		"a textured material per kind, paint and part, not per vehicle (%d)" % count,
+	)
 
 
 ## Four wheels on their sides at the axles, as wide as the 2D wheel is long across the axle, as tall

@@ -223,14 +223,14 @@ static func _roof_panel(v: VehiclePaint) -> void:
 		Art.box(v, boot - 2.0, roof.x, -roof_half, roof_half),
 		roundi(4 * v.k),
 	)
-	c.fill(panel, t["light"], _ROOF)
+	c.fill(panel, v.lit(t["light"], v.base), _ROOF)
 	c.bevel(panel, 1, 2, t["highlight"], t["dark"])
 	var x := roof.x - 10.0
 	while x > boot + 6.0:
 		c.line(
 			Art.at(v, Vector2(x, -roof_half + 4.0)),
 			Art.at(v, Vector2(x, roof_half - 4.0)),
-			t["highlight"],
+			v.lit(t["highlight"], t["base"]),
 		)
 		c.line(
 			Art.at(v, Vector2(x - 1.0, -roof_half + 4.0)),
@@ -239,7 +239,8 @@ static func _roof_panel(v: VehiclePaint) -> void:
 		)
 		x -= _RIB_GAP
 	_vent(v, t)
-	c.outline(panel, t["shadow"])
+	if v.ring():
+		c.outline(panel, t["shadow"])
 
 
 ## The vent on the roof, its slats in `t`'s shadow.
@@ -248,7 +249,8 @@ static func _vent(v: VehiclePaint, t: Dictionary) -> void:
 	var vent := PixelShape.rounded(Art.box(v, -78.0, -60.0, -9.0, 9.0), roundi(2 * v.k))
 	c.fill(vent, t["base"].darkened(0.08), _ROOF + 2)
 	c.bevel(vent, 1, 1, t["highlight"], t["shadow"])
-	c.outline(vent, t["outline"])
+	if v.ring():
+		c.outline(vent, t["outline"])
 	for i in 3:
 		var vx := -74.0 + i * 5.0
 		c.line(Art.at(v, Vector2(vx, -6.0)), Art.at(v, Vector2(vx, 6.0)), t["shadow"])

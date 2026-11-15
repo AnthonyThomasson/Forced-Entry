@@ -6,7 +6,8 @@ extends GameTest
 ## gate fails the test on any shader or engine error. With `VEHICLE_SHOT_DIR=<dir>` set it saves the
 ## pictures
 ## there (the car shut, the car with a door open braking and dented, the van with its doors open,
-## both seen from another side). Run:
+## both seen from another side; `VEHICLE_ZOOM=<n>` and `VEHICLE_PITCH=<degrees>` set the
+## camera). Run:
 ## `VEHICLE_SHOT_DIR=<dir> tools/run_tests.sh --windowed --id=vehicle/vehicle_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
@@ -20,7 +21,7 @@ const SPEC := {
 	"defenders": { "count": 1 },
 	"invaders": { "count": 1 },
 }
-const ZOOM := 1.6
+const ZOOM := 1.6  # `VEHICLE_ZOOM=<n>` overrides it
 
 
 func describe() -> Dictionary:
@@ -41,6 +42,8 @@ func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
+	if OS.get_environment("VEHICLE_PITCH") != "":
+		s.set_static(RenderConfig, &"pitch_degrees", float(OS.get_environment("VEHICLE_PITCH")))
 	s.lock_interaction([&"camera"])
 	s.von_script([])
 
@@ -101,7 +104,10 @@ func _park(t: TestContext, main: Node, camera: Camera2D, world: Node) -> Array[R
 	world.add_child(van)
 	camera.set_process(false)
 	camera.set_physics_process(false)
-	camera.zoom = Vector2(ZOOM, ZOOM)
+	var zoom := ZOOM
+	if OS.get_environment("VEHICLE_ZOOM") != "":
+		zoom = float(OS.get_environment("VEHICLE_ZOOM"))
+	camera.zoom = Vector2(zoom, zoom)
 	camera.global_position = spot
 	await t.frames(40)
 	var mirror: WorldMirror = main.get_node("View3D").mirror
