@@ -68,6 +68,7 @@ func run(t: TestContext) -> void:
 	_far_pieces_are_not_looked_at(t)
 	_a_moved_piece_is_found_where_it_went(t)
 	_a_forgotten_wall_leaves_no_trace(t)
+	_a_faded_unit_casts_no_shadow(t)
 
 
 ## The stand-in wall, a tall piece and a low one in a world of their own, the fade stepped by hand.
@@ -289,6 +290,51 @@ func _piece_built_again_keeps_its_fade(t: TestContext) -> void:
 	t.expect_near(shown(_tall.get_child(0)), before, 0.001, "the new piece starts at that fade")
 	settle(0.6, 0.0, [])
 	t.expect_near(shown(_tall.get_child(0)), 1.0, 0.001, "and comes back when it is not in the way")
+
+
+## A unit more than half faded casts no shadow (a stippled one would darken the character behind
+## it); whole again, each part has the setting it had: a part that cast none still casts none. A
+## fixed and a movable piece, each with a handle that casts none, in a fade of their own.
+func _a_faded_unit_casts_no_shadow(t: TestContext) -> void:
+	var off := GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var on := GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var view := SubViewport.new()
+	view.own_world_3d = true
+	t.world.add_child(view)
+	_fade = WallFade.new()
+	view.add_child(_fade)
+	_fade.set_process(false)
+	var pieces: Array[Node3D] = []
+	for key in 2:
+		var piece := _piece(view, "shadowed", Vector3(0, 0, 40), Vector3(40, 70, 40))
+		var handle := MeshInstance3D.new()
+		handle.mesh = BoxMesh.new()
+		handle.cast_shadow = off
+		handle.position = Vector3(0, 35, 0)
+		piece.add_child(handle)
+		_fade.watch(piece, 20 + key, key == 1)
+		pieces.append(piece)
+	step(0.0, 0.0, [])
+	t.expect_eq(_casts(pieces, 0), [on, on], "premise: both pieces cast their shadows")
+	settle(0.1, 0.0, [Vector2.ZERO])  # a little under half faded
+	t.expect_eq(_casts(pieces, 0), [on, on], "under half faded they still cast")
+	settle(0.1, 0.0, [Vector2.ZERO])
+	t.expect_eq(_casts(pieces, 0), [off, off], "more than half faded they cast no shadow")
+	t.expect_eq(_casts(pieces, 1), [off, off], "nor does a part of them")
+	settle(0.6, 0.0, [Vector2.ZERO])
+	step(STEP, 0.0, [Vector2.ZERO])
+	t.expect_eq(_fade.written, 0, "a settled fade writes nothing, shadows included")
+	settle(0.6, 0.0, [])
+	t.expect_eq(_casts(pieces, 0), [on, on], "whole again they cast as before")
+	t.expect_eq(_casts(pieces, 1), [off, off], "the part that cast none still casts none")
+
+
+## The `cast_shadow` of child `index` of each of `pieces`.
+func _casts(pieces: Array[Node3D], index: int) -> Array:
+	var found: Array = []
+	for piece in pieces:
+		found.append((piece.get_child(index) as GeometryInstance3D).cast_shadow)
+	return found
 
 
 ## Hundreds of movable pieces far from the focus are never asked: the grid only gives the units in
