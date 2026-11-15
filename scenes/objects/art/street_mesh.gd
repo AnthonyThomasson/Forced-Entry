@@ -2,13 +2,14 @@ extends RefCounted
 ## Objects domain, the 3D mesh of a piece of the street (`structure_meshes.gd`,
 ## `domain-art/meshes.md`;
 ## registered under the floor key of the `street` art): the pavement a flat slab level with a
-## room's floor, a kerb band along the edges that face the road, and the road a slab
-## `ObjectStreetMeshConfig.kerb` px lower with the paint laid flat on it, the lane's dashes down the
-## middle and each junction's zebra bars and stop line. The slab joints are not modelled (flat paint
-## is what reads at play zoom); the wear and the lane glyphs lie on it as decals (`wear_mesh.gd`).
-## Colours are the street painters' own (`ObjectArtStreetConfig`, `ObjectArtCrossingConfig`). A
-## floor is static, so the mesh is built once, in a frame whose origin is the piece's corner, shared
-## by every piece of one size and marks, and casts no shadow.
+## room's floor and the road a slab `ObjectStreetMeshConfig.kerb` px lower, each wearing its street
+## tile (the sidewalk's slab joints, the asphalt's grain: `StructureSkin.tile`, repeated from the
+## piece's `tile_offset`), and over the slab, a plain child `Paint` mesh: a kerb band along the
+## edges that face the road, the lane's dashes down the middle of the road and each junction's zebra
+## bars and stop line, laid flat. The wear and the lane glyphs lie on it as decals (`wear_mesh.gd`).
+## The paint's colours are the street painters' own (`ObjectArtStreetConfig`,
+## `ObjectArtCrossingConfig`). A floor is static, so the meshes are built once, in a frame whose
+## origin is the piece's corner, shared by every piece of one size and marks, and cast no shadow.
 
 
 ## The node a `floor_node` (a `Floor` of art `street`: `size`, `art_opts.kind`, `marks`) is shown
@@ -21,19 +22,46 @@ static func build(floor_node: Node2D) -> Node3D:
 	var colour := ObjectArtStreetConfig.sidewalk_color if sidewalk else (
 		ObjectArtStreetConfig.asphalt_color
 	)
+	var slab_key := MeshCache.key("street_slab", size, Color.WHITE, {
+		"sidewalk": sidewalk,
+		"thickness": ObjectStructureMeshConfig.floor_thickness,
+		"kerb": ObjectStreetMeshConfig.kerb,
+	})
+	var node := MeshNodes.instance(
+		MeshCache.fetch(slab_key, func() -> Mesh: return _slab(size, sidewalk)),
+		Color.WHITE,
+		false,
+	)
+	StructureSkin.tile(node, floor_node)
+	var layer := _paint_layer(size, sidewalk, colour, marks)
+	if layer != null:
+		node.add_child(layer)
+	WearMesh.attach_street(node, floor_node)
+	return node
+
+
+## The `Paint` child laid over the slab (the kerb band, the lane, the junctions), or null when the
+## piece has none: its mesh is shared by every piece of one size and marks.
+static func _paint_layer(
+	size: Vector2,
+	sidewalk: bool,
+	colour: Color,
+	marks: Dictionary,
+) -> MeshInstance3D:
 	var key_opts := _tuning()
 	key_opts["sidewalk"] = sidewalk
 	key_opts["lane"] = bool(marks.get("lane", false))
 	key_opts["crossings"] = var_to_str(marks.get("crossings", []))
 	key_opts["edges"] = var_to_str(marks.get("edges", []))
-	var key := MeshCache.key("street", size, colour, key_opts)
-	var node := MeshNodes.instance(
-		MeshCache.fetch(key, func() -> Mesh: return _mesh(size, sidewalk, colour, marks)),
-		Color.WHITE,
-		false,
+	var paint: Mesh = MeshCache.fetch(
+		MeshCache.key("street_paint", size, colour, key_opts),
+		func() -> Mesh: return _paint(size, sidewalk, colour, marks),
 	)
-	WearMesh.attach_street(node, floor_node)
-	return node
+	if paint.get_surface_count() == 0:
+		return null
+	var layer := MeshNodes.instance(paint, Color.WHITE, false)
+	layer.name = "Paint"
+	return layer
 
 
 ## The hue of paint `paint` laid over `ground` at the paint's own opacity (the painters draw it
@@ -113,23 +141,29 @@ static func _tuning() -> Dictionary:
 	}
 
 
-## The piece's solid and paint.
-static func _mesh(size: Vector2, sidewalk: bool, colour: Color, marks: Dictionary) -> Mesh:
+## The piece's solid: the pavement level with the ground and deep enough that its edge shows the
+## whole kerb over the road, or the road a kerb lower, a thin slab; white, for the tile to colour.
+static func _slab(size: Vector2, sidewalk: bool) -> Mesh:
 	var kit := MeshKit.new()
 	var thickness := ObjectStructureMeshConfig.floor_thickness
 	var rect := Rect2(Vector2.ZERO, size)
 	if sidewalk:
-		# Level with the ground, deep enough that its edge shows the whole kerb over the road.
 		var depth := thickness + ObjectStreetMeshConfig.kerb
-		kit.box(MeshKit.volume(rect, -depth, depth), ObjectArtStreetConfig.curb_color, colour)
+		kit.box(MeshKit.volume(rect, -depth, depth), Color.WHITE)
+	else:
+		var top := -ObjectStreetMeshConfig.kerb
+		kit.box(MeshKit.volume(rect, top - thickness, thickness), Color.WHITE)
+	return kit.build()
+
+
+## The paint over the slab (empty when the piece has none): a pavement's kerb band, a road's lane
+## and junctions.
+static func _paint(size: Vector2, sidewalk: bool, colour: Color, marks: Dictionary) -> Mesh:
+	var kit := MeshKit.new()
+	if sidewalk:
 		_curb(kit, size, marks.get("edges", []))
 		return kit.build()
 	var top := -ObjectStreetMeshConfig.kerb
-	kit.box(
-		MeshKit.volume(rect, top - thickness, thickness),
-		MeshKit.tone(colour, StringName(ObjectStructureMeshConfig.floor_edge_tone)),
-		colour,
-	)
 	var arms: Array[Rect2] = []
 	for entry: Dictionary in marks.get("crossings", []):
 		var side: Vector2 = entry["side"]

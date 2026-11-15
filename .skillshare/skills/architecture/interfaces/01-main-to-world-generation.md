@@ -1,6 +1,6 @@
 1. **Main (through `MatchBuilder`, interface 23) → World Generation**
    - `WorldGen.prewarm(with_furniture := false) -> void` — Main calls this at boot (after loading the settings), before opening setup: with a display it hands Objects' shared district
-	 requests, plus each tower plan's shadow (either axis orientation) and its uncut podium segments (`DistrictPrewarm`), to `PixelArt.warm`; headless it returns without warming. `with_furniture` (Main: the saved render mode is 3D, 3D picked on the settings page, a 3D match beginning; a 2D run never paints it) adds the furniture's flat 3D art (`DistrictPrewarm.furniture_requests`, interface 2).
+	 requests, plus each tower plan's shadow (either axis orientation) and its uncut podium segments, and the structure's flat 3D tiles (every catalogue floor, the street's two, the wall cap of each plan's thickness: `DistrictPrewarm`), to `PixelArt.warm`; headless it returns without warming. `with_furniture` (Main: the saved render mode is 3D, 3D picked on the settings page, a 3D match beginning; a 2D run never paints it) adds the furniture's flat 3D art (`DistrictPrewarm.furniture_requests`, interface 2).
    - `WorldGen.generate(seed, force_plan, front_entrance_world, parent) -> Node2D` — one lone house, unturned (its front door on the
 	 south wall), from `HouseDefinitions.PLANS` only; one RNG for the whole run (the plan pick is its first draw), prints `House: <plan>
 	 seed: N`; a doorway with no door (the roll, or `worldgen.doors` off) is an open archway, one with a door holds a `Door`

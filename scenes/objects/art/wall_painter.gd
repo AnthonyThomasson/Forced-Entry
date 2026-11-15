@@ -7,22 +7,27 @@ extends RefCounted
 ## placed in the world: wear_painter.gd). The tile is symmetric across the thickness, so it reads
 ## the same whichever side of a wall faces a room. Options (`art_opts`, defaulting to
 ## ObjectArtWallConfig): `pattern` ("plaster" | "brick").
+## Flat (the 3D render's albedo, `c.light == Vector2.ZERO`): no lit trim lines, no dark outline rows
+## (the 3D light and the post's outline draw those) and the brick courses run to the tile's edges,
+## so the edge texels the face of a 3D wall shows are brick and mortar, not one plain colour.
 
 
 ## Paint one wall tile onto `c` in `base` (x along the wall, y across it).
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var t := ArtSurfaceConfig.tones(base)
+	var flat := c.light == Vector2.ZERO
 	var cap := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 0)
 	c.fill(cap, base)
 	if String(opts.get("pattern", ObjectArtWallConfig.pattern)) == "brick":
-		_brick(c, base, t)
+		_brick(c, base, t, flat)
 	else:
 		c.speckle(Rect2i(0, 0, c.w, c.h), base, 0.18, 0.04)
 		c.grain(cap, 0.004, base.darkened(0.05), base.lightened(0.04), { "wraps": true })
-	for y in [1, c.h - 2]:
-		c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.light)
-	for y in [0, c.h - 1]:
-		c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.outline)
+	if not flat:
+		for y in [1, c.h - 2]:
+			c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.light)
+		for y in [0, c.h - 1]:
+			c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.outline)
 	_grime(c)
 
 
@@ -37,14 +42,17 @@ static func _grime(c: PixelCanvas) -> void:
 		c.img.set_pixel(x, c.h - 1 - y, c.at(x, c.h - 1 - y).darkened(amount))
 
 
-## Running-bond brick courses across the thickness, each brick a slightly different tone.
-static func _brick(c: PixelCanvas, base: Color, t: Dictionary) -> void:
+## Running-bond brick courses across the thickness, each brick a slightly different tone. Lit, they
+## leave the two outer rows to the trim and draw a shadow line under the last course; `flat`, they
+## fill the whole thickness.
+static func _brick(c: PixelCanvas, base: Color, t: Dictionary, flat: bool) -> void:
+	var margin := 0 if flat else 2
 	var courses := maxi(2, int(c.h / 8.0))
 	var brick := int(c.w / 2.0)
 	var mortar := base.lightened(0.35)
 	for row in courses:
-		var y0 := 2 + int(row * (c.h - 4) / float(courses))
-		var y1 := 2 + int((row + 1) * (c.h - 4) / float(courses))
+		var y0 := margin + int(row * (c.h - margin * 2) / float(courses))
+		var y1 := margin + int((row + 1) * (c.h - margin * 2) / float(courses))
 		var offset := (int(brick / 2.0)) * (row % 2)
 		for b in 3:
 			var x0 := b * brick - offset
@@ -53,6 +61,8 @@ static func _brick(c: PixelCanvas, base: Color, t: Dictionary) -> void:
 				c.line(Vector2i(x, y0), Vector2i(x, y1 - 1), tone)
 			if x0 >= 0 and x0 < c.w:
 				c.line(Vector2i(x0, y0), Vector2i(x0, y1 - 1), mortar)
-		c.line(Vector2i(0, y0), Vector2i(c.w - 1, y0), mortar)
+		if y0 > 0:
+			c.line(Vector2i(0, y0), Vector2i(c.w - 1, y0), mortar)
 	c.speckle(Rect2i(0, 0, c.w, c.h), base, 0.1, 0.06)
-	c.line(Vector2i(0, c.h - 3), Vector2i(c.w - 1, c.h - 3), t.dark)
+	if not flat:
+		c.line(Vector2i(0, c.h - 3), Vector2i(c.w - 1, c.h - 3), t.dark)

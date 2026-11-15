@@ -2,7 +2,9 @@ class_name WallMesh
 extends Node3D
 ## Objects domain, the 3D mesh of a room's walls (`structure_meshes.gd`, `domain-art/meshes.md`):
 ## every wall segment a full-height solid at its collider's own footprint (its real thickness, the
-## doorways and gaps left open), the cap's colour on its sides and a lighter tone on top. Each
+## doorways and gaps left open) wearing the wall painter's tile, painted flat (`StructureSkin`): the
+## cap on top, the tile's edge texels (plaster grain, brick joints) stretched down the face, a step
+## darker. A wall with no art keeps the cap colour on its sides and a lighter tone on top. Each
 ## segment is its own `MeshInstance3D` (`Segment<i>`, the segment's index in `wall_segments()`), so
 ## the wall-fade job fades them one by one. A whole segment is the one cached box every segment of
 ## that size and colour shares; a dented one is built from the convex pieces of its collider.
@@ -22,6 +24,9 @@ var rebuilds := 0
 ## The wall (a `Wall`) and the cap colour its segments are built in.
 var _wall: Node2D
 var _colour := Color.WHITE
+## The wall's cap tile along x and turned for a wall along z (null: a wall with no art).
+var _tile: Texture2D
+var _tile_up: Texture2D
 ## The wall's wear marks by the segment each stands on (`WallWearMesh.decals_of`): children of that
 ## segment's instance, handed to a rebuilt one.
 var _marks := {}
@@ -46,6 +51,8 @@ static func build(wall: Node2D) -> Node3D:
 	node.name = "WallMesh"
 	node._wall = wall
 	node._colour = colour_of(wall)
+	node._tile = StructureSkin.wall_tile(wall)
+	node._tile_up = StructureSkin.wall_tile(wall, true)
 	node._marks = WallWearMesh.decals_of(wall)
 	var shapes: Dictionary = wall.call(&"segment_shapes")
 	var indices: Array = shapes.keys()
@@ -89,7 +96,7 @@ func rebuild_segment(index: int) -> void:
 
 ## Add the instance of segment `index` (its collider `shapes`) as a child; null when it has none.
 func _put(index: int, shapes: Array) -> MeshInstance3D:
-	var part := _segment(shapes, _colour)
+	var part := _segment(shapes, _colour, _skin(index))
 	if part != null:
 		part.name = "Segment%d" % index
 		add_child(part)
@@ -113,9 +120,26 @@ static func _tuning() -> Dictionary:
 	}
 
 
+## How segment `index` wears the tile: its texture and the rect (px, in the wall's frame) one tile
+## covers, laid from the segment's start. Empty without art.
+func _skin(index: int) -> Dictionary:
+	if _tile == null:
+		return {}
+	var seg: PackedVector2Array = (_wall.call(&"wall_segments") as Array)[index]
+	var half := float(_wall.get("wall_thickness")) * 0.5
+	var along_x := absf(seg[1].x - seg[0].x) >= absf(seg[1].y - seg[0].y)
+	var texture := _tile if along_x else _tile_up
+	var corner := (
+		Vector2(minf(seg[0].x, seg[1].x), seg[0].y - half)
+		if along_x
+		else Vector2(seg[0].x - half, minf(seg[0].y, seg[1].y))
+	)
+	return { "texture": texture, "rect": Rect2(corner, StructureSkin.extent(texture)) }
+
+
 ## The solid of one segment's collider shapes, or null when it has none now (a collider on its way
-## out is not counted).
-static func _segment(shapes: Array, colour: Color) -> MeshInstance3D:
+## out is not counted). A `skin` (`_skin`) makes it white, for the tile to colour.
+static func _segment(shapes: Array, colour: Color, skin: Dictionary) -> MeshInstance3D:
 	var live: Array[CollisionShape2D] = []
 	for shape: Variant in shapes:
 		if is_instance_valid(shape):
@@ -124,18 +148,40 @@ static func _segment(shapes: Array, colour: Color) -> MeshInstance3D:
 				live.append(node)
 	if live.is_empty():
 		return null
+	var worn := not skin.is_empty()
+	var origin := Vector2.ZERO
+	var instance: MeshInstance3D
 	if live.size() == 1 and _is_whole(live[0]):
-		var size := (live[0].shape as RectangleShape2D).size
-		var key := MeshCache.key("wall", size, colour, _tuning())
-		var instance := MeshNodes.instance(
-			MeshCache.fetch(key, func() -> Mesh: return _box(size, colour))
-		)
-		var centre := live[0].position
-		MeshNodes.place(instance, Vector3(centre.x, 0.0, centre.y))
-		return instance
+		origin = live[0].position
+		instance = _whole(live[0], colour, worn)
+	else:
+		instance = _pieces(live, colour, worn)
+	if worn:
+		var rect: Rect2 = skin["rect"]
+		rect.position -= origin
+		MeshNodes.textured(instance, skin["texture"], rect, { "tiled": true })
+	return instance
+
+
+## The cached box of one whole segment, placed at its collider; `worn` makes it white.
+static func _whole(shape_node: CollisionShape2D, colour: Color, worn: bool) -> MeshInstance3D:
+	var size := (shape_node.shape as RectangleShape2D).size
+	var side := Color.WHITE if worn else _side(colour)
+	var top := Color.WHITE if worn else _top(colour)
+	var key := MeshCache.key("wall", size, Color.WHITE if worn else colour, _tuning())
+	var instance := MeshNodes.instance(
+		MeshCache.fetch(key, func() -> Mesh: return _box(size, side, top))
+	)
+	var centre := shape_node.position
+	MeshNodes.place(instance, Vector3(centre.x, 0.0, centre.y))
+	return instance
+
+
+## A dented segment: the extruded outlines of its convex pieces, in the wall's frame.
+static func _pieces(live: Array[CollisionShape2D], colour: Color, worn: bool) -> MeshInstance3D:
 	var kit := MeshKit.new()
-	var side := _side(colour)
-	var top := _top(colour)
+	var side := Color.WHITE if worn else _side(colour)
+	var top := Color.WHITE if worn else _top(colour)
 	for shape in live:
 		kit.extrude(_outline(shape), 0.0, ObjectStructureMeshConfig.wall_height, side, top)
 	return MeshNodes.instance(kit.build())
@@ -150,13 +196,13 @@ static func _is_whole(shape_node: CollisionShape2D) -> bool:
 	)
 
 
-## `size` px wide and deep, centred on the origin: the whole segment.
-static func _box(size: Vector2, colour: Color) -> Mesh:
+## `size` px wide and deep, centred on the origin: the whole segment, `side` and `top` coloured.
+static func _box(size: Vector2, side: Color, top: Color) -> Mesh:
 	var kit := MeshKit.new()
 	kit.box(
 		MeshKit.volume(Rect2(-size * 0.5, size), 0.0, ObjectStructureMeshConfig.wall_height),
-		_side(colour),
-		_top(colour),
+		side,
+		top,
 	)
 	return kit.build()
 

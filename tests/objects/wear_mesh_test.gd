@@ -568,11 +568,12 @@ func _overlap(a: MeshInstance3D, b: MeshInstance3D, flat: bool) -> bool:
 # ----------------------------------------------------------------------------------------
 
 
-## The decal children of `node` (a floor's mesh), in order.
+## The decal children of `node` (a floor's mesh), in order: not a street's `Paint` mesh.
 func _decals(node: Node) -> Array:
 	var out: Array = []
 	for child in node.get_children():
-		if child is MeshInstance3D and child.material_override is ShaderMaterial:
+		if (child is MeshInstance3D and child.name != &"Paint"
+				and child.material_override is ShaderMaterial):
 			out.append(child)
 	return out
 

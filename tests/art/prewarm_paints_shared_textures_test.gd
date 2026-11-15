@@ -68,6 +68,10 @@ func _reference_keys(requests: Array, references: Array[PackedByteArray]) -> Arr
 
 
 func _render(request: Dictionary) -> Texture2D:
+	if request.get("flat", false):
+		return PixelArt.render_flat(
+			request["painter"], request["size"], request["color"], request["opts"]
+		)
 	return PixelArt.render(
 		request["painter"],
 		request["size"],

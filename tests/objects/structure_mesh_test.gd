@@ -150,9 +150,9 @@ func _segment(
 	return covered
 
 
-## The top is the lighter tone of the cap colour, the sides the cap colour itself.
+## A wall with art wears its painter's flat tile: white faces (the art colours them) and a textured
+## material showing the tile (the painter's art, drawn flat), every segment one tile's material.
 func _check_wall_colours(t: TestContext, node: Node3D, wall: Node) -> void:
-	var colour: Color = ObjectArt.drawn_color(wall.art_color) if wall.art != "" else wall.art_color
 	var part := node.get_child(0) as MeshInstance3D
 	var arrays := (part.mesh as ArrayMesh).surface_get_arrays(0)
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
@@ -160,18 +160,21 @@ func _check_wall_colours(t: TestContext, node: Node3D, wall: Node) -> void:
 	var top_seen := false
 	var side_seen := false
 	for i in normals.size():
-		var seen := colours[i].linear_to_srgb()
 		if normals[i].dot(Vector3.UP) > 0.99:
 			top_seen = true
-			t.check(
-				_near(seen, MeshKit.tone(colour, &"light")),
-				"%s: a lighter cap on top" % wall.name,
-			)
 		elif absf(normals[i].y) < 0.01:
 			side_seen = true
-			t.check(_near(seen, colour), "%s: its sides are the cap colour %s, got %s"
-					% [wall.name, colour, seen])
+		t.check(
+			colours[i].is_equal_approx(Color.WHITE),
+			"%s: faces are white for the tile" % wall.name,
+		)
 	t.check(top_seen and side_seen, "%s: the mesh has a top and sides" % wall.name)
+	var material := part.material_override as ShaderMaterial
+	if not t.require(material != null, "%s: a textured material" % wall.name):
+		return
+	var tile := material.get_shader_parameter(&"albedo_texture") as Texture2D
+	t.check(tile != null, "%s: its cap tile is the material's texture" % wall.name)
+	t.check(material.get_shader_parameter(&"tiled") == true, "%s: the tile repeats" % wall.name)
 
 
 ## Each room's floor: a flat slab level with the ground at the floor's footprint and colour.
@@ -204,10 +207,17 @@ func _floors(t: TestContext, mirror: WorldMirror) -> void:
 				"%s: at the floor's corner (x)" % floor_node.name)
 		t.expect_near(node.global_position.z, floor_node.global_position.y, 0.01,
 				"%s: at the floor's corner (z)" % floor_node.name)
-		var drawn := ObjectArt.drawn_color(floor_node.color)
-		var top := _top_colour(node.mesh as ArrayMesh)
-		t.check(_near(top, drawn), "%s: the colour its painter draws (%s, got %s)"
-				% [floor_node.name, drawn, top])
+		var material := node.material_override as ShaderMaterial
+		if t.require(material != null, "%s: wears a textured material" % floor_node.name):
+			var tile := material.get_shader_parameter(&"albedo_texture") as Texture2D
+			var painted := ObjectArt.tile_flat(
+				floor_node.art, floor_node.color, floor_node.floor_material, floor_node.art_opts
+			)
+			t.check(tile == painted, "%s: its painter's flat tile" % floor_node.name)
+			t.check(
+				material.get_shader_parameter(&"tiled") == true,
+				"%s: repeated" % floor_node.name,
+			)
 		t.check(node.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
 				"%s: the ground casts no shadow" % floor_node.name)
 
@@ -301,11 +311,14 @@ func _street(t: TestContext, mirror: WorldMirror) -> void:
 		return
 	_check_road(t, road_node)
 	var walk_box := walk_node.mesh.get_aabb()
-	t.expect_near(
-		walk_box.end.y, MARK_LIFT, 0.01, "the pavement is level, its kerb band over it"
-	)
+	t.expect_near(walk_box.end.y, 0.0, 0.01, "the pavement is level with the ground")
 	t.check(walk_box.position.y <= -KERB, "the pavement's edge shows the kerb over the road")
-	t.check(_marks(walk_node.mesh as ArrayMesh, 0.0).size() > 0, "the kerb is a band on its edge")
+	var kerb := walk_node.get_node_or_null("Paint") as MeshInstance3D
+	if t.require(kerb != null, "the kerb band is a Paint mesh over the pavement"):
+		t.expect_near(kerb.mesh.get_aabb().end.y, MARK_LIFT, 0.01, "the kerb band lies over it")
+		t.check(_marks(kerb.mesh as ArrayMesh, 0.0).size() > 0, "the kerb is a band on its edge")
+	for node: MeshInstance3D in [road_node, walk_node]:
+		t.check(node.material_override is ShaderMaterial, "a street slab wears its tile")
 
 
 ## The road is a slab a kerb down, its lane and its crossing painted flat on it.
@@ -313,7 +326,10 @@ func _check_road(t: TestContext, road_node: MeshInstance3D) -> void:
 	t.expect_near(
 		road_node.mesh.get_aabb().position.y, -KERB - FLOOR_THICKNESS, 0.01, "the road is a slab"
 	)
-	var marks := _marks(road_node.mesh as ArrayMesh, -KERB)
+	var paint := road_node.get_node_or_null("Paint") as MeshInstance3D
+	if not t.require(paint != null, "the road's paint is a Paint mesh over the slab"):
+		return
+	var marks := _marks(paint.mesh as ArrayMesh, -KERB)
 	t.check(marks.size() > 0, "paint lies flat on the road, %.1f px over it" % MARK_LIFT)
 	var dash := false
 	var bars := false
@@ -430,17 +446,6 @@ func _mesh_of(mirror: WorldMirror, floor_node: Node) -> MeshInstance3D:
 	return null if node.mesh is BoxMesh else node
 
 
-## The colour of the up-facing faces of `mesh`.
-func _top_colour(mesh: ArrayMesh) -> Color:
-	var arrays := mesh.surface_get_arrays(0)
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
-	for i in normals.size():
-		if normals[i].dot(Vector3.UP) > 0.99:
-			return colours[i].linear_to_srgb()
-	return Color.BLACK
-
-
 ## The vertices of `mesh` facing up at height `top` + the paint's lift.
 func _marks(mesh: ArrayMesh, top: float) -> Array[Vector3]:
 	var out: Array[Vector3] = []
@@ -456,10 +461,6 @@ func _marks(mesh: ArrayMesh, top: float) -> Array[Vector3]:
 func _vertex_count(mesh: Mesh) -> int:
 	var arrays := (mesh as ArrayMesh).surface_get_arrays(0)
 	return (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
-
-
-func _near(a: Color, b: Color) -> bool:
-	return absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b) < 0.04
 
 
 func _mirror(t: TestContext) -> WorldMirror:

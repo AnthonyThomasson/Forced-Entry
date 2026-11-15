@@ -113,6 +113,64 @@ static func texture(art: String, size: Vector2, color: Color, facing: Vector2,
 	return PixelArt.render(PAINTERS[art], size, _color(art, color), facing, _art_opts(art, opts))
 
 
+## The ALBEDO of `art` for a footprint of `size` as its painter draws it (canonical: front +y), for
+## the 3D render (`PixelArt.render_flat`): no baked light, no facing, in the run-down look, one
+## texture whatever way the piece turns, so the caller turns the mesh. `size` is the canonical
+## footprint (front +y, width across; a piece facing left or right swaps its sides), `opts` the
+## painter's with its `material`. Null for an unknown art id.
+static func flat(art: String, size: Vector2, color: Color, opts: Dictionary = {}) -> Texture2D:
+	if not PAINTERS.has(art):
+		push_error("ObjectArt: unknown art '%s'" % art)
+		return null
+	return PixelArt.render_flat(PAINTERS[art], size, _color(art, color), _art_opts(art, opts))
+
+
+## The flat albedo of one repeating tile of a tiling painter (`tile`'s twin), or null for an unknown
+## art id.
+static func tile_flat(
+	art: String,
+	color: Color,
+	material: String = "",
+	opts: Dictionary = {},
+) -> Texture2D:
+	var painter = PAINTERS.get(art)
+	if painter == null:
+		push_error("ObjectArt: unknown art '%s'" % art)
+		return null
+	return flat(art, painter.tile_size(opts), color, _finished(opts, material))
+
+
+## The `PixelArt.warm` request of `tile_flat`'s texture (its pre-warm), as `tile_flat` paints it;
+## empty for an unknown art id.
+static func tile_flat_request(
+	art: String,
+	color: Color,
+	material: String = "",
+	opts: Dictionary = {},
+) -> Dictionary:
+	if not PAINTERS.has(art):
+		return {}
+	return flat_request(art, PAINTERS[art].tile_size(opts), color, _finished(opts, material))
+
+
+## The `PixelArt.warm` request of `flat`'s texture for the same inputs; empty for an unknown art id.
+static func flat_request(
+	art: String,
+	size: Vector2,
+	color: Color,
+	opts: Dictionary = {},
+) -> Dictionary:
+	if not PAINTERS.has(art):
+		return {}
+	return {
+		"painter": PAINTERS[art],
+		"size": size,
+		"color": _color(art, color),
+		"opts": _art_opts(art, opts),
+		"flat": true,
+	}
+
+
 ## The emissive twin of `texture` for the same inputs: only what its painter drew glowing (a
 ## screen's face, a tube, a bulb), in its own colours, transparent elsewhere; null when nothing in
 ## it gives light (or for an unknown art id).
@@ -134,33 +192,6 @@ static func tile_emissive(
 	if painter == null:
 		return null
 	return emissive(art, painter.tile_size(opts), color, Vector2.DOWN, _finished(opts, material))
-
-
-## The ALBEDO of an `art` piece with canonical footprint `size` (front +y, width across; a piece
-## facing left or right swaps its sides), for the 3D render's textured meshes: the painter with no
-## light (`PixelArt.render_flat`), in the run-down look, never turned (the caller turns the mesh).
-## `opts` are the painter's, with its `material`. Null for an unknown art id.
-static func flat(art: String, size: Vector2, color: Color, opts: Dictionary = {}) -> Texture2D:
-	if not PAINTERS.has(art):
-		push_error("ObjectArt: unknown art '%s'" % art)
-		return null
-	return PixelArt.render_flat(PAINTERS[art], size, _color(art, color), _art_opts(art, opts))
-
-
-## The `PixelArt.warm` request of `flat` for the same inputs (the district's pre-warm).
-static func flat_request(
-	art: String,
-	size: Vector2,
-	color: Color,
-	opts: Dictionary = {},
-) -> Dictionary:
-	return {
-		"painter": PAINTERS[art],
-		"size": size,
-		"color": _color(art, color),
-		"opts": _art_opts(art, opts),
-		"flat": true,
-	}
 
 
 ## The colour the run-down look draws `color` in: what a piece's debris and a wall's chips take, so

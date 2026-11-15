@@ -1,7 +1,8 @@
 class_name DistrictPrewarm
 ## World Generation domain: the pixel-art requests every district shares, for `WorldGen.prewarm`.
 ## Objects' fixed list (`SharedTextures`) plus what the tower plans fix: each footprint's shadow in
-## either axis orientation and its podium segments a doorway does not cut.
+## either axis orientation and its podium segments a doorway does not cut, and the flat (3D render)
+## tiles of the structure: every catalogue floor, the street's two tiles and the wall cap.
 
 ## The Objects domain's list of pixel-art requests every district shares.
 const SharedTextures = preload("res://scenes/objects/shared_textures.gd")
@@ -110,4 +111,46 @@ static func requests() -> Array:
 			"depth": WorldGenTowerConfig.podium_depth,
 			"podium": TowerDressing.plan_segment_lengths(plan["rooms"]),
 		})
-	return SharedTextures.requests(footprints)
+	var out := SharedTextures.requests(footprints)
+	out.append_array(structure_requests())
+	return out
+
+
+## The flat tile requests of the structure's 3D meshes (`StructureSkin`): each catalogue floor and
+## street tile and the wall cap of each thickness a house or tower plan fixes, painted as the meshes
+## ask for them. A door's leaf depends on its look and is painted when it is built.
+static func structure_requests() -> Array:
+	var out: Array = []
+	var thicknesses := {}
+	for key: String in HouseDefinitions.get_all():
+		thicknesses[float(HouseDefinitions.get_plan(key)["wall_thickness"])] = true
+	for key: String in TowerDefinitions.get_all():
+		thicknesses[float(TowerDefinitions.get_plan(key)["wall_thickness"])] = true
+	for thickness: float in thicknesses:
+		_add(out, ObjectArt.flat_request(
+			"wall",
+			Vector2(ObjectArtWallConfig.tile_px, thickness),
+			GeneralCatalog.WALL["color"],
+			GeneralCatalog.WALL["art_opts"],
+		))
+	for key: String in GeneralCatalog.FLOORS:
+		_add(out, _tile_request(GeneralCatalog.FLOORS[key]))
+	for key: String in GeneralCatalog.STREET:
+		_add(out, _tile_request(GeneralCatalog.STREET[key]))
+	return out
+
+
+## `request` onto `out`, unless it is empty (an art id Objects does not know).
+static func _add(out: Array, request: Dictionary) -> void:
+	if not request.is_empty():
+		out.append(request)
+
+
+## The flat tile request of a floor definition (`art`, `color`, `material`, `art_opts`).
+static func _tile_request(definition: Dictionary) -> Dictionary:
+	return ObjectArt.tile_flat_request(
+		definition.get("art", "floor"),
+		definition.get("color", Color(0.6, 0.5, 0.4)),
+		definition.get("material", ""),
+		definition.get("art_opts", {}),
+	)
