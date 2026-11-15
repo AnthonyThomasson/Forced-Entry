@@ -33,3 +33,7 @@ Side file of `domain-testing` (`SKILL.md`).
   `ai.hostile_on_trespass` off to test a reaction to something else.
 
 - **A 3D-mode test** (`tests/_general/rig_probe.gd`: `RigProbe.open(world, camera, yaw)` binds a `CameraRig`) judges by hand-worked isometric screen points, not `Pointer`'s round trip; a test world's viewport is 64 px square, so one needing a window runs in its own `SubViewport`.
+- **No test reads the live settings file:** before a test's own statics the runner sets `Settings.path` to a scratch file
+  (`TestWorld.settings_scratch()`, deleted after) and `Settings.render_mode` to 2D, so a `Main` in the tree never loads the
+  developer's saved `user://settings.json` (a saved "3d" would run it in 3D). A test needing another path or mode pins it
+  with `set_static`; `MainProbe.open` errors on the live path.

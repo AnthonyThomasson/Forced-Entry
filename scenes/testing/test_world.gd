@@ -16,6 +16,8 @@ const ACTOR_SCENES := {
 	&"defender": "res://scenes/ai/npc_defender.tscn",
 	&"invader": "res://scenes/ai/npc_invader.tscn",
 }
+## Where the scratch settings file lives (`settings_scratch`).
+const SETTINGS_SCRATCH := "user://test_scratch/settings_%d.json"
 
 ## The house or arena root and its rooms; in a district world, the centre tower's.
 var house: Node2D
@@ -183,6 +185,7 @@ func _build_squads(setup: TestSetup) -> void:
 func restore() -> void:
 	AllocationPadding.release()
 	Pointer.release()
+	_remove_settings_scratch()
 	for i in range(_saved_statics.size() - 1, -1, -1):
 		var s: Array = _saved_statics[i]
 		(s[0] as Script).set(s[1], s[2])
@@ -230,8 +233,13 @@ func squad(faction: StringName) -> Node:
 	return s if is_instance_valid(s) else null
 
 
-## Apply the switch rows' static knobs, then the explicit `set_static` overrides.
+## Apply the runner's defaults (no test reads the live settings file: `Settings.path` is a scratch
+## file and the render is 2D), then the switch rows' static knobs, then the explicit `set_static`
+## overrides, so a test that pins its own path or render mode wins (restore runs in reverse).
 func _apply_statics(setup: TestSetup) -> void:
+	DirAccess.make_dir_recursive_absolute(settings_scratch().get_base_dir())
+	_set_static(Settings, &"path", settings_scratch())
+	_set_static(Settings, &"render_mode", Settings.RENDER_2D)
 	var switches := TestSwitches.with_defaults(setup.switches)
 	for switch_name in switches:
 		var on: bool = switches[switch_name]
@@ -242,6 +250,17 @@ func _apply_statics(setup: TestSetup) -> void:
 				_set_static(knob[0], knob[1], knob[2])
 	for s in setup.statics:
 		_set_static(s[0], s[1], s[2])
+
+
+## The settings file every test reads and writes instead of the live `user://settings.json` (one per
+## runner process, so shards do not meet), deleted when the test's statics are restored.
+static func settings_scratch() -> String:
+	return SETTINGS_SCRATCH % OS.get_process_id()
+
+
+## Delete the scratch settings file a test's `Settings.save` may have written.
+func _remove_settings_scratch() -> void:
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(settings_scratch()))
 
 
 ## Set a static var, remembering its value for `restore()`. A name the script has no static var
