@@ -1,5 +1,5 @@
 extends GameTest
-## In the 3D render mode the zoom is one of the whole steps of `CameraConfig.zoom_steps_3d` (#193
+## In the 3D render mode the zoom is one of the whole steps of `Zoom3dConfig.steps` (#193
 ## phase 2b G15, 0.5, 1, 2 and 3), so a picture pixel is a whole number of screen pixels and one art
 ## pixel at 1x: a following camera starts at 1x, each wheel notch (and each whole notch of a
 ## trackpad's scroll) is one step, held within the steps there are, and the spectator's framing
@@ -77,7 +77,7 @@ func _framing_takes_the_step_under_the_fit(t: TestContext, cam: Camera2D) -> voi
 	await t.seconds(1.0)
 	var size := cam.get_viewport_rect().size
 	var fit := minf(size.x / 600.0, size.y / 600.0)
-	var steps := CameraConfig.zoom_steps_3d
+	var steps := Zoom3dConfig.steps
 	var want := steps[0]
 	for step: float in steps:
 		if step <= fit * 1.001:

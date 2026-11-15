@@ -2,7 +2,8 @@ class_name PixelPostConfig
 ## Art domain, the pixel post of the 3D render (#193 rule 6, interface 27): how the low-resolution
 ## 3D picture is made to read as pixel art. A `class_name` holder of `static var`s, read as
 ## `PixelPostConfig.<name>` (ADR 0003); the shaders and `ToonMaterial` / `PixelPost` take their
-## values from it, and the picture's own resolution is General's `RenderConfig.internal_lines`.
+## values from it, and the picture's own resolution is the camera rig's
+## (`RenderConfig.texel_match`).
 
 ## How many tone bands the lit amount (N.L times the shadow) steps through, 2 to 5 (`ToonMaterial`
 ## holds it there; 0 is a smooth ramp): 3 picks the shadow, base and light tones of
@@ -28,12 +29,17 @@ static var figure_darken: float = 0.35
 ## Whether a figure (a character's body) is creased like the rest: off, it is outlined by its
 ## silhouette only.
 static var figure_creases: bool = false
-## The shimmer mitigation of a turning camera: the 3D picture is rendered at this many times the
-## picture's own size and averaged down to it before the nearest upscale (1: no mitigation). 2 is
-## the default: measured on a room turning at 90 degrees a second (`art/pixel_post_shimmer`) it
-## flickers about a fifth less than 1 and keeps a thin outline whole; a wider silhouette outline
-## (`silhouette_px` 2) flickers more, not less.
-static var supersample: int = 2
+## The shimmer mitigation of a turning camera: the 3D picture is rendered this many times the
+## picture's own size and averaged down to it before the nearest upscale. `supersample` is the
+## picture at rest (1: none, the art's texels crisp and the cost of the picture itself) and
+## `turn_supersample` while a quarter turn is under way (2: the turn only, about 0.4 s, when texels
+## rotate under nearest sampling and an edge crawls; measured on a room turning
+## (`art/pixel_post_shimmer`) it flickers about a fifth less than 1 and keeps a thin outline whole;
+## a wider silhouette outline (`silhouette_px` 2) flickers more, not less). At a cardinal the art's
+## texels line up with the picture's, so the average of the 2x2 samples is the texel itself and the
+## switch at the ends of a turn shows no step.
+static var supersample: int = 1
+static var turn_supersample: int = 2
 
 
 ## The `(mul, lift)` of the shadow, dark, base, light and highlight tones of `ArtSurfaceConfig`

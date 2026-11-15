@@ -47,7 +47,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.set_static(RenderConfig, &"unit", 1.0)
 	s.set_static(RenderConfig, &"pitch_degrees", 80.0)
-	s.set_static(WallFadeConfig, &"radius", 160.0)
+	s.set_static(WallFadeConfig, &"radius", 40.0)
 	s.set_static(WallFadeConfig, &"fade_time", 0.25)
 	s.set_static(WallFadeConfig, &"faded_amount", 0.25)
 

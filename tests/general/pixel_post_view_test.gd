@@ -41,6 +41,8 @@ func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
 	s.set_static(PixelPostConfig, &"supersample", 1)
+	s.set_static(PixelPostConfig, &"turn_supersample", 1)
+	s.set_static(RenderConfig, &"max_lines", 720)
 	s.set_static(PixelPostConfig, &"silhouette_px", PixelPostConfig.silhouette_px)
 	s.von_script([])
 
@@ -96,8 +98,9 @@ func run(t: TestContext) -> void:
 	t.check(linear, "the 3D picture is averaged down through a filtered stage")
 
 
-## The same window at 2x and 1x: a picture pixel is 2 and 1 screen pixels.
+## The same window at 2x and 1x: a picture pixel is 2 and 1 screen pixels; and the cap.
 func _zoom_steps(t: TestContext) -> void:
+	await _capped(t)
 	var twice := await _start(t, REFERENCE, 2.0)
 	t.expect_eq(
 		twice.viewport.size,
@@ -108,6 +111,23 @@ func _zoom_steps(t: TestContext) -> void:
 	var once := await _start(t, REFERENCE, 1.0)
 	t.expect_eq(once.viewport.size, Vector2i(1154, 650), "1152x648 at 1x: a pixel to a pixel")
 	_check_shown(t, once, REFERENCE, 1.0)
+
+
+## A window taller than `RenderConfig.max_lines` draws the picture with bigger pixels, a whole
+## number of screen pixels more: 1296 high at 1x is 2 screen pixels a picture pixel (650 rows with
+## the margin), 1000 high is 2 as well (502 rows), and with the cap off the picture is the window's.
+func _capped(t: TestContext) -> void:
+	var big := await _start(t, BIG, 1.0)
+	t.expect_eq(big.viewport.size, Vector2i(1154, 650), "2304x1296 at 1x: 2 px a pixel, capped")
+	_check_shown(t, big, BIG, 2.0)
+	var odd := await _start(t, ODD, 1.0)
+	t.expect_eq(odd.viewport.size, Vector2i(890, 502), "1776x1000 at 1x: 2 px a pixel, capped")
+	_check_shown(t, odd, ODD, 2.0)
+	RenderConfig.max_lines = 0
+	var open := await _start(t, ODD, 1.0)
+	t.expect_eq(open.viewport.size, Vector2i(1778, 1002), "with no cap: the window's size")
+	_check_shown(t, open, ODD, 1.0)
+	RenderConfig.max_lines = 720
 
 
 ## A 3D match at `zoom` in a Main whose window is `size`; the 3D view once its picture is sized, or

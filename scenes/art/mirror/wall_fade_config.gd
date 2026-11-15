@@ -10,7 +10,7 @@ class_name WallFadeConfig
 ## tangent (96 px: about 17 px at the 80 degree pitch), whichever of the two is shorter: at the
 ## near top-down view only a wall right in front of the character, or a piece hung over it
 ## (an awning, a lamp's arm: the line starts inside it), hides anyone.
-static var radius: float = 160.0
+static var radius: float = 40.0
 ## Seconds a piece takes to go from whole to faded, and back: it never pops.
 static var fade_time: float = 0.25
 ## How much of a faded piece is drawn (`MeshNodes.fade`'s amount: a dither of the picture's

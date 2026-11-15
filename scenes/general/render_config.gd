@@ -10,7 +10,7 @@ static var unit: float = 1.0
 ## The camera's elevation above the ground plane, in degrees. 80 is the near top-down view of the
 ## 2D game (#193 phase 2b, G11): the ground is foreshortened to sin(80) = 0.985 and the side of a
 ## wall or a body shows as a thin sliver, so the 2D painters' top views are what the picture shows.
-## 90 would show no side at all; 35.264 was the isometric angle of phases 1 and 2.
+## 90 would show no side at all.
 static var pitch_degrees: float = 80.0
 ## The yaw the camera starts at, in degrees: 0 is the 2D view's own orientation (north, -y, up the
 ## screen). The rig's `yaw` is the live value; the camera-turn keys step it a quarter at a time
@@ -29,6 +29,13 @@ static var far: float = 1500.0
 ## snaps it to whole steps), so one pixel of a 2D painter's art is one picture pixel times the zoom
 ## and its texels stay crisp. Off draws a picture pixel to a screen pixel whatever the zoom.
 static var texel_match: bool = true
+## The most rows the picture is drawn with (a window of that height or less at a whole zoom keeps
+## every art pixel): a taller window draws the picture with pixels of a whole number of screen
+## pixels more (a 1440p window at 1x: 2, so 720 rows; 4K at 1x: 3), so the cost of the picture does
+## not grow with the window: at 1x the picture is the window's size, 0.75 megapixels at 1152x648
+## and 8.3 at 4K. Such a pixel covers several art pixels and the art decimates, as at 0.5x. 0 is
+## no cap.
+static var max_lines: int = 720
 ## The 2D pixels one art pixel covers (`ArtCanvasConfig.pixel_size`, which a test pins it to;
 ## General cannot read Art).
 static var art_pixel: float = 1.0

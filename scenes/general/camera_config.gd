@@ -36,10 +36,3 @@ static var pan_speed: float = 700.0
 static var edge_pan_margin: float = 24.0
 ## Seconds without camera input before a hand-steered framing camera returns to automatic framing.
 static var manual_hold: float = 5.0
-## The 3D render's zoom steps, smallest first (#193 phase 2b, G15): a picture pixel is a whole
-## number of screen pixels, one art pixel at 1x, so the 3D view zooms in these steps only (the wheel
-## steps between them and the automatic zoom, the fit of the spectator's framing too, snaps to one).
-## 1x, 2x and 3x are the art at its own size, doubled and tripled; the 0.5 below them is the
-## spectator's room to frame a spread-out match (a picture pixel of two art pixels), the way out the
-## 2D view's 0.4 to 2.0 framing range gave. Drop it to have no zoom below 1.
-static var zoom_steps_3d: PackedFloat32Array = PackedFloat32Array([0.5, 1.0, 2.0, 3.0])

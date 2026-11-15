@@ -71,13 +71,13 @@ Tests: `tests/art/mirror_follows_bodies_test.gd`, `mirror_follows_rebuilt_collid
 
 ## The pixel post (`post/`, interface 27)
 
-The 3D picture is made to read as pixel art (#193 rule 6): drawn at a low internal resolution (General's `RenderConfig.internal_lines`) and shown with nearest
+The 3D picture is made to read as pixel art (#193 rule 6): drawn at a low internal resolution (a picture pixel is an art pixel, General's `RenderConfig.texel_match`) and shown with nearest
 filtering, through two things Art owns, tuned in `PixelPostConfig` (ADR 0003). **`ToonMaterial.shared()`** (made by `make()`) is the one `ShaderMaterial` (`toon.gdshader`) every mesh of
 the 3D view shares, a colour per instance (`base_color`, an instance uniform): the light's N.L times the shadow steps into `bands` bands (3), each a tone of
 `ArtSurfaceConfig.tones` (the ramp as `(mul, lift)`: a tone is `base * mul + (1 - base) * lift`), no ambient. **`PixelPost.attach(camera, oversample)`** adds the
 outline quad (`outline.gdshader`) under the view's camera: a dark line where the depth's second difference steps (a silhouette, `silhouette_px` wide) or the normal
-creases (`crease_px`), so a floor seen at an angle stays clean. `supersample` is the shimmer mitigation of a turning camera (Main's `View3D` renders larger and
-averages down). A face of a mesh-kit mesh carries its own colour in the vertex colour (`COLOR`, times the instance's `base_color`). Three **global shader uniforms** (`ToonMask`:
+creases (`crease_px`), so a floor seen at an angle stays clean. `turn_supersample` (2; `supersample` 1 at rest) is the shimmer mitigation of a turning camera (Main's `View3D` renders larger and
+averages down, only while a quarter turn is under way). A face of a mesh-kit mesh carries its own colour in the vertex colour (`COLOR`, times the instance's `base_color`). Three **global shader uniforms** (`ToonMask`:
 `vision_mask`, `vision_mask_xf`, `vision_unseen`; default "everything visible") are phase 3's vision-mask hook, read by `toon.gdshader`, `toon_tex.gdshader` and the kit's `decal.gdshader` (one `toon_common.gdshaderinc`: never restate `light()`), so the
 vision job needs no per-mesh edit (`meshes.md`). Tests: `tests/art/mirror_proxies_use_toon_material_test.gd`, `tests/general/pixel_post_view_test.gd`; the look itself is only judged windowed
 (`general/render_3d_match_windowed`, `art/pixel_post_shimmer`, `art/toon_vision_hook_windowed`, `art/toon_tex_windowed`).

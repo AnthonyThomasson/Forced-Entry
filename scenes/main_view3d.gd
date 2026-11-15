@@ -5,12 +5,14 @@ extends CanvasLayer
 ## a `SubViewport` of a 3D world of its own: General's `CameraRig` (an orthographic `Camera3D`
 ## following the sim's `Camera2D`), one shadow-casting sun with a flat ambient
 ## (`RenderLightConfig`) and Art's `WorldMirror` of the match's 2D bodies (interface 27). The
-## picture is nearest-filtered and the viewport sized by the rig (`RenderConfig.internal_lines`:
-## the internal resolution of the pixel post), drawn through Art's toon material and an outline
-## quad under the camera (`PixelPost`, `PixelPostConfig`). With `PixelPostConfig.supersample` above
-## 1 the 3D picture is rendered that many times larger and averaged down, through a filtered
-## stage, to the internal size before the nearest upscale (the shimmer mitigation of a turning
-## camera).
+## picture is nearest-filtered and the viewport sized by the rig (a picture pixel is one art pixel
+## times the zoom, `RenderConfig.texel_match`), drawn through Art's toon material and an outline
+## quad under the camera (`PixelPost`, `PixelPostConfig`). The shimmer mitigation of a turning
+## camera is a supersample: the 3D picture is rendered that many times larger and averaged down,
+## through a filtered stage, to the picture's size before the nearest upscale
+## (`PixelPostConfig.supersample` at rest, `turn_supersample` while a quarter turn is under way: the
+## rig says which, and the view keeps the stage, the outline's widths and the shown picture in
+## step).
 ##
 ## Main builds it before the match (`begin`, so no frame of the 2D world is ever drawn) and mirrors
 ## the match once it is built (`mirror_world`). The hard shadow filter is a global of the
@@ -31,6 +33,9 @@ var viewport := SubViewport.new()
 var rect := TextureRect.new()
 var shown: SubViewport = viewport
 var _stage: SubViewport
+## The outline quad under the camera, and the supersample the picture is drawn with now.
+var _outline: MeshInstance3D
+var _oversample := 1
 ## How far below the pavement the road lies at a spot (Objects' street, read from the world): what
 ## the effects that lie on the ground are put lower by.
 var _ground := StreetGround.new()
@@ -43,7 +48,10 @@ func _init() -> void:
 
 
 func _process(_delta: float) -> void:
-	if _stage != null and rig != null and _stage.size != rig.internal_size():
+	if rig == null:
+		return
+	_follow_oversample()
+	if _stage != null and _stage.size != rig.internal_size():
 		_stage.size = rig.internal_size()
 
 
@@ -70,10 +78,13 @@ func begin(camera: Camera2D) -> void:
 	add_child(viewport)
 	rig = CameraRig.new()
 	rig.oversample = maxi(PixelPostConfig.supersample, 1)
+	rig.turn_oversample = maxi(PixelPostConfig.turn_supersample, 1)
 	viewport.add_child(rig)
 	rig.bind(camera, viewport, rect)
-	PixelPost.attach(rig.camera, rig.oversample)
-	_show(rig.oversample)
+	_oversample = rig.current_oversample()
+	_outline = PixelPost.attach(rig.camera, _oversample)
+	_build_stage(maxi(rig.oversample, rig.turn_oversample))
+	_show(_oversample > 1)
 	viewport.add_child(_environment())
 	viewport.add_child(_sun())
 	mirror = WorldMirror.new()
@@ -88,11 +99,11 @@ func begin(camera: Camera2D) -> void:
 	RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
 
 
-## Show the 3D picture on the rect: directly, or (`oversample` above 1) through a stage that
-## averages it down to the picture's size with a filtered, exactly `oversample`-to-1 sample.
-func _show(oversample: int) -> void:
-	if oversample <= 1:
-		rect.texture = viewport.get_texture()
+## The stage that averages the 3D picture down to the picture's size, with a filtered, exactly
+## `most`-to-1 sample: built when any state of the view draws the picture larger than its size (it
+## is idle while the picture is not).
+func _build_stage(most: int) -> void:
+	if most <= 1:
 		return
 	_stage = SubViewport.new()
 	_stage.name = "Stage"
@@ -109,8 +120,27 @@ func _show(oversample: int) -> void:
 	average.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_stage.add_child(average)
 	add_child(_stage)
-	shown = _stage
-	rect.texture = _stage.get_texture()
+
+
+## Show the 3D picture on the rect: directly, or (`averaged`) through the stage.
+func _show(averaged: bool) -> void:
+	shown = _stage if averaged and _stage != null else viewport
+	rect.texture = shown.get_texture()
+	if _stage != null:
+		_stage.render_target_update_mode = (
+			SubViewport.UPDATE_ALWAYS if averaged else SubViewport.UPDATE_DISABLED
+		)
+
+
+## The rig drew this frame's picture at `current_oversample()` times its size: the outline's widths
+## (in drawn pixels) and the stage follow it in the same frame.
+func _follow_oversample() -> void:
+	var now := rig.current_oversample()
+	if now == _oversample:
+		return
+	_oversample = now
+	PixelPost.refresh(_outline, now)
+	_show(now > 1)
 
 
 ## Mirror the 2D bodies under `world`: from now on the view follows them, and the shots made in it

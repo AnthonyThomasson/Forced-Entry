@@ -67,6 +67,7 @@ func run(t: TestContext) -> void:
 
 	await _presses_queue(t)
 	await _turn_through_north(t)
+	await _taps(t)
 	await _speed_is_tunable(t)
 	await _focus_stays_put(t)
 	await _setting_the_yaw_is_a_rest(t)
@@ -88,6 +89,25 @@ func _presses_queue(t: TestContext) -> void:
 	t.expect_near(
 		absf(_turned(before, _rig.get("yaw"))), 180.0, 0.001, "two presses are a half turn, at rest"
 	)
+
+
+## A tap of one frame is a quarter, and a press of each key a frame apart (Q then E) is two quarters
+## the other way round, ending where it began: each key is read by its own press.
+func _taps(t: TestContext) -> void:
+	_rig.set("yaw", 0.0)
+	Input.action_press("camera_turn_right")
+	await t.frames(1)
+	Input.action_release("camera_turn_right")
+	await t.seconds(QUARTER)
+	t.expect_near(_rig.get("yaw"), 90.0, 0.001, "a tap of one frame is a quarter")
+	Input.action_press("camera_turn_left")
+	await t.frames(1)
+	Input.action_release("camera_turn_left")
+	Input.action_press("camera_turn_right")
+	await t.frames(1)
+	Input.action_release("camera_turn_right")
+	await t.seconds(QUARTER)
+	t.expect_near(_rig.get("yaw"), 90.0, 0.001, "Q then E a frame apart: a quarter each way")
 
 
 ## From north a turn left rests on west (270), and the yaw stays in [0, 360).

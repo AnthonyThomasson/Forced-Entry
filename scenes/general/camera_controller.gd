@@ -74,7 +74,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if notches == 0.0:
 		return
 	if Pointer.is_3d(self):
-		_steps.wheel(notches)
+		_steps.wheel(notches, Time.get_ticks_msec())
 		return
 	_zoom_bias = clampf(_zoom_bias * pow(CameraConfig.zoom_step, notches),
 			CameraConfig.wheel_min_zoom / _base_zoom, CameraConfig.wheel_max_zoom / _base_zoom)

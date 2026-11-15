@@ -26,15 +26,15 @@
       viewport: SubViewport, rect: Control = null)` follows the sim's `Camera2D`, which stays the focus, zoom and shake source (Sound, the cull and
       the tests read it): each frame the camera frames `source.get_screen_center_position()` (focus plus shake offset) at `source.zoom` (ortho size: the screen's height in 2D px over the zoom, times
       `unit`), at the pitch `RenderConfig.pitch_degrees` (80, near top-down) and `yaw` (degrees, `RenderConfig.yaw_degrees` 0 to start: north up). **Q / E turn it a quarter:** a press of a camera-turn key
-      (`Keybinds.get_camera_turn()`) steps `yaw` `CameraTurnConfig.step_degrees` (90), eased, ending exactly on N, E, S or W (`turning()`).
-      The rig binds `Pointer` (26) to its camera and the picture's rect (larger than the window). It sizes the `SubViewport` so a picture pixel is a whole number of screen
-      pixels at any window size (`texel_match`: `round(zoom)`, one art pixel a picture pixel at a whole zoom; rows and columns cover the window times `oversample`, plus 1 px). In 3D the controller's zoom is a whole step of `CameraConfig.zoom_steps_3d`, and snaps the focus to
+      (`Keybinds.camera_turns_pressed()`) steps `yaw` `CameraTurnConfig.step_degrees` (90), eased, ending exactly on N, E, S or W (`turning()`).
+      It binds `Pointer` (26) to its camera and the picture's rect (larger than the window), sizes the `SubViewport` so a picture pixel is a whole number of screen
+      pixels (`texel_match`: `round(zoom)`, one art pixel a picture pixel at a whole zoom, at most `max_lines` rows; the window plus 1 px, times `oversample`). In 3D the controller's zoom is a whole step of `Zoom3dConfig.steps`, and snaps the focus to
       that grid along the camera's right and up, shifting `rect` back by the remainder, so following does not shimmer. `texel() -> float` is the world units a picture
       pixel covers; `internal_size() -> Vector2i` the picture's size in pixels (margin included).
     - **The pixel post** (Art `art/post/`, `PixelPostConfig`): the view's meshes share one toon `ShaderMaterial` (`ToonMaterial.make()`; a colour per instance) whose light steps N.L times the
       shadow into `PixelPostConfig.bands` bands (3: the shadow, base and light tones of `ArtSurfaceConfig.tones`), with no ambient; `PixelPost.attach(camera, oversample)` adds a full-screen
       outline quad under the camera (a dark line where the depth steps, `silhouette_px` wide, or the normal creases, `crease_px`; `PixelPost.refresh(node, oversample)`). `View3D` shows the picture
-      through a nearest-filtered `TextureRect`; with `PixelPostConfig.supersample` above 1 it is rendered that many times larger and averaged down through a filtered stage (`View3D.shown`) first.
+      through a nearest-filtered `TextureRect`; at rest `supersample` (1) and while a quarter turn is under way `turn_supersample` (2) times larger, averaged down through a filtered stage (`View3D.shown`) first.
     - **The flat overlays** (`GroundLayer`, `general/ground_layer.gd`, interim until phase 3; `domain-general/camera3d.md`): the hidden 2D world draws nothing, so while
       `GroundLayer.enabled` (Main's view sets it) `ViewLayers.overlay` and the view's composite move the player's view and every debug overlay under a `CanvasLayer`
       (`vision_layer`; `overlay_layer`) whose `transform` is `Pointer.screen_transform`: they lie flat on the 3D floor at any yaw, over the picture and under the HUD
@@ -42,7 +42,7 @@
     - **Wall fade** (rule 9, `domain-art/wall-fade.md`): Art's `WallFade` (Main's `View3D` makes it, `listen(mirror)`) fades the walls, doors and tall furniture
       between the camera and the player (spectating: every character). It reads, duck-typed: `WorldMirror.built(body, mesh)` (a builder made `mesh` for `body`),
       General's `CameraController.focus_targets() -> Array[Node2D]` (the camera's own list: read only) and Objects' `WallMesh.segments() -> Dictionary` (index -> instance, its child decals fade with it) with its `segment_replaced(index, part)`.
-    - **Tuning:** `RenderConfig` (General: the camera, the picture's lines, `canvas_layer`, `vision_layer`, `overlay_layer`, `turn_speed_degrees`, `unseen_dim`),
+    - **Tuning:** `RenderConfig` (General: the camera, `texel_match`, `max_lines`, `canvas_layer`, `vision_layer`, `overlay_layer`, `unseen_dim`; `CameraTurnConfig`, `Zoom3dConfig`),
       `RenderLightConfig` (General, the interim sun and ambient), `MirrorConfig` and `PixelPostConfig` (Art).
     - **The vision hook** (phase 3's mask): global shader uniforms, `ToonMask.set_mask(texture, world_rect_px, unseen_brightness)` / `clear()`; default everything visible.
     - **Not yet:** most kinds are still proxies. The meshes each domain has, Objects' wear and decals among them, and who plugs each in (`ObjectMeshes`: `register`, `track` for stencils; `StructureMeshes`, `VehicleMeshes`, `CharacterMeshes`, `ItemMeshes`, `ProjectileMeshes`, `PhysicsMeshes`): `render-3d-meshes.md`.

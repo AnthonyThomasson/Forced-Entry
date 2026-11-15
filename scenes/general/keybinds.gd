@@ -127,8 +127,8 @@ const LABELS := {
 	CAMERA_DOWN: "Pan down",
 	CAMERA_LEFT: "Pan left",
 	CAMERA_RIGHT: "Pan right",
-	CAMERA_TURN_LEFT: "Turn camera left (hold)",
-	CAMERA_TURN_RIGHT: "Turn camera right (hold)",
+	CAMERA_TURN_LEFT: "Turn camera left (quarter turn)",
+	CAMERA_TURN_RIGHT: "Turn camera right (quarter turn)",
 	ZOOM_IN: "Zoom in",
 	ZOOM_OUT: "Zoom out",
 	PAUSE: "Pause (spectator)",
@@ -251,9 +251,21 @@ func is_interact_just_released() -> bool:
 
 
 ## The camera's turn from the two turn keys held: -1 (`CAMERA_TURN_LEFT`), +1 (`CAMERA_TURN_RIGHT`),
-## 0 for neither or both.
+## 0 for neither or both. A turn key is one quarter turn per press (`camera_turns_pressed`), so a
+## reader of this is asking whether a key is down, not how far to turn.
 func get_camera_turn() -> float:
 	return Input.get_axis(CAMERA_TURN_LEFT, CAMERA_TURN_RIGHT)
+
+
+## The quarter turns the camera's two turn keys asked for since the last frame: +1 for a press of
+## `CAMERA_TURN_RIGHT`, -1 for `CAMERA_TURN_LEFT`, summed (a press of each in one frame is 0). Each
+## key is read by its own press, so a short tap is never missed and Q then E in quick succession
+## both count.
+func camera_turns_pressed() -> int:
+	return (
+		int(Input.is_action_just_pressed(CAMERA_TURN_RIGHT))
+		- int(Input.is_action_just_pressed(CAMERA_TURN_LEFT))
+	)
 
 
 ## How far `event` scrolls, in wheel notches: positive up (the camera zooms in, a door opens),

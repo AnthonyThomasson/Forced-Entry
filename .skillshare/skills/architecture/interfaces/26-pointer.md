@@ -6,7 +6,7 @@
       itself (`bind_3d(camera, rect, screen)`, released by `unbind_3d`) and a node of the viewport the sim's `Camera2D` serves converts
       through the orthographic camera instead: a screen point is the camera ray that meets the ground plane `y = 0`, and the ground's
       place on the screen is the camera's exact ground-to-screen affine at its yaw, pitch and zoom, read through the DISPLAYED rect of
-      the 3D view (never the picture's internal size, so `RenderConfig.internal_lines` changes nothing), worked out once a frame by the rig
+      the 3D view (never the picture's internal size, so the picture's pixel size changes nothing), worked out once a frame by the rig
       (`refresh_3d`, after it places the camera), so a call mid-frame reads that frame's camera. A node of any other viewport
       still converts by its own canvas transform; no caller changes.
     - **Convert:** `world_of(node, screen) -> Vector2`, `screen_of(node, world) -> Vector2`, `screen_transform(node) -> Transform2D`

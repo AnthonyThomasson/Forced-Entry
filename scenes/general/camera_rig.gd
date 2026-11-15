@@ -26,17 +26,19 @@ var yaw: float = RenderConfig.yaw_degrees:
 		yaw = value
 		_target_yaw = value
 ## How many times the picture's size the 3D viewport is rendered at (the pixel post's supersample,
-## set by the view that averages it back down): 1 renders it at the picture's own size.
+## set by the view that averages it back down): 1 renders it at the picture's own size. At rest it
+## is `oversample`; while a quarter turn is under way (`turning()`) `turn_oversample`, the shimmer
+## mitigation of a turning camera, paid only for the turn.
 var oversample: int = 1
+var turn_oversample: int = 1
 ## The orthographic camera, a child of the rig.
 var camera: Camera3D
 ## Where the picture shows on screen (a Control over the window), shifted and sized by the rig; null
 ## when nothing shows it.
 var _rect: Control
 var _source: Camera2D
-## The yaw the eased turn is heading to, and the turn key's last reading (a step is a press).
+## The yaw the eased turn is heading to.
 var _target_yaw: float = RenderConfig.yaw_degrees
-var _held := 0.0
 var _viewport: SubViewport
 var _internal := Vector2i(2, 2)
 ## Screen pixels to a picture pixel (whole), and the 3D units a picture pixel covers.
@@ -81,15 +83,12 @@ func internal_size() -> Vector2i:
 	return _internal
 
 
-## A press of a camera-turn key (`Keybinds.get_camera_turn`) steps the yaw a quarter, about the
+## A press of a camera-turn key (`Keybinds.camera_turns_pressed`) steps the yaw a quarter, about the
 ## focus (`CameraTurnConfig.step_degrees`, E one way and Q the other; a press while it still turns
 ## queues another); the yaw eases to that target and ends on it exactly, so it rests only at
 ## north, east, south or west. Holding the key does not turn on.
 func _turn(delta: float) -> void:
-	var held := Keybinds.get_camera_turn()
-	if held != 0.0 and held != _held:
-		_target_yaw += held * CameraTurnConfig.step_degrees
-	_held = held
+	_target_yaw += float(Keybinds.camera_turns_pressed()) * CameraTurnConfig.step_degrees
 	var left := _target_yaw - yaw
 	if left == 0.0:
 		return
@@ -104,6 +103,11 @@ func _turn(delta: float) -> void:
 	else:
 		yaw += signf(left) * rate * delta
 		_target_yaw = target  # the setter moved the target with the yaw
+
+
+## How many times the picture's size the 3D viewport is rendered at this frame.
+func current_oversample() -> int:
+	return maxi(turn_oversample if turning() else oversample, 1)
 
 
 ## Whether the camera is between two cardinals (a turn is under way).
@@ -145,19 +149,20 @@ func _place() -> void:
 
 ## Size the picture for a window of `screen`: a whole number of screen pixels to a picture pixel
 ## (`round(zoom)`, at least 1, with `RenderConfig.texel_match`, so an art pixel is a picture pixel
-## at a whole zoom; 1 without) and as many picture rows and columns as cover the window plus the
-## one-pixel margin, so the upscale is exact at any window size; the camera and the 3D viewport
-## follow. A zoom below 1 draws a picture pixel of several art pixels (the picture decimates the
-## art).
+## at a whole zoom; 1 without; and at least what keeps the picture to `RenderConfig.max_lines` rows,
+## so a big window does not draw a bigger picture) and as many picture rows and columns as cover the
+## window plus the one-pixel margin, so the upscale is exact at any window size; the camera and the
+## 3D viewport follow. A zoom below 1, or a capped picture, draws a picture pixel of several art
+## pixels (the picture decimates the art).
 func _size_picture(screen: Vector2) -> void:
 	var zoom := maxf(_source.zoom.y, 0.001)
-	_scale = 1
-	_pixel = 1.0 / zoom * RenderConfig.unit
-	if RenderConfig.texel_match:
-		_scale = maxi(roundi(zoom), 1)
-		_pixel = float(_scale) / zoom * RenderConfig.art_pixel * RenderConfig.unit
+	_scale = maxi(roundi(zoom), 1) if RenderConfig.texel_match else 1
+	if RenderConfig.max_lines > 0:
+		_scale = maxi(_scale, ceili(screen.y / float(RenderConfig.max_lines)))
+	var art := RenderConfig.art_pixel if RenderConfig.texel_match else 1.0
+	_pixel = float(_scale) / zoom * art * RenderConfig.unit
 	_internal = Vector2i(ceili(screen.x / float(_scale)) + 2, ceili(screen.y / float(_scale)) + 2)
-	var rendered := _internal * maxi(oversample, 1)
+	var rendered := _internal * current_oversample()
 	if _viewport.size != rendered:
 		_viewport.size = rendered
 	camera.size = _pixel * float(_internal.y)
