@@ -76,6 +76,7 @@ func run(t: TestContext) -> void:
 	_check_shape(t, east, south)
 	_check_facing(t, east, south)
 	_check_crouch(t, east, crouch)
+	_check_figure(t, east)
 	await _check_gait(t, mirror)
 	await _check_dress(t, mirror)
 	await _check_idle(t, mirror)
@@ -197,6 +198,20 @@ func _check_dress(t: TestContext, mirror: WorldMirror) -> void:
 	var dress: BodyDress = t.actor(&"dressed").get_node("Visuals").dress
 	_check_colours(t, body, dress)
 	await _check_outfit(t, mirror, body, dress)
+
+
+## Every part is a figure for the pixel post (outlined by its silhouette only, no crease on its
+## facets: the outline job), vest, pack and head-wear included; a wall's mesh is not.
+func _check_figure(t: TestContext, body: BodyMesh) -> void:
+	var unmarked := 0
+	for part: Node in body.get_children():
+		if (part as MeshInstance3D).get_instance_shader_parameter(&"figure") != 1.0:
+			unmarked += 1
+	t.expect_eq(
+		unmarked,
+		0,
+		"every part of the body is marked a figure (the post draws no creases)",
+	)
 
 
 ## The parts are the colours the painters draw them in (`dress`).

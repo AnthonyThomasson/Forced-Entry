@@ -18,3 +18,5 @@ In the 3D render (#193) the mirror shows a living character by `BodyMesh`, a low
 
 Twelve parts cast a shadow (the trunk, vest, pack, head and the eight limb segments), eleven do not (the small ones: a shadow of a plate, a fist or a shoe adds draw cost the pixel post's resolution does not show). The head's size (`head_scale` 1.6) and the limbs' (`limb_scale` 1.4) are larger than the 2D art's so the body still reads at the game's default zoom; there the outline pass dominates a 30 px figure and the face band is lost, which only the outline weight (`PixelPostConfig`, Art) would change. The windowed test's pictures: standing, facing away and crouched, at zoom 3 and zoom 1.
 
+Every part is a **figure** for the pixel post (`MeshNodes.figure`, set in `_make`): the outline draws its silhouette only, no crease on a facet, and in its outfit's darkened colour (`domain-art`, the pixel post), so the outfit and the face band read at zoom 1.
+

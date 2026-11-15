@@ -135,3 +135,13 @@ func _check_outline(t: TestContext, view: Node) -> void:
 	var material := quad.material_override as ShaderMaterial
 	t.expect_eq(material.get_shader_parameter(&"silhouette_px"), 1.0, "a 1 px silhouette outline")
 	t.expect_eq(material.get_shader_parameter(&"crease_px"), 1.0, "a 1 px crease outline")
+	t.expect_eq(
+		material.get_shader_parameter(&"outline_darken"),
+		PixelPostConfig.outline_darken,
+		"the line is the surface's colour darkened by the holder's amount",
+	)
+	t.expect_eq(
+		material.get_shader_parameter(&"figure_darken"),
+		PixelPostConfig.figure_darken,
+		"and a figure's by its own",
+	)

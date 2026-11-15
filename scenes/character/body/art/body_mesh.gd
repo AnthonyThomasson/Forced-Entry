@@ -153,6 +153,7 @@ func _make(body: CharacterBody2D, dress: BodyDress) -> void:
 	]
 	for i in shapes.size():
 		var node := MeshNodes.instance(solids[shapes[i]], Color.WHITE, not SMALL.has(i))
+		MeshNodes.figure(node)
 		add_child(node)
 		_parts.append(node)
 	assert(_parts.size() == FOOT + 2, "BodyMesh: the shapes list and the part indices disagree")

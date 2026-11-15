@@ -17,6 +17,9 @@ global uniform float vision_unseen;
 
 instance uniform vec4 base_color : source_color = vec4(0.7, 0.7, 0.7, 1.0);
 // A glow whatever the light (Art, `MeshNodes.glow`): rgb the colour, a the strength; 0 is none.
+// A figure (Art, `MeshNodes.figure`; 1 = a character's part): written as the roughness into the
+// normal buffer, which the outline pass reads to draw a figure's silhouette only, no creases.
+instance uniform float figure : hint_range(0.0, 1.0) = 0.0;
 instance uniform vec4 emissive : source_color = vec4(0.0);
 uniform int count = 3;
 uniform vec2 ramp[5];
@@ -53,7 +56,7 @@ void fragment() {
 	}
 	ALBEDO = base_color.rgb * COLOR.rgb;
 	EMISSION = emissive.rgb * emissive.a * seen;
-	ROUGHNESS = 1.0;
+	ROUGHNESS = 1.0 - figure;
 }
 
 void light() {

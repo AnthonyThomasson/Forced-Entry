@@ -152,3 +152,14 @@ func test_a_part_of_a_batch_stands_where_place_would_put_a_node() -> void:
 	RenderConfig.unit = unit
 	assert_vector(frame.origin).is_equal_approx(Vector3(5, 10, 15), Vector3.ONE * 0.001)
 	assert_float(frame.basis.get_euler().y).is_equal_approx(0.5, 0.001)
+
+
+func test_a_figure_is_marked_for_the_post_and_a_plain_node_is_not() -> void:
+	var mesh := MeshKit.new().box(AABB(Vector3.ZERO, Vector3.ONE), Color.WHITE).build()
+	var node := MeshNodes.instance(mesh)
+	assert_bool(node.get_instance_shader_parameter(&"figure") == 1.0).is_false()
+	MeshNodes.figure(node)
+	assert_float(node.get_instance_shader_parameter(&"figure")).is_equal(1.0)
+	MeshNodes.figure(node, false)
+	assert_float(node.get_instance_shader_parameter(&"figure")).is_equal(0.0)
+	node.free()

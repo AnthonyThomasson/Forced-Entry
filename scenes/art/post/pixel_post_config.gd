@@ -19,6 +19,15 @@ static var silhouette_px: float = 1.0
 static var depth_step: float = 0.004
 static var normal_step: float = 0.45
 static var crease_gap: float = 0.012
+## The line's colour is the colour of the surface it outlines (a silhouette: the nearer side's, a
+## crease: its own pixel's) times this, `outline_color` the floor of it: near black on the world's
+## walls and furniture, `figure_darken` (lighter) on a figure, so a character's outfit stays
+## readable in its outline. 0 is the one `outline_color` everywhere.
+static var outline_darken: float = 0.15
+static var figure_darken: float = 0.35
+## Whether a figure (a character's body) is creased like the rest: off, it is outlined by its
+## silhouette only.
+static var figure_creases: bool = false
 ## The shimmer mitigation of a turning camera: the 3D picture is rendered at this many times the
 ## picture's own size and averaged down to it before the nearest upscale (1: no mitigation). 2 is
 ## the default: measured on a room turning at 90 degrees a second (`art/pixel_post_shimmer`) it

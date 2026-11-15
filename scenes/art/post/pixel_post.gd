@@ -38,4 +38,7 @@ static func refresh(node: MeshInstance3D, oversample := 1) -> void:
 	material.set_shader_parameter(&"depth_step", PixelPostConfig.depth_step)
 	material.set_shader_parameter(&"normal_step", PixelPostConfig.normal_step)
 	material.set_shader_parameter(&"crease_gap", PixelPostConfig.crease_gap)
+	material.set_shader_parameter(&"outline_darken", PixelPostConfig.outline_darken)
+	material.set_shader_parameter(&"figure_darken", PixelPostConfig.figure_darken)
+	material.set_shader_parameter(&"figure_creases", PixelPostConfig.figure_creases)
 	node.visible = PixelPostConfig.silhouette_px > 0.0 or PixelPostConfig.crease_px > 0.0
