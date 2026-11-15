@@ -155,6 +155,8 @@ func _place_casing(casing: Node2D, age: float) -> void:
 ## bullet's height, shortened over the last stretch of the bullet's range.
 func _place_tracer(slot: int) -> void:
 	var bullet: Node2D = _tracers.owner_at(slot)
+	if bullet == null:
+		return
 	var heading: Vector2 = bullet.direction
 	var fade := ProjectileMeshConfig.tracer_fade
 	var whole := clampf(bullet.range_left() / fade, 0.02, 1.0) if fade > 0.0 else 1.0
