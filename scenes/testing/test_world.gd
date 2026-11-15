@@ -238,6 +238,7 @@ func squad(faction: StringName) -> Node:
 ## overrides, so a test that pins its own path or render mode wins (restore runs in reverse).
 func _apply_statics(setup: TestSetup) -> void:
 	DirAccess.make_dir_recursive_absolute(settings_scratch().get_base_dir())
+	_remove_settings_scratch()  # a killed run's file, its process id reused
 	_set_static(Settings, &"path", settings_scratch())
 	_set_static(Settings, &"render_mode", Settings.RENDER_2D)
 	var switches := TestSwitches.with_defaults(setup.switches)

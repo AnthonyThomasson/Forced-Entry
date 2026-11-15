@@ -19,8 +19,12 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.frames(2)
-	t.check(Settings.path != "user://settings.json", "Settings.path is not the live file")
-	t.check(Settings.path.begins_with("user://test_scratch/"), "it is the runner's scratch file")
+	# Checked first, and the test ends on a miss: a save below would overwrite the live file.
+	if not t.require(
+		Settings.path.begins_with("user://test_scratch/"),
+		"Settings.path is the runner's scratch file, not the live one",
+	):
+		return
 	t.expect_eq(Settings.render_mode, "2d", "the render is 2D unless the test says otherwise")
 	# A save lands in the scratch file, and a "3d" saved there is read back from there only.
 	Settings.set_render_mode(Settings.RENDER_3D)
@@ -28,3 +32,6 @@ func run(t: TestContext) -> void:
 	Settings.render_mode = Settings.RENDER_2D
 	Settings.load_file()
 	t.expect_eq(Settings.render_mode, "3d", "load_file read the scratch file's 3d back")
+	# Left at 3D on purpose, as a test that assigns it plainly would: the runner's default must
+	# put it back for the next test (settings_default_b_test).
+	Settings.render_mode = Settings.RENDER_3D

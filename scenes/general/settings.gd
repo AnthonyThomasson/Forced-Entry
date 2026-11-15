@@ -4,8 +4,9 @@ class_name Settings
 ## — kept in one JSON file. A `class_name` holder of `static var`s and static functions, read as
 ## `Settings.<name>`; there is no instance and no autoload.
 ##
-## Main loads it once at startup (`load_file()`), so the headless test runner, which never loads
-## `main.tscn`, never reads a developer's real file. The settings page's changes come back through
+## Main loads it once at startup (`load_file()`). A test that puts Main in the tree would read the
+## developer's real file, so the test runner points `path` at a scratch file and `render_mode` at 2D
+## before every test (`TestWorld`). The settings page's changes come back through
 ## the mutators here (`set_debug`, `set_render_mode`, `set_setup`, `set_overlay`, `rebind`, `reset`,
 ## `reset_all`), each of which saves at once.
 ## Bindings live in `Keybinds.bindings`; this file only persists them and reshapes them for the
@@ -16,7 +17,8 @@ class_name Settings
 const RENDER_2D := "2d"
 const RENDER_3D := "3d"
 
-## Where the settings are stored. A test points it at a scratch file.
+## Where the settings are stored. The test runner points it at a scratch file (a test may pin its
+## own).
 static var path: String = "user://settings.json"
 ## Master switch for the AI debug overlays and their in-game toggle bar. Main seeds it from its own
 ## export before `load_file()`, so a file that doesn't name it leaves that value standing.
