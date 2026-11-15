@@ -82,6 +82,8 @@ averages down). A face of a mesh-kit mesh carries its own colour in the vertex c
 vision job needs no per-mesh edit (`meshes.md`). Tests: `tests/art/mirror_proxies_use_toon_material_test.gd`, `tests/general/pixel_post_view_test.gd`; the look itself is only judged windowed
 (`general/render_3d_match_windowed`, `art/pixel_post_shimmer`, `art/toon_vision_hook_windowed`, `art/toon_tex_windowed`).
 
+The outline's colour is the surface's own darkened, not one near black: a silhouette takes the nearer side's colour (`outline_darken` 0.15 on the world, `figure_darken` 0.35 on a figure so an outfit reads at zoom 1), a crease its own pixel's; a mesh marked `MeshNodes.figure` (a character's parts: `figure`, an instance uniform the toon material writes as roughness into the normal buffer's alpha) gets the silhouette only, no creases (`figure_creases` brings them back), as a body's faceted limbs, a pixel or two wide, would crease at every facet. Test: `art/pixel_post_outline_windowed` (windowed, `OUTLINE_SHOTS=<dir>` saves the shots).
+
 **The textured toon** (`MeshNodes.textured`, `toon_tex.gdshader`): the 2D art on a mesh; the rules are `textured-toon.md`.
 
 ## The wall fade (#193 rule 9, interface 27)

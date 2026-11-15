@@ -27,8 +27,9 @@ static func instance(mesh: Mesh, tint := Color.WHITE, casts_shadow := true) -> M
 ## texel is the picture's pixel when the texture is `rect.size / ArtCanvasConfig.pixel_size`
 ## wide). The ONE entry every domain calls for a textured mesh.
 ##   * `thing` is a `Mesh` (a new node, shared toon rules as `instance`) or a `MeshInstance3D` /
-##     `MultiMeshInstance3D` (its material and `uv_rect` are set; its tint and shadow setting stay
-##     unless `opts` names them).
+##     `MultiMeshInstance3D` (its material and `uv_rect` are set; a tint it was given and its shadow
+##     setting stay unless `opts` names them; a node never tinted is white, not the toon's grey
+##     default, which would darken the art).
 ##   * `opts`: `tint` (the instance's `base_color`, white by default on a new node), `casts_shadow`
 ##     (true by default on a new node), `tiled` (the art repeats across the model: a floor tile,
 ##     a road strip; `rect` is then one tile).
@@ -50,6 +51,8 @@ static func textured(
 		node = thing as GeometryInstance3D
 		if opts.has("tint"):
 			base_color(node, opts["tint"])
+		elif not node.get_instance_shader_parameter(&"base_color") is Color:
+			base_color(node, Color.WHITE)
 		if opts.has("casts_shadow"):
 			node.cast_shadow = (
 				GeometryInstance3D.SHADOW_CASTING_SETTING_ON

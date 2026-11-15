@@ -6,19 +6,25 @@ render_mode specular_disabled, diffuse_lambert, ambient_light_disabled;
 // toon (`toon_common.gdshaderinc`, `toon_surface.gdshaderinc`: one source with `toon.gdshader`).
 //
 // One planar projection, straight down in MODEL space (so the art sticks to the mesh as the node
-// turns and moves): a point at model `(x, z)` reads the texture at
+// turns, stretches and moves): a point at model `(x, z)` reads the texture at
 // `((x, z) - uv_rect.xy) / uv_rect.zw`, `uv_rect` the footprint the art covers, in model units
 // (`MeshNodes.textured` takes it in px). The camera looks about 80 degrees down, so a top face
-// is the whole picture and the sides show a thin sliver; the choice for a side (a face whose
-// normal is not up, `NORMAL.y <= 0.5`):
-//   * it uses the SAME projection, with uv clamped to the texture's edge texels. A vertical wall
-//     of the footprint's outline then reads the art's edge, stretched straight down: a table's
-//     rim, a wall's cap edge, a car's roof edge, never one smooth colour;
-//   * it is darkened by `side_dim` (a step, tuned in `MeshKitConfig.textured_side_dim`) so the
-//     edge reads as a side and not as a second top.
+// is the whole picture and the sides show a thin sliver. A face is a TOP when its model normal
+// has `y > 0.5` (a slope within 60 degrees of flat) and a SIDE otherwise (an underside too: it
+// is never seen from above and takes the side rule). The kit's faces are flat, so the choice is
+// per face (`flat` varyings). A side:
+//   * uses the SAME projection, with its fixed axis (the one its normal points along: a south
+//     wall's z) clamped to the texture's edge texels. A vertical wall of the footprint's outline
+//     then reads the art's edge, stretched straight down: a table's rim, a wall's cap edge, a
+//     car's roof edge, never one smooth colour;
+//   * on a `tiled` mesh wraps the axis it runs along by `fract` as a top does, so a long road or
+//     wall side repeats the art's edge instead of smearing one texel column;
+//   * is darkened by `side_dim` (a step, tuned in `MeshKitConfig.textured_side_dim`) so the edge
+//     reads as a side and not as a second top.
 // Where the art is clear (alpha < 0.5) the pixel is the vertex colour instead (times base_color),
 // so a mesh is whole where its art does not reach. A top is `tiled` when the art repeats (a floor
-// tile, a road strip): uv wraps by `fract`, the footprint `uv_rect` is one tile.
+// tile, a road strip): uv wraps by `fract`, the footprint `uv_rect` is one tile. A skinned mesh
+// (`Skeleton3D`) would slide the art over its bones (model space is the rest pose): none is used.
 //
 // Godot 4.4 instance uniforms cannot be samplers, so the texture is a uniform and there is one
 // material per texture (`ToonMaterial.textured`).
@@ -33,11 +39,13 @@ uniform float side_dim = 0.8;
 instance uniform vec4 uv_rect = vec4(0.0, 0.0, 1.0, 1.0);
 
 varying vec2 model_xz;
-varying float model_up;
+varying flat float model_up;
+varying flat vec2 model_across;
 
 void vertex() {
 	model_xz = VERTEX.xz;
 	model_up = NORMAL.y;
+	model_across = abs(NORMAL.xz);
 }
 
 void fragment() {
@@ -47,11 +55,19 @@ void fragment() {
 	seen = toon_seen(VERTEX, INV_VIEW_MATRIX);
 	vec2 uv = (model_xz - uv_rect.xy) / max(uv_rect.zw, vec2(0.0001));
 	bool top = model_up > 0.5;
-	if (top) {
-		if (tiled) {
+	if (tiled) {
+		if (top) {
 			uv = fract(uv);
+		} else if (model_across.x > model_across.y) {
+			// A wall across x: it runs along z.
+			uv.y = fract(uv.y);
+		} else {
+			uv.x = fract(uv.x);
 		}
-	} else {
+	}
+	if (!top) {
+		// The fixed axis sits on the footprint's edge (uv 0 or 1): clamp it to the edge texel
+		// (the wrapped one is inside already).
 		vec2 half_texel = 0.5 / vec2(textureSize(albedo_texture, 0));
 		uv = clamp(uv, half_texel, 1.0 - half_texel);
 	}

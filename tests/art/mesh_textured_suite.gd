@@ -14,6 +14,12 @@ func _texture(color := Color.RED) -> ImageTexture:
 	return ImageTexture.create_from_image(image)
 
 
+## Whether `node`'s tint (its `base_color`) is `want`.
+func _base(node: GeometryInstance3D, want: Color) -> bool:
+	var got: Variant = node.get_instance_shader_parameter(&"base_color")
+	return got is Color and (got as Color).is_equal_approx(want)
+
+
 func _box() -> Mesh:
 	return MeshKit.new().box(AABB(Vector3.ZERO, Vector3(8, 4, 8)), Color.WHITE).build()
 
@@ -77,13 +83,13 @@ func test_options_tint_and_shadow_a_new_node_and_an_existing_one() -> void:
 	var fresh := MeshNodes.textured(
 		_box(), texture, Rect2(0, 0, 8, 8), { "tint": tint, "casts_shadow": false }
 	)
-	assert_bool(fresh.get_instance_shader_parameter(&"base_color").is_equal_approx(tint)).is_true()
+	assert_bool(_base(fresh, tint)).is_true()
 	assert_int(fresh.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	# An existing node keeps its tint and shadow unless told, and is the node returned.
 	var kept := MeshNodes.instance(_box(), tint, false)
 	var same := MeshNodes.textured(kept, texture, Rect2(0, 0, 8, 8))
 	assert_object(same).is_same(kept)
-	assert_bool(kept.get_instance_shader_parameter(&"base_color").is_equal_approx(tint)).is_true()
+	assert_bool(_base(kept, tint)).is_true()
 	assert_int(kept.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	assert_object(kept.material_override).is_same(fresh.material_override)
 	# A batch is a geometry instance too.
@@ -91,6 +97,26 @@ func test_options_tint_and_shadow_a_new_node_and_an_existing_one() -> void:
 	MeshNodes.textured(batch, texture, Rect2(0, 0, 8, 8))
 	assert_object(batch.material_override).is_same(fresh.material_override)
 	for node: Node in [fresh, kept, batch]:
+		node.free()
+
+
+func test_a_node_never_tinted_is_white_not_the_toon_grey() -> void:
+	var texture := _texture()
+	var bare := MeshInstance3D.new()
+	bare.mesh = _box()
+	MeshNodes.textured(bare, texture, Rect2(0, 0, 8, 8))
+	assert_bool(_base(bare, Color.WHITE)).is_true()
+	var batch := MeshNodes.batch(_box(), 2)
+	MeshNodes.textured(batch, texture, Rect2(0, 0, 8, 8))
+	assert_bool(_base(batch, Color.WHITE)).is_true()
+	# A tint it was given stays, and an option sets it.
+	var tint := Color(0.2, 0.4, 0.6)
+	var tinted := MeshNodes.instance(_box(), tint)
+	MeshNodes.textured(tinted, texture, Rect2(0, 0, 8, 8))
+	assert_bool(_base(tinted, tint)).is_true()
+	MeshNodes.textured(tinted, texture, Rect2(0, 0, 8, 8), { "tint": Color.RED })
+	assert_bool(_base(tinted, Color.RED)).is_true()
+	for node: Node in [bare, batch, tinted]:
 		node.free()
 
 
