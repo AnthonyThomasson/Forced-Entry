@@ -12,11 +12,12 @@ extends Node3D
 ## body that never moves is written once. A body or floor that spawns later
 ## (`SceneTree.node_added`) is mirrored on the next frame, once its own `_ready` has built its
 ## collision shapes (a floor has joined the group `floors`); one that despawns (`tree_exiting`)
-## loses its proxies; a collision shape added to or removed from a mirrored body (a hit wall's or
-## furniture piece's rebuilt collider) re-mirrors that body. A proxy is hidden while its shape is
-## disabled (a character seated in a vehicle) or its body's own `visible` is false, and shown again
-## when they are not (a mesh of a domain's own, every shape of its body disabled); a body that dies
-## has its mesh hidden unless the mesh says to stay.
+## loses its proxies; a collision shape added to or removed from a mirrored body (a hit furniture
+## piece's rebuilt collider) re-mirrors that body, unless its mesh has `follows_shapes() -> true`
+## (a wall's, which replaces the one segment that changed) or the shape is queued to be freed. A
+## proxy is hidden while its shape is disabled (a character seated in a vehicle) or its body's own
+## `visible` is false, and shown again when they are not (a mesh of a domain's own, every shape of
+## its body disabled); a body that dies has its mesh hidden unless the mesh says to stay.
 ##
 ## A domain's own mesh replaces the proxy per body kind through `builders` (key -> `Callable`:
 ## `(body: Node2D) -> Node3D`, a node of the body's own mesh in a local frame where its origin is
