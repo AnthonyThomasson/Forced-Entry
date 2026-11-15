@@ -11,6 +11,7 @@ extends GameTest
 ## looks like is judged in a window, `character_mesh_windowed_test.gd`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
+const Style := preload("res://scenes/character/body/character_style.gd")
 const SCRATCH := "user://settings_character_mesh_test.json"
 ## The how-to's standing character (`meshes.md` heights): px from the floor to the top of the head.
 const STANDING_HEIGHT := 58.0
@@ -37,6 +38,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.set_static(RenderConfig, &"unit", 1.0)
 	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
+	s.set_static(CharacterPoseHeadConfig, &"breath", 0.0)  # a breath moves the head: not idle
 	s.set_static(Settings, &"path", SCRATCH)
 	s.set_static(Settings, &"render_mode", Settings.RENDER_3D)
 	s.set_static(Settings, &"setup", {})
@@ -48,6 +50,8 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"walker", &"puppet", Vector2(150, 400), { "facing": Vector2.RIGHT })
 	s.actor(&"dressed", &"puppet", Vector2(350, 250), { "facing": Vector2.RIGHT })
 	s.actor(&"dying", &"puppet", Vector2(550, 250), { "max_health": 10.0 })
+	s.actor(&"culled", &"puppet", Vector2(550, 100), { "facing": Vector2.RIGHT })
+	s.actor(&"looks", &"puppet", Vector2(750, 250), { "facing": Vector2.RIGHT })
 	s.von_script([])
 
 
@@ -58,6 +62,8 @@ func run(t: TestContext) -> void:
 	t.puppet(&"crouch").set_posture(&"crouch")
 	t.puppet(&"walker").aim_at(Vector2(2000, 400))
 	t.puppet(&"dressed").aim_at(Vector2(2000, 250))
+	t.puppet(&"culled").aim_at(Vector2(2000, 100))
+	t.puppet(&"looks").aim_at(Vector2(2000, 250))
 	await t.seconds(1.2)
 	var mirror := _mirror(t)
 	CharacterMeshes.register(mirror.builders)
@@ -73,6 +79,10 @@ func run(t: TestContext) -> void:
 	_check_crouch(t, east, crouch)
 	await _check_gait(t, mirror)
 	await _check_dress(t, mirror)
+	await _check_idle(t, mirror)
+	await _check_hidden_parts(t, mirror)
+	await _check_looks(t, mirror)
+	await _check_culled(t, mirror)
 	await _check_hidden(t, mirror, east)
 	await _check_scale(t)
 	await _check_main(t)
@@ -254,6 +264,110 @@ func _check_outfit(
 	)
 
 
+## An idle body writes no transform: a mark put on a part stays through frames of standing still.
+func _check_idle(t: TestContext, mirror: WorldMirror) -> void:
+	var body := _body_of(t, mirror, &"east")
+	if body == null:
+		return
+	var trunk := body.get_child(BodyMesh.TORSO) as Node3D
+	var mark := Transform3D(Basis(), Vector3(999.0, 0.0, 0.0))
+	trunk.transform = mark
+	await t.frames(6)
+	t.check(trunk.transform == mark, "a body standing still writes no transform")
+
+
+## A part that is not shown is not placed, and is placed when a look shows it: a walker's hidden
+## vest keeps its mark while its fists move, and the vest is on the trunk once an outfit shows it.
+func _check_hidden_parts(t: TestContext, mirror: WorldMirror) -> void:
+	var body := _body_of(t, mirror, &"walker")
+	if body == null:
+		return
+	var wardrobe: CharacterWardrobe = t.actor(&"walker").wardrobe
+	wardrobe.outfit.set_ids({})
+	await t.frames(3)
+	var vest := body.get_child(BodyMesh.VEST) as Node3D
+	var hand := body.get_child(BodyMesh.HAND) as Node3D
+	var mark := Transform3D(Basis(), Vector3(999.0, 0.0, 0.0))
+	vest.transform = mark
+	var hand_before := hand.transform
+	t.puppet(&"walker").walk(Vector2.RIGHT)
+	await t.seconds(0.5)
+	t.check(hand.transform != hand_before, "premise: the walker's parts move")
+	t.check(not vest.visible and vest.transform == mark, "a hidden vest is not placed")
+	t.puppet(&"walker").stop()
+	wardrobe.outfit.set_ids({ "vest": &"tactical_vest", "body": &"shirt" })
+	await t.frames(4)
+	t.check(vest.visible and vest.transform != mark, "a look that shows the vest places it")
+
+
+## A look change swaps a cap for a helmet (a bigger covering), hides the hair under headwear, shows
+## and hides a boot's shaft and a pack, on the same body.
+func _check_looks(t: TestContext, mirror: WorldMirror) -> void:
+	var body := _body_of(t, mirror, &"looks")
+	if body == null:
+		return
+	var wardrobe: CharacterWardrobe = t.actor(&"looks").wardrobe
+	var base := { "body": &"shirt", "pants": &"jeans" }
+	var wear := func(extra: Dictionary) -> void:
+		wardrobe.outfit.set_ids(base.merged(extra))
+	wardrobe.set_style(&"merc", _seed_with(&"hair_style", "short"))
+	wear.call({ "feet": &"shoes" })
+	await t.frames(4)
+	var headwear := body.get_child(BodyMesh.HEADWEAR) as Node3D
+	var hair := body.get_child(BodyMesh.HAIR) as Node3D
+	t.check(hair.visible and not headwear.visible, "a bare head shows its hair")
+	t.check(not _shown(body, BodyMesh.BOOT), "shoes have no boot shaft")
+	wear.call({ "head": &"hat", "feet": &"boots" })
+	await t.frames(4)
+	t.check(headwear.visible and not hair.visible, "a cap hides the hair under it")
+	t.check(_shown(body, BodyMesh.BOOT) and _shown(body, BodyMesh.BOOT + 1), "boots show a shaft")
+	var cap := headwear.transform.basis.get_scale().x
+	wear.call({ "head": &"helmet", "feet": &"boots" })
+	await t.frames(4)
+	var helmet := headwear.transform.basis.get_scale().x
+	t.check(
+		helmet > cap * 1.05,
+		"a helmet covers more of the head than a cap (%.2f > %.2f)" % [helmet, cap],
+	)
+	t.check(_tint(body, BodyMesh.HEADWEAR) != Color.GRAY, "and is in its own colour")
+	wear.call({ "feet": &"shoes" })
+	await t.frames(4)
+	t.check(hair.visible and not headwear.visible, "the hair is back with the headwear gone")
+	t.check(not _shown(body, BodyMesh.BOOT), "and the boot shaft with the shoes")
+	wardrobe.set_style(&"merc", _seed_with(&"pack", true))
+	await t.frames(4)
+	t.check(_shown(body, BodyMesh.PACK), "a look with a pack shows it on the back")
+	wardrobe.set_style(&"merc", _seed_with(&"pack", false))
+	await t.frames(4)
+	t.check(not _shown(body, BodyMesh.PACK), "and one without hides it")
+
+
+## The first look seed of the `merc` style whose resolved look has `key` equal to `value`.
+func _seed_with(key: StringName, value: Variant) -> int:
+	for seed_value in 200:
+		var look: Dictionary = Style.resolve(&"merc", seed_value, 0, {})
+		if look[key] == value:
+			return seed_value
+	return 0
+
+
+## A body outside the 2D view's cull rect has its visuals unrefreshed (they skip an unseen body),
+## yet the 3D camera sees it: an outfit change still reaches the mesh.
+func _check_culled(t: TestContext, mirror: WorldMirror) -> void:
+	var body := _body_of(t, mirror, &"culled")
+	if body == null:
+		return
+	var actor := t.actor(&"culled")
+	actor.get_node("Visuals").set_process(false)  # what the cull does to an unseen body
+	actor.wardrobe.outfit.set_ids({})
+	await t.frames(3)
+	t.check(not _shown(body, BodyMesh.VEST), "premise: no vest on the unseen body")
+	actor.wardrobe.outfit.set_ids({ "vest": &"tactical_vest", "body": &"shirt" })
+	await t.frames(4)
+	t.check(_shown(body, BodyMesh.VEST), "an outfit change re-dresses a body the 2D view skips")
+	actor.get_node("Visuals").set_process(true)
+
+
 ## A body seated (its collision shapes disabled) is hidden and back when they are enabled; a dead
 ## one goes with its death.
 func _check_hidden(t: TestContext, mirror: WorldMirror, east: BodyMesh) -> void:
@@ -339,7 +453,7 @@ func _bounds(body: BodyMesh, unit := RenderConfig.unit) -> AABB:
 ## Where the nose stands out of the head, as a flat direction (3D x, z).
 func _nose_direction(body: BodyMesh) -> Vector2:
 	var head := body.get_child(BodyMesh.HEAD) as Node3D
-	var nose := body.get_child(BodyMesh.NOSE) as Node3D
+	var nose := body.get_child(BodyMesh.FACE) as Node3D
 	return (_flat(nose) - _flat(head)).normalized()
 
 

@@ -4,8 +4,8 @@ extends GameTest
 ## over one of its characters, zoomed in: the character is shown by the kit's body (Main's view
 ## registered the builder), the picture is drawn, and the log gate fails the test on any shader or
 ## engine error. The look itself is not asserted: with `CHARMESH_SHOTS=<dir>` set it saves a
-## picture of the body standing and one crouched, for the phase gate. Run:
-## `tools/run_tests.sh --windowed --id=character/character_mesh_windowed`.
+## picture of the body standing and one crouched at zoom 3 and at 1 (the game's default), for the
+## phase gate. Run: `tools/run_tests.sh --windowed --id=character/character_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
@@ -16,7 +16,8 @@ const SPEC := {
 	"defenders": { "count": 2 },
 	"invaders": { "count": 2 },
 }
-const ZOOM := 3.0
+## The two zooms of the shots: close, and the game's default (`CameraRig` follows the 2D camera's).
+const ZOOMS := [3.0, 1.0]
 
 
 func describe() -> Dictionary:
@@ -65,7 +66,6 @@ func run(t: TestContext) -> void:
 		return
 	camera.set_process(false)
 	camera.set_physics_process(false)
-	camera.zoom = Vector2(ZOOM, ZOOM)
 	await t.frames(30)
 	var view: Node = main.get_node("View3D")
 	var mirror: WorldMirror = view.mirror
@@ -75,11 +75,34 @@ func run(t: TestContext) -> void:
 		shown.size() == 1 and shown[0] is BodyMesh,
 		"the character is shown by the kit's body, not its capsule",
 	)
-	await _shoot(t, window, camera, character, "standing")
+	await _shoot_standing(t, window, camera, character)
 	character.movement.set_posture(&"crouch")
 	await t.seconds(0.8)
-	await _shoot(t, window, camera, character, "crouched")
+	for zoom: float in ZOOMS:
+		camera.zoom = Vector2(zoom, zoom)
+		await _shoot(t, window, camera, character, "crouched_zoom%d" % int(zoom))
 	await MainProbe.close(t, window)
+
+
+## The standing shots, facing the camera and away from it, at each zoom. Its brain off, the
+## character stands and looks where the shot says: toward the camera (the shots' south edge) so the
+## face reads.
+func _shoot_standing(
+	t: TestContext,
+	window: SubViewport,
+	camera: Camera2D,
+	character: Node2D,
+) -> void:
+	character.movement.controller = null
+	character.movement.move_input = Vector2.ZERO
+	for look: String in ["", "_away"]:
+		var toward := Vector2(1, 1) if look == "" else Vector2(-1, -1)
+		character.movement.aim_point = character.global_position + toward * 200.0
+		await t.seconds(0.6)
+		for zoom: float in ZOOMS:
+			camera.zoom = Vector2(zoom, zoom)
+			await _shoot(t, window, camera, character, "standing%s_zoom%d" % [look, int(zoom)])
+	character.movement.aim_point = character.global_position + Vector2(200.0, 200.0)
 
 
 ## Park the camera over `character` and save the picture as `<name>.png` in the folder
@@ -92,7 +115,7 @@ func _shoot(
 	name: String,
 ) -> void:
 	camera.global_position = character.global_position
-	await t.frames(3)
+	await t.frames(8)
 	await RenderingServer.frame_post_draw
 	var folder := OS.get_environment("CHARMESH_SHOTS")
 	if folder != "":
@@ -104,7 +127,7 @@ func _shoot(
 ## fade round the player only in the wall-fade job).
 func _hide_walls(world: Node, mirror: WorldMirror) -> void:
 	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
-		if MirrorProxy.kind_of(body) == MirrorProxy.WALL:
+		if MirrorProxy.kind_of(body) in [MirrorProxy.WALL, MirrorProxy.DOOR]:
 			for proxy in mirror.proxies_of(body):
 				proxy.visible = false
 

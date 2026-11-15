@@ -3,9 +3,9 @@ extends Node3D
 ## Character body, the 3D mesh of a living character (#193 phase 2, `domain-art/meshes.md`): a
 ## low-poly body of the mesh kit's solids that the 3D mirror shows in place of the character's proxy
 ## capsule. A trunk (the shirt, over it a vest, its plates and a pack), a head (skin, hair or a cap
-## or helmet, a nose to the front), two arms, two hands and two legs with their shoes (a boot's
-## shaft over the shin), each in the colour the 2D painters draw it in (`BodyDress`: the style, the
-## outfit and the plates' colours).
+## or helmet, a visor band across the front of the face), two arms, two hands and two legs with
+## their shoes (a boot's shaft over the shin), each in the colour the 2D painters draw it in
+## (`BodyDress`: the style, the outfit and the plates' colours).
 ##
 ## **Where the parts are** is the 2D body's own rig (`anatomy.rig()`, `character_rig.gd`): the same
 ## joints the painters draw the limbs between, solved once per physics frame and shared. They turn
@@ -26,7 +26,7 @@ extends Node3D
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 ## Sides of the shared round solids: the limbs, the trunk and the balls.
-const LIMB_SIDES := 8
+const LIMB_SIDES := 6
 const TORSO_SIDES := 10
 const BALL_SIDES := 8
 ## The parts, in `_parts`: the trunk's and the head's, then the sided ones (two each, side 0 first).
@@ -37,7 +37,7 @@ const PACK := 4
 const HEAD := 5
 const HAIR := 6
 const HEADWEAR := 7
-const NOSE := 8
+const FACE := 8
 const UPPER := 9
 const FORE := 11
 const HAND := 13
@@ -45,20 +45,31 @@ const THIGH := 15
 const SHIN := 17
 const BOOT := 19
 const FOOT := 21
+## The parts too small to throw a shadow worth its cost (the face's band, the fists, the plates, the
+## shoes and a boot's shaft, the hair and the headwear): the other twelve parts cast one.
+const SMALL := [
+	PLATE, PLATE + 1, HAIR, HEADWEAR, FACE, HAND, HAND + 1, BOOT, BOOT + 1, FOOT, FOOT + 1,
+]
 ## The joints and the flat directions the pose is made from, in one array to compare a frame's with
 ## the last: the rig's seventeen joints, the two feet's toes and the face.
 const JOINTS := 17
 const SAMPLE := 20
+## How far (px, or a direction's length) a joint must move from the pose the parts are in to pose
+## them again: a body at rest, its head's spring still settling, is not re-placed every frame.
+const MOVED := 0.02
 ## How far down the shin (0 knee .. 1 ankle) a boot's shaft starts, and how much wider than the
 ## shin it is.
 const BOOT_TOP := 0.62
 const BOOT_GROW := 1.15
 ## The head's parts over its radius: the hair (size, how far up and back), a cap's and a helmet's,
-## the nose's size and how far out it stands.
+## the face band's size (width across, height, depth) and how far forward its middle sits, all over
+## the head's radius, and the band's own height above the head's middle.
 const HAIR_SHAPE := Vector3(1.06, 0.2, 0.2)
 const CAP_SHAPE := Vector3(1.12, 0.3, 0.25)
 const HELMET_SHAPE := Vector3(1.22, 0.15, 0.3)
-const NOSE_SHAPE := Vector3(0.3, 0.3, 0.98)
+const FACE_SHAPE := Vector3(0.9, 0.34, 0.5)
+const FACE_FORWARD := 0.85
+const FACE_BASE := -0.1
 ## Where along the trunk a plate sits (its length up from the pelvis).
 const PLATE_AT := 0.3
 
@@ -69,10 +80,13 @@ var _hand_radius := 4.0
 var _head_radius := 5.0
 ## How the rig's heights are squeezed (`CharacterMeshConfig.height`).
 var _squeeze := 1.0
-## The physics frame last posed, the joints it was posed from and the look it was dressed for.
+## The physics frame last posed, the joints it was posed from (sized once, copied into: no array
+## is made per frame), whether `_last` holds a pose the parts are in, and the look it was dressed
+## for.
 var _frame := -1
 var _last := PackedVector3Array()
 var _sample := PackedVector3Array()
+var _posed := false
 var _look_key := -1
 ## Whether the head covering is a cap (else a helmet).
 var _cap := false
@@ -86,7 +100,7 @@ static func build(body: Node2D) -> Node3D:
 	var visuals: Node = body.get_node_or_null("Visuals")
 	if not body is CharacterBody2D or visuals == null or not visuals.get("dress") is BodyDress:
 		return null
-	if body.get("anatomy") == null:
+	if body.get("anatomy") == null or not body.get("wardrobe") is CharacterWardrobe:
 		return null
 	var mesh := BodyMesh.new()
 	mesh._make(body as CharacterBody2D, visuals.get("dress"))
@@ -96,10 +110,13 @@ static func build(body: Node2D) -> Node3D:
 ## Place the parts between the joints the rig holds now, once for each physics frame and only when a
 ## joint moved, and dress them again when the look changed.
 func mirror_update(body: Node2D) -> void:
+	# The 2D visuals refresh the dress only for a body inside the 2D view, which the 3D camera
+	# outruns; the call is cheap and answers at once when nothing changed.
+	_dress.refresh(body.wardrobe)
 	if _dress.look_key != _look_key:
 		_dress_parts()
 		_frame = -1  # a new look may resize parts (a cap for a helmet) even with no joint moved
-		_last = PackedVector3Array()
+		_posed = false  # and a part it shows has not been placed while it was hidden
 	var frame := Engine.get_physics_frames()
 	if frame == _frame:
 		return
@@ -120,6 +137,7 @@ func _make(body: CharacterBody2D, dress: BodyDress) -> void:
 		/ (CharacterBodyConfig.head_height * _r)
 	)
 	_sample.resize(SAMPLE)
+	_last.resize(SAMPLE)
 	var solids := {
 		&"limb": _unit(&"cylinder", LIMB_SIDES),
 		&"trunk": _unit(&"cylinder", TORSO_SIDES),
@@ -131,8 +149,8 @@ func _make(body: CharacterBody2D, dress: BodyDress) -> void:
 		&"limb", &"limb", &"limb", &"limb", &"ball", &"ball", &"limb", &"limb", &"limb", &"limb",
 		&"limb", &"limb", &"box", &"box",
 	]
-	for shape: StringName in shapes:
-		var node := MeshNodes.instance(solids[shape])
+	for i in shapes.size():
+		var node := MeshNodes.instance(solids[shapes[i]], Color.WHITE, not SMALL.has(i))
 		add_child(node)
 		_parts.append(node)
 	assert(_parts.size() == FOOT + 2, "BodyMesh: the shapes list and the part indices disagree")
@@ -184,7 +202,7 @@ func _dress_parts() -> void:
 	_tint(_parts[PACK], _colour(look.get("pack_col")))
 	_parts[PACK].visible = bool(look.get("pack", false))
 	_tint(_parts[HEAD], skin)
-	_tint(_parts[NOSE], MeshKit.tone(skin, &"dark"))
+	_tint(_parts[FACE], _band_colour(skin))
 	var worn := String(look.get("head", ""))
 	var covered := worn == "helmet" or worn == "cap"
 	_cap = worn == "cap"
@@ -210,13 +228,24 @@ func _pose(rig: Rig) -> void:
 	for i in 2:
 		_sample[JOINTS + i] = _flat(rig.toes(i))
 	_sample[JOINTS + 2] = _flat(rig.face())
-	if _sample == _last:
+	if _posed and _unmoved():
 		return
-	_last = _sample.duplicate()
+	_posed = true
+	for i in SAMPLE:
+		_last[i] = _sample[i]
 	_pose_trunk()
 	_pose_head()
 	for i in 2:
 		_pose_limbs(i)
+
+
+## Whether every joint and direction of `_sample` is within `MOVED` of the pose the parts are in
+## (a spring settling to its rest keeps moving by far less than a pixel).
+func _unmoved() -> bool:
+	for i in SAMPLE:
+		if _sample[i].distance_squared_to(_last[i]) > MOVED * MOVED:
+			return false
+	return true
 
 
 ## The trunk from the pelvis up the spine past the chest, with its vest, plates and pack.
@@ -274,7 +303,8 @@ func _pose_pack(frame: Basis, pelvis: Vector3, spine: float, half: Vector2) -> v
 	_place(_parts[PACK], frame, pack, pelvis + frame.y * spine * 0.15 - frame.z * behind)
 
 
-## The head on its joint, its hair or headwear toward the back and its nose where the face looks.
+## The head on its joint, its hair or headwear toward the back and its face band where the face
+## looks.
 func _pose_head() -> void:
 	var at := _last[Rig.HEAD]
 	var frame := _frame_of(Vector3.UP, _last[JOINTS + 2])
@@ -288,10 +318,10 @@ func _pose_head() -> void:
 		at,
 	)
 	_place(
-		_parts[NOSE],
+		_parts[FACE],
 		frame,
-		Vector3(NOSE_SHAPE.x, NOSE_SHAPE.y, NOSE_SHAPE.x) * r,
-		at + frame.z * r * NOSE_SHAPE.z - frame.y * r * NOSE_SHAPE.y * 0.5,
+		FACE_SHAPE * r,
+		at + frame.z * r * FACE_FORWARD + frame.y * r * FACE_BASE,
 	)
 
 
@@ -351,8 +381,11 @@ func _segment(node: MeshInstance3D, from: Vector3, to: Vector3, radius: float) -
 	)
 
 
-## `node` turned to `frame`, `size` px along its three axes, its origin at `at` px.
+## `node` turned to `frame`, `size` px along its three axes, its origin at `at` px; a part not shown
+## is left where it is (the look that shows it poses again).
 func _place(node: MeshInstance3D, frame: Basis, size: Vector3, at: Vector3) -> void:
+	if not node.visible:
+		return
 	node.transform = Transform3D(
 		Basis(frame.x * size.x, frame.y * size.y, frame.z * size.z),
 		at * RenderConfig.unit,
@@ -391,6 +424,12 @@ func _look() -> Dictionary:
 ## `node` tinted `color` (its own colour: the shared meshes are white).
 static func _tint(node: MeshInstance3D, color: Color) -> void:
 	node.set_instance_shader_parameter(&"base_color", color)
+
+
+## The face band's colour: near black on a light skin and near white on a dark one, so the way the
+## head looks reads from the height of the 3D camera at any zoom.
+static func _band_colour(skin: Color) -> Color:
+	return Color(0.08, 0.08, 0.1) if skin.get_luminance() > 0.3 else Color(0.92, 0.92, 0.9)
 
 
 ## `value` if it is a colour, else a neutral grey (a part its style names no colour for).

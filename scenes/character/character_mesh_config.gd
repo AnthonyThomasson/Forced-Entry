@@ -12,7 +12,7 @@ class_name CharacterMeshConfig
 static var height: float = 58.0
 ## The head's size over the 2D art's head (`CharacterArtConfig.head_size`), a head being small from
 ## above and no more than a speck at the pixel post's resolution.
-static var head_scale: float = 1.3
+static var head_scale: float = 1.6
 ## The trunk's half width and the vest's over it (body radii), and the trunk's half depth as a share
 ## of `CharacterArtConfig.shoulder_depth` (the shoulders' depth in body widths).
 static var torso_width: float = 0.68
@@ -32,5 +32,5 @@ static var pack_width: float = 0.85
 static var pack_height: float = 0.7
 ## How much thicker than the 2D art's drawn widths (`CharacterArtConfig.body_arm_widths`, ...) a
 ## limb is, and how tall a shoe is (body radii).
-static var limb_scale: float = 1.25
+static var limb_scale: float = 1.4
 static var foot_height: float = 0.28

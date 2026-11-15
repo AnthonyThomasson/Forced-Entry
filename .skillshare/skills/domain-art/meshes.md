@@ -43,6 +43,7 @@ finish term); a vertex colour is the whole of what a face carries.
 
 **The hook keys, floors, drawn things that are no physics body** (`track`, `track_group`: a domain's spawner only `add_to_group`s and Main's `_register_meshes()` tracks the group) and
 the rules the mirror follows: `mesh-hook.md`. A finer key is for one art id (`MirrorProxy.furniture_key("table")`) and wins over the `FURNITURE` kind.
+A mesh whose parts move with a pose is the character's: `CharacterMeshes.register` plugs `BodyMesh`, which `mirror_update` places between the 2D rig's joints (`domain-character`).
 
 ## Heights (px; a standing character is 58, a wall 96: `MirrorConfig`)
 
