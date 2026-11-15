@@ -76,6 +76,14 @@ func _prepare_cut(i: int) -> Callable:
 	return func() -> Array: return Deformation.cut_wall(a, b, thickness, dents)
 
 
+## Segment index (into `wall_segments()`) -> the `CollisionShape2D`s that stand for that segment
+## now, in this node's frame: one rectangle while it is whole, the convex pieces of its dented
+## outline after a hit. What the 3D mesh (`art/wall_mesh.gd`) is built from, so it matches the
+## colliders.
+func segment_shapes() -> Dictionary:
+	return _seg_colliders
+
+
 ## The wall's ballistic surface: full cover, hard to shoot through, debris in the colour its cap is
 ## drawn in.
 func get_surface() -> Dictionary:

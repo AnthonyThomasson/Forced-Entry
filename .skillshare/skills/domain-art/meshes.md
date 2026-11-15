@@ -3,7 +3,7 @@
 The 3D render (#193, ADR 0013) shows every 2D body by a proxy box until its domain gives it a mesh. Each domain owns its meshes, as it
 owns its painters: the builders live **beside the painters** (`scenes/objects/art/table_mesh.gd`), built from Art's **mesh kit**, and the
 domain plugs them into the mirror's hook. The pattern, proved on the table (`ObjectMeshes`, `TableMesh`, `ObjectMeshConfig`,
-`tests/objects/table_mesh_test.gd`), is what every per-domain job copies. A piece with moving parts (doors that swing, wheels that steer, lamps that glow, dents) is Vehicles' `VehicleMeshRig` (`domain-vehicle/art.md`): a cached hull, parts on child nodes and a `mirror_update` that sets their transforms.
+`tests/objects/table_mesh_test.gd`), is what every per-domain job copies; the building's structure (`StructureMeshes`: walls as one instance per segment, a door that follows its body and lies down by `mirror_update`, floors, the street) shows a kind's hook and a node that keeps itself in step (`domain-objects/art.md`). A piece with moving parts (doors that swing, wheels that steer, lamps that glow, dents) is Vehicles' `VehicleMeshRig` (`domain-vehicle/art.md`): a cached hull, parts on child nodes and a `mirror_update` that sets their transforms.
 
 ## The parts
 

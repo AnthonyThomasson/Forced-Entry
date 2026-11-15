@@ -92,3 +92,5 @@ In the 3D render a piece is shown by a mesh built from Art's mesh kit (`domain-a
 `<name>_mesh.gd` (`static build(piece) -> Node3D`, 3D units, centred on the piece), and `ObjectMeshes.register(builders)` plugs them into the mirror under
 `MirrorProxy.furniture_key(art)` (Main's 3D view calls it). A piece whose art has no mesh stays a proxy box. `ObjectMeshConfig` holds the heights (px): the table's
 `table_*` (30 tall, 22 for a small footprint, `art_opts.height` wins), the pattern every furniture job copies (`tests/objects/table_mesh_test.gd`).
+
+Walls, doors, floors, street meshes: `structure-meshes.md`.

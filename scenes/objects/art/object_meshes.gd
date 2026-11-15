@@ -13,8 +13,10 @@ const BUILDERS := {
 }
 
 
-## Add every builder to `builders` (`WorldMirror.builders`) under the finer key of its art id.
+## Add every builder to `builders` (`WorldMirror.builders`) under the finer key of its art id, and
+## the building's structure (walls, doors, floors: `StructureMeshes`).
 static func register(builders: Dictionary) -> void:
+	StructureMeshes.register(builders)
 	for art: String in BUILDERS:
 		var builder := Callable(BUILDERS[art], &"build")
 		if builder.is_valid():
