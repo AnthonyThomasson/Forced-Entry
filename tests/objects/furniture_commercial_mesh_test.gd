@@ -462,12 +462,16 @@ func _check_stencil(t: TestContext, mirror: WorldMirror) -> void:
 			t.expect_near(box.size.x, 120.0, 0.5, "the decal is as wide as the stencil")
 			t.expect_near(box.size.z, 40.0, 0.5, "and as deep")
 			t.expect_near(box.size.y, 0.0, 0.001, "and lies flat")
-			var lift := ObjectStructureMeshConfig.floor_lift + MeshKitConfig.decal_lift
+			var lift := (
+				ObjectStructureMeshConfig.floor_lift
+				+ MeshKitConfig.decal_lift
+				+ ObjectWearMeshConfig.tier_stencil * MeshKitConfig.decal_layer_step
+			)
 			t.expect_near(
 				(decals[0] as Node3D).position.y,
 				lift * RenderConfig.unit,
 				0.001,
-				"on the floor's slab, a decal's lift over it",
+				"on the floor's slab, a decal's lift and the stencil tier over it",
 			)
 			t.expect_near(
 				(decals[0] as Node3D).position.x, 60.0, 0.5, "its middle is the stencil's middle"

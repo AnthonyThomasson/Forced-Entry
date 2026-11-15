@@ -72,6 +72,19 @@ func test_a_decal_floats_off_its_surface_along_the_normal_and_casts_no_shadow() 
 	decal.free()
 
 
+func test_a_decal_layer_lifts_it_a_step_more_along_the_normal() -> void:
+	var frame := MeshNodes.surface_frame(Vector3(10, 4, 20), Vector3(1, 0, 0))
+	var base := MeshNodes.decal(Vector2(8, 6), frame)
+	var layered := MeshNodes.decal(Vector2(8, 6), frame, null, Color.WHITE, 2.5)
+	assert_vector(base.position).is_equal_approx(Vector3(10.15, 4, 20), Vector3.ONE * 0.001)
+	# 2.5 layers of 0.25 px more, along the normal (+x) only
+	assert_vector(layered.position).is_equal_approx(
+		Vector3(10.15 + 0.625, 4, 20), Vector3.ONE * 0.001
+	)
+	base.free()
+	layered.free()
+
+
 func test_a_decal_material_follows_a_retuned_band_count() -> void:
 	var bands := PixelPostConfig.bands
 	var material := ToonMaterial.decal(null)

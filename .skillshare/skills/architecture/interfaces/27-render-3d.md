@@ -21,8 +21,7 @@
       - **The mesh hook** (full rules `domain-art/mesh-hook.md`): `builders: Dictionary`, a key -> `Callable(node: Node2D) -> Node3D` in **3D units**, set before
         `mirror()` (Main's `_register_meshes()`). Keys: a kind (`MirrorProxy.WALL`, `DOOR`, `CHARACTER`, `VEHICLE`, `FURNITURE`, `FLOOR`) or a finer key that wins
         (`MirrorProxy.furniture_key(art)`, `floor_key(art)`). The node replaces the body's proxies and follows it; null or no key keeps the proxy. `track(node, builder)` and
-        `track_group(group, builder)` do the same for drawn things that are no physics body (dropped items, bullets). A mesh node's `mirror_update(body)` runs each frame it shows, `on_body_died(body) -> bool` (true: stay)
-        decides its death, `remirror(node)` rebuilds it, `follows_shapes() -> true` spares it the rebuild when a collision shape comes or goes. The signal `built(body, mesh)` says each mesh a builder made for a body.
+        `track_group(group, builder)` do the same for drawn things that are no physics body (dropped items, bullets). A mesh node's own hooks (`mirror_update`, `on_body_died`, `remirror`, `follows_shapes`, the signal `built(body, mesh)`) and which domain's meshes exist: `render-3d-meshes.md`.
     - **`CameraRig`** (`general/camera_rig.gd`, `class_name`, a `Node3D` that owns an orthographic `Camera3D` as `camera`): `bind(source: Camera2D,
       viewport: SubViewport, rect: Control = null)` follows the sim's `Camera2D`, which stays the focus, zoom and shake source (Sound, the cull and
       the tests read it): each frame the camera frames `source.get_screen_center_position()` (focus plus shake offset) at `source.zoom` (ortho size: the screen's height in 2D px over the zoom, times
@@ -42,8 +41,8 @@
       (`OverlayRegistry.overlays_of`). Outside the cone the composite dims the ground by `unseen_dim`, not black.
     - **Wall fade** (rule 9, `domain-art/wall-fade.md`): Art's `WallFade` (Main's `View3D` makes it, `listen(mirror)`) fades the walls, doors and tall furniture
       between the camera and the player (spectating: every character). It reads, duck-typed: `WorldMirror.built(body, mesh)` (a builder made `mesh` for `body`),
-      General's `CameraController.focus_targets() -> Array[Node2D]` (the camera's own list: read only) and Objects' `WallMesh.segments() -> Dictionary` (index -> instance) with its `segment_replaced(index, part)`.
+      General's `CameraController.focus_targets() -> Array[Node2D]` (the camera's own list: read only) and Objects' `WallMesh.segments() -> Dictionary` (index -> instance, its child decals fade with it) with its `segment_replaced(index, part)`.
     - **Tuning:** `RenderConfig` (General: the camera, the picture's lines, `canvas_layer`, `vision_layer`, `overlay_layer`, `turn_speed_degrees`, `unseen_dim`),
       `RenderLightConfig` (General, the interim sun and ambient), `MirrorConfig` and `PixelPostConfig` (Art).
     - **The vision hook** (phase 3's mask): global shader uniforms, `ToonMask.set_mask(texture, world_rect_px, unseen_brightness)` / `clear()`; default everything visible.
-    - **Not yet:** meshes are proxies but for Objects' furniture and street (`ObjectMeshes`: `register`, `track` for stencils) and structure (`StructureMeshes`), Vehicles (`VehicleMeshes`), Character (`CharacterMeshes`), loose items (`ItemMeshes`) and shots (`ProjectileMeshes`: 12); the rest, phase 2's.
+    - **Not yet:** most kinds are still proxies. The meshes each domain has, Objects' wear and decals among them, and who plugs each in (`ObjectMeshes`: `register`, `track` for stencils; `StructureMeshes`, `VehicleMeshes`, `CharacterMeshes`, `ItemMeshes`, `ProjectileMeshes`): `render-3d-meshes.md`.

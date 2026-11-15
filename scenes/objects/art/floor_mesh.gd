@@ -4,7 +4,7 @@ extends RefCounted
 ## in the colour its painter draws and a darker tone at its edge. The pattern (planks, tiles) is not
 ## modelled: a floor reads by its colour. A floor is a static node, so its mesh is built once, in a
 ## frame whose origin is the floor's corner, shared by every floor of one size and colour, and casts
-## no shadow (it is the ground).
+## no shadow (it is the ground). Its room's floor wear lies on it as decals (`wear_mesh.gd`).
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 
@@ -13,7 +13,7 @@ const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 static func build(floor_node: Node2D) -> Node3D:
 	var size: Vector2 = floor_node.get("size")
 	var colour := ObjectArt.drawn_color(floor_node.get("color"))
-	return MeshNodes.instance(
+	var node := MeshNodes.instance(
 		MeshCache.fetch(
 			MeshCache.key("floor", size, colour, _tuning()),
 			func() -> Mesh: return _mesh(size, colour),
@@ -21,6 +21,8 @@ static func build(floor_node: Node2D) -> Node3D:
 		Color.WHITE,
 		false,
 	)
+	WearMesh.attach_floor(node, floor_node)
+	return node
 
 
 ## The slab of a floor of `size` px: a corner at the origin, its top `floor_lift` over the ground,

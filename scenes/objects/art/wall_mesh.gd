@@ -22,6 +22,19 @@ var rebuilds := 0
 ## The wall (a `Wall`) and the cap colour its segments are built in.
 var _wall: Node2D
 var _colour := Color.WHITE
+## The wall's wear marks by the segment each stands on (`WallWearMesh.decals_of`): children of that
+## segment's instance, handed to a rebuilt one.
+var _marks := {}
+
+
+## The marks no segment carries (not in the tree) go with the mesh.
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_PREDELETE:
+		return
+	for decals: Array in _marks.values():
+		for decal: Variant in decals:
+			if is_instance_valid(decal) and (decal as Node).get_parent() == null:
+				(decal as Node).free()
 
 
 ## The node a `wall` (a `Wall`: `segment_shapes()`, `art`, `art_color`) is shown by, in 3D units in
@@ -33,6 +46,7 @@ static func build(wall: Node2D) -> Node3D:
 	node.name = "WallMesh"
 	node._wall = wall
 	node._colour = colour_of(wall)
+	node._marks = WallWearMesh.decals_of(wall)
 	var shapes: Dictionary = wall.call(&"segment_shapes")
 	var indices: Array = shapes.keys()
 	indices.sort()
@@ -62,6 +76,9 @@ func rebuild_segment(index: int) -> void:
 		return
 	var old := get_node_or_null("Segment%d" % index)
 	if old != null:
+		for decal: Variant in _marks.get(index, []):
+			if is_instance_valid(decal) and (decal as Node).get_parent() == old:
+				old.remove_child(decal)  # the new segment carries the wear on
 		remove_child(old)
 		old.queue_free()
 	var part := _put(index, (_wall.call(&"segment_shapes") as Dictionary).get(index, []))
@@ -76,6 +93,7 @@ func _put(index: int, shapes: Array) -> MeshInstance3D:
 	if part != null:
 		part.name = "Segment%d" % index
 		add_child(part)
+		WallWearMesh.dress(part, _marks.get(index, []))
 	return part
 
 

@@ -9,6 +9,10 @@ extends Node2D
 ## decal layers (decal_layer.gd): the floor marks on the floor's rung (`FloorWear`), the wall marks
 ## on the walls' (`WallWear`); built after the house's floors and walls, so each draws over them.
 ## One per room, so it is lit like that room's floor. Draw-only. Tuning: ObjectArtWearConfig.
+##
+## The 3D render lays the same marks as decals (`wear_mesh.gd`, `wall_wear_mesh.gd`): `floor_marks`
+## and `wall_marks` say what was decided, in this node's frame (the room's corner, the frame of the
+## room's floor and walls).
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const DecalLayer = preload("res://scenes/objects/decals/decal_layer.gd")
@@ -18,6 +22,9 @@ const FloorPainter = preload("res://scenes/objects/art/floor_painter.gd")
 var _floor_layer: Node2D
 ## `WallWear`: the wall marks.
 var _wall_layer: Node2D
+## The wall marks as the 3D render lays them: `{ kind, v, at, dir, normal, length }` each (see
+## `wall_marks`).
+var _wall_marks: Array = []
 
 
 ## Build the wear of the room `rect` (in the parent's space; this node sits at its corner) on the
@@ -59,6 +66,20 @@ func setup(
 	return self
 
 
+## The floor marks, `[texture, rect, kind]` each, in the order they are drawn: `rect` in this node's
+## frame, the texture the 2D layer draws.
+func floor_marks() -> Array:
+	return _floor_layer.decals()
+
+
+## The wall marks, `{ kind, v, at, dir, normal, length }` each: its kind and variant (the painter's
+## `kind` and `v`), `at` the middle of the mark on the wall's centre line, `dir` the unit vector it
+## runs along, `normal` the unit vector out of the wall's face toward the room it is by, `length`
+## px along the wall; all in this node's frame (the wall's own).
+func wall_marks() -> Array:
+	return _wall_marks
+
+
 # --- Floor ----------------------------------------------------------------------------------------
 
 
@@ -98,7 +119,9 @@ func _floor_marks(
 		var opts: Dictionary = mark["opts"]
 		opts["kind"] = kind
 		opts["v"] = rng.randi_range(0, ObjectArtWearConfig.variants - 1)
-		_floor_layer.add(ObjectArt.texture("wear", r.size, tone, mark["facing"], opts), r)
+		_floor_layer.add(
+			ObjectArt.texture("wear", r.size, tone, mark["facing"], opts), r, StringName(kind),
+		)
 
 
 ## A floor mark of `kind` near `p` on a floor of `pattern` whose tile starts at this node's origin:
@@ -242,7 +265,23 @@ func _wall_mark(
 	_wall_layer.add(
 		ObjectArt.texture("wear", r.size, ObjectArtWearConfig.plaster_color, facing, opts),
 		r,
+		StringName(kind),
 	)
+	_wall_marks.append({
+		"kind": kind,
+		"v": opts["v"],
+		"at": a + dir * (s + mark * 0.5),
+		"dir": dir,
+		"normal": _face_toward(at, a, dir),
+		"length": mark,
+	})
+
+
+## The unit vector out of the face of the wall through `a` along `dir` that the point `at` lies by.
+static func _face_toward(at: Vector2, a: Vector2, dir: Vector2) -> Vector2:
+	if absf(dir.x) > 0.5:
+		return Vector2(0.0, 1.0 if at.y >= a.y else -1.0)
+	return Vector2(1.0 if at.x >= a.x else -1.0, 0.0)
 
 
 ## The rect of a wall mark `mark` px long from `start` on a wall running along `dir`, `thickness`

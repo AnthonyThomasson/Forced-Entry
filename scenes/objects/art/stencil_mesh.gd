@@ -7,8 +7,9 @@ extends RefCounted
 ## costs no second paint. It does no work of its own each frame (no `mirror_update`, no `_process`);
 ## the mirror follows the sprite as it follows any tracked node, one transform compare a frame, a
 ## write only when the sprite moved. It lies on the floor's slab (`ObjectStructureMeshConfig.
-## floor_lift`; the decal floats `MeshKitConfig.decal_lift ` above that), so it is over the floor,
-## not in it.
+## floor_lift`) on the stencil tier of the shared decal layers (`ObjectWearMeshConfig.tier_stencil`,
+## `MeshNodes.decal`'s `layer`), over every wear mark of the floor and the street, never at the
+## height of one.
 
 
 ## The node a stencil `sprite` is shown by, in 3D units with its origin at the sprite's own (its
@@ -21,5 +22,13 @@ static func build(sprite: Node2D) -> Node3D:
 	var size := texture.get_size() * sprite.scale
 	var holder := Node3D.new()
 	var at := Vector3(size.x * 0.5, ObjectStructureMeshConfig.floor_lift, size.y * 0.5)
-	holder.add_child(MeshNodes.decal(size, MeshNodes.surface_frame(at), texture))
+	holder.add_child(
+		MeshNodes.decal(
+			size,
+			MeshNodes.surface_frame(at),
+			texture,
+			Color.WHITE,
+			ObjectWearMeshConfig.tier_stencil,
+		)
+	)
 	return holder

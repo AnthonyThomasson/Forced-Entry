@@ -4,11 +4,11 @@ extends RefCounted
 ## registered under the floor key of the `street` art): the pavement a flat slab level with a
 ## room's floor, a kerb band along the edges that face the road, and the road a slab
 ## `ObjectStreetMeshConfig.kerb` px lower with the paint laid flat on it, the lane's dashes down the
-## middle and each junction's zebra bars and stop line. The wear, the glyphs and the slab joints
-## are not modelled (flat paint is what reads at play zoom; the wear is the wear job's). Colours are
-## the street painters' own (`ObjectArtStreetConfig`, `ObjectArtCrossingConfig`). A floor is
-## static, so the mesh is built once, in a frame whose origin is the piece's corner, shared by every
-## piece of one size and marks, and casts no shadow.
+## middle and each junction's zebra bars and stop line. The slab joints are not modelled (flat paint
+## is what reads at play zoom); the wear and the lane glyphs lie on it as decals (`wear_mesh.gd`).
+## Colours are the street painters' own (`ObjectArtStreetConfig`, `ObjectArtCrossingConfig`). A
+## floor is static, so the mesh is built once, in a frame whose origin is the piece's corner, shared
+## by every piece of one size and marks, and casts no shadow.
 
 
 ## The node a `floor_node` (a `Floor` of art `street`: `size`, `art_opts.kind`, `marks`) is shown
@@ -27,11 +27,13 @@ static func build(floor_node: Node2D) -> Node3D:
 	key_opts["crossings"] = var_to_str(marks.get("crossings", []))
 	key_opts["edges"] = var_to_str(marks.get("edges", []))
 	var key := MeshCache.key("street", size, colour, key_opts)
-	return MeshNodes.instance(
+	var node := MeshNodes.instance(
 		MeshCache.fetch(key, func() -> Mesh: return _mesh(size, sidewalk, colour, marks)),
 		Color.WHITE,
 		false,
 	)
+	WearMesh.attach_street(node, floor_node)
+	return node
 
 
 ## The hue of paint `paint` laid over `ground` at the paint's own opacity (the painters draw it

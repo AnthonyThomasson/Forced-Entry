@@ -106,7 +106,7 @@ func _mark(rng: RandomNumberGenerator, kind: String, r: Rect2, tone: Color, extr
 			else [Vector2.DOWN, Vector2.UP][rng.randi_range(0, 1)])
 	var opts := { "kind": kind, "v": rng.randi_range(0, ObjectArtWearConfig.variants - 1) }
 	opts.merge(extra)
-	add(ObjectArt.texture("wear", r.size, tone, facing, opts), r)
+	add(ObjectArt.texture("wear", r.size, tone, facing, opts), r, StringName(kind))
 
 
 ## A mark's rect round `at`: `size` (rounded to even px), turned a quarter at random.
@@ -270,7 +270,7 @@ func _along_rect(
 
 ## Draw `texture` over `rect` and remember it under `kind`.
 func _lay(kind: String, texture: Texture2D, rect: Rect2) -> void:
-	add(texture, rect)
+	add(texture, rect, StringName(kind))
 	if not _laid.has(kind):
 		_laid[kind] = []
 	_laid[kind].append(rect)
@@ -363,7 +363,7 @@ func _litter_piece(rng: RandomNumberGenerator, at: Vector2, puddle: bool) -> voi
 		"kind": "puddle" if puddle else "trash",
 		"v": rng.randi_range(0, ObjectArtWearConfig.variants - 1),
 	}
-	add(ObjectArt.texture("decor", size, Color.BLACK, facing, opts), r)
+	add(ObjectArt.texture("decor", size, Color.BLACK, facing, opts), r, StringName(opts["kind"]))
 
 
 ## Whether `r` reaches into the gutter along one of the piece's edges.

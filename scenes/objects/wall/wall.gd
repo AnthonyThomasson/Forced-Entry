@@ -53,6 +53,9 @@ var _seg_colliders := {}
 var _rebuild_queued := {}
 ## Segment index -> the cut queued with its rebuild (`ColliderCuts`, as a piece of furniture's).
 var _seg_cuts := {}
+## The room's wear node (`WearFactory.spawn` sets it: the room's `RoomWear`, in this wall's frame),
+## whose wall marks the 3D mesh stands on the segments' faces; null for a wall with none.
+var wear: Node2D = null
 
 ## The WallVisuals child, redrawn when a segment is struck (null without one).
 @onready var _visuals := get_node_or_null("WallVisuals")

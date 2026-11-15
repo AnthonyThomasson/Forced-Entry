@@ -2,8 +2,7 @@
 
 The 3D render (#193, ADR 0013) shows every 2D body by a proxy box until its domain gives it a mesh. Each domain owns its meshes, as it
 owns its painters: the builders live **beside the painters** (`scenes/objects/art/table_mesh.gd`), built from Art's **mesh kit**, and the
-domain plugs them into the mirror's hook. The pattern, proved on the table (`ObjectMeshes`, `TableMesh`, `ObjectMeshConfig`,
-`tests/objects/table_mesh_test.gd`), is what every per-domain job copies; the building's structure (`StructureMeshes`: walls as one instance per segment, a door that follows its body and lies down by `mirror_update`, floors, the street) shows a kind's hook and a node that keeps itself in step (`domain-objects/art.md`). The domestic furniture (rig, cache-key suite, windowed pictures): `domain-objects/meshes.md`. A piece with moving parts (doors that swing, wheels that steer, lamps that glow, dents) is Vehicles' `VehicleMeshRig` (`domain-vehicle/art.md`): a cached hull, parts on child nodes and a `mirror_update` that sets their transforms.
+domain plugs them into the mirror's hook. The pattern, proved on the table (`ObjectMeshes`, `TableMesh`, `ObjectMeshConfig`, `tests/objects/table_mesh_test.gd`), every job copies; the building's structure (`StructureMeshes`: walls as one instance per segment, a door that follows its body and lies down by `mirror_update`, floors, the street) shows a kind's hook and a node that keeps itself in step (`domain-objects/art.md`). The domestic furniture (rig, cache-key suite, windowed pictures): `domain-objects/meshes.md`. A piece with moving parts (doors that swing, wheels that steer, lamps that glow, dents) is Vehicles' `VehicleMeshRig` (`domain-vehicle/art.md`): a cached hull, parts on child nodes and a `mirror_update` that sets their transforms.
 
 ## The parts
 
@@ -11,8 +10,8 @@ domain plugs them into the mirror's hook. The pattern, proved on the table (`Obj
 |---|---|
 | `MeshKit` (`mesh/mesh_kit.gd`) | A chain of solids, one `ArrayMesh` from `build()`: `box`, `wedge` (a ramp or headboard), `cylinder`, `sphere`, `capsule`, `cone`, `revolve` (a profile turned about the vertical axis: a lathe post, a vase), `extrude` (a 2D polygon and a height: a rounded top, an L-shaped counter; a prism is a triangle extruded), `loft` (a convex profile swept along a path: a rail, a pipe, a roofline). **`pose(Transform3D)` turns and places every solid added after it**: a wheel on its side is the cylinder at the origin under `pose(Transform3D(Basis(Vector3.BACK, PI / 2), at))`, an aimed barrel or a tilted chair back the same; `pose(Transform3D.IDENTITY)` ends it. Flat-shaded, one colour per face in the vertex colour. |
 | `MeshCache` (`mesh/mesh_cache.gd`) | `MeshCache.fetch(MeshCache.key(id, size, color, opts), make)`: the same inputs give the same `Mesh` resource, shared by every piece, as `PixelArt` shares a texture. **The key must name every input the shape reads:** `opts` holds the piece's options and every tuning value the builder reads (`TableMesh._tuning()`), so a retuned holder is another mesh; the scale (`RenderConfig.unit`) and the kit's own tunables (the tone ramp, `cylinder_sides`) are in the key already. Bounded (`MeshKitConfig.cache_limit`); a mesh unique to one node skips it (`mesh-hook.md`). |
-| `MeshNodes` (`mesh/mesh_nodes.gd`) | `instance(mesh, tint)` a `MeshInstance3D` in the shared toon material; `place(node, at_px, yaw)`; `surface_frame` (upright and unmirrored on a wall's four facings) and `decal` (a flat quad, textured or plain, laid on a surface: wear, stencils, stains; lit and shadowed like the surface; its material goes with its last decal); `batch(mesh, count)` with `batch_place` / `batch_show` (many small short-lived parts in one draw, no shadow: casings, sparks); `fade`, `glow` (`mesh-hook.md`). |
-| `MeshKitConfig` | `cylinder_sides`, `decal_lift`, `cache_limit`. |
+| `MeshNodes` (`mesh/mesh_nodes.gd`) | `instance(mesh, tint)` a `MeshInstance3D` in the shared toon material; `place(node, at_px, yaw)`; `surface_frame` (upright and unmirrored on a wall's four facings) and `decal` (a flat quad laid on a surface: wear, stencils, stains; `layer` lifts it `decal_layer_step` more so overlaps never tie; lit and shadowed like the surface; its material goes with its last decal); `batch(mesh, count)` with `batch_place` / `batch_show` (many short-lived parts in one draw, no shadow: casings, sparks); `fade`, `glow` (`mesh-hook.md`). |
+| `MeshKitConfig` | `cylinder_sides`, `decal_lift`, `decal_layer_step`, `cache_limit`. |
 | `ToonMask` (`post/toon_mask.gd`) | Phase 3's vision hook (`mesh-hook.md`): not for a mesh job to touch. |
 
 ## Units: px in, 3D units out, converted once
@@ -20,7 +19,7 @@ domain plugs them into the mirror's hook. The pattern, proved on the table (`Obj
 A builder works in the art's own units and **never multiplies by `RenderConfig.unit`**: `MeshKit.build()` converts, `MeshNodes.place` and
 `decal` convert. A footprint is in 2D px (`x`, `y` of the piece's frame, `y` down the screen) and a height in px above the ground:
 `MeshKit.volume(footprint, base, height)` is the box `(x, base, y)` to `(x + w, base + height, y + d)`; 2D `(x, y)` is 3D `(x, height, y)`.
-A builder's node is in the **body's frame**: its origin is the body's origin (a piece's footprint is centred on it: `Rect2(-size / 2, size)`),
+A builder's node is in the **body's frame**: its origin is the body's origin (a footprint is centred on it: `Rect2(-size / 2, size)`),
 and the mirror turns it with the body (a 2D turn clockwise is `-angle` about +y; the mirror does it).
 
 ## Colour: a tone from the ramp, banded by the material

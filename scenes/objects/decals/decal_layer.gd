@@ -3,7 +3,7 @@ extends Node2D
 ## marks and litter. One node draws them all, once, on its own draw-order rung (`setup`); draw-only:
 ## no collider, no nav change, registers nothing.
 
-## `[texture, rect]` per mark, in the layer's frame.
+## `[texture, rect, kind]` per mark, in the layer's frame.
 var _decals: Array = []
 
 
@@ -22,11 +22,18 @@ func setup(layer_name: String, z: int) -> Node2D:
 
 
 ## Draw `texture` stretched over `rect` (the layer's frame; at ArtCanvasConfig.pixel_size one texel
-## per art pixel).
-func add(texture: Texture2D, rect: Rect2) -> void:
+## per art pixel). `kind` says what the mark is (`crack`, `slab`, `crossing`: the 3D render lays
+## each by its kind, `wear_mesh.gd`).
+func add(texture: Texture2D, rect: Rect2, kind := &"") -> void:
 	if texture:
-		_decals.append([texture, rect])
+		_decals.append([texture, rect, kind])
 		queue_redraw()
+
+
+## The marks, `[texture, rect, kind]` each, in the order they are drawn (a copy of the list, the
+## marks themselves shared).
+func decals() -> Array:
+	return _decals.duplicate()
 
 
 ## How many marks the layer holds.

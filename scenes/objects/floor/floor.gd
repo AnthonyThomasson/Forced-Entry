@@ -33,6 +33,9 @@ const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 ## house is never crowded by the house's lights.
 @export var light_layer: String = ""
 
+## The room's wear node (`WearFactory.spawn` sets it: the room's `RoomWear`, in this floor's frame),
+## whose floor marks the 3D mesh lays on the slab; null for a floor with none.
+var wear: Node2D = null
 ## BloodSurface registration of this floor.
 var _surface_id := -1
 ## SoundSurface registration of this floor.

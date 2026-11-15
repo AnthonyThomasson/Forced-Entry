@@ -92,9 +92,13 @@ func _register(mesh: Node3D, key: int, movable: bool) -> void:
 	_carry.erase(key)
 
 
-## A wall's segment `part`: one unit, or null when it is too low to hide anyone.
+## A wall's segment `part`: one unit (the segment's box; the instances it carries on its face, a
+## wear decal, fade with it), or null when it is too low to hide anyone.
 func _part_unit(part: MeshInstance3D) -> FadeUnit:
 	var instances: Array[GeometryInstance3D] = [part]
+	for child in part.get_children():
+		if child is GeometryInstance3D:
+			instances.append(child)
 	var unit := _filed(FadeUnit.make(part, instances, part.get_aabb(), false))
 	if unit != null:
 		unit.hang.wall = true

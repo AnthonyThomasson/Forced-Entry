@@ -8,6 +8,10 @@ static var cylinder_sides: int = 12
 ## How far above its surface a decal (`MeshNodes.decal`) floats, so it never fights the surface's
 ## depth.
 static var decal_lift: float = 0.15
+## How much higher each layer of decals lies (`MeshNodes.decal`'s `layer`): a decal on layer `l`
+## floats `decal_lift + l * decal_layer_step` px off its surface, so what one domain draws over
+## another's (a stencil over a floor's marks) is a layer more, never a tie in depth.
+static var decal_layer_step: float = 0.25
 ## How many meshes `MeshCache` keeps: past it the one asked for longest ago is dropped (a node
 ## still showing it keeps it; asked for again it is built again).
 static var cache_limit: int = 2048

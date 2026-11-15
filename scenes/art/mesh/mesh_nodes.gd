@@ -46,17 +46,20 @@ static func surface_frame(at: Vector3, normal := Vector3.UP, spin := 0.0) -> Tra
 
 ## A decal: a flat quad of `size` px laid on a surface at `frame` (`surface_frame`), showing
 ## `texture` (its alpha cuts the quad: a crack, a stain, a stencil; null is a plain patch) times
-## `tint`. It floats `MeshKitConfig.decal_lift` px off the surface so it never fights it, lit as the
+## `tint`. It floats `MeshKitConfig.decal_lift` px off the surface so it never fights it, and
+## `layer * MeshKitConfig.decal_layer_step` more (`layer` a float: decals of one surface that
+## overlap take layers apart, the one drawn later the higher, so none shares a depth); lit as the
 ## toon material lights, casting no shadow.
 static func decal(size: Vector2, frame: Transform3D, texture: Texture2D = null,
-		tint := Color.WHITE) -> MeshInstance3D:
+		tint := Color.WHITE, layer := 0.0) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
 	node.mesh = _quad(size)
 	node.material_override = ToonMaterial.decal(texture)
 	node.set_instance_shader_parameter(&"base_color", tint)
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.basis = frame.basis
-	node.position = (frame.origin + frame.basis.y * MeshKitConfig.decal_lift) * RenderConfig.unit
+	var lift := MeshKitConfig.decal_lift + layer * MeshKitConfig.decal_layer_step
+	node.position = (frame.origin + frame.basis.y * lift) * RenderConfig.unit
 	return node
 
 

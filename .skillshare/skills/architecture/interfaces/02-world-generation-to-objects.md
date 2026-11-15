@@ -43,3 +43,8 @@
 	 floors and walls). `WearPlan` (`objects/wear_plan.gd`): `floor_definition`, `wall_thickness`, `clusters` (`{ pos, wall, seed }`:
 	 centre, the free stretch of wall `[a, b]` it is by or `[]`, the seed of its marks, in `parent`'s space). World-Gen places the
 	 clusters; Objects decides each one's marks and draws them.
+	 In the 3D render (27) the same marks are decals on the room's surfaces: `spawn` also hands the room's `Floor` and `Wall` (those at
+	 `rect`'s corner in `parent`) the node as their `wear` property, and the wear node (`RoomWear`) answers `floor_marks()` (`[texture,
+	 rect, kind]` each) and `wall_marks()` (`{ kind, v, at, dir, normal, length }` each: where a mark stands on the wall's centre line and
+	 which face it is on). Its `DecalLayer` takes a mark's `kind` (`add(texture, rect, kind)`) and answers `decals()`; the street's
+	 `StreetMarks` layer does too. Objects' meshes read them (`domain-objects/meshes.md`); World-Gen touches none of it.
