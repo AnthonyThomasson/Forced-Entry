@@ -17,6 +17,8 @@ extends Camera2D
 
 ## The resolved target node.
 var _player: Node2D
+## The one-element list `focus_targets` gives while following the player.
+var _followed: Array[Node2D] = []
 ## When on, frames `_frame_targets` instead of following `_player`.
 var _frame_mode: bool = false
 ## The nodes to keep framed (the match combatants).
@@ -45,6 +47,8 @@ func _ready() -> void:
 	_player = get_node_or_null(target_path)
 	if not _player:
 		push_warning("Camera: could not find target node at %s" % target_path)
+	else:
+		_followed.append(_player)
 	EventBus.posted.connect(_on_posted)
 
 
@@ -110,6 +114,13 @@ func _shake(delta: float) -> void:
 			sin(_shake_clock * 1.3 + 2.1) * 0.7 + sin(_shake_clock * 2.3 + 0.4) * 0.3)
 	offset = wobble * CameraShakeConfig.max_offset * _trauma * _trauma / zoom.x
 	_trauma = maxf(_trauma - CameraShakeConfig.decay * delta, 0.0)
+
+
+## Who the view is about: the player while following, every framed node (the match's combatants)
+## while spectating. The camera's own list, not a copy: read it, never change it; a node may have
+## been freed or be dead. The 3D render's wall fade fades around each (interface 27).
+func focus_targets() -> Array[Node2D]:
+	return _frame_targets if _frame_mode else _followed
 
 
 ## Switch to framing mode: ease to keep every live node in `targets` on screen (used by the

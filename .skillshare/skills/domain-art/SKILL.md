@@ -82,6 +82,10 @@ vision job needs no per-mesh edit (`meshes.md`). Tests: `tests/art/mirror_proxie
 (`general/render_3d_match_windowed`, `art/pixel_post_shimmer`, `art/toon_vision_hook_windowed`).
 The outline's colour is the surface's own darkened, not one near black: a silhouette takes the nearer side's colour (`outline_darken` 0.15 on the world, `figure_darken` 0.35 on a figure so an outfit reads at zoom 1), a crease its own pixel's; a mesh marked `MeshNodes.figure` (a character's parts: `figure`, an instance uniform the toon material writes as roughness into the normal buffer's alpha) gets the silhouette only, no creases (`figure_creases` brings them back), as a body's faceted limbs, a pixel or two wide, would crease at every facet. Test: `art/pixel_post_outline_windowed` (windowed, `OUTLINE_SHOTS=<dir>` saves the shots).
 
+## The wall fade (#193 rule 9, interface 27)
+
+`WallFade` (`mirror/wall_fade.gd`, tuned in `WallFadeConfig`) thins the walls, doors and tall pieces between the camera and the player, or every character when spectating, so nobody is hidden; the rest stay whole. Rules, seams, tests and limits: `wall-fade.md`.
+
 ## PixelCanvas gotchas
 
 - A mask `PixelShape` (`bowed`) tests every pixel of its bounds and keeps a per-pixel mask, depth and normal; a

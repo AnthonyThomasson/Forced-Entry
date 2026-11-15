@@ -23,6 +23,8 @@ const STAGE_PRIORITY := 200
 ## The camera rig and the mirror, for a caller that reads them (the tests, the pixel post).
 var rig: CameraRig
 var mirror: WorldMirror
+## The wall fade: walls and tall pieces between the camera and the player fade (rule 9).
+var fade: WallFade
 ## The 3D world's viewport, the rect that shows the picture on screen (it covers the window) and the
 ## viewport the rect shows: the 3D one, or the averaged-down stage after it when supersampling.
 var viewport := SubViewport.new()
@@ -73,6 +75,11 @@ func begin(camera: Camera2D) -> void:
 	viewport.add_child(_sun())
 	mirror = WorldMirror.new()
 	viewport.add_child(mirror)
+	fade = WallFade.new()
+	fade.rig = rig
+	fade.source = camera
+	fade.listen(mirror)
+	viewport.add_child(fade)
 	RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
 
 

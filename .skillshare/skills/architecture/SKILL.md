@@ -82,7 +82,7 @@ character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, 
 items ──▶ projectile, art          projectile ──▶ physics          vehicle ──▶ physics, art
 ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement)   (and a house door, duck-typed: 24)
 ui ──▶ items, physics            (plain dicts in, signals out; never calls Main)
-art ──▶ general (RenderConfig: the one 2D-to-3D scale)
+art ──▶ general (RenderConfig, CameraRig: scale, yaw)
 every domain ──▶ general
 ```
 

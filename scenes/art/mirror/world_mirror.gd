@@ -34,6 +34,11 @@ extends Node3D
 ## shows, or `remirror(node)` to build it again. A mesh node may also have `on_body_died(body) ->
 ## bool` (true: stay shown and keep following). `mesh-hook.md` says which to use when.
 
+## A builder made `mesh` for the physics body `body` (its own mesh, whenever the builder was
+## registered; again when the body is mirrored again): what a domain-blind watcher of the meshes
+## (the wall fade) connects to, so it needs no knowledge of the builders.
+signal built(body: Node, mesh: Node3D)
+
 ## The mesh hook: key (a kind, or a finer key) -> `Callable(node) -> Node3D`. Set before
 ## `mirror()`.
 var builders: Dictionary = {}
@@ -337,6 +342,7 @@ func _rows_of(body: PhysicsBody2D) -> Array[Dictionary]:
 	if builder.is_valid():
 		var made: Variant = builder.call(body)
 		if made is Node3D:
+			built.emit(body, made)
 			rows.append(_proxies.own_row(body, made))
 			return rows
 	for child in body.get_children():

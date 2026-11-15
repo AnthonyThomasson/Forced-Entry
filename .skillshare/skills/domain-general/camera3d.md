@@ -8,7 +8,7 @@ plus shake offset) and `zoom` each frame and places the camera on the ground poi
 its `yaw` (a property in degrees, 45 to start). **Q / E turn it** (`_turn`: while `Keybinds.get_camera_turn()` is held the yaw turns at `RenderConfig.turn_speed_degrees`, 90 a second, free of any snap and about the focus; none held, it stays). The rig binds `Pointer` to its camera and displayed rect in `bind`, and runs at `process_priority` 50, before the player's view (100) and every `GroundLayer` (110), which read it. It sizes the `SubViewport` it is bound to (`RenderConfig.internal_lines`
 rows at a `reference_height` window: a picture pixel is `reference_height / internal_lines` screen pixels rounded to a whole number, 3, at any window size, with the rows that cover the window, times `oversample`, plus a 1 px margin) and snaps the focus to that pixel grid, shifting the shown rectangle back by the remainder, so a following
 camera does not shimmer. `RenderConfig` holds `unit` (the one 2D-to-3D scale, Art's mirror reads it too), the camera and the view's canvas layer;
-`RenderLightConfig` the interim sun and ambient. Test: `tests/general/camera_rig_frames_focus_test.gd`.
+`RenderLightConfig` the interim sun and ambient. `CameraController.focus_targets()` names who the view is about (the player, or every combatant spectating) for Art's wall fade (interface 27). Test: `tests/general/camera_rig_frames_focus_test.gd`.
 
 
 ## The flat overlays (`ground_layer.gd`)

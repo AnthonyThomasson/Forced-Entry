@@ -47,6 +47,15 @@ func follows_shapes() -> bool:
 	return true
 
 
+## The segments now, index -> instance (the wall fade fades them one by one).
+func segments() -> Dictionary:
+	var out := {}
+	for child in get_children():
+		if child is MeshInstance3D and child.name.begins_with("Segment"):
+			out[int(String(child.name).trim_prefix("Segment"))] = child
+	return out
+
+
 ## Replace `Segment<index>` by one built from the wall's colliders for it now.
 func rebuild_segment(index: int) -> void:
 	if not is_instance_valid(_wall):
