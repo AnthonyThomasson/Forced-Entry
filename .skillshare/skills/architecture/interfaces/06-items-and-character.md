@@ -49,15 +49,15 @@
 
    **Outfits** (`docs/outfits.md`). `OutfitConfig` (static): garment and plate rows, a garment's `looks` per character style
    (`zenitex`, `trauma`, `merc`, `borg`; `default_style` for a style it has no row for), `GARMENT_SLOTS` / `PLATE_SLOTS` (String keys
-   `head body vest pants feet front_plate back_plate`), `choices(slot)`, `fits(slot, id)`, `name_of(slot, id)`. `Outfit` (`RefCounted`, one character's worn set): `set_ids(ids)`, `ids()` (test read), `worn(slot)`, `condition(slot)`, `layer(zone, side)` (the armour a round
+   `head body vest pants feet front_plate back_plate`), `choices(slot)`, `fits(slot, id)`, `name_of(slot, id)`. `Outfit` (`RefCounted`, one character's worn set): `set_ids(ids)`, `ids()`, `worn(slot)`, `condition(slot)`, `layer(zone, side)` (the armour a round
    meets: `{}` or `{ stop_power, penetration, material, color, blunt, reduction, blast, plate }`), `wear(zone, side, damage)`, `weight()`,
    `look(style)`, `view()` (for the UI) and `revision` (bumped by every change; the art watches it).
 
    **The character API an item may call:** `facing`, `is_dead`, `inventory.current_item()` (a grenade drops its windup on death or a switch), `anatomy.hands.punch(hand)` / `punch_amount(hand)` (0..1; a long gun swings round by it) / `hand_position(hand)`
-   (local) / `world(hand)`, `weapon.muzzle_origin(hand)`, `world_root()` (the AI too), `report_shot(body, dmg)`, `weapon.kick(hand, strength := 1.0)` (recoil), `weapon.facing()` (the drawn
+   (local) / `world(hand)`, `weapon.muzzle_origin(hand)`, `world_root()` (the AI too: the group `characters` is under it), `report_shot(body, dmg)`, `weapon.kick(hand, strength := 1.0)`, `weapon.facing()` (the drawn
    direction, trailing the aim), `weapon.aim_target()` (where a grenade is thrown to), `weapon.aim_sway()`
    (rad, the stun's wander), `weapon.one_handed()` (blind: a gun's round adds its row's `one_hand_spread_deg`),
-   `weapon.raise()` (0..1, a long gun raised off a wall, for its art).
+   `weapon.raise()` (0..1, a long gun raised off a wall).
 
    **Guns.** Every firearm is a `GunItem` (`items/gun.gd`) built by gun id and tuned by its `GunConfig` row; `PistolItem` / `SmgItem` /
    `RifleItem` only name their row (`super(GUN)`). A `Magazine` (an `Item`, types in `MagazineConfig`, each tied to one `gun`) is carried,
