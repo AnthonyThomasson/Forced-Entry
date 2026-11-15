@@ -203,24 +203,25 @@ func _check_swap(t: TestContext, mirror: WorldMirror) -> void:
 	t.expect_near(held.mesh.get_aabb().size.z, 28.0, 1.0, "as the SMG's mesh")
 
 
-## A rifle held still is written on few frames: a mark put on the mesh is overwritten only when
-## the hand drifts (breath), under one frame in ten.
+## A gun held still (the rifle and the pistol) is written on few frames: a mark put on the mesh is
+## overwritten only when the hand drifts (breath), under one frame in ten.
 func _check_idle(t: TestContext, mirror: WorldMirror) -> void:
-	var held := _held(t, mirror, &"slot6")
-	if held == null:
-		return
-	var mark := Transform3D(Basis(), Vector3(999.0, 0.0, 0.0))
-	var frames := ceili(CharacterPoseHeadConfig.breath_period * 60.0) + 30
-	var writes := 0
-	for i in frames:
-		held.transform = mark
-		await t.frames(1)
-		if held.transform != mark:
-			writes += 1
-	t.check(
-		writes * 10 < frames,
-		"a held rifle is placed on %d of %d frames (under one in ten)" % [writes, frames],
-	)
+	for id: StringName in [&"slot6", &"slot3"]:
+		var held := _held(t, mirror, id)
+		if held == null:
+			continue
+		var mark := Transform3D(Basis(), Vector3(999.0, 0.0, 0.0))
+		var frames := ceili(CharacterPoseHeadConfig.breath_period * 60.0) + 30
+		var writes := 0
+		for i in frames:
+			held.transform = mark
+			await t.frames(1)
+			if held.transform != mark:
+				writes += 1
+		t.check(
+			writes * 10 < frames,
+			"%s: a held gun is placed on %d of %d frames (under one in ten)" % [id, writes, frames],
+		)
 
 
 ## A seated body (shapes disabled) has no item shown, and it is back when the shapes are.

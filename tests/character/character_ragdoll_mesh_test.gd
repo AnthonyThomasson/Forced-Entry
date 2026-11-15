@@ -64,6 +64,11 @@ func run(t: TestContext) -> void:
 		"by the same body",
 	)
 	t.check(not body.held().visible, "and what it held is not on it")
+	var casting := 0
+	for part: Node in body.get_children():
+		if (part as MeshInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			casting += 1
+	t.expect_eq(casting, 0, "a body on the floor casts no shadow, as the 2D one casts none")
 	t.check(
 		not t.world.find_children("*", "DroppedItem", true, false).is_empty(),
 		"the rifle lay on the ground as a dropped item (the 2D's own)",

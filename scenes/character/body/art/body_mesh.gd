@@ -149,15 +149,19 @@ func mirror_update(body: Node2D) -> void:
 	var ragdoll: Fallen = body.anatomy.ragdoll
 	if _at_rest and ragdoll.is_settled():
 		return  # a settled body costs nothing more until a blast wakes it
-	_at_rest = ragdoll.is_settled()
+	# At rest only once the clearance has eased in fully, whatever the tick rate.
+	_at_rest = ragdoll.is_settled() and frame - _died >= LIE_FRAMES
 	_pose(ragdoll, body)
 
 
 ## The body died: it keeps following, now the 2D ragdoll's joints, unless the ragdoll is not there
-## (then the mirror hides it). The held item goes with the hand that held it.
+## (then the mirror hides it). A body on the floor casts no shadow, as the 2D one casts none, and
+## the held item goes with the hand that held it.
 func on_body_died(body: Node2D) -> bool:
 	if not body.anatomy.ragdoll is Fallen:
 		return false
+	for part in _parts:
+		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # the 2D body casts none
 	_died = Engine.get_physics_frames()
 	_at_rest = false
 	_posed = false
