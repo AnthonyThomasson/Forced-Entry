@@ -49,6 +49,7 @@ func burn(at: Vector2, radius: float) -> void:
 		tones.append(rim)
 	# A mark: { chunk, rects (world), tones (the colour of each rect) }.
 	_add({ "chunk": _chunk_cell(at), "rects": rects, "tones": tones }, Despawner.max_scene_objects)
+	PhysicsFxHook.scorch_burned(rects, tones)
 
 
 ## One row of a disc, centred on `row_at`, `half` px each way, stepped to the pixel grid.

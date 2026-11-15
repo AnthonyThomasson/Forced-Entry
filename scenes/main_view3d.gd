@@ -75,6 +75,7 @@ func begin(camera: Camera2D) -> void:
 	viewport.add_child(_sun())
 	mirror = WorldMirror.new()
 	viewport.add_child(mirror)
+	PhysicsMeshes.install(mirror)  # debris, bursts, blood and blasts show from the first frame
 	fade = WallFade.new()
 	fade.rig = rig
 	fade.source = camera

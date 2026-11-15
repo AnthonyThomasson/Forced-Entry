@@ -64,4 +64,5 @@ static func _new_pool(position: Vector2, parent: Node) -> Node:
 	# world-root parent may be offset from the origin).
 	pool.global_position = position
 	Despawner.track(pool)
+	PhysicsFxHook.pool_made(pool)
 	return pool

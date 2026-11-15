@@ -5,7 +5,7 @@ smears). Separate from debris and deformation: the rest of `physics/` reaches it
 `Physics.spawn_debris` (a hit with `HitInfo.blood`; the bloody mark on an object is the core's `Deformation.draw_marks`) and
 `Physics.bleed_out`; every other domain meets it through interface 4's classes. It imports only General: `Despawner`, `DrawLayers`,
 `FillBatch` and `SeenArea`. Tests: `tests/physics/` (`blood_*`, `footprints_*`, `object_smear*`,
-`smear_ribbon_shape`, `wound_*`, `death_*`).
+`smear_ribbon_shape`, `wound_*`, `death_*`). 3D: `meshes.md`.
 
 ## Files and tuning
 

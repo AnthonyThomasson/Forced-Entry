@@ -26,6 +26,9 @@ const DEFENDERS := 2
 ## The seeds scanned for a house facing each way.
 const SEEDS := 80
 const FACINGS := 4
+## The test's own settings file, in the 2D render: the match is the 2D game whatever mode the
+## machine's saved settings hold.
+const SCRATCH := "user://settings_match_human_steps_out_front_test.json"
 
 
 func describe() -> Dictionary:
@@ -45,6 +48,8 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 300, 300))
+	s.set_static(Settings, &"path", SCRATCH)
+	s.set_static(Settings, &"render_mode", Settings.RENDER_2D)
 	s.von_down()
 
 

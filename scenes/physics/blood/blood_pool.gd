@@ -84,6 +84,7 @@ func drag_out(pos: Vector2, level: float) -> void:
 func _mark_stale() -> void:
 	_stale = true
 	set_process(true)
+	PhysicsFxHook.pool_changed(self)
 
 
 ## Whether the pool's drawing, the box of cells it covers and the blur round them, reaches what the

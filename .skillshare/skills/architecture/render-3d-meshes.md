@@ -21,5 +21,6 @@ A mesh node the mirror shows may carry (all duck-typed, all optional):
 | Character | the body (`CharacterMeshes`) | `CharacterMeshes.register(builders)` |
 | Items | loose items (`ItemMeshes`) | `ItemMeshes.register(mirror)` |
 | Projectile | shots (`ProjectileMeshes`: 12) | `ProjectileMeshes.install(mirror, world)` |
+| Physics | debris chips, hit particles, blood (splats, prints, smears, pools), an explosion's fireball, smoke and scorch (`PhysicsMeshes`: `domain-physics/meshes.md`) | `PhysicsMeshes.install(mirror)` |
 
 Main's `main_view3d.gd` `_register_meshes()` calls each. Objects' wear and decals: `domain-objects/meshes.md`.

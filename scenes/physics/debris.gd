@@ -47,6 +47,7 @@ func start(eject_dir: Vector2) -> void:
 ## The chip has come to rest: it is drawn by the parent's `DebrisLayer` from here on, and this node
 ## goes.
 func _rest() -> void:
+	PhysicsFxHook.chip_landed(self)
 	var parent := get_parent()
 	if parent != null:
 		DebrisLayer.layer(parent).rest(

@@ -132,6 +132,7 @@ static func spawn(
 
 		var eject := spray.rotated(rng.randf_range(-spread, spread)) * rng.randf_range(0.5, 1.0)
 		chip.start(eject)
+		PhysicsFxHook.chip_flew(chip)
 
 
 ## Derive a chip color from the object's base color per the style's tint mode.

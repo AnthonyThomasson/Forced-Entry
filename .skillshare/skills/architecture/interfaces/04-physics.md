@@ -1,4 +1,4 @@
-4. **Objects/Character/Vehicles → Physics** (they compose it; Physics is a leaf domain)
+4. **Objects/Character/Vehicles → Physics** (they compose it; Physics is a leaf domain but for Art's mesh kit, 3D only)
    - `Knockback` (Node child): RigidBody2D adapter. Configures its parent body, owns `apply_impulse(v, at_world)`; `mass` is set by the
 	 owner from the catalogue `weight` before `_ready`.
    - `Deformable` (Node child): `record(hit, turn = 0.0)` (`turn`: the body's drawn turn beyond its node rotation; the character
@@ -58,4 +58,6 @@
 	 `BodyDrawCache` keys its kept silhouettes and uvs on; holders: `tuning-holders.md`).
 
    Physics imports nothing from other domains but General's infrastructure: `Despawner` (debris, hit particles, blood, explosion fx),
-   `PhysicsLayers` (`PhysicsConfig.wall_mask`), `DrawLayers` (its z knobs), `FillBatch`.
+   `PhysicsLayers` (`PhysicsConfig.wall_mask`), `DrawLayers` (its z knobs), `FillBatch`; and, for the 3D render (27), Art's mesh kit (12).
+   - `PhysicsMeshes.install(mirror: WorldMirror) -> FxLayer` (Main's `View3D`, once, before the match makes anything): the 3D look of everything above
+     (`domain-physics/meshes.md`). The spawners tell it through `PhysicsFxHook` (static, a no-op when none is installed); `spawn_debris` sets `PhysicsFxHook.hit_height`.

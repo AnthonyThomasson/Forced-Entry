@@ -93,13 +93,13 @@ func _draw_flow() -> void:
 	var covered: Array = flow.cells.keys() + flow.trail.keys()
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	_prepare_material()
-	var box := _field_box(covered)
+	var box := field_box(covered)
 	var image := Image.create_from_data(
 		box.size.x,
 		box.size.y,
 		false,
 		Image.FORMAT_RG8,
-		_field_bytes(flow, covered, box),
+		field_bytes(flow, covered, box),
 	)
 	var size := BloodPoolConfig.flow_cell_size
 	_flow_material.set_shader_parameter("field_px", Vector2(box.size) * size)
@@ -133,8 +133,9 @@ func _prepare_material() -> void:
 	_flow_material.set_shader_parameter("opacity", BloodConfig.color.a)
 
 
-## The cells the field spans: every `covered` cell and `PAD` empty ones round them.
-static func _field_box(covered: Array) -> Rect2i:
+## The cells the field spans: every `covered` cell and `PAD` empty ones round them (the 3D render's
+## pool reads it too).
+static func field_box(covered: Array) -> Rect2i:
 	var lo := Vector2i(1 << 20, 1 << 20)
 	var hi := Vector2i(-(1 << 20), -(1 << 20))
 	for c in covered:
@@ -148,7 +149,7 @@ static func _field_box(covered: Array) -> Rect2i:
 ## The field over `box` as RG8 bytes: red = the fill, box-blurred; green = how far the blood has
 ## sunk in (left at cell resolution; the texture filtering smooths it, and the shader soaks it in
 ## tuft by tuft).
-static func _field_bytes(flow: BloodFlow, covered: Array, box: Rect2i) -> PackedByteArray:
+static func field_bytes(flow: BloodFlow, covered: Array, box: Rect2i) -> PackedByteArray:
 	var lo := box.position
 	var w := box.size.x
 	var field := PackedFloat32Array()

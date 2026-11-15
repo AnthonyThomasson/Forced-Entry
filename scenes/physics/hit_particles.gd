@@ -144,6 +144,7 @@ static func spawn(parent: Node, hit: HitInfo, surface: Dictionary, kind: Kind,
 	p.global_position = hit.exit_position if kind == Kind.EXIT else hit.position
 	p.emitting = true
 	Despawner.track(p)
+	PhysicsFxHook.burst_made(p, style["tint"] == "spark", hit.height)
 	return p
 
 

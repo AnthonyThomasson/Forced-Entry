@@ -90,11 +90,13 @@ static func _quad(size: Vector2) -> Mesh:
 ## material, tinted `tint`, casting no shadow unless `casts_shadow`): for many small short-lived
 ## things (casings, sparks, debris) where a node each is too dear. None shows until `batch_show`;
 ## `batch_place` puts one by index (a pool: a spawn takes the next index, a retired one is
-## overwritten), `batch_show` says how many, from the first, are drawn.
+## overwritten), `batch_show` says how many, from the first, are drawn. With `colored` each part
+## has a colour of its own (`batch_color`), times the batch's `tint` and the mesh's own colours.
 static func batch(mesh: Mesh, count: int, tint := Color.WHITE,
-		casts_shadow := false) -> MultiMeshInstance3D:
+		casts_shadow := false, colored := false) -> MultiMeshInstance3D:
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.use_colors = colored
 	multi.mesh = mesh
 	multi.instance_count = count
 	multi.visible_instance_count = 0
@@ -114,6 +116,11 @@ static func batch(mesh: Mesh, count: int, tint := Color.WHITE,
 ## (as `place`).
 static func batch_place(node: MultiMeshInstance3D, index: int, at: Vector3, yaw := 0.0) -> void:
 	node.multimesh.set_instance_transform(index, part_frame(at, yaw))
+
+
+## Part `index` of a `colored` batch tinted `color` (the art's sRGB colour, as a face's is).
+static func batch_color(node: MultiMeshInstance3D, index: int, color: Color) -> void:
+	node.multimesh.set_instance_color(index, color.srgb_to_linear())
 
 
 ## The frame (3D units, in the frame of its parent) of a part at `at` (px) turned `yaw` about up:

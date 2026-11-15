@@ -24,6 +24,7 @@ static func spawn(world: Node, at: Vector2, kind: StringName) -> void:
 	var look: Dictionary = PhysicsExplosionConfig.looks.get(kind, {})
 	if look.is_empty():
 		return
+	PhysicsFxHook.blast_made(at, look)
 	if float(look.get("flash_radius", 0.0)) > 0.0:
 		_add(world, Flash.new(), "ExplosionFlash", at, look)
 	if float(look.get("fireball_radius", 0.0)) > 0.0:

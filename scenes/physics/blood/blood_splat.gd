@@ -195,6 +195,7 @@ func _complete(kept: Array[PackedVector2Array]) -> void:
 	_boxes.clear()
 	BloodField.add_splat(self, shapes, _born)
 	queue_redraw()
+	PhysicsFxHook.splat_made(self)
 
 
 ## The core: a lumpy blob, longer along the heading and narrower across it as energy grows.

@@ -2,7 +2,7 @@
     builds them; ADR 0013). In the 3D render mode (`Settings.render_mode`, 14) the sim stays 2D and a 3D view mirrors it: Main never draws
     the 2D world, it follows every drawn 2D body in a 3D world seen through an orthographic camera.
     - **The mode:** `Main.start_match` reads `Settings.render_mode` (`RENDER_2D` `"2d"`, the default, or `RENDER_3D` `"3d"`) and puts it in the spec as `render` (23; a spec that
-      names `render` keeps it): a change applies at the next match. With 3D, Main hides the `World` before it is built (no 2D frame is drawn), `MatchBuilder.stage` builds no 2D lights (20; the
+      names `render` keeps it): a change applies at the next match. With 3D, Main hides the `World` before it is built, `MatchBuilder.stage` builds no 2D lights (20; the
       painters' textures and occluders stay until phase 3 deletes the 2D render, and Vision's capture `SubViewport` is stopped, 25), and Main builds the 3D view (`View3D`, a `CanvasLayer`
       on `RenderConfig.canvas_layer` below the HUD: a `TextureRect` showing a `SubViewport` with the rig, one sun over a flat ambient, and the mirror); the sim is untouched, and the vision and
       debug overlays draw flat on the ground (below).
@@ -45,4 +45,4 @@
     - **Tuning:** `RenderConfig` (General: the camera, the picture's lines, `canvas_layer`, `vision_layer`, `overlay_layer`, `turn_speed_degrees`, `unseen_dim`),
       `RenderLightConfig` (General, the interim sun and ambient), `MirrorConfig` and `PixelPostConfig` (Art).
     - **The vision hook** (phase 3's mask): global shader uniforms, `ToonMask.set_mask(texture, world_rect_px, unseen_brightness)` / `clear()`; default everything visible.
-    - **Not yet:** most kinds are still proxies. The meshes each domain has, Objects' wear and decals among them, and who plugs each in (`ObjectMeshes`: `register`, `track` for stencils; `StructureMeshes`, `VehicleMeshes`, `CharacterMeshes`, `ItemMeshes`, `ProjectileMeshes`): `render-3d-meshes.md`.
+    - **Not yet:** most kinds are still proxies. The meshes each domain has, Objects' wear and decals among them, and who plugs each in (`ObjectMeshes`: `register`, `track` for stencils; `StructureMeshes`, `VehicleMeshes`, `CharacterMeshes`, `ItemMeshes`, `ProjectileMeshes`, `PhysicsMeshes`): `render-3d-meshes.md`.

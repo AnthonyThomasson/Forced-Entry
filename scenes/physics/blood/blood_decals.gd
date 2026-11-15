@@ -39,6 +39,7 @@ func print_at(poly: PackedVector2Array, alpha: float) -> void:
 		},
 		BloodConfig.print_max,
 	)
+	PhysicsFxHook.print_made(poly, alpha)
 
 
 ## Start a smear ribbon at world `point`: `width` px across and `alpha` 0..1 there. Grow it with
@@ -51,6 +52,7 @@ func ribbon_begin(point: Vector2, width: float, alpha: float) -> Dictionary:
 		"alphas": PackedFloat32Array([alpha]),
 	}
 	_add(mark, BloodConfig.print_max)
+	PhysicsFxHook.ribbon_begun(mark)
 	return mark
 
 
@@ -69,6 +71,7 @@ func ribbon_extend(mark: Dictionary, point: Vector2, width: float, alpha: float)
 	mark["points"] = points
 	mark["widths"] = widths
 	mark["alphas"] = alphas
+	PhysicsFxHook.ribbon_grew(mark)
 	if _chunks.has(mark["chunk"]):
 		(_chunks[mark["chunk"]] as Node).queue_redraw()
 
