@@ -15,3 +15,7 @@ static var decal_layer_step: float = 0.25
 ## How many meshes `MeshCache` keeps: past it the one asked for longest ago is dropped (a node
 ## still showing it keeps it; asked for again it is built again).
 static var cache_limit: int = 2048
+## How much a textured mesh's side face (`MeshNodes.textured`, `toon_tex.gdshader`) is darkened
+## beyond the light, so the art's stretched edge texels read as a side and not as a second top
+## (1 = not at all).
+static var textured_side_dim: float = 0.8

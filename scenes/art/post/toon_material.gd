@@ -7,6 +7,7 @@ extends RefCounted
 
 const SHADER := preload("res://scenes/art/post/toon.gdshader")
 const DECAL_SHADER := preload("res://scenes/art/post/decal.gdshader")
+const TEX_SHADER := preload("res://scenes/art/post/toon_tex.gdshader")
 
 ## The one material every mesh of the 3D view shares: the mirror's proxies and each domain's own
 ## mesh (`MeshNodes.instance`). Made on first use; a new mirror pushes the holders into it again
@@ -17,7 +18,11 @@ static var _shared: ShaderMaterial
 ## holds its texture, so the nodes showing it are what keep it (and the texture) alive, and the last
 ## to go frees both. The id is never reused while the material lives.
 static var _decals: Dictionary = {}
-## The table's size at which `decal` next drops the freed ones (twice what it held after the last).
+## The textured toon materials (`toon_tex.gdshader`), one per texture and tiling, by
+## `"<texture id>|<tiled>"`, held weakly as `_decals` are.
+static var _textured: Dictionary = {}
+## The table's size at which `decal` or `textured` next drops the freed ones (twice what it held
+## after the last).
 static var _prune_at := 64
 
 
@@ -40,9 +45,7 @@ static func decal(texture: Texture2D) -> ShaderMaterial:
 	if held is ShaderMaterial:
 		return held
 	ToonMask.install()
-	if _decals.size() >= _prune_at:
-		_forget_freed()
-		_prune_at = maxi(64, _decals.size() * 2)
+	_prune()
 	var material := ShaderMaterial.new()
 	material.shader = DECAL_SHADER
 	refresh(material)
@@ -50,6 +53,37 @@ static func decal(texture: Texture2D) -> ShaderMaterial:
 		material.set_shader_parameter(&"albedo_texture", texture)
 	_decals[id] = weakref(material)
 	return material
+
+
+## The textured toon material showing `texture` (the 2D painters' art on a mesh,
+## `MeshNodes.textured`
+## is the entry domains call): the toon bands and ramp of the shared material plus the texture, as
+## a decal is held, one for each texture and each `tiled` (the art repeats: a floor tile, a road
+## strip); a node holds it, `refresh_all` keeps it in step. A null texture is the shared toon
+## material (nothing to show).
+static func textured(texture: Texture2D, tiled := false) -> ShaderMaterial:
+	if texture == null:
+		return shared()
+	var key := "%d|%s" % [texture.get_instance_id(), tiled]
+	var held: Variant = _textured[key].get_ref() if _textured.has(key) else null
+	if held is ShaderMaterial:
+		return held
+	ToonMask.install()
+	_prune()
+	var material := ShaderMaterial.new()
+	material.shader = TEX_SHADER
+	refresh_textured(material)
+	material.set_shader_parameter(&"albedo_texture", texture)
+	material.set_shader_parameter(&"tiled", tiled)
+	_textured[key] = weakref(material)
+	return material
+
+
+## How many textured materials are alive (a test reads it, the perf report too): the ones a node
+## still shows.
+static func textured_count() -> int:
+	_forget_freed()
+	return _textured.size()
 
 
 ## How many decal materials are alive (a test reads it): the ones a node still shows.
@@ -67,13 +101,26 @@ static func refresh_all() -> void:
 		var material: Variant = held.get_ref()
 		if material is ShaderMaterial:
 			refresh(material)
+	for held: WeakRef in _textured.values():
+		var material: Variant = held.get_ref()
+		if material is ShaderMaterial:
+			refresh_textured(material)
 
 
-## Drop the decal materials nothing shows any more, so the table holds only what is alive.
+## Drop the decal and textured materials nothing shows any more, so the tables hold only what is
+## alive.
 static func _forget_freed() -> void:
-	for id: int in _decals.keys():
-		if (_decals[id] as WeakRef).get_ref() == null:
-			_decals.erase(id)
+	for table: Dictionary in [_decals, _textured]:
+		for id: Variant in table.keys():
+			if (table[id] as WeakRef).get_ref() == null:
+				table.erase(id)
+
+
+## Before a new decal or textured material: past `_prune_at` entries, drop the freed ones.
+static func _prune() -> void:
+	if _decals.size() + _textured.size() >= _prune_at:
+		_forget_freed()
+		_prune_at = maxi(64, (_decals.size() + _textured.size()) * 2)
 
 
 ## The shared material (see `_shared`).
@@ -91,3 +138,10 @@ static func refresh(material: ShaderMaterial) -> void:
 	material.set_shader_parameter(&"count", bands)
 	material.set_shader_parameter(&"ramp", PixelPostConfig.ramp())
 	material.set_shader_parameter(&"pick", PixelPostConfig.picks(bands))
+
+
+## `refresh` plus the textured toon's own knob: the step its sides are darkened by
+## (`MeshKitConfig.textured_side_dim`).
+static func refresh_textured(material: ShaderMaterial) -> void:
+	refresh(material)
+	material.set_shader_parameter(&"side_dim", MeshKitConfig.textured_side_dim)

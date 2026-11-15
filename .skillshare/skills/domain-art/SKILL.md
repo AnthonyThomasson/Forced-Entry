@@ -15,7 +15,7 @@ renders them through here. Depends only on Godot's `Image` (and, for the 3D mirr
 | `pixel_canvas.gd` (`PixelCanvas`) | The drawing surface: RGBA image plus coverage and height layers; shading, finishes, `glowing`. |
 | `pixel_shape.gd` (`PixelShape`), `pixel_convex_shape.gd` (`PixelConvexShape`) | The shapes a canvas fills. |
 | `mirror/` (`WorldMirror`, `MirrorProxy`, `MirrorConfig`) | The 3D mirror of the 2D bodies (below). |
-| `post/` (`PixelPostConfig`, `ToonMaterial`, `ToonMask`, `PixelPost`, `toon.gdshader`, `decal.gdshader`, `outline.gdshader`) | The pixel post of the 3D render: the toon material (the one every mesh shares, with phase 3's vision-mask globals) and the outline pass (below). |
+| `post/` (`PixelPostConfig`, `ToonMaterial`, `ToonMask`, `PixelPost`, `toon.gdshader`, `toon_tex.gdshader`, `decal.gdshader`, `outline.gdshader`, `*.gdshaderinc`) | The pixel post of the 3D render: the toon material (the one every mesh shares, with phase 3's vision-mask globals), the textured toon and the outline pass (below). |
 | `mesh/` (`MeshKit`, `MeshCache`, `MeshNodes`, `MeshPool`, `MeshKitConfig`) | The mesh kit: code-built low-poly solids, the mesh cache, the node and decal helpers every domain's 3D meshes are built from (`meshes.md`). |
 | `art_canvas_config.gd`, `art_surface_config.gd` | Tuning: `ArtCanvasConfig` is what every painting shares (`pixel_size`, `light_from`, `turn_steps`, drop and cast shadow); `ArtSurfaceConfig` is how a surface is shaded (the `tones(base)` ramp, finish densities). A domain's own proportions and colours stay in its own config (`ObjectArt*Config`, `CharacterArtConfig`); a painter knob reads `opts.get(key, <DomainConfig>.<painter>_<key>)`. |
 
@@ -78,10 +78,11 @@ the 3D view shares, a colour per instance (`base_color`, an instance uniform): t
 outline quad (`outline.gdshader`) under the view's camera: a dark line where the depth's second difference steps (a silhouette, `silhouette_px` wide) or the normal
 creases (`crease_px`), so a floor seen at an angle stays clean. `supersample` is the shimmer mitigation of a turning camera (Main's `View3D` renders larger and
 averages down). A face of a mesh-kit mesh carries its own colour in the vertex colour (`COLOR`, times the instance's `base_color`). Three **global shader uniforms** (`ToonMask`:
-`vision_mask`, `vision_mask_xf`, `vision_unseen`; default "everything visible") are phase 3's vision-mask hook, read by `toon.gdshader` and the kit's `decal.gdshader`, so the
+`vision_mask`, `vision_mask_xf`, `vision_unseen`; default "everything visible") are phase 3's vision-mask hook, read by `toon.gdshader`, `toon_tex.gdshader` and the kit's `decal.gdshader` (one `toon_common.gdshaderinc`: never restate `light()`), so the
 vision job needs no per-mesh edit (`meshes.md`). Tests: `tests/art/mirror_proxies_use_toon_material_test.gd`, `tests/general/pixel_post_view_test.gd`; the look itself is only judged windowed
-(`general/render_3d_match_windowed`, `art/pixel_post_shimmer`, `art/toon_vision_hook_windowed`).
-The outline's colour is the surface's own darkened, not one near black: a silhouette takes the nearer side's colour (`outline_darken` 0.15 on the world, `figure_darken` 0.35 on a figure so an outfit reads at zoom 1), a crease its own pixel's; a mesh marked `MeshNodes.figure` (a character's parts: `figure`, an instance uniform the toon material writes as roughness into the normal buffer's alpha) gets the silhouette only, no creases (`figure_creases` brings them back), as a body's faceted limbs, a pixel or two wide, would crease at every facet. Test: `art/pixel_post_outline_windowed` (windowed, `OUTLINE_SHOTS=<dir>` saves the shots).
+(`general/render_3d_match_windowed`, `art/pixel_post_shimmer`, `art/toon_vision_hook_windowed`, `art/toon_tex_windowed`).
+
+**The textured toon** (`MeshNodes.textured`, `toon_tex.gdshader`): the 2D art on a mesh; the rules are `textured-toon.md`.
 
 ## The wall fade (#193 rule 9, interface 27)
 

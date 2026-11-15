@@ -21,6 +21,58 @@ static func instance(mesh: Mesh, tint := Color.WHITE, casts_shadow := true) -> M
 	return node
 
 
+## A mesh (or a node already showing one) wearing the 2D painters' art: `texture` projected straight
+## down onto the model, `rect` (px, in the mesh's own frame: the footprint the art covers, e.g. a
+## piece's `Rect2(-size / 2, size)`) the part of the model plane the whole texture spans (the
+## texel is the picture's pixel when the texture is `rect.size / ArtCanvasConfig.pixel_size`
+## wide). The ONE entry every domain calls for a textured mesh.
+##   * `thing` is a `Mesh` (a new node, shared toon rules as `instance`) or a `MeshInstance3D` /
+##     `MultiMeshInstance3D` (its material and `uv_rect` are set; its tint and shadow setting stay
+##     unless `opts` names them).
+##   * `opts`: `tint` (the instance's `base_color`, white by default on a new node), `casts_shadow`
+##     (true by default on a new node), `tiled` (the art repeats across the model: a floor tile,
+##     a road strip; `rect` is then one tile).
+## A top face (normal up) shows the art, a side face the art's edge texels stretched and darkened
+## (`toon_tex.gdshader` documents the rule); a clear texel shows the mesh's vertex colour. A null
+## texture leaves the shared toon material (a plain mesh). Instance uniforms cannot be samplers, so
+## a material is one per texture and tiling (`ToonMaterial.textured`, weakly cached): many nodes of
+## one texture share it, a node holds it.
+static func textured(
+	thing: Object,
+	texture: Texture2D,
+	rect: Rect2,
+	opts := {},
+) -> GeometryInstance3D:
+	var node: GeometryInstance3D
+	if thing is Mesh:
+		node = instance(thing, opts.get("tint", Color.WHITE), opts.get("casts_shadow", true))
+	else:
+		node = thing as GeometryInstance3D
+		if opts.has("tint"):
+			base_color(node, opts["tint"])
+		if opts.has("casts_shadow"):
+			node.cast_shadow = (
+				GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				if opts["casts_shadow"]
+				else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			)
+	if texture == null:
+		node.material_override = ToonMaterial.shared()
+		return node
+	node.material_override = ToonMaterial.textured(texture, opts.get("tiled", false))
+	var unit := RenderConfig.unit
+	node.set_instance_shader_parameter(
+		&"uv_rect",
+		Vector4(
+			rect.position.x * unit,
+			rect.position.y * unit,
+			rect.size.x * unit,
+			rect.size.y * unit,
+		),
+	)
+	return node
+
+
 ## `node` placed at `at` (2D `x`, height, 2D `y`, all px) and turned `yaw` radians about the up axis
 ## (a 2D turn clockwise on the y-down screen is `-angle`: pass the 2D angle negated as the mirror
 ## does), in the frame of its parent.
