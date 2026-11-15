@@ -30,7 +30,8 @@ const LimbPainter = preload("res://scenes/character/body/art/limb_painter.gd")
 ## clear texel past it.
 const DOME_INSET := 0.5
 
-## The shin's two strips are one texture: the shin's composite, by the two textures it is made of.
+## The shin's two strips are one texture: `[knee, shin, composite]` by the knee's and the shin's
+## instance ids (the pair is held, so a freed texture's id is never reused for another).
 static var _shins := {}
 
 
@@ -67,7 +68,8 @@ static func apply(
 			r,
 		)
 		_shin(parts[BodyMesh.SHIN + i], dress, i, r)
-		_boot(parts[BodyMesh.BOOT + i], dress, i, r)
+		if dress.boots:
+			_boot(parts[BodyMesh.BOOT + i], dress, i, r)
 		_foot(parts[BodyMesh.FOOT + i], dress, i, r)
 
 
@@ -79,15 +81,8 @@ static func _trunk(parts: Array[MeshInstance3D], dress: BodyDress, r: float) -> 
 	var half := BodyMesh.trunk_half(r)
 	_put(parts[BodyMesh.TORSO], tex, _centred(size, half))
 	_put(parts[BodyMesh.VEST], tex, _centred(size, half * CharacterMeshConfig.vest_grow))
-	# The pack's rectangle in the art (`BodyPainter._pack`), over the box's top.
-	var w := int(size.x)
-	var depth := roundi(size.y * CharacterArtConfig.shoulder_depth)
-	var pack := Rect2(
-		-int(w / 4.0),
-		-int(depth / 2.0) - 2,
-		int(w / 2.0),
-		roundi(size.y * 0.3),
-	)
+	# The pack's rectangle in the art, centred on the shoulders' own centre, over the box's top.
+	var pack := Rect2(BodyPainter.pack_rect(int(size.x), int(size.y)))
 	_put(
 		parts[BodyMesh.PACK],
 		tex,
@@ -112,7 +107,7 @@ static func _head(parts: Array[MeshInstance3D], dress: BodyDress, r: float) -> v
 static func _hands(parts: Array[MeshInstance3D], dress: BodyDress, hand_radius: float) -> void:
 	var diameter := hand_radius * 2.0 + 2.0
 	var size := Vector2(diameter, diameter)
-	var disc := maxi(2, int(diameter / 2.0) - 1)  # `HandPainter`'s fist
+	var disc := HandPainter.fist_radius(int(diameter), int(diameter))
 	for i in 2:
 		var part: Dictionary = dress.hand_parts[i]
 		var tex := PixelArt.render_flat(HandPainter, size, part["color"], part["opts"])
@@ -208,7 +203,7 @@ static func _stacked(upper: Dictionary, lower: Dictionary) -> Texture2D:
 	var b: Texture2D = lower["tex"]
 	var key := "%d|%d" % [a.get_instance_id(), b.get_instance_id()]
 	if _shins.has(key):
-		return _shins[key]
+		return _shins[key][2]
 	var width := maxi(a.get_width(), b.get_width())
 	var rows: Array[Rect2i] = [_core(upper, a), _core(lower, b)]
 	var image := Image.create(width, rows[0].size.y + rows[1].size.y, false, Image.FORMAT_RGBA8)
@@ -218,7 +213,7 @@ static func _stacked(upper: Dictionary, lower: Dictionary) -> Texture2D:
 		image.blit_rect(source, rows[k], Vector2i(int((width - source.get_width()) / 2.0), at))
 		at += rows[k].size.y
 	var tex := ImageTexture.create_from_image(image)
-	_shins[key] = tex
+	_shins[key] = [a, b, tex]  # holding both keeps their ids from being reused
 	return tex
 
 

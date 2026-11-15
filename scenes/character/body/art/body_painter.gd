@@ -71,6 +71,13 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	c.cast_shadows()
 
 
+## The pack's rectangle on a `w` by `h` canvas, from the shoulders' centre: behind the back edge of
+## the shoulders (`paint`'s span), half the canvas wide.
+static func pack_rect(w: int, h: int) -> Rect2i:
+	var depth := roundi(h * CharacterArtConfig.shoulder_depth)
+	return Rect2i(-int(w / 4.0), -int(depth / 2.0) - 2, int(w / 2.0), roundi(h * 0.3))
+
+
 ## The ends of the shoulders where the arms leave them, per side (side 0 is −x): a sleeve in a
 ## colour of its own, bare skin (inked, inlaid) or chrome. A sleeve in the shirt's colour is the
 ## shoulders' own and is left as it is.
@@ -277,7 +284,7 @@ static func _street(
 static func _pack(c: PixelCanvas, o: Vector2i, span: Rect2i, look: Dictionary) -> void:
 	var col: Color = look.get("pack_col", Color(0.2, 0.2, 0.2))
 	var pt := ArtSurfaceConfig.tones(col)
-	var r := Rect2i(o.x - int(c.w / 4.0), span.position.y - 1, int(c.w / 2.0), roundi(c.h * 0.3))
+	var r := Rect2i(o + pack_rect(c.w, c.h).position, pack_rect(c.w, c.h).size)
 	var pack := PixelShape.rounded(r, 2)
 	c.fill(pack, col, _PACK)
 	c.surface(pack, "fabric", col)

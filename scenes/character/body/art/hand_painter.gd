@@ -13,13 +13,18 @@ const _FIST := 3
 const _THUMB := 5
 
 
+## The fist's radius (art px) on a `w` by `h` canvas.
+static func fist_radius(w: int, h: int) -> int:
+	return maxi(2, int(mini(w, h) / 2.0) - 1)
+
+
 ## Paint a fist onto `c` in `base`.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var look := PixelArt.look_of(opts)
 	var chrome: bool = opts.get("chrome", false)
 	var t := ArtSurfaceConfig.tones(base)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
-	var r := maxi(2, int(mini(c.w, c.h) / 2.0) - 1)
+	var r := fist_radius(c.w, c.h)
 	var fist := PixelShape.disc(o, r)
 	c.fill(fist, base, _FIST)
 	if chrome:
