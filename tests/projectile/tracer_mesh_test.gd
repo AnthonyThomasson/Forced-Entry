@@ -1,10 +1,11 @@
 extends GameTest
 ## A bullet in flight is a tracer in the 3D world (#193 phase 2, Projectile): a short bright streak
-## along the shot line at the bullet's height, as long as the tunable length, shorter over the
-## last stretch of the bullet's range, and gone the frame the bullet is. Asserted at the seams: the
-## layer `ProjectileMeshes.install` adds (`tracer_count`, `tracer_frame`: the tracer batch's parts)
-## and the 2D bullets it follows. The tunings the numbers come from are pinned here, not read from
-## the defaults. The look is judged in a window, `items_projectile_mesh_windowed_test.gd`.
+## along the shot line at the bullet's height (leaving the muzzle's, easing to it over the first
+## stretch), as long as the tunable length, shorter over the last stretch of the bullet's range, and
+## gone the frame the bullet is. Asserted at the seams: the layer `ProjectileMeshes.install` adds
+## (`tracer_count`, `tracer_frame`: the tracer batch's parts) and the 2D bullets it follows. The
+## tunings the numbers come from are pinned here, not read from the defaults. The look is judged in
+## a window, `items_projectile_mesh_windowed_test.gd`.
 
 const SCRATCH := "user://settings_tracer_mesh_test.json"
 ## The pinned tunings: the streak's length (px), the stretch of range it shortens over (px), the
@@ -13,6 +14,9 @@ const LENGTH := 16.0
 const FADE := 120.0
 const CAPACITY := 8
 const HEIGHT_SCALE := 0.96
+## A tracer leaves the muzzle at `MUZZLE` px and eases to the bullet's height over `EASE` px.
+const MUZZLE := 34.0
+const EASE := 40.0
 ## The bullet's height (the cover scale, 0..100) every bullet flies at.
 const BULLET_HEIGHT := 50.0
 const SLACK := 1.5
@@ -46,6 +50,8 @@ func configure(s: TestSetup) -> void:
 	s.set_static(ProjectileMeshConfig, &"tracer_fade", FADE)
 	s.set_static(ProjectileMeshConfig, &"tracer_capacity", CAPACITY)
 	s.set_static(ProjectileMeshConfig, &"height_scale", HEIGHT_SCALE)
+	s.set_static(ProjectileMeshConfig, &"muzzle_height", MUZZLE)
+	s.set_static(ProjectileMeshConfig, &"height_ease", EASE)
 	s.von_script([])
 
 
@@ -60,37 +66,44 @@ func run(t: TestContext) -> void:
 	await _check_bounded(t, layer)
 
 
-## One bullet: one streak at its height along its heading, its tip on the bullet, shorter over the
-## last `FADE` px of its range.
+## One bullet: one streak along its heading, its tip on the bullet, at the muzzle's height as it
+## joins and easing to the bullet's, shorter over the last `FADE` px of its range.
 func _check_a_flight(t: TestContext, layer: ShotLayer) -> void:
 	var bullet := _shoot(t, Vector2(100, 300), Vector2.RIGHT, RANGE)
+	t.expect_eq(layer.tracer_count(), 1, "a bullet in flight is one tracer, placed as it joins")
+	t.expect_near(layer.tracer_frame(0).origin.y, MUZZLE, 0.01, "it leaves the muzzle's height")
 	await t.frames(2)
-	t.expect_eq(layer.tracer_count(), 1, "a bullet in flight is one tracer")
 	t.check(layer.is_processing(), "and the layer runs while it flies")
-	var worst := 0.0
-	var long := 0.0
-	var short_end := INF
-	var checked := 0
+	var seen := { "off": 0.0, "whole": 0.0, "short": INF, "frames": 0, "height": 0.0 }
 	while is_instance_valid(bullet):
-		var frame := layer.tracer_frame(0)
-		var half := LENGTH * frame.basis.get_scale().z * 0.5
-		var tip := frame.origin + frame.basis.z.normalized() * half
-		var at: Vector2 = bullet.global_position
-		worst = maxf(worst, Vector2(tip.x - at.x, tip.z - at.y).length())
-		t.expect_near(frame.origin.y, BULLET_HEIGHT * HEIGHT_SCALE, 0.01, "at the bullet's height")
-		t.check(frame.basis.z.normalized().is_equal_approx(Vector3.RIGHT), "along its heading")
-		var left: float = bullet.range_left()
-		if left > FADE + 60.0:
-			long = maxf(long, frame.basis.get_scale().z)
-		elif left < FADE - 20.0 and left > 5.0:
-			short_end = minf(short_end, frame.basis.get_scale().z)
-		checked += 1
+		_sample(t, layer, bullet, seen)
 		await t.frames(1)
-	t.check(checked > 10, "the flight lasted many frames (%d)" % checked)
-	t.check(worst < SLACK, "its tip stays on the bullet (off by up to %.1f px)" % worst)
-	t.expect_near(long, 1.0, 0.01, "it is whole while the bullet is far from the end of its range")
-	t.check(short_end < 0.9, "and shorter over the last stretch (%.2f of its length)" % short_end)
+	t.check(seen["frames"] > 10, "the flight lasted many frames (%d)" % seen["frames"])
+	t.check(seen["off"] < SLACK, "its tip stays on the bullet (off by up to %.1f)" % seen["off"])
+	t.check(seen["height"] < 0.01, "its height eases (off by up to %.2f px)" % seen["height"])
+	t.expect_near(seen["whole"], 1.0, 0.01, "it is whole far from the end of its range")
+	t.check(seen["short"] < 0.9, "and shorter over the last stretch (%.2f)" % seen["short"])
 	await t.frames(2)
+
+
+## Read the tracer of `bullet` into `seen`: how far its tip is off the bullet, how far its height is
+## from the eased one, the longest it is far from the end of the range and the shortest near it.
+func _sample(t: TestContext, layer: ShotLayer, bullet: Node, seen: Dictionary) -> void:
+	var frame := layer.tracer_frame(0)
+	var scale_z := frame.basis.get_scale().z
+	var tip := frame.origin + frame.basis.z.normalized() * LENGTH * scale_z * 0.5
+	var at: Vector2 = bullet.global_position
+	seen["off"] = maxf(seen["off"], Vector2(tip.x - at.x, tip.z - at.y).length())
+	var flown := RANGE - float(bullet.range_left())
+	var wanted := lerpf(MUZZLE, BULLET_HEIGHT * HEIGHT_SCALE, clampf(flown / EASE, 0.0, 1.0))
+	seen["height"] = maxf(seen["height"], absf(frame.origin.y - wanted))
+	t.check(frame.basis.z.normalized().is_equal_approx(Vector3.RIGHT), "along its heading")
+	var left: float = bullet.range_left()
+	if left > FADE + 60.0:
+		seen["whole"] = maxf(seen["whole"], scale_z)
+	elif left < FADE - 20.0 and left > 5.0:
+		seen["short"] = minf(seen["short"], scale_z)
+	seen["frames"] += 1
 
 
 ## It is gone with the bullet: spent at its range, or struck against a wall.

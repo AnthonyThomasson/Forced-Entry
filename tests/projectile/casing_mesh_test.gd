@@ -11,7 +11,8 @@ const SCRATCH := "user://settings_casing_mesh_test.json"
 ## A casing's 2D art (`CasingVisuals`): 4.5 px long and 2 px across.
 const LENGTH := 4.5
 const ACROSS := 2.0
-## The pinned tunings: the batch's size, and how high a tossed casing flies (px).
+## The batch's size (the `Despawner`'s cap when the layer is made), and how high a tossed casing
+## flies (px, pinned).
 const CAPACITY := 20
 const ARC := 6.0
 ## How far (px) the batch may lag its node in the toss: the tween moves the node after the layer
@@ -41,21 +42,36 @@ func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
-	s.set_static(ProjectileMeshConfig, &"casing_capacity", CAPACITY)
 	s.set_static(ProjectileMeshConfig, &"casing_arc", ARC)
 	s.von_script([])
 
 
 func run(t: TestContext) -> void:
+	_check_sized_by_the_despawner(t)
+	var kept := Despawner.max_scene_objects
+	Despawner.max_scene_objects = CAPACITY
 	var mirror := _mirror(t)
 	var layer := ProjectileMeshes.install(mirror, t.world)
 	mirror.mirror(t.world)
 	t.check(layer.casing_count() == 0, "no casing, none shown")
 	await _check_one_casing(t, layer)
-	var kept := Despawner.max_scene_objects
-	Despawner.max_scene_objects = KEPT
+	Despawner.max_scene_objects = KEPT  # raised after the layer was made: the batch is now short
 	await _check_sustained_fire(t, layer)
 	Despawner.max_scene_objects = kept
+
+
+## The casing batch holds at least what the Despawner keeps in the 2D world, at its cap as it is
+## and as it is set.
+func _check_sized_by_the_despawner(t: TestContext) -> void:
+	var cap := Despawner.max_scene_objects
+	var layer := ShotLayer.new()
+	t.check(layer.casing_capacity() >= cap, "the casing batch holds the cap (%d)" % cap)
+	layer.free()
+	Despawner.max_scene_objects = 77
+	layer = ShotLayer.new()
+	t.check(layer.casing_capacity() >= 77, "and a cap that is set (77)")
+	layer.free()
+	Despawner.max_scene_objects = cap
 
 
 ## One casing: a tiny box; it arcs off the floor on its node's path, then lies at its node's place
@@ -87,8 +103,9 @@ func _check_one_casing(t: TestContext, layer: ShotLayer) -> void:
 	t.expect_eq(layer.casing_count(), 0, "a casing the world loses leaves the batch")
 
 
-## Sustained fire: far more casings than the world keeps or the batch holds. The world keeps `KEPT`,
-## the batch shows what it holds of them, nothing is made past that, and it all rests.
+## Sustained fire: far more casings than the world keeps, which is more than the batch holds (the
+## cap was raised after it was made). The world keeps `KEPT`, the batch shows what it holds of them,
+## nothing is made past that, and it all rests.
 func _check_sustained_fire(t: TestContext, layer: ShotLayer) -> void:
 	var made := 0
 	for _i in 150:

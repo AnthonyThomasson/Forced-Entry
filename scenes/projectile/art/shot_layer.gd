@@ -7,7 +7,10 @@ extends Node3D
 ## `Projectile`), gives it a place, writes the place each frame it flies and gives it back when the
 ## bullet leaves. A spent casing is a part of a second batch the same way: written each frame of
 ## its toss and once more where it comes to rest, then never again. Nothing is made while the game
-## runs, and the layer does not process while no bullet flies and no casing is tossed.
+## runs, and the layer does not process while no bullet flies and no casing is tossed. The tracers'
+## pool is `ProjectileMeshConfig.tracer_capacity`, the casings' is what the `Despawner` keeps of
+## them (read when the layer is made): one that finds its pool full is not shown, and the layer
+## says so once.
 
 const Projectile := preload("res://scenes/projectile/projectile.gd")
 const Casing := preload("res://scenes/projectile/casing.gd")
@@ -20,6 +23,8 @@ var _casings: MeshPool
 ## The casings still being tossed and how long (s) each has been.
 var _flying: Array[Node] = []
 var _ages := PackedFloat32Array()
+## Whether the layer has said a pool was full (the tracers', then the casings').
+var _said_full := [false, false]
 
 
 func _init() -> void:
@@ -29,7 +34,7 @@ func _init() -> void:
 	MeshNodes.glow(batch, ProjectileMeshConfig.tracer_color, ProjectileMeshConfig.tracer_glow)
 	_tracers = MeshPool.new(batch)
 	add_child(batch)
-	var shells := MeshNodes.batch(_shell(), ProjectileMeshConfig.casing_capacity)
+	var shells := MeshNodes.batch(_shell(), maxi(Despawner.max_scene_objects, 1))
 	_casings = MeshPool.new(shells)
 	add_child(shells)
 
@@ -99,10 +104,15 @@ func _on_joined(node: Node) -> void:
 	var script: Variant = node.get_script()
 	if script == Projectile:
 		var slot := _tracers.add(node)
-		if slot >= 0:
-			_place_tracer(slot)
-			set_process(true)
-	elif script == Casing and _casings.add(node) >= 0:
+		if slot < 0:
+			_say_full(0, "tracers", _tracers.capacity())
+			return
+		_place_tracer(slot)  # a bullet is not ready yet: only its place and heading count
+		set_process(true)
+	elif script == Casing:
+		if _casings.add(node) < 0:
+			_say_full(1, "casings", _casings.capacity())
+			return
 		_flying.append(node)
 		_ages.append(0.0)
 		_place_casing(node, 0.0)
@@ -120,6 +130,13 @@ func _on_leaving(node: Node) -> void:
 		if at >= 0:
 			_stop_flying(at)
 	_rest_if_idle()
+
+
+## Say once that pool `which` (0 tracers, 1 casings) of `size` places is full.
+func _say_full(which: int, what: String, size: int) -> void:
+	if not _said_full[which]:
+		_said_full[which] = true
+		GameLog.say("ShotLayer: all %d %s places are taken, the rest are not shown" % [size, what])
 
 
 ## The layer runs only while a bullet flies or a casing is tossed.
@@ -162,9 +179,7 @@ func _place_tracer(slot: int) -> void:
 	var whole := clampf(bullet.range_left() / fade, 0.02, 1.0) if fade > 0.0 else 1.0
 	var length := ProjectileMeshConfig.tracer_length * whole
 	var middle := bullet.global_position - heading * length * 0.5
-	var height := maxf(
-		bullet.height * ProjectileMeshConfig.height_scale, ProjectileMeshConfig.tracer_floor
-	)
+	var height := _tracer_height(bullet)
 	var turned := Basis(Vector3.UP, PI * 0.5 - heading.angle())
 	var frame := Transform3D(
 		turned * Basis.from_scale(Vector3(1.0, 1.0, whole)),
@@ -185,6 +200,19 @@ func _shell() -> Mesh:
 			var shell := AABB(Vector3(-half.x, 0.0, -half.y), Vector3(size.x, height, size.y))
 			return MeshKit.new().box(shell, color).build()
 	)
+
+
+## How high (px) `bullet`'s tracer flies: it leaves the muzzle at `muzzle_height` and eases to the
+## bullet's own height over its first `height_ease` px (the shot's ballistics are untouched: the
+## height is only drawn so). A bullet that has not been ready yet has flown nothing, so its height
+## is not read.
+func _tracer_height(bullet: Node2D) -> float:
+	var flown: float = bullet.max_distance - bullet.range_left()
+	var ease_px := ProjectileMeshConfig.height_ease
+	var along := clampf(flown / ease_px, 0.0, 1.0) if ease_px > 0.0 else 1.0
+	var target: float = bullet.height * ProjectileMeshConfig.height_scale if along > 0.0 else 0.0
+	var height := lerpf(ProjectileMeshConfig.muzzle_height, target, along)
+	return maxf(height, ProjectileMeshConfig.tracer_floor)
 
 
 ## The streak every tracer shares: a thin bar along z, its middle on the origin.

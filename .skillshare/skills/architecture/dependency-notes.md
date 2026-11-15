@@ -8,3 +8,4 @@ Side file of `architecture` (`SKILL.md`).
 - **Events:** `EventBus` carries hits, shots, callouts, orders, explosions, grenades, footfalls, stuns, deaths and vehicle events between domains that do not reference each other. Topics and payloads: interface 10.
 - **Inside the AI** (the stack seam, doorway views, what team reads of perception, the decision job's seam: it steps perception's staged build, `begin_sense`, and the planner, and holds no owner): `domain-ai` (`team.md`, `perception.md`, `decision.md`).
 - A new edge, façade, contract method or signal goes into this graph or the interfaces (`audit` checks it).
+- **Shots and loose items in 3D (#193):** Projectile's `ShotLayer` reads `Projectile` and `Casing` nodes duck-typed and draws them with Art's `MeshPool`, sized by General's `Despawner` and `RenderConfig`; Items' `ItemMeshes` mirrors `DroppedItem` / `ThrownGrenade`; Main's 3D view installs both (12, 27).
