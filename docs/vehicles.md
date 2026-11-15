@@ -19,7 +19,7 @@ test's category is the folder between its domain and its file"), which fails the
 1.42 / 1.70 s.
 
 All distances are px, speeds px/s and times seconds. The numbers are the Vehicles holders' (`scenes/vehicle/vehicle_*_config.gd`: `VehicleConfig`'s per-kind rows and the
-shared `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`). A
+shared `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`, `VehicleMeshConfig`). A
 vehicle's own frame has x forward (its nose) and y toward its right side.
 
 ## Behaviours

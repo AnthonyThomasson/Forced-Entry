@@ -25,6 +25,6 @@ In the 3D render (`domain-art/meshes.md`) a vehicle is shown by a mesh of Art's 
 - **Doors**: a leaf each, in the frame of its hinge, so the rig turns it by `-door.angle()` or rolls a sliding one by `door.offset()`; the front doors carry a wing mirror.
 - **Wheels**: a tyre and hub on their sides at the axles (a spoke on the hub shows the turn); the front pivots steer by `wheel_angle()`, every wheel turns by the way rolled (`VehicleMeshConfig.wheel_spin`).
 - **Tail lamps**: one mesh, lit by `MeshNodes.glow` while `brake_lights()`.
-- **Dents**: a dark patch per `hit_marks()` impact (whole-pixel sizes, so the mesh cache stays bounded), rebuilt only when a dent is added or dropped. The hull is not re-meshed: a dent is at most 3 px deep, below what a hull of this resolution shows.
+- **Dents**: a dark patch per `hit_marks()` impact (whole-pixel sizes, so the mesh cache stays bounded), rebuilt only when a dent is added or dropped (count and newest seed, as the 2D keys them); a patch inside a door's span hangs on that door's leaf and swings or rolls with it. The hull is not re-meshed: a dent is at most 3 px deep, below what a hull of this resolution shows.
 
 Tests: `vehicle/vehicle_mesh` (the shapes, heights, paint, wheels, doors, lamps, dents, scale), windowed `vehicle/vehicle_mesh_windowed` (`VEHICLE_SHOT_DIR=<dir>` saves the pictures).

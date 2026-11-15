@@ -81,6 +81,11 @@ func run(t: TestContext) -> void:
 	view.rig.yaw -= 220.0
 	await t.frames(10)
 	await _shot(t, window, "4_turned_other_way")
+	# the dents hidden: whatever dark marks remain on the road are not patches
+	for body in vehicles:
+		for patch in view.mirror.proxies_of(body)[0].patches:
+			patch.visible = false
+	await _shot(t, window, "5_patches_hidden")
 	await MainProbe.close(t, window)
 
 

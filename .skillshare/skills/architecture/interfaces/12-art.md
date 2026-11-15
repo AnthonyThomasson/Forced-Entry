@@ -36,7 +36,7 @@
       vertex colour; `MeshKit.tone(base, name)` picks a tone of `ArtSurfaceConfig.tones`. `MeshCache.key(id, size, color, opts)` + `MeshCache.fetch(key, make) -> Mesh`: the same inputs, the
       same `Mesh` (the key holds `RenderConfig.unit` and the kit's tunables; bounded by `MeshKitConfig.cache_limit`). `MeshNodes.instance(mesh, tint, casts_shadow) -> MeshInstance3D` (the shared toon material, `ToonMaterial.shared()`), `place(node, at_px, yaw)`,
       `surface_frame(at, normal, spin) -> Transform3D` and `decal(size, frame, texture, tint) -> MeshInstance3D` (a flat quad on a surface, `decal.gdshader`, the texture's alpha cuts it), `batch(mesh, count)` / `batch_place` / `batch_show` (many small parts in one draw), `fade(node, amount)`, `glow(node, color, strength)`.
-      The mirror's hook that takes the meshes is interface 27. Reached by the domains that own a mesh (Objects now; Character, Items and Vehicles as their jobs land, Projectile and Physics for their effects), through the builders they register; Art imports nothing from them.
+      The mirror's hook that takes the meshes is interface 27. Reached by the domains that own a mesh (Objects and Vehicles now; Character, Items, Projectile and Physics for their effects), through the builders they register; Art imports nothing from them.
     - Tuning: `ArtCanvasConfig` (static holder: the art pixel's size, where the light falls from, the turn steps, the drop and cast
 	  shadows), `ArtSurfaceConfig` (tone ramp, tone jitter, surface finishes).
 

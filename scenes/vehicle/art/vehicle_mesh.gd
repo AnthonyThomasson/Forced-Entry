@@ -16,10 +16,14 @@ const Rig = preload("res://scenes/vehicle/art/vehicle_mesh_rig.gd")
 
 ## The node vehicle `body` (a `vehicle.gd`) is shown by, in 3D units with its origin at the body's
 ## (x forward, y to its right, as every door, axle and lamp of the row is), or null for a kind with
-## no row.
+## no row in `VehicleConfig` or `VehicleMeshConfig.heights`.
 static func build(body: Node2D) -> Node3D:
 	var car := body as Vehicle
-	if car == null or not VehicleConfig.kinds.has(car.kind):
+	if (
+		car == null
+		or not VehicleConfig.kinds.has(car.kind)
+		or not VehicleMeshConfig.heights.has(car.kind)
+	):
 		return null
 	var row: Dictionary = car.row()
 	var look: Dictionary = VehicleConfig.looks[car.kind]
@@ -40,7 +44,7 @@ static func build(body: Node2D) -> Node3D:
 		var hinge: Vector2 = def["hinge"]
 		MeshNodes.place(leaf, Vector3(hinge.x, 0.0, hinge.y))
 		rig.add_child(leaf)
-		rig.doors[def["id"]] = { "node": leaf, "angle": 0.0, "offset": Vector2.ZERO }
+		rig.add_door(def["id"], leaf, hinge, _span(def, look["door_depth"], true))
 	_add_wheels(rig, row, tuning)
 	var tail_key := MeshCache.key("vehicle_tail", row["size"], Color.WHITE, tuning)
 	rig.tail = MeshNodes.instance(MeshCache.fetch(

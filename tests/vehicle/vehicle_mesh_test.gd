@@ -79,6 +79,7 @@ func run(t: TestContext) -> void:
 	await _check_sliding_door(t, van_rig, van)
 	await _check_lamps(t, rig, car)
 	await _check_dents(t, rig, car)
+	await _check_door_dent(t, rig, car)
 	await _check_scale(t, car)
 	await _check_main(t)
 
@@ -285,15 +286,37 @@ func _check_dents(t: TestContext, rig: VehicleMeshRig, car: Node2D) -> void:
 	t.expect_eq(MeshCache.count(), cached, "more dents add nothing to the mesh cache")
 
 
-## A round hits the car's right side.
-func _strike(t: TestContext, car: Node2D) -> void:
+## A round hits the car's right side (by default on the fender, clear of every door).
+func _strike(t: TestContext, car: Node2D, at := Vector2(60.0, 55.0)) -> void:
 	var hit := HitInfo.new()
-	hit.position = car.to_global(Vector2(0.0, 55.0))
+	hit.position = car.to_global(at)
 	hit.normal = Vector2.DOWN
 	hit.direction = Vector2.UP
 	hit.damage = 20.0
 	car.take_hit(hit)
 	await t.frames(4)
+
+
+## A dent in a door follows the leaf: opened, the patch has swung about the hinge with it.
+func _check_door_dent(t: TestContext, rig: VehicleMeshRig, car: Node2D) -> void:
+	var door: Variant = car.cabin.door(&"front_left")
+	var leaf: Node3D = rig.doors[&"front_left"]["node"]
+	await _strike(t, car, Vector2(0.0, -55.0))
+	var patch: Node3D = null
+	for child in leaf.get_children():
+		patch = child as Node3D
+	if not t.require(patch != null, "a dent in a door's span hangs on its leaf"):
+		return
+	var hinge := leaf.global_position
+	var shut := patch.global_position
+	door.open()
+	t.check(await t.until(func() -> bool: return door.is_open(), 3.0), "the door opens")
+	await t.frames(3)
+	var open := patch.global_position
+	t.check(open.distance_to(shut) > 10.0, "the patch swung away with the door (%s)" % open)
+	t.expect_near(open.distance_to(hinge), shut.distance_to(hinge), 0.5, "about the hinge")
+	door.close()
+	await t.until(func() -> bool: return door.amount() == 0.0, 3.0)
 
 
 ## At half scale every length of the mesh halves (the one conversion is the kit's).
