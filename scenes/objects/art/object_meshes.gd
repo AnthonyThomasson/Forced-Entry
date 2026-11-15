@@ -4,7 +4,8 @@ extends RefCounted
 ## have a mesh of their own and the one call that plugs them into the 3D mirror. Each id has a
 ## script beside the painters (`table_mesh.gd`) with `static func build(piece) -> Node3D`, built
 ## from Art's mesh kit, in 3D units and centred on the piece's origin; an art id with none stays a
-## proxy box. Main's 3D view registers them (`register`) before it mirrors the match.
+## proxy box. Main's 3D view registers them (`register`) and tracks the floor stencils (`track`)
+## before it mirrors the match.
 
 const TableMesh = preload("res://scenes/objects/art/table_mesh.gd")
 const SofaMesh = preload("res://scenes/objects/art/sofa_mesh.gd")
@@ -24,6 +25,20 @@ const CoatRackMesh = preload("res://scenes/objects/art/coat_rack_mesh.gd")
 const ReclinerMesh = preload("res://scenes/objects/art/recliner_mesh.gd")
 const FixtureMesh = preload("res://scenes/objects/art/fixture_mesh.gd")
 const HotplateMesh = preload("res://scenes/objects/art/hotplate_mesh.gd")
+const TechMesh = preload("res://scenes/objects/art/tech_mesh.gd")
+const ClinicMesh = preload("res://scenes/objects/art/clinic_mesh.gd")
+const SecurityMesh = preload("res://scenes/objects/art/security_mesh.gd")
+const ShopMesh = preload("res://scenes/objects/art/shop_mesh.gd")
+const NoodleMesh = preload("res://scenes/objects/art/noodle_mesh.gd")
+const StockMesh = preload("res://scenes/objects/art/stock_mesh.gd")
+const AwningMesh = preload("res://scenes/objects/art/awning_mesh.gd")
+const StreetPropMesh = preload("res://scenes/objects/art/street_prop_mesh.gd")
+const PodiumMesh = preload("res://scenes/objects/art/podium_mesh.gd")
+const ShellDecorMesh = preload("res://scenes/objects/art/shell_decor_mesh.gd")
+const DecorMesh = preload("res://scenes/objects/art/decor_mesh.gd")
+const StreetlightMesh = preload("res://scenes/objects/art/streetlight_mesh.gd")
+const CarMesh = preload("res://scenes/objects/art/car_mesh.gd")
+const StencilMesh = preload("res://scenes/objects/art/stencil_mesh.gd")
 ## The builder script per `ObjectArt` id.
 const BUILDERS := {
 	"table": TableMesh,
@@ -44,6 +59,19 @@ const BUILDERS := {
 	"recliner": ReclinerMesh,
 	"fixture": FixtureMesh,
 	"hotplate": HotplateMesh,
+	"tech": TechMesh,
+	"clinic": ClinicMesh,
+	"security": SecurityMesh,
+	"shop": ShopMesh,
+	"noodle": NoodleMesh,
+	"stock": StockMesh,
+	"awning": AwningMesh,
+	"street_prop": StreetPropMesh,
+	"podium": PodiumMesh,
+	"shell_decor": ShellDecorMesh,
+	"decor": DecorMesh,
+	"streetlight": StreetlightMesh,
+	"car": CarMesh,
 }
 
 
@@ -57,3 +85,9 @@ static func register(builders: Dictionary) -> void:
 			builders[MirrorProxy.furniture_key(art)] = builder
 		else:
 			push_error("ObjectMeshes: the mesh script of '%s' has no static build(piece)" % art)
+
+
+## Show the floor stencils (`DecalFactory.STENCIL_GROUP`: draw-only sprites, no physics body) by
+## `StencilMesh`: the mirror follows every one of that group under the root it mirrors.
+static func track(mirror: WorldMirror) -> void:
+	mirror.track_group(DecalFactory.STENCIL_GROUP, Callable(StencilMesh, &"build"))

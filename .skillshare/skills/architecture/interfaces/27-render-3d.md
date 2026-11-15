@@ -11,8 +11,7 @@
       `wall_thickness`, `art_color`, `color`, `faction`, `size`):
       - `mirror(root: Node) -> void` gives every `PhysicsBody2D` under `root` a proxy per collision shape and every `floors` member a flat slab;
         2D `(x, y)` is 3D `(x * unit, 0, y * unit)` with `unit` = `RenderConfig.unit`, **the one scale** (heights scale with it). A body or floor
-        that spawns later is mirrored on the next frame, one that leaves the tree loses its proxies, a changed collision shape (a hit furniture
-        piece's rebuilt collider) re-mirrors its body (not a wall: its mesh follows the shapes itself), a body that dies is hidden unless its mesh stays. A proxy or own mesh is hidden while its shapes are all disabled (a seated character) or its body's `visible`
+        that spawns later is mirrored on the next frame, one that leaves the tree loses its proxies, a changed collision shape re-mirrors its body (not a wall: its mesh follows the shapes itself), a body that dies is hidden unless its mesh stays. A proxy or own mesh is hidden while its shapes are all disabled (a seated character) or its body's `visible`
         is false (not `is_visible_in_tree`).
       - The proxy: a box (walls full height, doors their leaf, furniture a height from its footprint, vehicles low), a cylinder for a round non-character, a capsule for a character; one shared
         mesh per shape kind and the shared toon material (`ToonMaterial`, below), a colour per instance from `art_color` / `color`, a faction's name hash, else the node's name's. Heights, colours: `MirrorConfig`.
@@ -47,4 +46,4 @@
     - **Tuning:** `RenderConfig` (General: the camera, the picture's lines, `canvas_layer`, `vision_layer`, `overlay_layer`, `turn_speed_degrees`, `unseen_dim`),
       `RenderLightConfig` (General, the interim sun and ambient), `MirrorConfig` and `PixelPostConfig` (Art).
     - **The vision hook** (phase 3's mask): global shader uniforms, `ToonMask.set_mask(texture, world_rect_px, unseen_brightness)` / `clear()`; default everything visible.
-    - **Not yet:** meshes are proxies but for Objects' furniture (`ObjectMeshes`) and structure (`StructureMeshes`), Vehicles (`VehicleMeshes`), Character (`CharacterMeshes`), loose items (`ItemMeshes`) and shots (`ProjectileMeshes`: 12); the rest, phase 2's.
+    - **Not yet:** meshes are proxies but for Objects' furniture and street (`ObjectMeshes`: `register`, `track` for stencils) and structure (`StructureMeshes`), Vehicles (`VehicleMeshes`), Character (`CharacterMeshes`), loose items (`ItemMeshes`) and shots (`ProjectileMeshes`: 12); the rest, phase 2's.

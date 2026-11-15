@@ -12,7 +12,9 @@ class_name ObjectFactory
 ##   overhang (optional `{ size, reach }`: an overhead part beyond the footprint, a streetlight's
 ##     arm and head, drawn by the piece's painter with `part: "overhang"`, `size` across x out,
 ##     centred `reach` px out along the facing, above the characters, with no collider: the child
-##     `Overhang`, overhang_visuals.gd); with `fade_under: true` it fades to a quarter of its
+##     `Overhang`, overhang_visuals.gd; also kept as the plain field `piece.look.overhang` and read
+## back as an area by `piece.look.overhang_rect()`, which the 3D meshes read); with `fade_under:
+## true` it fades to a quarter of its
 ##     opacity while a character stands under it and back when none does (ObjectFadeConfig)).
 ## `opts`:
 ##   name:    String  — node name (readable hit labels; defaults to the definition name).
@@ -72,13 +74,14 @@ static func spawn(
 	if neon != "":
 		obj.look.art_opts = obj.look.art_opts.merged({ "neon": neon })
 	obj.look.facing = opts.get("facing", Vector2.DOWN)
+	obj.look.overhang = definition.get("overhang", {})
 
 	var visuals := Node2D.new()
 	visuals.name = "EnvironmentObjectVisuals"
 	visuals.script = EnvironmentObjectVisuals
 	obj.add_child(visuals)
-	if not (definition.get("overhang", {}) as Dictionary).is_empty():
-		OverhangVisuals.new().setup(obj, definition["overhang"])
+	if not obj.look.overhang.is_empty():
+		OverhangVisuals.new().setup(obj)
 
 	parent.add_child(obj, true)  # Readable unique names (Chair, Chair2, ...).
 	return obj

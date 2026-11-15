@@ -71,16 +71,15 @@ func _exit_tree() -> void:
 
 
 ## Make this the `Overhang` child of `piece` (an EnvironmentObject not yet in the tree, its look
-## fields set) for the definition's `overhang` (`{ size: Vector2, reach: float }`), and return it.
-func setup(piece: Node2D, overhang: Dictionary) -> Node2D:
+## fields set, `look.overhang` the definition's `{ size: Vector2, reach: float }`), and return it.
+func setup(piece: Node2D) -> Node2D:
 	name = "Overhang"
 	z_as_relative = false
 	z_index = ObjectArtLayerConfig.overhang_z_index
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var facing: Vector2 = piece.look.facing
-	var canonical: Vector2 = overhang.get("size", Vector2.ZERO)
-	var size := Vector2(canonical.y, canonical.x) if absf(facing.x) > absf(facing.y) else canonical
-	_rect = Rect2(facing * float(overhang.get("reach", 0.0)) - size * 0.5, size)
+	_rect = piece.look.overhang_rect()
+	var size := _rect.size
 	if piece.look.art != "" and size.x > 0.0 and size.y > 0.0:
 		var opts: Dictionary = piece.look.art_opts.merged(
 			{ "part": "overhang", "material": piece.object_material },
@@ -90,7 +89,7 @@ func setup(piece: Node2D, overhang: Dictionary) -> Node2D:
 		_emissive = ObjectArt.emissive(piece.look.art, size, piece.color, facing, opts)
 		if _emissive:
 			_emissive_layer = EmissiveLayer.new().setup(self)
-	_fades = overhang.get("fade_under", false)
+	_fades = piece.look.overhang.get("fade_under", false)
 	piece.add_child(self)
 	return self
 

@@ -130,10 +130,20 @@ func _look(unit: FadeUnit, from: Vector2, back: Vector2, reach: float, rise: flo
 	var along := box.entry(from, back, pad)
 	if along < 0.0 or along > reach or along * rise > box.top:
 		return
+	_mark(unit)
+
+
+## `unit` is in the way this frame, and so is every piece hung on it: they fade with their wall.
+func _mark(unit: FadeUnit) -> void:
 	unit.hit_frame = _frame
 	if not unit.listed:
 		unit.listed = true
 		_listed.append(unit)
+	for piece in unit.hang.followers:
+		piece.hit_frame = _frame
+		if not piece.listed:
+			piece.listed = true
+			_listed.append(piece)
 
 
 ## Step every listed unit toward faded (in the way this frame) or whole, writing the ones whose

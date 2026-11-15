@@ -35,6 +35,8 @@ var listed := false
 ## is filed in many cells and is asked once for each focus).
 var hit_frame := -1
 var probe := -1
+## What it hangs on or what hangs on it (a wall segment's pieces, a stain's wall).
+var hang := FadeHang.new()
 
 
 ## A unit of `anchor`'s `parts`: `local_box` is the box of all of them in the anchor's frame.

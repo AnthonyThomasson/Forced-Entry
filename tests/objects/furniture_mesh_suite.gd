@@ -1,24 +1,32 @@
 extends UnitSuite
 ## Native unit suite (pure logic) for the furniture meshes (`ObjectMeshes.BUILDERS`, Objects; the
-## domestic kinds): the cache key of every mesh names every tuning value its shape reads, so a
-## retuned holder is another mesh and never a stale cached one. Each tuning field of the six
-## `ObjectMesh*Config` holders is changed in turn and each kind rebuilt with the cache warm and then
-## with it cleared: a mesh the warm cache answers with the old resource must be the mesh the empty
-## cache would build.
+## domestic, commercial, shell and street kinds): the cache key of every mesh names every tuning
+## value its shape reads, so a retuned holder is another mesh and never a stale cached one. Each
+## tuning field of the `ObjectMesh*Config` holders is changed in turn and each kind rebuilt with the
+## cache warm and then with it cleared: a mesh the warm cache answers with the old resource must be
+## the mesh the empty cache would build.
 
 const Probe := preload("res://tests/_objects/furniture_piece_probe.gd")
 const HOLDERS := [
 	"res://scenes/objects/art/object_mesh_config.gd",
+	"res://scenes/objects/art/object_mesh_car_config.gd",
 	"res://scenes/objects/art/object_mesh_chair_config.gd",
 	"res://scenes/objects/art/object_mesh_clinic_config.gd",
 	"res://scenes/objects/art/object_mesh_decor_config.gd",
 	"res://scenes/objects/art/object_mesh_kitchen_config.gd",
+	"res://scenes/objects/art/object_mesh_noodle_config.gd",
+	"res://scenes/objects/art/object_mesh_overhead_config.gd",
 	"res://scenes/objects/art/object_mesh_room_config.gd",
 	"res://scenes/objects/art/object_mesh_seat_config.gd",
+	"res://scenes/objects/art/object_mesh_shell_config.gd",
+	"res://scenes/objects/art/object_mesh_shop_config.gd",
 	"res://scenes/objects/art/object_mesh_state_config.gd",
 	"res://scenes/objects/art/object_mesh_storage_config.gd",
+	"res://scenes/objects/art/object_mesh_street_config.gd",
+	"res://scenes/objects/art/object_mesh_tech_config.gd",
 ]
-## Every look the kinds' options give: [art id, size, art_opts, facing].
+## Every look the kinds' options give: [art id, size, art_opts, facing], and for a piece with an
+## overhead part its `{ size, reach }` last.
 const LOOKS := [
 	["sofa", Vector2(150, 70), {}, Vector2.DOWN],
 	["sofa", Vector2(60, 150), { "cushion_width": 5 }, Vector2.LEFT],
@@ -56,6 +64,78 @@ const LOOKS := [
 	["fixture", Vector2(44, 12), {}, Vector2.DOWN],
 	["fixture", Vector2(44, 12), { "kind": "towels" }, Vector2.DOWN],
 	["hotplate", Vector2(60, 40), {}, Vector2.DOWN],
+	["tech", Vector2(150, 40), { "neon": "cyan" }, Vector2.DOWN],
+	["tech", Vector2(90, 40), { "neon": "pink" }, Vector2.LEFT],
+	["tech", Vector2(44, 60), { "kind": "server_rack" }, Vector2.DOWN],
+	["clinic", Vector2(46, 32), { "kind": "tool_cart" }, Vector2.DOWN],
+	["clinic", Vector2(100, 34), { "kind": "cyberware_shelf" }, Vector2.UP],
+	["security", Vector2(120, 28), { "kind": "barricade" }, Vector2.DOWN],
+	["security", Vector2(22, 22), { "kind": "scanner" }, Vector2.DOWN],
+	["security", Vector2(100, 36), { "kind": "lockers" }, Vector2.DOWN],
+	["shop", Vector2(110, 44), { "kind": "counter" }, Vector2.DOWN],
+	["shop", Vector2(120, 40), { "kind": "aisle" }, Vector2.DOWN],
+	["shop", Vector2(64, 36), { "kind": "fridge" }, Vector2.DOWN],
+	["shop", Vector2(46, 34), { "kind": "snack" }, Vector2.LEFT],
+	["noodle", Vector2(150, 34), { "kind": "bar" }, Vector2.DOWN],
+	["noodle", Vector2(20, 20), { "kind": "stool" }, Vector2.DOWN],
+	["noodle", Vector2(96, 64), { "kind": "booth" }, Vector2.DOWN],
+	["noodle", Vector2(100, 20), { "kind": "menu" }, Vector2.DOWN],
+	["stock", Vector2(46, 46), { "kind": "crates" }, Vector2.DOWN],
+	["stock", Vector2(64, 56), { "kind": "pallet" }, Vector2.DOWN],
+	["stock", Vector2(36, 32), { "kind": "safe" }, Vector2.DOWN],
+	["street_prop", Vector2(40, 34), { "kind": "vending" }, Vector2.DOWN],
+	["street_prop", Vector2(74, 26), { "kind": "bench" }, Vector2.DOWN],
+	["street_prop", Vector2(26, 26), { "kind": "bin" }, Vector2.DOWN],
+	["street_prop", Vector2(40, 18), { "kind": "grate" }, Vector2.DOWN],
+	["street_prop", Vector2(44, 30), { "kind": "litter" }, Vector2.DOWN],
+	["podium", Vector2(144, 20), {}, Vector2.DOWN],
+	["shell_decor", Vector2(104, 20), { "kind": "rebar" }, Vector2.DOWN],
+	["shell_decor", Vector2(70, 48), { "kind": "rubble" }, Vector2.DOWN],
+	["shell_decor", Vector2(120, 52), { "kind": "scaffold" }, Vector2.DOWN],
+	["shell_decor", Vector2(88, 40), { "kind": "cement" }, Vector2.DOWN],
+	["shell_decor", Vector2(72, 46), { "kind": "stain" }, Vector2.DOWN],
+	["decor", Vector2(30, 24), { "kind": "trash" }, Vector2.DOWN],
+	["decor", Vector2(84, 14), { "kind": "cables" }, Vector2.DOWN],
+	["decor", Vector2(60, 48), { "kind": "cable_nest" }, Vector2.DOWN],
+	["decor", Vector2(40, 28), { "kind": "cardboard" }, Vector2.DOWN],
+	["decor", Vector2(48, 30), { "kind": "puddle" }, Vector2.DOWN],
+	["decor", Vector2(64, 7), { "kind": "neon_tube", "tone": "magenta" }, Vector2.DOWN],
+	[
+		"streetlight",
+		Vector2(14, 14),
+		{ "head": "cobra" },
+		Vector2.DOWN,
+		{ "size": Vector2(16, 40), "reach": 20.0 },
+	],
+	[
+		"streetlight",
+		Vector2(14, 14),
+		{ "head": "sign" },
+		Vector2.UP,
+		{ "size": Vector2(24, 40), "reach": 20.0 },
+	],
+	[
+		"streetlight",
+		Vector2(14, 14),
+		{ "head": "sign", "neon": "magenta" },
+		Vector2.LEFT,
+		{ "size": Vector2(16, 40), "reach": 20.0 },
+	],
+	[
+		"awning",
+		Vector2(8, 8),
+		{ "kind": "awning" },
+		Vector2.DOWN,
+		{ "size": Vector2(120, 36), "reach": 18.0 },
+	],
+	[
+		"awning",
+		Vector2(8, 8),
+		{ "kind": "hanging" },
+		Vector2.RIGHT,
+		{ "size": Vector2(26, 72), "reach": 36.0 },
+	],
+	["car", Vector2(130, 220), {}, Vector2.DOWN],
 ]
 
 
@@ -66,12 +146,16 @@ func _fingerprint(look: Array, identity := false) -> int:
 	piece.size = look[1]
 	piece.look.art_opts = look[2]
 	piece.look.facing = look[3]
+	if look.size() > 4:
+		piece.look.overhang = look[4]
 	var rig: Node3D = ObjectMeshes.BUILDERS[look[0]].build(piece)
 	var found: Array = []
 	var nodes: Array = [rig]
 	nodes.append_array(rig.get_children())
 	for node in nodes:
-		if node is MeshInstance3D and node.mesh != null:
+		if node is MeshInstance3D and node.mesh != null and node.mesh.get_surface_count() == 0:
+			found.append("empty")  # a retuned value can leave a part nothing to show
+		elif node is MeshInstance3D and node.mesh != null:
 			var arrays: Array = (node.mesh as ArrayMesh).surface_get_arrays(0)
 			found.append([arrays[Mesh.ARRAY_VERTEX], arrays[Mesh.ARRAY_COLOR]])
 			if identity:
@@ -154,6 +238,26 @@ func _art_holders() -> Array:
 		if file.begins_with("object_art_") and file.ends_with("_config.gd"):
 			out.append("res://scenes/objects/art/%s" % file)
 	return out
+
+
+func test_every_look_builds_a_body_and_none_of_its_parts_is_empty() -> void:
+	for look: Array in LOOKS:
+		var piece := Probe.new()
+		piece.size = look[1]
+		piece.look.art_opts = look[2]
+		piece.look.facing = look[3]
+		if look.size() > 4:
+			piece.look.overhang = look[4]
+		var rig: Node3D = ObjectMeshes.BUILDERS[look[0]].build(piece)
+		var nodes: Array = [rig]
+		nodes.append_array(rig.get_children())
+		for node in nodes:
+			if node is MeshInstance3D:
+				assert_int(node.mesh.get_surface_count()).override_failure_message(
+					"%s %s: %s has no surface" % [look[0], look[2], node.name]
+				).is_greater(0)
+		rig.free()
+		piece.free()
 
 
 func test_pieces_of_one_look_share_their_meshes_and_a_turn_is_another_mesh() -> void:

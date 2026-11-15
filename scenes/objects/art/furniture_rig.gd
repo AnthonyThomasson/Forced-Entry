@@ -15,6 +15,9 @@ extends Node3D
 var body: MeshInstance3D
 ## The piece's `Deformable` (null for a piece with none): the rig follows its dents.
 var deformable: Deformable
+## Whether the piece hangs on the wall behind its footprint (a wall stain, a menu board, a mirror):
+## the 3D wall fade (Art, duck-typed) then fades it with that wall instead of by its own place.
+var hangs_on_wall := false
 ## The glow nodes, the colour and strength each glows with; `lit` says whether they glow now.
 var glows: Array[MeshInstance3D] = []
 var lit := true

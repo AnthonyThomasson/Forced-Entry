@@ -17,6 +17,7 @@ static func build(piece: Node2D) -> Node3D:
 	var rig := FurnitureMesh.show(piece, FurnitureMesh.fetch(
 		"fixture", spec, tuning, func() -> Mesh: return _mesh(spec)
 	))
+	rig.hangs_on_wall = true
 	var neon := Decay.neon(spec.opts)
 	if _is_mirror(spec) and neon.a > 0.0:
 		rig.add_glow(FurnitureMesh.fetch_glow(

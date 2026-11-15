@@ -11,7 +11,12 @@ extends RefCounted
 ## footprint, the drawn colour, the facing and `tuning` (every option and every holder value the
 ## shape reads, so a retuned holder or another option is another mesh).
 static func fetch(id: String, spec: FurnitureSpec, tuning: Dictionary, make: Callable) -> Mesh:
-	var key := MeshCache.key(id, spec.size, spec.color, { "turns": spec.turns, "tuning": tuning })
+	var key := MeshCache.key(
+		id,
+		spec.size,
+		spec.color,
+		{ "turns": spec.turns, "overhang": spec.overhang, "tuning": tuning },
+	)
 	return MeshCache.fetch(key, make)
 
 

@@ -28,3 +28,8 @@ static var steps: int = 16
 ## A movable piece (furniture, a door) is checked for a move every this many frames, so a still
 ## room costs a slice of its pieces a frame rather than all of them.
 static var poll_frames: int = 8
+## A piece that hangs on a wall (a stain, a menu board) hangs on the wall unit whose footprint,
+## grown by this, holds the middle of its thin back; it is looked for each frame it is not found,
+## for at most `hang_frames` frames, then the piece is a unit of its own.
+static var hang_pad: float = 8.0
+static var hang_frames: int = 60

@@ -103,13 +103,13 @@ static func _by_kind(
 			light["radius"] += maxf(size.x, size.y) * 0.5
 
 
-## A street lamp's `light`: at its `Overhang`'s centre, that overlay its glow, the cobra's lens
-## colour or the sign's `neon` (magenta without one), lighting the street.
+## A street lamp's `light`: at its overhang's centre (`look.overhang_rect()`), that overlay its
+## glow, the cobra's lens colour or the sign's `neon` (magenta without one), lighting the street.
 static func _street_head(light: Dictionary, kind: String, piece: Node2D, neon: Color) -> void:
-	var overhang := piece.get_node_or_null("Overhang")
-	if overhang != null:
-		light["offset"] = (overhang.get_rect() as Rect2).get_center()
-		light["glow"] = _overlay(overhang)
+	var rect: Rect2 = piece.look.overhang_rect()
+	if rect.has_area():
+		light["offset"] = rect.get_center()
+		light["glow"] = _overlay(piece.get_node_or_null("Overhang"))
 	light["colour"] = ObjectArtOutdoorConfig.streetlight_lens_color if kind == "cobra" \
 		else (neon if neon.a > 0.0 else ObjectArtLightConfig.neon_magenta)
 	light["street"] = true

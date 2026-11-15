@@ -13,8 +13,9 @@
 	 (`"cyan"` / `"magenta"` / `""`: the piece's neon trim or screen; omitted, Objects picks per piece for a share of the light-giving
 	 pieces, from where it stands). Two definition fields shape a piece beyond its look: `anchored` (true: a solid piece frozen static, no
 	 push, kick, round or blast shoves or turns it; it is still struck, dented and throws debris) and `overhang` (`{ size, reach }`: an
-	 overhead part drawn beyond the footprint by the piece's painter with `part: "overhang"`; a child CanvasItem named `Overhang` with
-	 `get_rect() -> Rect2`, at `DrawLayers.OVERHEAD`, no collider; with `fade_under: true` it fades to `ObjectFadeConfig.alpha` (0.25) over
+	 overhead part drawn beyond the footprint by the piece's painter with `part: "overhang"`; kept as a plain field of the piece's look,
+	 `piece.look.overhang`, with `overhang_rect() -> Rect2` its area in the piece's frame (empty for none), which the 3D mesh, the street
+	 lamp's light and the child read; a child CanvasItem named `Overhang` with `get_rect()` (that area), at `DrawLayers.OVERHEAD`, no collider; with `fade_under: true` it fades to `ObjectFadeConfig.alpha` (0.25) over
 	 `ObjectFadeConfig.seconds` (0.15) while any node of the group `characters` stands inside its rect, and back to opaque when none does:
 	 the door awning and glyph sign).
    - `WallFactory.spawn(rect: Rect2, walls: RoomWalls, name, parent) -> Node` — `RoomWalls` (`objects/room_walls.gd`): `thickness`,
@@ -33,7 +34,8 @@
 	 where and what, Objects draws. `stencil(rect: Rect2, spec: Dictionary, decal_name, parent) -> Node2D` — a floor stencil (a `Sprite2D`)
 	 over `rect` in `parent`'s space; `spec`: `text` (one line per line), laid in yellow and black hazard stripes round the edge,
 	 the words in stencil letters inside; painted upright on a canvas the size of the area, so it reads the same however the building is
-	 turned; at `ObjectArtLayerConfig.floor_z_index`, over the floors laid before it. `shadow(foot: Rect2, spec: Dictionary, decal_name,
+	 turned; at `ObjectArtLayerConfig.floor_z_index`, over the floors laid before it; the sprite joins the group
+	 `DecalFactory.STENCIL_GROUP`, which `ObjectMeshes.track(mirror)` (Main's 3D view) shows as a decal. `shadow(foot: Rect2, spec: Dictionary, decal_name,
 	 parent: Node2D) -> Node2D` — the shadow of a tower with footprint `foot`: the footprint dragged `spec.length` px away from the art
 	 light (`PixelArt.away_from_light`), the footprint itself left clear, at `DrawLayers.RUG` (over the street, under what stands on it),
 	 lit by the street's lights only (`LightMasks.STREET`).
