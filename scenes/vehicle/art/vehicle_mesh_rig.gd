@@ -57,6 +57,12 @@ func add_door(id: StringName, node: Node3D, hinge: Vector2, span: Rect2) -> void
 	_parts.append(part)
 
 
+## Add door `id`'s window `pane` (after `add_door`).
+func add_pane(id: StringName, pane: GeometryInstance3D) -> void:
+	doors[id]["pane"] = pane
+	doors[id]["shown"] = 1.0
+
+
 ## Put every part where the 2D vehicle has it now (the mirror calls it each frame the mesh shows).
 func mirror_update(body: Node2D) -> void:
 	var car := body as Vehicle
@@ -75,6 +81,7 @@ func _doors_follow(body: Vehicle) -> void:
 	for i in mini(list.size(), _parts.size()):
 		var door: VehicleDoor = list[i]
 		var part := _parts[i]
+		_pane_follows(door)
 		var angle := door.angle()
 		var offset := door.offset()
 		if part["id"] != door.id or (part["angle"] == angle and part["offset"] == offset):
@@ -84,6 +91,23 @@ func _doors_follow(body: Vehicle) -> void:
 		var at := door.hinge + offset
 		# A 2D turn clockwise on the y-down screen is `-angle` about +y.
 		MeshNodes.place(part["node"], Vector3(at.x, 0.0, at.y), -angle)
+
+
+## A door's window pane shown less as the door opens: whole shut, gone by the 2D glass's own fade
+## (`VehicleArtConfig.glass_fade` of the opening). Written only when it changed.
+func _pane_follows(door: VehicleDoor) -> void:
+	var part: Dictionary = doors.get(door.id, {})
+	var pane: GeometryInstance3D = part.get("pane")
+	if pane == null:
+		return
+	var shown := 1.0 - clampf(
+		door.amount() / maxf(VehicleArtConfig.glass_fade, 0.01), 0.0, 1.0
+	)
+	if is_equal_approx(shown, part["shown"]):
+		return
+	part["shown"] = shown
+	MeshNodes.fade(pane, shown)
+	pane.visible = shown > 0.0
 
 
 ## The front wheels steered by the 2D steering angle, every wheel turned by the way rolled (each

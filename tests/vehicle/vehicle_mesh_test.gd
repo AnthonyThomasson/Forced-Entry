@@ -60,6 +60,7 @@ func run(t: TestContext) -> void:
 	await t.frames(5)
 	var mirror := _mirror(t)
 	VehicleMeshes.register(mirror.builders)
+	var materials := ToonMaterial.textured_count()
 	mirror.mirror(t.world)
 	await t.frames(3)
 	var car := t.vehicle(&"car") as Node2D
@@ -71,7 +72,7 @@ func run(t: TestContext) -> void:
 	_check_hull(t, rig, car, CAR, 1.0)
 	_check_hull(t, van_rig, van, VAN, 1.0)
 	_check_sharing(t, mirror, rig)
-	_check_leaves(t, rig, car)
+	_check_leaves(t, rig, car, materials)
 	_check_wheels(t, rig, car)
 	_check_wheels(t, van_rig, van)
 	_check_turned(t, mirror)
@@ -167,7 +168,7 @@ func _check_sharing(t: TestContext, mirror: WorldMirror, rig: VehicleMeshRig) ->
 
 ## Each door leaf wears its own panel's 2D art, and the textured materials are one per texture:
 ## a hull and a leaf each, per kind and paint (two cars and a van here), not per vehicle.
-func _check_leaves(t: TestContext, rig: VehicleMeshRig, car: Node2D) -> void:
+func _check_leaves(t: TestContext, rig: VehicleMeshRig, car: Node2D, before: int) -> void:
 	for def: Dictionary in VehicleConfig.kinds[&"car"]["doors"]:
 		var skin := VehicleSkin.door(&"car", def, car.get("color"))
 		var leaf: MeshInstance3D = rig.doors[def["id"]]["node"]
@@ -175,10 +176,16 @@ func _check_leaves(t: TestContext, rig: VehicleMeshRig, car: Node2D) -> void:
 			leaf.material_override == ToonMaterial.textured(skin["texture"], false),
 			"the %s leaf wears its panel's art" % def["id"],
 		)
-	var count := ToonMaterial.textured_count()
+		var front: bool = (VehicleConfig.looks[&"car"]["mirror"] as Array).has(def["id"])
+		t.expect_eq(
+			leaf.get_node_or_null("MirrorArt") != null, front, "%s: a mirror's art" % def["id"]
+		)
+	# two cars of a paint, another paint and a van were built here: a hull and a leaf each per
+	# kind and paint (a car 5, a van 6), not per vehicle (three red cars would make it 26)
+	var added := ToonMaterial.textured_count() - before
 	t.check(
-		count >= 11 and count <= 16,
-		"a textured material per kind, paint and part, not per vehicle (%d)" % count,
+		added >= 5 and added <= 16,
+		"textured materials are one per kind, paint and part, not per vehicle (+%d)" % added,
 	)
 
 
@@ -246,6 +253,8 @@ func _check_doors(t: TestContext, rig: VehicleMeshRig, car: Node2D) -> void:
 	await t.frames(3)
 	var angle: float = door.angle()
 	t.check(absf(angle) > 1.0, "the 2D door is wide open (%s)" % angle)
+	var pane: GeometryInstance3D = rig.doors[&"front_left"]["pane"]
+	t.check(not pane.visible, "its window is gone with it (the glass pane faded out)")
 	t.expect_near(leaf.rotation.y, -angle, 0.001, "the leaf is turned as far")
 	t.expect_near(leaf.global_position.x, before.x, 0.01, "about its hinge (x)")
 	var hinge: Vector2 = door.hinge
@@ -258,6 +267,9 @@ func _check_doors(t: TestContext, rig: VehicleMeshRig, car: Node2D) -> void:
 	t.check(await t.until(func() -> bool: return door.amount() == 0.0, 3.0), "the door shuts")
 	await t.frames(3)
 	t.expect_near(leaf.rotation.y, 0.0, 0.001, "and the leaf with it")
+	t.check(pane.visible, "and its window is back")
+	var fade: float = pane.get_instance_shader_parameter(&"fade")
+	t.expect_near(fade, 1.0, 0.001, "whole")
 
 
 ## A sliding door rolls back along the body with the 2D door.

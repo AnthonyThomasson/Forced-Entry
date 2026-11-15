@@ -35,17 +35,88 @@ static func clear() -> void:
 	_skins.clear()
 
 
-## The body of a `kind` painted `paint`: its chassis with its roof over it and every door's side
-## glass over that (a closed door's, as the 2D shows it), turned onto the vehicle's frame, with
-## the `rect` it covers (the body's own footprint, centred on the origin). The paint fills what
-## the art leaves clear (a rounded corner the hull's outline overshoots), so no texel is
-## see-through. `{ texture: Texture2D, rect: Rect2 }`.
+## The body of a `kind` painted `paint`: its chassis with its roof over it, turned onto the
+## vehicle's frame, with the `rect` it covers (the body's own footprint, centred on the origin).
+## The side windows are not on it (they are each door's `glass`, which goes with the door), so an
+## open door shows the cabin. The paint fills what the art leaves clear (a rounded corner the
+## hull's outline overshoots), so no texel is see-through. `{ texture: Texture2D, rect: Rect2 }`.
 static func body(kind: StringName, paint: Color) -> Dictionary:
 	var key := "%s|%s" % [kind, paint.to_html()]
 	if _skins.has(key):
 		return _skins[key]
-	var row: Dictionary = VehicleConfig.kinds[kind]
-	var size: Vector2 = row["size"]
+	var under := _composite(kind, paint)
+	# BODY_TURN is a quarter turn back (counter-clockwise on the screen)
+	under.rotate_90(COUNTERCLOCKWISE)
+	var size: Vector2 = VehicleConfig.kinds[kind]["size"]
+	var skin := {
+		"texture": ImageTexture.create_from_image(under),
+		"rect": Rect2(-size * 0.5, size),
+	}
+	_skins[key] = skin
+	return skin
+
+
+## The glass of door `def` of a `kind` painted `paint`: the body's art under the door's side window
+## (a pane of the 2D `glass` part blended over it, so the texture is whole: the window and what
+## lies round it), turned onto the vehicle's frame, with the `rect` (px, the vehicle's frame) it
+## covers. A pane the mesh lays over the hull and fades as the door opens, as the 2D window does.
+## `{ texture: Texture2D, rect: Rect2 }`, empty for a door with no window.
+static func glass(kind: StringName, def: Dictionary, paint: Color) -> Dictionary:
+	if not (VehicleConfig.looks[kind]["glass"] as Dictionary).has(def["id"]):
+		return {}
+	var key := "%s|%s|%s|glass" % [kind, paint.to_html(), def["id"]]
+	if _skins.has(key):
+		return _skins[key]
+	var image := _composite(kind, paint)
+	var canonical := Vector2(image.get_size())
+	var at := _blend_window(image, kind, def, paint)
+	var crop := image.get_region(at)
+	crop.rotate_90(COUNTERCLOCKWISE)
+	# the crop's canonical pixels, as vehicle px: x = v - h / 2, y = w / 2 - u (less its width)
+	var covers := Rect2(
+		Vector2(at.position.y - canonical.y * 0.5, canonical.x * 0.5 - at.end.x),
+		Vector2(at.size.y, at.size.x),
+	)
+	var skin := { "texture": ImageTexture.create_from_image(crop), "rect": covers }
+	_skins[key] = skin
+	return skin
+
+
+## Door `def`'s side-window pane blended over `image` (the canonical body) where the 2D draws it;
+## the canonical pixels it covers.
+static func _blend_window(image: Image, kind: StringName, def: Dictionary, paint: Color) -> Rect2i:
+	var rect: Rect2 = DoorPainter.glass_rect(kind, def["id"])
+	var size := Vector2(rect.size.y, rect.size.x)
+	var opts := { "kind": kind, "door": def["id"], "part": "glass", "material": GLASS }
+	var pane := _image(PixelArt.render_flat(DoorPainter, size, paint, opts))
+	# vehicle (x, y) is canonical (w/2 - y, h/2 + x), the body's own mapping (`Art.at`)
+	var centre := rect.get_center()
+	var middle := Vector2(image.get_width() * 0.5 - centre.y, image.get_height() * 0.5 + centre.x)
+	var corner := Vector2i((middle - size * 0.5).round())
+	image.blend_rect(pane, Rect2i(Vector2i.ZERO, pane.get_size()), corner)
+	return Rect2i(corner, pane.get_size())
+
+
+## The wing mirror of a `kind` painted `paint`, turned onto the leaf's frame (the mirror's
+## `mirror_size` out x along, as the mesh's box lies). One per paint. `{ texture: Texture2D }`.
+static func mirror(kind: StringName, paint: Color) -> Dictionary:
+	var key := "%s|%s|mirror" % [kind, paint.to_html()]
+	if _skins.has(key):
+		return _skins[key]
+	var size := Vector2(VehicleMeshConfig.mirror_size.x, VehicleMeshConfig.mirror_size.y)
+	# (the painter wants a door of the kind, though a mirror looks the same on each)
+	var on: StringName = (VehicleConfig.looks[kind]["mirror"] as Array)[0]
+	var opts := { "kind": kind, "door": on, "part": "mirror", "material": METAL }
+	var image := _image(PixelArt.render_flat(DoorPainter, size, paint, opts))
+	image.rotate_90(COUNTERCLOCKWISE)
+	var skin := { "texture": ImageTexture.create_from_image(image) }
+	_skins[key] = skin
+	return skin
+
+
+## The body's chassis with its roof over it on the paint, in the painters' canonical frame.
+static func _composite(kind: StringName, paint: Color) -> Image:
+	var size: Vector2 = VehicleConfig.kinds[kind]["size"]
 	var canonical := Vector2(size.y, size.x)
 	var painter: Script = PAINTERS[kind]
 	var image := _image(PixelArt.render_flat(painter, canonical, paint, _opts(kind, "chassis")))
@@ -54,15 +125,7 @@ static func body(kind: StringName, paint: Color) -> Dictionary:
 	under.blend_rect(image, Rect2i(Vector2i.ZERO, image.get_size()), Vector2i.ZERO)
 	var roof := _image(PixelArt.render_flat(painter, canonical, paint, _opts(kind, "roof")))
 	under.blend_rect(roof, Rect2i(Vector2i.ZERO, roof.get_size()), Vector2i.ZERO)
-	_glazing(under, kind, paint, canonical)
-	# BODY_TURN is a quarter turn back (counter-clockwise on the screen)
-	under.rotate_90(COUNTERCLOCKWISE)
-	var skin := {
-		"texture": ImageTexture.create_from_image(under),
-		"rect": Rect2(-size * 0.5, size),
-	}
-	_skins[key] = skin
-	return skin
+	return under
 
 
 ## Door `def` of a `kind` painted `paint`: its panel (the door seen from above, shut), turned onto
@@ -89,26 +152,6 @@ static func door(kind: StringName, def: Dictionary, paint: Color) -> Dictionary:
 	}
 	_skins[key] = skin
 	return skin
-
-
-## Each glazed door's side window blended over `image` (the body's, canonical frame) where the 2D
-## draws it: the glass painted for its door, centred on the middle of `glass_rect`.
-static func _glazing(image: Image, kind: StringName, paint: Color, canonical: Vector2) -> void:
-	var glazed: Dictionary = VehicleConfig.looks[kind]["glass"]
-	for def: Dictionary in VehicleConfig.kinds[kind]["doors"]:
-		if not glazed.has(def["id"]):
-			continue
-		var rect: Rect2 = DoorPainter.glass_rect(kind, def["id"])
-		var size := Vector2(rect.size.y, rect.size.x)
-		var opts := { "kind": kind, "door": def["id"], "part": "glass", "material": GLASS }
-		var glass := _image(PixelArt.render_flat(DoorPainter, size, paint, opts))
-		var centre := rect.get_center()
-		# vehicle (x, y) is canonical (w/2 - y, h/2 + x), the body's own mapping (`Art.at`)
-		var corner := Vector2(
-			canonical.x * 0.5 - centre.y,
-			canonical.y * 0.5 + centre.x,
-		) - size * 0.5
-		image.blend_rect(glass, Rect2i(Vector2i.ZERO, glass.get_size()), Vector2i(corner.round()))
 
 
 ## A flat texture's pixels as RGBA8 (a copy the caller may draw into and turn).

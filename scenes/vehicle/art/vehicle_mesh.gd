@@ -78,6 +78,45 @@ static func _add_door(rig: Rig, car: Vehicle, def: Dictionary, tuning: Dictionar
 	MeshNodes.place(leaf, Vector3(hinge.x, 0.0, hinge.y))
 	rig.add_child(leaf)
 	rig.add_door(def["id"], leaf, hinge, _span(def, look["door_depth"], true))
+	_add_pane(rig, car, def)
+	if _has_mirror(look, def):
+		_add_mirror(leaf, car, def)
+
+
+## The side window of door `def` on `rig`: the body's art with the glass over it, laid on the hull
+## at the belt where the 2D draws it, which `rig` fades as the door opens (the window goes with it).
+static func _add_pane(rig: Rig, car: Vehicle, def: Dictionary) -> void:
+	var skin := VehicleSkin.glass(car.kind, def, car.color)
+	if skin.is_empty():
+		return
+	var rect: Rect2 = skin["rect"]
+	var belt: float = VehicleMeshConfig.heights[car.kind]["belt"]
+	var at := rect.get_center()
+	var pane := MeshNodes.decal(
+		rect.size, MeshNodes.surface_frame(Vector3(at.x, belt, at.y)), skin["texture"]
+	)
+	pane.name = "Glass_%s" % def["id"]
+	rig.add_child(pane)
+	rig.add_pane(def["id"], pane)
+
+
+## The wing mirror's 2D art on the top of its box, hung on `leaf` so it swings with the door.
+static func _add_mirror(leaf: Node3D, car: Vehicle, def: Dictionary) -> void:
+	var rect := _mirror_rect(def)
+	var hinge: Vector2 = def["hinge"]
+	var at := rect.get_center() - hinge
+	var top: float = (
+		float(VehicleMeshConfig.heights[car.kind]["belt"])
+		+ VehicleMeshConfig.mirror_lift
+		+ VehicleMeshConfig.mirror_size.z
+	)
+	var art := MeshNodes.decal(
+		rect.size,
+		MeshNodes.surface_frame(Vector3(at.x, top, at.y)),
+		VehicleSkin.mirror(car.kind, car.color)["texture"],
+	)
+	art.name = "MirrorArt"
+	leaf.add_child(art)
 
 
 ## The hull: the body's outline cut at every door's span, from the sill to the belt, with the dark
@@ -122,7 +161,7 @@ static func door(kind: StringName, look: Dictionary, def: Dictionary,
 	if shape.size() < 3:
 		push_warning("VehicleMesh: door '%s' lies outside the %s's outline" % [def["id"], kind])
 	kit.extrude(shape, sill, belt - sill, Color.WHITE)
-	if def["kind"] != &"rear" and (look["mirror"] as Array).has(def["id"]):
+	if _has_mirror(look, def):
 		_mirror(kit, def, belt)
 	return kit.build()
 
@@ -277,19 +316,33 @@ static func _screens(kit: MeshKit, look: Dictionary, belt: float, roof: float) -
 		kit.wedge(MeshKit.volume(rear, belt, roof - belt), Vector2.RIGHT, Color.WHITE)
 
 
+## Whether door `def` carries a wing mirror (a front door, never a rear one).
+static func _has_mirror(look: Dictionary, def: Dictionary) -> bool:
+	return def["kind"] != &"rear" and (look["mirror"] as Array).has(def["id"])
+
+
 ## The wing mirror on a front door: out from the door's skin near its hinge, just over the belt.
 static func _mirror(kit: MeshKit, def: Dictionary, belt: float) -> void:
+	kit.box(
+		MeshKit.volume(
+			_mirror_rect(def), belt + VehicleMeshConfig.mirror_lift, VehicleMeshConfig.mirror_size.z
+		),
+		Color.WHITE,
+	)
+
+
+## Where the wing mirror of door `def` lies on the ground plane (the vehicle's frame, px).
+static func _mirror_rect(def: Dictionary) -> Rect2:
 	var hinge: Vector2 = def["hinge"]
 	var handle: Vector2 = def["handle"]
 	var size := VehicleMeshConfig.mirror_size
 	var along := signf(handle.x - hinge.x)
-	var out := _outward(def)
 	var x0 := hinge.x + along * VehicleMeshConfig.mirror_from
 	var x1 := x0 + along * size.y
-	var y0 := hinge.y
-	var y1 := hinge.y + out.y * size.x
-	var rect := Rect2(Vector2(minf(x0, x1), minf(y0, y1)), Vector2(absf(x1 - x0), absf(y1 - y0)))
-	kit.box(MeshKit.volume(rect, belt + VehicleMeshConfig.mirror_lift, size.z), Color.WHITE)
+	var y1 := hinge.y + _outward(def).y * size.x
+	return Rect2(
+		Vector2(minf(x0, x1), minf(hinge.y, y1)), Vector2(absf(x1 - x0), absf(y1 - hinge.y))
+	)
 
 
 ## Out of the body through `def`'s door (unit): a rear door out of the tail, the others the side.

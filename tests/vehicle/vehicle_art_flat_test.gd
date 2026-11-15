@@ -41,6 +41,9 @@ func run(t: TestContext) -> void:
 	_body_skin(t, &"car", CarPainter)
 	_body_skin(t, &"van", VanPainter)
 	_door_skin(t)
+	_door_orientation(t)
+	_glass_skin(t)
+	_mirror_skin(t)
 	_cached(t)
 
 
@@ -178,6 +181,121 @@ func _door_skin(t: TestContext) -> void:
 			)
 
 
+## A door's art is turned as the 2D draws it: its skin (the paint) on the outside, its lining
+## (the interior's) inside, and, on a door that opens by a handle (not a rear door), the handle's
+## trim near the handle's end, not the hinge's (a swing door; the others place theirs by their own
+## rule).
+func _door_orientation(t: TestContext) -> void:
+	for kind: StringName in [&"car", &"van"]:
+		for def: Dictionary in VehicleConfig.kinds[kind]["doors"]:
+			_door_faces(t, kind, def)
+
+
+## One door's faces: the paint outside, the lining inside, the handle toward its end.
+func _door_faces(t: TestContext, kind: StringName, def: Dictionary) -> void:
+	var skin := VehicleSkin.door(kind, def, BLUE)
+	var image := (skin["texture"] as Texture2D).get_image()
+	var rear: bool = def["kind"] == &"rear"
+	var rect: Rect2 = skin["rect"]
+	var inward := Vector2.RIGHT if rear else Vector2(0.0, -signf((def["handle"] as Vector2).y))
+	# a point along the door clear of its handle, straps and armrest
+	var along := (
+		Vector2(0.0, rect.position.y + rect.size.y * 0.3)
+		if rear
+		else Vector2(rect.position.x + rect.size.x * 0.85, 0.0)
+	)
+	var id := "%s %s" % [kind, def["id"]]
+	var outside := _at(image, skin["rect"], along + inward * 1.5)
+	t.check(_near(outside, BLUE), "%s: its skin is on the outside (%s)" % [id, outside])
+	var inside := _at(
+		image,
+		skin["rect"],
+		along + inward * (float(VehicleConfig.looks[kind]["door_depth"]) - 0.5),
+	)
+	var lining := VehicleArtConfig.interior_color.lightened(0.08)
+	t.check(_near(inside, lining), "%s: its lining is on the inside (%s)" % [id, inside])
+	if def["kind"] == &"swing":
+		_handle_end(t, id, image, rect, def)
+
+
+## The handle's trim, on the door's outer row, lies nearer the handle's end than the hinge.
+func _handle_end(t: TestContext, id: String, image: Image, rect: Rect2, def: Dictionary) -> void:
+	var out_row := image.get_height() - 1 if signf((def["handle"] as Vector2).y) > 0.0 else 0
+	var total := 0.0
+	var found := 0
+	for x in image.get_width():
+		if _near(image.get_pixel(x, out_row), VehicleArtConfig.trim_color):
+			total += rect.position.x + x + 0.5
+			found += 1
+	if not t.check(found > 0, "%s: the handle's trim is on its skin" % id):
+		return
+	var hinge: Vector2 = def["hinge"]
+	var handle_x: float = (def["handle"] as Vector2).x - hinge.x
+	var mean := total / found
+	t.check(
+		absf(mean - handle_x) < absf(mean),
+		"%s: the handle is toward its end (x %.1f of %.1f)" % [id, mean, handle_x],
+	)
+
+
+## The glass is no part of the body: the body skin lacks the window the pane carries, and the pane
+## is the body's art under the tinted glass, opaque, where the 2D draws the window.
+func _glass_skin(t: TestContext) -> void:
+	for kind: StringName in [&"car", &"van"]:
+		var glazed := 0
+		for def: Dictionary in VehicleConfig.kinds[kind]["doors"]:
+			if not VehicleSkin.glass(kind, def, BLUE).is_empty():
+				glazed += 1
+				_pane(t, kind, def)
+		t.check(glazed > 0, "%s has a window" % kind)
+	var van_rear: Dictionary = {}
+	for def: Dictionary in VehicleConfig.kinds[&"van"]["doors"]:
+		if def["kind"] == &"rear":
+			van_rear = def
+	t.check(
+		VehicleSkin.glass(&"van", van_rear, BLUE).is_empty(), "a door with no window has no pane"
+	)
+
+
+## One window's pane: where the 2D window lies, tinted where the body is not, and opaque.
+func _pane(t: TestContext, kind: StringName, def: Dictionary) -> void:
+	var body := VehicleSkin.body(kind, BLUE)
+	var pane := VehicleSkin.glass(kind, def, BLUE)
+	var id := "%s %s" % [kind, def["id"]]
+	var image := (pane["texture"] as Texture2D).get_image()
+	var rect: Rect2 = pane["rect"]
+	var want: Rect2 = DoorPainter.glass_rect(kind, def["id"])
+	t.check(
+		rect.position.distance_to(want.position) < 1.01 and rect.size.distance_to(want.size) < 1.01,
+		"%s: the pane lies where the 2D window does (%s, %s)" % [id, rect, want],
+	)
+	var body_image := (body["texture"] as Texture2D).get_image()
+	var tinted := 0
+	for y in image.get_height():
+		for x in image.get_width():
+			var at := rect.position + Vector2(x + 0.5, y + 0.5)
+			if not _near(image.get_pixel(x, y), _at(body_image, body["rect"], at)):
+				tinted += 1
+	t.check(tinted > 20, "%s: the window is the pane's, not the body's (%d texels)" % [id, tinted])
+	var opaque := true
+	for y in image.get_height():
+		for x in image.get_width():
+			opaque = opaque and image.get_pixel(x, y).a > 0.99
+	t.check(opaque, "%s: the pane has no see-through texel" % id)
+
+
+## The wing mirror's art: a painted housing in the paint with the dark glass at its back (-x).
+func _mirror_skin(t: TestContext) -> void:
+	var image := (VehicleSkin.mirror(&"car", BLUE)["texture"] as Texture2D).get_image()
+	var size := VehicleMeshConfig.mirror_size
+	t.expect_eq(Vector2(image.get_size()), Vector2(size.y, size.x), "the mirror is along x out")
+	var middle := image.get_height() >> 1
+	t.check(_near(image.get_pixel(image.get_width() - 2, middle), BLUE), "its housing is the paint")
+	t.check(
+		not _near(image.get_pixel(1, middle), BLUE), "its dark glass faces back (the low-x end)"
+	)
+
+
 ## A skin is made once per kind and paint (and door): asking again gives the one texture.
 func _cached(t: TestContext) -> void:
 	var held := VehicleSkin.count()
@@ -196,6 +314,13 @@ func _cached(t: TestContext) -> void:
 	t.expect_eq(VehicleSkin.count(), held, "asking again adds no skin")
 	VehicleSkin.body(&"car", Color.GREEN)
 	t.expect_eq(VehicleSkin.count(), held + 1, "another paint is another skin")
+
+
+## The pixel of `image` (a skin covering `rect`) at point `p` of the rect's frame.
+func _at(image: Image, rect: Rect2, p: Vector2) -> Color:
+	var x := clampi(floori(p.x - rect.position.x), 0, image.get_width() - 1)
+	var y := clampi(floori(p.y - rect.position.y), 0, image.get_height() - 1)
+	return image.get_pixel(x, y)
 
 
 ## The canvas-canonical size of a kind's body (width across, length along).
