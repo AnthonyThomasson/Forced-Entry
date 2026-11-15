@@ -132,12 +132,13 @@ func _steer_by_hand(delta: float) -> void:
 			else Vector2.ZERO)
 	if pan != Vector2.ZERO:
 		_take_over()
-		# The keys and the edge are screen directions: in the 3D render mode the ground direction
-		# that shows that way at the camera's yaw (in 2D the screen is the world, unchanged).
-		global_position += Pointer.world_direction(
-			self,
-			pan,
-		) * CameraConfig.pan_speed * delta / zoom.x
+		# The keys and the edge are screen directions. In the 3D render mode the ground step that
+		# shows as that screen step at the camera's yaw, so the pan is as fast on the screen up it
+		# as along it (the pitch squeezes the ground's depth); in 2D the screen is the world.
+		if Pointer.is_3d(self):
+			global_position += Pointer.world_vector(self, pan) * CameraConfig.pan_speed * delta
+		else:
+			global_position += pan * CameraConfig.pan_speed * delta / zoom.x
 	elif _manual:
 		_idle += delta
 		if _idle >= CameraConfig.manual_hold:
@@ -188,12 +189,15 @@ func _frame_combatants() -> void:
 				live.append(t)
 	if live.is_empty():
 		return
-	var box := Rect2(live[0].global_position, Vector2.ZERO)
+	var space := _framing_space()
+	var box := Rect2(space * live[0].global_position, Vector2.ZERO)
 	for t in live:
-		box = box.expand(t.global_position)
+		box = box.expand(space * t.global_position)
 	box = box.grow(CameraConfig.frame_margin)
 	if not _manual:
-		global_position = global_position.lerp(box.get_center(), 1.0 / CameraConfig.follow_speed)
+		global_position = global_position.lerp(
+			space.affine_inverse() * box.get_center(), 1.0 / CameraConfig.follow_speed
+		)
 	var vp := get_viewport_rect().size
 	var fit := minf(vp.x / maxf(box.size.x, 1.0), vp.y / maxf(box.size.y, 1.0))
 	_base_zoom = clampf(fit, CameraConfig.min_zoom, CameraConfig.max_zoom)
@@ -201,6 +205,17 @@ func _frame_combatants() -> void:
 	for t in live:
 		out = maxf(out, _drive_zoom_out(t))
 	_ease_zoom(1.0 - out)
+
+
+## The space the framing measures the combatants in: the world in 2D; in the 3D render mode the
+## screen at zoom 1 (the ground's linear map to the screen at the camera's yaw, without its zoom or
+## origin), so the fit is by the extent the screen shows, not by the ground box a turned camera
+## sees as a diamond.
+func _framing_space() -> Transform2D:
+	if not Pointer.is_3d(self):
+		return Transform2D.IDENTITY
+	var view := Pointer.screen_transform(self)
+	return Transform2D(view.x / zoom.x, view.y / zoom.x, Vector2.ZERO)
 
 
 ## How far `who`'s vehicle zooms the view out (0 on foot, or for a vehicle that does not say).

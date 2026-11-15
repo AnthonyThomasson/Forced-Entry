@@ -16,8 +16,8 @@ extends CanvasLayer
 ## the match once it is built (`mirror_world`). The hard shadow filter is a global of the
 ## renderer: it is set here and put back to the project's value when the view leaves the tree.
 
-## The view runs after the camera rig (`process_priority` 100) so the stage that averages the 3D
-## picture down is sized in the frame the rig sizes the picture.
+## The view runs after the camera rig (`process_priority` 50) and the player's view (100) so the
+## stage that averages the 3D picture down is sized in the frame the rig sizes the picture.
 const STAGE_PRIORITY := 200
 
 ## The camera rig and the mirror, for a caller that reads them (the tests, the pixel post).
@@ -44,12 +44,14 @@ func _process(_delta: float) -> void:
 
 func _exit_tree() -> void:
 	GroundLayer.enabled = false
+	GroundLayer.forget()
 	RenderingServer.directional_soft_shadow_filter_set_quality(_project_shadow_quality())
 
 
 ## Build the view following `camera` (the sim's `Camera2D`).
 func begin(camera: Camera2D) -> void:
 	GroundLayer.enabled = true  # the view's overlays draw flat over this picture
+	add_child(GroundLayer.shared())
 	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	rect.stretch_mode = TextureRect.STRETCH_SCALE
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

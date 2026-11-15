@@ -55,7 +55,7 @@
 	  world by. `WORLD` 1 (Godot's default: the house, what has come to rest), `MOVING` 2 (what moves: drawn only inside the cone),
 	  `OVERLAY` 4 (overlays, markers, the view's composite). Vision's capture culls `MOVING` and `OVERLAY`.
 	  `set_moving(item, moving)` (written only on change; Character, Items, Projectile, Physics, Vehicles call it) and
-	  `overlay(item)` (`z_index` `DrawLayers.OVERLAY`, absolute, bit `OVERLAY`; the AI's debug overlays, Navigation, the UI).
+	  `overlay(item)` (`z_index` `DrawLayers.OVERLAY`, absolute, bit `OVERLAY`; AI debug overlays, Navigation, the UI; in 3D it also hands `item` to `GroundLayer.adopt`, 27).
     - `SightRay` (`general/sight_ray.gd`, `RefCounted`): the one sight rule. `SightRay.hit(space, from, to, exclude, see_over) ->
 	  Dictionary` is the first thing on the line (`PhysicsLayers.SOLID`) too tall to see over (`intersect_ray`'s dictionary), {} when
 	  the line reaches `to`; a collider at or below `see_over` is looked over, `exclude` is left as given.

@@ -109,6 +109,7 @@ func _place() -> void:
 	if _rect != null:
 		_rect.size = Vector2(_internal * _scale)
 		_rect.position = (Vector2(snap.x, -snap.y) / _pixel - Vector2.ONE) * float(_scale)
+	Pointer.refresh_3d(camera)  # the once-a-frame affine the mouse and the controls read
 
 
 ## Size the picture for a window of `screen`: a whole number of screen pixels to a picture pixel

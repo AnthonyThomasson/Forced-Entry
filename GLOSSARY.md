@@ -364,7 +364,7 @@ drawn on it.
 _Avoid_: floor (a room's `Floor` object), map
 
 **Ground layer**:
-The `CanvasLayer` (`GroundLayer`) a 2D overlay (the player's view, a debug overlay) is moved under in the 3D render mode, so it draws over the 3D view
+The `CanvasLayer` (`GroundLayer`) a 2D overlay (the player's view, a debug overlay) is moved under in the 3D render mode (one shared layer for all the match's debug overlays, one for the view), so it draws over the 3D view
 flat on the ground plane: its transform is the 3D camera's ground-to-screen affine, so it lies on the floor at any yaw.
 _Avoid_: overlay canvas, HUD layer
 

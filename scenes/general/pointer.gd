@@ -3,11 +3,11 @@ class_name Pointer
 ## pointer is read. Every method takes a context `node` (any node of the world) and reads that
 ## node's viewport, so two worlds in two viewports (the player's view's memory and mask, a test's
 ## sub-viewport) each convert by their own view. In 2D it is backed by the viewport's canvas
-## transform: the active `Camera2D`'s view, the identity in a world with no camera. #193's 3D view
-## swaps the bodies for a camera ray meeting the ground plane; no caller changes.
+## transform: the active `Camera2D`'s view, the identity in a world with no camera.
 ##
 ## In the 3D render mode (#193) the `CameraRig` binds itself (`bind_3d`) and every node of the
-## viewport the sim's `Camera2D` serves converts through the orthographic camera instead: a screen
+## viewport the sim's `Camera2D` serves converts through the orthographic camera instead (no caller
+## changes; the rig works the affine out once a frame, `refresh_3d`): a screen
 ## point is the camera ray that meets the ground plane y = 0, and the world's place on the screen is
 ## the exact ground-to-screen affine of that camera, read through the DISPLAYED rect of the 3D
 ## view (the control that shows the picture), never the picture's internal size, so the internal
@@ -28,11 +28,17 @@ static var _injected := false
 static var _camera: Variant = null
 static var _rect: Variant = null
 static var _screen: Variant = null
+## The ground-to-screen affine of the 3D camera, its inverse and the ground rect the screen shows,
+## worked out once a frame by the rig (`refresh_3d`, after it has placed the camera and the
+## picture), not on every call: a character asks for the visible rect each frame.
+static var _affine := Transform2D.IDENTITY
+static var _affine_inverse := Transform2D.IDENTITY
+static var _ground_rect := Rect2()
 
 
 ## The world point under `screen`, a point of `node`'s viewport (the inverse of `screen_transform`).
 static func world_of(node: Node, screen: Vector2) -> Vector2:
-	return screen_transform(node).affine_inverse() * screen
+	return _screen_to_world(node) * screen
 
 
 ## Whether `node` is converted through the 3D camera (the rig is bound and `node` is in the viewport
@@ -50,7 +56,7 @@ static func is_3d(node: Node) -> bool:
 ## `screen_transform` inverted, so no origin): in 3D the ground vector that shows as that step, in
 ## 2D the canvas transform's own. A 3D controller turns a screen direction into a ground one by it.
 static func world_vector(node: Node, screen_vector: Vector2) -> Vector2:
-	return screen_transform(node).affine_inverse().basis_xform(screen_vector)
+	return _screen_to_world(node).basis_xform(screen_vector)
 
 
 ## A screen direction as a world direction of the same length, for 3D's screen-relative controls:
@@ -72,12 +78,29 @@ static func bind_3d(camera: Camera3D, rect: Control, screen: Viewport) -> void:
 	_screen = screen
 
 
+## Work out the 3D camera's affine and the visible ground for this frame: the rig calls it once it
+## has placed `camera` and the picture (a no-op for any camera but the bound one).
+static func refresh_3d(camera: Camera3D) -> void:
+	if _camera != camera or not is_instance_valid(_screen) or not camera.is_inside_tree():
+		return
+	_affine = _ground_to_screen()
+	_affine_inverse = _affine.affine_inverse()
+	# A turned view shows a diamond of ground: the rect that bounds the screen's four corners.
+	var size: Vector2 = _screen.get_visible_rect().size
+	var bounds := Rect2(_affine_inverse * Vector2.ZERO, Vector2.ZERO)
+	for corner: Vector2 in [Vector2(size.x, 0.0), size, Vector2(0.0, size.y)]:
+		bounds = bounds.expand(_affine_inverse * corner)
+	_ground_rect = bounds
+
+
 ## Put the 2D body back, when `camera` is the one bound (the rig leaving the tree calls it).
 static func unbind_3d(camera: Camera3D) -> void:
 	if _camera == camera:
 		_camera = null
 		_rect = null
 		_screen = null
+		_affine = Transform2D.IDENTITY
+		_affine_inverse = Transform2D.IDENTITY
 
 
 ## The screen point of `node`'s viewport that shows `world` (`screen_transform` applied to it).
@@ -105,15 +128,9 @@ static func visible_world_rect(node: Node) -> Rect2:
 	var viewport := node.get_viewport()
 	if viewport == null:
 		return Rect2()
-	var screen := screen_transform(node).affine_inverse()
-	if not is_3d(node):
-		return screen * viewport.get_visible_rect()
-	# A turned view shows a diamond of ground: the rect that bounds the screen's four corners.
-	var size := viewport.get_visible_rect().size
-	var bounds := Rect2(screen * Vector2.ZERO, Vector2.ZERO)
-	for corner: Vector2 in [Vector2(size.x, 0.0), size, Vector2(0.0, size.y)]:
-		bounds = bounds.expand(screen * corner)
-	return bounds
+	if is_3d(node):
+		return _ground_rect
+	return screen_transform(node).affine_inverse() * viewport.get_visible_rect()
 
 
 ## The transform from world points to `node`'s viewport's screen points: its canvas transform (the
@@ -121,9 +138,15 @@ static func visible_world_rect(node: Node) -> Rect2:
 ## into the viewports it renders the world through, so they show what the main one shows.
 static func screen_transform(node: Node) -> Transform2D:
 	if is_3d(node):
-		return _ground_to_screen()
+		return _affine
 	var viewport := node.get_viewport()
 	return viewport.get_canvas_transform() if viewport != null else Transform2D.IDENTITY
+
+
+## The transform from `node`'s viewport's screen points to world points (`screen_transform`
+## inverted; the 3D body keeps the inverse from `refresh_3d`).
+static func _screen_to_world(node: Node) -> Transform2D:
+	return _affine_inverse if is_3d(node) else screen_transform(node).affine_inverse()
 
 
 ## The exact affine of the orthographic camera from the ground plane (a 2D world point (x, y) is

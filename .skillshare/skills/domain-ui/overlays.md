@@ -6,7 +6,7 @@ Tests: `tests/ui/overlay_toggles_test.gd` (the "Show on" row, `scope_changed`, t
 
 ## `overlay_registry.gd` — `OverlayRegistry`, the one table of overlays
 
-- **In the 3D render mode** an NPC's overlays are moved under a `GroundLayer` child of the NPC (`domain-general/camera3d.md`), so `apply` walks `overlays_of(npc)` (its children, and the layer's children) and the detail card finds an overlay by name through `overlay_of(npc, name)`; a flag, a name or a lookup of an overlay goes through those, never `get_children()` / `get_node` of the NPC alone.
+- **In the 3D render mode** an NPC's overlays are moved off it onto the match's one shared `GroundLayer` (`domain-general/camera3d.md`), so `apply` walks `overlays_of(npc)` (its children, and `GroundLayer.overlays_of(npc)`) and the detail card finds an overlay by name through `overlay_of(npc, name)`; a flag, a name or a lookup of an overlay goes through those, never `get_children()` / `get_node` of the NPC alone.
 
 - `ENTRIES` rows are `{ flag, label, group, default }`; `flag` is the overlay node's `show_<x>` property name. The toggle bar, Main, `MatchBuilder.set_overlay`,
   the test runner and the Testing world all read the table. **A new overlay is one row here, its draw script in `scenes/ai/debug/` and a node in `scenes/ai/npc.tscn`.**

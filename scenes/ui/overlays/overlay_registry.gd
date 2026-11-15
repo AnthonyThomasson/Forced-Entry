@@ -82,23 +82,21 @@ static func apply(npc: Node, flags: Dictionary) -> void:
 
 
 ## The nodes of `npc` an overlay flag may sit on: its children, and in the 3D render mode the
-## children of the `GroundLayer` its overlays were moved under (`GroundLayer`).
+## overlays that were moved off it onto the shared ground layer (`GroundLayer.overlays_of`).
 static func overlays_of(npc: Node) -> Array:
-	var out: Array = []
-	for child in npc.get_children():
-		if child is GroundLayer:
-			out.append_array(child.get_children())
-		else:
-			out.append(child)
-	return out
+	return npc.get_children() + GroundLayer.overlays_of(npc)
 
 
-## `npc`'s overlay named `overlay_name` (a child, or in 3D a child of its `GroundLayer`), or null.
+## `npc`'s overlay named `overlay_name` (a child, or in 3D one moved onto the ground layer), or
+## null.
 static func overlay_of(npc: Node, overlay_name: String) -> Node:
 	var found := npc.get_node_or_null(overlay_name)
-	if found == null:
-		found = npc.get_node_or_null("%s/%s" % [GroundLayer.NAME, overlay_name])
-	return found
+	if found != null:
+		return found
+	for overlay: Node in GroundLayer.overlays_of(npc):
+		if overlay.name == overlay_name:
+			return overlay
+	return null
 
 
 ## Whether `npc` is in `scope`: `all` takes every NPC, `defenders` / `invaders` the NPCs of that

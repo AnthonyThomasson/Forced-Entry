@@ -7,6 +7,11 @@ extends RefCounted
 const OverlayRegistry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 
 
+## `npc`'s overlay called `overlay_name`, found as the card finds it (null when it has none).
+static func named(npc: Node, overlay_name: String) -> Node:
+	return OverlayRegistry.overlay_of(npc, overlay_name)
+
+
 ## Whether `npc` has an overlay called `overlay_name` the card can read lines from.
 static func found(npc: Node, overlay_name: String) -> bool:
 	var overlay := OverlayRegistry.overlay_of(npc, overlay_name)

@@ -75,6 +75,10 @@ func _ready() -> void:
 	)
 	add_child(_composite)
 	process_priority = PRIORITY
+	# The 3D camera rig turns while a menu pauses the tree, so the view that places itself by that
+	# camera each frame keeps running; the sim's own tick (`_physics_process`) stays paused.
+	if GroundLayer.enabled:
+		process_mode = Node.PROCESS_MODE_ALWAYS
 
 
 func _process(_delta: float) -> void:
@@ -92,7 +96,7 @@ func _process(_delta: float) -> void:
 
 func _physics_process(_delta: float) -> void:
 	# A lifted view is queued for deletion but still ticks this frame: it builds and writes nothing.
-	if not is_instance_valid(_viewer) or is_queued_for_deletion():
+	if not is_instance_valid(_viewer) or is_queued_for_deletion() or get_tree().paused:
 		return
 	var eye := _viewer.global_position
 	var facing: Vector2 = _viewer.get("facing")

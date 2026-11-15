@@ -1,14 +1,18 @@
 extends GameTest
 ## Screen-relative controls (#193 rule 5): in the 3D render mode WASD moves the human relative to
 ## the screen, so W goes up the screen at any camera yaw; a driver seated in a vehicle keeps raw
-## keys (W throttle, A / D steer: G7), never turned by the camera. Judged by where the player shows
-## on the screen (through `Pointer.screen_of`, the camera's own view) and by the car's own front,
-## not by the rotation the controller applies. With no rig (the 2D render) W is up the world.
+## keys (W throttle, A / D steer: G7), never turned by the camera. Judged by the WORLD direction the
+## player walks, worked by hand from the isometric projection (a ground step (dx, dy) shows as
+## (dx cos(yaw) - dy sin(yaw), 0.57735 * (dx sin(yaw) + dy cos(yaw))) on the screen): the ground
+## direction that shows as screen up is (-sin(yaw), -cos(yaw)) and as screen right (cos(yaw),
+## -sin(yaw)); down and left are their opposites. At yaw 90 that is W -x, S +x, D -y, A +y; at yaw
+## 45 W (-0.7071, -0.7071) and D (0.7071, -0.7071). The car is judged by its own front. With no rig
+## (the 2D render) W is up the world.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
 const RigProbe := preload("res://tests/_general/rig_probe.gd")
-const YAW := 90.0
+const YAWS := [90.0, 45.0]
 ## Held long enough to cross well over 20 px of screen at walking pace.
 const WALK := 0.5
 
@@ -42,9 +46,13 @@ func run(t: TestContext) -> void:
 	await t.frames(3)
 	var you := t.actor(&"you")
 	await _two_d_w_is_up_the_world(t, you)
-	var rig := RigProbe.open(t.world, _camera, YAW)
+	var rig := RigProbe.open(t.world, _camera, YAWS[0])
+	for yaw: float in YAWS:
+		rig.yaw = yaw
+		await t.frames(3)
+		await _walks_by_the_screen(t, you, yaw)
+	rig.yaw = YAWS[0]
 	await t.frames(3)
-	await _walks_by_the_screen(t, you)
 	await _driver_keeps_raw_keys(t, you)
 	rig.queue_free()
 
@@ -62,31 +70,29 @@ func _two_d_w_is_up_the_world(t: TestContext, you: Node2D) -> void:
 	await t.frames(3)
 
 
-## Yaw 90: W must move the player up the screen (screen y falls, screen x holds) and D to the right.
-func _walks_by_the_screen(t: TestContext, you: Node2D) -> void:
+## Each key walks the ground direction that shows as its way on the screen at `yaw`.
+func _walks_by_the_screen(t: TestContext, you: Node2D, yaw: float) -> void:
+	var up := Vector2(-sin(deg_to_rad(yaw)), -cos(deg_to_rad(yaw)))
+	var right := Vector2(cos(deg_to_rad(yaw)), -sin(deg_to_rad(yaw)))
 	for step: Dictionary in [
-		{ "key": Keybinds.MOVE_UP, "name": "W", "dir": Vector2.UP },
-		{ "key": Keybinds.MOVE_DOWN, "name": "S", "dir": Vector2.DOWN },
-		{ "key": Keybinds.MOVE_RIGHT, "name": "D", "dir": Vector2.RIGHT },
-		{ "key": Keybinds.MOVE_LEFT, "name": "A", "dir": Vector2.LEFT },
+		{ "key": Keybinds.MOVE_UP, "name": "W", "dir": up },
+		{ "key": Keybinds.MOVE_DOWN, "name": "S", "dir": -up },
+		{ "key": Keybinds.MOVE_RIGHT, "name": "D", "dir": right },
+		{ "key": Keybinds.MOVE_LEFT, "name": "A", "dir": -right },
 	]:
 		_camera.global_position = Vector2(1000, 800)
 		you.global_position = Vector2(1000, 800)
 		await t.frames(4)
-		var before := Pointer.screen_of(you, you.global_position)
+		var start := you.global_position
 		Input.action_press(step["key"])
 		await t.seconds(WALK)
 		Input.action_release(step["key"])
 		await t.frames(3)
-		var shown := Pointer.screen_of(you, you.global_position) - before
+		var moved := you.global_position - start
 		var want: Vector2 = step["dir"]
 		t.check(
-			shown.length() > 20.0 and shown.normalized().distance_to(want) < 0.05,
-			"at yaw 90 %s moves the player %s on the screen (moved %s)" % [
-				step["name"],
-				want,
-				shown,
-			],
+			moved.length() > 20.0 and moved.normalized().distance_to(want) < 0.05,
+			"at yaw %d %s walks the ground along %s (moved %s)" % [yaw, step["name"], want, moved],
 		)
 
 

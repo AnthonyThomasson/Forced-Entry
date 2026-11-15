@@ -30,5 +30,5 @@ district) with none of that 2D work, so the rest of it is carried to those jobs;
 - The picture is drawn at a low internal resolution and upscaled with nearest filtering through a toon material and an outline pass (the pixel post, Art).
 - `Pointer` has a 3D body (a screen point is the camera ray meeting the ground, through the displayed rect of the 3D view), WASD and the spectator's pan are
   screen-relative in 3D (a seated driver's keys stay raw) and Q / E turn the camera freely. The vision and debug overlays draw flat on the ground plane over
-  the 3D view: each is moved under a `CanvasLayer` (`GroundLayer`) that follows the camera's ground-to-screen affine, because a hidden `CanvasItem` draws nothing.
+  the 3D view: each is moved under a `CanvasLayer` (`GroundLayer`: one shared by all the debug overlays) that follows the camera's ground-to-screen affine, because a hidden `CanvasItem` draws nothing.
   A 2D match is the game as it was, and the 2D render is deleted only at the end of #193.

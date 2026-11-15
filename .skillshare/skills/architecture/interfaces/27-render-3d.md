@@ -50,9 +50,8 @@
       larger and averaged down through a filtered stage (`View3D.shown`) to the picture's size first.
     - **The flat overlays** (`GroundLayer`, `general/ground_layer.gd`, interim until phase 3; `domain-general/camera3d.md`): the hidden 2D world
       draws nothing, so while `GroundLayer.enabled` (Main's view sets it) `ViewLayers.overlay` and the view's composite move the player's view
-      and every debug overlay under a `CanvasLayer` (`RenderConfig.vision_layer`, `overlay_layer`) whose `transform` is `Pointer.screen_transform`:
-      they lie flat on the 3D floor at any yaw, over the picture and under the HUD. Look an overlay up with `OverlayRegistry.overlays_of` /
-      `overlay_of`. Outside the cone the composite dims the 3D ground by `unseen_dim` (not black) until phase 3's memory.
+      and every debug overlay under a `CanvasLayer` (`vision_layer`; `overlay_layer`: one shared by all the overlays) whose `transform` is `Pointer.screen_transform`:
+      they lie flat on the 3D floor at any yaw, over the picture and under the HUD. Look an overlay up with `OverlayRegistry.overlays_of` / `overlay_of`. Outside the cone the composite dims the 3D ground by `unseen_dim` (not black) until phase 3's memory.
     - **Tuning:** `RenderConfig` (General: the camera, the picture's lines, `canvas_layer`, `vision_layer`, `overlay_layer`, `turn_speed_degrees`, `unseen_dim`),
       `RenderLightConfig` (General, the interim sun and ambient until the lighting job moves them to Lighting), `MirrorConfig` and `PixelPostConfig` (Art).
     - **Not yet:** things drawn that are not physics bodies (dropped items, debris, bullets, casings, grenades in flight) have no 3D counterpart until
