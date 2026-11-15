@@ -3,7 +3,7 @@ extends GameTest
 ## `domain-art/meshes.md`): Character's builder (`CharacterMeshes.register`, the `CHARACTER` hook
 ## key) gives the mirror a `BodyMesh` that follows the 2D body's own rig. Asserted at the seams the
 ## how-to names: the mirror shows a character by it (and two share their solids), a standing body is
-## 58 px tall (the how-to's number, copied here) and half that at half the scale, it faces where the
+## 74 px tall (the how-to's number, copied here) and half that at half the scale, it faces where the
 ## 2D body faces, a crouch lowers the hips by `CharacterPostureConfig`'s crouch height, the legs
 ## stride when the character walks and rest when it stands, the outfit's vest, plates and the
 ## style's colours reach the parts and a changed outfit re-dresses the body in place, a body seated
@@ -15,7 +15,7 @@ const MainProbe := preload("res://tests/_main/main_probe.gd")
 const Style := preload("res://scenes/character/body/character_style.gd")
 const SCRATCH := "user://settings_character_mesh_test.json"
 ## The how-to's standing character (`meshes.md` heights): px from the floor to the top of the head.
-const STANDING_HEIGHT := 58.0
+const STANDING_HEIGHT := 74.0
 const MATCH := {
 	"seed": 2,
 	"defenders": { "count": 1 },
@@ -26,7 +26,7 @@ const MATCH := {
 func describe() -> Dictionary:
 	return {
 		"name": "A character is shown by a low-poly body that follows its rig",
-		"description": "Character's builder gives the mirror a body of kit solids: 58 px tall, "
+		"description": "Character's builder gives the mirror a body of kit solids: 74 px tall, "
 			+ "facing the character's facing, folded by a crouch, striding with the gait, in the "
 			+ "outfit's and the style's colours, hidden when seated, lying when dead.",
 		"tags": ["mirror", "3d", "render", "meshkit", "character", "posture"],
@@ -78,6 +78,7 @@ func run(t: TestContext) -> void:
 	_check_facing(t, east, south)
 	_check_crouch(t, east, crouch)
 	_check_figure(t, east)
+	_check_proportions(t, east, south)
 	await _check_gait(t, mirror)
 	await _check_dress(t, mirror)
 	await _check_idle(t, mirror)
@@ -104,7 +105,7 @@ func _body_of(t: TestContext, mirror: WorldMirror, id: StringName) -> BodyMesh:
 ## share their solids.
 func _check_shape(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
 	var box := _bounds(east)
-	t.expect_near(box.end.y, STANDING_HEIGHT, 2.5, "the head tops a standing body at 58 px")
+	t.expect_near(box.end.y, STANDING_HEIGHT, 2.5, "the head tops a standing body at 74 px")
 	# The box is of each part's own box turned with it, so a tilted shin overshoots a little.
 	t.expect_near(box.position.y, 0.0, 1.5, "it stands on the floor")
 	t.check(
@@ -119,6 +120,48 @@ func _check_shape(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
 		(east.get_child(BodyMesh.HEAD) as MeshInstance3D).material_override
 			== ToonMaterial.shared(),
 		"it is drawn in the one shared toon material",
+	)
+
+
+## A natural body, not a blocky one: three quarters of a wall tall, a trunk narrower than the
+## collider, a neck between the trunk and the head, limbs that taper (a different shape for each
+## segment, not one box or cylinder), a head near the drawing's own size and an upright head over
+## the shoulders.
+func _check_proportions(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
+	t.expect_near(
+		_bounds(east).end.y,
+		MirrorConfig.wall_height * 0.75,
+		4.0,
+		"a standing body is about three quarters of a wall tall",
+	)
+	var trunk := east.get_child(BodyMesh.TORSO) as Node3D
+	t.check(
+		trunk.transform.basis.get_scale().x < t.actor(&"east").radius,
+		"the trunk is narrower than the 28 px collider (half width under the body's radius)",
+	)
+	var neck := east.get_child(BodyMesh.NECK) as MeshInstance3D
+	var head := east.get_child(BodyMesh.HEAD) as Node3D
+	t.check(
+		neck.visible and neck.position.y < head.position.y and neck.position.y > 0.0,
+		"a neck runs from the shoulders up to the head",
+	)
+	var shapes := {}
+	for index in [BodyMesh.UPPER, BodyMesh.FORE, BodyMesh.THIGH, BodyMesh.SHIN, BodyMesh.NECK]:
+		shapes[(east.get_child(index) as MeshInstance3D).mesh] = true
+	t.expect_eq(
+		shapes.size(),
+		5,
+		"the arm's, the leg's and the neck's segments are shaped each their own",
+	)
+	t.check(
+		(south.get_child(BodyMesh.THIGH) as MeshInstance3D).mesh
+			== (east.get_child(BodyMesh.THIGH) as MeshInstance3D).mesh,
+		"two bodies share one thigh solid",
+	)
+	var drawn: float = 2.0 * CharacterArtConfig.head_size * t.actor(&"east").radius
+	t.check(
+		head.transform.basis.get_scale().x < drawn * 1.2,
+		"the head is the drawing's own size, not an inflated one",
 	)
 
 

@@ -4,8 +4,9 @@ extends GameTest
 ## over one of its characters, zoomed in: the character is shown by the kit's body (Main's view
 ## registered the builder), the picture is drawn, and the log gate fails the test on any shader or
 ## engine error. The look itself is not asserted: with `CHARMESH_SHOTS=<dir>` set it saves a
-## picture of the body standing and one crouched at zoom 3 and at 1 (the game's default), for the
-## phase gate. Run: `tools/run_tests.sh --windowed --id=character/character_mesh_windowed`.
+## picture of the body standing, crouched and fallen at zoom 3 and at 1 (the game's default), for
+## the phase gate (`CHARMESH_PITCH=<degrees>` tips the camera). Run:
+## `tools/run_tests.sh --windowed --id=character/character_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
@@ -38,6 +39,8 @@ func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
+	if OS.get_environment("CHARMESH_PITCH") != "":
+		s.set_static(RenderConfig, &"pitch_degrees", float(OS.get_environment("CHARMESH_PITCH")))
 	s.lock_interaction([&"camera"])
 	s.von_script([])
 
@@ -75,12 +78,19 @@ func run(t: TestContext) -> void:
 		shown.size() == 1 and shown[0] is BodyMesh,
 		"the character is shown by the kit's body, not its capsule",
 	)
+	_send_others_away(built["world"], character)
 	await _shoot_standing(t, window, camera, character)
 	character.movement.set_posture(&"crouch")
 	await t.seconds(0.8)
 	for zoom: float in ZOOMS:
 		camera.zoom = Vector2(zoom, zoom)
 		await _shoot(t, window, camera, character, "crouched_zoom%d" % int(zoom))
+	character.movement.set_posture(&"stand")
+	character.take_damage(1000.0)
+	await t.seconds(2.5)
+	for zoom: float in ZOOMS:
+		camera.zoom = Vector2(zoom, zoom)
+		await _shoot(t, window, camera, character, "fallen_zoom%d" % int(zoom))
 	await MainProbe.close(t, window)
 
 
@@ -138,3 +148,10 @@ func _first_character(world: Node) -> CharacterBody2D:
 		if not body.get("is_dead"):
 			return body as CharacterBody2D
 	return null
+
+
+## The other characters moved far off, so a picture of `character` shows it alone.
+func _send_others_away(world: Node, character: Node2D) -> void:
+	for body: Node in world.find_children("*", "CharacterBody2D", true, false):
+		if body != character:
+			(body as Node2D).global_position = Vector2(-6000.0, -6000.0)

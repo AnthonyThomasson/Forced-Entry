@@ -7,7 +7,7 @@ extends GameTest
 ## `character_held_mesh_windowed_test.gd`.
 
 const SCRATCH := "user://settings_character_ragdoll_mesh_test.json"
-## A standing character is 58 px tall (`meshes.md`); a body on the floor is far under that: the
+## A standing character is 74 px tall (`meshes.md`); a body on the floor is far under that: the
 ## thickest part resting on it (the trunk), copied from the how-to's proportions with room.
 const LYING_HEIGHT := 24.0
 ## The parts worn on the body's back or the head's, which a body lying on its back lies on.
@@ -121,7 +121,7 @@ func _check_follows(
 	)
 
 
-## A settled body lies on the floor: no part rises past the thickness of the trunk, not the 58 px
+## A settled body lies on the floor: no part rises past the thickness of the trunk, not the 74 px
 ## of a standing one, and the body itself (trunk, head, limbs: not the pack, the plates or the hair
 ## worn on the side it lies on, which sink in the floor) is not in it.
 func _check_flat(t: TestContext, body: BodyMesh) -> void:

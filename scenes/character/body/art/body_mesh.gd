@@ -1,11 +1,12 @@
 class_name BodyMesh
 extends Node3D
 ## Character body, the 3D mesh of a living character (#193 phase 2, `domain-art/meshes.md`): a
-## low-poly body of the mesh kit's solids that the 3D mirror shows in place of the character's proxy
-## capsule. A trunk (the shirt, over it a vest, its plates and a pack), a head (skin, hair or a cap
-## or helmet, a visor band across the front of the face), two arms, two hands and two legs with
-## their shoes (a boot's shaft over the shin), each in the colour the 2D painters draw it in
-## (`BodyDress`: the style, the outfit and the plates' colours).
+## low-poly, upright, human-proportioned body of the mesh kit's solids (`BodySolids`) that the 3D
+## mirror shows in place of the character's proxy capsule. A trunk (the shirt, over it a vest, its
+## plates and a pack), a head (skin, hair or a cap or helmet, a visor band across the front of the
+## face), two arms, two hands and two legs with their shoes (a boot's shaft over the shin), each in
+## the colour the 2D painters draw it in (`BodyDress`: the style, the outfit and the plates'
+## colours).
 ##
 ## **Where the parts are** is the 2D body's own rig (`anatomy.rig()`, `character_rig.gd`): the same
 ## joints the painters draw the limbs between, solved once per physics frame and shared. They turn
@@ -13,10 +14,11 @@ extends Node3D
 ## one does, the arms hold what the hands hold, the legs stride as the gait says and a crouch folds
 ## the spine and lowers the hips as `CharacterPostureConfig` says (docs/cover-and-stance.md P3). The
 ## rig's heights are the drawing's (a head 100 px up); the mesh squeezes them so the head stands
-## `CharacterMeshConfig.height` high, and the horizontal reach is unchanged.
-## **How it follows:** the parts are shared unit solids (one cylinder, one ball, one box;
-## `MeshCache`) scaled and placed between the rig's joints by `mirror_update(body)` (the mirror
-## calls
+## `CharacterMeshConfig.height` high, and the horizontal reach is unchanged (a knee's and an elbow's
+## bend shrinks with the squeeze, `_bent`).
+## **How it follows:** the parts are shared unit solids (`BodySolids`: a trunk, a head, tapered
+## limbs, a neck, a shoe, a ball, a box; `MeshCache`) scaled and placed between the rig's joints by
+## `mirror_update(body)` (the mirror calls
 ## it each frame the mesh shows), only when a joint moved; a new look (an outfit, a style) only
 ## re-tints and shows or hides the optional parts (`_dress_parts`).
 ## **What it holds** is one more node, `held()`: the mesh the held item's art gives
@@ -31,10 +33,6 @@ extends Node3D
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 const Fallen = preload("res://scenes/character/body/character_ragdoll.gd")
-## Sides of the shared round solids: the limbs, the trunk and the balls.
-const LIMB_SIDES := 6
-const TORSO_SIDES := 10
-const BALL_SIDES := 8
 ## The parts, in `_parts`: the trunk's and the head's, then the sided ones (two each, side 0 first).
 const TORSO := 0
 const VEST := 1
@@ -51,8 +49,9 @@ const THIGH := 15
 const SHIN := 17
 const BOOT := 19
 const FOOT := 21
+const NECK := 23
 ## The held item's node, after the parts (it is not one of the character's own).
-const HELD := 23
+const HELD := 24
 ## The parts too small to throw a shadow worth its cost (the face's band, the fists, the plates, the
 ## shoes and a boot's shaft, the hair and the headwear): the other twelve parts cast one.
 const SMALL := [
@@ -71,11 +70,18 @@ const TURNED := 0.02
 ## How far down the shin (0 knee .. 1 ankle) a boot's shaft starts, and how much wider than the
 ## shin it is.
 const BOOT_TOP := 0.62
-const BOOT_GROW := 1.15
+const BOOT_GROW := 1.05
 ## How many physics frames a fallen body's joints take to rise to their clearance over the floor.
 const LIE_FRAMES := 18
 ## The held item's sample: its index among the joints.
 const AIM := JOINTS + 3
+## How far over the head's middle its crown and its covering reach (over its radius): the part of
+## the standing height above the head's joint.
+const HEAD_TOP := 1.2
+## The neck's width at the head over its width at the shoulders, and how far below the chest joint
+## it starts (body radii).
+const NECK_TAPER := 0.9
+const NECK_SINK := 0.1
 ## The head's parts over its radius: the hair (size, how far up and back), a cap's and a helmet's,
 ## the face band's size (width across, height, depth) and how far forward its middle sits, all over
 ## the head's radius, and the band's own height above the head's middle.
@@ -86,7 +92,9 @@ const FACE_SHAPE := Vector3(0.9, 0.34, 0.5)
 const FACE_FORWARD := 0.85
 const FACE_BASE := -0.1
 ## Where along the trunk a plate sits (its length up from the pelvis).
-const PLATE_AT := 0.3
+const PLATE_AT := 0.55
+## How deep into the vest's back the pack sits (a share of the vest's depth there).
+const PACK_SET := 0.85
 
 ## The body's radius, the visuals' dress, the hands' size and the head's.
 var _r := 14.0
@@ -184,59 +192,64 @@ func _make(body: CharacterBody2D, dress: BodyDress) -> void:
 		_hand_radius = hands.get("hand_radius")
 	_head_radius = CharacterArtConfig.head_size * 2.0 * _r * CharacterMeshConfig.head_scale
 	_squeeze = (
-		maxf(CharacterMeshConfig.height - _head_radius, 1.0)
+		maxf(CharacterMeshConfig.height - _head_radius * HEAD_TOP, 1.0)
 		/ (CharacterBodyConfig.head_height * _r)
 	)
 	_sample.resize(SAMPLE)
 	_last.resize(SAMPLE)
-	var solids := {
-		&"limb": _unit(&"cylinder", LIMB_SIDES),
-		&"trunk": _unit(&"cylinder", TORSO_SIDES),
-		&"ball": _unit(&"ball", BALL_SIDES),
-		&"box": _unit(&"box", 0),
-	}
+	var solids := _solids()
 	var shapes := [
-		&"trunk", &"trunk", &"box", &"box", &"box", &"ball", &"ball", &"ball", &"box",
-		&"limb", &"limb", &"limb", &"limb", &"ball", &"ball", &"limb", &"limb", &"limb", &"limb",
-		&"limb", &"limb", &"box", &"box",
+		&"trunk", &"vest", &"box", &"box", &"box", &"head", &"ball", &"ball", &"box",
+		&"upper", &"upper", &"fore", &"fore", &"ball", &"ball", &"thigh", &"thigh", &"shin",
+		&"shin", &"boot", &"boot", &"shoe", &"shoe", &"neck",
 	]
 	for i in shapes.size():
 		var node := MeshNodes.instance(solids[shapes[i]], Color.WHITE, not SMALL.has(i))
 		MeshNodes.figure(node)
 		add_child(node)
 		_parts.append(node)
-	assert(_parts.size() == FOOT + 2, "BodyMesh: the shapes list and the part indices disagree")
+	assert(_parts.size() == NECK + 1, "BodyMesh: the shapes list and the part indices disagree")
 	add_child(_held.node)
 	assert(_held.node.get_index() == HELD, "BodyMesh: the held item's node is not after the parts")
 	_dress_parts()
 	_pose(body.anatomy.rig(), body)
 
 
-## The shared unit solid `shape` (a cylinder of radius 1 px and height 1 px from the origin up, a
-## ball of radius 1 at the origin, a box 1 px each way over the origin's column), `sides` flat faces
-## round (the cylinder's and the ball's). One mesh for every body.
-static func _unit(shape: StringName, sides: int) -> Mesh:
-	var key := MeshCache.key(
-		"body_part",
-		Vector2.ONE,
-		Color.WHITE,
-		{ "shape": shape, "sides": sides },
-	)
-	return MeshCache.fetch(key, _make_unit.bind(shape, sides))
-
-
-## The mesh of `_unit`.
-static func _make_unit(shape: StringName, sides: int) -> Mesh:
-	var kit := MeshKit.new()
-	kit.sides = sides
-	match shape:
-		&"cylinder":
-			kit.cylinder(Vector3.ZERO, 1.0, 1.0, Color.WHITE)
-		&"ball":
-			kit.sphere(Vector3.ZERO, 1.0, Color.WHITE)
-		_:
-			kit.box(AABB(Vector3(-0.5, 0.0, -0.5), Vector3.ONE), Color.WHITE)
-	return kit.build()
+## The shared solids the parts are made of, by shape name (`BodySolids`: one mesh for every body).
+## The limbs take the 2D art's widths (`CharacterArtConfig.body_arm_widths`, ...), tapering as the
+## drawn limbs do; the vest is the trunk's own shape from `CharacterMeshConfig.vest_from` up.
+static func _solids() -> Dictionary:
+	var arm := CharacterArtConfig.body_arm_widths
+	var leg := CharacterArtConfig.body_leg_widths
+	return {
+		&"trunk": BodySolids.fetch(&"trunk"),
+		&"vest": BodySolids.fetch(&"trunk", { "from": CharacterMeshConfig.vest_from }),
+		&"head": BodySolids.fetch(&"head"),
+		&"ball": BodySolids.fetch(&"ball"),
+		&"box": BodySolids.fetch(&"box"),
+		&"shoe": BodySolids.fetch(&"shoe"),
+		&"upper": BodySolids.fetch(
+			&"limb",
+			BodySolids.limb([Vector2(0, arm[0]), Vector2(1, arm[1])]),
+		),
+		&"fore": BodySolids.fetch(
+			&"limb",
+			BodySolids.limb([Vector2(0, arm[1]), Vector2(1, arm[2])]),
+		),
+		&"thigh": BodySolids.fetch(
+			&"limb",
+			BodySolids.limb([Vector2(0, leg[0]), Vector2(1, leg[1])]),
+		),
+		&"shin": BodySolids.fetch(
+			&"limb",
+			BodySolids.limb([Vector2(0, leg[1]), Vector2(0.3, leg[2]), Vector2(1, leg[3])]),
+		),
+		&"boot": BodySolids.fetch(&"limb", BodySolids.limb([Vector2(0, 1), Vector2(1, 1)])),
+		&"neck": BodySolids.fetch(
+			&"limb",
+			BodySolids.limb([Vector2(0, 1), Vector2(1, NECK_TAPER)]),
+		),
+	}
 
 
 ## Colour the parts from the look the dress resolved, and show the optional ones it asks for: the
@@ -282,6 +295,9 @@ func _pose(rig: Object, body: Node2D) -> void:
 	var clear := _floor_clearance()
 	for i in JOINTS:
 		_sample[i] = _lift(rig.point(i), clear)
+	for i in 2 if _died < 0 else 0:  # a fallen body's joints are the ragdoll's own
+		_sample[Rig.KNEE[i]] = _bent(rig, Rig.HIP[i], Rig.KNEE[i], Rig.ANKLE[i], clear)
+		_sample[Rig.ELBOW[i]] = _bent(rig, Rig.SHOULDER[i], Rig.ELBOW[i], Rig.HAND[i], clear)
 	for i in 2:
 		_sample[JOINTS + i] = _dir(rig.toes(i))
 	_sample[JOINTS + 2] = _dir(rig.face())
@@ -311,7 +327,8 @@ func _unmoved() -> bool:
 	return true
 
 
-## The trunk from the pelvis up the spine past the chest, with its vest, plates and pack.
+## The trunk from the pelvis up the spine to the neck, with its vest, plates and pack, and the neck
+## up to the head.
 func _pose_trunk() -> void:
 	var pelvis := _last[Rig.PELVIS]
 	var up := _last[Rig.CHEST] - pelvis
@@ -319,8 +336,12 @@ func _pose_trunk() -> void:
 	var half := _trunk_half()
 	var length := up.length() + CharacterMeshConfig.torso_overshoot * _r
 	_place(_parts[TORSO], frame, Vector3(half.x, length, half.y), pelvis)
-	_pose_vest(frame, pelvis, up.length(), half)
-	_pose_pack(frame, pelvis, up.length(), half)
+	_pose_vest(frame, pelvis, length, half)
+	_pose_pack(frame, pelvis, length, half)
+	var neck := _r * 0.5 * CharacterMeshConfig.limb_scale * CharacterArtConfig.body_neck_width
+	var chest := _last[Rig.CHEST]
+	var base := chest - (_last[Rig.HEAD] - chest).normalized() * NECK_SINK * _r
+	_segment(_parts[NECK], base, _last[Rig.HEAD], neck)
 
 
 ## The trunk's half width and half depth (px).
@@ -331,39 +352,39 @@ func _trunk_half() -> Vector2:
 	) * _r
 
 
-## The vest over the trunk (`frame` from `pelvis`, `spine` long, `half` its half width and depth),
+## The vest over the trunk (`frame` from `pelvis`, `length` long, `half` its half width and depth),
 ## and a plate on its front and back.
-func _pose_vest(frame: Basis, pelvis: Vector3, spine: float, half: Vector2) -> void:
+func _pose_vest(frame: Basis, pelvis: Vector3, length: float, half: Vector2) -> void:
 	var grow := CharacterMeshConfig.vest_grow
-	var from := spine * CharacterMeshConfig.vest_from
-	var length := spine + CharacterMeshConfig.torso_overshoot * _r - from
+	var from := length * CharacterMeshConfig.vest_from
 	_place(
 		_parts[VEST],
 		frame,
-		Vector3(half.x * grow, length, half.y * grow),
+		Vector3(half.x * grow, length - from, half.y * grow),
 		pelvis + frame.y * from,
 	)
 	var plate := CharacterMeshConfig.plate_size * _r
 	var thick := CharacterMeshConfig.plate_thickness
-	var shell := half.y * grow + thick * 0.5
+	var at := length * PLATE_AT
+	var shell := half.y * grow * BodySolids.trunk_width(PLATE_AT) + thick * 0.5
 	for i in 2:
 		_place(
 			_parts[PLATE + i],
 			frame,
 			Vector3(plate.x, plate.y, thick),
-			pelvis + frame.y * spine * PLATE_AT + frame.z * (shell if i == 0 else -shell),
+			pelvis + frame.y * at + frame.z * (shell if i == 0 else -shell),
 		)
 
 
 ## The pack behind the trunk (arguments as `_pose_vest`).
-func _pose_pack(frame: Basis, pelvis: Vector3, spine: float, half: Vector2) -> void:
+func _pose_pack(frame: Basis, pelvis: Vector3, length: float, half: Vector2) -> void:
 	var pack := Vector3(
 		half.x * CharacterMeshConfig.pack_width * 2.0,
-		spine * CharacterMeshConfig.pack_height,
+		length * CharacterMeshConfig.pack_height,
 		CharacterMeshConfig.pack_depth,
 	)
-	var behind := half.y * CharacterMeshConfig.vest_grow + pack.z * 0.5
-	_place(_parts[PACK], frame, pack, pelvis + frame.y * spine * 0.15 - frame.z * behind)
+	var behind := half.y * CharacterMeshConfig.vest_grow * PACK_SET + pack.z * 0.5
+	_place(_parts[PACK], frame, pack, pelvis + frame.y * length * 0.2 - frame.z * behind)
 
 
 ## The head on its joint, its hair or headwear toward the back and its face band where the face
@@ -404,12 +425,11 @@ func _cover(node: MeshInstance3D, frame: Basis, shape: Vector3, at: Vector3) -> 
 
 ## Side `i`'s arm (shoulder, elbow, hand) and leg (hip, knee, ankle, with its boot and foot).
 func _pose_limbs(i: int) -> void:
-	var arms := CharacterArtConfig.body_arm_widths
 	var thick := _r * 0.5 * CharacterMeshConfig.limb_scale
 	var elbow := _last[Rig.ELBOW[i]]
 	var hand := _last[Rig.HAND[i]]
-	_segment(_parts[UPPER + i], _last[Rig.SHOULDER[i]], elbow, (arms[0] + arms[1]) * 0.5 * thick)
-	_segment(_parts[FORE + i], elbow, hand, (arms[1] + arms[2]) * 0.5 * thick)
+	_segment(_parts[UPPER + i], _last[Rig.SHOULDER[i]], elbow, thick)
+	_segment(_parts[FORE + i], elbow, hand, thick)
 	_place(_parts[HAND + i], Basis.IDENTITY, Vector3.ONE * _hand_radius, hand)
 	_pose_leg(i, thick)
 
@@ -421,8 +441,8 @@ func _pose_leg(i: int, thick: float) -> void:
 	var knee := _last[Rig.KNEE[i]]
 	var ankle := _last[Rig.ANKLE[i]]
 	var shin: float = (legs[1] + legs[2] + legs[3]) / 3.0 * thick
-	_segment(_parts[THIGH + i], _last[Rig.HIP[i]], knee, (legs[0] + legs[1]) * 0.5 * thick)
-	_segment(_parts[SHIN + i], knee, ankle, shin)
+	_segment(_parts[THIGH + i], _last[Rig.HIP[i]], knee, thick)
+	_segment(_parts[SHIN + i], knee, ankle, thick)
 	_segment(_parts[BOOT + i], knee.lerp(ankle, BOOT_TOP), ankle, shin * BOOT_GROW)
 	var shoes := CharacterArtConfig.body_shoe_widths
 	var size := Vector3(
@@ -475,6 +495,32 @@ static func _frame_of(up: Vector3, out: Vector3) -> Basis:
 ## so its limbs rest on the floor, not in it).
 func _lift(point: Vector3, clear: float) -> Vector3:
 	return Vector3(point.x, maxf(point.z * _squeeze, clear), point.y)
+
+
+## The middle joint `mid` of a two-bone limb between `from` and `to` (a knee between hip and ankle,
+## an elbow between shoulder and hand), lifted with its ends but bent in proportion: the rig bent it
+## for the drawing's heights, and squeezing only the ends would leave it bent as far over a shorter
+## chord (a standing leg with its knees thrust forward). Its place along the chord and its bend
+## (the part of its offset across the chord) both shrink with the chord.
+func _bent(rig: Object, from: int, mid: int, to: int, clear: float) -> Vector3:
+	var a: Vector3 = rig.point(from)
+	var low := _lift(a, clear)
+	var squeezed := _lift(rig.point(to), clear) - low
+	var chord: Vector3 = rig.point(to) - a
+	if chord.length() < 0.001 or squeezed.length() < 0.001:
+		return _lift(rig.point(mid), clear)
+	var offset: Vector3 = rig.point(mid) - a
+	var along := offset.dot(chord) / chord.length_squared()
+	var bend := _across(offset - chord * along, squeezed) * (squeezed.length() / chord.length())
+	return low + squeezed * along + bend
+
+
+## `bend` (a rig vector, x y over the floor and z up) in the 3D frame, with what lies along `chord`
+## taken out.
+static func _across(bend: Vector3, chord: Vector3) -> Vector3:
+	var turned := Vector3(bend.x, bend.z, bend.y)
+	var unit := chord.normalized()
+	return turned - unit * turned.dot(unit)
 
 
 ## How high a joint is held over the floor now: nothing while the body lives, then

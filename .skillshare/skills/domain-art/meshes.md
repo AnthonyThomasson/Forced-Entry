@@ -44,14 +44,14 @@ finish term); a vertex colour is the whole of what a face carries.
 the rules the mirror follows: `mesh-hook.md`. A finer key is for one art id (`MirrorProxy.furniture_key("table")`) and wins over the `FURNITURE` kind.
 A mesh whose parts move with a pose is the character's: `CharacterMeshes.register` plugs `BodyMesh`, which `mirror_update` places between the 2D rig's joints (`domain-character`).
 
-## Heights (px; a standing character is 58, a wall 96: `MirrorConfig`)
+## Heights (px; a standing character is 74, a wall 96: `MirrorConfig`)
 
 Plausible, not exact; one number per class, tuned at the phase gate in the game, kept in the domain's own holder (`ObjectMeshConfig`).
 
 | Class | Height | Class | Height |
 |---|---|---|---|
 | Wall | 96 (`MirrorConfig.wall_height`) | Door leaf | 84 |
-| Character standing | 58 | Character crouched | `CharacterPostureConfig`'s crouch `height` times standing (`docs/cover-and-stance.md`) |
+| Character standing | 74 | Character crouched | `CharacterPostureConfig`'s crouch `height` times standing (`docs/cover-and-stance.md`) |
 | Table, desk, bench top | 30 (top 4 thick) | Coffee table, side table | 18 to 22 |
 | Chair seat / back | 18 / 36 | Sofa seat / back | 18 / 38 |
 | Bed frame / mattress top | 14 / 22 | Counter, island | 34 |
