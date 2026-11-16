@@ -54,7 +54,7 @@ func run(t: TestContext) -> void:
 	_fading_boxes(view)
 	_tiled_side(view)
 	await t.frames(4)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	var image := view.get_texture().get_image()
 	var folder := OS.get_environment("TEXTOON_SHOTS")
 	if folder != "":

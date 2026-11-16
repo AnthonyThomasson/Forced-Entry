@@ -134,7 +134,7 @@ func _stand_player(t: TestContext, wall: Dictionary, back: Vector2) -> void:
 ## Let the picture settle and read it back (saved when asked to).
 func _shoot(t: TestContext, shot_name: String) -> Image:
 	await t.seconds(0.8)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	var image := _window.get_texture().get_image()
 	var dir := OS.get_environment("WALL_FADE_SHOT_DIR")
 	if dir != "":

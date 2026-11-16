@@ -41,7 +41,7 @@ func run(t: TestContext) -> void:
 	t.world.add_child(view)
 	var camera := _scene(view)
 	await t.frames(4)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	var image := view.get_texture().get_image()
 	var art_white := _pixel(image, camera, WHITE_AT + Vector3(-8, HEIGHT, 0))
 	var clear_white := _pixel(image, camera, WHITE_AT + Vector3(8, HEIGHT, 0))

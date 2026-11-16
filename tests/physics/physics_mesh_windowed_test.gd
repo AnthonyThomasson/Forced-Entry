@@ -210,7 +210,7 @@ func _hit(world: Node, at: Vector2, i: int) -> void:
 ## Save the picture as `<name>.png` in the folder `PHYSICS_SHOTS` names (nothing when it is unset).
 func _save(t: TestContext, name: String) -> void:
 	await t.frames(2)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	var folder := OS.get_environment("PHYSICS_SHOTS")
 	if folder != "":
 		DirAccess.make_dir_recursive_absolute(folder)

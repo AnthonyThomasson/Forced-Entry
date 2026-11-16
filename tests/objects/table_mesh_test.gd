@@ -72,8 +72,8 @@ func run(t: TestContext) -> void:
 	t.expect_near(at.x, DINING_AT.x, 1.0, "the mesh stands on the table (x)")
 	t.expect_near(at.z, DINING_AT.y, 1.0, "the mesh stands on the table (z)")
 	t.check(
-		node.material_override == ToonMaterial.shared(),
-		"it is drawn in the one shared toon material",
+		(node.material_override as ShaderMaterial).get_shader_parameter(&"albedo_texture") != null,
+		"it is drawn in the textured toon, wearing the painter's art",
 	)
 	# At half scale, every length of the mesh halves (the one conversion is the kit's).
 	RenderConfig.unit = 0.5
@@ -96,13 +96,12 @@ func run(t: TestContext) -> void:
 	await _check_main(t)
 
 
-## The mesh node of `body` when the mirror shows it by a `MeshInstance3D` that is not a plain box.
+## The mesh node of `body` when the mirror shows it by a furniture rig (its body solid), else null.
 func _mesh_of(mirror: WorldMirror, body: Node) -> MeshInstance3D:
 	var shown := mirror.proxies_of(body)
-	if shown.size() != 1 or not shown[0] is MeshInstance3D:
+	if shown.size() != 1 or not shown[0] is FurnitureRig:
 		return null
-	var mesh_node := shown[0] as MeshInstance3D
-	return null if mesh_node.mesh is BoxMesh else mesh_node
+	return (shown[0] as FurnitureRig).body
 
 
 ## A top over four legs, at the table's footprint and height times `scale`.

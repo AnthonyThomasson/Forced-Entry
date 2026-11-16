@@ -71,11 +71,11 @@ func run(t: TestContext) -> void:
 	var mirror: WorldMirror = view.mirror
 	_hide_walls(built["world"], mirror)  # full-height walls would stand between the camera and it
 	var shown := mirror.proxies_of(table)
-	var kit_mesh: bool = shown.size() == 1 and shown[0] is MeshInstance3D
+	var kit_mesh: bool = shown.size() == 1 and shown[0] is FurnitureRig
 	if kit_mesh:
-		kit_mesh = not (shown[0] as MeshInstance3D).mesh is BoxMesh
+		kit_mesh = not (shown[0] as FurnitureRig).body.mesh is BoxMesh
 	t.check(kit_mesh, "the table is shown by a mesh of the kit, not its proxy box")
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	var shot := OS.get_environment("MESHKIT_SHOT")
 	if shot != "":
 		window.get_texture().get_image().save_png(shot)

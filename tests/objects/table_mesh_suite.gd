@@ -5,7 +5,7 @@ extends UnitSuite
 ## holder is another mesh and never a stale cached one. Each tuning case is one line.
 
 const TableMesh := preload("res://scenes/objects/art/table_mesh.gd")
-const Probe := preload("res://tests/_objects/table_piece_probe.gd")
+const Probe := preload("res://tests/_objects/furniture_piece_probe.gd")
 
 
 ## The mesh a table of `size` (and `opts`, its `art_opts`) is shown by now.
@@ -13,9 +13,10 @@ func _mesh_of(size: Vector2, opts := {}) -> Mesh:
 	var piece := Probe.new()
 	piece.size = size
 	piece.look.art_opts = opts
-	var node := TableMesh.build(piece) as MeshInstance3D
-	var mesh := node.mesh
-	node.free()
+	piece.look.art = "table"
+	var rig := TableMesh.build(piece) as FurnitureRig
+	var mesh := rig.body.mesh
+	rig.free()
 	piece.free()
 	return mesh
 

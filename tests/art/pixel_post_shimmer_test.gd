@@ -124,7 +124,7 @@ func _turn(t: TestContext, key: String, variant: Dictionary, zoom: int) -> Dicti
 	for n in FRAMES:
 		view.rig.yaw = START_YAW + float(n) * STEP
 		await t.frames(1)
-		await RenderingServer.frame_post_draw
+		RenderingServer.force_draw(false)  # on demand: a covered window never draws
 		var image := window.get_texture().get_image()
 		if shots != "" and (n == 20 or n == 21):
 			image.save_png("%s/%s_%d.png" % [shots, key, n])

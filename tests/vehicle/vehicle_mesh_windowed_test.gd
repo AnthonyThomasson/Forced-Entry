@@ -136,7 +136,9 @@ func _open_and_dent(t: TestContext, car: RigidBody2D, van: RigidBody2D) -> void:
 ## The picture, saved when `VEHICLE_SHOT_DIR` names a folder.
 func _shot(t: TestContext, window: SubViewport, name: String) -> void:
 	await t.frames(5)
-	await RenderingServer.frame_post_draw
+	# A window the desktop covers is not drawn and never signals frame_post_draw: draw the viewport
+	# on demand (synchronously) and read it back at once.
+	RenderingServer.force_draw(false)
 	var dir := OS.get_environment("VEHICLE_SHOT_DIR")
 	if dir != "":
 		window.get_texture().get_image().save_png("%s/%s.png" % [dir, name])

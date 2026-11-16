@@ -139,7 +139,7 @@ func _checker() -> ImageTexture:
 
 func _shoot(t: TestContext, view: SubViewport) -> Image:
 	await t.frames(4)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	return view.get_texture().get_image()
 
 

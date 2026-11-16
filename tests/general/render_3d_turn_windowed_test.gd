@@ -89,7 +89,7 @@ func run(t: TestContext) -> void:
 	t.expect_near(
 		wrapf(view.rig.yaw - before, -180.0, 180.0), 90.0, 0.001, "E turned the camera a quarter"
 	)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	_check_picture(t, window.get_texture().get_image())
 	await MainProbe.close(t, window)
 

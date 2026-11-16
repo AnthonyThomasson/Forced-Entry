@@ -34,6 +34,6 @@ static var fire_steps: int = 3
 ## A puff of smoke starts on the ground, `smoke_squash` as tall as it is wide, and rises
 ## `smoke_rise` px over its life.
 static var smoke_rise: float = 40.0
-static var smoke_squash: float = 0.8
+static var smoke_squash: float = 0.12
 ## The fade is this many steps from whole to gone.
 static var fade_levels: int = 6

@@ -47,7 +47,7 @@ func run(t: TestContext) -> void:
 	var sun := _lights_and_camera(view)
 	var shade := _scene(view, sun)
 	await t.frames(3)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	var image := view.get_texture().get_image()
 	_check_shadowed_decal(t, image, shade)
 	_check_fade(t, image)

@@ -34,6 +34,7 @@ func configure(s: TestSetup) -> void:
 	)
 	s.object(&"bed", "bed", Vector2(120.0, 300.0))
 	s.object(&"lamp", "streetlight", Vector2(420.0, 300.0))
+	s.object(&"table", "dining_table", Vector2(320.0, 420.0))
 	s.object(&"sign", "awning", Vector2(620.0, 300.0), { "facing": Vector2.UP })
 	s.object(&"sofa_up", "sofa", Vector2(720.0, 120.0), { "facing": Vector2.UP })
 	s.object(
@@ -78,6 +79,24 @@ func run(t: TestContext) -> void:
 	_check_overhang(t, mirror, &"lamp")
 	_check_overhang(t, mirror, &"sign")
 	_check_tint(t, sofa, t.object(&"sofa"))
+	_check_table(t, mirror)
+
+
+## A table wears its painter's art too (it once was a plain slab: no rig, no art).
+func _check_table(t: TestContext, mirror: WorldMirror) -> void:
+	var rig := _rig(t, mirror, &"table")
+	if not t.require(rig != null, "the table has a rig"):
+		return
+	var piece := t.object(&"table")
+	var flat := ObjectArt.flat(
+		"table", piece.get("size"), piece.get("color"),
+		piece.look.art_opts.merged({ "material": piece.object_material }, true),
+	)
+	var material := rig.body.material_override as ShaderMaterial
+	t.check(
+		material != null and material.get_shader_parameter(&"albedo_texture") == flat,
+		"the table's top wears the table's flat render",
+	)
 
 
 func _rig(t: TestContext, mirror: WorldMirror, id: StringName) -> FurnitureRig:

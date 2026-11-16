@@ -337,7 +337,7 @@ _Avoid_: visible region, culled
 ### The 3D render
 
 **Render mode**:
-How a match is drawn, 2D (the top-down game as it was) or 3D (the near top-down view that mirrors it), a saved setting
+How a match is drawn, 2D (the top-down game as it was, kept as a render mode) or 3D (the near top-down view that mirrors it, 80 degrees, wearing the 2D art), a saved setting
 (`Settings.render_mode`) read when a match starts: a change applies at the next match, never to the one that runs. In 3D the 2D world
 is not drawn.
 _Avoid_: view mode, graphics setting, switching live
@@ -367,6 +367,18 @@ What makes the 3D picture read as pixel art (`PixelPostConfig`, Art): the scene 
 `round(zoom)` screen pixels wide, `RenderConfig.texel_match`; at most `max_lines` rows) and shown with nearest filtering, through one toon material that steps
 the light into bands of `ArtSurfaceConfig`'s tones and an outline pass under the camera.
 _Avoid_: shader (it is the material, the outline and the resolution together), filter
+
+**Flat paint**:
+A painter's own art with no light baked in (`PixelArt.render_flat`, Art): what the 3D meshes wear, so the toon bands shade it and the picture is the 2D art, not a second look.
+_Avoid_: albedo render, unlit paint
+
+**Textured toon**:
+The toon material of a mesh that wears flat paint (`MeshNodes.textured`, `toon_tex.gdshader`): the art projected straight down onto the top faces, the art's edge texels on the sides, one material per texture.
+_Avoid_: texture mapping, UVs (the art is projected, no mesh carries UVs)
+
+**Quarter turn**:
+What Q and E do in the 3D render: the camera yaw steps 90 degrees, eased, and rests only at north, east, south or west (`CameraRig.turning()`). The map spins; north is up at rest.
+_Avoid_: rotate, orbit
 
 **Ground plane**:
 The flat 3D plane the 2D world lies on (`y = 0`); a 2D point is a point on it, and the 2D overlays (the view cone, debug markings) are

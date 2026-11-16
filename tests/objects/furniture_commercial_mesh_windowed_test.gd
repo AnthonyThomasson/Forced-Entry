@@ -132,7 +132,7 @@ func _scenes(t: TestContext) -> void:
 			_camera.zoom = Vector2(zoom, zoom)
 			await t.frames(12)
 			_check_rig(t, piece, "the %s of the %s" % [scene[1], scene[0]])
-			await RenderingServer.frame_post_draw
+			RenderingServer.force_draw(false)  # on demand: a covered window never draws
 			_save("scene_%s_zoom%d" % [scene[0], int(zoom)])
 
 
@@ -148,7 +148,7 @@ func _stencils(t: TestContext) -> void:
 	_camera.global_position = first.global_position + first.texture.get_size() * 0.5
 	_camera.zoom = Vector2(CLOSE_ZOOM * 0.5, CLOSE_ZOOM * 0.5)
 	await t.frames(12)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	_save("kind_stencil")
 
 
@@ -174,7 +174,7 @@ func _gallery_close_ups(t: TestContext, district: Node2D) -> void:
 		_camera.global_position = piece.global_position + reach.get_center()
 		await t.frames(8)
 		_check_rig(t, piece, "a %s" % key)
-		await RenderingServer.frame_post_draw
+		RenderingServer.force_draw(false)  # on demand: a covered window never draws
 		_save("kind_%s" % key)
 
 
@@ -206,7 +206,7 @@ func _awning_fade(t: TestContext, wall_fade: WallFade) -> void:
 		parts.all(func(p: Node) -> bool: return _level(p) < 0.5),
 		"the awning fades while a combatant stands under it",
 	)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	_save("awning_faded")
 	combatant.global_position = awning.global_position + facing * 900.0
 	await t.frames(40)
@@ -214,7 +214,7 @@ func _awning_fade(t: TestContext, wall_fade: WallFade) -> void:
 		parts.all(func(p: Node) -> bool: return _level(p) > 0.99),
 		"and whole once it has gone",
 	)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	_save("awning_whole")
 
 

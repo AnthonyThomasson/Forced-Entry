@@ -95,7 +95,9 @@ func _shoot(
 	camera.zoom = Vector2(zoom, zoom)
 	camera.global_position = at
 	await t.frames(20)
-	await RenderingServer.frame_post_draw
+	# A window the desktop covers is not drawn and never signals frame_post_draw: draw the viewport
+	# on demand (synchronously) and read it back at once.
+	RenderingServer.force_draw(false)
 	t.expect_near(
 		_rig.texel(),
 		RenderConfig.art_pixel * RenderConfig.unit,

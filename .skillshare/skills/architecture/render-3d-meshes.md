@@ -25,4 +25,10 @@ A mesh node the mirror shows may carry (all duck-typed, all optional):
 
 Main's `main_view3d.gd` `_register_meshes()` calls each. Objects' wear and decals: `domain-objects/meshes.md`.
 
+## What the 3D mirror wears, and the look gate
+
+Every mesh wears its domain's 2D art, never a flat colour (`domain-art/textured-toon.md`): furniture through `FurnitureRig` (a builder returns `FurnitureMesh.show(piece, mesh)`, as the table's does since the look gate; a builder that returns a bare `MeshInstance3D` leaves its piece a plain slab and a dent unfollowed), structure, vehicles, the body (`domain-character/body-textures.md`), a held and a lying gun (a lying item is tinted `ItemMeshConfig.lying_brighten`, 1: as painted). A burst's smoke puff is a flat disc, not a dome, so it reads as the 2D blob (`domain-physics/meshes.md`).
+
+The look gate's shots: `tests/general/render_3d_look_gate_windowed_test.gd` (one scene per run: `LOOK_SCENE`, `LOOK_MODE` 2d or 3d, `LOOK_DIR`, `LOOK_ZOOMS`, `LOOK_YAWS`; `turn` and `pan` print the picture's flicker) and `tools/look_gate_sheets.py DIR` (a contact sheet per scene, 2D beside 3D). A windowed test reads the picture after `RenderingServer.force_draw(false)`, never after `await frame_post_draw`: a window the desktop covers is not drawn, never signals it, and the test runs its sim clock out to a silent timeout.
+
 Known cost: Physics' ink rebuilds a whole 128 px chunk when one mark in it changes (dries a step, a smear grows), O(marks in the chunk); the pool and blast cost is one pool a frame.

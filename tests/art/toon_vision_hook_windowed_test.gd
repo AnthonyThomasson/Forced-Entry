@@ -18,7 +18,7 @@ const SCALE := 1.28
 
 func _draw(t: TestContext) -> void:
 	await t.frames(3)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 
 
 func describe() -> Dictionary:

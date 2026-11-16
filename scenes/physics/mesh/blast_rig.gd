@@ -9,6 +9,10 @@ extends RefCounted
 ## the third of its life it is in, and a fade is a dither of the picture's pixels in a few steps,
 ## so a part is written only when its step changes.
 
+## The share of its life a puff thins out over, at the end: until then it is whole (a flat cloud,
+## not a stipple of the floor).
+const SMOKE_THIN := 0.35
+
 ## The parts: the flash's two discs, the ring, the fireball (body, core, the lobes) and the puffs.
 var flash: Array[MeshInstance3D] = []
 var ring: MeshInstance3D
@@ -41,7 +45,7 @@ func _init(parent: Node3D, world: FxWorld) -> void:
 	for i in 2 + ExplosionFx.LOBES:
 		fire.append(_part(parent, sphere))
 	for i in _most_puffs():
-		puffs.append(_part(parent, sphere, false))
+		puffs.append(_part(parent, disc))
 
 
 ## Begin showing a burst of `row` (a `PhysicsExplosionConfig.looks` row) at world `place`.
@@ -188,7 +192,7 @@ func _puff(part: MeshInstance3D, i: int, t: float) -> void:
 	var size := radius * puff_look[i].x * (0.4 + 0.6 * sqrt(own))
 	var rise := PhysicsBlastMeshConfig.smoke_rise * own
 	var tall := PhysicsBlastMeshConfig.smoke_squash
-	var fade := float(look.get("smoke_alpha", 0.5)) * minf(own / 0.1, 1.0) * (1.0 - own)
+	var fade := minf(own / 0.1, 1.0) * minf((1.0 - own) / SMOKE_THIN, 1.0)
 	_tone(part, look.get("smoke_color", Color.GRAY), 0.0)
 	_shape(
 		part,

@@ -100,7 +100,7 @@ func _shoot_all(t: TestContext, camera: Camera2D, at: Vector2, shot_name: String
 		camera.zoom = Vector2(zoom, zoom)
 		camera.global_position = at
 		await t.frames(20)
-		await RenderingServer.frame_post_draw
+		RenderingServer.force_draw(false)  # on demand: a covered window never draws
 		var dir := OS.get_environment("WEAR_SHOT_DIR")
 		if dir != "":
 			window.get_texture().get_image().save_png(

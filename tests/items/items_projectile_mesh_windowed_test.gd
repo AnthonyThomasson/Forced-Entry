@@ -190,7 +190,7 @@ func _die(
 ## Save the picture as `<name>.png` in the folder `ITEMS_SHOTS` names (nothing when it is unset).
 func _save(t: TestContext, window: SubViewport, name: String) -> void:
 	await t.frames(2)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	var folder := OS.get_environment("ITEMS_SHOTS")
 	if folder != "":
 		DirAccess.make_dir_recursive_absolute(folder)

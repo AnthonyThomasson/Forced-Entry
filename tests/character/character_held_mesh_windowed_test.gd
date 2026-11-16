@@ -158,7 +158,7 @@ func _shoot(
 ) -> void:
 	camera.global_position = character.global_position
 	await t.frames(8)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	var folder := OS.get_environment("HELD_SHOTS")
 	if folder != "":
 		DirAccess.make_dir_recursive_absolute(folder)

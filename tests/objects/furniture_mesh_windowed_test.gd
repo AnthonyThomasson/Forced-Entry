@@ -134,7 +134,7 @@ func _rooms(t: TestContext, rooms: Array, wanted: Array) -> void:
 		_camera.global_position = rect.get_center()
 		await t.frames(20)
 		_check_rig(t, piece, "the %s of the %s" % [room[2], room[0]])
-		await RenderingServer.frame_post_draw
+		RenderingServer.force_draw(false)  # on demand: a covered window never draws
 		_save(room[0])
 
 
@@ -149,7 +149,7 @@ func _close_ups(t: TestContext, kinds: Array) -> void:
 		_camera.global_position = piece.global_position
 		await t.frames(8)
 		_check_rig(t, piece, "a %s" % art)
-		await RenderingServer.frame_post_draw
+		RenderingServer.force_draw(false)  # on demand: a covered window never draws
 		_save("kind_%s" % art)
 
 
