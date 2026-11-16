@@ -1,99 +1,156 @@
 extends GameTest
-## #193 phase 3 (L4 in 3D): the 3D lights are cheap. Ten lamps and six neon tubes in one room (more
-## than the floor's budget) are chosen by the view's focus: at most `LightingCostConfig.max_lights`
-## are on and the ones far from the view are off; at most `shadow_lights` cast a shadow, none of
-## them a low light (a tube); and with no focus every light stays on and none casts a shadow.
-## It reads (tests/_lighting/lighting_3d_probe.gd) `WorldLighting3D`: `lights()`,
-## `shadowed_count()`,
-## `on_count()`, `choose()`.
+## #193 phase 3 (L4 in 3D): the 3D lights are cheap. Ten rooms in a row, a lamp and a tube in each
+## even one and a ceiling fixture in each odd one, are chosen by the view's focus: at most
+## `LightingCostConfig.max_lights` are on, the ones whose pools come nearest the view (ranked by the
+## distance less the pool's radius), and fade in and out; at most `shadow_lights` cast a shadow,
+## only ceiling fixtures (a lamp stands inside its own mesh), a light that casts keeping its shadow
+## against a rival that is not `keep_margin` times nearer; with no focus every light stays on and
+## none casts a shadow.
+##
+## It reads (tests/_lighting/lighting_3d_probe.gd) `WorldLighting3D`: `lights()`, `fixtures()`,
+## `shadowed_count()`, `on_count()`, `in_view_count()`, `choose(snap)`.
 
 const Probe := preload("res://tests/_lighting/lighting_3d_probe.gd")
-const ROOM := Rect2(0, 0, 4000, 600)
-const LAMPS := 10
-const TUBES := 6
+const ROOMS := 10
+const WIDTH := 400.0
+const MOST := 8
+const CASTERS := 2
+## The camera: tall enough that the lights of several rooms reach the view.
+const VIEW := 2400.0
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "The 3D lights are on near the view and only a few cast shadows",
-		"description": "Many lamps and tubes along a long room: the lights near the view's focus "
-			+ "are on, the far ones off, at most the shadow cap cast shadows and never a low "
-			+ "light; "
-			+ "without a focus all are on and none casts.",
+		"name": "The 3D lights are on near the view and only a few fixtures cast shadows",
+		"description": "A row of rooms: the lights whose pools are nearest the view are on, the "
+			+ "rest off, fading; at most the shadow cap cast shadows, only ceiling fixtures, a "
+			+ "caster keeping its shadow against a rival not enough nearer; without a focus all "
+			+ "are on and none casts.",
 		"tags": ["lighting", "3d"],
-		"timeout": 8.0,
+		"timeout": 10.0,
 	}
 
 
 func configure(s: TestSetup) -> void:
-	s.arena(ROOM)
+	s.arena(Rect2(0, 0, WIDTH * ROOMS, 600))
 	s.switch(&"nav.rebake", false)
-	for i in LAMPS:
+	s.set_static(LightingCostConfig, &"max_lights", MOST)
+	s.set_static(LightingCostConfig, &"shadow_lights", CASTERS)
+	for k in range(0, ROOMS, 2):
 		s.object(
-			StringName("lamp_%d" % i),
+			StringName("lamp_%d" % k),
 			"lamp",
-			Vector2(150.0 + 380.0 * i, 150.0),
+			Vector2(WIDTH * k + 200.0, 150.0),
 			{ "neon": "" },
 		)
-	for i in TUBES:
-		s.object(StringName("tube_%d" % i), "neon_tube", Vector2(300.0 + 600.0 * i, 400.0))
+		s.object(StringName("tube_%d" % k), "neon_tube", Vector2(WIDTH * k + 200.0, 450.0))
 
 
 func run(t: TestContext) -> void:
-	var lighting := Probe.light(t)
+	var rooms := _rooms()
+	var lighting := Probe.light(t, rooms)
 	if lighting == null:
 		return
 	var kept := lighting.lights().size()
-	t.check(kept > 0, "lights are placed (%d)" % kept)
+	t.check(kept > MOST, "more lights are placed than the cap keeps on (%d)" % kept)
+	t.expect_eq(lighting.fixtures().size(), ROOMS >> 1, "each odd room has a fixture")
 	t.expect_eq(lighting.on_count(), kept, "with no focus every light is on")
 	t.expect_eq(lighting.shadowed_count(), 0, "with no focus none casts a shadow")
-	# Now a view at the left end of the room, 100 px across: it reaches only the lights near it.
-	var focus := [Vector2(300.0, 300.0)]
-	var lit := Probe.light(t, [], func() -> Vector2: return focus[0], 600.0)
-	lit.choose()
-	var near := lit.lights().filter(func(l: Node3D) -> bool: return l.visible)
+	var focus := [Vector2(1000.0, 300.0)]
+	var lit := Probe.light(t, rooms, func() -> Vector2: return focus[0], VIEW)
+	lit.choose(true)
+	_check_cap(t, lit)
+	_check_keeps_its_shadow(t, lit, focus)
+	await _check_fade(t, lit, focus)
+	_check_no_cap(t, lit)
+
+
+## The rooms: a row of `WIDTH` px rects.
+func _rooms() -> Array:
+	var out: Array = []
+	for k in ROOMS:
+		out.append({ "key": "r%d" % k, "rect": Rect2(WIDTH * k, 0.0, WIDTH, 600.0) })
+	return out
+
+
+func _on(lit: WorldLighting3D) -> Array:
+	return lit.lights().filter(func(l: Node3D) -> bool: return l.visible)
+
+
+## The cap: more lights reach the view than are kept on, and the shadows are the nearest fixtures'.
+func _check_cap(t: TestContext, lit: WorldLighting3D) -> void:
 	t.check(
-		lit.on_count() == near.size() and near.size() <= LightingCostConfig.max_lights,
-		"at most %d lights are on (%d)" % [LightingCostConfig.max_lights, near.size()],
+		lit.in_view_count() > MOST,
+		"more lights reach the view than the cap (%d)" % lit.in_view_count(),
 	)
-	t.check(
-		lit.shadowed_count() <= LightingCostConfig.shadow_lights,
-		"at most %d lights cast a shadow (%d)" % [
-			LightingCostConfig.shadow_lights,
-			lit.shadowed_count(),
-		],
-	)
+	t.expect_eq(lit.on_count(), MOST, "exactly the cap are on")
+	t.expect_eq(_on(lit).size(), MOST, "and exactly the cap are shown")
+	t.expect_eq(lit.shadowed_count(), CASTERS, "the shadow cap is spent")
 	for l: OmniLight3D in lit.lights():
 		if l.shadow_enabled:
-			t.check(l.visible, "%s casts a shadow only while it is on" % l.name)
-			t.check(
-				l.position.y > Lighting3DConfig.low_height,
-				"%s casting a shadow is an overhead light" % l.name,
-			)
-	# Moving the focus the length of the room turns the near lights off and the far ones on.
-	var before := near.size()
+			t.check(l.visible and l.get_meta(&"shadowable"), "%s is a shown fixture" % l.name)
+	var casting := _casting(lit)
+	t.check(
+		casting == ["Fixture_r1", "Fixture_r3"],
+		"the two fixtures nearest the focus cast (%s)" % [casting],
+	)
+
+
+## The names of the lights casting a shadow, sorted.
+func _casting(lit: WorldLighting3D) -> Array:
+	var out := []
+	for l: OmniLight3D in lit.lights():
+		if l.shadow_enabled:
+			out.append(String(l.name))
+	out.sort()
+	return out
+
+
+## A light keeps its shadow against a nearer rival within `keep_margin`: the focus moves from 1000
+## to 1500, where fixture r5 (2200) is nearer than r1 (600) but not by the margin, so r1 and r3
+## still cast, and a rival that is much nearer takes it.
+func _check_keeps_its_shadow(t: TestContext, lit: WorldLighting3D, focus: Array) -> void:
+	focus[0] = Vector2(1500.0, 300.0)
+	lit.choose(true)
+	var casting := _casting(lit)
+	t.check(
+		casting == ["Fixture_r1", "Fixture_r3"],
+		"r1 keeps its shadow against the nearer r5 (%s)" % [casting],
+	)
+	focus[0] = Vector2(2200.0, 300.0)
+	lit.choose(true)
+	casting = _casting(lit)
+	t.check(
+		casting == ["Fixture_r3", "Fixture_r5"],
+		"a rival well nearer takes it (%s)" % [casting],
+	)
+
+
+## Moving the focus the length of the room switches lights on and off by fading, not at once.
+func _check_fade(t: TestContext, lit: WorldLighting3D, focus: Array) -> void:
 	focus[0] = Vector2(3700.0, 300.0)
-	lit.choose()
-	var far_on := lit.lights().filter(
-		func(l: Node3D) -> bool: return l.visible and Probe.ground_of(l).x > 3000.0
+	lit.choose(true)
+	var far_on := lit.fixtures().filter(
+		func(f: Dictionary) -> bool: return (f["light"] as Node3D).visible
 	)
 	t.check(
-		not far_on.is_empty() and before > 0,
-		"moving the focus switches on the lights at the far end",
+		not far_on.is_empty() and (lit.fixtures()[0]["light"] as Node3D).visible == false,
+		"the far fixtures are on and the first one is off",
 	)
-	for l: OmniLight3D in lit.lights():
-		if Probe.ground_of(l).x < 1000.0:
-			t.check(
-				not l.visible or Probe.floor_reach(l) > 2000.0,
-				"%s is off, far from the view" % l.name,
-			)
-	_check_no_cap(t, lit)
+	focus[0] = Vector2(200.0, 300.0)
+	lit.choose()
+	var first: OmniLight3D = lit.fixtures()[0]["light"]
+	var last: OmniLight3D = lit.fixtures()[lit.fixtures().size() - 1]["light"]
+	t.check(last.visible, "a light about to go off is still shown a moment")
+	t.check(not first.visible, "and one about to come on is not yet")
+	await t.seconds(LightingCostConfig.fade_time * 2.0)
+	t.check(first.visible and first.light_energy > 0.0, "it fades in (%.2f)" % first.light_energy)
+	t.check(not last.visible, "and the other has faded out")
 
 
 ## A cap of none switches the shadows off, and does not trip the choice.
 func _check_no_cap(t: TestContext, lit: WorldLighting3D) -> void:
-	var most := LightingCostConfig.shadow_lights
 	LightingCostConfig.shadow_lights = 0
-	lit.choose()
-	LightingCostConfig.shadow_lights = most
+	lit.choose(true)
+	LightingCostConfig.shadow_lights = CASTERS
 	t.expect_eq(lit.shadowed_count(), 0, "with a cap of none no light casts a shadow")

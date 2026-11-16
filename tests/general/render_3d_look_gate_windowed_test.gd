@@ -420,6 +420,7 @@ func _shot(t: TestContext, name: String, at: Vector2, zoom: float, yaw: float) -
 	# A window the desktop covers is not drawn and never signals frame_post_draw: draw the viewport
 	# on demand (synchronously) and read it back at once.
 	RenderingServer.force_draw(false)
+	_print_lights(t, name, zoom)
 	var dir := OS.get_environment("LOOK_DIR")
 	if dir == "":
 		return
@@ -427,6 +428,27 @@ func _shot(t: TestContext, name: String, at: Vector2, zoom: float, yaw: float) -
 	var zoom_text := ("%.1f" % zoom).replace(".0", "").replace(".", "p")
 	var shot := "%s/%s_%s_z%s_yaw%d.png" % [dir, name, "3d" if _three_d else "2d", zoom_text, yaw]
 	_window.get_texture().get_image().save_png(shot)
+
+
+## Print the 3D lights' counts at this shot (`LOOKLIGHTS`: how many exist, reach the view, are on
+## and cast a shadow), and with `LOOK_LIGHTS` set each light that is on (`LOOKLIGHT`).
+func _print_lights(t: TestContext, name: String, zoom: float) -> void:
+	var lighting := t.world.get_tree().get_first_node_in_group(&"world_lighting_3d")
+	if not lighting is WorldLighting3D:
+		return
+	var world_lights := lighting as WorldLighting3D
+	print("LOOKLIGHTS %s zoom=%s lights=%d in_view=%d on=%d shadowed=%d" % [
+		name, zoom, world_lights.lights().size(), world_lights.in_view_count(),
+		world_lights.on_count(), world_lights.shadowed_count(),
+	])
+	if OS.get_environment("LOOK_LIGHTS") == "":
+		return
+	for l: OmniLight3D in world_lights.lights():
+		if l.visible:
+			print("LOOKLIGHT %s at=(%d,%d) energy=%.2f room=%d reach=%d" % [
+				l.name, l.position.x, l.position.z, l.light_energy, int(l.get_meta(&"room")),
+				sqrt(maxf(l.omni_range * l.omni_range - l.position.y * l.position.y, 0.0)),
+			])
 
 
 func _set_yaw(yaw: float) -> void:

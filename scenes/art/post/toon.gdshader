@@ -13,7 +13,7 @@ void fragment() {
 		discard;
 	}
 	seen = toon_seen(VERTEX, INV_VIEW_MATRIX);
-	sky = toon_sky(VERTEX, INV_VIEW_MATRIX);
+	spot = toon_spot(VERTEX, INV_VIEW_MATRIX);
 	ALBEDO = base_color.rgb * COLOR.rgb;
 	EMISSION = emissive.rgb * emissive.a * seen;
 	ROUGHNESS = 1.0 - figure;

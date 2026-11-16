@@ -20,6 +20,10 @@ const WALL := Rect2(-60.0, -60.0, 12.0, 120.0)
 const LAMP_AT := Vector2(70.0, 0.0)
 const LAMP_COLOUR := Color(1.0, 0.6, 0.2)
 const POOL := 90.0
+## The lamp's room and the one next to it, which its pool reaches over (the lamp at x 70, the pool
+## to x 160, the rooms meet at x 100): the pool stops at the room's edge.
+const LAMP_ROOM := Rect2(0.0, -128.0, 100.0, 256.0)
+const NEXT_ROOM := Rect2(100.0, -128.0, 28.0, 256.0)
 
 
 func _draw(t: TestContext) -> void:
@@ -70,17 +74,23 @@ func run(t: TestContext) -> void:
 	t.check(street.r / street.b > house.r / house.b * 1.2, "and warm, in the sky's pink")
 	_check_shadow(t, image, street)
 	_check_pool(t, image, house)
+	_check_next_room(t, image, house)
 
 
 ## The viewport of the scene: a ground, a wall, a lamp's lights, a camera, under the dusk.
 func _scene(t: TestContext) -> SubViewport:
 	var world := Node2D.new()
 	t.world.add_child(world)
-	world.add_child(FakeFloor.new(Rect2(-HALF, -HALF, HALF, HALF * 2.0), LightMasks.STREET))
-	world.add_child(FakeFloor.new(Rect2(0.0, -HALF, HALF, HALF * 2.0), LightMasks.HOUSE))
+	world.add_child(FakeFloor.new(Rect2(-HALF, -HALF, HALF, HALF * 2.0), true))
+	world.add_child(FakeFloor.new(Rect2(0.0, -HALF, HALF, HALF * 2.0), false))
 	var lamp := FakeLamp.new()
 	lamp.position = LAMP_AT
 	world.add_child(lamp)
+	var dark := FakeLamp.new()  # a room's own light, off: the room is lit, so it gets no fixture
+	dark.position = Vector2(NEXT_ROOM.get_center().x, NEXT_ROOM.position.y + 8.0)
+	dark.energy = 0.0
+	dark.radius = 1.0
+	world.add_child(dark)
 	var view := SubViewport.new()
 	view.size = Vector2i(SIZE, SIZE)
 	view.own_world_3d = true
@@ -101,7 +111,11 @@ func _scene(t: TestContext) -> SubViewport:
 	var height := ObjectStructureMeshConfig.wall_height
 	var wall := MeshKit.new().box(MeshKit.volume(WALL, 0.0, height), GROUND).build()
 	view.add_child(MeshNodes.instance(wall))
-	WorldLighting3D.light(view, world, 1, [])
+	var rooms := [
+		{ "key": "lamp_room", "rect": LAMP_ROOM },
+		{ "key": "next_room", "rect": NEXT_ROOM },
+	]
+	WorldLighting3D.light(view, world, 1, rooms)
 	return view
 
 
@@ -132,19 +146,20 @@ func _check_shadow(t: TestContext, image: Image, lit: Color) -> void:
 ## The lamp's pool: warmer and brighter at its middle than the ambient floor, stepped to its rim,
 ## gone past it.
 func _check_pool(t: TestContext, image: Image, house: Color) -> void:
+	var reach := POOL * Lighting3DConfig.range_scale
 	var middle := _linear(image, LAMP_AT + Vector2(0.0, 6.0))
 	var tones := {}
-	for step in range(0, int(POOL) + 10, 3):
+	for step in range(0, int(reach) - 4, 3):
 		var along := _linear(image, LAMP_AT + Vector2(0.0, float(step) + 6.0))
 		tones[snappedf(along.get_luminance(), 0.01)] = true
-	var beyond := _linear(image, LAMP_AT + Vector2(0.0, POOL + 28.0))
+	var beyond := _linear(image, LAMP_AT + Vector2(0.0, reach + 8.0))
 	t.check(
 		middle.get_luminance() > house.get_luminance() * 1.5,
 		"the lamp lights the floor under it (%s, ambient %s)" % [middle, house],
 	)
 	t.check(middle.r / middle.b > house.r / house.b * 1.5, "and warm, in its own colour")
 	t.check(
-		tones.size() >= 3,
+		tones.size() >= 4,
 		"the pool is stepped: %d tones from its middle to its rim" % tones.size(),
 	)
 	t.check(
@@ -153,29 +168,50 @@ func _check_pool(t: TestContext, image: Image, house: Color) -> void:
 	)
 
 
+## The next room, over the line the rooms meet at, is the ambient's: the lamp's pool reaches it by
+## distance (the lamp is 30 px from the line, the pool 90) but is not of its room.
+func _check_next_room(t: TestContext, image: Image, house: Color) -> void:
+	var beside := _linear(image, Vector2(LAMP_ROOM.end.x - 4.0, 0.0))
+	var across := _linear(image, Vector2(NEXT_ROOM.position.x + 6.0, 0.0))
+	t.check(
+		beside.get_luminance() > house.get_luminance() * 1.5,
+		"the lamp lights its own room right up to the line (%s)" % beside,
+	)
+	t.check(
+		absf(across.get_luminance() - house.get_luminance()) < house.get_luminance() * 0.1,
+		"and not the next room, a few px over it (%s, ambient %s)" % [across, house],
+	)
+
+
 ## A floor of the fake world: the Lighting domain reads its `size` and its canvas items' light mask.
 class FakeFloor:
 	extends Node2D
 	var size := Vector2.ZERO
+	var street := false
 
-	func _init(rect: Rect2, mask: int) -> void:
+	func _init(rect: Rect2, is_street_floor: bool) -> void:
 		position = rect.position
 		size = rect.size
-		light_mask = mask
+		street = is_street_floor
 		add_to_group(&"floors")
+
+	func is_street() -> bool:
+		return street
 
 
 ## A piece that gives one light.
 class FakeLamp:
 	extends Node2D
+	var energy := 1.0
+	var radius := 90.0
 
 	func get_lights() -> Array:
 		return [
 			{
 				"offset": Vector2.ZERO,
 				"colour": Color(1.0, 0.6, 0.2),
-				"energy": 1.0,
-				"radius": 90.0,
+				"energy": energy,
+				"radius": radius,
 				"shape": &"round",
 				"rhythm": [],
 				"room_light": true,

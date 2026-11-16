@@ -57,7 +57,7 @@ void fragment() {
 		discard;
 	}
 	seen = toon_seen(VERTEX, INV_VIEW_MATRIX);
-	sky = toon_sky(VERTEX, INV_VIEW_MATRIX);
+	spot = toon_spot(VERTEX, INV_VIEW_MATRIX);
 	vec2 uv = (model_xz - uv_rect.xy) / max(uv_rect.zw, vec2(0.0001));
 	bool top = model_up > 0.5;
 	if (tiled) {

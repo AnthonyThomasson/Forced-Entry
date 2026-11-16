@@ -31,7 +31,7 @@
       pixels (`texel_match`: `round(zoom)`, at most `max_lines` rows; the window plus 1 px, times `oversample`). In 3D the controller's zoom is a whole step of `Zoom3dConfig.steps`, and snaps the focus to
       that grid along the camera's right and up, shifting `rect` back by the remainder, so following does not shimmer. `texel() -> float` is the world units a picture
       pixel covers; `internal_size() -> Vector2i` the picture's size in pixels (margin included).
-    - **The pixel post** (Art `art/post/`, `PixelPostConfig`): the view's meshes share one toon `ShaderMaterial` (`ToonMaterial.make()`; a colour per instance) whose light is the dusk's (20, `domain-art/textured-toon.md`: the ambient plus each light stepped into `PixelPostConfig.bands` bands, capped); `PixelPost.attach(camera, oversample)` adds a full-screen
+    - **The pixel post** (Art `art/post/`, `PixelPostConfig`): the view's meshes share one toon `ShaderMaterial` (`ToonMaterial.make()`; a colour per instance) whose light is the dusk's (20, `domain-art/textured-toon.md`: the ambient plus each light stepped into bands, capped); `PixelPost.attach(camera, oversample)` adds a full-screen
       outline quad under the camera (a dark line where the depth steps, `silhouette_px` wide, or the normal creases, `crease_px`; `PixelPost.refresh(node, oversample)`). `View3D` shows the picture
       through a nearest-filtered `TextureRect`; it can render `supersample` (at rest) or `turn_supersample` (turning) times larger and average down through a filtered stage (`View3D.shown`), both 1: 2 flickers more on textured art.
     - **The flat overlays** (`GroundLayer`, `general/ground_layer.gd`, interim until phase 3; `domain-general/camera3d.md`): while
@@ -43,7 +43,7 @@
       General's `CameraController.focus_targets() -> Array[Node2D]` (the camera's own list: read only) and Objects' `WallMesh.segments() -> Dictionary` (index -> instance, its child decals fade with it) with its `segment_replaced(index, part)`.
     - **Tuning:** `RenderConfig` (General: the camera, `texel_match`, `max_lines`, `canvas_layer`, `vision_layer`, `overlay_layer`, `unseen_dim`; `CameraTurnConfig`, `Zoom3dConfig`),
       `RenderLightConfig` (General, the backdrop; the lights are Lighting's, 20), `MirrorConfig`, `PixelPostConfig` and `ToonLightConfig` (Art).
-    - **The dusk's globals** (`ToonLight`, set by Lighting): `set_ambient`, `set_sky`, `clear`.
+    - **The dusk's globals** (`ToonLight`, set by Lighting): `set_ambient`, `set_sky`, `set_rooms` (each an image and its rect), `clear`.
     - **The vision hook** (phase 3's mask): global shader uniforms, `ToonMask.set_mask(texture, world_rect_px, unseen_brightness)` / `clear()`; default everything visible.
     - **The 2D art on the meshes** (ADR 0013 addendum): a mesh wears its painter's unlit render (`PixelArt.render_flat`, `domain-art/flat-paint.md`) through `MeshNodes.textured` (`domain-art/textured-toon.md`). 2D stays a render mode.
     - **Which domain has meshes** and who plugs each in (`ObjectMeshes` ... `PhysicsMeshes`): `render-3d-meshes.md`; a body with no builder keeps its proxy.

@@ -61,7 +61,6 @@ func _process(_delta: float) -> void:
 
 
 func _exit_tree() -> void:
-	ToonLight.clear()
 	GroundLayer.enabled = false
 	GroundLayer.forget()
 	var server := RenderingServer

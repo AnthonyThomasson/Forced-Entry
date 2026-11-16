@@ -58,6 +58,12 @@ func run(t: TestContext) -> void:
 			not ToonLight.sky_reaches((room["rect"] as Rect2).get_center()),
 			"the sky does not reach the room %s" % room["key"],
 		)
+		t.expect_eq(
+			ToonLight.room_at((room["rect"] as Rect2).get_center()),
+			rooms.find(room) + 1,
+			"the room map has the room %s" % room["key"],
+		)
+	_check_globals_outlive(t, rooms)
 
 
 ## The sky reaches a street floor's ground exactly where no tower's room (or its walls) is.
@@ -87,3 +93,24 @@ func _in_tower(rooms: Array, at: Vector2) -> bool:
 		func(r: Dictionary) -> bool:
 			return (r["rect"] as Rect2).grow(LightingConfig.floor_reach).has_point(at)
 	)
+
+
+## The globals belong to the last lighting standing: one built later and freed first leaves the
+## first's, and when the last is freed they are the default (a grey ambient, no masks).
+func _check_globals_outlive(t: TestContext, rooms: Array) -> void:
+	var second := Probe.light(t, rooms)
+	second.get_parent().remove_child(second)
+	second.free()
+	t.check(
+		ToonLight.ambient().is_equal_approx(AMBIENT),
+		"a second lighting freed leaves the first's ambient (%s)" % ToonLight.ambient(),
+	)
+	t.check(ToonLight.sky_rect().has_area(), "and its sky mask")
+	for light in t.world.get_tree().get_nodes_in_group(&"world_lighting_3d"):
+		light.get_parent().remove_child(light)
+		light.free()
+	t.check(
+		ToonLight.ambient().is_equal_approx(ToonLightConfig.default_ambient),
+		"with the last freed the ambient is the default (%s)" % ToonLight.ambient(),
+	)
+	t.check(not ToonLight.sky_rect().has_area(), "and the sky mask is cleared")

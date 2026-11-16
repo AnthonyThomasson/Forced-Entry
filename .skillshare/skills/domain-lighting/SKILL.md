@@ -19,22 +19,26 @@ are Main (`main_view3d.gd` `light_world` → `WorldLighting3D.light`, the 3D gam
 
 ## The 3D lighting (`world_lighting_3d.gd`, `WorldLighting3D`)
 
-Built under the 3D view's world from the 2D world the sim runs in (group `world_lighting_3d`; `docs/lighting.md` "The 3D lighting"):
+Built under the 3D view's world from the 2D world the sim runs in (group `world_lighting_3d`; `docs/lighting.md` "The 3D lighting").
+It reads no 2D canvas state (`light_mask`): a street floor says `is_street()`.
 
 1. **Dusk.** `ToonLight.set_ambient(LightingConfig.ambient_color)` (the toon shaders add it to every pixel), one `DirectionalLight3D`
-   (`sky_color`, `sky_energy`, from `sky_from` at `Lighting3DConfig.sun_elevation`, hard shadows) and the sky mask: an `Image` of
-   the street floors (white) less every house floor and its walls (black), so the sun lights the street and never a room.
-2. **Lights.** The 2D placement (`_candidates` / `_place`: fixtures first, the strongest light first, the per-floor `Budget`, a
-   room whose lights were all dropped gets its fixture) with an `OmniLight3D` for each kept light: `_omni(colour, energy, radius,
-   kind)`, `kind` `overhead` / `low` / `street` giving the height and the slope of the pool (`Lighting3DConfig`); `omni_range` is
-   the distance to the pool's rim, `omni_attenuation` 0, and `light_specular` carries the pool's slope to the toon light. Each
-   `Lit` follows its piece (`follow`, only when the piece's transform changed), steps its seeded rhythm (the energy written only
-   on change) and tells `glow_changed` (Main dims the piece's mesh glow, `FurnitureRig.set_glow_level`).
-3. **The cost** (`choose`, every `LightingCostConfig.refresh` s or when the `focus` moved `refocus` px): the nearest `max_lights` of
-   the lights that reach the view are on; the nearest `shadow_lights` of the `overhead` ones cast shadows (the lights of pieces
-   are not shadowed: a piece's own body would shadow a light inside it). No focus: all on, none shadowed.
+   (`sky_color`, `sky_energy`, from `sky_from` at `Lighting3DConfig.sun_elevation`, hard shadows) and the sky mask: an `Image` of the
+   street floors (white) less every house floor and its walls (black), so the sun lights the street and never a room.
+2. **Lights.** An `OmniLight3D` per declared light and per room fixture (a room no `room_light` stands in): `_omni(colour, energy,
+   radius, kind, room_code)`, `kind` `overhead` / `low` / `street` giving the height and the slope of the pool
+   (`Lighting3DConfig`), `omni_range` the distance to the pool's rim (`radius * range_scale`), `omni_attenuation` 0. `light_specular`
+   carries `slope + 4 * (room * 2 + street)` to the toon light, which clips a pool to its room (the room map, `ToonLight.set_rooms`).
+   No per-floor budget. Each `Lit` follows its piece (`follow`, only when the piece's transform changed; a freed piece's light is
+   freed), steps its seeded rhythm (the energy written only on change, none while off) and tells `glow_changed` (Main dims the
+   piece's mesh glow, `FurnitureRig.set_glow_level`).
+3. **The cost** (`choose(snap)`, every `LightingCostConfig.refresh` s, when the `focus` moved `refocus` px or the zoom changed):
+   the nearest `max_lights` pools (distance less radius) that reach the view are on, fading over `fade_time`; the nearest
+   `shadow_lights` ceiling fixtures cast shadows (a piece's light never: its own body would shadow it), keeping a shadow within
+   `1 / keep_margin` of the cutoff. No focus: all on, none cast.
 4. **Flat.** `LightingConfig.enabled` off: no lights, a white ambient and a sun of energy 0.01 (the toon light needs one directional
    light to run its ambient).
+5. **The globals** (`ToonLight`) belong to the last `WorldLighting3D` in the tree: the last to leave clears them.
 
 The toon light itself (the bands, the cap, why the ambient rides the one directional light) is Art's: `domain-art/textured-toon.md`.
 **Adding a light-giving piece** is unchanged (below, Objects declares it); its 3D light follows from the declaration, its glow from
@@ -47,7 +51,7 @@ the mesh (`FurnitureRig.add_glow`). The flashes are not built yet (the light-fx 
 | `world_lighting_3d.gd` (`WorldLighting3D`) | The 3D game's lights (above). |
 | `world_lighting.gd` (`WorldLighting`) | The 2D render's node, in the group `world_lighting`; `light(root, seed_value, rooms)` (a district's `rooms`: every tower's, keys unique) returns null while `enabled` is off; the build and the per-frame work. |
 | `lighting_config.gd`, `lighting_3d_config.gd`, `lighting_cost_config.gd`, `lighting_fixture_config.gd`, `lighting_texture_config.gd` | Tuning holders: `LightingConfig` (switch, dusk colours, flash rows, budget, `body_clear`), `Lighting3DConfig` (the sun, heights, pools), `LightingCostConfig` (the 3D caps), `LightingFixtureConfig` (the room fixtures), `LightingTextureConfig` (2D pool textures). |
-| `flash_pool.gd`, `light_budget.gd`, `light_rhythm.gd`, `ceiling_fixture.gd` | Private parts: the 2D flash pool; the per-floor count (both renders); one light's seeded rhythm (both); the 2D fixture's bulb glyph. |
+| `flash_pool.gd`, `light_budget.gd`, `light_rhythm.gd`, `ceiling_fixture.gd` | Private parts: the 2D flash pool; the 2D per-floor count; one light's seeded rhythm (both); the 2D fixture's bulb glyph. |
 
 General's `scenes/general/light_masks.gd` (`LightMasks`) holds the occluder bits, shadow masks and item layers, and
 `occluder(polygon, bit)` for the 2D render's occluders (it winds the polygon clockwise on screen and culls counter-clockwise).

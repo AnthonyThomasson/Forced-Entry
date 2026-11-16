@@ -22,7 +22,7 @@ static var street_height: float = 70.0
 ## A pool reaches `radius * range_scale` px along the floor (the 2D pool's radius is where it fades
 ## out). Its fall-off is linear from the light to the rim, scaled by a slope and cut at 1: an
 ## `overhead` pool (slope 2) is flat to half its radius, a low glow (slope 1) fades from its middle.
-static var range_scale: float = 1.0
+static var range_scale: float = 1.3
 static var overhead_slope: float = 2.0
 static var low_slope: float = 1.0
 

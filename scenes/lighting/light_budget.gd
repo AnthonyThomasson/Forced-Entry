@@ -53,8 +53,3 @@ static func box_of(l: PointLight2D, xf: Transform2D) -> Rect2:
 	for corner: Vector2 in [Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)]:
 		out = out.expand(xf * corner)
 	return out
-
-
-## The world rect a pool of `radius` px centred on `at` covers (a 3D light's).
-static func box_at(at: Vector2, radius: float) -> Rect2:
-	return Rect2(at - Vector2(radius, radius), Vector2(radius, radius) * 2.0)

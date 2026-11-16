@@ -57,6 +57,7 @@ func run(t: TestContext) -> void:
 	)
 	_check_follow(t, lamp, offsets, "at rest", KEEP)
 	_check_rhythms(t, lighting, twin)
+	await _check_freed(t)
 
 
 ## Each light in `offsets` stands over its place in the lamp's frame.
@@ -99,3 +100,38 @@ func _check_rhythms(t: TestContext, one: WorldLighting3D, two: WorldLighting3D) 
 	for i in changing.size():
 		for j in range(i + 1, changing.size()):
 			t.check(changing[i] != changing[j], "no two changing lights are alike")
+
+
+## A piece that is freed takes its light with it: a plain node that declares one light, lit in a 3D
+## viewport of its own, is freed.
+func _check_freed(t: TestContext) -> void:
+	var world := Node2D.new()
+	t.world.add_child(world)
+	var piece := Source.new()
+	world.add_child(piece)
+	var lighting := Probe.light(t, [], Callable(), 0.0, world)
+	var made := lighting.lights().duplicate()
+	t.expect_eq(made.size(), 1, "the piece's one light is built")
+	piece.free()
+	await t.frames(3)
+	t.check(lighting.lights().is_empty(), "the freed piece's light is gone from the lighting")
+	t.check(not is_instance_valid(made[0]), "and freed")
+
+
+## A piece with one light.
+class Source:
+	extends Node2D
+
+	func get_lights() -> Array:
+		return [
+			{
+				"offset": Vector2.ZERO,
+				"colour": Color.WHITE,
+				"energy": 1.0,
+				"radius": 80.0,
+				"rhythm": [],
+				"room_light": false,
+				"street": false,
+				"height": &"low",
+			},
+		]

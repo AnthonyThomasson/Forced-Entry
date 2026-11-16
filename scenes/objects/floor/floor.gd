@@ -71,6 +71,12 @@ func _exit_tree() -> void:
 	SoundSurface.unregister(_sound_id)
 
 
+## Whether this is a floor of the street (`light_layer` `street`): the Lighting domain's sun
+## reaches it and no house light does.
+func is_street() -> bool:
+	return light_layer == "street"
+
+
 ## 1 where world point `at` is on a groove of this floor's pattern (BloodSurface callback).
 func flow_groove(at: Vector2, half_width: float) -> float:
 	return ObjectArt.groove(art, at - global_position, art_opts, half_width)

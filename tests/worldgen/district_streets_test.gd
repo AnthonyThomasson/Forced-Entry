@@ -84,7 +84,7 @@ func _check_floors(t: TestContext, label: String, streets: Array) -> void:
 	for piece: Dictionary in streets:
 		var floor_node: Node2D = piece["node"]
 		t.check(
-			not floor_node.sound_surface and floor_node.light_layer == "street",
+			not floor_node.sound_surface and floor_node.is_street(),
 			"%s: %s is not a street floor (no sound surface, street light layer)"
 				% [label, floor_node.name],
 		)

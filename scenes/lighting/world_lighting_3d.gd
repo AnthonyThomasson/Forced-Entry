@@ -11,10 +11,13 @@ extends Node3D
 ##     shadows on the street are short;
 ##   - an `OmniLight3D` per light a piece declares, at the height of its kind (`overhead`, `low`,
 ##     `street`), in its colour and energy, as far as its pool's radius; and a ceiling fixture in
-##     every room no `room_light` lights: placed within the same per-floor budget as the 2D lights
-##     (`Budget`);
-##   - the cost: the nearest `shadow_lights` overhead lights to the view's focus cast a shadow and
-##     at most `max_lights` are on (`LightingCostConfig`), chosen again as the view moves.
+##     every room no `room_light` lights. A light carries the room it stands in (a texture of the
+##     rooms is `ToonLight`'s room map): it lights its own room and no other, so a pool never
+##     crosses a wall, with no shadow spent on it;
+##   - the cost: at most `max_lights` lights are on, the ones nearest the view's focus, fading in
+##     and out, and the `shadow_lights` nearest ceiling fixtures cast a shadow
+##     (`LightingCostConfig`),
+##     chosen again as the view moves.
 ## A light follows its piece (a shoved lamp), flickers in the rhythm `light_rhythm.gd` seeds for it
 ## and goes with its piece. In the group `world_lighting_3d`. The flashes of a shot and a burst are
 ## the light-fx job's.
@@ -24,12 +27,15 @@ extends Node3D
 signal glow_changed(piece: Node, level: float)
 
 const Rhythm := preload("res://scenes/lighting/light_rhythm.gd")
-const Budget := preload("res://scenes/lighting/light_budget.gd")
 const GROUP := &"world_lighting_3d"
 ## The lights run after the bodies they follow (and the mirror that shows them).
 const PRIORITY := 20
-## The sun mask's most texels on a side.
-const SKY_TEXELS := 2048
+## The masks' most texels on a side.
+const MASK_TEXELS := 2048
+
+## How many of these are in the tree: the dusk's globals are cleared when the last one leaves, so a
+## new world built before the old one is freed keeps its own.
+static var _alive := 0
 
 ## The 2D world the lights read, the world's seed (the rhythms') and what says where the view is
 ## (`focus`: `Callable() -> Vector2`, world px; none: every light stays on).
@@ -40,33 +46,41 @@ var _sun: DirectionalLight3D
 ## Every kept light.
 var _lit: Array[Lit] = []
 var _fixtures: Array = []
-var _dropped: Array = []
-## The refresh clock and the focus it was last made for.
+## The rooms (`{ key, rect }`): a room's id, the number in the room map, is its index plus one.
+var _rooms: Array = []
+## The refresh clock and the view it was last made for: the focus (x, y) and how far it reached.
 var _since := 0.0
-var _focused := Vector2(INF, INF)
+var _seen := Vector3(INF, INF, INF)
 var _shadowed := 0
 var _on := 0
+var _in_view := 0
 ## Test reads: rhythms advance every frame, but only a changed energy is written.
 var rhythm_steps := 0
 var energy_writes := 0
 
 
+func _enter_tree() -> void:
+	_alive += 1
+
+
 func _exit_tree() -> void:
-	ToonLight.clear()
+	_alive -= 1
+	if _alive <= 0:
+		ToonLight.clear()
 
 
 func _process(delta: float) -> void:
 	_since += delta
+	var gone: Array[Lit] = []
 	for lit in _lit:
 		lit.follow()
-		if lit.rhythm != null:
-			var energy := lit.energy * lit.rhythm.step(delta)
-			rhythm_steps += 1
-			if energy != lit.light.light_energy:
-				lit.light.light_energy = energy
-				energy_writes += 1
-				if lit.fixed == null and is_instance_valid(lit.piece):
-					glow_changed.emit(lit.piece, clampf(0.3 + 0.7 * energy / lit.energy, 0.0, 1.1))
+		if lit.gone:
+			gone.append(lit)
+		else:
+			_advance(lit, delta)
+	for lit in gone:
+		_lit.erase(lit)
+		lit.light.queue_free()
 	if _since >= LightingCostConfig.refresh or _focus_moved():
 		_since = 0.0
 		choose()
@@ -74,8 +88,9 @@ func _process(delta: float) -> void:
 
 ## Light the 3D world under `parent` (a node of the 3D view's world) for the 2D world `world`:
 ## `seed_value` seeds the rhythms, `rooms` are its `WorldGen.get_rooms` (world-space `{ key, rect
-## }`; none: no fixtures), `focus` says where the view is looking (`Callable() -> Vector2`, px).
-## Null while `LightingConfig.enabled` is off (nothing is built).
+## }`; none: no fixtures and no room clipping), `focus` says where the view is looking
+## (`Callable() -> Vector2`, px). With `LightingConfig.enabled` off no light is built and the art is
+## shown as painted.
 static func light(
 	parent: Node, world: Node2D, seed_value: int, rooms: Array = [], focus := Callable()
 ) -> WorldLighting3D:
@@ -85,10 +100,11 @@ static func light(
 	node._world = world
 	node._seed = seed_value
 	node._focus = focus
+	node._rooms = rooms
 	node.add_to_group(GROUP)
 	parent.add_child(node)
 	if LightingConfig.enabled:
-		node._build(rooms)
+		node._build()
 	else:
 		node._flat()
 	return node
@@ -112,20 +128,19 @@ func sun() -> DirectionalLight3D:
 	return _sun
 
 
-## `{ per_floor, dropped }`: the most lights one floor may be reached by, and `{ piece, index }` per
-## declared light the budget left out.
-func budget() -> Dictionary:
-	return { "per_floor": LightingConfig.per_floor(), "dropped": _dropped }
-
-
-## How many lights cast a shadow now, and how many are on.
+## How many lights cast a shadow now.
 func shadowed_count() -> int:
 	return _shadowed
 
 
-## How many lights are on.
+## How many lights the cost cap keeps on.
 func on_count() -> int:
 	return _on
+
+
+## How many lights reach the view (before the cap keeps `max_lights` of them).
+func in_view_count() -> int:
+	return _in_view
 
 
 # --- Building -------------------------------------------------------------------------------------
@@ -141,50 +156,33 @@ func _flat() -> void:
 	add_child(_sun)
 
 
-## Build the lights, the dusk and the sky for `rooms`.
-func _build(rooms: Array) -> void:
+## Build the lights, the dusk and the sky.
+func _build() -> void:
 	ToonLight.set_ambient(LightingConfig.ambient_color)
 	_sky(_world)
-	var floors := Budget.new()
-	for ground: Node2D in _world.get_tree().get_nodes_in_group(&"floors"):
-		if _world.is_ancestor_of(ground):
-			floors.add_floor(ground)
+	_room_mask()
 	var lit_rooms := {}
-	_place(_candidates(rooms, lit_rooms), rooms, floors, lit_rooms)
-	choose()
+	var candidates := _candidates(lit_rooms)
+	for room: Dictionary in _rooms:
+		if not lit_rooms.has(room["key"]):
+			_fixture(room)
+	for c: Array in candidates:
+		_piece_light(c[0], c[1], c[2])
+	choose(true)
 
 
-## `[piece, index, spec, order]` per light a piece under the world declares, marking in `lit_rooms`
-## the room a piece's `room_light` stands in.
-func _candidates(rooms: Array, lit_rooms: Dictionary) -> Array:
+## `[piece, index, spec]` per light a piece under the world declares, marking in `lit_rooms` the
+## room a piece's `room_light` stands in.
+func _candidates(lit_rooms: Dictionary) -> Array:
 	var candidates: Array = []
 	for node in _world.find_children("*", "", true, false):
 		if node.has_method(&"get_lights"):
 			var specs: Array = node.call(&"get_lights")
 			for i in specs.size():
-				candidates.append([node, i, specs[i], candidates.size()])
+				candidates.append([node, i, specs[i]])
 				if (specs[i] as Dictionary).get("room_light", false):
-					lit_rooms[_room_of(rooms, (node as Node2D).global_position)] = true
+					lit_rooms[_room_key((node as Node2D).global_position)] = true
 	return candidates
-
-
-## The 2D placement: a room's own fixture first (counted whatever), then the candidates strongest
-## first within the floors' budget, then the fixture of a room whose every room light was dropped.
-func _place(candidates: Array, rooms: Array, floors: Budget, lit_rooms: Dictionary) -> void:
-	for room: Dictionary in rooms:
-		if not lit_rooms.has(room["key"]):
-			_fixture(room, floors, true)
-	candidates.sort_custom(func(a: Array, b: Array) -> bool:
-		var ea := float((a[2] as Dictionary).get("energy", 0.0))
-		var eb := float((b[2] as Dictionary).get("energy", 0.0))
-		return ea > eb if ea != eb else int(a[3]) < int(b[3]))
-	var kept_rooms := {}
-	for c: Array in candidates:
-		if _piece_light(c[0], c[1], c[2], floors) and (c[2] as Dictionary).get("room_light", false):
-			kept_rooms[_room_of(rooms, (c[0] as Node2D).global_position)] = true
-	for room: Dictionary in rooms:
-		if lit_rooms.has(room["key"]) and not kept_rooms.has(room["key"]):
-			_fixture(room, floors, false)
 
 
 ## The sky: the directional sun, shining where the street's floors are (`ToonLight`'s sky mask).
@@ -207,26 +205,22 @@ func _sky(world: Node2D) -> void:
 	_sky_mask(world)
 
 
-## Where the sun reaches: the street's floors, less every house floor drawn over them (a tower
-## stands on street floors; its rooms are lit from within) and the walls round it. A house or an
-## arena has no street: the sun reaches nothing there, as the 2D sky is on the street only.
+## Where the sun reaches: the street's floors (an Objects `Floor`'s `is_street()`), less every
+## house floor drawn over them (a tower stands on street floors; its rooms are lit from within) and
+## the walls round it. A house or an arena has no street: the sun reaches nothing there, as the 2D
+## sky is on the street only.
 func _sky_mask(world: Node2D) -> void:
 	var streets: Array[Rect2] = []
 	var houses: Array[Rect2] = []
 	for ground: Node2D in world.get_tree().get_nodes_in_group(&"floors"):
 		if world.is_ancestor_of(ground):
 			_sort_floor(ground, streets, houses)
-	var bounds := Rect2()
-	for k in streets.size():
-		bounds = streets[k] if k == 0 else bounds.merge(streets[k])
-	var cell := maxf(1.0, ceilf(maxf(bounds.size.x, bounds.size.y) / float(SKY_TEXELS)))
-	var wide := maxi(1, ceili(bounds.size.x / cell))
-	var tall := maxi(1, ceili(bounds.size.y / cell))
-	var image := Image.create(wide, tall, false, Image.FORMAT_L8)
+	var bounds := _bounds(streets)
+	var cell := _cell(bounds)
+	var image := _blank(bounds, cell, Image.FORMAT_L8)
 	_paint(image, streets, bounds.position, cell, Color.WHITE)
 	_paint(image, houses, bounds.position, cell, Color.BLACK)
-	var rect := Rect2(bounds.position, Vector2(wide, tall) * cell)
-	ToonLight.set_sky(ImageTexture.create_from_image(image), rect)
+	ToonLight.set_sky(image, Rect2(bounds.position, cell * Vector2(image.get_size())))
 
 
 ## File `ground`'s rectangle under the street's floors or the others' (grown by `floor_reach`); a
@@ -235,14 +229,50 @@ static func _sort_floor(ground: Node2D, streets: Array[Rect2], houses: Array[Rec
 	var size: Variant = ground.get("size")
 	if not size is Vector2:
 		return
-	var mask := ground.light_mask
-	for item in ground.find_children("*", "CanvasItem", true, false):
-		mask |= (item as CanvasItem).light_mask
 	var covers := Rect2(ground.global_position, size as Vector2)
-	if mask & LightMasks.STREET != 0:
+	if ground.has_method(&"is_street") and ground.call(&"is_street"):
 		streets.append(covers)
 	else:
 		houses.append(covers.grow(LightingConfig.floor_reach))
+
+
+## The room map: each room's id (red the low byte, green the high) over its rect, so a light knows
+## which spots are its room's. None while there are no rooms (nothing is clipped).
+func _room_mask() -> void:
+	if _rooms.is_empty():
+		return
+	var rects: Array[Rect2] = []
+	for room: Dictionary in _rooms:
+		rects.append(room["rect"])
+	var bounds := _bounds(rects)
+	var cell := _cell(bounds)
+	var image := _blank(bounds, cell, Image.FORMAT_RG8)
+	for k in _rooms.size():
+		var id := k + 1
+		var colour := Color(float(id & 255) / 255.0, float(id >> 8) / 255.0, 0.0)
+		var one: Array[Rect2] = [rects[k]]
+		_paint(image, one, bounds.position, cell, colour)
+	ToonLight.set_rooms(image, Rect2(bounds.position, cell * Vector2(image.get_size())))
+
+
+## The rect holding every one of `rects` (empty for none).
+static func _bounds(rects: Array[Rect2]) -> Rect2:
+	var bounds := Rect2()
+	for k in rects.size():
+		bounds = rects[k] if k == 0 else bounds.merge(rects[k])
+	return bounds
+
+
+## The px a mask's texel covers over `bounds`: at most `MASK_TEXELS` texels on a side, a whole px.
+static func _cell(bounds: Rect2) -> float:
+	return maxf(1.0, ceilf(maxf(bounds.size.x, bounds.size.y) / float(MASK_TEXELS)))
+
+
+## A zeroed image of `format` covering `bounds` in texels of `cell` px.
+static func _blank(bounds: Rect2, cell: float, format: Image.Format) -> Image:
+	var wide := maxi(1, ceili(bounds.size.x / cell))
+	var tall := maxi(1, ceili(bounds.size.y / cell))
+	return Image.create(wide, tall, false, format)
 
 
 ## Fill each of `rects` (world px) into `image`, whose texels are `cell` px from `origin`.
@@ -259,21 +289,22 @@ static func _paint(
 		image.fill_rect(Rect2i(Vector2i(from), Vector2i(to - from)), c)
 
 
-## Give `piece` its declared light `index` if the floors it reaches have room; whether it did.
-func _piece_light(piece: Node2D, index: int, spec: Dictionary, floors: Budget) -> bool:
+## Give `piece` its declared light `index`.
+func _piece_light(piece: Node2D, index: int, spec: Dictionary) -> void:
 	var street: bool = spec.get("street", false)
-	var item_mask := LightMasks.HOUSE | (LightMasks.STREET if street else 0)
 	var kind: StringName = &"street" if street else spec.get("height", &"low")
 	var radius := float(spec.get("radius", 100.0))
 	var at: Vector2 = piece.global_transform * (spec.get("offset", Vector2.ZERO) as Vector2)
-	if not floors.take(Budget.box_at(at, radius * Lighting3DConfig.range_scale), item_mask):
-		_dropped.append({ "piece": piece, "index": index })
-		return false
 	var lit := Lit.new()
 	lit.piece = piece
 	lit.offset = spec.get("offset", Vector2.ZERO)
+	lit.radius = radius * Lighting3DConfig.range_scale
 	lit.light = _omni(
-		spec.get("colour", Color.WHITE), float(spec.get("energy", 1.0)), radius, kind
+		spec.get("colour", Color.WHITE),
+		float(spec.get("energy", 1.0)),
+		radius,
+		kind,
+		_room_code(at, street),
 	)
 	lit.energy = lit.light.light_energy
 	lit.light.name = "Light%d_%s" % [index + 1, piece.name]
@@ -284,12 +315,11 @@ func _piece_light(piece: Node2D, index: int, spec: Dictionary, floors: Budget) -
 	var seed_value := hash([_seed, Vector2i(piece.global_position.round()), index])
 	_rhythm(lit, spec.get("rhythm", []), seed_value)
 	_lit.append(lit)
-	return true
 
 
-## A ceiling fixture at the centre of `room` (`{ key, rect }`): an overhead light spanning the room;
-## `always` counts it against the budget whatever. Whether it was placed.
-func _fixture(room: Dictionary, floors: Budget, always: bool) -> bool:
+## A ceiling fixture at the centre of `room` (`{ key, rect }`): an overhead light spanning the room,
+## the one kind of light that casts a shadow.
+func _fixture(room: Dictionary) -> void:
 	var rect: Rect2 = room["rect"]
 	var reach := clampf(
 		maxf(rect.size.x, rect.size.y) * LightingFixtureConfig.reach_scale
@@ -297,14 +327,17 @@ func _fixture(room: Dictionary, floors: Budget, always: bool) -> bool:
 		LightingFixtureConfig.reach_range.x, LightingFixtureConfig.reach_range.y,
 	)
 	var radius := reach * 0.5
-	var box := Budget.box_at(rect.get_center(), radius * Lighting3DConfig.range_scale)
-	if not floors.take(box, LightMasks.HOUSE, always):
-		return false
 	var lit := Lit.new()
+	lit.radius = radius * Lighting3DConfig.range_scale
 	lit.light = _omni(
-		LightingFixtureConfig.color, LightingFixtureConfig.energy, radius, &"overhead"
+		LightingFixtureConfig.color,
+		LightingFixtureConfig.energy,
+		radius,
+		&"overhead",
+		_room_code(rect.get_center(), false),
 	)
 	lit.light.name = "Fixture_%s" % room["key"]
+	lit.light.set_meta(&"shadowable", true)
 	lit.energy = lit.light.light_energy
 	lit.fixed = rect.get_center()
 	add_child(lit.light)
@@ -312,7 +345,6 @@ func _fixture(room: Dictionary, floors: Budget, always: bool) -> bool:
 	_rhythm(lit, LightingFixtureConfig.rhythms, hash([_seed, "fixture", room["key"]]))
 	_lit.append(lit)
 	_fixtures.append({ "room": room["key"], "light": lit.light })
-	return true
 
 
 ## Draw the light's rhythm from `kinds` with an RNG seeded by `seed_value` (none when it draws
@@ -326,11 +358,15 @@ func _rhythm(lit: Lit, kinds: Array, seed_value: int) -> void:
 
 ## An omni light of `colour` at `energy` whose pool is `radius` px out on the floor (the 2D pool's),
 ## hung at the height of its `kind` (`overhead`, `low` or `street`); an overhead or street one pools
-## flat (`Lighting3DConfig.overhead_slope`), a low one fades from its middle. Only an overhead
-## light may cast a shadow (`choose`).
-static func _omni(colour: Color, energy: float, radius: float, kind: StringName) -> OmniLight3D:
+## flat (`Lighting3DConfig.overhead_slope`), a low one fades from its middle. `room_code` is the
+## room it stands in and whether it is a street light (`_room_code`). The toon has no specular, so
+## `light_specular` carries both to its `light()`: `SPECULAR_AMOUNT` is `slope + 4 * room_code`.
+static func _omni(
+	colour: Color, energy: float, radius: float, kind: StringName, room_code: int
+) -> OmniLight3D:
 	var height := Lighting3DConfig.height_of(kind)
 	var overhead := kind != &"low"
+	var slope := Lighting3DConfig.overhead_slope if overhead else Lighting3DConfig.low_slope
 	var l := OmniLight3D.new()
 	l.light_color = colour
 	l.light_energy = energy
@@ -339,22 +375,31 @@ static func _omni(colour: Color, energy: float, radius: float, kind: StringName)
 		height,
 	).length() * RenderConfig.unit
 	l.omni_attenuation = 0.0
-	# The toon light reads this as the slope of the pool's fall-off (`SPECULAR_AMOUNT` is twice it).
-	l.light_specular = (
-		Lighting3DConfig.overhead_slope if overhead else Lighting3DConfig.low_slope
-	) * 0.5
+	l.light_specular = (slope + 4.0 * float(room_code)) * 0.5
 	l.shadow_enabled = false
 	l.set_meta(&"height", height * RenderConfig.unit)
-	l.set_meta(&"shadowable", kind == &"overhead")
+	l.set_meta(&"room", room_code >> 1)
+	l.set_meta(&"shadowable", false)
 	return l
 
 
-## The key of the room in `rooms` holding world point `p` ("" for none).
-static func _room_of(rooms: Array, p: Vector2) -> String:
-	for room: Dictionary in rooms:
-		if (room["rect"] as Rect2).has_point(p):
-			return String(room["key"])
-	return ""
+## The room a light at `at` stands in (its id, 0 for none) times two, plus one for a street light.
+func _room_code(at: Vector2, street: bool) -> int:
+	return _room_id(at) * 2 + (1 if street else 0)
+
+
+## The id (index plus one) of the room holding `p`, 0 for none.
+func _room_id(p: Vector2) -> int:
+	for k in _rooms.size():
+		if (_rooms[k]["rect"] as Rect2).has_point(p):
+			return k + 1
+	return 0
+
+
+## The key of the room holding world point `p` ("" for none).
+func _room_key(p: Vector2) -> String:
+	var id := _room_id(p)
+	return "" if id == 0 else String(_rooms[id - 1]["key"])
 
 
 # --- The cost: which lights are on and which cast a shadow ---------------------------------------
@@ -367,13 +412,17 @@ func _focus_point() -> Variant:
 	return _focus.call()
 
 
-## Whether the focus moved far enough since the last choice to make it again.
+## Whether the view moved far enough since the last choice (the focus `refocus` px, or the camera
+## zoomed) to make it again.
 func _focus_moved() -> bool:
 	var at: Variant = _focus_point()
-	return at != null and (at as Vector2).distance_to(_focused) > LightingCostConfig.refocus
+	if at == null:
+		return false
+	var moved := (at as Vector2).distance_to(Vector2(_seen.x, _seen.y))
+	return moved > LightingCostConfig.refocus or absf(_reach() - _seen.z) > 1.0
 
 
-## How far (px) from the focus a light still reaches the view: half the camera's diagonal.
+## How far (px) from the focus a light's pool still reaches the view: half the camera's diagonal.
 func _reach() -> float:
 	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if camera == null or camera.projection != Camera3D.PROJECTION_ORTHOGONAL:
@@ -382,62 +431,109 @@ func _reach() -> float:
 	return 0.5 * camera.size * Vector2(size.x / maxf(size.y, 1.0), 1.0).length() / RenderConfig.unit
 
 
-## Choose which lights are on (the nearest `max_lights` that reach the view) and which of those cast
-## a shadow (the nearest `shadow_lights`, a light keeping its shadow unless a rival is
-## `keep_margin` times nearer). With no focus every light stays on and none casts a shadow.
-func choose() -> void:
+## Choose which lights are on (the `max_lights` whose pools come nearest the view, ranked by the
+## distance to the focus less the pool's radius) and which of those cast a shadow (the
+## `shadow_lights` nearest ceiling fixtures, a light keeping its shadow while it is within
+## `1 / keep_margin` times the cutoff). A light fades in and out over `fade_time`; `snap` puts every
+## light at its end at once. With no focus every light stays on and none casts a shadow.
+func choose(snap := false) -> void:
 	var at: Variant = _focus_point()
 	_shadowed = 0
-	_on = _lit.size()
 	if at == null:
+		_in_view = _lit.size()
+		_on = _in_view
 		for lit in _lit:
-			_show(lit, not lit.gone)
+			_switch(lit, true, snap)
 		return
-	_focused = at
 	var reach := _reach()
+	_seen = Vector3((at as Vector2).x, (at as Vector2).y, reach)
 	var near: Array[Lit] = []
 	for lit in _lit:
 		lit.dist = (lit.world_point() - (at as Vector2)).length()
-		if not lit.gone and lit.dist <= reach + lit.light.omni_range / RenderConfig.unit:
+		lit.key = lit.dist - lit.radius
+		if lit.key <= reach:
 			near.append(lit)
-	near.sort_custom(func(a: Lit, b: Lit) -> bool: return a.dist < b.dist)
+	_in_view = near.size()
+	near.sort_custom(func(a: Lit, b: Lit) -> bool: return a.key < b.key)
 	if near.size() > LightingCostConfig.max_lights:
 		near.resize(LightingCostConfig.max_lights)
 	_on = near.size()
 	for lit in _lit:
-		lit.on = false
-	for lit in near:
-		lit.on = true
-	for lit in _lit:
-		_show(lit, lit.on)
-	# The shadows go to the nearest `shadow_lights` of the ones that may (a room's overhead lights:
-	# the walls keep them in their rooms), a light keeping its shadow unless a rival is
-	# `keep_margin` times nearer.
-	var casters: Array[Lit] = []
-	for lit in near:
-		if lit.light.get_meta(&"shadowable"):
-			casters.append(lit)
+		_switch(lit, near.has(lit), snap)
+	_cast(near)
+
+
+## Give the shadows to the nearest `shadow_lights` of `near`'s ceiling fixtures: first the ones
+## already casting that are still within `1 / keep_margin` times the cutoff (the last one's
+## distance), then the nearest of the rest.
+func _cast(near: Array[Lit]) -> void:
+	var casters: Array[Lit] = near.filter(
+		func(l: Lit) -> bool: return l.light.get_meta(&"shadowable")
+	)
+	casters.sort_custom(func(a: Lit, b: Lit) -> bool: return a.dist < b.dist)
 	var most := LightingCostConfig.shadow_lights
 	var cutoff := casters[most - 1].dist if most > 0 and casters.size() >= most else INF
+	var chosen: Array[Lit] = []
 	for lit in casters:
-		var wants := lit.dist <= cutoff
 		if lit.light.shadow_enabled and lit.dist <= cutoff / LightingCostConfig.keep_margin:
-			wants = true
-		lit.light.shadow_enabled = wants and _shadowed < most
-		_shadowed += 1 if lit.light.shadow_enabled else 0
+			if chosen.size() < most:
+				chosen.append(lit)
+	for lit in casters:
+		if chosen.size() < most and not chosen.has(lit):
+			chosen.append(lit)
+	for lit in casters:
+		lit.light.shadow_enabled = chosen.has(lit)
+	_shadowed = chosen.size()
 
 
-## Show or hide `lit`'s light (written only when it changes); a light hidden casts no shadow.
-func _show(lit: Lit, on: bool) -> void:
-	if lit.light.visible == on:
+## Make `lit` on or off: it fades toward it (`snap`: it is there now).
+func _switch(lit: Lit, on: bool, snap: bool) -> void:
+	lit.on = on
+	if snap:
+		lit.fade = 1.0 if on else 0.0
+		_show(lit)
+	elif not on and lit.fade <= 0.0:
+		_show(lit)
+
+
+## Show `lit`'s light while it has any fade (written only when it changes); a light hidden casts no
+## shadow.
+func _show(lit: Lit) -> void:
+	var shown := lit.fade > 0.0
+	if lit.light.visible == shown:
 		return
-	lit.light.visible = on
-	if not on:
+	lit.light.visible = shown
+	if not shown:
 		lit.light.shadow_enabled = false
 
 
+## Step `lit`: it fades toward its on or off, and an on light's rhythm sets its energy (written
+## only when it changes; an off light costs nothing).
+func _advance(lit: Lit, delta: float) -> void:
+	var target := 1.0 if lit.on else 0.0
+	if lit.fade != target:
+		lit.fade = move_toward(lit.fade, target, delta / maxf(LightingCostConfig.fade_time, 0.001))
+		_show(lit)
+	if lit.fade <= 0.0 and not lit.on:
+		if lit.light.light_energy != 0.0:
+			lit.light.light_energy = 0.0
+		return
+	var level := 1.0
+	if lit.rhythm != null:
+		level = lit.rhythm.step(delta)
+		rhythm_steps += 1
+	var energy := lit.energy * level * lit.fade
+	if energy != lit.light.light_energy:
+		lit.light.light_energy = energy
+		energy_writes += 1
+		if lit.fixed == null and is_instance_valid(lit.piece):
+			glow_changed.emit(lit.piece, clampf(0.3 + 0.7 * level, 0.0, 1.1))
+
+
 ## One kept light: its node, the piece it follows and where in the piece's frame (a fixture: a place
-## in the world), its full energy and its rhythm (null: steady).
+## in the world), its full energy and its rhythm (null: steady), the ground reach of its pool, how
+## far it is from the focus (`dist`) and how near its pool comes to the view (`key`), whether the
+## cost cap keeps it on and how far it has faded in (`fade`, 0 to 1).
 class Lit:
 	var light: OmniLight3D
 	var piece: Variant
@@ -445,9 +541,12 @@ class Lit:
 	var fixed: Variant = null
 	var energy := 1.0
 	var rhythm: Rhythm
+	var radius := 0.0
 	var dist := 0.0
-	## Whether the cost cap keeps it on, and whether its piece is gone (freed: it stays off).
+	var key := 0.0
 	var on := true
+	var fade := 1.0
+	## Its piece is freed: the light goes with it.
 	var gone := false
 	var _xf := Transform2D()
 
@@ -473,8 +572,6 @@ class Lit:
 			return
 		if not is_instance_valid(piece):
 			gone = true
-			light.visible = false
-			light.shadow_enabled = false
 			return
 		if (piece as Node2D).global_transform != _xf:
 			place()

@@ -17,22 +17,32 @@ global uniform sampler2D vision_mask : repeat_disable, filter_linear;
 global uniform vec4 vision_mask_xf;
 global uniform float vision_unseen;
 
-// The dusk (phase 3, `toon_light.gd`): what every surface is lit by, the most it may add up to, and
-// where the sun reaches (a texture of the street's floors; `sky_masked` 0, the default: everywhere).
+// The dusk (phase 3, `toon_light.gd`): what every surface is lit by, the most it may add up to,
+// where the sun reaches (a texture of the street's floors; `sky_masked` 0, the default: everywhere)
+// and which room each spot is in (a texture of room ids, red the low byte, green the high; a
+// room's light reaches only its own room; `room_masked` 0, the default: no clipping).
 global uniform vec3 dusk_ambient;
 global uniform float dusk_cap;
 global uniform sampler2D sky_mask : repeat_disable, filter_nearest;
 global uniform vec4 sky_mask_xf;
 global uniform float sky_masked;
+global uniform sampler2D room_mask : repeat_disable, filter_nearest;
+global uniform vec4 room_mask_xf;
+global uniform float room_masked;
+global uniform float room_ground;
 
 uniform int count = 3;
 uniform float levels[5];
+// A positional light's pool is stepped into more bands than the sun (`ToonLightConfig.pool_levels`).
+uniform int pool_count = 6;
+uniform float pool_levels[8];
 // How much of its N.L a positional light's amount is made of (`ToonLightConfig.pool_gain`).
 uniform float pool_gain = 3.0;
 
 varying float seen;
-// Whether the sun reaches the fragment (`toon_sky`), stored by `fragment()` like `seen`.
-varying float sky;
+// Where the fragment is (`toon_spot`), stored by `fragment()` like `seen`: x whether the sun reaches
+// it, y its room id times two, plus one when it is above the ground (a wall, a piece, a person).
+varying vec2 spot;
 
 // The fade (Art, `MeshNodes.fade`; instance uniform, 1 = whole): below 1 a pixel is dropped where
 // an ordered 4 x 4 dither of the screen pixel says, so a thinning wall stays opaque pixels (no
@@ -75,19 +85,59 @@ float toon_step(float lit) {
 	return levels[min(int(lit * float(count)), count - 1)];
 }
 
-// Whether the sun reaches the fragment at `view_vertex` (its VERTEX; `inv_view` the INV_VIEW_MATRIX):
-// the street's floors, everywhere while no sky mask is set. `fragment()` stores it in `sky`.
-float toon_sky(vec3 view_vertex, mat4 inv_view) {
+// Where the fragment at `view_vertex` (its VERTEX; `inv_view` the INV_VIEW_MATRIX) is: x 1 where the
+// sun reaches (the street's floors, everywhere while no sky mask is set), y its room id times two,
+// plus one above the ground (0 where no room map is set). `fragment()` stores it in `spot`.
+vec2 toon_spot(vec3 view_vertex, mat4 inv_view) {
+	vec2 out_spot = vec2(1.0, 0.0);
+	if (sky_masked < 0.5 && room_masked < 0.5) {
+		return out_spot;
+	}
+	vec3 world_pos = (inv_view * vec4(view_vertex, 1.0)).xyz;
 	if (sky_masked > 0.5) {
-		vec3 world_pos = (inv_view * vec4(view_vertex, 1.0)).xyz;
 		vec2 uv = world_pos.xz * sky_mask_xf.xy + sky_mask_xf.zw;
 		// Beyond the mask's rectangle is no street: no sun.
-		if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) {
-			return 0.0;
-		}
-		return textureLod(sky_mask, uv, 0.0).r;
+		bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
+		out_spot.x = inside ? textureLod(sky_mask, uv, 0.0).r : 0.0;
 	}
-	return 1.0;
+	if (room_masked > 0.5) {
+		vec2 uv = world_pos.xz * room_mask_xf.xy + room_mask_xf.zw;
+		bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
+		vec2 id = inside ? textureLod(room_mask, uv, 0.0).rg : vec2(0.0);
+		float room = floor(id.r * 255.0 + 0.5) + floor(id.g * 255.0 + 0.5) * 256.0;
+		out_spot.y = room * 2.0 + (world_pos.y > room_ground ? 1.0 : 0.0);
+	}
+	return out_spot;
+}
+
+// A positional light's amount stepped into its pool's band strength (`pool_count` 0: itself; none: none).
+float toon_pool(float lit) {
+	if (pool_count <= 0 || lit <= 0.0) {
+		return lit;
+	}
+	return pool_levels[min(int(lit * float(pool_count)), pool_count - 1)];
+}
+
+// Whether a positional light reaches this fragment (1) or not (0), by the light's room: `code` is
+// the light's room id times two plus one if it is a street light (Lighting packs it into the
+// light's specular, `SPECULAR_AMOUNT`). A room's light reaches its own room's spots and, above the
+// ground, the walls that are in no room; a street light the spots in no room; none reaches into
+// another room, so a pool never crosses a wall.
+float toon_reach(float code) {
+	if (room_masked < 0.5) {
+		return 1.0;
+	}
+	float street = mod(code, 2.0);
+	float light_room = floor(code * 0.5);
+	float spot_room = floor(spot.y * 0.5);
+	float above = mod(spot.y, 2.0);
+	if (light_room == spot_room) {
+		return 1.0;
+	}
+	if (spot_room == 0.0 && (street > 0.5 || (light_room > 0.0 && above > 0.5))) {
+		return 1.0;
+	}
+	return 0.0;
 }
 
 void light() {
@@ -96,16 +146,19 @@ void light() {
 	if (LIGHT_IS_DIRECTIONAL) {
 		// The sun (Godot's LIGHT_COLOR is the colour times energy times PI) where it reaches, and
 		// the dusk's ambient once, with the one directional light every view has.
-		add = LIGHT_COLOR / 3.14159265 * toon_step(n_l * ATTENUATION) * sky;
+		add = LIGHT_COLOR / 3.14159265 * toon_step(n_l * ATTENUATION) * spot.x;
 		add += dusk_ambient;
 	} else {
 		// A positional light's pool: Godot's fall-off (1 - r^4)^2, r the distance over the range
 		// (and 0 in a shadow), made linear again (f = 1 - r, 1 under the light, 0 at its rim), and
-		// as flat as the light's `light_specular` says (SPECULAR_AMOUNT: the slope of f; a ceiling
-		// lamp's pool is flat to the middle of its radius, a screen's glow is not).
+		// as flat as the light's slope says. Lighting packs both into `light_specular`:
+		// SPECULAR_AMOUNT is `slope + 4 * code` (slope 1 or 2: a ceiling lamp's pool is flat to the
+		// middle of its radius, a screen's glow is not; `code` the room and street, `toon_reach`).
+		float code = floor(SPECULAR_AMOUNT / 4.0 + 0.001);
+		float slope = SPECULAR_AMOUNT - 4.0 * code;
 		float f = 1.0 - pow(1.0 - sqrt(clamp(ATTENUATION, 0.0, 1.0)), 0.25);
-		float lit = clamp(f * SPECULAR_AMOUNT, 0.0, 1.0) * clamp(n_l * pool_gain, 0.0, 1.0);
-		add = LIGHT_COLOR / 3.14159265 * toon_step(lit);
+		float lit = clamp(f * slope, 0.0, 1.0) * clamp(n_l * pool_gain, 0.0, 1.0);
+		add = LIGHT_COLOR / 3.14159265 * toon_pool(lit) * toon_reach(code);
 	}
 	// The sum is held to `dusk_cap` by its brightest channel, so a warm pool under a warm lamp stays
 	// warm (a cap per channel would wash it to white).

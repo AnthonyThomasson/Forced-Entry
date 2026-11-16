@@ -58,6 +58,7 @@ func run(t: TestContext) -> void:
 			"every proxy shares the one material (%s)" % node.name,
 		)
 	_check_bands(t, material, 3)
+	_check_pool(t, material)
 	t.check(
 		_colour(chair[0]) != _colour(table[0]),
 		"two bodies have two colours (%s, %s)" % [_colour(chair[0]), _colour(table[0])],
@@ -104,3 +105,21 @@ func _check_bands(t: TestContext, material: ShaderMaterial, count: int) -> void:
 			levels[band] > levels[band - 1],
 			"band %d of %d is brighter than the one below" % [band, count],
 		)
+
+
+## A positional light's pool has its own bands: the holder's count and strengths (times the pool's
+## strength), the darkest a little light, the brightest the most.
+func _check_pool(t: TestContext, material: ShaderMaterial) -> void:
+	var rows := ToonLightConfig.pool_levels
+	t.expect_eq(material.get_shader_parameter(&"pool_count"), rows.size(), "the pool's bands")
+	var levels: PackedFloat32Array = material.get_shader_parameter(&"pool_levels")
+	t.expect_near(
+		levels[0], float(rows[0]) * ToonLightConfig.pool_strength, 0.0001, "the pool's darkest band"
+	)
+	t.expect_near(
+		levels[rows.size() - 1],
+		float(rows[rows.size() - 1]) * ToonLightConfig.pool_strength,
+		0.0001,
+		"the pool's brightest band",
+	)
+	t.check(levels[0] > 0.0, "the darkest band of a pool is a little light, not none")

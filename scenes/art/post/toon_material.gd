@@ -141,6 +141,9 @@ static func refresh(material: ShaderMaterial) -> void:
 	material.set_shader_parameter(&"count", bands)
 	material.set_shader_parameter(&"levels", ToonLightConfig.levels(bands))
 	material.set_shader_parameter(&"pool_gain", ToonLightConfig.pool_gain)
+	var pool := 0 if bands == 0 else mini(ToonLightConfig.pool_levels.size(), 8)
+	material.set_shader_parameter(&"pool_count", pool)
+	material.set_shader_parameter(&"pool_levels", ToonLightConfig.pool())
 
 
 ## `refresh` plus the textured toon's own knob: the step its sides are darkened by
