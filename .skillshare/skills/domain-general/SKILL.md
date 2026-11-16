@@ -29,7 +29,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 ## Shared ids
 
 - `PhysicsLayers.SOLID` is the layer walls, solid furniture and bodies sit on; every ray and sweep that must hit a wall reads it (add a layer here, never a magic number).
-- `DrawLayers` is the one z ladder (`FLOOR` -5 … `EFFECTS` 4, then `VISION` 5, the player's view over the whole world, and `OVERLAY` 6, the debug overlays and markers over the view). Every domain's z knob starts from a rung; a new layer is a rung here.
+- `DrawLayers` is the one z ladder (`FLOOR` -5 … `EFFECTS` 4; the debug overlays have no rung, they lie flat under the 3D view's ground layer). Every domain's z knob starts from a rung; a new layer is a rung here.
 - `ViewLayers` holds the visibility bits that say what the player's view may remember (`helpers.md`).
 - `LightMasks` (`docs/lighting.md` L6): occluder bits, the shadow masks by light height (a 2D shadow has no length, so height picks who shadows whom), item light layers `HOUSE` / `STREET`. `LightMasks.occluder(polygon, bit)` is the one place an occluder is shaped: wound clockwise on screen and culled counter-clockwise, so the shape stays lit and only what lies behind it falls dark. It returns null while `LightMasks.shadows` is off (the Testing domain's `lighting.enabled` switch).
 
@@ -52,7 +52,7 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 
 ## Saved settings
 
-`Settings` keeps `debug` (the AI overlays' master switch), `render_mode`, the setup window's last choices, the overlay toggles with their scope per mode and the key-binding overrides in `user://settings.json` (`Settings.path`). Only differences from the defaults are stored, so a changed default reaches an action the player never touched.
+`Settings` keeps `debug` (the AI overlays' master switch), the setup window's last choices, the overlay toggles with their scope per mode and the key-binding overrides in `user://settings.json` (`Settings.path`). Only differences from the defaults are stored, so a changed default reaches an action the player never touched.
 
 - Main calls `Settings.load_file()` once in `_ready`, after seeding `Settings.debug` from its export. Nothing else does, so the headless runner never reads a developer's file.
 - A missing file keeps the defaults; an unreadable one `push_warning`s and does the same; a file without `debug` leaves it.

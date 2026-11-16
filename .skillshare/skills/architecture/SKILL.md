@@ -64,7 +64,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 24. **Objects' `Door` ↔ Character, AI, Testing: the door contract.** Read to open, turn, hit or walk through a house door: `interfaces/24-door-contract.md`
 25. **Main / Testing → Vision: the player's view.** Read to build or read a view: `interfaces/25-vision.md`
 26. **Any domain → General: `Pointer`.** Read to convert a screen point to a world point (and back), read the mouse's world point or the visible world rect, or inject a pointer in a test: `interfaces/26-pointer.md`
-27. **Main → Art: `WorldMirror`, and General's `CameraRig`: the 3D render.** Read for the render mode, the 3D mirror of the 2D bodies (one scale, the update rule, the hook) and the camera rig that follows the `Camera2D`: `interfaces/27-render-3d.md`
+27. **Main → Art: `WorldMirror`, and General's `CameraRig`: the 3D render.** Read for the 3D render, the 3D mirror of the 2D bodies (one scale, the update rule, the hook) and the camera rig that follows the `Camera2D`: `interfaces/27-render-3d.md`
 
 ## Dependency graph
 

@@ -19,9 +19,7 @@
 	  at rest) < `UNDER_VEHICLE` −1 (a vehicle's `Chassis`) < `STANDING` 0 (the living, a vehicle's occupants, furniture, walls) <
 	  `ABOVE` 1 (a vehicle's `Roof`, a grenade in flight) < `OVERHEAD` 2 (a piece's `Overhang`,
 	  `ObjectArtLayerConfig.overhang_z_index`, a streetlight's arm and head; a room's ceiling fixture, Lighting) < `EFFECTS` 4
-	  (Physics' `ExplosionFx`) < `VISION` 5 (Vision's composite, absolute) < `OVERLAY` 6 (the debug overlays and markers over the
-	  view, absolute: the AI's `DebugOverlay`s, `NavDebug`, the UI's `StackMarkers`, `OrderMarkers`, `ContactMarkers`,
-	  `LeaderOverlay`). A domain's own z knob starts from its rung, never a bare number; within a rung the scene tree
+	  (Physics' `ExplosionFx`). The debug overlays and markers have no rung: they lie flat under the 3D view's ground layer (`ViewLayers.overlay`). A domain's own z knob starts from its rung, never a bare number; within a rung the scene tree
 	  decides (`docs/vehicles.md` V3 / V6).
     - `GameClock` (`general/game_clock.gd`, an autoload, `PROCESS_MODE_PAUSABLE`): counts physics frames in `_physics_process`, so it stands
 	  still while the tree is paused. `GameClock.msec() -> int` (frames × 1000 / `Engine.physics_ticks_per_second`: deterministic under
@@ -51,10 +49,9 @@
 	  It reads `faction` and `is_dead`; a freed combatant is left out. The UI's `MatchHUD`
 	  and the command server's `match` verb (`verdict_of`) both decide by it.
     - `ViewLayers` (`general/view_layers.gd`, static holder): the visibility bits (`visibility_layer`) the player's view sorts the
-	  world by. `WORLD` 1 (Godot's default: the house, what has come to rest), `MOVING` 2 (what moves: drawn only inside the cone),
-	  `OVERLAY` 4 (overlays, markers, the view's composite). Vision's capture culls `MOVING` and `OVERLAY`.
+	  world by. `WORLD` 1 (Godot's default: the house, what has come to rest) and `MOVING` 2 (what moves: Art's mirror hides its mesh outside the cone).
 	  `set_moving(item, moving)` (written only on change; Character, Items, Projectile, Physics, Vehicles call it) and
-	  `overlay(item)` (`z_index` `DrawLayers.OVERLAY`, absolute, bit `OVERLAY`; AI debug overlays, Navigation, the UI; in 3D it also hands `item` to `GroundLayer.adopt`, 27).
+	  `overlay(item)` (AI debug overlays, Navigation, the UI: hands `item` to `GroundLayer.adopt`, which lays it flat on the ground over the 3D view, 27; no z or bit).
     - `SightRay` (`general/sight_ray.gd`, `RefCounted`): the one sight rule. `SightRay.hit(space, from, to, exclude, see_over) ->
 	  Dictionary` is the first thing on the line (`PhysicsLayers.SOLID`) too tall to see over (`intersect_ray`'s dictionary), {} when
 	  the line reaches `to`; a collider at or below `see_over` is looked over, `exclude` is left as given.

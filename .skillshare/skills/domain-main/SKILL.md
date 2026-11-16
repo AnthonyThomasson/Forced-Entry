@@ -24,7 +24,7 @@ domain's worlds build through `MatchBuilder` too, so a test measures the match M
 
 ## Setup flow
 
-A fresh launch loads settings, starts `WorldGen.prewarm` (the district's shared pixel art on a worker, the 3D furniture's too in 3D; skipped headless), opens the setup window (`domain-ui` (`menus.md`)) and builds nothing until a start button.
+A fresh launch loads settings, starts `WorldGen.prewarm` (the district's shared pixel art and the 3D furniture's on a worker; skipped headless), opens the setup window (`domain-ui` (`menus.md`)) and builds nothing until a start button.
 
 - `Settings.debug` is seeded from `run.debug_overlays` before `Settings.load_file()`, so the headless runner never reads a
   developer's file and a file that does not name Debug leaves the export standing.
@@ -66,9 +66,9 @@ and awaits `MatchBuilder.build`. A match torn down during the build returns `{}`
 
 `_teardown_world` frees `World` and everything the match left, and clears `Sound.focus`, `_match`, `_human`, `_overlays.inspector`.
 
-## The 3D render mode
+## The 3D render
 
-`Settings.render_mode` is read in `start_match` and decides how a match is drawn: with 3D, Main hides the `World` before it is built and builds the 3D view (`main_view3d.gd`) that mirrors the match; a 2D match is the game as it was. Details and tests: `render3d.md`. Interface 27.
+Every match is drawn by the 3D view (`main_view3d.gd`): Main hides the `World` before it is built and builds the view that mirrors the match; there is no render mode. Details and tests: `render3d.md`. Interface 27.
 
 ## Overlays
 

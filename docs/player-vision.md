@@ -137,11 +137,11 @@ then parked), `art/mirror_hides_unseen_movers` (at rest and never seen: hidden; 
 resting there: hidden until reached again), `projectile/casing_hidden_out_of_view`.
 
 **V7. Debug overlays and markers are drawn over the view, in colour:** the AI debug overlays (an NPC's own too, out of view),
-the navigation and leader overlays, the contact, stack and order markers. Each is an overlay (`ViewLayers.OVERLAY`), which
+the navigation and leader overlays, the contact, stack and order markers. Each is an overlay (`ViewLayers.overlay`), which
 `GroundLayer` lies flat on the ground over the 3D picture and under the HUD, in its own colours and where its owner is, at any
 camera turn, never dimmed or remembered by the masks (they are not part of the 3D scene the shaders read). Tests:
 `vision/overlays_over_view` (an NPC with every overlay on, the navigation holes, the leaders' crowns and the stack, order and
-contact markers: each on `OVERLAY`, under the match's ground layer, visible), `general/ground_overlays_3d` (Main whole: one
+contact markers: each under the match's ground layer, visible), `general/ground_overlays_3d` (Main whole: one
 shared layer following the camera's ground-to-screen transform).
 
 **V8. Whose view.** In Main the view is built in a played match (Start) for the human only; Watch and Endless (no human) draw

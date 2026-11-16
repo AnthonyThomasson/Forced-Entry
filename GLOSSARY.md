@@ -336,11 +336,10 @@ _Avoid_: visible region, culled
 
 ### The 3D render
 
-**Render mode**:
-How a match is drawn, 2D (the top-down game as it was, kept as a render mode) or 3D (the near top-down view that mirrors it, 80 degrees, wearing the 2D art), a saved setting
-(`Settings.render_mode`) read when a match starts: a change applies at the next match, never to the one that runs. In 3D the 2D world
-is not drawn.
-_Avoid_: view mode, graphics setting, switching live
+**3D render**:
+How every match is drawn: the near top-down view that mirrors the 2D sim, 80 degrees, wearing the 2D painters' flat art (there is no 2D render and no render mode: it was deleted, ADR 0013). The 2D world is
+hidden and never drawn; a test world is shown by the same view in a window.
+_Avoid_: render mode, view mode, graphics setting, 2D render
 
 **3D mirror**:
 The registry (`WorldMirror`, Art) that follows every drawn 2D body in a 3D world each frame, so the 3D view shows what the sim does
@@ -386,7 +385,7 @@ drawn on it.
 _Avoid_: floor (a room's `Floor` object), map
 
 **Ground layer**:
-The `CanvasLayer` (`GroundLayer`) a 2D overlay (the player's view, a debug overlay) is moved under in the 3D render mode (one shared layer for all the match's debug overlays, one for the view), so it draws over the 3D view
+The `CanvasLayer` (`GroundLayer`) a 2D debug overlay is moved under in the 3D render (one shared layer for all the match's debug overlays), so it draws over the 3D view
 flat on the ground plane: its transform is the 3D camera's ground-to-screen affine, so it lies on the floor at any yaw.
 _Avoid_: overlay canvas, HUD layer
 

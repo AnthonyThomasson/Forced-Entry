@@ -17,8 +17,7 @@ seam (bodies in the tree, `stale` asked each frame), beside the simulation tests
 - **A headless run has no pixels.** The tests hold what the parts are told (the masks' sizes, transforms and clear modes, the polygon a
   painter holds, `ToonMask`'s rects, `visibility_layer`s) and the geometry (the polygon against `SightRay` cast directly); the look is
   read in a window (`vision/vision_mask_3d_windowed`, `art/toon_vision_hook_windowed`: `tools/run_tests.sh --windowed --id=`, one at a
-  time, they use `RenderingServer.force_draw`). A test that builds a view sets `s.set_static(GroundLayer, &"enabled", true)` (the
-  world then builds `ViewGround`, as Main's 3D view does; the test world builds no 3D scene). **Every vision rule stands on data or on
+  time, they use `RenderingServer.force_draw`). A test world's view builds `ViewGround`, as Main's 3D view does (the test world builds no 3D scene). **Every vision rule stands on data or on
   the masks, never on a 2D draw**: a rule that only the 2D drawing showed (a repaint skipped for the unseen) has no test.
 - **Premise first.** Each geometry test counts what it samples (the points behind corners, the shapes in reach, the frames compared)
   and `require`s a floor, so a test that sampled nothing fails instead of passing. `cone_exact_with_many_blockers` counts more solid

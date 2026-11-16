@@ -86,7 +86,7 @@ read through `character.sight()`: any character can be the viewer.
   characters every frame.
 - **A headless run draws no pixels**: a test holds what the masks are told (sizes, transforms, clear modes, the polygons the
   painters hold, `ToonMask`'s rects) and the pixels are read in a window (`vision/vision_mask_3d_windowed`, one test at a time).
-  A test that builds a view sets `GroundLayer.enabled` (the world builds `ViewGround`, as Main's 3D view does).
+  The view is always `ViewGround` (a test world builds it too).
 - **A physics query right after a kinematic body's `global_position` is set sees it where it was** until the physics server is
   told at the next flush, so the view (priority 100) can read a body a mover (a door, a walker) moved this frame at its old
   place (`tests/_vision/physics_mover.gd` reproduces it). So `ViewWatch` rebuilds once more the frame after a rebuild made

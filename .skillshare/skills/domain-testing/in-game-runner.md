@@ -4,6 +4,7 @@ Tests in a window. The headless runs are `SKILL.md`'s "Running tests".
 
 - **`--shots`:** `tools/run_tests.sh --shots words` runs windowed and saves `<bundle dir>/<id with / as __>__fail.png` per failed test
   (printed as `shot:`); `t.bundle.screenshot(label)` saves one on demand (`""` when headless or `--shots` is off).
+- **A test world shows the game:** in the in-game runner (browser, `--play`, `--queue`, `play_tests.sh`, a sandbox) and in a `--shots` run the session builds Main's 3D view over the built world (`TestSession.picture`, `_show_picture`: the world's 2D picture is hidden, its overlays lie flat over the 3D one, the lights are the dusk's), after the host framed its camera. A headless or batch run builds none (no pixels to draw). A test that builds its own picture declares `s.own_picture()`.
 - **A windowed test reads its picture after `RenderingServer.force_draw(false)`, never `await RenderingServer.frame_post_draw`:** a window the desktop covers is not drawn and never signals it (the test runs its clock out, or reads a black frame).
 - **`--windowed`:** `tools/run_tests.sh --windowed [words]` runs gdUnit in a window with vsync off, always in one process
   (nothing competes with what it measures). A perf test's frame times then include the render. The draw tests that

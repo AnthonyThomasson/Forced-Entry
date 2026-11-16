@@ -6,7 +6,7 @@ Tests: `tests/ui/overlay_toggles_test.gd` (the "Show on" row, `scope_changed`, t
 
 ## `overlay_registry.gd` — `OverlayRegistry`, the one table of overlays
 
-- **In the 3D render mode** an NPC's overlays are moved off it onto the match's one shared `GroundLayer` (`domain-general/camera3d.md`), so `apply` walks `overlays_of(npc)` (its children, and `GroundLayer.overlays_of(npc)`) and the detail card finds an overlay by name through `overlay_of(npc, name)`; a flag, a name or a lookup of an overlay goes through those, never `get_children()` / `get_node` of the NPC alone.
+- **In the 3D render** (a world with a 3D view) an NPC's overlays are moved off it onto the match's one shared `GroundLayer` (`domain-general/camera3d.md`), so `apply` walks `overlays_of(npc)` (its children, and `GroundLayer.overlays_of(npc)`) and the detail card finds an overlay by name through `overlay_of(npc, name)`; a flag, a name or a lookup of an overlay goes through those, never `get_children()` / `get_node` of the NPC alone.
 
 - `ENTRIES` rows are `{ flag, label, group, default }`; `flag` is the overlay node's `show_<x>` property name. The toggle bar, Main, `MatchBuilder.set_overlay`,
   the test runner and the Testing world all read the table. **A new overlay is one row here, its draw script in `scenes/ai/debug/` and a node in `scenes/ai/npc.tscn`.**
@@ -42,7 +42,7 @@ Built by Main next to the bar when Debug is on; `set_shown(on)` from the "Perfor
 below the match HUD's timer, so it overlaps no other HUD. Shows Godot `Performance` monitors and a frame-time graph. It swallows clicks, so it blocks the inspector's right-click select
 beneath it. `PROCESS_MODE_ALWAYS`; hidden, it stops processing.
 
-## `leader_overlay.gd` — `LeaderOverlay` (Node2D, an overlay: `ViewLayers.overlay`, `DrawLayers.OVERLAY` absolute over the player's view, `PROCESS_MODE_ALWAYS`; `docs/leadership.md` LD12, LD28)
+## `leader_overlay.gd` — `LeaderOverlay` (Node2D, an overlay: `ViewLayers.overlay`, flat on the ground over the 3D view, `PROCESS_MODE_ALWAYS`; `docs/leadership.md` LD12, LD28)
 
 - Built hidden by `MatchBuilder.build_leader_overlay` with the squads (under `World` in every match, and in a test world that declares squads or a match); it is the match handle's
   `leader_overlay`. A test world without squads has none, so the bar's row does nothing there.
