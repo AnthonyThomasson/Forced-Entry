@@ -50,6 +50,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(PixelPostConfig, &"supersample", PixelPostConfig.supersample)
 	s.set_static(PixelPostConfig, &"turn_supersample", PixelPostConfig.turn_supersample)

@@ -32,6 +32,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 800, 500))
 	s.object(&"dining", "dining_table", DINING_AT)
 	s.object(&"second", "dining_table", SECOND_AT)

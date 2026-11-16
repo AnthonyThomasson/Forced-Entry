@@ -40,6 +40,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	Perf.configure_match(s, 10)
 	s.lock_interaction([&"camera"])
 

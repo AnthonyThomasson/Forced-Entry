@@ -21,6 +21,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.set_static(Settings, &"path", SCRATCH)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})

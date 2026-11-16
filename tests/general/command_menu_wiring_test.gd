@@ -42,6 +42,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.von_script([])
 	s.lock_interaction([&"camera", &"pause"])
 	s.set_static(Settings, "path", "user://test_command_menu_wiring_settings.json")

@@ -49,6 +49,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.layout([
 		{ "key": "west", "type": "living_room", "rect": Rect2(0, 0, 400, 300) },
 		{ "key": "east", "type": "bedroom", "rect": Rect2(400, 0, 400, 300) },

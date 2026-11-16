@@ -125,6 +125,7 @@ func _start_session() -> void:
 	_session.watch = _watch
 	_session.von.launcher_parent = self
 	_session.bundle_dir = TestBatch.bundle_dir()
+	_session.picture = true  # the runner is a window to look at: a test world shows the game
 	add_child(_session)
 	_session.status.connect(func(text: String):
 		if _hud != null:

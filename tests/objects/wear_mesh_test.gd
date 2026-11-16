@@ -57,6 +57,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.house(HOUSE_SEED)
 	s.switch(&"physics.debris", false)
 	s.switch(&"nav.rebake", false)

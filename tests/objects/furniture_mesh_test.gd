@@ -58,6 +58,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 2400, 700))
 	var at := Vector2(140.0, 140.0)
 	for id: StringName in KINDS:

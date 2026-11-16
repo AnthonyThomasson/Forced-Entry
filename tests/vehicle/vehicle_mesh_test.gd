@@ -40,6 +40,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 1000, 800), { "floor": "concrete" })
 	s.switch(&"nav.rebake", false)
 	s.vehicle(&"car", &"car", CAR_AT)

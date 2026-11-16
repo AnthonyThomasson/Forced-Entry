@@ -43,6 +43,9 @@ var squads_spec: Variant = null
 ## The actor the world draws a view of when the `vision.enabled` switch is on (`view`); empty = the
 ## `player` actor.
 var view_actor: StringName = &""
+## The test builds the 3D picture itself (a `Main` run whole, a `View3D` of its own): the session
+## shows none over its world (`own_picture`).
+var owns_picture := false
 
 
 ## A walled single-room arena covering `rect`. `opts`: `floor` (a catalogue floor key, default
@@ -200,6 +203,13 @@ func squads(opts: Dictionary = {}) -> TestSetup:
 ## changes nothing in it.
 func view(actor_id: StringName) -> TestSetup:
 	view_actor = actor_id
+	return self
+
+
+## The test builds its own 3D picture (Main run whole, or a view made by hand), so the session shows
+## no picture of its world when it plays in a window (`TestSession.picture`).
+func own_picture() -> TestSetup:
+	owns_picture = true
 	return self
 
 

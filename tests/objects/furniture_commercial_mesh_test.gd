@@ -123,6 +123,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	var rows := ceili(float(KINDS.size() + 6) / PER_ROW)
 	s.arena(Rect2(0, 0, CELL.x * PER_ROW, CELL.y * rows + 100.0))
 	var at := Vector2(130.0, 150.0)

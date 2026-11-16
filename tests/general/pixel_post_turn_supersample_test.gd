@@ -21,6 +21,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.lock_interaction([&"camera"])
 	s.set_static(PixelPostConfig, &"supersample", 1)
 	s.set_static(PixelPostConfig, &"turn_supersample", 2)

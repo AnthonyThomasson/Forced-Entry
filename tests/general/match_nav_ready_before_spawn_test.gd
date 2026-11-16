@@ -52,6 +52,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 300, 300))
 	s.von_script([])
 	s.switch(&"ai.hostile_on_trespass", false)
