@@ -70,13 +70,19 @@ func _district_paints_no_flat_art(t: TestContext) -> void:
 		)
 
 
-## The warm a 2D run starts at boot holds no flat request: furniture's flat art is warmed only when
-## a 3D match is coming (`WorldGen.prewarm(true)`; a no-op headless).
+## The warm a 2D run starts at boot holds no flat furniture request (the structure's tiles stay in
+## it): furniture's flat art is warmed only when a 3D match is coming (`WorldGen.prewarm(true)`; a
+## no-op headless).
 func _two_d_boot_warms_no_furniture(t: TestContext) -> void:
+	var structure := DistrictPrewarm.structure_requests()
 	var flat := DistrictPrewarm.requests().filter(
-		func(request: Dictionary) -> bool: return request.get("flat", false)
+		func(request: Dictionary) -> bool:
+			return request.get("flat", false) and not structure.has(request)
 	)
-	t.check(flat.is_empty(), "the boot warm holds %d flat requests" % flat.size())
+	t.check(
+		flat.is_empty(),
+		"the boot warm holds %d flat requests besides the structure's" % flat.size(),
+	)
 	WorldGen.prewarm(false)
 	WorldGen.prewarm(true)
 	t.check(DistrictPrewarm.requests().size() > 0, "the shared warm requests are still there")

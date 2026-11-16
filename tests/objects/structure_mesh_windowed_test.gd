@@ -6,9 +6,9 @@ extends GameTest
 ## (Main's view registered the builders) and the log gate fails the test on any shader or engine
 ## error. With `STRUCTURE_SHOT_DIR=<dir>` set it saves a picture of each, and at zoom 1 and 3 of the
 ## doorway, the street and the house (`STRUCTURE_PITCH=<degrees>` tips the camera,
-## `STRUCTURE_ZOOMS_ONLY=1` takes just those, `STRUCTURE_BROKEN_ONLY=1` just the shattered glass
-## door at the doorway, `=down` just it knocked down). Run:
-## `tools/run_tests.sh --windowed --id=objects/structure_mesh_windowed`.
+## `STRUCTURE_ZOOMS_ONLY=1` takes just those (`=house`: just the house's; `STRUCTURE_ZOOM=3` one
+## zoom), `STRUCTURE_BROKEN_ONLY=1` just the shattered glass door at the doorway, `=down` just it
+## knocked down). Run: `tools/run_tests.sh --windowed --id=objects/structure_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
@@ -44,6 +44,7 @@ func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"debug", false)
 	if OS.get_environment("STRUCTURE_PITCH") != "":
 		s.set_static(RenderConfig, &"pitch_degrees", float(OS.get_environment("STRUCTURE_PITCH")))
+	s.switch(&"vision.enabled", false)  # the whole street and house in view
 	s.lock_interaction([&"camera"])
 	s.von_script([])
 
@@ -102,7 +103,8 @@ func run(t: TestContext) -> void:
 func _picked_shots(t: TestContext, camera: Camera2D, world: Node, door: Node2D) -> void:
 	if OS.get_environment("STRUCTURE_BROKEN_ONLY") == "":
 		await _zoom_shots(t, camera, door, _first_street(world), _centre_of_floors(world))
-	await _broken_glass_shot(t, camera, door)
+	if OS.get_environment("STRUCTURE_ZOOMS_ONLY") != "house":
+		await _broken_glass_shot(t, camera, door)
 
 
 ## The doorway, the street and the house at zoom 1 and 3 (the 3D render's whole zoom steps).
@@ -113,11 +115,15 @@ func _zoom_shots(
 	street: Node2D,
 	centre: Vector2,
 ) -> void:
+	var only := OS.get_environment("STRUCTURE_ZOOM")
 	for zoom in [1.0, 3.0]:
+		if only != "" and float(only) != zoom:
+			continue
 		var tag := "z%d" % int(zoom)
-		if door != null:
+		var house_only := OS.get_environment("STRUCTURE_ZOOMS_ONLY") == "house"
+		if door != null and not house_only:
 			await _shoot(t, camera, door.global_position, zoom, "doorway_" + tag)
-		if street != null:
+		if street != null and not house_only:
 			var middle: Vector2 = street.global_position + (street.get("size") as Vector2) * 0.5
 			await _shoot(t, camera, middle, zoom, "street_" + tag)
 		await _shoot(t, camera, centre, zoom, "house_" + tag)

@@ -27,7 +27,6 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var before := ToonMaterial.textured_count()
 	WorldGen.generate_district(7, "", Vector2.ZERO, t.world)
 	await t.frames(3)
 	var view := SubViewport.new()
@@ -40,21 +39,49 @@ func run(t: TestContext) -> void:
 	await t.frames(4)
 	var textured := 0
 	var parts := 0
-	for node in view.find_children("*", "MeshInstance3D", true, false):
-		var material := (node as MeshInstance3D).material_override as ShaderMaterial
-		parts += 1
-		if material != null and material.get_shader_parameter(&"albedo_texture") != null:
-			textured += 1
-	var materials := ToonMaterial.textured_count() - before
+	var materials := {}
+	for body in _structure_bodies(t.world):
+		for proxy in mirror.proxies_of(body):
+			var meshes := proxy.find_children("*", "MeshInstance3D", true, false)
+			if proxy is MeshInstance3D:
+				meshes.append(proxy)
+			for node in meshes:
+				var material := (node as MeshInstance3D).material_override as ShaderMaterial
+				parts += 1
+				if _is_textured_toon(material):
+					textured += 1
+					materials[material] = true
 	t.check(
 		textured > 100,
 		"the district's structure is textured (%d of %d meshes)" % [textured, parts],
 	)
 	t.check(
-		materials > 0 and materials <= MAX_MATERIALS,
+		materials.size() > 0 and materials.size() <= MAX_MATERIALS,
 		"%d textured materials serve %d textured meshes (at most %d)" % [
-			materials,
+			materials.size(),
 			textured,
 			MAX_MATERIALS,
 		],
+	)
+
+
+## The district's walls, floors and doors (the furniture wears textures of its own).
+func _structure_bodies(root: Node) -> Array:
+	var out: Array = []
+	for group in [&"floors", &"doors"]:
+		for node: Node in root.get_tree().get_nodes_in_group(group):
+			if root.is_ancestor_of(node):
+				out.append(node)
+	for node in root.find_children("*", "StaticBody2D", true, false):
+		if node.has_method(&"segment_shapes"):
+			out.append(node)
+	return out
+
+
+## Whether `material` is a textured toon (a decal, a wear mark, has a texture of its own too).
+func _is_textured_toon(material: ShaderMaterial) -> bool:
+	return (
+		material != null
+		and material.shader.resource_path.ends_with("toon_tex.gdshader")
+		and material.get_shader_parameter(&"albedo_texture") != null
 	)
