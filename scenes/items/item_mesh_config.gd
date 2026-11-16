@@ -14,8 +14,9 @@ static var thickness: float = 1.3
 static var held_base: float = -2.5
 ## How much brighter a loose item's art is tinted (a multiplier on its colours, 1 = as painted). The
 ## gun and grenade art is gunmetal and the near top-down camera lights a lying item in the base
-## band like the floor, so 1 reads as the 2D item does (2 had made a lying gun silver).
-static var lying_brighten: float = 1.0
+## band like the floor: 1 left a lying gun near-black on a dark floor, 2 made it silver; 1.4 keeps
+## it gunmetal and visible.
+static var lying_brighten: float = 1.4
 ## How tall a gun lying on its side is along its profile, as a share of the gun's width: its stock,
 ## its hand guard and its barrel (the receiver is the whole width).
 static var lying_stock: float = 0.8

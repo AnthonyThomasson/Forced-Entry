@@ -29,17 +29,16 @@ static var figure_darken: float = 0.35
 ## Whether a figure (a character's body) is creased like the rest: off, it is outlined by its
 ## silhouette only.
 static var figure_creases: bool = false
-## The shimmer mitigation of a turning camera: the 3D picture is rendered this many times the
-## picture's own size and averaged down to it before the nearest upscale. `supersample` is the
-## picture at rest (1: none, the art's texels crisp and the cost of the picture itself) and
-## `turn_supersample` while a quarter turn is under way (2: the turn only, about 0.4 s, when texels
-## rotate under nearest sampling and an edge crawls; measured on a room turning
-## (`art/pixel_post_shimmer`) it flickers about a fifth less than 1 and keeps a thin outline whole;
-## a wider silhouette outline (`silhouette_px` 2) flickers more, not less). At a cardinal the art's
-## texels line up with the picture's, so the average of the 2x2 samples is the texel itself and the
-## switch at the ends of a turn shows no step.
+## The picture's render scale: it is rendered this many times its own size and averaged down to
+## it before the nearest upscale. `supersample` is the picture at rest and `turn_supersample` while
+## a quarter turn is under way; both are 1 (none: the art's texels crisp and the cost of the
+## picture itself). 2 for the turn was tried as a shimmer mitigation and flickers 1.7 to 1.9 times
+## MORE than 1 on textured art (`art/pixel_post_shimmer`: averaging nearest-sampled art makes
+## colours that are in no texel, and they change as the art turns), so the plain post wins; a wider
+## silhouette outline (`silhouette_px` 2) flickers more, not less. The mechanism stays
+## (`CameraRig.turn_oversample`, `View3D`'s larger stage) for a later, smoother mitigation.
 static var supersample: int = 1
-static var turn_supersample: int = 2
+static var turn_supersample: int = 1
 
 
 ## The `(mul, lift)` of the shadow, dark, base, light and highlight tones of `ArtSurfaceConfig`

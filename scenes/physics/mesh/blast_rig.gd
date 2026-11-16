@@ -2,16 +2,26 @@ class_name BlastRig
 extends RefCounted
 ## Physics domain, one grenade burst's parts in the 3D render (#193 phase 2; `BlastFx`): a flash
 ## (two glowing discs), a shock ring, a fireball (a body, a core and a ring of lobes: spheres) and
-## the puffs of smoke, each a unit mesh scaled by `update`, made once and shown or hidden as a burst
-## starts and ends. Each part follows the 2D look's own timing and size (`ExplosionFx` and its
-## `PhysicsExplosionConfig.looks` row: a flash fading fast as it swells, a fireball swelling and
-## cooling, smoke drifting out and thinning), in stepped tones: the fireball takes the colour of
+## the puffs of smoke (flat discs wearing the 2D puff: a round body and a lighter patch), each a
+## unit mesh scaled by `update`, made once and shown or hidden as a burst starts and ends. Each part
+## follows the 2D look's own timing and size (`ExplosionFx` and its `PhysicsExplosionConfig.looks`
+## row: a flash fading fast as it swells, a fireball swelling and cooling, smoke drifting out and
+## thinning), in stepped tones: the fireball takes the colour of
 ## the third of its life it is in, and a fade is a dither of the picture's pixels in a few steps,
 ## so a part is written only when its step changes.
 
 ## The share of its life a puff thins out over, at the end: until then it is whole (a flat cloud,
 ## not a stipple of the floor).
 const SMOKE_THIN := 0.35
+## The puff's lighter patch, as `ExplosionFx.Smoke` draws it: where it sits (a share of the puff's
+## radius), how big, how much brighter than the smoke and how opaque.
+const PATCH_AT := Vector2(-0.2, -0.2)
+const PATCH_SIZE := 0.55
+const PATCH_LIFT := 0.1
+const PATCH_ALPHA := 0.8
+
+## The puff art, by smoke colour: one texture each, painted once.
+static var _puff_art: Dictionary = {}
 
 ## The parts: the flash's two discs, the ring, the fireball (body, core, the lobes) and the puffs.
 var flash: Array[MeshInstance3D] = []
@@ -45,7 +55,7 @@ func _init(parent: Node3D, world: FxWorld) -> void:
 	for i in 2 + ExplosionFx.LOBES:
 		fire.append(_part(parent, sphere))
 	for i in _most_puffs():
-		puffs.append(_part(parent, disc))
+		puffs.append(_part(parent, disc, false))
 
 
 ## Begin showing a burst of `row` (a `PhysicsExplosionConfig.looks` row) at world `place`.
@@ -57,6 +67,7 @@ func start(place: Vector2, row: Dictionary) -> void:
 	_ground = _world.ground_at(place)
 	_draw_lobes()
 	_draw_puffs()
+	_dress_puffs()
 	update(0.0)
 
 
@@ -122,6 +133,52 @@ func _draw_puffs() -> void:
 			) + Vector2(_world.rng.randf_range(-6.0, 6.0), -10.0)
 		)
 		puff_look[i] = Vector2(_world.rng.randf_range(0.6, 1.0), _world.rng.randf_range(0.0, 0.12))
+
+
+## Put the burst's smoke on the puffs: the 2D puff painted in its colour, a clear texel cut out.
+func _dress_puffs() -> void:
+	var art := _puff_texture(look.get("smoke_color", Color.GRAY))
+	for part in puffs:
+		MeshNodes.textured(
+			part,
+			art,
+			Rect2(-1.0, -1.0, 2.0, 2.0),
+			{ "tint": Color.WHITE, "cutout": true },
+		)
+		MeshNodes.glow(part, Color.BLACK, 0.0)
+
+
+## The 2D puff in `tint` (`ExplosionFx.Smoke`: a stepped disc and a lighter patch toward the
+## upper left, drawn at the 2D look's own pixel), `PhysicsExplosionConfig.pixel` px a texel at the
+## biggest puff, a clear texel outside the disc; held by colour.
+static func _puff_texture(tint: Color) -> Texture2D:
+	if _puff_art.has(tint):
+		return _puff_art[tint]
+	var step := maxf(PhysicsExplosionConfig.pixel, 1.0)
+	var most := 0.0
+	for row: Dictionary in PhysicsExplosionConfig.looks.values():
+		most = maxf(most, float(row.get("smoke_radius", 0.0)))
+	var half := maxi(ceili(most / step), 1)
+	var image := Image.create(2 * half, 2 * half, false, Image.FORMAT_RGBA8)
+	var lit := Color(tint.r + PATCH_LIFT, tint.g + PATCH_LIFT, tint.b + PATCH_LIFT)
+	lit = tint.lerp(lit, PATCH_ALPHA)
+	_fill_disc(image, Vector2.ZERO, float(half), Color(tint.r, tint.g, tint.b))
+	_fill_disc(image, PATCH_AT * half, PATCH_SIZE * half, lit)
+	var art := ImageTexture.create_from_image(image)
+	_puff_art[tint] = art
+	return art
+
+
+## `image`'s texels inside the stepped disc of `radius` texels at `centre` (texels from the
+## middle), `color`.
+static func _fill_disc(image: Image, centre: Vector2, radius: float, color: Color) -> void:
+	var half := image.get_width() >> 1
+	for row: Array in ExplosionFx.disc_rows(radius, 1.0):
+		var y := half + int(round(centre.y)) + int(row[0])
+		var cells := roundi(float(row[2]))
+		for x in range(half + int(round(centre.x)) - cells, half + int(round(centre.x)) + cells):
+			if x >= 0 and x < image.get_width() and y >= 0 and y < image.get_height():
+				image.set_pixel(x, y, color)
 
 
 ## The flash: a pale disc over a white one, fading fast, swelling a little.
@@ -193,7 +250,7 @@ func _puff(part: MeshInstance3D, i: int, t: float) -> void:
 	var rise := PhysicsBlastMeshConfig.smoke_rise * own
 	var tall := PhysicsBlastMeshConfig.smoke_squash
 	var fade := minf(own / 0.1, 1.0) * minf((1.0 - own) / SMOKE_THIN, 1.0)
-	_tone(part, look.get("smoke_color", Color.GRAY), 0.0)
+	fade = minf(fade, float(look.get("smoke_alpha", 1.0)))
 	_shape(
 		part,
 		Vector3(at.x + place.x, rise + size * tall, at.y + place.y),

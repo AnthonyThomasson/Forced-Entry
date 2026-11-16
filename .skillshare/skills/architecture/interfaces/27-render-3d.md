@@ -34,7 +34,7 @@
     - **The pixel post** (Art `art/post/`, `PixelPostConfig`): the view's meshes share one toon `ShaderMaterial` (`ToonMaterial.make()`; a colour per instance) whose light steps N.L times the
       shadow into `PixelPostConfig.bands` bands (3: the shadow, base and light tones of `ArtSurfaceConfig.tones`), with no ambient; `PixelPost.attach(camera, oversample)` adds a full-screen
       outline quad under the camera (a dark line where the depth steps, `silhouette_px` wide, or the normal creases, `crease_px`; `PixelPost.refresh(node, oversample)`). `View3D` shows the picture
-      through a nearest-filtered `TextureRect`; at rest `supersample` (1) and while a quarter turn is under way `turn_supersample` (2) times larger, averaged down through a filtered stage (`View3D.shown`) first.
+      through a nearest-filtered `TextureRect`; it can render `supersample` (at rest) or `turn_supersample` (turning) times larger and average down through a filtered stage (`View3D.shown`), both 1: 2 flickers more on textured art.
     - **The flat overlays** (`GroundLayer`, `general/ground_layer.gd`, interim until phase 3; `domain-general/camera3d.md`): while
       `GroundLayer.enabled` (Main's view sets it) `ViewLayers.overlay` and the view's composite move the player's view and every debug overlay under a `CanvasLayer`
       (`vision_layer`; `overlay_layer`) whose `transform` is `Pointer.screen_transform`: they lie flat on the 3D floor at any yaw, over the picture and under the HUD

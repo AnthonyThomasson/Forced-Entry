@@ -16,6 +16,9 @@ extends RefCounted
 const Vehicle = preload("res://scenes/vehicle/vehicle.gd")
 const Art = preload("res://scenes/vehicle/art/vehicle_art.gd")
 const Rig = preload("res://scenes/vehicle/art/vehicle_mesh_rig.gd")
+## How tall the windscreen and the rear window stand over the belt, as a share of the cabin's
+## height.
+const SCREEN_RISE := 0.3
 
 
 ## The node vehicle `body` (a `vehicle.gd`) is shown by, in 3D units with its origin at the body's
@@ -302,18 +305,21 @@ static func _pillars(kit: MeshKit, look: Dictionary, belt: float, roof: float) -
 			kit.box(MeshKit.volume(post, belt, roof - belt), Color.WHITE)
 
 
-## The sloped windscreen from the roof's front to the bonnet, and the rear window from the roof's
-## back to the boot (a van has none).
+## The windscreen from the roof's front to the bonnet, and the rear window from the roof's back to
+## the boot (a van has none): a low flat step, not a ramp. A ramp facing the sun is lit a band up
+## and its dark glass is lifted pale, where the 2D's is dark, and from this camera a ramp shows
+## nothing a flat top does not.
 static func _screens(kit: MeshKit, look: Dictionary, belt: float, roof: float) -> void:
 	var half: float = look["roof_half"]
 	var front: float = (look["roof"] as Vector2).x
 	var back: float = (look["roof"] as Vector2).y
 	var screen := Rect2(front, -half, float(look["bonnet"]) - front, 2.0 * half)
-	kit.wedge(MeshKit.volume(screen, belt, roof - belt), Vector2.LEFT, Color.WHITE)
+	var rise := (roof - belt) * SCREEN_RISE
+	kit.box(MeshKit.volume(screen, belt, rise), Color.WHITE)
 	var boot: float = look["boot"]
 	if float(look["rear_half"]) > 0.0 and boot < back:
 		var rear := Rect2(boot, -half, back - boot, 2.0 * half)
-		kit.wedge(MeshKit.volume(rear, belt, roof - belt), Vector2.RIGHT, Color.WHITE)
+		kit.box(MeshKit.volume(rear, belt, rise), Color.WHITE)
 
 
 ## Whether door `def` carries a wing mirror (a front door, never a rear one).

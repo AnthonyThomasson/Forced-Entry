@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Contact sheets of the look gate's shots (tests/general/render_3d_look_gate_windowed_test.gd).
 
-usage: tools/look_gate_sheets.py SHOT_DIR [OUT_DIR]
+usage: python3 -I tools/look_gate_sheets.py SHOT_DIR [OUT_DIR]   (needs Pillow: `pip install pillow`)
 
 Reads `<scene>_<3d|2d>_z<zoom>_yaw<yaw>.png` from SHOT_DIR and writes, per scene (into OUT_DIR, default
 SHOT_DIR/sheets): `<scene>_3d.png`, a grid of the 3D shots (a row per zoom, a column per turn), and
@@ -15,7 +15,10 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+try:
+    from PIL import Image, ImageDraw
+except ImportError:  # the sheets are a dev aid; say what is missing instead of a traceback
+    sys.exit("look_gate_sheets.py needs Pillow: pip install pillow")
 
 NAME = re.compile(r"^(?P<scene>.+)_(?P<mode>3d|2d)_z(?P<zoom>[0-9p]+)_yaw(?P<yaw>\d+)\.png$")
 TILE = (576, 324)

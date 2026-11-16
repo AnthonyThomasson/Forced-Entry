@@ -84,6 +84,7 @@ func run(t: TestContext) -> void:
 	await _wall_wear_fades(t, mirror, fade, worn)
 	await _street_wear(t, mirror)
 	await _street_stacking(t, mirror)
+	await _street_under_a_room(t, mirror)
 	await _stencil_and_shadow(t, mirror)
 	await _check_main(t)
 
@@ -325,6 +326,38 @@ func _street_wear(t: TestContext, mirror: WorldMirror) -> void:
 	t.check(kept > 0, "the street has wear marks (%d)" % kept)
 	_glyph_and_crossing(t, road, road_node)
 	_batched(t, road_node, walk_node)
+
+
+## A pavement that runs under a room's floor lays no mark there (the 2D draws the room over it, so
+## none shows): the marks that lie under the room are skipped, the rest are laid.
+func _street_under_a_room(t: TestContext, mirror: WorldMirror) -> void:
+	var room_rect := Rect2(3000, 900, 2400, 60)
+	var room_def := {
+		"art": "floor",
+		"color": Color(0.5, 0.4, 0.3),
+		"art_opts": { "pattern": "planks" },
+	}
+	FloorFactory.spawn(room_rect, room_def, "Room", t.world)
+	var walk_def: Dictionary = GeneralCatalog.STREET["sidewalk"].duplicate(true)
+	walk_def["marks"] = { "seed": 4, "edges": [Vector2.DOWN] }
+	var walk := FloorFactory.spawn(Rect2(2800, 910, 3000, 50), walk_def, "WalkUnder", t.world)
+	await t.frames(3)
+	var node := _floor_mesh(mirror, walk)
+	if not t.require(node != null, "the pavement under a room is shown by a mesh"):
+		return
+	var marks: Array = walk.find_child("StreetMarks", true, false).decals()
+	var drawn := [&"dash", &"crossing"]
+	var kept := 0
+	for mark: Array in marks:
+		var rect: Rect2 = mark[1]
+		var centre: Vector2 = walk.position + rect.get_center()
+		if not (mark[2] in drawn) and not room_rect.has_point(centre):
+			kept += 1
+	t.check(
+		kept < marks.size(),
+		"premise: some mark lies under the room (%d of %d)" % [kept, marks.size()],
+	)
+	t.expect_eq(_decals(node).size(), kept, "only the marks the room leaves bare are laid")
 
 
 ## Long pavements of several seeds, whose marks overlap (a chip on a slab, a crack over both): none

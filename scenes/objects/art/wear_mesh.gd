@@ -43,8 +43,33 @@ static func attach_street(node: Node3D, floor_node: Node2D) -> void:
 	var marks: Array = layer.call(&"decals").filter(
 		func(m: Array) -> bool: return not (m[2] in ObjectWearMeshConfig.street_drawn)
 	)
+	var covered := _floors_over(floor_node)
 	for i in marks.size():
+		var rect: Rect2 = marks[i][1]
+		if _is_covered(Rect2(floor_node.global_position + rect.position, rect.size), covered):
+			continue
 		node.add_child(_flat(marks[i], top, layer_of(marks, i)))
+
+
+## The rects (world px) of the room floors the street piece `street` lies under: in 2D a room's
+## floor is drawn over the pavement, so a mark of the pavement is never seen there.
+static func _floors_over(street: Node2D) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	if not street.is_inside_tree():
+		return out
+	for other: Node in street.get_tree().get_nodes_in_group(&"floors"):
+		var opts: Dictionary = other.get("art_opts")
+		if other != street and not opts.has("kind"):
+			out.append(Rect2((other as Node2D).global_position, other.get("size")))
+	return out
+
+
+## Whether the middle of `rect` is inside one of `floors`.
+static func _is_covered(rect: Rect2, floors: Array[Rect2]) -> bool:
+	for floor_rect in floors:
+		if floor_rect.has_point(rect.get_center()):
+			return true
+	return false
 
 
 ## The decal layer (`MeshNodes.decal`) of mark `index` of `marks` (`[texture, rect, kind]` each, in

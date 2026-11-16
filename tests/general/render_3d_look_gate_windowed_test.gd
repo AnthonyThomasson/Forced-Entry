@@ -210,7 +210,7 @@ func _street(t: TestContext, doors_open: bool) -> void:
 			van.cabin.door(id).open()
 		await t.seconds(0.8)
 	var at := spot - along * 150.0 if doors_open else spot
-	await _sweep(t, _scene, at, 3.0 if doors_open else 1.0)
+	await _sweep(t, _scene, at)
 
 
 ## A room of the scene's type, the camera over it.
@@ -228,7 +228,7 @@ func _room(t: TestContext) -> void:
 			"the plan has a %s (rooms: %s)" % [wanted, rooms.map(func(r): return r["type"])],
 		)
 		chosen = rooms[0]
-	await _sweep(t, _scene, (chosen["rect"] as Rect2).get_center(), 0.0)
+	await _sweep(t, _scene, (chosen["rect"] as Rect2).get_center())
 
 
 ## Two characters facing each other across a room, trading fire: blood, debris and casings.
@@ -298,7 +298,7 @@ func _characters(t: TestContext) -> void:
 	people[6].inventory.drop_held(Vector2(40.0, 0.0))
 	people[7].movement.move_input = Vector2.RIGHT
 	await t.seconds(1.4)
-	await _sweep(t, "chars", centre + Vector2(0, 0), 0.0)
+	await _sweep(t, "chars", centre)
 
 
 ## A glass door shattered, then knocked down.
@@ -319,10 +319,10 @@ func _glass(t: TestContext) -> void:
 	door.look.broken = true
 	door.visuals.refresh()
 	await t.frames(10)
-	await _sweep(t, "glass", door.global_position, 0.0)
+	await _sweep(t, "glass", door.global_position)
 	door.take_damage(10_000.0)
 	await t.frames(10)
-	await _sweep(t, "glass_down", door.global_position, 0.0)
+	await _sweep(t, "glass_down", door.global_position)
 
 
 ## The camera turning (`turn`) or panning (`pan`) over a room: how many picture pixels of its
@@ -401,15 +401,12 @@ func _differs(a: int, b: int) -> bool:
 # --- shots --------------------------------------------------------------------------------
 
 
-## The scene at every zoom and turn: 2D has no turn, so one shot per zoom. `only_zoom` > 0 takes
-## that zoom only (the scenes that need one close look).
-func _sweep(t: TestContext, name: String, at: Vector2, only_zoom: float) -> void:
+## The scene at every zoom and turn: 2D has no turn, so one shot per zoom.
+func _sweep(t: TestContext, name: String, at: Vector2) -> void:
 	var yaws: Array[float] = _yaws
 	if not _three_d:
 		yaws = [0.0]
 	for zoom: float in _zooms:
-		if only_zoom > 0.0 and not is_equal_approx(zoom, only_zoom) and _scene == "car":
-			continue
 		for yaw: float in yaws:
 			_set_yaw(yaw)
 			await _shot(t, name, at, zoom, yaw)
@@ -486,22 +483,14 @@ func _open_room() -> Rect2:
 	return best
 
 
-## Hide the furniture in `rect` (and its clutter) so a line-up or a duel stands clear.
+## Hide the furniture in `rect` (and its clutter) so a line-up or a duel stands clear: the body
+## itself, so 2D stops drawing it and the 3D mirror hides its mesh with it.
 func _hide_pieces_in(rect: Rect2) -> void:
-	if _rig == null:
-		for body: Node in _world.find_children("*", "PhysicsBody2D", true, false):
-			var node := body as Node2D
-			if (rect.grow(20.0).has_point(node.global_position)
-					and MirrorProxy.kind_of(body) == MirrorProxy.FURNITURE):
-				node.visible = false
-		return
-	var mirror: WorldMirror = _main.get_node("View3D").mirror
 	for body: Node in _world.find_children("*", "PhysicsBody2D", true, false):
 		var node := body as Node2D
-		if rect.grow(20.0).has_point(node.global_position):
-			if MirrorProxy.kind_of(body) == MirrorProxy.FURNITURE:
-				for proxy in mirror.proxies_of(body):
-					proxy.visible = false
+		if (rect.grow(20.0).has_point(node.global_position)
+				and MirrorProxy.kind_of(body) == MirrorProxy.FURNITURE):
+			node.visible = false
 
 
 ## One character at `at`, dressed and posed by `kind`; nobody shoots it when `safe`.

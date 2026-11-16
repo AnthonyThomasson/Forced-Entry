@@ -9,7 +9,7 @@ domain plugs them into the mirror's hook. The pattern, proved on the table (`Obj
 | Part | Role |
 |---|---|
 | `MeshKit` (`mesh/mesh_kit.gd`) | A chain of solids, one `ArrayMesh` from `build()`: `box`, `wedge` (a ramp or headboard), `cylinder`, `sphere`, `capsule`, `cone`, `revolve` (a profile turned about the vertical axis: a lathe post, a vase), `extrude` (a 2D polygon and a height: a rounded top, an L-shaped counter; a prism is a triangle extruded), `loft` (a convex profile swept along a path: a rail, a pipe, a roofline). **`pose(Transform3D)` turns and places every solid added after it**: a wheel on its side is the cylinder at the origin under `pose(Transform3D(Basis(Vector3.BACK, PI / 2), at))`, an aimed barrel or a tilted chair back the same; `pose(Transform3D.IDENTITY)` ends it. Flat-shaded, one colour per face in the vertex colour. |
-| `MeshCache` (`mesh/mesh_cache.gd`) | `MeshCache.fetch(MeshCache.key(id, size, color, opts), make)`: the same inputs give the same `Mesh` resource, shared by every piece, as `PixelArt` shares a texture. **The key must name every input the shape reads:** `opts` holds the piece's options and every tuning value the builder reads (`TableMesh._tuning()`), so a retuned holder is another mesh; the scale (`RenderConfig.unit`) and the kit's own tunables (the tone ramp, `cylinder_sides`) are in the key already. Bounded (`MeshKitConfig.cache_limit`); a mesh unique to one node skips it (`mesh-hook.md`). |
+| `MeshCache` (`mesh/mesh_cache.gd`) | `MeshCache.fetch(MeshCache.key(id, size, color, opts), make)`: the same inputs give the same `Mesh` resource, shared by every piece, as `PixelArt` shares a texture. **The key must name every input the shape reads:** `opts` holds the piece's options and each tuning value the builder reads (`TableMesh._tuning()`), so a retuned holder is another mesh; the scale (`RenderConfig.unit`) and the kit's own tunables (the tone ramp, `cylinder_sides`) are in the key already. Bounded (`MeshKitConfig.cache_limit`); a mesh unique to one node skips it (`mesh-hook.md`). |
 | `MeshNodes` (`mesh/mesh_nodes.gd`) | `instance(mesh, tint)` a `MeshInstance3D` in the shared toon material; `place(node, at_px, yaw)`; `surface_frame` (upright and unmirrored on a wall's four facings) and `decal` (a flat quad laid on a surface: wear, stencils, stains; `layer` lifts it `decal_layer_step` more so overlaps never tie; lit and shadowed like the surface; its material goes with its last decal); `batch(mesh, count)` with `batch_place` / `batch_show` (many short-lived parts in one draw, no shadow: casings, sparks); `fade`, `glow` (`mesh-hook.md`). |
 | `MeshKitConfig` | `cylinder_sides`, `decal_lift`, `decal_layer_step`, `cache_limit`. |
 | `ToonMask` (`post/toon_mask.gd`) | Phase 3's vision hook (`mesh-hook.md`): not for a mesh job to touch. |
@@ -27,15 +27,12 @@ and the mirror turns it with the body (a 2D turn clockwise is `-angle` about +y;
 A face carries a colour; the toon material (`ToonMaterial`) multiplies it by the instance's tint (white: the mesh's own colours) and does the
 banding by the light. So a face never darkens itself for the light: it carries the **base colour of its part**, and a different tone only to
 tell parts apart (`MeshKit.tone(base, &"dark")` is `ArtSurfaceConfig.tones(base)["dark"]`): the table's top is the painter's colour, its
-sides a darker tone, its legs the shadow tone. The base colour is the one the painter draws in: `ObjectArt.drawn_color(piece.color)` (the
-run-down grade), so the 3D and the 2D match. A face's finish (wood, fabric, metal) is a choice of its colour for now (the shader has no
-finish term); a vertex colour is the whole of what a face carries.
+sides a darker tone, its legs the shadow tone. A face's colour is the painter's, `ObjectArt.drawn_color(piece.color)` (the run-down grade); a textured part wears the flat art (`textured-toon.md`). A face's finish is a choice of its colour (the shader has no finish term).
 
 ## Registering a builder
 
-1. Write `static func build(body: Node2D) -> Node3D` beside the painter: read the body's data (`size`, `color`, `look.art_opts`; a height from the piece's own data or a rule of its size, as `TableMesh.height_of(size, art_opts)`: `art_opts.height`, else a low table for a small footprint, so a side table is not a dining table), build the mesh
-   through `MeshCache.fetch` (key = id + footprint + colour + the options that change the shape), return `MeshNodes.instance(mesh)` (a node
-   with child nodes for parts that move: a door's leaf, a wheel).
+1. Write `static func build(body: Node2D) -> Node3D` beside the painter: read the body's data (`size`, `color`, `look.art_opts`; a height from the piece's own data or a rule of its size, as `TableMesh.height_of(size, art_opts)`: `art_opts.height`, else a low table for a small footprint), build the mesh
+   through `MeshCache.fetch` (key = id + footprint + colour + the options that change the shape; a furniture piece: `FurnitureSpec.of(piece)` and `FurnitureMesh.fetch(art, spec, tuning, ...)`), and return `FurnitureMesh.show(piece, mesh)`: the rig wearing the painter's flat art (a bare `MeshNodes.instance(mesh)` is a plain slab).
 2. List it in the domain's registry (`ObjectMeshes.BUILDERS`: art id -> script) whose `register(builders)` puts each under its hook key.
 3. Main's `main_view3d.gd` `_register_meshes()` calls the domain's `register(mirror.builders)` (Main knows every domain; Art never imports
    one). Nothing else changes: a body with no builder keeps its proxy, and the builder returning null does too.
@@ -46,7 +43,7 @@ A mesh whose parts move with a pose is the character's: `CharacterMeshes.registe
 
 ## Heights (px; a standing character is 74, a wall 96: `MirrorConfig`)
 
-Plausible, not exact; one number per class, tuned at the phase gate in the game, kept in the domain's own holder (`ObjectMeshConfig`).
+Plausible, not exact; one number per class, in the domain's own holder (`ObjectMeshConfig`).
 
 | Class | Height | Class | Height |
 |---|---|---|---|

@@ -14,11 +14,10 @@ tiling painter's blood grooves and soak); `light_kind` (which variant of a paint
 
 ## The look: run-down, rust and grime, with a share of neon
 
-One look for every piece; there is no style switch.
+One look for every piece.
 
 - **The palette grade** (`decay.gd` `grade`, `ObjectArtDecayConfig.grade_*`): `ObjectArt.texture` / `tile` wash every painter's
-  colour toward dun, rust and nicotine yellow, so World-Gen's catalogue keeps plain colours ("walnut", "navy") and the house
-  still draws run down. `ObjectArt.AS_GIVEN` painters (`wear`, `street`, `decor` and the district's `awning`, `stencil`, `crossing`, `road_glyph`, `podium`,
+  colour toward dun, rust and nicotine yellow, so World-Gen's catalogue keeps plain colours and the house still draws run down. `ObjectArt.AS_GIVEN` painters (`wear`, `street`, `decor` and the district's `awning`, `stencil`, `crossing`, `road_glyph`, `podium`,
   `shadow`, `shell_decor`) take their colours as given. A piece's and
   wall's `get_surface().color` (debris) is the drawn colour (`ObjectArt.drawn_color`).
 - **The finish** (`decay.gd`): each painter draws its shape, then its finish through the shared helpers (grime, stains, tears,
@@ -89,8 +88,8 @@ on the catalogue definitions, and for a light-giving painter add its `ObjectArtL
 ## The 3D meshes (`object_meshes.gd`, `table_mesh.gd`, `object_mesh_config.gd`)
 
 In the 3D render a piece is shown by a mesh built from Art's mesh kit (`domain-art/meshes.md`) beside its painter: `ObjectMeshes.BUILDERS` maps an `ObjectArt` id to
-`<name>_mesh.gd` (`static build(piece) -> Node3D`, 3D units, centred on the piece), and `ObjectMeshes.register(builders)` plugs them into the mirror under
+`<name>_mesh.gd` (`static build(piece) -> Node3D`, 3D units, centred), and `ObjectMeshes.register(builders)` plugs them into the mirror under
 `MirrorProxy.furniture_key(art)` (Main's 3D view calls it). A piece whose art has no mesh stays a proxy box. `ObjectMeshConfig` holds the heights (px): the table's
-`table_*` (30 tall, 22 for a small footprint, `art_opts.height` wins), the pattern every furniture job copies (`tests/objects/table_mesh_test.gd`); the domestic kinds: `meshes.md`.
+`table_*` (30 tall, 22 for a small footprint, `art_opts.height` wins); a table is built like every furniture mesh, through `FurnitureSpec` and `FurnitureRig` (`table_mesh_test.gd`); the domestic kinds: `meshes.md`.
 
 Walls, doors, floors, street meshes: `structure-meshes.md`.

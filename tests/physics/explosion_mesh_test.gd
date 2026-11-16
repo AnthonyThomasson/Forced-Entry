@@ -79,10 +79,27 @@ func _check_a_frag(t: TestContext, layer: FxLayer) -> void:
 	t.check(not rig.fire[0].visible and not rig.ring.visible, "the fireball and ring are gone")
 	t.check(_puffs(rig) > 0, "the smoke has begun and lingers (every puff has begun by now)")
 	t.expect_eq(layer.blasts.shown(), 1, "so the blast is still on")
+	_check_the_puffs(t, rig, look)
 	await t.seconds(float(look["smoke_time"]))
 	t.expect_eq(layer.blasts.shown(), 0, "within the smoke's life the blast is over")
 	t.check(not _any_visible(layer), "every part is hidden")
 	t.check(not layer.is_processing(), "and the layer rests")
+
+
+## The smoke's puffs wear the 2D puff (a textured, cut-out material, not the plain toon one) and
+## are never more whole than the look's `smoke_alpha` (the dither's step at most).
+func _check_the_puffs(t: TestContext, rig: BlastRig, look: Dictionary) -> void:
+	var levels := float(PhysicsBlastMeshConfig.fade_levels)
+	var cap := ceilf(float(look["smoke_alpha"]) * levels) / levels
+	var shown := 0
+	for puff in rig.puffs:
+		if not puff.visible:
+			continue
+		shown += 1
+		t.check(puff.material_override != ToonMaterial.shared(), "a puff wears the 2D puff's art")
+		var fade: Variant = puff.get_instance_shader_parameter(&"fade")
+		t.check(fade != null and float(fade) <= cap + 0.001, "and is as translucent as the 2D's")
+	t.check(shown > 0, "some puff is showing")
 
 
 ## A stun: smoke only.
