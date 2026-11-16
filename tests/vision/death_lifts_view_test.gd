@@ -36,7 +36,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1400, 700))
-	s.set_static(GroundLayer, &"enabled", true)
 	s.switch(&"nav.rebake", false)
 	s.switch(&"vision.enabled", true)
 	s.actor(&"you", &"player", Vector2(150, 350))
@@ -59,7 +58,6 @@ func _npc_view_setup() -> TestSetup:
 	var s := TestSetup.new()
 	# Out of the way of the session's arena (the worlds share a navigation map).
 	s.arena(Rect2(3000, 0, 1400, 700))
-	s.set_static(GroundLayer, &"enabled", true)
 	s.switch(&"nav.rebake", false)
 	s.switch(&"vision.enabled", true)
 	s.actor(&"npc", &"defender", Vector2(3150, 350))
@@ -69,7 +67,7 @@ func _npc_view_setup() -> TestSetup:
 
 
 ## Take `viewer` out of `world` without killing it (`how`: "freed" or "removed"): the view of it is
-## gone within a frame, with its composite and viewports, and none comes back.
+## gone within a frame, with its viewports, and none comes back.
 func _leave(t: TestContext, world: Node, viewer: Node2D, how: String) -> void:
 	var who := "the NPC %s" % how
 	await t.frames(5)

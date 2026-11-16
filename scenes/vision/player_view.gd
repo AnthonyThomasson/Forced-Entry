@@ -12,33 +12,17 @@ extends Node2D
 
 const GROUP := &"player_view"
 const Cone := preload("res://scenes/vision/view_cone.gd")
-const Memory := preload("res://scenes/vision/view_memory.gd")
-const Mask := preload("res://scenes/vision/view_mask.gd")
-const Composite := preload("res://scenes/vision/view_composite.gd")
 const Ground := preload("res://scenes/vision/view_ground.gd")
 const Watch := preload("res://scenes/vision/view_watch.gd")
 const Pipeline := preload("res://scenes/vision/view_pipeline.gd")
 ## It runs after the characters it watches (their default priority is 0).
 const PRIORITY := 100
 
-## Whether the memory's capture renders the world every frame (the default). In the 3D render mode
-## (`GroundLayer.enabled` when the view is made) there is no capture, memory or composite at all:
-## the view is two masks the toon shaders read (`ViewGround`, interface 25), so this does nothing
-## there.
-var capture_on := true:
-	set(value):
-		capture_on = value
-		if _memory != null and _memory.capture != null:
-			_memory.set_capture_updating(value)
 ## The character whose sight this is.
 var _viewer: Node2D
 var _cone := Cone.new()
-## The 2D render's parts (the memory, the cone's mask and the composite over the world); null in 3D.
-var _memory: Memory = null
-var _mask: Mask = null
-var _composite: Composite = null
-## The 3D render's view (`ViewGround`: the live window mask and the memory of what was seen, both
-## drawn on request) instead of those three; null in the 2D render.
+## The view (`ViewGround`: the live window mask and the memory of what was seen, the two masks the
+## toon shaders read, both drawn on request).
 var ground: Ground = null
 var _watch := Watch.new()
 ## The cone's jobs: starts, slices, restarts and publishes.
@@ -53,8 +37,7 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	_watch.detach()
 	SeenArea.clear()
-	if ground != null:
-		ground.suspend()
+	ground.suspend()
 
 
 ## A view whose node is disabled works no more, so it shows the whole world again.
@@ -62,57 +45,24 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_DISABLED:
 		_pipeline.drop()
 		SeenArea.clear()
-		if ground != null:
-			ground.suspend()
+		ground.suspend()
 
 
 func _ready() -> void:
-	var main := get_viewport()
 	_watch.attach(get_tree(), [_viewer.get_rid()])
 	process_priority = PRIORITY
-	if GroundLayer.enabled:
-		ground = Ground.new()
-		ground.name = "Ground"
-		add_child(ground)
-		ground.build(_floor_bounds())
-		# The 3D camera rig turns while a menu pauses the tree, so the view that places itself by
-		# that camera each frame keeps running; the sim's own tick (`_physics_process`) stays
-		# paused.
-		process_mode = Node.PROCESS_MODE_ALWAYS
-		return
-	_memory = Memory.new()
-	_mask = Mask.new()
-	_composite = Composite.new()
-	_memory.name = "Memory"
-	_mask.name = "Mask"
-	add_child(_memory)
-	add_child(_mask)
-	_memory.build(_floor_bounds(), VisionConfig.memory_scale, main)
-	_mask.build(main, VisionConfig.feather)
-	_composite.build(
-		_memory.memory.get_texture(),
-		_mask.mask.get_texture(),
-		_memory.bounds,
-		_memory.scale,
-		_memory.memory.size,
-	)
-	add_child(_composite)
+	ground = Ground.new()
+	ground.name = "Ground"
+	add_child(ground)
+	ground.build(_floor_bounds())
+	# The 3D camera rig turns while a menu pauses the tree, so the view that places itself by that
+	# camera each frame keeps running; the sim's own tick (`_physics_process`) stays paused.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
 func _process(_delta: float) -> void:
-	if not is_instance_valid(_viewer):
-		return
-	if ground != null:
+	if is_instance_valid(_viewer):
 		ground.follow(self)
-		return
-	var main := get_viewport()
-	var cam := Pointer.screen_transform(self)
-	var size := Vector2i(main.get_visible_rect().size).max(Vector2i.ONE)
-	_memory.follow(cam, size)
-	_mask.follow(cam, size)
-	_composite.follow(cam, size)
-	_memory.paint(_cone.cone, _cone.bubble, _cone.eye, cam)
-	_mask.paint(_cone.cone, _cone.bubble, _cone.eye)
 
 
 func _physics_process(_delta: float) -> void:
@@ -146,8 +96,7 @@ static func watch(root: Node, character: Node2D) -> PlayerView:
 
 
 ## The viewer died or left the tree: the view is lifted for good, so the whole world is drawn again,
-## live. The view, its composite and its viewports are freed at the end of this frame, before it is
-## drawn.
+## live. The view and its viewports are freed at the end of this frame, before it is drawn.
 func _lift() -> void:
 	# At once, so what is drawn this frame already repaints everything that was held back; a job
 	# half done is dropped with the view.
@@ -215,46 +164,6 @@ func sees(point: Vector2) -> bool:
 	return _cone.contains(point)
 
 
-## The memory: a world-space SubViewport over the floors' bounds, never cleared.
-func memory() -> SubViewport:
-	return null if _memory == null else _memory.memory
-
-
-## The capture: the world as drawn without what moves and without the overlays.
-func capture() -> SubViewport:
-	return null if _memory == null else _memory.capture
-
-
-## The mask: the cone as a screen-sized picture, its edge feathered.
-func mask() -> SubViewport:
-	return null if _mask == null else _mask.mask
-
-
-## The memory's painter, which paints the cone from the capture.
-func painter() -> Node2D:
-	return null if _memory == null else _memory.painter
-
-
-## The mask's painter.
-func mask_painter() -> Node2D:
-	return null if _mask == null else _mask.painter
-
-
-## The composite drawn over the world, at `DrawLayers.VISION`.
-func composite() -> Node2D:
-	return _composite
-
-
-## The memory's texels per world px (below the configured one when the world is too big).
-func memory_scale() -> float:
-	return 1.0 if _memory == null else _memory.scale
-
-
-## Whether the memory is still being emptied (it starts empty).
-func wiping() -> bool:
-	return _memory != null and _memory.wiping()
-
-
 ## Tell General what the cone shows live (`SeenArea`), so what is drawn only while seen can skip
 ## its repaint while it wholly is not.
 func _publish_area() -> void:
@@ -267,8 +176,7 @@ func _publish_area() -> void:
 		for corner in polygon:
 			bounds = bounds.expand(corner)
 	SeenArea.set_area(polygons, bounds)
-	if ground != null:
-		ground.publish(_cone.cone, _cone.bubble, _cone.eye)
+	ground.publish(_cone.cone, _cone.bubble, _cone.eye)
 
 
 ## The bounds of the world's floors (the group `floors`: `size`, `global_position`), the part of the

@@ -76,7 +76,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Probe.building(s, EYE_AT)
-	s.set_static(GroundLayer, &"enabled", true)
 	s.switch(&"vision.enabled", true)
 	s.set_static(CharacterVisionConfig, &"see_over_coverage", Probe.LOOK_OVER_LOW)
 	s.set_static(VisionSliceConfig, &"slice_units", SLICE)

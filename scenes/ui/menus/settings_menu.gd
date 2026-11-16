@@ -15,8 +15,6 @@ extends CanvasLayer
 
 ## The Debug checkbox changed.
 signal debug_changed(on: bool)
-## The render mode was picked: `mode` is `"2d"` or `"3d"` (the host applies it at the next match).
-signal render_mode_changed(mode: String)
 ## A key or mouse press was captured for `action`; the host decides whether it can be bound.
 signal rebind_requested(action: String, event: InputEvent)
 ## The row's Reset button: put `action` back on its default.
@@ -30,13 +28,9 @@ const _LAYER := 20
 const _ROW_FONT := 22
 const _CONFLICT_COLOR := Color(1.0, 0.45, 0.35)
 const _PROMPT := "Press a key…"
-## The render modes the page offers, in order: `[value, label]`.
-const _RENDER_MODES := [["2d", "2D (top-down)"], ["3d", "3D"]]
 
 ## The Debug checkbox.
 var _debug_check: CheckBox
-## The render mode picker, beside Debug.
-var _render_pick: OptionButton
 ## The scrolling list of headings and rows.
 var _list: VBoxContainer
 ## The latest rows from the host: `{ action, label, group, text, conflicts, changed }`.
@@ -71,11 +65,10 @@ func _input(event: InputEvent) -> void:
 		_commit(event)
 
 
-## Build the window from `model` = `{ debug: bool, render_mode: String, rows: Array }` and show it
-## (`render_mode` `"2d"` when absent). Each row is
+## Build the window from `model` = `{ debug: bool, rows: Array }` and show it. Each row is
 ## `{ action, label, group, text, conflicts: [labels], changed: bool }`, in display order.
 func open(model: Dictionary) -> void:
-	_build_ui(bool(model.get("debug", false)), str(model.get("render_mode", "2d")))
+	_build_ui(bool(model.get("debug", false)))
 	set_rows(model.get("rows", []))
 
 
@@ -91,7 +84,7 @@ func set_rows(rows: Array) -> void:
 
 
 ## Lay out the opaque page: title, Debug checkbox, the scrolling list and the bottom buttons.
-func _build_ui(debug_on: bool, render_mode: String) -> void:
+func _build_ui(debug_on: bool) -> void:
 	var bg := ColorRect.new()
 	# opaque, so the setup window underneath doesn't show through
 	bg.color = Color(0.08, 0.09, 0.11)
@@ -123,7 +116,6 @@ func _build_ui(debug_on: bool, render_mode: String) -> void:
 	_debug_check.add_theme_font_size_override("font_size", 26)
 	_debug_check.toggled.connect(debug_changed.emit)
 	options.add_child(_debug_check)
-	_build_render_pick(options, render_mode)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -134,26 +126,6 @@ func _build_ui(debug_on: bool, render_mode: String) -> void:
 	_list.add_theme_constant_override("separation", 4)
 	scroll.add_child(_list)
 	_build_buttons(box)
-
-
-## The render mode picker under `row`, beside Debug: a label and a drop-down of `_RENDER_MODES`,
-## on `render_mode`; picking one emits `render_mode_changed` (it applies at the next match).
-func _build_render_pick(row: HBoxContainer, render_mode: String) -> void:
-	var label := Label.new()
-	label.text = "Render (next match)"
-	label.add_theme_font_size_override("font_size", 26)
-	row.add_child(label)
-	_render_pick = OptionButton.new()
-	_render_pick.add_theme_font_size_override("font_size", 24)
-	_render_pick.focus_mode = Control.FOCUS_NONE  # Space/Enter must not reopen it
-	for entry in _RENDER_MODES:
-		_render_pick.add_item(entry[1])
-		if entry[0] == render_mode:
-			_render_pick.select(_render_pick.item_count - 1)
-	_render_pick.item_selected.connect(
-		func(index: int) -> void: render_mode_changed.emit(_RENDER_MODES[index][0])
-	)
-	row.add_child(_render_pick)
 
 
 ## The bottom row under `box`: "Reset all keys" on the left, "Back" on the right.

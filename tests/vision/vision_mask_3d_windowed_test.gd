@@ -112,7 +112,6 @@ func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
-	s.set_static(GroundLayer, &"enabled", false)
 	s.switch(&"vision.enabled", true)
 	s.von_script([])
 
@@ -165,7 +164,6 @@ func _start(t: TestContext) -> bool:
 	var plan := OS.get_environment("VISION_PLAN")
 	_human = _main.get_node("Player")
 	var spec := {
-		"render": Settings.RENDER_3D,
 		"seed": maxi(int(OS.get_environment("VISION_SEED")), 2),
 		"plan": plan if plan != "" else "starter_home",
 		"defenders": { "count": 1 },

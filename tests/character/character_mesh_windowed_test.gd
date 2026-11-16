@@ -1,13 +1,12 @@
 extends GameTest
 ## The bodies of a 3D match in a real window (windowed only: the headless renderer draws nothing and
-## compiles no shader; #193 phase 2, Character). A Watch match started with 3D chosen, the camera
+## compiles no shader; #193 phase 2, Character). A Watch match, the camera
 ## over one of its characters, zoomed in: the character is shown by the kit's body (Main's view
 ## registered the builder), the picture is drawn, and the log gate fails the test on any shader or
 ## engine error. The look itself is not asserted: with `CHARMESH_SHOTS=<dir>` set it saves a
 ## picture of the body standing, helmeted, aiming, walking, crouched and fallen at zoom 3 and at 1
-## (the game's default), for the phase gate (`CHARMESH_PITCH=<degrees>` tips the camera;
-## `CHARMESH_MODE=2d` draws the match in 2D and saves only the standing shots: the 2D art to compare
-## the body against). Run: `tools/run_tests.sh --windowed --id=character/character_mesh_windowed`.
+## (the game's default), for the phase gate (`CHARMESH_PITCH=<degrees>` tips the camera). Run:
+## `tools/run_tests.sh --windowed --id=character/character_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
@@ -42,8 +41,6 @@ func configure(s: TestSetup) -> void:
 	s.own_picture()
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(Settings, &"path", SCRATCH)
-	var two_d := OS.get_environment("CHARMESH_MODE") == "2d"  # the reference shots of the 2D art
-	s.set_static(Settings, &"render_mode", Settings.RENDER_2D if two_d else Settings.RENDER_3D)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
@@ -61,11 +58,6 @@ func run(t: TestContext) -> void:
 	if built.is_empty():
 		return
 	_send_others_away(built["world"], _character)
-	if OS.get_environment("CHARMESH_MODE") == "2d":
-		await _shoot_standing(t)
-		await _shoot_dressed(t)
-		await MainProbe.close(t, _window)
-		return
 	var mirror: WorldMirror = _main.get_node("View3D").mirror
 	_hide_walls(built["world"], mirror)  # full-height walls would stand between the camera and it
 	var shown := mirror.proxies_of(_character)

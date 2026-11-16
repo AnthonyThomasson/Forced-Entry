@@ -1,14 +1,13 @@
 extends GameTest
 ## Probe of #193's pixel post (windowed only: headless draws nothing): what the real 3D view costs a
-## frame against today's 2D render, in the downtown district `perf/match_10v10_stress` builds. The
-## 10v10 match plays on; in blocks that alternate (2D, 3D through the real post, round after round,
-## the order reversed on odd rounds so a fight's drift evens out) the camera walks the same fixed
-## route around the centre house, turning through a full circle as it goes, and each block's frame
-## times are sampled with the CPU render times of the root viewport and the 3D view's (Godot 4.4 on
-## Metal reports the GPU render time as 0, so frame time is the measure) and the slowest of the
-## frames just after the mode changes. 3D is Main's `View3D` (the toon material, the outline pass,
-## the internal resolution of `RenderConfig`, the supersample of `PixelPostConfig`) over the real
-## `WorldMirror`, the 2D world hidden (its drawing skipped, its scripts still running).
+## frame, in the downtown district `perf/match_10v10_stress` builds. The 10v10 match plays on; in
+## blocks, round after round, the camera walks the same fixed route around the centre house,
+## turning through a full circle as it goes, and each block's frame times are sampled with the CPU
+## render times of the root viewport and the 3D view's (Godot 4.4 on Metal reports the GPU render
+## time as 0, so frame time is the measure) and the slowest of the frames just after the block
+## starts. The view is Main's `View3D` (the toon material, the outline pass, the internal
+## resolution of `RenderConfig`, the supersample of `PixelPostConfig`) over the real `WorldMirror`,
+## the 2D world hidden (its scripts still running).
 ## Run: `tools/run_tests.sh --windowed --quiet --id=perf/render_3d_post_cost` (add `--verbose`);
 ## the numbers print as `POST` lines and, with `POST_PROBE_OUT=<file>` set, as JSON;
 ## `POST_PROBE_SHOTS=<dir>` saves each mode's mid-route frame.
@@ -16,7 +15,7 @@ extends GameTest
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const ViewScript := preload("res://scenes/main_view3d.gd")
 const SIZES: Array[Vector2i] = [Vector2i(1152, 648), Vector2i(2560, 1440)]
-const MODES: Array[String] = ["2D", "3D post"]
+const MODES: Array[String] = ["3D post"]
 const FRAMES := 240
 const ROUNDS := 3
 const SETTLE := 20
@@ -30,9 +29,9 @@ var _root_rid: RID
 
 func describe() -> Dictionary:
 	return {
-		"name": "The 3D view with the pixel post, cost against 2D (probe)",
-		"description": "The same camera route in the 10v10 district under the 2D render and the "
-			+ "real 3D view with the pixel post, frame times at two resolutions. Windowed only.",
+		"name": "The 3D view with the pixel post, frame cost (probe)",
+		"description": "The same camera route in the 10v10 district under the real 3D view with "
+			+ "the pixel post, frame times at two resolutions. Windowed only.",
 		"tags": ["perf", "render", "3d", "pixel"],
 		"timeout": 900.0,
 		"allowed_logs": Perf.MATCH_LOGS,
@@ -69,16 +68,13 @@ func run(t: TestContext) -> void:
 		t.require(Vector2i(actual) == size, "the window is %s (is %s)" % [size, actual])
 		results[str(size)] = await _rounds(t, centre)
 	DisplayServer.window_set_size(original)
-	_restore(t)
+	_restore()
 	_report(results)
 	_check(t, results)
 
 
-## The window and the world as the probe found them: the 2D world shown, the camera's own scripts
-## on.
-func _restore(t: TestContext) -> void:
-	t.world.visible = true
-	_enable(false)
+## The window and the world as the probe found them: the camera's own scripts on.
+func _restore() -> void:
 	_camera.set_process(true)
 	_camera.set_physics_process(true)
 
@@ -110,21 +106,10 @@ func _set_up(t: TestContext) -> void:
 	t.world.add_child(_view)
 	_view.begin(_camera)
 	_view.mirror_world(t.world)
-	_enable(false)
+	t.world.visible = false
 	_root_rid = t.world.get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(_root_rid, true)
 	RenderingServer.viewport_set_measure_render_time(_view.viewport.get_viewport_rid(), true)
-
-
-## Show and run the 3D view (true), or stop it so it costs nothing (false).
-func _enable(on: bool) -> void:
-	_view.visible = on
-	var mode := SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
-	_view.viewport.render_target_update_mode = mode
-	if _view.shown != _view.viewport:
-		_view.shown.render_target_update_mode = mode
-	_view.mirror.set_process(on)
-	_view.rig.set_process(on)
 
 
 func _rounds(t: TestContext, centre: Vector2) -> Dictionary:
@@ -132,10 +117,7 @@ func _rounds(t: TestContext, centre: Vector2) -> Dictionary:
 	for mode in MODES:
 		samples[mode] = { "frame": [], "gpu": [], "cpu": [], "settle": [] }
 	for pass_index in ROUNDS:
-		var order := MODES.duplicate()
-		if pass_index % 2 == 1:
-			order.reverse()
-		for mode: String in order:
+		for mode: String in MODES:
 			await _block(t, mode, centre, samples[mode])
 	var out := {}
 	for mode in MODES:
@@ -149,9 +131,6 @@ func _rounds(t: TestContext, centre: Vector2) -> Dictionary:
 
 
 func _block(t: TestContext, mode: String, centre: Vector2, into: Dictionary) -> void:
-	var three_d := mode != "2D"
-	t.world.visible = not three_d
-	_enable(three_d)
 	var last := Time.get_ticks_usec()
 	for i in SETTLE:
 		_route(centre, 0.0)
@@ -170,9 +149,8 @@ func _block(t: TestContext, mode: String, centre: Vector2, into: Dictionary) -> 
 		var view_rid: RID = _view.viewport.get_viewport_rid()
 		var gpu := RenderingServer.viewport_get_measured_render_time_gpu(_root_rid)
 		var cpu := RenderingServer.viewport_get_measured_render_time_cpu(_root_rid)
-		if three_d:
-			gpu += RenderingServer.viewport_get_measured_render_time_gpu(view_rid)
-			cpu += RenderingServer.viewport_get_measured_render_time_cpu(view_rid)
+		gpu += RenderingServer.viewport_get_measured_render_time_gpu(view_rid)
+		cpu += RenderingServer.viewport_get_measured_render_time_cpu(view_rid)
 		into["gpu"].append(gpu)
 		into["cpu"].append(cpu)
 

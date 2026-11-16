@@ -36,7 +36,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Probe.building(s, EYE_AT)
-	s.set_static(GroundLayer, &"enabled", true)
 	s.switch(&"vision.enabled", true)
 
 

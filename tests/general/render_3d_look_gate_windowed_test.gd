@@ -1,7 +1,7 @@
 extends GameTest
-## The look gate's shots: one scene of the integrated game in a real window, in 3D at the zoom
-## steps and the four camera turns, or in 2D at the zoom steps (windowed only: the headless
-## renderer draws nothing; #193 phase 2b, General). One scene per run (a second window in one run
+## The look gate's shots: one scene of the integrated game in a real window, at the zoom steps and
+## the four camera turns (windowed only: the headless renderer draws nothing; #193 phase 2b,
+## General). One scene per run (a second window in one run
 ## has crashed Godot), picked by the environment:
 ##
 ## - `LOOK_SCENE` one of `street` (cars and street furniture), `bedroom`, `kitchen`, `office`
@@ -12,10 +12,9 @@ extends GameTest
 ##   shoot: the picture's flicker (a pixel that changes and changes back) while the camera turns
 ##   1.5 degrees a frame / pans, printed as `LOOKGATE` lines, at zoom 1 and 3, with the post's
 ##   supersample 1 and 2 (the turn's), and for `pan` at pitch 80 and 90.
-## - `LOOK_DIR` the folder the pictures go to (`<scene>_<mode>_z<zoom>_yaw<yaw>.png`); none: nothing
-##   saved.
-## - `LOOK_MODE` `3d` (default) or `2d`.
-## - `LOOK_ZOOMS` (default `0.5,1,2,3`) and `LOOK_YAWS` (`0,90,180,270`, 3D only; 2D has no turn).
+## - `LOOK_DIR` the folder the pictures go to (`<scene>_z<zoom>_yaw<yaw>.png`;
+##   `tools/look_gate_sheets.py` lays them out as contact sheets); none: nothing saved.
+## - `LOOK_ZOOMS` (default `0.5,1,2,3`) and `LOOK_YAWS` (`0,90,180,270`).
 ##   A scene that moves (`firefight`, `grenade`) shoots one zoom and yaw per moment instead, the
 ##   pairs `LOOK_MOMENTS` names (`zoom:yaw,...`, default `1:0,2:0,3:0,2:90,1:180,1:270`).
 ## - `LOOK_FRAMES` the frames a shot waits after parking the camera (12; a flash's peak: 2).
@@ -55,7 +54,6 @@ var _world: Node
 var _house_node: Node2D
 var _district: Node2D
 var _scene := "street"
-var _three_d := true
 var _zooms: Array[float] = [0.5, 1.0, 2.0, 3.0]
 var _yaws: Array[float] = [0.0, 90.0, 180.0, 270.0]
 var _moments: Array[Vector2] = []
@@ -66,7 +64,7 @@ func describe() -> Dictionary:
 		"name": "A look-gate scene of the integrated game, shot in a window (windowed)",
 		"description": "One scene (street, a house's rooms, a firefight, a grenade burst, the "
 			+ "characters, a car with a door open, a shattered glass door) at the zoom steps "
-			+ "and the four camera turns, in 3D or 2D: drawn without shader or engine errors. "
+			+ "and the four camera turns: drawn without shader or engine errors. "
 			+ "Windowed only; the pictures are saved when LOOK_DIR names a folder.",
 		"tags": ["render", "3d", "windowed", "look-gate"],
 		"timeout": 600.0,
@@ -77,8 +75,6 @@ func configure(s: TestSetup) -> void:
 	s.own_picture()
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(Settings, &"path", SCRATCH)
-	var two_d := OS.get_environment("LOOK_MODE") == "2d"
-	s.set_static(Settings, &"render_mode", Settings.RENDER_2D if two_d else Settings.RENDER_3D)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
@@ -120,7 +116,6 @@ func _read_environment() -> void:
 	_scene = OS.get_environment("LOOK_SCENE")
 	if _scene == "":
 		_scene = "street"
-	_three_d = OS.get_environment("LOOK_MODE") != "2d"
 	_zooms = _floats("LOOK_ZOOMS", _zooms)
 	_yaws = _floats("LOOK_YAWS", _yaws)
 	var spec := OS.get_environment("LOOK_MOMENTS")
@@ -181,10 +176,9 @@ func _start(t: TestContext) -> bool:
 	_house_node = built["house"]
 	_district = built["district"]
 	var view := _main.get_node_or_null("View3D")
-	if _three_d:
-		if not t.require(view != null, "Main built the 3D view"):
-			return false
-		_rig = view.rig
+	if not t.require(view != null, "Main built the 3D view"):
+		return false
+	_rig = view.rig
 	_send_others_away(null)
 	await t.frames(30)
 	return true
@@ -411,18 +405,15 @@ func _differs(a: int, b: int) -> bool:
 # --- shots --------------------------------------------------------------------------------
 
 
-## The scene at every zoom and turn: 2D has no turn, so one shot per zoom.
+## The scene at every zoom and turn.
 func _sweep(t: TestContext, name: String, at: Vector2) -> void:
-	var yaws: Array[float] = _yaws
-	if not _three_d:
-		yaws = [0.0]
 	for zoom: float in _zooms:
-		for yaw: float in yaws:
+		for yaw: float in _yaws:
 			_set_yaw(yaw)
 			await _shot(t, name, at, zoom, yaw)
 
 
-## Park the camera over `at` at `zoom`, draw and save `<name>_<mode>_z<zoom>_yaw<yaw>.png`.
+## Park the camera over `at` at `zoom`, draw and save `<name>_z<zoom>_yaw<yaw>.png`.
 func _shot(t: TestContext, name: String, at: Vector2, zoom: float, yaw: float) -> void:
 	_camera.zoom = Vector2(zoom, zoom)
 	_camera.global_position = at
@@ -437,7 +428,7 @@ func _shot(t: TestContext, name: String, at: Vector2, zoom: float, yaw: float) -
 		return
 	DirAccess.make_dir_recursive_absolute(dir)
 	var zoom_text := ("%.1f" % zoom).replace(".0", "").replace(".", "p")
-	var shot := "%s/%s_%s_z%s_yaw%d.png" % [dir, name, "3d" if _three_d else "2d", zoom_text, yaw]
+	var shot := "%s/%s_z%s_yaw%d.png" % [dir, name, zoom_text, yaw]
 	_window.get_texture().get_image().save_png(shot)
 
 

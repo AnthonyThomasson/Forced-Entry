@@ -3,11 +3,10 @@
 
 usage: python3 -I tools/look_gate_sheets.py SHOT_DIR [OUT_DIR]   (needs Pillow: `pip install pillow`)
 
-Reads `<scene>_<3d|2d>_z<zoom>_yaw<yaw>.png` from SHOT_DIR and writes, per scene (into OUT_DIR, default
-SHOT_DIR/sheets): `<scene>_3d.png`, a grid of the 3D shots (a row per zoom, a column per turn), and
-`<scene>_2d_vs_3d.png`, rows of the 2D picture on the left and the 3D picture at the same zoom
-(north up) on the right. A scene that moves (firefight, grenade) is one picture per (zoom, yaw)
-moment, so it sheets as the list of its moments.
+Reads `<scene>_z<zoom>_yaw<yaw>.png` from SHOT_DIR and writes, per scene (into OUT_DIR, default
+SHOT_DIR/sheets): `<scene>.png`, a grid of the shots (a row per zoom, a column per turn). A scene that
+moves (firefight, grenade) is one picture per (zoom, yaw) moment, so it sheets as the list of its
+moments.
 """
 
 import re
@@ -20,9 +19,8 @@ try:
 except ImportError:  # the sheets are a dev aid; say what is missing instead of a traceback
     sys.exit("look_gate_sheets.py needs Pillow: pip install pillow")
 
-NAME = re.compile(r"^(?P<scene>.+)_(?P<mode>3d|2d)_z(?P<zoom>[0-9p]+)_yaw(?P<yaw>\d+)\.png$")
+NAME = re.compile(r"^(?P<scene>.+)_z(?P<zoom>[0-9p]+)_yaw(?P<yaw>\d+)\.png$")
 TILE = (576, 324)
-MOVING = ("firefight", "grenade")
 
 
 def zoom_of(text: str) -> float:
@@ -50,27 +48,14 @@ def main() -> None:
     shots = Path(sys.argv[1])
     out = Path(sys.argv[2]) if len(sys.argv) > 2 else shots / "sheets"
     out.mkdir(parents=True, exist_ok=True)
-    found: dict = defaultdict(lambda: defaultdict(list))
+    found: dict = defaultdict(list)
     for path in sorted(shots.glob("*.png")):
         m = NAME.match(path.name)
         if m:
-            found[m["scene"]][m["mode"]].append((zoom_of(m["zoom"]), int(m["yaw"]), path))
-    for scene, modes in found.items():
-        three = sorted(modes.get("3d", []))
-        two = sorted(modes.get("2d", []))
-        if three:
-            tiles = [(f"{scene} 3D zoom {z:g} yaw {y}", p) for z, y, p in three]
-            grid(tiles, 4).save(out / f"{scene}_3d.png")
-        pairs = []
-        for z, y, p3 in three:
-            if y != 0 and scene not in MOVING:
-                continue
-            twod = [p for zz, yy, p in two if zz == z and (yy == y or yy == 0)]
-            if twod:
-                pairs.append((f"{scene} 2D zoom {z:g}", twod[0]))
-                pairs.append((f"{scene} 3D zoom {z:g} yaw {y}", p3))
-        if pairs:
-            grid(pairs, 2).save(out / f"{scene}_2d_vs_3d.png")
+            found[m["scene"]].append((zoom_of(m["zoom"]), int(m["yaw"]), path))
+    for scene, shots_of in found.items():
+        tiles = [(f"{scene} zoom {z:g} yaw {y}", p) for z, y, p in sorted(shots_of)]
+        grid(tiles, 4).save(out / f"{scene}.png")
     print("sheets in", out)
 
 

@@ -49,11 +49,9 @@ func configure(s: TestSetup) -> void:
 	s.own_picture()
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(Settings, &"path", SCRATCH)
-	s.set_static(Settings, &"render_mode", Settings.RENDER_2D)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
-	s.set_static(GroundLayer, &"enabled", false)
 	s.set_static(WallFadeConfig, &"faded_amount", 0.2)
 	s.switch(&"vision.enabled", false)  # the whole house in view: the fade is what is judged
 	s.lock_interaction([&"camera"])
@@ -102,7 +100,6 @@ func _start(t: TestContext) -> bool:
 	_camera.make_current()
 	_player = _main.get_node("Player")
 	var spec := SPEC.duplicate(true)
-	spec["render"] = Settings.RENDER_3D
 	spec["human"] = { "node": _player, "side": &"invader", "lead": false }
 	var built: Dictionary = await _main.start_match(spec)
 	if not t.require(not built.is_empty(), "a played match started in 3D"):

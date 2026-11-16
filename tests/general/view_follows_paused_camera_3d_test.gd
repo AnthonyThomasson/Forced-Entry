@@ -36,11 +36,9 @@ func configure(s: TestSetup) -> void:
 	s.own_picture()
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(Settings, &"path", SCRATCH)
-	s.set_static(Settings, &"render_mode", Settings.RENDER_2D)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
-	s.set_static(GroundLayer, &"enabled", false)
 	s.switch(&"vision.enabled", true)
 	s.von_script([])
 
@@ -84,6 +82,5 @@ func _play(main: Node) -> Dictionary:
 	main.add_child(camera)
 	camera.make_current()
 	var spec := SPEC.duplicate(true)
-	spec["render"] = "3d"
 	spec["human"] = { "node": main.get_node("Player"), "side": &"invader", "lead": false }
 	return await main.start_match(spec)

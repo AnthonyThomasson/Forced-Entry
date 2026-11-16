@@ -1,15 +1,14 @@
 extends GameTest
-## The player's view and the debug overlays in the 3D render mode (#193 rule 5, decisions G9 and
-## G10): the 2D world is hidden in 3D, so Main's played match moves each overlay under a
+## The player's view and the debug overlays in the 3D render (#193 rule 5, decisions G9 and
+## G10): the 2D world is hidden under the 3D view, so Main's played match moves each overlay under a
 ## `GroundLayer` (a `CanvasLayer` is not hidden by the hidden world) over the 3D view, where the
-## overlay still draws its own 2D code flat on the ground. Main is run whole over a played match
-## with 3D chosen by the spec: the view is two masks for the shaders (no composite to draw flat) and
-## every NPC overlay and the navigation holes are visible in the tree on a ground layer (one shared
-## layer for all the overlays, not one per NPC) whose transform is the 3D camera's ground-to-screen
-## affine (hand-worked at yaw 120 and pitch 80: 100 px of ground along +x shows (-50, 85.287) px
-## from the screen's middle, the focus at the middle), so they line up with the 3D floor at any yaw;
-## an overlay flag still reaches the moved overlays and the detail card finds them by name; a 2D
-## match moves nothing.
+## overlay still draws its own 2D code flat on the ground. Main is run whole over a played match:
+## the view is two masks for the shaders (no composite to draw flat) and every NPC overlay and the
+## navigation holes are visible in the tree on a ground layer (one shared layer for all the
+## overlays, not one per NPC) whose transform is the 3D camera's ground-to-screen affine
+## (hand-worked at yaw 120 and pitch 80: 100 px of ground along +x shows (-50, 85.287) px from the
+## screen's middle, the focus at the middle), so they line up with the 3D floor at any yaw; an
+## overlay flag still reaches the moved overlays and the detail card finds them by name.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const OverlayRegistryProbe := preload("res://tests/_general/overlay_lookup_probe.gd")
@@ -26,10 +25,10 @@ const SPEC := {
 func describe() -> Dictionary:
 	return {
 		"name": "In 3D the debug overlays draw flat on the ground, the view is masks",
-		"description": "A played match with 3D chosen: the view holds masks and no composite, "
+		"description": "A played match: the view holds masks and no composite, "
 			+ "each NPC's overlays and the navigation holes sit on ground layers that follow "
 			+ "the camera's ground-to-screen affine at yaw 120, are visible though the world is "
-			+ "hidden, still take their flags and are found by name; a 2D match moves nothing.",
+			+ "hidden, still take their flags and are found by name.",
 		"tags": ["render", "3d", "vision", "overlays"],
 		"timeout": 60.0,
 	}
@@ -39,11 +38,9 @@ func configure(s: TestSetup) -> void:
 	s.own_picture()
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(Settings, &"path", SCRATCH)
-	s.set_static(Settings, &"render_mode", Settings.RENDER_2D)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
-	s.set_static(GroundLayer, &"enabled", false)
 	s.switch(&"vision.enabled", true)
 	s.von_script([])
 
@@ -56,7 +53,7 @@ func run(t: TestContext) -> void:
 	camera.position = FOCUS
 	main.add_child(camera)
 	camera.make_current()
-	var built := await _play(main, "3d")
+	var built := await _play(main)
 	if not t.require(not built.is_empty(), "premise: a played match started in 3D"):
 		await MainProbe.close(t, viewport)
 		return
@@ -74,25 +71,13 @@ func run(t: TestContext) -> void:
 	_flags_reach_the_moved_overlays(t, main, built)
 	_layer_is_the_cameras_affine(t, viewport, built)
 	await _overlay_goes_with_its_owner(t, world)
-	# The next match is a 2D one: nothing moves.
-	main.remove_child(world)
-	world.queue_free()
-	await t.frames(3)
-	built = await _play(main, "2d", false)
-	if t.require(not built.is_empty(), "premise: a match started in 2D"):
-		t.check(not GroundLayer.enabled, "2D: ground layers are off")
-		await t.frames(3)
-		t.expect_eq(_ground_layers(built["world"]).size(), 0, "2D: no overlay moved")
 	await MainProbe.close(t, viewport)
 
 
-## A match in the render mode `render`: played by the scene's own `Player` or, with no `human`,
-## only watched.
-func _play(main: Node, render: String, human := true) -> Dictionary:
+## A match played by the scene's own `Player`.
+func _play(main: Node) -> Dictionary:
 	var spec := SPEC.duplicate(true)
-	spec["render"] = render
-	if human:
-		spec["human"] = { "node": main.get_node("Player"), "side": &"invader", "lead": false }
+	spec["human"] = { "node": main.get_node("Player"), "side": &"invader", "lead": false }
 	return await main.start_match(spec)
 
 

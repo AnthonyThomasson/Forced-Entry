@@ -28,7 +28,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(BOUNDS)
-	s.set_static(GroundLayer, &"enabled", true)
 	s.actor(&"eye", &"puppet", Vector2(500, 150))
 	s.switch(&"vision.enabled", true)
 	s.view(&"eye")

@@ -71,7 +71,6 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"sleeper", &"puppet", Vector2(700.0, 640.0))
 	s.set_static(RenderConfig, &"unit", 1.0)
 	s.set_static(Settings, &"path", SCRATCH)
-	s.set_static(Settings, &"render_mode", Settings.RENDER_3D)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)

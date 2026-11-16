@@ -48,7 +48,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.set_static(RenderConfig, &"unit", 1.0)
 	s.set_static(Settings, &"path", SETTINGS)
-	s.set_static(Settings, &"render_mode", Settings.RENDER_3D)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)

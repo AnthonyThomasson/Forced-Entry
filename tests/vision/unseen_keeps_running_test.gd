@@ -42,7 +42,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	# Out of the way of the worlds the test builds; they build the 3D view.
 	s.arena(Rect2(0, 0, 200, 200))
-	s.set_static(GroundLayer, &"enabled", true)
 
 
 func run(t: TestContext) -> void:

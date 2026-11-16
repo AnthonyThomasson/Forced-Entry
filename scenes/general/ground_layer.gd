@@ -1,10 +1,11 @@
 class_name GroundLayer
 extends CanvasLayer
-## General domain: the flat overlays of the 3D render mode (#193, interface 27). The 2D world is
-## hidden in 3D mode, and a hidden `CanvasItem` draws nothing, so every debug overlay would vanish
-## with it. Each says what it is (`ViewLayers.overlay`), and while the 3D view is on (`enabled`) it
-## is moved under a `GroundLayer`: a `CanvasLayer` is not a `CanvasItem`, so the hidden world does
-## not hide what is under it, and it draws over the 3D view and under the HUD.
+## General domain: the flat overlays of the 3D render (#193, interface 27). The 2D world is hidden
+## under the 3D view, and a hidden `CanvasItem` draws nothing, so every debug overlay would vanish
+## with it. Each says what it is (`ViewLayers.overlay`), and while the 3D view is up it is moved
+## under a `GroundLayer`: a `CanvasLayer` is not a `CanvasItem`, so the hidden world does not hide
+## what is under it, and it draws over the 3D view and under the HUD. A world with no 3D view (a
+## headless test world) has no layer: its overlays stay where they were made.
 ##
 ## The layer's `transform` is `Pointer.screen_transform` each frame, the exact ground-to-screen
 ## affine of the 3D camera, so a world point the overlay draws lands on the same screen point as the
@@ -17,9 +18,6 @@ extends CanvasLayer
 ## owner has (`overlays_of`). The player's view is not one of them in 3D: it is two masks the toon
 ## shaders read (`ViewGround`), so nothing of it is drawn flat.
 
-## Whether the 3D view is on: Main sets it with the view, and while it is off `adopt` does nothing,
-## so the 2D render is as it was.
-static var enabled := false
 ## The match's one layer for the debug overlays, made by the 3D view (`shared`); null before and
 ## after it. Untyped so a freed one is checked, not read.
 static var overlays: Variant = null
@@ -50,8 +48,8 @@ func _process(_delta: float) -> void:
 				(item as Node2D).transform = pose
 
 
-## The match's overlay layer, on `RenderConfig.overlay_layer`: the 3D view adds it as its child and
-## sets `enabled`; the view's `_exit_tree` calls `forget`.
+## The match's overlay layer, on `RenderConfig.overlay_layer`: the 3D view adds it as its child; the
+## view's `_exit_tree` calls `forget`.
 static func shared() -> GroundLayer:
 	var made := GroundLayer.new()
 	made.layer = RenderConfig.overlay_layer
@@ -65,12 +63,12 @@ static func forget() -> void:
 	overlays = null
 
 
-## Move `item`, a debug overlay, under a ground layer in the 3D render mode
-## (`enabled`); in 2D this does nothing. It waits for the item to be in the tree and for the
+## Move `item`, a debug overlay, under the ground layer of the 3D view (a world with none leaves it
+## where it is). It waits for the item to be in the tree and for the
 ## frame's tree changes to end, so it may be asked from an `_init`, a `_ready` or a parent still
 ## adding its children. It goes under the shared layer, with its parent as its owner.
 static func adopt(item: CanvasItem) -> void:
-	if not enabled:
+	if not is_instance_valid(overlays):
 		return
 	if not item.is_inside_tree():
 		item.tree_entered.connect(adopt.bind(item), CONNECT_ONE_SHOT)
@@ -78,7 +76,7 @@ static func adopt(item: CanvasItem) -> void:
 	_move.bind(item).call_deferred()
 
 
-## The overlays of `home` that were moved under the shared layer (none in 2D).
+## The overlays of `home` that were moved under the shared layer (none without a 3D view).
 static func overlays_of(home: Node) -> Array:
 	if not is_instance_valid(overlays):
 		return []

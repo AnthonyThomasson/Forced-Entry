@@ -40,7 +40,6 @@ func configure(s: TestSetup) -> void:
 	s.own_picture()
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(Settings, &"path", SCRATCH)
-	s.set_static(Settings, &"render_mode", Settings.RENDER_3D)
 	if OS.get_environment("HELD_PITCH") != "":
 		s.set_static(RenderConfig, &"pitch_degrees", float(OS.get_environment("HELD_PITCH")))
 	s.set_static(Settings, &"setup", {})

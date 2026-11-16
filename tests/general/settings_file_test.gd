@@ -35,9 +35,22 @@ func run(t: TestContext) -> void:
 	_check_reset(t)
 	_check_partial(t)
 	_check_dropped_use(t)
+	_check_dropped_render_mode(t)
 	await _check_unreadable(t)
 	Keybinds.bindings.reset_all()
 	_remove_scratch()
+
+
+## A file saved when the game had a render mode still loads: the key is skipped and not written
+## back.
+func _check_dropped_render_mode(t: TestContext) -> void:
+	_write('{ "debug": false, "render_mode": "2d" }')
+	Settings.debug = true
+	Settings.load_file()
+	t.expect_eq(Settings.debug, false, "the file's other keys still load")
+	Settings.save()
+	var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string(SCRATCH))
+	t.check(not (saved as Dictionary).has("render_mode"), "the file is written without a mode")
 
 
 ## No file: the defaults stand.

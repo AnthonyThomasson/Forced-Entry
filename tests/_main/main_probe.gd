@@ -43,8 +43,8 @@ static func open(
 		parent: Node, exports: Dictionary = {}, player_at := Vector2.ZERO, hud := false,
 ) -> Node2D:
 	# Main loads the settings in its `_ready`: on the live file it would read the developer's own
-	# choices (a saved "3d" render). The runner points `Settings.path` at a scratch file; a test
-	# that overrides it back to the live one is a mistake, loud here rather than a 3D run by luck.
+	# choices. The runner points `Settings.path` at a scratch file; a test that overrides it back
+	# to the live one is a mistake, loud here.
 	if Settings.path == LIVE_SETTINGS_PATH:
 		push_error(
 			"MainProbe.open: Settings.path is the live %s; pin a scratch file" % LIVE_SETTINGS_PATH

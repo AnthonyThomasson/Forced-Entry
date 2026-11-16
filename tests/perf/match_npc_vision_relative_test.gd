@@ -9,8 +9,8 @@ extends GameTest
 ## on both. The test asserts that the view adds at most `BUDGET_MS` to a frame.
 ##
 ## Off means no per-frame work of the view: its node is disabled (`process_mode`: the cone is not
-## rebuilt, nothing is followed or painted) and every viewport of the view (the 2D capture, memory
-## and mask, or the 3D render's live and seen masks) stops rendering (`render_target_update_mode`
+## rebuilt, nothing is followed or painted) and every viewport of the view (the live and seen masks)
+## stops rendering (`render_target_update_mode`
 ## disabled, put back when it is on again). It goes through the view's own nodes alone. The headless
 ## run sees the CPU side (the cone, the scripts, the viewports' scene work); the GPU side (the two
 ## viewport passes and the mask shader) it cannot, and was measured by hand windowed, not asserted

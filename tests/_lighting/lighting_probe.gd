@@ -58,12 +58,15 @@ const LAMP_POOL_SLACK := 10.0
 # --- The domain -----------------------------------------------------------------------------------
 
 
-## The WorldLighting node under the test world (null without one).
+## The WorldLighting node under the test world (null without one). Nothing builds the 2D lights
+## for a world any more (the 3D render lights its own, `WorldLighting3D`), so the first ask lights
+## the world here, as the Testing world once did; it goes with the 2D lighting.
 static func lighting(t: TestContext) -> WorldLighting:
 	for n in t.world.get_tree().get_nodes_in_group(GROUP):
 		if t.world.is_ancestor_of(n):
 			return n as WorldLighting
-	return null
+	var handle: Dictionary = t.world.match_handle
+	return WorldLighting.light(t.world, 0, handle.get("site_rooms", t.rooms))
 
 
 ## Require the test world's WorldLighting; the node, or null (the test has failed).

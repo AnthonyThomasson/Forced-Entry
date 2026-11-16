@@ -20,8 +20,7 @@ const OVERLAY_TOGGLES := preload("res://scenes/ui/overlays/overlay_toggles.gd")
 const TEST_BROWSER := "res://scenes/testing/test_browser.tscn"
 ## The settings page (UI), opened over the setup window by its Settings button.
 const SETTINGS_MENU := preload("res://scenes/ui/menus/settings_menu.gd")
-## The 3D view of a match played in the 3D render mode (a `CanvasLayer` named `View3D` below the
-## HUD).
+## The 3D view of a match (a `CanvasLayer` named `View3D` below the HUD): how every match is drawn.
 const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
 ## The endless run's state (`_endless`) and the debug overlays' state, nodes and routing
 ## (`_overlays`), parts built once with Main.
@@ -49,7 +48,7 @@ var _human: Node2D = null
 ## squads (by faction), the human's stack radio and the navigation-holes and squad-leaders
 ## overlays; {} between matches.
 var _match: Dictionary = {}
-## The 3D view while a match plays in the 3D render mode, else null.
+## The 3D view of the match that plays (built before it, freed with it), null between matches.
 var _view3d: CanvasLayer = null
 ## The settings page while it is open over the setup window, else null.
 var _settings_menu: CanvasLayer = null
@@ -78,9 +77,9 @@ func _ready() -> void:
 	# export seeds the setting first, so a file that doesn't name it leaves the export standing.
 	Settings.debug = run.debug_overlays
 	Settings.load_file()
-	# Paint the district's shared art while the setup window is open (the furniture's 3D art too in
-	# the 3D render mode); headless runs skip this.
-	WorldGen.prewarm(Settings.render_mode == Settings.RENDER_3D)
+	# Paint the district's shared art and the furniture's flat art while the setup window is open;
+	# headless runs skip this.
+	WorldGen.prewarm(true)
 	_overlays.initial(run.debug_overlays)
 	_anchor = _player.global_position
 	if _match_hud and _match_hud.has_signal("match_ended"):
@@ -227,14 +226,12 @@ func _open_settings() -> void:
 	_settings_menu = SETTINGS_MENU.new()
 	add_child(_settings_menu)
 	_settings_menu.debug_changed.connect(Settings.set_debug)
-	_settings_menu.render_mode_changed.connect(_on_render_mode_changed)
 	_settings_menu.rebind_requested.connect(_on_rebind_requested)
 	_settings_menu.reset_requested.connect(_on_reset_requested)
 	_settings_menu.reset_all_requested.connect(_on_reset_all_requested)
 	_settings_menu.back_requested.connect(_close_settings)
 	_settings_menu.open({
 		"debug": Settings.debug,
-		"render_mode": Settings.render_mode,
 		"rows": Settings.binding_rows(),
 	})
 
@@ -243,14 +240,6 @@ func _open_settings() -> void:
 func _on_rebind_requested(action: String, event: InputEvent) -> void:
 	if Settings.rebind(action, event):
 		_settings_menu.set_rows(Settings.binding_rows())
-
-
-## The settings page picked a render mode: keep it, and when it is 3D start painting the furniture's
-## flat art (a no-op while it is warming or done), so the next match has it.
-func _on_render_mode_changed(mode: String) -> void:
-	Settings.set_render_mode(mode)
-	if Settings.render_mode == Settings.RENDER_3D:
-		WorldGen.prewarm(true)
 
 
 ## The page reset one action: restore its default and redraw.
@@ -324,29 +313,22 @@ func start_match(spec: Dictionary) -> Dictionary:
 	await _await_sound_warm()
 	if not is_inside_tree():
 		return {}
-	# The render mode is the setting's, from this match on and never for one that runs, unless the
-	# caller's spec names its own.
-	var render: String = spec.get("render", Settings.render_mode)
 	spec = MatchBuilder.spec(spec)
 	spec["overlays"] = _overlays.flags.duplicate()
-	spec["render"] = render
 	var world := Node2D.new()
 	world.name = "World"
 	world.add_to_group(&"match_world")  # how the dev command server finds the match's nodes
-	_begin_render(world, render)
+	_begin_view3d(world)
 	add_child(world)
 	_world = world
 	var built: Dictionary = await MatchBuilder.build(spec, world)
 	if _world != world or not is_inside_tree() or built.is_empty():
-		_abandon_render(world)
+		if _world == world:
+			_end_view3d()  # no view of an empty world
 		return {}  # torn down (a new match, or the scene left) while the maps synchronized
 	_match = built
-	if _view3d != null:
-		_view3d.mirror_world(world)
-		_view3d.light_world(world, int(spec["seed"]), built.get("site_rooms", []))
-		var view: Variant = built.get("view")
-		if is_instance_valid(view):
-			(view as PlayerView).capture_on = false  # the hidden 2D world is not photographed
+	_view3d.mirror_world(world)
+	_view3d.light_world(world, int(spec["seed"]), built.get("site_rooms", []))
 	var human: Variant = (spec["human"] as Dictionary).get("node")
 	_human = human if is_instance_valid(human) else null
 	var combatants: Array = built["combatants"]
@@ -397,7 +379,6 @@ func _base_spec() -> Dictionary:
 		"defenders": { "count": run.defender_count },
 		"invaders": { "count": run.invader_count },
 		"human": human,
-		"render": Settings.render_mode,  # the spec's own default (2D) would beat the setting
 		"spawn_clearance": run.spawn_clearance,
 		"invader_margin": run.invader_margin,
 	})
@@ -462,33 +443,25 @@ func _teardown_world() -> void:
 	_overlays.inspector = null
 
 
-## Draw `world` in the render mode `render`: the 3D one hides it before it is built (not one frame
-## of the 2D world is drawn) and builds the view; the 2D one is as it was.
-func _begin_render(world: Node2D, render: String) -> void:
+## Build the 3D view of the match `world` holds, following the main camera, before the match is
+## built. The world itself is hidden: the 3D view draws the match, and the debug overlays go over it
+## on the ground layer.
+func _begin_view3d(world: Node2D) -> void:
 	_end_view3d()
-	if render == Settings.RENDER_3D:
-		world.visible = false
-		WorldGen.prewarm(true)
-		_begin_view3d()
-
-
-## A build that came to nothing: when `world` is still the match, no view of an empty world.
-func _abandon_render(world: Node2D) -> void:
-	if _world == world:
-		_end_view3d()
-
-
-## Build the 3D view of a match played in the 3D render mode, following the main camera.
-func _begin_view3d() -> void:
+	world.visible = false
 	var camera := get_node_or_null("MainCamera") as Camera2D
 	if camera == null:
 		camera = get_viewport().get_camera_2d()
+	if camera == null:  # a Main built without its scene's camera (a test): the view still needs one
+		camera = Camera2D.new()
+		camera.name = "MainCamera"
+		add_child(camera)
 	_view3d = MAIN_VIEW3D.new()
 	add_child(_view3d)
 	_view3d.begin(camera)
 
 
-## Take the 3D view away (a match over, or the next match drawn another way).
+## Take the 3D view away (a match over).
 func _end_view3d() -> void:
 	if is_instance_valid(_view3d):
 		remove_child(_view3d)

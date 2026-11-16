@@ -1,11 +1,11 @@
 extends CanvasLayer
-## Composition root part (beside `main.gd`): the 3D view of a match played in the 3D render mode
-## (`Settings.render_mode`, `docs/adr/0013-the-3d-render-mirrors-the-2d-sim.md`). A `CanvasLayer`
-## named `View3D` on `RenderConfig.canvas_layer`, below the HUD, holding a `TextureRect` that shows
-## a `SubViewport` of a 3D world of its own: General's `CameraRig` (an orthographic `Camera3D`
-## following the sim's `Camera2D`), the Lighting domain's dusk (`WorldLighting3D`: the sky, the
-## fixtures' and pieces' lights, the ambient) and Art's `WorldMirror` of the match's 2D bodies
-## (interface 27). The
+## Composition root part (beside `main.gd`): the 3D view of a match, the only way one is drawn
+## (`docs/adr/0013-the-3d-render-mirrors-the-2d-sim.md`), and of a test world in a window. A
+## `CanvasLayer` named `View3D` on `RenderConfig.canvas_layer`, below the HUD, holding a
+## `TextureRect` that shows a `SubViewport` of a 3D world of its own: General's `CameraRig` (an
+## orthographic `Camera3D` following the sim's `Camera2D`), the Lighting domain's dusk
+## (`WorldLighting3D`: the sky, the fixtures' and pieces' lights, the ambient) and Art's
+## `WorldMirror` of the match's 2D bodies (interface 27). The
 ## picture is nearest-filtered and the viewport sized by the rig (a picture pixel is one art pixel
 ## times the zoom, `RenderConfig.texel_match`), drawn through Art's toon material and an outline
 ## quad under the camera (`PixelPost`, `PixelPostConfig`). The shimmer mitigation of a turning
@@ -61,7 +61,6 @@ func _process(_delta: float) -> void:
 
 
 func _exit_tree() -> void:
-	GroundLayer.enabled = false
 	GroundLayer.forget()
 	var server := RenderingServer
 	server.directional_soft_shadow_filter_set_quality(_project_shadow_quality("directional"))
@@ -71,7 +70,6 @@ func _exit_tree() -> void:
 ## Build the view following `camera` (the sim's `Camera2D`).
 func begin(camera: Camera2D) -> void:
 	_camera = camera
-	GroundLayer.enabled = true  # the view's overlays draw flat over this picture
 	add_child(GroundLayer.shared())
 	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	rect.stretch_mode = TextureRect.STRETCH_SCALE

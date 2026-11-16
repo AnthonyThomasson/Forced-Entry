@@ -3,17 +3,21 @@ extends Node
 ## and drawn as it is; what the player sees of it is two textures the toon shaders read through
 ## global uniforms (`ToonMask`, `toon_common.gdshaderinc`), by a surface's own ground position:
 ##   live   a window of the world about the camera, `VisionGroundConfig.live_side` texels square,
-##          holding the cone the player sees now (1) with its edge feathered as the 2D mask's is
+##          holding the cone the player sees now (1) with its edge feathered
 ##          (a disc of shifted copies, added up); it is laid again when the camera drifts out of
 ##          it or the zoom changes, and redrawn only then and when a cone is published;
 ##   seen   the whole floor's bounds at a few px a texel, never cleared, to which each published
 ##          cone's polygon adds 1: where the player has ever seen. It is the world as it stands
 ##          that is drawn dimmed there, not a picture of it.
-## A viewport is drawn once on request (`UPDATE_ONCE`), never every frame, and the 2D world's
-## capture is not made at all in this mode. The masks are switched on `settle_frames` after the
-## first cone is painted.
+## A viewport is drawn once on request (`UPDATE_ONCE`), never every frame. The masks are switched
+## on `settle_frames` after the first cone is painted.
 
-const Mask := preload("res://scenes/vision/view_mask.gd")
+## Copies of the live polygon the feathered mask averages, and the value each adds (8/255 x 32 = 1,
+## so the value falls from 1 inside the cone to 0 a feather's width outside); the angle the copies'
+## shifts turn by, so they lie as a disc (a golden-angle spiral).
+const TAPS := 32
+const TAP_VALUE := 8.0 / 255.0
+const GOLDEN_ANGLE := 2.399963
 const Fan := preload("res://scenes/vision/view_fan.gd")
 
 ## The live window's viewport, the memory's, and the painters that draw the cone into them.
@@ -66,9 +70,9 @@ func build(floor_bounds: Rect2) -> void:
 	live_painter.material = add
 	var feathered := VisionConfig.feather > 0.0
 	live_painter.color = (
-		Color(Mask.TAP_VALUE, Mask.TAP_VALUE, Mask.TAP_VALUE) if feathered else Color.WHITE
+		Color(TAP_VALUE, TAP_VALUE, TAP_VALUE) if feathered else Color.WHITE
 	)
-	_shifts.resize(Mask.TAPS if feathered else 1)
+	_shifts.resize(TAPS if feathered else 1)
 	_shifts.fill(Vector2.ZERO)
 	live_painter.offsets = _shifts
 	live.add_child(live_painter)
@@ -114,8 +118,8 @@ func publish(cone: PackedVector2Array, bubble: PackedVector2Array, eye: Vector2)
 	if _drawn.size() == 3 and _drawn[0] == cone and _drawn[1] == bubble and _drawn[2][0] == eye:
 		return
 	_drawn = [cone.duplicate(), bubble.duplicate(), PackedVector2Array([eye])]
-	live_painter.refresh(cone, bubble, eye, Transform2D.IDENTITY, Vector2.ONE)
-	seen_painter.refresh(cone, bubble, eye, Transform2D.IDENTITY, Vector2.ONE)
+	live_painter.refresh(cone, bubble, eye)
+	seen_painter.refresh(cone, bubble, eye)
 	_ask(live)
 	_ask(seen)
 	counts["live"] += 1
@@ -152,9 +156,9 @@ func _anchor(centre: Vector2, half: float) -> void:
 func _feather_to(zoom: float) -> void:
 	if VisionConfig.feather <= 0.0 or zoom <= 0.0:
 		return
-	for i in Mask.TAPS:
-		var radius := VisionConfig.feather * sqrt((float(i) + 0.5) / float(Mask.TAPS)) / zoom
-		_shifts[i] = Vector2.from_angle(float(i) * Mask.GOLDEN_ANGLE) * radius
+	for i in TAPS:
+		var radius := VisionConfig.feather * sqrt((float(i) + 0.5) / float(TAPS)) / zoom
+		_shifts[i] = Vector2.from_angle(float(i) * GOLDEN_ANGLE) * radius
 	live_painter.queue_redraw()
 
 

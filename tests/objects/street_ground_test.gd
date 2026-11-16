@@ -22,7 +22,6 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1000, 700))
 	s.switch(&"nav.rebake", false)
 	s.set_static(Settings, &"path", SCRATCH)
-	s.set_static(Settings, &"render_mode", Settings.RENDER_2D)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.von_script([])

@@ -24,7 +24,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Probe.building(s, Vector2(150, 300))
-	s.set_static(GroundLayer, &"enabled", true)
 	s.actor(&"you", &"player", Vector2(150, 450))
 
 

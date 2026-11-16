@@ -1,15 +1,14 @@
 extends GameTest
 ## V7 (`docs/player-vision.md`): the overlays are drawn over the view, in their own colours, and
 ## are never remembered. In a world with the player's view, an NPC with every debug overlay on, the
-## navigation holes, the squad leaders' crowns and the stack, order and contact markers each sit on
-## the visibility bit `ViewLayers.OVERLAY` (so no mover's cut or remembered look touches them) and,
-## in the 3D render (`GroundLayer.enabled`, with the match's shared ground layer), lie flat on the
-## ground under that layer, over the 3D picture and under the HUD, still visible.
+## navigation holes, the squad leaders' crowns and the stack, order and contact markers each lie
+## flat on the ground under the match's shared ground layer, over the 3D picture and under the HUD
+## (so no mask or remembered look touches them), still visible.
 ## (`general/ground_overlays_3d` runs Main whole and follows the layer's transform with the
 ## camera.)
 ##
-## It reads (tests/_vision/vision_probe.gd) each overlay's `visibility_layer`, its place under a
-## `GroundLayer` and `GroundLayer.overlays_of`; the NPC's overlays are found by the flags of the
+## It reads (tests/_vision/vision_probe.gd) each overlay's place under a `GroundLayer` and
+## `GroundLayer.overlays_of`; the NPC's overlays are found by the flags of the
 ## overlay table (`OverlayRegistry`).
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
@@ -25,8 +24,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "The overlays and markers draw over the view and are never remembered",
 		"description": "Every debug overlay of an NPC, the navigation holes, the leaders' crowns "
-			+ "and the stack, order and contact markers are on ViewLayers.OVERLAY and lie flat "
-			+ "under the match's ground layer, visible.",
+			+ "and the stack, order and contact markers lie flat under the match's ground "
+			+ "layer, visible.",
 		"tags": ["vision", "ui", "overlay", "render", "3d"],
 		"timeout": 15.0,
 	}
@@ -34,7 +33,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1400, 700))
-	s.set_static(GroundLayer, &"enabled", true)
 	s.switch(&"vision.enabled", true)
 	s.actor(&"you", &"player", Vector2(150, 350))
 	s.actor(&"npc", &"defender", Vector2(700, 350))
@@ -65,10 +63,6 @@ func run(t: TestContext) -> void:
 	await t.frames(3)
 	for named: String in overlays:
 		var item: CanvasItem = overlays[named]
-		t.check(
-			item.visibility_layer == ViewLayers.OVERLAY,
-			"%s is on ViewLayers.OVERLAY (layer %d)" % [named, item.visibility_layer],
-		)
 		t.check(_layer_of(item) == layer, "%s lies flat under the ground layer" % named)
 		t.check(item.is_visible_in_tree(), "%s is visible" % named)
 	GroundLayer.forget()
