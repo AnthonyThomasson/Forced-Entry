@@ -76,7 +76,7 @@ main ──(3D mode: main_view3d.gd)──▶ art (WorldMirror), general (Camera
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
-worldgen ──▶ objects (the six factories, `DecalFactory` among them, RoomWalls, WearPlan, `SharedTextures`, and `DoorConfig.open_angle`: 24), art (`PixelArt.warm`: 12)
+worldgen ──▶ objects (the six factories, RoomWalls, WearPlan, `SharedTextures`, `FurnitureArt`, and `DoorConfig.open_angle`: 24), art (`PixelArt.warm`: 12)
 objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24; a bed's mesh reads `use.active_interaction()`, duck-typed: 8)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
 items ──▶ projectile, art    projectile ──▶ physics, art    vehicle ──▶ physics, art    physics ──▶ art (12)

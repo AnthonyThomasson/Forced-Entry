@@ -55,13 +55,14 @@ static func exterior_runs(rooms: Array) -> Array:
 	return runs
 
 
-## The lengths (px) of the podium segments a tower of `rooms` stands with when no doorway cuts its
-## walls, each once. A doorway shortens some, so this is the part of a district's podium art that
-## is the same from tower to tower.
-static func plan_segment_lengths(rooms: Array) -> Array[float]:
+## The lengths (px) of the podium segments a tower of `rooms` stands with, each once: with no
+## `openings` as if no doorway cut its walls (the part of a district's podium art that is the same
+## from tower to tower), with a plan's `openings` the doorway cuts too (a plan's doorways are the
+## same wherever the tower stands).
+static func plan_segment_lengths(rooms: Array, openings: Array = []) -> Array[float]:
 	var lengths: Array[float] = []
 	for run: Dictionary in exterior_runs(rooms):
-		for span in _free(Vector2(run["from"], run["to"]), []):
+		for span in _free(Vector2(run["from"], run["to"]), _door_cuts(run, openings)):
 			for part in _parts(span):
 				var length := part.y - part.x
 				if not lengths.has(length):
@@ -138,7 +139,8 @@ static func _door_cuts(run: Dictionary, openings: Array) -> Array[Vector2]:
 	var axis := _axis(out)
 	for door: Dictionary in openings:
 		var pos: Vector2 = door["pos"]
-		if not (door["front"] or door["exit"]) or absf(pos.dot(out) - float(run["line"])) > ABUT:
+		if (not (door.get("front", false) or door.get("exit", false))
+				or absf(pos.dot(out) - float(run["line"])) > ABUT):
 			continue
 		var reach: float = float(door["width"]) * 0.5 + WorldGenTowerConfig.podium_door_gap
 		cuts.append(Vector2(pos.dot(axis) - reach, pos.dot(axis) + reach))

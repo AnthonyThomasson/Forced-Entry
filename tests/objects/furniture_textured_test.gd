@@ -23,7 +23,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.arena(Rect2(0, 0, 900, 500))
+	s.arena(Rect2(0, 0, 1000, 520))
 	s.object(&"sofa", "sofa", Vector2(120.0, 120.0))
 	s.object(&"sofa_b", "sofa", Vector2(320.0, 120.0))
 	s.object(
@@ -35,6 +35,12 @@ func configure(s: TestSetup) -> void:
 	s.object(&"bed", "bed", Vector2(120.0, 300.0))
 	s.object(&"lamp", "streetlight", Vector2(420.0, 300.0))
 	s.object(&"sign", "awning", Vector2(620.0, 300.0), { "facing": Vector2.UP })
+	s.object(&"sofa_up", "sofa", Vector2(720.0, 120.0), { "facing": Vector2.UP })
+	s.object(
+		&"sofa_right", "sofa", Vector2(820.0, 120.0), { "facing": Vector2.RIGHT, "rotated": true }
+	)
+	s.object(&"lamp_left", "streetlight", Vector2(520.0, 400.0), { "facing": Vector2.LEFT })
+	s.object(&"lamp_right", "streetlight", Vector2(720.0, 400.0), { "facing": Vector2.RIGHT })
 	s.set_static(RenderConfig, &"unit", 1.0)
 	s.set_static(Settings, &"path", SCRATCH)
 	s.set_static(Settings, &"render_mode", Settings.RENDER_3D)
@@ -66,6 +72,9 @@ func run(t: TestContext) -> void:
 	)
 	_check_turned(t, left, t.object(&"sofa_left"))
 	_check_blanket(t, mirror)
+	_check_turns(t, mirror)
+	for id: StringName in [&"lamp", &"lamp_left", &"lamp_right"]:
+		_check_overhang(t, mirror, id)
 	_check_overhang(t, mirror, &"lamp")
 	_check_overhang(t, mirror, &"sign")
 	_check_tint(t, sofa, t.object(&"sofa"))
@@ -124,6 +133,38 @@ func _check_turned(t: TestContext, rig: FurnitureRig, piece: Node) -> void:
 	)
 
 
+## The sofa facing up (two turns) and right (three) wears the canonical art turned that way: the
+## front row of the art (its bottom) lies along the top edge facing up, the right edge facing right.
+func _check_turns(t: TestContext, mirror: WorldMirror) -> void:
+	for id: StringName in [&"sofa_up", &"sofa_right"]:
+		var rig := _rig(t, mirror, id)
+		if t.require(rig != null, "%s has a rig" % id):
+			_check_turned_edge(t, id, rig, t.object(id))
+
+
+## `piece`'s art lies with its front row along the edge its facing names.
+func _check_turned_edge(t: TestContext, id: StringName, rig: FurnitureRig, piece: Node) -> void:
+	var spec := FurnitureSpec.of(piece)
+	var material := rig.body.material_override as ShaderMaterial
+	var texture: Texture2D = material.get_shader_parameter(&"albedo_texture")
+	var worn := texture.get_image()
+	var canon := ObjectArt.flat(
+		"sofa", spec.size, piece.get("color"),
+		piece.look.art_opts.merged({ "material": piece.object_material }, true),
+	).get_image()
+	var same := true
+	for x in canon.get_width():
+		var front := canon.get_pixel(x, canon.get_height() - 1)
+		if spec.turns == 2:
+			same = same and worn.get_pixel(canon.get_width() - 1 - x, 0) == front
+		else:
+			same = same and worn.get_pixel(
+				canon.get_height() - 1,
+				canon.get_width() - 1 - x,
+			) == front
+	t.check(same, "%s (%d turns): the art's front lies along the facing's edge" % [id, spec.turns])
+
+
 ## The bed's blanket wears the same art over the same footprint.
 func _check_blanket(t: TestContext, mirror: WorldMirror) -> void:
 	var rig := _rig(t, mirror, &"bed")
@@ -153,6 +194,16 @@ func _check_overhang(t: TestContext, mirror: WorldMirror, id: StringName) -> voi
 			and rect.grow(0.01).encloses(turn * spec.overhang)
 			and rect.grow(0.01).encloses(turn * Rect2(-spec.size * 0.5, spec.size)),
 		"%s: the art covers the footprint and the overhang (%s)" % [id, rect],
+	)
+	var material := rig.body.material_override as ShaderMaterial
+	var worn: Texture2D = material.get_shader_parameter(&"albedo_texture")
+	t.check(
+		worn.get_size() == rect.size,
+		"%s: the canvas is the rect, a texel a pixel (%s for %s)" % [
+			id,
+			worn.get_size(),
+			rect.size,
+		],
 	)
 
 

@@ -30,12 +30,71 @@ static func furniture_requests() -> Array:
 		var overhang: Dictionary = definition.get("overhang", {})
 		var part: Vector2 = overhang.get("size", Vector2.ZERO)
 		var base: Dictionary = definition.get("art_opts", {})
-		for neon in ObjectArt.neon_variants(art, base):
-			var opts := base if neon == "" else base.merged({ "neon": neon })
-			opts = opts.merged({ "material": material })
+		for variant: Dictionary in _trims(art, base):
+			var opts := base.merged(variant).merged({ "material": material })
 			out.append_array(FurnitureArt.requests(
 				art, [size, Vector2(size.y, size.x)], colors, opts, part
 			))
+	out.append_array(_podium_requests())
+	out.append_array(_clutter_requests())
+	return out
+
+
+## The option sets a piece of `art` with `base` options can come in once World Generation has
+## dressed it: none, each neon trim a light-giving kind can take (`ObjectArt.neon_variants`), a
+## street sign's neon (the lamps' choice) and a neon tube's tone (the dresser's).
+static func _trims(art: String, base: Dictionary) -> Array:
+	var out: Array = []
+	for neon: String in ObjectArt.neon_variants(art, base):
+		out.append({} if neon == "" else { "neon": neon })
+	var colors := ["cyan", "magenta"]
+	if base.get("head") == "sign":
+		out.append_array(colors.map(func(name: String) -> Dictionary: return { "neon": name }))
+	if base.get("kind") == "neon_tube":
+		out.append_array(colors.map(func(name: String) -> Dictionary: return { "tone": name }))
+	return out
+
+
+## The podium segments' flat art: every length a tower plan's walls cut into, doorways included,
+## `podium_depth` deep (the canonical frame whichever side it stands on).
+static func _podium_requests() -> Array:
+	var definition := ObjectDefinitions.get_definition("podium")
+	var lengths: Array = []
+	for key: String in TowerDefinitions.get_all():
+		var plan := TowerDefinitions.get_plan(key)
+		for length: float in TowerDressing.plan_segment_lengths(plan["rooms"], plan["openings"]):
+			var size := Vector2(length, WorldGenTowerConfig.podium_depth)
+			if not lengths.has(size):
+				lengths.append(size)
+	var opts: Dictionary = definition.get("art_opts", {}).merged(
+		{ "material": definition.get("material", "") }
+	)
+	return FurnitureArt.requests(definition["art"], lengths, [definition["color"]], opts)
+
+
+## The clutter's flat art: each kind a recipe strews, at every size `RoomDresser` can scale it to
+## (even px, one factor of `clutter_scale` for both sides, either way round) and every detail
+## variant `v`.
+static func _clutter_requests() -> Array:
+	var out: Array = []
+	for key: String in ArrangementDefinitions.clutter_keys():
+		var definition := ObjectDefinitions.get_definition(key)
+		var art: String = definition.get("art", "")
+		if art == "":
+			continue
+		var base: Vector2 = definition["size"]
+		var sizes: Array = []
+		var scale := WorldGenDressConfig.clutter_scale
+		for step in 101:
+			var factor := lerpf(scale.x, scale.y, step / 100.0)
+			var size := ((base * factor / 2.0).round() * 2.0)
+			for turned in [size, Vector2(size.y, size.x)]:
+				if not sizes.has(turned):
+					sizes.append(turned)
+		for variant in 6:
+			var opts: Dictionary = definition.get("art_opts", {}).merged({ "v": variant }, true)
+			opts = opts.merged({ "material": definition.get("material", "") })
+			out.append_array(FurnitureArt.requests(art, sizes, [definition["color"]], opts))
 	return out
 
 

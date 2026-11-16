@@ -8,7 +8,7 @@ no light of its own. `render_flat(painter, size, color, opts := {})` paints the 
   zero) do nothing; `glare` returns early at zero light (a ceramic or glass finish keeps its grain/speckle, loses the specular).
   The finishes (grain, brushing, fleck, weave) and `Decay` stay: they are albedo detail. Random detail is seeded by the same
   `_key` as the lit paint, so it matches the 2D art's.
-- **Canonical, one texture.** No facing turn and no lighting step: the texture is the same whatever way the piece turns, so the
+- **Canonical, one texture.** (Furniture is the exception that turns the art: its meshes are built already turned to the facing, so `FurnitureArt` rotates the cached image on the main thread when a piece is shown, once per look, and the turned image is held: tiny images, not warmed off thread; `domain-objects/furniture-art.md`.) No facing turn and no lighting step: the texture is the same whatever way the piece turns, so the
   caller turns the mesh, not the art. The key is `_key(...) + "|flat"`; 2D keys end `|f<turns>` or `|a<angle>`, so they and their
   pixels are untouched (`tests/art/flat_paint_albedo_test.gd`).
 - **Size is the canvas-canonical size.** Flat never swaps w/h for an odd turn (`render` does): a caller passes the footprint as

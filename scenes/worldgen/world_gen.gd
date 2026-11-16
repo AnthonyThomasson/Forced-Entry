@@ -9,14 +9,31 @@ class_name WorldGen
 ## `generate_district` and its reads `house_of`, `district_rooms` and `district_bounds` (a
 ## district's test reads are `DistrictReads`).
 
+## Whether the shared art and the furniture's flat 3D art have been handed to PixelArt (once a
+## process each: the art is cached for good).
+static var _warmed := false
+static var _furniture_warmed := false
+
 
 ## Start painting the textures every district shares on PixelArt's worker while Main's setup window
 ## is open. Headless runs skip the warm, so their first district keeps the ordinary synchronous
-## cold path.
-static func prewarm() -> void:
+## cold path. `with_furniture` adds the furniture's flat 3D art
+## (`DistrictPrewarm.furniture_requests`): Main passes it only when a 3D match is coming (the saved
+## render mode is 3D, 3D is picked, a 3D match begins), so a 2D run never paints it, and joins it to
+## the shared warm at boot so the
+## two never wait for each other. A part already warmed is left out, so repeating the call is free.
+static func prewarm(with_furniture := false) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	PixelArt.warm(DistrictPrewarm.requests() + DistrictPrewarm.furniture_requests())
+	var requests: Array = []
+	if not _warmed:
+		_warmed = true
+		requests = DistrictPrewarm.requests()
+	if with_furniture and not _furniture_warmed:
+		_furniture_warmed = true
+		requests += DistrictPrewarm.furniture_requests()
+	if not requests.is_empty():
+		PixelArt.warm(requests)
 
 
 ## Build a house and return its root Node2D (parented under `parent`). `rng_seed` of 0 picks a

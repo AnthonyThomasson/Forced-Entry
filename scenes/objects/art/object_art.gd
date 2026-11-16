@@ -147,18 +147,6 @@ static func flat(art: String, size: Vector2, color: Color, opts: Dictionary = {}
 	return PixelArt.render_flat(PAINTERS[art], size, _color(art, color), _art_opts(art, opts))
 
 
-## The emissive twin of `flat` (what the painter drew glowing; null when nothing does).
-static func emissive_flat(
-	art: String,
-	size: Vector2,
-	color: Color,
-	opts: Dictionary = {},
-) -> Texture2D:
-	if not PAINTERS.has(art):
-		return null
-	return PixelArt.emissive_flat(PAINTERS[art], size, _color(art, color), _art_opts(art, opts))
-
-
 ## The `PixelArt.warm` request of `flat` for the same inputs (the district's pre-warm).
 static func flat_request(
 	art: String,

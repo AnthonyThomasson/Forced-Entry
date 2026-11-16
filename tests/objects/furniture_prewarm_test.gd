@@ -31,6 +31,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	_two_d_boot_warms_no_furniture(t)
 	var requests := DistrictPrewarm.furniture_requests()
 	t.require(requests.size() > 100, "the catalogue has flat requests (%d)" % requests.size())
 	PixelArt.warm(requests)
@@ -43,3 +44,39 @@ func run(t: TestContext) -> void:
 		PixelArt._cache.size() == before,
 		"no flat texture was painted by the pieces (%d new)" % (PixelArt._cache.size() - before),
 	)
+	_district_paints_no_flat_art(t)
+
+
+## A built district (its houses' furniture, the street's, the towers' podiums, awnings and decor)
+## asks for no flat art the warm lacks: the art of every piece with one is already cached.
+func _district_paints_no_flat_art(t: TestContext) -> void:
+	for seed_value in [7, 11]:
+		var root := WorldGen.generate_district(seed_value, "", Vector2.ZERO, t.world)
+		var before := PixelArt._cache.keys()
+		var asked := 0
+		for body: Node in root.find_children("*", "RigidBody2D", true, false):
+			var look: Variant = body.get("look")
+			if look is Object and String((look as Object).get("art")) != "":
+				FurnitureArt.of(FurnitureSpec.of(body as Node2D))
+				asked += 1
+		var fresh: Array = []
+		for key: String in PixelArt._cache:
+			if key.ends_with("|flat") and not before.has(key):
+				fresh.append(key.get_slice("|", 0).get_file())
+		t.check(asked > 50, "the district %d has furniture (%d pieces)" % [seed_value, asked])
+		t.check(
+			fresh.is_empty(),
+			"district %d painted flat art the warm lacks: %s" % [seed_value, fresh],
+		)
+
+
+## The warm a 2D run starts at boot holds no flat request: furniture's flat art is warmed only when
+## a 3D match is coming (`WorldGen.prewarm(true)`; a no-op headless).
+func _two_d_boot_warms_no_furniture(t: TestContext) -> void:
+	var flat := DistrictPrewarm.requests().filter(
+		func(request: Dictionary) -> bool: return request.get("flat", false)
+	)
+	t.check(flat.is_empty(), "the boot warm holds %d flat requests" % flat.size())
+	WorldGen.prewarm(false)
+	WorldGen.prewarm(true)
+	t.check(DistrictPrewarm.requests().size() > 0, "the shared warm requests are still there")

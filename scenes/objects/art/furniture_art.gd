@@ -81,7 +81,7 @@ static func _make(spec: FurnitureSpec) -> Dictionary:
 		var over := ObjectArt.flat(
 			spec.art, spec.overhang.size, spec.paint, opts.merged({ "part": "overhang" }, true)
 		)
-		rect = foot.merge(spec.overhang)
+		rect = _snapped(foot.merge(spec.overhang))
 		image = _joined(rect, [[foot, image], [spec.overhang, over.get_image().duplicate()]])
 	var turned := _turned(image, rect, spec.turns)
 	return { "texture": ImageTexture.create_from_image(turned["image"]), "rect": turned["rect"] }
@@ -96,9 +96,17 @@ static func _joined(rect: Rect2, parts: Array) -> Image:
 	for part: Array in parts:
 		var image: Image = part[1]
 		image.convert(Image.FORMAT_RGBA8)
-		var at := Vector2i(((part[0] as Rect2).position - rect.position) / step)
+		var at := Vector2i(((part[0] as Rect2).position - rect.position) / step + Vector2(0.5, 0.5))
 		out.blend_rect(image, Rect2i(Vector2i.ZERO, image.get_size()), at)
 	return out
+
+
+## `rect` grown out to whole art pixels, so the canvas is exactly the rect (a texel is a pixel).
+static func _snapped(rect: Rect2) -> Rect2:
+	var step := maxf(ArtCanvasConfig.pixel_size, 0.01)
+	var from := (rect.position / step).floor() * step
+	var to := (rect.end / step).ceil() * step
+	return Rect2(from, to - from)
 
 
 ## `image` (covering `rect`) and `rect` turned `turns` clockwise quarter turns about the origin,

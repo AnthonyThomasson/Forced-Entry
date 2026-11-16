@@ -73,13 +73,14 @@ var _overlays := MainOverlays.new(self)
 
 
 func _ready() -> void:
-	# Paint the district's shared art while the setup window is open; headless runs skip this.
-	WorldGen.prewarm()
 	# The saved settings (key bindings, Debug) are layered over the defaults here, in the
 	# composition root, so the headless test runner never reads a developer's file. The run's Debug
 	# export seeds the setting first, so a file that doesn't name it leaves the export standing.
 	Settings.debug = run.debug_overlays
 	Settings.load_file()
+	# Paint the district's shared art while the setup window is open (the furniture's 3D art too in
+	# the 3D render mode); headless runs skip this.
+	WorldGen.prewarm(Settings.render_mode == Settings.RENDER_3D)
 	_overlays.initial(run.debug_overlays)
 	_anchor = _player.global_position
 	if _match_hud and _match_hud.has_signal("match_ended"):
@@ -226,7 +227,7 @@ func _open_settings() -> void:
 	_settings_menu = SETTINGS_MENU.new()
 	add_child(_settings_menu)
 	_settings_menu.debug_changed.connect(Settings.set_debug)
-	_settings_menu.render_mode_changed.connect(Settings.set_render_mode)
+	_settings_menu.render_mode_changed.connect(_on_render_mode_changed)
 	_settings_menu.rebind_requested.connect(_on_rebind_requested)
 	_settings_menu.reset_requested.connect(_on_reset_requested)
 	_settings_menu.reset_all_requested.connect(_on_reset_all_requested)
@@ -242,6 +243,14 @@ func _open_settings() -> void:
 func _on_rebind_requested(action: String, event: InputEvent) -> void:
 	if Settings.rebind(action, event):
 		_settings_menu.set_rows(Settings.binding_rows())
+
+
+## The settings page picked a render mode: keep it, and when it is 3D start painting the furniture's
+## flat art (a no-op while it is warming or done), so the next match has it.
+func _on_render_mode_changed(mode: String) -> void:
+	Settings.set_render_mode(mode)
+	if Settings.render_mode == Settings.RENDER_3D:
+		WorldGen.prewarm(true)
 
 
 ## The page reset one action: restore its default and redraw.
@@ -458,6 +467,7 @@ func _begin_render(world: Node2D, render: String) -> void:
 	_end_view3d()
 	if render == Settings.RENDER_3D:
 		world.visible = false
+		WorldGen.prewarm(true)
 		_begin_view3d()
 
 
