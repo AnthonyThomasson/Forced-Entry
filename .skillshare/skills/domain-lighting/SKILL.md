@@ -41,10 +41,11 @@ It reads no 2D canvas state (`light_mask`): a street floor says `is_street()`.
 5. **The globals** (`ToonLight`) belong to the last `WorldLighting3D` in the tree: the last to leave clears them.
 6. **Flashes** (`flash_pool_3d.gd`, `docs/lighting.md` L9-3D): `_on_posted` lights a `shot` / `explosion` (kind `frag` or `stun`) from the
    2D `LightingConfig.flashes` rows as a pooled `Lighting3DConfig.flash_lights` `OmniLight3D` (a dark one, else the oldest), unshadowed and
-   off the shadow cap, in the room it stands in (`_flash_code`: the street when in none), skipped when the view cannot reach it; `step` fades it
-   (`hold`, then `energy x left^2` over `life`) and a row's `wash` lifts the toon cap (`ToonLight.set_cap`) while it is lit. A flash outside the
+   off the shadow cap, in the room it stands in (`_flash_code`: the street when in none), skipped when the view cannot reach it (a full pool
+   gives the slot of the flash with the least left to run); `step` fades it (`hold`, then `energy x left^2` over `life`). It is coded in `light_specular`
+   (kind 1 a tint, 2 a row's `wash`, an additive white-out) and the toon light adds it apart from its cap: no global is written. A flash outside the
    vision cone is dimmed by the vision mask (Art's `seen`), no code here.
-7. **Fixture bulb:** each room fixture has an emissive sphere (`LightingFixtureConfig.bulb_*`) over the walls, dimming with its rhythm; the
+7. **Fixture bulb:** each room fixture has an emissive sphere (`LightingFixtureConfig.bulb_*`) over the walls, dimming with its rhythm and fade; the
    fixture's shadow is part dark (`fixture_shadow_opacity`).
 
 The toon light itself (the bands, the cap, why the ambient rides the one directional light) is Art's: `domain-art/textured-toon.md`.

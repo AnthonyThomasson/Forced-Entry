@@ -4,21 +4,19 @@ extends RefCounted
 ## burst from the 2D flash looks (`LightingConfig.flashes`: colour, energy, pool, `hold`, `life`),
 ## each held at full energy for its row's `hold` (the stun's) and then falling off to dark over its
 ## `life` (`energy x left^2`, as 2D). The pool is the cap: a new flash takes a dark light, else the
-## oldest lit one. A flash is not cast (no shadow, outside the shadow cap) and stays in its room by
-## the room code its caller gives (`docs/lighting.md` L9-3D); the vision mask dims it where the
-## player does not see, as every light. A row with a `wash` lifts the toon cap while it is lit
-## (`wash()`), so a stun whitens what it reaches.
+## lit one with the least left to run. A flash is not cast (no shadow, outside the shadow cap) and
+## stays in its room by the room code its caller gives (`docs/lighting.md` L9-3D); the vision mask
+## dims it where the player does not see, as every light. A flash is coded in its `light_specular`
+## (a tinted flash or, for a row with a `wash`, a white-out), so the toon light adds it apart from
+## the dusk's cap.
 
 ## The pooled flash lights.
 var lights: Array[OmniLight3D] = []
-## The cap lift (`wash()`) last written to the toon light.
-var lifted := 0.0
-## Each flash's energy as it was lit, its hold and life (s), its wash and its time since lit (s;
+## Each flash's energy as it was lit, its hold and life (s) and its time since lit (s;
 ## a flash is lit while this is under hold + life).
 var _energy := PackedFloat32Array()
 var _hold := PackedFloat32Array()
 var _life := PackedFloat32Array()
-var _wash := PackedFloat32Array()
 var _t := PackedFloat32Array()
 ## The order each was lit in (the lowest is the oldest) and the next number.
 var _order := PackedInt32Array()
@@ -39,7 +37,6 @@ func _init(parent: Node3D, count: int) -> void:
 	_energy.resize(count)
 	_hold.resize(count)
 	_life.resize(count)
-	_wash.resize(count)
 	_t.resize(count)
 	_order.resize(count)
 	_t.fill(INF)
@@ -66,16 +63,15 @@ func flash(at: Vector2, look: Dictionary, radius: float, room_code: int) -> Omni
 	).length() * unit
 	# A washing flash (the stun's) is flat to the middle of its pool; a muzzle's and a blast's fade
 	# from their middle.
-	var washes := float(look.get("wash", 0.0)) > 0.0
-	var slope := Lighting3DConfig.overhead_slope if washes else Lighting3DConfig.low_slope
-	l.light_specular = (slope + 4.0 * float(room_code)) * 0.5
+	var washes: bool = look.get("wash", false)
+	var kind := 0.5 if washes else 0.25
+	l.light_specular = (Lighting3DConfig.overhead_slope + kind + 4.0 * float(room_code)) * 0.5
 	l.set_meta(&"room", room_code >> 1)
 	l.set_meta(&"at", at)
 	l.visible = true
 	_energy[k] = look["energy"]
 	_hold[k] = float(look.get("hold", 0.0))
 	_life[k] = look["life"]
-	_wash[k] = float(look.get("wash", 0.0))
 	_t[k] = 0.0
 	_order[k] = _next
 	_next += 1
@@ -107,22 +103,16 @@ func lit_count() -> int:
 	return n
 
 
-## How much the toon cap is lifted now: the largest of the lit flashes' `wash` times what is left
-## of their energy.
-func wash() -> float:
-	var most := 0.0
-	for k in lights.size():
-		if lights[k].visible and _wash[k] > 0.0:
-			most = maxf(most, _wash[k] * lights[k].light_energy / maxf(_energy[k], 0.001))
-	return most
-
-
-## The slot the next flash takes: a dark one, else the oldest.
+## The slot the next flash takes: a dark one, else the lit one with the least left to run (a shot's
+## 0.07 s goes before a blast's half second or the stun's 0.78), the oldest among equals.
 func _slot() -> int:
-	var oldest := 0
+	var steal := 0
+	var least := INF
 	for k in lights.size():
 		if not lights[k].visible:
 			return k
-		if _order[k] < _order[oldest]:
-			oldest = k
-	return oldest
+		var left := _hold[k] + _life[k] - _t[k]
+		if left < least or (left == least and _order[k] < _order[steal]):
+			steal = k
+			least = left
+	return steal

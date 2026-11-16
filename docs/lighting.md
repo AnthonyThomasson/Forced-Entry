@@ -27,13 +27,16 @@ heights, the pools) and `LightingCostConfig` (the cost caps), over the dusk's co
 (`LightingConfig.ambient_color`, a toon global, `ToonLight`) plus every light that reaches it: each light's amount (the angle
 of the face to it, times its fall-off, times its shadow) is stepped into bands and tinted by the light's colour and energy: the
 sun's into `PixelPostConfig.bands` (3: none, a little, the light whole; `ToonLightConfig.levels`), a lamp's pool into
-`ToonLightConfig.pool_levels` (eight, from a trace, 0.08, to the light whole, times `pool_strength` 1.4: 2D adds its light in sRGB,
+`ToonLightConfig.pool_levels` (eight, from a trace, 0.08, to the light whole, times `pool_strength` 1.9: 2D adds its light in sRGB,
 where it reads stronger than the same light in the 3D render's linear one), so a pool is a few soft rings that end in a faint tail,
 not on a hard rim, and a shadow one hard edge. The sum is held to `ToonLightConfig.cap` (1.7) of the painted colour by its brightest channel, so a pixel under three
 lamps is the art lit warm and not blown out, and the hue stays. A world that sets no ambient is lit by
 `ToonLightConfig.default_ambient` (a grey), not black.
 
-**L1-3D. Dusk.** The ambient is the 2D dusk's, **(0.40, 0.37, 0.55)**. One `DirectionalLight3D`, the sky, in `sky_color`
+**L1-3D. Dusk.** The ambient is the 2D dusk's, **(0.40, 0.37, 0.55)**, which 2D multiplies the art by in sRGB: the toon light is linear, so
+the shader's ambient is that colour taken to linear (`ToonLight.shader_ambient`) times `ToonLightConfig.ambient_gain` 1.8, which keeps
+the rooms' hue within a few degrees of 2D's (the kitchen's like-for-like boxes: 21 degrees off with the colour added as it was, 3 now) and
+their brightness near it (0.83 of 2D's). One `DirectionalLight3D`, the sky, in `sky_color`
 **(1.0, 0.5, 0.42)** at `sky_energy` 0.42, travels toward +x and -y of the 2D world (from the south-west, `sky_from`) at
 `sun_elevation` **68** degrees, with hard shadows, so a wall of 96 throws a shadow of 39 px and a person of 74 one of 30: short
 like the 2D drop shadow, not the streak of a low sun. It reaches only the street's floors: a texture of the world (`ToonLight`'s
@@ -73,7 +76,7 @@ of its room: the next room, a few px over it, is the ambient's).
 **L3-3D. Room fixtures.** A room no `room_light` stands in gets an overhead light at its centre, as in 2D (the same colour,
 energy and reach, `LightingFixtureConfig`) and the glyph's 3D twin, a **bulb**: a small emissive sphere (`bulb_radius` 3, the light's
 colour lightened) hung `bulb_height` (104) up, over the walls' tops as the 2D glyph is drawn over everything, casting no shadow, dimming
-with its light's rhythm. The fixture is the one light that may cast a shadow, and the shadow is part dark
+with its light's rhythm and fade (its glow is `bulb_glow` times the light's level, a fixture the cost cap has faded off shows no bulb). The fixture is the one light that may cast a shadow, and the shadow is part dark
 (`Lighting3DConfig.fixture_shadow_opacity` 0.6, `OmniLight3D.shadow_opacity`), so the floor under a table or a chair is the pool's colour
 a step down and not the cold ambient alone (the 2D render has no such blob). Tests: `lighting/light_3d_per_piece`,
 `lighting/light_3d_fixture_look` (a bulb per fixture over the walls, glowing, uncast; the shadow part dark).
@@ -111,22 +114,27 @@ looks as 2D (`LightingConfig.flashes`: colour, energy, `reach` the pool's diamet
 `OmniLight3D` at hand height (`Lighting3DConfig.flash_height` 30) lit at the event's point, its pool `reach / 2` times `range_scale`
 out on the floor, flat to its middle (the overhead slope), held at full energy for its `hold` then falling off to dark over its `life`
 as `energy x left^2` (a shot's 0.07, a frag's 0.5, the stun's 0.08 held + 0.7). The pool is the light budget of a firefight:
-`Lighting3DConfig.flash_lights` (4), a new flash taking a dark light and else the **oldest** (so a dozen shots in a frame light the last four),
+`Lighting3DConfig.flash_lights` (4), a new flash taking a dark light and else the one with the **least left to run** (the oldest among equals: a dozen shots in a frame light
+the last four, and a stun's long white-out is never stolen by a shot),
 a flash whose pool the view cannot reach (the focus and the camera's reach) lights nothing and takes no slot. A flash casts **no shadow**
 and takes no shadow slot (the room map is its wall: it lights the room it stands in, or a room it is within `flash_room_slack` 8 px
 outside of (a muzzle in a doorway), and else, on the street, the spots in no room, as a street light does). Nothing is lit outside the
 vision cone: a flash is dimmed where the player does not see (the vision mask's `vision_unseen`, `docs/player-vision.md`: the toon light
 scales every light's amount by it, so a flash outside the cone, in a remembered or a never-seen spot, shows as little as a lamp there does). There is no light for a bullet's impact spark (2D lights none).
-**Wash:** the toon light caps what a surface adds up to at 1.7 of its painted colour, which would hold a blast to a warm tint, so a row's
-`wash` lifts the cap (`ToonLight.set_cap`) while its flash is lit, by `wash x (the flash's energy now / its energy)`: a shot 1, a frag 3
-(the floor reads orange as in 2D), the stun 12: with energy 8 the floor round a stun is white, the full flash 2D shows (the burst's
-own dithered disc, Physics, is the smoke). A lamp's pool, near the cap already, hardly shows the lift. Tests:
+**A flash is coded for the toon light, not lifted over it.** Its `light_specular` says it is a flash (`slope + kind / 4 + 4 x code`, kind 1 a
+tint, 2 a white-out), and the toon light adds it to the specular accumulator, apart from the dusk's capped sum: no global is written
+while a flash fades, so a lamp's pools far from a blast keep their colour. A **tinted** flash (a shot, a frag) is the surface's own
+colour times the flash's colour and energy in the pool's bands, held to `FLASH_MAX` 4 (the floor reads orange as in 2D); a row with
+`wash` (the stun) is an **additive white** in two flat steep bands (the rim 0.2 of the pool at 0.4, the rest whole), with walls
+too, so what it reaches is flat white as in 2D, planks, rings and all, and fades with the flash's energy (8, times `left^2`). Both are
+masked by the vision mask and the room like any light. Tests:
 `lighting/light_3d_flashes_on_shot_and_explosion` (a flash within 3 frames at the muzzle and the burst, in its colour, uncast, at hand
-height, dark within 0.25 s and 1.5 s), `lighting/light_3d_stun_flash` (white, a peak of 4.8 or more, held, still lit at 0.45 s, dark
-within 1.1 s, the cap lifted while lit and restored), `lighting/light_3d_flash_pool` (the cap of the pool, the oldest dropped, a
-flash out of the view takes none), `lighting/light_3d_flash_room` (a flash of its room, a doorway's, the street's),
-`lighting/light_3d_flash_look_windowed` (windowed: the floor warm round a muzzle and the ambient's past its reach and after it, the
-stun washing it white and the cap restored).
+height, dark within 0.25 s and 1.5 s), `lighting/light_3d_stun_flash` (white, a white-out for the toon light, a peak of 4.8 or more,
+held, still lit at 0.45 s, dark within 1.1 s), `lighting/light_3d_flash_pool` (the cap of the pool, the flash with the least left to
+run dropped (oldest among equals), a stun keeps its light through any number of shots, a flash out of the view takes none),
+`lighting/light_3d_flash_room` (a flash of its room, a doorway's, the street's), `lighting/light_3d_flash_look_windowed` (windowed:
+the floor warm round a muzzle and the ambient's past its reach and after it; the stripes of a plank floor gone, flat white over a whole
+region, under a stun, two overlapping lamp pools and the ambient far from it unchanged, a stun in an unseen spot changing no pixel).
 
 *(L5, L6, L10 in 3D: a light is placed at its piece and follows it, L5; who shadows whom is the real geometry, L6: the sky's
 shadows by every mesh, a ceiling fixture's by theirs, a wall's included, and a pool is kept in its room by the room cull, not by a shadow;

@@ -61,7 +61,10 @@ func run(t: TestContext) -> void:
 		image.save_png(shot)
 	var street := _linear(image, Vector2(-100.0, 90.0))
 	var house := _linear(image, Vector2(110.0, 100.0))
-	var ambient := LightingConfig.ambient_color
+	var ambient := ToonLight.shader_ambient(
+		LightingConfig.ambient_color,
+		ToonLightConfig.ambient_gain,
+	)
 	var base := GROUND.srgb_to_linear()
 	t.check(
 		absf(house.r - base.r * ambient.r) < 0.02 and absf(house.b - base.b * ambient.b) < 0.02,

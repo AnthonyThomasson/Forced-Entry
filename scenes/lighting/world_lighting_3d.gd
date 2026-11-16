@@ -76,14 +76,12 @@ func _exit_tree() -> void:
 	_alive -= 1
 	if _alive <= 0:
 		ToonLight.clear()
-	elif _pool != null and _pool.lifted > 0.0:
-		ToonLight.set_cap()  # a flash's lift goes with it
 
 
 func _process(delta: float) -> void:
 	_since += delta
 	if _pool != null:
-		_flash_step(delta)
+		_pool.step(delta)
 	var gone: Array[Lit] = []
 	for lit in _lit:
 		lit.follow()
@@ -171,7 +169,7 @@ func in_view_count() -> int:
 
 ## Light the art flat (`LightingConfig.enabled` off): the white ambient and a sun that adds nothing.
 func _flat() -> void:
-	ToonLight.set_ambient(Color.WHITE)
+	ToonLight.set_ambient(Color.WHITE, 1.0)
 	_sun = DirectionalLight3D.new()
 	_sun.name = "Sky"
 	_sun.light_energy = 0.01
@@ -484,19 +482,11 @@ func _flash_code(at: Vector2) -> int:
 	var id := _room_id(at)
 	var slack := Lighting3DConfig.flash_room_slack
 	for k in _rooms.size():
-		if id == 0 and (_rooms[k]["rect"] as Rect2).grow(slack).has_point(at):
+		if id != 0:
+			break
+		if (_rooms[k]["rect"] as Rect2).grow(slack).has_point(at):
 			id = k + 1
 	return id * 2 + (1 if id == 0 else 0)
-
-
-## Fade the flashes, and lift the toon cap while a flash with a wash is lit (written only on
-## change).
-func _flash_step(delta: float) -> void:
-	_pool.step(delta)
-	var wash := _pool.wash()
-	if not is_equal_approx(wash, _pool.lifted):
-		_pool.lifted = wash
-		ToonLight.set_cap(ToonLightConfig.cap + wash if wash > 0.0 else -1.0)
 
 
 # --- The cost: which lights are on and which cast a shadow ---------------------------------------
@@ -599,6 +589,8 @@ func _show(lit: Lit) -> void:
 	if lit.light.visible == shown:
 		return
 	lit.light.visible = shown
+	if lit.bulb != null:
+		lit.bulb.visible = shown
 	if not shown:
 		lit.light.shadow_enabled = false
 
@@ -624,6 +616,12 @@ func _advance(lit: Lit, delta: float) -> void:
 		energy_writes += 1
 		if lit.fixed == null and is_instance_valid(lit.piece):
 			glow_changed.emit(lit.piece, clampf(0.3 + 0.7 * level, 0.0, 1.1))
+		elif lit.bulb != null:
+			MeshNodes.glow(
+				lit.bulb,
+				lit.bulb.get_meta(&"glow"),
+				LightingFixtureConfig.bulb_glow * clampf(0.3 + 0.7 * level, 0.0, 1.1) * lit.fade,
+			)
 
 
 ## One kept light: its node, the piece it follows and where in the piece's frame (a fixture: a place

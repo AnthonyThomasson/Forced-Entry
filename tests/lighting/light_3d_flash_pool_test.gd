@@ -1,7 +1,8 @@
 extends GameTest
 ## #193 phase 3, L9 in 3D: the flash pool is the light budget of a firefight. A dozen shots in one
-## frame light no more than `Lighting3DConfig.flash_lights` flashes, the oldest dropped for the
-## newest (the last shots are the lit ones, each at its own muzzle); a flash whose pool the view
+## frame light no more than `Lighting3DConfig.flash_lights` flashes, the one with the least left to
+## run dropped for the newest (the last shots are the lit ones, each at its own muzzle, and a stun's
+## long white-out keeps its light through any number of shots); a flash whose pool the view
 ## cannot reach lights nothing (it takes no slot); with no view every flash lights.
 ##
 ## It reads (tests/_lighting/lighting_3d_probe.gd) `WorldLighting3D`: `flashes()`, `flash_count()`.
@@ -46,6 +47,8 @@ func run(t: TestContext) -> void:
 	t.check(not _lit_at(lighting, FOCUS), "the oldest shot's flash was dropped")
 	await t.seconds(0.4)
 	t.check(not Probe.any_lit(lighting), "every flash is dark again")
+	_check_stun_kept(t, lighting)
+	await t.seconds(1.0)
 	EventBus.post(&"shot", { "position": FOCUS + Vector2(2500, 0) })
 	t.expect_eq(lighting.flash_count(), 0, "a shot far out of the view lights no flash")
 	var all := Probe.light(t)
@@ -59,3 +62,22 @@ func _lit_at(lighting: WorldLighting3D, at: Vector2) -> bool:
 		if Probe.lit(l) and Probe.ground_of(l).distance_to(at) < 0.5:
 			return true
 	return false
+
+
+## A stun is lit, then twice the pool's shots: the stun's white-out is still the light at its
+## place, white, and the shots took the other slots.
+func _check_stun_kept(t: TestContext, lighting: WorldLighting3D) -> void:
+	var at := FOCUS + Vector2(0, 100)
+	EventBus.post(&"explosion", { "position": at, "kind": &"stun", "radius": 200.0 })
+	for k in Lighting3DConfig.flash_lights * 2:
+		EventBus.post(&"shot", { "position": FOCUS + Vector2(SPACING * k, -100) })
+	var kept: OmniLight3D = null
+	for l: OmniLight3D in lighting.flashes():
+		if Probe.lit(l) and Probe.ground_of(l).distance_to(at) < 0.5:
+			kept = l
+	t.require(
+		kept != null,
+		"the stun keeps its light through %d shots" % (Lighting3DConfig.flash_lights * 2),
+	)
+	if kept != null:
+		t.expect_eq(Probe.flash_kind(kept), 2, "and is still a white-out")

@@ -2,8 +2,8 @@ extends GameTest
 ## #193 phase 3, L9 in 3D (ticket #56's stun, `docs/lighting.md`): a stun's burst is its flash's
 ## whole look. At the burst one of the pooled flash lights is lit where it went off, white, far
 ## brighter than a frag's (a peak of 4.8 or more), held at its peak for an instant, still lit after
-## 0.45 s and dark within 1.1 s; and while it is lit the toon light's cap is lifted (`ToonLight`),
-## so what it reaches washes white, back to `ToonLightConfig.cap` once it is dark.
+## 0.45 s and dark within 1.1 s; and it is a white-out to the toon light (`Probe.flash_kind` 2: an
+## additive white in two flat bands, apart from the dusk's cap, which nothing global changes).
 ## It reads (tests/_lighting/lighting_3d_probe.gd) `WorldLighting3D`: `flashes()`; Art's
 ## `ToonLight`.
 
@@ -20,10 +20,10 @@ const DARK_BY := 1.1
 
 func describe() -> Dictionary:
 	return {
-		"name": "A stun bursts as a bright white 3D flash that washes the world, holds, then fades",
+		"name": "A stun bursts as a bright white 3D flash that whites out, holds, then fades",
 		"description": "At a stun's burst a white unshadowed flash is lit there, peaking at 4.8 or "
-			+ "more, held a few frames, still lit after 0.45 s and dark within 1.1 s; the toon "
-			+ "cap is lifted while it is lit and restored when it is dark.",
+			+ "more, held a few frames, still lit after 0.45 s and dark within 1.1 s, coded as a "
+			+ "white-out for the toon light.",
 		"tags": ["lighting", "3d", "grenade", "stun", "flash"],
 		"timeout": 14.0,
 	}
@@ -40,7 +40,6 @@ func run(t: TestContext) -> void:
 	var lighting := Probe.light(t)
 	if lighting == null:
 		return
-	t.expect_near(ToonLight.cap(), ToonLightConfig.cap, 0.001, "the cap is the default before")
 	Grenade.arm(t.actor(&"thrower"), 1, 0)
 	await Grenade.throw_at(t, &"thrower", Grenade.STUN, LOB)
 	if not t.require(
@@ -63,6 +62,7 @@ func run(t: TestContext) -> void:
 		"the flash is white (%s)" % str(flash.light_color),
 	)
 	t.check(not flash.shadow_enabled, "and casts no shadow")
+	t.expect_eq(Probe.flash_kind(flash), 2, "it is a white-out to the toon light")
 	var trace := await _trace(t, flash, burst)
 	var peak: float = trace["peak"]
 	t.check(peak >= MIN_PEAK, "it is bright, well over a frag's (peak %.2f)" % peak)
@@ -72,26 +72,18 @@ func run(t: TestContext) -> void:
 		trace["dark_at"] >= 0.0 and trace["dark_at"] <= DARK_BY,
 		"and dark within about a second (%.2f s)" % trace["dark_at"],
 	)
-	t.check(trace["top_cap"] > ToonLightConfig.cap + 4.0, (
-		"the toon cap is lifted while it is lit (%.1f over %.1f)"
-		% [trace["top_cap"], ToonLightConfig.cap]
-	))
-	await t.frames(2)
-	t.expect_near(ToonLight.cap(), ToonLightConfig.cap, 0.001, "the cap is back once it is dark")
 
 
-## `flash`'s energy and the toon cap each frame until it is dark: `{ peak, held, lit_at_still,
-## dark_at, top_cap }`.
+## `flash`'s energy each frame until it is dark: `{ peak, held, lit_at_still,
+## dark_at }`.
 func _trace(t: TestContext, flash: OmniLight3D, burst: float) -> Dictionary:
 	var peak := 0.0
 	var held := 0
 	var run_ended := false
 	var lit_at_still := false
 	var dark_at := -1.0
-	var top_cap := 0.0
 	while t.time - burst <= DARK_BY + 0.5:
 		var e := flash.light_energy if Probe.lit(flash) else 0.0
-		top_cap = maxf(top_cap, ToonLight.cap())
 		if e > peak:
 			peak = e
 		if e >= peak * 0.95 and not run_ended:
@@ -106,5 +98,4 @@ func _trace(t: TestContext, flash: OmniLight3D, burst: float) -> Dictionary:
 		await t.frames(1)
 	return {
 		"peak": peak, "held": held, "lit_at_still": lit_at_still, "dark_at": dark_at,
-		"top_cap": top_cap,
 	}

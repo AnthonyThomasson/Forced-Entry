@@ -20,10 +20,14 @@ static var levels_by_count: Dictionary = {
 static var pool_levels: Array = [0.08, 0.16, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0]
 ## How much of its colour times energy a pool adds at its brightest, a multiple: 2D lights add in
 ## sRGB, where a light reads stronger than the same one added in the 3D render's linear light.
-static var pool_strength: float = 1.4
+static var pool_strength: float = 1.9
 ## The ambient every surface is lit by until a world sets its own (`ToonLight.install`): a plain
 ## grey, so art shown with no Lighting domain is readable.
 static var default_ambient: Color = Color(0.7, 0.7, 0.7)
+## The dusk's ambient is taken from sRGB to linear (2D multiplies in sRGB;
+## `ToonLight.shader_ambient`) and times this: one gain that puts the 3D rooms' brightness back
+## where 2D has them.
+static var ambient_gain: float = 1.8
 ## A fragment this many px (3D units) above the ground or more is a wall, a piece or a person
 ## (the room map's walls and thresholds), not the floor.
 static var ground_y: float = 2.0

@@ -158,9 +158,19 @@ float toon_reach(float code) {
 	return 0.0;
 }
 
+// A flash's add (`light_specular` carries `slope + kind / 4 + 4 * code`: kind 1 a tinted flash, 2 a wash):
+// it goes to SPECULAR_LIGHT, apart from the capped sum, so a blast is not held to the dusk's cap and a
+// lamp's pool far from it is not touched. A tinted flash (a shot, a blast) is the surface's own
+// colour lit by the flash's, a wash (the stun) an additive term to white, flat over what it reaches:
+// two bands, steep, and walls too. Masked by `seen` and the light's room like any light.
+const float FLASH_MAX = 4.0;
+const float WASH_RIM = 0.2;
+const float WASH_RIM_LEVEL = 0.4;
+
 void light() {
 	float n_l = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
-	vec3 add;
+	vec3 add = vec3(0.0);
+	bool dusk = true;
 	if (LIGHT_IS_DIRECTIONAL) {
 		// The sun (Godot's LIGHT_COLOR is the colour times energy times PI) where it reaches, and
 		// the dusk's ambient once, with the one directional light every view has.
@@ -169,18 +179,35 @@ void light() {
 	} else {
 		// A positional light's pool: Godot's fall-off (1 - r^4)^2, r the distance over the range
 		// (and 0 in a shadow), made linear again (f = 1 - r, 1 under the light, 0 at its rim), and
-		// as flat as the light's slope says. Lighting packs both into `light_specular`:
-		// SPECULAR_AMOUNT is `slope + 4 * code` (slope 1 or 2: a ceiling lamp's pool is flat to the
-		// middle of its radius, a screen's glow is not; `code` the room and street, `toon_reach`).
+		// as flat as the light's slope says. Lighting packs the slope, the flash kind and the room
+		// into `light_specular`: SPECULAR_AMOUNT is `slope + kind / 4 + 4 * code` (slope 1 or 2: a
+		// ceiling lamp's pool is flat to the middle of its radius, a screen's glow is not; `kind`
+		// 0 a lamp, 1 a flash, 2 a wash; `code` the room and street, `toon_reach`).
 		float code = floor(SPECULAR_AMOUNT / 4.0 + 0.001);
-		float slope = SPECULAR_AMOUNT - 4.0 * code;
+		float packed_slope = SPECULAR_AMOUNT - 4.0 * code;
+		float slope = floor(packed_slope + 0.01);
+		float kind = floor(fract(packed_slope + 0.01) * 4.0 + 0.5);
 		float f = 1.0 - pow(1.0 - sqrt(clamp(ATTENUATION, 0.0, 1.0)), 0.25);
 		float lit = clamp(f * slope, 0.0, 1.0) * clamp(n_l * pool_gain, 0.0, 1.0);
-		add = LIGHT_COLOR / 3.14159265 * toon_pool(lit) * toon_reach(code);
+		float reach = toon_reach(code);
+		if (kind > 0.5) {
+			vec3 flash = LIGHT_COLOR / 3.14159265 * reach * seen;
+			if (kind < 1.5) {
+				flash *= toon_pool(lit) * ALBEDO;
+			} else {
+				flash *= lit > WASH_RIM ? 1.0 : (lit > 0.0 ? WASH_RIM_LEVEL : 0.0);
+			}
+			SPECULAR_LIGHT += min(flash, vec3(FLASH_MAX));
+			dusk = false;
+		} else {
+			add = LIGHT_COLOR / 3.14159265 * toon_pool(lit) * reach;
+		}
 	}
 	// The sum is held to `dusk_cap` by its brightest channel, so a warm pool under a warm lamp stays
 	// warm (a cap per channel would wash it to white).
-	vec3 sum = DIFFUSE_LIGHT + add * seen;
-	float top = max(sum.r, max(sum.g, sum.b));
-	DIFFUSE_LIGHT = top > dusk_cap ? sum * (dusk_cap / top) : sum;
+	if (dusk) {
+		vec3 sum = DIFFUSE_LIGHT + add * seen;
+		float top = max(sum.r, max(sum.g, sum.b));
+		DIFFUSE_LIGHT = top > dusk_cap ? sum * (dusk_cap / top) : sum;
+	}
 }

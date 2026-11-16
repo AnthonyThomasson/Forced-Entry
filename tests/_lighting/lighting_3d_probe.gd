@@ -108,3 +108,11 @@ static func flash_at(lighting: WorldLighting3D, at: Vector2) -> OmniLight3D:
 ## Whether any flash of `lighting` is lit.
 static func any_lit(lighting: WorldLighting3D) -> bool:
 	return lighting.flashes().any(func(l: OmniLight3D) -> bool: return lit(l))
+
+
+## What a flash light is to the toon light: 1 a tinted flash, 2 a white-out (`light_specular` is
+## `(slope + kind / 4 + 4 * code) / 2`); 0 for a lamp's light.
+static func flash_kind(l: OmniLight3D) -> int:
+	var amount := l.light_specular * 2.0
+	var packed := amount - 4.0 * floorf(amount / 4.0 + 0.001)
+	return int(floorf(fposmod(packed + 0.01, 1.0) * 4.0 + 0.5))

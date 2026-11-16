@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode specular_disabled, diffuse_lambert, ambient_light_disabled;
+render_mode diffuse_lambert, ambient_light_disabled;
 // The textured toon (Art, `MeshNodes.textured`; #193 phase 2b): `toon.gdshader` with the 2D
 // painters' pixel art on the mesh. The art is painted UNSHADED (no baked light), so the toon bands
 // shade it like any toon face; the light, fade, vision hook, figure, glow and outline behave as
@@ -90,4 +90,5 @@ void fragment() {
 	ALBEDO = toon_remember(top ? colour : colour * side_dim, vision.y);
 	EMISSION = emissive.rgb * emissive.a * seen;
 	ROUGHNESS = 1.0 - figure;
+	SPECULAR = 0.0;
 }

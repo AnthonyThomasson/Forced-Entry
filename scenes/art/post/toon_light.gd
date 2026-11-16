@@ -29,7 +29,6 @@ static var _installed := false
 ## What the globals were last set to, for a caller that reads them back (the headless renderer
 ## keeps none).
 static var _ambient := Color(0.0, 0.0, 0.0)
-static var _cap := 1.7
 static var _sky_rect := Rect2()
 static var _room_rect := Rect2()
 ## The masks' texels, for `sky_reaches` and `room_at` (null: none set).
@@ -49,7 +48,7 @@ static func install() -> void:
 	var none := Image.create(1, 1, false, Image.FORMAT_RG8)
 	var grey := ToonLightConfig.default_ambient
 	_ambient = grey
-	_add(AMBIENT, RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3(grey.r, grey.g, grey.b))
+	_add(AMBIENT, RenderingServer.GLOBAL_VAR_TYPE_VEC3, _vector(grey))
 	_add(CAP, RenderingServer.GLOBAL_VAR_TYPE_FLOAT, ToonLightConfig.cap)
 	_add(SKY_MASK, RenderingServer.GLOBAL_VAR_TYPE_SAMPLER2D, ImageTexture.create_from_image(white))
 	_add(SKY_TRANSFORM, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
@@ -61,27 +60,13 @@ static func install() -> void:
 
 
 ## Light every surface by `colour` (its colour times the painted one) and let it add up to
-## `ToonLightConfig.cap`.
-static func set_ambient(colour: Color) -> void:
+## `ToonLightConfig.cap`. `colour` is what 2D multiplies the art by (sRGB; `shader_ambient`), times
+## `gain`: a world lit flat (white, as painted) passes 1.
+static func set_ambient(colour: Color, gain := ToonLightConfig.ambient_gain) -> void:
 	install()
-	RenderingServer.global_shader_parameter_set(AMBIENT, Vector3(colour.r, colour.g, colour.b))
+	RenderingServer.global_shader_parameter_set(AMBIENT, _vector(colour, gain))
 	RenderingServer.global_shader_parameter_set(CAP, ToonLightConfig.cap)
 	_ambient = colour
-	_cap = ToonLightConfig.cap
-
-
-## Let a surface add up to `value` times its painted colour (a burst's flash lifts it so a stun can
-## wash the world white); `ToonLightConfig.cap` again with no argument.
-static func set_cap(value := -1.0) -> void:
-	install()
-	var held := ToonLightConfig.cap if value < 0.0 else value
-	RenderingServer.global_shader_parameter_set(CAP, held)
-	_cap = held
-
-
-## The cap last set (`ToonLightConfig.cap` until one is).
-static func cap() -> float:
-	return _cap
 
 
 ## The sun reaches only where `image`'s red channel is 1: `world_rect` (2D px) is the part of the
@@ -116,11 +101,9 @@ static func set_rooms(image: Image, world_rect: Rect2) -> void:
 static func clear() -> void:
 	install()
 	var grey := ToonLightConfig.default_ambient
-	RenderingServer.global_shader_parameter_set(AMBIENT, Vector3(grey.r, grey.g, grey.b))
+	RenderingServer.global_shader_parameter_set(AMBIENT, _vector(grey))
 	RenderingServer.global_shader_parameter_set(SKY_MASKED, 0.0)
 	RenderingServer.global_shader_parameter_set(ROOM_MASKED, 0.0)
-	RenderingServer.global_shader_parameter_set(CAP, ToonLightConfig.cap)
-	_cap = ToonLightConfig.cap
 	_ambient = grey
 	_sky_rect = Rect2()
 	_sky_image = null
@@ -155,6 +138,20 @@ static func room_at(at: Vector2) -> int:
 		return 0
 	var c := _room_image.get_pixel(spot.x, spot.y)
 	return roundi(c.r * 255.0) + roundi(c.g * 255.0) * 256
+
+
+## The ambient `colour` as the shader multiplies it: 2D multiplies the art by the dusk's colour as
+## the screen shows it (sRGB), and the 3D light is added in linear, so the colour is taken to linear
+## (a product of two sRGB colours is, near enough, the product of their linear ones), times `gain`.
+static func shader_ambient(colour: Color, gain := 1.0) -> Color:
+	var lin := colour.srgb_to_linear()
+	return Color(lin.r * gain, lin.g * gain, lin.b * gain)
+
+
+## `shader_ambient` as the global's vector.
+static func _vector(colour: Color, gain := 1.0) -> Vector3:
+	var lin := shader_ambient(colour, gain)
+	return Vector3(lin.r, lin.g, lin.b)
 
 
 ## The global `name` of `type` set to `value`.
