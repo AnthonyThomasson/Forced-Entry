@@ -16,6 +16,12 @@ global uniform vec4 vision_memory_xf;
 global uniform vec4 vision_look;
 global uniform vec4 vision_tint;
 
+// 1 where `uv` lies on the texture, else 0.
+float within(vec2 uv) {
+	vec2 inside = step(vec2(0.0), uv) * step(uv, vec2(1.0));
+	return inside.x * inside.y;
+}
+
 // What the view makes of the ground at `world_pos` (3D units): x how much of its light a pixel keeps
 // (1 in the cone, `vision_look.y` where it is only remembered, `vision_unseen` where it never was),
 // y how far the remembered look takes it (0 in the cone), z how much the cone shows it (1 to 0).
@@ -23,8 +29,9 @@ global uniform vec4 vision_tint;
 vec3 vision_read(vec3 world_pos) {
 	vec2 mask_uv = world_pos.xz * vision_mask_xf.xy + vision_mask_xf.zw;
 	vec2 memory_uv = world_pos.xz * vision_memory_xf.xy + vision_memory_xf.zw;
-	float live = textureLod(vision_mask, mask_uv, 0.0).r;
-	float known = textureLod(vision_memory, memory_uv, 0.0).r;
+	// The textures clamp to their edge texel, so ground off either one is seen by neither.
+	float live = textureLod(vision_mask, mask_uv, 0.0).r * within(mask_uv);
+	float known = textureLod(vision_memory, memory_uv, 0.0).r * within(memory_uv);
 	float kept = mix(vision_unseen, vision_look.y, known);
 	return vec3(mix(kept, 1.0, live), known * (1.0 - live), live);
 }

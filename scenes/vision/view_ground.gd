@@ -128,6 +128,7 @@ func suspend() -> void:
 		ToonMask.clear()
 	on = false
 	_settle = -1
+	_drawn = []  # the next cone is drawn again, though it equals the last
 
 
 ## The window is laid on `centre`, `half` px each way, and the live viewport follows it.

@@ -160,8 +160,8 @@ func _follow(row: Dictionary) -> void:
 	var rigid: Variant = row["rigid"]
 	if is_instance_valid(rigid) and (rigid as RigidBody2D).sleeping:
 		if row["asleep"]:
+			_sync_shown(row)  # a sleeper's cone and layer change while it lies
 			if (row["update"] as Callable).is_valid():
-				_sync_shown(row)
 				_run_update(row)
 			return
 		row["asleep"] = true  # read once more, for the last step it took before it slept
