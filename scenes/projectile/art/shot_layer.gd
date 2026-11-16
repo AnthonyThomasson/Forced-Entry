@@ -29,6 +29,8 @@ var _ages := PackedFloat32Array()
 ## has not yet: a casing is drawn once seen, where it lies, and not before.
 var _seen: Dictionary = {}
 var _waiting: Array[Node] = []
+## The seen area's version the waiting casings were last checked against.
+var _checked := -1
 ## Whether the layer has said a pool was full (the tracers', then the casings').
 var _said_full := [false, false]
 
@@ -64,8 +66,10 @@ func _process(delta: float) -> void:
 			_stop_flying(i)
 		else:
 			i += 1
-	for w in range(_waiting.size() - 1, -1, -1):  # a lying one waits for the cone to reach it
-		_place_casing(_waiting[w], INF)
+	if _checked != SeenArea.version():  # a lying one waits for the cone: asked of a new cone only
+		_checked = SeenArea.version()
+		for w in range(_waiting.size() - 1, -1, -1):
+			_place_casing(_waiting[w], INF)
 	_rest_if_idle()
 
 
@@ -199,6 +203,8 @@ func _drawn(casing: Node, at: Vector2, age: float) -> bool:
 		_seen[id] = true
 	elif age < INF or not _seen.has(id):
 		shown = false
+		if age < INF:
+			_seen.erase(id)  # one that flies out of the cone is to be seen again where it lands
 	if age == INF:
 		if shown:
 			_waiting.erase(casing)

@@ -194,8 +194,10 @@ A thing that **moves** is drawn only inside the cone, as V5: its mesh is hidden 
 (`MeshNodes.moving`, which marks every part under a node and any part added later; bullets, a burst's bits and a blast are marked so,
 and a casing in the air is drawn no size outside the cone). What is **dynamic but at rest** (V6: a corpse once its ragdoll sleeps, a
 character at rest, a dropped item, a casing lying, a parked car: `MirrorVisionConfig.seen_first`) shows only once the player has seen
-it: it is hidden until the cone first reaches it, and from then on it stays drawn where it is, dimmed and grey (a seen flag, kept for
-the match; a casing's is its own). The **static world** (floors, walls, furniture, doors) is remembered wherever the ground was seen,
+it: it is hidden until the cone first reaches it, and from then on it stays drawn where it is, dimmed and grey (a seen flag, kept across a
+rebuild of its mesh; a casing's is its own). A thing that then moves outside the cone loses the flag: a character seen alive who walks
+out of view and dies there, a car that drives off and parks, a corpse or item blown out of view, must be reached again where it comes
+to rest. The **static world** (floors, walls, furniture, doors) is remembered wherever the ground was seen,
 without the first sight of each piece. Known limits: settled blood, decals and scorch are static in the 3D render, so they show in the
 remembered ground from the first sight of that ground, not of the mark; a debris chip is one part of a batch and cannot be told moving
 from lying, so one in the air is drawn outside the cone like one at rest.
@@ -210,7 +212,7 @@ Tests: `vision/ground_view_3d` (the masks switch on after the first cone and cle
 backstop's rebuilds, a walk draws both; the window follows a camera that leaves it; none of the 2D parts is built),
 `general/view_follows_paused_camera_3d`, `vision/no_2d_capture_in_3d`, `art/mirror_hides_unseen_movers` (a mover outside the cone is
 hidden, shown in it; a character, a corpse and a dropped rifle never seen are hidden at rest and stay shown once the cone has reached
-them; furniture never hidden), `art/moving_mark` (the mark on a mirrored mover, the bullet batch, a burst's bits and sparks, a blast's
+them; one that moved out of view and rests there (a car parked, a character that walked off and died) is hidden until reached again; furniture never hidden), `art/moving_mark` (the mark on a mirrored mover, the bullet batch, a burst's bits and sparks, a blast's
 parts and a part added later), `projectile/casing_hidden_out_of_view` (a casing in the air or lying unseen is no size; whole once
 seen), and, windowed (shaders compile and pixels draw only there), `vision/vision_mask_3d_windowed` (at the four camera yaws and at 0.5x
 and 3x: the floor in the cone lit and a character there drawn; floor behind never seen black with no line of the unseen house; after a

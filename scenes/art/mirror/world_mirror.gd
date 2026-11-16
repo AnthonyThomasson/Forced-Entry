@@ -58,6 +58,9 @@ var _moving: Array[Dictionary] = []
 var _pending: Dictionary = {}
 ## Group name -> the `Callable` that builds the mesh of a node of that group (`track_group`).
 var _group_builders: Dictionary = {}
+## The bodies (instance id -> true) the view has seen where they are: kept across a mirror of the
+## body again (a dent, an outfit), cleared the frames the body moves outside the cone.
+var _seen: Dictionary = {}
 
 
 func _exit_tree() -> void:
@@ -459,7 +462,10 @@ func _shown(row: Dictionary) -> bool:
 		return false
 	if not (body as CanvasItem).visible:
 		return false
-	if _unseen(body) or _not_yet_seen(row, body):
+	if _unseen(body):
+		_seen.erase(body.get_instance_id())  # a thing that moves out of view is to be seen again
+		return false
+	if _not_yet_seen(row, body):
 		return false
 	return not MirrorProxy.shapes_all_off(row)
 
@@ -488,10 +494,11 @@ func _unseen(body: Node) -> bool:
 
 ## Whether `body` is a thing the view shows only once it has been in the cone
 ## (`MirrorVisionConfig.seen_first`) and has not been yet: it is hidden, and the frame the cone
-## first reaches it the row is marked seen for good. With no area set (no view) nothing is held
-## back.
+## first reaches it it is marked seen, until it moves outside the cone. With no area set (no view)
+## nothing is held back.
 func _not_yet_seen(row: Dictionary, body: Node) -> bool:
-	if row.get("seen", false) or not SeenArea.active():
+	var id := body.get_instance_id()
+	if _seen.has(id) or not SeenArea.active():
 		return false
 	if not row.has("first"):
 		row["first"] = MirrorVisionConfig.seen_first.any(
@@ -500,7 +507,7 @@ func _not_yet_seen(row: Dictionary, body: Node) -> bool:
 	if not row["first"]:
 		return false
 	if SeenArea.reaches((body as Node2D).global_position, _reach(body)):
-		row["seen"] = true
+		_seen[id] = true
 		return false
 	return true
 
@@ -535,6 +542,7 @@ func _watch(body: Node, shapes := true) -> void:
 func _on_body_exiting(body: Node) -> void:
 	var rows: Array = _rows.get(body.get_instance_id(), [])
 	if rows.is_empty() or body.is_queued_for_deletion() or not _is_tracked(body):
+		_seen.erase(body.get_instance_id())
 		_drop(body)
 		return
 	for row: Dictionary in rows:

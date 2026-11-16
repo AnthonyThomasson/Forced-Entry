@@ -75,6 +75,7 @@ func run(t: TestContext) -> void:
 		"the cone moves on: it stays whole where it lies",
 	)
 	t.check(not layer.is_processing(), "and nothing runs once they are all seen")
+	await _flies_out_of_view(t, layer, box)
 	SeenArea.clear()
 
 
@@ -88,3 +89,22 @@ func _box(rect: Rect2) -> PackedVector2Array:
 			Vector2(rect.position.x, rect.end.y),
 		]
 	)
+
+
+## A casing tossed in view and still in the air when the cone moves off it is not seen where it
+## lands: it is no size there until the cone reaches it again.
+func _flies_out_of_view(t: TestContext, layer: ShotLayer, box: PackedVector2Array) -> void:
+	var slot := layer.casing_count()
+	CasingSpawner.spawn(IN_VIEW, Vector2.RIGHT, t.world)
+	await t.frames(3)
+	t.check(layer.casing_frame(slot).basis.get_scale().x > 0.9, "premise: tossed in view, whole")
+	var away := Rect2(700, 500, 100, 100)
+	SeenArea.set_area([_box(away)], away)
+	await t.frames(TOSS_FRAMES)
+	t.check(
+		layer.casing_frame(slot).basis.get_scale().x < 0.01,
+		"it flew out of view and lies unseen: no size",
+	)
+	SeenArea.set_area([box], SEEN)
+	await t.frames(2)
+	t.check(layer.casing_frame(slot).basis.get_scale().x > 0.9, "the cone reaches it again: whole")

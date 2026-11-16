@@ -13,6 +13,7 @@ extends RefCounted
 static var _polygons: Array = []
 static var _bounds := Rect2()
 static var _set := false
+static var _version := 0
 
 
 ## Set the seen area to `polygons` (`PackedVector2Array`s, each a simple polygon: the cone, the
@@ -21,6 +22,7 @@ static func set_area(polygons: Array, bounds: Rect2) -> void:
 	_polygons = polygons
 	_bounds = bounds
 	_set = true
+	_version += 1
 
 
 ## Whether an area is set: a view is on and has published a cone (false: every disc reaches).
@@ -28,11 +30,18 @@ static func active() -> bool:
 	return _set
 
 
+## How many times the area was set or cleared: a caller that asks only of a changed area compares
+## it.
+static func version() -> int:
+	return _version
+
+
 ## Forget the area: every disc reaches again.
 static func clear() -> void:
 	_polygons = []
 	_bounds = Rect2()
 	_set = false
+	_version += 1
 
 
 ## Whether any part of the disc at `center` of `radius` px lies inside the seen area; always true

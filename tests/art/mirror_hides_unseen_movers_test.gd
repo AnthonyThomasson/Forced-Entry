@@ -5,7 +5,9 @@ extends GameTest
 ## cone; a corpse, a dropped item or a character at rest (a thing on `ViewLayers.WORLD`) that the
 ## cone has never reached is hidden too, and once it has been in the cone it stays shown where it
 ## lies, remembered, though the cone moves on; a thing is hidden again the frames it moves out of
-## the cone; a piece of furniture is never hidden. The viewer faces east along a hall; one puppet
+## the cone; a thing seen that then moves out of view (a character walking off and dying, a car
+## driving off and parking) is to be seen again where it comes to rest; a piece of furniture is
+## never hidden. The viewer faces east along a hall; one puppet
 ## stands behind it, one ahead in the cone, a corpse and a dropped rifle lie behind, a table too.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
@@ -15,6 +17,8 @@ const AHEAD := Vector2(1100, 350)
 const TABLE_AT := Vector2(300, 150)
 const CORPSE_AT := Vector2(250, 550)
 const RIFLE_AT := Vector2(400, 200)
+const CAR_SEEN_AT := Vector2(1000, 250)
+const CAR_PARKED_AT := Vector2(300, 500)
 
 var _mirror: WorldMirror
 
@@ -88,8 +92,10 @@ func run(t: TestContext) -> void:
 	)
 	await _at_rest_unseen(t, behind, dead, lying)
 	await _walks_in(t, behind)
-	await _looks_back(t, dead, lying)
-	await _remembered(t, behind, dead, lying)
+	var car := await _car_seen_then_parked_out_of_view(t)
+	await _leaves_and_dies(t, behind)
+	await _looks_back(t, dead, lying, behind, car)
+	await _remembered(t, dead, lying)
 
 
 ## The table behind the viewer: furniture is remembered, never hidden.
@@ -116,28 +122,73 @@ func _walks_in(t: TestContext, behind: Node3D) -> void:
 	t.check(behind.visible, "a mover that comes into the cone is shown")
 
 
-## The viewer turns west: the cone reaches the corpse and the rifle behind it.
-func _looks_back(t: TestContext, dead: Node3D, lying: Node3D) -> void:
+## A car in the cone is seen; it drives out of view and parks there (it is on `WORLD` again):
+## hidden, it must be reached again.
+func _car_seen_then_parked_out_of_view(t: TestContext) -> Node3D:
+	var car := AnimatableBody2D.new()
+	car.add_to_group(&"vehicles")
+	var shape := CollisionShape2D.new()
+	var box := RectangleShape2D.new()
+	box.size = Vector2(60, 30)
+	shape.shape = box
+	car.add_child(shape)
+	car.position = CAR_SEEN_AT
+	t.world.add_child(car)
+	ViewLayers.set_moving(car, true)
+	await t.frames(3)
+	var mesh := _shown_of(car)
+	if not t.require(mesh != null, "premise: the car is mirrored"):
+		return null
+	t.check(mesh.visible, "a car in the cone is shown")
+	car.global_position = CAR_PARKED_AT
+	await t.frames(2)
+	t.check(not mesh.visible, "driving out of view it is hidden")
+	ViewLayers.set_moving(car, false)
+	await t.frames(2)
+	t.check(not mesh.visible, "parked out of view it stays hidden: it must be reached again")
+	return mesh
+
+
+## `behind`, seen in the cone, walks out of view and dies there: its corpse is hidden too.
+func _leaves_and_dies(t: TestContext, behind: Node3D) -> void:
+	var body := t.actor(&"behind")
+	body.global_position = BEHIND
+	await t.frames(3)
+	t.check(not behind.visible, "a seen character who walks out of view is hidden")
+	ViewLayers.set_moving(body as CanvasItem, false)
+	await t.frames(2)
+	t.check(not behind.visible, "at rest out of view it stays hidden")
+	body.take_damage(1000.0)
+	await t.frames(30)
+	t.check(
+		not behind.visible,
+		"killed out of view, its corpse is hidden until the cone reaches it",
+	)
+
+
+## The viewer turns west: the cone reaches the corpse, the rifle, the car and the character that
+## died.
+func _looks_back(
+	t: TestContext, dead: Node3D, lying: Node3D, died: Node3D, car: Node3D
+) -> void:
 	var eye := t.actor(&"eye")
 	t.require(await Probe.place(t, eye, EYE_AT, Vector2.LEFT), "premise: the viewer faces west")
 	await t.frames(3)
 	t.check(dead.visible, "the cone reaches the corpse: shown")
 	t.check(lying.visible, "the cone reaches the rifle: shown")
+	if car != null:
+		t.check(car.visible, "the cone reaches the parked car: shown")
+	t.check(died.visible, "and the character that died out of view")
 
 
-## The viewer turns back east: what it has seen stays where it lies; a mover is hidden again.
-func _remembered(t: TestContext, behind: Node3D, dead: Node3D, lying: Node3D) -> void:
+## The viewer turns back east: what it has seen stays where it lies.
+func _remembered(t: TestContext, dead: Node3D, lying: Node3D) -> void:
 	var eye := t.actor(&"eye")
 	t.require(await Probe.place(t, eye, EYE_AT, Vector2.RIGHT), "premise: the viewer faces east")
-	t.actor(&"behind").global_position = BEHIND
 	await t.frames(3)
 	t.check(not Probe.reached_by(CORPSE_AT)[0], "premise: the corpse is out of the cone again")
 	t.check(dead.visible, "the corpse stays shown where it lies (remembered)")
 	t.check(lying.visible, "and the rifle")
-	t.check(not behind.visible, "a mover that left the cone is hidden")
-	ViewLayers.set_moving(t.actor(&"behind") as CanvasItem, false)
-	await t.frames(2)
-	t.check(behind.visible, "at rest where it was seen it is remembered, shown")
 
 
 ## The one mesh `body` is shown by (null: the test ends).
