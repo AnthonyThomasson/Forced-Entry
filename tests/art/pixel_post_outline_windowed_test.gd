@@ -143,6 +143,9 @@ func _check_creases(t: TestContext) -> void:
 	# the body casts no shadow (a shadow on a crease would shade it differently with and without
 	# it).
 	Engine.time_scale = 0.0001
+	var lighting: Node = t.world.get_tree().get_first_node_in_group(&"world_lighting_3d")
+	if lighting != null:
+		lighting.set_process(false)  # a flickering light would move a pool between two shots
 	var casting := _body_shadows(false)
 	var creased := [await _shoot(t, 1.0), await _shoot(t, 1.0)]
 	var normal_step := PixelPostConfig.normal_step
@@ -154,6 +157,8 @@ func _check_creases(t: TestContext) -> void:
 	_body.visible = true
 	_body_shadows(true, casting)
 	Engine.time_scale = 1.0
+	if lighting != null:
+		lighting.set_process(true)
 	PixelPostConfig.normal_step = normal_step
 	PixelPost.refresh(_quad, _oversample)
 	_save(creased[0], "creased_zoom1")

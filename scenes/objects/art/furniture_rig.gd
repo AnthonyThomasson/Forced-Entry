@@ -7,8 +7,9 @@ extends Node3D
 ##     tints its solids the same, written when the piece's `Deformable` records an impact.
 ##   - **light.** A part that gives light (a lamp's bulb, a screen, a hot ring) is a glow node
 ##     (`add_glow`, with a strength of its own): lit by default, `set_lit` switches every glow and
-##     brings each back to its own strength (written only on change) with no real light, which is
-##     phase 3's. Nothing calls `set_lit` in play until the lighting job lets a piece switch off.
+##     brings each back to its own strength (written only on change); `set_glow_level` dims every
+##     glow by a factor (the Lighting domain's rhythm of the piece's light: a failing tube, a
+##     blinking sign), also written only on change.
 ## A bed has its own rig (`FurnitureBedRig`) that reads who lies on it.
 
 ## The solids' node (the piece's shared mesh).
@@ -21,6 +22,8 @@ var hangs_on_wall := false
 ## The glow nodes, the colour and strength each glows with; `lit` says whether they glow now.
 var glows: Array[MeshInstance3D] = []
 var lit := true
+## How much of its own strength each glow shows (1: all of it).
+var glow_level := 1.0
 var _glow_colors: Array[Color] = []
 var _glow_strengths: Array[float] = []
 ## The tint the solids carry now (white: undamaged).
@@ -67,7 +70,7 @@ func add_glow(mesh: Mesh, color: Color, strength := -1.0) -> MeshInstance3D:
 	var node := MeshNodes.instance(mesh, Color.WHITE, false)
 	node.name = "Glow"
 	var own := strength if strength >= 0.0 else ObjectMeshStateConfig.glow_strength
-	MeshNodes.glow(node, color, own if lit else 0.0)
+	MeshNodes.glow(node, color, own * glow_level if lit else 0.0)
 	add_child(node)
 	glows.append(node)
 	_glow_colors.append(color)
@@ -76,13 +79,25 @@ func add_glow(mesh: Mesh, color: Color, strength := -1.0) -> MeshInstance3D:
 
 
 ## Light or darken every glow part, each back at its own strength (written only when `on` differs
-## from now). No piece calls it in play yet: the lighting job's switch.
+## from now).
 func set_lit(on: bool) -> void:
 	if on == lit:
 		return
 	lit = on
 	for i in glows.size():
-		MeshNodes.glow(glows[i], _glow_colors[i], _glow_strengths[i] if on else 0.0)
+		MeshNodes.glow(glows[i], _glow_colors[i], _glow_strengths[i] * glow_level if on else 0.0)
+
+
+## Show every glow at `level` (0 to 1.1) of its own strength: the rhythm of the piece's light
+## dims the glow with it. Written only when the level changed.
+func set_glow_level(level: float) -> void:
+	if is_equal_approx(level, glow_level):
+		return
+	glow_level = level
+	if not lit:
+		return
+	for i in glows.size():
+		MeshNodes.glow(glows[i], _glow_colors[i], _glow_strengths[i] * level)
 
 
 ## Put the piece's 2D art on `solid` (the toon's textured material; a piece with no art keeps the

@@ -3,8 +3,9 @@ extends CanvasLayer
 ## (`Settings.render_mode`, `docs/adr/0013-the-3d-render-mirrors-the-2d-sim.md`). A `CanvasLayer`
 ## named `View3D` on `RenderConfig.canvas_layer`, below the HUD, holding a `TextureRect` that shows
 ## a `SubViewport` of a 3D world of its own: General's `CameraRig` (an orthographic `Camera3D`
-## following the sim's `Camera2D`), one shadow-casting sun with a flat ambient
-## (`RenderLightConfig`) and Art's `WorldMirror` of the match's 2D bodies (interface 27). The
+## following the sim's `Camera2D`), the Lighting domain's dusk (`WorldLighting3D`: the sky, the
+## fixtures' and pieces' lights, the ambient) and Art's `WorldMirror` of the match's 2D bodies
+## (interface 27). The
 ## picture is nearest-filtered and the viewport sized by the rig (a picture pixel is one art pixel
 ## times the zoom, `RenderConfig.texel_match`), drawn through Art's toon material and an outline
 ## quad under the camera (`PixelPost`, `PixelPostConfig`). The shimmer mitigation of a turning
@@ -27,6 +28,8 @@ var rig: CameraRig
 var mirror: WorldMirror
 ## The wall fade: walls and tall pieces between the camera and the player fade (rule 9).
 var fade: WallFade
+## The 3D dusk's lights (null while `LightingConfig.enabled` is off).
+var lighting: WorldLighting3D
 ## The 3D world's viewport, the rect that shows the picture on screen (it covers the window) and the
 ## viewport the rect shows: the 3D one, or the averaged-down stage after it when supersampling.
 var viewport := SubViewport.new()
@@ -39,6 +42,8 @@ var _oversample := 1
 ## How far below the pavement the road lies at a spot (Objects' street, read from the world): what
 ## the effects that lie on the ground are put lower by.
 var _ground := StreetGround.new()
+## The sim's camera the view follows (where the lights are on).
+var _camera: Camera2D
 
 
 func _init() -> void:
@@ -56,13 +61,17 @@ func _process(_delta: float) -> void:
 
 
 func _exit_tree() -> void:
+	ToonLight.clear()
 	GroundLayer.enabled = false
 	GroundLayer.forget()
-	RenderingServer.directional_soft_shadow_filter_set_quality(_project_shadow_quality())
+	var server := RenderingServer
+	server.directional_soft_shadow_filter_set_quality(_project_shadow_quality("directional"))
+	server.positional_soft_shadow_filter_set_quality(_project_shadow_quality("positional"))
 
 
 ## Build the view following `camera` (the sim's `Camera2D`).
 func begin(camera: Camera2D) -> void:
+	_camera = camera
 	GroundLayer.enabled = true  # the view's overlays draw flat over this picture
 	add_child(GroundLayer.shared())
 	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -86,7 +95,11 @@ func begin(camera: Camera2D) -> void:
 	_build_stage(maxi(rig.oversample, rig.turn_oversample))
 	_show(_oversample > 1)
 	viewport.add_child(_environment())
-	viewport.add_child(_sun())
+	viewport.positional_shadow_atlas_size = LightingCostConfig.shadow_atlas
+	for quadrant in 4:
+		viewport.set_positional_shadow_atlas_quadrant_subdiv(
+			quadrant, Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_4
+		)
 	mirror = WorldMirror.new()
 	viewport.add_child(mirror)
 	# debris, bursts, blood and blasts show from the first frame, on the road a kerb lower
@@ -97,6 +110,7 @@ func begin(camera: Camera2D) -> void:
 	fade.listen(mirror)
 	viewport.add_child(fade)
 	RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
+	RenderingServer.positional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
 
 
 ## The stage that averages the 3D picture down to the picture's size, with a filtered, exactly
@@ -162,30 +176,33 @@ func _register_meshes() -> void:
 	ItemMeshes.register(mirror)
 
 
-## One directional light with hard shadows (`RenderLightConfig`).
-func _sun() -> DirectionalLight3D:
-	var sun := DirectionalLight3D.new()
-	sun.name = "Sun"
-	sun.rotation_degrees = RenderLightConfig.sun_rotation
-	sun.light_color = RenderLightConfig.sun_color
-	sun.light_energy = RenderLightConfig.sun_energy
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sun.directional_shadow_max_distance = RenderLightConfig.shadow_max_distance
-	sun.shadow_bias = RenderLightConfig.shadow_bias
-	sun.shadow_normal_bias = RenderLightConfig.shadow_normal_bias
-	sun.light_angular_distance = 0.0
-	return sun
+## Light the 3D world for the match's 2D world `world` (the Lighting domain's dusk, `rooms` the
+## match's every room, the seed its rhythms'): the lights follow the camera's focus for what they
+## cost.
+func light_world(world: Node2D, seed_value: int, rooms: Array) -> void:
+	lighting = WorldLighting3D.light(
+		viewport, world, seed_value, rooms,
+		func() -> Vector2: return (
+			_camera.get_screen_center_position() if is_instance_valid(_camera) else Vector2.ZERO
+		)
+	)
+	if lighting != null:
+		lighting.glow_changed.connect(_dim_glow)
 
 
-## A flat ambient over a plain background, no tonemap, glow or fog: what the pixel post expects.
+## A piece's light changed its level: its mesh's glow follows (a mesh without glows says nothing).
+func _dim_glow(piece: Node, level: float) -> void:
+	for mesh in mirror.proxies_of(piece):
+		if mesh.has_method(&"set_glow_level"):
+			mesh.call(&"set_glow_level", level)
+
+
+## A plain background, no tonemap, glow or fog (the toon shaders take their ambient from the
+## Lighting domain's `ToonLight` globals, not the environment): what the pixel post expects.
 func _environment() -> WorldEnvironment:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = RenderLightConfig.background_color
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = RenderLightConfig.ambient_color
-	env.ambient_light_energy = RenderLightConfig.ambient_energy
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	var holder := WorldEnvironment.new()
 	holder.name = "Environment"
@@ -193,8 +210,9 @@ func _environment() -> WorldEnvironment:
 	return holder
 
 
-## The directional shadow filter the project is set to (the renderer's own default is soft, low).
-func _project_shadow_quality() -> RenderingServer.ShadowQuality:
-	var setting := "rendering/lights_and_shadows/directional_shadow/soft_shadow_filter_quality"
+## The soft shadow filter the project is set to for `kind` (`directional` or `positional`; the
+## renderer's own default is soft, low).
+func _project_shadow_quality(kind: String) -> RenderingServer.ShadowQuality:
+	var setting := "rendering/lights_and_shadows/%s_shadow/soft_shadow_filter_quality" % kind
 	var fallback := RenderingServer.SHADOW_QUALITY_SOFT_LOW
 	return int(ProjectSettings.get_setting(setting, fallback)) as RenderingServer.ShadowQuality

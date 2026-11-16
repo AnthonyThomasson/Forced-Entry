@@ -598,6 +598,7 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 		"world": world,
 		"house": house,
 		"rooms": house_rooms,
+		"site_rooms": site_rooms,
 		"openings": WorldGen.get_openings(house),
 		"nav_debug": nav_debug,
 	}

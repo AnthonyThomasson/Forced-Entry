@@ -343,6 +343,7 @@ func start_match(spec: Dictionary) -> Dictionary:
 	_match = built
 	if _view3d != null:
 		_view3d.mirror_world(world)
+		_view3d.light_world(world, int(spec["seed"]), built.get("site_rooms", []))
 		var view: Variant = built.get("view")
 		if is_instance_valid(view):
 			(view as PlayerView).capture_on = false  # the hidden 2D world is not photographed

@@ -75,14 +75,14 @@ main ──▶ worldgen, navigation, lighting, vision, ai, items, character, aud
 main ──(3D mode: main_view3d.gd)──▶ art (WorldMirror), general (CameraRig, RenderConfig), objects, vehicle, character, items, projectile, physics (the *Meshes): mirrors 2D bodies, duck-typed (27)
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
-Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
+Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio)
 worldgen ──▶ objects (the six factories, RoomWalls, WearPlan, `SharedTextures`, `FurnitureArt`, and `DoorConfig.open_angle`: 24), art (`PixelArt.warm`: 12)
 objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24; a bed's mesh reads `use.active_interaction()`, duck-typed: 8)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
 items ──▶ projectile, art    projectile ──▶ physics, art    vehicle ──▶ physics, art    physics ──▶ art (12)
 ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement)   (and a house door, duck-typed: 24)
 ui ──▶ items, physics   (plain dicts in, signals out; never calls Main)
-art ──▶ general (RenderConfig, CameraRig: scale, yaw)
+art ──▶ general (RenderConfig, CameraRig: scale, yaw)    lighting ──▶ art (3D: ToonLight, 20)
 every domain ──▶ general
 ```
 

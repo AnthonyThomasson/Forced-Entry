@@ -15,10 +15,10 @@ A new tunable goes in the holder of its topic. One that fits no topic starts a h
 | Items | `GunConfig` and `GrenadeConfig` (one row per gun / grenade kind), `MagazineConfig`, `DroppedItemConfig`, `OutfitConfig` (garment and plate rows), `LoadoutConfig` (setup bounds, default outfit) |
 | Audio | `Sound{,Library,Deafness,Vehicle}Config` |
 | Vehicles | `VehicleConfig` (a `kinds` and a `looks` row per kind), `Vehicle{Boarding,Door,Drive,Collision,Art}Config` |
-| Lighting | `Lighting{,Fixture,Texture}Config` |
+| Lighting | `Lighting{,Fixture,Texture,3D,Cost}Config` |
 | AI | `SquadFollowConfig`, `SquadAmbushConfig` (squad tuning, not per NPC); an NPC's own tunables are the `Npc<Topic>Tuning` nodes (`typed-components.md`) |
 | Navigation | `NavBakeConfig` (the physics frame a planning re-bake lands on) |
-| General | `Camera{,Shake}Config`; the 3D render: `RenderConfig` (the one 2D-to-3D scale, the camera's pitch, yaw, distance and clip, the internal height, the view's canvas layer) and `RenderLightConfig` (the interim sun and ambient) |
+| General | `Camera{,Shake}Config`; the 3D render: `RenderConfig` (the one 2D-to-3D scale, the camera's pitch, yaw, distance and clip, the internal height, the view's canvas layer) and `RenderLightConfig` (the 3D view's backdrop) |
 | Vision | `VisionConfig` (the switch, the look, the memory's scale, the cone's rays, the rebuild backstop), `VisionSliceConfig` (a sliced cone rebuild: unit prices, slice size, restart cap) |
 
 World-Gen's `LayoutRules` (which rooms may hold the front door or an exit, which room types may share a door) and `DoorRules` (which doorways get a door) are rules tables in the same style, not tuning. `PhysicsLayers`, `DrawLayers`, `ViewLayers` and `LightMasks` are shared ids, not tuning (interface 11).

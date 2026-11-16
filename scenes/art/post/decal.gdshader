@@ -15,6 +15,7 @@ void fragment() {
 	}
 	vec4 texel = texture(albedo_texture, UV) * base_color;
 	seen = toon_seen(VERTEX, INV_VIEW_MATRIX);
+	sky = toon_sky(VERTEX, INV_VIEW_MATRIX);
 	ALBEDO = texel.rgb;
 	ALPHA = texel.a;
 	ALPHA_SCISSOR_THRESHOLD = 0.5;

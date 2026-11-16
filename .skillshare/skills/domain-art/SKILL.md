@@ -73,8 +73,8 @@ Tests: `tests/art/mirror_follows_bodies_test.gd`, `mirror_follows_rebuilt_collid
 
 The 3D picture is made to read as pixel art (#193 rule 6): drawn at a low internal resolution (a picture pixel is an art pixel, General's `RenderConfig.texel_match`) and shown with nearest
 filtering, through two things Art owns, tuned in `PixelPostConfig` (ADR 0003). **`ToonMaterial.shared()`** (made by `make()`) is the one `ShaderMaterial` (`toon.gdshader`) every mesh of
-the 3D view shares, a colour per instance (`base_color`, an instance uniform): the light's N.L times the shadow steps into `bands` bands (3), each a tone of
-`ArtSurfaceConfig.tones` (the ramp as `(mul, lift)`: a tone is `base * mul + (1 - base) * lift`), no ambient. **`PixelPost.attach(camera, oversample)`** adds the
+the 3D view shares, a colour per instance (`base_color`, an instance uniform): the dusk's ambient plus each light's amount (N.L times its fall-off and shadow) stepped into `bands` bands (3), tinted
+by the light and capped (`ToonLightConfig`, `ToonLight`; `textured-toon.md`). **`PixelPost.attach(camera, oversample)`** adds the
 outline quad (`outline.gdshader`) under the view's camera: a dark line where the depth's second difference steps (a silhouette, `silhouette_px` wide) or the normal
 creases (`crease_px`), so a floor seen at an angle stays clean. `turn_supersample` and `supersample` are both 1: 2 for the turn flickers more on textured art (averaging nearest-sampled art adds colours; `art/pixel_post_shimmer`), the mechanism (`View3D` renders larger and averages down while turning) stays. A face of a mesh-kit mesh carries its own colour in the vertex colour (`COLOR`, times the instance's `base_color`). Three **global shader uniforms** (`ToonMask`:
 `vision_mask`, `vision_mask_xf`, `vision_unseen`; default "everything visible") are phase 3's vision-mask hook, read by `toon.gdshader`, `toon_tex.gdshader` and the kit's `decal.gdshader` (one `toon_common.gdshaderinc`: never restate `light()`), so the

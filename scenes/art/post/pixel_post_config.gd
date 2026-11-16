@@ -5,9 +5,9 @@ class_name PixelPostConfig
 ## values from it, and the picture's own resolution is the camera rig's
 ## (`RenderConfig.texel_match`).
 
-## How many tone bands the lit amount (N.L times the shadow) steps through, 2 to 5 (`ToonMaterial`
-## holds it there; 0 is a smooth ramp): 3 picks the shadow, base and light tones of
-## `ArtSurfaceConfig.tones`, 4 adds the dark tone, 5 every tone.
+## How many bands each light's amount (N.L times its fall-off and shadow) steps through, 2 to 5
+## (`ToonMaterial` holds it there; 0 is no steps, a smooth light): the strength of band k is
+## `ToonLightConfig.levels(count)[k]`.
 static var bands: int = 3
 ## The outline's colour, and its width in picture pixels where two surfaces meet at a crease (a
 ## box's edge, read from the normals) and along a silhouette (read from the depth).
@@ -39,29 +39,3 @@ static var figure_creases: bool = false
 ## (`CameraRig.turn_oversample`, `View3D`'s larger stage) for a later, smoother mitigation.
 static var supersample: int = 1
 static var turn_supersample: int = 1
-
-
-## The `(mul, lift)` of the shadow, dark, base, light and highlight tones of `ArtSurfaceConfig`
-## (`tones`): a tone is `base * mul + (1 - base) * lift` (a darkened tone a multiplier, a
-## lightened one a lift), in the order of the shader's `ramp`.
-static func ramp() -> PackedVector2Array:
-	return PackedVector2Array([
-		Vector2(1.0 - ArtSurfaceConfig.tone_shadow, 0.0),
-		Vector2(1.0 - ArtSurfaceConfig.tone_dark, 0.0),
-		Vector2(1.0, 0.0),
-		Vector2(1.0, ArtSurfaceConfig.tone_light),
-		Vector2(1.0, ArtSurfaceConfig.tone_highlight),
-	])
-
-
-## Which tone (an index into `ramp()`) each band takes, darkest band first, for `count` bands: the
-## shadow tone is always the floor and the base and light tones the steps above it.
-static func picks(count: int) -> PackedInt32Array:
-	match count:
-		2:
-			return PackedInt32Array([0, 2, 2, 2, 2])
-		3:
-			return PackedInt32Array([0, 2, 3, 3, 3])
-		4:
-			return PackedInt32Array([0, 1, 2, 3, 3])
-	return PackedInt32Array([0, 1, 2, 3, 4])

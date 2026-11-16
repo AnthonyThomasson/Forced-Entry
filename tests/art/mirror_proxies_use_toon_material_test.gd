@@ -1,11 +1,11 @@
 extends GameTest
 ## The pixel post's toon look (#193 rule 6, Art, interface 27): every proxy the mirror makes shares
-## one toon `ShaderMaterial` with a colour of its own per instance, its bands and tones taken from
-## the holders: the number of bands from `PixelPostConfig.bands`, the tones from
-## `ArtSurfaceConfig.tones`. Headless proves the wiring (the shader is compiled windowed only):
-## each band of the material's ramp reads back as the matching tone of `tones(base)` (shadow,
-## base, light for three bands), a retuned band count reaches a new mirror's material, and
-## differently named bodies carry different colours.
+## one toon `ShaderMaterial` with a colour of its own per instance, its bands taken from the
+## holders: the number of bands from `PixelPostConfig.bands`, how strong each is from
+## `ToonLightConfig`. Headless proves the wiring (the shader is compiled windowed only): each band
+## of the material reads back as the holder's strength (darkest none, brightest the light whole), a
+## retuned band count reaches a new mirror's material, and differently named bodies carry
+## different colours.
 
 const AT := Vector2(260, 180)
 const OTHER := Vector2(520, 300)
@@ -14,9 +14,9 @@ const GREY := Color(0.4, 0.4, 0.4)
 
 func describe() -> Dictionary:
 	return {
-		"name": "The mirror's proxies share one toon material banded from the Art ramp",
+		"name": "The mirror's proxies share one toon material banded from the toon light's levels",
 		"description": "Every proxy has the one toon ShaderMaterial; its three bands are the "
-			+ "shadow, base and light tones of ArtSurfaceConfig.tones; a band count set in "
+			+ "strengths of ToonLightConfig.levels; a band count set in "
 			+ "PixelPostConfig reaches the material; each body has its own colour.",
 		"tags": ["mirror", "3d", "render", "pixel"],
 		"timeout": 10.0,
@@ -57,23 +57,17 @@ func run(t: TestContext) -> void:
 			(node as MeshInstance3D).material_override == material,
 			"every proxy shares the one material (%s)" % node.name,
 		)
-	_check_bands(t, material, 3, ["shadow", "base", "light"])
+	_check_bands(t, material, 3)
 	t.check(
 		_colour(chair[0]) != _colour(table[0]),
 		"two bodies have two colours (%s, %s)" % [_colour(chair[0]), _colour(table[0])],
 	)
 	# A retuned count and tone reach a mirror built after it.
 	PixelPostConfig.bands = 4
-	ArtSurfaceConfig.tone_light = 0.3
 	var again := _mirror(t)
 	await t.frames(3)
 	var proxy := again.proxies_of(t.object(&"chair"))[0] as MeshInstance3D
-	_check_bands(
-		t,
-		proxy.material_override as ShaderMaterial,
-		4,
-		["shadow", "dark", "base", "light"],
-	)
+	_check_bands(t, proxy.material_override as ShaderMaterial, 4)
 	# The shader's tone table holds five entries and a band needs a step above it: a count outside
 	# 2 to 5 would read past the table (or flatten every surface to the shadow tone), so it is held
 	# to that range.
@@ -98,17 +92,15 @@ func _colour(node: Node) -> Color:
 	return (node as MeshInstance3D).get_instance_shader_parameter(&"base_color")
 
 
-## The material has `count` bands and each reads, on a grey, as the named tone of `tones(GREY)`
-## (a tone is `base * mul + (1 - base) * lift`, the ramp's own form).
-func _check_bands(t: TestContext, material: ShaderMaterial, count: int, tones: Array) -> void:
+## The material has `count` bands and its `levels` are the holder's: none in the darkest band, the
+## light whole in the brightest, each band above the one below.
+func _check_bands(t: TestContext, material: ShaderMaterial, count: int) -> void:
 	t.expect_eq(material.get_shader_parameter(&"count"), count, "%d bands" % count)
-	var ramp: PackedVector2Array = material.get_shader_parameter(&"ramp")
-	var pick: PackedInt32Array = material.get_shader_parameter(&"pick")
-	var wanted := ArtSurfaceConfig.tones(GREY)
-	for band in count:
-		var step := ramp[pick[band]]
-		var got := GREY.r * step.x + (1.0 - GREY.r) * step.y
-		t.expect_near(
-			got, (wanted[tones[band]] as Color).r, 0.002,
-			"band %d of %d is the %s tone" % [band, count, tones[band]],
+	var levels: PackedFloat32Array = material.get_shader_parameter(&"levels")
+	t.expect_eq(levels[0], 0.0, "the darkest of %d bands is no light" % count)
+	t.expect_eq(levels[count - 1], 1.0, "the brightest of %d bands is the light whole" % count)
+	for band in range(1, count):
+		t.check(
+			levels[band] > levels[band - 1],
+			"band %d of %d is brighter than the one below" % [band, count],
 		)

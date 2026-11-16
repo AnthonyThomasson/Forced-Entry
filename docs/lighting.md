@@ -1,6 +1,7 @@
 # Lighting
 
-Every match and test world is lit at **dusk** with real 2D lights and shadows: no light is baked into any art. Behaviours L1 to
+Every match and test world is lit at **dusk** with real lights and shadows: no light is baked into any art. The game is drawn in 3D
+(the lights of it are the first section, "The 3D lighting"); the 2D render's lights, the second, go with the 2D render. Behaviours L1 to
 L10 are the spec; each has its tests named under it, following the convention of `docs/grenades.md`. The tests are in
 `tests/lighting/` (`tools/run_tests.sh --domain=lighting`, 10 tests), through `tests/_lighting/lighting_probe.gd`, which keeps the
 plan's numbers as its own consts (the ambient, 15 lights an item, 12 a floor) and reads the game only through the published names
@@ -11,12 +12,81 @@ domains' (interface 20).
 All distances are px and times seconds. The numbers are the Lighting holders' (`LightingConfig`, `LightingFixtureConfig`, `LightingTextureConfig`, in `scenes/lighting/`) and, for what
 each piece gives, `ObjectArtLightConfig.specs`.
 
-## The 3D render mode
+## The 3D lighting
 
-A match played in the 3D render mode (`Settings.render_mode`, `architecture` interface 27) builds none of this: the match builder's spec says
-`render` is 3D and `MatchBuilder.stage` does not call `WorldLighting.light`, since the 2D world is hidden and never drawn (`tests/general/render_spec_builds_no_2d_lights_test.gd`: no `CanvasModulate`, `PointLight2D` or `WorldLighting` node is built); the 3D view has one
-directional light with hard shadows over a flat ambient (`RenderLightConfig`) until the lighting jobs of #193 turn the dusk, the fixtures and the
-flashes into 3D lights. Everything below describes the 2D render, which is the default.
+The game is drawn in 3D (`architecture` interface 27, #193): a near top-down orthographic camera over meshes that wear the
+2D painters' flat art, shaded by Art's toon light (`toon_common.gdshaderinc`). The Lighting domain's 3D side is
+`WorldLighting3D` (`scenes/lighting/world_lighting_3d.gd`), which Main builds under the 3D view's own world after it mirrors the
+match (`Main._view3d.light_world`): it reads the 2D world the sim runs in, duck-typed as `WorldLighting` does (Objects' floors,
+a piece's `get_lights()`, the rooms), and builds the lights of the 3D world. Its numbers are `Lighting3DConfig` (the sun, the
+heights, the pools) and `LightingCostConfig` (the cost caps), over the dusk's colours and energies in `LightingConfig`. The
+2D lights, the occluders and the 2D behaviours L1 to L10 below it stay until the 2D render is removed; the 3D ones are these.
+
+**How a pixel is lit.** There is no baked light in any art. Each pixel is its painted colour times the **dusk ambient**
+(`LightingConfig.ambient_color`, a toon global, `ToonLight`) plus every light that reaches it: each light's amount (the angle
+of the face to it, times its fall-off, times its shadow) is stepped into the toon's bands (`PixelPostConfig.bands` 3: none, a
+little, the light whole; `ToonLightConfig.levels`), tinted by the light's colour and energy, and the sum is held to
+`ToonLightConfig.cap` of the painted colour by its brightest channel, so a pixel under three lamps is the art lit warm and not
+blown out, and the hue stays. The steps are crisp edges: a pool is a few rings, a shadow a hard edge, no gradients.
+
+**L1-3D. Dusk.** The ambient is the 2D dusk's, **(0.40, 0.37, 0.55)**. One `DirectionalLight3D`, the sky, in `sky_color`
+**(1.0, 0.5, 0.42)** at `sky_energy` 0.42, travels toward +x and -y of the 2D world (from the south-west, `sky_from`) at
+`sun_elevation` **68** degrees, with hard shadows, so a wall of 96 throws a shadow of 39 px and a person of 74 one of 30: short
+like the 2D drop shadow, not the streak of a low sun. It reaches only the street's floors: a texture of the world (`ToonLight`'s
+sky mask) is white on every street floor and black under every house and tower floor and the walls round them
+(`floor_reach`), so a tower is lit from within as in 2D (a house or the arena, with no street floor, gets no sky), and the
+tower's shadow on the street is the wall's, short and hard. With `lighting.enabled` off no light is built: the ambient is
+white and the one sun too dim to show, so the art is as painted.
+Tests: `lighting/light_3d_dusk_and_sky` (the ambient, the sun's colour, energy, direction, elevation and shadows, a wall's shadow
+short, the sky on every point of street ground out of a tower and in none), `lighting/light_3d_look_windowed` (windowed: the
+street warm and bright, the house the art times the ambient, the wall's shadow dark behind it and gone past its reach),
+`general/render_light_top_in_base_band` (the sun puts a flat top in the top band; the camera is near top-down),
+`lighting/light_3d_switch_off`.
+
+**L2-3D. A light per light-giving piece.** Every light a piece declares (`get_lights()`: `offset`, `colour`, `energy`,
+`radius`, `rhythm`, `room_light`, `street`, `height`) becomes an `OmniLight3D` at the piece's place, in its colour at its
+energy, hung at the height of its kind (`overhead_height` 60: a lamp's bulb, a fixture; `street_height` 70: a street lamp's head
+or sign; `low_height` 22: a screen, a tube, LEDs, trim) and reaching the pool's `radius` on the floor (its range is the
+distance to the pool's rim, so the 2D numbers stay the pool's). An **overhead or street** light pools flat to half its radius
+and quickly at the rim (`overhead_slope` 2); a **low** one is a glow fading from its middle (`low_slope` 1), the toon light's
+two shapes of one linear fall-off (the light's `light_specular` carries the slope: the toon has no specular). A pool is crisp
+rings: a surface is lit a little at the outer ring and whole inside it. The nodes are `OmniLight3D`s under the `WorldLighting3D`
+named `Light<n>_<piece>`, with the metas `piece` and `index` (into `get_lights()`), kept in step with the piece: a shoved lamp
+carries its light (`process_priority` 20, after the bodies).
+Tests: `lighting/light_3d_per_piece` (seed 1: each declared light placed or dropped, over its piece's light, at its kind's height,
+in its colour and its radius, at most its energy; every fixture overhead at its room's centre; no floor reached by more than the
+budget), `lighting/light_3d_follows_and_flickers` (a shoved lamp's light follows it), `lighting/light_3d_look_windowed` (a lamp's
+pool warm, bright at its middle, stepped, gone past its radius).
+
+**L3-3D. Room fixtures.** A room no kept `room_light` stands in gets an overhead light at its centre, as in 2D (the same colour,
+energy and reach, `LightingFixtureConfig`, no glyph: the bulb is not drawn). Test: `lighting/light_3d_per_piece`.
+
+**L4-3D. The budget and the cost.** The 2D per-floor budget (at most 12 lights reach one floor, strongest first, a room over budget
+dropping its weakest; `Budget`) places the 3D lights too, so the same lights are kept, and `budget().dropped` lists the rest.
+What 3D adds is a cost cap, chosen from where the view looks (the `focus` the view gives, the 2D camera's centre): at most
+`LightingCostConfig.max_lights` (40) lights are on, the nearest to the focus that reach the view (half the camera's diagonal
+from it); and at most `shadow_lights` (6) cast a shadow, the nearest of the **overhead** lights of rooms (a ceiling fixture, a
+lamp: the walls keep them in their rooms; a low light, a tube or a screen, and a street lamp cast none, since a piece's own
+body would shadow a light standing in it), a light keeping its shadow unless a rival is `keep_margin` nearer. The choice is made
+again every `refresh` 0.3 s or once the focus moved `refocus` 48 px. A light with no shadow shines through a wall (its pool
+is as small as the 2D's); a light off is not drawn. With no focus every light is on and none casts. Test:
+`lighting/light_3d_cost` (the caps; far lights off; moving the focus switches the far end on; only overhead lights cast).
+
+**L7-3D. Light sources glow.** What gives light is a glowing part of the piece's mesh (Objects' `FurnitureRig.add_glow`, the
+toon's `emissive`, a colour whatever the light), so a lamp's bulb, a screen, a neon tube is its colour in the dusk, apart from its
+light; the Lighting domain dims it with its light's rhythm (`glow_changed`, Main wires it to `FurnitureRig.set_glow_level`).
+
+**L8-3D. Rhythms, seeded per light.** As in 2D (`light_rhythm.gd`): the energy of a light changes in the rhythm its declaration
+allows, seeded from the world's seed and the piece, so the same world flickers the same. Test:
+`lighting/light_3d_follows_and_flickers` (one room lit twice from one seed: every light's energy equal to its twin's in every frame).
+
+*(L5, L6, L9, L10 in 3D: a light is placed at its piece and follows it, L5; who shadows whom is the real geometry, L6: the sky's
+shadows by every mesh, a room's overhead lights' by theirs, a wall's included; the flashes of a shot and a burst are the light-fx job;
+the switch is above.)*
+
+## The 2D render
+
+Everything below describes the 2D render, which is removed with it (#193).
 
 ## What is built
 

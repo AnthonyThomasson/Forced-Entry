@@ -2,8 +2,8 @@ class_name ToonMaterial
 extends RefCounted
 ## Art domain, the pixel post (`pixel_post_config.gd`; #193 rule 6): the one toon `ShaderMaterial`
 ## the 3D render's meshes share, a colour per instance (`base_color`, an instance uniform). The
-## mirror's proxies use it now and each domain's mesh will; the tones are `ArtSurfaceConfig`'s ramp
-## stepped into `PixelPostConfig.bands` bands by the light.
+## mirror's proxies use it now and each domain's mesh will; each light's amount is stepped into
+## `PixelPostConfig.bands` bands (`ToonLightConfig`), the dusk's ambient and the lights added up.
 
 const SHADER := preload("res://scenes/art/post/toon.gdshader")
 const DECAL_SHADER := preload("res://scenes/art/post/decal.gdshader")
@@ -30,6 +30,7 @@ static var _prune_at := 64
 ## (`ToonMask`: the shader names them).
 static func make() -> ShaderMaterial:
 	ToonMask.install()
+	ToonLight.install()
 	var material := ShaderMaterial.new()
 	material.shader = SHADER
 	refresh(material)
@@ -45,6 +46,7 @@ static func decal(texture: Texture2D) -> ShaderMaterial:
 	if held is ShaderMaterial:
 		return held
 	ToonMask.install()
+	ToonLight.install()
 	_prune()
 	var material := ShaderMaterial.new()
 	material.shader = DECAL_SHADER
@@ -69,6 +71,7 @@ static func textured(texture: Texture2D, tiled := false, cutout := false) -> Sha
 	if held is ShaderMaterial:
 		return held
 	ToonMask.install()
+	ToonLight.install()
 	_prune()
 	var material := ShaderMaterial.new()
 	material.shader = TEX_SHADER
@@ -131,14 +134,13 @@ static func shared() -> ShaderMaterial:
 	return _shared
 
 
-## Push the holders' bands and tone ramp into `material` (after a tuning change). The shader's tone
-## table holds five tones and a band needs a step above it, so the bands are held to 2 to 5 (0 is a
-## smooth ramp, no bands).
+## Push the holders' bands and their strengths into `material` (after a tuning change). The shader's
+## table holds five bands, so the bands are held to 2 to 5 (0 is a smooth light, no bands).
 static func refresh(material: ShaderMaterial) -> void:
 	var bands := 0 if PixelPostConfig.bands <= 0 else clampi(PixelPostConfig.bands, 2, 5)
 	material.set_shader_parameter(&"count", bands)
-	material.set_shader_parameter(&"ramp", PixelPostConfig.ramp())
-	material.set_shader_parameter(&"pick", PixelPostConfig.picks(bands))
+	material.set_shader_parameter(&"levels", ToonLightConfig.levels(bands))
+	material.set_shader_parameter(&"pool_gain", ToonLightConfig.pool_gain)
 
 
 ## `refresh` plus the textured toon's own knob: the step its sides are darkened by

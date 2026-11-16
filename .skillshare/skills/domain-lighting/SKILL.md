@@ -5,28 +5,54 @@ description: Use when editing scenes/lighting/, retuning the dusk, a fixture, a 
 
 # Lighting domain (`scenes/lighting/`)
 
-The world's dusk lighting. The spec is `docs/lighting.md` (L1 to L10, each with its tests, which are in `tests/lighting/` through
-`tests/_lighting/lighting_probe.gd`); the numbers (ambient, sky, budget, flashes, fixtures) live in the holders and the spec, not
-here. Interfaces: 10 (the `shot` / `explosion` topics), 11 (`LightMasks`, `DrawLayers.OVERHEAD`), 20 (Main / Testing → Lighting;
-a piece's `get_lights()`; the occluders and light layers).
+The world's dusk lighting. The spec is `docs/lighting.md`: its first section is the 3D lighting, the game's (#193), each behaviour
+with its tests (`tests/lighting/light_3d_*`, through `tests/_lighting/lighting_3d_probe.gd`); the second is the 2D render's (L1 to
+L10, `tests/lighting/`, through `lighting_probe.gd`), which goes when the 2D render does. The numbers live in the holders and the
+spec, not here. Interfaces: 10 (the `shot` / `explosion` topics), 11 (`LightMasks`, `DrawLayers.OVERHEAD`), 20 (Main / Testing →
+Lighting; a piece's `get_lights()`; the 3D lights; the 2D occluders and light layers), 27 (the 3D render).
 
-A **leaf**: it imports General (`EventBus`, `DrawLayers`, `LightMasks`, `WeightedPick`) and Godot, and reads the world
-duck-typed (`get_lights()`, the groups `floors` and `characters`). Its one caller is the match builder (`MatchBuilder.stage` →
-`WorldLighting.light`), for Main's match and the Testing world alike; Testing's `lighting.enabled` switch and the probe read
-`lights()` / `fixtures()` / `flashes()` / `budget()`. The lights and shadows of the world's things are declared and built by
-their own domains.
+A **near-leaf**: it imports General (`EventBus`, `DrawLayers`, `LightMasks`, `WeightedPick`, `RenderConfig`), Art's `ToonLight` (the
+3D dusk's shader globals) and Godot, and reads the world duck-typed (`get_lights()`, the groups `floors` and `characters`). Its callers
+are Main (`main_view3d.gd` `light_world` → `WorldLighting3D.light`, the 3D game) and the match builder (`MatchBuilder.stage` →
+`WorldLighting.light`, the 2D render only); Testing's `lighting.enabled` switch and the probes read `lights()` / `fixtures()` /
+`budget()`. The lights and shadows of the world's things are declared and built by their own domains.
+
+## The 3D lighting (`world_lighting_3d.gd`, `WorldLighting3D`)
+
+Built under the 3D view's world from the 2D world the sim runs in (group `world_lighting_3d`; `docs/lighting.md` "The 3D lighting"):
+
+1. **Dusk.** `ToonLight.set_ambient(LightingConfig.ambient_color)` (the toon shaders add it to every pixel), one `DirectionalLight3D`
+   (`sky_color`, `sky_energy`, from `sky_from` at `Lighting3DConfig.sun_elevation`, hard shadows) and the sky mask: an `Image` of
+   the street floors (white) less every house floor and its walls (black), so the sun lights the street and never a room.
+2. **Lights.** The 2D placement (`_candidates` / `_place`: fixtures first, the strongest light first, the per-floor `Budget`, a
+   room whose lights were all dropped gets its fixture) with an `OmniLight3D` for each kept light: `_omni(colour, energy, radius,
+   kind)`, `kind` `overhead` / `low` / `street` giving the height and the slope of the pool (`Lighting3DConfig`); `omni_range` is
+   the distance to the pool's rim, `omni_attenuation` 0, and `light_specular` carries the pool's slope to the toon light. Each
+   `Lit` follows its piece (`follow`, only when the piece's transform changed), steps its seeded rhythm (the energy written only
+   on change) and tells `glow_changed` (Main dims the piece's mesh glow, `FurnitureRig.set_glow_level`).
+3. **The cost** (`choose`, every `LightingCostConfig.refresh` s or when the `focus` moved `refocus` px): the nearest `max_lights` of
+   the lights that reach the view are on; the nearest `shadow_lights` of the `overhead` ones cast shadows (the lights of pieces
+   are not shadowed: a piece's own body would shadow a light inside it). No focus: all on, none shadowed.
+4. **Flat.** `LightingConfig.enabled` off: no lights, a white ambient and a sun of energy 0.01 (the toon light needs one directional
+   light to run its ambient).
+
+The toon light itself (the bands, the cap, why the ambient rides the one directional light) is Art's: `domain-art/textured-toon.md`.
+**Adding a light-giving piece** is unchanged (below, Objects declares it); its 3D light follows from the declaration, its glow from
+the mesh (`FurnitureRig.add_glow`). The flashes are not built yet (the light-fx job of #193).
+
+## The files
 
 | File | Role |
 |---|---|
-| `world_lighting.gd` (`WorldLighting`) | The node, in the group `world_lighting`; `light(root, seed_value, rooms)` (a district's `rooms`: every tower's, keys unique) returns null while `enabled` is off; the build and the per-frame work. |
-| `lighting_config.gd`, `lighting_fixture_config.gd`, `lighting_texture_config.gd` | Tuning holders: `LightingConfig` (switch, dusk, flash rows, budget, `body_clear`), `LightingFixtureConfig` (the room fixtures), `LightingTextureConfig` (pool textures per shape). |
-| `flash_pool.gd`, `light_budget.gd`, `light_rhythm.gd`, `ceiling_fixture.gd` | Private parts: the flash pool and its fall-off and character clearing; the per-floor count; one light's seeded rhythm; the fixture's bulb glyph. |
+| `world_lighting_3d.gd` (`WorldLighting3D`) | The 3D game's lights (above). |
+| `world_lighting.gd` (`WorldLighting`) | The 2D render's node, in the group `world_lighting`; `light(root, seed_value, rooms)` (a district's `rooms`: every tower's, keys unique) returns null while `enabled` is off; the build and the per-frame work. |
+| `lighting_config.gd`, `lighting_3d_config.gd`, `lighting_cost_config.gd`, `lighting_fixture_config.gd`, `lighting_texture_config.gd` | Tuning holders: `LightingConfig` (switch, dusk colours, flash rows, budget, `body_clear`), `Lighting3DConfig` (the sun, heights, pools), `LightingCostConfig` (the 3D caps), `LightingFixtureConfig` (the room fixtures), `LightingTextureConfig` (2D pool textures). |
+| `flash_pool.gd`, `light_budget.gd`, `light_rhythm.gd`, `ceiling_fixture.gd` | Private parts: the 2D flash pool; the per-floor count (both renders); one light's seeded rhythm (both); the 2D fixture's bulb glyph. |
 
 General's `scenes/general/light_masks.gd` (`LightMasks`) holds the occluder bits, shadow masks and item layers, and
-`occluder(polygon, bit)`: it winds the polygon clockwise on screen and culls counter-clockwise, the probed winding that keeps the
-shape itself lit and darkens only what lies behind it.
+`occluder(polygon, bit)` for the 2D render's occluders (it winds the polygon clockwise on screen and culls counter-clockwise).
 
-## Build order (`_build`, once)
+## The 2D render's build order (`WorldLighting._build`, once)
 
 1. The ambient and the street's `Sky`. None on the house's items: the house has a roof (L1).
 2. Every Objects floor (group `floors`) becomes a budget area, its `size` grown by `floor_reach`, its light layers the union of
