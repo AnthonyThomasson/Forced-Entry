@@ -12,7 +12,7 @@ extends GameTest
 ##   floor in view, not black, and nearly grey, and the character that stands on it is not drawn
 ##   (taking it away changes nothing there): a thing that moves is drawn only in the cone.
 ##
-## Then, at the first yaw, with the sun's hard shadows on:
+## Then, at the first yaw, with the ceiling fixtures' shadows on (held still for the reading):
 ##
 ## - a mover on the cone's edge is cut there, pixel by pixel: some of it is drawn on the lit side
 ##   and none beyond the cut (`MeshNodes.moving`, the shader's discard);
@@ -37,7 +37,12 @@ const SPREAD := 170.0
 ## The camera's zoom steps run again at yaw 0: offsets from its own step (1x): 0.5x and 3x.
 const ZOOM_OFFSETS: Array[int] = [-1, 2]
 ## A mover's height (px), for how far its shadow falls.
-const MOVER_HEIGHT := 60.0
+const MOVER_HEIGHT := 36.0
+## The shadow's layout (`_layout`): the box's distance from the lamp (px), and where the human
+## stands against the shadow's end (px along the line past it, px to the side of it).
+const LAMP_GAP := 40.0
+const ALONG := 10.0
+const AHEAD := 30.0
 ## The cut: a mover is drawn where the live mask reads at least this (the shader's 0.5, less the
 ## width of a pixel's sampling), and a pixel it changes where the mask reads under `LEAK` is drawn
 ## beyond the cut.
@@ -403,57 +408,102 @@ func _straddle(t: TestContext) -> void:
 	t.check(leaked <= MAX_LEAKED, "and cut at the edge: %d px drawn beyond it" % leaked)
 
 
-## A moving thing just outside the cone casts no shadow on the lit floor inside it. The human faces
-## north, a box stands outside the cone with its shadow's end inside it: nothing changes there when
-## the box is taken away. Then the human turns to the box, so the same box and the same spot of
-## floor are in the cone: now taking it away does change the floor (so the spot shows a shadow at
-## all, and is not already in the shade of a wall).
+## A moving thing just outside the cone casts no shadow on the lit floor inside it. A box stands
+## outside the cone and a ceiling fixture throws the shadow of its top across the cone's edge, its
+## end inside the cone: nothing changes there when the box is taken away. Then the human turns to
+## the box, so the same box and the same spot of floor are in the cone: now taking it away does
+## change the floor (so the spot shows a shadow at all, and is not already in the shade of a wall).
+## The lights are held still while the floor is read (they flicker).
 func _shadow(t: TestContext) -> void:
-	await _look(t, Vector2.UP, SETTLE_FRAMES)
-	RenderingServer.force_draw(false)
-	_read_mask()
-	var fall := _shadow_per_px() * MOVER_HEIGHT
-	var spot := _shadow_spot(fall)
-	if not t.require(spot != Vector2.INF, "premise: a spot just outside the cone, its shadow in"):
+	var layout := await _find_layout(t)
+	if not t.require(
+		not layout.is_empty(),
+		"premise: a box outside the cone, its shadow ending in",
+	):
+		_human.global_position = _centre
 		return
-	var hidden_change := await _floor_changed(t, spot, spot + fall, "outside")
+	var spot: Vector2 = layout["spot"]
+	var tip: Vector2 = layout["tip"]
+	var lighting := _main.get_node("View3D").lighting as WorldLighting3D
+	lighting.process_mode = Node.PROCESS_MODE_DISABLED
+	var hidden_change := await _floor_changed(t, spot, tip, "outside")
 	t.check(
 		hidden_change <= MAX_SHADOW,
 		"a box that moves outside the cone casts no shadow on the floor (%d px)" % hidden_change,
 	)
-	await _look(t, spot - _centre, SETTLE_FRAMES)
+	await _look(t, (spot + tip) * 0.5 - (layout["stand"] as Vector2), SETTLE_FRAMES)
 	RenderingServer.force_draw(false)
 	_read_mask()
 	t.require(
-		_mask_at(spot) >= 0.9 and _mask_at(spot + fall) >= 0.9,
+		_mask_at(spot) >= 0.9 and _mask_at(tip) >= 0.9,
 		"premise: turned to it, the box and the end of its shadow are in the cone",
 	)
-	var seen_change := await _floor_changed(t, spot, spot + fall, "in_cone")
+	var seen_change := await _floor_changed(t, spot, tip, "in_cone")
 	t.check(
 		seen_change >= MIN_SHADOW,
 		"premise: the same box in the cone casts a shadow the floor shows (%d px)" % seen_change,
 	)
+	lighting.process_mode = Node.PROCESS_MODE_INHERIT
+	_human.global_position = _centre
+	await _look(t, layout["facing"], SETTLE_FRAMES)
 
 
-## A spot in the room outside the cone, clear of the human's bubble, where a box's shadow ends on
-## lit floor inside the cone; the nearest to the human, INF for none.
-func _shadow_spot(fall: Vector2) -> Vector2:
-	var best := Vector2.INF
-	var nearest := INF
-	var inner := _room.grow(-30.0)
-	for y in range(int(inner.position.y), int(inner.end.y), 10):
-		for x in range(int(inner.position.x), int(inner.end.x), 10):
-			var at := Vector2(x, y)
-			var gap := at.distance_to(_centre)
-			if gap < 100.0 or gap >= nearest:
-				continue
-			if _mask_at(at) > 0.02 or SeenArea.reaches(at, 10.0) or not _lit_around(at + fall):
-				continue
-			if not _bare(at) or not _bare(at + fall * 0.5) or not _bare(at + fall):
-				continue
-			best = at
-			nearest = gap
-	return best
+## The first layout (`_layout`) of any shadow-casting fixture, any direction and side, that the
+## live mask confirms once the human stands there: the box outside the cone, the end inside it.
+## The human is left standing there; empty for none.
+func _find_layout(t: TestContext) -> Dictionary:
+	for lamp in _lamps():
+		for along in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
+			for side in [-1.0, 1.0]:
+				var layout := _layout(lamp, along, side)
+				if layout.is_empty():
+					continue
+				_human.global_position = layout["stand"]
+				await _look(t, layout["facing"], SETTLE_FRAMES)
+				RenderingServer.force_draw(false)
+				_read_mask()
+				var spot: Vector2 = layout["spot"]
+				if (
+					_mask_at(spot) <= 0.02
+					and _lit_around(layout["tip"])
+					and not SeenArea.reaches(spot, 10.0)
+				):
+					return layout
+	return {}
+
+
+## The ceiling fixtures that cast a shadow, nearest the room's middle first: each its x and z in
+## world px and its height above the floor (px).
+func _lamps() -> Array[Vector3]:
+	var found: Array[Vector3] = []
+	var fixtures: Array = (_main.get_node("View3D").lighting as WorldLighting3D).fixtures()
+	for fixture: Dictionary in fixtures:
+		var lamp: OmniLight3D = fixture["light"]
+		if lamp.shadow_enabled:
+			found.append(lamp.global_position / RenderConfig.unit)
+	found.sort_custom(
+		func(a: Vector3, b: Vector3) -> bool:
+			return Vector2(a.x, a.z).distance_to(_centre) < Vector2(b.x, b.z).distance_to(_centre)
+	)
+	return found
+
+
+## Where to stand the box and the human so the lamp's shadow of the box's top runs across the cone's
+## edge: the box `LAMP_GAP` px from the lamp along `along`, its shadow's end `fall` px further on,
+## the human looking sideways (`side` of the line, `AHEAD` px from it) from just past the end, so
+## the end is within `ALONG` px of the line of sight and the box a good way off it. Empty when
+## something solid is in the way.
+func _layout(lamp: Vector3, along: Vector2, side: float) -> Dictionary:
+	var at := Vector2(lamp.x, lamp.z)
+	var fall := LAMP_GAP * MOVER_HEIGHT / (lamp.y - MOVER_HEIGHT)
+	var spot := at + along * LAMP_GAP
+	var tip := spot + along * fall
+	var facing := along.rotated(side * PI * 0.5)
+	var stand := tip + along * ALONG - facing * AHEAD
+	for point in [spot, tip, stand, (spot + tip) * 0.5]:
+		if not _bare(point):
+			return {}
+	return { "spot": spot, "tip": tip, "stand": stand, "facing": facing }
 
 
 ## Whether nothing solid (a wall, a piece of furniture) stands within 18 px of `at`: a shadow that
@@ -477,15 +527,6 @@ func _lit_around(at: Vector2) -> bool:
 		if _mask_at(at + off) < 0.95:
 			return false
 	return true
-
-
-## The ground offset (px) a shadow runs per px of height: the sun's horizontal run for its drop.
-func _shadow_per_px() -> Vector2:
-	var rotation := RenderLightConfig.sun_rotation
-	var down := Basis.from_euler(
-		Vector3(deg_to_rad(rotation.x), deg_to_rad(rotation.y), deg_to_rad(rotation.z))
-	) * Vector3(0.0, 0.0, -1.0)
-	return Vector2(down.x, down.z) / -down.y
 
 
 ## How many pixels of the picture within `SHADOW_REACH` px of the world point `tip` (where the
