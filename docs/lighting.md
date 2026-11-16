@@ -27,9 +27,9 @@ heights, the pools) and `LightingCostConfig` (the cost caps), over the dusk's co
 (`LightingConfig.ambient_color`, a toon global, `ToonLight`) plus every light that reaches it: each light's amount (the angle
 of the face to it, times its fall-off, times its shadow) is stepped into bands and tinted by the light's colour and energy: the
 sun's into `PixelPostConfig.bands` (3: none, a little, the light whole; `ToonLightConfig.levels`), a lamp's pool into
-`ToonLightConfig.pool_levels` (six, from a little, 0.3, to the light whole, times `pool_strength` 1.4: 2D adds its light in sRGB,
-where it reads stronger than the same light in the 3D render's linear one), so a pool is a few soft rings and a shadow one hard
-edge. The sum is held to `ToonLightConfig.cap` (1.7) of the painted colour by its brightest channel, so a pixel under three
+`ToonLightConfig.pool_levels` (eight, from a trace, 0.08, to the light whole, times `pool_strength` 1.4: 2D adds its light in sRGB,
+where it reads stronger than the same light in the 3D render's linear one), so a pool is a few soft rings that end in a faint tail,
+not on a hard rim, and a shadow one hard edge. The sum is held to `ToonLightConfig.cap` (1.7) of the painted colour by its brightest channel, so a pixel under three
 lamps is the art lit warm and not blown out, and the hue stays. A world that sets no ambient is lit by
 `ToonLightConfig.default_ambient` (a grey), not black.
 
@@ -71,8 +71,17 @@ colour and its radius, in its room, at most its energy; every fixture overhead a
 of its room: the next room, a few px over it, is the ambient's).
 
 **L3-3D. Room fixtures.** A room no `room_light` stands in gets an overhead light at its centre, as in 2D (the same colour,
-energy and reach, `LightingFixtureConfig`, no glyph: the bulb is not drawn). It is the one light that may cast a shadow. Test:
-`lighting/light_3d_per_piece`.
+energy and reach, `LightingFixtureConfig`) and the glyph's 3D twin, a **bulb**: a small emissive sphere (`bulb_radius` 3, the light's
+colour lightened) hung `bulb_height` (104) up, over the walls' tops as the 2D glyph is drawn over everything, casting no shadow, dimming
+with its light's rhythm. The fixture is the one light that may cast a shadow, and the shadow is part dark
+(`Lighting3DConfig.fixture_shadow_opacity` 0.6, `OmniLight3D.shadow_opacity`), so the floor under a table or a chair is the pool's colour
+a step down and not the cold ambient alone (the 2D render has no such blob). Tests: `lighting/light_3d_per_piece`,
+`lighting/light_3d_fixture_look` (a bulb per fixture over the walls, glowing, uncast; the shadow part dark).
+
+**A doorway is lit.** Rooms meet at the walls' centre lines, so the room map gives every spot of an opening between two rooms to
+one of them (half across the wall to each side): a light of either lights its half and the two halves meet, so there is no dark
+strip in a doorway. An exterior door's inside is its room's; the half beyond it is no room, the street's. Light does not spill out
+of a door onto the street as the 2D wedge does. Test: `lighting/light_3d_doorway_in_rooms` (the room map along every opening).
 
 **L4-3D. The cost.** There is no per-floor budget in 3D: that limit (12 lights a floor) was Godot 2D's 15 point lights to a
 canvas item, and the 3D renderer clusters its lights; what costs is how many are on and how many cast. So every declared light
@@ -97,9 +106,31 @@ light; the Lighting domain dims it with its light's rhythm (`glow_changed`, Main
 allows, seeded from the world's seed and the piece, so the same world flickers the same. Test:
 `lighting/light_3d_follows_and_flickers` (one room lit twice from one seed: every light's energy equal to its twin's in every frame).
 
-*(L5, L6, L9, L10 in 3D: a light is placed at its piece and follows it, L5; who shadows whom is the real geometry, L6: the sky's
-shadows by every mesh, a ceiling fixture's by theirs, a wall's included, and a pool is kept in its room by the room cull, not by a shadow; the flashes of a shot and a burst are the light-fx job;
-the switch is above.)*
+**L9-3D. Flashes.** A `shot` lights a muzzle flash and an `explosion` a blast's (a frag's orange, a stun's white), driven by the same
+looks as 2D (`LightingConfig.flashes`: colour, energy, `reach` the pool's diameter, `reach_per_radius`, `hold`, `life`): a pooled
+`OmniLight3D` at hand height (`Lighting3DConfig.flash_height` 30) lit at the event's point, its pool `reach / 2` times `range_scale`
+out on the floor, flat to its middle (the overhead slope), held at full energy for its `hold` then falling off to dark over its `life`
+as `energy x left^2` (a shot's 0.07, a frag's 0.5, the stun's 0.08 held + 0.7). The pool is the light budget of a firefight:
+`Lighting3DConfig.flash_lights` (4), a new flash taking a dark light and else the **oldest** (so a dozen shots in a frame light the last four),
+a flash whose pool the view cannot reach (the focus and the camera's reach) lights nothing and takes no slot. A flash casts **no shadow**
+and takes no shadow slot (the room map is its wall: it lights the room it stands in, or a room it is within `flash_room_slack` 8 px
+outside of (a muzzle in a doorway), and else, on the street, the spots in no room, as a street light does). Nothing is lit outside the
+vision cone: a flash is dimmed where the player does not see (the vision mask's `vision_unseen`, `docs/player-vision.md`: the toon light
+scales every light's amount by it, so a flash outside the cone, in a remembered or a never-seen spot, shows as little as a lamp there does). There is no light for a bullet's impact spark (2D lights none).
+**Wash:** the toon light caps what a surface adds up to at 1.7 of its painted colour, which would hold a blast to a warm tint, so a row's
+`wash` lifts the cap (`ToonLight.set_cap`) while its flash is lit, by `wash x (the flash's energy now / its energy)`: a shot 1, a frag 3
+(the floor reads orange as in 2D), the stun 12: with energy 8 the floor round a stun is white, the full flash 2D shows (the burst's
+own dithered disc, Physics, is the smoke). A lamp's pool, near the cap already, hardly shows the lift. Tests:
+`lighting/light_3d_flashes_on_shot_and_explosion` (a flash within 3 frames at the muzzle and the burst, in its colour, uncast, at hand
+height, dark within 0.25 s and 1.5 s), `lighting/light_3d_stun_flash` (white, a peak of 4.8 or more, held, still lit at 0.45 s, dark
+within 1.1 s, the cap lifted while lit and restored), `lighting/light_3d_flash_pool` (the cap of the pool, the oldest dropped, a
+flash out of the view takes none), `lighting/light_3d_flash_room` (a flash of its room, a doorway's, the street's),
+`lighting/light_3d_flash_look_windowed` (windowed: the floor warm round a muzzle and the ambient's past its reach and after it, the
+stun washing it white and the cap restored).
+
+*(L5, L6, L10 in 3D: a light is placed at its piece and follows it, L5; who shadows whom is the real geometry, L6: the sky's
+shadows by every mesh, a ceiling fixture's by theirs, a wall's included, and a pool is kept in its room by the room cull, not by a shadow;
+the switch is above, and with it off no flash is built.)*
 
 ## The 2D render
 

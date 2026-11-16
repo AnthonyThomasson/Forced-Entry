@@ -64,7 +64,11 @@ func flash(at: Vector2, look: Dictionary, radius: float, room_code: int) -> Omni
 		reach * 0.5 * Lighting3DConfig.range_scale,
 		height,
 	).length() * unit
-	l.light_specular = (Lighting3DConfig.low_slope + 4.0 * float(room_code)) * 0.5
+	# A washing flash (the stun's) is flat to the middle of its pool; a muzzle's and a blast's fade
+	# from their middle.
+	var washes := float(look.get("wash", 0.0)) > 0.0
+	var slope := Lighting3DConfig.overhead_slope if washes else Lighting3DConfig.low_slope
+	l.light_specular = (slope + 4.0 * float(room_code)) * 0.5
 	l.set_meta(&"room", room_code >> 1)
 	l.set_meta(&"at", at)
 	l.visible = true

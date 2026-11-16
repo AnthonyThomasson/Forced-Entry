@@ -23,17 +23,26 @@ static var sky_energy := 0.42
 ## none when absent) and how long (s) it then falls off to dark (`life`). The stun's is its burst's
 ## whole look (no drawn disc, `PhysicsExplosionConfig.looks`): a far brighter white held an
 ## instant, then faded. In 3D the row's `wash` lifts the toon light's cap (`ToonLight.set_cap`) by
-## that much while the flash is lit, scaled by how far it has faded, so the stun washes what it
-## reaches to white; a row with none keeps the cap.
+## that much while the flash is lit, scaled by how far it has faded (a lamp's pool, near the cap
+## already, hardly shows it), so a blast lights the floor orange as 2D's does and the stun washes
+## what it reaches to white; a row with none keeps the cap. A row with a wash is flat to the
+## middle of its pool.
 static var flash_pool := 3
 static var flashes: Dictionary = {
-	&"shot": { "color": Color(1.0, 0.82, 0.55), "energy": 1.6, "reach": 340.0, "life": 0.07 },
+	&"shot": {
+		"color": Color(1.0, 0.82, 0.55),
+		"energy": 1.6,
+		"reach": 340.0,
+		"life": 0.07,
+		"wash": 1.0,
+	},
 	&"frag": {
 		"color": Color(1.0, 0.62, 0.3),
 		"energy": 2.6,
 		"reach": 600.0,
 		"reach_per_radius": 4.0,
 		"life": 0.5,
+		"wash": 3.0,
 	},
 	&"stun": {
 		"color": Color(0.92, 0.95, 1.0),

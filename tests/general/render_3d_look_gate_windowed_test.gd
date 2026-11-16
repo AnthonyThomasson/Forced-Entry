@@ -18,6 +18,8 @@ extends GameTest
 ## - `LOOK_ZOOMS` (default `0.5,1,2,3`) and `LOOK_YAWS` (`0,90,180,270`, 3D only; 2D has no turn).
 ##   A scene that moves (`firefight`, `grenade`) shoots one zoom and yaw per moment instead, the
 ##   pairs `LOOK_MOMENTS` names (`zoom:yaw,...`, default `1:0,2:0,3:0,2:90,1:180,1:270`).
+## - `LOOK_FRAMES` the frames a shot waits after parking the camera (12; a flash's peak: 2).
+## - `LOOK_AT` (`dx,dy`) shifts a room scene's camera from the room's middle, in px.
 ## - `LOOK_PLAN` the house plan (a room scene picks its own when unset), `LOOK_SEED`.
 ## Run:
 ## `LOOK_SCENE=street LOOK_DIR=<dir> tools/run_tests.sh --windowed
@@ -126,6 +128,13 @@ func _read_environment() -> void:
 		_moments.append(Vector2(float(parts[0]), float(parts[1]) if parts.size() > 1 else 0.0))
 
 
+## `LOOK_AT` (`dx,dy`, px): how far from its middle a room scene's camera parks (a doorway's
+## close-up).
+func _offset() -> Vector2:
+	var parts := OS.get_environment("LOOK_AT").split(",", false)
+	return Vector2(float(parts[0]), float(parts[1])) if parts.size() == 2 else Vector2.ZERO
+
+
 func _floats(key: String, fallback: Array[float]) -> Array[float]:
 	var text := OS.get_environment(key)
 	if text == "":
@@ -228,7 +237,7 @@ func _room(t: TestContext) -> void:
 			"the plan has a %s (rooms: %s)" % [wanted, rooms.map(func(r): return r["type"])],
 		)
 		chosen = rooms[0]
-	await _sweep(t, _scene, (chosen["rect"] as Rect2).get_center())
+	await _sweep(t, _scene, (chosen["rect"] as Rect2).get_center() + _offset())
 
 
 ## Two characters facing each other across a room, trading fire: blood, debris and casings.
@@ -416,7 +425,8 @@ func _sweep(t: TestContext, name: String, at: Vector2) -> void:
 func _shot(t: TestContext, name: String, at: Vector2, zoom: float, yaw: float) -> void:
 	_camera.zoom = Vector2(zoom, zoom)
 	_camera.global_position = at
-	await t.frames(12)
+	var settle := int(OS.get_environment("LOOK_FRAMES"))
+	await t.frames(settle if settle > 0 else 12)
 	# A window the desktop covers is not drawn and never signals frame_post_draw: draw the viewport
 	# on demand (synchronously) and read it back at once.
 	RenderingServer.force_draw(false)

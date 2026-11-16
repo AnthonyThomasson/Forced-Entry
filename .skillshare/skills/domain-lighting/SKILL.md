@@ -39,10 +39,17 @@ It reads no 2D canvas state (`light_mask`): a street floor says `is_street()`.
 4. **Flat.** `LightingConfig.enabled` off: no lights, a white ambient and a sun of energy 0.01 (the toon light needs one directional
    light to run its ambient).
 5. **The globals** (`ToonLight`) belong to the last `WorldLighting3D` in the tree: the last to leave clears them.
+6. **Flashes** (`flash_pool_3d.gd`, `docs/lighting.md` L9-3D): `_on_posted` lights a `shot` / `explosion` (kind `frag` or `stun`) from the
+   2D `LightingConfig.flashes` rows as a pooled `Lighting3DConfig.flash_lights` `OmniLight3D` (a dark one, else the oldest), unshadowed and
+   off the shadow cap, in the room it stands in (`_flash_code`: the street when in none), skipped when the view cannot reach it; `step` fades it
+   (`hold`, then `energy x left^2` over `life`) and a row's `wash` lifts the toon cap (`ToonLight.set_cap`) while it is lit. A flash outside the
+   vision cone is dimmed by the vision mask (Art's `seen`), no code here.
+7. **Fixture bulb:** each room fixture has an emissive sphere (`LightingFixtureConfig.bulb_*`) over the walls, dimming with its rhythm; the
+   fixture's shadow is part dark (`fixture_shadow_opacity`).
 
 The toon light itself (the bands, the cap, why the ambient rides the one directional light) is Art's: `domain-art/textured-toon.md`.
 **Adding a light-giving piece** is unchanged (below, Objects declares it); its 3D light follows from the declaration, its glow from
-the mesh (`FurnitureRig.add_glow`). The flashes are not built yet (the light-fx job of #193).
+the mesh (`FurnitureRig.add_glow`). 
 
 ## The files
 
@@ -50,8 +57,8 @@ the mesh (`FurnitureRig.add_glow`). The flashes are not built yet (the light-fx 
 |---|---|
 | `world_lighting_3d.gd` (`WorldLighting3D`) | The 3D game's lights (above). |
 | `world_lighting.gd` (`WorldLighting`) | The 2D render's node, in the group `world_lighting`; `light(root, seed_value, rooms)` (a district's `rooms`: every tower's, keys unique) returns null while `enabled` is off; the build and the per-frame work. |
-| `lighting_config.gd`, `lighting_3d_config.gd`, `lighting_cost_config.gd`, `lighting_fixture_config.gd`, `lighting_texture_config.gd` | Tuning holders: `LightingConfig` (switch, dusk colours, flash rows, budget, `body_clear`), `Lighting3DConfig` (the sun, heights, pools), `LightingCostConfig` (the 3D caps), `LightingFixtureConfig` (the room fixtures), `LightingTextureConfig` (2D pool textures). |
-| `flash_pool.gd`, `light_budget.gd`, `light_rhythm.gd`, `ceiling_fixture.gd` | Private parts: the 2D flash pool; the 2D per-floor count; one light's seeded rhythm (both); the 2D fixture's bulb glyph. |
+| `lighting_config.gd`, `lighting_3d_config.gd`, `lighting_cost_config.gd`, `lighting_fixture_config.gd`, `lighting_texture_config.gd` | Tuning holders: `LightingConfig` (switch, dusk colours, flash rows, budget, `body_clear`), `Lighting3DConfig` (the sun, heights, pools, the flash pool, the fixture shadow), `LightingCostConfig` (the 3D caps), `LightingFixtureConfig` (the room fixtures and their bulb), `LightingTextureConfig` (2D pool textures). |
+| `flash_pool_3d.gd`, `flash_pool.gd`, `light_budget.gd`, `light_rhythm.gd`, `ceiling_fixture.gd` | Private parts: the 3D flash pool (the 2D one's twin); the 2D flash pool; the 2D per-floor count; one light's seeded rhythm (both); the 2D fixture's bulb glyph. |
 
 General's `scenes/general/light_masks.gd` (`LightMasks`) holds the occluder bits, shadow masks and item layers, and
 `occluder(polygon, bit)` for the 2D render's occluders (it winds the polygon clockwise on screen and culls counter-clockwise).
@@ -98,7 +105,7 @@ A kept light's rhythm is picked from the declaration's `rhythm` weights with an 
   `ObjectArt.light_kind` for a painter that lights only in some variants; colour / turn / reach in `_by_kind`; the offset is
   the row's `ahead`). Its painter draws the source inside `canvas.glowing` so the overlay shows it.
 - **Who shadows whom:** the masks in `LightMasks` and the shadow mask each light is given here.
-- **A flash:** a `LightingConfig.flashes` row and its topic in `_on_posted`. A flash that is the whole look of something (the
+- **A flash:** a `LightingConfig.flashes` row (its `wash` for 3D) and its topic in `_on_posted` (here and, for the 2D render, in `world_lighting.gd`). A flash that is the whole look of something (the
   stun's) takes a `hold` and a longer `life` rather than a drawn effect beside it.
 
 ## Gotchas

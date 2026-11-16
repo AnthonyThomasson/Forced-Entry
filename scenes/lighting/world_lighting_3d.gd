@@ -76,6 +76,8 @@ func _exit_tree() -> void:
 	_alive -= 1
 	if _alive <= 0:
 		ToonLight.clear()
+	elif _pool != null and _pool.lifted > 0.0:
+		ToonLight.set_cap()  # a flash's lift goes with it
 
 
 func _process(delta: float) -> void:
