@@ -134,7 +134,8 @@ func _segment(
 	var box := part.mesh.get_aabb()
 	t.expect_near(box.size.x, size.x, 0.01, "%s: as long as its collider" % what)
 	t.expect_near(box.size.z, size.y, 0.01, "%s: as thick as its collider" % what)
-	t.expect_near(box.size.y, WALL_HEIGHT, 0.01, "%s: 96 px tall" % what)
+	# A wall along z stands a hair (`wall_cross_lift`) taller than one along x.
+	t.expect_near(box.size.y, WALL_HEIGHT, 0.02, "%s: 96 px tall" % what)
 	t.expect_near(box.position.y, 0.0, 0.01, "%s: standing on the ground" % what)
 	var at := part.global_position
 	var world_at: Vector2 = wall.to_global(shape_node.position)

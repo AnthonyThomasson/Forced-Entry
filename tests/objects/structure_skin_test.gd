@@ -1,13 +1,13 @@
 extends GameTest
 ## The structure's 3D meshes wear the 2D art (#193 phase 2b, `domain-objects/structure-meshes.md`):
 ## a wall's cap tile, a floor's and the street's tile, a door's leaf, painted flat (no baked light)
-## and laid by `MeshNodes.textured`. The wall tile runs along the wall (turned a quarter for a wall
-## along z), the floor tile from the floor's `tile_offset`, a door's handle stays a plain mesh. One
-## texture serves every piece of its kind, so the materials are few. The wall painter's flat read
-## drops the lit trim and the outline rows and leaves the lit (2D) paint as it was.
+## and laid by `MeshNodes.textured`. The wall tile runs along the wall as the 2D wall maps it
+## (`Deformation.draw_wall`: across the thickness flipped for a wall along +x, transposed for one
+## along z, not rotated), from the segment's start, the floor tile from the floor's `tile_offset`.
+## One texture serves every piece of its kind, so the materials are few. The wall painter's flat
+## read drops the lit trim and the outline rows and leaves the lit (2D) paint as it was.
 
 const ObjectArt := preload("res://scenes/objects/art/object_art.gd")
-const WallPainter := preload("res://scenes/objects/art/wall_painter.gd")
 const SCRATCH := "user://settings_structure_skin_test.json"
 const THICKNESS := 12.0
 ## Pixel hashes of fresh lit (2D) wall tiles, taken before the painter read the light.
@@ -65,6 +65,7 @@ func run(t: TestContext) -> void:
 	_walls(t, mirror)
 	_floors(t, mirror)
 	_door(t, mirror)
+	_grout(t)
 	_prewarm(t)
 
 
@@ -107,8 +108,7 @@ func _walls(t: TestContext, mirror: WorldMirror) -> void:
 		var parts := node.segments()
 		for index: int in parts:
 			var seg: PackedVector2Array = wall.wall_segments()[index]
-			var along_x := absf(seg[1].x - seg[0].x) >= absf(seg[1].y - seg[0].y)
-			var material := _segment(t, parts[index], along_x)
+			var material := _segment(t, wall, parts[index], seg)
 			materials[material] = true
 			checked += 1
 	t.check(checked > 4, "the layout's walls were checked (%d)" % checked)
@@ -118,24 +118,83 @@ func _walls(t: TestContext, mirror: WorldMirror) -> void:
 	)
 
 
-## One wall segment `part` (along x or z) wears a tile of the right size over the right rect; its
-## material.
-func _segment(t: TestContext, part: MeshInstance3D, along_x: bool) -> ShaderMaterial:
+## One wall segment `part` (`seg` of `wall`) wears a tile of the right size, oriented as the 2D wall
+## maps it, laid from the segment's start; its material.
+func _segment(
+	t: TestContext,
+	wall: Node,
+	part: MeshInstance3D,
+	seg: PackedVector2Array,
+) -> ShaderMaterial:
 	var material := part.material_override as ShaderMaterial
 	if not t.require(material != null, "%s is textured" % part.name):
 		return null
 	var tile := material.get_shader_parameter(&"albedo_texture") as Texture2D
-	var rect: Vector4 = part.get_instance_shader_parameter(&"uv_rect")
+	var along_x := absf(seg[1].x - seg[0].x) >= absf(seg[1].y - seg[0].y)
 	var along := Vector2(ObjectArtWallConfig.tile_px, THICKNESS)
 	var wanted := along if along_x else Vector2(along.y, along.x)
 	t.expect_eq(
-		tile.get_size(),
-		wanted / ArtCanvasConfig.pixel_size,
-		"%s: the tile's size" % part.name,
+		tile.get_size(), wanted / ArtCanvasConfig.pixel_size, "%s: the tile's size" % part.name
 	)
+	_phase(t, part, seg, wanted, along_x)
+	_oriented(t, wall, tile, seg, along_x)
+	return material
+
+
+## The rect a tile is laid over: one tile big, its corner at the segment's start (x walls: the
+## start's x, the centre line less half the thickness; z walls: the centre line less half, the
+## start's z), in the part's own frame (its origin the collider's centre).
+func _phase(
+	t: TestContext,
+	part: MeshInstance3D,
+	seg: PackedVector2Array,
+	wanted: Vector2,
+	along_x: bool,
+) -> void:
+	var rect: Vector4 = part.get_instance_shader_parameter(&"uv_rect")
+	var half := THICKNESS * 0.5
+	var corner := Vector2(
+		seg[0].x,
+		seg[0].y - half,
+	) if along_x else Vector2(seg[0].x - half, seg[0].y)
+	var at := corner - Vector2(part.position.x, part.position.z)
+	t.expect_near(rect.x, at.x, 0.001, "%s: the tile starts at the segment's start (x)" % part.name)
+	t.expect_near(rect.y, at.y, 0.001, "%s: and its edge (z)" % part.name)
 	t.expect_near(rect.z, wanted.x, 0.001, "%s: one tile covers the tile's width" % part.name)
 	t.expect_near(rect.w, wanted.y, 0.001, "%s: and its depth" % part.name)
-	return material
+
+
+## The pixel (x, y) of a tile oriented for a segment: `base`'s as the 2D wall maps it.
+func _expected(base: Image, x: int, y: int, along_x: bool, forward: bool) -> Color:
+	var last := Vector2i(base.get_width() - 1, base.get_height() - 1)
+	if along_x:
+		return base.get_pixel(x, last.y - y) if forward else base.get_pixel(last.x - x, y)
+	return base.get_pixel(y, x) if forward else base.get_pixel(last.x - y, last.y - x)
+
+
+## The pixels of `tile` are the wall's flat tile as the 2D wall maps it: a segment running +x flips
+## it across, -x along; +z transposes it, -z transposes and turns it half round (never a rotation).
+func _oriented(
+	t: TestContext,
+	wall: Node,
+	tile: Texture2D,
+	seg: PackedVector2Array,
+	along_x: bool,
+) -> void:
+	var base := ObjectArt.flat(
+		"wall", Vector2(ObjectArtWallConfig.tile_px, THICKNESS), wall.art_color, wall.art_opts
+	).get_image()
+	var got := tile.get_image()
+	var forward := (seg[1].x - seg[0].x if along_x else seg[1].y - seg[0].y) >= 0.0
+	var wrong := 0
+	for y in got.get_height():
+		for x in got.get_width():
+			wrong += 0 if got.get_pixel(x, y) == _expected(base, x, y, along_x, forward) else 1
+	t.expect_eq(
+		wrong,
+		0,
+		"%s: the tile's pixels are the 2D wall's (along x: %s)" % [wall.name, along_x],
+	)
 
 
 ## A floor wears its painter's flat tile repeated from its `tile_offset`; floors of one look
@@ -190,6 +249,23 @@ func _door(t: TestContext, mirror: WorldMirror) -> void:
 	t.expect_eq(leaf.get_child_count(), 1, "the handle is the leaf's one child")
 	var handle := leaf.get_child(0) as MeshInstance3D
 	t.check(handle.material_override == ToonMaterial.shared(), "the handle is a plain toon mesh")
+
+
+## A flat parquet tile keeps its strip seams: the first row of the tile (a strip's border) is darker
+## than the row just inside it, as the lit tile's is (`outline` on a flat canvas must not wash it
+## out).
+func _grout(t: TestContext) -> void:
+	var opts := { "pattern": "parquet" }
+	var flat := ObjectArt.tile_flat("floor", Color(0.55, 0.4, 0.28), "wood", opts).get_image()
+	t.check(_row_light(flat, 0) < _row_light(flat, 2) - 0.01, "the flat parquet keeps its seams")
+
+
+## The mean lightness of row `y` of `image`.
+func _row_light(image: Image, y: int) -> float:
+	var sum := 0.0
+	for x in image.get_width():
+		sum += image.get_pixel(x, y).get_luminance()
+	return sum / image.get_width()
 
 
 ## The district pre-warm paints the structure's flat tiles: every catalogue floor, both street

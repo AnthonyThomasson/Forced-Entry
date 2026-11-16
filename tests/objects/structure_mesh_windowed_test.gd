@@ -6,7 +6,8 @@ extends GameTest
 ## (Main's view registered the builders) and the log gate fails the test on any shader or engine
 ## error. With `STRUCTURE_SHOT_DIR=<dir>` set it saves a picture of each, and at zoom 1 and 3 of the
 ## doorway, the street and the house (`STRUCTURE_PITCH=<degrees>` tips the camera,
-## `STRUCTURE_ZOOMS_ONLY=1` takes just those). Run:
+## `STRUCTURE_ZOOMS_ONLY=1` takes just those, `STRUCTURE_BROKEN_ONLY=1` just the shattered glass
+## door at the doorway, `=down` just it knocked down). Run:
 ## `tools/run_tests.sh --windowed --id=objects/structure_mesh_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
@@ -72,8 +73,9 @@ func run(t: TestContext) -> void:
 	var mirror: WorldMirror = main.get_node("View3D").mirror
 	await t.frames(30)
 	var door := _first_door(world)
-	if OS.get_environment("STRUCTURE_ZOOMS_ONLY") != "":
-		await _zoom_shots(t, camera, door, _first_street(world), _centre_of_floors(world))
+	if (OS.get_environment("STRUCTURE_BROKEN_ONLY") != ""
+			or OS.get_environment("STRUCTURE_ZOOMS_ONLY") != ""):
+		await _picked_shots(t, camera, world, door)
 		await MainProbe.close(t, window)
 		return
 	if t.require(door != null, "the match has a house door"):
@@ -85,6 +87,7 @@ func run(t: TestContext) -> void:
 	var centre := _centre_of_floors(world)
 	await _shoot(t, camera, centre, 1.0, "house")
 	await _zoom_shots(t, camera, door, street, centre)
+	await _broken_glass_shot(t, camera, door)
 	# Turn the camera over the house: the floor slabs lie inside the district's pavement slab, and
 	# a coplanar top would speckle as the view turns (a picture at each yaw shows none).
 	var rig: CameraRig = main.get_node("View3D").rig
@@ -92,6 +95,14 @@ func run(t: TestContext) -> void:
 		rig.yaw = yaw
 		await _shoot(t, camera, centre, 2.0, "house_yaw%d" % int(yaw))
 	await MainProbe.close(t, window)
+
+
+## The shots a run picked by `STRUCTURE_BROKEN_ONLY` (just the shattered glass door) or
+## `STRUCTURE_ZOOMS_ONLY` (the zoom steps, then that door).
+func _picked_shots(t: TestContext, camera: Camera2D, world: Node, door: Node2D) -> void:
+	if OS.get_environment("STRUCTURE_BROKEN_ONLY") == "":
+		await _zoom_shots(t, camera, door, _first_street(world), _centre_of_floors(world))
+	await _broken_glass_shot(t, camera, door)
 
 
 ## The doorway, the street and the house at zoom 1 and 3 (the 3D render's whole zoom steps).
@@ -110,6 +121,22 @@ func _zoom_shots(
 			var middle: Vector2 = street.global_position + (street.get("size") as Vector2) * 0.5
 			await _shoot(t, camera, middle, zoom, "street_" + tag)
 		await _shoot(t, camera, centre, zoom, "house_" + tag)
+
+
+## The doorway's door made a glass door with its panes shattered (the floor shows through the
+## empty panes), at zoom 3 and then knocked down (its slab is the frame and bars).
+func _broken_glass_shot(t: TestContext, camera: Camera2D, door: Node2D) -> void:
+	if door == null:
+		return
+	door.look.material = "glass"
+	door.look.style = "panes"
+	door.look.broken = true
+	door.visuals.refresh()
+	var only_down := OS.get_environment("STRUCTURE_BROKEN_ONLY") == "down"
+	if not only_down:
+		await _shoot(t, camera, door.global_position, 3.0, "doorway_broken_glass")
+	door.take_damage(10_000.0)
+	await _shoot(t, camera, door.global_position, 3.0, "doorway_broken_glass_down")
 
 
 ## The door is shown by its own mesh.

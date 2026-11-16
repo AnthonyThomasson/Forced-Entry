@@ -10,7 +10,7 @@ extends RefCounted
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 
-## A wall tile turned a quarter, for a wall that runs along z, by the tile it was turned from.
+## The turned copies of a tile, `{ texture: { turn: Texture2D } }`.
 static var _turned := {}
 
 
@@ -33,22 +33,65 @@ static func tile(node: GeometryInstance3D, floor_node: Node2D) -> void:
 	MeshNodes.textured(node, texture, rect, { "tiled": true })
 
 
-## The tile of `wall`'s cap (a `Wall` with an art): x along the wall, y across it, painted flat, or
-## the same turned a quarter (`vertical`) for a wall along z. Null when the wall has no art.
-static func wall_tile(wall: Node2D, vertical := false) -> Texture2D:
+## How a wall segment `seg` (`[a, b]` in the wall's frame) wears the cap tile: `{ texture, rect }`
+## for `MeshNodes.textured` (`tiled`), `rect` in px in the wall's frame; empty for a wall with no
+## art. The 2D wall maps the tile along a to b and across the thickness by `dir.orthogonal()`
+## (`Deformation.draw_wall`), so the tile is oriented to match: a wall running +x wears it flipped
+## across, -x flipped along, +z transposed, -z transposed and turned half round. The texture is
+## made once per tile and direction.
+static func wall_skin(wall: Node2D, seg: PackedVector2Array) -> Dictionary:
 	var art := String(wall.get("art"))
 	if art == "":
-		return null
+		return {}
 	var size := Vector2(ObjectArtWallConfig.tile_px, float(wall.get("wall_thickness")))
-	var texture := ObjectArt.flat(art, size, wall.get("art_color"), wall.get("art_opts"))
-	if texture == null or not vertical:
-		return texture
+	var cap := ObjectArt.flat(art, size, wall.get("art_color"), wall.get("art_opts"))
+	if cap == null:
+		return {}
+	var along := cap.get_size() * ArtCanvasConfig.pixel_size
+	var half := along.y * 0.5
+	var dir := seg[1] - seg[0]
+	var a := seg[0]
+	if absf(dir.x) >= absf(dir.y):
+		var across := &"flip_y" if dir.x >= 0.0 else &"flip_x"
+		return {
+			"texture": _variant(cap, across),
+			"rect": Rect2(a.x, a.y - half, along.x, along.y),
+		}
+	var down := &"transpose" if dir.y >= 0.0 else &"transpose_flip"
+	return { "texture": _variant(cap, down), "rect": Rect2(a.x - half, a.y, along.y, along.x) }
+
+
+## `texture` turned across (`&"flip_y"`), along (`&"flip_x"`), transposed (`&"transpose"`) or
+## transposed and turned half round (`&"transpose_flip"`): a copy, made once per texture and turn
+## (the cached texture's own image is shared with every other user of the tile).
+static func _variant(texture: Texture2D, turn: StringName) -> Texture2D:
 	if not _turned.has(texture):
-		# A copy: the cached texture's own image is shared with every other user of the tile.
-		var image := texture.get_image().duplicate() as Image
-		image.rotate_90(CLOCKWISE)
-		_turned[texture] = ImageTexture.create_from_image(image)
-	return _turned[texture]
+		_turned[texture] = {}
+	var made: Dictionary = _turned[texture]
+	if not made.has(turn):
+		made[turn] = ImageTexture.create_from_image(_turn(texture.get_image().duplicate(), turn))
+	return made[turn]
+
+
+## `image` turned as `_variant` says (in place).
+static func _turn(image: Image, turn: StringName) -> Image:
+	match turn:
+		&"flip_y":
+			image.flip_y()
+		&"flip_x":
+			image.flip_x()
+		_:
+			image.rotate_90(CLOCKWISE)
+			image.flip_x()
+			if turn == &"transpose_flip":
+				image.flip_x()
+				image.flip_y()
+	return image
+
+
+## `texture` mirrored across its length (the 2D leaf lying flipped), a copy made once.
+static func flipped(texture: Texture2D) -> Texture2D:
+	return _variant(texture, &"flip_y")
 
 
 ## The size in px a flat `texture` covers (one art pixel `ArtCanvasConfig.pixel_size` px).

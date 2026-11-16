@@ -45,12 +45,15 @@ func mirror_update(door: Node2D) -> void:
 	var broken := _broken_of(door)
 	if down == _down and broken == _broken:
 		return
+	var shattered := broken != _broken
 	_down = down
 	_broken = broken
 	_leaf.mesh = _standing(door)
 	_skin(door)
 	if down and _lying == null:
 		_lie(door)
+	elif shattered and _lying != null:
+		_dress_lying(door)
 	_show()
 
 
@@ -81,12 +84,28 @@ static func _fallen_size(door: Node2D) -> Vector2:
 
 ## Add the slab of the door knocked down (made when it first falls: few doors ever do).
 func _lie(door: Node2D) -> void:
-	_lying = _flat(door)
-	var texture := _art(door, true)
-	if texture != null:
-		var size := _fallen_size(door)
-		MeshNodes.textured(_lying, texture, Rect2(-size * 0.5, size))
+	_lying = MeshNodes.instance(_lying_shape(door), Color.WHITE, false)
+	_dress_lying(door)
 	add_child(_lying)
+
+
+## The slab's mesh and art as the door is now: its panes gone when they shattered, the art mirrored
+## when the 2D door lies flipped (`DoorVisuals.fall`: its scale.y is -1).
+func _dress_lying(door: Node2D) -> void:
+	_lying.mesh = _lying_shape(door)
+	var texture := _art(door, true)
+	if texture == null:
+		return
+	if _flipped(door):
+		texture = StructureSkin.flipped(texture)
+	var size := _fallen_size(door)
+	MeshNodes.textured(_lying, texture, Rect2(-size * 0.5, size))
+
+
+## Whether the 2D door lies flipped: its visuals are mirrored across the leaf's length.
+static func _flipped(door: Node2D) -> bool:
+	var visuals: Variant = door.get("visuals")
+	return visuals is Node2D and (visuals as Node2D).scale.y < 0.0
 
 
 ## The leaf as the door is now (the standing one is shown unless it lies knocked down).
@@ -120,26 +139,51 @@ static func _standing(door: Node2D) -> Mesh:
 	return MeshCache.fetch(key, func() -> Mesh: return _leaf_mesh(size, glass, broken))
 
 
-## The slab of a door knocked down: the 2D door's fallen footprint, flat, no shadow.
-static func _flat(door: Node2D) -> MeshInstance3D:
+## The mesh of the slab of a door knocked down: the 2D door's fallen footprint, a leaf thick, white
+## (the art colours it). A glass door whose panes shattered is its frame and bars only, so the
+## floor shows through the empty panes as in 2D.
+static func _lying_shape(door: Node2D) -> Mesh:
 	var size := _fallen_size(door)
+	var open := _panes_gone(door)
 	var key := MeshCache.key(
 		"door_lying",
 		size,
 		Color.WHITE,
-		{ "thick": DoorConfig.leaf_thickness },
+		{ "thick": DoorConfig.leaf_thickness, "open": open, "pane": ObjectArtDoorConfig.pane_px },
 	)
-	return MeshNodes.instance(
-		MeshCache.fetch(key, func() -> Mesh: return _lying_mesh(size)),
-		Color.WHITE,
-		false,
-	)
+	return MeshCache.fetch(key, func() -> Mesh: return _lying_mesh(size, open))
 
 
-## A slab `size` px centred on the origin, a leaf thick, white (the art colours it).
-static func _lying_mesh(size: Vector2) -> Mesh:
+## Whether `door` is a glass door whose panes have shattered.
+static func _panes_gone(door: Node2D) -> bool:
+	var look: Object = door.get("look")
+	return String(look.get("material")) == "glass" and _broken_of(door)
+
+
+## A slab `size` px centred on the origin, a leaf thick, white. `open`: only the frame round the
+## panes and the bars between them (`door_painter._panes`: a frame of 6 art px, the panes
+## `pane_px` wide in columns).
+static func _lying_mesh(size: Vector2, open: bool) -> Mesh:
 	var kit := MeshKit.new()
-	kit.box(MeshKit.volume(Rect2(-size * 0.5, size), 0.0, DoorConfig.leaf_thickness), Color.WHITE)
+	var thick := DoorConfig.leaf_thickness
+	if not open:
+		kit.box(MeshKit.volume(Rect2(-size * 0.5, size), 0.0, thick), Color.WHITE)
+		return kit.build()
+	var px := ArtCanvasConfig.pixel_size
+	var frame := 6.0 * px
+	var area := Rect2(Vector2.ONE * frame, size - Vector2.ONE * frame * 2.0)
+	var bars: Array[Rect2] = [
+		Rect2(0.0, 0.0, size.x, frame),
+		Rect2(0.0, size.y - frame, size.x, frame),
+		Rect2(0.0, frame, frame, area.size.y),
+		Rect2(size.x - frame, frame, frame, area.size.y),
+	]
+	var columns := maxi(1, int(area.size.x / px / float(ObjectArtDoorConfig.pane_px)))
+	var width := int(area.size.x / px / float(columns))
+	for k in columns - 1:
+		bars.append(Rect2(area.position.x + (k * width + width - 1) * px, frame, px, area.size.y))
+	for bar in bars:
+		kit.box(MeshKit.volume(Rect2(bar.position - size * 0.5, bar.size), 0.0, thick), Color.WHITE)
 	return kit.build()
 
 
@@ -206,24 +250,25 @@ static func _handle_mesh(size: Vector2, colour: Color) -> Mesh:
 
 
 ## A glass-panel door's leaf: a solid sill, the frame (two stiles and a top rail) over it and,
-## unless `broken`, the glass in the frame (the art draws the panes on top).
+## unless `broken`, the glass in the frame (the art draws the panes on top). Shattered, it is the
+## two stiles alone (no sill, no rail over the empty panes), so the floor shows through as in 2D.
 static func _glass_leaf(kit: MeshKit, size: Vector2, broken: bool) -> void:
 	var cfg := ObjectStructureMeshConfig
 	var half := size * 0.5
 	var above := cfg.door_height - cfg.door_sill
-	kit.box(MeshKit.volume(Rect2(-half, size), 0.0, cfg.door_sill), Color.WHITE)
 	var stile := Vector2(cfg.door_frame, size.y)
+	var base := 0.0 if broken else cfg.door_sill
 	for x in [-half.x, half.x - cfg.door_frame]:
-		kit.box(
-			MeshKit.volume(Rect2(Vector2(x, -half.y), stile), cfg.door_sill, above),
-			Color.WHITE,
-		)
+		var rect := Rect2(Vector2(x, -half.y), stile)
+		kit.box(MeshKit.volume(rect, base, cfg.door_height - base), Color.WHITE)
+	if broken:
+		return
+	kit.box(MeshKit.volume(Rect2(-half, size), 0.0, cfg.door_sill), Color.WHITE)
 	var inner := size.x - cfg.door_frame * 2.0
 	var rail := Rect2(Vector2(-half.x + cfg.door_frame, -half.y), Vector2(inner, size.y))
 	kit.box(MeshKit.volume(rail, cfg.door_height - cfg.door_frame, cfg.door_frame), Color.WHITE)
-	if not broken:
-		var pane := Rect2(
-			Vector2(-half.x + cfg.door_frame, -cfg.door_glass_thickness * 0.5),
-			Vector2(inner, cfg.door_glass_thickness),
-		)
-		kit.box(MeshKit.volume(pane, cfg.door_sill, above - cfg.door_frame), Color.WHITE)
+	var pane := Rect2(
+		Vector2(-half.x + cfg.door_frame, -cfg.door_glass_thickness * 0.5),
+		Vector2(inner, cfg.door_glass_thickness),
+	)
+	kit.box(MeshKit.volume(pane, cfg.door_sill, above - cfg.door_frame), Color.WHITE)

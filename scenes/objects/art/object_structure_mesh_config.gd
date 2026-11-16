@@ -12,6 +12,9 @@ class_name ObjectStructureMeshConfig
 static var wall_height: float = 96.0
 static var wall_top_tone: String = "light"
 static var wall_side_tone: String = "base"
+## A wall along z stands this much (px) taller than one along x, so where two walls meet their caps
+## are not one plane (two textures z-fighting over a corner or a T).
+static var wall_cross_lift: float = 0.01
 ## A floor is a flat slab this thick, sunk below the ground so nothing standing on it fights it; it
 ## wears its painter's tile (`StructureSkin`), the edge the tile's edge a step darker.
 static var floor_thickness: float = 2.0
