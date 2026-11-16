@@ -42,13 +42,9 @@ mirror turns it with the body (a 2D turn clockwise is `-angle` about +y). It fol
 - **Not followed:** a `StaticBody2D` moved by a script is written once, so it does not follow (use an `AnimatableBody2D`, or give its mesh a `mirror_update`, even an empty one, and it is read each frame). A
   tracked node is shown by its own `visible`, not `is_visible_in_tree`: under a hidden parent it stays shown, so hide the node itself (the 2D `World` is hidden in 3D, so the parent is hidden always).
 
-## The vision hook (phase 3's mask; `ToonMask`, `toon.gdshader`, `decal.gdshader`)
+## The vision hook
 
-Three global shader uniforms, declared by `ToonMaterial.make()` / `ToonMaterial.decal()` through `ToonMask.install()`: `vision_mask` (a texture's red channel: 1 seen, 0 unseen),
-`vision_mask_xf` (world `(x, z)` in 3D units to the mask's uv) and `vision_unseen` (the brightness an unseen spot keeps; **1 by default: everything visible**, whatever the mask holds).
-`ToonMask.set_mask(texture, world_rect_px, unseen_brightness)`, `clear()`, `mask_active()`, `mask_world_rect()` are the whole interface. The mask is read only while `vision_unseen` is below 1
-(a uniform branch: the default costs nothing) and scales the light, not the albedo (the highlight term adds `1 - albedo`, which a dimmed albedo would brighten). Art builds no mask; the
-outline pass is not masked.
+The player's view in 3D is global shader uniforms the toon shaders and the outline read: `vision-hook.md`.
 
 **Fade and glow** (per instance, default off, a branch the shader does not take): `MeshNodes.fade(node, amount)` (1 whole, 0 gone) drops pixels by an ordered dither of the picture's own pixels, so a wall between
 the camera and the player thins out as pixel art with no blending or sorting; `MeshNodes.glow(node, color, strength)` is a glow whatever the light (a lamp, a screen, a flash), dimmed by the vision mask. Both work on

@@ -26,9 +26,6 @@ uniform float contrast;
 uniform float pivot;
 uniform float brightness;
 uniform vec3 tint;
-// How opaque the black is where nothing was ever seen: 1 in 2D. In the 3D render mode the memory is
-// blank, so this is the dim laid over the 3D ground outside the cone.
-uniform float unseen_alpha = 1.0;
 
 vec3 remembered_look(vec3 c) {
 	vec3 g = vec3(dot(c, vec3(0.299, 0.587, 0.114)));
@@ -49,5 +46,5 @@ void fragment() {
 	vec4 seen = texture(memory, at);
 	float in_memory = step(0.0, at.x) * step(at.x, 1.0) * step(0.0, at.y) * step(at.y, 1.0);
 	float known = step(0.02, seen.a) * in_memory;
-	COLOR = vec4(remembered_look(seen.rgb) * known, (1.0 - inside) * mix(unseen_alpha, 1.0, known));
+	COLOR = vec4(remembered_look(seen.rgb) * known, 1.0 - inside);
 }

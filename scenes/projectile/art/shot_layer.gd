@@ -16,6 +16,8 @@ const Projectile := preload("res://scenes/projectile/projectile.gd")
 const Casing := preload("res://scenes/projectile/casing.gd")
 ## How long (s) past its toss a casing is still written, so its last frame is where it came to rest.
 const REST_SLACK := 0.1
+## How far round a casing in the air (px) the cone must reach for it to be drawn.
+const TOSS_REACH := 8.0
 
 ## The streaks' pool and the casings'.
 var _tracers: MeshPool
@@ -32,6 +34,7 @@ func _init() -> void:
 	var mesh := _streak()
 	var batch := MeshNodes.batch(mesh, ProjectileMeshConfig.tracer_capacity)
 	MeshNodes.glow(batch, ProjectileMeshConfig.tracer_color, ProjectileMeshConfig.tracer_glow)
+	MeshNodes.moving(batch)  # a bullet in flight is drawn only inside the cone the player sees
 	_tracers = MeshPool.new(batch)
 	add_child(batch)
 	var shells := MeshNodes.batch(_shell(), maxi(Despawner.max_scene_objects, 1))
@@ -165,6 +168,10 @@ func _place_casing(casing: Node2D, age: float) -> void:
 	var frame := Transform3D(
 		Basis(Vector3.UP, -casing.global_rotation), Vector3(at.x, lift, at.y) * RenderConfig.unit
 	)
+	# A casing in the air is not remembered (the player's view shows it only inside the cone): one
+	# tossed out of sight is drawn no size at all, and lies where it fell once it is down.
+	if age < INF and not SeenArea.reaches(at, TOSS_REACH):
+		frame = Transform3D(Basis.from_scale(Vector3.ZERO), frame.origin)
 	_casings.place(_casings.slot_of(casing), frame)
 
 

@@ -317,6 +317,7 @@ func _part(parent: Node3D, mesh: Mesh, figured := true) -> MeshInstance3D:
 	var part := MeshNodes.instance(mesh, Color.WHITE, false)
 	part.visible = false
 	MeshNodes.figure(part, figured)
+	MeshNodes.moving(part)  # a blast is never remembered: drawn only inside the cone
 	parent.add_child(part)
 	return part
 

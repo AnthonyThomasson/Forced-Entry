@@ -10,6 +10,8 @@ render_mode unshaded, fog_disabled, depth_test_disabled, depth_draw_never, cull_
 // roughness) is outlined by its silhouette only: a body's faceted limbs, a pixel or two wide,
 // would crease at every facet and hide the outfit.
 
+#include "res://scenes/art/post/toon_vision.gdshaderinc"
+
 uniform sampler2D screen_tex : hint_screen_texture, filter_nearest, repeat_disable;
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest, repeat_disable;
 uniform sampler2D normal_tex : hint_normal_roughness_texture, filter_nearest, repeat_disable;
@@ -22,6 +24,13 @@ uniform float crease_gap = 0.012;
 uniform float outline_darken = 0.15;
 uniform float figure_darken = 0.35;
 uniform bool figure_creases = false;
+
+// The world position (3D units) of the surface the depth buffer holds at `uv`.
+// (a built-in is not readable from a function: `fragment()` passes the two matrices)
+vec3 world_at(mat4 inv_projection, mat4 inv_view, vec2 uv, float depth) {
+	vec4 clip = inv_projection * vec4(uv * 2.0 - 1.0, depth, 1.0);
+	return (inv_view * vec4(clip.xyz / clip.w, 1.0)).xyz;
+}
 
 // Whether the pixel at `uv` belongs to a figure (`ToonMaterial`: roughness 0, a surface is 1).
 bool figure_at(vec2 uv) {
@@ -73,5 +82,11 @@ void fragment() {
 		}
 		edge = max(edge, creased);
 	}
-	ALBEDO = mix(base, max(line * darken, outline_color.rgb), edge);
+	// The floor of the line is as dark as the ground it lies on is lit for the player's view: black
+	// where nothing was seen (a line is no clue to the unseen house), dim where it is remembered.
+	float kept = 1.0;
+	if (vision_unseen < 1.0 && edge > 0.0) {
+		kept = vision_read(world_at(INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, SCREEN_UV, d)).x;
+	}
+	ALBEDO = mix(base, max(line * darken, outline_color.rgb * kept), edge);
 }

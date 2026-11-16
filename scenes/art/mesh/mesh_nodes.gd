@@ -217,3 +217,16 @@ static func glow(node: GeometryInstance3D, color: Color, strength := 1.0) -> voi
 ## on it, so a body's faceted limbs, a pixel or two wide, keep their colours. Any toon node.
 static func figure(node: GeometryInstance3D, on := true) -> void:
 	node.set_instance_shader_parameter(&"figure", 1.0 if on else 0.0)
+
+
+## `node` and every mesh under it (a character's parts, a thing's lids) marked as a thing that
+## moves (`on`) or one that stays: the player's view draws a moving thing only inside the cone it
+## sees now and a still one wherever it was ever seen (`ToonMask`). Any toon node or decal; a
+## batch marks all its parts at once.
+static func moving(node: Node, on := true) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).set_instance_shader_parameter(
+			&"moving", 1.0 if on else 0.0
+		)
+	for child in node.get_children():
+		moving(child, on)

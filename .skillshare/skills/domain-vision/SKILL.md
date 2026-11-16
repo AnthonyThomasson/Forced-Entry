@@ -23,6 +23,7 @@ debug overlays, Navigation and the UI are overlays (`ViewLayers.overlay`); Gener
 | `player_view.gd` (`PlayerView`) | The one node (group `player_view`): `watch` builds it, the two per-frame hooks, the lift, the test reads. |
 | `view_cone.gd`, `view_shapes.gd`, `view_watch.gd` | The exact polygon (`ViewCone`, a job: `cone-job.md`), the blocking shapes round the eye (`ViewShapes`: a shape query, never a tree walk) and what says a rebuild is due (`ViewWatch`). Private. |
 | `view_memory.gd`, `view_fan.gd`, `view_mask.gd`, `view_composite.gd` | The capture and memory viewports and the wipe, the triangle-fan painter both painters are, the feathered mask, the composite over the world. Private. |
+| `view_ground.gd` (`ViewGround`), `vision_ground_config.gd` (`VisionGroundConfig`) | The 3D view (`ground.md`). Private. |
 | `memory_paint`, `memory_wipe`, `view_composite` (`.gdshader`) | Paints the capture into the memory without blending; writes "nothing seen"; cuts the live world out and draws the memory in the look. |
 | `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, `memory_scale`, the rays, `far_depth`, `far_bleed`, `rebuild_every`; the sliced rebuild's: `VisionSliceConfig`. |
 | `view_pipeline.gd` (`ViewPipeline`) | Starts, steps, restarts and publishes the `ViewCone` job (`cone-job.md`). Private. |
@@ -69,10 +70,11 @@ read through `character.sight()`: any character can be the viewer.
   nothing (the transform and the shape resource are compared in place). The far face (`far_exit(space, hit, dir)`) reads the blocking
   shapes holding the probe point afresh each ray: reusing the previous ray's polygons cost more than it saved (`docs/player-vision.md`).
   Angles are built without lambda sort/map; `polygon_reuses`, `memo_hits`, `validations` count for tests.
-- **The look:** the capture shares the main world, `MOVING` and `OVERLAY` out of its cull mask; the memory is a
+- **The 3D render's view (V12):** the parts below are not built; two masks the shaders read (`ground.md`).
+- **The look (2D):** the capture shares the main world, `MOVING` and `OVERLAY` out of its cull mask; the memory is a
   world-space `SubViewport` over the floors' bounds at `memory_scale` texels a px (less when the world is wider than 16 384),
   never cleared, wiped for its first two frames; the composite is a screen-sized polygon at `DrawLayers.VISION` (absolute, bit
-  `OVERLAY`) (in 3D on a `GroundLayer`: `domain-general/camera3d.md`): clear in the cone, memory outside, black unseen (3D: dimmed, `unseen_dim`).
+  `OVERLAY`): clear in the cone, memory outside, black unseen.
 - **The lift:** `died` or `tree_exiting` on the viewer runs `SeenArea.clear()` at once and frees the view (composite, viewports)
   that frame; a viewer already dead gets no view (`watch` returns null). A view whose node is disabled (the perf guard's "off")
   clears `SeenArea` too, and the whole world is repainted.
@@ -80,11 +82,10 @@ read through `character.sight()`: any character can be the viewer.
 ## Gotchas
 
 - **A viewport draws a canvas item only if it and every ancestor share a bit with its `canvas_cull_mask`** (a windowed probe in
-  4.4: parent 2 / child 1 under mask 6: the child is not drawn; parent 1 / child 2: neither; a `Control` on the default bit 1 is
-  not drawn, also in a `CanvasLayer`). So the capture's mask drops a `MOVING` or `OVERLAY` node's whole subtree, and a mask that
-  left out `WORLD` would drop the HUD, the world root and every child of a moving thing. That is why the main viewport draws
-  every bit, and why the planned single world draw (the still world drawn once, in the capture) was dropped. Put a new moving
-  thing's drawing in that node or its children, and never under a `WORLD` parent it does not share.
+  4.4: parent 2 / child 1 under mask 6: not drawn; parent 1 / child 2: neither; a `Control` on bit 1 is not drawn either). So the
+  capture's mask drops a `MOVING` or `OVERLAY` node's whole subtree, and a mask without `WORLD` would drop the HUD and the world
+  root: the main viewport draws every bit (the planned single world draw was dropped). Put a new moving thing's drawing in that
+  node or its children, never under a `WORLD` parent it does not share.
 - **A `Light2D` ignores the cull mask** and `visibility_layer`: a `MOVING` flash would still light the capture and be remembered.
   The flash pool sits under a `CanvasLayer` the capture does not draw (`domain-lighting`).
 - **`ViewShapes` keeps a non-character collider's coverage for its life** (`_rated`), and `ViewWatch` does not watch it. That

@@ -56,7 +56,11 @@ void fragment() {
 	if (toon_dropped(FRAGCOORD.xy)) {
 		discard;
 	}
-	seen = toon_seen(VERTEX, INV_VIEW_MATRIX);
+	vec3 vision = toon_vision(VERTEX, INV_VIEW_MATRIX);
+	if (vision.z > 0.5) {
+		discard;
+	}
+	seen = vision.x;
 	spot = toon_spot(VERTEX, INV_VIEW_MATRIX);
 	vec2 uv = (model_xz - uv_rect.xy) / max(uv_rect.zw, vec2(0.0001));
 	bool top = model_up > 0.5;
@@ -83,7 +87,7 @@ void fragment() {
 	// The art is the albedo: it is NOT multiplied by the vertex colour (a furniture mesh carries
 	// its parts' tones there, which the art already paints). A clear texel shows the vertex colour.
 	vec3 colour = art.a >= 0.5 ? art.rgb * base_color.rgb : base_color.rgb * COLOR.rgb;
-	ALBEDO = top ? colour : colour * side_dim;
+	ALBEDO = toon_remember(top ? colour : colour * side_dim, vision.y);
 	EMISSION = emissive.rgb * emissive.a * seen;
 	ROUGHNESS = 1.0 - figure;
 }

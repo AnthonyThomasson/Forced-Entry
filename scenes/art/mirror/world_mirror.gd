@@ -177,12 +177,17 @@ func _follow(row: Dictionary) -> void:
 	_run_update(row)
 
 
-## Show or hide `row`'s mesh as the rules say (`_shown`) when that changed.
+## Show or hide `row`'s mesh as the rules say (`_shown`) when that changed, and mark the mesh as a
+## moving thing (or not) for the player's view when that changed.
 func _sync_shown(row: Dictionary) -> void:
 	var shown := _shown(row)
 	if shown != row["shown"]:
 		row["shown"] = shown
 		(row["node"] as Node3D).visible = shown
+	var moves := _moves(row)
+	if moves != row.get("moving", false):
+		row["moving"] = moves
+		MeshNodes.moving(row["node"], moves)
 
 
 ## Run a shown mesh's `mirror_update(body)` (a row of a mesh that has none holds no callable).
@@ -454,7 +459,34 @@ func _shown(row: Dictionary) -> bool:
 		return false
 	if not (body as CanvasItem).visible:
 		return false
+	if _unseen(body):
+		return false
 	return not MirrorProxy.shapes_all_off(row)
+
+
+## Whether `body` is a thing the player's view never remembers (its 2D node is on
+## `ViewLayers.MOVING`: a living character, a car under way, a thrown grenade) while a view is on
+## (`ToonMask`): the shaders draw such a thing only where the live cone shows it.
+func _moves(row: Dictionary) -> bool:
+	var body: Variant = row["body"]
+	return (
+		ToonMask.mask_active()
+		and is_instance_valid(body)
+		and ((body as CanvasItem).visibility_layer & ViewLayers.MOVING) != 0
+	)
+
+
+## Whether `body` moves and wholly lies outside the cone the player sees now, so its mesh is hidden
+## (the shaders cut one at the cone's edge pixel by pixel): its reach is a disc of
+## `MirrorVisionConfig.moving_reach` px, a vehicle's `vehicle_reach`. With no view (`SeenArea` holds
+## no area) nothing is unseen.
+func _unseen(body: Node) -> bool:
+	if (body as CanvasItem).visibility_layer & ViewLayers.MOVING == 0:
+		return false
+	var reach := MirrorVisionConfig.vehicle_reach if body.is_in_group(&"vehicles") else (
+		MirrorVisionConfig.moving_reach
+	)
+	return not SeenArea.reaches((body as Node2D).global_position, reach)
 
 
 ## Watch `body` leave the tree, gain or lose a collision shape (`shapes`: not for a node that is

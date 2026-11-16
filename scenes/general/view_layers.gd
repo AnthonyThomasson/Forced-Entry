@@ -24,7 +24,7 @@ static func overlay(item: CanvasItem) -> void:
 	item.z_index = DrawLayers.OVERLAY
 	item.z_as_relative = false
 	item.visibility_layer = OVERLAY
-	GroundLayer.adopt(item, RenderConfig.overlay_layer)
+	GroundLayer.adopt(item)
 
 
 ## Put `item` on `MOVING` (it moves: drawn only inside the cone) or back on `WORLD` (it is at rest:

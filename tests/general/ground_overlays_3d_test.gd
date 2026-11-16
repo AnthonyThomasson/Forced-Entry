@@ -3,9 +3,9 @@ extends GameTest
 ## G10): the 2D world is hidden in 3D, so Main's played match moves each overlay under a
 ## `GroundLayer` (a `CanvasLayer` is not hidden by the hidden world) over the 3D view, where the
 ## overlay still draws its own 2D code flat on the ground. Main is run whole over a played match
-## with 3D chosen by the spec: the view's composite and every NPC overlay and the navigation holes
-## are visible in the tree on a ground layer (one shared layer for all the overlays, not one per
-## NPC) whose transform is the 3D camera's ground-to-screen
+## with 3D chosen by the spec: the view is two masks for the shaders (no composite to draw flat) and
+## every NPC overlay and the navigation holes are visible in the tree on a ground layer (one shared
+## layer for all the overlays, not one per NPC) whose transform is the 3D camera's ground-to-screen
 ## affine (hand-worked at yaw 120 and pitch 80: 100 px of ground along +x shows (-50, 85.287) px
 ## from the screen's middle, the focus at the middle), so they line up with the 3D floor at any yaw;
 ## an overlay flag still reaches the moved overlays and the detail card finds them by name; a 2D
@@ -25,11 +25,11 @@ const SPEC := {
 
 func describe() -> Dictionary:
 	return {
-		"name": "In 3D the view and the debug overlays draw flat on the ground over the 3D view",
-		"description": "A played match with 3D chosen: the view's composite, each NPC's overlays "
-			+ "and the navigation holes sit on ground layers that follow the camera's "
-			+ "ground-to-screen affine at yaw 120, are visible though the world is hidden, still "
-			+ "take their flags and are found by name; a 2D match moves nothing.",
+		"name": "In 3D the debug overlays draw flat on the ground, the view is masks",
+		"description": "A played match with 3D chosen: the view holds masks and no composite, "
+			+ "each NPC's overlays and the navigation holes sit on ground layers that follow "
+			+ "the camera's ground-to-screen affine at yaw 120, are visible though the world is "
+			+ "hidden, still take their flags and are found by name; a 2D match moves nothing.",
 		"tags": ["render", "3d", "vision", "overlays"],
 		"timeout": 60.0,
 	}
@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 	var view: CanvasLayer = main.get_node("View3D")
 	view.rig.yaw = YAW
 	await t.frames(5)
-	_composite_is_flat_on_the_ground(t, world)
+	_view_is_masks_not_an_overlay(t, world)
 	var shared: Node = main.get_node("View3D/GroundOverlays")
 	_one_shared_overlay_layer(t, main, shared)
 	_npc_overlays_are_flat(t, built, shared)
@@ -109,28 +109,18 @@ func _ground_layers(under: Node) -> Array:
 	)
 
 
-## The view's composite is drawn (visible in the tree) from a layer under the PlayerView.
-func _composite_is_flat_on_the_ground(t: TestContext, world: Node) -> void:
-	var view := world.find_child("PlayerView", true, false)
+## The player's view is no flat overlay in 3D: it is two masks the toon shaders read, so the view
+## holds no composite, no capture and no ground layer of its own.
+func _view_is_masks_not_an_overlay(t: TestContext, world: Node) -> void:
+	var view := world.find_child("PlayerView", true, false) as PlayerView
 	if not t.require(view != null, "the match has the human's view"):
 		return
-	var composite := view.get_node_or_null("GroundVision/Composite") as CanvasItem
-	if not t.require(composite != null, "the view's composite is moved under a ground layer"):
-		return
-	t.check(composite.is_visible_in_tree(), "the composite draws though the world is hidden")
-	t.expect_eq(
-		(composite.get_parent() as CanvasLayer).layer,
-		RenderConfig.vision_layer,
-		"on the vision layer",
-	)
+	t.check(view.ground != null, "the view is the 3D one (two masks for the shaders)")
+	t.check(view.composite() == null and view.capture() == null, "no composite, no capture")
+	t.expect_eq(_ground_layers(view).size(), 0, "and no ground layer under the view")
 	t.check(
-		RenderConfig.vision_layer < RenderConfig.overlay_layer
-			and RenderConfig.canvas_layer < RenderConfig.vision_layer,
-		"the 3D view, then the view's composite, then the overlays",
-	)
-	t.check(
-		RenderConfig.overlay_layer < 1,
-		"all of them under the HUD's layer",
+		RenderConfig.canvas_layer < RenderConfig.overlay_layer and RenderConfig.overlay_layer < 1,
+		"the 3D view, then the overlays, all under the HUD's layer",
 	)
 
 

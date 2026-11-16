@@ -5,10 +5,10 @@ extends GameTest
 ## Main run whole in a `SubViewport` the size of the window, a match with a human started with 3D
 ## chosen by its spec, Debug overlays toggled on, the camera framing the human; after the camera has
 ## turned a quarter of the way round the picture is read back: it holds the 3D floor and walls, the
-## view's cone clear of the composite, the ground outside it dimmed but still there (not black), and
-## the log gate fails the test on any
-## shader or engine error or warning. With `RENDER3D_SHOT=<file.png>` set it saves the picture.
-## Run: `tools/run_tests.sh --windowed --id=general/render_3d_turn_windowed`.
+## view's cone lit and what it has not seen black (the shaders' mask, `docs/player-vision.md` V12),
+## and the log gate fails the test on any shader or engine error or warning. With
+## `RENDER3D_SHOT=<file.png>` set it saves the picture. Run:
+## `tools/run_tests.sh --windowed --id=general/render_3d_turn_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
@@ -23,11 +23,11 @@ const SPEC := {
 const PLAY_FRAMES := 180
 const TURN_SECONDS := 1.0
 ## What the picture must show: tones on a grid of samples, the share that is not the background
-## colour, and the share of near-black pixels: outside the cone the composite dims the 3D scene
-## (`RenderConfig.unseen_dim`) instead of blacking it out, so the ground shows there, darker.
+## colour, and that the picture is not all black: the world the human has not seen is black (the
+## shaders' mask, `docs/player-vision.md` V12), but the cone and what it has swept show it.
 const MIN_TONES := 8
 const MIN_NOT_BACKGROUND := 0.04
-const MAX_BLACK := 0.35
+const MAX_BLACK := 0.9
 
 
 func describe() -> Dictionary:
@@ -36,8 +36,8 @@ func describe() -> Dictionary:
 			+ "(windowed)",
 		"description": "Main run whole in a window over a played 3D match, vision and debug "
 			+ "overlays on, E held to turn the camera a quarter turn: the picture holds the 3D "
-			+ "world, dimmed outside the cone and not black, and no shader or engine error is "
-			+ "logged. Windowed only.",
+			+ "world in the cone, not all black, and no shader or engine error is logged. "
+			+ "Windowed only.",
 		"tags": ["render", "3d", "vision", "overlays", "windowed"],
 		"timeout": 90.0,
 	}
@@ -101,7 +101,7 @@ func _flags() -> Array:
 	return ["show_vision", "show_nav_holes", "show_contacts", "show_tactics"]
 
 
-## The picture holds the world, with the cone clear of the composite's black.
+## The picture holds the world in the cone.
 func _check_picture(t: TestContext, image: Image) -> void:
 	var shot := OS.get_environment("RENDER3D_SHOT")
 	if shot != "":
@@ -128,5 +128,5 @@ func _check_picture(t: TestContext, image: Image) -> void:
 	var dark := float(black) / float(maxi(samples, 1))
 	t.check(
 		dark <= MAX_BLACK,
-		"outside the cone the ground is dimmed, not black (%.0f%% black)" % (dark * 100.0),
+		"the cone and what it swept show the world, not all black (%.0f%% black)" % (dark * 100.0),
 	)

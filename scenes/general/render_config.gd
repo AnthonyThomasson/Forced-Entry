@@ -43,13 +43,7 @@ static var art_pixel: float = 1.0
 ## everything over it, under the layers the flat overlays draw on (and the 2D world's default
 ## layer 0, which is not drawn in 3D mode).
 static var canvas_layer: int = -2
-## The canvas layers the player's view and the debug overlays draw on in 3D mode (`GroundLayer`):
-## flat on the ground plane, over the 3D view and under the HUD. The view's composite is under the
-## overlays, as in 2D.
-static var vision_layer: int = -1
+## The canvas layer the debug overlays draw on in 3D mode (`GroundLayer`): flat on the ground plane,
+## over the 3D view and under the HUD. The player's view is not an overlay in 3D: it is two masks
+## the toon shaders read (`ViewGround`).
 static var overlay_layer: int = 0
-## How dark the view composite lays the ground outside the player's cone in 3D mode, 0 (not at all)
-## to 1 (black, as in 2D): the 2D memory is not drawn there, so until the lighting and vision jobs
-## draw it from the 3D scene the unseen ground is only dimmed, to stay readable. Read when the
-## view's composite is built, so a change applies from the next match.
-static var unseen_dim: float = 0.6

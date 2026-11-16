@@ -6,16 +6,13 @@
 // times its fall-off and shadow) stepped into one of `count` bands whose strengths are `levels`
 // and tinted by the light's colour, the sum capped at `dusk_cap` times the painted colour, so a
 // surface under many lamps is the art lit warm, never blown out (by its brightest channel, so the hue stays). count = 0 steps nothing: a smooth
-// light, the unposted reference. A shader that includes it calls `toon_dropped` and `toon_seen`
-// from its `fragment()` (a built-in is not readable from here) and writes ALBEDO; the surface's own
+// light, the unposted reference. A shader that includes it calls `toon_dropped`, `toon_vision`,
+// `toon_remember` and `toon_spot` from its `fragment()` (a built-in is not readable from here) and writes ALBEDO; the surface's own
 // uniforms (`base_color`, ...) are its own.
 //
-// The three globals are phase 3's vision hook: a spot of the ground the mask leaves unseen keeps
-// only vision_unseen of its light, and the default (vision_unseen 1) shows everything.
-
-global uniform sampler2D vision_mask : repeat_disable, filter_linear;
-global uniform vec4 vision_mask_xf;
-global uniform float vision_unseen;
+// The player's view (phase 3, `ToonMask`): `toon_vision.gdshaderinc` holds its globals and the read
+// of them by a world position, shared with the outline pass.
+#include "res://scenes/art/post/toon_vision.gdshaderinc"
 
 // The dusk (phase 3, `toon_light.gd`): what every surface is lit by, the most it may add up to,
 // where the sun reaches (a texture of the street's floors; `sky_masked` 0, the default: everywhere)
@@ -63,18 +60,37 @@ bool toon_dropped(vec2 pixel) {
 	return fade < 1.0 && dither_keep(pixel) >= fade;
 }
 
-// How much of its light a pixel keeps (1 everywhere by default). The mask is read only while one
-// is set (vision_unseen below 1: a uniform branch), so the default costs the fragment nothing. It
-// scales the light (`light()` below), not the albedo: the highlight term adds (1 - ALBEDO), which
-// a dimmed albedo would brighten. `view_vertex` is the fragment's VERTEX; `fragment()` stores the
-// result in `seen`.
-float toon_seen(vec3 view_vertex, mat4 inv_view) {
+// A thing that moves (Art, `MeshNodes.moving`; instance uniform, 1 = a living body, a bullet, a
+// burst: what the player's view never remembers) is drawn only where the live cone shows it,
+// pixel by pixel, as the 2D view cut it. 0 (the default) is a still thing: shown where it is seen
+// now or was seen once.
+instance uniform float moving : hint_range(0.0, 1.0) = 0.0;
+
+// What the player's view makes of a pixel (1, 0, 0 everywhere by default). The masks are read only
+// while one is set (vision_unseen below 1: a uniform branch), so the default costs the fragment
+// nothing. `x` is how much of its light the pixel keeps and scales the light (`light()` below), not
+// the albedo: the highlight term adds (1 - ALBEDO), which a dimmed albedo would brighten; `y` is
+// how far the albedo takes the remembered look (`toon_remember`); `z` is 1 for a moving thing the
+// cone does not show, which `fragment()` discards. `view_vertex` is the fragment's VERTEX;
+// `fragment()` stores `x` in `seen`.
+vec3 toon_vision(vec3 view_vertex, mat4 inv_view) {
 	if (vision_unseen < 1.0) {
 		vec3 world_pos = (inv_view * vec4(view_vertex, 1.0)).xyz;
-		vec2 mask_uv = world_pos.xz * vision_mask_xf.xy + vision_mask_xf.zw;
-		return mix(vision_unseen, 1.0, textureLod(vision_mask, mask_uv, 0.0).r);
+		vec3 read = vision_read(world_pos);
+		float hidden = moving > 0.5 && read.z < 0.5 ? 1.0 : 0.0;
+		return vec3(read.x, read.y, hidden);
 	}
-	return 1.0;
+	return vec3(1.0, 0.0, 0.0);
+}
+
+// `albedo` in the look of the remembered world, `weight` (`toon_vision().y`) of the way.
+vec3 toon_remember(vec3 albedo, float weight) {
+	if (weight <= 0.0) {
+		return albedo;
+	}
+	float grey = dot(albedo, vec3(0.299, 0.587, 0.114));
+	vec3 look = mix(albedo, vec3(grey), vision_look.x) * vision_tint.rgb;
+	return mix(albedo, look, weight);
 }
 
 // A light's amount stepped into its band's strength (`count` 0: the amount itself).

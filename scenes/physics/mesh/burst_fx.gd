@@ -31,6 +31,9 @@ func _init(parent: Node3D, world: FxWorld) -> void:
 		PhysicsMeshConfig.spark_glow,
 	)
 	_sparks.node.name = "Sparks"
+	# What flies off a hit is never remembered: drawn only inside the cone the player sees.
+	MeshNodes.moving(_bits.node)
+	MeshNodes.moving(_sparks.node)
 	parent.add_child(_bits.node)
 	parent.add_child(_sparks.node)
 

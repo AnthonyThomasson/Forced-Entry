@@ -1,7 +1,7 @@
 # Player vision
 
 In a played match the screen shows only what the human's character sees. What it saw before is drawn as the world it last
-saw, in a dark cool greyscale (black where it never looked), and nothing that moves is drawn out of view. Behaviours V1 to V11
+saw, in a dark cool greyscale (black where it never looked), and nothing that moves is drawn out of view. Behaviours V1 to V12
 are the spec; each has its tests named under it, following the convention of `docs/lighting.md`. The tests are in `tests/vision/`
 (`tools/run_tests.sh --domain=vision`) through `tests/_vision/vision_probe.gd`, which keeps the spec's numbers as its own consts
 and reads the game only through the names interface 25 publishes, so a test checks this file and not the code. The code is the
@@ -174,6 +174,35 @@ it; repainted again when the view lifts), `general/seen_area_suite` and `general
 tests over polygons laid out by hand, an L-shaped polygon, no area set), `vision/view_sees_suite` (native: `sees` at a cone the
 engine's point-in-polygon gets wrong, the bubble, no polygon).
 
+**V12. The 3D render.** In the 3D render mode (#193) the 2D world is not drawn, so the view is not a picture laid over it: the view
+is two textures the 3D scene's shaders read by a surface's own ground position (`xz`), and the world is lit and drawn as it
+stands. The cone and the bubble, V1's polygon, are drawn into a **live mask**, a square window of the world about the camera
+(`VisionGroundConfig.live_side` texels, so a texel is a few screen px at any zoom; the edge feathered `feather` screen px as V4's
+is, laid inside the edge) and into a **seen mask** over the floors' bounds (`seen_scale`, at most `seen_max_side` texels a
+side, never cleared) that only ever gains: where the player has seen. The toon shaders (`toon`, `toon_tex`, the kit's decal) and the
+outline pass read them (`ToonMask`'s global uniforms, `toon_vision.gdshaderinc`), so every floor, wall, piece of furniture and character is
+shaded by them, with no per-mesh work: in the cone it is lit as it is, where it is only remembered it is **the current world** (its
+doors, its furniture where they stand now, the light now, not a picture from when it was seen) greyed (`grey`), tinted (`tint`) and
+keeping `brightness` of its light, and where nothing was seen it is black (`unseen_brightness` 0), its lines too (the outline's floor is
+as lit as the ground, so a wall's or a piece's line is no clue to the unseen house). A thing that **moves** is drawn only inside the
+cone, as V5: its mesh is hidden when no part of a disc round it (`MirrorVisionConfig.moving_reach` 60, a vehicle's 130) is in the cone
+(`WorldMirror`; the thing's 2D node on `ViewLayers.MOVING`: V5's list), and a thing the cone cuts is cut pixel by pixel by the shader
+(`MeshNodes.moving`); bullets, a burst's bits and a blast are marked so, a casing in the air is drawn no size outside the cone, and what
+lies at rest (V6: a corpse once its ragdoll sleeps, a casing or a dropped item lying, a parked car, settled blood and decals) is a
+still thing, drawn where it was ever seen, dimmed and grey. Drawing is **on request**: each mask is drawn when a cone is published and
+the live one again when the window is laid again (the camera drifts out of it, or the zoom steps); a still viewer in a still world draws
+nothing (the backstop republishes an unchanged cone, which draws nothing), and no 2D capture, memory, screen mask or composite is
+built (V3, V4 are the 2D render's). The masks are switched on two frames after the first cone is drawn and cleared when the view lifts
+(V9). The debug overlays (V7) still lie flat on the ground, over the picture. Known limits: a debris chip is one part of a batch and
+cannot be told moving from lying, so a chip in the air is drawn outside the cone like one at rest. Tests: `vision/ground_view_3d` (the masks
+switch on after the first cone and clear on a lift; a still view draws nothing across the backstop's rebuilds, a walk draws both; the
+window follows a camera that leaves it; none of the 2D parts is built), `general/view_follows_paused_camera_3d` (the window follows a
+camera moved while the tree is paused), `vision/no_2d_capture_in_3d`, `art/mirror_hides_unseen_movers` (a mover outside the cone hidden, shown at
+rest, in the cone and moving back in; furniture never), `projectile/casing_hidden_out_of_view`, and, windowed (shaders compile and pixels
+draw only there), `vision/vision_mask_3d_windowed` (at two camera yaws: the floor in the cone lit and a character there drawn; floor behind
+never seen black with no line of the unseen house; after a look about it remembered, dimmer, nearly grey, with the character standing on it not drawn),
+`art/toon_vision_hook_windowed` (a mask dims the toon and the decal).
+
 **Sound.** There is no on-screen hint for gunfire or footsteps heard out of view; sound stays as it is (`docs/hearing.md` is the
 AI's side).
 
@@ -189,7 +218,8 @@ A *capture* viewport shares the main world, at the camera's size and canvas tran
 *memory* viewport (never cleared) the cone polygon paints from the capture each frame, so it keeps the world as it was last seen
 and stays transparent where nothing was seen; a screen-sized *mask* viewport draws the polygon (blurred for the feather); the
 *composite* is drawn in the world's own canvas at `DrawLayers.VISION`, unshaded, so overlays at `OVERLAY` stay over it in
-colour. The three viewports are siblings (a viewport nested in another makes the engine log an error).
+colour. The three viewports are siblings (a viewport nested in another makes the engine log an error). That is the 2D render's; the
+3D render's view is V12's two masks and builds none of it.
 
 The **cone polygon** is a fan from the eye over ray ends sorted by angle. The rays are an even fan (`cone_rays` 64 across the cone,
 `bubble_rays` 48 round the eye) plus, exactly at corners, three for each corner of each blocking shape the eye can see (the
@@ -219,7 +249,8 @@ backstop that bounds it; a feature that makes one change must tell `ViewShapes` 
 
 `VisionConfig`: `enabled` true; the look `grey` 1.0, `contrast` 0.9, `pivot` 0.3, `brightness` 0.55, `tint` (0.88, 0.96, 1.12);
 `feather` 16; `memory_scale` 2; `cone_rays` 64, `bubble_rays` 48, `corner_offset` 0.0002 rad; `far_depth` 120, `far_bleed` 14;
-`rebuild_every` 10. `VisionSliceConfig`: `slice_units` 450 (about 3.5 ms of engine work a physics tick; a unit is a ray cast, a region shape
+`rebuild_every` 10. `VisionGroundConfig` (the 3D render's masks, V12): `live_side` 768, `window_margin` 1.25, `window_slack` 1.8,
+`seen_scale` 0.5, `seen_max_side` 2048, `unseen_brightness` 0, `settle_frames` 2. `VisionSliceConfig`: `slice_units` 450 (about 3.5 ms of engine work a physics tick; a unit is a ray cast, a region shape
 query or a far-face probe, priced `cost_cast` 1, `cost_shape` 450 and `cost_probe` 1: the corners fill a slice), `restart_cap` 2, `jump_px` 48. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48,
 `see_over_coverage` 60. The repaint reach is `CharacterVisuals.SEEN_REACH` (60). The look and the 16 px edge were picked by eye,
 against a flat 45 % grey (too dark and flat), a full-brightness grey (too close to the live world), a hard edge (a harsh line) and

@@ -14,9 +14,13 @@ void fragment() {
 		discard;
 	}
 	vec4 texel = texture(albedo_texture, UV) * base_color;
-	seen = toon_seen(VERTEX, INV_VIEW_MATRIX);
+	vec3 vision = toon_vision(VERTEX, INV_VIEW_MATRIX);
+	if (vision.z > 0.5) {
+		discard;
+	}
+	seen = vision.x;
 	spot = toon_spot(VERTEX, INV_VIEW_MATRIX);
-	ALBEDO = texel.rgb;
+	ALBEDO = toon_remember(texel.rgb, vision.y);
 	ALPHA = texel.a;
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
 	ROUGHNESS = 1.0;

@@ -19,7 +19,6 @@ func _init() -> void:
 	z_index = DrawLayers.VISION
 	z_as_relative = false
 	visibility_layer = ViewLayers.OVERLAY
-	GroundLayer.adopt(self, RenderConfig.vision_layer)  # flat on the ground in the 3D render mode
 	_material.shader = SHADER
 	material = _material
 
@@ -44,9 +43,6 @@ func build(
 	_material.set_shader_parameter("brightness", VisionConfig.brightness)
 	_material.set_shader_parameter("tint", VisionConfig.tint)
 	_material.set_shader_parameter("soft", 1.0 if VisionConfig.feather > 0.0 else 0.0)
-	# The 3D view has no memory capture, so what is unseen is dimmed rather than blacked out.
-	var dim := clampf(RenderConfig.unseen_dim, 0.0, 1.0) if GroundLayer.enabled else 1.0
-	_material.set_shader_parameter("unseen_alpha", dim)
 
 
 ## Follow the camera: cover the screen of `size` px seen through the canvas transform `cam`, and

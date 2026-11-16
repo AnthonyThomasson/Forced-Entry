@@ -5,7 +5,7 @@ AI, bullets, grenades, the view cone) stays 2D and untouched; in the 3D render m
 every drawn 2D body in a 3D world each frame, 2D `(x, y)` to 3D `(x, 0, y)` at the one scale `RenderConfig.unit`, and an orthographic camera
 rig follows the sim's `Camera2D`. The 2D world is not drawn in that mode (hidden before the match is built) and its 2D lights are not built;
 the painters' textures and `LightOccluder2D`s still are until phase 3 deletes the 2D render. The vision memory's capture `SubViewport`, which would photograph
-the hidden 2D world every frame, is stopped in 3D (`PlayerView.capture_on`); the memory is not painted from the world until phase 3 projects the view. The spike measured its win (2D 18.8 ms, 3D proxies 11.1 ms mean at 1152x648 in the 10v10
+the hidden 2D world every frame, is not built in 3D: the player's view there is two masks (the cone now and where it was ever seen) that the toon shaders read by ground position, so walls, furniture and characters are shaded by the view and the memory is the current static world dimmed and greyed (`docs/player-vision.md` V12). The spike measured its win (2D 18.8 ms, 3D proxies 11.1 ms mean at 1152x648 in the 10v10
 district) with none of that 2D work, so the rest of it is carried to those jobs; height is visual only.
 
 **The meshes (phase 2).** Each domain owns the mesh of what it owns, as it owns its painters; Art gives them one kit (`MeshKit`, `MeshCache`, `MeshNodes`: low-poly
