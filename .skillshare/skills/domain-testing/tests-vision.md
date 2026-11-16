@@ -1,8 +1,8 @@
 # Vision tests (domain `vision`, `tests/vision/`)
 
-The rules are `docs/player-vision.md` (V1 to V11, each with its tests named under it); `tools/run_tests.sh --domain=vision` runs them.
+The rules are `docs/player-vision.md` (V1 to V12, each with its tests named under it); `tools/run_tests.sh --domain=vision` runs them.
 The helper is `tests/_vision/vision_probe.gd` (`const Probe`; not a test): it reads a `PlayerView` only through the reads interface 25
-publishes (`cone()`, `bubble()`, `sees(point)`, `viewer()`, the viewports, `composite()`), keeps the spec's numbers as consts (`FOV`,
+publishes (`cone()`, `bubble()`, `sees(point)`, `viewer()`, `ground` and its viewports and painters), keeps the spec's numbers as consts (`FOV`,
 `REACH`, `BUBBLE`, `SEE_OVER`, the visibility bits), and builds the shared two-room layout (`building`), a world of the test's own
 (`build_world` / `drop_world`) and the sight rule cast directly (`blocker`, `in_sight`), which the cone tests judge the polygon by.
 It also holds the points the sees tests ask (`WALL_CONE`, `OUTSIDE`, shared with General's `seen_area_rect_suite`) and `reached_by`,
@@ -14,14 +14,16 @@ seam (bodies in the tree, `stale` asked each frame), beside the simulation tests
   false, so no other test or sandbox draws through a view. A test that wants one calls `s.switch(&"vision.enabled", true)`; the world
   then views its `player` actor, or the actor `s.view(id)` names (any character, an NPC included: viewing changes nothing in its AI).
   A declared match with a human gets its view from `MatchBuilder.populate` instead.
-- **A headless run has no pixels, and its viewport is 64×64.** The tests hold what the parts are told (sizes, cull masks, transforms,
-  the polygon a painter holds, `visibility_layer`s, rungs) and the geometry (the polygon against `SightRay` cast directly); the look
-  and the memory's pixels are judged by eye in a window. A test that needs a screen's worth of view sizes the root viewport first, as
-  the perf guards do (`perf.md`).
+- **A headless run has no pixels.** The tests hold what the parts are told (the masks' sizes, transforms and clear modes, the polygon a
+  painter holds, `ToonMask`'s rects, `visibility_layer`s) and the geometry (the polygon against `SightRay` cast directly); the look is
+  read in a window (`vision/vision_mask_3d_windowed`, `art/toon_vision_hook_windowed`: `tools/run_tests.sh --windowed --id=`, one at a
+  time, they use `RenderingServer.force_draw`). A test that builds a view sets `s.set_static(GroundLayer, &"enabled", true)` (the
+  world then builds `ViewGround`, as Main's 3D view does; the test world builds no 3D scene). **Every vision rule stands on data or on
+  the masks, never on a 2D draw**: a rule that only the 2D drawing showed (a repaint skipped for the unseen) has no test.
 - **Premise first.** Each geometry test counts what it samples (the points behind corners, the shapes in reach, the frames compared)
   and `require`s a floor, so a test that sampled nothing fails instead of passing. `cone_exact_with_many_blockers` counts more solid
-  shapes in reach than any fixed query cap; `unseen_not_repainted` reads the repaint count (`Visuals.redraws`, a pool's `redraws`)
-  frame by frame and pins the pool's lean by seed.
+  shapes in reach than any fixed query cap; `unseen_keeps_running` shoots one walker out of the cone in a viewed world
+  and an unviewed one and compares the hits.
 - **Compare against a fresh rebuild, vertex for vertex.** `tests/_vision/reference_view_cone.gd` and `reference_view_shapes.gd`
   are the plainest form of the cone (it keeps nothing from one build to the next, reads every shape and coverage anew and casts
   every ray plainly, with the determinism rules of `docs/player-vision.md`). `cone_same_after_savings` holds the live cone to it

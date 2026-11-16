@@ -9,11 +9,12 @@ extends GameTest
 ## on both. The test asserts that the view adds at most `BUDGET_MS` to a frame.
 ##
 ## Off means no per-frame work of the view: its node is disabled (`process_mode`: the cone is not
-## rebuilt, nothing is followed or painted) and the capture, memory and mask viewports stop
-## rendering (`render_target_update_mode` disabled, put back when it is on again). It goes through
-## the view's published reads (`capture()`, `memory()`, `mask()`) alone. The headless run sees the
-## CPU side (the cone, the scripts, the viewports' scene work); the GPU side (the two viewport
-## passes and the mask shader) it cannot, and was measured by hand windowed, not asserted here.
+## rebuilt, nothing is followed or painted) and every viewport of the view (the 2D capture, memory
+## and mask, or the 3D render's live and seen masks) stops rendering (`render_target_update_mode`
+## disabled, put back when it is on again). It goes through the view's own nodes alone. The headless
+## run sees the CPU side (the cone, the scripts, the viewports' scene work); the GPU side (the two
+## viewport passes and the mask shader) it cannot, and was measured by hand windowed, not asserted
+## here.
 ##
 ## Why a difference: the absolute guard (`perf/match_npc_vision`) holds the whole frame to the
 ## standard, so it fails on whatever else the machine is doing and on the match's own cost. This one
@@ -276,12 +277,13 @@ func _round_of_blocks(t: TestContext, view: PlayerView, moving := false) -> void
 
 
 ## Switch `view` on or off. Off, none of its work runs: the view's node is disabled (its cone is not
-## rebuilt, nothing is followed or painted) and the capture, the memory and the mask stop rendering
-## (their update modes are disabled, and put back as they were when it is on again; `_modes` keeps
-## them). It goes through the view's published reads and nodes alone.
+## rebuilt, nothing is followed or painted) and every viewport of the view stops rendering (their
+## update modes are disabled, and put back as they were when it is on again; `_modes` keeps them).
+## It goes through the view's nodes alone.
 func _switch(view: PlayerView, on: bool) -> void:
 	view.process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
-	for viewport: SubViewport in [view.capture(), view.memory(), view.mask()]:
+	for node in view.find_children("*", "SubViewport", true, false):
+		var viewport := node as SubViewport
 		if on and _modes.has(viewport):
 			viewport.render_target_update_mode = _modes[viewport]
 		elif not on and not _modes.has(viewport):

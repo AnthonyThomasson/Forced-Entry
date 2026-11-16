@@ -82,5 +82,4 @@ says the box its cells cover (`BloodFlow.extent()`, plus the blur's `PAD`) reach
 the cone sweeps onto is drawn that very frame; with no view it is drawn each frame as before. The box, not the circle round it: a long
 pool's circle reaches the viewer's 48 px bubble when the pool does not. The flood and soak keep running unseen: `BloodField` reads the
 fill, never the drawing. Settled blood stays on `ViewLayers.WORLD`, so the view remembers it; the blood spray in flight is Physics'
-`HitParticles` / `DebrisSpawner` on `MOVING`. Tests: `vision/unseen_not_repainted` (a pool outside the cone is never redrawn; redrawn the
-frame the cone reaches it), `vision/moving_never_remembered`. Measured by A/B: 0.13 to 0.5 ms a frame, 12 to 25 % of the pools' draw time, the whole frame's change within noise.
+`HitParticles` / `DebrisSpawner` on `MOVING`. Tests: `vision/moving_never_remembered`. (The pool's repaint skip is the 2D drawing's: its test, `vision/unseen_not_repainted`, went with the 2D render's view; the pool's own redraw goes with its 2D draw.) Measured by A/B: 0.13 to 0.5 ms a frame, 12 to 25 % of the pools' draw time, the whole frame's change within noise.

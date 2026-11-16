@@ -110,13 +110,17 @@ func _ground_layers(under: Node) -> Array:
 
 
 ## The player's view is no flat overlay in 3D: it is two masks the toon shaders read, so the view
-## holds no composite, no capture and no ground layer of its own.
+## holds no screen picture and no ground layer of its own.
 func _view_is_masks_not_an_overlay(t: TestContext, world: Node) -> void:
 	var view := world.find_child("PlayerView", true, false) as PlayerView
 	if not t.require(view != null, "the match has the human's view"):
 		return
 	t.check(view.ground != null, "the view is the 3D one (two masks for the shaders)")
-	t.check(view.composite() == null and view.capture() == null, "no composite, no capture")
+	t.expect_eq(
+		view.find_children("*", "SubViewport", true, false).size(),
+		2,
+		"its only viewports are the live window and the memory",
+	)
 	t.expect_eq(_ground_layers(view).size(), 0, "and no ground layer under the view")
 	t.check(
 		RenderConfig.canvas_layer < RenderConfig.overlay_layer and RenderConfig.overlay_layer < 1,

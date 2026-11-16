@@ -5,8 +5,8 @@ extends GameTest
 ## wakes it until it sleeps again; the gun it dropped and a spent casing are on `MOVING` while they
 ## move and on `WORLD` once they have lain still; a frag lying still is on `WORLD` from the
 ## `rest` event on and on `MOVING` in flight. In a world of its own, a door swinging open and shut
-## stays on `WORLD` in every frame of its swing and the capture draws it (the view remembers it
-## where it was last seen, whatever its angle).
+## stays on `WORLD` in every frame of its swing (the view remembers it where it was last seen,
+## whatever its angle: the 3D mirror never hides a door).
 ##
 ## It reads (tests/_vision/vision_probe.gd) each node's `visibility_layer`, the corpse's
 ## `anatomy.ragdoll.is_settled()`, the world's `grenade` events and what the nodes do (a place
@@ -170,7 +170,7 @@ func _kind_of(node: Node) -> String:
 
 
 ## A second world: a wooden door in a doorway, swung wide and shut again with the view on a
-## viewer before it. In every frame the door is on `WORLD` and the capture draws it and its parts.
+## viewer before it. In every frame the door is on `WORLD`.
 func _swinging_door(t: TestContext) -> void:
 	var s := TestSetup.new()
 	s.layout(Probe.rooms_at(OTHER), [Probe.doorway(DOOR_Y, "solid", "plank", "wood", OTHER)])
@@ -179,7 +179,6 @@ func _swinging_door(t: TestContext) -> void:
 	s.actor(&"you", &"player", DOOR_EYE)
 	var world: Node2D = await Probe.build_world(t, s)
 	var door: Node2D = world.objects[&"wood"]
-	var view := Probe.views_under(world)[0]
 	var swinging := 0
 	var wrong := 0
 	door.open_fully(null)
@@ -188,7 +187,7 @@ func _swinging_door(t: TestContext) -> void:
 			await t.frames(1)
 			if door.swing.moving():
 				swinging += 1
-				if not _on_world_and_captured(view, door):
+				if door.visibility_layer != Probe.WORLD:
 					wrong += 1
 		t.check(
 			step == 1 or door.angle() > 45.0,
@@ -201,17 +200,7 @@ func _swinging_door(t: TestContext) -> void:
 	)
 	t.check(
 		wrong == 0,
-		"a swinging door is on WORLD and drawn by the capture (%d of %d frames not)"
+		"a swinging door is on WORLD (%d of %d frames not)"
 		% [wrong, swinging],
 	)
 	await Probe.drop_world(t, world)
-
-
-## `node` and everything drawn under it is on `WORLD` and drawn by the view's capture.
-func _on_world_and_captured(view: PlayerView, node: Node2D) -> bool:
-	if node.visibility_layer != Probe.WORLD or not Probe.in_capture(view, node):
-		return false
-	for part in node.find_children("*", "CanvasItem", true, false):
-		if not Probe.in_capture(view, part):
-			return false
-	return true

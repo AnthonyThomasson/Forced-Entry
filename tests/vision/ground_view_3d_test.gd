@@ -8,7 +8,9 @@ extends GameTest
 ##   republished by the view's backstop every few frames, an unchanged one draws nothing);
 ## - a viewer that walks gets both masks drawn again (the cone is new);
 ## - a camera that moves out of the live window gets the window laid again about it;
-## - the viewer's death lifts the view and the masks are cleared that frame.
+## - the viewer's death lifts the view and the masks are cleared that frame;
+## - the view holds only those two viewports, neither rendering every frame, and draws nothing over
+##   the world itself (no capture of the world, no screen mask, no composite).
 ## Pixels are judged in `vision/vision_mask_3d_windowed`; here the masks' wiring and cost.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
@@ -29,7 +31,7 @@ func describe() -> Dictionary:
 		"description": "A viewer in a 3D world: the masks switch on after the first cone; a still "
 			+ "viewer draws nothing across the backstop's rebuilds; a walk draws both again; "
 			+ "the camera leaving the window lays it again; the "
-			+ "viewer's death clears the masks.",
+			+ "viewer's death clears the masks; no viewport renders every frame.",
 		"tags": ["vision", "render", "3d"],
 		"timeout": 30.0,
 	}
@@ -59,7 +61,7 @@ func run(t: TestContext) -> void:
 		ToonMask.memory_world_rect().encloses(FLOOR.grow(-1.0)),
 		"the memory covers the floors' bounds (%s)" % ToonMask.memory_world_rect(),
 	)
-	t.check(view.capture() == null and view.composite() == null, "no 2D capture, no composite")
+	_no_world_capture(t, view)
 	_still_draws_nothing(t, ground, view)
 	if not t.require(await _settled(t, ground), "premise: the camera settles on the viewer"):
 		return
@@ -67,6 +69,27 @@ func run(t: TestContext) -> void:
 	await _walk(t, ground, view)
 	await _camera_leaves_the_window(t, ground)
 	_death_clears(t)
+
+
+## The view is the two masks and nothing that photographs the world: its only viewports are the
+## live window and the memory, and neither renders every frame (they draw on request).
+func _no_world_capture(t: TestContext, view: PlayerView) -> void:
+	var viewports := view.find_children("*", "SubViewport", true, false)
+	var names := viewports.map(func(v: Node) -> String: return String(v.name))
+	names.sort()
+	t.expect_eq(names, ["Live", "Seen"], "the view's viewports are the live window and the memory")
+	var always := viewports.filter(
+		func(v: SubViewport) -> bool:
+			return v.render_target_update_mode == SubViewport.UPDATE_ALWAYS
+	)
+	t.expect_eq(always.size(), 0, "no viewport of the view renders every frame")
+	t.expect_eq(
+		view.find_children("*", "CanvasItem", true, false).filter(
+			func(n: Node) -> bool: return n.get_parent() == view
+		).size(),
+		0,
+		"and nothing is drawn over the world by the view itself",
+	)
 
 
 ## The test camera eases onto the viewer at first and the window follows it: true once no mask has

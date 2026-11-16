@@ -225,32 +225,6 @@ static func solid_near(t: TestContext, point: Vector2, margin: float) -> bool:
 	return not space(t).intersect_shape(query, 1).is_empty()
 
 
-## Whether the view's capture draws `node`: it and every canvas item above it share a bit with the
-## capture's cull mask (`CanvasItem.visibility_layer`, `Viewport.canvas_cull_mask`).
-static func in_capture(of_view: PlayerView, node: Node) -> bool:
-	var mask := of_view.capture().canvas_cull_mask
-	var at := node
-	while at != null:
-		if at is CanvasItem and ((at as CanvasItem).visibility_layer & mask) == 0:
-			return false
-		at = at.get_parent()
-	return true
-
-
-## Whether the view's capture lights the world by `light` (a Light2D): the engine gathers a
-## viewport's lights from its canvases alone and never by `visibility_layer`, so a light is in the
-## capture when it is on the capture's world canvas or a canvas layer under the capture.
-static func light_in_capture(of_view: PlayerView, light: CanvasItem) -> bool:
-	var capture := of_view.capture()
-	var canvas := light.get_canvas()
-	if canvas == capture.find_world_2d().canvas:
-		return true
-	for layer in capture.find_children("*", "CanvasLayer", true, false):
-		if (layer as CanvasLayer).get_canvas() == canvas:
-			return true
-	return false
-
-
 ## How many collision shapes `targets` hold between them.
 static func collision_shapes(targets: Array[Node2D]) -> int:
 	var count := 0

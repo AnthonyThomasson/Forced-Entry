@@ -5,14 +5,13 @@ description: Use when editing scenes/vision/, retuning the player's view (cone, 
 
 # Vision domain (`scenes/vision/`)
 
-The screen shows only what the human's character sees; the rest is the world as it was last seen, in greyscale, and nothing that
-moves is drawn out of view. The spec is `docs/player-vision.md` (V1 to V12, each with its tests, which are in `tests/vision/`
+The screen shows only what the human's character sees; the rest is the world as it stands, where it was last seen, in greyscale
+(black where it never looked), and nothing that moves is drawn out of view. The spec is `docs/player-vision.md` (V1 to V12, each with its tests, which are in `tests/vision/`
 through `tests/_vision/vision_probe.gd`); the numbers live in `VisionConfig` and the spec, not here; the decision is
-`docs/adr/0011-the-vision-domain.md`. Interfaces: 7 (`sight()`, `facing`, `died`), 11 (`ViewLayers`, `DrawLayers.VISION` /
-`OVERLAY`, `SightRay`, `SeenArea`), 13 (the `vision.enabled` switch, `TestSetup.view`), 23 (the handle's `view`), 25 (this
+`docs/adr/0011-the-vision-domain.md`. Interfaces: 7 (`sight()`, `facing`, `died`), 11 (`ViewLayers`, `SightRay`, `SeenArea`), 13 (the `vision.enabled` switch, `TestSetup.view`), 23 (the handle's `view`), 25 (this
 domain's own).
 
-A **leaf**, like Lighting: it imports General, Godot and (3D) Art's `ToonMask`, reads the viewer duck-typed (`global_position`, `facing`, `get_rid()`,
+A **leaf**, like Lighting: it imports General, Godot and Art's `ToonMask`, reads the viewer duck-typed (`global_position`, `facing`, `get_rid()`,
 `sight()`, `is_dead`, the signals `died` and `tree_exiting`) and the world through the physics space and `get_surface()`. Its one
 caller is `MatchBuilder` (`PlayerView.watch(world, character)`, for Main's human and the Testing world's viewer); nothing in
 another domain knows `PlayerView`. Character, Items, Projectile, Physics and Vehicles set their own `ViewLayers` bits; the AI's
@@ -22,10 +21,8 @@ debug overlays, Navigation and the UI are overlays (`ViewLayers.overlay`); Gener
 |---|---|
 | `player_view.gd` (`PlayerView`) | The one node (group `player_view`): `watch` builds it, the two per-frame hooks, the lift, the test reads. |
 | `view_cone.gd`, `view_shapes.gd`, `view_watch.gd` | The exact polygon (`ViewCone`, a job: `cone-job.md`), the blocking shapes round the eye (`ViewShapes`: a shape query, never a tree walk) and what says a rebuild is due (`ViewWatch`). Private. |
-| `view_memory.gd`, `view_fan.gd`, `view_mask.gd`, `view_composite.gd` | The capture and memory viewports and the wipe, the triangle-fan painter both painters are, the feathered mask, the composite over the world. Private. |
-| `view_ground.gd` (`ViewGround`), `vision_ground_config.gd` (`VisionGroundConfig`) | The 3D view (`ground.md`). |
-| `memory_paint`, `memory_wipe`, `view_composite` (`.gdshader`) | Paints the capture into the memory without blending; writes "nothing seen"; cuts the live world out and draws the memory in the look. |
-| `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, `memory_scale`, the rays, `far_depth`, `far_bleed`, `rebuild_every`; the sliced rebuild's: `VisionSliceConfig`. |
+| `view_ground.gd` (`ViewGround`), `view_fan.gd`, `vision_ground_config.gd` (`VisionGroundConfig`) | The view: the live and seen masks, the triangle-fan painter both are drawn with (`ground.md`). |
+| `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, the rays, `far_depth`, `far_bleed`, `rebuild_every`; the sliced rebuild's: `VisionSliceConfig`. |
 | `view_pipeline.gd` (`ViewPipeline`) | Starts, steps, restarts and publishes the `ViewCone` job (`cone-job.md`). Private. |
 
 What a character sees by (110° cone, 2520 px, a 48 px bubble, looking over coverage 60) is Character's `CharacterVisionConfig`,
@@ -35,11 +32,11 @@ read through `character.sight()`: any character can be the viewer.
 
 - **Physics, priority 100** (after the characters have moved): `ViewPipeline.tick` steps the cone's job a slice (or starts one
   when `ViewWatch.stale` says so); a completed job writes `SeenArea.set_area(polygons, bounds)`. Written in the physics tick, read
-  in `_process` (Character's visuals, `BloodPool`), so a repaint is decided on the frame's own area. **The cone shown is the exact
+  in `_process` (Art's `WorldMirror`, the shot layer), so what hides is decided on the frame's own area. **The cone shown is the exact
   cone of the pose its job started from, as old as its job** (V1 has the figures): tests compare to `published_pose()`.
-- **`_process`:** the capture, memory, mask and composite follow the main viewport's view (`Pointer.screen_transform`, interface 26) and size; the memory's
-  painter paints the cone polygon from the capture, the mask's painter draws the polygon once per tap of the feather (32 shifted
-  copies, a disc, laid inside the edge).
+- **`_process`:** `ViewGround.follow` keeps the live window about the camera (`Pointer.screen_transform`, interface 26); the masks'
+  painters draw the cone polygon when a cone is published, the live one once per tap of the feather (32 shifted copies, a disc,
+  laid inside the edge).
 - **The cone** (`ViewCone`): a fan from the eye over ray ends sorted by angle. Rays: an even fan (`cone_rays` across the cone,
   `bubble_rays` round the eye) plus three at each corner of each blocking shape the eye sees (the corner's angle,
   `corner_offset` either side). `ViewShapes.corners` reads every solid shape touching the hull of the cone's sector and the bubble (`ViewCone._region`, grown 2 px) with a shape query (asked again with four
@@ -70,44 +67,38 @@ read through `character.sight()`: any character can be the viewer.
   nothing (the transform and the shape resource are compared in place). The far face (`far_exit(space, hit, dir)`) reads the blocking
   shapes holding the probe point afresh each ray: reusing the previous ray's polygons cost more than it saved (`docs/player-vision.md`).
   Angles are built without lambda sort/map; `polygon_reuses`, `memo_hits`, `validations` count for tests.
-- **The 3D render's view (V12):** none of what follows is built; two masks (`ground.md`).
-- **The look (2D):** the capture shares the main world, `MOVING` and `OVERLAY` out of its cull mask; the memory is a
-  world-space `SubViewport` over the floors' bounds at `memory_scale` texels a px (less when the world is wider than 16 384),
-  never cleared, wiped for its first two frames; the composite is a screen-sized polygon at `DrawLayers.VISION` (absolute, bit
-  `OVERLAY`): clear in the cone, memory outside, black unseen.
-- **The lift:** `died` or `tree_exiting` on the viewer runs `SeenArea.clear()` at once and frees the view (composite, viewports)
-  that frame; a viewer already dead gets no view (`watch` returns null). A view whose node is disabled (the perf guard's "off")
-  clears `SeenArea` too, and the whole world is repainted.
+- **The look (V12):** two masks the toon shaders read (`ground.md`): the live window and the seen mask over the floors' bounds
+  at `seen_scale` texels a px, never cleared; clear in the cone, the remembered world greyed outside, black unseen.
+- **The lift:** `died` or `tree_exiting` on the viewer runs `SeenArea.clear()` at once and frees the view (its viewports) and clears the
+  masks that frame; a viewer already dead gets no view (`watch` returns null). A view whose node is disabled (the perf guard's "off")
+  clears `SeenArea` too, and the whole world is drawn again.
 
 ## Gotchas
 
-- **A viewport draws a canvas item only if it and every ancestor share a bit with its `canvas_cull_mask`** (a windowed probe in
-  4.4: parent 2 / child 1 under mask 6: not drawn; parent 1 / child 2: neither; a `Control` on bit 1 is not drawn either). So the
-  capture's mask drops a `MOVING` or `OVERLAY` node's whole subtree, and a mask without `WORLD` would drop the HUD and the world
-  root: the main viewport draws every bit (the planned single world draw was dropped). Put a new moving thing's drawing in that
-  node or its children, never under a `WORLD` parent it does not share.
-- **A `Light2D` ignores the cull mask** and `visibility_layer`: a `MOVING` flash would still light the capture and be remembered.
-  The flash pool sits under a `CanvasLayer` the capture does not draw (`domain-lighting`).
+- **A mover's place in the view is its sim node's `ViewLayers` bit, read by Art's `WorldMirror`**: a new moving thing sets
+  `ViewLayers.set_moving` on its node (the mirror hides its mesh outside the cone) or, for a batch with no body, marks its mesh
+  (`MeshNodes.moving`); a `MOVING` flash light is kept out of the world by nothing here: lights are Lighting's (`domain-lighting`).
 - **`ViewShapes` keeps a non-character collider's coverage for its life** (`_rated`), and `ViewWatch` does not watch it. That
   holds because a piece's coverage is set once in `ObjectFactory` and a door's is always 100 with `transparent` fixed at spawn
   (`look.material == "glass"`; a shatter changes only `look.broken`). Objects promises neither changes in play (interface 03);
   the `rebuild_every` backstop bounds the stale cone should either ever change. A feature that changes either in play must tell
   `ViewShapes` and `ViewWatch`. A character's coverage follows its posture, so it is read each build and `ViewWatch` rechecks
   characters every frame.
-- **The headless test viewport is 64×64**, and the capture, mask and composite take its size. A test that needs a screen
-  sizes the root viewport first; the pixels are judged by eye in a window.
+- **A headless run draws no pixels**: a test holds what the masks are told (sizes, transforms, clear modes, the polygons the
+  painters hold, `ToonMask`'s rects) and the pixels are read in a window (`vision/vision_mask_3d_windowed`, one test at a time).
+  A test that builds a view sets `GroundLayer.enabled` (the world builds `ViewGround`, as Main's 3D view does).
 - **A physics query right after a kinematic body's `global_position` is set sees it where it was** until the physics server is
   told at the next flush, so the view (priority 100) can read a body a mover (a door, a walker) moved this frame at its old
   place (`tests/_vision/physics_mover.gd` reproduces it). So `ViewWatch` rebuilds once more the frame after a rebuild made
   while a blocker within reach moved, and a cone built from a mover's old place holds for one frame (`vision/cone_skip_exact`).
 - **`ViewCone.contains` (so `PlayerView.sees`) asks General's `SeenArea.contains`,** an even-odd rule, not the engine's
   `Geometry2D.is_point_in_polygon`, which says inside for points well outside a cone with many collinear corners along a wall
-  (`tests/vision/view_sees_suite.gd` holds a counterexample). The test that judges which repaints `SeenArea` allows
-  (`vision/unseen_not_repainted`) keeps an even-odd copy of its own, so that it does not check the rule by itself.
+  (`tests/vision/view_sees_suite.gd` holds a counterexample). The test that judges what lies outside the cone
+  (`vision/unseen_keeps_running`) keeps an even-odd copy of its own, so that it does not check the rule by itself.
 - **The reference cone is a frozen yardstick:** `tests/_vision/reference_view_cone.gd` is the plainest form of the cone (it keeps
   nothing from one build to the next, reads every shape and coverage anew and casts every ray plainly); the tests compare the live
   cone to it vertex for vertex, so change it only with the spec (`docs/player-vision.md`, "Measured cost").
   Its far-face pick and corner dedupe do not depend on which overlapping shape the engine names, as the live cone's.
-- **A viewport nested in another logs an engine error**: the capture, memory and mask are siblings under the view.
-- **The view costs the CPU of the cone and the viewports' scene work** (budget and numbers: `docs/player-vision.md`, "Measured
+- **A viewport nested in another logs an engine error**: the live and seen viewports are siblings under the view's `Ground`.
+- **The view costs the CPU of the cone and the masks' draw on request** (budget and numbers: `docs/player-vision.md`, "Measured
   cost"; the guards `perf/match_npc_vision` and `perf/match_npc_vision_relative`, `domain-testing` (`perf.md`)).

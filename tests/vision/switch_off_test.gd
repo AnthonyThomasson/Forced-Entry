@@ -24,6 +24,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Probe.building(s, Vector2(150, 300))
+	s.set_static(GroundLayer, &"enabled", true)
 	s.actor(&"you", &"player", Vector2(150, 450))
 
 
@@ -39,6 +40,7 @@ func run(t: TestContext) -> void:
 		"PlayerView.watch builds nothing while the view is off",
 	)
 	t.check(Probe.views(t).is_empty(), "still no PlayerView after watch")
+	t.check(not ToonMask.mask_active(), "and no mask is on the world")
 	_nothing_hidden(t)
 
 
