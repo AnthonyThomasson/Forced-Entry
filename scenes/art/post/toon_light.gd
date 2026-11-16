@@ -29,6 +29,7 @@ static var _installed := false
 ## What the globals were last set to, for a caller that reads them back (the headless renderer
 ## keeps none).
 static var _ambient := Color(0.0, 0.0, 0.0)
+static var _cap := 1.7
 static var _sky_rect := Rect2()
 static var _room_rect := Rect2()
 ## The masks' texels, for `sky_reaches` and `room_at` (null: none set).
@@ -66,6 +67,21 @@ static func set_ambient(colour: Color) -> void:
 	RenderingServer.global_shader_parameter_set(AMBIENT, Vector3(colour.r, colour.g, colour.b))
 	RenderingServer.global_shader_parameter_set(CAP, ToonLightConfig.cap)
 	_ambient = colour
+	_cap = ToonLightConfig.cap
+
+
+## Let a surface add up to `value` times its painted colour (a burst's flash lifts it so a stun can
+## wash the world white); `ToonLightConfig.cap` again with no argument.
+static func set_cap(value := -1.0) -> void:
+	install()
+	var held := ToonLightConfig.cap if value < 0.0 else value
+	RenderingServer.global_shader_parameter_set(CAP, held)
+	_cap = held
+
+
+## The cap last set (`ToonLightConfig.cap` until one is).
+static func cap() -> float:
+	return _cap
 
 
 ## The sun reaches only where `image`'s red channel is 1: `world_rect` (2D px) is the part of the
@@ -103,6 +119,8 @@ static func clear() -> void:
 	RenderingServer.global_shader_parameter_set(AMBIENT, Vector3(grey.r, grey.g, grey.b))
 	RenderingServer.global_shader_parameter_set(SKY_MASKED, 0.0)
 	RenderingServer.global_shader_parameter_set(ROOM_MASKED, 0.0)
+	RenderingServer.global_shader_parameter_set(CAP, ToonLightConfig.cap)
+	_cap = ToonLightConfig.cap
 	_ambient = grey
 	_sky_rect = Rect2()
 	_sky_image = null

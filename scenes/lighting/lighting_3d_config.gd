@@ -25,6 +25,18 @@ static var street_height: float = 70.0
 static var range_scale: float = 1.3
 static var overhead_slope: float = 2.0
 static var low_slope: float = 1.0
+## The flashes of a shot and a burst (`LightingConfig.flashes`): the pool is this many
+## `OmniLight3D`s (the oldest is dropped for a new flash, so a firefight never passes it), each hung
+## `flash_height` px up (a hand's, a blast's) and not cast: unshadowed, outside the shadow cap, kept
+## to its room by the room map. A flash whose position is within `flash_room_slack` px outside a
+## room's rect (a muzzle in a doorway or at a wall) lights that room, else it is a street flash.
+static var flash_lights: int = 4
+static var flash_height: float = 30.0
+static var flash_room_slack: float = 8.0
+## How dark a ceiling fixture's shadow is (`OmniLight3D.shadow_opacity`, 1 fully dark): below 1 the
+## floor under a table or a chair keeps part of the pool's light, its colour a step down, and not
+## the cold ambient alone (the 2D render has no such blob).
+static var fixture_shadow_opacity: float = 0.6
 
 
 ## How high (px) a light of `kind` (`overhead`, `low` or `street`) hangs.

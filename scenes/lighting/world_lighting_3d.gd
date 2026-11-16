@@ -18,15 +18,21 @@ extends Node3D
 ##     and out, and the `shadow_lights` nearest ceiling fixtures cast a shadow
 ##     (`LightingCostConfig`),
 ##     chosen again as the view moves.
+##   - the flashes: a `shot` lights a muzzle flash and an `explosion` a blast's (a stun's white) as
+##     a short-lived `OmniLight3D` from a small pool (`flash_pool_3d.gd`,
+##     `Lighting3DConfig.flash_lights`, the oldest dropped), driven by the 2D flash looks
+##     (`LightingConfig.flashes`), unshadowed and kept to the room it is in (the street when it
+##     is in none);
+##   - a bulb at each ceiling fixture (an emissive sphere over the walls, the 2D glyph's).
 ## A light follows its piece (a shoved lamp), flickers in the rhythm `light_rhythm.gd` seeds for it
-## and goes with its piece. In the group `world_lighting_3d`. The flashes of a shot and a burst are
-## the light-fx job's.
+## and goes with its piece. In the group `world_lighting_3d`.
 
 ## A piece's light changed its rhythm's level: the piece (a 2D node) and how much of its glow shows
 ## now (0.3 to 1.1), for whoever shows the piece's glow (Main, which holds both worlds).
 signal glow_changed(piece: Node, level: float)
 
 const Rhythm := preload("res://scenes/lighting/light_rhythm.gd")
+const FlashPool := preload("res://scenes/lighting/flash_pool_3d.gd")
 const GROUP := &"world_lighting_3d"
 ## The lights run after the bodies they follow (and the mirror that shows them).
 const PRIORITY := 20
@@ -46,14 +52,15 @@ var _sun: DirectionalLight3D
 ## Every kept light.
 var _lit: Array[Lit] = []
 var _fixtures: Array = []
+## The flash pool.
+var _pool: FlashPool
 ## The rooms (`{ key, rect }`): a room's id, the number in the room map, is its index plus one.
 var _rooms: Array = []
 ## The refresh clock and the view it was last made for: the focus (x, y) and how far it reached.
 var _since := 0.0
 var _seen := Vector3(INF, INF, INF)
-var _shadowed := 0
-var _on := 0
-var _in_view := 0
+## What the last choice made: x the lights casting a shadow, y on, z reaching the view.
+var _counts := Vector3i.ZERO
 ## Test reads: rhythms advance every frame, but only a changed energy is written.
 var rhythm_steps := 0
 var energy_writes := 0
@@ -64,6 +71,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if EventBus.posted.is_connected(_on_posted):
+		EventBus.posted.disconnect(_on_posted)
 	_alive -= 1
 	if _alive <= 0:
 		ToonLight.clear()
@@ -71,6 +80,8 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	_since += delta
+	if _pool != null:
+		_flash_step(delta)
 	var gone: Array[Lit] = []
 	for lit in _lit:
 		lit.follow()
@@ -118,6 +129,16 @@ func lights() -> Array:
 	return out
 
 
+## The pooled flash lights (lit or not).
+func flashes() -> Array:
+	return [] if _pool == null else _pool.lights
+
+
+## How many flashes are lit now.
+func flash_count() -> int:
+	return 0 if _pool == null else _pool.lit_count()
+
+
 ## `{ room, light }` per room fixture.
 func fixtures() -> Array:
 	return _fixtures
@@ -130,17 +151,17 @@ func sun() -> DirectionalLight3D:
 
 ## How many lights cast a shadow now.
 func shadowed_count() -> int:
-	return _shadowed
+	return _counts.x
 
 
 ## How many lights the cost cap keeps on.
 func on_count() -> int:
-	return _on
+	return _counts.y
 
 
 ## How many lights reach the view (before the cap keeps `max_lights` of them).
 func in_view_count() -> int:
-	return _in_view
+	return _counts.z
 
 
 # --- Building -------------------------------------------------------------------------------------
@@ -168,6 +189,8 @@ func _build() -> void:
 			_fixture(room)
 	for c: Array in candidates:
 		_piece_light(c[0], c[1], c[2])
+	_pool = FlashPool.new(self, Lighting3DConfig.flash_lights)
+	EventBus.posted.connect(_on_posted)
 	choose(true)
 
 
@@ -338,13 +361,35 @@ func _fixture(room: Dictionary) -> void:
 	)
 	lit.light.name = "Fixture_%s" % room["key"]
 	lit.light.set_meta(&"shadowable", true)
+	lit.light.shadow_opacity = Lighting3DConfig.fixture_shadow_opacity
 	lit.energy = lit.light.light_energy
 	lit.fixed = rect.get_center()
 	add_child(lit.light)
 	lit.place()
+	lit.bulb = _bulb(rect.get_center(), LightingFixtureConfig.color)
+	add_child(lit.bulb)
 	_rhythm(lit, LightingFixtureConfig.rhythms, hash([_seed, "fixture", room["key"]]))
 	_lit.append(lit)
 	_fixtures.append({ "room": room["key"], "light": lit.light })
+
+
+## The bulb of a ceiling fixture at `at` (px): a small sphere glowing `colour` lightened, over the
+## walls' tops (the 2D glyph is drawn over everything), casting no shadow. Its glow follows its
+## light's rhythm (`Lit.bulb`).
+static func _bulb(at: Vector2, colour: Color) -> MeshInstance3D:
+	var unit := RenderConfig.unit
+	var ball := SphereMesh.new()
+	ball.radius = LightingFixtureConfig.bulb_radius * unit
+	ball.height = ball.radius * 2.0
+	ball.radial_segments = 8
+	ball.rings = 4
+	var glowing := colour.lightened(LightingFixtureConfig.bulb_lighten)
+	var node := MeshNodes.instance(ball, glowing, false)
+	node.name = "Bulb"
+	node.position = Vector3(at.x, LightingFixtureConfig.bulb_height, at.y) * unit
+	MeshNodes.glow(node, glowing, LightingFixtureConfig.bulb_glow)
+	node.set_meta(&"glow", glowing)
+	return node
 
 
 ## Draw the light's rhythm from `kinds` with an RNG seeded by `seed_value` (none when it draws
@@ -402,6 +447,56 @@ func _room_key(p: Vector2) -> String:
 	return "" if id == 0 else String(_rooms[id - 1]["key"])
 
 
+# --- The flashes ---------------------------------------------------------------------------------
+
+
+## Light a flash for a `shot` at its muzzle or an `explosion` at its burst (EventBus).
+func _on_posted(topic: StringName, data: Dictionary) -> void:
+	if _pool == null or not data.has("position"):
+		return
+	match topic:
+		&"shot":
+			_flash(data["position"], LightingConfig.flashes[&"shot"], 0.0)
+		&"explosion":
+			var kind: StringName = &"stun" if data.get("kind", &"frag") == &"stun" else &"frag"
+			_flash(data["position"], LightingConfig.flashes[kind], float(data.get("radius", 0.0)))
+
+
+## Light the next pooled flash at world point `at` in `look`, in the room it stands in (the street
+## in none), unless its pool is out of the view's reach: a light nobody sees takes no slot.
+func _flash(at: Vector2, look: Dictionary, radius: float) -> void:
+	var reach := maxf(float(look["reach"]), radius * float(look.get("reach_per_radius", 0.0)))
+	var focus: Variant = _focus_point()
+	if focus != null:
+		var rim := reach * 0.5 * Lighting3DConfig.range_scale
+		if (focus as Vector2).distance_to(at) - rim > _reach():
+			return
+	_pool.flash(at, look, radius, _flash_code(at))
+
+
+## The room code (`_room_code`) of a flash at `at`: the room holding it, else the room it is within
+## `flash_room_slack` px outside (a muzzle in a doorway or against a wall), else the street's.
+func _flash_code(at: Vector2) -> int:
+	if _rooms.is_empty():
+		return 0
+	var id := _room_id(at)
+	var slack := Lighting3DConfig.flash_room_slack
+	for k in _rooms.size():
+		if id == 0 and (_rooms[k]["rect"] as Rect2).grow(slack).has_point(at):
+			id = k + 1
+	return id * 2 + (1 if id == 0 else 0)
+
+
+## Fade the flashes, and lift the toon cap while a flash with a wash is lit (written only on
+## change).
+func _flash_step(delta: float) -> void:
+	_pool.step(delta)
+	var wash := _pool.wash()
+	if not is_equal_approx(wash, _pool.lifted):
+		_pool.lifted = wash
+		ToonLight.set_cap(ToonLightConfig.cap + wash if wash > 0.0 else -1.0)
+
+
 # --- The cost: which lights are on and which cast a shadow ---------------------------------------
 
 
@@ -438,10 +533,9 @@ func _reach() -> float:
 ## light at its end at once. With no focus every light stays on and none casts a shadow.
 func choose(snap := false) -> void:
 	var at: Variant = _focus_point()
-	_shadowed = 0
+	_counts = Vector3i.ZERO
 	if at == null:
-		_in_view = _lit.size()
-		_on = _in_view
+		_counts = Vector3i(0, _lit.size(), _lit.size())
 		for lit in _lit:
 			_switch(lit, true, snap)
 		return
@@ -453,11 +547,11 @@ func choose(snap := false) -> void:
 		lit.key = lit.dist - lit.radius
 		if lit.key <= reach:
 			near.append(lit)
-	_in_view = near.size()
+	_counts.z = near.size()
 	near.sort_custom(func(a: Lit, b: Lit) -> bool: return a.key < b.key)
 	if near.size() > LightingCostConfig.max_lights:
 		near.resize(LightingCostConfig.max_lights)
-	_on = near.size()
+	_counts.y = near.size()
 	for lit in _lit:
 		_switch(lit, near.has(lit), snap)
 	_cast(near)
@@ -483,7 +577,7 @@ func _cast(near: Array[Lit]) -> void:
 			chosen.append(lit)
 	for lit in casters:
 		lit.light.shadow_enabled = chosen.has(lit)
-	_shadowed = chosen.size()
+	_counts.x = chosen.size()
 
 
 ## Make `lit` on or off: it fades toward it (`snap`: it is there now).
@@ -546,6 +640,8 @@ class Lit:
 	var key := 0.0
 	var on := true
 	var fade := 1.0
+	## A fixture's bulb (null for a piece's light), glowing with the light.
+	var bulb: MeshInstance3D
 	## Its piece is freed: the light goes with it.
 	var gone := false
 	var _xf := Transform2D()

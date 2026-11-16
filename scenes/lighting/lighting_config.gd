@@ -22,7 +22,9 @@ static var sky_energy := 0.42
 ## explosion's at least `radius × reach_per_radius`), how long (s) it holds its full energy (`hold`,
 ## none when absent) and how long (s) it then falls off to dark (`life`). The stun's is its burst's
 ## whole look (no drawn disc, `PhysicsExplosionConfig.looks`): a far brighter white held an
-## instant, then faded.
+## instant, then faded. In 3D the row's `wash` lifts the toon light's cap (`ToonLight.set_cap`) by
+## that much while the flash is lit, scaled by how far it has faded, so the stun washes what it
+## reaches to white; a row with none keeps the cap.
 static var flash_pool := 3
 static var flashes: Dictionary = {
 	&"shot": { "color": Color(1.0, 0.82, 0.55), "energy": 1.6, "reach": 340.0, "life": 0.07 },
@@ -40,6 +42,7 @@ static var flashes: Dictionary = {
 		"reach_per_radius": 3.5,
 		"hold": 0.08,
 		"life": 0.7,
+		"wash": 12.0,
 	},
 }
 ## Godot 4.4 lights a canvas item with at most 15 point lights (the renderer stops gathering at

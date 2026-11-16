@@ -8,9 +8,14 @@ extends RefCounted
 ##   - `fixtures() -> Array`: `{ room, light }` per room fixture;
 ##   - `sun() -> DirectionalLight3D`: the sky;
 ##   - `shadowed_count()`, `on_count()`, `in_view_count()`: what the cost cap chose;
+##   - `flashes() -> Array`, `flash_count()`: the pooled flash lights and how many are lit;
 ##   - `choose(snap)`: choose again now (the view's focus is the `focus` Callable the test gave;
 ##     `snap` puts every light at its fade's end).
+## A flash is lit now when it is shown with energy (`lit`).
 ## A light's 3D place is its 2D `(x, y)` times `RenderConfig.unit`, `x` and `z`, at its height `y`.
+
+## How far (px) from the event a flash's light may stand.
+const FLASH_NEAR := 24.0
 
 
 ## Light the 2D test world `t.world` into a 3D viewport of its own: `rooms` the fixtures' rooms,
@@ -85,3 +90,21 @@ static func room_at(rooms: Array, at: Vector2) -> int:
 static func street_of(l: OmniLight3D) -> bool:
 	var amount := l.light_specular * 2.0
 	return int(floor(amount / 4.0 + 0.001)) % 2 == 1
+
+
+## Whether flash light `l` is lit now.
+static func lit(l: Light3D) -> bool:
+	return l.visible and l.light_energy > 0.01
+
+
+## The lit flash of `lighting` within `FLASH_NEAR` of `at` (null for none).
+static func flash_at(lighting: WorldLighting3D, at: Vector2) -> OmniLight3D:
+	for l: OmniLight3D in lighting.flashes():
+		if lit(l) and ground_of(l).distance_to(at) <= FLASH_NEAR:
+			return l
+	return null
+
+
+## Whether any flash of `lighting` is lit.
+static func any_lit(lighting: WorldLighting3D) -> bool:
+	return lighting.flashes().any(func(l: OmniLight3D) -> bool: return lit(l))
