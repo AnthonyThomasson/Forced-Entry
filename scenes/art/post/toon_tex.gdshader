@@ -35,6 +35,9 @@ render_mode specular_disabled, diffuse_lambert, ambient_light_disabled;
 
 uniform sampler2D albedo_texture : source_color, filter_nearest, repeat_disable;
 uniform bool tiled = false;
+// A cut-out mesh draws no clear texel at all (a flat sprite laid over solids, as a head's art over
+// its dome: the brim past the dome, the clear ground round it shows what is behind).
+uniform bool cutout = false;
 uniform float side_dim = 0.8;
 // The footprint the art covers, in model units: x, z of its top-left corner, then its width, depth.
 instance uniform vec4 uv_rect = vec4(0.0, 0.0, 1.0, 1.0);
@@ -73,6 +76,9 @@ void fragment() {
 		uv = clamp(uv, half_texel, 1.0 - half_texel);
 	}
 	vec4 art = texture(albedo_texture, uv);
+	if (cutout && art.a < 0.5) {
+		discard;
+	}
 	// The art is the albedo: it is NOT multiplied by the vertex colour (a furniture mesh carries
 	// its parts' tones there, which the art already paints). A clear texel shows the vertex colour.
 	vec3 colour = art.a >= 0.5 ? art.rgb * base_color.rgb : base_color.rgb * COLOR.rgb;

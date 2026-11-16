@@ -58,13 +58,13 @@ static func decal(texture: Texture2D) -> ShaderMaterial:
 ## The textured toon material showing `texture` (the 2D painters' art on a mesh,
 ## `MeshNodes.textured`
 ## is the entry domains call): the toon bands and ramp of the shared material plus the texture, as
-## a decal is held, one for each texture and each `tiled` (the art repeats: a floor tile, a road
-## strip); a node holds it, `refresh_all` keeps it in step. A null texture is the shared toon
-## material (nothing to show).
-static func textured(texture: Texture2D, tiled := false) -> ShaderMaterial:
+## a decal is held, one for each texture, each `tiled` (the art repeats: a floor tile, a road
+## strip) and each `cutout` (a clear texel draws nothing); a node holds it, `refresh_all` keeps it
+## in step. A null texture is the shared toon material (nothing to show).
+static func textured(texture: Texture2D, tiled := false, cutout := false) -> ShaderMaterial:
 	if texture == null:
 		return shared()
-	var key := "%d|%s" % [texture.get_instance_id(), tiled]
+	var key := "%d|%s|%s" % [texture.get_instance_id(), tiled, cutout]
 	var held: Variant = _textured[key].get_ref() if _textured.has(key) else null
 	if held is ShaderMaterial:
 		return held
@@ -75,6 +75,7 @@ static func textured(texture: Texture2D, tiled := false) -> ShaderMaterial:
 	refresh_textured(material)
 	material.set_shader_parameter(&"albedo_texture", texture)
 	material.set_shader_parameter(&"tiled", tiled)
+	material.set_shader_parameter(&"cutout", cutout)
 	_textured[key] = weakref(material)
 	return material
 

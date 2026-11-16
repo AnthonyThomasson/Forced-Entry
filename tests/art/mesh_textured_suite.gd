@@ -57,6 +57,21 @@ func test_one_material_per_texture_and_tiling_shared_by_the_nodes_showing_it() -
 		node.free()
 
 
+func test_a_cutout_node_has_a_material_of_its_own_that_draws_no_clear_texel() -> void:
+	var red := _texture()
+	var plain := MeshNodes.textured(_box(), red, Rect2(0, 0, 8, 8))
+	var cut := MeshNodes.textured(_box(), red, Rect2(0, 0, 8, 8), { "cutout": true })
+	var again := MeshNodes.textured(_box(), red, Rect2(0, 0, 8, 8), { "cutout": true })
+	assert_object(cut.material_override).is_not_same(plain.material_override)
+	assert_object(again.material_override).is_same(cut.material_override)
+	assert_bool((cut.material_override as ShaderMaterial).get_shader_parameter(&"cutout")).is_true()
+	assert_bool(
+		(plain.material_override as ShaderMaterial).get_shader_parameter(&"cutout") == true,
+	).is_false()
+	for node: Node in [plain, cut, again]:
+		node.free()
+
+
 func test_the_rect_is_px_in_and_units_out_per_instance() -> void:
 	var unit := RenderConfig.unit
 	RenderConfig.unit = 0.5

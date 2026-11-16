@@ -13,14 +13,16 @@ extends RefCounted
 ##   trunk's axis; the pack's rectangle of it on the pack's box;
 ## - the head (`HeadPainter`: skin, hair or a cap or helmet, implants) on the head's dome and on the
 ##   hair's and headwear's domes over it: the art's disc is the dome's equator, its front the
-##   face's front;
+##   face's front; and the whole canvas (a brim, ear pods, goggles and the hair's fall lie past the
+##   disc) on a cut-out sprite laid flat over the crown, so seen from above the head is the 2D one;
 ## - a fist (`HandPainter`) on its ball, which turns with the hand's angle;
 ## - a limb's strip (`LimbPainter`: a sleeve, a trouser leg, a boot's shaft; across it, along it)
 ##   on the limb's top, the limb solid lying along its z axis (`BodySolids`): the strip's width
 ##   across, its length from the joint nearer the body; the shin is the knee's and the shin's
 ##   strips as one; the shoe is its strip over its footprint.
-## The neck, the face's band and the plates stay plain colour. A part the art does not reach shows
-## its vertex colour (white): every textured part's art covers it.
+## The neck, the face's band and the plates stay plain colour. A part's art is not clear everywhere
+## (a disc's rim, a pack's rounded corners, the ends of a strip): there it shows the part's vertex
+## colour, which is the colour of the part (`BodyMesh._coat`), never white.
 
 const BodyPainter = preload("res://scenes/character/body/art/body_painter.gd")
 const HeadPainter = preload("res://scenes/character/body/art/head_painter.gd")
@@ -28,7 +30,7 @@ const HandPainter = preload("res://scenes/character/body/art/hand_painter.gd")
 const LimbPainter = preload("res://scenes/character/body/art/limb_painter.gd")
 ## How far inside the art's rim a dome's equator lies (art px): the dome ends on art, not on the
 ## clear texel past it.
-const DOME_INSET := 0.5
+const DOME_INSET := 0.25
 
 ## The shin's two strips are one texture: `[knee, shin, composite]` by the knee's and the shin's
 ## instance ids (the pair is held, so a freed texture's id is never reused for another).
@@ -91,16 +93,24 @@ static func _trunk(parts: Array[MeshInstance3D], dress: BodyDress, r: float) -> 
 
 
 ## The head's art on the head's dome, and on the hair's and the headwear's over it (one rect: the
-## art's disc is each dome's equator).
+## art's disc is each dome's equator), and the whole canvas on the sprite over the crown.
 static func _head(parts: Array[MeshInstance3D], dress: BodyDress, r: float) -> void:
 	var px := ArtCanvasConfig.pixel_size
 	var disc := HeadPainter.radius_for(roundi(r * 2.0 / px))
-	var side := float(HeadPainter.canvas_for(disc)) * px
+	var side := head_side(r)
 	var size := Vector2(side, side)
 	var tex := PixelArt.render_flat(HeadPainter, size, dress.skin, dress.head_opts)
-	var rect := _centred(size, Vector2.ONE * (disc + DOME_INSET) * px)
+	var rect := _disc_rect(size, Vector2.ONE * (disc + DOME_INSET) * px)
 	for index in [BodyMesh.HEAD, BodyMesh.HAIR, BodyMesh.HEADWEAR]:
 		_put(parts[index], tex, rect)
+	_put(parts[BodyMesh.CROWN], tex, _disc_rect(size, size), true)
+
+
+## The side of the head's art canvas (px) for a body of radius `r`, which is the side of the sprite
+## over the crown.
+static func head_side(r: float) -> float:
+	var px := ArtCanvasConfig.pixel_size
+	return float(HeadPainter.canvas_for(HeadPainter.radius_for(roundi(r * 2.0 / px)))) * px
 
 
 ## Each fist's art on its ball: the art's disc is the ball's equator.
@@ -111,7 +121,7 @@ static func _hands(parts: Array[MeshInstance3D], dress: BodyDress, hand_radius: 
 	for i in 2:
 		var part: Dictionary = dress.hand_parts[i]
 		var tex := PixelArt.render_flat(HandPainter, size, part["color"], part["opts"])
-		_put(parts[BodyMesh.HAND + i], tex, _centred(size, Vector2.ONE * (disc + DOME_INSET)))
+		_put(parts[BodyMesh.HAND + i], tex, _disc_rect(size, Vector2.ONE * (disc + DOME_INSET)))
 
 
 ## Side `i`'s shin: the knee's strip over the shin's, as one texture along the shin's solid.
@@ -225,13 +235,24 @@ static func _core(strip: Dictionary, tex: Texture2D) -> Rect2i:
 	return Rect2i(0, from, tex.get_width(), rows)
 
 
-## `art` over a node: its `tex` in `rect` (model units), tinted white so the art shows as painted.
-static func _put(node: MeshInstance3D, tex: Texture2D, rect: Rect2) -> void:
+## `tex` over a node in `rect` (model units), tinted white so the art shows as painted; `cutout`
+## draws nothing where it is clear.
+static func _put(node: MeshInstance3D, tex: Texture2D, rect: Rect2, cutout := false) -> void:
 	var model := Rect2(rect.position / RenderConfig.unit, rect.size / RenderConfig.unit)
-	MeshNodes.textured(node, tex, model, { "tint": Color.WHITE })
+	MeshNodes.textured(node, tex, model, { "tint": Color.WHITE, "cutout": cutout })
 
 
 ## The rect of an art canvas `size` px, centred on the part's axis, for a part whose model unit is
 ## `per_unit` px across and deep (x, then z).
 static func _centred(size: Vector2, per_unit: Vector2) -> Rect2:
 	return Rect2(-size * 0.5 / per_unit, size / per_unit)
+
+
+## The rect of a disc painter's canvas `size` px over a part whose model unit is `per_unit` px
+## across and deep (x, then z), the disc's centre on the part's axis. The painters centre the disc
+## on the pixel `int(w / 2)`, whose centre is half an art pixel past the canvas's own: centring the
+## canvas would leave a dome's rim on clear texels on one side.
+static func _disc_rect(size: Vector2, per_unit: Vector2) -> Rect2:
+	var px := ArtCanvasConfig.pixel_size
+	var at := Vector2(int(size.x / px / 2.0) + 0.5, int(size.y / px / 2.0) + 0.5) * px
+	return Rect2(-at / per_unit, size / per_unit)

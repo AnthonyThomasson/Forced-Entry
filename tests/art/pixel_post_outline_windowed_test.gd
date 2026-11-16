@@ -25,15 +25,12 @@ const ZOOMS := [3.0, 1.0]
 const BLACK := 0.12
 ## The window round the character (screen px) whose near-black share is counted at zoom 1.
 const BODY_BOX := 30
-## The box over a standing character at zoom 1 (screen px from the picture's centre, where the
-## camera is over it: the body, 74 px tall, seen from the 80 degrees above, about 30 by 40 px), and
-## how many pixels differ with the creases off: at least this many of the world's, at most this many
-## over the body. A body's textured art can move by a pixel between shots (a sleeve's plate lines
-## shift with the sub-pixel breath), so a pixel that also differs between two shots with the same
-## settings is not a crease and is not counted.
-const FIGURE_BOX := Rect2i(-18, -26, 38, 52)
+## How many pixels differ with the creases off: at least this many of the world's, at most this many
+## over the body's silhouette (the pixels the character changes: its shots with and without it). A
+## pixel that also differs between two shots with the same settings (a sleeve's plate lines shift
+## by a pixel with the sub-pixel breath) is not a crease and is not counted.
 const WORLD_CREASES := 100
-const BODY_CREASES := 9
+const BODY_CREASES := 4
 
 ## What a shot is taken with: the window, the camera over the character, the character and the
 ## outline quad of the view (set by `run`).
@@ -41,6 +38,7 @@ var _window: SubViewport
 var _camera: Camera2D
 var _character: Node2D
 var _quad: MeshInstance3D
+var _body: Node3D
 var _oversample := 1
 
 
@@ -94,12 +92,20 @@ func run(t: TestContext) -> void:
 	camera.set_process(false)
 	camera.set_physics_process(false)
 	await t.frames(30)
+	_send_others_away(built["world"], character)  # nothing else moves, fires or bleeds in a shot
 	var view: Node = main.get_node("View3D")
 	_window = window
 	_camera = camera
 	_character = character
 	_quad = view.rig.camera.get_node(PixelPost.NODE) as MeshInstance3D
 	_oversample = view.rig.oversample
+	var shown: Array = (view.mirror as WorldMirror).proxies_of(character)
+	if not t.require(
+		shown.size() == 1 and shown[0] is BodyMesh,
+		"the character is shown by a body",
+	):
+		return
+	_body = shown[0]
 	_character.movement.controller = null
 	_character.movement.move_input = Vector2.ZERO
 	_character.movement.aim_point = character.global_position + Vector2(200.0, 200.0)
@@ -133,39 +139,59 @@ func _check_creases(t: TestContext) -> void:
 	_character.movement.set_posture(&"stand")
 	_character.movement.aim_point = _character.global_position + Vector2(200.0, 200.0)
 	await t.seconds(0.6)
-	# The game's time stopped, so the breath does not move the body between the two shots.
+	# The game's time stopped, so the breath and the springs do not move the body between shots, and
+	# the body casts no shadow (a shadow on a crease would shade it differently with and without
+	# it).
 	Engine.time_scale = 0.0001
-	var creased := await _shoot(t, 1.0)
-	var again := await _shoot(t, 1.0)
+	var casting := _body_shadows(false)
+	var creased := [await _shoot(t, 1.0), await _shoot(t, 1.0)]
 	var normal_step := PixelPostConfig.normal_step
 	PixelPostConfig.normal_step = 100.0
 	PixelPost.refresh(_quad, _oversample)
-	var plain := await _shoot(t, 1.0)
+	var plain := [await _shoot(t, 1.0), await _shoot(t, 1.0)]
+	_body.visible = false
+	var without: Image = await _shoot(t, 1.0)
+	_body.visible = true
+	_body_shadows(true, casting)
 	Engine.time_scale = 1.0
 	PixelPostConfig.normal_step = normal_step
 	PixelPost.refresh(_quad, _oversample)
-	_save(creased, "creased_zoom1")
-	_save(plain, "plain_zoom1")
-	var centre := creased.get_size() / 2
-	var body := Rect2i(centre + FIGURE_BOX.position, FIGURE_BOX.size)
-	var on_body := 0
-	var on_world := 0
-	for y in creased.get_height():
-		for x in creased.get_width():
-			if creased.get_pixel(x, y) == plain.get_pixel(x, y):
+	_save(creased[0], "creased_zoom1")
+	_save(plain[0], "plain_zoom1")
+	var counts := _count_creases(creased, plain, without)
+	t.check(
+		counts["world"] >= WORLD_CREASES,
+		"the world keeps its creases: %d pixels differ beyond the body" % counts["world"],
+	)
+	t.check(
+		counts["body"] <= BODY_CREASES,
+		"the body has none: %d pixels differ over it (%d jitter)" % [
+			counts["body"],
+			counts["jitter"],
+		],
+	)
+
+
+## The pixels where the creased shots differ from the plain ones, counted over the body and beyond
+## it, only where both creased shots agree and both plain ones do (the rest is jitter, counted
+## apart). `without` is the plain picture with the character hidden: the body's pixels are the ones
+## the plain shot differs from it in.
+func _count_creases(creased: Array, plain: Array, without: Image) -> Dictionary:
+	var counts := { "body": 0, "world": 0, "jitter": 0 }
+	var with_creases: Image = creased[0]
+	for y in with_creases.get_height():
+		for x in with_creases.get_width():
+			var c: Color = with_creases.get_pixel(x, y)
+			var p: Color = plain[0].get_pixel(x, y)
+			if c == p:
 				continue
-			if not body.has_point(Vector2i(x, y)):
-				on_world += 1
-			elif creased.get_pixel(x, y) == again.get_pixel(x, y):
-				on_body += 1  # a pixel that moved between two like shots is jitter, not a crease
-	t.check(
-		on_world >= WORLD_CREASES,
-		"the world keeps its creases: %d pixels differ beyond the body" % on_world,
-	)
-	t.check(
-		on_body <= BODY_CREASES,
-		"the body has none: %d pixels differ over it" % on_body,
-	)
+			if c != creased[1].get_pixel(x, y) or p != plain[1].get_pixel(x, y):
+				counts["jitter"] += 1
+			elif p != without.get_pixel(x, y):
+				counts["body"] += 1
+			else:
+				counts["world"] += 1
+	return counts
 
 
 ## The shots of one look of the outline (`now`: the holder's, else the old line), the body's
@@ -216,12 +242,14 @@ func _round(t: TestContext, prefix: String, now: bool) -> Dictionary:
 	return numbers
 
 
-## Park the camera over `character` at `zoom` and the picture the window then shows.
+## Park the camera over `character` at `zoom` and the picture the window then shows. The viewport
+## is drawn on demand: a window the desktop covers is not drawn by the loop, and waiting for a draw
+## then takes as long as the desktop leaves it covered.
 func _shoot(t: TestContext, zoom: float) -> Image:
 	_camera.zoom = Vector2(zoom, zoom)
 	_camera.global_position = _character.global_position
 	await t.frames(8)
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)
 	return _window.get_texture().get_image()
 
 
@@ -259,3 +287,27 @@ func _first_character(world: Node) -> CharacterBody2D:
 		if not body.get("is_dead"):
 			return body as CharacterBody2D
 	return null
+
+
+## The other characters moved far off, so a shot shows `character` alone.
+func _send_others_away(world: Node, character: Node2D) -> void:
+	for body: Node in world.find_children("*", "CharacterBody2D", true, false):
+		if body != character:
+			(body as Node2D).global_position = Vector2(-6000.0, -6000.0)
+
+
+## Every part of the body casting a shadow again as it did (`before`: each part's setting, by
+## index), or none (the settings it had are returned).
+func _body_shadows(on: bool, before := []) -> Array:
+	var kept := []
+	var parts := _body.get_children()
+	for i in parts.size():
+		var part := parts[i] as GeometryInstance3D
+		if part == null:
+			kept.append(0)
+			continue
+		kept.append(part.cast_shadow)
+		part.cast_shadow = (
+			before[i] if on else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		)
+	return kept

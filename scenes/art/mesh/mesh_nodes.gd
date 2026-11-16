@@ -32,7 +32,8 @@ static func instance(mesh: Mesh, tint := Color.WHITE, casts_shadow := true) -> M
 ##     default, which would darken the art).
 ##   * `opts`: `tint` (the instance's `base_color`, white by default on a new node), `casts_shadow`
 ##     (true by default on a new node), `tiled` (the art repeats across the model: a floor tile,
-##     a road strip; `rect` is then one tile).
+##     a road strip; `rect` is then one tile), `cutout` (a clear texel draws nothing: a sprite laid
+##     over a solid).
 ## A top face (normal up) shows the art, a side face the art's edge texels stretched and darkened
 ## (`toon_tex.gdshader` documents the rule); a clear texel shows the mesh's vertex colour. A null
 ## texture leaves the shared toon material (a plain mesh). Instance uniforms cannot be samplers, so
@@ -62,7 +63,11 @@ static func textured(
 	if texture == null:
 		node.material_override = ToonMaterial.shared()
 		return node
-	node.material_override = ToonMaterial.textured(texture, opts.get("tiled", false))
+	node.material_override = ToonMaterial.textured(
+		texture,
+		opts.get("tiled", false),
+		opts.get("cutout", false),
+	)
 	var unit := RenderConfig.unit
 	node.set_instance_shader_parameter(
 		&"uv_rect",

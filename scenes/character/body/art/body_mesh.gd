@@ -50,14 +50,27 @@ const SHIN := 17
 const BOOT := 19
 const FOOT := 21
 const NECK := 23
+## The head's art laid flat over the crown (a cut-out sprite: the whole canvas, the brim and the ear
+## pods the dome's disc cannot carry).
+const CROWN := 24
 ## The held item's node, after the parts (it is not one of the character's own).
-const HELD := 24
+const HELD := 25
 ## The parts too small to throw a shadow worth its cost (the face's band, the fists, the plates, the
-## shoes and a boot's shaft, the hair, the headwear and the neck): twelve of the twenty-four, the
-## other twelve cast one.
+## shoes and a boot's shaft, the hair, the headwear, the neck and the head's sprite): thirteen of
+## the twenty-five, the other twelve cast one.
 const SMALL := [
 	PLATE, PLATE + 1, HAIR, HEADWEAR, FACE, HAND, HAND + 1, BOOT, BOOT + 1, FOOT, FOOT + 1, NECK,
+	CROWN,
 ]
+## The shape each part is made of (`_solid`), by the indices above.
+const SHAPES := [
+	&"trunk", &"vest", &"box", &"box", &"box", &"head", &"ball", &"ball", &"box",
+	&"upper", &"upper", &"fore", &"fore", &"ball", &"ball", &"thigh", &"thigh", &"shin",
+	&"shin", &"boot", &"boot", &"shoe", &"shoe", &"neck", &"box",
+]
+## How far above the highest dome the head's sprite lies (px), and its thickness (px).
+const CROWN_LIFT := 1.0
+const CROWN_THICK := 0.5
 ## The joints and the flat directions the pose is made from, in one array to compare a frame's with
 ## the last: the rig's seventeen joints, the two feet's toes and the face, and what the held item
 ## points along (flat x, y) and how far it is pitched up (z).
@@ -204,59 +217,47 @@ func _make(body: CharacterBody2D, dress: BodyDress) -> void:
 	)
 	_sample.resize(SAMPLE)
 	_last.resize(SAMPLE)
-	var solids := _solids()
-	var shapes := [
-		&"trunk", &"vest", &"box", &"box", &"box", &"head", &"ball", &"ball", &"box",
-		&"upper", &"upper", &"fore", &"fore", &"ball", &"ball", &"thigh", &"thigh", &"shin",
-		&"shin", &"boot", &"boot", &"shoe", &"shoe", &"neck",
-	]
-	for i in shapes.size():
-		var node := MeshNodes.instance(solids[shapes[i]], Color.WHITE, not SMALL.has(i))
+	for i in SHAPES.size():
+		var node := MeshNodes.instance(
+			_solid(SHAPES[i], Color.WHITE),
+			Color.WHITE,
+			not SMALL.has(i),
+		)
 		MeshNodes.figure(node)
 		add_child(node)
 		_parts.append(node)
-	assert(_parts.size() == NECK + 1, "BodyMesh: the shapes list and the part indices disagree")
+	assert(_parts.size() == CROWN + 1, "BodyMesh: the shapes list and the part indices disagree")
 	add_child(_held.node)
 	assert(_held.node.get_index() == HELD, "BodyMesh: the held item's node is not after the parts")
 	_dress_parts()
 	_pose(body.anatomy.rig(), body)
 
 
-## The shared solids the parts are made of, by shape name (`BodySolids`: one mesh for every body).
-## The limbs take the 2D art's widths (`CharacterArtConfig.body_arm_widths`, ...), tapering as the
-## drawn limbs do; the vest is the trunk's own shape from `CharacterMeshConfig.vest_from` up.
-static func _solids() -> Dictionary:
+## The shared solid `shape` (`BodySolids`: one mesh for every body of its `color`) a part is made
+## of. The limbs take the 2D art's widths (`CharacterArtConfig.body_arm_widths`, ...), tapering as
+## the drawn limbs do; the vest is the trunk's own shape from `CharacterMeshConfig.vest_from` up.
+static func _solid(shape: StringName, color: Color) -> Mesh:
 	var arm := CharacterArtConfig.body_arm_widths
 	var leg := CharacterArtConfig.body_leg_widths
-	return {
-		&"trunk": BodySolids.fetch(&"trunk"),
-		&"vest": BodySolids.fetch(&"trunk", { "from": CharacterMeshConfig.vest_from }),
-		&"head": BodySolids.fetch(&"head"),
-		&"ball": BodySolids.fetch(&"ball"),
-		&"box": BodySolids.fetch(&"box"),
-		&"shoe": BodySolids.fetch(&"shoe"),
-		&"upper": BodySolids.fetch(
-			&"limb",
-			BodySolids.limb([Vector2(0, arm[0]), Vector2(1, arm[1])]),
-		),
-		&"fore": BodySolids.fetch(
-			&"limb",
-			BodySolids.limb([Vector2(0, arm[1]), Vector2(1, arm[2])]),
-		),
-		&"thigh": BodySolids.fetch(
-			&"limb",
-			BodySolids.limb([Vector2(0, leg[0]), Vector2(1, leg[1])]),
-		),
-		&"shin": BodySolids.fetch(
-			&"limb",
-			BodySolids.limb([Vector2(0, leg[1]), Vector2(0.3, leg[2]), Vector2(1, leg[3])]),
-		),
-		&"boot": BodySolids.fetch(&"limb", BodySolids.limb([Vector2(0, 1), Vector2(1, 1)])),
-		&"neck": BodySolids.fetch(
-			&"limb",
-			BodySolids.limb([Vector2(0, 1), Vector2(1, NECK_TAPER)]),
-		),
-	}
+	var radii := []
+	match shape:
+		&"vest":
+			return BodySolids.fetch(&"trunk", { "from": CharacterMeshConfig.vest_from }, color)
+		&"upper":
+			radii = [Vector2(0, arm[0]), Vector2(1, arm[1])]
+		&"fore":
+			radii = [Vector2(0, arm[1]), Vector2(1, arm[2])]
+		&"thigh":
+			radii = [Vector2(0, leg[0]), Vector2(1, leg[1])]
+		&"shin":
+			radii = [Vector2(0, leg[1]), Vector2(0.3, leg[2]), Vector2(1, leg[3])]
+		&"boot":
+			radii = [Vector2(0, 1), Vector2(1, 1)]
+		&"neck":
+			radii = [Vector2(0, 1), Vector2(1, NECK_TAPER)]
+	if radii.is_empty():
+		return BodySolids.fetch(shape, {}, color)
+	return BodySolids.fetch(&"limb", BodySolids.limb(radii), color)
 
 
 ## Colour the parts from the look the dress resolved, and show the optional ones it asks for: the
@@ -265,34 +266,34 @@ func _dress_parts() -> void:
 	_look_key = _dress.look_key
 	var look := _look()
 	var skin := _dress.skin
-	_tint(_parts[TORSO], _dress.shirt)
+	_coat(TORSO, _dress.shirt)
 	var vest := String(look.get("vest", "")) != ""
-	_tint(_parts[VEST], _colour(look.get("vest_col")))
+	_coat(VEST, _colour(look.get("vest_col")))
 	_parts[VEST].visible = vest
 	for i in 2:
 		var plate: Variant = _dress.shoulder_opts.get("front_plate" if i == 0 else "back_plate")
 		_parts[PLATE + i].visible = vest and plate is Color
 		_tint(_parts[PLATE + i], _colour(plate))
-	_tint(_parts[PACK], _colour(look.get("pack_col")))
+	_coat(PACK, _colour(look.get("pack_col")))
 	_parts[PACK].visible = bool(look.get("pack", false))
-	_tint(_parts[HEAD], skin)
+	_coat(HEAD, skin)
 	_tint(_parts[NECK], skin)
 	_tint(_parts[FACE], _band_colour(skin))
 	var worn := String(look.get("head", ""))
 	var covered := worn == "helmet" or worn == "cap"
 	_parts[HEADWEAR].visible = covered
-	_tint(_parts[HEADWEAR], _colour(look.get("helm")))
+	_coat(HEADWEAR, _colour(look.get("helm")))
 	_parts[HAIR].visible = not covered and String(look.get("hair_style", "short")) != "bald"
-	_tint(_parts[HAIR], _colour(look.get("hair")))
+	_coat(HAIR, _colour(look.get("hair")))
 	for i in 2:
-		_tint(_parts[UPPER + i], _colour(_dress.arm_parts[i]["upper"]["color"]))
-		_tint(_parts[FORE + i], _colour(_dress.arm_parts[i]["fore"]["color"]))
-		_tint(_parts[HAND + i], _colour(_dress.hand_parts[i]["color"]))
-		_tint(_parts[THIGH + i], _dress.pants)
-		_tint(_parts[SHIN + i], _dress.shin_colour(i))
+		_coat(UPPER + i, _colour(_dress.arm_parts[i]["upper"]["color"]))
+		_coat(FORE + i, _colour(_dress.arm_parts[i]["fore"]["color"]))
+		_coat(HAND + i, _colour(_dress.hand_parts[i]["color"]))
+		_coat(THIGH + i, _dress.pants)
+		_coat(SHIN + i, _dress.shin_colour(i))
 		_parts[BOOT + i].visible = _dress.boots
-		_tint(_parts[BOOT + i], _dress.shoes)
-		_tint(_parts[FOOT + i], _dress.shoes)
+		_coat(BOOT + i, _dress.shoes)
+		_coat(FOOT + i, _dress.shoes)
 	BodyTextures.apply(_parts, _dress, _r, _hand_radius)
 
 
@@ -430,6 +431,33 @@ func _pose_head() -> void:
 		FACE_SHAPE * r,
 		at + frame.z * r * FACE_FORWARD + frame.y * r * FACE_BASE,
 	)
+	_pose_crown(frame, at)
+
+
+## The head's sprite flat over the crown, turned with the head's facing: its own up is the world's
+## (a living head is upright; a fallen one lies, its sprite still flat over it).
+func _pose_crown(frame: Basis, at: Vector3) -> void:
+	var r := _head_radius
+	var flat := frame if _died < 0 else _frame_of(Vector3.UP, frame.z)
+	var top := 1.0 if _died >= 0 else _crown_top()
+	var side := BodyTextures.head_side(_r) * CharacterMeshConfig.head_scale
+	_place(
+		_parts[CROWN],
+		flat,
+		Vector3(side, CROWN_THICK, side),
+		at + Vector3.UP * (r * top + CROWN_LIFT),
+	)
+
+
+## How high the highest visible dome of the head reaches over its centre, in head radii.
+func _crown_top() -> float:
+	var top := (BodySolids.HEAD[BodySolids.HEAD.size() - 1] as Vector2).y
+	if _parts[HEADWEAR].visible:
+		var shape := CAP_SHAPE if String(_look().get("head", "")) == "cap" else HELMET_SHAPE
+		top = maxf(top, shape.y + shape.x * 0.85)
+	if _parts[HAIR].visible:
+		top = maxf(top, HAIR_SHAPE.y + HAIR_SHAPE.x * 0.85)
+	return top
 
 
 ## `node` (a ball) over the head at `at`: `shape` is its size over the head's, how far up and how
@@ -593,6 +621,12 @@ func _dir(direction: Vector3) -> Vector3:
 ## The look the dress resolved (what the painters read through the handle).
 func _look() -> Dictionary:
 	return PixelArt.look_of(_dress.head_opts)
+
+
+## Part `index` made in `color`, as the vertex colour of its solid: a textured part shows it where
+## its art is clear (its instance is tinted white by `BodyTextures`, so the art shows as painted).
+func _coat(index: int, color: Color) -> void:
+	_parts[index].mesh = _solid(SHAPES[index], color)
 
 
 ## `node` tinted `color` (its own colour: the shared meshes are white).

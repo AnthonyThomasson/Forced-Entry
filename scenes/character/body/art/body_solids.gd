@@ -46,15 +46,16 @@ const END_RISE := 0.04
 ## The shared unit solid `shape`, with `opts` the tuning it reads (the cache key's): `&"trunk"`
 ## (from the share of its height `from`: 0 the trunk, the vest's its own from there up), `&"head"`,
 ## `&"ball"`, `&"box"`, `&"shoe"`, and `&"limb"` (`radii`: pairs of share of length and width,
-## flat).
-static func fetch(shape: StringName, opts := {}) -> Mesh:
+## flat). `color` is its vertex colour: white for a part tinted by its instance, the part's own
+## colour for a textured one (where its art is clear the vertex colour shows: `toon_tex.gdshader`).
+static func fetch(shape: StringName, opts := {}, color := Color.WHITE) -> Mesh:
 	var key := MeshCache.key(
 		"body_solid",
 		Vector2.ONE,
-		Color.WHITE,
+		color,
 		{ "shape": shape, "opts": opts },
 	)
-	return MeshCache.fetch(key, _make.bind(shape, opts))
+	return MeshCache.fetch(key, _make.bind(shape, opts, color))
 
 
 ## The options of a limb solid from `radii`, widths along its length as (share of length, width)
@@ -77,26 +78,26 @@ static func trunk_width(t: float) -> float:
 
 
 ## The mesh of `fetch`.
-static func _make(shape: StringName, opts: Dictionary) -> Mesh:
+static func _make(shape: StringName, opts: Dictionary, color: Color) -> Mesh:
 	var kit := MeshKit.new()
 	match shape:
 		&"trunk":
 			kit.sides = TRUNK_SIDES
-			kit.revolve(_trunk_profile(float(opts.get("from", 0.0))), Vector3.ZERO, Color.WHITE)
+			kit.revolve(_trunk_profile(float(opts.get("from", 0.0))), Vector3.ZERO, color)
 		&"head":
 			kit.sides = HEAD_SIDES
-			kit.revolve(PackedVector2Array(HEAD), Vector3.ZERO, Color.WHITE)
+			kit.revolve(PackedVector2Array(HEAD), Vector3.ZERO, color)
 		&"ball":
 			kit.sides = 8
-			kit.sphere(Vector3.ZERO, 1.0, Color.WHITE)
+			kit.sphere(Vector3.ZERO, 1.0, color)
 		&"limb":
 			kit.sides = LIMB_SIDES
 			kit.pose(Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3.ZERO))  # along +z
-			kit.revolve(_limb_profile(opts["radii"]), Vector3.ZERO, Color.WHITE)
+			kit.revolve(_limb_profile(opts["radii"]), Vector3.ZERO, color)
 		&"shoe":
-			kit.extrude(PackedVector2Array(SHOE), 0.0, 1.0, Color.WHITE)
+			kit.extrude(PackedVector2Array(SHOE), 0.0, 1.0, color)
 		_:
-			kit.box(AABB(Vector3(-0.5, 0.0, -0.5), Vector3.ONE), Color.WHITE)
+			kit.box(AABB(Vector3(-0.5, 0.0, -0.5), Vector3.ONE), color)
 	return kit.build()
 
 
