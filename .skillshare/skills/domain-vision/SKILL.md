@@ -6,13 +6,13 @@ description: Use when editing scenes/vision/, retuning the player's view (cone, 
 # Vision domain (`scenes/vision/`)
 
 The screen shows only what the human's character sees; the rest is the world as it was last seen, in greyscale, and nothing that
-moves is drawn out of view. The spec is `docs/player-vision.md` (V1 to V11, each with its tests, which are in `tests/vision/`
+moves is drawn out of view. The spec is `docs/player-vision.md` (V1 to V12, each with its tests, which are in `tests/vision/`
 through `tests/_vision/vision_probe.gd`); the numbers live in `VisionConfig` and the spec, not here; the decision is
 `docs/adr/0011-the-vision-domain.md`. Interfaces: 7 (`sight()`, `facing`, `died`), 11 (`ViewLayers`, `DrawLayers.VISION` /
 `OVERLAY`, `SightRay`, `SeenArea`), 13 (the `vision.enabled` switch, `TestSetup.view`), 23 (the handle's `view`), 25 (this
 domain's own).
 
-A **leaf**, like Lighting: it imports General and Godot, reads the viewer duck-typed (`global_position`, `facing`, `get_rid()`,
+A **leaf**, like Lighting: it imports General, Godot and (3D) Art's `ToonMask`, reads the viewer duck-typed (`global_position`, `facing`, `get_rid()`,
 `sight()`, `is_dead`, the signals `died` and `tree_exiting`) and the world through the physics space and `get_surface()`. Its one
 caller is `MatchBuilder` (`PlayerView.watch(world, character)`, for Main's human and the Testing world's viewer); nothing in
 another domain knows `PlayerView`. Character, Items, Projectile, Physics and Vehicles set their own `ViewLayers` bits; the AI's
@@ -23,7 +23,7 @@ debug overlays, Navigation and the UI are overlays (`ViewLayers.overlay`); Gener
 | `player_view.gd` (`PlayerView`) | The one node (group `player_view`): `watch` builds it, the two per-frame hooks, the lift, the test reads. |
 | `view_cone.gd`, `view_shapes.gd`, `view_watch.gd` | The exact polygon (`ViewCone`, a job: `cone-job.md`), the blocking shapes round the eye (`ViewShapes`: a shape query, never a tree walk) and what says a rebuild is due (`ViewWatch`). Private. |
 | `view_memory.gd`, `view_fan.gd`, `view_mask.gd`, `view_composite.gd` | The capture and memory viewports and the wipe, the triangle-fan painter both painters are, the feathered mask, the composite over the world. Private. |
-| `view_ground.gd` (`ViewGround`), `vision_ground_config.gd` (`VisionGroundConfig`) | The 3D view (`ground.md`). Private. |
+| `view_ground.gd` (`ViewGround`), `vision_ground_config.gd` (`VisionGroundConfig`) | The 3D view (`ground.md`). |
 | `memory_paint`, `memory_wipe`, `view_composite` (`.gdshader`) | Paints the capture into the memory without blending; writes "nothing seen"; cuts the live world out and draws the memory in the look. |
 | `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, `memory_scale`, the rays, `far_depth`, `far_bleed`, `rebuild_every`; the sliced rebuild's: `VisionSliceConfig`. |
 | `view_pipeline.gd` (`ViewPipeline`) | Starts, steps, restarts and publishes the `ViewCone` job (`cone-job.md`). Private. |
@@ -70,7 +70,7 @@ read through `character.sight()`: any character can be the viewer.
   nothing (the transform and the shape resource are compared in place). The far face (`far_exit(space, hit, dir)`) reads the blocking
   shapes holding the probe point afresh each ray: reusing the previous ray's polygons cost more than it saved (`docs/player-vision.md`).
   Angles are built without lambda sort/map; `polygon_reuses`, `memo_hits`, `validations` count for tests.
-- **The 3D render's view (V12):** the parts below are not built; two masks the shaders read (`ground.md`).
+- **The 3D render's view (V12):** none of what follows is built; two masks (`ground.md`).
 - **The look (2D):** the capture shares the main world, `MOVING` and `OVERLAY` out of its cull mask; the memory is a
   world-space `SubViewport` over the floors' bounds at `memory_scale` texels a px (less when the world is wider than 16 384),
   never cleared, wiped for its first two frames; the composite is a screen-sized polygon at `DrawLayers.VISION` (absolute, bit

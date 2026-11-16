@@ -1,9 +1,10 @@
 extends GameTest
-## A casing in the air is not remembered (#193 vision-mask, `docs/player-vision.md` V5 and V12):
-## the player's view shows it only inside the cone, so the 3D casing batch draws one tossed out of
-## sight no size at all, and lies where it fell once it is down (V6: at rest it is remembered). The
-## seen area is set by hand (a box, as the view publishes it); a casing tossed inside it keeps its
-## size all the way. Asserted at the layer's seam (`ProjectileMeshes.install`: `casing_frame`).
+## A casing is shown by the player's view only once seen (#193 vision-mask, `docs/player-vision.md`
+## V5, V6 and V12): the 3D casing batch draws one tossed out of sight no size at all, and one lying
+## where nothing has seen it likewise; once the cone has reached it, it is whole where it lies and
+## stays so after the cone moves on (remembered). The seen area is set by hand (a box, as the view
+## publishes it); a casing tossed inside it keeps its size all the way. Asserted at the layer's
+## seam (`ProjectileMeshes.install`: `casing_frame`).
 
 const SCRATCH := "user://settings_casing_hidden_test.json"
 ## The area the view shows live, and a spot well inside it and one well outside.
@@ -18,7 +19,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "A casing tossed out of the player's view is drawn no size, one in view is whole",
 		"description": "With a seen area set, a casing tossed outside it has a zero-size part "
-			+ "while it flies and its whole size lying; one tossed inside keeps its size.",
+			+ "while it flies and lying until the cone reaches it, then its whole size for good; "
+			+ "one tossed inside keeps its size.",
 		"tags": ["mirror", "3d", "render", "projectile", "casing", "vision"],
 		"timeout": 30.0,
 	}
@@ -44,14 +46,7 @@ func run(t: TestContext) -> void:
 	view.add_child(mirror)
 	var layer := ProjectileMeshes.install(mirror, t.world)
 	mirror.mirror(t.world)
-	var box := PackedVector2Array(
-		[
-			SEEN.position,
-			Vector2(SEEN.end.x, SEEN.position.y),
-			SEEN.end,
-			Vector2(SEEN.position.x, SEEN.end.y),
-		]
-	)
+	var box := _box(SEEN)
 	SeenArea.set_area([box], SEEN)
 	CasingSpawner.spawn(IN_VIEW, Vector2.RIGHT, t.world)
 	await t.frames(3)
@@ -64,6 +59,32 @@ func run(t: TestContext) -> void:
 	var hidden := layer.casing_frame(1)
 	t.check(hidden.basis.get_scale().x < 0.01, "tossed out of view it is drawn no size")
 	await t.frames(TOSS_FRAMES)
-	t.check(not layer.is_processing(), "premise: both lie")
-	t.check(layer.casing_frame(1).basis.get_scale().x > 0.9, "lying out of view it is whole")
+	t.check(layer.casing_frame(0).basis.get_scale().x > 0.9, "the one in view lies, whole")
+	t.check(
+		layer.casing_frame(1).basis.get_scale().x < 0.01,
+		"lying where nothing has seen it, it is still drawn no size",
+	)
+	t.check(layer.is_processing(), "and the layer watches for the cone to reach it")
+	SeenArea.set_area([_box(Rect2(700, 200, 200, 200))], Rect2(700, 200, 200, 200))
+	await t.frames(2)
+	t.check(layer.casing_frame(1).basis.get_scale().x > 0.9, "the cone reaches it: whole")
+	SeenArea.set_area([box], SEEN)
+	await t.frames(2)
+	t.check(
+		layer.casing_frame(1).basis.get_scale().x > 0.9,
+		"the cone moves on: it stays whole where it lies",
+	)
+	t.check(not layer.is_processing(), "and nothing runs once they are all seen")
 	SeenArea.clear()
+
+
+## The polygon of `rect`, as the view publishes a cone.
+func _box(rect: Rect2) -> PackedVector2Array:
+	return PackedVector2Array(
+		[
+			rect.position,
+			Vector2(rect.end.x, rect.position.y),
+			rect.end,
+			Vector2(rect.position.x, rect.end.y),
+		]
+	)

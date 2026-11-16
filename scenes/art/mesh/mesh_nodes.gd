@@ -224,9 +224,19 @@ static func figure(node: GeometryInstance3D, on := true) -> void:
 ## sees now and a still one wherever it was ever seen (`ToonMask`). Any toon node or decal; a
 ## batch marks all its parts at once.
 static func moving(node: Node, on := true) -> void:
+	node.set_meta(&"moving", on)
 	if node is GeometryInstance3D:
 		(node as GeometryInstance3D).set_instance_shader_parameter(
 			&"moving", 1.0 if on else 0.0
 		)
+	var joined := _on_joined.bind(node)
+	if on and not node.child_entered_tree.is_connected(joined):
+		node.child_entered_tree.connect(joined)
 	for child in node.get_children():
 		moving(child, on)
+
+
+## A part added under a marked node (a dent patch, a new outfit piece) takes the mark of its parent.
+static func _on_joined(child: Node, parent: Node) -> void:
+	if is_instance_valid(parent) and parent.get_meta(&"moving", false):
+		moving(child, true)

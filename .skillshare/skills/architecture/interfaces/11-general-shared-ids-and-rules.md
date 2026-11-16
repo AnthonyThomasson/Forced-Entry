@@ -27,15 +27,15 @@
 	  still while the tree is paused. `GameClock.msec() -> int` (frames × 1000 / `Engine.physics_ticks_per_second`: deterministic under
 	  `--fixed-fps`, however far a headless run outpaces the wall clock), `GameClock.seconds() -> float`, `GameClock.frame() -> int`. Every
 	  AI ttl, timer and age reads it (`docs/leadership.md` LD1), so a pause of any length expires nothing; only what measures real time
-	  stays on `Time` (the Von launcher's boot timeout and the planner's per-level `ms`, Von's latency). A per-frame key that measures no
-	  age (`DecisionBudget`'s pool, the learn and sight offsets) may read `Engine.get_physics_frames()`.
+	  stays on `Time` (the Von launcher's boot timeout and the planner's per-level `ms`, Von's latency). A per-frame key that measures
+	  no age (`DecisionBudget`'s pool, the offsets) may read `Engine.get_physics_frames()`.
     - `FillBatch` (`general/fill_batch.gd`, `RefCounted`): plain-coloured shapes drawn as one triangle array instead of a command each,
-	  the engine's own triangles and pixels (`draw_circle`'s 64-gon included). `FillBatch.new(canvas, base := IDENTITY)`,
+	  the engine's own triangles and pixels. `FillBatch.new(canvas, base := IDENTITY)`,
 	  `fill(poly, color, xform)`, `fill_convex(...)`, `circle(center, radius, color, xform)`, `flush()`; statics `FillBatch.unit_circle()`
 	  (that 64-gon's corners round the unit circle) and `FillBatch.fan(base, n)` (a fan's triangle indices over `n` corners), which the
 	  Character's `BodyMeshes.Solid` builds meshes from; `FillBatch.batching` is false under the headless display (it renders nothing),
 	  where each shape is drawn by its own command. Used where many shapes draw each frame: the Character's limbs and shadow, Physics'
-	  blood splats, chip and print chunks and wound marks.
+	  blood splats, chunks and wound marks.
     - `WorldRng` (`general/world_rng.gd`, statics): a world's chance, order and frames; the AI keys on it, not on an instance id.
 	  `register(root, match_seed)` (Main's stage), `of(node) -> RandomNumberGenerator`, `enrol(node) -> int` (a character's place,
 	  from 0), `order_of(id) -> int`, `before(a, b) -> bool` (spawned first), `frame_of(node) -> int` (`GameClock` frames its world
@@ -64,5 +64,5 @@
 	  many rays (Vision's cone). AI perception's sight line and Vision's cone both cast through it.
     - `SeenArea` (`general/seen_area.gd`, static holder): what the view shows live. Vision writes `set_area(polygons: Array,
 	  bounds: Rect2)` per rebuild and `clear()` on a lift; `reaches(center, radius)` (a disc) and `reaches_rect(rect)` (a long box)
-	  say whether any of it is shown, true while no area is set. Character's visuals (60 px) and Physics' blood pools (their box)
-	  skip a repaint on false. `contains(polygon, point)` is the one even-odd point test.
+	  say whether any of it is shown, true while no area is set (`active()`). Character's visuals (60 px) and Physics'
+	  blood pools (their box) skip a repaint on false; Art's mirror and Projectile's casings hold back the unseen. `contains(polygon, point)` is the one even-odd point test.

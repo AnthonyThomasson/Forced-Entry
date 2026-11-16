@@ -1,14 +1,16 @@
 class_name ToonMask
 extends RefCounted
 ## Art domain, the pixel post (#193 phase 3's hook, interface 27): the global shader uniforms the
-## toon material (`toon.gdshader`) and the decal's (`decal.gdshader`) read to dim what the player's
-## view does not show, so the vision job puts its mask in place without touching a mesh or a
-## material. Three globals: `vision_mask` (a texture whose red channel is how visible a spot of the
-## ground is, 1 seen to 0 unseen), `vision_mask_xf` (`xy` scale and `zw` offset taking a surface's
-## world `(x, z)` in 3D units to the mask's uv) and `vision_unseen` (how bright an unseen spot
-## stays,
-## 0 black to 1 untouched). The default is "everything visible": `vision_unseen` 1, whatever the
-## mask holds. Art builds no mask: `set_mask` is the one call the vision job makes.
+## toon shaders (`toon.gdshader`, `toon_tex.gdshader`), the decal's (`decal.gdshader`) and the
+## outline pass read for the player's view (`toon_vision.gdshaderinc`), so the vision job puts its
+## masks in place without touching a mesh or a material. Seven globals: the live cone `vision_mask`
+## (a texture whose red channel is how visible a spot of the ground is, 1 seen to 0 unseen),
+## `vision_mask_xf` (`xy` scale and `zw` offset taking a surface's world `(x, z)` in 3D units to its
+## uv) and `vision_unseen` (how bright a spot never seen stays, 0 black to 1 untouched); the ground
+## ever seen `vision_memory` with `vision_memory_xf`; and the remembered look `vision_look` (grey,
+## brightness, contrast, pivot) and `vision_tint`. The default is "everything visible":
+## `vision_unseen` 1, whatever the masks hold. Art builds no mask: `set_mask` and `set_memory` are
+## what the vision job calls.
 ##
 ## The globals must be declared before a shader that names them compiles, so `ToonMaterial.make()`
 ## and the decal material call `install()`.
@@ -65,7 +67,7 @@ static func install() -> void:
 		MEMORY_TRANSFORM, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0)
 	)
 	RenderingServer.global_shader_parameter_add(
-		LOOK, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(1.0, 1.0, 0.0, 0.0)
+		LOOK, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(1.0, 1.0, 1.0, 0.0)
 	)
 	RenderingServer.global_shader_parameter_add(
 		TINT, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(1.0, 1.0, 1.0, 1.0)
@@ -93,17 +95,18 @@ static func move_mask(world_rect: Rect2) -> void:
 
 ## The remembered world: `texture`'s red channel is how surely a spot of `world_rect` (2D px, the
 ## texture covers it edge to edge) was ever seen (1 seen, 0 never); where the live mask does not
-## show a spot, a remembered one is drawn in the look: greyed by `grey` (0 to 1), tinted `tint`
-## and keeping `brightness` of its light (the world as it stands, not a frozen picture), a spot
-## never seen keeps the unseen brightness `set_mask` was given.
+## show a spot, a remembered one is drawn in the `look` (`Vector4(grey, brightness, contrast,
+## pivot)`, as the 2D memory's: greyed by `grey` 0 to 1, keeping `brightness` of its light, the
+## `contrast` about `pivot`; 1 and 0 for none) and tinted `tint` (the world as it stands, not a
+## frozen picture); a spot never seen keeps the unseen brightness `set_mask` was given.
 static func set_memory(
-	texture: Texture2D, world_rect: Rect2, grey: float, brightness: float, tint: Color
+	texture: Texture2D, world_rect: Rect2, look: Vector4, tint: Color
 ) -> void:
 	install()
 	RenderingServer.global_shader_parameter_set(MEMORY, texture)
 	RenderingServer.global_shader_parameter_set(MEMORY_TRANSFORM, _to_uv(world_rect))
 	RenderingServer.global_shader_parameter_set(
-		LOOK, Vector4(clampf(grey, 0.0, 1.0), maxf(brightness, 0.0), 0.0, 0.0)
+		LOOK, Vector4(clampf(look.x, 0.0, 1.0), maxf(look.y, 0.0), look.z, look.w)
 	)
 	RenderingServer.global_shader_parameter_set(TINT, Vector4(tint.r, tint.g, tint.b, 1.0))
 	_memory_rect = world_rect

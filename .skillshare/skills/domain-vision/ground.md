@@ -8,7 +8,7 @@ Spec: `docs/player-vision.md` V12.
   steps: `follow` each `_process`) and the **seen** one (the floors' bounds, never cleared, the cone added on each publish). `publish` (called
   where `SeenArea.set_area` is) draws both unless the cone is the one already drawn (the backstop republishes unchanged cones); `ToonMask.set_mask` /
   `set_memory` switch the shaders' globals on `settle_frames` later and `suspend()` (a lift, a disabled view) clears them. The shaders do the rest
-  (`domain-art`: `toon_vision.gdshaderinc`; the mirror hides what moves out of the cone, `MirrorVisionConfig`). `PlayerView.ground` is the node (null
+  (`domain-art`: `toon_vision.gdshaderinc`; the mirror hides what moves out of the cone, `MirrorVisionConfig`). `live_side` is fixed, so a texel covers more world px zoomed out (a coarser feather there); `PlayerView.ground` is the node (null
   in 2D; `counts` says how often each draw was asked); `capture()`, `memory()`, `mask()`, `composite()` are null there.
 
 A new moving thing in 3D: its 2D node is on `ViewLayers.MOVING` and the mirror hides it outside the cone and marks its mesh (`MeshNodes.moving`);

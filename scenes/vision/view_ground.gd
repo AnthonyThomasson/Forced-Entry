@@ -168,10 +168,10 @@ func _tick_settle() -> void:
 	_settle = -1
 	on = true
 	ToonMask.set_mask(live.get_texture(), window, VisionGroundConfig.unseen_brightness)
-	ToonMask.set_memory(
-		seen.get_texture(), seen_bounds, VisionConfig.grey, VisionConfig.brightness,
-		VisionConfig.tint,
+	var look := Vector4(
+		VisionConfig.grey, VisionConfig.brightness, VisionConfig.contrast, VisionConfig.pivot
 	)
+	ToonMask.set_memory(seen.get_texture(), seen_bounds, look, VisionConfig.tint)
 
 
 ## Draw `viewport` once, next frame.

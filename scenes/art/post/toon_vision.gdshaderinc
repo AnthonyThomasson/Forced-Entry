@@ -13,6 +13,7 @@ global uniform vec4 vision_mask_xf;
 global uniform float vision_unseen;
 global uniform sampler2D vision_memory : repeat_disable, filter_linear;
 global uniform vec4 vision_memory_xf;
+// (grey, brightness, contrast, pivot) of the remembered look, as the 2D memory's.
 global uniform vec4 vision_look;
 global uniform vec4 vision_tint;
 

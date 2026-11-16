@@ -25,6 +25,10 @@ var _casings: MeshPool
 ## The casings still being tossed and how long (s) each has been.
 var _flying: Array[Node] = []
 var _ages := PackedFloat32Array()
+## The casings the player's view has had in its cone (instance id -> true), and those lying that it
+## has not yet: a casing is drawn once seen, where it lies, and not before.
+var _seen: Dictionary = {}
+var _waiting: Array[Node] = []
 ## Whether the layer has said a pool was full (the tracers', then the casings').
 var _said_full := [false, false]
 
@@ -60,6 +64,8 @@ func _process(delta: float) -> void:
 			_stop_flying(i)
 		else:
 			i += 1
+	for w in range(_waiting.size() - 1, -1, -1):  # a lying one waits for the cone to reach it
+		_place_casing(_waiting[w], INF)
 	_rest_if_idle()
 
 
@@ -102,6 +108,11 @@ func casing_batch() -> MultiMeshInstance3D:
 	return _casings.node
 
 
+## The tracers' batch node.
+func tracer_batch() -> MultiMeshInstance3D:
+	return _tracers.node
+
+
 ## A bullet or a casing joined the world: it gets a place, written at once.
 func _on_joined(node: Node) -> void:
 	var script: Variant = node.get_script()
@@ -129,6 +140,8 @@ func _on_leaving(node: Node) -> void:
 		_tracers.remove(node)
 	elif script == Casing:
 		_casings.remove(node)
+		_seen.erase(node.get_instance_id())
+		_waiting.erase(node)
 		var at := _flying.find(node)
 		if at >= 0:
 			_stop_flying(at)
@@ -144,7 +157,7 @@ func _say_full(which: int, what: String, size: int) -> void:
 
 ## The layer runs only while a bullet flies or a casing is tossed.
 func _rest_if_idle() -> void:
-	set_process(_tracers.count > 0 or not _flying.is_empty())
+	set_process(_tracers.count > 0 or not _flying.is_empty() or not _waiting.is_empty())
 
 
 ## The casing at `index` of the tossed ones has come to rest (or is gone).
@@ -168,11 +181,30 @@ func _place_casing(casing: Node2D, age: float) -> void:
 	var frame := Transform3D(
 		Basis(Vector3.UP, -casing.global_rotation), Vector3(at.x, lift, at.y) * RenderConfig.unit
 	)
-	# A casing in the air is not remembered (the player's view shows it only inside the cone): one
-	# tossed out of sight is drawn no size at all, and lies where it fell once it is down.
-	if age < INF and not SeenArea.reaches(at, TOSS_REACH):
+	if not _drawn(casing, at, age):
 		frame = Transform3D(Basis.from_scale(Vector3.ZERO), frame.origin)
 	_casings.place(_casings.slot_of(casing), frame)
+
+
+## Whether the player's view lets `casing` at `at` be drawn (`age` INF: lying): one in the air only
+## inside the cone, one lying once the cone has reached it (it is then remembered where it lies).
+## With no view, always. A lying one not yet seen waits, checked each frame.
+func _drawn(casing: Node, at: Vector2, age: float) -> bool:
+	if not SeenArea.active():
+		_waiting.erase(casing)
+		return true
+	var id := casing.get_instance_id()
+	var shown := true
+	if SeenArea.reaches(at, TOSS_REACH):
+		_seen[id] = true
+	elif age < INF or not _seen.has(id):
+		shown = false
+	if age == INF:
+		if shown:
+			_waiting.erase(casing)
+		elif not _waiting.has(casing):
+			_waiting.append(casing)
+	return shown
 
 
 ## Write the tracer in `slot`: its tip on its bullet, its streak behind along the heading, at the

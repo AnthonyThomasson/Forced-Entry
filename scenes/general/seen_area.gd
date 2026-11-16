@@ -23,6 +23,11 @@ static func set_area(polygons: Array, bounds: Rect2) -> void:
 	_set = true
 
 
+## Whether an area is set: a view is on and has published a cone (false: every disc reaches).
+static func active() -> bool:
+	return _set
+
+
 ## Forget the area: every disc reaches again.
 static func clear() -> void:
 	_polygons = []

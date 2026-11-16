@@ -89,7 +89,9 @@ vec3 toon_remember(vec3 albedo, float weight) {
 		return albedo;
 	}
 	float grey = dot(albedo, vec3(0.299, 0.587, 0.114));
-	vec3 look = mix(albedo, vec3(grey), vision_look.x) * vision_tint.rgb;
+	vec3 look = mix(albedo, vec3(grey), vision_look.x);
+	look = (look - vec3(vision_look.w)) * vision_look.z + vec3(vision_look.w);
+	look = clamp(look * vision_tint.rgb, 0.0, 1.0);
 	return mix(albedo, look, weight);
 }
 

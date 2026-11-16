@@ -1,5 +1,5 @@
-25. **Main / Testing (through `MatchBuilder`) → Vision: the player's view** (`scenes/vision/`; spec `docs/player-vision.md`; Vision is a leaf:
-    it imports only General and reads the viewer and the world duck-typed)
+25. **Main / Testing (through `MatchBuilder`) → Vision: the player's view** (`scenes/vision/`; spec `docs/player-vision.md`; Vision imports General and, in 3D,
+    Art's `ToonMask`, and reads the viewer and the world duck-typed)
     - `PlayerView.watch(root: Node, character: Node2D) -> PlayerView` builds the view of what `character` sees under `root` (a `Node2D` in the
       group `player_view`, named `PlayerView`) and returns it; null while `VisionConfig.enabled` is off and for a character already dead (no
       view of the dead). A match has one view (more than one viewer is out of scope). `MatchBuilder.populate` (23) calls it for the match's human (the handle's `view`; none with no

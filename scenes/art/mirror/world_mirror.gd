@@ -459,7 +459,7 @@ func _shown(row: Dictionary) -> bool:
 		return false
 	if not (body as CanvasItem).visible:
 		return false
-	if _unseen(body):
+	if _unseen(body) or _not_yet_seen(row, body):
 		return false
 	return not MirrorProxy.shapes_all_off(row)
 
@@ -483,10 +483,35 @@ func _moves(row: Dictionary) -> bool:
 func _unseen(body: Node) -> bool:
 	if (body as CanvasItem).visibility_layer & ViewLayers.MOVING == 0:
 		return false
-	var reach := MirrorVisionConfig.vehicle_reach if body.is_in_group(&"vehicles") else (
-		MirrorVisionConfig.moving_reach
+	return not SeenArea.reaches((body as Node2D).global_position, _reach(body))
+
+
+## Whether `body` is a thing the view shows only once it has been in the cone
+## (`MirrorVisionConfig.seen_first`) and has not been yet: it is hidden, and the frame the cone
+## first reaches it the row is marked seen for good. With no area set (no view) nothing is held
+## back.
+func _not_yet_seen(row: Dictionary, body: Node) -> bool:
+	if row.get("seen", false) or not SeenArea.active():
+		return false
+	if not row.has("first"):
+		row["first"] = MirrorVisionConfig.seen_first.any(
+			func(group: StringName) -> bool: return body.is_in_group(group)
+		)
+	if not row["first"]:
+		return false
+	if SeenArea.reaches((body as Node2D).global_position, _reach(body)):
+		row["seen"] = true
+		return false
+	return true
+
+
+## How far round its origin (px) a thing that moves reaches: a vehicle's is longer.
+func _reach(body: Node) -> float:
+	return (
+		MirrorVisionConfig.vehicle_reach
+		if body.is_in_group(&"vehicles")
+		else MirrorVisionConfig.moving_reach
 	)
-	return not SeenArea.reaches((body as Node2D).global_position, reach)
 
 
 ## Watch `body` leave the tree, gain or lose a collision shape (`shapes`: not for a node that is
