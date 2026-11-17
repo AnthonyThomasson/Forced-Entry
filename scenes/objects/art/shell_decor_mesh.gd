@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a shell's loose things (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of a shell's loose things (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): walk-over decor lying on the floor of a roofless
 ## district shell, at the piece's own footprint and `shell_decor_painter.gd`'s layout, by `kind`.
 ## `rebar` is two layers of steel rods tied in two places; `rubble` a heap of broken concrete,

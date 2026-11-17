@@ -1,7 +1,7 @@
 class_name PhysicsMeshes
 extends RefCounted
-## Physics domain, the one call that plugs the 3D look of its effects into the 3D mirror (#193
-## phase 2; `domain-art/meshes.md`). Debris, hit particles, blood and explosions are too many and
+## Physics domain, the one call that plugs the 3D look of its effects into the 3D mirror
+## (`domain-art/meshes.md`). Debris, hit particles, blood and explosions are too many and
 ## too short-lived for a node and a mesh each through the mirror's `track_group`, so a layer owns
 ## their batches and meshes and the 2D code tells it as it makes each thing (`PhysicsFxHook`).
 ## Main's 3D view installs it once, before the match makes anything.

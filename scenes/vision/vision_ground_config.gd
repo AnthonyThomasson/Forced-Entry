@@ -1,5 +1,5 @@
 class_name VisionGroundConfig
-## The Vision domain's tuning of the player's view in the 3D render (#193 phase 3): the two masks
+## The Vision domain's tuning of the player's view in the 3D render: the two masks
 ## the toon shaders read (`ViewGround`, `ToonMask`). A `class_name` holder of `static var`s, read as
 ## `VisionGroundConfig.<name>`. The look of the remembered world is `VisionConfig`'s (`grey`,
 ## `brightness`, `tint`), the feather's width too (`feather`, screen px).

@@ -5,7 +5,7 @@ class_name Pointer
 ## sub-viewport) each convert by their own view. In 2D it is backed by the viewport's canvas
 ## transform: the active `Camera2D`'s view, the identity in a world with no camera.
 ##
-## In the 3D render mode (#193) the `CameraRig` binds itself (`bind_3d`) and every node of the
+## The `CameraRig` binds itself (`bind_3d`) and every node of the
 ## viewport the sim's `Camera2D` serves converts through the orthographic camera instead (no caller
 ## changes; the rig works the affine out once a frame, `refresh_3d`): a screen
 ## point is the camera ray that meets the ground plane y = 0, and the world's place on the screen is
@@ -23,8 +23,8 @@ class_name Pointer
 static var _injected_point := Vector2.ZERO
 ## Whether a screen point stands in for the mouse (`inject` sets it, `release` clears it).
 static var _injected := false
-## The 3D render mode's camera, the control that shows its picture and the viewport the sim's
-## screen is (all null while the 2D body is in use). Untyped so a freed one is checked, not read.
+## The 3D camera, the control that shows its picture and the viewport the sim's
+## screen is (all null while no rig is bound). Untyped so a freed one is checked, not read.
 static var _camera: Variant = null
 static var _rect: Variant = null
 static var _screen: Variant = null
@@ -68,7 +68,7 @@ static func world_direction(node: Node, screen_dir: Vector2) -> Vector2:
 	return world_vector(node, screen_dir).normalized() * screen_dir.length()
 
 
-## Bind the 3D render mode's camera (the `CameraRig` calls this in its `bind`): `camera` is the
+## Bind the 3D camera (the `CameraRig` calls this in its `bind`): `camera` is the
 ## orthographic `Camera3D`, `rect` the control that shows its picture on the screen (null: the
 ## picture fills the screen) and `screen` the viewport the sim's `Camera2D` serves, whose nodes
 ## convert through it from now on. Left bound until `unbind_3d`.

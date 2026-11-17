@@ -1,5 +1,5 @@
 class_name Lighting3DConfig
-## The Lighting domain's 3D dusk (#193 phase 3, `docs/lighting.md` "The 3D lighting"): the sun's
+## The Lighting domain's 3D dusk (`docs/lighting.md` "The 3D lighting"): the sun's
 ## angle and shadow, how high each kind of light hangs, how a pool falls off, and what the lights
 ## cost. The dusk's colours and energies are `LightingConfig`'s (`ambient_color`, `sky_color`,
 ## `sky_from`, `sky_energy`); what each piece gives is its own `get_lights()`. A `class_name`

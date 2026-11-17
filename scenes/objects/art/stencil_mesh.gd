@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a floor stencil (#193 phase 2; `domain-art/meshes.md`): words in a
+## Objects domain, the 3D mesh of a floor stencil (`domain-art/meshes.md`): words in a
 ## hazard-stripe border painted on the floor (`DecalFactory.stencil`, a `StencilDecal` node that is
 ## no physics body, in the group `DecalFactory.STENCIL_GROUP`). The mesh is a decal: the node's own
 ## texture on a flat quad laid on the floor over the area it covers, so it reads as the 2D paint

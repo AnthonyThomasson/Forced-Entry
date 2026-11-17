@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a toilet (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a toilet (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): at the piece's own footprint, bowl toward the front, an oval bowl on a
 ## narrower pedestal with its water, and the cistern against the back with its flush button
 ## (`toilet_painter.gd`'s proportions), in the piece's glaze. Shared by every toilet alike.

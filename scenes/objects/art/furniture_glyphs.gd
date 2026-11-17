@@ -1,6 +1,6 @@
 class_name FurnitureGlyphs
 extends RefCounted
-## Objects domain, the lit marks of a lettered 3D piece (#193 phase 2; `domain-art/meshes.md`): the
+## Objects domain, the lit marks of a lettered 3D piece (`domain-art/meshes.md`): the
 ## pixel font and the brush-stroke characters the painters draw (`glyphs.gd`) as the points a mesh
 ## puts a small block at, so a menu board's text and a glyph sign's characters are the 2D art's own
 ## shapes. Points are in the painter's pixels from the glyph's top-left corner.

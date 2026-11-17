@@ -150,7 +150,7 @@ a flash whose pool the view cannot reach (the focus and the camera's reach) ligh
 and takes no shadow slot (the room map is its wall: it lights the room it stands in, or a room it is within `flash_room_slack` 8 px
 outside of (a muzzle in a doorway), and else, on the street, the spots in no room, as a street light does). Nothing is lit outside the
 vision cone: a flash is dimmed where the player does not see (the vision mask's `vision_unseen`, `docs/player-vision.md`: the toon light
-scales every light's amount by it, so a flash outside the cone, in a remembered or a never-seen spot, shows as little as a lamp there does). There is no light for a bullet's impact spark (2D lights none).
+scales every light's amount by it, so a flash outside the cone, in a remembered or a never-seen spot, shows as little as a lamp there does). There is no light for a bullet's impact spark (the lights are the world's fixtures, pieces and flashes).
 **A flash is coded for the toon light, not lifted over it.** Its `light_specular` says it is a flash (`slope + kind / 4 + 4 x code`, kind 1 a
 tint, 2 a white-out), and the toon light adds it to the specular accumulator, apart from the dusk's capped sum: no global is written
 while a flash fades, so a lamp's pools far from a blast keep their colour. A **tinted** flash (a shot, a frag) is the surface's own

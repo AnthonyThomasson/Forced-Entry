@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a potted plant (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a potted plant (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): within the inscribed circle of its round footprint, a tapering
 ## terracotta pot with dark soil and a crown of `leaves` (`art_opts.leaves`,
 ## `ObjectArtDecorConfig.plant_*`) arching out of it, each a flat strip swept up and over, in two

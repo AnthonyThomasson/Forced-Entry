@@ -1,6 +1,6 @@
-// The toon light, shared (Art, `toon_material.gd`; #193 rule 6): the ONE source of what the toon
+// The toon light, shared (Art, `toon_material.gd`): the ONE source of what the toon
 // shaders (`toon.gdshader`, `toon_tex.gdshader` and the kit's `decal.gdshader`) share, so they
-// cannot drift apart. It holds the vision hook's globals (phase 3, `toon_mask.gd`), the dusk's
+// cannot drift apart. It holds the vision hook's globals (`toon_mask.gd`), the dusk's
 // (`toon_light.gd`), the band uniforms, the fade's dither, the vision-mask read and `light()`: a
 // pixel is lit by the dusk's ambient plus every light that reaches it, each light's amount (N.L
 // times its fall-off and shadow) stepped into one of `count` bands whose strengths are `levels`
@@ -10,11 +10,11 @@
 // `toon_remember` and `toon_spot` from its `fragment()` (a built-in is not readable from here) and writes ALBEDO; the surface's own
 // uniforms (`base_color`, ...) are its own.
 //
-// The player's view (phase 3, `ToonMask`): `toon_vision.gdshaderinc` holds its globals and the read
+// The player's view (`ToonMask`): `toon_vision.gdshaderinc` holds its globals and the read
 // of them by a world position, shared with the outline pass.
 #include "res://scenes/art/post/toon_vision.gdshaderinc"
 
-// The dusk (phase 3, `toon_light.gd`): what every surface is lit by, the most it may add up to,
+// The dusk (`toon_light.gd`): what every surface is lit by, the most it may add up to,
 // where the sun reaches (a texture of the street's floors; `sky_masked` 0, the default: everywhere)
 // and which room each spot is in (a texture of room ids, red the low byte, green the high; a
 // room's light reaches only its own room; `room_masked` 0, the default: no clipping).

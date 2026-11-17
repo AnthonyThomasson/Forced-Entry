@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of the kitchenette's hotplate (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of the kitchenette's hotplate (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint, a plate in the piece's
 ## colour on a crate, a pan on the right ring and the left ring hot and glowing
 ## (`hotplate_painter.gd`; `ObjectArtKitchenBathConfig.hotplate_*`). The ring is a glow node of the

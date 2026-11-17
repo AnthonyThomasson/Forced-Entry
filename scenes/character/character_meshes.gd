@@ -1,6 +1,6 @@
 class_name CharacterMeshes
 extends RefCounted
-## Character domain, the 3D mesh of its bodies (#193 phase 2; `domain-art/meshes.md`): the one call
+## Character domain, the 3D mesh of its bodies (`domain-art/meshes.md`): the one call
 ## that plugs the character's mesh into the 3D mirror. The mesh itself is `BodyMesh`
 ## (`body/art/body_mesh.gd`, built from Art's mesh kit beside the painters); a node with no
 ## anatomy or wardrobe, or the builder returning null, stays a proxy capsule. Main's 3D view

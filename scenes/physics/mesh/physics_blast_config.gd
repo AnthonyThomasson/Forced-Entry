@@ -1,5 +1,5 @@
 class_name PhysicsBlastMeshConfig
-## Physics domain, the 3D look of a grenade's burst (#193 phase 2; `blast_fx.gd`,
+## Physics domain, the 3D look of a grenade's burst (`blast_fx.gd`,
 ## `blast_rig.gd`, `domain-physics/meshes.md`): what the 3D adds to the 2D look
 ## (`PhysicsExplosionConfig.looks`, whose radii, times, puffs, colours and scorch it reads again):
 ## how high things stand and how the rig is pooled. A `class_name` holder of `static var`s, read as

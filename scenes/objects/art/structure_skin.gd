@@ -1,7 +1,7 @@
 class_name StructureSkin
 extends RefCounted
-## Objects domain, the 2D art on the structure's 3D meshes (#193 phase 2b,
-## `domain-objects/structure-meshes.md`):
+## Objects domain, the 2D art on the structure's 3D meshes
+## (`domain-objects/structure-meshes.md`):
 ## the floor's, the street's and the wall's tile and the door's leaf, painted flat
 ## (`ObjectArt.flat`: no baked light, canonical, one texture per piece kind and look, cached by
 ## `PixelArt`) and laid on a mesh by `MeshNodes.textured`, which projects it straight down in the

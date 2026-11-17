@@ -1,7 +1,7 @@
 class_name FxWorld
 extends RefCounted
-## Physics domain, what the 3D effects share about the world they lie in (#193 phase 2;
-## `domain-physics/meshes.md`): how high the ground is under a spot, and a random source of their
+## Physics domain, what the 3D effects share about the world they lie in
+## (`domain-physics/meshes.md`): how high the ground is under a spot, and a random source of their
 ## own. The ground is a `Callable` from a world point (2D px) to a height offset (px, 0 on the
 ## pavement the effects' heights count from): the one Main hands to `PhysicsMeshes.install`, built
 ## from the street's road rects (Objects' `StreetGround`), so a mark on the road lies a kerb lower;

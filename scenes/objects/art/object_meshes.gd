@@ -1,6 +1,6 @@
 class_name ObjectMeshes
 extends RefCounted
-## Objects domain, the 3D meshes of its pieces (#193 phase 2; `domain-art/meshes.md`): which art ids
+## Objects domain, the 3D meshes of its pieces (`domain-art/meshes.md`): which art ids
 ## have a mesh of their own and the one call that plugs them into the 3D mirror. Each id has a
 ## script beside the painters (`table_mesh.gd`) with `static func build(piece) -> Node3D`, built
 ## from Art's mesh kit, in 3D units and centred on the piece's origin; an art id with none stays a

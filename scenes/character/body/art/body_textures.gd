@@ -1,6 +1,6 @@
 class_name BodyTextures
 extends RefCounted
-## Character body, the 2D art on the 3D body (`body_mesh.gd`; #193 phase 2b): the flat render of
+## Character body, the 2D art on the 3D body (`body_mesh.gd`): the flat render of
 ## each painter (`PixelArt.render_flat`: the art with no light of its own, the toon bands light it)
 ## mapped onto the part the 2D draws it for, with `MeshNodes.textured`. The art is angle-free, so it
 ## is one texture per part per look (`PixelArt` caches it), set when the look changes and never per

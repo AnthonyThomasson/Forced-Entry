@@ -4,8 +4,8 @@ extends RefCounted
 ## A pixel is drawn when its alpha is over this.
 const OPAQUE := 0.5
 
-## Items domain, private to the item meshes (`gun_mesh.gd`, `grenade_mesh.gd`, `spoon_art.gd`;
-## #193): a solid raised from a flat picture's silhouette. The 2D painters' art is the item's look,
+## Items domain, private to the item meshes (`gun_mesh.gd`, `grenade_mesh.gd`, `spoon_art.gd`):
+## a solid raised from a flat picture's silhouette. The 2D painters' art is the item's look,
 ## so the 3D item is its coverage (the pixels the painter drew) lifted to a height, and the art is
 ## projected straight down onto it (`MeshNodes.textured`): seen from above the mesh IS the 2D art.
 ##

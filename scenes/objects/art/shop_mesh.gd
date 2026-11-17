@@ -1,13 +1,13 @@
 extends RefCounted
-## Objects domain, the 3D mesh of the tower shop's pieces (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of the tower shop's pieces (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and `shop_painter.gd`'s
 ## proportions, in grimy steel, by `kind`. `counter` is a steel counter with a rust-orange lip, a
 ## till (its screen glowing), a jar and a few packs; `aisle` is two shelf runs back to back, tiers
 ## of packs on each, a steel lip along each outer edge; `fridge` is a tall drinks fridge with a lit
 ## glass of drinks along its front; `snack` is a snack machine with a keypad and a lit window of
 ## packs. What is lit (the till's screen, the fridge's and the machine's glass) is a glow node of
-## the piece's rig, no real light (phase 3's); the drinks and packs stand proud in front of the
-## glass.
+## the piece's rig, no real light (the Lighting domain's); the drinks and packs stand proud in front
+## of the glass.
 
 const OPTIONS := ["kind", "top_color", "accent_color", "glass_color", "fridge_glow", "height"]
 ## How far a feature stands proud of the face it is laid on.

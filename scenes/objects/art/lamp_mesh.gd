@@ -1,10 +1,11 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a floor lamp (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a floor lamp (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): within the inscribed circle of its round footprint, a base, a pole and
 ## a tin shade (`ObjectArtDecorConfig.lamp_tin_color`, not the piece's colour: it only tints the
 ## debris) open at the top, dark inside, with the bare bulb showing over its rim
 ## (`lamp_painter.gd`). The bulb is a glow node of the piece's rig
-## (`ObjectArtDecorConfig.lamp_glow_color`, or its neon): no real light, which phase 3 gives.
+## (`ObjectArtDecorConfig.lamp_glow_color`, or its neon): no real light, which the Lighting domain
+## gives.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 

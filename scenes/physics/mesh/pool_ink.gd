@@ -1,7 +1,7 @@
 class_name PoolInk
 extends RefCounted
-## Physics domain, a dead body's bleed-out pool in the 3D render (#193 phase 2;
-## `domain-physics/meshes.md`): a decal on the floor (`MeshNodes.decal`) showing the pool's fill
+## Physics domain, a dead body's bleed-out pool in the 3D render
+## (`domain-physics/meshes.md`): a decal on the floor (`MeshNodes.decal`) showing the pool's fill
 ## field as the 2D draws it, the field the flood-fill claims and the front sweeps through (blurred
 ## by `BloodPoolField`, the same function), cut at `PhysicsInkConfig.pool_threshold` into two
 ## tones (the rim, and the deep blood) and a third for blood that has soaked into a porous floor.

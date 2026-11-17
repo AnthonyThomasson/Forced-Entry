@@ -1,6 +1,6 @@
 class_name FurnitureRig
 extends Node3D
-## Objects domain, the 3D body of one furniture piece (#193 phase 2, `domain-art/mesh-hook.md`):
+## Objects domain, the 3D body of one furniture piece (`domain-art/mesh-hook.md`):
 ## its shared mesh on a child, and the little state a piece has that changes its look. The rig
 ## costs nothing per frame (it has no `mirror_update` and no `_process`); a state changes it:
 ##   - **damage.** The 2D piece darkens by the damage it has taken (`Deformation.darken`); the rig

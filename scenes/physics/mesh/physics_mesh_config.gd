@@ -1,5 +1,5 @@
 class_name PhysicsMeshConfig
-## Physics domain, the 3D look of the debris and the hit particles (#193 phase 2; `mesh/`,
+## Physics domain, the 3D look of the debris and the hit particles (`mesh/`,
 ## `domain-physics/meshes.md`): how high a chip flies and lies, how a burst's bits arc, and how
 ## many the batches hold. A `class_name` holder of `static var`s, read as
 ## `PhysicsMeshConfig.<name>` (ADR 0003). Lengths and heights are 2D px, as the meshes are built

@@ -1,9 +1,9 @@
-// The player's view as the shaders read it (Art, `toon_mask.gd`; #193 phase 3): the globals
+// The player's view as the shaders read it (Art, `toon_mask.gd`): the globals
 // `ToonMask` sets and the read of them by a world position, shared by the toon shaders
 // (`toon_common.gdshaderinc`) and the outline pass (`outline.gdshader`), so neither draws what the
 // other hides.
 //
-// The globals are phase 3's vision hook (`ToonMask`): `vision_mask` is the cone the player sees
+// The globals are the vision hook (`ToonMask`): `vision_mask` is the cone the player sees
 // live (1 seen, 0 not), `vision_memory` the ground ever seen; a spot in neither keeps only
 // vision_unseen of its light, one remembered only keeps `vision_look.y` of it and is greyed and
 // tinted, one in the cone is as lit. The default (vision_unseen 1) shows everything.

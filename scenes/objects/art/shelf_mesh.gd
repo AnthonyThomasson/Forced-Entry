@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of an open shelf (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of an open shelf (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): at the piece's own footprint, a side at each end, a back, and boards in
 ## levels, in the piece's colour, with what the shelf holds standing on each board: book spines,
 ## cardboard boxes or pairs of shoes (`shelf_painter.gd`: `contents`,

@@ -1,6 +1,6 @@
 class_name ToonLight
 extends RefCounted
-## Art domain, the pixel post (#193 phase 3, interface 27): the global shader uniforms the toon
+## Art domain, the pixel post (interface 27): the global shader uniforms the toon
 ## shaders read for the dusk, so the Lighting domain sets the world's ambient, where the sky
 ## reaches and which room each spot is in without touching a mesh or a material. Globals:
 ## `dusk_ambient` (what every surface is lit by, a colour times its painted one), `dusk_cap` (the

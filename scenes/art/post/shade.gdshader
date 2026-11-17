@@ -1,6 +1,6 @@
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
-// The mesh kit's drop shadow (Art, `MeshNodes.shade`; #193 phase 3): a flat dark patch laid on the
+// The mesh kit's drop shadow (Art, `MeshNodes.shade`): a flat dark patch laid on the
 // floor under a thing that moves, the 3D twin of the 2D body's floor shadow (a translucent shade the
 // floor shows through, `ArtCanvasConfig.drop_shadow_alpha`), whatever the lights are: it is not
 // lit and not cast, so it is as short as it is drawn. The player's view hides it where it hides

@@ -1,6 +1,6 @@
 class_name GunMesh
 extends RefCounted
-## Items domain, a gun's 3D mesh and its art (#193, `domain-art/meshes.md`): the 2D gun, stood up.
+## Items domain, a gun's 3D mesh and its art (`domain-art/meshes.md`): the 2D gun, stood up.
 ## The mesh is the silhouette of the painter's flat render (`PixelArt.render_flat`, the pixels it
 ## drew) lifted to a height per part (`ItemSolid`), its barrel round, and the very same flat art is
 ## projected straight down onto it (`MeshNodes.textured`, rect from `held_rect` / `lying_rect`), so

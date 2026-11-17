@@ -1,5 +1,5 @@
 class_name PixelPostConfig
-## Art domain, the pixel post of the 3D render (#193 rule 6, interface 27): how the low-resolution
+## Art domain, the pixel post of the 3D render (interface 27): how the low-resolution
 ## 3D picture is made to read as pixel art. A `class_name` holder of `static var`s, read as
 ## `PixelPostConfig.<name>` (ADR 0003); the shaders and `ToonMaterial` / `PixelPost` take their
 ## values from it, and the picture's own resolution is the camera rig's

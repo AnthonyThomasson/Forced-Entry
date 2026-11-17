@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a recliner (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a recliner (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): at the piece's own footprint, head toward the back (-y), a dark frame
 ## under four padded sections (headrest, backrest, seat, leg rest: `recliner_painter.gd`'s
 ## fractions) and an armrest each side. `kind` `rig` (the netrunner's jack-in chair) pads in the

@@ -1,6 +1,6 @@
 class_name GrenadeMesh
 extends RefCounted
-## Items domain, a grenade's 3D mesh and its art (#193, `domain-art/meshes.md`): the 2D grenade,
+## Items domain, a grenade's 3D mesh and its art (`domain-art/meshes.md`): the 2D grenade,
 ## stood up. The body is the painter's flat render turned about its length (a radius per picture row
 ## from the pixels it drew: the egg, the cylinder, the narrower cap), the lever held down a strip
 ## along its top where the render with the lever differs from the one without, and the flat art is

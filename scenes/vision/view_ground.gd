@@ -1,5 +1,5 @@
 extends Node
-## Vision domain (private): the player's view in the 3D render (#193 phase 3). The 3D scene is lit
+## Vision domain (private): the player's view in the 3D render. The 3D scene is lit
 ## and drawn as it is; what the player sees of it is two textures the toon shaders read through
 ## global uniforms (`ToonMask`, `toon_common.gdshaderinc`), by a surface's own ground position:
 ##   live   a window of the world about the camera, `VisionGroundConfig.live_side` texels square,

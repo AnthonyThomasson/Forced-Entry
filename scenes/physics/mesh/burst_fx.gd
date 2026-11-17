@@ -1,6 +1,6 @@
 class_name BurstFx
 extends RefCounted
-## Physics domain, the hit particles of the 3D render (#193 phase 2; `domain-physics/meshes.md`):
+## Physics domain, the hit particles of the 3D render (`domain-physics/meshes.md`):
 ## a burst `HitParticles` makes is a handful of small cubes, each a part of a batch (one of the
 ## bits, one of the sparks: a spark is the metal style's own "spark" tint, lit whatever the light,
 ## no

@@ -1,6 +1,6 @@
 class_name WallWearMesh
 extends RefCounted
-## Objects domain, a wall's wear in the 3D render (#193 phase 2; `domain-objects/meshes.md`): the
+## Objects domain, a wall's wear in the 3D render (`domain-objects/meshes.md`): the
 ## marks of its room's wear (`RoomWear.wall_marks`) stand on the face of the wall segment they lie
 ## on, the face toward the room, at a height by kind (`ObjectWearMeshConfig`), painted by the same
 ## wear painter, kind and variant as the 2D mark (on a canvas as long as the mark and as tall as

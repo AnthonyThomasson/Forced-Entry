@@ -1,6 +1,6 @@
 class_name ToonMaterial
 extends RefCounted
-## Art domain, the pixel post (`pixel_post_config.gd`; #193 rule 6): the one toon `ShaderMaterial`
+## Art domain, the pixel post (`pixel_post_config.gd`): the one toon `ShaderMaterial`
 ## the 3D render's meshes share, a colour per instance (`base_color`, an instance uniform). The
 ## mirror's proxies use it now and each domain's mesh will; each light's amount is stepped into
 ## `PixelPostConfig.bands` bands (`ToonLightConfig`), the dusk's ambient and the lights added up.

@@ -1,6 +1,6 @@
 class_name VehicleMeshes
 extends RefCounted
-## Vehicles domain, the 3D meshes of its vehicles (#193 phase 2; `domain-art/meshes.md`): the one
+## Vehicles domain, the 3D meshes of its vehicles (`domain-art/meshes.md`): the one
 ## call that plugs them into the 3D mirror. A car or a van is a `vehicle.gd` body, so one builder
 ## under the `MirrorProxy.VEHICLE` kind covers both (`vehicle_mesh.gd` reads the kind's rows).
 ## Main's 3D view registers them (`register`) before it mirrors the match.

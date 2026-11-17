@@ -1,6 +1,6 @@
 class_name BlastFx
 extends RefCounted
-## Physics domain, the explosions of the 3D render (#193 phase 2; `domain-physics/meshes.md`): a
+## Physics domain, the explosions of the 3D render (`domain-physics/meshes.md`): a
 ## burst `ExplosionFx.spawn` tells (a flash, a fireball, smoke) is shown by a rig of
 ## solid shapes (`BlastRig`) taken from a small pool (`PhysicsBlastMeshConfig.rigs`), made with the
 ## layer; a burst past the pool takes the oldest rig. Its scorch is the ink layer's. The look rows,

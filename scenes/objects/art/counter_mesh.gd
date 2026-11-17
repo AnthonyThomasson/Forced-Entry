@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a counter, island or sink (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of a counter, island or sink (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint, a carcass under a top in
 ## the piece's colour, a backsplash rising along the back, and for a sink a basin sunk into the top
 ## (a floor lower than its rim) with a mixer tap on the backsplash side

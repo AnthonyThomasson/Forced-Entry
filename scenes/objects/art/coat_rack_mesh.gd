@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a coat rack (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a coat rack (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): within the inscribed circle of its round footprint, a wooden post on a
 ## round foot with four hook arms at the top, three coats hanging round it and a hat on top
 ## (`coat_rack_painter.gd`; the coats' and the hat's colours are picked by a generator seeded from

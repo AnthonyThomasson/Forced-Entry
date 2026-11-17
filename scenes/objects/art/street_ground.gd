@@ -1,7 +1,7 @@
 class_name StreetGround
 extends RefCounted
-## Objects domain, how far below the pavement a spot of the street lies in the 3D render (#193;
-## `domain-objects/meshes.md`): the road is a slab `ObjectStreetMeshConfig.kerb` px lower than the
+## Objects domain, how far below the pavement a spot of the street lies in the 3D render
+## (`domain-objects/meshes.md`): the road is a slab `ObjectStreetMeshConfig.kerb` px lower than the
 ## pavement and the floors, so a thing that lies on the ground (a splat of blood, a chip, a scorch)
 ## has to be put that much lower there. `StreetMesh` shows each road floor (a `Floor` of art
 ## `street` whose `art_opts.kind` is not `sidewalk`) over its whole `size` from its corner; this

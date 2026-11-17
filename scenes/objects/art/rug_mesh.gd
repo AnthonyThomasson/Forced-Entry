@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a rug or mat (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a rug or mat (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): walk-over decor a fraction of a px thick (`ObjectMeshDecorConfig`), so
 ## it lies on the floor like the 2D art and a character stands on it. A woven rug has a darker
 ## border round a field of the piece's colour (`rug_painter.gd`: its border and fringe rules) and

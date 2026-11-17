@@ -1,5 +1,5 @@
 class_name ProjectileMeshConfig
-## Projectile domain, the 3D look of the shots (`projectile/art/`; #193 phase 2): the tracer streak
+## Projectile domain, the 3D look of the shots (`projectile/art/`): the tracer streak
 ## of a bullet in flight and the spent casing on the floor. A `class_name` holder of `static var`s,
 ## read as `ProjectileMeshConfig.<name>` (ADR 0003). Lengths and heights are 2D px, as the
 ## meshes are built in them; how many of each the batches hold is fixed when the layer is

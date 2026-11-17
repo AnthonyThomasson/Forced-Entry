@@ -1,6 +1,6 @@
 class_name BodySolids
 extends RefCounted
-## Character body, the shared unit solids of the 3D body (`body_mesh.gd`; #193 phase 2b): the
+## Character body, the shared unit solids of the 3D body (`body_mesh.gd`): the
 ## shaped parts a standing body is built from, each one mesh for every character (`MeshCache`), put
 ## in place by `BodyMesh` by scaling its axes. A shaped part, not a box or a ball: a trunk with a
 ## waist and a chest, an egg-shaped head, tapered limbs that bulge where the 2D art's widths do

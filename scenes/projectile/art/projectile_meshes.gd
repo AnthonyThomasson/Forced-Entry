@@ -1,6 +1,6 @@
 class_name ProjectileMeshes
 extends RefCounted
-## Projectile domain, the 3D look of the shots (#193 phase 2; `domain-art/meshes.md`): the one call
+## Projectile domain, the 3D look of the shots (`domain-art/meshes.md`): the one call
 ## that plugs them into the 3D mirror. Tracers (and, with them, casings) are pooled batches the
 ## `ShotLayer` owns and follows the 2D bullets and casings of the match's world into, rather than
 ## a node each through the mirror's `track_group`: a sustained fight makes hundreds of them a

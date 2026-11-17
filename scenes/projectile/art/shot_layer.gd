@@ -1,7 +1,7 @@
 class_name ShotLayer
 extends Node3D
-## Projectile domain, the 3D look of the shots in flight and at rest (#193 phase 2,
-## `domain-art/meshes.md`): a tracer for each live bullet. Bullets are too many and too short-lived
+## Projectile domain, the 3D look of the shots in flight and at rest
+## (`domain-art/meshes.md`): a tracer for each live bullet. Bullets are too many and too short-lived
 ## for a node and a mesh each, so the layer owns a pool of one batch of streaks (`MeshPool`, one
 ## draw): it learns of a bullet as it joins the world (`watch`: a child of the world that is a
 ## `Projectile`), gives it a place, writes the place each frame it flies and gives it back when the

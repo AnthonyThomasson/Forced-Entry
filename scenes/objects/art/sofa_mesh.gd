@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a sofa or armchair (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a sofa or armchair (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): at the piece's own footprint and the painter's own proportions
 ## (`sofa_painter.gd`: the backrest's depth, the armrests' width, the cushions across the seat,
 ## `ObjectArtFabricConfig.sofa_*` and the piece's `art_opts`), a frame under a row of seat

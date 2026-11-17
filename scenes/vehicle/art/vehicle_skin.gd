@@ -1,6 +1,6 @@
 class_name VehicleSkin
 extends RefCounted
-## Vehicles domain, the 2D art on the 3D vehicle (#193 phase 2b, `domain-art/textured-toon.md`): the
+## Vehicles domain, the 2D art on the 3D vehicle (`domain-art/textured-toon.md`): the
 ## textures `vehicle_mesh.gd` projects straight down onto a hull and a door leaf, so a car seen
 ## from above reads as the 2D car does. Each is made once per kind, paint (and door) from the
 ## painters' flat paint (`PixelArt.render_flat`, `domain-art/flat-paint.md`: albedo, no light, in

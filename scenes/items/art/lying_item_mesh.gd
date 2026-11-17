@@ -1,6 +1,6 @@
 class_name LyingItemMesh
 extends Node3D
-## Items domain, an item loose in the world on the 3D floor (#193 phase 2, `domain-art/meshes.md`):
+## Items domain, an item loose in the world on the 3D floor (`domain-art/meshes.md`):
 ## what the mirror shows a `DroppedItem` or a `ThrownGrenade` by. It is the mesh the item art gives
 ## for a loose item (`ItemArt.dropped_mesh`: a gun's side profile lifted, shared by kind and look),
 ## wearing the item's flat art (`dropped_texture`) on its top, laid on the floor about the middle of

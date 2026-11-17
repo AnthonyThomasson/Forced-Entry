@@ -1,6 +1,6 @@
 class_name DebrisFx
 extends RefCounted
-## Physics domain, the chips of the 3D render (#193 phase 2; `domain-physics/meshes.md`): a chip
+## Physics domain, the chips of the 3D render (`domain-physics/meshes.md`): a chip
 ## `DebrisSpawner` throws is one part of a batch (a rectangle, a triangle or a disc, as in 2D), in
 ## the colour and size of its 2D chip. It follows its 2D node while it flies (its place, its turn,
 ## and a height: it leaves the surface at the hit's height and falls to the floor along an arc over

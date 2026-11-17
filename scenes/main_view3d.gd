@@ -26,7 +26,7 @@ const STAGE_PRIORITY := 200
 ## The camera rig and the mirror, for a caller that reads them (the tests, the pixel post).
 var rig: CameraRig
 var mirror: WorldMirror
-## The wall fade: walls and tall pieces between the camera and the player fade (rule 9).
+## The wall fade: walls and tall pieces between the camera and the player fade.
 var fade: WallFade
 ## The 3D dusk's lights (null while `LightingConfig.enabled` is off).
 var lighting: WorldLighting3D

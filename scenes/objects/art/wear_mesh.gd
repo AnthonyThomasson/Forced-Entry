@@ -1,6 +1,6 @@
 class_name WearMesh
 extends RefCounted
-## Objects domain, wear and decals in the 3D render (#193 phase 2; `domain-objects/wear-meshes.md`):
+## Objects domain, wear and decals in the 3D render (`domain-objects/wear-meshes.md`):
 ## what Objects draws as wear in 2D is a decal in 3D (`MeshNodes.decal`), laid on its surface from
 ## the very textures the 2D marks draw, placed by the same rects. A room's floor marks lie on its
 ## floor's mesh (`attach_floor`: the slab's top, `ObjectStructureMeshConfig.floor_lift`, each mark

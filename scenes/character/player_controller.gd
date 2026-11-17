@@ -50,8 +50,8 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 	_interact(character)
 
 
-## The movement keys as a direction in the world. In the 3D render mode the keys are relative to the
-## screen (W is up the screen at any camera yaw, `Pointer.world_direction`); in 2D the screen is the
+## The movement keys as a direction in the world. The keys are relative to the screen (W is up the
+## screen at any camera yaw, `Pointer.world_direction`); with no camera rig bound the screen is the
 ## world, so they are as pressed. Seated in a vehicle they stay raw: they are the vehicle's throttle
 ## and steer, never turned by the camera (`docs/vehicles.md`).
 func _move_keys(character: CharacterBody2D) -> Vector2:

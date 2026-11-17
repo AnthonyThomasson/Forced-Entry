@@ -1,5 +1,5 @@
 class_name CharacterMeshConfig
-## Character domain, the 3D body mesh (`body/art/body_mesh.gd`; #193 phase 2,
+## Character domain, the 3D body mesh (`body/art/body_mesh.gd`,
 ## `domain-art/meshes.md`): how tall the body stands and how its parts are proportioned. A
 ## `class_name` holder of `static var`s, read as `CharacterMeshConfig.<name>` (ADR 0003). Lengths
 ## are 2D pixels, the art's units (the mesh kit converts them to 3D units in one place), or body

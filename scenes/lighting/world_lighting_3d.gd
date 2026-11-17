@@ -1,6 +1,6 @@
 class_name WorldLighting3D
 extends Node3D
-## The Lighting domain's 3D dusk (#193 phase 3, `docs/lighting.md`, "The 3D lighting"): the
+## The Lighting domain's 3D dusk (`docs/lighting.md`, "The 3D lighting"): the
 ## lights of the 3D render, built under the 3D view's world from the 2D world the sim runs in. It
 ## reads the world duck-typed: Objects' floors (the group `floors`), the
 ## lights a piece declares (`get_lights()`) and the rooms `WorldGen` gives, and builds

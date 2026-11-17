@@ -1,5 +1,5 @@
 class_name LightingCostConfig
-## What the Lighting domain's 3D lights cost (#193 phase 3, `docs/lighting.md`): how many cast a
+## What the Lighting domain's 3D lights cost (`docs/lighting.md`): how many cast a
 ## shadow, how many are on, and how often that is chosen again. A `class_name` holder of
 ## `static var`s, read as `LightingCostConfig.<name>` (ADR 0003).
 

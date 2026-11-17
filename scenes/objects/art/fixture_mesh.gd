@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a wall fixture (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a wall fixture (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`), by `art_opts.kind` (`fixture_painter.gd`): a `mirror` is a framed glass
 ## panel standing against the wall (the back of the footprint) at the height of a bathroom mirror,
 ## in `ObjectArtDecorConfig.fixture_frame_color` round glass of the piece's tint; a `towels` rack is

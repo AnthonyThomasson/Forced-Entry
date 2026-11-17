@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a bathtub or shower (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of a bathtub or shower (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`), by `art_opts.style` (`bath_painter.gd`): a `tub` is a
 ## glazed rim round a basin whose floor and water lie below it, a mixer tap on the rim at the
 ## left end; a `shower` is a low tray with a glass screen along its front and right side and the

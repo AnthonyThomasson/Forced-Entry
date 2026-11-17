@@ -1,11 +1,11 @@
 extends RefCounted
-## Vehicles domain, the 3D mesh of a car or a van (#193 phase 2, `domain-art/meshes.md`): a low-poly
+## Vehicles domain, the 3D mesh of a car or a van (`domain-art/meshes.md`): a low-poly
 ## hull at the kind's footprint with its door spans cut out, a cabin of glass under a roof slab with
 ## a sloped windscreen and rear window, a leaf for each door that opens with the 2D door's state,
 ## wheels on their sides that steer and turn, head and tail lamps, bumpers and wing mirrors. Every
 ## measure is the kind's `VehicleConfig` row and `looks` (the painters' own), the heights
 ## `VehicleMeshConfig`; Art's kit does the rest, in px. The hull and each door leaf carry the 2D
-## art (#193 phase 2b, `VehicleSkin`: the car and van painters' flat paint of the vehicle's `color`
+## art (`VehicleSkin`: the car and van painters' flat paint of the vehicle's `color`
 ## projected straight down, white vertex colours so the art shows as painted), so a car seen from
 ## above reads as the 2D car does; the wheels and the tail lamps keep the kit's own colours. The
 ## hull, each door, the wheel and the tail lamps are `MeshCache` meshes shared by every vehicle of

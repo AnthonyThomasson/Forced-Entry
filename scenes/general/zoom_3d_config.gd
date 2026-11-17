@@ -1,9 +1,9 @@
 class_name Zoom3dConfig
-## The 3D render's zoom in whole steps (General domain, `zoom_steps.gd`, `camera_controller.gd`;
-## #193 phase 2b). A `class_name` holder of `static var`s, read as `Zoom3dConfig.<name>` (ADR 0003),
+## The 3D render's zoom in whole steps (General domain, `zoom_steps.gd`, `camera_controller.gd`).
+## A `class_name` holder of `static var`s, read as `Zoom3dConfig.<name>` (ADR 0003),
 ## so a test may `set_static` them. 2D keeps `CameraConfig`'s continuous zoom.
 
-## The 3D render's zoom steps, smallest first (#193 phase 2b, G15): a picture pixel is a whole
+## The 3D render's zoom steps, smallest first: a picture pixel is a whole
 ## number of screen pixels, one art pixel at 1x, so the 3D view zooms in these steps only (the wheel
 ## steps between them and the automatic zoom, the fit of the spectator's framing too, snaps to one).
 ## 1x, 2x and 3x are the art at its own size, doubled and tripled; the 0.5 below them is the

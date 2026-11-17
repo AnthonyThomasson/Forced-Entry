@@ -1,6 +1,6 @@
 class_name FurnitureBedRig
 extends FurnitureRig
-## Objects domain, the rig of a bed (#193 phase 2): the blanket is a part of its own, and while a
+## Objects domain, the rig of a bed: the blanket is a part of its own, and while a
 ## character's active interaction is this bed's `lie` action the blanket lies flat under them (not
 ## while it hides under the bed). The one furniture state that needs a look each frame, so the one
 ## rig with a `mirror_update`: it looks only every `ObjectMeshStateConfig.occupied_every`th frame

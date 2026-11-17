@@ -1,5 +1,5 @@
 class_name WallFadeConfig
-## Art domain, the wall fade of the 3D render (`wall_fade.gd`, #193 rule 9, interface 27): which
+## Art domain, the wall fade of the 3D render (`wall_fade.gd`, interface 27): which
 ## walls and tall pieces thin out so the character is never hidden, and how. A `class_name` holder
 ## of `static var`s, read as `WallFadeConfig.<name>` (ADR 0003). Lengths are 2D pixels, the art's
 ## units; the fade converts them to 3D units once (`RenderConfig.unit`).

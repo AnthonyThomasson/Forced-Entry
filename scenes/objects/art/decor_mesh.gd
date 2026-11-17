@@ -1,6 +1,6 @@
 extends RefCounted
 ## Objects domain, the 3D mesh of a run-down house's walk-over clutter and the neon on its walls
-## (#193 phase 2; the pattern is `table_mesh.gd`, `domain-art/meshes.md`): non-solid decor at the
+## (the pattern is `table_mesh.gd`, `domain-art/meshes.md`): non-solid decor at the
 ## piece's own footprint, by `kind` (`decor_painter.gd`): `trash` is three black bags with knots
 ## and cans, papers and a bottle round them; `cables` loose runs of cable and `cable_nest` a tangle
 ## of them, each a thin square loft along a snaking path; `cardboard` a flattened box with its

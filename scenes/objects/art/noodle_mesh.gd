@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of the noodle bar's pieces (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of the noodle bar's pieces (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and `noodle_painter.gd`'s
 ## proportions, in grimy steel, by `kind`. `bar` is a long counter with steaming pots along it and
 ## bowls at one end; `stool` a round seat on a post; `booth` a bench along each long side with a

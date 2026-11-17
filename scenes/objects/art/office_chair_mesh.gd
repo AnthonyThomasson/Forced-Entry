@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of an office chair (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of an office chair (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): at the piece's own footprint, a five-star base on casters
 ## (`ObjectArtTableConfig.office_chair_base_color`) under a column, a padded seat in the piece's
 ## colour, an armrest each side and a backrest leaning back (`office_chair_painter.gd`). Shared by

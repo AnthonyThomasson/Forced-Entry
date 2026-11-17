@@ -1,6 +1,6 @@
 class_name PixelPost
 extends RefCounted
-## Art domain, the pixel post (`pixel_post_config.gd`; #193 rule 6): the outline pass of the 3D
+## Art domain, the pixel post (`pixel_post_config.gd`): the outline pass of the 3D
 ## picture, a full-screen quad that is a child of the view's `Camera3D` and reads that viewport's
 ## colour, depth and normals. `attach` builds it, `refresh` pushes the holder's values (the widths
 ## are in picture pixels: a picture rendered `oversample` times larger takes them that much wider

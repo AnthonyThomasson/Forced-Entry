@@ -1,6 +1,6 @@
 class_name FurnitureArt
 extends RefCounted
-## Objects domain, the 2D art of a furniture piece worn by its 3D mesh (#193 phase 2b): the flat
+## Objects domain, the 2D art of a furniture piece worn by its 3D mesh: the flat
 ## (unlit, albedo) render of the piece's painter, projected straight down on the mesh by Art's
 ## `MeshNodes.textured` (`domain-art/textured-toon.md`), so the 3D piece reads as the 2D art.
 ##

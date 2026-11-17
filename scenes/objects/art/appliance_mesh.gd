@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of an appliance (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of an appliance (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): at the piece's own footprint, a box in the piece's colour whose top and
 ## front show what it is, by `panel` (`appliance_painter.gd`): a stove's four burners and knobs, a
 ## fridge's two doors and handles, a microwave's window and display, a washer's or dryer's round

@@ -1,6 +1,6 @@
 class_name BlastRig
 extends RefCounted
-## Physics domain, one grenade burst's parts in the 3D render (#193 phase 2; `BlastFx`): a flash
+## Physics domain, one grenade burst's parts in the 3D render (`BlastFx`): a flash
 ## (two glowing discs), a shock ring, a fireball (a body, a core and a ring of lobes: spheres) and
 ## the puffs of smoke (flat discs wearing the stepped puff: a round body and a lighter patch), each
 ## a unit mesh scaled by `update`, made once and shown or hidden as a burst starts and ends. Each

@@ -1,7 +1,7 @@
 class_name ZoomSteps
 extends RefCounted
-## General domain, camera: the 3D render's zoom in whole steps (`Zoom3dConfig.steps`, #193
-## phase 2b G15), so a picture pixel is a whole number of screen pixels. The camera controller owns
+## General domain, camera: the 3D render's zoom in whole steps (`Zoom3dConfig.steps`),
+## so a picture pixel is a whole number of screen pixels. The camera controller owns
 ## one: the wheel moves it a step at a time off the automatic zoom's step, and `snap` turns the
 ## automatic zoom (the follow's 1, the spectator's fit, a vehicle's zoom-out) into the step shown.
 ## The automatic step has hysteresis (`Zoom3dConfig.hysteresis`), so an automatic zoom that

@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of the garage's parked car (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of the garage's parked car (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): the furniture prop, a solid anchored-by-weight piece
 ## the garage recipe places, not the Vehicles domain's drivable car. At the piece's own footprint
 ## and `car_painter.gd`'s proportions, nose toward the front (+y): four tyres peeking out at the

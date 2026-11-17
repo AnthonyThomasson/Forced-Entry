@@ -7,7 +7,7 @@ extends GameTest
 ## the ground direction that shows as screen up is (-sin(yaw), -cos(yaw)) and as screen right
 ## (cos(yaw), -sin(yaw)); down and left are their opposites. At yaw 90 that is W -x, S +x, D -y, A
 ## +y; at yaw 45 W (-0.7071, -0.7071) and D (0.7071, -0.7071). The car is judged by its own front.
-## With no rig (the 2D render) W is up the world.
+## With no rig bound W is up the world.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")

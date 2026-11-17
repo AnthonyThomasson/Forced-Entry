@@ -1,6 +1,6 @@
 class_name FurnitureMesh
 extends RefCounted
-## Objects domain, the plumbing every furniture mesh shares (#193 phase 2; the pattern is
+## Objects domain, the plumbing every furniture mesh shares (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): the cache key of a piece's mesh and the node that shows
 ## it. A kind's script (`sofa_mesh.gd`) reads a `FurnitureSpec`, names every value its shape reads
 ## in a tuning dictionary and builds its solids once per distinct key; every piece of one look

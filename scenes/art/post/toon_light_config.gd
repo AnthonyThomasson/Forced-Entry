@@ -1,5 +1,5 @@
 class_name ToonLightConfig
-## Art domain, the pixel post (#193 phase 3, interface 27): how the toon light adds up. A
+## Art domain, the pixel post (interface 27): how the toon light adds up. A
 ## `class_name` holder of `static var`s, read as `ToonLightConfig.<name>` (ADR 0003); `ToonMaterial`
 ## pushes `levels` into the toon shaders, `ToonLight` the dusk's globals.
 

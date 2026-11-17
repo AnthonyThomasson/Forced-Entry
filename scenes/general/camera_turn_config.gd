@@ -1,5 +1,5 @@
 class_name CameraTurnConfig
-## The 3D camera's quarter turns (General domain, `camera_rig.gd`; #193 phase 2b G16). A
+## The 3D camera's quarter turns (General domain, `camera_rig.gd`). A
 ## `class_name` holder of `static var`s, read as `CameraTurnConfig.<name>` (ADR 0003), so a test may
 ## `set_static` them.
 

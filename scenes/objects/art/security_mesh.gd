@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of the security vestibule's steel (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of the security vestibule's steel (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and
 ## `security_painter.gd`'s proportions, by `kind`. `barricade` is a heavy slab across the room, its
 ## back edge hazard-striped, propped by a stack of sandbags at both ends; `scanner` is one post of

@@ -1,6 +1,6 @@
 class_name BodyHeld
 extends RefCounted
-## Character body, the held item on the 3D body (`body_mesh.gd`; #193 phase 2): the one node that
+## Character body, the held item on the 3D body (`body_mesh.gd`): the one node that
 ## shows what the character holds, by the mesh the held item's art gives (`item.art.held_mesh()`,
 ## Items: sized and coloured from the item's config row, shared by kind and look). It follows the
 ## item's identity and weapon style (the node's mesh is swapped only when one changed), is hidden

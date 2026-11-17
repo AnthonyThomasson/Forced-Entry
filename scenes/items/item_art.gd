@@ -39,7 +39,7 @@ func prepaint() -> void:
 		dropped_texture(flip)
 
 
-## The item's 3D mesh in a hand, for the 3D render (#193; `GunMesh`, `GrenadeMesh`): shared by kind
+## The item's 3D mesh in a hand, for the 3D render (`GunMesh`, `GrenadeMesh`): shared by kind
 ## and look, its origin the weapon hand and its front along +z, sized and coloured from the config
 ## row the 2D art reads. Null: nothing is shown (the default: fists, unarmed, key, magazine). A
 ## character's body places it (`domain-character`, `body-mesh.md`); Items builds no node.

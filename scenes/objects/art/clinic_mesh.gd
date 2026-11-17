@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of the ripperdoc's steel (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of the ripperdoc's steel (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and `clinic_painter.gd`'s
 ## proportions, by `kind`. `tool_cart` is a steel cart on four legs with a lower shelf and a rimmed
 ## tray of scalpels, clamps and a syringe, and a small diagnostic screen on it (a glow node of the

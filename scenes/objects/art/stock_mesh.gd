@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of the tower stockroom's pieces (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of the tower stockroom's pieces (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and `stock_painter.gd`'s
 ## proportions, by `kind`. `crates` are two wooden crates stacked, the top one offset toward the
 ## back as the painter draws it, slats across each face and a plate on the top; `pallet` a wooden

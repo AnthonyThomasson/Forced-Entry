@@ -1,13 +1,13 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a street lamp (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a street lamp (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): the piece is a thin steel post on a base plate within its round
 ## footprint, anchored, as tall as anything on the street (`ObjectMeshOverheadConfig.post_height`),
 ## and its arm and head hang overhead out over the road, where the piece's `Overhang` draws them
 ## (`streetlight_painter.gd`, `part: "overhang"`: the arm from the post's top, at its end `head`
 ## `cobra`, a dented housing whose lens faces down at the road, or `sign`, a dark board with a neon
 ## tube round it and bars of letters). The lens and the sign's tube and letters are glow nodes of
-## the piece's rig (the sodium lens, the sign's neon): no real light, which phase 3 gives. The arm
-## and head are the overhang's: a piece with none is the post alone.
+## the piece's rig (the sodium lens, the sign's neon): no real light, which the Lighting domain
+## gives. The arm and head are the overhang's: a piece with none is the post alone.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 const OPTIONS := ["head", "neon", "head_px"]

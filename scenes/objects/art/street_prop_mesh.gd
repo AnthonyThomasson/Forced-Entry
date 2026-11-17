@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a district's sidewalk props (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of a district's sidewalk props (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and
 ## `street_prop_painter.gd`'s proportions, in grimy steel, by `kind`. `vending` is a drinks machine,
 ## a lighter face with grooves and the lit window of drinks toward the street (a glow node of the

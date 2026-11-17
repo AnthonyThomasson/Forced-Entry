@@ -1,6 +1,6 @@
 class_name BodyMesh
 extends Node3D
-## Character body, the 3D mesh of a living character (#193 phase 2, `domain-art/meshes.md`): a
+## Character body, the 3D mesh of a living character (`domain-art/meshes.md`): a
 ## low-poly, upright, human-proportioned body of the mesh kit's solids (`BodySolids`) that the 3D
 ## mirror shows in place of the character's proxy capsule. A trunk (the shirt, over it a vest, its
 ## plates and a pack), a head (skin, hair or a cap or helmet, a visor band across the front of the

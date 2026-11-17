@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of what hangs over a tower's front door (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of what hangs over a tower's front door (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): the piece itself is bare (`awning_painter.gd` draws
 ## only its overhang), so the mesh is the overhang's, hung on the wall at the back of it. `awning`
 ## is striped cloth sloping down from a board along the top of the wall (a wall is 96 tall) to a

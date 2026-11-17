@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a wooden chair (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a wooden chair (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): at the piece's own footprint, a seat on four legs, two back posts and a
 ## crest rail across the back joined to the seat by spindles (`chair_painter.gd`: the back's depth
 ## and the spindle count, `ObjectArtTableConfig.chair_*` and the piece's `art_opts`), in the

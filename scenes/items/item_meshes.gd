@@ -1,6 +1,6 @@
 class_name ItemMeshes
 extends RefCounted
-## Items domain, the 3D mesh of the items loose in the world (#193 phase 2; `domain-art/meshes.md`):
+## Items domain, the 3D mesh of the items loose in the world (`domain-art/meshes.md`):
 ## the one call that plugs them into the 3D mirror. A `DroppedItem` (a dead hand's gun, a grenade's
 ## spoon) and a `ThrownGrenade` (in the air and lying before it bursts) are shown by a
 ## `LyingItemMesh` of the mesh their item's art gives; an item with none is not shown. Main's 3D

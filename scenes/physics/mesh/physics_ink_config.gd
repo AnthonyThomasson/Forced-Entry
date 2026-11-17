@@ -1,5 +1,5 @@
 class_name PhysicsInkConfig
-## Physics domain, the 3D look of what lies flat on the floor (#193 phase 2; `ink_fx.gd`,
+## Physics domain, the 3D look of what lies flat on the floor (`ink_fx.gd`,
 ## `pool_ink.gd`, `domain-physics/meshes.md`): blood (splats, a bleed-out pool, prints, smears)
 ## and the scorch of a blast. A `class_name` holder of `static var`s, read as
 ## `PhysicsInkConfig.<name>` (ADR 0003). Lengths and heights are 2D px. Colours, shapes, sizes,

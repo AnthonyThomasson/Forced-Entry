@@ -1,6 +1,6 @@
 class_name FurnitureSpec
 extends RefCounted
-## Objects domain, what a furniture mesh is built from (#193 phase 2, `domain-art/meshes.md`): one
+## Objects domain, what a furniture mesh is built from (`domain-art/meshes.md`): one
 ## piece's footprint in its painter's canonical frame (front toward +y, width across the front),
 ## the colour its painter draws it in, its painter options and the quarter turns that take the
 ## canonical front onto the piece's facing. The art is painted canonical (`PixelArt.render_flat`); a

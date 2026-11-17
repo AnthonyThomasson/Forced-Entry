@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a segment of a tower's podium (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of a segment of a tower's podium (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and `podium_painter.gd`'s
 ## proportions, a thick concrete slab with a joint cut across it every `joint_step` and square
 ## pillars standing along its street edge, one every `pillar_step` (the painter takes its colour as

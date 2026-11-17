@@ -1,6 +1,6 @@
 class_name MeshKit
 extends RefCounted
-## Art domain, the 3D mesh kit (interface 12, `domain-art/meshes.md`; #193 phase 2): code-built
+## Art domain, the 3D mesh kit (interface 12, `domain-art/meshes.md`): code-built
 ## low-poly solids a domain's mesh builder composes a piece from, the way a painter composes a
 ## texture from `PixelCanvas` shapes. A kit collects faces and `build()` makes one `ArrayMesh`:
 ## flat-shaded (a face is its own vertices and normal) with one colour per face in the vertex

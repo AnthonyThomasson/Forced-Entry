@@ -1,6 +1,6 @@
 shader_type spatial;
 render_mode diffuse_lambert, ambient_light_disabled;
-// The textured toon (Art, `MeshNodes.textured`; #193 phase 2b): `toon.gdshader` with the 2D
+// The textured toon (Art, `MeshNodes.textured`): `toon.gdshader` with the 2D
 // painters' pixel art on the mesh. The art is painted UNSHADED (no baked light), so the toon bands
 // shade it like any toon face; the light, fade, vision hook, figure, glow and outline behave as
 // toon (`toon_common.gdshaderinc`, `toon_surface.gdshaderinc`: one source with `toon.gdshader`).

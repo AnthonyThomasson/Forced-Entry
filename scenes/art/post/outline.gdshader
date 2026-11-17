@@ -1,6 +1,6 @@
 shader_type spatial;
 render_mode unshaded, fog_disabled, depth_test_disabled, depth_draw_never, cull_disabled;
-// The pixel post's outline (Art, `pixel_post.gd`; #193 rule 6): a full-screen quad in the
+// The pixel post's outline (Art, `pixel_post.gd`): a full-screen quad in the
 // low-resolution viewport that draws a dark outline where the depth or the surface normal steps
 // between neighbouring pixels. `silhouette_px` and `crease_px` are in texels of this viewport.
 // The line is the colour of the surface it outlines darkened (`outline_color` is the floor of it):

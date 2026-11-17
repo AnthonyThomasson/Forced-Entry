@@ -1,6 +1,6 @@
 class_name GroundLayer
 extends CanvasLayer
-## General domain: the flat overlays of the 3D render (#193, interface 27). The 2D world is hidden
+## General domain: the flat overlays of the 3D render (interface 27). The 2D world is hidden
 ## under the 3D view, and a hidden `CanvasItem` draws nothing, so every debug overlay would vanish
 ## with it. Each says what it is (`ViewLayers.overlay`), and while the 3D view is up it is moved
 ## under a `GroundLayer`: a `CanvasLayer` is not a `CanvasItem`, so the hidden world does not hide

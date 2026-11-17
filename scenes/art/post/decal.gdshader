@@ -1,6 +1,6 @@
 shader_type spatial;
 render_mode diffuse_lambert, ambient_light_disabled;
-// The mesh kit's decal (Art, `MeshNodes.decal`; #193 phase 2): a flat quad laid on a surface,
+// The mesh kit's decal (Art, `MeshNodes.decal`): a flat quad laid on a surface,
 // showing a texture whose alpha cuts it out, lit by the same toon bands as `toon.gdshader` and
 // dimmed by the same vision hook (both are `toon_common.gdshaderinc`, the one source).
 

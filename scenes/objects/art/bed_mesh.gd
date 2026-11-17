@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a bed (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a bed (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): at the piece's own footprint, foot toward the front, a low frame with a
 ## headboard at the head, the bare ticking mattress (`ObjectArtFabricConfig.bed_mattress_color`)
 ## with a pillow at the head, and the blanket in the piece's colour over its foot

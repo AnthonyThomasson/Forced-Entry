@@ -1,6 +1,6 @@
 class_name WallFade
 extends Node3D
-## Art domain, the wall fade of the 3D render (#193 rule 9, interface 27,
+## Art domain, the wall fade of the 3D render (interface 27,
 ## `domain-art/wall-fade.md`): a wall, a door or a tall piece that stands between the camera and a
 ## character, within `WallFadeConfig.radius`, thins out (`MeshNodes.fade`: a dither of the picture's
 ## pixels, so it stays opaque pixels and reads as pixel art) so the character is never hidden; the

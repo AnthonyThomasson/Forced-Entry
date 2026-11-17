@@ -1,12 +1,12 @@
 extends RefCounted
-## Objects domain, the 3D mesh of the netrunner den's hardware (#193 phase 2; the pattern is
+## Objects domain, the 3D mesh of the netrunner den's hardware (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and `tech_painter.gd`'s
 ## proportions, by `kind`. `monitor_wall` is a desk along the wall with a backboard, a row of
 ## screens standing on it (the outer two angled in, their faces glowing, every third one dimmer),
 ## a keyboard, a mug and papers on the ledge in front; `server_rack` is a tall steel cabinet with
 ## vent slots up its front and a row of LEDs along the top, most lit. The screens and the LEDs are
 ## glow nodes of the piece's rig, in its neon or the cheap screens' green (and the rack's red and
-## green): no real light, which is phase 3's.
+## green): no real light, which the Lighting domain gives.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 const OPTIONS := ["kind", "neon", "height"]

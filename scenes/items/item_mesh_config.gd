@@ -1,6 +1,6 @@
 class_name ItemMeshConfig
 ## Items domain, the 3D meshes of the items (`items/art/gun_mesh.gd`, `grenade_mesh.gd`,
-## `spoon_art.gd`; #193, `domain-art/meshes.md`): how tall an item stands over its 2D art. The
+## `spoon_art.gd`; `domain-art/meshes.md`): how tall an item stands over its 2D art. The
 ## footprint is the art's own (the silhouette of the painter's flat render, `ItemSolid`), as are the
 ## sizes (`GunConfig` / `GrenadeConfig` `art_size`, `flat_size`, `grip_back`) and colours; only what
 ## a solid needs more than a drawing is here. A `class_name` holder of `static var`s, read as

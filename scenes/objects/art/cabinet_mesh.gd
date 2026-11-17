@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain, the 3D mesh of a cabinet (#193 phase 2; the pattern is `table_mesh.gd`,
+## Objects domain, the 3D mesh of a cabinet (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): at the piece's own footprint, a carcass in the piece's colour with a
 ## front of doors across it or drawers stacked up it (`cabinet_painter.gd`: `front`, `count`,
 ## `crown`, `handle`), a handle on each, and a crown slab on a wardrobe. How tall it stands is the

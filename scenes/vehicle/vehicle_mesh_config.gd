@@ -1,5 +1,5 @@
 class_name VehicleMeshConfig
-## Vehicles domain, the 3D meshes of cars and vans (`art/vehicle_mesh.gd`; #193 phase 2,
+## Vehicles domain, the 3D meshes of cars and vans (`art/vehicle_mesh.gd`,
 ## `domain-art/meshes.md`): how tall each kind stands and how its parts are proportioned. The
 ## footprint, the doors, the axles, the wheels and the lamps come from the kind's `VehicleConfig`
 ## `kinds` and `looks` rows, the colours from `VehicleArtConfig`, so the 3D matches the painters;
