@@ -1,8 +1,8 @@
 extends RefCounted
 ## Character RIG (Character domain, animate layer): the standing skeleton as 3D joints (local x/y
 ## over the floor plus height z), solved fresh from the live pose and the hands. Both the standing
-## body's limbs (character_visuals.gd) and the ragdoll's starting pose (character_ragdoll.gd) are
-## drawn from it, so a body falls from exactly the pose it was standing in.
+## body's limbs (the 3D `BodyMesh`) and the ragdoll's starting pose (character_ragdoll.gd) are
+## built from it, so a body falls from exactly the pose it was standing in.
 ## - The upper body (chest, head, shoulders) sits at the pose's torso frame and lunge; the hips and
 ##   feet at its hip frame, which stays planted while the shoulders twist over it.
 ## - Each arm is two-bone IK from its shoulder to where the hands layer holds the fist, at the

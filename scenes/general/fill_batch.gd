@@ -85,13 +85,13 @@ func circle(center: Vector2, radius: float, color: Color, xform := Transform2D.I
 
 
 ## The corners of `draw_circle`'s 64-gon round the unit circle, point `i` at angle `i * TAU / 64`
-## (kept; the Character's `BodyMeshes.Solid` builds its discs from it too).
+## (kept).
 static func unit_circle() -> PackedVector2Array:
 	return _UNIT_CIRCLE
 
 
 ## The triangles of a fan (corner 0 with each pair of neighbours) over `n` corners numbered from
-## `base`, three indices each (kept by `(base, n)`; `BodyMeshes.Solid` fans its shapes with it too).
+## `base`, three indices each (kept by `(base, n)`).
 static func fan(base: int, n: int) -> PackedInt32Array:
 	var key := Vector2i(base, n)
 	var kept: Variant = _fans.get(key)

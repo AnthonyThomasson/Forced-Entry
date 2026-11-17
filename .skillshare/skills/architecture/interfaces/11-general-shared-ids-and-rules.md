@@ -15,7 +15,7 @@
     - `DrawLayers` (`general/draw_layers.gd`, static holder): the world's draw-order ladder, one rung per kind of thing, so floor,
 	  vehicle and fliers keep one order across domains. `FLOOR` −5 (Objects' `Floor`, `ObjectArtLayerConfig.floor_z_index`) < `RUG`
 	  −4 (`ObjectArtLayerConfig.rug_z_index`) < `BLOOD` −3 (Physics: splats, pools, prints, smears, scorch; `BloodConfig.z_index` /
-	  `print_z_index`) < `LYING` −2 (a dead body, `CharacterArtConfig.ragdoll_z_index`; a spent casing; a `DroppedItem` and a grenade
+	  `print_z_index`) < `LYING` −2 (a dead body; a spent casing; a `DroppedItem` and a grenade
 	  at rest) < `UNDER_VEHICLE` −1 (a vehicle's `Chassis`) < `STANDING` 0 (the living, a vehicle's occupants, furniture, walls) <
 	  `ABOVE` 1 (a vehicle's `Roof`, a grenade in flight) < `OVERHEAD` 2 (a piece's `Overhang`,
 	  `ObjectArtLayerConfig.overhang_z_index`, a streetlight's arm and head; a room's ceiling fixture, Lighting) < `EFFECTS` 4
@@ -30,9 +30,9 @@
     - `FillBatch` (`general/fill_batch.gd`, `RefCounted`): plain-coloured shapes drawn as one triangle array instead of a command each,
 	  the engine's own triangles and pixels. `FillBatch.new(canvas, base := IDENTITY)`,
 	  `fill(poly, color, xform)`, `fill_convex(...)`, `circle(center, radius, color, xform)`, `flush()`; statics `FillBatch.unit_circle()`
-	  (that 64-gon's corners round the unit circle) and `FillBatch.fan(base, n)` (a fan's triangle indices over `n` corners), which the
-	  Character's `BodyMeshes.Solid` builds meshes from; `FillBatch.batching` is false under the headless display (it renders nothing),
-	  where each shape is drawn by its own command. Used where many shapes draw each frame: Character's limbs and shadow, Physics' blood splats and chunks.
+	  (that 64-gon's corners round the unit circle) and `FillBatch.fan(base, n)` (a fan's triangle indices over `n` corners), which nothing
+	  uses but the 2D draws left for the sweep; `FillBatch.batching` is false under the headless display (it renders nothing),
+	  where each shape is drawn by its own command. Used where many shapes draw each frame: Physics' blood splats and chunks.
     - `WorldRng` (`general/world_rng.gd`, statics): a world's chance, order and frames; the AI keys on it, not on an instance id.
 	  `register(root, match_seed)` (Main's stage), `of(node) -> RandomNumberGenerator`, `enrol(node) -> int` (a character's place,
 	  from 0), `order_of(id) -> int`, `before(a, b) -> bool` (spawned first), `frame_of(node) -> int` (`GameClock` frames its world

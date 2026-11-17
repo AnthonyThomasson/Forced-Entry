@@ -1,11 +1,10 @@
 class_name BodyDress extends RefCounted
-## What each part of the body is drawn in (`character_visuals.gd`'s `dress`): the character's style
-## (`CharacterWardrobe.style`, `look_seed`, `rank`; `docs/outfits.md`, styles) and what it wears
-## drawn in that style (`Outfit.look(style)`), resolved through `character_style.gd` and registered
-## for the painters (`PixelArt.handle`: they get its handle). Resolved again (`refresh`) only when
-## the outfit (`Outfit.revision`) or the style changes, so the per-frame cost is two ints compared.
-## The visuals draw the shoulders, the head and the fists in it, the limbs and the trunk their
-## parts.
+## What each part of the body is drawn in (the 3D body's `look_worn()`, `BodyMesh`): the character's
+## style (`CharacterWardrobe.style`, `look_seed`, `rank`; `docs/outfits.md`, styles) and what it
+## wears drawn in that style (`Outfit.look(style)`), resolved through `character_style.gd` and
+## registered for the painters (`PixelArt.handle`: they get its handle). Resolved again (`refresh`)
+## only when the outfit (`Outfit.revision`) or the style changes, so the per-frame cost is two ints
+## compared. The 3D body wears it on the shoulders, the head, the fists and the limbs.
 
 const CharacterStyle = preload("res://scenes/character/body/character_style.gd")
 const VestPainter = preload("res://scenes/character/body/art/vest_painter.gd")

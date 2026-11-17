@@ -12,7 +12,7 @@
 	  `|flat` cache key; a `warm` request with `"flat": true` (and no `facing`) prewarms it. Details: the flat-paint side file of `domain-art`.
     - `PixelArt.TurnedLast` — the arguments of one caller's last `render_turned` call and the texture they got (`render(...)` is
 	  `render_turned` answered from that call, or the plain call when `plain`): owned by the caller, one per part it draws every
-	  frame (Character's `BodyDrawCache` slots).
+	  frame.
     - `PixelArt.away_from_light(node) -> Vector2` — which way a cast shadow falls in `node`'s frame (away from `ArtCanvasConfig.light_from`),
 	  for every caller that drops a shadow of its own.
     - `PixelCanvas` — the surface a painter draws on (`static paint(canvas, base, material, opts)`): `fill`, `bevel`, `outline`, `surface`,

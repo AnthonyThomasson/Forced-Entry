@@ -27,7 +27,7 @@ dropped item, a thrown grenade and its spoon, an explosion's look, the painters,
 
 `FillBatch.new(canvas, base)` draws plain-coloured polygons and circles as ONE triangle array (`fill`, `fill_convex`, `circle`, then `flush`) in place of one draw command each, because the windowed renderer builds a vertex buffer per polygon command. It cuts the same triangles the engine would and each disc into `draw_circle`'s 64-gon, so the pixels match. A polygon that cannot be triangulated goes to the engine alone after what was added, which reports it as `draw_colored_polygon` does.
 
-Under the headless display (`FillBatch.batching` false) nothing renders and gathering costs more than it saves, so each shape goes to the canvas as it comes; code that draws plain commands itself there (the chip chunk, the blood splat) is deliberate. `FillBatch.unit_circle()` and `fan(base, n)` feed the Character's `BodyMeshes.Solid`. Test: `tests/general/fill_batch_matches_draw_calls_test.gd` (headless: the triangles; `--windowed`: identical pixels).
+Under the headless display (`FillBatch.batching` false) nothing renders and gathering costs more than it saves, so each shape goes to the canvas as it comes; code that draws plain commands itself there (the chip chunk, the blood splat) is deliberate. Test: `tests/general/fill_batch_matches_draw_calls_test.gd` (headless: the triangles; `--windowed`: identical pixels).
 
 ## WeightedPick
 
