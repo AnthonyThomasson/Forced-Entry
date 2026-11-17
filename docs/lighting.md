@@ -156,7 +156,7 @@ colour times the flash's colour and energy in the pool's bands, held to `FLASH_M
 too, so what it reaches is flat white as in 2D, planks, rings and all, and fades with the flash's energy (8, times `left^2`). Both are
 masked by the vision mask and the room like any light. Tests:
 `lighting/light_3d_flashes_on_shot_and_explosion` (a flash within 3 frames at the muzzle and the burst, in its colour, uncast, at hand
-height, dark within 0.25 s and 1.5 s), `lighting/light_3d_stun_flash` (white, a white-out for the toon light, a peak of 4.8 or more,
+height, dark within 0.25 s and 1.5 s), `lighting/stun_flash_in_match` (a real Main match in 3D: the stun's own burst, near and on the far side of the view, at zoom 1 and 0.5 with shots firing, lights a white-out flash and, windowed, whitens the picture; a burst several screens away takes none), `lighting/light_3d_stun_flash` (white, a white-out for the toon light, a peak of 4.8 or more,
 held, still lit at 0.45 s, dark within 1.1 s), `lighting/light_3d_flash_pool` (the cap of the pool, the flash with the least left to
 run dropped (oldest among equals), a stun keeps its light through any number of shots, a flash out of the view takes none),
 `lighting/light_3d_flash_room` (a flash of its room, a doorway's, the street's), `lighting/light_3d_flash_look_windowed` (windowed:
