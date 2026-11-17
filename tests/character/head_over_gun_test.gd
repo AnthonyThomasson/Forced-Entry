@@ -17,6 +17,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # checks the 2D draw, which the session's view hides
 	s.arena(Rect2(0, 0, 800, 800))
 	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
 	s.switch(&"nav.rebake", false)

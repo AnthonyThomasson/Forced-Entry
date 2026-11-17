@@ -18,6 +18,7 @@ extends GameTest
 ## and an entry are under way without a house to set them up in.
 
 const Inspector := preload("res://scenes/ui/hud/spectator_inspector.gd")
+const OverlayRegistry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 const OverlayToggles := preload("res://scenes/ui/overlays/overlay_toggles.gd")
 ## The four overlays, with the `show_<x>` flags that put each on.
 const KINDS := [
@@ -63,7 +64,7 @@ func run(t: TestContext) -> void:
 func _check_overlay(t: TestContext, kind: Dictionary) -> void:
 	var name: String = kind["script"]
 	var overlay := await _spawn_overlay(t, name, kind["flags"])
-	var body: Node2D = overlay.get_parent()
+	var body: Node2D = overlay.get_meta(&"body")
 	if not t.require(overlay.has_method("card_lines"), "%s gives card_lines()" % name):
 		return
 	var lines: PackedStringArray = overlay.card_lines()
@@ -126,7 +127,7 @@ func _check_brain_labels(t: TestContext) -> void:
 		_normal(PackedStringArray(_label_texts(overlay))), _normal(overlay.card_lines()),
 		"and drawn() lists its full text as labels",
 	)
-	overlay.get_parent().queue_free()
+	(overlay.get_meta(&"body") as Node).queue_free()
 
 
 ## How many entries of `kind` the overlay's last paint drew (`drawn()`).
@@ -152,6 +153,7 @@ func _spawn_overlay(t: TestContext, name: String, flags: Array) -> Node2D:
 	var overlay: Node2D = load("res://scenes/ai/debug/%s.gd" % name).new()
 	for flag: String in flags:
 		overlay.set(flag, true)
+	overlay.set_meta(&"body", body)  # a shown world moves the overlay under the ground layer
 	body.add_child(overlay)
 	t.world.add_child(body)
 	body.global_position = Vector2(450, 250)
@@ -188,7 +190,7 @@ func _check_inspector(t: TestContext) -> void:
 
 ## The overlay named `script` (its file's stem) among `npc`'s children, or null.
 func _overlay_of(npc: Node, script: String) -> Node:
-	for child in npc.get_children():
+	for child in OverlayRegistry.overlays_of(npc):
 		var path: String = child.get_script().resource_path if child.get_script() else ""
 		if path.get_file().get_basename() == script:
 			return child

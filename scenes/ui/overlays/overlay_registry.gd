@@ -81,13 +81,13 @@ static func apply(npc: Node, flags: Dictionary) -> void:
 			child.queue_redraw()
 
 
-## The nodes of `npc` an overlay flag may sit on: its children, and in the 3D render mode the
+## The nodes of `npc` an overlay flag may sit on: its children and the
 ## overlays that were moved off it onto the shared ground layer (`GroundLayer.overlays_of`).
 static func overlays_of(npc: Node) -> Array:
 	return npc.get_children() + GroundLayer.overlays_of(npc)
 
 
-## `npc`'s overlay named `overlay_name` (a child, or in 3D one moved onto the ground layer), or
+## `npc`'s overlay named `overlay_name` (a child, or one moved onto the ground layer), or
 ## null.
 static func overlay_of(npc: Node, overlay_name: String) -> Node:
 	var found := npc.get_node_or_null(overlay_name)

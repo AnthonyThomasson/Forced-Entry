@@ -49,9 +49,11 @@ static func lit(t: TestContext, prop: String) -> Array:
 	return out
 
 
-## Every child of `character` that has the property `prop`.
+## Every child of `character`, and every overlay the 3D view moved off it onto the ground layer,
+## that has the property `prop`.
 static func overlays_with(character: Node, prop: String) -> Array:
-	return character.get_children().filter(func(c): return prop in c)
+	var all: Array = character.get_children() + GroundLayer.overlays_of(character)
+	return all.filter(func(c): return prop in c)
 
 
 ## The body label under the section heading `heading` (shown upper-cased, `"POINT"`) of the detail

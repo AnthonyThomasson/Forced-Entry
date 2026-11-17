@@ -31,6 +31,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # checks the 2D draw, which the session's view hides
 	s.arena(FRAME)
 	s.switch(&"lighting.enabled", false)
 	s.switch(&"physics.blood", false)

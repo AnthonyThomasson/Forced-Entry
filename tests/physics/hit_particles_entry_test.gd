@@ -14,6 +14,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it reads the world's own 2D burst, which the picture takes over
 	s.arena(Rect2(0, 0, 700, 400))
 	s.switch(&"projectile.flyover", false)
 	# no exit is found: the round just lands in the chair

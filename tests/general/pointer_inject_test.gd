@@ -28,6 +28,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it reads the plain window's mouse, not the 3D view's
 	s.lock_interaction([&"camera"])  # a person's wheel or camera keys would change what is measured
 	s.arena(Rect2(0, 0, 800, 500))
 	s.actor(&"you", &"player", Vector2(300, 200))

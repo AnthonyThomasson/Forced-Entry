@@ -12,7 +12,7 @@ extends GameTest
 ## the same places, for the same damage, against the shoulders turned the same way.
 ##
 ## It reads (tests/_vision/vision_probe.gd) the `PlayerView`: `sees(point)`; the 3D view is the
-## one built (`GroundLayer.enabled`).
+## one built.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")

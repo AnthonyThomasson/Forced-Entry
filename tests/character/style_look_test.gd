@@ -51,6 +51,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # checks the 2D draw, which the session's view hides
 	s.arena(Rect2(0, 0, 800, 500))
 	s.switch(&"nav.rebake", false)
 	# Held still: a breathing or glancing body paints a few more textures as it moves, which two

@@ -57,7 +57,7 @@ Invariants:
 
 ## The 3D mirror (`mirror/`, interface 27)
 
-In the 3D render mode (#193) the 2D world is not drawn: `WorldMirror` (a `Node3D`, `mirror(root)`) follows every `PhysicsBody2D` under `root` as
+In the 3D render (#193, the only render) the 2D world is not drawn: `WorldMirror` (a `Node3D`, `mirror(root)`) follows every `PhysicsBody2D` under `root` as
 a proxy per collision shape (a box, a cylinder, a character's capsule; floors flat slabs) at 2D `(x, y)` -> 3D `(x * unit, 0, y * unit)`, the one scale
 `RenderConfig.unit` (General). It reads bodies duck-typed (the groups `characters`, `vehicles`, `doors`, `floors`; `wall_thickness`, `art_color`, `color`,
 `faction`), never a domain's class. The update rule is the spike's lesson: write only when the shape's 2D transform changed, skip a sleeping

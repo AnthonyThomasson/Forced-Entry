@@ -32,6 +32,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it makes the match's ground layer itself, as the 3D view does
 	s.arena(Rect2(0, 0, 1400, 700))
 	s.switch(&"vision.enabled", true)
 	s.actor(&"you", &"player", Vector2(150, 350))

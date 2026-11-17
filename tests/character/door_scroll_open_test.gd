@@ -40,6 +40,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it tests the camera's own zoom, not the 3D view's whole steps
 	s.lock_interaction([&"camera"])  # a person's wheel would change what is measured
 	s.layout([
 		{ "key": "west", "type": "living_room", "rect": Rect2(0, 0, 400, 800) },

@@ -110,8 +110,8 @@ func _check_card(t: TestContext, card: Control, npc: Node) -> void:
 
 ## Whether `npc`'s vision overlay is switched on.
 func _vision_on(npc: Node) -> bool:
-	for child in npc.get_children():
-		if "show_vision" in child and bool(child.get("show_vision")):
+	for child in InspectorProbe.overlays_with(npc, "show_vision"):
+		if bool(child.get("show_vision")):
 			return true
 	return false
 

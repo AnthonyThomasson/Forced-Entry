@@ -46,6 +46,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it builds its own rig and camera: the session shows none
 	s.lock_interaction([&"camera"])
 	s.arena(Rect2(0, 0, 3000, 2000), { "floor": "concrete" })
 	s.set_static(CameraConfig, &"frame_margin", MARGIN)

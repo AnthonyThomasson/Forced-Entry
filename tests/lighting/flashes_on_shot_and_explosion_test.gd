@@ -34,6 +34,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it reads the world's own lights, not the picture's
 	s.arena(Rect2(0, 0, 900, 600))
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)

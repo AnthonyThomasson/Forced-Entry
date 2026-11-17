@@ -38,6 +38,10 @@ func describe() -> Dictionary:
 	}
 
 
+func configure(s: TestSetup) -> void:
+	s.own_picture()  # it builds its own rig and camera: the session shows none
+
+
 func run(t: TestContext) -> void:
 	for oversample: int in [1, 2]:
 		var rig := _build(t, oversample)

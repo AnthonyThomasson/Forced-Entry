@@ -226,16 +226,17 @@ func close() -> Dictionary:
 			ctx.bundle.screenshot("fail")
 	if EventBus.posted.is_connected(_on_event):
 		EventBus.posted.disconnect(_on_event)
-	if is_instance_valid(_view):
-		remove_child(_view)
-		_view.queue_free()
-	_view = null
 	if is_instance_valid(world):
 		world.restore()
 		world.queue_free()
 		world = null
 		await get_tree().physics_frame
 		await get_tree().physics_frame
+	# the view goes after its world: its mirror drops each body as it leaves the tree
+	if is_instance_valid(_view):
+		remove_child(_view)
+		_view.queue_free()
+	_view = null
 	poll_logs(true)
 	von.end()
 	_fail_on_von_problems()

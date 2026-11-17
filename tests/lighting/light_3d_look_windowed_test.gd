@@ -45,6 +45,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it builds its own view and reads its pixels
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(RenderConfig, &"unit", 1.0)
 

@@ -24,6 +24,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it draws in the world itself, which the session's view hides
 	s.arena(Rect2(0, 0, 400, 300))
 	s.set_static(FillBatch, &"batching", true)
 

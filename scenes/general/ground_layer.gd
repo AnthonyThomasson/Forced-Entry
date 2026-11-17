@@ -5,7 +5,8 @@ extends CanvasLayer
 ## with it. Each says what it is (`ViewLayers.overlay`), and while the 3D view is up it is moved
 ## under a `GroundLayer`: a `CanvasLayer` is not a `CanvasItem`, so the hidden world does not hide
 ## what is under it, and it draws over the 3D view and under the HUD. A world with no 3D view (a
-## headless test world) has no layer: its overlays stay where they were made.
+## headless test world) has no layer: its overlays stay where they were made (and wait in `WAITING`,
+## for a layer made later).
 ##
 ## The layer's `transform` is `Pointer.screen_transform` each frame, the exact ground-to-screen
 ## affine of the 3D camera, so a world point the overlay draws lands on the same screen point as the
@@ -17,6 +18,10 @@ extends CanvasLayer
 ## turns with it, as in 2D), frees it when the owner leaves the tree, and answers which overlays an
 ## owner has (`overlays_of`). The player's view is not one of them in 3D: it is two masks the toon
 ## shaders read (`ViewGround`), so nothing of it is drawn flat.
+
+## The group an overlay made while no layer stood waits in (a test world's build makes its overlays
+## before the session builds the 3D view); `shared` adopts the group when the layer is made.
+const WAITING := &"ground_overlay_waiting"
 
 ## The match's one layer for the debug overlays, made by the 3D view (`shared`); null before and
 ## after it. Untyped so a freed one is checked, not read.
@@ -55,6 +60,11 @@ static func shared() -> GroundLayer:
 	made.layer = RenderConfig.overlay_layer
 	made.name = &"GroundOverlays"
 	overlays = made
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		for waiting: Node in tree.get_nodes_in_group(WAITING):
+			if waiting is CanvasItem:
+				adopt(waiting)
 	return made
 
 
@@ -69,6 +79,8 @@ static func forget() -> void:
 ## adding its children. It goes under the shared layer, with its parent as its owner.
 static func adopt(item: CanvasItem) -> void:
 	if not is_instance_valid(overlays):
+		# no layer yet: wait for it (`shared` adopts what waits)
+		item.add_to_group(WAITING)
 		return
 	if not item.is_inside_tree():
 		item.tree_entered.connect(adopt.bind(item), CONNECT_ONE_SHOT)
@@ -88,6 +100,7 @@ static func overlays_of(home: Node) -> Array:
 static func _move(item: CanvasItem) -> void:
 	if not is_instance_valid(item) or not item.is_inside_tree() or item.is_queued_for_deletion():
 		return
+	item.remove_from_group(WAITING)
 	var parent := item.get_parent()
 	if parent is GroundLayer:
 		return

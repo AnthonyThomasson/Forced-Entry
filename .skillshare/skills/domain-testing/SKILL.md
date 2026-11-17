@@ -168,8 +168,8 @@ domain's config holder, guarded at its one spawn point (as `BloodConfig.enabled`
 - Re-inject each frame while the camera eases, since its zoom carries the point: `PlayerPointer.aim` (`test-setup.md`) does, until
   the aim holds with the camera settled.
 - A test that clicks or reads a world point's place on the screen converts through `Pointer.screen_of` (`tests/_ui/inspector_probe.gd`,
-  `_ai/order_menu_probe.gd`, `_vision/vision_probe.gd`), not the canvas transform; only a test that asserts a capture
-  viewport's transform equals the main one reads the transform.
+  `_ai/order_menu_probe.gd`, `_vision/vision_probe.gd`), not the canvas transform (a test's world is shown by a 3D view in a window,
+  `in-game-runner.md`, so the canvas transform is not the ground's).
 - `TestWorld.restore` calls `Pointer.release()`, so no test leaks an injection into the next; a test may `release()` earlier to read
   the real mouse again (`tests/general/pointer_inject_test.gd`).
 

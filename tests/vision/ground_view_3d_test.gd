@@ -1,7 +1,7 @@
 extends GameTest
 ## The player's view in the 3D render (#193 vision-mask, `docs/player-vision.md` V12): the toon
 ## shaders read two masks, so the view draws them on request and not every frame. In a world with
-## the 3D view on (`GroundLayer.enabled`) and a viewer facing along a hall:
+## the 3D view and a viewer facing along a hall:
 ## - the masks are switched on once the first cone is drawn (`ToonMask.mask_active`), the memory
 ##   covering the floors' bounds, and the live window covers what the camera shows;
 ## - while the viewer stands still and the world holds still, nothing is drawn (the cone is
@@ -38,6 +38,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it builds its own rig and camera: the session shows none
 	s.arena(FLOOR)
 	s.switch(&"vision.enabled", true)
 	s.switch(&"nav.rebake", false)

@@ -3,7 +3,7 @@ extends GameTest
 ## interface 27): E one way and Q the other, eased, ending exactly on north, east, south or west, so
 ## it only ever rests on a cardinal. It starts at north (yaw 0, up the screen as in 2D); a second
 ## press while it turns queues another quarter; holding a key does not turn on; the focus stays put
-## on the screen mid-turn. A world with no 3D rig (the 2D render) is not turned by the keys. The
+## on the screen mid-turn. A world with no 3D rig is not turned by the keys. The
 ## expected angles are the spec's multiples of 90 degrees, not the rig's formula.
 
 const SCREEN := Vector2i(640, 360)
@@ -30,6 +30,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it builds its own rig and camera: the session shows none
 	s.lock_interaction([&"camera"])  # a person's keys would change what is measured
 	s.set_static(CameraTurnConfig, &"step_degrees", 90.0)
 	s.set_static(CameraTurnConfig, &"speed_degrees", 540.0)

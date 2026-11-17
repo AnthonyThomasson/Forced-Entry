@@ -18,6 +18,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # checks the 2D draw, which the session's view hides
 	s.arena(Rect2(0, 0, 700, 400))
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"shooter", &"puppet", Vector2(120, 200), { "start_slot": 3 })

@@ -38,6 +38,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it reads the world's own occluders, not the picture's
 	s.arena(ROOM)
 	s.switch(&"nav.rebake", false)
 	s.object(&"lamp", "lamp", Vector2(450, 120), { "neon": "" })
