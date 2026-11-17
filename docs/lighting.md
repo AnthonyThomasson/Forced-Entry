@@ -31,7 +31,7 @@ sun's into `PixelPostConfig.bands` (3: none, a little, the light whole; `ToonLig
 where it reads stronger than the same light in the 3D render's linear one), so a pool is a few soft rings that end in a faint tail,
 not on a hard rim, and a shadow one hard edge. The sum is held to `ToonLightConfig.cap` (1.7) of the painted colour by its brightest channel, so a pixel under three
 lamps is the art lit warm and not blown out, and the hue stays. A world that sets no ambient is lit by
-`ToonLightConfig.default_ambient` (a grey), not black.
+`ToonLightConfig.default_ambient` (a grey, as the shader multiplies it: no sRGB conversion or gain, so it is as bright as before), not black.
 
 **L1-3D. Dusk.** The ambient is the 2D dusk's, **(0.40, 0.37, 0.55)**, which 2D multiplies the art by in sRGB: the toon light is linear, so
 the shader's ambient is that colour taken to linear (`ToonLight.shader_ambient`) times `ToonLightConfig.ambient_gain` 1.8, which keeps
@@ -112,7 +112,7 @@ allows, seeded from the world's seed and the piece, so the same world flickers t
 **L9-3D. Flashes.** A `shot` lights a muzzle flash and an `explosion` a blast's (a frag's orange, a stun's white), driven by the same
 looks as 2D (`LightingConfig.flashes`: colour, energy, `reach` the pool's diameter, `reach_per_radius`, `hold`, `life`): a pooled
 `OmniLight3D` at hand height (`Lighting3DConfig.flash_height` 30) lit at the event's point, its pool `reach / 2` times `range_scale`
-out on the floor, flat to its middle (the overhead slope), held at full energy for its `hold` then falling off to dark over its `life`
+out on the floor, flat to its middle (every flash's pool uses the `overhead_slope`, as a ceiling light's), held at full energy for its `hold` then falling off to dark over its `life`
 as `energy x left^2` (a shot's 0.07, a frag's 0.5, the stun's 0.08 held + 0.7). The pool is the light budget of a firefight:
 `Lighting3DConfig.flash_lights` (4), a new flash taking a dark light and else the one with the **least left to run** (the oldest among equals: a dozen shots in a frame light
 the last four, and a stun's long white-out is never stolen by a shot),

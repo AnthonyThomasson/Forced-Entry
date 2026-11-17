@@ -22,7 +22,8 @@ static var pool_levels: Array = [0.08, 0.16, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0]
 ## sRGB, where a light reads stronger than the same one added in the 3D render's linear light.
 static var pool_strength: float = 1.9
 ## The ambient every surface is lit by until a world sets its own (`ToonLight.install`): a plain
-## grey, so art shown with no Lighting domain is readable.
+## grey, so art shown with no Lighting domain is readable. Taken as the shader multiplies it (no
+## sRGB conversion, no `ambient_gain`): such a world is as bright as before the dusk's conversion.
 static var default_ambient: Color = Color(0.7, 0.7, 0.7)
 ## The dusk's ambient is taken from sRGB to linear (2D multiplies in sRGB;
 ## `ToonLight.shader_ambient`) and times this: one gain that puts the 3D rooms' brightness back

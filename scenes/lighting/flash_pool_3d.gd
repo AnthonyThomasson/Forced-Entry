@@ -61,8 +61,8 @@ func flash(at: Vector2, look: Dictionary, radius: float, room_code: int) -> Omni
 		reach * 0.5 * Lighting3DConfig.range_scale,
 		height,
 	).length() * unit
-	# A washing flash (the stun's) is flat to the middle of its pool; a muzzle's and a blast's fade
-	# from their middle.
+	# Every flash's pool is flat to its middle (the overhead slope), as a ceiling light's: the kind
+	# says how the toon light adds it (a tint, or for a row with a `wash` a white-out).
 	var washes: bool = look.get("wash", false)
 	var kind := 0.5 if washes else 0.25
 	l.light_specular = (Lighting3DConfig.overhead_slope + kind + 4.0 * float(room_code)) * 0.5

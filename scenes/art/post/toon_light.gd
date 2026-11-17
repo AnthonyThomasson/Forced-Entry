@@ -48,7 +48,7 @@ static func install() -> void:
 	var none := Image.create(1, 1, false, Image.FORMAT_RG8)
 	var grey := ToonLightConfig.default_ambient
 	_ambient = grey
-	_add(AMBIENT, RenderingServer.GLOBAL_VAR_TYPE_VEC3, _vector(grey))
+	_add(AMBIENT, RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3(grey.r, grey.g, grey.b))
 	_add(CAP, RenderingServer.GLOBAL_VAR_TYPE_FLOAT, ToonLightConfig.cap)
 	_add(SKY_MASK, RenderingServer.GLOBAL_VAR_TYPE_SAMPLER2D, ImageTexture.create_from_image(white))
 	_add(SKY_TRANSFORM, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
@@ -97,11 +97,12 @@ static func set_rooms(image: Image, world_rect: Rect2) -> void:
 	_room_image = image
 
 
-## Back to the defaults: the default ambient, the sun everywhere, no room clipping.
+## Back to the defaults: the default ambient (as the shader multiplies it, not converted: a world
+## with no Lighting is as bright as it always was), the sun everywhere, no room clipping.
 static func clear() -> void:
 	install()
 	var grey := ToonLightConfig.default_ambient
-	RenderingServer.global_shader_parameter_set(AMBIENT, _vector(grey))
+	RenderingServer.global_shader_parameter_set(AMBIENT, Vector3(grey.r, grey.g, grey.b))
 	RenderingServer.global_shader_parameter_set(SKY_MASKED, 0.0)
 	RenderingServer.global_shader_parameter_set(ROOM_MASKED, 0.0)
 	_ambient = grey
