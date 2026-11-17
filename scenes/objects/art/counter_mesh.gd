@@ -30,7 +30,7 @@ static func _basin_of(spec: FurnitureSpec) -> String:
 
 
 ## The backsplash's depth along the back (0 when it is off).
-static func _splash_of(spec: FurnitureSpec) -> float:
+static func splash_of(spec: FurnitureSpec) -> float:
 	var on: bool = spec.opts.get("backsplash", ObjectArtKitchenBathConfig.counter_backsplash)
 	return maxf(2.0, roundf(spec.size.y * 0.07)) if on else 0.0
 
@@ -39,7 +39,7 @@ static func _splash_of(spec: FurnitureSpec) -> float:
 static func _tuning(spec: FurnitureSpec) -> Dictionary:
 	return {
 		"basin": _basin_of(spec),
-		"splash": _splash_of(spec),
+		"splash": splash_of(spec),
 		"height": height_of(spec),
 		"top": ObjectMeshKitchenConfig.counter_top,
 		"rise": ObjectMeshKitchenConfig.counter_splash,
@@ -54,7 +54,7 @@ static func _tuning(spec: FurnitureSpec) -> Dictionary:
 static func _mesh(spec: FurnitureSpec) -> Mesh:
 	var base := spec.color
 	var h := height_of(spec)
-	var splash := _splash_of(spec)
+	var splash := splash_of(spec)
 	var sink := _sink_of(spec)
 	var slab := maxf(ObjectMeshKitchenConfig.counter_top, sink)
 	var kit := spec.kit()

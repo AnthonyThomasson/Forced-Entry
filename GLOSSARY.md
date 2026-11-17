@@ -66,6 +66,33 @@ the upper floors will go. It holds no furniture and has one interior doorway and
 is an ordinary room to the AI.
 _Avoid_: lobby (a tower's front room), elevator
 
+### Height and cover
+
+**Top height**:
+How high a piece of furniture really stands, in px above the floor at 1 px to a 3D unit and 42.3 px to a metre (a 1.75 m
+person is 74 px): the top of its mass (`PieceHeights.top_of`), with its parts (a sofa's seat, arms and back; a bed's
+mattress and headboard) and the base of a piece that hangs or stands over the head. The meshes' sizes are the one truth
+(`ObjectMesh*Config`), the height reads them, and `docs/research/3d-cover-heights.md` gives the real sizes. A piece at
+least as tall as a posture's head top hides that posture.
+_Avoid_: coverage (the 0 to 100 abstract height the real heights replace), cover height
+
+**Duck**:
+The low posture of a character behind cover: a head top of about 0.85 m (36 px) (`BodyHeights.DUCK`), so a piece of at
+least that top hides the whole body. A ducked character fires by rising to a fire-over.
+_Avoid_: crouch (the old posture, 0.62 of a stand's drawn height and coverage 35), kneel
+
+**Fire-over**:
+The pose a ducked character rises to for a burst when the cover it is behind blocks its muzzle line: its bore about 1.02 m
+(43 px), clearing 0.9 m cover with the head and shoulders exposed (`BodyHeights.FIRE_OVER`); it drops back after a short
+dwell. Player and NPCs alike.
+_Avoid_: pop-up, peek
+
+**Plan space**:
+The floor plan the AI, world generation, navigation and most tests think in: a `Vector2` `(x, y)` that is `(x, z)` on the
+3D ground. `PlanSpace` lifts a plan point and a height to a `Vector3` `(x, height, y)` and back, on the render's one
+scale (`RenderConfig.unit`); height enters only where it matters (an eye, a muzzle, a top, a grenade's altitude).
+_Avoid_: world space (the 3D world's own axes), 2D space
+
 ### Game tests
 
 **Simulation test**:

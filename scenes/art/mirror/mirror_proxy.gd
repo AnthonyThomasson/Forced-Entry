@@ -147,11 +147,7 @@ func make_floor(floor_node: Node2D) -> Dictionary:
 	var thick := MirrorConfig.floor_thickness * unit
 	node.transform = Transform3D(
 		Basis.from_scale(Vector3(size.x * unit, thick, size.y * unit)),
-		Vector3(
-			(floor_node.global_position.x + size.x * 0.5) * unit,
-			-thick * 0.5,
-			(floor_node.global_position.y + size.y * 0.5) * unit,
-		),
+		PlanSpace.lift(floor_node.global_position + size * 0.5) + Vector3(0.0, -thick * 0.5, 0.0),
 	)
 	return { "node": node, "body": floor_node, "shape": null }
 
@@ -160,12 +156,9 @@ func make_floor(floor_node: Node2D) -> Dictionary:
 ## scale, lifted by half the height, turned about the up axis by the 2D turn (a 2D turn clockwise on
 ## a y-down screen is a turn of -angle about +y), scaled to the shape.
 static func lift(xf: Transform2D, row: Dictionary) -> Transform3D:
-	var unit := RenderConfig.unit
 	var centre := xf * (row["offset"] as Vector2)
 	var turned := Basis(Vector3.UP, -xf.get_rotation()) * Basis.from_scale(row["size3"])
-	return Transform3D(
-		turned, Vector3(centre.x * unit, row["half_height"], centre.y * unit)
-	)
+	return Transform3D(turned, PlanSpace.lift(centre) + Vector3(0.0, row["half_height"], 0.0))
 
 
 ## The rectangle a shape covers in its own frame (centred rectangles and circles, the bounding box

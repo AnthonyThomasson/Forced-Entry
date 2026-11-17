@@ -27,6 +27,7 @@ const OBJECTS := {
 		"art": "cabinet",
 		"art_opts": {
 			"front": "drawers",
+			"height": 56.0,
 			"count": 1,
 			"labels": true,
 			"handle": Color(0.78, 0.8, 0.84),

@@ -36,3 +36,7 @@
     Objects' painters + `ObjectArt` registry, Character's body, head, hand, limb, trunk and vest painters, Items' painters (`items/art/`:
     a gun and a grenade painter per weapon style, police, scrap and pipe, and the spoon) and Vehicles' painters (`scenes/vehicle/art/`: car,
     van, door, wheel, lamp) all render through these; Art imports nothing from other domains.
+    - **Heights are real** (`BodyHeights`, interface 11): a mesh's px are the sim's px at 42.3 to a metre, so a mesh size is a real size. Objects' `PieceHeights` (`objects/art/piece_heights.gd`:
+	  `top_of(definition)`, `base_of(definition)`, `parts_of(definition)` for a catalogue row, `top_of_spec(spec)` / `parts(spec)` for a `FurnitureSpec`; a part is `{ base, top, rect }`,
+	  `rect` the share of the footprint in the painter's canonical frame) reads the same `ObjectMesh*Config` holders and mesh rules (`height_of`) the builders do, so the mesh and the
+	  height are one truth; `tests/objects/piece_heights_test.gd` builds every catalogue piece and checks its mesh against it and against the real range of metres of its kind.

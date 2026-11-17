@@ -41,7 +41,7 @@ const OBJECTS := {
 		"color": Color(0.55, 0.35, 0.2),
 		"material": "wood",
 		"art": "table",
-		"art_opts": { "inset": true },
+		"art_opts": { "inset": true, "height": 18.0 },
 		"weight": 12,
 		"coverage": 30,
 		"penetration": 45,

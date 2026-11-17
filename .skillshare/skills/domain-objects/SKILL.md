@@ -20,7 +20,7 @@ dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, in
 | `door/` (`door.gd` and its parts), `door_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
 | `collider_cuts.gd` (`ColliderCuts`) | The shared queue of convex collider cuts, run on worker threads. |
 | `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`, `stencil_decal.gd`, `decal_factory.gd` (`DecalFactory`: the floor stencil). |
-| `art/` | Painters and holders: `art.md`, `meshes.md`, `furniture-art.md`, `structure-meshes.md`. |
+| `art/` | Painters and holders: `art.md`, `meshes.md`, `furniture-art.md`, `structure-meshes.md`. `piece_heights.gd` (`PieceHeights`: every piece's real top and parts: `heights.md`). |
 
 Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry, colliders and look data and draw nothing:
 the 3D meshes (`art/`, `meshes.md`) read them through the mirror. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`): the editor's "no shape" warning on a `Wall` is expected.

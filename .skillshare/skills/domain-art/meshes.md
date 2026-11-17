@@ -41,21 +41,21 @@ sides a darker tone, its legs the shadow tone. A face's colour is the painter's,
 the rules the mirror follows: `mesh-hook.md`. A finer key is for one art id (`MirrorProxy.furniture_key("table")`) and wins over the `FURNITURE` kind.
 A mesh whose parts move with a pose is the character's: `CharacterMeshes.register` plugs `BodyMesh`, which `mirror_update` places between the 2D rig's joints (`domain-character`).
 
-## Heights (px; a standing character is 74, a wall 96: `MirrorConfig`)
+## Heights (px; 42.3 a metre, a character 74, a wall 96: `BodyHeights`, `MirrorConfig`)
 
-Plausible, not exact; one number per class, in the domain's own holder (`ObjectMeshConfig`).
+Real sizes (`docs/research/3d-cover-heights.md`), one number per class in its domain's holder; `PieceHeights` (interface 12) reads them back (`domain-objects/heights.md`).
 
 | Class | Height | Class | Height |
 |---|---|---|---|
 | Wall | 96 (`MirrorConfig.wall_height`) | Door leaf | 84 |
-| Character standing | 74 | Character crouched | `CharacterPostureConfig`'s crouch `height` times standing (`docs/cover-and-stance.md`) |
-| Table, desk, bench top | 30 (top 4 thick) | Coffee table, side table | 18 to 22 |
-| Chair seat / back | 18 / 36 | Sofa seat / back | 18 / 38 |
-| Bed frame / mattress top | 14 / 22 | Counter, island | 34 |
-| Shelf, cabinet, wardrobe | 70 to 80 | Fridge, vending machine | 70 |
-| Toilet, bath rim | 20 | Plant | 30 to 40 |
-| Streetlight post | 130 | Car body / roof | 36 / 52 (a van 46 / 78) |
-| Rug, mat, floor stencil | 0.5 (a decal, not a solid) | Dropped item, casing | 2 to 6 |
+| Character standing | 74 (`BodyHeights`) | Character ducked | head top 36 |
+| Table, desk top | 31 | Coffee table, side table | 18 / 22 |
+| Chair seat / back | 18 / 36 | Sofa seat / arm / back | 18 / 28 / 38 |
+| Bed mattress / headboard | 22 / 34 | Counter, dresser, cabinet | 38 (+ backsplash 6) |
+| Bookshelf, fridge | 77, 74 | Vending machine | 78 |
+| Toilet cistern, bath rim | 30, 20 | Plant | 36 |
+| Streetlight post | 130 | Car body / roof | 40 / 60 (a van 46 / 78) |
+| Rug, mat, stencil | 0.5 (a decal) | Dropped item, casing | 2 to 6 |
 
 A tall solid (a wall, a wardrobe) hides what is behind it: the wall-fade job (rule 9) fades those near the player (`MeshNodes.fade`), so a mesh job does not shorten a
 wall to keep the view clear, and a wall is its own instance, never merged with its neighbours.

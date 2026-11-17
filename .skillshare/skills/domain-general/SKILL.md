@@ -5,7 +5,7 @@ description: Use when editing scenes/general/: keybinds, settings, camera, comma
 
 # General domain (`scenes/general/`)
 
-Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `INTERACT`), 26 (`Pointer`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, WeightedPick, SightRay, SeenArea, Pointer (pointer_converts, pointer_inject), verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
+Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `INTERACT`), 26 (`Pointer`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, WeightedPick, SightRay, SeenArea, BodyHeights, PlanSpace, Pointer (pointer_converts, pointer_inject), verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
 
 Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, plus Audio's `Sound`. The rest are `class_name` static holders (no instance). Tuning holders: `CameraConfig`, `CameraShakeConfig` (ADR 0003), read live, so a test may `set_static` them.
 
@@ -25,6 +25,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 | `physics_layers.gd`, `view_layers.gd` | shared ids |
 | `world_rng.gd` | each world's random stream and its characters' spawn order (`helpers.md`) |
 | `weighted_pick.gd`, `match_verdict.gd`, `sight_ray.gd`, `seen_area.gd` | shared helpers (`helpers.md`) |
+| `body_heights.gd`, `plan_space.gd` | `BodyHeights` (real posture heights, 42.3 px a metre), `PlanSpace` (plan `Vector2` <-> 3D): `heights.md` |
 
 ## Shared ids
 

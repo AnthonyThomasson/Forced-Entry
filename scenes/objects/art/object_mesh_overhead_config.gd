@@ -15,12 +15,12 @@ static var sign_height: float = 14.0
 static var sign_depth: float = 3.0
 ## The awning: how high its front edge hangs, how far its cloth rises toward the wall, the board
 ## along the wall and the valance down its front.
-static var awning_front: float = 72.0
-static var awning_rise: float = 22.0
+static var awning_front: float = 84.0
+static var awning_rise: float = 10.0
 static var awning_board: float = 6.0
 static var awning_valance: float = 4.0
 ## The glyph sign: the height of its blade (the width the 2D art draws), how thick it is, and where
 ## its bracket rod runs.
-static var hanging_blade: float = 26.0
+static var hanging_blade: float = 20.0
 static var hanging_depth: float = 4.0
-static var hanging_rod: float = 84.0
+static var hanging_rod: float = 98.0

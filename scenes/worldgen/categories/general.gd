@@ -258,7 +258,7 @@ const OBJECTS := {
 		"color": Color(0.55, 0.4, 0.25),
 		"material": "wood",
 		"art": "table",
-		"art_opts": { "gaps": true, "plank_px": 6, "rim_px": 1 },
+		"art_opts": { "gaps": true, "plank_px": 6, "rim_px": 1, "height": 19.0 },
 		"weight": 14,
 		"coverage": 30,
 		"penetration": 50,

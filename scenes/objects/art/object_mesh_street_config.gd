@@ -6,9 +6,9 @@ class_name ObjectMeshStreetConfig
 ## own `art_opts.height` overrides its kind's.
 
 ## The vending machine, the bench's seat, the bin and how far its lid rises over its body.
-static var vending_height: float = 70.0
-static var bench_seat: float = 16.0
-static var bin_height: float = 30.0
+static var vending_height: float = 78.0
+static var bench_seat: float = 19.0
+static var bin_height: float = 38.0
 static var bin_lid: float = 2.0
 ## How high a drain grate's frame and bars stand and how high a scrap of litter lies.
 static var grate_height: float = 0.6

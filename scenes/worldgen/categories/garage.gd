@@ -23,6 +23,7 @@ const OBJECTS := {
 		"art": "table",
 		"art_opts": {
 			"plank_px": 4,
+			"height": 38.0,
 			"props": [
 				{ "kind": "tools", "at": Vector2(0.38, 0.5) },
 				{ "kind": "vise", "at": Vector2(0.85, 0.45) },

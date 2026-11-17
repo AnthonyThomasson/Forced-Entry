@@ -23,14 +23,14 @@ func _mesh_of(size: Vector2, opts := {}) -> Mesh:
 
 func test_a_small_table_is_low_a_dining_table_standard_and_art_opts_decide() -> void:
 	assert_float(TableMesh.height_of(Vector2(30, 30), {})).is_equal(22.0)  # a side table
-	assert_float(TableMesh.height_of(Vector2(120, 70), {})).is_equal(30.0)  # a dining table
+	assert_float(TableMesh.height_of(Vector2(120, 70), {})).is_equal(31.0)  # a dining table
 	assert_float(TableMesh.height_of(Vector2(30, 30), { "height": 18 })).is_equal(18.0)
 	assert_float(TableMesh.height_of(Vector2(120, 70), { "height": 12.5 })).is_equal(12.5)
 
 
 func test_a_pieces_height_is_the_mesh_it_gets() -> void:
 	assert_float(_mesh_of(Vector2(30, 30)).get_aabb().size.y).is_equal_approx(22.0, 0.01)
-	assert_float(_mesh_of(Vector2(120, 70)).get_aabb().size.y).is_equal_approx(30.0, 0.01)
+	assert_float(_mesh_of(Vector2(120, 70)).get_aabb().size.y).is_equal_approx(31.0, 0.01)
 	var coffee := _mesh_of(Vector2(70, 40), { "height": 16 })
 	assert_float(coffee.get_aabb().size.y).is_equal_approx(16.0, 0.01)
 

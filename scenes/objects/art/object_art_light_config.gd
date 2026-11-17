@@ -19,7 +19,7 @@ class_name ObjectArtLightConfig
 ## `radius` is its length × `tube_reach`.
 static var specs: Dictionary = {
 	"lamp": {
-		"lift": 50.0,
+		"lift": 57.0,
 		"energy": 0.95, "radius": 160.0, "shape": &"round", "height": &"overhead",
 		"rhythm": [[&"steady", 6.0], [&"buzz", 1.5], [&"pulse", 1.0], [&"failing", 1.5]],
 		"room_light": true,
