@@ -44,6 +44,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 200, 200))
+	s.own_picture()
 	s.set_static(RenderConfig, &"unit", 1.0)
 
 
