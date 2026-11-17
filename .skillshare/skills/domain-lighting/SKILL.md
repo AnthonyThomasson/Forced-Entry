@@ -1,6 +1,6 @@
 ---
 name: domain-lighting
-description: Use when editing scenes/lighting/, retuning the dusk, a fixture, a flash or the light budget, adding a light-giving piece, changing who shadows whom, or asserting on lights in a test.
+description: Use when editing scenes/lighting/, retuning the dusk, a fixture, a flash or the 3D cost cap, adding a light-giving piece, changing who shadows whom, or asserting on lights in a test.
 ---
 
 # Lighting domain (`scenes/lighting/`)

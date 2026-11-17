@@ -10,7 +10,7 @@ extends GameTest
 ## light's metas `piece`, `index`, `room` and `shadowable`; a piece's `get_lights()`.
 
 const Probe := preload("res://tests/_lighting/lighting_3d_probe.gd")
-const Lights2D := preload("res://tests/_lighting/lighting_probe.gd")
+const Data := preload("res://tests/_lighting/lighting_probe.gd")
 const SEED := 1
 
 
@@ -36,8 +36,8 @@ func run(t: TestContext) -> void:
 		return
 	var placed := 0
 	var declared := 0
-	for piece in Lights2D.pieces(t.world.house):
-		var wanted := Lights2D.declared(piece)
+	for piece in Data.pieces(t.world.house):
+		var wanted := Data.declared(piece)
 		declared += wanted.size()
 		var own := Probe.lights_of(lighting, piece)
 		t.check(
@@ -56,7 +56,7 @@ func run(t: TestContext) -> void:
 ## Each placed light of `piece` stands over the declared place of its light, at the height of its
 ## kind, with a colour, a range and an energy.
 func _check_piece(t: TestContext, piece: Node2D, own: Array) -> void:
-	var specs := Lights2D.declared(piece)
+	var specs := Data.declared(piece)
 	for l: OmniLight3D in own:
 		var spec: Dictionary = specs[int(l.get_meta(&"index"))]
 		var at: Vector2 = piece.global_transform * (spec["offset"] as Vector2)

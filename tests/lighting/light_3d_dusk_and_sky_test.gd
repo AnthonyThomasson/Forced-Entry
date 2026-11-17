@@ -9,7 +9,7 @@ extends GameTest
 ## (`ambient()`, `sky_reaches(point)`).
 
 const Probe := preload("res://tests/_lighting/lighting_3d_probe.gd")
-const Lights2D := preload("res://tests/_lighting/lighting_probe.gd")
+const Data := preload("res://tests/_lighting/lighting_probe.gd")
 const AMBIENT := Color(0.40, 0.37, 0.55)
 const SKY := Color(1.0, 0.5, 0.42)
 
@@ -70,10 +70,10 @@ func run(t: TestContext) -> void:
 func _check_reach(t: TestContext, rooms: Array) -> void:
 	var reached := 0
 	var wrong := 0
-	for ground in Lights2D.floors(t.world.district):
+	for ground in Data.floors(t.world.district):
 		if not ground.is_street():
 			continue
-		var rect := Lights2D.floor_rect(ground)
+		var rect := Data.floor_rect(ground)
 		for x in range(int(rect.position.x) + 3, int(rect.end.x), 60):
 			for y in range(int(rect.position.y) + 3, int(rect.end.y), 60):
 				var open := not _in_tower(rooms, Vector2(x, y))

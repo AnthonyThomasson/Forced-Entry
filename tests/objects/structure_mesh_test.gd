@@ -240,6 +240,7 @@ func _doors(t: TestContext, mirror: WorldMirror) -> void:
 	t.expect_near(box.position.y, 0.0, 0.01, "the leaf stands on the ground")
 	t.check(leaf.visible and node.get_child_count() == 1, "a standing door shows its leaf only")
 	_at_door(t, node, door, "shut")
+	t.check(_casts(leaf), "a standing door's leaf casts a shadow in the 3D lights")
 	var shut_yaw := node.global_rotation.y
 	door.toggle(null)
 	await t.seconds(0.2)
@@ -262,6 +263,10 @@ func _glass(t: TestContext, mirror: WorldMirror) -> void:
 	var glassy := t.object(&"glassy")
 	var pane := mirror.proxies_of(glassy)[0]
 	var whole := (pane.get_child(0) as MeshInstance3D).mesh
+	t.check(
+		_casts(pane.get_child(0) as MeshInstance3D),
+		"a standing glass-panel door's leaf casts a shadow too (3D lights it as a leaf)",
+	)
 	glassy.look.broken = true
 	await t.frames(2)
 	var broken := (pane.get_child(0) as MeshInstance3D).mesh
@@ -277,11 +282,17 @@ func _lies_flat(t: TestContext, node: Node3D, door: Node2D) -> void:
 		not node.get_child(0).visible and node.get_child(1).visible,
 		"a knocked-down door shows its flat slab",
 	)
+	t.check(not _casts(node.get_child(1) as MeshInstance3D), "a fallen door casts no shadow")
 	var flat := (node.get_child(1) as MeshInstance3D).mesh.get_aabb()
 	t.expect_near(flat.size.x, DoorConfig.fallen_length, 0.01, "the fallen door is as long as 2D's")
 	t.expect_near(flat.size.z, door.width, 0.01, "the fallen door is as wide as the doorway")
 	t.expect_near(flat.size.y, DoorConfig.leaf_thickness, 0.01, "it lies flat, a leaf thick")
 	_at_door(t, node, door, "fallen")
+
+
+## Whether `mesh` casts a shadow in the 3D lights.
+func _casts(mesh: MeshInstance3D) -> bool:
+	return mesh.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 ## The node stands where `door` is and turned as it is, `when`.

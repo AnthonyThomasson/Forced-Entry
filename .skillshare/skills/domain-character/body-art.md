@@ -9,7 +9,7 @@ Six private painters, each its own part, all drawing from the character's resolv
 - `body_painter.gd`: the shoulders in the shirt, the neck ring, the ends where the arms leave (sleeve, skin, chrome), the style's uniform or gear marks, the vest, spine rig, cables and the pack.
 - `head_painter.gd`: skin, ears and nose toward the front, hair, cap or helmet, then the face, on its own canvas (`radius_for(width)`, `canvas_for(r)`).
 - `hand_painter.gd`: a fist, knuckles to the front and the thumb on the inner side (`side`); `limb_painter.gd`: the shaded strip of one arm, leg or shoe segment (`part`, `side`, `cuff`, `skin`, `chrome`).
-- `vest_painter.gd`: called by the body painter (`paint_top`, seen from above) and the torso painter (`paint_face`, no caller now the 2D trunk is gone): a soft vest or a plate carrier. A plate's wear is `WEAR_STEPS` steps of `_MARKS_PER_STEP` marks from one fixed sequence per side (a crack, then a scuff), so each step adds to the last.
+- `vest_painter.gd`: called by the body painter (`paint_top`, seen from above): a soft vest or a plate carrier. A plate's wear is `WEAR_STEPS` steps of `_MARKS_PER_STEP` marks from one fixed sequence per side (a crack, then a scuff), so each step adds to the last.
 
 The 3D body wears each painter's flat render (`PixelArt.render_flat`, `body-textures.md`); the painters keep their lit branches while lit art feeds other textures.
 

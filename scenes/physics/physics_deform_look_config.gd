@@ -7,8 +7,6 @@ class_name PhysicsDeformLookConfig
 ## A bloody mark's colour on an object a bullet carried blood onto (alpha is scaled by how much it
 ## carried).
 static var blood_mark_color: Color = Color(0.55, 0.04, 0.05)
-## Radius (px) of that mark.
-static var blood_mark_radius: float = 4.5
 ## Fill darkening -------------------------------------------------------------
 ## Max amount the fill color is darkened toward black at full accumulated damage.
 static var darken_max: float = 0.35

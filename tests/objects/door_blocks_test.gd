@@ -17,11 +17,10 @@ const WALK := 700.0
 
 func describe() -> Dictionary:
 	return {
-		"name": "A standing door blocks bodies, rounds by penetration, sight and light",
+		"name": "A standing door blocks bodies, rounds by penetration and sight",
 		"description": "A shut door stops a walking puppet; a pistol round passes a hollow door "
-			+ "and stops in steel; sight is stopped by a wooden door, not a glass one; a wooden "
-			+ "door casts a shadow, a glass one none.",
-		"tags": ["door", "objects", "projectile", "vision", "lighting"],
+			+ "and stops in steel; sight is stopped by a wooden door, not a glass one.",
+		"tags": ["door", "objects", "projectile", "vision"],
 		"timeout": 12.0,
 	}
 

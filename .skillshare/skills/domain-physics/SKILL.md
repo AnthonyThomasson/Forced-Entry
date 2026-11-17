@@ -54,7 +54,7 @@ Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5
   afresh) because Objects' `ColliderCuts` runs them on worker threads; `shapes_of` makes the shapes on the main thread.
 - The damage darkening (`Deformation.darken`, `PhysicsDeformLookConfig.darken_max` / `darken_full`) is read by the furniture
   rig and the character's meshes. A bloody hit (`HitInfo.blood > 0`) stores `"blood"` in the impact; the red blot a mesh shows
-  under the hole is `PhysicsDeformLookConfig.blood_mark_color` / `blood_mark_radius`; `hit_marks()` on an `EnvironmentObject`,
+  under the hole is `PhysicsDeformLookConfig.blood_mark_color`; `hit_marks()` on an `EnvironmentObject`,
   `Wall` or vehicle returns the marks.
 
 ## Debris
