@@ -27,7 +27,8 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 		splash = maxi(2, roundi(c.h * 0.07))
 		var band := PixelShape.rounded(Rect2i(0, 0, c.w, splash), 1)
 		c.fill(band, t.dark, _SPLASH_HEIGHT)
-		c.line(Vector2i(1, splash - 1), Vector2i(c.w - 2, splash - 1), t.light)
+		var edge: Color = t.light if c.light != Vector2.ZERO else t.dark
+		c.line(Vector2i(1, splash - 1), Vector2i(c.w - 2, splash - 1), edge)
 	if opts.get("overhang", false):
 		var oh := maxi(3, roundi(c.h * 0.14))
 		c.paint_over(Rect2i(0, c.h - oh, c.w, oh), base.lightened(0.05))

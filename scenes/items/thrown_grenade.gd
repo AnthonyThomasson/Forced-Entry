@@ -17,6 +17,10 @@ class_name ThrownGrenade extends Node2D
 ## the piece, to touch down past it. On the fuse's end it calls the Projectile System's
 ## `Explosion.frag` / `Explosion.stun` with its `GrenadeConfig` row.
 
+## It moved, turned or changed height (once per physics frame until it lies still): the 3D mesh
+## that shows it (`LyingItemMesh`) follows it.
+signal shifted
+
 ## Physics layers it strikes (walls + solid furniture + the living).
 const SOLID_MASK := PhysicsLayers.SOLID
 ## What a collider with no surface of its own counts as: it always stops a grenade.
@@ -74,9 +78,7 @@ var _flown := 0.0
 func _ready() -> void:
 	add_to_group(&"live_grenades")
 	ViewLayers.set_moving(self, true)
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_query = _sweep_query(GrenadeConfig.radius)
-	_update_layer()
 
 
 func _physics_process(delta: float) -> void:
@@ -91,7 +93,6 @@ func _physics_process(delta: float) -> void:
 	if _motion.rolling:
 		_spin = move_toward(_spin, 0.0, GrenadeConfig.spin_friction * delta)
 	_angle += _spin * delta
-	_update_layer()
 	if landed:
 		_post(&"bounce")
 	if _motion.rolling and _motion.speed <= REST_SPEED:
@@ -99,20 +100,7 @@ func _physics_process(delta: float) -> void:
 		ViewLayers.set_moving(self, false)
 		_spin = 0.0
 		_post(&"rest")
-	queue_redraw()
-
-
-func _draw() -> void:
-	if item == null:
-		return
-	var away := PixelArt.away_from_light(self)
-	item.art.draw_dropped(
-		self,
-		away * (0.5 + _motion.height * GrenadeConfig.shadow_per_height),
-		_angle,
-		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha),
-	)
-	item.art.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE)
+	shifted.emit()
 
 
 ## Let a grenade go as `throw` says (of its `kind`, from `from` toward `to`, thrown by `thrower`,
@@ -270,6 +258,16 @@ static func _sweep_query(size: float) -> PhysicsShapeQueryParameters2D:
 	return query
 
 
+## How high it is off the floor (px): the lob's arc, then 0 where it lies.
+func altitude() -> float:
+	return _motion.height
+
+
+## Which way its art points (rad), as it is drawn.
+func heading() -> float:
+	return _angle
+
+
 ## Seconds until it goes off.
 func fuse_left() -> float:
 	return maxf(_fuse, 0.0)
@@ -286,11 +284,6 @@ func throw_stats() -> Dictionary:
 ## Audio domain voices the clatter, perception hears where it landed.
 func _post(stage: StringName) -> void:
 	EventBus.post(&"grenade", { "position": global_position, "kind": kind, "stage": stage })
-
-
-## Aloft it draws over the living; down it lies beneath them, like a dropped item.
-func _update_layer() -> void:
-	z_index = DrawLayers.ABOVE if _motion.height > 12.0 else DrawLayers.LYING
 
 
 ## Move across the floor by `motion`, striking walls, solid furniture taller than it is high and the

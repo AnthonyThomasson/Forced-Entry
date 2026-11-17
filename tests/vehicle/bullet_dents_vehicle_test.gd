@@ -33,7 +33,6 @@ func _debris(t: TestContext) -> Array:
 		func(d): return (
 			String(d["name"]).contains("Debris")
 				and not String(d["name"]).contains("Layer")
-				and not String(d["name"]).contains("Visuals")
 		),
 	)
 

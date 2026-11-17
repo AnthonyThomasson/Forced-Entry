@@ -8,11 +8,12 @@ extends GameTest
 ## - Every defender stands in a room of the house, none in a neighbour tower.
 ## - Every NPC's controller is handed the house's rooms and openings and nothing of a neighbour's
 ##   (so a neighbour counts as outside for confinement, entry and spawning).
-## - Every room of every tower has a light (a fixture of the lighting, or a piece's own light) and
+## - Every room of every tower has a light (a fixture of the 3D lighting, or a piece's own light)
+##   and
 ##   no two rooms of the district share a key, so a neighbour's room never hides behind the
 ##   house's.
 
-const Probe := preload("res://tests/_lighting/lighting_probe.gd")
+const Probe := preload("res://tests/_lighting/lighting_3d_probe.gd")
 const SEED := 7
 const PLAN := "garage_home"
 const TOWERS := 9
@@ -61,7 +62,6 @@ func run(t: TestContext) -> void:
 	_check_defenders(t, handle, rooms, all_rooms)
 	_check_bound(t, handle, rooms, openings)
 	_check_lit(t, all_rooms)
-	_check_floor_budget(t, district)
 
 
 ## Every defender stands in a room of the house: in no room of a neighbour tower.
@@ -102,36 +102,9 @@ func _check_bound(t: TestContext, handle: Dictionary, rooms: Array, openings: Ar
 	t.expect_eq(count, DEFENDERS + INVADERS, "every NPC has a controller to check")
 
 
-## No floor of the district is reached by more lights than the budget (`budget().per_floor`), nor
-## by more than a canvas item takes with every flash: the district's street floors and its towers'
-## floors alike, under the lights of the street lamps, signs and rooms.
-func _check_floor_budget(t: TestContext, district: Node2D) -> void:
-	var lighting := Probe.require_lighting(t)
-	if lighting == null:
-		return
-	var per_floor := int(lighting.budget().get("per_floor", -1))
-	var lights: Array = lighting.lights()
-	var flashes: Array = lighting.flashes()
-	var floors := Probe.floors(district)
-	if not t.require(
-			floors.size() > TOWERS,
-			"premise: the district's floors are all counted (%d)" % floors.size(),
-	):
-		return
-	for ground: Node2D in floors:
-		var n := lights.filter(
-			func(l: Variant) -> bool: return l is PointLight2D and Probe.reaches(l, ground),
-		).size()
-		t.check(
-			n <= per_floor and n + flashes.size() <= Probe.ITEM_LIGHTS,
-			"floor %s is reached by %d lights (at most %d, and %d with the %d flashes)"
-				% [ground.name, n, per_floor, Probe.ITEM_LIGHTS, flashes.size()],
-		)
-
-
 ## Every room of the district holds a light, and the keys of the rooms are all different.
 func _check_lit(t: TestContext, all_rooms: Array) -> void:
-	var lighting := Probe.require_lighting(t)
+	var lighting := Probe.light(t, all_rooms)
 	if lighting == null:
 		return
 	var keys := {}
@@ -142,6 +115,6 @@ func _check_lit(t: TestContext, all_rooms: Array) -> void:
 	for room: Dictionary in all_rooms:
 		var rect: Rect2 = room["rect"]
 		t.check(
-			lights.any(func(l: Node2D) -> bool: return rect.has_point(l.global_position)),
+			lights.any(func(l: Node3D) -> bool: return rect.has_point(Probe.ground_of(l))),
 			"room %s is lit" % room["key"],
 		)

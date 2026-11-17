@@ -1,9 +1,9 @@
 extends GameTest
-## DR7 (ticket #21): with Use (E) held on a door, each wheel notch turns the door by the brief's 20
+## DR7 (ticket #21): with Space held on a door, each wheel notch turns the door by the brief's 20
 ## degrees, wheel up opening and down closing, between shut and fully open, and it stays where the
-## scroll leaves it; the camera does not zoom meanwhile, and letting go of E after scrolling does
-## not toggle the door. A trackpad's two-finger scroll turns it too, by the notches the camera
-## counts it as. With E not held, or held with no door in reach, the wheel zooms as before.
+## scroll leaves it; the camera does not zoom meanwhile, and letting go of Space after scrolling
+## does not toggle the door. A trackpad's two-finger scroll turns it too, by the notches the camera
+## counts it as. With Space not held, or held with no door in reach, the wheel zooms as before.
 
 ## Degrees one wheel notch turns a door (the brief's number).
 const NOTCH := 20.0
@@ -30,16 +30,17 @@ var _pointer := Vector2.ZERO
 
 func describe() -> Dictionary:
 	return {
-		"name": "Held Use and the wheel open a door by steps",
-		"description": "E held on a door: wheel notches turn it 20 degrees each (up opens, down "
+		"name": "Held Space and the wheel open a door by steps",
+		"description": "Space held: wheel notches turn it 20 degrees each (up opens, down "
 			+ "closes), the camera does not zoom, releasing leaves the angle; a trackpad scroll "
-			+ "turns it too; with E not held, or no door in reach, the wheel zooms.",
+			+ "turns it too; with Space not held, or no door in reach, the wheel zooms.",
 		"tags": ["door", "player", "input", "camera", "keybinds"],
 		"timeout": 30.0,
 	}
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it tests the camera's own zoom, not the 3D view's whole steps
 	s.lock_interaction([&"camera"])  # a person's wheel would change what is measured
 	s.layout([
 		{ "key": "west", "type": "living_room", "rect": Rect2(0, 0, 400, 800) },
@@ -82,9 +83,9 @@ func run(t: TestContext) -> void:
 	await _the_puppet_works_a_door(t, t.puppet(&"hand"), other)
 
 
-## E held: notches turn the door 20 degrees each, the camera stays, and letting go leaves it.
+## Space held: notches turn the door 20 degrees each, the camera stays, and letting go leaves it.
 func _wheel_steps(t: TestContext, door: Node, camera: Camera2D, zoom: float) -> void:
-	Input.action_press(Keybinds.USE)
+	Input.action_press(Keybinds.INTERACT)
 	await t.frames(2)
 	for i in 3:
 		await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
@@ -94,12 +95,13 @@ func _wheel_steps(t: TestContext, door: Node, camera: Camera2D, zoom: float) -> 
 	await _settle(t)
 	t.expect_near(door.angle(), 2.0 * NOTCH, 0.1, "a notch down turns it back to 40 degrees")
 	t.expect_near(camera.zoom.x, zoom, SAME_ZOOM, "the camera did not zoom meanwhile")
-	Input.action_release(Keybinds.USE)
+	Input.action_release(Keybinds.INTERACT)
 	await _settle(t)
-	t.expect_near(door.angle(), 2.0 * NOTCH, 0.1, "letting go of E leaves the door where it is")
+	t.expect_near(door.angle(), 2.0 * NOTCH, 0.1, "letting go of Space leaves the door where it is")
 
 
-## E not held: how many notches the camera counts a trackpad scroll of `PAN` for, read off its zoom
+## Space not held: how many notches the camera counts a trackpad scroll of `PAN` for, read off its
+## zoom
 ## (a notch scales it by `CameraConfig.zoom_step`); it comes out a few notches (false: the
 ## scroll did nothing, and the door's share is then judged against none).
 func _notches_of_a_scroll(t: TestContext, camera: Camera2D) -> float:
@@ -111,11 +113,12 @@ func _notches_of_a_scroll(t: TestContext, camera: Camera2D) -> float:
 	return notches
 
 
-## E held again: a trackpad scroll turns the door by the notches the camera counts it for, and back.
+## Space held again: a trackpad scroll turns the door by the notches the camera counts it for, and
+## back.
 func _trackpad_steps(
 	t: TestContext, door: Node, camera: Camera2D, zoom: float, scroll_notches: float
 ) -> void:
-	Input.action_press(Keybinds.USE)
+	Input.action_press(Keybinds.INTERACT)
 	await t.frames(2)
 	_scroll(PAN)
 	await _settle(t)
@@ -149,13 +152,13 @@ func _limits_and_release(t: TestContext, door: Node, camera: Camera2D, zoom: flo
 		await _wheel(t, MOUSE_BUTTON_WHEEL_DOWN)
 	await _settle(t)
 	t.expect_near(door.angle(), 0.0, 0.1, "and at shut")
-	Input.action_release(Keybinds.USE)
+	Input.action_release(Keybinds.INTERACT)
 	await _settle(t)
 	t.expect_near(door.angle(), 0.0, 0.1, "letting go after scrolling does not toggle it")
 	t.expect_near(camera.zoom.x, zoom, SAME_ZOOM, "the camera stayed put through all of it")
 
 
-## E not held, and E held with no door in reach: the wheel zooms as before, the door stays.
+## Space not held, and Space held with no door in reach: the wheel zooms as before, the door stays.
 func _zooms_when_the_door_does_not_take_it(
 	t: TestContext, you: Node, door: Node, camera: Camera2D
 ) -> void:
@@ -163,44 +166,44 @@ func _zooms_when_the_door_does_not_take_it(
 	await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
 	await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
 	await _zoom_settles(t, camera, zoom)
-	t.check(camera.zoom.x > zoom * 1.15, "with E not held the wheel zooms the camera")
+	t.check(camera.zoom.x > zoom * 1.15, "with Space not held the wheel zooms the camera")
 	t.expect_near(door.angle(), 0.0, 0.1, "and the door does not move")
 	you.global_position = FAR
 	await t.frames(3)
 	zoom = camera.zoom.x
-	Input.action_press(Keybinds.USE)
+	Input.action_press(Keybinds.INTERACT)
 	await t.frames(2)
 	await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
 	await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
 	await _zoom_settles(t, camera, zoom)
-	Input.action_release(Keybinds.USE)
-	t.check(camera.zoom.x > zoom * 1.15, "with E held and no door in reach the wheel zooms")
+	Input.action_release(Keybinds.INTERACT)
+	t.check(camera.zoom.x > zoom * 1.15, "with Space held and no door in reach the wheel zooms")
 	t.expect_near(door.angle(), 0.0, 0.1, "and the door does not move")
 
 
-## Between two doors, E pressed aimed at the first and the aim then moved to the second: the wheel
-## and the release turn the door E went down on, not the one the aim is nearest now.
+## Between two doors, Space pressed aimed at the first and the aim then moved to the second: the
+## wheel and the release turn the door Space went down on, not the one the aim is nearest now.
 func _the_door_held_is_the_door_turned(
 	t: TestContext, you: Node, door: Node, other: Node
 ) -> void:
 	you.global_position = BETWEEN
 	_pointer = await PlayerPointer.aim(t, you, Vector2(440, 150))
-	Input.action_press(Keybinds.USE)
+	Input.action_press(Keybinds.INTERACT)
 	await t.frames(2)
 	_pointer = await PlayerPointer.aim(t, you, AT_THE_OTHER)
 	t.check(you.use.doors.door_in_reach() == other, "the aim is nearest the second door now")
 	await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
 	await _wheel(t, MOUSE_BUTTON_WHEEL_UP)
 	await _settle(t)
-	t.expect_near(door.angle(), 2.0 * NOTCH, 0.1, "the wheel turned the door E went down on")
+	t.expect_near(door.angle(), 2.0 * NOTCH, 0.1, "the wheel turned the door Space went down on")
 	t.expect_near(other.angle(), 0.0, 0.1, "and not the one the aim is on")
-	Input.action_release(Keybinds.USE)
+	Input.action_release(Keybinds.INTERACT)
 	await _settle(t)
 	t.expect_near(door.angle(), 2.0 * NOTCH, 0.1, "its release after scrolling toggles neither")
 	t.expect_near(other.angle(), 0.0, 0.1, "the other stays shut")
 
 
-## The puppet's `turn_door` is the wheel with E held and its `use` a tap (it ends with the door
+## The puppet's `turn_door` is the wheel with Space held and its `use` a tap (it ends with the door
 ## open), on the door it is aimed at.
 func _the_puppet_works_a_door(t: TestContext, puppet: Node, other: Node) -> void:
 	puppet.aim_at(Vector2(440, 210))

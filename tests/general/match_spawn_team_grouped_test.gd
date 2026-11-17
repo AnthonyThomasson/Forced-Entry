@@ -48,6 +48,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 300, 300))
 	s.von_down()
 	s.set_static(Settings, "path", "user://test_match_spawn_team_settings.json")

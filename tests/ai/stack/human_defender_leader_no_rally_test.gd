@@ -41,6 +41,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	# Doors off until #159 makes this family door-aware.
 	s.switch(&"worldgen.doors", false)
 	s.set_static(Settings, "path", "user://test_human_defender_leader_no_rally_settings.json")

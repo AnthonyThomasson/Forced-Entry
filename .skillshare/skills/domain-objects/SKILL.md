@@ -9,23 +9,21 @@ Owns the world's objects (furniture, walls, floors, the street round a house, th
 they are hit and pushed, how they compose Physics, what they give the lighting, and their painters. It turns a plain definition
 dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, incl. `WearFactory`, `DecalFactory`, the floor's `sound_surface` /
 `marks` / `tile_from` / `light_layer` and `DoorFactory`), 3 (hittable), 4 (→ Physics), 5 (pushable), 8 (interactable), 10 (a door's
-`&"door"`), 11 (`DrawLayers` for the floor and rug z, `LightMasks`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`, occluders,
-unshaded overlays), 24 (the door contract).
+`&"door"`), 11 (`PhysicsLayers`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`), 24 (the door contract).
 
 | File | Role |
 |---|---|
-| `environment_object.gd` (a `RigidBody2D`), `object_physics.gd`, `object_look.gd`, `object_lights.gd`, `environment_object_visuals.gd`, `overhang_visuals.gd`, `emissive_layer.gd` | A piece: control node, its physics part, its art fields (`piece.look.<field>`: `art`, `art_opts`, `facing`, `text_color`), its lights, its drawing. |
-| `wall/wall.gd`, `wall/wall_visuals.gd`, `room_walls.gd` | Walls: segment math (`wall_segments()`), colliders; `RoomWalls` is `thickness`, `openings` (`{ side, offset, width }`), `style`. |
-| `floor/floor.gd`, `floor/floor_visuals.gd` | Floors. |
-| `object_factory.gd`, `wall_factory.gd`, `floor_factory.gd`, `wear_factory.gd`, `wear_plan.gd`, `door_factory.gd` | The interface-2 factories. `shared_textures.gd`: shared art (pre-warm). |
+| `environment_object.gd` (a `RigidBody2D`), `object_physics.gd`, `object_look.gd`, `object_lights.gd` | A piece: control node, its physics part, its art fields (`piece.look.<field>`: `art`, `art_opts`, `facing`, `overhang`), its lights. It draws nothing: its 3D mesh (`art/`) shows it. |
+| `wall/wall.gd`, `room_walls.gd` | Walls: segment math (`wall_segments()`), colliders; `RoomWalls` is `thickness`, `openings` (`{ side, offset, width }`), `style`. |
+| `floor/floor.gd` | Floors. |
+| `object_factory.gd`, `wall_factory.gd`, `floor_factory.gd`, `wear_factory.gd`, `wear_plan.gd`, `door_factory.gd` | The interface-2 factories. `shared_textures.gd`: the shared flat art (pre-warm). |
 | `door/` (`door.gd` and its parts), `door_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
 | `collider_cuts.gd` (`ColliderCuts`) | The shared queue of convex collider cuts, run on worker threads. |
-| `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`, `decal_factory.gd` (`DecalFactory`: the floor stencil and the tower shadow). |
-| `art/` | The painters and their holders (the door's: `art/door_painter.gd`): `art.md`. |
+| `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`, `stencil_decal.gd`, `decal_factory.gd` (`DecalFactory`: the floor stencil). |
+| `art/` | Painters and holders: `art.md`, `meshes.md`, `furniture-art.md`, `structure-meshes.md`. |
 
-Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry, colliders and look data and never draw; their
-`*_visuals` child `Node2D`s read them and draw. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`),
-so the editor's "no shape" warning on each `Wall` is expected.
+Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry, colliders and look data and draw nothing:
+the 3D meshes (`art/`, `meshes.md`) read them through the mirror. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`): the editor's "no shape" warning on a `Wall` is expected.
 
 ## The contracts
 
@@ -43,19 +41,14 @@ so the editor's "no shape" warning on each `Wall` is expected.
 ## Physics parts
 
 `object_physics.gd` (`compose()`, `add_smear()`, `soak()`, `release()`) adds the Physics components as child nodes and holds them
-(`physics.knockback`, `physics.deformable`), the collider and its rebuild. A collider exists only when `solid`; non-solid decor is
-frozen with no shape and draws at `DrawLayers.RUG` (`ObjectArtLayerConfig.rug_z_index`). A non-solid piece of cloth (`material`
+(`physics.knockback`, `physics.deformable`), the collider and its rebuild. A collider exists only when `solid`; non-solid decor is frozen and shapeless. A non-solid piece of cloth (`material`
 `fabric`: rug, mat, cardboard) registers a porous `BloodSurface` rect; other walk-over decor registers none. `BloodSmear` goes on
 solid pieces only, re-fed the footprint polygon when the collider is rebuilt.
 
-## Drawing and rebuilding a hit piece
+## Rebuilding a hit piece
 
-- The drop shadow (the visuals' `DropShadow` child) is the art's own alpha through the deformed outline, offset away from the
-  light by `coverage × drop_shadow_per_coverage`, capped; non-solid decor casts none. A turn moves the child (`_shadow_shift`),
-  it repaints nothing (`drop_shadow_follows_turn_test.gd`).
-- A piece repaints (art and shadow) only when its `Deformable` records an impact, not each frame (a district has hundreds); the visuals run no `_process` at all: the Deformable is wired once the object is ready, and the shadow follows a turn on `NOTIFICATION_TRANSFORM_CHANGED` (`resting_piece_runs_no_per_frame_callback_test.gd`); the
-  art is drawn through `Deformation.draw_shape(..., shape_look)` so dents cut into it. A wall draws each segment in its own child
-  (`Segment<i>`), so a hit repaints that segment alone (`wall_segment_repaints_alone_test.gd`).
+- A piece's dents are its `Deformable`'s records; the 3D mesh and the collider both follow them (the mesh through the mirror's
+  own change check, a wall segment's mesh `Segment<i>` alone).
 - A hit queues one deferred collider rebuild however many hits land first (a wall: one per struck segment, `_rebuild_queued`).
   A blast dents a room's worth of pieces in one frame and cutting a dented silhouette into convex pieces is the costly part, so a
   hit that queues a rebuild also queues its cut in `ColliderCuts` (`queue(make)`; `make` runs on the main thread, copies the dents,
@@ -64,43 +57,32 @@ solid pieces only, re-fed the footprint polygon when the collider is rebuilt.
   cut whose piece leaves the tree is dropped (`cancel()`, in `_exit_tree`; a running one is waited for). Tests:
   `tests/objects/blast_colliders_match_plain_test.gd`, `wall_dents_share_a_rebuild_test.gd`.
 
-## The overhang (`overhang_visuals.gd`, interface 2)
+## The overhang (interface 2)
 
-A definition's `overhang` (`{ size, reach }`) makes `ObjectFactory` add a child `Overhang`: the part that reaches beyond the
-footprint (a streetlight's arm and head). It draws the piece's own painter with `part: "overhang"` at `size`, centred `reach` px out
-along the facing, at `DrawLayers.OVERHEAD` (`ObjectArtLayerConfig.overhang_z_index`, over the living and vehicles), with no
-collider; `get_rect()` is the area it draws, and it has its own `emissive_layer()` (`tests/objects/overhang_test.gd`).
-`fade_under: true` (a tower's awning and glyph sign) fades its `modulate` to `ObjectFadeConfig.alpha` over `seconds`
-while any `characters` node, alive, dead or riding, stands in `get_rect()`: one shared watcher steps those fading or near one. A server
-area wakes it (a vehicle with riders, not a rider; a corpse has no layer: `&"death"`, 10), alpha written on
-change (`overhang_fades_under_character_test.gd`, `overhang_fades_over_rider_test.gd`).
+A definition's `overhang` (`{ size, reach }`) is kept as the plain field `piece.look.overhang`; `piece.look.overhang_rect()` is the
+area it covers in the piece's frame (`size` across x out, centred `reach` px along the facing; a streetlight's arm and head). The
+3D mesh of the piece shows it with the painter's `part: "overhang"`, above the characters, with no collider. `fade_under: true`
+(a tower's awning and glyph sign) is read by Art's wall fade, which thins it while a character stands under it
+(`tests/objects/overhead_fade_test.gd`).
 
-## Lights and shadows (interface 20; spec `docs/lighting.md`, skill `domain-lighting`)
+## Lights (interface 20; spec `docs/lighting.md`, skill `domain-lighting`)
 
-Objects declares and builds what its pieces, walls and floors give the Lighting domain, on General's `LightMasks`:
+Objects declares what its pieces give the Lighting domain:
 
-- **`get_lights()`** is worked out once in `_ready`, after the visuals, by `object_lights.gd`: one plain dict per light in the
-  piece's frame. What gives light is what its painter draws `glowing`; the kind is read off the painter and its options (`_kind`,
-  through `ObjectArt.light_kind` for variant pieces) and the numbers are that kind's row of `ObjectArtLightConfig.specs`. The light's
-  colour is the painter's glowing colour. A screen's pool lies across its front (`turn` = facing + 90°), a tube's along it. Lighting
-  parents each kept light to the piece, so a shove carries it (`tests/lighting/shoved_lamp_light_follows_test.gd`).
-- **Occluders**, through `LightMasks.occluder` (none while `LightMasks.shadows` is off): a door one over its leaf (`doors.md`); a solid piece one over its undented
-  footprint (its rect, or a 12-gon, `OCCLUDER_SIDES`, for a round one), a child so it follows a shove, on `EMITTER` when
-  `get_lights()` is not empty, `TALL` when `coverage` ≥ `LightMasks.TALL_COVERAGE`, else `FURNITURE`; walk-over decor none; a wall
-  one per segment, its collider's rect (`WALL`), in `_build_walls`. Dents are not followed.
-- **The street's light layer:** a floor whose definition says `light_layer: "street"` puts itself and its canvas items on
-  `LightMasks.STREET`.
-- **Emissive overlays:** each visuals node keeps the pixels its painter drew `glowing` (`ObjectArt.emissive` / `tile_emissive`, null
-  when none) and exposes `emissive_layer()`, a child `Emissive` drawing them over the art through the same geometry (deformed
-  silhouette, tiled floor, dented wall segments) with one shared unshaded `CanvasItemMaterial`, so the dusk and the lights never
-  change a light source (`tests/lighting/emissive_overlays_unshaded_test.gd`). Lighting dims it with the piece's light.
+- **`get_lights()`** is worked out once in `_ready` by `object_lights.gd`: one plain dict per light in the piece's frame. What gives
+  light is what its painter draws `glowing`; the kind is read off the painter and its options (`_kind`, through `ObjectArt.light_kind`
+  for variant pieces) and the numbers are that kind's row of `ObjectArtLightConfig.specs`. The light's colour is the painter's
+  glowing colour. A screen's pool lies across its front (`turn` = facing + 90°), a tube's along it. Lighting keeps each light
+  at the piece, so a shove carries it (`tests/lighting/light_3d_follows_and_flickers_test.gd`). The 3D mesh glows with it
+  (`WorldLighting3D`).
+- **The street's light layer:** a floor whose definition says `light_layer: "street"` is lit only by the street's lights.
 
 ## Floors (`floor/`)
 
 `FloorFactory.spawn(rect, definition, name, parent)` builds a `Floor` (`Node2D`, no collider: shots, navigation and perception pass
-over it) in the group `floors` (Lighting's per-floor budget walks it), at `DrawLayers.FLOOR` (beneath blood, casings and rugs).
-`floor_visuals.gd` repeats `ObjectArt.tile(...)` across the rect, the grid starting `tile_offset` px into the tile (`rect.position - tile_from`, the definition's
-`tile_from` point: 0 for a room's floor, the street's pieces share one grid); a floor with `marks` gets a `StreetMarks` child.
+over it) in the group `floors` (Lighting's per-floor budget walks it). Its 3D mesh (`floor_mesh.gd`, `street_mesh.gd`) repeats
+`ObjectArt.tile_flat(...)` across the rect, the grid starting `tile_offset` px into the tile (`rect.position - tile_from`, the definition's
+`tile_from` point: 0 for a room's floor, the street's pieces share one grid); a floor with `marks` gets a `StreetMarks` data child.
 On `_ready` a floor registers (and unregisters on exit):
 
 - with Physics' `BloodSurface`, `flow_groove` asking `ObjectArt.groove` (analytic, mirroring the painted lines; 0 for painters that
@@ -111,20 +93,19 @@ On `_ready` a floor registers (and unregisters on exit):
 ## Wear and the street's marks (`decals/`, interface 2)
 
 Damage is decals placed in the world, never in a tile (a tile carries only even grain and seam dirt, so no mark repeats on its
-grid). `decal_layer.gd` is a draw-only batch of `[texture, rect]` marks.
+grid). `decal_layer.gd` is a plain holder of `[texture, rect, kind]` marks; the 3D render lays them as flat decals (`wear-meshes.md`), their textures the painters' flat art (`ObjectArt.flat_facing`).
 
 - **A room's wear** (`WearFactory.spawn` over a `WearPlan`; `room_wear.gd`): World-Gen places the clusters (seeded); the room's
   wear node decides each cluster's 1-3 floor marks by the floor's pattern (planks break along a row, tiles go missing on the grid,
   carpet wears bald, concrete cracks and takes oil; grid marks snap to the painter's own numbers, `FloorPainter.row_px` /
   `cell_px` / `parquet_strip`), and with `ObjectArtWearConfig.wall_chance` a mark on the free stretch of wall beside it. Two layers,
-  `FloorWear` and `WallWear`, built after every room's floor and walls so they draw over them; one node per room, so it takes that
-  room's floor lights (the budget, `docs/lighting.md` L4).
+  `FloorWear` and `WallWear`, built after every room's floor and walls so they draw over them; one node per room.
 - **The street's marks** (`street_marks.gd`, from the definition's `marks` `{ seed, lane, edges, crossings, glyphs }`): sidewalk slabs,
   cracks, stains, gum, weeds and the curb along `edges`; on a road the lane dashes, cracks, patches, oil, and gutter litter and puddles,
   and at a junction's end a worn zebra crossing with its stop line (`crossings`) and a lane number with an arrow (`glyphs`); `laid(kind)`
   says where they went.
-- **`DecalFactory`** (`decals/decal_factory.gd`, interface 2) lays draw-only sprites with no collider: `stencil` (floor text in a hazard border,
-  painted upright on a canvas the size of the area so a turned building does not turn it) and `shadow` (a tower's footprint dragged away
-  from the art light, on `LightMasks.STREET` at `DrawLayers.RUG`, so only the street's lights reach it).
+- **`DecalFactory`** (`decals/decal_factory.gd`, interface 2) lays the floor `stencil` (floor text in a hazard border, painted upright on a canvas
+  the size of the area so a turned building does not turn it): a plain `StencilDecal` node at the area's corner holding the flat texture,
+  with no collider; the 3D render lays it (`StencilMesh`). A tower's shadow is the sun's, cast by the 3D walls.
 
 Tests: `tests/objects/`.

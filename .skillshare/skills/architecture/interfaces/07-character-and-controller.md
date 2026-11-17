@@ -8,8 +8,8 @@
      `weapon.shoot() -> bool` (LMB; true = a round left the barrel; ignored while running, reloading or with a long gun raised; a controller
      re-presses it every frame while `weapon.is_automatic()`),
      `ammo.reload()` (R: a timed swap to the fullest carried magazine; refused while running or busy, cancelled by running, switching
-     items or dying), `inventory.select_slot(id)`, `use.try_interact()` / `use.interact_with(object, id)` / `use.end_interaction()`,
-     `use.try_use()` (E: the nearer of a house door in reach and a vehicle; 19, 24), `use.use_target()` and `use.doors` (24), `inventory.set_loadout(kit: CharacterKit)` (`items/character_kit.gd`: carry only
+     items or dying), `inventory.select_slot(id)`, `use.try_interact()` (Space) / `use.interact_with(object, id)` / `use.end_interaction()`,
+     `use.interact_target()` (what Space acts on; 8, 19, 24) and `use.doors` (24), `inventory.set_loadout(kit: CharacterKit)` (`items/character_kit.gd`: carry only
      `slots`, hold `hold_slot`, `spare_types` magazines, the gun loaded with `loaded_magazine`, `grenades` counts, every item in
      `weapon_style`; how `MatchBuilder.arm` arms a spawn, 23).
    - **Reads:** `damage_taken()` (accumulated hit damage), `movement.posture()` / `is_running()` / `stamina_fraction()` /
@@ -30,7 +30,7 @@
      disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway) / `view()` (`{ blind, blind_total, deaf, level }`, for the
      UI); `weapon.one_handed()` (blind: the round spreads wider); `blast_push(from, impulse)` (an explosion's shove: knockback, or the
      fallen body's ragdoll thrown).
-   - **Vehicle:** from the E press to the last step out `use.is_busy()` is true and `inventory.current_item()` is null.
+   - **Vehicle:** from the Space press to the last step out `use.is_busy()` is true and `inventory.current_item()` is null.
    - **Identity:** `faction` (for hostility), exported `radius` (fixed; Vehicles, Lighting and doors read it). Every character
      joins the group `characters` in `_ready`: how the AI's perception, `Explosion`, vehicles and a door's swing find them.
    - **Priority:** the AI controller alone writes its character's `process_physics_priority`: 1 while a primed ambusher holds its post
@@ -48,7 +48,7 @@
    falls as a ragdoll, leaves layer 1 and draws beneath the living). Observers attach by exported node path and read only the public API
    and signals.
 
-   **The player's controller** (`player_controller.gd`) is the only *gameplay* file that touches `Keybinds` (Use, `Keybinds.USE`: 24); observers read one action
+   **The player's controller** (`player_controller.gd`) is the only *gameplay* file that touches `Keybinds` (Interact: 24); observers read one action
    each (Main `MENU`, the inspector `PAUSE`, the command menu `COMMAND`, the camera its pan and zoom; the runner `MENU`, `PAUSE`).
 
    **The AI controller** (`ai/goal_controller.gd`, a thin orchestrator over the sub-domains in `domain-ai`):

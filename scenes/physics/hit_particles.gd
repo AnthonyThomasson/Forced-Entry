@@ -1,9 +1,8 @@
 class_name HitParticles
 ## Physics System: one-shot particle bursts where a projectile enters and leaves an object, styled
-## by the struck surface's material. Stateless statics like DebrisSpawner; each burst is a
-## CPUParticles2D (headless safe, deterministic) that frees itself once its particles have died, is
-## placed by world position and is Despawner-tracked. Switched by
-## PhysicsConfig.hit_particles_enabled (+ hit_particles_scale / _max).
+## by the struck surface's material. Stateless statics like DebrisSpawner; a burst is plain data (a
+## dict, below), no node: `PhysicsFxHook.burst_made` hands it to the 3D render, which flings the
+## cubes. Switched by PhysicsConfig.hit_particles_enabled (+ hit_particles_scale / _max).
 
 ## ENTRY: where a round goes in and out the other side (weak: the exit carries the burst). EXIT:
 ## where it leaves (the strongest a burst gets). IMPACT: a hit that does not pass through (blocked,
@@ -115,16 +114,25 @@ const ENTRY_AMOUNT := 0.35
 const ENTRY_SPEED := 0.6
 
 
-## Burst `kind` particles for `hit`, under `parent`: an ENTRY or IMPACT burst at `hit.position`,
-## thrown out along the surface normal (back along the shot when the normal is degenerate), an EXIT
-## burst at `hit.exit_position`, thrown on along the shot. `surface` is the struck object's
-## get_surface() (its `material` picks the style, its `color` tints it); `strength` (~0.5..1.5)
-## scales how many particles and how fast, from how hard the hit was. Returns the emitter (null when
-## switched off or the count rounds to nothing).
-static func spawn(parent: Node, hit: HitInfo, surface: Dictionary, kind: Kind,
-		strength: float = 1.0) -> CPUParticles2D:
+## Burst `kind` particles for `hit`: an ENTRY or IMPACT burst at `hit.position`, thrown out along
+## the surface normal (back along the shot when the normal is degenerate), an EXIT burst at
+## `hit.exit_position`, thrown on along the shot. `surface` is the struck object's get_surface()
+## (its `material` picks the style, its `color` tints it); `strength` (~0.5..1.5) scales how many
+## particles and how fast, from how hard the hit was. Returns the burst, told to the 3D render
+## (`PhysicsFxHook.burst_made`):
+## `{ at, direction (unit), amount, spread (degrees either side of it), speed_min, speed_max
+## (px/s), damping_min, damping_max (px/s lost), size_min, size_max (px), life, life_random (the
+## share of it a particle may lose), color, spark (the metal style's own lit-whatever-the-light
+## kind), height (the hit's 0..100, negative: the floor) }`;
+## empty when switched off or the count rounds to nothing.
+static func spawn(
+	hit: HitInfo,
+	surface: Dictionary,
+	kind: Kind,
+	strength: float = 1.0,
+) -> Dictionary:
 	if not PhysicsConfig.hit_particles_enabled:
-		return null
+		return {}
 	var material: String = surface.get("material", "")
 	var style: Dictionary = STYLES.get(material, STYLES["default"])
 	var amount := int(round(float(style["amount"])
@@ -132,19 +140,17 @@ static func spawn(parent: Node, hit: HitInfo, surface: Dictionary, kind: Kind,
 			* strength * PhysicsConfig.hit_particles_scale))
 	amount = mini(amount, PhysicsConfig.hit_particles_max)
 	if amount <= 0:
-		return null
+		return {}
 	var direction := _direction(hit, kind)
-	var p := _emitter(style, kind, strength)
-	p.amount = amount
-	p.direction = direction.normalized() if direction.length() > 0.001 else Vector2.UP
-	p.color_ramp = _ramp(_color(surface.get("color", Color(0.6, 0.6, 0.6)), style["tint"]))
-	p.finished.connect(p.queue_free)
-	ViewLayers.set_moving(p, true)
-	parent.add_child(p, true)  # readable names (HitParticles, HitParticles2, …)
-	p.global_position = hit.exit_position if kind == Kind.EXIT else hit.position
-	p.emitting = true
-	Despawner.track(p)
-	return p
+	var burst := _burst(style, kind, strength)
+	burst["amount"] = amount
+	burst["direction"] = direction.normalized() if direction.length() > 0.001 else Vector2.UP
+	burst["color"] = _color(surface.get("color", Color(0.6, 0.6, 0.6)), style["tint"])
+	burst["at"] = hit.exit_position if kind == Kind.EXIT else hit.position
+	burst["spark"] = style["tint"] == "spark"
+	burst["height"] = hit.height
+	PhysicsFxHook.burst_made(burst)
+	return burst
 
 
 ## Which way a `kind` burst for `hit` is thrown: out along the surface normal (back along the shot
@@ -156,40 +162,23 @@ static func _direction(hit: HitInfo, kind: Kind) -> Vector2:
 	return (out + hit.direction).normalized()
 
 
-## A one-shot emitter styled by `style` for a `kind` burst of `strength` (its count, direction and
-## colours still to set).
-static func _emitter(style: Dictionary, kind: Kind, strength: float) -> CPUParticles2D:
+## A `kind` burst of `strength` styled by `style` (its count, direction, colour, place and height
+## still to set).
+static func _burst(style: Dictionary, kind: Kind, strength: float) -> Dictionary:
 	var speed: Vector2 = style["speed"]
 	var size: Vector2 = style["size"]
-	var p := CPUParticles2D.new()
-	p.name = "HitParticles"
-	p.one_shot = true
-	p.explosiveness = 1.0
-	p.lifetime = style["life"]
-	p.lifetime_randomness = 0.4
-	p.spread = rad_to_deg(
-		deg_to_rad(float(style["spread"])) * (EXIT_SPREAD if kind == Kind.EXIT else 1.0),
-	)
-	p.gravity = Vector2.ZERO  # Top-down: nothing falls.
 	var boost := (EXIT_SPEED if kind != Kind.ENTRY else ENTRY_SPEED) * strength
-	p.initial_velocity_min = speed.x * boost
-	p.initial_velocity_max = speed.y * boost
-	p.damping_min = float(style["damping"]) * 0.8
-	p.damping_max = float(style["damping"]) * 1.2
-	p.scale_amount_min = size.x
-	p.scale_amount_max = size.y
-	p.angle_max = 360.0
-	return p
-
-
-## A colour ramp holding `start`, then fading it out.
-static func _ramp(start: Color) -> Gradient:
-	var fade := start
-	fade.a = 0.0
-	var ramp := Gradient.new()
-	ramp.colors = PackedColorArray([start, start, fade])
-	ramp.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
-	return ramp
+	return {
+		"life": style["life"],
+		"life_random": 0.4,
+		"spread": float(style["spread"]) * (EXIT_SPREAD if kind == Kind.EXIT else 1.0),
+		"speed_min": speed.x * boost,
+		"speed_max": speed.y * boost,
+		"damping_min": float(style["damping"]) * 0.8,
+		"damping_max": float(style["damping"]) * 1.2,
+		"size_min": size.x,
+		"size_max": size.y,
+	}
 
 
 ## A burst colour from the object's base colour per the style's tint mode.

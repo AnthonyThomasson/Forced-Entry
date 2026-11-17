@@ -2,8 +2,9 @@ extends GameTest
 ## V9 (`docs/player-vision.md`): the viewer's death lifts the view, and everything is drawn again
 ## at once, live, for the rest of the match. In a world with the view on the human and in a world
 ## with the view on an NPC (the test builds the second beside the session's), the viewer is killed:
-## within a frame the view's node, its composite and its viewports (capture, memory, mask) are
-## gone, nothing the view drew is left in the world, and none comes back while the match goes on.
+## within a frame the view's node, its viewports (the 3D view's live and seen masks) are gone, the
+## masks the shaders read are cleared (`ToonMask`), nothing the view drew is left in the world,
+## and none comes back while the match goes on.
 ##
 ## Nothing is hidden after: General's `SeenArea`, which says what the view shows live, is cleared,
 ## so a disc or a box far from where the viewer stood reaches it again (with the view standing, it
@@ -13,8 +14,8 @@ extends GameTest
 ## a character that is not there cannot be kept, frozen over the world), and a character already
 ## dead has no view built at all (there is no view of the dead).
 ##
-## It reads (tests/_vision/vision_probe.gd) the `PlayerView` of the world (`viewer()`,
-## `composite()`, `capture()`, `memory()`, `mask()`) and the nodes the world holds of the view's.
+## It reads (tests/_vision/vision_probe.gd) the `PlayerView` of the world (`viewer()`) and the nodes
+## the world holds of the view's.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 ## Frames the match goes on after the lift, to see that no view comes back.
@@ -27,7 +28,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "The viewer's death lifts the view",
 		"description": "The human killed, and a viewed NPC killed: within a frame the view, its "
-			+ "composite and its viewports are gone and nothing is left over the world, for good.",
+			+ "viewports and the masks are gone and nothing is left over the world, for good.",
 		"tags": ["vision", "scripted"],
 		"timeout": 30.0,
 	}
@@ -66,7 +67,7 @@ func _npc_view_setup() -> TestSetup:
 
 
 ## Take `viewer` out of `world` without killing it (`how`: "freed" or "removed"): the view of it is
-## gone within a frame, with its composite and viewports, and none comes back.
+## gone within a frame, with its viewports, and none comes back.
 func _leave(t: TestContext, world: Node, viewer: Node2D, how: String) -> void:
 	var who := "the NPC %s" % how
 	await t.frames(5)
@@ -74,6 +75,7 @@ func _leave(t: TestContext, world: Node, viewer: Node2D, how: String) -> void:
 	if not t.require(views.size() == 1, "%s: premise: one view (%d)" % [who, views.size()]):
 		return
 	t.check(_left(world) >= 4, "%s: premise: the view's nodes are there (%d)" % [who, _left(world)])
+	t.check(await _masked(t), "%s: premise: the masks are on" % who)
 	t.check(not viewer.is_dead, "%s: premise: the viewer is alive" % who)
 	var far := viewer.global_position + Vector2(-FAR, 0)
 	t.check(_hidden(far), "%s: premise: with the view standing a far place is hidden" % who)
@@ -86,6 +88,7 @@ func _leave(t: TestContext, world: Node, viewer: Node2D, how: String) -> void:
 		_left(world) == 0,
 		"%s: the view's nodes are gone within a frame (%d left)" % [who, _left(world)],
 	)
+	t.check(not ToonMask.mask_active(), "%s: no mask is left on the world" % who)
 	t.check(
 		not _hidden(far),
 		"%s: nothing is hidden after: a far place reaches the area" % who,
@@ -115,6 +118,7 @@ func _lift(t: TestContext, world: Node, viewer: Node2D, who: String) -> void:
 		return
 	t.check(views[0].viewer() == viewer, "%s: premise: the view is of the viewer" % who)
 	t.check(_left(world) >= 4, "%s: premise: the view's nodes are there (%d)" % [who, _left(world)])
+	t.check(await _masked(t), "%s: premise: the masks are on" % who)
 	var far := viewer.global_position + Vector2(-FAR, 0)
 	t.check(_hidden(far), "%s: premise: with the view standing a far place is hidden" % who)
 	viewer.take_damage(1000.0)
@@ -125,6 +129,7 @@ func _lift(t: TestContext, world: Node, viewer: Node2D, who: String) -> void:
 		"%s: the view's nodes are gone within a frame (%d left)" % [who, _left(world)],
 	)
 	t.check(Probe.views_under(world).is_empty(), "%s: no view is left in the world" % who)
+	t.check(not ToonMask.mask_active(), "%s: no mask is left on the world" % who)
 	t.check(
 		not _hidden(far),
 		"%s: nothing is hidden after: a far place reaches the area" % who,
@@ -133,14 +138,19 @@ func _lift(t: TestContext, world: Node, viewer: Node2D, who: String) -> void:
 	t.check(_left(world) == 0, "%s: no view comes back (%d left)" % [who, _left(world)])
 
 
-## How many nodes of the view the world holds: the view, its composite and its viewports.
+## Whether the view's masks are switched on (a cone is drawn and settled).
+func _masked(t: TestContext) -> bool:
+	return await t.until(func() -> bool: return ToonMask.mask_active(), 3.0)
+
+
+## How many nodes of the view the world holds: the view, its ground node and its viewports.
 func _left(world: Node) -> int:
 	var count := world.find_children("*", "PlayerView", true, false).size()
-	count += world.find_children("Composite", "", true, false).size()
+	count += world.find_children("Ground", "", true, false).size()
 	count += world.find_children("*", "SubViewport", true, false).size()
 	return count
 
 
-## Whether neither a disc nor a box at `at` reaches the area the view shows live.
+## Whether a disc at `at` does not reach the area the view shows live.
 func _hidden(at: Vector2) -> bool:
-	return not Probe.reached_by(at).has(true)
+	return not Probe.reached_by(at)

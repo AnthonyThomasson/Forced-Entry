@@ -3,7 +3,6 @@ class_name BloodSpawner
 ## dead body's flowing pool (BloodPool) per call to `bleed`. `BloodWound` and `Physics` call it.
 
 const BloodPool = preload("res://scenes/physics/blood/blood_pool.gd")
-const BloodPoolVisuals = preload("res://scenes/physics/blood/blood_pool_visuals.gd")
 const BloodSplat = preload("res://scenes/physics/blood/blood_splat.gd")
 
 
@@ -45,18 +44,11 @@ static func bleed(parent: Node, source: Node2D, exclude: Array) -> Node:
 	return pool
 
 
-## A fresh, empty, Despawner-tracked pool (with its draw layer) at world `position` under `parent`.
+## A fresh, empty, Despawner-tracked pool at world `position` under `parent`.
 static func _new_pool(position: Vector2, parent: Node) -> Node:
 	var pool := Node2D.new()
 	pool.name = "BloodPool"
 	pool.script = BloodPool
-	# the whole pool lies at blood's rung; its draw layer inherits it
-	pool.z_index = BloodConfig.z_index
-
-	var visuals := Node2D.new()
-	visuals.name = "BloodPoolVisuals"
-	visuals.script = BloodPoolVisuals
-	pool.add_child(visuals)
 
 	# readable names (BloodPool, BloodPool2, …) so observers can tell pools apart
 	parent.add_child(pool, true)
@@ -64,4 +56,5 @@ static func _new_pool(position: Vector2, parent: Node) -> Node:
 	# world-root parent may be offset from the origin).
 	pool.global_position = position
 	Despawner.track(pool)
+	PhysicsFxHook.pool_made(pool)
 	return pool

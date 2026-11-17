@@ -67,6 +67,7 @@ func before() -> void:
 	_session.von.live = TestBatch.flag("--include-von") or TestBatch.flag("--require-von")
 	_session.von.record = TestBatch.flag("--record-von")
 	_session.shots = TestBatch.flag("--shots")
+	_session.picture = _session.shots  # a screenshot shows the game, not the hidden 2D world
 	_session.bundle_dir = TestBatch.bundle_dir()
 	# one launcher, and the server it started, for the whole process
 	_session.von.launcher_parent = get_tree().root

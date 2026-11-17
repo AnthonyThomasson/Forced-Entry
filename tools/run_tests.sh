@@ -1076,7 +1076,7 @@ affected() {
     # The character composes the vehicle's CharacterVehicleUse; the camera (general) and Sound (audio) read the vehicle.
     vehicle) echo vehicle character items interaction projectile physics objects ai perf audio general ;;
     ui) echo ui ;;
-    # audio: the Sound autoload runs in every test; lighting: every test world is lit (WorldLighting).
+    # audio: the Sound autoload runs in every test; lighting: the 3D lights read every test world (WorldLighting3D).
     # vision: Main's match and every world with the switch on carries a view.
     worldgen|art|general|testing|audio|lighting|vision) echo all ;;
     *) echo all ;;  # anything unknown is treated as risky

@@ -84,7 +84,7 @@ func _spray(wound: BloodWound, hit: HitInfo, k: int, side_by_side: bool) -> Dict
 		var splat: Node2D = held[i]
 		made.append([
 			splat.global_position, splat.shapes.duplicate(),
-			splat.get_node_or_null("Highlight") != null,
+			not splat.highlight_polygon.is_empty(),
 			BloodField._splats.has(splat.get_instance_id()),
 		])
 		unfinished += 1 if splat._task >= 0 else 0

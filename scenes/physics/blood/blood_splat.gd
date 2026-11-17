@@ -5,9 +5,9 @@ extends Node2D
 ## Despawner-tracked. The outline is stretched and flung along the drop's travel by `energy` (a
 ## still drop leaves a round crown, a fast one an elongated, forward-thrown splat). Satellites and
 ## spike tips are clipped by walls and furniture, so blood never lands across them. All shapes are
-## merged into opaque outlines before drawing, so overlaps don't darken; the splat then dries from
-## `BloodConfig.color` to `dried_color`. Draws at `BloodConfig.z_index` (`DrawLayers.BLOOD`): over
-## the floor and rugs, under what lies there (a body, casings) and the standing world.
+## merged into opaque outlines, so overlaps don't darken. It draws nothing: the 3D render lays the
+## outlines (`shapes`) and the wet highlight on the floor (`PhysicsFxHook.splat_made`, `ink_fx.gd`)
+## and dries them from `BloodConfig.color` to `dried_color`.
 
 ## Vertices in the core blob's outline.
 const CORE_VERTS := 16
@@ -37,9 +37,13 @@ static var _pending: Array = []
 ## Whether a flush of `_pending` is queued for the frame (`defer_finish`).
 static var _flush_queued := false
 
-## The splat's merged outline polygons (local space), drawn in `BloodConfig.color`. Public so the
-## draw step and tests can read them.
+## The splat's merged outline polygons (local space), in `BloodConfig.color`. Public so the 3D
+## render and tests can read them.
 var shapes: Array[PackedVector2Array] = []
+## The wet highlight on the core, a lighter fleck that fades as the splat dries (local space; empty
+## polygon: none).
+var highlight_polygon := PackedVector2Array()
+var highlight_color := Color.TRANSPARENT
 ## `shapes[i]`'s bounding box while the splat is being built (see `_merge_in`).
 var _boxes: Array[Rect2] = []
 ## Core radius (px) and the heading (radians) its local +x runs along.
@@ -59,28 +63,10 @@ var _born := -1
 var _clear := false
 
 
-func _ready() -> void:
-	z_index = BloodConfig.z_index
-
-
 func _exit_tree() -> void:
 	if _task >= 0:  # a begun splat leaving unfinished: its worker task must still be waited for
 		WorkerThreadPool.wait_for_task_completion(_task)
 		_task = -1
-
-
-func _draw() -> void:
-	var color: Color = BloodConfig.color
-	# the headless display: each outline by its own command costs the least
-	if not FillBatch.batching:
-		for poly in shapes:
-			draw_colored_polygon(poly, color)
-		return
-	# One command for every outline, the same triangles (General's FillBatch).
-	var batch := FillBatch.new(self)
-	for poly in shapes:
-		batch.fill(poly, color)
-	batch.flush()
 
 
 ## Build the splat: core radius `radius` (px), thrown toward `direction` (zero = no preferred way)
@@ -102,7 +88,6 @@ func begin(radius: float, direction: Vector2, energy: float, exclude: Array = []
 	var polys := _throw(radius, direction, energy, exclude)
 	_born = Engine.get_physics_frames()
 	_add_highlight()
-	_dry()
 	var built: Array = [null]
 	_built = built
 	_task = WorkerThreadPool.add_task(func() -> void:
@@ -113,8 +98,8 @@ func begin(radius: float, direction: Vector2, energy: float, exclude: Array = []
 		built[0] = _drawable_all(outlines), true, "blood splat")
 
 
-## Complete a splat `begin` started: wait for its merged outlines, then register and draw them as
-## `setup` does (its highlight and drying began with it).
+## Complete a splat `begin` started: wait for its merged outlines, then register them as `setup`
+## does (its highlight began with it).
 func finish() -> void:
 	if _task < 0:
 		return
@@ -125,9 +110,8 @@ func finish() -> void:
 
 ## Finish begun `splats` later, so the main thread goes on while their outlines merge: before any
 ## read of the blood field answers (`BloodField` calls `finish_pending`), and else at the frame's
-## next flush of deferred calls, the one that would draw them, all in the order given. Nothing can
-## see one unfinished: the field is read through that flush, a splat's outlines are drawn after it,
-## and its highlight, drying and age began at `begin`.
+## next flush of deferred calls, all in the order given. Nothing can see one unfinished: the field
+## is read through that flush, and its highlight and age began at `begin`.
 static func defer_finish(splats: Array) -> void:
 	_pending.append_array(splats)
 	if _flush_queued:
@@ -180,21 +164,18 @@ static func _drawable_all(outlines: Array[PackedVector2Array]) -> Array[PackedVe
 	return kept
 
 
-## The built splat's last half, on the main thread: its outlines `kept`, registered, highlighted and
-## set drying.
+## The built splat's last half, on the main thread: its outlines `kept`, registered and highlighted.
 func _finish(kept: Array[PackedVector2Array]) -> void:
 	_complete(kept)
 	_add_highlight()
-	_dry()
 
 
-## Take the outlines `kept`: registered in the blood field (aged from `begin` for a begun splat)
-## and drawn.
+## Take the outlines `kept`: registered in the blood field (aged from `begin` for a begun splat).
 func _complete(kept: Array[PackedVector2Array]) -> void:
 	shapes = kept
 	_boxes.clear()
 	BloodField.add_splat(self, shapes, _born)
-	queue_redraw()
+	PhysicsFxHook.splat_made(self)
 
 
 ## The core: a lumpy blob, longer along the heading and narrower across it as energy grows.
@@ -361,42 +342,18 @@ static func _box_of(poly: PackedVector2Array) -> Rect2:
 	return box.grow(0.1)
 
 
-## A lighter fleck on the core so fresh blood reads wet; it fades as the splat dries.
+## A lighter fleck on the core so fresh blood reads wet (the 3D render fades it as the splat dries).
 func _add_highlight() -> void:
 	var glint: Color = BloodSplatConfig.highlight
 	if glint.a <= 0.0 or _radius < 2.0:
 		return
-	var fleck := Polygon2D.new()
-	fleck.name = "Highlight"
-	fleck.color = glint
+	highlight_color = glint
 	var points := PackedVector2Array()
 	var r := _radius * 0.32
 	for i in DROPLET_VERTS:
 		var a := TAU * i / DROPLET_VERTS
 		points.append(Vector2(-0.3, -0.35) * _radius + Vector2(cos(a), sin(a)) * r)
-	fleck.polygon = points
-	add_child(fleck)
-
-
-## Dry from the wet color to the dried one over `BloodSplatConfig.dry_time`; the highlight fades out
-## with it.
-func _dry() -> void:
-	var seconds := BloodSplatConfig.dry_time
-	if seconds <= 0.0:
-		return
-	var wet: Color = BloodConfig.color
-	var dried: Color = BloodConfig.dried_color
-	var ratio := Color(
-		dried.r / maxf(wet.r, 0.001),
-		dried.g / maxf(wet.g, 0.001),
-		dried.b / maxf(wet.b, 0.001),
-		dried.a / maxf(wet.a, 0.001),
-	)
-	var tween := create_tween().set_parallel(true)
-	tween.tween_property(self, "self_modulate", ratio, seconds)
-	var fleck := get_node_or_null("Highlight")
-	if fleck:
-		tween.tween_property(fleck, "modulate:a", 0.0, seconds)
+	highlight_polygon = points
 
 
 ## A point in the splat's forward frame (+x along the throw) turned into local space.

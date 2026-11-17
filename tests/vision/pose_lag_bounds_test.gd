@@ -16,7 +16,7 @@ extends GameTest
 ##   one stands in the way) is a change of the world in every frame: a job is started or restarted
 ##   every frame, and after two restarts in a row the third frame builds the cone whole, so a cone
 ##   is published at least every fourth frame;
-## - the memory paints only cones the view published.
+## - the seen mask (the memory) draws only cones the view published.
 ## The sight numbers' own case is `vision/view_watch_suite`'s; a world that changes between slices:
 ## `vision/cone_restarts_on_world_change`.
 
@@ -58,7 +58,7 @@ var _t: TestContext
 var _view: PlayerView
 var _checker: Checker
 var _eye: Node2D
-## The polygons the memory's painter held, one a frame.
+## The polygons the seen mask's painter held, one a frame.
 var _painted: Array[PackedVector2Array] = []
 
 
@@ -301,9 +301,9 @@ func _aim(degrees: float) -> void:
 	_t.puppet(&"eye").aim_at(_eye.global_position + Vector2.from_angle(deg_to_rad(degrees)) * 100.0)
 
 
-## Keep what the memory's painter holds this frame.
+## Keep what the seen mask's painter holds this frame.
 func _paint_sample() -> void:
-	var points: PackedVector2Array = _view.painter().points()
+	var points: PackedVector2Array = _view.ground.seen_painter.points()
 	_painted.append(points.slice(0, _view.cone().size()))
 
 
@@ -319,6 +319,6 @@ func _whole() -> void:
 			foreign += 1
 	_t.check(
 		_painted.size() >= 2 * FRAMES and foreign == 0,
-		"the memory painted only cones the view published (%d of %d were not)"
+		"the seen mask drew only cones the view published (%d of %d were not)"
 		% [foreign, _painted.size()],
 	)

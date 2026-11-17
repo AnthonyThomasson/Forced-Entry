@@ -33,6 +33,7 @@ func run(t: TestContext) -> void:
 	_menu.back_requested.connect(func(): _backs += 1)
 	_menu.open({ "debug": true, "rows": _rows() })
 	_check_rows(t)
+	_check_no_render_pick(t)
 	_check_debug_and_escape(t)
 	if not _check_capture(t):
 		return
@@ -49,6 +50,15 @@ func _check_rows(t: TestContext) -> void:
 	t.expect_eq(_note("Move up").text, "", "an unshared one has no note")
 	t.check(not _reset_button("Punch").disabled, "a changed row can be reset")
 	t.check(_reset_button("Move up").disabled, "an unchanged row has nothing to reset")
+
+
+## The page offers no render mode (the 3D render is the only one): no drop-down beside Debug.
+func _check_no_render_pick(t: TestContext) -> void:
+	t.expect_eq(
+		_menu.find_children("*", "OptionButton", true, false).size(),
+		0,
+		"no render mode picker on the page",
+	)
 
 
 ## The Debug checkbox starts as given and reports a change; Escape with nothing being captured goes

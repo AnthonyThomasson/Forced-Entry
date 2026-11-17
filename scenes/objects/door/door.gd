@@ -5,9 +5,10 @@ extends AnimatableBody2D
 ## turns its leaf about the hinge and the engine moves the body kinematically, so a swing is exact
 ## and never knocked about by what leans on it. It publishes the door contract (architecture
 ## interface 24) and is hit, shoved and damaged through the hittable (3) and pushable (5)
-## contracts. Drawn by `door_visuals.gd`; its parts are `look`, `damage`, `swing` and `push`. Its
-## tuning is `DoorConfig`, `DoorPushConfig` and `DoorMaterialConfig`. It posts a `&"door"` event on
-## the EventBus at each stage of its life (interface 10), which Audio voices (`docs/doors.md` DR12).
+## contracts. Shown by the 3D render (`door_mesh.gd`); its parts are `look`, `damage`, `swing` and
+## `push`. Its tuning is `DoorConfig`, `DoorPushConfig` and `DoorMaterialConfig`. It posts a
+## `&"door"` event on the EventBus at each stage of its life (interface 10), which Audio voices
+## (`docs/doors.md` DR12).
 ##
 ## Frame: the body's origin is the middle of the leaf and its x axis runs along the leaf from the
 ## hinge toward the latch, so `global_position` is where the leaf is (a blast reaches it there). The
@@ -23,7 +24,6 @@ const DoorDamage = preload("res://scenes/objects/door/door_damage.gd")
 const DoorLook = preload("res://scenes/objects/door/door_look.gd")
 const DoorPush = preload("res://scenes/objects/door/door_push.gd")
 const DoorSwing = preload("res://scenes/objects/door/door_swing.gd")
-const DoorVisuals = preload("res://scenes/objects/door/door_visuals.gd")
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 
 ## The hinge: a world point on the jamb the leaf turns about.
@@ -38,13 +38,15 @@ var width := 0.0
 ## Its display name.
 var object_name := "Door"
 ## What it is drawn as (`door_look.gd`), its hit points and latch (`door_damage.gd`), its swing
-## (`door_swing.gd`), the turn a walker gives it (`door_push.gd`) and what draws it (`texture()`);
+## (`door_swing.gd`) and the turn a walker gives it (`door_push.gd`);
 ## built with it.
 var look := DoorLook.new()
 var damage: DoorDamage
 var swing := DoorSwing.new()
 var push := DoorPush.new()
-var visuals: DoorVisuals
+## The dents and holes its hits recorded (a child; stored in the leaf's frame,
+## `DoorConfig.dent_depth` deep, up to `DoorConfig.dents`).
+var deformable: Deformable
 ## The material's row of `DoorMaterialConfig.materials`.
 var _row: Dictionary = {}
 ## Whether it has been knocked down.
@@ -71,11 +73,11 @@ func _ready() -> void:
 	col.shape = leaf
 	_probe = RectangleShape2D.new()
 	add_child(col)
-	_build_occluder(size * 0.5)
-	visuals = DoorVisuals.new()
-	visuals.name = "DoorVisuals"
-	visuals.setup(self, size)
-	add_child(visuals)
+	deformable = Deformable.new()
+	deformable.max_depth = DoorConfig.dent_depth
+	deformable.allow_chunks = false
+	deformable.max_impacts = DoorConfig.dents
+	add_child(deformable)
 	set_physics_process(swing.moving() or push.moving())
 
 
@@ -236,7 +238,7 @@ func take_hit(hit: HitInfo) -> void:
 	if _down:
 		return
 	var kind := &"blast" if hit.speed_factor <= 0.0 and hit.height < 0.0 else &"round"
-	visuals.deformable.record(hit)
+	deformable.record(hit)
 	Physics.spawn_debris(get_parent(), hit, _debris_surface())
 	if look.material == "glass":
 		_shatter()
@@ -309,15 +311,8 @@ func _fall(direction: Vector2) -> void:
 	var doorway := _doorway_middle()
 	var lies := doorway + toward * (DoorConfig.fallen_length * 0.5 + DoorConfig.leaf_thickness)
 	collision_layer = 0
-	for child in get_children():
-		if child is LightOccluder2D:
-			child.queue_free()
-	z_index = DrawLayers.LYING
 	global_transform = Transform2D(toward.angle(), lies)
-	visuals.fall(
-		Vector2(DoorConfig.fallen_length, width),
-		-_along.dot(toward.rotated(-PI / 2.0)) < 0.0,
-	)
+	look.flipped = -_along.dot(toward.rotated(-PI / 2.0)) < 0.0
 	changed.emit()
 	_post(&"down")
 
@@ -443,12 +438,11 @@ func _burst() -> void:
 	_post(&"burst")
 
 
-## The glass-panel door's panes shatter: the frame stays, and the leaf is drawn without its glass.
+## The glass-panel door's panes shatter: the frame stays, and the leaf is shown without its glass.
 func _shatter() -> void:
 	if look.broken:
 		return
 	look.broken = true
-	visuals.refresh()
 	_post(&"glass")
 
 
@@ -472,17 +466,3 @@ func _post(stage: StringName) -> void:
 		"material": look.material,
 		"stage": stage,
 	})
-
-
-## The door's shadow: an occluder over the leaf (`half` its half size) in the body's frame, so it
-## turns with the leaf, on the walls' bit (it shadows every light, overhead ones too). A glass-panel
-## door casts none, and none while `LightMasks.shadows` is off.
-func _build_occluder(half: Vector2) -> void:
-	if look.material == "glass":
-		return
-	var occ := LightMasks.occluder(
-		PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)]),
-		LightMasks.WALL,
-	)
-	if occ != null:
-		add_child(occ)

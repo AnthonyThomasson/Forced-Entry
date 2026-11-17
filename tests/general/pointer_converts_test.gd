@@ -28,6 +28,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it reads the plain camera's conversion, not the 3D rig's
 	s.lock_interaction([&"camera"])  # a person's wheel or camera keys would change what is measured
 	s.arena(Rect2(0, 0, 800, 500))
 

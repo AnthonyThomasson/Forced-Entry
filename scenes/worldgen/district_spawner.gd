@@ -11,7 +11,7 @@ const HOUSE_BLOCK := DistrictLayout.HOUSE_BLOCK
 ## Build the district of `district_seed` under `parent` and return its root. `force_plan` ("" for
 ## none) is the centre tower's plan, any house or tower plan. The root carries what was placed as
 ## metadata, read through WorldGen: `house`, `towers`
-## (`{ block, plan, turn, node, rect, front, shadow, podium, awning, sign }`), `rooms`
+## (`{ block, plan, turn, node, rect, front, podium, awning, sign }`), `rooms`
 ## (`WorldGen.district_rooms`), `streets` and `shells`.
 static func spawn(
 	district_seed: int,

@@ -13,7 +13,7 @@ An item whose `raises_at_contact()` is true (SMG, rifle) is judged every frame b
 - The barrel is a ray from beside the body centre along the aim, as far as the gun reaches **held normally**: the item's *un-raised* stance forward plus `muzzle_ahead()`. Using the raised stance would let the pulled-up gun clear the ray and drop again.
 - `anatomy.hands.solid_distance(from, dir, max_len)` does the cast (`HAND_MASK`) and **ignores other characters**: a gun against a person is not against a wall, and a dead body is on no layer.
 - It blocks at once when something is within reach and stays blocked until `CharacterStanceConfig.weapon_contact_margin` of clearance, so it does not flicker at the edge. `weapon.raise()` (0..1) eases toward it at `weapon_raise_speed` for the art, and `weapon.stances()` asks the item for `raised_stance(hand)`.
-- The raise joins `_redraw_key_of` in `character_visuals.gd` (rounded to `REDRAW_RAISE_STEP`), or an idle body would not repaint.
+- `weapon.raise()` is read by the 3D body each frame (`ItemArt.held_lift`: the held mesh pitches up).
 - **`inventory.select_slot`, `inventory.set_loadout` (`weapon.reset_raise()`) and `weapon.shoot()` itself re-judge it at once.** A controller acts before the frame's own check runs, and on a character's first frame none has run, so trusting last frame's `_blocked` let a long gun fired point-blank into a wall leave through it. Tests: `long_gun_wall_raise_test.gd` (incl. a shot on the first frame), `long_gun_hold_test.gd`.
 - `blocked()` is judged in every posture. A pistol is never blocked: the wall pushes its hand back.
 

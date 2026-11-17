@@ -71,7 +71,7 @@ const ENTRIES := [
 ## toggle, in Main's match and the Testing world's alike), the spectator inspector on a selection,
 ## the Testing world at an actor's spawn.
 static func apply(npc: Node, flags: Dictionary) -> void:
-	for child in npc.get_children():
+	for child in overlays_of(npc):
 		var touched := false
 		for flag in flags:
 			if flag in child:
@@ -79,6 +79,24 @@ static func apply(npc: Node, flags: Dictionary) -> void:
 				touched = true
 		if touched and child.has_method("queue_redraw"):
 			child.queue_redraw()
+
+
+## The nodes of `npc` an overlay flag may sit on: its children and the
+## overlays that were moved off it onto the shared ground layer (`GroundLayer.overlays_of`).
+static func overlays_of(npc: Node) -> Array:
+	return npc.get_children() + GroundLayer.overlays_of(npc)
+
+
+## `npc`'s overlay named `overlay_name` (a child, or one moved onto the ground layer), or
+## null.
+static func overlay_of(npc: Node, overlay_name: String) -> Node:
+	var found := npc.get_node_or_null(overlay_name)
+	if found != null:
+		return found
+	for overlay: Node in GroundLayer.overlays_of(npc):
+		if overlay.name == overlay_name:
+			return overlay
+	return null
 
 
 ## Whether `npc` is in `scope`: `all` takes every NPC, `defenders` / `invaders` the NPCs of that

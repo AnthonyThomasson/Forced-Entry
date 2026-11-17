@@ -1,13 +1,10 @@
 extends RefCounted
-## Shared by the weapon-style tests (ticket #61, R3): how a gun or grenade is DRAWN in a weapon
-## style, read through the published `ItemArt.drawn_art()` (the textures the item's last
-## `draw_weapon` / `draw_dropped` painted, like `CharacterVisuals.drawn_art()`). Art is cached by
-## what it depicts, so two items drawn alike paint the very same textures and a changed look new
-## ones: a drawing is compared as the set of its textures' instance ids.
-## An item is drawn on a `DrawProbe` (a plain `Node2D` of the test's whose `_draw` calls the item's
-## published `draw_weapon(canvas, user)` or `draw_dropped(canvas, at, angle, modulate, opts)`), one
-## probe per item, since `drawn_art` is its last draw only. Not a test
-## (`const StyleProbe := preload(...)`).
+## Shared by the weapon-style tests (ticket #61, R3): how a gun or grenade LOOKS in a weapon style,
+## read off the art the 3D render shows: the mesh and the flat texture the item's `art` hands out
+## held (`held_mesh`, `held_texture`) and lying (`dropped_mesh`, `dropped_texture`, either side up).
+## Art is cached by what it depicts, so two items that look alike hand out the very same mesh and
+## texture and a changed look new ones: a look is compared as the set of their instance ids. Not a
+## test (`const StyleProbe := preload(...)`).
 
 const STYLES: Array[StringName] = [&"police", &"scrap", &"pipe"]
 ## The weapon style an item never given one is drawn in.
@@ -18,11 +15,23 @@ const GUNS := { &"pistol": 3, &"smg": 5, &"rifle": 6 }
 const GRENADES := { &"frag": 8, &"stun": 7 }
 
 
-## The textures `item`'s last draw painted (`ItemArt.drawn_art()`), as a set of their instance ids.
-static func drawn(item: Item) -> Dictionary:
+## What `item` shows held in a hand: its mesh and its art, as a set of their instance ids.
+static func held(item: Item) -> Dictionary:
+	return _ids([item.art.held_mesh(), item.art.held_texture()])
+
+
+## What `item` shows lying loose (a gun on its side, a grenade, a spoon), `flip` the side up: its
+## mesh and its art, as a set of their instance ids.
+static func lying(item: Item, flip := false) -> Dictionary:
+	return _ids([item.art.dropped_mesh(flip), item.art.dropped_texture(flip)])
+
+
+## `things`' instance ids as a set (a null shows nothing).
+static func _ids(things: Array) -> Dictionary:
 	var out := {}
-	for tex in item.art.drawn_art():
-		out[(tex as Object).get_instance_id() if tex is Object else 0] = true
+	for thing in things:
+		if thing is Object:
+			out[(thing as Object).get_instance_id()] = true
 	return out
 
 
@@ -47,90 +56,18 @@ static func kit(slot: int, style: StringName, grenades := {}) -> CharacterKit:
 	return out
 
 
-## A probe drawing `item` under the test's world at `at`, in `user`'s hand.
-static func held_probe(t: TestContext, item: Item, at: Vector2, user: Node) -> DrawProbe:
-	var p := DrawProbe.new()
-	p.item = item
-	p.user = user
-	p.held = true
-	return _placed(t, p, at)
+## What a fresh item in inventory `slot` and weapon `style` shows lying, on either side (the union),
+## as a set of instance ids.
+static func lying_either_side(slot: int, style: StringName) -> Dictionary:
+	var item := make(slot, style)
+	return lying(item, false).merged(lying(item, true))
 
 
-## A probe drawing `item` under the test's world at `at`, lying along `angle` with `opts`.
-static func lying_probe(
-	t: TestContext,
-	item: Item,
-	at: Vector2,
-	angle := 0.0,
-	opts := {},
-) -> DrawProbe:
-	var p := DrawProbe.new()
-	p.item = item
-	p.angle = angle
-	p.opts = opts
-	return _placed(t, p, at)
-
-
-## Probe `p` put under the test's world at `at`, its first draw asked for.
-static func _placed(t: TestContext, p: DrawProbe, at: Vector2) -> DrawProbe:
-	p.position = at
-	t.world.add_child(p)
-	p.queue_redraw()
-	return p
-
-
-## The angles a lying item is drawn along so its art is lit for every one of
-## `ArtCanvasConfig.turn_steps` lighting steps (`draw_dropped` lights it for its angle less a
-## quarter turn, snapped to a step).
-static func every_step() -> Array[float]:
-	var out: Array[float] = []
-	var step := TAU / maxi(1, ArtCanvasConfig.turn_steps)
-	for k in maxi(1, ArtCanvasConfig.turn_steps):
-		out.append(k * step + PI * 0.5)
-	return out
-
-
-## Lay probes for the item in `slot` drawn in weapon `style`, lying at every lighting step with each
-## side up, at `at`; returns them (read their union with `union` once they have drawn).
-static func lying_everywhere(t: TestContext, slot: int, style: StringName, at: Vector2) -> Array:
-	var out: Array = []
-	for angle in every_step():
-		for flip in [false, true]:
-			out.append(lying_probe(t, make(slot, style), at, angle, { "flip": flip }))
-	return out
-
-
-## The union of what `probes` drew, as a set of texture instance ids.
-static func union(probes: Array) -> Dictionary:
-	var out := {}
-	for p: DrawProbe in probes:
-		out.merge(drawn(p.item))
-	return out
-
-
-## Whether every texture in `a` is in `b`.
+## Whether every id in `a` is in `b`.
 static func within(a: Dictionary, b: Dictionary) -> bool:
 	return a.keys().all(func(k) -> bool: return b.has(k))
 
 
-## Whether `a` and `b` share no texture.
+## Whether `a` and `b` share no id.
 static func apart(a: Dictionary, b: Dictionary) -> bool:
 	return not a.keys().any(func(k) -> bool: return b.has(k))
-
-
-## A node of the test's that draws one item: held in `user`'s hand (`draw_weapon`) or lying at its
-## origin along `angle` with `opts` (`draw_dropped`; `opts.flip` is which side is up).
-class DrawProbe extends Node2D:
-	var item: Item
-	var user: Node
-	var held := false
-	var angle := 0.0
-	var opts := {}
-
-	func _draw() -> void:
-		if item == null:
-			return
-		if held:
-			item.art.draw_weapon(self, user)
-		else:
-			item.art.draw_dropped(self, Vector2.ZERO, angle, Color.WHITE, opts)

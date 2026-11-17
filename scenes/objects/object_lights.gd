@@ -1,6 +1,6 @@
 extends RefCounted
 ## Objects domain (private): the lights a piece gives, its `get_lights()` declaration (read
-## duck-typed by the Lighting domain, which gives each one a PointLight2D under the piece). What
+## duck-typed by the Lighting domain, which gives each one an OmniLight3D). What
 ## gives light is what the piece's painter draws glowing: a lamp's bulb, a screen's face (a TV, a
 ## desk's monitor, the den's monitor wall, the rig's halo, a cart's display), a neon tube, a server
 ## rack's LEDs, the scanner's beam, the hot ring, the surgeon's lamp, a street lamp's lens or sign,
@@ -8,17 +8,19 @@ extends RefCounted
 ##   `offset` (Vector2) and `turn` (rad, the pool's long axis from +x), `colour`, `energy`, `radius`
 ##   (px, out along the long axis), `shape` (`round` / `wide` / `tube`), `rhythm`
 ##   (`[[mode, weight], ...]`, the rhythms it may be drawn with), `room_light` (it lights its room),
-##   `street` (it lights the street too: a street lamp), `height` (`overhead`: it hangs or stands
-##   above the heads, a lamp's bulb, a street lamp's head; `low`: a screen, a tube, LEDs; which
-##   shadows it, and whether it pools downward, is the Lighting domain's) and `glow` (the piece's
-##   `Emissive` overlay that shows the source, dimming with the light; null when it has none).
+##   `street` (it lights the street too: a street lamp), `lift` (px above the floor where the
+##   glowing part is in the 3D mesh; 0: the Lighting domain's default for its `height`), `height`
+##   (`overhead`: it hangs or stands above the heads, a lamp's bulb, a street lamp's head; `low`: a
+##   screen, a tube, LEDs; which shadows it, and whether it pools downward, is the Lighting
+##   domain's). What shows the source is the piece's 3D mesh, which glows with its light
+##   (`WorldLighting3D`, interface 20).
 ## Tuning: ObjectArtLightConfig.specs (the per-kind numbers) and the painters' colours.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 
 
-## The lights `piece` (an EnvironmentObject in the tree, its visuals ready) gives; [] for a piece
+## The lights `piece` (an EnvironmentObject in the tree) gives; [] for a piece
 ## that gives none.
 static func of(piece: Node2D) -> Array:
 	var kind := _kind(piece)
@@ -42,7 +44,7 @@ static func of(piece: Node2D) -> Array:
 		"room_light": spec.get("room_light", false),
 		"street": false,
 		"height": spec.get("height", &"low"),
-		"glow": _overlay(piece.get_node_or_null("EnvironmentObjectVisuals")),
+		"lift": float(spec.get("lift", 0.0)),
 	}
 	_by_kind(light, kind, piece, ahead, spec)
 	return [light]
@@ -103,13 +105,12 @@ static func _by_kind(
 			light["radius"] += maxf(size.x, size.y) * 0.5
 
 
-## A street lamp's `light`: at its `Overhang`'s centre, that overlay its glow, the cobra's lens
+## A street lamp's `light`: at its overhang's centre (`look.overhang_rect()`), the cobra's lens
 ## colour or the sign's `neon` (magenta without one), lighting the street.
 static func _street_head(light: Dictionary, kind: String, piece: Node2D, neon: Color) -> void:
-	var overhang := piece.get_node_or_null("Overhang")
-	if overhang != null:
-		light["offset"] = (overhang.get_rect() as Rect2).get_center()
-		light["glow"] = _overlay(overhang)
+	var rect: Rect2 = piece.look.overhang_rect()
+	if rect.has_area():
+		light["offset"] = rect.get_center()
 	light["colour"] = ObjectArtOutdoorConfig.streetlight_lens_color if kind == "cobra" \
 		else (neon if neon.a > 0.0 else ObjectArtLightConfig.neon_magenta)
 	light["street"] = true
@@ -133,10 +134,3 @@ static func _kind(piece: Node2D) -> String:
 			return "neon_tube" if String(opts.get("kind", "")) == "neon_tube" else ""
 	var own := ObjectArt.light_kind(art, opts)
 	return own if own != "" or Decay.neon(opts).a <= 0.0 else "trim"
-
-
-## The `Emissive` overlay of visuals node `visuals` (null without one).
-static func _overlay(visuals: Node) -> CanvasItem:
-	if visuals == null or not visuals.has_method(&"emissive_layer"):
-		return null
-	return visuals.call(&"emissive_layer") as CanvasItem

@@ -1,14 +1,14 @@
 extends GameTest
 ## A rug is a surface blood sinks into, like carpet: a bleed-out pool on the rug sinks in without
-## shrinking and is no longer wet, one on the bare floor beside it does not, and the rug draws
-## beneath blood so the pool shows on it. Once the rug is gone the spot is plain floor again.
+## shrinking and is no longer wet, one on the bare floor beside it does not. Once the rug is gone
+## the spot is plain floor again.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Blood soaks into a rug",
 		"description": "A bleed-out pool on a rug soaks in and is no longer wet; a pool beside it "
-			+ "stays wet; the rug draws below blood and stops soaking once removed.",
+			+ "stays wet; the rug stops soaking once removed.",
 		"tags": ["blood", "pool", "rug", "surface"],
 		"timeout": 120.0,
 	}
@@ -23,10 +23,6 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var rug := t.object(&"rug")
-	t.check(
-		rug.z_index < BloodConfig.z_index,
-		"the rug draws beneath blood (%d < %d)" % [rug.z_index, BloodConfig.z_index],
-	)
 	var on_rug := _pool(t, Vector2(250, 250))
 	var on_floor := _pool(t, Vector2(650, 250))
 	if not t.require(

@@ -9,14 +9,30 @@ class_name WorldGen
 ## `generate_district` and its reads `house_of`, `district_rooms` and `district_bounds` (a
 ## district's test reads are `DistrictReads`).
 
+## Whether the shared art and the furniture's flat 3D art have been handed to PixelArt (once a
+## process each: the art is cached for good).
+static var _warmed := false
+static var _furniture_warmed := false
+
 
 ## Start painting the textures every district shares on PixelArt's worker while Main's setup window
 ## is open. Headless runs skip the warm, so their first district keeps the ordinary synchronous
-## cold path.
-static func prewarm() -> void:
+## cold path. `with_furniture` adds the furniture's flat 3D art
+## (`DistrictPrewarm.furniture_requests`), which Main passes at start-up, and joins it to the shared
+## warm at boot so the two never wait for each other. A part already warmed is left out, so
+## repeating the call is free.
+static func prewarm(with_furniture := false) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	PixelArt.warm(DistrictPrewarm.requests())
+	var requests: Array = []
+	if not _warmed:
+		_warmed = true
+		requests = DistrictPrewarm.requests()
+	if with_furniture and not _furniture_warmed:
+		_furniture_warmed = true
+		requests += DistrictPrewarm.furniture_requests()
+	if not requests.is_empty():
+		PixelArt.warm(requests)
 
 
 ## Build a house and return its root Node2D (parented under `parent`). `rng_seed` of 0 picks a
@@ -176,9 +192,9 @@ static func get_doors(house: Node2D) -> Array:
 
 
 ## The elevator lobbies a generated house laid as an Array of { room, rect, node, text }: `room` the
-## lobby room's key, `rect` its WORLD rect, `node` the floor stencil laid in it (a `Sprite2D`) and
-## `text` what it says. Empty for a null house, a hand-laid layout or a plan with no lobby. (A test
-## read.)
+## lobby room's key, `rect` its WORLD rect, `node` the floor stencil laid in it (a `StencilDecal`)
+## and `text` what it says. Empty for a null house, a hand-laid layout or a plan with no lobby. (A
+## test read.)
 static func get_lobbies(house: Node2D) -> Array:
 	if house == null:
 		return []

@@ -146,7 +146,8 @@ static func _shards(c: PixelCanvas, rect: Rect2i) -> void:
 			c.px(corner.x, corner.y + inward.y, glint, _RAISED)
 
 
-## The hinge (a pin at the hinge end of a leaf, three plates on a face's hinge edge) and the handle.
+## The hinge (a pin at the hinge end of a leaf, three plates on a face's hinge edge) and the handle
+## (not on a flat standing leaf: the 3D door has its own).
 static func _hardware(c: PixelCanvas, fallen: bool) -> void:
 	var metal := ObjectArtDoorConfig.fitting_color
 	var handle := ObjectArtDoorConfig.handle_color
@@ -158,5 +159,7 @@ static func _hardware(c: PixelCanvas, fallen: bool) -> void:
 		c.fill(PixelShape.rounded(Rect2i(at.x - 1, at.y, 8, 2), 0), handle, _RAISED)
 		return
 	c.fill(PixelShape.rounded(Rect2i(0, 1, 3, c.h - 2), 0), metal, _RAISED)
+	if c.light == Vector2.ZERO:
+		return  # Flat (the 3D leaf): the handle is a mesh of its own, off the leaf's face.
 	c.fill(PixelShape.rounded(Rect2i(c.w - 7, 1, 5, c.h - 2), 0), handle, _RAISED)
 	c.px(c.w - 6, int(c.h / 2.0), handle.lightened(0.3), _RAISED)

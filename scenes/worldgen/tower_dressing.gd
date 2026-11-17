@@ -1,10 +1,11 @@
 class_name TowerDressing
-## World Generation domain: what makes a district's tower read as TALL from above. Its long hard
-## street shadow (`DecalFactory.shadow`), the podium band of concrete segments with pillars along
-## the outside of its exterior walls, broken at every front and exit doorway (a catalogue row
-## through `ObjectFactory`), and an awning and a glyph sign over its front door that fade while a
-## character stands under them. Each tower is dressed from what it published (`WorldGen.get_rooms`
-## and `get_openings`), so a tower turned or mirrored is dressed the way it stands.
+## World Generation domain: what makes a district's tower read as TALL from above. The podium band
+## of concrete segments with pillars along the outside of its exterior walls, broken at every front
+## and exit doorway (a catalogue row through `ObjectFactory`), and an awning and a glyph sign over
+## its front door that fade (in 3D) while a character stands under them. (Its long hard street
+## shadow is the sun's, cast by the 3D walls.) Each tower is dressed from what it published
+## (`WorldGen.get_rooms` and `get_openings`), so a tower turned or mirrored is dressed the way it
+## stands.
 
 ## A run of exterior wall abuts another room when their faces are this close (px).
 const ABUT := 1.0
@@ -12,9 +13,9 @@ const ABUT := 1.0
 const SIGN_GAP := 24.0
 
 
-## Dress `tower` (a `DistrictReads.get_towers` entry): returns `{ shadow, podium, awning, sign }`,
-## `shadow` the sprite, `podium` the segment pieces and `awning` / `sign` the pieces over the front
-## door (null when no wall run holds the sign), all children of the tower's node.
+## Dress `tower` (a `DistrictReads.get_towers` entry): returns `{ podium, awning, sign }`, `podium`
+## the segment pieces and `awning` / `sign` the pieces over the front door (null when no wall run
+## holds the sign), all children of the tower's node.
 static func dress(tower: Dictionary) -> Dictionary:
 	var node: Node2D = tower["node"]
 	var rooms: Array = WorldGen.get_rooms(node)
@@ -23,12 +24,6 @@ static func dress(tower: Dictionary) -> Dictionary:
 	var runs := exterior_runs(rooms)
 	var hangings := _hangings(node, tower["front"], runs)
 	return {
-		"shadow": DecalFactory.shadow(
-			_local(node, (tower["rect"] as Rect2).grow(half)),
-			{ "length": WorldGenTowerConfig.shadow_length },
-			"Shadow",
-			node,
-		),
 		"podium": _podium(node, runs, openings, rooms, half),
 		"awning": hangings["awning"],
 		"sign": hangings["sign"],
@@ -55,23 +50,19 @@ static func exterior_runs(rooms: Array) -> Array:
 	return runs
 
 
-## The lengths (px) of the podium segments a tower of `rooms` stands with when no doorway cuts its
-## walls, each once. A doorway shortens some, so this is the part of a district's podium art that
-## is the same from tower to tower.
-static func plan_segment_lengths(rooms: Array) -> Array[float]:
+## The lengths (px) of the podium segments a tower of `rooms` stands with, each once: with no
+## `openings` as if no doorway cut its walls (the part of a district's podium art that is the same
+## from tower to tower), with a plan's `openings` the doorway cuts too (a plan's doorways are the
+## same wherever the tower stands).
+static func plan_segment_lengths(rooms: Array, openings: Array = []) -> Array[float]:
 	var lengths: Array[float] = []
 	for run: Dictionary in exterior_runs(rooms):
-		for span in _free(Vector2(run["from"], run["to"]), []):
+		for span in _free(Vector2(run["from"], run["to"]), _door_cuts(run, openings)):
 			for part in _parts(span):
 				var length := part.y - part.x
 				if not lengths.has(length):
 					lengths.append(length)
 	return lengths
-
-
-## `rect` (WORLD space) in the space of `node`.
-static func _local(node: Node2D, rect: Rect2) -> Rect2:
-	return Rect2(node.to_local(rect.position), rect.size)
 
 
 ## The unit axis along the wall a normal `out` stands on.
@@ -138,7 +129,8 @@ static func _door_cuts(run: Dictionary, openings: Array) -> Array[Vector2]:
 	var axis := _axis(out)
 	for door: Dictionary in openings:
 		var pos: Vector2 = door["pos"]
-		if not (door["front"] or door["exit"]) or absf(pos.dot(out) - float(run["line"])) > ABUT:
+		if (not (door.get("front", false) or door.get("exit", false))
+				or absf(pos.dot(out) - float(run["line"])) > ABUT):
 			continue
 		var reach: float = float(door["width"]) * 0.5 + WorldGenTowerConfig.podium_door_gap
 		cuts.append(Vector2(pos.dot(axis) - reach, pos.dot(axis) + reach))

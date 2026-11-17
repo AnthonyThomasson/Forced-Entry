@@ -60,12 +60,10 @@ Update the "before" numbers in a test's comment only when its load changes.
 
 `tools/run_tests.sh --windowed --domain=perf` (or `--id=`) measures the same tests with the render in each frame. The two
 grenade guards frame the whole fight with the test camera, locked, as a player's screen would show it, so every body is
-drawn; headless (a 64 px viewport) they size the root viewport to the project's window first. Windowed, `FillBatch` batches
-the plain-coloured shapes.
+drawn; headless (a 64 px viewport) they size the root viewport to the project's window first. 
 
 **Windowed keeps the same budgets:** no windowed exemption and no looser number; what a window costs is fixed at its
-cause, each fix pinned to the old pixels or bytes by a windowed-only test (`tests/character/body_mesh_matches_polygons_test.gd`,
-`tests/physics/debris_pages_match_one_batch_test.gd`, `tests/general/fill_batch_matches_draw_calls_test.gd`). The sound
+cause, each fix pinned to the old pixels or bytes by a windowed-only test (`tests/vision/vision_mask_3d_windowed_test.gd`). The sound
 library's pre-warm renders on a worker thread (`domain-audio`); a sound was the only first use that hitched a fight in the frame logging of #195 (`domain-audio`).
 
 ## Comparing revisions, finding what costs

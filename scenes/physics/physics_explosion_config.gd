@@ -1,7 +1,8 @@
 class_name PhysicsExplosionConfig
-## The look of a grenade's burst (scenes/physics/explosion_fx.gd, scorch_decals.gd): the switch,
-## its pixel size, the looks per kind and the scorch colour. A `class_name` holder of `static
-## var`s, read as `PhysicsExplosionConfig.<name>`; there is no instance and no autoload.
+## The look of a grenade's burst (scenes/physics/explosion_fx.gd, scorch_decals.gd,
+## mesh/blast_rig.gd): the switch, its pixel size, the looks per kind, the fireball's colours and
+## lumps and the scorch colour. A `class_name` holder of `static var`s, read as
+## `PhysicsExplosionConfig.<name>`; there is no instance and no autoload.
 
 ## Master switch: off = `Physics.spawn_explosion` spawns no flash, fireball, smoke or scorch.
 static var fx_enabled: bool = true
@@ -32,3 +33,10 @@ static var looks: Dictionary = {
 }
 ## The scorch mark's colour (its alpha is the mark's darkest, at its core).
 static var scorch_color: Color = Color(0.04, 0.035, 0.03, 0.62)
+## The fireball cools through these as it ages: white-yellow core, orange, deep red.
+static var fire_core: Color = Color(1.0, 0.92, 0.5)
+static var fire_mid: Color = Color(1.0, 0.55, 0.12)
+static var fire_edge: Color = Color(0.72, 0.16, 0.06)
+## Lumps in the fireball, and how far from its centre (share of its radius) they sit.
+static var lobes: int = 6
+static var lobe_reach: float = 0.45

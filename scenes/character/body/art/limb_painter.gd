@@ -243,14 +243,17 @@ static func _foot(
 	var boots := String(look.get("feet", "")) == "boots"
 	var strip := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 0)
 	if part == "shaft":
-		c.line(Vector2i(0, 0), Vector2i(c.w - 1, 0), t.highlight, _DETAIL)
+		var rim: Color = base if StyleArt.flat(c) else t.highlight  # The shaft's padded rim.
+		c.line(Vector2i(0, 0), Vector2i(c.w - 1, 0), rim, _DETAIL)
 		c.line(Vector2i(0, 1), Vector2i(c.w - 1, 1), t.dark, _DETAIL)
 		if style != "borg":
 			_laces(c, 3, c.h - 1)
 		return
-	c.outline(strip, t.outline)
+	if not StyleArt.flat(c):
+		c.outline(strip, t.outline)
 	if look.get("police", false):
-		c.px(int(c.w / 2.0), int(c.h * 0.7), t.highlight, _DETAIL)  # A polished toe.
+		if not StyleArt.flat(c):
+			c.px(int(c.w / 2.0), int(c.h * 0.7), t.highlight, _DETAIL)  # A polished toe.
 		if style == "trauma":
 			# The red sole.
 			c.line(
@@ -274,7 +277,8 @@ static func _foot(
 		return
 	var cap := PixelShape.rounded(Rect2i(0, int(c.h * 0.65), c.w, c.h - int(c.h * 0.65)), 1)
 	c.fill(cap, look.get("chrome", Color.GRAY), _DETAIL)  # A steel toe cap.
-	c.outline(cap, t.outline)
+	if not StyleArt.flat(c):
+		c.outline(cap, t.outline)
 
 
 ## Laces criss-crossing down the middle of a boot strip, rows `from`..`to`.

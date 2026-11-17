@@ -5,10 +5,10 @@ description: Use when editing scenes/vehicle/ or working on cars and vans: drivi
 
 # Vehicles domain
 
-A drivable **car** and **van** (one scene each, inheriting `vehicle.tscn`). Only `sandboxes/vehicle_sandbox.gd` and the tests (`TestSetup.vehicle`) place them. Main, World-Gen and the match never do, the nav map does not carve them, and the AI sees a parked one only as a solid body. The spec, rule by rule with its tests, is `docs/vehicles.md` (V1 to V9, with the numbers). Tests: `tests/vehicle/`, probed through `tests/_vehicle/` (`vehicle_probe.gd`, `vehicle_frame_probe.gd`, `vehicle_ride_probe.gd`; `domain-testing`) plus `tests/audio/vehicle_*`, `tests/general/camera_zooms_out_driving_test.gd`, `tests/general/use_vehicle_key_test.gd`.
+A drivable **car** and **van** (one scene each, inheriting `vehicle.tscn`). Only `sandboxes/vehicle_sandbox.gd` and the tests (`TestSetup.vehicle`) place them. Main, World-Gen and the match never do, the nav map does not carve them, and the AI sees a parked one only as a solid body. The spec, rule by rule with its tests, is `docs/vehicles.md` (V1 to V9, with the numbers). Tests: `tests/vehicle/`, probed through `tests/_vehicle/` (`vehicle_probe.gd`, `vehicle_frame_probe.gd`, `vehicle_ride_probe.gd`; `domain-testing`) plus `tests/audio/vehicle_*`, `tests/general/camera_zooms_out_driving_test.gd`, `tests/general/space_vehicle_key_test.gd`.
 
 ```
-player_controller (E) ─▶ Character.use.try_use (when a vehicle is the target: `use.use_target()`) ─▶ CharacterVehicleUse ─▶ vehicle.board(character, door) ─▶ VehicleBoarding (the ride)
+player_controller (Space) ─▶ Character.use.try_interact (when a vehicle's door is the thing nearest the mouse: `use.interact_target()`) ─▶ CharacterVehicleUse ─▶ vehicle.board(character, door) ─▶ VehicleBoarding (the ride)
 VehicleBoarding ──(movement.move_input / aim_point, use.set_ride_pose, use.end_ride)──▶ Character;  seated driver: move_input / run_input ─▶ vehicle.drive_input
 vehicle._integrate_forces ─▶ drive.step (VehicleDrive)   /   _contacts (VehicleContacts) ─▶ crash events, characters struck
 ```
@@ -22,10 +22,10 @@ vehicle._integrate_forces ─▶ drive.step (VehicleDrive)   /   _contacts (Vehi
 | `vehicle_drive.gd` | The bicycle model, stepped in `_integrate_forces`; the drive `intent`, engine, skids. `tyre_solve.gd` (`TyreSolve`) is one step's sideways solve. |
 | `vehicle_contacts.gd` (`VehicleContacts`) | Contacts and harm (V6): `read`/`remember` around the drive's step, `apply` in `_physics_process`. |
 | `vehicle_door.gd` | One door in the vehicle's frame: eased open amount, pose, stand and entry points, `is_clear`. |
-| `vehicle_boarding.gd` | One character's ride: a timed phase machine (`Phase`, inner `Pose`) from E beside the vehicle to the last step out. |
+| `vehicle_boarding.gd` | One character's ride: a timed phase machine (`Phase`, inner `Pose`) from Space beside the vehicle to the last step out. |
 | `character_vehicle_use.gd` | The character's component (built by `CharacterUse.attach`): picks the door, steps the ride after the controller, abandons it on death. |
-| `vehicle_visuals.gd`, `art/` | Draw: read `art.md` before touching the painters or the chassis and roof layers. |
-| `vehicle_config.gd` (`VehicleConfig`) | `kinds` row per kind (`car`, `van`: size, mass, engine, axles, grips, `seats`, `doors`) and `looks` row per kind (the painters' proportions). Shared numbers: `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`. |
+| `art/` | The painters and the 3D mesh: read `art.md` before touching them. |
+| `vehicle_config.gd` (`VehicleConfig`) | `kinds` row per kind (`car`, `van`: size, mass, engine, axles, grips, `seats`, `doors`) and `looks` row per kind (the painters' proportions). Shared numbers: `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`, `VehicleMeshConfig` (the 3D heights and part sizes). |
 
 **Frames.** Rotation 0 = nose toward +x; the vehicle's own frame has x forward, y to its right. Every door, seat, axle and `looks` entry is in that frame. Art is painted in Art's canonical frame (front toward +y) and drawn turned by `BODY_TURN`.
 
@@ -43,7 +43,7 @@ vehicle._integrate_forces ─▶ drive.step (VehicleDrive)   /   _contacts (Vehi
 - Door kinds: `swing`, `slide`, `rear` (swings out behind). The van's side and rear-right doors share the seat `cargo_right`: taking one makes the other's seat taken.
 - The open amount is linear in time and read eased (`amount()`), a close gathering speed into the slam. `update(delta)` returns true on the frame a closing door shuts, and the vehicle posts the close then.
 - `is_clear(vehicle, exclude, radius)` queries the swept sector (or the slide track), then the user's circle at the stand point. A wall, furniture, a character or another vehicle blocks it.
-- **Picking the door** (`CharacterVehicleUse.try_use_vehicle`, reached through `use.try_use()` when a vehicle is what E acts on: `use.use_target()` weighs `nearest_door_distance()`, the nearest candidate handle or `INF`, against a house door in reach, interface 24): seated → `vehicle.exit`; on foot → the doors of every vehicle in the group `vehicles` within `door_reach` and moving slower than `board_max_speed`, nearest first; the first whose `board(character, door)` returns a ride wins. `board` refuses at speed, a taken seat, a character already riding or a blocked door, and adds a collision exception character → vehicle.
+- **Picking the door** (`CharacterVehicleUse.try_use_vehicle`, reached through `use.try_interact()` when a vehicle's door is what Space acts on: `use.interact_target()` weighs `nearest_door_distance(aim)`, the gap from the mouse to the outline of a vehicle with a door it `can_board` or `INF`, against the objects and a house door in reach, interfaces 8, 24): seated → `vehicle.exit`; on foot → the doors of every vehicle in the group `vehicles` within `door_reach` and moving slower than `board_max_speed`, nearest first; those it `can_board` (the same checks as `board`, changing nothing), the first whose `board(character, door)` returns a ride wins. `board` refuses at speed, a taken seat, a character already riding or a blocked door, and adds a collision exception character → vehicle.
 - The ride is stepped by `CharacterVehicleUse.control` after the controller, so it overrides that frame's intent. The pose phases ease in the vehicle's frame (a moving vehicle carries the pose) and hand the character `use.set_ride_pose(point, facing, fold, step)`; `step` is the motion through the vehicle's frame, so the legs step with the pose, not the vehicle. The phases (`Phase`) are in `vehicle_boarding.gd`; V3 and V4 describe them.
 - **Death** (`Character._die` → `abandon()`) frees the seat, leaves the door as it is and calls `use.end_ride()`. The character's collision shape is disabled with `set_deferred` at the first ride pose and enabled at `use.end_ride`; the exception covers the walk to the door before that.
 - **After the ride** the vehicle goes to the character's `use.keep_clear_of(body)` (interface 19): the exception stays until the character's circle (+`CharacterUse.CLEAR_MARGIN`) no longer overlaps, so stepping out never shoves the vehicle. Boarding it again calls `use.stop_clearing(body)`.
@@ -68,4 +68,4 @@ Events: `&"vehicle"` (`stage`: `ignition`, `door_open`, `slide_open`, `door_clos
 - **Arena size at these speeds:** a test running flat out for a second needs about 1000 px; a full-lock circle at walking pace is about 200 px.
 - The `bounce` value is tiny on purpose: a crash near the top speed rebounds under 40 px/s, which rolling stops within a second (`vehicle/crash_into_wall_stops`).
 
-**Interfaces:** 3 (hittable), 4 (`Deformable`, `Physics.impact_impulse` / `spawn_debris`), 5 (pushable), 7 (group `characters`; the controller fields a ride writes), 10 (EventBus), 11 (`PhysicsLayers.SOLID`, `DrawLayers`), 12 (Art), 19 (Character ↔ Vehicle).
+**Interfaces:** 3 (hittable), 4 (`Deformable`, `Physics.impact_impulse` / `spawn_debris`), 5 (pushable), 7 (group `characters`; the controller fields a ride writes), 10 (EventBus), 11 (`PhysicsLayers.SOLID`), 12 (Art), 19 (Character ↔ Vehicle).

@@ -96,9 +96,9 @@ static var ROWS := {
 		"static": [[PhysicsConfig, &"hit_particles_enabled"]],
 	},
 	&"lighting.enabled": {
-		"description": "The dusk lighting: ambient, sky, piece lights and fixtures, flashes, and "
-			+ "every occluder (off = the art alone).",
-		"static": [[LightingConfig, &"enabled"], [LightMasks, &"shadows"]],
+		"description": "The dusk lighting: ambient, sky, piece lights and fixtures and flashes "
+			+ "(off = the art alone).",
+		"static": [[LightingConfig, &"enabled"]],
 	},
 	&"vision.enabled": {
 		"description": "The player's view (the Vision domain): the world draws only what the "

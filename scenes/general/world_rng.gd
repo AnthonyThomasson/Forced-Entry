@@ -1,6 +1,6 @@
 class_name WorldRng
 extends RefCounted
-## General domain: each world's own chance and order, shared infrastructure like `FillBatch`
+## General domain: each world's own chance and order, shared infrastructure like `WeightedPick`
 ## (interface 11). A world is the node a match or test world is built under (`MatchBuilder.stage`
 ## registers it with the match's `seed`); anything in it finds its world by walking up to that node.
 ## - `of(node)` is the world's one `RandomNumberGenerator`, seeded from the match seed: what a

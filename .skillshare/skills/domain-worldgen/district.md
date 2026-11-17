@@ -12,7 +12,7 @@ position it reports is world space) carries the metas that `WorldGen` and `Distr
 | `district_keepouts.gd` (`DistrictKeepouts`) | What the street furniture keeps clear of (the doorway zones, the crossings' landings, the towers' bodies and the lamp posts) and `clear(rect)`, the one rule for lamps and clutter. |
 | `district_streets.gd` (`DistrictStreets`) | The street floors, the lamps along every block's sidewalks and the sidewalk clutter. |
 | `tower_dressing.gd` (`TowerDressing`) | A tower's street shadow, podium band, door awning and glyph sign. |
-| `district_prewarm.gd` (`DistrictPrewarm`) | The district's shared pixel-art requests for `WorldGen.prewarm` (Objects' `SharedTextures` plus the plans' shadows and uncut podium segments). |
+| `district_prewarm.gd` (`DistrictPrewarm`) | The district's shared pixel-art requests for `WorldGen.prewarm` (Objects' `SharedTextures` plus the plans' shadows and uncut podium segments, and the structure's flat 3D tiles: each catalogue floor, the street's two, the wall cap per plan thickness); `furniture_requests` adds the furniture's flat 3D art (catalogue, podium cuts, clutter). |
 | `district_shells.gd` (`DistrictShells`) | The ring of shells. |
 | `district_reads.gd` (`DistrictReads`) | The test reads (interface 1). |
 | `tower_definitions.gd` (`TowerDefinitions`) | The six tower plans. |
@@ -61,10 +61,9 @@ is never rotated, so the lobby's words stay upright.
 
 ## Reading as tall (`TowerDressing.dress`)
 
-From a tower's published `get_rooms` / `get_openings`, so a turned tower is dressed as it stands: a long hard street shadow
-(`DecalFactory.shadow`, `shadow_length`, away from the art light); a **podium** band of concrete `podium` pieces along every exterior wall,
+From a tower's published `get_rooms` / `get_openings`, so a turned tower is dressed as it stands: a **podium** band of concrete `podium` pieces along every exterior wall,
 broken `podium_door_gap` each side of every front and exit doorway (room for an entry stack's slots); a dark **awning** and a hanging
-**glyph sign** over the front door (the `awning` and `glyph_sign` rows of `GeneralCatalog`, `overhang.fade_under`). `exterior_runs` finds
+**glyph sign** over the front door (the `awning` and `glyph_sign` rows of `GeneralCatalog`, `overhang.fade_under`; the tower's shadow is the sun's). `exterior_runs` finds
 the wall stretches no other room abuts. The street furniture keeps off the podium plus `WorldGenTowerConfig.margin`.
 
 ## Shells (`DistrictShells`)

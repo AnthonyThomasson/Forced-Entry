@@ -1,5 +1,5 @@
 extends RefCounted
-## Objects domain (private): a door's look, `door.look`, what its visuals draw: the material and
+## Objects domain (private): a door's look, `door.look`, what its mesh shows: the material and
 ## style that pick the painter's art, the leaf's base colour and whether a glass-panel door's panes
 ## have shattered. Plain data, filled by `Door.setup` from the catalogue definition.
 
@@ -10,6 +10,9 @@ var style := ""
 var color := Color.GRAY
 ## The panes are shattered: the frame stays, the glass is gone.
 var broken := false
+## The door lies knocked down mirrored across the leaf's length (its hinge edge toward `+y`): the
+## 3D slab is laid the same way.
+var flipped := false
 
 
 ## The surface finish the leaf is drawn in (`PixelCanvas.surface`): metal for steel, else wood (a

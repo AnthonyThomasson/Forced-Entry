@@ -31,3 +31,8 @@ Side file of `domain-testing` (`SKILL.md`).
   clock is stopped while the world builds (`_building` in the session).
 - **The defender preset is `tuning.hostility.on_trespass`, and an arena counts as its house:** turn
   `ai.hostile_on_trespass` off to test a reaction to something else.
+
+- **A 3D-mode test** (`tests/_general/rig_probe.gd`: `RigProbe.open(world, camera, yaw)` binds a `CameraRig`) judges by hand-worked screen points of the 80 degree pitch (a flat reading of the screen differs from the camera's only by a quarter turn, so a test that must tell them apart sets yaw 90), not `Pointer`'s round trip; a test world's viewport is 64 px square, so one needing a window runs in its own `SubViewport`.
+- **No test reads the live settings file:** before a test's own statics the runner sets `Settings.path` to a scratch file
+  (`TestWorld.settings_scratch()`, deleted after), so a `Main` in the tree never loads the
+  developer's saved `user://settings.json`. A test needing another path pins it with `set_static`; `MainProbe.open` errors on the live path.

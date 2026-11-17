@@ -1,17 +1,19 @@
 class_name Settings
-## General domain: the player's saved settings — the debug switch, the key bindings that differ from
-## the defaults, the last match-setup choices, the overlay toggles and their scope — kept in one
-## JSON file. A `class_name` holder of `static var`s and static functions, read as
+## General domain: the player's saved settings — the debug switch, the key bindings
+## that differ from the defaults, the last match-setup choices, the overlay toggles and their scope
+## — kept in one JSON file. A `class_name` holder of `static var`s and static functions, read as
 ## `Settings.<name>`; there is no instance and no autoload.
 ##
-## Main loads it once at startup (`load_file()`), so the headless test runner, which never loads
-## `main.tscn`, never reads a developer's real file. The settings page's changes come back through
-## the mutators here (`set_debug`, `set_setup`, `set_overlay`, `rebind`, `reset`, `reset_all`), each
-## of which saves at once.
+## Main loads it once at startup (`load_file()`). A test that puts Main in the tree would read the
+## developer's real file, so the test runner points `path` at a scratch file before every test
+## (`TestWorld`). The settings page's changes come back through
+## the mutators here (`set_debug`, `set_setup`, `set_overlay`, `rebind`, `reset`,
+## `reset_all`), each of which saves at once.
 ## Bindings live in `Keybinds.bindings`; this file only persists them and reshapes them for the
 ## page.
 
-## Where the settings are stored. A test points it at a scratch file.
+## Where the settings are stored. The test runner points it at a scratch file (a test may pin its
+## own).
 static var path: String = "user://settings.json"
 ## Master switch for the AI debug overlays and their in-game toggle bar. Main seeds it from its own
 ## export before `load_file()`, so a file that doesn't name it leaves that value standing.
@@ -30,7 +32,8 @@ static var overlay_scopes: Dictionary = {}
 
 ## Read the file: reset every binding to its default, then apply the saved differences, and take the
 ## saved `debug` and `setup`. A missing file leaves the defaults; an unreadable one warns and does
-## the same; entries that aren't understood are skipped one by one.
+## the same; entries that aren't understood are skipped one by one (a `render_mode` a file saved
+## before the 2D render went is one of them).
 static func load_file() -> void:
 	Keybinds.bindings.reset_all()
 	if not FileAccess.file_exists(path):

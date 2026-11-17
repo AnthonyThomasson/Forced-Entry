@@ -214,7 +214,22 @@ static func _parquet(c: PixelCanvas, base: Color, t: Dictionary) -> void:
 				if not along_x:
 					r = Rect2i(gx * cell + a, gy * cell, b - a, cell)
 				_parquet_strip(c, base, r, along_x)
-			c.outline(PixelShape.rounded(Rect2i(gx * cell, gy * cell, cell, cell), 0), t.shadow)
+			_seam(c, Rect2i(gx * cell, gy * cell, cell, cell), t.shadow)
+
+
+## A seam of `col` just inside the edge of `r`: `outline`'s ring, or, on a flat canvas (the 3D
+## tile), the four lines drawn explicitly, so the strip and square grid stay painted as they are
+## whatever the flat canvas does with an outline.
+static func _seam(c: PixelCanvas, r: Rect2i, col: Color) -> void:
+	if c.light != Vector2.ZERO:
+		c.outline(PixelShape.rounded(r, 0), col)
+		return
+	var x1 := r.end.x - 1
+	var y1 := r.end.y - 1
+	c.line(Vector2i(r.position.x, r.position.y), Vector2i(x1, r.position.y), col)
+	c.line(Vector2i(r.position.x, y1), Vector2i(x1, y1), col)
+	c.line(Vector2i(r.position.x, r.position.y), Vector2i(r.position.x, y1), col)
+	c.line(Vector2i(x1, r.position.y), Vector2i(x1, y1), col)
 
 
 ## One parquet strip over `r` in a tone of `base` drawn per strip, its grain along x when
@@ -230,7 +245,7 @@ static func _parquet_strip(c: PixelCanvas, base: Color, r: Rect2i, along_x: bool
 		tone.lightened(0.05),
 		{ "along_x": along_x },
 	)
-	c.outline(strip, tone.darkened(0.16))
+	_seam(c, r, tone.darkened(0.16))
 
 
 ## Square tiles (ObjectArtFloorConfig.tile_px) with grout lines (on the tile's top and left edges,

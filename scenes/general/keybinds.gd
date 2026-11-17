@@ -23,12 +23,12 @@ const PUNCH := "punch"
 ## Kick with a leg, whatever is held.
 const KICK := "kick"
 const FIRE := "fire"
+## Act on the reachable thing nearest the mouse: sit, lie, toggle, a door (a tap shuts or opens it
+## at the release; held, the wheel turns it by steps) or a vehicle's door to get in by; seated in a
+## vehicle, get out.
 const INTERACT := "interact"
 ## Reload the held gun from a carried magazine.
 const RELOAD := "reload"
-## Use what is nearest in reach ahead: a door (a tap shuts or opens it; held, the wheel turns it
-## by steps), or a vehicle's door to get in by; out of the vehicle the player sits in.
-const USE := "use"
 ## Command teammates (the UI's command menu, built only when the human leads its side): pause and
 ## open the menu on what is under the cursor.
 const COMMAND := "command"
@@ -44,6 +44,9 @@ const CAMERA_LEFT := "camera_left"
 const CAMERA_RIGHT := "camera_right"
 const CAMERA_UP := "camera_up"
 const CAMERA_DOWN := "camera_down"
+## Turn the camera about its focus while held (Q one way, E the other).
+const CAMERA_TURN_LEFT := "camera_turn_left"
+const CAMERA_TURN_RIGHT := "camera_turn_right"
 ## Zoom the camera (default: mouse wheel).
 const ZOOM_IN := "zoom_in"
 const ZOOM_OUT := "zoom_out"
@@ -70,13 +73,14 @@ const DEFAULTS := {
 	KICK: KEY_V,
 	INTERACT: KEY_SPACE,
 	RELOAD: KEY_R,
-	USE: KEY_E,
 	MENU: KEY_ESCAPE,
 	PAUSE: KEY_SPACE,
 	CAMERA_LEFT: KEY_A,
 	CAMERA_RIGHT: KEY_D,
 	CAMERA_UP: KEY_W,
 	CAMERA_DOWN: KEY_S,
+	CAMERA_TURN_LEFT: KEY_Q,
+	CAMERA_TURN_RIGHT: KEY_E,
 	ITEM_1: KEY_1,
 	ITEM_2: KEY_2,
 	ITEM_3: KEY_3,
@@ -108,8 +112,7 @@ const LABELS := {
 	KICK: "Kick",
 	FIRE: "Fire",
 	RELOAD: "Reload",
-	INTERACT: "Interact",
-	USE: "Use (door, vehicle)",
+	INTERACT: "Interact (sit, door, vehicle)",
 	COMMAND: "Command teammates",
 	ITEM_1: "Item 1",
 	ITEM_2: "Item 2",
@@ -124,6 +127,8 @@ const LABELS := {
 	CAMERA_DOWN: "Pan down",
 	CAMERA_LEFT: "Pan left",
 	CAMERA_RIGHT: "Pan right",
+	CAMERA_TURN_LEFT: "Turn camera left (quarter turn)",
+	CAMERA_TURN_RIGHT: "Turn camera right (quarter turn)",
 	ZOOM_IN: "Zoom in",
 	ZOOM_OUT: "Zoom out",
 	PAUSE: "Pause (spectator)",
@@ -142,7 +147,6 @@ const GROUPS := {
 	FIRE: "Combat",
 	RELOAD: "Combat",
 	INTERACT: "Interaction",
-	USE: "Interaction",
 	COMMAND: "Interaction",
 	ITEM_1: "Items",
 	ITEM_2: "Items",
@@ -157,15 +161,12 @@ const GROUPS := {
 	CAMERA_DOWN: "Camera",
 	CAMERA_LEFT: "Camera",
 	CAMERA_RIGHT: "Camera",
+	CAMERA_TURN_LEFT: "Camera",
+	CAMERA_TURN_RIGHT: "Camera",
 	ZOOM_IN: "Camera",
 	ZOOM_OUT: "Camera",
 	PAUSE: "System",
 	MENU: "System",
-}
-## The names a settings file may hold for an action, each alias -> the action it binds, so a file
-## saved under an alias still binds the action (`bindings.apply_overrides`).
-const ALIASES := {
-	"use_vehicle": USE,
 }
 ## Action pairs that deliberately share a binding, so `bindings.conflicts_of()` doesn't flag them:
 ## Interact and Pause (the player-less spectator match has nothing to interact with) and each camera
@@ -180,7 +181,7 @@ const SHARED := [
 
 ## The rebinding store: binding, resetting, describing and the saved overrides
 ## (`input_bindings.gd`), built once with the tables above.
-var bindings: InputBindings = InputBindings.new(DEFAULTS, MOUSE_DEFAULTS, SHARED, ALIASES)
+var bindings: InputBindings = InputBindings.new(DEFAULTS, MOUSE_DEFAULTS, SHARED)
 
 
 func _ready() -> void:
@@ -239,19 +240,32 @@ func is_interact_just_pressed() -> bool:
 	return Input.is_action_just_pressed(INTERACT)
 
 
-## True on the frame the Use key (E) is pressed. Rebindable like the others.
-func is_use_just_pressed() -> bool:
-	return Input.is_action_just_pressed(USE)
+## True while the interact key is held (a door's hold, for its scroll).
+func is_interact_pressed() -> bool:
+	return Input.is_action_pressed(INTERACT)
 
 
-## True while the Use key is held.
-func is_use_pressed() -> bool:
-	return Input.is_action_pressed(USE)
+## True on the frame the interact key is let go (a door toggles then).
+func is_interact_just_released() -> bool:
+	return Input.is_action_just_released(INTERACT)
 
 
-## True on the frame the Use key is let go.
-func is_use_just_released() -> bool:
-	return Input.is_action_just_released(USE)
+## The camera's turn from the two turn keys held: -1 (`CAMERA_TURN_LEFT`), +1 (`CAMERA_TURN_RIGHT`),
+## 0 for neither or both. A turn key is one quarter turn per press (`camera_turns_pressed`), so a
+## reader of this is asking whether a key is down, not how far to turn.
+func get_camera_turn() -> float:
+	return Input.get_axis(CAMERA_TURN_LEFT, CAMERA_TURN_RIGHT)
+
+
+## The quarter turns the camera's two turn keys asked for since the last frame: +1 for a press of
+## `CAMERA_TURN_RIGHT`, -1 for `CAMERA_TURN_LEFT`, summed (a press of each in one frame is 0). Each
+## key is read by its own press, so a short tap is never missed and Q then E in quick succession
+## both count.
+func camera_turns_pressed() -> int:
+	return (
+		int(Input.is_action_just_pressed(CAMERA_TURN_RIGHT))
+		- int(Input.is_action_just_pressed(CAMERA_TURN_LEFT))
+	)
 
 
 ## How far `event` scrolls, in wheel notches: positive up (the camera zooms in, a door opens),

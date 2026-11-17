@@ -1,7 +1,7 @@
 13. **Testing → every domain** (a second composition root, like `main.gd`; the domain is `domain-testing`)
     `scenes/testing/` builds a test's world and drives it through the other interfaces only. Nothing depends on Testing.
     - **World:** WorldGen (1), or an arena / hand-laid layout from the three factories (2, with `WallFactory.openings_for`), staged by the
-      match builder (23): `MatchBuilder.stage` runs the bake (9), the dusk lighting (20: `WorldLighting.light` after the bake) and the
+      match builder (23): `MatchBuilder.stage` runs the bake (9) and the
       wait until both nav maps are `ready` before any actor enters. Each NPC actor is bound before it joins the tree by
       `MatchBuilder.bind_npc` (`MatchBuilder.entry_point_for` gives an invader the front entrance). `TestSetup.declared_match` runs
       `MatchBuilder.populate` over the staged world (read `t.world.match_handle`); `TestSetup.squads` runs `MatchBuilder.squads_over`, the
@@ -14,8 +14,8 @@
     - **Actors:** character scenes plus the controller contract (7): a puppet `ScriptedController` or `player_controller.gd` on
       `character/character_base.tscn` (controller-less). `TestSetup.vehicle(id, kind, pos, rotation := 0.0, props := {})` instances
       `res://scenes/vehicle/<kind>.tscn` under the world root after the bake (not carved) and waits one physics frame; `t.vehicle(id)` reads
-      it back (19); the puppet presses E with `use()` (the nearer of a door in reach and a vehicle), turns a door with `turn_door(steps)` (the wheel
-      with E held) and drives with `drive(throttle, steer, handbrake)`, writing `movement.move_input` / `movement.run_input` as the
+      it back (19); the puppet presses Space with `use()` (what is nearest its aim: a chair, a door in reach or a vehicle), turns a door with `turn_door(steps)` (the wheel
+      with Space held) and drives with `drive(throttle, steer, handbrake)`, writing `movement.move_input` / `movement.run_input` as the
       player's keys do.
     - **Doors:** a hand-laid layout's doorway may declare `door: { material, style, hinge, swing_into, angle?, name? }`; the layout builder
       builds it with `WorldGen.door_definition` and `DoorFactory.spawn` (1, 2, 24) and `t.object(name)` finds it. A generated house is
@@ -32,6 +32,7 @@
       REPLAY mode, which `TestVonGate.mode_for` picks from the run flags (`--record-von`: RECORD, `--include-von` / `--require-von`: LIVE;
       a `live_only` test: no stub); the session's `von` part drives `DecisionServerLauncher` where a run needs the real server;
       `DecisionBudget.per_frame` (work units a frame's decisions may spend, default 4: a unit is about a millisecond, a decision lands over two to three frames; a test that needs one to run whole in a frame sets the pool to 1 and every `cost_*` but `cost_start` to 0, `tests/_ai/job_fakes.gd` `whole_prices()`), its `cost_*` piece prices (`cost_throw_block` / `cost_throw_rank` / `cost_throw_route` price the throw piece's steps, `throw_block` the raw candidates a block step works through; `cost_group_unit` / `cost_group_finish` the group and grenade pieces' steps) are set the same way (at most one decision begins in a frame whatever `per_frame` is, `decision_roster.gd`); a native suite steps the decision job (`decision/decision_job.gd`, the controller's `_job`, a preloaded part with no `class_name`) by `DecisionBudget.frame_source`, ending with `DecisionBudget.reset()` (which also forgets the jobs in flight). `DecisionBudget.Roster.claims()` counts the decisions that have begun (a perf test's worst-frames report reads its rise).
+    - **The picture:** the in-game runner and a `--shots` run show a test world by Main's 3D view (27; `TestSession.picture`), a test that builds its own declares `TestSetup.own_picture()`; a headless world builds no 3D view.
     - **Runner:** `TestSetup.lock_interaction` (`camera` / `pause` / `overlays`) shuts out user input a test would trip over; the test
       sends its own through `TestContext.inject`, which the lock lets through. The runner builds the UI's `PerformanceOverlay` for the
       bar's `PERF` toggle and hands every other toggle to the world's `set_overlay`, which routes by the match's one rule
@@ -42,8 +43,7 @@
     - **Pointer:** `Pointer.inject(screen)` (26) stands a screen point in for the mouse wherever its position is polled (the player's aim,
       the camera's look-ahead, the command menu's non-mouse fallback) until `Pointer.release()`, and never warps the real mouse; the test
       re-injects each frame to hold a world point under the pointer while the camera eases. `TestWorld.restore` releases it after each test.
-    - **Sandboxes** (`sandboxes/`) may draw through Art (12: their own painter on `PixelCanvas`, rendered by `PixelArt.render` /
-      `render_turned`) and render a sound with `SoundBank.recipe_for(profile)` / `SoundSynth.render(recipe, seed_value) ->
+    - **Sandboxes** (`sandboxes/`) may draw through Art (12: their own painter on `PixelCanvas`, rendered by `PixelArt.render_flat`) and render a sound with `SoundBank.recipe_for(profile)` / `SoundSynth.render(recipe, seed_value) ->
       AudioStreamWAV`, played on their own `AudioStreamPlayer2D`; the `Sound` service hears nothing of it (16).
     - **Main ↔ Testing:** Main reaches Testing only by changing scene to `testing/test_browser.tscn`; the browser's Back changes scene
       back to `main.tscn`. Beyond that Testing knows only the match builder (23). The UI widgets it shows (`test_browser_window.gd`,

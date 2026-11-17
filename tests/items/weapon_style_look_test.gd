@@ -1,32 +1,27 @@
 extends GameTest
-## R3 (ticket #61, weapon style follows the wielder): a gun or grenade is drawn in its weapon style
-## (`ItemArt.style`: `police` issue, taped `scrap` or `pipe`), and an item never given one is drawn
+## R3 (ticket #61, weapon style follows the wielder): a gun or grenade is shown in its weapon style
+## (`ItemArt.style`: `police` issue, taped `scrap` or `pipe`), and an item never given one is shown
 ## as `police`. For each gun (pistol, SMG, rifle) and grenade (frag, stun), one item per style and
-## one never given a style, each drawn on its own probe in the same frame by the same holder:
-## - two `police` items of a kind draw alike (the comparison's premise: the same look paints the
-##   same textures);
-## - held (`draw_weapon`, in a still holder's hand) and lying with either side up (`draw_dropped`,
-##   as a dropped gun lies and a grenade flies and rests), each style draws the item differently
-##   from every other style;
-## - the item never given a style has the style `police` and draws as the `police` one, held and
+## one never given a style, each read through the art the 3D render shows (the mesh and the flat
+## texture its `art` hands out, `tests/_items/weapon_style_probe.gd`):
+## - two `police` items of a kind look alike (the comparison's premise: the same look gives the
+##   same mesh and texture);
+## - held (`held_mesh`, `held_texture`) and lying with either side up (`dropped_mesh`,
+##   `dropped_texture`, as a dropped gun lies and a grenade flies and rests), each style looks
+##   different from every other style;
+## - the item never given a style has the style `police` and looks as the `police` one, held and
 ##   lying.
-## Read through `ItemArt.drawn_art()` (`tests/_items/weapon_style_probe.gd`).
 
 const StyleProbe := preload("res://tests/_items/weapon_style_probe.gd")
-const HOLDER_AT := Vector2(400, 250)
-## The holder aims straight down from where it stands, so its weapon facing is steady.
-const AIM_AHEAD := Vector2(0, 650)
-## The angle every lying item is drawn along.
-const LYING_ANGLE := 0.4
-## The drawings compared for each item: held, and lying with each side up.
+## The looks compared for each item: held, and lying with each side up.
 const VIEWS := [&"held", &"lying", &"lying_flipped"]
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "A weapon style changes how a gun or grenade is drawn",
-		"description": "Each gun and grenade draws differently in police, scrap and pipe, held and "
-			+ "lying either side up; an item with no style draws as police.",
+		"name": "A weapon style changes how a gun or grenade looks",
+		"description": "Each gun and grenade looks different in police, scrap and pipe, held and "
+			+ "lying either side up; an item with no style looks as police.",
 		"tags": ["style", "item", "gun", "grenade", "art"],
 		"timeout": 8.0,
 	}
@@ -35,51 +30,29 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
 	s.switch(&"nav.rebake", false)
-	# Held still, so every held drawing is lit for the same angle.
-	s.set_static(CharacterPoseHeadConfig, &"breath", 0.0)
-	s.set_static(CharacterPoseHeadConfig, &"glance", 0.0)
-	# Bare-handed: the holder's own drawing holds no item; the probes draw the items in its hand.
-	s.actor(
-		&"holder",
-		&"puppet",
-		HOLDER_AT,
-		{ "start_slot": 1, "facing": Vector2.DOWN, "movement:aim_point": HOLDER_AT + AIM_AHEAD },
-	)
-	s.camera_follow([&"holder"])
 
 
 func run(t: TestContext) -> void:
-	var holder := t.actor(&"holder")
-	t.puppet(&"holder").aim_at(HOLDER_AT + AIM_AHEAD)
-	await t.seconds(0.5)
-
 	var kinds := {}  # name -> slot
 	kinds.merge(StyleProbe.GUNS)
 	kinds.merge(StyleProbe.GRENADES)
-	# name -> style (&"" = never given one, &"twin" = a second police item) -> view -> probe
-	var probes := {}
 	var styles: Array = StyleProbe.STYLES + [&"", &"twin"]
 	for kind: StringName in kinds:
-		probes[kind] = {}
+		var seen := {}  # style -> view -> set
 		for style: StringName in styles:
-			probes[kind][style] = _lay_views(t, kind, kinds[kind], style, holder)
-	await t.frames(2)
-
-	for kind: StringName in kinds:
-		var drawn := _drawn_views(t, kind, probes[kind], styles)
+			seen[style] = _looks(t, kind, kinds[kind], style)
+			for view: StringName in VIEWS:
+				t.check(
+					not seen[style][view].is_empty(),
+					"the %s (%s) shows something %s" % [kind, _name(style), view],
+				)
 		for view: StringName in VIEWS:
-			_check_view(t, kind, view, drawn)
+			_check_view(t, kind, view, seen)
 
 
-## The probes of one `kind` item (inventory `slot`) in `style` (`&"twin"` = a second police item),
-## view -> probe: held in `holder`'s hand and lying either side up.
-func _lay_views(
-	t: TestContext,
-	kind: StringName,
-	slot: int,
-	style: StringName,
-	holder: Node,
-) -> Dictionary:
+## What one `kind` item (inventory `slot`) in `style` (`&"twin"` = a second police item) shows, view
+## -> set of instance ids: held, and lying either side up.
+func _looks(t: TestContext, kind: StringName, slot: int, style: StringName) -> Dictionary:
 	var as_style := StyleProbe.DEFAULT_STYLE if style == &"twin" else style
 	var item := StyleProbe.make(slot, as_style)
 	if style == &"":
@@ -89,49 +62,17 @@ func _lay_views(
 			"a %s never given a style has the style police (ItemArt.style)" % kind,
 		)
 	return {
-		&"held": StyleProbe.held_probe(t, item, HOLDER_AT, holder),
-		&"lying": StyleProbe.lying_probe(
-			t,
-			StyleProbe.make(slot, as_style),
-			HOLDER_AT,
-			LYING_ANGLE,
-			{ "flip": false },
-		),
-		&"lying_flipped": StyleProbe.lying_probe(
-			t,
-			StyleProbe.make(slot, as_style),
-			HOLDER_AT,
-			LYING_ANGLE,
-			{ "flip": true },
-		),
+		&"held": StyleProbe.held(item),
+		&"lying": StyleProbe.lying(item, false),
+		&"lying_flipped": StyleProbe.lying(item, true),
 	}
 
 
-## What each of `kind`'s `probes` (style -> view -> probe) drew, style -> view -> set, each
-## checked drawn.
-func _drawn_views(
-	t: TestContext,
-	kind: StringName,
-	probes: Dictionary,
-	styles: Array,
-) -> Dictionary:
-	var drawn := {}
-	for style: StringName in styles:
-		drawn[style] = {}
-		for view: StringName in VIEWS:
-			drawn[style][view] = StyleProbe.drawn(probes[style][view].item)
-			t.check(
-				not drawn[style][view].is_empty(),
-				"the %s (%s) is drawn %s" % [kind, _name(style), view],
-			)
-	return drawn
-
-
-## Check `kind`'s drawings (`drawn`, style -> view -> set) in `view`: two police items alike (the
+## Check `kind`'s looks (`drawn`, style -> view -> set) in `view`: two police items alike (the
 ## premise), every style apart from every other, the one never given a style as police.
 func _check_view(t: TestContext, kind: StringName, view: StringName, drawn: Dictionary) -> void:
 	if not t.check(drawn[&"twin"][view] == drawn[&"police"][view],
-			"two police %ss draw alike %s (the comparison's premise)" % [kind, view]):
+			"two police %ss look alike %s (the comparison's premise)" % [kind, view]):
 		return
 	for i in StyleProbe.STYLES.size():
 		for j in range(i + 1, StyleProbe.STYLES.size()):
@@ -139,11 +80,11 @@ func _check_view(t: TestContext, kind: StringName, view: StringName, drawn: Dict
 			var b := StyleProbe.STYLES[j]
 			t.check(
 				drawn[a][view] != drawn[b][view],
-				"%s, a %s %s and a %s %s are drawn differently" % [view, a, kind, b, kind],
+				"%s, a %s %s and a %s %s look different" % [view, a, kind, b, kind],
 			)
 	t.check(
 		drawn[&""][view] == drawn[&"police"][view],
-		"%s, a %s never given a style draws as a police one" % [view, kind],
+		"%s, a %s never given a style looks like a police one" % [view, kind],
 	)
 
 

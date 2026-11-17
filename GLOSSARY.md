@@ -334,6 +334,61 @@ The part of the world the view cone shows live this frame (the cone last publish
 nothing would show it.
 _Avoid_: visible region, culled
 
+### The 3D render
+
+**3D render**:
+How every match is drawn: the near top-down view that mirrors the 2D sim, 80 degrees, wearing the 2D painters' flat art (there is no 2D render and no render mode: it was deleted, ADR 0013). The 2D world is
+hidden and never drawn; a test world is shown by the same view in a window.
+_Avoid_: render mode, view mode, graphics setting, 2D render
+
+**3D mirror**:
+The registry (`WorldMirror`, Art) that follows every drawn 2D body in a 3D world each frame, so the 3D view shows what the sim does
+without simulating it: 2D `(x, y)` becomes 3D `(x, 0, y)` at the one scale `RenderConfig.unit`, and height is visual only.
+_Avoid_: 3D world (the sim is still 2D), scene graph copy
+
+**Proxy**:
+The coloured box, cylinder or capsule the 3D mirror shows a collision shape as, sized from the shape (walls full height, floors flat),
+until a domain's own mesh replaces it through the mirror's hook.
+_Avoid_: placeholder, stand-in
+
+**Mesh kit**:
+Art's code-built low-poly solids (`MeshKit`: box, wedge, cylinder, sphere, capsule, cone, extrude, loft, revolve, and `pose` to turn and place a solid), their cache (`MeshCache`: the same inputs, the same `Mesh`) and node helpers (`MeshNodes`: the
+shared toon material, a decal), in the art's px so a builder never multiplies by `RenderConfig.unit`. Each domain builds the meshes of its own things from it, beside its painters.
+_Avoid_: model, asset (no model files are imported)
+
+**Mesh hook**:
+The mirror's `builders`, a key (a body kind, or a finer key for one `ObjectArt` id) to the domain's function that builds a body's mesh; with `track` / `track_group` for drawn things that are no physics body. A mesh node may update itself (`mirror_update`), be rebuilt (`remirror`) and decide its death (`on_body_died`).
+A body no builder answers keeps its proxy.
+_Avoid_: plugin, mesh registry
+
+**Pixel post**:
+What makes the 3D picture read as pixel art (`PixelPostConfig`, Art): the scene is drawn at a low internal resolution (a picture pixel is one art pixel,
+`round(zoom)` screen pixels wide, `RenderConfig.texel_match`; at most `max_lines` rows) and shown with nearest filtering, through one toon material that steps
+the light into bands of `ArtSurfaceConfig`'s tones and an outline pass under the camera.
+_Avoid_: shader (it is the material, the outline and the resolution together), filter
+
+**Flat paint**:
+A painter's own art with no light baked in (`PixelArt.render_flat`, Art): what the 3D meshes wear, so the toon bands shade it and the picture is the 2D art, not a second look.
+_Avoid_: albedo render, unlit paint
+
+**Textured toon**:
+The toon material of a mesh that wears flat paint (`MeshNodes.textured`, `toon_tex.gdshader`): the art projected straight down onto the top faces, the art's edge texels on the sides, one material per texture.
+_Avoid_: texture mapping, UVs (the art is projected, no mesh carries UVs)
+
+**Quarter turn**:
+What Q and E do in the 3D render: the camera yaw steps 90 degrees, eased, and rests only at north, east, south or west (`CameraRig.turning()`). The map spins; north is up at rest.
+_Avoid_: rotate, orbit
+
+**Ground plane**:
+The flat 3D plane the 2D world lies on (`y = 0`); a 2D point is a point on it, and the 2D overlays (the view cone, debug markings) are
+drawn on it.
+_Avoid_: floor (a room's `Floor` object), map
+
+**Ground layer**:
+The `CanvasLayer` (`GroundLayer`) a 2D debug overlay is moved under in the 3D render (one shared layer for all the match's debug overlays), so it draws over the 3D view
+flat on the ground plane: its transform is the 3D camera's ground-to-screen affine, so it lies on the floor at any yaw.
+_Avoid_: overlay canvas, HUD layer
+
 ### Lint
 
 **Lint rule**:

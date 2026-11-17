@@ -585,7 +585,6 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	nav_updater.name = "NavUpdater"
 	world.add_child(nav_updater)
 	nav_updater.setup(nav_region, root, site_rooms, nav_debug)
-	WorldLighting.light(world, int(match_spec["seed"]), site_rooms)
 	if bool(match_spec["wait_nav"]):
 		await _wait_nav(world)
 		if not is_instance_valid(world):
@@ -594,6 +593,7 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 		"world": world,
 		"house": house,
 		"rooms": house_rooms,
+		"site_rooms": site_rooms,
 		"openings": WorldGen.get_openings(house),
 		"nav_debug": nav_debug,
 	}

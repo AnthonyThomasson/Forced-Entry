@@ -130,9 +130,9 @@ func _lifted_with_a_job() -> void:
 	)
 
 
-## Whether a disc or a box at `at` reaches the area the view shows live.
+## Whether a disc at `at` reaches the area the view shows live.
 func _reached(at: Vector2) -> bool:
-	return Probe.reached_by(at).has(true)
+	return Probe.reached_by(at)
 
 
 ## Kills `who` from its own physics frame, ahead of the view's (priority 100), once.

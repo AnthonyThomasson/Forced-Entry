@@ -16,6 +16,7 @@ const PlayerController := preload("res://scenes/character/player_controller.gd")
 const LayoutBuilder := preload("res://scenes/testing/layout_builder.gd")
 const SetupMenu := preload("res://scenes/ui/menus/setup_menu.gd")
 const MatchHud := preload("res://scenes/ui/hud/match_hud.gd")
+const LIVE_SETTINGS_PATH := "user://settings.json"
 const PLAYER_SCENE := "res://scenes/character/character_base.tscn"
 
 
@@ -41,6 +42,13 @@ static func viewport(t: TestContext) -> SubViewport:
 static func open(
 		parent: Node, exports: Dictionary = {}, player_at := Vector2.ZERO, hud := false,
 ) -> Node2D:
+	# Main loads the settings in its `_ready`: on the live file it would read the developer's own
+	# choices. The runner points `Settings.path` at a scratch file; a test that overrides it back
+	# to the live one is a mistake, loud here.
+	if Settings.path == LIVE_SETTINGS_PATH:
+		push_error(
+			"MainProbe.open: Settings.path is the live %s; pin a scratch file" % LIVE_SETTINGS_PATH
+		)
 	var main: Node2D = MainScript.new()
 	main.name = "Main"
 	main.run.set("debug_overlays", false)

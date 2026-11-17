@@ -15,6 +15,11 @@ var base := Color.WHITE
 var kind: StringName = &""
 var row: Dictionary = {}
 var look: Dictionary = {}
+## Whether this is the flat (albedo) paint of the 3D render (`PixelArt.render_flat`: the canvas has
+## no light). A tone a painter picks by hand to stand for light, a lit rim or a ring drawn round a
+## raised part, would be baked into the texture and doubled by the 3D lights and the post's
+## outline, so a painter draws `lit` instead and skips `ring` while flat.
+var flat := false
 
 
 func _init(on: PixelCanvas, paint: Color, of_kind: StringName) -> void:
@@ -24,3 +29,16 @@ func _init(on: PixelCanvas, paint: Color, of_kind: StringName) -> void:
 	row = VehicleConfig.kinds[of_kind]
 	look = VehicleConfig.looks[of_kind]
 	k = Art.scale(on, (row["size"] as Vector2).x)
+	flat = on.light == Vector2.ZERO
+
+
+## `tone` (a hand-picked light or highlight tone) in the lit paint, `plain` (the base tone) in the
+## flat one, which carries no baked light.
+func lit(tone: Color, plain: Color) -> Color:
+	return plain if flat else tone
+
+
+## Whether a ring drawn round a raised part is wanted: not in the flat paint, where the 3D post
+## draws the part's own outline.
+func ring() -> bool:
+	return not flat

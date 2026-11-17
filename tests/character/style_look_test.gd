@@ -14,7 +14,7 @@ extends GameTest
 ## - the rank marks (`docs/outfits.md`, styles): in the plated kit a police unit's sergeant (rank 1,
 ##   chevrons) and lead (rank 2, the helmet stripe) each draw differently from a trooper (rank 0),
 ##   while a crew (`merc`, `borg`) draws the same at every rank.
-## The drawing is read through `Visuals.drawn_art()` (`OutfitProbe.art`).
+## The look is read off the character's 3D body (`OutfitProbe.art`).
 
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
 const STYLES: Array[StringName] = [&"zenitex", &"trauma", &"merc", &"borg"]
@@ -85,7 +85,7 @@ func run(t: TestContext) -> void:
 		return
 	if not t.require(
 			OutfitProbe.can_read_art(plain),
-			"Visuals.drawn_art() reads the textures the body's last draw painted",
+			"the character's 3D body can be read",
 	):
 		return
 	for id in STYLES + [&"plain"]:

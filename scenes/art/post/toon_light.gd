@@ -1,0 +1,212 @@
+class_name ToonLight
+extends RefCounted
+## Art domain, the pixel post (interface 27): the global shader uniforms the toon
+## shaders read for the dusk, so the Lighting domain sets the world's ambient, where the sky
+## reaches and which room each spot is in without touching a mesh or a material. Globals:
+## `dusk_ambient` (what every surface is lit by, a colour times its painted one), `dusk_cap` (the
+## most a surface may add up to), `sky_mask` / `sky_mask_xf` / `sky_masked` (a texture whose red
+## channel is where the sun reaches, 1 the street's floors, 0 a house; world `(x, z)` in 3D units to
+## its uv; `sky_masked` 0, the default: everywhere), and `room_mask` / `room_mask_xf` /
+## `room_masked` / `room_ground` (a texture of the room each spot is in, its id in the red and green
+## channels, 0 none; a room's light reaches only its own room's spots, `room_masked` 0, the default:
+## no clipping).
+##
+## They must be declared before a shader that names them compiles: `ToonMaterial` calls `install()`
+## with the vision hook's `ToonMask.install()`.
+
+const AMBIENT := &"dusk_ambient"
+const CAP := &"dusk_cap"
+const SKY_MASK := &"sky_mask"
+const SKY_TRANSFORM := &"sky_mask_xf"
+const SKY_MASKED := &"sky_masked"
+const ROOM_MASK := &"room_mask"
+const ROOM_TRANSFORM := &"room_mask_xf"
+const ROOM_MASKED := &"room_masked"
+const ROOM_GROUND := &"room_ground"
+## `specular`'s packing (`toon_common.gdshaderinc` reads it back): a code (a room and a street flag)
+## has `CODE_SPAN` values, the ratio's `RATIO_STEPS` per unit up to `MAX_STEPS`, and the height's
+## `MAX_CLASS` classes `HEIGHT_GROWTH` apart from `HEIGHT_FROM` (4 to 624 px: the packed light stays
+## under 2^22, where a float still holds the kind's quarter); the whole number stays exact in a
+## float. A ratio past `MAX_STEPS` sixteenths (3.9) is cut, and then a pool is smaller than it
+## should be.
+const CODE_SPAN := 1024
+const RATIO_STEPS := 16.0
+const MAX_STEPS := 63
+const STEP_SPAN := 64
+const HEIGHT_FROM := 4.0
+const HEIGHT_GROWTH := 1.4
+const MAX_CLASS := 15
+
+## Whether the globals are declared.
+static var _installed := false
+## What the globals were last set to, for a caller that reads them back (the headless renderer
+## keeps none).
+static var _ambient := Color(0.0, 0.0, 0.0)
+static var _sky_rect := Rect2()
+static var _room_rect := Rect2()
+## The masks' texels, for `sky_reaches` and `room_at` (null: none set).
+static var _sky_image: Image
+static var _room_image: Image
+
+
+## Declare the globals with their defaults. Idempotent.
+static func install() -> void:
+	if _installed:
+		return
+	_installed = true
+	if Engine.is_editor_hint() and RenderingServer.global_shader_parameter_get_list().has(AMBIENT):
+		return
+	var white := Image.create(1, 1, false, Image.FORMAT_L8)
+	white.fill(Color.WHITE)
+	var none := Image.create(1, 1, false, Image.FORMAT_RG8)
+	var grey := ToonLightConfig.default_ambient
+	_ambient = grey
+	_add(AMBIENT, RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3(grey.r, grey.g, grey.b))
+	_add(CAP, RenderingServer.GLOBAL_VAR_TYPE_FLOAT, ToonLightConfig.cap)
+	_add(SKY_MASK, RenderingServer.GLOBAL_VAR_TYPE_SAMPLER2D, ImageTexture.create_from_image(white))
+	_add(SKY_TRANSFORM, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
+	_add(SKY_MASKED, RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)
+	_add(ROOM_MASK, RenderingServer.GLOBAL_VAR_TYPE_SAMPLER2D, ImageTexture.create_from_image(none))
+	_add(ROOM_TRANSFORM, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
+	_add(ROOM_MASKED, RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)
+	_add(ROOM_GROUND, RenderingServer.GLOBAL_VAR_TYPE_FLOAT, ToonLightConfig.ground_y)
+
+
+## What a positional light's `light_specular` must be for the toon light (the toon has no specular,
+## so it carries the light's code to `light()`): `SPECULAR_AMOUNT`, twice it, is
+## `slope + kind / 4 + 4 * (code + 1024 * (steps + 64 * height_class))`. `slope` 1 or 2 is how flat
+## the pool is, `kind` 0 a lamp, 1 a tinted flash, 2 a white-out, `code` the room id times two plus
+## one for a street light (`toon_reach`, under `CODE_SPAN`), `steps` the light's `height` over
+## `rim`, the ground reach of its pool, in sixteenths, and `height_class` the height itself in
+## 1.4-fold steps from 4. The shader gives the pool its shape on the floor from them, whatever
+## height the light hangs or casts shadows from, and lights a surface above the floor by the pool at
+## its own ground point. `height` and `rim` are in 3D units.
+static func specular(slope: float, kind: int, code: int, height: float, rim: float) -> float:
+	if code < 0 or code >= CODE_SPAN:
+		push_error("ToonLight.specular: room code %d is past the %d there are" % [code, CODE_SPAN])
+		code = clampi(code, 0, CODE_SPAN - 1)
+	var steps := clampi(roundi(height / maxf(rim, 0.001) * RATIO_STEPS), 0, MAX_STEPS)
+	var high := clampi(
+		roundi(log(maxf(height, HEIGHT_FROM) / HEIGHT_FROM) / log(HEIGHT_GROWTH)), 0, MAX_CLASS
+	)
+	var whole := code + CODE_SPAN * (steps + STEP_SPAN * high)
+	return (slope + float(kind) * 0.25 + 4.0 * float(whole)) * 0.5
+
+
+## Light every surface by `colour` (its colour times the painted one) and let it add up to
+## `ToonLightConfig.cap`. `colour` is what 2D multiplies the art by (sRGB; `shader_ambient`), times
+## `gain`: a world lit flat (white, as painted) passes 1.
+static func set_ambient(colour: Color, gain := ToonLightConfig.ambient_gain) -> void:
+	install()
+	RenderingServer.global_shader_parameter_set(AMBIENT, _vector(colour, gain))
+	RenderingServer.global_shader_parameter_set(CAP, ToonLightConfig.cap)
+	_ambient = colour
+
+
+## The sun reaches only where `image`'s red channel is 1: `world_rect` (2D px) is the part of the
+## world the image covers edge to edge (beyond it, no sun).
+static func set_sky(image: Image, world_rect: Rect2) -> void:
+	install()
+	var xf := _transform(world_rect)
+	RenderingServer.global_shader_parameter_set(SKY_MASK, ImageTexture.create_from_image(image))
+	RenderingServer.global_shader_parameter_set(SKY_TRANSFORM, xf)
+	RenderingServer.global_shader_parameter_set(SKY_MASKED, 1.0)
+	_sky_rect = world_rect
+	_sky_image = image
+
+
+## A room's light reaches only the spots of its own room (and walls, `ToonLightConfig.ground_y`):
+## `image` holds the room id of each texel (red the low byte, green the high, 0 none), covering
+## `world_rect` (2D px) edge to edge.
+static func set_rooms(image: Image, world_rect: Rect2) -> void:
+	install()
+	var xf := _transform(world_rect)
+	RenderingServer.global_shader_parameter_set(ROOM_MASK, ImageTexture.create_from_image(image))
+	RenderingServer.global_shader_parameter_set(ROOM_TRANSFORM, xf)
+	RenderingServer.global_shader_parameter_set(
+		ROOM_GROUND, ToonLightConfig.ground_y * RenderConfig.unit
+	)
+	RenderingServer.global_shader_parameter_set(ROOM_MASKED, 1.0)
+	_room_rect = world_rect
+	_room_image = image
+
+
+## Back to the defaults: the default ambient (as the shader multiplies it, not converted: a world
+## with no Lighting is as bright as it always was), the sun everywhere, no room clipping.
+static func clear() -> void:
+	install()
+	var grey := ToonLightConfig.default_ambient
+	RenderingServer.global_shader_parameter_set(AMBIENT, Vector3(grey.r, grey.g, grey.b))
+	RenderingServer.global_shader_parameter_set(SKY_MASKED, 0.0)
+	RenderingServer.global_shader_parameter_set(ROOM_MASKED, 0.0)
+	_ambient = grey
+	_sky_rect = Rect2()
+	_sky_image = null
+	_room_rect = Rect2()
+	_room_image = null
+
+
+## The ambient last set (the default after `clear`).
+static func ambient() -> Color:
+	return _ambient
+
+
+## The world rect (2D px) of the sky mask last set, empty when none is.
+static func sky_rect() -> Rect2:
+	return _sky_rect
+
+
+## Whether the sun reaches world point `at` (2D px): true while no sky mask is set.
+static func sky_reaches(at: Vector2) -> bool:
+	if _sky_image == null:
+		return true
+	var spot := _texel(_sky_image, _sky_rect, at)
+	return spot.x >= 0 and _sky_image.get_pixel(spot.x, spot.y).r > 0.5
+
+
+## The id of the room world point `at` (2D px) is in (0: none, or no room map set).
+static func room_at(at: Vector2) -> int:
+	if _room_image == null:
+		return 0
+	var spot := _texel(_room_image, _room_rect, at)
+	if spot.x < 0:
+		return 0
+	var c := _room_image.get_pixel(spot.x, spot.y)
+	return roundi(c.r * 255.0) + roundi(c.g * 255.0) * 256
+
+
+## The ambient `colour` as the shader multiplies it: 2D multiplies the art by the dusk's colour as
+## the screen shows it (sRGB), and the 3D light is added in linear, so the colour is taken to linear
+## (a product of two sRGB colours is, near enough, the product of their linear ones), times `gain`.
+static func shader_ambient(colour: Color, gain := 1.0) -> Color:
+	var lin := colour.srgb_to_linear()
+	return Color(lin.r * gain, lin.g * gain, lin.b * gain)
+
+
+## `shader_ambient` as the global's vector.
+static func _vector(colour: Color, gain := 1.0) -> Vector3:
+	var lin := shader_ambient(colour, gain)
+	return Vector3(lin.r, lin.g, lin.b)
+
+
+## The global `name` of `type` set to `value`.
+static func _add(name: StringName, type: int, value: Variant) -> void:
+	RenderingServer.global_shader_parameter_add(name, type, value)
+
+
+## `world_rect` (2D px) as the shader's `(scale, offset)` from world `(x, z)` to uv.
+static func _transform(world_rect: Rect2) -> Vector4:
+	var size := world_rect.size * RenderConfig.unit
+	var scale := Vector2(1.0 / maxf(size.x, 0.0001), 1.0 / maxf(size.y, 0.0001))
+	var offset := -world_rect.position * RenderConfig.unit * scale
+	return Vector4(scale.x, scale.y, offset.x, offset.y)
+
+
+## The texel of `image` (covering `rect` edge to edge) at `at`; `(-1, -1)` beyond it.
+static func _texel(image: Image, rect: Rect2, at: Vector2) -> Vector2i:
+	var size := image.get_size()
+	var cell := rect.size / Vector2(size)
+	var uv := ((at - rect.position) / cell).floor()
+	if uv.x < 0.0 or uv.y < 0.0 or uv.x >= size.x or uv.y >= size.y:
+		return Vector2i(-1, -1)
+	return Vector2i(uv)

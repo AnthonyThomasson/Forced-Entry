@@ -7,19 +7,18 @@ painter (the id list lives there). A painter serving several pieces reads `kind`
 
 ## `object_art.gd` (`ObjectArt`), the registry
 
-`texture` renders through `PixelArt.render` (cardinal facing; the finish rides in `opts.material`, as `tile`'s `material`
-argument); `tile` renders at the painter's own `tile_size(opts)` (floors); `emissive` / `tile_emissive`; `groove` / `porous` (a
+`flat` / `flat_facing` render through `PixelArt.render_flat` (canonical; the finish rides in `opts.material`, as `tile_flat`'s
+`material` argument; `flat_facing` for a decal that lies facing a way); `tile_flat` renders at the painter's own `tile_size(opts)` (floors); `flat_request` / `tile_flat_request` (the pre-warm); `groove` / `porous` (a
 tiling painter's blood grooves and soak); `light_kind` (which variant of a painter gives light: the one rule `ObjectLights` and
 `neon_for` read); `neon_for`; `drawn_color`. `BY_KIND` lists the painters whose neon share is the kind's, not the painter's.
 
 ## The look: run-down, rust and grime, with a share of neon
 
-One look for every piece; there is no style switch.
+One look for every piece.
 
-- **The palette grade** (`decay.gd` `grade`, `ObjectArtDecayConfig.grade_*`): `ObjectArt.texture` / `tile` wash every painter's
-  colour toward dun, rust and nicotine yellow, so World-Gen's catalogue keeps plain colours ("walnut", "navy") and the house
-  still draws run down. `ObjectArt.AS_GIVEN` painters (`wear`, `street`, `decor` and the district's `awning`, `stencil`, `crossing`, `road_glyph`, `podium`,
-  `shadow`, `shell_decor`) take their colours as given. A piece's and
+- **The palette grade** (`decay.gd` `grade`, `ObjectArtDecayConfig.grade_*`): `ObjectArt.flat` / `tile_flat` wash every painter's
+  colour toward dun, rust and nicotine yellow, so World-Gen's catalogue keeps plain colours and the house still draws run down. `ObjectArt.AS_GIVEN` painters (`wear`, `street`, `decor` and the district's `awning`, `stencil`, `crossing`, `road_glyph`, `podium`,
+  `shell_decor`) take their colours as given. A piece's and
   wall's `get_surface().color` (debris) is the drawn colour (`ObjectArt.drawn_color`).
 - **The finish** (`decay.gd`): each painter draws its shape, then its finish through the shared helpers (grime, stains, tears,
   rust, stickers, cracks, screens). Several painters share one: `SofaPainter.upholstery` (also the office chair),
@@ -32,8 +31,8 @@ One look for every piece; there is no style switch.
   (`decay.gd` `neon_ring`) reads the canvas's `coverage()` bytes, pinned to the plain scan by
   `tests/objects/neon_ring_matches_plain_scan_test.gd`.
 - **No light is baked in** (no glow pools, sheen, halos): what gives light is drawn bright inside `canvas.glowing(draw, area)`
-  (interface 12): a bare bulb, a CRT's screen, a monitor's lit edge (`props.gd`), a display, every neon trim. The visuals' emissive
-  overlay then draws those pixels unshaded (`SKILL.md`, "Lights and shadows").
+  (interface 12): a bare bulb, a CRT's screen, a monitor's lit edge (`props.gd`), a display, every neon trim. The piece's 3D mesh
+  then shows those pixels as an emissive part (`SKILL.md`, "Lights").
 
 ## Painter conventions
 
@@ -51,7 +50,7 @@ One look for every piece; there is no style switch.
 `ObjectArtTableConfig` (tables, chairs), `ObjectArtFabricConfig` (sofa, bed, rug), `ObjectArtStorageConfig` (cabinet, shelf),
 `ObjectArtKitchenBathConfig`, `ObjectArtDecorConfig` (plant, lamp, mirror frame, the prop palette), `ObjectArtOutdoorConfig` (the
 beater car, the street lamp), `ObjectArtClinicConfig`, `ObjectArtTechConfig`, `ObjectArtLightConfig` (the light `specs`, the
-screens' glow, the neon pair and share), `ObjectArtLayerConfig` (the floor, rug and overhang z-indices), `ObjectArtFloorConfig` and
+screens' glow, the neon pair and share), `ObjectArtFloorConfig` and
 `ObjectArtWallConfig` (the tiles), `ObjectArtDecayConfig` (grade and grime), `ObjectArtWearConfig`, `ObjectArtStreetConfig`, and the district's (below). The
 shared light and shadows are `ArtCanvasConfig`, the tones and finishes `ArtSurfaceConfig`.
 
@@ -71,7 +70,7 @@ The tower's and the district's pieces, in the grimy steel family, each `kind` a 
 | `shop`, `noodle`, `stock` | counter, aisle, fridge, snack; bar, stool, booth, menu; crates, pallet, safe | `ObjectArtShopConfig` (`shop_*`, `noodle_*`, `stock_*`) |
 | `awning` | `awning` (striped cloth, neon edge), `hanging` (vertical glyph sign): only as an `overhang` | `ObjectArtAwningConfig` |
 | `street_prop` | vending, bench, bin, grate, litter | `ObjectArtStreetPropConfig` |
-| `podium`, `shadow` | a concrete band segment with pillars; a tower's shadow (`DecalFactory`) | `ObjectArtPodiumConfig` (`podium_*`, `shadow_*`) |
+| `podium` | a concrete band segment with pillars | `ObjectArtPodiumConfig` (`podium_*`) |
 | `shell_decor` | rebar, rubble, scaffold, cement, stain | `ObjectArtShellDecorConfig` |
 | `stencil` | the floor text in a hazard border (`DecalFactory`) | `ObjectArtStencilConfig` |
 | `crossing`, `road_glyph` | a junction arm's zebra and stop line; a lane number and arrow (`street_marks.gd`) | `ObjectArtCrossingConfig`, `ObjectArtRoadGlyphConfig` |
@@ -85,3 +84,12 @@ and `menu_board` in `ObjectArtLightConfig.specs`).
 Write `<name>_painter.gd` (its shape, then its run-down finish from `decay.gd`, anything that gives light inside `canvas.glowing`),
 register it in `ObjectArt.PAINTERS`, add its knobs to the `ObjectArt*Config` of its topic (or a new holder), set `"art": "<name>"`
 on the catalogue definitions, and for a light-giving painter add its `ObjectArtLightConfig.specs` row (`domain-lighting`).
+
+## The 3D meshes (`object_meshes.gd`, `table_mesh.gd`, `object_mesh_config.gd`)
+
+In the 3D render a piece is shown by a mesh built from Art's mesh kit (`domain-art/meshes.md`) beside its painter: `ObjectMeshes.BUILDERS` maps an `ObjectArt` id to
+`<name>_mesh.gd` (`static build(piece) -> Node3D`, 3D units, centred), and `ObjectMeshes.register(builders)` plugs them into the mirror under
+`MirrorProxy.furniture_key(art)` (Main's 3D view calls it). A piece whose art has no mesh stays a proxy box. `ObjectMeshConfig` holds the heights (px): the table's
+`table_*` (30 tall, 22 for a small footprint, `art_opts.height` wins); a table is built like every furniture mesh, through `FurnitureSpec` and `FurnitureRig` (`table_mesh_test.gd`); the domestic kinds: `meshes.md`.
+
+Walls, doors, floors, street meshes: `structure-meshes.md`.

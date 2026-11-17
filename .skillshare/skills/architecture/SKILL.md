@@ -5,7 +5,7 @@ description: Use before planning any change or exploring the code, and to find w
 
 # Forced-Entry architecture
 
-A top-down Godot 4.4 demo: a pixel-art character in a procedurally furnished house lit at dusk, plus AI defenders and invaders. The code is **seventeen isolated domains**, one folder each under `scenes/`. Keep a change inside its domain and cross a boundary only through an interface below. Inside a domain, also load its `domain-<name>` skill. `GLOSSARY.md` holds the terms.
+A top-down Godot 4.4 demo: a pixel-art character in a procedurally furnished house lit at dusk, plus AI defenders and invaders. The code is **seventeen isolated domains**, one folder each under `scenes/`. Keep a change inside its domain; cross a boundary only through an interface below. Inside a domain, also load its `domain-<name>` skill. `GLOSSARY.md` holds the terms.
 
 ## The seventeen domains
 
@@ -48,22 +48,23 @@ Everything not listed here is private to its domain. A signature lives only in i
 8. **Interaction ↔ Character & Objects.** Read for object interactions: `interfaces/08-interaction.md`
 9. **Main / Testing / AI → Navigation.** Read to bake, query or path the nav map: `interfaces/09-navigation.md`
 10. **Any domain ↔ General (`EventBus`).** Read to post or listen to an event and for every topic's payload: `interfaces/10-eventbus.md`
-11. **General → every domain: shared ids and rules.** Read for `PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `FillBatch`, `WeightedPick`, `MatchVerdict`: `interfaces/11-general-shared-ids-and-rules.md`
-12. **Objects / Character / Items / Vehicles / World Generation → Art.** Read to render pixel art or pre-warm the shared district textures: `interfaces/12-art.md`
+11. **General → every domain: shared ids and rules.** Read for `PhysicsLayers`, `GameClock`, `WeightedPick`, `MatchVerdict`: `interfaces/11-general-shared-ids-and-rules.md`
+12. **Objects / Character / Items / Vehicles / World Generation → Art.** Read to render pixel art, build 3D meshes or pre-warm district textures: `interfaces/12-art.md`
 13. **Testing → every domain.** Read for what a test world (house, arena or district) may build and call: `interfaces/13-testing.md`
 14. **Main → General settings, UI settings page.** Read for saved settings and key rebinding: `interfaces/14-settings.md`
 15. **Any domain → General (`GameLog`).** Read to print to the game's log: `interfaces/15-gamelog.md`
 16. **Objects → Audio: `SoundSurface`.** Read for what a floor tells Audio: `interfaces/16-soundsurface.md`
-17. **Main / Testing → AI team: the human's place in a stack.** Read for `PlayerStack` and the human on the entry radio: `interfaces/17-player-stack.md`
-18. **Main → Audio: `Sound.focus`, `Sound.warming()`.** Read for whose ears the player has and the sound pre-warm Main waits on: `interfaces/18-sound-focus.md`
+17. **Main / Testing → AI team: the human's place in a stack.** Read for `PlayerStack` and the human on the radio: `interfaces/17-player-stack.md`
+18. **Main → Audio: `Sound.focus`, `Sound.warming()`.** Read for whose ears the player has and the sound pre-warm: `interfaces/18-sound-focus.md`
 19. **Character ↔ Vehicle: the drivable contract.** Read for getting in, driving, and a vehicle striking a character: `interfaces/19-drivable-contract.md`
-20. **Main / Testing → Lighting; the world's lights and shadows.** Read to light the world or add a light or an occluder: `interfaces/20-lighting.md`
+20. **Main / Testing → Lighting; the world's lights and shadows.** Read to light the world or add a light: `interfaces/20-lighting.md`
 21. **Main / Testing → AI team: squads, leaders, orders.** Read for `Squad`, leaders, orders and following: `interfaces/21-squads.md`
 22. **Main → UI.** Read for how Main wires a HUD, the setup window or the overlay bar: `interfaces/22-main-to-ui.md`
 23. **Main / Testing → `MatchBuilder`.** Read to build a match or a test world: `interfaces/23-match-builder.md`
 24. **Objects' `Door` ↔ Character, AI, Testing: the door contract.** Read to open, turn, hit or walk through a house door: `interfaces/24-door-contract.md`
 25. **Main / Testing → Vision: the player's view.** Read to build or read a view: `interfaces/25-vision.md`
 26. **Any domain → General: `Pointer`.** Read to convert a screen point to a world point (and back), read the mouse's world point or the visible world rect, or inject a pointer in a test: `interfaces/26-pointer.md`
+27. **Main → Art: `WorldMirror`, and General's `CameraRig`: the 3D render.** Read for the 3D render, the 3D mirror of the 2D bodies (one scale, the update rule, the hook) and the camera rig that follows the `Camera2D`: `interfaces/27-render-3d.md`
 
 ## Dependency graph
 
@@ -71,19 +72,21 @@ An arrow is "code references" (class names or preloads). No cycles.
 
 ```
 main ──▶ worldgen, navigation, lighting, vision, ai, items, character, audio, ui   (a match is built by MatchBuilder)
+main ──(3D view: main_view3d.gd)──▶ art (WorldMirror), general (CameraRig, RenderConfig), objects, vehicle, character, items, projectile, physics (the *Meshes): mirrors 2D bodies, duck-typed (27)
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
-Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
-worldgen ──▶ objects (the six factories, `DecalFactory` among them, RoomWalls, WearPlan, `SharedTextures`, and `DoorConfig.open_angle`: 24), art (`PixelArt.warm`: 12)
-objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake leaves the group `doors` out but carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24)
+Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio)
+worldgen ──▶ objects (the six factories, RoomWalls, WearPlan, `SharedTextures`, `FurnitureArt`, and `DoorConfig.open_angle`: 24), art (`PixelArt.warm`: 12)
+objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24; a bed's mesh reads `use.active_interaction()`, duck-typed: 8)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
-items ──▶ projectile, art          projectile ──▶ physics          vehicle ──▶ physics, art
+items ──▶ projectile, art    projectile ──▶ physics, art    vehicle ──▶ physics, art    physics ──▶ art (12)
 ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement)   (and a house door, duck-typed: 24)
-ui ──▶ items, physics            (plain dicts in, signals out; never calls Main)
+ui ──▶ items, physics   (plain dicts in, signals out; never calls Main)
+art ──▶ general (RenderConfig, CameraRig)    lighting ──▶ art (3D: ToonLight, 20)    vision ──▶ art (ToonMask, 3D: 25)
 every domain ──▶ general
 ```
 
-- Which domains are leaves, which are reached duck-typed, what `EventBus` carries, and the AI's own seams: `dependency-notes.md`. A new edge, façade, contract method or signal goes into this graph or the interfaces (`audit` checks it).
+- Leaves, the duck-typed reaches, what `EventBus` carries and the AI's seams: `dependency-notes.md`. A new edge, façade, contract method or signal goes into this graph or the interfaces (`audit` checks it).
 
 ## Cross-cutting conventions
 

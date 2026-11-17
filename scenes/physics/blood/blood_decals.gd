@@ -1,15 +1,12 @@
 class_name BloodDecals
-extends "res://scenes/physics/chunked_layer.gd"
-## Physics System, blood: a layer of bloody footprints and smears under a world node, batching every
-## print (a polygon) and ribbon (a smear's feathered, varying-width trail) so thousands of marks
-## cost a few draw calls instead of thousands of nodes. Marks are grouped in `CHUNK`-px squares and
-## only the chunk that gained a mark (or whose ribbon grew) redraws (`chunked_layer.gd`). They dry
-## from `BloodConfig.color` to `dried_color` over `print_dry_time` (chunks holding wet marks redraw
-## at `DRY_REDRAW` Hz), and the oldest are dropped past `BloodConfig.print_max`. Kept off the shared
-## Despawner so a trail can't evict casings and splatters.
+extends "res://scenes/physics/mark_layer.gd"
+## Physics System, blood: a layer of bloody footprints and smears under a world node, holding every
+## print (a polygon) and ribbon (a smear's varying-width trail) as data so thousands of marks cost
+## no node each (`mark_layer.gd`). They dry from `BloodConfig.color` to `dried_color` over
+## `print_dry_time`, and the oldest are dropped past `BloodConfig.print_max`. Kept off the shared
+## Despawner so a trail can't evict casings and splatters. The 3D render lays each as it is made
+## (`PhysicsFxHook.print_made`, `ribbon_begun`, `ribbon_grew`).
 
-## Redraws per second of a chunk that still holds wet marks.
-const DRY_REDRAW := 2.0
 const NODE_NAME := "BloodDecals"
 
 
@@ -21,7 +18,7 @@ static func find(parent: Node) -> BloodDecals:
 ## The decal layer under `parent` (the node the marks' maker lives in, like a splatter's parent),
 ## made on first use. Each parent has its own layer, freed with it.
 static func layer(parent: Node) -> BloodDecals:
-	return _get_or_make(parent, NODE_NAME, BloodDecals, BloodConfig.print_z_index) as BloodDecals
+	return _get_or_make(parent, NODE_NAME, BloodDecals) as BloodDecals
 
 
 ## Add a filled polygon (world space) at `alpha` 0..1 of the blood colour.
@@ -32,13 +29,13 @@ func print_at(poly: PackedVector2Array, alpha: float) -> void:
 	_add(
 		{
 			"kind": "print",
-			"chunk": _chunk_cell(poly[0]),
 			"born": born,
 			"poly": poly,
 			"alpha": alpha,
 		},
 		BloodConfig.print_max,
 	)
+	PhysicsFxHook.print_made(poly, alpha)
 
 
 ## Start a smear ribbon at world `point`: `width` px across and `alpha` 0..1 there. Grow it with
@@ -46,11 +43,12 @@ func print_at(poly: PackedVector2Array, alpha: float) -> void:
 ## the mark.
 func ribbon_begin(point: Vector2, width: float, alpha: float) -> Dictionary:
 	var mark := {
-		"kind": "ribbon", "chunk": _chunk_cell(point), "born": Engine.get_physics_frames(),
+		"kind": "ribbon", "born": Engine.get_physics_frames(),
 		"alpha": 1.0, "points": PackedVector2Array([point]), "widths": PackedFloat32Array([width]),
 		"alphas": PackedFloat32Array([alpha]),
 	}
 	_add(mark, BloodConfig.print_max)
+	PhysicsFxHook.ribbon_begun(mark)
 	return mark
 
 
@@ -69,8 +67,7 @@ func ribbon_extend(mark: Dictionary, point: Vector2, width: float, alpha: float)
 	mark["points"] = points
 	mark["widths"] = widths
 	mark["alphas"] = alphas
-	if _chunks.has(mark["chunk"]):
-		(_chunks[mark["chunk"]] as Node).queue_redraw()
+	PhysicsFxHook.ribbon_grew(mark)
 
 
 ## Number of footprints held.
@@ -83,19 +80,6 @@ func ribbon_count() -> int:
 	return _count("ribbon")
 
 
-## The blood colour of mark `m` right now: dries toward dried_color, alpha scaled by the mark's own.
-func color_of(m: Dictionary) -> Color:
-	var seconds := BloodConfig.print_dry_time
-	var dried := 1.0
-	if seconds > 0.0:
-		var age := (float(Engine.get_physics_frames() - int(m["born"]))
-				/ float(Engine.physics_ticks_per_second))
-		dried = clampf(age / seconds, 0.0, 1.0)
-	var c: Color = BloodConfig.color.lerp(BloodConfig.dried_color, dried)
-	c.a *= float(m["alpha"])
-	return c
-
-
 ## How many held marks are of `kind` ("print" or "ribbon").
 func _count(kind: String) -> int:
 	var n := 0
@@ -103,104 +87,3 @@ func _count(kind: String) -> int:
 		if m["kind"] == kind:
 			n += 1
 	return n
-
-
-## A draw chunk for this layer's marks in `cell`.
-func _make_chunk(cell: Vector2i) -> Node2D:
-	var node := DecalChunk.new()
-	node.owner_layer = self
-	node.cell = cell
-	return node
-
-
-## One chunk: draws the layer's marks that fall in its cell.
-class DecalChunk:
-	extends Node2D
-
-	var owner_layer: BloodDecals
-	var cell := Vector2i.ZERO
-	var _since_redraw := 0.0
-
-	func _process(delta: float) -> void:
-		# Only wet marks change on their own (drying); a chunk of dry marks has nothing to redraw.
-		_since_redraw += delta
-		if _since_redraw >= 1.0 / BloodDecals.DRY_REDRAW and _has_drying():
-			_since_redraw = 0.0
-			queue_redraw()
-
-	func _draw() -> void:
-		draw_set_transform_matrix(global_transform.affine_inverse())  # marks are in world space
-		# Runs of prints in one command (General's FillBatch), in order: a ribbon flushes them.
-		var soles := FillBatch.new(self)
-		for m in owner_layer.marks_in(cell):
-			var color := owner_layer.color_of(m)
-			if m["kind"] == "print":
-				soles.fill(m["poly"], color)
-			else:
-				soles.flush()
-				_draw_ribbon(m, color)
-		soles.flush()
-
-	## A ribbon as two quads per segment (each half of the band), solid along the centre line and
-	## fading to `BloodSmearLookConfig.feather` of that at the edges. Quads are drawn as raw
-	## triangles, so a sharp bend or a pinched tail can never fail triangulation.
-	func _draw_ribbon(m: Dictionary, color: Color) -> void:
-		var pts: PackedVector2Array = m["points"]
-		var n := pts.size()
-		if n < 2:
-			return
-		var normals := _ribbon_normals(pts)
-		var none := PackedVector2Array()
-		for i in n - 1:
-			if pts[i].distance_squared_to(pts[i + 1]) < 0.0001:
-				continue
-			_draw_segment(m, normals, i, color, none)
-
-	## Each ribbon point's unit normal (along the line through its neighbours), ZERO where they
-	## meet.
-	static func _ribbon_normals(pts: PackedVector2Array) -> PackedVector2Array:
-		var n := pts.size()
-		var normals := PackedVector2Array()
-		normals.resize(n)
-		for i in n:
-			var a := pts[maxi(i - 1, 0)]
-			var b := pts[mini(i + 1, n - 1)]
-			var tangent := b - a
-			normals[i] = (tangent.normalized().orthogonal()
-					if tangent.length_squared() > 0.0001
-					else Vector2.ZERO)
-		return normals
-
-	## The two quads of ribbon `m`'s segment from point `i` to the next (`none`: no UVs).
-	func _draw_segment(m: Dictionary, normals: PackedVector2Array, i: int, color: Color,
-			none: PackedVector2Array) -> void:
-		var pts: PackedVector2Array = m["points"]
-		var widths: PackedFloat32Array = m["widths"]
-		var alphas: PackedFloat32Array = m["alphas"]
-		var mid_a := Color(color.r, color.g, color.b, color.a * alphas[i])
-		var mid_b := Color(color.r, color.g, color.b, color.a * alphas[i + 1])
-		var edge_a := Color(color.r, color.g, color.b, mid_a.a * BloodSmearLookConfig.feather)
-		var edge_b := Color(color.r, color.g, color.b, mid_b.a * BloodSmearLookConfig.feather)
-		var half_a := normals[i] * widths[i] * 0.5
-		var half_b := normals[i + 1] * widths[i + 1] * 0.5
-		draw_primitive(
-			PackedVector2Array([pts[i] + half_a, pts[i], pts[i + 1], pts[i + 1] + half_b]),
-			PackedColorArray([edge_a, mid_a, mid_b, edge_b]),
-			none,
-		)
-		draw_primitive(
-			PackedVector2Array([pts[i], pts[i] - half_a, pts[i + 1] - half_b, pts[i + 1]]),
-			PackedColorArray([mid_a, edge_a, edge_b, mid_b]),
-			none,
-		)
-
-	## Whether any mark in this chunk is still drying, so it needs its periodic redraw.
-	func _has_drying() -> bool:
-		var seconds := BloodConfig.print_dry_time
-		if seconds <= 0.0:
-			return false
-		var frames := seconds * Engine.physics_ticks_per_second
-		for m in owner_layer.marks_in(cell):
-			if Engine.get_physics_frames() - int(m["born"]) < frames:
-				return true
-		return false

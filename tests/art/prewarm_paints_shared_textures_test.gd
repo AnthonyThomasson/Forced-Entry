@@ -68,17 +68,14 @@ func _reference_keys(requests: Array, references: Array[PackedByteArray]) -> Arr
 
 
 func _render(request: Dictionary) -> Texture2D:
-	return PixelArt.render(
-		request["painter"],
-		request["size"],
-		request["color"],
-		request["facing"],
-		request["opts"],
+	var facing: Vector2 = request.get("facing", Vector2.DOWN)
+	return PixelArt.render_flat(
+		request["painter"], request["size"], request["color"], request["opts"], facing
 	)
 
 
 ## A district built after the warm paints none of the fixed shared art itself: its crossings, shell
-## decor, awnings and signs over a door and tower shadows are all keys the warm already cached.
+## decor, awnings and signs over a door are all keys the warm already cached.
 func _district_asks_only_warm_keys(t: TestContext) -> void:
 	var cache: Dictionary = PixelArt._cache
 	var warm_keys := cache.keys()
@@ -90,10 +87,9 @@ func _district_asks_only_warm_keys(t: TestContext) -> void:
 	t.check(painted.is_empty(), "the district painted shared art the warm lacks: %s" % [painted])
 
 
-## Whether `key` is a texture the warm covers exactly: a crossing, a shell decoration, a tower
-## shadow or an awning or sign hung over a door (a podium segment or a road glyph depends on the
+## Whether `key` is a texture the warm covers exactly: a crossing, a shell decoration
+## or an awning or sign hung over a door (a podium segment or a road glyph depends on the
 ## seed, so only some are warm).
 func _fixed_shared(key: String) -> bool:
 	return (key.contains("crossing_painter") or key.contains("shell_decor_painter")
-			or key.contains("shadow_painter")
 			or (key.contains("awning_painter") and key.contains("overhang")))

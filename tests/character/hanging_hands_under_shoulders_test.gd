@@ -1,7 +1,8 @@
 extends GameTest
-## An unarmed character's hands hang at its sides, below the shoulder height that puts a hand over
-## the shoulders (character_visuals.gd `HAND_OVER_HEIGHT`); a hand raised to a gun grips at that
-## height.
+## An unarmed character's hands hang at its sides, below the shoulder height (body radii off the
+## floor: relaxed 3.7, running 4 to 5.8); a hand raised to a gun grips at that height or above.
+
+const SHOULDER_HEIGHT := 5.0
 
 
 func describe() -> Dictionary:
@@ -9,7 +10,7 @@ func describe() -> Dictionary:
 		"name": "Hanging hands grip below the shoulders",
 		"description": "Standing unarmed, the hands grip below the shoulder height; holding a "
 			+ "pistol, they grip at it.",
-		"tags": ["draw", "hands"],
+		"tags": ["pose", "hands"],
 		"timeout": 8.0,
 	}
 
@@ -23,13 +24,11 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(1.5)
-	var unarmed = t.actor(&"unarmed").get_node("Visuals")
-	var armed = t.actor(&"armed").get_node("Visuals")
 	t.check(
-		t.actor(&"unarmed").anatomy.pose.arms.grip_height(0) < unarmed.HAND_OVER_HEIGHT,
+		t.actor(&"unarmed").anatomy.pose.arms.grip_height(0) < SHOULDER_HEIGHT,
 		"unarmed hands grip below the shoulders",
 	)
 	t.check(
-		t.actor(&"armed").anatomy.pose.arms.grip_height(0) >= armed.HAND_OVER_HEIGHT,
+		t.actor(&"armed").anatomy.pose.arms.grip_height(0) >= SHOULDER_HEIGHT,
 		"a gun's hands grip at the shoulders",
 	)

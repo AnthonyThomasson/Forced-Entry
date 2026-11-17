@@ -6,13 +6,9 @@ class_name GunArt extends ItemArt
 ## blow does), never the item.
 
 ## How far the pulled-up barrel shortens at full raise (fraction of its length): pointed up, a
-## top-down view sees it foreshortened. The art is re-rendered at `RAISE_STEPS` lengths between full
-## and this, so it stays crisp and cached.
+## top-down view sees it foreshortened, so the held mesh is pitched (`held_lift`) by the angle whose
+## cosine is that length.
 const RAISED_LENGTH := 0.42
-const RAISE_STEPS := 5
-
-## The guns and styles whose art `prepaint` has painted: [gun, style] -> true.
-static var _prepainted := {}
 
 ## The gun's id: its `GunConfig` row.
 var gun: StringName = &""
@@ -31,106 +27,47 @@ func look() -> Dictionary:
 	return GunConfig.look(gun, style)
 
 
-## Draw the gun's pixel art at the weapon hand, its butt behind the hand and the muzzle along the
-## character's weapon.facing() (trailing the aim a touch as it turns): lit for the nearest lighting
-## step, drawn rotated to the exact angle. Raised off a wall, the barrel foreshortens about the
-## hand.
-func draw_weapon(canvas: CanvasItem, user: Object) -> void:
-	var facing: Vector2 = user.weapon.facing()
-	# A punch turns a long gun about its grip until the butt leads.
-	facing = strike.direction(facing, user.anatomy.hands.punch_amount(strike.hand))
-	var step := clampi(roundi(float(user.weapon.raise()) * RAISE_STEPS), 0, RAISE_STEPS)
-	var shrink := lerpf(1.0, RAISED_LENGTH, float(step) / RAISE_STEPS)
-	var art_size := _art_size()
-	var size := Vector2(art_size.x, maxf(roundf(art_size.y * shrink), 4.0))
-	var centre: Vector2 = (user.anatomy.hands.hand_position(strike.hand)
-			+ facing * (size.y * 0.5 - _grip_back() * shrink))
-	_draw_art(canvas, centre, facing, size)
-
-
-## The gun lying flat on its side, centered at `at`, its muzzle along `angle`, in its look's painter
-## lying (`flat`); `opts.flip` picks the side facing up.
-func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color = Color.WHITE,
-		opts: Dictionary = {}) -> void:
-	var turn := angle - PI * 0.5
-	var size := _flat_size()
-	var flip: bool = opts.get("flip", false)
+## The gun's 3D mesh in the hand (`GunMesh`): the silhouette of its held art, stood up.
+func held_mesh() -> Mesh:
 	var drawn := look()
-	var tex := PixelArt.render_turned(
-		drawn["painter"], size, drawn["body"], PixelArt.snap_angle(turn),
-		{
-			"gun": gun, "look": _look_handle(drawn), "flat": true, "flip": flip,
-			"material": drawn["finish"],
-		},
-	)
-	_note_drawn(tex)
-	canvas.draw_set_transform(at, turn, Vector2.ONE)
-	canvas.draw_texture_rect(tex, Rect2(-size * 0.5, size), false, modulate)
-	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	return GunMesh.held(gun, drawn, _look_handle(drawn))
 
 
-## Paint this gun's art ahead of time, once per gun and style: held at every raise step
-## (`draw_weapon`) and lying on the floor either side up (`draw_dropped`), each at every lighting
-## step. A gun turns, is raised off walls and skids from a dead hand through those, and each first
-## paint (0.3 to 0.5 ms) would land in the busiest frames of a fight. The same calls the draws make,
-## so the same cached textures: what is drawn never changes.
-func prepaint() -> void:
-	var key := [gun, style]
-	if _prepainted.has(key):
-		return
-	_prepainted[key] = true
+## The held art the mesh wears: the painter's unlit render, projected straight down.
+func held_texture() -> Texture2D:
 	var drawn := look()
-	var handle := _look_handle(drawn)
-	var art_size := _art_size()
-	var step := TAU / maxi(1, ArtCanvasConfig.turn_steps)
-	for k in ArtCanvasConfig.turn_steps:
-		var angle := PixelArt.snap_angle(k * step)
-		for raise in RAISE_STEPS + 1:
-			var shrink := lerpf(1.0, RAISED_LENGTH, float(raise) / RAISE_STEPS)
-			var size := Vector2(art_size.x, maxf(roundf(art_size.y * shrink), 4.0))
-			PixelArt.render_turned(
-				drawn["painter"],
-				size,
-				drawn["body"],
-				angle,
-				{ "gun": gun, "look": handle, "material": drawn["finish"] },
-			)
-		for flip in [false, true]:
-			PixelArt.render_turned(
-				drawn["painter"], _flat_size(), drawn["body"], angle,
-				{
-					"gun": gun, "look": handle, "flat": true, "flip": flip,
-					"material": drawn["finish"],
-				},
-			)
+	return GunMesh.held_texture(gun, drawn, _look_handle(drawn))
 
 
-## The held art's footprint (px): width across, length from butt to muzzle (the row's
-## `art_size`).
-func _art_size() -> Vector2:
-	return GunConfig.row(gun).get("art_size", Vector2.ZERO)
+## Where the held art lies in the mesh's frame.
+func held_rect() -> Rect2:
+	return GunMesh.held_rect(gun)
 
 
-## The flat art's footprint (px): its profile across, its length along (the row's `flat_size`).
-func _flat_size() -> Vector2:
-	return GunConfig.row(gun).get("flat_size", Vector2.ZERO)
-
-
-## How far the butt end sits behind the weapon hand's center (px; the row's `grip_back`).
-func _grip_back() -> float:
-	return float(GunConfig.row(gun).get("grip_back", 0.0))
-
-
-## The held art of `size` centered at `centre`, muzzle along `facing`, in its look's painter: lit
-## for the nearest lighting step, drawn rotated to the exact angle.
-func _draw_art(canvas: CanvasItem, centre: Vector2, facing: Vector2, size: Vector2) -> void:
-	var angle := facing.angle() - PI * 0.5
+## The gun lying on its side: the silhouette of its flat (side-profile) art, `flipped` the side up.
+func dropped_mesh(flipped := false) -> Mesh:
 	var drawn := look()
-	var tex := PixelArt.render_turned(
-		drawn["painter"], size, drawn["body"], PixelArt.snap_angle(angle),
-		{ "gun": gun, "look": _look_handle(drawn), "material": drawn["finish"] },
-	)
-	_note_drawn(tex)
-	canvas.draw_set_transform(centre, angle, Vector2.ONE)
-	canvas.draw_texture_rect(tex, Rect2(-size * 0.5, size), false)
-	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	return GunMesh.lying(gun, drawn, _look_handle(drawn), flipped)
+
+
+## The flat art of the gun lying on its side, the side up that `flipped` says.
+func dropped_texture(flipped := false) -> Texture2D:
+	var drawn := look()
+	return GunMesh.lying_texture(gun, drawn, _look_handle(drawn), flipped)
+
+
+## Where the lying art lies in the lying mesh's frame.
+func dropped_rect() -> Rect2:
+	return GunMesh.lying_rect(gun)
+
+
+## The direction the gun points: the weapon's facing, turned about the
+## grip by a punch (a long gun swung butt first).
+func held_aim(user: Object) -> Vector2:
+	return strike.direction(user.weapon.facing(), user.anatomy.hands.punch_amount(strike.hand))
+
+
+## How far a gun held up off a wall is pitched: a barrel pointing up is seen from above shortened to
+## `RAISED_LENGTH` at full raise, so the pitch is the angle whose cosine is that length.
+func held_lift(user: Object) -> float:
+	return acos(lerpf(1.0, RAISED_LENGTH, clampf(float(user.weapon.raise()), 0.0, 1.0)))

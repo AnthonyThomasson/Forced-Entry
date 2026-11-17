@@ -8,6 +8,7 @@ extends GameTest
 ## `hit` and `hit_landed` events).
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const ObjectArt := preload("res://scenes/objects/art/object_art.gd")
 const JAMB := 20.0
 const HOLLOW_HP := 80.0
 const STEEL_HP := 1200.0
@@ -76,7 +77,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var panes = t.object(&"panes")
-	var intact_art: PackedByteArray = panes.visuals.texture().get_image().get_data()
+	var intact_art: PackedByteArray = _leaf_art(panes)
 	t.check(not panes.look.broken, "the panes are whole at the start")
 	Probe.arm(t.actor(&"thrower"), 0, 1)
 	t.puppet(&"round_shooter").aim_at(Vector2(400, 100))
@@ -94,8 +95,8 @@ func run(t: TestContext) -> void:
 	t.check(panes.look.broken, "the first round shatters the glass-panel door's panes")
 	t.check(not panes.is_down(), "the frame stays: the door is still standing")
 	t.check(
-		panes.visuals.texture().get_image().get_data() != intact_art,
-		"and it is drawn without its glass",
+		_leaf_art(panes) != intact_art,
+		"and its leaf art is drawn without its glass",
 	)
 	t.puppet(&"round_shooter").shoot()
 	await t.seconds(0.5)
@@ -141,3 +142,9 @@ func _expect_hp(t: TestContext, id: StringName, full: float, factors: Dictionary
 		"%s took %.2f off the %s door's HP (%.2f of %.0f left, expected %.2f lost)"
 			% [what, full - door.damage.hp, id, door.damage.hp, full, lost],
 	)
+
+
+## The pixels the door painter draws the leaf in, as the door's look is now.
+func _leaf_art(door: Node2D) -> PackedByteArray:
+	var art := ObjectArt.flat("door", door.leaf_size(), door.look.color, door.look.art_opts(false))
+	return art.get_image().get_data()

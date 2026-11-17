@@ -1,7 +1,7 @@
 extends RefCounted
-## Vehicles domain: a lit lamp, top-down pixel art (rendered through Art, `PixelArt.render_turned`):
-## the lens glowing in `base` with a hot, pale core, drawn over a tail light while the vehicle
-## brakes.
+## Vehicles domain: a lit lamp, top-down pixel art (painted flat through Art,
+## `PixelArt.render_flat`): the lens glowing in `base` with a hot, pale core, drawn over a tail
+## light while the vehicle brakes.
 
 
 ## Paint a lit lamp onto `c`, glowing in `base`.

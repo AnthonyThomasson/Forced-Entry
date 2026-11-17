@@ -1,10 +1,10 @@
 # Vehicles
 
-A drivable **car** and **van** (issue #54), for the player in a sandbox: get in and out with **E** by the nearest door, with the
+A drivable **car** and **van** (issue #54), for the player in a sandbox: get in and out with **Space** by the nearest door, with the
 door and the character animated throughout, drive with WASD and the handbrake, crash, shove furniture, run people down, and hear
 all of it. Behaviours V1 to V9 are the spec; each has its tests named under it, following the convention of `docs/grenades.md`.
 The tests are in `tests/vehicle/` (`tools/run_tests.sh --domain=vehicle`, 30 tests) plus `tests/audio/vehicle_sounds_test.gd`,
-`tests/audio/vehicle_door_tone_test.gd`, `tests/general/camera_zooms_out_driving_test.gd` and `tests/general/use_vehicle_key_test.gd`. They drive puppets (no AI) and read
+`tests/audio/vehicle_door_tone_test.gd`, `tests/general/camera_zooms_out_driving_test.gd` and `tests/general/space_vehicle_key_test.gd`. They drive puppets (no AI) and read
 the game only through the drivable contract (`architecture` interface 19), via `tests/_vehicle/vehicle_probe.gd`, which keeps the
 plan's numbers as its own consts so a test checks this file and not the code, and its siblings `vehicle_frame_probe.gd` (the
 vehicle's frame) and `vehicle_ride_probe.gd` (placing, boarding, getting out and driving). The code is the Vehicles domain (`scenes/vehicle/`,
@@ -12,33 +12,35 @@ skill `domain-vehicle`).
 
 **Verification (14 October 2026, on the finished branch).** `tools/lint.sh` and the headless load check: clean. The 34 tests the
 feature adds (the 30 in `tests/vehicle/`, `audio/vehicle_sounds`, `audio/vehicle_door_tone`, `general/camera_zooms_out_driving`,
-`general/use_vehicle_key`): 34 passed. `tools/run_tests.sh --changed --summary --jobs=auto` (which runs everything): 332 passed,
+`general/use_vehicle_key`, since renamed `general/space_vehicle_key`): 34 passed. `tools/run_tests.sh --changed --summary --jobs=auto` (which runs everything): 332 passed,
 0 failed, 24 skipped (they need the Von server), 0 `gap`; `--self-test`: 7 passed, 1 failed, `_harness/catalog_selection` ("an ai
 test's category is the folder between its domain and its file"), which fails the same way on the clean base commit. Measured
 (`vehicle/top_speed`, `vehicle/launch_and_brake`): tops 1280 / 880; 0 → 640 in 0.75 s, van 0 → 440 in 0.97 s; stop from the top
 1.42 / 1.70 s.
 
 All distances are px, speeds px/s and times seconds. The numbers are the Vehicles holders' (`scenes/vehicle/vehicle_*_config.gd`: `VehicleConfig`'s per-kind rows and the
-shared `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`). A
+shared `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`, `VehicleMeshConfig`). A
 vehicle's own frame has x forward (its nose) and y toward its right side.
 
 ## Behaviours
 
 ### Getting in
 
-**V1. Board by the nearest door.** E (`Keybinds.USE`, default `KEY_E`, label "Use (door, vehicle)", rebindable on the
-settings page) picks the door whose handle is nearest the character among those within `door_reach` **60** of it, on a vehicle moving
+**V1. Board by the nearest door.** Space (`Keybinds.INTERACT`, default `KEY_SPACE`, label "Interact (sit, door, vehicle)", rebindable on the
+settings page; the old Use key merged into it) picks the door whose handle is nearest the character among those within `door_reach` **60** of it, on a vehicle moving
 slower than `board_max_speed` **20**. The car has four doors (front and rear, left and right); the van has two front doors, a sliding
 side door on its right and rear double doors. A door that cannot open is skipped for the next nearest that can. A door cannot open when
 something solid (a wall, furniture, a character, another vehicle) stands in its swing arc (a sliding door's track) or where the
-character would stand to use it, or when the seat behind it is taken. With no usable door, nothing happens. E is ignored while the
-character is dead or in an object interaction. With a standing door in reach ahead and nearer than the handle, E works the door instead
-(`docs/doors.md` DR6).
+character would stand to use it, or when the seat behind it is taken. With no usable door, nothing happens. Space is ignored while the
+character is dead; in an object interaction it stands up. Space acts on the reachable thing nearest the mouse: a handle in reach is a
+candidate beside a chair, a bed and a standing door in reach ahead, and the nearest to the mouse wins, a vehicle by the gap to its outline; a vehicle none of whose doors in reach can open is no candidate, so Space
+falls to the next nearest (`docs/doors.md` DR6).
 Tests: `vehicle/board_nearest_door` (the front-left door when nearest, the rear-right when nearest, no other door opens),
 `vehicle/board_skips_blocked_door` (an armchair in the rear-left door's swing: the front-left door instead),
 `vehicle/board_skips_taken_seat` (the driver's seat taken: the rear-left door instead), `vehicle/board_refused_far_or_moving` (75 px
-from the nearest handle, or beside a car rolling at 80, nothing opens; beside the stopped car E boards), `general/use_vehicle_key` (the
-action, its default, label, group, settings row and no clash; a `player` pressing E boards into the driver's seat and gets out again).
+from the nearest handle, or beside a car rolling at 80, nothing opens; beside the stopped car Space boards), `general/space_vehicle_key` (the
+action, its default, label, group, settings row and no clash; a `player` pressing Space boards into the driver's seat and gets out again),
+`interaction/space_picks_nearest_to_mouse` (with a chair, a door and a car's door in reach, the mouse picks which one Space acts on).
 
 **V2. The seat behind the door.** The character takes the seat behind the door it used: front-left is the driver's seat; front-right is
 the passenger's, and a passenger slides across to the driver's seat (`shift_time` **0.6**) when that is empty; the car's rear doors lead
@@ -60,18 +62,14 @@ doors leads to a cargo seat).
    to seated).
 4. The door eases shut behind it (`VehicleDoorConfig.close_time` **0.35**, gathering speed into the slam).
 
-The character's position, facing and fold change continuously every frame (no teleport). Seated, it is drawn between the vehicle's
-chassis layer (under it) and its roof layer (over it): only the part under the tinted, see-through glass shows. The two layers take their
-rungs on the world's draw ladder (`DrawLayers`, General): the chassis `UNDER_VEHICLE` (−1), the living and the occupants `STANDING` (0),
-the roof `ABOVE` (+1); what lies on the floor (a dead body, casings, a dropped item, a grenade at rest) is `LYING` (−2), under both layers
-and over the blood and scorch decals (`BLOOD`, −3), the rugs (−4) and the floor (−5). The held item is put
+The character's position, facing and fold change continuously every frame (no teleport). Seated, it sits inside the vehicle's body in
+3D, under its roof and seen through the tinted, see-through glass. The held item is put
 away from the first pose of the ride and taken out again at its end. Boarding and getting out cannot be interrupted except by death: a
 character killed on the way falls where it is, its seat is freed and the door stays as it was.
-Tests: `vehicle/board_animation_is_continuous` (sampled every frame from the E press until the door has shut: no frame moves the
+Tests: `vehicle/board_animation_is_continuous` (sampled every frame from the Space press until the door has shut: no frame moves the
 character further than a walking step; the facing turns at most 15 rad/s, toward the door and then forward; the door opens in about
 0.35 s and eases (at most 0.08 a frame), it is open before the fold starts and shuts only once the character is folded in; the fold
-eases from standing to seated (at most 0.05 a frame); the seated character ends inside the body, drawn over the chassis and under the
-roof), `vehicle/van_doors_open_their_way` (the side door slides back along the body and never turns; a rear door swings out behind
+eases from standing to seated (at most 0.05 a frame); the seated character ends inside the body), `vehicle/van_doors_open_their_way` (the side door slides back along the body and never turns; a rear door swings out behind
 the van about its back corner and never slides), `vehicle/death_while_boarding` (killed with the door half open: it dies where it
 stands, takes no seat, `use.vehicle()` is null, the door stays open), `vehicle/item_stowed_while_riding` (a character holding its pistol
 has no item in hand from the fold into the seat until it is out again, then the pistol is back in hand; `inventory.current_item()` is null while it
@@ -79,22 +77,22 @@ is posed by the ride).
 
 ### Getting out
 
-**V4. Exit.** E while seated gets out. Above `exit_max_speed` **20**, a driver first brakes the vehicle to a stop and a passenger waits
+**V4. Exit.** Space while seated gets out. Above `exit_max_speed` **20**, a driver first brakes the vehicle to a stop and a passenger waits
 for it to slow under 20; then the character leaves by its own door if that is clear, else by the nearest clear door whose seat is its
 own or empty (sliding across to it first); with none clear it stays in. Getting out is boarding reversed: the door opens, the character
 rises out of the seat into the gap and steps out to the stand point beside the door, and the door shuts behind it. A driver leaving cuts
 the engine, and a vehicle left rolling slows to a stop under rolling resistance and stays there.
 Tests: `vehicle/exit_own_door_else_nearest` (out by the front-left door onto the left side; with both left doors blocked by characters
-in their swing, out by the front right onto the right side), `vehicle/exit_blocked_stays_in` (characters in all four doors' swing: E
+in their swing, out by the front right onto the right side), `vehicle/exit_blocked_stays_in` (characters in all four doors' swing: Space
 opens nothing and the driver stays seated; with the front-right blocker gone it gets out there), `vehicle/exit_at_speed_brakes_first`
-(at 70, E keeps the driver in until the car is under 20, reached in well under the coasting time), `vehicle/driver_exit_cuts_engine_rolls_to_stop`
+(at 70, Space keeps the driver in until the car is under 20, reached in well under the coasting time), `vehicle/driver_exit_cuts_engine_rolls_to_stop`
 (the engine starts when the driver sits; the driver gets out at under 20: the engine stops, the car never speeds up, comes to rest and
 stays there).
 
 ### Driving
 
 **V5. Driving: arcade-real, car-relative.** W is throttle; S brakes, then reverses once the vehicle rolls slower than
-`reverse_engage_speed` **2** (likewise W against a reverse); A/D steer relative to the vehicle; the run key (Shift) is the handbrake.
+`reverse_engage_speed` **2** (likewise W against a reverse); A/D steer relative to the vehicle; the run key (Shift) is the handbrake. The keys are raw while seated: WASD is screen-relative on foot, but a seated driver's keys are the throttle and steer and are never turned by the camera.
 The model is a bicycle. The engine pushes from `engine_force / mass` at rest and tapers (by the cube of the speed's share of the top
 speed) to exactly the rolling resistance and air drag at the top speed, so full throttle really reaches `top_speed` (**1280** car,
 **880** van) and settles there; a lighter throttle settles lower. It launches hard: the car reaches 640 px/s within 1.1 s and the van
@@ -137,7 +135,7 @@ and passenger click the trigger of a loaded pistol: no shot, hit or shot sound, 
 - A character struck is knocked back (`apply_impulse`) and takes `take_damage(health x (closing − 90) / (300 − 90))`: nothing below
   `harm_min_speed` **90**, death at `harm_kill_speed` **300** or faster. One run-in is one blow: a character struck again within
   `rehit_time` **0.5** s of the last time it was against the vehicle is shoved on but not hurt again. A dead body is rolled over, and
-  lies drawn under both of the vehicle's layers (V3's draw ladder) and over its own blood.
+  lies on the floor under the vehicle.
 - The vehicle is never stopped dead by a character: it loses only the momentum the character takes, and what the character is pressed
   against. What stands in front of it is a pile: the character struck and the pieces of furniture or other characters it is pressed
   against (each within `pile_gap` **4** px along the push, at most `pile_depth` **4** bodies), or a piece pressed against a character.
@@ -162,9 +160,7 @@ character pinned on a heavy armchair, one pinned on the wall, one in the open an
 the open hit's harm and the shielded one half of it; 0.1 s after the touch the car keeps 30 % / 70 % / 50 % of its speed (pinned / open /
 shielded) and shoves the chair; on the wall it posts a crash; measured harm 25.4 open, 25.4 pinned on the chair and on the wall, 17.6
 behind the chair; kept 130 / 168 / 139 px/s, the chair shoved 63 and 57 px), `vehicle/bullet_dents_vehicle` (a metal surface with coverage
-60+ and penetration 80+, a recorded dent, debris; six more rounds leave it standing), `vehicle/fallen_body_under_vehicle` (a character
-run down past 300 and the car crept forward over it: every frame the car is over or beside the body, the body and everything it draws is
-under the chassis and the roof and over the floor and blood, and the seated driver stays between the two).
+60+ and penetration 80+, a recorded dent, debris; six more rounds leave it standing).
 
 ### Presentation
 
@@ -204,9 +200,9 @@ vehicle; nothing under
   contract, the hittable, the events), `vehicle_cabin.gd` (seats and doors), `vehicle_contacts.gd` (contacts and harm),
   `vehicle_drive.gd` (the bicycle, the drive intent, the engine and the skids), `vehicle_door.gd` (the open
   amount, the pose, the stand point, the blocked check), `vehicle_boarding.gd` (the ride's phase machine), `character_vehicle_use.gd` (the
-  character's component), `vehicle_visuals.gd` and `art/` (the chassis and roof layers and their painters).
-- **Character**: the forwards `use.try_use()` (E: a door or the vehicle, `docs/doors.md` DR6), `use.vehicle()`, `use.is_in_vehicle()`, the ride API `use.set_ride_pose` / `use.end_ride`, `use.is_busy()`
-  over the ride, `inventory.current_item()` null while posed, `_die` abandoning the ride. **General**: `Keybinds.USE` and the camera's zoom
+  character's component), `art/` (the painters and the 3D meshes: `art/vehicle_mesh*.gd`, `VehicleMeshConfig`).
+- **Character**: the forwards `use.try_interact()` (Space: a chair, a door or the vehicle, `docs/doors.md` DR6), `use.vehicle()`, `use.is_in_vehicle()`, the ride API `use.set_ride_pose` / `use.end_ride`, `use.is_busy()`
+  over the ride, `inventory.current_item()` null while posed, `_die` abandoning the ride. **General**: `Keybinds.INTERACT` and the camera's zoom
   out. **Audio**: the `vehicle`, `engine` and `skid` topics, the profiles and the loops. **Testing**: `TestSetup.vehicle`, `t.vehicle`,
   the puppet's `use()` and `drive(throttle, steer, handbrake)`.
 - **The tests reach all of it duck-typed** (`has_method`, `call`, groups, the Vehicles holders read by name), so a read that is missing fails a

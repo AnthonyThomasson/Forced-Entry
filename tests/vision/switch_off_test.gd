@@ -39,11 +39,10 @@ func run(t: TestContext) -> void:
 		"PlayerView.watch builds nothing while the view is off",
 	)
 	t.check(Probe.views(t).is_empty(), "still no PlayerView after watch")
+	t.check(not ToonMask.mask_active(), "and no mask is on the world")
 	_nothing_hidden(t)
 
 
 ## With the view off nothing is hidden: no area is set.
 func _nothing_hidden(t: TestContext) -> void:
-	var reached := Probe.reached_by(FAR)
-	t.check(reached[0], "a far disc reaches: no area is set")
-	t.check(reached[1], "a far box reaches: no area is set")
+	t.check(Probe.reached_by(FAR), "a far disc reaches: no area is set")

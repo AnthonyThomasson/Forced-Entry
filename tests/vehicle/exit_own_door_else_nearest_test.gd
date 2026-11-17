@@ -1,8 +1,8 @@
 extends GameTest
-## V4 (ticket #54): E while seated gets out by the character's own door when that is clear, stepping
-## out beside it on its side. With its own door blocked (here both left doors, by characters
-## standing in their swing), it gets out by the nearest clear door instead: the front right, across
-## the car.
+## V4 (ticket #54): Space while seated gets out by the character's own door when that is clear,
+## stepping out beside it on its side. With its own door blocked (here both left doors, by
+## characters standing in their swing), it gets out by the nearest clear door instead: the front
+## right, across the car.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
@@ -29,8 +29,8 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"block_rear", &"puppet", Vector2(160, 540), { "max_health": 100_000.0 })
 
 
-## Press E for the seated character and watch the doors until it is out. Returns the `watch_doors`
-## result.
+## Press Space for the seated character and watch the doors until it is out. Returns the
+## `watch_doors` result.
 func _get_out(t: TestContext, car: Node2D) -> Dictionary:
 	var me := t.actor(&"me")
 	t.puppet(&"me").use()
@@ -61,7 +61,7 @@ func run(t: TestContext) -> void:
 func _exit_own_door(t: TestContext, car: Node2D) -> bool:
 	var me := t.actor(&"me")
 	var out: Dictionary = await _get_out(t, car)
-	if not t.require(out["done"], "E gets the character out"):
+	if not t.require(out["done"], "Space gets the character out"):
 		return false
 	t.expect_eq(Probe.opened(out), [&"front_left"], "by its own door, the front left")
 	var handle := Probe.door(car, &"front_left")["handle"] as Vector2
@@ -99,7 +99,7 @@ func _exit_blocked(t: TestContext, car: Node2D) -> void:
 	await VehicleRide.place(t, &"block_front", VehicleFrame.stand_point(car, &"front_left", 18.0))
 	await VehicleRide.place(t, &"block_rear", VehicleFrame.stand_point(car, &"rear_left", 18.0))
 	var out: Dictionary = await _get_out(t, car)
-	if not t.require(out["done"], "E still gets the character out"):
+	if not t.require(out["done"], "Space still gets the character out"):
 		return
 	t.expect_eq(
 		Probe.opened(out, 0.05),

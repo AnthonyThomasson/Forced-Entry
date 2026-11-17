@@ -10,6 +10,13 @@ extends RefCounted
 ## every frame stay a few scalars.
 
 
+## Whether `c` paints for the 3D render (`PixelArt.render_flat`: no light). The 3D lights the art
+## itself and outlines the figure in the pixel post, so a painter then draws no baked light (a lit
+## rim: its base tone instead) and no outline ring of its own (a second outline over the post's).
+static func flat(c: PixelCanvas) -> bool:
+	return c.light == Vector2.ZERO
+
+
 ## The chrome tone at pixel index `k`: cool metal with a bright glint every few pixels.
 static func chrome(look: Dictionary, k: int) -> Color:
 	var base: Color = look.get("chrome", Color(0.7, 0.74, 0.78))

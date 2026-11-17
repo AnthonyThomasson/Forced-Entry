@@ -24,7 +24,7 @@ domain's worlds build through `MatchBuilder` too, so a test measures the match M
 
 ## Setup flow
 
-A fresh launch starts `WorldGen.prewarm` (the district's shared pixel art on a worker; skipped headless), loads settings, opens the setup window (`domain-ui` (`menus.md`)) and builds nothing until a start button.
+A fresh launch loads settings, starts `WorldGen.prewarm` (the district's shared pixel art and the 3D furniture's on a worker; skipped headless), opens the setup window (`domain-ui` (`menus.md`)) and builds nothing until a start button.
 
 - `Settings.debug` is seeded from `run.debug_overlays` before `Settings.load_file()`, so the headless runner never reads a
   developer's file and a file that does not name Debug leaves the export standing.
@@ -66,6 +66,10 @@ and awaits `MatchBuilder.build`. A match torn down during the build returns `{}`
 
 `_teardown_world` frees `World` and everything the match left, and clears `Sound.focus`, `_match`, `_human`, `_overlays.inspector`.
 
+## The 3D render
+
+Every match is drawn by the 3D view (`main_view3d.gd`): Main hides the `World` before it is built and builds the view that mirrors the match; there is no render mode. Details and tests: `render3d.md`. Interface 27.
+
 ## Overlays
 
 `_overlays.flags` has one entry per `OverlayRegistry` row; the bar's toggles and its "Show on" scope reach Main's public `set_overlay(flag, on)` and `set_overlay_scope(scope)`,
@@ -81,8 +85,8 @@ The API is interface 23; these are the reasons behind it.
   keep `wait_nav` on.
 - **One house in a district.** A match generates a district (interface 1) unless the spec names a `house`: the NPCs get only the centre
   tower's `rooms` / `openings` (the handle's), so a neighbour tower counts as outside; only the nav bake and the lighting take every tower.
-- **Light before characters.** `WorldLighting.light` (interface 20, `docs/lighting.md`) runs in `stage`, under `World` so a
-  teardown frees it; characters placed afterwards cast their own shadows (group `characters`).
+- **Lights are the 3D view's.** `MatchBuilder.stage` builds no lights; Main's 3D view builds `WorldLighting3D` (interface 20,
+  `docs/lighting.md`) after the mirror, from the world's `get_lights()` and rooms.
 - **Bind before the tree.** `bind_npc` hands the controller `rooms`, `openings` and its `entry_point` before the NPC joins the
   tree, so its first tick knows them; `npc.tscn` authors the controller in group `npc_controllers` (interface 7) so that holds.
   An invader's entry point is the front entrance, a defender's none. `match_spawner.gd` never calls `MatchBuilder`: `populate`

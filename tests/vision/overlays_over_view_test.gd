@@ -1,13 +1,15 @@
 extends GameTest
-## V7 (`docs/player-vision.md`): the overlays are drawn over the view, in their own colours, and are
-## never remembered. In a world with the player's view, an NPC with every debug overlay on, the
-## navigation holes, the squad leaders' crowns and the stack, order and contact markers each draw
-## at `DrawLayers.OVERLAY` (an absolute z, above the view's composite at `DrawLayers.VISION`) and
-## sit on the visibility bit `ViewLayers.OVERLAY`, which the capture leaves out.
+## V7 (`docs/player-vision.md`): the overlays are drawn over the view, in their own colours, and
+## are never remembered. In a world with the player's view, an NPC with every debug overlay on, the
+## navigation holes, the squad leaders' crowns and the stack, order and contact markers each lie
+## flat on the ground under the match's shared ground layer, over the 3D picture and under the HUD
+## (so no mask or remembered look touches them), still visible.
+## (`general/ground_overlays_3d` runs Main whole and follows the layer's transform with the
+## camera.)
 ##
-## It reads (tests/_vision/vision_probe.gd) the `PlayerView`'s `composite()` and `capture()`, and
-## each overlay's `z_index`, `z_as_relative` and `visibility_layer`; the NPC's overlays are found by
-## the flags of the overlay table (`OverlayRegistry`).
+## It reads (tests/_vision/vision_probe.gd) each overlay's place under a `GroundLayer` and
+## `GroundLayer.overlays_of`; the NPC's overlays are found by the flags of the
+## overlay table (`OverlayRegistry`).
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Registry := preload("res://scenes/ui/overlays/overlay_registry.gd")
@@ -22,14 +24,15 @@ func describe() -> Dictionary:
 	return {
 		"name": "The overlays and markers draw over the view and are never remembered",
 		"description": "Every debug overlay of an NPC, the navigation holes, the leaders' crowns "
-			+ "and the stack, order and contact markers are at DrawLayers.OVERLAY (absolute, above "
-			+ "the view) on ViewLayers.OVERLAY, which the capture leaves out.",
-		"tags": ["vision", "ui", "overlay"],
+			+ "and the stack, order and contact markers lie flat under the match's ground "
+			+ "layer, visible.",
+		"tags": ["vision", "ui", "overlay", "render", "3d"],
 		"timeout": 15.0,
 	}
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()  # it makes the match's ground layer itself, as the 3D view does
 	s.arena(Rect2(0, 0, 1400, 700))
 	s.switch(&"vision.enabled", true)
 	s.actor(&"you", &"player", Vector2(150, 350))
@@ -46,32 +49,32 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var view := Probe.view(t)
-	if not t.require(view != null, "the world has a view"):
+	if not t.require(view != null and view.ground != null, "the world has a 3D view"):
 		return
 	await t.frames(3)
+	# The match's one layer for the overlays, made as the 3D view makes it; what is made after it
+	# is adopted at once, what was made before is handed to it.
+	var layer := GroundLayer.shared()
+	t.world.add_child(layer)
 	var overlays := _overlays(t)
-	var composite := view.composite()
-	t.check(_absolute_z(composite) == DrawLayers.VISION, "premise: the view is at VISION")
-	t.check(
-		(view.capture().canvas_cull_mask & ViewLayers.OVERLAY) == 0,
-		"premise: the capture leaves OVERLAY out",
-	)
+	await t.frames(2)
+	for named: String in overlays:
+		if _layer_of(overlays[named]) == null:
+			GroundLayer.adopt(overlays[named])
+	await t.frames(3)
 	for named: String in overlays:
 		var item: CanvasItem = overlays[named]
-		t.check(
-			_absolute_z(item) == DrawLayers.OVERLAY,
-			"%s is at DrawLayers.OVERLAY, absolute (z %d)" % [named, _absolute_z(item)],
-		)
-		t.check(not item.z_as_relative, "%s sets its z absolute" % named)
-		t.check(
-			_absolute_z(item) > _absolute_z(composite),
-			"%s is drawn over the view" % named,
-		)
-		t.check(
-			item.visibility_layer == ViewLayers.OVERLAY,
-			"%s is on ViewLayers.OVERLAY (layer %d)" % [named, item.visibility_layer],
-		)
-		t.check(not Probe.in_capture(view, item), "%s is not drawn by the capture" % named)
+		t.check(_layer_of(item) == layer, "%s lies flat under the ground layer" % named)
+		t.check(item.is_visible_in_tree(), "%s is visible" % named)
+	GroundLayer.forget()
+
+
+## The ground layer `item` is drawn under, or null.
+func _layer_of(item: Node) -> GroundLayer:
+	var node := item.get_parent()
+	while node != null and not node is GroundLayer:
+		node = node.get_parent()
+	return node as GroundLayer
 
 
 ## Every overlay of the world by a name for a failure line: the NPC's (one for each per-NPC flag of
@@ -133,17 +136,6 @@ func _contact_markers(t: TestContext) -> Node2D:
 	t.world.add_child(markers)
 	markers.set_contacts([])
 	return markers
-
-
-## Where `item` is drawn on the z ladder: its own rung when absolute, else the sum up its parents.
-func _absolute_z(item: CanvasItem) -> int:
-	var z := item.z_index
-	var at: Node = item
-	while at is CanvasItem and (at as CanvasItem).z_as_relative:
-		at = at.get_parent()
-		if at is CanvasItem:
-			z += (at as CanvasItem).z_index
-	return z
 
 
 ## A stand-in for the human's stack: whatever `view()` it is told to give.

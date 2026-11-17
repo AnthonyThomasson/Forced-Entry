@@ -2,10 +2,9 @@
 
 Wound spray and drips, splats, a dead body's bleed-out pool and its floor-steered flow, and carried blood (wetness, footprints,
 smears). Separate from debris and deformation: the rest of `physics/` reaches it only through
-`Physics.spawn_debris` (a hit with `HitInfo.blood`; the bloody mark on an object is the core's `Deformation.draw_marks`) and
-`Physics.bleed_out`; every other domain meets it through interface 4's classes. It imports only General: `Despawner`, `DrawLayers`,
-`FillBatch` and `SeenArea`. Tests: `tests/physics/` (`blood_*`, `footprints_*`, `object_smear*`,
-`smear_ribbon_shape`, `wound_*`, `death_*`).
+`Physics.spawn_debris` (a hit with `HitInfo.blood`; the bloody mark on an object is the core's `PhysicsDeformLookConfig.blood_mark_*`) and
+`Physics.bleed_out`; every other domain meets it through interface 4's classes. It imports only General: `Despawner` and `SeenArea`. Tests: `tests/physics/` (`blood_*`, `footprints_*`, `object_smear*`,
+`smear_ribbon_shape`, `wound_*`, `death_*`). 3D: `meshes.md`.
 
 ## Files and tuning
 
@@ -13,9 +12,9 @@ smears). Separate from debris and deformation: the rest of `physics/` reaches it
 |---|---|
 | `blood_wound.gd` (`BloodWound`) | Node the character composes like `Knockback`; its `take_hit` calls `record(hit)`. Spray and drips. |
 | `blood_spawner.gd`, `blood_throw.gd` | Spawns each splat and pool with a readable name (`BloodSplat`, `BloodSplat2`, …, `BloodPool`); `BloodThrow` carries a splat's throw. |
-| `blood_splat.gd`, `blood_pool.gd`, `blood_pool_visuals.gd`, `blood_flow.gd`, `blood_surface.gd` | A splat; a bleed-out pool, its flood-fill and the floor that steers it. |
+| `blood_splat.gd`, `blood_pool.gd`, `blood_pool_field.gd`, `blood_flow.gd`, `blood_surface.gd` | A splat (outlines and wet highlight as data); a bleed-out pool, its fill field (`BloodPoolField`: the blurred bytes the 3D pool shows), its flood-fill and the floor that steers it. |
 | `blood_field.gd`, `blood_decals.gd`, `blood_footprints.gd`, `footfall.gd`, `blood_smear.gd` | Wetness queries, the batched print layer, a walker's prints, a body's smear. |
-| `BloodConfig` plus `Blood{Drip,Spray,Splat,Pool,Surface,Print,Smear,SmearLook,Trail}Config` | Tuning. `BloodConfig` holds the master switch, colours, draw layers, the decal layer's cap and drying. |
+| `BloodConfig` plus `Blood{Drip,Spray,Splat,Pool,Surface,Print,Smear,SmearLook,Trail}Config` | Tuning. `BloodConfig` holds the master switch, colours, the decal layer's cap and drying. |
 
 Master switches: `BloodConfig.enabled` (off: `BloodWound.record` spawns nothing and `Physics.bleed_out` returns null), and
 under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `BloodSurfaceConfig.flow` (Testing's `physics.blood`,
@@ -26,8 +25,9 @@ under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `Blo
 - `BloodWound.record(hit)` throws `ceil(damage / hit_splat_damage)` splats (max `hit_splat_max`) out the exit side at once, one
   more out an exit wound. A splat is begun as thrown (`BloodSplat.begin`: random shapes and wall
   rays on the main thread, in `setup`'s order; the outline merge, `_fold`, on a worker thread) and `record` returns without
-  waiting; `BloodSplat.defer_finish` finishes them in one deferred call later in the frame, before drawing (`finish`: waits for
-  the merge, registers with `BloodField` aged from the frame it was begun on, draws). Nothing sees a splat half-built:
+  waiting; `BloodSplat.defer_finish` finishes them in one deferred call later in the frame (`finish`: waits for
+  the merge, registers with `BloodField` aged from the frame it was begun on, keeps its outlines and wet highlight as data and tells the 3D
+  render, `PhysicsFxHook.splat_made`). Nothing sees a splat half-built:
   `BloodField.wetness_at` first runs `BloodSplat.finish_pending`, and a splat freed early waits for its task as it leaves the
   tree. Pinned by `blood_spray_side_by_side_matches_whole_test.gd` and `blood_spray_does_not_wait_test.gd`;
   `spray_side_by_side` off builds each whole. A drip is built whole.
@@ -40,7 +40,7 @@ under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `Blo
   no `wall_mask` collider can reach any possible core, spike, tail or satellite; near geometry the exact centre-to-feature rays remain
   (`blood_splat_open_matches_rays_test.gd` pins identical outlines and RNG draws, with a wall just beyond and just inside the radius). Shapes are merged into opaque outlines so overlaps
   do not darken (`Geometry2D.merge_polygons`, skipped for outlines whose boxes are
-  apart; `blood_splat_merge_fast_path_test.gd`), drawn as one `FillBatch`. About 1 splat in 100,000 unions into a polygon the
+  apart; `blood_splat_merge_fast_path_test.gd`), shown by the 3D render as one mesh. About 1 splat in 100,000 unions into a polygon the
   engine cannot triangulate; `BloodSplat.drawable` swaps it for its convex hull (or drops it) instead of logging an error
   (`blood_splat_shapes_valid_test.gd`). It dries to `dried_color` over `BloodSplatConfig.dry_time`.
 
@@ -58,29 +58,24 @@ under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `Blo
   The newest registration wins on overlap, except any porous surface at a point counts.
 - **Soaking:** once the flood has mostly reached a porous cell (>= 0.5), `BloodFlow.tick(delta)` (from `BloodPool`, which keeps
   processing while `soaking()`) takes its soak 0 → 1 over `soak_time`. Soaking never changes `fill(c)` or the outline; the blood
-  turns translucent (`soak_opacity`) so the carpet shows through. `wetness(c)` = `fill * (1 - soak)` is what `BloodField` reads,
+  shows only as the 3D pool's soaked tone (`PoolInk`). `wetness(c)` = `fill * (1 - soak)` is what `BloodField` reads,
   so soaked blood leaves no prints or smears. Dragged trail cells do not soak.
 - Porous floor also slows and shortens the pool: `porous_spread_slowdown` stretches the sweep by the share of porous cells, and
   each costs `porous_cell_weight` of the budget. The pool texture is RG8 (red = fill, green = soak, written only when
-  `has_porous()`); the shader splits it into `soak_tuft_size` px tufts, each with its own soak rate and shade.
+  `has_porous()`).
 
 ## Carried blood
 
 Wetness, footprints, smears and a pool dragged out: `blood-carried.md`.
 
-## Draw order
+## Where blood lies
 
-All blood lies at `DrawLayers.BLOOD` (interface 11), through `BloodConfig.z_index` (splats, and the `BloodPool` node, set by
-`BloodSpawner._new_pool`) and `print_z_index` (prints, smears, scorch): over the floor and rugs, under what lies there (a dead
-body, casings, a dropped item) and under a vehicle driving over it.
+Blood is data in the world: splats, the `BloodPool` fill, prints and smear ribbons (`BloodDecals`). Physics draws none of it: the 3D
+render lays it on the floor (`mesh/`, `meshes.md`), told through `PhysicsFxHook`; it lies over the floor and rugs and under what
+stands on it by the 3D heights.
 
 ## In the player's view (`docs/player-vision.md` V11)
 
-A pool the player's view does not show is not redrawn (`BloodPool`). `_physics_process` (and `drag_out`) only mark the pool stale; its
-`_process`, which runs after every physics tick of the frame, redraws a stale pool when `SeenArea.reaches_rect` (General, interface 11)
-says the box its cells cover (`BloodFlow.extent()`, plus the blur's `PAD`) reaches what the view shows, on the frame's own area, so a pool
-the cone sweeps onto is drawn that very frame; with no view it is drawn each frame as before. The box, not the circle round it: a long
-pool's circle reaches the viewer's 48 px bubble when the pool does not. The flood and soak keep running unseen: `BloodField` reads the
-fill, never the drawing. Settled blood stays on `ViewLayers.WORLD`, so the view remembers it; the blood spray in flight is Physics'
-`HitParticles` / `DebrisSpawner` on `MOVING`. Tests: `vision/unseen_not_repainted` (a pool outside the cone is never redrawn; redrawn the
-frame the cone reaches it), `vision/moving_never_remembered`. Measured by A/B: 0.13 to 0.5 ms a frame, 12 to 25 % of the pools' draw time, the whole frame's change within noise.
+Settled blood stays on `ViewLayers.WORLD`, so the view remembers it; the blood spray in flight is Physics' `HitParticles` /
+`DebrisSpawner` on `MOVING`. The pool's flood and soak run whether seen or not: `BloodField` reads the fill, never a drawing.
+Tests: `vision/moving_never_remembered`.

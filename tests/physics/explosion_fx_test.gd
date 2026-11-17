@@ -1,19 +1,20 @@
 extends GameTest
-## The look of a burst (Physics): `Physics.spawn_explosion(world, at, kind)` puts a bright flash, a
-## fireball puff and drifting smoke in the world for a frag (a scorch decal stays under it), and
+## The look of a burst (Physics): `Physics.spawn_explosion(world, at, kind)` tells the 3D render a
+## bright flash, a fireball puff and drifting smoke for a frag (a scorch mark stays under it), and
 ## only thin smoke for a stun: its white flash is the lighting's flash light (S8, ticket #56;
 ## `lighting/stun_flash_light`), no drawn disc; with `PhysicsExplosionConfig.fx_enabled` off it
-## spawns none of it.
+## makes none of it. Read through the blasts the hook was told (`tests/_physics/fx_tap.gd`) and the
+## world's scorch layer.
 
-const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const FxTap := preload("res://tests/_physics/fx_tap.gd")
 const AT := Vector2(300, 250)
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "An explosion spawns its effects, and none with the switch off",
-		"description": "spawn_explosion for a frag makes a flash, a fireball and smoke plus a "
-			+ "scorch decal; for a stun thin smoke only (its flash is a light); with "
+		"name": "An explosion makes its effects, and none with the switch off",
+		"description": "spawn_explosion for a frag tells the render a flash, a fireball and smoke "
+			+ "plus a scorch mark; for a stun thin smoke only (its flash is a light); with "
 			+ "PhysicsExplosionConfig.fx_enabled off, nothing.",
 		"tags": ["grenade", "explosion", "fx", "physics"],
 		"timeout": 12.0,
@@ -25,56 +26,40 @@ func configure(s: TestSetup) -> void:
 	s.set_static(PhysicsExplosionConfig, &"fx_enabled", true)
 
 
-## The effect nodes named `part` anywhere in the world.
-func _nodes(t: TestContext, part: String) -> Array:
-	return t.world.find_children("*%s*" % part, "", true, false)
-
-
 func run(t: TestContext) -> void:
-	var physics: GDScript = Physics
-	var config: GDScript = PhysicsExplosionConfig
-	if not t.require(
-			physics.has_method("spawn_explosion") and config.get("fx_enabled") != null,
-			"Physics.spawn_explosion and PhysicsExplosionConfig.fx_enabled exist",
-	):
+	var tap := FxTap.new().attach()
+	var scorch := ScorchDecals.layer(t.world)
+	Physics.spawn_explosion(t.world, AT, &"frag")
+	await t.frames(2)
+	if not t.require(tap.blasts.size() == 1, "a frag makes one blast (%d)" % tap.blasts.size()):
+		tap.detach()
 		return
-	physics.call("spawn_explosion", t.world, AT, &"frag")
-	await t.frames(2)
-	t.check(not _nodes(t, "ExplosionFlash").is_empty(), "a frag makes a bright flash")
-	t.check(not _nodes(t, "ExplosionFireball").is_empty(), "and a fireball puff")
-	t.check(not _nodes(t, "ExplosionSmoke").is_empty(), "and smoke")
-	t.check(not _nodes(t, "Scorch").is_empty(), "and leaves a scorch decal under it")
+	var frag: Dictionary = tap.blasts[0]
+	t.expect_eq(frag["at"], AT, "it bursts where the grenade went off")
+	t.check(float(frag["look"]["flash_radius"]) > 0.0, "a frag makes a bright flash")
+	t.check(float(frag["look"]["fireball_radius"]) > 0.0, "and a fireball puff")
+	t.check(int(frag["look"]["smoke_puffs"]) > 0, "and smoke")
+	t.expect_eq(scorch.count(), 1, "and leaves a scorch mark under it")
 
-	await t.seconds(4.0)
-	t.check(
-		not _nodes(t, "Scorch").is_empty(),
-		"the scorch stays after the flash, fireball and smoke have gone",
-	)
-	t.check(
-		_nodes(t, "ExplosionFlash").is_empty() and _nodes(t, "ExplosionFireball").is_empty(),
-		"the flash and the fireball are short lived",
-	)
+	await t.seconds(2.0)
+	t.expect_eq(scorch.count(), 1, "the scorch stays after the burst")
 
-	var scorch := _nodes(t, "Scorch").size()
-	physics.call("spawn_explosion", t.world, AT + Vector2(200, 0), &"stun")
+	Physics.spawn_explosion(t.world, AT + Vector2(200, 0), &"stun")
 	await t.frames(2)
+	t.expect_eq(tap.blasts.size(), 2, "a stun makes a blast too")
+	var stun: Dictionary = tap.blasts[1]
 	t.check(
-		_nodes(t, "ExplosionFlash").is_empty(),
+		float(stun["look"]["flash_radius"]) == 0.0,
 		"a stun draws no white flash disc: the lighting shows its flash (S8)",
 	)
-	t.check(not _nodes(t, "ExplosionSmoke").is_empty(), "it makes thin smoke")
-	t.check(_nodes(t, "ExplosionFireball").is_empty(), "but no fireball")
-	t.expect_eq(_nodes(t, "Scorch").size(), scorch, "and no scorch")
+	t.check(int(stun["look"]["smoke_puffs"]) > 0, "it makes thin smoke")
+	t.check(float(stun["look"]["fireball_radius"]) == 0.0, "but no fireball")
+	t.expect_eq(scorch.count(), 1, "and no scorch")
 
-	await t.seconds(4.0)
-	config.set("fx_enabled", false)
-	var all := _nodes(t, "Explosion").size() + _nodes(t, "Scorch").size()
-	physics.call("spawn_explosion", t.world, AT + Vector2(-200, 0), &"frag")
-	physics.call("spawn_explosion", t.world, AT + Vector2(0, 100), &"stun")
+	PhysicsExplosionConfig.fx_enabled = false
+	Physics.spawn_explosion(t.world, AT + Vector2(-200, 0), &"frag")
+	Physics.spawn_explosion(t.world, AT + Vector2(0, 100), &"stun")
 	await t.frames(2)
-	t.expect_eq(
-		_nodes(t, "Explosion").size() + _nodes(t, "Scorch").size(),
-		all,
-		"with the master switch off no effect is spawned",
-	)
-	config.set("fx_enabled", true)
+	tap.detach()
+	t.expect_eq(tap.blasts.size(), 2, "with the master switch off no blast is made")
+	t.expect_eq(scorch.count(), 1, "and no scorch is left")

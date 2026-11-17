@@ -125,6 +125,7 @@ func _start_session() -> void:
 	_session.watch = _watch
 	_session.von.launcher_parent = self
 	_session.bundle_dir = TestBatch.bundle_dir()
+	_session.picture = true  # the runner is a window to look at: a test world shows the game
 	add_child(_session)
 	_session.status.connect(func(text: String):
 		if _hud != null:
@@ -137,7 +138,8 @@ func _start_session() -> void:
 			_hud.show_result(flipped))
 
 
-## Whether `event` moves a camera: a trackpad gesture, the wheel's zoom or a camera key.
+## Whether `event` moves a camera: a trackpad gesture, the wheel's zoom, a camera key or a camera
+## turn key.
 func _is_camera_event(event: InputEvent) -> bool:
 	return (event is InputEventPanGesture
 			or event.is_action(Keybinds.ZOOM_IN)
@@ -145,7 +147,9 @@ func _is_camera_event(event: InputEvent) -> bool:
 			or event.is_action(Keybinds.CAMERA_LEFT)
 			or event.is_action(Keybinds.CAMERA_RIGHT)
 			or event.is_action(Keybinds.CAMERA_UP)
-			or event.is_action(Keybinds.CAMERA_DOWN))
+			or event.is_action(Keybinds.CAMERA_DOWN)
+			or event.is_action(Keybinds.CAMERA_TURN_LEFT)
+			or event.is_action(Keybinds.CAMERA_TURN_RIGHT))
 
 
 ## Freeze or resume the open test's world (the banner, overlay bar and this runner keep running).

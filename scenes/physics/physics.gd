@@ -19,33 +19,38 @@ static func impact_impulse(hit: HitInfo) -> Vector2:
 	return hit.direction * PhysicsImpactConfig.impulse * hit.speed_factor * force_scale
 
 
-## Show a hit: a particle burst at the entry point (weak, with a much stronger one at the exit when
-## the striker passed through, `hit.has_exit`; a hit that stays in the object gets one full-strength
-## burst) plus chips knocked off the entry, all styled by the struck object's `get_surface()`
-## (`color`, `material`) and added under `parent` (placed by world position, so `parent` may be
-## offset from the origin). Entry particles and chips fly out along the surface normal, or back
-## along the shot when the normal is degenerate; the exit burst follows the shot. A hit that carries
-## blood (`hit.blood > 0`, a bullet that just left a character) also throws a few red droplets and
-## chips from the entry. Particles need PhysicsConfig.hit_particles_enabled, chips
-## PhysicsConfig.debris_enabled, and the blood bits BloodConfig.enabled.
+## Show a hit: a particle burst (data, shown by the 3D render) at the entry point (weak, with a much
+## stronger one at the exit when the striker passed through, `hit.has_exit`; a hit that stays in the
+## object gets one full-strength burst) plus chips knocked off the entry, all styled by the struck
+## object's `get_surface()` (`color`, `material`) and added under `parent` (placed by world
+## position, so `parent` may be offset from the origin). Entry particles and chips fly out along the
+## surface normal, or back along the shot when the normal is degenerate; the exit burst follows the
+## shot. A hit that carries blood (`hit.blood > 0`, a bullet that just left a character) also throws
+## a few red droplets and chips from the entry. Particles need PhysicsConfig.hit_particles_enabled,
+## chips PhysicsConfig.debris_enabled, and the blood bits BloodConfig.enabled.
 static func spawn_debris(parent: Node, hit: HitInfo, surface: Dictionary) -> void:
+	PhysicsFxHook.hit_height = hit.height  # the 3D render's: where the chips leave the surface
+	_spray(parent, hit, surface)
+	PhysicsFxHook.hit_height = -1.0
+
+
+## `spawn_debris`'s bursts and chips.
+static func _spray(parent: Node, hit: HitInfo, surface: Dictionary) -> void:
 	var spray := hit.spray_direction()
 	var strength := clampf(hit.speed_factor, 0.4, 1.5) * clampf(0.7 + hit.damage / 50.0, 0.7, 1.4)
 	# Through the object: a weak burst going in, the strong one coming out. Otherwise one
 	# full-strength burst.
 	var through := hit.has_exit
 	HitParticles.spawn(
-		parent,
 		hit,
 		surface,
 		HitParticles.Kind.ENTRY if through else HitParticles.Kind.IMPACT,
 		strength,
 	)
 	if through:
-		HitParticles.spawn(parent, hit, surface, HitParticles.Kind.EXIT, strength)
+		HitParticles.spawn(hit, surface, HitParticles.Kind.EXIT, strength)
 	if hit.blood > 0.0 and BloodConfig.enabled:
 		HitParticles.spawn(
-			parent,
 			hit,
 			{ "material": "blood" },
 			HitParticles.Kind.IMPACT,
@@ -72,10 +77,11 @@ static func bleed_out(parent: Node, source: Node2D, exclude: Array) -> Node:
 	return BloodSpawner.bleed(parent, source, exclude)
 
 
-## Show a grenade's burst of `kind` (`&"frag"` or `&"stun"`) at world point `at` under `world`: a
-## frag is a bright flash, a fireball puff, smoke drifting off and a scorch left on the floor
-## under it; a stun is thin smoke only. Looks, timings and where a stun's flash comes from are
-## `PhysicsExplosionConfig.looks`; spawns nothing while `PhysicsExplosionConfig.fx_enabled` is off.
+## Show a grenade's burst of `kind` (`&"frag"` or `&"stun"`) at world point `at` under `world`: told
+## to the 3D render (`PhysicsFxHook.blast_made`: a frag is a bright flash, a fireball puff and
+## smoke drifting off; a stun is thin smoke only) and, for a frag, a scorch left on the floor under
+## it. Looks, timings and where a stun's flash comes from are `PhysicsExplosionConfig.looks`; does
+## nothing while `PhysicsExplosionConfig.fx_enabled` is off.
 static func spawn_explosion(world: Node, at: Vector2, kind: StringName) -> void:
 	if PhysicsExplosionConfig.fx_enabled:
 		ExplosionFx.spawn(world, at, kind)

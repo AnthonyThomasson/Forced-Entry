@@ -1,8 +1,8 @@
 extends RefCounted
 ## Lighting domain (private): how one light behaves over time, as a factor on its energy and on the
-## brightness of the overlay that glows with it. Seeded per light (WorldLighting seeds it from the
-## world's seed and the piece), so two lights of a kind are never in step, and the same world lit
-## with the same seed flickers the same:
+## brightness of the part of the piece that glows with it. Seeded per light (WorldLighting3D seeds
+## it from the world's seed and the piece), so two lights of a kind are never in step, and the same
+## world lit with the same seed flickers the same:
 ##   `steady`  always on (no rhythm is made for it);
 ##   `buzz`    on, with the small fast jitter of a tube or a cheap bulb;
 ##   `failing` a dying tube or bulb: on most of the time, then a burst of stutters, now and then

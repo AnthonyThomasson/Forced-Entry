@@ -4,10 +4,10 @@ extends CharacterBody2D
 ## `inventory`, `weapon`, `ammo`, `stun`, `use`, `anatomy`, `wardrobe`). It reads its intent from
 ## a pluggable controller child (any node with a `control(character, delta)` method): the
 ## controller writes `movement.move_input` / `movement.aim_point` and calls `weapon.melee` /
-## `weapon.shoot` / `inventory.select_slot`. Drawing is in character_visuals.gd; the body's animate
-## parts (the living motion, the rig, the hands, the legs, the kick, the footsteps, the wounds, the
-## shadow and the fall on death) are its `anatomy` (character_anatomy.gd), stepped here each physics
-## frame.
+## `weapon.shoot` / `inventory.select_slot`. The 3D body mesh shows it (`BodyMesh`); the body's
+## animate parts (the living motion, the rig, the hands, the legs, the kick, the footsteps, the
+## wounds, the shadow and the fall on death) are its `anatomy` (character_anatomy.gd), stepped here
+## each physics frame.
 
 ## Emitted once when health drops to zero.
 signal died
@@ -34,7 +34,7 @@ const CharacterRagdoll = preload("res://scenes/character/body/character_ragdoll.
 var health: float
 ## True once the character has died; gates all movement and action permanently.
 var is_dead: bool = false
-## Unit vector from the character toward its aim point; read by the hands and visuals.
+## Unit vector from the character toward its aim point; read by the hands and the 3D body.
 var facing := Vector2.RIGHT
 ## The controller's intent, the posture, running and stamina, knockback and the push slow
 ## (`character_movement.gd`).
@@ -93,7 +93,6 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	_physics_step(delta)
 	use.restore_cleared()
-	anatomy.turn_shadow()
 
 
 ## One physics frame of the body: a dead one's ragdoll, else the controller's intent, the ride or

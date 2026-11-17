@@ -17,6 +17,8 @@ extends Camera2D
 
 ## The resolved target node.
 var _player: Node2D
+## The one-element list `focus_targets` gives while following the player.
+var _followed: Array[Node2D] = []
 ## When on, frames `_frame_targets` instead of following `_player`.
 var _frame_mode: bool = false
 ## The nodes to keep framed (the match combatants).
@@ -29,6 +31,8 @@ var _idle: float = 0.0
 var _base_zoom: float = 1.0
 ## The wheel's lasting scale on `_base_zoom`.
 var _zoom_bias: float = 1.0
+## The 3D render's zoom in whole steps and the wheel's place in them.
+var _steps := ZoomSteps.new()
 ## Last mouse position seen over the window.
 var _mouse_pos := Vector2.ZERO
 ## Edge panning needs a live pointer: not yet seen, or left, = off.
@@ -45,6 +49,8 @@ func _ready() -> void:
 	_player = get_node_or_null(target_path)
 	if not _player:
 		push_warning("Camera: could not find target node at %s" % target_path)
+	else:
+		_followed.append(_player)
 	EventBus.posted.connect(_on_posted)
 
 
@@ -66,6 +72,9 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	var notches := Keybinds.scroll_notches(event)  # signed: positive zooms in
 	if notches == 0.0:
+		return
+	if Pointer.is_3d(self):
+		_steps.wheel(notches, Time.get_ticks_msec())
 		return
 	_zoom_bias = clampf(_zoom_bias * pow(CameraConfig.zoom_step, notches),
 			CameraConfig.wheel_min_zoom / _base_zoom, CameraConfig.wheel_max_zoom / _base_zoom)
@@ -112,8 +121,16 @@ func _shake(delta: float) -> void:
 	_trauma = maxf(_trauma - CameraShakeConfig.decay * delta, 0.0)
 
 
+## Who the view is about: the player while following, every framed node (the match's combatants)
+## while spectating. The camera's own list, not a copy: read it, never change it; a node may have
+## been freed or be dead. The 3D render's wall fade fades around each (interface 27).
+func focus_targets() -> Array[Node2D]:
+	return _frame_targets if _frame_mode else _followed
+
+
 ## Switch to framing mode: ease to keep every live node in `targets` on screen (used by the
-## spectator match view). A General observer — reads only Node2D positions + the `is_dead` property.
+## spectator match view and the test runner's shared camera, whose zoom then starts afresh). A
+## General observer: reads only Node2D positions and the `is_dead` property.
 func frame(targets: Array) -> void:
 	_frame_targets.clear()
 	for t in targets:
@@ -121,6 +138,9 @@ func frame(targets: Array) -> void:
 			_frame_targets.append(t)
 	_frame_mode = not _frame_targets.is_empty()
 	_manual = false
+	# a new framing starts from its own fit: the held zoom step and the wheel's scale are forgotten
+	_steps = ZoomSteps.new()
+	_zoom_bias = 1.0
 
 
 ## Framing mode: pan by the camera keys / screen edge, handing control to the viewer while they do
@@ -132,7 +152,13 @@ func _steer_by_hand(delta: float) -> void:
 			else Vector2.ZERO)
 	if pan != Vector2.ZERO:
 		_take_over()
-		global_position += pan * CameraConfig.pan_speed * delta / zoom.x
+		# The keys and the edge are screen directions: the ground step that shows as that
+		# screen step at the camera's yaw, so the pan is as fast on the screen up it as along it
+		# (the pitch squeezes the ground's depth); with no camera rig bound the screen is the world.
+		if Pointer.is_3d(self):
+			global_position += Pointer.world_vector(self, pan) * CameraConfig.pan_speed * delta
+		else:
+			global_position += pan * CameraConfig.pan_speed * delta / zoom.x
 	elif _manual:
 		_idle += delta
 		if _idle >= CameraConfig.manual_hold:
@@ -147,8 +173,12 @@ func _take_over() -> void:
 
 
 ## Ease the zoom toward the automatic zoom scaled by the wheel (and by `out_scale`: under 1 zooms
-## out).
+## out). In the 3D render it does not ease: it takes its whole step (`ZoomSteps`).
 func _ease_zoom(out_scale := 1.0) -> void:
+	if Pointer.is_3d(self):
+		var step := _steps.snap(_base_zoom * out_scale, _frame_mode)
+		zoom = Vector2(step, step)
+		return
 	var z := clampf(
 		_base_zoom * _zoom_bias * out_scale,
 		CameraConfig.wheel_min_zoom,
@@ -183,12 +213,15 @@ func _frame_combatants() -> void:
 				live.append(t)
 	if live.is_empty():
 		return
-	var box := Rect2(live[0].global_position, Vector2.ZERO)
+	var space := _framing_space()
+	var box := Rect2(space * live[0].global_position, Vector2.ZERO)
 	for t in live:
-		box = box.expand(t.global_position)
+		box = box.expand(space * t.global_position)
 	box = box.grow(CameraConfig.frame_margin)
 	if not _manual:
-		global_position = global_position.lerp(box.get_center(), 1.0 / CameraConfig.follow_speed)
+		global_position = global_position.lerp(
+			space.affine_inverse() * box.get_center(), 1.0 / CameraConfig.follow_speed
+		)
 	var vp := get_viewport_rect().size
 	var fit := minf(vp.x / maxf(box.size.x, 1.0), vp.y / maxf(box.size.y, 1.0))
 	_base_zoom = clampf(fit, CameraConfig.min_zoom, CameraConfig.max_zoom)
@@ -196,6 +229,17 @@ func _frame_combatants() -> void:
 	for t in live:
 		out = maxf(out, _drive_zoom_out(t))
 	_ease_zoom(1.0 - out)
+
+
+## The space the framing measures the combatants in: the screen at zoom 1 (the ground's
+## linear map to the screen at the camera's yaw, without its zoom or origin; with no camera rig
+## bound, the world), so the fit is by the extent the screen shows, not by the ground box a turned
+## camera sees as a diamond.
+func _framing_space() -> Transform2D:
+	if not Pointer.is_3d(self):
+		return Transform2D.IDENTITY
+	var view := Pointer.screen_transform(self)
+	return Transform2D(view.x / zoom.x, view.y / zoom.x, Vector2.ZERO)
 
 
 ## How far `who`'s vehicle zooms the view out (0 on foot, or for a vehicle that does not say).
@@ -219,8 +263,11 @@ func _calculate_target_position() -> Vector2:
 	if half.x <= 0.0 or half.y <= 0.0:
 		return player_pos
 	var from_centre := (Pointer.screen_mouse(self) - half) / half
-	var reach := (half - Vector2.ONE * CameraConfig.look_ahead_edge_margin).max(Vector2.ZERO) / zoom
-	return player_pos + Vector2(_lead(from_centre.x), _lead(from_centre.y)) * reach
+	var reach := (half - Vector2.ONE * CameraConfig.look_ahead_edge_margin).max(Vector2.ZERO)
+	var lead := Vector2(_lead(from_centre.x), _lead(from_centre.y))
+	if Pointer.is_3d(self):  # the ground the camera's yaw shows that far along the screen
+		return player_pos + Pointer.world_vector(self, lead * reach)
+	return player_pos + lead * (reach / zoom)
 
 
 ## The lead (-1..1) along one screen axis for the mouse `u` of the half-screen from the centre.

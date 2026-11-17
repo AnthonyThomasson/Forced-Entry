@@ -35,6 +35,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 200, 200))
 	s.set_static(Settings, &"path", SCRATCH)
 	s.set_static(Settings, &"setup", {})
@@ -184,11 +185,12 @@ func _npcs(world: Node) -> Array:
 	))
 
 
-## The factions with an NPC whose vision overlay is on, sorted.
+## The factions with an NPC whose vision overlay is on, sorted (an overlay is the NPC's child, or
+## under the 3D view's ground layer once it has been moved there).
 func _shown(world: Node) -> Array:
 	var out: Array = []
 	for npc in _npcs(world):
-		for child in npc.get_children():
+		for child in npc.get_children() + GroundLayer.overlays_of(npc):
 			if "show_vision" in child and bool(child.show_vision) and not out.has(npc.faction):
 				out.append(npc.faction)
 	var names: Array = out.map(func(f): return String(f))

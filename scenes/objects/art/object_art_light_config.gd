@@ -11,16 +11,21 @@ class_name ObjectArtLightConfig
 ## by weight (`[[mode, weight], ...]`: steady, buzz, failing, blink, shimmer, pulse), `room_light`
 ## (it lights its room, so the room needs no ceiling fixture) and `height` (`overhead`: above the
 ## heads, a lamp's bulb, a street lamp's head, shadowed by the walls only and pooling downward;
-## `low` when absent: shadowed by the walls and the tall pieces). Its colour is what the piece draws
+## `low` when absent: shadowed by the walls and the tall pieces) and `lift` (px above the floor:
+## where the glowing part is in the piece's 3D mesh, a lamp's bulb over its shade, a screen's face,
+## a street lamp's head at the top of its post, a neon tube on the floor; the 3D render hangs the
+## light there). Its colour is what the piece draws
 ## glowing (its neon, its screen, its bulb). `trim` is a piece's neon trim or under-glow; a tube's
 ## `radius` is its length × `tube_reach`.
 static var specs: Dictionary = {
 	"lamp": {
+		"lift": 50.0,
 		"energy": 0.95, "radius": 160.0, "shape": &"round", "height": &"overhead",
 		"rhythm": [[&"steady", 6.0], [&"buzz", 1.5], [&"pulse", 1.0], [&"failing", 1.5]],
 		"room_light": true,
 	},
 	"tv": {
+		"lift": 16.0,
 		"energy": 0.8,
 		"radius": 110.0,
 		"shape": &"wide",
@@ -28,6 +33,7 @@ static var specs: Dictionary = {
 		"rhythm": [[&"shimmer", 1.0]],
 	},
 	"desk": {
+		"lift": 39.0,
 		"energy": 0.6,
 		"radius": 105.0,
 		"shape": &"wide",
@@ -35,6 +41,7 @@ static var specs: Dictionary = {
 		"rhythm": [[&"shimmer", 1.0]],
 	},
 	"monitor_wall": {
+		"lift": 39.0,
 		"energy": 0.9,
 		"radius": 128.0,
 		"shape": &"wide",
@@ -42,24 +49,31 @@ static var specs: Dictionary = {
 		"rhythm": [[&"shimmer", 1.0]],
 	},
 	"server_rack": {
+		"lift": 72.0,
 		"energy": 0.5,
 		"radius": 65.0,
 		"shape": &"round",
 		"ahead": 8.0,
 		"rhythm": [[&"blink", 1.0], [&"pulse", 1.0]],
 	},
-	"rig": { "energy": 0.4, "radius": 80.0, "shape": &"round", "rhythm": [[&"shimmer", 1.0]] },
+	"rig": {
+		"lift": 70.0, "energy": 0.4, "radius": 80.0, "shape": &"round",
+		"rhythm": [[&"shimmer", 1.0]],
+	},
 	"surgical": {
+		"lift": 70.0,
 		"energy": 1.1, "radius": 160.0, "shape": &"round", "height": &"overhead",
 		"rhythm": [[&"steady", 1.0]], "room_light": true,
 	},
 	"tool_cart": {
+		"lift": 34.0,
 		"energy": 0.4,
 		"radius": 60.0,
 		"shape": &"round",
 		"rhythm": [[&"shimmer", 1.0]],
 	},
 	"scanner": {
+		"lift": 60.0,
 		"energy": 0.6,
 		"radius": 90.0,
 		"shape": &"wide",
@@ -67,6 +81,7 @@ static var specs: Dictionary = {
 		"rhythm": [[&"pulse", 1.0]],
 	},
 	"fridge": {
+		"lift": 42.0,
 		"energy": 0.55,
 		"radius": 95.0,
 		"shape": &"wide",
@@ -74,26 +89,37 @@ static var specs: Dictionary = {
 		"rhythm": [[&"steady", 5.0], [&"buzz", 1.0]],
 	},
 	"menu_board": {
+		"lift": 63.0,
 		"energy": 0.7,
 		"radius": 105.0,
 		"shape": &"wide",
 		"ahead": 14.0,
 		"rhythm": [[&"steady", 4.0], [&"buzz", 1.5], [&"failing", 1.0]],
 	},
-	"hotplate": { "energy": 0.6, "radius": 60.0, "shape": &"round", "rhythm": [[&"pulse", 1.0]] },
+	"hotplate": {
+		"lift": 15.0,
+		"energy": 0.6,
+		"radius": 60.0,
+		"shape": &"round",
+		"rhythm": [[&"pulse", 1.0]],
+	},
 	"neon_tube": {
+		"lift": 3.0,
 		"energy": 0.85, "tube_reach": 1.7, "shape": &"tube",
 		"rhythm": [[&"steady", 4.0], [&"failing", 3.5], [&"buzz", 2.5]],
 	},
 	"cobra": {
+		"lift": 124.0,
 		"energy": 1.0, "radius": 130.0, "shape": &"round", "height": &"overhead",
 		"rhythm": [[&"steady", 3.0], [&"failing", 1.0]],
 	},
 	"sign": {
+		"lift": 124.0,
 		"energy": 1.0, "radius": 130.0, "shape": &"round", "height": &"overhead",
 		"rhythm": [[&"blink", 3.0], [&"buzz", 2.0]],
 	},
 	"trim": {
+		"lift": 14.0,
 		"energy": 0.45,
 		"radius": 45.0,
 		"shape": &"round",

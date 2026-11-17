@@ -1,4 +1,4 @@
-4. **Objects/Character/Vehicles → Physics** (they compose it; Physics is a leaf domain)
+4. **Objects/Character/Vehicles → Physics** (they compose it; Physics is a leaf domain but for Art's mesh kit, 3D only)
    - `Knockback` (Node child): RigidBody2D adapter. Configures its parent body, owns `apply_impulse(v, at_world)`; `mass` is set by the
 	 owner from the catalogue `weight` before `_ready`.
    - `Deformable` (Node child): `record(hit, turn = 0.0)` (`turn`: the body's drawn turn beyond its node rotation; the character
@@ -6,17 +6,11 @@
 	 dent, px; default `PhysicsDeformConfig.max_depth`), `allow_chunks` (a hard hit carves a missing piece), `max_impacts` (dents
 	 remembered), each defaulting to `PhysicsDeformConfig`'s (the character sets softer flesh values from `CharacterHitConfig`). A vehicle composes one with chunks off,
 	 no `Knockback` (it is its own `RigidBody2D`), and does not rebuild its collider from the dents.
-   - `Deformation` (static): silhouette/collider polygons and drawing.
-	 - Draw: `draw_shape(canvas, shape, size, impacts, look: ShapeLook)` and `draw_wall(canvas, a, b, impacts, look: WallLook)`.
-	   `ShapeLook` (`physics/shape_look.gd`): `fill`, `outline`, `damage_total`, `crack_color` / `hole_color` / `scorch_color`, `texture`,
-	   `texture_angle`, `marks` (false: the caller draws the hit marks later with `draw_marks`). `WallLook` (`physics/wall_look.gd`):
-	   `thickness`, `color`, `texture`, `tile_length`. Pixel art is drawn through the dented silhouette. `NO_COLOR` = take the call's
-	   default colour.
+   - `Deformation` (static): silhouette/collider polygons and the damage darkening (`darken(damage_total)`).
 	 - Polygons: `base_ring(shape, size)`, `shape_polygon(shape, size, impacts)` (cached), `wall_polygon(a, b, thickness, impacts)`,
 	   `is_valid_polygon(poly)` (skip a self-touching one that frame), `convex_pieces(polygon)`, `shapes_of(pieces)` (their
 	   `ConvexPolygonShape2D`s), `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` -> `[polygon, pieces]`
-	   (uncached and pure: safe on a worker thread), `drawable_polygon(shape, size, impacts)` (what `draw_shape` draws: the dented
-	   silhouette, or the undented ring when the dents pinched it) and `texture_uvs(poly, size, angle)`.
+	   (uncached and pure: safe on a worker thread).
 	 - Impacts: built by `new_impact(pos, inward, damage, blood, dent: DentLimits)` (`physics/dent_limits.gd`: `max_depth`,
 	   `allow_chunks`, `rng`: the world's `WorldRng.of`, the dent's seed) and kept by `push_impact(list, impact, max_impacts)` (oldest dropped); `Deformable.record` and Objects' wall (one
 	   list per segment) both build through them.
@@ -24,7 +18,7 @@
 	   for a caller drawing a textured polygon its own way (the character's kept meshes, `domain-character` (`body.md`)).
    - `Debris.toss(node, dir, distance, time, spin) -> Tween` (`physics/debris.gd`, preloaded as `Debris`, no `class_name`): a thrown chip's
 	 toss; the Projectile System's spent casing uses it too.
-   - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)`: objects, the character and a vehicle.
+   - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)`: objects, the character and a vehicle. `HitParticles.spawn(hit, surface, kind, strength) -> Dictionary` makes a particle burst as plain data, told to the 3D render (`PhysicsFxHook.burst_made`); nothing is drawn by Physics itself.
    - Blood (a character on a hit, a dead body, a footfall, a slid puddle):
 	 - `BloodWound` (Node child, character): `record(hit)` throws a splatter spray and owes drips (paced by
 	   `BloodDripConfig.interval_min..max`); `stop()` on death.
@@ -48,14 +42,17 @@
 	 origin)` until `asleep`; read `point(i)` / `point_count()` / `frame_basis(f)`; `exclude` lists colliders its wall sweep ignores.
 	 `Ragdoll.wake()` restarts a sleeping body's clocks so an explosion's push is simulated (the character's `blast_push`). The Character
 	 domain owns the humanoid skeleton built on it.
-   - `Physics.spawn_explosion(world, at, kind)` (`kind` `&"frag"` / `&"stun"`; called by `Explosion`): the look of a burst — nodes
-	 `ExplosionFlash`, `ExplosionFireball` (frag only: a stun's white flash is the Lighting domain's flash light, interface 20) and
-	 `ExplosionSmoke`, which free themselves (Despawner-tracked), and a frag's scorch in the world's `ScorchDecals` layer (capped by
-	 `Despawner.max_scene_objects`). Looks and timings: `PhysicsExplosionConfig.looks`; `PhysicsExplosionConfig.fx_enabled` off spawns
-	 none.
+   - `Physics.spawn_explosion(world, at, kind)` (`kind` `&"frag"` / `&"stun"`; called by `Explosion`): the look of a burst: it tells the 3D render a
+	 flash, a fireball (frag only: a stun's white flash is the Lighting domain's flash light, interface 20) and smoke (`PhysicsFxHook.blast_made`), and
+	 marks a frag's scorch in the world's `ScorchDecals` layer (capped by `Despawner.max_scene_objects`). Looks and timings:
+	 `PhysicsExplosionConfig.looks`; `PhysicsExplosionConfig.fx_enabled` off does none of it.
    - Tuning read across the boundary: `PhysicsDeformConfig` (`depth_per_damage`, `max_depth`, `chunk_damage`, `max_impacts`,
-	 `update_collider`; Objects reads it when recording damage; `circle_points`, the round silhouette's ring size, which Character's
-	 `BodyDrawCache` keys its kept silhouettes and uvs on; holders: `tuning-holders.md`).
+	 `update_collider`; Objects reads it when recording damage; `circle_points`, the round silhouette's ring size; holders: `tuning-holders.md`).
 
-   Physics imports nothing from other domains but General's infrastructure: `Despawner` (debris, hit particles, blood, explosion fx),
-   `PhysicsLayers` (`PhysicsConfig.wall_mask`), `DrawLayers` (its z knobs), `FillBatch`.
+   Physics imports nothing from other domains but General's infrastructure: `Despawner` (debris, the mark layers),
+   `PhysicsLayers` (`PhysicsConfig.wall_mask`), `ViewLayers`, `SeenArea`; and, for the 3D render (27), Art's mesh kit (12).
+   - `PhysicsMeshes.install(mirror: WorldMirror, ground := Callable()) -> FxLayer` (Main's `View3D`, once, before the match makes anything): the 3D look of everything above
+     (`domain-physics/meshes.md`). The spawners tell it through `PhysicsFxHook` (static, a no-op when none is installed); `spawn_debris` sets `PhysicsFxHook.hit_height`.
+     `ground` is `func(at: Vector2) -> float`, the height offset (px, 0 on the pavement, a kerb lower on the road) of the ground under a world point: Main builds it
+     from the street (Objects' `StreetGround.offset_at`) so Physics imports nothing of Objects; every mark, chip, bit and blast lies on it; none is a flat ground.
+     The sink is process-wide (`PhysicsFxHook.sink`): one 3D view at a time, the last installed wins.

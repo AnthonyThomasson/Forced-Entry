@@ -1,25 +1,20 @@
 class_name Deformation
-## Physics System: stateless damage-deformation geometry + rendering, shared by furniture, walls,
-## characters and vehicles (their visuals and, for furniture/walls, collider rebuilds), so the drawn
-## silhouette and any collider come from the same deformed polygon. The caller owns the
-## impact list. Tuning lives in PhysicsDeformConfig and PhysicsDeformLookConfig (and, for a
-## character, CharacterHitConfig).
+## Physics System: stateless damage-deformation geometry, shared by furniture, walls, characters and
+## vehicles (their meshes and, for furniture/walls, collider rebuilds), so the shown silhouette and
+## any collider come from the same deformed polygon. The caller owns the
+## impact list. Tuning lives in PhysicsDeformConfig and PhysicsDeformLookConfig (the darkening),
+## and, for a character, CharacterHitConfig.
 ##
 ## An "impact" is a Dictionary in the drawer's local space:
 ##   pos:    Vector2  contact point
 ##   inward: Vector2  unit direction INTO the surface (dents push points this way)
 ##   depth:  float    dent depth in px (from dealt damage)
 ##   chunk:  bool     true = carve a jagged missing piece instead of a shallow dent
-##   seed:   int      stable RNG seed so a hit's jitter/cracks don't shimmer each frame
-##   blood:  float    0..1 blood the striker carried onto the surface (drawn with the hole)
+##   seed:   int      stable RNG seed so a hit's jitter doesn't shimmer each frame
+##   blood:  float    0..1 blood the striker carried onto the surface
 ## `new_impact` builds one and `push_impact` adds it to a list, so every caller records the same
 ## schema.
 
-## Sentinel for an unset color argument: callers pass it to accept the default derived from
-## the shape's own colors (an intentional mark color always has non-zero alpha).
-const NO_COLOR := Color(0.0, 0.0, 0.0, 0.0)
-## Default near-black bullet-hole color when a caller supplies no override.
-const HOLE_COLOR := Color(0.05, 0.05, 0.06)
 ## Multiplier that packs two piece ids into one dictionary key in `PieceScan._try_merge`, the scan
 ## `_convex_pieces` runs (ids stay far below it).
 const PIECE_PAIR_STRIDE := 65_536
@@ -465,188 +460,16 @@ static func _turns_right_at(
 	return not ((b - a).cross(c - b) * sign_ < 0.0)
 
 
-## How far (0..1, `Color.darkened`'s weight) `draw_shape` darkens a shape that has taken
+## How far (0..1, `Color.darkened`'s weight) a mesh darkens a shape that has taken
 ## `damage_total` damage: up to `PhysicsDeformLookConfig.darken_max`, reached at
 ## `PhysicsDeformLookConfig.darken_full`.
-## A textured shape is drawn in white darkened by it, so a caller drawing a textured shape's own
+## A textured shape is shown in white darkened by it, so a caller showing a textured shape's own
 ## way draws it in the same colour.
 static func darken(damage_total: float) -> float:
 	if damage_total <= 0.0 or PhysicsDeformLookConfig.darken_full <= 0.0:
 		return 0.0
 	return (clampf(damage_total / PhysicsDeformLookConfig.darken_full, 0.0, 1.0)
 			* PhysicsDeformLookConfig.darken_max)
-
-
-## The silhouette `draw_shape` draws for `shape` at `size` dented by `impacts`: `shape_polygon`,
-## or the intact outline (`base_ring`) when the dents pinched it into a polygon the renderer can't
-## triangulate (the hit marks still show the damage). Undented, it is that outline already.
-static func drawable_polygon(shape: String, size: Vector2, impacts: Array) -> PackedVector2Array:
-	var poly := shape_polygon(shape, size, impacts)
-	if not impacts.is_empty() and not is_valid_polygon(poly):
-		return base_ring(shape, size)
-	return poly
-
-
-## The uvs `draw_shape` maps a texture spanning `size` onto `poly` (local px) with, the image turned
-## by `angle` within the unturned silhouette: each point turned back by `angle`, over the size,
-## from the art's centre (one transform of the whole ring).
-static func texture_uvs(
-	poly: PackedVector2Array,
-	size: Vector2,
-	angle: float,
-) -> PackedVector2Array:
-	var c := cos(angle)
-	var s := sin(angle)
-	var to_uv := Transform2D(
-		Vector2(c / size.x, -s / size.y),
-		Vector2(s / size.x, c / size.y),
-		Vector2(0.5, 0.5),
-	)
-	return to_uv * poly
-
-
-## Draw a deformed primitive shape (furniture, characters) dented by `impacts`, as `look` says:
-## filled polygon (darkened by the damage it shows), outline, then crack/hole marks. Its
-## `crack_color`/`hole_color`/`scorch_color` override the mark colors (e.g. red cracks on flesh);
-## left as NO_COLOR the cracks derive from `outline`, the hole is `HOLE_COLOR` and the scorch black.
-## With a `texture` (spanning the `size` footprint) the polygon is drawn textured instead of filled
-## and unoutlined: the dents cut into the image rather than squash it. `texture_angle` turns the
-## image within the (unturned) silhouette — a round body facing any way. Without `marks` the hit
-## marks are left to the caller (draw_marks), to draw over parts layered on top.
-static func draw_shape(
-	canvas: CanvasItem,
-	shape: String,
-	size: Vector2,
-	impacts: Array,
-	look: ShapeLook,
-) -> void:
-	var poly := drawable_polygon(shape, size, impacts)
-	var dark := darken(look.damage_total)
-	var texture := look.texture
-	if texture:
-		var uvs := texture_uvs(poly, size, look.texture_angle)
-		canvas.draw_colored_polygon(poly, Color.WHITE.darkened(dark), uvs, texture)
-	else:
-		canvas.draw_colored_polygon(poly, look.fill.darkened(dark))
-		_draw_outline(canvas, poly, look.outline)
-	if not look.marks:
-		return
-	var cc := look.crack_color if look.crack_color.a > 0.0 else look.outline.darkened(0.3)
-	var hc := look.hole_color if look.hole_color.a > 0.0 else HOLE_COLOR
-	var sc := look.scorch_color if look.scorch_color.a > 0.0 else Color.BLACK
-	draw_marks(canvas, impacts, cc, hc, sc)
-
-
-## Draw one deformed wall segment from `a` to `b` dented by `impacts`, as `look` says (fill +
-## outline + marks). With a `texture` (a repeating tile `tile_length` px long, x along the wall and
-## y across its thickness) the polygon is drawn textured in the segment's own frame instead of
-## filled and outlined, so the tile runs along the wall whichever way it points and dents cut into
-## it (the canvas item must repeat textures).
-static func draw_wall(
-	canvas: CanvasItem,
-	a: Vector2,
-	b: Vector2,
-	impacts: Array,
-	look: WallLook,
-) -> void:
-	var thickness := look.thickness
-	var color := look.color
-	var texture := look.texture
-	var tile_length := look.tile_length
-	var poly := wall_polygon(a, b, thickness, impacts)
-	# Many dents can pinch the segment into a polygon the renderer can't triangulate; draw it
-	# undented that frame (the hit marks below still show the damage). Undented, it is that polygon
-	# already.
-	if not impacts.is_empty() and not is_valid_polygon(poly):
-		poly = wall_polygon(a, b, thickness, [])
-	if texture and tile_length > 0.0:
-		var dir := (b - a).normalized()
-		var across := dir.orthogonal()
-		var uvs := PackedVector2Array()
-		for p in poly:
-			uvs.append(
-				Vector2((p - a).dot(dir) / tile_length, (p - a).dot(across) / thickness + 0.5),
-			)
-		canvas.draw_colored_polygon(poly, Color.WHITE, uvs, texture)
-	else:
-		canvas.draw_colored_polygon(poly, color)
-		_draw_outline(canvas, poly, color.darkened(0.25))
-	draw_marks(canvas, impacts, color.darkened(0.4).darkened(0.3), HOLE_COLOR, Color.BLACK)
-
-
-## Local position of an impact's dent apex: the contact point pushed inward by its dent
-## depth (deeper for a carved chunk), mirroring the t=1 displacement in deform(). Marks are
-## drawn here so they sit in the deformed notch instead of on the original surface line.
-static func _impact_apex(impact: Dictionary) -> Vector2:
-	var pos: Vector2 = impact["pos"]
-	var inward: Vector2 = impact["inward"]
-	var d: float = impact["depth"]
-	if impact["chunk"]:
-		d *= PhysicsDeformConfig.chunk_depth
-	var apex := pos + inward * d
-	# Never let the apex cross the origin (the shape's centre).
-	if apex.dot(pos) < 0.0:
-		return pos * 0.02
-	return apex
-
-
-## Bullet holes + radiating cracks + faint scorch for each impact, seated in its dent.
-## `crack_color` tints the radiating cracks, `hole_color` the central hole, `scorch_color`
-## the faint halo (its alpha comes from PhysicsDeformLookConfig, so only its RGB matters).
-static func draw_marks(canvas: CanvasItem, impacts: Array, crack_color: Color, hole_color: Color,
-		scorch_color: Color) -> void:
-	var scorch := scorch_color
-	scorch.a = PhysicsDeformLookConfig.scorch_alpha
-	# Each mark's discs in one command (General's FillBatch), drawn before its cracks.
-	var discs := FillBatch.new(canvas)
-	for impact in impacts:
-		var p := _impact_apex(impact)
-		var depth: float = impact["depth"]
-		var blood: float = impact.get("blood", 0.0)
-		if blood > 0.0:
-			_draw_blood_mark(discs, p, blood, int(impact["seed"]))
-		discs.circle(p, PhysicsDeformLookConfig.scorch_radius + depth, scorch)
-		discs.circle(p, maxf(1.5, depth * PhysicsDeformLookConfig.hole_radius_scale), hole_color)
-		discs.flush()
-		var rng := RandomNumberGenerator.new()
-		rng.seed = int(impact["seed"])
-		var count := 2 + int(clampf(depth * PhysicsDeformLookConfig.crack_count, 0.0, 5.0))
-		for _c in count:
-			var ang := rng.randf_range(0.0, TAU)
-			var length := (PhysicsDeformLookConfig.crack_length * rng.randf_range(0.5, 1.0)
-					* (1.0 + depth * 0.15))
-			var jitter := Vector2(cos(ang), sin(ang)).orthogonal() * rng.randf_range(-2.0, 2.0)
-			canvas.draw_line(
-				p,
-				p + Vector2(cos(ang), sin(ang)) * length + jitter,
-				crack_color,
-				PhysicsDeformLookConfig.crack_width,
-			)
-
-
-## Blood a bullet carried onto an object, drawn under the hole: a lumpy red blot with a few flecks
-## around it, scaled and faded by how much blood arrived (`blood` 0..1). Seeded per impact so it
-## never shimmers.
-static func _draw_blood_mark(discs: FillBatch, at: Vector2, blood: float, seed_value: int) -> void:
-	var color := PhysicsDeformLookConfig.blood_mark_color
-	color.a = clampf(0.45 + blood * 0.5, 0.0, 1.0)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value + 7
-	var radius := PhysicsDeformLookConfig.blood_mark_radius * (0.6 + blood * 0.6)
-	discs.circle(at, radius, color)
-	for _i in 3 + int(blood * 4.0):
-		var ang := rng.randf_range(0.0, TAU)
-		var off := Vector2(cos(ang), sin(ang)) * radius * rng.randf_range(0.6, 1.6)
-		discs.circle(at + off, radius * rng.randf_range(0.25, 0.55), color)
-
-
-## Closed outline around a ring of points.
-static func _draw_outline(canvas: CanvasItem, ring: PackedVector2Array, color: Color) -> void:
-	if ring.size() < 2:
-		return
-	var closed := ring.duplicate()
-	closed.append(ring[0])
-	canvas.draw_polyline(closed, color, 1.5, true)
 
 
 ## `_convex_pieces`' merge scan over one polygon: the pieces as vertex-index loops (from its

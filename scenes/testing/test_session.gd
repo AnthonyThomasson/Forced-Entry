@@ -28,6 +28,8 @@ const TestBundle = preload("res://scenes/testing/test_bundle.gd")
 const TestWorldScript = preload("res://scenes/testing/test_world.gd")
 const LogWatch = preload("res://scenes/testing/log_watch.gd")
 const VonGate = preload("res://scenes/testing/test_von_gate.gd")
+## The 3D view of a world, the one Main builds (a test world is shown by it in a window).
+const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
 ## The verdicts that carry a bundle (event log, final state, traces) and a `--shots` screenshot.
 const BUNDLED := ["FAIL", "TIMEOUT", "GAP"]
 ## The skip reason of a live-only test in a `--record-von` run: nothing of it is recorded.
@@ -43,6 +45,10 @@ var von: VonGate = VonGate.new(self)
 var shots := false
 ## Where the open test's bundle and screenshots go.
 var bundle_dir := ""
+## Whether the open test's world is shown by a 3D view, as Main's match is (the host sets it when
+## its window is to be looked at: the in-game runner, a `--shots` run). A test that builds its own
+## picture (`TestSetup.own_picture`) is left to it.
+var picture := false
 ## The open test's descriptor ({} between tests; the setup, context and world below are null then).
 var entry: Dictionary = {}
 ## The open test's setup, as its `configure` declared it.
@@ -56,6 +62,8 @@ var stray_logs: Array = []
 ## The world is still being built: the test clock waits (the build may wait in real time for the
 ## navigation map).
 var _building := false
+## The 3D view of the open test's world (`picture`), or null.
+var _view: CanvasLayer = null
 ## Whether the open test's verdict has been taken (a later logged error then changes it).
 var _concluded := false
 ## How the open requires_von test's Von decisions are answered, and what that run leaves behind
@@ -141,9 +149,54 @@ func start(test_entry: Dictionary) -> void:
 	for id in world.actors:
 		_observe_actor(id, world.actors[id])
 	world_built.emit(setup)
+	if picture and not setup.owns_picture:
+		_show_picture()
 	_drive(test, ctx)
 	if not ctx.is_finished:
 		await ctx.finished
+
+
+## The 3D view that shows the open test's world (`picture`), or null: what a test of the picture
+## reads (its `mirror` holds what is shown).
+func view() -> CanvasLayer:
+	return _view if is_instance_valid(_view) else null
+
+
+## Show the built world by the 3D view Main's match is shown by, following the camera the host
+## framed it with (`world_built`): the world's own 2D picture is hidden, and what draws flat on the
+## ground (the debug overlays) goes over the 3D one (`GroundLayer`).
+func _show_picture() -> void:
+	var camera := get_viewport().get_camera_2d()
+	if camera == null:
+		return
+	world.visible = false
+	_view = MAIN_VIEW3D.new()
+	add_child(_view)
+	_view.begin(camera)
+	_view.mirror_world(world)
+	# every room the world's lights cover: a district's towers' too
+	var site_rooms: Array = (
+		WorldGen.district_rooms(world.district) if world.district != null else world.rooms
+	)
+	_view.light_world(world, int(setup.resolved_world().get("seed", 0)), site_rooms)
+	world.child_entered_tree.connect(_on_world_child)
+
+
+## A node joined the world while the picture is shown. A test that declared no world stands on the
+## default arena; when it builds a house or a district of its own into the world (`WorldGen`), that
+## is the world to show, so the arena it replaces goes out of the picture (it stays in the sim).
+func _on_world_child(node: Node) -> void:
+	if setup.world.is_empty() and node is Node2D and node != world.house:
+		_left_out_if_world.call_deferred(node)
+
+
+## `node`, which joined the world, is a world root (it carries its rooms): the default arena is
+## left out of the picture.
+func _left_out_if_world(node: Node) -> void:
+	if not is_instance_valid(node) or not is_instance_valid(_view) or not is_instance_valid(world):
+		return
+	if (node.has_meta("rooms") or node.has_meta("towers")) and is_instance_valid(world.house):
+		_view.mirror.leave_out(world.house)
 
 
 ## Decide how the open test's Von decisions are answered (`_von_run`). Returns why it does not run
@@ -203,6 +256,11 @@ func close() -> Dictionary:
 		world = null
 		await get_tree().physics_frame
 		await get_tree().physics_frame
+	# the view goes after its world: its mirror drops each body as it leaves the tree
+	if is_instance_valid(_view):
+		remove_child(_view)
+		_view.queue_free()
+	_view = null
 	poll_logs(true)
 	von.end()
 	_fail_on_von_problems()

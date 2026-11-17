@@ -3,22 +3,21 @@ class_name CharacterUse extends RefCounted
 ## ride in a vehicle, its use of doors (`doors`), and the collision exceptions they leave behind. It
 ## composes the Interaction domain's `CharacterInteraction` and the Vehicles domain's
 ## `CharacterVehicleUse` as children of the character (`attach`, from its `_ready`), and holds the
-## ride's pose. What the Use key acts on, a door or a vehicle, is decided here (`use_target`,
-## `try_use`). Each physics frame the
-## character steps the ride right after its controller (`control`), lets it hold the body still
-## while it lasts or an interaction holds it (`hold_frame`), and drops the exceptions of the bodies
-## it has cleared after the move (`restore_cleared`); death ends both (`end_interaction`,
-## `abandon`).
+## ride's pose. What Space acts on, a chair, a door or a vehicle's door, is decided here
+## (`interact_target`, `try_interact`). Each physics frame the character steps the ride right after
+## its controller (`control`), lets it hold the body still while it lasts or an interaction holds it
+## (`hold_frame`), and drops the exceptions of the bodies it has cleared after the move
+## (`restore_cleared`); death ends both (`end_interaction`, `abandon`).
 
 ## Extra gap (px) around the body before the collision with a body it left (`keep_clear_of`) is
 ## restored.
 const CLEAR_MARGIN := 3.0
-## Interaction component (Interaction domain): finds and runs object interactions; `try_interact()`,
-## `is_busy()` and `interaction_label()` go through it.
+## Interaction component (Interaction domain): finds and runs object interactions;
+## `nearest_in_reach`, `is_busy()` and `interaction_label()` go through it.
 const CharacterInteraction = preload("res://scenes/interaction/character_interaction.gd")
-## Vehicle component (Vehicles domain): boards, rides and leaves vehicles; `try_use()` (when a
-## vehicle is what Use acts on), `vehicle()` and `is_in_vehicle()` go through it, and it drives the
-## ride each frame (`control`).
+## Vehicle component (Vehicles domain): boards, rides and leaves vehicles; `try_interact()` (when a
+## vehicle is what Space acts on), `vehicle()` and `is_in_vehicle()` go through it, and it drives
+## the ride each frame (`control`).
 const CharacterVehicleUse = preload("res://scenes/vehicle/character_vehicle_use.gd")
 
 ## The character occupied.
@@ -56,13 +55,54 @@ func attach() -> void:
 	character.add_child(_vehicle_use)
 
 
-## Toggle an object interaction: start the best one in reach, or end the active one. Starting one
-## stands the character up (sitting or lying is its own posture). Ignored while using a vehicle.
-func try_interact() -> void:
+## What Space acts on now, as `{ kind, object }` (empty when nothing is, or the character is dead):
+## the reachable thing nearest the mouse (`movement.aim_point`) among the objects advertising
+## interactions (`kind` `&"object"`, `object` the node), a standing door in reach ahead (`&"door"`,
+## measured from the mouse to its leaf, `doors.gap_to`) and a boardable vehicle door (`&"vehicle"`,
+## from the mouse to its handle). Two kinds at one gap go to the object, then the door. An
+## interaction in progress is `&"end"` (Space stands up) and a ride is `&"vehicle"` (seated, Space
+## gets out; on the way in or out it does nothing).
+func interact_target() -> Dictionary:
+	if character.is_dead:
+		return {}
 	if _vehicle_use.is_active():
-		return
-	_interaction.try_interact()
-	_stand_if_busy()
+		return { "kind": &"vehicle" }
+	if _interaction.is_busy():
+		return { "kind": &"end" }
+	var aim: Vector2 = character.movement.aim_point
+	var best := {}
+	var best_gap := INF
+	var entry: Dictionary = _interaction.nearest_in_reach()
+	if not entry.is_empty():
+		best = { "kind": &"object", "object": entry["object"], "entry": entry }
+		best_gap = entry["gap"]
+	var door: Node2D = doors.door_in_reach()
+	var door_gap: float = doors.gap_to(door, aim) if door != null else INF
+	if door_gap < best_gap:
+		best = { "kind": &"door", "object": door }
+		best_gap = door_gap
+	if _vehicle_use.nearest_door_distance(aim) < best_gap:
+		best = { "kind": &"vehicle" }
+	return best
+
+
+## Space at once: act on `interact_target()`: sit, lie or toggle the object (a random valid action),
+## toggle the door (`doors.use`), board by the nearest vehicle door or get out of the vehicle, or
+## end the interaction in progress. The human's controller waits for a door's key to be let go
+## instead, so a hold can scroll it; an NPC's controller and the test puppet's `use()` call this.
+func try_interact() -> void:
+	var target := interact_target()
+	match target.get("kind", &""):
+		&"end":
+			_interaction.end_interaction()
+		&"object":
+			_interaction.begin_random(target["entry"])
+			_stand_if_busy()
+		&"door":
+			doors.use(target["object"])
+		&"vehicle":
+			_vehicle_use.try_use_vehicle()
+			_stand_if_busy()
 
 
 ## The reachable objects and their valid actions, for a controller that wants to choose
@@ -91,41 +131,16 @@ func interaction_label() -> String:
 	return _interaction.active_label()
 
 
+## The active object interaction as `{ object, id }` (`id`: `lie`, `sit`, `hide`, ...), empty when
+## idle: what a mesh reads to show who lies on a bed (`is_busy` says first whether to ask).
+func active_interaction() -> Dictionary:
+	return _interaction.active()
+
+
 ## True while locked in an object interaction (sitting, lying, …) or using a vehicle (boarding,
 ## riding, getting out).
 func is_busy() -> bool:
 	return _interaction.is_busy() or _vehicle_use.is_active()
-
-
-## What Use (E) acts on now: `&"vehicle"` while in a vehicle (to get out, even with a door in reach)
-## and when a vehicle's door is nearer than the nearest door in reach ahead (`doors`), or
-## no door is; `&"door"` when a door is; `&""` when nothing is in reach, or the character is dead or
-## in an object interaction. Nearer is by the distance from the body: to the leaf's nearest point,
-## to the vehicle door's handle.
-func use_target() -> StringName:
-	if character.is_dead or _interaction.is_busy():
-		return &""
-	if _vehicle_use.is_active():
-		return &"vehicle"
-	var door: Node2D = doors.door_in_reach()
-	var handle_gap: float = _vehicle_use.nearest_door_distance()
-	if door == null:
-		return &"vehicle" if handle_gap < INF else &""
-	if doors.distance_to(door) < handle_gap:
-		return &"door"
-	return &"vehicle"
-
-
-## Use at once: act on what `use_target()` names, a door (`doors.use()`) or the vehicle (get out of
-## it, or in by the nearest door). The human's controller waits for a door's key to be let go
-## instead, so a hold can scroll it; an NPC's controller and the test puppet's `use()` call this.
-func try_use() -> void:
-	match use_target():
-		&"door":
-			doors.use()
-		&"vehicle":
-			_vehicle_use.try_use_vehicle()
-			_stand_if_busy()
 
 
 ## The vehicle the character is boarding, riding in or getting out of; null on foot.

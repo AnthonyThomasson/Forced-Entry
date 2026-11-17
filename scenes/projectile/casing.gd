@@ -1,6 +1,6 @@
 extends Node2D
 ## Projectile System: a spent shell tossed out when a gun fires: colliderless world-space debris
-## that tweens out, spins, and rests. Despawner-tracked. Drawing lives in casing_visuals.gd.
+## that tweens out, spins, and rests. Despawner-tracked. The 3D `ShotLayer` shows it.
 
 ## The chip debris of the Physics System, whose toss a casing shares.
 const Debris = preload("res://scenes/physics/debris.gd")
@@ -14,8 +14,6 @@ const Debris = preload("res://scenes/physics/debris.gd")
 
 
 func _ready() -> void:
-	# On the floor: beneath the player, furniture and a vehicle's chassis.
-	z_index = DrawLayers.LYING
 	ViewLayers.set_moving(self, true)
 
 

@@ -20,6 +20,8 @@ const OVERLAY_TOGGLES := preload("res://scenes/ui/overlays/overlay_toggles.gd")
 const TEST_BROWSER := "res://scenes/testing/test_browser.tscn"
 ## The settings page (UI), opened over the setup window by its Settings button.
 const SETTINGS_MENU := preload("res://scenes/ui/menus/settings_menu.gd")
+## The 3D view of a match (a `CanvasLayer` named `View3D` below the HUD): how every match is drawn.
+const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
 ## The endless run's state (`_endless`) and the debug overlays' state, nodes and routing
 ## (`_overlays`), parts built once with Main.
 const MainEndless := preload("res://scenes/main_endless.gd")
@@ -46,6 +48,8 @@ var _human: Node2D = null
 ## squads (by faction), the human's stack radio and the navigation-holes and squad-leaders
 ## overlays; {} between matches.
 var _match: Dictionary = {}
+## The 3D view of the match that plays (built before it, freed with it), null between matches.
+var _view3d: CanvasLayer = null
 ## The settings page while it is open over the setup window, else null.
 var _settings_menu: CanvasLayer = null
 ## The endless run: on or not, the spec it draws from, its highest counts and its countdown.
@@ -68,13 +72,14 @@ var _overlays := MainOverlays.new(self)
 
 
 func _ready() -> void:
-	# Paint the district's shared art while the setup window is open; headless runs skip this.
-	WorldGen.prewarm()
 	# The saved settings (key bindings, Debug) are layered over the defaults here, in the
 	# composition root, so the headless test runner never reads a developer's file. The run's Debug
 	# export seeds the setting first, so a file that doesn't name it leaves the export standing.
 	Settings.debug = run.debug_overlays
 	Settings.load_file()
+	# Paint the district's shared art and the furniture's flat art while the setup window is open;
+	# headless runs skip this.
+	WorldGen.prewarm(true)
 	_overlays.initial(run.debug_overlays)
 	_anchor = _player.global_position
 	if _match_hud and _match_hud.has_signal("match_ended"):
@@ -225,7 +230,10 @@ func _open_settings() -> void:
 	_settings_menu.reset_requested.connect(_on_reset_requested)
 	_settings_menu.reset_all_requested.connect(_on_reset_all_requested)
 	_settings_menu.back_requested.connect(_close_settings)
-	_settings_menu.open({ "debug": Settings.debug, "rows": Settings.binding_rows() })
+	_settings_menu.open({
+		"debug": Settings.debug,
+		"rows": Settings.binding_rows(),
+	})
 
 
 ## The page captured a key or button for `action`: bind it and redraw the page.
@@ -310,12 +318,17 @@ func start_match(spec: Dictionary) -> Dictionary:
 	var world := Node2D.new()
 	world.name = "World"
 	world.add_to_group(&"match_world")  # how the dev command server finds the match's nodes
+	_begin_view3d(world)
 	add_child(world)
 	_world = world
 	var built: Dictionary = await MatchBuilder.build(spec, world)
 	if _world != world or not is_inside_tree() or built.is_empty():
+		if _world == world:
+			_end_view3d()  # no view of an empty world
 		return {}  # torn down (a new match, or the scene left) while the maps synchronized
 	_match = built
+	_view3d.mirror_world(world)
+	_view3d.light_world(world, int(spec["seed"]), built.get("site_rooms", []))
 	var human: Variant = (spec["human"] as Dictionary).get("node")
 	_human = human if is_instance_valid(human) else null
 	var combatants: Array = built["combatants"]
@@ -419,6 +432,7 @@ func _squads() -> Dictionary:
 ## cleared. Removed from the tree at once (not just queued) so the next match's `World` takes the
 ## same name.
 func _teardown_world() -> void:
+	_end_view3d()
 	if is_instance_valid(_world):
 		remove_child(_world)
 		_world.queue_free()
@@ -427,6 +441,32 @@ func _teardown_world() -> void:
 	_match = {}
 	_human = null
 	_overlays.inspector = null
+
+
+## Build the 3D view of the match `world` holds, following the main camera, before the match is
+## built. The world itself is hidden: the 3D view draws the match, and the debug overlays go over it
+## on the ground layer.
+func _begin_view3d(world: Node2D) -> void:
+	_end_view3d()
+	world.visible = false
+	var camera := get_node_or_null("MainCamera") as Camera2D
+	if camera == null:
+		camera = get_viewport().get_camera_2d()
+	if camera == null:  # a Main built without its scene's camera (a test): the view still needs one
+		camera = Camera2D.new()
+		camera.name = "MainCamera"
+		add_child(camera)
+	_view3d = MAIN_VIEW3D.new()
+	add_child(_view3d)
+	_view3d.begin(camera)
+
+
+## Take the 3D view away (a match over).
+func _end_view3d() -> void:
+	if is_instance_valid(_view3d):
+		remove_child(_view3d)
+		_view3d.queue_free()
+	_view3d = null
 
 
 ## Start the match HUD on `combatants` (every character in the match, a human included, so a result

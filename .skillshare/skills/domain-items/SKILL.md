@@ -16,6 +16,7 @@ Owns what a character holds and does with it, and what it wears. Fire-rate and a
 - `gun.gd` (`GunItem`) + `pistol.gd` / `smg.gd` / `rifle.gd` (each only names its row: `const GUN`, `super(GUN)`); `gun_config.gd` (`GunConfig`); `magazine.gd` + `magazine_config.gd`; `gun_ammo.gd`; `item_strike.gd`.
 - `fists.gd`, `unarmed.gd`, `key.gd`; `dropped_item.gd` + `dropped_item_config.gd`.
 - `outfit.gd` + `outfit_config.gd`; `loadout_config.gd` + `character_kit.gd`.
+- `item_mesh_config.gd` (`ItemMeshConfig`), `art/gun_mesh.gd` (`GunMesh`), `art/grenade_mesh.gd` (`GrenadeMesh`), `art/item_solid.gd` (`ItemSolid`): the held item's 3D mesh, raised from its 2D art; `item_meshes.gd` (`ItemMeshes`), `art/lying_item_mesh.gd` (`LyingItemMesh`): a loose item's (`weapon-looks.md`).
 - Grenades and art: see the side files.
 
 ## Guns
@@ -26,7 +27,7 @@ Every number a gun has comes live from its `GunConfig.guns` row, a static-var ho
 - **Zeroing.** `secondary` aims the round at the point `GunConfig.zero_range` ahead on the aim line, not parallel to `facing`, so a shouldered gun with its muzzle off the line still hits where the character points. The spread is applied around that direction.
 - **One-handed** is the character's doing (blind: weapon hand in `one_hand`, free hand over the eyes, `docs/grenades.md` G13). The gun only reads `weapon.one_handed()` to add `one_hand_spread_deg`. Test: `tests/items/one_handed_fire_test.gd`.
 - **A long gun's `primary` strikes with its butt** in both hands (`strike`: `STRIKE_TURN`, `SUPPORT_GAP`, `LONG_TEMPO`, `STRIKE_SHORT`); the hands layer shortens the hand's extension by `strike.forward()` so the blow lands about as far out as before. A pistol just jabs. Test: `tests/items/long_gun_butt_strike_test.gd`.
-- **Raised against a wall** (`raises_at_contact`, SMG and rifle): the character tests the barrel each frame (`domain-character`). While it touches, `raised_stance(hand)` is held, `weapon.shoot()` does nothing and `GunArt` foreshortens the barrel by rendering the painter at `RAISE_STEPS` lengths down to `RAISED_LENGTH` (crisp and cached, not a stretched texture). The pistol does not raise.
+- **Raised against a wall** (`raises_at_contact`, SMG and rifle): the character tests the barrel each frame (`domain-character`). While it touches, `raised_stance(hand)` is held, `weapon.shoot()` does nothing and `GunArt.held_lift` pitches the held mesh by `acos(lerp(1, RAISED_LENGTH, raise))`, so the top-down view sees the barrel foreshortened to `RAISED_LENGTH` of its length. The pistol does not raise.
 - `muzzle_ahead()` is the row's `art_size.y − grip_back`, so a long gun's muzzle is further out (`Character.weapon.muzzle_origin` uses it).
 - A shot posts `&"shot"` on `EventBus` (`attacker` is read only by tests) and the round's `hit` signal goes to `user.report_shot`.
 
@@ -52,6 +53,6 @@ What the match builder hands a character (`MatchBuilder.arm`, interface 23). `no
 
 ## Dropping on death
 
-The character calls `item.drop(user, velocity)`; the base `Item` leaves nothing, a gun spawns a `DroppedItem` where its art was drawn (pulled back toward the hand, `held_from`, if that spot is inside a wall). It falls on a pseudo-height, bounces, skids and glances off walls and solid furniture, draws through `item.art.draw_dropped` at `DrawLayers.LYING` and stops processing at rest. Visual only: nothing picks it up and the `Despawner` never frees it. A grenade is never dropped. Tuning: `DroppedItemConfig`.
+The character calls `item.drop(user, velocity)`; the base `Item` leaves nothing, a gun spawns a `DroppedItem` where its art was held (pulled back toward the hand, `held_from`, if that spot is inside a wall). It falls on a pseudo-height, bounces, skids and glances off walls and solid furniture, stops processing at rest. Nothing picks it up and the `Despawner` never frees it. A grenade is never dropped. Tuning: `DroppedItemConfig`. It, a spoon and a grenade in the air are shown as `LyingItemMesh`es (`weapon-looks.md`).
 
-**Interfaces:** 6 (Items ↔ Character, with `Outfit` / `OutfitConfig`), 10 (`&"shot"`, `&"throw"`, `&"grenade"`), 11 (`DrawLayers`), 12 (Art). Into the Projectile System in two places only: a gun's `ProjectileSpawner.spawn` / `CasingSpawner.spawn`, and a `ThrownGrenade`'s `Explosion.frag` / `Explosion.stun` (`domain-projectile`).
+**Interfaces:** 6 (Items ↔ Character, with `Outfit` / `OutfitConfig`), 10 (`&"shot"`, `&"throw"`, `&"grenade"`), 12 (Art). Into the Projectile System in two places only: a gun's `ProjectileSpawner.spawn` / `CasingSpawner.spawn`, and a `ThrownGrenade`'s `Explosion.frag` / `Explosion.stun` (`domain-projectile`).

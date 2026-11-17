@@ -129,7 +129,7 @@ func _labelled(t: TestContext) -> Array:
 func _brain_drawing(t: TestContext) -> Array:
 	var out: Array = []
 	for id: StringName in SIDES:
-		for child in t.actor(id).get_children():
+		for child in InspectorProbe.overlays_with(t.actor(id), "brain_labels"):
 			if (child.has_method("drawn")
 					and "brain_labels" in child
 					and not child.drawn().is_empty()):

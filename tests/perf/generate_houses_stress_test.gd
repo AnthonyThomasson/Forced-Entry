@@ -6,16 +6,16 @@ extends GameTest
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const SEEDS := [101, 202, 303, 404, 505, 606, 707, 808, 909, 1010, 1111, 1212]
 const FIXED_SEED := 424_242
-# Baseline (cold caches, the slowest case): 12 houses ~1560 ms, worst ~355 ms, ~334 nodes. Budgets
-# ~4x.
+# Baseline (cold caches, the slowest case): 12 houses ~1560 ms, worst ~355 ms, 231 nodes (the 3D
+# render only: no 2D visual or occluder nodes). Time budgets ~4x.
 const TOTAL_BUDGET_MS := 6200.0
 const WORST_HOUSE_BUDGET_MS := 1400.0
-const NODE_BAND := [250, 420]
+const NODE_BAND := [170, 300]
 # A whole district (nine towers, streets, shells) from a fixed seed, built twice and each build held
-# on its own: the first in a fresh process pays the caches (quiet machine, load 3 to 4, no other
-# Godot: ~1855 ms, ~6650 nodes), the second is the steady cost (~147 ms) that a run after other
-# tests also reads for the first (the whole perf domain: ~150 ms). Time budgets ~4x, the node band
-# about +-25%.
+# on its own: the first in a fresh process pays the caches (quiet machine, no other Godot: ~850 ms,
+# 3652 nodes, now the 2D visual and occluder nodes are gone), the second is the steady cost
+# (~100 ms) that a run after other tests also reads for the first. The time budgets below are from
+# the earlier, slower baseline and stay as headroom; the node band is about +-35%.
 # 2026-11-06, #192: the headless cold build runs without the art pre-warm (tests skip it), so the
 # pre-warm does not move this number. Quiet machine, load 2.6 to 2.8, no other Godot, the test
 # alone, twice: cold 1870 and 1873 ms, steady 152 and 153 ms (the whole perf domain: 157 and
@@ -23,7 +23,7 @@ const NODE_BAND := [250, 420]
 # 4.0x the cold build and 600 ms 3.9x the steady one, so neither is set again.
 const DISTRICT_BUDGET_MS := 7500.0
 const DISTRICT_WARM_BUDGET_MS := 600.0
-const DISTRICT_NODE_BAND := [5200, 8700]
+const DISTRICT_NODE_BAND := [2900, 5000]
 
 
 func describe() -> Dictionary:

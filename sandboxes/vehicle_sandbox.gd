@@ -1,20 +1,21 @@
 extends GameTest
 ## A sandbox to play (ticket #54, V9): you are the player in an open concrete yard walled in, with a
 ## red car and a white van parked in it, furniture scattered about to shove, and a few dummies
-## standing around. Nothing is asserted. Walk up to a door and press E to get in (the nearest door
-## that can open: the car's four, the van's two cab doors, its sliding side door and its rear
-## doors), drive, press E again to get out. Feel the drift under the handbrake, crash into the
-## walls, plough through the furniture, nudge (or run down) a dummy, and shoot the bodywork to dent
-## it.
+## standing around. Nothing is asserted. Walk up to a door and aim at its handle and press Space to
+## get in (the nearest door that can open: the car's four, the van's two cab doors, its sliding side
+## door and its rear doors), drive, press Space again to get out. Feel the drift under the
+## handbrake, crash into the walls, plough through the furniture, nudge (or run down) a dummy, and
+## shoot the bodywork to dent it.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Vehicle yard",
-		"description": "Player-controlled sandbox with a car and a van: E gets in by the nearest "
-			+ "door (and out again), W throttle, S brake then reverse, A/D steer, Shift handbrake "
-			+ "(a slide), mouse wheel zoom. On foot: WASD to walk, LMB to fire (dents the "
-			+ "bodywork). Crash into the walls, shove the furniture, bump the dummies.",
+		"description": "Player-controlled sandbox with a car and a van: Space gets in by "
+			+ "the nearest door (and out again), W throttle, S brake then reverse, A/D steer, "
+			+ "Shift handbrake (a slide), mouse wheel zoom. On foot: WASD to walk, LMB to fire "
+			+ "(dents the bodywork). Crash into the walls, shove the furniture, bump the "
+			+ "dummies.",
 		"tags": ["sandbox", "player", "vehicle", "car", "van", "drive"],
 		"manual": true,
 	}

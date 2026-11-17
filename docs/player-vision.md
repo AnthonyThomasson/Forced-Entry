@@ -1,31 +1,32 @@
 # Player vision
 
-In a played match the screen shows only what the human's character sees. What it saw before is drawn as the world it last
-saw, in a dark cool greyscale (black where it never looked), and nothing that moves is drawn out of view. Behaviours V1 to V11
+In a played match the screen shows only what the human's character sees. What it saw before is drawn in a dark cool greyscale
+(black where it never looked): the world as it stands now, with what has been seen of what moves or lies loose (V12); and nothing
+that moves is drawn out of view. Behaviours V1 to V12
 are the spec; each has its tests named under it, following the convention of `docs/lighting.md`. The tests are in `tests/vision/`
 (`tools/run_tests.sh --domain=vision`) through `tests/_vision/vision_probe.gd`, which keeps the spec's numbers as its own consts
 and reads the game only through the names interface 25 publishes, so a test checks this file and not the code. The code is the
 Vision domain (`scenes/vision/`, skill `domain-vision`, `docs/adr/0011-the-vision-domain.md`); the shared rules it stands on are
-General's (`SightRay`, `ViewLayers`, `SeenArea`, `DrawLayers.VISION` and `OVERLAY`: `architecture` interface 11).
+General's (`SightRay`, `ViewLayers`, `SeenArea`: `architecture` interface 11).
 
-All distances are px and angles degrees unless said. The numbers are `VisionConfig`'s (`scenes/vision/`) and, for what a character
+All distances are px and angles degrees unless said. The numbers are `VisionConfig`'s and `VisionGroundConfig`'s (`scenes/vision/`) and, for what a character
 sees by, `CharacterVisionConfig`'s (`scenes/character/`).
 
 ## What is built
 
 `PlayerView.watch(root, character)` (the match builder's `populate` for Main's human, the Testing world for its viewer) adds one
 `PlayerView` node under the world, in the group `player_view`, with the reads `cone()`, `bubble()`, `sees(point)`, `viewer()`,
-`rebuilds()` and the parts it draws with: the **capture** (a `SubViewport` sharing the main world, the camera's size and canvas
-transform, whose cull mask leaves out `ViewLayers.MOVING` and `OVERLAY`), the **memory** (a world-space `SubViewport` over the
-floors' bounds, `memory_scale` texels a px, never cleared, which the cone's polygon paints from the capture each frame), the
-**mask** (a screen-sized `SubViewport` holding the cone, its edge feathered) and the **composite** (a screen polygon drawn at
-`DrawLayers.VISION` whose shader cuts the live world out where the mask says inside and draws the memory in the look outside).
-The world's own things carry the rest: each moving thing's domain sets its `visibility_layer` (`ViewLayers.set_moving`), and each
-overlay owner makes its node an overlay (`ViewLayers.overlay`).
+`rebuilds()` and the part it draws with, `ground` (`ViewGround`): two textures the 3D scene's toon shaders read by a surface's own
+ground position. The **live mask** is a square window of the world about the camera holding the cone, its edge feathered; the
+**seen mask** (the memory) covers the floors' bounds, never cleared, and only gains where a cone was published. Nothing is
+photographed or laid over the picture: the world is lit and drawn as it stands and the shaders dim it by the masks (V12).
+The world's own things carry the rest: each moving thing's domain sets its `visibility_layer` (`ViewLayers.set_moving`), which Art's
+`WorldMirror` reads to hide a mover the cone does not reach, and each overlay owner makes its node an overlay (`ViewLayers.overlay`),
+which `GroundLayer` lays flat on the ground over the picture.
 
 The words the spec uses: the **view** is the whole of this; the **cone** is the polygon of what the viewer sees now (the cone
-round its facing and the bubble round it); the **memory** is the picture of what it saw; a thing is **moving** or **at rest**
-by the bit it sits on; the **seen area** is what General's `SeenArea` says the cone shows live (`GLOSSARY.md`).
+round its facing and the bubble round it); the **memory** is where the viewer has seen (the seen mask); a thing is **moving** or
+**at rest** by the bit it sits on; the **seen area** is what General's `SeenArea` says the cone shows live (`GLOSSARY.md`).
 
 ## Behaviours
 
@@ -44,7 +45,7 @@ changed shape (a dent, a wall re-cut, a door's swing, fall or shattered panes) o
 `VisionConfig.rebuild_every` (10) physics frames, a backstop. A frame that starts nothing shows the cone the last job published.
 **The cone is a job (#195).** A rebuild is not one frame's work: the view starts a job from the viewer's live eye, facing and sight
 and steps it `VisionSliceConfig.slice_units` (450, about 3.5 ms) of engine work in each physics tick until it is done, and only then
-publishes it (`SeenArea`, the memory's paint, the composite read the cone, the bubble and the eye together). **The published cone is
+publishes it (`SeenArea`, the two masks' paint read the cone, the bubble and the eye together). **The published cone is
 the fresh cone of the pose the job started from, in the world as it was then: the exact cone of one eye in one world state, never a
 mix and never extrapolated** (the memory, V4, never holds area no eye saw). It is as old as the job is long: a job of k ticks started
 in tick f publishes in tick f+k-1 and the next starts in f+k, so the cone shown is at most 2 (k - 1) frames old. **Usually that is 3 ticks, 2 to 4
@@ -63,7 +64,7 @@ first cone of a view, and the cone for **an eye that jumped** past `jump_px` (48
 teleport, a vehicle), checked every tick: the cone shown is never more than that far behind. A lift (V9) drops a half job with the view. The old pose lag
 (`rebuild_gap`, an eye 5 px or a facing 1 degree off waiting a frame) is gone: the job's length is the lag. A mover entering or leaving
 the seen area (V11) shows when the next cone publishes.
-Tests: `vision/pose_lag_bounds` (the pipeline: a job of 3 slices is published a cone at most 4 frames old, a job of 6 ticks one at most 10 frames old, and of a pose the viewer stood at, a pose change alone restarts nothing, an eye jump of 60 px and a blocking character's every-frame change are built whole, the memory paints only published cones), `vision/cone_restarts_on_world_change` (a wardrobe moved or a solid joined between two slices restarts the job and the cone published is the reference cone of the world after, not of the one the job began on or a mix; a wardrobe moved every frame is built whole after two restarts, at least every fourth frame, of the live pose),  `vision/half_job_dropped` (the viewer killed, or the view disabled, with a job in flight: the job is dropped, the seen area cleared and not written by it again, and a view enabled again builds its first cone whole), `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
+Tests: `vision/pose_lag_bounds` (the pipeline: a job of 3 slices is published a cone at most 4 frames old, a job of 6 ticks one at most 10 frames old, and of a pose the viewer stood at, a pose change alone restarts nothing, an eye jump of 60 px and a blocking character's every-frame change are built whole, the seen mask draws only published cones), `vision/cone_restarts_on_world_change` (a wardrobe moved or a solid joined between two slices restarts the job and the cone published is the reference cone of the world after, not of the one the job began on or a mix; a wardrobe moved every frame is built whole after two restarts, at least every fourth frame, of the live pose),  `vision/half_job_dropped` (the viewer killed, or the view disabled, with a job in flight: the job is dropped, the seen area cleared and not written by it again, and a view enabled again builds its first cone whole), `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
 the table and inside the cone are in the polygon; points behind the wardrobe, beyond the wall, behind the eye past 48 are not;
 points within 48 behind it are), `vision/cone_exact_at_corners` (eyes near the room corners and the doorway's ends, facing along
 and across the walls: no sampled point behind a corner is inside the polygon and every sampled point the eye sees is; a seen
@@ -96,47 +97,52 @@ body that cannot say its height, a `transparent` piece looked through however ta
 exclude list left alone) and every `ai` vision test unchanged
 (`tools/run_tests.sh --domain=ai`; `objects/door_blocks`).
 
-**V3. Inside the cone** the live world is seen as it is, characters and all. A character at the edge is cut by the edge per
-pixel (the composite is transparent inside the mask and feathered at its edge). The main viewport draws the whole world live: a
-single world draw (the still world drawn once, in the capture, and the main viewport left with what moves) was planned and
-dropped. Godot 4.4 draws a canvas item in a viewport only if the item and every ancestor share a bit with its
-`canvas_cull_mask`, and an item's bit defaults to 1, so a main viewport that left out `WORLD` would also have left out the HUD, the
-world root and every unmarked child of a moving thing. Tests: `vision/memory_follows_cone`.
+**V3. Inside the cone** the world is seen as it is, lit and drawn live, characters and all. A thing that moves and is cut by the
+cone's edge is cut per pixel (the shader reads the live mask, which is feathered at its edge: V12). Tests: `vision/memory_follows_cone`
+(the live window and its blur), `vision/vision_mask_3d_windowed` (a mover on the edge: some of it drawn on the lit side and none beyond the cut).
 
 **V4. Outside the cone** each place is drawn **as the human last saw it**, the memory, in the picked look: greyscale (`grey`
 1.0), contrast 0.9 about 0.3, brightness 0.55, tint (0.88, 0.96, 1.12), "Darkwood cool". A place never seen is **black**. The edge
 is feathered over **16** screen px, laid inside the edge (a disc of 32 shifted copies of the polygon, averaged). The memory starts
-empty when the match starts (the engine does not clear it, so a wipe writes "nothing seen" over it for its first two frames) and
-holds only what was on screen when it was seen. It is `memory_scale` (2) texels a px over the floors' bounds, and drops below that
-to fit Godot's 16 384 px texture limit. Tests: `vision/memory_follows_cone` (the memory covers the floors' bounds at its scale,
-starts empty, is emptied once and never again; its painter paints the cone polygon from the capture; the composite is at
-`DrawLayers.VISION` and carries the look and feather of `VisionConfig`), `vision/memory_fits_texture_limit` (a 20 000 px arena).
-A headless run has no pixels: these tests read what the parts are told, and the look is judged by eye in a window.
+empty when the match starts, is never cleared after, and only gains: it holds where the viewer has been seen to look, as the world
+stands now (V12), not a picture of it. It is `seen_scale` (0.5) texels a px over the floors' bounds, at most `seen_max_side`
+(2048) texels a side (so within Godot's 16 384 px texture limit), and drops below that scale to fit. Tests:
+`vision/memory_follows_cone` (the memory covers the floors' bounds at its scale and maps them edge to edge, starts empty, is
+cleared once and never again; both masks draw the cone and the bubble; the live mask's blur stays within the feather and reaches
+it; the shaders are told where each lies), `vision/memory_fits_texture_limit` (a 20 000 px arena),
+`vision/vision_mask_3d_windowed` (the look in pixels: floor never seen black, remembered floor dimmer, not black and nearly grey).
+A headless run has no pixels: those tests read what the parts are told, and the look is read in the window.
 
 **V5. Never remembered while moving:** living characters (allied and hostile) and what they hold, bullets and tracers, grenades
 in flight, hit particles, flying debris, blood spray, an explosion's look, a shot's or a burst's flash light, and a vehicle while
-it moves. They sit on `ViewLayers.MOVING` and are drawn only inside the cone, since the capture leaves that bit out. A `Light2D`
-ignores a viewport's cull mask, so the flash lights are kept out of the memory by living under a `CanvasLayer` of the main
-viewport, which the capture does not draw, and still light the world on screen. Tests: `vision/moving_never_remembered` (the
-living puppets and their gun, a bullet, a grenade in flight, hit particles, debris, blood spray and an explosion's look on
-`MOVING` and not drawn by the capture; furniture, a wall and settled blood are; the flash lights are on a canvas the capture does
-not draw and still light the screen where they burst).
+it moves. A body that moves sits on `ViewLayers.MOVING`, and Art's `WorldMirror` hides it while no part of a disc round it is in
+the cone (V12); what is not a body (a bullet, a burst's bits, a blast's parts, a casing in the air) is marked moving in its mesh
+(`MeshNodes.moving`) and cut by the shader outside the cone. Tests: `vision/moving_never_remembered` (the living puppets, a
+bullet and a grenade in flight are on `MOVING`; furniture, a wall and the blood already settled (a splatter) are on `WORLD`:
+the premise that the read tells them apart), `art/moving_mark` (the mark on a mirrored mover, the bullet batch, a burst's bits and
+sparks, a blast's parts and a part added later), `art/mirror_hides_unseen_movers` (a mover outside the cone is hidden, shown in
+it), `projectile/casing_hidden_out_of_view`.
 
 **V6. Remembered once at rest:** a dead body once its ragdoll sleeps, a dropped item, a spent casing, a grenade lying still, a
 parked vehicle, and the house and street (floors, walls, doors, furniture where last seen, settled blood, scorch, debris chips).
-A door is always `WORLD`: it is remembered where last seen at whatever angle, mid-swing included. Once at rest a thing is part of
-the memory where it was seen; moved again, it is moving again. Only a body and a vehicle can be moved again: a dropped item, a
+A door is always `WORLD`: it is remembered where it stands at whatever angle, mid-swing included. Once at rest a thing is shown
+only after the cone has reached it, and then it stays shown where it lies, dimmed and grey (V12); moved again, it is moving again
+(hidden outside the cone, and to be reached again where it comes to rest). Only a body and a vehicle can be moved again: a dropped item, a
 casing and a grenade at rest stay at rest for good (nothing shoves them: a dropped item stops its physics for good, a casing's
 toss runs once, a resting grenade does nothing but wait for its fuse), so the "moved again" case is the corpse a blast wakes.
 Tests: `vision/at_rest_remembered` (a dead body on `MOVING` until its ragdoll sleeps, on `WORLD` after and on `MOVING` again from
 the frame a blast wakes it; a dropped gun, a casing and a frag lying still on `WORLD`, in flight on `MOVING`; in a world of its
-own a wooden door swung open and shut is on `WORLD` and drawn by the capture in every frame of its swing),
-`vision/vehicle_rest_remembered` (a car driven, then parked).
+own a wooden door swung open and shut is on `WORLD` in every frame of its swing), `vision/vehicle_rest_remembered` (a car driven,
+then parked), `art/mirror_hides_unseen_movers` (at rest and never seen: hidden; once reached: stays shown; moved out of view and
+resting there: hidden until reached again), `projectile/casing_hidden_out_of_view`.
 
 **V7. Debug overlays and markers are drawn over the view, in colour:** the AI debug overlays (an NPC's own too, out of view),
-the navigation and leader overlays, the contact, stack and order markers. They sit at `DrawLayers.OVERLAY` (absolute, above
-`VISION`) on `ViewLayers.OVERLAY`, which the capture leaves out, so they are never remembered. Tests: `vision/overlays_over_view`
-(an NPC with every overlay on, the navigation holes, the leaders' crowns and the stack, order and contact markers).
+the navigation and leader overlays, the contact, stack and order markers. Each is an overlay (`ViewLayers.overlay`), which
+`GroundLayer` lies flat on the ground over the 3D picture and under the HUD, in its own colours and where its owner is, at any
+camera turn, never dimmed or remembered by the masks (they are not part of the 3D scene the shaders read). Tests:
+`vision/overlays_over_view` (an NPC with every overlay on, the navigation holes, the leaders' crowns and the stack, order and
+contact markers: each under the match's ground layer, visible), `general/ground_overlays_3d` (Main whole: one
+shared layer following the camera's ground-to-screen transform).
 
 **V8. Whose view.** In Main the view is built in a played match (Start) for the human only; Watch and Endless (no human) draw
 everything. In a test world any one character can be the viewer, an NPC included (`TestSetup.view(actor_id)`): the screen then
@@ -148,31 +154,74 @@ view gives the same decisions, places and arrival tick).
 
 **V9. The viewer's death lifts the view** (the human's, or a viewed NPC's in a test): everything is drawn again at once, live, for
 the rest of the match. So does the viewer leaving the tree without dying; a viewer already dead gets no view. Tests:
-`vision/death_lifts_view` (the node, its composite and its viewports are gone within a frame and none comes back; and
+`vision/death_lifts_view` (the node, its viewports and the masks are gone within a frame and none comes back; and
 nothing is hidden after: `SeenArea` holds no area, so a disc and a box far from where the viewer stood reach it again, which they
 did not while the view stood, for the human's death, a viewed NPC's, and a viewer freed or removed).
 
 **V10. The switch.** `VisionConfig.enabled` (default on) gates the view in Main's match; the test world's `vision.enabled`
 switch is off unless a test asks, so existing tests and sandboxes look as they do; with it on, the world views its `player`
-actor, or the actor `TestSetup.view` names. Tests: `vision/switch_off` (no `PlayerView` and no `SubViewport` under the world, and `SeenArea` holds no area: a far disc and
+actor, or the actor `TestSetup.view` names. Tests: `vision/switch_off` (no `PlayerView` and no `SubViewport` under the world, no mask on, and `SeenArea` holds no area: a far disc and
 box reach it, so no repaint is skipped).
 
-**V11. Unseen characters are not repainted.** A character whose drawn reach (a 60 px disc round it) lies wholly outside the cone
-and bubble is not repainted while it stays there; its pose, aim, hands, footsteps and ragdoll keep running (gameplay reads those,
-never the drawing). The frame any of its reach enters the cone published (V1: the cone shown is a job old while one runs) it is repainted before it is drawn. A dead body at rest keeps its
-last drawing (it is remembered). A blood pool is not redrawn while the box its cells cover is wholly outside the cone, and is
-redrawn the frame the cone reaches it. With no view (Watch, Endless, the switch off, the view lifted) everything is repainted as
-before. The seen area is General's `SeenArea`: Vision writes the cone's polygons each time a cone is published (a job done) and clears them on a lift; a disc
-(`reaches`) or a box (`reaches_rect`) asks it. The one test of a point inside a polygon is `SeenArea.contains`, an even-odd rule (the view's `sees` asks it too), since the engine's
-`Geometry2D.is_point_in_polygon` said inside for points well outside a cone with many collinear corners; a pool asks about its
-box, not the circle round it, whose radius reaches into the viewer's 48 px bubble when the box does not. A character decides in
-`_process` and a pool in `_process` too (marked stale in physics), after the view has written the frame's area in its physics tick,
-so a repaint is never later than the publish of the cone that reaches it: V1's job length, not a frame more. Tests: `vision/unseen_not_repainted` (a walker outside the cone: its repaint count is flat and
-its pose keeps updating, a bullet hits the same zone with and without the view; walking in, it is repainted the frame its reach
-enters; a settled body outside keeps its drawing; a pool outside is never redrawn and is redrawn the frame the cone sweeps onto
-it; repainted again when the view lifts), `general/seen_area_suite` and `general/seen_area_rect_suite` (native: the disc and box
-tests over polygons laid out by hand, an L-shaped polygon, no area set), `vision/view_sees_suite` (native: `sees` at a cone the
-engine's point-in-polygon gets wrong, the bubble, no polygon).
+**V11. The seen area, and the unseen runs on.** The seen area is General's `SeenArea`: Vision writes the cone's polygons each
+time a cone is published (a job done), bumps its `version()` and clears them on a lift; a disc (`reaches`) asks it, and `active()` says whether any view stands. What reads it is what hides by the view: Art's `WorldMirror`
+(a mover is hidden while no part of a disc round it reaches the area, V12) and the shot layer (a casing in the air or lying
+unseen). The one test of a point inside a polygon is `SeenArea.contains`, an even-odd rule (the view's `sees` asks it too),
+since the engine's `Geometry2D.is_point_in_polygon` said inside for points well outside a cone with many collinear corners.
+With no view (Watch, Endless, the switch off, the view lifted) the area is empty and nothing is hidden. The view never touches
+what the world does: a character wholly outside the cone and bubble keeps its pose, aim, hands, footsteps and ragdoll running
+(gameplay reads those, never what is drawn), so a hit lands on it as it would unviewed. Tests: `vision/unseen_keeps_running` (the
+same walker, out of the cone behind the viewer, shot three times in two worlds built from one declaration, one viewed and one
+not: the same hits at the same places, for the same damage, on shoulders turned the same way), `general/seen_area_suite` and
+`general/seen_area_rect_suite` (native: the disc and box tests over polygons laid out by hand, an L-shaped polygon, no area set),
+`vision/view_sees_suite` (native: `sees` at a cone the engine's point-in-polygon gets wrong, the bubble, no polygon),
+`vision/death_lifts_view` (the area cleared on a lift), `art/mirror_hides_unseen_movers` (hidden outside, shown in the cone).
+
+**V12. The two masks.** The view is not a picture laid over the 3D scene: it is
+two textures the 3D scene's shaders read by a surface's own ground position (`xz`), and the world is lit and drawn as it stands. The
+cone and the bubble, V1's polygon, are drawn into a **live mask**, a square window of the world about the camera
+(`VisionGroundConfig.live_side` texels whatever the zoom, so a texel is a few world px, more of them zoomed out; the edge feathered
+`feather` screen px as V4's is, laid inside the edge) and into a **seen mask** over the floors' bounds (`seen_scale`, at most
+`seen_max_side` texels a side, never cleared) that only gains: where the player has seen. The toon shaders (`toon`, `toon_tex`, the
+kit's decal) and the outline pass read them (`ToonMask`'s global uniforms, `toon_vision.gdshaderinc`), so every floor, wall, piece of
+furniture and character is shaded by them with no per-mesh work: in the cone it is lit as it is; where it is only remembered it is
+**the current static world** (its doors, its furniture where they stand now, the light now: not a picture from when it was seen)
+greyed (`grey`), with `contrast` about `pivot`, tinted (`tint`) and keeping `brightness` of its light, as V4's look; where nothing was
+seen it is black (`unseen_brightness` 0), its lines too (the outline's floor is as lit as the ground, so a wall's or a piece's line is
+no clue to the unseen house).
+
+A thing that **moves** is drawn only inside the cone, as V5: its mesh is hidden when no part of a disc round it
+(`MirrorVisionConfig.moving_reach` 60, a vehicle's `vehicle_reach` 130) is in the cone (`WorldMirror`; the thing's sim node on
+`ViewLayers.MOVING`: V5's list), and a thing the cone cuts is cut pixel by pixel by the shader, its shadow with it
+(`MeshNodes.moving`, which marks every part under a node and any part added later; bullets, a burst's bits and a blast are marked so,
+and a casing in the air is drawn no size outside the cone). What is **dynamic but at rest** (V6: a corpse once its ragdoll sleeps, a
+character at rest, a dropped item, a casing lying, a parked car: `MirrorVisionConfig.seen_first`) shows only once the player has seen
+it: it is hidden until the cone first reaches it, and from then on it stays drawn where it is, dimmed and grey (a seen flag, kept across a
+rebuild of its mesh; a casing's is its own). A thing that then moves outside the cone loses the flag: a character seen alive who walks
+out of view and dies there, a car that drives off and parks, a corpse or item blown out of view, must be reached again where it comes
+to rest. The **static world** (floors, walls, furniture, doors) is remembered wherever the ground was seen,
+without the first sight of each piece. Known limits: settled blood, decals and scorch are static in the 3D render, so they show in the
+remembered ground from the first sight of that ground, not of the mark; a debris chip is one part of a batch and cannot be told moving
+from lying, so one in the air is drawn outside the cone like one at rest.
+
+Drawing is **on request**: each mask is drawn when a cone is published and the live one again when the window is laid again (the camera
+drifts out of it, or the zoom steps); a still viewer in a still world draws nothing (the backstop republishes an unchanged cone, which
+draws nothing), and the world is never photographed: the view's only viewports are the live window and the seen mask, which
+draw once on request. The masks are switched on `settle_frames` (2) frames after the first cone is drawn and cleared when the view
+lifts (V9). The debug overlays (V7) lie flat on the ground, over the picture.
+
+Tests: `vision/ground_view_3d` (the masks switch on after the first cone and clear on a lift; a still view draws nothing across the
+backstop's rebuilds, a walk draws both; the window follows a camera that leaves it; the view's only viewports are the live window and the memory and neither renders every
+frame),
+`general/view_follows_paused_camera_3d`, `art/mirror_hides_unseen_movers` (a mover outside the cone is
+hidden, shown in it; a character, a corpse and a dropped rifle never seen are hidden at rest and stay shown once the cone has reached
+them; one that moved out of view and rests there (a car parked, a character that walked off and died) is hidden until reached again; furniture never hidden), `art/moving_mark` (the mark on a mirrored mover, the bullet batch, a burst's bits and sparks, a blast's
+parts and a part added later), `projectile/casing_hidden_out_of_view` (a casing in the air or lying unseen is no size; whole once
+seen), and, windowed (shaders compile and pixels draw only there), `vision/vision_mask_3d_windowed` (at the four camera yaws and at 0.5x
+and 3x: the floor in the cone lit and a character there drawn; floor behind never seen black with no line of the unseen house; after a
+look about it remembered, dimmer, nearly grey, with the character standing on it not drawn; a mover on the cone's edge drawn on the lit
+side and none beyond the cut; a moving box outside the cone casts no shadow on the lit floor, and the same box in the cone does),
+`art/toon_vision_hook_windowed` (a mask dims the toon and the decal).
 
 **Sound.** There is no on-screen hint for gunfire or footsteps heard out of view; sound stays as it is (`docs/hearing.md` is the
 AI's side).
@@ -185,11 +234,10 @@ a view of the dead human.
 
 ## Technique
 
-A *capture* viewport shares the main world, at the camera's size and canvas transform, culling `MOVING` and `OVERLAY`; a world-space
-*memory* viewport (never cleared) the cone polygon paints from the capture each frame, so it keeps the world as it was last seen
-and stays transparent where nothing was seen; a screen-sized *mask* viewport draws the polygon (blurred for the feather); the
-*composite* is drawn in the world's own canvas at `DrawLayers.VISION`, unshaded, so overlays at `OVERLAY` stay over it in
-colour. The three viewports are siblings (a viewport nested in another makes the engine log an error).
+The *live mask* is a viewport over a window of the world about the camera, the *seen mask* a world-space viewport over the floors'
+bounds that is cleared once; each cone published is drawn into both as a triangle fan (the live one once per tap of the feather,
+32 shifted copies added up), and the toon shaders read them by a surface's ground position (V12). The two viewports are siblings
+(a viewport nested in another makes the engine log an error) and draw on request, never every frame.
 
 The **cone polygon** is a fan from the eye over ray ends sorted by angle. The rays are an even fan (`cone_rays` 64 across the cone,
 `bubble_rays` 48 round the eye) plus, exactly at corners, three for each corner of each blocking shape the eye can see (the
@@ -218,10 +266,11 @@ backstop that bounds it; a feature that makes one change must tell `ViewShapes` 
 ## Tunables
 
 `VisionConfig`: `enabled` true; the look `grey` 1.0, `contrast` 0.9, `pivot` 0.3, `brightness` 0.55, `tint` (0.88, 0.96, 1.12);
-`feather` 16; `memory_scale` 2; `cone_rays` 64, `bubble_rays` 48, `corner_offset` 0.0002 rad; `far_depth` 120, `far_bleed` 14;
-`rebuild_every` 10. `VisionSliceConfig`: `slice_units` 450 (about 3.5 ms of engine work a physics tick; a unit is a ray cast, a region shape
+`feather` 16; `cone_rays` 64, `bubble_rays` 48, `corner_offset` 0.0002 rad; `far_depth` 120, `far_bleed` 14;
+`rebuild_every` 10. `VisionGroundConfig` (the masks, V12): `live_side` 768, `window_margin` 1.25, `window_slack` 1.8,
+`seen_scale` 0.5, `seen_max_side` 2048, `unseen_brightness` 0, `settle_frames` 2. `VisionSliceConfig`: `slice_units` 450 (about 3.5 ms of engine work a physics tick; a unit is a ray cast, a region shape
 query or a far-face probe, priced `cost_cast` 1, `cost_shape` 450 and `cost_probe` 1: the corners fill a slice), `restart_cap` 2, `jump_px` 48. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48,
-`see_over_coverage` 60. The repaint reach is `CharacterVisuals.SEEN_REACH` (60). The look and the 16 px edge were picked by eye,
+`see_over_coverage` 60. The reach of a mover hidden by the view is `MirrorVisionConfig`'s (`moving_reach` 60, `vehicle_reach` 130). The look and the 16 px edge were picked by eye,
 against a flat 45 % grey (too dark and flat), a full-brightness grey (too close to the live world), a hard edge (a harsh line) and
 a 40 px feather (it smears the cone).
 Tests: `vision/pose_lag_bounds` (`slice_units`, `jump_px`), `vision/cone_restarts_on_world_change` (`restart_cap`), `vision/cone_skip_exact` (`rebuild_every`).
@@ -266,7 +315,7 @@ gave, not as a number to hold the code to.
 **When the perf figures were measured.** Every perf figure below but the last two bullets (the district, 2026-11-02) was taken before commit 6bd7cc63 (a blood pool's repaint
 decided on the frame's view, by its box), and **no perf test was run after it or after the later fixes of the review, until the district run of 2026-11-02 (the bullet below)**. 6bd7cc63
 does not touch the cone, the change check or the ratio the second guard reads, so the cone figures and the ratio stand. It does
-touch the frame the first guard reads: a pool now asks `SeenArea.reaches_rect` (a box, a little cheaper to refuse than the
+touch the frame the first guard reads: a pool then asked `SeenArea.reaches_rect` (a box, since removed, a little cheaper to refuse than the
 circle) and draws in `_process`, not `_physics_process`; that moves the view's cost by about the pool skip's own size (0.13 to
 0.5 ms, below) or less, which is inside the spread between runs, but it was not measured. Two later changes to the change check
 are unmeasured too: `ViewWatch` no longer rebuilds for a blocker that is moving outside the eye's reach (the cone test
@@ -371,7 +420,7 @@ measured").
   reproduced by waiting; a 60 hp hit standing in for the fragments made the old test fail the same way, in a headless run. The victim
   has 100 000 hp now and the test kills it with its own health: green with the stand-in, ten of ten headless runs, five of five in the
   windowed queue above. Nothing in the player's view was wrong: the gun was on `MOVING` while it spun and on `WORLD` after.
-- **`vision/unseen_not_repainted`** failed twice at the 17th frame of its walker's check in two windowed runs made while the editor
+- **`vision/unseen_not_repainted`** (gone with the 2D render: its rule, a repaint skipped for what is unseen, was the 2D drawing's) failed twice at the 17th frame of its walker's check in two windowed runs made while the editor
   was reloading the changed file (an earlier review), and passed in the twenty or so runs after. It passed in each of the five
   queues above and in ten of ten windowed runs of its own on `cd92abf4`: not reproduced, and not explained.
 - **The shutdown noise.** Every log shows `BUG: Unreferenced static string to 0: ...` (33 or 34 lines) and three

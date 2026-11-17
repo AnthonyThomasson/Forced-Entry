@@ -25,6 +25,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 800, 500))
 	s.set_static(Settings, "path", "user://test_match_setup_settings.json")
 	s.set_static(Settings, "setup", {})

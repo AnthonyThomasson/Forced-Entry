@@ -67,6 +67,26 @@ static func _all_recipes() -> Dictionary:
 	return _recipes
 
 
+## Every tone of `material` ("wood", "fabric") any room's palette gives a piece, each once.
+static func palette_tones(material: String) -> Array:
+	var out: Array = []
+	for recipe: Dictionary in _all_recipes().values():
+		for palette: Dictionary in recipe.get("palettes", []):
+			if palette.has(material) and not out.has(palette[material]):
+				out.append(palette[material])
+	return out
+
+
+## Every catalogue key some room's recipe strews as clutter, each once.
+static func clutter_keys() -> Array:
+	var out: Array = []
+	for recipe: Dictionary in _all_recipes().values():
+		for row: Array in recipe.get("clutter", []):
+			if not out.has(row[0]):
+				out.append(row[0])
+	return out
+
+
 ## The arrangement for `key`, or {} if unknown.
 static func get_arrangement(key: String) -> Dictionary:
 	return _all_arrangements().get(key, {})

@@ -40,7 +40,8 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	c.surface(shoulders, material, base)
 	c.bevel(shoulders, 1, 2, t.light, t.dark)
 	StyleArt.edge(c, shoulders, look)
-	c.outline(shoulders, t.outline)
+	if not StyleArt.flat(c):
+		c.outline(shoulders, t.outline)
 	_sleeve_ends(c, o, span, shoulders, look)
 	if look.get("police", false):
 		_uniform(c, o, shoulders, look, t)
@@ -68,6 +69,13 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 		_pack(c, o, span, look)
 	c.outline(PixelShape.disc(o, head_r + 1), t.shadow)
 	c.cast_shadows()
+
+
+## The pack's rectangle on a `w` by `h` canvas, from the shoulders' centre: behind the back edge of
+## the shoulders (`paint`'s span), half the canvas wide.
+static func pack_rect(w: int, h: int) -> Rect2i:
+	var depth := roundi(h * CharacterArtConfig.shoulder_depth)
+	return Rect2i(-int(w / 4.0), -int(depth / 2.0) - 2, int(w / 2.0), roundi(h * 0.3))
 
 
 ## The ends of the shoulders where the arms leave them, per side (side 0 is −x): a sleeve in a
@@ -217,7 +225,8 @@ static func _shoulder_plate(
 	var plate := PixelShape.rounded(r, 2)
 	c.fill(plate, t.base.lightened(0.06), _PAD)
 	c.bevel(plate, 1, 1, edge, edge.darkened(0.45))
-	c.outline(plate, t.outline)
+	if not StyleArt.flat(c):
+		c.outline(plate, t.outline)
 	c.line(
 		Vector2i(plate.bounds.position.x + 1, row),
 		Vector2i(plate.bounds.end.x - 2, row),
@@ -275,12 +284,13 @@ static func _street(
 static func _pack(c: PixelCanvas, o: Vector2i, span: Rect2i, look: Dictionary) -> void:
 	var col: Color = look.get("pack_col", Color(0.2, 0.2, 0.2))
 	var pt := ArtSurfaceConfig.tones(col)
-	var r := Rect2i(o.x - int(c.w / 4.0), span.position.y - 1, int(c.w / 2.0), roundi(c.h * 0.3))
+	var r := Rect2i(o + pack_rect(c.w, c.h).position, pack_rect(c.w, c.h).size)
 	var pack := PixelShape.rounded(r, 2)
 	c.fill(pack, col, _PACK)
 	c.surface(pack, "fabric", col)
 	c.bevel(pack, 1, 1, pt.light, pt.dark)
-	c.outline(pack, pt.outline)
+	if not StyleArt.flat(c):
+		c.outline(pack, pt.outline)
 	if String(look.get("pack_kind", "")) == "medic":
 		StyleArt.cross(c, r.get_center(), look.get("trim", Color.RED), _PACK + 1)
 	elif not look.get("police", false):

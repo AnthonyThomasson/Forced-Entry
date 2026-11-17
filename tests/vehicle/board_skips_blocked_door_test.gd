@@ -2,8 +2,8 @@ extends GameTest
 ## V1 (ticket #54): a door that cannot open is skipped for the next nearest that can. The car is
 ## parked in the open with an armchair standing just off its left side, in the rear-left door's
 ## swing, so that door cannot open. A character on the car's left side between the rear-left and
-## front-left handles, nearer the rear-left, with both in reach: E boards by the front-left door
-## into the driver's seat, and the rear-left door never opens.
+## front-left handles, nearer the rear-left, with both in reach, pointing at the car: Space boards
+## by the front-left door into the driver's seat, and the rear-left door never opens.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
@@ -63,6 +63,9 @@ func run(t: TestContext) -> void:
 		return
 	await VehicleRide.place(t, &"me", at)
 	var me := t.actor(&"me")
+	# The armchair is in reach too: Space acts on what is nearest the mouse, so point at the car.
+	t.puppet(&"me").aim_at(car)
+	await t.frames(3)
 	t.puppet(&"me").use()
 	var watched: Dictionary = await Probe.watch_doors(
 		t,

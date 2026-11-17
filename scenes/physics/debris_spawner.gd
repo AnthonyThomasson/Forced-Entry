@@ -4,7 +4,6 @@ class_name DebrisSpawner
 ## is its master switch.
 
 const Debris = preload("res://scenes/physics/debris.gd")
-const DebrisVisuals = preload("res://scenes/physics/debris_visuals.gd")
 ## Per-material chip style, keyed by material tag ("default" covers walls and unlisted tags).
 ##   count    — Vector2i(min, max) chips per hit
 ##   size     — Vector2(min, max) chip side length (px)
@@ -118,10 +117,6 @@ static func spawn(
 		chip.chip_shape = style["shape"]
 		chip.eject_distance = rng.randf_range(dist_range.x, dist_range.y)
 
-		var visuals := Node2D.new()
-		visuals.name = "DebrisVisuals"
-		visuals.script = DebrisVisuals
-		chip.add_child(visuals)
 		ViewLayers.set_moving(chip, true)
 
 		parent.add_child(chip)
@@ -132,6 +127,7 @@ static func spawn(
 
 		var eject := spray.rotated(rng.randf_range(-spread, spread)) * rng.randf_range(0.5, 1.0)
 		chip.start(eject)
+		PhysicsFxHook.chip_flew(chip)
 
 
 ## Derive a chip color from the object's base color per the style's tint mode.

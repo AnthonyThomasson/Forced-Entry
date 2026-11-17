@@ -19,7 +19,8 @@ var w: int
 var h: int
 ## Seeded per texture, so a piece paints identically every time.
 var rng := RandomNumberGenerator.new()
-## Direction the light comes FROM, in this canvas's frame (normalized).
+## Direction the light comes FROM, in this canvas's frame (normalized); `Vector2.ZERO` on a flat
+## (albedo-only) canvas, where `bevel`, `bevel_relative`, `cast_shadows` and `glare` do nothing.
 var light: Vector2
 ## Coverage layer (R8): non-zero where something is drawn.
 var _cov: Image
@@ -88,8 +89,8 @@ func px(x: int, y: int, c: Color, height: int = -1) -> void:
 
 ## Run `draw` (a Callable taking no arguments, drawing on this canvas) as the drawing of something
 ## that gives light (a screen's face, a tube, a bulb, an LED): every pixel it changes within `area`
-## (the whole canvas when empty) is marked emissive, so `emissive()` (and `PixelArt.emissive`) can
-## hand it to a caller that draws it unshaded.
+## (the whole canvas when empty) is marked emissive, so `emissive()` (and `PixelArt.emissive_flat`)
+## can hand it to a mesh that glows.
 func glowing(draw: Callable, area := Rect2i()) -> void:
 	var r := (Rect2i(0, 0, w, h)
 			if area.size == Vector2i.ZERO
@@ -215,8 +216,14 @@ func outline_relative(s: PixelShape, amount: float) -> void:
 			img.set_pixel(x, y, img.get_pixel(x, y).darkened(amount))
 
 
-## A 1px ring just inside a shape's edge.
+## A 1px ring just inside a shape's edge. On a flat canvas (no light: the 3D render's albedo, which
+## the post outlines itself) the ring is not `c`, a dark line that would double the post's and make
+## a side face read black, but the pixel already drawn there darkened a step
+## (`ArtCanvasConfig.flat_outline_darken`).
 func outline(s: PixelShape, c: Color) -> void:
+	if light == Vector2.ZERO:
+		outline_relative(s, ArtCanvasConfig.flat_outline_darken)
+		return
 	var pts := s.edge_pixels(1)
 	for i in range(0, pts.size(), 2):
 		var x := pts[i]
@@ -254,6 +261,8 @@ func cast_shadows() -> void:
 
 ## A soft glare: short diagonal streaks of `glint` near the lit corner of `s` (glaze, glass).
 func glare(s: PixelShape, glint: Color, streaks: int = 2) -> void:
+	if light == Vector2.ZERO:
+		return
 	var r := s.bounds
 	var corner := Vector2(r.position) + Vector2(r.size) * (Vector2(0.5, 0.5) + light * 0.32)
 	var along := Vector2(light.y, -light.x)  # Across the light: streaks run perpendicular to it.

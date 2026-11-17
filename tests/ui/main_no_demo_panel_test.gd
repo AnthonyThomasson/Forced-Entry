@@ -20,6 +20,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 400, 300))
 	s.set_static(Settings, "path", "user://test_main_no_demo_panel_settings.json")
 	s.set_static(Settings, "overlays", {})

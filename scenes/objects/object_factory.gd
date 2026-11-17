@@ -7,13 +7,13 @@ class_name ObjectFactory
 ## Definition fields: name, shape ("circle"|"square"|"rect"), size, color (required);
 ##   material, coverage, penetration, weight, solid, interactions (all optional);
 ##   anchored (optional, default false: a solid piece that never moves, frozen static; still struck,
-##   dented, throwing debris); art (an `ObjectArt` painter id, e.g. "sofa"; omitted = flat shape +
-##   label) and art_opts (painter overrides, see the ObjectArt*Config holders) (optional);
+## dented, throwing debris); art (an `ObjectArt` painter id, e.g. "sofa"; omitted = the flat shape)
+## and art_opts (painter overrides, see the ObjectArt*Config holders) (optional);
 ##   overhang (optional `{ size, reach }`: an overhead part beyond the footprint, a streetlight's
-##     arm and head, drawn by the piece's painter with `part: "overhang"`, `size` across x out,
-##     centred `reach` px out along the facing, above the characters, with no collider: the child
-##     `Overhang`, overhang_visuals.gd); with `fade_under: true` it fades to a quarter of its
-##     opacity while a character stands under it and back when none does (ObjectFadeConfig)).
+##     arm and head, shown by the piece's mesh from its painter with `part: "overhang"`, `size`
+##     across x out, centred `reach` px out along the facing, above the characters, with no
+##     collider; kept as the plain field `piece.look.overhang` and read back as an area by
+##     `piece.look.overhang_rect()`, which the 3D meshes read).
 ## `opts`:
 ##   name:    String  — node name (readable hit labels; defaults to the definition name).
 ##   rotated: bool    — swap the footprint's width/height (a 90° turn).
@@ -25,8 +25,6 @@ class_name ObjectFactory
 ##                      always looks the same.
 
 const EnvironmentObject = preload("res://scenes/objects/environment_object.gd")
-const EnvironmentObjectVisuals = preload("res://scenes/objects/environment_object_visuals.gd")
-const OverhangVisuals = preload("res://scenes/objects/overhang_visuals.gd")
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 
 
@@ -55,7 +53,6 @@ static func spawn(
 	obj.object_name = definition["name"]
 	obj.size = size
 	obj.color = color
-	obj.look.text_color = Color.BLACK if color.get_luminance() > 0.6 else Color.WHITE
 	obj.solid = definition.get("solid", true)
 	obj.anchored = definition.get("anchored", false)
 	obj.object_material = definition.get("material", "")
@@ -72,13 +69,7 @@ static func spawn(
 	if neon != "":
 		obj.look.art_opts = obj.look.art_opts.merged({ "neon": neon })
 	obj.look.facing = opts.get("facing", Vector2.DOWN)
-
-	var visuals := Node2D.new()
-	visuals.name = "EnvironmentObjectVisuals"
-	visuals.script = EnvironmentObjectVisuals
-	obj.add_child(visuals)
-	if not (definition.get("overhang", {}) as Dictionary).is_empty():
-		OverhangVisuals.new().setup(obj, definition["overhang"])
+	obj.look.overhang = definition.get("overhang", {})
 
 	parent.add_child(obj, true)  # Readable unique names (Chair, Chair2, ...).
 	return obj

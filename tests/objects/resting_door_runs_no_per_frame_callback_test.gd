@@ -1,6 +1,6 @@
 extends GameTest
-## A door at rest runs neither a physics callback nor a drawing callback. Starting a swing wakes the
-## physics step, which sleeps again at the open stop; the art follows transforms by notification.
+## A door at rest runs neither a physics callback nor a process callback. Starting a swing wakes the
+## physics step, which sleeps again at the open stop.
 
 const SWING := 0.4
 
@@ -8,7 +8,7 @@ const SWING := 0.4
 func describe() -> Dictionary:
 	return {
 		"name": "A door at rest runs no per-frame callback",
-		"description": "A shut door and its visuals sleep; opening wakes the door, and the open "
+		"description": "A shut door sleeps; opening wakes the door, and the open "
 			+ "stop puts it back to sleep without changing the swing.",
 		"tags": ["door", "perf"],
 		"timeout": 6.0,
@@ -51,7 +51,3 @@ func run(t: TestContext) -> void:
 func _check_asleep(t: TestContext, door: Node, where: String) -> void:
 	t.check(not door.is_physics_processing(), "%s: the door runs no physics callback" % where)
 	t.check(not door.is_processing(), "%s: the door runs no process callback" % where)
-	t.check(
-		not door.visuals.is_processing(),
-		"%s: the door's visuals run no process callback" % where,
-	)

@@ -26,12 +26,14 @@ static func _held_marks(c: PixelCanvas, look: Dictionary, parts: Dictionary) -> 
 		c.px(x, body.position.y + 2, look["trim"], WeaponArt.BODY_HEIGHT)
 
 
-## Lying: the light bar on the receiver's top edge and the stencil dashed along its side.
+## Lying: the light bar on the receiver's top edge and the stencil dashed along its side (not on a
+## flat canvas, the 3D render's: the side faces stretch an edge texel, so its pale dashes ran down
+## the stock as stray white texels).
 static func _flat_marks(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: Callable) -> void:
 	var body_end: int = p["body_end"]
 	var from := maxi(int(p["stock_end"]), 0) + 1
 	c.px(mx.call(1), body_end - 3, look["light"], WeaponArt.FLAT_HEIGHT + 2)
 	c.px(mx.call(1), body_end - 2, look["light2"], WeaponArt.FLAT_HEIGHT + 2)
 	for y in range(from + 1, mini(body_end - 4, from + 6)):
-		if y % 2 == 0:
+		if y % 2 == 0 and c.light != Vector2.ZERO:
 			c.px(mx.call(2), y, look["trim"], WeaponArt.FLAT_HEIGHT + 2)

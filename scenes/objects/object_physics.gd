@@ -8,7 +8,7 @@ extends RefCounted
 
 ## RigidBody2D adapter; take_hit shoves the body through it.
 var knockback: Knockback
-## Damage dents/chunks; read by the visuals.
+## Damage dents/chunks; read by the furniture rig and the collider rebuild.
 var deformable: Deformable
 ## The EnvironmentObject whose physics this is.
 var _piece: RigidBody2D

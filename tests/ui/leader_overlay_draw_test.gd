@@ -1,6 +1,6 @@
 extends GameTest
 ## LD12 (`docs/leadership.md`): the squad-leaders debug overlay
-## (`scenes/ui/overlays/leader_overlay.gd`, `LeaderOverlay`, drawn at `DrawLayers.OVERLAY`). A
+## (`scenes/ui/overlays/leader_overlay.gd`, `LeaderOverlay`). A
 ## global row of the overlay bar (`OverlayRegistry.LEADERS`, `show_leaders`, off by default); while
 ## it is on, a crown over each squad's living leader, moving to the next leader when the view names
 ## one. A decoupled observer: `watch(views)` takes the squads' `view()` callables and `drawn()` is
@@ -44,6 +44,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 900, 600))
 	s.set_static(Settings, "path", "user://test_leader_overlay_settings.json")
 	s.set_static(Settings, "overlays", {})
@@ -72,11 +73,6 @@ func run(t: TestContext) -> void:
 	var boss := t.actor(&"boss")
 	var overlay: Node2D = LeaderOverlay.new()
 	t.world.add_child(overlay)
-	t.expect_eq(
-		overlay.z_index,
-		DrawLayers.OVERLAY,
-		"drawn over the view (DrawLayers.OVERLAY)",
-	)
 	_views = [{ "leader": lead, "members": [] }, { "leader": boss, "members": [] }]
 	overlay.watch([func(): return _views[0], func(): return _views[1]])
 	await t.frames(2)

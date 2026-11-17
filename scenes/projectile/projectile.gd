@@ -2,7 +2,7 @@ extends Node2D
 ## A bullet: the control layer of the Projectile System. Each physics frame it sweeps
 ## forward along `direction` with a raycast and resolves every collider it crosses against
 ## that object's surface, so it may fly over cover, ricochet, penetrate, or embed. It frees
-## itself once spent or past `max_distance`. Drawing lives in projectile_visuals.gd.
+## itself once spent or past `max_distance`. The 3D `ShotLayer` shows it.
 
 ## Emitted for each damaging interaction with the dealt damage. A fly-over emits nothing.
 signal hit(body: Node, damage: float)
@@ -20,10 +20,6 @@ const SPENT_SLACK := 0.01
 @export var damage: float = 10.0
 ## Physics layers the bullet can hit.
 @export_flags_2d_physics var collision_mask: int = PhysicsLayers.SOLID
-## Streak color.
-@export var color: Color = Color(1.0, 0.9, 0.4)
-## Streak length in px.
-@export var length: float = 7.0
 
 ## The speed it left the muzzle at (px/s): the reference its damage and impact scale against, so a
 ## weapon's damage is what it deals at full speed, head-on. The spawner sets it with `speed`.
@@ -99,6 +95,11 @@ func _physics_process(delta: float) -> void:
 		if _traveled >= max_distance - SPENT_SLACK:
 			queue_free()
 			return
+
+
+## How far (px) the bullet still has to fly before its range runs out.
+func range_left() -> float:
+	return max_distance - _traveled
 
 
 ## Post the world `&"hit"` event for `info` striking `body`, so decoupled listeners (the AI's combat

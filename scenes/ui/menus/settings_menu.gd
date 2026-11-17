@@ -107,12 +107,15 @@ func _build_ui(debug_on: bool) -> void:
 	title.add_theme_font_size_override("font_size", 44)
 	box.add_child(title)
 
+	var options := HBoxContainer.new()
+	options.add_theme_constant_override("separation", 40)
+	box.add_child(options)
 	_debug_check = CheckBox.new()
 	_debug_check.text = "Debug (AI overlays and their toggle bar)"
 	_debug_check.button_pressed = debug_on
 	_debug_check.add_theme_font_size_override("font_size", 26)
 	_debug_check.toggled.connect(debug_changed.emit)
-	box.add_child(_debug_check)
+	options.add_child(_debug_check)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL

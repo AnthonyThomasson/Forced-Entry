@@ -31,6 +31,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	s.own_picture()
 	s.arena(Rect2(0, 0, 200, 200))
 	s.switch(&"vision.enabled", true)
 	s.set_static(Settings, &"path", SCRATCH)

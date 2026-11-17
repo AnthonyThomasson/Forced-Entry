@@ -4,7 +4,7 @@ extends GameTest
 ## district whose centre house is the largest plan, `Perf.MATCH_PLAN`, `Perf.configure_match`, built
 ## as Main builds one), but with the view drawn of
 ## one invader (`TestSetup.view`) while it fights, the cone rebuilt whenever its inputs changed
-## (`ViewWatch`), the capture and the memory painted and the composite drawn. The viewed invader is
+## (`ViewWatch`), the live and seen masks painted. The viewed invader is
 ## the tenth: a declared invader beside the nine of the match (the match's own NPCs are no test
 ## actors for the view to name), moved to stand with the invaders' group before the warm-up. After
 ## the warm-up the match runs on until the sides are in contact (`Perf.warm_until_contact`), then

@@ -1,6 +1,6 @@
 extends RefCounted
-## Vehicles domain: a vehicle's door, top-down pixel art (rendered through Art,
-## `PixelArt.render_turned`). `opts.kind` and `opts.door` name it (its `VehicleConfig.kinds` row
+## Vehicles domain: a vehicle's door, top-down pixel art (painted flat through Art,
+## `PixelArt.render_flat`). `opts.kind` and `opts.door` name it (its `VehicleConfig.kinds` row
 ## entry); `opts.part` is which piece:
 ##  - `panel`: the door seen from above as it swings, in its own canonical frame (front, +y, toward
 ##    the hinge along it; across it its thickness, the outside on the `vehicle_art.door_frame`
@@ -93,7 +93,7 @@ static func _handle(c: PixelCanvas, def: Dictionary, col: Callable, t: Dictionar
 	if def["kind"] == &"rear":
 		row = clampi(roundi(c.h * 0.12), 2, c.h - 6)
 	c.line(Vector2i(col.call(0), row), Vector2i(col.call(0), row + 3), trim)
-	c.px(col.call(1), row + 1, t["highlight"])
+	c.px(col.call(1), row + 1, t["highlight"] if c.light != Vector2.ZERO else t["base"])
 
 
 ## Shut lines at both ends of door `def`, and a sliding door's rail groove or a rear door's hinge
@@ -158,4 +158,5 @@ static func _mirror(c: PixelCanvas, base: Color) -> void:
 		VehicleArtConfig.glass_color.darkened(0.3),
 		_GLASS,
 	)
-	c.outline(housing, t["outline"])
+	if c.light != Vector2.ZERO:
+		c.outline(housing, t["outline"])
