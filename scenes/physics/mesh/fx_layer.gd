@@ -1,14 +1,13 @@
 class_name FxLayer
 extends Node3D
-## Physics domain, the 3D look of the debris, hit particles, blood and explosions (#193 phase 2;
-## `domain-physics/meshes.md`): one layer under the 3D mirror that shows what the 2D Physics code
-## makes. The 2D code tells it as it makes each thing (`PhysicsFxHook`: nothing is told while no
-## layer is installed, so the 2D render pays one check), and the layer shows it by pooled batches
-## and meshes that are made once, so nothing is allocated while the game runs. It processes only
-## while
-## something moves (chips in the air, a burst's bits, a growing pool, a blast): at rest nothing
-## runs and nothing is written. Each kind of effect is a part of its own (`DebrisFx` ...), bounded
-## by the `Despawner`'s cap as the 2D one is.
+## Physics domain, the 3D look of the debris, hit particles, blood and explosions
+## (`domain-physics/meshes.md`): one layer under the 3D mirror that shows what the Physics code
+## makes. The Physics code tells it as it makes each thing (`PhysicsFxHook`: nothing is told while
+## no layer is installed, so a world with no 3D view pays one check), and the layer shows it by
+## pooled batches and meshes that are made once, so nothing is allocated while the game runs. It
+## processes only while something moves (chips in the air, a burst's bits, a growing pool, a
+## blast): at rest nothing runs and nothing is written. Each kind of effect is a part of its own
+## (`DebrisFx` ...), bounded by the `Despawner`'s cap.
 
 ## The chips, the bits and sparks of a burst, the marks lying on the floor and the pools.
 var debris: DebrisFx

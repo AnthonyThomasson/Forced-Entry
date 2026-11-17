@@ -89,8 +89,10 @@ static func warm(requests: Array) -> void:
 		_warm_task = WorkerThreadPool.add_task(_warm_all, false, "pixel-art pre-warm")
 
 
-## Have `script` and every script it preloads compiled, here on the main thread: a constant table
-## a main-thread compile is still building (a font's rows) reads as garbage on the worker.
+## Have `script` and every script it preloads touched, here on the main thread, so they are
+## settled before the worker starts: a constant table a main-thread compile is still building (a
+## font's rows) read as garbage on the worker. It walks preload constants only, and that
+## `get_script_constant_map()` forces the compile is not proven: it is what the fix relies on.
 static func _settle(script: Script, settled: Dictionary) -> void:
 	if script == null or settled.has(script):
 		return

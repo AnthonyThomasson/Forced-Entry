@@ -80,19 +80,6 @@ func ribbon_count() -> int:
 	return _count("ribbon")
 
 
-## The blood colour of mark `m` right now: dries toward dried_color, alpha scaled by the mark's own.
-func color_of(m: Dictionary) -> Color:
-	var seconds := BloodConfig.print_dry_time
-	var dried := 1.0
-	if seconds > 0.0:
-		var age := (float(Engine.get_physics_frames() - int(m["born"]))
-				/ float(Engine.physics_ticks_per_second))
-		dried = clampf(age / seconds, 0.0, 1.0)
-	var c: Color = BloodConfig.color.lerp(BloodConfig.dried_color, dried)
-	c.a *= float(m["alpha"])
-	return c
-
-
 ## How many held marks are of `kind` ("print" or "ribbon").
 func _count(kind: String) -> int:
 	var n := 0

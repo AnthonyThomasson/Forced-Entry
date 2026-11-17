@@ -1,12 +1,12 @@
 class_name PhysicsFxHook
 extends RefCounted
-## Physics domain, the 2D code's way of telling the 3D render what it made (#193 phase 2): static
-## calls from the places that spawn debris, hit particles, blood and explosions, answered by the
-## installed `FxLayer` (`PhysicsMeshes.install`). With none installed (the 2D render, or a test
-## world with no 3D view) each call is one check and nothing else, so the 2D game is as it was.
+## Physics domain, the simulation's way of telling the 3D render what it made: static calls from
+## the places that spawn debris, hit particles, blood and explosions, answered by the installed
+## `FxLayer` (`PhysicsMeshes.install`). With none installed (a test world with no 3D view) each
+## call is one check and nothing else.
 
-## The layer being told, null in the 2D render. Untyped, so a layer freed with its world is told
-## no more.
+## The layer being told, null while none is installed. Untyped, so a layer freed with its world is
+## told no more.
 static var sink: Object
 ## The height (0..100, a hit's `HitInfo.height`; negative: the floor) of the hit whose debris and
 ## bursts are being spawned, which only the 3D render shows: `Physics.spawn_debris` sets it around

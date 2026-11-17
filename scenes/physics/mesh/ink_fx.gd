@@ -1,7 +1,7 @@
 class_name InkFx
 extends RefCounted
-## Physics domain, what lies flat on the floor in the 3D render (#193 phase 2;
-## `domain-physics/meshes.md`): blood's splats, footprints and smears, and a blast's scorch. Each
+## Physics domain, what lies flat on the floor in the 3D render
+## (`domain-physics/meshes.md`): blood's splats, footprints and smears, and a blast's scorch. Each
 ## is a few flat triangles (`InkMark`) a few tenths of a px over the ground, on the height of its
 ## kind (`PhysicsInkConfig`), in the shapes and colours the 2D drew (the splat's own merged
 ## outlines, the print's sole, the smear's ribbon, the scorch's stepped rows), opaque and in steps
@@ -60,11 +60,6 @@ func count_of(kind: InkMark.Kind) -> int:
 		InkMark.Kind.SCORCH:
 			return _scorches.size()
 	return _prints.items().filter(func(m: InkMark) -> bool: return m.kind == kind).size()
-
-
-## How many chunks hold a mark.
-func chunk_count() -> int:
-	return _chunks.size()
 
 
 ## The chunk `mark` is filed in (null when it is in none).

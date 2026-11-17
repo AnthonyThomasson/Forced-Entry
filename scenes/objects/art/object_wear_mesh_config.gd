@@ -23,9 +23,7 @@ static var wall_mark_at_default: float = 48.0
 ## these surfaces takes one of them (a stencil: `tier_stencil`); a wall's marks are on the face,
 ## their own surface, at `tier_slab`.
 static var tier_slab: float = 0.0
-static var tier_chip: float = 1.0
 static var tier_mark: float = 2.0
-static var tier_glyph: float = 3.0
 static var tier_stencil: float = 4.0
 ## The tier of a street mark by its kind; a kind not named is a `tier_mark`.
 static var kind_tier: Dictionary = { &"slab": 0.0, &"chip": 1.0, &"glyph": 3.0 }

@@ -11,7 +11,7 @@ Six private painters, each its own part, all drawing from the character's resolv
 - `hand_painter.gd`: a fist, knuckles to the front and the thumb on the inner side (`side`); `limb_painter.gd`: the shaded strip of one arm, leg or shoe segment (`part`, `side`, `cuff`, `skin`, `chrome`).
 - `vest_painter.gd`: called by the body painter (`paint_top`, seen from above): a soft vest or a plate carrier. A plate's wear is `WEAR_STEPS` steps of `_MARKS_PER_STEP` marks from one fixed sequence per side (a crack, then a scuff), so each step adds to the last.
 
-The 3D body wears each painter's flat render (`PixelArt.render_flat`, `body-textures.md`); the painters keep their lit branches while lit art feeds other textures.
+The 3D body wears each painter's flat render (`PixelArt.render_flat`, `body-textures.md`); the painters' lit mode is dead in production and left for a later cleanup.
 
 ## The look
 

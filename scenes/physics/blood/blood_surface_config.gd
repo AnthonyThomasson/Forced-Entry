@@ -1,7 +1,7 @@
 class_name BloodSurfaceConfig
 ## What the floor does to blood (scenes/physics/blood/: BloodSurface, BloodFlow): the grooves
 ## steering a flow (the resistances, a groove's width) and porous floors soaking it in (the soak
-## time, the weight, the slowdown, the tufts, the opacity).
+## time, the weight, the slowdown).
 ## A `class_name` holder of `static var`s, read as `BloodSurfaceConfig.<name>`; there is no instance
 ## and no autoload.
 
@@ -23,17 +23,6 @@ static var porous_cell_weight: float = 3.0
 ## Blood spreading over porous surface creeps this many times slower (scaled by the share of the
 ## pool on it).
 static var porous_spread_slowdown: float = 4.0
-## Blood sinks into a carpet or rug tuft by tuft: each tuft (a spot `soak_tuft_size` px across)
-## soaks at its own rate, `soak_tuft_spread` (0 all together .. 1 very uneven) wide, and ends up a
-## dot of its own shade of red, so the pool turns into a spotted, mottled stain rather than one
-## fading film.
-static var soak_tuft_spread: float = 0.8
-static var soak_tuft_size: float = 2.5
-## How strongly the tufts differ in shade (0 all alike .. 1 very mottled), and how opaque soaked
-## blood is (1 = as solid as fresh blood, lower lets the rug or carpet pattern show through the
-## stain).
-static var soak_tuft_contrast: float = 0.2
-static var soak_opacity: float = 0.95
 ## Half width (px) around a groove line that still counts as on it; about half a flow cell so a cell
 ## centre reliably lands in a 1-px groove.
 static var groove_half_width: float = 2.0

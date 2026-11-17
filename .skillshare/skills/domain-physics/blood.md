@@ -58,11 +58,11 @@ under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `Blo
   The newest registration wins on overlap, except any porous surface at a point counts.
 - **Soaking:** once the flood has mostly reached a porous cell (>= 0.5), `BloodFlow.tick(delta)` (from `BloodPool`, which keeps
   processing while `soaking()`) takes its soak 0 → 1 over `soak_time`. Soaking never changes `fill(c)` or the outline; the blood
-  turns translucent (`soak_opacity`) so the carpet shows through. `wetness(c)` = `fill * (1 - soak)` is what `BloodField` reads,
+  shows only as the 3D pool's soaked tone (`PoolInk`). `wetness(c)` = `fill * (1 - soak)` is what `BloodField` reads,
   so soaked blood leaves no prints or smears. Dragged trail cells do not soak.
 - Porous floor also slows and shortens the pool: `porous_spread_slowdown` stretches the sweep by the share of porous cells, and
   each costs `porous_cell_weight` of the budget. The pool texture is RG8 (red = fill, green = soak, written only when
-  `has_porous()`); the shader splits it into `soak_tuft_size` px tufts, each with its own soak rate and shade.
+  `has_porous()`).
 
 ## Carried blood
 

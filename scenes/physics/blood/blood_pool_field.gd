@@ -25,8 +25,7 @@ static func field_box(covered: Array) -> Rect2i:
 
 
 ## The field over `box` as RG8 bytes: red = the fill, box-blurred; green = how far the blood has
-## sunk in (left at cell resolution; the texture filtering smooths it, and the shader soaks it in
-## tuft by tuft).
+## sunk in (left at cell resolution; the texture filtering smooths it).
 static func field_bytes(flow: BloodFlow, covered: Array, box: Rect2i) -> PackedByteArray:
 	var lo := box.position
 	var w := box.size.x
