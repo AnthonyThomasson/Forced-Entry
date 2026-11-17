@@ -83,7 +83,7 @@ func run(t: TestContext) -> void:
 		_check_strips(t, body, String(id))
 		_check_fists(t, body, String(id))
 	var east: BodyMesh = bodies[&"east"]
-	var dress: BodyDress = t.actor(&"east").get_node("Visuals").dress
+	var dress: BodyDress = east.look_worn()
 	_check_domes(t, east)
 	_check_colours(t, east, dress)
 	_check_crown(t, east)

@@ -7,7 +7,7 @@ extends RefCounted
 ## frame; the parts turn and stretch with the pose and the art stays put on them (the textured toon
 ## projects in the part's own model space).
 ##
-## What goes where (the 2D draw, `character_visuals.gd` and `body_limbs.gd`, shows the same):
+## What goes where:
 ## - the shoulders (`BodyPainter`: the shirt's collar, sleeve ends, vest top, plates, the pack's
 ##   straps, the neck's ring) on the trunk and the vest, 1 art px to 1 world px, centred on the
 ##   trunk's axis; the pack's rectangle of it on the pack's box;
@@ -28,6 +28,10 @@ const BodyPainter = preload("res://scenes/character/body/art/body_painter.gd")
 const HeadPainter = preload("res://scenes/character/body/art/head_painter.gd")
 const HandPainter = preload("res://scenes/character/body/art/hand_painter.gd")
 const LimbPainter = preload("res://scenes/character/body/art/limb_painter.gd")
+## Where a boot's shaft starts along the shin (0 knee, 1 ankle) and how much wider than a shoe's
+## strip it is (body radii), so the shaft reads over the shoe.
+const BOOT_TOP := 0.62
+const BOOT_GROW := 0.06
 ## How far inside the art's rim a dome's equator lies (art px): the dome ends on art, not on the
 ## clear texel past it.
 const DOME_INSET := 0.25
@@ -146,12 +150,12 @@ static func _shin(node: MeshInstance3D, dress: BodyDress, i: int, r: float) -> v
 static func _boot(node: MeshInstance3D, dress: BodyDress, i: int, r: float) -> void:
 	var leg: Array = CharacterArtConfig.body_leg_widths
 	var opts: Dictionary = dress.leg_opts[i]
-	var top := lerpf(leg[2], leg[3], (BodyLimbs.BOOT_TOP - 0.35) / 0.65) + BodyLimbs.BOOT_GROW
+	var top := lerpf(leg[2], leg[3], (BOOT_TOP - 0.35) / 0.65) + BOOT_GROW
 	var strip := _strip(
 		_part(dress.shoes, opts["shaft"]),
 		top,
-		leg[3] + BodyLimbs.BOOT_GROW,
-		CharacterBodyConfig.shin * (1.0 - BodyLimbs.BOOT_TOP),
+		leg[3] + BOOT_GROW,
+		CharacterBodyConfig.shin * (1.0 - BOOT_TOP),
 		r,
 	)
 	_limb(node, strip, r, BodyMesh.boot_radius(r))
@@ -161,7 +165,7 @@ static func _boot(node: MeshInstance3D, dress: BodyDress, i: int, r: float) -> v
 ## along its +z.
 static func _foot(node: MeshInstance3D, dress: BodyDress, i: int, r: float) -> void:
 	var shoe: Array = CharacterArtConfig.body_shoe_widths
-	var grow := BodyLimbs.BOOT_GROW if dress.boots else 0.0
+	var grow := BOOT_GROW if dress.boots else 0.0
 	var strip := _strip(
 		_part(dress.shoes, dress.leg_opts[i]["foot"]),
 		shoe[0] + grow,
@@ -172,10 +176,10 @@ static func _foot(node: MeshInstance3D, dress: BodyDress, i: int, r: float) -> v
 	_put(node, strip["tex"], Rect2(-0.5, -0.5, 1.0, 1.0))
 
 
-## A limb segment's art: its flat strip as `BodyLimbs` paints it (the canvas as wide as the widest
-## end across, as long as the segment and its two end caps), by the segment's `part` (`color`,
-## `opts`) between the widths `wa` and `wb` (body radii) and `length` (body radii) long. Returns
-## the texture, the canvas's size and the first end cap's size along it.
+## A limb segment's art: its flat strip as the limb painter paints it (the canvas as wide as the
+## widest end across, as long as the segment and its two end caps), by the segment's `part`
+## (`color`, `opts`) between the widths `wa` and `wb` (body radii) and `length` (body radii) long.
+## Returns the texture, the canvas's size and the first end cap's size along it.
 static func _strip(part: Dictionary, wa: float, wb: float, length: float, r: float) -> Dictionary:
 	var ra := wa * r * 0.5
 	var rb := wb * r * 0.5

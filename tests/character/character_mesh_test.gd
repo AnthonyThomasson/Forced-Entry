@@ -246,7 +246,7 @@ func _check_dress(t: TestContext, mirror: WorldMirror) -> void:
 	var body := _body_of(t, mirror, &"dressed")
 	if body == null:
 		return
-	var dress: BodyDress = t.actor(&"dressed").get_node("Visuals").dress
+	var dress: BodyDress = body.look_worn()
 	_check_colours(t, body, dress)
 	var made := ToonMaterial.textured_count()
 	await t.frames(30)
@@ -457,21 +457,19 @@ func _seed_with(key: StringName, value: Variant) -> int:
 	return 0
 
 
-## A body outside the 2D view's cull rect has its visuals unrefreshed (they skip an unseen body),
-## yet the 3D camera sees it: an outfit change still reaches the mesh.
+## A body far from the player: an outfit change still reaches the mesh (the mesh refreshes its own
+## dress).
 func _check_culled(t: TestContext, mirror: WorldMirror) -> void:
 	var body := _body_of(t, mirror, &"culled")
 	if body == null:
 		return
 	var actor := t.actor(&"culled")
-	actor.get_node("Visuals").set_process(false)  # what the cull does to an unseen body
 	actor.wardrobe.outfit.set_ids({})
 	await t.frames(3)
 	t.check(not _shown(body, BodyMesh.VEST), "premise: no vest on the unseen body")
 	actor.wardrobe.outfit.set_ids({ "vest": &"tactical_vest", "body": &"shirt" })
 	await t.frames(4)
-	t.check(_shown(body, BodyMesh.VEST), "an outfit change re-dresses a body the 2D view skips")
-	actor.get_node("Visuals").set_process(true)
+	t.check(_shown(body, BodyMesh.VEST), "an outfit change re-dresses a body away from the player")
 
 
 ## A body seated (its collision shapes disabled) is hidden and back when they are enabled; a dead

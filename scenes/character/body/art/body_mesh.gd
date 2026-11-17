@@ -111,7 +111,7 @@ const PLATE_AT := 0.55
 ## How deep into the vest's back the pack sits (a share of the vest's depth there).
 const PACK_SET := 0.85
 
-## The body's radius, the visuals' dress, the hands' size and the head's.
+## The body's radius, its dress, the hands' size and the head's.
 var _r := 14.0
 var _dress: BodyDress
 var _hand_radius := 4.0
@@ -138,25 +138,31 @@ var _died := -1
 var _at_rest := false
 
 
-## The body of `body` (a character with its `Visuals` dress), or null for a node that is none: the
-## mirror then keeps its proxy.
+## The body of `body` (a character with an anatomy and a wardrobe), or null for a node that is
+## none: the mirror then keeps its proxy. The body keeps its own `BodyDress` (the look its
+## wardrobe resolves).
 static func build(body: Node2D) -> Node3D:
-	var visuals: Node = body.get_node_or_null("Visuals")
-	if not body is CharacterBody2D or visuals == null or not visuals.get("dress") is BodyDress:
+	if not body is CharacterBody2D or body.get("anatomy") == null:
 		return null
-	if body.get("anatomy") == null or not body.get("wardrobe") is CharacterWardrobe:
+	if not body.get("wardrobe") is CharacterWardrobe:
 		return null
 	var mesh := BodyMesh.new()
-	mesh._make(body as CharacterBody2D, visuals.get("dress"))
+	var dress := BodyDress.new()
+	dress.refresh(body.wardrobe)
+	mesh._make(body as CharacterBody2D, dress)
 	return mesh
+
+
+## The look this body is dressed in (what its wardrobe resolved at the last update).
+func look_worn() -> BodyDress:
+	return _dress
 
 
 ## Place the parts between the joints the rig holds now, once for each physics frame and only when a
 ## joint moved, and dress them again when the look changed.
 func mirror_update(body: Node2D) -> void:
 	if _died < 0:
-		# The 2D visuals refresh the dress only for a body inside the 2D view, which the 3D camera
-		# outruns; the call is cheap and answers at once when nothing changed.
+		# The call is cheap and answers at once when nothing changed.
 		_dress.refresh(body.wardrobe)
 		if _dress.look_key != _look_key:
 			_dress_parts()
