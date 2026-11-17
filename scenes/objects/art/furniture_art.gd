@@ -110,7 +110,7 @@ static func _snapped(rect: Rect2) -> Rect2:
 
 
 ## `image` (covering `rect`) and `rect` turned `turns` clockwise quarter turns about the origin,
-## as `PixelArt.render` turns a facing piece's art.
+## as a facing piece's art is turned.
 static func _turned(image: Image, rect: Rect2, turns: int) -> Dictionary:
 	var out := rect
 	for _i in turns:

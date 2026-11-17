@@ -7,8 +7,8 @@ painter (the id list lives there). A painter serving several pieces reads `kind`
 
 ## `object_art.gd` (`ObjectArt`), the registry
 
-`texture` renders through `PixelArt.render` (cardinal facing; the finish rides in `opts.material`, as `tile`'s `material`
-argument); `tile` renders at the painter's own `tile_size(opts)` (floors); `emissive` / `tile_emissive`; `groove` / `porous` (a
+`flat` / `flat_facing` render through `PixelArt.render_flat` (canonical; the finish rides in `opts.material`, as `tile_flat`'s
+`material` argument; `flat_facing` for a decal that lies facing a way); `tile_flat` renders at the painter's own `tile_size(opts)` (floors); `flat_request` / `tile_flat_request` (the pre-warm); `groove` / `porous` (a
 tiling painter's blood grooves and soak); `light_kind` (which variant of a painter gives light: the one rule `ObjectLights` and
 `neon_for` read); `neon_for`; `drawn_color`. `BY_KIND` lists the painters whose neon share is the kind's, not the painter's.
 
@@ -16,7 +16,7 @@ tiling painter's blood grooves and soak); `light_kind` (which variant of a paint
 
 One look for every piece.
 
-- **The palette grade** (`decay.gd` `grade`, `ObjectArtDecayConfig.grade_*`): `ObjectArt.texture` / `tile` wash every painter's
+- **The palette grade** (`decay.gd` `grade`, `ObjectArtDecayConfig.grade_*`): `ObjectArt.flat` / `tile_flat` wash every painter's
   colour toward dun, rust and nicotine yellow, so World-Gen's catalogue keeps plain colours and the house still draws run down. `ObjectArt.AS_GIVEN` painters (`wear`, `street`, `decor` and the district's `awning`, `stencil`, `crossing`, `road_glyph`, `podium`,
   `shell_decor`) take their colours as given. A piece's and
   wall's `get_surface().color` (debris) is the drawn colour (`ObjectArt.drawn_color`).

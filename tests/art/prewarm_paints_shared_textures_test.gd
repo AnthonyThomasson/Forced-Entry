@@ -68,21 +68,14 @@ func _reference_keys(requests: Array, references: Array[PackedByteArray]) -> Arr
 
 
 func _render(request: Dictionary) -> Texture2D:
-	if request.get("flat", false):
-		return PixelArt.render_flat(
-			request["painter"], request["size"], request["color"], request["opts"]
-		)
-	return PixelArt.render(
-		request["painter"],
-		request["size"],
-		request["color"],
-		request["facing"],
-		request["opts"],
+	var facing: Vector2 = request.get("facing", Vector2.DOWN)
+	return PixelArt.render_flat(
+		request["painter"], request["size"], request["color"], request["opts"], facing
 	)
 
 
 ## A district built after the warm paints none of the fixed shared art itself: its crossings, shell
-## decor, awnings and signs over a door and tower shadows are all keys the warm already cached.
+## decor, awnings and signs over a door are all keys the warm already cached.
 func _district_asks_only_warm_keys(t: TestContext) -> void:
 	var cache: Dictionary = PixelArt._cache
 	var warm_keys := cache.keys()

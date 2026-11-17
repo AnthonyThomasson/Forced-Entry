@@ -1,7 +1,7 @@
 # General: shared helpers (`scenes/general/`)
 
 Static holders and small classes every domain may use; their signatures are architecture interface 11. Beside them in the file map:
-`DrawLayers`, `PhysicsLayers` and `LightMasks` (`SKILL.md`, "Shared ids").
+`PhysicsLayers` and `ViewLayers` (`SKILL.md`, "Shared ids").
 
 ## WorldRng
 
@@ -23,12 +23,6 @@ Left on the global stream on purpose, because it only looks and changes no fight
 dropped item, a thrown grenade and its spoon, an explosion's look, the painters, world-gen, lighting and audio. Tests:
 `tests/general/world_rng_two_worlds_test.gd`, `match_seed_plays_its_own_fight_test.gd`, `tests/ai/perception/sight_checks_spread_test.gd`.
 
-## FillBatch
-
-`FillBatch.new(canvas, base)` draws plain-coloured polygons and circles as ONE triangle array (`fill`, `fill_convex`, `circle`, then `flush`) in place of one draw command each, because the windowed renderer builds a vertex buffer per polygon command. It cuts the same triangles the engine would and each disc into `draw_circle`'s 64-gon, so the pixels match. A polygon that cannot be triangulated goes to the engine alone after what was added, which reports it as `draw_colored_polygon` does.
-
-Under the headless display (`FillBatch.batching` false) nothing renders and gathering costs more than it saves, so each shape goes to the canvas as it comes; code that draws plain commands itself there (the chip chunk, the blood splat) is deliberate. Test: `tests/general/fill_batch_matches_draw_calls_test.gd` (headless: the triangles; `--windowed`: identical pixels).
-
 ## WeightedPick
 
 One `rng.randf()` over the total weight; each entry takes the next stretch. `strict` keeps each caller's edge behaviour: false, a roll on the end of a stretch takes that entry and one past them all takes the last; true, it takes the next entry and one past them all takes the first. The room dresser, room wear and street marks, the Lighting rhythms (not strict) and the Character's style (strict) draw through it. Test: `tests/general/weighted_pick_suite.gd`.
@@ -47,4 +41,4 @@ One `rng.randf()` over the total weight; each entry takes the next stretch. `str
 
 ## SeenArea
 
-`seen_area.gd` is the part of the world the player's view shows live (`docs/player-vision.md` V11). Vision writes it when it rebuilds the cone (`set_area(polygons, bounds)`: the cone's and the bubble's polygons) and clears it when the view lifts (`clear()`). What is only ever seen inside the cone asks `reaches(center, radius)` for a disc (Character's visuals: a body's 60 px reach) or `reaches_rect(rect)` for a long thin box (a blood pool's cells: the circle round a long box reaches far past its ends, and into the viewer's 48 px bubble when the box does not), and skips its repaint while the answer is false. With no area set (no view, a view lifted, the switch off) both are true, so nothing is skipped. `contains(polygon, point)` is the one point-in-polygon test (the view's `sees` asks it), an even-odd rule, not `Geometry2D.is_point_in_polygon`: the engine's says a point is inside some simple polygons it lies well outside of (a cone with many collinear corners along a wall). Tests: the native suites `tests/general/seen_area_suite.gd` and `seen_area_rect_suite.gd`, and `vision/unseen_keeps_running`; `vision/view_sees_suite` holds `sees` at a cone the engine's rule gets wrong.
+`seen_area.gd` is the part of the world the player's view shows live (`docs/player-vision.md` V11). Vision writes it when it rebuilds the cone (`set_area(polygons, bounds)`: the cone's and the bubble's polygons) and clears it when the view lifts (`clear()`). What is only ever seen inside the cone asks `reaches(center, radius)` for a disc (Art's mirror: a mover's reach; the shot layer's casings) and skips its work while the answer is false. With no area set (no view, a view lifted, the switch off) it is true, so nothing is skipped. `contains(polygon, point)` is the one point-in-polygon test (the view's `sees` asks it), an even-odd rule, not `Geometry2D.is_point_in_polygon`: the engine's says a point is inside some simple polygons it lies well outside of (a cone with many collinear corners along a wall). Tests: the native suites `tests/general/seen_area_suite.gd`, and `vision/unseen_keeps_running`; `vision/view_sees_suite` holds `sees` at a cone the engine's rule gets wrong.

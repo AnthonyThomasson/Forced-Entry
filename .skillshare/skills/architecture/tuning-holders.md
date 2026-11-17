@@ -21,4 +21,4 @@ A new tunable goes in the holder of its topic. One that fits no topic starts a h
 | General | `Camera{,Shake}Config`; the 3D render: `RenderConfig` (the one 2D-to-3D scale, the camera's pitch, yaw, distance and clip, the internal height, the view's canvas layer) and `RenderLightConfig` (the 3D view's backdrop) |
 | Vision | `VisionConfig` (the switch, the look, the memory's scale, the cone's rays, the rebuild backstop), `VisionSliceConfig` (a sliced cone rebuild: unit prices, slice size, restart cap) |
 
-World-Gen's `LayoutRules` (which rooms may hold the front door or an exit, which room types may share a door) and `DoorRules` (which doorways get a door) are rules tables in the same style, not tuning. `PhysicsLayers`, `DrawLayers`, `ViewLayers` and `LightMasks` are shared ids, not tuning (interface 11).
+World-Gen's `LayoutRules` (which rooms may hold the front door or an exit, which room types may share a door) and `DoorRules` (which doorways get a door) are rules tables in the same style, not tuning. `PhysicsLayers` and `ViewLayers` are shared ids, not tuning (interface 11).

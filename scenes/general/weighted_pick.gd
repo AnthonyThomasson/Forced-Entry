@@ -1,5 +1,5 @@
 class_name WeightedPick
-## General domain: the weighted roll, shared infrastructure (like `FillBatch`) for any domain that
+## General domain: the weighted roll, shared infrastructure for any domain that
 ## draws one entry of several by weight (World-Gen's dressing, Objects' wear, Lighting's rhythms,
 ## Character's style). A roll takes one `rng.randf()` and lands in [0, total of the weights]; each
 ## entry, in order, takes the next stretch of it. `strict` sets the two edges, which each caller

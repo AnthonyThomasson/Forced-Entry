@@ -43,8 +43,7 @@
     - **Pointer:** `Pointer.inject(screen)` (26) stands a screen point in for the mouse wherever its position is polled (the player's aim,
       the camera's look-ahead, the command menu's non-mouse fallback) until `Pointer.release()`, and never warps the real mouse; the test
       re-injects each frame to hold a world point under the pointer while the camera eases. `TestWorld.restore` releases it after each test.
-    - **Sandboxes** (`sandboxes/`) may draw through Art (12: their own painter on `PixelCanvas`, rendered by `PixelArt.render` /
-      `render_turned`) and render a sound with `SoundBank.recipe_for(profile)` / `SoundSynth.render(recipe, seed_value) ->
+    - **Sandboxes** (`sandboxes/`) may draw through Art (12: their own painter on `PixelCanvas`, rendered by `PixelArt.render_flat`) and render a sound with `SoundBank.recipe_for(profile)` / `SoundSynth.render(recipe, seed_value) ->
       AudioStreamWAV`, played on their own `AudioStreamPlayer2D`; the `Sound` service hears nothing of it (16).
     - **Main ↔ Testing:** Main reaches Testing only by changing scene to `testing/test_browser.tscn`; the browser's Back changes scene
       back to `main.tscn`. Beyond that Testing knows only the match builder (23). The UI widgets it shows (`test_browser_window.gd`,

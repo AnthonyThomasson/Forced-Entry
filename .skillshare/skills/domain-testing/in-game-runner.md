@@ -8,7 +8,7 @@ Tests in a window. The headless runs are `SKILL.md`'s "Running tests".
 - **A windowed test reads its picture after `RenderingServer.force_draw(false)`, never `await RenderingServer.frame_post_draw`:** a window the desktop covers is not drawn and never signals it (the test runs its clock out, or reads a black frame).
 - **`--windowed`:** `tools/run_tests.sh --windowed [words]` runs gdUnit in a window with vsync off, always in one process
   (nothing competes with what it measures). A perf test's frame times then include the render. The draw tests that
-  compare pixels run their image checks only this way (`tests/general/fill_batch_matches_draw_calls_test.gd`).
+  compare pixels run their image checks only this way (`tests/vision/vision_mask_3d_windowed_test.gd`).
 - **The browser:** the setup window's **Tests** button opens `test_browser.tscn`: search, pick, then Play. The runner plays
   the test with its result banner, keeps the world running and offers Rerun and Back (to `main.tscn`). Engine metas
   `test_selection` / `test_results` / `test_filter` survive the round trip through a test. **Run all** and each

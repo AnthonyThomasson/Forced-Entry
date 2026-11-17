@@ -1,11 +1,11 @@
 ---
 name: domain-general
-description: Use when editing scenes/general/: keybinds, settings, camera, command server, Pointer, PhysicsLayers, DrawLayers, ViewLayers, LightMasks, SightRay, SeenArea, FillBatch, WeightedPick, MatchVerdict.
+description: Use when editing scenes/general/: keybinds, settings, camera, command server, Pointer, PhysicsLayers, ViewLayers, SightRay, SeenArea, WeightedPick, MatchVerdict.
 ---
 
 # General domain (`scenes/general/`)
 
-Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `INTERACT`), 26 (`Pointer`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, FillBatch, WeightedPick, SightRay, SeenArea, Pointer (pointer_converts, pointer_inject), verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
+Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `INTERACT`), 26 (`Pointer`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, WeightedPick, SightRay, SeenArea, Pointer (pointer_converts, pointer_inject), verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
 
 Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, plus Audio's `Sound`. The rest are `class_name` static holders (no instance). Tuning holders: `CameraConfig`, `CameraShakeConfig` (ADR 0003), read live, so a test may `set_static` them.
 
@@ -22,16 +22,14 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 | `command_server.gd` | dev command server |
 | `pointer.gd` | `Pointer` (26; `pointer.md`) |
 | `ground_layer.gd` | `GroundLayer`: flat 3D overlays (`camera3d.md`) |
-| `physics_layers.gd`, `draw_layers.gd`, `view_layers.gd`, `light_masks.gd` | shared ids |
+| `physics_layers.gd`, `view_layers.gd` | shared ids |
 | `world_rng.gd` | each world's random stream and its characters' spawn order (`helpers.md`) |
-| `fill_batch.gd`, `weighted_pick.gd`, `match_verdict.gd`, `sight_ray.gd`, `seen_area.gd` | shared helpers (`helpers.md`) |
+| `weighted_pick.gd`, `match_verdict.gd`, `sight_ray.gd`, `seen_area.gd` | shared helpers (`helpers.md`) |
 
 ## Shared ids
 
 - `PhysicsLayers.SOLID` is the layer walls, solid furniture and bodies sit on; every ray and sweep that must hit a wall reads it (add a layer here, never a magic number).
-- `DrawLayers` is the one z ladder (`FLOOR` -5 … `EFFECTS` 4; the debug overlays have no rung, they lie flat under the 3D view's ground layer). Every domain's z knob starts from a rung; a new layer is a rung here.
 - `ViewLayers` holds the visibility bits that say what the player's view may remember (`helpers.md`).
-- `LightMasks` (`docs/lighting.md` L6): occluder bits, the shadow masks by light height (a 2D shadow has no length, so height picks who shadows whom), item light layers `HOUSE` / `STREET`. `LightMasks.occluder(polygon, bit)` is the one place an occluder is shaped: wound clockwise on screen and culled counter-clockwise, so the shape stays lit and only what lies behind it falls dark. It returns null while `LightMasks.shadows` is off (the Testing domain's `lighting.enabled` switch).
 
 ## Game clock
 
@@ -94,7 +92,7 @@ Global cap (`max_scene_objects`) for transient bodies: domains hand their spawns
 
 ## Shared helpers
 
-`WorldRng`, `FillBatch`, `WeightedPick`, `MatchVerdict`, and the player's view's shared rules `ViewLayers`, `SightRay` and `SeenArea`: `helpers.md`.
+`WorldRng`, `WeightedPick`, `MatchVerdict`, and the player's view's shared rules `ViewLayers`, `SightRay` and `SeenArea`: `helpers.md`.
 
 ## Spectator mode
 

@@ -89,8 +89,8 @@ func px(x: int, y: int, c: Color, height: int = -1) -> void:
 
 ## Run `draw` (a Callable taking no arguments, drawing on this canvas) as the drawing of something
 ## that gives light (a screen's face, a tube, a bulb, an LED): every pixel it changes within `area`
-## (the whole canvas when empty) is marked emissive, so `emissive()` (and `PixelArt.emissive`) can
-## hand it to a caller that draws it unshaded.
+## (the whole canvas when empty) is marked emissive, so `emissive()` (and `PixelArt.emissive_flat`)
+## can hand it to a mesh that glows.
 func glowing(draw: Callable, area := Rect2i()) -> void:
 	var r := (Rect2i(0, 0, w, h)
 			if area.size == Vector2i.ZERO

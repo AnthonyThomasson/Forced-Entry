@@ -2,17 +2,14 @@ extends GameTest
 ## The structure's 3D meshes wear the 2D art (#193 phase 2b, `domain-objects/structure-meshes.md`):
 ## a wall's cap tile, a floor's and the street's tile, a door's leaf, painted flat (no baked light)
 ## and laid by `MeshNodes.textured`. The wall tile runs along the wall as the 2D wall maps it
-## (`Deformation.draw_wall`: across the thickness flipped for a wall along +x, transposed for one
+## (across the thickness flipped for a wall along +x, transposed for one
 ## along z, not rotated), from the segment's start, the floor tile from the floor's `tile_offset`.
 ## One texture serves every piece of its kind, so the materials are few. The wall painter's flat
-## read drops the lit trim and the outline rows and leaves the lit (2D) paint as it was.
+## read drops the trim and the outline rows.
 
 const ObjectArt := preload("res://scenes/objects/art/object_art.gd")
 const SCRATCH := "user://settings_structure_skin_test.json"
 const THICKNESS := 12.0
-## Pixel hashes of fresh lit (2D) wall tiles, taken before the painter read the light.
-const GOLDEN_PLASTER := 2_811_170_196
-const GOLDEN_BRICK := 3_455_047_951
 const TILE := Vector2(48, 12)
 
 
@@ -22,7 +19,7 @@ func describe() -> Dictionary:
 		"description": "The structure meshes are textured with the painters' flat tiles: a wall's "
 			+ "cap tile along the wall (turned for a wall along z), a floor's repeated from its "
 			+ "tile offset, a door's leaf with a plain handle, a few shared materials; the wall "
-			+ "painter's flat read drops its trim and outline rows, its lit paint is unchanged.",
+			+ "painter's flat read drops its trim and outline rows.",
 		"tags": ["mirror", "3d", "render", "walls", "doors", "floors", "art"],
 		"timeout": 60.0,
 	}
@@ -68,31 +65,18 @@ func run(t: TestContext) -> void:
 	_prewarm(t)
 
 
-## A flat wall tile has no lit trim or outline rows (its edge rows are the cap's own plaster or
-## brick); the lit one keeps both and its pixels are what they were.
+## A flat wall tile has no trim or outline rows (its edge rows are the cap's own plaster or brick).
 func _wall_painter(t: TestContext) -> void:
 	var colour := Color(0.87, 0.81, 0.49)
 	for pattern: String in ["plaster", "brick"]:
-		var opts := { "pattern": pattern }
-		var lit := ObjectArt.texture("wall", TILE, colour, Vector2.DOWN, opts).get_image()
-		var flat := ObjectArt.flat("wall", TILE, colour, opts).get_image()
-		t.expect_eq(
-			flat.get_size(),
-			lit.get_size(),
-			"flat %s is as big as the lit one (px %s)" % [pattern, ArtCanvasConfig.pixel_size],
-		)
+		var flat := ObjectArt.flat("wall", TILE, colour, { "pattern": pattern }).get_image()
 		var tones := ArtSurfaceConfig.tones(ObjectArt.drawn_color(colour))
-		var last := lit.get_height() - 1
-		var outlined := 0
+		var last := flat.get_height() - 1
 		var flat_outlined := 0
-		for x in lit.get_width():
-			outlined += 1 if _near(lit.get_pixel(x, 0), tones.outline) else 0
+		for x in flat.get_width():
 			flat_outlined += 1 if _near(flat.get_pixel(x, 0), tones.outline) else 0
 			flat_outlined += 1 if _near(flat.get_pixel(x, last), tones.outline) else 0
-		t.check(outlined > lit.get_width() / 2.0, "the lit %s tile keeps its outline row" % pattern)
 		t.expect_eq(flat_outlined, 0, "the flat %s tile has no outline row" % pattern)
-		var golden := GOLDEN_BRICK if pattern == "brick" else GOLDEN_PLASTER
-		t.expect_eq(hash(lit.get_data()), golden, "the lit %s tile has its old pixels" % pattern)
 
 
 ## Every wall segment wears the cap tile, along its length: a wall along z the tile turned a

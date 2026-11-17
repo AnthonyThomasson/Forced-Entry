@@ -6,9 +6,8 @@ description: Use when editing scenes/physics/ or working on HitInfo, knockback, 
 # Physics System domain (`scenes/physics/`)
 
 A leaf of stateless helpers and reusable Node components. Objects, the character and a vehicle *compose* them. Physics imports
-only General's infrastructure (`Despawner`, `PhysicsLayers`, `FillBatch`, `ViewLayers`, `SeenArea`), and, for the 3D render only, Art's mesh kit (`scenes/physics/mesh/`: `meshes.md`). Interfaces: 3 (`HitInfo`), 4 (Objects /
-Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5 (`Knockback` and the pushable bodies), 11 (`PhysicsLayers` in `PhysicsConfig.wall_mask`;
-`FillBatch`), 13 (the switches `physics.debris`,
+only General's infrastructure (`Despawner`, `PhysicsLayers`, `ViewLayers`, `SeenArea`), and, for the 3D render only, Art's mesh kit (`scenes/physics/mesh/`: `meshes.md`). Interfaces: 3 (`HitInfo`), 4 (Objects /
+Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5 (`Knockback` and the pushable bodies), 11 (`PhysicsLayers` in `PhysicsConfig.wall_mask`), 13 (the switches `physics.debris`,
 `physics.hit_particles`, and blood's). Tests: `tests/physics/`. Blood (`scenes/physics/blood/`, its `Blood*Config` holders) is
 `blood.md`; the core keeps only its entry points, `Physics.spawn_debris` and `Physics.bleed_out`.
 
@@ -19,7 +18,7 @@ Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5
 | `physics.gd` (`Physics`) | The entry points `impact_impulse`, `spawn_debris`, `bleed_out`, `spawn_explosion`. |
 | `hit_info.gd` (`HitInfo`) | The one packet a striker fills in. |
 | `knockback.gd` (`Knockback`) | RigidBody2D adapter for furniture. |
-| `deformable.gd`, `deformation.gd`, `dent_limits.gd`, `shape_look.gd`, `wall_look.gd` | Dents: records, polygon math and drawing. |
+| `deformable.gd`, `deformation.gd`, `dent_limits.gd` | Dents: records, polygon math and the damage darkening. |
 | `debris_spawner.gd`, `debris.gd`, `debris_layer.gd`, `mark_layer.gd` | Chips (a flying one is a plain node, a landed one a record) and the capped mark store. |
 | `hit_particles.gd` (`HitParticles`) | Entry, exit and impact bursts, made as plain data. |
 | `ragdoll.gd`, `hinge_limits.gd` | The generic 3D ragdoll solver. |
@@ -38,30 +37,25 @@ Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5
 
 ## Deformation
 
-- `Deformable` records impacts (dents, carved "missing pieces") and emits `changed`; the owner redraws and rebuilds its collider
-  from the same deformed polygon. `record(hit, turn)` stores the impact un-turned by `turn`, for a body drawn turned beyond its
-  node rotation (a character facing its aim); the owner turns it back when drawing. A vehicle composes one with `allow_chunks` off
+- `Deformable` records impacts (dents, carved "missing pieces") and emits `changed`; the owner shows it and rebuilds its collider
+  from the same deformed polygon. `record(hit, turn)` stores the impact un-turned by `turn`, for a body shown turned beyond its
+  node rotation (a character facing its aim); the owner turns it back when reading it. A vehicle composes one with `allow_chunks` off
   and its own `max_depth` / `max_impacts`, does not listen to `changed` (it leaves its collider alone), has no `Knockback` (it is a
-  `RigidBody2D`), and draws its dents with `Deformation.draw_marks`. A house door's leaf composes one the same way (a child of the door, so impacts are
+  `RigidBody2D`), and its meshes read the dents (`hit_marks()`). A house door's leaf composes one the same way (a child of the door, so impacts are
   stored in the leaf's frame; `max_depth` `DoorConfig.dent_depth`, `max_impacts` `DoorConfig.dents`), and its debris is `Physics.spawn_debris`.
 - `Deformation` owns the impact schema (`new_impact`, `push_impact`); `Deformable.record` and Objects' wall segments both record
   through them. `deform` keeps each ring point inside the outline and at most `NEIGHBOUR_REACH` of the way to either ring
   neighbour, so a corner dented from one face cannot fold the ring (`tests/physics/deformation_outline_suite.gd`).
 - Caches: `shape_polygon` and `wall_polygon` keep up to 256 dented silhouettes (cleared when full), keyed by everything they are
-  made from; one hit asks three times (collider, shadow, drawing) and every repaint of a wounded character asks again
-  (`tests/physics/shape_polygon_cache_test.gd`). `draw_wall` and `draw_shape` skip the triangulation check for an undented
-  outline.
+  made from; one hit asks three times (collider, shadow, mesh) and a wounded character's mesh asks again
+  (`tests/physics/shape_polygon_cache_test.gd`).
 - `convex_pieces` cuts a silhouette into convex collider pieces (Hertel-Mehlhorn); `tests/physics/convex_pieces_match_plain_scan_test.gd`
   pins its pruned scan to the plain every-pair scan. `cut_shape` / `cut_wall` are pure (no caches, a circle's unit ring made
   afresh) because Objects' `ColliderCuts` runs them on worker threads; `shapes_of` makes the shapes on the main thread.
-- `drawable_polygon` (falls back to the intact ring when dents break the polygon) and `texture_uvs` are shared with the
-  character's kept meshes, as is the damage darkening (`PhysicsDeformLookConfig.darken_max` / `darken_full`).
-- `draw_marks` batches each mark's discs as one `FillBatch` before its cracks, so a later mark's discs cover an earlier mark's
-  cracks. `ShapeLook` (with an optional `texture`; `texture_angle` turns the image within the unturned silhouette; `marks` false
-  leaves the marks to the caller's `draw_marks`) and `WallLook` (a repeating `texture` + `tile_length`, UVs in the segment's own
-  frame) carry the look.
-- A bloody hit (`HitInfo.blood > 0`) stores `"blood"` in the impact; `draw_marks` draws a red blot under the hole
-  (`PhysicsDeformLookConfig.blood_mark_color` / `blood_mark_radius`); `hit_marks()` on an `EnvironmentObject`, `Wall` or vehicle returns the marks.
+- The damage darkening (`Deformation.darken`, `PhysicsDeformLookConfig.darken_max` / `darken_full`) is read by the furniture
+  rig and the character's meshes. A bloody hit (`HitInfo.blood > 0`) stores `"blood"` in the impact; the red blot a mesh shows
+  under the hole is `PhysicsDeformLookConfig.blood_mark_color` / `blood_mark_radius`; `hit_marks()` on an `EnvironmentObject`,
+  `Wall` or vehicle returns the marks.
 
 ## Debris
 

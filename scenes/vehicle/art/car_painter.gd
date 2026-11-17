@@ -1,5 +1,6 @@
 extends RefCounted
-## Vehicles domain: the car, top-down pixel art (rendered through Art, `PixelArt.render_turned`), in
+## Vehicles domain: the car, top-down pixel art (painted flat through Art, `PixelArt.render_flat`),
+## in
 ## two parts that sandwich its occupants (`opts.part`):
 ##  - `chassis` (under them): the low, rounded body in its paint, the black bumpers and grille, the
 ##    bonnet with its creases and the boot lid, and inside the cabin the floor, the seats, the

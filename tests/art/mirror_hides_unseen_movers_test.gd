@@ -76,8 +76,8 @@ func run(t: TestContext) -> void:
 		"premise: all four are mirrored",
 	):
 		return
-	t.check(not Probe.reached_by(BEHIND)[0], "premise: the cone and bubble do not reach behind")
-	t.check(Probe.reached_by(AHEAD)[0], "premise: the cone reaches ahead")
+	t.check(not Probe.reached_by(BEHIND), "premise: the cone and bubble do not reach behind")
+	t.check(Probe.reached_by(AHEAD), "premise: the cone reaches ahead")
 	t.check(ahead.visible, "a mover in the cone is shown")
 	t.check(not behind.visible, "a mover the view does not reach is hidden")
 	_table_is_never_hidden(t)
@@ -185,7 +185,7 @@ func _remembered(t: TestContext, dead: Node3D, lying: Node3D) -> void:
 	var eye := t.actor(&"eye")
 	t.require(await Probe.place(t, eye, EYE_AT, Vector2.RIGHT), "premise: the viewer faces east")
 	await t.frames(3)
-	t.check(not Probe.reached_by(CORPSE_AT)[0], "premise: the corpse is out of the cone again")
+	t.check(not Probe.reached_by(CORPSE_AT), "premise: the corpse is out of the cone again")
 	t.check(dead.visible, "the corpse stays shown where it lies (remembered)")
 	t.check(lying.visible, "and the rifle")
 

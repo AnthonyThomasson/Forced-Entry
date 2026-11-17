@@ -164,8 +164,7 @@ actor, or the actor `TestSetup.view` names. Tests: `vision/switch_off` (no `Play
 box reach it, so no repaint is skipped).
 
 **V11. The seen area, and the unseen runs on.** The seen area is General's `SeenArea`: Vision writes the cone's polygons each
-time a cone is published (a job done), bumps its `version()` and clears them on a lift; a disc (`reaches`) or a box
-(`reaches_rect`) asks it, and `active()` says whether any view stands. What reads it is what hides by the view: Art's `WorldMirror`
+time a cone is published (a job done), bumps its `version()` and clears them on a lift; a disc (`reaches`) asks it, and `active()` says whether any view stands. What reads it is what hides by the view: Art's `WorldMirror`
 (a mover is hidden while no part of a disc round it reaches the area, V12) and the shot layer (a casing in the air or lying
 unseen). The one test of a point inside a polygon is `SeenArea.contains`, an even-odd rule (the view's `sees` asks it too),
 since the engine's `Geometry2D.is_point_in_polygon` said inside for points well outside a cone with many collinear corners.
@@ -316,7 +315,7 @@ gave, not as a number to hold the code to.
 **When the perf figures were measured.** Every perf figure below but the last two bullets (the district, 2026-11-02) was taken before commit 6bd7cc63 (a blood pool's repaint
 decided on the frame's view, by its box), and **no perf test was run after it or after the later fixes of the review, until the district run of 2026-11-02 (the bullet below)**. 6bd7cc63
 does not touch the cone, the change check or the ratio the second guard reads, so the cone figures and the ratio stand. It does
-touch the frame the first guard reads: a pool now asks `SeenArea.reaches_rect` (a box, a little cheaper to refuse than the
+touch the frame the first guard reads: a pool then asked `SeenArea.reaches_rect` (a box, since removed, a little cheaper to refuse than the
 circle) and draws in `_process`, not `_physics_process`; that moves the view's cost by about the pool skip's own size (0.13 to
 0.5 ms, below) or less, which is inside the spread between runs, but it was not measured. Two later changes to the change check
 are unmeasured too: `ViewWatch` no longer rebuilds for a blocker that is moving outside the eye's reach (the cone test

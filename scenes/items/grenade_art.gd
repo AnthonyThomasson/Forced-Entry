@@ -2,17 +2,14 @@ class_name GrenadeArt extends ItemArt
 ## Items domain: how a grenade is drawn, a `GrenadeItem`'s `art` part: its row's look in its weapon
 ## style (`GrenadeConfig.look`: the painter and colours) at its row's `art_size`, in the hand with
 ## the lever held down, or in the air and on the floor with the lever gone. It holds the grenade's
-## row id and its weapon hand, never the item.
+## row id, never the item.
 
 ## The kind's id: its `GrenadeConfig` row.
 var kind: StringName = &""
-## The hand that holds it (its item's `weapon_hand()`).
-var hand := 0
 
 
-func _init(id: StringName, weapon_hand: int) -> void:
+func _init(id: StringName) -> void:
 	kind = id
-	hand = weapon_hand
 
 
 ## How it is drawn: its row's look in its weapon style (`GrenadeConfig.look`: `painter`, colours,

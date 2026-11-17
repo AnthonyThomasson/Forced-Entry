@@ -21,7 +21,7 @@ Build the showroom, then run the feedback rounds with the user. Run `show-me` be
   label each: name, letter, one line on how it differs. At game zoom, beside the real things it will sit among. Animations
   loop; effects and sounds fire when the player steps onto the exhibit's pad. The user walks it as the player.
 - **Variants live in the showroom files,** drawn and synthesized through the API `architecture` interface 13 sanctions: a
-  showroom painter on `PixelCanvas`, rendered by `PixelArt.render` / `render_turned`; a recipe in `SoundBank`'s shape
+  showroom painter on `PixelCanvas`, rendered by `PixelArt.render_flat`; a recipe in `SoundBank`'s shape
   (`SoundBank.recipe_for(profile)` is today's) rendered by `SoundSynth.render(recipe, seed_value) -> AudioStreamWAV` and
   played on the showroom's own `AudioStreamPlayer2D`, so a variant skips `Sound`'s volume and muffle. Today's sound plays by
   posting its real EventBus event. Production code is untouched before acceptance.

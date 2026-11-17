@@ -233,11 +233,9 @@ static func collision_shapes(targets: Array[Node2D]) -> int:
 	return count
 
 
-## Whether a disc, and whether a box, round `at` reach the area the view shows live (`SeenArea`):
-## `[disc, box]`.
-static func reached_by(at: Vector2) -> Array[bool]:
-	var box := Rect2(at - Vector2(ASKED, ASKED), Vector2(ASKED, ASKED) * 2.0)
-	return [SeenArea.reaches(at, ASKED), SeenArea.reaches_rect(box)]
+## Whether a disc round `at` reaches the area the view shows live (`SeenArea`).
+static func reached_by(at: Vector2) -> bool:
+	return SeenArea.reaches(at, ASKED)
 
 
 ## A hit of `damage` at `at` on a surface facing `normal`, flying straight in.

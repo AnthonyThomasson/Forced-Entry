@@ -1,37 +1,15 @@
-11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `DrawLayers`, `GameClock` and the shared rules**
+11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `GameClock` and the shared rules**
     - `PhysicsLayers` (`general/physics_layers.gd`, static holder): `SOLID` is the physics layer bit (1) "walls + solid furniture" live on.
 	  Every raycast, sweep, collision mask or layer for it reads this one constant: Interaction's reach query, AI sight and line-of-fire
 	  rays (`agent_vision.gd`; the vision overlay asks the controller's `debug_sight_end`), the character's hand
 	  queries, leg sweeps and clearing check (`use.keep_clear_of`), a dropped item's glance, a thrown grenade's flight, the bullet's
 	  `collision_mask`, the blast's lines, `PhysicsConfig.wall_mask`, and a vehicle's body layer, mask, door checks and pile queries.
-    - `LightMasks` (`general/light_masks.gd`, static holder): the masks every domain builds shadows and light layers on, so who shadows
-	  whom is decided in one place (`docs/lighting.md` L6). Occluder bits `WALL` 1, `FURNITURE` 2, `EMITTER` 4 (a solid piece that gives
-	  light: it shadows only the flashes), `CHARACTER` 8, `TALL` 16 (a solid piece with no light of its own at `TALL_COVERAGE` 75
-	  `coverage` or more, above a standing person). Shadow masks Lighting gives its lights by height: `OVERHEAD_SHADOWS` (walls),
-	  `LOW_SHADOWS` (walls + tall pieces), `ALL_SHADOWS` (a flash). Item light layers `HOUSE` 1 (Godot's default) and `STREET` 2 (the
-	  street: its lamps, flashes and sky). `shadows` (whether occluders are built; off with Testing's
-	  `lighting.enabled`) and `occluder(polygon, bit) -> LightOccluder2D` (null while `shadows` is off; wound and culled so the shape
-	  itself stays lit). Read by Objects, Character and Lighting (interface 20).
-    - `DrawLayers` (`general/draw_layers.gd`, static holder): the world's draw-order ladder, one rung per kind of thing, so floor,
-	  vehicle and fliers keep one order across domains. `FLOOR` −5 < `RUG`
-	  −4 < `BLOOD` −3 (Physics: splats, pools, prints, smears, scorch; `BloodConfig.z_index` /
-	  `print_z_index`) < `LYING` −2 (a dead body; a spent casing; a `DroppedItem` and a grenade
-	  at rest) < `UNDER_VEHICLE` −1 (no reader left) < `STANDING` 0 (the living, a vehicle's occupants, furniture, walls) <
-	  `ABOVE` 1 (a vehicle's `Roof`, a grenade in flight) < `OVERHEAD` 2 (a room's ceiling fixture, Lighting) < `EFFECTS` 4
-	  (Physics' `ExplosionFx`). The debug overlays and markers have no rung: they lie flat under the 3D view's ground layer (`ViewLayers.overlay`). A domain's own z knob starts from its rung, never a bare number; within a rung the scene tree
-	  decides (`docs/vehicles.md` V3 / V6).
     - `GameClock` (`general/game_clock.gd`, an autoload, `PROCESS_MODE_PAUSABLE`): counts physics frames in `_physics_process`, so it stands
 	  still while the tree is paused. `GameClock.msec() -> int` (frames × 1000 / `Engine.physics_ticks_per_second`: deterministic under
 	  `--fixed-fps`, however far a headless run outpaces the wall clock), `GameClock.seconds() -> float`, `GameClock.frame() -> int`. Every
 	  AI ttl, timer and age reads it (`docs/leadership.md` LD1), so a pause of any length expires nothing; only what measures real time
 	  stays on `Time` (the Von launcher's boot timeout and the planner's per-level `ms`, Von's latency). A per-frame key that measures
 	  no age may read `Engine.get_physics_frames()`.
-    - `FillBatch` (`general/fill_batch.gd`, `RefCounted`): plain-coloured shapes drawn as one triangle array instead of a command each,
-	  the engine's own triangles and pixels. `FillBatch.new(canvas, base := IDENTITY)`,
-	  `fill(poly, color, xform)`, `fill_convex(...)`, `circle(center, radius, color, xform)`, `flush()`; statics `FillBatch.unit_circle()`
-	  (that 64-gon's corners round the unit circle) and `FillBatch.fan(base, n)` (a fan's triangle indices over `n` corners), which nothing
-	  uses but the 2D draws left for the sweep; `FillBatch.batching` is false under the headless display (it renders nothing),
-	  where each shape is drawn by its own command. Used where many shapes draw each frame: Physics' blood splats and chunks.
     - `WorldRng` (`general/world_rng.gd`, statics): a world's chance, order and frames; the AI keys on it, not on an instance id.
 	  `register(root, match_seed)` (Main's stage), `of(node) -> RandomNumberGenerator`, `enrol(node) -> int` (a character's place,
 	  from 0), `order_of(id) -> int`, `before(a, b) -> bool` (spawned first), `frame_of(node) -> int` (`GameClock` frames its world
@@ -58,6 +36,5 @@
 	  however tall; no `coverage` reads 100. An instance (`looks_over`, `rated`, `leave_out(rids)`, `cast(...)`) serves a caller of
 	  many rays (Vision's cone). AI perception's sight line and Vision's cone both cast through it.
     - `SeenArea` (`general/seen_area.gd`, static holder): what the view shows live. Vision writes `set_area(polygons: Array,
-	  bounds: Rect2)` per rebuild and `clear()` on a lift; `reaches(center, radius)` (a disc) and `reaches_rect(rect)` (a long box)
-	  say whether any of it is shown, true while no area is set (`active()`; `version()` counts changes). Character's visuals (60 px) and Physics'
-	  blood pools (their box) skip a repaint on false; Art's mirror and Projectile's casings hold back the unseen. `contains(polygon, point)` is the one even-odd point test.
+	  bounds: Rect2)` per rebuild and `clear()` on a lift; `reaches(center, radius)` (a disc)
+	  says whether any of it is shown, true while no area is set (`active()`; `version()` counts changes). Art's mirror and Projectile's casings hold back the unseen. `contains(polygon, point)` is the one even-odd point test.

@@ -21,8 +21,6 @@ var boots := false
 var skin := Color.WHITE
 ## BodyPainter's options (the look's handle, the plates and their wear).
 var shoulder_opts := {}
-## TorsoPainter's options by face ("front" / "back" / "side").
-var torso_opts := {}
 ## HeadPainter's options.
 var head_opts := {}
 ## Per side: each arm segment ("upper", "fore") as `{ color, material, opts }`: a sleeve, bare skin
@@ -65,9 +63,6 @@ func refresh(wardrobe: CharacterWardrobe) -> bool:
 	skin = look["skin"]
 	_chrome = look["chrome"]
 	shoulder_opts = _dress_plates(worn, id)
-	torso_opts = {}
-	for face in ["front", "back", "side"]:
-		torso_opts[face] = { "face": face, "pants": pants }.merged(shoulder_opts)
 	head_opts = { "look": id }
 	_dress_sides(look, id)
 	var key := hash([
@@ -85,8 +80,7 @@ func shin_colour(i: int) -> Color:
 
 
 ## The shoulders' painter options for the look's handle `id`: the plates `worn` and their wear,
-## rounded to `VestPainter.WEAR_STEPS`, painted in fabric (`PixelArt`'s `material` option). The
-## torso's options take them too.
+## rounded to `VestPainter.WEAR_STEPS`, painted in fabric (`PixelArt`'s `material` option).
 static func _dress_plates(worn: Dictionary, id: int) -> Dictionary:
 	var dress := { "look": id }
 	for side in ["front", "back"]:

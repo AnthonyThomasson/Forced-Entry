@@ -38,7 +38,7 @@ Damage scales by squareness and `speed_factor` (speed / the round's own `muzzle_
 
 ## Casings
 
-`CasingSpawner` tracks them with the `Despawner`; the toss is `Debris.toss` (Physics, interface 4; `casing.gd` preloads `physics/debris.gd` as `Debris`), then the casing rests at `DrawLayers.LYING`.
+`CasingSpawner` tracks them with the `Despawner`; the toss is `Debris.toss` (Physics, interface 4; `casing.gd` preloads `physics/debris.gd` as `Debris`).
 
 ## Tracers and casings in 3D (`ProjectileMeshes`, `ShotLayer`; interface 27)
 
@@ -59,4 +59,4 @@ Main's 3D view calls `ProjectileMeshes.install(mirror, world)` once the match is
 - **Fragments** (`_fragments`) are real bullets from one shared `Shot` with `strikes_shooter` on, so cover, penetration, ricochet, blood and impact sounds all apply. The row's `fragment_damage` is set as the `Shot`'s `damage` outright (not added to a base).
 - **Stun**: flash by sight and bang by range, both through `Character.take_stun(blind, deaf)`; within `point_blank` also `take_damage`.
 
-**Interfaces:** 12 and 27 (meshes: Art's mesh kit, the `WorldMirror`), 3 (hittable, a door too), 4 (`Physics.spawn_explosion`, `Debris.toss`), 5 (pushable), 6 (guns → `ProjectileSpawner` / `CasingSpawner`; `ThrownGrenade` → `Explosion`), 7 (what `Explosion` calls on a character), 10 (`&"hit"`, `&"explosion"`), 11 (`PhysicsLayers`, `DrawLayers.LYING`), 15 (`GameLog`: the shot lines).
+**Interfaces:** 12 and 27 (meshes: Art's mesh kit, the `WorldMirror`), 3 (hittable, a door too), 4 (`Physics.spawn_explosion`, `Debris.toss`), 5 (pushable), 6 (guns → `ProjectileSpawner` / `CasingSpawner`; `ThrownGrenade` → `Explosion`), 7 (what `Explosion` calls on a character), 10 (`&"hit"`, `&"explosion"`), 11 (`PhysicsLayers`), 15 (`GameLog`: the shot lines).

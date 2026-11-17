@@ -35,8 +35,8 @@ static func tile(node: GeometryInstance3D, floor_node: Node2D) -> void:
 
 ## How a wall segment `seg` (`[a, b]` in the wall's frame) wears the cap tile: `{ texture, rect }`
 ## for `MeshNodes.textured` (`tiled`), `rect` in px in the wall's frame; empty for a wall with no
-## art. The 2D wall maps the tile along a to b and across the thickness by `dir.orthogonal()`
-## (`Deformation.draw_wall`), so the tile is oriented to match: a wall running +x wears it flipped
+## art. The tile runs along a to b and across the thickness by `dir.orthogonal()`, so it is
+## oriented to match: a wall running +x wears it flipped
 ## across, -x flipped along, +z transposed, -z transposed and turned half round. The texture is
 ## made once per tile and direction.
 static func wall_skin(wall: Node2D, seg: PackedVector2Array) -> Dictionary:

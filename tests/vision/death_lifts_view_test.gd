@@ -151,6 +151,6 @@ func _left(world: Node) -> int:
 	return count
 
 
-## Whether neither a disc nor a box at `at` reaches the area the view shows live.
+## Whether a disc at `at` does not reach the area the view shows live.
 func _hidden(at: Vector2) -> bool:
-	return not Probe.reached_by(at).has(true)
+	return not Probe.reached_by(at)

@@ -3,10 +3,10 @@ extends RefCounted
 ## Objects domain, what a furniture mesh is built from (#193 phase 2, `domain-art/meshes.md`): one
 ## piece's footprint in its painter's canonical frame (front toward +y, width across the front),
 ## the colour its painter draws it in, its painter options and the quarter turns that take the
-## canonical front onto the piece's facing. The 2D art is painted canonical and turned
-## (`PixelArt.render`); a mesh is built the same way, in the canonical frame, then turned by
-## `kit()`'s pose, so one mesh serves a piece at any facing and a sofa against the left wall is the
-## sofa against the back wall, turned.
+## canonical front onto the piece's facing. The art is painted canonical (`PixelArt.render_flat`); a
+## mesh is built the same way, in the canonical frame, then turned by `kit()`'s pose, so one mesh
+## serves a piece at any facing and a sofa against the left wall is the sofa against the back wall,
+## turned.
 ##
 ## A builder reads only this (never the piece), so what a mesh depends on is what its cache key
 ## names: `FurnitureMesh.fetch`.

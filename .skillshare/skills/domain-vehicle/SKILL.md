@@ -68,4 +68,4 @@ Events: `&"vehicle"` (`stage`: `ignition`, `door_open`, `slide_open`, `door_clos
 - **Arena size at these speeds:** a test running flat out for a second needs about 1000 px; a full-lock circle at walking pace is about 200 px.
 - The `bounce` value is tiny on purpose: a crash near the top speed rebounds under 40 px/s, which rolling stops within a second (`vehicle/crash_into_wall_stops`).
 
-**Interfaces:** 3 (hittable), 4 (`Deformable`, `Physics.impact_impulse` / `spawn_debris`), 5 (pushable), 7 (group `characters`; the controller fields a ride writes), 10 (EventBus), 11 (`PhysicsLayers.SOLID`, `DrawLayers`), 12 (Art), 19 (Character ↔ Vehicle).
+**Interfaces:** 3 (hittable), 4 (`Deformable`, `Physics.impact_impulse` / `spawn_debris`), 5 (pushable), 7 (group `characters`; the controller fields a ride writes), 10 (EventBus), 11 (`PhysicsLayers.SOLID`), 12 (Art), 19 (Character ↔ Vehicle).

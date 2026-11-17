@@ -2,9 +2,8 @@
 
 Wound spray and drips, splats, a dead body's bleed-out pool and its floor-steered flow, and carried blood (wetness, footprints,
 smears). Separate from debris and deformation: the rest of `physics/` reaches it only through
-`Physics.spawn_debris` (a hit with `HitInfo.blood`; the bloody mark on an object is the core's `Deformation.draw_marks`) and
-`Physics.bleed_out`; every other domain meets it through interface 4's classes. It imports only General: `Despawner`, `DrawLayers`,
-`FillBatch` and `SeenArea`. Tests: `tests/physics/` (`blood_*`, `footprints_*`, `object_smear*`,
+`Physics.spawn_debris` (a hit with `HitInfo.blood`; the bloody mark on an object is the core's `PhysicsDeformLookConfig.blood_mark_*`) and
+`Physics.bleed_out`; every other domain meets it through interface 4's classes. It imports only General: `Despawner` and `SeenArea`. Tests: `tests/physics/` (`blood_*`, `footprints_*`, `object_smear*`,
 `smear_ribbon_shape`, `wound_*`, `death_*`). 3D: `meshes.md`.
 
 ## Files and tuning

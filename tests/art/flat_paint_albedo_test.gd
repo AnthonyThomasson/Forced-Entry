@@ -1,8 +1,8 @@
 extends GameTest
-## `PixelArt.render_flat` is a painter's albedo for the 3D render (#193): no bevel, cast shadow or
-## glare (the canvas has no light), canonical (one texture whatever angle the piece takes, no
-## lighting step), under the `|flat` key so no 2D key or pixel changes, and warmable by a request
-## with `"flat": true`. The painters that read the light directly (cabinet, plant, sofa) paint on.
+## `PixelArt.render_flat` is a painter's albedo for the 3D render: no bevel, cast shadow or glare
+## (the canvas has no light), canonical (one texture whatever angle the piece takes, no lighting
+## step), under the `|flat` key, and warmable by a request. The painters that read the light
+## directly (cabinet, plant, sofa) paint on.
 
 const Probe := preload("res://tests/art/flat_probe_painter.gd")
 const Cabinet := preload("res://scenes/objects/art/cabinet_painter.gd")
@@ -11,23 +11,20 @@ const Sofa := preload("res://scenes/objects/art/sofa_painter.gd")
 const Table := preload("res://scenes/objects/art/table_painter.gd")
 const SIZE := Vector2(32, 24)
 const COLOR := Color(0.5, 0.4, 0.3)
-## Pixel hashes of fresh 2D paints of the Table above, taken before `render_flat` existed.
-const GOLDEN_RENDER := { Vector2.DOWN: 488_484_433, Vector2.RIGHT: 1_056_853_277 }
-const GOLDEN_TURNED := 959_718_415
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A flat render is a painter's albedo",
 		"description": "render_flat paints with no light: no bevel, cast shadow or glare, one "
-			+ "texture whatever the angle, the |flat key, the 2D art untouched, warmable.",
+			+ "texture whatever the angle, the |flat key, warmable.",
 		"tags": ["art", "cache", "scripted"],
 		"timeout": 20.0,
 	}
 
 
 func run(t: TestContext) -> void:
-	_two_d_untouched(t)
+	_flat_key_form(t)
 	_no_light_shading(t)
 	_one_texture_for_every_angle(t)
 	_key_and_emissive(t)
@@ -35,36 +32,13 @@ func run(t: TestContext) -> void:
 	_warm(t)
 
 
-## Rendering flat leaves the 2D art as it was: the keys keep their exact form, and a fresh
-## (uncached) paint of the non-flat path has the pixels it had before `render_flat` existed.
-func _two_d_untouched(t: TestContext) -> void:
-	var opts := { "material": "wood" }
-	var base := PixelArt._key(Table, SIZE, COLOR, opts)
-	PixelArt.render_flat(Table, SIZE, COLOR, opts)
-	for facing in [Vector2.DOWN, Vector2.RIGHT]:
-		var key := base + "|f%d" % PixelArt._turns(facing)
-		PixelArt._cache.erase(key)
-		var fresh := PixelArt.render(Table, SIZE, COLOR, facing, opts)
-		t.check(PixelArt._cache.get(key) == fresh, "render files %s under %s" % [facing, key])
-		t.check(
-			hash(fresh.get_image().get_data()) == GOLDEN_RENDER[facing],
-			"a fresh 2D render facing %s has its old pixels (%d)" % [
-				facing,
-				hash(fresh.get_image().get_data()),
-			],
-		)
-	var turned_key := base + "|a%.4f" % 1.5
-	PixelArt._cache.erase(turned_key)
-	PixelArt._turned_memo.clear()
-	var turned := PixelArt.render_turned(Table, SIZE, COLOR, 1.5, opts)
-	t.check(PixelArt._cache.get(turned_key) == turned, "render_turned files %s" % turned_key)
+## The flat key is the inputs' key plus `|flat`, and a quarter turn adds its own suffix.
+func _flat_key_form(t: TestContext) -> void:
+	var base := PixelArt._key(Table, SIZE, COLOR, { "material": "wood" })
+	t.check(PixelArt._flat_key(base) == base + "|flat", "the flat key is the base key plus |flat")
 	t.check(
-		hash(turned.get_image().get_data()) == GOLDEN_TURNED,
-		"a fresh render_turned has its old pixels (%d)" % hash(turned.get_image().get_data()),
-	)
-	t.check(
-		PixelArt._flat_key(base) == base + "|flat" and base + "|flat" != base + "|f0",
-		"the flat key is the lit base key plus |flat, distinct from any 2D key",
+		PixelArt._flat_key(base, 1) == base + "|flat|f1",
+		"a quarter turn is filed under its own key",
 	)
 
 
@@ -72,18 +46,12 @@ func _two_d_untouched(t: TestContext) -> void:
 ## big block is its own colour (no finish: material "").
 func _no_light_shading(t: TestContext) -> void:
 	var flat := PixelArt.render_flat(Probe, SIZE, COLOR).get_image()
-	var lit := PixelArt.render(Probe, SIZE, COLOR, Vector2.DOWN).get_image()
 	var odd := 0
-	var lit_odd := 0
 	for y in flat.get_height():
 		for x in flat.get_width():
 			var f := flat.get_pixel(x, y)
 			if f.a > 0.0 and not PixelCanvas._same(f, COLOR) and (x != 4 or y != 4):
 				odd += 1
-			var l := lit.get_pixel(x, y)
-			if l.a > 0.0 and not PixelCanvas._same(l, COLOR) and (x != 4 or y != 4):
-				lit_odd += 1
-	t.check(lit_odd > 0, "the lit paint shades the block (bevel, cast shadow): %d" % lit_odd)
 	t.check(odd == 0, "the flat paint has no bevel or cast shadow: %d shaded pixels" % odd)
 	var glazed := PixelArt.render_flat(Probe, SIZE, COLOR, { "material": "ceramic" }).get_image()
 	var glints := 0
@@ -105,7 +73,7 @@ func _one_texture_for_every_angle(t: TestContext) -> void:
 	var first := PixelArt.render_flat(Table, SIZE, COLOR, opts)
 	var first_data := first.get_image().get_data()
 	var light := ArtCanvasConfig.light_from
-	var steps := ArtCanvasConfig.turn_steps
+	var steps := 16
 	for i in steps:
 		ArtCanvasConfig.light_from = light.rotated(TAU * i / steps)
 		var again := PixelArt.render_flat(Table, SIZE, COLOR, opts)
@@ -119,11 +87,9 @@ func _one_texture_for_every_angle(t: TestContext) -> void:
 		repainted.get_image().get_data() == first_data,
 		"a repaint under another world light has the same pixels",
 	)
-	var lit := PixelArt.render(Table, SIZE, COLOR, Vector2.DOWN, opts)
-	t.check(lit.get_image().get_data() != first_data, "the lit art differs from the albedo")
 
 
-## The key is the lit key plus `|flat`; the emissive twin is the glowing pixels, null when none.
+## The emissive twin is the glowing pixels, null when none.
 func _key_and_emissive(t: TestContext) -> void:
 	var opts := { "material": "metal" }
 	var flat := PixelArt.render_flat(Probe, SIZE, COLOR, opts)
@@ -165,8 +131,6 @@ func _light_reading_painters(t: TestContext) -> void:
 				again.get_data() == image.get_data(),
 				"%s flat pixels ignore a world light turned by %s" % [name, turn],
 			)
-		var lit := PixelArt.render(painter, size, COLOR, Vector2.DOWN).get_image()
-		t.check(lit.get_data() != image.get_data(), "%s flat is not the lit paint" % name)
 
 
 ## A flat warm request is filed under the |flat key with the synchronous paint's pixels.

@@ -9,7 +9,7 @@ Owns the world's objects (furniture, walls, floors, the street round a house, th
 they are hit and pushed, how they compose Physics, what they give the lighting, and their painters. It turns a plain definition
 dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, incl. `WearFactory`, `DecalFactory`, the floor's `sound_surface` /
 `marks` / `tile_from` / `light_layer` and `DoorFactory`), 3 (hittable), 4 (→ Physics), 5 (pushable), 8 (interactable), 10 (a door's
-`&"door"`), 11 (`LightMasks`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`), 24 (the door contract).
+`&"door"`), 11 (`PhysicsLayers`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`), 24 (the door contract).
 
 | File | Role |
 |---|---|
@@ -81,7 +81,7 @@ Objects declares what its pieces give the Lighting domain:
 
 `FloorFactory.spawn(rect, definition, name, parent)` builds a `Floor` (`Node2D`, no collider: shots, navigation and perception pass
 over it) in the group `floors` (Lighting's per-floor budget walks it). Its 3D mesh (`floor_mesh.gd`, `street_mesh.gd`) repeats
-`ObjectArt.tile(...)` across the rect, the grid starting `tile_offset` px into the tile (`rect.position - tile_from`, the definition's
+`ObjectArt.tile_flat(...)` across the rect, the grid starting `tile_offset` px into the tile (`rect.position - tile_from`, the definition's
 `tile_from` point: 0 for a room's floor, the street's pieces share one grid); a floor with `marks` gets a `StreetMarks` data child.
 On `_ready` a floor registers (and unregisters on exit):
 

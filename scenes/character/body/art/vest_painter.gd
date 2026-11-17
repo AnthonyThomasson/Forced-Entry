@@ -1,17 +1,17 @@
 extends RefCounted
 ## Top-down pixel-art VEST painter (Character domain, private; rendered through the Art domain's
-## PixelArt as part of the shoulders, body_painter.gd, and the trunk, torso_painter.gd, which call
-## it over their shirt). Two garments, from the look's `vest` kind (`OutfitConfig` looks): a soft
-## tactical `vest` — a padded panel over the trunk that leaves the shoulder caps bare (a merc wears
-## it as a chest rig: webbing straps, a row of pouches and one on each flank) — and a plate
-## `carrier` — a front and a back panel joined by shoulder straps and a cummerbund, pouches across
-## the front, a drag handle on the back, each panel bulging where a plate sits in it (a crew's
-## panels mismatched: `front_cover`, `back_cover`). Each style marks it: the Zenitex's white stencil
-## along the front and back edges with a red lamp, the Trauma Team's red cross, a borg's welded
-## steel and rivets. A plate's wear shows on its panel as scuffs and cracks with the plate showing
-## through, more of them at each wear step. Options (`opts`): `look` (a `PixelArt.handle`: `vest`,
-## `vest_col`, the covers, the style) and per side (`front_` / `back_`) `<side>plate` (the plate's
-## colour; absent = no plate) and `<side>wear` (0 new .. `WEAR_STEPS` spent).
+## PixelArt as part of the shoulders, body_painter.gd, which calls it over their shirt). Two
+## garments, from the look's `vest` kind (`OutfitConfig` looks): a soft tactical `vest` — a padded
+## panel over the trunk that leaves the shoulder caps bare (a merc wears it as a chest rig: webbing
+## straps, a row of pouches and one on each flank) — and a plate `carrier` — a front and a back
+## panel joined by shoulder straps and a cummerbund, pouches across the front, a drag handle on the
+## back, each panel bulging where a plate sits in it (a crew's panels mismatched: `front_cover`,
+## `back_cover`). Each style marks it: the Zenitex's white stencil along the front and back edges
+## with a red lamp, the Trauma Team's red cross, a borg's welded steel and rivets. A plate's wear
+## shows on its panel as scuffs and cracks with the plate showing through, more of them at each wear
+## step. Options (`opts`): `look` (a `PixelArt.handle`: `vest`, `vest_col`, the covers, the style)
+## and per side (`front_` / `back_`) `<side>plate` (the plate's colour; absent = no plate) and
+## `<side>wear` (0 new .. `WEAR_STEPS` spent).
 
 const StyleArt = preload("res://scenes/character/body/art/style_art.gd")
 ## Heights for cast shadows, floor-up: over the shirt (4), under the head's ring.
@@ -122,102 +122,6 @@ static func _top_panel(
 		c.line(Vector2i(o.x - 1, y + 1), Vector2i(o.x + 1, y + 1), _STRAP, _POUCH)
 
 
-## The vest on the trunk's `face` ("front" | "back" | "side"): a canvas spanning the trunk,
-## shoulders toward −y, the shirt down to row `waist`.
-static func paint_face(c: PixelCanvas, face: String, waist: int, opts: Dictionary) -> void:
-	var look := PixelArt.look_of(opts)
-	var kind := String(look.get("vest", ""))
-	if kind == "":
-		return
-	if face == "side":
-		_face_flank(c, waist, look)
-		return
-	if kind == "vest" and String(look.get("style", "")) == "merc":
-		_face_chest_rig(c, face, waist, look)
-		return
-	_face_panel(c, face, waist, opts)
-
-
-## The flank: the cummerbund or the vest's side panel, under the arm.
-static func _face_flank(c: PixelCanvas, waist: int, look: Dictionary) -> void:
-	var col := _col(look, "vest_col")
-	var t := ArtSurfaceConfig.tones(col)
-	var bottom := waist - 1
-	var band := PixelShape.rounded(
-		Rect2i(0, roundi(waist * 0.35), c.w, bottom - roundi(waist * 0.35)),
-		0,
-	)
-	_fill(c, band, col, false, look)
-	for y in range(band.bounds.position.y + 2, bottom, 3):
-		c.line(Vector2i(1, y), Vector2i(c.w - 2, y), t.dark, _VEST)
-
-
-## A merc's chest rig on the trunk: pouches across the front, its straps crossed over the back.
-static func _face_chest_rig(c: PixelCanvas, face: String, waist: int, look: Dictionary) -> void:
-	var col := _col(look, "vest_col")
-	var t := ArtSurfaceConfig.tones(col)
-	var bottom := waist - 1
-	if face == "front":
-		_pouches(c, Rect2i(1, roundi(waist * 0.45), c.w - 2, 5), 4, col)
-		for x in [3, c.w - 4]:
-			c.line(Vector2i(x, 0), Vector2i(x, roundi(waist * 0.45)), t.dark, _VEST)
-	else:
-		c.line(Vector2i(2, 0), Vector2i(c.w - 3, bottom - 2), t.dark, _VEST)
-		c.line(Vector2i(c.w - 3, 0), Vector2i(2, bottom - 2), t.dark, _VEST)
-
-
-## The vest's or the carrier's front or back panel on the trunk: straps up over the shoulders, a
-## plate's wear, then its fittings and the style's marks.
-static func _face_panel(c: PixelCanvas, face: String, waist: int, opts: Dictionary) -> void:
-	var look := PixelArt.look_of(opts)
-	var kind := String(look.get("vest", ""))
-	var bottom := waist - 1
-	var inset := 1 if kind == "vest" else 2
-	var top := 4 if kind == "vest" else 2
-	var plated: bool = kind == "carrier" and opts.has(face + "_plate")
-	var cover := _col(look, "vest_col") if kind == "vest" else _col(look, face + "_cover")
-	var r := Rect2i(inset, top, c.w - inset * 2, bottom - top)
-	_fill(c, PixelShape.rounded(r, 2), cover, plated, look)
-	for x in [inset + 2, c.w - inset - 3]:  # Straps up over the shoulders.
-		c.line(Vector2i(x, 0), Vector2i(x, top), ArtSurfaceConfig.tones(cover).dark, _VEST)
-	if plated:
-		_wear(
-			c,
-			Rect2i(inset + 1, top + 1, c.w - inset * 2 - 2, roundi((bottom - top) * 0.6)),
-			face,
-			opts,
-			cover,
-		)
-	_face_fittings(c, face, kind, r, cover)
-	_marks_face(c, face, r, look, kind)
-
-
-## On the panel `r` in `cover`: a carrier's pouches in front or its drag handle on the back, a
-## vest's zip in front.
-static func _face_fittings(
-	c: PixelCanvas,
-	face: String,
-	kind: String,
-	r: Rect2i,
-	cover: Color,
-) -> void:
-	var cx := int(c.w / 2.0)
-	if kind == "carrier":
-		if face == "front":
-			_pouches(c, Rect2i(r.position.x + 1, r.end.y - 5, r.size.x - 2, 4), 3, cover)
-		else:
-			# The drag handle.
-			c.fill(PixelShape.rounded(Rect2i(cx - 2, r.position.y, 5, 2), 0), _STRAP, _POUCH)
-	elif face == "front":
-		# The zip.
-		c.line(
-			Vector2i(cx, r.position.y + 1),
-			Vector2i(cx, r.end.y - 1),
-			ArtSurfaceConfig.tones(cover).shadow,
-			_VEST,
-		)
-
-
 ## A panel `s` in `col`: its finish (the look's style's: a borg's welded steel, else fabric), a
 ## bevel (raised where a plate sits), the livery's edge sheen and an outline; a plate's panel stands
 ## higher.
@@ -291,38 +195,6 @@ static func _marks_top(
 			for side in [-1, 1]:
 				c.px(o.x + side * (half - 1), chest, Color(0.2, 0.2, 0.2), _MARK)
 				c.px(o.x + side * (half - 1), span.position.y + 2, Color(0.2, 0.2, 0.2), _MARK)
-
-
-## The style's marks on the vest's front or back face: the Zenitex's stencil (and its lamps in
-## front), the Trauma Team's cross, a merc carrier's patch, a borg's rivets.
-static func _marks_face(
-	c: PixelCanvas,
-	face: String,
-	r: Rect2i,
-	look: Dictionary,
-	kind: String,
-) -> void:
-	var cx := int(c.w / 2.0)
-	var top := r.position.y
-	var bottom := r.end.y
-	var trim: Color = look.get("trim", Color.WHITE)
-	var chest := top + 3
-	match String(look.get("style", "")):
-		"zenitex":
-			StyleArt.stencil(c, Vector2i(cx - 6, chest), 13, trim, _MARK)
-			if face == "front":
-				c.px(cx - 6, chest + 2, look.get("led", Color.RED), _MARK)
-				c.px(cx - 4, chest + 2, trim, _MARK)
-		"trauma":
-			StyleArt.cross(c, Vector2i(cx, chest + 2), trim, _MARK, 2)
-		"merc":
-			if kind == "carrier":
-				var patch := PixelShape.rounded(Rect2i(cx - 5, chest, 4, 3), 0)
-				c.fill(patch, _col(look, "back_cover"), _MARK)
-		"borg":
-			for y in [top + 1, bottom - 2]:
-				for x in [3, c.w - 4]:
-					c.px(x, y, Color(0.2, 0.2, 0.2), _MARK)
 
 
 ## A plate's wear on its panel: `_MARKS_PER_STEP` marks per wear step inside `r`, alternating a

@@ -22,7 +22,7 @@ var _user: Node
 
 func _init(id: StringName) -> void:
 	kind = id
-	super(null, null, GrenadeArt.new(id, weapon_hand()))
+	super(null, null, GrenadeArt.new(id))
 	display_name = str(_stat("name", display_name))
 	reach = 28.0
 

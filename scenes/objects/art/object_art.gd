@@ -1,11 +1,8 @@
 extends RefCounted
-## The Objects domain's painter registry (private; read by the object, wall and floor visuals, the
-## wear layer and the factory): maps an `art` id to its painter and renders it through the Art
-## domain's PixelArt — at a cardinal facing for a piece, or at the painter's own tile size for a
-## floor or wall tile — in the run-down look: every colour handed to a painter is graded first
-## (decay.gd). Each texture has an EMISSIVE twin (`emissive` / `tile_emissive`): only the pixels its
-## painter drew `glowing` (a screen's face, a tube, a bulb), for the visuals to draw as their
-## light-source overlay.
+## The Objects domain's painter registry (private; read by the 3D meshes, the wear layer and the
+## factory): maps an `art` id to its painter and renders its flat albedo through the Art domain's
+## `PixelArt.render_flat`, for a piece, a decal or one tile of a floor or wall, in the run-down
+## look: every colour handed to a painter is graded first (decay.gd).
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 ## Painter per `art` id: each has `static func paint(canvas, base: Color, material: String,
@@ -71,46 +68,6 @@ const AS_GIVEN := [
 ]
 
 
-## One repeating tile of a tiling painter (one with `static func tile_size(opts) -> Vector2`, e.g.
-## `floor`), or null for an unknown art id.
-static func tile(
-	art: String,
-	color: Color,
-	material: String = "",
-	opts: Dictionary = {},
-) -> Texture2D:
-	var painter = PAINTERS.get(art)
-	if painter == null:
-		push_error("ObjectArt: unknown art '%s'" % art)
-		return null
-	return texture(art, painter.tile_size(opts), color, Vector2.DOWN, _finished(opts, material))
-
-
-## The texture for an `art` that turns freely (a door's leaf): painted in its own frame and lit as
-## if turned by `angle` (snapped to `ArtCanvasConfig.turn_steps`), drawn by the caller turned by the
-## exact angle (`PixelArt.render_turned`). Null for an unknown art id.
-static func turned(art: String, size: Vector2, color: Color, angle: float,
-		opts: Dictionary = {}) -> Texture2D:
-	if not PAINTERS.has(art):
-		push_error("ObjectArt: unknown art '%s'" % art)
-		return null
-	return PixelArt.render_turned(
-		PAINTERS[art], size, _color(art, color), PixelArt.snap_angle(angle), _art_opts(art, opts)
-	)
-
-
-## The texture for an `art` piece with local footprint `size` whose front faces `facing`
-## (a cardinal direction in the piece's local frame), or null for an unknown art id. `opts` are the
-## painter's options, with its surface finish as `material` (ArtSurfaceConfig's, absent or `""` for
-## none).
-static func texture(art: String, size: Vector2, color: Color, facing: Vector2,
-		opts: Dictionary = {}) -> Texture2D:
-	if not PAINTERS.has(art):
-		push_error("ObjectArt: unknown art '%s'" % art)
-		return null
-	return PixelArt.render(PAINTERS[art], size, _color(art, color), facing, _art_opts(art, opts))
-
-
 ## The ALBEDO of `art` for a footprint of `size` as its painter draws it (canonical: front +y), for
 ## the 3D render (`PixelArt.render_flat`): no baked light, no facing, in the run-down look, one
 ## texture whatever way the piece turns, so the caller turns the mesh. `size` is the canonical
@@ -124,9 +81,8 @@ static func flat(art: String, size: Vector2, color: Color, opts: Dictionary = {}
 
 
 ## The flat albedo of a decal whose art faces `facing` (a cardinal direction) over a footprint of
-## `size` as it lies: `texture`'s picture without the baked light (`PixelArt.render_flat`), turned
-## the way `texture` turns it. A wear mark, a street mark and a stencil are decals of this. Null for
-## an unknown art id.
+## `size` as it lies (`PixelArt.render_flat`), turned to it in quarter turns. A wear mark, a street
+## mark and a stencil are decals of this. Null for an unknown art id.
 static func flat_facing(art: String, size: Vector2, color: Color, facing: Vector2,
 		opts: Dictionary = {}) -> Texture2D:
 	if not PAINTERS.has(art):
@@ -141,8 +97,7 @@ static func flat_facing(art: String, size: Vector2, color: Color, facing: Vector
 	)
 
 
-## The flat albedo of one repeating tile of a tiling painter (`tile`'s twin), or null for an unknown
-## art id.
+## The flat albedo of one repeating tile of a tiling painter, or null for an unknown art id.
 static func tile_flat(
 	art: String,
 	color: Color,
@@ -185,29 +140,6 @@ static func flat_request(
 		"opts": _art_opts(art, opts),
 		"flat": true,
 	}
-
-
-## The emissive twin of `texture` for the same inputs: only what its painter drew glowing (a
-## screen's face, a tube, a bulb), in its own colours, transparent elsewhere; null when nothing in
-## it gives light (or for an unknown art id).
-static func emissive(art: String, size: Vector2, color: Color, facing: Vector2,
-		opts: Dictionary = {}) -> Texture2D:
-	if not PAINTERS.has(art):
-		return null
-	return PixelArt.emissive(PAINTERS[art], size, _color(art, color), facing, _art_opts(art, opts))
-
-
-## The emissive twin of `tile` (null when the tile has nothing that gives light).
-static func tile_emissive(
-	art: String,
-	color: Color,
-	material: String = "",
-	opts: Dictionary = {},
-) -> Texture2D:
-	var painter = PAINTERS.get(art)
-	if painter == null:
-		return null
-	return emissive(art, painter.tile_size(opts), color, Vector2.DOWN, _finished(opts, material))
 
 
 ## The colour the run-down look draws `color` in: what a piece's debris and a wall's chips take, so
@@ -296,7 +228,7 @@ static func _color(art: String, color: Color) -> Color:
 	return color if AS_GIVEN.has(art) else Decay.grade(color)
 
 
-## `opts` with its surface finish `material` among them, as `texture` and `emissive` take it.
+## `opts` with its surface finish `material` among them, as `flat` takes it.
 static func _finished(opts: Dictionary, material: String) -> Dictionary:
 	return opts.merged({ "material": material }, true)
 

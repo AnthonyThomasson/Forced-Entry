@@ -68,15 +68,12 @@ func run(t: TestContext) -> void:
 	await _flipped_slab(t, mirror)
 
 
-## The flat standing leaf paints no handle (the 3D leaf's handle is a mesh): the lit leaf has the
-## handle's colour on its latch end, the flat one none of it.
+## The flat standing leaf paints no handle (the 3D leaf's handle is a mesh).
 func _flat_leaf(t: TestContext, door: Node2D) -> void:
 	var size: Vector2 = door.leaf_size()
 	var opts: Dictionary = door.look.art_opts(false)
 	var flat := ObjectArt.flat("door", size, door.look.color, opts).get_image()
-	var lit := ObjectArt.texture("door", size, door.look.color, Vector2.DOWN, opts).get_image()
 	var handle := ObjectArtDoorConfig.handle_color
-	t.check(_count(lit, handle) > 0, "the lit leaf paints its handle (%d px)" % _count(lit, handle))
 	t.expect_eq(_count(flat, handle), 0, "the flat leaf paints no handle")
 
 

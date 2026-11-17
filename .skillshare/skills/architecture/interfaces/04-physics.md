@@ -6,17 +6,11 @@
 	 dent, px; default `PhysicsDeformConfig.max_depth`), `allow_chunks` (a hard hit carves a missing piece), `max_impacts` (dents
 	 remembered), each defaulting to `PhysicsDeformConfig`'s (the character sets softer flesh values from `CharacterHitConfig`). A vehicle composes one with chunks off,
 	 no `Knockback` (it is its own `RigidBody2D`), and does not rebuild its collider from the dents.
-   - `Deformation` (static): silhouette/collider polygons and drawing.
-	 - Draw: `draw_shape(canvas, shape, size, impacts, look: ShapeLook)` and `draw_wall(canvas, a, b, impacts, look: WallLook)`.
-	   `ShapeLook` (`physics/shape_look.gd`): `fill`, `outline`, `damage_total`, `crack_color` / `hole_color` / `scorch_color`, `texture`,
-	   `texture_angle`, `marks` (false: the caller draws the hit marks later with `draw_marks`). `WallLook` (`physics/wall_look.gd`):
-	   `thickness`, `color`, `texture`, `tile_length`. Pixel art is drawn through the dented silhouette. `NO_COLOR` = take the call's
-	   default colour.
+   - `Deformation` (static): silhouette/collider polygons and the damage darkening (`darken(damage_total)`).
 	 - Polygons: `base_ring(shape, size)`, `shape_polygon(shape, size, impacts)` (cached), `wall_polygon(a, b, thickness, impacts)`,
 	   `is_valid_polygon(poly)` (skip a self-touching one that frame), `convex_pieces(polygon)`, `shapes_of(pieces)` (their
 	   `ConvexPolygonShape2D`s), `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` -> `[polygon, pieces]`
-	   (uncached and pure: safe on a worker thread), `drawable_polygon(shape, size, impacts)` (what `draw_shape` draws: the dented
-	   silhouette, or the undented ring when the dents pinched it) and `texture_uvs(poly, size, angle)`.
+	   (uncached and pure: safe on a worker thread).
 	 - Impacts: built by `new_impact(pos, inward, damage, blood, dent: DentLimits)` (`physics/dent_limits.gd`: `max_depth`,
 	   `allow_chunks`, `rng`: the world's `WorldRng.of`, the dent's seed) and kept by `push_impact(list, impact, max_impacts)` (oldest dropped); `Deformable.record` and Objects' wall (one
 	   list per segment) both build through them.
@@ -56,7 +50,7 @@
 	 `update_collider`; Objects reads it when recording damage; `circle_points`, the round silhouette's ring size; holders: `tuning-holders.md`).
 
    Physics imports nothing from other domains but General's infrastructure: `Despawner` (debris, the mark layers),
-   `PhysicsLayers` (`PhysicsConfig.wall_mask`), `DrawLayers`, `FillBatch`; and, for the 3D render (27), Art's mesh kit (12).
+   `PhysicsLayers` (`PhysicsConfig.wall_mask`), `ViewLayers`, `SeenArea`; and, for the 3D render (27), Art's mesh kit (12).
    - `PhysicsMeshes.install(mirror: WorldMirror, ground := Callable()) -> FxLayer` (Main's `View3D`, once, before the match makes anything): the 3D look of everything above
      (`domain-physics/meshes.md`). The spawners tell it through `PhysicsFxHook` (static, a no-op when none is installed); `spawn_debris` sets `PhysicsFxHook.hit_height`.
      `ground` is `func(at: Vector2) -> float`, the height offset (px, 0 on the pavement, a kerb lower on the road) of the ground under a world point: Main builds it

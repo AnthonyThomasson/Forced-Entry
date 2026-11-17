@@ -1,5 +1,6 @@
 extends RefCounted
-## Vehicles domain: the van, top-down pixel art (rendered through Art, `PixelArt.render_turned`), in
+## Vehicles domain: the van, top-down pixel art (painted flat through Art, `PixelArt.render_flat`),
+## in
 ## the same two parts as the car (`opts.part`), but boxy:
 ##  - `chassis` (under the occupants): a long square-cornered body, a short snub nose with a wide
 ##    grille, black bumpers (a step plate at the back), the cab (floor, dashboard and wheel, two
