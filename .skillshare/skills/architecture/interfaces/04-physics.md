@@ -24,7 +24,7 @@
 	   for a caller drawing a textured polygon its own way (the character's kept meshes, `domain-character` (`body.md`)).
    - `Debris.toss(node, dir, distance, time, spin) -> Tween` (`physics/debris.gd`, preloaded as `Debris`, no `class_name`): a thrown chip's
 	 toss; the Projectile System's spent casing uses it too.
-   - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)`: objects, the character and a vehicle.
+   - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)`: objects, the character and a vehicle. `HitParticles.spawn(hit, surface, kind, strength) -> Dictionary` makes a particle burst as plain data, told to the 3D render (`PhysicsFxHook.burst_made`); nothing is drawn by Physics itself.
    - Blood (a character on a hit, a dead body, a footfall, a slid puddle):
 	 - `BloodWound` (Node child, character): `record(hit)` throws a splatter spray and owes drips (paced by
 	   `BloodDripConfig.interval_min..max`); `stop()` on death.
@@ -48,16 +48,15 @@
 	 origin)` until `asleep`; read `point(i)` / `point_count()` / `frame_basis(f)`; `exclude` lists colliders its wall sweep ignores.
 	 `Ragdoll.wake()` restarts a sleeping body's clocks so an explosion's push is simulated (the character's `blast_push`). The Character
 	 domain owns the humanoid skeleton built on it.
-   - `Physics.spawn_explosion(world, at, kind)` (`kind` `&"frag"` / `&"stun"`; called by `Explosion`): the look of a burst — nodes
-	 `ExplosionFlash`, `ExplosionFireball` (frag only: a stun's white flash is the Lighting domain's flash light, interface 20) and
-	 `ExplosionSmoke`, which free themselves (Despawner-tracked), and a frag's scorch in the world's `ScorchDecals` layer (capped by
-	 `Despawner.max_scene_objects`). Looks and timings: `PhysicsExplosionConfig.looks`; `PhysicsExplosionConfig.fx_enabled` off spawns
-	 none.
+   - `Physics.spawn_explosion(world, at, kind)` (`kind` `&"frag"` / `&"stun"`; called by `Explosion`): the look of a burst: it tells the 3D render a
+	 flash, a fireball (frag only: a stun's white flash is the Lighting domain's flash light, interface 20) and smoke (`PhysicsFxHook.blast_made`), and
+	 marks a frag's scorch in the world's `ScorchDecals` layer (capped by `Despawner.max_scene_objects`). Looks and timings:
+	 `PhysicsExplosionConfig.looks`; `PhysicsExplosionConfig.fx_enabled` off does none of it.
    - Tuning read across the boundary: `PhysicsDeformConfig` (`depth_per_damage`, `max_depth`, `chunk_damage`, `max_impacts`,
 	 `update_collider`; Objects reads it when recording damage; `circle_points`, the round silhouette's ring size; holders: `tuning-holders.md`).
 
-   Physics imports nothing from other domains but General's infrastructure: `Despawner` (debris, hit particles, blood, explosion fx),
-   `PhysicsLayers` (`PhysicsConfig.wall_mask`), `DrawLayers` (its z knobs), `FillBatch`; and, for the 3D render (27), Art's mesh kit (12).
+   Physics imports nothing from other domains but General's infrastructure: `Despawner` (debris, the mark layers),
+   `PhysicsLayers` (`PhysicsConfig.wall_mask`), `DrawLayers`, `FillBatch`; and, for the 3D render (27), Art's mesh kit (12).
    - `PhysicsMeshes.install(mirror: WorldMirror, ground := Callable()) -> FxLayer` (Main's `View3D`, once, before the match makes anything): the 3D look of everything above
      (`domain-physics/meshes.md`). The spawners tell it through `PhysicsFxHook` (static, a no-op when none is installed); `spawn_debris` sets `PhysicsFxHook.hit_height`.
      `ground` is `func(at: Vector2) -> float`, the height offset (px, 0 on the pavement, a kerb lower on the road) of the ground under a world point: Main builds it

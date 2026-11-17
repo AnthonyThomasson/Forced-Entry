@@ -18,10 +18,9 @@ static var _furniture_warmed := false
 ## Start painting the textures every district shares on PixelArt's worker while Main's setup window
 ## is open. Headless runs skip the warm, so their first district keeps the ordinary synchronous
 ## cold path. `with_furniture` adds the furniture's flat 3D art
-## (`DistrictPrewarm.furniture_requests`): Main passes it only when a 3D match is coming (the saved
-## render mode is 3D, 3D is picked, a 3D match begins), so a 2D run never paints it, and joins it to
-## the shared warm at boot so the
-## two never wait for each other. A part already warmed is left out, so repeating the call is free.
+## (`DistrictPrewarm.furniture_requests`), which Main passes at start-up, and joins it to the shared
+## warm at boot so the two never wait for each other. A part already warmed is left out, so
+## repeating the call is free.
 static func prewarm(with_furniture := false) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
@@ -193,9 +192,9 @@ static func get_doors(house: Node2D) -> Array:
 
 
 ## The elevator lobbies a generated house laid as an Array of { room, rect, node, text }: `room` the
-## lobby room's key, `rect` its WORLD rect, `node` the floor stencil laid in it (a `Sprite2D`) and
-## `text` what it says. Empty for a null house, a hand-laid layout or a plan with no lobby. (A test
-## read.)
+## lobby room's key, `rect` its WORLD rect, `node` the floor stencil laid in it (a `StencilDecal`)
+## and `text` what it says. Empty for a null house, a hand-laid layout or a plan with no lobby. (A
+## test read.)
 static func get_lobbies(house: Node2D) -> Array:
 	if house == null:
 		return []

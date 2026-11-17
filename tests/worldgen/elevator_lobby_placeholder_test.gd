@@ -76,16 +76,16 @@ func _check_hazard_border(t: TestContext, label: String, image: Image) -> void:
 
 func _check_stencil(t: TestContext, label: String, lobby: Dictionary) -> void:
 	t.check(lobby["text"] == TEXT, "%s: the stencil says '%s'" % [label, lobby["text"]])
-	var sprite := lobby["node"] as Sprite2D
+	var sprite := lobby["node"] as Node2D
 	if not t.require(
-		sprite != null and sprite.texture != null,
-		"%s: the stencil is a sprite" % label,
+		sprite != null and sprite.get("texture") != null,
+		"%s: the stencil holds a texture" % label,
 	):
 		return
 	var rect: Rect2 = lobby["rect"]
 	t.check(sprite.is_inside_tree() and is_zero_approx(sprite.global_rotation),
 			"%s: the stencil is in the tree and unrotated" % label)
-	var covered := Rect2(sprite.global_position, sprite.texture.get_size())
+	var covered := Rect2(sprite.global_position, (sprite.get("texture") as Texture2D).get_size())
 	t.check(
 		covered.get_center().is_equal_approx(rect.get_center())
 			and rect.encloses(covered)
@@ -93,7 +93,7 @@ func _check_stencil(t: TestContext, label: String, lobby: Dictionary) -> void:
 			and covered.size.y >= rect.size.y - WALL_FACES,
 		"%s: the stencil covers %s of the room %s" % [label, covered, rect],
 	)
-	var image := sprite.texture.get_image()
+	var image := (sprite.get("texture") as Texture2D).get_image()
 	_check_hazard_border(t, label, image)
 	var box := _text_box(image)
 	t.check(box.size.x > box.size.y * 1.5 and box.size.y > 0,
@@ -138,7 +138,7 @@ func _check_house(t: TestContext, plan: String, house_seed: int, turn: int) -> I
 		in_lobby = in_lobby and rooms[0]["rect"] == lobby["rect"]
 		t.check(in_lobby, "%s: the stencil is not in the lobby" % label)
 		_check_stencil(t, label, lobby)
-		image = (lobby["node"] as Sprite2D).texture.get_image()
+		image = (lobby["node"] as Node2D).texture.get_image()
 		_check_empty(t, label, house, lobby)
 		var doorways := WorldGen.get_openings(house).filter(
 			func(o: Dictionary) -> bool: return (o["rooms"] as Array).has(lobby["room"]),
@@ -181,12 +181,12 @@ func _check_only_lobbies(t: TestContext) -> void:
 	for plan in HouseDefinitions.get_all():
 		var house := _build(t, plan, 1, 0)
 		t.check(WorldGen.get_lobbies(house).is_empty(), "%s lays no lobby stencil" % plan)
-		t.check(house.find_children("* Stencil", "Sprite2D", true, false).is_empty(),
-			"%s has a stencil sprite" % plan)
+		t.check(house.find_children("* Stencil", "Node2D", true, false).is_empty(),
+			"%s has a stencil" % plan)
 		house.queue_free()
 	for plan in TowerDefinitions.get_all():
 		var house := _build(t, plan, 1, 0)
-		var stencils := house.find_children("* Stencil", "Sprite2D", true, false)
+		var stencils := house.find_children("* Stencil", "Node2D", true, false)
 		t.check(stencils.size() == 1, "%s has %d stencil sprites, not 1" % [plan, stencils.size()])
 		house.queue_free()
 

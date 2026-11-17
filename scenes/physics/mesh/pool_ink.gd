@@ -3,7 +3,7 @@ extends RefCounted
 ## Physics domain, a dead body's bleed-out pool in the 3D render (#193 phase 2;
 ## `domain-physics/meshes.md`): a decal on the floor (`MeshNodes.decal`) showing the pool's fill
 ## field as the 2D draws it, the field the flood-fill claims and the front sweeps through (blurred
-## by `BloodPoolVisuals`, the same function), cut at `PhysicsInkConfig.pool_threshold` into two
+## by `BloodPoolField`, the same function), cut at `PhysicsInkConfig.pool_threshold` into two
 ## tones (the rim, and the deep blood) and a third for blood that has soaked into a porous floor.
 ## The picture is the field scaled up `PhysicsInkConfig.pool_upscale` times with the engine's own
 ## bilinear resize, so the edge is as fine as the pixel art allows, then cut into tones. A pool
@@ -13,8 +13,6 @@ extends RefCounted
 ## same size. A pool that has settled is not built again. Every pool's decal is the one unit quad
 ## (`MeshNodes.decal` of one px, scaled to the box), so the mesh cache does not grow with the sizes
 ## a pool passes through. A pool lives as long as its 2D node.
-
-const Visuals := preload("res://scenes/physics/blood/blood_pool_visuals.gd")
 
 ## How many pictures were built (a test reads it: a settled pool builds none).
 var builds := 0
@@ -127,8 +125,8 @@ func _build(record: Record) -> void:
 	if flow == null or flow.cells.is_empty():
 		return
 	var covered: Array = flow.cells.keys() + flow.trail.keys()
-	var box := Visuals.field_box(covered)
-	var image := _picture(Visuals.field_bytes(flow, covered, box), box.size)
+	var box := BloodPoolField.field_box(covered)
+	var image := _picture(BloodPoolField.field_bytes(flow, covered, box), box.size)
 	builds += 1
 	record.image = image
 	if is_instance_valid(record.decal) and record.box == box:

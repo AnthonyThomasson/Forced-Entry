@@ -31,12 +31,11 @@ static func chip_landed(chip: Node2D) -> void:
 		sink.chip_landed(chip)
 
 
-## A burst of hit particles was made: `emitter` is the 2D `CPUParticles2D` (its amount, spread,
-## speeds, sizes, life and colour say what the 3D one shows), `spark` whether it is the metal
-## style's lit-whatever-the-light kind, `height` the hit's 0..100 height (negative: the floor).
-static func burst_made(emitter: CPUParticles2D, spark: bool, height: float) -> void:
+## A burst of hit particles was made: `burst` is `HitParticles.spawn`'s dict (its amount, cone,
+## speeds, sizes, life, colour, place and height say what the 3D one shows).
+static func burst_made(burst: Dictionary) -> void:
 	if is_instance_valid(sink):
-		sink.burst_made(emitter, spark, height)
+		sink.burst_made(burst)
 
 
 ## A splat of blood was built (`splat` is the 2D `BloodSplat`, its outlines in `shapes`).

@@ -57,9 +57,9 @@ func chip_landed(chip: Node2D) -> void:
 	debris.land(chip)
 
 
-## A burst of hit particles (`emitter` is the 2D one) left a surface at `height`.
-func burst_made(emitter: CPUParticles2D, spark: bool, height: float) -> void:
-	bursts.burst(emitter, spark, height)
+## A burst of hit particles (`HitParticles.spawn`'s dict) left a surface.
+func burst_made(burst: Dictionary) -> void:
+	bursts.burst(burst)
 	set_process(true)
 
 

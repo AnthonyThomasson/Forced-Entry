@@ -1,8 +1,7 @@
 extends GameTest
 ## DR5: a standing door is a solid leaf in the world. A puppet walking into a shut door stops at it;
 ## a pistol round goes on through a hollow door and stops in a steel one; an NPC does not see a
-## puppet through a shut wooden door and does through a glass-panel one; the shut door casts a
-## shadow (a light occluder) and the glass-panel door none.
+## puppet through a shut wooden door and does through a glass-panel one.
 
 const WIDTH := 52.0
 ## The walls are 12 px thick and their ends reach 6 px into the gap, so the doorway is free between
@@ -112,14 +111,6 @@ func run(t: TestContext) -> void:
 	t.check(
 		_sees(t, &"glass_watcher", &"glass_hidden"),
 		"an NPC sees a puppet through a glass-panel door",
-	)
-	t.check(
-		not t.object(&"sight_wood").find_children("*", "LightOccluder2D", true, false).is_empty(),
-		"a shut wooden door casts a shadow",
-	)
-	t.check(
-		t.object(&"sight_glass").find_children("*", "LightOccluder2D", true, false).is_empty(),
-		"a glass-panel door casts none",
 	)
 
 

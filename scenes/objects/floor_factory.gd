@@ -8,7 +8,6 @@ class_name FloorFactory
 ## Floor entity. World-Gen never touches the Floor's fields directly.
 
 const FloorScript = preload("res://scenes/objects/floor/floor.gd")
-const FloorVisualsScript = preload("res://scenes/objects/floor/floor_visuals.gd")
 
 
 ## Build a floor covering `rect` (in `parent`'s space) under `parent`. Returns the node.
@@ -27,11 +26,6 @@ static func spawn(rect: Rect2, definition: Dictionary, floor_name: String, paren
 	node.marks = definition.get("marks", {})
 	node.tile_offset = rect.position - (definition.get("tile_from", rect.position) as Vector2)
 	node.light_layer = definition.get("light_layer", "")
-
-	var visuals := Node2D.new()
-	visuals.name = "FloorVisuals"
-	visuals.script = FloorVisualsScript
-	node.add_child(visuals)
 
 	parent.add_child(node)
 	return node

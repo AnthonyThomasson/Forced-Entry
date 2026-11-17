@@ -321,7 +321,6 @@ func _glass(t: TestContext) -> void:
 	door.look.material = "glass"
 	door.look.style = "panes"
 	door.look.broken = true
-	door.visuals.refresh()
 	await t.frames(10)
 	await _sweep(t, "glass", door.global_position)
 	door.take_damage(10_000.0)

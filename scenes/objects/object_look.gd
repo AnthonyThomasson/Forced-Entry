@@ -1,21 +1,17 @@
 extends RefCounted
-## Objects domain (private): a piece's look, `piece.look`, what its visuals draw: the painter id,
-## its options, its facing, its overhang and the flat label's colour. Plain data, filled by
-## `ObjectFactory` from the catalogue definition and read by the piece's visuals, its overhang and
-## its lights.
+## Objects domain (private): a piece's look, `piece.look`, what its mesh shows: the painter id, its
+## options, its facing and its overhang. Plain data, filled by `ObjectFactory` from the catalogue
+## definition and read by the piece's 3D mesh and its lights.
 
-## Pixel-art painter id ("sofa", "table", "chair"); "" draws the flat shape and its label.
+## Pixel-art painter id ("sofa", "table", "chair"); "" is the flat shape.
 var art: String = ""
 ## Per-piece painter overrides (see the ObjectArt*Config holders), e.g. { "inset": true }.
 var art_opts: Dictionary = {}
 ## Which way the piece's front faces, in its local frame (a cardinal direction). Visual only:
 ## it orients the art (a sofa's seat, a chair's seat away from its back rail).
 var facing: Vector2 = Vector2.DOWN
-## Label color.
-var text_color: Color = Color.WHITE
-## The definition's `overhang` (`{ size, reach, fade_under? }`), the part that reaches beyond the
-## footprint, in the canonical frame; empty for none. A plain field, so the 2D `Overhang` node and
-## the 3D meshes both read the same data, never each other.
+## The definition's `overhang` (`{ size, reach }`), the part that reaches beyond the footprint, in
+## the canonical frame; empty for none. A plain field the 3D meshes read.
 var overhang: Dictionary = {}
 
 

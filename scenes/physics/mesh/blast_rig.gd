@@ -2,9 +2,9 @@ class_name BlastRig
 extends RefCounted
 ## Physics domain, one grenade burst's parts in the 3D render (#193 phase 2; `BlastFx`): a flash
 ## (two glowing discs), a shock ring, a fireball (a body, a core and a ring of lobes: spheres) and
-## the puffs of smoke (flat discs wearing the 2D puff: a round body and a lighter patch), each a
-## unit mesh scaled by `update`, made once and shown or hidden as a burst starts and ends. Each part
-## follows the 2D look's own timing and size (`ExplosionFx` and its `PhysicsExplosionConfig.looks`
+## the puffs of smoke (flat discs wearing the stepped puff: a round body and a lighter patch), each
+## a unit mesh scaled by `update`, made once and shown or hidden as a burst starts and ends. Each
+## part follows its look row's timing and size (`PhysicsExplosionConfig.looks`
 ## row: a flash fading fast as it swells, a fireball swelling and cooling, smoke drifting out and
 ## thinning), in stepped tones: the fireball takes the colour of
 ## the third of its life it is in, and a fade is a dither of the picture's pixels in a few steps,
@@ -13,7 +13,7 @@ extends RefCounted
 ## The share of its life a puff thins out over, at the end: until then it is whole (a flat cloud,
 ## not a stipple of the floor).
 const SMOKE_THIN := 0.35
-## The puff's lighter patch, as `ExplosionFx.Smoke` draws it: where it sits (a share of the puff's
+## The puff's lighter patch, where it sits (a share of the puff's
 ## radius), how big, how much brighter than the smoke and how opaque.
 const PATCH_AT := Vector2(-0.2, -0.2)
 const PATCH_SIZE := 0.55
@@ -52,7 +52,7 @@ func _init(parent: Node3D, world: FxWorld) -> void:
 	for i in 2:
 		flash.append(_part(parent, disc))
 	ring = _part(parent, _unit("blast_ring"))
-	for i in 2 + ExplosionFx.LOBES:
+	for i in 2 + PhysicsExplosionConfig.lobes:
 		fire.append(_part(parent, sphere))
 	for i in _most_puffs():
 		puffs.append(_part(parent, disc, false))
@@ -108,10 +108,10 @@ func _progress(key: String) -> float:
 
 ## Draw the fireball's lumps: each a direction round the burst and a size share.
 func _draw_lobes() -> void:
-	lobes.resize(ExplosionFx.LOBES)
+	lobes.resize(PhysicsExplosionConfig.lobes)
 	var turn := _world.rng.randf() * TAU
-	for i in ExplosionFx.LOBES:
-		var way := turn + TAU * float(i) / float(ExplosionFx.LOBES)
+	for i in PhysicsExplosionConfig.lobes:
+		var way := turn + TAU * float(i) / float(PhysicsExplosionConfig.lobes)
 		way += _world.rng.randf_range(-0.3, 0.3)
 		lobes[i] = Vector2(way, _world.rng.randf_range(0.5, 0.7))
 
@@ -148,7 +148,7 @@ func _dress_puffs() -> void:
 		MeshNodes.glow(part, Color.BLACK, 0.0)
 
 
-## The 2D puff in `tint` (`ExplosionFx.Smoke`: a stepped disc and a lighter patch toward the
+## The stepped puff in `tint` (a disc and a lighter patch toward the
 ## upper left, drawn at the 2D look's own pixel), `PhysicsExplosionConfig.pixel` px a texel at the
 ## biggest puff, a clear texel outside the disc; held by colour.
 static func _puff_texture(tint: Color) -> Texture2D:
@@ -219,15 +219,22 @@ func _fireball() -> void:
 		fire[0],
 		centre,
 		swell * body,
-		_heat(ExplosionFx.FIRE_MID, ExplosionFx.FIRE_EDGE, t),
+		_heat(PhysicsExplosionConfig.fire_mid, PhysicsExplosionConfig.fire_edge, t),
 		alpha,
 	)
 	_blob(fire[1], centre, swell * (0.5 - 0.3 * t) * body / 0.85,
-		_heat(ExplosionFx.FIRE_CORE, ExplosionFx.FIRE_MID, t), alpha)
-	for i in ExplosionFx.LOBES:
-		var out := Vector2.from_angle(lobes[i].x) * swell * ExplosionFx.LOBE_REACH * body / 0.85
+		_heat(PhysicsExplosionConfig.fire_core, PhysicsExplosionConfig.fire_mid, t), alpha)
+	for i in PhysicsExplosionConfig.lobes:
+		var reach := PhysicsExplosionConfig.lobe_reach
+		var out := Vector2.from_angle(lobes[i].x) * swell * reach * body / 0.85
 		var place := centre + Vector3(out.x, 0.0, out.y)
-		_blob(fire[2 + i], place, swell * lobes[i].y * body / 0.85, ExplosionFx.FIRE_EDGE, alpha)
+		_blob(
+			fire[2 + i],
+			place,
+			swell * lobes[i].y * body / 0.85,
+			PhysicsExplosionConfig.fire_edge,
+			alpha,
+		)
 
 
 ## The smoke: puffs that drift out, swell, rise and thin out.

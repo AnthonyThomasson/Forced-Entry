@@ -90,7 +90,7 @@ func _lie(door: Node2D) -> void:
 
 
 ## The slab's mesh and art as the door is now: its panes gone when they shattered, the art mirrored
-## when the 2D door lies flipped (`DoorVisuals.fall`: its scale.y is -1).
+## when the door lies flipped (`DoorLook.flipped`).
 func _dress_lying(door: Node2D) -> void:
 	_lying.mesh = _lying_shape(door)
 	var texture := _art(door, true)
@@ -102,10 +102,10 @@ func _dress_lying(door: Node2D) -> void:
 	MeshNodes.textured(_lying, texture, Rect2(-size * 0.5, size))
 
 
-## Whether the 2D door lies flipped: its visuals are mirrored across the leaf's length.
+## Whether the door lies flipped: mirrored across the leaf's length (`DoorLook.flipped`).
 static func _flipped(door: Node2D) -> bool:
-	var visuals: Variant = door.get("visuals")
-	return visuals is Node2D and (visuals as Node2D).scale.y < 0.0
+	var look: Variant = door.get("look")
+	return look is Object and bool((look as Object).get("flipped"))
 
 
 ## The leaf as the door is now (the standing one is shown unless it lies knocked down).

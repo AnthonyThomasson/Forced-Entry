@@ -1,15 +1,15 @@
 extends RefCounted
 ## Objects domain, the 3D mesh of a floor stencil (#193 phase 2; `domain-art/meshes.md`): words in a
-## hazard-stripe border painted on the floor (`DecalFactory.stencil`, a `Sprite2D` that is no
-## physics body, in the group `DecalFactory.STENCIL_GROUP`). The mesh is a decal: the sprite's own
+## hazard-stripe border painted on the floor (`DecalFactory.stencil`, a `StencilDecal` node that is
+## no physics body, in the group `DecalFactory.STENCIL_GROUP`). The mesh is a decal: the node's own
 ## texture on a flat quad laid on the floor over the area it covers, so it reads as the 2D paint
 ## does, upright whichever way its building is turned. It shares the texture with the sprite, so it
 ## costs no second paint. It does no work of its own each frame (no `mirror_update`, no `_process`);
 ## the mirror follows the sprite as it follows any tracked node, one transform compare a frame, a
-## write only when the sprite moved. It lies on the floor's slab (`ObjectStructureMeshConfig.
-## floor_lift`) on the stencil tier of the shared decal layers (`ObjectWearMeshConfig.tier_stencil`,
-## `MeshNodes.decal`'s `layer`), over every wear mark of the floor and the street, never at the
-## height of one.
+## write only when the sprite moved. It lies on the floor's slab
+## (`ObjectStructureMeshConfig. floor_lift`) on the stencil tier of the shared decal layers
+## (`ObjectWearMeshConfig.tier_stencil`, `MeshNodes.decal`'s `layer`), over every wear mark of the
+## floor and the street, never at the height of one.
 
 
 ## The node a stencil `sprite` is shown by, in 3D units with its origin at the sprite's own (its

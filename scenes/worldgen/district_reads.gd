@@ -7,7 +7,7 @@ class_name DistrictReads
 ## The towers of a generated `district`, block 0 to 8 row by row (4 the house), each a dict of
 ## `block`, `plan`, `turn` (the quarter turns), `node` (the tower: a house node, `get_rooms` and the
 ## rest read it), `rect` (the bounds of its rooms), `front` (its front doorway), all in WORLD space,
-## and, from TowerDressing, `shadow` (its street shadow sprite), `podium` (its band's pieces),
+## and, from TowerDressing, `podium` (its band's pieces),
 ## `awning` and `sign` (the pieces over its front door). (A test read.)
 static func get_towers(district: Node2D) -> Array:
 	if district == null:

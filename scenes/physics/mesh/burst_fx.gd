@@ -4,7 +4,7 @@ extends RefCounted
 ## a burst `HitParticles` makes is a handful of small cubes, each a part of a batch (one of the
 ## bits, one of the sparks: a spark is the metal style's own "spark" tint, lit whatever the light,
 ## no
-## real light). The burst's own emitter says how many, how fast, how wide, how long, what size
+## real light). The burst's own dict says how many, how fast, how wide, how long, what size
 ## and what colour (the 2D style tables are read again, not copied); each bit is flung off the
 ## surface at the hit's height, pulled down by `PhysicsMeshConfig.bit_gravity`, slowed by the
 ## style's damping, lies on the floor if it lands before its life is out and shrinks away over the
@@ -58,18 +58,18 @@ func pieces() -> Array[FxPiece]:
 	return _live.duplicate()
 
 
-## A burst: `emitter` is the 2D `CPUParticles2D` `HitParticles` set up (its amount, direction,
-## spread, speeds, damping, sizes, life and colour), at its place, flung off a surface at `height`
-## (0..100, negative: the floor).
-func burst(emitter: CPUParticles2D, spark: bool, height: float) -> void:
-	var batch := _sparks if spark else _bits
-	var color := emitter.color_ramp.colors[0]
-	var lift := maxf(height, 0.0) * PhysicsMeshConfig.height_scale
-	for _i in emitter.amount:
+## A burst: `made` is the dict `HitParticles.spawn` made (its amount, direction, spread, speeds,
+## damping, sizes, life, colour and place), flung off a surface at its `height` (0..100, negative:
+## the floor).
+func burst(made: Dictionary) -> void:
+	var batch := _sparks if made["spark"] else _bits
+	var color: Color = made["color"]
+	var lift := maxf(float(made["height"]), 0.0) * PhysicsMeshConfig.height_scale
+	for _i in int(made["amount"]):
 		var piece := batch.take(color)
 		if piece == null:
 			return
-		_throw(piece, emitter, lift)
+		_throw(piece, made, lift)
 		_live.append(piece)
 		_write(piece)
 
@@ -91,22 +91,22 @@ func process(delta: float) -> bool:
 	return not _live.is_empty()
 
 
-## Set `piece` flying as one particle of `emitter` does: a random heading within its spread, a speed
+## Set `piece` flying as one particle of `made` does: a random heading within its spread, a speed
 ## and a size and a life within its ranges.
-func _throw(piece: FxPiece, emitter: CPUParticles2D, lift: float) -> void:
-	var spread := deg_to_rad(emitter.spread)
-	var way := emitter.direction.rotated(_world.rng.randf_range(-spread, spread))
-	var speed := _world.rng.randf_range(emitter.initial_velocity_min, emitter.initial_velocity_max)
-	piece.at = emitter.global_position
+func _throw(piece: FxPiece, made: Dictionary, lift: float) -> void:
+	var spread := deg_to_rad(float(made["spread"]))
+	var way := (made["direction"] as Vector2).rotated(_world.rng.randf_range(-spread, spread))
+	var speed := _world.rng.randf_range(float(made["speed_min"]), float(made["speed_max"]))
+	piece.at = made["at"]
 	piece.velocity = way * speed
 	piece.rise = speed * PhysicsMeshConfig.bit_lift
 	piece.height = lift
-	piece.damping = _world.rng.randf_range(emitter.damping_min, emitter.damping_max)
-	var side := _world.rng.randf_range(emitter.scale_amount_min, emitter.scale_amount_max)
+	piece.damping = _world.rng.randf_range(float(made["damping_min"]), float(made["damping_max"]))
+	var side := _world.rng.randf_range(float(made["size_min"]), float(made["size_max"]))
 	piece.size = Vector2(side, side)
 	piece.turn = _world.rng.randf() * TAU
 	piece.age = 0.0
-	piece.life = emitter.lifetime * (1.0 - emitter.lifetime_randomness * _world.rng.randf())
+	piece.life = float(made["life"]) * (1.0 - float(made["life_random"]) * _world.rng.randf())
 
 
 ## One step of a bit's flight: slowed along its heading, falling under gravity, stopped by the

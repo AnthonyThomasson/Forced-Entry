@@ -1,11 +1,11 @@
 extends GameTest
 ## The hit particles of a 3D match (#193 phase 2, Physics): a burst `HitParticles` makes is as many
-## small cubes as its 2D emitter has particles, in its colour and sizes, flung off the surface at
+## small cubes as the burst's `amount`, in its colour and sizes, flung off the surface at
 ## the hit's height within its cone and speeds, falling to the floor and shrinking away within its
 ## life; the metal style's sparks are lit whatever the light. Sustained fire fills a pool that is
 ## bounded, makes no new node or mesh, and when it is over nothing runs or is written. Asserted at
-## the seams: the layer `PhysicsMeshes.install` adds and the 2D emitter it mirrors. The numbers are
-## pinned here; the look is judged in a window, `physics_mesh_windowed_test.gd`.
+## the seams: the layer `PhysicsMeshes.install` adds and the burst `HitParticles` tells it. The
+## numbers are pinned here; the look is judged in a window, `physics_mesh_windowed_test.gd`.
 
 const SCRATCH := "user://settings_hit_particles_mesh_test.json"
 const AT := Vector2(400, 300)
@@ -27,7 +27,7 @@ const SPARKS := 16
 func describe() -> Dictionary:
 	return {
 		"name": "A hit's particles are tiny cubes that fly from the hit and shrink away",
-		"description": "A burst is as many cubes as its 2D emitter has particles, in its colour "
+		"description": "A burst is as many cubes as its `amount`, in its colour "
 			+ "and sizes, flung off the surface at the hit's height within its cone and speed; "
 			+ "the metal style's sparks glow; a pool bounds sustained fire; nothing runs at rest.",
 		"tags": ["mirror", "3d", "render", "physics", "hit particles"],
@@ -60,10 +60,10 @@ func run(t: TestContext) -> void:
 
 ## A wooden hit: its bits, where they start, how they fly and when they are gone.
 func _check_a_burst(t: TestContext, layer: FxLayer) -> void:
-	var emitter := _burst(t, "wood", 50.0)
-	t.expect_eq(layer.bursts.shown(), emitter.amount, "a bit for each particle of the burst")
+	var burst := _burst(t, "wood", 50.0)
+	t.expect_eq(layer.bursts.shown(), burst["amount"], "a bit for each particle of the burst")
 	var pieces := layer.bursts.pieces()
-	var colour := emitter.color_ramp.colors[0]
+	var colour: Color = burst["color"]
 	var way := Vector2.RIGHT
 	for piece in pieces:
 		var frame := layer.bursts.bits().frame_of(piece)
@@ -99,8 +99,8 @@ func _check_a_burst(t: TestContext, layer: FxLayer) -> void:
 
 ## A metal hit: sparks, lit whatever the light, in a batch of their own.
 func _check_sparks(t: TestContext, layer: FxLayer) -> void:
-	var emitter := _burst(t, "metal", -1.0)
-	t.expect_eq(layer.bursts.sparks().count(), emitter.amount, "a spark for each particle")
+	var burst := _burst(t, "metal", -1.0)
+	t.expect_eq(layer.bursts.sparks().count(), burst["amount"], "a spark for each particle")
 	t.expect_eq(layer.bursts.bits().count(), 0, "and no other bit")
 	var glow: Variant = layer.bursts.sparks().node.get_instance_shader_parameter(&"emissive")
 	t.check(glow != null and glow.a > 0.0 and glow.r > 0.0, "a spark glows")
@@ -134,14 +134,14 @@ func _check_sustained_fire(t: TestContext, layer: FxLayer) -> void:
 
 
 ## One burst of `material` at `AT` on a surface facing +x, struck at `height`.
-func _burst(t: TestContext, material: String, height: float) -> CPUParticles2D:
+func _burst(_t: TestContext, material: String, height: float) -> Dictionary:
 	var hit := HitInfo.new()
 	hit.position = AT
 	hit.normal = Vector2.RIGHT
 	hit.direction = Vector2.LEFT
 	hit.height = height
 	var surface := { "material": material, "color": Color(0.6, 0.4, 0.2) }
-	return HitParticles.spawn(t.world, hit, surface, HitParticles.Kind.IMPACT)
+	return HitParticles.spawn(hit, surface, HitParticles.Kind.IMPACT)
 
 
 func _mirror(t: TestContext) -> WorldMirror:

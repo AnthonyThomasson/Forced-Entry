@@ -1,10 +1,11 @@
 class_name TowerDressing
-## World Generation domain: what makes a district's tower read as TALL from above. Its long hard
-## street shadow (`DecalFactory.shadow`), the podium band of concrete segments with pillars along
-## the outside of its exterior walls, broken at every front and exit doorway (a catalogue row
-## through `ObjectFactory`), and an awning and a glyph sign over its front door that fade while a
-## character stands under them. Each tower is dressed from what it published (`WorldGen.get_rooms`
-## and `get_openings`), so a tower turned or mirrored is dressed the way it stands.
+## World Generation domain: what makes a district's tower read as TALL from above. The podium band
+## of concrete segments with pillars along the outside of its exterior walls, broken at every front
+## and exit doorway (a catalogue row through `ObjectFactory`), and an awning and a glyph sign over
+## its front door that fade (in 3D) while a character stands under them. (Its long hard street
+## shadow is the sun's, cast by the 3D walls.) Each tower is dressed from what it published
+## (`WorldGen.get_rooms` and `get_openings`), so a tower turned or mirrored is dressed the way it
+## stands.
 
 ## A run of exterior wall abuts another room when their faces are this close (px).
 const ABUT := 1.0
@@ -12,9 +13,9 @@ const ABUT := 1.0
 const SIGN_GAP := 24.0
 
 
-## Dress `tower` (a `DistrictReads.get_towers` entry): returns `{ shadow, podium, awning, sign }`,
-## `shadow` the sprite, `podium` the segment pieces and `awning` / `sign` the pieces over the front
-## door (null when no wall run holds the sign), all children of the tower's node.
+## Dress `tower` (a `DistrictReads.get_towers` entry): returns `{ podium, awning, sign }`, `podium`
+## the segment pieces and `awning` / `sign` the pieces over the front door (null when no wall run
+## holds the sign), all children of the tower's node.
 static func dress(tower: Dictionary) -> Dictionary:
 	var node: Node2D = tower["node"]
 	var rooms: Array = WorldGen.get_rooms(node)
@@ -23,12 +24,6 @@ static func dress(tower: Dictionary) -> Dictionary:
 	var runs := exterior_runs(rooms)
 	var hangings := _hangings(node, tower["front"], runs)
 	return {
-		"shadow": DecalFactory.shadow(
-			_local(node, (tower["rect"] as Rect2).grow(half)),
-			{ "length": WorldGenTowerConfig.shadow_length },
-			"Shadow",
-			node,
-		),
 		"podium": _podium(node, runs, openings, rooms, half),
 		"awning": hangings["awning"],
 		"sign": hangings["sign"],
@@ -68,11 +63,6 @@ static func plan_segment_lengths(rooms: Array, openings: Array = []) -> Array[fl
 				if not lengths.has(length):
 					lengths.append(length)
 	return lengths
-
-
-## `rect` (WORLD space) in the space of `node`.
-static func _local(node: Node2D, rect: Rect2) -> Rect2:
-	return Rect2(node.to_local(rect.position), rect.size)
 
 
 ## The unit axis along the wall a normal `out` stands on.

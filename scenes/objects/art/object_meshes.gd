@@ -87,7 +87,7 @@ static func register(builders: Dictionary) -> void:
 			push_error("ObjectMeshes: the mesh script of '%s' has no static build(piece)" % art)
 
 
-## Show the floor stencils (`DecalFactory.STENCIL_GROUP`: draw-only sprites, no physics body) by
-## `StencilMesh`: the mirror follows every one of that group under the root it mirrors.
+## Show the floor stencils (`DecalFactory.STENCIL_GROUP`: plain `StencilDecal` nodes, no physics
+## body) by `StencilMesh`: the mirror follows every one of that group under the root it mirrors.
 static func track(mirror: WorldMirror) -> void:
 	mirror.track_group(DecalFactory.STENCIL_GROUP, Callable(StencilMesh, &"build"))

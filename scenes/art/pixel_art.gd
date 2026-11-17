@@ -72,25 +72,32 @@ static func render(painter: Script, size: Vector2, color: Color, facing: Vector2
 ## skipped; the art stays in the painter's canonical frame (no facing turn, no lighting angle), so
 ## one texture serves the piece whatever way it turns. The surface finishes (grain, speckle,
 ## fleck) stay, seeded as the lit paint is. `opts` as `render`'s. Cached under the lit key plus
-## `|flat`, so no 2D key or pixel changes. A `warm` request with `"flat": true` paints the same.
+## `|flat`. A `warm` request with `"flat": true` paints the same. `facing` (a decal's, laid on a
+## floor or wall by its own rect) turns the picture as `render` does, the albedo in the quarter
+## turns' size: `size` is the footprint as it lies, painted canonical (its sides swapped for a
+## sideways facing) and turned.
 static func render_flat(painter: Script, size: Vector2, color: Color,
-		opts: Dictionary = {}) -> Texture2D:
-	var key := _flat_key(_key(painter, size, color, opts))
+		opts: Dictionary = {}, facing: Vector2 = Vector2.DOWN) -> Texture2D:
+	var turns := _turns(facing)
+	var key := _flat_key(_key(painter, size, color, opts), turns)
 	var cached := _cached(key)
 	if cached != null:
 		return cached
 	return _paint_and_store({
 		"painter": painter, "size": size, "color": color, "opts": opts, "flat": true,
+		"facing": facing,
 	})
 
 
 ## The emissive twin of `render_flat`'s texture: only what the painter drew `glowing`, in the art's
 ## colours, transparent elsewhere; null when it drew nothing glowing.
 static func emissive_flat(painter: Script, size: Vector2, color: Color,
-		opts: Dictionary = {}) -> Texture2D:
-	render_flat(painter, size, color, opts)
+		opts: Dictionary = {}, facing: Vector2 = Vector2.DOWN) -> Texture2D:
+	render_flat(painter, size, color, opts, facing)
 	_warm_lock.lock()
-	var texture: Texture2D = _emissive.get(_flat_key(_key(painter, size, color, opts)))
+	var texture: Texture2D = _emissive.get(
+		_flat_key(_key(painter, size, color, opts), _turns(facing)),
+	)
 	_warm_lock.unlock()
 	return texture
 
@@ -173,17 +180,22 @@ static func _paint_images(request: Dictionary) -> Dictionary:
 	var base_key := _key(
 		request["painter"], request["size"], request["color"], request["opts"],
 	)
+	var turns := _turns(request.get("facing", Vector2.DOWN))
+	var res := _resolution(request["size"])
+	var canon := Vector2i(res.y, res.x) if turns % 2 == 1 else res
 	if request.get("flat", false):
 		var flat := _paint(
 			request["painter"],
-			_flat_canvas(_resolution(request["size"]), base_key),
+			_flat_canvas(canon, base_key),
 			request["color"],
 			request["opts"],
 		)
-		return { "key": _flat_key(base_key), "image": flat.img, "glow": flat.emissive() }
-	var turns := _turns(request["facing"])
-	var res := _resolution(request["size"])
-	var canon := Vector2i(res.y, res.x) if turns % 2 == 1 else res
+		var lit := flat.emissive()
+		return {
+			"key": _flat_key(base_key, turns),
+			"image": _turned(flat.img, turns),
+			"glow": null if lit == null else _turned(lit, turns),
+		}
 	var canvas := _paint(
 		request["painter"],
 		_canvas(canon, -turns * PI * 0.5, base_key),
@@ -245,9 +257,9 @@ static func _render_key(base_key: String, turns: int) -> String:
 	return "%s|f%d" % [base_key, turns]
 
 
-## `render_flat`'s cache key (and `_emissive`'s) for the inputs' `_key`.
-static func _flat_key(base_key: String) -> String:
-	return base_key + "|flat"
+## `render_flat`'s cache key (and `_emissive`'s) for the inputs' `_key` at `turns` quarter turns.
+static func _flat_key(base_key: String, turns := 0) -> String:
+	return base_key + "|flat" if turns == 0 else "%s|flat|f%d" % [base_key, turns]
 
 
 ## The cache key a warm request will be filed under: a `"flat": true` request is `render_flat`'s,
@@ -255,7 +267,7 @@ static func _flat_key(base_key: String) -> String:
 static func _request_key(request: Dictionary) -> String:
 	var base_key := _key(request["painter"], request["size"], request["color"], request["opts"])
 	if request.get("flat", false):
-		return _flat_key(base_key)
+		return _flat_key(base_key, _turns(request.get("facing", Vector2.DOWN)))
 	return _render_key(base_key, _turns(request["facing"]))
 
 

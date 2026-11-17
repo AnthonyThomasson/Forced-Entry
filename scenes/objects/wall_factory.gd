@@ -4,7 +4,6 @@ class_name WallFactory
 ## calls this with geometry and an optional style dict — it never touches the Wall's fields.
 
 const WallScript = preload("res://scenes/objects/wall/wall.gd")
-const WallVisualsScript = preload("res://scenes/objects/wall/wall_visuals.gd")
 
 
 ## The doorways in `doors` (`{ pos, width }`, one point on a wall's centerline each) that lie on one
@@ -60,11 +59,6 @@ static func spawn(rect: Rect2, walls: RoomWalls, wall_name: String, parent: Node
 	wall.art = style.get("art", "")
 	wall.art_color = style.get("color", Color(0.6, 0.6, 0.6))
 	wall.art_opts = style.get("art_opts", {})
-
-	var visuals := Node2D.new()
-	visuals.name = "WallVisuals"
-	visuals.script = WallVisualsScript
-	wall.add_child(visuals)
 
 	parent.add_child(wall)
 	return wall

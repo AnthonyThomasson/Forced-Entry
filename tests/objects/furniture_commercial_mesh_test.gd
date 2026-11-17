@@ -180,7 +180,7 @@ func run(t: TestContext) -> void:
 	_check_static_pieces_cost_nothing(t, mirror)
 	_check_glows(t, mirror)
 	_check_facings(t, mirror)
-	_check_overhang_field(t, mirror)
+	_check_overhang_field(t)
 	await _check_stencil(t, mirror)
 	await _check_dent_tint(t, mirror)
 	await _check_half_scale(t)
@@ -411,29 +411,22 @@ func _check_facings(t: TestContext, mirror: WorldMirror) -> void:
 		t.check(l.x < 0.0, "and facing left to -x")
 
 
-## The overhang is the piece's own field (`look.overhang`, the definition's), the same data the 2D
-## `Overhang` node draws from: the meshes read it, not that node, so removing the node (the 2D
-## render's deletion) changes no mesh.
-func _check_overhang_field(t: TestContext, mirror: WorldMirror) -> void:
+## The overhang is the piece's own field (`look.overhang`, the definition's): the meshes read it,
+## and its area lies `reach` px out along the facing, as wide as the definition says.
+func _check_overhang_field(t: TestContext) -> void:
 	for id: StringName in [&"streetlight", &"awning", &"glyph_sign", &"street_sign"]:
 		var piece := t.object(id)
 		var definition := WorldGen.object_definition(String(id))
 		t.expect_eq(piece.look.overhang, definition["overhang"], "%s keeps its overhang" % id)
-		var node := piece.get_node_or_null("Overhang")
-		if not t.require(node != null, "%s has its 2D Overhang node" % id):
-			continue
-		t.expect_eq(
-			piece.look.overhang_rect(), node.call(&"get_rect"), "%s: the field is drawn" % id
+		var area: Rect2 = piece.look.overhang_rect()
+		t.check(area.has_area(), "%s: the overhang has an area" % id)
+		var ahead: Vector2 = piece.look.facing
+		t.expect_near(
+			area.get_center().dot(ahead),
+			float(definition["overhang"]["reach"]),
+			0.01,
+			"%s: the overhang lies out along the facing" % id,
 		)
-		var shown := _rig_of(mirror, piece)
-		piece.remove_child(node)
-		var again: FurnitureRig = ObjectMeshes.BUILDERS[KINDS[id]["art"]].build(piece)
-		t.check(
-			shown != null and again.body.mesh == shown.body.mesh,
-			"%s: without the node the mesh is the same" % id,
-		)
-		again.free()
-		piece.add_child(node)
 	t.expect_eq(
 		t.object(&"server_rack").look.overhang_rect(), Rect2(), "a piece with none has no area"
 	)

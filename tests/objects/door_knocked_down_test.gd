@@ -2,7 +2,7 @@ extends GameTest
 ## DR11: at 0 HP a door comes off its hinges and lies flat beyond the doorway, on the far side of
 ## the blow that felled it: four kicks from the pull side (a hollow door's 80 HP) push it into the
 ## room the kicker faces; four rounds from the west push it east. It is then walk-over (a puppet
-## crosses it and the doorway), casts no shadow, stops no round and no sight, and is no longer
+## crosses it and the doorway), stops no round and no sight, and is no longer
 ## usable. An ajar door felled by kicks from its pull side, which also push it toward shut, stays
 ## where it fell.
 
@@ -22,8 +22,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "A door at 0 HP lies flat beyond the doorway",
 		"description": "A hollow door kicked to 0 HP from its pull side falls west, a hollow door "
-			+ "shot to 0 HP from the west falls east; the fallen door is walked over, casts no "
-			+ "shadow and stops no round and no sight.",
+			+ "shot to 0 HP from the west falls east; the fallen door is walked over and "
+			+ "stops no round and no sight.",
 		"tags": ["door", "objects", "damage", "kick"],
 		"timeout": 25.0,
 	}
@@ -94,7 +94,7 @@ func run(t: TestContext) -> void:
 
 
 ## The door lies down, flat on the floor `dir_x` (-1 west, +1 east) of its doorway: its middle at
-## least `BEYOND` px off the wall line, with no collider and no shadow.
+## least `BEYOND` px off the wall line, with no collider.
 func _lies_beyond(t: TestContext, door: Node2D, dir_x: float, what: String) -> void:
 	t.check(door.is_down(), "%s: it is down" % what)
 	t.check(
@@ -102,10 +102,6 @@ func _lies_beyond(t: TestContext, door: Node2D, dir_x: float, what: String) -> v
 		"%s: its middle is %.0f px off the wall line" % [what, door.global_position.x - 400.0],
 	)
 	t.check(door.collision_layer == 0, "%s: it has no collider" % what)
-	t.check(
-		door.find_children("*", "LightOccluder2D", true, false).is_empty(),
-		"%s: it casts no shadow" % what,
-	)
 
 
 ## A puppet crosses the doorway of a fallen door, over the door.

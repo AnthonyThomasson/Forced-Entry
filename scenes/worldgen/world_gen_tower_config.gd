@@ -12,8 +12,6 @@ static var podium_min: float = 24.0
 ## stack on that side, up to three bodies each about 44 px apart along the wall past the jamb, so a
 ## band beside the door never stands where a slot against the wall would be.
 static var podium_door_gap: float = 150.0
-## A tower's shadow is its footprint dragged this far (px) away from the light.
-static var shadow_length: float = 170.0
 ## A tower's body for the street furniture is its podium band and this much more (px): the wall's
 ## face and a little room.
 static var margin: float = 10.0

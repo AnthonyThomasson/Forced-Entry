@@ -137,7 +137,6 @@ func _broken_glass_shot(t: TestContext, camera: Camera2D, door: Node2D) -> void:
 	door.look.material = "glass"
 	door.look.style = "panes"
 	door.look.broken = true
-	door.visuals.refresh()
 	var only_down := OS.get_environment("STRUCTURE_BROKEN_ONLY") == "down"
 	if not only_down:
 		await _shoot(t, camera, door.global_position, 3.0, "doorway_broken_glass")

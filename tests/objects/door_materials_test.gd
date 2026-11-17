@@ -5,6 +5,7 @@ extends GameTest
 ## spec gives, stands as full cover (a door is struck at every height) and is told by the group
 ## `doors`. The numbers are the brief's (`docs/doors.md` DR13), kept here.
 
+const ObjectArt := preload("res://scenes/objects/art/object_art.gd")
 const WEST := Rect2(0, 0, 400, 800)
 const EAST := Rect2(400, 0, 400, 800)
 const WIDTH := 52.0
@@ -67,7 +68,9 @@ func run(t: TestContext) -> void:
 		var surface: Dictionary = door.get_surface()
 		t.expect_eq(surface["penetration"], row[3], "the %s door's penetration" % id)
 		t.expect_eq(surface["coverage"], 100.0, "the %s door is struck at every height" % id)
-		var art: Texture2D = door.visuals.texture()
+		var art: Texture2D = ObjectArt.flat(
+			"door", door.leaf_size(), door.look.color, door.look.art_opts(false)
+		)
 		if not t.require(art != null, "the %s door draws its art" % id):
 			return
 		pixels[id] = art.get_image().get_data()

@@ -61,10 +61,9 @@ is never rotated, so the lobby's words stay upright.
 
 ## Reading as tall (`TowerDressing.dress`)
 
-From a tower's published `get_rooms` / `get_openings`, so a turned tower is dressed as it stands: a long hard street shadow
-(`DecalFactory.shadow`, `shadow_length`, away from the art light); a **podium** band of concrete `podium` pieces along every exterior wall,
+From a tower's published `get_rooms` / `get_openings`, so a turned tower is dressed as it stands: a **podium** band of concrete `podium` pieces along every exterior wall,
 broken `podium_door_gap` each side of every front and exit doorway (room for an entry stack's slots); a dark **awning** and a hanging
-**glyph sign** over the front door (the `awning` and `glyph_sign` rows of `GeneralCatalog`, `overhang.fade_under`). `exterior_runs` finds
+**glyph sign** over the front door (the `awning` and `glyph_sign` rows of `GeneralCatalog`, `overhang.fade_under`; the tower's shadow is the sun's). `exterior_runs` finds
 the wall stretches no other room abuts. The street furniture keeps off the podium plus `WorldGenTowerConfig.margin`.
 
 ## Shells (`DistrictShells`)

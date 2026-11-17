@@ -1,10 +1,10 @@
 class_name BlastFx
 extends RefCounted
 ## Physics domain, the explosions of the 3D render (#193 phase 2; `domain-physics/meshes.md`): a
-## burst `ExplosionFx.spawn` shows in 2D (a flash, a fireball, smoke) is shown in 3D by a rig of
+## burst `ExplosionFx.spawn` tells (a flash, a fireball, smoke) is shown by a rig of
 ## solid shapes (`BlastRig`) taken from a small pool (`PhysicsBlastMeshConfig.rigs`), made with the
 ## layer; a burst past the pool takes the oldest rig. Its scorch is the ink layer's. The look rows,
-## sizes and times are the 2D ones; the rigs idle, hidden, when no blast is on.
+## sizes and times are `PhysicsExplosionConfig.looks`'s; the rigs idle, hidden, when no blast is on.
 
 ## The rigs, in the order they were made.
 var _rigs: Array[BlastRig] = []

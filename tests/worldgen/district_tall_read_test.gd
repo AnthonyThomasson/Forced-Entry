@@ -1,10 +1,9 @@
 extends GameTest
-## A district's towers read as tall from above (#182): each throws a long hard shadow across the
-## street (dragged away from the art light, on the street's light layer, beneath characters);
-## concrete podium segments with pillars (solid, anchored) line the outside of its exterior walls,
-## broken at every front and exit doorway with the door clearance; and an awning and a glyph sign
-## hang over its front door and fade while a character stands under them. Read through the tower
-## entries of `DistrictReads.get_towers` (`shadow`, `podium`, `awning`, `sign`).
+## A district's towers read as tall from above (#182): concrete podium segments with pillars (solid,
+## anchored) line the outside of its exterior walls, broken at every front and exit doorway with the
+## door clearance; and an awning and a glyph sign hang over its front door (the 3D render fades them
+## while a character stands under them, `overhead_fade_test.gd`; the tower's shadow is the sun's).
+## Read through the tower entries of `DistrictReads.get_towers` (`podium`, `awning`, `sign`).
 
 const District := preload("res://tests/_worldgen/district_probe.gd")
 const SEEDS := [1, 2, 3]
@@ -19,99 +18,28 @@ const DOOR_GAP := 132.0
 ## A segment is on a doorway's face when it stands out from the wall as a band does, give or take
 ## this much (px).
 const ON_FACE := 14.0
-## The shadow: at least this far beyond the tower along each axis the light has a component on, and
-## its opacity there.
-const SHADOW_REACH := 100.0
-const SHADOW_ALPHA_MIN := 0.3
-## The awning fade: the spec's numbers.
-const FADED_ALPHA := 0.25
-const ALPHA_SLACK := 0.04
-## Seconds after a character steps under the awning that it must be part way faded (the fade takes
-## 0.15 s: `overhang_fades_under_character`).
-const FADE_PEEK := 0.05
 ## A sign hangs this far from the door's centre, at least and at most.
 const SIGN_NEAR := 30.0
 const SIGN_FAR := 120.0
-## Where the walker waits, clear of every tower's awning.
-const AWAY := Vector2(100, 100)
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "A district's towers read as tall: shadow, podium band, awning and sign",
-		"description": "Each tower has a long street shadow beyond its footprint, a solid anchored "
-			+ "podium band along its exterior walls broken at the doorways, and an awning and a "
-			+ "glyph sign over its front door that fade under a character.",
-		"tags": ["worldgen", "district", "shadow", "podium", "awning"],
+		"name": "A district's towers read as tall: podium band, awning and sign",
+		"description": "Each tower has a solid anchored podium band along its exterior walls "
+			+ "broken at the doorways, and an awning and a glyph sign over its front door.",
+		"tags": ["worldgen", "district", "podium", "awning"],
 		"timeout": 120.0,
 	}
 
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 200, 200))
-	s.actor(&"walker", &"puppet", AWAY)
 
 
-## The opacity `overhang` is drawn at: its own alpha times its ancestors' up to the world root.
-func _alpha(overhang: CanvasItem) -> float:
-	var alpha := 1.0
-	var node: Node = overhang
-	while node is CanvasItem:
-		alpha *= (node as CanvasItem).modulate.a * (node as CanvasItem).self_modulate.a
-		node = node.get_parent()
-	return alpha
-
-
-## The `Overhang` child of `piece`.
-func _overhang(piece: Node) -> CanvasItem:
-	return piece.find_child("Overhang", true, false) as CanvasItem
-
-
-## The world rect `overhang` draws.
-func _drawn(overhang: CanvasItem) -> Rect2:
-	return overhang.get_global_transform() * (overhang as Object).call("get_rect") as Rect2
-
-
-## The shadow sprite of `tower`: dark beyond the footprint on the away side, clear on it.
-func _check_shadow(t: TestContext, label: String, tower: Dictionary) -> void:
-	var sprite := tower.get("shadow") as Sprite2D
-	if not t.require(sprite != null, "%s has a shadow sprite" % label):
-		return
-	var rect: Rect2 = tower["rect"]
-	var image := sprite.texture.get_image()
-	var scale := Vector2(image.get_size()) / sprite.texture.get_size()
-	var area := Rect2(sprite.global_position, sprite.texture.get_size())
-	# The shadow falls away from the art light (`ArtCanvasConfig.light_from`, the light's side).
-	var away := -ArtCanvasConfig.light_from.normalized()
-	var way := Vector2(signf(away.x), signf(away.y))
-	t.check(
-		(area.end.x >= rect.end.x + SHADOW_REACH) if way.x > 0.0 else (
-			area.position.x <= rect.position.x - SHADOW_REACH
-		),
-		"%s: shadow reaches past the tower (away from the light %s)" % [label, away],
-	)
-	t.check(
-		(area.end.y >= rect.end.y + SHADOW_REACH) if way.y > 0.0 else (
-			area.position.y <= rect.position.y - SHADOW_REACH
-		),
-		"%s: shadow reaches down the street (away from the light %s)" % [label, away],
-	)
-	var corner := rect.get_center() + (rect.size * 0.5) * way
-	var far := corner + way * 50.0
-	var near := rect.get_center()
-	t.check(_alpha_at(image, scale, area, far) >= SHADOW_ALPHA_MIN, "%s: dark beyond" % label)
-	t.check(_alpha_at(image, scale, area, near) == 0.0, "%s: the footprint is clear" % label)
-	t.check(sprite.light_mask == LightMasks.STREET, "%s: shadow on the street layer" % label)
-	t.check(sprite.z_index < DrawLayers.STANDING, "%s: shadow beneath characters" % label)
-	t.check(sprite.z_index > DrawLayers.FLOOR, "%s: shadow over the street floors" % label)
-
-
-## The shadow's opacity at the world point `world` (0 outside its canvas).
-func _alpha_at(image: Image, scale: Vector2, area: Rect2, world: Vector2) -> float:
-	var at := Vector2i((world - area.position) * scale)
-	if at.x < 0 or at.y < 0 or at.x >= image.get_width() or at.y >= image.get_height():
-		return 0.0
-	return image.get_pixelv(at).a
+## The world rect the overhang of `piece` covers (its `look.overhang_rect()` in the piece's frame).
+func _drawn(piece: Node2D) -> Rect2:
+	return piece.global_transform * (piece.look.overhang_rect() as Rect2)
 
 
 ## Whether `seg` stands in the way of the doorway `door`: on the same face of the tower (its centre
@@ -193,39 +121,13 @@ func _check_hangings(t: TestContext, label: String, tower: Dictionary) -> void:
 	var sign_piece := tower.get("sign") as Node2D
 	if not t.require(awning != null and sign_piece != null, "%s has an awning and a sign" % label):
 		return
-	var cover := _drawn(_overhang(awning))
+	var cover := _drawn(awning)
 	t.check(
 		cover.has_point(door + (front["outward"][0] as Vector2) * 12.0),
 		"%s: awning over the door" % label,
 	)
-	var gap := (_drawn(_overhang(sign_piece)).get_center() - door).length()
+	var gap := (_drawn(sign_piece).get_center() - door).length()
 	t.check(gap > SIGN_NEAR and gap < SIGN_FAR, "%s: sign beside the door (%.0f px)" % [label, gap])
-
-
-## A character stood under the awning of `tower` dims it, and it comes back when they leave.
-func _check_fade(t: TestContext, tower: Dictionary) -> void:
-	var overhang := _overhang(tower["awning"])
-	var walker := t.actor(&"walker")
-	t.check(
-		absf(_alpha(overhang) - 1.0) <= ALPHA_SLACK,
-		"the awning is opaque with no one under it",
-	)
-	walker.global_position = _drawn(overhang).get_center()
-	await t.seconds(FADE_PEEK)
-	var under := _alpha(overhang)
-	t.check(
-		under < 1.0 - ALPHA_SLACK and under > FADED_ALPHA + ALPHA_SLACK,
-		"the awning is mid-fade %.2f s after a character steps under (alpha %.2f)"
-			% [FADE_PEEK, under],
-	)
-	await t.seconds(0.5)
-	t.check(
-		absf(_alpha(overhang) - FADED_ALPHA) <= ALPHA_SLACK,
-		"the awning fades under a character",
-	)
-	walker.global_position = AWAY
-	await t.seconds(0.5)
-	t.check(absf(_alpha(overhang) - 1.0) <= ALPHA_SLACK, "the awning returns after they leave")
 
 
 func run(t: TestContext) -> void:
@@ -233,8 +135,6 @@ func run(t: TestContext) -> void:
 		var district := WorldGen.generate_district(district_seed, "", District.ENTRANCE, t.world)
 		var towers := DistrictReads.get_towers(district)
 		_check_towers(t, "seed %d" % district_seed, towers)
-		if district_seed == SEEDS[0]:
-			await _check_fade(t, towers[District.HOUSE_BLOCK])
 		district.queue_free()
 		await t.frames(2)
 	_check_every_front_dressed(t)
@@ -286,6 +186,5 @@ func _check_every_front_dressed(t: TestContext) -> void:
 func _check_towers(t: TestContext, label: String, towers: Array) -> void:
 	for tower: Dictionary in towers:
 		var name := "%s tower %d" % [label, tower["block"]]
-		_check_shadow(t, name, tower)
 		_check_podium(t, name, tower)
 		_check_hangings(t, name, tower)

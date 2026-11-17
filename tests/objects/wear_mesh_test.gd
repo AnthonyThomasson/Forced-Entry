@@ -6,7 +6,7 @@ extends GameTest
 ## wall fade: a mark is a part of its segment's fade unit, and a rebuilt segment takes them over); a
 ## street's marks lie at the pavement's height or on the road a kerb lower (not at the ground), the
 ## lane's dashes and the crossings left to the street's own mesh; a floor stencil lies on its
-## floor, and a tower's shadow is not a decal (the 3D sun casts a real one). Marks share their quad
+## floor. Marks share their quad
 ## mesh by size and their material by texture. Expected numbers are the spec's
 ## (`domain-objects/meshes.md`), not read back from the holders.
 
@@ -49,8 +49,8 @@ func describe() -> Dictionary:
 		"description": "A room's floor marks lie on its floor, its wall marks stand on the wall's "
 			+ "face at a height by kind and fade with the wall (also a rebuilt segment's), the "
 			+ "street's marks lie at the pavement's or the road's own height with the lane and "
-			+ "crossings left to the street mesh, a floor stencil lies on its floor and a tower's "
-			+ "shadow is not drawn; quads and materials are shared; Main registers it.",
+			+ "crossings left to the street mesh, a floor stencil lies on its floor, "
+			+ "quads and materials are shared; Main registers it.",
 		"tags": ["mirror", "3d", "render", "meshkit", "wear", "decals", "walls", "street"],
 		"timeout": 90.0,
 	}
@@ -85,7 +85,7 @@ func run(t: TestContext) -> void:
 	await _street_wear(t, mirror)
 	await _street_stacking(t, mirror)
 	await _street_under_a_room(t, mirror)
-	await _stencil_and_shadow(t, mirror)
+	await _stencil(t, mirror)
 	await _check_main(t)
 
 
@@ -397,7 +397,7 @@ func _stencil_over(
 		return
 	var held := _decals(shown[0])
 	t.expect_eq(held.size(), 1, "%s: the stencil is one decal" % piece.name)
-	var texture := (stencil as Sprite2D).texture
+	var texture := (stencil.get(&"texture") as Texture2D)
 	var copies := mirror.find_children("*", "MeshInstance3D", true, false).filter(
 		func(n: MeshInstance3D) -> bool: return (
 			n.material_override is ShaderMaterial and _texture_of(n) == texture
@@ -482,17 +482,14 @@ func _batched(t: TestContext, road_node: Node3D, walk_node: Node3D) -> void:
 	t.expect_eq(materials.size(), textures.size(), "one material per texture")
 
 
-# --- Stencils and shadows
+# --- Stencils
 # ---------------------------------------------------------------------------
 
 
-## A floor stencil lies on its floor at the floor's top, its rect; a tower's shadow is not shown.
-func _stencil_and_shadow(t: TestContext, mirror: WorldMirror) -> void:
+## A floor stencil lies on its floor at the floor's top, its rect.
+func _stencil(t: TestContext, mirror: WorldMirror) -> void:
 	var rect := Rect2(5000, 0, 160, 90)
 	var stencil := DecalFactory.stencil(rect, { "text": "LOBBY" }, "Test Stencil", t.world)
-	var shadow := DecalFactory.shadow(
-		Rect2(5400, 0, 60, 60), { "length": 40 }, "Test Shadow", t.world
-	)
 	await t.frames(3)
 	var shown := mirror.proxies_of(stencil)
 	if t.require(shown.size() == 1, "the stencil is shown"):
@@ -500,7 +497,7 @@ func _stencil_and_shadow(t: TestContext, mirror: WorldMirror) -> void:
 		t.expect_eq(decals.size(), 1, "the stencil is one decal")
 		if decals.size() == 1:
 			var decal: MeshInstance3D = decals[0]
-			var size := (stencil as Sprite2D).texture.get_size()
+			var size := (stencil.get(&"texture") as Texture2D).get_size()
 			t.expect_near(
 				shown[0].position.y + decal.position.y,
 				FLOOR_LIFT + DECAL_LIFT + TIER_STENCIL * LAYER_STEP,
@@ -508,16 +505,11 @@ func _stencil_and_shadow(t: TestContext, mirror: WorldMirror) -> void:
 			)
 			t.expect_near(decal.mesh.get_aabb().size.x, size.x, 0.01, "as wide as the stencil")
 			t.expect_near(decal.mesh.get_aabb().size.z, size.y, 0.01, "as deep as the stencil")
-			t.check(_texture_of(decal) == (stencil as Sprite2D).texture, "its 2D texture")
+			t.check(_texture_of(decal) == (stencil.get(&"texture") as Texture2D), "its 2D texture")
 			t.expect_near(
 				shown[0].global_position.x + decal.position.x, rect.get_center().x, 0.01,
 				"centred on the stencil's area",
 			)
-	t.expect_eq(
-		mirror.proxies_of(shadow).size(),
-		0,
-		"the tower's shadow is not drawn (the sun's is)",
-	)
 
 
 ## Main's 3D view registers the decals with the mirror: a stencil of the match is shown.

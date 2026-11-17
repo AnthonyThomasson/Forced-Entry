@@ -71,7 +71,7 @@ func _check_reach(t: TestContext, rooms: Array) -> void:
 	var reached := 0
 	var wrong := 0
 	for ground in Lights2D.floors(t.world.district):
-		if Lights2D.floor_mask(ground) & LightMasks.STREET == 0:
+		if not ground.is_street():
 			continue
 		var rect := Lights2D.floor_rect(ground)
 		for x in range(int(rect.position.x) + 3, int(rect.end.x), 60):

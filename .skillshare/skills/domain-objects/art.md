@@ -18,7 +18,7 @@ One look for every piece.
 
 - **The palette grade** (`decay.gd` `grade`, `ObjectArtDecayConfig.grade_*`): `ObjectArt.texture` / `tile` wash every painter's
   colour toward dun, rust and nicotine yellow, so World-Gen's catalogue keeps plain colours and the house still draws run down. `ObjectArt.AS_GIVEN` painters (`wear`, `street`, `decor` and the district's `awning`, `stencil`, `crossing`, `road_glyph`, `podium`,
-  `shadow`, `shell_decor`) take their colours as given. A piece's and
+  `shell_decor`) take their colours as given. A piece's and
   wall's `get_surface().color` (debris) is the drawn colour (`ObjectArt.drawn_color`).
 - **The finish** (`decay.gd`): each painter draws its shape, then its finish through the shared helpers (grime, stains, tears,
   rust, stickers, cracks, screens). Several painters share one: `SofaPainter.upholstery` (also the office chair),
@@ -31,8 +31,8 @@ One look for every piece.
   (`decay.gd` `neon_ring`) reads the canvas's `coverage()` bytes, pinned to the plain scan by
   `tests/objects/neon_ring_matches_plain_scan_test.gd`.
 - **No light is baked in** (no glow pools, sheen, halos): what gives light is drawn bright inside `canvas.glowing(draw, area)`
-  (interface 12): a bare bulb, a CRT's screen, a monitor's lit edge (`props.gd`), a display, every neon trim. The visuals' emissive
-  overlay then draws those pixels unshaded (`SKILL.md`, "Lights and shadows").
+  (interface 12): a bare bulb, a CRT's screen, a monitor's lit edge (`props.gd`), a display, every neon trim. The piece's 3D mesh
+  then shows those pixels as an emissive part (`SKILL.md`, "Lights").
 
 ## Painter conventions
 
@@ -50,7 +50,7 @@ One look for every piece.
 `ObjectArtTableConfig` (tables, chairs), `ObjectArtFabricConfig` (sofa, bed, rug), `ObjectArtStorageConfig` (cabinet, shelf),
 `ObjectArtKitchenBathConfig`, `ObjectArtDecorConfig` (plant, lamp, mirror frame, the prop palette), `ObjectArtOutdoorConfig` (the
 beater car, the street lamp), `ObjectArtClinicConfig`, `ObjectArtTechConfig`, `ObjectArtLightConfig` (the light `specs`, the
-screens' glow, the neon pair and share), `ObjectArtLayerConfig` (the floor, rug and overhang z-indices), `ObjectArtFloorConfig` and
+screens' glow, the neon pair and share), `ObjectArtFloorConfig` and
 `ObjectArtWallConfig` (the tiles), `ObjectArtDecayConfig` (grade and grime), `ObjectArtWearConfig`, `ObjectArtStreetConfig`, and the district's (below). The
 shared light and shadows are `ArtCanvasConfig`, the tones and finishes `ArtSurfaceConfig`.
 
@@ -70,7 +70,7 @@ The tower's and the district's pieces, in the grimy steel family, each `kind` a 
 | `shop`, `noodle`, `stock` | counter, aisle, fridge, snack; bar, stool, booth, menu; crates, pallet, safe | `ObjectArtShopConfig` (`shop_*`, `noodle_*`, `stock_*`) |
 | `awning` | `awning` (striped cloth, neon edge), `hanging` (vertical glyph sign): only as an `overhang` | `ObjectArtAwningConfig` |
 | `street_prop` | vending, bench, bin, grate, litter | `ObjectArtStreetPropConfig` |
-| `podium`, `shadow` | a concrete band segment with pillars; a tower's shadow (`DecalFactory`) | `ObjectArtPodiumConfig` (`podium_*`, `shadow_*`) |
+| `podium` | a concrete band segment with pillars | `ObjectArtPodiumConfig` (`podium_*`) |
 | `shell_decor` | rebar, rubble, scaffold, cement, stain | `ObjectArtShellDecorConfig` |
 | `stencil` | the floor text in a hazard border (`DecalFactory`) | `ObjectArtStencilConfig` |
 | `crossing`, `road_glyph` | a junction arm's zebra and stop line; a lane number and arrow (`street_marks.gd`) | `ObjectArtCrossingConfig`, `ObjectArtRoadGlyphConfig` |

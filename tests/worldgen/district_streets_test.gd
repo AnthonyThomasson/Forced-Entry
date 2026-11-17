@@ -48,7 +48,7 @@ func configure(s: TestSetup) -> void:
 ## The marks layer of street piece `piece`'s floor (the child Objects publishes for tests,
 ## interface 2).
 func _marks(piece: Dictionary) -> Node:
-	return piece["node"].get_node_or_null("FloorVisuals/StreetMarks")
+	return piece["node"].get_node_or_null("StreetMarks")
 
 
 ## The road piece of `streets` that touches `junction` on its side `d` (the piece lies that way).

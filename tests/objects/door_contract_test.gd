@@ -4,7 +4,7 @@ extends GameTest
 ## s; `turn_by` turns it by degrees between shut and open (20 degrees a scroll notch) and it stays
 ## there; `open_fully` opens it; `angle()`, `open_amount()`, `gap()` and `is_down()` say where it
 ## is; `latch_side_spot(from)` is where to stand to work its latch; the signal `changed` says the
-## state moved; the shadow turns with the leaf; a knocked-down door is no longer usable and leaves
+## state moved; the leaf turns about its hinge; a knocked-down door is no longer usable and leaves
 ## the doorway clear. Both hinge sides work, a puppet walks through an open door.
 
 const JAMB := 20.0
@@ -21,8 +21,8 @@ func describe() -> Dictionary:
 		"name": "The door contract swings, turns and reports",
 		"description": "toggle, turn_by and open_fully swing a door between shut and 90 degrees "
 			+ "in about 0.4 s, clamped, from either hinge; angle, open_amount and gap say where "
-			+ "it is; latch_side_spot names the latch side; changed fires; the shadow turns "
-			+ "with the leaf; a fallen door is unusable and the doorway clear.",
+			+ "it is; latch_side_spot names the latch side; changed fires; the leaf turns "
+			+ "about its hinge; a fallen door is unusable and the doorway clear.",
 		"tags": ["door", "objects", "contract"],
 		"timeout": 20.0,
 	}
@@ -61,8 +61,8 @@ func run(t: TestContext) -> void:
 	upper.changed.connect(func(): changes[0] += 1)
 	t.check(upper.angle() == 0.0 and upper.open_amount() == 0.0, "a door starts shut")
 	t.check(upper.gap() == 0.0 and not upper.is_down(), "shut, it passes nobody and stands")
-	var shut_box := _shadow_box(upper)
-	t.check(shut_box.size.y > shut_box.size.x, "its shadow lies along the doorway while shut")
+	var shut_box := _leaf_box(upper)
+	t.check(shut_box.size.y > shut_box.size.x, "its leaf lies along the doorway while shut")
 	t.expect_eq(upper.swing_into, Vector2.RIGHT, "it swings into the room it was told")
 	t.expect_eq(upper.open_angle, FULL, "it opens to 90 degrees")
 
@@ -84,7 +84,7 @@ func run(t: TestContext) -> void:
 	lower.open_fully(null)
 	await t.seconds(SWING + SLACK)
 	t.check(lower.angle() == FULL, "open_fully opens a door hinged below (%.0f)" % lower.angle())
-	var lower_box := _shadow_box(lower)
+	var lower_box := _leaf_box(lower)
 	t.check(
 		lower_box.size.x > lower_box.size.y and lower_box.get_center().x < 400.0,
 		"a door told to swing west opens into the west room (%s)" % lower_box,
@@ -119,10 +119,10 @@ func _turning(t: TestContext, upper: Node2D) -> void:
 	await t.seconds(SWING + SLACK)
 	t.check(upper.angle() == FULL, "an ajar door toggled swings fully open (%.0f)" % upper.angle())
 	_check_gap(t, upper, FULL)
-	var open_box := _shadow_box(upper)
+	var open_box := _leaf_box(upper)
 	t.check(
 		open_box.size.x > open_box.size.y and open_box.get_center().x > 400.0,
-		"its shadow has turned with the leaf, along the east room's wall now (%s)" % open_box,
+		"its leaf has turned, along the east room's wall now (%s)" % open_box,
 	)
 
 
@@ -139,15 +139,13 @@ func _check_gap(t: TestContext, door: Node2D, angle: float) -> void:
 	)
 
 
-## The box the door's shadow covers now, in the world (an empty box for a door with none).
-func _shadow_box(door: Node2D) -> Rect2:
-	var occluders := door.find_children("*", "LightOccluder2D", true, false)
-	if occluders.is_empty():
-		return Rect2()
-	var occ: LightOccluder2D = occluders[0]
-	var box := Rect2(occ.global_transform * occ.occluder.polygon[0], Vector2.ZERO)
-	for p in occ.occluder.polygon:
-		box = box.expand(occ.global_transform * p)
+## The box the door's leaf covers now, in the world.
+func _leaf_box(door: Node2D) -> Rect2:
+	var pose: Transform2D = door.leaf_pose(door.angle())
+	var half: Vector2 = door.leaf_size() * 0.5
+	var box := Rect2(pose * -half, Vector2.ZERO)
+	for corner in [Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)]:
+		box = box.expand(pose * corner)
 	return box
 
 

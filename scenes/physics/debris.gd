@@ -1,8 +1,8 @@
 extends Node2D
 ## Physics System: a small chip knocked off an object when it is hit: colliderless world-space
 ## debris that tweens out, spins, and rests. Styled by DebrisSpawner, Despawner-tracked while it
-## flies. Drawing lives in debris_visuals.gd; once at rest the chip hands its drawing to the
-## parent's `DebrisLayer` and frees itself.
+## flies; it draws nothing (the 3D render shows it, told by `PhysicsFxHook`). Once at rest the chip
+## hands its place to the parent's `DebrisLayer` and frees itself.
 
 ## Chip fill color.
 @export var color: Color = Color(0.6, 0.6, 0.6)
@@ -44,8 +44,7 @@ func start(eject_dir: Vector2) -> void:
 	toss(self, eject_dir, eject_distance, eject_time, spin).finished.connect(_rest)
 
 
-## The chip has come to rest: it is drawn by the parent's `DebrisLayer` from here on, and this node
-## goes.
+## The chip has come to rest: the parent's `DebrisLayer` keeps it from here on, and this node goes.
 func _rest() -> void:
 	PhysicsFxHook.chip_landed(self)
 	var parent := get_parent()

@@ -23,9 +23,9 @@ func configure(s: TestSetup) -> void:
 
 ## The debris chips currently in the world (they sit under the arena, not the world root).
 func _chips(t: TestContext) -> Array:
-	return t.world.find_children("*", "Node2D", true, false).filter(func(n): return (
-		String(n.name).begins_with("Debris") and not String(n.name).begins_with("DebrisVisuals")
-	))
+	return t.world.find_children("*", "Node2D", true, false).filter(
+		func(n): return String(n.name).begins_with("Debris")
+	)
 
 
 func run(t: TestContext) -> void:

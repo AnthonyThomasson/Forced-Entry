@@ -270,10 +270,9 @@ second one; once it dies none under it nor over where it lies; the lamp's light 
 wardrobe's, the armchair's or the walker's; the TV's by the wall's and the wardrobe's and not the armchair's or the walker's),
 `lighting/flashes_on_shot_and_explosion` (every flash by a wall, the wardrobe, a chair and the gunner).
 
-**L7. Light sources draw unshaded.** What gives light is drawn by each visuals node's `Emissive` overlay (Objects' `emissive_layer()`),
-which draws through an unshaded CanvasItemMaterial: neither the dusk nor any light changes a light source, while the art under it is
-lit like everything else. Nothing glows around a source but its real light.
-Tests: `lighting/emissive_overlays_unshaded` (seed 4: every overlay unshaded, the visuals under it not).
+**L7. Light sources glow.** What gives light is what its painter draws `glowing`; the 3D mesh of the piece shows it as an emissive
+part, so neither the dusk nor any light dims a light source, while the rest of the piece is lit like everything else (`WorldLighting3D`,
+interface 20). Nothing glows around a source but its real light.
 
 **L8. Rhythms, seeded per light.** A light flickers in one of the rhythms its piece allows (`steady`, `buzz`, `failing`, `blink`,
 `shimmer`, `pulse`: screens shimmer, signs blink, tubes and bulbs now and then fail or buzz), picked and seeded from the world's seed
@@ -298,10 +297,8 @@ its peak for 3 frames or more, still lit 0.45 s on and dark within 1.1).
 no WorldLighting, ambient, sky, point light or occluder anywhere, the characters' included.
 Tests: `lighting/lighting_switch_off` (after a shot, none of those node types under the world).
 
-**A tower's shadow.** Each tower of a district casts a long, hard shadow onto the street (`DecalFactory.shadow`, interface 2): its
-footprint dragged `WorldGenTowerConfig.shadow_length` away from the art light, the footprint itself left clear, lit by the street's
-lights only. It is a baked decal at `DrawLayers.RUG`, so characters and pieces stand over it, and it casts no occluder of its own.
-Tests: `worldgen/district_tall_read` (a shadow per tower reaching past it, clear on its footprint, on the street layer, under the characters), `general/district_match_staged`
+**A tower's shadow.** The sun casts it: the 3D walls shadow the street. There is no baked shadow decal.
+Tests: `general/district_match_staged`
 (every room of every tower has a light, no two rooms share a key).
 
 ## Measured cost

@@ -1,11 +1,10 @@
 extends GameTest
-## A bleed-out pool blurs its fill field twice a redraw (blood_pool_visuals.gd `_box_blur`), every
+## A bleed-out pool blurs its fill field twice a redraw (blood_pool_field.gd `_box_blur`), every
 ## physics frame while it spreads. The blur adds each cell's three-cell row sums (kept in doubles)
 ## where it once added the nine cells one by one; a sum of float32 fills is exact in a double, so
 ## the field is the same. This pins it to the plain nine-cell loop, value for value, over random
 ## fields of pool-like shapes: mostly empty, a blob of fills from 0 to 1, a few very faint cells.
 
-const PoolVisuals := preload("res://scenes/physics/blood/blood_pool_visuals.gd")
 const SEED := 2024
 const FIELDS := 60
 
@@ -13,9 +12,9 @@ const FIELDS := 60
 func describe() -> Dictionary:
 	return {
 		"name": "A bleed-out pool's blur is the same as the plain sum",
-		"description": "BloodPoolVisuals._box_blur gives the very values of the plain nine-cell "
+		"description": "BloodBloodPoolField._box_blur gives the very values of the plain nine-cell "
 			+ "loop, over random pool fields, both passes.",
-		"tags": ["blood", "draw"],
+		"tags": ["blood"],
 		"timeout": 20.0,
 	}
 
@@ -61,7 +60,7 @@ func _differing(field: PackedFloat32Array, w: int, h: int) -> int:
 	var fast := field
 	var plain := field
 	for pass_i in 2:
-		fast = PoolVisuals._box_blur(fast, w, h)
+		fast = BloodPoolField._box_blur(fast, w, h)
 		plain = _plain_blur(plain, w, h)
 		for i in fast.size():
 			if fast[i] != plain[i]:

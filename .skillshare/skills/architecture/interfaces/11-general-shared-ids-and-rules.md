@@ -13,12 +13,11 @@
 	  `lighting.enabled`) and `occluder(polygon, bit) -> LightOccluder2D` (null while `shadows` is off; wound and culled so the shape
 	  itself stays lit). Read by Objects, Character and Lighting (interface 20).
     - `DrawLayers` (`general/draw_layers.gd`, static holder): the world's draw-order ladder, one rung per kind of thing, so floor,
-	  vehicle and fliers keep one order across domains. `FLOOR` −5 (Objects' `Floor`, `ObjectArtLayerConfig.floor_z_index`) < `RUG`
-	  −4 (`ObjectArtLayerConfig.rug_z_index`) < `BLOOD` −3 (Physics: splats, pools, prints, smears, scorch; `BloodConfig.z_index` /
+	  vehicle and fliers keep one order across domains. `FLOOR` −5 < `RUG`
+	  −4 < `BLOOD` −3 (Physics: splats, pools, prints, smears, scorch; `BloodConfig.z_index` /
 	  `print_z_index`) < `LYING` −2 (a dead body; a spent casing; a `DroppedItem` and a grenade
 	  at rest) < `UNDER_VEHICLE` −1 (no reader left) < `STANDING` 0 (the living, a vehicle's occupants, furniture, walls) <
-	  `ABOVE` 1 (a vehicle's `Roof`, a grenade in flight) < `OVERHEAD` 2 (a piece's `Overhang`,
-	  `ObjectArtLayerConfig.overhang_z_index`, a streetlight's arm and head; a room's ceiling fixture, Lighting) < `EFFECTS` 4
+	  `ABOVE` 1 (a vehicle's `Roof`, a grenade in flight) < `OVERHEAD` 2 (a room's ceiling fixture, Lighting) < `EFFECTS` 4
 	  (Physics' `ExplosionFx`). The debug overlays and markers have no rung: they lie flat under the 3D view's ground layer (`ViewLayers.overlay`). A domain's own z knob starts from its rung, never a bare number; within a rung the scene tree
 	  decides (`docs/vehicles.md` V3 / V6).
     - `GameClock` (`general/game_clock.gd`, an autoload, `PROCESS_MODE_PAUSABLE`): counts physics frames in `_physics_process`, so it stands

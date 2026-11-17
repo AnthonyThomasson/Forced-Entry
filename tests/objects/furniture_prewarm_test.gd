@@ -5,6 +5,7 @@ extends GameTest
 ## side, with a neon trim, with an overhang) files no flat texture of its own.
 
 const ObjectArt := preload("res://scenes/objects/art/object_art.gd")
+const SharedTextures := preload("res://scenes/objects/shared_textures.gd")
 
 
 func describe() -> Dictionary:
@@ -70,14 +71,19 @@ func _district_paints_no_flat_art(t: TestContext) -> void:
 		)
 
 
-## The warm a 2D run starts at boot holds no flat furniture request (the structure's tiles stay in
-## it): furniture's flat art is warmed only when a 3D match is coming (`WorldGen.prewarm(true)`; a
-## no-op headless).
+## The warm a run starts at boot holds no flat furniture request (the structure's tiles and the
+## shared street decals stay in it): furniture's flat art is warmed only when a match is coming
+## (`WorldGen.prewarm(true)`; a no-op headless).
 func _two_d_boot_warms_no_furniture(t: TestContext) -> void:
 	var structure := DistrictPrewarm.structure_requests()
+	var shared := SharedTextures.requests()
 	var flat := DistrictPrewarm.requests().filter(
 		func(request: Dictionary) -> bool:
-			return request.get("flat", false) and not structure.has(request)
+			return (
+				request.get("flat", false)
+				and not structure.has(request)
+				and not shared.has(request)
+			)
 	)
 	t.check(
 		flat.is_empty(),

@@ -71,7 +71,7 @@ static func _decal(mark: Dictionary, thickness: float, layer: float) -> MeshInst
 	)
 	var normal: Vector2 = mark["normal"]
 	var on_face: Vector2 = (mark["at"] as Vector2) + normal * (thickness * 0.5)
-	var texture := ObjectArt.texture(
+	var texture := ObjectArt.flat_facing(
 		"wear",
 		Vector2(length, height),
 		ObjectArtWearConfig.plaster_color,

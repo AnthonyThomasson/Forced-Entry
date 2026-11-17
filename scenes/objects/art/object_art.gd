@@ -47,7 +47,6 @@ const PAINTERS := {
 	"stencil": preload("res://scenes/objects/art/stencil_painter.gd"),
 	"street_prop": preload("res://scenes/objects/art/street_prop_painter.gd"),
 	"podium": preload("res://scenes/objects/art/podium_painter.gd"),
-	"shadow": preload("res://scenes/objects/art/shadow_painter.gd"),
 	"shell_decor": preload("res://scenes/objects/art/shell_decor_painter.gd"),
 	"crossing": preload("res://scenes/objects/art/crossing_painter.gd"),
 	"road_glyph": preload("res://scenes/objects/art/road_glyph_painter.gd"),
@@ -57,7 +56,7 @@ const PAINTERS := {
 const BY_KIND := ["tech", "recliner", "clinic"]
 ## The painters whose colour inputs are already the colours they draw in (the wear marks are tinted
 ## from a floor's drawn tone; the street, the decor, the awning, the floor stencil, the crossing and
-## road glyph paint, the podium, the tower shadow and the shell decor draw their ObjectArt*Config
+## road glyph paint, the podium and the shell decor draw their ObjectArt*Config
 ## holders' own): not graded again.
 const AS_GIVEN := [
 	"wear",
@@ -68,7 +67,6 @@ const AS_GIVEN := [
 	"crossing",
 	"road_glyph",
 	"podium",
-	"shadow",
 	"shell_decor",
 ]
 
@@ -123,6 +121,24 @@ static func flat(art: String, size: Vector2, color: Color, opts: Dictionary = {}
 		push_error("ObjectArt: unknown art '%s'" % art)
 		return null
 	return PixelArt.render_flat(PAINTERS[art], size, _color(art, color), _art_opts(art, opts))
+
+
+## The flat albedo of a decal whose art faces `facing` (a cardinal direction) over a footprint of
+## `size` as it lies: `texture`'s picture without the baked light (`PixelArt.render_flat`), turned
+## the way `texture` turns it. A wear mark, a street mark and a stencil are decals of this. Null for
+## an unknown art id.
+static func flat_facing(art: String, size: Vector2, color: Color, facing: Vector2,
+		opts: Dictionary = {}) -> Texture2D:
+	if not PAINTERS.has(art):
+		push_error("ObjectArt: unknown art '%s'" % art)
+		return null
+	return PixelArt.render_flat(
+		PAINTERS[art],
+		size,
+		_color(art, color),
+		_art_opts(art, opts),
+		facing,
+	)
 
 
 ## The flat albedo of one repeating tile of a tiling painter (`tile`'s twin), or null for an unknown

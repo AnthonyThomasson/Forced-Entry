@@ -2,7 +2,7 @@ extends GameTest
 ## A house door's 3D leaf wears the door painter's flat art as the 2D door shows it (#193 phase 2b):
 ## a shattered glass door is its two stiles alone (the floor shows through the empty panes, as in
 ## 2D, not a white sill), a knocked-down door's slab wears the `fallen` art mirrored the way the 2D
-## door lies flipped (`DoorVisuals.fall`: scale.y -1), its shattered slab is only its frame and
+## door lies flipped (`DoorLook.flipped`), its shattered slab is only its frame and
 ## bars, and the art is laid again when the panes shatter on a door that already lies. The painted
 ## handle of the flat leaf is dropped (the 3D leaf has a handle mesh of its own).
 
@@ -124,7 +124,7 @@ func _fallen(t: TestContext, door: Node2D, node: DoorMesh) -> void:
 		"door", Vector2(DoorConfig.fallen_length, door.width), door.look.color,
 		door.look.art_opts(true),
 	)
-	var flipped: bool = door.visuals.scale.y < 0.0
+	var flipped: bool = door.look.flipped
 	t.check(
 		_texture_of(lying) == (StructureSkin.flipped(art) if flipped else art),
 		"the slab wears the fallen art (2D lies flipped: %s)" % flipped,
@@ -197,7 +197,7 @@ func _flipped_slab(t: TestContext, mirror: WorldMirror) -> void:
 		"door", Vector2(DoorConfig.fallen_length, door.width), door.look.color,
 		door.look.art_opts(true),
 	)
-	var flipped: bool = door.visuals.scale.y < 0.0
+	var flipped: bool = door.look.flipped
 	var wears := _texture_of(lying)
 	t.check(
 		wears == (StructureSkin.flipped(art) if flipped else art),

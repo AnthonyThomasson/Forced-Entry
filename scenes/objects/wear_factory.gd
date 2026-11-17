@@ -1,8 +1,8 @@
 class_name WearFactory
 ## Objects-domain factory: turns where wear gathers in a room (World-Gen's placement: a few
 ## clusters, each by a wall, a corner or a piece of furniture, seeded) into the room's wear: a
-## draw-only node (decals/room_wear.gd) that decides and draws each cluster's marks on the room's
-## floor and wall. World-Gen never draws, and never touches the node's fields.
+## data node (decals/room_wear.gd) that decides each cluster's marks on the room's floor and
+## wall, which the 3D render lays as decals. World-Gen never touches the node's fields.
 
 const RoomWear = preload("res://scenes/objects/decals/room_wear.gd")
 

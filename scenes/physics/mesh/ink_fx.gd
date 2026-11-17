@@ -87,8 +87,8 @@ func marks(kind: InkMark.Kind) -> Array[InkMark]:
 	return out
 
 
-## A splat the 2D `BloodSplat` just built: its merged outlines (`shapes`, in its own frame) and its
-## wet highlight lie on the floor as long as the node does.
+## A splat `BloodSplat` just built: its merged outlines (`shapes`, in its own frame) and its
+## wet highlight (`highlight_polygon`) lie on the floor as long as the node does.
 func splat_made(splat: Node2D) -> void:
 	var mark := _new(InkMark.Kind.SPLAT, splat.global_position)
 	mark.node_id = splat.get_instance_id()
@@ -98,10 +98,10 @@ func splat_made(splat: Node2D) -> void:
 	for poly: PackedVector2Array in splat.shapes:
 		_fan(mark, to_world * poly, lift_of(PhysicsInkConfig.splat_layer) + ground)
 	mark.body = mark.verts.size()
-	var fleck := splat.get_node_or_null("Highlight")
-	if fleck is Polygon2D:
-		mark.fleck = (fleck as Polygon2D).color
-		_fan(mark, to_world * (fleck as Polygon2D).polygon,
+	var fleck: PackedVector2Array = splat.highlight_polygon
+	if not fleck.is_empty():
+		mark.fleck = splat.highlight_color
+		_fan(mark, to_world * fleck,
 			lift_of(PhysicsInkConfig.splat_layer + PhysicsInkConfig.over_layer) + ground)
 	if mark.body == 0:
 		return

@@ -1,6 +1,6 @@
 extends "res://scenes/objects/decals/decal_layer.gd"
 ## The marks laid over one piece of street (Objects domain): a Floor drawn by the street painter
-## whose definition carries `marks` (`{ seed, lane, edges }`) gets this child of its visuals. The
+## whose definition carries `marks` (`{ seed, lane, edges }`) gets this child. The
 ## street's tiles carry only grain and slab joints, so everything with a shape lies here, each its
 ## own size, turn and detail, seeded: on a sidewalk the odd slab of another shade or with a broken
 ## corner (clustered on the slab grid), cracks, stains, gum and weeds, and its curb along `edges`
@@ -10,7 +10,9 @@ extends "res://scenes/objects/decals/decal_layer.gd"
 ## (`[{ side, reach }]`: a worn zebra crossing with its stop line at the road's end `side`, `reach`
 ## px deep, the end a junction lies at) and `glyphs` (`[{ side, from, length, text }]`: a lane
 ## number and an arrow on the approach to the junction at `side`, `from` px in from that end and
-## `length` long, in the lane heading for it). Draw-only, registers nothing; `laid` says where the
+## `length` long, in the lane heading for it). Data only (the 3D render lays the marks,
+## `wear_mesh.gd`;
+## its kerb is the street mesh's own), registers nothing; `laid` says where the
 ## crossings and glyphs went. Tuning: ObjectArtStreetConfig, ObjectArtCrossingConfig,
 ## ObjectArtRoadGlyphConfig.
 
@@ -30,27 +32,17 @@ var _litter: Array[Rect2] = []
 var _laid: Dictionary = {}
 
 
-func _draw() -> void:
-	super()
-	if not _sidewalk:
-		return
-	var curb := ObjectArtStreetConfig.curb_color
-	for side: Vector2 in _edges:  # The curb: a dark band along the edge, a paler line inside it.
-		draw_rect(_edge_band(side, 0.0, 2.0), curb)
-		draw_rect(_edge_band(side, 2.0, 1.0), curb.lightened(0.25))
-
-
 ## Lay the marks of a street piece `size` px (the floor's `art_opts.kind` and `marks`; its tile grid
-## starts `tile_offset` px into the tile at the floor's corner) as a child of `visuals`; returns
+## starts `tile_offset` px into the tile at the floor's corner) as a child of `floor_node`; returns
 ## this node.
 func setup_marks(
-	visuals: Node2D,
+	floor_node: Node,
 	size: Vector2,
 	art_opts: Dictionary,
 	marks: Dictionary,
 	tile_offset: Vector2,
-) -> Node2D:
-	setup("StreetMarks", 0)
+) -> Node:
+	setup("StreetMarks")
 	_size = size
 	_sidewalk = String(art_opts.get("kind", "asphalt")) == "sidewalk"
 	_edges = marks.get("edges", [])
@@ -66,7 +58,7 @@ func setup_marks(
 		_glyphs(rng, marks.get("glyphs", []))
 		_road_wear(rng)
 		_strew(rng)
-	visuals.add_child(self)
+	floor_node.add_child(self)
 	return self
 
 
@@ -106,7 +98,7 @@ func _mark(rng: RandomNumberGenerator, kind: String, r: Rect2, tone: Color, extr
 			else [Vector2.DOWN, Vector2.UP][rng.randi_range(0, 1)])
 	var opts := { "kind": kind, "v": rng.randi_range(0, ObjectArtWearConfig.variants - 1) }
 	opts.merge(extra)
-	add(ObjectArt.texture("wear", r.size, tone, facing, opts), r, StringName(kind))
+	add(ObjectArt.flat_facing("wear", r.size, tone, facing, opts), r, StringName(kind))
 
 
 ## A mark's rect round `at`: `size` (rounded to even px), turned a quarter at random.
@@ -212,7 +204,7 @@ func _crossings(rng: RandomNumberGenerator, entries: Array) -> void:
 		var reach: float = entry["reach"]
 		var across := _across(side)
 		var rect := _along_rect(side, 0.0, reach, 0.0, across)
-		var texture := ObjectArt.texture(
+		var texture := ObjectArt.flat_facing(
 			"crossing",
 			Vector2(across, reach),
 			Color.WHITE,
@@ -234,7 +226,7 @@ func _glyphs(rng: RandomNumberGenerator, entries: Array) -> void:
 		var rect := _along_rect(
 			side, float(entry["from"]), float(entry["length"]), centre - lane_w * 0.5, lane_w,
 		)
-		var texture := ObjectArt.texture(
+		var texture := ObjectArt.flat_facing(
 			"road_glyph",
 			Vector2(lane_w, float(entry["length"])),
 			Color.WHITE,
@@ -363,7 +355,11 @@ func _litter_piece(rng: RandomNumberGenerator, at: Vector2, puddle: bool) -> voi
 		"kind": "puddle" if puddle else "trash",
 		"v": rng.randi_range(0, ObjectArtWearConfig.variants - 1),
 	}
-	add(ObjectArt.texture("decor", size, Color.BLACK, facing, opts), r, StringName(opts["kind"]))
+	add(
+		ObjectArt.flat_facing("decor", size, Color.BLACK, facing, opts),
+		r,
+		StringName(opts["kind"]),
+	)
 
 
 ## Whether `r` reaches into the gutter along one of the piece's edges.

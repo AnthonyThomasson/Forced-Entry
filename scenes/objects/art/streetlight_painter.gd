@@ -2,12 +2,12 @@ extends RefCounted
 ## Top-down pixel-art STREETLIGHT painter (Objects domain, private): a street lamp seen from above,
 ## in two parts (`part` in the options). The default, `pole`, is the piece's own art inside its
 ## round footprint: a base plate bolted to the sidewalk (four bolts) and the round top of the rusted
-## steel post, a flyer taped round it. `overhang` is its overhead part (drawn by the piece's
-## `Overhang`, overhang_visuals.gd, above whoever walks under it): the arm from the post's top (the
-## canvas' top centre) out over the road and, at its end, the head, `head` `cobra` (a dented cobra
-## head, its lens facing the road) or `sign` (a dark board, a neon tube round its edge and two bars
-## of letters). Canonical frame: the front (+y) is out over the road. Run down (decay.gd): grime and
-## rust. What gives light (the lens, the sign's tube and letters) is drawn glowing: the lens in
+## steel post, a flyer taped round it. `overhang` is its overhead part (shown by the piece's mesh
+## above whoever walks under it): the arm from the post's top (the canvas' top centre) out over the
+## road and, at its end, the head, `head` `cobra` (a dented cobra head, its lens facing the road) or
+## `sign` (a dark board, a neon tube round its edge and two bars of letters). Canonical frame: the
+## front (+y) is out over the road. Run down (decay.gd): grime and rust. What gives light (the lens,
+## the sign's tube and letters) is drawn glowing: the lens in
 ## ObjectArtOutdoorConfig.streetlight_lens_color, the sign in its `neon` (cyan or magenta). The
 ## catalogue colour is the post's paint (and its debris'). Knobs:
 ## ObjectArtOutdoorConfig.streetlight_*.

@@ -15,7 +15,7 @@ class_name GeneralCatalog
 ##     flat shape + label) and art_opts (optional painter variant/overrides, e.g.
 ##     { "front": "drawers", "count": 3 } or { "props": [...] });
 ##   anchored (optional, default false: a solid piece that never moves, the street lamps' posts) and
-##     overhang (optional `{ size, reach }`: an overhead part drawn beyond the footprint above the
+##     overhang (optional `{ size, reach }`: an overhead part beyond the footprint, above the
 ##     characters, a street lamp's arm and head).
 ## Arrangements/recipes: see ArrangementDefinitions for the authoring conventions.
 ## Objects and arrangements used by 2+ room categories (bench, console_wall, bookshelf_wall, the
@@ -24,8 +24,8 @@ class_name GeneralCatalog
 ## round the house with its street lamps. A district hangs an `awning` (a dark one with a neon edge)
 ## and a `glyph_sign` (a hanging vertical sign) over each tower's front door: bare, non-solid marks
 ## on the wall line whose art is all overhang (as the street lamp's: across x out, its front the way
-## the piece faces, from the wall toward the street), fading to a quarter of their opacity while a
-## character stands under them (`fade_under`).
+## the piece faces, from the wall toward the street); the 3D render fades them while a character
+## stands under them (`FadeBook`).
 
 ## The grimy steel of the tower catalogues (shop, noodle bar, street).
 const STEEL := Color(0.46, 0.47, 0.45)
@@ -443,7 +443,7 @@ const OBJECTS := {
 		"solid": false,
 		"art": "awning",
 		"art_opts": { "kind": "awning" },
-		"overhang": { "size": Vector2(120, 36), "reach": 18.0, "fade_under": true },
+		"overhang": { "size": Vector2(120, 36), "reach": 18.0 },
 	},
 	"glyph_sign": {
 		"name": "Glyph sign",
@@ -454,7 +454,7 @@ const OBJECTS := {
 		"solid": false,
 		"art": "awning",
 		"art_opts": { "kind": "hanging" },
-		"overhang": { "size": Vector2(26, 72), "reach": 36.0, "fade_under": true },
+		"overhang": { "size": Vector2(26, 72), "reach": 36.0 },
 	},
 }
 ## The clutter a room strews when its recipe names none (`[key, weight]`; RoomDresser draws 0-2, no

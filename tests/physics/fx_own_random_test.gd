@@ -54,8 +54,7 @@ func _sequence(t: TestContext) -> Array:
 	hit.direction = Vector2.LEFT
 	hit.height = 40.0
 	HitParticles.spawn(
-		t.world, hit, { "material": "metal", "color": Color(0.6, 0.4, 0.2) },
-		HitParticles.Kind.IMPACT,
+		hit, { "material": "metal", "color": Color(0.6, 0.4, 0.2) }, HitParticles.Kind.IMPACT
 	)
 	Physics.spawn_explosion(t.world, AT, &"frag")
 	for i in DRAWS:

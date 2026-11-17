@@ -19,9 +19,9 @@ const DecalLayer = preload("res://scenes/objects/decals/decal_layer.gd")
 const FloorPainter = preload("res://scenes/objects/art/floor_painter.gd")
 
 ## `FloorWear`: the floor marks.
-var _floor_layer: Node2D
+var _floor_layer: Node
 ## `WallWear`: the wall marks.
-var _wall_layer: Node2D
+var _wall_layer: Node
 ## The wall marks as the 3D render lays them: `{ kind, v, at, dir, normal, length }` each (see
 ## `wall_marks`).
 var _wall_marks: Array = []
@@ -38,8 +38,8 @@ func setup(
 	clusters: Array,
 ) -> Node2D:
 	position = rect.position
-	_floor_layer = DecalLayer.new().setup("FloorWear", ObjectArtLayerConfig.floor_z_index)
-	_wall_layer = DecalLayer.new().setup("WallWear", DrawLayers.STANDING)
+	_floor_layer = DecalLayer.new().setup("FloorWear")
+	_wall_layer = DecalLayer.new().setup("WallWear")
 	add_child(_floor_layer)
 	add_child(_wall_layer)
 	var room := Rect2(Vector2.ZERO, rect.size)
@@ -120,7 +120,7 @@ func _floor_marks(
 		opts["kind"] = kind
 		opts["v"] = rng.randi_range(0, ObjectArtWearConfig.variants - 1)
 		_floor_layer.add(
-			ObjectArt.texture("wear", r.size, tone, mark["facing"], opts), r, StringName(kind),
+			ObjectArt.flat_facing("wear", r.size, tone, mark["facing"], opts), r, StringName(kind),
 		)
 
 
@@ -263,7 +263,7 @@ func _wall_mark(
 	var facing := Vector2.DOWN if absf(dir.x) > 0.5 else Vector2.RIGHT
 	var opts := { "kind": kind, "v": rng.randi_range(0, ObjectArtWearConfig.variants - 1) }
 	_wall_layer.add(
-		ObjectArt.texture("wear", r.size, ObjectArtWearConfig.plaster_color, facing, opts),
+		ObjectArt.flat_facing("wear", r.size, ObjectArtWearConfig.plaster_color, facing, opts),
 		r,
 		StringName(kind),
 	)

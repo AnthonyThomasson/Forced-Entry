@@ -41,7 +41,7 @@ func run(t: TestContext) -> void:
 	t.check(unfinished > 0, "record returned before its splats' merges were done (%d of %d)"
 		% [unfinished, made.size()])
 	t.check(
-		made.all(func(s): return (s.get_node_or_null("Highlight") != null) == (s._radius >= 2.0)),
+		made.all(func(s): return (not s.highlight_polygon.is_empty()) == (s._radius >= 2.0)),
 		"each splat's wet highlight (a splat 2 px or more across) is there from the hit",
 	)
 	var wet := BloodField.wetness_at(made[0].global_position)

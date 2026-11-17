@@ -2,10 +2,8 @@ extends StaticBody2D
 ## Wall CONTROL layer (Objects domain). A hittable, deformable room-boundary entity:
 ## computes the wall centerline segments (with any doorways cut out), builds the static
 ## collision walls, and takes hits (deform + debris). Built by WallFactory from a rect +
-## openings. Drawing lives in wall_visuals.gd, which reads `wall_segments()` and
-## `wall_thickness` from this node. Each wall run also casts a shadow: a LightOccluder2D over its
-## collider's rect, on the General's `LightMasks.WALL`, built with the colliders (none while
-## `LightMasks.shadows` is off).
+## openings. The 3D render shows it (`wall_mesh.gd`), reading `wall_segments()` and
+## `wall_thickness` from this node.
 
 ## Segment `index` (into `wall_segments()`) has new colliders: its dents were rebuilt.
 signal segment_rebuilt(index: int)
@@ -30,7 +28,7 @@ const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 @export var openings: Array = []
 ## Pixel-art cap: the tiling painter id ("" = a flat gray line), its base color (its debris takes
 ## the colour it is drawn in) and painter options (see ObjectArtWallConfig). Read by
-## wall_visuals.gd.
+## `wall_mesh.gd`.
 @export var art: String = ""
 ## Cap base color.
 @export var art_color: Color = Color(0.6, 0.6, 0.6)
@@ -42,7 +40,8 @@ const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 @export var penetration: float = 100.0
 
 ## Damage impacts per wall-segment index (into wall_segments()), in wall-local space.
-## Read by wall_visuals.gd to deform the struck segments. See _record_segment_damage().
+## The dents per struck segment (`wall_mesh.gd` and the collider rebuild read them). See
+## _record_segment_damage().
 var _seg_impacts := {}
 ## Segment index -> Array of that segment's CollisionShape2D nodes, so a damaged segment's
 ## collider can be rebuilt to follow the deformed shape. Filled in _build_walls().
@@ -56,9 +55,6 @@ var _seg_cuts := {}
 ## The room's wear node (`WearFactory.spawn` sets it: the room's `RoomWear`, in this wall's frame),
 ## whose wall marks the 3D mesh stands on the segments' faces; null for a wall with none.
 var wear: Node2D = null
-
-## The WallVisuals child, redrawn when a segment is struck (null without one).
-@onready var _visuals := get_node_or_null("WallVisuals")
 
 
 func _exit_tree() -> void:
@@ -111,7 +107,7 @@ func hit_marks() -> Array:
 	return marks
 
 
-## Dent the nearest wall segment (caving inward along the contact normal), redraw it, and
+## Dent the nearest wall segment (caving inward along the contact normal) and
 ## rebuild that segment's collider to match.
 func _record_segment_damage(
 	world_pos: Vector2,
@@ -131,8 +127,6 @@ func _record_segment_damage(
 	var impact := Deformation.new_impact(local_pos, inward, amount, blood, dent)
 	Deformation.push_impact(arr, impact, PhysicsDeformConfig.max_impacts)
 	_seg_impacts[best_i] = arr
-	if _visuals:
-		_visuals.redraw_segment(best_i)
 	# Rebuild the segment collider to follow the deformed shape (deferred — take_hit runs
 	# mid-physics from the projectile, when swapping shapes is disallowed).
 	if PhysicsDeformConfig.update_collider and not _rebuild_queued.has(best_i):
@@ -230,19 +224,6 @@ func _build_walls() -> void:
 		var col := _segment_collider(start, end, dir)
 		add_child(col)
 		_seg_colliders[i] = [col]  # keyed by wall_segments() index for later rebuilds
-		_add_shadow(start, end, dir)
-
-
-## The shadow of the wall segment from `start` to `end` along `dir`: the same rect as its collider,
-## undented (a dent is too small to show in a shadow); none while shadows are off.
-func _add_shadow(start: Vector2, end: Vector2, dir: Vector2) -> void:
-	var n := dir.orthogonal() * (wall_thickness * 0.5)
-	var occ := LightMasks.occluder(
-		PackedVector2Array([start - n, end - n, end + n, start + n]),
-		LightMasks.WALL,
-	)
-	if occ != null:
-		add_child(occ)
 
 
 ## The rectangle collider of a wall segment from `start` to `end` (its ends already extended)
