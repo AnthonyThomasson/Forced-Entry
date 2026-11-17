@@ -159,7 +159,7 @@ func _kind_of(node: Node) -> String:
 	var kind := ""
 	if not node is Node2D:
 		kind = ""
-	elif named.begins_with("Casing") and not named.contains("Visuals"):
+	elif named.begins_with("Casing"):
 		kind = "casing"
 	elif named.begins_with("Dropped") and not named.contains("Spoon"):
 		# The spoon a throw pops falls where it stands, which a place cannot tell from lying still.

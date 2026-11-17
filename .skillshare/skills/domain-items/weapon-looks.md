@@ -1,6 +1,6 @@
 # Weapon looks and item art
 
-An item is drawn by its `art` part (`ItemArt`, `item_art.gd`; built once with the item, holding the gun or grenade id it draws and what else it needs, never the item). The base draws nothing (fists, unarmed, key, magazine); `GunArt`, `GrenadeArt` and `SpoonArt` draw the rest. Painters live in `scenes/items/art/`, Items-private; the Art domain's engine is `domain-art`.
+An item is shown by its `art` part (`ItemArt`, `item_art.gd`; built once with the item, holding the gun or grenade id it draws and what else it needs, never the item). The base draws nothing (fists, unarmed, key, magazine); `GunArt`, `GrenadeArt` and `SpoonArt` give the rest. Painters live in `scenes/items/art/`, Items-private; the Art domain's engine is `domain-art`.
 
 ## Weapon style
 
@@ -11,17 +11,17 @@ An item is drawn by its `art` part (`ItemArt`, `item_art.gd`; built once with th
 
 ## Look handle
 
-A painter's options carry the look as an int (`opts.look`, `PixelArt.handle`, read back with `PixelArt.look_of`), never the row, because `PixelArt` hashes the options on every call. An item registers its row once (`ItemArt._look_handle`, again only when the row drawn changes). Every draw records its texture (`ItemArt._note_drawn`) for `art.drawn_art()`, which the weapon-style tests compare.
+A painter's options carry the look as an int (`opts.look`, `PixelArt.handle`, read back with `PixelArt.look_of`), never the row, because `PixelArt` hashes the options on every call. An item registers its row once (`ItemArt._look_handle`, again only when the row drawn changes). The weapon-style tests compare what the art hands out (`held_mesh`, `held_texture`, `dropped_mesh`, `dropped_texture`: one instance per look).
 
 ## Gun art
 
-`GunArt.draw_weapon` renders the painter through `PixelArt.render_turned`, rotated to the exact angle of `weapon.facing()` (which trails the aim as it turns), the butt `grip_back` px behind the weapon hand. Painters draw in the canonical frame (muzzle toward +y, butt at y = 0) and scale from `c.w` / `c.h`, so the same painter renders the shortened raised barrel. The character visuals draw the weapon under the torso and before the fists, so the butt tucks behind the shoulder and the fists grip it. Hand 0 is the weapon hand. Firing calls `user.weapon.kick(weapon_hand(), recoil)`; the supporting hand follows by its stance's `recoil_share`.
+The painters draw in the canonical frame (muzzle toward +y, butt at y = 0) and scale from `c.w` / `c.h`; the 3D render stands the flat render up (below). Hand 0 is the weapon hand. Firing calls `user.weapon.kick(weapon_hand(), recoil)`; the supporting hand follows by its stance's `recoil_share`. A gun raised off a wall is pitched by `GunArt.held_lift` (`RAISED_LENGTH`: the foreshortened barrel length at full raise).
 
 ## Prepainting
 
-`ItemRegistry.inventory_for` asks each item it makes for `art.prepaint()` (a no-op on the base): a gun paints held at every raise step and lying either side up, a grenade with its lever held and gone, each at every lighting step, once per gun or kind and style (`_prepainted`), with the very calls its draws make. It only fills `PixelArt`'s cache, so a first paint (0.3 to 0.5 ms) lands before a fight, not in its busiest frames. It costs about 230 ms per weapon style, once per process. Test: `tests/items/prepaint_covers_the_draws_test.gd` (no draw of any style paints a new texture).
+`ItemRegistry.inventory_for` asks each item it makes for `art.prepaint()`: it asks for the item's held and loose meshes and flat art (the base does it for every kind; an item that shows nothing gets nulls), so `MeshCache` and `PixelArt`'s flat cache hold them before a fight and no first build or paint (0.3 to 0.5 ms) lands in its busiest frames. Test: `tests/items/prepaint_covers_the_draws_test.gd` (a match's asks build and paint nothing new).
 
-## The held item in 3D (`ItemArt.held_mesh`, `GunMesh`, `GrenadeMesh`, `ItemSolid`, `ItemMeshConfig`; #193)
+## The held item in 3D (`ItemArt.held_mesh`, `GunMesh`, `GrenadeMesh`, `ItemSolid`, `ItemMeshConfig`)
 
 In the 3D render a character's body shows what it holds by the 2D art stood up: a mesh Items raises from the painter's own flat render and the same art projected straight down onto it. Character places it (`domain-character/body-mesh.md`); Items makes no node and touches no shader. `item.art.held_mesh() -> Mesh` (null: nothing, the default for fists, unarmed, key), `held_texture()` (the painter's `PixelArt.render_flat`, `domain-art/flat-paint.md`) and `held_rect()` (where the art lies in the mesh's frame, the `rect` of `MeshNodes.textured`, `domain-art/textured-toon.md`: `BodyHeld` calls it when the item changes, never per frame), `held_aim(user)` (the flat direction it points: the weapon's facing, a punch's turn) and `held_lift(user)` (radians pitched up: a gun raised off a wall, `acos` of the foreshortened length).
 

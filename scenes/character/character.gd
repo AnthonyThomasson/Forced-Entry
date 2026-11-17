@@ -93,7 +93,6 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	_physics_step(delta)
 	use.restore_cleared()
-	anatomy.turn_shadow()
 
 
 ## One physics frame of the body: a dead one's ragdoll, else the controller's intent, the ride or

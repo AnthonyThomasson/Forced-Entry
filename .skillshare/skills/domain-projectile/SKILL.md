@@ -9,7 +9,7 @@ Owns shooting and a grenade's burst. Specs: `docs/cover-and-stance.md` (H1, H2: 
 
 ## Files
 
-- `projectile.gd` (control) + `projectile_visuals.gd` (draw); `casing.gd` + `casing_visuals.gd`; `projectile_spawner.gd` / `casing_spawner.gd` are the entry points the guns call (a bullet is named `Projectile`, `Projectile2`, … and the tests count by that name).
+- `projectile.gd`; `casing.gd`; `projectile_spawner.gd` / `casing_spawner.gd` are the entry points the guns call (a bullet is named `Projectile`, `Projectile2`, … and the tests count by that name).
 - `shot.gd` (`Shot`): a bullet's ballistics (`damage`, `muzzle_speed`, `penetration`, `max_range`, `strikes_shooter`, …), where a field left alone is the pistol round's. A gun and a grenade's fragments each fill one.
 - `explosion.gd` (`Explosion`), `cover_rule.gd` (`CoverRule`).
 - 3D (#193): `projectile_mesh_config.gd` (`ProjectileMeshConfig`), `art/projectile_meshes.gd` (`ProjectileMeshes`), `art/shot_layer.gd` (`ShotLayer`): see "Tracers and casings in 3D".

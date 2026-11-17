@@ -62,18 +62,14 @@ doors leads to a cargo seat).
    to seated).
 4. The door eases shut behind it (`VehicleDoorConfig.close_time` **0.35**, gathering speed into the slam).
 
-The character's position, facing and fold change continuously every frame (no teleport). Seated, it is drawn between the vehicle's
-chassis layer (under it) and its roof layer (over it): only the part under the tinted, see-through glass shows. The two layers take their
-rungs on the world's draw ladder (`DrawLayers`, General): the chassis `UNDER_VEHICLE` (−1), the living and the occupants `STANDING` (0),
-the roof `ABOVE` (+1); what lies on the floor (a dead body, casings, a dropped item, a grenade at rest) is `LYING` (−2), under both layers
-and over the blood and scorch decals (`BLOOD`, −3), the rugs (−4) and the floor (−5). The held item is put
+The character's position, facing and fold change continuously every frame (no teleport). Seated, it sits inside the vehicle's body in
+3D, under its roof and seen through the tinted, see-through glass. The held item is put
 away from the first pose of the ride and taken out again at its end. Boarding and getting out cannot be interrupted except by death: a
 character killed on the way falls where it is, its seat is freed and the door stays as it was.
 Tests: `vehicle/board_animation_is_continuous` (sampled every frame from the Space press until the door has shut: no frame moves the
 character further than a walking step; the facing turns at most 15 rad/s, toward the door and then forward; the door opens in about
 0.35 s and eases (at most 0.08 a frame), it is open before the fold starts and shuts only once the character is folded in; the fold
-eases from standing to seated (at most 0.05 a frame); the seated character ends inside the body, drawn over the chassis and under the
-roof), `vehicle/van_doors_open_their_way` (the side door slides back along the body and never turns; a rear door swings out behind
+eases from standing to seated (at most 0.05 a frame); the seated character ends inside the body), `vehicle/van_doors_open_their_way` (the side door slides back along the body and never turns; a rear door swings out behind
 the van about its back corner and never slides), `vehicle/death_while_boarding` (killed with the door half open: it dies where it
 stands, takes no seat, `use.vehicle()` is null, the door stays open), `vehicle/item_stowed_while_riding` (a character holding its pistol
 has no item in hand from the fold into the seat until it is out again, then the pistol is back in hand; `inventory.current_item()` is null while it
@@ -139,7 +135,7 @@ and passenger click the trigger of a loaded pistol: no shot, hit or shot sound, 
 - A character struck is knocked back (`apply_impulse`) and takes `take_damage(health x (closing − 90) / (300 − 90))`: nothing below
   `harm_min_speed` **90**, death at `harm_kill_speed` **300** or faster. One run-in is one blow: a character struck again within
   `rehit_time` **0.5** s of the last time it was against the vehicle is shoved on but not hurt again. A dead body is rolled over, and
-  lies drawn under both of the vehicle's layers (V3's draw ladder) and over its own blood.
+  lies on the floor under the vehicle.
 - The vehicle is never stopped dead by a character: it loses only the momentum the character takes, and what the character is pressed
   against. What stands in front of it is a pile: the character struck and the pieces of furniture or other characters it is pressed
   against (each within `pile_gap` **4** px along the push, at most `pile_depth` **4** bodies), or a piece pressed against a character.
@@ -164,9 +160,7 @@ character pinned on a heavy armchair, one pinned on the wall, one in the open an
 the open hit's harm and the shielded one half of it; 0.1 s after the touch the car keeps 30 % / 70 % / 50 % of its speed (pinned / open /
 shielded) and shoves the chair; on the wall it posts a crash; measured harm 25.4 open, 25.4 pinned on the chair and on the wall, 17.6
 behind the chair; kept 130 / 168 / 139 px/s, the chair shoved 63 and 57 px), `vehicle/bullet_dents_vehicle` (a metal surface with coverage
-60+ and penetration 80+, a recorded dent, debris; six more rounds leave it standing), `vehicle/fallen_body_under_vehicle` (a character
-run down past 300 and the car crept forward over it: every frame the car is over or beside the body, the body and everything it draws is
-under the chassis and the roof and over the floor and blood, and the seated driver stays between the two).
+60+ and penetration 80+, a recorded dent, debris; six more rounds leave it standing).
 
 ### Presentation
 
@@ -206,7 +200,7 @@ vehicle; nothing under
   contract, the hittable, the events), `vehicle_cabin.gd` (seats and doors), `vehicle_contacts.gd` (contacts and harm),
   `vehicle_drive.gd` (the bicycle, the drive intent, the engine and the skids), `vehicle_door.gd` (the open
   amount, the pose, the stand point, the blocked check), `vehicle_boarding.gd` (the ride's phase machine), `character_vehicle_use.gd` (the
-  character's component), `vehicle_visuals.gd` and `art/` (the chassis and roof layers and their painters; the 3D meshes: `art/vehicle_mesh*.gd`, `VehicleMeshConfig`).
+  character's component), `art/` (the painters and the 3D meshes: `art/vehicle_mesh*.gd`, `VehicleMeshConfig`).
 - **Character**: the forwards `use.try_interact()` (Space: a chair, a door or the vehicle, `docs/doors.md` DR6), `use.vehicle()`, `use.is_in_vehicle()`, the ride API `use.set_ride_pose` / `use.end_ride`, `use.is_busy()`
   over the ride, `inventory.current_item()` null while posed, `_die` abandoning the ride. **General**: `Keybinds.INTERACT` and the camera's zoom
   out. **Audio**: the `vehicle`, `engine` and `skid` topics, the profiles and the loops. **Testing**: `TestSetup.vehicle`, `t.vehicle`,

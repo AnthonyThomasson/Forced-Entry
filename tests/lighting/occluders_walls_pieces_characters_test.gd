@@ -1,18 +1,15 @@
 extends GameTest
-## R10 (ticket #61): shadows. Occluders stand on the walls, on solid pieces and on living
-## characters, and a character's goes when it dies. In one room with a lamp, a TV, a wardrobe, an
-## armchair, a rug and two puppets:
+## R10 (ticket #61): shadows. Occluders stand on the walls and on solid pieces (a character has
+## none:
+## the 3D render shadows it). In one room with a lamp, a TV, a wardrobe, an armchair and a rug:
 ## - every wall run is covered by a casting LightOccluder2D (sampled along each `wall_segments()`
 ##   run);
 ## - each solid piece (the armchair, the wardrobe, the lamp, the TV) carries its own occluder over
 ##   its footprint, so it follows a shove; the rug, walk-over decor, carries none;
-## - a living puppet stands in a casting occluder, and still does after walking a stretch (it
-##   follows the body);
-## - once the other puppet is dead, no casting occluder is under it or over where it lies;
 ## - shadows by height (`docs/lighting.md` L6): the lamp's light hangs overhead, so only the walls
 ##   shadow it (its shadow mask meets the wall's occluder mask and not the wardrobe's, the
-##   armchair's or the walker's); the TV's light is low, so the walls and the wardrobe (a tall
-##   piece) shadow it, and the armchair (a low piece) and the walker do not.
+##   armchair's); the TV's light is low, so the walls and the wardrobe (a tall
+##   piece) shadow it, and the armchair (a low piece) do not.
 ##
 ## It reads (tests/_lighting/lighting_probe.gd) `WorldLighting` in the group `world_lighting`
 ## with `lights()`; the lamp's light a PointLight2D under it. The occluders are plain
@@ -20,18 +17,14 @@ extends GameTest
 
 const Probe := preload("res://tests/_lighting/lighting_probe.gd")
 const ROOM := Rect2(0, 0, 900, 600)
-const WALKER_AT := Vector2(200, 450)
-const WALK_TO := Vector2(330, 450)
-const VICTIM_AT := Vector2(650, 450)
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "Walls, solid pieces and living characters cast shadows; the dead do not",
+		"name": "Walls and solid pieces cast shadows",
 		"description": "Casting occluders cover every wall run, sit on each solid piece (not on a "
-			+ "rug) and on a living character as it walks; a dead character has none; the "
-			+ "overhead lamp is shadowed by the walls only, the low TV by the walls and the tall "
-			+ "wardrobe only.",
+			+ "rug); the overhead lamp is shadowed by the walls only, the low TV by the walls and "
+			+ "the tall wardrobe only.",
 		"tags": ["lighting"],
 		"timeout": 6.0,
 	}
@@ -46,18 +39,11 @@ func configure(s: TestSetup) -> void:
 	s.object(&"rug", "rug", Vector2(700, 200))
 	s.object(&"wardrobe", "wardrobe", Vector2(150, 120), { "neon": "" })
 	s.object(&"tv", "tv", Vector2(780, 330), { "neon": "" })
-	s.actor(&"walker", &"puppet", WALKER_AT)
-	s.actor(&"victim", &"puppet", VICTIM_AT)
 
 
 func run(t: TestContext) -> void:
 	var wall_occluder := _check_walls(t)
 	var piece_occluders := _check_pieces(t)
-	var body_occluder := _check_body(t)
-	if not await _check_walk(t):
-		return
-	if not await _check_dead(t):
-		return
 
 	# Shadows by height: the overhead lamp by the walls only, the low TV by the walls and the tall
 	# wardrobe only.
@@ -65,7 +51,7 @@ func run(t: TestContext) -> void:
 	if lighting == null:
 		return
 	var casters := { "wall": wall_occluder, "wardrobe": piece_occluders.get(&"wardrobe"),
-		"armchair": piece_occluders.get(&"armchair"), "walker": body_occluder }
+		"armchair": piece_occluders.get(&"armchair") }
 	_check_heights(t, lighting, casters)
 
 
@@ -108,57 +94,6 @@ func _check_pieces(t: TestContext) -> Dictionary:
 		"the rug (walk-over decor) carries no occluder",
 	)
 	return piece_occluders
-
-
-## Living characters: an occluder over the body. The walker's (null for none).
-func _check_body(t: TestContext) -> LightOccluder2D:
-	var walker: Node2D = t.actor(&"walker")
-	var body_occluder: LightOccluder2D = null
-	var at_start := Probe.occluders_at(t.world, walker.global_position)
-	t.check(not at_start.is_empty(), "the living walker stands in an occluder")
-	if not at_start.is_empty():
-		body_occluder = at_start[0]
-	return body_occluder
-
-
-## The walker's occluder follows it as it walks; false when it does not arrive (the test has
-## failed).
-func _check_walk(t: TestContext) -> bool:
-	var walker: Node2D = t.actor(&"walker")
-	t.puppet(&"walker").walk_to(WALK_TO)
-	if not t.require(
-			await t.until(func() -> bool: return t.puppet(&"walker").has_arrived(), 4.0),
-			"the walker gets to %s" % WALK_TO,
-	):
-		return false
-	await t.frames(2)
-	t.check(
-		not Probe.occluders_at(t.world, walker.global_position).is_empty(),
-		"the walker's occluder follows it (at %s)" % walker.global_position.round(),
-	)
-	return true
-
-
-## The dead: no occluder. False when the victim does not die (the test has failed).
-func _check_dead(t: TestContext) -> bool:
-	var world: Node = t.world
-	var victim: Node2D = t.actor(&"victim")
-	t.check(
-		not Probe.occluders_at(world, victim.global_position).is_empty(),
-		"the victim, alive, stands in an occluder",
-	)
-	victim.take_damage(100_000.0)
-	if not t.require(await t.until(func() -> bool: return victim.is_dead, 1.0), "the victim dies"):
-		return false
-	await t.seconds(1.5)
-	t.check(Probe.own_occluders(victim).is_empty(), "the dead victim carries no casting occluder")
-	var lies: Array = [victim.global_position, victim.blood_origin()]
-	for p: Vector2 in lies:
-		t.check(
-			Probe.occluders_at(world, p).is_empty(),
-			"no occluder over where the dead victim lies (%s)" % p.round(),
-		)
-	return true
 
 
 ## The lamp's light is shadowed by the wall's occluder only, the TV's by the wall's and the

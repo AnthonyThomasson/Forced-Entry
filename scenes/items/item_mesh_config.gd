@@ -25,7 +25,7 @@ static var lying_barrel: float = 0.45
 ## Flat faces round a grenade's body: a vertex up and one to each side, so its width is the art's.
 static var grenade_sides: int = 12
 ## How far ahead of the hand (px) a grenade sits: its row's art is drawn this far along the aim
-## from the weapon hand (`GrenadeArt.draw_weapon`).
+## from the weapon hand (as the 2D art drew it).
 static var grenade_ahead: float = 2.0
 ## A grenade's lever held down: how far (px) it stands off the body's top.
 static var lever_height: float = 1.0

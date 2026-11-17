@@ -6,8 +6,7 @@ are spread by domain (`tests/character/`, `tests/projectile/`, `items/loadout_ou
 `Outfit`: that is the Items class): `wear`, `view`, `condition` (each false / `{}` / -1 without the outfit API; `require_api`
 is the named check), `pin_height`, the spec's numbers (`ZONE_DAMAGE`, `PLATED_KIT`, `PLAIN_CLOTHES`) so a test checks the doc
 and not the code, shooting lanes (`lay_lanes`, `dress`, `volley`: real rounds with a gun's `GunConfig` numbers, or a frag's
-fragment, fired square on at a target with a witness behind it to show whether a round came out), and `art(c)` (the body's
-`drawn_art()`). `tests/_outfit` is an unknown helper folder to `--changed`, so a change to it runs the whole suite.
+fragment, fired square on at a target with a witness behind it to show whether a round came out), and `art(c)` (the look of the character's 3D body: a `BodyMesh` the probe keeps under it, one number per visible part). `tests/_outfit` is an unknown helper folder to `--changed`, so a change to it runs the whole suite.
 
 - **A test that counts gun damage pins the bullet height** (`pin_height` pins `BallisticsFlightConfig.bullet_height`): a
   random height picks a zone, and a head shot deals twice a torso's.

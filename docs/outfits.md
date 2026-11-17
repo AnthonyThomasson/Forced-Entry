@@ -210,8 +210,8 @@ a soft panel).
   `random`, and the style `apply` passes on), `Item.art.style` (stamped by `ItemRegistry.inventory_for`).
 - **Character**: `wardrobe.outfit` (`set_ids`, `view()`), `get_surface_at`, `_hit_zone`, `_hit_side`, and `take_hit`'s zone, armour, wear and
   blast steps; the weight in `movement`'s `_speed_in` and the run's stamina; the zone numbers in `CharacterHitConfig` and the weight's in `CharacterPaceConfig`. The style (`character_wardrobe.gd`): `style`,
-  `look_seed`, `rank`, `set_style`, `CharacterStyleConfig.styles`. The art (`character/body/`: `character_visuals.gd`, `character_style.gd` which
-  resolves the style's look, and the painters, `vest_painter.gd` among them) draws from `wardrobe.outfit.look(style)`.
+  `look_seed`, `rank`, `set_style`, `CharacterStyleConfig.styles`. The look (`character/body/`: `body_dress.gd`, `character_style.gd` which
+  resolves the style's look, and the painters, `vest_painter.gd` among them, whose flat renders the 3D body wears) is built from `wardrobe.outfit.look(style)`.
 - **Projectile**: `_surface_for` asks `get_surface_at`, the armour step in `_resolve`, `HitInfo.height` filled; `Explosion`'s blast hits carry
   height -1. **Physics**: `HitInfo.height`. **Audio**: the `composite` impact material.
 - **UI** (the setup window's picks, `outfit_lines.gd` for the inspector's detail card and the gun range's floor labels) and **Main** (the outfit through the setup window and

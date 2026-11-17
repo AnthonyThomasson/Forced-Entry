@@ -12,9 +12,7 @@
    (ADR 0005):
    - **`strike`** (`ItemStrike`): the melee geometry the hands read (`ahead`, `turn`, `short`, `support_gap`, `tempo`, `hand`). A fist's are
      the defaults; a long gun's swing it across the body, butt first.
-   - **`art`** (`ItemArt`; `GunArt`, `GrenadeArt`, `SpoonArt`): `style` (the weapon style, below), `draw_weapon(canvas, user)`,
-     `draw_dropped(canvas, at, angle, modulate, opts)` (`opts.flip`: which side landed up), `prepaint()`, the 3D render's `held_mesh() -> Mesh` (`GunMesh` / `GrenadeMesh`; null: none) `held_texture()` / `held_rect()`, `dropped_mesh(flipped)`, `dropped_texture(flipped)`, `dropped_rect()`, `held_aim(user)`, `held_lift(user)` (`BodyHeld` places it), and the test read
-     `drawn_art() -> Array` (its last draw's textures, like `CharacterVisuals.drawn_art()`).
+   - **`art`** (`ItemArt`; `GunArt`, `GrenadeArt`, `SpoonArt`): `style` (the weapon style, below), `prepaint()`, the 3D render's `held_mesh() -> Mesh` (`GunMesh` / `GrenadeMesh`; null: none) `held_texture()` / `held_rect()`, `dropped_mesh(flipped)`, `dropped_texture(flipped)`, `dropped_rect()`, `held_aim(user)`, `held_lift(user)` (`BodyHeld` places it).
    - **`ammo`** (`ItemAmmo`; `GunAmmo`): `rounds_loaded()` / `capacity()` (-1 = no ammo), `reload_time()`, `can_reload(user)`,
      `finish_reload(user)`; the `reloading` flag the character sets; a gun's loaded `magazine`.
 

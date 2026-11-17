@@ -6,8 +6,8 @@ extends RefCounted
 ## The outfit API is called directly: the character's `wardrobe.outfit.set_ids(ids)` /
 ## `wardrobe.outfit.view()` (behind `_has_api`, so a body without them fails a named check rather
 ## than an engine error) and
-## `LoadoutConfig.outfit_options()`. `Visuals.drawn_art()` (the textures the last draw of the body
-## painted, in order) is reached by `has_method` / `call`: the Visuals script has no class_name.
+## `LoadoutConfig.outfit_options()`. The look a body shows is read off its 3D body (`art`,
+## `textures`: the probe keeps a `BodyMesh` under the character and updates it as the mirror does).
 ##
 ## Rounds are fired straight down a lane with `ProjectileSpawner.spawn` and the gun's own
 ## `GunConfig` numbers (or the frag's fragment numbers from `GrenadeConfig`), at a pinned
@@ -271,24 +271,69 @@ static func splats(t: TestContext) -> int:
 # --- The drawing ----------------------------------------------------------------------------------
 
 
-## The character's `Visuals` child (the body's drawing).
-static func visuals(c: Node) -> Node:
-	return c.get_node_or_null(^"Visuals")
+## The character's 3D body (`BodyMesh`, the look it is shown in), made once for the probe and kept
+## under the character; null for a node that is no character. The probe updates it as the mirror
+## does (`mirror_update`) each time it is read.
+static func body_of(c: Node) -> BodyMesh:
+	if c.has_meta(&"outfit_probe_body"):
+		return c.get_meta(&"outfit_probe_body")
+	var mesh := BodyMesh.build(c) as BodyMesh
+	if mesh == null:
+		return null
+	c.add_child(mesh)
+	c.set_meta(&"outfit_probe_body", mesh)
+	return mesh
 
 
-## Whether the drawing can be read (`Visuals.drawn_art()`).
+## Whether the drawing can be read (the character has a 3D body).
 static func can_read_art(c: Node) -> bool:
-	var v := visuals(c)
-	return v != null and v.has_method("drawn_art")
+	return body_of(c) != null
 
 
-## The instance ids of the textures the body's last draw painted, in order ([] when the body cannot
-## report them). Art is cached by what it depicts, so the same drawing gives the same ids and a
-## changed part a new one.
+## One number per visible part of the character's 3D body, in order (its index, its art's instance
+## id and its colour): the same look gives the same numbers and a changed part a new one ([] when
+## the character has no body). Art is cached by what it depicts, so the same dress paints the same
+## textures.
 static func art(c: Node) -> Array:
-	if not can_read_art(c):
+	var mesh := body_of(c)
+	if mesh == null:
 		return []
+	if c.anatomy.ragdoll != null and not c.has_meta(&"outfit_probe_died"):
+		c.set_meta(&"outfit_probe_died", true)
+		mesh.on_body_died(c)
+	mesh.mirror_update(c)
 	var out: Array = []
-	for tex in visuals(c).call("drawn_art"):
-		out.append((tex as Object).get_instance_id() if tex is Object else 0)
+	for i in mesh.get_child_count():
+		var part := mesh.get_child(i) as MeshInstance3D
+		if part == null or not part.visible:
+			continue
+		var tex := part_texture(part)
+		out.append(hash([
+			i,
+			tex.get_instance_id() if tex != null else 0,
+			part.get_instance_shader_parameter(&"base_color"),
+		]))
+	return out
+
+
+## The art `part` wears (null: it is a plain colour).
+static func part_texture(part: MeshInstance3D) -> Texture2D:
+	var material := part.material_override as ShaderMaterial
+	if material == null:
+		return null
+	return material.get_shader_parameter(&"albedo_texture") as Texture2D
+
+
+## The textures the character's body wears on its visible parts.
+static func textures(c: Node) -> Array[Texture2D]:
+	var out: Array[Texture2D] = []
+	var mesh := body_of(c)
+	if mesh == null:
+		return out
+	art(c)
+	for i in mesh.get_child_count():
+		var part := mesh.get_child(i) as MeshInstance3D
+		var tex := part_texture(part) if part != null and part.visible else null
+		if tex != null:
+			out.append(tex)
 	return out

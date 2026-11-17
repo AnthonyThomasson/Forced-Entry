@@ -8,7 +8,7 @@ extends GameTest
 ## window, `items_projectile_mesh_windowed_test.gd`.
 
 const SCRATCH := "user://settings_casing_mesh_test.json"
-## A casing's 2D art (`CasingVisuals`): 4.5 px long and 2 px across.
+## A casing's size (the 2D art's): 4.5 px long and 2 px across.
 const LENGTH := 4.5
 const ACROSS := 2.0
 ## The batch's size (the `Despawner`'s cap when the layer is made), and how high a tossed casing

@@ -33,20 +33,3 @@ func dropped_texture(_flipped := false) -> Texture2D:
 ## Where the art lies in the strip's frame: about the origin.
 func dropped_rect() -> Rect2:
 	return Rect2(-SIZE * 0.5, SIZE)
-
-
-## The spoon lying on the floor, centered at `at` along `angle`, tinted by `modulate`.
-func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color = Color.WHITE,
-		_opts: Dictionary = {}) -> void:
-	var turn := angle - PI * 0.5
-	var tex := PixelArt.render_turned(
-		SpoonPainter,
-		SIZE,
-		Color(0.62, 0.64, 0.68),
-		PixelArt.snap_angle(turn),
-		METAL,
-	)
-	_note_drawn(tex)
-	canvas.draw_set_transform(at, turn, Vector2.ONE)
-	canvas.draw_texture_rect(tex, Rect2(-SIZE * 0.5, SIZE), false, modulate)
-	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

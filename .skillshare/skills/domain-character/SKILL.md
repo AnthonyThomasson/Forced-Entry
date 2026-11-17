@@ -11,7 +11,7 @@ Owns the player character, built so other character types can exist. It reads in
 - Posture, running and stamina, walking into furniture, the stun's effect on the walk → `movement.md`.
 - Firing, reload and magazines, the raise against a wall, loadout, grenade reads, the stunned look and one-handed fire → `weapon.md`.
 - Style, outfit, hit zones, armour in `take_hit`, weight → `wardrobe.md`.
-- The body (skeleton, pose, rig, hands, punch, kick, legs, ragdoll fall, all pixel art and the redraw key) → `body.md`.
+- The body (skeleton, pose, rig, hands, punch, kick, legs, ragdoll fall, all pixel art) → `body.md`.
 - Space on a door, a house door in reach, the scroll that turns it, a door in the way → `doors.md`.
 
 ## Components
@@ -45,11 +45,11 @@ A parent's `_physics_process` runs before its children's, so the hands see the c
 
 ## Death
 
-`_apply_damage` (from `take_hit`, `take_damage`) calls `_die(direction)` at zero health. `_die` cancels a reload (`ammo.cancel()`), calls `anatomy.die()`, leaves layer 1 and ends what held the body: `use.end_interaction()`, `use.abandon()` (a vehicle ride: the body falls where it is, the door left as it is). It then takes `movement.momentum()` in the posture it died in, stands the body (`movement.stand_up()`, `movement.fold(0.0)`, so the ragdoll starts from the standing skeleton) and calls `stun.clear()`. `anatomy.die()` stops the bleeding, frees the shadow occluder and moves the body to `CharacterArtConfig.ragdoll_z_index` (`DrawLayers.LYING`: under the living and a vehicle's chassis and roof, over blood pools; test `vehicle/fallen_body_under_vehicle`). `anatomy.fall` builds the ragdoll with the body's momentum (`movement.momentum()`: walk + knockback, including the killing blow's shove). The held item is dropped through `Item.drop(self, momentum + toss)`; a returned node removes the slot, so `inventory.current_item()` may be null on a corpse. Then `died` is emitted. While dead `_physics_process` only steps the ragdoll. `blood_origin()` is the position alive and the trunk's middle once fallen; when the ragdoll first settles `anatomy.step` calls `Physics.bleed_out`.
+`_apply_damage` (from `take_hit`, `take_damage`) calls `_die(direction)` at zero health. `_die` cancels a reload (`ammo.cancel()`), calls `anatomy.die()`, leaves layer 1 and ends what held the body: `use.end_interaction()`, `use.abandon()` (a vehicle ride: the body falls where it is, the door left as it is). It then takes `movement.momentum()` in the posture it died in, stands the body (`movement.stand_up()`, `movement.fold(0.0)`, so the ragdoll starts from the standing skeleton) and calls `stun.clear()`. `anatomy.die()` stops the bleeding. `anatomy.fall` builds the ragdoll with the body's momentum (`movement.momentum()`: walk + knockback, including the killing blow's shove). The held item is dropped through `Item.drop(self, momentum + toss)`; a returned node removes the slot, so `inventory.current_item()` may be null on a corpse. Then `died` is emitted. While dead `_physics_process` only steps the ragdoll. `blood_origin()` is the position alive and the trunk's middle once fallen; when the ragdoll first settles `anatomy.step` calls `Physics.bleed_out`.
 
-## The body's shadow (interface 20, `docs/lighting.md` L6)
+## The body's shadow
 
-A living character casts a shadow: `anatomy.attach()` builds a `LightOccluder2D` through `LightMasks.occluder` (none while `LightMasks.shadows` is off) on `LightMasks.CHARACTER`, shaped by `CharacterShadowConfig`. It follows the body unrotated; `anatomy.turn_shadow()` turns it to `facing` only when the facing has turned. `anatomy.die()` frees it: a 2D occluder has no height, so a body on the floor would throw a shadow as long as a wall's. Test: `lighting/occluders_walls_pieces_characters`.
+A living character has no 2D occluder any more: the 3D render draws its shadow (`body-mesh.md`, `domain-lighting`). `is_dead` / `radius` are what the lighting reads (interface 20).
 
 ## Events a character posts
 
@@ -73,8 +73,8 @@ The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, ste
 
 ## Scenes and groups
 
-`character_base.tscn` is the bare character (body, shape, Hands, Visuals, Wardrobe) with **no controller** and the one place that composition is declared. `ai/npc.tscn` inherits it (`domain-ai`; `npc_defender.tscn` and `npc_invader.tscn` override data only) and `main.tscn`'s `Player` instances it with `player_controller.gd`. A composer adds a `control()` child before the character enters the tree (`_find_controller()` runs at `_ready`); the Testing domain adds its puppet `ScriptedController`.
+`character_base.tscn` is the bare character (body, shape, Hands, Wardrobe) with **no controller** and the one place that composition is declared. `ai/npc.tscn` inherits it (`domain-ai`; `npc_defender.tscn` and `npc_invader.tscn` override data only) and `main.tscn`'s `Player` instances it with `player_controller.gd`. A composer adds a `control()` child before the character enters the tree (`_find_controller()` runs at `_ready`); the Testing domain adds its puppet `ScriptedController`.
 
 Every character joins the group `characters` in `_ready` (interface 7): how the AI's perception, `Explosion` and a vehicle find characters in the world. `faction` is exported (`&"player"` by default; the NPC presets set `&"household"` / `&"invader"`) and read by AI perception to tell allies from potential hostiles.
 
-**Interfaces:** 3 (hittable), 4 (Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID`, `DrawLayers.LYING`, `LightMasks.CHARACTER`, `FillBatch`, `ViewLayers`, `SeenArea`), 12 (Art; the 3D body mesh, `body-mesh.md`, and its 2D art, `body-textures.md`), 27 (the 3D mirror), 15 (`GameLog`), 18 (`stun.view()`, read off `Sound.focus`), 19 (Vehicle), 24 (the door contract, `use.doors`), 20 (the occluder; `is_dead` / `radius` read by the lighting), 25 (`sight()`, `facing`, `died` read by the Vision domain).
+**Interfaces:** 3 (hittable), 4 (Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID`, `ViewLayers`, `SeenArea`), 12 (Art; the 3D body mesh, `body-mesh.md`, and the 2D art it wears, `body-textures.md`), 27 (the 3D mirror), 15 (`GameLog`), 18 (`stun.view()`, read off `Sound.focus`), 19 (Vehicle), 24 (the door contract, `use.doors`), 20 (`is_dead` / `radius` read by the lighting), 25 (`sight()`, `facing`, `died` read by the Vision domain).

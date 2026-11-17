@@ -115,7 +115,7 @@ func _kind_of(node: Node) -> String:
 	var kind := ""
 	if not node is CanvasItem:
 		kind = ""
-	elif named.begins_with("Projectile") and not named.contains("Visuals"):
+	elif named.begins_with("Projectile"):
 		kind = "bullet"
 	elif node.is_in_group(&"live_grenades"):
 		kind = "grenade"

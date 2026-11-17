@@ -2,9 +2,8 @@ class_name DroppedItem extends Node2D
 ## Items domain: an item let go into the world: a dead character's weapon, or a thrown grenade's
 ## spoon. It falls from hand height, bounces, then skids across the floor with a fading spin until
 ## it stops, glancing off walls and solid furniture (layer 1), as `DroppedItemConfig` tunes it.
-## Drawn by the item's `art.draw_dropped()` over a shadow that closes in as it lands. Visual only:
-## nothing picks it up, and a dropped weapon is never despawned (a grenade's spoon is,
-## grenade_spoon.gd).
+## Shown by the 3D mirror (`LyingItemMesh`, from the item's `art.dropped_mesh()`). Nothing picks it
+## up, and a dropped weapon is never despawned (a grenade's spoon is, grenade_spoon.gd).
 
 ## It moved, turned or changed height (once per physics frame while it is not at rest): the 3D
 ## mesh that shows it (`LyingItemMesh`) follows it.
@@ -25,7 +24,7 @@ var _rise := 0.0
 var _angle := 0.0
 ## Spin (rad/s).
 var _spin := 0.0
-## How it lies, passed to draw_dropped (`flip`: which side is up).
+## How it lies (`flip`: which side is up).
 var _landing := {}
 ## Reused wall sweep (a circle of `DroppedItemConfig.radius`).
 var _query: PhysicsShapeQueryParameters2D
@@ -33,9 +32,7 @@ var _query: PhysicsShapeQueryParameters2D
 
 func _ready() -> void:
 	add_to_group(&"dropped_items")  # the 3D mirror shows each (`ItemMeshes`)
-	z_index = DrawLayers.LYING  # Beneath the living and a vehicle's chassis, like a fallen body.
 	ViewLayers.set_moving(self, true)
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_height = DroppedItemConfig.start_height
 	var circle := CircleShape2D.new()
 	circle.radius = DroppedItemConfig.radius
@@ -55,25 +52,10 @@ func _physics_process(delta: float) -> void:
 		_spin = move_toward(_spin, 0.0, DroppedItemConfig.spin_friction * delta)
 	_slide(_velocity * delta)
 	_angle += _spin * delta
-	queue_redraw()
 	shifted.emit()
 	if grounded and _rise == 0.0 and _velocity.length_squared() < 1.0 and absf(_spin) < 0.05:
 		set_physics_process(false)  # At rest for good.
 		ViewLayers.set_moving(self, false)
-
-
-func _draw() -> void:
-	if item == null:
-		return
-	var away := PixelArt.away_from_light(self)
-	item.art.draw_dropped(
-		self,
-		away * (0.5 + _height * DroppedItemConfig.shadow_per_height),
-		_angle,
-		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha),
-		_landing,
-	)
-	item.art.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE, _landing)
 
 
 ## Let `dropped` go pointing along `angle`, flying off at `velocity`; `place` puts it in the world.

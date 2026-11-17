@@ -3,7 +3,6 @@ class_name CasingSpawner
 ## call `spawn` when a round leaves the barrel; the casing (casing.gd) owns its toss.
 
 const Casing = preload("res://scenes/projectile/casing.gd")
-const CasingVisuals = preload("res://scenes/projectile/casing_visuals.gd")
 
 
 ## Spawn a spent casing at `position`, ejected to a random side of the firing `direction`
@@ -13,11 +12,6 @@ static func spawn(position: Vector2, direction: Vector2, parent: Node) -> Node:
 	casing.name = "Casing"
 	casing.script = Casing
 	casing.position = position
-
-	var visuals := Node2D.new()
-	visuals.name = "CasingVisuals"
-	visuals.script = CasingVisuals
-	casing.add_child(visuals)
 
 	parent.add_child(casing)
 	Despawner.track(casing)

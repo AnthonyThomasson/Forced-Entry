@@ -9,7 +9,7 @@ extends RefCounted
 ## (the ride fold while in a vehicle); the vehicle's `doors()` (`{ id, kind, seat, handle, open,
 ## hinge, angle, offset }` per door, world space), `seats()` (`{ id, occupant }`), `driver()`,
 ## `speed()` (unsigned px/s), `engine_state()` (`{ running, rpm, load }`), `slip()` (the slide
-## amount, 0 while gripping), `wheel_angle()`, `brake_lights()`, its `Chassis` / `Roof` draw layers,
+## amount, 0 while gripping), `wheel_angle()`, `brake_lights()`,
 ## and the Vehicles holders' tuning. Nothing here knows how a vehicle is built, and a read that does
 ## not exist yet fails a `require` instead of a script error.
 
@@ -195,35 +195,6 @@ static func opened(watched: Dictionary, threshold := 0.5) -> Array:
 		if watched["max"][id] > threshold:
 			out.append(id)
 	return out
-
-
-# --- Drawing --------------------------------------------------------------------------------
-
-
-## The vehicle's draw layer `layer_name` (`Chassis` under the occupants, `Roof` over them), or null.
-static func layer(v: Node, layer_name: String) -> CanvasItem:
-	return v.find_child(layer_name, true, false) as CanvasItem
-
-
-## The z index `item` is drawn at, its relative parents' added in.
-static func absolute_z(item: CanvasItem) -> int:
-	var z := item.z_index
-	var node: Node = item
-	while (node as CanvasItem).z_as_relative:
-		node = node.get_parent()
-		if not node is CanvasItem:
-			break
-		z += (node as CanvasItem).z_index
-	return z
-
-
-## Whether `a` is drawn over `b`: a higher absolute z, or the same z and later in the tree.
-static func draws_above(a: CanvasItem, b: CanvasItem) -> bool:
-	var za := absolute_z(a)
-	var zb := absolute_z(b)
-	if za != zb:
-		return za > zb
-	return a.is_greater_than(b)
 
 
 # --- Sound ----------------------------------------------------------------------------------

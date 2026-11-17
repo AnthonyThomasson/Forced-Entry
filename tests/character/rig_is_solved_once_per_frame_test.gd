@@ -2,7 +2,7 @@ extends GameTest
 ## The character's `anatomy.rig()` solves the standing skeleton once per physics frame and hands
 ## every caller in that frame the same solve: repeated calls within a frame add no solve and return
 ## the same joints, a frame in which the body turned gives new joints, and a walking body costs one
-## standing solve a frame however often its draw and footsteps ask.
+## standing solve a frame however often its readers (the 3D body, the footsteps) ask.
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 const FRAMES := 60
@@ -51,7 +51,10 @@ func run(t: TestContext) -> void:
 	t.puppet(&"walker").walk(Vector2.RIGHT)
 	await t.frames(2)
 	var start: int = Rig.solves
-	await t.frames(FRAMES)
+	for i in FRAMES:  # Two readers a frame, as the 3D body and a hand's query are.
+		await t.frames(1)
+		c.anatomy.rig()
+		c.anatomy.rig()
 	var solves: int = Rig.solves - start
 	t.trace("solves", solves)
 	t.check(

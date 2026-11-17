@@ -1,19 +1,16 @@
 extends GameTest
-## O12 (docs/outfits.md): every garment changes how the body is drawn, standing and fallen. The
-## drawing is read through `Visuals.drawn_art()`: the textures the body's last draw painted (pixel
-## art is cached by what it depicts, so the same drawing gives the same textures and a changed part
-## a new one).
+## O12 (docs/outfits.md): every garment changes how the body looks, standing, crouched and fallen.
+## The look is read off the character's 3D body (`OutfitProbe.art`: its visible parts, each by the
+## art it wears and its colour; pixel art is cached by what it depicts, so the same dress gives the
+## same textures and a changed part a new one).
 ## - Standing: from plain clothes, putting on a hat, a helmet instead, a shirt instead of the
 ##   t-shirt, a tactical vest, a plate carrier, tactical pants and boots each paint something the
 ##   plain body never painted (sampled before and after each one).
 ## - A worn plate repaints: rifle rounds into a ceramic front plate paint a drawing the new plate
 ##   never had (its cracks).
-## - Crouched (drawn from the same folded trunk as a fallen body): a shirt, tactical pants and a
-##   vest each paint something the crouched plain body never painted, and a plate carrier shows on
-##   the folded back as well as round the neck (two of its textures are painted in the carrier's
-##   colour: the back's and the shoulders').
-## - Fallen: a body that died in a plate carrier shows it; with the carrier taken off as it lies its
-##   drawing changes, and with the carrier put back its drawing is the one it had in the carrier.
+## - Crouched: a shirt, tactical pants and a vest each paint something the crouched plain body never
+##   painted, and a plate carrier shows: a texture painted in the carrier's colour is worn.
+## - Fallen: a body that died in a plate carrier shows it where it lies.
 
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
 ## Frames each drawing is sampled over (the standing body breathes, so its textures are gathered
@@ -26,8 +23,8 @@ const CROUCHED_CHANGES := [
 	["tactical pants", { "pants": &"tactical_pants" }],
 ]
 ## Pixels of a garment's colour a texture needs before it counts as painting that garment (the
-## default style's carrier on the crouched body's shoulders' art holds about 13, between its edge
-## sheen, stencil and pouches; a trunk face's panel over a hundred).
+## default style's carrier on the shoulders' art holds about 13, between its edge sheen, stencil
+## and pouches).
 const GARMENT_PIXELS := 8
 const CHANGES := [
 	["a hat", { "head": &"hat" }],
@@ -44,7 +41,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "Each garment changes the drawing",
 		"description": "Every garment paints something plain clothes never do; a ceramic plate "
-			+ "worn by rifle rounds repaints; a body fallen in a plate carrier is drawn with it, "
+			+ "worn by rifle rounds repaints; a body fallen in a plate carrier shows it, "
 			+ "and differently without it.",
 		"tags": ["outfit", "art", "character", "fallen"],
 		"timeout": 24.0,
@@ -52,7 +49,6 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.own_picture()  # checks the 2D draw, which the session's view hides
 	s.arena(Rect2(0, 0, 900, 500))
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)
@@ -70,9 +66,6 @@ func configure(s: TestSetup) -> void:
 		Vector2(OutfitProbe.TARGET_X, 120),
 		{ "max_health": 10_000.0, "facing": Vector2.LEFT, "movement:aim_point": Vector2(0, 120) },
 	)
-	# The camera stops framing a body once it is dead, and a body out of its view is not drawn (its
-	# drawing could not change): the fallen one lies inside the view the two living actors keep
-	# framed (headless, the smallest one: 160 px plus the cull margin).
 	s.actor(&"fallen", &"puppet", Vector2(450, 280), { "max_health": 10.0 })
 	s.actor(
 		&"crouched",
@@ -89,7 +82,7 @@ func run(t: TestContext) -> void:
 		return
 	if not t.require(
 			OutfitProbe.can_read_art(model),
-			"Visuals.drawn_art() reads the textures the body's last draw painted",
+			"the character's 3D body can be read",
 	):
 		return
 	t.puppet(&"model").aim_at(Vector2(250, 900))
@@ -136,7 +129,7 @@ func _check_crouched(t: TestContext, model: Node) -> void:
 		)
 
 
-## Crouched in a plate carrier, the body shows it on the folded back as well as round the neck.
+## Crouched in a plate carrier, the body shows it.
 func _check_crouched_carrier(t: TestContext) -> void:
 	var crouched := t.actor(&"crouched")
 	t.puppet(&"crouched").aim_at(Vector2(900, 380))
@@ -155,9 +148,8 @@ func _check_crouched_carrier(t: TestContext) -> void:
 	)["looks"][crouched.wardrobe.style]["color"]
 	var in_carrier := _painted_in(crouched, carrier_color)
 	t.check(
-		in_carrier >= 2,
-		("crouched, the plate carrier shows on the folded back as well as round the neck (textures "
-				+ "in its colour: %d)") % in_carrier,
+		in_carrier >= 1,
+		"crouched, the plate carrier shows (textures in its colour: %d)" % in_carrier,
 	)
 
 
@@ -192,7 +184,7 @@ func _check_worn_plate(t: TestContext) -> void:
 	)
 
 
-## Fallen: the vest is drawn on the body where it lies.
+## Fallen: the vest shows on the body where it lies.
 func _check_fallen(t: TestContext) -> void:
 	var fallen := t.actor(&"fallen")
 	var carrier := OutfitProbe.PLAIN_CLOTHES.merged(
@@ -213,17 +205,11 @@ func _check_fallen(t: TestContext) -> void:
 		return
 	await t.seconds(0.3)
 	var lying := OutfitProbe.art(fallen)
-	t.require(not lying.is_empty(), "the fallen body is drawn")
-	OutfitProbe.wear(fallen, OutfitProbe.PLAIN_CLOTHES)
-	await t.seconds(0.3)
-	var stripped := OutfitProbe.art(fallen)
-	t.check(stripped != lying, "the fallen body is drawn differently without its plate carrier")
-	OutfitProbe.wear(fallen, carrier)
-	await t.seconds(0.3)
-	t.check(
-		OutfitProbe.art(fallen) == lying,
-		"and with it back on, the drawing it had in the carrier: the difference is the carrier",
-	)
+	t.require(not lying.is_empty(), "the fallen body is shown")
+	var vest := OutfitProbe.body_of(fallen).get_child(BodyMesh.VEST) as MeshInstance3D
+	t.check(vest.visible, "the body that died in a plate carrier shows it where it lies")
+	var plain := OutfitProbe.art(t.actor(&"model"))
+	t.check(lying != plain, "and it looks different from a body in plain clothes")
 
 
 ## Every texture `c`'s body paints over `SAMPLE_FRAMES` frames, as a set (instance id -> true).
@@ -241,12 +227,12 @@ func _new_in(drawn: Dictionary, before: Dictionary) -> Array:
 	return drawn.keys().filter(func(id): return not before.has(id))
 
 
-## How many of the textures `c`'s body last painted hold at least `GARMENT_PIXELS` pixels of `color`
+## How many of the textures `c`'s body wears hold at least `GARMENT_PIXELS` pixels of `color`
 ## (a garment's base colour, as the painters fill it before shading and weave).
 func _painted_in(c: Node, color: Color) -> int:
 	var count := 0
-	for tex in OutfitProbe.visuals(c).call("drawn_art"):
-		var img: Image = (tex as Texture2D).get_image()
+	for tex in OutfitProbe.textures(c):
+		var img: Image = tex.get_image()
 		if img == null:
 			continue
 		if _pixels_in(img, color) >= GARMENT_PIXELS:

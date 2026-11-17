@@ -5,7 +5,7 @@ extends GameTest
 ## frag into the open: within a few frames of the `explosion` event a flash is lit where the grenade
 ## went off, and within 1.5 s every flash is dark again. A flash is at hand height, so everything
 ## shadows it (`docs/lighting.md` L6): every flash's shadow mask meets the walls', a tall piece's
-## (the wardrobe), a low piece's (the chair) and the living gunner's occluders.
+## (the wardrobe), a low piece's (the chair) occluders.
 ##
 ## It reads (tests/_lighting/lighting_probe.gd) `WorldLighting` in the group `world_lighting`
 ## with `flashes()`, the pooled PointLight2Ds (lit: enabled with energy).
@@ -82,14 +82,13 @@ func run(t: TestContext) -> void:
 	await _flash(t, flashes, t.events_of(&"explosion")[0]["position"], "explosion", BLAST_GONE)
 
 
-## Check that the wall, the wardrobe, the chair and the gunner each carry an occluder that shadows
+## Check that the wall, the wardrobe and the chair each carry an occluder that shadows
 ## every one of `flashes`; false when one carries none (the test has failed).
 func _check_casters(t: TestContext, flashes: Array) -> bool:
 	var casters := {
 		"wall": Probe.occluders_at(t.world, Vector2(450, 0)),
 		"wardrobe": Probe.own_occluders(t.object(&"wardrobe")),
 		"chair": Probe.own_occluders(t.object(&"chair")),
-		"gunner": Probe.own_occluders(t.actor(&"gunner")),
 	}
 	for what: String in casters:
 		var own: Array = casters[what]

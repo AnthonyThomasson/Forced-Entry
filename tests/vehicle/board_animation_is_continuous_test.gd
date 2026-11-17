@@ -3,7 +3,7 @@ extends GameTest
 ## press until the door has shut behind the seated character: the character's position never steps
 ## further in a frame than its own walk does, its facing turns smoothly (toward the door, then
 ## forward), the door eases open before the character folds in and eases shut after, the fold eases
-## from standing to seated, and the seated character ends drawn over the chassis and under the roof.
+## from standing to seated, and the seated character ends inside the car's body.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
@@ -25,8 +25,7 @@ func describe() -> Dictionary:
 		"name": "The boarding animation is continuous",
 		"description": "Every frame of a boarding: per-frame steps under a walking step, a smooth "
 			+ "turn to the door and then forward, the door easing open before the fold and shut "
-			+ "after it, an eased fold, and the seated character between the Chassis and Roof "
-			+ "layers.",
+			+ "after it, an eased fold, and the seated character inside the car's body.",
 		"tags": ["vehicle", "car", "board", "animation", "door"],
 		"timeout": 20.0,
 	}
@@ -57,8 +56,8 @@ func run(t: TestContext) -> void:
 	_check_seated(t, car, me)
 
 
-## The car and the character have the reads the test samples, the front-left handle and the
-## Chassis and Roof draw layers (false: ends the test).
+## The car and the character have the reads the test samples and the front-left handle (false: ends
+## the test).
 func _premises(t: TestContext) -> bool:
 	if not Probe.ready(t, &"car", [&"me"]):
 		return false
@@ -75,10 +74,7 @@ func _premises(t: TestContext) -> bool:
 			"the car reports its front-left handle",
 	):
 		return false
-	return t.require(
-		Probe.layer(car, "Chassis") != null and Probe.layer(car, "Roof") != null,
-		"the car has its Chassis and Roof draw layers",
-	)
+	return true
 
 
 ## In reach of the front-left handle but not at it (ahead of it and out from the side), facing
@@ -215,7 +211,7 @@ func _check_fold(t: TestContext, got: Samples) -> void:
 		)
 
 
-## Seated: inside the body, over the chassis and under the roof.
+## Seated: inside the body.
 func _check_seated(t: TestContext, car: Node2D, me: Node2D) -> void:
 	var reach_in := car.global_position.distance_to(
 		VehicleFrame.edge(car, -VehicleFrame.forward(car)),
@@ -224,11 +220,6 @@ func _check_seated(t: TestContext, car: Node2D, me: Node2D) -> void:
 		me.global_position.distance_to(car.global_position) < reach_in,
 		"the character ends inside the car's body",
 	)
-	t.check(
-		Probe.draws_above(me, Probe.layer(car, "Chassis")),
-		"the seated character is drawn over the chassis",
-	)
-	t.check(Probe.draws_above(Probe.layer(car, "Roof"), me), "and under the roof")
 
 
 ## Whether a measured ease of `took` s fits a full time of `full` s.

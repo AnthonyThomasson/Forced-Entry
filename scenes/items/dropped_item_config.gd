@@ -1,6 +1,6 @@
 class_name DroppedItemConfig
 ## How an item let go into the world moves (Items domain, `dropped_item.gd`): its fall, bounce,
-## skid, spin and glance off walls, its size against them and its shadow. A `class_name` holder of
+## skid, spin and glance off walls, and its size against them. A `class_name` holder of
 ## `static var`s, read as `DroppedItemConfig.<name>`, like the other config holders, so a test or
 ## tool can change them (tests restore them with `set_static`).
 
@@ -18,5 +18,3 @@ static var wall_bounce: float = 0.45
 static var spin_friction: float = 14.0
 ## Its size against walls (px).
 static var radius: float = 3.0
-## Shadow shift per px of height.
-static var shadow_per_height: float = 0.06

@@ -24,8 +24,7 @@
       now), `exit(character) -> bool`, `drive_input(character, throttle, steer, handbrake)` (driver only, engine running), and the reads
       `speed()` (px/s, unsigned), `engine_state()` (`{ running, rpm, load }`), `slip()` (0 while the tyres grip), `wheel_angle()`,
       `brake_lights()`, `view_zoom_out()` (`VehicleDriveConfig.zoom_out` × speed / top speed: how far a camera following someone aboard zooms
-      out). Two draw layers are contract too (tests find them by name): child `Chassis` (`layer` `"chassis"`, at `DrawLayers.UNDER_VEHICLE`)
-      and child `Roof` (`layer` `"roof"`, at `DrawLayers.ABOVE`).
+      out).
     - **Its other contracts:** hittable (3), Deformable / debris / impulse (4), pushable (5), the `vehicle` / `engine` / `skid` topics (10),
       its painters (12). General's camera reads `target.use.vehicle().view_zoom_out()` duck-typed (`has_method`), never
       `VehicleDriveConfig`; `player_controller.gd` calls `use.try_interact()` on `Keybinds.INTERACT` (Space). Only the sandbox and the

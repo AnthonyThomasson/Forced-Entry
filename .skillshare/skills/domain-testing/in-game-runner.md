@@ -9,7 +9,6 @@ Tests in a window. The headless runs are `SKILL.md`'s "Running tests".
 - **`--windowed`:** `tools/run_tests.sh --windowed [words]` runs gdUnit in a window with vsync off, always in one process
   (nothing competes with what it measures). A perf test's frame times then include the render. The draw tests that
   compare pixels run their image checks only this way (`tests/general/fill_batch_matches_draw_calls_test.gd`,
-  `tests/items/prepaint_covers_the_draws_test.gd`, `tests/character/body_mesh_matches_polygons_test.gd`,
   `tests/physics/debris_pages_match_one_batch_test.gd`).
 - **The browser:** the setup window's **Tests** button opens `test_browser.tscn`: search, pick, then Play. The runner plays
   the test with its result banner, keeps the world running and offers Rerun and Back (to `main.tscn`). Engine metas

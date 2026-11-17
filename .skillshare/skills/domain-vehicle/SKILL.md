@@ -24,7 +24,7 @@ vehicle._integrate_forces ─▶ drive.step (VehicleDrive)   /   _contacts (Vehi
 | `vehicle_door.gd` | One door in the vehicle's frame: eased open amount, pose, stand and entry points, `is_clear`. |
 | `vehicle_boarding.gd` | One character's ride: a timed phase machine (`Phase`, inner `Pose`) from Space beside the vehicle to the last step out. |
 | `character_vehicle_use.gd` | The character's component (built by `CharacterUse.attach`): picks the door, steps the ride after the controller, abandons it on death. |
-| `vehicle_visuals.gd`, `art/` | Draw: read `art.md` before touching the painters or the chassis and roof layers. |
+| `art/` | The painters and the 3D mesh: read `art.md` before touching them. |
 | `vehicle_config.gd` (`VehicleConfig`) | `kinds` row per kind (`car`, `van`: size, mass, engine, axles, grips, `seats`, `doors`) and `looks` row per kind (the painters' proportions). Shared numbers: `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`, `VehicleMeshConfig` (the 3D heights and part sizes). |
 
 **Frames.** Rotation 0 = nose toward +x; the vehicle's own frame has x forward, y to its right. Every door, seat, axle and `looks` entry is in that frame. Art is painted in Art's canonical frame (front toward +y) and drawn turned by `BODY_TURN`.

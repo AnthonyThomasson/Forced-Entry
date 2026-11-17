@@ -78,9 +78,7 @@ var _flown := 0.0
 func _ready() -> void:
 	add_to_group(&"live_grenades")
 	ViewLayers.set_moving(self, true)
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_query = _sweep_query(GrenadeConfig.radius)
-	_update_layer()
 
 
 func _physics_process(delta: float) -> void:
@@ -95,7 +93,6 @@ func _physics_process(delta: float) -> void:
 	if _motion.rolling:
 		_spin = move_toward(_spin, 0.0, GrenadeConfig.spin_friction * delta)
 	_angle += _spin * delta
-	_update_layer()
 	if landed:
 		_post(&"bounce")
 	if _motion.rolling and _motion.speed <= REST_SPEED:
@@ -103,21 +100,7 @@ func _physics_process(delta: float) -> void:
 		ViewLayers.set_moving(self, false)
 		_spin = 0.0
 		_post(&"rest")
-	queue_redraw()
 	shifted.emit()
-
-
-func _draw() -> void:
-	if item == null:
-		return
-	var away := PixelArt.away_from_light(self)
-	item.art.draw_dropped(
-		self,
-		away * (0.5 + _motion.height * GrenadeConfig.shadow_per_height),
-		_angle,
-		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha),
-	)
-	item.art.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE)
 
 
 ## Let a grenade go as `throw` says (of its `kind`, from `from` toward `to`, thrown by `thrower`,
@@ -301,11 +284,6 @@ func throw_stats() -> Dictionary:
 ## Audio domain voices the clatter, perception hears where it landed.
 func _post(stage: StringName) -> void:
 	EventBus.post(&"grenade", { "position": global_position, "kind": kind, "stage": stage })
-
-
-## Aloft it draws over the living; down it lies beneath them, like a dropped item.
-func _update_layer() -> void:
-	z_index = DrawLayers.ABOVE if _motion.height > 12.0 else DrawLayers.LYING
 
 
 ## Move across the floor by `motion`, striking walls, solid furniture taller than it is high and the

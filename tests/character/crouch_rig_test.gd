@@ -37,14 +37,6 @@ func run(t: TestContext) -> void:
 	var crouched := _shape(t.actor(&"crouch"))
 	_check_spine(t, standing, crouched, r)
 	_check_stance(t, standing, crouched, r)
-	t.check(
-		t.actor(&"crouch").get_node("Visuals").draws_laid_out(),
-		"a crouch is drawn from the rig's trunk, its back showing",
-	)
-	t.check(
-		not t.actor(&"stand").get_node("Visuals").draws_laid_out(),
-		"a standing body is drawn as upright shoulders",
-	)
 	_check_bones(t, crouched, r)
 
 

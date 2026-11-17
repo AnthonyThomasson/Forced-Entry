@@ -55,7 +55,7 @@ static func inventory_for(slots: Array, rounds := -1, magazine: StringName = &""
 		var item := create(int(id), int(grenades.get(int(id), rounds)), magazine)
 		if item != null:
 			item.art.style = style
-			item.art.prepaint()  # its art, before a fight first draws it (ItemArt.prepaint)
+			item.art.prepaint()  # its meshes and art, before a fight first shows them
 			inv[int(id)] = item
 	return inv
 

@@ -2,7 +2,7 @@ class_name CharacterAnatomy extends RefCounted
 ## The body's animate parts as the character steps them (`character.gd`'s `anatomy`): the living
 ## motion (`pose`) and what drives it, the standing rig solved once a physics frame (`rig()`), the
 ## `Hands` child (hand geometry and the punch), the legs against walls, the leg kick, the footfalls,
-## the flesh's dents and its bleeding, the living body's shadow, and the fall once dead (`ragdoll`)
+## the flesh's dents and its bleeding, and the fall once dead (`ragdoll`)
 ## with the bleeding out once it has settled. The character adds the parts that are nodes from its
 ## `_ready` (`attach`), steps the body each physics frame on foot or once dead (`step`), holds it
 ## still in an interaction or a ride (`hold`), and lays it down on death (`die`, `fall`).
@@ -28,16 +28,13 @@ var legs := CharacterLegs.new()
 var kick := CharacterKick.new()
 ## Detects footfalls and feeds the bloody footprints (see character_footsteps.gd).
 var footsteps := CharacterFootsteps.new()
-## The falling body once dead (null while alive): stepped here, drawn by the visuals.
+## The falling body once dead (null while alive): stepped here, shown by the 3D body mesh.
 var ragdoll: CharacterRagdoll
 ## Damage dents/chunks recorded when the character is shot; read by the visuals and the
 ## collider rebuild. The character is flesh — a hittable surface like furniture.
 var deformable: Deformable
 ## Splatter and dripping from this character's wounds (Physics domain component).
 var wound: BloodWound
-## The living body's shadow (a LightOccluder2D child on `LightMasks.CHARACTER`, turned with
-## `facing`); null while `LightMasks.shadows` is off, and freed on death.
-var occluder: LightOccluder2D
 ## What drives `pose`, refilled each physics frame (see `_pose_drive`).
 var _drive := PoseDrive.new()
 ## The standing rig solved for `_rig_frame` (see `rig()`).
@@ -76,11 +73,6 @@ func attach() -> void:
 
 	footsteps.footprints = BloodFootprints.new()
 	character.add_child(footsteps.footprints)
-
-	occluder = LightMasks.occluder(_shadow_footprint(), LightMasks.CHARACTER)
-	if occluder != null:
-		character.add_child(occluder)
-		occluder.rotation = character.facing.angle()
 
 
 ## The standing skeleton as it is held right now (see character_rig.gd), for the visuals and
@@ -166,15 +158,10 @@ func wound_by(hit: HitInfo) -> void:
 	wound.record(hit)
 
 
-## The body dies: the rig is solved afresh, the bleeding stops, it is drawn beneath the living
-## (`CharacterArtConfig.ragdoll_z_index`), and a body on the floor casts no shadow.
+## The body dies: the rig is solved afresh and the bleeding stops.
 func die() -> void:
 	invalidate_rig()
 	wound.stop()
-	character.z_index = CharacterArtConfig.ragdoll_z_index
-	if occluder != null:
-		occluder.queue_free()
-		occluder = null
 
 
 ## Let the body fall from the standing rig: the ragdoll takes over from the live pose with
@@ -183,16 +170,6 @@ func fall(momentum: Vector2, direction: Vector2) -> void:
 	legs.clear()
 	kick.clear()
 	ragdoll = CharacterRagdoll.new(character, momentum, direction)
-
-
-## Turn the shadow with the facing (it moves with the body, its parent); only when the facing has
-## turned.
-func turn_shadow() -> void:
-	if occluder == null:
-		return
-	var angle: float = character.facing.angle()
-	if not is_equal_approx(occluder.rotation, angle):
-		occluder.rotation = angle
 
 
 ## What drives the pose this frame (`_drive`, refilled): the aim, the walk at `moving` (px/s), each
@@ -205,18 +182,3 @@ func _pose_drive(moving: Vector2, stun_at: float) -> PoseDrive:
 	_drive.punch = hands.punch_amounts()
 	_drive.stun = stun_at
 	return _drive
-
-
-## The living body's shadow footprint, in its own frame with +x along the facing
-## (CharacterShadowConfig).
-func _shadow_footprint() -> PackedVector2Array:
-	var poly := PackedVector2Array()
-	var sides := maxi(3, CharacterShadowConfig.sides)
-	var radius: float = character.radius
-	for k in sides:
-		var a := TAU * k / sides
-		poly.append(Vector2(
-			cos(a) * radius * CharacterShadowConfig.depth,
-			sin(a) * radius * CharacterShadowConfig.width,
-		))
-	return poly
