@@ -81,8 +81,10 @@ func _still(t: TestContext, twins: TwinSpace) -> void:
 	t.check(twins.followed >= 1, "the standing guard is read each frame all the same")
 
 
-## The sofa is freed: its twin goes, and a ray over where it stood lands on the floor.
+## The sofa is freed, asleep and so off the follow list: its twin goes, and a ray over where it
+## stood lands on the floor.
 func _freed(t: TestContext, twins: TwinSpace, sofa: Node2D) -> void:
+	t.require((sofa as RigidBody2D).sleeping, "premise: the sofa is asleep when it is freed")
 	var twin := twins.twin_of(sofa)
 	var before := twins.count
 	sofa.queue_free()
