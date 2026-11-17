@@ -26,7 +26,6 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.own_picture()  # its geometry is the plain camera's closest zoom, not the 3D view's step
 	Maps.house(s, false)
 	s.lock_interaction([&"camera", &"pause"])
 	# The camera frames the leader alone (at its closest zoom): north of the teammates in the back

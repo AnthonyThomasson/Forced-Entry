@@ -48,3 +48,7 @@ ui/toolbar/run_overall=true
 [navigation]
 
 world/map_use_async_iterations=false
+
+[rendering]
+
+limits/global_shader_variables/buffer_size=262144

@@ -129,7 +129,8 @@ func focus_targets() -> Array[Node2D]:
 
 
 ## Switch to framing mode: ease to keep every live node in `targets` on screen (used by the
-## spectator match view). A General observer — reads only Node2D positions + the `is_dead` property.
+## spectator match view and the test runner's shared camera, whose zoom then starts afresh). A
+## General observer: reads only Node2D positions and the `is_dead` property.
 func frame(targets: Array) -> void:
 	_frame_targets.clear()
 	for t in targets:
@@ -137,6 +138,9 @@ func frame(targets: Array) -> void:
 			_frame_targets.append(t)
 	_frame_mode = not _frame_targets.is_empty()
 	_manual = false
+	# a new framing starts from its own fit: the held zoom step and the wheel's scale are forgotten
+	_steps = ZoomSteps.new()
+	_zoom_bias = 1.0
 
 
 ## Framing mode: pan by the camera keys / screen edge, handing control to the viewer while they do

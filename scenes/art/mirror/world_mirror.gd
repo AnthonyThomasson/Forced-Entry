@@ -254,7 +254,7 @@ func _mirror_pending() -> void:
 ## Mirror `node` as what it is: shown by its group's builder, a body's mesh or proxies, or a floor
 ## (one already shown by a builder of a tracked group stays so).
 func _mirror_node(node: Node) -> void:
-	if _is_tracked(node) or _tracked_by_group(node) or _is_left_out(node):
+	if _is_left_out(node) or _is_tracked(node) or _tracked_by_group(node):
 		return
 	if node is PhysicsBody2D:
 		_add_body(node as PhysicsBody2D)

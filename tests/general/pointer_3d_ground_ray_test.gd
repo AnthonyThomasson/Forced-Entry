@@ -46,7 +46,6 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.own_picture()  # it builds its own rig and camera: the session shows none
 	s.set_static(RenderConfig, &"texel_match", false)
 
 

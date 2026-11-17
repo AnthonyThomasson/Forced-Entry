@@ -73,7 +73,7 @@ Tests: `tests/art/mirror_follows_bodies_test.gd`, `mirror_follows_rebuilt_collid
 ## The pixel post (`post/`, interface 27)
 
 The 3D picture is made to read as pixel art (#193 rule 6): drawn at a low internal resolution (a picture pixel is an art pixel, General's `RenderConfig.texel_match`) and shown with nearest
-filtering, through two things Art owns, tuned in `PixelPostConfig` (ADR 0003). **`ToonMaterial.shared()`** (made by `make()`) is the one `ShaderMaterial` (`toon.gdshader`) every mesh of
+filtering, through two things Art owns, tuned in `PixelPostConfig` (ADR 0003). **`ToonMaterial.shared()`** (made by `make()`; its per-instance uniforms fill the engine's buffer, `project.godot` raises `rendering/limits/global_shader_variables/buffer_size` far past 4096 (test `art/shader_instance_buffer`): a 5v5 match uses ~2100) is the one `ShaderMaterial` (`toon.gdshader`) every mesh of
 the 3D view shares, a colour per instance (`base_color`, an instance uniform): the dusk's ambient plus each light's amount (N.L times its fall-off and shadow) stepped into `bands` bands (3), tinted
 by the light and capped (`ToonLightConfig`, `ToonLight`; `textured-toon.md`). **`PixelPost.attach(camera, oversample)`** adds the
 outline quad (`outline.gdshader`) under the view's camera: a dark line where the depth's second difference steps (a silhouette, `silhouette_px` wide) or the normal
