@@ -1,6 +1,6 @@
 extends RefCounted
 ## Objects domain (private): the lights a piece gives, its `get_lights()` declaration (read
-## duck-typed by the Lighting domain, which gives each one a PointLight2D under the piece). What
+## duck-typed by the Lighting domain, which gives each one an OmniLight3D). What
 ## gives light is what the piece's painter draws glowing: a lamp's bulb, a screen's face (a TV, a
 ## desk's monitor, the den's monitor wall, the rig's halo, a cart's display), a neon tube, a server
 ## rack's LEDs, the scanner's beam, the hot ring, the surgeon's lamp, a street lamp's lens or sign,

@@ -564,7 +564,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 - **Character**: `inventory.item_count`, `inventory.throw_stats`, `weapon.aim_target`, `movement.posture_coverage`, `movement.run_speed` and `movement.walk_speed` (what the AI judges a place in time by), the stun state
   (`take_stun`, and the `stun` component's `is_blind`, `is_deaf`, `level`, `view`; its numbers are `CharacterStunConfig`'s) and its effect on speed, running and aim, the stunned look
   (the `eyes` and `one_hand` stances, the hunch and the stagger) and `weapon.one_handed()`, `blast_push` for ragdolls.
-- **Lighting**: the stun's flash (`LightingConfig.flashes`, `WorldLighting`).
+- **Lighting**: the stun's flash (`LightingConfig.flashes`, `WorldLighting3D`).
 - **Projectile**: `Explosion.frag` / `Explosion.stun`, and the `max_range` of the `Shot` `ProjectileSpawner.spawn` takes. **Physics**: the explosion FX.
   **Audio**, **General** (camera, EventBus topics `throw`, `grenade`, `explosion`, `stun`), **UI** (`StunScreen`, the setup window,
   the overlay table) and **AI** (perception of live grenades, the throw geometry, the `grenade` and `stun_entry` nodes, the `throw`

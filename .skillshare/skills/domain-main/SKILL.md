@@ -85,8 +85,8 @@ The API is interface 23; these are the reasons behind it.
   keep `wait_nav` on.
 - **One house in a district.** A match generates a district (interface 1) unless the spec names a `house`: the NPCs get only the centre
   tower's `rooms` / `openings` (the handle's), so a neighbour tower counts as outside; only the nav bake and the lighting take every tower.
-- **Light before characters.** `WorldLighting.light` (interface 20, `docs/lighting.md`) runs in `stage`, under `World` so a
-  teardown frees it; characters placed afterwards cast their own shadows (group `characters`).
+- **Lights are the 3D view's.** `MatchBuilder.stage` builds no lights; Main's 3D view builds `WorldLighting3D` (interface 20,
+  `docs/lighting.md`) after the mirror, from the world's `get_lights()` and rooms.
 - **Bind before the tree.** `bind_npc` hands the controller `rooms`, `openings` and its `entry_point` before the NPC joins the
   tree, so its first tick knows them; `npc.tscn` authors the controller in group `npc_controllers` (interface 7) so that holds.
   An invader's entry point is the front entrance, a defender's none. `match_spawner.gd` never calls `MatchBuilder`: `populate`

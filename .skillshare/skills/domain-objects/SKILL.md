@@ -72,8 +72,8 @@ Objects declares what its pieces give the Lighting domain:
 - **`get_lights()`** is worked out once in `_ready` by `object_lights.gd`: one plain dict per light in the piece's frame. What gives
   light is what its painter draws `glowing`; the kind is read off the painter and its options (`_kind`, through `ObjectArt.light_kind`
   for variant pieces) and the numbers are that kind's row of `ObjectArtLightConfig.specs`. The light's colour is the painter's
-  glowing colour. A screen's pool lies across its front (`turn` = facing + 90°), a tube's along it. Lighting parents each kept light
-  to the piece, so a shove carries it (`tests/lighting/shoved_lamp_light_follows_test.gd`). The 3D mesh glows with it
+  glowing colour. A screen's pool lies across its front (`turn` = facing + 90°), a tube's along it. Lighting keeps each light
+  at the piece, so a shove carries it (`tests/lighting/light_3d_follows_and_flickers_test.gd`). The 3D mesh glows with it
   (`WorldLighting3D`).
 - **The street's light layer:** a floor whose definition says `light_layer: "street"` is lit only by the street's lights.
 

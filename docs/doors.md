@@ -89,7 +89,7 @@ A standing door (shut, ajar or open) is a solid leaf in the world: a body on the
 one turns away from the body, DR10), is struck by rounds at every height (`coverage` 100)
 and lets them through by its material's `penetration` by the usual rule (a hollow door slows a pistol round by 9%, a steel one by
 81%, which the pistol's `projectile_min_speed` does not survive: the round goes on through hollow, stops in steel; a rifle
-round goes through steel), blocks the AI's sight and casts a shadow (a light occluder on the walls' mask that turns with the leaf).
+round goes through steel), blocks the AI's sight and casts a shadow (its 3D leaf mesh turns with the leaf).
 The glass-panel door is the exception: its surface says `transparent`, which sight reads (an NPC on one side sees a puppet on
 the other through it, not through a wooden door) and it casts no shadow; a round still meets it (penetration 5). A knocked-down
 door blocks nothing (DR11).

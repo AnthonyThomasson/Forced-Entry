@@ -57,7 +57,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 17. **Main / Testing → AI team: the human's place in a stack.** Read for `PlayerStack` and the human on the radio: `interfaces/17-player-stack.md`
 18. **Main → Audio: `Sound.focus`, `Sound.warming()`.** Read for whose ears the player has and the sound pre-warm: `interfaces/18-sound-focus.md`
 19. **Character ↔ Vehicle: the drivable contract.** Read for getting in, driving, and a vehicle striking a character: `interfaces/19-drivable-contract.md`
-20. **Main / Testing → Lighting; the world's lights and shadows.** Read to light the world or add a light or occluder: `interfaces/20-lighting.md`
+20. **Main / Testing → Lighting; the world's lights and shadows.** Read to light the world or add a light: `interfaces/20-lighting.md`
 21. **Main / Testing → AI team: squads, leaders, orders.** Read for `Squad`, leaders, orders and following: `interfaces/21-squads.md`
 22. **Main → UI.** Read for how Main wires a HUD, the setup window or the overlay bar: `interfaces/22-main-to-ui.md`
 23. **Main / Testing → `MatchBuilder`.** Read to build a match or a test world: `interfaces/23-match-builder.md`

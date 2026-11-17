@@ -1,16 +1,16 @@
 extends GameTest
-## Rhythms keep their clocks, but a frame that leaves a light's energy or its glow unchanged makes
-## no engine write. The seeded-rhythm test pins the resulting light values.
+## Rhythms keep their clocks, but a frame that leaves a light's energy unchanged makes no engine
+## write. The 3D lighting counts both: its rhythm steps and the energies it wrote.
 
-const Probe := preload("res://tests/_lighting/lighting_probe.gd")
+const Probe := preload("res://tests/_lighting/lighting_3d_probe.gd")
 const FRAMES := 180
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A light rhythm skips unchanged writes",
-		"description": "Every rhythm still steps each frame while energy and glow are written only "
-			+ "when their values change.",
+		"description": "Every rhythm still steps each frame while a light's energy is written "
+			+ "only when its value changes.",
 		"tags": ["lighting", "perf"],
 		"timeout": 8.0,
 	}
@@ -27,17 +27,14 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var lighting := Probe.require_lighting(t)
+	var lighting := Probe.light(t)
 	if lighting == null:
 		return
 	await t.frames(FRAMES)
-	var steps = lighting.get("rhythm_steps")
-	if not t.require(steps != null, "the lighting counts its rhythm steps"):
-		return
-	t.check(steps >= FRAMES, "every rhythm still advances on every frame")
-	var energy: int = lighting.get("energy_writes")
-	var glow: int = lighting.get("glow_writes")
-	t.check(energy < steps, "an unchanged energy is not written again (%d writes, %d steps)" % [
-		energy, steps])
-	t.check(glow < steps, "an unchanged glow is not written again (%d writes, %d steps)" % [
-		glow, steps])
+	var steps: int = lighting.rhythm_steps
+	t.check(steps >= FRAMES, "every rhythm still advances on every frame (%d steps)" % steps)
+	var energy: int = lighting.energy_writes
+	t.check(
+		energy < steps,
+		"an unchanged energy is not written again (%d writes, %d steps)" % [energy, steps],
+	)

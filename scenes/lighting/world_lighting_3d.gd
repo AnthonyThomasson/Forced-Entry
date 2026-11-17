@@ -2,12 +2,12 @@ class_name WorldLighting3D
 extends Node3D
 ## The Lighting domain's 3D dusk (#193 phase 3, `docs/lighting.md`, "The 3D lighting"): the
 ## lights of the 3D render, built under the 3D view's world from the 2D world the sim runs in. It
-## reads the world as `WorldLighting` does, duck-typed: Objects' floors (the group `floors`), the
+## reads the world duck-typed: Objects' floors (the group `floors`), the
 ## lights a piece declares (`get_lights()`) and the rooms `WorldGen` gives, and builds
 ##   - the dusk: `LightingConfig.ambient_color` as the toon shaders' ambient (`ToonLight`), and one
 ##     `DirectionalLight3D`, the sky, in `sky_color` from the south-west at
 ##     `Lighting3DConfig.sun_elevation` with hard shadows, reaching only the street's floors (a
-##     texture of them is the sky mask): a house is lit from within, as in 2D, and the walls'
+##     texture of them is the sky mask): a house is lit from within and the walls'
 ##     shadows on the street are short;
 ##   - an `OmniLight3D` per light a piece declares, at the height of its kind (`overhead`, `low`,
 ##     `street`), in its colour and energy, as far as its pool's radius; and a ceiling fixture in
@@ -23,7 +23,7 @@ extends Node3D
 ##     `Lighting3DConfig.flash_lights`, the oldest dropped), driven by the 2D flash looks
 ##     (`LightingConfig.flashes`), unshadowed and kept to the room it is in (the street when it
 ##     is in none);
-##   - a bulb at each ceiling fixture (an emissive sphere over the walls, the 2D glyph's).
+##   - a bulb at each ceiling fixture (an emissive sphere over the walls).
 ## A light follows its piece (a shoved lamp), flickers in the rhythm `light_rhythm.gd` seeds for it
 ## and goes with its piece. In the group `world_lighting_3d`.
 

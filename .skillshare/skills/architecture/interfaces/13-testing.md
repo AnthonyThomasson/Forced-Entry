@@ -1,7 +1,7 @@
 13. **Testing → every domain** (a second composition root, like `main.gd`; the domain is `domain-testing`)
     `scenes/testing/` builds a test's world and drives it through the other interfaces only. Nothing depends on Testing.
     - **World:** WorldGen (1), or an arena / hand-laid layout from the three factories (2, with `WallFactory.openings_for`), staged by the
-      match builder (23): `MatchBuilder.stage` runs the bake (9), the dusk lighting (20: `WorldLighting.light` after the bake) and the
+      match builder (23): `MatchBuilder.stage` runs the bake (9) and the
       wait until both nav maps are `ready` before any actor enters. Each NPC actor is bound before it joins the tree by
       `MatchBuilder.bind_npc` (`MatchBuilder.entry_point_for` gives an invader the front entrance). `TestSetup.declared_match` runs
       `MatchBuilder.populate` over the staged world (read `t.world.match_handle`); `TestSetup.squads` runs `MatchBuilder.squads_over`, the
