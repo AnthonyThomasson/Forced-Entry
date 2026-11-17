@@ -144,8 +144,9 @@ func _stencils(t: TestContext) -> void:
 		t.check(shown.size() == 1, "the stencil %s is shown by one node" % sprite.name)
 	if stencils.is_empty() or not _wanted("stencil"):
 		return
-	var first := stencils[0] as Sprite2D
-	_camera.global_position = first.global_position + first.texture.get_size() * 0.5
+	var first := stencils[0] as Node2D
+	var art := first.get("texture") as Texture2D
+	_camera.global_position = first.global_position + art.get_size() * 0.5
 	_camera.zoom = Vector2(CLOSE_ZOOM * 0.5, CLOSE_ZOOM * 0.5)
 	await t.frames(12)
 	RenderingServer.force_draw(false)  # on demand: a covered window never draws
