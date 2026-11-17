@@ -555,8 +555,8 @@ static func _apply_in_scope(npc: Node, flags: Dictionary, scope: String) -> void
 ## `NavBuilder.ready` holds on the planning map and on the steering map, so an NPC placed afterwards
 ## never plans or walks on a map still showing another navmesh (at most `NAV_SYNC_MS` of real time;
 ## an error past it). A coroutine: await it. Returns the handle
-## `{ world, house, rooms, openings, nav_debug }` (and the `district` root when the world is a
-## district), or `{}` when
+## `{ world, house, rooms, openings, nav_debug, twins }` (`twins` the world's `TwinSpace`; and the
+## `district` root when the world is a district), or `{}` when
 ## `world` was freed during the wait (the match torn down).
 static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	match_spec = spec(match_spec)
@@ -566,8 +566,13 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	var root: Node2D = site["root"]
 	var house_rooms := WorldGen.get_rooms(house)
 	var site_rooms: Array = site["site_rooms"]
-	var bounds: Rect2 = site["bounds"]
-	var nav_region := NavBuilder.build(root, site_rooms, world, NavBuilder.AGENT_RADIUS, bounds)
+	var nav_region := NavBuilder.build(
+		root,
+		site_rooms,
+		world,
+		NavBuilder.AGENT_RADIUS,
+		site["bounds"],
+	)
 	if root != house and nav_region != null:
 		# A district plans in the building the match is fought in, on a small map of its own.
 		NavBuilder.plan_ring(nav_region, root, house_rooms)
@@ -585,6 +590,7 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	nav_updater.name = "NavUpdater"
 	world.add_child(nav_updater)
 	nav_updater.setup(nav_region, root, site_rooms, nav_debug)
+	var twins := _twin_space(world)
 	if bool(match_spec["wait_nav"]):
 		await _wait_nav(world)
 		if not is_instance_valid(world):
@@ -596,10 +602,26 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 		"site_rooms": site_rooms,
 		"openings": WorldGen.get_openings(house),
 		"nav_debug": nav_debug,
+		"twins": twins,
 	}
 	if root != house:
 		handle["district"] = root
 	return handle
+
+
+## The twin space of `world` (`TwinSpace`, interface 29): a 3D twin of every solid body under it,
+## built by each domain's own hook (Objects' walls, doors, floors and furniture, Vehicles', the
+## characters'), kept in step with the 2D bodies, and watching for the ones that join (the vehicles
+## and characters a test or a match places later). Built here, so a match and a test world both
+## have one, headless too.
+static func _twin_space(world: Node2D) -> TwinSpace:
+	var twins := TwinSpace.new()
+	ObjectTwins.register(twins)
+	VehicleTwins.register(twins)
+	CharacterTwin.register(twins)
+	world.add_child(twins)
+	twins.watch(world)
+	return twins
 
 
 ## What `stage` builds the world on, under `world`: the spec's `house` moved under `world` when it

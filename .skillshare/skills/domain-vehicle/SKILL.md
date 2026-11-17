@@ -24,6 +24,7 @@ vehicle._integrate_forces ─▶ drive.step (VehicleDrive)   /   _contacts (Vehi
 | `vehicle_door.gd` | One door in the vehicle's frame: eased open amount, pose, stand and entry points, `is_clear`. |
 | `vehicle_boarding.gd` | One character's ride: a timed phase machine (`Phase`, inner `Pose`) from Space beside the vehicle to the last step out. |
 | `character_vehicle_use.gd` | The character's component (built by `CharacterUse.attach`): picks the door, steps the ride after the controller, abandons it on death. |
+| `vehicle_twins.gd` (`VehicleTwins`) | The vehicle's 3D twin for General's twin space (29): a kinematic `AnimatableBody3D` over its 2D outline from the ground to `VehicleMeshConfig.heights[kind].belt`, on `PhysicsLayers.TWIN_VEHICLE`, following its transform; the glass and roof above the belt, and dents, are not in it yet. Test: `tests/vehicle/twin_vehicle_follows_test.gd`. |
 | `art/` | The painters and the 3D mesh: read `art.md` before touching them. |
 | `vehicle_config.gd` (`VehicleConfig`) | `kinds` row per kind (`car`, `van`: size, mass, engine, axles, grips, `seats`, `doors`) and `looks` row per kind (the painters' proportions). Shared numbers: `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`, `VehicleMeshConfig` (the 3D heights and part sizes). |
 

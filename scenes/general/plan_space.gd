@@ -20,3 +20,19 @@ static func plan_of(point: Vector3) -> Vector2:
 ## How high (px) 3D point `point` is above the floor: `y / unit`.
 static func height_of(point: Vector3) -> float:
 	return point.y / RenderConfig.unit
+
+
+## The 3D transform of a body whose 2D transform is `xf`, `height` px up: its origin lifted
+## (`lift`), turned about up by the 2D turn the other way (a 2D turn clockwise on a y-down screen
+## is a turn of `-angle` about +y). A local point `(x, y)` of the 2D body is the local 3D point
+## `(x, 0, y) * unit` of the lifted one, so the shapes of a body keep their offsets. Scale and skew
+## are not carried (a body's shapes carry their own sizes).
+static func lift_transform(xf: Transform2D, height: float = 0.0) -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, -xf.get_rotation()), lift(xf.origin, height))
+
+
+## The 2D transform under 3D transform `xf3` (the other way of `lift_transform`): its origin's
+## plan point and its turn about up, ignoring any tilt.
+static func plan_transform(xf3: Transform3D) -> Transform2D:
+	var along := xf3.basis.x
+	return Transform2D(atan2(along.z, along.x), plan_of(xf3.origin))

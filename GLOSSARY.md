@@ -94,6 +94,18 @@ The floor plan the AI, world generation, navigation and most tests think in: a `
 scale (`RenderConfig.unit`); height enters only where it matters (an eye, a muzzle, a top, a grenade's altitude).
 _Avoid_: world space (the 3D world's own axes), 2D space
 
+**Twin**:
+A 3D body in the twin space (`TwinSpace`) that stands for one solid 2D body, with its real heights: a wall (96 px), a floor slab, a
+piece of furniture as one box per part (`PieceHeights`), a door's leaf, a vehicle's body, a character's capsule whose height follows its
+posture (`BodyHeights`). Built by each domain from the same 2D shapes lifted by `PlanSpace`, synced from the 2D body each physics frame
+(written only when its body moved), and mapped back to its body by `TwinSpace.owner_of`. The 2D body is the truth until a class is
+flipped to a 3D body; then the 2D body becomes its footprint twin (ADR 0014).
+_Avoid_: mirror (the 3D view's meshes that follow the 2D bodies, `WorldMirror`), shadow, proxy (the mirror's box)
+
+**Twin space**:
+The 3D physics space of the twins (Jolt, the main window's 3D world), built by `MatchBuilder.stage` for every match and test world,
+headless too. Gameplay reads it rule by rule (a 3D ray for a bullet, a fragment, a sight line) as the real-cover jobs land.
+
 ### Game tests
 
 **Simulation test**:

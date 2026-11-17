@@ -9,7 +9,7 @@ Owns the world's objects (furniture, walls, floors, the street round a house, th
 they are hit and pushed, how they compose Physics, what they give the lighting, and their painters. It turns a plain definition
 dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, incl. `WearFactory`, `DecalFactory`, the floor's `sound_surface` /
 `marks` / `tile_from` / `light_layer` and `DoorFactory`), 3 (hittable), 4 (→ Physics), 5 (pushable), 8 (interactable), 10 (a door's
-`&"door"`), 11 (`PhysicsLayers`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`), 24 (the door contract).
+`&"door"`), 11 (`PhysicsLayers`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`), 24 (the door contract), 28 (`PieceHeights`), 29 (`ObjectTwins`: the twin 3D space).
 
 | File | Role |
 |---|---|
@@ -18,6 +18,7 @@ dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, in
 | `floor/floor.gd` | Floors. |
 | `object_factory.gd`, `wall_factory.gd`, `floor_factory.gd`, `wear_factory.gd`, `wear_plan.gd`, `door_factory.gd` | The interface-2 factories. `shared_textures.gd`: the shared flat art (pre-warm). |
 | `door/` (`door.gd` and its parts), `door_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
+| `object_twins.gd` (`ObjectTwins`) | The 3D twins of walls (96 px), doors (84), floors (slabs) and solid furniture (a box per `PieceHeights` part, a round piece's full footprint a cylinder; anchored static, else kinematic) for General's twin space (29, `heights.md`). A dent does not reshape a twin. |
 | `collider_cuts.gd` (`ColliderCuts`) | The shared queue of convex collider cuts, run on worker threads. |
 | `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`, `stencil_decal.gd`, `decal_factory.gd` (`DecalFactory`: the floor stencil). |
 | `art/` | Painters and holders: `art.md`, `meshes.md`, `furniture-art.md`, `structure-meshes.md`. `piece_heights.gd` (`PieceHeights`: every piece's real top and parts: `heights.md`). |

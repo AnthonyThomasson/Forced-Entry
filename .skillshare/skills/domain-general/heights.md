@@ -8,5 +8,5 @@ Side file of `domain-general`; signatures are architecture interface 11.
 
 ## PlanSpace
 
-`PlanSpace` (`plan_space.gd`, statics, interface 11) lifts a plan-space `Vector2` (the floor plan `(x, y)` the AI, world generation, navigation and most tests use, `(x, z)` on the 3D ground) and a height in px to a `Vector3` `(x, height, y) * RenderConfig.unit` (`lift`), and takes one back (`plan_of`, `height_of`). The mirror's lift (`MirrorProxy.lift`, a floor slab) and the camera rig's ground point use it, so the mapping is written once. Test: `tests/general/plan_space_test.gd`.
+`PlanSpace` (`plan_space.gd`, statics, interface 11) lifts a plan-space `Vector2` (the floor plan `(x, y)` the AI, world generation, navigation and most tests use, `(x, z)` on the 3D ground) and a height in px to a `Vector3` `(x, height, y) * RenderConfig.unit` (`lift`), and takes one back (`plan_of`, `height_of`). The mirror's lift (`MirrorProxy.lift`, a floor slab) and the camera rig's ground point use it, so the mapping is written once. `lift_transform(xf, height := 0.0)` lifts a body's 2D transform to its 3D one (the 2D turn `a` becomes `-a` about up; a local `(x, y)` is the local `(x, 0, y)`, so a shape's offset in its body survives) and `plan_transform(xf3)` takes it back: what the twin space places its twins by (`twins.md`). Test: `tests/general/plan_space_test.gd`.
 

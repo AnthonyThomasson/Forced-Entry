@@ -48,6 +48,10 @@ ui/toolbar/run_overall=true
 
 world/map_use_async_iterations=false
 
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
 [rendering]
 
 limits/global_shader_variables/buffer_size=262144

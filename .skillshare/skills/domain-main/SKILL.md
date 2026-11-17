@@ -5,7 +5,7 @@ description: Use when editing scenes/main.gd, match_builder.gd or match_spawner.
 
 # Main: the composition root
 
-Files (all in `scenes/`): `main.gd` + `main.tscn` (UI flow), `match_builder.gd` (`MatchBuilder`, interface 23: spec in, handle out;
+Files (all in `scenes/`): `main.gd` + `main.tscn` (UI flow), `match_builder.gd` (`MatchBuilder`, interface 23: spec in, handle out; its `stage` builds the world's `TwinSpace`, 29, registering each domain's twin hook;
 its API is in `architecture`), `match_spawner.gd` (NPC placement, used only by `MatchBuilder`), `squads_spec.gd` (`SquadsSpec`),
 `main_run.gd` (`MainRun`), `main_endless.gd` (`_endless`), `main_overlays.gd` (`_overlays`). Main and the Testing runner
 (interface 13) are the only code that knows every domain; nothing depends on Main. Main builds no match itself: the Testing

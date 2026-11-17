@@ -14,6 +14,8 @@ Owns the player character, built so other character types can exist. It reads in
 - The body (skeleton, pose, rig, hands, punch, kick, legs, ragdoll fall, all pixel art) → `body.md`.
 - Space on a door, a house door in reach, the scroll that turns it, a door in the way → `doors.md`.
 
+**The twin.** `character_twin.gd` (`CharacterTwin`, an `AnimatableBody3D`, interface 29) is the character's 3D twin in General's twin space: an upright capsule on `PhysicsLayers.TWIN_CHARACTER`, its radius the body's circle, its height the head top of the posture it is in (`BodyHeights`: stand the stature, crouch the duck), disabled while the body's circle is (seated), off its layer once dead (the body's `collision_layer` 0). It reads `movement.posture()` each frame through the space's `twin_update` hook; the fire-over a duck rises to is the duck-rise job's. Test: `tests/character/twin_capsule_posture_test.gd`.
+
 ## Components
 
 The three verbs (control, animate, draw) live in separate files wired through the scene tree. Scene scripts carry no `class_name` except a typed component's. A draw file sits on its own child `Node2D`.

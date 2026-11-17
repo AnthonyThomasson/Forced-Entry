@@ -52,6 +52,11 @@ var _nav_debug: Node2D = null
 var _leader_overlay: Node2D = null
 
 
+## The world's twin space (`TwinSpace`, interface 29), which the stage built as a match's is.
+func twin_space() -> TwinSpace:
+	return get_node_or_null(^"Twins") as TwinSpace
+
+
 ## Build everything `setup` declares. Statics and switches are applied before anything spawns, so
 ## spawning already sees them. The world stage (nav map, its overlay and re-baker, the dusk
 ## lighting, then the wait for the navigation maps) is Main's own, `MatchBuilder.stage`, over the

@@ -1,5 +1,5 @@
 11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `GameClock`, `BodyHeights`, `PlanSpace` and the shared rules**
-    - `PhysicsLayers` (`general/physics_layers.gd`, static holder): `SOLID` is the physics layer bit (1) "walls + solid furniture" live on.
+    - `PhysicsLayers` (`general/physics_layers.gd`, static holder): `SOLID` is the physics layer bit (1) "walls + solid furniture" live on (2D). `TWIN_WORLD` (1), `TWIN_VEHICLE` (2), `TWIN_CHARACTER` (4) and `TWIN_ALL` are the bits of the twin 3D space's own layers (29).
 	  Every raycast, sweep, collision mask or layer for it reads this one constant: Interaction's reach query, AI sight and line-of-fire
 	  rays (`agent_vision.gd`; the vision overlay asks the controller's `debug_sight_end`), the character's hand
 	  queries, leg sweeps and clearing check (`use.keep_clear_of`), a dropped item's glance, a thrown grenade's flight, the bullet's
@@ -48,4 +48,5 @@
 	  its standing head top. Test: `tests/general/body_heights_test.gd`.
     - `PlanSpace` (`general/plan_space.gd`, static holder): the plan-space helper. A `Vector2` in the AI, world generation, navigation and most tests means plan space, the floor
 	  plan `(x, y)` = `(x, z)` on the 3D ground; `PlanSpace.lift(plan, height := 0.0) -> Vector3` is `(x, height, y) * RenderConfig.unit`, `plan_of(point) -> Vector2` and
-	  `height_of(point) -> float` undo it. It is the mapping of the mirror and the camera rig (`MirrorProxy.lift`, `CameraRig`), written once. Test: `tests/general/plan_space_test.gd`.
+	  `height_of(point) -> float` undo it; `lift_transform(xf: Transform2D, height := 0.0) -> Transform3D` lifts a body's 2D transform (a turn of `a` is a turn of `-a` about up; a local `(x, y)` is the local `(x, 0, y)`) and
+	  `plan_transform(xf3) -> Transform2D` undoes it. It is the mapping of the mirror, the camera rig and the twin space (`MirrorProxy.lift`, `CameraRig`, `TwinSpace`, 29), written once. Test: `tests/general/plan_space_test.gd`.
