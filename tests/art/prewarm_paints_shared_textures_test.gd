@@ -94,10 +94,9 @@ func _district_asks_only_warm_keys(t: TestContext) -> void:
 	t.check(painted.is_empty(), "the district painted shared art the warm lacks: %s" % [painted])
 
 
-## Whether `key` is a texture the warm covers exactly: a crossing, a shell decoration, a tower
-## shadow or an awning or sign hung over a door (a podium segment or a road glyph depends on the
+## Whether `key` is a texture the warm covers exactly: a crossing, a shell decoration
+## or an awning or sign hung over a door (a podium segment or a road glyph depends on the
 ## seed, so only some are warm).
 func _fixed_shared(key: String) -> bool:
 	return (key.contains("crossing_painter") or key.contains("shell_decor_painter")
-			or key.contains("shadow_painter")
 			or (key.contains("awning_painter") and key.contains("overhang")))
