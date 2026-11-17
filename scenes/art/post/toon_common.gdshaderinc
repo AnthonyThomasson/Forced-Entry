@@ -130,12 +130,21 @@ vec3 toon_spot(vec3 view_vertex, mat4 inv_view) {
 	return out_spot;
 }
 
-// A positional light's amount stepped into its pool's band strength (`pool_count` 0: itself; none: none).
+// A positional light's amount taken to its pool's strength (`pool_count` 0: itself): a smooth curve
+// through the pool's levels, each at the middle of its band (the amount 0 adds none), so a pool fades
+// out with no ring where a band ends, as the 2D pool's texture does. The sun's shading keeps its
+// bands (`toon_step`).
 float toon_pool(float lit) {
 	if (pool_count <= 0 || lit <= 0.0) {
 		return lit;
 	}
-	return pool_levels[min(int(lit * float(pool_count)), pool_count - 1)];
+	float at = lit * float(pool_count) - 0.5;
+	if (at <= 0.0) {
+		return pool_levels[0] * (at + 0.5) * 2.0;
+	}
+	int low = min(int(at), pool_count - 1);
+	int high = min(low + 1, pool_count - 1);
+	return mix(pool_levels[low], pool_levels[high], at - float(low));
 }
 
 // Whether a positional light reaches this fragment (1) or not (0), by the light's room: `code` is
@@ -164,10 +173,9 @@ float toon_reach(float code) {
 // it goes to SPECULAR_LIGHT, apart from the capped sum, so a blast is not held to the dusk's cap and a
 // lamp's pool far from it is not touched. A tinted flash (a shot, a blast) is the surface's own
 // colour lit by the flash's, a wash (the stun) an additive term to white, flat over what it reaches:
-// two bands, steep, and walls too. Masked by `seen` and the light's room like any light.
+// fading out smoothly (no ring), and walls too. Masked by `seen` and the light's room like any light.
 const float FLASH_MAX = 4.0;
 const float WASH_RIM = 0.2;
-const float WASH_RIM_LEVEL = 0.4;
 
 void light() {
 	float n_l = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
@@ -216,7 +224,7 @@ void light() {
 			if (kind < 1.5) {
 				flash *= toon_pool(lit) * ALBEDO;
 			} else {
-				flash *= lit > WASH_RIM ? 1.0 : (lit > 0.0 ? WASH_RIM_LEVEL : 0.0);
+				flash *= smoothstep(0.0, WASH_RIM, lit);
 			}
 			SPECULAR_LIGHT += min(flash, vec3(FLASH_MAX));
 			dusk = false;

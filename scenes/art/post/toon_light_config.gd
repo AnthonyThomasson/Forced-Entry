@@ -13,10 +13,10 @@ static var levels_by_count: Dictionary = {
 	4: [0.0, 0.35, 0.7, 1.0],
 	5: [0.0, 0.25, 0.5, 0.75, 1.0],
 }
-## How strong each band of a positional light's pool is, darkest first (its own count: more steps
-## than the sun's, so a pool reads as a few soft rings and not two or three hard ones). The
-## darkest bands are a trace and a little (0.08, 0.16), so a pool ends in a soft tail as the 2D
-## one does and not on a hard edge at its rim.
+## How strong a positional light's pool is at the middle of each band of its amount, darkest first
+## (`toon_pool` runs a smooth curve through them, no ring where a band ends, and from 0 at the rim
+## through the first). The darkest are a trace and a little (0.08, 0.16), so a pool ends in a soft
+## tail as the 2D one does and not on a hard edge at its rim.
 static var pool_levels: Array = [0.08, 0.16, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0]
 ## How much of its colour times energy a pool adds at its brightest, a multiple: 2D lights add in
 ## sRGB, where a light reads stronger than the same one added in the 3D render's linear light.

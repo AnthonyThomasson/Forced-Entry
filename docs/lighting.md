@@ -25,11 +25,13 @@ heights, the pools) and `LightingCostConfig` (the cost caps), over the dusk's co
 
 **How a pixel is lit.** There is no baked light in any art. Each pixel is its painted colour times the **dusk ambient**
 (`LightingConfig.ambient_color`, a toon global, `ToonLight`) plus every light that reaches it: each light's amount (the angle
-of the face to it, times its fall-off, times its shadow) is stepped into bands and tinted by the light's colour and energy: the
-sun's into `PixelPostConfig.bands` (3: none, a little, the light whole; `ToonLightConfig.levels`), a lamp's pool into
-`ToonLightConfig.pool_levels` (eight, from a trace, 0.08, to the light whole, times `pool_strength` 1.9: 2D adds its light in sRGB,
-where it reads stronger than the same light in the 3D render's linear one), so a pool is a few soft rings that end in a faint tail,
-not on a hard rim, and a shadow one hard edge. The sum is held to `ToonLightConfig.cap` (1.7) of the painted colour by its brightest channel, so a pixel under three
+of the face to it, times its fall-off, times its shadow) is tinted by the light's colour and energy: the
+sun's is stepped into `PixelPostConfig.bands` (3: none, a little, the light whole; `ToonLightConfig.levels`), a lamp's pool is a **smooth**
+fall-off through `ToonLightConfig.pool_levels` (eight, from a trace, 0.08, to the light whole, each at the middle of its band, times
+`pool_strength` 1.9: 2D adds its light in sRGB, where it reads stronger than the same light in the 3D render's linear one), so a pool
+fades out to a faint tail with no ring where a band ends (the 2D pool texture's curve: 1 to .75 at .65 of the radius, .4 at .8, .12 at
+.92), and a shadow is one hard edge. Test: `lighting/light_3d_pool_smooth_windowed` (windowed: a fixture's, a lamp's and a street lamp's
+pool read along a radius have no step between neighbouring pixels over a small share of the pool and no plateau of 4 pixels). The sum is held to `ToonLightConfig.cap` (1.7) of the painted colour by its brightest channel, so a pixel under three
 lamps is the art lit warm and not blown out, and the hue stays. A world that sets no ambient is lit by
 `ToonLightConfig.default_ambient` (a grey, as the shader multiplies it: no sRGB conversion or gain, so it is as bright as before), not black.
 
@@ -58,7 +60,7 @@ a tool cart's 34, a scanner's 60, a fridge's glass 42, a menu board's 63, a hotp
 lamp's head and a sign at the top of its pole 124), else its kind's `height` (`overhead_height` 60, `street_height` 70, `low_height` 22),
 over the declared place on the floor (the piece's own centre, a lamp's and a street lamp's included: it stands on its pole), and
 reaching the pool's `radius` times `range_scale` 1.3 on the floor
-(its range is the distance to that rim: the pool reaches a little past the 2D one, so the 3D rings bring the light of the 2D
+(its range is the distance to that rim: the pool reaches a little past the 2D one, so the 3D fall-off brings the light of the 2D
 smooth tail). An **overhead or street** light pools flat to half its radius and quickly at the rim (`overhead_slope` 2, the 2D
 pool's profile); a **low** one is a glow fading from its middle (`low_slope` 1): the toon light's two shapes of one linear
 fall-off. **A pool is the same size and look whatever the height of its light**: a light's fall-off follows its distance in 3D, so
@@ -80,7 +82,7 @@ colour and its radius, in its room, at most its energy; every fixture over its r
 `lighting/light_3d_light_heights` (a piece of every kind of light: its light over its declared place at its declared `lift`, inside the
 height range of its mesh), `lighting/light_3d_pool_packing` (the height and room coded in `light_specular`),
 `lighting/light_3d_follows_and_flickers` (a shoved lamp's light follows it; a freed piece's light is freed),
-`lighting/light_3d_look_windowed` (a lamp's pool warm, bright at its middle, stepped, gone past its radius, and gone at the line
+`lighting/light_3d_look_windowed` (a lamp's pool warm, bright at its middle, fading, gone past its radius, and gone at the line
 of its room: the next room, a few px over it, is the ambient's).
 
 **L3-3D. Room fixtures.** A room no `room_light` stands in gets an overhead light at its centre, as in 2D (the same colour,
@@ -150,7 +152,7 @@ scales every light's amount by it, so a flash outside the cone, in a remembered 
 tint, 2 a white-out), and the toon light adds it to the specular accumulator, apart from the dusk's capped sum: no global is written
 while a flash fades, so a lamp's pools far from a blast keep their colour. A **tinted** flash (a shot, a frag) is the surface's own
 colour times the flash's colour and energy in the pool's bands, held to `FLASH_MAX` 4 (the floor reads orange as in 2D); a row with
-`wash` (the stun) is an **additive white** in two flat steep bands (the rim 0.2 of the pool at 0.4, the rest whole), with walls
+`wash` (the stun) is an **additive white** whole over the pool and fading smoothly out over its last 0.2, with walls
 too, so what it reaches is flat white as in 2D, planks, rings and all, and fades with the flash's energy (8, times `left^2`). Both are
 masked by the vision mask and the room like any light. Tests:
 `lighting/light_3d_flashes_on_shot_and_explosion` (a flash within 3 frames at the muzzle and the burst, in its colour, uncast, at hand
