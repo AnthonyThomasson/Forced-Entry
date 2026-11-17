@@ -178,12 +178,12 @@ func mirror_update(body: Node2D) -> void:
 
 
 ## The body died: it keeps following, now the 2D ragdoll's joints, unless the ragdoll is not there
-## (then the mirror hides it). A body on the floor casts no shadow, as the 2D one casts none, and
-## the held item goes with the hand that held it.
+## (then the mirror hides it). A body on the floor keeps its drop shadow, as the 2D one keeps a
+## floor shadow of the laid-out body (it lies along the body, `_pose_shade`), and the held item goes
+## with the hand that held it.
 func on_body_died(body: Node2D) -> bool:
 	if not body.anatomy.ragdoll is Fallen:
 		return false
-	_shade.visible = false  # the 2D body casts none
 	_died = Engine.get_physics_frames()
 	_at_rest = false
 	_posed = false
@@ -202,6 +202,35 @@ func _make_shade() -> void:
 	_shade.position += Vector3(away.x, 0.0, away.y) * RenderConfig.unit
 	_shade.name = "DropShadow"
 	add_child(_shade)
+
+
+## The drop shadow under the posed body: a disc under a body that stands or crouches, and one that
+## lies (a fallen body, a lying one: head and feet apart on the floor) is a patch stretched along it
+## from head to feet, `shade_width` radii across: the 2D floor shadow of a laid-out body. Shifted
+## away from the art's light as the standing one is.
+func _pose_shade() -> void:
+	var head := _flat(_last[Rig.HEAD])
+	var feet := (_flat(_last[Rig.ANKLE[0]]) + _flat(_last[Rig.ANKLE[1]])) * 0.5
+	var along := head - feet
+	var disc := _r * CharacterShadowConfig.shade_radius
+	var away := -ArtCanvasConfig.light_from.normalized() * _r * CharacterShadowConfig.shade_shift
+	var stretch := Vector2.ONE
+	var middle := Vector2.ZERO
+	var angle := 0.0
+	if along.length() > _r * CharacterShadowConfig.shade_lies:
+		middle = (head + feet) * 0.5
+		stretch = Vector2(
+			(along.length() * 0.5 + _r) / disc, _r * CharacterShadowConfig.shade_width / disc
+		)
+		angle = atan2(-along.y, along.x)
+	var at := middle + away
+	_shade.position = Vector3(at.x, CharacterShadowConfig.shade_lift, at.y) * RenderConfig.unit
+	_shade.basis = Basis(Vector3.UP, angle) * Basis.from_scale(Vector3(stretch.x, 1.0, stretch.y))
+
+
+## A joint of the rig (3D units: x, height, y) as its flat place in px.
+static func _flat(point: Vector3) -> Vector2:
+	return Vector2(point.x, point.z) / RenderConfig.unit
 
 
 ## The node showing what the character holds, hidden while nothing is (the held slot's item has no
@@ -329,6 +358,7 @@ func _pose(rig: Object, body: Node2D) -> void:
 	_pose_head()
 	for i in 2:
 		_pose_limbs(i)
+	_pose_shade()
 	_held.place(_last[AIM], _last[Rig.HAND[_held.hand]])
 
 

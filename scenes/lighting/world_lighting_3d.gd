@@ -358,13 +358,13 @@ func _fixture(room: Dictionary) -> void:
 	lit.light = _omni(
 		LightingFixtureConfig.color,
 		LightingFixtureConfig.energy,
-		Vector2(radius, Lighting3DConfig.fixture_height),
+		Vector2(radius, LightingFixtureConfig.shadow_height_for(maxf(rect.size.x, rect.size.y))),
 		&"overhead",
 		_room_code(rect.get_center(), false),
 	)
 	lit.light.name = "Fixture_%s" % room["key"]
 	lit.light.set_meta(&"shadowable", true)
-	lit.light.shadow_opacity = Lighting3DConfig.fixture_shadow_opacity
+	lit.light.shadow_opacity = LightingFixtureConfig.shadow_opacity
 	lit.energy = lit.light.light_energy
 	lit.fixed = rect.get_center()
 	add_child(lit.light)

@@ -26,7 +26,7 @@ It reads no 2D canvas state (`light_mask`): a street floor says `is_street()`.
    (`sky_color`, `sky_energy`, from `sky_from` at `Lighting3DConfig.sun_elevation`, 76: short shadows, hard) and the sky mask: an `Image` of the
    street floors (white) less every house floor and its walls (black), so the sun lights the street and never a room.
 2. **Lights.** An `OmniLight3D` per declared light and per room fixture (a room no `room_light` stands in): `_omni(colour, energy,
-   pool, kind, room_code)`, `pool` the radius and the height (a declaration's `lift`, else its `kind`'s: `overhead` / `low` / `street`, `Lighting3DConfig`; a fixture's `fixture_height` 400, so its shadow is short while the bulb hangs at the ceiling), `kind` giving the slope of the pool, `omni_range` the distance to the pool's rim (`radius * range_scale`), `omni_attenuation` 0. `light_specular`
+   pool, kind, room_code)`, `pool` the radius and the height (a declaration's `lift`, else its `kind`'s: `overhead` / `low` / `street`, `Lighting3DConfig`; a fixture's `LightingFixtureConfig.shadow_height_for` (400 to 600), so its shadow is short while the bulb hangs at the ceiling), `kind` giving the slope of the pool, `omni_range` the distance to the pool's rim (`radius * range_scale`), `omni_attenuation` 0. `light_specular`
    carries `slope`, the room and street flag, and the light's height over its rim and height class (`ToonLight.specular`; a pool is the same size at any height) to the toon light, which clips a pool to its room (the room map, `ToonLight.set_rooms`).
    No per-floor budget. Each `Lit` follows its piece (`follow`, only when the piece's transform changed; a freed piece's light is
    freed), steps its seeded rhythm (the energy written only on change, none while off) and tells `glow_changed` (Main dims the
@@ -45,7 +45,7 @@ It reads no 2D canvas state (`light_mask`): a street floor says `is_street()`.
    (kind 1 a tint, 2 a row's `wash`, an additive white-out) and the toon light adds it apart from its cap: no global is written. A flash outside the
    vision cone is dimmed by the vision mask (Art's `seen`), no code here.
 7. **Fixture bulb:** each room fixture has an emissive sphere (`LightingFixtureConfig.bulb_*`) over the walls, dimming with its rhythm and fade; the
-   fixture's shadow is part dark (`fixture_shadow_opacity`).
+   fixture's shadow is part dark (`shadow_opacity`).
 
 The toon light itself (the bands, the cap, why the ambient rides the one directional light) is Art's: `domain-art/textured-toon.md`.
 **Adding a light-giving piece** is unchanged (below, Objects declares it); its 3D light follows from the declaration, its glow from

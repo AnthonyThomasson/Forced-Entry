@@ -14,7 +14,7 @@
       `lights()` (every piece and fixture `PointLight2D`), `fixtures()` (`{ room, light }`), `flashes()` (the pooled flash lights) and
       `budget()` (`{ per_floor, dropped }`, `dropped` = `{ piece, index }` per declared light left without a light).
     - **Tuning holders:** `LightingConfig` (`enabled`, the dusk `ambient_color` / `sky_color`, the flashes, the budget `per_floor()`),
-      `LightingFixtureConfig` (room fixtures), `LightingTextureConfig` (2D light textures), `Lighting3DConfig` (the 3D sun's elevation and shadow, the lights' heights, `fixture_height` the fixture's shadow height, and pools),
+      `LightingFixtureConfig` (room fixtures, their shadow height and darkness), `LightingTextureConfig` (2D light textures), `Lighting3DConfig` (the 3D sun's elevation and shadow, the lights' heights, and pools),
       `LightingCostConfig` (the 3D lights' shadow and on caps, the fade). The Testing switch `lighting.enabled` sets
       `LightingConfig.enabled` and General's `LightMasks.shadows`.
     - **Objects → Lighting: `get_lights() -> Array`** on a light-giving piece (an `EnvironmentObject`, read duck-typed): one dict per

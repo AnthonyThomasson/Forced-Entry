@@ -23,3 +23,21 @@ static var bulb_radius := 3.0
 static var bulb_height := 104.0
 static var bulb_lighten := 0.55
 static var bulb_glow := 1.6
+## A fixture's LIGHT, the one that casts a shadow, is not at its bulb: a light at the ceiling
+## (`bulb_height`) throws the long, hard shadow of a lamp in a small room (a 70 tall wardrobe 100 px
+## away: 230 px), where 2D's drop shadows are a few px under the piece. So it stands
+## `shadow_height` px up, higher in a bigger room: far enough that a wall (96) at the room's
+## half-length throws only `shadow_far` px, up to `shadow_height_max` (a 96 wall 250 px away then
+## throws 48). The pool on the floor is the same whatever the height (`ToonLight.specular`).
+static var shadow_height := 400.0
+static var shadow_height_max := 600.0
+static var shadow_far := 30.0
+## How dark a fixture's shadow is (`OmniLight3D.shadow_opacity`, 1 fully dark): below 1 the floor
+## under a table or a chair keeps part of the pool's light, its colour a step down, and not the cold
+## ambient alone (the 2D render has no such blob).
+static var shadow_opacity := 0.6
+
+
+## The height (px) of the shadow light of a fixture in a room `longer` px on its longer side.
+static func shadow_height_for(longer: float, wall := 96.0) -> float:
+	return clampf(wall * (1.0 + longer * 0.5 / shadow_far), shadow_height, shadow_height_max)

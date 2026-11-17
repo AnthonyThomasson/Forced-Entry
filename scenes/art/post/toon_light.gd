@@ -25,7 +25,7 @@ const ROOM_MASKED := &"room_masked"
 const ROOM_GROUND := &"room_ground"
 ## `specular`'s packing (`toon_common.gdshaderinc` reads it back): a code (a room and a street flag)
 ## has `CODE_SPAN` values, the ratio's `RATIO_STEPS` per unit up to `MAX_STEPS`, and the height's
-## `MAX_CLASS` classes `HEIGHT_GROWTH` apart from `HEIGHT_FROM` (4 to 700 px: the packed light stays
+## `MAX_CLASS` classes `HEIGHT_GROWTH` apart from `HEIGHT_FROM` (4 to 624 px: the packed light stays
 ## under 2^22, where a float still holds the kind's quarter); the whole number stays exact in a
 ## float. A ratio past `MAX_STEPS` sixteenths (3.9) is cut, and then a pool is smaller than it
 ## should be.
@@ -35,7 +35,7 @@ const MAX_STEPS := 63
 const STEP_SPAN := 64
 const HEIGHT_FROM := 4.0
 const HEIGHT_GROWTH := 1.4
-const MAX_CLASS := 14
+const MAX_CLASS := 15
 
 ## Whether the globals are declared.
 static var _installed := false
@@ -82,7 +82,9 @@ static func install() -> void:
 ## height the light hangs or casts shadows from, and lights a surface above the floor by the pool at
 ## its own ground point. `height` and `rim` are in 3D units.
 static func specular(slope: float, kind: int, code: int, height: float, rim: float) -> float:
-	assert(code < CODE_SPAN, "ToonLight.specular: room code %d needs CODE_SPAN room" % code)
+	if code < 0 or code >= CODE_SPAN:
+		push_error("ToonLight.specular: room code %d is past the %d there are" % [code, CODE_SPAN])
+		code = clampi(code, 0, CODE_SPAN - 1)
 	var steps := clampi(roundi(height / maxf(rim, 0.001) * RATIO_STEPS), 0, MAX_STEPS)
 	var high := clampi(
 		roundi(log(maxf(height, HEIGHT_FROM) / HEIGHT_FROM) / log(HEIGHT_GROWTH)), 0, MAX_CLASS

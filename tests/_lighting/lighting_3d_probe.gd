@@ -86,10 +86,9 @@ static func room_at(rooms: Array, at: Vector2) -> int:
 
 
 ## Whether a light is a street light, as the toon light reads it: the low bit of the code packed in
-## its specular (`slope + 4 * (room * 2 + street)`).
+## its specular (`ToonLight.specular`: the code is room * 2 + street).
 static func street_of(l: OmniLight3D) -> bool:
-	var amount := l.light_specular * 2.0
-	return int(floor(amount / 4.0 + 0.001)) % 2 == 1
+	return int(decode(l)["code"]) % 2 == 1
 
 
 ## Whether flash light `l` is lit now.

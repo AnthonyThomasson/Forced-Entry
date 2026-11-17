@@ -11,14 +11,17 @@ extends GameTest
 ## `LIGHT_SHOT=<file.png>` set it saves the picture.
 
 const Probe := preload("res://tests/_lighting/lighting_3d_probe.gd")
-const SIZE := 256
-const HALF := 128.0
+const SIZE := 512
+const HALF := 256.0
 const GROUND := Color(0.6, 0.6, 0.6)
 ## The room is bigger than the picture, so its fixture's pool is flat all over it.
-const ROOM := Rect2(-200.0, -200.0, 400.0, 400.0)
+const ROOM := Rect2(-300.0, -300.0, 600.0, 600.0)
 ## A person's height and the wall's: the box on the right and the slab on the left.
 const PERSON := Rect2(60.0, -15.0, 30.0, 30.0)
 const WALL := Rect2(-90.0, -60.0, 6.0, 120.0)
+## A wall far from the fixture (200 px): the fixture is raised with the room so its shadow stays
+## short.
+const FAR_WALL := Rect2(200.0, -60.0, 6.0, 120.0)
 ## How much darker than the lit floor is a shadow (the fixture's shadow is part dark).
 const DARKER := 0.9
 ## How far past its analytic length a shadow may reach, px (the filter's softness).
@@ -26,6 +29,8 @@ const SLACK := 9.0
 ## The shortest a shadow may be (so the test sees the shadow of the light that casts).
 const LEAST := 6.0
 const PERSON_HEIGHT := 70.0
+## How far past a caster's edge the row is read (px): the next caster is further than that.
+const SCAN := 60
 
 
 func describe() -> Dictionary:
@@ -63,6 +68,8 @@ func run(t: TestContext) -> void:
 		"height": PERSON_HEIGHT, "side": 1.0 })
 	_check_caster(t, image, lit, { "label": "the wall", "edge": -WALL.position.x,
 		"height": wall_height, "side": -1.0 })
+	_check_caster(t, image, lit, { "label": "the far wall", "edge": FAR_WALL.end.x,
+		"height": wall_height, "side": 1.0 })
 	var ceiling := LightingFixtureConfig.bulb_height
 	t.check(
 		PERSON.end.x * PERSON_HEIGHT / (ceiling - PERSON_HEIGHT) > 100.0,
@@ -77,9 +84,10 @@ func _check_caster(t: TestContext, image: Image, lit: float, caster: Dictionary)
 	var edge: float = caster["edge"]
 	var height: float = caster["height"]
 	var side: float = caster["side"]
-	var length := edge * height / (Lighting3DConfig.fixture_height - height)
+	var light := LightingFixtureConfig.shadow_height_for(ROOM.size.x)
+	var length := edge * height / (light - height)
 	var dark_to := 0.0
-	for step in range(1, int(HALF - edge) - 2):
+	for step in range(1, mini(int(HALF - edge) - 2, SCAN)):
 		var tone := _luminance(image, Vector2(side * (edge + float(step) + 1.0), 0.0))
 		if tone < lit * DARKER:
 			dark_to = float(step)
@@ -118,6 +126,8 @@ func _scene(t: TestContext) -> SubViewport:
 	var height := ObjectStructureMeshConfig.wall_height
 	var wall := MeshKit.new().box(MeshKit.volume(WALL, 0.0, height), GROUND).build()
 	view.add_child(MeshNodes.instance(wall))
+	var far := MeshKit.new().box(MeshKit.volume(FAR_WALL, 0.0, height), GROUND).build()
+	view.add_child(MeshNodes.instance(far))
 	var rooms := [{ "key": "room", "rect": ROOM }]
 	WorldLighting3D.light(view, world, 1, rooms, func() -> Vector2: return Vector2.ZERO)
 	return view

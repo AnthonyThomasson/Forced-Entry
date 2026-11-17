@@ -41,6 +41,13 @@ static var cap: float = 1.7
 ## way round, so a floor stays evenly lit out to the rim of a pool hung low over it and only a face
 ## turned away from it falls dark.
 static var pool_gain: float = 3.0
+## A pool on what stands tall: from `high_from` px (above a person's head) to `high_to` (a wall's
+## top is 96) its strength falls to `high_scale` of itself, so a wall's top reads dark grey-brown as
+## in 2D (where a lamp's pool lies on the floor and a wall is only its colour, dimly lit) and not as
+## bright as a crate's top under the same lamp.
+static var high_from: float = 78.0
+static var high_to: float = 94.0
+static var high_scale: float = 0.4
 
 
 ## The strengths of a pool's bands, the shader's eight slots padded with the last (`pool_count`

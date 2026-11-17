@@ -3,7 +3,7 @@ extends GameTest
 ## bulb over its room's centre, above the walls' tops, glowing the fixture's colour lightened (an
 ## emissive part, so a lamp's colour is what shows whatever the light) and casting no shadow of
 ## its own; the fixture's light casts a shadow that lets some light through
-## (`Lighting3DConfig.fixture_shadow_opacity`), so the floor under a table is the pool a step
+## (`LightingFixtureConfig.shadow_opacity`), so the floor under a table is the pool a step
 ## down and not the cold ambient alone. The bulb dims with its light: its glow follows the
 ## fixture's rhythm and fade, and a fixture the cost cap has faded off shows no bulb.
 ##

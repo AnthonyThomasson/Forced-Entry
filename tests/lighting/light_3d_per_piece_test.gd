@@ -107,7 +107,11 @@ func _check_fixtures(t: TestContext, lighting: WorldLighting3D) -> void:
 			"the fixture of room %s is at its centre" % f["room"],
 		)
 		t.expect_near(
-			l.position.y, Lighting3DConfig.fixture_height * RenderConfig.unit, 0.01,
+			l.position.y,
+			LightingFixtureConfig.shadow_height_for(maxf(
+				rect.size.x, rect.size.y
+			)) * RenderConfig.unit,
+			0.01,
 			"the fixture of room %s is overhead, at the height its shadow is cast from" % f["room"],
 		)
 		t.check(l.get_meta(&"shadowable"), "the fixture of room %s may cast a shadow" % f["room"])

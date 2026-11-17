@@ -9,6 +9,9 @@ const SHADER := preload("res://scenes/art/post/toon.gdshader")
 const DECAL_SHADER := preload("res://scenes/art/post/decal.gdshader")
 const TEX_SHADER := preload("res://scenes/art/post/toon_tex.gdshader")
 const SHADE_SHADER := preload("res://scenes/art/post/shade.gdshader")
+## The drop shadow draws after the outline pass (a transparent surface sorts by priority first: the
+## outline quad would draw over it from the copy of the screen before it).
+const SHADE_PRIORITY := 100
 ## The texels across the drop shadow's disc.
 const SHADE_TEXELS := 32
 
@@ -103,6 +106,7 @@ static func shade() -> ShaderMaterial:
 				image.set_pixel(x, y, Color(0.0, 0.0, 0.0, 1.0 if inside else 0.0))
 		_shade = ShaderMaterial.new()
 		_shade.shader = SHADE_SHADER
+		_shade.render_priority = SHADE_PRIORITY
 		_shade.set_shader_parameter(&"shape_texture", ImageTexture.create_from_image(image))
 	return _shade
 
@@ -165,6 +169,14 @@ static func refresh(material: ShaderMaterial) -> void:
 	material.set_shader_parameter(&"count", bands)
 	material.set_shader_parameter(&"levels", ToonLightConfig.levels(bands))
 	material.set_shader_parameter(&"pool_gain", ToonLightConfig.pool_gain)
+	material.set_shader_parameter(
+		&"pool_high",
+		Vector3(
+			ToonLightConfig.high_from * RenderConfig.unit,
+			ToonLightConfig.high_to * RenderConfig.unit,
+			ToonLightConfig.high_scale,
+		),
+	)
 	var pool := 0 if bands == 0 else mini(ToonLightConfig.pool_levels.size(), 8)
 	material.set_shader_parameter(&"pool_count", pool)
 	material.set_shader_parameter(&"pool_levels", ToonLightConfig.pool())

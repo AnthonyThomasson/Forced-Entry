@@ -3,9 +3,9 @@ extends GameTest
 ## Character, `domain-character/body-mesh.md`): a patch on the floor (`MeshNodes.shade`) a body
 ## radius and a bit across, shifted a little away from the art's light as the 2D body's is, and none
 ## of the body's parts casts a shadow from the lights: a light's shadow of a 74 tall body is as long
-## as the light is low (a body 200 px from a ceiling fixture 400 up would throw 45 px, the sun at 68
-## degrees 30), where the drop shadow reaches `radius x (shade_radius + shade_shift)` at most. A
-## dead body has none, as the 2D one has none.
+## as the light is low (a body 200 px from a ceiling fixture 400 up would throw 45 px, the sun at 76
+## degrees 18), where the drop shadow reaches `radius x (shade_radius + shade_shift)` at most. A
+## dead body keeps it, stretched along where it lies, as the 2D one keeps a floor shadow.
 ##
 ## It reads (`mirror.proxies_of`) the `BodyMesh` and its children, `DropShadow` and the parts.
 
@@ -19,7 +19,7 @@ func describe() -> Dictionary:
 		"name": "A character's shadow in 3D is a short drop shadow under it, cast by no light",
 		"description": "The body mesh has a drop-shadow patch on the floor, within a body radius "
 			+ "and a bit of it, away from the art's light, and no part of the body or the held "
-			+ "item casts a shadow from a light; a dead body's patch is gone.",
+			+ "item casts a shadow from a light; a dead body's patch lies along it.",
 		"tags": ["mirror", "3d", "render", "character", "lighting"],
 		"timeout": 30.0,
 	}
@@ -55,10 +55,24 @@ func run(t: TestContext) -> void:
 		return
 	_check_patch(t, stander, t.actor(&"stander"))
 	_check_no_light_casts(t, stander)
-	t.actor(&"dying").take_damage(1000.0)
+	var standing := (stander.get_node("DropShadow") as MeshInstance3D).basis.x.length()
+	t.expect_near(standing, 1.0, 0.05, "a standing body's patch is a disc (not stretched)")
+	var fallen: Node2D = t.actor(&"dying")
+	fallen.take_damage(1000.0)
+	await t.until(func(): return fallen.anatomy.ragdoll.is_settled(), 8.0)
 	await t.seconds(0.5)
 	var patch := dying.get_node("DropShadow") as MeshInstance3D
-	t.check(not patch.visible, "a dead body's drop shadow is gone")
+	t.check(patch.visible, "a dead body keeps its drop shadow, as the 2D one keeps a floor shadow")
+	var head := Vector2(
+		dying.get_child(BodyMesh.HEAD).position.x,
+		dying.get_child(BodyMesh.HEAD).position.z,
+	)
+	var stretch := patch.basis.x.length()
+	t.check(stretch > 1.15, "it lies along the fallen body (stretched %.2f)" % stretch)
+	t.check(
+		Vector2(patch.position.x, patch.position.z).distance_to(head) < 80.0,
+		"and stays under it, not left where the body fell from",
+	)
 
 
 ## The patch lies flat on the floor, near the body's own spot, away from the art's light, no wider

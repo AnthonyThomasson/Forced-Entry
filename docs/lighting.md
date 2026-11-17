@@ -66,8 +66,10 @@ pool's profile); a **low** one is a glow fading from its middle (`low_slope` 1):
 fall-off. **A pool is the same size and look whatever the height of its light**: a light's fall-off follows its distance in 3D, so
 a high light would pool smaller; the toon light takes the pool's shape from the ground distance instead (`ToonLight.specular` packs,
 in `light_specular`, the light's height over its rim and its height class beside the slope, the room and the kind; the shader
-subtracts the fragment's own height from the light's), so a pool is the 2D one however high its light hangs, and a wall's top or a roof,
-which are over the lights of a low kind, are lit as a face over a lamp is. The nodes are `OmniLight3D`s under the `WorldLighting3D` named `Light<n>_<piece>`, with the metas `piece`, `index` (into
+subtracts the fragment's own height from the light's), so a pool is the 2D one however high its light hangs, and a thing above the floor is lit by the pool at its own ground point. A pool is
+thinner on what stands taller than a person: from `ToonLightConfig.high_from` 78 px to `high_to` 94 its strength falls to `high_scale` 0.4,
+so a wall's top and upper face read dark grey-brown as in 2D (where a lamp's pool lies on the floor and a wall is only its colour, dimly
+lit) and not as bright as a crate's top under the same lamp; furniture and bodies, under 78, are lit in full. The nodes are `OmniLight3D`s under the `WorldLighting3D` named `Light<n>_<piece>`, with the metas `piece`, `index` (into
 `get_lights()`) and `room`, kept in step with the piece: a shoved lamp carries its light (`process_priority` 20, after the
 bodies), and a freed piece's light is freed with it.
 
@@ -88,13 +90,13 @@ of its room: the next room, a few px over it, is the ambient's).
 **L3-3D. Room fixtures.** A room no `room_light` stands in gets an overhead light at its centre, as in 2D (the same colour,
 energy and reach, `LightingFixtureConfig`) and the glyph's 3D twin, a **bulb**: a small emissive sphere (`bulb_radius` 3, the light's
 colour lightened) hung `bulb_height` (104) up, over the walls' tops as the 2D glyph is drawn over everything, casting no shadow, dimming
-with its light's rhythm and fade (its glow is `bulb_glow` times the light's level, a fixture the cost cap has faded off shows no bulb). The fixture is the one light that may cast a shadow, and it casts it from `fixture_height` (400) up, not from the bulb (104): a light that low in a small room throws a
+with its light's rhythm and fade (its glow is `bulb_glow` times the light's level, a fixture the cost cap has faded off shows no bulb). The fixture is the one light that may cast a shadow, and it casts it from `LightingFixtureConfig.shadow_height_for` up (400, more in a bigger room, at most 600: a wall of 96 at half the room's length throws about 30 px, `shadow_far`), not from the bulb (104): a light that low in a small room throws a
 70 tall wardrobe 100 px away across 230 px, where 2D's drop shadow is a few px under the piece (a wardrobe at 400: 21 px, a person 74 tall 200 px from the
-fixture 45, a wall of 96 beside it 30; the pool on the floor is the same, as above, and the bulb stays at the ceiling). The shadow is part dark
-(`Lighting3DConfig.fixture_shadow_opacity` 0.6, `OmniLight3D.shadow_opacity`), so the floor under a table or a chair is the pool's colour
+fixture 45, a wall of 96 beside it 30, a wall 250 px away in a big room 48; the pool on the floor is the same, as above, and the bulb stays at the ceiling). The shadow is part dark
+(`LightingFixtureConfig.shadow_opacity` 0.6, `OmniLight3D.shadow_opacity`), so the floor under a table or a chair is the pool's colour
 a step down and not the cold ambient alone (the 2D render has no such blob). Tests: `lighting/light_3d_per_piece`,
 `lighting/light_3d_fixture_look` (a bulb per fixture over the walls, glowing, uncast; the shadow part dark),
-`lighting/light_3d_shadow_length_windowed` (windowed: a 70 tall box and a 96 tall wall in a fixture's room: each shadow is as long as `edge * height / (400 - height)`
+`lighting/light_3d_shadow_length_windowed` (windowed: a 70 tall box and a 96 tall wall in a fixture's room: each shadow is as long as `edge * height / (light - height)`, `light` the fixture's shadow height, a wall 200 px away in a 600 px room too,
 and not the metre of a light at the ceiling).
 
 **A doorway is lit.** Rooms meet at the walls' centre lines, so the room map gives every spot of an opening between two rooms to
@@ -119,14 +121,17 @@ nearest at 0.5. Tests: `lighting/light_3d_cost` (the caps; the fade; only fixtur
 
 **L11-3D. A character's shadow is short and under it.** A shadow a light casts of a 74 tall body is as long as the light is low (the sun
 at 76 degrees 18 px, a fixture 400 up 200 px away 45, a lamp lower: more), where 2D's body casts a drop shadow of a few px. So no part of a
-living body casts a shadow from any light (the sun, a fixture, a lamp, a flash), and its shadow is a drop shadow: a flat patch on the floor
-(`MeshNodes.shade`, `shade.gdshader`, unlit, uncast) under the body, `CharacterShadowConfig.shade_radius` 1.05 body radii across, shifted
-`shade_shift` 0.22 radii away from the art's light, `ArtCanvasConfig.drop_shadow_alpha` dark, whichever light is near; the player's view
-hides it with the body and dims it where the ground is unseen. A dead body has none (as in 2D). The shadows of furniture, walls and
-the rest are the lights', short by the heights above. Tests: `character/character_drop_shadow` (the patch, its size and place, no part
-casts, none on a dead body), `lighting/character_shadow_windowed` (windowed: with the character and with it hidden, what differs
-lies within 64 px of it, at a fixture, far from it, in the street's sun and beside a street lamp; before, a fixture's shadow of a body
-reached 113 px; `CHARSHADOW_DIR=<dir>` saves the pictures).
+living or fallen body casts a shadow from any light (the sun, a fixture, a lamp, a flash), and its shadow is a drop shadow: a flat patch on the
+floor (`MeshNodes.shade`, `shade.gdshader`, unlit, uncast), `CharacterShadowConfig.shade_radius` 1.25 body radii across, shifted `shade_shift`
+0.45 radii away from the art's light, `ArtCanvasConfig.drop_shadow_alpha` (0.28) dark, whichever light is near. A body that lies (a fallen one,
+a lying one: its head more than `shade_lies` radii from its feet, flat) has the patch stretched along it from head to feet, `shade_width`
+radii across, as the 2D floor shadow of a laid-out body is; it follows the ragdoll as it settles. The patch is drawn after the outline pass
+(`ToonMaterial.SHADE_PRIORITY`: the outline quad copies the screen before the transparent pass, so a patch drawn before it is erased); the
+player's view hides it with the body and dims it where the ground is unseen. Tests: `character/character_drop_shadow` (the patch, its size
+and place, a disc under a standing body and stretched along a fallen one, no part casts), `lighting/character_shadow_windowed` (windowed: the
+floor round the body is darker with the patch than without; and with the character and hidden, what differs lies within 64 px of it, at a
+fixture, far from it, in the street's sun and beside a street lamp; before, a fixture's shadow of a body reached 113 px; `CHARSHADOW_DIR=<dir>`
+saves the pictures).
 
 **L7-3D. Light sources glow.** What gives light is a glowing part of the piece's mesh (Objects' `FurnitureRig.add_glow`, the
 toon's `emissive`, a colour whatever the light), so a lamp's bulb, a screen, a neon tube is its colour in the dusk, apart from its

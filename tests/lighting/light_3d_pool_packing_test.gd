@@ -3,9 +3,9 @@ extends GameTest
 ## what the toon light needs to give its pool its shape on the floor (its slope, its room and street
 ## flag, its height over the pool's rim and the height itself), whatever height it hangs at or casts
 ## its shadow from. A lamp, a street lamp's head, a screen and a room's ceiling fixture (cast from
-## `Lighting3DConfig.fixture_height`) each read back, through the shader's own decode, their slope,
-## room, street flag, the ratio of their height to their pool's rim (within a sixteenth) and their
-## height (within one step of 1.4); and a flash the same at hand height.
+## `LightingFixtureConfig.shadow_height`) each read back, through the shader's own decode, their
+## slope, room, street flag, the ratio of their height to their pool's rim (within a sixteenth) and
+## their height (within one step of 1.4); and a flash the same at hand height.
 ## It reads (tests/_lighting/lighting_3d_probe.gd) `WorldLighting3D.lights()`, `fixtures()`,
 ## `decode`.
 
@@ -45,9 +45,10 @@ func run(t: TestContext) -> void:
 	for f: Dictionary in lighting.fixtures():
 		var coded := Probe.decode(f["light"])
 		fixture_ratios[snappedf(coded["height"], 1.0)] = true
+		var top := LightingFixtureConfig.shadow_height_max
 		t.check(
-			coded["height"] > Lighting3DConfig.fixture_height / ToonLight.HEIGHT_GROWTH
-				and coded["height"] < Lighting3DConfig.fixture_height * ToonLight.HEIGHT_GROWTH,
+			coded["height"] > LightingFixtureConfig.shadow_height / ToonLight.HEIGHT_GROWTH
+				and coded["height"] < top * ToonLight.HEIGHT_GROWTH,
 			"the fixture of %s is coded at its cast height (%.0f)" % [f["room"], coded["height"]],
 		)
 

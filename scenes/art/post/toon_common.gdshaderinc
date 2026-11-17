@@ -35,6 +35,8 @@ uniform int pool_count = 6;
 uniform float pool_levels[8];
 // How much of its N.L a positional light's amount is made of (`ToonLightConfig.pool_gain`).
 uniform float pool_gain = 3.0;
+// A pool is thinner on what stands this tall (a wall's top and upper face; `ToonLightConfig.high_*`).
+uniform vec3 pool_high = vec3(78.0, 94.0, 0.4);
 
 varying float seen;
 // Where the fragment is (`toon_spot`), stored by `fragment()` like `seen`: x whether the sun reaches
@@ -218,6 +220,7 @@ void light() {
 		float u = sqrt(max((1.0 + ratio * ratio) * r * r - down * down, 0.0));
 		float f = 1.0 - u;
 		float lit = clamp(f * slope, 0.0, 1.0) * clamp(n_l * pool_gain, 0.0, 1.0);
+		lit *= mix(1.0, pool_high.z, smoothstep(pool_high.x, pool_high.y, spot.z));
 		float reach = toon_reach(code);
 		if (kind > 0.5) {
 			vec3 flash = LIGHT_COLOR / 3.14159265 * reach * seen;

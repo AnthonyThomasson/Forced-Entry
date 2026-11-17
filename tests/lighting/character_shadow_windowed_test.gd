@@ -23,19 +23,22 @@ const REACH := 64.0
 const CHANGED := 0.12
 ## How far (px) from a fixture the "far" spot stands.
 const FAR := 170.0
+## How much darker (a share) the pixels round the body are with its drop shadow than without.
+const PATCH_DARKER := 0.004
 
 var _window: SubViewport
 var _main: Node
 var _camera: Camera2D
 var _world: Node
 var _lighting: WorldLighting3D
+var _view: Node
 
 
 ## The picture of the window with the camera over `at` at `zoom`.
-func _draw(t: TestContext, at: Vector2, zoom: float) -> Image:
+func _draw(t: TestContext, at: Vector2, zoom: float, settle := 40) -> Image:
 	_camera.zoom = Vector2(zoom, zoom)
 	_camera.global_position = at
-	await t.frames(40)
+	await t.frames(settle)
 	RenderingServer.force_draw(false)  # a covered window is not drawn: draw on demand
 	return _window.get_texture().get_image()
 
@@ -59,6 +62,7 @@ func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
 	s.switch(&"vision.enabled", false)  # the whole scene in view
+	s.set_static(WallFadeConfig, &"radius", 0.0)  # no wall thins: only the shadow differs
 	s.lock_interaction([&"camera"])
 	s.von_script([])
 
@@ -99,6 +103,7 @@ func _start(t: TestContext) -> bool:
 	_camera.set_process(false)
 	_camera.set_physics_process(false)
 	_world = built["world"]
+	_view = _main.get_node_or_null("View3D")
 	for body: Node in _world.find_children("*", "CharacterBody2D", true, false):
 		(body as Node2D).global_position = Vector2(-6000.0, -6000.0)
 	_lighting = t.world.get_tree().get_first_node_in_group(&"world_lighting_3d") as WorldLighting3D
@@ -124,7 +129,7 @@ func _spots(t: TestContext) -> Array[Dictionary]:
 		var light: OmniLight3D = f["light"]
 		var at := Vector2(light.position.x, light.position.z) / RenderConfig.unit
 		spots.append({ "name": "fixture", "at": at })
-		spots.append({ "name": "far", "at": at + Vector2(FAR, 0.0) })
+		spots.append({ "name": "far", "at": at + Vector2(-FAR * 0.8, FAR * 0.4) })
 		break
 	var street := _street_spot()
 	if street != Vector2.ZERO:
@@ -168,22 +173,15 @@ func _check_spot(t: TestContext, person: CharacterBody2D, spot: Dictionary) -> v
 	var shot := _save(with, "%s_z2" % spot["name"])
 	var with_z1 := await _draw(t, at, 1.0)
 	_save(with_z1, "%s_z1" % spot["name"])
+	await _check_patch_shows(t, person, spot, with)
 	person.visible = false
-	var without := await _draw(t, at, 2.0)
-	var again := await _draw(t, at, 2.0)
-	person.visible = true
-	var far := 0.0
-	var changed := 0
-	var middle := Vector2(SIZE) * 0.5
-	for y in SIZE.y:
-		for x in SIZE.x:
-			var was := without.get_pixel(x, y)
-			# a light that flickers between two pictures is not the character's doing
-			if _differs(was, again.get_pixel(x, y)):
-				continue
-			if _differs(with.get_pixel(x, y), was):
-				changed += 1
-				far = maxf(far, (Vector2(x, y) - middle).length() / 2.0)
+	var pictures: Array[Image] = [await _draw(t, at, 2.0)]
+	for visible_now: bool in [true, false, true]:
+		person.visible = visible_now
+		pictures.append(await _draw(t, at, 2.0, 5))
+	var seen := _changed(pictures)
+	var changed := int(seen.x)
+	var far := seen.y
 	t.check(changed > 20, "%s: the character is in the picture (%d pixels differ)" % [
 		spot["name"], changed])
 	t.check(
@@ -193,6 +191,57 @@ func _check_spot(t: TestContext, person: CharacterBody2D, spot: Dictionary) -> v
 	)
 	if shot != "":
 		print("CHARSHADOW %s reach=%.0f changed=%d" % [spot["name"], far, changed])
+
+
+## What the character changes in four pictures taken hidden, shown, hidden, shown: the pixels both
+## shown ones have and both hidden ones lack (a light that flickers or fades in between breaks one
+## of them): `(how many, how far from the middle in world px)`.
+func _changed(p: Array[Image]) -> Vector2:
+	var far := 0.0
+	var changed := 0
+	var middle := Vector2(SIZE) * 0.5
+	for y in SIZE.y:
+		for x in SIZE.x:
+			var ha := p[0].get_pixel(x, y)
+			var sa := p[1].get_pixel(x, y)
+			var hb := p[2].get_pixel(x, y)
+			var sb := p[3].get_pixel(x, y)
+			if _differs(ha, hb) or _differs(sa, sb):
+				continue
+			if _differs(sa, ha) and _differs(sa, hb):
+				changed += 1
+				far = maxf(far, (Vector2(x, y) - middle).length() / 2.0)
+	return Vector2(changed, far)
+
+
+## The drop shadow is seen: the pixels round the character are darker with its patch than with the
+## patch hidden (the body the same), as the 2D body's floor shadow is.
+func _check_patch_shows(
+	t: TestContext, person: CharacterBody2D, spot: Dictionary, with: Image
+) -> void:
+	var shown: Array = (_view.mirror as WorldMirror).proxies_of(person)
+	var patch: Node3D = null
+	if not shown.is_empty():
+		patch = (shown[0] as Node).get_node_or_null("DropShadow")
+	if not t.require(patch != null, "%s: the body has a drop shadow" % spot["name"]):
+		return
+	patch.visible = false
+	var hidden := await _draw(t, spot["at"], 2.0)
+	patch.visible = true
+	var span := int(person.radius * 2.0 * 2.0)
+	var middle := Vector2i(SIZE / 2)
+	var light_with := 0.0
+	var light_hidden := 0.0
+	for y in range(middle.y - span, middle.y + span):
+		for x in range(middle.x - span, middle.x + span):
+			light_with += with.get_pixel(x, y).get_luminance()
+			light_hidden += hidden.get_pixel(x, y).get_luminance()
+	t.check(
+		light_with < light_hidden * (1.0 - PATCH_DARKER),
+		"%s: the drop shadow darkens the floor round the body (%.1f with, %.1f without)" % [
+			spot["name"], light_with, light_hidden,
+		],
+	)
 
 
 ## Save `image` as `<CHARSHADOW_DIR>/<name>.png`; the path, "" when none is asked for.
