@@ -52,6 +52,7 @@ func run(t: TestContext) -> void:
 		"a sim node finds the twin space through its viewport",
 	)
 	await _still(t, twins)
+	await _late_floor(t, twins)
 	await _freed(t, twins, sofa)
 
 
@@ -79,6 +80,24 @@ func _still(t: TestContext, twins: TwinSpace) -> void:
 		writes += twins.written
 	t.expect_eq(writes, 0, "a still world writes no twin")
 	t.check(twins.followed >= 1, "the standing guard is read each frame all the same")
+
+
+## A floor laid after the stage is twinned on the next frame, and a plain node beside it is not.
+func _late_floor(t: TestContext, twins: TwinSpace) -> void:
+	var before := twins.count
+	var plain := Node2D.new()
+	t.world.add_child(plain)
+	var rect := Rect2(1000, 0, 300, 120)
+	var laid := FloorFactory.spawn(rect, { "art": "floor" }, "Late floor", t.world)
+	await t.frames(3)
+	t.expect_eq(twins.count, before + 1, "one twin more: the floor's, not the plain node's")
+	t.check(twins.twin_of(laid) != null, "the late floor has a twin")
+	t.check(twins.twin_of(plain) == null, "a plain node has none")
+	t.check(
+		Probe.down(t, rect.get_center()).get("owner") == laid,
+		"a ray over the late floor lands on it",
+	)
+	plain.queue_free()
 
 
 ## The sofa is freed, asleep and so off the follow list: its twin goes, and a ray over where it

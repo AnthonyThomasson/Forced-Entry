@@ -29,12 +29,13 @@ class keeps a 2D twin for the not-flipped readers, characters last), and when th
 knowing where it was built.
 
 **Synced like the mirror, once a frame.** `TwinSpace` reuses the mirror's update rule (ADR 0013): a followed body's `global_transform` is
-read and the twin written **only when it changed**, a sleeping `RigidBody2D` is skipped (read once more as it falls asleep), a body
-that never moves is written once, a body that leaves the tree frees its twin. The spike measured it: 600 twins cost 0.13 to 0.16 ms a
+read and the twin written **only when it changed**, a sleeping `RigidBody2D` is read once more as it falls asleep and then parked until it wakes (a slow look, a few frames round, catches a script that
+moves it asleep), a body that never moves is written once (one frozen at twin time is never followed, even if unfrozen later: to revisit when furniture goes 3D), a body that leaves the tree frees its twin. The spike measured it: 600 twins cost 0.13 to 0.16 ms a
 frame with the dirty check, 0.32 without; the whole frame rises by 0.15 ms. The sync runs before every body's own `_physics_process`
 (priority -100), after the engine's step has flushed the bodies it moves, so a bullet or a sight line in the frame's scripts finds
-a rigid piece or a door exactly where the 2D space has it; a body a script moves (a walking character) is a frame behind where that script puts it
-(1/60 s). Jolt applies a kinematic twin's write at once (`sync_to_physics` off), as the spike's ray test showed.
+a rigid body's twin exactly where the 2D space has it; a door or a character, which a script moves, is a frame behind where that script puts it
+(1/60 s). Jolt applies a write at once, kinematic (`sync_to_physics` off) or static, as the spike's ray test showed; Objects' twins are static bodies
+written when their body moves, so Jolt's step carries no always-active body for each of a district's hundreds of pieces and doors.
 
 **Jolt.** The engine is Jolt (`physics/3d/physics_engine`, chosen at the phase-1 gate): it settles a tipped furniture pile (all asleep
 in 6.7 s against 30 of 40 awake after 8 s) and casts rays in about half the time, at about 0.3 ms a frame more at rest.

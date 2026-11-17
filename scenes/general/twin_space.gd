@@ -19,8 +19,10 @@ extends Node3D
 ## order for each body, the first answer that is a node wins, null (not this domain's body) passes
 ## on. The node is a `CollisionObject3D` with its collision shapes built in code, in the frame of
 ## the 2D body's origin (`TwinShapes`, `PlanSpace`); this node places it by the body's transform. A
-## plain `StaticBody3D` is a body that never moves, placed once; an `AnimatableBody3D` is followed.
-## A twin node may have `twin_update(body: Node2D) -> void`, run each frame after it has followed (a
+## plain `StaticBody3D` is placed once, and written again whenever its body moves (a shoved piece, a
+## swinging door): a twin is followed by what its body is, not by what the twin is, and a static
+## body keeps Jolt's step free of one more always-active body. A twin node may have
+## `twin_update(body: Node2D) -> void`, run each frame after it has followed (a
 ## character's capsule follows its posture). A body is found when it is in the tree
 ## under the root `watch` was given (`PhysicsBody2D`s, and each node of a group `track_group`
 ## names, a floor having no physics body), on the next update after it entered, once its own
@@ -29,14 +31,16 @@ extends Node3D
 ## **The update rule.** Once per physics frame, before every body's own `_physics_process`
 ## (priority `PRIORITY`), after the engine has moved the bodies it moves in its step, each followed
 ## body's `global_transform` is read and its twin written **only when it changed**; a sleeping
-## `RigidBody2D` is read once more as it falls asleep and then taken off the list until its
-## `sleeping_state_changed` says it woke (so a sleeping piece costs nothing a frame); a body that
-## never moves is written once, when twinned. A twin is on its layer only while its body's
-## `collision_layer` is not 0 (a dead character, a door knocked down). So a reader in a frame's
-## scripts finds a twin exactly where the engine's step left the 2D body, and a body a script moves
-## (a walking character) one frame behind where that script puts it (1/60 s); a twin joins the frame
-## after its body does. A kinematic twin written is in the space at once (Jolt, `sync_to_physics`
-## off).
+## `RigidBody2D` is read once more as it falls asleep and then parked off the list until its
+## `sleeping_state_changed` says it woke, with a slow look (`PARK_SPREAD` frames round) for the
+## script that moves a sleeping body without waking it; a body that never moves (a wall, a floor, a
+## frozen body: not followed, even if it is later unfrozen) is written once, when twinned. A twin
+## is on its layer only while its body's `collision_layer` is not 0 (a dead character, a door
+## knocked down); a rigid body's layer is read when it moves. So a reader in a frame's scripts
+## finds a rigid body's twin exactly where the engine's step left it; a door or a character, which
+## a script moves, is one frame behind where that script puts it (1/60 s), and a sleeping body a
+## script teleports up to `PARK_SPREAD` frames; a twin joins the frame after its body does. Jolt
+## takes a write at once.
 ##
 ## **What a reader does.** `space()` / `space_of(node)` is the `PhysicsDirectSpaceState3D` to cast
 ## into; `owner_of(collider)` maps a hit twin (a result's `collider`) to the 2D body it stands for
@@ -47,6 +51,9 @@ extends Node3D
 ## -1), so the frame's scripts, a bullet's among them, read twins that stand where the physics step
 ## left the 2D bodies.
 const PRIORITY := -100
+## How many frames the slow look takes to go round the parked bodies: a sleeping rigid body that a
+## script moves without waking it is followed within this many frames.
+const PARK_SPREAD := 4
 ## The meta a twin carries: the 2D body it stands for.
 const OWNER_META := &"twin_owner"
 
@@ -58,14 +65,19 @@ var count := 0
 var followed := 0
 var written := 0
 var _root: Node
-## The groups whose members are twinned though they are no physics body (the floors).
-var _groups: Array[StringName] = []
-## Body instance id -> its row `{ id, body, twin, last, rigid, asleep, layer, active, update }`.
+## The groups whose members are twinned though they are no physics body (the floors), each with
+## the script a member is of (a node that is not of it is not looked at when it enters the tree).
+var _groups: Dictionary = {}
+## Body instance id -> its row `{ id, body, twin, last, rigid, asleep, parked, listed, wake, layer,
+## active, update }`.
 var _rows: Dictionary = {}
 ## The rows that follow a moving body, swap-removed when a body leaves.
 var _moving: Array[Dictionary] = []
-## Bodies (and, while a group is tracked, any `Node2D`: it joins its group in its own `_ready`)
-## that entered the tree since the last update, twinned next.
+## The rows of sleeping rigid bodies (parked), looked at slowly, and where the look is.
+var _parked: Array[Dictionary] = []
+var _look := 0
+## Bodies (and members of a tracked group's kind: they join their group in their own `_ready`) that
+## entered the tree since the last update, twinned next.
 var _pending: Dictionary = {}
 
 
@@ -83,12 +95,13 @@ func _physics_process(_delta: float) -> void:
 	update()
 
 
-## Twin the members of `group` (a node that is no physics body: a floor), as bodies are. Before or
-## after `watch`.
-func track_group(group: StringName) -> void:
+## Twin the members of `group` (a node that is no physics body: a floor), as bodies are. `kind` is
+## the script its members are of: only a node of it is looked at when it enters the tree (no kind:
+## any `Node2D` is, which costs a look at every node that joins). Before or after `watch`.
+func track_group(group: StringName, kind: Script = null) -> void:
 	if _groups.has(group):
 		return
-	_groups.append(group)
+	_groups[group] = kind
 	_scan_group(group)
 
 
@@ -96,7 +109,7 @@ func track_group(group: StringName) -> void:
 ## that join later.
 func watch(root: Node) -> void:
 	_root = root
-	for group in _groups:
+	for group: StringName in _groups:
 		_scan_group(group)
 	for body: Node in root.find_children("*", "PhysicsBody2D", true, false):
 		_pending[body.get_instance_id()] = body
@@ -108,6 +121,7 @@ func watch(root: Node) -> void:
 ## One frame: twin what joined, then follow each moving body (the update rule above).
 func update() -> void:
 	_twin_pending()
+	_look_at_parked()
 	followed = 0
 	written = 0
 	var i := 0
@@ -159,12 +173,22 @@ func _scan_group(group: StringName) -> void:
 			_pending[node.get_instance_id()] = node
 
 
-## A node entered the tree: a physics body under the root, or (while a group is tracked) any
-## `Node2D`, is looked at on the next update, once its `_ready` has run.
+## A node entered the tree: a physics body, or a node of a tracked group's kind, under the root is
+## looked at on the next update, once its `_ready` has run.
 func _on_node_added(node: Node) -> void:
-	if node is PhysicsBody2D or (not _groups.is_empty() and node is Node2D):
+	if node is PhysicsBody2D or _is_kind(node):
 		if _root.is_ancestor_of(node):
 			_pending[node.get_instance_id()] = node
+
+
+## Whether `node` is of the kind (script) of a tracked group (any `Node2D` for a group with no
+## kind).
+func _is_kind(node: Node) -> bool:
+	for group: StringName in _groups:
+		var kind: Script = _groups[group]
+		if is_instance_of(node, kind) if kind != null else node is Node2D:
+			return true
+	return false
 
 
 ## Twin the bodies and group members that joined since the last update.
@@ -182,7 +206,7 @@ func _twin_pending() -> void:
 func _is_candidate(node: Node) -> bool:
 	if node is PhysicsBody2D:
 		return true
-	for group in _groups:
+	for group: StringName in _groups:
 		if node.is_in_group(group):
 			return true
 	return false
@@ -208,7 +232,7 @@ func _twin(node: Node2D) -> void:
 	var solid := made as CollisionObject3D
 	var row := {
 		"id": id, "body": node, "twin": made, "last": xf, "asleep": false, "active": true,
-		"parked": false,
+		"parked": false, "listed": false, "wake": Callable(),
 		"rigid": node if node is RigidBody2D else null,
 		"layer": solid.collision_layer if solid != null else 0,
 		"update": Callable(made, &"twin_update") if made.has_method(&"twin_update") else Callable(),
@@ -219,7 +243,8 @@ func _twin(node: Node2D) -> void:
 	if _moves(node):
 		_moving.append(row)
 		if node is RigidBody2D:
-			(node as RigidBody2D).sleeping_state_changed.connect(_on_sleeping.bind(row))
+			row["wake"] = _on_sleeping.bind(row)
+			(node as RigidBody2D).sleeping_state_changed.connect(row["wake"])
 
 
 ## Whether `node` can move: a character, a door or any rigid body that is not frozen. A body that
@@ -232,36 +257,76 @@ static func _moves(node: Node2D) -> bool:
 
 ## Follow one moving row (the update rule): a changed transform is written, the twin's layer follows
 ## the body's; a rigid body that sleeps is read once more as it falls asleep, then parked (false: it
-## leaves the list).
+## leaves the list). A rigid body's twin has no hook and its layer is read only as it moves, so one
+## whose transform has not changed is done after that one comparison.
 func _follow(row: Dictionary) -> bool:
-	var rigid: Variant = row["rigid"]
-	if rigid != null and (rigid as RigidBody2D).sleeping:
-		if row["asleep"]:
-			row["parked"] = true  # off the list until it wakes (`_on_sleeping`)
-			return false
-		row["asleep"] = true  # read once more, for the last step it took before it slept
-	else:
-		row["asleep"] = false
-	followed += 1
 	var body: Node2D = row["body"]
-	var twin: Node3D = row["twin"]
+	var rigid: Variant = row["rigid"]
+	if rigid != null:
+		if (rigid as RigidBody2D).sleeping:
+			if row["asleep"]:
+				row["parked"] = true  # off the list until it wakes (`_on_sleeping`)
+				if not row["listed"]:
+					row["listed"] = true
+					_parked.append(row)
+				return false
+			row["asleep"] = true  # read once more, for the last step it took before it slept
+		else:
+			row["asleep"] = false
+	followed += 1
 	var xf := body.global_transform
-	if xf != row["last"]:
-		row["last"] = xf
-		twin.transform = PlanSpace.lift_transform(xf)
-		written += 1
-	var solid := twin as CollisionObject3D
-	if solid != null:
-		var active := true
-		if body is CollisionObject2D:
-			active = (body as CollisionObject2D).collision_layer != 0
-		if active != row["active"]:
-			row["active"] = active
-			solid.collision_layer = row["layer"] if active else 0
+	var moved: bool = xf != row["last"]
+	if not moved and rigid != null:
+		return true
+	if moved:
+		_write(row, xf)
+	_sync_layer(row, body)
 	var hook: Callable = row["update"]
 	if hook.is_valid():
 		hook.call(body)
 	return true
+
+
+## Write `xf` (the body's transform) to the row's twin.
+func _write(row: Dictionary, xf: Transform2D) -> void:
+	row["last"] = xf
+	(row["twin"] as Node3D).transform = PlanSpace.lift_transform(xf)
+	written += 1
+
+
+## The twin is on its layer only while its body's own `collision_layer` is not 0.
+func _sync_layer(row: Dictionary, body: Node2D) -> void:
+	var solid := row["twin"] as CollisionObject3D
+	if solid == null or not body is CollisionObject2D:
+		return
+	var active := (body as CollisionObject2D).collision_layer != 0
+	if active != row["active"]:
+		row["active"] = active
+		solid.collision_layer = row["layer"] if active else 0
+
+
+## A slice (`1 / PARK_SPREAD`) of the parked rows is looked at each frame: one whose body has been
+## moved by a script (a sleeping piece placed elsewhere) is written, and one that is awake after
+## all goes back on the follow list.
+func _look_at_parked() -> void:
+	if _parked.is_empty():
+		return
+	var take := ceili(float(_parked.size()) / PARK_SPREAD)
+	for _n in take:
+		if _parked.is_empty():
+			return
+		_look %= _parked.size()
+		var row := _parked[_look]
+		if row["id"] == 0 or not row["parked"] or not is_instance_valid(row["body"]):
+			row["listed"] = false  # gone, or woken since: off this list
+			_parked[_look] = _parked.back()
+			_parked.pop_back()
+			continue
+		_look += 1
+		var xf := (row["body"] as Node2D).global_transform
+		if xf != row["last"]:
+			_write(row, xf)
+			_wake(row)
 
 
 ## A moving row whose body is gone, or asleep, leaves the follow list at `index` (swap-removed).
@@ -276,6 +341,12 @@ func _retire(row: Dictionary, index: int) -> void:
 ## sleeping piece costs nothing a frame.
 func _on_sleeping(row: Dictionary) -> void:
 	if row["parked"] and row["id"] != 0 and not (row["rigid"] as RigidBody2D).sleeping:
+		_wake(row)
+
+
+## Put a parked row back on the follow list.
+func _wake(row: Dictionary) -> void:
+	if row["parked"]:
 		row["parked"] = false
 		row["asleep"] = false
 		_moving.append(row)
@@ -293,6 +364,12 @@ func _drop(row: Dictionary) -> void:
 	_rows.erase(row["id"])
 	row["id"] = 0  # a moving list still holding the row drops it at its next update
 	count -= 1
+	var wake: Callable = row["wake"]
+	var rigid: Variant = row["rigid"]
+	if wake.is_valid() and is_instance_valid(rigid):
+		var changed := (rigid as RigidBody2D).sleeping_state_changed
+		if changed.is_connected(wake):
+			changed.disconnect(wake)  # a body that comes back is twinned, and watched, anew
 	var twin: Variant = row["twin"]
 	if is_instance_valid(twin):
 		var solid := twin as CollisionObject3D

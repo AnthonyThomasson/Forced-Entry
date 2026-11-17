@@ -5,9 +5,9 @@ extends RefCounted
 ## (`ObjectStructureMeshConfig`), a floor as a slab, a piece of furniture as one box per part of
 ## `PieceHeights` (a sofa's seat, arms and back; a round piece's full-footprint part a cylinder),
 ## in the frame of the 2D body, so a piece that turns or is shoved is followed by its transform.
-## `register` adds the hooks Main wires into the space. A wall, a floor and a piece are
-## `StaticBody3D`s (the space writes the twin of a piece that can be shoved with its piece's
-## transform as it follows it); a door is an `AnimatableBody3D`. All sit on
+## `register` adds the hooks Main wires into the space. Every one is a `StaticBody3D`: the space
+## writes a twin again, with its body's transform, only when its body moves (a shoved piece, a
+## swinging door), so a shut door or a resting piece costs the 3D step nothing. All sit on
 ## `PhysicsLayers.TWIN_WORLD`. A dent that reshapes a 2D collider does not reshape its twin: a wall
 ## or a piece keeps the outline it was built with.
 
@@ -19,7 +19,7 @@ const Floor = preload("res://scenes/objects/floor/floor.gd")
 ## Add the hooks of every kind to `space` (a `TwinSpace`), and have it twin the floors.
 static func register(space: TwinSpace) -> void:
 	space.builders.append(Callable(ObjectTwins, &"build"))
-	space.track_group(&"floors")
+	space.track_group(&"floors", Floor)
 
 
 ## The twin of `node` if it is a wall, a door, a floor or a solid piece of furniture, else null.
@@ -27,7 +27,7 @@ static func build(node: Node2D) -> Node3D:
 	if node is Wall:
 		return _structure(node, StaticBody3D.new(), ObjectStructureMeshConfig.wall_height)
 	if node is Door:
-		return _structure(node, _mover(), ObjectStructureMeshConfig.door_height)
+		return _structure(node, StaticBody3D.new(), ObjectStructureMeshConfig.door_height)
 	if node is Piece:
 		return _piece(node as Piece)
 	if node is Floor:
@@ -39,13 +39,6 @@ static func build(node: Node2D) -> Node3D:
 static func _world(body: CollisionObject3D) -> CollisionObject3D:
 	body.collision_layer = PhysicsLayers.TWIN_WORLD
 	body.collision_mask = 0
-	return body
-
-
-## A kinematic twin that is written at once (its pose is the body's now, not at the next step).
-static func _mover() -> AnimatableBody3D:
-	var body := AnimatableBody3D.new()
-	body.sync_to_physics = false
 	return body
 
 

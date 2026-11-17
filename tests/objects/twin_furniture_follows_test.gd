@@ -74,6 +74,41 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_near(Probe.top_at(t, new_corner), TOP, 0.5, "at the table's top")
 	t.check(Probe.down(t, old_corner).get("owner") != table, "its old corner is empty")
+	await _teleported(t, twins, table)
+	await _reparented(t, twins, table)
+
+
+## The resting table, asleep and off the follow list, is moved by a script (`global_position =`):
+## its twin is at the new place within a few frames, and the old place is empty.
+func _teleported(t: TestContext, twins: TwinSpace, table: RigidBody2D) -> void:
+	t.require(table.sleeping, "premise: the table is asleep before it is teleported")
+	var from := table.global_position
+	var to := Vector2(700.0, 120.0)
+	table.global_position = to
+	await t.frames(3)
+	t.check(_near(twins.twin_of(table), table.global_transform), "its twin followed the teleport")
+	t.check(Probe.down(t, to).get("owner") == table, "a ray at the new place lands on the table")
+	t.check(Probe.down(t, from).get("owner") != table, "the old place is empty")
+
+
+## The table leaves the tree and comes back (a reparent): it has one twin, and it is not watched
+## twice for waking (the connection of its first twin went with it).
+func _reparented(t: TestContext, twins: TwinSpace, table: RigidBody2D) -> void:
+	var parent := table.get_parent()
+	var before := twins.count
+	parent.remove_child(table)
+	parent.add_child(table)
+	await t.frames(3)
+	t.expect_eq(twins.count, before, "one twin for the table, as before")
+	var watching := 0
+	for link: Dictionary in table.sleeping_state_changed.get_connections():
+		if (link["callable"] as Callable).get_object() == twins:
+			watching += 1
+	t.expect_eq(watching, 1, "the twin space watches the table's sleep once")
+	t.check(
+		Probe.down(t, table.global_position).get("owner") == table,
+		"a ray on the table lands on its new twin",
+	)
 
 
 ## Whether `twin` stands where a body of 2D transform `xf` does.

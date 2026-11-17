@@ -6,7 +6,8 @@ extends RefCounted
 ## (`TwinSpace.builders`) lifts the body's own 2D shapes with `lift_body`, or one footprint
 ## rectangle with `box`, so no domain writes the `(x, y)` -> `(x, 0, y)` mapping by hand.
 ## Rectangles become boxes, circles upright cylinders, convex polygons extruded hulls; a shape of
-## another kind is lifted as the box of its bounds (a capsule), a shape with none is left out.
+## another kind is lifted as the box of its bounds (a capsule); a shape with none (a segment, a
+## world boundary) is left out, with a warning.
 ## Heights are px above the floor (`BodyHeights`, `PieceHeights`).
 
 
@@ -40,6 +41,8 @@ static func lift(shape: Shape2D, local: Transform2D, base: float, top: float) ->
 		return _holder(cylinder, local, 0.5 * (base + top), Vector2.ZERO)
 	var rect := _bounds(shape)
 	if rect.size == Vector2.ZERO:
+		if not (shape is RectangleShape2D or shape is CapsuleShape2D):
+			push_warning("TwinShapes: no twin for a %s, it has no footprint" % shape.get_class())
 		return null
 	return box(rect, local, base, top)
 

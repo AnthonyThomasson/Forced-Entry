@@ -1,10 +1,9 @@
 extends GameTest
-## A door's twin (`ObjectTwins`, interface 29): a kinematic leaf 84 px tall that turns with the
-## door about its hinge. A door swung open is followed frame by frame (its twin's pose is the leaf's
-## the
-## frame it is read, the door moving in its own script before the twin is synced), a ray dropped
-## on the open leaf lands at 84 and names the door, and the doorway where the shut leaf stood is
-## open to a ray at 80 px.
+## A door's twin (`ObjectTwins`, interface 29): a leaf 84 px tall that turns with the door about
+## its hinge. A door swung open is followed frame by frame (its twin's pose is the leaf's of the
+## frame it is read or the one before: the door turns in its own script, after the twin is synced),
+## a ray dropped on the open leaf lands at 84 and names the door, and the doorway where the shut
+## leaf stood is open to a ray at 80 px.
 
 const Probe := preload("res://tests/_general/twin_probe.gd")
 ## The doorway in the wall at x = 400, 52 wide, the hinge 20 px from its middle.

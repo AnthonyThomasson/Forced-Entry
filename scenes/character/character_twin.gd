@@ -22,8 +22,9 @@ var _character: Character
 var _capsule := CapsuleShape3D.new()
 var _holder := CollisionShape3D.new()
 var _posture: StringName = &""
-## The body's own circle (a seated character disables it).
+## The body's own circle (a seated character disables it) and whether the capsule is off for it.
 var _circle: CollisionShape2D
+var _seated := false
 
 
 ## Add the hook to `space` (a `TwinSpace`).
@@ -54,7 +55,8 @@ func twin_update(_body: Node2D) -> void:
 	if now != _posture:
 		_set_posture(now)
 	var seated := _circle != null and _circle.disabled
-	if seated != _holder.disabled:
+	if seated != _seated:
+		_seated = seated
 		_holder.disabled = seated
 
 
