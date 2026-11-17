@@ -36,12 +36,17 @@ const SIZE := Vector2i(1152, 648)
 const SPREAD := 170.0
 ## The camera's zoom steps run again at yaw 0: offsets from its own step (1x): 0.5x and 3x.
 const ZOOM_OFFSETS: Array[int] = [-1, 2]
-## A mover's height (px), for how far its shadow falls.
-const MOVER_HEIGHT := 36.0
-## The shadow's layout (`_layout`): the box's distance from the lamp (px), and where the human
-## stands against the shadow's end (px along the line past it, px to the side of it).
-const LAMP_GAP := 40.0
-const ALONG := 10.0
+## A mover's height (px), for how far its shadow falls: a fixture's shadow light stands 400 to 600
+## px up (`LightingFixtureConfig.shadow_height`), so only a tall box's shadow falls far enough to
+## cross the cone's edge (the band the feather and the near bubble leave is some 60 px wide).
+const MOVER_HEIGHT := 160.0
+## The shadow's layout (`_layout`): how far the shadow of the box's top falls from the box (px:
+## the box is set that far from the lamp, whatever its height), and where the human stands against
+## the shadow's end (px along the line past it, px to the side of it). The box ends up
+## `SHADOW_FALL + ALONG` px along the line and `AHEAD` across it from the human: outside the near
+## bubble (48 px) and the cone's 55 degrees, while the end is inside the cone.
+const SHADOW_FALL := 64.0
+const ALONG := 14.0
 const AHEAD := 30.0
 ## The cut: a mover is drawn where the live mask reads at least this (the shader's 0.5, less the
 ## width of a pixel's sampling), and a pixel it changes where the mask reads under `LEAK` is drawn
@@ -487,15 +492,16 @@ func _lamps() -> Array[Vector3]:
 
 
 ## Where to stand the box and the human so the lamp's shadow of the box's top runs across the cone's
-## edge: the box `LAMP_GAP` px from the lamp along `along`, its shadow's end `fall` px further on,
+## edge: the box along `along` from the lamp, far enough off that its shadow falls `SHADOW_FALL` px
+## (the lamp's height gives how far), the shadow's end there,
 ## the human looking sideways (`side` of the line, `AHEAD` px from it) from just past the end, so
 ## the end is within `ALONG` px of the line of sight and the box a good way off it. Empty when
 ## something solid is in the way.
 func _layout(lamp: Vector3, along: Vector2, side: float) -> Dictionary:
 	var at := Vector2(lamp.x, lamp.z)
-	var fall := LAMP_GAP * MOVER_HEIGHT / (lamp.y - MOVER_HEIGHT)
-	var spot := at + along * LAMP_GAP
-	var tip := spot + along * fall
+	var gap := SHADOW_FALL * (lamp.y - MOVER_HEIGHT) / MOVER_HEIGHT
+	var spot := at + along * gap
+	var tip := spot + along * SHADOW_FALL
 	var facing := along.rotated(side * PI * 0.5)
 	var stand := tip + along * ALONG - facing * AHEAD
 	for point in [spot, tip, stand, (spot + tip) * 0.5]:
