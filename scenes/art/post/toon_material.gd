@@ -8,6 +8,9 @@ extends RefCounted
 const SHADER := preload("res://scenes/art/post/toon.gdshader")
 const DECAL_SHADER := preload("res://scenes/art/post/decal.gdshader")
 const TEX_SHADER := preload("res://scenes/art/post/toon_tex.gdshader")
+const SHADE_SHADER := preload("res://scenes/art/post/shade.gdshader")
+## The texels across the drop shadow's disc.
+const SHADE_TEXELS := 32
 
 ## The one material every mesh of the 3D view shares: the mirror's proxies and each domain's own
 ## mesh (`MeshNodes.instance`). Made on first use; a new mirror pushes the holders into it again
@@ -24,6 +27,8 @@ static var _textured: Dictionary = {}
 ## The table's size at which `decal` or `textured` next drops the freed ones (twice what it held
 ## after the last).
 static var _prune_at := 64
+## The drop shadow's material (`shade`), one for every shadow.
+static var _shade: ShaderMaterial
 
 
 ## A new toon material set from the holders. It declares the vision hook's globals first
@@ -81,6 +86,25 @@ static func textured(texture: Texture2D, tiled := false, cutout := false) -> Sha
 	material.set_shader_parameter(&"cutout", cutout)
 	_textured[key] = weakref(material)
 	return material
+
+
+## The drop shadow's material (`shade.gdshader`): a round patch (a disc of `SHADE_TEXELS` texels,
+## hard edged as pixel art is) of black at `strength` (an alpha: the floor shows through), shared by
+## every shadow. Not lit and not cast; the player's view dims and hides it as it does the toon
+## shaders.
+static func shade() -> ShaderMaterial:
+	if _shade == null:
+		ToonMask.install()
+		var image := Image.create(SHADE_TEXELS, SHADE_TEXELS, false, Image.FORMAT_RGBA8)
+		var middle := (SHADE_TEXELS - 1) * 0.5
+		for y in SHADE_TEXELS:
+			for x in SHADE_TEXELS:
+				var inside := Vector2(x - middle, y - middle).length() <= SHADE_TEXELS * 0.5
+				image.set_pixel(x, y, Color(0.0, 0.0, 0.0, 1.0 if inside else 0.0))
+		_shade = ShaderMaterial.new()
+		_shade.shader = SHADE_SHADER
+		_shade.set_shader_parameter(&"shape_texture", ImageTexture.create_from_image(image))
+	return _shade
 
 
 ## How many textured materials are alive (a test reads it, the perf report too): the ones a node

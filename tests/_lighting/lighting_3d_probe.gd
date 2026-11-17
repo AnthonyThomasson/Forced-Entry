@@ -116,3 +116,23 @@ static func flash_kind(l: OmniLight3D) -> int:
 	var amount := l.light_specular * 2.0
 	var packed := amount - 4.0 * floorf(amount / 4.0 + 0.001)
 	return int(floorf(fposmod(packed + 0.01, 1.0) * 4.0 + 0.5))
+
+
+## What the toon light reads of a positional light's `light_specular` (`ToonLight.specular`, decoded
+## as `toon_common.gdshaderinc` does): `{ slope, kind, code, ratio, height }`: the pool's flatness,
+## 0 a lamp, 1 a tinted flash, 2 a white-out, the room id times two plus one for a street light, the
+## light's height over its pool's rim and its height (3D units).
+static func decode(l: OmniLight3D) -> Dictionary:
+	var amount := l.light_specular * 2.0
+	var whole := floorf(amount / 4.0 + 0.001)
+	var high := floorf(whole / 65_536.0 + 0.0001)
+	var rest := whole - high * 65_536.0
+	var steps := floorf(rest / 1024.0 + 0.0001)
+	var packed := amount - 4.0 * whole
+	return {
+		"slope": floorf(packed + 0.01),
+		"kind": floorf(fposmod(packed + 0.01, 1.0) * 4.0 + 0.5),
+		"code": int(rest - steps * 1024.0),
+		"ratio": steps / 16.0,
+		"height": 4.0 * pow(1.4, high),
+	}

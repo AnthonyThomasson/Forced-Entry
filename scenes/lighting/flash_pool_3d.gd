@@ -57,15 +57,14 @@ func flash(at: Vector2, look: Dictionary, radius: float, room_code: int) -> Omni
 	l.position = Vector3(at.x * unit, height * unit, at.y * unit)
 	l.light_color = look["color"]
 	l.light_energy = look["energy"]
-	l.omni_range = Vector2(
-		reach * 0.5 * Lighting3DConfig.range_scale,
-		height,
-	).length() * unit
+	var rim := reach * 0.5 * Lighting3DConfig.range_scale
+	l.omni_range = Vector2(rim, height).length() * unit
 	# Every flash's pool is flat to its middle (the overhead slope), as a ceiling light's: the kind
 	# says how the toon light adds it (a tint, or for a row with a `wash` a white-out).
 	var washes: bool = look.get("wash", false)
-	var kind := 0.5 if washes else 0.25
-	l.light_specular = (Lighting3DConfig.overhead_slope + kind + 4.0 * float(room_code)) * 0.5
+	l.light_specular = ToonLight.specular(
+		Lighting3DConfig.overhead_slope, 2 if washes else 1, room_code, height * unit, rim * unit
+	)
 	l.set_meta(&"room", room_code >> 1)
 	l.set_meta(&"at", at)
 	l.visible = true

@@ -55,13 +55,6 @@ const NECK := 23
 const CROWN := 24
 ## The held item's node, after the parts (it is not one of the character's own).
 const HELD := 25
-## The parts too small to throw a shadow worth its cost (the face's band, the fists, the plates, the
-## shoes and a boot's shaft, the hair, the headwear, the neck and the head's sprite): thirteen of
-## the twenty-five, the other twelve cast one.
-const SMALL := [
-	PLATE, PLATE + 1, HAIR, HEADWEAR, FACE, HAND, HAND + 1, BOOT, BOOT + 1, FOOT, FOOT + 1, NECK,
-	CROWN,
-]
 ## The shape each part is made of (`_solid`), by the indices above.
 const SHAPES := [
 	&"trunk", &"vest", &"box", &"box", &"box", &"head", &"ball", &"ball", &"box",
@@ -135,6 +128,8 @@ var _posed := false
 var _look_key := -1
 ## The parts, by the indices above (a sided part's own is its index plus the side).
 var _parts: Array[MeshInstance3D] = []
+## The drop shadow (the child after the held item's: `_make_shade`).
+var _shade: MeshInstance3D
 ## What the character holds (`BodyHeld`: its node is the last child, `HELD`).
 var _held := BodyHeld.new()
 ## The physics frame the body died in (-1 while it lives: it follows the ragdoll from then), and
@@ -188,13 +183,25 @@ func mirror_update(body: Node2D) -> void:
 func on_body_died(body: Node2D) -> bool:
 	if not body.anatomy.ragdoll is Fallen:
 		return false
-	for part in _parts:
-		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # the 2D body casts none
+	_shade.visible = false  # the 2D body casts none
 	_died = Engine.get_physics_frames()
 	_at_rest = false
 	_posed = false
 	_frame = -1
 	return true
+
+
+## The drop shadow: a patch under the body, shifted away from the art's light, which the body's
+## parts (they cast nothing from the lights) leave to be its shadow.
+func _make_shade() -> void:
+	var radius := _r * CharacterShadowConfig.shade_radius
+	_shade = MeshNodes.shade(
+		radius, ArtCanvasConfig.drop_shadow_alpha, CharacterShadowConfig.shade_lift
+	)
+	var away := -ArtCanvasConfig.light_from.normalized() * _r * CharacterShadowConfig.shade_shift
+	_shade.position += Vector3(away.x, 0.0, away.y) * RenderConfig.unit
+	_shade.name = "DropShadow"
+	add_child(_shade)
 
 
 ## The node showing what the character holds, hidden while nothing is (the held slot's item has no
@@ -218,17 +225,14 @@ func _make(body: CharacterBody2D, dress: BodyDress) -> void:
 	_sample.resize(SAMPLE)
 	_last.resize(SAMPLE)
 	for i in SHAPES.size():
-		var node := MeshNodes.instance(
-			_solid(SHAPES[i], Color.WHITE),
-			Color.WHITE,
-			not SMALL.has(i),
-		)
+		var node := MeshNodes.instance(_solid(SHAPES[i], Color.WHITE), Color.WHITE, false)
 		MeshNodes.figure(node)
 		add_child(node)
 		_parts.append(node)
 	assert(_parts.size() == CROWN + 1, "BodyMesh: the shapes list and the part indices disagree")
 	add_child(_held.node)
 	assert(_held.node.get_index() == HELD, "BodyMesh: the held item's node is not after the parts")
+	_make_shade()
 	_dress_parts()
 	_pose(body.anatomy.rig(), body)
 

@@ -232,7 +232,7 @@ func _check_crown(t: TestContext, body: BodyMesh) -> void:
 	t.check(crown.position.y > band, "and over the face's band, which it does not hide from above")
 	t.check(
 		not crown.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
-		"it casts no shadow of its own (the domes do)",
+		"it casts no shadow of its own",
 	)
 
 

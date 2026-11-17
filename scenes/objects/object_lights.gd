@@ -8,8 +8,10 @@ extends RefCounted
 ##   `offset` (Vector2) and `turn` (rad, the pool's long axis from +x), `colour`, `energy`, `radius`
 ##   (px, out along the long axis), `shape` (`round` / `wide` / `tube`), `rhythm`
 ##   (`[[mode, weight], ...]`, the rhythms it may be drawn with), `room_light` (it lights its room),
-##   `street` (it lights the street too: a street lamp), `height` (`overhead`: it hangs or stands
-##   above the heads, a lamp's bulb, a street lamp's head; `low`: a screen, a tube, LEDs; which
+##   `street` (it lights the street too: a street lamp), `lift` (px above the floor where the
+##   glowing part is in the 3D mesh; 0: the Lighting domain's default for its `height`), `height`
+##   (`overhead`: it hangs or stands above the heads, a lamp's bulb, a street lamp's head; `low`: a
+##   screen, a tube, LEDs; which
 ##   shadows it, and whether it pools downward, is the Lighting domain's) and `glow` (the piece's
 ##   `Emissive` overlay that shows the source, dimming with the light; null when it has none).
 ## Tuning: ObjectArtLightConfig.specs (the per-kind numbers) and the painters' colours.
@@ -42,6 +44,7 @@ static func of(piece: Node2D) -> Array:
 		"room_light": spec.get("room_light", false),
 		"street": false,
 		"height": spec.get("height", &"low"),
+		"lift": float(spec.get("lift", 0.0)),
 		"glow": _overlay(piece.get_node_or_null("EnvironmentObjectVisuals")),
 	}
 	_by_kind(light, kind, piece, ahead, spec)

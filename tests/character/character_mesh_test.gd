@@ -263,6 +263,8 @@ func _check_dress(t: TestContext, mirror: WorldMirror) -> void:
 func _check_figure(t: TestContext, body: BodyMesh) -> void:
 	var unmarked := 0
 	for part: Node in body.get_children():
+		if part.name == &"DropShadow":
+			continue  # the patch on the floor is not a part of the figure
 		if (part as MeshInstance3D).get_instance_shader_parameter(&"figure") != 1.0:
 			unmarked += 1
 	t.expect_eq(

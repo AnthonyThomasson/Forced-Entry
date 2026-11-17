@@ -23,6 +23,19 @@ const ROOM_MASK := &"room_mask"
 const ROOM_TRANSFORM := &"room_mask_xf"
 const ROOM_MASKED := &"room_masked"
 const ROOM_GROUND := &"room_ground"
+## `specular`'s packing (`toon_common.gdshaderinc` reads it back): a code (a room and a street flag)
+## has `CODE_SPAN` values, the ratio's `RATIO_STEPS` per unit up to `MAX_STEPS`, and the height's
+## `MAX_CLASS` classes `HEIGHT_GROWTH` apart from `HEIGHT_FROM` (4 to 700 px: the packed light stays
+## under 2^22, where a float still holds the kind's quarter); the whole number stays exact in a
+## float. A ratio past `MAX_STEPS` sixteenths (3.9) is cut, and then a pool is smaller than it
+## should be.
+const CODE_SPAN := 1024
+const RATIO_STEPS := 16.0
+const MAX_STEPS := 63
+const STEP_SPAN := 64
+const HEIGHT_FROM := 4.0
+const HEIGHT_GROWTH := 1.4
+const MAX_CLASS := 14
 
 ## Whether the globals are declared.
 static var _installed := false
@@ -57,6 +70,25 @@ static func install() -> void:
 	_add(ROOM_TRANSFORM, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
 	_add(ROOM_MASKED, RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)
 	_add(ROOM_GROUND, RenderingServer.GLOBAL_VAR_TYPE_FLOAT, ToonLightConfig.ground_y)
+
+
+## What a positional light's `light_specular` must be for the toon light (the toon has no specular,
+## so it carries the light's code to `light()`): `SPECULAR_AMOUNT`, twice it, is
+## `slope + kind / 4 + 4 * (code + 1024 * (steps + 64 * height_class))`. `slope` 1 or 2 is how flat
+## the pool is, `kind` 0 a lamp, 1 a tinted flash, 2 a white-out, `code` the room id times two plus
+## one for a street light (`toon_reach`, under `CODE_SPAN`), `steps` the light's `height` over
+## `rim`, the ground reach of its pool, in sixteenths, and `height_class` the height itself in
+## 1.4-fold steps from 4. The shader gives the pool its shape on the floor from them, whatever
+## height the light hangs or casts shadows from, and lights a surface above the floor by the pool at
+## its own ground point. `height` and `rim` are in 3D units.
+static func specular(slope: float, kind: int, code: int, height: float, rim: float) -> float:
+	assert(code < CODE_SPAN, "ToonLight.specular: room code %d needs CODE_SPAN room" % code)
+	var steps := clampi(roundi(height / maxf(rim, 0.001) * RATIO_STEPS), 0, MAX_STEPS)
+	var high := clampi(
+		roundi(log(maxf(height, HEIGHT_FROM) / HEIGHT_FROM) / log(HEIGHT_GROWTH)), 0, MAX_CLASS
+	)
+	var whole := code + CODE_SPAN * (steps + STEP_SPAN * high)
+	return (slope + float(kind) * 0.25 + 4.0 * float(whole)) * 0.5
 
 
 ## Light every surface by `colour` (its colour times the painted one) and let it add up to

@@ -39,7 +39,7 @@ func run(t: TestContext) -> void:
 	var wall := ObjectStructureMeshConfig.wall_height
 	var shadow := wall / tan(deg_to_rad(elevation))
 	t.check(
-		shadow <= 48.0,
+		shadow <= 30.0,
 		"a wall of %.0f throws a %.0f px shadow, short like the 2D drop shadow's reach" % [
 			wall,
 			shadow,

@@ -123,6 +123,21 @@ static func decal(size: Vector2, frame: Transform3D, texture: Texture2D = null,
 	return node
 
 
+## A drop shadow: a flat round patch `radius` px across its half, `lift` px over the floor at the
+## node's own origin (so it follows what it is a child of), `strength` dark (an alpha: the floor
+## shows through; `ToonMaterial.shade`). Not lit and not cast, so it is as short as it is drawn,
+## whatever the lights are; for a thing that moves, `moving` makes the player's view hide it with
+## the thing.
+static func shade(radius: float, strength: float, lift := 1.0) -> MeshInstance3D:
+	var node := MeshInstance3D.new()
+	node.mesh = _quad(Vector2(radius, radius) * 2.0)
+	node.material_override = ToonMaterial.shade()
+	node.set_instance_shader_parameter(&"strength", strength)
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.position = Vector3(0.0, lift * RenderConfig.unit, 0.0)
+	return node
+
+
 ## The quad of `size` px (a 3D mesh in the XZ plane facing up, with uvs) every decal of that size
 ## shares.
 static func _quad(size: Vector2) -> Mesh:

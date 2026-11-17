@@ -14,18 +14,18 @@
       `lights()` (every piece and fixture `PointLight2D`), `fixtures()` (`{ room, light }`), `flashes()` (the pooled flash lights) and
       `budget()` (`{ per_floor, dropped }`, `dropped` = `{ piece, index }` per declared light left without a light).
     - **Tuning holders:** `LightingConfig` (`enabled`, the dusk `ambient_color` / `sky_color`, the flashes, the budget `per_floor()`),
-      `LightingFixtureConfig` (room fixtures), `LightingTextureConfig` (2D light textures), `Lighting3DConfig` (the 3D sun's elevation and shadow, the lights' heights and pools),
+      `LightingFixtureConfig` (room fixtures), `LightingTextureConfig` (2D light textures), `Lighting3DConfig` (the 3D sun's elevation and shadow, the lights' heights, `fixture_height` the fixture's shadow height, and pools),
       `LightingCostConfig` (the 3D lights' shadow and on caps, the fade). The Testing switch `lighting.enabled` sets
       `LightingConfig.enabled` and General's `LightMasks.shadows`.
     - **Objects → Lighting: `get_lights() -> Array`** on a light-giving piece (an `EnvironmentObject`, read duck-typed): one dict per
       light in the piece's frame: `offset` (Vector2), `turn` (rad, the pool's long axis), `colour`, `energy`, `radius` (px, along the long
       axis), `shape` (`round` / `wide` / `tube`), `rhythm` (`[[mode, weight], ...]`, modes `steady buzz failing blink shimmer pulse`),
       `room_light` (it lights its room: no fixture there), `street` (it lights the street too), `height` (`overhead`: a lamp's bulb, a
-      street lamp's head; `low`: a screen, a tube, LEDs; Lighting picks the light's shadows and pool by it, `docs/lighting.md` L2 / L6) and
+      street lamp's head; `low`: a screen, a tube, LEDs; Lighting picks the light's shadows and pool by it, `docs/lighting.md` L2 / L6), `lift` (px above the floor where the glowing part is: the 3D light hangs there, else at its `height` kind's) and
       `glow` (the piece's `Emissive` overlay, dimmed with the light, or null). Lighting parents each light it keeps to the piece, so a
       shoved piece carries it.
     - **Shadows and light layers** (General's `LightMasks`, 11): Objects' walls (one occluder per wall run, `WALL`) and solid pieces (their
-      footprint: `EMITTER`, `TALL` or `FURNITURE`) and Character's living body (an oval turned with `facing`, `CHARACTER`, freed on death)
+      footprint: `EMITTER`, `TALL` or `FURNITURE`) and Character's living body (an oval turned with `facing`, `CHARACTER`, freed on death; in 3D its parts cast no light shadow, it has a drop shadow patch)
       build their own `LightOccluder2D` children with `LightMasks.occluder`, like their colliders. A `Door` (24) builds one over its leaf on `WALL`
       as a child of its body, so it turns with the leaf: none for the glass-panel door, freed when the door falls. Objects' street floors (catalogue `light_layer: "street"`, a district's cut to `WorldGenDistrictConfig.tile_max` on a side so a block's lamps stay within the budget) and the tower shadows (`DecalFactory.shadow`, 2) put their canvas items on `LightMasks.STREET`; `Emissive` overlays draw unshaded. Lighting reads the
       floors (group `floors`, joined by every Objects `Floor` in `_ready`: their `size`, `is_street()` and, for the 2D render's per-floor

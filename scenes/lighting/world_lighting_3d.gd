@@ -318,6 +318,9 @@ func _piece_light(piece: Node2D, index: int, spec: Dictionary) -> void:
 	var kind: StringName = &"street" if street else spec.get("height", &"low")
 	var radius := float(spec.get("radius", 100.0))
 	var at: Vector2 = piece.global_transform * (spec.get("offset", Vector2.ZERO) as Vector2)
+	# Where the glowing part of the piece is (its declared `lift`, px above the floor), else the
+	# height its kind hangs at.
+	var lift := float(spec.get("lift", 0.0))
 	var lit := Lit.new()
 	lit.piece = piece
 	lit.offset = spec.get("offset", Vector2.ZERO)
@@ -325,7 +328,7 @@ func _piece_light(piece: Node2D, index: int, spec: Dictionary) -> void:
 	lit.light = _omni(
 		spec.get("colour", Color.WHITE),
 		float(spec.get("energy", 1.0)),
-		radius,
+		Vector2(radius, lift if lift > 0.0 else Lighting3DConfig.height_of(kind)),
 		kind,
 		_room_code(at, street),
 	)
@@ -355,7 +358,7 @@ func _fixture(room: Dictionary) -> void:
 	lit.light = _omni(
 		LightingFixtureConfig.color,
 		LightingFixtureConfig.energy,
-		radius,
+		Vector2(radius, Lighting3DConfig.fixture_height),
 		&"overhead",
 		_room_code(rect.get_center(), false),
 	)
@@ -401,26 +404,28 @@ func _rhythm(lit: Lit, kinds: Array, seed_value: int) -> void:
 	lit.rhythm = null if mode == &"steady" else Rhythm.new(mode, rng.randi())
 
 
-## An omni light of `colour` at `energy` whose pool is `radius` px out on the floor (the 2D pool's),
-## hung at the height of its `kind` (`overhead`, `low` or `street`); an overhead or street one pools
-## flat (`Lighting3DConfig.overhead_slope`), a low one fades from its middle. `room_code` is the
-## room it stands in and whether it is a street light (`_room_code`). The toon has no specular, so
-## `light_specular` carries both to its `light()`: `SPECULAR_AMOUNT` is `slope + 4 * room_code`.
+## An omni light of `colour` at `energy` whose pool (`pool`: x its radius, px out on the floor, the
+## 2D pool's; y the height it hangs at, px up); an overhead or street one (`kind`) pools flat
+## (`Lighting3DConfig.overhead_slope`), a low one fades from its middle. `room_code` is the room it
+## stands in and whether it is a street light (`_room_code`). The toon has no specular, so
+## `light_specular` carries the slope, the room and the height over the pool's rim to its `light()`
+## (`ToonLight.specular`), which shapes the pool on the floor from them: the pool is the same
+## whatever the height the light hangs at.
 static func _omni(
-	colour: Color, energy: float, radius: float, kind: StringName, room_code: int
+	colour: Color, energy: float, pool: Vector2, kind: StringName, room_code: int
 ) -> OmniLight3D:
-	var height := Lighting3DConfig.height_of(kind)
+	var radius := pool.x
+	var height := pool.y
 	var overhead := kind != &"low"
 	var slope := Lighting3DConfig.overhead_slope if overhead else Lighting3DConfig.low_slope
+	var rim := radius * Lighting3DConfig.range_scale
+	var unit := RenderConfig.unit
 	var l := OmniLight3D.new()
 	l.light_color = colour
 	l.light_energy = energy
-	l.omni_range = Vector2(
-		radius * Lighting3DConfig.range_scale,
-		height,
-	).length() * RenderConfig.unit
+	l.omni_range = Vector2(rim, height).length() * unit
 	l.omni_attenuation = 0.0
-	l.light_specular = (slope + 4.0 * float(room_code)) * 0.5
+	l.light_specular = ToonLight.specular(slope, 0, room_code, height * unit, rim * unit)
 	l.shadow_enabled = false
 	l.set_meta(&"height", height * RenderConfig.unit)
 	l.set_meta(&"room", room_code >> 1)

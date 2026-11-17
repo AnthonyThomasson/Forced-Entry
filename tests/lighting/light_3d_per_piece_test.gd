@@ -1,7 +1,7 @@
 extends GameTest
 ## #193 phase 3 (L2, L3 in 3D): a generated house is lit in the 3D render by its pieces. Every
 ## light a piece declares (`get_lights()`) becomes an `OmniLight3D` at the piece's place (and its
-## declared height: low for a screen, a tube, overhead for a lamp) in its colour and energy, as far
+## declared height: `lift`, where its glowing part is) in its colour and energy, as far
 ## as its pool (the declared radius times `Lighting3DConfig.range_scale`), carrying the room it
 ## stands in and whether it is a street light; a room no piece lights gets a ceiling fixture at its
 ## centre, overhead, the only light that may cast a shadow.
@@ -68,9 +68,11 @@ func _check_piece(t: TestContext, piece: Node2D, own: Array) -> void:
 			"street",
 			false,
 		) else spec.get("height", &"low")
+		var lift := float(spec.get("lift", 0.0))
+		var hung := lift if lift > 0.0 else Lighting3DConfig.height_of(kind)
 		t.expect_near(
-			l.position.y, Lighting3DConfig.height_of(kind) * RenderConfig.unit, 0.01,
-			"%s hangs at the height of a %s light" % [l.name, kind],
+			l.position.y, hung * RenderConfig.unit, 0.01,
+			"%s hangs at its declared height (a %s light, lift %.0f)" % [l.name, kind, lift],
 		)
 		t.check(l.light_color == spec["colour"], "%s is in its declared colour" % l.name)
 		t.expect_near(
@@ -105,8 +107,8 @@ func _check_fixtures(t: TestContext, lighting: WorldLighting3D) -> void:
 			"the fixture of room %s is at its centre" % f["room"],
 		)
 		t.expect_near(
-			l.position.y, Lighting3DConfig.overhead_height * RenderConfig.unit, 0.01,
-			"the fixture of room %s is overhead" % f["room"],
+			l.position.y, Lighting3DConfig.fixture_height * RenderConfig.unit, 0.01,
+			"the fixture of room %s is overhead, at the height its shadow is cast from" % f["room"],
 		)
 		t.check(l.get_meta(&"shadowable"), "the fixture of room %s may cast a shadow" % f["room"])
 	t.check(not lighting.fixtures().is_empty(), "some room has a fixture")

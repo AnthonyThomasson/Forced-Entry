@@ -23,12 +23,11 @@ Built under the 3D view's world from the 2D world the sim runs in (group `world_
 It reads no 2D canvas state (`light_mask`): a street floor says `is_street()`.
 
 1. **Dusk.** `ToonLight.set_ambient(LightingConfig.ambient_color)` (the toon shaders add it to every pixel), one `DirectionalLight3D`
-   (`sky_color`, `sky_energy`, from `sky_from` at `Lighting3DConfig.sun_elevation`, hard shadows) and the sky mask: an `Image` of the
+   (`sky_color`, `sky_energy`, from `sky_from` at `Lighting3DConfig.sun_elevation`, 76: short shadows, hard) and the sky mask: an `Image` of the
    street floors (white) less every house floor and its walls (black), so the sun lights the street and never a room.
 2. **Lights.** An `OmniLight3D` per declared light and per room fixture (a room no `room_light` stands in): `_omni(colour, energy,
-   radius, kind, room_code)`, `kind` `overhead` / `low` / `street` giving the height and the slope of the pool
-   (`Lighting3DConfig`), `omni_range` the distance to the pool's rim (`radius * range_scale`), `omni_attenuation` 0. `light_specular`
-   carries `slope + 4 * (room * 2 + street)` to the toon light, which clips a pool to its room (the room map, `ToonLight.set_rooms`).
+   pool, kind, room_code)`, `pool` the radius and the height (a declaration's `lift`, else its `kind`'s: `overhead` / `low` / `street`, `Lighting3DConfig`; a fixture's `fixture_height` 400, so its shadow is short while the bulb hangs at the ceiling), `kind` giving the slope of the pool, `omni_range` the distance to the pool's rim (`radius * range_scale`), `omni_attenuation` 0. `light_specular`
+   carries `slope`, the room and street flag, and the light's height over its rim and height class (`ToonLight.specular`; a pool is the same size at any height) to the toon light, which clips a pool to its room (the room map, `ToonLight.set_rooms`).
    No per-floor budget. Each `Lit` follows its piece (`follow`, only when the piece's transform changed; a freed piece's light is
    freed), steps its seeded rhythm (the energy written only on change, none while off) and tells `glow_changed` (Main dims the
    piece's mesh glow, `FurnitureRig.set_glow_level`).

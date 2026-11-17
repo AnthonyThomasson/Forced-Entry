@@ -38,8 +38,9 @@ uniform float pool_gain = 3.0;
 
 varying float seen;
 // Where the fragment is (`toon_spot`), stored by `fragment()` like `seen`: x whether the sun reaches
-// it, y its room id times two, plus one when it is above the ground (a wall, a piece, a person).
-varying vec2 spot;
+// it, y its room id times two, plus one when it is above the ground (a wall, a piece, a person), z
+// how high above the floor it is (3D units).
+varying vec3 spot;
 
 // The fade (Art, `MeshNodes.fade`; instance uniform, 1 = whole): below 1 a pixel is dropped where
 // an ordered 4 x 4 dither of the screen pixel says, so a thinning wall stays opaque pixels (no
@@ -105,13 +106,14 @@ float toon_step(float lit) {
 
 // Where the fragment at `view_vertex` (its VERTEX; `inv_view` the INV_VIEW_MATRIX) is: x 1 where the
 // sun reaches (the street's floors, everywhere while no sky mask is set), y its room id times two,
-// plus one above the ground (0 where no room map is set). `fragment()` stores it in `spot`.
-vec2 toon_spot(vec3 view_vertex, mat4 inv_view) {
-	vec2 out_spot = vec2(1.0, 0.0);
+// plus one above the ground (0 where no room map is set), z its height in the world. `fragment()`
+// stores it in `spot`.
+vec3 toon_spot(vec3 view_vertex, mat4 inv_view) {
+	vec3 world_pos = (inv_view * vec4(view_vertex, 1.0)).xyz;
+	vec3 out_spot = vec3(1.0, 0.0, world_pos.y);
 	if (sky_masked < 0.5 && room_masked < 0.5) {
 		return out_spot;
 	}
-	vec3 world_pos = (inv_view * vec4(view_vertex, 1.0)).xyz;
 	if (sky_masked > 0.5) {
 		vec2 uv = world_pos.xz * sky_mask_xf.xy + sky_mask_xf.zw;
 		// Beyond the mask's rectangle is no street: no sun.
@@ -158,7 +160,7 @@ float toon_reach(float code) {
 	return 0.0;
 }
 
-// A flash's add (`light_specular` carries `slope + kind / 4 + 4 * code`: kind 1 a tinted flash, 2 a wash):
+// A flash's add (`light_specular`, see the pool below: kind 1 a tinted flash, 2 a wash):
 // it goes to SPECULAR_LIGHT, apart from the capped sum, so a blast is not held to the dusk's cap and a
 // lamp's pool far from it is not touched. A tinted flash (a shot, a blast) is the surface's own
 // colour lit by the flash's, a wash (the stun) an additive term to white, flat over what it reaches:
@@ -178,16 +180,35 @@ void light() {
 		add += dusk_ambient;
 	} else {
 		// A positional light's pool: Godot's fall-off (1 - r^4)^2, r the distance over the range
-		// (and 0 in a shadow), made linear again (f = 1 - r, 1 under the light, 0 at its rim), and
-		// as flat as the light's slope says. Lighting packs the slope, the flash kind and the room
-		// into `light_specular`: SPECULAR_AMOUNT is `slope + kind / 4 + 4 * code` (slope 1 or 2: a
-		// ceiling lamp's pool is flat to the middle of its radius, a screen's glow is not; `kind`
-		// 0 a lamp, 1 a flash, 2 a wash; `code` the room and street, `toon_reach`).
-		float code = floor(SPECULAR_AMOUNT / 4.0 + 0.001);
-		float packed_slope = SPECULAR_AMOUNT - 4.0 * code;
+		// (and 0 in a shadow), made linear again (1 - r), then taken from the light's distance to
+		// the one along the ground (below), and as flat as the light's slope says. Lighting packs
+		// the slope, the flash kind, the room and the light's height into `light_specular`:
+		// SPECULAR_AMOUNT is `slope + kind / 4 + 4 * (code + 1024 * (steps + 64 * height_class))`
+		// (slope 1 or 2: a ceiling lamp's pool is flat to the middle of its radius, a screen's glow is
+		// not; `kind` 0 a lamp, 1 a flash, 2 a wash; `code` the room and street, `toon_reach`;
+		// `steps` the light's height over its pool's rim in sixteenths; `height_class` the height
+		// itself, coarse: `ToonLight.specular`).
+		float whole = floor(SPECULAR_AMOUNT / 4.0 + 0.001);
+		float height_class = floor(whole / 65536.0 + 0.0001);
+		float rest = whole - height_class * 65536.0;
+		float steps = floor(rest / 1024.0 + 0.0001);
+		float code = rest - steps * 1024.0;
+		float packed_slope = SPECULAR_AMOUNT - 4.0 * whole;
 		float slope = floor(packed_slope + 0.01);
 		float kind = floor(fract(packed_slope + 0.01) * 4.0 + 0.5);
-		float f = 1.0 - pow(1.0 - sqrt(clamp(ATTENUATION, 0.0, 1.0)), 0.25);
+		// A pool is a pool on the floor, whatever the height its light hangs or casts from, and a
+		// piece or a wall is lit by the pool at its own ground point, as in 2D. `r` is the distance
+		// to the light over its range (the distance to the rim), `ratio` the light's height `h` over
+		// the rim's ground distance and `high` the fragment's height over the light's, so `u` is the
+		// fragment's ground distance over the rim's: 0 under the light, 1 at the rim (and 1 in a
+		// shadow, where r is 1).
+		float ratio = steps / 16.0;
+		float light_height = 4.0 * pow(1.4, height_class);
+		float high = clamp(spot.z / light_height, 0.0, 0.99);
+		float r = pow(1.0 - sqrt(clamp(ATTENUATION, 0.0, 1.0)), 0.25);
+		float down = ratio * (1.0 - high);
+		float u = sqrt(max((1.0 + ratio * ratio) * r * r - down * down, 0.0));
+		float f = 1.0 - u;
 		float lit = clamp(f * slope, 0.0, 1.0) * clamp(n_l * pool_gain, 0.0, 1.0);
 		float reach = toon_reach(code);
 		if (kind > 0.5) {

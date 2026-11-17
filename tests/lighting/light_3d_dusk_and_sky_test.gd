@@ -51,7 +51,7 @@ func run(t: TestContext) -> void:
 	var elevation := rad_to_deg(asin(-travel.y))
 	t.expect_near(elevation, Lighting3DConfig.sun_elevation, 0.5, "the sky stands at its elevation")
 	var shadow := ObjectStructureMeshConfig.wall_height / tan(deg_to_rad(elevation))
-	t.check(shadow <= 48.0, "a wall's shadow is short (%.0f px)" % shadow)
+	t.check(shadow <= 30.0, "a wall's shadow is short (%.0f px)" % shadow)
 	_check_reach(t, rooms)
 	for room: Dictionary in rooms:
 		t.check(
