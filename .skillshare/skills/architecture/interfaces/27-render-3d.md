@@ -15,7 +15,7 @@
         mesh per shape kind in the shared toon material, a colour per instance from `art_color` / `color`, a faction's name hash, else the node's name's. Heights, colours: `MirrorConfig`.
       - **The update rule** (each frame, by `_process`, or `update()` by hand): a moving body (`CharacterBody2D`, `AnimatableBody2D`, `RigidBody2D`) has its shape's transform read and the
         proxy **written only when it changed**; a sleeping `RigidBody2D` is **skipped** (read once more as it falls asleep); a body that never moves is written once; a freed shape is checked
-        untyped (`is_instance_valid` on a Variant). Read-outs: `count`, `followed`, `written`, `proxies_of(body) -> Array[Node3D]`.
+        untyped (`is_instance_valid` on a Variant). Read-outs: `count`, `followed`, `written`, `proxies_of(body) -> Array[Node3D]`; `leave_out(subtree)` drops a subtree's proxies and mirrors nothing under it.
       - **The mesh hook** (full rules `domain-art/mesh-hook.md`): `builders: Dictionary`, a key -> `Callable(node: Node2D) -> Node3D` in **3D units**, set before
         `mirror()` (Main's `_register_meshes()`). Keys: a kind (`MirrorProxy.WALL`, `DOOR`, `CHARACTER`, `VEHICLE`, `FURNITURE`, `FLOOR`) or a finer key that wins
         (`MirrorProxy.furniture_key(art)`, `floor_key(art)`). The node replaces the body's proxies and follows it; null or no key keeps the proxy. `track(node, builder)` and

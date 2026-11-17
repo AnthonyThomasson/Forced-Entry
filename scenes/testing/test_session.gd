@@ -47,7 +47,7 @@ var shots := false
 var bundle_dir := ""
 ## Whether the open test's world is shown by a 3D view, as Main's match is (the host sets it when
 ## its window is to be looked at: the in-game runner, a `--shots` run). A test that builds its own
-## picture (`TestSetup.own_picture`) is left to it; a headless run has no window to show.
+## picture (`TestSetup.own_picture`) is left to it.
 var picture := false
 ## The open test's descriptor ({} between tests; the setup, context and world below are null then).
 var entry: Dictionary = {}
@@ -149,11 +149,17 @@ func start(test_entry: Dictionary) -> void:
 	for id in world.actors:
 		_observe_actor(id, world.actors[id])
 	world_built.emit(setup)
-	if picture and not setup.owns_picture and DisplayServer.get_name() != "headless":
+	if picture and not setup.owns_picture:
 		_show_picture()
 	_drive(test, ctx)
 	if not ctx.is_finished:
 		await ctx.finished
+
+
+## The 3D view that shows the open test's world (`picture`), or null: what a test of the picture
+## reads (its `mirror` holds what is shown).
+func view() -> CanvasLayer:
+	return _view if is_instance_valid(_view) else null
 
 
 ## Show the built world by the 3D view Main's match is shown by, following the camera the host
@@ -173,6 +179,24 @@ func _show_picture() -> void:
 		WorldGen.district_rooms(world.district) if world.district != null else world.rooms
 	)
 	_view.light_world(world, int(setup.resolved_world().get("seed", 0)), site_rooms)
+	world.child_entered_tree.connect(_on_world_child)
+
+
+## A node joined the world while the picture is shown. A test that declared no world stands on the
+## default arena; when it builds a house or a district of its own into the world (`WorldGen`), that
+## is the world to show, so the arena it replaces goes out of the picture (it stays in the sim).
+func _on_world_child(node: Node) -> void:
+	if setup.world.is_empty() and node is Node2D and node != world.house:
+		_left_out_if_world.call_deferred(node)
+
+
+## `node`, which joined the world, is a world root (it carries its rooms): the default arena is
+## left out of the picture.
+func _left_out_if_world(node: Node) -> void:
+	if not is_instance_valid(node) or not is_instance_valid(_view) or not is_instance_valid(world):
+		return
+	if (node.has_meta("rooms") or node.has_meta("towers")) and is_instance_valid(world.house):
+		_view.mirror.leave_out(world.house)
 
 
 ## Decide how the open test's Von decisions are answered (`_von_run`). Returns why it does not run

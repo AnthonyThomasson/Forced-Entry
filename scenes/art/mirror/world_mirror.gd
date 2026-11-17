@@ -61,6 +61,8 @@ var _group_builders: Dictionary = {}
 ## The bodies (instance id -> true) the view has seen where they are: kept across a mirror of the
 ## body again (a dent, an outfit), cleared the frames the body moves outside the cone.
 var _seen: Dictionary = {}
+## The subtrees the view leaves out (`leave_out`): nothing under one is mirrored.
+var _left_out: Array[Node] = []
 
 
 func _exit_tree() -> void:
@@ -86,6 +88,22 @@ func mirror(root: Node) -> void:
 		_scan_group(group)
 	if not root.get_tree().node_added.is_connected(_on_node_added):
 		root.get_tree().node_added.connect(_on_node_added)
+
+
+## Leave `subtree` out of the picture: the proxies of every body and floor under it (and under it
+## itself) go now, and nothing that enters under it later is mirrored. For a world the view was
+## told of that is no longer the one to show (a test that builds its own beside the default arena).
+func leave_out(subtree: Node) -> void:
+	if not _left_out.has(subtree):
+		_left_out.append(subtree)
+	for id: int in _rows.keys():
+		var rows: Array = _rows[id]
+		var body: Variant = (rows[0] as Dictionary).get("body") if not rows.is_empty() else null
+		if is_instance_valid(body) and (body == subtree or subtree.is_ancestor_of(body)):
+			_drop(body)
+	for node: Variant in _pending.values():
+		if is_instance_valid(node) and subtree.is_ancestor_of(node):
+			_pending.erase(node.get_instance_id())
 
 
 ## The proxies of `body` (an empty array for a body not mirrored).
@@ -236,12 +254,20 @@ func _mirror_pending() -> void:
 ## Mirror `node` as what it is: shown by its group's builder, a body's mesh or proxies, or a floor
 ## (one already shown by a builder of a tracked group stays so).
 func _mirror_node(node: Node) -> void:
-	if _is_tracked(node) or _tracked_by_group(node):
+	if _is_tracked(node) or _tracked_by_group(node) or _is_left_out(node):
 		return
 	if node is PhysicsBody2D:
 		_add_body(node as PhysicsBody2D)
 	elif node.is_in_group(&"floors") and not _rows.has(node.get_instance_id()):
 		_add_floor(node as Node2D)
+
+
+## Whether `node` lies under a subtree the view leaves out.
+func _is_left_out(node: Node) -> bool:
+	for subtree: Node in _left_out:
+		if is_instance_valid(subtree) and (node == subtree or subtree.is_ancestor_of(node)):
+			return true
+	return false
 
 
 ## Queue the nodes of `group` already under the root to be tracked on the next update.
