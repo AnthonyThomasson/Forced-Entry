@@ -7,12 +7,12 @@ The vehicle is shown only by the 3D mesh (`art/vehicle_mesh*.gd`, `VehicleMeshCo
 - `car_painter.gd` / `van_painter.gd` paint a body (`opts.part` `chassis` or `roof`); `door_painter.gd` (`panel` / `glass` / `mirror`), `wheel_painter.gd`, `lamp_painter.gd`. Each is `static func paint(c, base, material, opts)` (interface 12) and reads its geometry from the `VehicleConfig` `kinds` and `looks` rows, wrapped in `VehiclePaint`.
 - `vehicle_art.gd` holds the shared helpers (`paint_parts`, cabin `seats` / `dashboard` / `sills`, door frames, the lamps).
 - The body painters cut holes where each door's side glass goes (`clear_door_glass`), because the door's own art holds that glass.
-- **Body painters call no `cast_shadows`**: a body is repainted for every lighting step it turns through and the pass walks the whole canvas; bevels shade it instead. The small door panel does call it.
+- **Body painters call no `cast_shadows`**: the pass walks the whole canvas; bevels shade the body instead. The small door panel does call it.
 
 ## Regions and caching
 
 - `vehicle_art.region` builds a `PixelConvexShape` from a vehicle-frame point test, once per geometry key and canvas size (`_regions`), and reuses it for every lighting step. A mask `PixelShape` would test every pixel on each paint; a convex one's fill, bevel and outline cost only its edge. The test must be convex along both canvas axes.
-- Every texture goes through `PixelArt.render_turned`, lit for the nearest of `ArtCanvasConfig.turn_steps` steps and drawn rotated to the exact angle. A layer redraws only when its `_key()` changes: the lighting step, the body's turn in `redraw_turn_step` steps (the shadow), each door's amount and the wheel angle in `redraw_step` steps, and on the roof the brake lights and the dents. Once the engine runs, `_warm_ahead` paints the other lighting steps one a frame, nearest first, so turning never waits on a paint.
+- Every texture is a flat render (`PixelArt.render_flat`) the 3D meshes wear (below); the painters draw it once per look and the cache keeps it.
 
 ## The 3D meshes (`art/vehicle_meshes.gd`, `vehicle_mesh.gd`, `vehicle_mesh_rig.gd`, `vehicle_skin.gd`, `vehicle_mesh_config.gd`)
 

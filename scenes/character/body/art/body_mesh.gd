@@ -184,12 +184,15 @@ func mirror_update(body: Node2D) -> void:
 
 
 ## The body died: it keeps following, now the 2D ragdoll's joints, unless the ragdoll is not there
-## (then the mirror hides it). A body on the floor keeps its drop shadow, as the 2D one keeps a
-## floor shadow of the laid-out body (it lies along the body, `_pose_shade`), and the held item goes
-## with the hand that held it.
+## (then the mirror hides it). Its look is resolved once more first: the killing blow wears a plate
+## after the last update. A body on the floor keeps its drop shadow (it lies along the body,
+## `_pose_shade`), and the held item goes with the hand that held it.
 func on_body_died(body: Node2D) -> bool:
 	if not body.anatomy.ragdoll is Fallen:
 		return false
+	_dress.refresh(body.wardrobe)
+	if _dress.look_key != _look_key:
+		_dress_parts()
 	_died = Engine.get_physics_frames()
 	_at_rest = false
 	_posed = false
@@ -212,7 +215,7 @@ func _make_shade() -> void:
 
 ## The drop shadow under the posed body: a disc under a body that stands or crouches, and one that
 ## lies (a fallen body, a lying one: head and feet apart on the floor) is a patch stretched along it
-## from head to feet, `shade_width` radii across: the 2D floor shadow of a laid-out body. Shifted
+## from head to feet, `shade_width` radii across. Shifted
 ## away from the art's light as the standing one is.
 func _pose_shade() -> void:
 	var head := _flat(_last[Rig.HEAD])

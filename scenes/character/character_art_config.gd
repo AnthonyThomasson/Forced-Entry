@@ -1,6 +1,6 @@
 class_name CharacterArtConfig
 ## How the body is drawn (scenes/character/): head and shoulder proportions and the limbs' drawn
-## widths, which the 2D painters and the 3D body mesh read. A
+## widths, which the 3D body mesh reads. A
 ## `class_name` holder of `static var`s, read as `CharacterArtConfig.<name>`; there is no instance
 ## and no autoload.
 

@@ -34,7 +34,7 @@ const CharacterRagdoll = preload("res://scenes/character/body/character_ragdoll.
 var health: float
 ## True once the character has died; gates all movement and action permanently.
 var is_dead: bool = false
-## Unit vector from the character toward its aim point; read by the hands and visuals.
+## Unit vector from the character toward its aim point; read by the hands and the 3D body.
 var facing := Vector2.RIGHT
 ## The controller's intent, the posture, running and stamina, knockback and the push slow
 ## (`character_movement.gd`).

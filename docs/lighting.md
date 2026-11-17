@@ -125,7 +125,7 @@ living or fallen body casts a shadow from any light (the sun, a fixture, a lamp,
 floor (`MeshNodes.shade`, `shade.gdshader`, unlit, uncast), `CharacterShadowConfig.shade_radius` 1.25 body radii across, shifted `shade_shift`
 0.45 radii away from the art's light, `ArtCanvasConfig.drop_shadow_alpha` (0.28) dark, whichever light is near. A body that lies (a fallen one,
 a lying one: its head more than `shade_lies` radii from its feet, flat) has the patch stretched along it from head to feet, `shade_width`
-radii across, as the 2D floor shadow of a laid-out body is; it follows the ragdoll as it settles. The patch is drawn after the outline pass
+radii across; it follows the ragdoll as it settles. The patch is drawn after the outline pass
 (`ToonMaterial.SHADE_PRIORITY`: the outline quad copies the screen before the transparent pass, so a patch drawn before it is erased); the
 player's view hides it with the body and dims it where the ground is unseen. Tests: `character/character_drop_shadow` (the patch, its size
 and place, a disc under a standing body and stretched along a fallen one, no part casts), `lighting/character_shadow_windowed` (windowed: the

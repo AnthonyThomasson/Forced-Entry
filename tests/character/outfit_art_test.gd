@@ -151,6 +151,14 @@ func _check_crouched_carrier(t: TestContext) -> void:
 		in_carrier >= 1,
 		"crouched, the plate carrier shows (textures in its colour: %d)" % in_carrier,
 	)
+	var with_carrier := OutfitProbe.art(crouched)
+	OutfitProbe.wear(crouched, OutfitProbe.PLAIN_CLOTHES)
+	await t.seconds(0.5)
+	t.check(
+		OutfitProbe.art(crouched) != with_carrier
+			and _painted_in(crouched, carrier_color) < in_carrier,
+		"without its plate carrier the crouched body looks different",
+	)
 
 
 ## A worn plate repaints.
@@ -191,9 +199,12 @@ func _check_fallen(t: TestContext) -> void:
 		{ "vest": &"plate_carrier", "front_plate": &"steel_iii", "back_plate": &"steel_iii" },
 		true,
 	)
-	OutfitProbe.wear(fallen, carrier)
+	OutfitProbe.wear(fallen, OutfitProbe.PLAIN_CLOTHES)
 	await t.seconds(0.3)
-	fallen.take_damage(100.0)
+	var vest_part := OutfitProbe.body_of(fallen).get_child(BodyMesh.VEST) as MeshInstance3D
+	t.require(not vest_part.visible, "before the fall the body wears no vest")
+	OutfitProbe.wear(fallen, carrier)
+	fallen.take_damage(100.0)  # the same frame: the look must be resolved as it dies
 	if not t.require(
 			await t.until(
 				func():
