@@ -1,12 +1,14 @@
 # Research: real heights for cover, sight and grenade throws
 
-Legend: **[P]** = read in a primary source this session. **[D]** = derived/estimated by me from primary numbers (method stated). **[S]** = secondary/retail source, treat as approximate. **[U]** = not verified, from memory or a search-engine summary only.
+## Sources and method
 
-Fetch limits: globalsecurity.org and irp.fas.org returned 403/empty, so FM 3-21.8, FM 21-75/TC 3-21.75 and ATTP 3-06.11 (2011) were not read directly. Primary texts actually read: TC 3-23.30 (22 Nov 2013), FM 23-30 (2000, "Grenades and Pyrotechnic Signals"), FM 3-06.11 (2002) ch.3, and the ANSUR II public CSVs.
+Primary texts read: TC 3-23.30 (22 Nov 2013), FM 23-30 (2000, "Grenades and Pyrotechnic Signals"), FM 3-06.11 (2002) ch.3 and ch.5, and the ANSUR II public CSVs (computed here). FM 3-21.8, FM 21-75 / TC 3-21.75 and ATTP 3-06.11 (2011) could not be fetched (globalsecurity.org and irp.fas.org answered 403 or empty), so they are cited from secondary summaries only. Each figure carries a tag: **[P]** read in a primary source; **[D]** derived or estimated from primary numbers (the method is stated); **[S]** a retail or design guide, approximate; **[U]** unverified, from memory or a search-engine summary. Postures other than standing, and every game default in section 6, are **[D]**, good to about +/- 0.05 m.
+
+Grenade release heights (section 4, about 1.7 m standing, 1.3 m kneeling, 0.4 m alternate prone) are not used yet: they land with the grenade-arc job (`grenade3d`), which reads them as the release height of the throw's posture.
 
 ## 1. Human heights (metres)
 
-### Measured (ANSUR II, 4,082 men / 1,986 women, mm, standing, computed by me from the public CSVs) [P]
+### Measured (ANSUR II, 4,082 men / 1,986 women, mm, standing, computed from the public CSVs) [P]
 Source: https://tools.openlab.psu.edu/publicData/ANSUR_II_MALE_Public.csv and `..._FEMALE_Public.csv` (landing page https://www.openlab.psu.edu/ansur2/; report: Gordon et al. 2015/2012, NATICK/TR-15/007, https://apps.dtic.mil/sti/pdfs/ADA611869.pdf). Columns used: stature, acromialheight, cervicaleheight, chestheight, waistheightomphalion, iliocristaleheight, sittingheight, eyeheightsitting.
 
 | Dimension | Men mean (p5-p95) | Women mean (p5-p95) |
@@ -23,7 +25,7 @@ Source: https://tools.openlab.psu.edu/publicData/ANSUR_II_MALE_Public.csv and `.
 ANSUR II has no standing eye height column (only `eyeheightsitting`). Pooled mean stature is about 1.72 m.
 
 ### Postures (muzzle/eye) [D]
-Method: standing eye = stature minus ~0.12 m (vertex to eye outer corner; standard anthropometric approximation, not read from a table). Bore = eye minus ~0.065 m (M4-style sight-over-bore). Kneeling/crouch/prone are my geometric estimates (hip drops ~0.4 m on one-knee kneeling; prone is body thickness plus raised head), not published values. Treat +/-0.05 m.
+Method: standing eye = stature minus ~0.12 m (vertex to eye outer corner; standard anthropometric approximation, not read from a table). Bore = eye minus ~0.065 m (M4-style sight-over-bore). Kneeling/crouch/prone are geometric estimates (hip drops ~0.4 m on one-knee kneeling; prone is body thickness plus raised head), not published values. Treat +/-0.05 m.
 
 | Posture (male mean, 1.76 m) | Eye | Rifle bore / muzzle line | Head top | Notes |
 |---|---|---|---|---|
@@ -43,7 +45,7 @@ Scale women by about 0.93 (1.628/1.756).
 
 ## 2. Cover vs concealment doctrine
 
-- Definitions [S/U]. A study guide citing FM 3-21.8 (https://www.armystudyguide.com/content/SMCT_CTT_Tasks/Skill_Level_1/0713260502-sl1-move-under.shtml) says cover protects "from enemy direct or indirect fire" and concealment hides but "doesn't protect you from enemy direct or indirect fire." I did not read FM 3-21.8 itself. Official wording is in ATP 3-21.8 / ATP 3-37.34 glossary [U].
+- Definitions [S/U]. A study guide citing FM 3-21.8 (https://www.armystudyguide.com/content/SMCT_CTT_Tasks/Skill_Level_1/0713260502-sl1-move-under.shtml) says cover protects "from enemy direct or indirect fire" and concealment hides but "doesn't protect you from enemy direct or indirect fire." FM 3-21.8 itself was not read. Official wording is in ATP 3-21.8 / ATP 3-37.34 glossary [U].
 - Urban cover materials [P]. FM 3-06.11 (2002) ch.3 Camouflage section (para 3-36a): "Thick masonry, stone, or brick walls offer excellent protection from direct fire and provide concealed routes." (https://www.theblackvault.com/documents/fm/fm30611/ch3.pdf). Ch.5 (defense): reinforce positions with "mattresses, furniture"; "Drawers and cabinets should be filled with earth or sand to provide cover"; fabric furniture and mattresses are flammable; vehicles (trucks/buses) can be placed over outside positions (https://www.theblackvault.com/documents/fm/fm30611/ch5.pdf, para on reinforcing positions). Implication: empty furniture is concealment (and only partial cover); filled/solid masonry is cover.
 - Thin walls [P]. FM 3-06.11 3-14a(3): fragments can penetrate "Sheetrock or thin plywood" walls, soldiers should lie flat helmet toward the detonation or move away from any wall that might be penetrated. TC 3-23.30 (2013) 2-12/2-13 for fragments (section 4).
 - Fire around, not over, cover [P]. FM 3-06.11 ch.3 para 3-7a: "The most common errors a soldier makes when firing from a position are firing over the top of his cover and silhouetting himself... The correct technique... is to fire around the side of the cover, which reduces exposure." Also 3-7b: fire from the shoulder that keeps the body behind the corner (right-handed shooters left corner problem). Walls (para on walls, Fig 3-43): "When firing from behind walls, the soldier must fire around cover and not over it." Corners: do not fire standing, "he exposes himself at the height the enemy would expect a target... risks exposing the entire length of his body."
@@ -122,9 +124,13 @@ tunable in `BodyHeights.postures`.
 ### Furniture tops (metres; the real range, then the game's, px in brackets)
 
 Low cover (about 0.9 m: a kitchen counter 0.90 body with a 0.14 backsplash, a sofa back 0.90, a dresser, a bar counter
-0.95, a bench 0.45) hides a duck; table height is 0.73 (31), coffee 0.43 (18), side table 0.52 (22), desk 0.73, bed
-mattress 0.52 with a 0.80 headboard, sofa seat 0.43 / arm 0.66 / back 0.90, chair seat 0.43 / back 0.85, fridge 1.75 (74),
+0.95, a sandbag barricade 0.95) hides a duck; a bench 0.45 (19) and a coffee table 0.43 (18) do not; table height is 0.73 (31), side table 0.52 (22), desk 0.73, bed
+mattress 0.52 with a 0.80 headboard, sofa seat 0.43 / arm 0.66 / back 0.90, chair seat 0.43 / back 0.90, fridge 1.75 (74),
 bookshelf 1.82 (77), wardrobe 1.84 (78), filing cabinet 1.32 (56), nightstand 0.61 (26), floor lamp 1.47 (62), coat rack
 1.70 (72), shower glass 1.89 (80), vending machine 1.84 (78), drinks fridge 1.89 (80), awning edge 1.89 (80) and a hanging
 sign 1.84 (78), both over a standing head. The full list is the `REAL` table in the test and each holder
 (`ObjectMeshKitchenConfig`, `ObjectMeshStorageConfig`, `ObjectMeshSeatConfig`, ...).
+
+### The rise to fire
+
+A ducked body rises only as far as it must (`BodyHeights.lowest_clearing(top)`): the lowest posture whose muzzle clears the cover. Cover under the duck's own muzzle (0.70 m) needs no rise; cover up to the fire-over muzzle (1.02 m) is fired over from `FIRE_OVER`; taller cover up to a standing muzzle (1.55 m) from `STAND`; above that nothing clears it and the body fires around it (section 2: "fire around, not over"). Cover is built to hide a duck by a real margin: every piece meant as cover is at least 0.04 m over the duck's head (the sandbag barricade is 0.95 m, a crate stack 0.95 m), and no solid piece is within 0.04 m of it.

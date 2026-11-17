@@ -9,6 +9,8 @@ extends GameTest
 const PX_PER_M := 74.0 / 1.75
 ## A low piece of cover, 0.9 m: a sofa back, a counter, a low wall.
 const LOW_COVER_M := 0.9
+## The head from the neck base to the crown (1.52 to 1.75 m: the research note, section 1).
+const HEAD_M := 0.23
 
 
 func describe() -> Dictionary:
@@ -27,6 +29,7 @@ func run(t: TestContext) -> void:
 	_ordering(t)
 	_zones(t)
 	_stand_matches_the_mirror_body(t)
+	_rise_to_fire(t)
 
 
 ## 1.75 m is 74 px: the one scale, and px and metres convert back and forth.
@@ -72,8 +75,12 @@ func _ordering(t: TestContext) -> void:
 	)
 	t.check(
 		BodyHeights.eye(BodyHeights.FIRE_OVER) > cover
-		and BodyHeights.shoulder(BodyHeights.FIRE_OVER) > cover - 6.0,
-		"a risen body shows its head and shoulders over 0.9 m cover",
+		and BodyHeights.shoulder(BodyHeights.FIRE_OVER) > cover,
+		"a risen body's eye and shoulders are over 0.9 m cover",
+	)
+	t.check(
+		BodyHeights.head_top(BodyHeights.FIRE_OVER) - cover >= BodyHeights.px(HEAD_M),
+		"a head's height of the risen body (and more) shows over 0.9 m cover",
 	)
 	t.check(
 		BodyHeights.head_top(BodyHeights.FIRE_OVER) < BodyHeights.head_top(BodyHeights.STAND)
@@ -132,4 +139,53 @@ func _stand_matches_the_mirror_body(t: TestContext) -> void:
 		BodyHeights.head_top(BodyHeights.STAND),
 		0.001,
 		"the 3D mirror's character is a standing person's height",
+	)
+
+
+## The rise to fire picks the lowest pose whose muzzle clears the cover: the duck itself for cover
+## under its muzzle, fire-over up to a risen muzzle (about 1.0 m), standing up to a standing muzzle
+## (about 1.55 m), and none above (fire around, not over).
+func _rise_to_fire(t: TestContext) -> void:
+	var none := BodyHeights.NONE
+	t.expect_eq(
+		BodyHeights.lowest_clearing(BodyHeights.px(0.5)),
+		BodyHeights.DUCK,
+		"0.5 m: a duck fires over it",
+	)
+	t.expect_eq(
+		BodyHeights.lowest_clearing(BodyHeights.px(0.9)),
+		BodyHeights.FIRE_OVER,
+		"0.9 m: fire-over",
+	)
+	t.expect_eq(
+		BodyHeights.lowest_clearing(BodyHeights.px(0.98)),
+		BodyHeights.FIRE_OVER,
+		"0.98 m: still fire-over",
+	)
+	t.expect_eq(
+		BodyHeights.lowest_clearing(BodyHeights.px(1.1)),
+		BodyHeights.STAND,
+		"1.1 m: only a stander clears it",
+	)
+	t.expect_eq(
+		BodyHeights.lowest_clearing(BodyHeights.px(1.5)),
+		BodyHeights.STAND,
+		"1.5 m: a standing muzzle",
+	)
+	t.expect_eq(
+		BodyHeights.lowest_clearing(BodyHeights.px(1.6)),
+		none,
+		"1.6 m: no pose fires over it",
+	)
+	t.expect_eq(BodyHeights.lowest_clearing(BodyHeights.px(2.27)), none, "a wall: none")
+	var edge := BodyHeights.muzzle(BodyHeights.FIRE_OVER)
+	t.expect_eq(
+		BodyHeights.lowest_clearing(edge),
+		BodyHeights.STAND,
+		"a muzzle level with the top does not clear it",
+	)
+	t.expect_eq(
+		BodyHeights.lowest_clearing(edge - 0.01),
+		BodyHeights.FIRE_OVER,
+		"a hair under it does",
 	)

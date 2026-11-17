@@ -35,7 +35,7 @@ const KINDS := {
 	&"server_rack": { "art": "tech", "top": 83.0, "base": 0.0, "cover": 0.8 },
 	&"tool_cart": { "art": "clinic", "top": 35.3, "base": 0.0, "cover": 0.8 },
 	&"cyberware_shelf": { "art": "clinic", "top": 64.0, "base": 0.0, "cover": 0.8 },
-	&"barricade": { "art": "security", "top": 36.3, "base": 0.0, "cover": 0.8 },
+	&"barricade": { "art": "security", "top": 40.3, "base": 0.0, "cover": 0.8 },
 	&"scanner_post": { "art": "security", "top": 84.4, "base": 0.0, "cover": 0.5 },
 	&"lockers": { "art": "security", "top": 77.0, "base": 0.0, "cover": 0.95 },
 	&"shop_counter": { "art": "shop", "top": 52.8, "base": 0.0, "cover": 0.95 },
@@ -49,7 +49,7 @@ const KINDS := {
 		"art": "noodle", "top": 80.0, "base": 46.0, "cover": 0.8, "wall": true, "colour": 0.35,
 	},
 	&"crate_stack": {
-		"art": "stock", "top": 36.9, "base": 0.0, "cover": 0.8, "colour": "stock_wood_color",
+		"art": "stock", "top": 40.9, "base": 0.0, "cover": 0.8, "colour": "stock_wood_color",
 	},
 	&"wrapped_pallet": {
 		"art": "stock", "top": 45.4, "base": 0.0, "cover": 0.8, "colour": "stock_cardboard_color",

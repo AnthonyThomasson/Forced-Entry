@@ -18,6 +18,8 @@ class_name BodyHeights
 const STAND := &"stand"
 const DUCK := &"duck"
 const FIRE_OVER := &"fire_over"
+## No posture: `lowest_clearing`'s answer for a piece too tall to fire over.
+const NONE := &""
 
 ## A standing person: stature in metres and in px (the scale's two ends).
 static var person_metres: float = 1.75
@@ -84,7 +86,7 @@ static func shoulder(posture: StringName) -> float:
 
 
 ## `posture`'s hit-zone bands, feet up: `[name, from, to]` in px, touching, the last (`head`) ending
-## at the head top. (O2 and O3 of `docs/outfits.md` read the zone a hit falls in.)
+## at the head top. (O2 and O3 of `docs/outfits.md` will read the zone a hit falls in.)
 static func zones(posture: StringName) -> Array:
 	var rows: Array = _row(posture)["zones"]
 	var out: Array = []
@@ -95,6 +97,22 @@ static func zones(posture: StringName) -> Array:
 		from = to
 	out.append([&"head", from, head_top(posture)])
 	return out
+
+
+## The lowest posture whose muzzle line clears a piece of cover `top` px tall, or `NONE` when no
+## posture does (the cover is too tall to fire over: fire around it). A body rises only as far as
+## it must: the duck itself for cover under its own muzzle, `FIRE_OVER` up to its muzzle (about
+## 1.0 m), `STAND` for taller cover up to a standing muzzle (about 1.55 m). A muzzle level with
+## the top does not clear it.
+static func lowest_clearing(top: float) -> StringName:
+	var best := NONE
+	var best_muzzle := INF
+	for posture: StringName in postures_ids():
+		var line := muzzle(posture)
+		if line > top and line < best_muzzle:
+			best = posture
+			best_muzzle = line
+	return best
 
 
 ## The zone of `posture`'s body a hit at `height` px up falls in: under the floor is the feet,

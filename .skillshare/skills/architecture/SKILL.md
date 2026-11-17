@@ -5,7 +5,7 @@ description: Use before planning any change or exploring the code, and to find w
 
 # Forced-Entry architecture
 
-A top-down Godot 4.4 demo: a pixel-art character in a procedurally furnished house lit at dusk, plus AI defenders and invaders. The code is **seventeen isolated domains**, one folder each under `scenes/`. Keep a change inside its domain; cross a boundary only through an interface below. Inside a domain, also load its `domain-<name>` skill. `GLOSSARY.md` holds the terms.
+A top-down Godot 4.4 demo: a pixel-art character in a procedurally furnished house lit at dusk, plus AI defenders and invaders. The code is **seventeen isolated domains**, one folder each under `scenes/`. Keep a change inside its domain; cross a boundary only through an interface below. Inside a domain, load its `domain-<name>` skill too. `GLOSSARY.md` holds the terms.
 
 ## The seventeen domains
 
@@ -49,7 +49,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 9. **Main / Testing / AI → Navigation.** Read to bake, query or path the nav map: `interfaces/09-navigation.md`
 10. **Any domain ↔ General (`EventBus`).** Read to post or listen to an event and for every topic's payload: `interfaces/10-eventbus.md`
 11. **General → every domain: shared ids and rules.** Read for `PhysicsLayers`, `GameClock`, `WeightedPick`, `MatchVerdict`, `BodyHeights`, `PlanSpace`: `interfaces/11-general-shared-ids-and-rules.md`
-12. **Objects / Character / Items / Vehicles / World Generation → Art.** Read to render pixel art, build 3D meshes (`PieceHeights`) or pre-warm district textures: `interfaces/12-art.md`
+12. **Objects / Character / Items / Vehicles / World Generation → Art.** Read to render pixel art, build 3D meshes or pre-warm district textures: `interfaces/12-art.md`
 13. **Testing → every domain.** Read for what a test world (house, arena or district) may build and call: `interfaces/13-testing.md`
 14. **Main → General settings, UI settings page.** Read for saved settings and key rebinding: `interfaces/14-settings.md`
 15. **Any domain → General (`GameLog`).** Read to print to the game's log: `interfaces/15-gamelog.md`
@@ -64,7 +64,8 @@ Everything not listed here is private to its domain. A signature lives only in i
 24. **Objects' `Door` ↔ Character, AI, Testing: the door contract.** Read to open, turn, hit or walk through a house door: `interfaces/24-door-contract.md`
 25. **Main / Testing → Vision: the player's view.** Read to build or read a view: `interfaces/25-vision.md`
 26. **Any domain → General: `Pointer`.** Read to convert a screen point to a world point (and back), read the mouse's world point or the visible world rect, or inject a pointer in a test: `interfaces/26-pointer.md`
-27. **Main → Art: `WorldMirror`, and General's `CameraRig`: the 3D render.** Read for the 3D render, the 3D mirror of the 2D bodies (one scale, the update rule, the hook) and the camera rig that follows the `Camera2D`: `interfaces/27-render-3d.md`
+27. **Main → Art: `WorldMirror`, and General's `CameraRig`: the 3D render.** Read for the 3D render, the 3D mirror of the 2D bodies (one scale, update rule, hook) and the camera rig that follows the `Camera2D`: `interfaces/27-render-3d.md`
+28. **Objects → AI, Projectile: `PieceHeights`.** Read for a piece's real top and parts: `interfaces/28-piece-heights.md`
 
 ## Dependency graph
 
@@ -79,20 +80,20 @@ Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio)
 worldgen ──▶ objects (the six factories, RoomWalls, WearPlan, `SharedTextures`, `FurnitureArt`, and `DoorConfig.open_angle`: 24), art (`PixelArt.warm`: 12)
 objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24; a bed's mesh reads `use.active_interaction()`, duck-typed: 8)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
-items ──▶ projectile, art    projectile ──▶ physics, art    vehicle ──▶ physics, art    physics ──▶ art (12)
-ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement)   (and a house door, duck-typed: 24)
+items ──▶ projectile, art    projectile ──▶ physics, art, objects (28)    vehicle ──▶ physics, art    physics ──▶ art (12)
+ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement), objects (28)   (and a house door, duck-typed: 24)
 ui ──▶ items, physics   (plain dicts in, signals out; never calls Main)
 art ──▶ general (RenderConfig, CameraRig)    lighting ──▶ art (3D: ToonLight, 20)    vision ──▶ art (ToonMask, 3D: 25)
 every domain ──▶ general
 ```
 
-- Leaves, the duck-typed reaches, what `EventBus` carries and the AI's seams: `dependency-notes.md`. A new edge, façade, contract method or signal goes into this graph or the interfaces (`audit` checks it).
+- Leaves, the duck-typed reaches, what `EventBus` carries and the AI's seams: `dependency-notes.md`. A new edge, façade, method or signal goes into this graph or the interfaces (`audit` checks).
 
 ## Cross-cutting conventions
 
-- **Layered control / animate / draw.** Within an entity the three verbs live in separate files wired by the scene tree. Scene scripts have no `class_name` (a typed component's has), and cross-file calls resolve through `$` / `get_parent()`. A draw file sits on its own child `Node2D` (only `CanvasItem`s draw). A parent's `_physics_process` runs first. Two exceptions: a primed ambusher's body runs at `process_physics_priority` 1 (`docs/leadership.md` D37, interface 7), and a `Vehicle` at -1, so it moves before the characters it strikes; Character's children keep none.
+- **Layered control / animate / draw.** Within an entity the three verbs live in separate files wired by the scene tree. Scene scripts have no `class_name` (a typed component's has); cross-file calls resolve through `$` / `get_parent()`. A draw file sits on its own child `Node2D` (only `CanvasItem`s draw). A parent's `_physics_process` runs first. Two exceptions: a primed ambusher runs at `process_physics_priority` 1 (`docs/leadership.md` D37, interface 7), and a `Vehicle` at -1, so it moves before the characters it strikes; Character's children keep none.
 - **Runtime shapes.** Collision shapes are built in code in `_ready()`. The editor's "no shape" warning in `character_base.tscn` is expected; keep scene shapes out.
-- **Typed components.** A body too big for one file splits into typed components held as public properties (`character.movement`, `character.inventory`, …), each one topic, ≤ 15 vars and 20 public methods (gdstyle's `max-class-variables`, `max-public-methods`). Callers name the component; no forwarders. A component is a `class_name` `RefCounted`, or a `class_name` Node where a scene authors it. A polymorphic base splits per concern into small bases its kinds subclass (`item.art`, `item.ammo`); what differs by kind only as data goes in the kind's config row. ADRs 0004 to 0008. The AI's parts, owner references and the shell: `typed-components.md`.
+- **Typed components.** A body too big for one file splits into typed components held as public properties (`character.movement`, `character.inventory`, …), each one topic, ≤ 15 vars and 20 public methods (gdstyle's `max-class-variables`, `max-public-methods`). Callers name the component; no forwarders. A polymorphic base splits per concern into small bases its kinds subclass (`item.art`, `item.ammo`); what differs by kind only as data goes in the kind's config row. ADRs 0004 to 0008. The AI's parts, owner references and the shell: `typed-components.md`.
 - **Tuning** lives in `class_name` static holders, one per topic, ≤ 15 vars (ADR 0003); there is no `Config` autoload: `tuning-holders.md`.
 
 ## Running and verifying

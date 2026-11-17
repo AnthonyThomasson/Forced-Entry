@@ -16,5 +16,5 @@ static var sofa_seam: float = 1.0
 ## A chair: the seat's top and thickness, the back's top and a leg's width.
 static var chair_seat_height: float = 18.0
 static var chair_seat_thickness: float = 3.0
-static var chair_back_height: float = 36.0
+static var chair_back_height: float = 38.0
 static var chair_leg: float = 3.0

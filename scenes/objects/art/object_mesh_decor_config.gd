@@ -11,7 +11,7 @@ static var rug_height: float = 0.6
 static var rug_field_lift: float = 0.3
 ## A plant: its pot's height, how high its leaves rise and how wide a leaf is.
 static var plant_pot_height: float = 14.0
-static var plant_height: float = 36.0
+static var plant_height: float = 40.0
 static var plant_leaf: float = 3.0
 ## A floor lamp: how tall it stands to the top of its shade, the shade's height and the pole's
 ## radius.

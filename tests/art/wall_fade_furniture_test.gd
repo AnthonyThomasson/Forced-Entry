@@ -2,14 +2,20 @@ extends GameTest
 ## The wall fade over real furniture rigs (#193 rule 9, Art's `WallFade`, Objects' `FurnitureRig`):
 ## a tall piece (a wardrobe, a fridge) between the camera and a focus fades in all its instances
 ## (the rig's body and any glow node) through the mirror's `built` hook, and is whole again when the
-## focus leaves; a low piece (a table) is never looked at. The pieces are the catalogue's own
-## (`s.object`), built by Objects' registered builders, so the heights are the meshes' own.
+## focus leaves; a low piece (a table, a dresser) is never looked at. The pieces are the catalogue's
+## own (`s.object`), built by Objects' registered builders, so the heights are the meshes' own.
 
 const SPOTS := {
 	"wardrobe": Vector2(0, 0),
 	"fridge": Vector2(400, 0),
 	"dining_table": Vector2(800, 0),
+	"dresser": Vector2(1200, 0),
+	"shower": Vector2(1600, 0),
 }
+## Pieces under `WallFadeConfig.tall_height` (48 px): never looked at, so never faded. A dresser,
+## a cabinet and a tool chest are 38 px (0.9 m) since the real-size retune (they were 56 and
+## faded); the shower's glass is 80 (it was 38) and fades.
+const LOW := ["dining_table", "dresser"]
 ## The gap between a piece's back face and the focus behind it: at the 80 degree pitch a piece
 ## hides only what stands within its height over tan 80 of it.
 const GAP := 3.0
@@ -28,7 +34,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.arena(Rect2(-200, -200, 1400, 400))
+	s.arena(Rect2(-200, -200, 2000, 400))
 	for id: String in SPOTS:
 		s.object(StringName(id), id, SPOTS[id])
 	s.set_static(RenderConfig, &"unit", 1.0)
@@ -57,10 +63,10 @@ func run(t: TestContext) -> void:
 			return
 		var focus: Vector2 = SPOTS[id] - back * (_half_depth(parts) + GAP)
 		_run_fade(fade, [focus], 14)
-		if id == "dining_table":
+		if id in LOW:
 			t.check(
 				parts.all(func(p: Node) -> bool: return _level(p) > 0.99),
-				"a low table is never faded",
+				"%s is under the fade's tall height and is never faded" % id,
 			)
 			continue
 		t.check(

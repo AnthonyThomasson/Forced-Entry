@@ -43,18 +43,18 @@ A mesh whose parts move with a pose is the character's: `CharacterMeshes.registe
 
 ## Heights (px; 42.3 a metre, a character 74, a wall 96: `BodyHeights`, `MirrorConfig`)
 
-Real sizes (`docs/research/3d-cover-heights.md`), one number per class in its domain's holder; `PieceHeights` (interface 12) reads them back (`domain-objects/heights.md`).
+Real sizes (`docs/research/3d-cover-heights.md`), one number per class in its domain's holder; `PieceHeights` (28) reads them back.
 
 | Class | Height | Class | Height |
 |---|---|---|---|
 | Wall | 96 (`MirrorConfig.wall_height`) | Door leaf | 84 |
 | Character standing | 74 (`BodyHeights`) | Character ducked | head top 36 |
 | Table, desk top | 31 | Coffee table, side table | 18 / 22 |
-| Chair seat / back | 18 / 36 | Sofa seat / arm / back | 18 / 28 / 38 |
+| Chair seat / back | 18 / 38 | Sofa seat / arm / back | 18 / 28 / 38 |
 | Bed mattress / headboard | 22 / 34 | Counter, dresser, cabinet | 38 (+ backsplash 6) |
 | Bookshelf, fridge | 77, 74 | Vending machine | 78 |
-| Toilet cistern, bath rim | 30, 20 | Plant | 36 |
-| Streetlight post | 130 | Car body / roof | 40 / 60 (a van 46 / 78) |
+| Toilet cistern, bath rim | 30, 20 | Plant | 40 |
+| Streetlight post | 130 | Car prop body / roof | 40 / 60 (drivable: `VehicleMeshConfig`) |
 | Rug, mat, stencil | 0.5 (a decal) | Dropped item, casing | 2 to 6 |
 
 A tall solid (a wall, a wardrobe) hides what is behind it: the wall-fade job (rule 9) fades those near the player (`MeshNodes.fade`), so a mesh job does not shorten a

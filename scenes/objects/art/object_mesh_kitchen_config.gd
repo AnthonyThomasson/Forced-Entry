@@ -17,8 +17,8 @@ static var counter_deep_basin: float = 12.0
 ## of at most `fridge_mini_area` px squared is a mini fridge `fridge_mini_height` tall, and the
 ## thickness of a door, handle or glass proud of its face.
 static var appliance_heights: Dictionary = {
-	"plain": 38.0, "burners": 38.0, "fridge": 74.0, "microwave": 22.0, "washer": 36.0,
-	"dryer": 36.0, "tv": 26.0,
+	"plain": 38.0, "burners": 38.0, "fridge": 74.0, "microwave": 22.0, "washer": 38.0,
+	"dryer": 38.0, "tv": 26.0,
 }
 static var fridge_mini_height: float = 40.0
 static var fridge_mini_area: float = 2500.0

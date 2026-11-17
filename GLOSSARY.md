@@ -73,7 +73,7 @@ How high a piece of furniture really stands, in px above the floor at 1 px to a 
 person is 74 px): the top of its mass (`PieceHeights.top_of`), with its parts (a sofa's seat, arms and back; a bed's
 mattress and headboard) and the base of a piece that hangs or stands over the head. The meshes' sizes are the one truth
 (`ObjectMesh*Config`), the height reads them, and `docs/research/3d-cover-heights.md` gives the real sizes. A piece at
-least as tall as a posture's head top hides that posture.
+least as tall as a posture's head top hides that posture. (The garage's car is a prop, 40 to 60 px; the drivable cars' own heights, `VehicleMeshConfig`, are the vehicles').
 _Avoid_: coverage (the 0 to 100 abstract height the real heights replace), cover height
 
 **Duck**:
@@ -84,7 +84,8 @@ _Avoid_: crouch (the old posture, 0.62 of a stand's drawn height and coverage 35
 **Fire-over**:
 The pose a ducked character rises to for a burst when the cover it is behind blocks its muzzle line: its bore about 1.02 m
 (43 px), clearing 0.9 m cover with the head and shoulders exposed (`BodyHeights.FIRE_OVER`); it drops back after a short
-dwell. Player and NPCs alike.
+dwell. Player and NPCs alike. It rises only as far as it must (`BodyHeights.lowest_clearing`): fire-over for cover up to
+its muzzle (about 1.0 m), standing for taller cover up to a standing muzzle (about 1.55 m), and above that it fires around.
 _Avoid_: pop-up, peek
 
 **Plan space**:

@@ -234,7 +234,8 @@ static func _booth(spec: FurnitureSpec) -> Array[Dictionary]:
 
 ## A wall fixture: a mirror hangs from `fixture_mirror_base`, a towel bar at `fixture_bar_height`.
 static func _fixture(spec: FurnitureSpec) -> Array[Dictionary]:
-	var rect := _share(spec, Rect2(0.0, 0.0, spec.size.x, ObjectMeshDecorConfig.fixture_thickness))
+	var deep := ObjectMeshDecorConfig.fixture_thickness + 1.6
+	var rect := _share(spec, Rect2(0.0, 0.0, spec.size.x, deep))
 	if String(spec.opts.get("kind", "mirror")) == "towels":
 		var bar := ObjectMeshDecorConfig.fixture_bar_height
 		return [_part(bar + 2.0, bar - 22.0, rect)]

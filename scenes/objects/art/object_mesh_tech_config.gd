@@ -19,7 +19,7 @@ static var cart_rim: float = 2.0
 static var cyber_height: float = 64.0
 static var cyber_tiers: int = 3
 ## The security vestibule: the barricade's slab and a sandbag, the scanner post and a locker.
-static var barricade_height: float = 36.0
+static var barricade_height: float = 40.0
 static var bag_height: float = 10.0
 static var scanner_height: float = 84.0
 static var locker_height: float = 77.0

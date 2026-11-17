@@ -26,7 +26,7 @@ const MATCH := {
 ## coat rack's hat (post 64 + 4), the rug's border, and field with its flat medallion (.6 + .3).
 const KINDS := {
 	&"sofa": { "art": "sofa", "top": 38.0, "base": 0.0, "cover": 0.95 },
-	&"chair": { "art": "chair", "top": 36.0, "base": 0.0, "cover": 0.8 },
+	&"chair": { "art": "chair", "top": 38.0, "base": 0.0, "cover": 0.8 },
 	&"wardrobe": { "art": "cabinet", "top": 78.0, "base": 0.0, "cover": 0.95 },
 	&"bookshelf": { "art": "shelf", "top": 77.0, "base": 0.0, "cover": 0.95 },
 	&"kitchen_counter": { "art": "counter", "top": 44.0, "base": 0.0, "cover": 0.95 },
@@ -36,7 +36,7 @@ const KINDS := {
 	&"toilet": { "art": "toilet", "top": 31.0, "cover": 0.5 },
 	&"bathtub": { "art": "bath", "top": 26.0, "cover": 0.95 },
 	&"rug": { "art": "rug", "top": 0.9, "cover": 0.9 },
-	&"plant": { "art": "plant", "top": 36.0, "tol": 0.3, "cover": 0.5 },
+	&"plant": { "art": "plant", "top": 40.0, "tol": 0.3, "cover": 0.5 },
 	&"lamp": { "art": "lamp", "top": 62.0, "base": 0.0, "cover": 0.5 },
 	&"coat_rack": { "art": "coat_rack", "top": 76.0, "cover": 0.3 },
 	&"recliner_rig": { "art": "recliner", "top": 30.0, "base": 0.0, "cover": 0.8 },

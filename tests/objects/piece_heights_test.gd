@@ -40,7 +40,7 @@ const REAL := {
 	&"menu_board": [1.7, 2.0], &"surgical_chair": [0.7, 1.1], &"tool_cart": [0.8, 0.95],
 	&"cyberware_shelf": [1.4, 1.8], &"barricade": [0.8, 1.0], &"scanner_post": [1.9, 2.1],
 	&"lockers": [1.7, 1.9], &"shop_counter": [0.9, 1.15], &"shelf_aisle": [1.2, 1.5],
-	&"drinks_fridge": [1.8, 2.0], &"snack_machine": [1.7, 1.9], &"crate_stack": [0.6, 0.9],
+	&"drinks_fridge": [1.8, 2.0], &"snack_machine": [1.7, 1.9], &"crate_stack": [0.6, 1.0],
 	&"wrapped_pallet": [0.9, 1.3], &"wall_safe": [0.5, 1.0], &"vending_machine": [1.7, 1.95],
 	&"street_bench": [0.4, 0.5], &"street_bin": [0.85, 1.05], &"drain_grate": [0.0, 0.03],
 	&"litter": [0.0, 0.1], &"podium": [1.3, 1.7], &"rebar": [0.0, 0.4], &"rubble": [0.1, 0.5],
@@ -58,9 +58,19 @@ const BASE := {
 const PROPS := {
 	&"coat_rack": 4.5, &"sink": 2.5, &"trash": 3.0, &"stove": 1.5, &"toilet": 1.5,
 	&"bathtub": 6.5, &"shower": 4.5, &"laundry_sink": 2.5, &"server_rack": 3.5,
-	&"surgical_chair": 38.5, &"tool_cart": 1.5, &"kitchenette_counter": 2.5, &"hotplate": 4.5,
+	&"tool_cart": 1.5, &"kitchenette_counter": 2.5, &"hotplate": 4.5,
 	&"shop_counter": 13.0, &"noodle_counter": 11.5, &"crate_stack": 1.5, &"cement_bags": 2.8,
 }
+## What is built as cover: the pieces a ducked character is meant to hide behind.
+const COVER := [
+	"barricade", "crate_stack", "wrapped_pallet", "lockers", "kitchen_counter", "shop_counter",
+	"noodle_counter", "island", "kitchenette_counter", "sofa", "dresser", "cabinet",
+	"shelf_aisle", "wardrobe", "bookshelf", "fridge", "wall_safe", "vending_machine",
+	"drinks_fridge", "snack_machine", "server_rack", "shelving", "tool_chest", "stove",
+]
+## The pieces whose top is a scatter (trash, rubble) or leans (a plant's leaf, a chair's back): the
+## slack (px) of the part's top.
+const LOOSE := { &"plant": 0.3, &"office_chair": 0.3, &"trash": 3.0, &"rubble": 1.0 }
 const CELL := Vector2(300.0, 260.0)
 const PER_ROW := 11
 
@@ -99,6 +109,7 @@ func run(t: TestContext) -> void:
 	_every_kind_has_a_real_top(t)
 	_parts(t)
 	_the_scale(t)
+	_cover_clears_a_duck(t)
 	await t.frames(5)
 	var mirror := _mirror(t)
 	ObjectMeshes.register(mirror.builders)
@@ -245,6 +256,8 @@ func _mesh_agrees(t: TestContext, key: String, rig: FurnitureRig) -> void:
 	var base := PieceHeights.base_of_spec(spec)
 	var box := rig.body.mesh.get_aabb()
 	var props: float = PROPS.get(StringName(key), 0.0)
+	if key == "surgical_chair":
+		props = ObjectMeshChairConfig.recliner_lamp_height - top
 	t.check(
 		box.end.y >= top - 0.6 and box.end.y <= top + props + 0.6,
 		"%s: the mesh tops out at %.1f, PieceHeights says %.1f (+%.1f props)"
@@ -252,6 +265,86 @@ func _mesh_agrees(t: TestContext, key: String, rig: FurnitureRig) -> void:
 	)
 	if base > 0.0:
 		t.expect_near(box.position.y, base, 0.7, "%s: the mesh starts at its base" % key)
+	var mesh := rig.body.mesh as ArrayMesh
+	var parts := PieceHeights.parts(spec)
+	for part: Dictionary in parts:
+		_part_is_in_the_mesh(t, key, part, spec, mesh)
+	if key == "surgical_chair":
+		t.expect_near(
+			box.end.y,
+			ObjectMeshChairConfig.recliner_lamp_height,
+			0.7,
+			"the surgical chair's lamp arm (a prop, not its mass) is its mesh's top",
+		)
+
+
+## A solid has a face at `part`'s top over its rect (px, from the footprint's back-left corner,
+## the mesh centred on the piece; with the overhang for a piece that has one): the part is in the
+## mesh where PieceHeights says it is, and the faces at that height lie in the parts that top out
+## there. `LOOSE` pieces are scattered or leaning, their top within a little of the part's.
+func _part_is_in_the_mesh(
+	t: TestContext, key: String, part: Dictionary, spec: FurnitureSpec, mesh: ArrayMesh
+) -> void:
+	var slack: float = LOOSE.get(StringName(key), 0.05)
+	var area := _area_of(part, spec)
+	var found := false
+	var strays := 0
+	for i in mesh.get_surface_count():
+		var vertices: PackedVector3Array = mesh.surface_get_arrays(i)[Mesh.ARRAY_VERTEX]
+		for v: Vector3 in vertices:
+			if absf(v.y - float(part["top"])) > slack:
+				continue
+			if area.has_point(Vector2(v.x, v.z)):
+				found = true
+			elif not _in_a_part_of_that_top(v, part["top"], spec, slack):
+				strays += 1
+	t.check(found, "%s: a solid tops out at %.1f over %s" % [key, part["top"], area])
+	t.expect_eq(
+		strays, 0, "%s: no face at %.1f outside the parts that top out there" % [key, part["top"]]
+	)
+
+
+## Where `part` lies (px, in the mesh's frame, slack 0.6 round it): its share of the footprint,
+## merged with the piece's overhang when it has one.
+func _area_of(part: Dictionary, spec: FurnitureSpec) -> Rect2:
+	var rect: Rect2 = part["rect"]
+	var area := Rect2(rect.position * spec.size - spec.size * 0.5, rect.size * spec.size)
+	if spec.overhang.has_area():
+		area = area.merge(spec.overhang.abs())
+	return area.grow(0.6)
+
+
+## Whether `v` (a mesh vertex) is over a part of `spec` that tops out at `top`.
+func _in_a_part_of_that_top(v: Vector3, top: float, spec: FurnitureSpec, slack: float) -> bool:
+	for part: Dictionary in PieceHeights.parts(spec):
+		if absf(float(part["top"]) - top) <= slack:
+			if _area_of(part, spec).has_point(Vector2(v.x, v.z)):
+				return true
+	return false
+
+
+## Cover clears a ducked head by a real margin (0.04 m): what a piece is built as cover for (a
+## barricade, a counter, a sofa, a stack of crates, a locker) hides a duck, and no solid piece on
+## the floor tops out within that margin of the duck's head, either way, so no piece hides or leaves
+## a head by a hair.
+func _cover_clears_a_duck(t: TestContext) -> void:
+	var head := BodyHeights.head_top(BodyHeights.DUCK)
+	var margin := BodyHeights.px(0.04)
+	for key: String in COVER:
+		var top := PieceHeights.top_of(ObjectDefinitions.get_definition(key))
+		t.check(
+			top >= head + margin,
+			"%s (%.1f px) hides a duck (head %.1f) by at least %.1f px" % [key, top, head, margin],
+		)
+	for key: String in _kinds():
+		var def := ObjectDefinitions.get_definition(key)
+		if def.get("solid", true) == false or PieceHeights.base_of(def) > 1.0:
+			continue
+		var top := PieceHeights.top_of(def)
+		t.check(
+			absf(top - head) >= margin,
+			"%s's top %.1f is not within %.1f px of a duck's head %.1f" % [key, top, margin, head],
+		)
 
 
 ## The rig of `body` when the mirror shows it by one (a `FurnitureRig`), else null (a proxy box).
