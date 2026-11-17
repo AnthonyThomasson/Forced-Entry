@@ -3,6 +3,7 @@ extends StaticBody2D
 ## one collision shape, to prove what the mirror does with its mesh when it dies
 ## (`tests/art/mirror_mesh_lifecycle_test.gd`).
 
+## Never emitted: the mirror only has to see the signal exist, as it does on a character.
 @warning_ignore("unused_signal")
 signal died
 
