@@ -83,7 +83,21 @@ static func warm(requests: Array) -> void:
 			_warm_requests.append({ "key": key, "request": request })
 	_warm_lock.unlock()
 	if not _warm_requests.is_empty():
+		var settled := {}
+		for entry: Dictionary in _warm_requests:
+			_settle(entry["request"]["painter"], settled)
 		_warm_task = WorkerThreadPool.add_task(_warm_all, false, "pixel-art pre-warm")
+
+
+## Have `script` and every script it preloads compiled, here on the main thread: a constant table
+## a main-thread compile is still building (a font's rows) reads as garbage on the worker.
+static func _settle(script: Script, settled: Dictionary) -> void:
+	if script == null or settled.has(script):
+		return
+	settled[script] = true
+	for value: Variant in script.get_script_constant_map().values():
+		if value is Script:
+			_settle(value, settled)
 
 
 ## Wait for the outstanding warm to finish and file every image it painted as a texture, on the
