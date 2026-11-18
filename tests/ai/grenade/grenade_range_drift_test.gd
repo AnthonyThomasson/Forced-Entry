@@ -33,7 +33,7 @@ func configure(s: TestSetup) -> void:
 		[{ "key": "hall", "type": "living_room", "rect": Rect2(0, 0, 900, 300) }],
 		[{ "pos": Vector2(880, 0), "width": 60.0 }],
 	)
-	s.object(&"desk", Hiding.low_cover("desk"), Vector2(520, 150))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(490, 150))
 	s.von_script(
 		[
 			{ "pick": "combat" },

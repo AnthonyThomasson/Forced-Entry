@@ -15,7 +15,7 @@ extends GameTest
 const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
-const INVADER_AT := Vector2(450, 31)
+const INVADER_AT := Vector2(350, 31)
 const HOSTILE_AT := Vector2(800, 31)
 
 
@@ -37,7 +37,7 @@ func configure(s: TestSetup) -> void:
 		[{ "key": "hall", "type": "hallway", "rect": Rect2(0, 0, 900, 140) }],
 		[{ "pos": Vector2(0, 70), "width": 80.0 }],
 	)
-	s.object(&"sofa", Hiding.low_cover("sofa"), Vector2(700, 31))
+	s.object(&"sofa", Hiding.low_cover("sofa"), Vector2(690, 31))
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": Vector2.RIGHT })
 	# Standing, the hostile is seen and shot over the sofa; the run has it duck once it is seen, and
 	# the invader then knows it behind cover it cannot shoot through (`docs/grenades.md` G17).

@@ -56,8 +56,8 @@ func configure(s: TestSetup) -> void:
 		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 1000, 300) },
 		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 1000, 300) },
 	], [{ "pos": Vector2(980, 0), "width": 60.0 }, { "pos": Vector2(980, 600), "width": 60.0 }])
-	s.object(&"table_n", Hiding.low_cover("coffee_table"), Vector2(700, 150))
-	s.object(&"table_s", Hiding.low_cover("coffee_table"), Vector2(700, 450))
+	s.object(&"table_n", Hiding.low_cover("coffee_table"), Vector2(630, 150))
+	s.object(&"table_s", Hiding.low_cover("coffee_table"), Vector2(630, 450))
 	Flank.rules(
 		s,
 		[

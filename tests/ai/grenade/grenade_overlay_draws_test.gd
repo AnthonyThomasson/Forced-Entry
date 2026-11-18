@@ -30,7 +30,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Hiding.von_out(s)
 	s.arena(Rect2(0, 0, 900, 500))
-	s.object(&"desk", Hiding.low_cover("desk"), Vector2(430, 250))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(410, 250))
 	s.object(&"cover_d", Hiding.low_cover("desk"), Vector2(520, 322))
 	Flank.rules(
 		s,

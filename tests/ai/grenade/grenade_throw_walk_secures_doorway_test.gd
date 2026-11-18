@@ -31,7 +31,7 @@ const EXIT_DOOR := Vector2(1000, 370)
 ## 80 px behind the desk's west edge (190): a lob comes down no steeper than the room's ceiling
 ## lets it, so a hostile any closer behind the desk is out of a throw's reach.
 const H_AT := Vector2(110, 370)
-const DESK_AT := Vector2(250, 370)
+const DESK_AT := Vector2(280, 370)
 const I_AT := Vector2(870, 370)
 ## The study's doorway as the doorway-view probe frames it (`out`: away from the study, into the
 ## corridor).

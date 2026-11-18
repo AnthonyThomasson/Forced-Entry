@@ -19,7 +19,7 @@ const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const HOUSE := Rect2(0, 0, 600, 500)
 const DOOR := Vector2(300, 500)
 const DEFENDER_AT := Vector2(300, 440)
-const DESK_AT := Vector2(300, 800)
+const DESK_AT := Vector2(300, 750)
 const HOSTILE_AT := Vector2(300, 860)
 
 
