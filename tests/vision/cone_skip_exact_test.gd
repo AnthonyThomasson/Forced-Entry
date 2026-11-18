@@ -11,8 +11,8 @@ extends GameTest
 ##   - a wardrobe and the walls dented again and again (their colliders cut into more shapes);
 ##   - a wardrobe shoved across the room, and one freed, and one added;
 ##   - a door swung wide and shut, a glass-panel door's panes shattered, a door knocked down;
-##   - in a world of its own, a character that blocks the viewer's sight standing and not crouched
-##     changing its posture, and dying.
+##   - in a world of its own, a counter the viewer looks over standing and not ducked, the viewer
+##     changing its posture.
 ## And the reach, in a world of its own: a solid moved every frame far outside the viewer's reach
 ## forces no rebuild, one moved within reach starts or restarts one each frame. Then a checker holds
 ## every cone published to a fresh rebuild's while a solid, built each way a body can reach further
@@ -39,9 +39,8 @@ const ADDED_AT := Vector2(520, 250)
 const GLASS_Y := 110.0
 const WOOD_Y := 250.0
 const DOWN_Y := 390.0
-## The second world: a character at `STANDER_AT` between the viewer and a far wall, whose sight
-## looks over only what is lower than `Probe.LOOK_OVER_LOW` (a standing body, 60, blocks it; a
-## crouched one, 35, does not).
+## The second world: a kitchen counter (38 px) at `STANDER_AT` between the viewer and a far wall: a
+## standing eye (69 px) looks over it and a ducked one (32 px) does not.
 const OTHER := Vector2(4000, 0)
 const OTHER_EYE := Vector2(4100, 300)
 const STANDER_AT := Vector2(4300, 300)
@@ -128,7 +127,7 @@ func run(t: TestContext) -> void:
 	await _doors(t, checker)
 	_check_whole(t, checker, "the first world")
 	checker.queue_free()
-	await _posture_and_death(t)
+	await _posture_world(t)
 	await _reach(t)
 
 
@@ -616,20 +615,19 @@ func _doors(t: TestContext, checker: Checker) -> void:
 	t.check(hollow.is_down(), "premise: the hollow door was knocked down")
 
 
-## A second world: a character in the viewer's line of sight, whose sight looks over only what is
-## lower than a standing body. It crouches and stands again, and dies.
-func _posture_and_death(t: TestContext) -> void:
+## A second world: a counter in the viewer's line of sight, which the viewer looks over standing and
+## not ducked. It ducks, stands, ducks again and stands: the polygon changes with no move of the
+## world, and every cone published is a fresh rebuild's; the view then settles.
+func _posture_world(t: TestContext) -> void:
 	var s := TestSetup.new()
 	s.arena(Rect2(OTHER.x, OTHER.y, 600, 600))
 	s.switch(&"nav.rebake", false)
 	s.switch(&"vision.enabled", true)
-	s.set_static(CharacterVisionConfig, &"see_over_coverage", Probe.LOOK_OVER_LOW)
+	s.object(&"counter", "kitchen_counter", STANDER_AT)
 	s.actor(&"eye", &"puppet", OTHER_EYE)
-	s.actor(&"stander", &"puppet", STANDER_AT)
 	s.view(&"eye")
 	var world: Node2D = await Probe.build_world(t, s)
 	var eye: Node2D = world.actors[&"eye"]
-	var stander: Node2D = world.actors[&"stander"]
 	var view := Probe.views_under(world)[0]
 	TestContext.controller_of(eye, &"aim_at").aim_at(OTHER_EYE + Vector2(100, 0))
 	await t.frames(5)
@@ -637,44 +635,23 @@ func _posture_and_death(t: TestContext) -> void:
 	world.add_child(checker)
 	await t.frames(20)
 	var changed := checker.changed
-	for posture in [&"crouch", &"stand", &"crouch"]:
+	for posture in [&"crouch", &"stand", &"crouch", &"stand"]:
 		# A change of posture waits out its cooldown: ask until the body holds it.
 		if not t.require(
-			await t.until(func(): return stander.movement.set_posture(posture), 3.0),
-			"the character takes the posture %s" % posture,
+			await t.until(func(): return eye.movement.set_posture(posture), 3.0),
+			"the viewer takes the posture %s" % posture,
 		):
 			break
 		await t.frames(20)
 	t.check(
 		checker.changed - changed >= 2,
-		"premise: the posture changes what the viewer sees (%d changes)"
+		"premise: the viewer's posture changes what it sees (%d changes)"
 		% (checker.changed - changed),
 	)
-	changed = checker.changed
-	stander.take_damage(10_000.0)
-	await t.frames(90)
-	t.check(stander.is_dead, "premise: the character died")
-	await _settle_posture_world(t, checker, stander)
-	_check_whole(t, checker, "the posture world", false)
+	await t.frames(40)
+	_check_whole(t, checker, "the posture world")
 	checker.queue_free()
 	await Probe.drop_world(t, world)
-
-
-## The tail of the posture world: nothing blocks, and the view settles.
-func _settle_posture_world(t: TestContext, checker: Checker, stander: Node2D) -> void:
-	# A standing character of the first world, still in the tree, blocks at this sight (the check
-	# is not limited to reach), so the world never settles. Raising see_over to 100 looks over it:
-	# nothing blocks, the view settles, and its cone is held to the live pose's reference.
-	stander.queue_free()
-	CharacterVisionConfig.see_over_coverage = Probe.LOOK_OVER_LOW * 2.0
-	await t.frames(5)
-	var settled := checker.settled
-	await t.frames(40)
-	t.check(
-		checker.settled - settled >= 20,
-		"premise: the posture world: with nothing blocking the view was settled in %d frames"
-		% (checker.settled - settled),
-	)
 
 
 ## The checker's whole run: every cone published was the reference cone of its pose, the cone was

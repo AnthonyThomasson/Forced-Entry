@@ -6,12 +6,12 @@
       human, so Watch and Endless draw everything); the Testing world (13) calls it for its `player` actor, or the actor `TestSetup.view(id)`
       names, when the `vision.enabled` switch is on (off unless a test asks). Viewing a character changes nothing in it or its AI.
     - **What it reads of the viewer** (duck-typed, 7): `global_position`, `facing`, `get_rid()`, `sight() -> Dictionary` (a method of the Character body, 7: `{ fov_degrees,
-      view_distance, awareness_radius, see_over_coverage }`, its `CharacterVisionConfig`), `is_dead`, and the signals `died` and
+      view_distance, awareness_radius, eye_height }`, its `CharacterVisionConfig` and the px height of its eye in the posture it is in, `BodyHeights`), `is_dead`, and the signals `died` and
       `tree_exiting`: either **lifts** the view (the node and its viewports are freed within a frame, the masks are cleared and `SeenArea.clear()` run at
       once, so everything is drawn again, live, for the rest of the match).
-    - **What it reads of the world:** the physics space (`SightRay`, 11, on `PhysicsLayers.SOLID`), the groups `floors` (the seen mask's
-      bounds) and, through each blocker, `get_surface()` (`coverage`, `transparent`) and the signal `changed` (a door). It writes `SeenArea`
-      (11) each time a cone is published. It draws nothing over the world: the view is `ViewGround`, two masks (the live cone in a window about the camera, and
+    - **What it reads of the world:** the physics space (`SightRay`, 11, on `PhysicsLayers.SOLID`: a collider blocks when its twin's top, 29, is above the viewer's `eye_height`; a character never does), the groups `floors` (the seen mask's
+      bounds) and, through each blocker, `get_surface()` (`transparent`) and the signal `changed` (a door). It writes `SeenArea`
+      (11), with the viewer (`set_viewer`: a living character in the cone that the eye sees no point of is hidden by Art's mirror), each time a cone is published. It draws nothing over the world: the view is `ViewGround`, two masks (the live cone in a window about the camera, and
       where the viewer has seen) the 3D scene's toon shaders read by ground position (`ToonMask`, Art, 27; `docs/player-vision.md` V12), and the `PlayerView` keeps placing its live
       window by the camera while the tree is paused. It sorts the world by `ViewLayers` (11) only in what it publishes for others: a body on `MOVING` is hidden outside the cone by Art's mirror.
     - **Test reads** on a `PlayerView` (helpers in `tests/_vision/vision_probe.gd`): `viewer()`, `cone() -> PackedVector2Array` (the eye, then

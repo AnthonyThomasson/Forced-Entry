@@ -190,14 +190,15 @@ func report_shot(body: Node, damage: float) -> void:
 
 
 ## What this character sees by, for a view made for it: `fov_degrees`, `view_distance`,
-## `awareness_radius` and `see_over_coverage` (`CharacterVisionConfig`), the numbers the NPCs see by
-## too. Read duck-typed by the Vision domain.
+## `awareness_radius` (`CharacterVisionConfig`), the numbers the NPCs see by too, and `eye_height`,
+## the height (px) of its eye in the posture it is in (`BodyHeights`): a piece taller than that
+## breaks the line of sight, a lower one is looked over. Read duck-typed by the Vision domain.
 func sight() -> Dictionary:
 	return {
 		"fov_degrees": CharacterVisionConfig.fov_degrees,
 		"view_distance": CharacterVisionConfig.view_distance,
 		"awareness_radius": CharacterVisionConfig.awareness_radius,
-		"see_over_coverage": CharacterVisionConfig.see_over_coverage,
+		"eye_height": BodyHeights.eye(movement.body_posture()),
 	}
 
 

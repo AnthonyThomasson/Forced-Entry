@@ -18,7 +18,7 @@ extends RefCounted
 ## - `VisionConfig.enabled` (class_name static holder): the switch.
 ## - The viewer is any character: `global_position`, `facing`, `get_rid()`.
 ## - The world is plain Godot physics: the solid layer (`PhysicsLayers.SOLID`, bit 1) and each
-##   piece's `get_surface().coverage`.
+##   piece's real top (the twin space's, `SightRay.top_of`).
 
 const GROUP := &"player_view"
 const WorldScript := preload("res://scenes/testing/test_world.gd")
@@ -27,20 +27,18 @@ const WORLD := 1
 const MOVING := 2
 const OVERLAY := 4
 ## The spec's sight (V1), kept here on its own: the cone's width (degrees) and reach (px), the
-## bubble's radius (px) and the height (coverage) a line of sight looks over.
+## bubble's radius (px) and the height (px) a line of sight looks over: a standing eye's, 1.64 m at
+## 42.3 px a metre.
 const FOV := 110.0
 const REACH := 2520.0
 const BUBBLE := 48.0
-const SEE_OVER := 60.0
+const SEE_OVER := 69.4
 ## How far (px) a vertex of a cone may sit from the reference cone's: the reach is 2520 px, so this
 ## is 4e-7 of it.
 const TOLERANCE := 0.001
-## The dents the cone tests deal: this many volleys, from this random seed, and a sight that looks
-## over only what is lower than `LOOK_OVER_LOW` (a standing body, 60, blocks it; a crouched one, 35,
-## does not).
+## The dents the cone tests deal: this many volleys, from this random seed.
 const VOLLEYS := 8
 const HIT_SEED := 31
-const LOOK_OVER_LOW := 50.0
 ## The layout the cone tests share: a living room and a kitchen east of it, joined by a doorway
 ## (`DOOR`, 100 px wide) in the wall they share.
 const ROOMS := [
@@ -184,15 +182,15 @@ static func space(t: TestContext) -> PhysicsDirectSpaceState2D:
 	return t.world.get_world_2d().direct_space_state
 
 
-## The first thing on the line `from` to `to` too tall to see over (the spec's V1 line of sight), or
-## {}; `exclude` the rids left out.
+## The first thing on the line `from` to `to` too tall to see over (above a standing eye) (the
+## spec's V1 line of sight), or {}; `exclude` the rids left out.
 static func blocker(
 	t: TestContext,
 	from: Vector2,
 	to: Vector2,
 	exclude: Array,
 ) -> Dictionary:
-	return SightRay.hit(space(t), from, to, exclude, SEE_OVER)
+	return SightRay.plan_hit(space(t), from, to, exclude, SEE_OVER)
 
 
 ## Whether `point` is in the sight of an eye at `from` facing `facing` by the spec's V1: within the

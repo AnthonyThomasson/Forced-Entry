@@ -9,15 +9,22 @@ extends RefCounted
 ## A point is visible when it is (a) within `view_distance`, AND (b) either within
 ## `awareness_radius` of the agent — a near bubble you sense regardless of which way you face — or
 ## inside the forward cone of half-angle `fov_degrees / 2` around the agent's facing, AND (c)
-## reachable by a clear straight line on the physics query layer. For SIGHT that line is forgiving:
-## a standing agent looks OVER low furniture (a collider whose `coverage` is at or below
-## `see_over_coverage` — tables, beds, islands, counters), so only walls and tall furniture
-## (cabinets, wardrobes, fridges) break the line. Set `enabled` to false to make everything visible
-## (omniscient), for debugging.
+## reachable by a clear line. For SIGHT that line is a 3D eye ray (General's `SightRay`, #194 D9):
+## from the agent's eye, at the height of its posture (a standing eye looks over a table and a
+## sofa, a ducked one does not), to a few points on the target (the head, chest and hips at the
+## target's posture), seen if any one is clear. Only what stands in the way at that height blocks
+## it: walls, doors, furniture and vehicles; a body is never in the way. Set `enabled` to false to
+## make everything visible (omniscient), for debugging.
 ##
-## This "look over low cover" rule is SIGHT-only: `blocked()` / `raycast()` below stay fully
-## physical (every solid collider counts) because they serve line-of-fire and cover, where a bullet
-## is still stopped by a table even though an agent can see across it.
+## This is SIGHT-only: `blocked()` / `raycast()` below stay fully physical (every solid collider
+## counts) because they serve line-of-fire and cover, where a bullet is still stopped by a table
+## even though an agent can see across it.
+##
+## The sight rays are cast in the twin space (interface 29) of the 2D `space` the callers hand in
+## (`TwinSpace.space_for`): a world with no twins blocks nothing (the player's cone is the other
+## way: a collider with no twin blocks like a wall). The `exclude` rids the callers hand in are not
+## read: a body never blocks an eye ray (they stay in the signatures, which the entry and door-view
+## chains share with the line-of-fire code).
 
 ## Physics layer walls + solid furniture live on (General's `PhysicsLayers.SOLID`, also used by
 ## CharacterInteraction). This module is the sub-domain's single owner of the solid-geometry ray
@@ -36,10 +43,9 @@ var fov_degrees: float = 110.0:
 		_half_fov = deg_to_rad(value) * 0.5
 ## Radius (px) of the 360° near-awareness bubble: things this close are sensed regardless of facing.
 var awareness_radius: float = 48.0
-## Coverage rating (0–100 height proxy) at or below which furniture is low enough to see OVER: sight
-## passes through it. Above this it blocks the line like a wall (which rates 100). Sight-only; cover
-## and line-of-fire ignore it.
-var see_over_coverage: float = 60.0
+## The character this sense belongs to: whose posture sets the height of its eye. None (a sense a
+## stack or a door view holds for the standing person it plans for): a standing eye.
+var viewer: Object = null
 ## Half the view cone's width in radians, kept with `fov_degrees`.
 var _half_fov := deg_to_rad(110.0) * 0.5
 ## The ray every cast reuses: the solid layer, nothing else configured.
@@ -54,20 +60,27 @@ static func _solid_query() -> PhysicsRayQueryParameters2D:
 
 
 ## Whether `point` is visible to an agent at `from_pos` facing `facing`, given a physics space state
-## and the rids to exclude from the sight raycast (typically the agent itself). See the class note
-## for the full rule. `space` may be null (treated as an unobstructed line) for geometry-only tests.
+## (a body is never an obstacle to sight, so the exclude rids the callers hand in are not read). See
+## the class note for the full rule. `space` may be null (treated as an unobstructed line) for
+## geometry-only tests.
 func can_see(
 	from_pos: Vector2,
 	facing: Vector2,
 	point: Vector2,
 	space: PhysicsDirectSpaceState2D,
-	exclude: Array,
+	_exclude: Array,
 ) -> bool:
 	if not enabled:
 		return true
 	if not _in_view(from_pos, facing, point):
 		return false
-	return space == null or not _sight_blocked(space, from_pos, point, exclude)
+	return space == null or _sees(
+		space,
+		from_pos,
+		point,
+		BodyHeights.sight_points(BodyHeights.STAND),
+		[],
+	)
 
 
 ## Whether `point` is inside the geometry of sight (view distance and the near bubble or the forward
@@ -94,15 +107,15 @@ func _in_view(from_pos: Vector2, facing: Vector2, point: Vector2) -> bool:
 
 
 ## Whether `node` (a Node2D) is visible — convenience wrapper over can_see using its global
-## position. The node itself is excluded from the sight ray (it is the endpoint, so its own collider
-## must not count as something blocking the line to it); the line is clear when nothing ELSE is
-## between.
+## position, and the points of its own body (a character's at its posture, a piece's middle). The
+## node's own twin is left out of the rays (it is the endpoint, so it must not count as something
+## blocking the line to it); the line is clear when nothing ELSE is between.
 func can_see_node(
 	node: Node2D,
 	from_pos: Vector2,
 	facing: Vector2,
 	space: PhysicsDirectSpaceState2D,
-	exclude: Array,
+	_exclude: Array,
 ) -> bool:
 	if node == null or not is_instance_valid(node):
 		return false
@@ -110,42 +123,62 @@ func can_see_node(
 		return true
 	var point := node.global_position
 	if not _in_view(from_pos, facing, point):
-		# Out of view whatever stands between: no need to build the ray's exclude list.
+		# Out of view whatever stands between: no need to cast.
 		return false
 	if space == null:
 		return true
-	var ex: Array = exclude.duplicate()
-	if node.has_method("get_rid"):
-		ex.append(node.get_rid())
-	return not _sight_blocked(space, from_pos, point, ex)
+	return _sees(space, from_pos, point, SightRay.target_heights(node), SightRay.exclude_of(node))
 
 
-## The first hit that blocks SIGHT along `from`→`to`, or {} when the line reaches `to`. Unlike
-## `blocked()` (physical: any solid collider stops it), this looks OVER low cover — it walks the
-## line, skipping each collider whose coverage is at or below `see_over_coverage` and casting again
-## past it, until it reaches `to` or hits something tall enough to block (a wall or tall furniture).
-## A surface that is `transparent` (a glass-panel door) is looked through however tall.
-## A collider with no readable coverage is treated as a full blocker. The exclude list grows by one
-## skipped collider each pass, so the walk always terminates (there are finitely many colliders on
-## the line). Ignores `enabled`: it answers what the line is, the callers decide whether sight is
-## gated.
+## The first hit that blocks SIGHT along `from`→`to` (plan points, a standing body at `to`), or {}
+## when any of its points is seen. The hit is `{ position: Vector2 (plan), height: float (px),
+## collider: the 2D body }` of the line to its head. Unlike `blocked() ` (physical: any solid
+## collider
+## stops it), this is the eye ray of the class note. Ignores `enabled`: it answers what the line
+## is, the callers decide whether sight is gated. The `exclude` rids (2D) are not read: a body is no
+## obstacle to sight.
 func sight_hit(
 	space: PhysicsDirectSpaceState2D,
 	from: Vector2,
 	to: Vector2,
-	exclude: Array,
+	_exclude: Array,
 ) -> Dictionary:
-	return SightRay.hit(space, from, to, exclude, see_over_coverage)
+	var twins := TwinSpace.space_for(space)
+	if twins == null:
+		return {}
+	var origin := PlanSpace.lift(from, _eye())
+	var first := {}
+	for height in BodyHeights.sight_points(BodyHeights.STAND):
+		var found := SightRay.hit(twins, origin, PlanSpace.lift(to, height))
+		if found.is_empty():
+			return {}
+		if first.is_empty():
+			first = found
+	return {
+		"position": PlanSpace.plan_of(first["position"]),
+		"height": PlanSpace.height_of(first["position"]),
+		"collider": TwinSpace.owner_of(first["collider"]),
+	}
 
 
-## Whether the straight line `from`→`to` is broken for SIGHT (`sight_hit`).
-func _sight_blocked(
+## Whether the eye at plan point `from` sees any of `heights` over plan point `to`, leaving the
+## twin rids `exclude` out of the rays.
+func _sees(
 	space: PhysicsDirectSpaceState2D,
 	from: Vector2,
 	to: Vector2,
+	heights: PackedFloat32Array,
 	exclude: Array,
 ) -> bool:
-	return not sight_hit(space, from, to, exclude).is_empty()
+	var twins := TwinSpace.space_for(space)
+	return twins == null or SightRay.sees(twins, PlanSpace.lift(from, _eye()), to, heights, exclude)
+
+
+## The height (px) of this agent's eye: its posture's, a standing one with no viewer.
+func _eye() -> float:
+	if is_instance_valid(viewer):
+		return SightRay.eye_of(viewer)
+	return BodyHeights.eye(BodyHeights.STAND)
 
 
 ## Whether the straight segment `from`→`to` hits a wall or solid object on the query layer. A pure

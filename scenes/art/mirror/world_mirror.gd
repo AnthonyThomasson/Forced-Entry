@@ -508,14 +508,17 @@ func _moves(row: Dictionary) -> bool:
 	)
 
 
-## Whether `body` moves and wholly lies outside the cone the player sees now, so its mesh is hidden
-## (the shaders cut one at the cone's edge pixel by pixel): its reach is a disc of
+## Whether `body` moves and wholly lies outside the cone the player sees now, or is a character in
+## it that the viewer's eye sees no point of (ducked behind a sofa: `SeenArea.hides`), so its mesh
+## is hidden (the shaders cut one at the cone's edge pixel by pixel): its reach is a disc of
 ## `MirrorVisionConfig.moving_reach` px, a vehicle's `vehicle_reach`. With no view (`SeenArea` holds
 ## no area) nothing is unseen.
 func _unseen(body: Node) -> bool:
 	if (body as CanvasItem).visibility_layer & ViewLayers.MOVING == 0:
 		return false
-	return not SeenArea.reaches((body as Node2D).global_position, _reach(body))
+	if not SeenArea.reaches((body as Node2D).global_position, _reach(body)):
+		return true
+	return SeenArea.hides(body as Node2D)
 
 
 ## Whether `body` is a thing the view shows only once it has been in the cone

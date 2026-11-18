@@ -25,7 +25,7 @@ debug overlays, Navigation and the UI are overlays (`ViewLayers.overlay`); Gener
 | `vision_config.gd` (`VisionConfig`) | Tuning: the switch, the look, `feather`, the rays, `far_depth`, `far_bleed`, `rebuild_every`; the sliced rebuild's: `VisionSliceConfig`. |
 | `view_pipeline.gd` (`ViewPipeline`) | Starts, steps, restarts and publishes the `ViewCone` job (`cone-job.md`). Private. |
 
-What a character sees by (110° cone, 2520 px, a 48 px bubble, looking over coverage 60) is Character's `CharacterVisionConfig`,
+What a character sees by (110° cone, 2520 px, a 48 px bubble, looking over what stands below its eye, 69 px standing and 32 ducked) is Character's `CharacterVisionConfig`,
 read through `character.sight()`: any character can be the viewer.
 
 ## Each frame
@@ -40,7 +40,7 @@ read through `character.sight()`: any character can be the viewer.
 - **The cone** (`ViewCone`): a fan from the eye over ray ends sorted by angle. Rays: an even fan (`cone_rays` across the cone,
   `bubble_rays` round the eye) plus three at each corner of each blocking shape the eye sees (the corner's angle,
   `corner_offset` either side). `ViewShapes.corners` reads every solid shape touching the hull of the cone's sector and the bubble (`ViewCone._region`, grown 2 px) with a shape query (asked again with four
-  times the cap while it comes back full: no blocker is dropped), splits them into blockers (coverage above `see_over`) and
+  times the cap while it comes back full: no blocker is dropped), splits them into blockers (a top above `see_over`, the viewer's eye) and
   lows, and dedupes corners to half a pixel, keeping the lesser (x, then y), whichever shape the engine names first. Every ray
   leaves the lows out and meets its first blocker in one cast (`SightRay` instance), then runs on to where it leaves it
   (`far_exit`: the farthest exit over the blocking shapes holding a point 0.1 px along the ray, so a wall or wardrobe seen shows
@@ -78,12 +78,14 @@ read through `character.sight()`: any character can be the viewer.
 - **A mover's place in the view is its sim node's `ViewLayers` bit, read by Art's `WorldMirror`**: a new moving thing sets
   `ViewLayers.set_moving` on its node (the mirror hides its mesh outside the cone) or, for a batch with no body, marks its mesh
   (`MeshNodes.moving`); a `MOVING` flash light is kept out of the world by nothing here: lights are Lighting's (`domain-lighting`).
-- **`ViewShapes` keeps a non-character collider's coverage for its life** (`_rated`), and `ViewWatch` does not watch it. That
-  holds because a piece's coverage is set once in `ObjectFactory` and a door's is always 100 with `transparent` fixed at spawn
+- **`ViewShapes` keeps a collider's top for its life** (`_rated`: `SightRay.top_of`, its twin's top; a character's is 0, it is looked over at any height), and `ViewWatch` does not watch it. That
+  holds because a piece's top is set once from its mesh's real size and a door's is always 84 with `transparent` fixed at spawn
   (`look.material == "glass"`; a shatter changes only `look.broken`). Objects promises neither changes in play (interface 03);
-  the `rebuild_every` backstop bounds the stale cone should either ever change. A feature that changes either in play must tell
-  `ViewShapes` and `ViewWatch`. A character's coverage follows its posture, so it is read each build and `ViewWatch` rechecks
-  characters every frame.
+  the `rebuild_every` backstop bounds the stale cone should either ever change (a tipped piece, #194 D14). A collider with no twin yet
+  (a body twins a frame after it joins) blocks like a wall and is asked again, not kept. A feature that changes either in play must tell
+  `ViewShapes` and `ViewWatch`. The viewer's own posture changes what it looks over (`sight()["eye_height"]`): `ViewWatch` sorts every
+  collider again when it changes, and the cone is rebuilt. A living character in the cone that the eye sees no point of is hidden by Art's
+  mirror (`SeenArea.hides`, set by `_publish_area`), not by the cone.
 - **A headless run draws no pixels**: a test holds what the masks are told (sizes, transforms, clear modes, the polygons the
   painters hold, `ToonMask`'s rects) and the pixels are read in a window (`vision/vision_mask_3d_windowed`, one test at a time).
   The view is always `ViewGround` (a test world builds it too).

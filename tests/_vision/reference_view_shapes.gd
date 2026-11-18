@@ -9,8 +9,8 @@ extends RefCounted
 ##
 ## Vision domain: the blocking shapes round an eye, read from the physics space (a shape query on
 ## `PhysicsLayers.SOLID`, never a walk of the scene tree). A shape blocks sight when its piece's
-## `coverage` is above the viewer's `see_over` (walls, tall furniture); lower furniture is seen
-## over. Each shape a ray hits is turned into its world-space convex polygon, which gives the
+## top is above the viewer's `see_over`, its eye height (walls, tall furniture); lower furniture is
+## seen over. Each shape a ray hits is turned into its world-space convex polygon, which gives the
 ## corners where the cone's boundary can jump and the point a ray through that one shape leaves it
 ## (a `Wall` is one body of many segment shapes: only the shape the ray hit counts). What it read is
 ## kept for one build (`reset`): the world moves between frames.
@@ -23,7 +23,7 @@ const FIRST_RESULTS := 512
 const GROWTH := 4
 
 ## The coverage a shape must be above to block sight, set by the cone for each build.
-var see_over := 60.0
+var see_over := 69.4
 var _circle := CircleShape2D.new()
 var _query := PhysicsShapeQueryParameters2D.new()
 ## Coverage by collider instance id.
@@ -137,11 +137,11 @@ func _signed_area(polygon: PackedVector2Array) -> float:
 	return area
 
 
-## The coverage of a collider (`SightRay.coverage_of`), read once per build.
+## The top of a collider (`SightRay.top_of`), read once per build.
 func _coverage_of(collider: Object) -> float:
 	var id := collider.get_instance_id()
 	if not _coverage.has(id):
-		_coverage[id] = SightRay.coverage_of(collider)
+		_coverage[id] = SightRay.top_of(collider)
 	return _coverage[id]
 
 

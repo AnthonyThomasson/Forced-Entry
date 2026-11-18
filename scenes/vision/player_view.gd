@@ -176,6 +176,7 @@ func _publish_area() -> void:
 		for corner in polygon:
 			bounds = bounds.expand(corner)
 	SeenArea.set_area(polygons, bounds)
+	SeenArea.set_viewer(_viewer)
 	ground.publish(_cone.cone, _cone.bubble, _cone.eye)
 
 

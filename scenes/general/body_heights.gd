@@ -99,6 +99,16 @@ static func zones(posture: StringName) -> Array:
 	return out
 
 
+## The heights (px) of the points sight looks at on a body in `posture`, the head first (its
+## centre, at the eye), then the chest (the middle of the torso band) and the hips (where the legs
+## end): a body is seen if a line from an eye is clear to any one of them (`SightRay`).
+static func sight_points(posture: StringName) -> PackedFloat32Array:
+	var rows: Array = _row(posture)["zones"]
+	var legs_end := px(rows[1][1])
+	var torso_end := px(rows[2][1])
+	return PackedFloat32Array([eye(posture), 0.5 * (legs_end + torso_end), legs_end])
+
+
 ## The lowest posture whose muzzle line clears a piece of cover `top` px tall, or `NONE` when no
 ## posture does (the cover is too tall to fire over: fire around it). A body rises only as far as
 ## it must: the duck itself for cover under its own muzzle, `FIRE_OVER` up to its muzzle (about

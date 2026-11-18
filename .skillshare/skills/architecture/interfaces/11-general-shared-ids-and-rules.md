@@ -29,22 +29,28 @@
 	  world by. `WORLD` 1 (Godot's default: the house, what has come to rest) and `MOVING` 2 (what moves: Art's mirror hides its mesh outside the cone).
 	  `set_moving(item, moving)` (written only on change; Character, Items, Projectile, Physics, Vehicles call it) and
 	  `overlay(item)` (AI debug overlays, Navigation, the UI: hands `item` to `GroundLayer.adopt`, which lays it flat on the ground over the 3D view, 27; no z or bit).
-    - `SightRay` (`general/sight_ray.gd`, `RefCounted`): the one sight rule. `SightRay.hit(space, from, to, exclude, see_over) ->
-	  Dictionary` is the first thing on the line (`PhysicsLayers.SOLID`) too tall to see over (`intersect_ray`'s dictionary), {} when
-	  the line reaches `to`; a collider at or below `see_over` is looked over, `exclude` is left as given.
-	  `SightRay.coverage_of(collider) -> float` reads `get_surface()`: `transparent` (a glass-panel door) reads 0, looked through
-	  however tall; no `coverage` reads 100. An instance (`looks_over`, `rated`, `leave_out(rids)`, `cast(...)`) serves a caller of
-	  many rays (Vision's cone). AI perception's sight line and Vision's cone both cast through it.
+    - `SightRay` (`general/sight_ray.gd`, `RefCounted`): the one sight rule, real heights (#194 D9). **The eye ray**, in the twin space (29):
+	  `SightRay.hit(space3d, from: Vector3, to: Vector3, exclude := []) -> Dictionary` is the first blocker (`TWIN_WORLD`, `TWIN_VEHICLE`, never a
+	  character; a `transparent` surface and the rids in `exclude` are looked through), {} when clear.
+	  `sees(space3d, eye: Vector3, to: Vector2, heights, exclude := []) -> bool` (first clear point ends the ask), `visible_heights(...)`,
+	  `eye_point(viewer)`, `target_heights(target)` (a character's `BodyHeights.sight_points` at its posture), `exclude_of(target)`.
+	  The query later jobs read: `visible_parts(viewer: Node2D, target: Node2D) -> PackedFloat32Array` (the heights of the target's points the
+	  eye sees) and `visible_centre(viewer, target) -> float` (their mean, -1 for none). **The plan cast** (the player's cone):
+	  `SightRay.plan_hit(space2d, from, to, exclude, see_over) -> Dictionary` is the first `SOLID` collider taller than `see_over` (the
+	  eye, px); `top_of(collider) -> float` its twin's top (0 for a `transparent` surface or a character, `INF` with no twin). An instance (`looks_over`, `rated`, `leave_out(rids)`, `cast(...)`) serves Vision's cone.
     - `SeenArea` (`general/seen_area.gd`, static holder): what the view shows live. Vision writes `set_area(polygons: Array,
 	  bounds: Rect2)` per rebuild and `clear()` on a lift; `reaches(center, radius)` (a disc)
-	  says whether any of it is shown, true while no area is set (`active()`; `version()` counts changes). Art's mirror and Projectile's casings hold back the unseen. `contains(polygon, point)` is the one even-odd point test.
+	  says whether any of it is shown, true while no area is set (`active()`; `version()` counts changes). `set_viewer(character)` (Vision, each publish) names whose eye the view is:
+	  `hides(body) -> bool` is true for a living character, not the viewer, of which no body point (`SightRay`) is clear from that eye, though the cone covers its ground (a ducked enemy
+	  behind a sofa); Art's mirror hides such a mover. Art's mirror and Projectile's casings hold back the unseen. `contains(polygon, point)` is the one even-odd point test.
     - `BodyHeights` (`general/body_heights.gd`, static holder): a body's real proportions, the one scale between metres and the sim's px (1 3D unit = 1 px,
 	  a 1.75 m person = 74 px, so `px_per_metre() = 42.3`; `px(metres)`, `metres(px)`). Per posture (`BodyHeights.STAND`, `DUCK` (head top about 0.85 m / 36 px:
 	  hidden by a piece at least that tall), `FIRE_OVER` (the pose a ducked body rises to when its muzzle line is blocked: bore 1.02 m, head and shoulders over
 	  0.9 m cover); `postures_ids()`) heights in px above the floor: `head_top(posture)`, `eye(posture)`, `muzzle(posture)` (the bore line a bullet starts on),
 	  `shoulder(posture)`, the hit-zone bands `zones(posture) -> [[zone, from, to], ...]` (`feet`, `legs`, `torso`, `head`, touching, feet up) and
-	  `zone_at(posture, height) -> StringName` (where a hit at that height falls). The values are `BodyHeights.postures` (metres, tunable, `set_static`); the research is
-	  `docs/research/3d-cover-heights.md`. A bullet reads it: its muzzle (`muzzle` of the shooter's posture: a crouch fires from `FIRE_OVER`, the rise-to-fire being the duck-rise job's), the aim at a target's torso band and a hit's zone (`zone_at`); the AI's cover picking still reads the 0 to 100 `coverage`; `MirrorConfig.character_height` is
+	  `zone_at(posture, height) -> StringName` (where a hit at that height falls), `sight_points(posture) -> PackedFloat32Array` (the heights sight looks at on a body: head at the eye,
+	  chest, hips; `SightRay`). The values are `BodyHeights.postures` (metres, tunable, `set_static`); the research is
+	  `docs/research/3d-cover-heights.md`. A bullet reads its muzzle (a crouch fires from `FIRE_OVER`; the rise-to-fire is the duck-rise job's), the aim at a torso band and a hit's `zone_at`; sight the eye and `sight_points`; the AI's cover picking still reads the 0 to 100 `coverage`; `MirrorConfig.character_height` is
 	  its standing head top. Test: `tests/general/body_heights_test.gd`.
     - `PlanSpace` (`general/plan_space.gd`, static holder): the plan-space helper. A `Vector2` in the AI, world generation, navigation and most tests means plan space, the floor
 	  plan `(x, y)` = `(x, z)` on the 3D ground; `PlanSpace.lift(plan, height := 0.0) -> Vector3` is `(x, height, y) * RenderConfig.unit`, `plan_of(point) -> Vector2` and

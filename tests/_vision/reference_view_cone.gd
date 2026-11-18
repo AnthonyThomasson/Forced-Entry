@@ -4,8 +4,8 @@ extends RefCounted
 ## keeps nothing from one rebuild to the next, reads every shape and coverage anew each build and
 ## casts every ray plainly. Do not "fix" it: it is the yardstick (`docs/player-vision.md`, "Measured
 ## cost"). The game's cone follows `docs/player-vision.md` V1; this file is that rule in its
-## plainest form. The sight rule itself (`_hit`) is a copy of General's `SightRay.hit` (a cast that
-## goes on past each low piece in turn), so a change to `SightRay` does not move the yardstick.
+## plainest form. The sight rule itself (`_hit`) is a copy of General's `SightRay.plan_hit` (a cast
+## that goes on past each low piece in turn), so a change to `SightRay` does not move the yardstick.
 ##
 ## Vision domain: the exact polygon of what an eye sees (`docs/player-vision.md` V1). A point is
 ## seen when it is within the view distance, either inside the near bubble or inside the cone round
@@ -55,7 +55,7 @@ func rebuild(
 	_fov = deg_to_rad(float(sight["fov_degrees"]))
 	_reach = float(sight["view_distance"])
 	_near = float(sight["awareness_radius"])
-	_see_over = float(sight["see_over_coverage"])
+	_see_over = float(sight["eye_height"])
 	_shapes.see_over = _see_over
 	_shapes.reset()
 	var corners := _visible_corners(space, from, facing, exclude)
@@ -166,8 +166,8 @@ func _far_face(space: PhysicsDirectSpaceState2D, hit: Dictionary, dir: Vector2) 
 	return near + dir * minf(depth, VisionConfig.far_depth)
 
 
-## `SightRay.hit`'s loop: the first thing on the line from `from` to `to` too tall to look over,
-## casting again past each low one, or {} when the line reaches `to`.
+## `SightRay.plan_hit`'s loop: the first thing on the line from `from` to `to` too tall to look
+## over, casting again past each low one, or {} when the line reaches `to`.
 func _hit(
 	space: PhysicsDirectSpaceState2D,
 	from: Vector2,
@@ -181,7 +181,7 @@ func _hit(
 		_query.to = to
 		_query.exclude = skipped
 		var found := space.intersect_ray(_query)
-		if found.is_empty() or SightRay.coverage_of(found.get("collider")) > _see_over:
+		if found.is_empty() or SightRay.top_of(found.get("collider")) > _see_over:
 			return found
 		if not copied:
 			skipped = exclude.duplicate()

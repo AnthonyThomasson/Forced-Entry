@@ -39,8 +39,9 @@ extends Node3D
 ## knocked down); a rigid body's layer is read when it moves. So a reader in a frame's scripts
 ## finds a rigid body's twin exactly where the engine's step left it; a door or a character, which
 ## a script moves, is one frame behind where that script puts it (1/60 s), and a sleeping body a
-## script teleports up to `PARK_SPREAD` frames; a twin joins the frame after its body does. Jolt
-## takes a write at once.
+## script teleports up to `PARK_SPREAD` frames; a twin joins the frame after its body does. A
+## write is pushed to Jolt at once (`force_update_transform`: a `Node3D` would push it only at the
+## frame's end), so a ray after the write meets the new pose.
 ##
 ## **What a reader does.** `space()` / `space_of(node)` is the `PhysicsDirectSpaceState3D` to cast
 ## into; `owner_of(collider)` maps a hit twin (a result's `collider`) to the 2D body it stands for
@@ -56,6 +57,12 @@ const PRIORITY := -100
 const PARK_SPREAD := 4
 ## The meta a twin carries: the 2D body it stands for.
 const OWNER_META := &"twin_owner"
+## The meta a 2D body carries while it has a twin: the twin (`twin_for`).
+const TWIN_META := &"twin"
+
+## The twin spaces by the 2D direct space state (its instance id) of the world they stand beside:
+## what `space_for` reads, so a reader holding the 2D space the sim casts in finds the 3D one.
+static var _beside: Dictionary = {}
 
 ## The twin hook: `Callable(node: Node2D) -> Node3D`, one per domain's kinds. Set before `watch`.
 var builders: Array[Callable] = []
@@ -89,6 +96,11 @@ func _init() -> void:
 func _exit_tree() -> void:
 	if get_tree() != null and get_tree().node_added.is_connected(_on_node_added):
 		get_tree().node_added.disconnect(_on_node_added)
+	for id: int in _beside.keys():
+		var stands: Array = _beside[id]
+		stands.erase(self)
+		if stands.is_empty():
+			_beside.erase(id)
 
 
 func _physics_process(_delta: float) -> void:
@@ -109,6 +121,11 @@ func track_group(group: StringName, kind: Script = null) -> void:
 ## that join later.
 func watch(root: Node) -> void:
 	_root = root
+	var beside := root.get_viewport().find_world_2d().direct_space_state.get_instance_id()
+	if not _beside.has(beside):
+		_beside[beside] = []
+	if not self in _beside[beside]:
+		_beside[beside].append(self)
 	for group: StringName in _groups:
 		_scan_group(group)
 	for body: Node in root.find_children("*", "PhysicsBody2D", true, false):
@@ -155,12 +172,35 @@ static func space_of(node: Node) -> PhysicsDirectSpaceState3D:
 	return node.get_viewport().find_world_3d().direct_space_state
 
 
+## The 3D space of the twins standing beside the 2D direct `space` (the one the sim casts in): the
+## bridge a reader that still holds a 2D space uses to cast a 3D ray (`SightRay`), until the 2D
+## space is gone (ADR 0014). Null when no twin space stands beside it (a world built by hand, with
+## no twins: nothing there blocks a 3D line).
+static func space_for(space2d: PhysicsDirectSpaceState2D) -> PhysicsDirectSpaceState3D:
+	var stands: Array = _beside.get(space2d.get_instance_id(), [])
+	for stand: TwinSpace in stands:
+		if is_instance_valid(stand) and stand.is_inside_tree():
+			return stand.space()
+	return null
+
+
+## The twin of the 2D `body`, or null for a body with none (not twinned yet, or no domain builds
+## one): `twin_of` for a reader that holds no `TwinSpace`.
+static func twin_for(body: Object) -> Node3D:
+	if not body.has_meta(TWIN_META):
+		return null
+	var found: Variant = body.get_meta(TWIN_META)
+	return found as Node3D if is_instance_valid(found) else null
+
+
 ## The 2D body the twin `collider` (a ray or shape result's `collider`) stands for, or null for
 ## anything else (or a body already freed).
 static func owner_of(collider: Object) -> Node2D:
 	if collider == null or not is_instance_valid(collider):
 		return null
-	var found: Variant = collider.get_meta(OWNER_META, null)
+	if not collider.has_meta(OWNER_META):
+		return null
+	var found: Variant = collider.get_meta(OWNER_META)
 	return found as Node2D if is_instance_valid(found) else null
 
 
@@ -226,9 +266,11 @@ func _twin(node: Node2D) -> void:
 	if made == null:
 		return
 	made.set_meta(OWNER_META, node)
+	node.set_meta(TWIN_META, made)
 	var xf := node.global_transform
 	made.transform = PlanSpace.lift_transform(xf)
 	add_child(made)
+	made.force_update_transform()
 	var solid := made as CollisionObject3D
 	var row := {
 		"id": id, "body": node, "twin": made, "last": xf, "asleep": false, "active": true,
@@ -290,7 +332,9 @@ func _follow(row: Dictionary) -> bool:
 ## Write `xf` (the body's transform) to the row's twin.
 func _write(row: Dictionary, xf: Transform2D) -> void:
 	row["last"] = xf
-	(row["twin"] as Node3D).transform = PlanSpace.lift_transform(xf)
+	var twin := row["twin"] as Node3D
+	twin.transform = PlanSpace.lift_transform(xf)
+	twin.force_update_transform()  # a Node3D pushes its transform at the frame's end otherwise
 	written += 1
 
 
@@ -371,6 +415,8 @@ func _drop(row: Dictionary) -> void:
 		if changed.is_connected(wake):
 			changed.disconnect(wake)  # a body that comes back is twinned, and watched, anew
 	var twin: Variant = row["twin"]
+	if is_instance_valid(row["body"]):
+		(row["body"] as Node).remove_meta(TWIN_META)
 	if is_instance_valid(twin):
 		var solid := twin as CollisionObject3D
 		if solid != null:

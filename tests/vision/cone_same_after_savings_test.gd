@@ -62,10 +62,10 @@ const MOVING_STEPS := 24
 const MOVING_STEP := Vector2(9.0, -6.0)
 const SHOVE_AT := Vector2(450, 350)
 const SHOVE_EYES := [Vector2(150, 250), Vector2(620, 420)]
-## A character in the way: it blocks sight standing (coverage 60) and not crouched (35) for an eye
-## that looks over only what is lower than `Probe.LOOK_OVER_LOW`, so its posture changes the polygon
-## with no move of its own.
+## A kitchen counter in the way: a standing eye (69 px) looks over it (38 px) and a ducked one (32
+## px) does not, so the viewer's posture changes the polygon with no move of the world.
 const STANDER_AT := Vector2(400, 250)
+const DUCKED_EYE := 32.2
 const STANDER_EYES := [Vector2(150, 250), Vector2(150, 200), Vector2(250, 300)]
 ## At least this many rebuilds must be compared, or the test proves nothing.
 const MIN_HOUSE_PAIRS := 800
@@ -76,7 +76,7 @@ var _sight := {
 	"fov_degrees": Probe.FOV,
 	"view_distance": Probe.REACH,
 	"awareness_radius": Probe.BUBBLE,
-	"see_over_coverage": Probe.SEE_OVER,
+	"eye_height": Probe.SEE_OVER,
 }
 var _t: TestContext
 var _pairs := 0
@@ -164,7 +164,7 @@ func _compare_moving_pieces(t: TestContext) -> void:
 	setup.object(&"shoved", "wardrobe", SHOVE_AT, { "rotated": true })
 	setup.object(&"walk_cover", _anchored("wardrobe"), Vector2(600, 250), { "rotated": true })
 	setup.object(&"table", "coffee_table", Probe.TABLE_AT)
-	setup.actor(&"stander", &"puppet", STANDER_AT)
+	setup.object(&"counter", "kitchen_counter", STANDER_AT)
 	var world: Node2D = await Probe.build_world(t, setup)
 	var cone := Cone.new()
 	var plain := Reference.new()
@@ -194,7 +194,7 @@ func _compare_moving_pieces(t: TestContext) -> void:
 	await _compare_shove(t, [door, shoved], cone, plain)
 	await _compare_walk(t, world, cone, plain)
 	await _compare_moving_body(t, world, cone, plain)
-	await _compare_postures(t, world, cone, plain)
+	_compare_postures(t, world, cone, plain)
 	await Probe.drop_world(t, world)
 
 
@@ -432,27 +432,19 @@ func _memoed(cone: Cone) -> int:
 	return shapes.memoed()
 
 
-## A character stands, crouches and stands again in the way of eyes that look over only what is
-## lower than a standing body: its coverage changes with no move of its own.
-func _compare_postures(t: TestContext, world: Node2D, cone: Cone, plain: Reference) -> void:
-	var stander: Node2D = world.actors[&"stander"]
-	var low := _sight.duplicate()
-	low["see_over_coverage"] = Probe.LOOK_OVER_LOW
+## The viewer stands, ducks and stands again behind a counter: what its eye looks over changes with
+## no move of the world, and each cone equals the reference's.
+func _compare_postures(t: TestContext, _world: Node2D, cone: Cone, plain: Reference) -> void:
 	var seen: Array[PackedVector2Array] = []
-	for posture in [&"stand", &"crouch", &"stand", &"crouch"]:
-		# A change of posture waits out its cooldown: ask until the body holds it.
-		if not t.require(
-			await t.until(func(): return stander.movement.set_posture(posture), 2.0),
-			"the character takes the posture %s" % posture,
-		):
-			return
-		await t.frames(2)
+	for eye in [Probe.SEE_OVER, DUCKED_EYE, Probe.SEE_OVER, DUCKED_EYE]:
+		var sight := _sight.duplicate()
+		sight["eye_height"] = eye
 		for at: Vector2 in STANDER_EYES:
-			_compare(cone, plain, at, Vector2.RIGHT, low)
+			_compare(cone, plain, at, Vector2.RIGHT, sight)
 		seen.append(cone.cone.duplicate())
 	t.check(
 		seen[0] != seen[1] and seen[1] != seen[2],
-		"premise: the character's posture changes what the last eye sees",
+		"premise: the eye's posture changes what the last eye sees",
 	)
 
 

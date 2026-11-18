@@ -1,11 +1,11 @@
 extends RefCounted
 ## Vision domain: the blocking shapes round an eye, read from the physics space (a shape query on
 ## `PhysicsLayers.SOLID`, never a walk of the scene tree). A shape blocks sight when its piece's
-## `coverage` is above the viewer's `see_over` (walls, tall furniture); lower furniture is seen
-## over. Each shape a ray hits is turned into its world-space convex polygon, which gives the
-## corners where the cone's boundary can jump and the point a ray through that one shape leaves it
-## (a `Wall` is one body of many segment shapes: only the shape the ray hit counts). What it read is
-## kept for one build (`reset`): the world moves between frames.
+## top (`SightRay.top_of`) is above the viewer's `see_over`, its eye height (walls, tall furniture);
+## lower furniture is seen over. Each shape a ray hits is turned into its world-space convex
+## polygon, which gives the corners where the cone's boundary can jump and the point a ray through
+## that one shape leaves it (a `Wall` is one body of many segment shapes: only the shape the ray hit
+## counts). What it read is kept for one build (`reset`): the world moves between frames.
 
 ## The sides a circle shape is cut into.
 const CIRCLE_SIDES := 16
@@ -18,19 +18,17 @@ const PROBE_RESULTS := 32
 const FIRST_RESULTS := 512
 const GROWTH := 4
 
-## The coverage a shape must be above to block sight, set by the cone for each build.
-var see_over := 60.0
+## The height (px) a shape must be above to block sight: the viewer's eye, set by the cone for each
+## build.
+var see_over := BodyHeights.eye(BodyHeights.STAND)
 var _circle := CircleShape2D.new()
 var _region := ConvexPolygonShape2D.new()
 var _query := PhysicsShapeQueryParameters2D.new()
 var _probe := PhysicsPointQueryParameters2D.new()
-## The coverage of every collider whose coverage is fixed, by instance id: kept from build to build
-## and handed to `SightRay` (its `rated`) so a ray that meets one does not ask it again. A collider
-## leaves it when it leaves the tree.
+## The top of every collider, by instance id: kept from build to build and handed to `SightRay`
+## (its `rated`) so a ray that meets one does not ask it again. A collider leaves it when it leaves
+## the tree.
 var _rated := {}
-## The coverage of the colliders whose coverage changes (a character's follows its posture), by
-## instance id, read once per build.
-var _coverage := {}
 ## The world polygon of a non-character shape, by collider instance id then shape index. Each entry
 ## holds the transform and shape resource it was made from; a move or replacement is read at lookup,
 ## and a body's shape-change signals clear the cache. Characters' posture and movement are read
@@ -64,7 +62,6 @@ func _init() -> void:
 ## Forget what the last build read.
 func reset() -> void:
 	_memo.clear()
-	_coverage.clear()
 	_lows.clear()
 	_low_seen.clear()
 
@@ -99,7 +96,7 @@ func corners(
 	var seen := {}
 	var found: Array = []
 	for hit in _shapes_in_reach(space):
-		if _coverage_of(hit["collider"]) <= see_over:
+		if _top_of(hit["collider"]) <= see_over:
 			_note_low(hit)
 			continue
 		for point in polygon_of(hit["collider"], hit["shape"]):
@@ -241,7 +238,7 @@ func far_exit(space: PhysicsDirectSpaceState2D, hit: Dictionary, dir: Vector2) -
 	var polygons: Array = []
 	_probe.position = origin + dir * PROBE
 	for found in space.intersect_point(_probe, PROBE_RESULTS):
-		if _coverage_of(found["collider"]) > see_over:
+		if _top_of(found["collider"]) > see_over:
 			polygons.append(polygon_of(found["collider"], found["shape"]))
 	var farthest := -INF
 	for polygon: PackedVector2Array in polygons:
@@ -272,27 +269,24 @@ func _signed_area(polygon: PackedVector2Array) -> float:
 	return area
 
 
-## The coverage of every collider whose coverage is fixed, by instance id (`SightRay.rated`).
+## The top of every collider, by instance id (`SightRay.rated`).
 func rated() -> Dictionary:
 	return _rated
 
 
-## The coverage of a collider (`SightRay.coverage_of`). A character's follows its posture, so it is
-## read once per build; every other piece rates the same number for as long as it lives, so it is
-## read once and kept until it leaves the tree.
-func _coverage_of(collider: Object) -> float:
+## The top of a collider (`SightRay.top_of`). It is the same for as long as the collider lives (a
+## character's is 0), so it is read once and kept until the collider leaves the tree; one with no
+## twin (yet) blocks like a wall and is asked again.
+func _top_of(collider: Object) -> float:
 	var id := collider.get_instance_id()
 	if _rated.has(id):
 		return _rated[id]
-	if _coverage.has(id):
-		return _coverage[id]
-	var covers := SightRay.coverage_of(collider)
-	if collider is CharacterBody2D:
-		_coverage[id] = covers
-	else:
-		_rated[id] = covers
-		(collider as Node).tree_exiting.connect(_forget.bind(id), CONNECT_ONE_SHOT)
-	return covers
+	var top := SightRay.top_of(collider)
+	if top == INF:
+		return top  # no twin yet (a body twins a frame after it joins): asked again, not kept
+	_rated[id] = top
+	(collider as Node).tree_exiting.connect(_forget.bind(id), CONNECT_ONE_SHOT)
+	return top
 
 
 ## Drop what is kept of the collider `id` (it left the tree).

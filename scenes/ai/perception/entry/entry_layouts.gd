@@ -60,7 +60,7 @@ func tuning_inputs(entry: AgentEntry) -> Array:
 	]
 	out.append_array([
 		entry.vision.enabled, entry.vision.view_distance, entry.vision.fov_degrees,
-		entry.vision.awareness_radius, entry.vision.see_over_coverage,
+		entry.vision.awareness_radius,
 	])
 	return out
 

@@ -32,7 +32,7 @@ var _sight := {
 	"fov_degrees": Probe.FOV,
 	"view_distance": Probe.REACH,
 	"awareness_radius": Probe.BUBBLE,
-	"see_over_coverage": Probe.SEE_OVER,
+	"eye_height": Probe.SEE_OVER,
 }
 var _t: TestContext
 var _reads := 0

@@ -29,6 +29,40 @@ static func lift_body(body: Node2D, twin: CollisionObject3D, base: float, top: f
 	return added
 
 
+## The height (px above the floor) of the highest point of `twin`'s shapes: its top, read once and
+## kept on the twin (a twin's shapes are built once). 0 for a twin with none.
+static func top_of(twin: Node3D) -> float:
+	if twin.has_meta(&"top"):
+		return twin.get_meta(&"top")
+	var top := 0.0
+	var shaped := false
+	for child in twin.get_children():
+		if child is CollisionShape3D and (child as CollisionShape3D).shape != null:
+			var holder := child as CollisionShape3D
+			top = maxf(top, _top_of_shape(holder.shape, holder.position.y))
+			shaped = true
+	top /= RenderConfig.unit
+	if shaped:
+		twin.set_meta(&"top", top)  # a twin with no shapes yet is asked again
+	return top
+
+
+## The height of the highest point of `shape` whose centre stands `centre` up.
+static func _top_of_shape(shape: Shape3D, centre: float) -> float:
+	if shape is BoxShape3D:
+		return centre + (shape as BoxShape3D).size.y * 0.5
+	if shape is CylinderShape3D:
+		return centre + (shape as CylinderShape3D).height * 0.5
+	if shape is CapsuleShape3D:
+		return centre + (shape as CapsuleShape3D).height * 0.5
+	var top := centre
+	if shape is ConvexPolygonShape3D:
+		top = -INF
+		for point in (shape as ConvexPolygonShape3D).points:
+			top = maxf(top, centre + point.y)
+	return top
+
+
 ## `shape`, placed by `local` in its body's frame, lifted from `base` to `top` px: a
 ## `CollisionShape3D` in the body's frame, or null for a shape with no footprint.
 static func lift(shape: Shape2D, local: Transform2D, base: float, top: float) -> CollisionShape3D:

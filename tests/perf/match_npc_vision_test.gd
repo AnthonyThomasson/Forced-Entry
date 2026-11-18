@@ -29,10 +29,13 @@ extends GameTest
 ## beside the first, second, third, fourth, sixth or eighth the viewed invader is shot dead;
 ## beside the fifth and the ninth it lives but never fights (retreat, evade and investigate acts,
 ## never nearer than 255 px to a defender); beside the seventh the sides make no contact in 30 s.
-## Beside the fourth, 40 px west, it lives through the window (health 26.7 of 50), engages in 243
-## of the 300 frames (`engage/fire_east`, then `advance`), knows a hostile in all of them and
-## comes within 97 px of a defender; contact is at 8.2 s, the window 8.2 to 13.2 s. So it stands
-## `BESIDE` the invader `BESIDE_INVADER` of the match. Only where it stands is set here: the seed,
+## Beside the fourth, 40 px west, it lived through the window (health 26.7 of 50), engaged in 243
+## of the 300 frames (`engage/fire_east`, then `advance`), knew a hostile in all of them and came
+## within 97 px of a defender; contact was at 8.2 s, the window 8.2 to 13.2 s. Sight by real heights
+## (#194, eye rays from the postures' eyes) changed the fight: beside the fourth it is shot dead
+## now, and beside the first, 40 px west, it lives (full health), holds, moves, enters and engages.
+## So it stands `BESIDE` the invader `BESIDE_INVADER` of the match. Only where it stands is set
+## here: the seed,
 ## `Perf.configure_match` and the budgets are those of every match guard.
 ## Three `--quiet` runs (load 3.7 to 4.4): avg 20.06, 20.06 and 20.11, p95 26.73, 26.74 and 26.62,
 ## max 33.86, 32.71 and 33.14 ms. The budgets stay red (accepted, #223).
@@ -44,8 +47,8 @@ const MEASURE_FRAMES := 300
 const NODE_GROWTH := 5000
 ## The viewed invader stands this far (px) beside the invader `BESIDE_INVADER` of the match.
 const BESIDE := Vector2(-40.0, 0.0)
-## Which of the match's nine invaders (spawn order, from 0) it stands beside: the fourth.
-const BESIDE_INVADER := 3
+## Which of the match's nine invaders (spawn order, from 0) it stands beside: the first.
+const BESIDE_INVADER := 0
 
 
 func describe() -> Dictionary:

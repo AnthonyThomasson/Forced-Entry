@@ -46,7 +46,7 @@ func run(t: TestContext) -> void:
 		"fov_degrees": Probe.FOV,
 		"view_distance": Probe.REACH,
 		"awareness_radius": Probe.BUBBLE,
-		"see_over_coverage": Probe.SEE_OVER,
+		"eye_height": Probe.SEE_OVER,
 	}
 	var short := EYE + (TIP - EYE) * ((EYE.distance_to(TIP) - 1.0) / EYE.distance_to(TIP))
 	t.require(

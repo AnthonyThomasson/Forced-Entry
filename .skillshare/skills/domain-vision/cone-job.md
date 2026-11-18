@@ -22,7 +22,7 @@ step cuts only between those items, so it may spend a little over its units, alw
 not depend on the slice (`vision/cone_sliced_matches_whole`: 1, 7, 64 and the default `slice_units` equal `rebuild` exactly).
 
 **State.** What every ray reads is a member of `ViewCone` (`_space`, `_from`, `_reach`, `_near`, `_fov`, `_fan_hide`: a member is
-the cheapest read, and the stage loops are the cone's cost); the stage, next item, work, facing, exclude list and coverage are
+the cheapest read, and the stage loops are the cone's cost); the stage, next item, work, facing, exclude list and eye height (`see_over`) are
 in `_job` (`ViewConeJob`); the data of the job is in `_build` (`ViewConeBuffer`). **Double-buffered:** the job builds in
 `_build` and `_finish` swaps `cone`, `bubble`, `eye`, `corner_rays`, `corners_read` in together, so a reader never sees half a
 job. Keep the stage loops free of per-item calls and property reads of other objects: the sliced cone costs under 2 % more than
@@ -48,8 +48,7 @@ whether a cone was published in it, and then the view writes `SeenArea`.
 - The sector `ViewWatch` measures "within reach" by stays the job's pose during a job (a blocker moving near the live eye only is
   not a change to the job), and is set again at each begin. A blocker moved after a job began is seen at the next tick's
   `world_changed`, before its slice, so a slice never reads a world the check has seen change.
-- A standing character anywhere in the tree whose coverage is above the viewer's `see_over` makes every tick a restart (a whole build
-  every 4th frame): `_blocking_now` is not limited to reach. The default sight (60) never triggers it.
+- A character never blocks the cone (`SightRay.top_of` is 0), so one moving costs no restart; the viewer ducking or standing changes the eye height and rebuilds the cone.
 - **Tests:** a job is a few frames only when the slice is small: a test that needs a lag, a restart or a cap sets
   `VisionSliceConfig.slice_units` and `cost_shape` (140 for both makes the test houses' jobs three frames, `vision/pose_lag_bounds`,
   `vision/cone_restarts_on_world_change`, `vision/cone_skip_exact_sliced`, `vision/half_job_dropped`), and one that reads the cone of a pose waits for it

@@ -160,7 +160,7 @@ func _apply_senses(npc_tuning: NpcTuning) -> void:
 	sight.vision.view_distance = npc_tuning.senses.view_distance
 	sight.vision.fov_degrees = npc_tuning.senses.fov_degrees
 	sight.vision.awareness_radius = npc_tuning.senses.awareness_radius
-	sight.vision.see_over_coverage = npc_tuning.senses.see_over_coverage
+	sight.vision.viewer = _character
 	contacts.hostility.on_sight = npc_tuning.hostility.on_sight
 	contacts.hostility.trespass = npc_tuning.hostility.on_trespass
 	contacts.hostility.retaliate = npc_tuning.hostility.on_attack

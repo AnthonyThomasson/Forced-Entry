@@ -104,7 +104,6 @@ Tests: `posture_in_von_state`.
 
 ## Not modelled
 
-Sight does not depend on posture yet: a low body is seen exactly as a standing one (`see_over_coverage` is 60; the sight job
-moves it onto real eye heights). A long gun against low furniture raises as it does standing. A crouched shooter always fires from the
+A long gun against low furniture raises as it does standing. A crouched shooter always fires from the
 fire-over muzzle: rising to fire only when its line is blocked, and exposing itself while it does, is a later rule. The AI's cover
 picking and entry posts still read the catalogue's 0 to 100 `coverage`. Tests: `muzzle_height_by_posture`.

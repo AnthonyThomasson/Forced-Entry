@@ -34,7 +34,7 @@ moves it asleep), a body that never moves is written once (one frozen at twin ti
 frame with the dirty check, 0.32 without; the whole frame rises by 0.15 ms. The sync runs before every body's own `_physics_process`
 (priority -100), after the engine's step has flushed the bodies it moves, so a bullet or a sight line in the frame's scripts finds
 a rigid body's twin exactly where the 2D space has it; a door or a character, which a script moves, is a frame behind where that script puts it
-(1/60 s). Jolt applies a write at once, kinematic (`sync_to_physics` off) or static, as the spike's ray test showed; Objects' twins are static bodies
+(1/60 s). A write is pushed to Jolt at once (`force_update_transform` on the twin: a `Node3D` would push its transform only at the frame's end, and a ray in the frame of the write would still meet the pose before it, #194 sight3d), kinematic or static alike; Objects' twins are static bodies
 written when their body moves, so Jolt's step carries no always-active body for each of a district's hundreds of pieces and doors.
 
 **Jolt.** The engine is Jolt (`physics/3d/physics_engine`, chosen at the phase-1 gate): it settles a tipped furniture pile (all asleep
@@ -70,3 +70,6 @@ the alternative, a global `Vector2` to `Vector3` sweep, would have touched every
   stand at their standard.
 - A later job that reads a twin maps its collider back to the 2D body with `TwinSpace.owner_of` and calls that body's `get_surface()`; a job
   that flips a class to a 3D body replaces that class's builder and keeps a footprint twin for the readers still in 2D.
+- Until the 2D space is gone, a reader that holds only the 2D direct space the sim casts in (the NPCs' sight, `AgentVision`) finds the 3D space
+  beside it with `TwinSpace.space_for(space2d)`, a registry keyed by the 2D direct state's instance id (#194 sight3d). A world with no twin space
+  (a hand-built test world) answers null and the caller treats nothing as blocking; two worlds in one window share one 3D space.

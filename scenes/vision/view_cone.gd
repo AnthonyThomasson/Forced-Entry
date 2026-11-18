@@ -63,7 +63,7 @@ var _near := 0.0
 var _fov := 0.0
 var _fan_hide := PackedFloat64Array()
 var _shapes := Shapes.new()
-## The sight rule (`SightRay`), asked with the coverage the shapes already know and with the low
+## The sight rule (`SightRay`), asked with the tops the shapes already know and with the low
 ## pieces in reach left out.
 var _ray := SightRay.new()
 ## The job in flight (inputs and progress) and what it holds and builds (the back buffer).
@@ -104,7 +104,7 @@ func begin(
 	_reach = float(sight["view_distance"])
 	_near = float(sight["awareness_radius"])
 	_fov = deg_to_rad(float(sight["fov_degrees"]))
-	_job.start(facing, exclude, float(sight["see_over_coverage"]))
+	_job.start(facing, exclude, float(sight["eye_height"]))
 	_build.clear()
 	_fan_hide = PackedFloat64Array()
 	_shapes.see_over = _job.see_over

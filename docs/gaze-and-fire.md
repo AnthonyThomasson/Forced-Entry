@@ -16,6 +16,10 @@ A *threat* is a hostile contact (`Watch._pick_threat`): the one it is fighting i
 else the one it is fighting as last seen, else the nearest it saw within `tuning.watch.lost_gaze` s. A contact it cannot see only
 counts while it has a clear line to where it was last seen (it does not stare at a wall because someone is behind it).
 
+*Can see* is the eye ray of `docs/player-vision.md` V2 (#194 D9): a 3D line from the NPC's eye, at the height of its posture, to the head,
+chest or hips of the other body at that body's posture, clear for any one. A standing NPC looks over a table and sees a standing body behind
+a sofa but not one ducked right behind it; a ducked NPC cannot look over a counter. A body in the way hides nothing.
+
 ## Behaviours
 
 **W1. A threat holds the eyes.** Whatever the primitive is doing (a move, a search covering a room, a hold, a reload, an

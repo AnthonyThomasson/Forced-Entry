@@ -31,10 +31,13 @@ round its facing and the bubble round it); the **memory** is where the viewer ha
 ## Behaviours
 
 **V1. The cone.** The human sees what the NPCs see, by their default numbers: a 110° cone round its `facing` out to 2520, a 48
-bubble all round, and a line of sight on `PhysicsLayers.SOLID` that walls and pieces of `coverage` above 60 break and lower
-pieces (tables, beds, counters) do not. The numbers are a Character holder's (`CharacterVisionConfig`, read through
-`character.sight()`; the native suite `character/character_vision_config_suite` holds them to the spec and equal to the NPCs'
-default `NpcSensesTuning`), so any character carries the same view. The cone is exact at corners: nothing behind a wall corner
+bubble all round, and a line of sight over real heights: the cone stays a floor-plan polygon, but only a piece whose twin top
+(`TwinSpace`, interface 29: a wall 96 px, a wardrobe 90 or more, a counter 38, a table 31) is above the viewer's **eye** breaks it; a
+lower piece is looked over. The eye is the height of the posture the viewer is in (`BodyHeights.eye`, 1.64 m at 42.3 px a metre:
+standing 69 px, ducked 32 px), so ducking behind a counter closes the cone behind it and standing opens it again; a car (its belt, 47 px; a van's 56) is looked over by a standing player and blocks a ducked one, as a counter does; a character is
+looked over at any height, as it always was (a body does not hide what lies behind it from the cone). The numbers are a Character holder's (`CharacterVisionConfig`, read through
+`character.sight()`, which adds `eye_height`, the eye of the posture it is in; the native suite `character/character_vision_config_suite`
+holds the three numbers to the spec and equal to the NPCs' default `NpcSensesTuning`), so any character carries the same view. The cone is exact at corners: nothing behind a wall corner
 or a doorway's end is in it. A wall or tall piece that is seen shows its top: the cone reaches the far face of the shapes the
 ray met. It is complete however many blockers are in reach (the shape query is asked again with more room while it comes back
 full, so no cap drops one). Doors (`docs/doors.md`) follow the same rule: a shut solid door blocks, a glass-panel door
@@ -57,14 +60,14 @@ rays begin the next tick: a start tick is about 2 ms, not 6 to 7, and a job is t
 ticks, a 10v10 district's three for most eyes). What the viewer's pose does meanwhile is not asked: **a change of
 the eye or the facing alone lets the job finish on the pose it started from**, and the next job starts from the live pose. **A change
 of the world between slices restarts the job from the live pose** (a blocker within reach moved, changed shape, joined or left, a
-character that blocks, a changed sight number or cone tuning, and the frame after a job began while a blocker within reach moved,
+changed sight number, the eye's height included, or cone tuning, and the frame after a job began while a blocker within reach moved,
 which a query that frame may have read where it was): the readers keep the last cone published until a job completes. After
 `VisionSliceConfig.restart_cap` (2) restarts in a row, since the last publish, the next restart is built whole in that frame; so is the
 first cone of a view, and the cone for **an eye that jumped** past `jump_px` (48) from the pose of the cone published (a
 teleport, a vehicle), checked every tick: the cone shown is never more than that far behind. A lift (V9) drops a half job with the view. The old pose lag
 (`rebuild_gap`, an eye 5 px or a facing 1 degree off waiting a frame) is gone: the job's length is the lag. A mover entering or leaving
 the seen area (V11) shows when the next cone publishes.
-Tests: `vision/pose_lag_bounds` (the pipeline: a job of 3 slices is published a cone at most 4 frames old, a job of 6 ticks one at most 10 frames old, and of a pose the viewer stood at, a pose change alone restarts nothing, an eye jump of 60 px and a blocking character's every-frame change are built whole, the seen mask draws only published cones), `vision/cone_restarts_on_world_change` (a wardrobe moved or a solid joined between two slices restarts the job and the cone published is the reference cone of the world after, not of the one the job began on or a mix; a wardrobe moved every frame is built whole after two restarts, at least every fourth frame, of the live pose),  `vision/half_job_dropped` (the viewer killed, or the view disabled, with a job in flight: the job is dropped, the seen area cleared and not written by it again, and a view enabled again builds its first cone whole), `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
+Tests: `vision/pose_lag_bounds` (the pipeline: a job of 3 slices is published a cone at most 4 frames old, a job of 6 ticks one at most 10 frames old, and of a pose the viewer stood at, a pose change alone restarts nothing, an eye jump of 60 px and a blocker that moves in every frame are built whole, the seen mask draws only published cones), `vision/cone_restarts_on_world_change` (a wardrobe moved or a solid joined between two slices restarts the job and the cone published is the reference cone of the world after, not of the one the job began on or a mix; a wardrobe moved every frame is built whole after two restarts, at least every fourth frame, of the live pose),  `vision/half_job_dropped` (the viewer killed, or the view disabled, with a job in flight: the job is dropped, the seen area cleared and not written by it again, and a view enabled again builds its first cone whole), `vision/cone_follows_sight` (two rooms joined by a doorway, a wardrobe and a table, the eye turned: points over
 the table and inside the cone are in the polygon; points behind the wardrobe, beyond the wall, behind the eye past 48 are not;
 points within 48 behind it are), `vision/cone_exact_at_corners` (eyes near the room corners and the doorway's ends, facing along
 and across the walls: no sampled point behind a corner is inside the polygon and every sampled point the eye sees is; a seen
@@ -74,7 +77,7 @@ cone, the plainest form of the cone, vertex for vertex, over a grid of eyes and 
 shove and a freed piece move through it), `vision/fan_hide_margin_keeps_grazing_corner` (a shelf's tip a hair off a fan ray whose hit the engine
 reports 0.02 px off the shelf is cast: the fan calls a corner hidden only when the two rays either side of it met one convex shape nearer
 than the corner and the corner is more than a quarter pixel, at its own distance, from either ray), `vision/cone_skip_exact` and `vision/cone_skip_exact_sliced` (the same run with the job cut into 90-unit slices) (a still then a turning viewer through a dent, a shove, a
-door's swing, panes shattered, a door knocked down, a piece added and freed, a posture change and a death: every cone published equals a fresh rebuild's from the pose it is of (`PlayerView.published_pose()`), vertex for vertex, the cone held between two publishes is the one before, and a view settled on the viewer's pose shows the live pose's; a still viewer starts far fewer jobs than there are frames and never goes more than
+door's swing, panes shattered, a door knocked down, a piece added and freed, and the viewer's posture changing what it looks over: every cone published equals a fresh rebuild's from the pose it is of (`PlayerView.published_pose()`), vertex for vertex, the cone held between two publishes is the one before, and a view settled on the viewer's pose shows the live pose's; a still viewer starts far fewer jobs than there are frames and never goes more than
 `rebuild_every` frames without starting one). `vision/cone_follows_sight` also hangs three doors in the wall the rooms share, and
 the eye stands before each in turn: the point beyond a shut solid door and one beyond a shut hollow door are not in the polygon,
 the point beyond a shut glass-panel door is, the solid door swung open shows the point through its gap and hides it again shut,
@@ -89,17 +92,35 @@ blockers within reach, by the view distance and each solid's own extent. The nat
 cost (a blocker that moves is not measured again, only one whose shapes come or go), the largest absolute scale of a shape or a
 body, and a body that moves out of the reach as well as into it.
 
-**V2. One sight rule.** The look-over-low-furniture ray is one rule in General (`SightRay`, interface 11), used by the NPCs'
-sight (`AgentVision.sight_hit` delegates to it) and by the view; a `transparent` surface (a glass-panel door) is looked through
-however tall, and a collider that cannot say its coverage blocks like a wall. The NPCs see exactly as they did before it moved.
-Tests: `general/sight_ray_suite` (native: the rule over a built space: a wall, a table, a piece at and just over the limit, a
-body that cannot say its height, a `transparent` piece looked through however tall and its coverage read as 0, the caller's
-exclude list left alone) and every `ai` vision test unchanged
-(`tools/run_tests.sh --domain=ai`; `objects/door_blocks`).
+**V2. One sight rule.** Sight is geometry, one rule in General (`SightRay`, interface 11), in two forms of the same height test, and a
+body's posture sets its heights (#194 D9). **The NPCs' sight** (`AgentVision`) is a 3D eye ray in the twin space: from the viewer's eye
+(its posture's, `BodyHeights.eye`) to a few points on the target (head, chest and hips at the target's posture, `BodyHeights.sight_points`),
+seen if any one is clear, the head tried first (the first clear point ends the ask). Walls, doors, furniture and vehicles block it where
+they stand, at the height they stand: a standing NPC (eye 69 px) looks over a table (31 px) and sees a standing body close behind a sofa
+(back 38 px), a ducked body (head 32 px, chest 24, hips 18) right behind that sofa is hidden from it, and a ducked NPC (eye 32 px) cannot
+look over a counter (38 px) at all; a car (47 px) is looked over standing and blocks ducked, the same; bodies never block, so a character in the way hides nothing; a `transparent` surface (a glass-panel
+door) is looked through however tall. A body in the open is seen from anywhere its lines are clear, so a ducked one far behind cover is
+seen over it (the eye looks down). The query behind it is public (`SightRay.visible_parts(viewer, target)`: the heights of the target's
+points the viewer's eye sees, and `visible_centre`: the middle of them, -1 when none: what an aim at the visible part reads). **The
+view** casts the same rule on the plan (`SightRay.plan_hit`, `top_of`): V1. A world with no twin space blocks nothing in the eye ray and
+everything with no twin in the plan cast. Tests: `general/sight_ray_suite` (native: the plan cast over a built twin space: a wall, a
+table, a piece just under and just over the eye, a body with no twin, a `transparent` piece, a character, the caller's exclude list left
+alone) and `general/sight_ray_eye_suite` (native: the eye ray: a wall at any height, a table over and under, the floor behind it, the
+points of a body, a pane, the twins left out), `ai/perception/sight_height_by_posture` (a standing NPC sees over a table and sees a
+standing body behind a sofa but not a ducked one; a ducked NPC cannot see over a counter and sees again standing),
+`general/sight_visible_parts` (a ducked body shows none, one, two, three of its points as it stands further behind a counter; a standing
+one in the open all three), `ai/perception/sight_follows_a_moving_target` and every `ai` vision test (`tools/run_tests.sh --domain=ai`;
+`objects/door_blocks`).
 
-**V3. Inside the cone** the world is seen as it is, lit and drawn live, characters and all. A thing that moves and is cut by the
+**V3. Inside the cone** the world is seen as it is, lit and drawn live, characters and all, with one rule for a living character: it is
+drawn only if one of its body points (head, chest, hips at its posture) is clear from the viewer's eye (`SeenArea.hides`, asked by Art's
+mirror of a character the cone reaches), so a ducked enemy behind a sofa stays hidden though the cone covers the ground it stands on, and is
+drawn again as it stands; a corpse, an item and a car follow the cone alone. A thing that moves and is cut by the
 cone's edge is cut per pixel (the shader reads the live mask, which is feathered at its edge: V12). Tests: `vision/memory_follows_cone`
-(the live window and its blur), `vision/vision_mask_3d_windowed` (a mover on the edge: some of it drawn on the lit side and none beyond the cut).
+(the live window and its blur), `vision/vision_mask_3d_windowed` (a mover on the edge: some of it drawn on the lit side and none beyond the cut),
+`vision/ducked_enemy_behind_sofa_not_drawn` (a standing enemy behind a sofa in the cone is drawn, a ducked one not, a ducked one in the
+open is, and it is drawn again as it stands) and `vision/cone_height_by_posture` (standing, the cone passes over a counter, a car and a coffee
+table and stops at a wardrobe; ducked, it stops at the counter and the car and passes over the coffee table; standing again reopens it).
 
 **V4. Outside the cone** each place is drawn **as the human last saw it**, the memory, in the picked look: greyscale (`grey`
 1.0), contrast 0.9 about 0.3, brightness 0.55, tint (0.88, 0.96, 1.12), "Darkwood cool". A place never seen is **black**. The edge
@@ -253,15 +274,15 @@ a pixel apart are one, the lesser (x, then y) standing for them. Without both, a
 transform or collision layer of any blocker where a ray can pass (within the view distance of the eye and in the cone's sector or the bubble, each grown by the blocker's own extent, kept from the time its
 shapes came or went, and 2 px: `vision/cone_ignores_solids_outside_its_sector`), each frame, and once more the frame after a rebuild made while one moved (a query in the frame a body moved
 can read it where it was); by signal a blocker's shapes coming or going, its leaving the tree, a door's `changed`; a collider that
-entered the tree; a character that blocks (its posture covers more than the viewer looks over, so it
-may move, turn its shape off or die in any frame: the cone is rebuilt every such frame and the one after); and
-`rebuild_every` frames since the last. A low piece is looked over, so it is in no ray and is not watched. A piece's coverage and a
-door's `transparent` are read once and kept: a piece's coverage is set once in `ObjectFactory`, a door's is always 100 and its
-`transparent` is fixed at spawn (a shatter changes only the look's `broken`); a character's coverage follows its posture and is
-read each build. **`ViewWatch` does not watch either**, though the rebuild
-rule as first written lists a changed `coverage` or `transparent` among its triggers: Objects promises that neither changes in play
-(interface 03). Should one ever change, the cone is stale until the next rebuild, at most `rebuild_every` (10) frames later, the
-backstop that bounds it; a feature that makes one change must tell `ViewShapes` and `ViewWatch`.
+entered the tree; the viewer's eye height (it ducks or stands: every collider is sorted again by it, the lows and the blockers); and
+`rebuild_every` frames since the last. A low piece is looked over, so it is in no ray and is not watched; a character is looked over at any
+height, so it is never watched and costs no rebuild however it moves. A piece's top (its twin's, `TwinShapes.top_of`, kept on the twin)
+and a door's `transparent` are read once and kept (a piece with no twin yet blocks like a wall and is asked again, a body twins a frame
+after it joins): a piece's top is set once from its mesh's real size (`PieceHeights`), a door's is always 84 and its
+`transparent` is fixed at spawn (a shatter changes only the look's `broken`). **`ViewWatch` does not watch either**, though the rebuild
+rule as first written lists a changed top or `transparent` among its triggers: Objects promises that neither changes in play
+(interface 03). Should one ever change (a tipped piece, #194 D14), the cone is stale until the next rebuild, at most `rebuild_every` (10)
+frames later, the backstop that bounds it; a feature that makes one change must tell `ViewShapes` and `ViewWatch`.
 
 ## Tunables
 
@@ -269,8 +290,8 @@ backstop that bounds it; a feature that makes one change must tell `ViewShapes` 
 `feather` 16; `cone_rays` 64, `bubble_rays` 48, `corner_offset` 0.0002 rad; `far_depth` 120, `far_bleed` 14;
 `rebuild_every` 10. `VisionGroundConfig` (the masks, V12): `live_side` 768, `window_margin` 1.25, `window_slack` 1.8,
 `seen_scale` 0.5, `seen_max_side` 2048, `unseen_brightness` 0, `settle_frames` 2. `VisionSliceConfig`: `slice_units` 450 (about 3.5 ms of engine work a physics tick; a unit is a ray cast, a region shape
-query or a far-face probe, priced `cost_cast` 1, `cost_shape` 450 and `cost_probe` 1: the corners fill a slice), `restart_cap` 2, `jump_px` 48. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48,
-`see_over_coverage` 60. The reach of a mover hidden by the view is `MirrorVisionConfig`'s (`moving_reach` 60, `vehicle_reach` 130). The look and the 16 px edge were picked by eye,
+query or a far-face probe, priced `cost_cast` 1, `cost_shape` 450 and `cost_probe` 1: the corners fill a slice), `restart_cap` 2, `jump_px` 48. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48 (what the eye looks over is `BodyHeights.eye` of its
+posture, 69 px standing and 32 px ducked, no number of its own). The reach of a mover hidden by the view is `MirrorVisionConfig`'s (`moving_reach` 60, `vehicle_reach` 130). The look and the 16 px edge were picked by eye,
 against a flat 45 % grey (too dark and flat), a full-brightness grey (too close to the live world), a hard edge (a harsh line) and
 a 40 px feather (it smears the cone).
 Tests: `vision/pose_lag_bounds` (`slice_units`, `jump_px`), `vision/cone_restarts_on_world_change` (`restart_cap`), `vision/cone_skip_exact` (`rebuild_every`).

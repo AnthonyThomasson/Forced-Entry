@@ -26,7 +26,7 @@ func _sight() -> Dictionary:
 		"fov_degrees": 110.0,
 		"view_distance": REACH,
 		"awareness_radius": 48.0,
-		"see_over_coverage": 60.0,
+		"eye_height": 69.4,
 	}
 
 
@@ -231,3 +231,18 @@ func test_a_job_in_flight_is_held_to_the_pose_it_began_from() -> void:
 	var behind := _solid(Vector2(-1200.0, 0.0))
 	behind.position += Vector2(0.0, 5.0)
 	assert_bool(_changed(watch)).is_false()
+
+
+## A body gives its twin a frame after it joins: until then it has no height and blocks like a wall,
+## and the watch sorts it again when the twin comes (a low piece stops being a blocker).
+func test_a_body_whose_twin_comes_later_is_sorted_again() -> void:
+	var watch := _watch()
+	var piece := _solid(Vector2(300.0, 0.0))
+	_settled(watch)
+	assert_int(_creep(watch, piece)).is_equal(FRAMES)  # no twin yet: a wall's worth
+	var twin: Node3D = auto_free(Node3D.new())
+	twin.add_child(TwinShapes.box(Rect2(-7.0, -30.0, 14.0, 60.0), Transform2D.IDENTITY, 0.0, 20.0))
+	piece.set_meta(TwinSpace.TWIN_META, twin)
+	_settled(watch)
+	var backstops := ceili(float(FRAMES) / VisionConfig.rebuild_every)
+	assert_int(_creep(watch, piece)).is_less_equal(backstops + 1)
