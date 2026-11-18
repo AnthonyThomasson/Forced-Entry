@@ -47,6 +47,12 @@ extends GameTest
 ## fight's (the viewer's cone rebuilds as it moves), within the spread this guard has had (p95 23 to
 ## 28, max 35 to 41 ms), not a cost of the cover rule: the 10v10 and 5v5 stress guards, whose fights
 ## the same change leaves alike, moved -2.0% and -2.1% avg.
+## Real-height fragments and escape judgments (#194, frags3d), `perf_ab.sh --different-fights`, six
+## rounds: this fight is the same on both revisions, avg 17.13 / 17.19 ms (+0.3%), p95 23.41 /
+## 23.88, max 29.54 / 28.80; the 5v5, grenade and 10v10 guards +1.5%, -1.7% and +0.3% avg. Still
+## over budget (accepted, #223). A seed re-pick (1 to 28) found none that holds every guard and
+## replay: `perf_probe.gd` has the sweep (seed 5 holds this guard at avg 13.0 to 13.3, p95 17.9 to
+## 18.9 ms).
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
