@@ -45,9 +45,6 @@ const LAND_NEAR := 24.0
 ## farther, `FIT_STEP` px at a time, up to `FIT_TRIES` flights in all.
 const FIT_NEAR := 24.0
 const FIT_STEP := 12.0
-## The AI's question lobs farther in steps this many times as long (`_lob_step`): it only asks
-## whether some touchdown clears, so it samples them coarser.
-const ASKED_STEP := 2.0
 ## How far (px) past the aim an arc may first touch down when it is lobbed farther: it rolls on from
 ## there, but not back.
 const LOB_BEYOND := 40.0
@@ -92,12 +89,16 @@ const NOBODY: Array[RID] = []
 
 ## The sweeps made so far, by width: a shape is made once, not for every question.
 static var _sweeps := {}
+## How many plans have been made since the process began: a running total a test reads to see what
+## a build asked (`tests/ai/decision/throw_groups_built_before_the_walk_test.gd`).
+static var plans := 0
 
 
 ## The throw to make along `course`: the lowest arc that clears and lands at its aim. The launch's
 ## `ok` says whether one clears; when none does it is the highest arc (the best a thrower can do),
 ## which strikes what is in the way. A `course.apex` of 0 or more allows only that arc.
 static func plan(course: GrenadeCourse) -> GrenadeLaunch:
+	plans += 1
 	var sweep := _sweep(course)
 	if _walled(course, sweep):
 		return _blocked(course, _top_arc(course))
@@ -138,7 +139,7 @@ static func _try(
 	fit: Fit,
 	arc: Arc,
 ) -> GrenadeLaunch:
-	var reach := _reach(course, arc) + fit.step * _lob_step(course)
+	var reach := _reach(course, arc) + fit.step * FIT_STEP
 	if fit.step > 0 and (arc.capped or reach > arc.farthest):
 		return null
 	if fit.spent() or fit.early.has(arc.apex):
@@ -357,19 +358,13 @@ static func _comes_to_rest(row: Dictionary, arc: Arc, reach: float) -> float:
 	return far + along * along / (2.0 * float(row.get("friction", 520.0)))
 
 
-## How far (px) each step of lobbing farther goes: `FIT_STEP` for a throw that is made, `ASKED_STEP`
-## times that for the AI's question, which only asks whether some touchdown clears.
-static func _lob_step(course: GrenadeCourse) -> float:
-	return FIT_STEP if course.verify else FIT_STEP * ASKED_STEP
-
-
-## How many steps (`_lob_step`) the farthest arc can be lobbed beyond where it was solved to touch
+## How many `FIT_STEP`s the farthest arc can be lobbed beyond where it was solved to touch
 ## down.
 static func _longest(course: GrenadeCourse, arcs: Array[Arc]) -> int:
 	var most := 0
 	for arc: Arc in arcs:
 		if not arc.capped:
-			most = maxi(most, int((arc.farthest - _reach(course, arc)) / _lob_step(course)))
+			most = maxi(most, int((arc.farthest - _reach(course, arc)) / FIT_STEP))
 	return most
 
 
@@ -467,9 +462,9 @@ static func _strike(
 
 
 ## Whether a strike at `stopped`, on the way from `before` to `after`, is a landing: on the way
-## down, within `LAND_NEAR` of the aim, on a surface that faces up (a floor, a piece's top), or over
-## the edge of a piece (a level feeler the cylinder's width higher meets nothing). The face of a
-## wall rising beside the aim is a strike, not a landing.
+## down, within `LAND_NEAR` of the aim, and nothing rises beside it along the throw (a level feeler
+## from the strike meets nothing: a floor, a piece's top), or only a piece's edge does (a feeler the
+## cylinder's width higher meets nothing). The face of a wall rising beside the aim is a strike.
 static func _lands(
 	course: GrenadeCourse,
 	before: Vector3,
@@ -479,15 +474,14 @@ static func _lands(
 	if after.y >= before.y or PlanSpace.plan_of(stopped).distance_to(course.to) > LAND_NEAR:
 		return false
 	var reach := maxf(course.margin, GrenadeConfig.radius)
-	var onward := (after - before).normalized()
-	var feel := PhysicsRayQueryParameters3D.create(
-		stopped, stopped + onward * (reach + FEEL), course.mask & SURFACES
+	var across := (course.to - course.from).normalized()
+	var level := Vector3(across.x, 0.0, across.y)
+	var beside := PhysicsRayQueryParameters3D.create(
+		stopped, stopped + level * (reach + FEEL), course.mask & SURFACES
 	)
-	feel.exclude = course.passed
-	var hit := course.space.intersect_ray(feel)
-	if hit.is_empty() or Vector3(hit["normal"]).y > ItemFlight.FACES_UP:
+	beside.exclude = course.passed
+	if course.space.intersect_ray(beside).is_empty():
 		return true
-	var level := Vector3(onward.x, 0.0, onward.z).normalized()
 	var up := Vector3(0.0, reach + 1.0, 0.0)
 	var higher := PhysicsRayQueryParameters3D.create(
 		stopped + up, stopped + up + level * (reach + FEEL), course.mask & SURFACES

@@ -99,7 +99,7 @@ func group(name: String) -> Dictionary:
 	var _scope: RefCounted = open()
 	SnapshotCounts.note(name)
 	reads.note(ctx, name)
-	var out := _build(name)
+	var out := _none() if name == "grenade_throws" and _searched_none() else _build(name)
 	store(name, GLOBAL, out)
 	return out
 
@@ -115,7 +115,10 @@ func target_group(name: String, target_id: int) -> Variant:
 	var _scope: RefCounted = open()
 	SnapshotCounts.note("target_throws")
 	var target: Dictionary = targets[target_id]
-	store(name, target_id, throws.grenade_group(ctx, target["t"], target["a"]))
+	if _searched_none():
+		store(name, target_id, _none())
+	else:
+		store(name, target_id, throws.grenade_group(ctx, target["t"], target["a"]))
 	return per[name]
 
 
@@ -259,13 +262,19 @@ func group_steps() -> RefCounted:
 	return _steps(jobs)
 
 
-## The throws at the hostile (or the shots' origin) the throw search found one at, in steps, or null
-## when there are none to build (no throw found by that search, or its group is built).
+## The throws at the hostile (or the shots' origin) the throw search found one at, then at every
+## other hostile given full analysis (the walk reads each one's, for what it is exposed to), in
+## steps, or null when there are none to build (no throw found by that search, or the groups are
+## built): a read of one not built would build it whole in one frame.
 func grenade_steps() -> RefCounted:
 	var source: int = throws.memo_of(ctx).get("source", NO_SOURCE)
 	if source == NO_SOURCE or not facts.get("grenade_ready", false):
 		return null
-	return _steps([{ "name": "grenade_throws", "id": source }])
+	var jobs: Array = [{ "name": "grenade_throws", "id": source }]
+	for id: int in targets:
+		if id != source:
+			jobs.append({ "name": "grenade_throws", "id": id })
+	return _steps(jobs)
 
 
 ## A run of the groups in `jobs`, those not built yet, or null when all are.
@@ -318,6 +327,8 @@ func forget_stale_groups() -> void:
 func begin_group(name: String, id: int) -> RefCounted:
 	SnapshotCounts.note(name if id == GLOBAL else "target_throws")  # one a group, not a step
 	reads.note(ctx, name)
+	if name == "grenade_throws" and _searched_none():
+		return GroupBuild.new().already(_none())
 	if id != GLOBAL:
 		return throws.begin_grenade_group(ctx, targets[id]["t"], targets[id]["a"])
 	match name:
@@ -340,6 +351,18 @@ func store(name: String, id: int, out: Dictionary) -> void:
 		return
 	groups["per_target"][id][name] = out
 	built.append("%s:%d" % [name, id])
+
+
+## Whether the throw search ended having found no throw at any source (the shots' origin, each
+## hostile given full analysis): every grenade group is then empty (the search and the groups agree,
+## `SnapshotThrows.grenade_possible`), and is not built again to find that out.
+func _searched_none() -> bool:
+	return facts.get("grenade_ready", true) == false
+
+
+## A grenade group with no option, as the build makes one.
+func _none() -> Dictionary:
+	return { "summary": "", "options": [] }
 
 
 ## Whether a built grenade group holds an option.

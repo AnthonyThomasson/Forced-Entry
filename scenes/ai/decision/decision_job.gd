@@ -265,10 +265,11 @@ func _throw_piece() -> bool:
 	return true
 
 
-## The grenade piece, when the pool allows: the throws at the hostile the search found one at, a
-## kind a step; the walk begins as it ends. What the walk is told is read as it begins, not at the
-## claim, the build and the pieces after it having spread over frames: the radio callouts (a
-## teammate's claim since is seen) and what it marks "(your current plan)".
+## The grenade piece, when the pool allows: the throws at the hostile the search found one at, then
+## at each other hostile given full analysis, a kind a step; the walk begins as it ends. What the
+## walk is told is read as it begins, not at the claim, the build and the pieces after it having
+## spread over frames: the radio callouts (a teammate's claim since is seen) and what it marks
+## "(your current plan)".
 func _grenade_piece() -> bool:
 	if not _run_steps(group_cost_of, GroupBuild.Kind.DONE):
 		return false

@@ -44,9 +44,9 @@ static var cost_throw_rank: int = 1
 static var cost_throw_route: int = 1
 ## What a step of the group piece costs (the piece between the order-refusal step and the throw
 ## piece, which builds the leads and, with a stun in the stack, the entries the root reads; and the
-## piece after it that builds the throws at the hostile the search found one at): one unit of work,
-## a lead's route, a doorway's pick or one kind's throw (about 0.4 ms), and the finish that sorts
-## and caps what the units made (free).
+## piece after it that builds the throws at the hostiles, the one the search found one at first):
+## one unit of work, a lead's route, a doorway's pick or one kind's throw (about 0.4 ms), and the
+## finish that sorts and caps what the units made (free).
 static var cost_group_unit: int = 1
 static var cost_group_finish: int = 0
 ## Raw throw-spot candidates one block step works through: 6, a unit's worth (each candidate that
