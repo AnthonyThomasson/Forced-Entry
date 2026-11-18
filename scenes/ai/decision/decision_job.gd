@@ -10,7 +10,8 @@ extends RefCounted
 
 ## Where the job is: claimed (its start still to run, paid for by the claim), building, taking its
 ## order-refusal step, building the groups the root reads (`GROUP`), searching for a throw (the
-## `grenade_ready` fact), building the throws it found (`GRENADE`), or walking.
+## `grenade_ready` fact), building the throws it found (`GRENADE`), walking, or building a group the
+## walk's level stalled on (`STALL`) before the level runs again.
 enum Stage {
 	IDLE,
 	CLAIMED,
@@ -20,6 +21,7 @@ enum Stage {
 	THROW,
 	GRENADE,
 	WALK,
+	STALL,
 }
 ## Whether `advance` is not running, running, or running with another round asked for.
 enum Run {
@@ -92,7 +94,7 @@ func pending() -> bool:
 
 ## Whether the walk is under way (its snapshot built and handed to the planner).
 func walking() -> bool:
-	return _stage == Stage.WALK and planner.is_pending()
+	return (_stage == Stage.WALK or _stage == Stage.STALL) and planner.is_pending()
 
 
 ## Whether the build's START has run and its walk has not begun: what it knows is frozen, and a
@@ -206,6 +208,8 @@ func _run() -> void:
 				go = _grenade_piece()
 			Stage.WALK:
 				go = _walk_piece()
+			Stage.STALL:
+				go = _stall_piece()
 			_:
 				go = false
 
@@ -266,8 +270,8 @@ func _throw_piece() -> bool:
 	return true
 
 
-## The grenade piece, when the pool allows: the throws at the hostile the search found one at, then
-## at each other hostile given full analysis, a kind a step; the walk begins as it ends. What the
+## The grenade piece, when the pool allows: the throws at the hostile the search found one at, a
+## kind a step; the walk begins as it ends. What the
 ## walk is told is read as it begins, not at the claim, the build and the pieces after it having
 ## spread over frames: the radio callouts (a teammate's claim since is seen) and what it marks
 ## "(your current plan)".
@@ -289,6 +293,21 @@ func _walk_piece() -> bool:
 	if not planner.has_piece() or not _take(Budget.cost_level):
 		return false
 	planner.step()
+	var need: Dictionary = planner.stalled()
+	if not need.is_empty():
+		_steps = _snapshot["demand"].steps_of(need["name"], need["id"])
+		_step_kind = -1
+		_stage = Stage.STALL
+	return true
+
+
+## The group the walk's level stalled on, built a priced step at a time; the level runs again as it
+## is built (what is built is the whole build's: `group_piece_matches_whole`).
+func _stall_piece() -> bool:
+	if not _run_steps(group_cost_of, GroupBuild.Kind.DONE):
+		return false
+	_steps = null
+	_stage = Stage.WALK
 	return true
 
 
@@ -383,7 +402,7 @@ func _next_cost() -> int:
 			return maxi(0, cost_of(_build.next_piece()))
 		Stage.REFUSAL:
 			return Budget.cost_refusal
-		Stage.GROUP, Stage.GRENADE:
+		Stage.GROUP, Stage.GRENADE, Stage.STALL:
 			return _steps_next_cost(group_cost_of, GroupBuild.Kind.DONE)
 		Stage.THROW:
 			return _steps_next_cost(throw_cost_of, ThrowSearch.Kind.DONE)

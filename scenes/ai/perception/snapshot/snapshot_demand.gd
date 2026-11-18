@@ -265,21 +265,50 @@ func group_steps() -> RefCounted:
 	return _steps(jobs)
 
 
-## The throws at the hostile (or the shots' origin) the throw search found one at, then at every
-## other hostile given full analysis (the walk reads each one's, for what it is exposed to), in
-## steps, or null when there are none to build (no throw found by that search, or the groups are
-## built): a read of one not built would build it whole in one frame (120 ms in a grenade match).
-## Those the search went through before the throw it found are none (`_searched_none`): no planner
-## call.
+## The throws at the hostile (or the shots' origin) the throw search found one at, in steps, or
+## null when there is none to build (no throw found by that search, or the group is built). The
+## throws at another hostile are built when the walk reads them: it stalls on the group
+## (`missing_group`) and the job builds it by `steps_of`, never whole in one frame (120 ms in a
+## grenade match). Those the search went through before the throw it found are none
+## (`_searched_none`): no planner call.
 func grenade_steps() -> RefCounted:
 	var source: int = throws.memo_of(ctx).get("source", NO_SOURCE)
 	if source == NO_SOURCE or not facts.get("grenade_ready", false):
 		return null
-	var jobs: Array = [{ "name": "grenade_throws", "id": source }]
-	for id: int in targets:
-		if id != source:
-			jobs.append({ "name": "grenade_throws", "id": id })
-	return _steps(jobs)
+	return _steps([{ "name": "grenade_throws", "id": source }])
+
+
+## Group `name` of hostile `id` (`GLOBAL`: the global one) in steps, or null when it is built.
+func steps_of(name: String, id: int) -> RefCounted:
+	return _steps([{ "name": name, "id": id }])
+
+
+## The group (`{ name, id }`) a read of group `name` of hostile `id` (`GLOBAL` or -1: the global
+## one) would have to build with planner work, `{}` when it is built or costs none: only the throws
+## are heavy, and a source the search went through before its throw is none already.
+func missing_group(name: String, id: int) -> Dictionary:
+	var at := GLOBAL if id < 0 else id
+	if name != "grenade_throws" or holds(name, at) or _searched_none(at):
+		return {}
+	return { "name": name, "id": at }
+
+
+## The group a read of section `name` would have to build (`missing_group`): the exposure of hostile
+## `id` reads the throws at it, with no hostile (`id` -1) at the nearest given full analysis, else
+## the shots' origin; `{}` for a section built or reading none.
+func missing_section(name: String, id: int) -> Dictionary:
+	if name != "exposure":
+		return {}
+	if id >= 0:
+		if not targets.has(id) or (per_sections[id] as Dictionary).has(name):
+			return {}
+		return missing_group("grenade_throws", id)
+	if sections.has(name):
+		return {}
+	for h: Dictionary in ctx["hostiles"]:
+		if targets.has(h["id"]):
+			return missing_section(name, h["id"])
+	return missing_group("grenade_throws", GLOBAL)
 
 
 ## A run of the groups in `jobs`, those not built yet, or null when all are.

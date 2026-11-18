@@ -1,10 +1,10 @@
 extends GameTest
 ## The grenade piece builds ahead of the walk what the walk would otherwise build in one frame
 ## (`SnapshotDemand.grenade_steps`, G17 with the work-unit budget of `decision-prices.md`): once the
-## throw search has found a throw, the throws at the hostile it found it at and at every other
-## hostile given full analysis are built a unit a step (a read of one not built is 120 ms in one
-## frame); the sources it went through before that are the empty group, with no planner call and
-## equal to the group built whole. Once it has found
+## throw search has found a throw, the throws at the hostile it found it at are built a unit a
+## step; the sources it went through before that are the empty group, with no planner call and equal
+## to the group built whole, and the others are built when the walk reads them: it stalls on one
+## and the job builds it (`ai/decision/walk_stalls_on_an_unbuilt_group`). Once it has found
 ## none, every grenade group is the empty one the same way (the search and the groups agree,
 ## `ai/decision/throw_piece_matches_whole`).
 ##
@@ -24,9 +24,9 @@ const FAR := Vector2(1500, 190)
 
 func describe() -> Dictionary:
 	return {
-		"name": "Every hostile's throws are built before the walk, the sources passed are none",
-		"description": "With a throw found, the grenade piece builds the throws at every "
-			+ "hostile, the sources the search went through before the one it found are the empty "
+		"name": "The throws found are built before the walk, the sources passed are none",
+		"description": "With a throw found, the grenade piece builds the throws at the hostile "
+			+ "it was found at, and the sources the search went through before are the empty "
 			+ "group with no planner call, equal to the one built whole; with none, every "
 			+ "grenade group is the empty one the same way.",
 		"tags": ["ai", "decision", "grenade", "snapshot", "perf"],
@@ -68,8 +68,8 @@ func run(t: TestContext) -> void:
 	_none(t, perception, brain.get("goal"))
 
 
-## A throw exists: the search, then the grenade piece's steps, leave the throws at every hostile
-## built; the sources it went through before are none, as the whole build says.
+## A throw exists: the search, then the grenade piece's steps, leave the throws at the hostile it
+## was found at built; the sources it went through before are none, as the whole build says.
 func _found(t: TestContext, perception: Node, goal: String) -> void:
 	var whole: RefCounted = perception.sense(goal, "", 0)["demand"]
 	var demand: RefCounted = perception.sense(goal, "", 0)["demand"]
@@ -84,22 +84,25 @@ func _found(t: TestContext, perception: Node, goal: String) -> void:
 		steps.step()
 		guard += 1
 	var memo: Dictionary = demand.throws.memo_of(demand.ctx)
+	var source: int = memo["source"]
 	var passed: Array = memo["passed"]
+	t.check(demand.holds("grenade_throws", source), "found: the throws at the source are built")
 	var plans := GrenadeArc.plans
 	for id in demand.targets:
-		t.check(
-			demand.holds("grenade_throws", id),
-			"found: the throws at hostile %d are built before the walk" % id,
-		)
 		if id in passed:
 			t.expect_eq(
 				demand.target_group("grenade_throws", id), whole.target_group("grenade_throws", id),
 				"found: the throws at hostile %d, passed by the search, are the whole build's" % id,
 			)
+		elif id != source:
+			t.check(
+				not demand.holds("grenade_throws", id),
+				"found: the throws at hostile %d, past the source, wait for the walk" % id,
+			)
 	t.expect_eq(
 		GrenadeArc.plans,
 		plans,
-		"found: reading the groups built asks the arc planner nothing",
+		"found: reading the passed ones asks the arc planner nothing",
 	)
 
 

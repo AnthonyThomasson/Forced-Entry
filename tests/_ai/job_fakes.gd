@@ -120,6 +120,9 @@ class FakePlanner:
 	func has_piece() -> bool:
 		return _pending and _ready
 
+	func stalled() -> Dictionary:
+		return {}
+
 	func current_entry() -> StringName:
 		return &"root"
 
