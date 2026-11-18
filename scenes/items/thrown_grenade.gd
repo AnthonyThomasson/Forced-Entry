@@ -53,7 +53,12 @@ func _physics_process(delta: float) -> void:
 		_detonate()
 		return
 	if _resting:
-		return
+		# the piece it lies on may have been pushed or blasted away: it falls from where it is
+		if not _flight.unsupported(TwinSpace.space_of(self)):
+			return
+		_flight.release()
+		_resting = false
+		ViewLayers.set_moving(self, true)
 	var before := _flight.at
 	var pace := _flight.speed()
 	var event := _flight.step(

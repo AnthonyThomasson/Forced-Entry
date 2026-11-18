@@ -124,6 +124,7 @@ static func post_hit(
 		"attacker": attacker,
 		"outcome": outcome, "material": String(surface.get("material", "")),
 		"speed_factor": info.speed_factor, "power": float(power) if power != null else 1.0,
+		"height": info.height,
 	})
 
 

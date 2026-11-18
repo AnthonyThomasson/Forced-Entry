@@ -95,6 +95,7 @@ armour on the side facing the burst: **0.35** for the soft panels, **0.5** for t
 are unchanged.
 Tests: `projectile/frag_blast_cut_by_vest` (a bare and a helmeted body take the blast's full damage, a vested one under 0.85 of it),
 `projectile/soft_vest_stops_pistol_smg_not_rifle` (the fragment).
+`projectile/frag_fragments_stopped_by_vest` (a ring of bare standing bodies and a ring in vests round frags: the vests block fragments and take less damage).
 
 ### Weight
 

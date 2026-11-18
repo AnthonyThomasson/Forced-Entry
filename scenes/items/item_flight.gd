@@ -33,6 +33,8 @@ const REST_SPEED := 4.0
 ## How far (px) the sphere's underside floats over the plane it rests on: over the room slab's
 ## 0.1 px, so a flight never touches a floor collider.
 const GROUND_GAP := 0.5
+## How far (px) below a resting sphere a surface still holds it up (`unsupported`).
+const SUPPORT_PROBE := 1.5
 ## A surface whose normal's `y` is over this faces up: a flight rolls on it.
 const FACES_UP := 0.7
 ## Contacts resolved in one step (a corner may take two: floor then wall).
@@ -133,6 +135,24 @@ func step(space: PhysicsDirectSpaceState3D, delta: float, passed: Array[RID] = N
 			resting = true
 			event = RESTED
 	return event
+
+
+## Whether it lies on a piece that is no longer under it: at rest over the floor with nothing within
+## `SUPPORT_PROBE` px below it (the piece was pushed or blasted away).
+func unsupported(space: PhysicsDirectSpaceState3D) -> bool:
+	if not resting or space == null or height <= floor_height() + 0.01:
+		return false
+	_query.exclude = NOBODY
+	_query.collision_mask = mask
+	return _cast(space, Vector3(0.0, -SUPPORT_PROBE, 0.0)).is_empty()
+
+
+## Take it off its rest: it falls from where it is.
+func release() -> void:
+	resting = false
+	rolling = false
+	velocity = Vector2.ZERO
+	rise = 0.0
 
 
 ## Move it level toward plan point `target` as far as it is clear: it stops where a body of the twin

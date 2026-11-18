@@ -171,16 +171,19 @@ stream, so the same fight must draw them for the same body each run; test `proje
 order of distance, are struck in the order of their distance).
 
 **G8. Fragments.** `fragments` **40** real projectiles leave the burst point as **3D rays over the upper hemisphere** (`Explosion._fragments`: azimuth evenly round the circle,
-jittered; elevation `sin = q^fragment_flatness` for a draw `q` spread evenly over the fragments, `fragment_flatness` **12**: nearly all within a few degrees of level, a few
-steeply up as a shell's do; at the burst's real altitude), through `ProjectileSpawner`, with low power (`penetration` 0.4, `fragment_damage` **7.5**, fast) and a short reach
+jittered; elevation `sin = q^fragment_flatness` for a draw `q` spread evenly over the fragments, `fragment_flatness` **5**: about two thirds within 6 degrees of level, a tenth over 25,
+as a shell's do; at the burst's real altitude), through `ProjectileSpawner`, with low power (`penetration` 0.4, `fragment_damage` **8.3**, fast) and a short reach
 (`fragment_range` **500 px**: a projectile can be given a maximum range, past which it is spent). So cover, penetration, ricochet, blood, debris and impact sounds all work as for
 bullets: a ray is stopped by what it meets at that height (a wall, a lintel, a piece's real parts, a door, a vehicle), a ducked body behind a sofa is shielded and a standing one is hit over it,
-a grenade resting on a desk bursts at the desk's top and its fragments clear the desk's own top (a character's armour and hit zones too: `docs/outfits.md` O9); each hit posts `&"hit"` with the thrower as
+a grenade resting on a desk or a van's roof bursts at that height and its fragments clear the desk's own top (if the piece under a resting grenade is pushed or blasted away it falls and bursts where it lies, `ItemFlight.unsupported`) (a character's armour and hit zones too: `docs/outfits.md` O9); each hit posts `&"hit"` with the thrower as
 `attacker`. **Tuned to the old figure:** an exposed standing body in the open takes from the fragments what it took when they flew level at a height drawn from the floor to the ceiling of the old
-0 to 100 scale, band by band (the damage per burst and dummy 15 at 70 px, 5.9 at 140 px, 4.1 at 260 px, 2.3 at 420 px, within 20%), by the count, the damage and the flatness (low zones take 0.6, the
-head 2.0, `CharacterHitConfig.zone_damage`).
-Tests: `projectile/frag_fragments_hit`, `projectile/frag_fragments_exposed_by_distance` (the figure per distance band), `projectile/frag_fragments_shielded_by_low_cover` (a ducked hostile behind a sofa survives
-a frag that kills a standing one beside it), `projectile/frag_burst_on_a_desk_at_desk_height`.
+0 to 100 scale, band by band (the damage per burst and dummy 15 at 70 px, 5.9 at 140 px, 4.1 at 260 px, 2.3 at 420 px, within 15%), by the damage and the flatness (low zones take 0.6, the
+head 2.0, `CharacterHitConfig.zone_damage`). **And spread up the body:** about a tenth of the hits on a standing body land on the torso or the head (3 to 5% at flatness 12, which
+put nearly all on the feet and legs and left a vest nothing to stop; the old level draw gave 49%). The two pull against each other: a hit's chance falls with distance as
+`distance^-(1/flatness)`, so a flatter fan keeps the old distance law and a steeper one spreads the hits and thins them out faster. 5 is the best of both: within 15% per band and a
+vest has fragments to stop (`projectile/frag_fragments_stopped_by_vest`, O9).
+Tests: `projectile/frag_fragments_hit`, `projectile/frag_fragments_exposed_by_distance` (the figure per distance band and the share of hits on the torso and head), `projectile/frag_fragments_stopped_by_vest`, `projectile/frag_fragments_shielded_by_low_cover` (a ducked hostile behind a sofa survives
+a frag that kills a standing one beside it), `projectile/frag_burst_on_a_desk_at_desk_height`, `projectile/frag_burst_on_a_van_roof_at_roof_height`, `projectile/frag_falls_when_its_support_is_pushed_away`.
 
 **G9. Friendly fire.** Grenades hurt and stun everyone: the thrower and its allies are not spared.
 Test: `projectile/grenade_friendly_fire`.
@@ -359,7 +362,7 @@ captured out-of-range levels GRENADE ranks first in 18 ("within throwing range f
 - when the **NPC itself** would be inside the zone **and has no way to get safe before the fuse runs out** (tag `no_safe_spot`): it is safe if it
   can get behind cover that shields it from the landing spot (G7: the real 3D line, ducked or standing), or reach a spot out of the blast's line of sight in time. With a way to get
   safe, being inside the zone does not drop the option. (Cover that hides a ducked hostile from a bullet shadows the thrower from a burst there, so a hidden hostile's own cover is almost always a
-  safe place: `no_safe_spot` is left for a thrower with no such cover and no way out of line in time, `ai/grenade/escape_judges_real_geometry`.);
+  safe place, which follows from straight lines from a burst on the floor (a ray to a body behind a low piece rises too slowly to clear it, and a thrower's line is the same one) and holds only for such a burst, not one that lands on a desk: `no_safe_spot` is left for a thrower with no such cover and no way out of line in time: `ai/grenade/escape_judges_real_geometry` (the judgement) and `ai/grenade/grenade_not_offered_no_safe_spot` (end to end: an invader held in the open in line with a doorway, 280 px from a householder inside, is tagged and not offered GRENADE; given its legs back it is offered).);
 - against a hostile in its line of fire in the NPC's own room, or outdoors with it (it shoots).
 
 A **confined** NPC (its territory, the room a defend order keeps it to, its squad leash, a held stack's room: its confinement, `GLOSSARY.md`) has a throw judged

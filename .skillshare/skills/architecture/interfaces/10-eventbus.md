@@ -5,16 +5,15 @@
 
     Topics (a payload key listed is a promise; "tests" = read only by tests):
     - `&"hit"`: the Projectile System posts one per damaging hit, the Character one per landed punch: `{ position, victim, direction,
-      damage, attacker (the striking character or null), outcome, material }`, bullets also `speed_factor` and `power` (penetration
-      power). `outcome`: `&"blocked"` / `&"penetrate"` / `&"ricochet"` (bullets), `&"punch"` (fist or kick), `&"blast"` (a frag's blast,
+      damage, attacker (the striking character or null), outcome, material }`, bullets also `speed_factor`, `power` and `height` (px up the round met
+      the body at: its zone's). `outcome`: `&"blocked"` / `&"penetrate"` / `&"ricochet"` (bullets), `&"punch"` (fist or kick), `&"blast"` (a frag's blast,
       posted by `Explosion` with the thrower as `attacker`, `speed_factor` 0; Audio does not voice it as an impact: the burst has its own
       sound). `material`: the struck surface's (`""` for a wall; for a round armour stopped, the armour's `metal` / `ceramic` /
       `composite` / `fabric`; for one through it, the flesh). `damage` is the striker's, before the zone, blunt and reduction scaling
-      (`docs/outfits.md`). The AI consumes it (combat awareness, hostility, gunfire heard farther off). A shot that flies over cover posts
-      nothing.
+      (`docs/outfits.md`). The AI consumes it (combat awareness, hostility, gunfire heard farther off). A shot over cover posts nothing.
     - Grenades (`docs/grenades.md`): `&"throw"` (Items, `GrenadeItem` as it leaves the hand: `{ position, kind, attacker }`, tests),
       `&"grenade"` (Items, `ThrownGrenade`: `{ position, kind, stage }`, stage `bounce` / `rest`), `&"explosion"` (`Explosion.frag` /
-      `Explosion.stun` post it first, before the burst's hits and stuns: `{ position, kind (&"frag" / &"stun"), attacker (thrower or
+      `Explosion.stun` post it first, before the burst's hits and stuns: `{ position, height (px up), kind (&"frag" / &"stun"), attacker (thrower or
       null), radius (a frag's blast, a stun's flash) }`), `&"stun"` (Character `take_stun`: `{ character, position, blind, deaf }`).
       Audio voices `throw` (`throw/<kind>`), a `grenade` `bounce` (`grenade/<kind>/<floor>`, the floor from `SoundSurface.at`; a `rest` is
       silent) and the `explosion`, and of the `stun` only a deafening of its `focus` (interface 18). The camera shakes on `explosion` (by
@@ -34,8 +33,8 @@
       `VehicleCollisionConfig.crash_min_speed` on anything but a character, + `speed` and `material` = the struck
       `get_surface().material`, `""` for a wall) or `bump_character` (+ `speed`). `&"engine"`: `{ vehicle, kind, stage }`, `start` /
       `stop`. `&"skid"`: `{ vehicle, stage }`, `start` / `stop`. Audio voices the one-shots and keeps one looping voice per vehicle for
-      engine and skid, following it each frame through `engine_state()`, `slip()` and `speed()` read duck-typed off the event's
-      `vehicle` (the `Sound.focus` pattern, interface 18), so it stays a leaf.
+      engine and skid, following it through `engine_state()`, `slip()` and `speed()` read duck-typed off the event's
+      `vehicle` (the `Sound.focus` pattern, 18), a leaf.
     - `&"door"`: a house door (Objects, 24) posts one per stage: `{ position (its doorway's middle), door (tests), material (`hollow` /
       `solid` / `steel` / `glass`), stage }`: `open` (a swing to open begins; a run of scroll notches posts one), `shut`, `burst` (the
       latch gave, or an ajar door was thrown open), `down` (it fell) or `glass` (the panes shattered). Audio voices `open` / `shut` as
