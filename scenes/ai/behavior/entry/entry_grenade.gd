@@ -27,11 +27,6 @@ const EntryLandings := preload("res://scenes/ai/perception/entry/entry_landings.
 ## from the doorway's centre as shares of its width, toward the stack's side first).
 const BANG_STEP_OUT := 78.0
 const BANG_STEP_ALONG := [0.25, 0.0, -0.25]
-## A throw that reaches the farthest point of a deep room needs the highest arc, which the doorway's
-## lintel stops (G3): the aim is pulled back this far (px) at a time, up to `BANG_PULLBACKS` times,
-## until some spot has a clear lob.
-const BANG_PULLBACK := 100.0
-const BANG_PULLBACKS := 3
 ## The aims a bang's plan tries a frame (each asks the arc planner): the search goes on over the
 ## next frames, the thrower waiting meanwhile, so a room nothing reaches is not one long frame.
 const BANG_PLANS_A_FRAME := 12
@@ -292,10 +287,8 @@ func _bang_kind(entry: Entry) -> StringName:
 ## way across), or, in a room deeper than a stun reaches from the spot, the farthest point along
 ## that line it reaches (`EntryLandings.aim`), where it may land (`EntryLandings.lands`: at least
 ## `BANG_MIN_DEPTH` from the door). The first of them that some spot reaches with a clear lob wins
-## (a far aim that no arc gets through the doorway under its lintel is pulled back,
-## `BANG_PULLBACK` at a time, `BANG_PLANS_A_FRAME` aims a frame), the thrower's own slot before a
-## step out in front of the door
-## (`BANG_STEP_ALONG`). A frag (LD14,
+## (`BANG_PLANS_A_FRAME` aims a frame), the thrower's own slot before a step out in front of the
+## door (`BANG_STEP_ALONG`). A frag (LD14,
 ## D16) aims only where its burst leaves every claimed slot of the stack, the thrower's own too, out
 ## of its danger zone (`AgentPerception.grenades.in_zone`: the wall between shields it). Not a throw
 ## when nowhere gives a clear lob (for a frag, a safe one): `PLANNED`, `NOWHERE`, or `PLANNING`.
@@ -305,24 +298,17 @@ func _plan_bang(entry: Entry) -> Plan:
 	var reach: float = world.perception.grenades.reach(type)
 	var slots := _slot_points(entry) if type == &"frag" else []
 	var grid := EntryLandings.grid(state.geo)
-	var total := grid.size() * spots.size() * (BANG_PULLBACKS + 1)
+	var total := grid.size() * spots.size()
 	var upto := mini(_bang_tried + BANG_PLANS_A_FRAME, total)
 	for i in range(_bang_tried, upto):
-		var c := _bang_candidate(i, spots, grid)
-		var target := EntryLandings.aim(state.geo, c[0], c[1].x, c[1].y, reach - c[2])
-		if _bang_target_ok(target, type, slots) and _clear_lob(c[0], target, reach, type):
-			_take_bang(c[0], target)
+		var spot: Vector2 = spots[i % spots.size()]
+		var at: Vector2 = grid[floori(float(i) / float(spots.size()))]
+		var target := EntryLandings.aim(state.geo, spot, at.x, at.y, reach)
+		if _bang_target_ok(target, type, slots) and _clear_lob(spot, target, reach, type):
+			_take_bang(spot, target)
 			return Plan.PLANNED
 	_bang_tried = upto
 	return Plan.NOWHERE if upto >= total else Plan.PLANNING
-
-
-## The `i`th aim the plan tries, as `[spot, aim point (deep, across), pull back (px)]`: the spots
-## innermost, then the grid, then each pullback.
-func _bang_candidate(i: int, spots: Array, grid: Array) -> Array:
-	var per_pull := grid.size() * spots.size()
-	return [spots[i % spots.size()], grid[floori(float(i % per_pull) / float(spots.size()))],
-			float(floori(float(i) / float(per_pull))) * BANG_PULLBACK]
 
 
 ## The spots the bang may be thrown from, in order of preference: the thrower's own slot, then each

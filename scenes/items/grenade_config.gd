@@ -15,6 +15,9 @@ class_name GrenadeConfig
 ##   rolls on a little.
 ##   throw_speed    px/s across the floor the arm can give it: a lob's apex is the lowest that gets
 ##                  it to the aim at or under this speed (a nearer aim is a gentler, flatter throw).
+##                  740 so that a throw of `max_range` (550 px) is the arc of a standing release
+##                  (72 px up) peaking near 90 px, about the walls' height (a faster arm would
+##                  throw it flat, a slower one lob it over the roof): the old throw's 82 px arc.
 ##                  The height it leaves the hand at is the thrower's posture's
 ##                  (`BodyHeights.release`).
 ##   restitution    share of its velocity a bounce keeps (the floor's and a wall's).
@@ -108,12 +111,11 @@ static var min_hop_speed: float = 40.0
 ## Fall acceleration of a thrown grenade (px/s²): about 16 m/s², a throw's snappier than a real
 ## one's.
 static var gravity: float = 680.0
-## The highest a lob's centre peaks (px): under the ceiling, the walls' height (96,
-## `ObjectStructureMeshConfig.wall_height`), by the grenade's own size and a little to spare. The
-## planner (`GrenadeArc`) never plans an arc above it, and a flight is stopped by the ceiling.
-static var max_apex: float = 90.0
-## The ceiling (px): a grenade's top never goes over it (the walls' height).
-static var ceiling: float = 96.0
+## The highest a lob's centre peaks in the open (px, about 3.5 m): where no roof stands over the
+## thrower or the aim (outdoors, in a roofless shell) a steep drop behind low cover is possible.
+## Under a roof (a room's, `Floor.roofed`) the roof is the ceiling (`GrenadeArc`): a lob peaks
+## under it, by the grenade's size and `ROOF_SLACK`. Only a real ceiling caps a lob (#194 D11a).
+static var max_apex: float = 150.0
 ## A thrown grenade's size against walls and what it strikes (px).
 static var radius: float = 3.0
 ## Spin deceleration of a thrown grenade on the floor (rad/s²).

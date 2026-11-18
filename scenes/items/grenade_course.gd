@@ -28,3 +28,9 @@ var apex: float = -1.0
 ## Whether to fly each clear arc over the floor to rest (`GrenadeArc.rest_of`) and keep the one that
 ## rests nearest the aim, as a throw is made; false is the cheaper question, whether an arc clears.
 var verify: bool = false
+## The highest the centre of the arc may peak (px), worked out by the planner (`GrenadeArc._top`);
+## -1 until then.
+var top: float = -1.0
+## The underside of the roof over the hand or the aim, the lower (px; `INF`: none): worked out with
+## `top`.
+var roof: float = INF

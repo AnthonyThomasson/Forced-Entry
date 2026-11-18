@@ -635,12 +635,15 @@ func lob_clear(
 	return GrenadeArc.clear(course)
 
 
-## The height (px) a grenade leaves the NPC's hand at: its posture's release.
+## The height (px) a grenade leaves the NPC's hand at: the release of the pose its body is in now
+## (`CharacterMovement.body_posture`: a crouch risen over its cover to fire included).
 func _release_height() -> float:
 	var posture: StringName = (
-		_character.movement.posture() if _character != null and "movement" in _character else &""
+		_character.movement.body_posture()
+		if _character != null and "movement" in _character
+		else BodyHeights.STAND
 	)
-	return BodyHeights.release(BodyHeights.DUCK if posture == &"crouch" else BodyHeights.STAND)
+	return BodyHeights.release(posture)
 
 
 ## The grenade row a lob is planned with: `kind`'s, or, for a question that names none, the first

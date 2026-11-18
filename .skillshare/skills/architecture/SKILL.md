@@ -63,7 +63,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 23. **Main / Testing → `MatchBuilder`.** Read to build a match or a test world: `interfaces/23-match-builder.md`
 24. **Objects' `Door` ↔ Character, AI, Testing: the door contract.** Read to open, turn, hit or walk through a house door: `interfaces/24-door-contract.md`
 25. **Main / Testing → Vision: the player's view.** Read to build or read a view: `interfaces/25-vision.md`
-26. **Any domain → General: `Pointer`.** Read to convert a screen point to a world point (and back), read the mouse's world point or the visible rect, or inject a pointer: `interfaces/26-pointer.md`
+26. **Any domain → General: `Pointer`.** Read to convert a screen point to a world point (and back), read the mouse's world point or the visible rect, or inject one: `interfaces/26-pointer.md`
 27. **Main → Art: `WorldMirror`, and General's `CameraRig`: the 3D render.** Read for the 3D render, the 3D mirror of the 2D bodies (scale, update rule, hook) and the camera rig: `interfaces/27-render-3d.md`
 28. **Objects → AI, Projectile: `PieceHeights`.** Read for a piece's real top and parts: `interfaces/28-piece-heights.md`
 29. **Main → General, Objects, Vehicle, Character: `TwinSpace`.** Read for the twin 3D space: `interfaces/29-twin-space.md`
@@ -83,7 +83,7 @@ worldgen ──▶ objects (the six factories, RoomWalls, WearPlan, `SharedTextu
 objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24; a bed's mesh reads `use.active_interaction()`, duck-typed: 8)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
 items ──▶ projectile, art    projectile ──▶ physics, art, objects (28)    vehicle ──▶ physics, art    physics ──▶ art (12)
-ai ──▶ navigation, items (slot ids, GrenadeConfig), projectile (CoverRule, Explosion), character (CharacterMovement), objects (28)   (and a house door, duck-typed: 24)
+ai ──▶ navigation, items (slot ids, GrenadeConfig, GrenadeArc), projectile (CoverRule, Explosion), character (CharacterMovement), objects (28)   (a house door, duck-typed: 24)
 ui ──▶ items, physics   (plain dicts in, signals out; never calls Main)
 art ──▶ general (RenderConfig, CameraRig)    lighting ──▶ art (3D: ToonLight, 20)    vision ──▶ art (ToonMask, 3D: 25)
 every domain ──▶ general

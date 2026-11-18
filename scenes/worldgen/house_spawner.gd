@@ -192,7 +192,7 @@ static func _build_room(
 	# The floor runs to the wall centerlines, so the walls cover the seams between rooms.
 	var floor_def: Dictionary = GeneralCatalog.FLOORS.get(palette.get("floor", ""), {})
 	if not floor_def.is_empty():
-		FloorFactory.spawn(rect, floor_def, room_name + " Floor", house)
+		FloorFactory.spawn(rect, floor_def, room_name + " Floor", house, true)
 	if recipe.has("text"):
 		placed["lobbies"].append(_lay_stencil(site, recipe["text"], room_name, house))
 	return floor_def

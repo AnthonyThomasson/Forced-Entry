@@ -58,7 +58,6 @@ static func spawn(dropped: Item, angle: float, velocity: Vector2) -> DroppedItem
 	node._landing = { "flip": randf() < 0.5 }
 	node._flight = ItemFlight.new(DroppedItemConfig.radius)
 	node._flight.gravity = DroppedItemConfig.gravity
-	node._flight.ceiling = DroppedItemConfig.ceiling
 	node._flight.floor_restitution = DroppedItemConfig.bounce
 	node._flight.wall_restitution = DroppedItemConfig.wall_bounce
 	node._flight.friction = DroppedItemConfig.friction

@@ -120,7 +120,9 @@ static func _turned(rect: Rect2, turns: int) -> Rect2:
 
 
 ## A floor's slab: its footprint from its corner, a `floor_thickness` thick slab whose top is the
-## floor's drawn top (the road a kerb below the pavement).
+## floor's drawn top (the road a kerb below the pavement); a roofed floor (a room's) also a slab of
+## the same thickness on the walls' top: the roof, a body of its own on the `TWIN_ROOF` layer
+## (out of `TWIN_ALL`: what a ray from the sky looks for is under it), which a lob under it strikes.
 static func _floor(node: Node2D) -> Node3D:
 	var size: Vector2 = node.get("size")
 	var top := ObjectStructureMeshConfig.floor_lift
@@ -130,4 +132,11 @@ static func _floor(node: Node2D) -> Node3D:
 	var twin := StaticBody3D.new()
 	var slab := Rect2(Vector2.ZERO, size)
 	twin.add_child(TwinShapes.box(slab, Transform2D.IDENTITY, top - thick, top))
+	if node.get("roofed"):
+		var roof := StaticBody3D.new()
+		roof.collision_layer = PhysicsLayers.TWIN_ROOF
+		roof.collision_mask = 0
+		var walls := ObjectStructureMeshConfig.wall_height
+		roof.add_child(TwinShapes.box(slab, Transform2D.IDENTITY, walls, walls + thick))
+		twin.add_child(roof)
 	return _world(twin)

@@ -10,10 +10,6 @@ class_name GrenadeItem extends Item
 ## look at the row's `art_size`, and a thrown one keeps it. A subclass (`StunGrenadeItem`,
 ## `FragGrenadeItem`) only names its row (`super(KIND)`).
 
-## The `BodyHeights` posture of each posture of the character's own (`stand` / `crouch`): a grenade
-## leaves the hand at the height of the one it is thrown from.
-const POSTURES := { &"stand": BodyHeights.STAND, &"crouch": BodyHeights.DUCK }
-
 ## The kind's id: its `GrenadeConfig` row. Named by the subclass (`super(KIND)`).
 var kind: StringName = &""
 ## Grenades left in this slot.
@@ -108,7 +104,7 @@ func _release() -> void:
 	var throw := GrenadeThrow.new()
 	throw.kind = kind
 	throw.from = from
-	throw.release = BodyHeights.release(POSTURES.get(user.movement.posture(), BodyHeights.STAND))
+	throw.release = BodyHeights.release(user.movement.body_posture())
 	throw.to = user.weapon.aim_target()
 	throw.thrower = user
 	throw.style = art.style

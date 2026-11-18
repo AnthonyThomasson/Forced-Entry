@@ -84,8 +84,7 @@ func _physics_process(delta: float) -> void:
 ## Let a grenade go as `throw` says (of its `kind`, from `from` at `release` px up toward `to`,
 ## thrown by `thrower`, drawn in the weapon style `style` of the item it was thrown from,
 ## `ItemArt.style`) into `parent` (the world root): planned (`GrenadeArc.plan`, flown over the floor
-## to rest and
-## kept where it rests at the aim) and launched.
+## to rest and kept where it rests at the aim) and launched.
 static func spawn(throw: GrenadeThrow, parent: Node) -> ThrownGrenade:
 	var row := GrenadeConfig.row(throw.kind)
 	var node := ThrownGrenade.new()
@@ -107,7 +106,7 @@ static func spawn(throw: GrenadeThrow, parent: Node) -> ThrownGrenade:
 	course.apex = throw.apex
 	course.verify = true
 	var launch := GrenadeArc.plan(course)
-	node._flight = GrenadeArc.flight_for(row)
+	node._flight = GrenadeArc.flight_for(row, PhysicsLayers.TWIN_ALL, course.roof)
 	node._flight.place(throw.from, throw.release)
 	node._flight.velocity = launch.direction * launch.speed
 	node._flight.rise = launch.rise

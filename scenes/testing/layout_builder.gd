@@ -20,7 +20,7 @@ static func build(world: Dictionary, parent: Node) -> Node2D:
 		var key := String(room["key"])
 		var floor_def := WorldGen.floor_definition(String(room.get("floor", "oak_planks")))
 		if not floor_def.is_empty():
-			FloorFactory.spawn(rect, floor_def, key.capitalize() + " Floor", root)
+			FloorFactory.spawn(rect, floor_def, key.capitalize() + " Floor", root, true)
 		var walls := RoomWalls.new()
 		walls.thickness = thickness
 		walls.openings = WallFactory.openings_for(rect, doors)

@@ -114,6 +114,22 @@ _Avoid_: mirror (the 3D view's meshes that follow the 2D bodies, `WorldMirror`),
 The 3D physics space of the twins (Jolt, the main window's 3D world), built by `MatchBuilder.stage` for every match and test world,
 headless too. Gameplay reads it rule by rule (a 3D ray for a bullet, a fragment, a sight line) as the real-cover jobs land.
 
+**Lintel**:
+The header of a wall over a doorway, from the door's top (84 px) to the wall's (96 px): a twin of the doorway (`ObjectTwins`), so a
+ray or a grenade at that height is stopped where one lower passes under. Not the door's leaf, which stands only as high as the door.
+_Avoid_: header, transom
+
+**Release height**:
+How high (px above the floor) a thrown grenade leaves the hand: the thrower's posture's, standing about 72 px, ducked about 55,
+a risen pose between (`BodyHeights.release`, from `CharacterMovement.body_posture()`).
+_Avoid_: throw height, hand height
+
+**Arc planner**:
+`GrenadeArc`, Items' one planner of a throw, for the human's throw and the AI's judgment of one: from the release height to the aim,
+the lowest arc (by its peak) that clears what is in the twin space and lands near the aim, flown by the same `ItemFlight` stepper the
+node uses. Only a roof caps a peak (96 px under a house's or a tower's; `GrenadeConfig.max_apex` in the open).
+_Avoid_: trajectory, lob test (the AI's `can_lob` asks the planner)
+
 ### Game tests
 
 **Simulation test**:

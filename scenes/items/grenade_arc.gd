@@ -7,7 +7,8 @@ extends RefCounted
 ## flies it as real 3D flight (`ItemFlight`, the same stepper the planner rests an arc with).
 ##
 ## **The arcs.** An arc peaks at an `apex` (the centre's height, px): from the release height itself
-## (a flat throw) up by `APEX_STEP` to `GrenadeConfig.max_apex` (under the ceiling), lowest first.
+## (a flat throw) up by `APEX_STEP` to the top (`_top`: `GrenadeConfig.max_apex` in the open, under
+## a roof the roof), lowest first.
 ## Under the arc's gravity its flight time follows from the apex alone, so the throw's reach is what
 ## the arm's `throw_speed` gives over that time: the lowest apex that reaches the aim is a flat toss
 ## for a near aim and a high lob for a far one. Where it first touches down is solved so that, with
@@ -25,15 +26,28 @@ extends RefCounted
 
 ## How much higher (px) each arc peaks than the one before.
 const APEX_STEP := 6.0
+## Above the walls' height (`HIGH_FROM`, where only the open sky leaves room for an arc) the steps
+## are this much (px): the search's sweeps are spent over the low arcs and their longer lobs first.
+const HIGH_FROM := 96.0
+const HIGH_STEP := 18.0
 ## Casts one arc is swept in, and the steps of the solve of where it first touches down.
 const SEGMENTS := 5
 const SOLVE_STEPS := 18
+## What `_lands` takes for a surface: the structure, the furniture and the vehicles; a body struck
+## near the aim (the hostile's own) is a landing on it.
+const SURFACES := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+## How far (px) past the cylinder's width a ray from where an arc stops feels for the surface it
+## struck (`_lands`).
+const FEEL := 4.0
 ## A strike on the way down this near (px) the aim is a landing on top of something.
 const LAND_NEAR := 24.0
 ## A flown arc that rests within this many px of the aim is kept; one that does not is lobbed
 ## farther, `FIT_STEP` px at a time, up to `FIT_TRIES` flights in all.
 const FIT_NEAR := 24.0
 const FIT_STEP := 12.0
+## The AI's question lobs farther in steps this many times as long (`_lob_step`): it only asks
+## whether some touchdown clears, so it samples them coarser.
+const ASKED_STEP := 2.0
 ## How far (px) past the aim an arc may first touch down when it is lobbed farther: it rolls on from
 ## there, but not back.
 const LOB_BEYOND := 40.0
@@ -59,6 +73,11 @@ const START_INTO := 0.05
 ## How far (px) past where a grenade is reckoned to rest the floor is checked for what it would run
 ## into (`_skid_clear`).
 const SKID_SLACK := 12.0
+## What a lob keeps clear of a roof above its peak (px) besides the grenade's own radius; the height
+## a ray up from a point starts at, and how far it looks for a roof.
+const ROOF_SLACK := 3.0
+const ROOF_PROBE := 60.0
+const ROOF_RANGE := 400.0
 ## How many arcs one plan sweeps at most (each a few casts): the AI's question is cheap, and a throw
 ## no swept arc clears is judged blocked.
 const SWEEPS := 64
@@ -90,7 +109,7 @@ static func plan(course: GrenadeCourse) -> GrenadeLaunch:
 		return _blocked(course, arcs[arcs.size() - 1])
 	var fit := Fit.new()
 	while fit.step == 0 or (not fit.spent() and fit.step <= _longest(course, arcs)):
-		for arc: Dictionary in arcs:
+		for arc: Arc in arcs:
 			var launch := _try(course, sweep, fit, arc)
 			if launch != null:
 				return launch
@@ -106,7 +125,7 @@ static func _flattest(course: GrenadeCourse, sweep: PhysicsShapeQueryParameters3
 	if course.verify or course.apex >= 0.0:
 		return null
 	var flat := _arc(course, course.release)
-	if flat["capped"] or not _clear(course, sweep, flat, _reach(course, flat)):
+	if flat.capped or not _clear(course, sweep, flat, _reach(course, flat)):
 		return null
 	return _launch(course, flat, _reach(course, flat), true, course.to)
 
@@ -117,18 +136,18 @@ static func _try(
 	course: GrenadeCourse,
 	sweep: PhysicsShapeQueryParameters3D,
 	fit: Fit,
-	arc: Dictionary,
+	arc: Arc,
 ) -> GrenadeLaunch:
-	var reach := _reach(course, arc) + fit.step * FIT_STEP
-	if fit.step > 0 and (arc["capped"] or reach > arc["farthest"]):
+	var reach := _reach(course, arc) + fit.step * _lob_step(course)
+	if fit.step > 0 and (arc.capped or reach > arc.farthest):
 		return null
-	if fit.spent() or fit.early.has(arc["apex"]):
+	if fit.spent() or fit.early.has(arc.apex):
 		return null
 	fit.swept += 1
 	var struck: Variant = _strike(course, sweep, arc, reach)
 	if struck != null:
 		if _plan_of(struck).distance_to(course.from) < reach * EARLY_SHARE:
-			fit.early[arc["apex"]] = true
+			fit.early[arc.apex] = true
 		return null
 	if not course.verify:
 		return _launch(course, arc, reach, true, course.to)
@@ -143,15 +162,46 @@ static func _try(
 
 
 ## The launch of `arc` when nothing clears: the highest arc, which strikes what is in the way.
-static func _blocked(course: GrenadeCourse, arc: Dictionary) -> GrenadeLaunch:
+static func _blocked(course: GrenadeCourse, arc: Arc) -> GrenadeLaunch:
 	return _launch(course, arc, _reach(course, arc), false, course.to)
 
 
+## The highest the centre of a lob on `course` may peak (px): `GrenadeConfig.max_apex` in the open,
+## and under a roof (over the hand, the middle or the aim: the arc must go under it) the roof's
+## underside less the grenade's size and `ROOF_SLACK`; never under the release height. The roof is
+## the lowest over the hand, the middle of the throw and the aim. Worked out once.
+static func _top(course: GrenadeCourse) -> float:
+	if course.top < 0.0:
+		if course.space != null:
+			course.roof = minf(
+				_roof_over(course, course.from),
+				minf(
+					_roof_over(course, course.from.lerp(course.to, 0.5)),
+					_roof_over(course, course.to),
+				),
+			)
+		var top := minf(GrenadeConfig.max_apex, course.roof - GrenadeConfig.radius - ROOF_SLACK)
+		course.top = maxf(top, course.release)
+	return course.top
+
+
+## How high (px) the roof over plan point `at` is, `INF` in the open: a ray up from `ROOF_PROBE` on
+## the roof's layer (a doorway's lintel is no roof).
+static func _roof_over(course: GrenadeCourse, at: Vector2) -> float:
+	var query := PhysicsRayQueryParameters3D.create(
+		PlanSpace.lift(at, ROOF_PROBE),
+		PlanSpace.lift(at, ROOF_RANGE),
+		PhysicsLayers.TWIN_ROOF,
+	)
+	var hit := course.space.intersect_ray(query)
+	return PlanSpace.height_of(hit["position"]) if not hit.is_empty() else INF
+
+
 ## The highest arc a course allows: its chosen one, else the one peaking at `max_apex`.
-static func _top_arc(course: GrenadeCourse) -> Dictionary:
+static func _top_arc(course: GrenadeCourse) -> Arc:
 	return _arc(
 		course,
-		course.apex if course.apex >= 0.0 else maxf(GrenadeConfig.max_apex, course.release),
+		course.apex if course.apex >= 0.0 else _top(course),
 	)
 
 
@@ -169,17 +219,21 @@ static func clear(course: GrenadeCourse) -> bool:
 	return plan(course).ok
 
 
-## A flight that flies a grenade of `row` as `ThrownGrenade` does: its size, gravity, ceiling,
+## A flight that flies a grenade of `row` as `ThrownGrenade` does: its size, gravity,
 ## bounce, skid and what it strikes.
-static func flight_for(row: Dictionary, mask: int = PhysicsLayers.TWIN_ALL) -> ItemFlight:
+static func flight_for(
+	row: Dictionary,
+	mask: int = PhysicsLayers.TWIN_ALL | PhysicsLayers.TWIN_ROOF,
+	ceiling := INF,
+) -> ItemFlight:
 	var flight := ItemFlight.new(GrenadeConfig.radius)
 	flight.gravity = GrenadeConfig.gravity
-	flight.ceiling = GrenadeConfig.ceiling
 	flight.min_hop = GrenadeConfig.min_hop_speed
 	flight.floor_restitution = float(row.get("restitution", 0.35))
 	flight.wall_restitution = flight.floor_restitution
 	flight.friction = float(row.get("friction", 520.0))
 	flight.mask = mask
+	flight.ceiling = ceiling
 	return flight
 
 
@@ -200,7 +254,7 @@ static func passed_by(thrower: Node) -> Array[RID]:
 ## Where the grenade thrown as `launch` says comes to rest, flown over the floor in the course's
 ## space (the node's own flight: `ItemFlight`, stepped at the game's rate).
 static func rest_of(course: GrenadeCourse, launch: GrenadeLaunch) -> Vector2:
-	var flight := flight_for(course.row, course.mask)
+	var flight := flight_for(course.row, course.mask, course.roof)
 	flight.place(course.from, course.release)
 	flight.velocity = launch.direction * launch.speed
 	flight.rise = launch.rise
@@ -217,28 +271,27 @@ static func rest_of(course: GrenadeCourse, launch: GrenadeLaunch) -> Vector2:
 ## The arcs to try, lowest first, as `{ apex, rise, time, vdown, reach, cap, farthest, capped }`:
 ## for a chosen apex only that one; else one per apex step that reaches the aim, and when none does
 ## the highest, capped (it first touches down as far as the arm reaches and rolls on).
-static func _arcs(course: GrenadeCourse) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
+static func _arcs(course: GrenadeCourse) -> Array[Arc]:
+	var out: Array[Arc] = []
 	if course.apex >= 0.0:
 		out.append(_arc(course, course.apex))
 		return out
 	var apex := course.release
-	var top := maxf(GrenadeConfig.max_apex, course.release)
-	while apex < top + APEX_STEP:
+	var top := _top(course)
+	while true:
 		var arc := _arc(course, minf(apex, top))
-		if not arc["capped"]:
+		if not arc.capped or apex >= top:
 			out.append(arc)
-		elif apex >= top:
-			out.append(arc)
+		if apex >= top:
 			break
-		apex += APEX_STEP
+		apex += APEX_STEP if apex < HIGH_FROM else HIGH_STEP
 	return out
 
 
 ## The arc peaking at `apex` (at least the release height): its launch rise, flight time and fall
 ## speed under gravity, how far the arm throws it (`cap`) and where it first touches down so that it
 ## comes to rest at the aim (`reach`; `capped` when it cannot get there).
-static func _arc(course: GrenadeCourse, apex: float) -> Dictionary:
+static func _arc(course: GrenadeCourse, apex: float) -> Arc:
 	var g := GrenadeConfig.gravity
 	var floor_y := GrenadeConfig.radius + ItemFlight.GROUND_GAP
 	var top := maxf(apex, maxf(course.release, floor_y + 1.0))
@@ -250,28 +303,33 @@ static func _arc(course: GrenadeCourse, apex: float) -> Dictionary:
 		float(course.row.get("max_range", 550.0)),
 	)
 	var aim := course.from.distance_to(course.to)
-	var arc := {
-		"apex": top, "rise": rise, "time": time, "vdown": g * fall, "cap": cap,
-		"reach": cap, "capped": true, "farthest": minf(cap, aim + LOB_BEYOND),
-	}
+	var arc := Arc.new()
+	arc.apex = top
+	arc.rise = rise
+	arc.time = time
+	arc.vdown = g * fall
+	arc.cap = cap
+	arc.reach = cap
+	arc.capped = true
+	arc.farthest = minf(cap, aim + LOB_BEYOND)
 	if _comes_to_rest(course.row, arc, cap) >= aim:
-		arc["capped"] = false
-		arc["reach"] = -1.0
+		arc.capped = false
+		arc.reach = -1.0
 	return arc
 
 
 ## Where `arc` first touches down so that it comes to rest at the aim: solved the first time it is
 ## asked for (a blocked lob never needs it).
-static func _reach(course: GrenadeCourse, arc: Dictionary) -> float:
-	if float(arc["reach"]) < 0.0:
-		arc["reach"] = _solve(course.row, arc, course.from.distance_to(course.to))
-	return arc["reach"]
+static func _reach(course: GrenadeCourse, arc: Arc) -> float:
+	if arc.reach < 0.0:
+		arc.reach = _solve(course.row, arc, course.from.distance_to(course.to))
+	return arc.reach
 
 
 ## Where an arc first touches down so that it comes to rest `aim` px from the hand (bisected).
-static func _solve(row: Dictionary, arc: Dictionary, aim: float) -> float:
+static func _solve(row: Dictionary, arc: Arc, aim: float) -> float:
 	var low := 0.0
-	var high := minf(float(arc["cap"]), aim)
+	var high := minf(arc.cap, aim)
 	for _i in SOLVE_STEPS:
 		var mid := (low + high) * 0.5
 		if _comes_to_rest(row, arc, mid) < aim:
@@ -283,11 +341,11 @@ static func _solve(row: Dictionary, arc: Dictionary, aim: float) -> float:
 
 ## How far (px) from the hand an arc of `arc` that first touches down `reach` out comes to rest,
 ## over a flat floor: through the bounces and the skid, with no queries.
-static func _comes_to_rest(row: Dictionary, arc: Dictionary, reach: float) -> float:
+static func _comes_to_rest(row: Dictionary, arc: Arc, reach: float) -> float:
 	var g := GrenadeConfig.gravity
 	var keep := float(row.get("restitution", 0.35))
-	var along := reach / float(arc["time"])
-	var down: float = arc["vdown"]
+	var along := reach / arc.time
+	var down: float = arc.vdown
 	var far := reach
 	for _bounce in 8:
 		if down > GrenadeConfig.min_hop_speed and down * keep > g * PLAN_DELTA:
@@ -299,12 +357,19 @@ static func _comes_to_rest(row: Dictionary, arc: Dictionary, reach: float) -> fl
 	return far + along * along / (2.0 * float(row.get("friction", 520.0)))
 
 
-## How many `FIT_STEP`s the farthest arc can be lobbed beyond where it was solved to touch down.
-static func _longest(course: GrenadeCourse, arcs: Array[Dictionary]) -> int:
+## How far (px) each step of lobbing farther goes: `FIT_STEP` for a throw that is made, `ASKED_STEP`
+## times that for the AI's question, which only asks whether some touchdown clears.
+static func _lob_step(course: GrenadeCourse) -> float:
+	return FIT_STEP if course.verify else FIT_STEP * ASKED_STEP
+
+
+## How many steps (`_lob_step`) the farthest arc can be lobbed beyond where it was solved to touch
+## down.
+static func _longest(course: GrenadeCourse, arcs: Array[Arc]) -> int:
 	var most := 0
-	for arc: Dictionary in arcs:
-		if not arc["capped"]:
-			most = maxi(most, int((float(arc["farthest"]) - _reach(course, arc)) / FIT_STEP))
+	for arc: Arc in arcs:
+		if not arc.capped:
+			most = maxi(most, int((arc.farthest - _reach(course, arc)) / _lob_step(course)))
 	return most
 
 
@@ -317,7 +382,7 @@ static func _walled(course: GrenadeCourse, query: PhysicsShapeQueryParameters3D)
 	if course.space == null:
 		return false
 	query.exclude = course.passed
-	var high := _level_cast(course, query, maxf(GrenadeConfig.max_apex, course.release))
+	var high := _level_cast(course, query, _top(course))
 	if high == Vector2.INF or high.distance_to(course.to) <= LAND_NEAR + WALL_SLACK:
 		return false
 	var low := _level_cast(course, query, WALL_LOW)
@@ -351,7 +416,7 @@ static func _sweep(course: GrenadeCourse) -> PhysicsShapeQueryParameters3D:
 		query = PhysicsShapeQueryParameters3D.new()
 		query.shape = shape
 		_sweeps[width] = query
-	query.collision_mask = course.mask
+	query.collision_mask = course.mask | PhysicsLayers.TWIN_ROOF
 	return query
 
 
@@ -359,7 +424,7 @@ static func _sweep(course: GrenadeCourse) -> PhysicsShapeQueryParameters3D:
 static func _clear(
 	course: GrenadeCourse,
 	query: PhysicsShapeQueryParameters3D,
-	arc: Dictionary,
+	arc: Arc,
 	reach: float,
 ) -> bool:
 	return _strike(course, query, arc, reach) == null
@@ -372,12 +437,12 @@ static func _clear(
 static func _strike(
 	course: GrenadeCourse,
 	query: PhysicsShapeQueryParameters3D,
-	arc: Dictionary,
+	arc: Arc,
 	reach: float,
 ) -> Variant:
 	if course.space == null:
 		return null
-	var time: float = arc["time"]
+	var time: float = arc.time
 	var along := reach / time
 	var direction := _direction(course)
 	var before := _point(course, direction, along, arc, 0.0)
@@ -402,17 +467,33 @@ static func _strike(
 
 
 ## Whether a strike at `stopped`, on the way from `before` to `after`, is a landing: on the way
-## down, within `LAND_NEAR` of the aim.
+## down, within `LAND_NEAR` of the aim, on a surface that faces up (a floor, a piece's top), or over
+## the edge of a piece (a level feeler the cylinder's width higher meets nothing). The face of a
+## wall rising beside the aim is a strike, not a landing.
 static func _lands(
 	course: GrenadeCourse,
 	before: Vector3,
 	after: Vector3,
 	stopped: Vector3,
 ) -> bool:
-	return (
-		after.y < before.y
-		and PlanSpace.plan_of(stopped).distance_to(course.to) <= LAND_NEAR
+	if after.y >= before.y or PlanSpace.plan_of(stopped).distance_to(course.to) > LAND_NEAR:
+		return false
+	var reach := maxf(course.margin, GrenadeConfig.radius)
+	var onward := (after - before).normalized()
+	var feel := PhysicsRayQueryParameters3D.create(
+		stopped, stopped + onward * (reach + FEEL), course.mask & SURFACES
 	)
+	feel.exclude = course.passed
+	var hit := course.space.intersect_ray(feel)
+	if hit.is_empty() or Vector3(hit["normal"]).y > ItemFlight.FACES_UP:
+		return true
+	var level := Vector3(onward.x, 0.0, onward.z).normalized()
+	var up := Vector3(0.0, reach + 1.0, 0.0)
+	var higher := PhysicsRayQueryParameters3D.create(
+		stopped + up, stopped + up + level * (reach + FEEL), course.mask & SURFACES
+	)
+	higher.exclude = course.passed
+	return course.space.intersect_ray(higher).is_empty()
 
 
 ## The plan point of a `_strike` answer.
@@ -452,14 +533,14 @@ static func _starts_into(
 static func _faced(
 	course: GrenadeCourse,
 	query: PhysicsShapeQueryParameters3D,
-	arcs: Array[Dictionary],
+	arcs: Array[Arc],
 ) -> bool:
 	if arcs.size() < 2:
 		return false
 	var low: Variant = _strike(course, query, arcs[0], _reach(course, arcs[0]))
 	if low == null:
 		return false
-	var top: Dictionary = arcs[arcs.size() - 1]
+	var top: Arc = arcs[arcs.size() - 1]
 	var high: Variant = _strike(course, query, top, _reach(course, top))
 	return (
 		high != null
@@ -473,13 +554,13 @@ static func _point(
 	course: GrenadeCourse,
 	direction: Vector2,
 	along: float,
-	arc: Dictionary,
+	arc: Arc,
 	time: float,
 ) -> Vector3:
 	var height: float = (
-		course.release + float(arc["rise"]) * time - 0.5 * GrenadeConfig.gravity * time * time
+		course.release + arc.rise * time - 0.5 * GrenadeConfig.gravity * time * time
 	)
-	if time >= float(arc["time"]):
+	if time >= arc.time:
 		height = GrenadeConfig.radius + ItemFlight.GROUND_GAP
 	return PlanSpace.lift(course.from + direction * along * time, height)
 
@@ -491,7 +572,7 @@ static func _direction(course: GrenadeCourse) -> Vector2:
 
 
 ## Where `arc` first touching down `reach` out rests, flown over the floor (`rest_of`).
-static func _rest(course: GrenadeCourse, arc: Dictionary, reach: float) -> Vector2:
+static func _rest(course: GrenadeCourse, arc: Arc, reach: float) -> Vector2:
 	var far := _comes_to_rest(course.row, arc, reach)
 	var direction := _direction(course)
 	if _skid_clear(course, reach, far):
@@ -522,22 +603,37 @@ static func _skid_clear(course: GrenadeCourse, reach: float, far: float) -> bool
 ## The launch of `arc` first touching down `reach` px out.
 static func _launch(
 	course: GrenadeCourse,
-	arc: Dictionary,
+	arc: Arc,
 	reach: float,
 	ok: bool,
 	rest: Vector2,
 ) -> GrenadeLaunch:
 	var launch := GrenadeLaunch.new()
 	launch.ok = ok
-	launch.capped = arc["capped"]
+	launch.capped = arc.capped
 	launch.direction = _direction(course)
-	launch.speed = reach / float(arc["time"])
-	launch.rise = arc["rise"]
-	launch.apex = arc["apex"]
-	launch.time = arc["time"]
+	launch.speed = reach / arc.time
+	launch.rise = arc.rise
+	launch.apex = arc.apex
+	launch.time = arc.time
 	launch.touchdown = course.from + launch.direction * reach
 	launch.rest = rest
 	return launch
+
+
+## One arc of a plan: its peak `apex` (px, the centre's height), the launch `rise` (px/s up) and the
+## flight `time` (s) from the hand to the floor, the `vdown` it falls at, how far the arm throws it
+## (`cap`), where it first touches down so that it comes to rest at the aim (`reach`, -1 until
+## solved), `capped` when it cannot get there, and the `farthest` it may be lobbed.
+class Arc:
+	var apex := 0.0
+	var rise := 0.0
+	var time := 0.0
+	var vdown := 0.0
+	var cap := 0.0
+	var reach := -1.0
+	var capped := false
+	var farthest := 0.0
 
 
 ## The search of `plan` through the arcs and how far each is lobbed: how many `FIT_STEP`s farther
@@ -558,7 +654,7 @@ class Fit:
 
 	## Keep the arc (first touching down `reach` out, resting at `rest`, `off` px from the aim) when
 	## it rests nearer than any before.
-	func offer(arc: Dictionary, reach: float, rest: Vector2, off: float) -> void:
+	func offer(arc: Arc, reach: float, rest: Vector2, off: float) -> void:
 		if off < best_off:
 			best_off = off
 			best = { "arc": arc, "reach": reach, "rest": rest }

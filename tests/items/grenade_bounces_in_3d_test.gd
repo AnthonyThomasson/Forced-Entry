@@ -3,7 +3,8 @@ extends GameTest
 ## flies up to the wall in the air (the arc is still 50 px up or more where it arrives, it does not
 ## skid into the wall), bounces back off it, falls to the floor, bounces on that, and comes to rest
 ## on the floor on the thrower's side: the wall and the floor both bounce it, each posting a clatter
-## (a `grenade` event, stage `bounce`), and at rest it lies on the floor with no speed.
+## (a `grenade` event, stage `bounce`), the floor's bounce keeps the restitution's share of the
+## speed into it (`GrenadeConfig`'s 0.35), and at rest it lies on the floor with no speed.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const WALL_X := 400.0
@@ -64,8 +65,37 @@ func run(t: TestContext) -> void:
 		bounces.size() >= 2,
 		"the wall and the floor each clattered (%d bounces)" % bounces.size(),
 	)
+	_check_restitution(t, flight, resumed)
 	var last: Dictionary = flight.back()
 	t.check(float(last["altitude"]) < 1.0, "at rest it lies on the floor")
 	t.check(last["at"].x < WALL_X, "on the thrower's side of the wall (x %.0f)" % last["at"].x)
 	var rests := Probe.raw(t, &"grenade", func(d): return d.get("stage") == &"rest")
 	t.check(not rests.is_empty(), "it came to rest (a rest event)")
+
+
+## The floor's bounce keeps the restitution's share of the speed into it: the speed it fell at (the
+## last two frames before the floor, a frame and a bit of gravity on) against the speed it rose at
+## (`sqrt(2 g h)` of the peak of the hop).
+func _check_restitution(t: TestContext, flight: Array, resumed: int) -> void:
+	var landed := -1
+	for i in range(maxi(resumed, 2), flight.size()):
+		if float(flight[i]["altitude"]) < 1.0:
+			landed = i
+			break
+	if not t.require(landed >= 2, "premise: it fell to the floor after the wall"):
+		return
+	var dt: float = float(flight[landed - 1]["time"]) - float(flight[landed - 2]["time"])
+	var gravity: float = GrenadeConfig.gravity
+	var drop: float = float(flight[landed - 2]["altitude"]) - float(flight[landed - 1]["altitude"])
+	var into: float = drop / dt + gravity * dt * 1.2
+	var hop := 0.0
+	for i in range(landed + 1, flight.size()):
+		hop = maxf(hop, float(flight[i]["altitude"]))
+		if float(flight[i]["altitude"]) < 0.01 and hop > 1.0:
+			break
+	var keep := float(GrenadeConfig.row(&"stun").get("restitution", 0.0))
+	var out := sqrt(2.0 * gravity * hop)
+	t.expect_near(
+		out / into, keep, 0.06,
+		"the floor's bounce keeps the restitution's share of the speed (%.2f of it)" % (out / into),
+	)

@@ -16,7 +16,5 @@ static var friction: float = 520.0
 static var wall_bounce: float = 0.45
 ## Spin deceleration on the floor (rad/s²).
 static var spin_friction: float = 14.0
-## The ceiling (px): its top never goes over it (the walls' height).
-static var ceiling: float = 96.0
 ## Its size against walls (px).
 static var radius: float = 3.0

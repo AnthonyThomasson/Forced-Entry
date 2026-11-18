@@ -2,9 +2,10 @@ extends GameTest
 ## G17 with G3: what an NPC judges a lob (`AgentThrow.lob_clear`, which the throw-spot search and
 ## the GRENADE offer ask) is what the throw then flies, because both are the one planner
 ## (`GrenadeArc`, in the twin space): a lob it calls clear lands a thrown grenade past the cover,
-## near the aim, and one it calls blocked does not get through. Four lanes of a hall and a doorway
+## near the aim, and one it calls blocked does not get through. Six lanes of a hall and a doorway
 ## to the next room, each thrown as the NPC judged it: over bare floor, over a desk (31 px), over a
-## wardrobe (78 px), through the doorway, and at a point behind a wall with no door.
+## wardrobe (78 px), at a point 14 px short of the wall (the wall's face beside the aim is no
+## landing), through the doorway, and at a point behind a wall with no door.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
@@ -34,6 +35,12 @@ const LANES := {
 		"to": Vector2(430, 450),
 		"clear": true,
 		"past": 300.0,
+	},
+	"beside a wall": {
+		"from": Vector2(300, 550),
+		"to": Vector2(680, 550),
+		"clear": true,
+		"past": 600.0,
 	},
 	"through a doorway": {
 		"from": Vector2(450, 150),

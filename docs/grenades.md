@@ -90,15 +90,18 @@ flies on past and rests near its aim).
 **G3. Flight.** *(Real 3D since issue #194, job 9: the grenade flies in the twin space (`TwinSpace`, `docs/adr/0014-twin-staging-and-plan-space.md`), where every wall, piece of
 furniture, door, vehicle and body stands at its real height; there is no pseudo-height and no `coverage` test.)* A thrown grenade is a small sphere
 (`GrenadeConfig.radius` **3 px**) that leaves the hand at the thrower's **release height** (`BodyHeights.release`: standing 1.7 m, about 72 px; crouched
-1.3 m, about 55 px, by the posture of its holder) under gravity (`GrenadeConfig.gravity` **680 px/s²**), under the room's ceiling (the
-walls' 96 px; no lob peaks above `GrenadeConfig.max_apex` **90 px**), and is swept each physics frame through the twin space (`ItemFlight`, the one stepper
+1.3 m, about 55 px, by the posture of its holder) under gravity (`GrenadeConfig.gravity` **680 px/s²**), and is swept each physics frame through the twin space (`ItemFlight`, the one stepper
 of `ThrownGrenade` and `DroppedItem`). It strikes what it meets at the height it meets it:
 - **Furniture** lower than the arc is passed over and one it comes down on is **landed on** (the grenade bounces on a desk top, rolls on it and
-  can come to rest there, 31 px up); a piece taller than the arc (a wardrobe's 78 px under a 90 px peak is a narrow window, a bookshelf's 77 the
+  can come to rest there, 31 px up); a piece taller than the arc (a wardrobe's 78 px under a roof's 90 px peak is a narrow window, a bookshelf's 77 the
   same, anything a wall's 96) is struck and bounced off.
 - **A doorway** is open only as high as its door (84 px); the wall's **lintel** over it, from 84 to 96 px, is struck like a wall. A throw through a
   doorway is the lowest arc that reaches, which passes under it; a lob aimed higher (a peak over about 81 px where it crosses the doorway)
   strikes the lintel and comes back.
+- **A roof is the only ceiling** *(D11a)*. A room of a house or a tower (a `Floor` with `roofed`) has a roof slab in the twin space at the walls' height (96 px) that only a lob meets (not a ray of the player's aim or a sight); a
+  grenade that flies up into it strikes it (a flight is held under the roof's underside over its hand, the middle of its throw or its aim), and the planner never plans a peak above it (the
+  roof's underside less the grenade's size and `GrenadeArc.ROOF_SLACK` **3 px**, over the hand, the middle or the aim). Where no roof stands (the street, open ground, a roofless shell, an arena) nothing stops
+  a grenade from above and a lob peaks up to `GrenadeConfig.max_apex` **150 px** (about 3.5 m), steep enough to drop behind low cover.
 - **Walls, vehicles, doors and bodies** (a character's twin, the thrower's own for its first `GrenadeArc.THROWER_CLEAR` **40 px** of flight, since the
   hand is held beside the body) bounce it like any surface.
 A strike that comes in faster than `GrenadeConfig.min_hop_speed` **40 px/s** (and rebounds more than the next frame's gravity takes back) **bounces**:
@@ -112,22 +115,22 @@ is a frag's 250 px blast radius, a stun's 400 px flash radius) and `thrower`.
 
 **The arc planner** (`GrenadeArc`, one for the human's throw and the AI's judgment of one; interface 6). It chooses how the grenade leaves the
 hand: from the release point at the release height to the aim, **the lowest arc that clears what is in the way and lands near the aim**. The arcs are
-enumerated by peak, from the release height up to `max_apex` in `APEX_STEP` **6 px** steps; an arc's flight time follows from its peak alone, and
+enumerated by peak, from the release height up to the top a roof or the open sky allows (above) in `APEX_STEP` **6 px** steps (18 px above the walls' height); an arc's flight time follows from its peak alone, and
 the arm gives it at most `throw_speed` **740 px/s** across the floor, so the lowest arc that reaches a near aim is a flat toss and the one that
 reaches a far aim a high lob; a throw is never farther than `max_range` **550 px**. Where an arc first touches down is solved so that, with the
 bounces (restitution, `min_hop_speed`) and the skid (`friction`) over a flat floor, the grenade rests at the aim. Each arc is swept in five casts of a
 cylinder `margin` wider than the grenade through the twin space (the walls, the pieces, the vehicles; characters are looked past) and is kept when
-nothing stops it; a strike on the way down within 24 px of the aim is a landing on top of something. When more than one arc reaches, the lowest
+nothing stops it; a strike on the way down within 24 px of the aim is a landing on top of something (on a surface that faces up, a body's, or over a piece's edge; the face of a wall rising beside the aim is a strike). When more than one arc reaches, the lowest
 wins; a throw that is made also **flies** each clear arc over the room (the thrower's own flight to rest) and keeps the first that rests within 24 px
 of the aim: a grenade that would touch down short of a sofa and skid into it is lobbed farther (12 px further out at a time, at most 40 px past the aim),
 over the sofa, to touch down past it and roll on; a rest short of the aim is counted twice (the grenade the cover stopped is the worse miss than
 one that rolled on). One that no arc brings near is thrown on the arc that rests nearest, and one with **no clear arc at all** on the highest, and
 strikes what is in the way (`ok` is false). The AI asks the same question without flying the skid (`GrenadeArc.clear`, G17), so a throw it judges
-clear is one the flight then makes. Real limits follow: a lob can come down only so steeply under a 96 px ceiling, so a target within about 50 px
-behind a 31 px desk, or in the lee of a 78 px wardrobe far from the thrower, is out of a throw's reach.
+clear is one the flight then makes. Real limits follow: under a roof a lob can come down only so steeply, so a target within about 50 px
+behind a 31 px desk, or in the lee of a 78 px wardrobe far from the thrower, is out of a throw's reach indoors; in the open the same target is reached.
 Tests: `items/grenade_bounces_off_wall`, `items/grenade_bounces_in_3d` (a wall struck in the air, the floor, rest on it), `items/grenade_lobs_over_furniture`
 (a desk and a wardrobe: over them and landing at the aim), `items/grenade_lands_on_furniture` (aimed at a desk, it rests on top), `items/grenade_lobbed_over_cover`,
-`items/grenade_flies_under_the_lintel` (a throw through a doorway passes under the lintel), `items/grenade_high_lob_bounces_off_the_lintel` (a high lob into
+`items/grenade_release_height_follows_pose` (a ducked thrower's grenade leaves lower than a standing one's), `items/grenade_lob_roof_ceiling` (D11a: a steep drop behind a wardrobe is out of reach under a roof, made in the open), `objects/twin_roof` (a room has a roof at the walls' height, open ground none), `items/grenade_flies_under_the_lintel` (a throw through a doorway passes under the lintel), `items/grenade_high_lob_bounces_off_the_lintel` (a high lob into
 the doorway comes back), `items/dropped_item_falls_in_3d` (a dropped item falls the same way), `ai/grenade/throw_planner_agrees_with_flight` (G17: what the NPC
 judges clear is what flies), `objects/twin_doorway_lintel`.
 
@@ -433,9 +436,8 @@ claim says so; the thrower steps out in front of the door (`BANG_STEP_OUT`) to a
 lob test), walks all the way into that spot (6 px: a stride short of it the jamb can be in the way), and
 aims at the room's far side (85% of the room's depth, on the doorway's axis if the lob is clear), or, in a room deeper than a stun reaches from where it throws
 (a long hall entered from its end), at the farthest point along that line it reaches, at least 120 px in from the doorway (the aim rule
-is the doorway geometry's, `ai/perception/entry/entry_landings.gd`, which an ambush post is shielded by too, `docs/leadership.md` LD15). A far aim that
-no arc gets through the doorway under its lintel (G3: the highest arc a far lob needs is the one the lintel stops) is pulled back, 100 px at a time, up to three
-times, until some spot has a clear lob; the plan is tried a dozen aims a frame, the thrower waiting meanwhile. A stun grenade in flight in the doorway is not evaded by the
+is the doorway geometry's, `ai/perception/entry/entry_landings.gd`, which an ambush post is shielded by too, `docs/leadership.md` LD15). The plan is tried a dozen
+aims a frame, the thrower waiting meanwhile. A stun grenade in flight in the doorway is not evaded by the
 stack members, who hold turned away beside the wall (G16 still moves anyone else). Nor is an ordered entry's frag, in flight or come down where the member's
 slot is out of its zone (the slot is its cover, `Entry.expects_burst`); a member whose slot the frag reaches (one that came back to the door) evades it as G16 says.
 

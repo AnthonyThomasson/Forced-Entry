@@ -11,7 +11,10 @@ extends RefCounted
 ## (`height`), and `at` is its plan point (the 2D `(x, y)` = 3D `(x, z)`). The floor is a plane the
 ## sphere rests on (`GROUND_GAP` px over the room's slab, which stands 0.1 px up): a floor is no
 ## collider of the twin space a flight sweeps (a sphere rolling over slabs would catch their seams).
-## A ceiling plane (`ceiling`, the walls' height) keeps a flight under the room's roof.
+## A ceiling (`ceiling`, px: where a roof is over the flight; none in the open) keeps a flight's top
+## under it. A roof is also a body of the twin space over a room's floor (`Floor.roofed`, the layer
+## `TWIN_ROOF`), which a flight strikes like a wall, for a flight that is not given the ceiling (a
+## dropped item).
 ##
 ## **Contact.** A strike that comes in faster than `min_hop` and rebounds more than the next frame's
 ## gravity takes back bounces: the velocity is reflected and scaled by the surface's restitution
@@ -43,12 +46,12 @@ var height := 0.0
 ## Its velocity across the floor (px/s) and its vertical speed (up, px/s).
 var velocity := Vector2.ZERO
 var rise := 0.0
-## The sphere's radius (px) and gravity (px/s²), what it strikes (`PhysicsLayers`, 3D) and the
-## ceiling (px, the highest its centre plus radius goes).
+## The sphere's radius (px) and gravity (px/s²), the ceiling (px, the highest its centre plus radius
+## goes; `INF`: none) and what it strikes (`PhysicsLayers`, 3D).
 var radius := 3.0
 var gravity := 680.0
-var ceiling := 96.0
-var mask := PhysicsLayers.TWIN_ALL
+var ceiling := INF
+var mask := PhysicsLayers.TWIN_ALL | PhysicsLayers.TWIN_ROOF
 ## The share of its velocity a bounce keeps, off a surface facing up and off any other; the speed
 ## (px/s) under which a strike settles and does not bounce; the floor's skid deceleration (px/s²).
 var floor_restitution := 0.35

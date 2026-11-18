@@ -8,9 +8,6 @@ extends RefCounted
 ## (`know`, set by `AgentSnapshot.build()`). `agent_snapshot.gd` holds it (`_throws`) beside the
 ## other option groups (`snapshot_options.gd`) and calls it from `build()`.
 
-## The raw throw spot candidates one step of a group's scan works through (`_scan_unit`): the
-## block the decision's throw search takes (`DecisionBudget.throw_block`).
-const SCAN_BLOCK := 6
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentThrow = preload("res://scenes/ai/perception/agent_throw.gd")
@@ -110,7 +107,7 @@ func _scanned(
 			_tactics, ctx, _throw_aim(ctx, kind, spot, keep_out), know["character_rids"]
 		)
 	var scan: ThrowScan = scans[key]
-	scan.step(SCAN_BLOCK)
+	scan.step(DecisionBudget.throw_block)
 	if not scan.candidates_done:
 		return false
 	points[key] = scan.points

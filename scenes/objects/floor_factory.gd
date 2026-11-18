@@ -11,7 +11,13 @@ const FloorScript = preload("res://scenes/objects/floor/floor.gd")
 
 
 ## Build a floor covering `rect` (in `parent`'s space) under `parent`. Returns the node.
-static func spawn(rect: Rect2, definition: Dictionary, floor_name: String, parent: Node) -> Node:
+static func spawn(
+	rect: Rect2,
+	definition: Dictionary,
+	floor_name: String,
+	parent: Node,
+	roofed := false,
+) -> Node:
 	var node := Node2D.new()
 	node.name = floor_name
 	node.position = rect.position
@@ -26,6 +32,7 @@ static func spawn(rect: Rect2, definition: Dictionary, floor_name: String, paren
 	node.marks = definition.get("marks", {})
 	node.tile_offset = rect.position - (definition.get("tile_from", rect.position) as Vector2)
 	node.light_layer = definition.get("light_layer", "")
+	node.roofed = roofed
 
 	parent.add_child(node)
 	return node
