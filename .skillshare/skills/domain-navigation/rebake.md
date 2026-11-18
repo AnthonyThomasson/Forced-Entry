@@ -4,7 +4,7 @@ Side file of `domain-navigation` (`SKILL.md`).
 
 A bake is a snapshot, and furniture is shoved in play. `nav_updater.gd` (built once by `MatchBuilder.stage` right after the bake,
 handed the region, house, rooms and the overlay) recomputes `furniture_holes` and `character_holes` each `interval` (cheap:
-transforms only) and re-bakes **only** when something moved past `move_threshold`: furniture re-bakes both regions (the planning
+transforms only; `start()` starts its timer) and re-bakes **only** when something moved past `move_threshold`: furniture re-bakes both regions (the planning
 one gathered and baked off the frame, below; a tick while it is in flight leaves the planning region alone, and
 the baseline is set from what the bake carved when it lands, so a move during a bake is caught by the next tick); a character that
 stopped, set off, appeared or died re-bakes the steering region in place. An at-rest scene costs the compare.
@@ -21,7 +21,7 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   of the gather.
 - **A district's steering tiles bake one a physics frame and land together** (`nav_updater.gd`, `nav_tile_burst.gd` (`NavTileBurst`), `NavTiles.due_tiles` /
   `parse_for` / `prepare` / `land` / `walking_at`; `navigation/tile_rebake_one_a_frame`, `district_steering_rebake_lands_in_its_tick`): a tick's due tiles are baked a frame each and **landed in one**
-  (a sync of the steering map was ~12 ms a frame while its edge connections were on, now ~0.3 ms: `steering-edge-connections.md`). Order: tiles holding a **moving walker** first (a living character moving at `REST_SPEED` or more),
+  (a steering-map sync was ~12 ms a frame with edge connections on, now ~0.3 ms: `steering-edge-connections.md`). Order: tiles holding a **moving walker** first (a living character moving at `REST_SPEED` or more),
   by squared distance from the nearest walker to the tile's rect (0 inside it), then the rest, ties and a still scene in the grid's order, fixed at the tick.
   The tick bakes the first (`prepare` holds the polygon), `_physics_process` one more a `GameClock` frame (none on a frame that baked one), and the last
   `land`s them all: k tiles land k-1 frames after the tick, a lone one in it; a walker sees a body that stopped up to k-1 frames later (accepted). The walls are
@@ -36,7 +36,7 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   picks the count from `NavBakeConfig`: a district's planning bake `district_frames` 14 (the p95 of its thread on the 5v5 guard's 7 ms frame), its avoid
   maps `avoid_frames` 12 (the p90: the AI waits for a chain of them, so each link costs the count; 10, near the median, was late for a quarter of them), the planning ring `ring_frames` 3
   (a 4 to 7 ms bake), a lone house's bakes `house_frames` 3. The measurements, and why the avoid maps' is not the same, are the holder's comments.
-  Remeasure when a bake or a frame changes (a scratch log of the frames from `NavBake.start` to the thread's completion). A region freed meanwhile is left
+  Remeasure when a bake or a frame changes (log the frames from `NavBake.start` to the thread's completion). A region freed meanwhile is left
   alone and `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`).
 - **A map syncs on the main thread** (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`): the server's
   async sync would show a landed bake on a frame that follows the machine's load, so a match was a different fight run to run whatever the landing frames.

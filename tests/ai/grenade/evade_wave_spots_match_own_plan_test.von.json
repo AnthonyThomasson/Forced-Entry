@@ -132,32 +132,30 @@
 		{
 			"options": [
 				"You are badly wounded and being hit (best: d3, out of their sight; you are unhurt)",
-				"You have a clear shot at thrower, and you are not badly wounded (once they show, from an ambush behind cover; they look badly wounded) (your current plan)",
-				"thrower looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, standing still, holding a Pistol, looks badly wounded)"
+				"thrower looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, was standing still, holding a Frag grenade, looks badly wounded)"
 			],
 			"pick": "advance",
 			"probabilities": {
-				"advance": 0.6042,
-				"engage": 0.2157,
-				"retreat": 0.1802
+				"advance": 0.7906,
+				"retreat": 0.2094
 			},
 			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - thrower - ENGAGE - ambush behind the cabinet (in ambush, waiting for a shot, for 3s).\nKnown hostiles: 1 (1 in sight). Allies near you: d3, d4, d5, d1.\nYou are behind cover from thrower (the cabinet): your line to them is blocked. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nd3 (ally) — last seen just now — north of you, in the hallway — on thrower's front — was moving west.\nd4 (ally) — in sight — north-east of you, in the hallway — on thrower's front — standing still.\nd5 (ally) — last seen just now — east of you, in the hallway — on thrower's front — was moving north-east, away from you.\nd5 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd4 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd3 (radio, recently): COMBAT - thrower - ADVANCE - close to them.\nd1 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nFlanks on thrower (you are on their front): their left side — route passes thrower, line blocked, cover, long hidden route; their right side — route passes thrower, line blocked, cover, medium exposed route; behind them — route passes thrower, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → thrower."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - thrower - ENGAGE - ambush behind the cabinet (in ambush, waiting for a shot, for 3s).\nKnown hostiles: 1 (0 in sight). Allies near you: d3, d1, d4, d5.\nYou are behind cover from thrower (the cabinet): your line to them is blocked.\nthrower — HOSTILE (trespassing) — last seen recently — in pistol range, east of you, in the hallway — was standing still — holding a Frag grenade — looks badly wounded.\nd3 (ally) — in sight — north-west of you, in the hallway — on thrower's front — standing still.\nd1 (ally) — in sight — west of you, in the hallway — on thrower's front — standing still.\nd4 (ally) — in sight — north-east of you, in the hallway — on thrower's front — standing still.\nd5 (ally) — last seen recently — east of you, in the hallway — on thrower's front — was moving east, away from you.\nd5 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd4 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd3 (radio, recently): COMBAT - thrower - ADVANCE - close to them.\nd1 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nFlanks on thrower (you are on their front): their left side — route passes thrower, line blocked, cover, long hidden route; their right side — route passes thrower, line blocked, cover, medium exposed route; behind them — route passes thrower, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → thrower."
 		},
 		{
 			"options": [
 				"advance halfway to them (in the hallway) — in the open — clear shot from there",
 				"advance most of the way to them (in the hallway) — in the open — clear shot from there",
-				"rush straight at where they are (in the hallway) — medium exposed route — they hold a Pistol"
+				"rush straight at where they are (in the hallway) — medium exposed route — they hold a Frag grenade"
 			],
 			"pick": "advance_close",
 			"probabilities": {
-				"advance_close": 0.3653,
-				"advance_half": 0.3465,
-				"rush": 0.2882
+				"advance_close": 0.3677,
+				"advance_half": 0.3366,
+				"rush": 0.2957
 			},
 			"question": "How should you close in on thrower? Prefer cover close to them and a hidden route; rush only when they are weak, fleeing or unarmed.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nCurrent activity: COMBAT - thrower - ENGAGE - ambush behind the cabinet (in ambush, waiting for a shot, for 3s).\nYour pistol is loaded.\nYou are behind cover from thrower (the cabinet): your line to them is blocked. They are aiming at you.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nd3 (ally) — last seen just now — north of you, in the hallway — on thrower's front — was moving west.\nd4 (ally) — in sight — north-east of you, in the hallway — on thrower's front — standing still.\nd5 (ally) — last seen just now — east of you, in the hallway — on thrower's front — was moving north-east, away from you.\nd5 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd4 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd3 (radio, recently): COMBAT - thrower - ADVANCE - close to them.\nd1 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nDecided so far: COMBAT → thrower → ADVANCE."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nCurrent activity: COMBAT - thrower - ENGAGE - ambush behind the cabinet (in ambush, waiting for a shot, for 3s).\nYour pistol is loaded.\nYou are behind cover from thrower (the cabinet): your line to them is blocked.\nthrower — HOSTILE (trespassing) — last seen recently — in pistol range, east of you, in the hallway — was standing still — holding a Frag grenade — looks badly wounded.\nd3 (ally) — in sight — north-west of you, in the hallway — on thrower's front — standing still.\nd1 (ally) — in sight — west of you, in the hallway — on thrower's front — standing still.\nd4 (ally) — in sight — north-east of you, in the hallway — on thrower's front — standing still.\nd5 (ally) — last seen recently — east of you, in the hallway — on thrower's front — was moving east, away from you.\nd5 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd4 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nd3 (radio, recently): COMBAT - thrower - ADVANCE - close to them.\nd1 (radio, recently): COMBAT - thrower - ENGAGE - where you stand.\nDecided so far: COMBAT → thrower → ADVANCE."
 		}
 	],
 	"version": 1

@@ -41,13 +41,13 @@
 			],
 			"pick": "explore_east",
 			"probabilities": {
-				"enter": 0.3005,
-				"explore_east": 0.3496,
-				"room_security_vestibule": 0.1308,
-				"stun_entry": 0.2191
+				"enter": 0.3069,
+				"explore_east": 0.339,
+				"room_security_vestibule": 0.1342,
+				"stun_entry": 0.2199
 			},
 			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your SMG.\nYou are in the living room, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the north-east (waiting, for 36s).\nDecided so far: SEARCH."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your SMG.\nYou are in the living room, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the north-east (waiting, for 33s).\nDecided so far: SEARCH."
 		}
 	],
 	"version": 1

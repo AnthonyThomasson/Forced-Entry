@@ -585,16 +585,11 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 		OVERLAY_REGISTRY.NAV_HOLES,
 		bool((match_spec["overlays"] as Dictionary).get(OVERLAY_REGISTRY.NAV_HOLES, false)),
 	)
-	# The re-baker keeps the navmesh in step with shoved furniture and refreshes the overlay.
-	var nav_updater: Node = NAV_UPDATER.new()
-	nav_updater.name = "NavUpdater"
-	world.add_child(nav_updater)
-	nav_updater.setup(nav_region, root, site_rooms, nav_debug)
+	var nav_updater := _rebaker(world, nav_region, root, site_rooms, nav_debug)
 	var twins := _twin_space(world)
-	if bool(match_spec["wait_nav"]):
-		await _wait_nav(world)
-		if not is_instance_valid(world):
-			return {}
+	await _settle(match_spec, world, nav_updater)
+	if not is_instance_valid(world):
+		return {}
 	var handle := {
 		"world": world,
 		"house": house,
@@ -607,6 +602,33 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	if root != house:
 		handle["district"] = root
 	return handle
+
+
+## The re-baker that keeps `world`'s navmesh in step with shoved furniture and refreshes the
+## `nav_debug` overlay, set up over `nav_region` and not yet ticking (`_settle` starts it).
+static func _rebaker(
+	world: Node2D,
+	nav_region: NavigationRegion2D,
+	root: Node2D,
+	site_rooms: Array,
+	nav_debug: Node2D,
+) -> Node:
+	var nav_updater: Node = NAV_UPDATER.new()
+	nav_updater.name = "NavUpdater"
+	world.add_child(nav_updater)
+	nav_updater.setup(nav_region, root, site_rooms, nav_debug)
+	return nav_updater
+
+
+## With `wait_nav`, wait until `world`'s navigation maps answer (`_wait_nav`); then start its
+## re-baker's ticks. That is the frame the match's bodies are placed on, a continuation of a physics
+## step's signal whatever point of a frame the stage began at, so the ticks fall the same against
+## the fight in every run (`NavUpdater.start`).
+static func _settle(match_spec: Dictionary, world: Node2D, nav_updater: Node) -> void:
+	if bool(match_spec["wait_nav"]):
+		await _wait_nav(world)
+	if is_instance_valid(world):
+		nav_updater.start()
 
 
 ## The twin space of `world` (`TwinSpace`, interface 29): a 3D twin of every solid body under it,

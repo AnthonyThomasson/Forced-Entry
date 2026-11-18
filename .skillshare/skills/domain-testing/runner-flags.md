@@ -38,7 +38,7 @@ The header lists every flag; this file holds the rules and the reasons behind th
 - **Von tests:** a `requires_von` test runs in every normal run (`--changed`, the pre-commit hook, `--base`) from `<name>_test.von.json` beside it (`VonRecording`, keyed as `domain-ai` (`decision-von.md`) says). Each answer lands 12 physics frames after its ask in replay, live and
   record alike. No server or pacing; sharded as any test. An ask the recording lacks, or
   a missing or unreadable file, FAILs naming the question and `tools/run_tests.sh --record-von --id=<id>` (a snapshot or
-  question wording change stales recordings): run it against a live Von on :8000 and commit the diff.
+  question wording change stales recordings): run it against a live Von on :8000 and commit the diff. A replay that misses: `von-determinism.md`.
   - `--record-von` runs the selected Von tests live and writes each passing test's recording whole (unused entries drop);
     FAILs with no server, like `--require-von`. `--include-von` / `--require-von` run live and touch no recording. Live
     and record runs are paced in real time, in shard 0.

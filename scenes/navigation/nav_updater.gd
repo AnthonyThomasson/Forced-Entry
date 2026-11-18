@@ -99,9 +99,24 @@ func setup(
 	var timer := Timer.new()
 	timer.name = "RebakeTimer"
 	timer.wait_time = max(interval, 0.05)
-	timer.autostart = true
+	# Counted in the physics pass, like the sim it re-bakes for, and started by `start`.
+	timer.process_callback = Timer.TIMER_PROCESS_PHYSICS
+	timer.autostart = false
 	timer.timeout.connect(_on_tick)
 	add_child(timer)
+
+
+## Start the interval. A timer counts from the step it is added in or the next, by whether it was
+## added before that step's pass reached it or after, so one started in `setup` ticked a frame
+## earlier or later against the fight by the point of the frame the world was built from (a live Von
+## test builds it from the launcher's `_process`, a replay from a physics step's signal, a second
+## run of a test from where gdUnit resumed it), and the re-bake that landed a frame apart gave the
+## same fight a different navmesh. The caller starts it on the frame the world's bodies are placed
+## on, a continuation of a physics step's signal whatever the build began in (`MatchBuilder.stage`).
+func start() -> void:
+	var timer := get_node_or_null("RebakeTimer") as Timer
+	if timer != null and timer.is_stopped():
+		timer.start()
 
 
 ## One interval tick: if furniture has moved since the last bake, re-carve the planning region's
