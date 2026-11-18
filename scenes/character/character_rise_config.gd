@@ -14,6 +14,11 @@ static var cover_depth: float = 80.0
 ## Seconds a character takes to rise before its first shot: it is already exposed (its body is the
 ## risen pose's) but holds its fire this long.
 static var rise_time: float = 0.2
-## Seconds after its last shot (or its last judgement that it must be risen) before it drops back to
-## the duck, so a burst and a held trigger do not flicker.
+## Seconds a risen body stays risen after the last time it judged a round it could fire (the shot
+## itself, or the rise it waits to fire in), before it drops back to the duck, so a burst and a held
+## trigger do not flicker. A slow gun holds it longer: at least its time between rounds plus
+## `dwell_margin`.
 static var dwell: float = 0.6
+## Seconds past a gun's time between rounds a rise is held for, so the gun's next round finds the
+## body still risen however slow the gun is.
+static var dwell_margin: float = 0.2

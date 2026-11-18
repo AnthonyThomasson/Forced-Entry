@@ -86,7 +86,7 @@ _Avoid_: kneel
 The pose a ducked character rises to for a burst when the cover it is behind blocks its muzzle line: its bore about 1.02 m
 (43 px), clearing 0.9 m cover with the head and shoulders exposed (`BodyHeights.FIRE_OVER`); it drops back after a short
 dwell (`CharacterRiseConfig`, `character.weapon.rise`: `docs/cover-and-stance.md` P6). Player and NPCs alike. It rises only as far as it must (`BodyHeights.lowest_clearing`): fire-over for cover up to
-its muzzle (about 1.0 m), standing for taller cover up to a standing muzzle (about 1.55 m), and above that it fires around.
+its muzzle (about 1.0 m), standing for taller cover up to a standing muzzle (about 1.55 m), and above that it does not rise: it fires from where it stands and the round meets the cover.
 _Avoid_: pop-up, peek
 
 **Level shot**:

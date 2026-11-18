@@ -48,10 +48,13 @@ func shoot() -> bool:
 	update_raise(0.0)
 	if _blocked:
 		return false
-	# A ducked gun behind cover rises over it first (it holds its fire while it does).
-	if character.movement.posture() == &"crouch" and item.gun_id() != &"":
-		if not rise.rise_to(rise.pose_needed(item.weapon_hand())):
-			return false
+	# A ducked gun behind cover rises over it first (it holds its fire while it does), but only a
+	# gun that could fire now: an empty or cooling one neither rises nor renews the rise.
+	if (character.movement.posture() == &"crouch"
+			and item.gun_id() != &""
+			and item.can_fire()
+			and not rise.rise_to(rise.pose_needed(item.weapon_hand()), item.fire_interval())):
+		return false
 	return item.secondary(character)
 
 

@@ -2,7 +2,7 @@
    `Item` (`items/item.gd`): `display_name`, `reach`, `hand_stance(hand) -> StringName` (a `CharacterStanceConfig.stances` entry name; the
    character overrides it with `run` while running, and blind puts the free hand in `eyes` and a gun's weapon hand in `one_hand`,
    `docs/grenades.md` G13), `primary(user)` (F), `secondary(user) -> bool` (LMB; true = a round left the barrel), `tick(delta)` (every
-   carried item, each physics frame), `is_automatic()`, `weapon_hand()`, `muzzle_ahead()` (negative = the
+   carried item, each physics frame), `can_fire()` / `fire_interval()` (a gun's ready state and time between rounds), `is_automatic()`, `weapon_hand()`, `muzzle_ahead()` (negative = the
    character's `CharacterStanceConfig.muzzle_ahead`), `raises_at_contact()` / `raised_stance(hand)` (a long gun's barrel against a wall:
    held up), `gun_id()` (`GunConfig` id, `&""` for a non-gun), `round_power()` (1 for a non-gun; the character reads both for
    its `reload` event), `drop(user, velocity) -> Node2D` (on the user's death: a gun leaves a skidding `DroppedItem` whose
@@ -52,7 +52,7 @@
 
    **The character API an item may call:** `facing`, `is_dead`, `inventory.current_item()` (a grenade drops its windup on death or a switch), `anatomy.hands.punch(hand)` / `punch_amount(hand)` (0..1; a long gun swings round by it) / `hand_position(hand)`
    (local) / `world(hand)`, `weapon.muzzle_origin(hand)`, `world_root()` (the AI too: the group `characters` is under it), `report_shot(body, dmg)`, `weapon.kick(hand, strength := 1.0)`, `weapon.facing()` (the drawn
-   direction, trailing the aim), `weapon.aim_target()` (where a grenade is thrown to), `weapon.aim_sway()`
+   direction, trailing the aim), `weapon.aim_target()` (where a grenade is thrown to), `weapon.shot_direction(hand)` (a round's zeroed, swayed plan direction), `weapon.aim_sway()`
    (rad, the stun's wander), `weapon.one_handed()` (blind: a gun's round adds its row's `one_hand_spread_deg`),
    `weapon.raise()` (0..1, a long gun raised off a wall).
 

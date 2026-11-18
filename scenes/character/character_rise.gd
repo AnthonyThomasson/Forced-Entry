@@ -64,12 +64,13 @@ func drop() -> void:
 	_dwell = 0.0
 
 
-## Rise to `pose` (what `pose_needed` said) and hold it for `CharacterRiseConfig.dwell` after the
-## last time this is asked. A pose never lowers a pose already risen to (no flicker mid-burst); one
-## it is at or above, `DUCK` or `NONE` only holds the rise it has. A body is exposed as soon as it
-## has risen but may fire only once `CharacterRiseConfig.rise_time` has passed: true when it may
-## fire now (always for a body that is not crouched or not risen).
-func rise_to(wanted: StringName) -> bool:
+## Rise to `pose` (what `pose_needed` said) and hold it for `CharacterRiseConfig.dwell` (at least
+## `cycle`, the gun's time between rounds, plus `dwell_margin`) after the last time this is asked.
+## A pose never lowers a pose already risen to (no flicker mid-burst): one it is at or above, `DUCK`
+## or `NONE` only holds the rise it has. A body is exposed as soon as it has risen but may fire only
+## once `CharacterRiseConfig.rise_time` has passed: true when it may fire now (always for a body
+## that is not crouched or not risen).
+func rise_to(wanted: StringName, cycle := 0.0) -> bool:
 	if character.movement.posture() != &"crouch":
 		return true
 	if (wanted != BodyHeights.NONE and wanted != BodyHeights.DUCK
@@ -78,26 +79,33 @@ func rise_to(wanted: StringName) -> bool:
 		_wait = CharacterRiseConfig.rise_time
 		character.anatomy.invalidate_rig()
 	if _pose != BodyHeights.NONE:
-		_dwell = CharacterRiseConfig.dwell
+		_dwell = maxf(CharacterRiseConfig.dwell, cycle + CharacterRiseConfig.dwell_margin)
 	return _wait <= 0.0
 
 
-## The pose the character, ducked, must fire its held gun in `hand` from: the lowest whose muzzle
-## clears the cover in its line of fire (`BodyHeights.DUCK` for none, `NONE` for cover no pose
-## clears). Cover is what the line meets within `reach` of the body; once it has met some, the line
-## is judged across the whole of the piece (`cover_depth` further on), so a part behind the first
-## (a backsplash) counts. The line ends at the aim point.
+## The pose the character, ducked, must fire its held gun in `hand` from: `pose_along` its
+## zeroed shot direction toward the aim point at the height it aims (`weapon.aim_height_from`).
 func pose_needed(hand: int) -> StringName:
+	var weapon: CharacterWeapon = character.weapon
+	var run := maxf(weapon.muzzle_origin(hand).distance_to(weapon.aim_target()), 1.0)
+	return pose_along(weapon.shot_direction(hand), run, weapon.aim_height_from(-1.0))
+
+
+## The one rule for what a ducked body must rise to: the lowest pose whose muzzle clears the cover
+## in its line of fire (`BodyHeights.DUCK` for none, `NONE` for cover no pose clears), the line
+## running along the plan `direction` for `run` px up or down to `aim_height` (px above the floor,
+## negative for a level line). Cover is what the line meets within `reach` of the body; once it
+## has met some, the line is judged across the whole of the piece (`cover_depth` further on), so a
+## part behind the first (a backsplash) counts. The shot (`pose_needed`) and an NPC's choice to
+## fire (`AgentVision.rise_line_clear`) both ask it.
+func pose_along(direction: Vector2, run: float, aim_height: float) -> StringName:
 	var space := TwinSpace.space_of(character)
 	if space == null:
 		return BodyHeights.DUCK
-	var weapon: CharacterWeapon = character.weapon
-	var direction := weapon.shot_direction(hand)
-	var run := maxf(weapon.muzzle_origin(hand).distance_to(weapon.aim_target()), 1.0)
 	var length := minf(CharacterRiseConfig.reach, run)
 	var needed := BodyHeights.DUCK
 	for _cast in MAX_CASTS:
-		var found := _cast_from(space, direction, run, length, needed)
+		var found := _cast_from(space, direction, length, needed, Vector2(run, aim_height))
 		if found.is_empty():
 			return needed
 		var next := BodyHeights.lowest_clearing(
@@ -114,17 +122,18 @@ func pose_needed(hand: int) -> StringName:
 
 
 ## What the muzzle line of `from_pose` meets within `length` px of the body's centre along the plan
-## `direction`, `intersect_ray`'s dictionary ({} for a clear line). `run` is the plan distance to
-## the aim point the line climbs or falls to.
+## `direction`, `intersect_ray`'s dictionary ({} for a clear line). `aim` is the plan distance to
+## the aim point the line climbs or falls to (x) and the height it aims at there (y; negative: it
+## flies level).
 func _cast_from(
 	space: PhysicsDirectSpaceState3D,
 	direction: Vector2,
-	run: float,
 	length: float,
 	from_pose: StringName,
+	aim: Vector2,
 ) -> Dictionary:
 	var level := BodyHeights.muzzle(from_pose)
-	var slope: float = (character.weapon.aim_height_from(level) - level) / run
+	var slope: float = ((level if aim.y < 0.0 else aim.y) - level) / aim.x
 	_ray.from = PlanSpace.lift(character.global_position, level)
 	_ray.to = PlanSpace.lift(
 		character.global_position + direction * length, maxf(level + slope * length, 0.0)

@@ -49,8 +49,8 @@ func _damage() -> float:
 	return float(_stat("damage", 0.0))
 
 
-## Seconds between rounds.
-func _fire_interval() -> float:
+## Seconds between rounds (the row's `fire_interval`).
+func fire_interval() -> float:
 	return float(_stat("fire_interval", 0.0))
 
 
@@ -133,15 +133,20 @@ func primary(user: Node2D) -> void:
 	user.anatomy.hands.punch(weapon_hand())
 
 
+## A round is in the barrel's reach: loaded, not mid-reload and past the time between rounds.
+func can_fire() -> bool:
+	return not _load.reloading and _load.rounds_loaded() > 0 and _cooldown <= 0.0
+
+
 ## LMB: fire a bullet from the muzzle and eject a casing (both live in world space); the gun kicks
 ## the hand back. Spends a round; an empty, mid-reload or still-cycling gun does nothing. The round
 ## leaves within the gun's spread of the aim, wider by its `one_hand_spread_deg` while its user
 ## holds it in one hand (`weapon.one_handed()`). True when a round left the barrel.
 func secondary(user: Node2D) -> bool:
-	if _load.reloading or _load.rounds_loaded() <= 0 or _cooldown > 0.0:
+	if not can_fire():
 		return false
 	_load.magazine.rounds -= 1
-	_cooldown += _fire_interval()
+	_cooldown += fire_interval()
 	var hand := weapon_hand()
 	var muzzle: Vector2 = user.weapon.muzzle_origin(hand)
 	# Zeroed, and wandering off the line while stunned (`shot_direction`).

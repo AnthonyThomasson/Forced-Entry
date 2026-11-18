@@ -100,7 +100,8 @@ func _interact(character: CharacterBody2D) -> void:
 ## (the gun paces itself). A click on a HUD control (the overlay bar, a panel) belongs to the UI,
 ## not the gun. Input polling ignores GUI mouse filters, so ask the viewport what the pointer is
 ## over. A press that began on the UI stays the UI's however far it is dragged. A click that comes
-## while the body rises over its cover to fire waits for the rise (`_click_pending`).
+## while the body rises over its cover to fire waits for the rise (`_click_pending`) and is void
+## if the rise is dropped first.
 func _fire(character: CharacterBody2D) -> void:
 	var over_ui: bool = character.get_viewport().gui_get_hovered_control() != null
 	if Keybinds.is_fire_just_pressed():
@@ -110,6 +111,9 @@ func _fire(character: CharacterBody2D) -> void:
 	var clicked := Keybinds.is_fire_just_pressed()
 	var held: bool = Keybinds.is_fire_pressed() and character.weapon.is_automatic()
 	var rising: bool = character.weapon.rise.rising()
+	# The rise dropped (stood up, changed posture) before the body could fire: the click is void.
+	if _click_pending and character.weapon.rise.pose() == BodyHeights.NONE:
+		_click_pending = false
 	if clicked or held or (_click_pending and not rising):
 		# The click that came while the body rose is taken once, as it has risen.
 		var fired: bool = character.weapon.shoot()

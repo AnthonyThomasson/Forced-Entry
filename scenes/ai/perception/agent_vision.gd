@@ -188,11 +188,13 @@ func blocked(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2, exclu
 	return not raycast(space, from, to, exclude).is_empty()
 
 
-## Whether `crouched` (a viewer that is crouched) could rise (`BodyHeights.FIRE_OVER`, then `STAND`)
-## to a pose whose muzzle has a clear 3D line over the cover to the middle of the torso of `target`
-## (a standing body's for a plain point) standing at plan point `to`: what lets an NPC behind low
-## cover fire by rising over it (`docs/cover-and-stance.md` P6). Characters are no obstacle to the
-## line. False for a body that is not crouched, whose line is `blocked`'s.
+## Whether `crouched` (a viewer that is crouched) can fire at `target` (a standing body's torso for
+## a plain point) standing at plan point `to` by rising over the cover: what lets an NPC behind low
+## cover fire (`docs/cover-and-stance.md` P6). It asks the rule the shot itself rises by
+## (`CharacterRise.pose_along`, toward the middle of the torso of `target`) and then needs a clear
+## 3D line from that pose's muzzle all the way there (a far piece the rise ignores is no cover but
+## stops the round). Characters are no obstacle to the line. False for a body that is not crouched,
+## whose line is `blocked`'s, and for cover no pose clears.
 func rise_line_clear(crouched: Node2D, target: Node2D, to: Vector2) -> bool:
 	if crouched.movement.posture() != &"crouch":
 		return false
@@ -200,11 +202,15 @@ func rise_line_clear(crouched: Node2D, target: Node2D, to: Vector2) -> bool:
 	if space == null:
 		return false
 	var torso := BodyHeights.sight_points(SightRay.posture_of(target))[1]
-	for pose: StringName in [BodyHeights.FIRE_OVER, BodyHeights.STAND]:
-		var from := PlanSpace.lift(crouched.global_position, BodyHeights.muzzle(pose))
-		if SightRay.hit(space, from, PlanSpace.lift(to, torso)).is_empty():
-			return true
-	return false
+	var offset: Vector2 = to - crouched.global_position
+	if offset.length() < 1.0:
+		return false  # standing on the point: no line
+	var run := offset.length()
+	var pose: StringName = crouched.weapon.rise.pose_along(offset / run, run, torso)
+	if pose == BodyHeights.NONE:
+		return false
+	var from := PlanSpace.lift(crouched.global_position, BodyHeights.muzzle(pose))
+	return SightRay.hit(space, from, PlanSpace.lift(to, torso)).is_empty()
 
 
 ## The first solid hit along `from`→`to` on the query layer, or an empty dict when the line is

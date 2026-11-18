@@ -96,13 +96,13 @@ not stay under it: when its **duck muzzle's line** toward the aim is blocked, wi
 (`PieceHeights` parts, the twin's boxes): a kitchen counter's backsplash is 44 px, over the fire-over muzzle, though its top is 38, so a level shot
 over it needs a standing pose; the line is cast again from each higher pose, up to `cover_depth` past where it first met the piece, so a taller part behind
 the first counts. A line that already climbs over the cover (aimed up at a torso) needs no rise. Cover no pose clears (a wardrobe, a fridge, a wall) is not
-risen over: the body stays ducked, fires around it from an edge, and its round meets the cover. A far obstacle (past the reach) is not its cover, and in the
+risen over: the body stays ducked, fires from where it stands, and its round meets the cover. A far obstacle (past the reach) is not its cover, and in the
 open there is nothing to rise for.
 The body is exposed the moment it rises (its twin, zones, eye and muzzle are the risen pose's, `body_posture()`) but holds its fire for
-`CharacterRiseConfig.rise_time` (0.2 s): the rise before the first shot. It drops back to the duck `CharacterRiseConfig.dwell` (0.6 s) after the last
-shot (every shot, and a held trigger, renews it: no flicker); it never lowers a pose it is risen to mid-burst. A shot refused for the rise is no shot: a
+`CharacterRiseConfig.rise_time` (0.2 s): the rise before the first shot. It drops back to the duck `CharacterRiseConfig.dwell` (0.6 s, and at least the gun's time between rounds plus `dwell_margin`, so a slow gun stays risen between rounds) after the last
+round it could fire (every shot, and a held trigger, renews it: no flicker); a gun that cannot fire (empty, reloading, cooling) neither rises nor renews the rise; it never lowers a pose it is risen to mid-burst. A shot refused for the rise is no shot: a
 controller's trigger is retried each frame (an NPC's fire timer is untouched), and the player's click is held for the rise. An NPC crouched behind low cover counts a
-clear line from a pose it could rise to (the fire-over or the standing muzzle to its target's torso) as a line to fire along, so it pulls the trigger and rises
+clear line from the pose the rise would take (the same rule, `CharacterRise.pose_along`, then a clear 3D line from that muzzle to its target's torso) as a line to fire along, so it pulls the trigger and rises
 (`Combat._has_firing_line_to`); the options Von is shown still read the 2D line of fire. Only a gun rises (a thrown grenade
 does not); the rise is a manner of firing, so it works with Von down.
 Tests: `rise_over_sofa`, `rise_to_stand_over_tall_cover`, `no_rise_behind_unclearable_cover`, `risen_body_is_exposed`, `risen_body_sees_over_cover`,
