@@ -81,7 +81,8 @@ func tiles_in_play() -> Array[NavigationRegion2D]:
 
 ## Wire the updater to the baked map and start the interval. `region` is NavBuilder.build's result,
 ## `house`/`rooms`/`agent_radius` are what a re-bake needs, `nav_debug` is the optional overlay to
-## refresh. Captures the current furniture layout as the baseline and starts a repeating Timer.
+## refresh. Captures the current furniture layout as the baseline and adds a repeating Timer,
+## stopped until `start()`.
 func setup(
 	region: NavigationRegion2D,
 	house: Node2D,
@@ -112,7 +113,8 @@ func setup(
 ## test builds it from the launcher's `_process`, a replay from a physics step's signal, a second
 ## run of a test from where gdUnit resumed it), and the re-bake that landed a frame apart gave the
 ## same fight a different navmesh. The caller starts it on the frame the world's bodies are placed
-## on, a continuation of a physics step's signal whatever the build began in (`MatchBuilder.stage`).
+## on, a continuation of a physics step's signal whatever the build began in: `MatchBuilder.stage`
+## with `wait_nav` (a stage without it returns in the phase it began in, and so does the timer).
 func start() -> void:
 	var timer := get_node_or_null("RebakeTimer") as Timer
 	if timer != null and timer.is_stopped():

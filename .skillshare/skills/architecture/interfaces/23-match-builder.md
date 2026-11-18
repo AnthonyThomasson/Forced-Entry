@@ -15,10 +15,10 @@
       - `stage(match_spec, world) -> Dictionary` (coroutine) is the world stage: the spec's `house` moved under `world`, or
         a generated downtown district (`WorldGen.generate_district`, 1: the centre tower is the house, the spec's `seed`, `plan` and
         `entrance` are its); `NavBuilder.build` over the district root with every tower's rooms and `WorldGen.district_bounds` (a lone house:
-        its own rooms), the `nav_debug.gd` overlay, the `nav_updater.gd` re-baker (9);
+        its own rooms), the `nav_debug.gd` overlay, the `nav_updater.gd` re-baker (9; ticks after the wait);
         it lights nothing (Main's 3D view lights the match, `WorldLighting3D`, 20); `world` is registered with `WorldRng` first (11). With `wait_nav`: two physics frames, then until `NavBuilder.ready` holds on the
-        planning map and its steering map (at most `NAV_SYNC_MS`, then `push_error`), so no NPC is placed before the
-        maps answer with this house. Builds the twin space (29); returns the handle `{ world, house, rooms, site_rooms, openings, nav_debug, twins }`: `house` the building the match is fought over and `rooms` / `openings` its own, `site_rooms` the site's every room, plus `district` (its root) when generated.
+  planning map and its steering map (at most `NAV_SYNC_MS`, else `push_error`), so no NPC is placed before the
+        maps answer. Builds the twin space (29); returns the handle `{ world, house, rooms, site_rooms, openings, nav_debug, twins }`: `house` the building the match is fought over and `rooms` / `openings` its own, `site_rooms` the site's every room, plus `district` (its root) when generated.
       - `populate(handle, match_spec) -> Dictionary` over a staged handle: defenders and the invader team placed through `match_spawner.gd`
         from one RNG seeded with `seed` (or at the sides' `at`), each NPC bound before it joins the tree (the spawner's `bind`:
         `bind_npc` with `entry_point_for` the NPC's faction); the human joined to its side (faction, start, reparented just above the

@@ -623,7 +623,8 @@ static func _rebaker(
 ## With `wait_nav`, wait until `world`'s navigation maps answer (`_wait_nav`); then start its
 ## re-baker's ticks. That is the frame the match's bodies are placed on, a continuation of a physics
 ## step's signal whatever point of a frame the stage began at, so the ticks fall the same against
-## the fight in every run (`NavUpdater.start`).
+## the fight in every run (`NavUpdater.start`). Without `wait_nav` they start at once, in the phase
+## the stage began in.
 static func _settle(match_spec: Dictionary, world: Node2D, nav_updater: Node) -> void:
 	if bool(match_spec["wait_nav"]):
 		await _wait_nav(world)

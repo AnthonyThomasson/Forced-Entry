@@ -48,7 +48,7 @@
 	 map. The world's and the steering map are untouched. `Locomotion` walks it and `AgentDoorViews.walk_route` measures on it.
 
    `MatchBuilder.stage` (interface 23) calls `build` once after the house is built (then builds the
-   `nav_debug.gd` overlay and the `nav_updater.gd` re-baker), then, with the spec's `wait_nav` (default on), waits until both maps are
+   `nav_debug.gd` overlay, the `nav_updater.gd` re-baker, ticking after the wait), then, with the spec's `wait_nav` (default on), waits until both maps are
    `ready`. A `NavigationAgent2D` then pathfinds against the global map (the AI sets `target_position` and steers at
    `get_next_path_position()`). RVO avoidance is off: shoved furniture is re-carved by the periodic re-bake, and between re-bakes (and for
    non-solid decor, never carved) a displaced piece is simply bulldozed by the character's push physics.

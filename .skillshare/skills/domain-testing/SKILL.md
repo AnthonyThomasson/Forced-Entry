@@ -45,7 +45,7 @@ Exit 1: a test failed or timed out, or an error or warning was logged outside an
   `--fixed-fps` speed, sharded like any test. `--record-von` rewrites the recordings against a live server;
   `--include-von` / `--require-von` run the tests live instead (paced in real time, shard 0; `--require-von` FAILs with no
   server). A `live_only` test (the HTTP transport itself, or a fight no replay reproduces) never replays and is skipped without a server. The live-only set
-  and the rule for it: `runner-flags.md`, "Von tests".
+  and the rule: `runner-flags.md`, "Von tests"; a replay that misses: `von-determinism.md`.
 - **Selection:** filter words are word prefixes over id, name, domain, description and tags (`ai` matches the ai
   domain, not "chair"); `--domain`, `--id` and `--skip-domain` accumulate. A native suite runs whole or not at all (id =
   its path under `tests/`, a case `<suite id>::<function>`).

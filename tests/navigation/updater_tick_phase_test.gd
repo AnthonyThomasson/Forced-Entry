@@ -30,11 +30,6 @@ func describe() -> Dictionary:
 			+ "the same number of physics frames after the stage returns.",
 		"tags": ["navigation", "rebake", "determinism"],
 		"timeout": 60.0,
-		# The world's generated house is baked in a viewport beside the test's own arena.
-		"allowed_logs": [
-			"Navigation map synchronization error",
-			"NavigationPolygon polygon convex partition failed",
-		],
 	}
 
 
