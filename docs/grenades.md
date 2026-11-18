@@ -173,7 +173,7 @@ order of distance, are struck in the order of their distance).
 **G8. Fragments.** `fragments` **40** real projectiles leave the burst point as **3D rays over the upper hemisphere** (`Explosion._fragments`: azimuth evenly round the circle,
 jittered; elevation `sin = q^fragment_flatness` for a draw `q` spread evenly over the fragments, `fragment_flatness` **5**: about two thirds within 6 degrees of level, a tenth over 25,
 as a shell's do; at the burst's real altitude), through `ProjectileSpawner`, with low power (`penetration` 0.4, `fragment_damage` **8.3**, fast) and a short reach
-(`fragment_range` **500 px**: a projectile can be given a maximum range, past which it is spent). So cover, penetration, ricochet, blood, debris and impact sounds all work as for
+(`fragment_range` **500 px**: a projectile can be given a maximum range, past which it is spent), and a fragment that climbs past 100 px (`Explosion.FRAGMENT_CEILING`: over every wall, piece and body, under what a roof would stop) is spent there, so a steep one does not fly its whole reach. So cover, penetration, ricochet, blood, debris and impact sounds all work as for
 bullets: a ray is stopped by what it meets at that height (a wall, a lintel, a piece's real parts, a door, a vehicle), a ducked body behind a sofa is shielded and a standing one is hit over it,
 a grenade resting on a desk or a van's roof bursts at that height and its fragments clear the desk's own top (if the piece under a resting grenade is pushed or blasted away it falls and bursts where it lies, `ItemFlight.unsupported`) (a character's armour and hit zones too: `docs/outfits.md` O9); each hit posts `&"hit"` with the thrower as
 `attacker`. **Tuned to the old figure:** an exposed standing body in the open takes from the fragments what it took when they flew level at a height drawn from the floor to the ceiling of the old
@@ -183,7 +183,7 @@ put nearly all on the feet and legs and left a vest nothing to stop; the old lev
 `distance^-(1/flatness)`, so a flatter fan keeps the old distance law and a steeper one spreads the hits and thins them out faster. 5 is the best of both: within 15% per band and a
 vest has fragments to stop (`projectile/frag_fragments_stopped_by_vest`, O9).
 Tests: `projectile/frag_fragments_hit`, `projectile/frag_fragments_exposed_by_distance` (the figure per distance band and the share of hits on the torso and head), `projectile/frag_fragments_stopped_by_vest`, `projectile/frag_fragments_shielded_by_low_cover` (a ducked hostile behind a sofa survives
-a frag that kills a standing one beside it), `projectile/frag_burst_on_a_desk_at_desk_height`, `projectile/frag_burst_on_a_van_roof_at_roof_height`, `projectile/frag_falls_when_its_support_is_pushed_away`.
+a frag that kills a standing one beside it), `projectile/frag_burst_on_a_desk_at_desk_height`, `projectile/frag_fragments_spent_above_the_walls`, `projectile/frag_burst_on_a_van_roof_at_roof_height`, `projectile/frag_falls_when_its_support_is_pushed_away`.
 
 **G9. Friendly fire.** Grenades hurt and stun everyone: the thrower and its allies are not spared.
 Test: `projectile/grenade_friendly_fire`.

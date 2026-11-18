@@ -38,6 +38,9 @@ const WALLS_ONLY := -1.0
 const BURST_CENTRE := 3.5
 ## The most a fragment may climb (the sine of its elevation): a fragment never flies exactly up.
 const MAX_ELEVATION_SINE := 0.999
+## The height (px) past which a fragment is spent: over every body, piece and wall (96) and the
+## roof that would stop it, nothing is left to strike, so a steep one does not fly its whole reach.
+const FRAGMENT_CEILING := 100.0
 ## The twin layers a line asks: the world and the vehicles, the characters being what it reaches.
 const LINE_MASK := SightRay.MASK
 
@@ -182,12 +185,11 @@ static func _fragments(burst: Vector3, world: Node, source: Node, row: Dictionar
 	shot.shooter = source
 	shot.muzzle_speed = float(row.get("fragment_speed", -1.0))
 	shot.penetration = float(row.get("fragment_penetration", 1.0))
-	shot.max_range = float(row.get("fragment_range", -1.0))
 	shot.strikes_shooter = true
 	shot.damage = float(row.get("fragment_damage", 10.0))
 	shot.height = PlanSpace.height_of(burst)
 	var flatness := float(row.get("fragment_flatness", 1.0))
-	var at := PlanSpace.plan_of(burst)
+	var reach := float(row.get("fragment_range", -1.0))
 	var rng := WorldRng.of(world)
 	var turn := rng.randf() * TAU
 	var strata := _shuffled(count, rng)
@@ -196,7 +198,19 @@ static func _fragments(burst: Vector3, world: Node, source: Node, row: Dictionar
 		var share := (float(strata[i]) + rng.randf()) / float(count)
 		var sine := minf(pow(share, flatness), MAX_ELEVATION_SINE)
 		shot.rise = sine / sqrt(1.0 - sine * sine)
-		ProjectileSpawner.spawn(at, Vector2.from_angle(angle), world, shot)
+		shot.max_range = _reach_under_ceiling(reach, shot.height, sine)
+		ProjectileSpawner.spawn(
+			PlanSpace.plan_of(burst), Vector2.from_angle(angle), world, shot
+		)
+
+
+## How far (3D px) a fragment of `reach` (<= 0: none) climbing at elevation `sine` from `height`
+## flies before it passes `FRAGMENT_CEILING`: the shorter of the two.
+static func _reach_under_ceiling(reach: float, height: float, sine: float) -> float:
+	if sine <= 0.0:
+		return reach
+	var to_ceiling := maxf(FRAGMENT_CEILING - height, 1.0) / sine
+	return to_ceiling if reach <= 0.0 else minf(reach, to_ceiling)
 
 
 ## The numbers 0 to `count` - 1 in an order `rng` draws (Fisher-Yates).
