@@ -39,6 +39,14 @@ extends GameTest
 ## `Perf.configure_match` and the budgets are those of every match guard.
 ## Three `--quiet` runs (load 3.7 to 4.4): avg 20.06, 20.06 and 20.11, p95 26.73, 26.74 and 26.62,
 ## max 33.86, 32.71 and 33.14 ms. The budgets stay red (accepted, #223).
+## AI cover on real heights (job 6 of the 3D-heights work), 2026-11-18, not `--quiet`: the commit
+## before it (`aa484b5c`) in plain runs p95 22.24 and 20.27 ms (contact at 13.1 s of sim); with it
+## p95 27.3, 26.7, 27.8 and 27.2, max 34 to 37 ms (contact at 17.9 s: the fight differs from frame
+## 206). `perf_ab.sh --different-fights`, four rounds, medians avg / p95 / max: 16.41 / 21.86 /
+## 26.23 then 16.09 / 27.38 / 35.80 ms. The average is not worse (-2.0%); the tail is a different
+## fight's (the viewer's cone rebuilds as it moves), within the spread this guard has had (p95 23 to
+## 28, max 35 to 41 ms), not a cost of the cover rule: the 10v10 and 5v5 stress guards, whose fights
+## the same change leaves alike, moved -2.0% and -2.1% avg.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")

@@ -1,7 +1,9 @@
 extends GameTest
 ## P6 (docs/cover-and-stance.md, D7b: no reach limit): a ducked shooter rises to the lowest pose
-## whose muzzle clears every piece on its line, near or far, and stays ducked and shoots nothing
-## when none does. Behind a wardrobe (above a standing muzzle), at its face or 150 px on, it does
+## whose muzzle clears every piece on its line, near or far, and stays ducked when none does (an
+## NPC's gate then refuses the shot; a body fired anyway, as these puppets are, shoots from the
+## duck).
+## Behind a wardrobe (above a standing muzzle), at its face or 150 px on, it does
 ## not rise and its rounds meet the wardrobe (fire around it); in the open, with no cover, it fires
 ## from the duck muzzle without rising; behind a filing cabinet 150 px on (56 px: a standing
 ## muzzle's cover) it rises and its rounds reach the body beyond.

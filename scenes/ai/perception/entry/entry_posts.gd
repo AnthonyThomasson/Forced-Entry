@@ -12,7 +12,6 @@ const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 ## Where the ambush posts every NPC on a map shares are kept (`EntryLayouts.per_map`).
 const EntryLayouts := preload("res://scenes/ai/perception/entry/entry_layouts.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
-const AgentCover := preload("res://scenes/ai/perception/agent_cover.gd")
 ## Where an entry's grenade into the room by the doorway may land (the bang's own rule).
 const EntryLandings := preload("res://scenes/ai/perception/entry/entry_landings.gd")
 ## A defend spot (`defend_spot`, `docs/leadership.md` D2): how far back from its doorway's wall (px)
@@ -268,10 +267,10 @@ func _defend_candidate(
 	return { "spot": p, "funnel": funnel, "sees": sees.size(), "sees_door": sees, "cover": cover }
 
 
-## Whether furniture a ducked body hides behind stands on the line from `from` to `to`, which the
-## caller has already found seen: a piece of furniture is the first thing the ray meets (`bodies`
-## passed through) and its real top reaches a ducked head (`AgentCover.is_cover`'s rule). A coffee
-## table does not count: it hides nobody.
+## Whether furniture hides a ducked body at `from` from a standing eye at `to`, which the caller has
+## already found seen: the 3D line from that eye to the ducked body's head is stopped by a piece
+## (`AgentVision.hiding_piece`, `docs/cover-and-stance.md` A4; a body is no cover, `bodies` is
+## unused in a twin world). A coffee table does not count: it hides nobody.
 static func _low_cover(
 	entry: AgentEntry,
 	space: PhysicsDirectSpaceState2D,
@@ -281,8 +280,7 @@ static func _low_cover(
 ) -> bool:
 	if space == null:
 		return false
-	var hit: Object = entry.vision.raycast(space, from, to, bodies).get("collider")
-	return hit is RigidBody2D and AgentCover.is_cover(hit)
+	return entry.vision.hiding_piece(space, from, to, -1.0, bodies) != null
 
 
 ## Where member `nth` of `count` (`place`: x which post, y of how many) ordered to ambush a doorway

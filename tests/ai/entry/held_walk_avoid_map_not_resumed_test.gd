@@ -8,9 +8,13 @@ extends GameTest
 ## door's front, where the walk's way round a body is done and `Locomotion` would take the avoid
 ## map back up (`LocoDoors.enters_kept_out`): from there that map's route goes in at the back door
 ## and through the kitchen, while the way asked afresh from there is the plain one, along the lane.
-## The map is not resumed from there: `enters_kept_out` is true on it and false on the plain map.
+## The map is not resumed from there: `enters_kept_out` is true on it and false on the plain map,
+## and a held NPC's `Locomotion`, on its way round a body (`Way.ROUND`) with that map and its
+## recheck due, stays off the avoid map (`Way.DOORS`) while the way from where it stands to its goal
+## on that map goes through the kitchen.
 ##
-## No NPC: the subject is the answer the views give (`agent_door_views.gd`).
+## The NPC stands still (no order, no goal given to its behaviour): the test sets the walk's state
+## (goal, held stack, the map, the way) and runs `Locomotion`'s check on it once.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const VIEWS_SCRIPT := "res://scenes/ai/perception/agent_door_views.gd"
@@ -38,6 +42,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
+	s.actor(&"walker", &"invader", START)
 
 
 func run(t: TestContext) -> void:
@@ -66,6 +71,11 @@ func run(t: TestContext) -> void:
 		views.plain_enters(START, GOAL, far["map"], "kitchen"),
 		"the avoid map given from far off routes the walk from the lane through the kitchen",
 	)
+	var loco: Node = t.controller(&"walker", &"current_act")._behavior._loco
+	t.check(
+		_way_after_check(t, far["map"]) != loco.Way.DOORS,
+		"a held walk round a body does not go back to the avoid map that goes through the kitchen",
+	)
 
 
 ## The held route to `GOAL` from `from` once its avoid maps have baked; {} when they never did.
@@ -76,3 +86,17 @@ func _route(t: TestContext, views: RefCounted, from: Vector2) -> Dictionary:
 			return way
 		await t.frames(1)
 	return {}
+
+
+## `Locomotion`'s check of a walk on its way round a body, held, with the avoid map `map` from far
+## off, from where the walker stands in the lane: the way it is on after.
+func _way_after_check(t: TestContext, map: RID) -> int:
+	var loco: Node = t.controller(&"walker", &"current_act")._behavior._loco
+	loco._goal = GOAL
+	loco.doors.keep_out_of("door_840_190", "kitchen")
+	loco.doors.decided = true
+	loco.doors.map = map
+	loco._way = loco.Way.ROUND
+	loco.crowd.recheck_in = 0.0
+	loco._check_walking(START, [], Vector2.INF, false, 0.1)
+	return loco._way

@@ -96,7 +96,7 @@ not stay under it: when its **duck muzzle's line** toward the aim is blocked by 
 (`PieceHeights` parts, the twin's boxes): a kitchen counter's backsplash is 44 px, over the fire-over muzzle, though its top is 38, so a level shot
 over it needs a standing pose; the line is cast again from each higher pose along the whole run, so a taller part behind
 the first counts. A line that already climbs over the cover (aimed up at a torso) needs no rise. If no pose clears every piece on the line (a wardrobe, a
-fridge, a wall) the body stays ducked and does not shoot: nothing it can do puts a round past it. In the open there is nothing to rise for.
+fridge, a wall) the body stays ducked: an NPC's gate refuses the shot (`fire_line_clear` is false), while a body that is fired anyway (the player's click, a puppet) fires from where it ducks and its round meets the cover. In the open there is nothing to rise for.
 The body is exposed the moment it rises (its twin, zones, eye and muzzle are the risen pose's, `body_posture()`) but holds its fire for
 `CharacterRiseConfig.rise_time` (0.2 s): the rise before the first shot. It drops back to the duck `CharacterRiseConfig.dwell` (0.6 s, and at least the gun's time between rounds plus `dwell_margin`, so a slow gun stays risen between rounds) after the last
 round it could fire (every shot, and a held trigger, renews it: no flicker); a gun that cannot fire (empty, reloading, cooling) neither rises nor renews the rise; it never lowers a pose it is risen to mid-burst. A shot refused for the rise is no shot: a

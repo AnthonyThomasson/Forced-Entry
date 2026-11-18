@@ -18,8 +18,10 @@ const Order := preload("res://tests/_ai/order_probe.gd")
 const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 ## In the kitchen, clear of the island and off the hall doorway's axis.
 const D_AT := Vector2(570, 290)
-## The intruder: in the hall, just south of the kitchen–hall doorway.
-const INTRUDER_AT := Vector2(700, 435)
+## The intruder: in the hall, just south-east of the kitchen–hall doorway, where its line to the
+## defender's post (the post a ducked body hides at by the 3D line, `docs/cover-and-stance.md` A4)
+## runs through the doorway rather than into the wall beside it.
+const INTRUDER_AT := Vector2(760, 435)
 ## How long (s) the fight is watched.
 const WATCH := 25.0
 
