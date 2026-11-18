@@ -74,7 +74,7 @@ person is 74 px): the top of its mass (`PieceHeights.top_of`), with its parts (a
 mattress and headboard) and the base of a piece that hangs or stands over the head. The meshes' sizes are the one truth
 (`ObjectMesh*Config`), the height reads them, and `docs/research/3d-cover-heights.md` gives the real sizes. A piece at
 least as tall as a posture's head top hides that posture. (The garage's car is a prop, 40 to 60 px; the drivable cars' own heights, `VehicleMeshConfig`, are the vehicles').
-_Avoid_: coverage (the 0 to 100 abstract height the real heights replace), cover height
+_Avoid_: coverage (the 0 to 100 abstract height, gone: cover is the real 3D line against real heights), cover height
 
 **Duck**:
 The low posture of a character behind cover: a head top of about 0.85 m (36 px) (`BodyHeights.DUCK`), so a piece of at

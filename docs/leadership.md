@@ -485,7 +485,7 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   reach, at least `BANG_MIN_DEPTH`, 120 px, from the door and `BANG_INSET`, 30 px, inside the walls), reckoned from the doorway's centre
   (not from a thrower's slot or step-out) and without D16's filter on the stack's slots. A landing reaches the post when the post lies
   within the grenade's danger radius of it (a frag's blast, 250 px; a stun's flash, 400 px) and the blast's own cover rule
-  (`Explosion.shields`, interface 3, for a body crouched at the post, every character's body passed through; for a stun only furniture
+  (`Explosion.shields`, interface 3: the real 3D line from a landing on the floor to a body ducked at the post, bodies stopping nothing; for a stun only furniture
   within its `flash_cover_reach`, 30 px, of the post) does not shield it. The reach and the radii are the grenade's own numbers,
   `GrenadeConfig.stats_of(kind)` (interface 6), the reach less `AgentThrow.REACH_SLACK` (15 px) as a thrower reckons it (`AgentThrow.reach_of`).
   A wall shields a post from a stun at any range, furniture hardly ever: the navmesh keeps a post 24 px clear of a piece's face (its

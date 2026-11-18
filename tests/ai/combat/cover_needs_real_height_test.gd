@@ -3,7 +3,7 @@ extends GameTest
 ## enough to duck behind, a solid part whose top hides a ducked head (36 px,
 ## `BodyHeights.head_top(DUCK)`), not by a rating the catalogue gives it. A sofa (back 38 px), a
 ## kitchen counter (38 px) and a wardrobe hide a crouched body; a coffee table (20 px) and a dining
-## table (31 px, the old coverage 45) leave its head showing, so the geometry says "no cover" for
+## table (31 px) leave its head showing, so the geometry says "no cover" for
 ## them. The AI's tactics read it through `cover_cached`: the label of the cover-grade piece
 ## shielding a spot from a threat.
 

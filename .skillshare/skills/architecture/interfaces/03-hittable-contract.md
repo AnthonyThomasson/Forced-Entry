@@ -1,10 +1,9 @@
 3. **Objects/Character/Vehicles ↔ strikers: the "hittable" contract**
    Every world object (furniture **and** walls), `character.gd` and `vehicle.gd` implement:
-   - `get_surface() -> Dictionary` → `{ coverage, penetration, material, color }`. A bullet reads `penetration`, `material`
+   - `get_surface() -> Dictionary` → `{ penetration, material, color }`. A bullet reads `penetration`, `material`
      and `color`: what it strikes is decided by where its 3D line meets the body's twin (`TwinSpace.owner_of` maps the twin it hits
-     to the body that answers here: `docs/cover-and-stance.md`). `coverage` is a height on a 0–100 scale (a character's is its
-     posture's) that the AI's cover picking, the blast's `Explosion.shields` and the sight rules still read until they move to real
-     heights.
+     to the body that answers here: `docs/cover-and-stance.md`). What a body covers is its real shape in the twin
+     space (`PieceHeights`, interface 28; a character's posture heights, `BodyHeights`, interface 11): there is no coverage number.
    - `take_hit(hit: HitInfo) -> void`.
    - optionally `get_surface_at(height, direction) -> Dictionary` (the character, where its armour lies, `docs/outfits.md`): the surface
      a round at that height along that direction meets: `get_surface()`, or over armour that surface with the armour's `penetration`,
@@ -29,7 +28,7 @@
    (`kind` `&"punch"` or `&"kick"`, `MeleeBlow.kind`) on a body that has it (a `Door`), does **not** deform, and reads `get_surface()` only for the
    struck `material` it posts.
 
-   A world `Door` (interface 24) implements it too: `get_surface()` is coverage 100 with its material's `penetration` and, for the
+   A world `Door` (interface 24) implements it too: `get_surface()` is its material's `penetration` (the door is a full-height wall in the twin space) and, for the
    glass-panel door only, `transparent: true` (sight looks through a `transparent` surface: `SightRay`, which the AI's
    `AgentVision` and Vision's cone both use). A door's `transparent` is fixed at spawn: Vision
    caches it for the piece's life (a piece's sight height is its twin's top, 28, 29). It takes `take_hit` for a round or a blast (`speed_factor` 0, no height) and `take_blow` for
@@ -39,8 +38,8 @@
    `take_damage` / `blast_push` / `take_hit` on them and `apply_impulse` on a pushable (capped by `get_mass()`): the sanctioned surface.
    Its cover rule (G7, `docs/grenades.md`) is two read-only line queries the AI's perception asks of a grenade (a live one, its own
    throw, or the frag or stun an entry may throw in, `docs/leadership.md` LD15), so the AI keeps no copy:
-   `Explosion.shields(space, burst, p, cover: CoverRule) -> bool` (`CoverRule`, `projectile/cover_rule.gd`: `height`, `exclude`,
-   `cover_reach` := INF; whether a wall, or furniture whose `coverage` is above `height`, stands between a burst and a body `height`
-   tall at `p`; a finite `cover_reach` = a stun's flash counts a piece only when `p` is within that many px of it) and
-   `Explosion.first_stop(space, a, b, height, exclude) -> Dictionary` (the first wall or piece on the line that stops it at that height,
-   as its ray hit, or `{}`).
+   `Explosion.shields(space, burst: Vector3, p, cover: CoverRule) -> bool` (`CoverRule`, `projectile/cover_rule.gd`: `posture` := `BodyHeights.STAND`,
+   `cover_reach` := INF; whether the real 3D line from `burst` (`PlanSpace.lift(landing, altitude + Explosion.BURST_CENTRE)`) to every sight point of a body of that posture at `p`
+   meets a wall, a door, a vehicle or a piece of furniture; a finite `cover_reach` = a stun's flash, the line to the eye only, counts a piece only when `p` is within that many px of the face of it
+   nearest `p`) and `Explosion.first_stop(space, burst: Vector3, to: Vector2, posture) -> Dictionary` (the first thing on the line to that posture's chest that stops it, as its ray hit with
+   a plan `position`, or `{}`). `space` is a 2D direct space state, read through its twin space (`TwinSpace.space_for`).

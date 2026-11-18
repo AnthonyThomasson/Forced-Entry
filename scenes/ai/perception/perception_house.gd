@@ -48,10 +48,10 @@ var _learned_full := false
 ## How many sliced looks have been made: piece `i` of `interactables` is looked at on the sliced
 ## looks where `(i + _sliced_looks) % LEARN_SLICES` is 0.
 var _sliced_looks := 0
-## The intake identities already set up: rooms, openings, grenade-slot items and body heights.
+## The intake identities already set up: rooms, openings and grenade-slot items.
 var _intake := {}
 ## How often each piece of intake setup ran (fast-path test observables).
-var intake_reads := { &"house": 0, &"carried": 0, &"body": 0 }
+var intake_reads := { &"house": 0, &"carried": 0 }
 
 
 func _init(npc_perception: Node) -> void:
@@ -88,7 +88,7 @@ func room_status(self_pos: Vector2) -> Array:
 
 
 ## Before a look: capture the NPC's post on the first call, scan the interactables once, learn the
-## grenades carried and the body's heights, seed a familiar NPC's house knowledge, hand the house to
+## grenades carried, seed a familiar NPC's house knowledge, hand the house to
 ## the doorway geometry (laying the doorways ahead while `tuning.entry.enabled`) and keep
 ## `house_rooms`.
 func take_in(house_rooms: Array) -> void:
@@ -97,10 +97,6 @@ func take_in(house_rooms: Array) -> void:
 		_post_set = true
 	_ensure_interactables(house_rooms)
 	_learn_carried()
-	if not _intake.get("body", false):
-		perception.grenades.throw.learn_body()
-		_intake["body"] = true
-		intake_reads[&"body"] += 1
 	_seed_house(house_rooms)
 	if (not is_same(_intake.get("rooms"), house_rooms)
 			or not is_same(_intake.get("openings"), openings)):

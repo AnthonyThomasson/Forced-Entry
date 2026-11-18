@@ -80,17 +80,16 @@ func _note_flash(data: Dictionary) -> void:
 		return
 	var burst: Vector2 = data["position"]
 	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
-	var rids := character_rids()
+	var point := PlanSpace.lift(burst, float(data.get("height", Explosion.BURST_CENTRE)))
 	var flash := float(data.get("radius", 0.0))  # (The flash radius the burst reports.)
 	var cover := CoverRule.new()
-	cover.height = throw.stand_height()
-	cover.exclude = rids
+	cover.posture = BodyHeights.STAND
 	cover.cover_reach = throw.cover_reach(&"stun")
 	for c in perception.contacts.sightings(null, perception.tuning.memory.lead_ttl, -1.0, true):
 		var d: float = burst.distance_to(c["pos"])
 		if d > flash:
 			continue
-		if Explosion.shields(space, burst, c["pos"], cover):
+		if Explosion.shields(space, point, c["pos"], cover):
 			continue
 		perception._memory.remember(
 			&"flashed",
@@ -166,20 +165,19 @@ func fuse(kind: StringName) -> float:
 
 ## Whether a standing body at `p` is inside the danger zone of a grenade of `kind` bursting at
 ## `burst`: within its reach (a frag's blast radius and the evade margin, a stun's flash radius) and
-## not shielded from the burst by a wall or taller furniture (agent_throw.gd `in_zone`; bodies
-## shield nothing). False for a kind the NPC has never met.
+## not shielded from the burst by the real 3D line (agent_throw.gd `in_zone`; bodies shield
+## nothing). False for a kind the NPC has never met.
 func in_zone(kind: StringName, burst: Vector2, p: Vector2) -> bool:
 	var threat := GrenadeThreat.new()
 	threat.kind = kind
 	threat.radius = throw.radius_of(kind)
 	threat.burst = burst
 	return throw.in_zone(
-		perception._character.get_world_2d().direct_space_state, threat, p, throw.stand_height(),
-		character_rids(),
+		perception._character.get_world_2d().direct_space_state, threat, p, BodyHeights.STAND
 	)
 
 
-## The rids of every character in the world, this NPC included: the bodies a blast or a lob goes
+## The rids of every character in the world, this NPC included: the bodies a lob goes
 ## through.
 func character_rids() -> Array:
 	var rids := [perception._character.get_rid()]

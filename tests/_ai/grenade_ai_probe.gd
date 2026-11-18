@@ -112,29 +112,33 @@ static func acts(t: TestContext, who: StringName) -> String:
 	return str(t.controller(who, &"current_act").current_act())
 
 
-## G7 cover: whether something between a blast at `burst` and character `c` shields it: a wall, or a
-## piece of furniture whose `coverage` is above the character's own (its posture's: crouched 35,
-## standing 60), on the straight line from the blast to its body.
-static func shielded(t: TestContext, burst: Vector2, c: Node2D) -> bool:
-	var height := float(c.get_surface().get("coverage", 60.0))
-	var exclude := character_rids(t)
-	var space := t.world.get_world_2d().direct_space_state
-	for i in 8:
-		var query := PhysicsRayQueryParameters2D.create(
-			burst, c.global_position, PhysicsLayers.SOLID,
+## G7 cover, the oracle (a line of its own, not `Explosion`'s): whether something between a blast at
+## `burst` and character `c` shields it: every point of its body in its posture (the head, the
+## chest, the hips: `BodyHeights.sight_points`) is cut off from the burst's point (the grenade's
+## centre `height` px up: a grenade on the floor) by a wall, a door, a vehicle or a piece of
+## furniture on the 3D line, in the twin space. A piece lower than the line, or one the line passes
+## over, shields nothing. `as_if` ({ at, posture }) asks it of the body standing elsewhere or
+## otherwise.
+static func shielded(
+	_t: TestContext,
+	burst: Vector2,
+	c: Node2D,
+	height := 3.5,
+	as_if := {},
+) -> bool:
+	var space := TwinSpace.space_of(c)
+	var from := PlanSpace.lift(burst, height)
+	var where: Vector2 = as_if.get("at", c.global_position)
+	var held: StringName = as_if.get("posture", StringName(c.movement.body_posture()))
+	for point in BodyHeights.sight_points(held):
+		var query := PhysicsRayQueryParameters3D.create(
+			from,
+			PlanSpace.lift(where, point),
+			PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE,
 		)
-		query.exclude = exclude
-		var hit := space.intersect_ray(query)
-		if hit.is_empty():
+		if space.intersect_ray(query).is_empty():
 			return false
-		var collider: Object = hit["collider"]
-		var cover := (float(collider.get_surface().get("coverage", 100.0))
-				if collider.has_method("get_surface")
-				else 100.0)
-		if cover > height:
-			return true
-		exclude.append(hit["rid"])
-	return false
+	return true
 
 
 ## NPC `brain`'s contact for character `p` (the defender's remembered position of the invader),
@@ -281,14 +285,14 @@ static func _plain_spots(
 ) -> Array:
 	var map: RID = search["map"]
 	var zone := {
-		"burst": threat.burst,
+		"burst": threat.point(),
 		"out_r": g._out_radius(threat),
 		"reach": g.cover_reach(threat.kind),
 	}
 	var spots: Array = []
 	# The candidates as escape builds them (`_candidates`), the ones round the burst worked out
 	# afresh (`_around`), not taken from the frame's shared ones.
-	var around := g._around(search["space"], threat.burst, zone["out_r"], search["exclude"],
+	var around := g._around(search["space"], threat.point(), zone["out_r"], search["exclude"],
 			threat.kind)
 	for p in g._candidates(from, around):
 		var q := NavBuilder.snap(map, p)
@@ -310,23 +314,12 @@ static func _plain_spot(
 	zone: Dictionary,
 ) -> Dictionary:
 	var space: PhysicsDirectSpaceState2D = search["space"]
-	var exclude: Array = search["exclude"]
-	var burst: Vector2 = zone["burst"]
+	var burst: Vector3 = zone["burst"]
 	var reach: float = zone["reach"]
 	var crouch := false
-	if (q.distance_to(burst) < zone["out_r"]
-			and not g._covered(
-				space,
-				burst,
-				q,
-				AgentThrow._cover_rule(g.stand_height(), exclude, reach),
-			)):
-		if not g._covered(
-			space,
-			burst,
-			q,
-			AgentThrow._cover_rule(g.crouch_height(), exclude, reach),
-		):
+	if (q.distance_to(PlanSpace.plan_of(burst)) < zone["out_r"]
+			and not g._covered(space, burst, q, AgentThrow._cover_rule(BodyHeights.STAND, reach))):
+		if not g._covered(space, burst, q, AgentThrow._cover_rule(BodyHeights.DUCK, reach)):
 			return {}
 		crouch = true
 	return { "spot": q, "crouch": crouch }

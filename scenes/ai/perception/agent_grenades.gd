@@ -270,13 +270,13 @@ func known() -> Array:
 func plan(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array) -> Dictionary:
 	if _known.is_empty():
 		return {}
-	var height := float(_character.get_surface().get("coverage", throw.stand_height()))
+	var posture := SightRay.posture_of(_character)
 	var best := {}
 	var best_fuse := INF
 	var best_at := -1
 	var order := _known.keys()
 	for id in _asking_order():
-		var plan_ := _current_plan(space, map, exclude, id, height)
+		var plan_ := _current_plan(space, map, exclude, id, posture)
 		if plan_.is_empty():
 			continue
 		_plans[id] = plan_
@@ -296,7 +296,7 @@ func plan(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array) -> Diction
 	return out
 
 
-## The plan for known grenade `id` now, for a body `height` tall where the NPC stands: its plan,
+## The plan for known grenade `id` now, for a body in `posture` where the NPC stands: its plan,
 ## made again when it is due (`_replan_due`); a fresh one when it has none and the NPC is inside its
 ## zone; else {}. Only so many searches run on one physics frame across every NPC
 ## (`_escape_allowed`): an NPC over it gets no fresh plan this frame ({}: it carries on
@@ -306,17 +306,17 @@ func _current_plan(
 	map: RID,
 	exclude: Array,
 	id: int,
-	height: float,
+	posture: StringName,
 ) -> Dictionary:
 	var rec: Dictionary = _known[id]
 	var plan_: Dictionary = _plans.get(id, {})
 	if plan_.is_empty():
 		var self_pos: Vector2 = _character.global_position
-		if (throw.in_zone(space, _threat_of(rec, rec["point"]), self_pos, height, exclude)
+		if (throw.in_zone(space, _threat_of(rec, rec["point"]), self_pos, posture)
 				and _escape_allowed(true)):
 			return _make(space, map, exclude, id)
 		return {}
-	if _replan_due(space, exclude, rec, plan_) and _escape_allowed(false):
+	if _replan_due(space, rec, plan_) and _escape_allowed(false):
 		return _make(space, map, exclude, id)
 	return plan_
 
@@ -336,7 +336,6 @@ func _asking_order() -> Array:
 ## (`_still_safe`).
 func _replan_due(
 	space: PhysicsDirectSpaceState2D,
-	exclude: Array,
 	rec: Dictionary,
 	plan_: Dictionary,
 ) -> bool:
@@ -347,7 +346,7 @@ func _replan_due(
 			< ceili(REPLAN_EVERY * Engine.physics_ticks_per_second)):
 		return false
 	return ((plan_["point"] as Vector2).distance_to(point) >= REPLAN_DIST
-			or not _still_safe(space, exclude, rec, plan_, point))
+			or not _still_safe(space, rec, plan_, point))
 
 
 ## Whether the spot of `plan_` still keeps a body clear of grenade `rec` now that it lies at
@@ -357,7 +356,6 @@ func _replan_due(
 ## moves on.
 func _still_safe(
 	space: PhysicsDirectSpaceState2D,
-	exclude: Array,
 	rec: Dictionary,
 	plan_: Dictionary,
 	point: Vector2,
@@ -365,16 +363,21 @@ func _still_safe(
 	var spot: Vector2 = plan_["spot"]
 	if spot == Vector2.INF:
 		return true
-	var height := throw.crouch_height() if plan_["crouch"] else throw.stand_height()
-	return not throw.in_zone(space, _threat_of(rec, point), spot, height, exclude)
+	var posture := BodyHeights.DUCK if plan_["crouch"] else BodyHeights.STAND
+	return not throw.in_zone(space, _threat_of(rec, point), spot, posture)
 
 
-## Known grenade `rec` as a danger bursting at `at`: its kind and danger radius (no fuse).
+## Known grenade `rec` as a danger bursting at `at`: its kind and danger radius (no fuse), at the
+## height its centre has once it lies (on the floor, or on a desk or a shelf: `altitude()` of the
+## grenade), the floor's while it is still in flight (it bursts where it comes down).
 static func _threat_of(rec: Dictionary, at: Vector2) -> GrenadeThreat:
 	var threat := GrenadeThreat.new()
 	threat.kind = rec["kind"]
 	threat.radius = rec["radius"]
 	threat.burst = at
+	var node: Variant = rec["node"]
+	if rec["landed"] and is_instance_valid(node) and (node as Object).has_method(&"altitude"):
+		threat.burst_height += float((node as Object).call(&"altitude"))
 	return threat
 
 

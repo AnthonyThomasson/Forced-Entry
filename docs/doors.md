@@ -86,7 +86,7 @@ same per seed).
 
 A standing door (shut, ajar or open) is a solid leaf in the world: a body on the solid layer that stops characters like a wall
 (`tests/objects/door_blocks_test.gd`: a puppet walking into a shut door stops at it; a shut door never moves for a walker, an ajar or open
-one turns away from the body, DR10), is struck by rounds at every height (`coverage` 100)
+one turns away from the body, DR10), is struck by rounds at every height (a full-height wall of the twin space)
 and lets them through by its material's `penetration` by the usual rule (a hollow door slows a pistol round by 9%, a steel one by
 81%, which the pistol's `projectile_min_speed` does not survive: the round goes on through hollow, stops in steel; a rifle
 round goes through steel), blocks the AI's sight and casts a shadow (its 3D leaf mesh turns with the leaf).

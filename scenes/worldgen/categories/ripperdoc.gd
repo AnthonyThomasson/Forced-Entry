@@ -14,7 +14,6 @@ const OBJECTS := {
 		"art": "recliner",
 		"art_opts": { "kind": "surgical" },
 		"weight": 80,
-		"coverage": 45,
 		"penetration": 60,
 		"interactions": [
 			{ "id": "lie", "label": "Lie down", "move_to": true },
@@ -30,7 +29,6 @@ const OBJECTS := {
 		"art": "clinic",
 		"art_opts": { "kind": "tool_cart" },
 		"weight": 18,
-		"coverage": 45,
 		"penetration": 55,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -43,7 +41,6 @@ const OBJECTS := {
 		"art": "clinic",
 		"art_opts": { "kind": "cyberware_shelf" },
 		"weight": 45,
-		"coverage": 80,
 		"penetration": 70,
 		"interactions": [
 			{ "id": "browse", "label": "Browse cyberware" },

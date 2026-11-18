@@ -2,7 +2,7 @@ extends GameTest
 ## G18 / E17, the first fallback: a stack in bang mode whose thrower has no clear lob into the room
 ## (from its hand, clear of the jamb) gives the bang up and goes in quietly: nothing is thrown,
 ## `bang` is never radioed, and the claims that follow say the stack is quiet. A column of wardrobes
-## (coverage 95, over a lob's clearance) stands across the kitchen just inside its back door, so no
+## (far over a lob's clearance) stands across the kitchen just inside its back door, so no
 ## point of the room's far side is in the thrower's line. Scripted Von (SEARCH > STUN ENTRY > the
 ## back door); both invaders carry a stun, the way Main arms a spawn.
 

@@ -1,6 +1,6 @@
 extends GameTest
 ## V6 (ticket #54): bullets hit a vehicle like furniture: get_surface() reports metal with high
-## coverage and a high resistance to being shot through, and take_hit dents it (a Deformable records
+## a high resistance to being shot through, and take_hit dents it (a Deformable records
 ## the impact) and throws debris. There is no vehicle destruction: after more rounds it is still
 ## there.
 
@@ -13,7 +13,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "A bullet dents a vehicle",
 		"description": "A pistol puppet shoots the car: the hit names the car, its surface is "
-			+ "metal (coverage 60+, penetration 80+), its Deformable records the impact, debris "
+			+ "metal (penetration 80+), its Deformable records the impact, debris "
 			+ "flies, and six more rounds leave it standing.",
 		"tags": ["vehicle", "car", "hittable", "deformation", "pistol"],
 		"timeout": 15.0,
@@ -46,10 +46,6 @@ func run(t: TestContext) -> void:
 		return
 	var surface: Dictionary = car.get_surface()
 	t.expect_eq(surface.get("material"), "metal", "the car's surface is metal")
-	t.check(
-		float(surface.get("coverage", 0.0)) >= 60.0,
-		"with high coverage (%s)" % surface.get("coverage"),
-	)
 	t.check(
 		float(surface.get("penetration", 0.0)) >= 80.0,
 		"and a high resistance to being shot through (%s)" % surface.get("penetration"),

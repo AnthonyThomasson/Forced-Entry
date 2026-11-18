@@ -21,7 +21,7 @@ const SHOVED := 3.0
 ## The test post: a light metal circle, so the twin shows every shove plainly.
 const POST := {
 	"name": "Post", "shape": "circle", "size": Vector2(28, 28), "color": Color(0.32, 0.33, 0.36),
-	"material": "metal", "weight": 6, "coverage": 100, "penetration": 85, "anchored": true,
+	"material": "metal", "weight": 6, "penetration": 85, "anchored": true,
 }
 ## [strike (also the id of its striker and its post), where the striker stands, the slot it holds,
 ## where the anchored post stands, where the twin's striker stands, where the twin stands]

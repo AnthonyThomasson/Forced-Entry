@@ -78,17 +78,14 @@ func test_house_intake_repeats_only_changed_setup() -> void:
 	perception.house.take_in(rooms)
 	assert_int(_intake_reads(perception, &"house")).is_equal(1)
 	assert_int(_intake_reads(perception, &"carried")).is_equal(1)
-	assert_int(_intake_reads(perception, &"body")).is_equal(1)
 	rooms = rooms.duplicate()
 	perception.house.take_in(rooms)
 	assert_int(_intake_reads(perception, &"house")).is_equal(2)
 	assert_int(_intake_reads(perception, &"carried")).is_equal(1)
-	assert_int(_intake_reads(perception, &"body")).is_equal(1)
 	body.inventory.item = RefCounted.new()
 	perception.house.take_in(rooms)
 	assert_int(_intake_reads(perception, &"house")).is_equal(2)
 	assert_int(_intake_reads(perception, &"carried")).is_equal(2)
-	assert_int(_intake_reads(perception, &"body")).is_equal(1)
 
 
 func _intake_reads(perception: Node, key: StringName) -> int:
@@ -107,12 +104,11 @@ class Body:
 		return get_parent()
 
 
-## A body with the inventory and posture surfaces house intake reads.
+## A body with the inventory surface house intake reads.
 class HouseBody:
 	extends Body
 
 	var inventory := HouseInventory.new()
-	var movement := HouseMovement.new()
 
 
 ## Two grenade slots whose item identity a test can replace.
@@ -129,11 +125,3 @@ class HouseInventory:
 
 	func throw_release_offset(_slot: int) -> Vector2:
 		return Vector2(12, 3)
-
-
-## Fixed standing and crouching heights.
-class HouseMovement:
-	extends RefCounted
-
-	func posture_coverage(which: StringName) -> float:
-		return 35.0 if which == &"crouch" else 100.0

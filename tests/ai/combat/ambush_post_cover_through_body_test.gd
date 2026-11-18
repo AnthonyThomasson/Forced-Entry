@@ -5,14 +5,14 @@ extends GameTest
 ##
 ## A room 600 x 160 over a hall along its south side, a doorway between them (60 px, centred at
 ## (100, 160)) and the front door at the hall's west end. The posts hidden from every slot and pie
-## step outside lie east of the doorway, 40, 70 and 100 px back from its wall; the room is shallow
-## enough that an entry's grenade comes down at two spots only (the bang's landings, G18: at least
-## 120 px from the door and 30 inside the walls), each reaching every one of them alike, and none is
-## in a funnel, so among them low cover on the line to the threshold ranks first, then the depth
-## nearest 110 px. A shoe rack (stood up to 44 px: a ducked body hides behind it, a standing one
-## sees over it) stands on the line of the post 70 px back only, and a household bystander stands on
-## that line between the post and the rack. Were the bystander to take the post's cover, the post
-## 100 px back would win on its depth.
+## step outside lie east of the doorway, 40, 70 and 100 px back from its wall. An entry's grenades
+## are out of reach (a premise: their range is cut to 60 px, so no landing counts), so the posts are
+## not told apart by the shadow the rack casts from a landing, as the real 3D line shadows (#194
+## D10), and among them low cover on the line to the threshold ranks first, then the depth nearest
+## 110 px. A shoe rack (stood up to 44 px: a ducked body hides behind it, a standing one sees over
+## it) stands on the line of the post 70 px back only, and a household bystander stands on that line
+## between the post and the rack. Were the bystander to take the post's cover, the post 100 px back
+## would win on its depth.
 ##
 ## A defender in the room is ordered (by its squad's leader, a household puppet in the hall, by the
 ## doorway's id) to ambush the doorway from the room, its ranking the one every NPC on the map
@@ -52,6 +52,10 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	var rows: Dictionary = GrenadeConfig.grenades.duplicate(true)
+	for kind in [&"frag", &"stun"]:
+		rows[kind]["max_range"] = 60.0
+	s.set_static(GrenadeConfig, "grenades", rows)
 	s.layout(
 		[
 			{ "key": "living_room", "type": "living_room", "rect": ROOM, "floor": "oak_planks" },

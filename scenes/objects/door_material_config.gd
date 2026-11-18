@@ -12,7 +12,7 @@ class_name DoorMaterialConfig
 
 ## Per material id (`hollow`, `solid`, `steel`, `glass`):
 ##   hp            hit points of the leaf; at 0 it is knocked down.
-##   penetration   0..100, the surface rating of a round (the door's coverage is always 100).
+##   penetration   0..100, the surface rating of a round.
 ##   latch_hp      what the kicks and blasts from the side it swings away from must wear off the
 ##                 latch before it gives (counted in the damage of the strikes themselves: a kick
 ##                 deals 14, a frag up to 60).

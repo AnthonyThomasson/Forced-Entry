@@ -38,7 +38,6 @@ func run(t: TestContext) -> void:
 	geometry.vision = AgentVision.new()
 	geometry.bind(npc)
 	geometry.learn_carried()
-	geometry.learn_body()
 	var known := AgentGrenades.new()
 	known.setup(geometry)
 	known.bind(npc)

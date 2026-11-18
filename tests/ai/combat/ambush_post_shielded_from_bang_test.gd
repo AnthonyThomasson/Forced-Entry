@@ -107,12 +107,13 @@ func _frag_reaches(t: TestContext, post: Vector2) -> Array:
 	var space := t.world.get_world_2d().direct_space_state
 	var radius := float(GrenadeConfig.row(&"frag")["blast_radius"])
 	var cover := CoverRule.new()
-	cover.height = float(CharacterPostureConfig.postures[&"crouch"]["coverage"])
-	cover.exclude = GrenadeAi.character_rids(t)
+	cover.posture = BodyHeights.DUCK
 	return _landings().filter(
 		func(l): return (
 			(l as Vector2).distance_to(post) <= radius
-			and not Explosion.shields(space, l, post, cover)
+			and not Explosion.shields(
+				space, PlanSpace.lift(l, Explosion.BURST_CENTRE), post, cover
+			)
 		),
 	)
 

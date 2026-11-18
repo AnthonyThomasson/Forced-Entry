@@ -164,13 +164,6 @@ func body_posture() -> StringName:
 	return BodyHeights.DUCK if risen == BodyHeights.NONE else risen
 
 
-## The body's height on the coverage scale when in posture `which` (`stand` / `crouch`,
-## `CharacterPostureConfig.postures`): what a piece of furniture must stand above to shield it.
-## The character's `get_surface()` answers for the posture it is in.
-func posture_coverage(which: StringName) -> float:
-	return float(CharacterPostureConfig.postures[which]["coverage"])
-
-
 ## What the body is drawn at right now, easing toward the posture: a standing body's height as a
 ## share (1 = standing .. the crouch row's). For the rig.
 func posture_height() -> float:

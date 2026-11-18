@@ -14,7 +14,6 @@ const OBJECTS := {
 		"art": "security",
 		"art_opts": { "kind": "barricade" },
 		"weight": 160,
-		"coverage": 60,
 		"penetration": 90,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -27,7 +26,6 @@ const OBJECTS := {
 		"art": "security",
 		"art_opts": { "kind": "scanner" },
 		"weight": 200,
-		"coverage": 100,
 		"penetration": 80,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -40,7 +38,6 @@ const OBJECTS := {
 		"art": "security",
 		"art_opts": { "kind": "lockers" },
 		"weight": 90,
-		"coverage": 100,
 		"penetration": 70,
 		"interactions": [
 			{ "id": "open", "label": "Open locker" },

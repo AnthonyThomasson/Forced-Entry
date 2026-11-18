@@ -12,7 +12,7 @@ const RUG_AT := Vector2(450, 200)
 ## The test post: a solid metal circle that never moves (the streetlight's kind of piece).
 const POST := {
 	"name": "Post", "shape": "circle", "size": Vector2(28, 28), "color": Color(0.32, 0.33, 0.36),
-	"material": "metal", "weight": 6, "coverage": 100, "penetration": 85, "anchored": true,
+	"material": "metal", "weight": 6, "penetration": 85, "anchored": true,
 }
 ## The shove the premise check gives the post (pushable contract, interface 5): it moves a 6-weight
 ## piece plainly.

@@ -1,11 +1,11 @@
 extends GameTest
 ## G11 (amended): a flash is stopped by a wall, and by a piece of furniture taller than the
 ## character only when the character is right against it (within `flash_cover_reach`, 30 px, of the
-## piece on the burst's side). A crouched character hunched against a couch (coverage 45, over a
-## crouch's 35) between it and the burst is not flashed; one crouched 120 px behind the same kind of
-## couch, the couch still on the line from the burst, is: the light comes round and over a piece
-## that is not at its face. The victims are stood round the grenade once it lies still, facing it,
-## so the blind time is the formula's; one is 175 px from the burst and one 275 px.
+## piece on the burst's side). A crouched character hunched against a couch (its back 38 px, over a
+## ducked head's 36) between it and the burst is not flashed; one crouched 120 px behind the same
+## kind of couch, the couch still on the line from the burst, is: the light comes round and over a
+## piece that is not at its face. The victims are stood round the grenade once it lies still, facing
+## it, so the blind time is the formula's; one is 175 px from the burst and one 275 px.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")

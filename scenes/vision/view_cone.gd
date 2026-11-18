@@ -11,7 +11,7 @@ extends RefCounted
 ## corner. The shapes and their corners come from `ViewShapes`.
 ##
 ## Every ray is cast leaving out the low pieces in reach (the eye looks over them whatever their
-## place), so it meets its first blocker in one cast, and a fixed coverage is read once, not on each
+## place), so it meets its first blocker in one cast, and a fixed top is read once, not on each
 ## ray (`ViewShapes`): the polygon is the one the plain rule draws, vertex for vertex.
 ##
 ## A ray that ends on a blocker runs on to where it leaves it (at most `far_depth`): the farthest

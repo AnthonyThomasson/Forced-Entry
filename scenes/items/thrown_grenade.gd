@@ -152,6 +152,6 @@ func _detonate() -> void:
 	var source: Node = thrower if is_instance_valid(thrower) else null
 	var world := get_parent()
 	match kind:
-		&"frag": Explosion.frag(global_position, world, source, _row)
-		&"stun": Explosion.stun(global_position, world, source, _row)
+		&"frag": Explosion.frag(global_position, world, source, _row, altitude())
+		&"stun": Explosion.stun(global_position, world, source, _row, altitude())
 	queue_free()

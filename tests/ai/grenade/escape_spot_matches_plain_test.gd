@@ -41,7 +41,6 @@ func run(t: TestContext) -> void:
 	geometry.vision = AgentVision.new()
 	geometry.bind(npc)
 	geometry.learn_carried()
-	geometry.learn_body()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
 	var ctx := {

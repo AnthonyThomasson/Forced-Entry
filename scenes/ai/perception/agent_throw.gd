@@ -8,11 +8,13 @@ extends RefCounted
 ## questions of a grenade they are about to throw.
 ##
 ## **Cover** is the blast's own rule (G7), asked of the Projectile System (`Explosion.shields`,
-## `Explosion.first_stop`): a wall always stops the line from the burst, a piece of furniture stops
-## it when its `coverage` is above the height of the body, and the other characters stop nothing. A
-## standing body and a crouched one have the heights the character reports (`learn_body`,
-## `docs/cover-and-stance.md`; the current posture is read off the character's own surface). So a
-## couch (45) shields a crouched body and not a standing one, a wall or a wardrobe both.
+## `Explosion.first_stop`): the real 3D line from the burst point (a grenade's centre, at the height
+## it lies at: `GrenadeThreat.burst_height`) to the head, chest and hips of a body in its posture
+## (`BodyHeights`: standing, or ducked as an NPC that crouches is); a wall, a door or a piece of
+## furniture stops it only where it stands in the way of the line, and the other characters stop
+## nothing. So a couch (its back 38 px) shields a ducked body (head top 36) and, in its shadow, a
+## standing one far behind it, and not a standing one right behind it that the line clears the back
+## to; a wall or a wardrobe shields both.
 ##
 ## **The danger zone** of a frag is a clear line to the burst within its blast radius plus
 ## `evade_margin`; of a stun, a clear line within its flash radius. A **safe spot** is out of the
@@ -92,9 +94,9 @@ const NOT_SAFE := 2
 ## work out itself, and the spot it picks is the same. Outside a physics frame
 ## (`Engine.is_in_physics_frame()` false: the step may have run since) nothing is kept.
 static var _shared_frame := -1
-## [space, burst, kind, out_r, reach, stand height, crouch height, excluded rid ids] -> { around:
-## `_around`, judged: spot -> verdict }. A grenade that moved, or an NPC whose heights, margin or
-## exclusions differ, has its own entry.
+## [space, burst point, kind, out_r, reach, excluded rid ids] -> { around: `_around`, judged: spot
+## -> verdict }. A grenade that moved or rose, or an NPC whose margin or exclusions differ, has its
+## own entry.
 static var _bursts := {}
 ## Navigation map -> { candidate -> its spot on the navmesh }.
 static var _snaps := {}
@@ -106,11 +108,6 @@ var evade_margin: float = 120.0
 ## Kind -> what the NPC knows of that grenade (`Character.inventory.throw_stats`,
 ## `ThrownGrenade.throw_stats`); see `learn`.
 var _stats := {}
-## The height of a standing body on the coverage scale (`CharacterMovement.posture_coverage`); tall
-## until it is learned.
-var _stand := 100.0
-## The same for a crouched one.
-var _crouch := 100.0
 ## Where a grenade leaves the NPC's hand, in its frame (`Character.inventory.throw_release_offset`:
 ## x ahead, y to its right); the centre until learned.
 var _release := Vector2.ZERO
@@ -146,23 +143,6 @@ func learn_carried() -> void:
 		learn(stats)
 		if not stats.is_empty():
 			_release = _character.inventory.throw_release_offset(slot)
-
-
-## Learn the heights of a standing and of a crouched body off the NPC's own
-## (`CharacterMovement.posture_coverage`), the figures furniture is measured against.
-func learn_body() -> void:
-	_stand = _character.movement.posture_coverage(&"stand")
-	_crouch = _character.movement.posture_coverage(&"crouch")
-
-
-## The height of a standing body on the coverage scale.
-func stand_height() -> float:
-	return _stand
-
-
-## The height of a crouched body.
-func crouch_height() -> float:
-	return _crouch
 
 
 ## How far (px) a throw of `kind` first comes down; 0 for a kind it has never met.
@@ -207,19 +187,19 @@ func _out_radius(threat: GrenadeThreat) -> float:
 	return _zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
 
 
-## Whether a body `height` tall at `p` is inside the danger zone of grenade `threat` (its kind, its
-## danger radius and where it bursts; the fuse is not read): within the zone's reach and not
-## shielded from the burst. `exclude` holds the characters' rids (bodies stop nothing).
+## Whether a body in `posture` (`BodyHeights.STAND`, `DUCK`) at `p` is inside the danger zone of
+## grenade `threat` (its kind, its danger radius and where it bursts; the fuse is not read): within
+## the zone's reach and not shielded from the burst by the real line to its body (bodies stop
+## nothing).
 func in_zone(
 	space: PhysicsDirectSpaceState2D,
 	threat: GrenadeThreat,
 	p: Vector2,
-	height: float,
-	exclude: Array,
+	posture: StringName,
 ) -> bool:
 	return (p.distance_to(threat.burst) <= _zone_radius(threat.kind, threat.radius)
 			and not Explosion.shields(
-				space, threat.burst, p, _cover_rule(height, exclude, cover_reach(threat.kind))
+				space, threat.point(), p, _cover_rule(posture, cover_reach(threat.kind))
 			))
 
 
@@ -252,12 +232,11 @@ func escape(
 	runner: GrenadeRunner,
 	exclude: Array,
 ) -> Dictionary:
-	var shared := _shared_burst(space, threat.burst, _out_radius(threat), exclude, threat.kind)
+	var shared := _shared_burst(space, threat, exclude)
 	var judging := {
 		"space": space,
 		"map": map,
 		"threat": threat,
-		"standing": _cover_rule(_stand, exclude, cover_reach(threat.kind)),
 		"judged": shared["judged"],  # spot -> its verdict
 		"on_mesh": _shared_snaps(map),  # candidate -> its spot on the navmesh
 	}
@@ -284,7 +263,7 @@ func _safe_spot(judging: Dictionary, p: Vector2) -> Dictionary:
 	var judged: Dictionary = judging["judged"]
 	var verdict: int = judged.get(q, UNJUDGED)
 	if verdict == UNJUDGED:
-		verdict = _judge(judging["space"], judging["threat"], q, judging["standing"])
+		verdict = _judge(judging["space"], judging["threat"], q)
 		judged[q] = verdict
 	return {} if verdict == NOT_SAFE else { "spot": q, "crouch": verdict == SAFE_CROUCHED }
 
@@ -301,8 +280,7 @@ func has_escape(
 	exclude: Array,
 ) -> bool:
 	escape_route_queries = 0
-	var standing := _cover_rule(_stand, exclude, cover_reach(threat.kind))
-	var shared := _shared_burst(space, threat.burst, _out_radius(threat), exclude, threat.kind)
+	var shared := _shared_burst(space, threat, exclude)
 	var on_mesh: Dictionary = _shared_snaps(map)
 	var judged: Dictionary = shared["judged"]
 	var routes := {}
@@ -315,7 +293,7 @@ func has_escape(
 			continue
 		var verdict: int = judged.get(q, UNJUDGED)
 		if verdict == UNJUDGED:
-			verdict = _judge(space, threat, q, standing)
+			verdict = _judge(space, threat, q)
 			judged[q] = verdict
 		if verdict == NOT_SAFE or routes.has(q):
 			continue
@@ -329,20 +307,18 @@ func has_escape(
 	return false
 
 
-## The verdict on spot `q` for the grenade `threat`, judged with the `standing` body's cover rule:
-## `SAFE_STANDING` outside the zone or shielded standing, `SAFE_CROUCHED` shielded only crouched,
-## else `NOT_SAFE`.
-func _judge(
-	space: PhysicsDirectSpaceState2D,
-	threat: GrenadeThreat,
-	q: Vector2,
-	standing: CoverRule,
-) -> int:
+## The verdict on spot `q` for the grenade `threat`: `SAFE_STANDING` outside the zone or shielded
+## standing, `SAFE_CROUCHED` shielded only ducked (the posture an NPC that crouches is in), else
+## `NOT_SAFE`.
+func _judge(space: PhysicsDirectSpaceState2D, threat: GrenadeThreat, q: Vector2) -> int:
+	var reach := cover_reach(threat.kind)
+	var burst := threat.point()
 	if (q.distance_to(threat.burst) >= _out_radius(threat)
-			or _covered(space, threat.burst, q, standing)):
+			or _covered(space, burst, q, _cover_rule(BodyHeights.STAND, reach))):
 		return SAFE_STANDING
-	var crouched := _cover_rule(_crouch, standing.exclude, standing.cover_reach)
-	return SAFE_CROUCHED if _covered(space, threat.burst, q, crouched) else NOT_SAFE
+	return (SAFE_CROUCHED
+			if _covered(space, burst, q, _cover_rule(BodyHeights.DUCK, reach))
+			else NOT_SAFE)
 
 
 ## Of the candidate `points`, the safe spot with the shortest route from `from` on navigation `map`
@@ -405,33 +381,32 @@ func _route_length(map: RID, from: Vector2, spot: Vector2, lengths: Dictionary) 
 	return length
 
 
-## The cover rule of a body `height` tall on lines through the rids `exclude` (bodies stop nothing),
-## furniture counting within `reach` px of the body (`cover_reach`).
-static func _cover_rule(height: float, exclude: Array, reach: float) -> CoverRule:
+## The cover rule of a body in `posture`, furniture counting within `reach` px of the body
+## (`cover_reach`).
+static func _cover_rule(posture: StringName, reach: float) -> CoverRule:
 	var cover := CoverRule.new()
-	cover.height = height
-	cover.exclude = exclude
+	cover.posture = posture
 	cover.cover_reach = reach
 	return cover
 
 
-## The work shared on this physics frame for a burst at `burst` judged with the zone `out_r` and
-## this NPC's heights: `{ around, judged }` (`judged` filled as spots are judged), made now when no
-## NPC has asked yet, and fresh outside a physics frame.
+## The work shared on this physics frame for the burst of `threat` (its point, its kind and its
+## zone): `{ around, judged }` (`judged` filled as spots are judged), made now when no NPC has asked
+## yet, and fresh outside a physics frame.
 func _shared_burst(
 	space: PhysicsDirectSpaceState2D,
-	burst: Vector2,
-	out_r: float,
+	threat: GrenadeThreat,
 	exclude: Array,
-	kind: StringName,
 ) -> Dictionary:
 	var keep := _this_frame()
-	var key: Array = ([space, burst, kind, out_r, cover_reach(kind), _stand, _crouch, _ids(exclude)]
+	var kind := threat.kind
+	var out_r := _out_radius(threat)
+	var key: Array = ([space, threat.point(), kind, out_r, cover_reach(kind), _ids(exclude)]
 			if keep
 			else [])
 	var entry: Dictionary = _bursts.get(key, {}) if keep else {}
 	if entry.is_empty():
-		entry = { "around": _around(space, burst, out_r, exclude, kind), "judged": {} }
+		entry = { "around": _around(space, threat.point(), out_r, exclude, kind), "judged": {} }
 		if keep:
 			_bursts[key] = entry
 	return entry
@@ -468,17 +443,16 @@ static func _ids(rids: Array) -> Array:
 	return ids
 
 
-## Whether a body at `p` is shielded from `burst` by the `cover` rule (its height, the rids the line
-## passes through, the reach) with room to spare: also `COVER_MARGIN` px to either side of the line,
-## so a spot on the edge of a shadow (and a body that stops a step short of it) is not taken for
-## one.
+## Whether a body at `p` is shielded from the burst point `burst` by the `cover` rule (its posture,
+## the reach) with room to spare: also `COVER_MARGIN` px to either side of the line, so a spot on
+## the edge of a shadow (and a body that stops a step short of it) is not taken for one.
 func _covered(
 	space: PhysicsDirectSpaceState2D,
-	burst: Vector2,
+	burst: Vector3,
 	p: Vector2,
 	cover: CoverRule,
 ) -> bool:
-	var side := (p - burst).normalized().orthogonal() * COVER_MARGIN
+	var side := (p - PlanSpace.plan_of(burst)).normalized().orthogonal() * COVER_MARGIN
 	return (Explosion.shields(space, burst, p, cover)
 			and Explosion.shields(space, burst, p + side, cover)
 			and Explosion.shields(space, burst, p - side, cover))
@@ -494,21 +468,22 @@ func _candidates(from: Vector2, around: Array) -> Array:
 
 
 ## The candidates that depend on the burst alone: the circle `out_r` round it and the shadows behind
-## the obstacles a ray from it meets.
+## the obstacles a line from the burst point `burst` to a ducked and to a standing body meets.
 func _around(
 	space: PhysicsDirectSpaceState2D,
-	burst: Vector2,
+	burst: Vector3,
 	out_r: float,
 	exclude: Array,
 	kind: StringName,
 ) -> Array:
 	var out: Array = []
+	var centre := PlanSpace.plan_of(burst)
 	for i in CIRCLE_DIRECTIONS:
-		out.append(burst + Vector2.from_angle(TAU * i / CIRCLE_DIRECTIONS) * out_r)
+		out.append(centre + Vector2.from_angle(TAU * i / CIRCLE_DIRECTIONS) * out_r)
 	for i in SHADOW_DIRECTIONS:
 		var dir := Vector2.from_angle(TAU * i / SHADOW_DIRECTIONS)
-		for height in [_crouch, _stand]:
-			var hit := Explosion.first_stop(space, burst, burst + dir * out_r, height, exclude)
+		for posture in [BodyHeights.DUCK, BodyHeights.STAND]:
+			var hit := Explosion.first_stop(space, burst, centre + dir * out_r, posture)
 			if hit.is_empty():
 				continue
 			for step: float in SHADOW_STEPS:

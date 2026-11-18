@@ -22,12 +22,12 @@ const CIRCLE_SIDES := 16
 const FIRST_RESULTS := 512
 const GROWTH := 4
 
-## The coverage a shape must be above to block sight, set by the cone for each build.
+## The height a shape must be above to block sight, set by the cone for each build.
 var see_over := 69.4
 var _circle := CircleShape2D.new()
 var _query := PhysicsShapeQueryParameters2D.new()
-## Coverage by collider instance id.
-var _coverage := {}
+## Top by collider instance id.
+var _tops := {}
 ## The world polygon of a shape (empty for one that is no rectangle, circle or convex polygon) by
 ## `collider id * 4096 + shape index`.
 var _polygons := {}
@@ -40,7 +40,7 @@ func _init() -> void:
 
 ## Forget what the last build read.
 func reset() -> void:
-	_coverage.clear()
+	_tops.clear()
 	_polygons.clear()
 
 
@@ -64,7 +64,7 @@ func corners(
 	var seen := {}
 	var found: Array = []
 	for hit in _shapes_in_reach(space):
-		if _coverage_of(hit["collider"]) <= see_over:
+		if _top_of(hit["collider"]) <= see_over:
 			continue
 		for point in polygon_of(hit["collider"], hit["shape"]):
 			var key := Vector2i((point * 2.0).round())
@@ -109,7 +109,7 @@ func far_exit(space: PhysicsDirectSpaceState2D, origin: Vector2, dir: Vector2) -
 	probe.position = origin + dir * 0.1
 	var exits: Array[float] = []
 	for found in space.intersect_point(probe, 32):
-		if _coverage_of(found["collider"]) > see_over:
+		if _top_of(found["collider"]) > see_over:
 			exits.append(exit_distance(polygon_of(found["collider"], found["shape"]), origin, dir))
 	return 0.0 if exits.is_empty() else exits.max()
 
@@ -138,11 +138,11 @@ func _signed_area(polygon: PackedVector2Array) -> float:
 
 
 ## The top of a collider (`SightRay.top_of`), read once per build.
-func _coverage_of(collider: Object) -> float:
+func _top_of(collider: Object) -> float:
 	var id := collider.get_instance_id()
-	if not _coverage.has(id):
-		_coverage[id] = SightRay.top_of(collider)
-	return _coverage[id]
+	if not _tops.has(id):
+		_tops[id] = SightRay.top_of(collider)
+	return _tops[id]
 
 
 ## The world polygon of shape `index` of `collider`.

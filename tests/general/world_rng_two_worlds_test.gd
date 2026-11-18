@@ -176,7 +176,12 @@ func _global_stream_untouched(t: TestContext) -> void:
 		"a chip of debris": func() -> void:
 			DebrisSpawner.spawn(Vector2(400, 300), Vector2.RIGHT, world, Color.GRAY, "metal"),
 		"a blast's fragments": func() -> void:
-			Explosion._fragments(Vector2(500, 100), world, null, { "fragments": 8 }),
+			Explosion._fragments(
+				PlanSpace.lift(Vector2(500, 100), Explosion.BURST_CENTRE),
+				world,
+				null,
+				{ "fragments": 8 },
+			),
 		"a stun's sway": func() -> void:
 			target.stun.take(1.0, 1.0),
 		"a fall": func() -> void:

@@ -68,7 +68,7 @@ func configure(s: TestSetup) -> void:
 		&"table",
 		{
 			"name": "Table", "shape": "rect", "size": Vector2(24, 120),
-			"color": Color(0.5, 0.4, 0.3), "material": "wood", "coverage": 45.0,
+			"color": Color(0.5, 0.4, 0.3), "material": "wood",
 			"penetration": 60.0, "weight": 5000.0,
 		},
 		Vector2(430, 200),

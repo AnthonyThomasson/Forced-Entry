@@ -152,12 +152,11 @@ func leaf_pose(angle_degrees: float) -> Transform2D:
 	return Transform2D(turned, pivot + middle.rotated(turned))
 
 
-## The door's surface for a striker (interface 3): full cover, its material's penetration, the
+## The door's surface for a striker (interface 3): its material's penetration, the
 ## surface material it sounds as (a steel door's is wood's) and, for the glass-panel door,
 ## `transparent`: sight passes through it.
 func get_surface() -> Dictionary:
 	var surface := {
-		"coverage": 100.0,
 		"penetration": _row["penetration"],
 		"material": _row.get("broken_sound", _row["sound"]) if look.broken else _row["sound"],
 		"color": ObjectArt.drawn_color(look.color),

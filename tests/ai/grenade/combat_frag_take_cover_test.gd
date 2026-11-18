@@ -1,12 +1,13 @@
 extends GameTest
 ## G17 (amended: "frag out, take cover"): a frag may be thrown at a hostile that lies inside the
 ## thrower's own danger zone when the thrower can get safe before the fuse is out. An invader with a
-## frag stands 230 px from a hostile that is hidden behind a couch and a desk filling a hall, so the
-## blast would reach it, but it is already on the near side of that cover, which shields a crouched
-## body (G7). It throws, radios frag out, crouches and holds the crouch until the bang, and is
-## unharmed by it; then it goes back to its gun. The whole pipeline runs, recorded Von at every
-## level. A `require` that the AI took the GRENADE path comes first, so a different Von choice reads
-## as a set-up finding.
+## frag stands 180 px from a hostile that is hidden behind a couch and a desk filling a hall, so the
+## blast would reach it, but it is already at the near side of that cover, a few steps behind it:
+## the cover shields a crouched body from the burst on the floor but a standing one is hit over its
+## back (the 3D line from the floor rises to the head past the cover's top, G7). It throws, radios
+## frag out, crouches and holds the crouch until the bang, and is unharmed by it; then it goes back
+## to its gun. The whole pipeline runs, recorded Von at every level. A `require` that the AI took
+## the GRENADE path comes first, so a different Von choice reads as a set-up finding.
 ##
 ## Premises: the hostile is a household *puppet* that cannot be killed and never shoots; the invader
 ## is armed with one frag here because the test world keeps the default inventory, the way Main arms
@@ -15,14 +16,14 @@ extends GameTest
 const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
-const INVADER_AT := Vector2(570, 56)
-const HOSTILE_AT := Vector2(800, 56)
+const INVADER_AT := Vector2(655, 56)
+const HOSTILE_AT := Vector2(835, 56)
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "An invader frags a hostile inside its own zone and takes cover from it",
-		"description": "A hostile hides behind a couch and a desk 230 px from an invader with a "
+		"description": "A hostile hides behind a couch and a desk 180 px from an invader with a "
 			+ "frag: it takes the GRENADE tactic, throws, crouches on its side of the cover until "
 			+ "the bang, takes no blast, and is back on its gun afterwards.",
 		"tags": ["ai", "grenade", "combat", "cover", "von"],
@@ -38,8 +39,8 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Hiding.von_out(s)
-	# A hall 100 px wide inside, wall to wall: a couch (coverage 45) and a desk (45) across it leave
-	# no line to the hostile and shield a crouched body.
+	# A hall 100 px wide inside, wall to wall: a couch and a desk (44 px tall) across it leave no
+	# line to the hostile and shield a crouched body.
 	s.layout(
 		[{ "key": "hall", "type": "hallway", "rect": Rect2(0, 0, 900, 112) }],
 		[{ "pos": Vector2(0, 56), "width": 80.0 }],

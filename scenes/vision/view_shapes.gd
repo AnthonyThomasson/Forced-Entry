@@ -47,7 +47,7 @@ var memo_hits := 0
 var validations := 0
 ## How many shape queries `corners` has asked in all (a job counts them as engine work).
 var queries := 0
-## The rids of the colliders in reach that sight looks over (coverage at or below `see_over`), read
+## The rids of the colliders in reach that sight looks over (a top at or below `see_over`), read
 ## by `corners` for one build, and the instance ids already in it.
 var _lows: Array = []
 var _low_seen := {}

@@ -10,7 +10,7 @@ extends RefCounted
 const COVER_HEIGHT := 44.0
 
 
-## A catalogue piece `key` with the same footprint, weight and coverage but a real top of `height`
+## A catalogue piece `key` with the same footprint and weight but a real top of `height`
 ## (`COVER_HEIGHT`), drawn as a solid block (a table's top stands on legs a ducked body shows
 ## under): cover a ducked body hides behind, where a desk is not.
 static func low_cover(key: String, height := COVER_HEIGHT) -> Dictionary:

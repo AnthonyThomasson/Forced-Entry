@@ -16,7 +16,6 @@ const OBJECTS := {
 			"props": [{ "kind": "cutting_board", "at": Vector2(0.22, 0.55) }],
 		},
 		"weight": 70,
-		"coverage": 55,
 		"penetration": 70,
 		"interactions": [
 			{ "id": "prep", "label": "Prep food" },
@@ -31,7 +30,6 @@ const OBJECTS := {
 		"material": "metal",
 		"art": "hotplate",
 		"weight": 12,
-		"coverage": 40,
 		"penetration": 40,
 		"interactions": [
 			{ "id": "cook", "label": "Cook" },
@@ -47,7 +45,6 @@ const OBJECTS := {
 		"art": "appliance",
 		"art_opts": { "panel": "fridge" },
 		"weight": 40,
-		"coverage": 60,
 		"penetration": 70,
 		"interactions": [
 			{ "id": "open", "label": "Open fridge" },

@@ -36,8 +36,6 @@ const ObjectPhysics = preload("res://scenes/objects/object_physics.gd")
 ## also drive the room-palette recolor. Named `object_material` to avoid colliding with
 ## CanvasItem's built-in `material`.
 @export var object_material: String = ""
-## Coverage rating 0–100, a height/cover proxy (flat decor 0 … tall storage 90+).
-@export var coverage: float = 0.0
 ## Penetration value 0–100: resistance to being shot through (soft low, metal high).
 @export var penetration: float = 0.0
 ## Mass used for knockback: a shove's impulse is divided by this. Set from the catalog.
@@ -83,11 +81,11 @@ func _exit_tree() -> void:
 # --- Hittable contract (read/hit by projectiles, melee, …) -----------------------------
 
 
-## The object's ballistic surface: how much it covers, how hard it is to shoot through,
-## its material tag and its color (for debris styling: the colour its art is drawn in). Read by the
-## Projectile System.
+## The object's ballistic surface: how hard it is to shoot through, its material tag and its color
+## (for debris styling: the colour its art is drawn in). Read by the Projectile System. What it
+## covers is its real shape in the twin space (`PieceHeights`, interface 28), not a number here.
 func get_surface() -> Dictionary:
-	return { "coverage": coverage, "penetration": penetration, "material": object_material,
+	return { "penetration": penetration, "material": object_material,
 		"color": ObjectArt.drawn_color(color) if look.art != "" else color }
 
 

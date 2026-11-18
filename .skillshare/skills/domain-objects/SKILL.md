@@ -36,7 +36,7 @@ the 3D meshes (`art/`, `meshes.md`) read them through the mirror. Colliders are 
   torque, `PhysicsImpactConfig.body_angular_damp`). An **anchored** piece (`anchored: true`, the streetlight's post) is frozen static
   in `_ready`: every shove is ignored and its `take_hit` skips `Knockback`, but it is still found by queries, struck, dented, throws
   debris and is carved into the nav map (`tests/objects/anchored_piece_test.gd`, `tests/navigation/anchored_hole_test.gd`).
-- **Door (24):** a `Door` is hittable (coverage 100, its material's `penetration`) and pushable (a shut one never moves; an ajar one turns about its hinge): `doors.md`. A piece's `coverage` and a door's `transparent` are fixed at spawn: Vision caches them for the piece's life (interface 3).
+- **Door (24):** a `Door` is hittable (a full-height wall in the twin space, its material's `penetration`) and pushable (a shut one never moves; an ajar one turns about its hinge): `doors.md`. A door's `transparent` is fixed at spawn: Vision caches it for the door's life (interface 3).
 - **Interactable (8):** `get_interactions()` returns the `interactions` field of the definition; interaction is catalogue data.
 
 ## Physics parts

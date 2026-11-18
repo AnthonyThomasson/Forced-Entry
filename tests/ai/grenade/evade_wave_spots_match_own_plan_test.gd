@@ -152,7 +152,6 @@ func _plain_for(
 	var map: RID = ctx["map"]
 	var start: Dictionary = ctx["start"]
 	g.learn_carried()
-	g.learn_body()
 	g.learn(grenade.call("throw_stats"))
 	var kind: StringName = known[0]["kind"]
 	var at: Dictionary = start[npc]

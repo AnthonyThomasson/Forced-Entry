@@ -11,7 +11,6 @@ const OBJECTS := {
 		"material": "plastic",
 		"art": "office_chair",
 		"weight": 8,
-		"coverage": 45,
 		"penetration": 30,
 		"interactions": [
 			{ "id": "sit", "label": "Sit", "move_to": true },
@@ -33,7 +32,6 @@ const OBJECTS := {
 			"handle": Color(0.78, 0.8, 0.84),
 		},
 		"weight": 30,
-		"coverage": 55,
 		"penetration": 75,
 		"interactions": [
 			{ "id": "open", "label": "Open files" },

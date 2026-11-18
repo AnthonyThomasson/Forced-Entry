@@ -65,7 +65,7 @@ class Box extends StaticBody2D:
 	var hits: Array[HitInfo] = []
 
 	func get_surface() -> Dictionary:
-		return { "coverage": 100.0, "penetration": 5.0, "material": "wood", "color": Color.WHITE }
+		return { "penetration": 5.0, "material": "wood", "color": Color.WHITE }
 
 	func take_hit(info: HitInfo) -> void:
 		hits.append(info)

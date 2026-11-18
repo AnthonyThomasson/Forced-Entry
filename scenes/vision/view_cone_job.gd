@@ -1,7 +1,7 @@
 extends RefCounted
 ## Vision domain: how far a `ViewCone` job (`begin` to done) has got, and what of it is not hot: the
 ## stage, the next item of it, the engine work spent, the facing it is of (a zero facing: no cone,
-## the bubble only), the rids it leaves out and the coverage it looks over. The world, the eye and
+## the bubble only), the rids it leaves out and the height it looks over. The world, the eye and
 ## the distances it reads for every ray are members of `ViewCone`. Private to it.
 
 ## The stages of a job, in order; `DONE` when none is in flight.

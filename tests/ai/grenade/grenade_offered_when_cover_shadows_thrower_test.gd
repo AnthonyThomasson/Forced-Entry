@@ -1,14 +1,18 @@
 extends GameTest
-## G17 (amended): GRENADE is dropped when the thrower itself would be inside the grenade's danger
-## zone and has no way to get safe before the fuse is out: no cover that shields a crouched body
-## from the landing spot (G7), and no spot out of the blast's line of sight within reach. It is
-## offered when it does. Two walled rooms, the same layout in each: an invader with a frag, a
-## hostile 260 px away (inside a frag's 370 px zone) that ducked behind a piece of furniture the
-## invader saw it duck behind, so it is known but out of its line of fire. In one room the piece is
-## a low coffee table (grenade coverage 30, below a crouched body's 35: it hides the hostile from a
-## bullet and lets a lob over, but shields nobody) and the room has nothing else: no GRENADE. In
-## the other it is a couch (45) a few steps away: GRENADE is offered. Scripted Von; the
-## NPCs walk (they are not held) because "in time" depends on being able to move.
+## G17 (amended, #194 D10): GRENADE is offered when the thrower would be safe from it: the piece of
+## furniture that hides the hostile from a bullet lies on the 3D line from the burst (on the floor,
+## at the hostile) to the thrower, and a low piece shadows a standing body far enough behind it and
+## a ducked one anywhere behind it, so a thrower in the zone has a safe place wherever such cover
+## hides the hostile (a table that hides a ducked hostile shields a ducked thrower, and a standing
+## one far enough behind it; the grenade is not dropped for want of a safe place). Two
+## walled rooms, the same layout in each: an invader with a frag, a hostile 260 px away (inside a
+## frag's 370 px zone) that ducked behind a piece of furniture the invader saw it duck behind, so
+## it is known but out of its line of fire. In one room the piece is a coffee table (52 px tall) and
+## the room has nothing else; in the other it is a couch (44 px) a few steps away. GRENADE is
+## offered in both, and in each the thrower's place by the cover is shielded from the burst at the
+## hostile (by the same 3D line the blast uses). The negative, no cover to be found, is judged by
+## `ai/grenade/escape_judges_real_geometry`. Scripted Von; the NPCs walk (they are not held) because
+## "in time" depends on being able to move.
 
 const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -22,10 +26,10 @@ const COVER_H := Vector2(360, 450)
 
 func describe() -> Dictionary:
 	return {
-		"name": "A grenade is not offered when the thrower could not get safe from it",
-		"description": "An invader 260 px from a hidden hostile with only a coffee table (no "
-			+ "shield) near gets no GRENADE; the same invader with a couch a few steps away, "
-			+ "behind which it can crouch, does.",
+		"name": "A grenade is offered when the hostile's cover shadows the thrower",
+		"description": "An invader 260 px from a hidden hostile with only a coffee table near, and "
+			+ "one with a couch a few steps away, are both offered GRENADE: the cover that hides "
+			+ "the hostile shields the thrower from the burst on the floor.",
 		"tags": ["ai", "grenade", "combat", "cover", "scripted"],
 		"timeout": 30.0,
 	}
@@ -79,6 +83,8 @@ func run(t: TestContext) -> void:
 		return
 	# the tactic level offered at each frame the invader was inside the zone
 	var seen := { &"bare": [], &"cover": [] }
+	# whether the invader was shielded from a burst at its hostile on a frame GRENADE was offered
+	var shadowed := { &"bare": false, &"cover": false }
 	var pairs := { &"bare": [&"bare_n", &"bare_h"], &"cover": [&"cover_n", &"cover_h"] }
 	var end := t.time + 8.0
 	while t.time < end:
@@ -89,6 +95,8 @@ func run(t: TestContext) -> void:
 			if (not offered.is_empty()
 					and n.global_position.distance_to(h.global_position) <= Probe.FRAG_ZONE - 20.0):
 				seen[key].append(offered)
+				if offered.has("grenade") and GrenadeAi.shielded(t, h.global_position, n):
+					shadowed[key] = true
 		await t.frames(1)
 	var real := func(key: StringName) -> Array:
 		return seen[key].filter(func(o): return o.has("engage") or o.has("advance"))
@@ -103,8 +111,11 @@ func run(t: TestContext) -> void:
 		"the invader with a couch at hand is offered GRENADE",
 	)
 	t.check(
-		not seen[&"bare"].any(func(o): return o.has("grenade")),
-		"the invader with only a coffee table (and no way out of line) is never offered it, though "
-			+ "the hostile is hidden and in range",
+		seen[&"bare"].any(func(o): return o.has("grenade")),
+		"so is the invader with only a coffee table: the table that hides the hostile shields it",
 	)
-	t.check(not t.happened(&"throw"), "and nothing was thrown")
+	t.check(
+		shadowed[&"bare"] and shadowed[&"cover"],
+		"and where each was offered it, the piece between it and its hostile shielded it from a "
+			+ "burst there (the blast's own 3D line)",
+	)

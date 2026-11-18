@@ -64,7 +64,6 @@ func run(t: TestContext) -> void:
 	geometry.vision = AgentVision.new()
 	geometry.bind(npc)
 	geometry.learn_carried()
-	geometry.learn_body()
 	var search := {
 		"space": npc.get_world_2d().direct_space_state,
 		"map": npc.get_world_2d().navigation_map,

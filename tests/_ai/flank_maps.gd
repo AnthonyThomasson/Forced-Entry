@@ -86,7 +86,6 @@ const PILLAR := {
 	"size": Vector2(34, 34),
 	"color": Color(0.5, 0.5, 0.52),
 	"weight": 5000,
-	"coverage": 100,
 	"penetration": 100,
 	# A table-art piece as tall as a wall (96 px): the one real height a 2D definition with no art
 	# of its own can say, so it is cover for a standing body too.

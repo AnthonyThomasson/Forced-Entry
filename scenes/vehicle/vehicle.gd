@@ -188,10 +188,9 @@ func view_zoom_out() -> float:
 # --- Hittable contract (interface 3) -----------------------------------------------------
 
 
-## A metal body: high coverage, hard to shoot through.
+## A metal body, hard to shoot through.
 func get_surface() -> Dictionary:
 	return {
-		"coverage": _row["coverage"],
 		"penetration": _row["penetration"],
 		"material": _row["material"],
 		"color": color,

@@ -3,7 +3,7 @@ extends GameTest
 ## px apart (each jittered by up to 50 px), never within 140 px of a front or exit doorway's centre
 ## nor in the strip straight out of one (the doorway's width plus 32 px each side, 400 px out); a
 ## lamp that would break that rule is dropped, so only a doorway's no-lamp zone can open a wider gap
-## in the row. Each is a solid, anchored metal post (coverage 100, penetration 85: it blocks
+## in the row. Each is a solid, anchored metal post (penetration 85: it blocks
 ## bullets) carved into the nav map. Checked for every floorplan over several seeds.
 ##
 ## It reads the lamps through (interface 1, beside `get_clutter` / `get_street`):
@@ -25,7 +25,6 @@ const MIN_GAP := EVERY - 2.0 * JITTER
 ## ... and away from each other; wider only where a lamp was dropped.
 const MAX_GAP := EVERY + 2.0 * JITTER
 const MATERIAL := "metal"
-const COVERAGE := 100.0
 const PENETRATION := 85.0
 
 
@@ -34,7 +33,7 @@ func describe() -> Dictionary:
 		"name": "Streetlights line the front, clear of the doorways",
 		"description": "For every floorplan and several seeds: streetlights stand along the front "
 			+ "sidewalk about 260 px apart, none within 140 px of a front or exit doorway nor in "
-			+ "the strip out of one; each is a solid anchored metal post (coverage 100, "
+			+ "the strip out of one; each is a solid anchored metal post ("
 			+ "penetration 85) carved into the nav map.",
 		"tags": ["worldgen", "house", "street", "streetlight", "restyle"],
 		"timeout": 120.0,
@@ -204,10 +203,9 @@ func _check_lamp_piece(
 	var surface: Dictionary = node.get_surface()
 	t.check(
 		surface["material"] == MATERIAL
-			and is_equal_approx(surface["coverage"], COVERAGE)
 			and is_equal_approx(surface["penetration"], PENETRATION),
-		"%s is a metal post (material %s, coverage %s, penetration %s)"
-			% [at, surface["material"], surface["coverage"], surface["penetration"]],
+		"%s is a metal post (material %s, penetration %s)"
+			% [at, surface["material"], surface["penetration"]],
 	)
 	t.check(
 		_carved(holes, p),

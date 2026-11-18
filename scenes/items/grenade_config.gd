@@ -36,7 +36,13 @@ class_name GrenadeConfig
 ##                  `blast_max_speed` (px/s) caps the speed it gives a light body (a chair), mass x
 ##                  speed.
 ##   fragments, fragment_damage, fragment_speed, fragment_range, fragment_penetration   the real
-##   projectiles it throws.
+##   projectiles it throws, as 3D rays from the burst point over the upper hemisphere.
+##   fragment_flatness   how near level they fly: each one's elevation has `sin = q^flatness` for a
+##                  draw `q` in [0, 1) spread evenly over the fragments (1 = even over the sphere's
+##                  solid angle; 12 puts nearly all within a few degrees of level, a few steeply
+##                  up, as a shell's do). With `fragments` and `fragment_damage` it is tuned so an
+##                  exposed standing body takes what it took when the fragments flew level at a
+##                  drawn height, at each distance (G8).
 ## Stun only:
 ##   flash_radius, flash_full, max_blind   blinded by sight within `flash_radius` (full inside
 ##   `flash_full`) for up to `max_blind` s. flash_cover_reach   a wall always stops the flash; a
@@ -81,8 +87,8 @@ static var grenades: Dictionary = {
 		"throw_speed": 740.0, "restitution": 0.35,
 		"friction": 700.0, "blast_radius": 250.0, "kill_radius": 120.0, "blast_damage": 60.0,
 		"blast_impulse": 12_000.0, "blast_max_speed": 700.0, "fragments": 40,
-		"fragment_damage": 12.0, "fragment_speed": 3600.0, "fragment_range": 500.0,
-		"fragment_penetration": 0.4, "art_size": Vector2(8.0, 10.0),
+		"fragment_damage": 7.5, "fragment_flatness": 12.0, "fragment_speed": 3600.0,
+		"fragment_range": 500.0, "fragment_penetration": 0.4, "art_size": Vector2(8.0, 10.0),
 		"looks": {
 			&"police": {
 				"painter": PoliceGrenadePainter, "finish": "metal",

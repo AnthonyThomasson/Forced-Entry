@@ -35,8 +35,7 @@ const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 ## Painter options, e.g. { "pattern": "plaster" }.
 @export var art_opts: Dictionary = {}
 ## The wall's own ballistic surface rating (Objects owns its surface data, same as
-## environment_object.gd): full cover, hard to shoot through.
-@export var coverage: float = 100.0
+## environment_object.gd): hard to shoot through.
 @export var penetration: float = 100.0
 
 ## Damage impacts per wall-segment index (into wall_segments()), in wall-local space.
@@ -86,10 +85,9 @@ func segment_shapes() -> Dictionary:
 	return _seg_colliders.duplicate()
 
 
-## The wall's ballistic surface: full cover, hard to shoot through, debris in the colour its cap is
-## drawn in.
+## The wall's ballistic surface: hard to shoot through, debris in the colour its cap is drawn in.
 func get_surface() -> Dictionary:
-	return { "coverage": coverage, "penetration": penetration,
+	return { "penetration": penetration,
 		"material": "", "color": ObjectArt.drawn_color(art_color) if art != "" else art_color }
 
 

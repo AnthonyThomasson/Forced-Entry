@@ -13,7 +13,6 @@ const OBJECTS := {
 		"art": "stock",
 		"art_opts": { "kind": "crates" },
 		"weight": 80,
-		"coverage": 90,
 		"penetration": 40,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -26,7 +25,6 @@ const OBJECTS := {
 		"art": "stock",
 		"art_opts": { "kind": "pallet" },
 		"weight": 90,
-		"coverage": 75,
 		"penetration": 35,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -39,7 +37,6 @@ const OBJECTS := {
 		"art": "stock",
 		"art_opts": { "kind": "safe" },
 		"weight": 260,
-		"coverage": 100,
 		"penetration": 95,
 		"interactions": [
 			{ "id": "open", "label": "Open safe" },

@@ -50,7 +50,7 @@ cover, its head top 36 px (0.85 m), so a piece at least that tall hides all of i
 
 A body's twin (`CharacterTwin`), its hit zones (`BodyHeights.zone_at`), its eye and its muzzle are those of `movement.body_posture()`: the
 standing, the duck, or the pose a ducked body has risen to. So a crouch is struck by fewer lines in the open (the ones under 36 px, against a standing
-body's under 74) and hides behind pieces at least 36 px tall. (The row's `coverage` is the 0 to 100 scale only a grenade's burst and the AI's grenade escape still read.) A crouched shooter with nothing in its way fires from the duck's muzzle without rising. Shooting and reloading work in every posture;
+body's under 74) and hides behind pieces at least 36 px tall. A crouched shooter with nothing in its way fires from the duck's muzzle without rising. Shooting and reloading work in every posture;
 running is refused (and costs no stamina) unless standing.
 Tests: `posture_speed`, `posture_player_input`, `posture_hit_chance`, `muzzle_height_by_posture`.
 

@@ -11,7 +11,6 @@ const OBJECTS := {
 		"material": "fabric",
 		"art": "bed",
 		"weight": 50,
-		"coverage": 35,
 		"penetration": 30,
 		"interactions": [
 			{ "id": "lie", "label": "Lie down", "move_to": true },
@@ -28,7 +27,6 @@ const OBJECTS := {
 		"art": "cabinet",
 		"art_opts": { "front": "doors", "count": 2, "crown": true },
 		"weight": 60,
-		"coverage": 95,
 		"penetration": 55,
 		"interactions": [
 			{ "id": "hide", "label": "Hide inside", "move_to": true },
@@ -51,7 +49,6 @@ const OBJECTS := {
 			],
 		},
 		"weight": 35,
-		"coverage": 45,
 		"penetration": 55,
 		"interactions": [
 			{ "id": "open", "label": "Open drawer" },

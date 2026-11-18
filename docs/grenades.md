@@ -152,24 +152,35 @@ Test: `items/grenade_throw_lands_at_aim`.
 **G7. Blast.** *(Amended after the tests phase: "frag out, take cover".)* When it goes off every hittable body with a clear line from the blast
 point within `blast_radius` **250 px** takes blast damage: the full `blast_damage` **60** (a character has 50 HP) out to `kill_radius` **120 px**,
 falling linearly to 0 at 250 px (`60 * (250 - d) / 130` between), measured from the blast point to the body's centre. Walls block the line.
-**Cover:** a piece of furniture between the blast and a character blocks it too when its `coverage` is above the character's posture height (the
-character's own `get_surface().coverage`: crouched 35, standing 60). So a crouched character behind a couch (45) is shielded and a standing one is
-not; a coffee table (30) shields nobody. Fragments already behave so (they fly at a height, `docs/cover-and-stance.md`). The blast reaches
+**Cover** *(real 3D since issue #194, D10: there is no abstract coverage number)*: the line from the burst to a body is a 3D ray in the twin space
+(`TwinSpace`, `PlanSpace.lift`), cast from the burst point (the grenade's centre, `Explosion.BURST_CENTRE` **3.5 px** above where it lies: the floor, or a desk's top
+when it rests on one, `ThrownGrenade.altitude()`) to each point of the body at its posture's real heights (`BodyHeights.sight_points`: head, chest, hips). A wall, a
+door, a vehicle or a piece of furniture on it stops it; the body is shielded only when **every** point is cut off. So the shadow of a low piece is real: a couch's
+38 px back shields a ducked body (head 36 px) behind it, and a standing one far enough behind it (the line from a burst on the floor rises too slowly to clear 38 px
+before it reaches the body), while a standing body right behind it, or a burst that is high (on a desk, 31 px up), is hit over the back. A hostile that hides
+behind a piece from a thrower's bullet is therefore also in its shadow: cover that hides a ducked hostile shields the thrower from a burst there. The blast reaches
 characters and objects alike through `take_hit` (so characters bleed, a character's torso armour cutting the damage by its `blast` share: `docs/outfits.md` O9; objects deform and shed debris), and each blast hit posts `&"hit"` with
 `outcome = &"blast"`. Pushables in range are shoved away from the blast by `blast_impulse`, falling off with distance: furniture, living
-characters (as knockback) and the ragdolls of the dead. The burst posts `&"explosion"` `{ position, kind, attacker, radius }`.
+characters (as knockback) and the ragdolls of the dead. The burst posts `&"explosion"` `{ position, height, kind, attacker, radius }`.
 Tests: `projectile/frag_blast_by_distance` (80 px dead, about 200 px hurt by the fall-off, 400 px no blast, an object struck),
-`projectile/frag_blast_blocked_by_wall`, `projectile/frag_blast_low_cover_by_posture` (behind couches: crouched, no blast; standing, the blast),
+`projectile/frag_blast_blocked_by_wall`, `projectile/frag_blast_low_cover_by_posture` (behind couches: crouched, no blast; standing close behind them, the blast),
+`projectile/frag_blast_shadow_behind_low_cover` (a standing body far behind a couch is in its shadow),
 `physics/frag_blast_pushes`. *(Amended by issue #205.)* The blast strikes the bodies it reaches **nearest first** (a tie: the leftmost, then the topmost),
 not in the order the engine's shape query lists them (which follows what the process allocated earlier): every blast hit draws from the world's random
 stream, so the same fight must draw them for the same body each run; test `projectile/frag_blast_strikes_nearest_first` (five chairs round a frag, created in no
 order of distance, are struck in the order of their distance).
 
-**G8. Fragments.** `fragments` **40** real projectiles leave the blast point evenly round the circle (jittered), through
-`ProjectileSpawner`, with low power (`penetration` 0.4, `fragment_damage` 12, fast) and a short reach (`fragment_range` **500 px**: a
-projectile can now be given a maximum range, past which it is spent). So cover, penetration, ricochet, blood, debris and impact sounds
-all work as for bullets (a character's armour and hit zones too: `docs/outfits.md` O9), and each hit posts `&"hit"` with the thrower as `attacker`.
-Test: `projectile/frag_fragments_hit`.
+**G8. Fragments.** `fragments` **40** real projectiles leave the burst point as **3D rays over the upper hemisphere** (`Explosion._fragments`: azimuth evenly round the circle,
+jittered; elevation `sin = q^fragment_flatness` for a draw `q` spread evenly over the fragments, `fragment_flatness` **12**: nearly all within a few degrees of level, a few
+steeply up as a shell's do; at the burst's real altitude), through `ProjectileSpawner`, with low power (`penetration` 0.4, `fragment_damage` **7.5**, fast) and a short reach
+(`fragment_range` **500 px**: a projectile can be given a maximum range, past which it is spent). So cover, penetration, ricochet, blood, debris and impact sounds all work as for
+bullets: a ray is stopped by what it meets at that height (a wall, a lintel, a piece's real parts, a door, a vehicle), a ducked body behind a sofa is shielded and a standing one is hit over it,
+a grenade resting on a desk bursts at the desk's top and its fragments clear the desk's own top (a character's armour and hit zones too: `docs/outfits.md` O9); each hit posts `&"hit"` with the thrower as
+`attacker`. **Tuned to the old figure:** an exposed standing body in the open takes from the fragments what it took when they flew level at a height drawn from the floor to the ceiling of the old
+0 to 100 scale, band by band (the damage per burst and dummy 15 at 70 px, 5.9 at 140 px, 4.1 at 260 px, 2.3 at 420 px, within 20%), by the count, the damage and the flatness (low zones take 0.6, the
+head 2.0, `CharacterHitConfig.zone_damage`).
+Tests: `projectile/frag_fragments_hit`, `projectile/frag_fragments_exposed_by_distance` (the figure per distance band), `projectile/frag_fragments_shielded_by_low_cover` (a ducked hostile behind a sofa survives
+a frag that kills a standing one beside it), `projectile/frag_burst_on_a_desk_at_desk_height`.
 
 **G9. Friendly fire.** Grenades hurt and stun everyone: the thrower and its allies are not spared.
 Test: `projectile/grenade_friendly_fire`.
@@ -179,8 +190,8 @@ Test: `projectile/grenade_friendly_fire`.
 **G10. Fuse.** **1.5 s** from release.
 Test: `character/stun_flash_by_sight`.
 
-**G11. Flash (by sight).** *(Amended after the AI phase: furniture only shields from the flash at the face.)* A character with a clear line of sight to the burst (walls block it; a piece of
-furniture taller than the character blocks it only when the character is within `flash_cover_reach` **30 px** of it, on the burst's side, hunched right against it: the light comes round and over a
+**G11. Flash (by sight).** *(Amended after the AI phase: furniture only shields from the flash at the face.)* A character with a clear line of sight to the burst (the real 3D line from the burst to its eye; walls block it; a piece of
+furniture on the line blocks it only when the character is within `flash_cover_reach` **30 px** of the face of it nearest the character, hunched right against it: the light comes round and over a
 piece that is not at its face, so a crouched character 120 px behind a couch is flashed and one against it is not) within `flash_radius`
 **400 px** is flash-blinded for up to `max_blind` **5 s**, scaled by distance (full inside 100 px, falling linearly to nothing at
 400 px) and by how much it faces the burst (the dot of its facing with the direction to the burst: facing it, x1; side-on, x0.6; back to
@@ -200,8 +211,7 @@ where its shots go. The effect tails off over the last `recover_tail` **1.5 s** 
 and then it is as before. `Character.take_stun(blind, deaf)` applies it (and posts `&"stun"`), its `stun`'s `is_blind()`, `is_deaf()` and
 `level()` (0..1) read it, `stun.view()` gives `{ blind, blind_total, deaf, level }` (seconds left blind and deaf, the blind
 seconds at the burst, the level) to the UI, and a new stun takes the longer of the old and new timers, blind and deaf each. The four numbers live in
-`CharacterStunConfig` (they tune the body, not the item). A character also tells a controller what it needs to judge a place in time: `movement.posture_coverage(posture)` (the
-height of the body standing and crouched, on the coverage scale), `movement.run_speed()` (px/s standing and running, slower while stunned or weighed down by the outfit) and
+`CharacterStunConfig` (they tune the body, not the item). A character also tells a controller what it needs to judge a place in time: `movement.run_speed()` (px/s standing and running, slower while stunned or weighed down by the outfit) and
 `movement.walk_speed()` (px/s walking, slowed the same way: what the AI counts on once its stamina is low), so the AI keeps no copy of any.
 *(Amended by issue #56: the stunned look, and firing one-handed.)* A stunned character also looks it, every character alike (the player,
 an NPC, a test puppet); all of it is drawn only, eases in and out with the level (`CharacterStunConfig.look_ease` **6/s**: no hand or head jumps in a
@@ -257,8 +267,8 @@ over every primitive, committed or not, but for the NPC's own grenade in its win
 wind-up (0.3 s) later toward its spot, so the NPC throws it first and runs the tick it has let go; turning away meanwhile would throw it the wrong way). An NPC that *sees* a live grenade (in its view cone with a clear line) or *hears* one land within
 `hear_grenade` **300 px**, and is inside its danger zone, radios a `grenade` callout and runs to the nearest **safe spot** it can reach before the
 fuse is out. A spot is safe in either of two ways, and the NPC takes whichever is nearer: **out of line** (out of the grenade's line of sight, round
-a wall corner or a doorway, or outside its danger zone, defined below: beyond the radius and the margin), or **behind cover** that shields it from the blast (G7): it crouches behind that furniture, and
-a crouched character behind cover is as clear as one out of line. It then holds there, facing away or crouched, until the detonation, and
+a wall corner or a doorway, or outside its danger zone, defined below: beyond the radius and the margin), or **behind cover** that shields it from the blast (G7: the real 3D line from the burst, at the heights of the posture it would hold): it goes behind that furniture, crouching when
+standing there would leave it hit over the back (a standing body far enough behind a low piece is already in its shadow and need not), and a character behind cover is as clear as one out of line. It then holds there, facing away or crouched, until the detonation, and
 re-decides. *(Amended by issue #158: safe first, then the fight.)* Holding its spot, a frag's or a stun's, it still fights: a threat the watch
 stage picks (`docs/gaze-and-fire.md`: the hostile it fights or the nearest it sees, else one seen a moment ago with a clear line to where it
 was) takes its eyes and gun from its back to the grenade, and it fires at will as under any primitive, crouched behind cover when the spot
@@ -277,7 +287,7 @@ the way into its spot (6 px), since a spot is out of the line with only a little
 `{ known: [{ point, kind, fuse_left, radius, source: &"seen" | &"heard" | &"called" | &"own" }], escape: Vector2 (Vector2.INF when it is
 not running to one), throw: {} }`.
 Tests: `ai/grenade/evade_frag_seen`, `ai/grenade/evade_frag_ally_warned`, `ai/grenade/evade_stun_turns_away`,
-`ai/grenade/evade_frag_crouches_behind_cover` (the amendment: a couch nearer than any way out of line, the defender crouches behind it),
+`ai/grenade/evade_frag_takes_cover_behind_couch` (the amendment: a couch nearer than any way out of line, the defender goes behind it),
 `ai/grenade/evade_fights_from_spot` and `ai/grenade/evade_stun_fights_from_spot` (scripted: clear of a frag, or of a stun, a defender holding
 its spot shoots at an invader in view before the burst), `ai/grenade/evade_frag_cornered_fights` (scripted: a walking defender a frag catches
 with no spot in time shoots at the thrower before the burst),
@@ -321,7 +331,7 @@ a route that passes no known hostile (agent_tactics.gd `throw_spot`), never insi
 shots came from). It is chosen as the fire spots are, and so that its walk needs no detour: one whose walk (measured as it would be walked, round the doorway
 views when it would take that, `docs/tactical-entry.md` E18) crosses no doorway into a room not cleared and comes into no doorway view it cannot go
 round first, then out of the line from the spot (low furniture between), then with cover close by against it (a doorway's jamb, a piece of
-furniture), then the shortest walk (the "out of the line" and "cover close by" ranks of a throw spot still read the plan line and the old rating, not the 3D one of `docs/cover-and-stance.md` A4: the grenade's own readers move to real heights with the grenade's physics); candidates are rings round the NPC (48 to 240 px) and round the spot (0.95 and 0.8 of the
+furniture), then the shortest walk (the "out of the line" and "cover close by" ranks of a throw spot still read the 2D plan line, not the 3D one of `docs/cover-and-stance.md` A4; the safety judgements, the zone and `no_safe_spot`, read the burst's real 3D line); candidates are rings round the NPC (48 to 240 px) and round the spot (0.95 and 0.8 of the
 reach). The option's `params.from` is the throw spot (where it stands, for a throw in place) and `params.walk` says it walks there; the ally-in-blast and
 self-safety tags are judged from there (an NPC that stands outside the zone but would throw from inside it with no way out is `no_safe_spot`). Its desc adds
 " — from the hallway to the east, short route", and the group's summary says "within throwing range from a spot nearby" when every option needs the
@@ -347,8 +357,9 @@ captured out-of-range levels GRENADE ranks first in 18 ("within throwing range f
 - when a **known ally** would be inside that grenade's danger zone (G16) at the landing spot (the option's tag `ally_in_blast`, in the tactic's
   `drop_tags`);
 - when the **NPC itself** would be inside the zone **and has no way to get safe before the fuse runs out** (tag `no_safe_spot`): it is safe if it
-  can crouch behind cover that shields it from the landing spot (G7), or reach a spot out of the blast's line of sight in time. With a way to get
-  safe, being inside the zone does not drop the option;
+  can get behind cover that shields it from the landing spot (G7: the real 3D line, ducked or standing), or reach a spot out of the blast's line of sight in time. With a way to get
+  safe, being inside the zone does not drop the option. (Cover that hides a ducked hostile from a bullet shadows the thrower from a burst there, so a hidden hostile's own cover is almost always a
+  safe place: `no_safe_spot` is left for a thrower with no such cover and no way out of line in time, `ai/grenade/escape_judges_real_geometry`.);
 - against a hostile in its line of fire in the NPC's own room, or outdoors with it (it shoots).
 
 A **confined** NPC (its territory, the room a defend order keeps it to, its squad leash, a held stack's room: its confinement, `GLOSSARY.md`) has a throw judged
@@ -378,10 +389,11 @@ near furniture must be to shield from a flash) it reads off the grenades it carr
 (`ThrownGrenade.throw_stats()`); it keeps no mirror of the numbers, so retuning a `GrenadeConfig` row retunes the AI (the tests
 `items/grenade_throw_stats` and `ai/grenade/grenade_range_follows_the_item`). What stays the AI's own tuning is the NPC's
 `tuning.grenades`: `hear_grenade`, `evade_margin`, `enabled`. `debug_grenades().throw` holds `{ from, to, kind, radius }` while the throw is planned (until the grenade leaves the hand).
-Tests: `ai/grenade/grenade_not_offered_ally_in_blast` (an ally in the zone), `ai/grenade/grenade_not_offered_no_safe_spot` (the thrower in the zone
-with a coffee table that shields nobody and nothing to hide behind: dropped; the same with a couch at hand: offered),
+Tests: `ai/grenade/grenade_not_offered_ally_in_blast` (an ally in the zone), `ai/grenade/grenade_offered_when_cover_shadows_thrower` (the thrower in the zone
+with only a coffee table, or a couch, that hides the hostile: offered in both, the cover shields it from the burst on the floor), `ai/grenade/escape_judges_real_geometry`
+(the judgement per posture by the 3D line: a standing body far behind a couch safe standing, one close behind it only ducked, a burst on a desk shadowed by nothing low),
 `ai/grenade/grenade_not_offered_clear_shot` (and the same hostile pulled back to 740 px: offered only through a throw spot), `ai/grenade/throw_primitive_returns_to_gun` (the mechanism, scripted Von: the far thrower throws and
-returns to its gun after the bang; the near one crouches behind its couch until the bang, is unhurt, then returns to its gun);
+returns to its gun after the bang; the near one is behind its couch, shielded, until the bang, is unhurt, then returns to its gun);
 `ai/grenade/grenade_range_drift` (scripted Von, slow answers: a thrower pushed past the range while its question is in flight closes in and throws, GRENADE picked once),
 `ai/grenade/throw_dropped_when_lob_blocked` (a wardrobe across the lob while the question is in flight: the throw is given up, nothing thrown before Von
 is asked again, and a throw that follows leaves from a throw spot round the wardrobe),
@@ -598,7 +610,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 
 - **Items** (`scenes/items/`): `GrenadeConfig` (the numbers above, one row per kind), `GrenadeItem` (count, wind-up, `throw` stance),
   `ThrownGrenade` (flight, bounce, fuse), the art, `ItemRegistry` (`STUN_SLOT`, `FRAG_SLOT`, `create(id, count)`), `LoadoutConfig`, and `GunConfig`'s `one_hand_spread_deg`.
-- **Character**: `inventory.item_count`, `inventory.throw_stats`, `weapon.aim_target`, `movement.posture_coverage`, `movement.run_speed` and `movement.walk_speed` (what the AI judges a place in time by), the stun state
+- **Character**: `inventory.item_count`, `inventory.throw_stats`, `weapon.aim_target`, `movement.run_speed` and `movement.walk_speed` (what the AI judges a place in time by), the stun state
   (`take_stun`, and the `stun` component's `is_blind`, `is_deaf`, `level`, `view`; its numbers are `CharacterStunConfig`'s) and its effect on speed, running and aim, the stunned look
   (the `eyes` and `one_hand` stances, the hunch and the stagger) and `weapon.one_handed()`, `blast_push` for ragdolls.
 - **Lighting**: the stun's flash (`LightingConfig.flashes`, `WorldLighting3D`).
@@ -608,8 +620,8 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
   primitive, the evade reflex, the blind-fire roll and holding fire, the bang phase of `entry.gd`, the overlay).
 - **The tests reach all of it duck-typed** (`has_method`, `call`, groups, topics, node ids), because most of it did not exist when they
   were written.
-- **Cover** is read off `get_surface().coverage` of what lies between the blast and the character, against the character's own posture coverage;
-  the tests read it with `GrenadeAi.shielded` (a ray from the blast, character bodies excluded).
+- **Cover** is the real 3D line from the burst to each point of the body at its posture's heights, stopped by the twin geometry (`Explosion.shields`, `Explosion.first_stop`);
+  the tests read it with `GrenadeAi.shielded` (a line of its own from the burst, in the twin space).
 - **Scenario tests** run the whole pipeline with recorded Von answers (replayed, `--record-von` refreshes them), the rest of the AI on and nothing scripted. Their premises are the
   puppet thrower in the evade scenarios (an invader puppet that cannot be killed, armed with one grenade the way the match builder arms a spawn), the
   hostile puppet that cannot be killed and never shoots in the combat scenarios, the one shot of gunfire heard in the stun entry, and the
@@ -626,8 +638,8 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 | Throw | wind-up 0.3 s, `max_range` 550 px, `restitution` 0.35 | same |
 | Throw spot (AI) | at most 250 px of walking (`throw_spot_walk`), within 535 px of the spot | same |
 | Flash / blast radius | `flash_radius` 400 px (full inside 100) | `blast_radius` 250 px (full inside `kill_radius` 120) |
-| Effect | blind up to 5 s; deaf up to 6 s within 350 px (x0.4 through a wall); 5 damage within 30 px | 60 damage; 40 fragments of 12 damage, penetration 0.4, 500 px reach |
-| Danger zone (AI) | line of sight within 400 px; furniture shields only within 30 px of the body (`flash_cover_reach`) | line of sight within 370 px (250 + 120 margin); a crouched body behind cover above 35 is shielded (G7) |
+| Effect | blind up to 5 s; deaf up to 6 s within 350 px (x0.4 through a wall); 5 damage within 30 px | 60 damage; 40 fragments of 7.5 damage over the upper hemisphere, penetration 0.4, 500 px reach |
+| Danger zone (AI) | line of sight within 400 px; furniture shields only within 30 px of the body (`flash_cover_reach`) | line of sight within 370 px (250 + 120 margin); a body whose every point the real 3D line from the burst cannot reach (G7) is shielded: a ducked one behind cover taller than its head, a standing one in a low piece's shadow |
 | Heard landing (AI) | 300 px | 300 px |
 
 The stun on the character: speed x0.45, sway 25 degrees, no running, tail 1.5 s; blind with a gun, one-handed: spread wider by 3 (pistol), 6

@@ -13,10 +13,12 @@ extends GameTest
 ## lob, reached by a short walk; the invader walks there and throws from it, and the stun goes off
 ## on the hostile. South: the invader carries a frag whose row is retuned (a premise: blast radius
 ## 480 px, so its danger zone, 600 px, reaches past the throw range, and a 0.5 s fuse) so that every
-## spot within throw range of the hostile is inside the zone with nowhere to get clear in time,
-## while where the invader stands (640 px) is outside it. Judged from the throw spot the option is
-## tagged `no_safe_spot` and GRENADE is not offered; judged from where it stands it would be
-## offered.
+## spot within throw range of the hostile is inside the zone, while where the invader stands
+## (640 px) is outside it. The self-safety tag is judged from the throw spot by the real 3D line
+## (#194 D10): the table that hides the hostile from the invader lies on the line from the burst to
+## the throw spot behind it, so the spot is shielded, the option is not tagged `no_safe_spot`
+## (cover that hides a hostile from a bullet shadows the thrower from a burst on the floor), and
+## GRENADE is offered.
 ##
 ## Premises: the hostiles are household puppets that cannot be killed and never shoot; each invader
 ## is armed at the start of `run`, the way Main arms a spawn; the frag row is retuned (above).
@@ -37,8 +39,8 @@ func describe() -> Dictionary:
 		"name": "A hostile out of throw range is grenaded from a throw spot",
 		"description": "An invader 640 px from a hidden hostile is offered GRENADE through a throw "
 			+ "spot a short walk away, within range and with a clear lob, walks there and throws; "
-			+ "with a frag whose zone reaches past the throw range the option is tagged "
-			+ "no_safe_spot (judged from the throw spot) and not offered.",
+			+ "with a frag whose zone reaches past the throw range the throw spot, behind the "
+			+ "table that hides the hostile, is shielded by it: not tagged no_safe_spot, offered.",
 		"tags": ["ai", "grenade", "combat", "throw_spot", "scripted"],
 		"timeout": 40.0,
 	}
@@ -222,16 +224,17 @@ func _check_south(t: TestContext, walks: Dictionary, zones: Dictionary) -> void:
 			not s_near.is_empty(),
 			"a throw spot was weighed against the south hostile too (zones %s)" % str(zones[&"s"]),
 	):
+		var from := Spot.from_of(s_near[0])
 		t.check(
-			Spot.from_of(s_near[0]).distance_to(S_H) <= Spot.THROW_RANGE,
+			from.distance_to(S_H) <= Spot.THROW_RANGE,
 			"within throw range, so inside the frag's zone",
 		)
 		t.check(
-			s_near[0]["tags"].get("no_safe_spot", false),
-			"and, judged from the throw spot, it is tagged no_safe_spot (tags %s)"
-				% str(s_near[0]["tags"]),
+			not s_near[0]["tags"].get("no_safe_spot", false),
+			"and, judged from the throw spot, it is not tagged no_safe_spot: the table that hides "
+				+ "the hostile shields it (tags %s)" % str(s_near[0]["tags"]),
 		)
 	t.check(
-		not south[0]["combat"].has("grenade"),
-		"so GRENADE is not offered to the south invader (offered %s)" % str(south[0]["combat"]),
+		south[0]["combat"].has("grenade"),
+		"so GRENADE is offered to the south invader (offered %s)" % str(south[0]["combat"]),
 	)

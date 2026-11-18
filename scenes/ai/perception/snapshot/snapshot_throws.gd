@@ -560,7 +560,7 @@ func _cornered(
 	threat.kind = kind
 	threat.radius = radius
 	threat.burst = spot
-	if not _throw.in_zone(space, threat, from, _throw.stand_height(), rids):
+	if not _throw.in_zone(space, threat, from, BodyHeights.STAND):
 		return false
 	threat.fuse_left = _throw.fuse_of(kind)
 	var runner := GrenadeRunner.new()
@@ -626,6 +626,6 @@ func _ally_in_blast(ctx: Dictionary, kind: StringName, radius: float, spot: Vect
 	threat.radius = radius
 	threat.burst = spot
 	for pos: Vector2 in found.values():
-		if _throw.in_zone(ctx["space"], threat, pos, _throw.stand_height(), know["character_rids"]):
+		if _throw.in_zone(ctx["space"], threat, pos, BodyHeights.STAND):
 			return true
 	return false

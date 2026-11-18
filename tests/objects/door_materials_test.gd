@@ -67,7 +67,6 @@ func run(t: TestContext) -> void:
 		t.expect_eq(door.damage.hp, row[2], "the %s door has its material's HP" % id)
 		var surface: Dictionary = door.get_surface()
 		t.expect_eq(surface["penetration"], row[3], "the %s door's penetration" % id)
-		t.expect_eq(surface["coverage"], 100.0, "the %s door is struck at every height" % id)
 		var art: Texture2D = ObjectArt.flat(
 			"door", door.leaf_size(), door.look.color, door.look.art_opts(false)
 		)

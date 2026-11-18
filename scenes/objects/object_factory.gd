@@ -5,7 +5,7 @@ class_name ObjectFactory
 ## through a plain Dictionary, so neither reaches into the other's internals.
 ##
 ## Definition fields: name, shape ("circle"|"square"|"rect"), size, color (required);
-##   material, coverage, penetration, weight, solid, interactions (all optional);
+##   material, penetration, weight, solid, interactions (all optional);
 ##   anchored (optional, default false: a solid piece that never moves, frozen static; still struck,
 ## dented, throwing debris); art (an `ObjectArt` painter id, e.g. "sofa"; omitted = the flat shape)
 ## and art_opts (painter overrides, see the ObjectArt*Config holders) (optional);
@@ -56,7 +56,6 @@ static func spawn(
 	obj.solid = definition.get("solid", true)
 	obj.anchored = definition.get("anchored", false)
 	obj.object_material = definition.get("material", "")
-	obj.coverage = definition.get("coverage", 0.0)
 	obj.penetration = definition.get("penetration", 0.0)
 	obj.weight = definition.get("weight", 10.0)
 	obj.interactions = definition.get("interactions", [])

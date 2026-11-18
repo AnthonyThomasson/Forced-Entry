@@ -1,5 +1,5 @@
-11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `GameClock`, `BodyHeights`, `PlanSpace` and the shared rules**
-    - `PhysicsLayers` (`general/physics_layers.gd`, static holder): `SOLID` is the physics layer bit (1) "walls + solid furniture" live on (2D). `TWIN_WORLD` (1), `TWIN_VEHICLE` (2), `TWIN_CHARACTER` (4), `TWIN_ROOF` (8, out of `TWIN_ALL`) and `TWIN_ALL` are the twin 3D space's layers (29).
+11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `GameClock`, `BodyHeights`, `PlanSpace`, shared rules**
+    - `PhysicsLayers` (`general/physics_layers.gd`, static holder): `SOLID` is the physics layer bit (1) walls + solid furniture live on (2D); `TWIN_WORLD` (1), `TWIN_VEHICLE` (2), `TWIN_CHARACTER` (4), `TWIN_ROOF` (8, out of `TWIN_ALL`) and `TWIN_ALL` are the twin 3D space's layers (29).
 	  Every raycast, sweep, collision mask or layer for it reads this one constant: Interaction's reach query, AI sight and line-of-fire
 	  rays (`agent_vision.gd`; the vision overlay asks the controller's `debug_sight_end`), the character's hand
 	  queries, leg sweeps and clearing check (`use.keep_clear_of`), a dropped item's glance, a grenade's flight, the bullet's

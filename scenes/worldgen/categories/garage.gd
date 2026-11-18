@@ -11,7 +11,6 @@ const OBJECTS := {
 		"material": "metal",
 		"art": "car",
 		"weight": 800,
-		"coverage": 65,
 		"penetration": 90,
 	},
 	"workbench": {
@@ -30,7 +29,6 @@ const OBJECTS := {
 			],
 		},
 		"weight": 90,
-		"coverage": 45,
 		"penetration": 60,
 	},
 	"shelving": {
@@ -42,7 +40,6 @@ const OBJECTS := {
 		"art": "shelf",
 		"art_opts": { "contents": "boxes" },
 		"weight": 40,
-		"coverage": 80,
 		"penetration": 70,
 	},
 	"tool_chest": {
@@ -54,7 +51,6 @@ const OBJECTS := {
 		"art": "cabinet",
 		"art_opts": { "front": "drawers", "count": 2, "handle": Color(0.78, 0.8, 0.84) },
 		"weight": 60,
-		"coverage": 40,
 		"penetration": 80,
 	},
 }

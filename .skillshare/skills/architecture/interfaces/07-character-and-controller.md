@@ -13,7 +13,7 @@
      `slots`, hold `hold_slot`, `spare_types` magazines, the gun loaded with `loaded_magazine`, `grenades` counts, every item in
      `weapon_style`; how `MatchBuilder.arm` arms a spawn, 23).
    - **Reads:** `damage_taken()` (accumulated hit damage), `movement.posture()` / `is_running()` / `stamina_fraction()` /
-     `run_speed()` / `walk_speed()` (px/s, slower while stunned or by outfit weight) / `posture_coverage(posture)` (the body's height on the coverage scale, what furniture must stand above to shield it);
+     `run_speed()` / `walk_speed()` (px/s, slower while stunned or by outfit weight);
      `ammo.rounds(slot := -1)` / `capacity(slot)` / `can_reload(slot)` / `spare_magazines()` / `is_reloading()` (slot -1 = held item;
      -1 rounds = no ammo); `inventory.item_name(slot := -1)` / `current_item()` / `current_slot()` / `item_reach()` / `has_item(id)` /
      `gun_slot()` (the held item if it takes ammo, else the lowest such slot, else −1) / `item_count(slot := -1)` (a grenade slot's count, 1

@@ -3,8 +3,8 @@ extends GameTest
 ## that grenade's danger zone at the landing spot (the option's `ally_in_blast` tag is in the
 ## tactic's `drop_tags`). One mechanism: an invader with a frag, a hostile behind a desk 420 px off
 ## (outside the invader's own zone, so only the ally matters; the thrower's own zone is
-## `grenade_not_offered_no_safe_spot`). Scripted Von; the same scene is read twice: nobody in the
-## way (GRENADE is offered), then an ally beside the hostile (dropped).
+## `grenade_offered_when_cover_shadows_thrower`). Scripted Von; the same scene is read twice: nobody
+## in the way (GRENADE is offered), then an ally beside the hostile (dropped).
 
 const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")

@@ -8,8 +8,8 @@ class_name GeneralCatalog
 ##   material (descriptive tag — "wood"/"fabric" also take the room palette's tone;
 ##     "metal"/"ceramic"/"glass"/"plastic"/"stone"/"electronics"/"foliage" are
 ##     descriptive only, never recolored);
-##   coverage (0–100, a height/cover proxy); penetration (0–100, resistance to being
-##     shot through); weight (mass for knockback — heavier = thrown back less);
+##   penetration (0–100, resistance to being shot through); weight (mass for knockback — heavier =
+##     thrown back less);
 ##     solid (optional, default true; false = walk-over decor under all);
 ##   art (optional pixel-art painter id, e.g. "sofa", "cabinet", "appliance"; omitted =
 ##     flat shape + label) and art_opts (optional painter variant/overrides, e.g.
@@ -38,7 +38,6 @@ const OBJECTS := {
 		"material": "wood",
 		"art": "chair",
 		"weight": 6,
-		"coverage": 45,
 		"penetration": 50,
 		"interactions": [
 			{ "id": "sit", "label": "Sit", "move_to": true },
@@ -53,7 +52,6 @@ const OBJECTS := {
 		"material": "metal",
 		"art": "lamp",
 		"weight": 3,
-		"coverage": 55,
 		"penetration": 30,
 		"interactions": [
 			{ "id": "toggle", "label": "Toggle light" },
@@ -68,7 +66,6 @@ const OBJECTS := {
 		"material": "foliage",
 		"art": "plant",
 		"weight": 5,
-		"coverage": 50,
 		"penetration": 10,
 		"interactions": [
 			{ "id": "water", "label": "Water plant" },
@@ -88,7 +85,6 @@ const OBJECTS := {
 			"back_depth": 0.3,
 		},
 		"weight": 22,
-		"coverage": 50,
 		"penetration": 25,
 		"interactions": [
 			{ "id": "sit", "label": "Sit", "move_to": true },
@@ -104,7 +100,6 @@ const OBJECTS := {
 		"art": "table",
 		"art_opts": { "props": [{ "kind": "book", "at": Vector2(0.5, 0.5) }] },
 		"weight": 8,
-		"coverage": 40,
 		"penetration": 45,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -117,7 +112,6 @@ const OBJECTS := {
 		"art": "shelf",
 		"art_opts": { "contents": "books" },
 		"weight": 30,
-		"coverage": 90,
 		"penetration": 60,
 		"interactions": [
 			{ "id": "browse", "label": "Browse books" },
@@ -132,7 +126,6 @@ const OBJECTS := {
 		"material": "wood",
 		"art": "coat_rack",
 		"weight": 6,
-		"coverage": 60,
 		"penetration": 25,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -145,7 +138,6 @@ const OBJECTS := {
 		"art": "shelf",
 		"art_opts": { "contents": "shoes" },
 		"weight": 7,
-		"coverage": 20,
 		"penetration": 35,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -158,7 +150,6 @@ const OBJECTS := {
 		"art": "counter",
 		"art_opts": { "basin": "single" },
 		"weight": 20,
-		"coverage": 45,
 		"penetration": 45,
 		"interactions": [
 			{ "id": "use", "label": "Wash up" },
@@ -174,7 +165,6 @@ const OBJECTS := {
 		"art": "cabinet",
 		"art_opts": { "front": "doors", "count": 2 },
 		"weight": 22,
-		"coverage": 55,
 		"penetration": 50,
 		"interactions": [
 			{ "id": "open", "label": "Open cabinet" },
@@ -197,7 +187,6 @@ const OBJECTS := {
 			],
 		},
 		"weight": 10,
-		"coverage": 40,
 		"penetration": 45,
 		"interactions": [
 			{ "id": "open", "label": "Open drawer" },
@@ -220,7 +209,6 @@ const OBJECTS := {
 			],
 		},
 		"weight": 24,
-		"coverage": 45,
 		"penetration": 50,
 		"interactions": [
 			{ "id": "sit_at", "label": "Sit at desk", "move_to": true },
@@ -236,7 +224,6 @@ const OBJECTS := {
 		"art": "appliance",
 		"art_opts": { "panel": "washer" },
 		"weight": 70,
-		"coverage": 55,
 		"penetration": 80,
 	},
 	"dryer": {
@@ -248,7 +235,6 @@ const OBJECTS := {
 		"art": "appliance",
 		"art_opts": { "panel": "dryer" },
 		"weight": 55,
-		"coverage": 55,
 		"penetration": 80,
 	},
 	"bench": {
@@ -260,7 +246,6 @@ const OBJECTS := {
 		"art": "table",
 		"art_opts": { "gaps": true, "plank_px": 6, "rim_px": 1, "height": 19.0 },
 		"weight": 14,
-		"coverage": 30,
 		"penetration": 50,
 	},
 	"console_table": {
@@ -278,7 +263,6 @@ const OBJECTS := {
 			],
 		},
 		"weight": 14,
-		"coverage": 30,
 		"penetration": 45,
 	},
 	"mirror": {
@@ -290,7 +274,6 @@ const OBJECTS := {
 		"art": "fixture",
 		"art_opts": { "kind": "mirror" },
 		"weight": 6,
-		"coverage": 40,
 		"penetration": 20,
 	},
 	"rug_large": {
@@ -303,7 +286,6 @@ const OBJECTS := {
 		"art_opts": { "pattern": "medallion" },
 		"weight": 5,
 		"solid": false,
-		"coverage": 0,
 		"penetration": 5,
 	},
 	"runner": {
@@ -316,7 +298,6 @@ const OBJECTS := {
 		"art_opts": { "pattern": "stripes" },
 		"weight": 3,
 		"solid": false,
-		"coverage": 0,
 		"penetration": 5,
 	},
 	# Walk-over clutter (RoomDresser strews it, 0-2 a room): non-solid, coverless, never carved into
@@ -331,7 +312,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "trash" },
 		"weight": 1,
 		"solid": false,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	"cables": {
@@ -344,7 +324,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "cables" },
 		"weight": 1,
 		"solid": false,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	"cable_nest": {
@@ -357,7 +336,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "cable_nest" },
 		"weight": 1,
 		"solid": false,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	"cardboard": {
@@ -370,7 +348,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "cardboard" },
 		"weight": 1,
 		"solid": false,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	"puddle": {
@@ -383,7 +360,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "puddle" },
 		"weight": 1,
 		"solid": false,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	# A neon tube along the foot of a wall (RoomDresser, about every other room); its `tone` is
@@ -398,7 +374,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "neon_tube" },
 		"weight": 1,
 		"solid": false,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	# The street lamps along the front of the house (HouseSpawner, `streetlight_*` in
@@ -417,7 +392,6 @@ const OBJECTS := {
 		"overhang": { "size": Vector2(16, 40), "reach": 20.0 },
 		"anchored": true,
 		"weight": 250,
-		"coverage": 100,
 		"penetration": 85,
 	},
 	"street_sign": {
@@ -431,7 +405,6 @@ const OBJECTS := {
 		"overhang": { "size": Vector2(24, 40), "reach": 20.0 },
 		"anchored": true,
 		"weight": 250,
-		"coverage": 100,
 		"penetration": 85,
 	},
 	"awning": {

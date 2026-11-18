@@ -38,7 +38,7 @@ static var looks := {
 	},
 }
 ## One row per kind. `size` is the body (length along x, width along y); `corner` its chamfer;
-## `coverage`, `penetration` and `material` its ballistic surface (`get_surface`), `bounce` and
+## `penetration` and `material` its ballistic surface (`get_surface`), `bounce` and
 ## `friction` its contact with what it strikes. `mass` is the rigid body's, `engine_force` (mass x
 ## px/s²) drives it up to `top_speed` (the speed full throttle settles at: the push tapers to
 ## exactly the rolling and drag there), `reverse_force` back to `reverse_speed`; `brake`,
@@ -56,7 +56,7 @@ static var looks := {
 ## `open_angle` for a swing or rear door.
 static var kinds := {
 	&"car": {
-		"size": Vector2(220, 110), "corner": 14.0, "coverage": 70.0, "penetration": 90.0,
+		"size": Vector2(220, 110), "corner": 14.0, "penetration": 90.0,
 		"material": "metal", "mass": 400.0, "bounce": 0.025, "friction": 0.4,
 		"engine_force": 372_000.0, "top_speed": 1280.0, "reverse_force": 160_000.0,
 		"reverse_speed": 350.0, "brake": 850.0, "handbrake_brake": 40.0, "rolling": 25.0,
@@ -103,7 +103,7 @@ static var kinds := {
 		],
 	},
 	&"van": {
-		"size": Vector2(260, 125), "corner": 10.0, "coverage": 80.0, "penetration": 90.0,
+		"size": Vector2(260, 125), "corner": 10.0, "penetration": 90.0,
 		"material": "metal", "mass": 700.0, "bounce": 0.025, "friction": 0.4,
 		"engine_force": 350_000.0, "top_speed": 880.0, "reverse_force": 210_000.0,
 		"reverse_speed": 250.0, "brake": 480.0, "handbrake_brake": 40.0, "rolling": 25.0,

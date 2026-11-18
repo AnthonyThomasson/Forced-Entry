@@ -149,7 +149,7 @@ and passenger click the trigger of a loaded pistol: no shot, hit or shot sound, 
   hurts nobody; only a vehicle does.
 - Each new impact faster than `crash_min_speed` **60** posts a `vehicle` `crash` event with its closing speed and the struck material
   (`""` for a wall), or a `bump_character` for a character.
-- Bullets hit it like furniture: `get_surface()` is metal, coverage **70** (car) / **80** (van), penetration **90**; `take_hit` dents it
+- Bullets hit it like furniture: `get_surface()` is metal, penetration **90**; `take_hit` dents it
   (`Deformable`, at most 3 px deep, the last 24 dents kept), throws debris and shoves it at the hit. It is never destroyed, and its
   occupants are not hit through the body.
 Tests: `vehicle/crash_into_wall_stops` (driven flat out into a wall: a crash event with the impact speed, the kind and a material; most
@@ -159,7 +159,7 @@ the two speeds, and past 300: shoved and unhurt, hurt and alive, dead), `vehicle
 character pinned on a heavy armchair, one pinned on the wall, one in the open and one behind the armchair: the pinned ones take at least
 the open hit's harm and the shielded one half of it; 0.1 s after the touch the car keeps 30 % / 70 % / 50 % of its speed (pinned / open /
 shielded) and shoves the chair; on the wall it posts a crash; measured harm 25.4 open, 25.4 pinned on the chair and on the wall, 17.6
-behind the chair; kept 130 / 168 / 139 px/s, the chair shoved 63 and 57 px), `vehicle/bullet_dents_vehicle` (a metal surface with coverage
+behind the chair; kept 130 / 168 / 139 px/s, the chair shoved 63 and 57 px), `vehicle/bullet_dents_vehicle` (a metal surface with
 60+ and penetration 80+, a recorded dent, debris; six more rounds leave it standing).
 
 ### Presentation
@@ -219,7 +219,7 @@ vehicle; nothing under
 | Bounce, friction | 0.025, 0.4 | 0.025, 0.4 |
 | Steering: lock, rate, demand at speed | 0.65 rad, 3.5 rad/s, 1 | 0.62 rad, 2.5 rad/s, 1 |
 | Grip front / rear (px/s²), handbrake | 850 / 1100, 0.8 % | 330 / 420, 0.8 % |
-| Surface | metal, coverage 70, penetration 90 | metal, coverage 80, penetration 90 |
+| Surface | metal, penetration 90 | metal, penetration 90 |
 | Doors | four swing doors | two front swing doors, a slide door (right), two rear doors |
 
 Shared: reach 60; board and exit below 20; doors 0.35 open and shut, a slide 0.5; fold 0.5; slide across 0.6; turn 9 rad/s; harm from 90,

@@ -214,12 +214,10 @@ func take_stun(blind: float, deaf: float) -> void:
 # --- Hittable contract (struck by projectiles: flesh surface + deformation) -------------
 
 
-## The character's ballistic surface: partial cover (the body's height, so a lower posture is struck
-## by fewer shots and hides behind lower cover), low penetration, flesh material and a base color
-## for debris styling. Read by the Projectile System.
+## The character's ballistic surface: low penetration, flesh material and a base color for debris
+## styling. Read by the Projectile System (what the body covers is its twin's real height).
 func get_surface() -> Dictionary:
 	return {
-		"coverage": CharacterPostureConfig.postures[movement.posture()]["coverage"],
 		"penetration": CharacterHitConfig.flesh_penetration,
 		"material": CharacterHitConfig.flesh_material,
 		"color": CharacterHitConfig.flesh_color,
