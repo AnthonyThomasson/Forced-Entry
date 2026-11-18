@@ -24,6 +24,11 @@ const HEADERS := [
 const GLOBAL_ALLOWED := [
 	# the Von launcher's diagnostics; a requires_von test is SKIPPED without a live server
 	"[von] ",
+	# Godot's Jolt integration runs its fixed pool of 2048 jobs dry when a headless `--fixed-fps`
+	# run steps physics back to back on a machine whose workers do not get the CPU, then waits for
+	# jobs to free and goes on: an open engine bug (godotengine/godot#110724) no project setting
+	# reaches
+	"Jolt Physics job system exceeded the maximum number of jobs",
 ]
 
 ## Set to watch a given log file instead of the one the process was started with.

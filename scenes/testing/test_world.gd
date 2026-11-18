@@ -190,6 +190,7 @@ func _build_squads(setup: TestSetup) -> void:
 func restore() -> void:
 	AllocationPadding.release()
 	Pointer.release()
+	FadedTwins.clear()
 	_remove_settings_scratch()
 	for i in range(_saved_statics.size() - 1, -1, -1):
 		var s: Array = _saved_statics[i]

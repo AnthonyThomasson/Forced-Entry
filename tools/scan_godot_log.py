@@ -21,7 +21,9 @@ import sys
 
 HEADERS = ["USER SCRIPT ERROR:", "SCRIPT ERROR:", "SHADER ERROR:", "USER ERROR:", "ERROR:",
            "USER SCRIPT WARNING:", "SCRIPT WARNING:", "SHADER WARNING:", "USER WARNING:", "WARNING:"]
-ALLOWED = ["[von] "]  # the Von launcher's diagnostics (log_watch.gd GLOBAL_ALLOWED)
+# the Von launcher's diagnostics, and Godot's Jolt job-pool warning (an engine bug under CPU starvation that it
+# waits out: godotengine/godot#110724); log_watch.gd GLOBAL_ALLOWED
+ALLOWED = ["[von] ", "Jolt Physics job system exceeded the maximum number of jobs"]
 EXIT_NOISE = [
     r"ObjectDB instances leaked at exit",
     r"\d+ resources still in use at exit",

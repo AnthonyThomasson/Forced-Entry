@@ -20,7 +20,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 | `despawner.gd` | cap on transient bodies |
 | `camera_controller.gd` (+ the two config holders) | `Camera2D` |
 | `command_server.gd` | dev command server |
-| `pointer.gd` | `Pointer` (26; `pointer.md`) |
+| `pointer.gd`, `faded_twins.gd` | `Pointer` (26; `pointer.md`), `FadedTwins` (which twins the wall fade holds faded: Art writes, Pointer reads; 27) |
 | `ground_layer.gd` | `GroundLayer`: flat 3D overlays (`camera3d.md`) |
 | `physics_layers.gd`, `view_layers.gd` | shared ids |
 | `world_rng.gd` | each world's random stream and its characters' spawn order (`helpers.md`) |

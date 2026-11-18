@@ -94,7 +94,7 @@ not stay under it: when its **duck muzzle's line** toward the aim is blocked by 
 **the lowest pose whose muzzle clears every piece on its line** (`BodyHeights.lowest_clearing`, D7a): `FIRE_OVER` (muzzle
 43 px) for cover up to that, `STAND` (65 px, fully exposed above the cover) for taller. The cover's height is that of the **part** the line meets
 (`PieceHeights` parts, the twin's boxes): a kitchen counter's backsplash is 44 px, over the fire-over muzzle, though its top is 38, so a level shot
-over it needs a standing pose; the line is cast again from each higher pose along the whole run, so a taller part behind
+over it needs a standing pose, while a prop standing on a counter (the shop counter's till, the noodle bar's bowl) is no part of the piece (the twin has no box for it), so those counters ask only the fire-over; the line is cast again from each higher pose along the whole run, so a taller part behind
 the first counts. A line that already climbs over the cover (aimed up at a torso) needs no rise. If no pose clears every piece on the line (a wardrobe, a
 fridge, a wall) the body stays ducked: an NPC's gate refuses the shot (`fire_line_clear` is false), while a body that is fired anyway (the player's click, a puppet) fires from where it ducks and its round meets the cover. In the open there is nothing to rise for.
 The body is exposed the moment it rises (its twin, zones, eye and muzzle are the risen pose's, `body_posture()`) but holds its fire for
@@ -104,8 +104,8 @@ controller's trigger is retried each frame (an NPC's fire timer is untouched), a
 clear line from the pose the rise would take (the same rule, `CharacterRise.pose_along`, then a clear 3D line from that muzzle to the part of its target it aims at) as a line to fire along, so it pulls the trigger and rises
 (`Combat.has_line_of_fire_to`, `AgentVision.fire_line_clear`); the options Von is shown, the firing spots and the flank sides read the same 3D line from a standing muzzle (a body able to rise to fire could do it there); the planned line and the trigger's agree, so a clear shot the AI plans is one it can take (D7b). Only a gun rises (a thrown grenade
 does not); the rise is a manner of firing, so it works with Von down.
-Tests: `rise_over_sofa`, `rise_to_stand_over_tall_cover`, `no_rise_behind_unclearable_cover`, `risen_body_is_exposed`, `risen_body_sees_over_cover`,
-`muzzle_height_by_posture`.
+Tests: `rise_over_sofa`, `rise_to_stand_over_tall_cover`, `no_rise_behind_unclearable_cover`, `risen_body_is_exposed`, `risen_body_sees_over_cover` (also the other way: the standing body sees the risen one over the sofa, and none of it once it has dropped),
+`rise_fire_over_prop_counters`, `muzzle_height_by_posture`.
 
 **A1. Fighting low.** An NPC fighting in place (an engaged NPC in position, or one holding or reloading
 with a hostile known or shots landing) crouches (behind cover, in the open or pinned alike): it ducks, and fires by rising over what hides it (P6). It is a manner of carrying

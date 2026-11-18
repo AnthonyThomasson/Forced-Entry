@@ -2,7 +2,9 @@ extends GameTest
 ## P6 (docs/cover-and-stance.md): a risen body's eye is the risen pose's (`BodyHeights.eye`): a
 ## ducked viewer 25 px short of a sofa's back sees none of the points of a standing body 350 px
 ## beyond it (the back is 38 px, its eye 32); once it rises to fire over the sofa its eye (46 px)
-## is over the back and the same body is seen (`SightRay`, D9).
+## is over the back and the same body is seen (`SightRay`, D9). The other way too: the standing body
+## sees none of the ducked viewer behind the sofa, sees it while it is risen over the sofa, and none
+## of it again once it has dropped back; its eye follows the rise (`body_posture`), not the stance.
 
 const SOFA_AT := Vector2(400, 250)
 const VIEWER_AT := Vector2(350, 250)
@@ -52,6 +54,12 @@ func run(t: TestContext) -> void:
 		SightRay.eye_point(viewer).y, BodyHeights.eye(BodyHeights.FIRE_OVER), 0.01, "risen eye"
 	)
 	t.check(_sees(t), "risen, its eye is over the sofa's back and it sees the body")
+	t.check(_sees_viewer(t), "and the standing body sees the risen one over the sofa")
+	t.puppet(&"viewer").hold_fire(false)
+	await t.seconds(CharacterRiseConfig.dwell + CharacterRiseConfig.rise_time + 0.6)
+	t.expect_eq(viewer.movement.body_posture(), BodyHeights.DUCK, "premise: it has dropped back")
+	t.check(not _sees(t), "dropped, it sees no point of the body beyond the sofa again")
+	t.check(not _sees_viewer(t), "and the standing body sees none of it behind the sofa")
 
 
 func _sees(t: TestContext) -> bool:
@@ -62,4 +70,16 @@ func _sees(t: TestContext) -> bool:
 		target.global_position,
 		SightRay.target_heights(target),
 		SightRay.exclude_of(target),
+	)
+
+
+## Whether the standing body's eye sees any point of the viewer.
+func _sees_viewer(t: TestContext) -> bool:
+	var viewer := t.actor(&"viewer")
+	return SightRay.sees(
+		TwinSpace.space_of(viewer),
+		SightRay.eye_point(t.actor(&"target")),
+		viewer.global_position,
+		SightRay.target_heights(viewer),
+		SightRay.exclude_of(viewer),
 	)

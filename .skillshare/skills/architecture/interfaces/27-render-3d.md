@@ -37,7 +37,7 @@
       `Pointer.screen_transform`: they lie flat on the 3D floor at any yaw, over the picture and under the HUD (`OverlayRegistry.overlays_of`).
     - **Wall fade** (rule 9, `domain-art/wall-fade.md`): Art's `WallFade` (Main's `View3D` makes it, `listen(mirror)`) fades the walls, doors and tall furniture
       between the camera and the player (spectating: every character). It reads, duck-typed: `WorldMirror.built(body, mesh)` (a builder made `mesh` for `body`),
-      General's `CameraController.focus_targets() -> Array[Node2D]` (the camera's own list: read only) and Objects' `WallMesh.segments() -> Dictionary` (index -> instance, its child decals fade with it) with its `segment_replaced(index, part)`.
+      General's `CameraController.focus_targets() -> Array[Node2D]` (read only) and Objects' `WallMesh.segments() -> Dictionary` (index -> instance) with its `segment_replaced(index, part)`. It writes General's `FadedTwins.hold`/`release` (Pointer, 26, reads `holds`).
     - **Tuning:** `RenderConfig` (General: the camera, `texel_match`, `max_lines`, `canvas_layer`, `overlay_layer`; `CameraTurnConfig`, `Zoom3dConfig`),
       `RenderLightConfig` (General, the backdrop; the lights are Lighting's, 20), `MirrorConfig`, `PixelPostConfig` and `ToonLightConfig` (Art).
     - **The dusk's globals** (`ToonLight`, set by Lighting): `set_ambient`, `set_sky`, `set_rooms` (each an image and its rect), `clear`.

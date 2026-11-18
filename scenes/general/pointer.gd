@@ -134,7 +134,9 @@ static func world_mouse(node: Node) -> Vector2:
 ## meets a character's twin first (hovering a head is the head). Kind `&"cover"`: the first piece,
 ## wall, door or vehicle the line meets, with a character behind it or not (D8a): the point on it.
 ## Empty for neither (bare floor, or not in the 3D render): the player then shoots level at the
-## muzzle's height toward the floor point. `ignore` (the player's own body) is looked through.
+## muzzle's height toward the floor point. `ignore` (the player's own body) is looked through, and
+## so is what the wall fade holds faded (`FadedTwins`): the twin stays solid while its mesh is
+## dithered, and the cursor over floor seen through a faded wall is over that floor.
 static func aim_hit(node: Node, ignore: Node = null) -> Dictionary:
 	var space := TwinSpace.space_of(node) if is_3d(node) else null
 	if space == null:
@@ -161,6 +163,8 @@ static func aim_hit(node: Node, ignore: Node = null) -> Dictionary:
 		var aimed := {
 			"plan": PlanSpace.plan_of(hit.position), "height": PlanSpace.height_of(hit.position),
 		}
+		if FadedTwins.holds(body.get_instance_id(), aimed["plan"]):
+			continue  # the wall fade shows it see-through: the cursor is over what is behind it
 		if (hit.collider as CollisionObject3D).collision_layer & PhysicsLayers.TWIN_CHARACTER != 0:
 			aimed["kind"] = &"body"
 			return aimed if cover.is_empty() else cover
