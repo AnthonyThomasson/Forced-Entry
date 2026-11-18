@@ -186,6 +186,14 @@ func _resume(unit: FadeUnit, faded: float) -> void:
 	unit.apply()
 
 
+## Every unit stops being held faded: the fade is going, and its meshes may stay (a view rebuilt
+## over live bodies).
+func release_all() -> void:
+	for units: Dictionary in _units.values():
+		for unit: FadeUnit in units.values():
+			unit.hold.release()
+
+
 ## The mesh of `key` leaves the tree: its units go, and what they had faded is kept for a few
 ## frames for the mesh that takes its place.
 func _forget(key: int) -> void:

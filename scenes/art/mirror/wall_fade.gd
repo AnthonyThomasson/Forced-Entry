@@ -42,6 +42,10 @@ func _init() -> void:
 	process_priority = 60  # after the rig (50) turned the camera this frame
 
 
+func _exit_tree() -> void:
+	_book.release_all()  # what it held faded is solid to the aim again
+
+
 func _process(delta: float) -> void:
 	_gather()
 	step(delta, rig.yaw if rig != null else RenderConfig.yaw_degrees, _foci)

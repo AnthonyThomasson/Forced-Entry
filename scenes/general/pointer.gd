@@ -19,10 +19,12 @@ class_name Pointer
 ## event keeps the position it carries. The injected point is one static, released by
 ## `TestWorld.restore`, so no test leaks it into the next.
 
-## How far (px) the cursor's line reaches each way from its ground point, and how many twins it
-## looks through.
+## How far (px) the cursor's line reaches each way from its ground point, how many solid twins it
+## looks through (the player's own body and what the wall fade holds faded are looked through for
+## free), and how many rays it casts at most in all.
 const AIM_REACH := 4000.0
 const AIM_WALK := 8
+const AIM_RAYS := 32
 
 ## The injected screen point; meaningful only while `_injected` is set.
 static var _injected_point := Vector2.ZERO
@@ -149,7 +151,8 @@ static func aim_hit(node: Node, ignore: Node = null) -> Dictionary:
 	query.hit_from_inside = false
 	var cover := {}
 	var skip: Array[RID] = []
-	for _i in AIM_WALK:
+	var solid := 0
+	for _i in AIM_RAYS:
 		var hit := space.intersect_ray(query)
 		if hit.is_empty():
 			break
@@ -165,12 +168,15 @@ static func aim_hit(node: Node, ignore: Node = null) -> Dictionary:
 		}
 		if FadedTwins.holds(body.get_instance_id(), aimed["plan"]):
 			continue  # the wall fade shows it see-through: the cursor is over what is behind it
+		solid += 1
 		if (hit.collider as CollisionObject3D).collision_layer & PhysicsLayers.TWIN_CHARACTER != 0:
 			aimed["kind"] = &"body"
 			return aimed if cover.is_empty() else cover
 		if cover.is_empty():
 			cover = aimed
 			cover["kind"] = &"cover"
+		if solid >= AIM_WALK:
+			break
 	return cover
 
 

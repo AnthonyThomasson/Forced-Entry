@@ -23,7 +23,7 @@ Side file of `domain-art`. #193 rule 9: walls, doors and tall pieces between the
 - **Cost.** A focus asks only the units in the grid cells its reach touches; a movable unit is checked for a move a slice of `poll_frames` a frame (it is found where it was polled to, so a blast can leave one a few frames stale). An instance is written only when its level (a step of `steps`) changes; nothing is allocated per frame.
 - **Rebuilds.** A rebuilt wall segment takes the fade of the old one at once (keyed wall + index); a piece built again (a dent, `remirror`) takes its predecessor's fade by its body (kept a few frames).
 
-- **The aim looks through it.** A unit more than `FadeHold.HELD_AT` (half) faded is held in General's `FadedTwins` (its body's instance id, its index, its footprint on the plan), released when it comes back, is rebuilt or its mesh leaves; a moved unit gives its new footprint. `Pointer.aim_hit` skips a twin hit inside a held footprint, so the cursor over floor seen through a faded wall aims level (the fade dithers the mesh only, the twin stays solid). Written when the unit passes the half or moves, never per frame.
+- **The aim looks through it.** A unit more than `FadeHold.HELD_AT` (half) faded is held in General's `FadedTwins` (its body's instance id, its index, its footprint on the plan), released when it comes back, is rebuilt, its mesh leaves or the `WallFade` itself leaves the tree (`FadeBook.release_all`); a moved unit gives its new footprint. `Pointer.aim_hit` skips a twin hit inside a held footprint, so the cursor over floor seen through a faded wall aims level (the fade dithers the mesh only, the twin stays solid). Written when the unit passes the half or moves, never per frame.
 
 ## Seams (interface 27)
 

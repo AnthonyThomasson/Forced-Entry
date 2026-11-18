@@ -71,6 +71,7 @@ func run(t: TestContext) -> void:
 	await _check(t, you, fade, behind, "a wardrobe")
 	var wall_face := Vector2(ARENA.end.x - GAP, 250.0)
 	await _check(t, you, fade, wall_face, "the east wall")
+	await _check_fade_gone(t, you, fade, wall_face)
 
 
 ## The cursor over `floor_point`, just behind a face the camera sees (a piece or the wall): whole it
@@ -94,6 +95,25 @@ func _check(
 	await t.frames(2)
 	var back := Pointer.aim_hit(you, you)
 	t.expect_eq(back.get("kind"), &"cover", "%s, whole again, is aimed at (%s)" % [what, back])
+
+
+## The fade goes (its meshes stay: the view is rebuilt over live bodies) while it holds the wall
+## faded: the wall is solid again at once (a held entry that outlived its fade would be looked
+## through for good).
+func _check_fade_gone(
+	t: TestContext, you: Node, fade: WallFade, floor_point: Vector2
+) -> void:
+	_run(fade, [floor_point])
+	await t.frames(2)
+	t.check(Pointer.aim_hit(you, you).is_empty(), "premise: the wall is held faded")
+	fade.free()
+	await t.frames(2)
+	var kept := Pointer.aim_hit(you, you)
+	t.expect_eq(
+		kept.get("kind"),
+		&"cover",
+		"the wall is aimed at once its fade is gone (%s)" % kept,
+	)
 
 
 func _run(fade: WallFade, foci: Array) -> void:
