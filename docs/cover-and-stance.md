@@ -123,6 +123,14 @@ Tests: `posture_stands_to_run`, `posture_crouches_in_fight`.
 existing wording is unchanged.
 Tests: `posture_in_von_state`.
 
+**A4. Hidden is not the same as cover.** Two questions the AI asks with different bodies, on purpose. *Cover* (what
+a fire spot's "cover close by" and a defend or ambush post's low cover name) is a piece a ducked body hides
+behind, by its real top (A1: an NPC in a fight crouches). *Hidden* and *exposed* (a retreat place, a route's
+exposure, "you are exposed to their fire") ask whether a round from a standing muzzle reaches a standing body
+there, because that is the body that travels and is seen (A2): a sofa back is cover to a fighter and does not hide
+a walker. So a spot behind a sofa can be cover and still count as exposed on the way.
+Tests: `cover_needs_real_height`, `spots_by_real_height`.
+
 ## Not modelled
 
 A long gun against low furniture raises as it does standing (`blocked`), so a rifle held to a sofa is not fired by rising over it. A body does not
