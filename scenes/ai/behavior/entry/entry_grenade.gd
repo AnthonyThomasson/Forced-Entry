@@ -8,6 +8,13 @@ extends RefCounted
 ## else: what it needs of the entry and of its other parts is handed in at the call (`entry`),
 ## so no reference cycle forms.
 
+## What a plan came to: a throw, nowhere to throw from, or not yet known.
+enum Plan {
+	PLANNED,
+	NOWHERE,
+	PLANNING,
+}
+
 ## The entry this part is one of, handed in at the call (never held: it holds the part).
 const Entry := preload("res://scenes/ai/behavior/entry.gd")
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
@@ -28,10 +35,6 @@ const BANG_PULLBACKS := 3
 ## The aims a bang's plan tries a frame (each asks the arc planner): the search goes on over the
 ## next frames, the thrower waiting meanwhile, so a room nothing reaches is not one long frame.
 const BANG_PLANS_A_FRAME := 12
-## What a plan came to: a throw, nowhere to throw from, or not yet known.
-const PLANNED := 0
-const NOWHERE := 1
-const PLANNING := 2
 ## The most seconds a stack-ready member waits for its thrower to call the bang before the stack
 ## goes in quietly, and the most the stack waits for the stun to go off once it was called.
 const BANG_CALL_CAP := 8.0
@@ -186,10 +189,10 @@ func _bang_call(entry: Entry, team: Array, ordered: bool, delta: float) -> bool:
 ## once the phase has changed.
 func _throw_bang(entry: Entry) -> bool:
 	var planned := _plan_bang(entry)
-	if planned == PLANNING:
+	if planned == Plan.PLANNING:
 		return false
 	_bang_tried = 0
-	if planned == NOWHERE:
+	if planned == Plan.NOWHERE:
 		give_up_bang(entry)
 		return false
 	stage = "go"
@@ -296,7 +299,7 @@ func _bang_kind(entry: Entry) -> StringName:
 ## D16) aims only where its burst leaves every claimed slot of the stack, the thrower's own too, out
 ## of its danger zone (`AgentPerception.grenades.in_zone`: the wall between shields it). Not a throw
 ## when nowhere gives a clear lob (for a frag, a safe one): `PLANNED`, `NOWHERE`, or `PLANNING`.
-func _plan_bang(entry: Entry) -> int:
+func _plan_bang(entry: Entry) -> Plan:
 	var type := _bang_kind(entry)
 	var spots := _bang_spots()
 	var reach: float = world.perception.grenades.reach(type)
@@ -309,9 +312,9 @@ func _plan_bang(entry: Entry) -> int:
 		var target := EntryLandings.aim(state.geo, c[0], c[1].x, c[1].y, reach - c[2])
 		if _bang_target_ok(target, type, slots) and _clear_lob(c[0], target, reach, type):
 			_take_bang(c[0], target)
-			return PLANNED
+			return Plan.PLANNED
 	_bang_tried = upto
-	return NOWHERE if upto >= total else PLANNING
+	return Plan.NOWHERE if upto >= total else Plan.PLANNING
 
 
 ## The `i`th aim the plan tries, as `[spot, aim point (deep, across), pull back (px)]`: the spots

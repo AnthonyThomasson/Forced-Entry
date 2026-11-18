@@ -59,7 +59,7 @@ var friction := 520.0
 var resting := false
 ## It is on a surface facing up and rolling (`step` slows it by `friction`).
 var rolling := false
-## The sweep (a sphere), and the 3D bodies `step` skips (the thrower's, just after the release).
+## The sweep (a sphere).
 var _query := PhysicsShapeQueryParameters3D.new()
 
 

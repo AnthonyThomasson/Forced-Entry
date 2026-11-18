@@ -8,6 +8,9 @@ extends RefCounted
 ## (`know`, set by `AgentSnapshot.build()`). `agent_snapshot.gd` holds it (`_throws`) beside the
 ## other option groups (`snapshot_options.gd`) and calls it from `build()`.
 
+## The raw throw spot candidates one step of a group's scan works through (`_scan_unit`): the
+## block the decision's throw search takes (`DecisionBudget.throw_block`).
+const SCAN_BLOCK := 6
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentThrow = preload("res://scenes/ai/perception/agent_throw.gd")
@@ -18,9 +21,6 @@ const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd"
 ## Where along the stretch of the line back from a shot that lies in the room the shots came from a
 ## grenade is aimed, in order of preference (shares of the stretch, from where the line comes into
 ## the room): its middle first, then either side of it.
-## The raw throw spot candidates one step of a group's scan works through (`_scan_unit`): the
-## block the decision's throw search takes (`DecisionBudget.throw_block`).
-const SCAN_BLOCK := 6
 const SHOT_AIM_SHARES := [0.5, 0.35, 0.65, 0.2, 0.8]
 
 ## The knowledge the perception hands in for this decision (see `AgentSnapshot.build()`).
