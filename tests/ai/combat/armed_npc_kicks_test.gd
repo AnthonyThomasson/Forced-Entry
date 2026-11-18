@@ -18,7 +18,6 @@ func configure(s: TestSetup) -> void:
 	s.von_script([{ "pick": "combat" }, { "pick": "melee" }])
 	s.switch(&"ai.callouts", false)
 	s.switch(&"ai.hostile_on_sight", true)
-	s.switch(&"projectile.flyover", false)
 	# The defender faces east at spawn, toward the stranger a step away.
 	s.actor(&"defender", &"defender", Vector2(300, 300))
 	s.actor(

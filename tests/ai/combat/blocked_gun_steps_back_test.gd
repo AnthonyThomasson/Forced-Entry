@@ -25,7 +25,6 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 600))
 	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])
 	s.switch(&"ai.callouts", false)
-	s.switch(&"projectile.flyover", false)
 	s.set_static(GunConfig, "guns", _straight_guns())
 	# Pinned to its spot (speed 0) to begin with, aimed east at the intruder along y = 250.
 	s.actor(

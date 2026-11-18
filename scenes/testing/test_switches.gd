@@ -112,11 +112,6 @@ static var ROWS := {
 		"default": false,
 		"static": [[AllocationPadding, &"enabled"]],
 	},
-	&"projectile.flyover": {
-		"description": "Bullets may fly over partial cover (off = every shot meets what it "
-			+ "reaches).",
-		"static": [[BallisticsFlightConfig, &"cover_flyover_scale", 0.0]],
-	},
 }
 
 

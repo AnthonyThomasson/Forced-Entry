@@ -36,7 +36,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.von_script([{ "pick": "combat" }, { "pick": "retreat" }, { "pick": "fall_ally_ally" }])
-	s.switch(&"projectile.flyover", false)
 	# Unkillable: the premise is the retreat, not the fight.
 	s.actor(&"inv", &"invader", START, { "max_health": 1_000_000.0, "facing": Vector2.RIGHT })
 	s.actor(&"ally", &"puppet", ALLY, { "faction": &"invader", "max_health": 1_000_000.0 })

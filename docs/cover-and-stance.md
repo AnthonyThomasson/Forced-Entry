@@ -3,40 +3,53 @@
 How a bullet decides what it meets, how crouching changes who gets hit, and what an NPC
 does with its posture. The tests named under each behaviour assert this document.
 
-Coverage is a **height**, 0 to 100, on one scale for everything a bullet can meet: furniture, walls and
-bodies. The pieces: `projectile.gd` (the bullet), `character.gd` and `character_posture_config.gd` (the postures),
-`agent_tactics.gd` / `behavior_gait.gd` (how an NPC uses them). See the `domain-projectile`,
-`domain-character` skill and `domain-ai` (`behavior.md`).
+Height is **real**: a body, a piece of furniture and a bullet are 3D, in px above the floor on one scale (1 px a 3D unit, a
+1.75 m person 74 px: `BodyHeights`, `PieceHeights`; the sources are `docs/research/3d-cover-heights.md`). A bullet is a 3D ray in
+the twin space (`TwinSpace`) and meets what its line crosses. The pieces: `projectile.gd` (the bullet), `gun.gd` and
+`character_weapon.gd` (where it leaves and where it is aimed), `character.gd` and `character_posture_config.gd` (the postures),
+`agent_tactics.gd` / `behavior_gait.gd` (how an NPC uses them). See the `domain-projectile`, `domain-character` skill and
+`domain-ai` (`behavior.md`). Tests: `cover_shared_bullet_height`, `level_shot_over_table`.
 
 ## Behaviours
 
-**H1. A bullet flies at one height.** Each bullet draws a height uniformly from 0 to 100 when it is fired and
-keeps it for its whole flight, through ricochets and penetrations. It strikes every collider whose coverage
-is above that height and flies over every collider at or below it. A collider of coverage C is therefore
-cleared with chance (100 − C) / 100 (coverage 30 is cleared 70% of the time, coverage 100 never), and the same height
-serves everything along the path. On a body it also picks the hit zone struck, and so the damage (feet, legs, torso, head: `docs/outfits.md` O2, O3).
-`BallisticsFlightConfig.bullet_height` pins it (0 to 100) for tests; negative is random. `cover_flyover_scale`
-scales how much is flown over (0: nothing is, every shot meets what it reaches).
-Tests: `cover_shared_bullet_height`, `posture_hit_chance`.
+**H1. A bullet is a line in 3D.** A round leaves the shooter's muzzle at its posture's height (a standing bore 65 px up; a
+crouched shooter fires from the fire-over muzzle, 43 px, its body staying at the duck's height) and flies a straight line toward
+its aim point. Where it meets a body, a piece, a wall or a door it strikes it: whatever the line passes over or under it never
+touches (a level round at 65 px flies over a table of 31 and strikes a wardrobe), and the same line serves everything along the
+path. Where it strikes a body is the **hit zone** by the height it meets it at (`docs/outfits.md` O2, O3). The ground ends a line
+that falls into it. There is no chance in what cover stops: it is geometry.
+What a shot is aimed at (D8): the player's cursor aims where its line of sight meets a character's body (hovering a visible head
+aims at the head: `Pointer.aim_hit`); over cover that hides a body, at that point on the cover; with the cursor on the floor, **level**
+at the muzzle's height toward the floor point, the round striking whatever stands in that line at that height. An NPC aims at the
+middle of its target's torso at its posture (`movement.aim_height` automatic). A gun's spread scatters the round up and down as
+well as sideways (`BallisticsFlightConfig.vertical_spread_scale`, 1 = the same cone both ways), so it can miss over or under a
+body as it misses beside it.
+Tests: `cover_shared_bullet_height`, `level_shot_over_table`, `muzzle_height_by_posture`, `vertical_spread_misses`,
+`head_aimed_over_cover`, `general/pointer_aim_hit`.
 
-**H2. Cover shelters what is lower than it.** A shot that clears a piece of cover has a height at or above
-that cover's coverage, so it also clears any body behind it that stands no higher. Worked example: cover of
-50 and a standing body of 60. Of 100 shots, 50 meet the cover (and may punch through it to the body, by the
-usual penetration), 10 fly over the cover and strike only the body, and 40 miss both. A crouched body (35)
-behind the same cover is struck by no shot that cleared it, and the cover stops what it meets.
-Tests: `cover_shared_bullet_height`.
+**H2. Cover shelters what is lower than it.** A piece of cover is as tall as its top (`PieceHeights`). A line that clears it
+clears any body behind it that stands no higher, and one that does not is stopped by it (and may punch through it to the body by the
+usual penetration). A sofa's back is 38 px: a standing body behind it (head top 74, torso up to 64) is struck by a line that
+clears the back, a ducked one (head top 36) by none that does, so a round aimed at its torso meets the sofa. Crouching behind a
+low piece hides you; standing does not.
+Tests: `cover_shared_bullet_height`, `sofa_cover_standing_vs_ducked`.
 
-**P1. Postures.** A character is standing or crouching (`movement.set_posture`, the player's C toggle). Each is a row of `CharacterPostureConfig.postures`:
+**P1. Postures.** A character is standing or crouching (`movement.set_posture`, the player's C toggle). Each is a row of `CharacterPostureConfig.postures`
+and a real body height (`BodyHeights`). Tests: `posture_speed`, `posture_hit_chance`.
 
-| posture | coverage (height) | speed | other |
+| posture | body height (head top) | speed | other |
 |---|---|---|---|
-| stand | 60 | ×1.0 | can run, can punch |
-| crouch | 35 | ×0.6 | cannot run |
+| stand | 74 px (1.75 m) | ×1.0 | can run, can punch |
+| crouch | 36 px, the duck (0.85 m) | ×0.6 | cannot run |
 
-A body's `get_surface().coverage` is its posture's, so a crouch is struck by fewer shots in the open
-(about 35% of random shots against a standing body's 60%) and hides behind lower cover. Crouching sits below the AI's
-`cover_min` (40), so everything an NPC treats as cover hides a crouch. Shooting and reloading work in every posture; running is refused (and costs no
-stamina) unless standing.
+Tests: `posture_speed`, `posture_hit_chance`.
+
+A body's twin (`CharacterTwin`) is as tall as its posture, so a crouch is struck by fewer lines in the open (the ones under 36 px,
+against a standing body's under 74) and hides behind pieces at least 36 px tall. (The row's `coverage` is the 0 to 100 scale the AI's cover
+picking still reads until it moves to real heights.) A crouched shooter fires from the fire-over muzzle (43 px), above the duck's head
+(36), so for now a crouch fires over its cover without ever exposing its body to be hit there; the rise-to-fire that
+exposes it for the burst is a later rule. Shooting and reloading work in every posture; running is refused (and costs no stamina) unless
+standing.
 Tests: `posture_speed`, `posture_player_input`, `posture_hit_chance`.
 
 **P2. Changing posture.** C toggles stand and crouch. A change waits out `CharacterPostureConfig.change_time` after the last one.
@@ -90,6 +103,7 @@ Tests: `posture_in_von_state`.
 
 ## Not modelled
 
-Sight does not depend on posture: a low body is seen exactly as a standing one (`see_over_coverage` is 60). A
-shooter's posture does not change the height its bullets leave at, and a long gun against low furniture
-raises as it does standing.
+Sight does not depend on posture yet: a low body is seen exactly as a standing one (`see_over_coverage` is 60; the sight job
+moves it onto real eye heights). A long gun against low furniture raises as it does standing. A crouched shooter always fires from the
+fire-over muzzle: rising to fire only when its line is blocked, and exposing itself while it does, is a later rule. The AI's cover
+picking and entry posts still read the catalogue's 0 to 100 `coverage`. Tests: `muzzle_height_by_posture`.

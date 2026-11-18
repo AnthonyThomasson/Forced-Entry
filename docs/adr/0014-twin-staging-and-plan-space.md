@@ -9,7 +9,7 @@ records the two decisions that make that possible (D3 staging, D4 plan space) an
 ## The twin space (D3)
 
 A **twin** is a 3D body that stands for one solid 2D body: a wall, a floor slab, a piece of furniture (a box per part of
-`PieceHeights`: a sofa's seat, arms and back), a door's leaf, a vehicle's body, a character's capsule whose height follows its posture
+`PieceHeights`: a sofa's seat, arms and back), a door's leaf, a vehicle's body, a character's upright cylinder whose height follows its posture
 (`BodyHeights`: standing the stature, crouched the duck). Each domain builds the twin of its own bodies behind a hook, as it builds their
 meshes (`TwinSpace.builders`: `ObjectTwins`, `VehicleTwins`, `CharacterTwin`), from the same 2D shapes lifted with `TwinShapes` and
 `PlanSpace` and the same real heights as the meshes, in code in `_ready`'s spirit (shapes built at twin time, never in a scene). Main's
@@ -42,7 +42,7 @@ in 6.7 s against 30 of 40 awake after 8 s) and casts rays in about half the time
 
 **What a twin is not yet.** A twin is built once from the shapes its body had: a dent that reshapes a wall's, a piece's or a vehicle's 2D
 collider does not reshape its twin (a dent is a few px); a vehicle's twin is its body to the belt, not the glass and roof above it; a
-non-solid piece (a rug) has none. A seated character's capsule is off, a dead one's and a knocked-down door's are on no layer
+non-solid piece (a rug) has none. A seated character's cylinder is off, a dead one's and a knocked-down door's are on no layer
 (`PhysicsLayers.TWIN_*`: world, vehicle, character), as their 2D bodies' are. The jobs that read the twins decide what they need of these.
 
 ## Plan space (D4)

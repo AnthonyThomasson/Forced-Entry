@@ -28,7 +28,7 @@ Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5
 
 ## HitInfo, Knockback
 
-- `HitInfo.height` is the 0..100 height the striker flew at (a bullet's one height, which picks a character's hit zone); −1 is
+- `HitInfo.height` is how high the striker met the object, px above the floor (a bullet's height at the contact, which picks a character's hit zone by `BodyHeights.zones`); −1 is
   none (the default, and a frag's blast: the whole body). `spray_direction()` (the normal, or back along the shot when degenerate)
   is what debris, hit particles and `BloodWound` spray along.
 - `Knockback` configures its parent furniture body (no gravity, mass, `PhysicsImpactConfig.body_*` damping, origin-pinned centre

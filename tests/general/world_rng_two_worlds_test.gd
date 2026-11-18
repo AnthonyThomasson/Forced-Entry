@@ -28,7 +28,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"shooter", &"puppet", Vector2(200, 250), { "start_slot": 5 })
 	s.actor(&"target", &"puppet", Vector2(600, 250))
 
@@ -176,8 +175,6 @@ func _global_stream_untouched(t: TestContext) -> void:
 			CasingSpawner.spawn(Vector2(300, 300), Vector2.RIGHT, world),
 		"a chip of debris": func() -> void:
 			DebrisSpawner.spawn(Vector2(400, 300), Vector2.RIGHT, world, Color.GRAY, "metal"),
-		"a bullet's height": func() -> void:
-			ProjectileSpawner.spawn(Vector2(300, 100), Vector2.RIGHT, world),
 		"a blast's fragments": func() -> void:
 			Explosion._fragments(Vector2(500, 100), world, null, { "fragments": 8 }),
 		"a stun's sway": func() -> void:

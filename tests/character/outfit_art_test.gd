@@ -53,7 +53,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)
 	s.set_static(BloodConfig, &"enabled", false)
-	OutfitProbe.pin_height(s)
 	s.actor(
 		&"model",
 		&"puppet",
@@ -176,7 +175,7 @@ func _check_worn_plate(t: TestContext) -> void:
 			Vector2(OutfitProbe.FROM_X, plated.global_position.y),
 			Vector2.RIGHT,
 			&"rifle",
-			40.0,
+			50.0,
 		)
 		await t.seconds(0.3)
 	t.check(

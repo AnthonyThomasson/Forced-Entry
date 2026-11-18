@@ -23,7 +23,6 @@ static func rules(s: TestSetup) -> void:
 		{ "pick": "engage" },
 	])
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 
 
 ## The two invaders of the stack, outside the back door.

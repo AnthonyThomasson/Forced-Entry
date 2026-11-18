@@ -23,7 +23,7 @@ extends Node3D
 ## swinging door): a twin is followed by what its body is, not by what the twin is, and a static
 ## body keeps Jolt's step free of one more always-active body. A twin node may have
 ## `twin_update(body: Node2D) -> void`, run each frame after it has followed (a
-## character's capsule follows its posture). A body is found when it is in the tree
+## character's cylinder follows its posture). A body is found when it is in the tree
 ## under the root `watch` was given (`PhysicsBody2D`s, and each node of a group `track_group`
 ## names, a floor having no physics body), on the next update after it entered, once its own
 ## `_ready` has built its collision shapes; a body that leaves the tree loses its twin.

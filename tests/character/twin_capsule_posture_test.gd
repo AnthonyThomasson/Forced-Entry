@@ -1,5 +1,5 @@
 extends GameTest
-## A character's twin (`CharacterTwin`, interface 29, `BodyHeights`): an upright capsule as wide as
+## A character's twin (`CharacterTwin`, interface 29, `BodyHeights`): an upright cylinder as wide as
 ## the body's circle and as tall as the posture it is in: a standing one 74 px, a crouched one 36
 ## (the duck's head top, 0.85 m). A ray at 50 px strikes it standing and passes over it crouched;
 ## one at 30 px strikes it either way. It stands where the body walks (a puppet walks 100 px and its
@@ -17,7 +17,7 @@ const CHARACTERS := PhysicsLayers.TWIN_CHARACTER
 
 func describe() -> Dictionary:
 	return {
-		"name": "A character's twin is a capsule as tall as its posture, and follows it",
+		"name": "A character's twin is a cylinder as tall as its posture, and follows it",
 		"description": "Standing, a ray dropped on the puppet lands at 74 px and a level ray at 50 "
 			+ "px strikes it; crouched, the top is 36 px and the 50 px ray passes over, the 30 px "
 			+ "one strikes; the twin follows a walk; a dead body has no twin to hit.",

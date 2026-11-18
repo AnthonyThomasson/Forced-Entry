@@ -7,8 +7,8 @@ extends GameTest
 ## sofa) or follows, and never stands farther than the leash (and a body's give) from its leader.
 ##
 ## Recorded Von, the whole pipeline; no switch. Premises: nobody is killed (`max_health`), the
-## gunman (a puppet) keeps firing at the NPC, and every round flies at a pinned height
-## (`projectile.flyover` off: a shot that arrives lands, as in `posture_pinned_crouch`).
+## gunman (a puppet) keeps firing at the NPC, and every round is aimed at its torso, so a shot that
+## arrives lands (as in `posture_pinned_crouch`).
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
@@ -37,7 +37,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(HALL)
-	s.switch(&"projectile.flyover", false)
 	s.object(&"sofa", "sofa", SOFA_AT)
 	Stack.human(s, &"me", LEAD_AT, { "movement:aim_point": GUNMAN_AT })
 	s.actor(&"m", &"invader", NPC_AT, { "max_health": 1_000_000.0 })

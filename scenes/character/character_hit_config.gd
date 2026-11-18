@@ -22,8 +22,10 @@ static var flesh_deform_max_impacts: int = 14
 ## Whether a hard hit carves a jagged "missing piece". Off for a small body: a chunk's reach
 ## would span the whole silhouette and fold it.
 static var flesh_allow_chunks: bool = false
-## `[zone, highest fraction]`, feet up; anything above the last row is the head.
-static var zones: Array = [[&"feet", 0.08], [&"legs", 0.45], [&"torso", 0.85]]
+## (The zones a round strikes are the posture's bands of `BodyHeights.zones`.)
+## How many body radii from where an AI aims a character still counts as the one it aims at (its
+## shot goes to that body's torso).
+static var aim_reach: float = 1.5
 ## The share of a round's damage each zone takes (melee, through `take_damage`, is not zoned).
 static var zone_damage: Dictionary = { &"feet": 0.6, &"legs": 0.6, &"torso": 1.0, &"head": 2.0 }
 ## The side a round strikes: the angle (degrees) between the way back to the shooter and the

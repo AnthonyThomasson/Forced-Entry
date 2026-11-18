@@ -101,16 +101,74 @@
 		},
 		{
 			"options": [
-				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are unhurt)",
+				"You are badly wounded and being hit (best: behind the chair close by, out of their sight; you are hurt)",
 				"You are being shot at by someone you cannot see (the shots came from the north-west)"
 			],
 			"pick": "locate",
 			"probabilities": {
-				"locate": 0.8452,
-				"retreat": 0.1548
+				"locate": 0.7394,
+				"retreat": 0.2606
 			},
 			"question": "How should you fight the hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 4s).\nSomeone you cannot see is shooting at you. Allies near you: b.\nYou are being shot at by someone you cannot see, from the north-west; you are exposed to their fire.\nNobody else is in sight or known.\nb (ally) — last seen just now — east of you, outside the house — was moving north-west, toward you.\nb (radio, recently): SEARCH - STUN ENTRY - the doorway to the south-west.\nYou are under fire: shots are landing near you, from the north-west!\nGunfire heard to the south-west, in the kitchen, recently.\nDecided so far: COMBAT."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are hurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 4s).\nSomeone you cannot see is shooting at you. Allies near you: b.\nYou are being shot at by someone you cannot see, from the north-west; you are exposed to their fire.\nNobody else is in sight or known.\nb (ally) — last seen just now — east of you, outside the house — was moving north-west.\nb (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west.\nYou are being hit, from the north-west!\nGunfire heard to the south-west, in the kitchen, recently.\nDecided so far: COMBAT."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the chair close by, out of their sight; you are hurt)",
+				"You have a clear shot at d, and you are not badly wounded (from where you stand)",
+				"d is point-blank, right next to you (they are point-blank and hold a Pistol)",
+				"d looks badly wounded, is unarmed, or is moving away from you (they are point-blank, standing still, holding a Pistol)"
+			],
+			"pick": "melee",
+			"probabilities": {
+				"advance": 0.2111,
+				"engage": 0.202,
+				"melee": 0.3135,
+				"retreat": 0.2734
+			},
+			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are hurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: COMBAT - LOCATE - toward the shots (en route, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: b.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — point-blank, north-west of you, in the kitchen — standing still — aiming at you — crouched low — holding a Pistol.\nb (ally) — last seen just now — east of you, outside the house — on d's front — was moving north-west.\nb (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west.\nFlanks on d (you are on their front): their left side — free, line blocked, cover, medium hidden route; their right side — route passes d, clear shot, in the open, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are being hit, from the north-west!\nDecided so far: COMBAT → d."
+		},
+		{
+			"options": [
+				"All is quiet and there are rooms left to search (2 of 3 known rooms unsearched)",
+				"You heard gunfire or lost sight of a hostile recently and know where to look (2 leads (freshest: footsteps heard to the east, outside the house))"
+			],
+			"pick": "investigate",
+			"probabilities": {
+				"investigate": 0.6328,
+				"search": 0.3672
+			},
+			"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the kitchen, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - a - ENGAGE - where you stand (waiting, for 0s).\nThere is trouble nearby, out of your sight. Allies near you: none.\nNobody else is in sight or known.\nFootsteps heard to the east, outside the house, recently."
+		},
+		{
+			"options": [
+				"You are inside the house and the gunfire is outside the house: hold your ground, do not chase anyone outside",
+				"footsteps heard to the east, outside the house — recently — short route",
+				"footsteps heard to the south-east, outside the house — recently — short route"
+			],
+			"pick": "stay",
+			"probabilities": {
+				"lead_footsteps_4_0": 0.2323,
+				"lead_footsteps_4_0_": 0.2075,
+				"stay": 0.5601
+			},
+			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the kitchen, inside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: COMBAT - a - ENGAGE - where you stand (waiting, for 0s).\nNobody else is in sight or known.\nFootsteps heard to the east, outside the house, recently.\nDecided so far: INVESTIGATE."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: the hallway, out of their sight; you are hurt)",
+				"You have a clear shot at b, and you are not badly wounded (from where you stand)"
+			],
+			"pick": "engage",
+			"probabilities": {
+				"engage": 0.5483,
+				"retreat": 0.4517
+			},
+			"question": "How should you fight b? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the kitchen, inside the house, holding a Pistol. You are hurt.\nYour pistol is loaded.\nCurrent activity: INVESTIGATE - STAY (waiting, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at b from where you stand. You are exposed to their fire. They are aiming at you.\nb — HOSTILE (attacked you) — in sight — close, in pistol range, south-east of you, outside the house — moving south-west — aiming at you — holding a Pistol.\nFlanks on b (you are on their front): their left side — free, clear shot, in the open, short hidden route; their right side — route passes b, clear shot, in the open, short hidden route; behind them — route passes b, clear shot, in the open, short hidden route.\nYou are being hit, from the south-east!\nDecided so far: COMBAT → b."
 		}
 	],
 	"version": 1

@@ -26,7 +26,6 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_script([{ "pick": "room_living_room" }, { "pick": "engage" }], 90)
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	# a plain walk in: the stack at the door is not what is tested here
 	s.switch(&"ai.entry", false)
 	Entry.npc(s, &"inv", Maps.HALL_MIDDLE, { "tuning:memory:familiar_with_house": true })

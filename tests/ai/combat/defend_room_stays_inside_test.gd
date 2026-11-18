@@ -31,6 +31,10 @@ func describe() -> Dictionary:
 			+ "fights (a combat decision) and never leaves the kitchen in 25 s (LD8).",
 		"tags": ["ai", "combat", "leadership", "order", "defend", "von"],
 		"requires_von": true,
+		# A replay of this fight moves by a hair from its live run (a chaotic exchange of fire since
+		# the bullets became 3D rays, #194), and then meets a snapshot its recording has no answer
+		# for. It stays on the live server.
+		"live_only": true,
 		"timeout": 120.0,
 	}
 

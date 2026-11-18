@@ -1,7 +1,10 @@
 3. **Objects/Character/Vehicles ↔ strikers: the "hittable" contract**
    Every world object (furniture **and** walls), `character.gd` and `vehicle.gd` implement:
-   - `get_surface() -> Dictionary` → `{ coverage, penetration, material, color }`. `coverage` is a height on a 0–100 scale: a bullet
-     flies at one height and strikes what stands above it (a character's is its posture's; `docs/cover-and-stance.md`).
+   - `get_surface() -> Dictionary` → `{ coverage, penetration, material, color }`. A bullet reads `penetration`, `material`
+     and `color`: what it strikes is decided by where its 3D line meets the body's twin (`TwinSpace.owner_of` maps the twin it hits
+     to the body that answers here: `docs/cover-and-stance.md`). `coverage` is a height on a 0–100 scale (a character's is its
+     posture's) that the AI's cover picking, the blast's `Explosion.shields` and the sight rules still read until they move to real
+     heights.
    - `take_hit(hit: HitInfo) -> void`.
    - optionally `get_surface_at(height, direction) -> Dictionary` (the character, where its armour lies, `docs/outfits.md`): the surface
      a round at that height along that direction meets: `get_surface()`, or over armour that surface with the armour's `penetration`,
@@ -11,7 +14,7 @@
 
    `HitInfo` (`physics/hit_info.gd`): `position, normal, direction, damage, speed_factor, penetrated, source`, `has_exit` /
    `exit_position` / `exit_normal` (where a penetrating bullet left the body), `blood` (0..1, blood a bullet carries onto the next
-   surface), `height` (0..100, picks a character's hit zone; −1 = none: a blast strikes the whole body) and `spray_direction()`.
+   surface), `height` (px above the floor the striker met the body at, real: it picks a character's hit zone by the posture's `BodyHeights` bands; −1 = none: a blast strikes the whole body) and `spray_direction()`.
 
    The projectile decides the ballistic outcome, then hands the struck body a `HitInfo`; the body decides what a hit *does to it*: an
    object spawns debris (interface 4); a character is dented, throws debris (blood, or its armour's chips when armour stops the round)

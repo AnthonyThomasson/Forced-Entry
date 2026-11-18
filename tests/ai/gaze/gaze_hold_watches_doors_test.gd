@@ -25,7 +25,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_down()
-	s.switch(&"projectile.flyover", false)
 	s.actor(
 		&"npc",
 		&"defender",

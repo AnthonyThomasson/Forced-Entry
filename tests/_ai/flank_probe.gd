@@ -45,7 +45,6 @@ static func target(
 static func rules(s: TestSetup, script: Array = SCRIPT_LEFT) -> void:
 	s.von_script(script)
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 
 
 ## An NPC held in place so the geometry it judges stays fixed: no movement (`movement:speed` 0) and

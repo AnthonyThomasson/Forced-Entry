@@ -88,6 +88,13 @@ dwell. Player and NPCs alike. It rises only as far as it must (`BodyHeights.lowe
 its muzzle (about 1.0 m), standing for taller cover up to a standing muzzle (about 1.55 m), and above that it fires around.
 _Avoid_: pop-up, peek
 
+**Level shot**:
+A shot aimed with nothing under the cursor but floor: it leaves the muzzle (its posture's bore, `BodyHeights.muzzle`) and
+flies level toward the floor point, striking whatever stands in that line at that height (a table under the bore is cleared,
+a wardrobe over it is not). With a body or the cover hiding one under the cursor the shot is aimed at that point instead
+(`Pointer.aim_hit`); an NPC aims at the middle of its target's torso.
+_Avoid_: flat shot, fly-over (the old chance a round cleared cover)
+
 **Plan space**:
 The floor plan the AI, world generation, navigation and most tests think in: a `Vector2` `(x, y)` that is `(x, z)` on the
 3D ground. `PlanSpace` lifts a plan point and a height to a `Vector3` `(x, height, y)` and back, on the render's one
@@ -96,7 +103,7 @@ _Avoid_: world space (the 3D world's own axes), 2D space
 
 **Twin**:
 A 3D body in the twin space (`TwinSpace`) that stands for one solid 2D body, with its real heights: a wall (96 px), a floor slab, a
-piece of furniture as one box per part (`PieceHeights`), a door's leaf, a vehicle's body, a character's capsule whose height follows its
+piece of furniture as one box per part (`PieceHeights`), a door's leaf, a vehicle's body, a character's upright cylinder whose height follows its
 posture (`BodyHeights`). Built by each domain from the same 2D shapes lifted by `PlanSpace`, synced from the 2D body each physics frame
 (written only when its body moved), and mapped back to its body by `TwinSpace.owner_of`. The 2D body is the truth until a class is
 flipped to a 3D body; then the 2D body becomes its footprint twin (ADR 0014).

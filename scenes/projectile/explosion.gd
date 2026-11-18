@@ -27,6 +27,12 @@ const MAX_FOUND := 4 * MAX_BODIES
 const MAX_CLEARED := 8
 ## A cover reach no piece of furniture is ever within: only the walls stop the line (the bang, G12).
 const WALLS_ONLY := -1.0
+## The heights (px above the floor) a fragment flies at, drawn uniformly between the two: the floor
+## and the top of the old 0..100 scale on the px one (a standing body's 74 px is 60 of it), so an
+## exposed body takes what it took (G8). The fragments as 3D rays over the hemisphere replace this
+## (#194 job 8).
+const FRAG_FLOOR := 2.0
+const FRAG_CEILING := 123.0
 
 
 ## The frag grenade goes off at `at`: its blast, then its fragments.
@@ -131,7 +137,9 @@ static func _strike(
 
 
 ## The grenade's fragments: `fragments` bullets evenly round the circle (each jittered within its
-## share of it), low power and fast, spent past `fragment_range`. They strike like any bullet and
+## share of it) flying level, each at a height drawn from the burst's floor to its ceiling, low
+## power
+## and fast, spent past `fragment_range`. They strike like any bullet and
 ## name the thrower, who is not spared (G9).
 static func _fragments(at: Vector2, world: Node, source: Node, row: Dictionary) -> void:
 	var count := int(row.get("fragments", 0))
@@ -148,6 +156,7 @@ static func _fragments(at: Vector2, world: Node, source: Node, row: Dictionary) 
 	var turn := rng.randf() * TAU
 	for i in count:
 		var angle := turn + TAU * (float(i) + rng.randf_range(-0.4, 0.4)) / float(count)
+		shot.height = FRAG_FLOOR + rng.randf() * (FRAG_CEILING - FRAG_FLOOR)
 		ProjectileSpawner.spawn(at, Vector2.from_angle(angle), world, shot)
 
 

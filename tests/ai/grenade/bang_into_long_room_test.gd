@@ -32,7 +32,6 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_script([{ "pick": "search" }, { "pick": "stun_entry" }, { "pick": Entry.FRONT["id"] }])
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"a", &"invader", Maps.GARDEN)
 
 

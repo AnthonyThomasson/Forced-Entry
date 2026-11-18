@@ -8,7 +8,7 @@ extends RefCounted
 ## The layer being told, null while none is installed. Untyped, so a layer freed with its world is
 ## told no more.
 static var sink: Object
-## The height (0..100, a hit's `HitInfo.height`; negative: the floor) of the hit whose debris and
+## The height (px, a hit's `HitInfo.height`; negative: the floor) of the hit whose debris and
 ## bursts are being spawned, which only the 3D render shows: `Physics.spawn_debris` sets it around
 ## its calls.
 static var hit_height := -1.0

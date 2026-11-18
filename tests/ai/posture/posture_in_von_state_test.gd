@@ -22,7 +22,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.callouts", false)
 	s.switch(&"ai.territory", false)
 	s.switch(&"ai.hostile_on_sight", true)
-	s.switch(&"projectile.flyover", false)
 	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
 	s.actor(&"defender", &"defender", Vector2(200, 300), { "max_health": 400.0 })
 	s.actor(

@@ -8,7 +8,7 @@ extends GameTest
 ## pistol round in the flank. Every round flies right (+x); the target's facing sets the angle.
 
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
-const TORSO := 40.0
+const TORSO := 50.0
 const STEEL := { "vest": &"plate_carrier", "front_plate": &"steel_iii", "back_plate": &"steel_iii" }
 const FRONT_ONLY := { "vest": &"plate_carrier", "front_plate": &"steel_iii", "back_plate": &"" }
 const NO_PLATES := { "vest": &"plate_carrier", "front_plate": &"", "back_plate": &"" }
@@ -108,7 +108,6 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 650))
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)
-	OutfitProbe.pin_height(s)
 	OutfitProbe.lay_lanes(s, LANES)
 
 

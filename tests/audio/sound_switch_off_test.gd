@@ -20,7 +20,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
 	s.switch(&"audio.sound", false)
-	s.switch(&"projectile.flyover", false)
 	s.set_static(SoundConfig, &"category_range", Probe.EVERYWHERE)
 	s.actor(&"shooter", &"puppet", Vector2(120, 250), { "start_slot": 3 })
 	s.actor(&"target", &"puppet", Vector2(620, 250), { "max_health": 400.0 })

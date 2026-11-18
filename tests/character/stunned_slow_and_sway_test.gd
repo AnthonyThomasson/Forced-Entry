@@ -30,7 +30,6 @@ func configure(s: TestSetup) -> void:
 		straight[gun]["spread_deg"] = 0.0
 		straight[gun]["one_hand_spread_deg"] = 0.0
 	s.set_static(GunConfig, "guns", straight)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"walker", &"puppet", Vector2(100, 150), { "max_health": 100_000.0 })
 	s.actor(&"shooter", &"puppet", Vector2(100, 500), { "start_slot": 3, "max_health": 100_000.0 })
 	s.actor(&"target", &"puppet", TARGET, { "max_health": 100_000.0 })

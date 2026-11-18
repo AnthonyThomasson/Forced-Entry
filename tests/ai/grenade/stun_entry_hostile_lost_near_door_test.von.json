@@ -35,19 +35,19 @@
 		{
 			"options": [
 				"You are badly wounded and being hit (best: behind the wardrobe close by, out of their sight; you are unhurt)",
-				"You have a clear shot at hostile, and you are not badly wounded (from where you stand; they look hurt) (your current plan)",
+				"You have a clear shot at hostile, and you are not badly wounded (from where you stand) (your current plan)",
 				"Your line to hostile is blocked, or they are aiming at someone else (1 free side; best: behind them outside, short hidden route, cover)",
-				"hostile looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, was moving north-west, holding a Unarmed, looks hurt)"
+				"hostile looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, was moving north-west, holding a Unarmed)"
 			],
 			"pick": "engage",
 			"probabilities": {
-				"advance": 0.2481,
-				"engage": 0.3743,
-				"flank": 0.2077,
-				"retreat": 0.17
+				"advance": 0.2132,
+				"engage": 0.4551,
+				"flank": 0.1894,
+				"retreat": 0.1423
 			},
 			"question": "How should you fight hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: COMBAT - hostile - ENGAGE - where you stand (in position, ducking behind cover, for 3s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou have a clear shot at hostile from where you stand. You are exposed to their fire.\nhostile — HOSTILE (seen) — last seen recently — in pistol range, north of you, outside the house — was moving north-west — holding a Unarmed — looks hurt.\nFlanks on hostile (you are on their left side): their right side — route passes hostile, clear shot, in the open, medium hidden route; behind them — free, clear shot, cover, short hidden route.\nDecided so far: COMBAT → hostile."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: COMBAT - hostile - ENGAGE - where you stand (in position, ducking behind cover, for 3s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou have a clear shot at hostile from where you stand. You are exposed to their fire.\nhostile — HOSTILE (seen) — last seen recently — in pistol range, north of you, outside the house — was moving north-west — holding a Unarmed.\nFlanks on hostile (you are on their left side): their right side — route passes hostile, clear shot, in the open, medium hidden route; behind them — free, clear shot, cover, short hidden route.\nDecided so far: COMBAT → hostile."
 		},
 		{
 			"options": [
@@ -58,13 +58,13 @@
 			],
 			"pick": "fire_here",
 			"probabilities": {
-				"ambush": 0.2117,
-				"fire_here": 0.3419,
-				"fire_south": 0.2287,
-				"fire_south_east": 0.2178
+				"ambush": 0.2199,
+				"fire_here": 0.3255,
+				"fire_south": 0.2385,
+				"fire_south_east": 0.2162
 			},
 			"question": "Where should you fight hostile from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: COMBAT - hostile - ENGAGE - where you stand (in position, ducking behind cover, for 3s).\nYour pistol is loaded. You carry a stun grenade.\nYou have a clear shot at hostile from where you stand. You are exposed to their fire.\nhostile — HOSTILE (seen) — last seen recently — in pistol range, north of you, outside the house — was moving north-west — holding a Unarmed — looks hurt.\nDecided so far: COMBAT → hostile → ENGAGE."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: COMBAT - hostile - ENGAGE - where you stand (in position, ducking behind cover, for 3s).\nYour pistol is loaded. You carry a stun grenade.\nYou have a clear shot at hostile from where you stand. You are exposed to their fire.\nhostile — HOSTILE (seen) — last seen recently — in pistol range, north of you, outside the house — was moving north-west — holding a Unarmed.\nDecided so far: COMBAT → hostile → ENGAGE."
 		},
 		{
 			"options": [

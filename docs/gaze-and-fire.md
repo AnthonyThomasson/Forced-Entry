@@ -32,7 +32,11 @@ of a tactical entry, the approach, the stack and the pie included, so an invader
 view fires on it from outside (E3). A gaze step of the entry that cannot settle because the entrant is looking at a threat
 counts as settled, so the entry carries on rather than waiting at the pie. Peek-and-cover and the ambush shoot only once the
 facing has settled on the contact; a peek ducks only after a shot left the barrel (or on the click of an empty gun, where the
-cover phase reloads), not after a refused one.
+cover phase reloads), not after a refused one. The round is aimed at the middle of the threat's torso at its posture
+(`movement.aim_height` left to its automatic setting: the 3D ray of `docs/cover-and-stance.md` H1), not at a roll of the dice: a
+threat behind cover it clears is struck over it, one the cover is taller than is not, so the shot is taken whenever it is
+available and what stops it is geometry. (Until the AI's cover picking reads real heights, the AI's own "clear line" still asks
+the coverage scale.)
 Tests: `entry_guard_fires_from_outside`, `gaze_search_turns_to_threat`, `combat_waits_for_facing`.
 
 **W3. An empty gun is reloaded.** With a threat in view and a spare magazine, an empty gun is reloaded at once, not carried

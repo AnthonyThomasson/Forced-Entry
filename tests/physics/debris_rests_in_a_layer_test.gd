@@ -20,7 +20,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
-	s.switch(&"projectile.flyover", false)
 	s.switch(&"physics.debris", true)
 	s.switch(&"physics.hit_particles", false)
 	s.switch(&"physics.blood", false)

@@ -8,7 +8,7 @@ extends GameTest
 
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
 const VEST := { "vest": &"tactical_vest" }
-const TORSO := 40.0
+const TORSO := 50.0
 const LANES := [
 	{ "id": &"vest_pistol", "outfit": VEST, "gun": &"pistol", "height": TORSO },
 	{ "id": &"vest_smg", "outfit": VEST, "gun": &"smg", "height": TORSO },
@@ -21,8 +21,8 @@ const LANES := [
 		"facing": Vector2.RIGHT,
 	},
 	{ "id": &"vest_rifle", "outfit": VEST, "gun": &"rifle", "height": TORSO },
-	{ "id": &"vest_pistol_head", "outfit": VEST, "gun": &"pistol", "height": 55.0 },
-	{ "id": &"vest_pistol_legs", "outfit": VEST, "gun": &"pistol", "height": 25.0 },
+	{ "id": &"vest_pistol_head", "outfit": VEST, "gun": &"pistol", "height": 70.0 },
+	{ "id": &"vest_pistol_legs", "outfit": VEST, "gun": &"pistol", "height": 20.0 },
 	{ "id": &"bare_pistol", "outfit": {}, "gun": &"pistol", "height": TORSO },
 	{ "id": &"bare_smg", "outfit": {}, "gun": &"smg", "height": TORSO },
 	{ "id": &"bare_fragment", "outfit": {}, "gun": &"fragment", "height": TORSO },
@@ -45,7 +45,6 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 700))
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)
-	OutfitProbe.pin_height(s)
 	OutfitProbe.lay_lanes(s, LANES)
 
 

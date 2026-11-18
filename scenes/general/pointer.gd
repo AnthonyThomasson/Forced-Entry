@@ -19,6 +19,11 @@ class_name Pointer
 ## event keeps the position it carries. The injected point is one static, released by
 ## `TestWorld.restore`, so no test leaks it into the next.
 
+## How far (px) the cursor's line reaches each way from its ground point, and how many twins it
+## looks through.
+const AIM_REACH := 4000.0
+const AIM_WALK := 8
+
 ## The injected screen point; meaningful only while `_injected` is set.
 static var _injected_point := Vector2.ZERO
 ## Whether a screen point stands in for the mouse (`inject` sets it, `release` clears it).
@@ -120,6 +125,50 @@ static func screen_mouse(node: Node) -> Vector2:
 ## The world point under the pointer (`world_of` the `screen_mouse`): the player's aim.
 static func world_mouse(node: Node) -> Vector2:
 	return world_of(node, screen_mouse(node))
+
+
+## What the cursor's line of sight meets in the 3D render (`is_3d`), for the player's aim (#194 D8).
+## The line is the camera's own, through the ground point under the mouse (an orthographic view's
+## rays are parallel), cast into the twin space (`TwinSpace`, interface 29). It answers a dictionary
+## of `kind`, `plan` (the 2D point) and `height` (px above the floor). Kind `&"body"`: the line
+## meets a character's twin first (hovering a head is the head). Kind `&"cover"`: it meets a piece,
+## wall, door or vehicle with a character behind it on the line (cover that hides the body), the
+## point on the cover. Empty for neither (the cursor is on the floor, or not in the 3D render): the
+## player then shoots level at the muzzle's height toward the floor point. `ignore` (the player's
+## own body) is looked through.
+static func aim_hit(node: Node, ignore: Node = null) -> Dictionary:
+	var space := TwinSpace.space_of(node) if is_3d(node) else null
+	if space == null:
+		return {}
+	var look := -(_camera as Camera3D).global_transform.basis.z
+	var through := PlanSpace.lift(world_mouse(node))
+	var query := PhysicsRayQueryParameters3D.create(
+		through - look * AIM_REACH, through + look * AIM_REACH, PhysicsLayers.TWIN_ALL
+	)
+	query.hit_from_inside = false
+	var cover := {}
+	var skip: Array[RID] = []
+	for _i in AIM_WALK:
+		var hit := space.intersect_ray(query)
+		if hit.is_empty():
+			break
+		skip.append(hit.rid)
+		query.exclude = skip
+		var body := TwinSpace.owner_of(hit.collider)
+		if body == null or body == ignore:
+			continue
+		if not body is PhysicsBody2D:
+			break  # the floor: nothing was between the cursor and the ground
+		var aimed := {
+			"plan": PlanSpace.plan_of(hit.position), "height": PlanSpace.height_of(hit.position),
+		}
+		if (hit.collider as CollisionObject3D).collision_layer & PhysicsLayers.TWIN_CHARACTER != 0:
+			aimed["kind"] = &"body"
+			return aimed if cover.is_empty() else cover
+		if cover.is_empty():
+			cover = aimed
+			cover["kind"] = &"cover"
+	return {}
 
 
 ## The part of the world `node`'s viewport shows, as a rect of world points (its visible rect

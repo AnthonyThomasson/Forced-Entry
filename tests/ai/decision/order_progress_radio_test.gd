@@ -36,7 +36,6 @@ func configure(s: TestSetup) -> void:
 	s.von_script([])
 	s.switch(&"ai.hostile_on_sight", false)
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"d", &"defender", Vector2(420, 415))
 	s.actor(&"home_lead", &"puppet", Vector2(700, 430), { "faction": &"household" })
 	s.actor(&"a", &"invader", Vector2(1000, 190))

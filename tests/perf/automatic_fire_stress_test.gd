@@ -37,7 +37,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1400, 900))
-	s.switch(&"projectile.flyover", false)
 	s.switch(&"physics.debris", true)
 	# shot pieces can overlap; nav re-baking is covered by perf/bake_and_path_stress
 	s.switch(&"nav.rebake", false)

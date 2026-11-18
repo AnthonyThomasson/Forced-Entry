@@ -247,17 +247,10 @@ func _shell() -> Mesh:
 	)
 
 
-## How high (px) `bullet`'s tracer flies: it leaves the muzzle at `muzzle_height` and eases to the
-## bullet's own height over its first `height_ease` px (the shot's ballistics are untouched: the
-## height is only drawn so). A bullet that has not been ready yet has flown nothing, so its height
-## is not read.
+## How high (px) `bullet`'s tracer flies: the bullet's own height, never lower than `tracer_floor`
+## (it climbs or falls with its line).
 func _tracer_height(bullet: Node2D) -> float:
-	var flown: float = bullet.max_distance - bullet.range_left()
-	var ease_px := ProjectileMeshConfig.height_ease
-	var along := clampf(flown / ease_px, 0.0, 1.0) if ease_px > 0.0 else 1.0
-	var target: float = bullet.height * ProjectileMeshConfig.height_scale if along > 0.0 else 0.0
-	var height := lerpf(ProjectileMeshConfig.muzzle_height, target, along)
-	return maxf(height, ProjectileMeshConfig.tracer_floor)
+	return maxf(bullet.height, ProjectileMeshConfig.tracer_floor)
 
 
 ## The streak every tracer shares: a thin bar along z, its middle on the origin.

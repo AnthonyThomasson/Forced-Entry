@@ -225,11 +225,11 @@ func get_surface() -> Dictionary:
 	}
 
 
-## The surface a round flying at `height` (0..100) along `direction` meets (the Projectile System
-## asks before it resolves): the body's own (`get_surface()`) where nothing protects it, else the
-## armour over that zone and side (`Outfit.layer`): its `penetration`, `material` and `color`, plus
-## `stop_power` (a round below it is stopped) and `inner_material` (the flesh a round that gets
-## through strikes). A `height` below 0 is the plain surface.
+## The surface a round flying at `height` (px above the floor) along `direction` meets (the
+## Projectile System asks before it resolves): the body's own (`get_surface()`) where nothing
+## protects it, else the armour over that zone and side (`Outfit.layer`): its `penetration`,
+## `material` and `color`, plus `stop_power` (a round below it is stopped) and `inner_material` (the
+## flesh a round that gets through strikes). A `height` below 0 is the plain surface.
 func get_surface_at(height: float, direction: Vector2) -> Dictionary:
 	var surface := get_surface()
 	if height < 0.0:
@@ -248,17 +248,14 @@ func get_surface_at(height: float, direction: Vector2) -> Dictionary:
 	return surface
 
 
-## The hit zone (`&"feet"`, `&"legs"`, `&"torso"`, `&"head"`) a round at `height` (0..100) strikes:
-## its height over the posture's coverage against `CharacterHitConfig.zones`. `&""` for no height
-## (below 0: a blast, the whole body).
+## The hit zone (`&"feet"`, `&"legs"`, `&"torso"`, `&"head"`) a round at `height` (px above the
+## floor) strikes: where that height falls in the bands of the posture's body
+## (`BodyHeights.zone_at`: the same height is a standing body's legs and a ducked one's torso).
+## `&""` for no height (below 0: a blast, the whole body).
 func _hit_zone(height: float) -> StringName:
 	if height < 0.0:
 		return &""
-	var share := height / maxf(movement.posture_coverage(movement.posture()), 0.001)
-	for row: Array in CharacterHitConfig.zones:
-		if share <= float(row[1]):
-			return row[0]
-	return &"head"
+	return BodyHeights.zone_at(movement.body_posture(), height)
 
 
 ## The side (`&"front"`, `&"flank"`, `&"back"`) a blow travelling along `direction` strikes: the

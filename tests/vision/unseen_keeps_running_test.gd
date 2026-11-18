@@ -79,9 +79,7 @@ func _twin(t: TestContext, viewed: bool) -> Dictionary:
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.blood", false)
 	s.switch(&"vision.enabled", viewed)
-	s.switch(&"projectile.flyover", false)
 	# A round strikes at one height, so the zone it strikes is the same every run.
-	OutfitProbe.pin_height(s)
 	s.actor(&"eye", &"puppet", TWIN_EYE, { "start_slot": 1 })
 	s.actor(&"walker", &"puppet", TWIN_WALKER, { "start_slot": 1, "max_health": 100_000.0 })
 	s.actor(&"shooter", &"puppet", TWIN_SHOOTER, { "start_slot": 3 })

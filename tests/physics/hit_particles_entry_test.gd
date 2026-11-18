@@ -3,6 +3,8 @@ extends GameTest
 ## at full strength, told to the 3D render.
 
 const FxTap := preload("res://tests/_physics/fx_tap.gd")
+## A round aimed this low (px) meets a chair, a lamp or a car; a level one at the muzzle flies over.
+const LOW := 10.0
 
 
 func describe() -> Dictionary:
@@ -17,7 +19,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 700, 400))
-	s.switch(&"projectile.flyover", false)
 	# no exit is found: the round just lands in the chair
 	s.set_static(BallisticsPenetrationConfig, "exit_probe_distance", 0.0)
 	s.actor(&"shooter", &"puppet", Vector2(120, 200), { "start_slot": 3 })
@@ -29,7 +30,7 @@ func run(t: TestContext) -> void:
 	var shooter := t.puppet(&"shooter")
 	var chair := t.object(&"chair")
 	var chair_at: Vector2 = chair.global_position
-	shooter.aim_at(chair_at)
+	shooter.aim_at(chair_at, LOW)
 	await t.seconds(0.5)
 	shooter.shoot()
 	var burst_made: bool = await t.until(func(): return tap.bursts.size() > 0, 2.0)

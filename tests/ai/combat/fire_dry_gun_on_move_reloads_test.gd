@@ -24,7 +24,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.callouts", false)
 	s.switch(&"ai.territory", false)
 	s.switch(&"ai.hostile_on_sight", true)
-	s.switch(&"projectile.flyover", false)
 	s.actor(
 		&"npc",
 		&"defender",

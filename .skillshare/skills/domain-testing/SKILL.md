@@ -90,7 +90,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"shooter", &"puppet", Vector2(200, 250), { "start_slot": 3 })
 	s.actor(&"target", &"puppet", Vector2(600, 250))
 
@@ -116,7 +115,7 @@ func run(t: TestContext) -> void:
 - **Puppet** (`scripted_controller.gd`): its actions run on the character's next frame, and `facing` follows the aim
   one frame later: aim, wait, then fire. `use()` presses Space (what is nearest its aim); `turn_door(steps)`
   is the wheel with Space held.
-- Make randomness deterministic where the assertion depends on it (`projectile.flyover` off: a character is partial cover).
+- Make randomness deterministic where the assertion depends on it (`spread_deg` 0; a shot's height: `aim_at(target, px)`).
 
 ### Native unit suites (pure logic only)
 

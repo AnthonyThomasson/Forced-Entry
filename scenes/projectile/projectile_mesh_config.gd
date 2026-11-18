@@ -14,14 +14,8 @@ static var tracer_color: Color = Color(1.0, 0.9, 0.4)
 static var tracer_glow: float = 1.0
 static var tracer_fade: float = 120.0
 static var tracer_capacity: int = 384
-## A bullet's height is on the 0..100 cover scale (a wall's 100 is `MirrorConfig.wall_height`, 96
-## px): the tracer flies at that times this, and never lower than `tracer_floor` px.
-static var height_scale: float = 0.96
+## A tracer flies at the bullet's own height (px above the floor), never lower than `tracer_floor`.
 static var tracer_floor: float = 2.0
-## It leaves the muzzle at `muzzle_height` px and eases to the bullet's height over the first
-## `height_ease` px of its flight.
-static var muzzle_height: float = 34.0
-static var height_ease: float = 40.0
 ## A spent casing: this long and across (px, as the 2D art), this tall, in brass; it arcs up to
 ## `casing_arc` px off the floor on its toss. The batch holds what the `Despawner` keeps in the 2D
 ## world (`Despawner.max_scene_objects`, read when the layer is made), so none is left out.

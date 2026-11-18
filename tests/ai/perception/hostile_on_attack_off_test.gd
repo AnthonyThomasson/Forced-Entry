@@ -16,7 +16,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
 	s.von_down()
-	s.switch(&"projectile.flyover", false)
 	s.switch(&"ai.hostile_on_sight", false)
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"ai.hostile_on_attack", false)

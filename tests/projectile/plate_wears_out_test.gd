@@ -6,7 +6,7 @@ extends GameTest
 ## rounds, one at a time, into the front plate of two carriers facing the shooter.
 
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
-const TORSO := 40.0
+const TORSO := 50.0
 ## Rifle rounds fired at each plate; the ceramic one yields within them, the steel one holds through
 ## all.
 const ROUNDS := 8
@@ -44,7 +44,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)
 	s.set_static(BloodConfig, &"enabled", false)
-	OutfitProbe.pin_height(s)
 	OutfitProbe.lay_lanes(s, LANES)
 
 

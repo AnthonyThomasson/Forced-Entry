@@ -5,6 +5,8 @@ extends GameTest
 ## there.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+## A round aimed this low (px) meets a chair, a lamp or a car; a level one at the muzzle flies over.
+const LOW := 10.0
 
 
 func describe() -> Dictionary:
@@ -21,7 +23,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 500), { "floor": "concrete" })
 	s.switch(&"nav.rebake", false)
-	s.switch(&"projectile.flyover", false)
 	s.vehicle(&"car", &"car", Vector2(560, 250))
 	s.actor(&"shooter", &"puppet", Vector2(150, 250), { "start_slot": 3 })
 
@@ -55,7 +56,7 @@ func run(t: TestContext) -> void:
 	)
 
 	var shooter := t.puppet(&"shooter")
-	shooter.aim_at(car.global_position)
+	shooter.aim_at(car.global_position, LOW)
 	await t.seconds(0.5)
 	shooter.shoot()
 	if not t.require(

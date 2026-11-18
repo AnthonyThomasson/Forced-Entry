@@ -10,7 +10,7 @@ extends GameTest
 const SCRATCH := "user://settings_hit_particles_mesh_test.json"
 const AT := Vector2(400, 300)
 ## A hit's 0..100 height is this many px (a wall's 100 is 96); a bit on the floor lies this high.
-const HEIGHT_PX := 0.96
+const HEIGHT_PX := 1.0
 const REST := 2.1
 ## The wood style (`HitParticles.STYLES`): the size of a bit (px), its cone (degrees either side),
 ## and the longest a bit lives (s). A lone impact is a full-strength burst: its speed is 1.3 times

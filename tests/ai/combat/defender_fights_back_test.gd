@@ -18,7 +18,6 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 600))
 	s.switch(&"ai.callouts", false)
 	s.switch(&"ai.hostile_on_trespass", false)  # only the attack itself should make it hostile
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"defender", &"defender", Vector2(650, 300))
 	s.actor(
 		&"attacker",

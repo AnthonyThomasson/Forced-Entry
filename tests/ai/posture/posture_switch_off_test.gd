@@ -22,7 +22,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_sight", false)
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"nav.rebake", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"defender", &"defender", Vector2(700, 150))
 	s.actor(
 		&"gunman",

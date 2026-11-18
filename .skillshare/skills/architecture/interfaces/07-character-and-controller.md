@@ -1,6 +1,6 @@
 7. **Character ↔ Controller** (enables non-player characters)
    The character reads intent from a pluggable **controller child**: any node with `control(character, delta)`. The controller writes
-   `movement.move_input` / `movement.aim_point` / `movement.run_input` (hold run: faster, spends stamina, dry = walk until it refills;
+   `movement.move_input` / `movement.aim_point` / `aim_height` (px up; H1) / `movement.run_input` (hold run: faster, spends stamina, dry = walk until it refills;
    only a standing character runs) and calls the action API of the character's typed components (`movement`, `weapon`, `ammo`, `inventory`, `use`
    (`CharacterUse`), `anatomy`, `wardrobe`, `stun`; `typed-components.md`):
    - **Acts:** `movement.set_posture(p) -> bool` (`stand` / `crouch`; idempotent; the player's C is `movement.toggle_crouch()`), `weapon.melee()` (F), `anatomy.leg_kick() -> bool` (a right-leg kick along the facing, whatever is held;

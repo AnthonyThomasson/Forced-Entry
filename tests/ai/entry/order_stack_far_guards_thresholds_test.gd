@@ -52,7 +52,6 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_down()
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"a", &"invader", Vector2(70, 290), { "max_health": 1_000_000.0 })
 	s.actor(&"lead", &"puppet", LEAD_AT, { "faction": &"invader" })
 	s.squads({ "human": &"lead" })

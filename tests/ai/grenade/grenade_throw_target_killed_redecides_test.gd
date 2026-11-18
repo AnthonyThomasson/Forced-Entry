@@ -47,7 +47,6 @@ func configure(s: TestSetup) -> void:
 	# premise).
 	s.set_static(DecisionStub, "fail", false)
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", I_AT, { "facing": (H_AT - I_AT).normalized() })
 	GrenadeAi.hostile(s, &"h", H_AT, Maps.DOOR_BACK)
 

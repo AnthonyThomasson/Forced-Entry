@@ -15,7 +15,7 @@ const REST := 2.1
 const THICK := 1.0
 const ARC := 9.0
 ## A hit's 0..100 height is this many px (a wall's 100 is 96).
-const HEIGHT_PX := 0.96
+const HEIGHT_PX := 1.0
 ## How far (px) a flying chip may be from its node: the tween moves the node after the layer runs,
 ## so the part is a frame behind it, at most 7 px at the throw's fastest (50 px in a quarter second,
 ## eased out, is 400 px/s at first).

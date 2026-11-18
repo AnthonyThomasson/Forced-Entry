@@ -31,7 +31,7 @@ func _input(event: InputEvent) -> void:
 func control(character: CharacterBody2D, _delta: float) -> void:
 	character.movement.move_input = _move_keys(character)
 	character.movement.run_input = Keybinds.is_run_pressed()
-	character.movement.aim_point = Pointer.world_mouse(character)
+	_aim(character)
 
 	var selected := Keybinds.get_selected_item()
 	if selected > 0:
@@ -48,6 +48,19 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 	if Keybinds.is_reload_just_pressed():
 		character.ammo.reload()
 	_interact(character)
+
+
+## The cursor's aim (#194 D8): where its line meets a character's body, at that height; else, over
+## cover that hides a body, that point on the cover; else the floor point under it, the shot flying
+## level at the muzzle's height.
+func _aim(character: CharacterBody2D) -> void:
+	var meets := Pointer.aim_hit(character, character)
+	if meets.is_empty():
+		character.movement.aim_point = Pointer.world_mouse(character)
+		character.movement.aim_height = CharacterMovement.AIM_LEVEL
+	else:
+		character.movement.aim_point = meets["plan"]
+		character.movement.aim_height = meets["height"]
 
 
 ## The movement keys as a direction in the world. The keys are relative to the screen (W is up the

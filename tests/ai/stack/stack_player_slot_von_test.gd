@@ -25,7 +25,6 @@ func configure(s: TestSetup) -> void:
 	# Premises: no trespass hostility (nobody lives here to fight) and no bullets flying over cover,
 	# as in every entry test.
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	Entry.npc(s, &"a", Vector2(930, 90))
 	Stack.human(s, &"me", Stack.NEAR)
 

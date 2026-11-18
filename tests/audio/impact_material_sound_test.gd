@@ -14,6 +14,8 @@ const LANES := [
 	[500.0, 3, "", &"impact/wall/penetrate/medium"],
 	[600.0, 6, "", &"impact/wall/penetrate/heavy"],
 ]
+## A round aimed this low (px) meets a chair, a lamp or a car; a level one at the muzzle flies over.
+const LOW := 10.0
 
 
 func describe() -> Dictionary:
@@ -29,7 +31,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 700))
-	s.switch(&"projectile.flyover", false)
 	# shot furniture is shoved into overlaps; re-baking them logs a nav sync error
 	s.switch(&"nav.rebake", false)
 	s.set_static(SoundConfig, &"category_range", Probe.EVERYWHERE)
@@ -57,7 +58,11 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	for i in LANES.size():
 		var lane: Array = LANES[i]
-		t.puppet(StringName("shooter%d" % i)).aim_at(Vector2(880, lane[0]))
+		var shooter := t.puppet(StringName("shooter%d" % i))
+		if lane[2] != "":
+			shooter.aim_at(Vector2(400, lane[0]), LOW)
+		else:
+			shooter.aim_at(Vector2(880, lane[0]))
 	await t.seconds(0.5)
 	for i in LANES.size():
 		t.puppet(StringName("shooter%d" % i)).shoot()

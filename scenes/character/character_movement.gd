@@ -7,6 +7,10 @@ class_name CharacterMovement extends RefCounted
 
 ## The one shove a walking body gives a pushable piece it slid into.
 const CharacterPush = preload("res://scenes/character/character_push.gd")
+## `aim_height`'s two answers that name no height: fly level at the muzzle's height, or aim at the
+## torso of the body at `aim_point`.
+const AIM_LEVEL := -1.0
+const AIM_AUTO := -2.0
 
 ## The character moving.
 var character: CharacterBody2D
@@ -18,6 +22,10 @@ var controller: Node
 var move_input := Vector2.ZERO
 ## World point to face.
 var aim_point := Vector2.ZERO
+## How high the aim is, px above the floor, at `aim_point`: what a shot is aimed at (`AIM_LEVEL`: it
+## flies level at the muzzle's height, the player's aim at the floor; `AIM_AUTO`: the centre of the
+## torso of whoever stands at `aim_point`, else level, an AI's).
+var aim_height := AIM_AUTO
 ## Wants to run; honoured only while moving with stamina left.
 var run_input := false
 ## Move speed (px/s). Tests and sandboxes set it through `actor(..., props)` as `"movement:speed"`.
@@ -138,6 +146,12 @@ func toggle_crouch() -> void:
 ## The current posture: `stand` or `crouch`.
 func posture() -> StringName:
 	return _posture
+
+
+## The posture the body's real height is (`BodyHeights`): a standing body its stature, a crouch the
+## duck. What a bullet's zone and a piece of cover's shelter are judged against.
+func body_posture() -> StringName:
+	return BodyHeights.DUCK if _posture == &"crouch" else BodyHeights.STAND
 
 
 ## The body's height on the coverage scale when in posture `which` (`stand` / `crouch`,

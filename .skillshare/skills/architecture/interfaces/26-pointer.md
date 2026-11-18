@@ -22,7 +22,13 @@
       the camera's look-ahead toward the mouse) read the world direction through them; a seated driver's keys never do (the vehicle's
       throttle and steer, `docs/vehicles.md` V5).
     - **Read the pointer:** `screen_mouse(node) -> Vector2` (the camera's look-ahead, the command menu's non-mouse fallback) and
-      `world_mouse(node) -> Vector2` (the player's aim). Both return the injected point while one is set, else the real mouse.
+      `world_mouse(node) -> Vector2` (the floor point under the mouse). Both return the injected point while one is set, else the real mouse.
+    - **Aim in 3D (#194 D8):** `aim_hit(node, ignore := null) -> Dictionary` (needs the rig: `is_3d`; `{}` otherwise): the cursor's line of sight (the camera's own direction through the ground point
+      under the mouse: an orthographic view's rays are parallel) cast into the twin space (29), the player's own body (`ignore`) looked through. `{ kind: &"body", plan, height }` where it meets a character's
+      twin first (hovering a head is the head: `height` px above the floor, `plan` the 2D point of the hit); `{ kind: &"cover", plan, height }` where it meets a piece, wall, door or vehicle with a
+      character behind it on the line (cover that hides the body: that point on the cover); `{}` for the floor or nothing. The player controller turns it into `movement.aim_point` and
+      `movement.aim_height` (the floor point and `AIM_LEVEL` for `{}`: the shot flies level at the muzzle's height). A body hit moves `aim_point` onto the body, so Space's nearest-to-mouse then reads
+      that point.
     - **Inject (Testing, 13):** `Pointer.inject(screen)` stands a screen point in for the mouse until `Pointer.release()`. It never
       warps the real mouse, and an input event keeps its own position. The injected point is one static; `TestWorld.restore` releases
       it, so no test leaks it into the next. `CommandServer`'s `aim` still warps the real mouse (to `Pointer.screen_of`). It works with a rig bound as without: the aim, fire, Space's

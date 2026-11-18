@@ -28,7 +28,7 @@ same colours, sizes, counts, lifetimes and caps. Imports: General and Art's mesh
   `MeshNodes.fade`'s dither in `fade_levels` steps. A part is written only when its step changes.
 - **Heights** (px over the ground): chips and bits rest at `rest_height` 2.1; blood and scorch take the shared decal layer rule
   (`MeshNodes.decal`, `decal_layer_step`): pool 5, splat 5.8, print 6.6, scorch 7.4 (`PhysicsInkConfig`, over Objects' wear, whose top
-  is under layer 5, and over a rug; `InkFx.lift_of(layer)`); a hit's 0..100 height is `height_scale` 0.96 px; a flash 6, its ring 4.
+  is under layer 5, and over a rug; `InkFx.lift_of(layer)`); a hit's height is real px (`height_scale` 1); a flash 6, its ring 4.
 - **Bounds.** Chips `cap + flying_room`, bits `bit_capacity`, sparks `spark_capacity`, prints `BloodConfig.print_max`, scorch and splats
   `Despawner.max_scene_objects`; a full pool shows what fits. A splat lives as long as its node.
 - A glowing part has base colour black: the toon shader's highlight term adds `(1 - ALBEDO)`, so it shows as lighter patches.

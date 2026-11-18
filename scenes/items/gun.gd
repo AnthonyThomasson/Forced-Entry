@@ -10,6 +10,12 @@ class_name GunItem extends Item
 ## character's `report_shot` for the HUD), and ThrownGrenade, via `Explosion.frag` /
 ## `Explosion.stun`.
 
+## The shortest plan run (px) a shot is aimed over: an aim point nearer than this (the cursor on the
+## shooter's own feet) does not turn the barrel straight down.
+const AIM_MIN_RUN := 8.0
+## The steepest a shot may climb or fall (rad).
+const AIM_MAX_ANGLE := 1.2
+
 ## The gun's id: its `GunConfig` row and the kind of magazine it takes (`Magazine.gun`). Named by
 ## the subclass (`super(GUN)`).
 var gun: StringName = &""
@@ -157,6 +163,8 @@ func secondary(user: Node2D) -> bool:
 	shot.item_damage = _damage()
 	shot.muzzle_speed = float(_stat("muzzle_speed", -1.0))
 	shot.penetration = power
+	shot.height = user.weapon.muzzle_height()
+	shot.rise = _rise(user, muzzle, spread)
 	var proj := ProjectileSpawner.spawn(muzzle, direction, user.world_root(), shot)
 	proj.hit.connect(func(body: Node, dmg: float) -> void: user.report_shot(body, dmg))
 	CasingSpawner.spawn(user.anatomy.hands.world(hand), user.facing, user.world_root())
@@ -165,6 +173,20 @@ func secondary(user: Node2D) -> bool:
 	# its way.
 	EventBus.post(&"shot", { "position": muzzle, "gun": gun, "attacker": user, "power": power })
 	return true
+
+
+## How steeply the round climbs (px per px of plan travel) from `muzzle` to the height the user aims
+## at (`weapon.aim_height`, over the aim point), turned by a stunned aim's lift and by a random
+## scatter up or down within `spread` (rad) times `BallisticsFlightConfig.vertical_spread_scale`: a
+## wide cone misses over and under a body as it misses beside it.
+func _rise(user: Node2D, muzzle: Vector2, spread: float) -> float:
+	var run := maxf(muzzle.distance_to(user.weapon.aim_target()), AIM_MIN_RUN)
+	var angle := atan((user.weapon.aim_height() - user.weapon.muzzle_height()) / run)
+	angle += user.weapon.aim_sway_lift()
+	var scatter := spread * BallisticsFlightConfig.vertical_spread_scale
+	if scatter > 0.0:
+		angle += WorldRng.of(user).randf_range(-scatter, scatter)
+	return tan(clampf(angle, -AIM_MAX_ANGLE, AIM_MAX_ANGLE))
 
 
 ## The dead hand lets go: the gun leaves from where it was drawn and skids off at `velocity`.

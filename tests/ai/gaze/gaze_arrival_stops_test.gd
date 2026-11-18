@@ -22,7 +22,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_script([{ "pick": "idle" }, { "pick": "go" }, { "pick": "room_hall" }], 60)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"npc", &"defender", Vector2(700, 250))
 	# IDLE > GO is only offered to an NPC at rest
 	s.set_props(&"npc", "GoalController", { "tuning:decision:pursue_hostiles": false })

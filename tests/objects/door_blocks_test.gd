@@ -47,7 +47,6 @@ func configure(s: TestSetup) -> void:
 		_doorway(WALK, "solid", "plank", "walk"),
 	])
 	# a character is partial cover; make every round that arrives land
-	s.switch(&"projectile.flyover", false)
 	# dead straight: it is the door being tested, not the aim
 	var straight: Dictionary = GunConfig.guns.duplicate(true)
 	for gun: StringName in straight:

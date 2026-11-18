@@ -2,9 +2,9 @@ extends Node
 ## Testing domain: a puppet controller — a character's `control(character, delta)` child (interface
 ## 7) driven by a test instead of a human or an AI. Commands are queued here and carried out on the
 ## character's own frame, through only the published controller API (`movement.move_input`,
-## `movement.aim_point`, `movement.run_input`, `movement.set_posture`, `weapon.melee`,
-## `anatomy.leg_kick`, `weapon.shoot`, `ammo.reload`, `inventory.select_slot`, `use.interact_with`,
-## `use.end_interaction`, `use.try_interact`).
+## `movement.aim_point`, `movement.aim_height`, `movement.run_input`, `movement.set_posture`,
+## `weapon.melee`, `anatomy.leg_kick`, `weapon.shoot`, `ammo.reload`, `inventory.select_slot`,
+## `use.interact_with`, `use.end_interaction`, `use.try_interact`).
 ##
 ## Commands return at once; wait on their effect through the TestContext, e.g.
 ## `p.walk_to(spot)` then `await t.until(p.has_arrived, 3.0, "never arrived")`.
@@ -14,6 +14,9 @@ extends Node
 
 ## What to face: a Node2D (followed live), a Vector2 world point, or null (keep the last aim).
 var _aim: Variant = null
+## How high the aim is (`movement.aim_height`): a height in px, `CharacterMovement.AIM_LEVEL` for a
+## shot level at the muzzle, `AIM_AUTO` for the torso of whoever stands at the aim.
+var _aim_height := CharacterMovement.AIM_AUTO
 ## Walking target (world), or null.
 var _walk_target: Variant = null
 ## Steady move direction (used when no walk target), 0–1 length.
@@ -38,6 +41,7 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 		character.movement.aim_point = (_aim as Node2D).global_position
 	elif _aim is Vector2:
 		character.movement.aim_point = _aim
+	character.movement.aim_height = _aim_height
 	if _walk_target is Vector2:
 		var to: Vector2 = _walk_target - character.global_position
 		if to.length() <= arrive_distance:
@@ -58,9 +62,11 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 		action.call(character)
 
 
-## Face a Node2D (tracked) or a world point.
-func aim_at(target: Variant) -> void:
+## Face a Node2D (tracked) or a world point, aiming at `height` px above the floor there (default:
+## the torso of a body at that point, else level: `movement.aim_height`).
+func aim_at(target: Variant, height: float = CharacterMovement.AIM_AUTO) -> void:
 	_aim = target
+	_aim_height = height
 
 
 ## Walk straight to a world point (no pathfinding); `has_arrived()` turns true there.

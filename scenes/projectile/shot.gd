@@ -20,3 +20,9 @@ var max_range: float = -1.0
 ## It may strike `shooter` as well (a grenade's fragments name their thrower as the attacker and
 ## hurt it).
 var strikes_shooter: bool = false
+## How high the round starts, px above the floor (negative = a standing character's muzzle,
+## `BodyHeights.muzzle`): a gun's is its shooter's muzzle by posture.
+var height: float = -1.0
+## How steeply it climbs, px of height per px of plan travel (0 = level, negative falls toward its
+## target): the aim's slope from the muzzle, with the vertical spread on it.
+var rise: float = 0.0

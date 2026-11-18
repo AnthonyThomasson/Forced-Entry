@@ -59,7 +59,6 @@ func configure(s: TestSetup) -> void:
 		_doorway(Vector2(400, 700), "steel", "riveted", "steel"),
 		_doorway(BLAST_DOOR, "solid", "panelled", "blasted"),
 	])
-	s.switch(&"projectile.flyover", false)
 	var straight: Dictionary = GunConfig.guns.duplicate(true)
 	for gun: StringName in straight:
 		straight[gun]["spread_deg"] = 0.0

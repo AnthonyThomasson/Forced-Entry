@@ -1,10 +1,10 @@
 extends GameTest
-## O2, O3 (docs/outfits.md): where a bullet strikes a body is its height over the body's coverage:
-## feet up to 0.08, legs up to 0.45, torso up to 0.85, the head above, the same fractions standing
-## (coverage 60) and crouched (35). A head shot deals twice a torso shot, a leg or foot shot 0.6 of
-## it. Nobody here wears anything (O1: no outfit set), so the zones alone decide. One pistol round
-## per body, square on down its own lane at a pinned height; height 25 is the legs of a standing
-## body and the torso of a crouched one.
+## O2, O3 (docs/outfits.md): where a bullet strikes a body is the height it meets it at, in the
+## bands of the posture's body (`BodyHeights.zones`: standing feet to 4.2 px, legs to 38.1, torso to
+## 64.3, head to 74; ducked feet to 2.5, legs to 17.8, torso to 30.5, head to 36). A head shot deals
+## twice a torso shot, a leg or foot shot 0.6 of it. Nobody here wears anything (O1: no outfit set),
+## so the zones alone decide. One pistol round per body, square on down its own lane at a pinned
+## height; 20 px is the legs of a standing body and the torso of a ducked one.
 
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
 const FROM_X := 150.0
@@ -20,8 +20,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "A bullet's height picks the zone it strikes",
 		"description": "Pistol rounds at pinned heights into standing and crouched bodies: the "
-			+ "head takes twice a torso hit, the legs and feet 0.6 of it, by height over the "
-			+ "posture's coverage.",
+			+ "head takes twice a torso hit, the legs and feet 0.6 of it, by the height the "
+			+ "round meets the posture's body at.",
 		"tags": ["outfit", "zone", "damage", "projectile", "posture"],
 		"timeout": 8.0,
 	}
@@ -31,7 +31,6 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 700))
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)
-	OutfitProbe.pin_height(s)
 	var i := 0
 	for posture: StringName in [&"stand", &"crouch"]:
 		for zone: StringName in ZONES:
@@ -67,7 +66,7 @@ func run(t: TestContext) -> void:
 		_check_zones(t, posture)
 	t.check(
 		_lost(t, &"stand", &"legs") < _lost(t, &"crouch", &"torso") * 0.75,
-		"the same height of 25 is the legs standing (%.1f lost) but the torso crouched (%.1f lost)"
+		"the same height of 20 is the legs standing (%.1f lost) but the torso crouched (%.1f lost)"
 			% [_lost(t, &"stand", &"legs"), _lost(t, &"crouch", &"torso")],
 	)
 

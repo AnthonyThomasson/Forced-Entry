@@ -91,6 +91,29 @@ func muzzle_origin(hand: int) -> Vector2:
 	return character.anatomy.hands.world(hand) + character.facing * _muzzle_ahead(item)
 
 
+## How high (px above the floor) a round leaves the muzzle: the bore line of the posture the shot is
+## fired from. A standing body fires from the standing muzzle; a crouched one from the fire-over
+## muzzle (a duck rises over its cover to fire, while its body stays at duck height; the rise is
+## judged per shot by the duck-rise job, #194 job 5, so for now a crouch always fires from it).
+func muzzle_height() -> float:
+	var crouched: bool = character.movement.posture() == &"crouch"
+	return BodyHeights.muzzle(BodyHeights.FIRE_OVER if crouched else BodyHeights.STAND)
+
+
+## How high (px above the floor) the shot is aimed at `movement.aim_point`: the height the
+## controller set; for `AIM_AUTO` (an AI aiming at where a body is) the centre of the torso of the
+## living character standing there, in its posture; else level, the muzzle's own height.
+func aim_height() -> float:
+	var wanted: float = character.movement.aim_height
+	if wanted >= 0.0:
+		return wanted
+	if wanted == CharacterMovement.AIM_AUTO:
+		var target := _target_at(character.movement.aim_point)
+		if target != null:
+			return _torso_centre(target.movement.body_posture())
+	return muzzle_height()
+
+
 ## The point the character is aiming at, as an item reads it (a grenade is thrown to it): the aim
 ## point, swayed about the body by `aim_sway()`.
 func aim_target() -> Vector2:
@@ -107,6 +130,15 @@ func aim_sway() -> float:
 	return (0.0
 			if level <= 0.0
 			else deg_to_rad(CharacterStunConfig.sway) * level * stun.wander(0.0))
+
+
+## How far (rad) the aim has swayed up or down: the stun's sway, in the other axis.
+func aim_sway_lift() -> float:
+	var stun: CharacterStun = character.stun
+	var level := stun.level()
+	return (0.0
+			if level <= 0.0
+			else deg_to_rad(CharacterStunConfig.sway) * level * stun.wander(1.7))
 
 
 ## Whether the held gun is held in one hand: the free hand is over the eyes (blind, `_covers_eyes`).
@@ -197,3 +229,26 @@ func _covers_eyes(item: Item) -> bool:
 static func _muzzle_ahead(item: Item) -> float:
 	var ahead := item.muzzle_ahead() if item != null else -1.0
 	return ahead if ahead >= 0.0 else CharacterStanceConfig.muzzle_ahead
+
+
+## The living character other than this one standing at `at` (within `CharacterHitConfig.aim_reach`
+## body radii), the nearest to it; null for none.
+func _target_at(at: Vector2) -> Node2D:
+	var best: Node2D = null
+	var best_gap := INF
+	for other: Node in character.get_tree().get_nodes_in_group(&"characters"):
+		if other == character or other.is_dead or not character.get_parent().is_ancestor_of(other):
+			continue
+		var gap := (other as Node2D).global_position.distance_to(at)
+		if gap <= other.radius * CharacterHitConfig.aim_reach and gap < best_gap:
+			best = other
+			best_gap = gap
+	return best
+
+
+## The middle (px above the floor) of the torso band of a body in `posture`.
+static func _torso_centre(posture: StringName) -> float:
+	for band: Array in BodyHeights.zones(posture):
+		if band[0] == &"torso":
+			return (float(band[1]) + float(band[2])) * 0.5
+	return BodyHeights.head_top(posture) * 0.5

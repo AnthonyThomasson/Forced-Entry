@@ -7,9 +7,9 @@ class_name PhysicsMeshConfig
 ## installed. What a chip or a bit is (its colour, size, count, life, speed) is the 2D styles' own
 ## (`DebrisSpawner.STYLES`, `HitParticles.STYLES`): read again, not copied.
 
-## A hit's height is on the 0..100 cover scale (a wall's 100 is `MirrorConfig.wall_height`, 96
-## px): a chip or a burst leaves the surface at that times this.
-static var height_scale: float = 0.96
+## A hit's height is real (px above the floor, `HitInfo.height`): a chip or a burst leaves the
+## surface at that times this (1: where it struck).
+static var height_scale: float = 1.0
 ## A chip is this thick (px) and, thrown, arcs up to `chip_arc` px over the line from where it left
 ## to where it lies; a chip lies with its underside `rest_height` px over the ground, above the
 ## blood and the scorch that lie there (`PhysicsInkConfig`), as in 2D.

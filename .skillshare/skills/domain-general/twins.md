@@ -3,7 +3,7 @@
 Side file of `domain-general`; the contract is architecture interface 29, the why is `docs/adr/0014-twin-staging-and-plan-space.md`.
 
 `TwinSpace` (`twin_space.gd`, a `Node3D` named `Twins`, built by `MatchBuilder.stage` under the match's world) holds a 3D twin of each solid 2D body in the 3D physics space (Jolt) of the main window's
-`World3D`, the counterpart of the 2D space the sim runs in. It is the staging of #194's move to a 3D simulation: nothing in gameplay reads it yet; the real-cover jobs cast rays into it
+`World3D`, the counterpart of the 2D space the sim runs in. It is the staging of #194's move to a 3D simulation: a bullet and the player's aim (`Pointer.aim_hit`) read it, and the other real-cover jobs cast rays into it
 (`TwinSpace.space_of(node)`, `owner_of(collider)` back to the 2D body for `get_surface()`), then the bodies flip to 3D one class at a time and the twin direction reverses (ADR 0014).
 
 - **Why that world.** The picture's `SubViewport` has a world of its own and a headless test world has no picture: tying the twins to the picture would make "the twin space exists" false in every test, and phase 2 reads it headless. The main window's world is

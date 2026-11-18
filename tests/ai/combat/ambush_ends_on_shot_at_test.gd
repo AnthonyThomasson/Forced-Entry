@@ -60,7 +60,6 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_script([])
 	# Every round that arrives lands: none flies over cover.
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"a", &"defender", Vector2(240, 150), { "max_health": 1_000_000.0 })
 	s.actor(&"lead", &"puppet", Vector2(700, 120), { "faction": &"household" })
 	s.actor(

@@ -44,7 +44,7 @@
 	  0.9 m cover); `postures_ids()`) heights in px above the floor: `head_top(posture)`, `eye(posture)`, `muzzle(posture)` (the bore line a bullet starts on),
 	  `shoulder(posture)`, the hit-zone bands `zones(posture) -> [[zone, from, to], ...]` (`feet`, `legs`, `torso`, `head`, touching, feet up) and
 	  `zone_at(posture, height) -> StringName` (where a hit at that height falls). The values are `BodyHeights.postures` (metres, tunable, `set_static`); the research is
-	  `docs/research/3d-cover-heights.md`. Nothing reads it for gameplay yet: the 0 to 100 coverage roll stands until the real-cover job; `MirrorConfig.character_height` is
+	  `docs/research/3d-cover-heights.md`. A bullet reads it: its muzzle (`muzzle` of the shooter's posture: a crouch fires from `FIRE_OVER`, the rise-to-fire being the duck-rise job's), the aim at a target's torso band and a hit's zone (`zone_at`); the AI's cover picking still reads the 0 to 100 `coverage`; `MirrorConfig.character_height` is
 	  its standing head top. Test: `tests/general/body_heights_test.gd`.
     - `PlanSpace` (`general/plan_space.gd`, static holder): the plan-space helper. A `Vector2` in the AI, world generation, navigation and most tests means plan space, the floor
 	  plan `(x, y)` = `(x, z)` on the 3D ground; `PlanSpace.lift(plan, height := 0.0) -> Vector3` is `(x, height, y) * RenderConfig.unit`, `plan_of(point) -> Vector2` and

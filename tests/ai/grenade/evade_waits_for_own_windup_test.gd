@@ -49,7 +49,6 @@ func configure(s: TestSetup) -> void:
 		{ "pick": "retreat" },
 	])
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", I_AT, { "facing": Vector2.RIGHT })
 	s.actor(&"mate", &"puppet", MATE_AT, { "faction": &"invader", "max_health": 1_000_000.0 })
 	GrenadeAi.hostile(s, &"h", H_AT, I_AT)

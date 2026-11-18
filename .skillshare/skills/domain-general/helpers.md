@@ -8,7 +8,7 @@ Static holders and small classes every domain may use; their signatures are arch
 `WorldRng` (`world_rng.gd`, statics) is each world's own chance and order. `MatchBuilder.stage` registers the world node with the
 match `seed` (`WorldRng.register(root, seed)`); anything under it finds its world by walking up (`WorldRng.of(node)`), so there is
 no global state a second world could share. `of(node)` is the world's `RandomNumberGenerator`; draw from it, never the global
-`randf`, wherever chance steers the fight: a shot's spread and bullet height, a casing's side, a blast's fragments, a chip of debris,
+`randf`, wherever chance steers the fight: a shot's spread, a casing's side, a blast's fragments, a chip of debris,
 a fall's jolt, a stun's sway, a dropped item's toss, the seed of a dent (it becomes the collider) and a character's gait phase, drawn as it
 spawns (it feeds the muzzle in a waver stance and a stunned stride). The NPC's blind-fire roll seeds from it and the spawn order.
 `Character._enter_tree` calls `enrol`, which hands each character the next place (from 0) in its world; a character moved into

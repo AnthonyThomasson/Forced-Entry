@@ -25,7 +25,6 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_script([{ "pick": "idle" }, { "pick": "go" }, { "pick": "room_living_room" }])
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.switch(&"ai.entry", false)  # a plain walk to the door: no stack at it
 	Entry.npc(
 		s,

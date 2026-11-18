@@ -55,7 +55,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.blood", false)
 	s.switch(&"physics.debris", false)
-	s.switch(&"projectile.flyover", false)
 	s.switch(&"audio.sound", true)
 	s.set_static(SoundConfig, &"pitch_jitter", 0.0)
 	s.set_static(SoundConfig, &"volume_jitter_db", 0.0)
@@ -64,7 +63,6 @@ func configure(s: TestSetup) -> void:
 		&"category_range",
 		{ &"shot": 1.0e9, &"impact": 1.0e9, &"footstep": 1.0e9, &"reload": 1.0e9 },
 	)
-	s.set_static(BallisticsFlightConfig, &"bullet_height", 50.0)
 	s.set_static(CharacterPoseHeadConfig, &"breath", 0.0)
 	s.set_static(CharacterPoseHeadConfig, &"glance", 0.0)
 	var guns: Dictionary = GunConfig.guns.duplicate(true)
