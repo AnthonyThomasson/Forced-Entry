@@ -29,7 +29,8 @@
    grenade nobody holds (an entry's throw, `docs/leadership.md` LD15). `secondary` throws after a
    `windup` in the `throw` stance (`GrenadeItem` posts `&"throw"` as it leaves) a `ThrownGrenade` (a node in the group
    `live_grenades`: `kind`, `fuse_left()`, `throw_stats()`, `thrower`, `item` = the grenade item that draws it, in the thrown item's
-   weapon style); it posts `&"grenade"` and, when the fuse ends, calls `Explosion.frag` / `Explosion.stun` `(at, world, source, row)`.
+   weapon style); it flies in 3D in the twin space (29), posts `&"grenade"` and, when the fuse ends, calls `Explosion.frag` / `Explosion.stun` `(at, world, source, row)`.
+   `GrenadeArc.plan(course) -> GrenadeLaunch` is the one arc planner of the human's throw and the AI's `can_lob`; `GrenadeArc.clear(course) -> bool` its question (`domain-items`, side file on grenades).
 
    **`LoadoutConfig`** (static) is what `MatchBuilder.arm` (interface 23) hands a character: `options()` (setup-window rows: `RANDOM`, then every gun with its magazines), `grenade_options()` (`{ id, label, slot, max }`; a loadout names counts `stuns` /
    `frags`, 0..3), `grenade_counts(loadout)`, `outfit_options()` (`[{ slot, label, choices: [{ id, label }] }]`; a "None" choice `id` `&""`

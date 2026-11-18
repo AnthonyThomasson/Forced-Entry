@@ -20,6 +20,18 @@ const EntryLandings := preload("res://scenes/ai/perception/entry/entry_landings.
 ## from the doorway's centre as shares of its width, toward the stack's side first).
 const BANG_STEP_OUT := 78.0
 const BANG_STEP_ALONG := [0.25, 0.0, -0.25]
+## A throw that reaches the farthest point of a deep room needs the highest arc, which the doorway's
+## lintel stops (G3): the aim is pulled back this far (px) at a time, up to `BANG_PULLBACKS` times,
+## until some spot has a clear lob.
+const BANG_PULLBACK := 100.0
+const BANG_PULLBACKS := 3
+## The aims a bang's plan tries a frame (each asks the arc planner): the search goes on over the
+## next frames, the thrower waiting meanwhile, so a room nothing reaches is not one long frame.
+const BANG_PLANS_A_FRAME := 12
+## What a plan came to: a throw, nowhere to throw from, or not yet known.
+const PLANNED := 0
+const NOWHERE := 1
+const PLANNING := 2
 ## The most seconds a stack-ready member waits for its thrower to call the bang before the stack
 ## goes in quietly, and the most the stack waits for the stun to go off once it was called.
 const BANG_CALL_CAP := 8.0
@@ -41,13 +53,13 @@ var stuns := 0
 ## The thrower's part: "go" (to the throw spot), "throw", "back" (to its slot); "" for everyone
 ## else.
 var stage := ""
-## Where the thrower throws from.
-var _bang_spot := Vector2.INF
 ## The points it walks through to get there: out from its slot first, clear of the member ahead of
-## it, then along.
+## it, then along, to where it throws from (the last).
 var _bang_route: Array = []
 ## Where the stun is thrown to, in the room.
 var _bang_target := Vector2.INF
+## How many of the plan's candidates (`_plan_bang`) were tried in the frames before.
+var _bang_tried := 0
 ## Seconds a stack-ready member has waited for the bang to be called.
 var wait := 0.0
 ## The stack's stun, or its own team's stun or frag, went off in the room: the point crosses at
@@ -78,9 +90,9 @@ func _init(entry_state: EntryState, entry_world: EntryWorld) -> void:
 ## Forget the running entry's grenade (`Entry.reset`).
 func reset() -> void:
 	stage = ""
-	_bang_spot = Vector2.INF
 	_bang_route = []
 	_bang_target = Vector2.INF
+	_bang_tried = 0
 	wait = 0.0
 	over = false
 	off = false
@@ -173,7 +185,11 @@ func _bang_call(entry: Entry, team: Array, ordered: bool, delta: float) -> bool:
 ## to throw from (no clear lob into the room) it gives the bang up: the stack goes in quietly. True
 ## once the phase has changed.
 func _throw_bang(entry: Entry) -> bool:
-	if not _plan_bang(entry):
+	var planned := _plan_bang(entry)
+	if planned == PLANNING:
+		return false
+	_bang_tried = 0
+	if planned == NOWHERE:
 		give_up_bang(entry)
 		return false
 	stage = "go"
@@ -272,23 +288,38 @@ func _bang_kind(entry: Entry) -> StringName:
 ## (`EntryLandings.grid`: the room's far side, `BANG_DEPTHS` of the way in and `BANG_ACROSS` of the
 ## way across), or, in a room deeper than a stun reaches from the spot, the farthest point along
 ## that line it reaches (`EntryLandings.aim`), where it may land (`EntryLandings.lands`: at least
-## `BANG_MIN_DEPTH` from the door). The first of them that some spot reaches with a clear lob wins,
-## the thrower's own slot before a step out in front of the door (`BANG_STEP_ALONG`). A frag (LD14,
+## `BANG_MIN_DEPTH` from the door). The first of them that some spot reaches with a clear lob wins
+## (a far aim that no arc gets through the doorway under its lintel is pulled back,
+## `BANG_PULLBACK` at a time, `BANG_PLANS_A_FRAME` aims a frame), the thrower's own slot before a
+## step out in front of the door
+## (`BANG_STEP_ALONG`). A frag (LD14,
 ## D16) aims only where its burst leaves every claimed slot of the stack, the thrower's own too, out
-## of its danger zone (`AgentPerception.grenades.in_zone`: the wall between shields it). False when
-## nowhere gives a clear lob (for a frag, a safe one).
-func _plan_bang(entry: Entry) -> bool:
+## of its danger zone (`AgentPerception.grenades.in_zone`: the wall between shields it). Not a throw
+## when nowhere gives a clear lob (for a frag, a safe one): `PLANNED`, `NOWHERE`, or `PLANNING`.
+func _plan_bang(entry: Entry) -> int:
 	var type := _bang_kind(entry)
 	var spots := _bang_spots()
 	var reach: float = world.perception.grenades.reach(type)
 	var slots := _slot_points(entry) if type == &"frag" else []
-	for at: Vector2 in EntryLandings.grid(state.geo):
-		for spot: Vector2 in spots:
-			var target := EntryLandings.aim(state.geo, spot, at.x, at.y, reach)
-			if _bang_target_ok(target, type, slots) and _clear_lob(spot, target, reach, type):
-				_take_bang(spot, target)
-				return true
-	return false
+	var grid := EntryLandings.grid(state.geo)
+	var total := grid.size() * spots.size() * (BANG_PULLBACKS + 1)
+	var upto := mini(_bang_tried + BANG_PLANS_A_FRAME, total)
+	for i in range(_bang_tried, upto):
+		var c := _bang_candidate(i, spots, grid)
+		var target := EntryLandings.aim(state.geo, c[0], c[1].x, c[1].y, reach - c[2])
+		if _bang_target_ok(target, type, slots) and _clear_lob(c[0], target, reach, type):
+			_take_bang(c[0], target)
+			return PLANNED
+	_bang_tried = upto
+	return NOWHERE if upto >= total else PLANNING
+
+
+## The `i`th aim the plan tries, as `[spot, aim point (deep, across), pull back (px)]`: the spots
+## innermost, then the grid, then each pullback.
+func _bang_candidate(i: int, spots: Array, grid: Array) -> Array:
+	var per_pull := grid.size() * spots.size()
+	return [spots[i % spots.size()], grid[floori(float(i % per_pull) / float(spots.size()))],
+			float(floori(float(i) / float(per_pull))) * BANG_PULLBACK]
 
 
 ## The spots the bang may be thrown from, in order of preference: the thrower's own slot, then each
@@ -320,7 +351,6 @@ func _take_bang(spot: Vector2, target: Vector2) -> void:
 	var door: Vector2 = state.geo["pos"]
 	var out: Vector2 = state.geo["out"]
 	var along: Vector2 = state.geo["along"]
-	_bang_spot = spot
 	_bang_target = target
 	_bang_route = [
 		world.loco.reachable(door + out * maxf(BANG_STEP_OUT, (spot - door).dot(out))
@@ -381,7 +411,7 @@ func _bang_go(entry: Entry, delta: float) -> void:
 			and world.character.global_position.distance_to(_bang_route[0])
 					<= Entry.WAYPOINT_REACH):
 		_bang_route.pop_front()
-	if not entry.approach.arrived_at(_bang_spot, StackClaim.SLOT_REACH):
+	if not entry.approach.arrived_at(_bang_route.back(), StackClaim.SLOT_REACH):
 		world.loco.move_to(
 			_bang_route[0],
 			StackClaim.SLOT_REACH if _bang_route.size() == 1 else 0.0,

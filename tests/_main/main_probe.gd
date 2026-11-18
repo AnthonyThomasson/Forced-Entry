@@ -20,11 +20,14 @@ const LIVE_SETTINGS_PATH := "user://settings.json"
 const PLAYER_SCENE := "res://scenes/character/character_base.tscn"
 
 
-## A world of its own under the test world: a `SubViewport` with a fresh `World2D`.
+## A world of its own under the test world: a `SubViewport` with a fresh `World2D` and `World3D`.
 static func viewport(t: TestContext) -> SubViewport:
 	var out := SubViewport.new()
 	out.name = "MainViewport"
 	out.world_2d = World2D.new()
+	# Its own 3D world too: the twin space (`TwinSpace`) is the viewport's 3D physics space, which a
+	# shared one would mix with the test world's own bodies (a lob through them).
+	out.own_world_3d = true
 	out.disable_3d = true
 	out.size = Vector2i(64, 64)
 	out.render_target_update_mode = SubViewport.UPDATE_DISABLED

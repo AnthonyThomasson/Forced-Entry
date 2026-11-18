@@ -48,11 +48,13 @@ func done() -> bool:
 	return _finished and _units.is_empty()
 
 
-## Run the next step: one unit, else the finish.
+## Run the next step: one unit (one that returns true has more to do and runs again first), else
+## the finish.
 func step() -> void:
 	if not _units.is_empty():
 		var unit: Callable = _units.pop_front()
-		unit.call()
+		if unit.call() == true:
+			_units.push_front(unit)
 	elif not _finished:
 		_finished = true
 		result = _finish.call()

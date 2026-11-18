@@ -1,59 +1,48 @@
 class_name DroppedItem extends Node2D
 ## Items domain: an item let go into the world: a dead character's weapon, or a thrown grenade's
-## spoon. It falls from hand height, bounces, then skids across the floor with a fading spin until
-## it stops, glancing off walls and solid furniture (layer 1), as `DroppedItemConfig` tunes it.
-## Shown by the 3D mirror (`LyingItemMesh`, from the item's `art.dropped_mesh()`). Nothing picks it
-## up, and a dropped weapon is never despawned (a grenade's spoon is, grenade_spoon.gd).
+## spoon. It falls from hand height in 3D (`ItemFlight`, in the twin space), bounces, then skids
+## across the floor with a fading spin until it stops, glancing off walls and furniture and landing
+## on top of a piece it falls onto (a table), as `DroppedItemConfig` tunes it. Shown by the 3D
+## mirror (`LyingItemMesh`, from the item's `art.dropped_mesh()`). Nothing picks it up, and a
+## dropped weapon is never despawned (a grenade's spoon is, grenade_spoon.gd).
 
 ## It moved, turned or changed height (once per physics frame while it is not at rest): the 3D
 ## mesh that shows it (`LyingItemMesh`) follows it.
 signal shifted
 
-## Physics layers it glances off (walls + solid furniture).
-const WALL_MASK := PhysicsLayers.SOLID
+## What it strikes in the twin space: walls, furniture, doors and vehicles; the characters it falls
+## past (a spoon leaves a hand beside its thrower).
+const MASK := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
 
 ## The item lying here (draws itself).
 var item: Item
-## Across the floor (px/s).
-var _velocity := Vector2.ZERO
-## Above the floor (px).
-var _height := 0.0
-## Vertical speed (px/s, up).
-var _rise := 0.0
 ## Which way the item's art points (rad).
 var _angle := 0.0
 ## Spin (rad/s).
 var _spin := 0.0
 ## How it lies (`flip`: which side is up).
 var _landing := {}
-## Reused wall sweep (a circle of `DroppedItemConfig.radius`).
-var _query: PhysicsShapeQueryParameters2D
+## Its fall: where it is, how high, how fast.
+var _flight: ItemFlight
+## How it leaves the hand: across the floor (px/s), until it is placed.
+var _launch := Vector2.ZERO
 
 
 func _ready() -> void:
 	add_to_group(&"dropped_items")  # the 3D mirror shows each (`ItemMeshes`)
 	ViewLayers.set_moving(self, true)
-	_height = DroppedItemConfig.start_height
-	var circle := CircleShape2D.new()
-	circle.radius = DroppedItemConfig.radius
-	_query = PhysicsShapeQueryParameters2D.new()
-	_query.shape = circle
-	_query.collision_mask = WALL_MASK
 
 
 func _physics_process(delta: float) -> void:
-	_rise -= DroppedItemConfig.gravity * delta
-	_height += _rise * delta
-	var grounded := _height <= 0.0
-	if grounded:
-		_height = 0.0
-		_rise = -_rise * DroppedItemConfig.bounce if _rise < -40.0 else 0.0
-		_velocity = _velocity.move_toward(Vector2.ZERO, DroppedItemConfig.friction * delta)
+	var event := _flight.step(TwinSpace.space_of(self), delta)
+	global_position = _flight.at
+	if _flight.rolling:
 		_spin = move_toward(_spin, 0.0, DroppedItemConfig.spin_friction * delta)
-	_slide(_velocity * delta)
+	if event == ItemFlight.STRUCK:
+		_spin *= -0.5
 	_angle += _spin * delta
 	shifted.emit()
-	if grounded and _rise == 0.0 and _velocity.length_squared() < 1.0 and absf(_spin) < 0.05:
+	if _flight.resting:
 		set_physics_process(false)  # At rest for good.
 		ViewLayers.set_moving(self, false)
 
@@ -64,15 +53,23 @@ static func spawn(dropped: Item, angle: float, velocity: Vector2) -> DroppedItem
 	node.name = "Dropped%s" % dropped.display_name
 	node.item = dropped
 	node._angle = angle
-	node._velocity = velocity
+	node._launch = velocity
 	node._spin = randf_range(6.0, 14.0) * (1.0 if randf() < 0.5 else -1.0)
 	node._landing = { "flip": randf() < 0.5 }
+	node._flight = ItemFlight.new(DroppedItemConfig.radius)
+	node._flight.gravity = DroppedItemConfig.gravity
+	node._flight.ceiling = DroppedItemConfig.ceiling
+	node._flight.floor_restitution = DroppedItemConfig.bounce
+	node._flight.wall_restitution = DroppedItemConfig.wall_bounce
+	node._flight.friction = DroppedItemConfig.friction
+	node._flight.mask = MASK
 	return node
 
 
-## How high the item is off the floor (px).
+## How high the item is off the floor (px): its underside over the floor, or over the piece it
+## lies on.
 func altitude() -> float:
-	return _height
+	return _flight.altitude()
 
 
 ## Which way the item's art points (rad), as it is drawn.
@@ -90,27 +87,7 @@ func flipped() -> bool:
 ## it instead.
 func place(parent: Node, at: Vector2, held_from: Vector2) -> void:
 	parent.add_child(self)
-	global_position = held_from
-	_slide(at - held_from, false)
-
-
-## Move by `motion`, stopping at a wall or solid furniture and (with `glance`) glancing off it.
-func _slide(motion: Vector2, glance: bool = true) -> void:
-	if motion.length_squared() < 0.000001:
-		return
-	var space := get_world_2d().direct_space_state
-	_query.transform = Transform2D(0.0, global_position)
-	_query.motion = motion
-	var res := space.cast_motion(_query)
-	if res[0] >= 1.0:
-		global_position += motion
-		return
-	global_position += motion * res[0]
-	if not glance:
-		return
-	_query.transform = Transform2D(0.0, global_position + motion * (res[1] - res[0]))
-	_query.motion = Vector2.ZERO
-	var info := space.get_rest_info(_query)
-	var normal: Vector2 = info["normal"] if info.has("normal") else -motion.normalized()
-	_velocity = _velocity.bounce(normal) * DroppedItemConfig.wall_bounce
-	_spin *= -0.5
+	_flight.place(held_from, DroppedItemConfig.start_height)
+	_flight.advance_to(TwinSpace.space_of(self), at)
+	_flight.velocity = _launch
+	global_position = _flight.at

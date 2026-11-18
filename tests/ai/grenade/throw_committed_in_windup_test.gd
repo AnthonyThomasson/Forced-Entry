@@ -3,7 +3,8 @@ extends GameTest
 ## back and the grenade will leave it; a lob that is blocked from then on (a wardrobe shoved in
 ## front) does not undo the order, so the grenade that leaves the hand is also radioed (`frag_out`)
 ## like any other. One mechanism, scripted Von: the invader throws a frag onto a hostile hidden
-## behind a desk, and a wardrobe (coverage 95) is put across the line the moment the wind-up begins.
+## behind a desk, and a wardrobe (78 px: the highest lob does not clear it this far along) is put
+## across the line the moment the wind-up begins.
 
 const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -11,7 +12,7 @@ const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const START := Vector2(100, 150)
 const HOSTILE := Vector2(520, 150)
 const ASIDE := Vector2(250, 40)
-const ON_THE_LINE := Vector2(250, 150)
+const ON_THE_LINE := Vector2(440, 150)
 
 
 func describe() -> Dictionary:

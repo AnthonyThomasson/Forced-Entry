@@ -188,7 +188,7 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 		"tactics_cache": {},
 		# What this decision's throws worked out (`SnapshotThrows.memo_of`): its own, never an
 		# older build's.
-		"throw_memo": { "spots": {}, "points": {}, "exists": {} },
+		"throw_memo": { "spots": {}, "points": {}, "exists": {}, "scans": {} },
 	}
 	# Each hostile's front (its last-seen facing while recent, else toward this NPC): the frame its
 	# flanks are measured in, and where it is looking when a spot is judged watched.

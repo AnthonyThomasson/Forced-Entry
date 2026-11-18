@@ -45,16 +45,13 @@ const FAR_STEP := 20.0
 const COVER_MARGIN := 10.0
 const RING_RADII := [60.0, 120.0, 180.0, 240.0, 300.0]
 const RING_DIRECTIONS := 12
-## What a lob clears over the whole way (px, the `coverage` scale): the height a grenade leaves the
-## hand at. A piece of furniture above it is struck near the thrower; the arc rises over the middle,
-## so this is the safe reading.
-const LOB_CLEARANCE := 50.0
 ## Where a grenade leaves a thrower that stands facing its aim: its throwing hand
 ## (`Character.inventory.throw_release_offset`, learned with the grenades it carries), held off a
 ## wall the way the character's own hand is, `HAND_RADIUS` px short of it. A lob is clear only when
 ## the band `LOB_MARGIN` px either side of the line from there is clear the whole way (the grenade's
 ## own body and the hand's sway): a line from the thrower's centre that grazes a jamb by a pixel, or
-## a line that clears it by less than the grenade's width, is a grenade that strikes it.
+## a line that clears it by less than the grenade's width, is a grenade that strikes it. The planner
+## (`GrenadeArc`) is given this much room to spare either side of the arc.
 const HAND_RADIUS := 3.0
 const LOB_MARGIN := 8.0
 ## How far (px) from a spot it walks to a thrower may end up (the walk's own arrival:
@@ -557,50 +554,45 @@ func run_speed() -> float:
 # --- The lob --------------------------------------------------------------------------------------
 
 
-## Whether a thrower standing at `at` can lob a grenade onto `to`: within `max_range` of it, and the
-## lob from its hand is clear (`throw_clear`). `exclude` holds the characters' rids.
+## Whether a thrower standing at `at` can lob a grenade of `kind` onto `to`: within the kind's range
+## (`range_of`), and the lob from its hand is clear (`throw_clear`). `exclude` holds the characters'
+## rids.
 func can_lob(
 	space: PhysicsDirectSpaceState2D,
 	at: Vector2,
 	to: Vector2,
-	max_range: float,
 	exclude: Array,
+	kind: StringName,
 ) -> bool:
-	return at.distance_to(to) <= max_range and throw_clear(space, at, to, exclude)
+	return at.distance_to(to) <= range_of(kind) and throw_clear(space, at, to, exclude, kind)
 
 
 ## Whether the lob a thrower standing at `at` throws onto `to` flies clear, whatever the distance:
-## the band `LOB_MARGIN` px either side of the line from where the grenade leaves its hand
-## (`_release_point`) to `to`, its middle and both edges.
+## the shared planner (`GrenadeArc`) finds an arc from where the grenade leaves its hand
+## (`_release_point`), at its posture's release height, that clears what stands between in the twin
+## space with `LOB_MARGIN` px to spare: the arc the real throw then flies.
 func throw_clear(
 	space: PhysicsDirectSpaceState2D,
 	at: Vector2,
 	to: Vector2,
 	exclude: Array,
+	kind: StringName = &"",
 ) -> bool:
-	var hand := _release_point(space, at, to, exclude)
-	var side := (to - hand).normalized().orthogonal() * LOB_MARGIN
-	for lateral: Vector2 in [Vector2.ZERO, side, -side]:
-		if not lob_clear(space, hand + lateral, to + lateral, exclude):
-			return false
-	return true
+	return lob_clear(_release_point(space, at, to, exclude), to, kind)
 
 
-## Whether the lob onto `to` is clear for a thrower that walks to `at`: from `at` and from
-## `ARRIVAL_SLACK` px off it in each of the four directions, where the walk may end (a spot clear
-## only to the pixel is a jamb struck by a thrower that stops a stride's sliver short).
+## Whether the lob a thrower that walks to `at` throws onto `to` is clear wherever the walk may end:
+## the lob from `at` with `ARRIVAL_SLACK` px more to spare either side (a spot clear only to the
+## pixel is a jamb struck by a thrower that stops a stride's sliver short: the band `ARRIVAL_SLACK`
+## wide round the line holds the lob from a spot that far off it in any direction).
 func throw_clear_on_arrival(
 	space: PhysicsDirectSpaceState2D,
 	at: Vector2,
 	to: Vector2,
 	exclude: Array,
+	kind: StringName = &"",
 ) -> bool:
-	if not throw_clear(space, at, to, exclude):
-		return false
-	for off: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]:
-		if not throw_clear(space, at + off * ARRIVAL_SLACK, to, exclude):
-			return false
-	return true
+	return lob_clear(_release_point(space, at, to, exclude), to, kind, ARRIVAL_SLACK)
 
 
 ## Where a grenade thrown onto `to` leaves a thrower standing at `at`: its throwing hand (the
@@ -622,12 +614,41 @@ func _release_point(
 	return (hit["position"] as Vector2) - (hand - at).normalized() * HAND_RADIUS
 
 
-## Whether nothing stops a lob on the straight line from `from` to `to`, low furniture included (no
-## wall or piece taller than `LOB_CLEARANCE`), whatever the distance.
+## Whether some arc clears everything on the way from `from` (the hand) to `to`, the grenade of
+## `kind` thrown at the release height of the NPC's posture, whatever the distance (the walls,
+## the furniture's real tops and a doorway's lintel, the characters looked past): the planner
+## `GrenadeArc.clear` asks, so a lob judged clear here is one the throw flies.
 func lob_clear(
-	space: PhysicsDirectSpaceState2D,
 	from: Vector2,
 	to: Vector2,
-	exclude: Array,
+	kind: StringName = &"",
+	extra_margin := 0.0,
 ) -> bool:
-	return not Explosion.shields(space, from, to, _cover_rule(LOB_CLEARANCE, exclude, INF))
+	var course := GrenadeCourse.new()
+	course.from = from
+	course.release = _release_height()
+	course.to = to
+	course.row = _flight_row(kind)
+	course.space = TwinSpace.space_of(_character) if _character != null else null
+	course.mask = PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+	course.margin = LOB_MARGIN + extra_margin
+	return GrenadeArc.clear(course)
+
+
+## The height (px) a grenade leaves the NPC's hand at: its posture's release.
+func _release_height() -> float:
+	var posture: StringName = (
+		_character.movement.posture() if _character != null and "movement" in _character else &""
+	)
+	return BodyHeights.release(BodyHeights.DUCK if posture == &"crouch" else BodyHeights.STAND)
+
+
+## The grenade row a lob is planned with: `kind`'s, or, for a question that names none, the first
+## kind it has learned (every kind flies the same numbers).
+func _flight_row(kind: StringName) -> Dictionary:
+	var named := GrenadeConfig.row(kind)
+	if not named.is_empty():
+		return named
+	for learned: StringName in _stats:
+		return GrenadeConfig.row(learned)
+	return GrenadeConfig.row(&"stun")

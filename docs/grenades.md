@@ -78,29 +78,58 @@ character's `movement.aim_point` and landing there, within about 40 px, but no f
 throws too; issue #51 R14: in real matches the defenders an invader could not grenade were mostly 450 to 700 px off across a doorway): aimed past that,
 it first touches down at the cap and may roll on a little (up to 100 px). Aimed just behind low cover (a sofa between where a lob would
 touch down and the aim), it is lobbed over the cover instead of skidding into it, and comes to rest on the far side, rolling on a little
-past the aim the same way (G3). The fuse starts on release; there is no cooking (holding it
+past the aim the same way (the planner, G3). The fuse starts on release; there is no cooking (holding it
 with the pin pulled). The grenade passes its own thrower as it leaves the hand (G3). A throw cannot start while another is under way, while running, reloading or busy, and a character that dies
 during the wind-up throws nothing. The throw posts `&"throw"` `{ position, kind, attacker }` (`kind` is `&"stun"` or `&"frag"`). The
 spoon pops off as a tiny prop.
 Tests: `items/grenade_throw_lands_at_aim` (lands near the aim, count 2 to 1, the event, the stance, the 0.3 s wind-up),
 `items/grenade_throw_range_capped`, `items/grenade_none_dropped_on_death` (dying mid-wind-up), `items/grenade_lobbed_over_cover` (aimed
-25 px behind a sofa: it rests behind it), `items/grenade_passes_its_thrower` (let go just outside a standing thrower's body on a path grazing it: it
+25 px behind a sofa: it flies over it, first touches down beyond it and rests behind it), `items/grenade_passes_its_thrower` (let go just outside a standing thrower's body on a path grazing it: it
 flies on past and rests near its aim).
 
-**G3. Flight.** The grenade flies a lob on a pseudo-height (as a `DroppedItem` falls). It passes over furniture whose `coverage` is below
-the arc's height at that point (tables 45, beds 35, sofas 45) but strikes walls and tall furniture (wardrobes 95, bookshelves 90), and
-bounces off with energy loss (`restitution` **0.35**), and bounces off characters it hits. Once down it skids and rolls to a stop
-(`friction`). A lob touches down short of its aim and skids the rest of the way, so the throw is planned over the floor it crosses: the
-lob that would come to rest at the aim in the open is flown over the room as it is (the walls, furniture and bodies it would strike) and,
-when that leaves it more than 24 px from the aim (a piece on the skid's way stopped it and kicked it back), the lob is thrown farther, its
-touchdown 12 px further out at a time up to `max_range`, and the one that comes to rest nearest the aim is thrown. So a grenade aimed behind
-a sofa is lobbed over it, not into it; one aimed through a wall still strikes the wall. The thrower's own body does not stop it for its first
-40 px (`ThrownGrenade.THROWER_CLEAR`): it leaves the throwing hand beside the body and its first px pass within a body's width of it, so it is
-passed, in the flight and in the plan alike, until it is clear; a grenade that comes back off a wall strikes its thrower like anyone. Nobody picks it up or throws it back. Every bounce posts `&"grenade"` `{ position, kind, stage }` with `stage = &"bounce"`,
-and the resting grenade posts `stage = &"rest"` once; the Audio domain voices a bounce (G14's sounds). A grenade in flight or on the
-floor, until it goes off, is a node in the group `live_grenades` with `kind`, `fuse_left()`, `throw_stats()` (below; its `danger_radius` is a
-frag's 250 px blast radius, a stun's 400 px flash radius) and `thrower`.
-Tests: `items/grenade_bounces_off_wall`, `items/grenade_lobs_over_table_not_wardrobe`, `items/grenade_lobbed_over_cover`.
+**G3. Flight.** *(Real 3D since issue #194, job 9: the grenade flies in the twin space (`TwinSpace`, `docs/` ADR 0014), where every wall, piece of
+furniture, door, vehicle and body stands at its real height; there is no pseudo-height and no `coverage` test.)* A thrown grenade is a small sphere
+(`GrenadeConfig.radius` **3 px**) that leaves the hand at the thrower's **release height** (`BodyHeights.release`: standing 1.7 m, about 72 px; crouched
+1.3 m, about 55 px; the Grenade passes the posture of its holder) under gravity (`GrenadeConfig.gravity` **680 px/s²**), under the room's ceiling (the
+walls' 96 px; no lob peaks above `GrenadeConfig.max_apex` **90 px**), and is swept each physics frame through the twin space (`ItemFlight`, the one stepper
+of `ThrownGrenade` and `DroppedItem`). It strikes what it meets at the height it meets it:
+- **Furniture** lower than the arc is passed over and one it comes down on is **landed on** (the grenade bounces on a desk top, rolls on it and
+  can come to rest there, 31 px up); a piece taller than the arc (a wardrobe's 78 px under a 90 px peak is a narrow window, a bookshelf's 77 the
+  same, anything a wall's 96) is struck and bounced off.
+- **A doorway** is open only as high as its door (84 px); the wall's **lintel** over it, from 84 to 96 px, is struck like a wall. A throw through a
+  doorway is the lowest arc that reaches, which passes under it; a lob aimed higher (a peak over about 81 px where it crosses the doorway)
+  strikes the lintel and comes back.
+- **Walls, vehicles, doors and bodies** (a character's twin, the thrower's own for its first `GrenadeArc.THROWER_CLEAR` **40 px** of flight, since the
+  hand is held beside the body) bounce it like any surface.
+A strike that comes in faster than `GrenadeConfig.min_hop_speed` **40 px/s** (and rebounds more than the next frame's gravity takes back) **bounces**:
+the velocity is reflected and scaled by the row's `restitution` **0.35** (the floor's and a wall's alike); a slower one **settles**, and on a surface that
+faces up the grenade **rolls**, the surface slowing it by the row's `friction` until it is under 4 px/s and **at rest**. Every bounce off the floor or
+a piece's top, and every strike of a wall faster than 30 px/s, posts `&"grenade"` `{ position, kind, stage }` with `stage = &"bounce"`, and the resting
+grenade posts `stage = &"rest"` once; the Audio domain voices a bounce (G14's sounds). Nobody picks it up or throws it back, and a grenade that comes
+back off a wall strikes its thrower like anyone. A grenade in flight or on the floor, until it goes off, is a node in the group `live_grenades` with
+`kind`, `fuse_left()`, `altitude()` (its underside's height over the floor, or over the piece it lies on), `throw_stats()` (below; its `danger_radius`
+is a frag's 250 px blast radius, a stun's 400 px flash radius) and `thrower`.
+
+**The arc planner** (`GrenadeArc`, one for the human's throw and the AI's judgment of one; interface 6). It chooses how the grenade leaves the
+hand: from the release point at the release height to the aim, **the lowest arc that clears what is in the way and lands near the aim**. The arcs are
+enumerated by peak, from the release height up to `max_apex` in `APEX_STEP` **6 px** steps; an arc's flight time follows from its peak alone, and
+the arm gives it at most `throw_speed` **740 px/s** across the floor, so the lowest arc that reaches a near aim is a flat toss and the one that
+reaches a far aim a high lob; a throw is never farther than `max_range` **550 px**. Where an arc first touches down is solved so that, with the
+bounces (restitution, `min_hop_speed`) and the skid (`friction`) over a flat floor, the grenade rests at the aim. Each arc is swept in five casts of a
+cylinder `margin` wider than the grenade through the twin space (the walls, the pieces, the vehicles; characters are looked past) and is kept when
+nothing stops it; a strike on the way down within 24 px of the aim is a landing on top of something. When more than one arc reaches, the lowest
+wins; a throw that is made also **flies** each clear arc over the room (the thrower's own flight to rest) and keeps the first that rests within 24 px
+of the aim: a grenade that would touch down short of a sofa and skid into it is lobbed farther (12 px further out at a time, at most 40 px past the aim),
+over the sofa, to touch down past it and roll on; a rest short of the aim is counted twice (the grenade the cover stopped is the worse miss than
+one that rolled on). One that no arc brings near is thrown on the arc that rests nearest, and one with **no clear arc at all** on the highest, and
+strikes what is in the way (`ok` is false). The AI asks the same question without flying the skid (`GrenadeArc.clear`, G17), so a throw it judges
+clear is one the flight then makes. Real limits follow: a lob can come down only so steeply under a 96 px ceiling, so a target within about 50 px
+behind a 31 px desk, or in the lee of a 78 px wardrobe far from the thrower, is out of a throw's reach.
+Tests: `items/grenade_bounces_off_wall`, `items/grenade_bounces_in_3d` (a wall struck in the air, the floor, rest on it), `items/grenade_lobs_over_furniture`
+(a desk and a wardrobe: over them and landing at the aim), `items/grenade_lands_on_furniture` (aimed at a desk, it rests on top), `items/grenade_lobbed_over_cover`,
+`items/grenade_flies_under_the_lintel` (a throw through a doorway passes under the lintel), `items/grenade_high_lob_bounces_off_the_lintel` (a high lob into
+the doorway comes back), `items/dropped_item_falls_in_3d` (a dropped item falls the same way), `ai/grenade/throw_planner_agrees_with_flight` (G17: what the NPC
+judges clear is what flies), `objects/twin_doorway_lintel`.
 
 **G4. Death.** A dead character's unthrown grenades vanish with it: nothing is dropped, and nothing is ever live in a dead hand.
 Test: `items/grenade_none_dropped_on_death`.
@@ -258,8 +287,8 @@ and every plan's spot is the one the NPC's own search, nothing shared, picks on 
 
 **G17. The GRENADE tactic (combat).** *(Amended after the tests phase: "frag out, take cover"; amended by issue #51, R7 and R10: a defender
 barricaded in a room, and the room the shots came from; R13 and R15: throw spots.)* A COMBAT tactic (decision-tree id `grenade`), offered when the NPC
-carries a grenade and it can lob onto the bound hostile's last-known spot, within throw range (550 px) with a clear throw path (no wall or tall furniture
-between; low furniture is fine), from where it stands or from a **throw spot** a short walk away (below), and
+carries a grenade and it can lob onto the bound hostile's last-known spot, within throw range (550 px) with a clear throw path (an arc of G3's planner
+clears everything between: no wall, no lintel or tall piece the highest arc does not pass; low furniture is fine), from where it stands or from a **throw spot** a short walk away (below), and
 - the spot is **hidden from its line of fire**: the NPC knows the hostile is there (seen, heard or told of, and last known at the spot) but has no
   line to it (the real 3D line of `docs/gaze-and-fire.md` W2, from a standing muzzle to the aimed part: stopped by a corner, a wall, a piece tall
   enough for a ducked body to hide behind, glass), so a hostile standing behind a table or a counter is seen over and shot, and one crouched
@@ -275,12 +304,14 @@ between; low furniture is fine), from where it stands or from a **throw spot** a
   are not offered when their walk would end where the NPC already stands or on a character it knows of (E9, issue #51 R12; tests
   `ai/combat/locate_never_where_it_stands`, `retreat_never_where_it_stands`, `retreat_out_of_sight_goes_farther`).
 **The lob** is judged as the grenade flies: from where it leaves the thrower's hand (the `throw` stance's hand, `Character.inventory.throw_release_offset`: 6 px behind it and 15 px to its right as
-it faces the spot, held off a wall the way the character's own hand is), the whole band 8 px either side of the line from there (its middle and both
-edges, the grenade's own width and the hand's sway), clear of anything taller than a lob clears
-(`AgentThrow.can_lob`, `throw_clear`). A line from the thrower's centre that clears a jamb by a pixel is a grenade that strikes it, and the throw, the bang's
-throw (G18) and the re-check before the wind-up all use the one test. A spot the thrower walks to (a throw spot, the bang's spot) is judged from
-wherever the walk may end, the spot and 6 px off it either way along each axis (`AgentThrow.throw_clear_on_arrival`): a lob that clears only from the
-spot itself is a jamb struck by a thrower that stops a few px off it.
+it faces the spot, held off a wall the way the character's own hand is), at the release height of the thrower's posture (`BodyHeights.release`; crouched, a
+lower hand), **some arc of the planner (G3, `GrenadeArc.clear`) clears everything in the twin space between** with 8 px to spare either side (`AgentThrow.LOB_MARGIN`:
+the grenade's own width and the hand's sway): the walls, a doorway's lintel, the furniture at its real top, the vehicles, characters looked past
+(`AgentThrow.can_lob`, `throw_clear`). The throw, the bang's throw (G18) and the re-check before the wind-up all use the one test, and it is the
+planner the throw itself flies, so a throw judged clear is never one the flight then fails. A line from the thrower's centre that clears a jamb by a pixel is a grenade that strikes it, and a spot the thrower walks to (a throw spot, the bang's spot) is judged from
+wherever the walk may end, with 6 px more to spare either side (`AgentThrow.throw_clear_on_arrival`, the band the 8 px margin widened by `ARRIVAL_SLACK`): a lob that clears only from the
+spot itself is a jamb struck by a thrower that stops a few px off it. The question costs at most 64 swept arcs of five casts (the throw-spot scan asks it for
+many spots, budgeted by `perf/grenade_match_stress`).
 **A throw spot** *(issue #51 R13, R15)*: when the spot is out of range or has no clear lob from where the NPC stands, the throw is offered from a point on
 the navmesh within the grenade's reach of the spot (its range less 15 px) from which the lob is clear, a walk of at most `throw_spot_walk` **250 px** along
 a route that passes no known hostile (agent_tactics.gd `throw_spot`), never inside the room the hostile holds that the NPC is outside of (or the room the
@@ -331,7 +362,7 @@ goes on to ADVANCE or ENGAGE while the target is blind: a hostile the NPC, or an
 in the state and the ADVANCE option, for a few seconds, `flashed` in memory). A thrower outside the zone has nothing to hold: it waits out the fuse
 with the gun in hand and shoots what it can. The NPC decided on a snapshot of a moment ago, so when the order is adopted it may stand a few px past its range
 of the spot: it then closes in until it is 15 px inside it (`AgentThrow.REACH_SLACK`) and throws (it does not give the throw up and flap in and out of the offer at
-the edge of the range). The throw is dropped, and the NPC re-decides, if the lob has become impossible (blocked by something taller than a lob clears) by the
+the edge of the range). The throw is dropped, and the NPC re-decides, if the lob has become impossible (no arc of the planner clears what is now in the way) by the
 time the wind-up starts; once the wind-up has begun the throw is committed and radioed whatever happens to the line meanwhile. The throw order keeps
 the spot it was offered on (the hostile's last-known spot) when that contact ages out on the way (out of sight past `tuning.memory.contact_ttl` while it walks
 to a throw spot, or while the entry guard's detour on that walk secures a doorway): losing the contact is not a change of belief that re-decides (the
@@ -602,7 +633,7 @@ The stun on the character: speed x0.45, sway 25 degrees, no running, tail 1.5 s;
 
 Everything numeric in the tables, and in particular: the sizes of the radii and times (the real ones only set the order of magnitude);
 the linear falloffs of the blast, the flash and the bang; the facing factor of the flash (x1, x0.6, x0.25); x0.4 through a wall; the
-stun's effect on a character (G13); the lob over low furniture and the bounce off tall furniture and walls (G3); a grenade's lack of
+stun's effect on a character (G13); the lob over a piece lower than the highest arc, the bounce off the rest and off walls and a doorway's lintel, and the release heights and apex (G3); a grenade's lack of
 cooking, pick-up and throw-back; the loss of every unthrown grenade at death (G4); friendly fire (G9, a fact of the real weapons, but the
 absence of any rule to spare an ally is the game's); the evade reflex and its margins (G16); the GRENADE tactic and its dropping rule (G17);
 the bang entry and its roles, including the turn-away hold and the point that skips the pie, and the ordered frag entry's aim that keeps

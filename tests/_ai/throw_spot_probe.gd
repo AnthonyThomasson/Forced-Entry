@@ -22,8 +22,9 @@ const THROW_RANGE := 550.0
 ## The tests' reading of "a short walk away": the walk to a throw spot, for a target out of range by
 ## 100 px or less, is at most this long.
 const SHORT_WALK := 250.0
-## The release height of a lob (`AgentThrow.LOB_CLEARANCE`, the spec's number): furniture at or
-## below it does not stop a lob, a wall always does.
+## How tall a piece a lob goes over, on the coverage scale (the test's own number, apart from the
+## code's: the planner, `GrenadeArc`, works in the pieces' real tops): furniture at or below it does
+## not stop a lob, a wall always does. The scenarios use pieces well under it or walls.
 const LOB_CLEARANCE := 50.0
 ## How far (px) either side of the line from the hand a lob must be clear (G17, the doc's number,
 ## not the code's).

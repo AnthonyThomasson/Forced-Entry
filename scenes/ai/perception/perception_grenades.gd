@@ -135,19 +135,20 @@ func can_lob(at: Vector2, to: Vector2, kind: StringName, walked := false) -> boo
 	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
 	var rids: Array = character_rids()
 	if not walked:
-		return throw.can_lob(space, at, to, throw.range_of(kind), rids)
+		return throw.can_lob(space, at, to, rids, kind)
 	return (at.distance_to(to) <= throw.range_of(kind)
-			and throw.throw_clear_on_arrival(space, at, to, rids))
+			and throw.throw_clear_on_arrival(space, at, to, rids, kind))
 
 
 ## Whether the lob a thrower standing at `at` throws onto `to` flies clear, from its hand (any
 ## distance: the range is `AgentThrow.range_of`'s).
-func throw_clear(at: Vector2, to: Vector2) -> bool:
+func throw_clear(at: Vector2, to: Vector2, kind: StringName = &"") -> bool:
 	return throw.throw_clear(
 		perception._character.get_world_2d().direct_space_state,
 		at,
 		to,
 		character_rids(),
+		kind,
 	)
 
 

@@ -19,7 +19,7 @@ scenario tests replay recorded Von (`--record-von` refreshes, `--require-von` ru
   ENTRY by the back door with a `bang` radioed; each test adds the one thing that makes the kitchen suspect. The wording
   they rest on is measured by `tools/von_scenarios/stun_entry_*.json`.
 - `throw_spot_probe.gd` (`const Spot`): the throw-spot tests (G17): `throws` (the `grenade` zones of `debug_zones()`),
-  `lob_clear`, `hand_lob_clear` (the lob from the thrower's hand, `Character.inventory.throw_release_offset`), `THROW_RANGE`,
+  `lob_clear`, `hand_lob_clear` (the lob from the thrower's hand, `Character.inventory.throw_release_offset`; the test's own judge on the 2D coverage scale, apart from the code's planner), `THROW_RANGE`,
   `walk`, `watch_first_combat`. A throw's `throw` event is at the hand, about 16 px from the thrower's centre.
 - `grenade_ready` is answered by an existence search (the `domain-ai` skill's snapshot demand): `ai/grenade/grenade_ready_matches_full_search` reads two snapshots of one moment (one asks `demand.fact("grenade_ready")`, the other `demand.complete()`s its throw groups) and counts `views.walk_queries` for each; a `GrenadeAi.offered` read of a snapshot's `options` should `complete()` its demand first.
 - `bang_probe.gd` (`const Bang`): the four `bang_fallback_*` tests, a stack of two at the back door (`rules`, `stack`,

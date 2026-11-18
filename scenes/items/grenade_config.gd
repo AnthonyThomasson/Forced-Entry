@@ -12,11 +12,12 @@ class_name GrenadeConfig
 ##   fuse           seconds from release to the burst (there is no cooking).
 ##   windup         seconds of drawn-back arm between the click and the grenade leaving the hand.
 ##   max_range      farthest (px) a throw first touches down; aimed past it, it comes down here and
-##   rolls on a little. throw_speed    px/s it flies across the floor at full range (a shorter throw
-##   is a slower, floatier lob). release_height height (px, the `coverage` scale) it leaves the hand
-##   at. arc_height     height (px) the lob peaks at: furniture whose `coverage` is below the arc's
-##                  height at that point is flown over, anything taller is struck.
-##   restitution    share of its speed a bounce keeps (the floor's and a wall's).
+##   rolls on a little.
+##   throw_speed    px/s across the floor the arm can give it: a lob's apex is the lowest that gets
+##                  it to the aim at or under this speed (a nearer aim is a gentler, flatter throw).
+##                  The height it leaves the hand at is the thrower's posture's
+##                  (`BodyHeights.release`).
+##   restitution    share of its velocity a bounce keeps (the floor's and a wall's).
 ##   friction       px/s² the floor skids it to a stop with.
 ##   art_size       the art's footprint (px): width across, length from base to fuze.
 ##   looks          how it is drawn, per weapon style (`ItemArt.style`: `police` issue, taped
@@ -49,7 +50,7 @@ const PipeGrenadePainter = preload("res://scenes/items/art/pipe_grenade_painter.
 static var grenades: Dictionary = {
 	&"stun": {
 		"name": "Stun grenade", "slot": 7, "fuse": 1.5, "windup": 0.3, "max_range": 550.0,
-		"throw_speed": 720.0, "release_height": 50.0, "arc_height": 82.0, "restitution": 0.35,
+		"throw_speed": 740.0, "restitution": 0.35,
 		"friction": 700.0, "flash_radius": 400.0, "flash_full": 100.0, "max_blind": 5.0,
 		"flash_cover_reach": 30.0, "bang_radius": 350.0, "max_deaf": 6.0, "wall_factor": 0.4,
 		"point_blank": 30.0, "point_blank_damage": 5.0, "art_size": Vector2(6.0, 11.0),
@@ -74,7 +75,7 @@ static var grenades: Dictionary = {
 	},
 	&"frag": {
 		"name": "Frag grenade", "slot": 8, "fuse": 3.0, "windup": 0.3, "max_range": 550.0,
-		"throw_speed": 720.0, "release_height": 50.0, "arc_height": 82.0, "restitution": 0.35,
+		"throw_speed": 740.0, "restitution": 0.35,
 		"friction": 700.0, "blast_radius": 250.0, "kill_radius": 120.0, "blast_damage": 60.0,
 		"blast_impulse": 12_000.0, "blast_max_speed": 700.0, "fragments": 40,
 		"fragment_damage": 12.0, "fragment_speed": 3600.0, "fragment_range": 500.0,
@@ -101,12 +102,18 @@ static var grenades: Dictionary = {
 }
 ## The weapon style a grenade is drawn in when its `looks` has no row for its `ItemArt.style`.
 static var default_style: StringName = &"police"
-## A landing slower than this vertical speed (px/s) is not a bounce but the grenade rolling to a
-## stop.
+## A landing slower than this speed into the surface (px/s) is not a bounce but the grenade rolling
+## to a stop.
 static var min_hop_speed: float = 40.0
-## Shortest a lob's flight is held to (s), so a throw at the thrower's feet is a drop, not an
-## instant arrival.
-static var min_flight_time: float = 0.3
+## Fall acceleration of a thrown grenade (px/s²): about 16 m/s², a throw's snappier than a real
+## one's.
+static var gravity: float = 680.0
+## The highest a lob's centre peaks (px): under the ceiling, the walls' height (96,
+## `ObjectStructureMeshConfig.wall_height`), by the grenade's own size and a little to spare. The
+## planner (`GrenadeArc`) never plans an arc above it, and a flight is stopped by the ceiling.
+static var max_apex: float = 90.0
+## The ceiling (px): a grenade's top never goes over it (the walls' height).
+static var ceiling: float = 96.0
 ## A thrown grenade's size against walls and what it strikes (px).
 static var radius: float = 3.0
 ## Spin deceleration of a thrown grenade on the floor (rad/s²).

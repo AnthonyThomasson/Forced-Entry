@@ -3,8 +3,9 @@ extends GameTest
 ## on a snapshot of a moment ago). One that is blocked by then is given up before the grenade is
 ## taken in hand: nothing is thrown before the NPC has re-decided, and Von is asked again. One
 ## mechanism, scripted Von that answers slowly (30 physics frames a level): the invader has a clear
-## lob onto a hostile hidden behind a desk when GRENADE is offered; a wardrobe (coverage 95, over a
-## lob's clearance) is put on the line while its question is in flight. The re-decision may offer
+## lob onto a hostile hidden behind a desk when GRENADE is offered; a wardrobe (78 px, more than the
+## highest lob clears where it has come down this far along its flight) is put on the line, near the
+## hostile, while its question is in flight. The re-decision may offer
 ## GRENADE again through a throw spot round the wardrobe (issue #51 R13): a throw that follows
 ## leaves from at least 40 px from where the invader stood when it gave the first one up, with a
 ## clear lob.
@@ -16,7 +17,7 @@ const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
 const START := Vector2(100, 150)
 const HOSTILE := Vector2(520, 150)
 const ASIDE := Vector2(250, 40)
-const ON_THE_LINE := Vector2(250, 150)
+const ON_THE_LINE := Vector2(440, 150)
 
 
 func describe() -> Dictionary:

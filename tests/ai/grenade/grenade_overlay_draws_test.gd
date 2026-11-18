@@ -155,6 +155,13 @@ func _check_escape(t: TestContext, db: Node) -> bool:
 			not seen.is_empty() and seen[0]["source"] in [&"seen", &"heard"],
 			"having seen or heard the grenade itself",
 		)
+		# The spot first planned is for where the grenade is in the air; the one judged is the plan
+		# once it lies (G16's replan, a moment after the rest).
+		await t.until(
+			func(): return t.happened(&"grenade", func(e): return e.get("stage") == &"rest"),
+			2.0,
+		)
+		await t.seconds(0.4)
 		if not Probe.booms(t).is_empty():
 			return false
 		var escape: Vector2 = GrenadeAi.grenades(db)["escape"]

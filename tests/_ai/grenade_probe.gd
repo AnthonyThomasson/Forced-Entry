@@ -107,6 +107,26 @@ static func live(t: TestContext) -> Array:
 	return t.world.get_tree().get_nodes_in_group("live_grenades")
 
 
+## Follow the first grenade frame by frame until it goes off (or `seconds` pass): `{ at, altitude,
+## time }` per frame, where it is (plan point), how high its underside is over the floor and the sim
+## time. Await it right after the throw begins: it waits for the grenade to appear.
+static func track(t: TestContext, seconds: float) -> Array:
+	var samples: Array = []
+	var until := t.time + seconds
+	while t.time < until:
+		await t.frames(1)
+		var grenades := live(t)
+		if grenades.is_empty():
+			if not samples.is_empty():
+				break
+			continue
+		var g: Node2D = grenades[0]
+		samples.append({
+			"at": g.global_position, "altitude": float(g.call("altitude")), "time": t.time,
+		})
+	return samples
+
+
 ## The raw bus events (`{ topic, data, time }`, `time` in sim seconds) of `topic` passing `filter`
 ## on their data, oldest first. (`TestContext.events_of` gives the data dicts alone, without the
 ## time.)
