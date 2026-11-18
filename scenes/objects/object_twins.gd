@@ -2,7 +2,8 @@ class_name ObjectTwins
 extends RefCounted
 ## Objects domain, the 3D twins of its bodies for the twin space (`TwinSpace`, interface 29, #194
 ## D3): a wall and a door lifted from their own 2D colliders to their meshes' real heights
-## (`ObjectStructureMeshConfig`), a floor as a slab, a piece of furniture as one box per part of
+## (`ObjectStructureMeshConfig`; a wall also carries a lintel over each doorway, from a door
+## leaf's height to the wall's top), a floor as a slab, a piece of furniture as one box per part of
 ## `PieceHeights` (a sofa's seat, arms and back; a round piece's full-footprint part a cylinder),
 ## in the frame of the 2D body, so a piece that turns or is shoved is followed by its transform.
 ## `register` adds the hooks Main wires into the space. Every one is a `StaticBody3D`: the space
@@ -25,7 +26,9 @@ static func register(space: TwinSpace) -> void:
 ## The twin of `node` if it is a wall, a door, a floor or a solid piece of furniture, else null.
 static func build(node: Node2D) -> Node3D:
 	if node is Wall:
-		return _structure(node, StaticBody3D.new(), ObjectStructureMeshConfig.wall_height)
+		var twin := StaticBody3D.new()
+		_lintels(node as Wall, twin)
+		return _structure(node, twin, ObjectStructureMeshConfig.wall_height)
 	if node is Door:
 		return _structure(node, StaticBody3D.new(), ObjectStructureMeshConfig.door_height)
 	if node is Piece:
@@ -46,6 +49,36 @@ static func _world(body: CollisionObject3D) -> CollisionObject3D:
 static func _structure(body: Node2D, twin: CollisionObject3D, height: float) -> Node3D:
 	TwinShapes.lift_body(body, twin, 0.0, height)
 	return _world(twin)
+
+
+## Add to `twin` the lintel over each of `wall`'s doorways: a header the wall's thickness thick
+## across the gap, from a door leaf's height to the wall's top, so a doorway is open only as high as
+## its door (a lob that rises through one strikes it). In the wall's frame, as its segments are.
+static func _lintels(wall: Wall, twin: CollisionObject3D) -> void:
+	var thick := wall.wall_thickness
+	for gap: Dictionary in wall.openings:
+		var side: int = gap["side"]
+		var across := float(gap["width"])
+		var from := float(gap["offset"]) - across * 0.5
+		var rect := Rect2()
+		match side:
+			Wall.Side.TOP:
+				rect = Rect2(from, -thick * 0.5, across, thick)
+			Wall.Side.BOTTOM:
+				rect = Rect2(from, wall.size.y - thick * 0.5, across, thick)
+			Wall.Side.LEFT:
+				rect = Rect2(-thick * 0.5, from, thick, across)
+			Wall.Side.RIGHT:
+				rect = Rect2(wall.size.x - thick * 0.5, from, thick, across)
+		if rect.has_area():
+			twin.add_child(
+				TwinShapes.box(
+					rect,
+					Transform2D.IDENTITY,
+					ObjectStructureMeshConfig.door_height,
+					ObjectStructureMeshConfig.wall_height,
+				)
+			)
 
 
 ## A solid piece's twin: a box per part (see `PieceHeights`), a static body the space moves with the

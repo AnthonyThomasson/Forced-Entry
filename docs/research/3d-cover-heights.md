@@ -4,7 +4,7 @@
 
 Primary texts read: TC 3-23.30 (22 Nov 2013), FM 23-30 (2000, "Grenades and Pyrotechnic Signals"), FM 3-06.11 (2002) ch.3 and ch.5, and the ANSUR II public CSVs (computed here). FM 3-21.8, FM 21-75 / TC 3-21.75 and ATTP 3-06.11 (2011) could not be fetched (globalsecurity.org and irp.fas.org answered 403 or empty), so they are cited from secondary summaries only. Each figure carries a tag: **[P]** read in a primary source; **[D]** derived or estimated from primary numbers (the method is stated); **[S]** a retail or design guide, approximate; **[U]** unverified, from memory or a search-engine summary. Postures other than standing, and every game default in section 6, are **[D]**, good to about +/- 0.05 m.
 
-Grenade release heights (section 4, about 1.7 m standing, 1.3 m kneeling, 0.4 m alternate prone) are not used yet: they land with the grenade-arc job (`grenade3d`), which reads them as the release height of the throw's posture.
+Grenade release heights (section 4, about 1.7 m standing, 1.3 m kneeling, 0.4 m alternate prone) are `BodyHeights.release`: the release height of the throw's posture (standing 1.7 m, the duck 1.3 m, the fire-over 1.5 m between); the alternate prone is not a posture of the game.
 
 ## 1. Human heights (metres)
 

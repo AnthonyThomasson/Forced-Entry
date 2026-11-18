@@ -13,7 +13,8 @@ class_name BodyHeights
 ## rises to when its muzzle line is blocked by the cover it is behind: head and shoulders above
 ## about 0.9 to 1.0 m cover, its bore clearing 0.9 m). Metres are the research note's: standing
 ## eye = stature minus 0.12 (1.64), bore = eye minus 0.065 (1.55); the duck and the fire-over are
-## geometric estimates, tunable.
+## geometric estimates, tunable. A grenade's release (`release`) is the research note's: standing
+## 1.7 m, kneeling 1.3 m, the fire-over between.
 
 const STAND := &"stand"
 const DUCK := &"duck"
@@ -25,21 +26,21 @@ const NONE := &""
 static var person_metres: float = 1.75
 static var person_px: float = 74.0
 ## Per posture, in metres: `head` (top of the head), `eye`, `muzzle` (a rifle's bore line),
-## `shoulder` and `zones`: `[name, highest metre]`, feet up, anything above the last row is the
-## head. A standing body's torso starts at the crotch (0.90 m: ANSUR II trochanter height) and ends
-## at the neck base (1.52); a duck and a fire-over are the same body folded, its bands scaled with
-## it.
+## `shoulder`, `release` and `zones`: `[name, highest metre]`, feet up, anything above the last row
+## is the head. A standing body's torso starts at the crotch (0.90 m: ANSUR II trochanter height)
+## and ends at the neck base (1.52); a duck and a fire-over are the same body folded, its bands
+## scaled with it.
 static var postures: Dictionary = {
 	&"stand": {
-		"head": 1.75, "eye": 1.64, "muzzle": 1.55, "shoulder": 1.44,
+		"head": 1.75, "eye": 1.64, "muzzle": 1.55, "shoulder": 1.44, "release": 1.70,
 		"zones": [[&"feet", 0.10], [&"legs", 0.90], [&"torso", 1.52]],
 	},
 	&"duck": {
-		"head": 0.85, "eye": 0.76, "muzzle": 0.70, "shoulder": 0.68,
+		"head": 0.85, "eye": 0.76, "muzzle": 0.70, "shoulder": 0.68, "release": 1.30,
 		"zones": [[&"feet", 0.06], [&"legs", 0.42], [&"torso", 0.72]],
 	},
 	&"fire_over": {
-		"head": 1.22, "eye": 1.10, "muzzle": 1.02, "shoulder": 0.96,
+		"head": 1.22, "eye": 1.10, "muzzle": 1.02, "shoulder": 0.96, "release": 1.50,
 		"zones": [[&"feet", 0.08], [&"legs", 0.55], [&"torso", 1.00]],
 	},
 }
@@ -89,6 +90,11 @@ static func muzzle(posture: StringName) -> float:
 ## The height (px) of `posture`'s shoulders: with the head, what shows over a piece of cover.
 static func shoulder(posture: StringName) -> float:
 	return _px_of(posture, "shoulder")
+
+
+## The height (px) of `posture`'s grenade release: where a thrown grenade leaves the hand.
+static func release(posture: StringName) -> float:
+	return _px_of(posture, "release")
 
 
 ## `posture`'s hit-zone bands, feet up: `[name, from, to]` in px, touching, the last (`head`) ending

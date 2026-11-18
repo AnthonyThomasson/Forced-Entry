@@ -30,6 +30,7 @@ func run(t: TestContext) -> void:
 	_zones(t)
 	_stand_matches_the_mirror_body(t)
 	_rise_to_fire(t)
+	_release(t)
 
 
 ## 1.75 m is 74 px: the one scale, and px and metres convert back and forth.
@@ -188,4 +189,28 @@ func _rise_to_fire(t: TestContext) -> void:
 		BodyHeights.lowest_clearing(edge - 0.01),
 		BodyHeights.FIRE_OVER,
 		"a hair under it does",
+	)
+
+
+## A grenade leaves the hand about head height standing (1.7 m, the research note's section 4,
+## TC 3-23.30: overhand, the arm extended) and lower the lower the thrower is (kneeling 1.3 m):
+## above the muzzle line and under the head top, so a ducked thrower lobs from under the cover it
+## ducks behind, a standing one over a 1.5 m obstacle.
+func _release(t: TestContext) -> void:
+	t.expect_near(
+		BodyHeights.release(BodyHeights.STAND), 1.7 * PX_PER_M, 0.01, "standing: released at 1.7 m"
+	)
+	t.expect_near(
+		BodyHeights.release(BodyHeights.DUCK), 1.3 * PX_PER_M, 0.01, "ducked (kneeling): 1.3 m"
+	)
+	for posture: StringName in BodyHeights.postures_ids():
+		t.check(
+			BodyHeights.release(posture) > BodyHeights.muzzle(posture)
+			and BodyHeights.release(posture) < BodyHeights.head_top(posture) + BodyHeights.px(0.5),
+			"%s: the release is over the bore line, an arm's reach over the head" % posture,
+		)
+	t.check(
+		BodyHeights.release(BodyHeights.DUCK) < BodyHeights.release(BodyHeights.FIRE_OVER)
+		and BodyHeights.release(BodyHeights.FIRE_OVER) < BodyHeights.release(BodyHeights.STAND),
+		"the release follows the posture: duck < fire-over < stand",
 	)
