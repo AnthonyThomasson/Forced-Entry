@@ -47,9 +47,13 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var you := t.actor(&"you")
-	Pointer.inject(Pointer.screen_of(you, TARGET_AT))
 	t.require(you.movement.set_posture(&"crouch"), "premise: the player ducks")
 	await t.seconds(0.6)
+	# Once the camera has settled on the player: the screen point of the target then is the aim.
+	Pointer.inject(Pointer.screen_of(you, TARGET_AT))
+	await t.frames(2)
+	var aimed: float = you.weapon.aim_target().distance_to(TARGET_AT)
+	t.expect_near(aimed, 0.0, 8.0, "premise: the player aims at the target")
 	t.expect_eq(you.movement.body_posture(), BodyHeights.DUCK, "premise: ducked until it fires")
 
 	await _click(t)

@@ -30,7 +30,11 @@ extends RefCounted
 ## CharacterInteraction). This module is the sub-domain's single owner of the solid-geometry ray
 ## query: the perception runs its line-of-fire and cover tests through `blocked()` / `raycast()`
 ## below rather than repeating it.
+const AgentCover := preload("res://scenes/ai/perception/agent_cover.gd")
 const QUERY_MASK := PhysicsLayers.SOLID
+## How many bodies on a round's line `body_in_fire_line` looks through (the welcome ones) before it
+## calls the line open.
+const BODIES_ON_LINE := 4
 
 ## Whether vision is gated at all; false = the agent sees everything (omniscient fallback).
 var enabled: bool = true
@@ -52,6 +56,9 @@ var _half_fov := deg_to_rad(110.0) * 0.5
 var _query := _solid_query()
 ## The 3D ray every `fire_line_clear` refills.
 var _fire_ray := PhysicsRayQueryParameters3D.new()
+## What `fire_line_clear` answered this physics frame, by shooter, posture, target and point.
+var _memo := {}
+var _memo_frame := -1
 
 
 ## A ray query on the solid layer, for `_query` to refill on each cast.
@@ -192,15 +199,23 @@ func blocked(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2, exclu
 
 ## Whether `shooter` can fire at `target` (a body, or null for a plain point) standing at plan point
 ## `to`: the 3D line of a round from its muzzle to where it aims, clear of every wall, door, piece
-## and vehicle (a body is no obstacle; a glass pane stops a bullet). The muzzle is that of the
-## posture it fires in: the one it is in, or, ducked, the pose its shot would rise to
-## (`CharacterRise.pose_along`, so what the AI gates its trigger on and what the body does when it
-## pulls it are one rule, `docs/cover-and-stance.md` P6): no pose clears cover too tall to fire
-## over, so none. It aims where its shot would (`SightRay.aim_height`: the middle of the part of the
-## target it sees, else the middle of its torso; a plain point is a standing body's torso), so a
-## piece the round clears at a standing body's torso may stop it at a ducked one's head. A world
-## with no twin space has the plan line (`blocked`) alone.
-func fire_line_clear(shooter: Node2D, target: Node2D, to: Vector2) -> bool:
+## and vehicle (a body is no obstacle to sight; a glass pane stops a bullet) and of any living body
+## but a `welcome` one (`body_in_fire_line`). The muzzle is that of the posture it fires in: the one
+## it is in, or, ducked, the pose its shot would rise to (`CharacterRise.pose_along`, near cover or
+## far, so what the AI gates its trigger on and what the body does when it pulls it are one rule,
+## `docs/cover-and-stance.md` P6): no pose clears cover too tall to fire over, so none. It aims
+## where its shot would, from the eye of the pose it fires in and at `to`, where it last knew the
+## target (`SightRay.aim_at`: the middle of the part of it that shows, else of its torso; a plain
+## point is a standing body's torso), so a piece the round clears at a standing body's torso may
+## stop it at a ducked one's head. A world with no twin space has the plan line (`blocked`) alone.
+## Asked again for the same shooter, posture, `welcome` and points in one physics frame (the watch
+## and the combat both gate on it), it answers from its memo.
+func fire_line_clear(
+	shooter: Node2D,
+	target: Node2D,
+	to: Vector2,
+	welcome: Callable = Callable(),
+) -> bool:
 	var space := TwinSpace.space_of(shooter)
 	if space == null:
 		var rids := [shooter.get_rid()]
@@ -212,6 +227,32 @@ func fire_line_clear(shooter: Node2D, target: Node2D, to: Vector2) -> bool:
 			to,
 			rids,
 		)
+	var frame := Engine.get_physics_frames()
+	if frame != _memo_frame:
+		_memo.clear()
+		_memo_frame = frame
+	var key := [
+		shooter.global_position,
+		SightRay.posture_of(shooter),
+		shooter.movement.posture(),
+		welcome,
+		target.get_instance_id() if is_instance_valid(target) else 0,
+		SightRay.posture_of(target) if is_instance_valid(target) else &"",
+		to,
+	]
+	if not _memo.has(key):
+		_memo[key] = _fire_clear(space, shooter, target, to, welcome)
+	return _memo[key]
+
+
+## `fire_line_clear` worked out: the 3D line against the world, then against bodies.
+func _fire_clear(
+	space: PhysicsDirectSpaceState3D,
+	shooter: Node2D,
+	target: Node2D,
+	to: Vector2,
+	welcome: Callable,
+) -> bool:
 	var line := _fire_line(shooter, target, to)
 	if line.is_empty():
 		return false  # standing on the point, or no pose clears the cover
@@ -220,73 +261,169 @@ func fire_line_clear(shooter: Node2D, target: Node2D, to: Vector2) -> bool:
 	_fire_ray.collision_mask = SightRay.MASK
 	if not space.intersect_ray(_fire_ray).is_empty():
 		return false
-	return ally_in_fire_line(shooter, target, to) == null
+	return _body_on(space, line, shooter, target, welcome) == null
 
 
-## The living character other than `shooter` and `target` a round on `fire_line_clear`'s line
-## would meet (a body is no obstacle to sight, but a round hits it: an ally in the way holds the
-## shot), null when none; a crouched ally under the line is shot over.
-func ally_in_fire_line(shooter: Node2D, target: Node2D, to: Vector2) -> Node2D:
+## The living body other than `shooter` and `target` a round on `fire_line_clear`'s line would meet
+## (a body is no obstacle to sight, but a round hits it: whoever stands in the way holds the shot,
+## an ally, a bystander or the human player), null when none; a crouched body under the line is
+## shot over. `welcome` (a `Callable(body) -> bool`, none by default) names the bodies the round may
+## hit and so do not hold it: the known hostiles.
+func body_in_fire_line(
+	shooter: Node2D,
+	target: Node2D,
+	to: Vector2,
+	welcome: Callable = Callable(),
+) -> Node2D:
 	var space := TwinSpace.space_of(shooter)
 	var line := _fire_line(shooter, target, to) if space != null else {}
-	if line.is_empty():
-		return null
+	return _body_on(space, line, shooter, target, welcome) if not line.is_empty() else null
+
+
+## The first living body on `line` that is not `shooter`, `target` or `welcome`, null for none.
+func _body_on(
+	space: PhysicsDirectSpaceState3D,
+	line: Dictionary,
+	shooter: Node2D,
+	target: Node2D,
+	welcome: Callable,
+) -> Node2D:
 	_fire_ray.from = line["from"]
 	_fire_ray.to = line["to"]
 	_fire_ray.collision_mask = PhysicsLayers.TWIN_CHARACTER
-	_fire_ray.exclude = SightRay.exclude_of(shooter) + SightRay.exclude_of(target)
-	var hit := space.intersect_ray(_fire_ray)
+	var skip := SightRay.exclude_of(shooter) + SightRay.exclude_of(target)
+	var found: Node2D = null
+	for _pass in BODIES_ON_LINE:
+		_fire_ray.exclude = skip
+		var hit := space.intersect_ray(_fire_ray)
+		if hit.is_empty():
+			return _end_body_ray(null)
+		var body := TwinSpace.owner_of(hit["collider"])
+		if body == null:
+			return _end_body_ray(null)  # A twin whose owner is gone is no body.
+		found = body
+		if not (welcome.is_valid() and welcome.call(body)):
+			return _end_body_ray(body)
+		skip = skip + [hit["rid"]]
+	return _end_body_ray(found)  # Past the cap every body met was welcome: the last holds the shot.
+
+
+## Clear the body ray's exclusions and answer `body`.
+func _end_body_ray(body: Node2D) -> Node2D:
 	_fire_ray.exclude = []
-	return TwinSpace.owner_of(hit.get("collider")) if not hit.is_empty() else null
+	return body
 
 
 ## The 3D line `shooter`'s round flies to `to`, `{ from, to }` as points of the twin space: from its
 ## muzzle at the posture it fires in to the height it aims at; {} when it stands on the point or,
-## ducked, no pose clears the cover on the way.
+## ducked, no pose clears the cover on the way. The pose is the one the shot asks of the rise rule,
+## from the aim of the eye it has ducked (`CharacterWeapon.aim_height_from`); the round then flies
+## to the aim of the eye of the pose it has risen to, as the shot's does.
 func _fire_line(shooter: Node2D, target: Node2D, to: Vector2) -> Dictionary:
 	var offset: Vector2 = to - shooter.global_position
 	if offset.length() < 1.0:
 		return {}
 	var run := offset.length()
-	var height: float = (
-		SightRay.aim_height(shooter, target)
-		if target != null and is_instance_valid(target) and target.get("movement") != null
-		else BodyHeights.sight_points(BodyHeights.STAND)[1]
-	)
 	var pose: StringName = SightRay.posture_of(shooter)
+	var height := _aim_from(shooter, pose, target, to)
 	if shooter.movement.posture() == &"crouch":
 		var risen: StringName = shooter.weapon.rise.pose_along(offset / run, run, height)
 		if risen == BodyHeights.NONE:
 			return {}
 		if BodyHeights.muzzle(risen) > BodyHeights.muzzle(pose):
 			pose = risen
+			height = _aim_from(shooter, pose, target, to)
 	return {
 		"from": PlanSpace.lift(shooter.global_position, BodyHeights.muzzle(pose)),
 		"to": PlanSpace.lift(to, height),
 	}
 
 
+## The height (px) `shooter` aims at on `target` standing at `to`, its eye in `pose`: where it last
+## knew the target (not where it is), a standing body's torso for a plain point.
+func _aim_from(shooter: Node2D, pose: StringName, target: Node2D, to: Vector2) -> float:
+	if is_instance_valid(target) and target.get("movement") != null:
+		return SightRay.aim_at(shooter, BodyHeights.eye(pose), target, to)
+	return BodyHeights.sight_points(BodyHeights.STAND)[1]
+
+
+## The piece that hides a body ducked at plan point `p` from the eye of a threat at `threat` (`eye`
+## px up, a standing body's when negative): the first thing the lines from that eye to the ducked
+## body's head, chest and hips meet when each one is stopped, null when any one is clear. The real
+## 3D lines, so a sofa hides a ducked head from a threat near it or itself low but not from a
+## standing one far off, whose eye looks down over its back, nor from the side of its arm or seat.
+## A world with no twin space asks the plan line for a piece tall enough (`AgentCover.is_cover`),
+## leaving `exclude` out and looking through the bodies on it.
+func hiding_piece(
+	space: PhysicsDirectSpaceState2D,
+	p: Vector2,
+	threat: Vector2,
+	eye := -1.0,
+	exclude: Array = [],
+) -> Object:
+	var twins := TwinSpace.space_for(space)
+	if twins == null:
+		return _plan_piece(space, p, threat, exclude)
+	var origin := PlanSpace.lift(threat, eye if eye >= 0.0 else BodyHeights.eye(BodyHeights.STAND))
+	var first := {}
+	for height in BodyHeights.sight_points(BodyHeights.DUCK):
+		var found := SightRay.hit(twins, origin, PlanSpace.lift(p, height))
+		if found.is_empty():
+			return null
+		if first.is_empty():
+			first = found
+	return TwinSpace.owner_of(first["collider"])
+
+
+## The first piece tall enough to hide a ducked head on the plan line `p`→`threat`, a living body
+## looked through; null when there is none.
+func _plan_piece(
+	space: PhysicsDirectSpaceState2D,
+	p: Vector2,
+	threat: Vector2,
+	exclude: Array,
+) -> Object:
+	var skipped := exclude
+	while true:
+		var hit := raycast(space, p, threat, skipped)
+		var obj: Object = hit.get("collider")
+		if obj == null:
+			return null
+		if obj is Node and (obj as Node).is_in_group(&"characters"):
+			skipped = skipped + [hit["rid"]]
+			continue
+		return obj if AgentCover.is_cover(obj) else null
+	return null  # unreachable; satisfies the parser
+
+
 ## What stops a round from a body standing at plan point `from` on its way to the one at plan point
-## `to` (`target`, or a standing body's for null): `{ body: the 2D piece, wall, door or vehicle it
+## `to` (`target`, or a standing body's for null; `posture` overrides the body's posture, a ducked
+## one for the spot an NPC will take cover at): `{ body: the 2D piece, wall, door or vehicle it
 ## meets }`, {} when it is clear. The 3D line runs from a standing muzzle to the middle of the
 ## target's torso, or, when a piece stops that, to its head (a head that shows over what hides the
 ## rest is what an NPC aims at, `SightRay.aim_height`); the stop is the torso line's. The line of
 ## fire of a spot the NPC could stand at, where no shooter is to ask `fire_line_clear` of: a
-## standing muzzle is the highest it fires from, so it is what a body able to rise to fire could do
-## there. A world with no twin space has the plan line (`raycast`) alone.
+## standing muzzle is the highest it fires from, and a ducked body rises as high as it needs
+## (`CharacterRise.pose_along`, no reach limit), so what a standing muzzle clears a rise clears
+## too (`tests/ai/perception/rise_line_matches_rise`). A body in the way is not looked for: it
+## moves, the trigger's gate holds the shot for it. A world with no twin space has the plan line
+## (`raycast`) alone.
 func fire_stop_from(
 	space: PhysicsDirectSpaceState2D,
 	from: Vector2,
 	to: Vector2,
 	target: Node2D = null,
+	posture: StringName = BodyHeights.NONE,
 ) -> Dictionary:
 	var twins := TwinSpace.space_for(space)
 	if twins == null:
 		return _plan_stop(space, from, to)
-	var posture := BodyHeights.STAND
-	if target != null and is_instance_valid(target) and target.get("movement") != null:
-		posture = SightRay.posture_of(target)
-	var points := BodyHeights.sight_points(posture)
+	var body_posture := posture
+	if body_posture == BodyHeights.NONE:
+		body_posture = BodyHeights.STAND
+		if target != null and is_instance_valid(target) and target.get("movement") != null:
+			body_posture = SightRay.posture_of(target)
+	var points := BodyHeights.sight_points(body_posture)
 	_fire_ray.from = PlanSpace.lift(from, BodyHeights.muzzle(BodyHeights.STAND))
 	_fire_ray.collision_mask = SightRay.MASK
 	var stop := {}

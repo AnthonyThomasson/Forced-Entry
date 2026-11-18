@@ -3,12 +3,12 @@ extends RefCounted
 ## Character domain, rise to fire (`character.gd`'s `rise`, D7 and D7a, `docs/cover-and-stance.md`
 ## P6): a ducked character that fires a gun behind cover rises over it and drops back. `pose_needed`
 ## says which pose its muzzle must rise to: the duck's muzzle line toward the aim is cast into the
-## twin space (`TwinSpace`) for `CharacterRiseConfig.reach` from the body's centre; what it meets
-## there is the cover (a far obstacle is not), the part it struck gives the cover's height (a
-## counter's backsplash is taller than its top) and `BodyHeights.lowest_clearing` the lowest pose
-## whose muzzle is over it; the line is cast again from that pose for a taller part behind the
-## first, until it is clear. Cover no pose clears (a wardrobe, a wall) answers `BodyHeights.NONE`:
-## the body does not rise and its round meets the cover. `rise_to` takes the pose and holds it for
+## twin space (`TwinSpace`) from the body's centre to the aim point, however far (D7b: no reach
+## limit); what it meets is the cover, the part it struck gives the cover's height (a counter's
+## backsplash is taller than its top) and `BodyHeights.lowest_clearing` the lowest pose whose muzzle
+## is over it; the line is cast again from that pose for a taller part behind the first, until it
+## is clear. Cover no pose clears (a wardrobe, a wall) answers `BodyHeights.NONE`: the body does
+## not rise and its round meets the cover. `rise_to` takes the pose and holds it for
 ## the dwell; `movement.body_posture()` reports it, so the twin, the zones, the eye and the muzzle
 ## follow.
 
@@ -94,18 +94,18 @@ func pose_needed(hand: int) -> StringName:
 ## The one rule for what a ducked body must rise to: the lowest pose whose muzzle clears the cover
 ## in its line of fire (`BodyHeights.DUCK` for none, `NONE` for cover no pose clears), the line
 ## running along the plan `direction` for `run` px up or down to `aim_height` (px above the floor,
-## negative for a level line). Cover is what the line meets within `reach` of the body; once it
-## has met some, the line is judged across the whole of the piece (`cover_depth` further on), so a
-## part behind the first (a backsplash) counts. The shot (`pose_needed`) and an NPC's choice to
-## fire (`AgentVision.fire_line_clear`) both ask it.
+## negative for a level line). Cover is what the line meets anywhere between the body and the aim
+## point, near or far; the line is cast again from each higher pose, so a part behind the first (a
+## backsplash) counts. The shot (`pose_needed`) and an NPC's choice to fire
+## (`AgentVision.fire_line_clear`, and `fire_stop_from` for a spot, where a standing muzzle is the
+## pose that clears whatever a rise can) both ask it.
 func pose_along(direction: Vector2, run: float, aim_height: float) -> StringName:
 	var space := TwinSpace.space_of(character)
 	if space == null:
 		return BodyHeights.DUCK
-	var length := minf(CharacterRiseConfig.reach, run)
 	var needed := BodyHeights.DUCK
 	for _cast in MAX_CASTS:
-		var found := _cast_from(space, direction, length, needed, Vector2(run, aim_height))
+		var found := _cast_from(space, direction, run, needed, Vector2(run, aim_height))
 		if found.is_empty():
 			return needed
 		var next := BodyHeights.lowest_clearing(
@@ -116,8 +116,6 @@ func pose_along(direction: Vector2, run: float, aim_height: float) -> StringName
 		if BodyHeights.muzzle(next) <= BodyHeights.muzzle(needed):
 			return needed  # what the line met stands under the bore: not cover
 		needed = next
-		var contact := PlanSpace.plan_of(found["position"]).distance_to(character.global_position)
-		length = minf(maxf(length, contact + CharacterRiseConfig.cover_depth), run)
 	return needed
 
 

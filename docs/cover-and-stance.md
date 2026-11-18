@@ -22,7 +22,8 @@ What a shot is aimed at (D8, D8a): the player's cursor aims where its line of si
 visible head aims at the head: `Pointer.aim_hit`); else at the first piece, wall, door or vehicle it meets, with a body behind it or
 not, at that point on it (a shot at a lone chair strikes the chair); only with the cursor on bare floor **level** at the muzzle's
 height toward the floor point, the round striking whatever stands in that line at that height. An NPC aims at the
-middle of its target's torso at its posture (`movement.aim_height` automatic). A gun's spread scatters the round up and down as
+parts of its target it sees (`movement.aim_height` automatic: the middle of the points its eye sees from where it last knew the target, from the eye of the pose it
+fires in; the torso when none shows). A gun's spread scatters the round up and down as
 well as sideways (`BallisticsFlightConfig.vertical_spread_scale`, 1 = the same cone both ways), so it can miss over or under a
 body as it misses beside it. Rounds hit and kill more than they did under the old chance of clearing cover: that is the game now
 (#194 D17), and no aim error is added to bring it back.
@@ -89,20 +90,19 @@ heavy piece only stops the leg, and a foot at rest shoves nothing. Other charact
 Tests: `legs_rest_on_walls`, `leg_press_turns_furniture`.
 
 **P6. Rise to fire.** A ducked character (player and NPC alike, automatic) that fires a gun does not shoot through the cover it is behind, and does
-not stay under it: when its **duck muzzle's line** toward the aim is blocked, within a short reach of its body (`CharacterRiseConfig.reach`, 60 px, about
-1.4 m), by cover some pose clears, it rises to **the lowest pose whose muzzle clears that cover** (`BodyHeights.lowest_clearing`, D7a): `FIRE_OVER` (muzzle
+not stay under it: when its **duck muzzle's line** toward the aim is blocked by cover some pose clears, near or far (no reach limit, D7b), it rises to
+**the lowest pose whose muzzle clears every piece on its line** (`BodyHeights.lowest_clearing`, D7a): `FIRE_OVER` (muzzle
 43 px) for cover up to that, `STAND` (65 px, fully exposed above the cover) for taller. The cover's height is that of the **part** the line meets
 (`PieceHeights` parts, the twin's boxes): a kitchen counter's backsplash is 44 px, over the fire-over muzzle, though its top is 38, so a level shot
-over it needs a standing pose; the line is cast again from each higher pose, up to `cover_depth` past where it first met the piece, so a taller part behind
-the first counts. A line that already climbs over the cover (aimed up at a torso) needs no rise. Cover no pose clears (a wardrobe, a fridge, a wall) is not
-risen over: the body stays ducked, fires from where it stands, and its round meets the cover. A far obstacle (past the reach) is not its cover, and in the
-open there is nothing to rise for.
+over it needs a standing pose; the line is cast again from each higher pose along the whole run, so a taller part behind
+the first counts. A line that already climbs over the cover (aimed up at a torso) needs no rise. If no pose clears every piece on the line (a wardrobe, a
+fridge, a wall) the body stays ducked and does not shoot: nothing it can do puts a round past it. In the open there is nothing to rise for.
 The body is exposed the moment it rises (its twin, zones, eye and muzzle are the risen pose's, `body_posture()`) but holds its fire for
 `CharacterRiseConfig.rise_time` (0.2 s): the rise before the first shot. It drops back to the duck `CharacterRiseConfig.dwell` (0.6 s, and at least the gun's time between rounds plus `dwell_margin`, so a slow gun stays risen between rounds) after the last
 round it could fire (every shot, and a held trigger, renews it: no flicker); a gun that cannot fire (empty, reloading, cooling) neither rises nor renews the rise; it never lowers a pose it is risen to mid-burst. A shot refused for the rise is no shot: a
 controller's trigger is retried each frame (an NPC's fire timer is untouched), and the player's click is held for the rise. An NPC crouched behind low cover counts a
 clear line from the pose the rise would take (the same rule, `CharacterRise.pose_along`, then a clear 3D line from that muzzle to the part of its target it aims at) as a line to fire along, so it pulls the trigger and rises
-(`Combat.has_line_of_fire_to`, `AgentVision.fire_line_clear`); the options Von is shown, the firing spots, the flank sides and the route exposure read the same 3D line from a standing muzzle (a body able to rise to fire could do it there). Only a gun rises (a thrown grenade
+(`Combat.has_line_of_fire_to`, `AgentVision.fire_line_clear`); the options Von is shown, the firing spots and the flank sides read the same 3D line from a standing muzzle (a body able to rise to fire could do it there); the planned line and the trigger's agree, so a clear shot the AI plans is one it can take (D7b). Only a gun rises (a thrown grenade
 does not); the rise is a manner of firing, so it works with Von down.
 Tests: `rise_over_sofa`, `rise_to_stand_over_tall_cover`, `no_rise_behind_unclearable_cover`, `risen_body_is_exposed`, `risen_body_sees_over_cover`,
 `muzzle_height_by_posture`.
@@ -123,13 +123,16 @@ Tests: `posture_stands_to_run`, `posture_crouches_in_fight`.
 existing wording is unchanged.
 Tests: `posture_in_von_state`.
 
-**A4. Hidden is not the same as cover.** Two questions the AI asks with different bodies, on purpose. *Cover* (what
-a fire spot's "cover close by" and a defend or ambush post's low cover name) is a piece a ducked body hides
-behind, by its real top (A1: an NPC in a fight crouches). *Hidden* and *exposed* (a retreat place, a route's
-exposure, "you are exposed to their fire") ask whether a round from a standing muzzle reaches a standing body
-there, because that is the body that travels and is seen (A2): a sofa back is cover to a fighter and does not hide
-a walker. So a spot behind a sofa can be cover and still count as exposed on the way.
-Tests: `cover_needs_real_height`, `spots_by_real_height`.
+**A4. Cover is where the line from the threat's eye meets a ducked head; hidden is a ducked body at a spot.** *Cover* (what a fire spot's "cover close by"
+and a defend or ambush post's low cover name) is a piece whose real top stops the 3D line from the threat's eye to a **ducked head** at the spot
+(`AgentVision.hiding_piece`: a piece too low to hide a ducked head is never cover, and one that is tall enough is cover only where that line meets it). A sofa's
+back over a spot right behind it is cover from a far standing threat (its eye looks along the room) and from a crouched one, not from a standing one close by (its eye
+looks down over the back); the arm or the seat side, a face the line meets lower or farther off, is not cover. *Hidden* (a retreat place, the options' "hidden from
+them") is the same question for the body that will take the spot and duck there in a fight (A1), so a retreat behind a sofa back from a distant standing threat is
+hidden. *Exposed* on a **route** (a walker's way, "you are exposed to their fire") asks whether a round from a standing muzzle reaches a **standing** body on the way,
+because that is the body that travels and is seen (A2): a sofa back is cover to a fighter and does not hide a walker. So a spot behind a sofa can be cover and still
+count as exposed on the way. An ambush post is hidden only where the spot is hidden from the doorway it watches.
+Tests: `cover_needs_real_height`, `cover_hides_from_the_threat`, `spots_by_real_height`.
 
 ## Not modelled
 

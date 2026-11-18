@@ -8,6 +8,7 @@ extends GameTest
 ## shielding a spot from a threat.
 
 const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
+const AgentCover := preload("res://scenes/ai/perception/agent_cover.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
 ## The piece of each lane and whether it is cover, in the order they stand (a lane a row, 150 px
 ## apart); the spot behind a piece is 60 px west of it and the threat 400 px east.
@@ -61,7 +62,7 @@ func run(t: TestContext) -> void:
 			"premise: a %s is %.1f px, a ducked head %.1f" % [name, top, duck],
 		)
 		t.expect_eq(
-			AgentTactics.is_cover(piece), LANES[i][1],
+			AgentCover.is_cover(piece), LANES[i][1],
 			"a %s is cover exactly when its top hides a ducked head" % name,
 		)
 		var spot := Vector2(SPOT_X, _lane_y(i))

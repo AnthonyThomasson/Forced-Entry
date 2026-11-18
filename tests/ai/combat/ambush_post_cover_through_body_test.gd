@@ -10,11 +10,9 @@ extends GameTest
 ## 120 px from the door and 30 inside the walls), each reaching every one of them alike, and none is
 ## in a funnel, so among them low cover on the line to the threshold ranks first, then the depth
 ## nearest 110 px. A shoe rack (stood up to 44 px: a ducked body hides behind it, a standing one
-## sees over it, and
-## it is no shield for a crouched body from a burst)
-## stands on the line of the post 70 px back only, and a household bystander stands on that line
-## between the post and the rack. Were the bystander to take the post's cover, the post 100 px back
-## would win on its depth.
+## sees over it) stands on the line of the post 70 px back only, and a household bystander stands on
+## that line between the post and the rack. Were the bystander to take the post's cover, the post
+## 100 px back would win on its depth.
 ##
 ## A defender in the room is ordered (by its squad's leader, a household puppet in the hall, by the
 ## doorway's id) to ambush the doorway from the room, its ranking the one every NPC on the map

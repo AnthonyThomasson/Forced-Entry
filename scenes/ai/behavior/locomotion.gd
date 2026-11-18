@@ -395,8 +395,10 @@ func _check() -> bool:
 ## `_check` for a walk under way (plain, round or round the doorway views): a body on its path
 ## (`blocker`) is gone round by the steering map when it can be, else holds the walk; a walk round a
 ## body that keeps out of the doorway views goes back to the avoid map once its route there is
-## clear, and one whose route round now goes into the room a held stack's member keeps out of (the
-## map has carved the walker itself since, D38) back to its free way, to be held or gone round anew.
+## clear (and, for a held stack's member, does not go into the room it keeps out of: the map was
+## given from where it was, not from here), and one whose route round now goes into the room a held
+## stack's member keeps out of (the map has carved the walker itself since, D38) back to its free
+## way, to be held or gone round anew.
 func _check_walking(
 	from: Vector2,
 	resting: Array,
@@ -414,12 +416,20 @@ func _check_walking(
 		crowd.recheck_in -= delta
 		if crowd.recheck_in <= 0.0:
 			crowd.recheck_in = RECHECK
-			if doors.map.is_valid() and _clear_on(doors.map, from, resting):
+			if _doors_clear(from, resting):
 				_set_way(Way.DOORS)
 			elif crowd.step_out == Vector2.INF and doors.enters_kept_out(crowd.steering_map):
 				# The steering map has carved the walker since (its own body at rest): its route
 				# round now goes into the room it keeps out of. Its free way again, looked at anew.
 				_set_way(_free_way())
+
+
+## Whether a walk round a body may go back to the avoid map from `from`: the map's route is clear
+## of the bodies at rest `resting` and does not take a held stack's member into the room it keeps
+## out of (the map was given from where the walk was, not from here).
+func _doors_clear(from: Vector2, resting: Array) -> bool:
+	return (doors.map.is_valid() and _clear_on(doors.map, from, resting)
+			and not doors.enters_kept_out(doors.map, from))
 
 
 ## The way a walk goes when no body is in it: round the doorway views when it has been given the

@@ -2,7 +2,8 @@ extends GameTest
 ## LD6 (`docs/leadership.md`): an order stops a walk, not a fight. From the frame an order arrives
 ## until the decision made knowing it lands, a member in a fight fights on: its peek-and-cover keeps
 ## peeking, firing and ducking to cover, and is never frozen in the open while that decision waits
-## on Von. A defender fighting an intruder across a hall (it holds a table near it for cover) is
+## on Von. A defender fighting an intruder across a hall (a cabinet by the spot it fights from, a
+## real 48 px, hides a ducked body from the intruder: its cover spot) is
 ## ordered to defend the hall: it is engaged, so the decision made with the order is a combat one,
 ## and with the fight's options inside the hall (LD8 keeps it to those) Von has several to choose
 ## from and is asked. Von answers late (the scripted answers are held back `LATENCY_FRAMES`), and
@@ -76,6 +77,16 @@ func configure(s: TestSetup) -> void:
 			"penetration": 60.0, "weight": 5000.0,
 		},
 		Vector2(290, 220),
+	)
+	s.object(
+		&"cabinet",
+		{
+			"name": "Cabinet", "shape": "rect", "size": Vector2(24, 80),
+			"color": Color(0.5, 0.4, 0.3), "material": "wood", "coverage": 45.0,
+			"penetration": 60.0, "weight": 5000.0,
+			"art": "cabinet", "art_opts": { "height": 48.0 },
+		},
+		Vector2(500, 60),
 	)
 	s.squads({ "human": &"lead" })
 

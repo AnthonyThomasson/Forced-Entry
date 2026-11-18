@@ -2,10 +2,11 @@ extends GameTest
 ## #194 rule 5 (docs/gaze-and-fire.md, docs/cover-and-stance.md A-rules): the spots an NPC weighs to
 ## fight from are classified by real heights. A spot behind a coffee table (18 px) has a clear shot
 ## (a standing muzzle, 65 px, is over it) and no cover (the table does not hide a ducked head); a
-## spot behind a sofa's back (38 px) has both (it ducks behind it and rises over it to fire); a
-## spot behind a wardrobe has cover and no shot (nothing it can fire over). The ring is the one
-## `AgentTactics.combat_spots` samples round the NPC (96 px, 12 points), the spot under test is its
-## east point and the piece stands just past it, the target 400 px beyond.
+## spot behind a sofa's back (38 px, its back toward the spot: the line from the target's eye to
+## a ducked head right behind it meets the back) has both (it ducks behind it and rises over it to
+## fire); a spot behind a wardrobe has cover and no shot (nothing it can fire over). The ring is the
+## one `AgentTactics.combat_spots` samples round the NPC (96 px, 12 points), the spot under test is
+## its east point and the piece stands just past it, the target 400 px beyond.
 
 const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
@@ -39,8 +40,9 @@ func configure(s: TestSetup) -> void:
 		if key == "sofa":
 			def["size"] = Vector2(50, 120)
 		def["anchored"] = true
+		# The sofa's seat faces the target (the spot sits behind its back).
 		s.object(StringName("piece_%d" % i), def, Vector2(NPC_X + RADIUS + 50.0, _lane_y(i)),
-				{ "facing": Vector2.LEFT })
+				{ "facing": Vector2.RIGHT })
 
 
 func run(t: TestContext) -> void:

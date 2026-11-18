@@ -135,7 +135,7 @@ func _exposure(t: TestContext) -> void:
 				tally["full"] += plain["rays"]
 				tally["exposed"] += 1 if plain["exposed"] else 0
 				var before: int = tactics.vision.rays
-				var got: bool = tactics._route_exposed(world["space"], path, threat, front)
+				var got: bool = tactics._route_exposed(world, path, threat, front)
 				if got != plain["exposed"]:
 					tally["wrong"].append([threat, to, front])
 				var cast: int = tactics.vision.rays - before

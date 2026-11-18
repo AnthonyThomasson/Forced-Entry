@@ -88,26 +88,26 @@
 		},
 		{
 			"options": [
-				"fire from behind the wall in the kitchen, north of them — clear shot — cover close by (the wall) — short exposed route",
-				"fire from where you stand (in the kitchen) — clear shot — cover close by (the chair)"
+				"fire from the kitchen, north of them — clear shot — in the open — short exposed route",
+				"fire from where you stand (in the kitchen) — clear shot — in the open"
 			],
 			"pick": "fire_here",
 			"probabilities": {
-				"fire_here": 0.6,
-				"fire_north": 0.4
+				"fire_here": 0.6057,
+				"fire_north": 0.3943
 			},
 			"question": "Where should you fight a from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
 			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nCurrent activity: EVADE - a live stun grenade (waiting, for 1s).\nYour pistol is loaded.\nYou have a clear shot at a from where you stand. You are exposed to their fire.\na — HOSTILE (trespassing) — in sight — close, in pistol range, south-east of you, in the kitchen — standing still — holding a Pistol.\nDecided so far: COMBAT → a → ENGAGE."
 		},
 		{
 			"options": [
-				"You are badly wounded and being hit (best: behind the chair close by, out of their sight; you are hurt)",
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are hurt)",
 				"You are being shot at by someone you cannot see (the shots came from the north-west)"
 			],
 			"pick": "locate",
 			"probabilities": {
-				"locate": 0.7394,
-				"retreat": 0.2606
+				"locate": 0.7391,
+				"retreat": 0.2609
 			},
 			"question": "How should you fight the hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
 			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are hurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 4s).\nSomeone you cannot see is shooting at you. Allies near you: b.\nYou are being shot at by someone you cannot see, from the north-west; you are exposed to their fire.\nNobody else is in sight or known.\nb (ally) — last seen just now — east of you, outside the house — was moving north-west.\nb (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west.\nYou are being hit, from the north-west!\nGunfire heard to the south-west, in the kitchen, recently.\nDecided so far: COMBAT."

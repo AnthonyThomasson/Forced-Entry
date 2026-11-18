@@ -12,7 +12,7 @@ const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 ## Where the ambush posts every NPC on a map shares are kept (`EntryLayouts.per_map`).
 const EntryLayouts := preload("res://scenes/ai/perception/entry/entry_layouts.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
-const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
+const AgentCover := preload("res://scenes/ai/perception/agent_cover.gd")
 ## Where an entry's grenade into the room by the doorway may land (the bang's own rule).
 const EntryLandings := preload("res://scenes/ai/perception/entry/entry_landings.gd")
 ## A defend spot (`defend_spot`, `docs/leadership.md` D2): how far back from its doorway's wall (px)
@@ -270,7 +270,7 @@ func _defend_candidate(
 
 ## Whether furniture a ducked body hides behind stands on the line from `from` to `to`, which the
 ## caller has already found seen: a piece of furniture is the first thing the ray meets (`bodies`
-## passed through) and its real top reaches a ducked head (`AgentTactics.is_cover`'s rule). A coffee
+## passed through) and its real top reaches a ducked head (`AgentCover.is_cover`'s rule). A coffee
 ## table does not count: it hides nobody.
 static func _low_cover(
 	entry: AgentEntry,
@@ -282,7 +282,7 @@ static func _low_cover(
 	if space == null:
 		return false
 	var hit: Object = entry.vision.raycast(space, from, to, bodies).get("collider")
-	return hit is RigidBody2D and AgentTactics.is_cover(hit)
+	return hit is RigidBody2D and AgentCover.is_cover(hit)
 
 
 ## Where member `nth` of `count` (`place`: x which post, y of how many) ordered to ambush a doorway

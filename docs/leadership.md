@@ -371,7 +371,9 @@ not once the go came, the squad's or the leader stepping in (D14).
   (`Combat`'s spots ask the confinement), a contact in it is fought from where the member stands, never chased in, and a walk whose plain way goes
   into that room (an engage's reposition, a retreat, under fire too; not an evade) goes round it and its doorway's view as an ordered
   approach's does, however long the way round (D4), and no walk of it (its order's way to its slot among them) goes round a body at rest on
-  its way by a way into that room (it waits short of the body, then goes round the room once that way is clear): a walk to a room behind
+  its way by a way into that room (it waits short of the body, then goes round the room once that way is clear), and a walk that has gone round a body
+  does not go back to the avoid map it was given from farther off from a place where that map's way goes into that room (it keeps the way it is on; test
+  `ai/entry/held_walk_avoid_map_not_resumed`, `ai/entry/order_stack_hold_fights_stack_side`): a walk to a room behind
   it is never walked through it. Its other walks, one into the
   doorway's view to fire through it among them, are left as they are, and none is turned into an entry into that room: the entry guard (E9)
   leaves its doorways alone for the member, under fire too, so a walk up to the doorway stops outside it. Standing in one of that room's

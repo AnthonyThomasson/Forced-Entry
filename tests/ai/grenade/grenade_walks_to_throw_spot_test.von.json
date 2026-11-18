@@ -10,14 +10,14 @@
 			],
 			"pick": "grenade",
 			"probabilities": {
-				"advance": 0.1263,
-				"engage": 0.1754,
-				"flank": 0.1282,
-				"grenade": 0.4845,
-				"retreat": 0.0856
+				"advance": 0.1254,
+				"engage": 0.2111,
+				"flank": 0.1176,
+				"grenade": 0.4638,
+				"retreat": 0.082
 			},
 			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded. You carry a frag grenade.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nh is too far to shoot. They can see you. h holds the living room, a room you are outside of. You can throw a frag grenade onto their spot. They are aiming at you.\nh — HOSTILE (seen) — in sight — too far to shoot, west of you, in the living room — standing still — aiming at you — holding a Unarmed.\nFlanks on h (you are on their front): their left side — route passes h, clear shot, cover, medium exposed route; their right side — free, clear shot, cover, medium exposed route; behind them — route passes h, clear shot, cover, medium exposed route.\nDecided so far: COMBAT → h."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded. You carry a frag grenade.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nh is too far to shoot. They can see you. h holds the living room, a room you are outside of. You can throw a frag grenade onto their spot. They are aiming at you.\nh — HOSTILE (seen) — in sight — too far to shoot, west of you, in the living room — standing still — aiming at you — holding a Unarmed.\nFlanks on h (you are on their front): their left side — route passes h, clear shot, in the open, medium exposed route; their right side — free, clear shot, cover, medium exposed route; behind them — route passes h, clear shot, in the open, medium exposed route.\nDecided so far: COMBAT → h."
 		}
 	],
 	"version": 1

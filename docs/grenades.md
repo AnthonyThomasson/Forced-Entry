@@ -287,7 +287,7 @@ a route that passes no known hostile (agent_tactics.gd `throw_spot`), never insi
 shots came from). It is chosen as the fire spots are, and so that its walk needs no detour: one whose walk (measured as it would be walked, round the doorway
 views when it would take that, `docs/tactical-entry.md` E18) crosses no doorway into a room not cleared and comes into no doorway view it cannot go
 round first, then out of the line from the spot (low furniture between), then with cover close by against it (a doorway's jamb, a piece of
-furniture), then the shortest walk; candidates are rings round the NPC (48 to 240 px) and round the spot (0.95 and 0.8 of the
+furniture), then the shortest walk (the "out of the line" and "cover close by" ranks of a throw spot still read the plan line and the old rating, not the 3D one of `docs/cover-and-stance.md` A4: the grenade's own readers move to real heights with the grenade's physics); candidates are rings round the NPC (48 to 240 px) and round the spot (0.95 and 0.8 of the
 reach). The option's `params.from` is the throw spot (where it stands, for a throw in place) and `params.walk` says it walks there; the ally-in-blast and
 self-safety tags are judged from there (an NPC that stands outside the zone but would throw from inside it with no way out is `no_safe_spot`). Its desc adds
 " — from the hallway to the east, short route", and the group's summary says "within throwing range from a spot nearby" when every option needs the

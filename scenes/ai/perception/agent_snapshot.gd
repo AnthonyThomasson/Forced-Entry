@@ -21,6 +21,7 @@ extends RefCounted
 ## them.
 
 const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
+const AgentCover := preload("res://scenes/ai/perception/agent_cover.gd")
 const SnapshotBuild = preload("res://scenes/ai/perception/snapshot/snapshot_build.gd")
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
@@ -507,16 +508,22 @@ func _line(ctx: Dictionary, t: Dictionary) -> Dictionary:
 		ctx["space"], self_pos, t["pos"], target
 	)
 	var stop = shot.get("body")
-	var ally: Node2D = (
-		_tactics.vision.ally_in_fire_line(_character, target, t["pos"]) if shot.is_empty() else null
+	var body: Node2D = (
+		_tactics.vision.body_in_fire_line(_character, target, t["pos"], _welcome(ctx))
+		if shot.is_empty()
+		else null
 	)
-	if ally != null:
-		shot = { "body": ally }
-		stop = ally
+	if body != null:
+		shot = { "body": body }
+		stop = body
 	return {
 		"clear": shot.is_empty(),
 		"in_range": self_pos.distance_to(t["pos"]) <= vocab.tuning.combat.shoot_range,
-		"cover": _tactics.object_label(plan) if AgentTactics.is_cover(plan) else "",
+		"cover": _tactics.object_label(
+			_tactics.vision.hiding_piece(
+				ctx["space"], self_pos, t["pos"], AgentCover.eye_of(node), ex
+			)
+		),
 		"blocker": "" if shot.is_empty() else _tactics.object_label(stop),
 		"over": (
 			_tactics.object_label(plan)
@@ -524,6 +531,12 @@ func _line(ctx: Dictionary, t: Dictionary) -> Dictionary:
 			else ""
 		),
 	}
+
+
+## The bodies a round may hit without holding the shot: the hostiles this snapshot knows.
+func _welcome(ctx: Dictionary) -> Callable:
+	return func(body: Node) -> bool:
+		return (ctx["hostiles"] as Array).any(func(h): return h.get("node") == body)
 
 
 ## The goal text with `{gun}` replaced by what the NPC calls its gun ("shoot them with your {gun}"

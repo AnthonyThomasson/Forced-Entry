@@ -43,7 +43,7 @@ when only the head shows over cover, and the middle of the torso at its posture 
 than is not, so the shot is taken whenever it is available and what stops it is geometry. The AI's own "clear line" is that same
 line (`AgentVision.fire_line_clear`: from the shooter's muzzle at its pose, or at the pose its gun would rise to, to the aimed
 height), so an NPC never pulls the trigger on a line its round cannot fly, and never holds back on one it can: a hostile crouched
-behind a sofa is not shot through, one behind a coffee table is shot over it. A living ally standing in the line holds the shot (a round hits it; sight looks through it), a ducked one under the line is shot over. Tests: `aim_at_visible_part`, `no_rounds_into_cover`, `fire_line_holds_for_ally`.
+behind a sofa is not shot through, one behind a coffee table is shot over it. Any living body standing in the line holds the shot but a known hostile (a round hits it; sight looks through it): an ally, a bystander, the human player; a ducked one under the line is shot over. The firing and flank spots the planner ranks ignore bodies (a body moves; only the trigger asks). An NPC aims at where it last knew its target, so the gate cannot leak the body's real position: the visible part is read from the last-known point and from the eye of the pose it fires in. Tests: `aim_at_visible_part`, `aim_from_last_known`, `no_rounds_into_cover`, `fire_line_held_by_any_body`.
 Tests: `entry_guard_fires_from_outside`, `gaze_search_turns_to_threat`, `combat_waits_for_facing`.
 
 **W3. An empty gun is reloaded.** With a threat in view and a spare magazine, an empty gun is reloaded at once, not carried

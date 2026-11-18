@@ -1,30 +1,43 @@
 extends GameTest
 ## P6 (docs/cover-and-stance.md): an NPC's choice to fire from behind cover and the rise of its shot
-## are one rule (`CharacterRise.pose_along`). `AgentVision.fire_line_clear` says a crouched NPC can
-## fire exactly where the body, trigger held, does hit the body beyond: behind a filing cabinet
-## right in front of it (a fire-over muzzle hits it, a standing one clears: the rise is to STAND and
-## the rounds find the body); not behind a wardrobe (no pose clears) and not past a cabinet beyond
-## the reach (not its cover, so the body does not rise and the rounds meet the cabinet).
+## are one rule (`CharacterRise.pose_along`, D7b: no reach limit, near or far). The trigger's gate
+## (`AgentVision.fire_line_clear`) and the line of a spot (`fire_stop_from`, which the snapshot and
+## the fire spots ask) say yes exactly where the body, trigger held, does hit the body beyond: over
+## a filing cabinet at its face or 96 px on (the rise is to STAND), over a sofa 130 px ahead of a
+## body 300 px past it (to FIRE_OVER); not behind a wardrobe, at its face or 150 px on (no pose
+## clears: it stays ducked and its rounds meet the wardrobe).
 
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
 const SHOOTERS := {
-	&"near": Vector2(250, 297), &"wardrobe": Vector2(500, 297), &"far": Vector2(750, 300),
+	&"near": Vector2(100, 297), &"wardrobe": Vector2(250, 297), &"far": Vector2(400, 300),
+	&"sofa": Vector2(550, 470), &"far_wardrobe": Vector2(750, 470),
 }
 const TARGETS := {
-	&"near": Vector2(250, 60), &"wardrobe": Vector2(500, 60), &"far": Vector2(750, 60),
+	&"near": Vector2(100, 60), &"wardrobe": Vector2(250, 60), &"far": Vector2(400, 60),
+	&"sofa": Vector2(550, 40), &"far_wardrobe": Vector2(750, 70),
 }
-## A cabinet 96 px from the far shooter: past the reach, near enough that a standing muzzle's line
-## to the body beyond it still passes over (the old gate's yes, the rise's no).
-const FAR_CABINET_AT := Vector2(750, 204)
-const CLEAR := { &"near": true, &"wardrobe": false, &"far": false }
+## A cabinet 96 px from the far shooter, a sofa 130 px from the sofa shooter (its body 300 px past
+## it) and a wardrobe 150 px from the far-wardrobe shooter: none is within the old 60 px reach.
+const FAR_CABINET_AT := Vector2(400, 204)
+const SOFA_AT := Vector2(550, 340)
+const FAR_WARDROBE_AT := Vector2(750, 320)
+const CLEAR := {
+	&"near": true, &"wardrobe": false, &"far": true, &"sofa": true, &"far_wardrobe": false,
+}
+## The pose each shooter rises to (the duck for those it never rises for).
+const POSE := {
+	&"near": BodyHeights.STAND, &"wardrobe": BodyHeights.DUCK, &"far": BodyHeights.STAND,
+	&"sofa": BodyHeights.FIRE_OVER, &"far_wardrobe": BodyHeights.DUCK,
+}
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "The AI's rise line and the body's rise agree",
-		"description": "The AI gate for firing from behind cover says yes only where the ducked "
-			+ "body, firing, rises to a pose whose rounds reach the body beyond: a cabinet at its "
-			+ "face (it rises to stand), and no for a wardrobe and for a cabinet past the reach.",
+		"name": "The AI's rise line and the body's rise agree, near cover and far",
+		"description": "The AI gate and the spot line say yes only where the ducked body, "
+			+ "firing, rises to a pose whose rounds reach the body beyond: a cabinet at its face "
+			+ "or 96 px on (stand), a sofa 130 px ahead (fire over), and no for a wardrobe, "
+			+ "at its face or 150 px on (no reach limit: it stays ducked).",
 		"tags": ["ai", "perception", "posture", "rise", "cover", "3d"],
 		"timeout": 15.0,
 	}
@@ -43,13 +56,13 @@ func configure(s: TestSetup) -> void:
 		straight[gun]["spread_deg"] = 0.0
 		straight[gun]["automatic"] = true
 	s.set_static(GunConfig, &"guns", straight)
-	s.object(&"near_cabinet", "filing_cabinet", Vector2(250, 250))
-	s.object(&"wardrobe", "wardrobe", Vector2(500, 250))
-	# Anchored, so the rounds it stops do not shove it aside: shoved, it would uncover the head the
-	# shooter then sees and aims over it.
-	var far_cabinet: Dictionary = WorldGen.object_definition("filing_cabinet").duplicate()
-	far_cabinet["anchored"] = true
-	s.object(&"far_cabinet", far_cabinet, FAR_CABINET_AT)
+	s.object(&"near_cabinet", "filing_cabinet", Vector2(100, 250))
+	s.object(&"wardrobe", "wardrobe", Vector2(250, 250))
+	s.object(&"far_cabinet", "filing_cabinet", FAR_CABINET_AT)
+	var sofa := WorldGen.object_definition("sofa").duplicate()
+	sofa["size"] = Vector2(50, 120)
+	s.object(&"sofa", sofa, SOFA_AT, { "facing": Vector2.UP })
+	s.object(&"far_wardrobe", "wardrobe", FAR_WARDROBE_AT)
 	for lane: StringName in SHOOTERS:
 		s.actor(
 			StringName("shooter_%s" % lane),
@@ -66,10 +79,6 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	t.check(
-		SHOOTERS[&"far"].distance_to(FAR_CABINET_AT) - 20.0 > CharacterRiseConfig.reach,
-		"premise: the far cabinet's face is past the reach",
-	)
 	var vision := AgentVision.new()
 	for lane: StringName in SHOOTERS:
 		t.require(
@@ -86,6 +95,16 @@ func run(t: TestContext) -> void:
 			_shooter(t, lane), _target(t, lane), _target(t, lane).global_position
 		)
 		t.expect_eq(gate[lane], CLEAR[lane], "the AI's rise line toward the %s body" % lane)
+		t.expect_eq(
+			vision.fire_stop_from(
+				t.world.get_world_2d().direct_space_state,
+				_shooter(t, lane).global_position,
+				_target(t, lane).global_position,
+				_target(t, lane),
+			).is_empty(),
+			CLEAR[lane],
+			"and the line of the spot it stands at, toward the %s body" % lane,
+		)
 		t.puppet(StringName("shooter_%s" % lane)).hold_fire(true)
 	await t.seconds(1.2)
 	for lane: StringName in SHOOTERS:
@@ -93,11 +112,13 @@ func run(t: TestContext) -> void:
 		t.expect_eq(risen, CLEAR[lane], "the %s shooter rises exactly where the AI would" % lane)
 		var hits := _hits(t, _target(t, lane))
 		t.expect_eq(hits > 0, CLEAR[lane], "and its rounds reach the body (%d) just then" % hits)
-	t.expect_eq(
-		_shooter(t, &"near").movement.body_posture(),
-		BodyHeights.STAND,
-		"the cabinet at its face is fired over standing, a fire-over muzzle hitting it",
-	)
+	for lane: StringName in SHOOTERS:
+		if CLEAR[lane]:
+			t.expect_eq(
+				_shooter(t, lane).movement.body_posture(),
+				POSE[lane],
+				"the %s shooter fires from the lowest pose that clears" % lane,
+			)
 
 
 func _shooter(t: TestContext, lane: StringName) -> Node:

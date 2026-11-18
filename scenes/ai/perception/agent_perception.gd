@@ -450,9 +450,16 @@ func fill_goal(goal: String) -> String:
 
 ## Whether the NPC can fire at `target` (a plain world `point` when null) from here: a clear 3D line
 ## from its muzzle, at the posture it fires in (ducked: the pose its shot would rise to), to where
-## it aims at the target, `AgentVision.fire_line_clear`. The behaviour gates FIRING on this.
+## it aims at the target, `AgentVision.fire_line_clear`. Any living body in the line holds the shot
+## (an ally, a bystander, the human player) but a known hostile, which a round may hit. The
+## behaviour gates FIRING on this.
 func has_fire_line_to(target: Node2D, point: Vector2) -> bool:
-	return sight.vision.fire_line_clear(_character, target, point)
+	return sight.vision.fire_line_clear(_character, target, point, _is_known_hostile)
+
+
+## Whether a round may hit `body`: a character this NPC knows as hostile.
+func _is_known_hostile(body: Node) -> bool:
+	return contacts.hostility.is_hostile(body.get_instance_id(), _memory)
 
 
 ## Whether the NPC has a clear line (no wall or solid furniture between) to a world `point` — the
@@ -470,7 +477,8 @@ func has_line_to(target: Node2D, point: Vector2) -> bool:
 
 ## Candidate standing points on a ring around the NPC, classified for peek-and-cover against the
 ## engaged contact's KNOWN position `tgt_pos`: `fire` points have a clear line to it; `cover` points
-## are shielded from it by a high-coverage solid. Both nearest-first (see agent_tactics.gd); the
+## are shielded from it by a piece whose real top hides a ducked head from it
+## (`AgentVision.hiding_piece`). Both nearest-first (see agent_tactics.gd); the
 ## ring has `combat_ring_count` points.
 func combat_spots(target: Node2D, tgt_pos: Vector2, radius: float) -> Dictionary:
 	var exclude := [_character.get_rid()]

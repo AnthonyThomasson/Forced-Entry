@@ -33,12 +33,14 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Hiding.von_out(s)
-	# Two rooms with a wall between and no door, one outer door each at the far end (over 600 px
-	# from the invaders: out of reach in a fuse).
+	# Two rooms with a wall between and no door, one outer door each at the far end. Each room ends
+	# 360 px past its hostile, inside a frag's 370 px zone: no spot out of the zone lies in it, so
+	# wherever the invader walks (an advance brings it past the hostile's cover) there is no way
+	# out of the blast but behind furniture that shields it.
 	s.layout([
-		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 900, 300) },
-		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 900, 300) },
-	], [{ "pos": Vector2(880, 0), "width": 60.0 }, { "pos": Vector2(880, 600), "width": 60.0 }])
+		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 720, 300) },
+		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 720, 300) },
+	], [{ "pos": Vector2(700, 0), "width": 60.0 }, { "pos": Vector2(700, 600), "width": 60.0 }])
 	s.object(&"table", Hiding.low_cover("coffee_table", 52.0), Vector2(230, 150))
 	s.object(&"couch", Hiding.low_cover("sofa"), Vector2(230, 450))
 	Flank.rules(

@@ -214,9 +214,7 @@ func exposure_text(
 		text += " %s is blinded by a flash and cannot see you." % t["name"]
 	if t["visible"] and _v.aim_text(t, ctx["self_pos"], []) == "aiming at you":
 		text += " They are aiming at you."
-	var others: Array = _tactics.exposed_to(
-		ctx["space"], ctx["self_pos"], ctx["hostiles"], t["id"],
-	)
+	var others: Array = _tactics.exposed_to(ctx, ctx["self_pos"], ctx["hostiles"], t["id"])
 	if not others.is_empty():
 		text += " You are also exposed to the fire of %s." % ", ".join(others)
 	return text

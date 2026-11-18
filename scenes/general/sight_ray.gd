@@ -149,25 +149,31 @@ static func exclude_of(target: Object) -> Array:
 ## with no twins hides nothing: all the points). The query the aim reads (a shot aims at the middle
 ## of the part that shows).
 static func visible_parts(viewer: Node2D, target: Node2D) -> PackedFloat32Array:
+	return parts_at(viewer, eye_of(viewer), target, target.global_position)
+
+
+## `visible_parts` for `target` taken to stand at plan point `at` (where the viewer last knew it,
+## not where it is) and the viewer's eye at the height `eye` px (the posture it will fire in, not
+## the one it is in).
+static func parts_at(
+	viewer: Node2D,
+	eye: float,
+	target: Node2D,
+	at: Vector2,
+) -> PackedFloat32Array:
 	var heights := target_heights(target)
 	var space := TwinSpace.space_of(viewer)
 	if space == null:
 		return heights
 	return visible_heights(
-		space, eye_point(viewer), target.global_position, heights, exclude_of(target)
+		space, PlanSpace.lift(viewer.global_position, eye), at, heights, exclude_of(target)
 	)
 
 
 ## The middle height (px) of what `viewer` sees of `target` (the mean of `visible_parts`), -1 when
 ## it sees none of it.
 static func visible_centre(viewer: Node2D, target: Node2D) -> float:
-	var seen := visible_parts(viewer, target)
-	if seen.is_empty():
-		return -1.0
-	var sum := 0.0
-	for height in seen:
-		sum += height
-	return sum / seen.size()
+	return _centre(visible_parts(viewer, target))
 
 
 ## The height (px) `viewer` aims at on `target`: the middle of the part of it that shows
@@ -175,10 +181,26 @@ static func visible_centre(viewer: Node2D, target: Node2D) -> float:
 ## (a body no point of which shows: the round meets what hides it). The one aim an NPC's shot and
 ## its line of fire share (#194 D8).
 static func aim_height(viewer: Node2D, target: Node2D) -> float:
-	var centre := visible_centre(viewer, target)
+	return aim_at(viewer, eye_of(viewer), target, target.global_position)
+
+
+## `aim_height` for `target` taken to stand at plan point `at` and the viewer's eye at `eye` px: the
+## aim of a gate that judges a shot before the body has risen to it, from the last-known point.
+static func aim_at(viewer: Node2D, eye: float, target: Node2D, at: Vector2) -> float:
+	var centre := _centre(parts_at(viewer, eye, target, at))
 	if centre >= 0.0:
 		return centre
 	return BodyHeights.sight_points(posture_of(target))[1]
+
+
+## The mean of `heights`, -1 for none.
+static func _centre(heights: PackedFloat32Array) -> float:
+	if heights.is_empty():
+		return -1.0
+	var sum := 0.0
+	for height in heights:
+		sum += height
+	return sum / heights.size()
 
 
 ## Whether the surface of the 2D body a twin stands for says it is `transparent`.

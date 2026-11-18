@@ -34,7 +34,7 @@
 	  character; a `transparent` surface and the rids in `exclude` are looked through), {} when clear.
 	  `sees(space3d, eye: Vector3, to: Vector2, heights, exclude := []) -> bool` (first clear point ends the ask), `visible_heights(...)`,
 	  `eye_point(viewer)`, `target_heights(target)` (a character's `BodyHeights.sight_points` at its posture), `exclude_of(target)`.
-	  `visible_parts(viewer, target) -> PackedFloat32Array` (heights of the target's points the eye sees), `visible_centre(viewer, target) -> float` (their mean, -1 for none), `aim_height(viewer, target) -> float` (that, else the torso). **The plan cast** (the player's cone):
+	  `visible_parts(viewer, target) -> PackedFloat32Array` (heights of its points the eye sees), `visible_centre(viewer, target) -> float` (their mean, -1 for none), `aim_height(viewer, target) -> float` (that, else the torso); `parts_at` / `aim_at(viewer, eye, target, at)`: from an eye, target at `at`. **The plan cast** (the player's cone):
 	  `SightRay.plan_hit(space2d, from, to, exclude, see_over) -> Dictionary` is the first `SOLID` collider taller than `see_over` (the
 	  eye, px); `top_of(collider) -> float` its twin's top (0 for a `transparent` surface or a character, `INF` with no twin). An instance (`looks_over`, `rated`, `leave_out(rids)`, `cast(...)`) serves Vision's cone.
     - `SeenArea` (`general/seen_area.gd`, static holder): what the view shows live. Vision writes `set_area(polygons: Array,
@@ -48,7 +48,7 @@
 	  `shoulder(posture)`, the hit-zone bands `zones(posture) -> [[zone, from, to], ...]` (`feet`, `legs`, `torso`, `head`, touching, feet up) and
 	  `zone_at(posture, height) -> StringName` (where a hit at that height falls), `sight_points(posture) -> PackedFloat32Array` (the heights sight looks at on a body: head at the eye,
 	  chest, hips; `SightRay`). The values are `BodyHeights.postures` (metres, tunable, `set_static`); the research is
-	  `docs/research/3d-cover-heights.md`. `height_share(posture)`: head top over the standing one's (the drawn scale). A bullet reads `movement.body_posture()`'s muzzle (`weapon.rise`), the aim at a torso band and a hit's `zone_at`; sight the eye and `sight_points`; the AI's cover picking still reads the 0 to 100 `coverage`; `MirrorConfig.character_height` is
+	  `docs/research/3d-cover-heights.md`. `height_share(posture)`: head top over the standing one's (the drawn scale). A bullet reads `movement.body_posture()`'s muzzle (`weapon.rise`), the aim at a torso band and a hit's `zone_at`; sight the eye and `sight_points`; `MirrorConfig.character_height` is
 	  its standing head top. Test: `tests/general/body_heights_test.gd`.
     - `PlanSpace` (`general/plan_space.gd`, static holder): the plan-space helper. A `Vector2` in the AI, world generation, navigation and most tests means plan space, the floor
 	  plan `(x, y)` = `(x, z)` on the 3D ground; `PlanSpace.lift(plan, height := 0.0) -> Vector3` is `(x, height, y) * RenderConfig.unit`, `plan_of(point) -> Vector2` and

@@ -13,6 +13,7 @@ extends RefCounted
 ## A target's FLANKS are measured in its own frame: its front is where it was last seen facing (when
 ## recent), else the side facing this NPC. Left/right are the target's own left/right.
 
+const AgentCover := preload("res://scenes/ai/perception/agent_cover.gd")
 const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
 ## The flanking sides offered, as degrees off the target's front (screen space, +y down).
 const SIDES := { "left": -90.0, "right": 90.0, "rear": 180.0 }
@@ -31,6 +32,9 @@ const TAKEN := 32.0
 ## How far (px) from an ally lies the spot beside it that the NPC falls back to: a body clear of it
 ## (the stack's spacing).
 const BESIDE_ALLY := 44.0
+## The snapshot cache's buckets of kept fire lines (by target), standing and ducked.
+const LINES := "fire_lines"
+const DUCKED_LINES := "fire_lines_ducked"
 
 ## The perception's sight sense; owner of the ray queries.
 var vision: RefCounted
@@ -77,35 +81,33 @@ func blocker(space: PhysicsDirectSpaceState2D, a: Vector2, b: Vector2, exclude: 
 	return vision.raycast(space, a, b, exclude).get("collider")
 
 
-## Whether `obj` is tall enough to hide behind: a solid whose top (the highest part of its twin,
-## `SightRay.top_of`) reaches a ducked head (`BodyHeights.head_top(DUCK)`), so a body
-## crouched behind it is out of the line (a sofa's back, a counter, a wall; not a coffee table nor a
-## dining table, which leave the head showing). A solid with no twin counts as a wall. A character
-## is never cover: it is someone to shoot or protect, and it moves.
-static func is_cover(obj: Object) -> bool:
-	if (obj == null
-			or (obj is Node and obj.is_in_group(&"characters"))
-			or not obj.has_method("get_surface")):
-		return false
-	return SightRay.top_of(obj) >= BodyHeights.head_top(BodyHeights.DUCK)
-
-
-## Whether a round from `a` cannot reach the body at `b` (`target`, null for a standing one): the
-## real line of fire, from a standing muzzle (`AgentVision.fire_stop_from`), over what is low and
-## stopped by what is tall. What every fire, exposure and hiding judgment asks, where `blocked` is a
-## wall's plain line (where a walk may go). Asked once per snapshot for the same line: candidates
-## are annotated, ringed and watched again from the same points.
+## Whether a round from `a` cannot reach the body at `b` (`target`, null for a standing one; a
+## `posture` of `BodyHeights.DUCK` judges a ducked body, the one that takes cover there): the real
+## line of fire, from a standing muzzle (`AgentVision.fire_stop_from`), over what is low and stopped
+## by what is tall. What every fire, exposure and hiding judgment asks, where `blocked` is a wall's
+## plain line (where a walk may go). Asked once per snapshot for the same line: candidates are
+## annotated, ringed and watched again from the same points (a hit is counted in the tally).
 func _shot_blocked(
 	ctx: Dictionary,
 	a: Vector2,
 	b: Vector2,
 	target: Variant = null,
+	posture: StringName = BodyHeights.NONE,
 ) -> bool:
-	var cache := _cache_bucket(ctx, "fire_lines")
-	var key := [a, b, target.get_instance_id() if is_instance_valid(target) else 0]
-	if not cache.has(key):
-		cache[key] = not vision.fire_stop_from(ctx["space"], a, b, target as Node2D).is_empty()
-	return cache[key]
+	var name := LINES if posture == BodyHeights.NONE else DUCKED_LINES
+	var bucket := _cache_bucket(ctx, name)
+	var who: int = target.get_instance_id() if is_instance_valid(target) else 0
+	if not bucket.has(who):
+		bucket[who] = {}
+	var lines: Dictionary = bucket[who]
+	var key := Vector4(a.x, a.y, b.x, b.y)
+	if lines.has(key):
+		_count_hit(ctx, name)
+		return lines[key]
+	var blocked_here := _shot_blocked_in(ctx["space"], a, b, target, posture)
+	if ctx.has("tactics_cache"):
+		lines[key] = blocked_here
+	return blocked_here
 
 
 ## `_shot_blocked` for a caller with only a space (no snapshot to keep the answer in).
@@ -114,8 +116,19 @@ func _shot_blocked_in(
 	a: Vector2,
 	b: Vector2,
 	target: Variant = null,
+	posture: StringName = BodyHeights.NONE,
 ) -> bool:
-	return not vision.fire_stop_from(space, a, b, target as Node2D).is_empty()
+	return not vision.fire_stop_from(space, a, b, target as Node2D, posture).is_empty()
+
+
+## Count one answer the snapshot's cache kept in the bucket `name` (`tactics_cache["hits"]`).
+func _count_hit(ctx: Dictionary, name: String) -> void:
+	var root: Variant = ctx.get("tactics_cache")
+	if root == null:
+		return
+	var hits: Dictionary = root.get("hits", {})
+	hits[name] = hits.get(name, 0) + 1
+	root["hits"] = hits
 
 
 ## A readable name for a blocking object: a furniture piece's own name ("fridge"), a character's
@@ -137,7 +150,7 @@ func object_label(obj: Object) -> String:
 ## (`watch_arc`): a route behind the threat's back is not in its view, however clear the line.
 ## Without one, only the line counts.
 func _route_exposed(
-	space: PhysicsDirectSpaceState2D,
+	ctx: Dictionary,
 	path: PackedVector2Array,
 	threat: Vector2,
 	front := NAN,
@@ -151,7 +164,7 @@ func _route_exposed(
 	for i in ROUTE_SAMPLES:
 		var sample := _along(path, total * (i + 1) / (ROUTE_SAMPLES + 1))
 		var in_sight := ((is_nan(front) or _looking_at(threat, front, sample, half))
-				and not _shot_blocked_in(space, threat, sample))
+				and not _shot_blocked(ctx, threat, sample))
 		seen += 1 if in_sight else 0
 		missed += 0 if in_sight else 1
 		# Settled once more than half are seen, or too few are left to be.
@@ -218,7 +231,13 @@ func combat_spots(
 			continue
 		if not _shot_blocked_in(space, p, tgt_pos, tgt.get("node")):
 			fire.append(p)
-		if is_cover(blocker(space, p, tgt_pos, exclude)):
+		if vision.hiding_piece(
+			space,
+			p,
+			tgt_pos,
+			AgentCover.eye_of(tgt.get("node")),
+			exclude,
+		) != null:
 			cover.append(p)
 	fire.sort_custom(
 		func(a, b): return a.distance_squared_to(self_pos) < b.distance_squared_to(self_pos),
@@ -229,35 +248,57 @@ func combat_spots(
 	return { "fire": fire, "cover": cover }
 
 
-## The cover-grade object that shields a spot within one step of `p` from `threat`, or "" when none.
+## The piece that hides a ducked body at `p`, or a clear step from it, from `threat`
+## (`AgentVision.hiding_piece`, from an eye `eye` px up), or "" when none does.
 func _cover_near(
 	space: PhysicsDirectSpaceState2D,
 	p: Vector2,
 	threat: Vector2,
 	exclude: Array,
+	eye := -1.0,
 ) -> String:
 	for i in 9:
 		var q := p if i == 0 else p + Vector2.RIGHT.rotated(TAU * i / 8.0) * 36.0
-		var obj := blocker(space, q, threat, exclude)
-		if is_cover(obj):
-			return object_label(obj)
+		if i > 0 and blocked(space, p, q, exclude):
+			continue  # A step into a piece or through a wall is no step.
+		var piece: Object = vision.hiding_piece(space, q, threat, eye, exclude)
+		if piece != null:
+			return object_label(piece)
 	return ""
 
 
-## `_cover_near` for a point and hostile, reused when the same candidate is annotated again or
-## another target's watch test asks it. Exclusions are part of the key; nothing leaves the snapshot.
-func cover_cached(ctx: Dictionary, p: Vector2, threat: Vector2, ex: Array) -> String:
-	var cache := _cache_bucket(ctx, "cover")
-	var key := [p, threat, ex]
-	if not cache.has(key):
-		cover_queries += 1
-		cache[key] = _cover_near(ctx["space"], p, threat, ex)
-	return cache[key]
+## `_cover_near` for a point and hostile (`node`, whose posture sets the eye the line starts at; a
+## standing one's for none), reused when the same candidate is annotated again or another target's
+## watch test asks it. Nothing leaves the snapshot. In a world with twin space the answer does not
+## depend on `ex` (a body is no cover), so it is not part of the key there.
+func cover_cached(
+	ctx: Dictionary,
+	p: Vector2,
+	threat: Vector2,
+	ex: Array,
+	node: Variant = null,
+) -> String:
+	var eye := AgentCover.eye_of(node)
+	var bucket := _cache_bucket(ctx, "cover")
+	var twinned := TwinSpace.space_for(ctx["space"]) != null
+	var group: Variant = ex
+	if twinned:
+		group = eye
+	if not bucket.has(group):
+		bucket[group] = {}
+	var kept: Dictionary = bucket[group]
+	var key := Vector4(p.x, p.y, threat.x, threat.y)
+	if kept.has(key):
+		_count_hit(ctx, "cover")
+		return kept[key]
+	cover_queries += 1
+	kept[key] = _cover_near(ctx["space"], p, threat, ex, eye)
+	return kept[key]
 
 
 ## Names of the known hostiles other than `skip_id` with a clear line to `p` within shooting reach.
 func exposed_to(
-	space: PhysicsDirectSpaceState2D,
+	ctx: Dictionary,
 	p: Vector2,
 	hostiles: Array,
 	skip_id: int,
@@ -266,7 +307,7 @@ func exposed_to(
 	for h in hostiles:
 		if h["id"] == skip_id or (h["pos"] as Vector2).distance_to(p) > shoot_range * 1.5:
 			continue
-		if not _shot_blocked_in(space, h["pos"], p):
+		if not _shot_blocked(ctx, h["pos"], p):
 			out.append(h["name"])
 	return out
 
@@ -359,7 +400,7 @@ func _watched_in_open(
 		if (_looking_at(hpos, front, p, half)
 				and hpos.distance_to(p) <= shoot_range * 1.5
 				and not _shot_blocked(ctx, hpos, p)
-				and cover_cached(ctx, p, hpos, ex) == ""):
+				and cover_cached(ctx, p, hpos, ex, h.get("node")) == ""):
 			return h["name"]
 		if path.size() >= 2 and _eyes_route(ctx, h, front, path, ex):
 			return h["name"]
@@ -379,7 +420,7 @@ func _eyes_route(
 	var mid := _along(path, NavBuilder.path_length(path) * 0.5)
 	return (_looking_at(hpos, front, mid, deg_to_rad(watch_arc) * 0.5)
 			and _covered_from(ctx, h, ex)
-			and _route_exposed(ctx["space"], path, hpos))
+			and _route_exposed(ctx, path, hpos))
 
 
 ## Whether this NPC is hidden or covered from hostile `h` where it stands. That does not depend on
@@ -392,7 +433,7 @@ func _covered_from(ctx: Dictionary, h: Dictionary, ex: Array) -> bool:
 	var hpos: Vector2 = h["pos"]
 	var self_pos: Vector2 = ctx["self_pos"]
 	var covered: bool = (_shot_blocked(ctx, hpos, self_pos)
-			or cover_cached(ctx, self_pos, hpos, ex) != "")
+			or cover_cached(ctx, self_pos, hpos, ex, h.get("node")) != "")
 	covered_from[h["id"]] = covered
 	return covered
 
@@ -425,7 +466,7 @@ func flank_sides(ctx: Dictionary, target: Dictionary, front: float) -> Array:
 		var a := { "side": side }
 		a.merge(_annotate(ctx, target, p, ex, path))
 		a.merge({
-			"route_exposed": _route_exposed(ctx["space"], path, tpos, front),
+			"route_exposed": _route_exposed(ctx, path, tpos, front),
 			"crosses": _route_crosses(path, ctx["hostiles"]),
 			"held_by": side_holder(target, front, side, ctx["allies"], ctx["callouts"]),
 			"heading_toward": vel.length() >= still_speed
@@ -511,24 +552,37 @@ func _self_combat_spots(
 	radius: float,
 	node: Variant = null,
 ) -> Dictionary:
-	var points := _self_ring_points(ctx, ex, radius)
 	var fire: Array = []
-	var cover: Array = []
-	for p: Vector2 in points:
+	for p: Vector2 in _self_ring_points(ctx, ex, radius):
 		if not _shot_blocked(ctx, p, tpos, node):
 			fire.append(p)
-		if is_cover(blocker(ctx["space"], p, tpos, ex)):
-			cover.append(p)
 	# The same nearest-first sort as `combat_spots`: ring points are equidistant, so the sort's
 	# own tie order is part of which spot comes first.
 	var self_pos: Vector2 = ctx["self_pos"]
 	fire.sort_custom(
 		func(a, b): return a.distance_squared_to(self_pos) < b.distance_squared_to(self_pos),
 	)
+	return { "fire": fire, "cover": _self_cover_spots(ctx, tpos, ex, radius, node) }
+
+
+## The points of a self-centred ring that hide a ducked body from the hostile at `tpos`
+## (`hiding_piece`), nearest first.
+func _self_cover_spots(
+	ctx: Dictionary,
+	tpos: Vector2,
+	ex: Array,
+	radius: float,
+	node: Variant = null,
+) -> Array:
+	var cover: Array = []
+	for p: Vector2 in _self_ring_points(ctx, ex, radius):
+		if vision.hiding_piece(ctx["space"], p, tpos, AgentCover.eye_of(node), ex) != null:
+			cover.append(p)
+	var self_pos: Vector2 = ctx["self_pos"]
 	cover.sort_custom(
 		func(a, b): return a.distance_squared_to(self_pos) < b.distance_squared_to(self_pos),
 	)
-	return { "fire": fire, "cover": cover }
+	return cover
 
 
 ## The ring points the NPC sees with `ex` excluded. A shared line that hit nothing is clear. One
@@ -640,7 +694,7 @@ func walk_leg(ctx: Dictionary, point: Vector2, route: Callable, max_len: float) 
 ## then a hidden route, then the shortest.
 func _sector_spots(ctx: Dictionary, target: Dictionary, candidates: Array, ex: Array) -> Array:
 	var self_pos: Vector2 = ctx["self_pos"]
-	var sectors := _by_sector(ctx, target["pos"], candidates, ex)
+	var sectors := _by_sector(ctx, target, candidates, ex)
 	var spots: Array = []
 	for sector in sectors:
 		var group: Array = sectors[sector]
@@ -666,7 +720,8 @@ func _sector_spots(ctx: Dictionary, target: Dictionary, candidates: Array, ex: A
 ## The `candidates` in shooting range of `tpos` and not under the NPC's feet, by 8-way sector round
 ## it (sector -> `[{ point, cover }]`, in candidate order). Cheap facts first (range, sector,
 ## cover): the route checks run later, only until a sector has its spot.
-func _by_sector(ctx: Dictionary, tpos: Vector2, candidates: Array, ex: Array) -> Dictionary:
+func _by_sector(ctx: Dictionary, target: Dictionary, candidates: Array, ex: Array) -> Dictionary:
+	var tpos: Vector2 = target["pos"]
 	var self_pos: Vector2 = ctx["self_pos"]
 	var sectors := {}
 	for p in candidates:
@@ -675,7 +730,9 @@ func _by_sector(ctx: Dictionary, tpos: Vector2, candidates: Array, ex: Array) ->
 		var sector := posmod(int(round((p - tpos).angle() / (TAU / 8.0))), 8)
 		if not sectors.has(sector):
 			sectors[sector] = []
-		sectors[sector].append({ "point": p, "cover": cover_cached(ctx, p, tpos, ex) })
+		sectors[sector].append({
+			"point": p, "cover": cover_cached(ctx, p, tpos, ex, target.get("node")),
+		})
 	return sectors
 
 
@@ -685,7 +742,11 @@ func _ambush_from(ctx: Dictionary, target: Dictionary, cover_spots: Array, ex: A
 	for p in cover_spots:
 		var amb = _safe_spot(ctx, target, p, ex)
 		if amb != null:
-			amb["cover"] = object_label(blocker(ctx["space"], p, target["pos"], ex))
+			amb["cover"] = object_label(
+				vision.hiding_piece(
+					ctx["space"], p, target["pos"], AgentCover.eye_of(target.get("node")), ex
+				)
+			)
 			return amb
 	return {}
 
@@ -698,7 +759,7 @@ func _safe_spot(ctx: Dictionary, target: Dictionary, p: Vector2, ex: Array) -> V
 	if _route_crosses(path, ctx["hostiles"]) != "" or _watched_in_open(ctx, p, path) != "":
 		return null
 	var a := _annotate(ctx, target, p, ex, path)
-	a["route_exposed"] = _route_exposed(ctx["space"], path, target["pos"])
+	a["route_exposed"] = _route_exposed(ctx, path, target["pos"])
 	return a
 
 
@@ -718,7 +779,7 @@ func advance_positions(ctx: Dictionary, target: Dictionary) -> Array:
 			out.append(a)
 	var rush := _annotate(ctx, target, NavBuilder.snap(ctx["map"], tpos), ex)
 	rush["rush"] = true
-	rush["route_exposed"] = _route_exposed(ctx["space"], path, tpos)
+	rush["route_exposed"] = _route_exposed(ctx, path, tpos)
 	out.append(rush)
 	return out
 
@@ -769,9 +830,7 @@ func _retreat_candidates(ctx: Dictionary, threats: Array, rooms: Array, ex: Arra
 	if threats.is_empty():
 		return candidates
 	var nearest: Vector2 = threats[0]
-	for p in combat_spots(
-			ctx["space"], self_pos, { "pos": nearest }, ex, combat_ring_radius * 2.0
-	)["cover"]:
+	for p in _self_cover_spots(ctx, nearest, ex, combat_ring_radius * 2.0):
 		# A ring point off the navmesh is walked to its edge.
 		candidates.append({ "point": NavBuilder.snap(ctx["map"], p), "room": "" })
 	for a in ctx["allies"]:
@@ -781,11 +840,12 @@ func _retreat_candidates(ctx: Dictionary, threats: Array, rooms: Array, ex: Arra
 	return candidates
 
 
-## Whether `p` is hidden from every one of `threats` (a wall or solid piece between), true with
-## none.
+## Whether a body at `p` is hidden from every one of `threats` (a wall or solid piece between), true
+## with none. The body is a ducked one: a retreat takes cover there, so a piece low enough to shoot
+## over a standing body but tall enough to hide a crouched one counts.
 func _hidden_from(ctx: Dictionary, threats: Array, p: Vector2) -> bool:
 	for t in threats:
-		if not _shot_blocked(ctx, t, p):
+		if not _shot_blocked(ctx, t, p, null, BodyHeights.DUCK):
 			return false
 	return true
 
@@ -812,7 +872,7 @@ func _annotate_retreat(
 	c["cover"] = cover
 	c["route_len"] = route_len
 	c["route_exposed"] = (not threats.is_empty()
-			and _route_exposed(ctx["space"], path, threats[0]))
+			and _route_exposed(ctx, path, threats[0]))
 	return true
 
 
@@ -855,10 +915,10 @@ func _annotate(
 	return {
 		"point": p,
 		"clear_shot": not _shot_blocked(ctx, p, tpos, target.get("node")),
-		"cover": cover_cached(ctx, p, tpos, ex),
+		"cover": cover_cached(ctx, p, tpos, ex, target.get("node")),
 		"route_len": NavBuilder.path_length(path),
 		"route_exposed": false,
-		"exposed_to": exposed_to(ctx["space"], p, ctx["hostiles"], target["id"]),
+		"exposed_to": exposed_to(ctx, p, ctx["hostiles"], target["id"]),
 	}
 
 

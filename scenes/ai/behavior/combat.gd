@@ -7,9 +7,9 @@ extends RefCounted
 ## fire cooldown and that cycle's phase and timers, and reads its tunables live from the NPC's
 ## `tuning.combat`. `Behavior` decides WHICH fight is on (it holds the engaged contact) and passes
 ## the target in each call; this class never chooses a target and reads the world only through the
-## perception (`has_line_to`, `combat_spots`, `note_engaged`, and its `confinement`: where it may
-## act) and the character's public contract. It knows no gun from another: the gun it
-## fights with is `Character.inventory.gun_slot()`.
+## perception (`has_line_to`, `has_fire_line_to`, `combat_spots`, `note_engaged`, and its
+## `confinement`: where it may act) and the character's public contract. It knows no gun from
+## another: the gun it fights with is `Character.inventory.gun_slot()`.
 
 ## The gun is empty: the shot was not taken (a click is not a shot), so the caller should re-decide.
 signal dry
