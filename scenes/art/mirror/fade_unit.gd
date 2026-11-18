@@ -6,9 +6,6 @@ extends RefCounted
 ## progress `faded` (0 whole, 1 faded) the fade steps, and the level last written to the instances
 ## (`WallFadeConfig.steps` is whole), so the instances are written only when that changes.
 
-## How far faded a unit is when its shadow goes (and returns).
-const SHADOW_OFF_AT := 0.5
-
 ## The instances faded together and the node the box is placed by (the piece's mesh, or a wall's
 ## segment) with the box in that node's frame.
 var parts: Array[GeometryInstance3D] = []
@@ -65,7 +62,7 @@ func place() -> void:
 ## their shadows off or back when `faded` passes a half; whether it wrote. A level is a step of
 ## `WallFadeConfig.steps`, the shader's own resolution.
 func apply() -> bool:
-	var wrote := shadow.apply(parts, faded <= SHADOW_OFF_AT)
+	var wrote := shadow.apply(parts, faded <= FadeHold.HELD_AT)
 	hold.update(faded, box)
 	var steps := maxi(WallFadeConfig.steps, 1)
 	var wanted := roundi(lerpf(1.0, WallFadeConfig.faded_amount, faded) * float(steps))

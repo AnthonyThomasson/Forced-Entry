@@ -6,7 +6,7 @@ extends RefCounted
 ## see-through. A unit is held while it is more than `HELD_AT` faded, and no longer. Nothing is
 ## written per frame: `FadedTwins` is told when the unit passes the half, and when it moves.
 
-## How far faded a unit is when the aim looks through it.
+## How far faded a unit is when the aim looks through it (and its shadow goes: `FadeUnit.apply`).
 const HELD_AT := 0.5
 
 ## The body and the unit's index in it, and whether `FadedTwins` has it held now.
