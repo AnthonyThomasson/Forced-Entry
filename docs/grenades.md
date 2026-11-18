@@ -260,8 +260,10 @@ and every plan's spot is the one the NPC's own search, nothing shared, picks on 
 barricaded in a room, and the room the shots came from; R13 and R15: throw spots.)* A COMBAT tactic (decision-tree id `grenade`), offered when the NPC
 carries a grenade and it can lob onto the bound hostile's last-known spot, within throw range (550 px) with a clear throw path (no wall or tall furniture
 between; low furniture is fine), from where it stands or from a **throw spot** a short walk away (below), and
-- the spot is **hidden from its line of fire** (behind cover, in the sense that a bullet would be stopped: low furniture, a corner): "frag {target}
-  behind their cover", or
+- the spot is **hidden from its line of fire**: the NPC knows the hostile is there (seen, heard or told of, and last known at the spot) but has no
+  line to it (the real 3D line of `docs/gaze-and-fire.md` W2, from a standing muzzle to the aimed part: stopped by a corner, a wall, a piece tall
+  enough for a ducked body to hide behind, glass), so a hostile standing behind a table or a counter is seen over and shot, and one crouched
+  behind a sofa that the NPC saw duck is not: "frag {target} behind their cover", or
 - the spot is **in a room the NPC is outside of** (outdoors, or in another room), even with a line of fire: a defender barricaded in a room, holding
   its doorway or crouched behind cover inside, is grenaded, not only shot at (R7): "frag {target} in the kitchen". The state's exposure line says it
   ("h holds the kitchen, a room you are outside of. You can throw a frag grenade onto their spot.") and the tactic's desc reads "h holds a room you are

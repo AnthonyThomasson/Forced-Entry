@@ -9,6 +9,7 @@ extends GameTest
 ##   the couch at its elbow: it must crouch behind it from the throw to the bang, take no blast, and
 ##   then be on its pistol.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
@@ -31,12 +32,13 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.layout([
 		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 900, 300) },
 		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 900, 300) },
 	], [{ "pos": Vector2(880, 0), "width": 60.0 }, { "pos": Vector2(880, 600), "width": 60.0 }])
-	s.object(&"desk", "desk", Vector2(330, 150))
-	s.object(&"couch", "sofa", Vector2(600, 450))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(430, 150))
+	s.object(&"couch", Hiding.low_cover("sofa"), Vector2(600, 450))
 	Flank.rules(
 		s,
 		[
@@ -58,6 +60,10 @@ func run(t: TestContext) -> void:
 	var near := t.actor(&"near")
 	Probe.arm(far, 0, 1)
 	Probe.arm(near, 0, 1)
+	if not await Hiding.duck_after_seen(
+			t, [&"far_h", &"near_h"], [&"far", &"near"]
+	):
+		return
 	if not t.require(
 			Probe.count(far, Probe.FRAG) == 1
 				and Probe.count(near, Probe.FRAG) == 1

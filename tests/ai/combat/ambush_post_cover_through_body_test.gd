@@ -9,7 +9,9 @@ extends GameTest
 ## enough that an entry's grenade comes down at two spots only (the bang's landings, G18: at least
 ## 120 px from the door and 30 inside the walls), each reaching every one of them alike, and none is
 ## in a funnel, so among them low cover on the line to the threshold ranks first, then the depth
-## nearest 110 px. A shoe rack (20 tall: seen over, and no shield for a crouched body from a burst)
+## nearest 110 px. A shoe rack (stood up to 44 px: a ducked body hides behind it, a standing one
+## sees over it, and
+## it is no shield for a crouched body from a burst)
 ## stands on the line of the post 70 px back only, and a household bystander stands on that line
 ## between the post and the rack. Were the bystander to take the post's cover, the post 100 px back
 ## would win on its depth.
@@ -25,6 +27,7 @@ extends GameTest
 
 const Order := preload("res://tests/_ai/order_probe.gd")
 const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const ROOM := Rect2(0, 0, 600, 160)
 const HALL := Rect2(0, 160, 600, 110)
@@ -58,7 +61,7 @@ func configure(s: TestSetup) -> void:
 		],
 		[{ "pos": DOOR, "width": DOOR_WIDTH }, { "pos": FRONT_DOOR, "width": 80.0 }],
 	)
-	s.object(&"rack", "shoe_rack", RACK_AT)
+	s.object(&"rack", Hiding.low_cover("shoe_rack"), RACK_AT)
 	s.von_script([])
 	s.actor(&"a", &"defender", Vector2(520, 50))
 	s.actor(&"by", &"puppet", BYSTANDER_AT, { "faction": &"household" })

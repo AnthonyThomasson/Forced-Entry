@@ -56,13 +56,15 @@ engages or advances.
 Why: anchored flanks cannot be turned; the doorway is the fatal funnel, so no one lingers in it.
 Tests: `flank_corridor_dead_end`, `flank_side_behind_wall`, `flank_rear_route_crosses_target`.
 
-**B6. The flank spot is a firing position.** It has a clear shot at the target, and cover beside it is
-reported ("cover close by (the pillar)"). A point with the line blocked, such as outside a wall or behind a
-shelf, is still weighed (and worded "line blocked from there") but is not offered as a flank.
+**B6. The flank spot is a firing position.** It has a clear shot at the target (the real 3D line of fire from a standing muzzle,
+`docs/gaze-and-fire.md` W2: over a table, not through a sofa's back), and cover beside it is reported ("cover close by (the pillar)"): a piece
+whose real top hides a ducked head, `AgentTactics.is_cover`, so a sofa, a counter or a wardrobe is cover and a coffee table or a dining table is
+not. A point with the line blocked, such as outside a wall or behind a
+tall shelf, is still weighed (and worded "line blocked from there") but is not offered as a flank.
 Why: a flank that cannot shoot only ends the NPC somewhere pointless; F.E.A.R.'s flanks were cover-to-cover
 moves to spots with a line on the player.
 Tests: `flank_spot_cover_and_clear_shot`, `flank_spot_line_blocked`, `flank_side_behind_wall`,
-`flank_corridor_dead_end`.
+`flank_corridor_dead_end`, `cover_needs_real_height`, `spots_by_real_height`.
 
 **B7. Do not step into the side the target is walking toward.** A side the target's smoothed velocity heads
 toward reads "they are moving toward that side" and is not offered. The risk of being flanked back is

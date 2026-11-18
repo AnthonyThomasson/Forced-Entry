@@ -103,7 +103,8 @@ func apply(behavior: Node, delta: float) -> void:
 ## `apply`, and by the evade reflex once it holds its spot (docs/grenades.md G16).
 func fight_threat(behavior: Node) -> bool:
 	var t: Dictionary = _pick_threat(behavior.fight.hostiles, behavior.fight.engage_id)
-	if not t.is_empty() and not t["visible"] and not _perception.has_line_to(t["node"], t["pos"]):
+	if (not t.is_empty() and not t["visible"]
+			and not _perception.has_fire_line_to(t["node"], t["pos"])):
 		t = {}  # Remembered behind a wall: not worth staring at the wall for.
 	if t.is_empty():
 		return false

@@ -170,6 +170,17 @@ static func visible_centre(viewer: Node2D, target: Node2D) -> float:
 	return sum / seen.size()
 
 
+## The height (px) `viewer` aims at on `target`: the middle of the part of it that shows
+## (`visible_centre`: the head when only the head does), else the middle of its torso at its posture
+## (a body no point of which shows: the round meets what hides it). The one aim an NPC's shot and
+## its line of fire share (#194 D8).
+static func aim_height(viewer: Node2D, target: Node2D) -> float:
+	var centre := visible_centre(viewer, target)
+	if centre >= 0.0:
+		return centre
+	return BodyHeights.sight_points(posture_of(target))[1]
+
+
 ## Whether the surface of the 2D body a twin stands for says it is `transparent`.
 static func _looks_through(twin: Object) -> bool:
 	var body := TwinSpace.owner_of(twin)

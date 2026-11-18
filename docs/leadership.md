@@ -164,7 +164,7 @@ radioed done is held no more and the menu offers no cancel for it; a refused one
 **LD8. Defend a room.** Ordered to defend a room, the members share out its doorways (D2): member `n` of the order's recipients (in the
 order `to` names them) takes doorway `n` (by id) of the room, the extras doubling up on the other side of the doorways in turn. Each walks
 to a spot back in the room, off its doorway's axis and out of every doorway's fatal funnel, with a sight line to its doorway and low cover
-on that line where there is some (`EntryPosts.defend_spot`): a guarded walk for an invader, as any of its walks, and a plain one for a
+(a piece whose real top hides a ducked head, `AgentTactics.is_cover`) on that line where there is some (`EntryPosts.defend_spot`): a guarded walk for an invader, as any of its walks, and a plain one for a
 defender. There it holds, still, its gun on its doorway; a lone member of a room with several doorways takes the spot from which it sees
 the most of them and turns among them. The watch stage turns it to a threat in sight and shoots, as in every primitive. A fight its own
 shots begin (a hostile in its sector) is the decision's to weigh, as is one where it is shot at: in a fight Von still picks the tactic, but
@@ -469,7 +469,7 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   that doorway, as laid out before they are snapped: `geometry`'s `lookouts`; hidden only when it is hidden from the 8 points
   `AMBUSH_SLACK`, 12 px, round it too, since the ambusher stops a few px off its post), then by how few landings of an entry's grenade
   reach it (a frag's burst counted first, then a stun's flash: below), then out of every doorway's fatal funnel, then low cover on its
-  line to the threshold (a piece of furniture the first thing that line meets), then nearest `AMBUSH_DEPTH` (110 px, E8's `COVER_DEPTH`) back: with no hidden post, the least seen. Each rank
+  line to the threshold (a piece of furniture the first thing that line meets, tall enough to hide a ducked head: a sofa or a counter, not a coffee table), then nearest `AMBUSH_DEPTH` (110 px, E8's `COVER_DEPTH`) back: with no hidden post, the least seen. Each rank
   outweighs everything the ranks below it can add up to (`RANK_SEEN`, `RANK_FRAG`, `RANK_STUN`, `RANK_FUNNEL`, `RANK_NO_COVER`), and the
   side of the axis (`RANK_SIDE`, 1e9) outweighs them all: a post on the member's own side wins over any post on the other, however many
   lookouts see it. Members alternate sides of the axis by their place in `to` (the side with more wall first), two on one side at least

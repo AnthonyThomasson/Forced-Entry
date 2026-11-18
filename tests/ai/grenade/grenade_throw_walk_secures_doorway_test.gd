@@ -19,6 +19,7 @@ extends GameTest
 ## Premises: the puppet cannot be killed and never shoots; the invader is armed at the start of
 ## `run`, the way Main arms a spawn.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
@@ -54,11 +55,12 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.layout([
 		{ "key": "corridor", "type": "hallway", "rect": CORRIDOR },
 		{ "key": "study", "type": "home_office", "rect": STUDY },
 	], [{ "pos": STUDY_DOOR, "width": 80.0 }, { "pos": EXIT_DOOR, "width": 80.0 }])
-	s.object(&"desk", "desk", DESK_AT)
+	s.object(&"desk", Hiding.low_cover("desk"), DESK_AT)
 	s.von_script([
 		{ "pick": "combat" },
 		{ "pick": "grenade" },
@@ -74,6 +76,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"i")
 	Probe.arm(inv, 1, 0)
+	if not await Hiding.duck_after_seen(t, &"h", &"i"):
+		return
 	if not _set_up(t, inv):
 		return
 	var brain := t.controller(&"i", &"debug_zones")

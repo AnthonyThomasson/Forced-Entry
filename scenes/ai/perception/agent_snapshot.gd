@@ -20,6 +20,7 @@ extends RefCounted
 ## argues for. Options are places and things, never verbs — the decision tree decides what to do at
 ## them.
 
+const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
 const SnapshotBuild = preload("res://scenes/ai/perception/snapshot/snapshot_build.gd")
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
@@ -491,16 +492,37 @@ func _analyze(ctx: Dictionary, t: Dictionary) -> Dictionary:
 	}
 
 
-## The clear-shot line to hostile `t`, also computed for hostiles outside the full-analysis cap.
+## The line of fire to hostile `t`, also computed for hostiles outside the full-analysis cap:
+## `clear` (a round reaches where the NPC aims at it, the real 3D line: over a low piece, stopped by
+## a tall one), `in_range`, `cover` (the cover-grade piece the NPC stands behind, as it faces the
+## hostile), `blocker` (what stops the round, "" when none) and `over` (the piece the line of a
+## clear shot passes over, "" when none).
 func _line(ctx: Dictionary, t: Dictionary) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
 	var ex: Array = ctx["exclude"] + _tactics.body_rid(t)
-	var obj = _tactics.blocker(ctx["space"], self_pos, t["pos"], ex)
+	var plan = _tactics.blocker(ctx["space"], self_pos, t["pos"], ex)
+	var node: Variant = t.get("node")
+	var target: Node2D = node if is_instance_valid(node) else null
+	var shot: Dictionary = _tactics.vision.fire_stop_from(
+		ctx["space"], self_pos, t["pos"], target
+	)
+	var stop = shot.get("body")
+	var ally: Node2D = (
+		_tactics.vision.ally_in_fire_line(_character, target, t["pos"]) if shot.is_empty() else null
+	)
+	if ally != null:
+		shot = { "body": ally }
+		stop = ally
 	return {
-		"clear": obj == null,
+		"clear": shot.is_empty(),
 		"in_range": self_pos.distance_to(t["pos"]) <= vocab.tuning.combat.shoot_range,
-		"cover": _tactics.object_label(obj) if _tactics.is_cover(obj) else "",
-		"blocker": _tactics.object_label(obj),
+		"cover": _tactics.object_label(plan) if AgentTactics.is_cover(plan) else "",
+		"blocker": "" if shot.is_empty() else _tactics.object_label(stop),
+		"over": (
+			_tactics.object_label(plan)
+			if shot.is_empty() and plan != null and not plan.is_in_group(&"characters")
+			else ""
+		),
 	}
 
 

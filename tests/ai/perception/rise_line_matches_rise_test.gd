@@ -1,6 +1,6 @@
 extends GameTest
 ## P6 (docs/cover-and-stance.md): an NPC's choice to fire from behind cover and the rise of its shot
-## are one rule (`CharacterRise.pose_along`). `AgentVision.rise_line_clear` says a crouched NPC can
+## are one rule (`CharacterRise.pose_along`). `AgentVision.fire_line_clear` says a crouched NPC can
 ## fire exactly where the body, trigger held, does hit the body beyond: behind a filing cabinet
 ## right in front of it (a fire-over muzzle hits it, a standing one clears: the rise is to STAND and
 ## the rounds find the body); not behind a wardrobe (no pose clears) and not past a cabinet beyond
@@ -45,7 +45,11 @@ func configure(s: TestSetup) -> void:
 	s.set_static(GunConfig, &"guns", straight)
 	s.object(&"near_cabinet", "filing_cabinet", Vector2(250, 250))
 	s.object(&"wardrobe", "wardrobe", Vector2(500, 250))
-	s.object(&"far_cabinet", "filing_cabinet", FAR_CABINET_AT)
+	# Anchored, so the rounds it stops do not shove it aside: shoved, it would uncover the head the
+	# shooter then sees and aims over it.
+	var far_cabinet: Dictionary = WorldGen.object_definition("filing_cabinet").duplicate()
+	far_cabinet["anchored"] = true
+	s.object(&"far_cabinet", far_cabinet, FAR_CABINET_AT)
 	for lane: StringName in SHOOTERS:
 		s.actor(
 			StringName("shooter_%s" % lane),
@@ -78,7 +82,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.6)
 	var gate := {}
 	for lane: StringName in SHOOTERS:
-		gate[lane] = vision.rise_line_clear(
+		gate[lane] = vision.fire_line_clear(
 			_shooter(t, lane), _target(t, lane), _target(t, lane).global_position
 		)
 		t.expect_eq(gate[lane], CLEAR[lane], "the AI's rise line toward the %s body" % lane)

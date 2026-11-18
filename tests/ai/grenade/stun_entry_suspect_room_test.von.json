@@ -114,17 +114,17 @@
 		},
 		{
 			"options": [
-				"You are badly wounded and being hit (best: behind the chair close by, out of their sight; you are hurt)",
+				"You are badly wounded and being hit (best: b, out of their sight; you are hurt)",
 				"You have a clear shot at d, and you are not badly wounded (from where you stand)",
 				"d is point-blank, right next to you (they are point-blank and hold a Pistol)",
 				"d looks badly wounded, is unarmed, or is moving away from you (they are point-blank, standing still, holding a Pistol)"
 			],
-			"pick": "melee",
+			"pick": "retreat",
 			"probabilities": {
-				"advance": 0.2111,
-				"engage": 0.202,
-				"melee": 0.3135,
-				"retreat": 0.2734
+				"advance": 0.202,
+				"engage": 0.1943,
+				"melee": 0.2979,
+				"retreat": 0.3058
 			},
 			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
 			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are hurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: COMBAT - LOCATE - toward the shots (en route, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: b.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — point-blank, north-west of you, in the kitchen — standing still — aiming at you — crouched low — holding a Pistol.\nb (ally) — last seen just now — east of you, outside the house — on d's front — was moving north-west.\nb (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west.\nFlanks on d (you are on their front): their left side — free, line blocked, cover, medium hidden route; their right side — route passes d, clear shot, in the open, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are being hit, from the north-west!\nDecided so far: COMBAT → d."

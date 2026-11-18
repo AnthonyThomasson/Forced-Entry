@@ -5,7 +5,7 @@ Von is a CLASSIFIER: it picks the option whose text best matches the state. It c
 ## Rules
 
 1. **Bands, not numbers.** Distance from `punch_range` / `shoot_range` ("point-blank", "close, in pistol range", "too far to shoot"), route length (`route_buckets`), recency (`recency_bands`), health and wounds. `shoot_range` and the "in pistol range" band stay gun-agnostic (pinned wording).
-2. **Canonical phrases.** The state uses the exact phrases the tree's situation descs are written in ("You have a clear shot at X from where you stand.", "You are exposed to their fire.", "You are badly wounded."), so a fact lights up the option it argues for.
+2. **Canonical phrases.** The state uses the exact phrases the tree's situation descs are written in ("You have a clear shot at X from where you stand." (over a piece the 3D line passes above, "You have a clear shot at X over the Y from where you stand."), "You are exposed to their fire.", "You are badly wounded."), so a fact lights up the option it argues for.
 3. **No negated attributes.** "In the open", "line blocked", "free", "taken by X", "unsearched".
 4. **Only distinguishing facts in options.** Common facts (every hostile is hostile and armed) and the contacts section on a bind level blur the match.
 5. **Only perceived facts.** Facing, aim, wounds, `reloading` and a contact's posture only while visible (a remembered posture may be stale); unknown rooms by direction.

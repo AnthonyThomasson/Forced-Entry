@@ -2,48 +2,40 @@
 	"entries": [
 		{
 			"options": [
-				"You are badly wounded and being hit (best: behind the sofa close by, out of their sight; you are unhurt)",
-				"You have a clear shot at h, and you are not badly wounded (once they show, from an ambush behind cover)",
-				"Your line to h is blocked and you can throw a grenade onto their spot (h is hidden behind the desk, within throwing range)",
-				"h looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, standing still, holding a Unarmed)"
+				"You are badly wounded and being hit (best: behind the sofa close by, farther from them, still in their sight; you are unhurt)",
+				"Your line to h is blocked and you can throw a grenade onto their spot (h is hidden behind the sofa, within throwing range)",
+				"h looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, was standing still, holding a Unarmed)"
 			],
 			"pick": "grenade",
 			"probabilities": {
-				"advance": 0.1522,
-				"engage": 0.2996,
-				"grenade": 0.4285,
-				"retreat": 0.1197
+				"advance": 0.287,
+				"grenade": 0.4779,
+				"retreat": 0.2352
 			},
 			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a frag grenade.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou are behind cover from h (the desk): your line to them is blocked. You can throw a frag grenade onto their spot. They are aiming at you.\nh — HOSTILE (seen) — in sight — close, in pistol range, east of you, in the hallway — standing still — aiming at you — crouched low — holding a Unarmed.\nFlanks on h (you are on their front): their left side — free, line blocked, cover, long hidden route; their right side — free, line blocked, cover, long hidden route; behind them — route passes h, line blocked, cover, long hidden route.\nDecided so far: COMBAT → h."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded. You carry a frag grenade.\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from h (the desk): your line to them is blocked. You can throw a frag grenade onto their spot.\nh — HOSTILE (seen) — last seen just now — close, in pistol range, east of you, in the hallway — was standing still — holding a Unarmed.\nFlanks on h (you are on their front): their left side — free, line blocked, cover, long hidden route; their right side — free, line blocked, cover, long hidden route; behind them — route passes h, line blocked, cover, long hidden route.\nDecided so far: COMBAT → h."
 		},
 		{
 			"options": [
-				"You are badly wounded and being hit (best: behind the sofa close by, out of their sight; you are unhurt)",
-				"You have a clear shot at h, and you are not badly wounded (from behind the desk in the hallway)",
-				"h looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, was standing still, holding a Unarmed)"
+				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: where you last saw h, in the hallway))"
 			],
-			"pick": "engage",
+			"pick": "investigate",
 			"probabilities": {
-				"advance": 0.2948,
-				"engage": 0.4544,
-				"retreat": 0.2508
+				"investigate": 1.0
 			},
-			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: EVADE - a live frag grenade (waiting, for 3s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from h (the sofa): your line to them is blocked.\nh — HOSTILE (seen) — last seen recently — in pistol range, east of you, in the hallway — was standing still — holding a Unarmed.\nFlanks on h (you are on their front): their left side — free, line blocked, cover, long hidden route; their right side — free, line blocked, cover, long hidden route; behind them — route passes h, line blocked, cover, long hidden route.\nDecided so far: COMBAT → h."
+			"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: EVADE - a live frag grenade (waiting, for 3s).\nThere is trouble nearby, out of your sight. Allies near you: none.\nNobody else is in sight or known."
 		},
 		{
 			"options": [
-				"fire from behind the desk in the hallway, west of them — clear shot — cover close by (the desk) — short hidden route",
-				"wait in ambush behind the desk — you shoot when they show — they are standing still"
+				"where you last saw h, in the hallway — recently — long route"
 			],
-			"pick": "ambush",
+			"pick": "lead_seen_1",
 			"probabilities": {
-				"ambush": 0.5173,
-				"fire_west": 0.4827
+				"lead_seen_1": 1.0
 			},
-			"question": "Where should you fight h from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: EVADE - a live frag grenade (waiting, for 3s).\nYour pistol is loaded.\nYou are behind cover from h (the sofa): your line to them is blocked.\nh — HOSTILE (seen) — last seen recently — in pistol range, east of you, in the hallway — was standing still — holding a Unarmed.\nDecided so far: COMBAT → h → ENGAGE."
+			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: EVADE - a live frag grenade (waiting, for 3s).\nNobody else is in sight or known.\nDecided so far: INVESTIGATE."
 		}
 	],
 	"version": 1

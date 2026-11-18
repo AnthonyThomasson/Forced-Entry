@@ -88,14 +88,19 @@ const PILLAR := {
 	"weight": 5000,
 	"coverage": 100,
 	"penetration": 100,
+	# A table-art piece as tall as a wall (96 px): the one real height a 2D definition with no art
+	# of its own can say, so it is cover for a standing body too.
+	"art": "table",
+	"art_opts": { "height": 96.0 },
 }
 
 
 ## Lay out the terrace house: three rooms, four doorways and furniture in each room. `furnish` false
 ## leaves the rooms bare (a test that needs a clean line places its own pieces). `back_door`, a
 ## layout `door` (`{ name, material, style, hinge, swing_into, angle? }`), stands in the kitchen's
-## back doorway, which is then 60 px wide (hinge 24 px from its middle) instead of 90.
-static func house(s: TestSetup, furnish := true, back_door := {}) -> void:
+## back doorway, which is then 60 px wide (hinge 24 px from its middle) instead of 90; `hall_door`,
+## the same, stands in the doorway between the hall and the living room (80 px wide).
+static func house(s: TestSetup, furnish := true, back_door := {}, hall_door := {}) -> void:
 	var back := { "pos": DOOR_BACK, "width": 90.0 }
 	if not back_door.is_empty():
 		back = { "pos": DOOR_BACK, "width": 60.0, "door": back_door }
@@ -110,7 +115,11 @@ static func house(s: TestSetup, furnish := true, back_door := {}) -> void:
 		],
 		[
 			{ "pos": DOOR_LIVING_KITCHEN, "width": 90.0 },
-			{ "pos": DOOR_HALL_LIVING, "width": 80.0 },
+			(
+				{ "pos": DOOR_HALL_LIVING, "width": 80.0 }
+				if hall_door.is_empty()
+				else { "pos": DOOR_HALL_LIVING, "width": 80.0, "door": hall_door }
+			),
 			{ "pos": DOOR_HALL_KITCHEN, "width": 80.0 },
 			{ "pos": DOOR_FRONT, "width": 80.0 },
 			back,

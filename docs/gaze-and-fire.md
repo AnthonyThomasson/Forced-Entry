@@ -36,11 +36,14 @@ of a tactical entry, the approach, the stack and the pie included, so an invader
 view fires on it from outside (E3). A gaze step of the entry that cannot settle because the entrant is looking at a threat
 counts as settled, so the entry carries on rather than waiting at the pie. Peek-and-cover and the ambush shoot only once the
 facing has settled on the contact; a peek ducks only after a shot left the barrel (or on the click of an empty gun, where the
-cover phase reloads), not after a refused one. The round is aimed at the middle of the threat's torso at its posture
-(`movement.aim_height` left to its automatic setting: the 3D ray of `docs/cover-and-stance.md` H1), not at a roll of the dice: a
-threat behind cover it clears is struck over it, one the cover is taller than is not, so the shot is taken whenever it is
-available and what stops it is geometry. (Until the AI's cover picking reads real heights, the AI's own "clear line" still asks
-the coverage scale.)
+cover phase reloads), not after a refused one. The round is aimed at the middle of the part of the threat that shows
+(`movement.aim_height` left to its automatic setting, `SightRay.aim_height`: the centre of the parts the shooter's eye sees, the head
+when only the head shows over cover, and the middle of the torso at its posture when none does; the 3D ray of
+`docs/cover-and-stance.md` H1), not at a roll of the dice: a threat behind cover it clears is struck over it, one the cover is taller
+than is not, so the shot is taken whenever it is available and what stops it is geometry. The AI's own "clear line" is that same
+line (`AgentVision.fire_line_clear`: from the shooter's muzzle at its pose, or at the pose its gun would rise to, to the aimed
+height), so an NPC never pulls the trigger on a line its round cannot fly, and never holds back on one it can: a hostile crouched
+behind a sofa is not shot through, one behind a coffee table is shot over it. A living ally standing in the line holds the shot (a round hits it; sight looks through it), a ducked one under the line is shot over. Tests: `aim_at_visible_part`, `no_rounds_into_cover`, `fire_line_holds_for_ally`.
 Tests: `entry_guard_fires_from_outside`, `gaze_search_turns_to_threat`, `combat_waits_for_facing`.
 
 **W3. An empty gun is reloaded.** With a threat in view and a spare magazine, an empty gun is reloaded at once, not carried
@@ -70,5 +73,5 @@ Tests: `ai_runs_to_destination`, `retreat_keeps_running`.
 
 ## Not modelled
 
-Shooting across low furniture an NPC can see over (a table, a counter): the line of fire is fully physical, as it is for
-fire spots, flanks and the snapshot's `clear_shot`, so such a shot is not taken (the NPC still faces the enemy).
+Shooting through glass (a glass-panel door passes sight, not a round): the line of fire is fully physical, as it is for fire spots,
+flanks and the snapshot's `clear_shot`, so such a shot is not taken (the NPC still faces the enemy).

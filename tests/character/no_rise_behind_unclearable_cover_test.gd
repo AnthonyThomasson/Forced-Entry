@@ -67,6 +67,9 @@ func run(t: TestContext) -> void:
 		OPEN_SHOOTER.distance_to(FAR_CABINET_AT) > REACH + 20.0,
 		"premise: the cabinet is past the reach",
 	)
+	# Fixed: a round shoves a free cabinet toward its body, and a cabinet beside it shows the head
+	# over it, which a shooter that sees it aims at (docs/gaze-and-fire.md W2).
+	t.object(&"far_cabinet").freeze = true
 	for lane: StringName in LANES:
 		t.require(
 			t.actor(StringName("shooter_%s" % lane)).movement.set_posture(&"crouch"),

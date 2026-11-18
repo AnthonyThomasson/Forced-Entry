@@ -170,7 +170,6 @@ func _apply_senses(npc_tuning: NpcTuning) -> void:
 
 ## Set the combat geometry's tunables from `npc_tuning`.
 func _apply_tactics(npc_tuning: NpcTuning) -> void:
-	_tactics.cover_min = npc_tuning.tactics.cover_min
 	_tactics.flank_distance = npc_tuning.tactics.flank_distance
 	_tactics.flank_arc = npc_tuning.tactics.flank_arc
 	_tactics.flank_ally_radius = npc_tuning.tactics.flank_ally_radius
@@ -449,13 +448,11 @@ func fill_goal(goal: String) -> String:
 # --- Combat geometry for the behaviour -------------------------------------------------------
 
 
-## Whether the NPC, crouched, could rise to a pose from which a round clears the cover between it
-## and a world `point` (rise to fire, `docs/cover-and-stance.md` P6): the pose its rise would take
-## (`CharacterRise.pose_along`) has a clear 3D line to the middle of the torso of `target` (a
-## standing body's for a point), `AgentVision.rise_line_clear`. False for an NPC that is not
-## crouched (its line is `has_line_to`'s).
-func has_rise_line_to(target: Node2D, point: Vector2) -> bool:
-	return sight.vision.rise_line_clear(_character, target, point)
+## Whether the NPC can fire at `target` (a plain world `point` when null) from here: a clear 3D line
+## from its muzzle, at the posture it fires in (ducked: the pose its shot would rise to), to where
+## it aims at the target, `AgentVision.fire_line_clear`. The behaviour gates FIRING on this.
+func has_fire_line_to(target: Node2D, point: Vector2) -> bool:
+	return sight.vision.fire_line_clear(_character, target, point)
 
 
 ## Whether the NPC has a clear line (no wall or solid furniture between) to a world `point` — the
@@ -480,4 +477,10 @@ func combat_spots(target: Node2D, tgt_pos: Vector2, radius: float) -> Dictionary
 	if target != null and is_instance_valid(target):
 		exclude.append(target.get_rid())
 	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
-	return _tactics.combat_spots(space, _character.global_position, tgt_pos, exclude, radius)
+	return _tactics.combat_spots(
+		space,
+		_character.global_position,
+		{ "pos": tgt_pos, "node": target },
+		exclude,
+		radius,
+	)

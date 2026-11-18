@@ -7,6 +7,7 @@ extends GameTest
 ## shows the grenade it sees and the escape spot it runs to. The overlay is on throughout, so a draw
 ## error fails the test.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
@@ -27,8 +28,10 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.arena(Rect2(0, 0, 900, 500))
-	s.object(&"desk", "desk", Vector2(330, 250))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(430, 250))
+	s.object(&"cover_d", Hiding.low_cover("desk"), Vector2(520, 322))
 	Flank.rules(
 		s,
 		[
@@ -46,11 +49,14 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	var n := t.actor(&"n")
+	Probe.arm(n, 0, 1)
+	if not await Hiding.duck_after_seen(t, [&"h", &"d"], &"n"):
+		return
 	t.check(
 		Registry.ENTRIES.any(func(e): return e["flag"] == "show_grenades"),
 		"the overlay table has a show_grenades row",
 	)
-	var n := t.actor(&"n")
 	var d := t.actor(&"d")
 	t.check(
 		n.get_children().any(func(c): return "show_grenades" in c and c.show_grenades),
@@ -60,7 +66,6 @@ func run(t: TestContext) -> void:
 		d.get_children().any(func(c): return "show_grenades" in c and c.show_grenades),
 		"so does the defender",
 	)
-	Probe.arm(n, 0, 1)
 	if not t.require(
 			Probe.count(n, Probe.FRAG) == 1,
 			"the invader carries a frag grenade (Character.inventory.item_count(8) = %d)"

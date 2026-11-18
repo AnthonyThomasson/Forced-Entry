@@ -5,8 +5,8 @@ extends GameTest
 ## primitive walks there and throws from it, and the self-safety tag (`no_safe_spot`) is judged with
 ## the thrower at the throw spot. Scripted Von (COMBAT > GRENADE when offered, else ENGAGE ...), two
 ## closed rooms with a wall between, the same scene in each: an invader 640 px from a household
-## puppet hidden from its line of fire by a coffee table (which a lob clears), in neither room in
-## range from where it stands (550 px, the throw range).
+## puppet that ducked behind a low piece (which a lob clears), out of its line of fire, in neither
+## room in range from where it stands (550 px, the throw range).
 ##
 ## North: the invader carries a stun. GRENADE is offered through a throw spot (the controller's
 ## `debug_zones()`, category `grenade`, `from`) within range of the hostile's spot, with a clear
@@ -21,6 +21,7 @@ extends GameTest
 ## Premises: the hostiles are household puppets that cannot be killed and never shoot; each invader
 ## is armed at the start of `run`, the way Main arms a spawn; the frag row is retuned (above).
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
@@ -44,6 +45,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	# Premise (south): a frag whose danger zone (blast radius + the 120 px evade margin) reaches
 	# past the throw range, with a short fuse.
 	var rows: Dictionary = GrenadeConfig.grenades.duplicate(true)
@@ -54,8 +56,8 @@ func configure(s: TestSetup) -> void:
 		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 1000, 300) },
 		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 1000, 300) },
 	], [{ "pos": Vector2(980, 0), "width": 60.0 }, { "pos": Vector2(980, 600), "width": 60.0 }])
-	s.object(&"table_n", "coffee_table", Vector2(600, 150))
-	s.object(&"table_s", "coffee_table", Vector2(600, 450))
+	s.object(&"table_n", Hiding.low_cover("coffee_table"), Vector2(700, 150))
+	s.object(&"table_s", Hiding.low_cover("coffee_table"), Vector2(700, 450))
 	Flank.rules(
 		s,
 		[
@@ -79,6 +81,8 @@ func run(t: TestContext) -> void:
 	var so := t.actor(&"s")
 	Probe.arm(n, 1, 0)
 	Probe.arm(so, 0, 1)
+	if not await Hiding.duck_after_seen(t, [&"nh", &"sh"], [&"n", &"s"]):
+		return
 	if not t.require(
 			Probe.count(n, Probe.STUN) == 1 and Probe.count(so, Probe.FRAG) == 1,
 			"the north invader carries a stun and the south one a frag",

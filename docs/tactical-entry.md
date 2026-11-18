@@ -306,8 +306,8 @@ and nobody crosses while it stands in view, whatever tactic is chosen for the fi
 from outside, a room that can be cleared without entering is not entered, and a known gun on the door is the funnel at
 its worst (E3, E7's "if nothing is hostile in view"). In the code, `Behavior` tells the entry when a hostile is in view (the
 threat holding the NPC's eyes is seen now, or was within `tuning.watch.lost_gaze`, 2 s, and there is a line of fire to it, within
-range and with a clear line, so it can be engaged from outside: `Entry.state.hostile_in_view`; a hostile seen over low cover with no
-line of fire gives nothing to engage from outside, and does not hold the entry). The pie then stops where it is (the point neither walks on to the next step nor crosses), a follower
+range and with a clear line, so it can be engaged from outside: `Entry.state.hostile_in_view`; a hostile seen with no real 3D line of fire to it
+(`AgentVision.fire_line_clear`: behind glass, or the like) gives nothing to engage from outside, and does not hold the entry). The pie then stops where it is (the point neither walks on to the next step nor crosses), a follower
 does not cross after the member ahead, and the watch stage fires; the entry goes on, and crosses, once the hostile is out
 of view. This holds whatever order brought the NPC to the door: the ENTER tactic, or a COMBAT advance or engage whose walk the
 entry guard (E9) turns into an entry. Under fire from the room it is about to enter, it holds outside like any other time (E9);

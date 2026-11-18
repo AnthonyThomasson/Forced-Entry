@@ -194,8 +194,9 @@ func exposure_text(
 	var line: Dictionary = a["line"]
 	var text := ""
 	if line["clear"] and line["in_range"]:
-		text = ("You have a clear shot at %s from where you stand. You are exposed to their fire."
-				% t["name"])
+		var over: String = "" if line["over"] == "" else " over the %s" % line["over"]
+		text = ("You have a clear shot at %s%s from where you stand. You are exposed to their fire."
+				% [t["name"], over])
 	elif line["clear"]:
 		text = "%s is too far to shoot. They can see you." % t["name"]
 	elif line["cover"] != "":
@@ -214,7 +215,7 @@ func exposure_text(
 	if t["visible"] and _v.aim_text(t, ctx["self_pos"], []) == "aiming at you":
 		text += " They are aiming at you."
 	var others: Array = _tactics.exposed_to(
-		ctx["space"], ctx["self_pos"], ctx["hostiles"], t["id"], ctx["exclude"],
+		ctx["space"], ctx["self_pos"], ctx["hostiles"], t["id"],
 	)
 	if not others.is_empty():
 		text += " You are also exposed to the fire of %s." % ", ".join(others)

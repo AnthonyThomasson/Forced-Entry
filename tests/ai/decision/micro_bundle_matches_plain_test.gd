@@ -135,9 +135,7 @@ func _exposure(t: TestContext) -> void:
 				tally["full"] += plain["rays"]
 				tally["exposed"] += 1 if plain["exposed"] else 0
 				var before: int = tactics.vision.rays
-				var got: bool = tactics._route_exposed(
-					world["space"], path, threat, world["ex"], front
-				)
+				var got: bool = tactics._route_exposed(world["space"], path, threat, front)
 				if got != plain["exposed"]:
 					tally["wrong"].append([threat, to, front])
 				var cast: int = tactics.vision.rays - before
@@ -176,7 +174,7 @@ func _plain_exposed(
 		if not is_nan(front) and absf(angle_difference(front, (sample - threat).angle())) > half:
 			continue
 		rays += 1
-		if not tactics.blocked(world["space"], threat, sample, world["ex"]):
+		if tactics.vision.fire_stop_from(world["space"], threat, sample).is_empty():
 			seen += 1
 	return { "exposed": seen * 2 > SAMPLES, "rays": rays }
 
@@ -185,7 +183,6 @@ func _plain_exposed(
 func _tactics() -> RefCounted:
 	var tactics := AgentTactics.new()
 	tactics.vision = CountingVision.new()
-	tactics.cover_min = 40.0
 	tactics.flank_distance = 120.0
 	tactics.flank_arc = 30.0
 	tactics.flank_ally_radius = 80.0

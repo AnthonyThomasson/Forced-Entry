@@ -34,8 +34,7 @@
 	  character; a `transparent` surface and the rids in `exclude` are looked through), {} when clear.
 	  `sees(space3d, eye: Vector3, to: Vector2, heights, exclude := []) -> bool` (first clear point ends the ask), `visible_heights(...)`,
 	  `eye_point(viewer)`, `target_heights(target)` (a character's `BodyHeights.sight_points` at its posture), `exclude_of(target)`.
-	  The query later jobs read: `visible_parts(viewer: Node2D, target: Node2D) -> PackedFloat32Array` (the heights of the target's points the
-	  eye sees) and `visible_centre(viewer, target) -> float` (their mean, -1 for none). **The plan cast** (the player's cone):
+	  `visible_parts(viewer, target) -> PackedFloat32Array` (heights of the target's points the eye sees), `visible_centre(viewer, target) -> float` (their mean, -1 for none), `aim_height(viewer, target) -> float` (that, else the torso). **The plan cast** (the player's cone):
 	  `SightRay.plan_hit(space2d, from, to, exclude, see_over) -> Dictionary` is the first `SOLID` collider taller than `see_over` (the
 	  eye, px); `top_of(collider) -> float` its twin's top (0 for a `transparent` surface or a character, `INF` with no twin). An instance (`looks_over`, `rated`, `leave_out(rids)`, `cast(...)`) serves Vision's cone.
     - `SeenArea` (`general/seen_area.gd`, static holder): what the view shows live. Vision writes `set_area(polygons: Array,

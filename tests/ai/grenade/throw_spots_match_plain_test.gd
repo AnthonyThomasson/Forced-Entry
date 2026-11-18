@@ -28,7 +28,6 @@ func run(t: TestContext) -> void:
 	await t.frames(2)
 	var tactics := AgentTactics.new()
 	tactics.vision = AgentVision.new()
-	tactics.cover_min = 40.0
 	tactics.throws.spot_walk = 250.0
 	var ctx := {
 		"space": npc.get_world_2d().direct_space_state,

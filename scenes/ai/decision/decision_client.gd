@@ -78,7 +78,7 @@ func _answer_from_stub(
 ) -> void:
 	if not _pending or serial != _stub_serial:
 		return  # cancelled before it was decided: never asked, never recorded, never a miss
-	var held := DecisionStub.holds()
+	var held := DecisionStub.holds() and not DecisionStub.fail
 	var decided := {}
 	if held:
 		decided = DecisionStub.decide(state_text, instructions, options, server_url, model)

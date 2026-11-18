@@ -1,6 +1,7 @@
 28. **Objects → AI, Projectile: real heights, `PieceHeights`** (`objects/art/piece_heights.gd`, static, `RefCounted`; the heights themselves are the `ObjectMesh*Config` holders'
-    values, so a mesh and its height are one number; tests `tests/objects/piece_heights_test.gd`). Not read by gameplay yet: the 0 to 100 catalogue `coverage` still decides shots
-    until the real-cover jobs cut over; AI cover picking, the bullet and the blast then read these tops.
+    values, so a mesh and its height are one number; tests `tests/objects/piece_heights_test.gd`). Read by the bullet (the twin ray), by sight and by the AI's cover picking and line of fire
+    (`AgentTactics.is_cover`: a piece's top reaches a ducked head). Still on the 0 to 100 catalogue `coverage`: the grenade's burst (`Explosion`) and the AI's grenade escape and throw geometry,
+    until they cut over.
     - `PieceHeights.top_of(definition: Dictionary) -> float`, `base_of(definition) -> float`, `parts_of(definition) -> Array[Dictionary]`: for a catalogue row (`WorldGen.object_definition(key)`:
 	  `size`, `art`, `art_opts`), px above the floor, 1 px a 3D unit, 42.3 px a metre (`BodyHeights`, interface 11). A **part** is `{ base, top, rect }`: where it starts and ends and the share
 	  of the footprint it covers (`rect` in the footprint's unit square, the painter's canonical frame: back-left corner (0, 0), x across, the front toward +y). `top_of` is the highest part's

@@ -6,6 +6,7 @@ extends GameTest
 ## weighs names a spot a walk away, within throw range of the hostile and with a clear lob, not
 ## where it stands. Two walled rooms, scripted Von.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
@@ -31,13 +32,14 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	# Two rooms with a wall between and no door, so neither pair sees the other; one outer door
 	# each, far from the action.
 	s.layout([
 		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 900, 300) },
 		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 900, 300) },
 	], [{ "pos": Vector2(880, 0), "width": 60.0 }, { "pos": Vector2(880, 600), "width": 60.0 }])
-	s.object(&"desk", "desk", Vector2(330, 450))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(330, 450))
 	Flank.rules(
 		s,
 		[{ "pick": "combat" }, { "pick": "engage" }, { "pick": "advance" }, { "pick": "retreat" }],
@@ -56,6 +58,8 @@ func run(t: TestContext) -> void:
 				and Probe.count(t.actor(&"hide_n"), Probe.FRAG) == 1,
 			"both invaders carry a frag grenade",
 	):
+		return
+	if not await Hiding.duck_after_seen(t, &"hide_h", &"hide_n"):
 		return
 	var open_brain := t.controller(&"open_n", &"current_act")
 	var hide_brain := t.controller(&"hide_n", &"current_act")
@@ -82,7 +86,14 @@ func run(t: TestContext) -> void:
 
 
 func _check_pulled_back(t: TestContext, hide_brain: Node) -> void:
-	t.actor(&"hide_h").global_position = HIDE_FAR
+	# It stands up, walks 340 px back with its desk, is seen there and ducks behind it again.
+	var hostile := t.actor(&"hide_h")
+	hostile.movement.set_posture(&"stand")
+	hostile.global_position = HIDE_FAR
+	var desk := t.object(&"desk")
+	desk.global_position = HIDE_FAR - Vector2(170, 0)
+	desk.linear_velocity = Vector2.ZERO
+	await Hiding.duck_after_seen(t, &"hide_h", &"hide_n")
 	await Flank.settle(t, hide_brain)
 	# 740 px off, out of throw range from where it stands: GRENADE only through a throw spot (R13).
 	var far: Array = Spot.throws(hide_brain).filter(

@@ -97,7 +97,7 @@ func pose_needed(hand: int) -> StringName:
 ## negative for a level line). Cover is what the line meets within `reach` of the body; once it
 ## has met some, the line is judged across the whole of the piece (`cover_depth` further on), so a
 ## part behind the first (a backsplash) counts. The shot (`pose_needed`) and an NPC's choice to
-## fire (`AgentVision.rise_line_clear`) both ask it.
+## fire (`AgentVision.fire_line_clear`) both ask it.
 func pose_along(direction: Vector2, run: float, aim_height: float) -> StringName:
 	var space := TwinSpace.space_of(character)
 	if space == null:

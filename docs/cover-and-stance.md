@@ -49,8 +49,7 @@ cover, its head top 36 px (0.85 m), so a piece at least that tall hides all of i
 
 A body's twin (`CharacterTwin`), its hit zones (`BodyHeights.zone_at`), its eye and its muzzle are those of `movement.body_posture()`: the
 standing, the duck, or the pose a ducked body has risen to. So a crouch is struck by fewer lines in the open (the ones under 36 px, against a standing
-body's under 74) and hides behind pieces at least 36 px tall. (The row's `coverage` is the 0 to 100 scale the AI's cover picking still reads until it moves to
-real heights.) A crouched shooter with nothing in its way fires from the duck's muzzle without rising. Shooting and reloading work in every posture;
+body's under 74) and hides behind pieces at least 36 px tall. (The row's `coverage` is the 0 to 100 scale only a grenade's burst and the AI's grenade escape still read.) A crouched shooter with nothing in its way fires from the duck's muzzle without rising. Shooting and reloading work in every posture;
 running is refused (and costs no stamina) unless standing.
 Tests: `posture_speed`, `posture_player_input`, `posture_hit_chance`, `muzzle_height_by_posture`.
 
@@ -102,8 +101,8 @@ The body is exposed the moment it rises (its twin, zones, eye and muzzle are the
 `CharacterRiseConfig.rise_time` (0.2 s): the rise before the first shot. It drops back to the duck `CharacterRiseConfig.dwell` (0.6 s, and at least the gun's time between rounds plus `dwell_margin`, so a slow gun stays risen between rounds) after the last
 round it could fire (every shot, and a held trigger, renews it: no flicker); a gun that cannot fire (empty, reloading, cooling) neither rises nor renews the rise; it never lowers a pose it is risen to mid-burst. A shot refused for the rise is no shot: a
 controller's trigger is retried each frame (an NPC's fire timer is untouched), and the player's click is held for the rise. An NPC crouched behind low cover counts a
-clear line from the pose the rise would take (the same rule, `CharacterRise.pose_along`, then a clear 3D line from that muzzle to its target's torso) as a line to fire along, so it pulls the trigger and rises
-(`Combat._has_firing_line_to`); the options Von is shown still read the 2D line of fire. Only a gun rises (a thrown grenade
+clear line from the pose the rise would take (the same rule, `CharacterRise.pose_along`, then a clear 3D line from that muzzle to the part of its target it aims at) as a line to fire along, so it pulls the trigger and rises
+(`Combat.has_line_of_fire_to`, `AgentVision.fire_line_clear`); the options Von is shown, the firing spots, the flank sides and the route exposure read the same 3D line from a standing muzzle (a body able to rise to fire could do it there). Only a gun rises (a thrown grenade
 does not); the rise is a manner of firing, so it works with Von down.
 Tests: `rise_over_sofa`, `rise_to_stand_over_tall_cover`, `no_rise_behind_unclearable_cover`, `risen_body_is_exposed`, `risen_body_sees_over_cover`,
 `muzzle_height_by_posture`.
@@ -127,5 +126,4 @@ Tests: `posture_in_von_state`.
 ## Not modelled
 
 A long gun against low furniture raises as it does standing (`blocked`), so a rifle held to a sofa is not fired by rising over it. A body does not
-lean out from the edge of a wardrobe to fire around it: it fires from where it stands and the round meets the cover. The AI's cover picking and entry
-posts still read the catalogue's 0 to 100 `coverage`. Tests: `muzzle_height_by_posture`.
+lean out from the edge of a wardrobe to fire around it: it fires from where it stands and the round meets the cover. Tests: `muzzle_height_by_posture`.

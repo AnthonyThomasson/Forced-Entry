@@ -139,9 +139,15 @@ func _rings_match_combat_spots(tactics: RefCounted, ctx: Dictionary, hostiles: A
 			var tpos: Vector2 = target["pos"]
 			for radius in [tactics.combat_ring_radius, tactics.combat_ring_radius * 2.0]:
 				var ex: Array = ctx["exclude"] + tactics.body_rid(target)
-				var ring: Dictionary = tactics._self_combat_spots(ctx, tpos, ex, radius)
+				var ring: Dictionary = tactics._self_combat_spots(
+					ctx,
+					tpos,
+					ex,
+					radius,
+					target.get("node"),
+				)
 				var plain: Dictionary = tactics.combat_spots(
-					ctx["space"], ctx["self_pos"], tpos, ex, radius
+					ctx["space"], ctx["self_pos"], target, ex, radius
 				)
 				if ring != plain:
 					return false
@@ -184,7 +190,6 @@ func _context(t: TestContext, hostiles: Array) -> Dictionary:
 func _tactics() -> RefCounted:
 	var tactics := AgentTactics.new()
 	tactics.vision = AgentVision.new()
-	tactics.cover_min = 40.0
 	tactics.flank_distance = 120.0
 	tactics.flank_arc = 30.0
 	tactics.flank_ally_radius = 80.0

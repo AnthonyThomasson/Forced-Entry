@@ -1,14 +1,16 @@
 extends GameTest
 ## H2 and P1 (docs/cover-and-stance.md): cover shelters a body by being taller than the line to it.
-## An NPC aims at the middle of its target's torso. A standing body behind a sofa (back 38 px) is
-## aimed at 51 px up from a 65 px muzzle: the line clears the back and strikes it. A ducked one
-## (torso about 24 px up, head top 36) behind the same sofa is under the line's reach: the back
-## stops the round, the sofa is struck and the body is not.
+## An NPC aims at the middle of the part of its target it sees. A standing body behind a sofa (back
+## 38 px) shows its head, chest and hips and is aimed at 53 px up from a 65 px muzzle: the line
+## clears the back and strikes it. A ducked one (head top 36) behind the same sofa shows nothing
+## of itself (the back is on its side, next to it): it is aimed at the torso, about 24 px up, and
+## the back stops the round, the sofa is struck and the body is not. (With the back on the shooter's
+## side the ducked head is seen over it and aimed at.)
 
 const LANES := { &"stand": 150.0, &"crouch": 350.0 }
 const SHOOT_X := 120.0
 const SOFA_X := 400.0
-## The target stands just behind the sofa (its back is the near, west side: it faces east).
+## The target stands just behind the sofa (its back is on the body's side, east: it faces west).
 const BODY_X := 447.0
 const SOFA_BACK := 38.0
 
@@ -44,7 +46,7 @@ func configure(s: TestSetup) -> void:
 			StringName("sofa_%s" % lane),
 			sofa,
 			Vector2(SOFA_X, y),
-			{ "facing": Vector2.RIGHT },
+			{ "facing": Vector2.LEFT },
 		)
 		s.actor(StringName("body_%s" % lane), &"puppet", Vector2(BODY_X, y),
 				{ "max_health": 1_000_000.0, "facing": Vector2.LEFT })

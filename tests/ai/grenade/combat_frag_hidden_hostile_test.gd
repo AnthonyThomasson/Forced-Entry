@@ -16,6 +16,7 @@ extends GameTest
 ## and never shoots (the thing to be hidden from); the invader is armed with one frag here because
 ## the test world keeps the default inventory, the way Main arms a spawn.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const INVADER_AT := Vector2(380, 50)
@@ -35,21 +36,24 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.layout(
 		[{ "key": "hall", "type": "hallway", "rect": Rect2(0, 0, 900, 100) }],
 		[{ "pos": Vector2(0, 50), "width": 80.0 }],
 	)
-	s.object(&"sofa", "sofa", Vector2(700, 31))
-	s.object(&"table", "coffee_table", Vector2(700, 75))
+	s.object(&"sofa", Hiding.low_cover("sofa"), Vector2(700, 31))
+	s.object(&"table", Hiding.low_cover("coffee_table"), Vector2(700, 75))
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": Vector2.RIGHT })
-	# Ducked: a hostile standing behind the sofa (38 px) is fired at over it by an invader that
-	# rises to shoot (docs/cover-and-stance.md P6); a ducked one is the hidden hostile this is.
-	GrenadeAi.hostile(s, &"h", HOSTILE_AT, INVADER_AT, { "movement:_posture": &"crouch" })
+	# Standing, the hostile is seen and shot over the sofa; the run has it duck once it is seen, and
+	# the invader then knows it behind cover it cannot shoot through (`docs/grenades.md` G17).
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, INVADER_AT)
 
 
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"i")
 	Probe.arm(inv, 0, 1)
+	if not await Hiding.duck_after_seen(t, &"h", &"i"):
+		return
 	if not t.require(
 			Probe.count(inv, Probe.FRAG) == 1,
 			"the invader carries a frag grenade (Character.inventory.item_count(8) = %d)"

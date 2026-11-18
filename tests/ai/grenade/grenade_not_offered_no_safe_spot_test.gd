@@ -3,12 +3,14 @@ extends GameTest
 ## zone and has no way to get safe before the fuse is out: no cover that shields a crouched body
 ## from the landing spot (G7), and no spot out of the blast's line of sight within reach. It is
 ## offered when it does. Two walled rooms, the same layout in each: an invader with a frag, a
-## hostile 260 px away (inside a frag's 370 px zone) hidden by a piece of furniture across the line.
-## In one room the piece is a coffee table (coverage 30, below a crouched body's 35: it hides the
-## hostile from a bullet and lets a lob over, but shields nobody) and the room has nothing else: no
-## GRENADE. In the other it is a couch (45) a few steps away: GRENADE is offered. Scripted Von; the
+## hostile 260 px away (inside a frag's 370 px zone) that ducked behind a piece of furniture the
+## invader saw it duck behind, so it is known but out of its line of fire. In one room the piece is
+## a low coffee table (grenade coverage 30, below a crouched body's 35: it hides the hostile from a
+## bullet and lets a lob over, but shields nobody) and the room has nothing else: no GRENADE. In
+## the other it is a couch (45) a few steps away: GRENADE is offered. Scripted Von; the
 ## NPCs walk (they are not held) because "in time" depends on being able to move.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
@@ -30,14 +32,15 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	# Two rooms with a wall between and no door, one outer door each at the far end (over 600 px
 	# from the invaders: out of reach in a fuse).
 	s.layout([
 		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 900, 300) },
 		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 900, 300) },
 	], [{ "pos": Vector2(880, 0), "width": 60.0 }, { "pos": Vector2(880, 600), "width": 60.0 }])
-	s.object(&"table", "coffee_table", Vector2(230, 150))
-	s.object(&"couch", "sofa", Vector2(230, 450))
+	s.object(&"table", Hiding.low_cover("coffee_table", 52.0), Vector2(230, 150))
+	s.object(&"couch", Hiding.low_cover("sofa"), Vector2(230, 450))
 	Flank.rules(
 		s,
 		[{ "pick": "combat" }, { "pick": "engage" }, { "pick": "advance" }, { "pick": "retreat" }],
@@ -66,6 +69,10 @@ func run(t: TestContext) -> void:
 			Probe.count(t.actor(&"bare_n"), Probe.FRAG) == 1
 				and Probe.count(t.actor(&"cover_n"), Probe.FRAG) == 1,
 			"both invaders carry a frag grenade",
+	):
+		return
+	if not await Hiding.duck_after_seen(
+			t, [&"bare_h", &"cover_h"], [&"bare_n", &"cover_n"]
 	):
 		return
 	# the tactic level offered at each frame the invader was inside the zone

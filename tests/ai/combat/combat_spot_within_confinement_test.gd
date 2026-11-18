@@ -99,10 +99,7 @@ class FakePerception extends Node:
 	func combat_spots(_node: Node2D, _pos: Vector2, _radius: float) -> Dictionary:
 		return { "fire": spots.duplicate(), "cover": spots.duplicate() }
 
-	func has_line_to(_node: Node2D, _point: Vector2) -> bool:
-		return false
-
-	func has_rise_line_to(_node: Node2D, _point: Vector2) -> bool:
+	func has_fire_line_to(_node: Node2D, _point: Vector2) -> bool:
 		return false
 
 	func note_engaged() -> void:

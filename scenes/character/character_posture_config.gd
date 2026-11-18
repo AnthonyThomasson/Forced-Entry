@@ -7,12 +7,10 @@ class_name CharacterPostureConfig
 ## Not to be confused with `CharacterStanceConfig.stances` (how a hand is held). A posture trades
 ## speed for a smaller target: `speed` multiplies the walk speed; `turn` is the fastest the body
 ## swings round to the aim (rad/s, 0 = at once); `coverage` is the body's height on the 0–100 scale
-## of an object's catalogue coverage, which the AI's cover picking still reads (what a bullet meets
-## is the real height: the body's twin, `BodyHeights`, `docs/cover-and-stance.md`), so a lower
-## posture hides behind lower cover. The drawn body's height is the duck's head top over the stature
-## (`BodyHeights.height_share`), not a column here. Keep
-## `crouch` coverage at or below the AI's `cover_min` (40), so everything it treats as cover hides a
-## crouch.
+## of an object's catalogue coverage, which only a grenade's burst and the AI's grenade escape
+## still read (the blast job, #194; what a bullet meets and what the AI takes for cover is the real
+## height: the body's twin, `BodyHeights`, `docs/cover-and-stance.md`). The drawn body's height is
+## the duck's head top over the stature (`BodyHeights.height_share`), not a column here.
 static var postures: Dictionary = {
 	&"stand": { "speed": 1.0, "turn": 0.0, "coverage": 60.0 },
 	&"crouch": { "speed": 0.6, "turn": 5.0, "coverage": 35.0 },

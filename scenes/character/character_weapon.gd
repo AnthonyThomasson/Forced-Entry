@@ -109,8 +109,9 @@ func muzzle_height() -> float:
 
 
 ## How high (px above the floor) the shot is aimed at `movement.aim_point`: the height the
-## controller set; for `AIM_AUTO` (an AI aiming at where a body is) the centre of the torso of the
-## living character standing there, in its posture; else level, the muzzle's own height.
+## controller set; for `AIM_AUTO` (an AI aiming at where a body is) the middle of the part of the
+## living character standing there that this one sees (`SightRay.aim_height`: the head when only the
+## head shows over cover, else its torso, in its posture); else level, the muzzle's own height.
 func aim_height() -> float:
 	return aim_height_from(muzzle_height())
 
@@ -124,7 +125,7 @@ func aim_height_from(level: float) -> float:
 	if wanted == CharacterMovement.AIM_AUTO:
 		var target := _target_at(character.movement.aim_point)
 		if target != null:
-			return _torso_centre(target.movement.body_posture())
+			return SightRay.aim_height(character, target)
 	return level
 
 
@@ -268,11 +269,3 @@ func _target_at(at: Vector2) -> Node2D:
 			best = other
 			best_gap = gap
 	return best
-
-
-## The middle (px above the floor) of the torso band of a body in `posture`.
-static func _torso_centre(posture: StringName) -> float:
-	for band: Array in BodyHeights.zones(posture):
-		if band[0] == &"torso":
-			return (float(band[1]) + float(band[2])) * 0.5
-	return BodyHeights.head_top(posture) * 0.5

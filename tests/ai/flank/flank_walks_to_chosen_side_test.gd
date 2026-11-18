@@ -2,18 +2,22 @@ extends GameTest
 ## Desired (B9): once a side is chosen the NPC commits. The NPC watches the target in the living
 ## room from the hall, scripted to flank left: it goes in through the hall door, walks round the
 ## room to the target's left in the target's own frame, and fires at it from there, without stalling
-## on the way. A low coffee table just inside the door blocks every line of fire from the hall (E14:
-## nobody crosses while a hostile stands in view with a line of fire, so with a clear shot from
-## outside the NPC would stay there and shoot) but not sight, which looks over it: the flank is the
-## only way to a shot.
+## on the way. A shut glass-panel door in the hall doorway blocks every line of fire from the hall
+## (E14: nobody crosses while a hostile stands in view with a line of fire, so with a clear shot
+## from outside the NPC would stay there and shoot) but not sight, which looks through its panes:
+## the flank is the only way to a shot. (A low piece cannot stand in for it: a round goes over a
+## coffee table as sight does, `docs/gaze-and-fire.md` W2.)
 
 const Flank := preload("res://tests/_ai/flank_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const NPC_POS := Vector2(150, 415)       # in the hall, looking up through the living-room door
 const TARGET_POS := Vector2(230, 190)    # in the living room, facing the door
 const WALK_SPEED := 150.0                # the invader preset's speed
-# a 70 x 40 coffee table (coverage 30) inside the hall door, across the lines to the target
-const TABLE_POS := Vector2(200, 270)
+## The glass-panel door shut in the hall doorway (80 px wide, hinged 34 px from its middle).
+const GLASS_DOOR := {
+	"name": "glass_door", "material": "glass", "style": "panes",
+	"hinge": Vector2(116, 360), "swing_into": Vector2.UP, "angle": 0.0,
+}
 
 
 func describe() -> Dictionary:
@@ -27,16 +31,15 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	Maps.house(s)
+	Maps.house(s, true, {}, GLASS_DOOR)
 	Flank.rules(s)
-	s.object(&"low_cover", "coffee_table", TABLE_POS)
 	# the NPC may shove furniture on its way; re-baking overlapping holes logs a nav sync error
 	s.switch(&"nav.rebake", false)
 	Flank.npc(s, &"npc", NPC_POS, {}, { "look_at": TARGET_POS })   # held for now, see run()
 	Flank.target(s, &"target", TARGET_POS, NPC_POS)
 
 
-## Whether a bullet could fly from `from` to `to`: no wall or solid piece (the table included) on
+## Whether a bullet could fly from `from` to `to`: no wall or solid piece (the door included) on
 ## the line.
 func _fire_line_clear(t: TestContext, from: Vector2, to: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState2D = t.world.get_world_2d().direct_space_state
@@ -56,7 +59,7 @@ func run(t: TestContext) -> void:
 				open_from.append(Vector2(x, y))
 	t.require(
 		open_from.is_empty(),
-		"the table blocks every line of fire from the hall (open from %s)" % str(open_from),
+		"the glass door blocks every line of fire from the hall (open from %s)" % str(open_from),
 	)
 	t.puppet(&"target").aim_at(NPC_POS)
 	var npc := t.actor(&"npc")
