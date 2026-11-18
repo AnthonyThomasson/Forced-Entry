@@ -139,3 +139,17 @@ func test_a_job_the_pool_had_forgotten_takes_its_place_again_when_it_runs() -> v
 	var young := _new_job()
 	_frame += 1
 	assert_bool(young.request(false)).is_false()  # the job is in the pool again, and first
+
+
+func test_a_step_that_did_more_work_than_its_price_is_charged_the_rest() -> void:
+	DecisionBudget.per_frame = 4
+	DecisionBudget.work_unit = 15
+	assert_bool(DecisionBudget.take(1)).is_true()
+	DecisionBudget.charge(60, 1)  # 60 of planner work is 4 units: 1 taken, 3 more owed
+	assert_bool(DecisionBudget.take(1)).is_false()  # the pool is spent for this frame
+	_frame += 1
+	assert_bool(DecisionBudget.take(1)).is_true()
+	DecisionBudget.charge(10, 1)  # under its price: nothing more
+	assert_bool(DecisionBudget.take(1)).is_true()
+	DecisionBudget.charge(500, 0)  # a free piece is never charged
+	assert_bool(DecisionBudget.take(1)).is_true()

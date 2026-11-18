@@ -11,7 +11,7 @@ const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
 const PRICES := [
 	"per_frame", "cost_start", "cost_hostile", "cost_finish", "cost_refusal", "cost_level",
 	"cost_throw_block", "cost_throw_rank", "cost_throw_route", "cost_group_unit",
-	"cost_group_finish",
+	"cost_group_finish", "work_unit",
 ]
 
 

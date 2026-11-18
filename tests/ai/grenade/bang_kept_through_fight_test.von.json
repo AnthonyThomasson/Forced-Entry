@@ -184,12 +184,12 @@
 			],
 			"pick": "engage",
 			"probabilities": {
-				"advance": 0.2504,
-				"engage": 0.5036,
-				"retreat": 0.246
+				"advance": 0.2391,
+				"engage": 0.5199,
+				"retreat": 0.241
 			},
 			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: COMBAT - h - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: b, c.\nA c is between you and h: your line to them is blocked.\nh — HOSTILE (seen) — last seen recently — close, in pistol range, south-west of you, in the kitchen — was standing still — holding a Unarmed.\nb (ally) — in sight — south of you, outside the house — on h's left side — moving south, away from you.\nc (ally) — in sight — south of you, in the kitchen — on h's left side — moving south-west, away from you.\nb (radio, just now): COMBAT - h - ADVANCE - rush them; going in.\nc (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west; going in.\nFlanks on h (you are on their left side): their right side — route passes h, clear shot, cover, short hidden route; behind them — route passes h, clear shot, in the open, short hidden route.\nDecided so far: COMBAT → h."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: COMBAT - h - ADVANCE - halfway to them (reached it, for 1s).\nKnown hostiles: 1 (0 in sight). Allies near you: b, c.\nA c is between you and h: your line to them is blocked.\nh — HOSTILE (seen) — last seen recently — close, in pistol range, south-west of you, in the kitchen — was standing still — holding a Unarmed.\nb (ally) — in sight — south of you, outside the house — on h's left side — moving south, away from you.\nc (ally) — in sight — south-west of you, in the kitchen — on h's left side — moving south-west, away from you.\nb (radio, just now): COMBAT - h - ADVANCE - rush them; going in.\nc (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west; going in.\nFlanks on h (you are on their left side): their right side — route passes h, clear shot, cover, short hidden route; behind them — route passes h, clear shot, in the open, short hidden route.\nDecided so far: COMBAT → h."
 		},
 		{
 			"options": [
@@ -200,13 +200,13 @@
 			],
 			"pick": "engage",
 			"probabilities": {
-				"advance": 0.1982,
-				"engage": 0.3617,
-				"flank": 0.2638,
-				"retreat": 0.1762
+				"advance": 0.199,
+				"engage": 0.3646,
+				"flank": 0.2604,
+				"retreat": 0.176
 			},
 			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 6s).\nKnown hostiles: 1 (1 in sight). Allies near you: b, a.\nYou have a clear shot at h from where you stand. You are exposed to their fire.\nh — HOSTILE (seen) — in sight — close, in pistol range, north of you, in the kitchen — standing still — aiming at a — holding a Unarmed — looks hurt.\nb (ally) — in sight — north of you, in the kitchen — on h's front — moving north, away from you.\na (ally) — last seen just now — north of you, outside the house — on h's front — was moving north, away from you.\na (radio, just now): COMBAT - h - ENGAGE - ambush behind the wall.\nb (radio, just now): COMBAT - h - ADVANCE - rush them; going in.\nFlanks on h (you are on their right side): their left side — route passes h, line blocked, cover, medium hidden route; behind them — free, clear shot, cover, short hidden route.\nDecided so far: COMBAT → h."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 6s).\nKnown hostiles: 1 (1 in sight). Allies near you: b, a.\nYou have a clear shot at h from where you stand. You are exposed to their fire.\nh — HOSTILE (seen) — in sight — close, in pistol range, north of you, in the kitchen — standing still — aiming at a — holding a Unarmed — looks hurt.\nb (ally) — in sight — north of you, in the kitchen — on h's front — moving north-west, away from you.\na (ally) — in sight — north of you, outside the house — on h's front — moving north, away from you.\na (radio, just now): COMBAT - h - ENGAGE - ambush behind the wall.\nb (radio, just now): COMBAT - h - ADVANCE - rush them; going in.\nFlanks on h (you are on their right side): their left side — route passes h, line blocked, cover, medium hidden route; behind them — free, clear shot, cover, short hidden route.\nDecided so far: COMBAT → h."
 		},
 		{
 			"options": [
@@ -230,13 +230,13 @@
 			],
 			"pick": "fire_here",
 			"probabilities": {
-				"ambush": 0.2343,
-				"fire_here": 0.3429,
-				"fire_south": 0.2008,
-				"fire_south_west": 0.222
+				"ambush": 0.2462,
+				"fire_here": 0.3456,
+				"fire_south": 0.2044,
+				"fire_south_west": 0.2038
 			},
 			"question": "Where should you fight h from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 6s).\nYour pistol is loaded. You carry a stun grenade.\nYou have a clear shot at h from where you stand. You are exposed to their fire.\nh — HOSTILE (seen) — in sight — close, in pistol range, north of you, in the kitchen — standing still — aiming at a — holding a Unarmed — looks hurt.\nb (ally) — in sight — north of you, in the kitchen — on h's front — moving north, away from you.\na (ally) — last seen just now — north of you, outside the house — on h's front — was moving north, away from you.\na (radio, just now): COMBAT - h - ENGAGE - ambush behind the wall.\nb (radio, just now): COMBAT - h - ADVANCE - rush them; going in.\nDecided so far: COMBAT → h → ENGAGE."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 6s).\nYour pistol is loaded. You carry a stun grenade.\nYou have a clear shot at h from where you stand. You are exposed to their fire.\nh — HOSTILE (seen) — in sight — close, in pistol range, north of you, in the kitchen — standing still — aiming at a — holding a Unarmed — looks hurt.\nb (ally) — in sight — north of you, in the kitchen — on h's front — moving north-west, away from you.\na (ally) — in sight — north of you, outside the house — on h's front — moving north, away from you.\na (radio, just now): COMBAT - h - ENGAGE - ambush behind the wall.\nb (radio, just now): COMBAT - h - ADVANCE - rush them; going in.\nDecided so far: COMBAT → h → ENGAGE."
 		},
 		{
 			"options": [
@@ -247,7 +247,7 @@
 				"lead_ally_1": 1.0
 			},
 			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: COMBAT - h - ENGAGE - ambush behind the wall (waiting, for 0s).\nNobody else is in sight or known.\nb (ally) — last seen just now — south of you, outside the house — was moving west.\nc (ally) — last seen just now — south of you, in the kitchen — was moving south, away from you.\nc (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west.\nb (radio, just now): COMBAT - h - ADVANCE - rush them; going in.\nGunfire heard to the south-west, in the hallway, just now.\nFootsteps heard to the west, in the kitchen, recently.\nDecided so far: INVESTIGATE."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: COMBAT - h - ENGAGE - ambush behind the wall (waiting, for 0s).\nNobody else is in sight or known.\nb (ally) — last seen just now — south of you, outside the house — was moving west.\nc (ally) — in sight — south of you, in the kitchen — moving south, away from you.\nc (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west.\nb (radio, just now): COMBAT - h - ADVANCE - rush them; going in.\nGunfire heard to the south-west, in the hallway, just now.\nFootsteps heard to the west, in the kitchen, recently.\nDecided so far: INVESTIGATE."
 		},
 		{
 			"options": [
@@ -271,7 +271,7 @@
 				"lead_ally_2": 1.0
 			},
 			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: INVESTIGATE - support b (reached it, for 0s).\nNobody else is in sight or known.\nb (ally) — last seen just now — south-west of you, outside the house — was moving west, away from you.\nc (ally) — in sight — south of you, in the kitchen — standing still.\nc (radio, just now): COMBAT - h - ENGAGE - where you stand.\nb (radio, just now): COMBAT - h - ADVANCE - rush them.\nGunfire heard to the south, in the kitchen, just now.\nFootsteps heard to the north-west, in the kitchen, recently.\nDecided so far: INVESTIGATE."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: INVESTIGATE - support b (reached it, for 0s).\nNobody else is in sight or known.\nb (ally) — last seen just now — south-west of you, outside the house — was moving west, away from you.\nc (ally) — in sight — south of you, in the kitchen — moving north, toward you.\nc (radio, just now): COMBAT - h - ENGAGE - where you stand.\nb (radio, just now): COMBAT - h - ADVANCE - rush them.\nGunfire heard to the south, in the kitchen, just now.\nFootsteps heard to the north-west, in the kitchen, recently.\nDecided so far: INVESTIGATE."
 		}
 	],
 	"version": 1

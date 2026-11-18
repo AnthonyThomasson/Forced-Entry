@@ -50,6 +50,10 @@ static var cost_throw_route: int = 1
 ## finish that sorts and caps what the units made (free).
 static var cost_group_unit: int = 1
 static var cost_group_finish: int = 0
+## The planner work (`GrenadeArc.work`, a count) one unit holds: a priced step that did more than
+## its price's worth (a throw block of 40 is 3 units, about 3 ms) is charged the rest once it has
+## run (`charge`), so a frame holds one such block, not four 5 ms ones from four NPCs. 0: no charge.
+static var work_unit: int = 15
 ## Where the frame number comes from, when not the engine's physics frame: a unit test steps frames
 ## by it, with no engine running them (the way `DecisionStub.source` stands in for the server).
 static var frame_source := Callable()
@@ -79,6 +83,17 @@ static func take(cost: int, owed := 0) -> bool:
 		return false
 	_spent += cost
 	return true
+
+
+## Charge the pool for a priced step (`cost` units, taken) that did `work` of planner work: the
+## units its work is worth beyond `cost`. What is over the pool refuses every piece after it this
+## frame.
+static func charge(work: int, cost: int) -> void:
+	if cost <= 0 or work_unit <= 0:
+		return
+	var extra := ceili(float(work) / float(work_unit)) - cost
+	if extra > 0:
+		_spent += extra
 
 
 ## Forget the frame's spending and every job in flight (a test's cleanup: a unit suite that stood in

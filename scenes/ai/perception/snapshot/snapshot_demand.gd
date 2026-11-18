@@ -265,17 +265,21 @@ func group_steps() -> RefCounted:
 	return _steps(jobs)
 
 
-## The throws at the hostile (or the shots' origin) the throw search found one at, in steps, or
-## null when there is none to build (no throw found by that search, or the group is built): a read
-## of it not built would build it whole in one frame. The throws at another hostile are built when
-## the walk reads them, unless the search went through it before it found its throw (they are then
-## none, `_searched_none`): the walk rarely binds one it reads (a hostile the search did not reach
-## is one it never found a throw at first), so they are not built ahead for every decision.
+## The throws at the hostile (or the shots' origin) the throw search found one at, then at every
+## other hostile given full analysis (the walk reads each one's, for what it is exposed to), in
+## steps, or null when there are none to build (no throw found by that search, or the groups are
+## built): a read of one not built would build it whole in one frame (120 ms in a grenade match).
+## Those the search went through before the throw it found are none (`_searched_none`): no planner
+## call.
 func grenade_steps() -> RefCounted:
 	var source: int = throws.memo_of(ctx).get("source", NO_SOURCE)
 	if source == NO_SOURCE or not facts.get("grenade_ready", false):
 		return null
-	return _steps([{ "name": "grenade_throws", "id": source }])
+	var jobs: Array = [{ "name": "grenade_throws", "id": source }]
+	for id: int in targets:
+		if id != source:
+			jobs.append({ "name": "grenade_throws", "id": id })
+	return _steps(jobs)
 
 
 ## A run of the groups in `jobs`, those not built yet, or null when all are.
