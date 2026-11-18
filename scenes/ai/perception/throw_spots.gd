@@ -15,6 +15,14 @@ const REACH_SHARES := [0.95, 0.8]
 const DIRECTIONS := 16
 const ROUTES := ThrowScan.ROUTES
 
+## Raw candidates a block step of a priced search works through at most, and the arc planner's work
+## (`GrenadeArc.work`, a count, about 0.1 ms each) at which it ends the block earlier: a stretch of
+## candidates that fail the cheap tests is one step, a stretch that asks the planner many (each
+## that passes the cheap tests asks it, 0.05 to 1 ms, #194) is a few, so a unit the decision budget
+## prices (`DecisionBudget.cost_throw_block`) is about the same work whichever it is.
+static var block_size: int = 48
+static var block_work: int = 60
+
 ## Longest walk (px of route) to a throw spot (the perception's `apply_config` sets it).
 var spot_walk: float
 
@@ -55,17 +63,23 @@ func throw_spot(
 
 ## One step of a throw-spot existence search (`ThrowScan` holds its state): whether `throw_spot`
 ## would find a spot, without choosing it. A step is a block of at most `block` raw candidates
-## through the cheap tests, the rank pass (when more than `ROUTES` passed), or one route; the
-## first `ROUTES` by rank are routed, and the search stops at the first the walk reaches.
+## through the cheap tests, but ending the block once the arc planner has done `work`
+## (`GrenadeArc.work`: a count, never a time) since it began, the rank pass (when more than `ROUTES`
+## passed), or one route; the first `ROUTES` by rank are routed, and the search stops at the first
+## the walk reaches.
 func scan_step(tactics: RefCounted, scan: ThrowScan, block: int) -> void:
 	match scan.kind:
 		ThrowScan.Kind.BLOCK:
 			if not scan.raw_made:
 				scan.raw = raw(scan.ctx["self_pos"], scan.aim)
 				scan.raw_made = true
-			var end := mini(scan.cursor + maxi(1, block), scan.raw.size())
-			for r: Vector2 in scan.raw.slice(scan.cursor, end):
-				_candidate(tactics, scan, r)
+			var end := scan.cursor
+			var limit := mini(scan.cursor + maxi(1, block), scan.raw.size())
+			var started := GrenadeArc.work
+			var cap := block_work if block < ThrowScan.WHOLE else ThrowScan.WHOLE
+			while end < limit and (end == scan.cursor or GrenadeArc.work - started < cap):
+				_candidate(tactics, scan, scan.raw[end])
+				end += 1
 			scan.cursor = end
 			if end >= scan.raw.size():
 				scan.blocks_done()

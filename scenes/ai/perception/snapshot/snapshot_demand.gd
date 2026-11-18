@@ -99,7 +99,7 @@ func group(name: String) -> Dictionary:
 	var _scope: RefCounted = open()
 	SnapshotCounts.note(name)
 	reads.note(ctx, name)
-	var out := _none() if name == "grenade_throws" and _searched_none() else _build(name)
+	var out := _none() if name == "grenade_throws" and _searched_none(GLOBAL) else _build(name)
 	store(name, GLOBAL, out)
 	return out
 
@@ -115,7 +115,7 @@ func target_group(name: String, target_id: int) -> Variant:
 	var _scope: RefCounted = open()
 	SnapshotCounts.note("target_throws")
 	var target: Dictionary = targets[target_id]
-	if _searched_none():
+	if _searched_none(target_id):
 		store(name, target_id, _none())
 	else:
 		store(name, target_id, throws.grenade_group(ctx, target["t"], target["a"]))
@@ -246,9 +246,12 @@ func throw_search(block: int) -> RefCounted:
 
 
 ## Note the hostile (`GLOBAL`: the shots' origin, `NO_SOURCE`: none) the throw search found a throw
-## at: the one the grenade piece builds the throws for (`grenade_steps`).
-func found_at(id: int) -> void:
-	throws.memo_of(ctx)["source"] = id
+## at: the one the grenade piece builds the throws for (`grenade_steps`), and the sources it went
+## through before it (`passed`), at which it found none.
+func found_at(id: int, passed: Array) -> void:
+	var memo := throws.memo_of(ctx)
+	memo["source"] = id
+	memo["passed"] = passed
 
 
 ## The leads group, and the entries it needs while a stun can be thrown, in steps (`GroupSteps`),
@@ -262,19 +265,17 @@ func group_steps() -> RefCounted:
 	return _steps(jobs)
 
 
-## The throws at the hostile (or the shots' origin) the throw search found one at, then at every
-## other hostile given full analysis (the walk reads each one's, for what it is exposed to), in
-## steps, or null when there are none to build (no throw found by that search, or the groups are
-## built): a read of one not built would build it whole in one frame.
+## The throws at the hostile (or the shots' origin) the throw search found one at, in steps, or
+## null when there is none to build (no throw found by that search, or the group is built): a read
+## of it not built would build it whole in one frame. The throws at another hostile are built when
+## the walk reads them, unless the search went through it before it found its throw (they are then
+## none, `_searched_none`): the walk rarely binds one it reads (a hostile the search did not reach
+## is one it never found a throw at first), so they are not built ahead for every decision.
 func grenade_steps() -> RefCounted:
 	var source: int = throws.memo_of(ctx).get("source", NO_SOURCE)
 	if source == NO_SOURCE or not facts.get("grenade_ready", false):
 		return null
-	var jobs: Array = [{ "name": "grenade_throws", "id": source }]
-	for id: int in targets:
-		if id != source:
-			jobs.append({ "name": "grenade_throws", "id": id })
-	return _steps(jobs)
+	return _steps([{ "name": "grenade_throws", "id": source }])
 
 
 ## A run of the groups in `jobs`, those not built yet, or null when all are.
@@ -327,7 +328,7 @@ func forget_stale_groups() -> void:
 func begin_group(name: String, id: int) -> RefCounted:
 	SnapshotCounts.note(name if id == GLOBAL else "target_throws")  # one a group, not a step
 	reads.note(ctx, name)
-	if name == "grenade_throws" and _searched_none():
+	if name == "grenade_throws" and _searched_none(id):
 		return GroupBuild.new().already(_none())
 	if id != GLOBAL:
 		return throws.begin_grenade_group(ctx, targets[id]["t"], targets[id]["a"])
@@ -353,11 +354,14 @@ func store(name: String, id: int, out: Dictionary) -> void:
 	built.append("%s:%d" % [name, id])
 
 
-## Whether the throw search ended having found no throw at any source (the shots' origin, each
-## hostile given full analysis): every grenade group is then empty (the search and the groups agree,
+## Whether the throw search found no throw at source `id` (`GLOBAL`: the shots' origin, else a
+## hostile given full analysis): it ended having found none anywhere, or went through `id` before
+## the throw it found. Its grenade group is then empty (the search and the groups agree,
 ## `SnapshotThrows.grenade_possible`), and is not built again to find that out.
-func _searched_none() -> bool:
-	return facts.get("grenade_ready", true) == false
+func _searched_none(id: int) -> bool:
+	if facts.get("grenade_ready", true) == false:
+		return true
+	return id in (throws.memo_of(ctx).get("passed", []) as Array)
 
 
 ## A grenade group with no option, as the build makes one.

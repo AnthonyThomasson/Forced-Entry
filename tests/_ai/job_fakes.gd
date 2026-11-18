@@ -6,10 +6,11 @@ extends RefCounted
 
 const Builds := preload("res://tests/_ai/job_build_fakes.gd")
 const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
-## The pool and prices of `DecisionBudget`, by name.
+const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
+## The pool and prices of `DecisionBudget`, by name (and the throw scan's block, `throw_block`).
 const PRICES := [
 	"per_frame", "cost_start", "cost_hostile", "cost_finish", "cost_refusal", "cost_level",
-	"cost_throw_block", "cost_throw_rank", "cost_throw_route", "throw_block", "cost_group_unit",
+	"cost_throw_block", "cost_throw_rank", "cost_throw_route", "cost_group_unit",
 	"cost_group_finish",
 ]
 
@@ -20,6 +21,7 @@ static func prices() -> Dictionary:
 	var out := {}
 	for name: String in PRICES:
 		out[name] = budget.get(name)
+	out["throw_block"] = ThrowSpots.block_size
 	return out
 
 
@@ -27,7 +29,10 @@ static func prices() -> Dictionary:
 static func set_prices(values: Dictionary) -> void:
 	var budget: Object = Budget
 	for name: String in values:
-		budget.set(name, values[name])
+		if name == "throw_block":
+			ThrowSpots.block_size = values[name]
+		else:
+			budget.set(name, values[name])
 
 
 ## The whole prices: a pool of one unit, the claim's start the one thing that costs, every later

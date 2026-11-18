@@ -13,6 +13,7 @@ const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentThrow = preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")
 const ThrowScan := preload("res://scenes/ai/perception/throw_scan.gd")
+const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
 const ThrowSearch := preload("res://scenes/ai/perception/snapshot/throw_search.gd")
 const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd")
 ## Where along the stretch of the line back from a shot that lies in the room the shots came from a
@@ -107,7 +108,7 @@ func _scanned(
 			_tactics, ctx, _throw_aim(ctx, kind, spot, keep_out), know["character_rids"]
 		)
 	var scan: ThrowScan = scans[key]
-	scan.step(DecisionBudget.throw_block)
+	scan.step(ThrowSpots.block_size)
 	if not scan.candidates_done:
 		return false
 	points[key] = scan.points

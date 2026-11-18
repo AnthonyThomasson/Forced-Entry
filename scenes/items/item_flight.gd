@@ -13,8 +13,8 @@ extends RefCounted
 ## collider of the twin space a flight sweeps (a sphere rolling over slabs would catch their seams).
 ## A ceiling (`ceiling`, px: where a roof is over the flight; none in the open) keeps a flight's top
 ## under it. A roof is also a body of the twin space over a room's floor (`Floor.roofed`, the layer
-## `TWIN_ROOF`), which a flight strikes like a wall, for a flight that is not given the ceiling (a
-## dropped item).
+## `TWIN_ROOF`), which the default `mask` strikes like a wall, for a flight that is not given the
+## ceiling; a dropped item's mask leaves it out (it falls from a hand's height).
 ##
 ## **Contact.** A strike that comes in faster than `min_hop` and rebounds more than the next frame's
 ## gravity takes back bounces: the velocity is reflected and scaled by the surface's restitution

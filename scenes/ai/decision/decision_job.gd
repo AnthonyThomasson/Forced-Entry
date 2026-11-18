@@ -34,6 +34,7 @@ const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
 const Roster := preload("res://scenes/ai/decision/decision_roster.gd")
 ## The throw search's step kinds (`ThrowSearch.Kind`), to price them.
 const ThrowSearch := preload("res://scenes/ai/perception/snapshot/throw_search.gd")
+const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
 ## The group builds' step kinds (`GroupBuild.Kind`), to price them.
 const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd")
 
@@ -249,7 +250,7 @@ func _refusal() -> bool:
 func _group_piece() -> bool:
 	if not _run_steps(group_cost_of, GroupBuild.Kind.DONE):
 		return false
-	_steps = _snapshot["demand"].throw_search(Budget.throw_block)
+	_steps = _snapshot["demand"].throw_search(ThrowSpots.block_size)
 	_step_kind = -1
 	_stage = Stage.THROW
 	return true
@@ -265,8 +266,8 @@ func _throw_piece() -> bool:
 	return true
 
 
-## The grenade piece, when the pool allows: the throws at the hostile the search found one at, then
-## at each other hostile given full analysis, a kind a step; the walk begins as it ends. What the
+## The grenade piece, when the pool allows: the throws at the hostile the search found one at, a
+## kind a step; the walk begins as it ends. What the
 ## walk is told is read as it begins, not at the claim, the build and the pieces after it having
 ## spread over frames: the radio callouts (a teammate's claim since is seen) and what it marks
 ## "(your current plan)".

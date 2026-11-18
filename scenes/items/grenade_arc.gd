@@ -1,5 +1,15 @@
 class_name GrenadeArc
 extends RefCounted
+
+## What `_known` says of an arc: struck by the learned body early or late on its way, or not known
+## to
+## be.
+enum Known {
+	NOT,
+	EARLY,
+	LATE,
+}
+
 ## Items domain, the one planner of a grenade's throw, for the player's throw and the AI's
 ## (interface 6): from the thrower's release height to the aim point, the LOWEST arc that clears
 ## what is in the way in the twin 3D space (furniture tops, a doorway's lintel, a wall) and lands
@@ -65,6 +75,8 @@ const FACE_SLACK := 3.0
 ## And how high (px) both strikes are, for it to be a wall and not a low piece's edge, which arcs
 ## that descend steeply strike at the same place (`_faced`).
 const FACE_HEIGHT := 45.0
+## The widest tall body a plan learns of (`_learn`), in px.
+const BODY_MAX := 240.0
 ## How much a hand's overlap must face the way it is thrown to be a throw into the body (cosine).
 const START_INTO := 0.05
 ## How far (px) past where a grenade is reckoned to rest the floor is checked for what it would run
@@ -92,6 +104,13 @@ static var _sweeps := {}
 ## How many plans have been made since the process began: a running total a test reads to see what
 ## a build asked (`tests/ai/decision/throw_groups_built_before_the_walk_test.gd`).
 static var plans := 0
+## The planner's work since the process began, in about 50 us each: an arc swept (`_strike`) or a
+## cast held level (`_level_cast`). What a plan cost, counted and never timed: the AI prices its
+## throw-spot scan by it (`ThrowSpots.block_work`), a test reads what a question took.
+static var work := 0
+## How many strikes of a plan are looked into for the tall body that made them (`_learn`); 0 sweeps
+## every arc (the answer is the same: a test compares them).
+static var learn_tries := 3
 
 
 ## The throw to make along `course`: the lowest arc that clears and lands at its aim. The launch's
@@ -145,10 +164,7 @@ static func _try(
 	if fit.spent() or fit.early.has(arc.apex):
 		return null
 	fit.swept += 1
-	var struck: Variant = _strike(course, sweep, arc, reach)
-	if struck != null:
-		if _plan_of(struck).distance_to(course.from) < reach * EARLY_SHARE:
-			fit.early[arc.apex] = true
+	if _struck(course, sweep, fit, arc, reach):
 		return null
 	if not course.verify:
 		return _launch(course, arc, reach, true, course.to)
@@ -384,16 +400,19 @@ static func _walled(course: GrenadeCourse, query: PhysicsShapeQueryParameters3D)
 	return low != Vector2.INF and low.distance_to(high) <= WALL_SLACK
 
 
-## Where the cylinder `query`, held `height` px up and cast level from the hand toward the aim, is
-## first stopped (a plan point), or `Vector2.INF` when nothing stops it before the aim.
+## Where the cylinder `query`, held `height` px up and cast level from the hand toward the aim (or,
+## `back`, from the aim toward the hand), is first stopped (a plan point), or `Vector2.INF` when
+## nothing stops it on the way.
 static func _level_cast(
 	course: GrenadeCourse,
 	query: PhysicsShapeQueryParameters3D,
 	height: float,
+	back := false,
 ) -> Vector2:
-	var start := PlanSpace.lift(course.from, height)
+	work += 1
+	var start := PlanSpace.lift(course.to if back else course.from, height)
 	query.transform = Transform3D(Basis(), start)
-	query.motion = PlanSpace.lift(course.to, height) - start
+	query.motion = PlanSpace.lift(course.from if back else course.to, height) - start
 	var res := course.space.cast_motion(query)
 	if res.is_empty() or res[0] >= 1.0:
 		return Vector2.INF
@@ -437,6 +456,7 @@ static func _strike(
 ) -> Variant:
 	if course.space == null:
 		return null
+	work += 1
 	var time: float = arc.time
 	var along := reach / time
 	var direction := _direction(course)
@@ -543,6 +563,123 @@ static func _faced(
 	)
 
 
+## How high (px) the sweep of `arc`, first touching down `reach` out, is `across` px from the hand
+## along the throw: its casts are chords of the arc, so the height is the chord's there.
+static func _swept_height(
+	course: GrenadeCourse,
+	arc: Arc,
+	reach: float,
+	across: float,
+) -> float:
+	var spent := arc.time * across / reach
+	var cut := arc.time / SEGMENTS
+	var index := clampi(int(spent / cut), 0, SEGMENTS - 1)
+	return lerpf(
+		_height(course, arc, cut * index),
+		_height(course, arc, cut * (index + 1)),
+		clampf(spent / cut - index, 0.0, 1.0),
+	)
+
+
+## Whether `arc`, first touching down `reach` out, is struck: by the body `fit` has learned of
+## (`_known`), with no sweep, else by the sweep (`_strike`), which learns of the body it strikes
+## (`_learn`, `learn_tries` times a plan). An arc struck within `EARLY_SHARE` of its reach is marked
+## early.
+static func _struck(
+	course: GrenadeCourse,
+	sweep: PhysicsShapeQueryParameters3D,
+	fit: Fit,
+	arc: Arc,
+	reach: float,
+) -> bool:
+	var known := _known(course, fit.body, arc, reach) if fit.step > 0 else Known.NOT
+	if known == Known.NOT:
+		var struck: Variant = _strike(course, sweep, arc, reach)
+		if struck == null:
+			return false
+		known = (
+			Known.EARLY
+			if _plan_of(struck).distance_to(course.from) < reach * EARLY_SHARE
+			else Known.LATE
+		)
+		if fit.body == Vector3.ZERO and fit.learns < learn_tries:
+			fit.learns += 1
+			fit.body = _learn(course, sweep, _plan_of(struck))
+	if known == Known.EARLY:
+		fit.early[arc.apex] = true
+	return true
+
+
+## Whether `arc`, a farther lob of it first touching down `reach` out, is struck by the learned
+## `body` (`_learn`) whatever else: it comes down past the body's near face, and either touches down
+## on its footprint or is no higher than the body's top at the near face or at the far one (between
+## them it is higher still). `EARLY` when that is within `EARLY_SHARE` of its reach for certain: the
+## body stands there. Else `LATE`: the arc was not struck early by the lob before it, and what
+## struck the first would strike this one at a place near it.
+static func _known(course: GrenadeCourse, body: Vector3, arc: Arc, reach: float) -> Known:
+	if body == Vector3.ZERO or reach <= body.x:
+		return Known.NOT
+	var early := reach * EARLY_SHARE
+	if _swept_height(course, arc, reach, body.x) <= body.y:
+		return Known.EARLY if body.x < early else Known.LATE
+	if reach > body.z and _swept_height(course, arc, reach, body.z) > body.y:
+		return Known.NOT
+	return Known.EARLY if body.z < early else Known.LATE
+
+
+## Learn of the tall body a strike at plan point `stop` was made by, from a few casts and rays, as a
+## `Vector3` of its near face's distance from the hand (where the cylinder first touches it), the
+## height up to which it stands (a little under its top) and its far face's distance, or
+## `Vector3.ZERO` when it is none to learn: one that is no body across the line (a strike by the aim
+## is a landing, one on a piece's edge is stopped at no face), or one that is not one solid piece
+## from the near face to the far one (its top is the same at three places along it, and the
+## cylinder held level is stopped at the near face at the floor and at the top, and at the far face
+## from the aim). Then every arc that crosses it low enough, or comes down on it, is struck.
+static func _learn(
+	course: GrenadeCourse,
+	query: PhysicsShapeQueryParameters3D,
+	stop: Vector2,
+) -> Vector3:
+	var floor_y := GrenadeConfig.radius + ItemFlight.GROUND_GAP
+	var across := stop.distance_to(course.from)
+	var width := maxf(course.margin, GrenadeConfig.radius)
+	var top := _top_at(course, across + width + FACE_SLACK)
+	if stop.distance_to(course.to) <= LAND_NEAR + WALL_SLACK or top < 0.0:
+		return Vector3.ZERO
+	query.exclude = course.passed
+	var low := _level_cast(course, query, floor_y, false)
+	var high := _level_cast(course, query, top - 1.0, false)
+	var far := _level_cast(course, query, floor_y, true).distance_to(course.from)
+	var past := course.from.distance_to(course.to) - far
+	if (
+		low == Vector2.INF
+		or high == Vector2.INF
+		or low.distance_to(stop) > FACE_SLACK
+		or high.distance_to(stop) > FACE_SLACK
+		or far - across > BODY_MAX
+		or far <= across + 2.0 * width
+		or past <= LAND_NEAR + WALL_SLACK
+		or absf(_top_at(course, (across + far) * 0.5) - top) > FACE_SLACK
+		or absf(_top_at(course, far - width - FACE_SLACK) - top) > FACE_SLACK
+	):
+		return Vector3.ZERO
+	return Vector3(across, top - 1.0, far)
+
+
+## How high (px) the body that stands `across` px from the hand along the throw is at its top: a
+## ray down from over the highest arc, on what a lob is judged by; -1 when it finds none.
+static func _top_at(course: GrenadeCourse, across: float) -> float:
+	var at := course.from + _direction(course) * across
+	var start := _top(course) + GrenadeConfig.radius * 2.0 + FACE_SLACK
+	var ray := PhysicsRayQueryParameters3D.create(
+		PlanSpace.lift(at, start), PlanSpace.lift(at, 0.0), course.mask & SURFACES
+	)
+	ray.exclude = course.passed
+	work += 1
+	var hit := course.space.intersect_ray(ray)
+	return PlanSpace.height_of(hit["position"]) if not hit.is_empty() else -1.0
+
+
 ## The 3D point of the arc `time` s after the release.
 static func _point(
 	course: GrenadeCourse,
@@ -551,12 +688,15 @@ static func _point(
 	arc: Arc,
 	time: float,
 ) -> Vector3:
-	var height: float = (
-		course.release + arc.rise * time - 0.5 * GrenadeConfig.gravity * time * time
-	)
-	if time >= arc.time:
-		height = GrenadeConfig.radius + ItemFlight.GROUND_GAP
+	var height := _height(course, arc, time)
 	return PlanSpace.lift(course.from + direction * along * time, height)
+
+
+## The height (px) of the centre of `arc` `time` s after the release: the floor's once it is down.
+static func _height(course: GrenadeCourse, arc: Arc, time: float) -> float:
+	if time >= arc.time:
+		return GrenadeConfig.radius + ItemFlight.GROUND_GAP
+	return course.release + arc.rise * time - 0.5 * GrenadeConfig.gravity * time * time
 
 
 ## The way across the floor, from the hand to the aim (right for an aim at the hand).
@@ -639,6 +779,12 @@ class Fit:
 	var tries := 0
 	var best: Dictionary = {}
 	var best_off := INF
+	## The body the strikes of the plan have learned of (`_learn`): the near face's distance from
+	## the
+	## hand, the height it stands to and the far face's distance; `Vector3.ZERO` none (yet), and
+	## how many times it has been tried to learn.
+	var body := Vector3.ZERO
+	var learns := 0
 	## The apexes whose arc was struck early on its way: lobbing it farther strikes it again.
 	var early := {}
 

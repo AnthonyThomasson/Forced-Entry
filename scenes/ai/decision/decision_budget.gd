@@ -37,8 +37,9 @@ static var cost_finish: int = 1
 static var cost_refusal: int = 0
 static var cost_level: int = 0
 ## What a step of the throw search costs (the piece between the order-refusal step and the walk,
-## which resolves the `grenade_ready` fact): a block of `throw_block` raw candidates (0.3 to 0.9
-## ms), the rank pass (0.2 to 0.5 ms), one route (0.4 to 0.8 ms).
+## which resolves the `grenade_ready` fact): a block of the throw-spot scan (`ThrowSpots.block_size`
+## candidates, ending at `ThrowSpots.block_work`: 0.3 to 4 ms), the rank pass (0.2 to 0.5 ms), one
+## route (0.4 to 0.8 ms).
 static var cost_throw_block: int = 1
 static var cost_throw_rank: int = 1
 static var cost_throw_route: int = 1
@@ -49,9 +50,6 @@ static var cost_throw_route: int = 1
 ## finish that sorts and caps what the units made (free).
 static var cost_group_unit: int = 1
 static var cost_group_finish: int = 0
-## Raw throw-spot candidates one block step works through: 6, a unit's worth (each candidate that
-## passes the cheap tests asks the arc planner, 0.05 to 1 ms, #194; 48 were 0.3 to 0.9 ms before).
-static var throw_block: int = 6
 ## Where the frame number comes from, when not the engine's physics frame: a unit test steps frames
 ## by it, with no engine running them (the way `DecisionStub.source` stands in for the server).
 static var frame_source := Callable()
