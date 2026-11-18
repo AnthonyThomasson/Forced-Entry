@@ -385,9 +385,8 @@ static func _walled(course: GrenadeCourse, query: PhysicsShapeQueryParameters3D)
 	return low != Vector2.INF and low.distance_to(high) <= WALL_SLACK
 
 
-## Where the cylinder `query`, held `height` px up and cast level from the hand toward the aim (or,
-## `back`, from the aim toward the hand), is first stopped (a plan point), or `Vector2.INF` when
-## nothing stops it on the way.
+## Where the cylinder `query`, held `height` px up and cast level from the hand toward the aim, is
+## first stopped (a plan point), or `Vector2.INF` when nothing stops it on the way.
 static func _level_cast(
 	course: GrenadeCourse,
 	query: PhysicsShapeQueryParameters3D,

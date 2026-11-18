@@ -296,9 +296,28 @@ func _walk_piece() -> bool:
 	var need: Dictionary = planner.stalled()
 	if not need.is_empty():
 		_steps = _snapshot["demand"].steps_of(need["name"], need["id"])
+		if _steps == null:
+			# A level stalled on a group that is built: no step to take, and the level would stall
+			# again at once. Build it whole, loudly (`push_error` fails every test through the log
+			# gate), rather than freeze the walk on it.
+			push_error(
+				"DecisionJob: a level stalled on %s of %d, which has no steps"
+				% [need["name"], need["id"]]
+			)
+			_build_whole(need)
+			return true
 		_step_kind = -1
 		_stage = Stage.STALL
 	return true
+
+
+## The group `need` (`{ name, id }`) built whole, for a stall `steps_of` gave no steps for.
+func _build_whole(need: Dictionary) -> void:
+	var demand: RefCounted = _snapshot["demand"]
+	if need["id"] == demand.GLOBAL:
+		demand.group(need["name"])
+	else:
+		demand.target_group(need["name"], need["id"])
 
 
 ## The group the walk's level stalled on, built a priced step at a time; the level runs again as it
