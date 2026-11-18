@@ -6,6 +6,9 @@ class_name CharacterWeapon extends RefCounted
 
 ## The character holding the item.
 var character: CharacterBody2D
+## A ducked body's rise over its cover to fire (`character_rise.gd`): the weapon asks it before a
+## gun leaves the barrel, `movement.body_posture()` reads the pose it holds.
+var rise: CharacterRise
 ## The held weapon's barrel is against a wall or object (only a weapon that `raises_at_contact`): it
 ## is held pointing up and cannot shoot. Set at once; `_raise` eases toward it (0 = held to the aim
 ## .. 1 = fully up).
@@ -17,6 +20,7 @@ var _raise := 0.0
 ## The weapon use of `host`.
 func _init(host: CharacterBody2D) -> void:
 	character = host
+	rise = CharacterRise.new(host)
 
 
 ## Melee with the held item (F): runs its primary action. Ignored while locked in an interaction.
@@ -44,6 +48,10 @@ func shoot() -> bool:
 	update_raise(0.0)
 	if _blocked:
 		return false
+	# A ducked gun behind cover rises over it first (it holds its fire while it does).
+	if character.movement.posture() == &"crouch" and item.gun_id() != &"":
+		if not rise.rise_to(rise.pose_needed(item.weapon_hand())):
+			return false
 	return item.secondary(character)
 
 
@@ -91,19 +99,22 @@ func muzzle_origin(hand: int) -> Vector2:
 	return character.anatomy.hands.world(hand) + character.facing * _muzzle_ahead(item)
 
 
-## How high (px above the floor) a round leaves the muzzle: the bore line of the posture the shot is
-## fired from. A standing body fires from the standing muzzle; a crouched one from the fire-over
-## muzzle (a duck rises over its cover to fire, while its body stays at duck height; the rise is
-## judged per shot by the duck-rise job, #194 job 5, so for now a crouch always fires from it).
+## How high (px above the floor) a round leaves the muzzle: the bore line of the posture the body is
+## in (`movement.body_posture()`): standing, ducked, or risen over its cover to fire (`rise_to`).
 func muzzle_height() -> float:
-	var crouched: bool = character.movement.posture() == &"crouch"
-	return BodyHeights.muzzle(BodyHeights.FIRE_OVER if crouched else BodyHeights.STAND)
+	return BodyHeights.muzzle(character.movement.body_posture())
 
 
 ## How high (px above the floor) the shot is aimed at `movement.aim_point`: the height the
 ## controller set; for `AIM_AUTO` (an AI aiming at where a body is) the centre of the torso of the
 ## living character standing there, in its posture; else level, the muzzle's own height.
 func aim_height() -> float:
+	return aim_height_from(muzzle_height())
+
+
+## `aim_height` for a muzzle at `level` px: the same unless the shot is level (a controller's
+## `AIM_LEVEL`, or an `AIM_AUTO` with no body at the aim), which flies level at `level`.
+func aim_height_from(level: float) -> float:
 	var wanted: float = character.movement.aim_height
 	if wanted >= 0.0:
 		return wanted
@@ -111,7 +122,17 @@ func aim_height() -> float:
 		var target := _target_at(character.movement.aim_point)
 		if target != null:
 			return _torso_centre(target.movement.body_posture())
-	return muzzle_height()
+	return level
+
+
+## The plan direction a round leaves the muzzle of the weapon in `hand` in before its spread: toward
+## the point `GunConfig.zero_range` ahead of the body along its facing (so a gun held off the line
+## still shoots where the character points), turned by the stun's sway.
+func shot_direction(hand: int) -> Vector2:
+	var muzzle := muzzle_origin(hand)
+	var direction: Vector2 = (character.global_position
+			+ character.facing * GunConfig.zero_range - muzzle).normalized()
+	return direction.rotated(aim_sway())
 
 
 ## The point the character is aiming at, as an item reads it (a grenade is thrown to it): the aim

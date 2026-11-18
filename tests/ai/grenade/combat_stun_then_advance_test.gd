@@ -37,7 +37,9 @@ func configure(s: TestSetup) -> void:
 	)
 	s.object(&"sofa", "sofa", Vector2(700, 31))
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": Vector2.RIGHT })
-	GrenadeAi.hostile(s, &"h", HOSTILE_AT, INVADER_AT)
+	# Ducked: a hostile standing behind the sofa (38 px) is fired at over it by an invader that
+	# rises to shoot (docs/cover-and-stance.md P6); a ducked one is the hidden hostile this is.
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, INVADER_AT, { "movement:_posture": &"crouch" })
 
 
 func run(t: TestContext) -> void:

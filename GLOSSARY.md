@@ -78,13 +78,14 @@ _Avoid_: coverage (the 0 to 100 abstract height the real heights replace), cover
 
 **Duck**:
 The low posture of a character behind cover: a head top of about 0.85 m (36 px) (`BodyHeights.DUCK`), so a piece of at
-least that top hides the whole body. A ducked character fires by rising to a fire-over.
-_Avoid_: crouch (the old posture, 0.62 of a stand's drawn height and coverage 35), kneel
+least that top hides the whole body. The crouch (C, `movement.set_posture(&"crouch")`) is the duck: the drawn body, the twin and sight
+are all 36 px tall. A ducked character fires by rising to a fire-over (or standing) pose.
+_Avoid_: kneel
 
 **Fire-over**:
 The pose a ducked character rises to for a burst when the cover it is behind blocks its muzzle line: its bore about 1.02 m
 (43 px), clearing 0.9 m cover with the head and shoulders exposed (`BodyHeights.FIRE_OVER`); it drops back after a short
-dwell. Player and NPCs alike. It rises only as far as it must (`BodyHeights.lowest_clearing`): fire-over for cover up to
+dwell (`CharacterRiseConfig`, `character.weapon.rise`: `docs/cover-and-stance.md` P6). Player and NPCs alike. It rises only as far as it must (`BodyHeights.lowest_clearing`): fire-over for cover up to
 its muzzle (about 1.0 m), standing for taller cover up to a standing muzzle (about 1.55 m), and above that it fires around.
 _Avoid_: pop-up, peek
 

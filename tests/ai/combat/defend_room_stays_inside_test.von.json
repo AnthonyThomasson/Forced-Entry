@@ -28,29 +28,91 @@
 		},
 		{
 			"options": [
-				"You have a clear shot at intruder, and you are not badly wounded (from behind the island in the kitchen; they look badly wounded) (your current plan)",
+				"You have a clear shot at intruder, and you are not badly wounded (once they show, from an ambush behind cover; they look badly wounded) (your current plan)",
 				"intruder looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, was standing still, holding a Pistol, looks badly wounded)"
 			],
 			"pick": "advance",
 			"probabilities": {
-				"advance": 0.7387,
-				"engage": 0.2613
+				"advance": 0.7788,
+				"engage": 0.2212
 			},
 			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are crouching. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - ENGAGE - behind the island in the kitchen (in position, ducking behind cover, for 3s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the island): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — in pistol range, south of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, medium hidden route; their right side — route passes intruder, clear shot, cover, medium exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are crouching. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - ENGAGE - behind the island in the kitchen (in position, ducking behind cover, for 3s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the wall): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — in pistol range, south-east of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, medium exposed route; their right side — route passes intruder, clear shot, cover, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder."
 		},
 		{
 			"options": [
-				"advance halfway to them (in the kitchen) — cover close by (the wall) — clear shot from there",
-				"advance most of the way to them (in the kitchen) — cover close by (the wall) — clear shot from there"
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
+				"You have a clear shot at intruder, and you are not badly wounded (from where you stand; they look badly wounded)",
+				"intruder looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, standing still, holding a Pistol, looks badly wounded)"
 			],
-			"pick": "advance_close",
+			"pick": "advance",
 			"probabilities": {
-				"advance_close": 0.5276,
-				"advance_half": 0.4724
+				"advance": 0.6121,
+				"engage": 0.1788,
+				"retreat": 0.2091
 			},
-			"question": "How should you close in on intruder? Prefer cover close to them and a hidden route; rush only when they are weak, fleeing or unarmed.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nCurrent activity: COMBAT - intruder - ENGAGE - behind the island in the kitchen (in position, ducking behind cover, for 3s).\nYour pistol is loaded.\nYou are behind cover from intruder (the island): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — in pistol range, south of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder → ADVANCE."
+			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south-east of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short exposed route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south-east!\nDecided so far: COMBAT → intruder."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
+				"You have a clear shot at intruder, and you are not badly wounded (from where you stand; they look badly wounded)"
+			],
+			"pick": "retreat",
+			"probabilities": {
+				"engage": 0.456,
+				"retreat": 0.544
+			},
+			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, cover, short hidden route; their right side — route passes intruder, clear shot, cover, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are being hit, from the south-east!\nDecided so far: COMBAT → intruder."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
+				"You have a clear shot at intruder, and you are not badly wounded (from behind the wall in the kitchen; they look badly wounded)",
+				"Your pistol is nearly empty or empty, and you carry spare magazines",
+				"intruder looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, was standing still, holding a Pistol, looks badly wounded)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.4603,
+				"engage": 0.1086,
+				"reload": 0.1715,
+				"retreat": 0.2597
+			},
+			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - intruder - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the wall): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — close, in pistol range, south-west of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south-west!\nDecided so far: COMBAT → intruder."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
+				"You have a clear shot at intruder, and you are not badly wounded (from where you stand; they look badly wounded)",
+				"Your pistol is nearly empty or empty, and you carry spare magazines"
+			],
+			"pick": "retreat",
+			"probabilities": {
+				"engage": 0.2617,
+				"reload": 0.3614,
+				"retreat": 0.3769
+			},
+			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south-west!\nDecided so far: COMBAT → intruder."
+		},
+		{
+			"options": [
+				"You have a clear shot at intruder, and you are not badly wounded (from behind the wall in the kitchen; they look badly wounded)",
+				"Your pistol is nearly empty or empty, and you carry spare magazines",
+				"intruder looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, was standing still, holding a Pistol, looks badly wounded)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.6147,
+				"engage": 0.1453,
+				"reload": 0.24
+			},
+			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - intruder - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the wall): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — close, in pistol range, south of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, cover, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder."
 		},
 		{
 			"options": [
@@ -60,12 +122,12 @@
 			],
 			"pick": "reload",
 			"probabilities": {
-				"engage": 0.2662,
-				"reload": 0.3968,
-				"retreat": 0.337
+				"engage": 0.2562,
+				"reload": 0.3818,
+				"retreat": 0.3619
 			},
 			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - intruder - ADVANCE - close to them (reached it, for 2s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, cover, short hidden route; their right side — free, line blocked, cover, medium hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, cover, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder."
 		},
 		{
 			"options": [
@@ -74,11 +136,39 @@
 			],
 			"pick": "retreat",
 			"probabilities": {
-				"engage": 0.4084,
-				"retreat": 0.5916
+				"engage": 0.4258,
+				"retreat": 0.5742
 			},
 			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are crouching. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RELOAD (waiting, for 1s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, cover, short hidden route; their right side — free, line blocked, cover, medium hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are being hit, from the south!\nDecided so far: COMBAT → intruder."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are crouching. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RELOAD (waiting, for 1s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, cover, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are being hit, from the south!\nDecided so far: COMBAT → intruder."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
+				"You have a clear shot at intruder, and you are not badly wounded (from behind the wall in the kitchen; they look badly wounded)",
+				"intruder looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, was standing still, holding a Pistol, looks badly wounded)"
+			],
+			"pick": "advance",
+			"probabilities": {
+				"advance": 0.5471,
+				"engage": 0.1392,
+				"retreat": 0.3137
+			},
+			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the wall): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — close, in pistol range, south-east of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short exposed route; their right side — route passes intruder, clear shot, cover, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south-east!\nDecided so far: COMBAT → intruder."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
+				"You have a clear shot at intruder, and you are not badly wounded (from where you stand; they look badly wounded)"
+			],
+			"pick": "retreat",
+			"probabilities": {
+				"engage": 0.4561,
+				"retreat": 0.5439
+			},
+			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short hidden route; their right side — route passes intruder, clear shot, cover, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south-east!\nDecided so far: COMBAT → intruder."
 		},
 		{
 			"options": [
@@ -102,97 +192,11 @@
 			],
 			"pick": "retreat",
 			"probabilities": {
-				"engage": 0.4475,
-				"retreat": 0.5525
-			},
-			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, cover, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder."
-		},
-		{
-			"options": [
-				"You are badly wounded and being hit (best: behind the island close by, out of their sight; you are badly wounded)",
-				"You have a clear shot at intruder, and you are not badly wounded (from behind the wall in the kitchen; they look badly wounded)",
-				"intruder looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, was standing still, holding a Pistol, looks badly wounded)"
-			],
-			"pick": "advance",
-			"probabilities": {
-				"advance": 0.5428,
-				"engage": 0.1155,
-				"retreat": 0.3417
-			},
-			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the wall): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — in pistol range, south of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, cover, medium hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are being hit, from the south!\nDecided so far: COMBAT → intruder."
-		},
-		{
-			"options": [
-				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
-				"You have a clear shot at intruder, and you are not badly wounded (from where you stand; they look badly wounded)"
-			],
-			"pick": "retreat",
-			"probabilities": {
 				"engage": 0.4598,
 				"retreat": 0.5402
 			},
 			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
 			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder."
-		},
-		{
-			"options": [
-				"You are badly wounded and being hit (best: behind the island close by, out of their sight; you are badly wounded)",
-				"You have a clear shot at intruder, and you are not badly wounded (from behind the wall in the kitchen; they look badly wounded)",
-				"intruder looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, was standing still, holding a Pistol, looks badly wounded)"
-			],
-			"pick": "advance",
-			"probabilities": {
-				"advance": 0.5965,
-				"engage": 0.1353,
-				"retreat": 0.2682
-			},
-			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the wall): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — in pistol range, south of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, cover, medium hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder."
-		},
-		{
-			"options": [
-				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
-				"You have a clear shot at intruder, and you are not badly wounded (from where you stand; they look badly wounded)",
-				"intruder looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, standing still, holding a Pistol, looks badly wounded)"
-			],
-			"pick": "advance",
-			"probabilities": {
-				"advance": 0.6146,
-				"engage": 0.1825,
-				"retreat": 0.2029
-			},
-			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder."
-		},
-		{
-			"options": [
-				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
-				"You have a clear shot at intruder, and you are not badly wounded (from where you stand; they look badly wounded)",
-				"Your pistol is nearly empty or empty, and you carry spare magazines"
-			],
-			"pick": "reload",
-			"probabilities": {
-				"engage": 0.2739,
-				"reload": 0.4085,
-				"retreat": 0.3177
-			},
-			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → intruder."
-		},
-		{
-			"options": [
-				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
-				"You have a clear shot at intruder, and you are not badly wounded (from where you stand; they look badly wounded)"
-			],
-			"pick": "retreat",
-			"probabilities": {
-				"engage": 0.455,
-				"retreat": 0.545
-			},
-			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are crouching. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RELOAD (waiting, for 1s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → intruder."
 		},
 		{
 			"options": [
@@ -202,12 +206,27 @@
 			],
 			"pick": "advance",
 			"probabilities": {
-				"advance": 0.5517,
-				"engage": 0.1457,
-				"retreat": 0.3027
+				"advance": 0.5434,
+				"engage": 0.1456,
+				"retreat": 0.311
 			},
 			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the wall): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — close, in pistol range, south-east of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short exposed route; their right side — route passes intruder, clear shot, cover, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → intruder."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the wall): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — close, in pistol range, south-east of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short exposed route; their right side — route passes intruder, clear shot, cover, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the south!\nDecided so far: COMBAT → intruder."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: behind the wall close by, out of their sight; you are badly wounded)",
+				"You have a clear shot at intruder, and you are not badly wounded (from where you stand; they look badly wounded)",
+				"Your pistol is nearly empty or empty, and you carry spare magazines"
+			],
+			"pick": "reload",
+			"probabilities": {
+				"engage": 0.2756,
+				"reload": 0.4067,
+				"retreat": 0.3176
+			},
+			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short exposed route; their right side — route passes intruder, clear shot, cover, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → intruder."
 		},
 		{
 			"options": [
@@ -216,11 +235,11 @@
 			],
 			"pick": "retreat",
 			"probabilities": {
-				"engage": 0.4519,
-				"retreat": 0.5481
+				"engage": 0.4555,
+				"retreat": 0.5445
 			},
 			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - ADVANCE - halfway to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short exposed route; their right side — route passes intruder, clear shot, cover, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → intruder."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are crouching. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RELOAD (waiting, for 1s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at intruder from where you stand. You are exposed to their fire. They are aiming at you.\nintruder — HOSTILE (attacked you) — in sight — close, in pistol range, south of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short exposed route; their right side — route passes intruder, clear shot, cover, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → intruder."
 		},
 		{
 			"options": [
@@ -253,15 +272,15 @@
 		{
 			"options": [
 				"You have a clear shot at intruder, and you are not badly wounded (from behind the wall in the kitchen; they look badly wounded)",
-				"intruder looks badly wounded, is unarmed, or is moving away from you (they are in pistol range, was standing still, holding a Pistol, looks badly wounded)"
+				"intruder looks badly wounded, is unarmed, or is moving away from you (they are close, in pistol range, was standing still, holding a Pistol, looks badly wounded)"
 			],
 			"pick": "advance",
 			"probabilities": {
-				"advance": 0.7732,
-				"engage": 0.2268
+				"advance": 0.7701,
+				"engage": 0.2299
 			},
 			"question": "How should you fight intruder? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the wall): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — in pistol range, south of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → intruder."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYour leader ordered you to defend the kitchen.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded.\nCurrent activity: COMBAT - intruder - RETREAT - behind the wall close by (reached it, for 0s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from intruder (the wall): your line to them is blocked.\nintruder — HOSTILE (attacked you) — last seen just now — close, in pistol range, south of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on intruder (you are on their front): their left side — route passes intruder, clear shot, in the open, short hidden route; their right side — route passes intruder, clear shot, cover, short exposed route; behind them — free, line blocked, cover, medium hidden route.\nDecided so far: COMBAT → intruder."
 		}
 	],
 	"version": 1

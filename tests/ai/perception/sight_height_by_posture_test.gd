@@ -43,7 +43,20 @@ func configure(s: TestSetup) -> void:
 	s.object(&"table", "table", TABLE_AT)
 	s.object(&"sofa", "sofa", SOFA_AT, { "facing": Vector2.RIGHT, "rotated": true })
 	s.object(&"counter", "kitchen_counter", COUNTER_AT)
-	s.actor(&"inv", &"invader", VIEWER_AT, { "movement:speed": 0.0, "facing": Vector2.RIGHT })
+	# Unarmed (no rounds, no magazines): an NPC with a gun that knows a hostile fires by rising over
+	# the counter (docs/cover-and-stance.md P6) and so would see over it; this tests the ducked eye.
+	s.actor(
+		&"inv",
+		&"invader",
+		VIEWER_AT,
+		{
+			"movement:speed": 0.0,
+			"facing": Vector2.RIGHT,
+			"start_slot": 2,
+			"inventory:start_rounds": 0,
+			"ammo:spare_magazine_types": [],
+		},
+	)
 	s.actor(&"over_table", &"puppet", BEHIND_TABLE, { "max_health": 100_000.0 })
 	s.actor(&"over_sofa", &"puppet", BEHIND_SOFA, { "max_health": 100_000.0 })
 

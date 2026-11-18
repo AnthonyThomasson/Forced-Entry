@@ -1,7 +1,7 @@
 extends GameTest
 ## H1 (docs/cover-and-stance.md): a round leaves the muzzle at the shooter's posture's height
-## (`BodyHeights.muzzle`): a standing shooter's bore is 65 px up, a crouched one fires from the
-## fire-over muzzle (43 px), its body staying at the duck's height (36). A level shot keeps that
+## (`BodyHeights.muzzle`): a standing shooter's bore is 65 px up, a crouched one's in the open the
+## duck's (30 px: nothing in its way, so it does not rise to fire, P6). A level shot keeps that
 ## height; one aimed at a body's torso starts there and climbs or falls to it.
 
 const STAND_AT := Vector2(150, 150)
@@ -12,8 +12,8 @@ const TARGET_AT := Vector2(700, 225)
 func describe() -> Dictionary:
 	return {
 		"name": "A round leaves at the shooter's posture's muzzle height",
-		"description": "Level pistol rounds from a standing and a crouched shooter fly at the "
-			+ "standing and the fire-over muzzle heights; aimed at a standing body's torso the "
+		"description": "Level pistol rounds from a standing and a crouched shooter in the open fly "
+			+ "at the standing and the duck's muzzle heights; aimed at a standing body's torso the "
 			+ "round starts at the muzzle and falls toward it.",
 		"tags": ["projectile", "posture", "crouch", "aim", "ballistics"],
 		"timeout": 10.0,
@@ -50,12 +50,11 @@ func run(t: TestContext) -> void:
 		"a standing shooter's level round flies at the standing muzzle's height",
 	)
 	t.expect_near(
-		duck_round.height, BodyHeights.muzzle(BodyHeights.FIRE_OVER), 0.01,
-		"a crouched shooter's, at the fire-over muzzle's (its body stays duck height)",
+		duck_round.height, BodyHeights.muzzle(BodyHeights.DUCK), 0.01,
+		"a crouched shooter's in the open, at the duck's muzzle (nothing is in its way)",
 	)
-	t.check(
-		BodyHeights.muzzle(BodyHeights.FIRE_OVER) > BodyHeights.head_top(BodyHeights.DUCK),
-		"premise: the fire-over bore is above the ducked head",
+	t.expect_eq(
+		t.actor(&"ducker").movement.body_posture(), BodyHeights.DUCK, "and it stayed ducked",
 	)
 	await t.seconds(1.0)
 

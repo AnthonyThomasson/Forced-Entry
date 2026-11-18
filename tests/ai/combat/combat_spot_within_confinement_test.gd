@@ -102,6 +102,9 @@ class FakePerception extends Node:
 	func has_line_to(_node: Node2D, _point: Vector2) -> bool:
 		return false
 
+	func has_rise_line_to(_node: Node2D, _point: Vector2) -> bool:
+		return false
+
 	func note_engaged() -> void:
 		pass
 

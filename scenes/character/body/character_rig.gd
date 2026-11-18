@@ -377,8 +377,7 @@ class Fold:
 	## of the pelvis so the knees lead over the toes.
 	func _heights(character: CharacterBody2D, pose: Pose, r: float) -> void:
 		height = character.movement.posture_height()
-		var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
-		folded = clampf((1.0 - height) / maxf(1.0 - crouch_height, 0.01), 0.0, 1.0)
+		folded = character.movement.posture_folded()
 		# A stun hunches it on.
 		pitch = deg_to_rad(CharacterPostureConfig.body_crouch_pitch) * folded + pose.gait.hunch()
 		spine = (CharacterBodyConfig.shoulder_height - CharacterBodyConfig.hip_height) * r

@@ -12,6 +12,9 @@ var _fire_press_on_ui := false
 var _held_door: Node2D = null
 ## The wheel turned that door during this hold, so the release does not toggle it.
 var _use_scrolled := false
+## A click came while the body was rising to fire and waits for the rise to end (taken once), so a
+## click on a semi-automatic gun is not lost to the rise.
+var _click_pending := false
 
 
 ## While Space is held on a door, the wheel and a trackpad's scroll turn that door by steps instead
@@ -96,13 +99,19 @@ func _interact(character: CharacterBody2D) -> void:
 ## Pull the trigger: once per click, and for as long as the button is held with an automatic gun
 ## (the gun paces itself). A click on a HUD control (the overlay bar, a panel) belongs to the UI,
 ## not the gun. Input polling ignores GUI mouse filters, so ask the viewport what the pointer is
-## over. A press that began on the UI stays the UI's however far it is dragged.
+## over. A press that began on the UI stays the UI's however far it is dragged. A click that comes
+## while the body rises over its cover to fire waits for the rise (`_click_pending`).
 func _fire(character: CharacterBody2D) -> void:
 	var over_ui: bool = character.get_viewport().gui_get_hovered_control() != null
 	if Keybinds.is_fire_just_pressed():
 		_fire_press_on_ui = over_ui
 	if over_ui or _fire_press_on_ui:
 		return
-	if (Keybinds.is_fire_just_pressed()
-			or (Keybinds.is_fire_pressed() and character.weapon.is_automatic())):
-		character.weapon.shoot()
+	var clicked := Keybinds.is_fire_just_pressed()
+	var held: bool = Keybinds.is_fire_pressed() and character.weapon.is_automatic()
+	var rising: bool = character.weapon.rise.rising()
+	if clicked or held or (_click_pending and not rising):
+		# The click that came while the body rose is taken once, as it has risen.
+		var fired: bool = character.weapon.shoot()
+		var waits: bool = character.weapon.rise.rising() and not fired
+		_click_pending = (clicked or _click_pending) and waits

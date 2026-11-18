@@ -45,12 +45,11 @@
 	  behind a sofa); Art's mirror hides such a mover. Art's mirror and Projectile's casings hold back the unseen. `contains(polygon, point)` is the one even-odd point test.
     - `BodyHeights` (`general/body_heights.gd`, static holder): a body's real proportions, the one scale between metres and the sim's px (1 3D unit = 1 px,
 	  a 1.75 m person = 74 px, so `px_per_metre() = 42.3`; `px(metres)`, `metres(px)`). Per posture (`BodyHeights.STAND`, `DUCK` (head top about 0.85 m / 36 px:
-	  hidden by a piece at least that tall), `FIRE_OVER` (the pose a ducked body rises to when its muzzle line is blocked: bore 1.02 m, head and shoulders over
-	  0.9 m cover); `postures_ids()`) heights in px above the floor: `head_top(posture)`, `eye(posture)`, `muzzle(posture)` (the bore line a bullet starts on),
+	  hidden by a piece at least that tall), `FIRE_OVER` (the pose a ducked body rises to behind 0.9 m cover: bore 1.02 m); `postures_ids()`) heights in px above the floor: `head_top(posture)`, `eye(posture)`, `muzzle(posture)` (the bore line a bullet starts on),
 	  `shoulder(posture)`, the hit-zone bands `zones(posture) -> [[zone, from, to], ...]` (`feet`, `legs`, `torso`, `head`, touching, feet up) and
 	  `zone_at(posture, height) -> StringName` (where a hit at that height falls), `sight_points(posture) -> PackedFloat32Array` (the heights sight looks at on a body: head at the eye,
 	  chest, hips; `SightRay`). The values are `BodyHeights.postures` (metres, tunable, `set_static`); the research is
-	  `docs/research/3d-cover-heights.md`. A bullet reads its muzzle (a crouch fires from `FIRE_OVER`; the rise-to-fire is the duck-rise job's), the aim at a torso band and a hit's `zone_at`; sight the eye and `sight_points`; the AI's cover picking still reads the 0 to 100 `coverage`; `MirrorConfig.character_height` is
+	  `docs/research/3d-cover-heights.md`. `height_share(posture)`: head top over the standing one's (the drawn scale). A bullet reads `movement.body_posture()`'s muzzle (`weapon.rise`), the aim at a torso band and a hit's `zone_at`; sight the eye and `sight_points`; the AI's cover picking still reads the 0 to 100 `coverage`; `MirrorConfig.character_height` is
 	  its standing head top. Test: `tests/general/body_heights_test.gd`.
     - `PlanSpace` (`general/plan_space.gd`, static holder): the plan-space helper. A `Vector2` in the AI, world generation, navigation and most tests means plan space, the floor
 	  plan `(x, y)` = `(x, z)` on the 3D ground; `PlanSpace.lift(plan, height := 0.0) -> Vector3` is `(x, height, y) * RenderConfig.unit`, `plan_of(point) -> Vector2` and

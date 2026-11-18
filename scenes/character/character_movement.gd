@@ -63,10 +63,11 @@ func pull(delta: float) -> void:
 		controller.control(character, delta)
 
 
-## Count the posture's cooldown down and ease the drawn body toward the posture (in a vehicle the
-## ride poses the fold instead).
+## Count the posture's cooldown and the rise's timers down and ease the drawn body toward the
+## posture (in a vehicle the ride poses the fold instead).
 func tick(delta: float) -> void:
 	_posture_cooldown = maxf(_posture_cooldown - delta, 0.0)
+	character.weapon.rise.tick(delta)
 	if not character.use.is_riding():
 		_ease_posture(delta)
 
@@ -110,13 +111,17 @@ func momentum() -> Vector2:
 ## a ride and death stand the body.
 func stand_up() -> void:
 	_posture = &"stand"
+	character.weapon.rise.drop()
 
 
 ## Draw the body folded `fold` (0 standing .. 1 seated: the crouch fold, so `posture_folded()`
 ## reads it), at once: a ride's pose, and a dying body (0) falling from the standing skeleton.
 func fold(amount: float) -> void:
-	var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
-	_posture_height = lerpf(1.0, crouch_height, clampf(amount, 0.0, 1.0))
+	_posture_height = lerpf(
+		1.0,
+		BodyHeights.height_share(BodyHeights.DUCK),
+		clampf(amount, 0.0, 1.0),
+	)
 
 
 ## Take a posture: `stand` or `crouch` (`CharacterPostureConfig.postures`). True when the character
@@ -133,6 +138,7 @@ func set_posture(wanted: StringName) -> bool:
 			or not CharacterPostureConfig.postures.has(wanted)):
 		return false
 	_posture = wanted
+	character.weapon.rise.drop()
 	_posture_cooldown = CharacterPostureConfig.change_time
 	character.anatomy.invalidate_rig()
 	return true
@@ -149,9 +155,13 @@ func posture() -> StringName:
 
 
 ## The posture the body's real height is (`BodyHeights`): a standing body its stature, a crouch the
-## duck. What a bullet's zone and a piece of cover's shelter are judged against.
+## duck, a crouch risen over its cover to fire (`character.rise`) the pose it rose to. What its
+## twin, a bullet's zone, its eye and its muzzle and a piece of cover's shelter are judged against.
 func body_posture() -> StringName:
-	return BodyHeights.DUCK if _posture == &"crouch" else BodyHeights.STAND
+	if _posture != &"crouch":
+		return BodyHeights.STAND
+	var risen: StringName = character.weapon.rise.pose()
+	return BodyHeights.DUCK if risen == BodyHeights.NONE else risen
 
 
 ## The body's height on the coverage scale when in posture `which` (`stand` / `crouch`,
@@ -170,8 +180,11 @@ func posture_height() -> float:
 ## How folded the drawn body is, 0 (standing) .. 1 (crouched): the share the rig pitches the spine
 ## by.
 func posture_folded() -> float:
-	var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
-	return clampf((1.0 - _posture_height) / maxf(1.0 - crouch_height, 0.01), 0.0, 1.0)
+	return clampf(
+		(1.0 - _posture_height) / maxf(1.0 - BodyHeights.height_share(BodyHeights.DUCK), 0.01),
+		0.0,
+		1.0,
+	)
 
 
 ## How far further ahead (px) the hands are held at this posture: a crouch holds them out past its
@@ -240,7 +253,7 @@ func _ease_posture(delta: float) -> void:
 	var k := 1.0 - exp(-CharacterPostureConfig.posture_ease * delta)
 	_posture_height = _eased_to(
 		_posture_height,
-		float(CharacterPostureConfig.postures[_posture]["height"]),
+		BodyHeights.height_share(body_posture()),
 		k,
 	)
 

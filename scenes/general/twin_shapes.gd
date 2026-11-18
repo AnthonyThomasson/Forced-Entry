@@ -47,6 +47,19 @@ static func top_of(twin: Node3D) -> float:
 	return top
 
 
+## The height (px above the floor) of the top of the shape of `twin` that a ray result's `shape`
+## index names: the part the ray struck (a sofa's seat and its back differ), the twin's own top for
+## a result that names none.
+static func top_of_shape(twin: CollisionObject3D, shape_index: int) -> float:
+	var owner_id := twin.shape_find_owner(shape_index)
+	var holder: CollisionShape3D = null
+	if owner_id >= 0:
+		holder = twin.shape_owner_get_owner(owner_id) as CollisionShape3D
+	if holder == null or holder.shape == null:
+		return top_of(twin)
+	return _top_of_shape(holder.shape, holder.position.y) / RenderConfig.unit
+
+
 ## The height of the highest point of `shape` whose centre stands `centre` up.
 static func _top_of_shape(shape: Shape3D, centre: float) -> float:
 	if shape is BoxShape3D:

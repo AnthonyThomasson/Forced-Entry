@@ -14,7 +14,7 @@ Owns the player character, built so other character types can exist. It reads in
 - The body (skeleton, pose, rig, hands, punch, kick, legs, ragdoll fall, all pixel art) → `body.md`.
 - Space on a door, a house door in reach, the scroll that turns it, a door in the way → `doors.md`.
 
-**The twin.** `character_twin.gd` (`CharacterTwin`, an `AnimatableBody3D`, interface 29) is the character's 3D twin in General's twin space: an upright cylinder on `PhysicsLayers.TWIN_CHARACTER`, its radius the body's circle, its height the head top of the posture it is in (`BodyHeights`: stand the stature, crouch the duck), disabled while the body's circle is (seated), off its layer once dead (the body's `collision_layer` 0). It reads `movement.posture()` each frame through the space's `twin_update` hook; the fire-over a duck rises to is the duck-rise job's (until then a crouched shooter's `weapon.muzzle_height()` is the fire-over muzzle's, its body the duck's). `movement.aim_height` / `weapon.aim_height()` say what a shot is aimed at (px up; `AIM_LEVEL`, `AIM_AUTO` = the torso of the body at the aim: interface 7), `character._hit_zone(height)` is `BodyHeights.zone_at` of `movement.body_posture()`. Test: `tests/character/twin_capsule_posture_test.gd`.
+**The twin.** `character_twin.gd` (`CharacterTwin`, an `AnimatableBody3D`, interface 29) is the character's 3D twin in General's twin space: an upright cylinder on `PhysicsLayers.TWIN_CHARACTER`, its radius the body's circle, its height the head top of the pose it is in (`BodyHeights`, `movement.body_posture()`: stand the stature, crouch the duck, a ducked body risen to fire the pose it rose to), disabled while the body's circle is (seated), off its layer once dead (the body's `collision_layer` 0). It reads `movement.body_posture()` each frame through the space's `twin_update` hook, so it rises with the body (`weapon.rise`, `movement.md`). `movement.aim_height` / `weapon.aim_height()` say what a shot is aimed at (px up; `AIM_LEVEL`, `AIM_AUTO` = the torso of the body at the aim: interface 7), `character._hit_zone(height)` is `BodyHeights.zone_at` of `movement.body_posture()`. Test: `tests/character/twin_capsule_posture_test.gd`.
 
 ## Components
 
@@ -27,7 +27,7 @@ The three verbs (control, animate, draw) live in separate files wired through th
 | `movement` | `character_movement.gd` | the controller's intent, posture, running and stamina, knockback, the push slow |
 | `use` | `character_use.gd` | what occupies the body: an interaction, a vehicle ride, its doors (`use.doors`: `doors.md`), the collision exceptions both leave |
 | `inventory` | `character_inventory.gd` | items carried, the held slot |
-| `weapon` | `character_weapon.gd` | using the held item: firing, melee, the raise, recoil, muzzle and aim, each hand's stance |
+| `weapon` | `character_weapon.gd` | using the held item: firing, melee, the raise, recoil, muzzle and aim, each hand's stance; `weapon.rise` (`character_rise.gd`): a ducked gun's rise over its cover to fire |
 | `ammo` | `character_ammo.gd` | magazines carried, the reload |
 | `stun` | `character_stun.gd` | a grenade's flash and bang on the body |
 | `anatomy` | `body/character_anatomy.gd` | the animate parts (pose, rig, hands, legs, kick, footsteps, ragdoll, dents, wound, shadow): `body.md` |

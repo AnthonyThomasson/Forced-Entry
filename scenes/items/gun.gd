@@ -144,12 +144,8 @@ func secondary(user: Node2D) -> bool:
 	_cooldown += _fire_interval()
 	var hand := weapon_hand()
 	var muzzle: Vector2 = user.weapon.muzzle_origin(hand)
-	# Zeroed: the round crosses the aim line `zero_range` ahead of the body, so a gun held off the
-	# line (the butt on the right shoulder) still shoots where the character points.
-	var direction: Vector2 = (user.global_position + user.facing * GunConfig.zero_range
-			- muzzle).normalized()
-	# A stunned character's aim wanders off the line.
-	direction = direction.rotated(user.weapon.aim_sway())
+	# Zeroed, and wandering off the line while stunned (`shot_direction`).
+	var direction: Vector2 = user.weapon.shot_direction(hand)
 	var spread_deg := float(_stat("spread_deg", 0.0))
 	# Held in one hand (the other over its eyes): the gun wanders off the line.
 	if user.weapon.one_handed():

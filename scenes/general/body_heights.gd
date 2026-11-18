@@ -70,6 +70,12 @@ static func head_top(posture: StringName) -> float:
 	return _px_of(posture, "head")
 
 
+## `posture`'s head top as a share of a standing body's (1 for standing): how tall a body drawn in
+## it is next to a standing one, so the drawn crouch and the twin are one height.
+static func height_share(posture: StringName) -> float:
+	return head_top(posture) / head_top(STAND)
+
+
 ## The height (px) of `posture`'s eye: where a sight line starts.
 static func eye(posture: StringName) -> float:
 	return _px_of(posture, "eye")

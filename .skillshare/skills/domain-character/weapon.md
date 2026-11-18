@@ -41,3 +41,7 @@ An item whose `raises_at_contact()` is true (SMG, rifle) is judged every frame b
 ## The eyes and one-handed fire (G13)
 
 `weapon.stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raised grip while `_blocked`) while `_covers_eyes(item)`: blind, not riding, not running, not dead, not reloading, no punch swing, and the weapon hand not in a throw's wind-up. `weapon.one_handed()` is that for a held gun (`gun_id() != &""`); the gun reads it for `one_hand_spread_deg`, and `weapon.kick` multiplies a long gun's recoil by `CharacterStanceConfig.one_hand_recoil`. The pose carries the stun level for the hunch and stagger (`body.md`); in a ride's frame it is 0, so the ride's pose wins and the look eases back in once out. Tests: `stunned_hand_over_eyes_test.gd`, `tests/items/one_handed_fire_test.gd`.
+
+## Rise to fire, muzzle and aim
+
+`weapon.shoot()` of a gun by a crouched body first asks `weapon.rise` (`character_rise.gd`, `movement.md`) for the pose its muzzle must be in and returns false while the body takes its `rise_time`. `weapon.muzzle_height()` is `BodyHeights.muzzle(movement.body_posture())` (the duck's in the open); `weapon.aim_height_from(level)` is `aim_height()` for another muzzle's level (the rise casts the duck's line with it); `weapon.shot_direction(hand)` is the zeroed, swayed plan direction a round leaves in before its spread (`Gun.secondary` and the rise share it).

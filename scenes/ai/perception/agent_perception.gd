@@ -449,6 +449,14 @@ func fill_goal(goal: String) -> String:
 # --- Combat geometry for the behaviour -------------------------------------------------------
 
 
+## Whether the NPC, crouched, could rise to a pose from which a round clears the cover between it
+## and a world `point` (rise to fire, `docs/cover-and-stance.md` P6): the 3D line from the
+## fire-over or the standing muzzle to the middle of the torso of `target` (a standing body's for
+## a point) is clear. False for an NPC that is not crouched (its line is `has_line_to`'s).
+func has_rise_line_to(target: Node2D, point: Vector2) -> bool:
+	return sight.vision.rise_line_clear(_character, target, point)
+
+
 ## Whether the NPC has a clear line (no wall or solid furniture between) to a world `point` — the
 ## engaged contact's last-known position. The behaviour gates FIRING on this: once a contact is
 ## known, the NPC shoots when it has a clear line to where it knows they are, independent of its

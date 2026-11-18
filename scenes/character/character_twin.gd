@@ -6,7 +6,8 @@ extends AnimatableBody3D
 ## stature, crouched the duck), so a ray at head height hits a standing body and passes over a
 ## ducked one. Its wall is straight up (a round meets the body square on at any height, as it does
 ## the 2D circle: a rounded top would turn a head shot's damage down by the slant it strikes). It
-## follows the character's transform (the twin space moves it), its posture and whether the body is
+## follows the character's transform (the twin space moves it), its body's pose (`body_posture()`:
+## a ducked body risen to fire over cover is as tall as the pose it rose to) and whether the body is
 ## seated (the 2D circle disabled: no cylinder). A dead character's twin is off the layer (the 2D
 ## body's own layer is 0).
 
@@ -41,13 +42,13 @@ static func build(node: Node2D) -> Node3D:
 	twin._shape.radius = twin._character.radius * RenderConfig.unit
 	twin._holder.shape = twin._shape
 	twin.add_child(twin._holder)
-	twin._set_posture(twin._character.movement.posture())
+	twin._set_posture(twin._character.movement.body_posture())
 	return twin
 
 
 ## The twin space's per-frame hook: the cylinder follows the posture, and is off while seated.
 func twin_update(_body: Node2D) -> void:
-	var now: StringName = _character.movement.posture()
+	var now: StringName = _character.movement.body_posture()
 	if now != _posture:
 		_set_posture(now)
 	var seated := _circle != null and _circle.disabled
@@ -56,9 +57,9 @@ func twin_update(_body: Node2D) -> void:
 		_holder.disabled = seated
 
 
-## Stand the cylinder to `posture`'s height, on the floor.
+## Stand the cylinder to `posture`'s height (a `BodyHeights` pose), on the floor.
 func _set_posture(posture: StringName) -> void:
 	_posture = posture
-	var height := BodyHeights.head_top(_character.movement.body_posture())
+	var height := BodyHeights.head_top(posture)
 	_shape.height = maxf(height * RenderConfig.unit, 0.01)
 	_holder.position = Vector3(0.0, _shape.height * 0.5, 0.0)

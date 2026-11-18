@@ -1,5 +1,5 @@
 class_name CharacterPostureConfig
-## Stand or crouch (scenes/character/): the posture table (speed, turn, coverage, height), the
+## Stand or crouch (scenes/character/): the posture table (speed, turn, coverage), the
 ## change cooldown and ease, and the crouched body's stance (pitch, narrowed hips and feet, stagger,
 ## shorter stride, hands further ahead). A `class_name` holder of `static var`s, read as
 ## `CharacterPostureConfig.<name>`; there is no instance and no autoload.
@@ -9,12 +9,13 @@ class_name CharacterPostureConfig
 ## swings round to the aim (rad/s, 0 = at once); `coverage` is the body's height on the 0–100 scale
 ## of an object's catalogue coverage, which the AI's cover picking still reads (what a bullet meets
 ## is the real height: the body's twin, `BodyHeights`, `docs/cover-and-stance.md`), so a lower
-## posture hides behind lower cover; `height` scales the drawn body's standing heights. Keep
+## posture hides behind lower cover. The drawn body's height is the duck's head top over the stature
+## (`BodyHeights.height_share`), not a column here. Keep
 ## `crouch` coverage at or below the AI's `cover_min` (40), so everything it treats as cover hides a
 ## crouch.
 static var postures: Dictionary = {
-	&"stand": { "speed": 1.0, "turn": 0.0, "coverage": 60.0, "height": 1.0 },
-	&"crouch": { "speed": 0.6, "turn": 5.0, "coverage": 35.0, "height": 0.62 },
+	&"stand": { "speed": 1.0, "turn": 0.0, "coverage": 60.0 },
+	&"crouch": { "speed": 0.6, "turn": 5.0, "coverage": 35.0 },
 }
 ## Seconds after a posture change before the next one is allowed, so a controller can't flicker
 ## between them.

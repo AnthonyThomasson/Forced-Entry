@@ -79,7 +79,7 @@ func tick(delta: float) -> void:
 
 
 ## Whether `target` (a known-contact dict) can be shot at now: a loaded gun not mid-reload, and
-## `has_line_of_fire`. The cooldown, the facing and a run are not counted: they pass in a moment,
+## `_has_firing_line_to`. The cooldown, the facing and a run are not counted: they pass in a moment,
 ## this says the NPC is in a position to fire.
 func can_fire_at(target: Dictionary) -> bool:
 	var gun: int = _character.inventory.gun_slot()
@@ -88,7 +88,7 @@ func can_fire_at(target: Dictionary) -> bool:
 			or _character.ammo.is_reloading()
 			or target.is_empty()):
 		return false
-	return has_line_of_fire(target)
+	return _has_firing_line_to(target["node"], target["pos"])
 
 
 ## Whether `target` (a known-contact dict) stands within range on a clear line to where it is known
@@ -101,11 +101,23 @@ func has_line_of_fire(target: Dictionary) -> bool:
 
 
 ## The line-of-fire rule, once: whether `pos` (where `node` is known to be) is within
-## `tuning.combat.shoot_range` on a clear line from here. `has_line_of_fire`, the ambush, the peek
-## and the combat overlay all read it.
+## `tuning.combat.shoot_range` on a clear line from here. `has_line_of_fire` and the combat overlay
+## read it, and the snapshot's `fire_clear`.
 func has_line_of_fire_to(node: Node2D, pos: Vector2) -> bool:
 	return (_character.global_position.distance_to(pos) <= tuning.combat.shoot_range
 			and _perception.has_line_to(node, pos))
+
+
+## Whether a shot at `pos` (where `node` is known to be) can be taken from here:
+## `has_line_of_fire_to`,
+## or, crouched behind cover, a clear line from a pose it could rise to (it fires by rising over
+## the cover: `docs/cover-and-stance.md` P6). What the acts that pull the trigger (the ambush, the
+## peek, `fire_at_will`) gate on; the snapshot's `fire_clear` and the options built from it stay on
+## `has_line_of_fire_to`.
+func _has_firing_line_to(node: Node2D, pos: Vector2) -> bool:
+	if _character.global_position.distance_to(pos) > tuning.combat.shoot_range:
+		return false
+	return _perception.has_line_to(node, pos) or _perception.has_rise_line_to(node, pos)
 
 
 ## Shoot `target` (a known-contact dict) when it can be shot at (`can_fire_at`), once the facing has
@@ -128,7 +140,7 @@ func holds_fire() -> bool:
 ## Ambush: hold the covered spot and fire the moment a line to the known position opens.
 func ambush(node: Node2D, pos: Vector2) -> void:
 	_character.movement.move_input = Vector2.ZERO
-	if has_line_of_fire_to(node, pos) and fire_timer <= 0.0 and faces(_character, pos):
+	if _has_firing_line_to(node, pos) and fire_timer <= 0.0 and faces(_character, pos):
 		shoot()
 
 
@@ -153,7 +165,7 @@ func peek_cover(delta: float, node: Node2D, pos: Vector2) -> void:
 		return
 	# PEEK: take the shot if a clear line to the known position is in range, else reposition to get
 	# one.
-	if has_line_of_fire_to(node, pos):
+	if _has_firing_line_to(node, pos):
 		_character.movement.move_input = Vector2.ZERO
 		# Shoot only once the facing has settled on it. A refused shot (a barrel against a wall
 		# stepping back, a reload under way) keeps the NPC peeking until it fires, rather than

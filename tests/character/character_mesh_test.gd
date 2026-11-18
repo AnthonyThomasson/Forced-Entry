@@ -193,9 +193,9 @@ func _check_facing(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
 	)
 
 
-## A crouch lowers the hips by the posture's crouch height and the head with them.
+## A crouch lowers the hips to the duck's height (`BodyHeights`) and the head with them.
 func _check_crouch(t: TestContext, east: BodyMesh, crouch: BodyMesh) -> void:
-	var want: float = CharacterPostureConfig.postures[&"crouch"]["height"]
+	var want := BodyHeights.height_share(BodyHeights.DUCK)
 	var stood := (east.get_child(BodyMesh.THIGH) as Node3D).position.y
 	var bent := (crouch.get_child(BodyMesh.THIGH) as Node3D).position.y
 	t.expect_near(bent / stood, want, 0.03, "a crouch lowers the hips to its posture height")

@@ -2,7 +2,7 @@
 
 All of it is the `movement` component's (`character_movement.gd`) except the turning of `facing`, which stays on `character.gd` (`_turned_toward`). Tests: `tests/character/` (`posture_*`, `run_*`, `stunned_*`).
 
-## Posture (spec `docs/cover-and-stance.md` P1 to P4, A1 to A3)
+## Posture (spec `docs/cover-and-stance.md` P1 to P6, A1 to A3)
 
 A character is standing or crouching (`movement`'s `_posture`, a `CharacterPostureConfig.postures` key). `CharacterStanceConfig.stances` is how a *hand* is held; the body is a *posture*.
 
@@ -11,7 +11,9 @@ A character is standing or crouching (`movement`'s `_posture`, a `CharacterPostu
 - Shooting, reloading and `weapon.melee()` work in every posture; `anatomy.leg_kick()` only standing; running only standing (a refused run costs no stamina). `get_surface().coverage` is the posture's row.
 - Starting an interaction stands the character up (`movement.stand_up()`) and locks the posture. `_die` stands it (after taking the momentum), so a body falls from the standing skeleton. The collision circle and `radius` never change.
 - Only `facing` is slowed by the posture's `turn` rate; `movement.aim_point` never is, so hands, weapon and shots follow the slower body.
-- The drawn body eases into the posture (`posture_ease`, read through `movement.posture_height()`, `posture_folded()`, `posture_hand_ahead()`); the fold itself is `body.md`.
+- The drawn body eases into the pose (`posture_ease`, read through `movement.posture_height()`, `posture_folded()`, `posture_hand_ahead()`); the fold itself is `body.md`. Its height is `BodyHeights.height_share(body_posture())`, the pose's head top over the stature (a crouch is the duck's 36 of 74: there is no `height` column), so mesh, twin and sight agree.
+- **`movement.body_posture()`** is the real pose (`BodyHeights`): stand, the duck (crouching), or the pose a ducked body has risen to fire from (`weapon.rise.pose()`). The twin, hit zones, eye (`SightRay`), muzzle (`weapon.muzzle_height()`) and the drawn height all follow it; `posture()` stays `stand` / `crouch` (speed, run, turn, the AI's A1/A2).
+- **Rise to fire (P6).** `weapon.rise` (`character_rise.gd`, `CharacterRise`: state `_pose`, `_wait`, `_dwell`; tick by `movement.tick`; dropped by `set_posture`, `stand_up`): `weapon.shoot()` of a gun by a crouched body asks `rise.pose_needed(hand)` (the duck's muzzle line cast 3D into the twin space for `CharacterRiseConfig.reach`, the struck part's top through `TwinShapes.top_of_shape`, `BodyHeights.lowest_clearing`, recast from each higher pose across `cover_depth`) and `rise.rise_to(pose)`; the shot waits `rise_time`, the pose drops `dwell` after the last ask. `weapon.rising()`-style reads: `weapon.rise.rising()`; the player's click waits for it (`player_controller._click_wait`). Tuning: `CharacterRiseConfig` (`reach`, `cover_depth`, `rise_time`, `dwell`). Tests: `rise_over_sofa`, `rise_to_stand_over_tall_cover`, `no_rise_behind_unclearable_cover`, `risen_body_is_exposed`, `risen_body_sees_over_cover`, `crouch_draws_the_duck`.
 
 ## Running and stamina
 

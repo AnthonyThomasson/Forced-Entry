@@ -6,14 +6,14 @@ does with its posture. The tests named under each behaviour assert this document
 Height is **real**: a body, a piece of furniture and a bullet are 3D, in px above the floor on one scale (1 px a 3D unit, a
 1.75 m person 74 px: `BodyHeights`, `PieceHeights`; the sources are `docs/research/3d-cover-heights.md`). A bullet is a 3D ray in
 the twin space (`TwinSpace`) and meets what its line crosses. The pieces: `projectile.gd` (the bullet), `gun.gd` and
-`character_weapon.gd` (where it leaves and where it is aimed), `character.gd` and `character_posture_config.gd` (the postures),
+`character_weapon.gd` (where it leaves and where it is aimed), `character.gd`, `character_posture_config.gd` and `character_rise.gd` (the postures and the rise to fire),
 `agent_tactics.gd` / `behavior_gait.gd` (how an NPC uses them). See the `domain-projectile`, `domain-character` skill and
-`domain-ai` (`behavior.md`). Tests: `cover_shared_bullet_height`, `level_shot_over_table`.
+`domain-ai` (`behavior.md`). Tests: `cover_shared_bullet_height`, `level_shot_over_table`, `rise_over_sofa`.
 
 ## Behaviours
 
-**H1. A bullet is a line in 3D.** A round leaves the shooter's muzzle at its posture's height (a standing bore 65 px up; a
-crouched shooter fires from the fire-over muzzle, 43 px, its body staying at the duck's height) and flies a straight line toward
+**H1. A bullet is a line in 3D.** A round leaves the shooter's muzzle at its body's height (a standing bore 65 px up, a ducked one's 30, a
+risen one's 43 or 65: P6) and flies a straight line toward
 its aim point. Where it meets a body, a piece, a wall or a door it strikes it: whatever the line passes over or under it never
 touches (a level round at 65 px flies over a table of 31 and strikes a wardrobe), and the same line serves everything along the
 path. Where it strikes a body is the **hit zone** by the height it meets it at (`docs/outfits.md` O2, O3). The ground ends a line
@@ -37,31 +37,34 @@ clears the back, a ducked one (head top 36) by none that does, so a round aimed 
 low piece hides you; standing does not.
 Tests: `cover_shared_bullet_height`, `sofa_cover_standing_vs_ducked`.
 
-**P1. Postures.** A character is standing or crouching (`movement.set_posture`, the player's C toggle). Each is a row of `CharacterPostureConfig.postures`
-and a real body height (`BodyHeights`). Tests: `posture_speed`, `posture_hit_chance`.
+**P1. Postures: crouch is the duck.** A character is standing or crouching (`movement.set_posture`, the player's C toggle). Each is a row of
+`CharacterPostureConfig.postures` (speed, turn) and a real body height (`BodyHeights`). A crouch **is** the duck (D7): a body folded low behind
+cover, its head top 36 px (0.85 m), so a piece at least that tall hides all of it. Tests: `posture_speed`, `posture_hit_chance`, `crouch_draws_the_duck`.
 
-| posture | body height (head top) | speed | other |
-|---|---|---|---|
-| stand | 74 px (1.75 m) | ×1.0 | can run, can punch |
-| crouch | 36 px, the duck (0.85 m) | ×0.6 | cannot run |
+| posture | body height (head top) | muzzle | speed | other |
+|---|---|---|---|---|
+| stand | 74 px (1.75 m) | 65 px | ×1.0 | can run, can punch |
+| crouch (the duck) | 36 px (0.85 m) | 30 px | ×0.6 | cannot run |
+| crouch, risen to fire over cover (P6) | 52 px (1.22 m), or 74 | 43 px, or 65 | ×0.6 | head and shoulders show |
 
-A body's twin (`CharacterTwin`) is as tall as its posture, so a crouch is struck by fewer lines in the open (the ones under 36 px,
-against a standing body's under 74) and hides behind pieces at least 36 px tall. (The row's `coverage` is the 0 to 100 scale the AI's cover
-picking still reads until it moves to real heights.) A crouched shooter fires from the fire-over muzzle (43 px), above the duck's head
-(36), so for now a crouch fires over its cover without ever exposing its body to be hit there; the rise-to-fire that
-exposes it for the burst is a later rule. Shooting and reloading work in every posture; running is refused (and costs no stamina) unless
-standing.
-Tests: `posture_speed`, `posture_player_input`, `posture_hit_chance`.
+A body's twin (`CharacterTwin`), its hit zones (`BodyHeights.zone_at`), its eye and its muzzle are those of `movement.body_posture()`: the
+standing, the duck, or the pose a ducked body has risen to. So a crouch is struck by fewer lines in the open (the ones under 36 px, against a standing
+body's under 74) and hides behind pieces at least 36 px tall. (The row's `coverage` is the 0 to 100 scale the AI's cover picking still reads until it moves to
+real heights.) A crouched shooter with nothing in its way fires from the duck's muzzle without rising. Shooting and reloading work in every posture;
+running is refused (and costs no stamina) unless standing.
+Tests: `posture_speed`, `posture_player_input`, `posture_hit_chance`, `muzzle_height_by_posture`.
 
 **P2. Changing posture.** C toggles stand and crouch. A change waits out `CharacterPostureConfig.change_time` after the last one.
 Sitting or lying on an object stands the character up and locks the posture while it lasts; a dead
-character takes none and falls from the standing skeleton.
+character takes none and falls from the standing skeleton. Standing up (or any change out of the crouch) drops a rise at once.
 Tests: `posture_player_input`, `posture_interaction`.
 
-**P3. How it looks.** The drawn body eases into its posture (`posture_ease`). A crouch lowers the hips and
+**P3. How it looks.** The drawn body is as tall as its pose (`BodyHeights`: the duck's 36 px head top over the stature's 74, 0.49 of a standing body;
+a risen one the fire-over's 52), so the mesh, the twin and sight agree, and eases into it (`posture_ease`). A crouch lowers the hips and
 pitches the spine forward about the pelvis (`body_crouch_pitch`, 25°, the neck pitching on so the head sits ahead
 of and above the shoulders); the pelvis sits back and the chest forward by half the lean, so the body stays
-centred over its feet. The hips and feet come closer together than standing, the feet stand a little ahead of
+centred over its feet. Rising to fire unfolds it by the same ease (a smaller pitch, the chest higher). The hips and feet come closer together than standing,
+the feet stand a little ahead of
 the pelvis so the knees lead over the toes, the foot on the weapon hand's side steps back (a stagger), and the
 stride is shorter. A crouch is drawn like a fallen body, from above with its back showing, the weapon and fists
 on top. The collision circle is the same in every posture.
@@ -70,7 +73,7 @@ a crouch carries them with the sleeves; the hands are held `body_crouch_hand_ahe
 beyond the arm's reach draws its shoulder after it.
 A gun against a wall: a pistol's hand is pushed back by the wall in every posture. A long gun's barrel is raised
 (hands drawn in, barrel shortened) and it cannot fire until it is clear.
-Tests: `crouch_rig`, `crouch_arms_attached`, `standing_body_repaints_on_change`.
+Tests: `crouch_rig`, `crouch_arms_attached`, `crouch_draws_the_duck`, `standing_body_repaints_on_change`.
 
 **P4. Turning takes time.** A standing body faces its aim at once; a crouched one swings round at no more than
 its posture's `turn` rate (5 rad/s, about 0.6 s for a half turn). The aim
@@ -86,15 +89,34 @@ by how fast it moves into it and capped so the piece is never driven faster than
 heavy piece only stops the leg, and a foot at rest shoves nothing. Other characters stop a leg but are never shoved by it.
 Tests: `legs_rest_on_walls`, `leg_press_turns_furniture`.
 
+**P6. Rise to fire.** A ducked character (player and NPC alike, automatic) that fires a gun does not shoot through the cover it is behind, and does
+not stay under it: when its **duck muzzle's line** toward the aim is blocked, within a short reach of its body (`CharacterRiseConfig.reach`, 60 px, about
+1.4 m), by cover some pose clears, it rises to **the lowest pose whose muzzle clears that cover** (`BodyHeights.lowest_clearing`, D7a): `FIRE_OVER` (muzzle
+43 px) for cover up to that, `STAND` (65 px, fully exposed above the cover) for taller. The cover's height is that of the **part** the line meets
+(`PieceHeights` parts, the twin's boxes): a kitchen counter's backsplash is 44 px, over the fire-over muzzle, though its top is 38, so a level shot
+over it needs a standing pose; the line is cast again from each higher pose, up to `cover_depth` past where it first met the piece, so a taller part behind
+the first counts. A line that already climbs over the cover (aimed up at a torso) needs no rise. Cover no pose clears (a wardrobe, a fridge, a wall) is not
+risen over: the body stays ducked, fires around it from an edge, and its round meets the cover. A far obstacle (past the reach) is not its cover, and in the
+open there is nothing to rise for.
+The body is exposed the moment it rises (its twin, zones, eye and muzzle are the risen pose's, `body_posture()`) but holds its fire for
+`CharacterRiseConfig.rise_time` (0.2 s): the rise before the first shot. It drops back to the duck `CharacterRiseConfig.dwell` (0.6 s) after the last
+shot (every shot, and a held trigger, renews it: no flicker); it never lowers a pose it is risen to mid-burst. A shot refused for the rise is no shot: a
+controller's trigger is retried each frame (an NPC's fire timer is untouched), and the player's click is held for the rise. An NPC crouched behind low cover counts a
+clear line from a pose it could rise to (the fire-over or the standing muzzle to its target's torso) as a line to fire along, so it pulls the trigger and rises
+(`Combat._has_firing_line_to`); the options Von is shown still read the 2D line of fire. Only a gun rises (a thrown grenade
+does not); the rise is a manner of firing, so it works with Von down.
+Tests: `rise_over_sofa`, `rise_to_stand_over_tall_cover`, `no_rise_behind_unclearable_cover`, `risen_body_is_exposed`, `risen_body_sees_over_cover`,
+`muzzle_height_by_posture`.
+
 **A1. Fighting low.** An NPC fighting in place (an engaged NPC in position, or one holding or reloading
-with a hostile known or shots landing) crouches (behind cover, in the open or pinned alike). It is a manner of carrying
+with a hostile known or shots landing) crouches (behind cover, in the open or pinned alike): it ducks, and fires by rising over what hides it (P6). It is a manner of carrying
 out the leaf, not something Von picks, so it works with the server down.
 Tests: `posture_crouches_in_fight`, `posture_pinned_crouch`.
 
 **A2. Standing to run.** Anything travelling to a destination, and everything outside a fight, stands; a
-crouched NPC stands before it runs and is never crouched while running. A crouch is held
+crouched NPC (risen or not) stands before it runs and is never crouched while running. A crouch is held
 for `posture_dwell` before it is dropped, so a peek and duck does not flicker; standing back up is never
-delayed. The `ai.posture` switch (`posture_enabled`) turns it off.
+delayed. The `ai.posture` switch (`posture_enabled`) turns it off. The rise is not the AI's posture: the NPC stays "crouching" while risen.
 Tests: `posture_stands_to_run`, `posture_crouches_in_fight`.
 
 **A3. What Von is told.** Von's state mentions a posture only when someone is not standing: the NPC's own
@@ -104,6 +126,6 @@ Tests: `posture_in_von_state`.
 
 ## Not modelled
 
-A long gun against low furniture raises as it does standing. A crouched shooter always fires from the
-fire-over muzzle: rising to fire only when its line is blocked, and exposing itself while it does, is a later rule. The AI's cover
-picking and entry posts still read the catalogue's 0 to 100 `coverage`. Tests: `muzzle_height_by_posture`.
+A long gun against low furniture raises as it does standing (`blocked`), so a rifle held to a sofa is not fired by rising over it. A body does not
+lean out from the edge of a wardrobe to fire around it: it fires from where it stands and the round meets the cover. The AI's cover picking and entry
+posts still read the catalogue's 0 to 100 `coverage`. Tests: `muzzle_height_by_posture`.
