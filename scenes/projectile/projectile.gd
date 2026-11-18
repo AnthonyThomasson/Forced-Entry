@@ -188,9 +188,13 @@ func _resolve(result: Dictionary) -> void:
 	var travel := _travel()
 	var surface := _surface_for(body, incoming, PlanSpace.height_of(result.position))
 	var info := _hit_info(result, incoming)
-	# Squareness: |travel · normal|, 1 = head-on. A degenerate normal counts as square.
+	# Squareness: |travel · normal|, 1 = head-on. A degenerate normal counts as square. A body's
+	# wall is straight up, so a character is met on the plan heading alone: pitch does not glance
+	# it.
 	var n: Vector3 = result.normal
 	var squareness := 1.0 if n.length() < 0.001 else absf(travel.dot(n))
+	if n.length() >= 0.001 and body.is_in_group(&"characters"):
+		squareness = absf(incoming.dot(_plan_normal(n, incoming)))
 	# 2. Ricochet off hard material at a glancing angle: reflect at reduced speed/damage.
 	# Not excluded — a bounced bullet can strike the same surface again.
 	if (float(surface["penetration"]) >= BallisticsRicochetConfig.penetration_bounce_min

@@ -138,9 +138,8 @@ static func _strike(
 
 ## The grenade's fragments: `fragments` bullets evenly round the circle (each jittered within its
 ## share of it) flying level, each at a height drawn from the burst's floor to its ceiling, low
-## power
-## and fast, spent past `fragment_range`. They strike like any bullet and
-## name the thrower, who is not spared (G9).
+## power and fast, spent past `fragment_range`. They strike like any bullet and name the thrower,
+## who is not spared (G9).
 static func _fragments(at: Vector2, world: Node, source: Node, row: Dictionary) -> void:
 	var count := int(row.get("fragments", 0))
 	if count <= 0:

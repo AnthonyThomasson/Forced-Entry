@@ -131,11 +131,10 @@ static func world_mouse(node: Node) -> Vector2:
 ## The line is the camera's own, through the ground point under the mouse (an orthographic view's
 ## rays are parallel), cast into the twin space (`TwinSpace`, interface 29). It answers a dictionary
 ## of `kind`, `plan` (the 2D point) and `height` (px above the floor). Kind `&"body"`: the line
-## meets a character's twin first (hovering a head is the head). Kind `&"cover"`: it meets a piece,
-## wall, door or vehicle with a character behind it on the line (cover that hides the body), the
-## point on the cover. Empty for neither (the cursor is on the floor, or not in the 3D render): the
-## player then shoots level at the muzzle's height toward the floor point. `ignore` (the player's
-## own body) is looked through.
+## meets a character's twin first (hovering a head is the head). Kind `&"cover"`: the first piece,
+## wall, door or vehicle the line meets, with a character behind it or not (D8a): the point on it.
+## Empty for neither (bare floor, or not in the 3D render): the player then shoots level at the
+## muzzle's height toward the floor point. `ignore` (the player's own body) is looked through.
 static func aim_hit(node: Node, ignore: Node = null) -> Dictionary:
 	var space := TwinSpace.space_of(node) if is_3d(node) else null
 	if space == null:
@@ -168,7 +167,7 @@ static func aim_hit(node: Node, ignore: Node = null) -> Dictionary:
 		if cover.is_empty():
 			cover = aimed
 			cover["kind"] = &"cover"
-	return {}
+	return cover
 
 
 ## The part of the world `node`'s viewport shows, as a rect of world points (its visible rect

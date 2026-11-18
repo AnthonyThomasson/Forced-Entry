@@ -45,7 +45,7 @@ func build(cap: int, world: FxWorld) -> void:
 	blasts = BlastFx.new(self, world)
 
 
-## A chip left a surface at `height` (0..100 cover scale, negative: the floor): it flies.
+## A chip left a surface at `height` (px up, negative: the floor): it flies.
 func chip_flew(chip: Node2D, height: float) -> void:
 	debris.fly(chip, height)
 	set_process(true)

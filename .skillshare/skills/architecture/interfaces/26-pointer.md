@@ -25,8 +25,8 @@
       `world_mouse(node) -> Vector2` (the floor point under the mouse). Both return the injected point while one is set, else the real mouse.
     - **Aim in 3D (#194 D8):** `aim_hit(node, ignore := null) -> Dictionary` (needs the rig: `is_3d`; `{}` otherwise): the cursor's line of sight (the camera's own direction through the ground point
       under the mouse: an orthographic view's rays are parallel) cast into the twin space (29), the player's own body (`ignore`) looked through. `{ kind: &"body", plan, height }` where it meets a character's
-      twin first (hovering a head is the head: `height` px above the floor, `plan` the 2D point of the hit); `{ kind: &"cover", plan, height }` where it meets a piece, wall, door or vehicle with a
-      character behind it on the line (cover that hides the body: that point on the cover); `{}` for the floor or nothing. The player controller turns it into `movement.aim_point` and
+      twin first (hovering a head is the head: `height` px above the floor, `plan` the 2D point of the hit); `{ kind: &"cover", plan, height }` where it first meets a piece, wall, door or vehicle, a
+      character behind it or not (D8a: that point on it); `{}` for bare floor or nothing. The player controller turns it into `movement.aim_point` and
       `movement.aim_height` (the floor point and `AIM_LEVEL` for `{}`: the shot flies level at the muzzle's height). A body hit moves `aim_point` onto the body, so Space's nearest-to-mouse then reads
       that point.
     - **Inject (Testing, 13):** `Pointer.inject(screen)` stands a screen point in for the mouse until `Pointer.release()`. It never

@@ -14,8 +14,9 @@ const REST := 2.1
 ## where it lies.
 const THICK := 1.0
 const ARC := 9.0
-## A hit's 0..100 height is this many px (a wall's 100 is 96).
-const HEIGHT_PX := 1.0
+## A hit's height is px; the test scales it (`PhysicsMeshConfig.height_scale`) so a mesh that
+## ignored the scale would show.
+const HEIGHT_PX := 2.0
 ## How far (px) a flying chip may be from its node: the tween moves the node after the layer runs,
 ## so the part is a frame behind it, at most 7 px at the throw's fastest (50 px in a quarter second,
 ## eased out, is 400 px/s at first).
@@ -42,6 +43,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1000, 700))
 	s.switch(&"nav.rebake", false)
 	s.set_static(RenderConfig, &"unit", 1.0)
+	s.set_static(PhysicsMeshConfig, &"height_scale", HEIGHT_PX)
 	s.set_static(Settings, &"path", SCRATCH)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})

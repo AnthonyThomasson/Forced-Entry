@@ -3,9 +3,9 @@ extends GameTest
 ## camera's own direction through the ground point under the mouse) is cast into the twin space.
 ## Over a standing body's head it meets that body's twin at head height (`kind` body, a head-zone
 ## height); over a piece of cover that hides a ducked body behind it, the point on the cover (`kind`
-## cover, the table's top); over bare floor it meets nothing (an empty answer: the player aims
-## level). The player's own body is looked through. The camera is tilted to 45 degrees so cover
-## hides what is behind it by its height.
+## cover, the table's top); over a piece with nothing behind it, that point on it (D8a); over bare
+## floor it meets nothing (an empty answer: the player aims level). The player's own body is looked
+## through. The camera is tilted to 45 degrees so cover hides what is behind it by its height.
 
 const RigProbe := preload("res://tests/_general/rig_probe.gd")
 const AT := Vector2(300, 250)
@@ -18,6 +18,8 @@ const GAP := 0.5
 ## The plan direction the line of sight runs at yaw 90: toward -x (the camera is on the +x side:
 ## ground +x is down the screen). The table is put on the camera's side of the ducked body.
 const RUN := Vector2(-1.0, 0.0)
+## A table alone on the floor, nothing behind it on the line of sight (D8a).
+const LONELY := Vector2(450, 60)
 
 
 func describe() -> Dictionary:
@@ -36,13 +38,17 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1000, 500))
 	s.switch(&"nav.rebake", false)
 	s.set_static(RenderConfig, &"pitch_degrees", 45.0)
-	s.actor(&"you", &"player", AT)
+	s.actor(&"you", &"player", AT, { "start_slot": 3 })
 	s.actor(&"stander", &"puppet", STANDER, { "facing": Vector2.LEFT })
 	s.actor(&"ducker", &"puppet", DUCKER, { "facing": Vector2.LEFT })
 	var table := WorldGen.object_definition("table").duplicate()
 	table["size"] = Vector2(TABLE_DEPTH, 120.0)
 	table["anchored"] = true
 	s.object(&"hider", table, _edge() - RUN * TABLE_DEPTH * 0.5)
+	var lonely := WorldGen.object_definition("table").duplicate()
+	lonely["size"] = Vector2(60.0, 60.0)
+	lonely["anchored"] = true
+	s.object(&"lonely", lonely, LONELY)
 
 
 func run(t: TestContext) -> void:
@@ -63,6 +69,7 @@ func run(t: TestContext) -> void:
 
 	await _check_head(t, you, look)
 	await _check_cover(t, you, look)
+	await _check_cover_alone(t, you, look)
 	await _check_floor(t, you, look)
 
 
@@ -102,6 +109,29 @@ func _check_cover(t: TestContext, you: Node, look: Vector3) -> void:
 	var cover := Pointer.aim_hit(you, you)
 	t.expect_eq(cover.get("kind"), &"cover", "the cursor over the table meets cover (%s)" % [cover])
 	t.expect_near(float(cover.get("height", -1.0)), TABLE_TOP, 0.6, "its top")
+
+
+## The cursor over a piece with nothing behind it: the aim point is that point on it (D8a), the
+## table's top, not a level shot over it.
+func _check_cover_alone(t: TestContext, you: Node, look: Vector3) -> void:
+	Pointer.inject(_screen_over(you, PlanSpace.lift(LONELY, TABLE_TOP), look))
+	await t.frames(2)
+	var cover := Pointer.aim_hit(you, you)
+	t.expect_eq(cover.get("kind"), &"cover", "the cursor over a lone table meets it (%s)" % [cover])
+	t.expect_near(float(cover.get("height", -1.0)), TABLE_TOP, 0.6, "at its top")
+	t.check(
+		you.movement.aim_height != CharacterMovement.AIM_LEVEL
+		and absf(you.movement.aim_height - TABLE_TOP) < 0.6,
+		"and the player aims at it, not level (%.1f)" % you.movement.aim_height,
+	)
+	await t.seconds(0.8)
+	you.weapon.shoot()
+	await t.seconds(0.8)
+	var lonely := t.object(&"lonely")
+	t.check(
+		t.happened(&"hit", func(d): return d["victim"] == lonely),
+		"a shot there strikes the table",
+	)
 
 
 ## The cursor over bare floor, and over the player's own body.

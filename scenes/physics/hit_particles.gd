@@ -123,7 +123,7 @@ const ENTRY_SPEED := 0.6
 ## `{ at, direction (unit), amount, spread (degrees either side of it), speed_min, speed_max
 ## (px/s), damping_min, damping_max (px/s lost), size_min, size_max (px), life, life_random (the
 ## share of it a particle may lose), color, spark (the metal style's own lit-whatever-the-light
-## kind), height (the hit's 0..100, negative: the floor) }`;
+## kind), height (the hit's, px up; negative: the floor) }`;
 ## empty when switched off or the count rounds to nothing.
 static func spawn(
 	hit: HitInfo,

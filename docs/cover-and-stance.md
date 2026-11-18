@@ -18,14 +18,17 @@ its aim point. Where it meets a body, a piece, a wall or a door it strikes it: w
 touches (a level round at 65 px flies over a table of 31 and strikes a wardrobe), and the same line serves everything along the
 path. Where it strikes a body is the **hit zone** by the height it meets it at (`docs/outfits.md` O2, O3). The ground ends a line
 that falls into it. There is no chance in what cover stops: it is geometry.
-What a shot is aimed at (D8): the player's cursor aims where its line of sight meets a character's body (hovering a visible head
-aims at the head: `Pointer.aim_hit`); over cover that hides a body, at that point on the cover; with the cursor on the floor, **level**
-at the muzzle's height toward the floor point, the round striking whatever stands in that line at that height. An NPC aims at the
+What a shot is aimed at (D8, D8a): the player's cursor aims where its line of sight first meets a character's body (hovering a
+visible head aims at the head: `Pointer.aim_hit`); else at the first piece, wall, door or vehicle it meets, with a body behind it or
+not, at that point on it (a shot at a lone chair strikes the chair); only with the cursor on bare floor **level** at the muzzle's
+height toward the floor point, the round striking whatever stands in that line at that height. An NPC aims at the
 middle of its target's torso at its posture (`movement.aim_height` automatic). A gun's spread scatters the round up and down as
 well as sideways (`BallisticsFlightConfig.vertical_spread_scale`, 1 = the same cone both ways), so it can miss over or under a
-body as it misses beside it.
+body as it misses beside it. Rounds hit and kill more than they did under the old chance of clearing cover: that is the game now
+(#194 D17), and no aim error is added to bring it back.
 Tests: `cover_shared_bullet_height`, `level_shot_over_table`, `muzzle_height_by_posture`, `vertical_spread_misses`,
-`head_aimed_over_cover`, `general/pointer_aim_hit`.
+`head_aimed_over_cover`, `general/pointer_aim_hit`, `flesh_squareness_ignores_pitch`, `ricochet_off_hard_top`,
+`penetration_exit_on_incoming_line`, `hit_normal_on_flat_top`.
 
 **H2. Cover shelters what is lower than it.** A piece of cover is as tall as its top (`PieceHeights`). A line that clears it
 clears any body behind it that stands no higher, and one that does not is stopped by it (and may punch through it to the body by the
@@ -41,8 +44,6 @@ and a real body height (`BodyHeights`). Tests: `posture_speed`, `posture_hit_cha
 |---|---|---|---|
 | stand | 74 px (1.75 m) | ×1.0 | can run, can punch |
 | crouch | 36 px, the duck (0.85 m) | ×0.6 | cannot run |
-
-Tests: `posture_speed`, `posture_hit_chance`.
 
 A body's twin (`CharacterTwin`) is as tall as its posture, so a crouch is struck by fewer lines in the open (the ones under 36 px,
 against a standing body's under 74) and hides behind pieces at least 36 px tall. (The row's `coverage` is the 0 to 100 scale the AI's cover

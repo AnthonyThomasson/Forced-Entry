@@ -7,10 +7,10 @@ convention of `docs/grenades.md` and `docs/tactical-entry.md`. The tests are in 
 also fires real gun and fragment rounds down shooting lanes, each with a witness standing behind the target to show whether a round came out.
 
 **Verification (14 October 2026, on the finished branch).** `tools/lint.sh` and the headless load check: clean. The 14 outfit tests (the 13
-tagged `outfit` and `ai/entry/entry_guard_fires_from_outside`, whose round aims at the torso) with `--repeat=10 --jobs=auto`:
+tagged `outfit` and `ai/entry/entry_guard_fires_from_outside`, whose bullet height is pinned to the torso) with `--repeat=10 --jobs=auto`:
 140 runs, 140 passed (load average 4.4 before, 5.5 after). The whole suite with `--summary --jobs=auto`: 298 passed, 0 failed, 24 skipped
 (the Von tests), 0 `gap`. `--domain=perf` alone: 9 of 9 passed (load average 4.4 before and after); `perf/hit_overload_stress`
-with `--repeat=5`: 12.28 to 12.68 ms average a frame, against 12.14 to 12.70 ms on `main` measured the same way (load average 4.1). Tests: `entry_guard_fires_from_outside`.
+with `--repeat=5`: 12.28 to 12.68 ms average a frame, against 12.14 to 12.70 ms on `main` measured the same way (load average 4.1).
 
 ## Behaviours
 

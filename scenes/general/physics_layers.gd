@@ -11,7 +11,7 @@ const SOLID := 1
 ## The 3D layers of the twin space (`TwinSpace`, `docs/adr/0014-twin-staging-and-plan-space.md`),
 ## their own bits in the 3D physics space (not `SOLID`'s 2D one): what a 3D ray or sweep asks for.
 ## `TWIN_WORLD`: walls, floors, furniture and doors. `TWIN_VEHICLE`: a vehicle's body.
-## `TWIN_CHARACTER`: a character's hit capsule (a dead or seated one is on none). `TWIN_ALL`: all.
+## `TWIN_CHARACTER`: a character's hit cylinder (a dead or seated one is on none). `TWIN_ALL`: all.
 const TWIN_WORLD := 1
 const TWIN_VEHICLE := 2
 const TWIN_CHARACTER := 4

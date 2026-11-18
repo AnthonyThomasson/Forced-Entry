@@ -59,8 +59,9 @@ func run(t: TestContext) -> void:
 	Pointer.inject(middle + Vector2(-6.0, 0.0))
 	await t.frames(3)
 	t.check(
-		you.movement.aim_point.distance_to(CHAIR_B) < 3.0,
-		"the aim is chair B's ground point (%s)" % you.movement.aim_point,
+		you.movement.aim_point.distance_to(CHAIR_B) < 8.0,
+		"the aim is a point on chair B, which the cursor meets (D8a: %s)"
+			% you.movement.aim_point,
 	)
 	var target: Dictionary = you.use.interact_target()
 	t.check(

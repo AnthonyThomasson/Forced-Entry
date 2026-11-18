@@ -8,7 +8,7 @@ extends GameTest
 ## three go in. The contrast, the same rally into a suspect kitchen, is `join_suspect_room_bangs`.
 ##
 ## Scripted Von (one mechanism: the join stack's mode): whenever asked, SEARCH, ENTER, the back
-## door (`Entry.rules`, its shared switches: no trespass hostility, no flyover). Armed the way Main
+## door (`Entry.rules`, its shared switches: no trespass hostility). Armed the way Main
 ## arms a spawn, the lead with no grenade and the sergeant with one stun (the premise: the stun is
 ## the joiner's, so the stack carries one and only the room's suspicion is missing).
 

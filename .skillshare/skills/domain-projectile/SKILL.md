@@ -23,7 +23,7 @@ A bullet is a **3D ray in the twin space** (`TwinSpace`, interface 29): it has a
 2. **Armour** (surface has `stop_power`): stopped when `penetration_power × speed_factor < stop_power` (outcome `blocked`); otherwise the surface's material becomes its `inner_material` (flesh) and the round always penetrates. A stopped round reads `HitInfo.penetrated == false`.
 3. **Penetrate**, or **blocked** when `speed < BallisticsPenetrationConfig.min_speed / penetration_power`. A penetration deflects the travel a little in both axes.
 
-Damage scales by squareness and `speed_factor` (speed / the round's own `muzzle_speed`), so a gun's `damage` is what it deals at full speed head-on. A character's twin is an upright cylinder, so a round meets the body square on at any height.
+Damage scales by squareness and `speed_factor` (speed / the round's own `muzzle_speed`), so a gun's `damage` is what it deals at full speed head-on. A character's twin is an upright cylinder and its squareness is taken on the plan heading alone (pitch does not glance a body).
 
 **Two penetrations.** The target's `P` belongs to its surface (flesh 15, wall 100); the bullet's power `penetration_power` comes from the gun's `Shot` (`GunConfig`). A higher power loses less speed to the same surface and needs less speed to get through: a pistol round dies in a wall where a rifle round leaves it fast enough to wound someone behind.
 
