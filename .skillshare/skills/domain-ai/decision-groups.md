@@ -12,7 +12,7 @@ An option group is built in steps (`GroupBuild`, `snapshot/group_build.gd`): **u
 |---|---|---|
 | `leads` | one per lost hostile (its route, and a moving one's heading), one per point heard (gunfire, then footsteps), the shots' origin (under fire, no hostile known), the allies' combat calls together | drop a lead checked since, sort by age, cap, `lead_pos`, summary |
 | `entries` | one per doorway (`_entry_pick`: geometry, the slot claimed, the route) | sort (a suspect room first, then nearest), cap, wording |
-| a hostile's `grenade_throws` / the shots' | one per grenade kind carried, each ahead of by scan units (`SnapshotThrows._scanned`: a block of `SCAN_BLOCK` 8 raw throw-spot candidates, each asking the arc planner, a unit that returns true runs again first (`GroupBuild.step`); the shots' unit goes aim by aim) | summary |
+| a hostile's `grenade_throws` / the shots' | one per grenade kind carried, each ahead of by scan units (`SnapshotThrows._scanned`: a block of `SCAN_BLOCK` 6 raw throw-spot candidates, each asking the arc planner, a unit that returns true runs again first (`GroupBuild.step`); the shots' unit goes aim by aim) | summary |
 
 ## The pieces (`DecisionJob`)
 

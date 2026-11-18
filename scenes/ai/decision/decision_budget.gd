@@ -49,9 +49,9 @@ static var cost_throw_route: int = 1
 ## and caps what the units made (free).
 static var cost_group_unit: int = 1
 static var cost_group_finish: int = 0
-## Raw throw-spot candidates one block step works through: 8, a unit's worth (each candidate that
+## Raw throw-spot candidates one block step works through: 6, a unit's worth (each candidate that
 ## passes the cheap tests asks the arc planner, 0.05 to 1 ms, #194; 48 were 0.3 to 0.9 ms before).
-static var throw_block: int = 8
+static var throw_block: int = 6
 ## Where the frame number comes from, when not the engine's physics frame: a unit test steps frames
 ## by it, with no engine running them (the way `DecisionStub.source` stands in for the server).
 static var frame_source := Callable()

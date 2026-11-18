@@ -20,7 +20,7 @@ const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd"
 ## the room): its middle first, then either side of it.
 ## The raw throw spot candidates one step of a group's scan works through (`_scan_unit`): the
 ## block the decision's throw search takes (`DecisionBudget.throw_block`).
-const SCAN_BLOCK := 8
+const SCAN_BLOCK := 6
 const SHOT_AIM_SHARES := [0.5, 0.35, 0.65, 0.2, 0.8]
 
 ## The knowledge the perception hands in for this decision (see `AgentSnapshot.build()`).
@@ -73,8 +73,9 @@ func begin_grenade_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> RefCo
 		return GroupBuild.new().already({ "summary": "", "options": [] })
 	var options: Array = []
 	var units: Array[Callable] = []
+	var scans := {}
 	for kind: StringName in kinds:
-		units.append(_scan_unit.bind(ctx, t["pos"], kind))
+		units.append(_scan_unit.bind(ctx, t["pos"], kind, scans))
 		units.append(_target_throw.bind(ctx, t, a, kind, options))
 	return GroupBuild.new().begin(units, _target_summary.bind(t, a, options, hidden, held))
 
@@ -83,17 +84,20 @@ func begin_grenade_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> RefCo
 ## made from, scanned a block a step (`_scanned`) so a whole scan is not one frame's work. True
 ## while there is more to scan (the unit runs again first); the throw unit then reads what was
 ## scanned.
-func _scan_unit(ctx: Dictionary, spot: Vector2, kind: StringName) -> bool:
+func _scan_unit(ctx: Dictionary, spot: Vector2, kind: StringName, scans: Dictionary) -> bool:
 	var held := _held_room(ctx, spot)
 	var keep_out := Rect2() if held.is_empty() else held["rect"] as Rect2
-	return not _scanned(ctx, spot, kind, keep_out)
+	return not _scanned(ctx, spot, kind, keep_out, scans)
 
 
 ## Work one block of the scan of the throw spot candidates for a throw of `kind` onto `spot` (each
 ## raw candidate that passes the cheap tests asks the arc planner), and whether none is left to
 ## scan: the candidates are known (`_candidates` reads them), or a lob clear from where the NPC
-## stands needs none.
-func _scanned(ctx: Dictionary, spot: Vector2, kind: StringName, keep_out: Rect2) -> bool:
+## stands needs none. The scans in hand are kept in `scans` (the build's, by key), not in the
+## context: a scan holds its context, and the two would hold each other.
+func _scanned(
+	ctx: Dictionary, spot: Vector2, kind: StringName, keep_out: Rect2, scans: Dictionary
+) -> bool:
 	var key := _throw_key(ctx, kind, spot, keep_out)
 	var memo := memo_of(ctx)
 	var points: Dictionary = memo["points"]
@@ -101,7 +105,6 @@ func _scanned(ctx: Dictionary, spot: Vector2, kind: StringName, keep_out: Rect2)
 		return true
 	if _throw.can_lob(ctx["space"], ctx["self_pos"], spot, know["character_rids"], kind):
 		return true
-	var scans: Dictionary = memo["scans"]
 	if not scans.has(key):
 		scans[key] = ThrowScan.new(
 			_tactics, ctx, _throw_aim(ctx, kind, spot, keep_out), know["character_rids"]
@@ -183,8 +186,9 @@ func begin_shots_group(ctx: Dictionary, hostiles: Array) -> RefCounted:
 	var options: Array = []
 	var room := [""]
 	var units: Array[Callable] = []
+	var scans := {}
 	for kind: StringName in kinds:
-		units.append(_shots_unit.bind(ctx, kind, [0], [options, room]))
+		units.append(_shots_unit.bind(ctx, kind, [0], [options, room], scans))
 	return GroupBuild.new().begin(units, func(): return _shots_summary(options, room[0]))
 
 
@@ -192,12 +196,14 @@ func begin_shots_group(ctx: Dictionary, hostiles: Array) -> RefCounted:
 ## (`_shots_aims`), its throw spot candidates scanned a block a step first (`_scanned`); the next
 ## aim when it has none (`_shots_aim`'s order), else the option into `made` (`[options, room]`).
 ## True while it has more to do (it runs again first).
-func _shots_unit(ctx: Dictionary, kind: StringName, at: Array, made: Array) -> bool:
+func _shots_unit(
+	ctx: Dictionary, kind: StringName, at: Array, made: Array, scans: Dictionary
+) -> bool:
 	var aims := _shots_aims(ctx)
 	if at[0] >= aims.size():
 		return false
 	var aim: Dictionary = aims[at[0]]
-	if aim["walk"] and not _scanned(ctx, aim["spot"], kind, aim["room"]["rect"]):
+	if aim["walk"] and not _scanned(ctx, aim["spot"], kind, aim["room"]["rect"], scans):
 		return true
 	var option := _throw_option(ctx, kind, aim["spot"], aim["room"]["rect"], aim["walk"])
 	if option.is_empty():
@@ -371,7 +377,7 @@ func _throw_way(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect
 ## made by hand holds none yet.
 func memo_of(ctx: Dictionary) -> Dictionary:
 	if not ctx.has("throw_memo"):
-		ctx["throw_memo"] = { "spots": {}, "points": {}, "exists": {}, "scans": {} }
+		ctx["throw_memo"] = { "spots": {}, "points": {}, "exists": {} }
 	return ctx["throw_memo"]
 
 

@@ -10,7 +10,7 @@ Side file of `decision-job.md` (split out to keep it under the 8192-byte cap).
 | HOSTILE (one analysed hostile, at most 2) | `cost_hostile` | 2 | 1.77 / 1.73 | 2.5 |
 | FINISH | `cost_finish` | 1 | 0.82 / 0.72 | 2.2 |
 | REFUSAL | `cost_refusal` | 0 | 0.014 | 0.02 |
-| THROW block of `throw_block` raw candidates | `cost_throw_block`, `throw_block` 8 | 1 | 0.29 / 0.13 a 16-candidate step before #194; since then each candidate through the cheap tests asks the arc planner (`GrenadeArc`, 0.05 ms for a flat lob to about 1 ms for one that needs a high arc), so the block went from 48 to 8: `perf/grenade_match_stress` is the pin | not re-measured |
+| THROW block of `throw_block` raw candidates | `cost_throw_block`, `throw_block` 6 | 1 | 0.29 / 0.13 a 16-candidate step before #194; since then each candidate through the cheap tests asks the arc planner (`GrenadeArc`, 0.05 ms for a flat lob to about 1 ms for one that needs a high arc), so the block went from 48 to 6: `perf/grenade_match_stress` is the pin | not re-measured |
 | THROW rank pass | `cost_throw_rank` | 1 | 0.2 to 0.5 (4 samples) | 0.5 |
 | THROW one route | `cost_throw_route` | 1 | 0.36 / 0.37 | 0.8 |
 | GROUP unit (a lead's route or a point heard, a lost hostile, the allies' calls together; a doorway's pick) | `cost_group_unit` | 1 | leads 0.27 (3 steps, max 0.52), entries 0.46 / 0.57 (max 0.69) | 0.7 |
