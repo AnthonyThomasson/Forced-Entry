@@ -23,9 +23,9 @@ var _last_spin := 0.0
 ## a lasting contact.
 var _touching: Dictionary = {}
 ## What the contacts found, carried out in `_physics_process` (outside the physics server's flush,
-## where a death may change bodies): `{ body, push, harm, position }`, a character or a piece shoved
-## by `push` (an impulse) and, for a character newly struck, hurt by the closing speed `harm` (0:
-## not hurt).
+## where a death may change bodies): `{ body, push, harm, position, [at, height] }`, a character or
+## a piece shoved by `push` (an impulse, at `height` px above the floor and `at` from its origin
+## when given) and, for a character newly struck, hurt by the closing speed `harm` (0: not hurt).
 var _struck: Array = []
 ## When (the vehicle's own physics clock, s) each living character was last in a pile (instance id
 ## -> time): one struck again within `rehit_time` is the same run-in, shoved on but not hurt again.
@@ -233,10 +233,14 @@ func _roll_over(lead: RigidBody3D, hit: Dictionary) -> void:
 
 
 ## Put the vehicle's velocity along `normal` at `along` (px/s), what it has across the normal left
-## as it is: the physics engine's stop on a character is undone this way.
+## as it is: the physics engine's stop on a character is undone this way. Written only when it
+## changes the velocity: a write wakes the body, and a stopped vehicle with a person against it is
+## asked every frame.
 func _keep_along(lead: RigidBody3D, normal: Vector2, along: float) -> void:
 	var now: Vector2 = lead.call(&"plan_velocity")
-	lead.call(&"set_plan_velocity", now + normal * (along - now.dot(normal)))
+	var kept := now + normal * (along - now.dot(normal))
+	if not kept.is_equal_approx(now):
+		lead.call(&"set_plan_velocity", kept)
 
 
 ## Post a crash at contact `hit` against `against` (its surface's material, `""` for a wall or none)
@@ -314,7 +318,18 @@ func _shove_pile(lead: RigidBody3D, hit: Dictionary, members: Array, closing: fl
 				"push": normal * member["mass"] * (pile_to - moving),
 				"harm": 0.0,
 				"position": hit["position"],
+				"at": Vector2.ZERO,
+				"height": _blow_height(member),
 			})
+
+
+## How high (px above the floor) the bumper strikes pile member `member`: the middle of the
+## bumper, no higher than the top of a character's body in its posture.
+func _blow_height(member: Dictionary) -> float:
+	var bumper := VehicleCollisionConfig.strike_height(vehicle.kind)
+	if not member["character"]:
+		return bumper
+	return minf(bumper, BodyHeights.head_top(SightRay.posture_of(member["body"])))
 
 
 ## Each living character among the pile `members` newly in a pile (not in one for `rehit_time`) is
@@ -527,8 +542,8 @@ func apply() -> void:
 		# a piece is a free 3D body the physics engine moves as the vehicle presses it: only the
 		# blow of the bumper on one first met is given here, at its height; a character is shoved
 		if hit["push"] != Vector2.ZERO:
-			var at: Vector2 = (hit["position"] - (body as Node2D).global_position
-					if hit.has("height") else Vector2.ZERO)
+			var at: Vector2 = hit.get("at", (hit["position"] - (body as Node2D).global_position
+					if hit.has("height") else Vector2.ZERO))
 			Knockback.push(body, hit["push"], at, float(hit.get("height", -1.0)))
 		var closing: float = hit["harm"]
 		if not character or closing <= 0.0:
