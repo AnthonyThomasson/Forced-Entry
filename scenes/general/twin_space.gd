@@ -1,5 +1,5 @@
 class_name TwinSpace
-extends Node3D
+extends SubViewport
 ## General domain, the twin 3D space (#194, D3, `docs/adr/0014-twin-staging-and-plan-space.md`,
 ## interface 29): a 3D physics space beside the 2D simulation, holding a 3D twin of each solid 2D
 ## body (walls, floors, furniture, doors, vehicles, characters), each with a real height, kept in
@@ -7,12 +7,14 @@ extends Node3D
 ## gameplay reads the twins yet; the real-cover jobs move reads onto them (a bullet's 3D ray, a
 ## fragment, a throw, a sight line), then the bodies themselves flip to 3D one class at a time.
 ##
-## **Where it lives.** The twins are children of this node and join the 3D world of the viewport
-## it stands in: the main window's own `World3D`, the 3D counterpart of the 2D space the sim runs
-## in, so it exists wherever a match or a test world is staged (`MatchBuilder.stage`), headless
-## too, and needs no view. The 3D view (Main's `View3D`) draws in a `SubViewport` of its own world
-## today; when the bodies themselves are 3D (the flip's last job) it shares this world instead and
-## the meshes attach to the bodies. The 3D engine is Jolt (`project.godot`).
+## **Where it lives.** The twins are children of this node, a `SubViewport` (never drawn) with a
+## `World3D` of its own: the 3D counterpart of the 2D space the sim runs in, so it exists wherever a
+## match or a test world is staged (`MatchBuilder.stage`), headless too, and needs no view. A space
+## of its own matters: Jolt solves contacts in the order of the slots its bodies hold and reuses a
+## freed body's slot, so worlds that shared one space (the main window's) gave results that
+## depended on what the process ran before. The 3D view (Main's `View3D`) draws in a `SubViewport`
+## of its own world today; when the bodies themselves are 3D (the flip's last job) it shares this
+## world instead and the meshes attach to the bodies. The 3D engine is Jolt (`project.godot`).
 ##
 ## **What builds a twin.** Each domain builds the twin of its own body behind a hook, as the mesh
 ## hook of the 3D render does: `builders` is a list of `Callable(node: Node2D) -> Node3D`, tried in
@@ -54,6 +56,9 @@ extends Node3D
 const PRIORITY := -100
 ## Overlaps a piece placed over a body is moved clear of, read at once (`_clear_pieces_from`).
 const CLEAR_HITS := 8
+## The squared size of a rotation's twist about up (its `y` and `w` parts) under which a piece is
+## taken to lie on its back, with no heading of its own to read.
+const NO_TWIST := 1.0e-4
 ## How many frames the slow look takes to go round the parked bodies: a sleeping rigid body that a
 ## script moves without waking it is followed within this many frames.
 const PARK_SPREAD := 4
@@ -74,6 +79,9 @@ var count := 0
 var followed := 0
 var written := 0
 var _root: Node
+## The viewport the sim runs in (the watched root's): a body of a world nested in another viewport
+## has a twin space of its own.
+var _home: Viewport
 ## The groups whose members are twinned though they are no physics body (the floors), each with
 ## the script a member is of (a node that is not of it is not looked at when it enters the tree).
 var _groups: Dictionary = {}
@@ -94,6 +102,9 @@ var _pending: Dictionary = {}
 
 func _init() -> void:
 	name = "Twins"
+	own_world_3d = true
+	size = Vector2i(2, 2)
+	render_target_update_mode = SubViewport.UPDATE_DISABLED
 	process_physics_priority = PRIORITY
 	# the plane a free piece of furniture rests on where no floor slab is (a shove past a room's
 	# edge must not drop it out of the world); no ray or sweep asks for its layer
@@ -135,6 +146,7 @@ func track_group(group: StringName, kind: Script = null) -> void:
 ## that join later.
 func watch(root: Node) -> void:
 	_root = root
+	_home = root.get_viewport()
 	var beside := root.get_viewport().find_world_2d().direct_space_state.get_instance_id()
 	if not _beside.has(beside):
 		_beside[beside] = []
@@ -174,16 +186,19 @@ func twin_of(body: Node) -> Node3D:
 
 ## The 3D direct space the twins are in: cast rays and shapes into it.
 func space() -> PhysicsDirectSpaceState3D:
-	return get_world_3d().direct_space_state
+	return find_world_3d().direct_space_state
 
 
-## The twin space a node of the sim (a body, a projectile: any node in the tree) is in: the direct
-## state of its viewport's 3D world, the one a `TwinSpace` under that viewport builds into. Null
-## for a node outside the tree.
+## The 3D space a node of the sim (a body, a projectile: any node in the tree) is in: its world's
+## twin space's (`space_for` the 2D space it is in); the viewport's own 3D world where no twin space
+## stands beside it (a world built by hand: nothing there blocks a line). Null for a node outside
+## the tree.
 static func space_of(node: Node) -> PhysicsDirectSpaceState3D:
 	if not node.is_inside_tree():
 		return null
-	return node.get_viewport().find_world_3d().direct_space_state
+	var viewport := node.get_viewport()
+	var twins := space_for(viewport.find_world_2d().direct_space_state)
+	return twins if twins != null else viewport.find_world_3d().direct_space_state
 
 
 ## The 3D space of the twins standing beside the 2D direct `space` (the one the sim casts in): the
@@ -192,7 +207,8 @@ static func space_of(node: Node) -> PhysicsDirectSpaceState3D:
 ## no twins: nothing there blocks a 3D line).
 static func space_for(space2d: PhysicsDirectSpaceState2D) -> PhysicsDirectSpaceState3D:
 	var stands: Array = _beside.get(space2d.get_instance_id(), [])
-	for stand: TwinSpace in stands:
+	for i in range(stands.size() - 1, -1, -1):  # the newest: an older one may be on its way out
+		var stand: TwinSpace = stands[i]
 		if is_instance_valid(stand) and stand.is_inside_tree():
 			return stand.space()
 	return null
@@ -250,7 +266,7 @@ func _scan_group(group: StringName) -> void:
 	if _root == null:
 		return
 	for node: Node in get_tree().get_nodes_in_group(group):
-		if _root.is_ancestor_of(node) and node is Node2D and node.get_viewport() == get_viewport():
+		if _root.is_ancestor_of(node) and node is Node2D and node.get_viewport() == _home:
 			_pending[node.get_instance_id()] = node
 
 
@@ -259,7 +275,7 @@ func _scan_group(group: StringName) -> void:
 func _on_node_added(node: Node) -> void:
 	if node is PhysicsBody2D or _is_kind(node):
 		# a world of its own nested under the root (a SubViewport) has a twin space of its own
-		if _root.is_ancestor_of(node) and node.get_viewport() == get_viewport():
+		if _root.is_ancestor_of(node) and node.get_viewport() == _home:
 			_pending[node.get_instance_id()] = node
 
 
@@ -448,7 +464,7 @@ func _follow_lead(row: Dictionary) -> void:
 	if pose == row["last3"]:
 		return
 	row["last3"] = pose
-	body.global_transform = _plan_of(pose)
+	body.global_transform = plan_transform(pose, body.global_rotation)
 	# as the node reports it: a script's move is told by a change
 	row["last"] = body.global_transform
 	written += 1
@@ -476,10 +492,15 @@ func _adopt(row: Dictionary) -> void:
 
 ## The 2D transform under the 3D pose `pose` of a free body: its origin's plan point and its turn
 ## about up (the twist of its rotation about the up axis, so a piece lying on its side keeps the
-## heading it fell with).
-static func _plan_of(pose: Transform3D) -> Transform2D:
+## heading it fell with). A piece turned over about a horizontal axis has no twist (the
+## quaternion's up and scalar parts both vanish: the angle would be noise), so it keeps `held`, the
+## heading it had.
+static func plan_transform(pose: Transform3D, held: float) -> Transform2D:
 	var q := pose.basis.get_rotation_quaternion()
-	return Transform2D(-2.0 * atan2(q.y, q.w), PlanSpace.plan_of(pose.origin))
+	var heading := held
+	if q.y * q.y + q.w * q.w > NO_TWIST:
+		heading = -2.0 * atan2(q.y, q.w)
+	return Transform2D(heading, PlanSpace.plan_of(pose.origin))
 
 
 ## Write `xf` (the body's transform) to the row's twin.

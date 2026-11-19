@@ -43,10 +43,6 @@ func describe() -> Dictionary:
 			+ "NPC on that frame, and at least three plan on one frame.",
 		"tags": ["ai", "grenade", "evade", "von"],
 		"requires_von": true,
-		# Furniture is a free 3D body, and the engine settles touching bodies in the order of the
-		# slots they were allocated in, which follows what the process ran before: a spot then
-		# differs in its last bits from the plain search's. A fresh process plays it as designed.
-		"own_process": true,
 		"timeout": 60.0,
 	}
 

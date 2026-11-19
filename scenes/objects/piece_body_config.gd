@@ -18,6 +18,9 @@ static var angular_damp: float = 1.2
 ## How far (degrees) a piece's up axis may lean from the world's before it counts as tipped
 ## (`PieceBody.tipped`): a piece rocking to rest, or leaning on a wall's skirting, is not.
 static var tipped_degrees: float = 25.0
+## A tipped piece counts as upright again only under this lean (degrees), so one resting at the
+## edge of `tipped_degrees` does not toggle (sit and lie on and off, its footprint cut again).
+static var upright_degrees: float = 15.0
 ## Below this horizontal speed (px/s) the plan drag is not applied (writing a velocity to the engine
 ## wakes the body, and a piece at rest must be left to fall asleep).
 static var drag_floor: float = 6.0

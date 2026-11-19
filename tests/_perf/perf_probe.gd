@@ -58,9 +58,13 @@ const SMOOTH_MAX_MS := 33.4
 ## itself (`TwinSpace.update` over 706 rows) is 0.2 ms a frame, the engine step with Jolt and the
 ## 2D space 1 to 3 ms, and 0 to 3 of 168 free pieces are awake in the window. The 95 to 104 ms
 ## frame is one cold ambush ranking (`EntryPosts._ambush_ranking`, 76 ms; 18 ms at 761) the first
-## time an NPC is ordered to ambush a door in the window (nav ready, a cache miss): the fight, not
-## the pieces. No surviving 2D consumer showed as the cost (nav bakes 86 of 86 in time against 70 at
-## the base). The twin bookkeeping and the 2D footprint go with del2d; the budgets are for perf3d.
+## time an NPC is ordered to ambush a door in the window (nav ready, a cache miss), and the two are
+## two doors (`door_-490_760`, `door_-500_360`: not the same work). The pieces do not make a ray
+## dearer: 4000 random rays over the district (3563 hits) cost 1.7 to 2.0 us each with the 168
+## pieces free `PieceBody`s in Jolt's tree and 1.7 to 2.0 us with them `StaticBody3D`s (the house
+## alone, 8 pieces: 1.2 against 1.2 us). The fight, not the pieces. No surviving 2D consumer showed
+## as the cost (nav bakes 86 of 86 in time against 70 at the base). The twin bookkeeping and the 2D
+## footprint go with del2d; the budgets are for perf3d.
 ## A/B (`tools/perf_ab.sh eb62a885 09478516 --different-fights`): `match_5v5_stress` +2.5%,
 ## `grenade_match_stress` -12.3%, `match_10v10_opening` -2.5%, `match_npc_vision` -21.9%,
 ## `match_10v10_stress` +54.7% (avg; the fight above).

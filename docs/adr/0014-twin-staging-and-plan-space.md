@@ -73,10 +73,20 @@ unfrozen later, a note this ADR left for furniture, is followed (the row is re-l
   `speculative_contact_distance` 1.5, `penetration_slop` 0.3, `sleep_velocity_threshold` 1.5, `bounce_velocity_threshold` 40 and `max_linear_velocity` 5000 (the default 500 is a speed limit of 500 px/s, which a shoved chair meets). Jolt's
   penetration correction is about 0.2 px a step and cannot be raised, so a piece (or a character) spawned overlapping a wall or another
   piece is moved clear explicitly when it is twinned (`PieceBody.settle_out`, a zero-motion `body_test_motion`).
-- **Two plays of one world can differ.** Jolt orders touching bodies by allocation, so a test that plays one scenario twice in a process
-  sees the second play settle a pile in a different order; a Von test whose wording depends on it is `own_process` (as the 2D engine's
-  slot order already made `combat_frag_take_cover`), and each twin space twins only the bodies of its own viewport (a nested
-  `SubViewport` world owns its twins), so a replay's world does not meet another's.
+- **A twin space is a physics space of its own (amends "Where it lives").** Jolt solves touching bodies in the order of the slots they
+  hold and reuses a freed body's slot, so worlds that shared the main window's space gave results that depended on what the process had
+  run before (the same scene, the same hash only in a fresh process: a Von replay missed at the last float bit). `TwinSpace` is
+  therefore a never-drawn `SubViewport` with `own_world_3d` (`UPDATE_DISABLED`), a fresh space for each staged world and each match;
+  `TwinSpace.space_of(node)` finds a node's twin space through the 2D space it stands in (`space_for`), the viewport's own 3D world where
+  none stands beside it. Each twin space twins only the bodies of its own viewport (a nested `SubViewport` world owns its twins). When the
+  bodies flip for good and the picture shares the twins' world (the last flip job), that world is this one.
+- **No gameplay code reads Jolt's contact events.** They are collected on worker threads and arrive in a different count and order run to
+  run even when the simulation is identical (40 boxes dropped: the final poses hash alike in every run, `body_entered` fires 40 to 72
+  times in any order), so a sliding piece's momentum is handed to the character or vehicle it strikes by a shape query of its shapes
+  against those layers in `PieceBody.twin_update`, in a fixed order (by where the struck body stands), once a touch, from the velocity it
+  carried before the step that met it. The 3D step itself is deterministic.
+- **`max_linear_velocity` 5000 px/s is a cap on every Jolt dynamic body** (118 m/s: lower than the engine's default 500 m/s). It serves
+  furniture; the jobs that put vehicles (vehicles3d) and ragdolls (ragdoll3d) into Jolt must raise it or hold them under it.
 
 ## Plan space (D4)
 
@@ -97,8 +107,8 @@ the alternative, a global `Vector2` to `Vector3` sweep, would have touched every
 
 ## Consequences
 
-- Every match and test world has a `TwinSpace` child named `Twins` (the stage's handle's `twins`, `TestWorld.twin_space()`); the main window's 3D
-  physics space holds the twins of every world that stands in it, as its 2D space holds their bodies.
+- Every match and test world has a `TwinSpace` child named `Twins` (the stage's handle's `twins`, `TestWorld.twin_space()`) with a 3D physics
+  space of its own (a later amendment, below); the main window's 2D space holds the bodies of every world that stands in it.
 - The 3D step costs a little a frame at rest (Jolt's idle step and the sync, about 0.5 ms with the district's ~600 twins); the perf guards
   stand at their standard.
 - A later job that reads a twin maps its collider back to the 2D body with `TwinSpace.owner_of` and calls that body's `get_surface()`; a job

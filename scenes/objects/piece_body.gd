@@ -17,8 +17,13 @@ extends RigidBody3D
 ## strikes is handed its momentum, as a sliding piece always handed it to a character), and is on
 ## `TWIN_WORLD` itself, so a bullet, a sight line or a lob reads where it now stands.
 
-## Contacts a piece reports (a struck body is handed its momentum from them).
-const CONTACTS_REPORTED := 4
+## How near (px) a body is to a moving piece for the piece to have struck it, how many it reads at
+## once, and the speed (px/s) a piece must carry to strike anything.
+const STRIKE_MARGIN := 1.5
+const STRIKE_HITS := 8
+const STRIKE_SPEED := 5.0
+## How far (px) a hull's corner may be from the one the footprint is cut to before it is cut again.
+const HULL_SLACK := 0.25
 ## Overlaps `settle_out` reads at once, and the shortest way out (px) it bothers to move.
 const SETTLE_HITS := 8
 const SETTLE_MIN := 0.01
@@ -32,6 +37,14 @@ var _piece: Node2D
 ## Whether the 2D footprint is the tipped hull now, and the 3D pose it was cut for.
 var _footprint_tipped := false
 var _footprint_pose := Transform3D()
+## The hull the footprint was last cut to (the footprint's frame), and whether the piece counts as
+## tipped (`tipped`: with hysteresis).
+var _hull := PackedVector2Array()
+var _tipped := false
+## The velocity the piece carried at the start of the last step, before a struck body stopped it,
+## and the bodies it touched then (instance ids): a body is handed momentum once a touch.
+var _carried := Vector2.ZERO
+var _touching: Dictionary = {}
 
 
 ## A body for `of` (an `EnvironmentObject`): its mass, drag, friction and gravity set. The shapes
@@ -57,9 +70,6 @@ func _init(of: Node2D = null) -> void:
 	physics_material_override = grip
 	can_sleep = true
 	continuous_cd = PhysicsImpactConfig.body_continuous_cd
-	contact_monitor = true
-	max_contacts_reported = CONTACTS_REPORTED
-	body_entered.connect(_on_body_entered)
 
 
 ## The 2D piece this is the body of.
@@ -136,8 +146,11 @@ func settle_out() -> void:
 func push(impulse: Vector2, at: Vector2 = Vector2.ZERO, height: float = -1.0) -> void:
 	var lift := impulse * RenderConfig.unit
 	var offset := Vector3(at.x, 0.0, at.y) * RenderConfig.unit
+	var centre := global_transform.basis * center_of_mass  # from the origin, in the world's axes
 	if height < 0.0:
-		offset.y = centre_height() - global_position.y
+		# through the centre of mass: a push given no point there is central, turning it about up
+		# only; given a point on the floor plane, at its height
+		offset = centre if at == Vector2.ZERO else Vector3(offset.x, centre.y, offset.z)
 	else:
 		var extent := _extent()
 		offset.y = clampf(height * RenderConfig.unit, extent.x, extent.y) - global_position.y
@@ -160,10 +173,11 @@ func _extent() -> Vector2:
 	return Vector2(low, high) if low <= high else Vector2(global_position.y, global_position.y)
 
 
-## How high (3D units) the piece's centre of mass is above the world's floor now.
+## How high (px) the piece's centre of mass is above the floor now, in the world: the origin's
+## height and the centre of mass's offset from it (the body's `center_of_mass` is an offset from its
+## origin, turned with it, so a piece on its side or lifted has its centre where its pose puts it).
 func centre_height() -> float:
-	var state := PhysicsServer3D.body_get_direct_state(get_rid())
-	return state.center_of_mass.y if state != null else global_position.y
+	return (global_transform * center_of_mass).y / RenderConfig.unit
 
 
 ## The piece's velocity in plan space (px/s) and its turn about up (rad/s, a 2D body's sign:
@@ -189,11 +203,15 @@ func inverse_yaw_inertia() -> float:
 
 
 ## Whether the piece has tipped (D14): its up axis leans more than `PieceBodyConfig.tipped_degrees`
-## from the world's. A tipped piece is lying on a side or leaning on something; it is no longer a
-## thing to sit on.
+## from the world's, and it stays tipped until it leans less than `PieceBodyConfig.upright_degrees`.
+## A tipped piece is lying on a side or leaning on something; it is no longer a thing to sit on.
 func tipped() -> bool:
-	var up := global_transform.basis.y.normalized()
-	return up.y < cos(deg_to_rad(PieceBodyConfig.tipped_degrees))
+	var up := global_transform.basis.y.normalized().y
+	if up < cos(deg_to_rad(PieceBodyConfig.tipped_degrees)):
+		_tipped = true
+	elif up > cos(deg_to_rad(PieceBodyConfig.upright_degrees)):
+		_tipped = false
+	return _tipped
 
 
 ## A piece that was handed to the twin space now moves: its footprint follows (the twin space calls
@@ -201,6 +219,7 @@ func tipped() -> bool:
 ## of every shape's corners projected onto the floor in the 2D body's frame; upright again, the
 ## piece's own collider as its dents have left it.
 func twin_update(footprint: Node2D) -> void:
+	_hand_over()
 	var now := tipped()
 	if not now and not _footprint_tipped:
 		return
@@ -212,6 +231,7 @@ func twin_update(footprint: Node2D) -> void:
 		_set_hull(footprint)
 	else:
 		_footprint_tipped = false
+		_hull = PackedVector2Array()
 		if footprint.has_method(&"restore_collider"):
 			footprint.call(&"restore_collider")
 
@@ -231,17 +251,50 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 		state.angular_velocity = angular
 
 
-## Hand the momentum of a flying piece to a body it strikes that is not itself a free piece (a
-## character: kinematic, it is not moved by the solver), scaled down so a cascade loses energy.
-func _on_body_entered(other: Node) -> void:
-	var struck := TwinSpace.owner_of(other)
-	if struck == null or struck == _piece or not struck.has_method(&"apply_impulse"):
+## Hand the momentum of a moving piece to the bodies it strikes that are not themselves moved by the
+## solver (a character, a vehicle: kinematic), scaled down so a cascade loses energy. Jolt's contact
+## events are not read: they are collected on worker threads and arrive in a different count and
+## order run to run, so what is struck is found by a shape query of the piece's own shapes in the
+## twin space, in a fixed order (by where the struck body stands), and a body is handed the momentum
+## once a touch, the piece's velocity being what it carried before the step that met the body.
+func _hand_over() -> void:
+	var carried := _carried
+	_carried = plan_velocity()
+	if carried.length() < STRIKE_SPEED and _touching.is_empty():
 		return
-	if TwinSpace.twin_for(struck) is PieceBody:
-		return  # the solver settles piece against piece
-	var transfer := plan_velocity() * mass * PhysicsImpactConfig.transfer_scale
-	if transfer.length_squared() > 0.0:
-		struck.call(&"apply_impulse", transfer)
+	var struck: Array = []
+	var touching := {}
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.collision_mask = PhysicsLayers.TWIN_CHARACTER | PhysicsLayers.TWIN_VEHICLE
+	query.margin = STRIKE_MARGIN
+	var space := get_world_3d().direct_space_state
+	for child in get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		query.shape = holder.shape
+		query.transform = global_transform * holder.transform
+		for found: Dictionary in space.intersect_shape(query, STRIKE_HITS):
+			var other := TwinSpace.owner_of(found["collider"])
+			if other == null or other == _piece or not other.has_method(&"apply_impulse"):
+				continue
+			if TwinSpace.twin_for(other) is PieceBody or touching.has(other.get_instance_id()):
+				continue
+			touching[other.get_instance_id()] = true
+			struck.append(other)
+	struck.sort_custom(_nearer_the_origin)
+	var transfer := carried * mass * PhysicsImpactConfig.transfer_scale
+	for other: Node2D in struck:
+		if not _touching.has(other.get_instance_id()) and transfer.length_squared() > 0.0:
+			other.call(&"apply_impulse", transfer)
+	_touching = touching
+
+
+## Struck bodies in a fixed order: by where they stand (their instance ids differ run to run).
+static func _nearer_the_origin(a: Node2D, b: Node2D) -> bool:
+	if a.global_position.x != b.global_position.x:
+		return a.global_position.x < b.global_position.x
+	return a.global_position.y < b.global_position.y
 
 
 ## Replace `footprint`'s colliders by the hull of this body's shapes seen from above.
@@ -260,10 +313,23 @@ func _set_hull(footprint: Node2D) -> void:
 	var hull := Geometry2D.convex_hull(local)
 	if hull.size() > 1:
 		hull.remove_at(hull.size() - 1)
-	if hull.size() < 3:
+	if hull.size() < 3 or _same_hull(hull):
 		return
+	_hull = hull
 	if footprint.has_method(&"set_tipped_collider"):
 		footprint.call(&"set_tipped_collider", hull)
+
+
+## Whether `hull` is the one the footprint is cut to already (a piece that only slides or turns
+## about up keeps its hull in its own frame): the collider, and the nav hole cut from it, are then
+## left as they are.
+func _same_hull(hull: PackedVector2Array) -> bool:
+	if hull.size() != _hull.size():
+		return false
+	for i in hull.size():
+		if hull[i].distance_to(_hull[i]) > HULL_SLACK:
+			return false
+	return true
 
 
 ## The corner points of `shape` in its own frame (a cylinder as a ring of points).

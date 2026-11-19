@@ -31,7 +31,9 @@ func run(t: TestContext) -> void:
 	await t.frames(3)
 	t.check(Probe.views(t).is_empty(), "no PlayerView under the world")
 	t.check(
-		t.world.find_children("*", "SubViewport", true, false).is_empty(),
+		t.world.find_children("*", "SubViewport", true, false).filter(
+			func(n: Node) -> bool: return not n is TwinSpace  # (the world's twin space is one)
+		).is_empty(),
 		"no SubViewport under the world",
 	)
 	t.check(

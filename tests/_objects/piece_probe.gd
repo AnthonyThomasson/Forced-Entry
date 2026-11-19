@@ -16,6 +16,11 @@ static func lean(piece: Node) -> float:
 	return rad_to_deg(acos(clampf(lead.global_transform.basis.y.y, -1.0, 1.0))) if lead else 0.0
 
 
+## The height (px) of the piece's centre of mass now.
+static func centre(piece: Node) -> float:
+	return body(piece).centre_height()
+
+
 ## Whether the piece's 3D body is asleep.
 static func asleep(piece: Node) -> bool:
 	var lead := body(piece)

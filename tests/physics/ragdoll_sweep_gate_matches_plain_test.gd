@@ -8,8 +8,8 @@ extends GameTest
 const CharacterScene := preload("res://scenes/character/character_base.tscn")
 const FRAMES := 150
 ## Beside the "touching" death (at 480, 250), a body's width off: a chair under the character would
-## be shoved clear by the solver as the character spawns, which no two plays do to the same last
-## bit.
+## be shoved clear by the physics as the character spawns (every time, the same way), and the fall
+## under test would meet a chair that moved.
 const CHAIR_AT := Vector2(508, 250)
 const BLAST_FRAME := 55
 const SCENARIOS := [

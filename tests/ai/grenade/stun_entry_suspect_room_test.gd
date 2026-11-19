@@ -35,7 +35,6 @@ func describe() -> Dictionary:
 		# Furniture is a free 3D body, and the engine settles touching bodies in the order of the
 		# slots they were allocated in, which follows what the process ran before: the snapshot's
 		# wording then differs from the recording's. A fresh process plays it as it was recorded.
-		"own_process": true,
 		"timeout": 120.0,
 	}
 
