@@ -65,6 +65,8 @@ var wear: Node2D = null
 ## stretch two rooms share is built here once, so the room that does not own it has its marks laid
 ## on this wall): `WearFactory.spawn` fills it.
 var neighbour_wear: Array[Node2D] = []
+## `_layout()` kept.
+var _layout_kept := {}
 
 
 func _exit_tree() -> void:
@@ -74,6 +76,7 @@ func _exit_tree() -> void:
 
 
 func _ready() -> void:
+	_layout_kept = {}
 	_build_walls()
 
 
@@ -180,13 +183,20 @@ func _inward(world_pos: Vector2, world_normal: Vector2, seg: PackedVector2Array)
 ## Centerline segments (start/end points) for every wall, with the openings removed, and split where
 ## a shared stretch (`seams`) starts or ends, so each lies wholly on one or off every one.
 func wall_segments() -> Array[PackedVector2Array]:
-	return _layout()["segments"]
+	return (_layout()["segments"] as Array[PackedVector2Array]).duplicate()
 
 
-## Whether segment `index` of `wall_segments()` has colliders here: false for one on a stretch
-## another wall owns (`seams`).
+## Whether segment `index` of `wall_segments()` is this wall's to build: false for one on a stretch
+## another wall owns (`seams`), whether or not the colliders are built yet.
 func has_segment(index: int) -> bool:
-	return _seg_colliders.has(index)
+	var layout := _layout()
+	var segs: Array[PackedVector2Array] = layout["segments"]
+	return (
+		index >= 0
+		and index < segs.size()
+		and not layout["shared"][index]
+		and not segs[index][0].is_equal_approx(segs[index][1])
+	)
 
 
 ## Whether the doorway `gap` (an entry of `openings`) lies on a stretch another wall owns, so the
@@ -205,6 +215,14 @@ func opening_is_shared(gap: Dictionary) -> bool:
 ## The segments and, parallel to them, `shared` (on a stretch another wall owns) and `cut` (bits
 ## 1 and 2: the segment's start and end meet a shared piece, so it is not lengthened there).
 func _layout() -> Dictionary:
+	if not _layout_kept.is_empty():
+		return _layout_kept
+	_layout_kept = _lay_out()
+	return _layout_kept
+
+
+## `_layout` worked out (the wall's size, openings and seams do not change once it is built).
+func _lay_out() -> Dictionary:
 	var w := size.x
 	var h := size.y
 	# Each edge as an ordered pair of corner points.

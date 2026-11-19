@@ -22,7 +22,7 @@ static func decals_of(wall: Node2D) -> Dictionary:
 	var own: Variant = wall.get("wear")
 	if is_instance_valid(own):
 		wears.append(own)
-	for lent: Node2D in wall.get("neighbour_wear"):
+	for lent: Node2D in wall.get("neighbour_wear") if wall.get("neighbour_wear") else []:
 		if is_instance_valid(lent):
 			wears.append(lent)
 	for wear: Node2D in wears:

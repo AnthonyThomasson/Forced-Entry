@@ -114,6 +114,12 @@ _Avoid_: mirror (the 3D view's meshes that follow the 2D bodies, `WorldMirror`),
 The 3D physics space of the twins (Jolt, the main window's 3D world), built by `MatchBuilder.stage` for every match and test world,
 headless too. Gameplay reads it rule by rule (a 3D ray for a bullet, a fragment, a sight line) as the real-cover jobs land.
 
+**Seam**:
+A stretch of a room's wall that an earlier room's wall already stands on (`Wall.seams`, `WallFactory.seams_for`): two rooms that touch share
+one wall there, built once by the room built first (one 2D collider, one 3D wall, one lintel over a doorway in it). The other room's `Wall`
+keeps it as a segment, so its doorways stay cut, with no collider.
+_Avoid_: shared wall (as two walls), coincident wall
+
 **Lintel**:
 The header of a wall over a doorway, from the door's top (84 px) to the wall's (96 px): a twin of the doorway (`ObjectTwins`), so a
 ray or a grenade at that height is stopped where one lower passes under. Not the door's leaf, which stands only as high as the door.
