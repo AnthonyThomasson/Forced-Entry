@@ -6,8 +6,7 @@
 	 **Doors are left out of every bake** (planning, steering and avoid maps): the bodies of the group `doors` (interface 24, an
 	 `AnimatableBody2D`, a static collider to the parse) are taken off the solid layer for the parse, so paths cross a doorway as if open and
 	 the walker opens the door (ADR 0010). **A door at its open stop** (within
-	 `NavLeaves.OPEN_SLACK`, 10°, standing) is carved where its leaf stands, as a 2 px strip along the leaf (a furniture hole, so every bake,
-	 re-bake and the overlay take it) where at least `NavLeaves.MIN_PASS` (4 px) of way past it stays open (not in a 52 px doorway): its
+	 `NavLeaves.OPEN_SLACK`, 10°, standing) is carved where its leaf stands, as a 2 px strip along the leaf (a furniture hole) where at least `NavLeaves.MIN_PASS` (4 px) of way past it stays open (not in a 52 px doorway): its
 	 doorway stays open past it and a path goes round the leaf in the room it swings into. `NavBuilder.leaf_in_map(door) -> bool` tells
 	 whether a door's leaf is in the map so (the walker goes through any other door by a clean gap or opens it, DR14).
    - **Re-bake** is the Navigation domain's own: `nav_updater.gd` (built by `MatchBuilder.stage`) re-carves the furniture holes in place at
@@ -15,7 +14,7 @@
 	 `NavBuilder.rebake` / `rebake_async` / `rebake_steering` are test-facing seams, not this surface (`domain-navigation`): `rebake_async`,
 	 `NavRebake.planning` and `swap` return `Array[NavBake]` (`was_late`); the perf probe reads `NavBake.started_total` /
 	 `late_total` / `landed_total`, `NavTiles.baked_total`, `NavBuilder.avoid_starts` / `avoid_rebakes`. A bake lands on a `GameClock` frame; a pause defers it.
-   - `NavBuilder.furniture_holes(house) -> Array` — the carved footprints (anchored pieces and open door leaves included) as world-space polygons: what
+   - `NavBuilder.furniture_holes(house) -> Array` — the carved footprints (anchored pieces, open doors and leaning fallen ones, `NavLeaves.fallen_hole`, included) as world-space polygons: what
 	 `nav_debug.gd` draws, `nav_updater.gd` watches for a moved piece, and `match_spawner.gd` keeps a spawn's clearance from.
    - **Characters at rest are holes too, on a second map.** `NavBuilder.character_holes(root) -> Array` (footprints of the living characters
 	 at rest under the region's parent), `NavBuilder.OBSTACLE_MARGIN` (px every carved footprint is grown by; the AI's entry geometry grows

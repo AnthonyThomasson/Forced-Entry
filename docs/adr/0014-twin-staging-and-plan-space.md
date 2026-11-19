@@ -33,7 +33,7 @@ read and the twin written **only when it changed**, a sleeping `RigidBody2D` is 
 moves it asleep), a body that never moves is written once (one frozen at twin time is parked and looked at slowly, so a later unfreeze is followed), a body that leaves the tree frees its twin. The spike measured it: 600 twins cost 0.13 to 0.16 ms a
 frame with the dirty check, 0.32 without; the whole frame rises by 0.15 ms. The sync runs before every body's own `_physics_process`
 (priority -100), after the engine's step has flushed the bodies it moves, so a bullet or a sight line in the frame's scripts finds
-a rigid body's twin exactly where the 2D space has it; a door or a character, which a script moves, is a frame behind where that script puts it
+a rigid body's twin exactly where the 2D space has it; a character, which a script moves, is a frame behind where that script puts it (a door is led from 3D: below)
 (1/60 s). A write is pushed to Jolt at once (`force_update_transform` on the twin: a `Node3D` would push its transform only at the frame's end, and a ray in the frame of the write would still meet the pose before it, #194 sight3d), kinematic or static alike; Objects' twins are static bodies
 written when their body moves, so Jolt's step carries no always-active body for each of a district's hundreds of pieces and doors.
 
@@ -42,7 +42,7 @@ in 6.7 s against 30 of 40 awake after 8 s) and casts rays in about half the time
 
 **What a twin is not yet.** A twin is built once from the shapes its body had: a dent that reshapes a piece's or a vehicle's 2D
 collider does not reshape its twin (a dent is a few px; a wall's twin is cut again, see below); a vehicle's body is the outline to the belt plus the cabin to the roof (its tapered glass is a box); a
-non-solid piece (a rug) has none. A seated character's cylinder is off, a dead one's and a knocked-down door's are on no layer
+non-solid piece (a rug) has none. A seated character's cylinder is off, a dead one's is on no layer (a knocked-down door is a free body on the world layer, D18: `DoorSlab`, #194 doors3d)
 (`PhysicsLayers.TWIN_*`: world, vehicle, character), as their 2D bodies' are. The jobs that read the twins decide what they need of these.
 
 ## Furniture flips first: the direction reverses for a free piece (D13, D14, #194 furn3d)
@@ -105,6 +105,18 @@ the rects of the walls built so far; a house's rooms, a district shell and its p
 a segment, so its doorways stay cut where they were, but builds no collider and no lintel there. The room built first owns the seam; a segment is split where a shared stretch begins or ends, and
 is not lengthened by half a thickness at that end (the owner stands there). A room's wear marks on a stretch it does not own are laid on the owner's segments
 (`Wall.neighbour_wear`).
+
+## Doors: a standing door is a 3D leader, a door knocked down is a free body (D18, #194 doors3d)
+
+A house door stands in its doorway as a **`DoorBody`**, an `AnimatableBody3D` locked upright, its leaf 84 px high under the lintel. The swing,
+kick and step-degrees rule run in 3D (the swing asks the twin space for the angle one step on, a shape query of the leaf), and the `DoorBody`
+writes the 2D `Door` each step (`TwinSpace`'s driven-leader branch), so the 2D body is the follower: the nav carve at the open stop and the
+swing that nudges a character clear read it unchanged (interface 24, 7). A door **knocked down** is a free **`DoorSlab`** (a `PieceBody`,
+`TwinSpace.retwin` swaps the twin when the door falls): torn off its hinges it falls and lies as physics decides, with the blow's impulse at its
+real point (a blast from its burst height, a kick at the lock), plus the hinges' wrench across its face (`DoorFallConfig.fall_nudge`) so a freed
+upright slab always topples the way the blow came. Bullets, sight, cover, grenades and fragments meet it at its lying height; it can be shoved like
+a piece; its 2D footprint is walk-over when flat (top within `DoorFallConfig.step_over`) and a solid obstacle and a nav hole when leaning
+(`NavLeaves.fallen_hole`). The 2D follower of a door, like a footprint twin, is deleted with the 2D space; what survives is the 3D leader and slab.
 
 ## Plan space (D4)
 

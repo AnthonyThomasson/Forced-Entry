@@ -92,7 +92,7 @@ and lets them through by its material's `penetration` by the usual rule (a hollo
 round goes through steel), blocks the AI's sight and casts a shadow (its 3D leaf mesh turns with the leaf).
 The glass-panel door is the exception: its surface says `transparent`, which sight reads (an NPC on one side sees a puppet on
 the other through it, not through a wooden door) and it casts no shadow; a round still meets it (penetration 5). A knocked-down
-door blocks nothing (DR11).
+door is a free body lying where it fell, blocking by its real height (DR11).
 
 It is in neither nav bake (planning, steering): paths go through a doorway as through an open archway and the walker deals with the leaf
 (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`).
@@ -218,14 +218,36 @@ leaves it where it stood), `objects/door_push_open_limit` (a leaf shoved as hard
 
 ## DR11. Knocked down
 
-At 0 HP the leaf comes off its hinges and falls flat into the room the last blow pushed it toward (a kick's shove, a round's or
-a blast's direction; the room it swings into when the blow had none): it lies on the floor beyond the doorway, `fallen_length` (100 px)
-long, its length along the way it fell, drawn face up at the lying bodies' rung. Walk-over (no collider), no cover, blocking no shot,
-sight or light (its shadow is gone), and no longer usable (`toggle`, `turn_by` and `open_fully` do nothing); the doorway is clear
-(`gap()` is its whole width, `open_amount()` 1).
+At 0 HP the leaf comes off its hinges and becomes a free `RigidBody3D` (D18, #194 doors3d), a real object like a tipped
+piece of furniture (`docs/adr/0014-twin-staging-and-plan-space.md`, D13, D14): the standing leaf's 3D leader (`DoorBody`, an
+`AnimatableBody3D`) is swapped for a `DoorSlab` (a `PieceBody`, `TwinSpace.retwin`), so it falls as physics decides and lies
+where it lands, with no scripted fall and no chosen side. The blow gives it its impulse at the real point: a blast's `shove`
+from the burst's height (`Explosion` -> `Knockback.push`), a kick's at the lock (the leaf's middle; a foot's own resting height
+would kick the leaf's foot out from under it), a round's impulse (`Physics.impact_impulse`) at the height it struck.
+A freed upright slab on the floor has no preferred way to fall, so the hinges' tearing adds a wrench at the leaf's top across
+its face the way the blow came (`DoorFallConfig.fall_nudge` times the mass), always to the side of the blow (the room it
+swings into when the blow had no direction, or a wound with none). The slab stands a half px under the lintel and a px short
+at each end (`DoorFallConfig.head_gap`, `side_gap`) so it tips out of its frame between the jambs; its mass is the door's
+`get_mass` and `max_linear_velocity` is the 5000 px/s global Jolt cap (a blast's throw is far below it).
 
-Tests: `objects/door_knocked_down` (four kicks from the east lay a hollow door west; four rounds from the west lay one east; a puppet
-walks over one, a round and an NPC's sight pass).
+Geometry follows the body, in 3D: a bullet's ray, sight, cover and a grenade's flight and fragments meet it at its real,
+lying height (a leaf lying flat is 6 px thick, a leaf leaning on a wall or lying on a bed is as high as it stands), the
+door's shadow and mesh turn with it (`DoorMesh` follows the leader, `door.look` carries its art, the shattered panes, no
+separate "fallen" face). It can be shoved like a piece: `Knockback.push` / `apply_impulse` on a fallen door forward to its
+leader (`leader_of`), a walker's push and a blast slide it, and it comes to rest again (`Probe.settle`).
+
+For the 2D follower (deleted with the 2D space): a leaf lying flat (its top within `DoorFallConfig.step_over`, 10 px, of the
+floor) is walk-over, its footprint on no layer and not a hole in the nav bake; one leaning or lying higher is an obstacle
+(its footprint on the solid layer, a hole in the bake, `NavLeaves.fallen_hole`, which re-bakes as a tipped piece's does). The
+doorway is clear for the AI and `gap()` is its whole width, `open_amount()` 1 (a leaf lying across the threshold is the
+obstacle the footprint says, not the doorway). A door that fell no longer answers `toggle`, `turn_by` or `open_fully`.
+
+Tests: `objects/door_blast_knocks_it_off_free` (a blast knocks a door off its hinges and it lies on the floor as a free body,
+thrown away from the blast), `objects/door_knocked_down` (a kick from the east lands the door west, rounds from the west
+land it east, an ajar door kicked from the pull side; a puppet walks over one, a round and an NPC's sight pass once it
+lies), `objects/fallen_door_stops_bullets_at_its_lying_height` (a ray passes over the leaf lying flat, a round at its height
+stops in it), `objects/fallen_door_can_be_shoved` (a shove slides it and it rests), `objects/twin_door_swing` (the leader
+swings the 2D follower), `objects/structure_door_art` (the fallen leaf wears its art and lies as the free body does).
 
 ## DR12. Sound
 

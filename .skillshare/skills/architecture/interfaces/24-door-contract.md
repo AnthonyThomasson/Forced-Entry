@@ -1,11 +1,13 @@
 24. **The door contract: Objects' `Door` ↔ Character, AI, Testing** (`scenes/objects/door/door.gd`; spec `docs/doors.md`; World-Gen builds
     it through 2, the Space key and the AI drive it through this one)
     A `Door` is an `AnimatableBody2D` on `PhysicsLayers.SOLID` in the group `doors` (the one name Navigation, Testing and the AI find a door
-    by), one per doorway, driven by code (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`); its origin is the middle of
+    by), one per doorway, driven by code (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`): the 2D follower of a 3D
+    leader in the twin space (#194 doors3d: standing, an `AnimatableBody3D` `DoorBody` its swing turns, the leaf 84 px high under the
+    lintel; knocked down, a free `DoorSlab` rigid body, D18, `docs/doors.md` DR11); its origin is the middle of
     its leaf, angles are degrees from shut. A caller reads and calls only what is listed here.
     - **State:** `hinge` (the world point on the jamb the leaf turns about), `swing_into` (unit vector into the room it swings into: that
       room's side pulls, the other pushes), `open_angle` (90), `width` (the doorway's free width between the jambs), `angle()`,
-      `open_amount()` (0 shut .. 1 wide open; 1 once down), `is_down()` (knocked down: lying flat, no collider, no shadow, unusable),
+      `open_amount()` (0 shut .. 1 wide open; 1 once down), `is_down()` (knocked down: a free body lying where physics left it, walk-over when flat and an obstacle when leaning, unusable),
       `gap() -> float` (the width a character can pass, at most `width`; `width` once down), `leaf_pose(angle) -> Transform2D` (the leaf's
       middle at that angle, x axis along the leaf) and `leaf_size() -> Vector2` (length, thickness), `damage.hp` / `damage.max_hp`.
     - **Use:** `toggle(by)` (an open door, or one swinging open, swings shut; a shut or ajar one swings fully open, in

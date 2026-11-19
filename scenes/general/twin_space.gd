@@ -22,9 +22,11 @@ extends SubViewport
 ## order for each body, the first answer that is a node wins, null (not this domain's body) passes
 ## on. The node is a `CollisionObject3D` with its collision shapes built in code, in the frame of
 ## the 2D body's origin (`TwinShapes`, `PlanSpace`); this node places it by the body's transform. A
-## plain `StaticBody3D` is placed once, and written again whenever its body moves (a shoved piece, a
-## swinging door): a twin is followed by what its body is, not by what the twin is, and a static
-## body keeps Jolt's step free of one more always-active body. A twin node may have
+## plain `StaticBody3D` is placed once, and written again whenever its body moves (a shoved piece):
+## a twin is followed by what its body is, not by what the twin is, and a static body keeps Jolt's
+## step free of one more always-active body. A house door is led from 3D (a `DoorBody` its swing
+## turns writes the 2D door); a door that falls is given a fresh twin, a free body, by `retwin`. A
+## twin node may have
 ## `twin_update(body: Node2D) -> void`, run each frame after it has followed (a
 ## character's cylinder follows its posture). A body is found when it is in the tree
 ## under the root `watch` was given (`PhysicsBody2D`s, and each node of a group `track_group`

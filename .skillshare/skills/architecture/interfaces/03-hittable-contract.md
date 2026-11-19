@@ -24,8 +24,8 @@
    Strikers that call `take_hit`: the projectile, and the grenade's `Explosion` (Projectile System, `Explosion.frag`: a blast hit carries
    `speed_factor` 0 and `height` −1; its shove is the grenade's `blast_impulse` through the pushable contract, interface 5, and for a
    character `blast_push`). A melee punch or kick shoves through the pushable contract, deals damage through `take_damage(amount)` (the
-   character's plain damage entry, no `HitInfo`; tests wound with it too), or through the optional `take_blow(kind, amount, impulse)`
-   (`kind` `&"punch"` or `&"kick"`, `MeleeBlow.kind`) on a body that has it (a `Door`), does **not** deform, and reads `get_surface()` only for the
+   character's plain damage entry, no `HitInfo`; tests wound with it too), or through the optional `take_blow(kind, amount, impulse, height := -1.0)`
+   (`kind` `&"punch"` or `&"kick"`, `MeleeBlow.kind`; `height` the strike's real height in px, -1 unknown, #194 doors3d) on a body that has it (a `Door`), does **not** deform, and reads `get_surface()` only for the
    struck `material` it posts.
 
    A world `Door` (interface 24) implements it too: `get_surface()` is its material's `penetration` (the door is a full-height wall in the twin space) and, for the
