@@ -572,7 +572,8 @@ func throw_clear_on_arrival(
 
 ## Where a grenade thrown onto `to` leaves a thrower standing at `at`: its throwing hand (the
 ## learned release offset, as it faces `to`), or, with a wall or solid piece closer than that, the
-## hand held against it, as the character's own hand is.
+## hand held against it, as the character's own hand is: a ray at the height its posture releases a
+## grenade at, so a low piece the hand is over does not hold it.
 func _release_point(
 	space: PhysicsDirectSpaceState2D,
 	at: Vector2,
@@ -583,7 +584,8 @@ func _release_point(
 	if toward == Vector2.ZERO or _release == Vector2.ZERO:
 		return at
 	var hand := at + toward * _release.x + toward.rotated(PI * 0.5) * _release.y
-	var hit: Dictionary = vision.raycast(space, at, hand, exclude)
+	var posture: StringName = SightRay.posture_of(_character)
+	var hit: Dictionary = vision.raycast(space, at, hand, exclude, BodyHeights.release(posture))
 	if hit.is_empty():
 		return hand
 	return (hit["position"] as Vector2) - (hand - at).normalized() * HAND_RADIUS

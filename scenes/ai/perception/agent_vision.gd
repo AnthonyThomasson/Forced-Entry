@@ -16,22 +16,28 @@ extends RefCounted
 ## it: walls, doors, furniture and vehicles; a body is never in the way. Set `enabled` to false to
 ## make everything visible (omniscient), for debugging.
 ##
-## This is SIGHT-only: `blocked()` / `raycast()` below stay fully physical (every solid collider
-## counts) because they serve line-of-fire and cover, where a bullet is still stopped by a table
-## even though an agent can see across it.
+## This is SIGHT-only: `blocked()` / `raycast()` below stay fully physical (every solid thing
+## counts) because they serve line-of-fire, cover and where a walk may go, where a bullet is still
+## stopped by a table even though an agent can see across it. They are 3D rays at the height of a
+## walker's ankle (`WALK_PART`: every piece stands on the floor, so one that a foot meets is hit),
+## and `wall_hit` a 3D ray at a standing eye's height that only a wall or a door stops.
 ##
-## The sight rays are cast in the twin space (interface 29) of the 2D `space` the callers hand in
-## (`TwinSpace.space_for`): a world with no twins blocks nothing (the player's cone is the other
-## way: a collider with no twin blocks like a wall). The `exclude` rids the callers hand in are not
-## read: a body never blocks an eye ray (they stay in the signatures, which the entry and door-view
-## chains share with the line-of-fire code).
+## Every ray is cast in the twin space (interface 29) of the 2D `space` the callers hand in
+## (`TwinSpace.space_for`, the handle of the world): a world with no twins blocks nothing in a sight
+## ray (the player's cone is the other way: a collider with no twin blocks like a wall) and falls
+## back to the 2D plan line in `raycast` and `wall_hit`. The `exclude` rids the callers hand in are
+## the 2D bodies' rids: a sight ray never reads them (a body never blocks an eye ray), a plan line
+## looks through the bodies they name.
 
-## Physics layer walls + solid furniture live on (General's `PhysicsLayers.SOLID`, also used by
-## CharacterInteraction). This module is the sub-domain's single owner of the solid-geometry ray
-## query: the perception runs its line-of-fire and cover tests through `blocked()` / `raycast()`
-## below rather than repeating it.
+## The 2D layer walls + solid furniture live on (General's `PhysicsLayers.SOLID`), asked only by the
+## plan fallback of a world with no twin space. This module is the sub-domain's single owner of the
+## solid-geometry ray query: the perception runs its line-of-fire and cover tests through
+## `blocked()` / `raycast()` below rather than repeating it.
 const AgentCover := preload("res://scenes/ai/perception/agent_cover.gd")
 const QUERY_MASK := PhysicsLayers.SOLID
+## The part of a standing body a plan line is cast at (`BodyHeights.contact`): its ankle, where a
+## foot meets what it walks into.
+const WALK_PART := &"ankle"
 ## How many bodies on a round's line `body_in_fire_line` looks through (the welcome ones) before it
 ## calls the line open.
 const BODIES_ON_LINE := 4
@@ -56,6 +62,8 @@ var _half_fov := deg_to_rad(110.0) * 0.5
 var _query := _solid_query()
 ## The 3D ray every `fire_line_clear` refills.
 var _fire_ray := PhysicsRayQueryParameters3D.new()
+## The 3D ray every plan line (`raycast`, `wall_hit`) refills.
+var _plan_ray := PhysicsRayQueryParameters3D.new()
 ## What `fire_line_clear` answered this physics frame, by shooter, posture, target and point.
 var _memo := {}
 var _memo_frame := -1
@@ -453,25 +461,84 @@ func _plan_stop(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) ->
 	return {}  # unreachable; satisfies the parser
 
 
-## The first solid hit along `from`→`to` on the query layer, or an empty dict when the line is
-## clear. Callers that need the blocking collider itself (e.g. a cover test) use this instead of
-## `blocked()`.
+## The first solid hit along `from`→`to` (plan points) that is not one of `exclude` (2D rids), or an
+## empty dict when the line is clear: a wall, a door, a piece, a vehicle or a character, found by a
+## 3D ray `height` px above the floor (a walker's ankle when none is given) in the twin space, as
+## `{ position, normal (plan), collider (the 2D body), collider_id, rid (its 2D rid) }`. Callers
+## that need the blocking body itself (e.g. a cover test) use this instead of `blocked()`.
 func raycast(
 	space: PhysicsDirectSpaceState2D,
 	from: Vector2,
 	to: Vector2,
 	exclude: Array,
+	height := -1.0,
 ) -> Dictionary:
-	_query.from = from  # One query object, refilled: a snapshot casts thousands of rays.
-	_query.to = to
-	_query.exclude = exclude
-	return space.intersect_ray(_query)
+	var twins := TwinSpace.space_for(space)
+	if twins == null:
+		_query.from = from  # One query object, refilled: a snapshot casts thousands of rays.
+		_query.to = to
+		_query.exclude = exclude
+		return space.intersect_ray(_query)
+	_aim_plan_ray(from, to, height if height >= 0.0 else BodyHeights.contact(WALK_PART))
+	_plan_ray.collision_mask = PhysicsLayers.TWIN_ALL
+	var skipped: Array[RID] = []
+	while true:
+		_plan_ray.exclude = skipped
+		var found := twins.intersect_ray(_plan_ray)
+		if found.is_empty():
+			return {}
+		var body := TwinSpace.owner_of(found["collider"])
+		if body is CollisionObject2D and exclude.has((body as CollisionObject2D).get_rid()):
+			skipped.append(found["rid"])
+			continue
+		return _plan_hit(found, body)
+	return {}  # unreachable; satisfies the parser
 
 
-## The first WALL along `from`→`to` (a static body: furniture, which is a rigid body, and characters
-## are looked through), or {} when the line reaches `to`. What bounds a doorway's view
-## (`AgentDoorViews.door_view`).
+## The first WALL along `from`→`to` (a static body: a wall or a door; furniture, which is a rigid
+## body, and characters are looked through), or {} when the line reaches `to`: a 3D ray at a
+## standing eye's height, so a line through a doorway under its lintel is clear. What bounds a
+## doorway's view (`AgentDoorViews.door_view`).
 func wall_hit(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> Dictionary:
+	var twins := TwinSpace.space_for(space)
+	if twins == null:
+		return _plan_wall_hit(space, from, to)
+	_aim_plan_ray(from, to, BodyHeights.eye(BodyHeights.STAND))
+	_plan_ray.collision_mask = PhysicsLayers.TWIN_WORLD
+	var skipped: Array[RID] = []
+	while true:
+		_plan_ray.exclude = skipped
+		var found := twins.intersect_ray(_plan_ray)
+		if found.is_empty():
+			return {}
+		var body := TwinSpace.owner_of(found["collider"])
+		if body is StaticBody2D:
+			return _plan_hit(found, body)
+		skipped.append(found["rid"])
+	return {}  # unreachable; satisfies the parser
+
+
+## Point the plan ray at the plan line `from`→`to`, `height` px up.
+func _aim_plan_ray(from: Vector2, to: Vector2, height: float) -> void:
+	_plan_ray.from = PlanSpace.lift(from, height)
+	_plan_ray.to = PlanSpace.lift(to, height)
+
+
+## The plan line's hit for the 3D ray's `found`, whose twin stands for the 2D `body` (null for a
+## twin with no owner): `intersect_ray`'s keys, in plan space.
+func _plan_hit(found: Dictionary, body: Node2D) -> Dictionary:
+	var normal: Vector3 = found["normal"]
+	return {
+		"position": PlanSpace.plan_of(found["position"]),
+		"normal": Vector2(normal.x, normal.z),
+		"collider": body,
+		"collider_id": body.get_instance_id() if body != null else 0,
+		"rid": (body as CollisionObject2D).get_rid() if body is CollisionObject2D else RID(),
+	}
+
+
+## `wall_hit` on the 2D plan line, for a world with no twin space.
+func _plan_wall_hit(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> Dictionary:
 	var ex: Array = []
 	while true:
 		var hit := raycast(space, from, to, ex)

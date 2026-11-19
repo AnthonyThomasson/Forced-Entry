@@ -454,7 +454,7 @@ doorway's view too, cleared room or not, and out of the room it goes into (a wal
 way round every view within the cap it goes round those two at least, and an ordered member takes that way round however long it is
 (`docs/leadership.md` D4). Why: a threshold crossed in the open is how a team is shot from a room it has not cleared
 (E4, E9); the real answer is to give an open door a wide berth, and cover it only when the way leads past it. In the code
-`AgentDoorViews` (`agent_door_views.gd`) lays out each view once per doorway (`door_view`, a ray fan on `PhysicsLayers.SOLID` that looks through furniture and
+`AgentDoorViews` (`agent_door_views.gd`) lays out each view once per doorway (`door_view`, a ray fan at a standing eye's height in the twin space that a wall or a door stops and looks through furniture and
 characters) and the route (`walk_route`); the Navigation domain bakes the house's planning bake with those views as extra holes
 (`NavBuilder.avoid_map`, on the worker thread, cached per set of views), and `Locomotion` walks that map (its third way, beside the
 plain and steering ones; a body at rest in the way still takes the walk to the steering map or holds it, and E15 secures the views that
