@@ -138,6 +138,6 @@ func _walled(t: TestContext, wall: Node2D, point: Vector2) -> bool:
 	var ray := PhysicsRayQueryParameters3D.create(
 		PlanSpace.lift(point, RAY_FROM), PlanSpace.lift(point, RAY_TO), PhysicsLayers.TWIN_WORLD
 	)
-	var hit := TwinSpace.space_of(t.world).intersect_ray(ray)
+	var hit: Dictionary = t.world.twin_space().space().intersect_ray(ray)
 	var owner := TwinSpace.owner_of(hit["collider"]) if not hit.is_empty() else null
 	return in2d and owner != null and owner.has_method(&"wall_segments")

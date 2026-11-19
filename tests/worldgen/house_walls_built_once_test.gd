@@ -184,7 +184,7 @@ func _walls_along(
 	to: Vector2,
 	height: float = RAY_HEIGHT,
 ) -> int:
-	var space := TwinSpace.space_of(t.world)
+	var space: PhysicsDirectSpaceState3D = t.world.twin_space().space()
 	var query := PhysicsRayQueryParameters3D.create(
 		PlanSpace.lift(from, height), PlanSpace.lift(to, height), PhysicsLayers.TWIN_WORLD
 	)

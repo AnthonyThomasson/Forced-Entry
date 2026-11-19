@@ -6,7 +6,8 @@ extends RefCounted
 ## leaf's height to the wall's top), a floor as a slab, a piece of furniture as one box per part of
 ## `PieceHeights` (a sofa's seat, arms and back; a round piece's full-footprint part a cylinder),
 ## in the frame of the 2D body, so a piece that turns or is shoved is followed by its transform.
-## `register` adds the hooks Main wires into the space. Every one is a `StaticBody3D`: the space
+## `register` adds the hooks Main wires into the space. Every one is a `StaticBody3D` (a free piece
+## is a `PieceBody` that leads its 2D body instead): the space
 ## writes a twin again, with its body's transform, only when its body moves (a shoved piece, a
 ## swinging door), so a shut door or a resting piece costs the 3D step nothing. All sit on
 ## `PhysicsLayers.TWIN_WORLD`. A dent reshapes a wall's twin (`WallTwin`) with its 2D collider; a

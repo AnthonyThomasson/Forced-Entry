@@ -77,7 +77,7 @@ func _ray_meets_the_new_face(t: TestContext, wall: Node2D) -> void:
 		return
 	var from := PlanSpace.lift(wall.to_global(Vector2(best_x, 20.0)), 48.0)
 	var to := PlanSpace.lift(wall.to_global(Vector2(best_x, -20.0)), 48.0)
-	var hit := TwinSpace.space_of(t.world).intersect_ray(
+	var hit: Dictionary = t.world.twin_space().space().intersect_ray(
 		PhysicsRayQueryParameters3D.create(from, to, PhysicsLayers.TWIN_WORLD)
 	)
 	if not t.require(not hit.is_empty(), "the ray strikes the wall at x %.1f" % best_x):

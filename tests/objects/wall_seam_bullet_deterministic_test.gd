@@ -71,7 +71,7 @@ func _owners_along(t: TestContext, from: Vector2, to: Vector2) -> Array:
 	var owners: Array = []
 	var skip: Array[RID] = []
 	for _try in 8:
-		var hit := TwinSpace.space_of(t.world).intersect_ray(query)
+		var hit: Dictionary = t.world.twin_space().space().intersect_ray(query)
 		if hit.is_empty():
 			break
 		var owner := TwinSpace.owner_of(hit["collider"])
