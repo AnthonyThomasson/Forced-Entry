@@ -26,9 +26,9 @@ static func fill() -> void:
 	for i in nodes:
 		_held_nodes.append(Node2D.new() if i % 2 == 0 else Node.new())
 	for i in bodies:
-		_held_rids.append(PhysicsServer2D.body_create())
-		_held_rids.append(PhysicsServer2D.area_create())
-		_held_rids.append(PhysicsServer2D.rectangle_shape_create())
+		_held_rids.append(PhysicsServer3D.body_create())
+		_held_rids.append(PhysicsServer3D.area_create())
+		_held_rids.append(PhysicsServer3D.box_shape_create())
 
 
 ## Free everything `fill` allocated.
@@ -37,7 +37,7 @@ static func release() -> void:
 		node.free()
 	_held_nodes.clear()
 	for rid in _held_rids:
-		PhysicsServer2D.free_rid(rid)
+		PhysicsServer3D.free_rid(rid)
 	_held_rids.clear()
 
 
