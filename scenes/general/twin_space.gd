@@ -414,8 +414,10 @@ func _twin(node: Node2D) -> void:
 	made.transform = PlanSpace.lift_transform(xf)
 	add_child(made)
 	made.force_update_transform()
-	# a free 3D body that takes the 2D body over (furniture): it is the truth, the 2D body its
-	# footprint
+	# a 3D body that takes the 2D body over is the truth and the 2D body its footprint: a free piece
+	# (a `RigidBody3D`), a free door slab (the same) and a character (a `CharacterBody3D`, which
+	# also has `follow`); a standing door's `DoorBody` (an `AnimatableBody3D` without `follow`) is
+	# no lead: it is driven, and writes its 2D follower itself
 	var driven := made is AnimatableBody3D and not made.has_method(&"follow")
 	var lead: PhysicsBody3D = null
 	if made.has_method(&"take_over") and not driven:

@@ -1,14 +1,14 @@
 11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `GameClock`, `BodyHeights`, `PlanSpace`, shared rules**
-    - `PhysicsLayers` (`general/physics_layers.gd`, static holder): `SOLID` is the physics layer bit (1) walls + solid furniture live on (2D); `TWIN_WORLD` (1), `TWIN_VEHICLE` (2), `TWIN_CHARACTER` (4), `TWIN_ROOF` (8, out of `TWIN_ALL`) and `TWIN_ALL` are the twin 3D space's layers (29).
+    - `PhysicsLayers` (`general/physics_layers.gd`, static holder): `SOLID` is the physics layer bit (1) walls + solid furniture live on (2D), `LYING` (2) a flat fallen door's footprint (blasts ask for it, nothing walks into it); `TWIN_WORLD` (1), `TWIN_VEHICLE` (2), `TWIN_CHARACTER` (4), `TWIN_ROOF` (8, out of `TWIN_ALL`) and `TWIN_ALL` are the twin 3D space's layers (29).
 	  Every raycast, sweep, collision mask or layer for it reads this one constant: Interaction's reach query, AI sight and line-of-fire
 	  rays (`agent_vision.gd`; the vision overlay asks the controller's `debug_sight_end`), the character's hand
 	  queries, leg sweeps and clearing check (`use.keep_clear_of`), a dropped item's glance, a grenade's flight, the bullet's
 	  `collision_mask`, the blast's lines, `PhysicsConfig.wall_mask`, and a vehicle's body layer, mask, door checks and pile queries.
     - `GameClock` (`general/game_clock.gd`, an autoload, `PROCESS_MODE_PAUSABLE`): counts physics frames in `_physics_process`, so it stands
 	  still while the tree is paused. `GameClock.msec() -> int` (frames × 1000 / `Engine.physics_ticks_per_second`: deterministic under
-	  `--fixed-fps`, however far a headless run outpaces the wall clock), `GameClock.seconds() -> float`, `GameClock.frame() -> int`. Every
-	  AI ttl, timer and age reads it (`docs/leadership.md` LD1), so a pause of any length expires nothing; only what measures real time
-	  stays on `Time` (the Von launcher's boot timeout and the planner's per-level `ms`, Von's latency). A per-frame key that measures
+	  `--fixed-fps`), `GameClock.seconds() -> float`, `GameClock.frame() -> int`. Every
+	  AI ttl, timer and age reads it (`docs/leadership.md` LD1), so a pause expires nothing; only what measures real time
+	  stays on `Time` (the Von launcher's boot timeout, the planner's per-level `ms`). A per-frame key that measures
 	  no age may read `Engine.get_physics_frames()`.
     - `WorldRng` (`general/world_rng.gd`, statics): a world's chance, order and frames; the AI keys on it, not on an instance id.
 	  `register(root, match_seed)` (Main's stage), `of(node) -> RandomNumberGenerator`, `enrol(node) -> int` (a character's place,

@@ -1,9 +1,8 @@
 extends GameTest
 ## D18 (#194 doors3d): a door that lies on the floor is a free body, shovable as a light piece: a
 ## push through the pushable contract (`Knockback.push`) slides it, and a blast (`Explosion`, which
-## finds a body by its footprint) slides it, and its 2D door follows it. A character's strike does
-## not reach it: a fist or a shin swung over a leaf 6 px thick passes above it, as a foot steps
-## over.
+## finds a body by its footprint) slides it, and its 2D door follows it. A character's strike
+## barely reaches it: a fist passes above a leaf 6 px thick and a kick only grazes it.
 
 const Probe := preload("res://tests/_objects/piece_probe.gd")
 const DOORWAY := Vector2(400, 300)
@@ -11,6 +10,10 @@ const HINGE := Vector2(400, 280)
 const SHOVE := 6000.0
 ## A blast's burst height (px): within the leaf's thickness, so it slides it.
 const BLAST_HEIGHT := 3.0
+## Where the kicker stands east of the lying leaf's middle (px): its foot is over the leaf's end.
+const KICK_FROM := 45.0
+## The most a kick may move the lying leaf (px): a graze, against a blast's slide of tens of px.
+const KICK_GRAZE := 5.0
 
 
 func describe() -> Dictionary:
@@ -34,6 +37,7 @@ func configure(s: TestSetup) -> void:
 			"hinge": HINGE, "swing_into": Vector2.RIGHT,
 		},
 	}])
+	s.actor(&"kicker", &"puppet", Vector2(700, 700))
 	s.von_down()
 
 
@@ -58,6 +62,7 @@ func run(t: TestContext) -> void:
 	)
 	t.check(Probe.lean(door) > 70.0, "it still lies flat (%.0f degrees)" % Probe.lean(door))
 	await _blasted(t, door)
+	await _kicked_over(t, door)
 
 
 ## A second blast, through the real path (`Explosion`, which finds a body by its footprint), slides
@@ -72,3 +77,20 @@ func _blasted(t: TestContext, door: Node2D) -> void:
 	var slid: Vector2 = Probe.middle(door) - before
 	t.check(slid.y > 3.0, "a blast north of it slides it south (%.1f px)" % slid.y)
 	t.check(Probe.lean(door) > 70.0, "and it still lies flat (%.0f degrees)" % Probe.lean(door))
+
+
+## A kick aimed at the lying leaf only grazes it (its shin-high column of 6 px radius just meets a
+## leaf 6 px thick): it moves it a couple of px away from the kicker, nothing like a blast's slide.
+func _kicked_over(t: TestContext, door: Node2D) -> void:
+	var kicker := t.actor(&"kicker")
+	var stand: Vector2 = Probe.middle(door) + Vector2(KICK_FROM, 0.0)
+	t.puppet(&"kicker").walk_to(stand)
+	await t.until(func(): return kicker.global_position.distance_to(stand) < 3.0, 12.0)
+	t.puppet(&"kicker").aim_at(Probe.middle(door))
+	await t.frames(10)
+	var rested: Vector2 = Probe.middle(door)
+	t.puppet(&"kicker").kick()
+	await t.seconds(0.8)
+	var moved: Vector2 = Probe.middle(door) - rested
+	t.check(moved.x <= 0.0, "the kick shoves it away from the kicker (%s px)" % moved.round())
+	t.check(moved.length() < KICK_GRAZE, "but only grazes it (%.1f px)" % moved.length())
