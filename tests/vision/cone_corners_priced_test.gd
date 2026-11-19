@@ -172,7 +172,6 @@ func _counting_cone() -> Cone:
 	var cone := Cone.new()
 	var shapes := CountingShapes.new()
 	var ray := CountingRay.new()
-	ray.rated = shapes.rated()
 	cone.set("_shapes", shapes)
 	cone.set("_ray", ray)
 	return cone
@@ -185,7 +184,7 @@ class CountingShapes:
 
 	var asked := 0
 
-	func _shapes_in_reach(space: PhysicsDirectSpaceState2D) -> Array[Dictionary]:
+	func _shapes_in_reach(space: PhysicsDirectSpaceState3D) -> Array[Dictionary]:
 		var hits := super(space)
 		var cap := FIRST_RESULTS
 		asked += 1
@@ -201,6 +200,6 @@ class CountingRay:
 
 	var casts := 0
 
-	func cast(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> Dictionary:
+	func cast(space: PhysicsDirectSpaceState3D, from: Vector2, to: Vector2) -> Dictionary:
 		casts += 1
 		return super(space, from, to)

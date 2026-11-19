@@ -22,6 +22,7 @@ extends RefCounted
 
 const GROUP := &"player_view"
 const WorldScript := preload("res://scenes/testing/test_world.gd")
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 ## The visibility bits of the spec (V5): what stays where it is, what moves, the overlays.
 const WORLD := 1
 const MOVING := 2
@@ -36,6 +37,10 @@ const SEE_OVER := 69.4
 ## How far (px) a vertex of a cone may sit from the reference cone's: the reach is 2520 px, so this
 ## is 4e-7 of it.
 const TOLERANCE := 0.001
+## The height (px) of the column `solid_near` asks over a point: over everything.
+const SOLID_COLUMN := 200.0
+## The height (px) a floor's slab reaches: a solid is what stands above it.
+const FLOOR_LINE := 4.0
 ## The dents the cone tests deal: this many volleys, from this random seed.
 const VOLLEYS := 8
 const HIT_SEED := 31
@@ -133,7 +138,14 @@ static func build_world(t: TestContext, setup: TestSetup) -> Node2D:
 	world.process_mode = Node.PROCESS_MODE_PAUSABLE
 	t.world.get_parent().add_child(world)
 	await world.build(setup)
+	RawTwins.register(world)
 	return world
+
+
+## Have `world` (a test's own, or one of `build_world`) twin the bare solids a test adds to it
+## (`raw_twins.gd`).
+static func twin_bare_solids(world: Node) -> void:
+	RawTwins.register(world)
 
 
 ## Free a world made by `build_world` and give back what its setup changed.
@@ -177,9 +189,9 @@ static func _caught_up(t: TestContext, who: Node2D) -> bool:
 	)
 
 
-## The physics space of the test world.
-static func space(t: TestContext) -> PhysicsDirectSpaceState2D:
-	return t.world.get_world_2d().direct_space_state
+## The twin space of the test world (the 3D physics space its bodies' twins stand in).
+static func space(t: TestContext) -> PhysicsDirectSpaceState3D:
+	return TwinSpace.space_of(t.world)
 
 
 ## The first thing on the line `from` to `to` too tall to see over (above a standing eye) (the
@@ -214,12 +226,16 @@ static func in_sight(
 ## Whether something solid lies within `margin` px of `point` (a sample on a wall's edge is neither
 ## clearly seen nor clearly hidden, so a test leaves it out).
 static func solid_near(t: TestContext, point: Vector2, margin: float) -> bool:
-	var circle := CircleShape2D.new()
-	circle.radius = margin
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = circle
-	query.transform = Transform2D(0.0, point)
-	query.collision_mask = PhysicsLayers.SOLID
+	var column := CylinderShape3D.new()
+	column.radius = margin
+	column.height = SOLID_COLUMN - FLOOR_LINE
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = column
+	query.transform = Transform3D(
+		Basis.IDENTITY,
+		PlanSpace.lift(point, (SOLID_COLUMN + FLOOR_LINE) * 0.5),
+	)
+	query.collision_mask = SightRay.MASK
 	return not space(t).intersect_shape(query, 1).is_empty()
 
 

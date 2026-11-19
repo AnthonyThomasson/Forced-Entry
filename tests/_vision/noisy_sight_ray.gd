@@ -15,7 +15,7 @@ const LONG := 1000.0
 var noisy := 0
 
 
-func cast(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> Dictionary:
+func cast(space: PhysicsDirectSpaceState3D, from: Vector2, to: Vector2) -> Dictionary:
 	var aside := Vector2.ZERO
 	if absf(to.y - from.y) < 1e-3 and to.x - from.x > LONG:
 		aside = Vector2(0.0, NOISE)

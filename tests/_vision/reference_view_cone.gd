@@ -4,8 +4,9 @@ extends RefCounted
 ## keeps nothing from one rebuild to the next, reads every shape and coverage anew each build and
 ## casts every ray plainly. Do not "fix" it: it is the yardstick (`docs/player-vision.md`, "Measured
 ## cost"). The game's cone follows `docs/player-vision.md` V1; this file is that rule in its
-## plainest form. The sight rule itself (`_hit`) is a copy of General's `SightRay.plan_hit` (a cast
-## that goes on past each low piece in turn), so a change to `SightRay` does not move the yardstick.
+## plainest form. The sight rule itself (`_hit`) is a copy of General's `SightRay.plan_hit` (a level
+## ray at the eye's height that goes on past each pane in turn), so a change to `SightRay` does not
+## move the yardstick.
 ##
 ## Vision domain: the exact polygon of what an eye sees (`docs/player-vision.md` V1). A point is
 ## seen when it is within the view distance, either inside the near bubble or inside the cone round
@@ -24,9 +25,11 @@ extends RefCounted
 ## shapes for one ray, from one frame to the next. A wall or a wardrobe that is seen shows its top.
 
 const Shapes := preload("res://tests/_vision/reference_view_shapes.gd")
-
 ## The cone: the eye, then one corner per ray from the left edge to the right (empty with no
 ## facing). A triangle fan from the first point.
+## How far (px) over the eye the level ray runs (a piece as tall as the eye is looked over).
+const LEVEL_OVER := 0.05
+
 var cone := PackedVector2Array()
 ## The near bubble: one corner per ray round the eye, a closed fan from the eye.
 var bubble := PackedVector2Array()
@@ -38,14 +41,14 @@ var _fov := 0.0
 var _reach := 0.0
 var _near := 0.0
 var _see_over := 0.0
-## The ray `_hit` refills on each cast.
-var _query := _solid_query()
+## The 3D ray `_hit` refills on each cast.
+var _query := PhysicsRayQueryParameters3D.new()
 
 
 ## Rebuild both polygons for an eye at `from` facing `facing`, casting in `space`, leaving `exclude`
 ## (rids) out and seeing by `sight` (`Character.sight()`).
 func rebuild(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -70,7 +73,7 @@ func rebuild(
 ## Where sight along `dir` from `from` ends within `dist`: the full distance when the way is clear
 ## or only low furniture is in it, else where the ray leaves the first blocker's hit shape.
 func _sight_end(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	dir: Vector2,
 	dist: float,
@@ -83,7 +86,7 @@ func _sight_end(
 
 ## The ray ends for `angles` (each `[key, direction]`, in order), the direction's `dist` out.
 func _sweep(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	angles: Array,
 	dist: float,
@@ -98,7 +101,7 @@ func _sweep(
 ## The corners the eye sees: within the view range, inside the cone or the bubble, and with no
 ## blocker in the way (a corner behind a wall needs no rays: the wall's own ray decides there).
 func _visible_corners(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -158,7 +161,7 @@ func _bubble_angles(from: Vector2, corners: Array) -> Array:
 
 ## The far end of the blocker `hit` along `dir`: where the ray leaves the one shape it hit, at most
 ## `far_depth` in, else `far_bleed` px in.
-func _far_face(space: PhysicsDirectSpaceState2D, hit: Dictionary, dir: Vector2) -> Vector2:
+func _far_face(space: PhysicsDirectSpaceState3D, hit: Dictionary, dir: Vector2) -> Vector2:
 	var near: Vector2 = hit["position"]
 	var depth := _shapes.far_exit(space, near, dir)
 	if depth < 0.0:
@@ -166,32 +169,25 @@ func _far_face(space: PhysicsDirectSpaceState2D, hit: Dictionary, dir: Vector2) 
 	return near + dir * minf(depth, VisionConfig.far_depth)
 
 
-## `SightRay.plan_hit`'s loop: the first thing on the line from `from` to `to` too tall to look
-## over, casting again past each low one, or {} when the line reaches `to`.
+## `SightRay.plan_hit`'s rule in its plainest form: the first twin on the line from `from` to `to`,
+## level at the eye's height, that is no pane, or {} when the line reaches `to`.
 func _hit(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
 	exclude: Array,
 ) -> Dictionary:
-	var skipped := exclude
-	var copied := false
+	_query.from = PlanSpace.lift(from, _see_over + LEVEL_OVER)
+	_query.to = PlanSpace.lift(to, _see_over + LEVEL_OVER)
+	_query.collision_mask = SightRay.MASK
+	var skipped := exclude.duplicate()
 	while true:
-		_query.from = from
-		_query.to = to
 		_query.exclude = skipped
 		var found := space.intersect_ray(_query)
-		if found.is_empty() or SightRay.top_of(found.get("collider")) > _see_over:
+		if found.is_empty():
 			return found
-		if not copied:
-			skipped = exclude.duplicate()
-			copied = true
-		skipped.append(found.get("rid"))
+		if not SightRay.looks_through(found["collider"]):
+			found["position"] = PlanSpace.plan_of(found["position"])
+			return found
+		skipped.append(found["rid"])
 	return {}  # unreachable; satisfies the parser
-
-
-## A ray query on the solid layer.
-func _solid_query() -> PhysicsRayQueryParameters2D:
-	var query := PhysicsRayQueryParameters2D.new()
-	query.collision_mask = PhysicsLayers.SOLID
-	return query

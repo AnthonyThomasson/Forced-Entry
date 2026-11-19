@@ -102,9 +102,9 @@ look over a counter (38 px) at all; a car (47 px) is looked over standing and bl
 door) is looked through however tall. A body in the open is seen from anywhere its lines are clear, so a ducked one far behind cover is
 seen over it (the eye looks down). The query behind it is public (`SightRay.visible_parts(viewer, target)`: the heights of the target's
 points the viewer's eye sees, and `visible_centre`: the middle of them, -1 when none: what an aim at the visible part reads). **The
-view** casts the same rule on the plan (`SightRay.plan_hit`, `top_of`): V1. A world with no twin space blocks nothing in the eye ray and
-everything with no twin in the plan cast. Tests: `general/sight_ray_suite` (native: the plan cast over a built twin space: a wall, a
-table, a piece just under and just over the eye, a body with no twin, a `transparent` piece, a character, the caller's exclude list left
+view** casts the same rule on the plan (`SightRay.plan_hit`): a 3D ray level at the viewer's eye height in the twin space, so a piece lower
+than the eye is under it and a doorway's lintel over it: V1. A world with no twin space, and a body with no twin, block nothing in either. Tests: `general/sight_ray_suite` (native: the plan cast over a built twin space: a wall, a
+table, a piece just under and just over the eye, a body with no twin (not in the twin space: it blocks nothing), a `transparent` piece, a character, the caller's exclude list left
 alone) and `general/sight_ray_eye_suite` (native: the eye ray: a wall at any height, a table over and under, the floor behind it, the
 points of a body, a pane, the twins left out), `ai/perception/sight_height_by_posture` (a standing NPC sees over a table and sees a
 standing body behind a sofa but not a ducked one; a ducked NPC cannot see over a counter and sees again standing),

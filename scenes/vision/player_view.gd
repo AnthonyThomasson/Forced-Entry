@@ -74,8 +74,8 @@ func _physics_process(_delta: float) -> void:
 	var sight: Dictionary = _viewer.sight()
 	# One slice of the cone's job (`ViewPipeline`): held while nothing the polygon is made of has
 	# changed, published when a job completes.
-	var space := get_world_2d().direct_space_state
-	if _pipeline.tick(space, eye, facing, [_viewer.get_rid()], sight):
+	var space := TwinSpace.space_of(self)
+	if _pipeline.tick(space, eye, facing, [], sight):
 		_publish_area()
 
 

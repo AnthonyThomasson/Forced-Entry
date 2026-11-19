@@ -98,10 +98,10 @@ func _settled(pose: Dictionary) -> bool:
 ## Why the view's polygons differ from the reference cone of `pose` in the world as it is, or "".
 func _reference_differs(pose: Dictionary) -> String:
 	_plain.rebuild(
-		viewer.get_world_2d().direct_space_state,
+		TwinSpace.space_of(viewer),
 		pose["eye"],
 		pose["facing"],
-		[viewer.get_rid()],
+		[],
 		viewer.sight(),
 	)
 	return Probe.polygons_differ(view.cone(), view.bubble(), _plain.cone, _plain.bubble)

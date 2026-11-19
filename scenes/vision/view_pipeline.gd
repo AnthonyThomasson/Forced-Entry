@@ -48,7 +48,7 @@ func _init(cone: Cone, watch: Watch) -> void:
 ## One physics tick, after the viewer has moved: start, restart or step the job. True when a cone
 ## was published in it.
 func tick(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	eye: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -90,7 +90,7 @@ func _jumped(eye: Vector2, from: Vector2) -> bool:
 
 ## Begin a job from the live pose: the watch takes its inputs as the job's.
 func _begin(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	eye: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -106,7 +106,7 @@ func _begin(
 
 ## The world changed under the job: begin again from the live pose, or whole past the cap.
 func _restart(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	eye: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -123,7 +123,7 @@ func _restart(
 
 ## Build the cone from the live pose in this one frame, and publish it.
 func _whole(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	eye: Vector2,
 	facing: Vector2,
 	exclude: Array,

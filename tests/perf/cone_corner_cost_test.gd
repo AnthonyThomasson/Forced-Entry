@@ -113,7 +113,7 @@ func _read_grid(t: TestContext, bounds: Rect2, sight: Dictionary) -> Dictionary:
 
 ## Begin a bare job from `at` and time the corners and then the rest, the median of `REPEATS`.
 func _measure(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	facing: Vector2,
 	sight: Dictionary,
@@ -151,7 +151,7 @@ func _measure(
 ## steps it on): the cone shown is up to twice this less one frames old (`docs/player-vision.md` V1:
 ## 2 to 4 frames old is three ticks).
 func _ticks(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	facing: Vector2,
 	sight: Dictionary,

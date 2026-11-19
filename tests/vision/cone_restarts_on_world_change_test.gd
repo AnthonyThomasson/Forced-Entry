@@ -69,6 +69,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	_t = t
+	Probe.twin_bare_solids(t.world)
 	_view = Probe.view(t)
 	if not t.require(_view != null, "the world has a view"):
 		return

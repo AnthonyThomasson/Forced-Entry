@@ -90,10 +90,10 @@ func _end() -> void:
 		var viewer := _view.viewer()
 		var began := Time.get_ticks_usec()
 		_reference.rebuild(
-			_view.get_world_2d().direct_space_state,
+			TwinSpace.space_of(_view),
 			viewer.global_position,
 			viewer.get("facing"),
-			[viewer.get_rid()],
+			[],
 			viewer.sight(),
 		)
 		reference_us += Time.get_ticks_usec() - began

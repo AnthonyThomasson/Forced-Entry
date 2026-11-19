@@ -56,30 +56,25 @@ var corners_read := 0
 ## The job in flight reads these for every ray or corner, so they are held here, not in the job: the
 ## world it casts in, the eye, the view distance, the bubble's radius, the cone's width (rad) and
 ## the per-interval hide reaches of the even fan's rays (`_run_fan`).
-var _space: PhysicsDirectSpaceState2D
+var _space: PhysicsDirectSpaceState3D
 var _from := Vector2.ZERO
 var _reach := 0.0
 var _near := 0.0
 var _fov := 0.0
 var _fan_hide := PackedFloat64Array()
 var _shapes := Shapes.new()
-## The sight rule (`SightRay`), asked with the tops the shapes already know and with the low
-## pieces in reach left out.
+## The sight rule (`SightRay`): a level 3D ray at the eye's height, which looks over what is lower.
 var _ray := SightRay.new()
 ## The job in flight (inputs and progress) and what it holds and builds (the back buffer).
 var _job := Job.new()
 var _build := Buffer.new()
 
 
-func _init() -> void:
-	_ray.rated = _shapes.rated()
-
-
 ## Rebuild both polygons for an eye at `from` facing `facing`, casting in `space`, leaving `exclude`
 ## (rids) out and seeing by `sight` (`Character.sight()`), all at once: `begin` and `step` to the
 ## end.
 func rebuild(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -93,7 +88,7 @@ func rebuild(
 ## changes until `step` says the job is done. The job casts in `space` (the world's own direct
 ## state, which stays valid between physics frames) and must be stepped in the physics tick.
 func begin(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -155,9 +150,9 @@ func _read_corners() -> void:
 	_build.found = _shapes.corners(_space, _from, _reach, _job.exclude, _region(_from, _job.facing))
 	_job.work += (_shapes.queries - asked) * VisionSliceConfig.cost_shape
 	_build.corners_read = _build.found.size()
-	# Every low collider in reach is left out of the rays from here on: each meets the first blocker
-	# in one cast, where it would otherwise cast again past each low piece on its way.
-	_ray.leave_out(_job.exclude + _shapes.lows())
+	# The rays are level at the eye's height: a piece lower than it is under the ray, so each ray
+	# meets the first blocker in one cast.
+	_ray.leave_out(_job.exclude)
 	_job.index = 0
 	_job.stage = Job.Stage.FAN if _job.facing != Vector2.ZERO else Job.Stage.VISIBLE
 
@@ -323,7 +318,9 @@ func _region(from: Vector2, facing: Vector2) -> PackedVector2Array:
 		for i in REGION_ARC + 1:
 			var angle := -half + float(i) / float(REGION_ARC) * _fov
 			points.append(from + facing.rotated(angle) * round_arc)
-	var grown := Geometry2D.offset_polygon(Geometry2D.convex_hull(points), REGION_MARGIN)
+	var grown := Geometry2D.offset_polygon(
+		Geometry2D.convex_hull(points), REGION_MARGIN, Geometry2D.JOIN_MITER
+	)
 	return PackedVector2Array() if grown.is_empty() else grown[0]
 
 
@@ -341,7 +338,7 @@ func _hide_reach(a: Dictionary, a_distance: float, b: Dictionary, b_distance: fl
 		return -1.0
 	if a["collider_id"] != b["collider_id"] or a["shape"] != b["shape"]:
 		return -1.0
-	if _shapes.polygon_of(a["collider"], a["shape"]).is_empty():
+	if _shapes.polygon_of(a["twin"], a["shape"]).is_empty():
 		return -1.0
 	return maxf(a_distance, b_distance)
 

@@ -65,12 +65,11 @@ func test_the_eye_height_is_the_callers() -> void:
 	assert_object(_blocker(space, line, 39.0)).is_same(table)
 
 
-func test_a_body_with_no_twin_blocks_like_a_wall() -> void:
-	var mute := _mute(Vector2(100.0, 0.0), Vector2(40.0, 40.0))
+func test_a_body_with_no_twin_is_not_in_the_twin_space_and_blocks_nothing() -> void:
+	_mute(Vector2(100.0, 0.0), Vector2(40.0, 40.0))
 	var space := await _space()
 	var line := _line(Vector2.ZERO, Vector2(300.0, 0.0))
-	assert_object(SightRay.plan_hit(space, line[0], line[1], [], SEE_OVER).get("collider")) \
-		.is_same(mute)
+	assert_dict(SightRay.plan_hit(space, line[0], line[1], [], SEE_OVER)).is_empty()
 
 
 func test_an_excluded_body_is_not_in_the_way_and_the_list_is_left_as_it_was() -> void:
@@ -78,7 +77,7 @@ func test_an_excluded_body_is_not_in_the_way_and_the_list_is_left_as_it_was() ->
 	_piece(Vector2(50.0, 0.0), Vector2(20.0, 20.0), 30.0)
 	var space := await _space()
 	var line := _line(Vector2.ZERO, Vector2(300.0, 0.0))
-	var exclude: Array = [wall.get_rid()]
+	var exclude: Array = [_rid(wall)]
 	assert_dict(SightRay.plan_hit(space, line[0], line[1], exclude, SEE_OVER)).is_empty()
 	assert_array(exclude).has_size(1)
 
@@ -150,7 +149,7 @@ func test_a_caster_leaves_out_what_it_was_told_and_looks_over_the_rest() -> void
 	var line := _line(Vector2.ZERO, Vector2(500.0, 0.0))
 	var caster := SightRay.new()
 	caster.looks_over = SEE_OVER
-	caster.leave_out([wall.get_rid()])
+	caster.leave_out([_rid(wall)])
 	# The wall is left out; the table, not named, is looked over: nothing is in the way.
 	assert_dict(caster.cast(space, line[0], line[1])).is_empty()
 	# The cast looked past the table with it added to the list, and put the standing list back:
@@ -159,7 +158,7 @@ func test_a_caster_leaves_out_what_it_was_told_and_looks_over_the_rest() -> void
 	assert_object(caster.cast(space, line[0], line[1]).get("collider")).is_same(table)
 
 
-func test_a_caster_asks_its_rated_before_the_collider() -> void:
+func test_a_caster_blocks_by_the_height_it_looks_over() -> void:
 	var wardrobe := _piece(Vector2(100.0, 0.0), Vector2(40.0, 40.0), 90.0)
 	var space := await _space()
 	var line := _line(Vector2.ZERO, Vector2(300.0, 0.0))
@@ -167,8 +166,8 @@ func test_a_caster_asks_its_rated_before_the_collider() -> void:
 	caster.looks_over = SEE_OVER
 	caster.leave_out([])
 	assert_object(caster.cast(space, line[0], line[1]).get("collider")).is_same(wardrobe)
-	# What it was told of the collider stands in place of the collider's own answer.
-	caster.rated = { wardrobe.get_instance_id(): 10.0 }
+	# Looking over the wardrobe's own height (90): nothing is in the way.
+	caster.looks_over = 90.5
 	assert_dict(caster.cast(space, line[0], line[1])).is_empty()
 
 
@@ -177,7 +176,7 @@ func test_a_plain_hit_is_not_changed_by_a_caster_left_out_list() -> void:
 	var space := await _space()
 	var line := _line(Vector2.ZERO, Vector2(300.0, 0.0))
 	var caster := SightRay.new()
-	caster.leave_out([wall.get_rid()])
+	caster.leave_out([_rid(wall)])
 	assert_dict(caster.cast(space, line[0], line[1])).is_empty()
 	# `hit` takes its own list each ask, whatever another caster has been told to leave out.
 	assert_object(_blocker(space, line, SEE_OVER)).is_same(wall)
@@ -189,7 +188,7 @@ func test_consecutive_hits_do_not_leak_their_exclude_or_limit_into_each_other() 
 	var space := await _space()
 	var line := _line(Vector2.ZERO, Vector2(500.0, 0.0))
 	# The wall left out, the table looked over: nothing in the way.
-	assert_dict(SightRay.plan_hit(space, line[0], line[1], [wall.get_rid()], SEE_OVER)).is_empty()
+	assert_dict(SightRay.plan_hit(space, line[0], line[1], [_rid(wall)], SEE_OVER)).is_empty()
 	# The next ask names nothing and looks over less: the table is the hit, not the wall, and the
 	# earlier ask's list and limit are gone.
 	assert_object(_blocker(space, line, 30.0)).is_same(table)
@@ -197,5 +196,5 @@ func test_consecutive_hits_do_not_leak_their_exclude_or_limit_into_each_other() 
 
 
 ## The collider `plan_hit` finds on `line` for an eye `eye` px up (null: the line is clear).
-func _blocker(space: PhysicsDirectSpaceState2D, line: Array[Vector2], eye: float) -> Object:
+func _blocker(space: PhysicsDirectSpaceState3D, line: Array[Vector2], eye: float) -> Object:
 	return SightRay.plan_hit(space, line[0], line[1], [], eye).get("collider")

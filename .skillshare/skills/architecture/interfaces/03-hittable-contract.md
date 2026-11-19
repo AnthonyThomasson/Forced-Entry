@@ -42,4 +42,4 @@
    `cover_reach` := INF; whether the real 3D line from `burst` (`PlanSpace.lift(landing, altitude + Explosion.BURST_CENTRE)`) to every sight point of a body of that posture at `p`
    meets a wall, a door, a vehicle or a piece of furniture; a finite `cover_reach` = a stun's flash, the line to the eye only, counts a piece only when `p` is within that many px of the face of it
    nearest `p`) and `Explosion.first_stop(space, burst: Vector3, to: Vector2, posture) -> Dictionary` (the first thing on the line to that posture's chest that stops it, as its ray hit with
-   a plan `position`, or `{}`). `space` is a 2D direct space state, read through its twin space (`TwinSpace.space_for`).
+   a plan `position`, or `{}`). `space` is the twin space (`PhysicsDirectSpaceState3D`, `TwinSpace.space_of(node)`); null (no twin space) shields nothing and stops nothing.

@@ -7,40 +7,38 @@ extends RefCounted
 ## face is read off the shapes that hold a point, not off the one shape the ray named) and `corners`
 ## (of two corners in one half-pixel cell, the lesser stands for it, not the first listed).
 ##
-## Vision domain: the blocking shapes round an eye, read from the physics space (a shape query on
-## `PhysicsLayers.SOLID`, never a walk of the scene tree). A shape blocks sight when its piece's
-## top is above the viewer's `see_over`, its eye height (walls, tall furniture); lower furniture is
-## seen over. Each shape a ray hits is turned into its world-space convex polygon, which gives the
-## corners where the cone's boundary can jump and the point a ray through that one shape leaves it
-## (a `Wall` is one body of many segment shapes: only the shape the ray hit counts). What it read is
-## kept for one build (`reset`): the world moves between frames.
+## Vision domain: the blocking shapes round an eye, read from the twin space (a 3D shape query on
+## the twin layers of what sight meets, over the column above the viewer's `see_over`, never a walk
+## of the scene tree). A shape blocks sight when it stands above the viewer's `see_over`, its eye
+## height (walls, tall furniture); lower furniture is seen over. Each shape a ray hits is turned
+## into the convex polygon it casts on the floor, which gives the corners where the cone's boundary
+## can jump and the point a ray through that one shape leaves it (a `Wall` is one body of many
+## segment shapes: only the shape the ray hit counts). What it read is kept for one build
+## (`reset`): the world moves between frames.
 
-## The sides a circle shape is cut into.
-const CIRCLE_SIDES := 16
 ## The shapes a query first asks for; a query that comes back full asks again for `GROWTH` times as
 ## many, until one comes back with room to spare, so no shape in reach is ever dropped.
 const FIRST_RESULTS := 512
 const GROWTH := 4
+## The top (px) of the column a query reads.
+const COLUMN_TOP := 200.0
 
 ## The height a shape must be above to block sight, set by the cone for each build.
 var see_over := 69.4
-var _circle := CircleShape2D.new()
-var _query := PhysicsShapeQueryParameters2D.new()
-## Top by collider instance id.
-var _tops := {}
-## The world polygon of a shape (empty for one that is no rectangle, circle or convex polygon) by
+var _column := CylinderShape3D.new()
+var _query := PhysicsShapeQueryParameters3D.new()
+## The world polygon of a shape (empty for one with no extent) by
 ## `collider id * 4096 + shape index`.
 var _polygons := {}
 
 
 func _init() -> void:
-	_query.collision_mask = PhysicsLayers.SOLID
-	_query.shape = _circle
+	_query.collision_mask = SightRay.MASK
+	_query.shape = _column
 
 
 ## Forget what the last build read.
 func reset() -> void:
-	_tops.clear()
 	_polygons.clear()
 
 
@@ -53,18 +51,21 @@ static func _before(a: Vector2, b: Vector2) -> bool:
 
 ## The distinct corners, in world space, of every blocking shape within `reach` of `from`.
 func corners(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	reach: float,
 	exclude: Array,
 ) -> Array:
-	_circle.radius = reach
-	_query.transform = Transform2D(0.0, from)
+	_column.radius = reach
+	_column.height = COLUMN_TOP - see_over
+	_query.transform = Transform3D(
+		Basis.IDENTITY, PlanSpace.lift(from, see_over + (COLUMN_TOP - see_over) * 0.5)
+	)
 	_query.exclude = exclude
 	var seen := {}
 	var found: Array = []
 	for hit in _shapes_in_reach(space):
-		if _top_of(hit["collider"]) <= see_over:
+		if SightRay.looks_through(hit["collider"]):
 			continue
 		for point in polygon_of(hit["collider"], hit["shape"]):
 			var key := Vector2i((point * 2.0).round())
@@ -76,9 +77,9 @@ func corners(
 	return found
 
 
-## Every solid shape the query circle touches. The physics query returns at most as many as it is
-## asked for, so a result that comes back full is asked again with a larger cap.
-func _shapes_in_reach(space: PhysicsDirectSpaceState2D) -> Array[Dictionary]:
+## Every blocking shape the query column touches. The physics query returns at most as many as it
+## is asked for, so a result that comes back full is asked again with a larger cap.
+func _shapes_in_reach(space: PhysicsDirectSpaceState3D) -> Array[Dictionary]:
 	var cap := FIRST_RESULTS
 	var hits := space.intersect_shape(_query, cap)
 	while hits.size() >= cap:
@@ -87,8 +88,7 @@ func _shapes_in_reach(space: PhysicsDirectSpaceState2D) -> Array[Dictionary]:
 	return hits
 
 
-## The world-space convex polygon of shape `index` of `collider` (empty when it is not a rectangle,
-## circle or convex polygon).
+## The floor polygon of shape `index` of the twin `collider` (empty for a shape with no extent).
 func polygon_of(collider: Object, index: int) -> PackedVector2Array:
 	var key: int = collider.get_instance_id() * 4096 + index
 	if not _polygons.has(key):
@@ -102,14 +102,14 @@ func polygon_of(collider: Object, index: int) -> PackedVector2Array:
 ## the point (the ray only touches a corner). The physics query may name any of several overlapping
 ## or touching shapes for one ray, from one frame to the next, and one it names need not even be
 ## entered, so the far face is read off every shape that holds the point.
-func far_exit(space: PhysicsDirectSpaceState2D, origin: Vector2, dir: Vector2) -> float:
-	var probe := PhysicsPointQueryParameters2D.new()
-	probe.collision_mask = PhysicsLayers.SOLID
+func far_exit(space: PhysicsDirectSpaceState3D, origin: Vector2, dir: Vector2) -> float:
+	var probe := PhysicsPointQueryParameters3D.new()
+	probe.collision_mask = SightRay.MASK
 	probe.exclude = _query.exclude
-	probe.position = origin + dir * 0.1
+	probe.position = PlanSpace.lift(origin + dir * 0.1, see_over + 0.05)
 	var exits: Array[float] = []
 	for found in space.intersect_point(probe, 32):
-		if _top_of(found["collider"]) > see_over:
+		if not SightRay.looks_through(found["collider"]):
 			exits.append(exit_distance(polygon_of(found["collider"], found["shape"]), origin, dir))
 	return 0.0 if exits.is_empty() else exits.max()
 
@@ -137,44 +137,21 @@ func _signed_area(polygon: PackedVector2Array) -> float:
 	return area
 
 
-## The top of a collider (`SightRay.top_of`), read once per build.
-func _top_of(collider: Object) -> float:
-	var id := collider.get_instance_id()
-	if not _tops.has(id):
-		_tops[id] = SightRay.top_of(collider)
-	return _tops[id]
-
-
-## The world polygon of shape `index` of `collider`.
+## The floor polygon of shape `index` of the twin `collider`.
 func _make_polygon(collider: Object, index: int) -> PackedVector2Array:
-	if not collider is CollisionObject2D:
+	if not collider is CollisionObject3D:
 		return PackedVector2Array()
-	var body := collider as CollisionObject2D
+	var body := collider as CollisionObject3D
 	var owner_id := body.shape_find_owner(index)
 	if owner_id < 0:
 		return PackedVector2Array()
-	var shape: Shape2D = null
+	var shape: Shape3D = null
 	for k in body.shape_owner_get_shape_count(owner_id):
 		if body.shape_owner_get_shape_index(owner_id, k) == index:
 			shape = body.shape_owner_get_shape(owner_id, k)
-	var to_world := body.global_transform * body.shape_owner_get_transform(owner_id)
-	return to_world * _local_points(shape)
-
-
-## The shape's corners in its own frame.
-func _local_points(shape: Shape2D) -> PackedVector2Array:
-	if shape is RectangleShape2D:
-		var half := (shape as RectangleShape2D).size * 0.5
-		return PackedVector2Array([
-			Vector2(-half.x, -half.y), Vector2(half.x, -half.y),
-			Vector2(half.x, half.y), Vector2(-half.x, half.y),
-		])
-	if shape is ConvexPolygonShape2D:
-		return (shape as ConvexPolygonShape2D).points
-	if shape is CircleShape2D:
-		var points := PackedVector2Array()
-		for i in CIRCLE_SIDES:
-			var radius := (shape as CircleShape2D).radius
-			points.append(Vector2.from_angle(float(i) / CIRCLE_SIDES * TAU) * radius)
-		return points
-	return PackedVector2Array()
+	if shape == null:
+		return PackedVector2Array()
+	return TwinShapes.footprint_of(
+		shape,
+		body.global_transform * body.shape_owner_get_transform(owner_id),
+	)

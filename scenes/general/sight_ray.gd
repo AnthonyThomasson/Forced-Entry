@@ -15,15 +15,19 @@ extends RefCounted
 ## no twins at all, is clear.
 ##
 ## **The plan cone** (`plan_hit`, the `cast` of an instance) is the player's view: the cone is a
-## floor-plan polygon, so its rays run on the 2D plan and a collider blocks when its twin's top
-## (`top_of`) is above the viewer's eye height; a lower piece is looked over. The same rule at one
-## height. Line of fire and cover are physical and are not this.
+## floor-plan polygon, so its rays run level along the plan at the viewer's eye height, 3D rays in
+## the twin space: a twin blocks when it stands above that height there, a lower piece is looked
+## over, a pane looked through. The same rule at one height as the eye ray's. Line of fire and
+## cover are physical and are not this.
 
 ## The twin layers a sight ray asks: the world and the vehicles, not the characters.
 const MASK := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
 ## The height (px) of what lies on the floor (a grenade, a dropped item): the one point it is
 ## looked at by.
 const GROUND_POINT := 6.0
+## How far (px) over `looks_over` the plan cast runs, so a piece exactly as tall as the eye, whose
+## top face the ray would lie in, is looked over, and one a hair taller blocks.
+const LEVEL_OVER := 0.05
 
 ## The caster `plan_hit` borrows for every plain ask.
 static var _plain := SightRay.new()
@@ -33,15 +37,10 @@ static var _eye_ray := PhysicsRayQueryParameters3D.new()
 ## The height (px) at or below which a plan cast looks over a piece (`plan_hit`'s `see_over`: the
 ## viewer's eye).
 var looks_over := 0.0
-## The top this caster already knows by collider instance id, for a caller that casts many rays
-## over the same colliders: a collider in it is not asked again. It holds only colliders whose top
-## cannot change while it is kept; the caller owns it.
-var rated := {}
-## The ray every plan cast refills: a view casts hundreds of rays a frame.
-var _query := _solid_query()
-## The rids the query leaves out as `leave_out` set them, and whether a cast has added to them.
-var _standing: Array = []
-var _extended := false
+## The 3D ray every plan cast refills: a view casts hundreds of rays a frame.
+var _level := PhysicsRayQueryParameters3D.new()
+## The twin rids the cast leaves out as `leave_out` set them.
+var _standing: Array[RID] = []
 
 
 # --- The eye ray: a viewer's eye to points on a target, in the twin space ----------------------
@@ -64,7 +63,7 @@ static func hit(
 	while true:
 		_eye_ray.exclude = skipped
 		var found := space.intersect_ray(_eye_ray)
-		if found.is_empty() or not _looks_through(found["collider"]):
+		if found.is_empty() or not looks_through(found["collider"]):
 			return found
 		# A pane: look through it and keep going. The list grows by one twin a pass, so the walk
 		# ends (finitely many twins lie on the line).
@@ -203,8 +202,9 @@ static func _centre(heights: PackedFloat32Array) -> float:
 	return sum / heights.size()
 
 
-## Whether the surface of the 2D body a twin stands for says it is `transparent`.
-static func _looks_through(twin: Object) -> bool:
+## Whether the surface of the 2D body a twin stands for says it is `transparent`: a pane, which
+## sight looks through however tall.
+static func looks_through(twin: Object) -> bool:
 	var body := TwinSpace.owner_of(twin)
 	if body == null or not body.has_method("get_surface"):
 		return false
@@ -214,11 +214,15 @@ static func _looks_through(twin: Object) -> bool:
 # --- The plan cone: the player's view, a floor-plan polygon -------------------------------------
 
 
-## The first collider on the plan line `from` to `to` (on `PhysicsLayers.SOLID`) that stands above
-## `see_over` (the eye's height, px), as `intersect_ray`'s dictionary, or {} when the line reaches
-## `to`. `exclude` (rids) is left as the caller gave it.
+## The first twin on the plan line `from` to `to`, level at `see_over` (the eye's height, px),
+## that blocks sight, or {} when the line reaches `to`: `{ position: plan point, collider: the 2D
+## body the twin stands for (null for a twin with none), twin: the twin, collider_id: the twin's
+## instance id, shape: the index of the twin's shape it struck, rid: the twin's rid }`. Anything
+## standing above `see_over` there blocks (a wall, a tall piece, a door; a doorway's lintel is over
+## the eye), what is lower is looked over, a `transparent` surface and a character are looked
+## through. `exclude` (3D rids) is left as the caller gave it.
 static func plan_hit(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
 	exclude: Array,
@@ -226,51 +230,45 @@ static func plan_hit(
 ) -> Dictionary:
 	_plain.looks_over = see_over
 	_plain.leave_out(exclude)
-	return _plain._walk(space, from, to)
+	return _plain.cast(space, from, to)
 
 
-## Leave the colliders `rids` out of every cast that follows, until the next call. A caster that
-## casts many rays past the same colliders sets them once here and casts with `cast`, which does
-## not hand the list to the physics server again on each ray. `rids` must not change while it
-## stands.
+## Leave the twins `rids` out of every cast that follows, until the next call. A caster that casts
+## many rays past the same twins sets them once here. `rids` must not change while it stands.
 func leave_out(rids: Array) -> void:
-	_standing = rids
-	_query.exclude = rids
-	_extended = false
+	_standing.clear()
+	for rid: Variant in rids:
+		_standing.append(rid)
 
 
-## `plan_hit` from `from` to `to`, leaving out what `leave_out` named, looking over what
-## `looks_over` says, asking `rated` before a collider.
-func cast(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> Dictionary:
-	var found := _walk(space, from, to)
-	if _extended:
-		_query.exclude = _standing
-		_extended = false
-	return found
-
-
-## The walk of the plan rule: cast, and while the first hit is a piece to look over, cast again
-## with it left out.
-func _walk(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> Dictionary:
+## `plan_hit` from `from` to `to`, leaving out what `leave_out` named, looking over what is at or
+## below `looks_over`.
+func cast(space: PhysicsDirectSpaceState3D, from: Vector2, to: Vector2) -> Dictionary:
+	_level.from = PlanSpace.lift(from, looks_over + LEVEL_OVER)
+	_level.to = PlanSpace.lift(to, looks_over + LEVEL_OVER)
+	_level.collision_mask = MASK
 	var skipped := _standing
-	_query.from = from
-	_query.to = to
+	var copied := false
 	while true:
-		var found := space.intersect_ray(_query)
+		_level.exclude = skipped
+		var found := space.intersect_ray(_level)
 		if found.is_empty():
 			return found
-		var top: float = rated.get(found["collider_id"], -1.0)
-		if top < 0.0:
-			top = top_of(found["collider"])
-		if top > looks_over:
-			return found
-		# A low piece: look over it and keep going past it. The list grows by one collider a pass,
-		# so the walk ends (finitely many colliders lie on the line).
-		if not _extended:
+		if not looks_through(found["collider"]):
+			return {
+				"position": PlanSpace.plan_of(found["position"]),
+				"collider": TwinSpace.owner_of(found["collider"]),
+				"twin": found["collider"],
+				"collider_id": found["collider_id"],
+				"shape": found["shape"],
+				"rid": found["rid"],
+			}
+		# A pane: look through it and keep going. The list grows by one twin a pass, so the walk
+		# ends (finitely many twins lie on the line).
+		if not copied:
 			skipped = _standing.duplicate()
-			_extended = true
-		skipped.append(found.get("rid"))
-		_query.exclude = skipped
+			copied = true
+		skipped.append(found["rid"])
 	return {}  # unreachable; satisfies the parser
 
 
@@ -290,10 +288,3 @@ static func top_of(collider: Object) -> float:
 			return 0.0
 	var twin := TwinSpace.twin_for(collider)
 	return TwinShapes.top_of(twin) if twin != null else INF
-
-
-## A ray query on the solid layer, for a caster to refill on each cast.
-static func _solid_query() -> PhysicsRayQueryParameters2D:
-	var query := PhysicsRayQueryParameters2D.new()
-	query.collision_mask = PhysicsLayers.SOLID
-	return query

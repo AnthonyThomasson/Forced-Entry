@@ -77,7 +77,7 @@ unfrozen later, a note this ADR left for furniture, is followed (the row is re-l
   hold and reuses a freed body's slot, so worlds that shared the main window's space gave results that depended on what the process had
   run before (the same scene, the same hash only in a fresh process: a Von replay missed at the last float bit). `TwinSpace` is
   therefore a never-drawn `SubViewport` with `own_world_3d` (`UPDATE_DISABLED`), a fresh space for each staged world and each match;
-  `TwinSpace.space_of(node)` finds a node's twin space through the 2D space it stands in (`space_for`), the viewport's own 3D world where
+  `TwinSpace.space_of(node)` finds a node's twin space through the `World2D` it stands in (`space_in`), the viewport's own 3D world where
   none stands beside it. Each twin space twins only the bodies of its own viewport (a nested `SubViewport` world owns its twins). When the
   bodies flip for good and the picture shares the twins' world (the last flip job), that world is this one.
 - **The picture draws the twins' world (del2d-b, amends the line above and "Where it lives").** `View3D.mirror_world(world)` finds the
@@ -179,6 +179,10 @@ simply:
   2D footprint was (a chair's 28 px square): a body exactly at the reach's rim (46 px) is no longer in it (the 2D engine counted shapes that
   touch, Jolt does not), which moved one premise by 6 px (`space_picks_nearest_to_mouse`). Measured (`tools/perf_ab.sh 389c3eb5 HEAD --different-fights`, 6 rounds, a busy machine): `match_5v5_stress` +0.7%,
   `grenade_match_stress` +1.8%, `match_10v10_stress` +1.8%, `match_npc_vision` -1.2% of the base's average frame.
+- **After del2d-a (nothing reads the 2D space).** Of the list above, (1), (2) and, of (7), the player's cone and `Explosion`'s coverage are
+  done: the AI's `space` is the twin space itself (`space_of`, `space_in`), `AgentVision` and `Explosion`
+  answer a world with no twin space with their neutral answer, and the player's cone is a level 3D ray at the viewer's eye height
+  (`SightRay.plan_hit`) with its corners read by a 3D shape query over the column above the eye (`ViewShapes`), so a body with no twin blocks nothing.
 
 ## Consequences
 
@@ -188,6 +192,6 @@ simply:
   stand at their standard.
 - A later job that reads a twin maps its collider back to the 2D body with `TwinSpace.owner_of` and calls that body's `get_surface()`; a job
   that flips a class to a 3D body replaces that class's builder and keeps a footprint twin for the readers still in 2D.
-- Until the 2D space is gone, a reader that holds only the 2D direct space the sim casts in (the NPCs' sight, `AgentVision`) finds the 3D space
-  beside it with `TwinSpace.space_for(space2d)`, a registry keyed by the 2D direct state's instance id (#194 sight3d). A world with no twin space
-  (a hand-built test world) answers null and the caller treats nothing as blocking; two worlds in one window share one 3D space.
+- A reader that holds the `World2D` the sim stands in and no node finds the 3D space beside it with `TwinSpace.space_in(world)`, a registry keyed
+  by the world's instance id (#194 sight3d, del2d-a). A world with no twin space (a hand-built test world) answers null and the caller treats
+  nothing as blocking; two worlds in one window share one 3D space.

@@ -46,7 +46,7 @@ func _shape(body: StaticBody2D, at: Vector2, size: Vector2) -> void:
 
 
 ## The physics space once the bodies added are in it (a body joins the broadphase at the next step).
-func _space() -> PhysicsDirectSpaceState2D:
+func _space() -> PhysicsDirectSpaceState3D:
 	if _twins == null:
 		_twins = auto_free(TwinSpace.new())
 		_twins.builders.append(_lift)
@@ -54,7 +54,7 @@ func _space() -> PhysicsDirectSpaceState2D:
 		_twins.watch(self)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	return get_viewport().world_2d.direct_space_state
+	return _twins.space()
 
 
 ## The twin of a piece: a static body as tall as the piece says, on the world layer.
@@ -70,8 +70,12 @@ func _lift(node: Node2D) -> Node3D:
 
 ## The 3D space of the twins.
 func _space3() -> PhysicsDirectSpaceState3D:
-	await _space()
-	return TwinSpace.space_in(get_viewport().world_2d)
+	return await _space()
+
+
+## The rid of the twin of `body` (once `_space` has run): what a cast leaves out.
+func _rid(body: Node2D) -> RID:
+	return (TwinSpace.twin_for(body) as CollisionObject3D).get_rid()
 
 
 ## The line from `from` to `to`, both relative to `ORIGIN`.
