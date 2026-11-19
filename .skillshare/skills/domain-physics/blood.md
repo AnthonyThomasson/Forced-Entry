@@ -11,7 +11,7 @@ smears). Separate from debris and deformation: the rest of `physics/` reaches it
 | File | Role |
 |---|---|
 | `blood_wound.gd` (`BloodWound`) | Node the character composes like `Knockback`; its `take_hit` calls `record(hit)`. Spray and drips. |
-| `blood_spawner.gd`, `blood_throw.gd` | Spawns each splat and pool with a readable name (`BloodSplat`, `BloodSplat2`, …, `BloodPool`); `BloodThrow` carries a splat's throw. |
+| `blood_spawner.gd`, `blood_throw.gd` | Spawns each splat and pool with a readable name (`BloodSplat`, `BloodSplat2`, …, `BloodPool`); `BloodThrow` carries a splat's throw (and the `surface` it lands on). |
 | `blood_splat.gd`, `blood_pool.gd`, `blood_pool_field.gd`, `blood_flow.gd`, `blood_surface.gd` | A splat (outlines and wet highlight as data); a bleed-out pool, its fill field (`BloodPoolField`: the blurred bytes the 3D pool shows), its flood-fill and the floor that steers it. |
 | `blood_field.gd`, `blood_decals.gd`, `blood_footprints.gd`, `footfall.gd`, `blood_smear.gd` | Wetness queries, the batched print layer, a walker's prints, a body's smear. |
 | `BloodConfig` plus `Blood{Drip,Spray,Splat,Pool,Surface,Print,Smear,SmearLook,Trail}Config` | Tuning. `BloodConfig` holds the master switch, colours, the decal layer's cap and drying. |
@@ -36,6 +36,7 @@ under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `Blo
   walker's drops land ahead. `stop()` on death ends them. A body keeps at most `max_splats_per_body` splats (oldest freed) in an
   advancing-head FIFO, so eviction and removal of an externally freed oldest splat do not shift the whole list
   (`blood_wound_evicts_oldest_splat_test.gd` holds it to a plain capped array).
+- **Where it lands (D12):** a spray or exit splat is traced as a parcel through the twin 3D space and lands on a wall's face or a piece's top at its real height: `blood-landing.md`.
 - A splat is built once in `setup` and then static: one conservative whole-extent shape query (a circle of `BloodSplat.clear_radius(core radius)`) first skips every clipping ray when
   no `wall_mask` collider can reach any possible core, spike, tail or satellite; near geometry the exact centre-to-feature rays remain
   (`blood_splat_open_matches_rays_test.gd` pins identical outlines and RNG draws, with a wall just beyond and just inside the radius). Shapes are merged into opaque outlines so overlaps

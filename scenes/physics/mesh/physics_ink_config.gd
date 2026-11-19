@@ -18,6 +18,8 @@ static var pool_layer: float = 5.0
 static var splat_layer: float = 5.8
 static var print_layer: float = 6.6
 static var scorch_layer: float = 7.4
+## How high (px) a wall stands: blood thrown at one is cut off there.
+static var wall_top: float = 96.0
 ## A mark that lies over another of its kind (a splat's wet highlight, a scorch's core) lies this
 ## many layers higher.
 static var over_layer: float = 0.4

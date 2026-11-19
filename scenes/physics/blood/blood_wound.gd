@@ -58,27 +58,11 @@ func record(hit: HitInfo) -> void:
 		BloodSprayConfig.hit_splat_max,
 	)
 	for i in sprays:
-		var dir := out.rotated(
-			randf_range(-BloodSprayConfig.spread, BloodSprayConfig.spread),
-		)
-		var reach := (randf_range(BloodSprayConfig.reach_min, BloodSprayConfig.reach_max)
-				if i > 0
-				else 0.0)
-		var size := (randf_range(BloodDripConfig.size_min, BloodDripConfig.size_max)
-				* BloodSprayConfig.hit_splat_size)
-		_add_splat(
-			hit.position + dir * reach,
-			size,
-			dir,
-			BloodSprayConfig.energy if i > 0 else 0.4,
-			thrown,
-		)
-
+		_spray(hit, out, i, thrown)
 	# A round that went right through also throws blood out the far side, along its flight.
 	if hit.has_exit:
-		var size := (randf_range(BloodDripConfig.size_min, BloodDripConfig.size_max)
-				* BloodSprayConfig.hit_splat_size)
-		_add_splat(hit.exit_position, size, hit.direction, BloodSprayConfig.energy, thrown)
+		var throw := _throw_of(_spray_size(), hit.direction, BloodSprayConfig.energy)
+		_add_splat(_landing(throw, hit, hit.exit_position, hit.exit_position), throw, thrown)
 	BloodSplat.defer_finish(thrown)
 
 	var owed := maxi(1, ceili(hit.damage * BloodDripConfig.drips_per_damage))
@@ -116,7 +100,7 @@ func _drip() -> void:
 		1.0,
 	)
 	var size := randf_range(BloodDripConfig.size_min, BloodDripConfig.size_max)
-	_add_splat(land, size, velocity, energy)
+	_add_splat(land, _throw_of(size, velocity, energy))
 
 
 ## Seconds until the next drip falls, drawn from the configured interval.
@@ -129,22 +113,52 @@ func _jitter() -> Vector2:
 	return Vector2.from_angle(randf() * TAU) * randf() * BloodDripConfig.jitter
 
 
-## Place a splatter at world `at` and keep it within this body's cap. Given `thrown`, a spray's
-## splat is only begun and added to it, for the caller to finish (see `spray_side_by_side`).
-func _add_splat(
-	at: Vector2,
-	size: float,
-	direction: Vector2,
-	energy: float,
-	thrown: Variant = null,
-) -> void:
+## Splatter `i` of a hit's spray, flung about `out`: the first lands at the wound, the rest as far
+## out as `BloodSprayConfig.reach_min..reach_max`.
+func _spray(hit: HitInfo, out: Vector2, i: int, thrown: Array[Node]) -> void:
+	var dir := out.rotated(randf_range(-BloodSprayConfig.spread, BloodSprayConfig.spread))
+	var reach := (randf_range(BloodSprayConfig.reach_min, BloodSprayConfig.reach_max)
+			if i > 0
+			else 0.0)
+	var throw := _throw_of(_spray_size(), dir, BloodSprayConfig.energy if i > 0 else 0.4)
+	_add_splat(_landing(throw, hit, hit.position, hit.position + dir * reach), throw, thrown)
+
+
+## A spray splatter's core radius: a drip's, scaled.
+func _spray_size() -> float:
+	return (randf_range(BloodDripConfig.size_min, BloodDripConfig.size_max)
+			* BloodSprayConfig.hit_splat_size)
+
+
+## The throw of a splatter of core radius `size` flung toward `direction` with `energy`, from this
+## body (its own collider is ignored by the splat's wall clipping).
+func _throw_of(size: float, direction: Vector2, energy: float) -> BloodThrow:
 	var host := get_parent() as Node2D
-	var begun := thrown != null and spray_side_by_side
 	var throw := BloodThrow.new()
 	throw.size = size
 	throw.direction = direction
 	throw.energy = energy
 	throw.exclude = [(host as CollisionObject2D).get_rid()] if host is CollisionObject2D else []
+	return throw
+
+
+## Where blood thrown as `throw` from plan point `from` lands: it leaves at the hit's real height
+## and is traced through the twin 3D space (`BloodLanding`); on a wall or a piece's top the throw
+## records the surface and the answer is the point on it, else `at`, the floor's.
+func _landing(throw: BloodThrow, hit: HitInfo, from: Vector2, at: Vector2) -> Vector2:
+	var flight := BloodSprayConfig.reach_max
+	throw.surface = BloodLanding.trace(
+		TwinSpace.space_of(self), from, throw.direction, hit.height, flight
+	)
+	return throw.surface.get("at", at)
+
+
+## Place a splatter thrown as `throw` at world `at` and keep it within this body's cap. Given
+## `thrown`, a spray's splat is only begun and added to it, for the caller to finish (see
+## `spray_side_by_side`).
+func _add_splat(at: Vector2, throw: BloodThrow, thrown: Variant = null) -> void:
+	var host := get_parent() as Node2D
+	var begun := thrown != null and spray_side_by_side
 	var splat := BloodSpawner.splat(host.get_parent(), at, throw, not begun)
 	if begun:
 		(thrown as Array).append(splat)

@@ -37,7 +37,7 @@ Damage scales by squareness and `speed_factor` (speed / the round's own `muzzle_
 
 ## Casings
 
-`CasingSpawner.spawn(position, direction, parent, height)` tracks them with the `Despawner`. A casing flies in the twin 3D space with General's `SmallFlight` (`CasingConfig`: size, hop, bounce, friction, `max_time`): let go at the port's height (`Gun.secondary` passes the shot's muzzle height), it falls, bounces off a wall's real face, lands on a desk's top or the floor, skids and rests; `altitude()` and `is_resting()` are what the `ShotLayer` reads.
+`casing_config.gd` (`CasingConfig`) tunes the flight. `CasingSpawner.spawn(position, direction, parent, height)` tracks them with the `Despawner`. A casing flies in the twin 3D space with General's `SmallFlight` (`CasingConfig`: size, hop, bounce, friction, `max_time`): let go at the port's height (`Gun.secondary` passes the shot's muzzle height), it falls, bounces off a wall's real face, lands on a desk's top or the floor, skids and rests; `altitude()` and `is_resting()` are what the `ShotLayer` reads.
 
 ## Tracers and casings in 3D (`ProjectileMeshes`, `ShotLayer`; interface 27)
 

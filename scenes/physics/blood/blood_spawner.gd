@@ -8,9 +8,10 @@ const BloodSplat = preload("res://scenes/physics/blood/blood_splat.gd")
 
 ## Add one splatter (BloodSplat) at world `position` under `parent`, thrown as `throw` says (its
 ## core radius, direction, energy 0..1 and the bleeding body's RID(s), ignored by its wall
-## clipping). Returns the splat (Despawner-tracked). With `whole` false the splat is only begun
-## (`BloodSplat.begin`: its outlines merge on a worker thread) and the caller finishes it, or hands
-## it to `BloodSplat.defer_finish`, which finishes it before anything else can see it.
+## clipping, and the `surface` it lands on if not the floor). Returns the splat (Despawner-tracked).
+## With `whole` false the splat is only begun (`BloodSplat.begin`: its outlines merge on a worker
+## thread) and the caller finishes it, or hands it to `BloodSplat.defer_finish`, which finishes it
+## before anything else can see it.
 static func splat(parent: Node, position: Vector2, throw: BloodThrow, whole := true) -> Node:
 	var node := Node2D.new()
 	node.name = "BloodSplat"
@@ -18,6 +19,7 @@ static func splat(parent: Node, position: Vector2, throw: BloodThrow, whole := t
 	parent.add_child(node, true)  # readable names (BloodSplat, BloodSplat2, …)
 	node.global_position = position
 	Despawner.track(node)
+	node.surface = throw.surface
 	node.call(
 		&"setup" if whole else &"begin",
 		throw.size,

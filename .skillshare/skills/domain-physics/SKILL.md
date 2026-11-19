@@ -9,7 +9,7 @@ A leaf of stateless helpers and reusable Node components. Objects, the character
 only General's infrastructure (`Despawner`, `PhysicsLayers`, `ViewLayers`, `SeenArea`), and, for the 3D render only, Art's mesh kit (`scenes/physics/mesh/`: `meshes.md`). Interfaces: 3 (`HitInfo`), 4 (Objects /
 Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5 (`Knockback` and the pushable bodies), 11 (`PhysicsLayers` in `PhysicsConfig.wall_mask`), 13 (the switches `physics.debris`,
 `physics.hit_particles`, and blood's). Tests: `tests/physics/`. Blood (`scenes/physics/blood/`, its `Blood*Config` holders) is
-`blood.md`; the core keeps only its entry points, `Physics.spawn_debris` and `Physics.bleed_out`.
+`blood.md` (`blood-landing.md`); the core keeps only its entry points, `Physics.spawn_debris` and `Physics.bleed_out`.
 
 ## Files
 
@@ -24,7 +24,7 @@ Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5
 | `ragdoll.gd`, `hinge_limits.gd` | The generic 3D ragdoll solver. |
 | `explosion_fx.gd`, `scorch_decals.gd` | A grenade burst's look: the blast told to the 3D render and the scorch mark. |
 | `mesh/` (`PhysicsMeshes`, `FxLayer`, `PhysicsFxHook`, `*_fx.gd`) | The 3D render of the chips, hit particles, blood and explosions: `meshes.md`. |
-| `physics_config.gd`, `physics_impact_config.gd`, `physics_deform_config.gd`, `physics_deform_look_config.gd`, `physics_ragdoll_config.gd`, `physics_explosion_config.gd` | Tuning. `PhysicsConfig`: `debris_enabled`, `hit_particles_enabled`, `hit_particles_scale`, `hit_particles_max`, `wall_mask` (the layer the ragdoll sweep and blood queries treat as blocking). `PhysicsImpactConfig`: a hit's shove and the furniture body's damping; `PhysicsDeformConfig`: the dents' shape; `PhysicsDeformLookConfig`: how they are drawn; `PhysicsRagdollConfig`: the solver; `PhysicsExplosionConfig`: a burst's look. |
+| `physics_config.gd`, `physics_impact_config.gd`, `physics_deform_config.gd`, `physics_deform_look_config.gd`, `physics_ragdoll_config.gd`, `physics_explosion_config.gd`, `physics_debris_config.gd` | Tuning. `PhysicsConfig`: `debris_enabled`, `hit_particles_enabled`, `hit_particles_scale`, `hit_particles_max`, `wall_mask` (the 2D layer blood's clipping and flow queries treat as blocking), `twin_mask` (the twin layers the ragdoll, chips and blood's flight meet). `PhysicsImpactConfig`: a hit's shove and the furniture body's damping; `PhysicsDeformConfig`: the dents' shape; `PhysicsDeformLookConfig`: how they are drawn; `PhysicsRagdollConfig`: the solver; `PhysicsDebrisConfig`: a chip's flight; `PhysicsExplosionConfig`: a burst's look. |
 
 ## HitInfo, Knockback
 

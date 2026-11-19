@@ -61,6 +61,10 @@ var _built: Array = [null]
 var _born := -1
 ## Whether one whole-extent query proved that no clipping ray can meet a collider.
 var _clear := false
+## Where it lies when that is a wall's face or a piece's top, not the floor (`BloodLanding`; empty:
+## the floor): then no wall clips it, the blood field does not hold it, and the 3D render lays it
+## on that surface (`ink_fx.gd`).
+var surface: Dictionary = {}
 
 
 func _exit_tree() -> void:
@@ -142,7 +146,7 @@ func _throw(
 	_radius = radius
 	_exclude = exclude
 	_space = get_world_2d().direct_space_state
-	_clear = _fully_clear()
+	_clear = not surface.is_empty() or _fully_clear()
 	var e := clampf(energy, 0.0, 1.0)
 	_heading = direction.angle() if direction.length() > 0.001 else randf() * TAU
 
@@ -174,7 +178,8 @@ func _finish(kept: Array[PackedVector2Array]) -> void:
 func _complete(kept: Array[PackedVector2Array]) -> void:
 	shapes = kept
 	_boxes.clear()
-	BloodField.add_splat(self, shapes, _born)
+	if surface.is_empty():
+		BloodField.add_splat(self, shapes, _born)
 	PhysicsFxHook.splat_made(self)
 
 
