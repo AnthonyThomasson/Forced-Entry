@@ -3,7 +3,7 @@ extends CanvasLayer
 ## (`docs/adr/0013-the-3d-render-mirrors-the-2d-sim.md`), and of a test world in a window. A
 ## `CanvasLayer` named `View3D` on `RenderConfig.canvas_layer`, below the HUD, holding a
 ## `TextureRect` that shows a `SubViewport` of the match's twin world (`TwinSpace`, interface 29;
-## the window's until `mirror_world` finds that one): General's `CameraRig` (an
+## a world of its own until `mirror_world` finds that one): General's `CameraRig` (an
 ## orthographic `Camera3D` following the sim's `Camera2D`), the Lighting domain's dusk
 ## (`WorldLighting3D`: the sky, the fixtures' and pieces' lights, the ambient) and Art's
 ## `WorldMirror` of the match's 2D bodies (interface 27). The
@@ -18,9 +18,9 @@ extends CanvasLayer
 ##
 ## Main builds it before the match (`begin`, so no frame of the 2D world is ever drawn) and mirrors
 ## the match once it is built (`mirror_world`), which is also where the picture takes the match's
-## twin space's 3D world (`_share_world`): a world a view was told of that has no twin space is
-## drawn in a world of its own. The hard shadow filter is a global of the
-## renderer: it is set here and put back to the project's value when the view leaves the tree.
+## twin space's 3D world (`_share_world`) in place of the world of its own it began in. The hard
+## shadow filter is a global of the renderer: it is set here and put back to the project's value
+## when the view leaves the tree.
 
 ## The view runs after the camera rig (`process_priority` 50) and the player's view (100) so the
 ## stage that averages the 3D picture down is sized in the frame the rig sizes the picture.
@@ -45,6 +45,8 @@ var _oversample := 1
 ## How far below the pavement the road lies at a spot (Objects' street, read from the world): what
 ## the effects that lie on the ground are put lower by.
 var _ground := StreetGround.new()
+## The world the viewport is giving up while `_share_world` swaps (held so the engine keeps it).
+var _leaving: World3D
 ## The sim's camera the view follows (where the lights are on).
 var _camera: Camera2D
 
@@ -79,6 +81,7 @@ func begin(camera: Camera2D) -> void:
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(rect)
+	viewport.own_world_3d = true  # not the window's: see `_share_world`
 	viewport.msaa_3d = Viewport.MSAA_DISABLED
 	viewport.use_debanding = false
 	viewport.gui_disable_input = true
@@ -168,16 +171,21 @@ func mirror_world(world: Node) -> void:
 
 ## Draw `world`'s twin space's `World3D` (the nodes the view holds move into it: the rig, the
 ## environment, the outline, the mirror), so what is drawn stands in the world the bodies are in.
-## The viewport waited for the match in the window's world (never swap an own world out: the
-## engine frees its scenario under the swap); a world with no twin space is given a world of its
-## own, so the picture's nodes never stand in the window's. Another twin space's world is never
-## shared: each staged world has its own.
+## A view that has only begun draws a world of its own (never the window's: views side by side
+## would draw each other's rooms), given up here for the twins'; the old world is held until the
+## swap is done, or the engine frees its scenario under it. A world with no twin space keeps the
+## view's own. Another twin space's world is never shared: each staged world has its own.
 func _share_world(world: Node) -> void:
 	var twins := TwinSpace.of_world(world)
 	if twins == null or not twins.is_inside_tree():
-		viewport.own_world_3d = true
 		return
-	viewport.world_3d = twins.find_world_3d()
+	var theirs := twins.find_world_3d()
+	if viewport.find_world_3d() == theirs:
+		return
+	_leaving = viewport.find_world_3d()
+	viewport.own_world_3d = false
+	viewport.world_3d = theirs
+	_leaving = null  # the old world goes only now
 
 
 ## Plug each domain's own meshes into the mirror (its builders, `WorldMirror.builders`), so a body

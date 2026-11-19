@@ -59,6 +59,7 @@ func run(t: TestContext) -> void:
 	await t.frames(3)
 	t.check(_ray_hits(twins), "the twin space answers a ray after the view is gone")
 	await _a_world_with_no_twins(t, camera)
+	await _a_view_that_waits(t, camera)
 
 
 ## A view of a world no `TwinSpace` stands in is drawn in a world of its own (nothing there blocks
@@ -87,3 +88,49 @@ func _ray_hits(twins: TwinSpace) -> bool:
 	)
 	query.collision_mask = 0xffffffff
 	return not twins.space().intersect_ray(query).is_empty()
+
+
+## A view that has only begun (Main builds it before the match) draws a world of its own, never the
+## window's and never another view's (the pixel-post tests hold ten at once: each draws its own
+## rooms); told of a staged world later it takes that twin space's world, a view that fell back to
+## its own world included (the second call clears the own world and takes the twins').
+func _a_view_that_waits(t: TestContext, camera: Camera2D) -> void:
+	var first := MAIN_VIEW3D.new()
+	var second := MAIN_VIEW3D.new()
+	t.world.add_child(first)
+	t.world.add_child(second)
+	first.begin(camera)
+	second.begin(camera)
+	await t.frames(2)
+	var window := t.world.get_viewport().find_world_3d()
+	t.check(
+		first.viewport.find_world_3d() != window,
+		"a view that only began is not in the window's world",
+	)
+	t.check(
+		first.viewport.find_world_3d() != second.viewport.find_world_3d(),
+		"and two such views do not share one world",
+	)
+	var twins: TwinSpace = t.world.twin_space()
+	first.mirror_world(t.world)
+	await t.frames(2)
+	t.check(
+		first.viewport.find_world_3d() == twins.find_world_3d(),
+		"told of a world it takes the twins'",
+	)
+	t.check(
+		second.viewport.find_world_3d() != twins.find_world_3d(),
+		"and the other view still draws its own",
+	)
+	var bare := Node2D.new()
+	t.world.add_child(bare)
+	second.mirror_world(bare)  # no twin space: its own world stays
+	second.mirror_world(t.world)  # then a staged world: the own world is given up
+	await t.frames(2)
+	t.check(
+		second.viewport.find_world_3d() == twins.find_world_3d(),
+		"a second call takes the twins' world",
+	)
+	t.check(not second.viewport.own_world_3d, "and the view's own world is cleared")
+	first.queue_free()
+	second.queue_free()

@@ -94,10 +94,10 @@ func run(t: TestContext) -> void:
 
 ## A car and a van set down on the largest floor under the camera, zoomed in, the walls and what
 ## stands near them hidden: the two vehicles.
-func _park(t: TestContext, main: Node, camera: Camera2D, world: Node) -> Array[RigidBody2D]:
+func _park(t: TestContext, main: Node, camera: Camera2D, world: Node) -> Array[AnimatableBody2D]:
 	var spot := _open_floor(world)
-	var car := CarScene.instantiate() as RigidBody2D
-	var van := VanScene.instantiate() as RigidBody2D
+	var car := CarScene.instantiate() as AnimatableBody2D
+	var van := VanScene.instantiate() as AnimatableBody2D
 	car.position = spot + Vector2(-130, -80)
 	van.position = spot + Vector2(150, 110)
 	world.add_child(car)
@@ -117,7 +117,7 @@ func _park(t: TestContext, main: Node, camera: Camera2D, world: Node) -> Array[R
 
 
 ## Open the car's front door and the van's side and rear doors, brake, and hit the car's side.
-func _open_and_dent(t: TestContext, car: RigidBody2D, van: RigidBody2D) -> void:
+func _open_and_dent(t: TestContext, car: AnimatableBody2D, van: AnimatableBody2D) -> void:
 	car.cabin.door(&"front_left").open()
 	car.cabin.door(&"rear_right").open()
 	for id in [&"side", &"rear_left", &"front_right"]:

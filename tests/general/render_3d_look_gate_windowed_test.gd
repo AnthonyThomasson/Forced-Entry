@@ -198,8 +198,8 @@ func _street(t: TestContext, doors_open: bool) -> void:
 		else:
 			spot = Vector2(road.get_center().x, clampf(spot.y, road.position.y, road.end.y))
 	var along := Vector2.RIGHT if road.size.x >= road.size.y else Vector2.DOWN
-	var car := CarScene.instantiate() as RigidBody2D
-	var van := VanScene.instantiate() as RigidBody2D
+	var car := CarScene.instantiate() as AnimatableBody2D
+	var van := VanScene.instantiate() as AnimatableBody2D
 	car.position = spot - along * 150.0
 	van.position = spot + along * 170.0
 	car.rotation = along.angle()

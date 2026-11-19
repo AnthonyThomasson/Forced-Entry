@@ -21,10 +21,15 @@ const SPEC := {
 }
 ## The two zooms of the shots: close, and the game's default (`CameraRig` follows the 2D camera's).
 const ZOOMS := [3.0, 1.0]
-## Where the aim points from the character: across the screen.
-const ACROSS := Vector2(1, -1)
+## How far (px) a clear line is looked for, and how many headings are tried.
+const CLEAR_REACH := 400.0
+const HEADINGS := 16
 ## Shots of the burst, fired one a frame while the picture is taken.
 const BURST := 40
+
+## The heading the shots fly along: the one from the character with the longest clear line at muzzle
+## height (a level round meets a wall at once: a tracer needs room to fly through the picture).
+var _across := Vector2(1, -1)
 
 
 func describe() -> Dictionary:
@@ -80,6 +85,7 @@ func run(t: TestContext) -> void:
 	camera.set_process(false)
 	camera.set_physics_process(false)
 	await t.frames(30)
+	_across = _clearest_heading(character)
 	var view: Node = main.get_node("View3D")
 	var mirror: WorldMirror = view.mirror
 	_hide_walls(built["world"], mirror)
@@ -102,12 +108,12 @@ func _burst(
 	layer: ShotLayer,
 ) -> void:
 	character.inventory.select_slot(6)
-	character.movement.aim_point = character.global_position + ACROSS * 300.0
+	character.movement.aim_point = character.global_position + _across * 300.0
 	await t.seconds(0.6)
 	for zoom: float in ZOOMS:
 		camera.zoom = Vector2(zoom, zoom)
 		# The camera looks a little ahead of the muzzle, where the tracers fly through the picture.
-		var ahead := ACROSS.normalized() * (110.0 if zoom > 1.0 else 0.0)
+		var ahead := _across.normalized() * (110.0 if zoom > 1.0 else 0.0)
 		camera.global_position = character.global_position + ahead
 		var seen := false
 		for i in BURST:
@@ -142,14 +148,15 @@ func _throw(
 	character: Node2D,
 ) -> void:
 	character.inventory.select_slot(8)
-	character.movement.aim_point = character.global_position + ACROSS * 240.0
+	character.movement.aim_point = character.global_position + _across * 240.0
 	await t.seconds(0.4)
 	character.weapon.shoot()
 	if not t.require(
 		await t.until(func(): return not Probe.live(t).is_empty(), 2.0), "the grenade is thrown"
 	):
 		return
-	await t.seconds(0.6)
+	# a slow lob from the release height lands in half a second: look at it early in its flight
+	await t.seconds(0.15)
 	var grenade: Node2D = Probe.live(t)[0]
 	t.check(grenade.altitude() > 20.0, "the grenade is in the air (%.0f px)" % grenade.altitude())
 	for zoom: float in ZOOMS:
@@ -211,3 +218,25 @@ func _first_character(world: Node) -> CharacterBody2D:
 		if not body.get("is_dead"):
 			return body as CharacterBody2D
 	return null
+
+
+## The heading (a unit vector, the nearest to across the screen among the longest) from `character`
+## along which a level line at its muzzle height runs farthest before it meets a twin.
+func _clearest_heading(character: Node2D) -> Vector2:
+	var space := TwinSpace.space_of(character)
+	var from := PlanSpace.lift(character.global_position, BodyHeights.muzzle(BodyHeights.STAND))
+	var best := Vector2(1, -1).normalized()
+	var best_reach := -1.0
+	for i in HEADINGS:
+		var heading := Vector2.RIGHT.rotated(TAU * (float(i) + 0.5) / HEADINGS - PI * 0.25)
+		var query := PhysicsRayQueryParameters3D.create(
+			from,
+			from + PlanSpace.lift(heading * CLEAR_REACH),
+		)
+		query.collision_mask = PhysicsLayers.TWIN_ALL
+		var hit := space.intersect_ray(query)
+		var reach := CLEAR_REACH if hit.is_empty() else from.distance_to(hit["position"])
+		if reach > best_reach + 1.0:
+			best_reach = reach
+			best = heading
+	return best
