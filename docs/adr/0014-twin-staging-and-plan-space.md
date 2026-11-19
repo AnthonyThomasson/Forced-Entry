@@ -153,6 +153,18 @@ simply:
 - **Where the 2D side costs.** The 2D follower stays in the 2D space for the readers not flipped yet (the nav's avoid maps and holes, the
   interaction finding, the AI's 2D queries) and goes with `del2d`; its cost is not optimised in this job.
 
+- **What still asks the 2D space after chars3d-b (for del2d).** The interaction's reach, the clearing check (`use.keep_clear_of`), a vehicle door's
+  swing and the AI's plan lines (`AgentVision.raycast`, `blocked`, `wall_hit`: 3D rays at an ankle's and an eye's height) ask the twin space.
+  Left: (1) the 2D plan-line fallback of `AgentVision` for a world with no twin space (`raycast`, `wall_hit`, `_plan_piece`, `_plan_stop`);
+  (2) the `space: PhysicsDirectSpaceState2D` parameter threaded through the AI (perception, entry, tactics, throw, door views, about a hundred
+  signatures) that is only the handle `TwinSpace.space_for` turns into the 3D space: it becomes the 3D space itself; (3) every
+  `get_world_2d().navigation_map` read (the locomotion, the stacks, the entry geometry: nav3d); (4) the ragdoll's wall sweeps
+  (`CharacterAnatomy.ragdoll.step`: ragdoll3d); (5) `VehicleContacts._pile` / `_pressed_by`, which find a pile of characters through their 2D
+  footprints; (6) the character's 2D `move_and_slide` for a body with no twin space and the zero-length `test_move` that folds a new body into
+  the 2D space; (7) outside these domains, the player's cone (`Vision`, `SightRay.plan_hit`), `Explosion`'s 2D coverage, a door's nudge and
+  the blood's queries. Measured (`tools/perf_ab.sh 389c3eb5 HEAD --different-fights`, 6 rounds, a busy machine): `match_5v5_stress` +0.7%,
+  `grenade_match_stress` +1.8%, `match_10v10_stress` +1.8%, `match_npc_vision` -1.2% of the base's average frame.
+
 ## Consequences
 
 - Every match and test world has a `TwinSpace` child named `Twins` (the stage's handle's `twins`, `TestWorld.twin_space()`) with a 3D physics
