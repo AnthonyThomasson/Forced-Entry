@@ -217,6 +217,30 @@ static func space_for(space2d: PhysicsDirectSpaceState2D) -> PhysicsDirectSpaceS
 	return null
 
 
+## Everything `query` meets, `page` hits at a time (each page's colliders left out of the next), so
+## a floor slab or a wall segment under a crowd cannot push a body out of a capped answer: the
+## results of `intersect_shape`, a body's shapes possibly in part (ask for its owner, not for every
+## shape). The query's own `exclude` is kept as it was.
+static func intersecting(
+	in_space: PhysicsDirectSpaceState3D,
+	query: PhysicsShapeQueryParameters3D,
+	page := 32,
+) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var kept := query.exclude
+	var skipped := kept.duplicate()
+	while true:
+		query.exclude = skipped
+		var got := in_space.intersect_shape(query, page)
+		for found: Dictionary in got:
+			out.append(found)
+			skipped.append(found["rid"])
+		if got.size() < page:
+			break
+	query.exclude = kept
+	return out
+
+
 ## The twin of the 2D `body`, or null for a body with none (not twinned yet, or no domain builds
 ## one): `twin_of` for a reader that holds no `TwinSpace`.
 static func twin_for(body: Object) -> Node3D:

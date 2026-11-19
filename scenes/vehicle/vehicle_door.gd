@@ -193,8 +193,8 @@ func _sweep_shape(high: float) -> ConvexPolygonShape3D:
 			points.append(hinge + arm.rotated(_turn * open_angle * float(i) / steps))
 	var column := PackedVector3Array()
 	for point in points:
-		column.append(Vector3(point.x, SWEEP_FROM, point.y))
-		column.append(Vector3(point.x, high, point.y))
+		column.append(PlanSpace.lift(point, SWEEP_FROM))
+		column.append(PlanSpace.lift(point, high))
 	var shape := ConvexPolygonShape3D.new()
 	shape.points = column
 	return shape

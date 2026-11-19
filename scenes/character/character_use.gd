@@ -14,7 +14,7 @@ class_name CharacterUse extends RefCounted
 const CLEAR_MARGIN := 3.0
 ## How high (px) the overlap test's cylinder starts: clear of a floor slab's top.
 const CLEAR_FROM := 1.0
-## The most results the overlap test reads (one per shape of what the body stands in).
+## How many results a page of the overlap test holds (`TwinSpace.intersecting` pages it).
 const CLEAR_HITS := 64
 ## Interaction component (Interaction domain): finds and runs object interactions;
 ## `nearest_in_reach`, `is_busy()` and `interaction_label()` go through it.
@@ -279,7 +279,7 @@ func _overlaps(body: Node) -> bool:
 	params.transform = Transform3D(
 		Basis(), PlanSpace.lift(character.global_position, CLEAR_FROM + cylinder.height * 0.5)
 	)
-	for result in space.intersect_shape(params, CLEAR_HITS):
+	for result in TwinSpace.intersecting(space, params, CLEAR_HITS):
 		if TwinSpace.owner_of(result["collider"]) == body:
 			return true
 	return false

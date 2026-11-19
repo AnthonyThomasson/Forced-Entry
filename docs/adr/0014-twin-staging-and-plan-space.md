@@ -162,7 +162,15 @@ simply:
   (`CharacterAnatomy.ragdoll.step`: ragdoll3d); (5) `VehicleContacts._pile` / `_pressed_by`, which find a pile of characters through their 2D
   footprints; (6) the character's 2D `move_and_slide` for a body with no twin space and the zero-length `test_move` that folds a new body into
   the 2D space; (7) outside these domains, the player's cone (`Vision`, `SightRay.plan_hit`), `Explosion`'s 2D coverage, a door's nudge and
-  the blood's queries. Measured (`tools/perf_ab.sh 389c3eb5 HEAD --different-fights`, 6 rounds, a busy machine): `match_5v5_stress` +0.7%,
+  the blood's queries. One rule for a world with no twin space (a hand-built one: every match and every staged test world has twins, so none
+  of the game's own worlds is such): the moved readers answer it with their neutral answer (the reach finds nothing, the overlap check says no
+  overlap, a door's swing is clear) and only `AgentVision` keeps a 2D plan fallback; those branches go with the 2D space. The plan lines are
+  cast at an ankle's height, and every piece in the way blocks, as in 2D: the users that ask whether a point can be seen through them
+  (`watch.gd`, `search_coverage.gd` through `has_line_to`) treat a low piece as opaque while the sight rays look over it: a follow-up for the
+  AI, with `BodySweep` (about 0.8 ms a frame in a 10v10, which survives del2d) a candidate for perf3d. A seated or dead character is off the
+  plan lines as it was (its 2D circle disabled, its layer 0, its twin off). The reach to a piece is to its real 3D body, as wide as its
+  2D footprint was (a chair's 28 px square): a body exactly at the reach's rim (46 px) is no longer in it (the 2D engine counted shapes that
+  touch, Jolt does not), which moved one premise by 6 px (`space_picks_nearest_to_mouse`). Measured (`tools/perf_ab.sh 389c3eb5 HEAD --different-fights`, 6 rounds, a busy machine): `match_5v5_stress` +0.7%,
   `grenade_match_stress` +1.8%, `match_10v10_stress` +1.8%, `match_npc_vision` -1.2% of the base's average frame.
 
 ## Consequences

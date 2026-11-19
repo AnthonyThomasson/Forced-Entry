@@ -13,5 +13,6 @@ description: Use when editing scenes/interaction/ or working on object interacti
 - **A `move_to` action overlaps the object on purpose.** The character is snapped onto the object under a temporary `add_collision_exception_with`, so a seat or bed is not shoved and the character is not ejected. Re-entering the object just left calls `use.stop_clearing(body)` first and keeps the exception it still has.
 - **Exit is deferred out of the physics step** (`_end` → `_teardown`): moving the body and restoring its collision mid-solve made the physics lurch. The character stays busy (`use.is_busy()`) for the frame in between.
 - **Collision comes back only once clear.** `_teardown` hands the object to `use.keep_clear_of(body)` (`CharacterUse`, `CLEAR_MARGIN`), which lifts the exception when the body has left the object, so restoring collision never finds an overlap to eject from.
+- **A piece is reached by its real body.** The reach is to a piece's 3D body (a chair's 28 px square, as wide as its 2D footprint was); a body exactly on the 46 px rim is out (Jolt, unlike the 2D engine, does not count touching). A world with no twin space finds nothing (every staged world has twins). Paged: `TwinSpace.intersecting`.
 
 **Interfaces:** 8 (Interaction ↔ Character & Objects), 11 (`PhysicsLayers.TWIN_WORLD`), 29 (`TwinSpace.space_of`, `owner_of`, `twin_for`).

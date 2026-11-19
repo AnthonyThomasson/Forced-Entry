@@ -18,7 +18,7 @@ extends Node2D
 const QUERY_MASK := PhysicsLayers.TWIN_WORLD
 ## How high (px) above the floor the reach's cylinder starts: clear of a floor slab's top.
 const REACH_FROM := 1.0
-## The most results the reach query reads, one per shape of each object in it.
+## How many results a page of the reach query holds (`TwinSpace.intersecting` pages it).
 const REACH_HITS := 64
 
 ## How far from the body center (px) an object may be and still be reachable.
@@ -126,7 +126,7 @@ func _query_reachable() -> Array:
 	params.transform = Transform3D(Basis(), PlanSpace.lift(center, REACH_FROM + shape.height * 0.5))
 	var seen := {}
 	var found: Array[Node2D] = []
-	for result: Dictionary in space.intersect_shape(params, REACH_HITS):
+	for result: Dictionary in TwinSpace.intersecting(space, params, REACH_HITS):
 		var obj := TwinSpace.owner_of(result["collider"])
 		if obj != null and not seen.has(obj) and obj.has_method("get_interactions"):
 			seen[obj] = true
