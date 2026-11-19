@@ -3,9 +3,10 @@ extends SubViewport
 ## General domain, the twin 3D space (#194, D3, `docs/adr/0014-twin-staging-and-plan-space.md`,
 ## interface 29): a 3D physics space beside the 2D simulation, holding a 3D twin of each solid 2D
 ## body (walls, floors, furniture, doors, vehicles, characters), each with a real height, kept in
-## step with its 2D body every physics frame. The 2D simulation stays the truth and nothing in
-## gameplay reads the twins yet; the real-cover jobs move reads onto them (a bullet's 3D ray, a
-## fragment, a throw, a sight line), then the bodies themselves flip to 3D one class at a time.
+## step with its 2D body every physics frame, or leading it: a free piece and a character are 3D
+## bodies that move and write their 2D footprint, the rest are 2D bodies the twin follows (a door, a
+## vehicle, a wall's dents until the 2D side is gone). Bullets, sight lines and sweeps read the
+## twins.
 ##
 ## **Where it lives.** The twins are children of this node, a `SubViewport` (never drawn) with a
 ## `World3D` of its own: the 3D counterpart of the 2D space the sim runs in, so it exists wherever a

@@ -14,9 +14,7 @@ extends RefCounted
 ## How high (px) a strike's volume starts at the lowest: clear of a floor slab's top.
 const FLOOR_CLEAR := 1.0
 ## Physics layers a strike meets: walls, solid furniture, vehicles and living characters.
-const MASK := (
-	PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE | PhysicsLayers.TWIN_CHARACTER
-)
+const MASK := PhysicsLayers.TWIN_ALL
 
 
 ## Strike every body the `blow`'s column overlaps, but `character` itself and those already in

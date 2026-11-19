@@ -8,9 +8,7 @@ extends RefCounted
 ## character built with no twin space finds nothing solid.
 
 ## Physics layers a hand or leg meets: walls, solid furniture, vehicles and living characters.
-const MASK := (
-	PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE | PhysicsLayers.TWIN_CHARACTER
-)
+const MASK := PhysicsLayers.TWIN_ALL
 ## What a weapon's barrel is held against: walls, furniture and vehicles, not people.
 const BARREL_MASK := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
 ## How far up (px) the near-solid gate starts: clear of a floor slab's top.
@@ -72,8 +70,8 @@ func refresh(radius: float) -> void:
 	near_solid = not space.intersect_shape(_params, 1).is_empty()
 
 
-## Where a sphere of `radius` swept from `centre` (world, plan) `height` px up along plan `motion`
-## comes to rest, as a local offset from `centre`: `motion` itself when the way is clear.
+## Where a foot-sized sphere of `radius` swept from `centre` (world, plan) `height` px up along plan
+## `motion` comes to rest, as a local offset from `centre`: `motion` itself when the way is clear.
 func circle(centre: Vector2, motion: Vector2, radius: float, height: float) -> Vector2:
 	var space := _space()
 	if motion.length_squared() < 0.0001 or space == null:

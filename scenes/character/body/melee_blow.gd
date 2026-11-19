@@ -17,8 +17,8 @@ var kind := &"punch"
 ## How high above the floor it lands (px: the fist's, the foot's), so a free piece is shoved at its
 ## real height; -1 when unknown.
 var height := -1.0
-## The lowest height (px) it reaches down to: a kick's shin and a fist swung at what is beneath it
-## (a punch reaches from the ankle up to the fist). -1 for a ball of its radius about `height`.
+## The lowest height (px) it reaches down to: a fist swung at what is beneath it reaches from the
+## ankle up to the fist. -1 for a column of its radius about `height` (a kick's).
 var base := -1.0
 
 

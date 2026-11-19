@@ -11,7 +11,7 @@
      for any other pushable.
    - A character is a 3D leader too (interface 29, `CharacterTwin`): its walk pushes what the 3D body slid into at hip height, and its
      punch, kick, shoves and leg press are cast and struck in the twin space at their real heights (`BodyHeights.contact`: hip, fist,
-     knee, leg, ankle; a kick lands at the shin, a punch from the ankle up to the fist), so a blow at a free piece reaches
+     knee, leg, ankle; a kick lands at the shin, its column the height give or take its radius; a punch reaches from the ankle up to the fist), so a blow at a free piece reaches
      its `PieceBody` through `Knockback.push` at the point and height struck: a fist high on a tall thin piece tips it, a foot low on it slides it.
    - Pushers: furniture→character contact transfers, bullet impacts, an explosion's blast (central), the character's punch, kick, leg press
      and walking push (each at its contact point).

@@ -38,6 +38,8 @@ const SAFE_MARGIN := 0.02
 ## How high the cylinder's feet are above the floor (px): above a floor slab (0.1) and any slab
 ## edge, below every piece's lowest part.
 const FEET := 0.5
+## How much slimmer (px) the cylinder `fits` tests is than the body: a body pressed to a wall fits.
+const FITS_SLACK := 0.5
 
 ## The character this is the body of.
 var _character: Character
@@ -76,9 +78,7 @@ static func build(node: Node2D) -> Node3D:
 	twin.wall_min_slide_angle = HEAD_ON
 	twin.safe_margin = SAFE_MARGIN
 	twin.collision_layer = PhysicsLayers.TWIN_CHARACTER
-	twin.collision_mask = (
-		PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE | PhysicsLayers.TWIN_CHARACTER
-	)
+	twin.collision_mask = PhysicsLayers.TWIN_ALL
 	twin._shape.radius = twin._character.radius * RenderConfig.unit
 	twin._holder.shape = twin._shape
 	twin.add_child(twin._holder)
@@ -195,7 +195,7 @@ func fits(posture: StringName) -> bool:
 	if not is_inside_tree():
 		return true
 	var taller := CylinderShape3D.new()
-	taller.radius = _shape.radius - 0.5
+	taller.radius = _shape.radius - FITS_SLACK
 	taller.height = _height_of(posture)
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = taller
