@@ -41,7 +41,7 @@ static func watch(t: TestContext, ids: Array, duration: float, stop := Callable(
 				continue
 			pos[id] = a.global_position
 			facing[id] = a.facing
-			speed[id] = (a.get_real_velocity() as Vector2).length()
+			speed[id] = (TwinSpace.real_velocity_of(a) as Vector2).length()
 		samples.append({ "t": t.time, "pos": pos, "facing": facing, "speed": speed })
 		if stop.is_valid() and stop.call():
 			break

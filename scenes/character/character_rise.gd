@@ -74,7 +74,8 @@ func rise_to(wanted: StringName, cycle := 0.0) -> bool:
 	if character.movement.posture() != &"crouch":
 		return true
 	if (wanted != BodyHeights.NONE and wanted != BodyHeights.DUCK
-			and BodyHeights.muzzle(wanted) > BodyHeights.muzzle(character.movement.body_posture())):
+			and BodyHeights.muzzle(wanted) > BodyHeights.muzzle(character.movement.body_posture())
+			and character.movement.has_room_for(wanted)):
 		_pose = wanted
 		_wait = CharacterRiseConfig.rise_time
 		character.anatomy.invalidate_rig()

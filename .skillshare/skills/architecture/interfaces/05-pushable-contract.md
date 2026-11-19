@@ -9,6 +9,10 @@
      push, a leg press: `CharacterPush.shove(piece, dir, impulse, contact: Vector3, speed)`, `contact.z` the height) is clamped to the
      piece's centre height, so it slides it and never flips it; a blow is not. `Knockback.push` falls back to `apply_impulse(v, at)`
      for any other pushable.
+   - A character is a 3D leader too (interface 29, `CharacterTwin`): its walk pushes what the 3D body slid into at hip height, and its
+     punch, kick, shoves and leg press are cast and struck in the twin space at their real heights (`BodyHeights.contact`: hip, fist,
+     knee, leg, ankle; a kick lands at the shin, a punch from the ankle up to the fist), so a blow at a free piece reaches
+     its `PieceBody` through `Knockback.push` at the point and height struck: a fist high on a tall thin piece tips it, a foot low on it slides it.
    - Pushers: furniture→character contact transfers, bullet impacts, an explosion's blast (central), the character's punch, kick, leg press
      and walking push (each at its contact point).
    - A vehicle (`vehicle.gd`, a `RigidBody2D`) is pushable through its native methods (a bullet shoves it at the hit). It shoves free furniture

@@ -371,7 +371,7 @@ static func character_holes(root: Node) -> Array:
 		var body := node as CharacterBody2D
 		if (body == null
 				or body.collision_layer == 0
-				or body.get_real_velocity().length() >= REST_SPEED):
+				or TwinSpace.real_velocity_of(body).length() >= REST_SPEED):
 			continue
 		var hull := NavHoles.hull_of(body)
 		if not hull.is_empty():

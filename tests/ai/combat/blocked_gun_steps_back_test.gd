@@ -33,10 +33,13 @@ func configure(s: TestSetup) -> void:
 		Vector2(300, 250),
 		{ "start_slot": RIFLE_SLOT, "movement:speed": 0.0, "max_health": 400.0 },
 	)
-	# A chair whose north edge (y = 254) is just south of the defender's aim line (y = 250) and
-	# across its barrel's line (y = 259, the rifle is on the right): clear to shoot past, but the
-	# barrel is against it.
-	s.object(&"chair", "chair", Vector2(336, 268))
+	# A shelf as wide as a chair (28 px), tall enough to be against a rifle held standing (a chair's
+	# back is under the muzzle: the barrel passes over it, as it should), whose north edge (y = 254)
+	# is just south of the defender's aim line (y = 250) and across its barrel's line (y = 259, the
+	# rifle is on the right): clear to shoot past, but the barrel is against it.
+	var shelf: Dictionary = WorldGen.object_definition("bookshelf").duplicate()
+	shelf["size"] = Vector2(28, 28)
+	s.object(&"chair", shelf, Vector2(336, 268))
 	s.actor(
 		&"intruder",
 		&"puppet",

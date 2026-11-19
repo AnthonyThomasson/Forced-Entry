@@ -31,12 +31,12 @@
 		{
 			"options": [
 				"the hallway — searched recently — medium route",
-				"the living room — searched recently — short route"
+				"the living room — searched recently — medium route"
 			],
 			"pick": "room_hall",
 			"probabilities": {
-				"room_hall": 0.5824,
-				"room_living_room": 0.4176
+				"room_hall": 0.5856,
+				"room_living_room": 0.4144
 			},
 			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
 			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - the kitchen (reached it, for 5s).\nDecided so far: SEARCH."

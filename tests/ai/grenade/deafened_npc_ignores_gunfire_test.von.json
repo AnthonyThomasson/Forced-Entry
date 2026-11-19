@@ -48,7 +48,7 @@
 				"lead_gunfire_3_0": 1.0
 			},
 			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - the hallway (en route, for 6s).\nNobody else is in sight or known.\ndeaf (ally) — in sight — north-east of you, in the hallway — standing still.\nGunfire heard to the north-east, in the kitchen, recently.\nDecided so far: INVESTIGATE."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - the hallway (en route, for 6s).\nNobody else is in sight or known.\ndeaf (ally) — last seen just now — north-east of you, in the hallway — was standing still.\nGunfire heard to the north-east, in the kitchen, recently.\nDecided so far: INVESTIGATE."
 		},
 		{
 			"options": [

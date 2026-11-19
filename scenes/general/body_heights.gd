@@ -46,9 +46,12 @@ static var postures: Dictionary = {
 }
 ## Where a body touches a thing it shoves, in metres above the floor for a standing body (a body in
 ## another posture has them scaled by `height_share`): its `hip` (a walking push against furniture),
-## `fist` (a punch) and `leg` (a foot or shin pressing a piece, a kick). A free piece shoved there
-## leans or slides by how high it is struck (`contact`).
-static var contacts: Dictionary = { &"hip": 0.95, &"fist": 1.15, &"leg": 0.40 }
+## `fist` (a punch, a hand's reach), `leg` (a foot or shin pressing a piece, a kick), `knee` and
+## `ankle` (where a leg's joints sweep). A free piece shoved there leans or slides by how high it is
+## struck (`contact`).
+static var contacts: Dictionary = {
+	&"hip": 0.95, &"fist": 1.15, &"leg": 0.40, &"knee": 0.50, &"ankle": 0.14,
+}
 
 
 ## How many px a metre is: 42.3.

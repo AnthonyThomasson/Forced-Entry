@@ -71,19 +71,22 @@ func _rest_leg(
 ) -> Variant:
 	var wanted: Vector3 = rig.point(Rig.ANKLE[i])
 	var ankle_at := Vector2(wanted.x, wanted.y)
-	var rested := _sweep(character, ankle_at)
+	var posture: StringName = character.movement.body_posture()
+	var ankle_height := BodyHeights.contact(&"ankle", posture)
+	var knee_height := BodyHeights.contact(&"knee", posture)
+	var rested := _sweep(character, ankle_at, ankle_height)
 	var knee_wanted := Vector2.ZERO
 	var knee_rested := Vector2.ZERO
 	for _try in KNEE_TRIES:
 		var knee3: Vector3 = rig.knee_at(i, Vector3(rested.x, rested.y, wanted.z))
 		knee_wanted = Vector2(knee3.x, knee3.y)
-		knee_rested = _sweep(character, knee_wanted)
+		knee_rested = _sweep(character, knee_wanted, knee_height)
 		var overshoot := knee_rested - knee_wanted
 		if overshoot.length() <= REST_EPS:
 			break
 		# The knee would pass through something: step the foot back by how far it overshot, then
 		# rest it again.
-		rested = _sweep(character, rested + overshoot)
+		rested = _sweep(character, rested + overshoot, ankle_height)
 	_press(character, 2 + i, knee_wanted, knee_rested, delta)
 	_press(character, i, ankle_at, rested, delta)
 	if (rested.distance_to(ankle_at) <= REST_EPS
@@ -92,16 +95,22 @@ func _rest_leg(
 	return rested
 
 
-## The place `target` (local px) can be reached from the body centre by a foot-sized circle:
-## `target` itself when the way is clear, else where it first touches a wall or solid piece, slid
-## along the surface for what is left.
-func _sweep(character: CharacterBody2D, target: Vector2) -> Vector2:
-	return sweep.circle(character.global_position, target, CharacterPushConfig.leg_radius)
+## The place `target` (local px) can be reached from the body centre by a foot-sized sphere `height`
+## px up: `target` itself when the way is clear, else where it first touches a wall or solid piece,
+## slid along the surface for what is left.
+func _sweep(character: CharacterBody2D, target: Vector2, height: float) -> Vector2:
+	return sweep.circle(character.global_position, target, CharacterPushConfig.leg_radius, height)
+
+
+## How high (px) the point `slot` names (an ankle, or a knee) is on `character`'s body.
+func _height_of(character: CharacterBody2D, slot: int) -> float:
+	var posture: StringName = character.movement.body_posture()
+	return BodyHeights.contact(&"knee" if slot >= 2 else &"ankle", posture)
 
 
 ## Shove the light piece (if any) that a point wanted at `wanted` but rested at `rested` (local px)
-## is pressing into. `slot` indexes `_prev`: how fast the point is moving, in the world, into the
-## piece sets the strength.
+## is pressing into. `slot` indexes `_prev` (an ankle, or a knee: it says how high the point is):
+## how fast the point is moving, in the world, into the piece sets the strength.
 func _press(
 	character: CharacterBody2D,
 	slot: int,
@@ -116,12 +125,15 @@ func _press(
 	if previous == null or depth <= REST_EPS or delta <= 0.0:
 		return
 	var dir := into / depth
-	var velocity: Vector2 = (wanted - (previous as Vector2)) / delta + character.get_real_velocity()
+	var velocity: Vector2 = (
+		(wanted - (previous as Vector2)) / delta + TwinSpace.real_velocity_of(character)
+	)
 	var approach := velocity.dot(dir)
 	if approach <= 0.0:
 		return
 	var at: Vector2 = character.global_position + rested
-	var piece: Node = sweep.pushable_at(at)
+	var height := _height_of(character, slot)
+	var piece: Node = sweep.pushable_at(at, height)
 	if piece == null:
 		return
 	var strength := (clampf(approach / maxf(float(character.movement.speed), 1.0), 0.0, 1.0)
@@ -132,6 +144,6 @@ func _press(
 		piece,
 		dir,
 		CharacterPushConfig.leg_push_impulse * strength * delta,
-		Vector3(at.x, at.y, BodyHeights.contact(&"leg", character.movement.body_posture())),
+		Vector3(at.x, at.y, height),
 		float(character.movement.speed),
 	)

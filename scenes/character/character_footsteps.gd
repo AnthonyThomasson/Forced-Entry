@@ -45,7 +45,7 @@ func _report(character: CharacterBody2D, foot: int) -> void:
 	fall.at = character.global_position + Vector2(ankle.x, ankle.y) + dir * fall.length * 0.25
 	# Left foot (0) has its arch toward +y of the toe frame, right foot toward -y.
 	fall.inner = 1.0 if foot == 0 else -1.0
-	fall.speed = character.get_real_velocity().length()
+	fall.speed = TwinSpace.real_velocity_of(character).length()
 	footprints.step(foot, fall)
 	# The footfall itself, for whoever listens (the Audio domain picks the sound from the floor it
 	# lands on; the AI hears whose it is and how it was walked: running carries far, a crouched step

@@ -130,7 +130,7 @@ static func pressed_watch(walker: Node2D, other: Node2D) -> Callable:
 	# the stand under way, the longest (an Array: a lambda captures floats by value)
 	var clock := [0.0, 0.0]
 	return func() -> float:
-		var still: bool = walker.get_real_velocity().length() < PRESSED_SPEED
+		var still: bool = TwinSpace.real_velocity_of(walker).length() < PRESSED_SPEED
 		if still and walker.global_position.distance_to(other.global_position) < PRESSED_GAP:
 			clock[0] += 1.0 / Engine.physics_ticks_per_second
 			clock[1] = maxf(clock[1], clock[0])

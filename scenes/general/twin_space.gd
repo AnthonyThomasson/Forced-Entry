@@ -250,6 +250,37 @@ static func leader_of(body: Object) -> RigidBody3D:
 	return null
 
 
+## The 3D body that walks the 2D character `body` (a `CharacterBody3D`, #194 chars3d-a): its twin
+## when that is a `CharacterBody3D` with a `walk`, else null. The character moves it, and the 2D
+## body is written from it (interface 29).
+static func walker_of(body: Object) -> CharacterBody3D:
+	if body == null or not is_instance_valid(body) or not body.has_meta(TWIN_META):
+		return null
+	var found: Variant = body.get_meta(TWIN_META)
+	if (is_instance_valid(found)
+			and found is CharacterBody3D
+			and (found as Object).has_method(&"walk")):
+		return found
+	return null
+
+
+## The plan velocity (px/s) the character `body` really covered last frame: what
+## `CharacterBody2D.get_real_velocity` says of a body the 2D engine moves. A character walked in the
+## twin space (`walker_of`) is moved by its 3D body, its 2D body only the footprint (the 2D engine
+## never moved it, so its own real velocity is nil), so a reader of a pace asks here.
+static func real_velocity_of(body: Object) -> Vector2:
+	var lead := walker_of(body)
+	if lead != null:
+		return lead.call(&"real_velocity")
+	return (body as CharacterBody2D).get_real_velocity()
+
+
+## The row's 3D or 2D rigid body whose sleep it follows, or null for a row that is never asleep.
+func _sleeper(row: Dictionary) -> Variant:
+	var lead: Variant = row["lead"]
+	return lead if lead is RigidBody3D else (row["rigid"] if lead == null else null)
+
+
 ## The 2D body the twin `collider` (a ray or shape result's `collider`) stands for, or null for
 ## anything else (or a body already freed).
 static func owner_of(collider: Object) -> Node2D:
@@ -363,7 +394,7 @@ func _twin(node: Node2D) -> void:
 	made.force_update_transform()
 	# a free 3D body that takes the 2D body over (furniture): it is the truth, the 2D body its
 	# footprint
-	var lead: RigidBody3D = made as RigidBody3D if made.has_method(&"take_over") else null
+	var lead: PhysicsBody3D = made as PhysicsBody3D if made.has_method(&"take_over") else null
 	var row := _new_row(node, made, lead)
 	_rows[id] = row
 	count += 1
@@ -371,8 +402,9 @@ func _twin(node: Node2D) -> void:
 	if lead != null:
 		lead.take_over(node)
 		row["last"] = node.global_transform
-		row["wake"] = _on_sleeping.bind(row)
-		lead.sleeping_state_changed.connect(row["wake"])
+		if lead is RigidBody3D:
+			row["wake"] = _on_sleeping.bind(row)
+			(lead as RigidBody3D).sleeping_state_changed.connect(row["wake"])
 		_moving.append(row)
 		return
 	var rigid: Variant = row["rigid"]
@@ -390,7 +422,7 @@ func _twin(node: Node2D) -> void:
 
 
 ## The row of `node` and its twin `made` (a `lead`, when it is a free 3D body leading `node`).
-func _new_row(node: Node2D, made: Node3D, lead: RigidBody3D) -> Dictionary:
+func _new_row(node: Node2D, made: Node3D, lead: PhysicsBody3D) -> Dictionary:
 	var solid := made as CollisionObject3D
 	var xf := node.global_transform
 	return {
@@ -418,7 +450,7 @@ static func _moves(node: Node2D) -> bool:
 ## whose transform has not changed is done after that one comparison.
 func _follow(row: Dictionary) -> bool:
 	var body: Node2D = row["body"]
-	var rigid: Variant = row["lead"] if row["lead"] != null else row["rigid"]
+	var rigid: Variant = _sleeper(row)
 	if rigid != null:
 		if rigid.sleeping:
 			if row["asleep"]:
@@ -452,6 +484,15 @@ func _follow(row: Dictionary) -> bool:
 ## written) sends the 3D body there instead (`_adopt`).
 func _follow_lead(row: Dictionary) -> void:
 	var body: Node2D = row["body"]
+	if (row["lead"] as Object).has_method(&"follow"):
+		# a lead that moves its own footprint (a character's walk writes it): it only asks to be
+		# told of a script's move
+		row["lead"].call(&"follow", body)
+		_sync_layer(row, body)
+		var step: Callable = row["update"]
+		if step.is_valid():
+			step.call(body)
+		return
 	var rigid := body as RigidBody2D
 	if rigid != null and not rigid.freeze:
 		# a footprint is never free: its 3D body moves it, the 2D solver does not
@@ -565,7 +606,7 @@ func _retire(row: Dictionary, index: int) -> void:
 ## A rigid body's sleep changed: one that wakes while parked goes back on the follow list, so a
 ## sleeping piece costs nothing a frame.
 func _on_sleeping(row: Dictionary) -> void:
-	var sleeper: Variant = row["lead"] if row["lead"] != null else row["rigid"]
+	var sleeper: Variant = _sleeper(row)
 	if row["parked"] and row["id"] != 0 and not row["frozen"] and not sleeper.sleeping:
 		_wake(row)
 
@@ -591,7 +632,7 @@ func _drop(row: Dictionary) -> void:
 	row["id"] = 0  # a moving list still holding the row drops it at its next update
 	count -= 1
 	var wake: Callable = row["wake"]
-	var rigid: Variant = row["lead"] if row["lead"] != null else row["rigid"]
+	var rigid: Variant = _sleeper(row)
 	if wake.is_valid() and is_instance_valid(rigid):
 		var changed: Signal = rigid.sleeping_state_changed
 		if changed.is_connected(wake):

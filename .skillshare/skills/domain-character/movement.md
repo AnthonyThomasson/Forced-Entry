@@ -28,3 +28,16 @@ A controller sets `movement.run_input` (the player: `Keybinds.RUN`, Shift; an NP
 ## The stun on the walk (spec `docs/grenades.md` G13)
 
 While `stun.level()` is above 0, `_move_speed()` scales to `CharacterStunConfig.speed`, running is refused and the walk drifts (`stun.drift()`). The stunned look and one-handed fire are `weapon.md` and `body.md`.
+
+## The 3D body (`CharacterTwin`, interface 29, D13)
+
+a character's twin is a `CharacterTwin` (`character/character_twin.gd`, a `CharacterBody3D`, an upright cylinder the radius of the body's circle and the height of its posture: `BodyHeights`
+  STAND, DUCK or the pose a rise took), the truth of where it stands; its 2D `CharacterBody2D` is the footprint written from it. `CharacterMovement.walk` moves it (`TwinSpace.walker_of(body) -> CharacterBody3D`, null for a body
+  with no such twin, whose 2D `move_and_slide` still runs): `move_and_slide` in 3D, floating mode and `y` held at 0 (the body is locked upright on the floor: a piece is an obstacle, never a step; its feet stand 0.5 px up, over a floor slab and
+  a kerb), `wall_min_slide_angle` 3 degrees (a body that meets a wall nearly square stops, one a few degrees off slides, as the 2D body did), against `TWIN_WORLD`, `TWIN_VEHICLE` and the other `TWIN_CHARACTER`s. What it slid into (`contacts()`: the slide's own motion queries, read in a fixed order, never Jolt's contact events or lists, which are not deterministic run to run) is
+  shoved through `Knockback.push` (5) at hip height by the walk (`CharacterMovement._apply_pushes`), so a free piece is pushed as a `PieceBody` and a heavy one holds the walker. `TwinSpace.real_velocity_of(body: Object) -> Vector2` is the plan velocity a
+  body covered (the 3D body's for a led character, `get_real_velocity()` for any other): what the nav, the footsteps, the pose and the gaze read in place of the 2D body's own. A 2D transform moved by a script, a door's nudge, a vehicle's strike or a
+  ride is adopted (`CharacterTwin.follow`, the twin space's `_follow_lead` hook: the 3D body is put there, velocity zero) so a door (24) and a vehicle (19), still 2D-led, reach it. A stance change resizes the cylinder (`twin_update`); a stand-up or a rise
+  that would grow it into a solid of the world or a vehicle (a shelf, a piece lying across it) is refused (`CharacterMovement.has_room_for(pose)`, `CharacterTwin.fits`; the rise stays ducked and its round meets the cover). The legs, the fists and the kick
+  are cast and struck in 3D at their real heights (`character/body/body_sweep.gd`, `body_strike.gd`; `BodyHeights.contact` hip, fist, leg, knee, ankle), a free piece shoved at the point and height it is struck.
+  It rests `SAFE_MARGIN` (0.02 px) off what stops it, and ends each walk with a zero-length `test_move` of the 2D footprint, which keeps the 2D space current for the readers still in 2D (it folds in a body added this frame, as every 2D walker's `move_and_slide` did: the player's view reads it). Tests: `walk_in_3d`, `twin_capsule_rise`, `stand_under_beam`, `heavy_piece_blocks_walker`, `shove_height_in_3d`, `kick_lands_at_shin_height`, `door_nudge_reaches_3d_body`, `vehicle_strike_reaches_3d_body`.

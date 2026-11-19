@@ -42,7 +42,7 @@ func run(t: TestContext) -> void:
 	var walking := func():
 		var d: Dictionary = brain.debug_state()
 		return (d.get("primitive") == "move"
-				and (inv.get_real_velocity() as Vector2).length() > 50.0
+				and (TwinSpace.real_velocity_of(inv) as Vector2).length() > 50.0
 				and int(d.get("hostiles_known", 0)) > 0)
 	if not t.require(
 			await t.until(walking, 10.0),

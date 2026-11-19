@@ -80,7 +80,12 @@ func walk(delta: float) -> void:
 	_update_stamina(run_input and _posture == &"stand" and stun.level() <= 0.0
 			and move_input.length() > CharacterPaceConfig.run_min_input, delta)
 	character.velocity = move_input * _move_speed() * _push_slow + _knockback + stun.drift()
-	character.move_and_slide()
+	var lead := TwinSpace.walker_of(character)
+	if lead != null:
+		# the 3D body walks and the 2D body is written from it (`CharacterTwin`)
+		character.velocity = lead.walk(character.velocity)
+	else:
+		character.move_and_slide()
 	_knockback = _knockback.move_toward(
 		Vector2.ZERO,
 		CharacterPushConfig.knockback_friction * delta,
@@ -137,11 +142,21 @@ func set_posture(wanted: StringName) -> bool:
 			or _posture_cooldown > 0.0
 			or not CharacterPostureConfig.postures.has(wanted)):
 		return false
+	if wanted == &"stand" and not has_room_for(BodyHeights.STAND):
+		return false  # a taller body would grow into what is over it
 	_posture = wanted
 	character.weapon.rise.drop()
 	_posture_cooldown = CharacterPostureConfig.change_time
 	character.anatomy.invalidate_rig()
 	return true
+
+
+## Whether the body, at `pose` (a `BodyHeights` pose), would stand clear of the solids over it: a
+## taller cylinder in the twin space is not grown into a shelf, a lintel or a piece lying across it
+## (a stand-up or a rise there is refused). True with no twin (nothing to grow into).
+func has_room_for(pose: StringName) -> bool:
+	var lead := TwinSpace.walker_of(character) as CharacterTwin
+	return lead == null or lead.fits(pose)
 
 
 ## C: crouch, or stand back up from a crouch.
@@ -281,13 +296,12 @@ func _apply_pushes() -> float:
 		return 1.0
 
 	var heaviest := 0.0
-	for i in character.get_slide_collision_count():
-		var collision := character.get_slide_collision(i)
-		var collider := collision.get_collider()
+	for contact in _slides():
+		var collider: Object = contact["body"]
 		if collider == null or not collider.has_method("apply_impulse"):
 			continue
 		# The normal points back toward the character, so "into the object" is -normal.
-		var dir := -collision.get_normal()
+		var dir: Vector2 = -contact["normal"]
 		var impulse := (CharacterPushConfig.impulse * input_strength
 				* character.get_physics_process_delta_time())
 		if not collider.has_method("get_mass"):
@@ -300,8 +314,8 @@ func _apply_pushes() -> float:
 			dir,
 			impulse,
 			Vector3(
-				collision.get_position().x,
-				collision.get_position().y,
+				contact["at"].x,
+				contact["at"].y,
 				BodyHeights.contact(&"hip", body_posture()),
 			),
 			move_input.dot(dir) * _move_speed() * _push_slow,
@@ -315,6 +329,26 @@ func _apply_pushes() -> float:
 		CharacterPushConfig.slow_min,
 		1.0,
 	)
+
+
+## What the last walk slid into: `{ body, normal, at }` per contact, the normal (plan) pointing back
+## at the character and `at` the plan point. A character walked in the twin space reports what its
+## 3D body slid into (the 2D body of each twin), else the 2D slide collisions.
+func _slides() -> Array[Dictionary]:
+	var lead := TwinSpace.walker_of(character)
+	if lead != null:
+		return (lead as CharacterTwin).contacts()
+	var out: Array[Dictionary] = []
+	for i in character.get_slide_collision_count():
+		var collision := character.get_slide_collision(i)
+		out.append(
+			{
+				"body": collision.get_collider(),
+				"normal": collision.get_normal(),
+				"at": collision.get_position(),
+			}
+		)
+	return out
 
 
 ## Slow down at once on contact, but recover toward full speed gradually so losing contact for a

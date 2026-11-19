@@ -97,7 +97,9 @@ func punch_amounts() -> Array:
 ## not held against a wall), nor the body itself. A weapon's barrel asks this to know whether it
 ## touches something.
 func solid_distance(from: Vector2, dir: Vector2, max_len: float) -> float:
-	return sweep.solid_distance(from, dir, max_len)
+	return sweep.solid_distance(
+		from, dir, max_len, BodyHeights.muzzle(_character.movement.body_posture())
+	)
 
 
 ## True while a swing is in progress (extend + retract).
@@ -180,7 +182,12 @@ func _resolve_hand(hand: int) -> Vector2:
 	var raw := _raw_hand_position(hand)
 	if sweep.is_clear():
 		return raw
-	return sweep.circle(_character.global_position, raw, hand_radius)
+	return sweep.circle(
+		_character.global_position,
+		raw,
+		hand_radius,
+		BodyHeights.contact(&"fist", _character.movement.body_posture()),
+	)
 
 
 ## Throw the given hand forward, then retract it. The Item decides which hand and gates it.
@@ -235,6 +242,8 @@ func _report_hits() -> void:
 			facing * CharacterMeleeConfig.punch_impulse * motion,
 			CharacterMeleeConfig.punch_damage * motion, "Punch (hand %d)" % hand)
 	blow.note = ", %.0f%% swing" % (motion * 100.0)
-	blow.height = BodyHeights.contact(&"fist", _character.movement.body_posture())
+	var posture: StringName = _character.movement.body_posture()
+	blow.height = BodyHeights.contact(&"fist", posture)
+	blow.base = BodyHeights.contact(&"ankle", posture)
 	Strike.strike(_character, blow, _hit_bodies, false,
 			func(body: Node, damage: float) -> void: punched.emit(hand, body, damage))

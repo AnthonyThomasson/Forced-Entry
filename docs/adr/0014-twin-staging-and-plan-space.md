@@ -123,6 +123,24 @@ the alternative, a global `Vector2` to `Vector3` sweep, would have touched every
   hook; each domain builds the twin of what it owns.
 - **A world per mode.** Rejected above (the twin space is the same in every mode).
 
+## Characters lead (#194 chars3d-a, D13)
+
+A character is the second class flipped. Its twin is a `CharacterBody3D` (`CharacterTwin`) that the walk moves with `move_and_slide` in
+the twin space and the 2D `CharacterBody2D` is its footprint, written from it each frame, as a free piece's is from its `PieceBody`. Decided
+simply:
+
+- **Locked upright on the floor.** The body's mode is floating and its `y` is held at 0: there is no gravity to simulate for a body that is
+  never off the floor, and a piece is an obstacle, not a step to climb (its feet stand 0.5 px up, over a slab and a kerb). A straight
+  cylinder, not a capsule: a round meets the body square at any height, as the 2D circle, and a head shot's damage does not turn down by a slant.
+- **A 2D move is adopted.** A door's nudge, a vehicle's strike, a ride or a script still move the 2D body (those classes are 2D-led until their
+  own jobs): its transform no longer being the one the twin wrote puts the 3D body there, velocity zero.
+- **A stance change resizes the cylinder; it does not pop through anything.** A taller pose (a stand-up, a rise) is refused where a
+  slightly narrower cylinder of that height would overlap a solid of the world or a vehicle; a lower one always fits.
+- **Deterministic.** The walk reads the slide's own motion queries (not Jolt's contact events or lists, which vary run to run), in a fixed
+  order, so a Von replay stays bit for bit.
+- **Where the 2D side costs.** The 2D follower stays in the 2D space for the readers not flipped yet (the nav's avoid maps and holes, the
+  interaction finding, the AI's 2D queries) and goes with `del2d`; its cost is not optimised in this job.
+
 ## Consequences
 
 - Every match and test world has a `TwinSpace` child named `Twins` (the stage's handle's `twins`, `TestWorld.twin_space()`) with a 3D physics

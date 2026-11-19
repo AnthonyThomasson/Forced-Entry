@@ -52,6 +52,7 @@ A body's twin (`CharacterTwin`), its hit zones (`BodyHeights.zone_at`), its eye 
 standing, the duck, or the pose a ducked body has risen to. So a crouch is struck by fewer lines in the open (the ones under 36 px, against a standing
 body's under 74) and hides behind pieces at least 36 px tall. A crouched shooter with nothing in its way fires from the duck's muzzle without rising. Shooting and reloading work in every posture;
 running is refused (and costs no stamina) unless standing.
+The body's twin is a real 3D body (`CharacterTwin`, D13), so a body does not grow into what is over it: standing up from a crouch, and rising over cover to a taller pose, are refused where the taller cylinder would overlap a solid of the world or a vehicle (a lintel, a shelf, a piece lying across the body; `movement.has_room_for`). A refused rise leaves the body ducked, its round meeting the cover. Tests: `stand_under_beam`, `twin_capsule_rise`.
 Tests: `posture_speed`, `posture_player_input`, `posture_hit_chance`, `muzzle_height_by_posture`.
 
 **P2. Changing posture.** C toggles stand and crouch. A change waits out `CharacterPostureConfig.change_time` after the last one.

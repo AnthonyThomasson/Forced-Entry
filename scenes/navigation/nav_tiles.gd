@@ -198,7 +198,7 @@ static func walking_at(root: Node) -> Array[Vector2]:
 		var body := node as CharacterBody2D
 		if (body != null
 				and body.collision_layer != 0
-				and body.get_real_velocity().length() >= NavBuilder.REST_SPEED):
+				and TwinSpace.real_velocity_of(body).length() >= NavBuilder.REST_SPEED):
 			out.append(body.global_position)
 	return out
 

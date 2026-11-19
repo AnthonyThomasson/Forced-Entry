@@ -128,7 +128,7 @@ func step(delta: float) -> void:
 		return
 	kick.update(character, delta)
 	# Before the children's _physics_process, so the hands build on this frame's pose.
-	pose.update(delta, _pose_drive(character.get_real_velocity(), character.stun.level()))
+	pose.update(delta, _pose_drive(TwinSpace.real_velocity_of(character), character.stun.level()))
 	_refresh_sweep()
 	legs.update(character, delta)
 	footsteps.update(character)

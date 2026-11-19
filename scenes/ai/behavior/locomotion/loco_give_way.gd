@@ -67,7 +67,7 @@ func _init(locomotion: Node) -> void:
 func apply() -> void:
 	var character: Node = loco._character
 	var me: Vector2 = character.global_position
-	var pace := maxf(character.get_real_velocity().length(), PACE_FLOOR)
+	var pace := maxf(TwinSpace.real_velocity_of(character).length(), PACE_FLOOR)
 	var mine: Vector2 = character.movement.move_input * pace
 	var horizon := minf(GIVE_HORIZON, _way_left() / pace)
 	var other := _walker_in_way(me, mine, horizon)
