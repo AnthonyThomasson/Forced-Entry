@@ -416,7 +416,10 @@ func _twin(node: Node2D) -> void:
 	made.force_update_transform()
 	# a free 3D body that takes the 2D body over (furniture): it is the truth, the 2D body its
 	# footprint
-	var lead: PhysicsBody3D = made as PhysicsBody3D if made.has_method(&"take_over") else null
+	var driven := made is AnimatableBody3D and not made.has_method(&"follow")
+	var lead: PhysicsBody3D = null
+	if made.has_method(&"take_over") and not driven:
+		lead = made as PhysicsBody3D
 	var row := _new_row(node, made, lead)
 	_rows[id] = row
 	count += 1
@@ -429,7 +432,7 @@ func _twin(node: Node2D) -> void:
 			(lead as RigidBody3D).sleeping_state_changed.connect(row["wake"])
 		_moving.append(row)
 		return
-	if made is AnimatableBody3D and made.has_method(&"take_over"):
+	if driven and made.has_method(&"take_over"):
 		# a kinematic leader (a standing door): its own script turns it and writes the 2D follower
 		# in the one step, so this space has nothing to follow
 		made.call(&"take_over", node)

@@ -238,8 +238,8 @@ leader (`leader_of`), a walker's push and a blast slide it, and it comes to rest
 
 For the 2D follower (deleted with the 2D space): a leaf lying flat (its top within `DoorFallConfig.step_over`, 10 px, of the
 floor) is walk-over: its footprint is on `PhysicsLayers.LYING`, which no body walks or drives into (a vehicle drives over a
-lying door) but a blast asks for (a melee strike finds the slab in the twin space), so it is shoved like a piece (a second blast slides it, a kick moves it; a
-walker steps over it and pushes nothing) and not a hole in the nav bake. One leaning or lying higher (fallen onto a wardrobe,
+lying door) but a blast asks for, so it is shoved like a piece (a second blast slides it; a walker steps over it and pushes
+nothing, and a fist or shin swung over a leaf 6 px thick passes above it) and not a hole in the nav bake. One leaning or lying higher (fallen onto a wardrobe,
 above a bed) is an obstacle: its footprint is on the solid layer, a hole in the bake (`NavLeaves.fallen_hole`, re-baked as a
 tipped piece's is). A swinging door's leaf stops at a lying slab, flat or leaning, as at any piece (its probe is the
 leaf's whole height in the twin space). The AI reads the same slab: `gap()` is what the leaf leaves of
