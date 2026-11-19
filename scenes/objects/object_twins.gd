@@ -9,8 +9,8 @@ extends RefCounted
 ## `register` adds the hooks Main wires into the space. Every one is a `StaticBody3D`: the space
 ## writes a twin again, with its body's transform, only when its body moves (a shoved piece, a
 ## swinging door), so a shut door or a resting piece costs the 3D step nothing. All sit on
-## `PhysicsLayers.TWIN_WORLD`. A dent that reshapes a 2D collider does not reshape its twin: a wall
-## or a piece keeps the outline it was built with.
+## `PhysicsLayers.TWIN_WORLD`. A dent reshapes a wall's twin (`WallTwin`) with its 2D collider; a
+## piece or a door keeps the outline it was built with.
 
 const Piece = preload("res://scenes/objects/environment_object.gd")
 const Wall = preload("res://scenes/objects/wall/wall.gd")
@@ -26,9 +26,10 @@ static func register(space: TwinSpace) -> void:
 ## The twin of `node` if it is a wall, a door, a floor or a solid piece of furniture, else null.
 static func build(node: Node2D) -> Node3D:
 	if node is Wall:
-		var twin := StaticBody3D.new()
+		var twin := WallTwin.new()
+		twin.follow(node)
 		_lintels(node as Wall, twin)
-		return _structure(node, twin, ObjectStructureMeshConfig.wall_height)
+		return _world(twin)
 	if node is Door:
 		return _structure(node, StaticBody3D.new(), ObjectStructureMeshConfig.door_height)
 	if node is Piece:
@@ -57,6 +58,8 @@ static func _structure(body: Node2D, twin: CollisionObject3D, height: float) -> 
 static func _lintels(wall: Wall, twin: CollisionObject3D) -> void:
 	var thick := wall.wall_thickness
 	for gap: Dictionary in wall.openings:
+		if wall.opening_is_shared(gap):
+			continue  # the wall that owns the stretch has the lintel
 		var side: int = gap["side"]
 		var across := float(gap["width"])
 		var from := float(gap["offset"]) - across * 0.5

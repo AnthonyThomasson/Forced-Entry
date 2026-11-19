@@ -17,6 +17,8 @@ enum Side {
 }
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
+## Two edges this close along a wall (px) are one.
+const SEAM_EPSILON := 0.5
 
 ## Room extents (centerline of the walls).
 @export var size: Vector2 = Vector2(600.0, 600.0)
@@ -34,6 +36,11 @@ const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 @export var art_color: Color = Color(0.6, 0.6, 0.6)
 ## Painter options, e.g. { "pattern": "plaster" }.
 @export var art_opts: Dictionary = {}
+## Stretches of this wall's outline that a wall built before it already stands on, `{ side: Side,
+## from: float, to: float }` along the side from its start corner (`WallFactory.seams_for`). A
+## segment inside one is still a segment (the doorways cut in it stay where they are) but builds no
+## collider: the wall that owns the stretch has the one, in 2D and in 3D.
+@export var seams: Array = []
 ## The wall's own ballistic surface rating (Objects owns its surface data, same as
 ## environment_object.gd): hard to shoot through.
 @export var penetration: float = 100.0
@@ -54,6 +61,10 @@ var _seg_cuts := {}
 ## The room's wear node (`WearFactory.spawn` sets it: the room's `RoomWear`, in this wall's frame),
 ## whose wall marks the 3D mesh stands on the segments' faces; null for a wall with none.
 var wear: Node2D = null
+## The wear of the neighbouring rooms whose marks lie on stretches of this wall that it owns (a
+## stretch two rooms share is built here once, so the room that does not own it has its marks laid
+## on this wall): `WearFactory.spawn` fills it.
+var neighbour_wear: Array[Node2D] = []
 
 
 func _exit_tree() -> void:
@@ -134,15 +145,15 @@ func _record_segment_damage(
 		call_deferred("_rebuild_segment", best_i)
 
 
-## The index of the segment of `segs` nearest `local_pos` (this node's frame), skipping empty ones;
-## -1 when there is none.
-static func _nearest_segment(segs: Array[PackedVector2Array], local_pos: Vector2) -> int:
+## The index of the segment of `segs` nearest `local_pos` (this node's frame), skipping empty ones
+## and those on a stretch another wall owns; -1 when there is none.
+func _nearest_segment(segs: Array[PackedVector2Array], local_pos: Vector2) -> int:
 	var best_i := -1
 	var best_d := INF
 	for i in segs.size():
 		var a: Vector2 = segs[i][0]
 		var b: Vector2 = segs[i][1]
-		if a.is_equal_approx(b):
+		if a.is_equal_approx(b) or not has_segment(i):
 			continue
 		var proj := Geometry2D.get_closest_point_to_segment(local_pos, a, b)
 		var d := local_pos.distance_to(proj)
@@ -166,8 +177,34 @@ func _inward(world_pos: Vector2, world_normal: Vector2, seg: PackedVector2Array)
 	return inward
 
 
-## Centerline segments (start/end points) for every wall, with the openings removed.
+## Centerline segments (start/end points) for every wall, with the openings removed, and split where
+## a shared stretch (`seams`) starts or ends, so each lies wholly on one or off every one.
 func wall_segments() -> Array[PackedVector2Array]:
+	return _layout()["segments"]
+
+
+## Whether segment `index` of `wall_segments()` has colliders here: false for one on a stretch
+## another wall owns (`seams`).
+func has_segment(index: int) -> bool:
+	return _seg_colliders.has(index)
+
+
+## Whether the doorway `gap` (an entry of `openings`) lies on a stretch another wall owns, so the
+## lintel over it (3D) is that wall's.
+func opening_is_shared(gap: Dictionary) -> bool:
+	for seam: Dictionary in seams:
+		if (
+			seam["side"] == gap["side"]
+			and float(gap["offset"]) > float(seam["from"])
+			and float(gap["offset"]) < float(seam["to"])
+		):
+			return true
+	return false
+
+
+## The segments and, parallel to them, `shared` (on a stretch another wall owns) and `cut` (bits
+## 1 and 2: the segment's start and end meet a shared piece, so it is not lengthened there).
+func _layout() -> Dictionary:
 	var w := size.x
 	var h := size.y
 	# Each edge as an ordered pair of corner points.
@@ -177,15 +214,15 @@ func wall_segments() -> Array[PackedVector2Array]:
 		Side.BOTTOM: [Vector2(0.0, h), Vector2(w, h)],
 		Side.LEFT: [Vector2(0.0, 0.0), Vector2(0.0, h)],
 	}
-	var segments: Array[PackedVector2Array] = []
+	var out := { "segments": [] as Array[PackedVector2Array], "shared": [], "cut": [] }
 	for side in edges:
-		_append_side(segments, side, edges[side][0], edges[side][1])
-	return segments
+		_append_side(out, side, edges[side][0], edges[side][1])
+	return out
 
 
-## Append to `segments` the solid pieces of the wall along `side`, from corner `a` to `b`, between
-## the gaps its openings leave.
-func _append_side(segments: Array[PackedVector2Array], side: int, a: Vector2, b: Vector2) -> void:
+## Append to `out` the pieces of the wall along `side`, from corner `a` to `b`: the solid stretches
+## between the gaps its openings leave, each split at the shared stretches (`seams`) on it.
+func _append_side(out: Dictionary, side: int, a: Vector2, b: Vector2) -> void:
 	var length := a.distance_to(b)
 	var dir := (b - a) / length
 
@@ -198,30 +235,78 @@ func _append_side(segments: Array[PackedVector2Array], side: int, a: Vector2, b:
 		var gap_start := clampf(gap.offset - gap.width * 0.5, 0.0, length)
 		var gap_end := clampf(gap.offset + gap.width * 0.5, 0.0, length)
 		if gap_start > cursor:
-			segments.append(PackedVector2Array([a + dir * cursor, a + dir * gap_start]))
+			_append_solid(out, side, a, dir, Vector2(cursor, gap_start))
 		cursor = maxf(cursor, gap_end)
 	if cursor < length:
-		segments.append(PackedVector2Array([a + dir * cursor, b]))
+		_append_solid(out, side, a, dir, Vector2(cursor, length))
 
 
-## Build one rectangle collider per wall segment.
-func _build_walls() -> void:
-	var t := wall_thickness
-	var segs := wall_segments()
-	for i in segs.size():
-		var seg: PackedVector2Array = segs[i]
-		var a := seg[0]
-		var b := seg[1]
-		if a.is_equal_approx(b):
+## Append the solid stretch `span` (from, to) along `dir` from `a`, in the pieces the shared
+## stretches of `side` leave: a piece inside one is `shared`, one beside one is `cut` at that end.
+func _append_solid(
+	out: Dictionary,
+	side: int,
+	a: Vector2,
+	dir: Vector2,
+	span: Vector2,
+) -> void:
+	var from := span.x
+	var to := span.y
+	var cuts: Array[float] = [from, to]
+	for seam: Dictionary in seams:
+		if seam["side"] != side:
 			continue
-		# Extend the ends by half the thickness so corners overlap cleanly. (Opening
-		# edges also get extended slightly, which just rounds the doorway jamb a touch.)
-		var dir := (b - a).normalized()
-		var start := a - dir * (t * 0.5)
-		var end := b + dir * (t * 0.5)
-		var col := _segment_collider(start, end, dir)
+		for edge: float in [seam["from"], seam["to"]]:
+			if edge > from + SEAM_EPSILON and edge < to - SEAM_EPSILON:
+				cuts.append(edge)
+	cuts.sort()
+	var pieces: Array = []
+	for i in cuts.size() - 1:
+		if cuts[i + 1] - cuts[i] > SEAM_EPSILON:
+			pieces.append([cuts[i], cuts[i + 1], _on_seam(side, (cuts[i] + cuts[i + 1]) * 0.5)])
+	for i in pieces.size():
+		var cut := 0
+		if i > 0 and pieces[i - 1][2] != pieces[i][2]:
+			cut |= 1
+		if i < pieces.size() - 1 and pieces[i + 1][2] != pieces[i][2]:
+			cut |= 2
+		(out["segments"] as Array).append(
+			PackedVector2Array([a + dir * pieces[i][0], a + dir * pieces[i][1]])
+		)
+		(out["shared"] as Array).append(pieces[i][2])
+		(out["cut"] as Array).append(cut)
+
+
+## Whether the point `at` along `side` is on a shared stretch.
+func _on_seam(side: int, at: float) -> bool:
+	for seam: Dictionary in seams:
+		if seam["side"] == side and at > float(seam["from"]) and at < float(seam["to"]):
+			return true
+	return false
+
+
+## Build one rectangle collider per wall segment this wall owns.
+func _build_walls() -> void:
+	var layout := _layout()
+	var segs: Array[PackedVector2Array] = layout["segments"]
+	for i in segs.size():
+		if segs[i][0].is_equal_approx(segs[i][1]) or layout["shared"][i]:
+			continue
+		var col := _owned_collider(segs[i], layout["cut"][i])
 		add_child(col)
 		_seg_colliders[i] = [col]  # keyed by wall_segments() index for later rebuilds
+
+
+## The collider of the segment `seg` this wall owns, its ends lengthened by half the thickness so
+## corners overlap cleanly, but not where it meets a stretch another wall owns (`cut`: bits 1 and
+## 2, that wall stands there). Opening edges are lengthened slightly too, which just rounds the
+## doorway jamb a touch.
+func _owned_collider(seg: PackedVector2Array, cut: int) -> CollisionShape2D:
+	var half := wall_thickness * 0.5
+	var dir := (seg[1] - seg[0]).normalized()
+	var start := seg[0] - dir * (0.0 if cut & 1 else half)
+	var end := seg[1] + dir * (0.0 if cut & 2 else half)
+	return _segment_collider(start, end, dir)
 
 
 ## The rectangle collider of a wall segment from `start` to `end` (its ends already extended)

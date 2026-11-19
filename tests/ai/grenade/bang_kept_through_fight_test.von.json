@@ -257,31 +257,27 @@
 		},
 		{
 			"options": [
-				"A doorway leads into a room left to search (the doorway to the south — gunfire heard there — footsteps heard there — an ally radioed a fight there — a hostile seen going in — short route)",
-				"A doorway leads into a room where a hostile was heard, seen, radioed or shooting from (the doorway to the south — gunfire heard there — footsteps heard there — an ally radioed a fight there — a hostile seen going in — short route)",
-				"an unexplored part of the house to the west — medium route"
+				"All is quiet and there are rooms left to search (find your way into the house and explore it)",
+				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: gunfire heard to the south-west, outside the house))"
 			],
-			"pick": "stun_entry",
+			"pick": "investigate",
 			"probabilities": {
-				"enter": 0.3284,
-				"explore_west": 0.2663,
-				"stun_entry": 0.4053
+				"investigate": 0.6865,
+				"search": 0.3135
 			},
-			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: COMBAT - h - ENGAGE - where you stand (waiting, for 0s).\nGunfire heard to the south-west, in the hallway, just now.\nFootsteps heard to the north-west, in the kitchen, recently.\nDecided so far: SEARCH."
+			"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: COMBAT - h - ENGAGE - where you stand (waiting, for 0s).\nThere is trouble nearby, out of your sight. Allies near you: b, c.\nNobody else is in sight or known.\nGunfire heard to the south-west, outside the house, just now.\nFootsteps heard to the north-west, in the kitchen, recently."
 		},
 		{
 			"options": [
-				"the doorway to the south — gunfire heard there — footsteps heard there — an ally radioed a fight there — a hostile seen going in — short route",
-				"the doorway to the west — gunfire heard there — long route"
+				"gunfire heard to the south-west, outside the house — just now — medium route"
 			],
-			"pick": "door_840_190",
+			"pick": "lead_gunfire_2_2",
 			"probabilities": {
-				"door_0_415": 0.4891,
-				"door_840_190": 0.5109
+				"lead_gunfire_2_2": 1.0
 			},
-			"question": "Which doorway should you go through? Prefer the shortest route.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: COMBAT - h - ENGAGE - where you stand (waiting, for 0s).\nGunfire heard to the south-west, in the hallway, just now.\nFootsteps heard to the north-west, in the kitchen, recently.\nDecided so far: SEARCH → STUN ENTRY."
+			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: COMBAT - h - ENGAGE - where you stand (waiting, for 0s).\nNobody else is in sight or known.\nb (ally) — last seen just now — north-east of you, outside the house — was moving north, away from you.\nc (ally) — in sight — south of you, in the kitchen — moving south, away from you.\nc (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west.\nb (radio, just now): COMBAT - h - ENGAGE - where you stand.\nGunfire heard to the south-west, outside the house, just now.\nFootsteps heard to the north-west, in the kitchen, recently.\nDecided so far: INVESTIGATE."
 		},
 		{
 			"options": [
@@ -305,7 +301,7 @@
 				"lead_ally_2": 1.0
 			},
 			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: COMBAT - h - ENGAGE - where you stand (waiting, for 2s).\nNobody else is in sight or known.\na (ally) — in sight — south of you, outside the house — moving south, away from you — looks hurt.\nc (ally) — in sight — south of you, in the kitchen — standing still.\na (radio, just now): SEARCH - STUN ENTRY - the doorway to the south; under fire, hurt.\nc (radio, just now): COMBAT - h - ENGAGE - where you stand.\nGunfire heard to the south-west, in the kitchen, recently.\nFootsteps heard to the west, in the kitchen, recently.\nDecided so far: INVESTIGATE."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: COMBAT - h - ENGAGE - where you stand (waiting, for 2s).\nNobody else is in sight or known.\na (ally) — in sight — south of you, outside the house — moving south, away from you — looks hurt.\nc (ally) — in sight — south of you, in the kitchen — standing still.\na (radio, just now): INVESTIGATE - gunfire to the south-west; under fire, hurt.\nc (radio, just now): COMBAT - h - ENGAGE - where you stand.\nGunfire heard to the south-west, in the kitchen, recently.\nFootsteps heard to the west, in the kitchen, recently.\nDecided so far: INVESTIGATE."
 		}
 	],
 	"version": 1

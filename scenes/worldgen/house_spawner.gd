@@ -123,7 +123,7 @@ static func _build_rooms(
 	rng: RandomNumberGenerator,
 ) -> Dictionary:
 	var blocked := _opening_clearances(rooms, openings, plan["wall_thickness"])
-	var placed := { "clutter": [], "lobbies": [] }
+	var placed := { "clutter": [], "lobbies": [], "outlines": [] }
 	## Per room, for the wear pass: `[site, floor definition]`.
 	var dressing: Array = []
 	for room in rooms:
@@ -170,6 +170,9 @@ static func _build_room(
 	var walls := RoomWalls.new()
 	walls.thickness = site.wall_thickness
 	walls.openings = WallFactory.openings_for(rect, openings)
+	# a wall two rooms share is built once, by the room built first
+	walls.seams = WallFactory.seams_for(rect, placed["outlines"])
+	placed["outlines"].append(rect)
 	walls.style = GeneralCatalog.WALL
 	WallFactory.spawn(rect, walls, room_name, house)
 

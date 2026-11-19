@@ -10,3 +10,7 @@ var thickness: float = 0.0
 var openings: Array = []
 ## The cap's look: `art` (a tiling painter id), `color`, `art_opts`; empty = a flat gray line.
 var style: Dictionary = {}
+## The stretches of the outline a wall built before this one already stands on, in `Wall.seams`
+## format (`WallFactory.seams_for` makes them from the rects of the walls built so far): the room
+## built first owns a wall two rooms share and the other builds none there.
+var seams: Array = []

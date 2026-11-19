@@ -15,6 +15,7 @@ static func build(world: Dictionary, parent: Node) -> Node2D:
 	var thickness := float(world.get("thickness", 12.0))
 	var doors: Array = world.get("doors", [])
 	var rooms: Array = []
+	var outlines: Array = []
 	for room in world["rooms"]:
 		var rect: Rect2 = room["rect"]
 		var key := String(room["key"])
@@ -24,6 +25,9 @@ static func build(world: Dictionary, parent: Node) -> Node2D:
 		var walls := RoomWalls.new()
 		walls.thickness = thickness
 		walls.openings = WallFactory.openings_for(rect, doors)
+		# a wall two rooms share is built once, by the room laid first
+		walls.seams = WallFactory.seams_for(rect, outlines)
+		outlines.append(rect)
 		walls.style = WorldGen.wall_style()
 		WallFactory.spawn(rect, walls, key.capitalize(), root)
 		rooms.append({ "key": room["key"], "type": room.get("type", room["key"]), "rect": rect })

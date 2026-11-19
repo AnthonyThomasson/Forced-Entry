@@ -181,48 +181,79 @@ func _floor_mark(
 
 
 ## A room's wall marks stand on the wall's face toward the room, at their kind's height, turned
-## with the wall, each a child of the segment it lies on.
+## with the wall, each a child of the segment it lies on. A wall two rooms share is built once, so a
+## mark on a stretch the room does not own stands on the owner's wall (`Wall.neighbour_wear`): the
+## marks are found over the room's own wall and the walls that were lent them, one decal for each.
 func _wall_wear(t: TestContext, mirror: WorldMirror, worn: Array) -> void:
 	var marks_seen := 0
+	var placed := 0
+	var walls: Array = []
 	for room: Dictionary in worn:
 		var wear: Node2D = room["wear"]
-		var wall_mesh := _wall_mesh(mirror, room["wall"])
-		if not t.require(wall_mesh != null, "%s's wall is shown by a mesh" % wear.name):
-			continue
-		var placed := _wall_decals(wall_mesh)
-		var marks: Array = wear.wall_marks()
-		t.expect_eq(placed.size(), marks.size(), "%s: one decal per wall mark" % wear.name)
-		for i in marks.size():
-			_wall_mark(t, room["wall"], marks[i], placed, _order(i, marks.size()))
-		_stacked(t, "%s wall" % wear.name, placed, false)
-		marks_seen += marks.size()
+		var carriers := _carriers(room, worn)
+		for i in wear.wall_marks().size():
+			_wall_mark(t, mirror, carriers, wear, i)
+		marks_seen += wear.wall_marks().size()
+		for wall: Node2D in carriers:
+			if walls.has(wall):
+				continue
+			walls.append(wall)
+			var wall_mesh := _wall_mesh(mirror, wall)
+			if not t.require(wall_mesh != null, "%s's wall is shown by a mesh" % wall.name):
+				continue
+			placed += _wall_decals(wall_mesh).size()
+			_stacked(t, "%s wall" % wall.name, _wall_decals(wall_mesh), false)
+	t.expect_eq(placed, marks_seen, "one decal per wall mark, on the wall that owns its stretch")
 	t.check(marks_seen > 0, "the house has wall marks (%d)" % marks_seen)
 
 
-## One wall mark of `wall`: some decal of `placed` (its position in the wall's
-## frame) is on the face at its kind's height, as long and as tall as the spec says.
-func _wall_mark(
-	t: TestContext,
-	wall: Node2D,
-	mark: Dictionary,
-	placed: Array,
-	order: float,
-) -> void:
-	var thickness: float = wall.get("wall_thickness")
-	var what := "%s wall mark %s at %v" % [wall.name, mark["kind"], mark["at"]]
+## The walls that carry the marks of `room`'s wear: its own and each wall lent the wear.
+func _carriers(room: Dictionary, worn: Array) -> Array:
+	var out: Array = [room["wall"]]
+	for other: Dictionary in worn:
+		var wall: Node2D = other["wall"]
+		if wall != room["wall"] and (wall.neighbour_wear as Array).has(room["wear"]):
+			out.append(wall)
+	return out
+
+
+## The decal on one of `carriers` (its position in its wall's frame) that stands for mark `index` of
+## `wear`'s wall marks: on the face at its kind's height, a layer step up by its order; null for
+## none.
+func _decal_of(mirror: WorldMirror, carriers: Array, wear: Node2D, index: int) -> MeshInstance3D:
+	var mark: Dictionary = wear.wall_marks()[index]
+	var order := _order(index, wear.wall_marks().size())
 	var normal: Vector2 = mark["normal"]
 	var up := Vector3(normal.x, 0.0, normal.y)
-	var centre: Vector2 = (mark["at"] as Vector2) + normal * thickness * 0.5
-	var want := Vector3(
-		centre.x,
-		WALL_MARK[mark["kind"]]["at"],
-		centre.y,
-	) + up * (DECAL_LIFT + order * LAYER_STEP)
-	var found: MeshInstance3D = null
-	for decal: MeshInstance3D in placed:
-		var in_wall := (decal.get_parent() as Node3D).position + decal.position
-		if (in_wall - want).length() < 0.0001 and decal.basis.y.is_equal_approx(up):
-			found = decal
+	for wall: Node2D in carriers:
+		var thickness: float = wall.get("wall_thickness")
+		# the mark in the carrying wall's frame (a lent wear is laid in its own room's)
+		var at: Vector2 = (mark["at"] as Vector2) + wear.position - wall.position
+		var centre: Vector2 = at + normal * thickness * 0.5
+		var want := Vector3(
+			centre.x,
+			WALL_MARK[mark["kind"]]["at"],
+			centre.y,
+		) + up * (DECAL_LIFT + order * LAYER_STEP)
+		for decal: MeshInstance3D in _wall_decals(_wall_mesh(mirror, wall)):
+			var in_wall := (decal.get_parent() as Node3D).position + decal.position
+			if (in_wall - want).length() < 0.0001 and decal.basis.y.is_equal_approx(up):
+				return decal
+	return null
+
+
+## Mark `index` of `wear`'s wall marks stands on the face of one of `carriers`, at its kind's
+## height, as long and as tall as the spec says.
+func _wall_mark(
+	t: TestContext,
+	mirror: WorldMirror,
+	carriers: Array,
+	wear: Node2D,
+	index: int,
+) -> void:
+	var mark: Dictionary = wear.wall_marks()[index]
+	var what := "%s wall mark %s at %v" % [wear.name, mark["kind"], mark["at"]]
+	var found := _decal_of(mirror, carriers, wear, index)
 	if not t.require(found != null, "%s stands on the wall's face, at its height" % what):
 		return
 	var size := found.mesh.get_aabb().size
@@ -241,7 +272,7 @@ func _wall_wear_fades(
 	fade: WallFade,
 	worn: Array,
 ) -> void:
-	var wall := _worn_wall(worn)
+	var wall := _worn_wall(mirror, worn)
 	if not t.require(wall != null, "a room has a wall mark to fade"):
 		return
 	var wall_mesh := _wall_mesh(mirror, wall)
@@ -264,10 +295,11 @@ func _wall_wear_fades(
 	await _rebuilt(t, wall_mesh, wall, decal)
 
 
-## The wall of the first room with a wall mark, or null.
-func _worn_wall(worn: Array) -> Node2D:
+## The first wall with a wall mark on its mesh, or null.
+func _worn_wall(mirror: WorldMirror, worn: Array) -> Node2D:
 	for room: Dictionary in worn:
-		if not (room["wear"] as Node2D).wall_marks().is_empty():
+		var wall_mesh := _wall_mesh(mirror, room["wall"])
+		if wall_mesh != null and not _wall_decals(wall_mesh).is_empty():
 			return room["wall"]
 	return null
 

@@ -16,19 +16,28 @@ const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 ## on a segment's instance. Empty for a wall with no wear. A mark on no segment is left out.
 static func decals_of(wall: Node2D) -> Dictionary:
 	var out := {}
-	var wear: Variant = wall.get("wear")
-	if not is_instance_valid(wear):
-		return out
 	var segments: Array = wall.call(&"wall_segments")
 	var thickness: float = wall.get("wall_thickness")
-	var marks: Array = (wear as Node2D).call(&"wall_marks")
-	for i in marks.size():
-		var index := _segment_of(segments, marks[i]["at"])
-		if index < 0:
-			continue
-		if not out.has(index):
-			out[index] = []
-		out[index].append(_decal(marks[i], thickness, WearMesh.order_layer(i, marks.size())))
+	var wears: Array = []
+	var own: Variant = wall.get("wear")
+	if is_instance_valid(own):
+		wears.append(own)
+	for lent: Node2D in wall.get("neighbour_wear"):
+		if is_instance_valid(lent):
+			wears.append(lent)
+	for wear: Node2D in wears:
+		var marks: Array = wear.call(&"wall_marks")
+		# a neighbour's marks are in its own frame, the room's corner
+		var shift: Vector2 = wear.position - wall.position
+		for i in marks.size():
+			var index := _segment_of(wall, segments, (marks[i]["at"] as Vector2) + shift)
+			if index < 0:
+				continue
+			if not out.has(index):
+				out[index] = []
+			var mark: Dictionary = marks[i].duplicate()
+			mark["at"] = (marks[i]["at"] as Vector2) + shift
+			out[index].append(_decal(mark, thickness, WearMesh.order_layer(i, marks.size())))
 	return out
 
 
@@ -45,11 +54,14 @@ static func dress(part: Node3D, decals: Array) -> void:
 		part.add_child(decal)
 
 
-## The index of the segment (of `wall_segments()`) whose centre line `at` lies on, or -1.
-static func _segment_of(segments: Array, at: Vector2) -> int:
+## The index of the segment (of `wall_segments()`) the wall owns whose centre line `at` lies on, or
+## -1 (a stretch another wall owns has its marks laid on that wall).
+static func _segment_of(wall: Node2D, segments: Array, at: Vector2) -> int:
 	var best := -1
 	var nearest := 1.0
 	for i in segments.size():
+		if not wall.call(&"has_segment", i):
+			continue
 		var seg: PackedVector2Array = segments[i]
 		var d := Geometry2D.get_closest_point_to_segment(at, seg[0], seg[1]).distance_to(at)
 		if d < nearest:

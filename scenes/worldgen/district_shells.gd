@@ -44,11 +44,19 @@ static func build(rects: Array, delta: Vector2, root: Node2D, district_seed: int
 	return out
 
 
-## A wall round `rect` in the house wall style with the doorways `openings` cut in, under `holder`.
-static func _walls(rect: Rect2, openings: Array, wall_name: String, holder: Node2D) -> Node:
+## A wall round `rect` in the house wall style with the doorways `openings` cut in, under `holder`,
+## standing only where none of the outlines `built` (already built walls) stands.
+static func _walls(
+	rect: Rect2,
+	openings: Array,
+	wall_name: String,
+	holder: Node2D,
+	built: Array = [],
+) -> Node:
 	var walls := RoomWalls.new()
 	walls.thickness = WorldGenShellConfig.wall
 	walls.openings = openings
+	walls.seams = WallFactory.seams_for(rect, built)
 	walls.style = GeneralCatalog.WALL
 	return WallFactory.spawn(rect, walls, wall_name, holder)
 
@@ -79,8 +87,20 @@ static func _partitions(rect: Rect2, rng: RandomNumberGenerator, holder: Node2D)
 	var lower := { "pos": Vector2(across, (down + rect.end.y) * 0.5), "width": width }
 	var inner := { "pos": Vector2((across + rect.end.x) * 0.5, down), "width": width }
 	return [
-		_walls(west, WallFactory.openings_for(west, [upper, lower]), "Partition West", holder),
-		_walls(east, WallFactory.openings_for(east, [upper, inner]), "Partition East", holder),
+		_walls(
+			west,
+			WallFactory.openings_for(west, [upper, lower]),
+			"Partition West",
+			holder,
+			[rect],
+		),
+		_walls(
+			east,
+			WallFactory.openings_for(east, [upper, inner]),
+			"Partition East",
+			holder,
+			[rect, west],
+		),
 	]
 
 

@@ -20,11 +20,29 @@ static func spawn(rect: Rect2, plan: WearPlan, wear_name: String, parent: Node) 
 	wear.name = wear_name
 	wear.setup(rect, plan.floor_definition, plan.wall_thickness, plan.clusters)
 	for sibling in parent.get_children():
-		if not sibling is Node2D or (sibling as Node2D).position != rect.position:
+		if not sibling is Node2D:
 			continue
-		if sibling.is_in_group(&"floors") and sibling.get("size") == rect.size:
-			sibling.set(&"wear", wear)
-		elif sibling.has_method(&"wall_segments") and sibling.get("size") == rect.size:
+		if (sibling as Node2D).position != rect.position or sibling.get("size") != rect.size:
+			_lend_marks(wear, sibling)
+		elif sibling.is_in_group(&"floors") or sibling.has_method(&"wall_segments"):
 			sibling.set(&"wear", wear)
 	parent.add_child(wear)
 	return wear
+
+
+## Tell the wall `other` (not the room's own) of `wear` if a mark of it lies on a segment `other`
+## owns: a stretch two rooms share is built once, so the room that does not own it has its marks on
+## the wall that does (`Wall.neighbour_wear`).
+static func _lend_marks(wear: Node2D, other: Node) -> void:
+	if not other.has_method(&"has_segment") or not other.has_method(&"wall_segments"):
+		return
+	var segments: Array = other.call(&"wall_segments")
+	var origin: Vector2 = (other as Node2D).position
+	for mark: Dictionary in wear.call(&"wall_marks"):
+		var at: Vector2 = wear.position + (mark["at"] as Vector2) - origin
+		for i in segments.size():
+			var seg: PackedVector2Array = segments[i]
+			var off := Geometry2D.get_closest_point_to_segment(at, seg[0], seg[1]).distance_to(at)
+			if off < 1.0 and other.call(&"has_segment", i):
+				(other.get(&"neighbour_wear") as Array).append(wear)
+				return

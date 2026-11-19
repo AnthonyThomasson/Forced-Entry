@@ -18,9 +18,14 @@
 	 `piece.look.overhang`, with `overhang_rect() -> Rect2` its area in the piece's frame (empty for none), which the 3D mesh and the street
 	 lamp's light read; with `fade_under: true` the 3D render fades it while a character stands under it: the door awning and glyph sign).
    - `WallFactory.spawn(rect: Rect2, walls: RoomWalls, name, parent) -> Node` — `RoomWalls` (`objects/room_walls.gd`): `thickness`,
-	 `openings`, `style` (the cap's look: `art`, `color`, `art_opts`; empty = a flat gray line).
+	 `openings`, `seams` (the stretches another room's wall already stands on, `{ side, from, to }`), `style` (the cap's look: `art`, `color`,
+	 `art_opts`; empty = a flat gray line). A wall two rooms share is built once: the room built first owns it, and the other's `Wall` keeps the
+	 stretch as a segment (its doorways stay cut) with no collider, 2D or 3D, and no lintel over a doorway there (`Wall.has_segment`).
    - `WallFactory.openings_for(rect: Rect2, doors: Array) -> Array` — the `{ pos, width }` doorways on `rect`'s walls, as `spawn` takes
 	 them (World-Gen and Testing's layouts use it). `Wall.Side` is the enum inside those `openings`.
+   - `WallFactory.seams_for(rect: Rect2, built: Array) -> Array` — the stretches of `rect`'s walls that run along a wall of one of `built` (the
+	 `Rect2` outlines of the walls built so far), as `RoomWalls.seams`: World-Gen's house rooms and district shells and Testing's layouts pass
+	 the rooms laid before.
    - `FloorFactory.spawn(rect: Rect2, definition: Dictionary, name, parent) -> Node` — a room's floor or a piece of the street (no
 	 collider). Definition: `art`, `color`, `material`, `art_opts`, optionally `sound_surface` (false: registers no `SoundSurface`, the
 	 street), `marks` (`{ seed, lane, edges, crossings, glyphs }`: the street's world-placed curb and gutter litter, laid by Objects; a road's

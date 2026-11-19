@@ -21,4 +21,4 @@ a frag settles furniture). `ai/combat/defend_room_stays_inside` once failed runs
 the kitchen's south wall and the hall's north wall (coincident colliders, a shared wall built twice) was attributed to "Hall" in one run and
 "Kitchen" in another, and a sleeping fridge then sat 0.003 px apart, enough to move a re-bake tick. Inferred, not probed: the engine breaks the
 tie between the two coincident bodies by allocation order. With bullets and sight as 3D rays (#194) it replays in-process
-(`--repeat=3`), so it has no tag; a fight that fails a later run of a process and passes the first may have a tie like this.
+(`--repeat=3`), and a wall two rooms share is now built once (`WallFactory.seams_for`: no coincident bodies, the tie is gone), so it has no tag; a fight that fails a later run of a process and passes the first may have a tie like this.

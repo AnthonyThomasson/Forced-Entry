@@ -40,8 +40,8 @@ written when their body moves, so Jolt's step carries no always-active body for 
 **Jolt.** The engine is Jolt (`physics/3d/physics_engine`, chosen at the phase-1 gate): it settles a tipped furniture pile (all asleep
 in 6.7 s against 30 of 40 awake after 8 s) and casts rays in about half the time, at about 0.3 ms a frame more at rest.
 
-**What a twin is not yet.** A twin is built once from the shapes its body had: a dent that reshapes a wall's, a piece's or a vehicle's 2D
-collider does not reshape its twin (a dent is a few px); a vehicle's twin is its body to the belt, not the glass and roof above it; a
+**What a twin is not yet.** A twin is built once from the shapes its body had: a dent that reshapes a piece's or a vehicle's 2D
+collider does not reshape its twin (a dent is a few px; a wall's twin is cut again, see below); a vehicle's twin is its body to the belt, not the glass and roof above it; a
 non-solid piece (a rug) has none. A seated character's cylinder is off, a dead one's and a knocked-down door's are on no layer
 (`PhysicsLayers.TWIN_*`: world, vehicle, character), as their 2D bodies' are. The jobs that read the twins decide what they need of these.
 
@@ -87,6 +87,22 @@ unfrozen later, a note this ADR left for furniture, is followed (the row is re-l
   carried before the step that met it. The 3D step itself is deterministic.
 - **`max_linear_velocity` 5000 px/s is a cap on every Jolt dynamic body** (118 m/s: lower than the engine's default 500 m/s). It serves
   furniture; the jobs that put vehicles (vehicles3d) and ragdolls (ragdoll3d) into Jolt must raise it or hold them under it.
+
+## Walls, floors and the street are static 3D bodies; a shared wall is built once (D3, #194 walls3d)
+
+A static has no direction to reverse, nothing writes it each frame: its 3D body is built once, and the 2D one beside it never moves. What the flip
+settles for walls is which outline is the truth when a hit changes it, and that each wall exists once. A wall is a **`WallTwin`** (Objects, a `StaticBody3D`)
+built from its segments, and a dent that cuts a segment's 2D collider (`Wall.segment_rebuilt`) cuts its 3D shapes from the same dents, so a ray, a
+fragment or a lob meets the outline the footprint has; the 2D colliders stay for what still reads 2D (the nav bake, the avoid maps, the 2D bodies that
+collide with a wall, the 2D occluders of the vision cone) until the 2D space is deleted. Floors, roofs and the street have no 2D body at all (a floor is a node, its slab
+and its roof are 3D only), so they were 3D truths already.
+
+A wall two rooms share (Kitchen's south and Hall's north) used to be built twice, two coincident colliders in 2D and in 3D, so a bullet's tie in the seam
+followed the engine's allocation order. World generation now says which stretches an earlier room's wall already stands on (`WallFactory.seams_for`:
+the rects of the walls built so far; a house's rooms, a district shell and its partitions, a test layout), and the later room's `Wall` keeps the stretch as
+a segment, so its doorways stay cut where they were, but builds no collider and no lintel there. The room built first owns the seam; a segment is split where a shared stretch begins or ends, and
+is not lengthened by half a thickness at that end (the owner stands there). A room's wear marks on a stretch it does not own are laid on the owner's segments
+(`Wall.neighbour_wear`).
 
 ## Plan space (D4)
 
