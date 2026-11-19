@@ -10,7 +10,7 @@ const VehicleDoor = preload("res://scenes/vehicle/vehicle_door.gd")
 const VehicleBoarding = preload("res://scenes/vehicle/vehicle_boarding.gd")
 
 ## The vehicle it belongs to.
-var vehicle: RigidBody2D
+var vehicle: Node2D
 ## Its doors, in the row's order.
 var _doors: Array[VehicleDoor] = []
 ## Seat id -> who holds it (boarding into it, sitting in it or getting out of it), or null.
@@ -22,7 +22,7 @@ var _reserved: Dictionary = {}
 var _rides: Dictionary = {}
 
 
-func _init(body: RigidBody2D, row: Dictionary) -> void:
+func _init(body: Node2D, row: Dictionary) -> void:
 	vehicle = body
 	for def: Dictionary in row["doors"]:
 		_doors.append(VehicleDoor.new(def))
@@ -65,7 +65,7 @@ func door_list() -> Array[VehicleDoor]:
 
 ## Where seat `id` is (local).
 func seat_point(id: StringName) -> Vector2:
-	return vehicle.row()["seats"][id]
+	return vehicle.row["seats"][id]
 
 
 ## Who holds seat `id` (null when empty or freed).

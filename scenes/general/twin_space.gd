@@ -333,7 +333,7 @@ func _twin_pending() -> void:
 		if not is_instance_valid(node):
 			continue
 		var lead := leader_of(node as Object)
-		if lead != null:
+		if lead != null and lead.has_method(&"settle_out"):
 			lead.call(&"settle_out")
 		else:
 			_clear_pieces_from(twin_for(node as Object))

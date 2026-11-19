@@ -2,7 +2,7 @@ extends GameTest
 ## The 3D mesh of a car and a van (#193 phase 2, Vehicles; `domain-art/meshes.md`): Vehicles
 ## registers a builder under the mirror's vehicle kind and the mirror shows each vehicle by a
 ## kit-built body in place of its proxy box. The hull is the kind's footprint, stands at the
-## how-to's heights (a car 36 px at the belt and 52 at the roof, a van 46 and 78), carries the
+## how-to's heights (a car 40 px at the belt and 60 at the roof, a van 46 and 78), carries the
 ## vehicle's paint and shares one `Mesh` with every vehicle of its kind and paint; four wheels stand
 ## on their sides at the axles and the front pair steer; each door's leaf follows the 2D door (a
 ## swing door's free edge where the
@@ -18,7 +18,7 @@ const VAN_AT := Vector2(500, 600)
 const TURN := 0.5
 const BLUE := Color(0.15, 0.25, 0.7)
 ## Per kind: [belt, roof] heights (px) and the footprint (length, width).
-const CAR := { "belt": 36.0, "roof": 52.0, "size": Vector2(220, 110), "sill": 9.0 }
+const CAR := { "belt": 40.0, "roof": 60.0, "size": Vector2(220, 110), "sill": 9.0 }
 const VAN := { "belt": 46.0, "roof": 78.0, "size": Vector2(260, 125), "sill": 11.0 }
 const MATCH := {
 	"seed": 2,

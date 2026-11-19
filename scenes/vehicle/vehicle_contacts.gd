@@ -1,13 +1,21 @@
 class_name VehicleContacts extends RefCounted
 ## Vehicles domain: a vehicle's contacts (`docs/vehicles.md` V6), its body's private `_contacts`
-## part, which the body steps: `read` in `_integrate_forces` before the drive's step, `remember`
-## after it, and `apply` in `_physics_process`. The closing speeds, the crashes, the dead bodies
-## rolled over, the piles of characters and furniture shoved and the characters hurt. Built once
-## with its body; it holds the body (a node, so no reference cycle) for its mass, its physics space,
-## its row's `bounce`, its collision exceptions and its `post`.
+## part: `remember` from the 3D body's `_integrate_forces` after the drive's step, `read` and
+## `apply` in the vehicle's `_physics_process`. The closing speeds, the crashes, the dead bodies
+## rolled over, the piles of characters shoved and the characters hurt. What the vehicle touches is
+## found by a shape query of its body in the twin space (never by Jolt's contact events: they arrive
+## in a different count and order run to run), the others in a fixed order (by where they stand).
+## Built once with its vehicle (the 2D body); it holds the vehicle (a node, so no reference cycle)
+## for its mass, its 3D body, its physics space, its row's `bounce`, its collision exceptions and
+## its `post`.
+
+## How near (px) a body is to the vehicle's for the vehicle to be touching it, and how many bodies
+## it reads at once.
+const TOUCH_MARGIN := 1.5
+const TOUCH_HITS := 12
 
 ## The vehicle it belongs to.
-var vehicle: RigidBody2D
+var vehicle: Node2D
 ## The velocities the last physics step began with: what an impact found this step was struck at.
 var _last_velocity := Vector2.ZERO
 var _last_spin := 0.0
@@ -22,73 +30,130 @@ var _struck: Array = []
 ## When (the vehicle's own physics clock, s) each living character was last in a pile (instance id
 ## -> time): one struck again within `rehit_time` is the same run-in, shoved on but not hurt again.
 var _piled: Dictionary = {}
-## Its own physics clock (s), advanced each step in `_integrate_forces`.
+## Its own physics clock (s), advanced each step in `remember`.
 var _clock := 0.0
 
 
-func _init(body: RigidBody2D) -> void:
+func _init(body: Node2D) -> void:
 	vehicle = body
 
 
-## Read this step's contacts, each body's closing speed taken from the velocities the step began
-## with. A body newly struck faster than `crash_min_speed` posts a crash at once (the step that
-## stopped the vehicle is the one it is heard in). Furniture alone is left to the solver, which
-## shoves it; a contact with a living character in its pile (the character itself, or a piece
-## pressed against one) goes through `_strike_pile`, and a dead body is rolled over.
-func read(state: PhysicsDirectBodyState2D) -> void:
+## Read the last step's contacts, each body's closing speed taken from the velocities that step
+## began with. A body newly struck faster than `crash_min_speed` posts a crash at once (the step
+## that stopped the vehicle is the one it is heard in). Furniture alone is left to the physics
+## engine, which shoves it; a contact with a living character in its pile (the character itself, or
+## a piece pressed against one) goes through `_strike_pile`, and a dead body is rolled over. A
+## parked vehicle (asleep) meets nothing new.
+func read() -> void:
+	var lead := TwinSpace.leader_of(vehicle)
+	if lead == null or lead.sleeping:
+		_touching = {}
+		return
 	var touching := {}
-	var struck := _strongest_contacts(state, touching)
-	_clock += state.step
+	var struck := _strongest_contacts(lead, touching)
 	var done := {}  # bodies already met in a pile this step
-	for id in struck:
-		if not done.has(id):
-			_meet(state, struck[id], done)
+	for hit: Dictionary in struck:
+		if not done.has((hit["body"] as Node).get_instance_id()):
+			_meet(lead, hit, done)
 	_touching = touching
 	for id in _piled.keys():
 		if _clock - float(_piled[id]) > VehicleCollisionConfig.rehit_time:
 			_piled.erase(id)
 
 
-## Keep the velocities this step ends with (after the drive's step): what the next step's contacts
-## are struck at.
-func remember(state: PhysicsDirectBodyState2D) -> void:
-	_last_velocity = state.linear_velocity
-	_last_spin = state.angular_velocity
+## Keep the velocities the drive's step ends with (the 3D body calls this after it): what the next
+## step's contacts are struck at, and advance the clock.
+func remember(state: PhysicsDirectBodyState3D) -> void:
+	_last_velocity = PlanSpace.plan_of(state.linear_velocity)
+	_last_spin = -state.angular_velocity.y
+	_clock += state.step
 
 
-## This step's contacts on `state`, the strongest with each body: instance id -> `{ body, speed,
-## position, normal, new }` (`speed` the closing speed along `normal`, out of the vehicle into the
-## body; `new` when it was not touching last step). Marks each body met in `touching`.
-func _strongest_contacts(state: PhysicsDirectBodyState2D, touching: Dictionary) -> Dictionary:
-	var struck := {}
-	for i in state.get_contact_count():
-		var body := state.get_contact_collider_object(i) as Node
-		if body == null:
+## The bodies the vehicle touches now, in a fixed order (where they stand), each with its strongest
+## contact: `{ body, speed, position, normal, new }` (`speed` the closing speed along `normal`, out
+## of the vehicle into the body; `new` when it was not touching last step). Marks each body met in
+## `touching` (instance id -> true). A body the vehicle has a collision exception with (a character
+## getting in or out, a corpse) is not touched.
+func _strongest_contacts(lead: RigidBody3D, touching: Dictionary) -> Array:
+	var space := lead.get_world_3d().direct_space_state
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.collision_mask = (
+		PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_CHARACTER | PhysicsLayers.TWIN_VEHICLE
+	)
+	query.margin = TOUCH_MARGIN
+	var hull := lead.get_child(0) as CollisionShape3D  # its whole outline: the shape at the ground
+	query.shape = hull.shape
+	query.transform = lead.global_transform * hull.transform
+	query.exclude = [lead.get_rid()]
+	var near := {}
+	for found: Dictionary in space.intersect_shape(query, TOUCH_HITS):
+		var body := TwinSpace.owner_of(found["collider"])
+		if body is PhysicsBody2D and body != vehicle and not _excepted(body):
+			near[body.get_instance_id()] = body
+	var bodies: Array = near.values()
+	bodies.sort_custom(_nearer_the_origin)
+	var out: Array = []
+	for body: Node2D in bodies:
+		var fresh := not _touching.has(body.get_instance_id())
+		var hit := _contact_with(space, query, body, fresh)
+		if hit.is_empty():
 			continue
-		var at := state.get_contact_local_position(i)
-		var normal := state.get_contact_local_normal(i)
-		var offset := at - state.transform.origin
-		if offset.dot(normal) < 0.0:
-			normal = -normal  # Out of the vehicle, into the other body.
-		var ours := _last_velocity + Vector2(-offset.y, offset.x) * _last_spin
-		var closing := (ours - _velocity_of(body, state, i)).dot(normal)
-		var id := body.get_instance_id()
-		touching[id] = true
-		if not struck.has(id) or closing > struck[id]["speed"]:
-			struck[id] = {
-				"body": body,
-				"speed": closing,
-				"position": at,
-				"normal": normal,
-				"new": not _touching.has(id),
-			}
-	return struck
+		touching[body.get_instance_id()] = true
+		hit["new"] = fresh
+		out.append(hit)
+	return out
+
+
+## The contact of the vehicle's body (`query`) with `body` alone:
+## `{ body, speed, position, normal }`, empty when it is not touching it after all.
+func _contact_with(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3D,
+		body: Node2D, fresh: bool) -> Dictionary:
+	var alone := PhysicsShapeQueryParameters3D.new()
+	alone.shape = query.shape
+	alone.transform = query.transform
+	alone.collision_mask = query.collision_mask
+	alone.margin = query.margin
+	var exclude: Array[RID] = [TwinSpace.leader_of(vehicle).get_rid()]
+	for other: Dictionary in space.intersect_shape(query, TOUCH_HITS):
+		if TwinSpace.owner_of(other["collider"]) != body:
+			exclude.append(other["rid"])
+	alone.exclude = exclude
+	var rest := space.get_rest_info(alone)
+	if rest.is_empty():
+		return {}
+	var at := PlanSpace.plan_of(rest["point"])
+	var normal := PlanSpace.plan_of(rest["normal"]).normalized()
+	var offset := at - vehicle.global_position
+	if offset.dot(normal) < 0.0:
+		normal = -normal  # Out of the vehicle, into the other body.
+	var ours := _last_velocity + Vector2(-offset.y, offset.x) * _last_spin
+	return {
+		"body": body,
+		"speed": (ours - _velocity_of(body, fresh)).dot(normal),
+		"position": at,
+		"normal": normal,
+	}
+
+
+## Whether `body` and the vehicle share space (a collision exception either way): a character
+## boarding or just out, a corpse the vehicle rolls over.
+func _excepted(body: Node) -> bool:
+	return (vehicle as PhysicsBody2D).get_collision_exceptions().has(body) or (
+		body as PhysicsBody2D
+	).get_collision_exceptions().has(vehicle)
+
+
+## Bodies in a fixed order: by where they stand (their instance ids differ run to run).
+static func _nearer_the_origin(a: Node2D, b: Node2D) -> bool:
+	if a.global_position.x != b.global_position.x:
+		return a.global_position.x < b.global_position.x
+	return a.global_position.y < b.global_position.y
 
 
 ## Meet the body of contact `hit` (one of `_strongest_contacts`): roll over a dead body, strike a
 ## pile with a living character in it, else post a crash for a new impact. The pile's members go
 ## into `done`, so none of them is met again this step.
-func _meet(state: PhysicsDirectBodyState2D, hit: Dictionary, done: Dictionary) -> void:
+func _meet(lead: RigidBody3D, hit: Dictionary, done: Dictionary) -> void:
 	var body: Node = hit["body"]
 	var character := _is_character(body)
 	var living: bool = character and not body.is_dead
@@ -97,32 +162,54 @@ func _meet(state: PhysicsDirectBodyState2D, hit: Dictionary, done: Dictionary) -
 	if hit["speed"] <= 0.0 and not living:
 		return
 	if character and not living:
-		_roll_over(state, hit)
+		_roll_over(lead, hit)
 		return
 	var pile := _pile(body, hit["normal"]) if character or _is_piece(body) else {}
 	for member: Dictionary in pile.get("members", []):
 		done[(member["body"] as Node).get_instance_id()] = true
-	# a piece led by a free 3D body is, to the 2D solver, as immovable as a character: it has
-	# stopped
-	# the vehicle as a wall does, and the pile shoves it on in 3D
-	if pile.get("people", 0) > 0 or pile.get("led", 0) > 0:
-		_strike_pile(state, hit, pile)
+	# a piece pressed against a character stops the vehicle (through the piece) as the character
+	# does; a piece with nobody behind it is the physics engine's alone
+	if pile.get("people", 0) > 0:
+		_strike_pile(lead, hit, pile)
 	elif hit["new"] and hit["speed"] > VehicleCollisionConfig.crash_min_speed:
 		_post_crash(hit, body, hit["speed"])
+		if _is_piece(body):
+			_strike_piece(hit)
+
+
+## The blow of the vehicle's bumper on the piece of `hit`: `strike_share` of the closing speed times
+## its mass, along the contact, at the bumper's height (carried out in `apply`).
+func _strike_piece(hit: Dictionary) -> void:
+	var body: Node2D = hit["body"]
+	var speed: float = hit["speed"]
+	_struck.append({
+		"body": body,
+		"push": (hit["normal"] as Vector2) * float(body.get_mass()) * speed
+				* VehicleCollisionConfig.strike_share,
+		"harm": 0.0,
+		"position": hit["position"],
+		"height": VehicleCollisionConfig.strike_height(vehicle.kind),
+	})
 
 
 ## A dead body is rolled over: the vehicle keeps its speed along the contact `hit` and stops
 ## colliding with it.
-func _roll_over(state: PhysicsDirectBodyState2D, hit: Dictionary) -> void:
+func _roll_over(lead: RigidBody3D, hit: Dictionary) -> void:
 	var normal: Vector2 = hit["normal"]
-	state.linear_velocity += (normal
-			* (_last_velocity.dot(normal) - state.linear_velocity.dot(normal)))
+	_keep_along(lead, normal, _last_velocity.dot(normal))
 	_struck.append({
 		"body": hit["body"],
 		"push": Vector2.ZERO,
 		"harm": 0.0,
 		"position": hit["position"],
 	})
+
+
+## Put the vehicle's velocity along `normal` at `along` (px/s), what it has across the normal left
+## as it is: the physics engine's stop on a character is undone this way.
+func _keep_along(lead: RigidBody3D, normal: Vector2, along: float) -> void:
+	var now: Vector2 = lead.call(&"plan_velocity")
+	lead.call(&"set_plan_velocity", now + normal * (along - now.dot(normal)))
 
 
 ## Post a crash at contact `hit` against `against` (its surface's material, `""` for a wall or none)
@@ -143,7 +230,7 @@ func _post_crash(hit: Dictionary, against: Node, closing: float) -> void:
 ## each member is shoved up to the pile's new speed. Pinned against a wall (or anything else not
 ## pushable), the vehicle stops as on a wall and posts a crash. Each living character newly in the
 ## pile is hurt (`_harm_pile`).
-func _strike_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, pile: Dictionary) -> void:
+func _strike_pile(lead: RigidBody3D, hit: Dictionary, pile: Dictionary) -> void:
 	var normal: Vector2 = hit["normal"]
 	var members: Array = pile["members"]
 	# How fast the pile moves along the contact: its slowest member, each at its own velocity (a
@@ -152,21 +239,20 @@ func _strike_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, pile: Dictio
 	var pile_speed := INF
 	for member: Dictionary in members:
 		pile_speed = minf(pile_speed, _along(member, normal))
-	var offset: Vector2 = hit["position"] - state.transform.origin
+	var offset: Vector2 = hit["position"] - vehicle.global_position
 	var ours := (_last_velocity + Vector2(-offset.y, offset.x) * _last_spin).dot(normal)
 	var closing := ours - pile_speed
 	if closing <= 0.0:
 		# The pile moves off at least as fast: the vehicle keeps what it had along the contact.
 		if pile["blocked"] == null:
-			state.linear_velocity += (normal
-					* (_last_velocity.dot(normal) - state.linear_velocity.dot(normal)))
+			_keep_along(lead, normal, _last_velocity.dot(normal))
 		return
 	if pile["blocked"] != null:
 		# Pinned: the vehicle stops as the solver stopped it, as on a wall.
 		if hit["new"] and closing > VehicleCollisionConfig.crash_min_speed:
 			_post_crash(hit, pile["blocked"], closing)
 	else:
-		_shove_pile(state, hit, members, closing, pile_speed)
+		_shove_pile(lead, hit, members, closing, pile_speed)
 	_harm_pile(members, closing)
 
 
@@ -175,7 +261,7 @@ func _strike_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, pile: Dictio
 ## the character's bounce `harm_bounce` on a first touch by a character, the vehicle's own `bounce`
 ## by a piece, none while it keeps pushing. The vehicle keeps what the pile does not take, and each
 ## member slower than the pile's new speed is queued a shove up to it.
-func _shove_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, members: Array, closing: float,
+func _shove_pile(lead: RigidBody3D, hit: Dictionary, members: Array, closing: float,
 		pile_speed: float) -> void:
 	var normal: Vector2 = hit["normal"]
 	var pile_mass := 0.0
@@ -186,12 +272,13 @@ func _shove_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, members: Arra
 		var first_is_character: bool = (members[0] as Dictionary)["character"]
 		bounce = (
 			VehicleCollisionConfig.harm_bounce if first_is_character
-			else float(vehicle.row()["bounce"])
+			else float(vehicle.row["bounce"])
 		)
-	var impulse := (1.0 + bounce) * closing * vehicle.mass * pile_mass / (vehicle.mass + pile_mass)
-	var along := _last_velocity.dot(normal) - impulse / vehicle.mass
-	state.linear_velocity += normal * (along - state.linear_velocity.dot(normal))
-	var pile_to := pile_speed + impulse / pile_mass
+	var mass: float = vehicle.mass
+	var impulse: float = (1.0 + bounce) * closing * mass * pile_mass / (mass + pile_mass)
+	var along: float = _last_velocity.dot(normal) - impulse / mass
+	_keep_along(lead, normal, along)
+	var pile_to: float = pile_speed + impulse / pile_mass
 	for member: Dictionary in members:
 		var moving := _along(member, normal)
 		if pile_to > moving:
@@ -241,9 +328,9 @@ static func _along(member: Dictionary, normal: Vector2) -> float:
 ## The pile `first` heads along `normal` (out of the vehicle): `first` and the bodies pressed one
 ## against the next in front of it, found through the characters in it (a character's circle,
 ## `radius`, moved `pile_gap` on along the normal), up to `pile_depth` of them. Returns
-## `{ members: [{ body, mass, character, through }], people, led, blocked }`: `through` the mass of
-## the pieces between the vehicle and that member, `people` the living characters, `led` the pieces
-## a 3D body leads, `blocked` what stops the pile (a wall or anything else that is not pushable) or
+## `{ members: [{ body, mass, character, through }], people, blocked }`: `through` the mass of
+## the pieces between the vehicle and that member, `people` the living characters, `blocked` what
+## stops the pile (a wall or anything else that is not pushable) or
 ## null. Furniture pressing furniture is the solver's, so a piece is followed only into the
 ## characters it presses.
 func _pile(first: Node, normal: Vector2) -> Dictionary:
@@ -278,13 +365,10 @@ func _pile(first: Node, normal: Vector2) -> Dictionary:
 				"through": through,
 			})
 	var people := 0
-	var led := 0
 	for member: Dictionary in members:
 		if member["character"]:
 			people += 1
-		elif _is_led(member["body"]):
-			led += 1
-	return { "members": members, "people": people, "led": led, "blocked": blocked }
+	return { "members": members, "people": people, "blocked": blocked }
 
 
 ## What pile member `member` presses into along `normal`: `{ bodies, blocked }`. A character:
@@ -411,13 +495,14 @@ func apply() -> void:
 			continue
 		var character := _is_character(body)
 		if character and body.is_dead:
-			vehicle.add_collision_exception_with(body)
+			_roll_over_for_good(body)
 			continue
+		# a piece is a free 3D body the physics engine moves as the vehicle presses it: only the
+		# blow of the bumper on one first met is given here, at its height; a character is shoved
 		if hit["push"] != Vector2.ZERO:
-			if _is_led(body):
-				Knockback.push(body, hit["push"])
-			else:
-				body.apply_impulse(hit["push"])
+			var at: Vector2 = (hit["position"] - (body as Node2D).global_position
+					if hit.has("height") else Vector2.ZERO)
+			Knockback.push(body, hit["push"], at, float(hit.get("height", -1.0)))
 		var closing: float = hit["harm"]
 		if not character or closing <= 0.0:
 			continue
@@ -429,18 +514,28 @@ func apply() -> void:
 		if harm > 0.0:
 			body.take_damage(float(body.health) * minf(harm, 1.0))
 		if body.is_dead:
-			vehicle.add_collision_exception_with(body)
+			_roll_over_for_good(body)
 
 
-## How fast `body` moves at contact `i`: a rigid body's velocity at the point as the physics server
-## has it; a character (a kinematic body: neither its server velocity nor the motion that pushed it
-## out of the vehicle is its own) the velocity it moves at by itself, its walk and any knockback.
-static func _velocity_of(body: Node, state: PhysicsDirectBodyState2D, i: int) -> Vector2:
+## The vehicle stops colliding with the dead `body`: it rolls over it.
+func _roll_over_for_good(body: Node) -> void:
+	(vehicle as PhysicsBody2D).add_collision_exception_with(body)
+
+
+## How fast `body` moves: a character (a kinematic body: neither its server velocity nor the motion
+## that pushed it out of the vehicle is its own) the velocity it moves at by itself, its walk and
+## any knockback; a body a free 3D body leads (a piece of furniture, another vehicle) that body's,
+## unless it is a piece first met (`fresh`): the step that met it has already carried it along, and
+## it lay at rest before; a wall or a door none.
+static func _velocity_of(body: Node, fresh: bool) -> Vector2:
 	if body is CharacterBody2D:
 		return (body as CharacterBody2D).velocity
-	if _is_led(body):
-		return TwinSpace.leader_of(body).call(&"plan_velocity")
-	return state.get_contact_collider_velocity_at_position(i)
+	if fresh and _is_piece(body):
+		return Vector2.ZERO
+	var lead := TwinSpace.leader_of(body)
+	if lead != null:
+		return lead.call(&"plan_velocity")
+	return Vector2.ZERO
 
 
 ## Whether `body` is a character (the group `characters`, interface 7).
@@ -448,13 +543,10 @@ static func _is_character(body: Node) -> bool:
 	return body.is_in_group(&"characters")
 
 
-## Whether `body` is a piece the vehicle can shove on: a free rigid body with the pushable contract
-## (furniture, another vehicle).
+## Whether `body` is a piece the vehicle can shove on: a free piece of furniture, the footprint of a
+## free 3D body with the pushable contract.
 static func _is_piece(body: Node) -> bool:
-	return (body is RigidBody2D
-			and (not (body as RigidBody2D).freeze or _is_led(body))
-			and body.has_method("apply_impulse")
-			and body.has_method("get_mass"))
+	return body is RigidBody2D and _is_led(body) and body.has_method("get_mass")
 
 
 ## Whether `body` is the frozen footprint of a piece a free 3D body leads (`TwinSpace.leader_of`).

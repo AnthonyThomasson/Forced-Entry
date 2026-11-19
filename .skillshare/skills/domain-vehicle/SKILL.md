@@ -10,21 +10,22 @@ A drivable **car** and **van** (one scene each, inheriting `vehicle.tscn`). Only
 ```
 player_controller (Space) ─▶ Character.use.try_interact (when a vehicle's door is the thing nearest the mouse: `use.interact_target()`) ─▶ CharacterVehicleUse ─▶ vehicle.board(character, door) ─▶ VehicleBoarding (the ride)
 VehicleBoarding ──(movement.move_input / aim_point, use.set_ride_pose, use.end_ride)──▶ Character;  seated driver: move_input / run_input ─▶ vehicle.drive_input
-vehicle._integrate_forces ─▶ drive.step (VehicleDrive)   /   _contacts (VehicleContacts) ─▶ crash events, characters struck
+VehicleBody._integrate_forces (3D) ─▶ drive.step (VehicleDrive), contacts.remember   /   vehicle._physics_process ─▶ contacts.read (VehicleContacts: shape queries) ─▶ crash events, characters struck
 ```
 
 ## Files
 
 | File | Role |
 |---|---|
-| `vehicle.gd` | Root `RigidBody2D` (no `class_name`; group `vehicles`): body set-up, the drivable contract (interface 19), the hittable contract, its parts (`cabin`, `drive`, `_contacts`) and `post`, through which every `vehicle` event goes. |
+| `vehicle.gd` | Root `AnimatableBody2D`, the 2D footprint (no `class_name`; group `vehicles`) of the 3D body that leads it: set-up, the old rigid body's reads and writes answered by that body (`linear_velocity`, `angular_velocity`, `sleeping`, `apply_impulse`, `get_mass`), the drivable contract (interface 19), the hittable contract, its parts (`cabin`, `drive`, `contacts`, `row`) and `post`, through which every `vehicle` event goes. |
+| `vehicle_body.gd` (`VehicleBody`) | The vehicle's truth: a `RigidBody3D` locked upright in the twin space (`TwinSpace.leader_of`), the drive stepped in its `_integrate_forces` in plan space, `push` / `plan_velocity` / `wake` as a piece's. |
 | `vehicle_cabin.gd` (`VehicleCabin`) | Doors, seats and whose ride is whose (`take_seat` starts a ride, `release` ends it). |
 | `vehicle_drive.gd` | The bicycle model, stepped in `_integrate_forces`; the drive `intent`, engine, skids. `tyre_solve.gd` (`TyreSolve`) is one step's sideways solve. |
 | `vehicle_contacts.gd` (`VehicleContacts`) | Contacts and harm (V6): `read`/`remember` around the drive's step, `apply` in `_physics_process`. |
 | `vehicle_door.gd` | One door in the vehicle's frame: eased open amount, pose, stand and entry points, `is_clear`. |
 | `vehicle_boarding.gd` | One character's ride: a timed phase machine (`Phase`, inner `Pose`) from Space beside the vehicle to the last step out. |
 | `character_vehicle_use.gd` | The character's component (built by `CharacterUse.attach`): picks the door, steps the ride after the controller, abandons it on death. |
-| `vehicle_twins.gd` (`VehicleTwins`) | The vehicle's 3D twin for General's twin space (29): a kinematic `AnimatableBody3D` over its 2D outline from the ground to `VehicleMeshConfig.heights[kind].belt`, on `PhysicsLayers.TWIN_VEHICLE`, following its transform; the glass and roof above the belt, and dents, are not in it yet. Test: `tests/vehicle/twin_vehicle_follows_test.gd`. |
+| `vehicle_twins.gd` (`VehicleTwins`) | The builder of the `VehicleBody` for General's twin space (29): the outline from the ground to `VehicleMeshConfig.heights[kind].belt` and the cabin (`looks.roof`, `roof_half`) on to the roof, on `PhysicsLayers.TWIN_VEHICLE`; dents are not in it. One source for heights: `VehicleMeshConfig.heights` (the prop car and the mirror read it). Tests: `tests/vehicle/twin_vehicle_follows_test.gd`, `vehicle_heights_are_one_source_test.gd`. |
 | `art/` | The painters and the 3D mesh: read `art.md` before touching them. |
 | `vehicle_config.gd` (`VehicleConfig`) | `kinds` row per kind (`car`, `van`: size, mass, engine, axles, grips, `seats`, `doors`) and `looks` row per kind (the painters' proportions). Shared numbers: `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`, `VehicleMeshConfig` (the 3D heights and part sizes). |
 
@@ -33,7 +34,7 @@ vehicle._integrate_forces ─▶ drive.step (VehicleDrive)   /   _contacts (Vehi
 ## Body and driving (V5)
 
 - The collider is one convex polygon of `outline()`; the `Deformable` child records dents but nothing rebuilds the collider from them. `can_sleep` is off while the engine runs.
-- `_integrate_forces` reads the contacts first, then `drive.step` writes the velocities for the next step from the `intent` (`throttle`, `steer`, `handbrake`, `brake`: from `drive_input`, driver only and engine running, or `drive.brake_input`, which holds to a stop and never reverses).
+- The 3D body's `_integrate_forces` runs `drive.step`, which writes the velocities (plan space `(x, z)`, the turn about up; its vertical part is the floor's) for the next step from the `intent` (`throttle`, `steer`, `handbrake`, `brake`: from `drive_input`, driver only and engine running, or `drive.brake_input`, which holds to a stop and never reverses).
 - **Steering lock is derived, not tuned.** Slow, full lock is `steer_angle`; at speed it is the angle that asks the front axle for exactly the sideways grip it holds (`lock(row, speed)`), so full lock never plows or spins. `steer_share` eases at `steer_rate / steer_angle` per second, so full lock takes the same time at any speed.
 - **Throttle tapers to the top speed.** `_engine` falls with the cube of the speed share to exactly rolling + drag at `top_speed`, so full throttle settles there whatever the drag.
 - **Balance.** The rear limit is kept above the front's, so at the limit the front slides first (understeer). A weaker rear would spin on a fast turn. The handbrake leaves the rear `handbrake_grip` of its grip: it must stay a few px/s², as locked tyres still hold sideways; more damps the tail's swing and `vehicle/handbrake_slides_rear` fails.
@@ -51,8 +52,9 @@ vehicle._integrate_forces ─▶ drive.step (VehicleDrive)   /   _contacts (Vehi
 
 ## Contacts and harm (V6)
 
-- **The closing speed comes from the step's start velocities** (`_last_velocity`, `_last_spin`, kept by `remember` after the drive's step): the solver has already stopped the vehicle by the time `_integrate_forces` sees the contact. The other body's velocity is a `CharacterBody2D`'s own `velocity`, never its position delta: pressed against the vehicle, its `move_and_slide` barely moves it for a frame however hard its knockback, which would read a stopped body.
-- **Characters are immovable to the solver**, so it stops the vehicle on one (and on a chair pressed against one) as on a wall. `_pile` finds what stands in front (living characters and free pushable pieces, `pile_depth` members, the rest `blocked`), and `_strike_pile` meets vehicle and pile as two bodies: **blocked** (a wall behind) keeps the solver's stop and posts `crash`; **free** applies the impulse `J`, shoves each member on and queues a blow per character not already in a pile for `rehit_time`. One run-in is one blow. Furniture pressing furniture stays the solver's. A piece a free 3D body leads (interface 29) is, to the 2D solver, a frozen footprint as immovable as a character: it counts as a pile member (`_is_led`, `pile.led`), is struck and shoved on through `Knockback.push` at its centre, and is read at its 3D body's velocity.
+- **What is touched is found by a shape query**, never by Jolt's contact events (nondeterministic): `read` (in `_physics_process`, before the step) queries the vehicle's outline shape in the twin space with a margin, in a fixed order (by where the bodies stand), and takes each body's strongest contact with `get_rest_info`. **The closing speed comes from the step's start velocities** (`_last_velocity`, `_last_spin`, kept by `remember` after the drive's step). The other body's velocity is a `CharacterBody2D`'s own `velocity`, never its position delta; a free piece first met is taken to have lain at rest (the step that met it has carried it along).
+- **The vehicle does not collide with a character in 3D** (its mask lacks `TWIN_CHARACTER`): it is never stopped dead by one. `_pile` finds what stands in front (living characters and free pushable pieces, `pile_depth` members, the rest `blocked`), and `_strike_pile` meets vehicle and pile as two bodies: **blocked** (a wall behind: the wall stops the vehicle) posts `crash`; **free** applies the impulse `J` to the vehicle's velocity, shoves each character on and queues a blow per character not already in a pile for `rehit_time`. One run-in is one blow. A pile is struck only with a living character in it.
+- **Furniture** is a free 3D body (`PieceBody`): the engine solves it against the vehicle (two dynamic bodies), and `_strike_piece` adds the bumper's blow on a piece first met above `crash_min_speed`: `strike_share` of the closing speed times its mass, through `Knockback.push` at `VehicleCollisionConfig.strike_height` (sill plus half the bumper), so a tall thin piece goes over and a low heavy one slides.
 - `apply()` runs in `_physics_process`, outside the flush where a death may change bodies. `process_physics_priority` −1 moves the vehicle before the characters, so a shoved character moves off in the same frame.
 - **A corpse still blocks rigid bodies** (on no layer, but its mask collides), hence a collision exception once a struck character is dead.
 - Anything but a character that is struck faster than `crash_min_speed` posts `crash` at once.
@@ -65,7 +67,7 @@ Events: `&"vehicle"` (`stage`: `ignition`, `door_open`, `slide_open`, `door_clos
 
 ## Gotchas
 
-- **A `RigidBody2D` added this frame is not in the space yet**, so a shape query (`is_clear`, a probe's ray) on that frame misses it; `TestWorld` waits a physics frame after placing vehicles.
+- **A body added this frame is not in the space yet** (the 2D footprint, nor its 3D body: the twin space builds that on the next update), so a shape query (`is_clear`, a probe's ray) on that frame misses it, and `linear_velocity` set on the footprint then is lost; `TestWorld` waits a physics frame after placing vehicles. A script that wakes the 3D body must call `VehicleBody.wake()` (the `sleeping = false` shim does), or the twin space never hears of it. `max_linear_velocity` 5000 px/s is above a vehicle's top speed (1280): no raise needed.
 - **Arena size at these speeds:** a test running flat out for a second needs about 1000 px; a full-lock circle at walking pace is about 200 px.
 - The `bounce` value is tiny on purpose: a crash near the top speed rebounds under 40 px/s, which rolling stops within a second (`vehicle/crash_into_wall_stops`).
 

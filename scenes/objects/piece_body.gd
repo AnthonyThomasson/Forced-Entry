@@ -254,11 +254,12 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 
 
 ## Hand the momentum of a moving piece to the bodies it strikes that are not themselves moved by the
-## solver (a character, a vehicle: kinematic), scaled down so a cascade loses energy. Jolt's contact
-## events are not read: they are collected on worker threads and arrive in a different count and
-## order run to run, so what is struck is found by a shape query of the piece's own shapes in the
-## twin space, in a fixed order (by where the struck body stands), and a body is handed the momentum
-## once a touch, the piece's velocity being what it carried before the step that met the body.
+## solver (a character: kinematic; a vehicle is a free 3D body, the engine solves the two), scaled
+## down so a cascade loses energy. Jolt's contact events are not read: they are collected on worker
+## threads and arrive in a different count and order run to run, so what is struck is found by a
+## shape query of the piece's own shapes in the twin space, in a fixed order (by where the struck
+## body stands), and a body is handed the momentum once a touch, the piece's velocity being what it
+## carried before the step that met the body.
 func _hand_over() -> void:
 	var carried := _carried
 	_carried = plan_velocity()
@@ -267,7 +268,7 @@ func _hand_over() -> void:
 	var struck: Array = []
 	var touching := {}
 	var query := PhysicsShapeQueryParameters3D.new()
-	query.collision_mask = PhysicsLayers.TWIN_CHARACTER | PhysicsLayers.TWIN_VEHICLE
+	query.collision_mask = PhysicsLayers.TWIN_CHARACTER
 	query.margin = STRIKE_MARGIN
 	var space := get_world_3d().direct_space_state
 	for child in get_children():

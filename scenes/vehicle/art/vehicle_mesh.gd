@@ -32,7 +32,7 @@ static func build(body: Node2D) -> Node3D:
 		or not VehicleMeshConfig.heights.has(car.kind)
 	):
 		return null
-	var row: Dictionary = car.row()
+	var row: Dictionary = car.row
 	var look: Dictionary = VehicleConfig.looks[car.kind]
 	var tuning := _tuning(car.kind, row, look)
 	var rig := Rig.new()
@@ -52,7 +52,7 @@ static func build(body: Node2D) -> Node3D:
 
 ## The hull on `rig`: one cached mesh per kind, textured with the body's 2D art in its paint.
 static func _add_hull(rig: Rig, car: Vehicle, tuning: Dictionary) -> void:
-	var row: Dictionary = car.row()
+	var row: Dictionary = car.row
 	var look: Dictionary = VehicleConfig.looks[car.kind]
 	var key := MeshCache.key("vehicle_hull", row["size"], Color.WHITE, tuning)
 	var skin := VehicleSkin.body(car.kind, car.color)
@@ -67,7 +67,7 @@ static func _add_hull(rig: Rig, car: Vehicle, tuning: Dictionary) -> void:
 
 ## The leaf of door `def` on `rig`, at its hinge, textured with the door panel's 2D art.
 static func _add_door(rig: Rig, car: Vehicle, def: Dictionary, tuning: Dictionary) -> void:
-	var row: Dictionary = car.row()
+	var row: Dictionary = car.row
 	var look: Dictionary = VehicleConfig.looks[car.kind]
 	var key := MeshCache.key("vehicle_door:%s" % def["id"], row["size"], Color.WHITE, tuning)
 	var skin := VehicleSkin.door(car.kind, def, car.color)

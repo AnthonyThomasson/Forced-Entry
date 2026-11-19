@@ -17,16 +17,13 @@ static func place(t: TestContext, id: StringName, point: Vector2) -> void:
 	await t.frames(2)
 
 
-## Move a parked vehicle to `pos`, turned to `rot`: frozen a frame, moved, then let go (a free rigid
-## body moved directly is put back by the physics step).
+## Move a parked vehicle to `pos`, turned to `rot`: its footprint is moved, and the twin space puts
+## its 3D body there within `TwinSpace.PARK_SPREAD` frames (a sleeping body a script teleports); the
+## wait lets the 3D body be there, and at rest, before a test sets it rolling.
 static func move_vehicle(t: TestContext, v: Node2D, pos: Vector2, rot: float) -> void:
-	v.set("freeze", true)
-	await t.frames(1)
 	v.global_position = pos
 	v.global_rotation = rot
-	await t.frames(1)
-	v.set("freeze", false)
-	await t.frames(2)
+	await t.frames(TwinSpace.PARK_SPREAD + 2)
 
 
 ## Press Space for puppet `id` and wait until it is seated (true) or `timeout` passes.

@@ -4,11 +4,11 @@ class_name MirrorConfig
 ## as `MirrorConfig.<name>`. Heights are in 2D pixels, scaled by `RenderConfig.unit` with the
 ## ground, so changing the scale scales the world whole; height is visual only (the sim stays flat).
 
-## How tall each kind of body stands: a wall (full height), a door's leaf, a character, a vehicle.
+## How tall each kind of body stands: a wall (full height), a door's leaf, a character. (A vehicle's
+## is its kind's roof, `VehicleMeshConfig.heights`: one source.)
 static var wall_height: float = 96.0
 static var door_height: float = 84.0
 static var character_height: float = BodyHeights.person_px
-static var vehicle_height: float = 40.0
 ## A piece of furniture is its footprint's narrow side times this, clamped between its own least
 ## (never more than the footprint's narrow side, so a casing stays a speck) and most.
 static var furniture_ratio: float = 0.7

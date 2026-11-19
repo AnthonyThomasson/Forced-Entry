@@ -11,7 +11,7 @@ class_name VehicleMeshConfig
 ## body (the wheels stand in the gap), `belt` the top of the body and of the doors, `roof` the top
 ## of the cabin, `lamp` the [low, high] of the head and tail lamps.
 static var heights := {
-	&"car": { "sill": 9.0, "belt": 36.0, "roof": 52.0, "lamp": Vector2(19.0, 28.0) },
+	&"car": { "sill": 9.0, "belt": 40.0, "roof": 60.0, "lamp": Vector2(19.0, 28.0) },
 	&"van": { "sill": 11.0, "belt": 46.0, "roof": 78.0, "lamp": Vector2(24.0, 34.0) },
 }
 ## How thick the roof slab is (the glass band runs under it).

@@ -128,15 +128,24 @@ and passenger click the trigger of a loaded pistol: no shot, hit or shot sound, 
 
 ### Collisions
 
-**V6. Collisions: full physical.** The vehicle is a `RigidBody2D` on `PhysicsLayers.SOLID`.
+**V6. Collisions: full physical.** The vehicle is a free 3D body locked upright (`VehicleBody`, a `RigidBody3D` in the twin space: it
+cannot roll or pitch, it turns about up and slides on the floor; its mass, its grip and its driving model are the 2D body's) and its
+2D body is the footprint on `PhysicsLayers.SOLID` that the characters walking in 2D are stopped by. It is the same vehicle: the
+numbers below hold.
 - Walls stop it; it loses most of its speed on the impact (`bounce` **0.025**: a crash at the top speed rebounds slower than rolling
   resistance stops within a second).
-- Furniture is shoved by the physics engine (the pushable contract) and does not stop it.
+- Furniture is a free 3D body too: the engine solves the two (the pushable contract) and the vehicle carries on. The bumper's blow
+  adds to that at the height it meets a piece (`strike_height`, the sill and half the bumper: 14.5 px for a car): a piece first met
+  faster than `crash_min_speed` is struck with `strike_share` **0.4** of the closing speed times its mass there, so a tall thin
+  piece (a bookshelf) is kicked low and goes over, and a low heavy one (a sofa) only slides on, upright. A vehicle cannot be tipped:
+  a blow at any height turns it about up or slides it.
 - A character struck is knocked back (`apply_impulse`) and takes `take_damage(health x (closing − 90) / (300 − 90))`: nothing below
   `harm_min_speed` **90**, death at `harm_kill_speed` **300** or faster. One run-in is one blow: a character struck again within
   `rehit_time` **0.5** s of the last time it was against the vehicle is shoved on but not hurt again. A dead body is rolled over, and
   lies on the floor under the vehicle.
-- The vehicle is never stopped dead by a character: it loses only the momentum the character takes, and what the character is pressed
+- The vehicle does not collide with a character in 3D (it overlaps the character's cylinder), so it is never stopped dead by one:
+  what it is struck at, the shove and the harm are judged by shape queries after each step (never by the engine's contact events).
+  It loses only the momentum the character takes, and what the character is pressed
   against. What stands in front of it is a pile: the character struck and the pieces of furniture or other characters it is pressed
   against (each within `pile_gap` **4** px along the push, at most `pile_depth` **4** bodies), or a piece pressed against a character.
   The vehicle and the pile meet as two bodies, the pile's mass all its members' (a character bounces off with `harm_bounce` **0.4** of
@@ -152,7 +161,10 @@ and passenger click the trigger of a loaded pistol: no shot, hit or shot sound, 
 - Bullets hit it like furniture: `get_surface()` is metal, penetration **90**; `take_hit` dents it
   (`Deformable`, at most 3 px deep, the last 24 dents kept), throws debris and shoves it at the hit. It is never destroyed, and its
   occupants are not hit through the body.
-Tests: `vehicle/crash_into_wall_stops` (driven flat out into a wall: a crash event with the impact speed, the kind and a material; most
+Tests: `vehicle/vehicle_is_a_locked_upright_3d_body` (the vehicle's truth is a `RigidBody3D` locked about the horizontal axes: a huge
+shove at its roof height turns it and slides it, never leans it), `vehicle/car_tips_a_bookshelf_but_slides_a_sofa` (a car rolling at 500
+into a bookshelf lays it over, into a sofa only slides it), `vehicle/drive_script_matches_the_2d_body` (a fixed input script's path,
+heading and speed within a frame of travel and 4 % of what the 2D body did), `vehicle/crash_into_wall_stops` (driven flat out into a wall: a crash event with the impact speed, the kind and a material; most
 of the speed lost; it stays this side of the wall and stops), `vehicle/pushes_furniture` (an armchair is shoved well along the car's
 path, the car keeps moving, a crash names fabric), `vehicle/hits_character_damage_by_speed` (empty cars rolling at 60, midway between
 the two speeds, and past 300: shoved and unhurt, hurt and alive, dead), `vehicle/pinned_character_crushed` (empty cars at 200 into a

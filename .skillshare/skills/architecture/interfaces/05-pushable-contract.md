@@ -15,10 +15,11 @@
      its `PieceBody` through `Knockback.push` at the point and height struck: a fist high on a tall thin piece tips it, a foot low on it slides it.
    - Pushers: furniture→character contact transfers, bullet impacts, an explosion's blast (central), the character's punch, kick, leg press
      and walking push (each at its contact point).
-   - A vehicle (`vehicle.gd`, a `RigidBody2D`) is pushable through its native methods (a bullet shoves it at the hit). It shoves free furniture
-     through the physics solver, and a piece led by a 3D body (to the 2D solver as immovable as a character) as a pile through
-     `Knockback.push` (`VehicleContacts`), a character it strikes through the character's `apply_impulse` (interface 19), and a piece pressed against
-     a character through the piece's `apply_impulse`, read against its `linear_velocity`.
+   - A vehicle (`vehicle.gd`, the 2D footprint of a free 3D body locked upright, `VehicleBody`: `TwinSpace.leader_of`) is pushable through `Knockback.push` like a led
+     piece (a bullet shoves it at the hit, at its height; locked upright, a blow turns it about up or slides it, never leans it); `apply_impulse(v, at)`,
+     `get_mass()`, `linear_velocity`, `angular_velocity` and `sleeping` on the 2D vehicle answer through its 3D body. It shoves free furniture as two free 3D bodies (the
+     engine solves them) plus the bumper's blow through `Knockback.push` at the bumper's height (`VehicleContacts`), so a tall thin piece goes over and a low heavy one slides; a character it strikes
+     through the character's `apply_impulse` (interface 19), judged by shape queries (never the engine's contact events).
    - To carry a piece at walking pace instead of launching it, a pusher may read a `RigidBody2D` pushable's `linear_velocity` /
      `angular_velocity` and its inverse inertia (`PhysicsServer2D.body_get_direct_state`) and cap its shove by them; a pushable without
      them (a character) is shoved uncapped.

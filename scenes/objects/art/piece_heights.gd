@@ -316,7 +316,7 @@ static func _decor(spec: FurnitureSpec) -> Array[Dictionary]:
 				+ ObjectMeshKitchenConfig.hotplate_plate_height
 			)
 		"car":
-			top = ObjectMeshCarConfig.roof_top
+			top = ObjectMeshCarConfig.roof_top()
 		"decor":
 			top = _clutter_top(kind)
 	return [_part(top)]

@@ -184,7 +184,7 @@ static func rect_of(shape: Shape2D) -> Rect2:
 
 
 ## How tall a body of `kind` over `rect` (its shape's footprint) stands, in 2D pixels.
-static func height_of(_body: Node, kind: StringName, rect: Rect2) -> float:
+static func height_of(body: Node, kind: StringName, rect: Rect2) -> float:
 	match kind:
 		CHARACTER:
 			return MirrorConfig.character_height
@@ -193,7 +193,10 @@ static func height_of(_body: Node, kind: StringName, rect: Rect2) -> float:
 		WALL:
 			return MirrorConfig.wall_height
 		VEHICLE:
-			return MirrorConfig.vehicle_height
+			# a vehicle of no kind (a stand-in) is as tall as a car
+			var heights: Dictionary = VehicleMeshConfig.heights
+			var row: Dictionary = heights.get(body.get("kind"), heights[&"car"])
+			return float(row["roof"])
 	var narrow := minf(rect.size.x, rect.size.y)
 	return clampf(
 		narrow * MirrorConfig.furniture_ratio,
