@@ -15,7 +15,7 @@ All distances are px and times seconds. The numbers are the Lighting holders' (`
 
 The game is drawn in 3D (`architecture` interface 27, #193): a near top-down orthographic camera over meshes that wear the
 2D painters' flat art, shaded by Art's toon light (`toon_common.gdshaderinc`). The Lighting domain's 3D side is
-`WorldLighting3D` (`scenes/lighting/world_lighting_3d.gd`), which Main builds under the 3D view's own world after it mirrors the
+`WorldLighting3D` (`scenes/lighting/world_lighting_3d.gd`), which Main builds in the 3D view's world (the twins', interface 29) after it mirrors the
 match (`Main._view3d.light_world`): it reads the 2D world the sim runs in, duck-typed (Objects' floors
 (`is_street()`, `size`), a piece's `get_lights()`, the rooms), and builds the lights of the 3D world. Its numbers are
 `Lighting3DConfig` (the sun, the heights, the pools) and `LightingCostConfig` (the cost caps), over the dusk's colours and energies

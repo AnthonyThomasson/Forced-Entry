@@ -2,7 +2,8 @@ extends CanvasLayer
 ## Composition root part (beside `main.gd`): the 3D view of a match, the only way one is drawn
 ## (`docs/adr/0013-the-3d-render-mirrors-the-2d-sim.md`), and of a test world in a window. A
 ## `CanvasLayer` named `View3D` on `RenderConfig.canvas_layer`, below the HUD, holding a
-## `TextureRect` that shows a `SubViewport` of a 3D world of its own: General's `CameraRig` (an
+## `TextureRect` that shows a `SubViewport` of the match's twin world (`TwinSpace`, interface 29;
+## the window's until `mirror_world` finds that one): General's `CameraRig` (an
 ## orthographic `Camera3D` following the sim's `Camera2D`), the Lighting domain's dusk
 ## (`WorldLighting3D`: the sky, the fixtures' and pieces' lights, the ambient) and Art's
 ## `WorldMirror` of the match's 2D bodies (interface 27). The
@@ -16,7 +17,9 @@ extends CanvasLayer
 ## step).
 ##
 ## Main builds it before the match (`begin`, so no frame of the 2D world is ever drawn) and mirrors
-## the match once it is built (`mirror_world`). The hard shadow filter is a global of the
+## the match once it is built (`mirror_world`), which is also where the picture takes the match's
+## twin space's 3D world (`_share_world`): a world a view was told of that has no twin space is
+## drawn in a world of its own. The hard shadow filter is a global of the
 ## renderer: it is set here and put back to the project's value when the view leaves the tree.
 
 ## The view runs after the camera rig (`process_priority` 50) and the player's view (100) so the
@@ -76,7 +79,6 @@ func begin(camera: Camera2D) -> void:
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(rect)
-	viewport.own_world_3d = true
 	viewport.msaa_3d = Viewport.MSAA_DISABLED
 	viewport.use_debanding = false
 	viewport.gui_disable_input = true
@@ -157,10 +159,25 @@ func _follow_oversample() -> void:
 ## Mirror the 2D bodies under `world`: from now on the view follows them, and the shots made in it
 ## (tracers, casings) are shown by their layer.
 func mirror_world(world: Node) -> void:
+	_share_world(world)
 	_register_meshes()
 	_ground.refresh(world)
 	mirror.mirror(world)
 	ProjectileMeshes.install(mirror, world)
+
+
+## Draw `world`'s twin space's `World3D` (the nodes the view holds move into it: the rig, the
+## environment, the outline, the mirror), so what is drawn stands in the world the bodies are in.
+## The viewport waited for the match in the window's world (never swap an own world out: the
+## engine frees its scenario under the swap); a world with no twin space is given a world of its
+## own, so the picture's nodes never stand in the window's. Another twin space's world is never
+## shared: each staged world has its own.
+func _share_world(world: Node) -> void:
+	var twins := TwinSpace.of_world(world)
+	if twins == null or not twins.is_inside_tree():
+		viewport.own_world_3d = true
+		return
+	viewport.world_3d = twins.find_world_3d()
 
 
 ## Plug each domain's own meshes into the mirror (its builders, `WorldMirror.builders`), so a body

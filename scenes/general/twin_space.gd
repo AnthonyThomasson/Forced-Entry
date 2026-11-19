@@ -13,9 +13,9 @@ extends SubViewport
 ## match or a test world is staged (`MatchBuilder.stage`), headless too, and needs no view. A space
 ## of its own matters: Jolt solves contacts in the order of the slots its bodies hold and reuses a
 ## freed body's slot, so worlds that shared one space (the main window's) gave results that
-## depended on what the process ran before. The 3D view (Main's `View3D`) draws in a `SubViewport`
-## of its own world today; when the bodies themselves are 3D (the flip's last job) it shares this
-## world instead and the meshes attach to the bodies. The 3D engine is Jolt (`project.godot`).
+## depended on what the process ran before. The 3D view (Main's `View3D`) draws this world: its
+## picture's viewport takes it as its own once it is told of the world (`of_world`), so the meshes
+## and lights stand where the bodies are. The 3D engine is Jolt (`project.godot`).
 ##
 ## **What builds a twin.** Each domain builds the twin of its own body behind a hook, as the mesh
 ## hook of the 3D render does: `builders` is a list of `Callable(node: Node2D) -> Node3D`, tried in
@@ -185,6 +185,15 @@ func update() -> void:
 func twin_of(body: Node) -> Node3D:
 	var row: Dictionary = _rows.get(body.get_instance_id(), {})
 	return row.get("twin")
+
+
+## The twin space standing in `world` (a direct child: `MatchBuilder.stage` puts it there), or null
+## for a world built by hand with none. The 3D view draws that space's `World3D` (`find_world_3d`).
+static func of_world(world: Node) -> TwinSpace:
+	for child in world.get_children():
+		if child is TwinSpace:
+			return child
+	return null
 
 
 ## The 3D direct space the twins are in: cast rays and shapes into it.
