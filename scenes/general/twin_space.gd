@@ -224,6 +224,17 @@ static func twin_for(body: Object) -> Node3D:
 	return found as Node3D if is_instance_valid(found) else null
 
 
+## Twin the 2D `body` again, as its domain's builder now answers: a door that was led by a
+## kinematic body (`DoorBody`) is a free one once it is knocked down (`DoorSlab`, #194 doors3d,
+## D18). The old twin leaves every query at once and is freed; the new one stands where the 2D body
+## does. A body with no twin, or in no twin space, is left as it is.
+static func retwin(body: Node2D) -> void:
+	var twin := twin_for(body)
+	var stand := twin.get_parent() as TwinSpace if twin != null else null
+	if stand != null:
+		stand._retwin(body)
+
+
 ## Let the twins of `a` and `b` share space (`shared`) or collide again: what the 2D bodies'
 ## collision exception between them does for the 3D bodies, so a character put onto or under a
 ## piece (a bed it lies on or hides under) does not shove the piece's free 3D body out of the way. A
@@ -287,6 +298,18 @@ static func owner_of(collider: Object) -> Node2D:
 		return null
 	var found: Variant = collider.get_meta(OWNER_META)
 	return found as Node2D if is_instance_valid(found) else null
+
+
+## Drop `body`'s twin and build it again now (`retwin`).
+func _retwin(body: Node2D) -> void:
+	var row: Dictionary = _rows.get(body.get_instance_id(), {})
+	if row.is_empty():
+		return
+	var leaving := _on_exiting.bind(body)
+	if body.tree_exiting.is_connected(leaving):
+		body.tree_exiting.disconnect(leaving)
+	_drop(row)
+	_twin(body)
 
 
 ## Mark every node of `group` under the root to be twinned on the next update.
@@ -404,6 +427,18 @@ func _twin(node: Node2D) -> void:
 			(lead as RigidBody3D).sleeping_state_changed.connect(row["wake"])
 		_moving.append(row)
 		return
+	if made is AnimatableBody3D and made.has_method(&"take_over"):
+		# a kinematic leader (a standing door): its own script turns it and writes the 2D follower
+		# in the one step, so this space has nothing to follow
+		made.call(&"take_over", node)
+		return
+	_follow_body(row, node)
+
+
+## Have `row`'s 2D body `node` followed as the sim moves it: a rigid body that is not frozen, a
+## character, a driven body; a frozen rigid body is looked at slowly in case it is unfrozen later
+## (`_look_at_parked`), and a body that never moves is written once, when twinned.
+func _follow_body(row: Dictionary, node: Node2D) -> void:
 	var rigid: Variant = row["rigid"]
 	if rigid != null:
 		row["wake"] = _on_sleeping.bind(row)

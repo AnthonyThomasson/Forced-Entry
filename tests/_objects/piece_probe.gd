@@ -16,6 +16,13 @@ static func lean(piece: Node) -> float:
 	return rad_to_deg(acos(clampf(lead.global_transform.basis.y.y, -1.0, 1.0))) if lead else 0.0
 
 
+## The plan point under the piece's centre of mass now: where a piece lying on its side is (its
+## origin, the 2D body's, stays where its foot was).
+static func middle(piece: Node) -> Vector2:
+	var lead := body(piece)
+	return PlanSpace.plan_of(lead.global_transform * lead.center_of_mass)
+
+
 ## The height (px) of the piece's centre of mass now.
 static func centre(piece: Node) -> float:
 	return body(piece).centre_height()

@@ -130,7 +130,7 @@ func _zoom_shots(
 
 
 ## The doorway's door made a glass door with its panes shattered (the floor shows through the
-## empty panes), at zoom 3 and then knocked down (its slab is the frame and bars).
+## empty panes), at zoom 3 and then knocked down (the leaf lying, its frame and bars).
 func _broken_glass_shot(t: TestContext, camera: Camera2D, door: Node2D) -> void:
 	if door == null:
 		return

@@ -1,21 +1,21 @@
 extends GameTest
 ## A house door's 3D leaf wears the door painter's flat art as the 2D door shows it (#193 phase 2b):
 ## a shattered glass door is its two stiles alone (the floor shows through the empty panes, as in
-## 2D, not a white sill), a knocked-down door's slab wears the `fallen` art mirrored the way the 2D
-## door lies flipped (`DoorLook.flipped`), its shattered slab is only its frame and
-## bars, and the art is laid again when the panes shatter on a door that already lies. The painted
-## handle of the flat leaf is dropped (the 3D leaf has a handle mesh of its own).
+## 2D, not a white sill), a knocked-down door is the same leaf, lying as its free body does (#194
+## doors3d, D18), and the art is laid again when the panes shatter on a door that already lies. The
+## painted handle of the flat leaf is dropped (the 3D leaf has a handle mesh of its own).
 
 const ObjectArt := preload("res://scenes/objects/art/object_art.gd")
+const Probe := preload("res://tests/_objects/piece_probe.gd")
 const SCRATCH := "user://settings_structure_door_art_test.json"
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "A door's 3D leaf wears its 2D art: shattered, fallen, flipped",
-		"description": "A shattered glass leaf is its stiles alone; a fallen slab wears the "
-			+ "fallen art, mirrored when the 2D door lies flipped, open when shattered, laid "
-			+ "again when the panes shatter while it lies; the flat leaf paints no handle.",
+		"name": "A door's 3D leaf wears its 2D art: shattered, fallen",
+		"description": "A shattered glass leaf is its stiles alone; a fallen door is the same leaf "
+			+ "lying as its free body does, its art laid again when the panes shatter while it "
+			+ "lies; the flat leaf paints no handle.",
 		"tags": ["mirror", "3d", "render", "doors", "art"],
 		"timeout": 60.0,
 	}
@@ -30,12 +30,6 @@ func configure(s: TestSetup) -> void:
 		"door": {
 			"name": "glassy", "material": "glass", "style": "panes",
 			"hinge": Vector2(400, 200), "swing_into": Vector2.RIGHT,
-		},
-	}, {
-		"pos": Vector2(400, 100), "width": 52.0,
-		"door": {
-			"name": "mirrored", "material": "hollow", "style": "panelled",
-			"hinge": Vector2(400, 120), "swing_into": Vector2.RIGHT,
 		},
 	}], { "thickness": 12.0 })
 	s.switch(&"physics.debris", false)
@@ -65,13 +59,12 @@ func run(t: TestContext) -> void:
 	await _shattered_leaf(t, door, node)
 	await _fallen(t, door, node)
 	await _shattered_while_lying(t, door, node)
-	await _flipped_slab(t, mirror)
 
 
 ## The flat standing leaf paints no handle (the 3D leaf's handle is a mesh).
 func _flat_leaf(t: TestContext, door: Node2D) -> void:
 	var size: Vector2 = door.leaf_size()
-	var opts: Dictionary = door.look.art_opts(false)
+	var opts: Dictionary = door.look.art_opts()
 	var flat := ObjectArt.flat("door", size, door.look.color, opts).get_image()
 	var handle := ObjectArtDoorConfig.handle_color
 	t.expect_eq(_count(flat, handle), 0, "the flat leaf paints no handle")
@@ -94,7 +87,7 @@ func _shattered_leaf(t: TestContext, door: Node2D, node: DoorMesh) -> void:
 	door.look.broken = true
 	await t.frames(2)
 	var size: Vector2 = door.leaf_size()
-	var art := ObjectArt.flat("door", size, door.look.color, door.look.art_opts(false))
+	var art := ObjectArt.flat("door", size, door.look.color, door.look.art_opts())
 	t.check(_texture_of(leaf) == art, "the leaf wears the shattered art")
 	t.expect_near(
 		whole, ObjectStructureMeshConfig.door_sill, 0.01, "a whole glass leaf has its sill's top"
@@ -110,38 +103,37 @@ func _shattered_leaf(t: TestContext, door: Node2D, node: DoorMesh) -> void:
 	t.check(_up_area(leaf.mesh) < size.x * size.y * 0.5, "the empty panes are open to the floor")
 
 
-## A knocked-down door's slab wears the fallen art, mirrored when the 2D door lies flipped, and
-## (the panes being gone) is its frame and bars.
+## A knocked-down door is the same leaf (its shattered art, no slab), lying as its free body does.
 func _fallen(t: TestContext, door: Node2D, node: DoorMesh) -> void:
 	door.take_damage(10_000.0)
-	await t.frames(3)
-	var lying := node.get_child(1) as MeshInstance3D
 	t.check(door.is_down(), "the door is knocked down")
-	var art := ObjectArt.flat(
-		"door", Vector2(DoorConfig.fallen_length, door.width), door.look.color,
-		door.look.art_opts(true),
-	)
-	var flipped: bool = door.look.flipped
-	t.check(
-		_texture_of(lying) == (StructureSkin.flipped(art) if flipped else art),
-		"the slab wears the fallen art (2D lies flipped: %s)" % flipped,
-	)
-	var slab: float = DoorConfig.fallen_length * float(door.width)
-	t.check(_up_area(lying.mesh) < slab * 0.9, "a shattered slab is its frame and bars")
+	await Probe.settle(t, door, 12.0)
+	await t.frames(3)
+	var leaf := node.get_child(0) as MeshInstance3D
+	var art := ObjectArt.flat("door", door.leaf_size(), door.look.color, door.look.art_opts())
+	t.check(node.get_child_count() == 1 and leaf.visible, "it is still its one leaf, shown")
+	t.check(_texture_of(leaf) == art, "wearing its art as before")
+	var lead := TwinSpace.leader_of(door)
+	if t.require(lead != null, "its free body leads it"):
+		t.check(
+			node.global_transform.is_equal_approx(lead.global_transform),
+			"the leaf lies as that body does, tilt and all",
+		)
+		t.check(absf(node.global_transform.basis.y.y) < 0.3, "on its side")
 
 
-## The panes shattering while the door lies lay the slab's art and mesh again.
+## The panes shattering while the door lies lay the leaf's art and mesh again.
 func _shattered_while_lying(t: TestContext, door: Node2D, node: DoorMesh) -> void:
-	var lying := node.get_child(1) as MeshInstance3D
+	var leaf := node.get_child(0) as MeshInstance3D
 	door.look.broken = false
 	await t.frames(2)
-	var whole_art := _texture_of(lying)
-	var slab: float = DoorConfig.fallen_length * float(door.width)
-	t.check(_up_area(lying.mesh) > slab * 0.99, "whole panes: a whole slab")
+	var whole_art := _texture_of(leaf)
+	var size: Vector2 = door.leaf_size()
+	t.check(_up_area(leaf.mesh) > size.x * size.y * 0.5, "whole panes: a whole leaf")
 	door.look.broken = true
 	await t.frames(2)
-	t.check(_texture_of(lying) != whole_art, "the slab wears the shattered art after it shatters")
-	t.check(_up_area(lying.mesh) < slab * 0.9, "and is open")
+	t.check(_texture_of(leaf) != whole_art, "the leaf wears the shattered art after it shatters")
+	t.check(_up_area(leaf.mesh) < size.x * size.y * 0.5, "and is open")
 
 
 ## The texture a textured mesh instance shows (null when it has none).
@@ -180,24 +172,3 @@ func _up_area(mesh: Mesh) -> float:
 ## Whether two colours are one to the image's 8 bits.
 func _near(a: Color, b: Color) -> bool:
 	return absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b) < 0.03
-
-
-## A door the 2D lies flipped (its hinge on the other side) wears the mirrored fallen art, the other
-## way round from the unflipped one.
-func _flipped_slab(t: TestContext, mirror: WorldMirror) -> void:
-	var door := t.object(&"mirrored")
-	var node := mirror.proxies_of(door)[0] as DoorMesh
-	door.take_damage(10_000.0)
-	await t.frames(3)
-	var lying := node.get_child(1) as MeshInstance3D
-	var art := ObjectArt.flat(
-		"door", Vector2(DoorConfig.fallen_length, door.width), door.look.color,
-		door.look.art_opts(true),
-	)
-	var flipped: bool = door.look.flipped
-	var wears := _texture_of(lying)
-	t.check(
-		wears == (StructureSkin.flipped(art) if flipped else art),
-		"the slab wears the art as the 2D door lies (flipped: %s)" % flipped,
-	)
-	t.check(flipped, "this door lies flipped in 2D, so its slab is mirrored")

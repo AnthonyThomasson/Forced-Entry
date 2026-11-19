@@ -39,13 +39,15 @@ static func doors_of(house: Node2D) -> Array[CollisionObject2D]:
 static func append_holes(out: Array, house: Node2D) -> void:
 	for door in doors_of(house):
 		var leaf := hole(door)
+		if leaf.is_empty():
+			leaf = fallen_hole(door)
 		if not leaf.is_empty():
 			out.append(leaf)
 
 
 ## The hole door `door`'s leaf leaves in the map where it stands (a world-space ring), or empty when
 ## it leaves none. Read through the door contract (interface 24: `is_down()`, `angle()`,
-## `open_angle`, `leaf_pose`, `leaf_size`). A fallen door has no collider and leaves none. A leaf
+## `open_angle`, `leaf_pose`, `leaf_size`). A fallen door leaves none here (`fallen_hole`). A leaf
 ## short of its open stop by more than `OPEN_SLACK` leaves none either: shut or ajar, it stands in
 ## or across the mouth of its doorway, and carving it would seal the doorway, so the path goes
 ## through as if open and the walker opens it (`docs/doors.md` DR14). A leaf at its open stop is
@@ -66,6 +68,18 @@ static func hole(door: Node) -> PackedVector2Array:
 		pose * Vector2(-half_length, -HALF), pose * Vector2(half_length, -HALF),
 		pose * Vector2(half_length, HALF), pose * Vector2(-half_length, HALF),
 	])
+
+
+## The hole a knocked-down door's leaf leaves in the map (a world-space ring), or empty when it
+## leaves none (the door stands, or its leaf lies flat on the floor, which is walked over). A fallen
+## leaf is a free body that came to rest as physics decided (`docs/doors.md` DR11): where it leans
+## on a wall or lies on a bed it is an obstacle, and its footprint, as it stands, is what is carved,
+## as a tipped piece's is. Read through the door contract (interface 24: `is_down()`,
+## `fallen_footprint()`).
+static func fallen_hole(door: Node) -> PackedVector2Array:
+	if not door.has_method("fallen_footprint") or not door.call("is_down"):
+		return PackedVector2Array()
+	return door.call("fallen_footprint")
 
 
 ## Whether the map keeps a way `MIN_PASS` wide past door `door`'s leaf standing at `pose` (its

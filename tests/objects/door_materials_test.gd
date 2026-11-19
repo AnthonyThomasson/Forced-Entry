@@ -68,7 +68,7 @@ func run(t: TestContext) -> void:
 		var surface: Dictionary = door.get_surface()
 		t.expect_eq(surface["penetration"], row[3], "the %s door's penetration" % id)
 		var art: Texture2D = ObjectArt.flat(
-			"door", door.leaf_size(), door.look.color, door.look.art_opts(false)
+			"door", door.leaf_size(), door.look.color, door.look.art_opts()
 		)
 		if not t.require(art != null, "the %s door draws its art" % id):
 			return

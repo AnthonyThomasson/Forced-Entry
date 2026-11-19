@@ -1,6 +1,7 @@
 class_name DoorConfig
 ## A door's tuning (Objects domain, scenes/objects/door/): how it swings, how hard a push must be to
-## count against its latch, how fast it bursts, how the leaf is built and how a fallen one lies.
+## count against its latch, how fast it bursts and how the leaf is built. How a knocked-down leaf
+## falls is `DoorFallConfig`.
 ## What differs by material (hit points, penetration, latch, the factors of a hit) is
 ## `DoorMaterialConfig`. Angles are in degrees. A `class_name` holder of `static var`s, read as
 ## `DoorConfig.<name>`; there is no instance and no autoload.
@@ -23,8 +24,6 @@ static var leaf_thickness: float = 6.0
 static var leaf_slack: float = 1.0
 ## How much slimmer all round (px) than the leaf the shape is that a swing probes the space with.
 static var probe_inset: float = 1.0
-## How far (px) out from the doorway a knocked-down door lies, end to end.
-static var fallen_length: float = 100.0
 ## Where a character stands to open the door from its latch side: this far (px) out from the
 ## doorway's wall line and this far in from the latch jamb.
 static var latch_spot_out: float = 26.0

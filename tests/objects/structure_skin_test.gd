@@ -220,7 +220,7 @@ func _door(t: TestContext, mirror: WorldMirror) -> void:
 	var node := mirror.proxies_of(door)[0] as DoorMesh
 	var leaf := node.get_child(0) as MeshInstance3D
 	var size: Vector2 = door.leaf_size()
-	var art := ObjectArt.flat("door", size, door.look.color, door.look.art_opts(false))
+	var art := ObjectArt.flat("door", size, door.look.color, door.look.art_opts())
 	var material := leaf.material_override as ShaderMaterial
 	t.check(
 		material != null and material.get_shader_parameter(&"albedo_texture") == art,

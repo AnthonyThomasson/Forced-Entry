@@ -4,14 +4,15 @@ extends GameTest
 ## shows each by a kit-built mesh in place of its proxy box. Walls stand 96 px with their real
 ## thickness and the doorways open, one separable instance per segment, and a wall hit and rebuilt
 ## is meshed again;
-## a door's leaf is 84 px tall, follows the 2D door's swing, lies flat when knocked down and loses
-## its glass when it shatters; a floor is a flat slab level with the ground in the colour its
-## painter draws; the street's road lies a kerb lower than its pavement with the lane and the
-## crossing painted flat. Expected numbers are the how-to's (the scale is `RenderConfig.unit`); the
-## look is only judged in a window (`structure_mesh_windowed_test.gd`).
+## a door's leaf is 84 px tall, follows the 2D door's swing, lies as its free body does when knocked
+## down and loses its glass when it shatters; a floor is a flat slab level with the ground in the
+## colour its painter draws; the street's road lies a kerb lower than its pavement with the lane and
+## the crossing painted flat. Expected numbers are the how-to's (the scale is `RenderConfig.unit`);
+## the look is only judged in a window (`structure_mesh_windowed_test.gd`).
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const ObjectArt := preload("res://scenes/objects/art/object_art.gd")
+const Probe := preload("res://tests/_objects/piece_probe.gd")
 const SCRATCH := "user://settings_structure_mesh_test.json"
 const WALL_HEIGHT := 96.0
 const DOOR_HEIGHT := 84.0
@@ -223,8 +224,8 @@ func _floors(t: TestContext, mirror: WorldMirror) -> void:
 				"%s: the ground casts no shadow" % floor_node.name)
 
 
-## A door's leaf: 84 px tall at the 2D leaf's length, following its swing, lying when knocked down,
-## losing the glass when it shatters.
+## A door's leaf: 84 px tall at the 2D leaf's length, following its swing, lying as its free body
+## does when knocked down, losing the glass when it shatters.
 func _doors(t: TestContext, mirror: WorldMirror) -> void:
 	var door := t.object(&"front")
 	var shown := mirror.proxies_of(door)
@@ -255,7 +256,7 @@ func _doors(t: TestContext, mirror: WorldMirror) -> void:
 	door.take_damage(10_000.0)
 	await t.frames(2)
 	t.check(door.is_down(), "the door is knocked down")
-	_lies_flat(t, node, door)
+	await _lies_flat(t, node, door)
 
 
 ## A glass-panel door loses its glass when its panes shatter.
@@ -276,18 +277,20 @@ func _glass(t: TestContext, mirror: WorldMirror) -> void:
 	)
 
 
-## A knocked-down door shows the flat slab, where the 2D door lies and as big as it.
+## A knocked-down door is the same leaf, lying as its free body does (D18): it follows that body's
+## pose, tilt and all, and is a real object that casts its shadow.
 func _lies_flat(t: TestContext, node: Node3D, door: Node2D) -> void:
-	t.check(
-		not node.get_child(0).visible and node.get_child(1).visible,
-		"a knocked-down door shows its flat slab",
-	)
-	t.check(not _casts(node.get_child(1) as MeshInstance3D), "a fallen door casts no shadow")
-	var flat := (node.get_child(1) as MeshInstance3D).mesh.get_aabb()
-	t.expect_near(flat.size.x, DoorConfig.fallen_length, 0.01, "the fallen door is as long as 2D's")
-	t.expect_near(flat.size.z, door.width, 0.01, "the fallen door is as wide as the doorway")
-	t.expect_near(flat.size.y, DoorConfig.leaf_thickness, 0.01, "it lies flat, a leaf thick")
-	_at_door(t, node, door, "fallen")
+	await Probe.settle(t, door, 12.0)
+	await t.frames(3)
+	var leaf := node.get_child(0) as MeshInstance3D
+	t.check(leaf.visible and node.get_child_count() == 1, "a knocked-down door shows its leaf")
+	t.check(_casts(leaf), "a fallen door is a real object: its leaf casts a shadow")
+	var lead := TwinSpace.leader_of(door)
+	if t.require(lead != null, "a knocked-down door has a free body"):
+		t.check(
+			node.global_transform.is_equal_approx(lead.global_transform),
+			"the leaf lies as that body does, tilt and all",
+		)
 
 
 ## Whether `mesh` casts a shadow in the 3D lights.

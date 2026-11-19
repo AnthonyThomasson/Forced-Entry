@@ -6,12 +6,12 @@ extends RefCounted
 ## leaf's height to the wall's top), a floor as a slab, a piece of furniture as one box per part of
 ## `PieceHeights` (a sofa's seat, arms and back; a round piece's full-footprint part a cylinder),
 ## in the frame of the 2D body, so a piece that turns or is shoved is followed by its transform.
-## `register` adds the hooks Main wires into the space. Every one is a `StaticBody3D` (a free piece
-## is a `PieceBody` that leads its 2D body instead): the space
-## writes a twin again, with its body's transform, only when its body moves (a shoved piece, a
-## swinging door), so a shut door or a resting piece costs the 3D step nothing. All sit on
-## `PhysicsLayers.TWIN_WORLD`. A dent reshapes a wall's twin (`WallTwin`) with its 2D collider; a
-## piece or a door keeps the outline it was built with.
+## `register` adds the hooks Main wires into the space. A free piece is a `PieceBody` that leads its
+## 2D body, and so is a door: a standing one is an `AnimatableBody3D` its swing turns (`DoorBody`),
+## a knocked-down one a free `DoorSlab` (D18); every other twin is a `StaticBody3D` the space writes
+## again, with its body's transform, only when its body moves (a shoved piece), so a resting piece
+## costs the 3D step nothing. All sit on `PhysicsLayers.TWIN_WORLD`. A dent reshapes a wall's twin
+## (`WallTwin`) with its 2D collider; a piece or a door keeps the outline it was built with.
 
 const Piece = preload("res://scenes/objects/environment_object.gd")
 const Wall = preload("res://scenes/objects/wall/wall.gd")
@@ -32,7 +32,7 @@ static func build(node: Node2D) -> Node3D:
 		_lintels(node as Wall, twin)
 		return _world(twin)
 	if node is Door:
-		return _structure(node, StaticBody3D.new(), ObjectStructureMeshConfig.door_height)
+		return _door(node as Door)
 	if node is Piece:
 		return _piece(node as Piece)
 	if node is Floor:
@@ -51,6 +51,27 @@ static func _world(body: CollisionObject3D) -> CollisionObject3D:
 static func _structure(body: Node2D, twin: CollisionObject3D, height: float) -> Node3D:
 	TwinShapes.lift_body(body, twin, 0.0, height)
 	return _world(twin)
+
+
+## A door's twin: the leaf as a box (its length, its thickness, a leaf's height). A standing door
+## is led by a `DoorBody` (an `AnimatableBody3D` its swing turns, #194 doors3d); a knocked-down one
+## by a free `DoorSlab` (D18), which a door asks the twin space for when it falls
+## (`TwinSpace.retwin`).
+static func _door(door: Door) -> Node3D:
+	var size := door.leaf_size()
+	var down := door.is_down()
+	var twin: CollisionObject3D
+	var top := ObjectStructureMeshConfig.door_height
+	if down:
+		twin = DoorSlab.new(door)
+		top -= DoorFallConfig.head_gap
+	else:
+		twin = DoorBody.new(door)
+	var leaf := Rect2(-size * 0.5, size)
+	if down:
+		leaf = leaf.grow_individual(-DoorFallConfig.side_gap, 0.0, -DoorFallConfig.side_gap, 0.0)
+	twin.add_child(TwinShapes.box(leaf, Transform2D.IDENTITY, 0.0, top))
+	return twin
 
 
 ## Add to `twin` the lintel over each of `wall`'s doorways: a header the wall's thickness thick

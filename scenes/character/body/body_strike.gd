@@ -6,10 +6,10 @@ extends RefCounted
 ## nothing it could land on; each body in it not struck
 ## yet this swing is shoved through the pushable contract at the contact (`Knockback.push`, at that
 ## height, so a piece struck high leans and one struck low slides), logged, reported to
-## `on_hit(body, damage)` and dealt the damage: by its kind and shove (`take_blow(kind, amount,
-## impulse)`) when the body takes a blow by kind (a door), else `take_damage`. A strike never
-## deforms; a wall (no `apply_impulse`) takes the damage without moving. The floor is no body to
-## strike. Stateless.
+## `on_hit(body, damage)` and dealt the damage: by its kind, shove and height
+## (`take_blow(kind, amount, impulse, height)`) when the body takes a blow by kind (a door), else
+## `take_damage`. A strike never deforms; a wall (no `apply_impulse`) takes the damage without
+## moving. The floor is no body to strike. Stateless.
 
 ## How high (px) a strike's volume starts at the lowest: clear of a floor slab's top.
 const FLOOR_CLEAR := 1.0
@@ -41,7 +41,7 @@ static func strike(
 			"pushable" if pushed else "fixed", blow.note])
 		on_hit.call(body, blow.damage)
 		if body.has_method("take_blow"):
-			body.take_blow(blow.kind, blow.damage, blow.impulse)
+			body.take_blow(blow.kind, blow.damage, blow.impulse, blow.height)
 		elif body.has_method("take_damage"):
 			body.take_damage(blow.damage)
 		if first_only:

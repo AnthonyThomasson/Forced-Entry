@@ -47,9 +47,10 @@ var _carried := Vector2.ZERO
 var _touching: Dictionary = {}
 
 
-## A body for `of` (an `EnvironmentObject`): its mass, drag, friction and gravity set. The shapes
-## are added by the builder (`ObjectTwins`).
-func _init(of: Node2D = null) -> void:
+## A body for `of` (an `EnvironmentObject`, or a felled door: `DoorSlab`), of `weight` (the
+## catalogue's; `of`'s own `weight` when it is not given): its mass, drag, friction and gravity set.
+## The shapes are added by the builder (`ObjectTwins`).
+func _init(of: Node2D = null, weight := -1.0) -> void:
 	_piece = of
 	collision_layer = PhysicsLayers.TWIN_WORLD
 	collision_mask = (
@@ -58,7 +59,9 @@ func _init(of: Node2D = null) -> void:
 		| PhysicsLayers.TWIN_CHARACTER
 		| PhysicsLayers.TWIN_GROUND
 	)
-	mass = Knockback.mass_of(float(of.get("weight")) if of != null else 1.0)
+	if weight < 0.0:
+		weight = float(of.get("weight")) if of != null else 1.0
+	mass = Knockback.mass_of(weight)
 	linear_damp = PieceBodyConfig.linear_damp
 	angular_damp = PieceBodyConfig.angular_damp
 	gravity_scale = PieceBodyConfig.gravity * RenderConfig.unit / float(
@@ -234,8 +237,7 @@ func twin_update(footprint: Node2D) -> void:
 	else:
 		_footprint_tipped = false
 		_hull = PackedVector2Array()
-		if footprint.has_method(&"restore_collider"):
-			footprint.call(&"restore_collider")
+		_restore_footprint(footprint)
 
 
 ## The drag a 2D body had, on the floor plane and about up only: a piece comes to rest as a shoved
@@ -319,8 +321,20 @@ func _set_hull(footprint: Node2D) -> void:
 	if hull.size() < 3 or _same_hull(hull):
 		return
 	_hull = hull
+	_cut_footprint(footprint, hull)
+
+
+## The footprint's collider is now `hull` (its frame): a piece (`EnvironmentObject`) cuts it as
+## `set_tipped_collider`; a body of another kind has its own way (`DoorSlab`).
+func _cut_footprint(footprint: Node2D, hull: PackedVector2Array) -> void:
 	if footprint.has_method(&"set_tipped_collider"):
 		footprint.call(&"set_tipped_collider", hull)
+
+
+## The piece is upright again: the footprint's collider is its own (`restore_collider`).
+func _restore_footprint(footprint: Node2D) -> void:
+	if footprint.has_method(&"restore_collider"):
+		footprint.call(&"restore_collider")
 
 
 ## Whether `hull` is the one the footprint is cut to already (a piece that only slides or turns
