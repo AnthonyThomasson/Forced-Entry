@@ -81,9 +81,9 @@ unfrozen later, a note this ADR left for furniture, is followed (the row is re-l
   none stands beside it. Each twin space twins only the bodies of its own viewport (a nested `SubViewport` world owns its twins). When the
   bodies flip for good and the picture shares the twins' world (the last flip job), that world is this one.
 - **The picture draws the twins' world (del2d-b, amends the line above and "Where it lives").** `View3D.mirror_world(world)` finds the
-  world's `TwinSpace` (`TwinSpace.of_world`) and sets its picture's viewport to that `World3D` (`viewport.world_3d`; the view waits for the
-  match in the window's world and never swaps an own world out, the engine frees its scenario under the swap; a world with no twin
-  space gets a world of its own). The rig, the lights, the environment, the outline and the mirror's meshes stand in the world the
+  world's `TwinSpace` (`TwinSpace.of_world`) and sets its picture's viewport to that `World3D` (`viewport.world_3d`; the view begins in a world
+  of its own, never the window's, which views side by side would share, and gives it up for the twins' at that call, holding it until
+  the swap is done, since the engine frees its scenario under the swap; a world with no twin space leaves the view its own). The rig, the lights, the environment, the outline and the mirror's meshes stand in the world the
   twins are in, which a mesh attached to a twin needs. Two staged worlds are two worlds and a view draws one: a test's second world is
   never drawn through the first's camera. The picture is unchanged, pixel for pixel
   (`general/view_world_picture_windowed`: the view's picture in the twins' world against a world of its own, lights held still).

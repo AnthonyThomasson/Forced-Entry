@@ -220,7 +220,7 @@ func _first_character(world: Node) -> CharacterBody2D:
 	return null
 
 
-## The heading (a unit vector, the nearest to across the screen among the longest) from `character`
+## The heading (a unit vector; of equal reaches the first tried wins) from `character`
 ## along which a level line at its muzzle height runs farthest before it meets a twin.
 func _clearest_heading(character: Node2D) -> Vector2:
 	var space := TwinSpace.space_of(character)
