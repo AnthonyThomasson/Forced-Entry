@@ -59,6 +59,12 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	# the crowd's places are the fight's fingerprint (`tools/perf_ab.sh` checks a revision replays
+	# its own run)
+	var crowd: Array = []
+	for c in CROWD:
+		crowd.append(t.actor(StringName("c%d" % c)))
+	Perf.record_fight(t, self, crowd)
 	await t.seconds(0.5)
 	if not await VehicleRide.board_by(t, &"driver", t.vehicle(_id(0)) as Node2D, &"front_left"):
 		t.check(false, "the driver gets into the first vehicle")
@@ -74,17 +80,7 @@ func run(t: TestContext) -> void:
 			v.set("linear_velocity", Vector2(ROLL - (i % COLUMNS) * SLOWER, 0.0))
 	t.puppet(&"driver").drive(1.0, 0.0, false)
 	var moving := await Perf.frame_stats(t, MOVING_FRAMES)
-	Perf.report_worst("vehicle fleet rolling", moving)
-	# the lines `tools/perf_ab.sh` reads, held to the smooth-match budgets (the lot is mostly crowd)
-	Perf.within(t, "vehicle fleet rolling avg ms/frame", moving["avg_ms"], Perf.SMOOTH_AVG_MS)
-	Perf.within(t, "vehicle fleet rolling p95 ms/frame", moving["p95_ms"], Perf.SMOOTH_P95_MS)
-	Perf.within(t, "vehicle fleet rolling max ms/frame", moving["max_ms"], 100.0)
-	Perf.within(
-		t,
-		"vehicle fleet rolling avg ms/frame over the idle lot",
-		moving["avg_ms"] - idle["avg_ms"],
-		EXTRA_MS,
-	)
+	_report_rolling(t, moving, idle)
 	var travelled := 0.0
 	for i in ROWS * COLUMNS:
 		travelled += (t.vehicle(_id(i)) as Node2D).global_position.distance_to(starts[i])
@@ -106,3 +102,18 @@ func run(t: TestContext) -> void:
 	var grown := Perf.nodes() - nodes_before
 	GameLog.say("PERF vehicle fleet node growth %d" % grown)
 	t.check(grown <= 2, "a resting fleet neither spawns nor leaks nodes (grew by %d)" % grown)
+
+
+## Report the rolling phase: the lines `tools/perf_ab.sh` reads, held to the smooth-match budgets
+## (the lot is mostly crowd), and what the fleet adds over the idle lot, held to `EXTRA_MS`.
+func _report_rolling(t: TestContext, moving: Dictionary, idle: Dictionary) -> void:
+	Perf.report_worst("vehicle fleet rolling", moving)
+	Perf.within(t, "vehicle fleet rolling avg ms/frame", moving["avg_ms"], Perf.SMOOTH_AVG_MS)
+	Perf.within(t, "vehicle fleet rolling p95 ms/frame", moving["p95_ms"], Perf.SMOOTH_P95_MS)
+	Perf.within(t, "vehicle fleet rolling max ms/frame", moving["max_ms"], 100.0)
+	Perf.within(
+		t,
+		"vehicle fleet rolling avg ms/frame over the idle lot",
+		moving["avg_ms"] - idle["avg_ms"],
+		EXTRA_MS,
+	)
