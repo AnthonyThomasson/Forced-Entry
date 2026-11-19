@@ -1,11 +1,14 @@
 class_name Ragdoll extends RefCounted
 ## A generic 3D ragdoll (Physics domain): point masses joined by bones and joint limits, stepped as
 ## position-based dynamics. Space is the owner's local floor plane (x, y in px) plus z = height
-## above the floor: gravity pulls toward z = 0, the floor holds each point at its radius, and walls
-## and solid furniture (layer 1) block x/y moves. It knows nothing of what the body is: the owner
-## adds points, bones, frames (an orientation read off three points) and limits (swing cones and
-## anatomical hinges, set in a frame), seeds velocities, then calls step() each physics frame until
-## it sleeps. Tuning: PhysicsRagdollConfig.
+## above the floor: gravity pulls toward z = 0 and the floor holds each point at its radius. Each
+## move is swept in the twin 3D space (`TwinSpace`, interface 29) as a sphere at the point's real
+## height (`height_scale`: the owner's z unit in real px): it is stopped by a wall or a piece of
+## furniture or a vehicle only where that thing really stands at that height, slides along it, and
+## comes to rest on a top that faces up (a body slumps over a sofa's back and lies on a desk). It
+## knows nothing of what the body is: the owner adds points, bones, frames (an orientation read off
+## three points) and limits (swing cones and anatomical hinges, set in a frame), seeds velocities,
+## then calls step() each physics frame until it sleeps. Tuning: PhysicsRagdollConfig.
 
 enum {
 	SWING,
@@ -17,14 +20,26 @@ const LIMIT_STIFFNESS := 0.6
 ## Most a limit turns a bone per pass (rad): a far-out bone is brought back over several passes, so
 ## the correction never becomes a burst of speed.
 const LIMIT_MAX_TURN := 0.3
+## How far (px) a cast sphere's underside floats over the floor: over a floor slab's 0.1 px, so the
+## sweeps never catch a slab's seam.
+const FLOOR_GAP := 0.5
+## A surface whose normal's height share is over this faces up: a point resting on it is held.
+const FACES_UP := 0.7
+## How far (px) a point's sphere is held off a surface it was pushed out of, and how many
+## surfaces one point is pushed off in a step (a corner has two).
+const SKIN := 0.05
+const PUSH_PASSES := 3
 
 ## How many steps (one body, one physics frame, asleep ones not counted) ragdolls have run since
 ## the process began: a frame's rise is the bodies still falling (a perf probe's read).
 static var steps_total := 0
 
+## How many real px one unit of a point's z is (the owner's drawing may be taller than the body is):
+## the casts read a point at `z * height_scale` over the floor.
+var height_scale := 1.0
 ## True once the body has come to rest (or timed out); step() then does nothing.
 var asleep := false
-## Colliders the wall sweep ignores (e.g. the owner's own body).
+## Colliders (3D) the sweeps ignore (e.g. the owner's own twin).
 var exclude: Array[RID] = []
 ## Point positions (local x/y px, z = height px).
 var _pos := PackedVector3Array()
@@ -48,8 +63,6 @@ var _scratch := StepScratch.new()
 var _still := 0.0
 ## Seconds simulated.
 var _time := 0.0
-## False until the first step pulls starting points out of walls.
-var _primed := false
 
 
 # --- Building ----------------------------------------------------------------------------
@@ -63,6 +76,8 @@ func add_point(at: Vector3, radius: float, mass: float = 1.0) -> int:
 	_vel.append(Vector3.ZERO)
 	_scratch.fall.append(0.0)
 	_scratch.free.append(0.0)
+	_scratch.held.append(0)
+	_scratch.was_held.append(0)
 	_radius.append(radius)
 	_inv_mass.append(1.0 / maxf(mass, 0.001))
 	return _pos.size() - 1
@@ -156,14 +171,14 @@ func wake() -> void:
 	_still = 0.0
 
 
-## Advance the body by `delta`. `space` + `origin` (the owner's world position) place the local
-## points in the world for the wall sweep.
-func step(delta: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> void:
+## Advance the body by `delta`. `space` (the twin 3D space; null: nothing to strike) + `origin`
+## (the owner's world position, plan) place the local points in the world for the sweeps.
+func step(delta: float, space: PhysicsDirectSpaceState3D, origin: Vector2) -> void:
 	if asleep or delta <= 0.0:
 		return
 	steps_total += 1
-	if not _primed:
-		_primed = true
+	if not _scratch.primed:
+		_scratch.primed = true
 		_pull_out_of_walls(space, origin)
 	var n := maxi(1, PhysicsRagdollConfig.substeps)
 	for _s in n:
@@ -178,12 +193,12 @@ func step(delta: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> vo
 		_vel.fill(Vector3.ZERO)
 
 
-## One sub-step: predict, project the constraints and floor, sweep walls, then derive velocities
-## and apply floor bounce/friction and joint friction.
-func _substep(h: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> void:
+## One sub-step: predict, project the constraints and floor, sweep the solids, then derive
+## velocities and apply floor bounce/friction and joint friction.
+func _substep(h: float, space: PhysicsDirectSpaceState3D, origin: Vector2) -> void:
 	_predict(h, _scratch.fall, _scratch.free)
 	_solve_constraints()
-	_sweep_walls(space, origin)
+	_sweep_solids(space, origin)
 	_derive_velocities(h, _scratch.fall, _scratch.free)
 	_joint_friction(h)
 
@@ -225,8 +240,12 @@ func _derive_velocities(h: float, fall: PackedFloat32Array, free: PackedFloat32A
 		var v := ((_pos[i] - _prev[i]) / h).limit_length(
 			minf(free[i] + gain, PhysicsRagdollConfig.max_speed),
 		)
-		if _pos[i].z <= _radius[i] + 0.01:
-			if _prev[i].z > _radius[i] + 0.01 and fall[i] < 0.0:
+		var on_floor := _pos[i].z <= _radius[i] + 0.01
+		if on_floor or _scratch.held[i] != 0:
+			var came_down := (
+				_prev[i].z > _radius[i] + 0.01 if on_floor else _scratch.was_held[i] == 0
+			)
+			if came_down and fall[i] < 0.0:
 				v.z = -fall[i] * PhysicsRagdollConfig.floor_bounce
 			var flat := Vector2(v.x, v.y).move_toward(Vector2.ZERO, friction)
 			v.x = flat.x
@@ -371,83 +390,135 @@ func _solve_floor() -> void:
 			_pos[i] = p
 
 
-## Sweep each point's x/y move this sub-step against walls and solid furniture: stop where it first
-## touches, then slide the rest along the surface.
-func _sweep_walls(space: PhysicsDirectSpaceState2D, origin: Vector2) -> void:
-	if _scratch.sweep_gate and _walls_clear(space, origin):
+## Sweep each point's move this sub-step in the twin space: stop where it first touches a wall, a
+## piece or a vehicle at its real height, then slide the rest along the surface. A point that ends
+## resting on a surface facing up is held by it (`_scratch.held`).
+func _sweep_solids(space: PhysicsDirectSpaceState3D, origin: Vector2) -> void:
+	_scratch.was_held = _scratch.held.duplicate()
+	_scratch.held.fill(0)
+	if space == null or (_scratch.sweep_gate and _solids_clear(space, origin)):
 		return
 	for i in _pos.size():
 		_scratch.point_sweeps += 1
-		var from := Vector2(_prev[i].x, _prev[i].y)
-		var to := Vector2(_pos[i].x, _pos[i].y)
-		var reached := _sweep(space, origin, from, to, _radius[i])
-		if reached != to:
-			_pos[i] = Vector3(reached.x, reached.y, _pos[i].z)
+		var reached := _sweep(space, origin, i, _prev[i], _pos[i])
+		if reached != _pos[i]:
+			_pos[i] = reached
 
 
-## Whether no wall can touch any point's circle anywhere from its substep start to its constrained
-## end. One reused rectangle covers all those starts, ends and radii; any overlap keeps the exact
+## Whether nothing can touch any point's sphere anywhere from its substep start to its constrained
+## end. One reused box covers all those starts, ends and radii; any overlap keeps the exact
 ## per-point sweeps. The first-step origin-to-point pull-out is deliberately not gated by this
 ## bound.
-func _walls_clear(space: PhysicsDirectSpaceState2D, origin: Vector2) -> bool:
+func _solids_clear(space: PhysicsDirectSpaceState3D, origin: Vector2) -> bool:
 	if _pos.is_empty():
 		return true
-	var first := Vector2(_prev[0].x, _prev[0].y)
-	var spread := Vector2.ONE * _radius[0]
-	var box := Rect2(first - spread, spread * 2.0)
+	var box := AABB(_cast_point(_prev[0], origin, 0), Vector3.ZERO)
 	for i in _pos.size():
-		var radius := Vector2.ONE * _radius[i]
-		var from := Vector2(_prev[i].x, _prev[i].y)
-		var to := Vector2(_pos[i].x, _pos[i].y)
-		box = box.expand(from - radius).expand(from + radius)
-		box = box.expand(to - radius).expand(to + radius)
-	_scratch.bounds.size = box.grow(0.01).size
+		var spread := Vector3.ONE * _radius[i] * RenderConfig.unit
+		for p: Vector3 in [_prev[i], _pos[i]]:
+			var at := _cast_point(p, origin, i)
+			box = box.expand(at - spread).expand(at + spread)
+	box = box.grow(SKIN + 0.01)
 	var params := _scratch.query(_radius[0], exclude)
+	_scratch.bounds.size = box.size
 	params.shape = _scratch.bounds
-	params.transform = Transform2D(0.0, origin + box.get_center())
-	params.motion = Vector2.ZERO
+	params.transform = Transform3D(Basis(), box.get_center())
+	params.motion = Vector3.ZERO
 	_scratch.broadphase_queries += 1
 	return space.intersect_shape(params, 1).is_empty()
 
 
-## Before the first step: draw any point that starts inside a wall back toward the origin (the
-## owner's own free center).
-func _pull_out_of_walls(space: PhysicsDirectSpaceState2D, origin: Vector2) -> void:
+## Before the first step: draw any point that starts inside a solid back toward the owner's own
+## free column (the origin, at the point's own height).
+func _pull_out_of_walls(space: PhysicsDirectSpaceState3D, origin: Vector2) -> void:
 	for i in _pos.size():
-		var to := Vector2(_pos[i].x, _pos[i].y)
-		var reached := _sweep(space, origin, Vector2.ZERO, to, _radius[i])
-		_pos[i] = Vector3(reached.x, reached.y, _pos[i].z)
+		if space != null:
+			_pos[i] = _sweep(space, origin, i, Vector3(0.0, 0.0, _pos[i].z), _pos[i])
 		_prev[i] = _pos[i]
 
 
-## Where a circle of `radius` moving from `from` to `to` (local) comes to rest: at its first contact
-## with layer 1, slid along the surface for the rest of the move.
-func _sweep(space: PhysicsDirectSpaceState2D, origin: Vector2, from: Vector2, to: Vector2,
-		radius: float) -> Vector2:
-	var motion := to - from
-	if motion.length_squared() < 0.0001:
+## The 3D point of the cast sphere for point `i` of the solver at `p` (local x, y, height): its
+## plan point lifted to its real height, no lower than a sphere resting a hair over the floor (a
+## floor slab stands 0.1 px up).
+func _cast_point(p: Vector3, origin: Vector2, i: int) -> Vector3:
+	var low := _radius[i] + FLOOR_GAP
+	return PlanSpace.lift(origin + Vector2(p.x, p.y), maxf(p.z * height_scale, low))
+
+
+## A cast-space vector (plan x, real height, plan y) as a solver one (x, y, z).
+func _solver_vector(v: Vector3) -> Vector3:
+	return Vector3(v.x, v.z, v.y / maxf(height_scale, 0.0001)) / RenderConfig.unit
+
+
+## Where a sphere for point `i` moving from `from` to `to` (solver space) comes to rest: at its
+## first contact with a solid, slid along the surface for the rest of the move, then moved clear of
+## anything it is left inside (`_push_out`). A surface facing up it ends on holds the point
+## (`_scratch.held`).
+func _sweep(space: PhysicsDirectSpaceState3D, origin: Vector2, i: int, from: Vector3,
+		to: Vector3) -> Vector3:
+	if (to - from).length_squared() < 0.0001:
 		return to
-	var params := _scratch.query(radius, exclude)
-	params.transform = Transform2D(0.0, origin + from)
+	var start := _cast_point(from, origin, i)
+	var move := _cast_point(to, origin, i) - start
+	var params := _scratch.query(_radius[i], exclude)
+	params.transform = Transform3D(Basis(), start)
+	params.motion = move
+	var res := space.cast_motion(params)
+	if res.is_empty() or res[0] >= 1.0:
+		return _push_out(space, origin, i, to)
+	var normal := _contact_normal(space, i, start + move * res[1], -move.normalized())
+	if normal.y > FACES_UP:
+		_scratch.held[i] = 1
+	var left := move * (1.0 - res[0])
+	var slide := left.slide(normal) if left.dot(normal) < 0.0 else left
+	var share := _clear_share(space, i, start + move * res[0], slide)
+	var rest := from + (to - from) * res[0] + _solver_vector(slide) * share
+	return _push_out(space, origin, i, rest)
+
+
+## How much of `motion` (cast space) point `i`'s sphere can make from cast point `at` before it
+## meets a solid.
+func _clear_share(space: PhysicsDirectSpaceState3D, i: int, at: Vector3, motion: Vector3) -> float:
+	var params := _scratch.query(_radius[i], exclude)
+	params.transform = Transform3D(Basis(), at)
 	params.motion = motion
 	var res := space.cast_motion(params)
-	if res[0] >= 1.0:
-		return to
-	if res[1] <= 0.0:
-		# Touching at the start: only a move that ends clear is allowed (away from the surface).
-		params.transform = Transform2D(0.0, origin + to)
-		params.motion = Vector2.ZERO
-		return to if space.intersect_shape(params, 1).is_empty() else from
-	var rest := from + motion * res[0]
-	params.transform = Transform2D(0.0, origin + from + motion * res[1])
-	params.motion = Vector2.ZERO
-	var info := space.get_rest_info(params)
-	var normal: Vector2 = info["normal"] if info.has("normal") else -motion.normalized()
-	var slide := (motion * (1.0 - res[0])).slide(normal)
-	params.transform = Transform2D(0.0, origin + rest)
-	params.motion = slide
-	var res2 := space.cast_motion(params)
-	return rest + slide * res2[0]
+	return res[0] if not res.is_empty() else 1.0
+
+
+## The normal of the surface point `i`'s sphere (a `SKIN` wider) meets at cast point `centre`, or
+## `fallback` when it meets none.
+func _contact_normal(space: PhysicsDirectSpaceState3D, i: int, centre: Vector3,
+		fallback: Vector3) -> Vector3:
+	var probe := _scratch.query(_radius[i], exclude, SKIN)
+	probe.transform = Transform3D(Basis(), centre)
+	probe.motion = Vector3.ZERO
+	var info := space.get_rest_info(probe)
+	return info["normal"] if info.has("normal") and info["normal"] != Vector3.ZERO else fallback
+
+
+## `at` (solver space) moved out of anything its sphere is inside or within `SKIN` of, along the
+## surface's normal: a cast ignores a surface its sphere already touches, so a point the constraints
+## or an earlier slide left against one would otherwise sink into it. A point left on a surface
+## facing up is held by it (`_scratch.held`).
+func _push_out(space: PhysicsDirectSpaceState3D, origin: Vector2, i: int, at: Vector3) -> Vector3:
+	var params := _scratch.query(_radius[i], exclude, SKIN)
+	for _k in PUSH_PASSES:
+		var centre := _cast_point(at, origin, i)
+		params.transform = Transform3D(Basis(), centre)
+		params.motion = Vector3.ZERO
+		var info := space.get_rest_info(params)
+		if info.is_empty():
+			break
+		var normal: Vector3 = info["normal"]
+		var across := (centre - (info["point"] as Vector3)).dot(normal)
+		var depth := (_radius[i] + SKIN) * RenderConfig.unit - across
+		if depth <= 0.0 or normal == Vector3.ZERO:
+			break
+		at += _solver_vector(normal * depth)
+		if normal.y > FACES_UP:
+			_scratch.held[i] = 1
+	return at
 
 
 ## Storage reused by every substep: the two speed arrays and the broadphase/point-sweep queries.
@@ -455,26 +526,33 @@ class StepScratch extends RefCounted:
 	## Vertical speed before the floor and speed before the constraints, overwritten by `_predict`.
 	var fall := PackedFloat32Array()
 	var free := PackedFloat32Array()
-	## The one mutable wall-query object and circle shapes by point radius.
-	var params: PhysicsShapeQueryParameters2D
+	## The one mutable solids query object and sphere shapes by point radius.
+	var params: PhysicsShapeQueryParameters3D
 	var shapes := {}
-	## Rectangle covering every point's start, end and radius for the current substep.
-	var bounds := RectangleShape2D.new()
+	## Box covering every point's start, end and radius for the current substep.
+	var bounds := BoxShape3D.new()
+	## Whether each point came to rest on a surface facing up in this sub-step's sweep, and in the
+	## one before (a top holds a point like the floor: friction, and a bounce only on the landing).
+	var held := PackedByteArray()
+	var was_held := PackedByteArray()
+	## False until the first step pulls starting points out of solids.
+	var primed := false
 	## Test seam for the reference path, and counts proving which path the solver took.
 	var sweep_gate := true
 	var broadphase_queries := 0
 	var point_sweeps := 0
 
 
-	## The reused wall query, set to a circle of `radius` and ignoring `exclude`.
-	func query(radius: float, exclude: Array[RID]) -> PhysicsShapeQueryParameters2D:
+	## The reused solids query, set to a sphere of `radius` and ignoring `exclude`.
+	func query(radius: float, exclude: Array[RID], skin := 0.0) -> PhysicsShapeQueryParameters3D:
 		if params == null:
-			params = PhysicsShapeQueryParameters2D.new()
-			params.collision_mask = PhysicsConfig.wall_mask
+			params = PhysicsShapeQueryParameters3D.new()
+			params.collision_mask = PhysicsConfig.twin_mask
 			params.exclude = exclude
-		if not shapes.has(radius):
-			var circle := CircleShape2D.new()
-			circle.radius = radius
-			shapes[radius] = circle
-		params.shape = shapes[radius]
+		var key := Vector2(radius, skin)
+		if not shapes.has(key):
+			var sphere := SphereShape3D.new()
+			sphere.radius = (radius + skin) * RenderConfig.unit
+			shapes[key] = sphere
+		params.shape = shapes[key]
 		return params

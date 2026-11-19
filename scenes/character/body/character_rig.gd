@@ -39,6 +39,9 @@ const ANKLE := [14, 15]
 const SPINE := 16
 ## Straight up, out of the floor.
 const UP := Vector3(0.0, 0.0, 1.0)
+## How far over the head's middle its crown and its covering reach (over its radius): the part of
+## the standing height above the head's joint.
+const HEAD_TOP := 1.2
 ## The pose the measures read the solve's angles and offsets off.
 const Pose = preload("res://scenes/character/body/character_pose.gd")
 
@@ -101,6 +104,17 @@ func _rest_feet(character: CharacterBody2D) -> void:
 ## bent the way this pose bends it.
 func knee_at(i: int, ankle: Vector3) -> Vector3:
 	return Measures._bend(_points[HIP[i]], ankle, _thigh, _shin, _knee_poles[i])
+
+
+## How far the rig's drawn heights (a head 100 px up) are squeezed to the real ones
+## (`CharacterMeshConfig.height`, the head top at the standing height) for a body of `radius`: the
+## 3D mesh draws by it, and the ragdoll's wall and furniture casts read a point's real height by it.
+static func squeeze(radius: float) -> float:
+	var head_radius := CharacterArtConfig.head_size * 2.0 * radius * CharacterMeshConfig.head_scale
+	return (
+		maxf(CharacterMeshConfig.height - head_radius * HEAD_TOP, 1.0)
+		/ (CharacterBodyConfig.head_height * radius)
+	)
 
 
 ## Joint `i`'s position (local x/y px, z = height px).

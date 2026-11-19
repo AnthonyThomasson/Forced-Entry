@@ -90,9 +90,6 @@ const FISTS := JOINTS + 4
 ## (the height of its unit direction, from where to where) it turns toward the face, so a hanging
 ## arm's strip lies on its front.
 const STEEP := Vector2(0.6, 0.95)
-## How far over the head's middle its crown and its covering reach (over its radius): the part of
-## the standing height above the head's joint.
-const HEAD_TOP := 1.2
 ## The neck's width at the head over its width at the shoulders, and how far below the chest joint
 ## it starts (body radii).
 const NECK_TAPER := 0.9
@@ -256,10 +253,7 @@ func _make(body: CharacterBody2D, dress: BodyDress) -> void:
 	if hands != null and hands.get("hand_radius") is float:
 		_hand_radius = hands.get("hand_radius")
 	_head_radius = CharacterArtConfig.head_size * 2.0 * _r * CharacterMeshConfig.head_scale
-	_squeeze = (
-		maxf(CharacterMeshConfig.height - _head_radius * HEAD_TOP, 1.0)
-		/ (CharacterBodyConfig.head_height * _r)
-	)
+	_squeeze = Rig.squeeze(_r)
 	_sample.resize(SAMPLE)
 	_last.resize(SAMPLE)
 	for i in SHAPES.size():

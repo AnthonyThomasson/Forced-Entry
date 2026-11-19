@@ -38,8 +38,10 @@
    - `Ragdoll` (`RefCounted`, character on death): a generic 3D point-mass body over the floor plane (x/y + height z). Build with
 	 `add_point(at, radius, mass)`, `add_bone(a, b)`, `add_rigid(indices)`, `add_frame(origin, up, right, forward_hint)`,
 	 `add_swing(frame, joint, child, rest, limits)` (cone limit), `add_hinge(frame, parent, joint, child, limits: HingeLimits)` (one-way
-	 hinge; `physics/hinge_limits.gd`: `rest`, `bend`, `min_angle`, `max_angle`, `slack`); seed with `push(i, v)`; `step(delta, space,
-	 origin)` until `asleep`; read `point(i)` / `point_count()` / `frame_basis(f)`; `exclude` lists colliders its wall sweep ignores.
+	 hinge; `physics/hinge_limits.gd`: `rest`, `bend`, `min_angle`, `max_angle`, `slack`); seed with `push(i, v)`; `step(delta, space: PhysicsDirectSpaceState3D,
+	 origin)` (the twin 3D space, interface 29: null finds nothing solid) until `asleep`; read `point(i)` / `point_count()` / `frame_basis(f)`; `exclude` lists the 3D colliders its sweeps ignore;
+	 `height_scale` is how many real px a unit of a point's z is (the owner's drawing may be taller than the body): each point is a sphere swept at `z * height_scale` through
+	 `PhysicsConfig.twin_mask` (walls, floors, furniture, doors, vehicles: not people, not a roof), so a body slumps over what is lower than it is and rests on a top that faces up.
 	 `Ragdoll.wake()` restarts a sleeping body's clocks so an explosion's push is simulated (the character's `blast_push`). The Character
 	 domain owns the humanoid skeleton built on it.
    - `Physics.spawn_explosion(world, at, kind)` (`kind` `&"frag"` / `&"stun"`; called by `Explosion`): the look of a burst: it tells the 3D render a

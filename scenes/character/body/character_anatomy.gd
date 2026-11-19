@@ -119,7 +119,7 @@ func leg_kick_amount(i: int) -> float:
 ## footsteps; once dead, the ragdoll falls instead, and once it has settled it bleeds out.
 func step(delta: float) -> void:
 	if character.is_dead:
-		ragdoll.step(delta, character.get_world_2d().direct_space_state, character.global_position)
+		ragdoll.step(delta, TwinSpace.space_of(character), character.global_position)
 		# A body moves until its ragdoll sleeps, and again from the frame a blast wakes it.
 		ViewLayers.set_moving(character, not ragdoll.is_settled())
 		if ragdoll.is_settled() and not _bled_out:

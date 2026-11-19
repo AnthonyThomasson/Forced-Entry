@@ -82,15 +82,19 @@ bursts through `tests/_physics/fx_tap.gd`.
 ## Ragdoll (`ragdoll.gd`, `class_name Ragdoll`, `RefCounted`)
 
 Generic: it knows nothing of the body; the owner (the Character domain's humanoid) builds and steps it. Space is the owner's
-local floor plane (x, y) plus z = height; gravity pulls to z = 0.
+local floor plane (x, y) plus z = height; gravity pulls to z = 0. `height_scale` is the real px a unit of z is (the humanoid's rig is
+drawn taller than the body, `CharacterRig.squeeze`): a point is cast as a sphere at `z * height_scale`.
 
 - Position-based dynamics in `PhysicsRagdollConfig.substeps`: predict, then `iterations` passes of bones, limits and the floor, then one
-  rectangle broadphase over every point's start, predicted end and radius skips all per-point wall sweeps when clear; otherwise each
-  point's x/y move still uses `cast_motion`. The retained `StepScratch` owns the predict/free arrays, query and shape reuse
+  box broadphase over every point's start, predicted end and radius skips all per-point sweeps when clear; otherwise each
+  point's move is a sphere `cast_motion` in the twin 3D space (`PhysicsConfig.twin_mask`: stopped by a wall, piece or vehicle only where it
+  really stands at that height, slid along it, then `_push_out` of anything the sphere is left in, since a cast ignores a surface it already touches).
+  A point left on a surface facing up (a sofa's back, a desk top) is held like the floor (friction, a bounce only on the landing), so a body
+  slumps over low furniture and lies on top of it; a point rests no lower than a sphere a hair over the floor slab (`FLOOR_GAP`). The retained `StepScratch` owns the predict/free arrays, query and shape reuse
   (`ragdoll_sweep_gate_matches_plain_test.gd` pins real humanoid falls). Limits correct `LIMIT_STIFFNESS` of the
   error per pass, turning a bone at most `LIMIT_MAX_TURN`. The constraint solve can add no more than `max_push` to a point's
   speed (never past `max_speed`), so constraints fighting the floor cannot fling the body. The first step pulls a point that
-  starts inside a wall back toward the origin.
+  starts inside a solid back toward the origin (at its own height).
 - `add_hinge` takes `HingeLimits` (`hinge_limits.gd`): a one-way hinge, its bend side carried onto the live parent bone.
 - It sleeps once every point stays under `sleep_speed` for `sleep_time`, or after `max_time`. `wake()` clears `asleep` and both
   clocks (`_time`, `_still`); without that, a body that slept through `max_time` goes straight back to sleep after one step of an
