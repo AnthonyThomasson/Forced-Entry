@@ -133,12 +133,26 @@ func walk(wanted: Vector2) -> Vector2:
 	global_position.y = 0.0
 	_real = Vector2(get_real_velocity().x, get_real_velocity().z) / RenderConfig.unit
 	_write()
-	# the 2D engine folds a body added this frame into its space when a body's motion is tested
-	# (every 2D walker did, in its `move_and_slide`), and the readers still in 2D (the player's
-	# view, the AI's queries) ask it before any other body does: a zero-length test keeps that
-	# so, and moves nothing
-	_character.test_move(_character.global_transform, Vector2.ZERO)
 	return Vector2(velocity.x, velocity.z) / RenderConfig.unit
+
+
+## Move the body `aside` (plan px) when nothing in the twin space but `clear_of` (a leaf that
+## sweeps over it) stands in the way, and write the footprint where it ended: true when it moved,
+## false when something stops it (it then stays).
+func shift(aside: Vector2, clear_of: PhysicsBody3D) -> bool:
+	follow(_character)
+	var motion := Vector3(aside.x, 0.0, aside.y) * RenderConfig.unit
+	var excepted := get_collision_exceptions().has(clear_of)
+	if not excepted:
+		add_collision_exception_with(clear_of)
+	var free := not test_move(global_transform, motion, null, SAFE_MARGIN)
+	if free:
+		global_position += motion
+		force_update_transform()
+		_write()
+	if not excepted:
+		remove_collision_exception_with(clear_of)
+	return free
 
 
 ## The plan velocity (px/s) the body covered last frame.

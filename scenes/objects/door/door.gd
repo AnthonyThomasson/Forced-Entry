@@ -469,15 +469,9 @@ func _nudged(body: CharacterBody2D, pose: Transform2D, delta: float) -> bool:
 	if need > DoorConfig.nudge_speed * delta:
 		return false
 	var aside := (away.normalized() if away.length() > 0.001 else pose.y) * need
-	var excepted := body.get_collision_exceptions().has(self)
-	if not excepted:
-		body.add_collision_exception_with(self)
-	var free := not body.test_move(body.global_transform, aside)
-	if free:
-		body.move_and_collide(aside)
-	if not excepted:
-		body.remove_collision_exception_with(self)
-	return free
+	var walker := TwinSpace.walker_of(body)
+	var leaf := TwinSpace.twin_for(self) as PhysicsBody3D
+	return walker != null and leaf != null and walker.call(&"shift", aside, leaf)
 
 
 ## Swing toward `to` degrees (clamped to the door's range), taking the share of

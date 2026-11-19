@@ -50,19 +50,10 @@ static func _carried(
 	else:
 		velocity = piece.linear_velocity
 		spin = piece.angular_velocity
-		inverse_inertia = _inverse_inertia(piece)
+		inverse_inertia = 0.0  # a piece with no 3D body turns by no engine: no turning is counted
 	var contact_velocity: Vector2 = velocity + Vector2(-at.y, at.x) * spin
 	var gap := maxf(speed * CharacterPushConfig.carry_factor - contact_velocity.dot(dir), 0.0)
 	# How fast one unit of impulse at `at` moves that point along `dir`: the slide plus the turn it
 	# causes.
 	var lever := at.cross(dir)
 	return gap / (1.0 / maxf(piece.get_mass(), 0.001) + inverse_inertia * lever * lever)
-
-
-## The rigid body's inverse moment of inertia as the physics server holds it (computed from its
-## shapes), or 0 when it has none to read (no turning is then counted).
-static func _inverse_inertia(piece: Object) -> float:
-	if not piece is CollisionObject2D:
-		return 0.0
-	var state := PhysicsServer2D.body_get_direct_state((piece as CollisionObject2D).get_rid())
-	return state.inverse_inertia if state else 0.0

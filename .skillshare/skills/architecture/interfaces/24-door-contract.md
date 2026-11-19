@@ -29,8 +29,8 @@
       the door given while it is in reach, false with none. `gap_to(door, point) -> float` is how far the leaf is from `point` at its nearest point. `use.interact_target()` is `{ kind: &"door", object }` when a door in reach ahead is the
       thing nearest the mouse among the objects, doors and boardable vehicle handles (8, 19); `use.try_interact()` acts on it at once, while the human's controller
       holds a door back to the key's release unless the wheel turned it meanwhile.
-    - **What a door asks of a character** (so a swing clears one, DR8): the group `characters`, the exported `radius` (7), the body's
-      `test_move` / `move_and_collide` and its collision exceptions, duck-typed; the door imports nothing of Character.
+    - **What a door asks of a character** (so a swing clears one, DR8): the group `characters`, the exported `radius` (7), its 3D walker's
+      `shift(aside, leaf)` (`TwinSpace.walker_of`: moves it clear of the leaf, false when something stops it), duck-typed; the door imports nothing of Character.
     - **Tuning read across the boundary:** `DoorConfig.step_degrees` (the Character's wheel step, `turn`), `DoorConfig.open_angle` (the
       angle World-Gen gives a door that starts open: `Door.open_angle` is the same number) and `DoorConfig.swing_time`; the rest of
       `DoorConfig` stays in Objects.

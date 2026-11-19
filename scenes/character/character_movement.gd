@@ -82,10 +82,9 @@ func walk(delta: float) -> void:
 	character.velocity = move_input * _move_speed() * _push_slow + _knockback + stun.drift()
 	var lead := TwinSpace.walker_of(character)
 	if lead != null:
-		# the 3D body walks and the 2D body is written from it (`CharacterTwin`)
+		# the 3D body walks and the 2D body is written from it (`CharacterTwin`); a body with no
+		# twin yet (added this frame) stays where it is
 		character.velocity = lead.walk(character.velocity)
-	else:
-		character.move_and_slide()
 	_knockback = _knockback.move_toward(
 		Vector2.ZERO,
 		CharacterPushConfig.knockback_friction * delta,

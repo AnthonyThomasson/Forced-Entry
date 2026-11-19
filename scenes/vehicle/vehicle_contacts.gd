@@ -13,6 +13,11 @@ class_name VehicleContacts extends RefCounted
 ## hit too: the query goes on page by page until none is left).
 const TOUCH_MARGIN := 1.5
 const TOUCH_HITS := 32
+## The band (px above the floor) a pile's circles are asked over: from just over a floor slab to
+## about a bumper's height, so a wall, a low piece and a standing body are all met, a ceiling is
+## not.
+const PILE_BASE := 4.0
+const PILE_BAND := 36.0
 
 ## The vehicle it belongs to.
 var vehicle: Node2D
@@ -384,7 +389,7 @@ func _pile(first: Node, normal: Vector2) -> Dictionary:
 			"through": 0.0,
 		},
 	]
-	var exclude: Array[RID] = [vehicle.get_rid(), first.get_rid()]
+	var exclude: Array[RID] = [TwinSpace.leader_of(vehicle).get_rid(), _rid_of(first)]
 	var blocked: Node = null
 	var i := 0
 	while i < members.size() and members.size() < VehicleCollisionConfig.pile_depth:
@@ -399,7 +404,7 @@ func _pile(first: Node, normal: Vector2) -> Dictionary:
 		for body: Node in found.get("bodies", []):
 			if members.size() >= VehicleCollisionConfig.pile_depth:
 				break
-			exclude.append(body.get_rid())
+			exclude.append(_rid_of(body))
 			members.append({
 				"body": body,
 				"mass": float(body.get_mass()),
@@ -417,34 +422,44 @@ func _pile(first: Node, normal: Vector2) -> Dictionary:
 ## whatever its circle moved `pile_gap` on meets ahead of it (`_pressed_by_character`). A piece: the
 ## living characters within `pile_reach` of it pressed against it (`_pressing_piece`).
 func _pressed_by(member: Dictionary, normal: Vector2, exclude: Array[RID]) -> Dictionary:
-	var space := vehicle.get_world_2d().direct_space_state
-	var circle := CircleShape2D.new()
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = circle
-	query.collision_mask = PhysicsLayers.SOLID
+	var space := TwinSpace.space_of(vehicle)
+	if space == null:
+		return {}
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = CylinderShape3D.new()
+	(query.shape as CylinderShape3D).height = PILE_BAND
+	query.collision_mask = PhysicsLayers.TWIN_ALL
 	query.exclude = exclude
 	if member["character"]:
 		return _pressed_by_character(space, query, member["body"], normal)
 	return _pressing_piece(space, query, member["body"], normal)
 
 
-## What the character `body` presses into along `normal`, swept with `query` (a circle, its
+## The rid of the twin of the body `body`, the one its place in the twin space is left out by.
+static func _rid_of(body: Object) -> RID:
+	var twin := TwinSpace.twin_for(body) as CollisionObject3D
+	return twin.get_rid() if twin != null else RID()
+
+
+## Put the pile's band, a cylinder of `query`, over the plan point `at`, `wide` px of radius.
+static func _band_at(query: PhysicsShapeQueryParameters3D, at: Vector2, wide: float) -> void:
+	(query.shape as CylinderShape3D).radius = wide
+	query.transform = Transform3D(Basis.IDENTITY, PlanSpace.lift(at, PILE_BASE + PILE_BAND * 0.5))
+
+
+## What the character `body` presses into along `normal`, swept with `query` (a band, its
 ## `exclude` set): what its circle, `radius`, moved `pile_gap` on meets ahead of it: a living
 ## character within 60° ahead, a pushable piece whose surface faces the push; anything else that
 ## faces it blocks the pile (`{ blocked }`).
-func _pressed_by_character(space: PhysicsDirectSpaceState2D,
-		query: PhysicsShapeQueryParameters2D, body: Node2D, normal: Vector2) -> Dictionary:
+func _pressed_by_character(space: PhysicsDirectSpaceState3D,
+		query: PhysicsShapeQueryParameters3D, body: Node2D, normal: Vector2) -> Dictionary:
 	var bodies: Array = []
-	(query.shape as CircleShape2D).radius = body.radius
-	query.transform = Transform2D(
-		0.0,
-		body.global_position + normal * VehicleCollisionConfig.pile_gap,
-	)
+	_band_at(query, body.global_position + normal * VehicleCollisionConfig.pile_gap, body.radius)
 	var met := space.intersect_shape(query, 8)
 	for result: Dictionary in met:
-		var other := result["collider"] as Node2D
-		if other == null:
-			continue
+		var other := TwinSpace.owner_of(result["collider"])
+		if other == null or other in bodies:
+			continue  # a piece's twin has a shape for each of its parts: one hit each
 		if _is_character(other):
 			if _alive_ahead(other, body, normal):
 				bodies.append(other)
@@ -463,16 +478,16 @@ static func _alive_ahead(other: Node2D, body: Node2D, normal: Vector2) -> bool:
 			and (other.global_position - body.global_position).normalized().dot(normal) > 0.5)
 
 
-## The living characters within `pile_reach` of the piece `body` (`query`, a circle, its `exclude`
+## The living characters within `pile_reach` of the piece `body` (`query`, a band, its `exclude`
 ## set), ahead of it along `normal`, whose circles, moved `pile_gap` back toward it, meet it.
-func _pressing_piece(space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryParameters2D,
+func _pressing_piece(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3D,
 		body: Node2D, normal: Vector2) -> Dictionary:
 	var bodies: Array = []
-	(query.shape as CircleShape2D).radius = VehicleCollisionConfig.pile_reach
-	query.transform = Transform2D(0.0, body.global_position)
+	_band_at(query, body.global_position, VehicleCollisionConfig.pile_reach)
 	for result: Dictionary in space.intersect_shape(query, 16):
-		var other := result["collider"] as Node2D
+		var other := TwinSpace.owner_of(result["collider"])
 		if (other == null
+				or other in bodies
 				or not _is_character(other)
 				or other.is_dead
 				or (other.global_position - body.global_position).dot(normal) <= 0.0):
@@ -483,35 +498,31 @@ func _pressing_piece(space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryP
 
 
 ## Whether the character `other`'s circle, moved `pile_gap` back along `normal`, meets `piece`.
-func _presses(space: PhysicsDirectSpaceState2D, other: Node2D, piece: Node2D,
+func _presses(space: PhysicsDirectSpaceState3D, other: Node2D, piece: Node2D,
 		normal: Vector2) -> bool:
-	var back := PhysicsShapeQueryParameters2D.new()
-	var own := CircleShape2D.new()
-	own.radius = other.radius
-	back.shape = own
-	back.collision_mask = PhysicsLayers.SOLID
-	back.transform = Transform2D(
-		0.0,
-		other.global_position - normal * VehicleCollisionConfig.pile_gap,
-	)
-	back.exclude = [vehicle.get_rid(), other.get_rid()]
+	var back := PhysicsShapeQueryParameters3D.new()
+	back.shape = CylinderShape3D.new()
+	(back.shape as CylinderShape3D).height = PILE_BAND
+	back.collision_mask = PhysicsLayers.TWIN_ALL
+	_band_at(back, other.global_position - normal * VehicleCollisionConfig.pile_gap, other.radius)
+	back.exclude = [TwinSpace.leader_of(vehicle).get_rid(), _rid_of(other)]
 	for touched: Dictionary in space.intersect_shape(back, 8):
-		if touched["collider"] == piece:
+		if TwinSpace.owner_of(touched["collider"]) == piece:
 			return true
 	return false
 
 
 ## Whether the body of `result` (one of `met`, what `query` overlaps) faces the push: the nearest
-## point of its surface the query's circle meets has its normal against `normal`, so the circle runs
+## point of its surface the query's band meets has its normal against `normal`, so the circle runs
 ## into it rather than brushing past it.
 static func _faces_push(
-	space: PhysicsDirectSpaceState2D,
-	query: PhysicsShapeQueryParameters2D,
+	space: PhysicsDirectSpaceState3D,
+	query: PhysicsShapeQueryParameters3D,
 	met: Array,
 	result: Dictionary,
 	normal: Vector2,
 ) -> bool:
-	var alone := PhysicsShapeQueryParameters2D.new()
+	var alone := PhysicsShapeQueryParameters3D.new()
 	alone.shape = query.shape
 	alone.transform = query.transform
 	alone.collision_mask = query.collision_mask
@@ -521,7 +532,7 @@ static func _faces_push(
 			exclude.append(other["rid"])
 	alone.exclude = exclude
 	var rest := space.get_rest_info(alone)
-	return not rest.is_empty() and (rest["normal"] as Vector2).dot(normal) < -0.5
+	return not rest.is_empty() and PlanSpace.plan_of(rest["normal"]).dot(normal) < -0.5
 
 
 ## Carry out what the contacts found: shove each body by its push and hurt each character newly

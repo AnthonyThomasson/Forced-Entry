@@ -179,8 +179,9 @@ simply:
   2D footprint was (a chair's 28 px square): a body exactly at the reach's rim (46 px) is no longer in it (the 2D engine counted shapes that
   touch, Jolt does not), which moved one premise by 6 px (`space_picks_nearest_to_mouse`). Measured (`tools/perf_ab.sh 389c3eb5 HEAD --different-fights`, 6 rounds, a busy machine): `match_5v5_stress` +0.7%,
   `grenade_match_stress` +1.8%, `match_10v10_stress` +1.8%, `match_npc_vision` -1.2% of the base's average frame.
-- **After del2d-a (nothing reads the 2D space).** Of the list above, (1), (2) and, of (7), the player's cone and `Explosion`'s coverage are
-  done: the AI's `space` is the twin space itself (`space_of`, `space_in`), `AgentVision` and `Explosion`
+- **After del2d-a (nothing reads the 2D space).** Of the list above, (1), (2) and, of (7), the player's cone, `Explosion`'s coverage, a door's nudge, (5) and (6) are
+  done: a pile is found by 3D queries in the twin space, a door's nudge is the walker's `shift`, a character with no twin does not walk and nothing folds
+  a body into the 2D space; the AI's `space` is the twin space itself (`space_of`, `space_in`), `AgentVision` and `Explosion`
   answer a world with no twin space with their neutral answer, and the player's cone is a level 3D ray at the viewer's eye height
   (`SightRay.plan_hit`) with its corners read by a 3D shape query over the column above the eye (`ViewShapes`), so a body with no twin blocks nothing.
 
