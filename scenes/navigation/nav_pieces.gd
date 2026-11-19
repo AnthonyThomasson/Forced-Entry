@@ -47,8 +47,10 @@ func holes() -> Array:
 	var out: Array = []
 	for piece: Piece in _pieces:
 		var at := piece.body.global_transform
-		if piece.dirty or at != piece.at:
+		var stamp: Variant = piece.body.get(&"footprint_stamp")  # a tipped piece reshapes in place
+		if piece.dirty or at != piece.at or stamp != piece.stamp:
 			piece.at = at
+			piece.stamp = stamp
 			piece.hull = NavHoles.cut(piece.body)
 			piece.dirty = false
 		if not piece.hull.is_empty():
@@ -106,6 +108,7 @@ func _on_node_added(node: Node) -> void:
 class Piece:
 	var body: RigidBody2D
 	var at := Transform2D()
+	var stamp: Variant = null
 	var hull := PackedVector2Array()
 	var dirty := true
 

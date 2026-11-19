@@ -51,6 +51,11 @@ world/map_use_async_iterations=false
 [physics]
 
 3d/physics_engine="Jolt Physics"
+jolt_physics_3d/simulation/speculative_contact_distance=1.5
+jolt_physics_3d/simulation/penetration_slop=0.3
+jolt_physics_3d/simulation/sleep_velocity_threshold=1.5
+jolt_physics_3d/simulation/bounce_velocity_threshold=40.0
+jolt_physics_3d/limits/max_linear_velocity=5000.0
 
 [rendering]
 

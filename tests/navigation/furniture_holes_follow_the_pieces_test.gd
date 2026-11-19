@@ -40,7 +40,8 @@ func run(t: TestContext) -> void:
 
 	var moved: RigidBody2D = null
 	for piece: RigidBody2D in pieces:
-		if not piece.freeze:
+		# a free piece: a furnishing's 2D body is frozen (the follower of its 3D body)
+		if not piece.freeze or TwinSpace.leader_of(piece) != null:
 			moved = piece
 			break
 	if not t.require(moved != null, "a piece that can be moved"):

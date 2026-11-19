@@ -81,18 +81,27 @@ static func _lintels(wall: Wall, twin: CollisionObject3D) -> void:
 			)
 
 
-## A solid piece's twin: a box per part (see `PieceHeights`), a static body the space moves with the
-## piece (a kinematic body is always active in the 3D step, and a district holds hundreds of
-## pieces).
+## A solid piece's twin: a box per part (see `PieceHeights`). A piece that stands on the floor and
+## is not anchored is a free `PieceBody` (a `RigidBody3D`, #194 furn3d, D13): the piece's truth,
+## which the 2D body then follows. An anchored piece, and one that hangs off the floor (a mirror, a
+## menu board), is a static body the space moves with the piece (a kinematic body is always active
+## in the 3D step, and a district holds hundreds of pieces).
 static func _piece(piece: Piece) -> Node3D:
 	if not piece.solid:
 		return null
-	var twin := StaticBody3D.new()
 	var spec := FurnitureSpec.of(piece)
+	var free := not piece.anchored and PieceHeights.base_of_spec(spec) <= 0.0
+	var twin: CollisionObject3D
+	if free:
+		twin = PieceBody.new(piece)
+	else:
+		twin = StaticBody3D.new()
 	for part: Dictionary in PieceHeights.parts(spec):
 		var shape := _part(piece, spec, part)
 		if shape != null:
 			twin.add_child(shape)
+	if free:
+		return twin
 	return _world(twin)
 
 

@@ -8,7 +8,9 @@ extends RigidBody2D
 ## else:
 ##   • get_surface() / take_hit(HitInfo)  — the "hittable" contract (Projectile, melee)
 ##   • apply_impulse(Vector2, at) / get_mass() — the "pushable" contract (blasts, a character's
-##     push, legs, punch, kick)
+##     push, legs, punch, kick). A pusher goes through `Knockback.push`, which shoves a piece
+##     through its free 3D body (`PieceBody`, the truth of a movable piece once the twin space has
+##     it: this node is then its frozen 2D footprint) at the push's real height
 ##   • get_lights() — the lights it gives (object_lights.gd), which the Lighting domain reads
 ##     duck-typed
 ## The force and deformation MATH lives in the Physics domain; this file only wires it up.
@@ -50,6 +52,9 @@ var look := ObjectLook.new()
 ## Its Physics components (`object_physics.gd`: Knockback, Deformable, BloodSmear), its collider and
 ## a cloth piece's BloodSurface. Built here, holding the piece; composed in _ready().
 var physics := ObjectPhysics.new(self)
+## How many times its footprint changed shape since it was twinned (a tipped piece's turning over
+## reshapes its collider in place): the nav reads it, with its transform, to know a hole moved.
+var footprint_stamp := 0
 ## What `get_lights()` declares (worked out once, in `_ready`).
 var _lights: Array = []
 
@@ -99,7 +104,7 @@ func hit_marks() -> Array:
 ## fills in a HitInfo.
 func take_hit(hit: HitInfo) -> void:
 	if not anchored:
-		physics.knockback.apply_impulse(Physics.impact_impulse(hit), hit.position)
+		physics.knockback.apply_impulse(Physics.impact_impulse(hit), hit.position, hit.height)
 	physics.deformable.record(hit)
 	Physics.spawn_debris(get_parent(), hit, get_surface())
 
@@ -120,11 +125,37 @@ func get_lights() -> Array:
 ## The interactions this object offers (plain data dicts; see the Interaction domain). The
 ## object holds no interaction logic — it only advertises the actions. Empty if none.
 func get_interactions() -> Array:
-	return interactions
+	if not is_tipped():
+		return interactions
+	# a tipped piece lies on its side (D14): nothing that puts a character on or at it (sit, lie)
+	return interactions.filter(
+		func(spec: Dictionary) -> bool: return not spec.get("move_to", false)
+	)
+
+
+## Whether the piece has tipped over (its 3D body leans more than `PieceBodyConfig.tipped_degrees`).
+func is_tipped() -> bool:
+	var body := TwinSpace.twin_for(self) as PieceBody
+	return body != null and body.tipped()
+
+
+## Its collider is now `hull` (a polygon in its own frame): the footprint of its tipped 3D body
+## (`PieceBody.twin_update`). Dents recorded meanwhile are cut again when it is upright.
+func set_tipped_collider(hull: PackedVector2Array) -> void:
+	physics.set_tipped_collider(hull)
+
+
+## The piece is upright again: its collider is its silhouette as its dents have left it.
+func restore_collider() -> void:
+	physics.restore_collider()
 
 
 # --- Pushable contract (interface 5: blasts, a character's walking push, legs, punch, kick) ---
 # Both halves are served by RigidBody2D's native methods: apply_impulse(v, at) (`at` the contact
 # offset from the origin, so a shove off the centre turns the piece; omitted = a central shove) and
-# get_mass() (returns `mass`, which Knockback sets from `weight`). Nothing to add: an anchored piece
-# is frozen static, which the engine never moves.
+# get_mass() (returns `mass`, which Knockback sets from `weight`). That serves a piece in a world
+# with no twin space; once the twin space has taken it over, a free 3D body (`PieceBody`) is the
+# piece and this node is its frozen footprint, so a pusher calls
+# `Knockback.push(piece, v, at, height)`, which applies the shove in 3D at its height (a native
+# `apply_impulse` on the footprint moves nothing). An anchored piece is frozen static, which the
+# engine never moves.

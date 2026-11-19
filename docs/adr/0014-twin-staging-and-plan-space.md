@@ -30,7 +30,7 @@ knowing where it was built.
 
 **Synced like the mirror, once a frame.** `TwinSpace` reuses the mirror's update rule (ADR 0013): a followed body's `global_transform` is
 read and the twin written **only when it changed**, a sleeping `RigidBody2D` is read once more as it falls asleep and then parked until it wakes (a slow look, a few frames round, catches a script that
-moves it asleep), a body that never moves is written once (one frozen at twin time is never followed, even if unfrozen later: to revisit when furniture goes 3D), a body that leaves the tree frees its twin. The spike measured it: 600 twins cost 0.13 to 0.16 ms a
+moves it asleep), a body that never moves is written once (one frozen at twin time is parked and looked at slowly, so a later unfreeze is followed), a body that leaves the tree frees its twin. The spike measured it: 600 twins cost 0.13 to 0.16 ms a
 frame with the dirty check, 0.32 without; the whole frame rises by 0.15 ms. The sync runs before every body's own `_physics_process`
 (priority -100), after the engine's step has flushed the bodies it moves, so a bullet or a sight line in the frame's scripts finds
 a rigid body's twin exactly where the 2D space has it; a door or a character, which a script moves, is a frame behind where that script puts it
@@ -44,6 +44,39 @@ in 6.7 s against 30 of 40 awake after 8 s) and casts rays in about half the time
 collider does not reshape its twin (a dent is a few px); a vehicle's twin is its body to the belt, not the glass and roof above it; a
 non-solid piece (a rug) has none. A seated character's cylinder is off, a dead one's and a knocked-down door's are on no layer
 (`PhysicsLayers.TWIN_*`: world, vehicle, character), as their 2D bodies' are. The jobs that read the twins decide what they need of these.
+
+## Furniture flips first: the direction reverses for a free piece (D13, D14, #194 furn3d)
+
+The reversal this ADR planned for the last job happens for furniture first, as the first mover of phase 3. A piece that is free (not
+anchored, standing on the floor) is a **`PieceBody`** (Objects, a `RigidBody3D` under Jolt): its truth. It is shaped from its real parts
+(`PieceHeights`, so a bookshelf is a tall box, a stool a cylinder), has its mass from the catalogue (`Knockback.mass_of`) and its centre
+of mass at the height of its shapes' middle, and slides, spins and tips as physics decides. Its 2D `RigidBody2D` stays in the tree as the
+**footprint twin**, frozen and written from the 3D pose each frame (`TwinSpace._follow_lead`; a script that moves the footprint
+anyway, a test or a teleport, is adopted: the 3D body is put where the script put it). Everything that still reads 2D (the nav holes,
+the avoid maps, interaction finding, the 2D renderer, the vehicle's solver) keeps working on the footprint unchanged. `TwinSpace.leader_of(body)`
+names the 3D body a footprint follows; an anchored piece, a wall-mounted one and every other class keep the 2D-led twin above. A frozen body
+unfrozen later, a note this ADR left for furniture, is followed (the row is re-listed when it moves).
+
+- **Shoves land at a real point and height** (`Knockback.push(body, impulse, at, height)`, interface 5): a bullet at the height it struck,
+  a blast from its burst height, a punch or a kick at the fist's or foot's. Impulses above and below the centre of mass tip a piece in
+  opposite ways, and a tall thin piece struck high tips where a low heavy one slides. A shove that is *carried* (walking into a chair,
+  pressing a sofa) is clamped to the centre of mass: it slides and turns the piece about up and never flips it.
+- **A tipped piece's geometry follows** (D14): its 3D shapes are the real ones, so a ray, a sight line, a grenade or a fragment meets the
+  piece lying on its side at its new height. Its footprint collider is the hull of its shapes' corners projected onto the floor
+  (`PieceBody.twin_update`, a collider dent is cut again once it is upright: `EnvironmentObject.set_tipped_collider` /
+  `restore_collider`), and `footprint_stamp` tells the nav to re-bake around it. A piece whose up axis leans more than
+  `PieceBodyConfig.tipped_degrees` (25) is *tipped*: `sit` and `lie` (every `move_to` action) are refused on it. Flipping a table on
+  purpose, for cover, is out of scope.
+- **Sleep:** a piece at rest sleeps (Jolt `can_sleep`; a plan-space drag that emulates the 2D damping is skipped under
+  `PieceBodyConfig.drag_floor` so it can), the footprint is read once more as it falls asleep and then parked.
+- **Jolt at px scale.** The unit is a pixel, which Jolt's metre-sized defaults do not suit: `project.godot` sets
+  `speculative_contact_distance` 1.5, `penetration_slop` 0.3, `sleep_velocity_threshold` 1.5, `bounce_velocity_threshold` 40 and `max_linear_velocity` 5000 (the default 500 is a speed limit of 500 px/s, which a shoved chair meets). Jolt's
+  penetration correction is about 0.2 px a step and cannot be raised, so a piece (or a character) spawned overlapping a wall or another
+  piece is moved clear explicitly when it is twinned (`PieceBody.settle_out`, a zero-motion `body_test_motion`).
+- **Two plays of one world can differ.** Jolt orders touching bodies by allocation, so a test that plays one scenario twice in a process
+  sees the second play settle a pile in a different order; a Von test whose wording depends on it is `own_process` (as the 2D engine's
+  slot order already made `combat_frag_take_cover`), and each twin space twins only the bodies of its own viewport (a nested
+  `SubViewport` world owns its twins), so a replay's world does not meet another's.
 
 ## Plan space (D4)
 

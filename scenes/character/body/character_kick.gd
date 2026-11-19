@@ -94,4 +94,5 @@ func _strike(character: CharacterBody2D) -> void:
 		"Kick",
 	)
 	blow.kind = &"kick"
+	blow.height = BodyHeights.contact(&"leg", character.movement.body_posture())
 	Strike.strike(character, blow, _hit_bodies, true, kicked.emit)

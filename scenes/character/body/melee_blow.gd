@@ -14,6 +14,9 @@ var note := ""
 ## What kind of strike it is (`&"punch"` or `&"kick"`), told to a body that takes it by kind
 ## (`take_blow`).
 var kind := &"punch"
+## How high above the floor it lands (px: the fist's, the foot's), so a free piece is shoved at its
+## real height; -1 when unknown.
+var height := -1.0
 
 
 func _init(

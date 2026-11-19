@@ -3,6 +3,7 @@ extends GameTest
 ## then settle and sleep; frame cost while they move and once they rest stays within budget, and no
 ## nodes are created or leaked. (Nav re-baking is covered by perf/bake_and_path_stress.)
 
+const Piece := preload("res://tests/_objects/piece_probe.gd")
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const COLUMNS := 12
 const ROWS := 10
@@ -44,7 +45,7 @@ func run(t: TestContext) -> void:
 		var piece: Node = t.object(_id(i))
 		starts.append(piece.global_position)
 		# converge: a pile-up
-		piece.apply_impulse((Vector2(650, 550) - piece.global_position).normalized() * 1500.0)
+		Knockback.push(piece, (Vector2(650, 550) - piece.global_position).normalized() * 1500.0)
 
 	var moving := await Perf.frame_stats(t, MOVING_FRAMES)
 	Perf.within_frames(t, "furniture pile moving", moving)
@@ -61,8 +62,8 @@ func run(t: TestContext) -> void:
 	# pile at rest.
 	var all_asleep := func() -> bool:
 		for i in count:
-			var body := t.object(_id(i)) as RigidBody2D
-			if body != null and not body.sleeping:
+			var body := t.object(_id(i))
+			if body != null and not Piece.asleep(body):
 				return false
 		return true
 	await t.until(all_asleep, 6.0)

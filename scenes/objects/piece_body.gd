@@ -1,0 +1,277 @@
+class_name PieceBody
+extends RigidBody3D
+## Objects domain, the free 3D body of a piece of furniture (#194 furn3d, D13/D14,
+## `docs/adr/0014-twin-staging-and-plan-space.md`): a `RigidBody3D` in the twin space (`TwinSpace`),
+## shaped from the piece's real parts (`PieceHeights`: boxes, a cylinder for a round piece), its
+## mass the catalogue's `weight`. It slides, spins and, struck or shoved high enough, **tips**:
+## physics (Jolt) decides, from the piece's mass, its footprint and where the push lands. It is the
+## piece's truth: the 2D body (`EnvironmentObject`) is its footprint twin, written from it each
+## frame by the twin space (`TwinSpace`, interface 29), so the nav holes, the interaction finding
+## and everything else that still reads 2D keep working; a tipped piece's footprint is the
+## projection of its current shape (`twin_update`).
+##
+## Pushes land at their real 3D point (`push`: a bullet at its height, a blast at its burst's, a
+## character's shove at the hip): a tall thin piece struck high tips, a low heavy one slides.
+## Idle it is asleep (Jolt): a resting district costs nothing. It rests on the floor slabs and
+## the other twins (`PhysicsLayers.TWIN_WORLD`), is stopped by vehicles and characters (a body it
+## strikes is handed its momentum, as a sliding piece always handed it to a character), and is on
+## `TWIN_WORLD` itself, so a bullet, a sight line or a lob reads where it now stands.
+
+## The 2D piece this is the body of.
+var _piece: Node2D
+## Whether the 2D footprint is the tipped hull now, and the 3D pose it was cut for.
+var _footprint_tipped := false
+var _footprint_pose := Transform3D()
+
+
+## A body for `of` (an `EnvironmentObject`): its mass, drag, friction and gravity set. The shapes
+## are added by the builder (`ObjectTwins`).
+func _init(of: Node2D = null) -> void:
+	_piece = of
+	collision_layer = PhysicsLayers.TWIN_WORLD
+	collision_mask = (
+		PhysicsLayers.TWIN_WORLD
+		| PhysicsLayers.TWIN_VEHICLE
+		| PhysicsLayers.TWIN_CHARACTER
+		| PhysicsLayers.TWIN_GROUND
+	)
+	mass = Knockback.mass_of(float(of.get("weight")) if of != null else 1.0)
+	linear_damp = PieceBodyConfig.linear_damp
+	angular_damp = PieceBodyConfig.angular_damp
+	gravity_scale = PieceBodyConfig.gravity * RenderConfig.unit / float(
+		ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
+	)
+	var grip := PhysicsMaterial.new()
+	grip.friction = PieceBodyConfig.friction
+	grip.bounce = PieceBodyConfig.bounce
+	physics_material_override = grip
+	can_sleep = true
+	continuous_cd = PhysicsImpactConfig.body_continuous_cd
+	contact_monitor = true
+	max_contacts_reported = 4
+	body_entered.connect(_on_body_entered)
+
+
+## The 2D piece this is the body of.
+func piece() -> Node2D:
+	return _piece
+
+
+## Called by the twin space as it takes the piece over: the 2D body becomes the footprint, a frozen
+## kinematic body only the twin space moves (a free `RigidBody2D` stays what it is where there is
+## no twin space).
+func take_over(footprint: Node2D) -> void:
+	var rigid := footprint as RigidBody2D
+	if rigid != null:
+		rigid.linear_velocity = Vector2.ZERO
+		rigid.angular_velocity = 0.0
+		# static, not kinematic: a kinematic body derives a velocity from each move and carries on
+		rigid.freeze_mode = RigidBody2D.FREEZE_MODE_STATIC
+		rigid.freeze = true
+	_centre_on_origin()
+	sleeping = true  # a district at rest costs Jolt nothing
+
+
+## The centre of mass goes under the piece's origin, at the height its shapes give it (their
+## volume-weighted middle): a shove at a plan point is given relative to the origin, which stands at
+## the footprint's centre, so a push at the middle of a side only slides the piece, as a 2D body's
+## did, whatever the shapes' lopsidedness (a chair's back) would have turned it.
+func _centre_on_origin() -> void:
+	var weight := 0.0
+	var moment := 0.0
+	for child in get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		var volume := 0.0
+		if holder.shape is BoxShape3D:
+			var size := (holder.shape as BoxShape3D).size
+			volume = size.x * size.y * size.z
+		elif holder.shape is CylinderShape3D:
+			var cylinder := holder.shape as CylinderShape3D
+			volume = PI * cylinder.radius * cylinder.radius * cylinder.height
+		else:
+			volume = 1.0
+		weight += volume
+		moment += volume * holder.position.y
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	center_of_mass = Vector3(0.0, moment / weight if weight > 0.0 else 0.0, 0.0)
+
+
+## Move the piece clear of what it overlaps (a wall or another piece it was placed against),
+## straight out along the way that is shortest, as the 2D engine moved a rigid body that spawned
+## overlapping. The physics engine's own correction is far too slow at this scale (a fraction of a
+## px a step).
+func settle_out() -> void:
+	var query := PhysicsTestMotionParameters3D.new()
+	query.from = global_transform
+	query.motion = Vector3.ZERO
+	query.recovery_as_collision = true
+	query.max_collisions = 8
+	var result := PhysicsTestMotionResult3D.new()
+	if not PhysicsServer3D.body_test_motion(get_rid(), query, result):
+		return
+	var out := result.get_travel()
+	out.y = 0.0
+	if out.length() > 0.01:
+		global_position += out
+		force_update_transform()
+
+
+## Shove the piece: `impulse` (plan space, as `apply_impulse`'s) at the point `at` px from the
+## piece's origin (world orientation; zero is the origin), `height` px above the floor. A negative
+## height is the piece's centre of mass, so a shove given no height only turns it about up, as the
+## 2D body did; a height outside the piece (a blast's burst over its top) is the nearest point of
+## it. A tall piece shoved above its centre leans and tips; low it slides.
+func push(impulse: Vector2, at: Vector2 = Vector2.ZERO, height: float = -1.0) -> void:
+	var lift := impulse * RenderConfig.unit
+	var offset := Vector3(at.x, 0.0, at.y) * RenderConfig.unit
+	if height < 0.0:
+		offset.y = centre_height() - global_position.y
+	else:
+		var extent := _extent()
+		offset.y = clampf(height * RenderConfig.unit, extent.x, extent.y) - global_position.y
+	apply_impulse(Vector3(lift.x, 0.0, lift.y), offset)
+
+
+## The lowest and the highest point (3D units, above the world's floor) of the piece's shapes as
+## they stand now.
+func _extent() -> Vector2:
+	var low := INF
+	var high := -INF
+	for child in get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		for corner in _corners(holder.shape):
+			var y := (global_transform * (holder.transform * corner)).y
+			low = minf(low, y)
+			high = maxf(high, y)
+	return Vector2(low, high) if low <= high else Vector2(global_position.y, global_position.y)
+
+
+## How high (3D units) the piece's centre of mass is above the world's floor now.
+func centre_height() -> float:
+	var state := PhysicsServer3D.body_get_direct_state(get_rid())
+	return state.center_of_mass.y if state != null else global_position.y
+
+
+## The piece's velocity in plan space (px/s) and its turn about up (rad/s, a 2D body's sign:
+## clockwise on the y-down plan is positive), as the physics server has them now, shoves given this
+## frame included (the node's own `linear_velocity` is the last step's): what a pusher caps its
+## shove by.
+func plan_velocity() -> Vector2:
+	var state := PhysicsServer3D.body_get_direct_state(get_rid())
+	return PlanSpace.plan_of(state.linear_velocity if state != null else linear_velocity)
+
+
+## How fast it turns about up (rad/s, a 2D body's sign), as the engine has it now.
+func plan_spin() -> float:
+	var state := PhysicsServer3D.body_get_direct_state(get_rid())
+	return -(state.angular_velocity.y if state != null else angular_velocity.y)
+
+
+## How much one unit of impulse turns the piece about up (the inverse of its moment of inertia about
+## up, from its shape as the engine has it): 0 for a body not in the world yet.
+func inverse_yaw_inertia() -> float:
+	var state := PhysicsServer3D.body_get_direct_state(get_rid())
+	return state.inverse_inertia_tensor.y.y if state != null else 0.0
+
+
+## Whether the piece has tipped (D14): its up axis leans more than `PieceBodyConfig.tipped_degrees`
+## from the world's. A tipped piece is lying on a side or leaning on something; it is no longer a
+## thing to sit on.
+func tipped() -> bool:
+	var up := global_transform.basis.y.normalized()
+	return up.y < cos(deg_to_rad(PieceBodyConfig.tipped_degrees))
+
+
+## A piece that was handed to the twin space now moves: its footprint follows (the twin space calls
+## this after it has written the 2D body from this one): while tipped, one convex polygon, the hull
+## of every shape's corners projected onto the floor in the 2D body's frame; upright again, the
+## piece's own collider as its dents have left it.
+func twin_update(footprint: Node2D) -> void:
+	var now := tipped()
+	if not now and not _footprint_tipped:
+		return
+	if now:
+		if _footprint_tipped and global_transform.is_equal_approx(_footprint_pose):
+			return
+		_footprint_pose = global_transform
+		_footprint_tipped = true
+		_set_hull(footprint)
+	else:
+		_footprint_tipped = false
+		if footprint.has_method(&"restore_collider"):
+			footprint.call(&"restore_collider")
+
+
+## The drag a 2D body had, on the floor plane and about up only: a piece comes to rest as a shoved
+## piece always did (`PhysicsImpactConfig.body_linear_damp`, `body_angular_damp`), while its fall
+## and its tipping are left to gravity and the contact (`linear_damp`, `angular_damp`).
+func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
+	var dt := state.step
+	var linear := state.linear_velocity
+	if absf(linear.x) + absf(linear.z) > PieceBodyConfig.drag_floor:
+		var slide := exp(-PhysicsImpactConfig.body_linear_damp * dt)
+		state.linear_velocity = Vector3(linear.x * slide, linear.y, linear.z * slide)
+	var angular := state.angular_velocity
+	if absf(angular.y) > PieceBodyConfig.drag_floor * 0.1:
+		angular.y *= exp(-PhysicsImpactConfig.body_angular_damp * dt)
+		state.angular_velocity = angular
+
+
+## Hand the momentum of a flying piece to a body it strikes that is not itself a free piece (a
+## character: kinematic, it is not moved by the solver), scaled down so a cascade loses energy.
+func _on_body_entered(other: Node) -> void:
+	var struck := TwinSpace.owner_of(other)
+	if struck == null or struck == _piece or not struck.has_method(&"apply_impulse"):
+		return
+	if TwinSpace.twin_for(struck) is PieceBody:
+		return  # the solver settles piece against piece
+	var transfer := plan_velocity() * mass * PhysicsImpactConfig.transfer_scale
+	if transfer.length_squared() > 0.0:
+		struck.call(&"apply_impulse", transfer)
+
+
+## Replace `footprint`'s colliders by the hull of this body's shapes seen from above.
+func _set_hull(footprint: Node2D) -> void:
+	var world := PackedVector2Array()
+	for child in get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		for corner in _corners(holder.shape):
+			world.append(PlanSpace.plan_of(global_transform * (holder.transform * corner)))
+	var local := PackedVector2Array()
+	var back := (footprint as Node2D).global_transform.affine_inverse()
+	for point in world:
+		local.append(back * point)
+	var hull := Geometry2D.convex_hull(local)
+	if hull.size() > 1:
+		hull.remove_at(hull.size() - 1)
+	if hull.size() < 3:
+		return
+	if footprint.has_method(&"set_tipped_collider"):
+		footprint.call(&"set_tipped_collider", hull)
+
+
+## The corner points of `shape` in its own frame (a cylinder as a ring of points).
+static func _corners(shape: Shape3D) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	if shape is BoxShape3D:
+		var half := (shape as BoxShape3D).size * 0.5
+		for sx in [-1.0, 1.0]:
+			for sy in [-1.0, 1.0]:
+				for sz in [-1.0, 1.0]:
+					out.append(Vector3(half.x * sx, half.y * sy, half.z * sz))
+	elif shape is CylinderShape3D:
+		var cylinder := shape as CylinderShape3D
+		for i in 12:
+			var turn := TAU * i / 12.0
+			var rim := Vector3(cos(turn), 0.0, sin(turn)) * cylinder.radius
+			out.append(rim + Vector3.UP * cylinder.height * 0.5)
+			out.append(rim - Vector3.UP * cylinder.height * 0.5)
+	elif shape is ConvexPolygonShape3D:
+		out = (shape as ConvexPolygonShape3D).points
+	return out

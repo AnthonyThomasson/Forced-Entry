@@ -6,6 +6,7 @@ extends GameTest
 ## that never moves is written once (a still world writes nothing a frame); a body that is freed
 ## frees its twin and a ray then passes where it stood.
 
+const Piece := preload("res://tests/_objects/piece_probe.gd")
 const Probe := preload("res://tests/_general/twin_probe.gd")
 const SOFA_AT := Vector2(300, 250)
 
@@ -103,7 +104,7 @@ func _late_floor(t: TestContext, twins: TwinSpace) -> void:
 ## The sofa is freed, asleep and so off the follow list: its twin goes, and a ray over where it
 ## stood lands on the floor.
 func _freed(t: TestContext, twins: TwinSpace, sofa: Node2D) -> void:
-	t.require((sofa as RigidBody2D).sleeping, "premise: the sofa is asleep when it is freed")
+	t.require(Piece.asleep(sofa), "premise: the sofa is asleep when it is freed")
 	var twin := twins.twin_of(sofa)
 	var before := twins.count
 	sofa.queue_free()

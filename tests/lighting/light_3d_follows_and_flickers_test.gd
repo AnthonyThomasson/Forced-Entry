@@ -46,7 +46,7 @@ func run(t: TestContext) -> void:
 	var offsets := {}
 	for l: OmniLight3D in own:
 		offsets[l] = lamp.global_transform.affine_inverse() * Probe.ground_of(l)
-	lamp.apply_impulse(SHOVE)
+	Knockback.push(lamp, SHOVE)
 	for _i in 30:
 		await t.frames(2)
 		_check_follow(t, lamp, offsets, "while it slides", LAG)

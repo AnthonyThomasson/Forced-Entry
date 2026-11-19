@@ -178,8 +178,13 @@ func update() -> void:
 ## `RigidBody2D` is not read (once more as it falls asleep): only a mesh that updates itself is
 ## looked at, for whether it still shows.
 func _follow(row: Dictionary) -> void:
-	var rigid: Variant = row["rigid"]
-	if is_instance_valid(rigid) and (rigid as RigidBody2D).sleeping:
+	var lead := TwinSpace.leader_of(row["body"])
+	if lead != null and row["shape"] == row["body"]:
+		_follow_led(row, lead)
+		return
+	# a body led by a free 3D body sleeps when that does (its 2D body is a frozen footprint)
+	var rigid: Variant = lead if lead != null else row["rigid"]
+	if is_instance_valid(rigid) and rigid.sleeping:
 		if row["asleep"]:
 			_sync_shown(row)  # a sleeper's cone and layer change while it lies
 			if (row["update"] as Callable).is_valid():
@@ -194,6 +199,28 @@ func _follow(row: Dictionary) -> void:
 	if xf != row["last"]:
 		row["last"] = xf
 		(row["node"] as Node3D).transform = MirrorProxy.lift(xf, row)
+		written += 1
+	_run_update(row)
+
+
+## Follow a mesh whose body is led by a free 3D body (furniture, #194 furn3d): the mesh takes that
+## body's pose, tilt and all, so a tipped piece is drawn tipped. A sleeping body is not read (once
+## more as it falls asleep), as a sleeping `RigidBody2D` is not.
+func _follow_led(row: Dictionary, lead: RigidBody3D) -> void:
+	if lead.sleeping:
+		if row["asleep"]:
+			_sync_shown(row)
+			_run_update(row)
+			return
+		row["asleep"] = true
+	else:
+		row["asleep"] = false
+	followed += 1
+	_sync_shown(row)
+	var pose := lead.global_transform
+	if pose != row.get("last3"):
+		row["last3"] = pose
+		(row["node"] as Node3D).transform = pose
 		written += 1
 	_run_update(row)
 

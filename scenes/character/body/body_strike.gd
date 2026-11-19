@@ -38,7 +38,7 @@ static func strike(
 		struck[body] = true
 		var pushed := body.has_method("apply_impulse")
 		if pushed:
-			body.apply_impulse(impulse, at - (body as Node2D).global_position)
+			Knockback.push(body, impulse, at - (body as Node2D).global_position, blow.height)
 		GameLog.say("%s hit %s for %.1f damage, push %.0f (%s%s)" % [
 			blow.what, body.name, damage, impulse.length(), "pushable" if pushed else "fixed",
 			blow.note])

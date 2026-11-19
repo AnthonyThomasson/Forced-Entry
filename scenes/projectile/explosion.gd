@@ -142,7 +142,8 @@ static func _blast(burst: Vector3, world: Node, source: Node, row: Dictionary) -
 		if body.has_method("blast_push"):
 			body.call("blast_push", at, shove)
 		elif body.has_method("apply_impulse"):
-			body.call("apply_impulse", away * shove)
+			# at the burst's height: a free piece struck high leans and tips, low it slides
+			Knockback.push(body, away * shove, Vector2.ZERO, PlanSpace.height_of(burst))
 
 
 ## Hand `body` a blast `HitInfo` of `damage` and post the `&"hit"` the listeners hear (outcome

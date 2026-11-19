@@ -75,8 +75,10 @@ var _root: Node
 ## The groups whose members are twinned though they are no physics body (the floors), each with
 ## the script a member is of (a node that is not of it is not looked at when it enters the tree).
 var _groups: Dictionary = {}
-## Body instance id -> its row `{ id, body, twin, last, rigid, asleep, parked, listed, wake, layer,
-## active, update }`.
+## Body instance id -> its row `{ id, body, twin, last, last3, lead, rigid, asleep, parked, listed,
+## wake, layer, active, update }`: `lead` the twin when it is a free 3D body that leads its 2D body
+## (furniture), `last3` the pose of it last read, `last` the 2D body's transform last written (or
+## read).
 var _rows: Dictionary = {}
 ## The rows that follow a moving body, swap-removed when a body leaves.
 var _moving: Array[Dictionary] = []
@@ -91,6 +93,17 @@ var _pending: Dictionary = {}
 func _init() -> void:
 	name = "Twins"
 	process_physics_priority = PRIORITY
+	# the plane a free piece of furniture rests on where no floor slab is (a shove past a room's
+	# edge
+	# must not drop it out of the world); no ray or sweep asks for its layer
+	var ground := StaticBody3D.new()
+	ground.name = "TwinGround"
+	ground.collision_layer = PhysicsLayers.TWIN_GROUND
+	ground.collision_mask = 0
+	var plane := CollisionShape3D.new()
+	plane.shape = WorldBoundaryShape3D.new()
+	ground.add_child(plane)
+	add_child(ground)
 
 
 func _exit_tree() -> void:
@@ -193,6 +206,33 @@ static func twin_for(body: Object) -> Node3D:
 	return found as Node3D if is_instance_valid(found) else null
 
 
+## Let the twins of `a` and `b` share space (`shared`) or collide again: what the 2D bodies'
+## collision exception between them does for the 3D bodies, so a character put onto or under a
+## piece (a bed it lies on or hides under) does not shove the piece's free 3D body out of the way. A
+## body with no twin yet is passed over.
+static func share_space(a: Object, b: Object, shared: bool) -> void:
+	var first := twin_for(a) as PhysicsBody3D
+	var second := twin_for(b) as PhysicsBody3D
+	if first == null or second == null:
+		return
+	if shared:
+		first.add_collision_exception_with(second)
+	else:
+		first.remove_collision_exception_with(second)
+
+
+## The free 3D body that is the truth of the 2D `body` (furniture, #194 furn3d): its twin when that
+## is a `RigidBody3D` with a `push`, else null. A pusher shoves such a piece through it
+## (`Knockback.push`).
+static func leader_of(body: Object) -> RigidBody3D:
+	if body == null or not is_instance_valid(body) or not body.has_meta(TWIN_META):
+		return null
+	var found: Variant = body.get_meta(TWIN_META)
+	if is_instance_valid(found) and found is RigidBody3D and (found as Object).has_method(&"push"):
+		return found
+	return null
+
+
 ## The 2D body the twin `collider` (a ray or shape result's `collider`) stands for, or null for
 ## anything else (or a body already freed).
 static func owner_of(collider: Object) -> Node2D:
@@ -209,7 +249,7 @@ func _scan_group(group: StringName) -> void:
 	if _root == null:
 		return
 	for node: Node in get_tree().get_nodes_in_group(group):
-		if _root.is_ancestor_of(node) and node is Node2D:
+		if _root.is_ancestor_of(node) and node is Node2D and node.get_viewport() == get_viewport():
 			_pending[node.get_instance_id()] = node
 
 
@@ -217,7 +257,8 @@ func _scan_group(group: StringName) -> void:
 ## looked at on the next update, once its `_ready` has run.
 func _on_node_added(node: Node) -> void:
 	if node is PhysicsBody2D or _is_kind(node):
-		if _root.is_ancestor_of(node):
+		# a world of its own nested under the root (a SubViewport) has a twin space of its own
+		if _root.is_ancestor_of(node) and node.get_viewport() == get_viewport():
 			_pending[node.get_instance_id()] = node
 
 
@@ -240,6 +281,38 @@ func _twin_pending() -> void:
 	for node: Variant in batch:
 		if is_instance_valid(node) and (node as Node).is_inside_tree() and _is_candidate(node):
 			_twin(node as Node2D)
+	# a free piece that was placed overlapping a wall or another piece, or that a body spawned on,
+	# is moved clear of it, as the 2D engine moved a rigid body clear in its first step, now every
+	# twin of the batch is in the space
+	for node: Variant in batch:
+		if not is_instance_valid(node):
+			continue
+		var lead := leader_of(node as Object)
+		if lead != null:
+			lead.call(&"settle_out")
+		else:
+			_clear_pieces_from(twin_for(node as Object))
+
+
+## Move every free piece that overlaps the new twin `twin` (a character's, a vehicle's) clear of it.
+func _clear_pieces_from(twin: Node3D) -> void:
+	var solid := twin as CollisionObject3D
+	var bodies := PhysicsLayers.TWIN_VEHICLE | PhysicsLayers.TWIN_CHARACTER
+	if solid == null or (solid.collision_layer & bodies) == 0:
+		return
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.collision_mask = PhysicsLayers.TWIN_WORLD
+	query.exclude = [solid.get_rid()]
+	for child in solid.get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		query.shape = holder.shape
+		query.transform = holder.global_transform
+		for found: Dictionary in space().intersect_shape(query, 8):
+			var piece := found["collider"] as Object
+			if piece is RigidBody3D and (piece as Object).has_method(&"settle_out"):
+				piece.call(&"settle_out")
 
 
 ## Whether `node` is a physics body or a member of a tracked group.
@@ -271,26 +344,51 @@ func _twin(node: Node2D) -> void:
 	made.transform = PlanSpace.lift_transform(xf)
 	add_child(made)
 	made.force_update_transform()
-	var solid := made as CollisionObject3D
-	var row := {
-		"id": id, "body": node, "twin": made, "last": xf, "asleep": false, "active": true,
-		"parked": false, "listed": false, "wake": Callable(),
-		"rigid": node if node is RigidBody2D else null,
-		"layer": solid.collision_layer if solid != null else 0,
-		"update": Callable(made, &"twin_update") if made.has_method(&"twin_update") else Callable(),
-	}
+	# a free 3D body that takes the 2D body over (furniture): it is the truth, the 2D body its
+	# footprint
+	var lead: RigidBody3D = made as RigidBody3D if made.has_method(&"take_over") else null
+	var row := _new_row(node, made, lead)
 	_rows[id] = row
 	count += 1
 	node.tree_exiting.connect(_on_exiting.bind(node), CONNECT_ONE_SHOT)
+	if lead != null:
+		lead.take_over(node)
+		row["last"] = node.global_transform
+		row["wake"] = _on_sleeping.bind(row)
+		lead.sleeping_state_changed.connect(row["wake"])
+		_moving.append(row)
+		return
+	var rigid: Variant = row["rigid"]
+	if rigid != null:
+		row["wake"] = _on_sleeping.bind(row)
+		(rigid as RigidBody2D).sleeping_state_changed.connect(row["wake"])
 	if _moves(node):
 		_moving.append(row)
-		if node is RigidBody2D:
-			row["wake"] = _on_sleeping.bind(row)
-			(node as RigidBody2D).sleeping_state_changed.connect(row["wake"])
+	elif rigid != null:
+		# frozen now: looked at slowly, in case it is unfrozen later (`_look_at_parked`)
+		row["parked"] = true
+		row["listed"] = true
+		row["frozen"] = true
+		_parked.append(row)
+
+
+## The row of `node` and its twin `made` (a `lead`, when it is a free 3D body leading `node`).
+func _new_row(node: Node2D, made: Node3D, lead: RigidBody3D) -> Dictionary:
+	var solid := made as CollisionObject3D
+	var xf := node.global_transform
+	return {
+		"id": node.get_instance_id(), "body": node, "twin": made, "last": xf,
+		"last3": made.global_transform, "lead": lead, "frozen": false, "asleep": false,
+		"active": true, "parked": false, "listed": false, "wake": Callable(),
+		"rigid": node if node is RigidBody2D and lead == null else null,
+		"layer": solid.collision_layer if solid != null else 0,
+		"update": Callable(made, &"twin_update") if made.has_method(&"twin_update") else Callable(),
+	}
 
 
 ## Whether `node` can move: a character, a door or any rigid body that is not frozen. A body that
-## cannot (a wall, a floor, an anchored piece) is twinned once and never read again.
+## cannot (a wall, a floor) is twinned once and never read again; a frozen rigid body (an anchored
+## piece) is looked at slowly in case it is unfrozen (`_look_at_parked`).
 static func _moves(node: Node2D) -> bool:
 	if node is RigidBody2D:
 		return not (node as RigidBody2D).freeze
@@ -303,9 +401,9 @@ static func _moves(node: Node2D) -> bool:
 ## whose transform has not changed is done after that one comparison.
 func _follow(row: Dictionary) -> bool:
 	var body: Node2D = row["body"]
-	var rigid: Variant = row["rigid"]
+	var rigid: Variant = row["lead"] if row["lead"] != null else row["rigid"]
 	if rigid != null:
-		if (rigid as RigidBody2D).sleeping:
+		if rigid.sleeping:
 			if row["asleep"]:
 				row["parked"] = true  # off the list until it wakes (`_on_sleeping`)
 				if not row["listed"]:
@@ -316,6 +414,9 @@ func _follow(row: Dictionary) -> bool:
 		else:
 			row["asleep"] = false
 	followed += 1
+	if row["lead"] != null:
+		_follow_lead(row)
+		return true
 	var xf := body.global_transform
 	var moved: bool = xf != row["last"]
 	if not moved and rigid != null:
@@ -327,6 +428,57 @@ func _follow(row: Dictionary) -> bool:
 	if hook.is_valid():
 		hook.call(body)
 	return true
+
+
+## Follow a row whose twin is a free 3D body: the 2D body is its footprint, written from the 3D
+## pose when that changed; a 2D body a script has moved (its transform is no longer what was
+## written) sends the 3D body there instead (`_adopt`).
+func _follow_lead(row: Dictionary) -> void:
+	var body: Node2D = row["body"]
+	var rigid := body as RigidBody2D
+	if rigid != null and not rigid.freeze:
+		# a footprint is never free: its 3D body moves it, the 2D solver does not
+		rigid.freeze = true
+	if body.global_transform != row["last"]:
+		_adopt(row)
+		return
+	var lead := row["lead"] as RigidBody3D
+	var pose := lead.global_transform
+	if pose == row["last3"]:
+		return
+	row["last3"] = pose
+	body.global_transform = _plan_of(pose)
+	# as the node reports it: a script's move is told by a change
+	row["last"] = body.global_transform
+	written += 1
+	var hook: Callable = row["update"]
+	if hook.is_valid():
+		hook.call(body)
+
+
+## A script moved the 2D body of a row led by a 3D body: the 3D body is put where it stands now,
+## upright and at rest, and woken to settle.
+func _adopt(row: Dictionary) -> void:
+	var body: Node2D = row["body"]
+	var lead := row["lead"] as RigidBody3D
+	row["last"] = body.global_transform
+	lead.global_transform = PlanSpace.lift_transform(row["last"])
+	lead.linear_velocity = Vector3.ZERO
+	lead.angular_velocity = Vector3.ZERO
+	lead.sleeping = false
+	lead.force_update_transform()
+	row["last3"] = lead.global_transform
+	var hook: Callable = row["update"]
+	if hook.is_valid():
+		hook.call(body)
+
+
+## The 2D transform under the 3D pose `pose` of a free body: its origin's plan point and its turn
+## about up (the twist of its rotation about the up axis, so a piece lying on its side keeps the
+## heading it fell with).
+static func _plan_of(pose: Transform3D) -> Transform2D:
+	var q := pose.basis.get_rotation_quaternion()
+	return Transform2D(-2.0 * atan2(q.y, q.w), PlanSpace.plan_of(pose.origin))
 
 
 ## Write `xf` (the body's transform) to the row's twin.
@@ -368,8 +520,15 @@ func _look_at_parked() -> void:
 			continue
 		_look += 1
 		var xf := (row["body"] as Node2D).global_transform
-		if xf != row["last"]:
-			_write(row, xf)
+		var rigid: Variant = row["rigid"]
+		if rigid != null and not (rigid as RigidBody2D).freeze and row["frozen"]:
+			row["frozen"] = false  # unfrozen: followed from now on
+			_wake(row)
+		elif xf != row["last"]:
+			if row["lead"] != null:
+				_adopt(row)
+			else:
+				_write(row, xf)
 			_wake(row)
 
 
@@ -384,7 +543,8 @@ func _retire(row: Dictionary, index: int) -> void:
 ## A rigid body's sleep changed: one that wakes while parked goes back on the follow list, so a
 ## sleeping piece costs nothing a frame.
 func _on_sleeping(row: Dictionary) -> void:
-	if row["parked"] and row["id"] != 0 and not (row["rigid"] as RigidBody2D).sleeping:
+	var sleeper: Variant = row["lead"] if row["lead"] != null else row["rigid"]
+	if row["parked"] and row["id"] != 0 and not row["frozen"] and not sleeper.sleeping:
 		_wake(row)
 
 
@@ -409,9 +569,9 @@ func _drop(row: Dictionary) -> void:
 	row["id"] = 0  # a moving list still holding the row drops it at its next update
 	count -= 1
 	var wake: Callable = row["wake"]
-	var rigid: Variant = row["rigid"]
+	var rigid: Variant = row["lead"] if row["lead"] != null else row["rigid"]
 	if wake.is_valid() and is_instance_valid(rigid):
-		var changed := (rigid as RigidBody2D).sleeping_state_changed
+		var changed: Signal = rigid.sleeping_state_changed
 		if changed.is_connected(wake):
 			changed.disconnect(wake)  # a body that comes back is twinned, and watched, anew
 	var twin: Variant = row["twin"]

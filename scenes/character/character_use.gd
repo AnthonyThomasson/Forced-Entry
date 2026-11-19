@@ -249,6 +249,7 @@ func restore_cleared() -> void:
 			_clearing.remove_at(i)
 		elif not _overlaps(body):
 			character.remove_collision_exception_with(body)
+			TwinSpace.share_space(character, body, false)
 			_clearing.remove_at(i)
 
 

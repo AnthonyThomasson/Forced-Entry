@@ -235,5 +235,6 @@ func _report_hits() -> void:
 			facing * CharacterMeleeConfig.punch_impulse * motion,
 			CharacterMeleeConfig.punch_damage * motion, "Punch (hand %d)" % hand)
 	blow.note = ", %.0f%% swing" % (motion * 100.0)
+	blow.height = BodyHeights.contact(&"fist", _character.movement.body_posture())
 	Strike.strike(_character, blow, _hit_bodies, false,
 			func(body: Node, damage: float) -> void: punched.emit(hand, body, damage))

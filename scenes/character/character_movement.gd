@@ -299,8 +299,12 @@ func _apply_pushes() -> float:
 			collider,
 			dir,
 			impulse,
-			collision.get_position(),
-			move_input.dot(dir) * _move_speed(),
+			Vector3(
+				collision.get_position().x,
+				collision.get_position().y,
+				BodyHeights.contact(&"hip", body_posture()),
+			),
+			move_input.dot(dir) * _move_speed() * _push_slow,
 		)
 		heaviest = maxf(heaviest, collider.get_mass())
 

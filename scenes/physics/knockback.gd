@@ -1,11 +1,14 @@
 class_name Knockback extends Node
 ## Physics System: reusable physics adapter for a shoveable RigidBody2D. Add it as a child of the
 ## body. It configures the body for top-down play (no gravity, mass, damping, sleep, origin-pinned
-## center of mass), and its `apply_impulse(v, at_world)` is how the owner's `take_hit` shoves
-## the body. The "pushable" contract itself is the body's native `apply_impulse(v, at)` /
-## `get_mass()`. The engine integrates motion, collisions, pivoting and settling; this
-## component only feeds it impulses and hands momentum to the kinematic character on contact.
-## All tuning is PhysicsImpactConfig.
+## center of mass), and its `apply_impulse(v, at_world, height)` is how the owner's `take_hit`
+## shoves the body. The "pushable" contract itself is the body's native `apply_impulse(v, at)` /
+## `get_mass()`: but a piece whose truth is a free 3D body (`TwinSpace.leader_of`, interface 29:
+## furniture, #194 furn3d) is shoved through its 3D body, at the point's real height, so a push
+## goes through `Knockback.push`, which every pusher of the contract (interface 5) calls: it answers
+## to the 3D body when there is one and to the native `apply_impulse` otherwise. The engine
+## integrates motion, collisions, pivoting and settling; this component only feeds it impulses and
+## hands momentum to the kinematic character on contact. All tuning is PhysicsImpactConfig.
 
 ## Sentinel for `apply_impulse`'s optional contact point (a central shove when omitted).
 const _NO_POINT := Vector2(INF, INF)
@@ -39,16 +42,38 @@ func _ready() -> void:
 
 ## Mass floored so featherweight decor still reacts.
 func effective_mass() -> float:
-	return maxf(mass, 0.5)
+	return mass_of(mass)
+
+
+## The mass a body of catalogue `weight` has: floored so featherweight decor still reacts.
+static func mass_of(weight: float) -> float:
+	return maxf(weight, 0.5)
 
 
 ## Apply a shove. With no contact point it is a central impulse; given a world contact point
-## it is applied off-center so the body spins/pivots (a bullet or punch landing off-center).
-func apply_impulse(impulse: Vector2, at_world: Vector2 = _NO_POINT) -> void:
-	if at_world == _NO_POINT:
-		_body.apply_central_impulse(impulse)
+## it is applied off-center so the body spins/pivots (a bullet or punch landing off-center), and
+## `height` px above the floor (-1: the body's centre) so a free 3D body leans or slides by where it
+## was struck.
+func apply_impulse(impulse: Vector2, at_world: Vector2 = _NO_POINT, height: float = -1.0) -> void:
+	var at := Vector2.ZERO if at_world == _NO_POINT else at_world - _body.global_position
+	push(_body, impulse, at, height)
+
+
+## Shove `body` by `impulse` (plan space) at `at` px from its origin (world orientation; zero is the
+## origin) `height` px above the floor (-1: no height known, the body's centre): the one way every
+## pusher of the contract (interface 5) shoves one. A piece led by a free 3D body is shoved through
+## it, in 3D; anything else through its own `apply_impulse(impulse, at)`.
+static func push(
+	body: Object,
+	impulse: Vector2,
+	at: Vector2 = Vector2.ZERO,
+	height: float = -1.0,
+) -> void:
+	var lead := TwinSpace.leader_of(body)
+	if lead != null:
+		lead.call(&"push", impulse, at, height)
 	else:
-		_body.apply_impulse(impulse, at_world - _body.global_position)
+		body.call(&"apply_impulse", impulse, at)
 
 
 ## Hand momentum to a non-rigid pushable we collide with (the kinematic character — the

@@ -146,6 +146,7 @@ func _begin(spec: Dictionary, object: Node) -> void:
 		# Re-entering the object just left keeps its existing exception.
 		if not _character.use.stop_clearing(object):
 			_character.add_collision_exception_with(object)
+			TwinSpace.share_space(_character, object, true)
 		_character.global_position = object.global_position
 
 

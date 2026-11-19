@@ -17,7 +17,7 @@ Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5
 |---|---|
 | `physics.gd` (`Physics`) | The entry points `impact_impulse`, `spawn_debris`, `bleed_out`, `spawn_explosion`. |
 | `hit_info.gd` (`HitInfo`) | The one packet a striker fills in. |
-| `knockback.gd` (`Knockback`) | RigidBody2D adapter for furniture. |
+| `knockback.gd` (`Knockback`) | RigidBody2D adapter for furniture; the static `Knockback.push(body, impulse, at, height)` is the one way a pusher shoves a pushable (5): through the free 3D body that leads a piece (`TwinSpace.leader_of`, interface 29) at its real height, else `apply_impulse`. |
 | `deformable.gd`, `deformation.gd`, `dent_limits.gd` | Dents: records, polygon math and the damage darkening. |
 | `debris_spawner.gd`, `debris.gd`, `debris_layer.gd`, `mark_layer.gd` | Chips (a flying one is a plain node, a landed one a record) and the capped mark store. |
 | `hit_particles.gd` (`HitParticles`) | Entry, exit and impact bursts, made as plain data. |

@@ -215,7 +215,7 @@ func _dents(t: TestContext, checker: Checker) -> void:
 func _shove(t: TestContext, checker: Checker) -> void:
 	var piece: RigidBody2D = t.object(&"shoved")
 	var at := piece.global_position
-	piece.apply_impulse(Vector2(900.0, -400.0) * piece.get_mass() * 0.4)
+	Knockback.push(piece, Vector2(900.0, -400.0) * piece.get_mass() * 0.4)
 	await t.frames(120)
 	t.check(
 		piece.global_position.distance_to(at) > 20.0,

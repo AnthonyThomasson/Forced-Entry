@@ -102,7 +102,10 @@ func _meet(state: PhysicsDirectBodyState2D, hit: Dictionary, done: Dictionary) -
 	var pile := _pile(body, hit["normal"]) if character or _is_piece(body) else {}
 	for member: Dictionary in pile.get("members", []):
 		done[(member["body"] as Node).get_instance_id()] = true
-	if pile.get("people", 0) > 0:
+	# a piece led by a free 3D body is, to the 2D solver, as immovable as a character: it has
+	# stopped
+	# the vehicle as a wall does, and the pile shoves it on in 3D
+	if pile.get("people", 0) > 0 or pile.get("led", 0) > 0:
 		_strike_pile(state, hit, pile)
 	elif hit["new"] and hit["speed"] > VehicleCollisionConfig.crash_min_speed:
 		_post_crash(hit, body, hit["speed"])
@@ -225,16 +228,24 @@ func _harm_pile(members: Array, closing: float) -> void:
 ## piece its rigid body's.
 static func _along(member: Dictionary, normal: Vector2) -> float:
 	var body: Node = member["body"]
-	return ((body.velocity if member["character"] else body.linear_velocity) as Vector2).dot(normal)
+	var velocity: Vector2
+	if member["character"]:
+		velocity = body.velocity
+	elif _is_led(body):
+		velocity = TwinSpace.leader_of(body).call(&"plan_velocity")
+	else:
+		velocity = body.linear_velocity
+	return velocity.dot(normal)
 
 
 ## The pile `first` heads along `normal` (out of the vehicle): `first` and the bodies pressed one
 ## against the next in front of it, found through the characters in it (a character's circle,
 ## `radius`, moved `pile_gap` on along the normal), up to `pile_depth` of them. Returns
-## `{ members: [{ body, mass, character, through }], people, blocked }`: `through` the mass of the
-## pieces between the vehicle and that member, `people` the living characters, `blocked` what stops
-## the pile (a wall or anything else that is not pushable) or null. Furniture pressing furniture is
-## the solver's, so a piece is followed only into the characters it presses.
+## `{ members: [{ body, mass, character, through }], people, led, blocked }`: `through` the mass of
+## the pieces between the vehicle and that member, `people` the living characters, `led` the pieces
+## a 3D body leads, `blocked` what stops the pile (a wall or anything else that is not pushable) or
+## null. Furniture pressing furniture is the solver's, so a piece is followed only into the
+## characters it presses.
 func _pile(first: Node, normal: Vector2) -> Dictionary:
 	var members: Array = [
 		{
@@ -267,10 +278,13 @@ func _pile(first: Node, normal: Vector2) -> Dictionary:
 				"through": through,
 			})
 	var people := 0
+	var led := 0
 	for member: Dictionary in members:
 		if member["character"]:
 			people += 1
-	return { "members": members, "people": people, "blocked": blocked }
+		elif _is_led(member["body"]):
+			led += 1
+	return { "members": members, "people": people, "led": led, "blocked": blocked }
 
 
 ## What pile member `member` presses into along `normal`: `{ bodies, blocked }`. A character:
@@ -400,7 +414,10 @@ func apply() -> void:
 			vehicle.add_collision_exception_with(body)
 			continue
 		if hit["push"] != Vector2.ZERO:
-			body.apply_impulse(hit["push"])
+			if _is_led(body):
+				Knockback.push(body, hit["push"])
+			else:
+				body.apply_impulse(hit["push"])
 		var closing: float = hit["harm"]
 		if not character or closing <= 0.0:
 			continue
@@ -421,6 +438,8 @@ func apply() -> void:
 static func _velocity_of(body: Node, state: PhysicsDirectBodyState2D, i: int) -> Vector2:
 	if body is CharacterBody2D:
 		return (body as CharacterBody2D).velocity
+	if _is_led(body):
+		return TwinSpace.leader_of(body).call(&"plan_velocity")
 	return state.get_contact_collider_velocity_at_position(i)
 
 
@@ -433,6 +452,11 @@ static func _is_character(body: Node) -> bool:
 ## (furniture, another vehicle).
 static func _is_piece(body: Node) -> bool:
 	return (body is RigidBody2D
-			and not (body as RigidBody2D).freeze
+			and (not (body as RigidBody2D).freeze or _is_led(body))
 			and body.has_method("apply_impulse")
 			and body.has_method("get_mass"))
+
+
+## Whether `body` is the frozen footprint of a piece a free 3D body leads (`TwinSpace.leader_of`).
+static func _is_led(body: Object) -> bool:
+	return TwinSpace.leader_of(body) != null

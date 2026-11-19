@@ -132,6 +132,6 @@ func _press(
 		piece,
 		dir,
 		CharacterPushConfig.leg_push_impulse * strength * delta,
-		at,
+		Vector3(at.x, at.y, BodyHeights.contact(&"leg", character.movement.body_posture())),
 		float(character.movement.speed),
 	)

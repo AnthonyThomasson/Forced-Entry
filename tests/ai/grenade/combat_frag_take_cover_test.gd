@@ -16,8 +16,12 @@ extends GameTest
 const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
+## The couch and desk (120 px wide) stand with their near edge (670) 15 px clear of the invader, as
+## the hostile stands 180 px on, 45 px beyond their far edge (790): a body standing in the couch's
+## edge would be shoved out of it by the physics, and the pair of pieces then part.
 const INVADER_AT := Vector2(655, 56)
 const HOSTILE_AT := Vector2(835, 56)
+const COVER_X := 730.0
 
 
 func describe() -> Dictionary:
@@ -45,8 +49,8 @@ func configure(s: TestSetup) -> void:
 		[{ "key": "hall", "type": "hallway", "rect": Rect2(0, 0, 900, 112) }],
 		[{ "pos": Vector2(0, 56), "width": 80.0 }],
 	)
-	s.object(&"sofa", Hiding.low_cover("sofa"), Vector2(700, 31))
-	s.object(&"desk", Hiding.low_cover("desk"), Vector2(700, 81))
+	s.object(&"sofa", Hiding.low_cover("sofa"), Vector2(COVER_X, 31))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(COVER_X, 81))
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": Vector2.RIGHT })
 	# Standing, the hostile is seen and shot over the sofa; the run has it duck once it is seen, and
 	# the invader then knows it behind cover it cannot shoot through (`docs/grenades.md` G17).

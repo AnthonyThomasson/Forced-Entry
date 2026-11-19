@@ -30,6 +30,10 @@ var _fingers: Array[Dictionary] = []
 var _spacing := 6.0
 ## Smooth noise the ribbons wander on.
 var _noise := FastNoiseLite.new()
+## The free 3D body that moves the piece when there is one (furniture, #194 furn3d): the piece is
+## then a frozen footprint, and it is that body's speed and sleep that decide whether the piece
+## smears.
+var _lead: RigidBody3D = null
 
 
 func _init() -> void:
@@ -50,11 +54,20 @@ func _physics_process(_delta: float) -> void:
 			or _fingers.is_empty()
 			or not (BloodConfig.enabled and BloodSmearConfig.enabled)):
 		return
-	if body.freeze:
+	if _lead == null:
+		_lead = TwinSpace.leader_of(body)
+		if _lead != null:
+			_lead.sleeping_state_changed.connect(_on_lead_sleeping_changed)
+	# at rest: the leader asleep (woken by `_on_lead_sleeping_changed`), or a frozen body (never
+	# moves)
+	if _lead.sleeping if _lead != null else body.freeze:
 		_rest()
-		set_physics_process(false)  # A frozen body never moves.
+		set_physics_process(false)
 		return
-	if body.linear_velocity.length() < BloodSmearConfig.min_speed:
+	var speed: float = body.linear_velocity.length()
+	if _lead != null:
+		speed = (_lead.call(&"plan_velocity") as Vector2).length()
+	if speed < BloodSmearConfig.min_speed:
 		_rest()
 		return
 	for f in _fingers:
@@ -66,6 +79,13 @@ func _on_body_sleeping_changed(body: RigidBody2D) -> void:
 	if body.sleeping:
 		_rest()
 	set_physics_process(not body.sleeping)
+
+
+## The piece's 3D body fell asleep (the fingers rest and the step stops) or woke (the step resumes).
+func _on_lead_sleeping_changed() -> void:
+	if _lead.sleeping:
+		_rest()
+	set_physics_process(not _lead.sleeping)
 
 
 ## At rest: the next move starts a fresh ribbon.

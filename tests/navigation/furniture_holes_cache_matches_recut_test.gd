@@ -6,6 +6,7 @@ extends GameTest
 ## (`NavHoles.plain`, the reference). `NavHoles.walks` counts the tree walks that find the pieces
 ## and `NavHoles.cuts` the hulls cut from a body's shapes.
 
+const Piece := preload("res://tests/_objects/piece_probe.gd")
 const SEED := 7
 const PLAN := "garage_home"
 
@@ -45,7 +46,8 @@ func run(t: TestContext) -> void:
 
 	var moved: RigidBody2D = null
 	for piece: RigidBody2D in pieces:
-		if not piece.freeze:
+		# a free piece: a furnishing's 2D body is frozen (the follower of its 3D body)
+		if not piece.freeze or TwinSpace.leader_of(piece) != null:
 			moved = piece
 			break
 	if not t.require(moved != null, "a piece that can be moved"):
@@ -55,6 +57,9 @@ func run(t: TestContext) -> void:
 	NavBuilder.furniture_holes(house)
 	await _check_moved(t, house, moved, first)
 	await _check_dented(t, house, moved)
+	# the shots shoved it: it slides (and its footprint is cut again) until it rests
+	await Piece.settle(t, moved, 10.0)
+	await t.frames(3)
 	await _check_added(t, house)
 	await _check_destroyed(t, house, pieces)
 	await _check_reparented(t, house, moved)
@@ -127,7 +132,10 @@ func _check_destroyed(t: TestContext, house: Node2D, pieces: Array) -> void:
 	var before := NavBuilder.furniture_holes(house)
 	var gone: RigidBody2D = null
 	for piece: RigidBody2D in pieces:
-		if not piece.freeze and piece.find_children("*", "CollisionShape2D", false, false):
+		if (
+			(not piece.freeze or TwinSpace.leader_of(piece) != null)
+			and piece.find_children("*", "CollisionShape2D", false, false)
+		):
 			gone = piece
 	if not t.require(gone != null, "a solid piece to destroy"):
 		return

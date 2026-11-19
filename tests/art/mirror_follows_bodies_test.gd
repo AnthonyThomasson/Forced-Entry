@@ -11,6 +11,7 @@ extends GameTest
 ## proxies' world boxes; expected places and sizes are worked from the 2D bodies, not from the
 ## mirror's code.
 
+const Piece := preload("res://tests/_objects/piece_probe.gd")
 const ARENA := Rect2(0, 0, 800, 500)
 const SCALE := 0.5
 const CHAIR_AT := Vector2(600, 400)
@@ -160,7 +161,7 @@ func _tallest_wall(t: TestContext) -> float:
 ## where its body ends.
 func _check_sleeping_and_following(t: TestContext) -> void:
 	var chair := t.object(&"chair") as RigidBody2D
-	if not t.require(chair != null and chair.sleeping, "premise: the armchair is asleep"):
+	if not t.require(chair != null and Piece.asleep(chair), "premise: the armchair is asleep"):
 		return
 	var moving := _moving_shapes(t)
 	t.expect_eq(_mirror.followed, moving, "an update reads the moving proxies, not the sleeper's")
@@ -184,10 +185,10 @@ func _check_sleeping_and_following(t: TestContext) -> void:
 			0.5,
 			"a moved character is followed (z)",
 		)
-	chair.apply_central_impulse(Vector2(-6000, 0))
+	Knockback.push(chair, Vector2(-6000, 0))
 	await t.frames(6)
 	t.check(_mirror.followed == moving + 1, "an awake armchair is followed again")
-	t.require(await t.until(func(): return chair.sleeping, 6.0), "premise: it comes to rest")
+	t.require(await t.until(func(): return Piece.asleep(chair), 6.0), "premise: it comes to rest")
 	await t.frames(2)
 	var seat := _first_proxy(t, chair, "the armchair")
 	if seat != null:

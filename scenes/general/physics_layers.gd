@@ -19,4 +19,7 @@ const TWIN_WORLD := 1
 const TWIN_VEHICLE := 2
 const TWIN_CHARACTER := 4
 const TWIN_ROOF := 8
+## `TWIN_GROUND`: the one plane under the whole twin space (`TwinSpace`) a free piece of furniture
+## rests on where no floor slab is; in no line layer (nothing casts at it).
+const TWIN_GROUND := 16
 const TWIN_ALL := TWIN_WORLD | TWIN_VEHICLE | TWIN_CHARACTER

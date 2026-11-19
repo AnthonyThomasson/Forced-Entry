@@ -52,19 +52,23 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.0)  # the fragments land and every rebuild has run
 	var dented := 0
 	var differing: Array = []
+	var tipped_wrong: Array = []
 	for i in PIECES.size():
 		var piece := t.object(StringName("piece%d" % i))
 		var impacts: Array = piece.hit_marks()
 		if impacts.is_empty():
 			continue
 		dented += 1
+		var have := _colliders(piece)
+		if piece.is_tipped():
+			# a piece the blast tipped over has its tipped footprint for a collider (D14), whatever
+			# its dents: one hull, until it is upright again
+			if have.size() != 1:
+				tipped_wrong.append("piece%d (%d colliders)" % [i, have.size()])
+			continue
 		var want := Deformation.shapes_of(Deformation.convex_pieces(Deformation.shape_polygon(
 			piece.shape_type, piece.size, impacts,
 		)))
-		var have: Array = []
-		for child in piece.get_children():
-			if child is CollisionShape2D and not child.is_queued_for_deletion():
-				have.append(child.shape)
 		if not Colliders.same_pieces(want, have):
 			differing.append("piece%d (%d pieces, want %d)" % [i, have.size(), want.size()])
 	t.check(
@@ -75,7 +79,32 @@ func run(t: TestContext) -> void:
 		ColliderCuts.started > started,
 		"the pieces were cut beside one another (%d on workers)" % (ColliderCuts.started - started),
 	)
+	var upright := dented - _tipped(t)
+	t.check(upright >= 2, "pieces the blast left standing were dented (%d)" % upright)
+	t.check(
+		tipped_wrong.is_empty(),
+		"a tipped piece's collider is its one footprint: %s differ" % str(tipped_wrong),
+	)
 	t.check(
 		differing.is_empty(),
 		"every dented piece's collider is its own cut: %s differ" % str(differing),
 	)
+
+
+## The shapes of `piece`'s colliders that are not on their way out.
+func _colliders(piece: Node) -> Array:
+	var have: Array = []
+	for child in piece.get_children():
+		if child is CollisionShape2D and not child.is_queued_for_deletion():
+			have.append(child.shape)
+	return have
+
+
+## How many of the dented pieces lie tipped over.
+func _tipped(t: TestContext) -> int:
+	var count := 0
+	for i in PIECES.size():
+		var piece := t.object(StringName("piece%d" % i))
+		if not piece.hit_marks().is_empty() and piece.is_tipped():
+			count += 1
+	return count

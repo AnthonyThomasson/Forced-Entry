@@ -7,6 +7,10 @@ extends GameTest
 
 const CharacterScene := preload("res://scenes/character/character_base.tscn")
 const FRAMES := 150
+## Beside the "touching" death (at 480, 250), a body's width off: a chair under the character would
+## be shoved clear by the solver as the character spawns, which no two plays do to the same last
+## bit.
+const CHAIR_AT := Vector2(508, 250)
 const BLAST_FRAME := 55
 const SCENARIOS := [
 	{ "name": "open", "at": Vector2(300, 230), "blast": false, "blow": Vector2.RIGHT },
@@ -31,7 +35,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.blood", false)
 	s.switch(&"audio.sound", false)
-	s.object(&"chair", "chair", Vector2(480, 250))
+	s.object(&"chair", "chair", CHAIR_AT)
 
 
 ## The fall's chance (the world's stream) and the blood's (the global one) both start from `at`'s
@@ -80,6 +84,10 @@ func run(t: TestContext) -> void:
 func _fall(
 	t: TestContext, at: Vector2, gated: bool, blast: bool, blow: Vector2
 ) -> Dictionary:
+	# the chair stands where it began for every play: a fall that shoved it must not change the next
+	var chair := t.object(&"chair")
+	chair.global_transform = Transform2D(0.0, CHAIR_AT)
+	await t.frames(3)
 	var character := CharacterScene.instantiate()
 	character.start_slot = ItemRegistry.UNARMED_SLOT
 	t.world.add_child(character)

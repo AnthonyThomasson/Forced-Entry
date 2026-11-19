@@ -4,6 +4,7 @@ extends GameTest
 ## it is shoved, and still smears the blood it drags out of a puddle then (object_smear is the same
 ## drag from a body that never slept).
 
+const Piece := preload("res://tests/_objects/piece_probe.gd")
 const SPLAT_AT := Vector2(300, 200)
 const SLEEP_S := 6.0
 
@@ -34,14 +35,14 @@ func run(t: TestContext) -> void:
 	if not t.require(smear != null, "premise: the chair has a BloodSmear"):
 		return
 	if not t.require(
-			await t.until(func(): return chair.sleeping, SLEEP_S),
+			await t.until(func(): return Piece.asleep(chair), SLEEP_S),
 			"premise: the chair falls asleep",
 	):
 		return
 	await t.frames(2)
 	t.check(not smear.is_physics_processing(), "a sleeping chair's smear takes no per-frame step")
 
-	chair.apply_central_impulse(Vector2(5000.0, 0.0))
+	Knockback.push(chair, Vector2(5000.0, 0.0))
 	await t.frames(2)
 	t.check(smear.is_physics_processing(), "a shoved chair's smear steps again")
 	t.require(
@@ -51,7 +52,7 @@ func run(t: TestContext) -> void:
 	var layer := BloodDecals.find(chair.get_parent())
 	t.check(layer != null and layer.ribbon_count() > 0, "the shoved chair left streaks")
 	t.check(
-		await t.until(func(): return chair.sleeping, SLEEP_S),
+		await t.until(func(): return Piece.asleep(chair), SLEEP_S),
 		"the chair falls asleep again",
 	)
 	await t.frames(2)
