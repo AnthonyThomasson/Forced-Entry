@@ -91,7 +91,8 @@ func test_the_twins_an_eye_ray_leaves_out_are_looked_through_and_the_list_is_kep
 	assert_bool(SightRay.hit(space, from, to).is_empty()).is_false()
 
 
-func test_the_space_beside_a_2d_space_is_the_twin_space_of_its_world() -> void:
-	var plan := await _space()
-	assert_object(TwinSpace.space_for(plan)).is_not_null()
-	assert_object(TwinSpace.space_for(plan)).is_same(_twins.space())
+func test_the_space_beside_a_world_is_the_twin_space_of_that_world() -> void:
+	await _space()
+	var world := get_viewport().world_2d
+	assert_object(TwinSpace.space_in(world)).is_not_null()
+	assert_object(TwinSpace.space_in(world)).is_same(_twins.space())

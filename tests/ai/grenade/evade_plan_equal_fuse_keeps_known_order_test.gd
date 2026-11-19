@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 	known.enabled = true
 	var first := _frag(t, Maps.HALL_MIDDLE + Vector2(-90, 0))
 	var second := _frag(t, Maps.HALL_MIDDLE + Vector2(90, 0))
-	var space: PhysicsDirectSpaceState2D = npc.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(npc)
 	var map: RID = npc.get_world_2d().navigation_map
 	var exclude: Array = [npc.get_rid()]
 	known._note(first, first.global_position, &"seen", false)

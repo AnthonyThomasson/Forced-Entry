@@ -9,6 +9,7 @@ extends RefCounted
 ## `escape_runner` it takes). The bus and the spec's constants are `grenade_probe.gd`'s, read there.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 ## The flank maps, whose kitchen `watch_until_thrown` tells fighting outside by.
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 ## The NPC's grenade geometry, whose escape `plain_escape` works out the plain way.
@@ -50,9 +51,7 @@ static func character_rids(t: TestContext) -> Array:
 ## True when nothing solid (a wall or a tall piece, not a character) lies on the straight line from
 ## `a` to `b`.
 static func line_clear(t: TestContext, a: Vector2, b: Vector2) -> bool:
-	var query := PhysicsRayQueryParameters2D.create(a, b, PhysicsLayers.SOLID)
-	query.exclude = character_rids(t)
-	return t.world.get_world_2d().direct_space_state.intersect_ray(query).is_empty()
+	return PlanProbe.clear(t.world, a, b)
 
 
 ## An unkillable household puppet standing at `pos` looking at `look_at`: the hostile of a scene (it
@@ -313,7 +312,7 @@ static func _plain_spot(
 	q: Vector2,
 	zone: Dictionary,
 ) -> Dictionary:
-	var space: PhysicsDirectSpaceState2D = search["space"]
+	var space: PhysicsDirectSpaceState3D = search["space"]
 	var burst: Vector3 = zone["burst"]
 	var reach: float = zone["reach"]
 	var crouch := false

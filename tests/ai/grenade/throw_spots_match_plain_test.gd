@@ -30,7 +30,7 @@ func run(t: TestContext) -> void:
 	tactics.vision = AgentVision.new()
 	tactics.throws.spot_walk = 250.0
 	var ctx := {
-		"space": npc.get_world_2d().direct_space_state,
+		"space": TwinSpace.space_of(npc),
 		"map": npc.get_world_2d().navigation_map,
 		"self_pos": npc.global_position,
 		"hostiles": [],

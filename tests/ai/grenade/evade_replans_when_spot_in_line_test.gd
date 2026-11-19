@@ -15,6 +15,7 @@ extends GameTest
 ## where it stopped).
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const NPC_AT := Vector2(430, 180)
 const THROWER_AT := Vector2(720, 150)
@@ -162,6 +163,5 @@ func _roll_into_line(t: TestContext, at: Vector2, spot: Vector2) -> Vector2:
 func _in_line(t: TestContext, from: Vector2, to: Vector2) -> bool:
 	if from.distance_to(to) > ZONE:
 		return false
-	var query := PhysicsRayQueryParameters2D.create(from, to, PhysicsLayers.SOLID)
-	query.exclude = [t.actor(&"d").get_rid(), t.actor(&"thrower").get_rid()]
-	return t.actor(&"d").get_world_2d().direct_space_state.intersect_ray(query).is_empty()
+	var bodies: Array = [t.actor(&"d"), t.actor(&"thrower")]
+	return PlanProbe.clear(t.actor(&"d"), from, to, bodies, PlanProbe.WITH_BODIES)

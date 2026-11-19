@@ -38,7 +38,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var npc := t.actor(&"npc")
 	var geometry := AgentThrow.new()
-	var space: PhysicsDirectSpaceState2D = npc.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(npc)
 	var threat := GrenadeAi.escape_threat(&"frag", Probe.BLAST_RADIUS, BURST, 3.0)
 	t.check(
 		not geometry.in_zone(space, threat, FAR, BodyHeights.STAND),
@@ -65,7 +65,7 @@ func run(t: TestContext) -> void:
 ## with time to move picks a spot the real line shields at the posture it would hold there (a
 ## ducked spot is a `crouch`); with no fuse left and no legs, and nothing to hide behind, there is
 ## no way to get safe.
-func _check_escape(t: TestContext, geometry: RefCounted, space: PhysicsDirectSpaceState2D) -> void:
+func _check_escape(t: TestContext, geometry: RefCounted, space: PhysicsDirectSpaceState3D) -> void:
 	var map: RID = t.world.get_world_2d().navigation_map
 	var npc := t.actor(&"npc")
 	var threat := GrenadeAi.escape_threat(&"frag", Probe.BLAST_RADIUS, BURST, 3.0)

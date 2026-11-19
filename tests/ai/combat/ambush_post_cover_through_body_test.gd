@@ -24,6 +24,7 @@ extends GameTest
 ## Scripted Von (the order is taken without asking); nobody fights.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
@@ -94,7 +95,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var post := Vector2(at[0], at[1])
-	var through := _first_hit(t, post, GrenadeAi.character_rids(t))
+	var through := _first_hit(t, post, t.world.get_tree().get_nodes_in_group(&"characters"))
 	t.check(
 		through == t.object(&"rack"),
 		"the post %s has the shoe rack on its line to the threshold, bodies looked through "
@@ -111,9 +112,7 @@ func run(t: TestContext) -> void:
 ## The first solid thing on the line from `post` to the threshold, the bodies of `exclude` passed
 ## through; null for none.
 func _first_hit(t: TestContext, post: Vector2, exclude: Array) -> Object:
-	var query := PhysicsRayQueryParameters2D.create(post, THRESHOLD, PhysicsLayers.SOLID)
-	query.exclude = exclude
-	return t.world.get_world_2d().direct_space_state.intersect_ray(query).get("collider")
+	return PlanProbe.first(t.world, post, THRESHOLD, exclude, PlanProbe.WITH_BODIES).get("collider")
 
 
 ## A name for what a line met.

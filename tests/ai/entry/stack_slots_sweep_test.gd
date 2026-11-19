@@ -57,8 +57,6 @@ const SlotRules := preload("res://tests/_ai/slot_rules_probe.gd")
 ## The fixed seeds each generated floorplan is built with (furniture and the plan's mirroring follow
 ## the seed).
 const SEEDS := [1, 2, 3]
-## How long (physics frames) a house's navigation map is given to come up after its bake.
-const NAV_WAIT_FRAMES := 240
 
 
 func describe() -> Dictionary:
@@ -95,7 +93,7 @@ func run(t: TestContext) -> void:
 		{
 			"label": "terrace", "house": t.world.house, "rooms": t.rooms,
 			"openings": t.world.openings, "map": terrace.navigation_map,
-			"space": terrace.direct_space_state,
+			"space": TwinSpace.space_in(terrace),
 		},
 		found,
 	)
@@ -124,7 +122,7 @@ func _sweep_plan(t: TestContext, plan: String, house_seed: int, found: Dictionar
 		{
 			"label": "%s#%d" % [plan, house_seed], "house": built["house"],
 			"rooms": built["rooms"], "openings": built["openings"], "map": w2d.navigation_map,
-			"space": w2d.direct_space_state,
+			"space": TwinSpace.space_in(w2d),
 		},
 		found,
 	)
@@ -185,22 +183,16 @@ func _build_house(t: TestContext, plan: String, house_seed: int) -> Dictionary:
 	root.name = "World"
 	viewport.add_child(root)
 	var house := WorldGen.generate(house_seed, plan, Vector2.ZERO, root)
-	var rooms := WorldGen.get_rooms(house)
-	NavBuilder.build(house, rooms, root)
-	var map: RID = viewport.world_2d.navigation_map
-	await t.frames(2)   # The walls and the furniture join the physics space at the next steps.
-	var waited := 0
-	while not NavBuilder.ready(map) and waited < NAV_WAIT_FRAMES:
-		await t.frames(1)
-		waited += 1
-	if not NavBuilder.ready(map):
+	# The stage builds the navmeshes and the twin space (the AI's lines read the twins).
+	var handle := await MatchBuilder.stage({ "house": house, "wait_nav": true }, root)
+	if handle.is_empty() or not NavBuilder.ready(viewport.world_2d.navigation_map):
 		viewport.queue_free()
 		return {}
 	return {
 		"viewport": viewport,
 		"house": house,
-		"rooms": rooms,
-		"openings": WorldGen.get_openings(house),
+		"rooms": handle["rooms"],
+		"openings": handle["openings"],
 	}
 
 

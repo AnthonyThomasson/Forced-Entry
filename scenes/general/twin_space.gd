@@ -75,8 +75,8 @@ const OWNER_META := &"twin_owner"
 ## The meta a 2D body carries while it has a twin: the twin (`twin_for`).
 const TWIN_META := &"twin"
 
-## The twin spaces by the 2D direct space state (its instance id) of the world they stand beside:
-## what `space_for` reads, so a reader holding the 2D space the sim casts in finds the 3D one.
+## The twin spaces by the instance id of the `World2D` they stand beside: what `space_in` reads, so
+## a reader holding the world its nodes stand in (for its navigation map) finds the 3D space too.
 static var _beside: Dictionary = {}
 
 ## The twin hook: `Callable(node: Node2D) -> Node3D`, one per domain's kinds. Set before `watch`.
@@ -155,7 +155,7 @@ func track_group(group: StringName, kind: Script = null) -> void:
 func watch(root: Node) -> void:
 	_root = root
 	_home = root.get_viewport()
-	var beside := root.get_viewport().find_world_2d().direct_space_state.get_instance_id()
+	var beside := root.get_viewport().find_world_2d().get_instance_id()
 	if not _beside.has(beside):
 		_beside[beside] = []
 	if not self in _beside[beside]:
@@ -213,23 +213,22 @@ func space() -> PhysicsDirectSpaceState3D:
 
 
 ## The 3D space a node of the sim (a body, a projectile: any node in the tree) is in: its world's
-## twin space's (`space_for` the 2D space it is in); the viewport's own 3D world where no twin space
+## twin space's (`space_in` the world it is in); the viewport's own 3D world where no twin space
 ## stands beside it (a world built by hand: nothing there blocks a line). Null for a node outside
 ## the tree.
 static func space_of(node: Node) -> PhysicsDirectSpaceState3D:
 	if not node.is_inside_tree():
 		return null
 	var viewport := node.get_viewport()
-	var twins := space_for(viewport.find_world_2d().direct_space_state)
+	var twins := space_in(viewport.find_world_2d())
 	return twins if twins != null else viewport.find_world_3d().direct_space_state
 
 
-## The 3D space of the twins standing beside the 2D direct `space` (the one the sim casts in): the
-## bridge a reader that still holds a 2D space uses to cast a 3D ray (`SightRay`), until the 2D
-## space is gone (ADR 0014). Null when no twin space stands beside it (a world built by hand, with
-## no twins: nothing there blocks a 3D line).
-static func space_for(space2d: PhysicsDirectSpaceState2D) -> PhysicsDirectSpaceState3D:
-	var stands: Array = _beside.get(space2d.get_instance_id(), [])
+## The 3D space of the twins standing beside `world` (the `World2D` the sim's nodes stand in, which
+## also holds their navigation map): for a reader that holds that world and no node. Null when no
+## twin space stands beside it (a world built by hand, with no twins: nothing blocks a 3D line).
+static func space_in(world: World2D) -> PhysicsDirectSpaceState3D:
+	var stands: Array = _beside.get(world.get_instance_id(), [])
 	for i in range(stands.size() - 1, -1, -1):  # the newest: an older one may be on its way out
 		var stand: TwinSpace = stands[i]
 		if is_instance_valid(stand) and stand.is_inside_tree():

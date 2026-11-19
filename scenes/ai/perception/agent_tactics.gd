@@ -72,12 +72,12 @@ var cover_queries := 0
 
 
 ## Whether the straight line `a`→`b` is blocked by a wall or solid object.
-func blocked(space: PhysicsDirectSpaceState2D, a: Vector2, b: Vector2, exclude: Array) -> bool:
+func blocked(space: PhysicsDirectSpaceState3D, a: Vector2, b: Vector2, exclude: Array) -> bool:
 	return vision.blocked(space, a, b, exclude)
 
 
 ## The first solid object on `a`→`b`, or null when the line is clear.
-func blocker(space: PhysicsDirectSpaceState2D, a: Vector2, b: Vector2, exclude: Array) -> Object:
+func blocker(space: PhysicsDirectSpaceState3D, a: Vector2, b: Vector2, exclude: Array) -> Object:
 	return vision.raycast(space, a, b, exclude).get("collider")
 
 
@@ -112,7 +112,7 @@ func _shot_blocked(
 
 ## `_shot_blocked` for a caller with only a space (no snapshot to keep the answer in).
 func _shot_blocked_in(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	a: Vector2,
 	b: Vector2,
 	target: Variant = null,
@@ -216,7 +216,7 @@ func side_of(target_pos: Vector2, front: float, p: Vector2) -> String:
 ## `cover` (shielded by a cover-grade object). Points walled off from the NPC are dropped. Both
 ## lists nearest-first.
 func combat_spots(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	self_pos: Vector2,
 	tgt: Dictionary,
 	exclude: Array,
@@ -251,7 +251,7 @@ func combat_spots(
 ## The piece that hides a ducked body at `p`, or a clear step from it, from `threat`
 ## (`AgentVision.hiding_piece`, from an eye `eye` px up), or "" when none does.
 func _cover_near(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	p: Vector2,
 	threat: Vector2,
 	exclude: Array,
@@ -280,7 +280,7 @@ func cover_cached(
 ) -> String:
 	var eye := AgentCover.eye_of(node)
 	var bucket := _cache_bucket(ctx, "cover")
-	var twinned := TwinSpace.space_for(ctx["space"]) != null
+	var twinned: bool = ctx["space"] != null
 	var group: Variant = ex
 	if twinned:
 		group = eye

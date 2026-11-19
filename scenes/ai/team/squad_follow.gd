@@ -331,7 +331,7 @@ func _open_at(world: World2D, here: Vector2, want: Vector2) -> Vector2:
 	var at := NavBuilder.snap(world.navigation_map, want)
 	if (at.distance_to(want) > SLOT_SNAP
 			or _in_doorway(at)
-			or not _vision.wall_hit(world.direct_space_state, here, at).is_empty()):
+			or not _vision.wall_hit(TwinSpace.space_in(world), here, at).is_empty()):
 		return Vector2.INF
 	return at
 

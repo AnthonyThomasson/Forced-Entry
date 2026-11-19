@@ -69,7 +69,7 @@ func run(t: TestContext) -> void:
 	var npcs: Array = DEFENDERS.keys().map(func(id: StringName) -> Node: return t.actor(id))
 	var ctx := {
 		"npcs": npcs,
-		"space": thrower.get_world_2d().direct_space_state,
+		"space": TwinSpace.space_of(thrower),
 		"map": thrower.get_world_2d().navigation_map,
 		# npc -> its AgentThrow: its heights, the grenades it knows the numbers of, its pace
 		"own": _own_throws(npcs),
@@ -148,7 +148,7 @@ func _plain_for(
 		known: Array,
 ) -> Dictionary:
 	var g = ctx["own"][npc]
-	var space: PhysicsDirectSpaceState2D = ctx["space"]
+	var space: PhysicsDirectSpaceState3D = ctx["space"]
 	var map: RID = ctx["map"]
 	var start: Dictionary = ctx["start"]
 	g.learn_carried()

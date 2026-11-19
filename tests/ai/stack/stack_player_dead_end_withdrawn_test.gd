@@ -109,7 +109,7 @@ func _frame(t: TestContext) -> Dictionary:
 func _dead_end_capacity(t: TestContext, f: Dictionary) -> Dictionary:
 	var w2d := t.world.get_world_2d()
 	var w := Slots.world_of(
-		t.rooms, t.world.openings, w2d.navigation_map, w2d.direct_space_state, t.world.house,
+		t.rooms, t.world.openings, w2d.navigation_map, TwinSpace.space_in(w2d), t.world.house,
 	)
 	if not t.require(
 			SlotCapacity.way_kind(w, f) == "dead_end",

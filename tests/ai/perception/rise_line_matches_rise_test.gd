@@ -97,7 +97,7 @@ func run(t: TestContext) -> void:
 		t.expect_eq(gate[lane], CLEAR[lane], "the AI's rise line toward the %s body" % lane)
 		t.expect_eq(
 			vision.fire_stop_from(
-				t.world.get_world_2d().direct_space_state,
+				TwinSpace.space_of(t.world),
 				_shooter(t, lane).global_position,
 				_target(t, lane).global_position,
 				_target(t, lane),

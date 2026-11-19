@@ -70,8 +70,8 @@ func _lift(node: Node2D) -> Node3D:
 
 ## The 3D space of the twins.
 func _space3() -> PhysicsDirectSpaceState3D:
-	var plan := await _space()
-	return TwinSpace.space_for(plan)
+	await _space()
+	return TwinSpace.space_in(get_viewport().world_2d)
 
 
 ## The line from `from` to `to`, both relative to `ORIGIN`.

@@ -45,7 +45,7 @@ func run(t: TestContext) -> void:
 	rng.seed = SEED
 	var ctx := {
 		"geometry": geometry,
-		"space": npc.get_world_2d().direct_space_state,
+		"space": TwinSpace.space_of(npc),
 		"map": npc.get_world_2d().navigation_map,
 		"exclude": GrenadeAi.character_rids(t),
 		"rng": rng,
@@ -106,7 +106,7 @@ func _compare_kind(
 		from: Vector2,
 ) -> void:
 	var geometry = ctx["geometry"]
-	var space: PhysicsDirectSpaceState2D = ctx["space"]
+	var space: PhysicsDirectSpaceState3D = ctx["space"]
 	var map: RID = ctx["map"]
 	var exclude: Array = ctx["exclude"]
 	var rng: RandomNumberGenerator = ctx["rng"]

@@ -11,6 +11,7 @@ extends GameTest
 ## from the hall.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const AT := Vector2(300, 440)
 const FROM := Vector2(0.5, -0.866)
 const LANDED := Vector2(310, 430)
@@ -56,9 +57,8 @@ func run(t: TestContext) -> void:
 		return
 	var here: Vector2 = inv.global_position
 	var threat := here + FROM * REACH
-	var space: PhysicsDirectSpaceState2D = (inv as Node2D).get_world_2d().direct_space_state
 	if not t.require(
-			_blocked(space, threat, here, inv),
+			_blocked(threat, here, inv),
 			"the invader is out of sight of where the shots came from (%s)" % str(threat.round()),
 	):
 		return
@@ -81,6 +81,5 @@ func run(t: TestContext) -> void:
 
 
 ## Whether a wall or solid piece stands between `a` and `b` (the invader's own body left out).
-func _blocked(space: PhysicsDirectSpaceState2D, a: Vector2, b: Vector2, inv: Node) -> bool:
-	var q := PhysicsRayQueryParameters2D.create(a, b, PhysicsLayers.SOLID, [inv.get_rid()])
-	return not space.intersect_ray(q).is_empty()
+func _blocked(a: Vector2, b: Vector2, inv: Node) -> bool:
+	return not PlanProbe.clear(inv, a, b, [inv], PlanProbe.WITH_BODIES)

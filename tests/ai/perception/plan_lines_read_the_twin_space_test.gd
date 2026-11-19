@@ -34,7 +34,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.frames(3)
 	var table := t.object(&"table")
-	var space: PhysicsDirectSpaceState2D = t.actor(&"you").get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(t.actor(&"you"))
 	var vision := AgentVision.new()
 	var before := _wall_blocks(vision, space)
 	for shape in t.world.find_children("*", "CollisionShape2D", true, false):
@@ -63,5 +63,5 @@ func run(t: TestContext) -> void:
 
 
 ## Whether wall_hit meets the wall between the rooms away from the doorway.
-func _wall_blocks(vision: RefCounted, space: PhysicsDirectSpaceState2D) -> bool:
+func _wall_blocks(vision: RefCounted, space: PhysicsDirectSpaceState3D) -> bool:
 	return not vision.wall_hit(space, Vector2(300, 300), Vector2(300, 100)).is_empty()

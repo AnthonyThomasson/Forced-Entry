@@ -29,7 +29,7 @@ func geometry(opening_id: String, into: String) -> Dictionary:
 		opening_id,
 		into,
 		perception._character.get_world_2d().navigation_map,
-		perception._character.get_world_2d().direct_space_state,
+		TwinSpace.space_of(perception._character),
 	)
 
 
@@ -105,7 +105,7 @@ func stack_side(door_stack: RefCounted) -> int:
 		door_stack,
 		perception._character.global_position,
 		world.navigation_map,
-		world.direct_space_state,
+		TwinSpace.space_in(world),
 	)
 
 

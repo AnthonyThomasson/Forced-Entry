@@ -334,7 +334,7 @@ func observe(rooms: Array) -> void:
 	house.take_in(rooms)
 	confinement.rooms = rooms
 	var self_pos: Vector2 = _character.global_position
-	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_character)
 	var exclude := [_character.get_rid()]
 	sight.see(rooms)
 
@@ -467,7 +467,7 @@ func _is_known_hostile(body: Node) -> bool:
 ## view cone. Both the NPC and `target` (the contact's body) are excluded, so the target doesn't
 ## block itself.
 func has_line_to(target: Node2D, point: Vector2) -> bool:
-	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_character)
 	var exclude := [_character.get_rid()]
 	if target != null and is_instance_valid(target):
 		exclude.append(target.get_rid())
@@ -483,7 +483,7 @@ func combat_spots(target: Node2D, tgt_pos: Vector2, radius: float) -> Dictionary
 	var exclude := [_character.get_rid()]
 	if target != null and is_instance_valid(target):
 		exclude.append(target.get_rid())
-	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_character)
 	return _tactics.combat_spots(
 		space,
 		_character.global_position,

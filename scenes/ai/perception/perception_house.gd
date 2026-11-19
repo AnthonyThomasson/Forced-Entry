@@ -107,7 +107,7 @@ func take_in(house_rooms: Array) -> void:
 	if perception.tuning.entry.enabled:
 		var world: World2D = perception._character.get_world_2d()
 		# Lay the doorways before a decision needs them.
-		perception.entry.doorways.warm_geometry(world.navigation_map, world.direct_space_state)
+		perception.entry.doorways.warm_geometry(world.navigation_map, TwinSpace.space_in(world))
 	rooms = house_rooms
 
 
@@ -147,7 +147,7 @@ func learn_by_sight(full := false) -> void:
 	_learned_full = full
 	var self_pos: Vector2 = perception._character.global_position
 	var facing: Vector2 = perception._character.facing
-	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
 	var exclude := [perception._character.get_rid()]
 	_look_at_rooms(self_pos, facing, space, exclude)
 	_look_at_furniture(full, self_pos, facing, space, exclude)
@@ -169,7 +169,7 @@ func _next_look_after(frame: int) -> int:
 func _look_at_rooms(
 	self_pos: Vector2,
 	facing: Vector2,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	exclude: Array,
 ) -> void:
 	# Read once: what is learned here is permanent and only grows.
@@ -191,7 +191,7 @@ func _look_at_furniture(
 	full: bool,
 	self_pos: Vector2,
 	facing: Vector2,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	exclude: Array,
 ) -> void:
 	var known_objects := known_object_ids()

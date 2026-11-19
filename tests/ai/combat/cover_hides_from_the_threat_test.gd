@@ -59,7 +59,7 @@ func run(t: TestContext) -> void:
 	await t.frames(3)
 	var tactics := AgentTactics.new()
 	tactics.vision = AgentVision.new()
-	var space := t.world.get_world_2d().direct_space_state
+	var space := TwinSpace.space_of(t.world)
 	var ctx := { "space": space, "exclude": [] }
 	for i in LANES.size():
 		var node: Variant = t.actor(StringName("threat_%d" % i)) if LANES[i][4] else null

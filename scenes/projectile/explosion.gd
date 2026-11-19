@@ -22,12 +22,11 @@ class_name Explosion
 
 const Projectile = preload("res://scenes/projectile/projectile.gd")
 ## The layer the shape query of the bodies near a burst tests (walls, solid furniture, the living).
-const MASK := PhysicsLayers.SOLID | PhysicsLayers.LYING
+const MASK := PhysicsLayers.TWIN_ALL
 ## Most bodies one blast considers: the nearest ones.
 const MAX_BODIES := 64
-## Most colliders the shape query returns for a blast, before the nearest `MAX_BODIES` are kept
-## (a cut made on the engine's order would keep an arbitrary set).
-const MAX_FOUND := 4 * MAX_BODIES
+## The height (px) of the column a blast's circle is: taller than anything a blast reaches.
+const BLAST_COLUMN := 200.0
 ## Most twins a line may pass through (the ones that stop it only where it ends, `_walk`) before it
 ## is called blocked.
 const MAX_CLEARED := 8
@@ -119,9 +118,8 @@ static func _blast(burst: Vector3, world: Node, source: Node, row: Dictionary) -
 	var radius := float(row.get("blast_radius", 0.0))
 	var kill := float(row.get("kill_radius", 0.0))
 	var at := PlanSpace.plan_of(burst)
-	var space2d := (world as Node2D).get_world_2d().direct_space_state
 	var space := TwinSpace.space_of(world)
-	for body: Node2D in _bodies_near(space2d, at, radius, _characters(world)):
+	for body: Node2D in _bodies_near(space, at, radius, _characters(world)):
 		var d := at.distance_to(body.global_position)
 		if d >= radius:
 			continue
@@ -266,23 +264,25 @@ static func _characters(world: Node) -> Array:
 ## (furniture, the living, a door; walls are what block it, so they are left out) and the fallen,
 ## who have left that layer but are still shoved. Each once.
 static func _bodies_near(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	radius: float,
 	characters: Array,
 ) -> Array:
-	var circle := CircleShape2D.new()
-	circle.radius = radius
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = circle
-	query.transform = Transform2D(0.0, at)
+	var column := CylinderShape3D.new()
+	column.radius = radius * RenderConfig.unit
+	column.height = BLAST_COLUMN * RenderConfig.unit
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = column
+	query.transform = Transform3D(Basis.IDENTITY, PlanSpace.lift(at, BLAST_COLUMN * 0.5))
 	query.collision_mask = MASK
 	var out: Array = []
-	for found: Dictionary in space.intersect_shape(query, MAX_FOUND):
-		var body: Object = found["collider"]
+	for found: Dictionary in TwinSpace.intersecting(space, query):
+		var body := TwinSpace.owner_of(found["collider"])
 		# a wall is a static body that takes no shove; a door is a driven one that does
 		# (`apply_impulse`)
-		if (body is StaticBody2D and not body.has_method("apply_impulse")) or out.has(body):
+		if body == null or (body is StaticBody2D and not body.has_method("apply_impulse")) \
+				or out.has(body):
 			continue
 		if body.has_method("take_hit") or body.has_method("apply_impulse"):
 			out.append(body)
@@ -322,13 +322,12 @@ static func _nearer(a: Node2D, b: Node2D, at: Vector2) -> bool:
 ## which the AI's perception asks of a grenade (interface 3). A space with no twins shields
 ## nothing.
 static func shields(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	burst: Vector3,
 	p: Vector2,
 	cover: CoverRule,
 ) -> bool:
-	var twins := TwinSpace.space_for(space)
-	if twins == null:
+	if space == null:
 		return false
 	var heights := (
 		PackedFloat32Array([BodyHeights.eye(cover.posture)])
@@ -336,7 +335,7 @@ static func shields(
 		else BodyHeights.sight_points(cover.posture)
 	)
 	for height in heights:
-		if _walk(twins, burst, PlanSpace.lift(p, height), cover.cover_reach, null).is_empty():
+		if _walk(space, burst, PlanSpace.lift(p, height), cover.cover_reach, null).is_empty():
 			return false
 	return true
 
@@ -346,16 +345,15 @@ static func shields(
 ## {} when the line reaches it: where the AI's perception looks for the shadow behind cover
 ## (interface 3).
 static func first_stop(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	burst: Vector3,
 	to: Vector2,
 	posture: StringName,
 ) -> Dictionary:
-	var twins := TwinSpace.space_for(space)
-	if twins == null:
+	if space == null:
 		return {}
 	var chest := BodyHeights.sight_points(posture)[1]
-	var found := _walk(twins, burst, PlanSpace.lift(to, chest), INF, null)
+	var found := _walk(space, burst, PlanSpace.lift(to, chest), INF, null)
 	if found.is_empty() or found.has("exhausted"):
 		return {}
 	var out := found.duplicate()

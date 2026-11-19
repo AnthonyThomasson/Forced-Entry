@@ -86,7 +86,7 @@ func bind(character: Node) -> void:
 ## none that it did not know. Gone ones are forgotten.
 func observe(
 	vision: RefCounted,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	exclude: Array,
 	blind: bool,
 ) -> void:
@@ -267,7 +267,7 @@ func known() -> Array:
 ## grenade's zone, made again as the grenade moves, and kept while it lives, so the NPC holds its
 ## spot until the burst. `exclude` is every character's rid (a body shields nothing); `map` the
 ## navigation map.
-func plan(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array) -> Dictionary:
+func plan(space: PhysicsDirectSpaceState3D, map: RID, exclude: Array) -> Dictionary:
 	if _known.is_empty():
 		return {}
 	var posture := SightRay.posture_of(_character)
@@ -302,7 +302,7 @@ func plan(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array) -> Diction
 ## (`_escape_allowed`): an NPC over it gets no fresh plan this frame ({}: it carries on
 ## as it was, and asks again the next), and one due a replan keeps its plan a frame longer.
 func _current_plan(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	map: RID,
 	exclude: Array,
 	id: int,
@@ -335,7 +335,7 @@ func _asking_order() -> Array:
 ## least `REPLAN_EVERY` s of game frames ago, and by `REPLAN_DIST` px or onto a line to its spot
 ## (`_still_safe`).
 func _replan_due(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	rec: Dictionary,
 	plan_: Dictionary,
 ) -> bool:
@@ -355,7 +355,7 @@ func _replan_due(
 ## the plan is then made again whatever the distance. A plan with no spot stands until the grenade
 ## moves on.
 func _still_safe(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	rec: Dictionary,
 	plan_: Dictionary,
 	point: Vector2,
@@ -403,7 +403,7 @@ static func _escape_allowed(fresh: bool) -> bool:
 
 
 ## A fresh plan for known grenade `id` from where the NPC stands.
-func _make(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array, id: int) -> Dictionary:
+func _make(space: PhysicsDirectSpaceState3D, map: RID, exclude: Array, id: int) -> Dictionary:
 	var rec: Dictionary = _known[id]
 	var threat := _threat_of(rec, rec["point"])
 	threat.fuse_left = float(rec["node"].call("fuse_left"))

@@ -172,7 +172,7 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 	var allies: Array = known.filter(func(c): return c["ally"] and not c["hostile"])
 	var ctx := {
 		"world": _character.get_world_2d(),
-		"space": _character.get_world_2d().direct_space_state,
+		"space": TwinSpace.space_of(_character),
 		"map": _character.get_world_2d().navigation_map,
 		"self_pos": self_pos,
 		"self_id": _character.get_instance_id(),

@@ -192,7 +192,7 @@ func _out_radius(threat: GrenadeThreat) -> float:
 ## the zone's reach and not shielded from the burst by the real line to its body (bodies stop
 ## nothing).
 func in_zone(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	threat: GrenadeThreat,
 	p: Vector2,
 	posture: StringName,
@@ -226,7 +226,7 @@ func cover_reach(kind: StringName) -> float:
 ## spot's verdict) is shared with every NPC that asks about the same burst on the same physics
 ## frame (`_shared_burst`); the routes are the NPC's own.
 func escape(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	map: RID,
 	threat: GrenadeThreat,
 	runner: GrenadeRunner,
@@ -273,7 +273,7 @@ func _safe_spot(judging: Dictionary, p: Vector2) -> Dictionary:
 ## snapped spots, verdicts and route reachability as `escape`; the evade movement still uses that
 ## full search. `escape_route_queries` records the routes this existence-only answer needed.
 func has_escape(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	map: RID,
 	threat: GrenadeThreat,
 	runner: GrenadeRunner,
@@ -310,7 +310,7 @@ func has_escape(
 ## The verdict on spot `q` for the grenade `threat`: `SAFE_STANDING` outside the zone or shielded
 ## standing, `SAFE_CROUCHED` shielded only ducked (the posture an NPC that crouches is in), else
 ## `NOT_SAFE`.
-func _judge(space: PhysicsDirectSpaceState2D, threat: GrenadeThreat, q: Vector2) -> int:
+func _judge(space: PhysicsDirectSpaceState3D, threat: GrenadeThreat, q: Vector2) -> int:
 	var reach := cover_reach(threat.kind)
 	var burst := threat.point()
 	if (q.distance_to(threat.burst) >= _out_radius(threat)
@@ -394,7 +394,7 @@ static func _cover_rule(posture: StringName, reach: float) -> CoverRule:
 ## zone): `{ around, judged }` (`judged` filled as spots are judged), made now when no NPC has asked
 ## yet, and fresh outside a physics frame.
 func _shared_burst(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	threat: GrenadeThreat,
 	exclude: Array,
 ) -> Dictionary:
@@ -447,7 +447,7 @@ static func _ids(rids: Array) -> Array:
 ## the reach) with room to spare: also `COVER_MARGIN` px to either side of the line, so a spot on
 ## the edge of a shadow (and a body that stops a step short of it) is not taken for one.
 func _covered(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	burst: Vector3,
 	p: Vector2,
 	cover: CoverRule,
@@ -470,7 +470,7 @@ func _candidates(from: Vector2, around: Array) -> Array:
 ## The candidates that depend on the burst alone: the circle `out_r` round it and the shadows behind
 ## the obstacles a line from the burst point `burst` to a ducked and to a standing body meets.
 func _around(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	burst: Vector3,
 	out_r: float,
 	exclude: Array,
@@ -500,7 +500,7 @@ func _around(
 ## The far face of what a ray from a burst along `dir` met at `at`: the ray back from `FAR_PROBE` px
 ## past it, or {} when nothing is there.
 func _far_face(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	dir: Vector2,
 	exclude: Array,
@@ -533,7 +533,7 @@ func run_speed() -> float:
 ## (`range_of`), and the lob from its hand is clear (`throw_clear`). `exclude` holds the characters'
 ## rids.
 func can_lob(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	to: Vector2,
 	exclude: Array,
@@ -547,7 +547,7 @@ func can_lob(
 ## (`_release_point`), at its posture's release height, that clears what stands between in the twin
 ## space with `LOB_MARGIN` px to spare: the arc the real throw then flies.
 func throw_clear(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	to: Vector2,
 	exclude: Array,
@@ -561,7 +561,7 @@ func throw_clear(
 ## pixel is a jamb struck by a thrower that stops a stride's sliver short: the band `ARRIVAL_SLACK`
 ## wide round the line holds the lob from a spot that far off it in any direction).
 func throw_clear_on_arrival(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	to: Vector2,
 	exclude: Array,
@@ -575,7 +575,7 @@ func throw_clear_on_arrival(
 ## hand held against it, as the character's own hand is: a ray at the height its posture releases a
 ## grenade at, so a low piece the hand is over does not hold it.
 func _release_point(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	to: Vector2,
 	exclude: Array,

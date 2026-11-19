@@ -92,7 +92,7 @@ func defend_spot(
 	room_key: String,
 	place: Vector2i,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var nth := place.x
 	var count := place.y
@@ -159,7 +159,7 @@ func _defend_best(
 	entry: AgentEntry,
 	f: Dictionary,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var best := {}
 	for at: Array in _offsets(DEFEND_DEPTHS, DEFEND_LATERALS):
@@ -236,7 +236,7 @@ func _defend_candidate(
 	f: Dictionary,
 	raw: Vector2,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var inner := (f["room"] as Rect2).grow(-DEFEND_INSET)
 	if not inner.has_point(raw):
@@ -269,7 +269,7 @@ func _defend_candidate(
 ## unused in a twin world). A coffee table does not count: it hides nobody.
 static func _low_cover(
 	entry: AgentEntry,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
 	bodies: Array,
@@ -299,7 +299,7 @@ func ambush_spot(
 	g: Dictionary,
 	place: Vector2i,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var nth := place.x
 	var count := place.y
@@ -335,7 +335,7 @@ func _best_post(
 	ranking: Dictionary,
 	open: Array,
 	wanted: int,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var least := INF
 	for c: Dictionary in open:
@@ -360,7 +360,7 @@ static func _coarse_rank(c: Dictionary, wanted: int) -> float:
 ## Add to post `c`'s score (of `ranking`) the landings of an entry's grenade that reach it
 ## (`_exposures`), a frag's at `RANK_FRAG` each and a stun's at `RANK_STUN`, once: a post `exposed`
 ## already is left as it is.
-func _expose(ranking: Dictionary, c: Dictionary, space: PhysicsDirectSpaceState2D) -> void:
+func _expose(ranking: Dictionary, c: Dictionary, space: PhysicsDirectSpaceState3D) -> void:
 	if c["exposed"]:
 		return
 	var exposed := _exposures(ranking["landings"], c["spot"], space)
@@ -381,7 +381,7 @@ func _ambush_ranking(
 	entry: AgentEntry,
 	g: Dictionary,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	bodies: Array,
 ) -> Dictionary:
 	var room_key := String(g["into"])
@@ -433,7 +433,7 @@ func _ambush_post(
 	at: Array,
 	observers: Array,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var entry: AgentEntry = f["entry"]
 	var rect: Rect2 = f["room"]
@@ -480,7 +480,7 @@ func _bang_landings(g: Dictionary) -> Dictionary:
 func _exposures(
 	bangs: Dictionary,
 	p: Vector2,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var out := {}
 	for kind: StringName in BANG_KINDS:
@@ -500,7 +500,7 @@ static func _reaches(
 	landing: Vector2,
 	p: Vector2,
 	radius: float,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	cover: CoverRule,
 ) -> bool:
 	if landing.distance_to(p) > radius:
@@ -537,7 +537,7 @@ func _observers_of(g: Dictionary) -> Array:
 ## sees, the most that see any of the 8 points `AMBUSH_SLACK` round it.
 func _seen_by(
 	entry: AgentEntry,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	observers: Array,
 	p: Vector2,
 	bodies: Array,
@@ -558,7 +558,7 @@ func _seen_by(
 ## see of a post once it looks.
 func _sees_from(
 	entry: AgentEntry,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
 	bodies: Array,

@@ -9,6 +9,7 @@ extends RefCounted
 ## of `slots_probe.gd`'s (`Slots.frame`, `Slots.world_of`), whose spec numbers they read.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const Slots := preload("res://tests/_ai/slots_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
 ## A slot on the navmesh is within this many px of where `NavBuilder.snap` puts it.
@@ -142,18 +143,8 @@ static func _in_view(w: Dictionary, f: Dictionary, p: Vector2) -> bool:
 
 ## Whether no wall (a static body) lies on the line from `a` to `b` in `space`; furniture and
 ## characters are looked past.
-static func _walls_clear(space: PhysicsDirectSpaceState2D, a: Vector2, b: Vector2) -> bool:
-	var exclude: Array = []
-	for i in 12:
-		var query := PhysicsRayQueryParameters2D.create(a, b, PhysicsLayers.SOLID)
-		query.exclude = exclude
-		var hit := space.intersect_ray(query)
-		if hit.is_empty():
-			return true
-		if hit["collider"] is StaticBody2D:
-			return false
-		exclude.append(hit["rid"])
-	return false
+static func _walls_clear(space: PhysicsDirectSpaceState3D, a: Vector2, b: Vector2) -> bool:
+	return PlanProbe.walls_clear_in(space, a, b)
 
 
 ## Whether side `side` of frame `f` has room for one (E21's "while it has room"): some spot of the

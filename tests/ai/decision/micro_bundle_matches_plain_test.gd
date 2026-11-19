@@ -118,7 +118,7 @@ func _exposure(t: TestContext) -> void:
 	var tactics := _tactics()
 	var npc := t.actor(&"npc")
 	var world := {
-		"space": npc.get_world_2d().direct_space_state, "ex": [npc.get_rid()],
+		"space": TwinSpace.space_of(npc), "ex": [npc.get_rid()],
 		"map": npc.get_world_2d().navigation_map,
 	}
 	var spots: Array = [

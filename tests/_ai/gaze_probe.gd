@@ -5,6 +5,8 @@ extends RefCounted
 ## threat. The geometry here is the test's own (door points, a ray along the facing), not read back
 ## from the code under test.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
+
 
 ## The angle (degrees) between where actor `a` faces and the direction to world point `p`.
 static func off(a: Node, p: Vector2) -> float:
@@ -14,16 +16,9 @@ static func off(a: Node, p: Vector2) -> float:
 ## Whether a wall or solid piece stands within `reach` px dead ahead of actor `a` (along its
 ## facing), or of `from` along `facing` when those are given (a sampled frame rather than now).
 static func wall_ahead(a: Node, reach := 70.0, from := Vector2.INF, facing := Vector2.INF) -> bool:
-	var space: PhysicsDirectSpaceState2D = a.get_world_2d().direct_space_state
 	var origin: Vector2 = a.global_position if from == Vector2.INF else from
 	var dir: Vector2 = a.facing if facing == Vector2.INF else facing
-	var q := PhysicsRayQueryParameters2D.create(
-		origin,
-		origin + dir * reach,
-		PhysicsLayers.SOLID,
-		[a.get_rid()],
-	)
-	return not space.intersect_ray(q).is_empty()
+	return not PlanProbe.clear(a, origin, origin + dir * reach, [a], PlanProbe.WITH_BODIES)
 
 
 ## Sample the actors `ids` every physics frame for `duration` s (or until `stop` returns true): one

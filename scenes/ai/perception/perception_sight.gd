@@ -56,7 +56,7 @@ func _init(npc_perception: Node) -> void:
 func see(rooms: Array) -> void:
 	var self_pos: Vector2 = perception._character.global_position
 	var facing: Vector2 = perception._character.facing
-	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
 	var exclude := [perception._character.get_rid()]
 	var now := GameClock.msec()
 	var frame := WorldRng.frame_of(perception._character)
@@ -199,7 +199,7 @@ func _world_characters() -> Array:
 func visible_points(points: Array) -> Array:
 	if points.is_empty():
 		return []
-	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
 	var exclude := [perception._character.get_rid()]
 	var self_pos: Vector2 = perception._character.global_position
 	var facing: Vector2 = perception._character.facing
@@ -215,7 +215,7 @@ func visible_points(points: Array) -> Array:
 ## reaches it. The NPC excludes itself. What the vision overlay draws its visible area from; a pure
 ## read.
 func sight_end(to: Vector2) -> Vector2:
-	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
 	var hit: Dictionary = vision.sight_hit(
 		space,
 		perception._character.global_position,

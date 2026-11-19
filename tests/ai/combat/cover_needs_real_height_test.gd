@@ -50,7 +50,7 @@ func run(t: TestContext) -> void:
 	tactics.vision = AgentVision.new()
 	var npc := t.actor(&"npc")
 	var ctx := {
-		"space": npc.get_world_2d().direct_space_state,
+		"space": TwinSpace.space_of(npc),
 		"exclude": [npc.get_rid()],
 	}
 	for i in LANES.size():

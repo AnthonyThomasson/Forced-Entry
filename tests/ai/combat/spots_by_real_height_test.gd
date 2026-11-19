@@ -50,7 +50,7 @@ func run(t: TestContext) -> void:
 	var tactics := AgentTactics.new()
 	tactics.vision = AgentVision.new()
 	tactics.combat_ring_count = 12
-	var space := t.world.get_world_2d().direct_space_state
+	var space := TwinSpace.space_of(t.world)
 	for i in LANES.size():
 		var name: StringName = LANES[i][0]
 		var spot := Vector2(NPC_X + RADIUS, _lane_y(i))

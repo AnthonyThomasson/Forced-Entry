@@ -184,7 +184,7 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 ## stacking up.
 func _look_for_team() -> void:
 	var map: RID = _char.get_world_2d().navigation_map
-	var space: PhysicsDirectSpaceState2D = _char.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_char)
 	var best := {}
 	var best_dist := INF
 	var claiming := StackMember.new()  # The human claiming now, from where it stands.
@@ -267,7 +267,7 @@ func _ask_side(stack: RefCounted, n: int) -> void:
 		return
 	var world := _char.get_world_2d()
 	reservation.member.ask(
-		_entry.stack_side_from(stack, pos, world.navigation_map, world.direct_space_state),
+		_entry.stack_side_from(stack, pos, world.navigation_map, TwinSpace.space_in(world)),
 		now,
 	)
 

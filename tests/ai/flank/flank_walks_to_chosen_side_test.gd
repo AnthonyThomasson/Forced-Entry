@@ -9,6 +9,7 @@ extends GameTest
 ## coffee table as sight does, `docs/gaze-and-fire.md` W2.)
 
 const Flank := preload("res://tests/_ai/flank_probe.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const NPC_POS := Vector2(150, 415)       # in the hall, looking up through the living-room door
 const TARGET_POS := Vector2(230, 190)    # in the living room, facing the door
@@ -42,10 +43,7 @@ func configure(s: TestSetup) -> void:
 ## Whether a bullet could fly from `from` to `to`: no wall or solid piece (the door included) on
 ## the line.
 func _fire_line_clear(t: TestContext, from: Vector2, to: Vector2) -> bool:
-	var space: PhysicsDirectSpaceState2D = t.world.get_world_2d().direct_space_state
-	return space.intersect_ray(PhysicsRayQueryParameters2D.create(
-		from, to, PhysicsLayers.SOLID,
-	)).is_empty()
+	return PlanProbe.clear(t.world, from, to, [], PlanProbe.WITH_BODIES)
 
 
 func run(t: TestContext) -> void:

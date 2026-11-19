@@ -104,7 +104,7 @@ func run(t: TestContext) -> void:
 ## The landings of a frag thrown in by the doorway (the test's copy) whose burst reaches `post`:
 ## within the frag's blast radius and not shielded from it, crouched, by the blast's own cover rule.
 func _frag_reaches(t: TestContext, post: Vector2) -> Array:
-	var space := t.world.get_world_2d().direct_space_state
+	var space := TwinSpace.space_of(t.world)
 	var radius := float(GrenadeConfig.row(&"frag")["blast_radius"])
 	var cover := CoverRule.new()
 	cover.posture = BodyHeights.DUCK

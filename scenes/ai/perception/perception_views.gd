@@ -161,7 +161,7 @@ func _stack_room() -> String:
 func routes_ready() -> bool:
 	var world: World2D = perception._character.get_world_2d()
 	if views.warm(
-			perception._character.global_position, world.navigation_map, world.direct_space_state
+			perception._character.global_position, world.navigation_map, TwinSpace.space_in(world)
 	):
 		_warming_since = -1
 		return true
@@ -176,7 +176,7 @@ func routes_ready() -> bool:
 func avoided() -> Array:
 	var world: World2D = perception._character.get_world_2d()
 	return (views.views_from(
-		perception._character.global_position, world.navigation_map, world.direct_space_state,
+		perception._character.global_position, world.navigation_map, TwinSpace.space_in(world),
 	)
 			if views.avoid_views
 			else [])

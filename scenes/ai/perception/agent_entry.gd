@@ -219,7 +219,7 @@ func _last_leg_clear(map: RID, end: Vector2, goal: Vector2, bodies: Array) -> bo
 ## near, side, hard }], room (the room's rect), depth (px the room runs in from the door to its far
 ## wall), capacity (how many may go in: 2 for a short room, else MAX_SLOTS) }; once laid on a baked
 ## map also the stack's ground (`EntrySlots.lay`: `from`, `from_room`, `from_depth`, ...).
-func geometry(id: String, into: String, map: RID, space: PhysicsDirectSpaceState2D) -> Dictionary:
+func geometry(id: String, into: String, map: RID, space: PhysicsDirectSpaceState3D) -> Dictionary:
 	var key := "%s>%s" % [id, into]
 	if layouts.cache.has(key):
 		return layouts.cache[key]
@@ -244,7 +244,7 @@ func geometry(id: String, into: String, map: RID, space: PhysicsDirectSpaceState
 ## doorways are laid in the first frames after the bake rather than in the middle of a decision.
 ## Once a pass finds them all laid it looks no more (`layouts.warm_done_in`) until the house, a
 ## tunable or the map's shared geometry changes.
-func warm_geometry(map: RID, space: PhysicsDirectSpaceState2D) -> void:
+func warm_geometry(map: RID, space: PhysicsDirectSpaceState3D) -> void:
 	var frame := Engine.get_physics_frames()
 	if frame == EntryLayouts.warmed_frame or space == null:
 		return
@@ -271,7 +271,7 @@ func _build(
 	opening: Dictionary,
 	room: Dictionary,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var pos: Vector2 = opening["pos"]
 	var rect: Rect2 = room["rect"]
@@ -355,7 +355,7 @@ func _pie_arc(g: Dictionary, s: int, lookouts: Array, map: RID) -> Array:
 ## The four corners of room `rect` behind the entry framed in `g`, inset `corner_inset` (at most a
 ## quarter of the room's short side) and snapped onto `map`: `[{ pos, near, side, hard }]`, `near`
 ## on the door's own wall, `hard` unseen from `ENTRY_POINT_DEPTH` outside the threshold.
-func _corners(g: Dictionary, rect: Rect2, map: RID, space: PhysicsDirectSpaceState2D) -> Array:
+func _corners(g: Dictionary, rect: Rect2, map: RID, space: PhysicsDirectSpaceState3D) -> Array:
 	var pos: Vector2 = g["pos"]
 	var out: Vector2 = g["out"]
 	var along: Vector2 = g["along"]
@@ -414,7 +414,7 @@ static func wall_length(rect: Rect2, pos: Vector2, dir: Vector2) -> float:
 ## Whether the line `from` → `to` is clear for sight (over low cover; walls and tall furniture block
 ## it), the rids `exclude` looked through.
 func _sees(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
 	exclude: Array = [],
@@ -438,7 +438,7 @@ func stack_side_from(
 	stack: RefCounted,
 	from: Vector2,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> int:
 	var g: Dictionary = stack.geometry
 	var team_side: int = stack.team_side(from)
@@ -457,7 +457,7 @@ func cuts_view(
 	from: Vector2,
 	to: Vector2,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> bool:
 	var view: PackedVector2Array = views.door_view(g["id"], g["into"], map, space)
 	if view.is_empty() or Geometry2D.is_point_in_polygon(from, view):

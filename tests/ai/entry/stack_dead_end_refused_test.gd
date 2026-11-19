@@ -97,7 +97,7 @@ func run(t: TestContext) -> void:
 		t.rooms,
 		t.world.openings,
 		w2d.navigation_map,
-		w2d.direct_space_state,
+		TwinSpace.space_in(w2d),
 		t.world.house,
 	)
 	var capacity := _closet_capacity(t, w, f)
