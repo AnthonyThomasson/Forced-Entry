@@ -11,8 +11,9 @@ const SCRATCH := "user://settings_casing_hidden_test.json"
 const SEEN := Rect2(100, 100, 400, 400)
 const IN_VIEW := Vector2(300, 300)
 const OUT_OF_VIEW := Vector2(800, 300)
-## A casing tossed arcs for about this long (s).
-const TOSS_FRAMES := 40
+## A casing ejected from a muzzle's height falls to the floor in the twin 3D space and skids to
+## rest: it is still, at most, `CasingConfig.max_time` (2.5 s) after it left.
+const TOSS_FRAMES := 160
 
 
 func describe() -> Dictionary:

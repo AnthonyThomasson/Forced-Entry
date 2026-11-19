@@ -42,7 +42,7 @@ func run(t: TestContext) -> void:
 	var parent: Node = _chip_nodes(t)[0].get_parent()
 	# every chip node that flew, by instance id (chips spawn over a few frames as the round goes on)
 	var seen := {}
-	for i in 60:
+	for i in 240:  # a chip falls from the hit's real height: up to 2.5 s
 		for n in _chip_nodes(t):
 			seen[n.get_instance_id()] = true
 		await t.frames(1)

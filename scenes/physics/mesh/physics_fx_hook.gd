@@ -8,10 +8,6 @@ extends RefCounted
 ## The layer being told, null while none is installed. Untyped, so a layer freed with its world is
 ## told no more.
 static var sink: Object
-## The height (px, a hit's `HitInfo.height`; negative: the floor) of the hit whose debris and
-## bursts are being spawned, which only the 3D render shows: `Physics.spawn_debris` sets it around
-## its calls.
-static var hit_height := -1.0
 
 
 ## Whether a layer is listening.
@@ -19,10 +15,10 @@ static func active() -> bool:
 	return is_instance_valid(sink)
 
 
-## A chip was thrown off a surface, at the hit's height (`hit_height`).
+## A chip was thrown off a surface (it flies by itself: its `altitude()` is its height).
 static func chip_flew(chip: Node2D) -> void:
 	if is_instance_valid(sink):
-		sink.chip_flew(chip, hit_height)
+		sink.chip_flew(chip)
 
 
 ## A flying chip came to rest.

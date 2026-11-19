@@ -1,8 +1,8 @@
 class_name ThrownGrenade
 extends Node2D
 ## A grenade let go into the world (Items domain): it flies a real 3D flight in the twin space
-## (`TwinSpace`, `ItemFlight`): thrown on the arc the shared planner chose (`GrenadeArc`, the lowest
-## that clears what is in the way), it strikes what it meets (a wall, a lintel, furniture, a
+## (`TwinSpace`, `SmallFlight`): thrown on the arc the shared planner chose (`GrenadeArc`, the
+## lowest that clears what is in the way), it strikes what it meets (a wall, a lintel, furniture, a
 ## vehicle, a body), bounces off it and off the floor with the row's `restitution`, rolls and skids,
 ## can come to rest on top of a piece, and goes off when its fuse runs out. Docs: `docs/grenades.md`
 ## G3, G6 and G10. A world `Node2D` like `DroppedItem`; nobody picks it up or throws it back. While
@@ -27,7 +27,7 @@ var item: Item
 ## The `GrenadeConfig` row it was thrown with.
 var _row := {}
 ## Its flight: where it is, how high, how fast.
-var _flight: ItemFlight
+var _flight: SmallFlight
 ## Seconds left until it goes off (counted from the release).
 var _fuse := 0.0
 ## Which way the art points (rad).
@@ -72,13 +72,13 @@ func _physics_process(delta: float) -> void:
 		_spin = move_toward(_spin, 0.0, GrenadeConfig.spin_friction * delta)
 	_angle += _spin * delta
 	match event:
-		ItemFlight.LANDED:
+		SmallFlight.LANDED:
 			_post(&"bounce")
-		ItemFlight.STRUCK:
+		SmallFlight.STRUCK:
 			_spin *= -0.5
 			if pace > MIN_CLATTER_SPEED:
 				_post(&"bounce")
-		ItemFlight.RESTED:
+		SmallFlight.RESTED:
 			_resting = true
 			ViewLayers.set_moving(self, false)
 			_spin = 0.0

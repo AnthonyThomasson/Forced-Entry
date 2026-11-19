@@ -4,7 +4,7 @@ extends RefCounted
 ## (interface 6): from the thrower's release height to the aim point, the LOWEST arc that clears
 ## what is in the way in the twin 3D space (furniture tops, a doorway's lintel, a wall) and lands
 ## near the aim, as the launch velocity to throw it with (`GrenadeLaunch`). Then `ThrownGrenade`
-## flies it as real 3D flight (`ItemFlight`, the same stepper the planner rests an arc with).
+## flies it as real 3D flight (`SmallFlight`, the same stepper the planner rests an arc with).
 ##
 ## **The arcs.** An arc peaks at an `apex` (the centre's height, px): from the release height itself
 ## (a flat throw) up by `APEX_STEP` to the top (`_top`: `GrenadeConfig.max_apex` in the open, under
@@ -227,8 +227,8 @@ static func flight_for(
 	row: Dictionary,
 	mask: int = PhysicsLayers.TWIN_ALL | PhysicsLayers.TWIN_ROOF,
 	ceiling := INF,
-) -> ItemFlight:
-	var flight := ItemFlight.new(GrenadeConfig.radius)
+) -> SmallFlight:
+	var flight := SmallFlight.new(GrenadeConfig.radius)
 	flight.gravity = GrenadeConfig.gravity
 	flight.min_hop = GrenadeConfig.min_hop_speed
 	flight.floor_restitution = float(row.get("restitution", 0.35))
@@ -254,7 +254,7 @@ static func passed_by(thrower: Node) -> Array[RID]:
 
 
 ## Where the grenade thrown as `launch` says comes to rest, flown over the floor in the course's
-## space (the node's own flight: `ItemFlight`, stepped at the game's rate).
+## space (the node's own flight: `SmallFlight`, stepped at the game's rate).
 static func rest_of(course: GrenadeCourse, launch: GrenadeLaunch) -> Vector2:
 	var flight := flight_for(course.row, course.mask, course.roof)
 	flight.place(course.from, course.release)
@@ -295,7 +295,7 @@ static func _arcs(course: GrenadeCourse) -> Array[Arc]:
 ## comes to rest at the aim (`reach`; `capped` when it cannot get there).
 static func _arc(course: GrenadeCourse, apex: float) -> Arc:
 	var g := GrenadeConfig.gravity
-	var floor_y := GrenadeConfig.radius + ItemFlight.GROUND_GAP
+	var floor_y := GrenadeConfig.radius + SmallFlight.GROUND_GAP
 	var top := maxf(apex, maxf(course.release, floor_y + 1.0))
 	var rise := sqrt(2.0 * g * (top - course.release))
 	var fall := sqrt(2.0 * (top - floor_y) / g)
@@ -578,7 +578,7 @@ static func _point(
 ## The height (px) of the centre of `arc` `time` s after the release: the floor's once it is down.
 static func _height(course: GrenadeCourse, arc: Arc, time: float) -> float:
 	if time >= arc.time:
-		return GrenadeConfig.radius + ItemFlight.GROUND_GAP
+		return GrenadeConfig.radius + SmallFlight.GROUND_GAP
 	return course.release + arc.rise * time - 0.5 * GrenadeConfig.gravity * time * time
 
 
@@ -610,7 +610,7 @@ static func _skid_clear(course: GrenadeCourse, reach: float, far: float) -> bool
 	query.collision_mask = course.mask
 	query.exclude = course.passed
 	var direction := _direction(course)
-	var floor_y := GrenadeConfig.radius + ItemFlight.GROUND_GAP
+	var floor_y := GrenadeConfig.radius + SmallFlight.GROUND_GAP
 	query.transform = Transform3D(Basis(), PlanSpace.lift(course.from + direction * reach, floor_y))
 	query.motion = PlanSpace.lift(direction * (far - reach + SKID_SLACK))
 	var res := course.space.cast_motion(query)

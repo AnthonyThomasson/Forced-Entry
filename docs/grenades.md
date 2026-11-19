@@ -90,7 +90,7 @@ flies on past and rests near its aim).
 **G3. Flight.** *(Real 3D since issue #194, job 9: the grenade flies in the twin space (`TwinSpace`, `docs/adr/0014-twin-staging-and-plan-space.md`), where every wall, piece of
 furniture, door, vehicle and body stands at its real height; there is no pseudo-height and no `coverage` test.)* A thrown grenade is a small sphere
 (`GrenadeConfig.radius` **3 px**) that leaves the hand at the thrower's **release height** (`BodyHeights.release`: standing 1.7 m, about 72 px; crouched
-1.3 m, about 55 px, by the posture of its holder) under gravity (`GrenadeConfig.gravity` **680 px/s²**), and is swept each physics frame through the twin space (`ItemFlight`, the one stepper
+1.3 m, about 55 px, by the posture of its holder) under gravity (`GrenadeConfig.gravity` **680 px/s²**), and is swept each physics frame through the twin space (`SmallFlight`, the one stepper
 of `ThrownGrenade` and `DroppedItem`). It strikes what it meets at the height it meets it:
 - **Furniture** lower than the arc is passed over and one it comes down on is **landed on** (the grenade bounces on a desk top, rolls on it and
   can come to rest there, 31 px up); a piece taller than the arc (a wardrobe's 78 px under a roof's 90 px peak is a narrow window, a bookshelf's 77 the
@@ -175,7 +175,7 @@ jittered; elevation `sin = q^fragment_flatness` for a draw `q` spread evenly ove
 as a shell's do; at the burst's real altitude), through `ProjectileSpawner`, with low power (`penetration` 0.4, `fragment_damage` **12**, fast) and a short reach
 (`fragment_range` **500 px**: a projectile can be given a maximum range, past which it is spent), and a fragment that climbs past 100 px (`Explosion.FRAGMENT_CEILING`: over every wall, piece and body, nothing taller than the walls is left to strike; a roof is struck by no fragment, none of the twin's line layers holds it) is spent there, so a steep one does not fly its whole reach. So cover, penetration, ricochet, blood, debris and impact sounds all work as for
 bullets: a ray is stopped by what it meets at that height (a wall, a lintel, a piece's real parts, a door, a vehicle), a ducked body behind a sofa is shielded and a standing one is hit over it,
-a grenade resting on a desk or a van's roof bursts at that height and its fragments clear the desk's own top (if the piece under a resting grenade is pushed or blasted away it falls and bursts where it lies, `ItemFlight.unsupported`) (a character's armour and hit zones too: `docs/outfits.md` O9); each hit posts `&"hit"` with the thrower as
+a grenade resting on a desk or a van's roof bursts at that height and its fragments clear the desk's own top (if the piece under a resting grenade is pushed or blasted away it falls and bursts where it lies, `SmallFlight.unsupported`) (a character's armour and hit zones too: `docs/outfits.md` O9); each hit posts `&"hit"` with the thrower as
 `attacker`. **Tuned to the old figure, in HP:** an exposed standing body in the open loses from the fragments, after each hit's zone share (feet and legs 0.6, torso 1, head 2.0,
 `CharacterHitConfig.zone_damage`), what it lost when they flew level (12 each) at a height drawn from the floor to the ceiling of the old 0 to 100 scale, band by band (the HP
 lost per burst and dummy 14.3 at 70 px, 5.3 at 140 px, 4.0 at 260 px, 2.2 at 420 px, within 15%), by the damage and the flatness. **And spread up the body:** about 9% of the hits on a standing body land on the torso or the head (3 to 5% at flatness 12, which

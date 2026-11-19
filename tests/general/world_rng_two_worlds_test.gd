@@ -174,7 +174,12 @@ func _global_stream_untouched(t: TestContext) -> void:
 		"a spent casing": func() -> void:
 			CasingSpawner.spawn(Vector2(300, 300), Vector2.RIGHT, world),
 		"a chip of debris": func() -> void:
-			DebrisSpawner.spawn(Vector2(400, 300), Vector2.RIGHT, world, Color.GRAY, "metal"),
+			DebrisSpawner.spawn(
+				Vector2(400, 300),
+				Vector2.RIGHT,
+				world,
+				{ "color": Color.GRAY, "material": "metal" },
+			),
 		"a blast's fragments": func() -> void:
 			Explosion._fragments(
 				PlanSpace.lift(Vector2(500, 100), Explosion.BURST_CENTRE),

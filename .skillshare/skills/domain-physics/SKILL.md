@@ -59,12 +59,15 @@ Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5
 
 ## Debris
 
-- `Debris` is `debris.gd` with no `class_name` (preloaded); its static `toss(node, dir, distance, time, spin)` is the chip's
-  throw, which the Projectile's casing uses too (interface 4).
+- `Debris` is `debris.gd` with no `class_name` (preloaded). It flies in the twin 3D space with General's `SmallFlight`
+  (tuned by `PhysicsDebrisConfig`, flying through `PhysicsConfig.twin_mask`, found by `TwinSpace.space_of(self)`): `start(dir, height)` lets it go
+  from the hit's real height (`HitInfo.height`, through `DebrisSpawner.spawn`), hopped and thrown so that over level ground it lands `eject_distance`
+  away; it falls under gravity, bounces off a wall's real face, lands on a desk's top at its height or the floor, skids and rests (or lies after
+  `max_time`). `altitude()` is its height. A chip does not search the 2D solids.
 - A chip is a node only while it flies (`Despawner`-tracked, no drawing: the 3D render follows it, `PhysicsFxHook.chip_flew`); on
-  landing it hands its place, turn, colour, size and shape to the parent's `DebrisLayer` and frees itself, so a thousand chips cost
+  landing it hands its place, `height`, turn, colour, size and shape to the parent's `DebrisLayer` (`lay`) and frees itself, so a thousand chips cost
   no nodes. The layer keeps at most `Despawner.max_scene_objects` chips.
-- Tests: `debris_rests_in_a_layer_test.gd`.
+- Tests: `debris_rests_in_a_layer_test.gd`, `debris_rests_on_a_desk_top_test.gd` (a chip off a desk top lies at 31 px), `debris_bounces_off_a_wall_face_test.gd`.
 - `mark_layer.gd` (no `class_name`; `DebrisLayer`, `ScorchDecals` and the blood's `BloodDecals` extend it by path) is the capped mark
   store: marks as plain data in one node under a world node, a global oldest-first FIFO (`_add`; the oldest is flagged `dead`). It draws
   nothing. Its advancing-head FIFO makes capped eviction amortized O(1); `items()` returns a copy that is the caller's own

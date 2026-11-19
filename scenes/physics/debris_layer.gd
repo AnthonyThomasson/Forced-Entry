@@ -21,14 +21,22 @@ static func layer(parent: Node) -> DebrisLayer:
 	return _get_or_make(parent, NODE_NAME, DebrisLayer) as DebrisLayer
 
 
-## Lay a chip to rest at world `at`, turned by `turn` (world radians): `size` px across, `shape`
-## ("rect" | "tri" | "circle") in `color`.
+## Lay a chip to rest on the floor at world `at`, turned by `turn` (world radians): `size` px
+## across, `shape` ("rect" | "tri" | "circle") in `color`.
 func rest(at: Vector2, turn: float, color: Color, size: Vector2, shape: String) -> void:
-	var chip := {
-		"at": at,
-		"turn": turn,
-		"color": color,
-		"size": size,
-		"shape": shape,
-	}
+	lay(
+		{
+			"at": at,
+			"height": 0.0,
+			"turn": turn,
+			"color": color,
+			"size": size,
+			"shape": shape,
+		}
+	)
+
+
+## Lay down a chip's record (`rest`'s keys, and `height`: px up, the floor's 0 or the top of the
+## piece it lies on).
+func lay(chip: Dictionary) -> void:
 	_add(chip, Despawner.max_scene_objects)

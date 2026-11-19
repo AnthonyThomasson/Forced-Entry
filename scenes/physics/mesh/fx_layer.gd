@@ -26,7 +26,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	var chips := debris.process(delta)
+	var chips := debris.process()
 	var bits := bursts.process(delta)
 	ink.process()
 	var waiting := pools.process(delta)
@@ -45,9 +45,9 @@ func build(cap: int, world: FxWorld) -> void:
 	blasts = BlastFx.new(self, world)
 
 
-## A chip left a surface at `height` (px up, negative: the floor): it flies.
-func chip_flew(chip: Node2D, height: float) -> void:
-	debris.fly(chip, height)
+## A chip left a surface: it flies as its node does.
+func chip_flew(chip: Node2D) -> void:
+	debris.fly(chip)
 	set_process(true)
 
 

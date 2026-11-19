@@ -1,6 +1,6 @@
 class_name DroppedItem extends Node2D
 ## Items domain: an item let go into the world: a dead character's weapon, or a thrown grenade's
-## spoon. It falls from hand height in 3D (`ItemFlight`, in the twin space), bounces, then skids
+## spoon. It falls from hand height in 3D (`SmallFlight`, in the twin space), bounces, then skids
 ## across the floor with a fading spin until it stops, glancing off walls and furniture and landing
 ## on top of a piece it falls onto (a table), as `DroppedItemConfig` tunes it. Shown by the 3D
 ## mirror (`LyingItemMesh`, from the item's `art.dropped_mesh()`). Nothing picks it up, and a
@@ -23,7 +23,7 @@ var _spin := 0.0
 ## How it lies (`flip`: which side is up).
 var _landing := {}
 ## Its fall: where it is, how high, how fast.
-var _flight: ItemFlight
+var _flight: SmallFlight
 ## How it leaves the hand: across the floor (px/s), until it is placed.
 var _launch := Vector2.ZERO
 
@@ -38,7 +38,7 @@ func _physics_process(delta: float) -> void:
 	global_position = _flight.at
 	if _flight.rolling:
 		_spin = move_toward(_spin, 0.0, DroppedItemConfig.spin_friction * delta)
-	if event == ItemFlight.STRUCK:
+	if event == SmallFlight.STRUCK:
 		_spin *= -0.5
 	_angle += _spin * delta
 	shifted.emit()
@@ -56,7 +56,7 @@ static func spawn(dropped: Item, angle: float, velocity: Vector2) -> DroppedItem
 	node._launch = velocity
 	node._spin = randf_range(6.0, 14.0) * (1.0 if randf() < 0.5 else -1.0)
 	node._landing = { "flip": randf() < 0.5 }
-	node._flight = ItemFlight.new(DroppedItemConfig.radius)
+	node._flight = SmallFlight.new(DroppedItemConfig.radius)
 	node._flight.gravity = DroppedItemConfig.gravity
 	node._flight.floor_restitution = DroppedItemConfig.bounce
 	node._flight.wall_restitution = DroppedItemConfig.wall_bounce

@@ -150,7 +150,7 @@ A door is always `WORLD`: it is remembered where it stands at whatever angle, mi
 only after the cone has reached it, and then it stays shown where it lies, dimmed and grey (V12); moved again, it is moving again
 (hidden outside the cone, and to be reached again where it comes to rest). Only a body and a vehicle can be moved again: a dropped item, a
 casing and a grenade at rest stay at rest for good (nothing shoves them: a dropped item stops its physics for good, a casing's
-toss runs once, a resting grenade does nothing but wait for its fuse), so the "moved again" case is the corpse a blast wakes.
+flight ends once, a resting grenade does nothing but wait for its fuse), so the "moved again" case is the corpse a blast wakes.
 Tests: `vision/at_rest_remembered` (a dead body on `MOVING` until its ragdoll sleeps, on `WORLD` after and on `MOVING` again from
 the frame a blast wakes it; a dropped gun, a casing and a frag lying still on `WORLD`, in flight on `MOVING`; in a world of its
 own a wooden door swung open and shut is on `WORLD` in every frame of its swing), `vision/vehicle_rest_remembered` (a car driven,

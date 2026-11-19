@@ -168,7 +168,9 @@ func secondary(user: Node2D) -> bool:
 	shot.rise = _rise(user, muzzle, spread)
 	var proj := ProjectileSpawner.spawn(muzzle, direction, user.world_root(), shot)
 	proj.hit.connect(func(body: Node, dmg: float) -> void: user.report_shot(body, dmg))
-	CasingSpawner.spawn(user.anatomy.hands.world(hand), user.facing, user.world_root())
+	CasingSpawner.spawn(
+		user.anatomy.hands.world(hand), user.facing, user.world_root(), shot.height
+	)
 	user.weapon.kick(hand, float(_stat("recoil", 1.0)))
 	# The report of the shot, for whoever listens (the Audio domain); the round itself is already on
 	# its way.

@@ -1,11 +1,12 @@
-class_name ItemFlight
+class_name SmallFlight
 extends RefCounted
-## Items domain: the 3D flight of a small thing let go into the world (a thrown grenade, a dropped
-## weapon), flown in the twin 3D space (`TwinSpace`, interface 29): under gravity, swept each
-## physics frame with a sphere through the real walls, furniture, doors, vehicles and bodies,
-## bounced off what it strikes, rolled and skidded on a floor or on top of a piece, until it lies
-## still. One stepper for the node (`ThrownGrenade`, `DroppedItem`) and for the planner
-## (`GrenadeArc`), so what the planner predicts is the node's own flight.
+## General domain: the 3D flight of a small thing let go into the world (a thrown grenade, a dropped
+## weapon, a spent casing, a chip knocked off a piece), flown in the twin 3D space (`TwinSpace`,
+## interface 29): under gravity, swept each physics frame with a sphere through the real walls,
+## furniture, doors, vehicles and bodies, bounced off what it strikes, rolled and skidded on a floor
+## or on top of a piece, until it lies still. One stepper for the node (`ThrownGrenade`,
+## `DroppedItem`, `Casing`, a `Debris` chip) and for the planner (`GrenadeArc`), so what the planner
+## predicts is the node's own flight.
 ##
 ## **Heights** are px above the floor (`PlanSpace`, `BodyHeights`), of the sphere's CENTRE
 ## (`height`), and `at` is its plan point (the 2D `(x, y)` = 3D `(x, z)`). The floor is a plane the
@@ -37,6 +38,12 @@ const GROUND_GAP := 0.5
 const SUPPORT_PROBE := 1.5
 ## A surface whose normal's `y` is over this faces up: a flight rolls on it.
 const FACES_UP := 0.7
+## How far (px) past its own radius a thing let go at a surface is started off it, so its sphere
+## does not begin inside what it was knocked from (a cast ignores what its sphere already touches).
+const CLEAR_GAP := 0.6
+## The shortest flight (s) `speed_for` plans for: a thing let go at the floor does not skate off at
+## an unbounded speed.
+const MIN_FLIGHT := 0.08
 ## Contacts resolved in one step (a corner may take two: floor then wall).
 const CONTACTS := 3
 ## No bodies passed.
@@ -84,6 +91,14 @@ func floor_height() -> float:
 ## How high (px) its underside is over the floor: 0 where it lies on it, the piece's top on one.
 func altitude() -> float:
 	return maxf(height - floor_height(), 0.0)
+
+
+## The speed across the floor (px/s) that lands a thing let go `drop` px over where it will lie,
+## hopped up at `up` px/s, `distance` px away over level ground (the flight's own time: up and down
+## under `pull`, a gravity).
+static func speed_for(distance: float, up: float, drop: float, pull: float) -> float:
+	var fall := (up + sqrt(up * up + 2.0 * pull * maxf(drop, 0.0))) / pull
+	return distance / maxf(fall, MIN_FLIGHT)
 
 
 ## The speed across the floor (px/s).

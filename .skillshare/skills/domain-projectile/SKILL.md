@@ -37,14 +37,14 @@ Damage scales by squareness and `speed_factor` (speed / the round's own `muzzle_
 
 ## Casings
 
-`CasingSpawner` tracks them with the `Despawner`; the toss is `Debris.toss` (Physics, interface 4; `casing.gd` preloads `physics/debris.gd` as `Debris`).
+`CasingSpawner.spawn(position, direction, parent, height)` tracks them with the `Despawner`. A casing flies in the twin 3D space with General's `SmallFlight` (`CasingConfig`: size, hop, bounce, friction, `max_time`): let go at the port's height (`Gun.secondary` passes the shot's muzzle height), it falls, bounces off a wall's real face, lands on a desk's top or the floor, skids and rests; `altitude()` and `is_resting()` are what the `ShotLayer` reads.
 
 ## Tracers and casings in 3D (`ProjectileMeshes`, `ShotLayer`; interface 27)
 
 Main's 3D view calls `ProjectileMeshes.install(mirror, world)` once the match is built: a `ShotLayer` (a `Node3D` under the mirror) follows the children of `world` that join and leave (`child_entered_tree`, matched by script: a `Projectile`, a `Casing`), so a spawner changes nothing and nothing is looked up per frame. Hundreds a second are too many for a node each, so each kind is one `MeshNodes.batch` in a `MeshPool` (Art): nothing is allocated while the game runs.
 
 - **Tracer:** a bright bar (`tracer_length` × `tracer_width` px, `MeshNodes.glow`: lit whatever the light, no real light) along the bullet's `direction`, its tip on the bullet, at the bullet's own `height` (real px above the floor, never under `tracer_floor`); ballistics are untouched. Over the last `tracer_fade` px of `range_left()` it shortens to nothing; it goes with the bullet (a hit, the range, a penetration spent). Written each frame a bullet flies (it moves each frame); the layer does not process while none does. `tracer_capacity` places: a bullet past them shows none, and the layer says so once (`GameLog.say`).
-- **Casing:** a brass box as long and wide as the 2D art (`casing_size`), one batch of `Despawner.max_scene_objects` (read at install), so the 3D shows what the 2D world keeps and loses one when the `Despawner` frees it; full, it says so once. Arcs `casing_arc` px up over its `eject_time` (a frame behind the tween: it moves after the layer runs), then is written once where its node came to rest and turned as it is: nothing runs once they all lie.
+- **Casing:** a brass box as long and wide as the 2D art (`casing_size`), one batch of `Despawner.max_scene_objects` (read at install), so the 3D shows what the 2D world keeps and loses one when the `Despawner` frees it; full, it says so once. Written each frame it flies at `Casing.altitude()` (real px: the floor or a piece's top), then once where its node came to rest and turned as it is: nothing runs once they all lie.
 - Tests: `tests/projectile/tracer_mesh_test.gd`, `casing_mesh_test.gd` (headless, read the layer's `tracer_frame` / `casing_frame`); cost `tests/perf/shot_layer_cost_test.gd` (a full tracer pool, a Despawner's cap of casings: `_process` ms); pictures `tests/items/items_projectile_mesh_windowed_test.gd`. Hit particles, debris and the explosion's look are Physics' (`domain-physics/meshes.md`).
 
 ## Explosion: a grenade's burst

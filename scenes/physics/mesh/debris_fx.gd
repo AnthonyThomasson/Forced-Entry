@@ -2,13 +2,14 @@ class_name DebrisFx
 extends RefCounted
 ## Physics domain, the chips of the 3D render (`domain-physics/meshes.md`): a chip
 ## `DebrisSpawner` throws is one part of a batch (a rectangle, a triangle or a disc, as in 2D), in
-## the colour and size of its 2D chip. It follows its 2D node while it flies (its place, its turn,
-## and a height: it leaves the surface at the hit's height and falls to the floor along an arc over
-## the chip's own `eject_time`), then lies where the 2D chip came to rest (`land`), written once and
-## never again. A chip the `Despawner` frees on the wing is gone; what lies is kept up to the
-## `Despawner`'s cap, as `DebrisLayer` keeps it, the oldest dropped first. The batches are made
-## once, so nothing is allocated while chips fly: each holds that cap of chips lying and
-## `PhysicsMeshConfig.flying_room` in the air (a chip past that room is shown from where it lands).
+## the colour and size of its 2D chip. It follows its 2D node while it flies (its place, its turn
+## and its real height: the node flies in the twin 3D space, `Debris.altitude()`), then lies where
+## the 2D chip came to rest and at the height it rests at, on the floor or on a piece's top
+## (`land`), written once and never again. A chip the `Despawner` frees on the wing is gone; what
+## lies is kept up to the `Despawner`'s cap, as `DebrisLayer` keeps it, the oldest dropped first.
+## The batches are made once, so nothing is allocated while chips fly: each holds that cap of chips
+## lying and `PhysicsMeshConfig.flying_room` in the air (a chip past that room is shown from where
+## it lands).
 
 ## The batches by chip shape (`"rect"`, `"tri"`, `"circle"`).
 var _batches: Dictionary = {}
@@ -69,14 +70,13 @@ func batch_of(shape: String) -> FxBatch:
 	return _batches[shape]
 
 
-## A chip left the surface at `height` px (negative: the floor): it flies as its 2D node does.
-func fly(chip: Node2D, height: float) -> void:
+## A chip left a surface: it flies as its 2D node does, at the height the node flies.
+func fly(chip: Node2D) -> void:
 	if _flying.size() >= PhysicsMeshConfig.flying_room:
 		return
 	var piece := _take(chip)
 	if piece == null:
 		return
-	piece.start_height = maxf(height, 0.0) * PhysicsMeshConfig.height_scale
 	_follow(piece, chip)
 	_flying.append(piece)
 	_write(piece)
@@ -93,14 +93,13 @@ func land(chip: Node2D) -> void:
 	if piece == null:
 		return
 	_follow(piece, chip)
-	piece.age = piece.life
 	_write(piece)
 	_lying.append(piece)
 
 
-## Move the chips in the air on (`delta` s): a chip whose node is gone (the `Despawner` took it)
+## Move the chips in the air on: a chip whose node is gone (the `Despawner` took it)
 ## is gone too. True while any is still in the air.
-func process(delta: float) -> bool:
+func process() -> bool:
 	var i := _flying.size() - 1
 	while i >= 0:
 		var piece := _flying[i]
@@ -110,7 +109,6 @@ func process(delta: float) -> bool:
 			_flying.pop_back()
 			_forget(piece)
 		else:
-			piece.age += delta
 			_follow(piece, node)
 			_write(piece)
 		i -= 1
@@ -128,7 +126,7 @@ func _flying_piece(chip: Node2D) -> FxPiece:
 	return null
 
 
-## A piece of the batch of `chip`'s shape, set to its colour, size and life (null when the batch
+## A piece of the batch of `chip`'s shape, set to its colour and size (null when the batch
 ## has no place: the one that lies and the one in the air are all it holds).
 func _take(chip: Node2D) -> FxPiece:
 	var batch: FxBatch = _batches.get(chip.chip_shape, _batches["circle"])
@@ -137,16 +135,14 @@ func _take(chip: Node2D) -> FxPiece:
 		return null
 	piece.node_id = chip.get_instance_id()
 	piece.size = chip.chip_size
-	piece.life = maxf(chip.eject_time, 0.001)
-	piece.age = 0.0
-	piece.start_height = 0.0
 	return piece
 
 
-## The piece's place and turn are its 2D node's.
+## The piece's place, height and turn are its 2D node's.
 func _follow(piece: FxPiece, node: Node2D) -> void:
 	piece.at = node.global_position
 	piece.turn = node.global_rotation
+	piece.height = node.altitude()
 
 
 ## Give a piece's place back.
@@ -154,12 +150,9 @@ func _forget(piece: FxPiece) -> void:
 	piece.batch.give(piece)
 
 
-## Write the piece's frame: the node's place, its height along the arc, its turn, its size.
+## Write the piece's frame: the node's place, its height over the ground, its turn, its size.
 func _write(piece: FxPiece) -> void:
-	var u := clampf(piece.age / piece.life, 0.0, 1.0)
-	var arc := PhysicsMeshConfig.chip_arc * 4.0 * u * (1.0 - u)
-	var lift := piece.start_height * (1.0 - u * u) + arc
-	var base := PhysicsMeshConfig.rest_height + lift + _world.ground_at(piece.at)
+	var base := PhysicsMeshConfig.rest_height + piece.height + _world.ground_at(piece.at)
 	var scale := Vector3(piece.size.x, PhysicsMeshConfig.chip_thickness, piece.size.y)
 	var basis := Basis(Vector3.UP, -piece.turn) * Basis.from_scale(scale)
 	var origin := Vector3(piece.at.x, base, piece.at.y) * RenderConfig.unit

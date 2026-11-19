@@ -1,26 +1,28 @@
 extends GameTest
 ## The debris of a 3D match (#193 phase 2, Physics): a chip `DebrisSpawner` throws is one part of a
 ## batch in the colour, size and shape of its 2D chip. It leaves the surface at the hit's height
-## and follows its 2D node down to the floor along an arc, then lies where its node came to rest,
+## and follows its 2D node, which flies in the twin 3D space (#194 ragdoll3d: real gravity, so it
+## falls at its own height, not along a fixed arc), then lies where its node came to rest,
 ## written once and never again; what lies is kept up to the `Despawner`'s cap as `DebrisLayer`
 ## keeps it, so sustained fire is bounded and makes no new mesh. Asserted at the seams: the layer
 ## `PhysicsMeshes.install` adds and the 2D chips and `DebrisLayer` it mirrors. The numbers are
 ## pinned here; the look is judged in a window, `physics_mesh_windowed_test.gd`.
 
+const WOOD := { "color": Color(0.6, 0.4, 0.2), "material": "wood" }
+const METAL := { "color": Color.GRAY, "material": "metal" }
 const SCRATCH := "user://settings_debris_mesh_test.json"
 ## A chip lies this high (px): over the blood and the scorch that lie on the floor.
 const REST := 2.1
-## A chip is this thick (px); a thrown one arcs this high (px) over the line from where it left to
-## where it lies.
+## A chip is this thick (px).
 const THICK := 1.0
-const ARC := 9.0
-## A hit's height is px; the test scales it (`PhysicsMeshConfig.height_scale`) so a mesh that
-## ignored the scale would show.
+## A hit's height (px), real: a chip leaves at it, whatever `PhysicsMeshConfig.height_scale` is
+## (that scales a burst's bits; a chip's flight is in real px).
+const HIT := 50.0
 const HEIGHT_PX := 2.0
-## How far (px) a flying chip may be from its node: the tween moves the node after the layer runs,
-## so the part is a frame behind it, at most 7 px at the throw's fastest (50 px in a quarter second,
-## eased out, is 400 px/s at first).
-const SLACK := 7.0
+## How far (px) a flying chip may be from its node: the node's flight steps in the physics frame
+## and the layer in the render's, so the part is a frame behind it, at most 4 px at the throw's
+## fastest.
+const SLACK := 4.0
 const AT := Vector2(300, 300)
 ## The chips in the air besides those that lie (`PhysicsMeshConfig.flying_room`).
 const ROOM := 256
@@ -32,7 +34,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "A chip is a tiny mesh that flies from the hit and lies on the 3D floor",
 		"description": "A chip takes its 2D chip's colour, size and shape, leaves the surface at "
-			+ "the hit's height, follows its node down along an arc and lies where it rests; what "
+			+ "the hit's height, follows its node as it falls and lies where it rests; what "
 			+ "lies is bounded by the Despawner's cap, and nothing is written once it all lies.",
 		"tags": ["mirror", "3d", "render", "physics", "debris"],
 		"timeout": 60.0,
@@ -66,9 +68,7 @@ func run(t: TestContext) -> void:
 
 ## One hit on a wall at a height: its chips are shown as they fly and where they lie.
 func _check_one_hit(t: TestContext, layer: FxLayer) -> void:
-	PhysicsFxHook.hit_height = 50.0
-	DebrisSpawner.spawn(AT, Vector2.RIGHT, t.world, Color(0.6, 0.4, 0.2), "wood")
-	PhysicsFxHook.hit_height = -1.0
+	DebrisSpawner.spawn(AT, Vector2.RIGHT, t.world, WOOD, HIT)
 	var chips := _chips(t)
 	t.check(chips.size() >= 3 and chips.size() <= 6, "a wooden hit throws 3 to 6 chips")
 	t.expect_eq(layer.debris.shown(), chips.size(), "each chip is shown")
@@ -76,7 +76,8 @@ func _check_one_hit(t: TestContext, layer: FxLayer) -> void:
 	for shown: Array in layer.debris.chips():
 		_check_leaving(t, shown[0], shown[1])
 	await _check_flight(t, layer)
-	await t.seconds(0.6)
+	await t.until(func(): return layer.debris.flying() == 0, 4.0)
+	await t.frames(2)
 	t.expect_eq(layer.debris.flying(), 0, "after its throw none is in the air")
 	_check_lying(t, layer)
 	t.check(not layer.is_processing(), "and the layer rests")
@@ -94,7 +95,7 @@ func _check_leaving(t: TestContext, piece: FxPiece, frame: Transform3D) -> void:
 		return
 	t.check(piece.color.is_equal_approx(node.color), "in its colour")
 	t.expect_near(piece.size.x, node.chip_size.x, 0.001, "as wide")
-	t.expect_near(frame.origin.y, REST + 50.0 * HEIGHT_PX, 0.01, "leaving at the hit's height")
+	t.expect_near(frame.origin.y, REST + HIT, 1.5, "leaving at the hit's height, in real px")
 	t.expect_near(frame.basis.y.length(), THICK, 0.01, "as thick as a chip")
 
 
@@ -129,10 +130,11 @@ func _check_lying(t: TestContext, layer: FxLayer) -> void:
 ## batch, in the cap's own order, and nothing grows.
 func _check_sustained_fire(t: TestContext, layer: FxLayer) -> void:
 	for i in 60:
-		DebrisSpawner.spawn(AT + Vector2(i % 20, 0), Vector2.UP, t.world, Color.GRAY, "metal")
+		DebrisSpawner.spawn(AT + Vector2(i % 20, 0), Vector2.UP, t.world, METAL, 20.0)
 		await t.frames(1)
 		t.check(layer.debris.shown() <= KEPT, "the layer is never over the cap")
-	await t.seconds(0.6)
+	await t.until(func(): return layer.debris.flying() == 0, 5.0)
+	await t.frames(2)
 	var kept_2d := DebrisLayer.find(t.world).count()
 	t.check(
 		kept_2d > 0 and kept_2d <= KEPT,

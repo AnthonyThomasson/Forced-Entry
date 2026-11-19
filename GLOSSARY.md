@@ -132,7 +132,7 @@ _Avoid_: throw height, hand height
 
 **Arc planner**:
 `GrenadeArc`, Items' one planner of a throw, for the human's throw and the AI's judgment of one: from the release height to the aim,
-the lowest arc (by its peak) that clears what is in the twin space and lands near the aim, flown by the same `ItemFlight` stepper the
+the lowest arc (by its peak) that clears what is in the twin space and lands near the aim, flown by the same `SmallFlight` stepper the
 node uses. Only a roof caps a peak (96 px under a house's or a tower's; `GrenadeConfig.max_apex` in the open).
 _Avoid_: trajectory, lob test (the AI's `can_lob` asks the planner)
 

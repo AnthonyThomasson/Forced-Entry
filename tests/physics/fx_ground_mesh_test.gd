@@ -6,6 +6,7 @@ extends GameTest
 ## the ground is flat. Asserted at the seams: the layer `PhysicsMeshes.install` adds and its parts.
 ## The look is judged in a window, `physics_mesh_windowed_test.gd`.
 
+const WOOD := { "color": Color(0.6, 0.4, 0.2), "material": "wood" }
 const SCRATCH := "user://settings_fx_ground_mesh_test.json"
 ## The road is east of this x; its ground is this many px lower than the pavement's.
 const EDGE := 600.0
@@ -107,7 +108,7 @@ func _check_pool(t: TestContext, layer: FxLayer) -> void:
 func _check_a_bit(t: TestContext, layer: FxLayer) -> void:
 	var rests := []
 	for at: Vector2 in [PAVEMENT, ROAD]:
-		DebrisSpawner.spawn(at, Vector2.RIGHT, t.world, Color(0.6, 0.4, 0.2), "wood")
+		DebrisSpawner.spawn(at, Vector2.RIGHT, t.world, WOOD)
 		await t.seconds(0.8)
 		var lowest := INF
 		for shown: Array in layer.debris.chips():

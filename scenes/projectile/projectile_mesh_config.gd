@@ -16,10 +16,9 @@ static var tracer_fade: float = 120.0
 static var tracer_capacity: int = 384
 ## A tracer flies at the bullet's own height (px above the floor), never lower than `tracer_floor`.
 static var tracer_floor: float = 2.0
-## A spent casing: this long and across (px, as the 2D art), this tall, in brass; it arcs up to
-## `casing_arc` px off the floor on its toss. The batch holds what the `Despawner` keeps in the 2D
-## world (`Despawner.max_scene_objects`, read when the layer is made), so none is left out.
+## A spent casing: this long and across (px, as the 2D art), this tall, in brass; it flies in the
+## twin 3D space (`CasingConfig`). The batch holds what the `Despawner` keeps in the 2D world
+## (`Despawner.max_scene_objects`, read when the layer is made), so none is left out.
 static var casing_size: Vector2 = Vector2(4.5, 2.0)
 static var casing_height: float = 1.6
 static var casing_color: Color = Color(0.85, 0.7, 0.3)
-static var casing_arc: float = 6.0
