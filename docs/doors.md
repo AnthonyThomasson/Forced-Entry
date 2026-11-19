@@ -237,16 +237,25 @@ separate "fallen" face). It can be shoved like a piece: `Knockback.push` / `appl
 leader (`leader_of`), a walker's push and a blast slide it, and it comes to rest again (`Probe.settle`).
 
 For the 2D follower (deleted with the 2D space): a leaf lying flat (its top within `DoorFallConfig.step_over`, 10 px, of the
-floor) is walk-over, its footprint on no layer and not a hole in the nav bake; one leaning or lying higher is an obstacle
-(its footprint on the solid layer, a hole in the bake, `NavLeaves.fallen_hole`, which re-bakes as a tipped piece's does). The
-doorway is clear for the AI and `gap()` is its whole width, `open_amount()` 1 (a leaf lying across the threshold is the
-obstacle the footprint says, not the doorway). A door that fell no longer answers `toggle`, `turn_by` or `open_fully`.
+floor) is walk-over: its footprint is on `PhysicsLayers.LYING`, which no body walks or drives into (a vehicle drives over a
+lying door) but a blast asks for (a melee strike finds the slab in the twin space), so it is shoved like a piece (a second blast slides it, a kick moves it; a
+walker steps over it and pushes nothing) and not a hole in the nav bake. One leaning or lying higher (fallen onto a wardrobe,
+above a bed) is an obstacle: its footprint is on the solid layer, a hole in the bake (`NavLeaves.fallen_hole`, re-baked as a
+tipped piece's is). A swinging door's leaf stops at a lying slab, flat or leaning, as at any piece (its probe is the
+leaf's whole height in the twin space). The AI reads the same slab: `gap()` is what the leaf leaves of
+the doorway within `DoorFallConfig.mouth` of the wall line (`DoorFootprint.clear_width`: all of it when the leaf lies flat or
+elsewhere, little or none when it is propped across the threshold), `open_amount()` is 1, and the AI's door state
+(`SnapshotLeadMemo.door_state`: angle, is-down and the gap) changes when the slab comes to rest elsewhere, which ends the walks
+kept to the old one. The walk never works a fallen door (`toggle`, `turn_by` and `open_fully` do nothing): it is no door but an
+obstacle, which the nav map and the body already refuse, as for a tipped piece (D14).
 
 Tests: `objects/door_blast_knocks_it_off_free` (a blast knocks a door off its hinges and it lies on the floor as a free body,
 thrown away from the blast), `objects/door_knocked_down` (a kick from the east lands the door west, rounds from the west
 land it east, an ajar door kicked from the pull side; a puppet walks over one, a round and an NPC's sight pass once it
 lies), `objects/fallen_door_stops_bullets_at_its_lying_height` (a ray passes over the leaf lying flat, a round at its height
-stops in it), `objects/fallen_door_can_be_shoved` (a shove slides it and it rests), `objects/twin_door_swing` (the leader
+stops in it), `objects/fallen_door_can_be_shoved` (a shove slides it and it rests), `objects/door_falls_onto_a_wardrobe_leans` (a door kicked onto a wardrobe rests leaning: solid footprint, nav hole
+after the re-bake), `ai/movement/door_slab_across_the_threshold_blocks` (a slab propped across the threshold: `gap()`, the nav
+map and the AI agree; a defender never touches it; the AI's door state follows the slab), `objects/twin_door_swing` (the leader
 swings the 2D follower), `objects/structure_door_art` (the fallen leaf wears its art and lies as the free body does).
 
 ## DR12. Sound

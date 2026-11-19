@@ -8,6 +8,10 @@ class_name PhysicsLayers
 ## Interaction (character_interaction.gd), the character's hands and legs, a dropped item, the
 ## bullet and Physics' wall sweeps.
 const SOLID := 1
+## The 2D layer a thing lying flat on the floor sits on (a fallen door's footprint, `docs/doors.md`
+## DR11): nothing walks or drives into it (no mask has it) but a blast finds it (it asks for
+## `SOLID | LYING`), so it is shoved like any piece; a melee strike finds it in the twin space.
+const LYING := 2
 ## The 3D layers of the twin space (`TwinSpace`, `docs/adr/0014-twin-staging-and-plan-space.md`),
 ## their own bits in the 3D physics space (not `SOLID`'s 2D one): what a 3D ray or sweep asks for.
 ## `TWIN_WORLD`: walls, floors, furniture and doors. `TWIN_VEHICLE`: a vehicle's body.

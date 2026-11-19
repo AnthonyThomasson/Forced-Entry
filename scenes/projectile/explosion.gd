@@ -22,7 +22,7 @@ class_name Explosion
 
 const Projectile = preload("res://scenes/projectile/projectile.gd")
 ## The layer the shape query of the bodies near a burst tests (walls, solid furniture, the living).
-const MASK := PhysicsLayers.SOLID
+const MASK := PhysicsLayers.SOLID | PhysicsLayers.LYING
 ## Most bodies one blast considers: the nearest ones.
 const MAX_BODIES := 64
 ## Most colliders the shape query returns for a blast, before the nearest `MAX_BODIES` are kept

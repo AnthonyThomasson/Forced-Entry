@@ -142,10 +142,10 @@ func settle_out() -> void:
 
 
 ## Shove the piece: `impulse` (plan space, as `apply_impulse`'s) at the point `at` px from the
-## piece's origin (world orientation; zero is the origin), `height` px above the floor. A negative
-## height is the piece's centre of mass, so a shove given no height only turns it about up, as the
-## 2D body did; a height outside the piece (a blast's burst over its top) is the nearest point of
-## it. A tall piece shoved above its centre leans and tips; low it slides.
+## piece's origin (world orientation; zero is the piece's middle), `height` px above the floor. A
+## negative height is the piece's centre of mass, so a shove given no height only turns it about up,
+## as the 2D body did; a height outside the piece (a blast's burst over its top) is the nearest
+## point of it. A tall piece shoved above its centre leans and tips; low it slides.
 func push(impulse: Vector2, at: Vector2 = Vector2.ZERO, height: float = -1.0) -> void:
 	var lift := impulse * RenderConfig.unit
 	var offset := Vector3(at.x, 0.0, at.y) * RenderConfig.unit
@@ -156,6 +156,10 @@ func push(impulse: Vector2, at: Vector2 = Vector2.ZERO, height: float = -1.0) ->
 		offset = centre if at == Vector2.ZERO else Vector3(offset.x, centre.y, offset.z)
 	else:
 		var extent := _extent()
+		if at == Vector2.ZERO:
+			# a push given no point goes through the middle, at that height: aimed at an origin
+			# that is not the middle (a door's foot) it would only spin a piece on the floor
+			offset = Vector3(centre.x, 0.0, centre.z)
 		offset.y = clampf(height * RenderConfig.unit, extent.x, extent.y) - global_position.y
 	apply_impulse(Vector3(lift.x, 0.0, lift.y), offset)
 

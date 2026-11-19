@@ -24,17 +24,18 @@ static func restore(door: Node2D) -> void:
 
 
 ## The leaf's top is `top` px over the floor now: the footprint is a solid collider while that is
-## higher than a step over (`DoorFallConfig.step_over`), none when the leaf lies flat, which is
-## walked over.
+## higher than a step over (`DoorFallConfig.step_over`), and on `PhysicsLayers.LYING` when the leaf
+## lies flat: walked and driven over, but still found by a blast.
 static func lie_at(door: CollisionObject2D, top: float) -> void:
-	door.collision_layer = PhysicsLayers.SOLID if top > DoorFallConfig.step_over else 0
+	var flat := top <= DoorFallConfig.step_over
+	door.collision_layer = PhysicsLayers.LYING if flat else PhysicsLayers.SOLID
 
 
 ## The footprint as a ring in the world (the collider's corners), or empty when the door is no
 ## obstacle (`lie_at`).
 static func ring(door: CollisionObject2D) -> PackedVector2Array:
 	var outline := PackedVector2Array()
-	if door.collision_layer == 0:
+	if door.collision_layer & PhysicsLayers.SOLID == 0:
 		return outline
 	var shape := _collider(door).shape
 	var points := PackedVector2Array()
@@ -49,6 +50,30 @@ static func ring(door: CollisionObject2D) -> PackedVector2Array:
 	for point in points:
 		outline.append(door.global_transform * point)
 	return outline
+
+
+## How wide (px) the doorway between `from` and `to` (its jambs, world points) stays clear of the
+## footprint of door `door` within `DoorFallConfig.mouth` of the wall line: the footprint's
+## shadow along the doorway is taken off it and the wider side left is the answer. The whole
+## doorway when the door's footprint is no obstacle (a leaf lying flat) or stands elsewhere.
+static func clear_width(door: CollisionObject2D, from: Vector2, to: Vector2) -> float:
+	var width := from.distance_to(to)
+	var outline := ring(door)
+	if outline.size() < 3:
+		return width
+	var along := (to - from) / width
+	var across := along.orthogonal() * DoorFallConfig.mouth
+	var mouth := PackedVector2Array([from - across, to - across, to + across, from + across])
+	var low := INF
+	var high := -INF
+	for part in Geometry2D.intersect_polygons(outline, mouth):
+		for point in part:
+			var t := (point - from).dot(along)
+			low = minf(low, t)
+			high = maxf(high, t)
+	if low > high:
+		return width
+	return maxf(maxf(low, 0.0), maxf(width - high, 0.0))
 
 
 ## The door's collision shape.

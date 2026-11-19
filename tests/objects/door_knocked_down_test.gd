@@ -15,9 +15,10 @@ const AJAR_ROW := 100.0
 ## The shove of a kick (the spec's number: `docs/doors.md` DR10).
 const KICK_IMPULSE := 2200.0
 const SIGHT_ROW := 850.0
-## How far the fallen door lies out from the wall line, at least (its middle): a leaf toppling off
-## its foot lands its middle half its height out, less what its foot slips back as it falls.
-const BEYOND := 15.0
+## How far out from the wall line the fallen door's middle lies, at least, as a share of the leaf's
+## height: a leaf toppling off its foot would land its middle half its height out; it tips with its
+## foot slipping back, so a quarter says it fell clear of the doorway and not onto the threshold.
+const BEYOND_SHARE := 0.25
 ## The highest a leaf lying flat reaches (px): its thickness and the body's resting gap.
 const FLAT_TOP := 9.0
 
@@ -99,11 +100,13 @@ func run(t: TestContext) -> void:
 
 
 ## The door lies down, flat on the floor `dir_x` (-1 west, +1 east) of its doorway: its middle at
-## least `BEYOND` px off the wall line, a free 3D body, with no 2D collider to walk into.
+## least a quarter of the leaf's height off the wall line, a free 3D body, with no 2D collider to
+## walk into.
 func _lies_beyond(t: TestContext, door: Node2D, dir_x: float, what: String) -> void:
 	t.check(door.is_down(), "%s: it is down" % what)
+	var out := BEYOND_SHARE * ObjectStructureMeshConfig.door_height
 	t.check(
-		(Probe.middle(door).x - 400.0) * dir_x >= BEYOND,
+		(Probe.middle(door).x - 400.0) * dir_x >= out,
 		"%s: its middle is %.0f px off the wall line" % [what, Probe.middle(door).x - 400.0],
 	)
 	t.check(Probe.body(door) is PieceBody, "%s: it is a free body" % what)
@@ -111,7 +114,10 @@ func _lies_beyond(t: TestContext, door: Node2D, dir_x: float, what: String) -> v
 		Probe.lean(door) > 70.0 and Probe.top(door) <= FLAT_TOP,
 		"%s: it lies flat (lean %.0f, top %.1f px)" % [what, Probe.lean(door), Probe.top(door)],
 	)
-	t.check(door.collision_layer == 0, "%s: it has no collider to walk into" % what)
+	t.check(
+		door.collision_layer & PhysicsLayers.SOLID == 0,
+		"%s: it has no solid collider to walk into" % what,
+	)
 
 
 ## A puppet crosses the doorway of a fallen door, over the door.

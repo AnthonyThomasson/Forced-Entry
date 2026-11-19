@@ -7,6 +7,7 @@ extends GameTest
 ## state moved; the leaf turns about its hinge; a knocked-down door is no longer usable and leaves
 ## the doorway clear. Both hinge sides work, a puppet walks through an open door.
 
+const Pieces := preload("res://tests/_objects/piece_probe.gd")
 const JAMB := 20.0
 ## The doorway's free width (jamb to jamb) the leaf fills.
 const LEAF := 40.0
@@ -186,6 +187,10 @@ func _spots_and_fallen(t: TestContext) -> void:
 	felled.turn_by(-45.0, null)
 	await t.seconds(SWING + SLACK)
 	t.check(felled.is_down() and before[1], "a fallen door is down")
-	t.check(felled.gap() == LEAF, "and leaves the whole doorway clear (gap %.0f)" % felled.gap())
+	t.check(await Pieces.settle(t, felled, 12.0), "and lies at rest")
+	t.check(
+		felled.gap() == LEAF,
+		"and, lying flat, leaves the whole doorway clear (gap %.0f)" % felled.gap(),
+	)
 	t.check(felled.open_amount() == 1.0, "counted wide open")
 	t.check(felled.angle() == before[0], "no use turns it (angle %.0f)" % felled.angle())

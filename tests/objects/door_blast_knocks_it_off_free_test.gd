@@ -9,6 +9,9 @@ const DOORWAY := Vector2(400, 300)
 const HINGE := Vector2(400, 280)
 const BURST_AT := Vector2(360, 300)
 const BURST_HEIGHT := 42.0
+## The second doorway, blasted from the pull side (the side the leaf swings toward: east).
+const PULL_DOORWAY := Vector2(400, 600)
+const PULL_BURST_AT := Vector2(440, 600)
 ## A leaf lying flat is as high as it is thick; allow the body's resting gap.
 const FLAT_TOP := 9.0
 
@@ -33,6 +36,12 @@ func configure(s: TestSetup) -> void:
 		"door": {
 			"name": "blown", "material": "hollow", "style": "flush",
 			"hinge": HINGE, "swing_into": Vector2.RIGHT,
+		},
+	}, {
+		"pos": PULL_DOORWAY, "width": 52.0,
+		"door": {
+			"name": "blown_pull", "material": "hollow", "style": "flush",
+			"hinge": PULL_DOORWAY + Vector2(0.0, -20.0), "swing_into": Vector2.RIGHT,
 		},
 	}])
 	s.von_down()
@@ -75,3 +84,25 @@ func run(t: TestContext) -> void:
 		"the 2D door follows its 3D body (%.2f px apart)" % door.global_position.distance_to(under),
 	)
 	t.check(door.gap() >= door.width, "the doorway is clear")
+	await _from_the_pull_side(t)
+
+
+## The same blast from the side the leaf swings toward fells it and throws it the other way.
+func _from_the_pull_side(t: TestContext) -> void:
+	var door = t.object(&"blown_pull")
+	t.require(not door.is_down(), "premise: the second door stands")
+	var row := GrenadeConfig.row(&"frag").duplicate()
+	row["fragments"] = 0
+	Explosion.frag(PULL_BURST_AT, t.world, null, row, BURST_HEIGHT)
+	await t.seconds(0.3)
+	t.check(door.is_down(), "a blast from the pull side fells the door (hp %.0f)" % door.damage.hp)
+	t.check(Probe.body(door) is PieceBody, "its 3D body is a free piece")
+	t.check(await Probe.settle(t, door, 12.0), "it comes to rest and sleeps")
+	t.check(
+		Probe.middle(door).x < PULL_DOORWAY.x - 20.0,
+		"it was thrown west, away from the blast (x %.0f)" % Probe.middle(door).x,
+	)
+	t.check(
+		Probe.top(door) <= FLAT_TOP,
+		"and lies flat (top %.1f px, lean %.0f)" % [Probe.top(door), Probe.lean(door)],
+	)

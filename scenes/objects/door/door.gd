@@ -31,7 +31,7 @@ const DoorPush = preload("res://scenes/objects/door/door_push.gd")
 const DoorSwing = preload("res://scenes/objects/door/door_swing.gd")
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 ## The most bodies a swing's query reads at once.
-const OVERLAP_HITS := 16
+const OVERLAP_HITS := 32
 
 ## The hinge: a world point on the jamb the leaf turns about.
 var hinge := Vector2.ZERO
@@ -196,10 +196,13 @@ func open_amount() -> float:
 
 
 ## The width a character can pass through (px): the straight way from the leaf's free end to the
-## latch jamb, never more than the doorway; the whole doorway once the door is down.
+## latch jamb, never more than the doorway; once the door is down what its fallen leaf leaves of the
+## doorway (all of it when it lies flat or elsewhere, `DoorFootprint.clear_width`).
 func gap() -> float:
 	if _down:
-		return width
+		var middle := _doorway_middle()
+		var half := _along * width * 0.5
+		return DoorFootprint.clear_width(self, middle - half, middle + half)
 	return minf(2.0 * width * sin(deg_to_rad(swing.angle) * 0.5), width)
 
 

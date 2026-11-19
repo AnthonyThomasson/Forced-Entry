@@ -25,7 +25,8 @@ var _doors := 0
 
 
 ## A number that changes whenever a door of the house turns, comes to rest elsewhere, is knocked
-## down or put up again: each door's angle and whether it is down (the door contract, interface 24),
+## down or put up again: each door's angle, whether it is down and the gap it leaves (a fallen
+## door's leaning leaf takes some of it) (the door contract, interface 24),
 ## read once a physics frame for every NPC of the world.
 static func door_state(tree: SceneTree) -> int:
 	var frame := Engine.get_physics_frames()
@@ -34,7 +35,8 @@ static func door_state(tree: SceneTree) -> int:
 	var sig := 0
 	for door: Node in tree.get_nodes_in_group(&"doors"):
 		if door.has_method("angle") and door.has_method("is_down"):
-			sig = hash([sig, door.get_instance_id(), door.angle(), door.is_down()])
+			var gap := snappedf(float(door.gap()), 1.0)
+			sig = hash([sig, door.get_instance_id(), door.angle(), door.is_down(), gap])
 	_doors_frame = frame
 	_doors_sig = sig
 	return sig

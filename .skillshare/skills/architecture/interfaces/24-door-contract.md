@@ -8,7 +8,7 @@
     - **State:** `hinge` (the world point on the jamb the leaf turns about), `swing_into` (unit vector into the room it swings into: that
       room's side pulls, the other pushes), `open_angle` (90), `width` (the doorway's free width between the jambs), `angle()`,
       `open_amount()` (0 shut .. 1 wide open; 1 once down), `is_down()` (knocked down: a free body lying where physics left it, walk-over when flat and an obstacle when leaning, unusable),
-      `gap() -> float` (the width a character can pass, at most `width`; `width` once down), `leaf_pose(angle) -> Transform2D` (the leaf's
+      `gap() -> float` (the width a character can pass, at most `width`; once down what its fallen leaf leaves of the doorway: `width` when it lies flat), `leaf_pose(angle) -> Transform2D` (the leaf's
       middle at that angle, x axis along the leaf) and `leaf_size() -> Vector2` (length, thickness), `damage.hp` / `damage.max_hp`.
     - **Use:** `toggle(by)` (an open door, or one swinging open, swings shut; a shut or ajar one swings fully open, in
       `DoorConfig.swing_time`), `turn_by(degrees, by)` (from where it is heading, positive opens, clamped to shut..`open_angle`; a scroll

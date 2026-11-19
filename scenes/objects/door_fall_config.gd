@@ -20,3 +20,7 @@ static var side_gap: float = 1.0
 ## flat is as high as it is thick (6 px) and stops no foot; one leaning on a wall or lying on a bed
 ## stands higher and is an obstacle (its footprint a solid collider, a hole in the nav bake).
 static var step_over: float = 10.0
+## How far (px) either side of the wall line a leaf lying leaning still stands in its doorway's
+## mouth: what it covers of the doorway there is what it takes from the gap a body can pass (a
+## body's radius).
+static var mouth: float = 14.0

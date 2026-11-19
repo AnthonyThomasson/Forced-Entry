@@ -35,7 +35,7 @@ its chips and sparks are styled as.
   first hit (the frame stays; the surface becomes the frame's wood) and takes the material's factor of the hit off the hit points;
   `take_damage` is a punch. A kick or blast from the push side bursts an ajar door fully open at once, whatever its material
   (`_hurt`); on a shut door it wears `door.damage.latch` by the strike's damage (a kick only where the material has `kicks_latch`), and a
-  latch that gives bursts it open. At 0 HP `_fall` (D18): the leaf leaves its hinges as a free `DoorSlab` (a `PieceBody`, `TwinSpace.retwin`; `DoorFallConfig`), thrown by the blow's shove at the blow's height plus the hinges' wrench across its face; it lies as physics decides and its 2D footprint follows (`DoorFootprint`: walk-over when flat, solid when leaning, `NavLeaves.fallen_hole`);
+  latch that gives bursts it open. At 0 HP `_fall` (D18): the leaf leaves its hinges as a free `DoorSlab` (a `PieceBody`, `TwinSpace.retwin`; `DoorFallConfig`), thrown by the blow's shove at the blow's height plus the hinges' wrench across its face; it lies as physics decides and its 2D footprint follows (`DoorFootprint`: flat, on `PhysicsLayers.LYING`: walked over but found by a blast or strike; leaning, solid, `NavLeaves.fallen_hole`; `gap()` is what a leaning leaf leaves of the doorway);
   `angle()` is `open_angle`, `gap()` the width, the Space calls do nothing. Tests: `tests/objects/door_damage_test.gd`,
   `door_kick_burst_test.gd`, `door_blast_burst_test.gd`, `door_blast_ajar_test.gd`, `door_hard_punch_stays_a_punch_test.gd`,
   `door_knocked_down_test.gd`, `door_materials_test.gd` there.
