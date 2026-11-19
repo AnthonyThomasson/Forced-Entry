@@ -40,4 +40,4 @@
       by `NavBuilder.leaf_in_map` (9); the entry's pie skip asks whether a doorway's standing door
       shuts the view, reading `is_down()`, `gap()`, `width` and `get_surface()` (`transparent`), DR14, `docs/tactical-entry.md` E3); Testing (13: `use()` (Space), `turn_door(steps)`, a layout's `door`).
     - **Built by** `DoorFactory.spawn` (2). **Left out of every nav bake** (9) **but at its open stop**: then Navigation carves its leaf
-      where it stands, reading `is_down()`, `angle()`, `open_angle`, `leaf_pose(angle)` and `leaf_size()` duck-typed (`NavLeaves`, 9). In 3D its leaf mesh casts the shadow (20).
+      where it stands, reading `is_down()`, `angle()`, `open_angle`, `leaf_pose(angle)` and `leaf_size()` duck-typed (`NavLeaves`, 9); a knocked-down door's `fallen_footprint() -> PackedVector2Array` (its leaning footprint, empty when it lies flat or stands) is carved the same way. In 3D its leaf mesh casts the shadow (20).

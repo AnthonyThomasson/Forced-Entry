@@ -60,15 +60,12 @@ static func _structure(body: Node2D, twin: CollisionObject3D, height: float) -> 
 static func _door(door: Door) -> Node3D:
 	var size := door.leaf_size()
 	var down := door.is_down()
-	var twin: CollisionObject3D
+	var twin: CollisionObject3D = DoorBody.new(door)
+	var leaf := Rect2(-size * 0.5, size)
 	var top := ObjectStructureMeshConfig.door_height
 	if down:
 		twin = DoorSlab.new(door)
 		top -= DoorFallConfig.head_gap
-	else:
-		twin = DoorBody.new(door)
-	var leaf := Rect2(-size * 0.5, size)
-	if down:
 		leaf = leaf.grow_individual(-DoorFallConfig.side_gap, 0.0, -DoorFallConfig.side_gap, 0.0)
 	twin.add_child(TwinShapes.box(leaf, Transform2D.IDENTITY, 0.0, top))
 	return twin

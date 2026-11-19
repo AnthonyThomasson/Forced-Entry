@@ -235,7 +235,8 @@ func latch_side_spot(from: Vector2) -> Vector2:
 	)
 
 
-## Whether the leaf has been knocked down (0 HP): off its hinges and lying flat, the doorway clear.
+## Whether the leaf has been knocked down (0 HP): off its hinges, a free body lying where it fell
+## (`fallen_footprint()`), the doorway clear.
 func is_down() -> bool:
 	return _down
 
@@ -249,12 +250,13 @@ func is_down() -> bool:
 func take_hit(hit: HitInfo) -> void:
 	if _down:
 		Physics.spawn_debris(get_parent(), hit, _debris_surface())
-		Knockback.push(
-			self,
-			Physics.impact_impulse(hit),
-			hit.position - global_position,
-			hit.height,
-		)
+		if TwinSpace.leader_of(self) != null:
+			Knockback.push(
+				self,
+				Physics.impact_impulse(hit),
+				hit.position - global_position,
+				hit.height,
+			)
 		return
 	var kind := &"blast" if hit.speed_factor <= 0.0 and hit.height < 0.0 else &"round"
 	deformable.record(hit)
@@ -289,7 +291,9 @@ func take_damage(amount: float) -> void:
 ## it lands, from the leaf's middle.
 func apply_impulse(impulse: Vector2, at := Vector2.ZERO) -> void:
 	if _down:
-		Knockback.push(self, impulse, at)  # the free body that is the leaf now
+		# the free body that is the leaf now (a door with no twin space has none to push)
+		if TwinSpace.leader_of(self) != null:
+			Knockback.push(self, impulse, at)
 		return
 	if swing.moving() or swing.angle <= 0.0:
 		return

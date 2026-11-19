@@ -11,7 +11,7 @@ extends AnimatableBody3D
 ## a fragment or a lob reads the leaf where it stands now. When the door is knocked down this body
 ## is replaced by a free one (`DoorSlab`, `TwinSpace.retwin`).
 
-## The 2D door this is the leader of, and whether it has been handed its follower.
+## The 2D door this is the leader of.
 var _door: Node2D
 
 

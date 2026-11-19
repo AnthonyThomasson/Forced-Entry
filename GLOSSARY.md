@@ -348,8 +348,8 @@ _Avoid_: door stack (the AI's stack of members at a doorway), vehicle door (a ca
 
 **Leaf**:
 The swinging panel of a door, which the door's body is: a rectangle a little shorter than the door's `width` (`DoorConfig.leaf_slack`) and `leaf_thickness` thick (`leaf_size()`), turned about its
-hinge between shut and `open_angle` (90°). Knocked down, it lies flat on the floor as a slab and is no longer a leaf in the doorway.
-_Avoid_: panel, slab (the leaf lying down)
+hinge between shut and `open_angle` (90°). Knocked down, it comes off its hinges as a free body that lies where physics leaves it (flat, or leaning on something) and is no longer a leaf in the doorway.
+_Avoid_: panel
 
 **Push side / pull side**:
 The two sides of a door. The pull side is the room the door swings into (`swing_into`): the leaf comes toward someone

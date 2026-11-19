@@ -142,7 +142,7 @@ or held with no door in reach the wheel zooms), `general/camera_wheel_zoom` (the
 ## DR8. A swing meets something
 
 A swinging door nudges any character in its arc (the quarter disc its leaf sweeps) out of the way, the one who opened it too:
-before the leaf turns on, the physics space is asked what stands where it will be; a character is moved straight away from the
+before the leaf turns on, the twin 3D space is asked what stands where it will be (a shape query of the leaf); a character is moved straight away from the
 leaf by what clears it, no faster than `nudge_speed` (600 px/s; at the tip of the longest leaf, a front doorway's 56 px, the swing peaks near 330 and a burst runs at 530,
 both under it). The swing stops
 short, and stays there, at a wall, at furniture (the furniture is not pushed) and at a body that cannot move further: a
@@ -221,7 +221,7 @@ leaves it where it stood), `objects/door_push_open_limit` (a leaf shoved as hard
 At 0 HP the leaf comes off its hinges and becomes a free `RigidBody3D` (D18, #194 doors3d), a real object like a tipped
 piece of furniture (`docs/adr/0014-twin-staging-and-plan-space.md`, D13, D14): the standing leaf's 3D leader (`DoorBody`, an
 `AnimatableBody3D`) is swapped for a `DoorSlab` (a `PieceBody`, `TwinSpace.retwin`), so it falls as physics decides and lies
-where it lands, with no scripted fall and no chosen side. The blow gives it its impulse at the real point: a blast's `shove`
+where it lands, with no scripted fall. The blow gives it its impulse at the real point: a blast's `shove`
 from the burst's height (`Explosion` -> `Knockback.push`), a kick's at the lock (the leaf's middle; a foot's own resting height
 would kick the leaf's foot out from under it), a round's impulse (`Physics.impact_impulse`) at the height it struck.
 A freed upright slab on the floor has no preferred way to fall, so the hinges' tearing adds a wrench at the leaf's top across
