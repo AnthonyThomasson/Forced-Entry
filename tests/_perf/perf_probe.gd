@@ -49,6 +49,21 @@ const SMOOTH_MAX_MS := 33.4
 ## whatever the numbers, while a single frag and stun burst is cheaper than the base's
 ## (`perf/grenade_burst_stress` 2.7 against 2.9 ms avg, max 12 against 15): the guard reads the
 ## fight it plays, not the code.
+## Accepted drift (#194 furn3d, 2026-11-19): furniture is a free 3D body led through Jolt, with a
+## frozen 2D footprint twin (D13), and the 10v10 guards play another fight from frame 59: `perf/
+## match_10v10_stress` first contact at 12.9 s (6.0 s at the base) with 21 shots in its window (4),
+## avg 16.1 to 17.0 ms (11.1 to 11.7 at the base), p95 20.7 to 22.3 (14 to 16), max 95 to 104 (20);
+## `match_10v10_opening` p95 18.6 to 22.4, max 37 to 39; `match_npc_vision` fails its premise
+## (the viewed invader lives: it did at the base, too). Attributed, not tuned: the twin bookkeeping
+## itself (`TwinSpace.update` over 706 rows) is 0.2 ms a frame, the engine step with Jolt and the
+## 2D space 1 to 3 ms, and 0 to 3 of 168 free pieces are awake in the window. The 95 to 104 ms
+## frame is one cold ambush ranking (`EntryPosts._ambush_ranking`, 76 ms; 18 ms at 761) the first
+## time an NPC is ordered to ambush a door in the window (nav ready, a cache miss): the fight, not
+## the pieces. No surviving 2D consumer showed as the cost (nav bakes 86 of 86 in time against 70 at
+## the base). The twin bookkeeping and the 2D footprint go with del2d; the budgets are for perf3d.
+## A/B (`tools/perf_ab.sh eb62a885 09478516 --different-fights`): `match_5v5_stress` +2.5%,
+## `grenade_match_stress` -12.3%, `match_10v10_opening` -2.5%, `match_npc_vision` -21.9%,
+## `match_10v10_stress` +54.7% (avg; the fight above).
 const MATCH_SEED := 2
 const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).

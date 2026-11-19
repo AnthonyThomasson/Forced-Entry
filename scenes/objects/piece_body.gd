@@ -17,6 +17,16 @@ extends RigidBody3D
 ## strikes is handed its momentum, as a sliding piece always handed it to a character), and is on
 ## `TWIN_WORLD` itself, so a bullet, a sight line or a lob reads where it now stands.
 
+## Contacts a piece reports (a struck body is handed its momentum from them).
+const CONTACTS_REPORTED := 4
+## Overlaps `settle_out` reads at once, and the shortest way out (px) it bothers to move.
+const SETTLE_HITS := 8
+const SETTLE_MIN := 0.01
+## The share of `PieceBodyConfig.drag_floor` the spin (rad/s) must pass for the drag to turn it.
+const SPIN_FLOOR_SHARE := 0.1
+## Points round a cylinder's rim that stand for it in a tipped piece's hull.
+const RIM_POINTS := 12
+
 ## The 2D piece this is the body of.
 var _piece: Node2D
 ## Whether the 2D footprint is the tipped hull now, and the 3D pose it was cut for.
@@ -48,7 +58,7 @@ func _init(of: Node2D = null) -> void:
 	can_sleep = true
 	continuous_cd = PhysicsImpactConfig.body_continuous_cd
 	contact_monitor = true
-	max_contacts_reported = 4
+	max_contacts_reported = CONTACTS_REPORTED
 	body_entered.connect(_on_body_entered)
 
 
@@ -107,13 +117,13 @@ func settle_out() -> void:
 	query.from = global_transform
 	query.motion = Vector3.ZERO
 	query.recovery_as_collision = true
-	query.max_collisions = 8
+	query.max_collisions = SETTLE_HITS
 	var result := PhysicsTestMotionResult3D.new()
 	if not PhysicsServer3D.body_test_motion(get_rid(), query, result):
 		return
 	var out := result.get_travel()
 	out.y = 0.0
-	if out.length() > 0.01:
+	if out.length() > SETTLE_MIN:
 		global_position += out
 		force_update_transform()
 
@@ -216,7 +226,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 		var slide := exp(-PhysicsImpactConfig.body_linear_damp * dt)
 		state.linear_velocity = Vector3(linear.x * slide, linear.y, linear.z * slide)
 	var angular := state.angular_velocity
-	if absf(angular.y) > PieceBodyConfig.drag_floor * 0.1:
+	if absf(angular.y) > PieceBodyConfig.drag_floor * SPIN_FLOOR_SHARE:
 		angular.y *= exp(-PhysicsImpactConfig.body_angular_damp * dt)
 		state.angular_velocity = angular
 
@@ -267,8 +277,8 @@ static func _corners(shape: Shape3D) -> PackedVector3Array:
 					out.append(Vector3(half.x * sx, half.y * sy, half.z * sz))
 	elif shape is CylinderShape3D:
 		var cylinder := shape as CylinderShape3D
-		for i in 12:
-			var turn := TAU * i / 12.0
+		for i in RIM_POINTS:
+			var turn := TAU * i / float(RIM_POINTS)
 			var rim := Vector3(cos(turn), 0.0, sin(turn)) * cylinder.radius
 			out.append(rim + Vector3.UP * cylinder.height * 0.5)
 			out.append(rim - Vector3.UP * cylinder.height * 0.5)

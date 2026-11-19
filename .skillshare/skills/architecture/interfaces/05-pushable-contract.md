@@ -5,7 +5,7 @@
      free 3D body (`PieceBody`) and its `RigidBody2D` is a frozen footprint that a native `apply_impulse` moves nothing of, so **a
      pusher goes through `Knockback.push(body, impulse, at = Vector2.ZERO, height = -1.0)`**: `height` is px above the floor (-1: the
      body's centre), the real point of the blow (a bullet's `HitInfo.height`, a blast's burst height, a fist's, a foot's, the hip of a
-     walking push), so a tall thin piece struck high tips and a low heavy one slides. A pusher that is carrying a piece along (a walking
+     walking push: `BodyHeights.contact(part, posture)`), so a tall thin piece struck high tips and a low heavy one slides. A pusher that is carrying a piece along (a walking
      push, a leg press: `CharacterPush.shove(piece, dir, impulse, contact: Vector3, speed)`, `contact.z` the height) is clamped to the
      piece's centre height, so it slides it and never flips it; a blow is not. `Knockback.push` falls back to `apply_impulse(v, at)`
      for any other pushable.

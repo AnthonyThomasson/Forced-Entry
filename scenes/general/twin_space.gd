@@ -52,6 +52,8 @@ extends Node3D
 ## -1), so the frame's scripts, a bullet's among them, read twins that stand where the physics step
 ## left the 2D bodies.
 const PRIORITY := -100
+## Overlaps a piece placed over a body is moved clear of, read at once (`_clear_pieces_from`).
+const CLEAR_HITS := 8
 ## How many frames the slow look takes to go round the parked bodies: a sleeping rigid body that a
 ## script moves without waking it is followed within this many frames.
 const PARK_SPREAD := 4
@@ -94,8 +96,7 @@ func _init() -> void:
 	name = "Twins"
 	process_physics_priority = PRIORITY
 	# the plane a free piece of furniture rests on where no floor slab is (a shove past a room's
-	# edge
-	# must not drop it out of the world); no ray or sweep asks for its layer
+	# edge must not drop it out of the world); no ray or sweep asks for its layer
 	var ground := StaticBody3D.new()
 	ground.name = "TwinGround"
 	ground.collision_layer = PhysicsLayers.TWIN_GROUND
@@ -309,7 +310,7 @@ func _clear_pieces_from(twin: Node3D) -> void:
 			continue
 		query.shape = holder.shape
 		query.transform = holder.global_transform
-		for found: Dictionary in space().intersect_shape(query, 8):
+		for found: Dictionary in space().intersect_shape(query, CLEAR_HITS):
 			var piece := found["collider"] as Object
 			if piece is RigidBody3D and (piece as Object).has_method(&"settle_out"):
 				piece.call(&"settle_out")

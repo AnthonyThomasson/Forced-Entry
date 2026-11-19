@@ -1,7 +1,8 @@
 class_name Knockback extends Node
 ## Physics System: reusable physics adapter for a shoveable RigidBody2D. Add it as a child of the
 ## body. It configures the body for top-down play (no gravity, mass, damping, sleep, origin-pinned
-## center of mass), and its `apply_impulse(v, at_world, height)` is how the owner's `take_hit`
+## center of mass; a piece a free 3D body leads has its gravity in 3D instead), and its
+## `apply_impulse(v, at_world, height)` is how the owner's `take_hit`
 ## shoves the body. The "pushable" contract itself is the body's native `apply_impulse(v, at)` /
 ## `get_mass()`: but a piece whose truth is a free 3D body (`TwinSpace.leader_of`, interface 29:
 ## furniture, #194 furn3d) is shoved through its 3D body, at the point's real height, so a push
