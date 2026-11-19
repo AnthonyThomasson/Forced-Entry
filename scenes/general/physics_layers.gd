@@ -3,14 +3,12 @@ class_name PhysicsLayers
 ## Objects' `Wall.Side` enum) — a single source so "walls + solid furniture" isn't redefined
 ## as the same magic number in every file that raycasts against it.
 
-## The layer walls, solid (non-see-over) furniture and bodies sit on: the line-of-sight/line-of-fire
-## query layer used by AI perception's plan fallback (agent_vision.gd), its debug mirror
-## (vision_debug.gd), a dropped item and Physics' wall sweeps (the interaction's reach, a vehicle
-## door's swing, the character's hands, legs and walk and a bullet ask the twin layers below).
+## The 2D layer walls, solid furniture, doors and vehicles sit on. No 2D physics query asks for it
+## any more (the sim reads the twin layers below): it marks a 2D body as solid (`ViewWatch`, a
+## door's footprint, a twin's presence: a body on none has no twin on its layer).
 const SOLID := 1
 ## The 2D layer a thing lying flat on the floor sits on (a fallen door's footprint, `docs/doors.md`
-## DR11): nothing walks or drives into it (no mask has it) but a blast finds it (it asks for
-## `SOLID | LYING`), so it is shoved like any piece; a melee strike finds it in the twin space.
+## DR11): a marker like `SOLID`, so a fallen door is not counted as a standing one.
 const LYING := 2
 ## The 3D layers of the twin space (`TwinSpace`, `docs/adr/0014-twin-staging-and-plan-space.md`),
 ## their own bits in the 3D physics space (not `SOLID`'s 2D one): what a 3D ray or sweep asks for.
