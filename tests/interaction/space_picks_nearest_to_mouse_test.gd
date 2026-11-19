@@ -11,9 +11,10 @@ extends GameTest
 ## px east of the hinge, from 3.5 to 42.5 px below the wall). A chair sits at (650, 200).
 
 const PlayerPointer := preload("res://tests/_character/player_pointer_probe.gd")
-## Under the doorway, all three in reach: the shut leaf 34 px north, the chair's edge 40 px east,
-## the car's front-left handle 41 px south-east.
-const UNDER_THE_DOOR := Vector2(590, 205)
+## Under the doorway, all three in reach: the shut leaf 34 px north, the chair's edge 40 px east
+## (its real 28 px square, a 3D body: the reach is asked of the twin space), the car's front-left
+## handle 40 px south.
+const UNDER_THE_DOOR := Vector2(596, 205)
 const AT_THE_CHAIR := Vector2(650, 200)
 ## On the shut leaf, near its hinge.
 const AT_THE_LEAF := Vector2(575, 172)

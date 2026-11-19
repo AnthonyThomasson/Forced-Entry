@@ -160,7 +160,7 @@ func can_board(character: Node2D, door_id: StringName) -> bool:
 			and speed() < VehicleBoardingConfig.board_max_speed
 			and cabin.ride_of(character) == null
 			and cabin.is_free(by.seat)
-			and by.is_clear(self, [get_rid(), character.get_rid()], character.radius))
+			and by.is_clear(self, character, character.radius))
 
 
 ## Start `character` boarding by door `door_id`: it walks to the door, which opens, and gets in to

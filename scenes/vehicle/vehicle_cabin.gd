@@ -125,8 +125,7 @@ func open_door(which: VehicleDoor) -> void:
 ## The door `character`, in `seat`, gets out by: `own` (the one it got in by) when clear, else the
 ## nearest clear door whose seat is its own or empty; null when none is clear.
 func exit_door(character: Node2D, seat: StringName, own: VehicleDoor) -> VehicleDoor:
-	var exclude: Array[RID] = [vehicle.get_rid(), character.get_rid()]
-	if own != null and own.seat == seat and own.is_clear(vehicle, exclude, character.radius):
+	if own != null and own.seat == seat and own.is_clear(vehicle, character, character.radius):
 		return own
 	var best: VehicleDoor = null
 	var best_distance := INF
@@ -134,7 +133,7 @@ func exit_door(character: Node2D, seat: StringName, own: VehicleDoor) -> Vehicle
 		if d.seat != seat and not is_free(d.seat):
 			continue
 		var distance: float = character.global_position.distance_to(vehicle.to_global(d.handle))
-		if distance < best_distance and d.is_clear(vehicle, exclude, character.radius):
+		if distance < best_distance and d.is_clear(vehicle, character, character.radius):
 			best = d
 			best_distance = distance
 	return best

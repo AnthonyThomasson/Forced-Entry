@@ -6,6 +6,12 @@ extends RefCounted
 ## and whether it is free to open: a shape query along its swing arc or slide track, and at the
 ## stand point. The vehicle steps it (`update`) and reads it out (`info`).
 
+## How high (px) above the floor a door's swing column and the stand point's cylinder start: clear
+## of a floor slab's top.
+const SWEEP_FROM := 1.0
+## How high (px) a door's swing column reaches for a vehicle whose twin has no top to read.
+const SWEEP_HEIGHT := 40.0
+
 ## Its id in the kind's `doors` row (`front_left`, `side` ...).
 var id: StringName
 ## `swing`, `slide` or `rear`.
@@ -127,22 +133,35 @@ func entry_point(radius: float) -> Vector2:
 	return middle + outward * radius * 0.4
 
 
-## Whether the door can open for a character of `radius` (the bodies in `exclude`, its own and the
-## vehicle's, ignored): nothing solid (a wall, furniture, a character, another vehicle) is in its
-## swing arc or slide track, nor at its stand point.
-func is_clear(vehicle: Node2D, exclude: Array[RID], radius: float) -> bool:
-	var space := vehicle.get_world_2d().direct_space_state
-	var params := PhysicsShapeQueryParameters2D.new()
-	params.collision_mask = PhysicsLayers.SOLID
-	params.exclude = exclude
-	params.shape = _sweep_shape()
-	params.transform = vehicle.global_transform
+## Whether the door can open for `rider`, a character of `radius` (it and the vehicle ignored):
+## nothing solid (a wall, furniture, a character, another vehicle) is in its swing arc or slide
+## track as high as the vehicle stands, nor at its stand point as high as a person. Asked of the
+## twin space (interface 29): what stands in the way is what the 3D bodies fill.
+func is_clear(vehicle: Node2D, rider: Node2D, radius: float) -> bool:
+	var space := TwinSpace.space_of(vehicle)
+	if space == null:
+		return true
+	var params := PhysicsShapeQueryParameters3D.new()
+	params.collision_mask = PhysicsLayers.TWIN_ALL
+	var ignored: Array[RID] = []
+	for body: Object in [TwinSpace.twin_for(vehicle), TwinSpace.walker_of(rider)]:
+		if body is CollisionObject3D:
+			ignored.append((body as CollisionObject3D).get_rid())
+	params.exclude = ignored
+	var twin := TwinSpace.twin_for(vehicle)
+	var high := TwinShapes.top_of(twin) if twin != null else SWEEP_HEIGHT
+	params.shape = _sweep_shape(maxf(high, SWEEP_FROM + 1.0))
+	params.transform = PlanSpace.lift_transform(vehicle.global_transform)
 	if not space.intersect_shape(params, 1).is_empty():
 		return false
-	var body := CircleShape2D.new()
-	body.radius = radius
+	var body := CylinderShape3D.new()
+	body.radius = radius * RenderConfig.unit
+	body.height = BodyHeights.head_top(BodyHeights.STAND) - SWEEP_FROM
 	params.shape = body
-	params.transform = Transform2D(0.0, vehicle.to_global(stand_point(radius)))
+	params.transform = Transform3D(
+		Basis(),
+		PlanSpace.lift(vehicle.to_global(stand_point(radius)), SWEEP_FROM + body.height * 0.5),
+	)
 	return space.intersect_shape(params, 1).is_empty()
 
 
@@ -157,8 +176,9 @@ func info(vehicle: Node2D) -> Dictionary:
 
 
 ## The ground the door sweeps (local): the sector its free edge turns through, a little longer than
-## the door, or the strip beside the body that a sliding door rolls along.
-func _sweep_shape() -> ConvexPolygonShape2D:
+## the door, or the strip beside the body that a sliding door rolls along, as a column from
+## `SWEEP_FROM` up to `high` (px).
+func _sweep_shape(high: float) -> ConvexPolygonShape3D:
 	var points := PackedVector2Array()
 	var clearance := VehicleDoorConfig.clearance
 	if kind == &"slide":
@@ -171,6 +191,10 @@ func _sweep_shape() -> ConvexPolygonShape2D:
 		var steps := 6
 		for i in steps + 1:
 			points.append(hinge + arm.rotated(_turn * open_angle * float(i) / steps))
-	var shape := ConvexPolygonShape2D.new()
-	shape.set_point_cloud(points)
+	var column := PackedVector3Array()
+	for point in points:
+		column.append(Vector3(point.x, SWEEP_FROM, point.y))
+		column.append(Vector3(point.x, high, point.y))
+	var shape := ConvexPolygonShape3D.new()
+	shape.points = column
 	return shape

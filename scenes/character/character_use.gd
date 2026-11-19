@@ -12,6 +12,10 @@ class_name CharacterUse extends RefCounted
 ## Extra gap (px) around the body before the collision with a body it left (`keep_clear_of`) is
 ## restored.
 const CLEAR_MARGIN := 3.0
+## How high (px) the overlap test's cylinder starts: clear of a floor slab's top.
+const CLEAR_FROM := 1.0
+## The most results the overlap test reads (one per shape of what the body stands in).
+const CLEAR_HITS := 64
 ## Interaction component (Interaction domain): finds and runs object interactions;
 ## `nearest_in_reach`, `is_busy()` and `interaction_label()` go through it.
 const CharacterInteraction = preload("res://scenes/interaction/character_interaction.gd")
@@ -260,16 +264,22 @@ func _stand_if_busy() -> void:
 		character.movement.stand_up()
 
 
-## Whether the body (its circle plus `CLEAR_MARGIN`) overlaps `body`'s collider on the solid layer.
+## Whether the body (its circle plus `CLEAR_MARGIN`, as tall as it stands) overlaps `body`'s 3D body
+## in the twin space (interface 29): a piece, a wall or a door, or a vehicle.
 func _overlaps(body: Node) -> bool:
-	var circle := CircleShape2D.new()
-	circle.radius = character.radius + CLEAR_MARGIN
-	var params := PhysicsShapeQueryParameters2D.new()
-	params.shape = circle
-	params.collision_mask = PhysicsLayers.SOLID
-	params.exclude = [character.get_rid()]
-	params.transform = Transform2D(0.0, character.global_position)
-	for result in character.get_world_2d().direct_space_state.intersect_shape(params, 32):
-		if result["collider"] == body:
+	var space := TwinSpace.space_of(character)
+	if space == null:
+		return false
+	var cylinder := CylinderShape3D.new()
+	cylinder.radius = (character.radius + CLEAR_MARGIN) * RenderConfig.unit
+	cylinder.height = BodyHeights.head_top(character.movement.body_posture()) - CLEAR_FROM
+	var params := PhysicsShapeQueryParameters3D.new()
+	params.shape = cylinder
+	params.collision_mask = PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+	params.transform = Transform3D(
+		Basis(), PlanSpace.lift(character.global_position, CLEAR_FROM + cylinder.height * 0.5)
+	)
+	for result in space.intersect_shape(params, CLEAR_HITS):
+		if TwinSpace.owner_of(result["collider"]) == body:
 			return true
 	return false

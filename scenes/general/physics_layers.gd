@@ -4,9 +4,9 @@ class_name PhysicsLayers
 ## as the same magic number in every file that raycasts against it.
 
 ## The layer walls, solid (non-see-over) furniture and bodies sit on: the line-of-sight/line-of-fire
-## query layer used by AI perception (agent_vision.gd), its debug mirror (vision_debug.gd),
-## Interaction (character_interaction.gd), the character's hands and legs, a dropped item, the
-## bullet and Physics' wall sweeps.
+## query layer used by AI perception's plan fallback (agent_vision.gd), its debug mirror
+## (vision_debug.gd), a dropped item and Physics' wall sweeps (the interaction's reach, a vehicle
+## door's swing, the character's hands, legs and walk and a bullet ask the twin layers below).
 const SOLID := 1
 ## The 2D layer a thing lying flat on the floor sits on (a fallen door's footprint, `docs/doors.md`
 ## DR11): nothing walks or drives into it (no mask has it) but a blast finds it (it asks for
