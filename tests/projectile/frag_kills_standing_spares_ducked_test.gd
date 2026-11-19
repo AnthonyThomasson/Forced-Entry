@@ -8,8 +8,6 @@ extends GameTest
 
 const AT := Vector2(700, 400)
 const ROW_Y := 480.0
-## The most HP a spared body may lose (to one stray fragment).
-const SCRATCH := 15.0
 
 
 func describe() -> Dictionary:
@@ -17,7 +15,7 @@ func describe() -> Dictionary:
 		"name": "A frag kills a standing hostile and spares a ducked one behind a sofa",
 		"description": "A frag goes off 125 px from a standing hostile in the open and from a "
 			+ "ducked one behind a row of couches: the standing one dies, the ducked one is "
-			+ "spared.",
+			+ "untouched.",
 		"tags": ["grenade", "frag", "blast", "fragments", "cover", "posture", "3d"],
 		"timeout": 20.0,
 	}
@@ -42,9 +40,8 @@ func run(t: TestContext) -> void:
 	Explosion.frag(AT, t.world, t.actor(&"thrower"), row)
 	await t.seconds(1.0)
 	t.check(standing.is_dead, "the standing hostile in the open is killed")
-	# (a stray fragment over the seat may strike its head: a few HP, not the blast's 60)
 	t.check(
-		not ducked.is_dead and ducked.health >= ducked.max_health - SCRATCH,
-		"the ducked one behind the couches is spared (%.0f / %.0f)"
+		not ducked.is_dead and ducked.health >= ducked.max_health - 0.01,
+		"the ducked one behind the couches is untouched (%.0f / %.0f)"
 			% [ducked.health, ducked.max_health],
 	)

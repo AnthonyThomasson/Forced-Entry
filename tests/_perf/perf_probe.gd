@@ -42,6 +42,13 @@ const SMOOTH_MAX_MS := 33.4
 ## that meet at once (1, 9, 12, 14, 16, 18, 20, 22 to 28) fail the same way or on p95; 17 holds
 ## four guards and the opening but the viewed invader dies; 19 holds four but a late bake is a 65
 ## to 68 ms frame in the opening and the ambush guard; 3, 13, 15, 21 have late bakes or meet late.
+## Accepted drift (#194, 2026-11-18): `perf/grenade_match_stress` reads +5.5% and +5.9% of the
+## base's average (42a14e18, two A/B runs, different fights) over its 5% bar. Changing
+## either fragment number (damage, flatness: tried 7.5/12, 12/6, 7.5/6, 12/12) re-rolls the fight
+## that guard plays (27 blast hits at the base, 21 now) and costs about 0.5 ms a frame in it,
+## whatever the numbers, while a single frag and stun burst is cheaper than the base's
+## (`perf/grenade_burst_stress` 2.7 against 2.9 ms avg, max 12 against 15): the guard reads the
+## fight it plays, not the code.
 const MATCH_SEED := 2
 const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).
