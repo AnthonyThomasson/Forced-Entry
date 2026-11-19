@@ -92,7 +92,8 @@ func _casings(t: TestContext, layer: ShotLayer) -> void:
 		ms,
 		CASINGS_MS,
 	)
-	await t.seconds(1.0)
+	# They fly in the twin 3D space now (a fall from the muzzle's height, skids): up to 2.5 s.
+	await t.until(func(): return not layer.is_processing(), 8.0)
 	t.check(not layer.is_processing(), "once they lie the layer is idle")
 	t.expect_eq(layer.casing_count(), Despawner.max_scene_objects, "and still shows them all")
 
