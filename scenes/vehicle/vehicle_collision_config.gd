@@ -29,6 +29,9 @@ static var crash_min_speed: float = 60.0
 ## a tall thin piece is kicked low and leans, a low heavy one is only slid (the contact the physics
 ## engine then solves carries it on).
 static var strike_share: float = 0.4
+## The pull toward the floor in the 3D space (px/s²): the same as a piece of furniture's, which
+## this domain may not read (`PieceBodyConfig.gravity`, Objects).
+static var gravity: float = 412.0
 ## The body's dents: deepest (px) and how many are remembered.
 static var dent_max_depth: float = 3.0
 static var dent_max_impacts: int = 24

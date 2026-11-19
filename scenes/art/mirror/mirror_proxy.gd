@@ -193,10 +193,11 @@ static func height_of(body: Node, kind: StringName, rect: Rect2) -> float:
 		WALL:
 			return MirrorConfig.wall_height
 		VEHICLE:
-			# a vehicle of no kind (a stand-in) is as tall as a car
-			var heights: Dictionary = VehicleMeshConfig.heights
-			var row: Dictionary = heights.get(body.get("kind"), heights[&"car"])
-			return float(row["roof"])
+			# its roof, as its cabin says (duck-typed: Art may not read Vehicles); a stand-in is
+			# a body of furniture
+			var cabin: Object = body.get("cabin")
+			if cabin != null and cabin.has_method(&"roof_height"):
+				return cabin.call(&"roof_height")
 	var narrow := minf(rect.size.x, rect.size.y)
 	return clampf(
 		narrow * MirrorConfig.furniture_ratio,

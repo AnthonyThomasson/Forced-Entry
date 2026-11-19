@@ -1,10 +1,10 @@
 class_name VehicleCabin extends RefCounted
 ## Vehicles domain: a vehicle's doors and seats and whose ride is whose (`docs/vehicles.md` V1-V4),
-## its body's `cabin` part: the doors (vehicle_door.gd), who holds each seat or is on the way into
-## it, and the rides of the characters getting in and out (vehicle_boarding.gd), which the body's
-## `board` and `exit` start and end and each ride calls back. Built once in the body's `_ready`,
-## from its row; it holds the body (a node, so no reference cycle) for its frame, its physics, its
-## `drive` and its `post`.
+## its vehicle's `cabin` part: the doors (vehicle_door.gd), who holds each seat or is on the way
+## into it, and the rides of the characters getting in and out (vehicle_boarding.gd), which the
+## body's `board` and `exit` start and end and each ride calls back. Built once in the body's
+## `_ready`, from its row; it holds the body (a node, so no reference cycle) for its frame, its
+## physics, its `drive` and its `post`.
 
 const VehicleDoor = preload("res://scenes/vehicle/vehicle_door.gd")
 const VehicleBoarding = preload("res://scenes/vehicle/vehicle_boarding.gd")
@@ -28,6 +28,12 @@ func _init(body: Node2D, row: Dictionary) -> void:
 		_doors.append(VehicleDoor.new(def))
 	for id in row["seats"]:
 		_seats[id] = null
+
+
+## How tall the vehicle stands (px): its roof, for a painter that does not know the kind
+## (`MirrorProxy`, duck-typed).
+func roof_height() -> float:
+	return float(VehicleMeshConfig.heights[vehicle.kind]["roof"])
 
 
 ## Step the doors by `delta` s, posting the slam (or the slide's close) the frame one shuts.

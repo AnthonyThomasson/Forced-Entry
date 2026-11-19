@@ -33,7 +33,7 @@ func _init(of: Node2D = null) -> void:
 	)
 	axis_lock_angular_x = true
 	axis_lock_angular_z = true
-	gravity_scale = PieceBodyConfig.gravity * RenderConfig.unit / float(
+	gravity_scale = VehicleCollisionConfig.gravity * RenderConfig.unit / float(
 		ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 	)
 	linear_damp_mode = RigidBody3D.DAMP_MODE_REPLACE
@@ -65,7 +65,7 @@ func vehicle() -> Node2D:
 
 
 ## Called by the twin space as it takes the vehicle over: the 2D body is the footprint (a
-## kinematic body only the twin space moves). A parked vehicle is asleep: it costs Jolt nothing.
+## body only the twin space moves). A parked vehicle is asleep: it costs Jolt nothing.
 func take_over(_footprint: Node2D) -> void:
 	sleeping = true
 

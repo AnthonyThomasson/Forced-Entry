@@ -134,6 +134,7 @@ cannot roll or pitch, it turns about up and slides on the floor; its mass, its g
 numbers below hold.
 - Walls stop it; it loses most of its speed on the impact (`bounce` **0.025**: a crash at the top speed rebounds slower than rolling
   resistance stops within a second).
+- The 3D engine caps a body's speed at 5000 px/s (`max_linear_velocity`, global): above the car's top speed (1280), so no raise.
 - Furniture is a free 3D body too: the engine solves the two (the pushable contract) and the vehicle carries on. The bumper's blow
   adds to that at the height it meets a piece (`strike_height`, the sill and half the bumper: 14.5 px for a car): a piece first met
   faster than `crash_min_speed` is struck with `strike_share` **0.4** of the closing speed times its mass there, so a tall thin

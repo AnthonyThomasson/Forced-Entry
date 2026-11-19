@@ -1,13 +1,12 @@
 class_name VehicleContacts extends RefCounted
-## Vehicles domain: a vehicle's contacts (`docs/vehicles.md` V6), its body's private `_contacts`
-## part: `remember` from the 3D body's `_integrate_forces` after the drive's step, `read` and
-## `apply` in the vehicle's `_physics_process`. The closing speeds, the crashes, the dead bodies
-## rolled over, the piles of characters shoved and the characters hurt. What the vehicle touches is
-## found by a shape query of its body in the twin space (never by Jolt's contact events: they arrive
-## in a different count and order run to run), the others in a fixed order (by where they stand).
-## Built once with its vehicle (the 2D body); it holds the vehicle (a node, so no reference cycle)
-## for its mass, its 3D body, its physics space, its row's `bounce`, its collision exceptions and
-## its `post`.
+## Vehicles domain: a vehicle's contacts (`docs/vehicles.md` V6), its `contacts` part: `remember`
+## from the 3D body's `_integrate_forces` after the drive's step, `read` and `apply` in the
+## vehicle's `_physics_process`. The closing speeds, the crashes, the dead bodies rolled over, the
+## piles of characters shoved and the characters hurt. What the vehicle touches is found by a shape
+## query of its body in the twin space (never by Jolt's contact events: they arrive in a different
+## count and order run to run), the others in a fixed order (by where they stand). Built once with
+## its vehicle (the 2D body); it holds the vehicle (a node, so no reference cycle) for its mass, its
+## 3D body, its physics space, its row's `bounce`, its collision exceptions and its `post`.
 
 ## How near (px) a body is to the vehicle's for the vehicle to be touching it, and how many bodies
 ## it reads at once.
@@ -522,11 +521,11 @@ func _roll_over_for_good(body: Node) -> void:
 	(vehicle as PhysicsBody2D).add_collision_exception_with(body)
 
 
-## How fast `body` moves: a character (a kinematic body: neither its server velocity nor the motion
-## that pushed it out of the vehicle is its own) the velocity it moves at by itself, its walk and
-## any knockback; a body a free 3D body leads (a piece of furniture, another vehicle) that body's,
-## unless it is a piece first met (`fresh`): the step that met it has already carried it along, and
-## it lay at rest before; a wall or a door none.
+## How fast `body` moves: a character (a body its own script moves: neither its server velocity nor
+## the motion that pushed it out of the vehicle is its own) the velocity it moves at by itself, its
+## walk and any knockback; a body a free 3D body leads (a piece of furniture, another vehicle) that
+## body's, unless it is a piece first met (`fresh`): the step that met it has already carried it
+## along, and it lay at rest before; a wall or a door none.
 static func _velocity_of(body: Node, fresh: bool) -> Vector2:
 	if body is CharacterBody2D:
 		return (body as CharacterBody2D).velocity
