@@ -14,8 +14,13 @@ const OVERLAP := 1.0
 ## A sample point lies this far (px, a wall's thickness times it) from a wall that ends on its
 ## own: a corner or a T is where two walls rightly overlap.
 const JUNCTION := 1.5
-## Height (px) of the level rays: inside every wall, under every lintel.
 const RAY_HEIGHT := 48.0
+## A level ray low in a doorway, and one over its door leaf's height (84) under the wall's top (96).
+const DOOR_LOW := 60.0
+const LINTEL_RAY := 90.0
+
+## Height (px) of the level rays: inside every wall, under every lintel.
+var _doorways_checked := 0
 
 
 func describe() -> Dictionary:
@@ -56,6 +61,7 @@ func run(t: TestContext) -> void:
 	var checked := 0
 	for holder in holders:
 		checked += _check(t, holder)
+	t.check(_doorways_checked >= 10, "doorways were checked (%d)" % _doorways_checked)
 	t.check(checked >= 40, "the houses and shells have shared and plain segments (%d)" % checked)
 
 
@@ -85,7 +91,32 @@ func _check(t: TestContext, holder: Node2D) -> int:
 	for row: Dictionary in rows:
 		if row["built"] and _sample(t, holder, row, rows):
 			sampled += 1
+	_doorways(t, holder, rows)
 	return sampled
+
+
+## Every doorway of `holder` is open under its lintel and has the one lintel over it, whichever
+## room owns the wall it is cut in: a level ray through its middle meets no wall low and one high.
+func _doorways(t: TestContext, holder: Node2D, rows: Array) -> void:
+	for opening: Dictionary in WorldGen.get_openings(holder):
+		var pos: Vector2 = opening["pos"]
+		var half: float = opening["width"] * 0.5
+		var along := Vector2.ZERO
+		for row: Dictionary in rows:
+			for end: Vector2 in [row["a"], row["b"]]:
+				if absf(end.distance_to(pos) - half) < 1.5:
+					along = ((row["b"] as Vector2) - (row["a"] as Vector2)).normalized()
+		if along == Vector2.ZERO:
+			continue
+		_doorways_checked += 1
+		var across := along.orthogonal() * 12.0
+		var label := "%s: the doorway at %s" % [holder.name, pos]
+		t.check(
+			_walls_along(t, pos + across, pos - across, DOOR_LOW) == 0,
+			"%s is open under its lintel" % label,
+		)
+		var lintels := _walls_along(t, pos + across, pos - across, LINTEL_RAY)
+		t.check(lintels == 1, "%s has one lintel over it, not %d" % [label, lintels])
 
 
 ## No two segments that run along one another are both built; each unbuilt one has a built one on
@@ -147,10 +178,15 @@ func _near_junction(point: Vector2, row: Dictionary, rows: Array, reach: float) 
 
 
 ## How many wall twins the level ray from `from` to `to` (plan points) passes through.
-func _walls_along(t: TestContext, from: Vector2, to: Vector2) -> int:
+func _walls_along(
+	t: TestContext,
+	from: Vector2,
+	to: Vector2,
+	height: float = RAY_HEIGHT,
+) -> int:
 	var space := TwinSpace.space_of(t.world)
 	var query := PhysicsRayQueryParameters3D.create(
-		PlanSpace.lift(from, RAY_HEIGHT), PlanSpace.lift(to, RAY_HEIGHT), PhysicsLayers.TWIN_WORLD
+		PlanSpace.lift(from, height), PlanSpace.lift(to, height), PhysicsLayers.TWIN_WORLD
 	)
 	var counted := 0
 	var skip: Array[RID] = []
