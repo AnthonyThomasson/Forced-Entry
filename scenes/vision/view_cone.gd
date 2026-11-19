@@ -318,6 +318,8 @@ func _region(from: Vector2, facing: Vector2) -> PackedVector2Array:
 		for i in REGION_ARC + 1:
 			var angle := -half + float(i) / float(REGION_ARC) * _fov
 			points.append(from + facing.rotated(angle) * round_arc)
+	# a mitered grow: one corner for each of the hull's, where a round one would be dozens of near
+	# straight turns the physics engine cannot build a convex hull of
 	var grown := Geometry2D.offset_polygon(
 		Geometry2D.convex_hull(points), REGION_MARGIN, Geometry2D.JOIN_MITER
 	)

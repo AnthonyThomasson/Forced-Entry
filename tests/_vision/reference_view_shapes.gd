@@ -20,8 +20,9 @@ extends RefCounted
 ## many, until one comes back with room to spare, so no shape in reach is ever dropped.
 const FIRST_RESULTS := 512
 const GROWTH := 4
-## The top (px) of the column a query reads.
-const COLUMN_TOP := 200.0
+## The thickness (px) of the slab, at the level the cone's rays run at, a query reads.
+const SLAB := 2.0
+const LEVEL_OVER := 0.05
 
 ## The height a shape must be above to block sight, set by the cone for each build.
 var see_over := 69.4
@@ -57,9 +58,9 @@ func corners(
 	exclude: Array,
 ) -> Array:
 	_column.radius = reach
-	_column.height = COLUMN_TOP - see_over
+	_column.height = SLAB
 	_query.transform = Transform3D(
-		Basis.IDENTITY, PlanSpace.lift(from, see_over + (COLUMN_TOP - see_over) * 0.5)
+		Basis.IDENTITY, PlanSpace.lift(from, see_over + LEVEL_OVER + SLAB * 0.5)
 	)
 	_query.exclude = exclude
 	var seen := {}

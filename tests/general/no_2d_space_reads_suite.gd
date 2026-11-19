@@ -43,6 +43,8 @@ func test_no_script_asks_the_2d_physics_space() -> void:
 		var lines := FileAccess.get_file_as_string(path).split("\n")
 		for i in lines.size():
 			var code := _code_of(lines[i])
+			if code.contains(".direct_space_state") and not code.contains("3d"):
+				found.append("%s:%d: a 2D direct_space_state" % [path, i + 1])
 			for banned: String in FORBIDDEN:
 				if code.contains(banned):
 					found.append("%s:%d: %s" % [path, i + 1, banned])

@@ -443,7 +443,8 @@ static func _rid_of(body: Object) -> RID:
 
 ## Put the pile's band, a cylinder of `query`, over the plan point `at`, `wide` px of radius.
 static func _band_at(query: PhysicsShapeQueryParameters3D, at: Vector2, wide: float) -> void:
-	(query.shape as CylinderShape3D).radius = wide
+	(query.shape as CylinderShape3D).radius = wide * RenderConfig.unit
+	(query.shape as CylinderShape3D).height = PILE_BAND * RenderConfig.unit
 	query.transform = Transform3D(Basis.IDENTITY, PlanSpace.lift(at, PILE_BASE + PILE_BAND * 0.5))
 
 
@@ -532,7 +533,7 @@ static func _faces_push(
 			exclude.append(other["rid"])
 	alone.exclude = exclude
 	var rest := space.get_rest_info(alone)
-	return not rest.is_empty() and PlanSpace.plan_of(rest["normal"]).dot(normal) < -0.5
+	return not rest.is_empty() and Vector2(rest["normal"].x, rest["normal"].z).dot(normal) < -0.5
 
 
 ## Carry out what the contacts found: shove each body by its push and hurt each character newly

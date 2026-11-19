@@ -2,9 +2,9 @@ extends "res://tests/_general/sight_ray_world.gd"
 ## Native unit suite for General's `SightRay` plan cast, architecture interface 11 and
 ## `docs/player-vision.md` V2 (#194 D9): the player's cone is a floor-plan polygon, so its rays run
 ## on the plan: `SightRay.plan_hit(space, from, to, exclude, see_over)` is the first thing on the
-## line from `from` to `to` (on `PhysicsLayers.SOLID`) that stands above `see_over`, the eye's
-## height in px. A collider's height is its twin's top (`top_of`); a lower one is looked over, a
-## taller one, or one with no twin, blocks like a wall, a `transparent` surface (a glass-panel door)
+## line from `from` to `to` that stands above `see_over`, the eye's height in px: a 3D ray level at
+## that height in the twin space. A lower piece is looked over, a taller one blocks, a body with no
+## twin is not in the twin space and blocks nothing, a `transparent` surface (a glass-panel door)
 ## is looked through however tall. The pieces are the world of `tests/_general/sight_ray_world.gd`
 ## (walls 96, a table 31, a wardrobe above a standing eye, 1.64 m or 69.4 px); the eye ray is
 ## `sight_ray_eye_suite`'s.

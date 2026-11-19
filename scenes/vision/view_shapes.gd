@@ -8,8 +8,9 @@ extends RefCounted
 ## shapes: only the shape the ray hit counts). What it read is kept for one build (`reset`): the
 ## world moves between frames.
 
-## How high (px above the floor) the column a query reads reaches: over the tallest thing.
-const COLUMN_TOP := 200.0
+## How thick (px) the slab a query reads is, from the height the plan cast runs at up: a shape
+## that stands across it is one a ray at the eye can meet (a lintel over the eye is not).
+const SLAB := 2.0
 ## How far (px) past the face a ray hit the point is taken that asks which shapes the ray runs into
 ## there, and the most shapes that point can be in.
 const PROBE := 0.1
@@ -76,20 +77,20 @@ func corners(
 	exclude: Array,
 	region := PackedVector2Array(),
 ) -> Array:
-	var span := (COLUMN_TOP - see_over) * RenderConfig.unit
+	var level := see_over + SightRay.LEVEL_OVER
 	if region.is_empty():
 		_column.radius = reach * RenderConfig.unit
-		_column.height = span
+		_column.height = SLAB * RenderConfig.unit
 		_query.shape = _column
-		_query.transform = Transform3D(Basis.IDENTITY, PlanSpace.lift(from, see_over + span * 0.5))
+		_query.transform = Transform3D(Basis.IDENTITY, PlanSpace.lift(from, level + SLAB * 0.5))
 	else:
 		var cloud := PackedVector3Array()
 		for point in region:
 			cloud.append(PlanSpace.lift(point - from, 0.0))
-			cloud.append(PlanSpace.lift(point - from, span))
+			cloud.append(PlanSpace.lift(point - from, SLAB))
 		_region.points = cloud
 		_query.shape = _region
-		_query.transform = Transform3D(Basis.IDENTITY, PlanSpace.lift(from, see_over))
+		_query.transform = Transform3D(Basis.IDENTITY, PlanSpace.lift(from, level))
 	_query.exclude = exclude
 	_probe.exclude = exclude
 	var seen := {}

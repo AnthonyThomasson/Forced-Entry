@@ -21,7 +21,7 @@ class_name Explosion
 ## (a wall only: furniture muffles nothing).
 
 const Projectile = preload("res://scenes/projectile/projectile.gd")
-## The layer the shape query of the bodies near a burst tests (walls, solid furniture, the living).
+## The twin layers the shape query of the bodies near a burst tests (walls, furniture, the living).
 const MASK := PhysicsLayers.TWIN_ALL
 ## Most bodies one blast considers: the nearest ones.
 const MAX_BODIES := 64
@@ -260,9 +260,10 @@ static func _characters(world: Node) -> Array:
 	return out
 
 
-## The bodies a blast of `radius` at `at` may reach: what its circle overlaps on the solid layer
-## (furniture, the living, a door; walls are what block it, so they are left out) and the fallen,
-## who have left that layer but are still shoved. Each once.
+## The bodies a blast of `radius` at `at` may reach: what its column (a cylinder of that radius
+## over the whole height) overlaps in the twin space (furniture, the living, a door; walls are what
+## block it, so they are left out) and the fallen, who have left the twin layers but are still
+## shoved. Each once.
 static func _bodies_near(
 	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
