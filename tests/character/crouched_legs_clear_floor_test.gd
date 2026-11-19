@@ -3,6 +3,7 @@ extends GameTest
 ## height a foot-sized sphere would reach below the floor slab and be stopped by it, so a crouched
 ## walker in the open would have both feet collapsed on its centre.
 
+const Probe := preload("res://tests/_general/twin_probe.gd")
 const REACH := Vector2(12.0, 0.0)
 
 
@@ -26,6 +27,14 @@ func run(t: TestContext) -> void:
 	await t.frames(3)
 	var body := t.actor(&"puppet")
 	var sweep = body.anatomy.sweep
+	var slab: float = Probe.top_at(t, body.global_position + REACH, PhysicsLayers.TWIN_WORLD)
+	var foot: float = BodyHeights.contact(&"ankle", BodyHeights.DUCK)
+	t.require(slab > 0.0, "premise: a floor slab is in the sweep's world (top %.2f px)" % slab)
+	t.require(
+		foot - CharacterPushConfig.leg_radius < slab,
+		"premise: the crouched foot's sphere reaches below the slab's top (%.2f)"
+			% (foot - CharacterPushConfig.leg_radius),
+	)
 	var stood: Vector2 = sweep.circle(
 		body.global_position, REACH, CharacterPushConfig.leg_radius,
 		BodyHeights.contact(&"ankle", BodyHeights.STAND))

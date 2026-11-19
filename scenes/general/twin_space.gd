@@ -258,11 +258,7 @@ static func walker_of(body: Object) -> CharacterBody3D:
 	if body == null or not is_instance_valid(body) or not body.has_meta(TWIN_META):
 		return null
 	var found: Variant = body.get_meta(TWIN_META)
-	if (is_instance_valid(found)
-			and found is CharacterBody3D
-			and (found as Object).has_method(&"walk")):
-		return found
-	return null
+	return found if is_instance_valid(found) and found is CharacterBody3D else null
 
 
 ## The plan velocity (px/s) the character `body` really covered last frame: what

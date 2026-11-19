@@ -40,6 +40,9 @@ const SAFE_MARGIN := 0.02
 const FEET := 0.5
 ## How much slimmer (px) the cylinder `fits` tests is than the body: a body pressed to a wall fits.
 const FITS_SLACK := 0.5
+## How long (s) an answer of `fits` is kept while the body stands where it was asked: an NPC pinned
+## under a shelf asks to stand every tick, and a shelf does not move in a quarter second.
+const FITS_KEEP := 0.25
 
 ## The character this is the body of.
 var _character: Character
@@ -56,6 +59,8 @@ var _written := Transform2D()
 var _real := Vector2.ZERO
 ## The direction (plan, unit) it was walked in last frame, for telling which contact is a push.
 var _wanted := Vector2.ZERO
+## The last answer `fits` gave per posture: `[where it stood, when, the answer]`.
+var _fit := {}
 
 
 ## Add the hook to `space` (a `TwinSpace`).
@@ -141,9 +146,9 @@ func real_velocity() -> Vector2:
 	return _real
 
 
-## What the last walk slid into: for each contact `{ "body": the 2D body of the twin it touched,
-## "normal": plan normal pointing back at this body, "at": plan point }`, the 2D bodies of walls and
-## everything else alike (a pusher shoves the ones that take a shove). A contact is where the round
+## What the last walk slid into that takes a shove (a pushable: `apply_impulse`): for each contact
+## `{ "body": the 2D body of the twin it touched, "normal": plan normal pointing back at this body,
+## "at": plan point }`. A wall or a door is no push and is not listed. A contact is where the round
 ## body touches along its normal (its rim toward what it touched), whatever point of the contact
 ## patch the engine reports: a shove given there turns a piece as a circle's push does.
 func contacts() -> Array[Dictionary]:
@@ -152,7 +157,9 @@ func contacts() -> Array[Dictionary]:
 		var hit := get_slide_collision(i)
 		var other := TwinSpace.owner_of(hit.get_collider())
 		var normal := Vector2(hit.get_normal().x, hit.get_normal().z)
-		if other == null or normal.length_squared() < 0.0001:
+		if other == null or not other.has_method(&"apply_impulse"):
+			continue
+		if normal.length_squared() < 0.0001:
 			continue
 		normal = normal.normalized()
 		# the engine may report one body more than once (the face walked into, then the edge the
@@ -168,7 +175,8 @@ func contacts() -> Array[Dictionary]:
 		found["at"] = PlanSpace.plan_of(global_position) - normal * _character.radius
 		out.append(found)
 	# in a fixed order (by where the bodies stand), not the order the engine met them in
-	out.sort_custom(_nearer_first)
+	if out.size() > 1:
+		out.sort_custom(_nearer_first)
 	return out
 
 
@@ -194,6 +202,18 @@ func _nearer_first(a: Dictionary, b: Dictionary) -> bool:
 func fits(posture: StringName) -> bool:
 	if not is_inside_tree():
 		return true
+	var now := GameClock.seconds()
+	var here := global_position
+	var kept: Array = _fit.get(posture, [])
+	if not kept.is_empty() and kept[0] == here and now - float(kept[1]) < FITS_KEEP:
+		return kept[2]
+	var answer := _fits_now(posture)
+	_fit[posture] = [here, now, answer]
+	return answer
+
+
+## `fits`, asked of the twin space now.
+func _fits_now(posture: StringName) -> bool:
 	var taller := CylinderShape3D.new()
 	taller.radius = _shape.radius - FITS_SLACK
 	taller.height = _height_of(posture)

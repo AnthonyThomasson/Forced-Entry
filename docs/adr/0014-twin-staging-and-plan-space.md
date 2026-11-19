@@ -136,8 +136,8 @@ simply:
   own jobs): its transform no longer being the one the twin wrote puts the 3D body there, velocity zero.
 - **A stance change resizes the cylinder; it does not pop through anything.** A taller pose (a stand-up, a rise) is refused where a
   slightly narrower cylinder of that height would overlap a solid of the world or a vehicle; a lower one always fits.
-- **Deterministic.** The walk reads the slide's own motion queries (not Jolt's contact events or lists, which vary run to run), in a fixed
-  order, so a Von replay stays bit for bit.
+- **Deterministic.** The walk reads the slide's own motion queries (not Jolt's contact events or lists, which vary run to run), keeps the
+  pushables it slid into (a wall or a door is no push), one per body, and orders them by where they stand, so a Von replay stays bit for bit.
 - **Where the 2D side costs.** The 2D follower stays in the 2D space for the readers not flipped yet (the nav's avoid maps and holes, the
   interaction finding, the AI's 2D queries) and goes with `del2d`; its cost is not optimised in this job.
 

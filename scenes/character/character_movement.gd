@@ -90,7 +90,7 @@ func walk(delta: float) -> void:
 		Vector2.ZERO,
 		CharacterPushConfig.knockback_friction * delta,
 	)
-	_push_slow = _ease_push_slow(_apply_pushes(), delta)
+	_push_slow = _ease_push_slow(_apply_pushes(lead), delta)
 
 
 ## A frame held still (an interaction, a ride): no movement or input, stamina refilling, and any
@@ -290,13 +290,13 @@ func _update_stamina(wants_run: bool, delta: float) -> void:
 
 ## Shove every pushable body the character slid into this frame; return the resulting speed
 ## multiplier (heavier furniture slows the character more, floored so it never fully locks).
-func _apply_pushes() -> float:
+func _apply_pushes(lead: CharacterBody3D) -> float:
 	var input_strength := move_input.length()
 	if input_strength <= 0.0:
 		return 1.0
 
 	var heaviest := 0.0
-	for contact in _slides():
+	for contact in _slides(lead):
 		var collider: Object = contact["body"]
 		if collider == null or not collider.has_method("apply_impulse"):
 			continue
@@ -334,8 +334,7 @@ func _apply_pushes() -> float:
 ## What the last walk slid into: `{ body, normal, at }` per contact, the normal (plan) pointing back
 ## at the character and `at` the plan point. A character walked in the twin space reports what its
 ## 3D body slid into (the 2D body of each twin), else the 2D slide collisions.
-func _slides() -> Array[Dictionary]:
-	var lead := TwinSpace.walker_of(character)
+func _slides(lead: CharacterBody3D) -> Array[Dictionary]:
 	if lead != null:
 		return (lead as CharacterTwin).contacts()
 	var out: Array[Dictionary] = []
