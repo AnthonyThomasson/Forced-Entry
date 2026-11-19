@@ -63,11 +63,19 @@ var _group_builders: Dictionary = {}
 var _seen: Dictionary = {}
 ## The subtrees the view leaves out (`leave_out`): nothing under one is mirrored.
 var _left_out: Array[Node] = []
+## The twin space of the mirrored world (null for a world with none): a body whose twin is a static
+## body carries its mesh on that twin (`_try_carry`).
+var _twins: TwinSpace
 
 
 func _exit_tree() -> void:
 	if get_tree() != null and get_tree().node_added.is_connected(_on_node_added):
 		get_tree().node_added.disconnect(_on_node_added)
+	for rows: Array in _rows.values():
+		for row: Dictionary in rows:
+			var mesh: Variant = row["node"]
+			if row.get("carried", false) and is_instance_valid(mesh):
+				(mesh as Node).queue_free()  # it stands on a twin that outlives this mirror
 
 
 func _process(_delta: float) -> void:
@@ -78,6 +86,7 @@ func _process(_delta: float) -> void:
 ## bodies that spawn later.
 func mirror(root: Node) -> void:
 	_root = root
+	_twins = TwinSpace.of_world(root)
 	for floor_node: Node in root.get_tree().get_nodes_in_group(&"floors"):
 		if root.is_ancestor_of(floor_node):
 			_add_floor(floor_node as Node2D)
@@ -112,6 +121,13 @@ func proxies_of(body: Node) -> Array[Node3D]:
 	for row: Dictionary in _rows.get(body.get_instance_id(), []):
 		out.append(row["node"])
 	return out
+
+
+## The mesh a builder made for `body` (a carried one: a child of its twin), or null when the body
+## has none (not mirrored yet, or shown by proxies).
+func mesh_of(body: Node) -> Node3D:
+	var rows: Array = _rows.get(body.get_instance_id(), [])
+	return null if rows.is_empty() else (rows[0] as Dictionary)["node"]
 
 
 ## Build `node`'s mesh again now, the old one freed: a body's, a floor's or a tracked node's
@@ -178,6 +194,11 @@ func update() -> void:
 ## `RigidBody2D` is not read (once more as it falls asleep): only a mesh that updates itself is
 ## looked at, for whether it still shows.
 func _follow(row: Dictionary) -> void:
+	if row.get("carried", false):
+		followed += 1  # its twin carries it: only the shown rules and the mesh's own update run
+		_sync_shown(row)
+		_run_update(row)
+		return
 	var lead := TwinSpace.leader_of(row["body"])
 	if lead != null and row["shape"] == row["body"]:
 		_follow_led(row, lead)
@@ -271,6 +292,8 @@ func _retire(row: Dictionary, index: int) -> void:
 func _mirror_pending() -> void:
 	if _pending.is_empty():
 		return
+	if _twins == null and _root != null:
+		_twins = TwinSpace.of_world(_root)  # a world whose twin space was staged after the mirror
 	var batch := _pending.values()
 	_pending = {}
 	for node: Variant in batch:
@@ -372,6 +395,8 @@ func _mesh_follows_shapes(body: Node) -> bool:
 ## Mirror `body`'s shapes (or its kind's own mesh), replacing any proxies it already has.
 func _add_body(body: PhysicsBody2D) -> void:
 	_drop(body)
+	if _try_carry(body, MirrorProxy.kind_of(body)):
+		return
 	var rows := _rows_of(body)
 	if rows.is_empty():
 		return
@@ -391,6 +416,45 @@ func _add_body(body: PhysicsBody2D) -> void:
 			_moving.append(row)
 	_rows[body.get_instance_id()] = rows
 	_watch(body)
+
+
+## Show `body` by a mesh carried on its twin, when its twin is a static body (a wall, a floor, an
+## anchored or wall-hung piece) and a builder gives its kind one: the mesh is the twin's child with
+## no transform of its own, so it stands where the twin does and nothing writes it; the mirror keeps
+## the shown rules (`_shown`) and the mesh's own hooks. True when it is handled: carried, or
+## waiting for a twin that is still to come (a twin joins the frame after its body); false for a
+## body whose twin is no static body (the mirror follows it) or that has none.
+func _try_carry(body: Node2D, kind: StringName) -> bool:
+	if not MirrorConfig.carry_meshes or _twins == null or not is_instance_valid(_twins):
+		return false
+	if _twins.is_waiting(body):
+		_pending[body.get_instance_id()] = body
+		return true
+	var twin := TwinSpace.twin_for(body) as StaticBody3D
+	# a door's leader is an `AnimatableBody3D` (a `StaticBody3D` too): not carried yet
+	if twin == null or twin is AnimatableBody3D or twin.get_parent() != _twins:
+		return false
+	var builder := _builder_for(body, kind)
+	if not builder.is_valid():
+		return false
+	var made: Variant = builder.call(body)
+	if not made is Node3D:
+		return false
+	if kind != MirrorProxy.FLOOR:
+		built.emit(body, made)
+	var row := _proxies.own_row(body, made)
+	row["carried"] = true
+	row["id"] = body.get_instance_id()
+	row["shown"] = _shown(row)
+	(made as Node3D).visible = row["shown"]
+	twin.add_child(made)
+	count += 1
+	var moving := body is CharacterBody2D or body is AnimatableBody2D or body is RigidBody2D
+	if moving or not row["shown"] or (row["update"] as Callable).is_valid():
+		_moving.append(row)
+	_rows[body.get_instance_id()] = [row]
+	_watch(body)
+	return true
 
 
 ## The rows `body` is shown by: its kind's own mesh when a builder gives one, else one proxy per
@@ -432,6 +496,8 @@ func _builder_for(node: Node, kind: StringName) -> Callable:
 ## Mirror a floor: its kind's own mesh when a builder gives one (in a frame at the floor's corner),
 ## else a flat slab; it never moves.
 func _add_floor(floor_node: Node2D) -> void:
+	if _try_carry(floor_node, MirrorProxy.FLOOR):
+		return
 	var row := {}
 	var builder := _builder_for(floor_node, MirrorProxy.FLOOR)
 	if builder.is_valid():
@@ -495,8 +561,8 @@ func _drop(body: Node) -> void:
 		row["gone"] = true
 		var node: Node = row["node"]
 		if is_instance_valid(node):
-			if node.get_parent() == self:
-				remove_child(node)
+			if node.get_parent() != null:
+				node.get_parent().remove_child(node)  # a carried mesh leaves its twin
 			node.queue_free()
 		count -= 1
 	_rows.erase(id)

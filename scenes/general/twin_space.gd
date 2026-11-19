@@ -181,6 +181,12 @@ func update() -> void:
 			_retire(row, i)  # parked: the row swapped into its place is visited next
 
 
+## Whether `body` entered the tree and is to be twinned by the next update (it has no twin yet, but
+## will have one if a domain builds one): a reader that wants the twin waits a frame.
+func is_waiting(body: Node) -> bool:
+	return _pending.has(body.get_instance_id())
+
+
 ## The twin of `body`, or null for a body with none (not twinned yet, or no domain builds one).
 func twin_of(body: Node) -> Node3D:
 	var row: Dictionary = _rows.get(body.get_instance_id(), {})
