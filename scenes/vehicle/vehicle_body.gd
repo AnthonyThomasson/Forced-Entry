@@ -65,9 +65,12 @@ func vehicle() -> Node2D:
 
 
 ## Called by the twin space as it takes the vehicle over: the 2D body is the footprint (a
-## body only the twin space moves). A parked vehicle is asleep: it costs Jolt nothing.
-func take_over(_footprint: Node2D) -> void:
-	sleeping = true
+## body only the twin space moves). A parked vehicle is asleep: it costs Jolt nothing. One whose
+## engine already runs (it was started before this body was built) keeps what the 2D vehicle was
+## told: it may not sleep and it is awake.
+func take_over(footprint: Node2D) -> void:
+	can_sleep = bool(footprint.get("can_sleep"))
+	sleeping = can_sleep and not _vehicle.drive.running
 
 
 ## The drive's step, in plan space, then what it ended the step at, for the contacts of the next

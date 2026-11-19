@@ -357,7 +357,9 @@ func _blocked(to: float, delta: float, nudging: bool) -> bool:
 	# furniture in its way, which a slimmer probe would let it overlap ever so slightly, and the
 	# engine would press aside, a shove a frame for as long as the walker pushes
 	for body in _overlapping(pose, 0.0):
-		if _is_character(body) or body is RigidBody2D:
+		# (a vehicle is no `RigidBody2D` now, but the footprint of a free 3D body, as a piece
+		# is: it is as loose as one)
+		if _is_character(body) or body is RigidBody2D or TwinSpace.leader_of(body) != null:
 			return true
 	return false
 

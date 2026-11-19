@@ -9,7 +9,7 @@ A top-down Godot 4.4 demo: a pixel-art character in a procedurally furnished hou
 
 ## The seventeen domains
 
-A folded sub-domain is a side file `.skillshare/skills/<skill>/<name>.md`.
+A folded sub-domain is a side file `<skill>/<name>.md`.
 
 | Domain | Folder | Skill | Owns |
 |---|---|---|---|
@@ -36,7 +36,7 @@ A folded sub-domain is a side file `.skillshare/skills/<skill>/<name>.md`.
 
 ## The cross-domain interfaces
 
-Everything not listed here is private to its domain. A signature lives only in its `interfaces/` file; a domain skill names the interfaces it takes part in by number.
+Everything not listed here is private to its domain. A signature lives only in its `interfaces/` file; a domain skill names its interfaces by number.
 
 1. **Main → World Generation** (through `MatchBuilder`). Read to generate a house or district, or use the catalogue and street: `interfaces/01-main-to-world-generation.md`
 2. **World Generation → Objects.** Read to spawn a piece, wall, floor, wear or decal: `interfaces/02-world-generation-to-objects.md`
@@ -80,7 +80,7 @@ main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio)
 worldgen ──▶ objects (the six factories, RoomWalls, WearPlan, `SharedTextures`, `FurnitureArt`, and `DoorConfig.open_angle`: 24), art (`PixelArt.warm`: 12)
-objects ──▶ physics, art, audio (SoundSurface.register)   (a door posts `&"door"`: 10; a nav bake carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24; a bed's mesh reads `use.active_interaction()`, duck-typed: 8)
+objects ──▶ physics, art, audio (SoundSurface.register), vehicle (VehicleMeshConfig)   (a door posts `&"door"`: 10; a nav bake carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24; a bed's mesh reads `use.active_interaction()`, duck-typed: 8)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
 items ──▶ projectile, art    projectile ──▶ physics, art, objects (28)    vehicle ──▶ physics, art    physics ──▶ art (12)
 ai ──▶ navigation, items (slot ids, GrenadeConfig, GrenadeArc), projectile (CoverRule, Explosion), character (CharacterMovement), objects (28)   (a house door, duck-typed: 24)

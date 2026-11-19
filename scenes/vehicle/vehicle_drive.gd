@@ -88,9 +88,21 @@ func step(state: PhysicsDirectBodyState3D, row: Dictionary) -> void:
 		tyres.vy = 0.0
 		tyres.w = 0.0
 	var along := fwd * tyres.vx + right * tyres.vy
-	state.linear_velocity = Vector3(along.x, state.linear_velocity.y, along.y) * RenderConfig.unit
-	state.angular_velocity = Vector3(0.0, -tyres.w, 0.0)
+	_write(state, along, tyres.w)
 	_update_engine(row, tyres.vx, throttle if not braking else 0.0, dt)
+
+
+## Give `state` the velocity `along` (plan space, px/s) and the turn `spin` (a 2D body's sign), the
+## vertical speed left to the floor and gravity. Written only when it changed: the physics engine
+## counts a write that changes anything, however little (a rounding), as a push and would never let
+## a vehicle at rest go back to sleep.
+func _write(state: PhysicsDirectBodyState3D, along: Vector2, spin: float) -> void:
+	var moving := Vector3(along.x, state.linear_velocity.y, along.y) * RenderConfig.unit
+	if not moving.is_equal_approx(state.linear_velocity):
+		state.linear_velocity = moving
+	var turning := Vector3(0.0, -spin, 0.0)
+	if not turning.is_equal_approx(state.angular_velocity):
+		state.angular_velocity = turning
 
 
 ## Ease `steer_share` toward the `steer` input (-1..1) at a rate that reaches full lock in

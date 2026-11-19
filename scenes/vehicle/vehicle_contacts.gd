@@ -8,10 +8,11 @@ class_name VehicleContacts extends RefCounted
 ## its vehicle (the 2D body); it holds the vehicle (a node, so no reference cycle) for its mass, its
 ## 3D body, its physics space, its row's `bounce`, its collision exceptions and its `post`.
 
-## How near (px) a body is to the vehicle's for the vehicle to be touching it, and how many bodies
-## it reads at once.
+## How near (px) a body is to the vehicle's for the vehicle to be touching it, and how many shape
+## hits one page of the touch query reads (a floor slab or a wall segment under the vehicle takes a
+## hit too: the query goes on page by page until none is left).
 const TOUCH_MARGIN := 1.5
-const TOUCH_HITS := 12
+const TOUCH_HITS := 32
 
 ## The vehicle it belongs to.
 var vehicle: Node2D
@@ -68,11 +69,11 @@ func remember(state: PhysicsDirectBodyState3D) -> void:
 	_clock += state.step
 
 
-## The bodies the vehicle touches now, in a fixed order (where they stand), each with its strongest
-## contact: `{ body, speed, position, normal, new }` (`speed` the closing speed along `normal`, out
-## of the vehicle into the body; `new` when it was not touching last step). Marks each body met in
-## `touching` (instance id -> true). A body the vehicle has a collision exception with (a character
-## getting in or out, a corpse) is not touched.
+## The bodies the vehicle touches now, nearest first (ties by where they stand: a fixed order), each
+## with its strongest contact: `{ body, speed, position, normal, new }` (`speed` the closing speed
+## along `normal`, out of the vehicle into the body; `new` when it was not touching last step).
+## Marks each body met in `touching` (instance id -> true). A body the vehicle has a collision
+## exception with (a character getting in or out, a corpse) is not touched.
 func _strongest_contacts(lead: RigidBody3D, touching: Dictionary) -> Array:
 	var space := lead.get_world_3d().direct_space_state
 	var query := PhysicsShapeQueryParameters3D.new()
@@ -83,18 +84,13 @@ func _strongest_contacts(lead: RigidBody3D, touching: Dictionary) -> Array:
 	var hull := lead.get_child(0) as CollisionShape3D  # its whole outline: the shape at the ground
 	query.shape = hull.shape
 	query.transform = lead.global_transform * hull.transform
-	query.exclude = [lead.get_rid()]
-	var near := {}
-	for found: Dictionary in space.intersect_shape(query, TOUCH_HITS):
-		var body := TwinSpace.owner_of(found["collider"])
-		if body is PhysicsBody2D and body != vehicle and not _excepted(body):
-			near[body.get_instance_id()] = body
-	var bodies: Array = near.values()
-	bodies.sort_custom(_nearer_the_origin)
+	var seen := _hits(space, query, lead)
+	var bodies: Array = seen["bodies"].values()
+	bodies.sort_custom(_nearer_the_vehicle)
 	var out: Array = []
 	for body: Node2D in bodies:
 		var fresh := not _touching.has(body.get_instance_id())
-		var hit := _contact_with(space, query, body, fresh)
+		var hit := _contact_with(space, query, body, fresh, seen["rids"])
 		if hit.is_empty():
 			continue
 		touching[body.get_instance_id()] = true
@@ -103,19 +99,46 @@ func _strongest_contacts(lead: RigidBody3D, touching: Dictionary) -> Array:
 	return out
 
 
-## The contact of the vehicle's body (`query`) with `body` alone:
-## `{ body, speed, position, normal }`, empty when it is not touching it after all.
+## Everything `query` meets, page by page (each page's colliders are left out of the next), so a
+## floor slab or a wall segment cannot crowd a body out: `{ bodies, rids }`, the bodies of the
+## sim met (instance id -> body: a `PhysicsBody2D` that is not the vehicle and has no collision
+## exception with it) and each hit's owner (collider rid -> its instance id, or 0 for anything
+## else).
+func _hits(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3D,
+		lead: RigidBody3D) -> Dictionary:
+	var bodies := {}
+	var rids := {}
+	var exclude: Array[RID] = [lead.get_rid()]
+	while true:
+		query.exclude = exclude
+		var page := space.intersect_shape(query, TOUCH_HITS)
+		for found: Dictionary in page:
+			var body := TwinSpace.owner_of(found["collider"])
+			var counted := body is PhysicsBody2D and body != vehicle and not _excepted(body)
+			rids[found["rid"]] = body.get_instance_id() if counted else 0
+			if counted:
+				bodies[body.get_instance_id()] = body
+			exclude.append(found["rid"])
+		if page.size() < TOUCH_HITS:
+			break
+	query.exclude = [lead.get_rid()]
+	return { "bodies": bodies, "rids": rids }
+
+
+## The contact of the vehicle's body (`query`) with `body` alone (`rids`: every hit of `_hits`, so
+## the rest are left out): `{ body, speed, position, normal }`, empty when it is not touching it
+## after all.
 func _contact_with(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3D,
-		body: Node2D, fresh: bool) -> Dictionary:
+		body: Node2D, fresh: bool, rids: Dictionary) -> Dictionary:
 	var alone := PhysicsShapeQueryParameters3D.new()
 	alone.shape = query.shape
 	alone.transform = query.transform
 	alone.collision_mask = query.collision_mask
 	alone.margin = query.margin
 	var exclude: Array[RID] = [TwinSpace.leader_of(vehicle).get_rid()]
-	for other: Dictionary in space.intersect_shape(query, TOUCH_HITS):
-		if TwinSpace.owner_of(other["collider"]) != body:
-			exclude.append(other["rid"])
+	for rid: RID in rids:
+		if rids[rid] != body.get_instance_id():
+			exclude.append(rid)
 	alone.exclude = exclude
 	var rest := space.get_rest_info(alone)
 	if rest.is_empty():
@@ -142,8 +165,13 @@ func _excepted(body: Node) -> bool:
 	).get_collision_exceptions().has(vehicle)
 
 
-## Bodies in a fixed order: by where they stand (their instance ids differ run to run).
-static func _nearer_the_origin(a: Node2D, b: Node2D) -> bool:
+## Bodies in a fixed order: nearest the vehicle first, then by where they stand (their instance ids
+## differ run to run).
+func _nearer_the_vehicle(a: Node2D, b: Node2D) -> bool:
+	var da := a.global_position.distance_squared_to(vehicle.global_position)
+	var db := b.global_position.distance_squared_to(vehicle.global_position)
+	if not is_equal_approx(da, db):
+		return da < db
 	if a.global_position.x != b.global_position.x:
 		return a.global_position.x < b.global_position.x
 	return a.global_position.y < b.global_position.y

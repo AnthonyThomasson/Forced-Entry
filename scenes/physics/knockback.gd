@@ -81,7 +81,10 @@ static func push(
 ## solver already resolves rigid-vs-rigid and rigid-vs-wall on its own). The struck body
 ## takes our travel momentum scaled down so cascades lose energy and settle.
 func _on_body_entered(body: Node) -> void:
-	if body is RigidBody2D or not body.has_method("apply_impulse"):
+	# a body the solver resolves, or one a free 3D body leads (a vehicle: not a `RigidBody2D`, but
+	# solved against the piece by the 3D engine, so it takes no handed momentum either)
+	if (body is RigidBody2D or not body.has_method("apply_impulse")
+			or TwinSpace.leader_of(body) != null):
 		return
 	var transfer := _body.linear_velocity * effective_mass() * PhysicsImpactConfig.transfer_scale
 	if transfer.length_squared() > 0.0:

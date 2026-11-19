@@ -138,8 +138,10 @@ numbers below hold.
 - Furniture is a free 3D body too: the engine solves the two (the pushable contract) and the vehicle carries on. The bumper's blow
   adds to that at the height it meets a piece (`strike_height`, the sill and half the bumper: 14.5 px for a car): a piece first met
   faster than `crash_min_speed` is struck with `strike_share` **0.4** of the closing speed times its mass there, so a tall thin
-  piece (a bookshelf) is kicked low and goes over, and a low heavy one (a sofa) only slides on, upright. A vehicle cannot be tipped:
-  a blow at any height turns it about up or slides it.
+  piece (a bookshelf) is kicked low and goes over, and a low heavy one (a sofa) only slides on, upright. The blow is momentum **added on top of** the engine's own solve of the contact (the car does not
+  lose it): energy put in on purpose so a strike tips a tall piece, tuned by `strike_share`. A vehicle cannot be tipped:
+  a blow at any height turns it about up or slides it. Only its roll and pitch are locked, not its height: gravity and the floor
+  hold it down, and a piece tipped under the hull could lift it a little (it comes back down; not asserted).
 - A character struck is knocked back (`apply_impulse`) and takes `take_damage(health x (closing − 90) / (300 − 90))`: nothing below
   `harm_min_speed` **90**, death at `harm_kill_speed` **300** or faster. One run-in is one blow: a character struck again within
   `rehit_time` **0.5** s of the last time it was against the vehicle is shoved on but not hurt again. A dead body is rolled over, and
@@ -165,7 +167,10 @@ numbers below hold.
 Tests: `vehicle/vehicle_is_a_locked_upright_3d_body` (the vehicle's truth is a `RigidBody3D` locked about the horizontal axes: a huge
 shove at its roof height turns it and slides it, never leans it), `vehicle/car_tips_a_bookshelf_but_slides_a_sofa` (a car rolling at 500
 into a bookshelf lays it over, into a sofa only slides it), `vehicle/drive_script_matches_the_2d_body` (a fixed input script's path,
-heading and speed within a frame of travel and 4 % of what the 2D body did), `vehicle/crash_into_wall_stops` (driven flat out into a wall: a crash event with the impact speed, the kind and a material; most
+heading and speed within 3 px, 0.01 rad and 2 % of what the 2D body did; the 3D body is read), `vehicle/vehicle_started_before_its_3d_body_drives` (a car started the
+frame it is built drives at once and may not sleep), `vehicle/vehicle_rolled_to_a_stop_goes_to_sleep` (a stopped vehicle, engine off, sleeps: the step writes a
+velocity only when it changed), `vehicle/car_strikes_the_right_bodies_among_a_crowd` (32 chairs along the flanks do not crowd the four characters ahead out of the strike
+query), `vehicle/vehicle_gravity_is_the_furniture_gravity`, `vehicle/crash_into_wall_stops` (driven flat out into a wall: a crash event with the impact speed, the kind and a material; most
 of the speed lost; it stays this side of the wall and stops), `vehicle/pushes_furniture` (an armchair is shoved well along the car's
 path, the car keeps moving, a crash names fabric), `vehicle/hits_character_damage_by_speed` (empty cars rolling at 60, midway between
 the two speeds, and past 300: shoved and unhurt, hurt and alive, dead), `vehicle/pinned_character_crushed` (empty cars at 200 into a

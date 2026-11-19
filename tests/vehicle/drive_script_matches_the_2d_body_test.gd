@@ -2,18 +2,25 @@ extends GameTest
 ## V5 (#194 vehicles3d, D13): the vehicle is a 3D body now, and it must drive as the 2D body did. A
 ## fixed input script (full throttle, then full throttle with the wheel hard over, a coast, then the
 ## brakes) is driven by a car and by a van, and the path (position and heading) and the speed are
-## compared with what the 2D rigid body did on the same script (`EXPECTED`, recorded from the 2D
-## body before it was replaced), within `PATH_TOLERANCE` / `SPEED_TOLERANCE`.
+## compared with what the 2D rigid body did on the same script (`EXPECTED`), within
+## `PATH_TOLERANCE` / `HEADING_TOLERANCE` / `SPEED_TOLERANCE`. The 3D body is read, not its 2D
+## footprint (which trails it by a frame), at the same frame the 2D body was read at.
+##
+## How `EXPECTED` was recorded: this test, with `EXPECTED` empty (it prints `RECORDED` and the
+## samples), run on the commit before the vehicle was replaced (the 2D `RigidBody2D`, whose
+## `global_position`, `global_rotation` and `speed()` it read the same way): the numbers are what
+## that body did, not what the 3D body does. This same file, run on `967409b3` (the 2D body), also
+## passes against the table within the same tolerances.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## How far (px) the path may be from the 2D body's at a sample, and how far (px/s, and as a share of
 ## the speed) the speed may.
-const PATH_TOLERANCE := 24.0
-const SPEED_TOLERANCE := 24.0
-const SPEED_SHARE := 0.04
+const PATH_TOLERANCE := 3.0
+const SPEED_TOLERANCE := 3.0
+const SPEED_SHARE := 0.02
 ## The heading's tolerance (rad).
-const HEADING_TOLERANCE := 0.05
+const HEADING_TOLERANCE := 0.01
 ## The script: [seconds from its start, throttle, steer] each held until the next row.
 const SCRIPT := [[0.0, 1.0, 0.0], [1.5, 1.0, 1.0], [3.0, 0.0, 0.0], [4.0, -1.0, 0.0]]
 ## How long it runs and how often it is sampled (s).
@@ -94,8 +101,8 @@ func run(t: TestContext) -> void:
 	var origin := { &"car": Vector2.ZERO, &"van": Vector2.ZERO }
 	var turn := { &"car": 0.0, &"van": 0.0 }
 	for kind in drivers:
-		origin[kind] = (t.vehicle(kind) as Node2D).global_position
-		turn[kind] = (t.vehicle(kind) as Node2D).global_rotation
+		origin[kind] = _where(t.vehicle(kind))
+		turn[kind] = _heading(t.vehicle(kind))
 	var started := t.time
 	var next := 0.0
 	while t.time - started < RUN:
@@ -109,12 +116,12 @@ func run(t: TestContext) -> void:
 		if at >= next:
 			next += EVERY
 			for kind in drivers:
-				var v := t.vehicle(kind) as Node2D
-				var p: Vector2 = v.global_position - origin[kind]
+				var v := t.vehicle(kind)
+				var p: Vector2 = _where(v) - origin[kind]
 				seen[kind].append(
 					[snappedf(p.x, 0.1), snappedf(p.y, 0.1),
-					snappedf(wrapf(v.global_rotation - turn[kind], -PI, PI), 0.001),
-					snappedf(v.speed(), 0.1)],
+					snappedf(wrapf(_heading(v) - turn[kind], -PI, PI), 0.001),
+					snappedf(_speed(v), 0.1)],
 				)
 		await t.frames(1)
 	for kind in drivers:
@@ -123,6 +130,29 @@ func run(t: TestContext) -> void:
 		print("RECORDED ", JSON.stringify(seen))
 	for kind in drivers:
 		_compare(t, kind, seen[kind], EXPECTED.get(kind, []))
+
+
+## Where the vehicle is (px): its 3D body's place, or the 2D body's where there is no 3D body (the
+## revision this was recorded on).
+func _where(v: Node) -> Vector2:
+	var lead := TwinSpace.leader_of(v)
+	if lead == null:
+		return (v as Node2D).global_position
+	return PlanSpace.plan_of(lead.global_position)
+
+
+## Which way it points (rad).
+func _heading(v: Node) -> float:
+	var lead := TwinSpace.leader_of(v)
+	if lead == null:
+		return (v as Node2D).global_rotation
+	return PlanSpace.plan_of(lead.global_transform.basis.x).angle()
+
+
+## How fast it moves (px/s).
+func _speed(v: Node) -> float:
+	var lead := TwinSpace.leader_of(v)
+	return lead.call(&"plan_velocity").length() if lead != null else v.speed()
 
 
 ## Check each sample of `got` against the 2D body's `want`.
