@@ -1,7 +1,7 @@
 extends GameTest
 ## G8 (#194 D10): a fragment that climbs past the walls' top has nothing left to strike (no body,
-## piece or wall stands higher, and a roof would stop it) and is spent there instead of flying its
-## whole reach through the air: each fragment's reach ends where its line meets
+## piece or wall stands higher, and no fragment strikes a roof by design) and is spent there instead
+## of flying its whole reach through the air: each fragment's reach ends where its line meets
 ## `Explosion.FRAGMENT_CEILING`, or at the row's `fragment_range` when that comes first. Read off
 ## the fragments as they leave a burst on the floor.
 

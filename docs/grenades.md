@@ -171,16 +171,16 @@ stream, so the same fight must draw them for the same body each run; test `proje
 order of distance, are struck in the order of their distance).
 
 **G8. Fragments.** `fragments` **40** real projectiles leave the burst point as **3D rays over the upper hemisphere** (`Explosion._fragments`: azimuth evenly round the circle,
-jittered; elevation `sin = q^fragment_flatness` for a draw `q` spread evenly over the fragments, `fragment_flatness` **5**: about two thirds within 6 degrees of level, a tenth over 25,
-as a shell's do; at the burst's real altitude), through `ProjectileSpawner`, with low power (`penetration` 0.4, `fragment_damage` **8.3**, fast) and a short reach
-(`fragment_range` **500 px**: a projectile can be given a maximum range, past which it is spent), and a fragment that climbs past 100 px (`Explosion.FRAGMENT_CEILING`: over every wall, piece and body, under what a roof would stop) is spent there, so a steep one does not fly its whole reach. So cover, penetration, ricochet, blood, debris and impact sounds all work as for
+jittered; elevation `sin = q^fragment_flatness` for a draw `q` spread evenly over the fragments, `fragment_flatness` **6**: about two thirds within 6 degrees of level, an eighth over 25,
+as a shell's do; at the burst's real altitude), through `ProjectileSpawner`, with low power (`penetration` 0.4, `fragment_damage` **12**, fast) and a short reach
+(`fragment_range` **500 px**: a projectile can be given a maximum range, past which it is spent), and a fragment that climbs past 100 px (`Explosion.FRAGMENT_CEILING`: over every wall, piece and body, nothing taller than the walls is left to strike; a roof is struck by no fragment, none of the twin's line layers holds it) is spent there, so a steep one does not fly its whole reach. So cover, penetration, ricochet, blood, debris and impact sounds all work as for
 bullets: a ray is stopped by what it meets at that height (a wall, a lintel, a piece's real parts, a door, a vehicle), a ducked body behind a sofa is shielded and a standing one is hit over it,
 a grenade resting on a desk or a van's roof bursts at that height and its fragments clear the desk's own top (if the piece under a resting grenade is pushed or blasted away it falls and bursts where it lies, `ItemFlight.unsupported`) (a character's armour and hit zones too: `docs/outfits.md` O9); each hit posts `&"hit"` with the thrower as
-`attacker`. **Tuned to the old figure:** an exposed standing body in the open takes from the fragments what it took when they flew level at a height drawn from the floor to the ceiling of the old
-0 to 100 scale, band by band (the damage per burst and dummy 15 at 70 px, 5.9 at 140 px, 4.1 at 260 px, 2.3 at 420 px, within 15%), by the damage and the flatness (low zones take 0.6, the
-head 2.0, `CharacterHitConfig.zone_damage`). **And spread up the body:** about a tenth of the hits on a standing body land on the torso or the head (3 to 5% at flatness 12, which
+`attacker`. **Tuned to the old figure, in HP:** an exposed standing body in the open loses from the fragments, after each hit's zone share (feet and legs 0.6, torso 1, head 2.0,
+`CharacterHitConfig.zone_damage`), what it lost when they flew level (12 each) at a height drawn from the floor to the ceiling of the old 0 to 100 scale, band by band (the HP
+lost per burst and dummy 14.3 at 70 px, 5.3 at 140 px, 4.0 at 260 px, 2.2 at 420 px, within 15%), by the damage and the flatness. **And spread up the body:** about 9% of the hits on a standing body land on the torso or the head (3 to 5% at flatness 12, which
 put nearly all on the feet and legs and left a vest nothing to stop; the old level draw gave 49%). The two pull against each other: a hit's chance falls with distance as
-`distance^-(1/flatness)`, so a flatter fan keeps the old distance law and a steeper one spreads the hits and thins them out faster. 5 is the best of both: within 15% per band and a
+`distance^-(1/flatness)`, so a flatter fan keeps the old distance law and a steeper one spreads the hits and thins them out faster. 6 is the best of both: within 15% per band (in HP) and a
 vest has fragments to stop (`projectile/frag_fragments_stopped_by_vest`, O9).
 Tests: `projectile/frag_fragments_hit`, `projectile/frag_fragments_exposed_by_distance` (the figure per distance band and the share of hits on the torso and head), `projectile/frag_fragments_stopped_by_vest`, `projectile/frag_fragments_shielded_by_low_cover` (a ducked hostile behind a sofa survives
 a frag that kills a standing one beside it), `projectile/frag_burst_on_a_desk_at_desk_height`, `projectile/frag_fragments_spent_above_the_walls`, `projectile/frag_burst_on_a_van_roof_at_roof_height`, `projectile/frag_falls_when_its_support_is_pushed_away`.

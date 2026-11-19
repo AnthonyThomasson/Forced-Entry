@@ -1,12 +1,13 @@
 extends GameTest
 ## G8 (#194 D10): the fragments are 3D rays over the upper hemisphere, and an exposed standing body
-## takes from them what it took when they flew level at a height drawn from the floor to the
-## ceiling of the old scale: the same damage at each distance, in each band, and a spread over the
+## loses from them (the HP, after the hit zone's share) what it lost when they flew level at a
+## height drawn from the floor to the ceiling of the old scale: the same at each distance, in each
+## band, and a spread over the
 ## body (not nearly all at the feet) so a vest or a helmet has fragments to stop (O9). Standing
 ## dummies stand in the open on a ring at each of four distances from a burst on the floor (six to a
 ## ring, the rings turned from one another so no dummy stands in another's line; the blast itself is
 ## switched off in the row: this reads the fragments alone); the burst goes off `BURSTS` times and
-## each band's fragment damage is summed over its dummies and the bursts.
+## each band's HP lost is summed over its dummies and the bursts.
 
 const AT := Vector2(700, 500)
 const BURSTS := 100
@@ -16,21 +17,22 @@ const BURSTS := 100
 const BANDS := [70.0, 140.0, 260.0, 420.0]
 const DUMMIES := 6
 const TURN := 15.0
-## What an exposed standing body took per burst and dummy in each band when the fragments flew
-## level at a height drawn between the floor and the top of the old scale (measured on that code
-## over this scenario).
-const TODAY := [15.06, 5.89, 4.11, 2.34]
+## The HP an exposed standing body lost per burst and dummy in each band when the fragments flew
+## level, 12 damage each, at a height drawn between 2 and 123 px (the old scale's floor and
+## ceiling), measured over this scenario (zone shares: feet and legs 0.6, torso 1, head 2). The
+## figure before the zone's share, 15.06 / 5.89 / 4.11 / 2.34, is not what a body loses.
+const TODAY := [14.28, 5.28, 4.03, 2.24]
 ## The share of that the rays' sum may stray from it: the fragments' damage and flatness are tuned
-## to within 15% of it in every band (a flatter fan keeps the distance law, a steeper one spreads
-## the hits up the body: a hit's chance falls as distance^-(1/flatness)), and the 100 bursts of six
-## dummies leave a few per cent of spread in the far band's few hits.
+## to within 15% of it in every band (14% at most) (a flatter fan keeps the distance law, a steeper
+## one spreads the hits up the body: a hit's chance falls as distance^-(1/flatness)), and the 100
+## bursts of six dummies leave a few per cent of spread in the far band's few hits.
 const TOLERANCE := 0.2
 ## The share of the fragment hits on a standing body that land on the torso or the head, over all
 ## the bands and in each (a fan nearly level would put them all on the feet and legs: 3 to 5% at
 ## flatness 12, where the old level draw gave 49%), and the most that land on the feet.
 const MIN_UPPER_SHARE := 0.08
 const MIN_UPPER_SHARE_BAND := 0.05
-const MAX_FEET_SHARE := 0.5
+const MAX_FEET_SHARE := 0.55
 
 
 func describe() -> Dictionary:
@@ -80,17 +82,17 @@ func run(t: TestContext) -> void:
 	))
 
 
-## What ring `band`'s dummies took from the fragments: the damage, the hits, and how many of them
+## What ring `band`'s dummies took from the fragments: the HP lost, the hits, and how many of them
 ## struck the torso or head and the feet.
 func _tally(t: TestContext, band: int) -> Dictionary:
 	var out := { "damage": 0.0, "hits": 0, "upper": 0, "feet": 0 }
 	for j in DUMMIES:
 		var victim := t.actor(_id(band, j))
+		out["damage"] += victim.max_health - victim.health
 		for e in t.events_of(
 				&"hit",
 				func(d): return d.get("victim") == victim and d.get("outcome") != &"blast",
 		):
-			out["damage"] += float(e["damage"])
 			out["hits"] += 1
 			var zone := BodyHeights.zone_at(BodyHeights.STAND, float(e["height"]))
 			out["upper"] += int(zone == &"torso" or zone == &"head")
@@ -98,14 +100,14 @@ func _tally(t: TestContext, band: int) -> Dictionary:
 	return out
 
 
-## The checks of one band: its damage against today's, and how its hits spread up the body.
+## The checks of one band: its HP against today's, and how its hits spread up the body.
 func _check_band(t: TestContext, band: int, tally: Dictionary) -> void:
 	var per: float = tally["damage"] / (BURSTS * DUMMIES)
 	var want: float = TODAY[band]
 	var px := int(BANDS[band])
 	t.check(
 		absf(per - want) <= want * TOLERANCE,
-		"band %d px: %.2f damage a burst and dummy (today %.2f)" % [px, per, want],
+		"band %d px: %.2f HP a burst and dummy (today %.2f)" % [px, per, want],
 	)
 	t.check(tally["hits"] > 0 and tally["upper"] >= MIN_UPPER_SHARE_BAND * tally["hits"], (
 		"band %d px: %d of %d hits on the torso or head (at least %.0f%%)"

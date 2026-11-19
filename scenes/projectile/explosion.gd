@@ -38,8 +38,9 @@ const WALLS_ONLY := -1.0
 const BURST_CENTRE := 3.5
 ## The most a fragment may climb (the sine of its elevation): a fragment never flies exactly up.
 const MAX_ELEVATION_SINE := 0.999
-## The height (px) past which a fragment is spent: over every body, piece and wall (96) and the
-## roof that would stop it, nothing is left to strike, so a steep one does not fly its whole reach.
+## The height (px) past which a fragment is spent: nothing taller than the walls (96) is left to
+## strike (no fragment strikes a roof by design: `TWIN_ROOF` is in no line layer), so a steep one
+## does not fly its whole reach.
 const FRAGMENT_CEILING := 100.0
 ## The twin layers a line asks: the world and the vehicles, the characters being what it reaches.
 const LINE_MASK := SightRay.MASK
