@@ -205,6 +205,8 @@ func inverse_yaw_inertia() -> float:
 ## Whether the piece has tipped (D14): its up axis leans more than `PieceBodyConfig.tipped_degrees`
 ## from the world's, and it stays tipped until it leans less than `PieceBodyConfig.upright_degrees`.
 ## A tipped piece is lying on a side or leaning on something; it is no longer a thing to sit on.
+## Stateful (the hysteresis): between the two leans the answer is the one it last gave, so a piece
+## parked at rest (and `EnvironmentObject.is_tipped` on it) reads the state it was last asked in.
 func tipped() -> bool:
 	var up := global_transform.basis.y.normalized().y
 	if up < cos(deg_to_rad(PieceBodyConfig.tipped_degrees)):

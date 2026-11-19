@@ -8,8 +8,9 @@ extends GameTest
 const CharacterScene := preload("res://scenes/character/character_base.tscn")
 const FRAMES := 150
 ## Beside the "touching" death (at 480, 250), a body's width off: a chair under the character would
-## be shoved clear by the physics as the character spawns (every time, the same way), and the fall
-## under test would meet a chair that moved.
+## be shoved clear as the character spawns. That shove is not replay-stable between two plays in one
+## world (Jolt keeps history inside its one space: slot reuse, warm starting), so the chair sits
+## 28 px off and the fall under test meets a chair that does not move.
 const CHAIR_AT := Vector2(508, 250)
 const BLAST_FRAME := 55
 const SCENARIOS := [
