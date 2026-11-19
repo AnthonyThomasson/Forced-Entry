@@ -75,7 +75,10 @@ func run(t: TestContext) -> void:
 	t.puppet(&"driver").drive(1.0, 0.0, false)
 	var moving := await Perf.frame_stats(t, MOVING_FRAMES)
 	Perf.report_worst("vehicle fleet rolling", moving)
+	# the lines `tools/perf_ab.sh` reads, held to the smooth-match budgets (the lot is mostly crowd)
+	Perf.within(t, "vehicle fleet rolling avg ms/frame", moving["avg_ms"], Perf.SMOOTH_AVG_MS)
 	Perf.within(t, "vehicle fleet rolling p95 ms/frame", moving["p95_ms"], Perf.SMOOTH_P95_MS)
+	Perf.within(t, "vehicle fleet rolling max ms/frame", moving["max_ms"], 100.0)
 	Perf.within(
 		t,
 		"vehicle fleet rolling avg ms/frame over the idle lot",
