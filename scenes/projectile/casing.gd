@@ -28,8 +28,9 @@ func _physics_process(delta: float) -> void:
 	if _flight.rolling:
 		_spin = move_toward(_spin, 0.0, CasingConfig.spin_friction * delta)
 	rotation += _spin * delta
-	if _flight.resting or _age >= CasingConfig.max_time:
-		_flight.resting = true
+	if _age >= CasingConfig.max_time and not _flight.resting:
+		_flight.settle(TwinSpace.space_of(self))
+	if _flight.resting:
 		_spin = 0.0
 		ViewLayers.set_moving(self, false)
 		set_physics_process(false)

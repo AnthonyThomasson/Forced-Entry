@@ -33,7 +33,7 @@ static func trace(
 	height: float,
 	flight: float,
 ) -> Dictionary:
-	if space == null or height < 0.0 or direction.length() < 0.001:
+	if space == null or height < 0.0 or flight < 0.001 or direction.length() < 0.001:
 		return {}
 	var unit := direction.normalized()
 	var previous := PlanSpace.lift(from, height)

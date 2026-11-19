@@ -62,7 +62,14 @@ func record(hit: HitInfo) -> void:
 	# A round that went right through also throws blood out the far side, along its flight.
 	if hit.has_exit:
 		var throw := _throw_of(_spray_size(), hit.direction, BloodSprayConfig.energy)
-		_add_splat(_landing(throw, hit, hit.exit_position, hit.exit_position), throw, thrown)
+		var at := _landing(
+			throw,
+			hit,
+			hit.exit_position,
+			hit.exit_position,
+			BloodSprayConfig.reach_max,
+		)
+		_add_splat(at, throw, thrown)
 	BloodSplat.defer_finish(thrown)
 
 	var owed := maxi(1, ceili(hit.damage * BloodDripConfig.drips_per_damage))
@@ -121,7 +128,8 @@ func _spray(hit: HitInfo, out: Vector2, i: int, thrown: Array[Node]) -> void:
 			if i > 0
 			else 0.0)
 	var throw := _throw_of(_spray_size(), dir, BloodSprayConfig.energy if i > 0 else 0.4)
-	_add_splat(_landing(throw, hit, hit.position, hit.position + dir * reach), throw, thrown)
+	var at := _landing(throw, hit, hit.position, hit.position + dir * reach, reach)
+	_add_splat(at, throw, thrown)
 
 
 ## A spray splatter's core radius: a drip's, scaled.
@@ -142,11 +150,18 @@ func _throw_of(size: float, direction: Vector2, energy: float) -> BloodThrow:
 	return throw
 
 
-## Where blood thrown as `throw` from plan point `from` lands: it leaves at the hit's real height
-## and is traced through the twin 3D space (`BloodLanding`); on a wall or a piece's top the throw
-## records the surface and the answer is the point on it, else `at`, the floor's.
-func _landing(throw: BloodThrow, hit: HitInfo, from: Vector2, at: Vector2) -> Vector2:
-	var flight := BloodSprayConfig.reach_max
+## Where blood thrown as `throw` from plan point `from` lands, when it would come down at `at`
+## `flight` px out: it leaves at the hit's real height and is traced through the twin 3D space
+## (`BloodLanding`) down to where it lands; on a wall or a piece's top the throw records the surface
+## and the answer is the point on it, else `at`, the floor's. (A hit has one height: the exit blood
+## leaves at it too.)
+func _landing(
+	throw: BloodThrow,
+	hit: HitInfo,
+	from: Vector2,
+	at: Vector2,
+	flight: float,
+) -> Vector2:
 	throw.surface = BloodLanding.trace(
 		TwinSpace.space_of(self), from, throw.direction, hit.height, flight
 	)

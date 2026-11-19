@@ -32,7 +32,9 @@ func _physics_process(delta: float) -> void:
 	if _flight.rolling or _flight.resting:
 		_spin = move_toward(_spin, 0.0, PhysicsDebrisConfig.spin_friction * delta)
 	rotation += _spin * delta
-	if _flight.resting or _age >= PhysicsDebrisConfig.max_time:
+	if _age >= PhysicsDebrisConfig.max_time and not _flight.resting:
+		_flight.settle(TwinSpace.space_of(self))
+	if _flight.resting:
 		_rest()
 
 

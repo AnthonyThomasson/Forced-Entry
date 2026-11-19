@@ -162,6 +162,24 @@ func unsupported(space: PhysicsDirectSpaceState3D) -> bool:
 	return _cast(space, Vector3(0.0, -SUPPORT_PROBE, 0.0)).is_empty()
 
 
+## Lay it down where it is: it drops straight onto what is under it, the floor or a piece's top, and
+## rests (a thing that has flown too long to be left in the air).
+func settle(space: PhysicsDirectSpaceState3D) -> void:
+	velocity = Vector2.ZERO
+	var fall := maxf(height - floor_height(), 0.0)
+	var safe := 1.0
+	if space != null and fall > 0.0:
+		_query.exclude = NOBODY
+		_query.collision_mask = mask
+		var found := _cast(space, Vector3(0.0, -fall, 0.0))
+		if not found.is_empty():
+			safe = float(found["safe"])
+	height -= fall * safe
+	rise = 0.0
+	rolling = false
+	resting = true
+
+
 ## Take it off its rest: it falls from where it is.
 func release() -> void:
 	resting = false
