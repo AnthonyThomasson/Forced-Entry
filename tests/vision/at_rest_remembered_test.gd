@@ -8,6 +8,9 @@ extends GameTest
 ## stays on `WORLD` in every frame of its swing (the view remembers it where it was last seen,
 ## whatever its angle: the 3D mirror never hides a door).
 ##
+## It pins `CasingConfig.eject_distance` to 40 px: a casing thrown that far flies long enough to be
+## seen moving across frames, which a shorter throw (a flight of a few frames) would not.
+##
 ## It reads (tests/_vision/vision_probe.gd) each node's `visibility_layer`, the corpse's
 ## `anatomy.ragdoll.is_settled()`, the world's `grenade` events and what the nodes do (a place
 ## that moved, a place that held still).
@@ -53,6 +56,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1400, 700))
+	s.set_static(CasingConfig, &"eject_distance", 40.0)
 	s.switch(&"nav.rebake", false)
 	s.switch(&"vision.enabled", true)
 	s.actor(&"you", &"player", Vector2(150, 350))

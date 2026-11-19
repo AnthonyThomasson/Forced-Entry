@@ -48,6 +48,14 @@ const MIN_FLIGHT := 0.08
 const CONTACTS := 3
 ## No bodies passed.
 const NOBODY: Array[RID] = []
+## The most frames `step` looks ahead for a clear corridor (`_look_ahead`): while one holds, a frame
+## moves by arithmetic with no sweep of the space; a thing over open floor casts once in this many.
+const HORIZON := 8
+## Frames `step` waits after a look-ahead found something near, before it looks again (a flight that
+## rolls on a piece's top, a chip in a corner, would otherwise look every frame and cast twice).
+const LOOK_COOLDOWN := 6
+## Extra px of the look-ahead sphere's radius over the path's sag, for the chord's rounding.
+const LOOK_MARGIN := 0.3
 
 ## Where it is (plan point), and its height (centre, px above the floor).
 var at := Vector2.ZERO
@@ -71,16 +79,16 @@ var friction := 520.0
 var resting := false
 ## It is on a surface facing up and rolling (`step` slows it by `friction`).
 var rolling := false
-## The sweep (a sphere).
-var _query := PhysicsShapeQueryParameters3D.new()
+## The sweep: its query (a sphere), the wider sphere the look-ahead sweeps, the frames left in which
+## the space was found clear along the flight, and the frames to wait before looking again.
+var _probe := Probe.new()
 
 
 func _init(sphere_radius: float = 3.0) -> void:
 	radius = sphere_radius
-	var sphere := SphereShape3D.new()
-	sphere.radius = sphere_radius * RenderConfig.unit
-	_query.shape = sphere
-	_query.collision_mask = mask
+	_probe.own.radius = sphere_radius * RenderConfig.unit
+	_probe.query.shape = _probe.own
+	_probe.query.collision_mask = mask
 
 
 ## The lowest the sphere's centre goes: the plane it rests on.
@@ -123,9 +131,11 @@ func place(plan: Vector2, centre: float) -> void:
 func step(space: PhysicsDirectSpaceState3D, delta: float, passed: Array[RID] = NOBODY) -> int:
 	if resting:
 		return NONE
-	_query.exclude = passed
-	_query.collision_mask = mask
+	_probe.query.exclude = passed
+	_probe.query.collision_mask = mask
 	var event := NONE
+	if _probe.frames <= 0 and space != null:
+		_look_ahead(space, delta)
 	rise -= gravity * delta
 	var left := Vector3(velocity.x, rise, velocity.y) * delta
 	rolling = false
@@ -143,6 +153,8 @@ func step(space: PhysicsDirectSpaceState3D, delta: float, passed: Array[RID] = N
 		var taken := _contact(normal, delta)
 		event = maxi(event, taken)
 		left = _remaining(left, float(hit["safe"]), normal, taken)
+	_probe.frames = 0 if event != NONE else maxi(_probe.frames - 1, 0)
+	_probe.cooldown = maxi(_probe.cooldown - 1, 0)
 	if rolling:
 		velocity = velocity.move_toward(Vector2.ZERO, friction * delta)
 		if velocity.length() <= REST_SPEED:
@@ -157,20 +169,21 @@ func step(space: PhysicsDirectSpaceState3D, delta: float, passed: Array[RID] = N
 func unsupported(space: PhysicsDirectSpaceState3D) -> bool:
 	if not resting or space == null or height <= floor_height() + 0.01:
 		return false
-	_query.exclude = NOBODY
-	_query.collision_mask = mask
+	_probe.query.exclude = NOBODY
+	_probe.query.collision_mask = mask
 	return _cast(space, Vector3(0.0, -SUPPORT_PROBE, 0.0)).is_empty()
 
 
 ## Lay it down where it is: it drops straight onto what is under it, the floor or a piece's top, and
 ## rests (a thing that has flown too long to be left in the air).
 func settle(space: PhysicsDirectSpaceState3D) -> void:
+	_probe.frames = 0
 	velocity = Vector2.ZERO
 	var fall := maxf(height - floor_height(), 0.0)
 	var safe := 1.0
 	if space != null and fall > 0.0:
-		_query.exclude = NOBODY
-		_query.collision_mask = mask
+		_probe.query.exclude = NOBODY
+		_probe.query.collision_mask = mask
 		var found := _cast(space, Vector3(0.0, -fall, 0.0))
 		if not found.is_empty():
 			safe = float(found["safe"])
@@ -182,6 +195,7 @@ func settle(space: PhysicsDirectSpaceState3D) -> void:
 
 ## Take it off its rest: it falls from where it is.
 func release() -> void:
+	_probe.frames = 0
 	resting = false
 	rolling = false
 	velocity = Vector2.ZERO
@@ -191,13 +205,70 @@ func release() -> void:
 ## Move it level toward plan point `target` as far as it is clear: it stops where a body of the twin
 ## space first meets the sphere (a wall, a piece), without bouncing; nothing else changes.
 func advance_to(space: PhysicsDirectSpaceState3D, target: Vector2) -> void:
-	_query.exclude = NOBODY
-	_query.collision_mask = mask
+	_probe.frames = 0
+	_probe.query.exclude = NOBODY
+	_probe.query.collision_mask = mask
 	var across := target - at
 	var motion := Vector3(across.x, 0.0, across.y)
 	var found := _cast(space, motion) if space != null else {}
 	var safe := float(found["safe"]) if not found.is_empty() else 1.0
 	at += across * safe
+
+
+## Whether the sphere, where it is, already overlaps a body of the twin space (a thing let go inside
+## a wall: a cast ignores what its sphere starts in, so it would fly on through).
+func embedded(space: PhysicsDirectSpaceState3D) -> bool:
+	if space == null:
+		return false
+	_probe.query.exclude = NOBODY
+	_probe.query.collision_mask = mask
+	_probe.query.transform = Transform3D(Basis(), point())
+	_probe.query.motion = Vector3.ZERO
+	return not space.get_rest_info(_probe.query).is_empty()
+
+
+## Look the next frames' path over for a body of the twin space: one cast of a sphere wide enough to
+## take the parabola's sag along the straight chord of the flight up to its landing on the floor
+## plane (`HORIZON` frames at most), or of a roll along it (a cast ignores what its sphere starts
+## in, so the wide sphere must start clear of every body first). When nothing is met, the next
+## frames (`_probe.frames`) move with no cast; a bounce, a rest or a hit by `release` and the like
+## ends it.
+func _look_ahead(space: PhysicsDirectSpaceState3D, delta: float) -> void:
+	if _probe.cooldown > 0 or resting:
+		return
+	var low := floor_height()
+	var up := rise
+	var level := height
+	var frames := 0
+	for _k in HORIZON:
+		up -= gravity * delta
+		level += up * delta
+		if level < low or level > ceiling - radius:
+			break
+		frames += 1
+	var on_floor := height <= low + 0.01 and rolling
+	if on_floor:
+		frames = HORIZON
+		level = height
+	if frames < 3:
+		return
+	var span := float(frames) * delta
+	var sag := 0.0 if on_floor else 0.125 * gravity * span * span
+	_probe.wide.radius = (radius + sag + LOOK_MARGIN) * RenderConfig.unit
+	_probe.query.shape = _probe.wide
+	_probe.query.transform = Transform3D(Basis(), point())
+	var motion := Vector3(velocity.x * span, level - height, velocity.y * span)
+	_probe.query.motion = Vector3.ZERO
+	var near := not space.intersect_shape(_probe.query, 1).is_empty()
+	_probe.query.motion = motion * RenderConfig.unit
+	var cast: Array = []
+	if not near:
+		cast = space.cast_motion(_probe.query)
+	_probe.query.shape = _probe.own
+	if not near and (cast.is_empty() or cast[0] >= 1.0):
+		_probe.frames = frames
+	else:
+		_probe.cooldown = LOOK_COOLDOWN
 
 
 ## What stops a sweep of `motion` (3D, px) from where it is first, as `{ safe, normal }` (the share
@@ -218,7 +289,7 @@ func _sweep(space: PhysicsDirectSpaceState3D, motion: Vector3) -> Dictionary:
 			best = { "safe": share, "normal": Vector3.DOWN }
 	if space == null:
 		return best
-	var found := _cast(space, motion * safe)
+	var found := {} if _probe.frames > 0 else _cast(space, motion * safe)
 	if not found.is_empty():
 		var share := safe * float(found["safe"])
 		best = { "safe": share, "normal": found["normal"] }
@@ -227,14 +298,14 @@ func _sweep(space: PhysicsDirectSpaceState3D, motion: Vector3) -> Dictionary:
 
 ## What the twin space's bodies stop the sphere's sweep of `motion` at: `{ safe, normal }` or {}.
 func _cast(space: PhysicsDirectSpaceState3D, motion: Vector3) -> Dictionary:
-	_query.transform = Transform3D(Basis(), point())
-	_query.motion = motion * RenderConfig.unit
-	var res := space.cast_motion(_query)
+	_probe.query.transform = Transform3D(Basis(), point())
+	_probe.query.motion = motion * RenderConfig.unit
+	var res := space.cast_motion(_probe.query)
 	if res.is_empty() or res[0] >= 1.0:
 		return {}
-	_query.transform = Transform3D(Basis(), point() + motion * RenderConfig.unit * res[1])
-	_query.motion = Vector3.ZERO
-	var info := space.get_rest_info(_query)
+	_probe.query.transform = Transform3D(Basis(), point() + motion * RenderConfig.unit * res[1])
+	_probe.query.motion = Vector3.ZERO
+	var info := space.get_rest_info(_probe.query)
 	var normal: Vector3 = info["normal"] if not info.is_empty() else -motion.normalized()
 	return { "safe": res[0], "normal": normal }
 
@@ -270,3 +341,16 @@ func _remaining(motion: Vector3, safe: float, normal: Vector3, taken: int) -> Ve
 		return Vector3.ZERO
 	var rest := motion * (1.0 - safe)
 	return rest - rest.dot(normal) * normal if rest.dot(normal) < 0.0 else rest
+
+
+## What `step` sweeps with: the sphere query, the same sphere kept to put back, the wider one of
+## `_look_ahead`, the frames of corridor left and those to wait before looking again.
+class Probe extends RefCounted:
+	## The sweep's query, with the sphere of the thing's own size.
+	var query := PhysicsShapeQueryParameters3D.new()
+	## That sphere, to put back after a look-ahead, and the wider one the look-ahead sweeps.
+	var own := SphereShape3D.new()
+	var wide := SphereShape3D.new()
+	## Frames left that move with no cast, and frames to wait before looking ahead again.
+	var frames := 0
+	var cooldown := 0

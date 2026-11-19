@@ -394,8 +394,9 @@ func _solve_floor() -> void:
 ## piece or a vehicle at its real height, then slide the rest along the surface. A point that ends
 ## resting on a surface facing up is held by it (`_scratch.held`).
 func _sweep_solids(space: PhysicsDirectSpaceState3D, origin: Vector2) -> void:
-	_scratch.was_held = _scratch.held.duplicate()
-	_scratch.held.fill(0)
+	for i in _pos.size():
+		_scratch.was_held[i] = _scratch.held[i]
+		_scratch.held[i] = 0
 	if space == null or (_scratch.sweep_gate and _solids_clear(space, origin)):
 		return
 	for i in _pos.size():
@@ -412,13 +413,7 @@ func _sweep_solids(space: PhysicsDirectSpaceState3D, origin: Vector2) -> void:
 func _solids_clear(space: PhysicsDirectSpaceState3D, origin: Vector2) -> bool:
 	if _pos.is_empty():
 		return true
-	var box := AABB(_cast_point(_prev[0], origin, 0), Vector3.ZERO)
-	for i in _pos.size():
-		var spread := Vector3.ONE * _radius[i] * RenderConfig.unit
-		for p: Vector3 in [_prev[i], _pos[i]]:
-			var at := _cast_point(p, origin, i)
-			box = box.expand(at - spread).expand(at + spread)
-	box = box.grow(SKIN + 0.01)
+	var box := _swept_box(origin)
 	var params := _scratch.query(_radius[0], exclude)
 	_scratch.bounds.size = box.size
 	params.shape = _scratch.bounds
@@ -426,6 +421,24 @@ func _solids_clear(space: PhysicsDirectSpaceState3D, origin: Vector2) -> bool:
 	params.motion = Vector3.ZERO
 	_scratch.broadphase_queries += 1
 	return space.intersect_shape(params, 1).is_empty()
+
+
+## The box (cast space) round every point's sphere at its substep start and end, a hair larger.
+func _swept_box(origin: Vector2) -> AABB:
+	var low := Vector3(INF, INF, INF)
+	var high := -low
+	for i in _pos.size():
+		var a := _prev[i]
+		var b := _pos[i]
+		var r := _radius[i]
+		var floor_z := r + FLOOR_GAP
+		var z0 := maxf(a.z * height_scale, floor_z)
+		var z1 := maxf(b.z * height_scale, floor_z)
+		low = low.min(Vector3(minf(a.x, b.x) - r, minf(z0, z1) - r, minf(a.y, b.y) - r))
+		high = high.max(Vector3(maxf(a.x, b.x) + r, maxf(z0, z1) + r, maxf(a.y, b.y) + r))
+	var from := PlanSpace.lift(origin + Vector2(low.x, low.z), low.y)
+	var to := PlanSpace.lift(origin + Vector2(high.x, high.z), high.y)
+	return AABB(from, to - from).grow(SKIN + 0.01)
 
 
 ## Before the first step: draw any point that starts inside a solid back toward the owner's own

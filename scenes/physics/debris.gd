@@ -7,6 +7,10 @@ extends Node2D
 ## `PhysicsFxHook`). Once at rest the chip hands its place and height to the parent's `DebrisLayer`
 ## and frees itself.
 
+## How many chips fly (a node each) in all: past `PhysicsMeshConfig.flying_room` a new one is not
+## flown (the 3D render shows no more in the air either) but laid where it left the surface.
+static var _flying := 0
+
 ## Chip fill color.
 @export var color: Color = Color(0.6, 0.6, 0.6)
 ## Chip footprint in px.
@@ -21,21 +25,34 @@ var _flight: SmallFlight
 ## Its spin (rad/s) and the seconds it has flown.
 var _spin := 0.0
 var _age := 0.0
+## The twin space it flies in (found once: a chip stays in its world), and whether it is counted in
+## `_flying` and still to be checked for a start inside a solid.
+var _space: PhysicsDirectSpaceState3D
+var _counted := false
+var _checked := false
 
 
 func _physics_process(delta: float) -> void:
 	_age += delta
 	if _flight == null:
 		return
-	_flight.step(TwinSpace.space_of(self), delta)
+	if not _checked:
+		_check_start()
+	_flight.step(_space, delta)
 	global_position = _flight.at
 	if _flight.rolling or _flight.resting:
 		_spin = move_toward(_spin, 0.0, PhysicsDebrisConfig.spin_friction * delta)
 	rotation += _spin * delta
 	if _age >= PhysicsDebrisConfig.max_time and not _flight.resting:
-		_flight.settle(TwinSpace.space_of(self))
+		_flight.settle(_space)
 	if _flight.resting:
 		_rest()
+
+
+func _exit_tree() -> void:
+	if _counted:
+		_counted = false
+		_flying -= 1
 
 
 ## Kick the chip out along `eject_dir` (need not be normalized; a zero one tosses it right) from
@@ -63,11 +80,21 @@ func start(eject_dir: Vector2, height := -1.0) -> void:
 	_flight.velocity = unit * speed
 	_flight.rise = hop
 	global_position = _flight.at
+	_counted = true
+	_flying += 1
 
 
 ## How high the chip is (px): its underside over the floor, or over the piece it lies on.
 func altitude() -> float:
 	return _flight.altitude() if _flight != null else 0.0
+
+
+## The first frame: a chip started inside a solid, or past the flying room, lies where it is.
+func _check_start() -> void:
+	_checked = true
+	_space = TwinSpace.space_of(self)
+	if _flying > PhysicsMeshConfig.flying_room or _flight.embedded(_space):
+		_flight.settle(_space)
 
 
 ## The chip has come to rest: the parent's `DebrisLayer` keeps it from here on, and this node goes.

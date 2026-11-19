@@ -400,7 +400,7 @@ func _wall_fan(mark: InkMark, poly: PackedVector2Array, surface: Dictionary, lif
 	var local := PackedVector2Array()
 	for point in poly:
 		local.append(point - at)
-	var top := PhysicsInkConfig.wall_top
+	var top := minf(PhysicsInkConfig.wall_top, float(surface.get("top", INF)))
 	var band := _rect_polygon(Rect2(-1.0e4, height - top, 2.0e4, top - FLOOR))
 	for part in Geometry2D.intersect_polygons(local, band):
 		var corners := Geometry2D.triangulate_polygon(part)

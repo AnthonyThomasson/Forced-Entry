@@ -174,6 +174,11 @@ func _landing(
 func _add_splat(at: Vector2, throw: BloodThrow, thrown: Variant = null) -> void:
 	var host := get_parent() as Node2D
 	var begun := thrown != null and spray_side_by_side
+	if throw.surface.is_empty():
+		var reach := throw.size * (1.0 + BloodSplatConfig.stretch * throw.energy)
+		at = BloodLanding.clear_of_solids(
+			TwinSpace.space_of(self), at, reach * (1.0 + BloodSplatConfig.wobble)
+		)
 	var splat := BloodSpawner.splat(host.get_parent(), at, throw, not begun)
 	if begun:
 		(thrown as Array).append(splat)

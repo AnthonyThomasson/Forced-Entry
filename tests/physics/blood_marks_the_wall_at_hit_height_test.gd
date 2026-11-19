@@ -49,6 +49,7 @@ func run(t: TestContext) -> void:
 		return
 	await _check_wall(t, layer, face)
 	await _check_top(t, layer)
+	await _check_end_face(t, layer)
 
 
 ## A shot through a body 8 px off the wall, flying at it: its exit blood marks the wall.
@@ -82,13 +83,17 @@ func _check_wall(t: TestContext, layer: FxLayer, face: float) -> void:
 			faces_out = faces_out and n.is_equal_approx(Vector3.RIGHT)
 		t.check(faces_out, "it faces out of the wall, into the room")
 		t.check(low > 20.0, "none of it is down on the floor (lowest %.1f)" % low)
-	var dropped := _marks_where(
-		layer, func(v: Vector3) -> bool: return v.x < face + 8.0 and v.y < 3.0
+	# The exit blood lands at (face + 8, BODY.y): were it a floor splat its core would be centred
+	# there. The spray at the wound, 18 px off the wall, may leave a spike or a droplet on the floor
+	# by the wall: that is the floor's blood, not this one.
+	var exit_at := Vector2(face + 8.0, BODY.y)
+	var dropped := layer.ink.marks(InkMark.Kind.SPLAT).filter(
+		func(m: InkMark) -> bool: return _on_floor(m) and _centre(m).distance_to(exit_at) < 4.0
 	)
 	t.expect_eq(
 		dropped.size(),
 		0,
-		"the blood that marked the wall left no splat on the floor by it",
+		"the blood that marked the wall left no splat on the floor where it struck",
 	)
 
 
@@ -112,13 +117,75 @@ func _check_top(t: TestContext, layer: FxLayer) -> void:
 		not on_top.is_empty(),
 		"blood sprayed at the desk lands on its top (%d marks)" % on_top.size(),
 	)
-	# Not asserted: that nothing lies on the floor under the desk. A parcel that falls below the
-	# top's own thickness goes under it, through the desk's open space, as real blood does.
+	var under := _marks_where(
+		layer,
+		func(v: Vector3) -> bool: return v.y < 3.0 and _inside_desk(v),
+	)
+	t.expect_eq(
+		under.size(),
+		0,
+		"no blood lies on the floor under the desk's top (a floor splat is moved off its edge)",
+	)
+
+
+## A round's exit blood met the desk's east end near its top (28 px up, the top 31): it stands on
+## the end face and is cut off at the desk's top, not at a wall's height.
+func _check_end_face(t: TestContext, layer: FxLayer) -> void:
+	var edge := DESK.x + HALF.x
+	var hit := HitInfo.new()
+	hit.position = Vector2(edge + 20.0, DESK.y)
+	hit.normal = Vector2.RIGHT
+	hit.direction = Vector2.LEFT
+	hit.has_exit = true
+	hit.exit_position = Vector2(edge + 6.0, DESK.y)
+	hit.exit_normal = Vector2.LEFT
+	hit.damage = 40.0
+	hit.height = TOP - 3.0
+	for _i in 4:
+		_wound(t, hit.position).record(hit)
+	await t.frames(4)
+	var on_end := false
+	var highest := -INF
+	for mark in layer.ink.marks(InkMark.Kind.SPLAT):
+		if mark.normals.size() != mark.verts.size():
+			continue
+		for i in mark.verts.size():
+			var on_face := absf(mark.verts[i].x - edge) < FILM
+			if on_face and mark.normals[i].is_equal_approx(Vector3.RIGHT):
+				on_end = true
+				highest = maxf(highest, mark.verts[i].y)
+	if not t.require(on_end, "the blood stands on the desk's east end face"):
+		return
+	t.check(
+		highest <= TOP + 0.5,
+		"it is cut off at the desk's top (%.1f px), not a wall's height (highest %.1f)"
+			% [TOP, highest],
+	)
 
 
 ## Whether the point `v` is over the desk's footprint.
 func _over_desk(v: Vector3) -> bool:
 	return absf(v.x - DESK.x) <= HALF.x and absf(v.z - DESK.y) <= HALF.y
+
+
+## Whether the point `v` is inside the desk's footprint, `FILM` in from its edge.
+func _inside_desk(v: Vector3) -> bool:
+	return absf(v.x - DESK.x) < HALF.x - FILM and absf(v.z - DESK.y) < HALF.y - FILM
+
+
+## Whether the mark lies on the floor (all of it under 3 px), and the plan point of its middle.
+func _on_floor(mark: InkMark) -> bool:
+	for v in mark.verts:
+		if v.y >= 3.0:
+			return false
+	return true
+
+
+func _centre(mark: InkMark) -> Vector2:
+	var sum := Vector2.ZERO
+	for v in mark.verts:
+		sum += Vector2(v.x, v.z)
+	return sum / float(mark.verts.size())
 
 
 ## The splat marks with a vertex `where` says yes to.

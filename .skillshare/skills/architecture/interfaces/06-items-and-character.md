@@ -21,11 +21,11 @@
 
    **Grenades** (`docs/grenades.md`) are `Item`s: a *count* carried (`Item.uses_left()`, -1 = unlimited; `Item.is_throwable()`). `Item.throw_stats() -> Dictionary` is `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`
    for a grenade (`GrenadeConfig.stats_of(kind, source := {})`: the kind's own row without `source`), `{}` otherwise;
-   `ThrownGrenade.throw_stats()` answers the same for a live one, and the AI's perception calls `GrenadeConfig.stats_of` for a
+   `ThrownGrenade.throw_stats()` answers so for a live one, and the AI's perception calls `GrenadeConfig.stats_of` for a
    grenade nobody holds (an entry's throw, `docs/leadership.md` LD15). `secondary` throws after a
-   `windup` in the `throw` stance (`GrenadeItem` posts `&"throw"` as it leaves) a `ThrownGrenade` (a node in the group `live_grenades`: `kind`, `fuse_left()`, `throw_stats()`, `thrower`, `item` = the grenade item that draws it, in the thrown item's
+   `windup` in the `throw` stance (`GrenadeItem` posts `&"throw"`) a `ThrownGrenade` (a node in the group `live_grenades`: `kind`, `fuse_left()`, `throw_stats()`, `thrower`, `item` = the grenade item that draws it, in the thrown item's
    weapon style); it flies in the twin space (29), posts `&"grenade"` and, when the fuse ends, calls `Explosion.frag` / `Explosion.stun` `(at, world, source, row)`.
-   `GrenadeArc.plan(course: GrenadeCourse) -> GrenadeLaunch` is the one arc planner of the human's and the AI's throw; `GrenadeArc.clear(course) -> bool` its question (`domain-items`, side file on grenades).
+   `GrenadeArc.plan(course: GrenadeCourse) -> GrenadeLaunch` is the one arc planner of the human's and the AI's throw; `GrenadeArc.clear(course) -> bool` its question (`domain-items`).
 
    **`LoadoutConfig`** (static) is what `MatchBuilder.arm` (interface 23) hands a character: `options()` (setup-window rows: `RANDOM`, then every gun with its magazines), `grenade_options()` (`{ id, label, slot, max }`; a loadout names counts `stuns` /
    `frags`, 0..3), `grenade_counts(loadout)`, `outfit_options()` (`[{ slot, label, choices: [{ id, label }] }]`; a "None" choice `id` `&""`
@@ -59,4 +59,4 @@
    `ProjectileSpawner.spawn(position, direction, parent, shot: Shot = null) -> Node` (`Shot`, `projectile/shot.gd`: `shooter`,
    `item_damage`, `damage` (-1 = base + `item_damage`), `muzzle_speed`, `penetration`, `max_range`, `strikes_shooter`; null = defaults;
    the round's `hit(body, damage)` goes to its user's `report_shot`) and ejects a case through
-   `CasingSpawner.spawn(position, direction, parent) -> Node`; a `ThrownGrenade` calls `Explosion.frag` / `Explosion.stun`.
+   `CasingSpawner.spawn(position, direction, parent, height := -1.0) -> Node` (`height` px up; < 0 standing); a `ThrownGrenade` calls `Explosion.frag` / `Explosion.stun`.

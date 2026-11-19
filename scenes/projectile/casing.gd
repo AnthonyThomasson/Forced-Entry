@@ -13,6 +13,9 @@ var _flight: SmallFlight
 ## Its spin (rad/s) and the seconds it has flown.
 var _spin := 0.0
 var _age := 0.0
+## The twin space it flies in (found at its first step: a casing stays in its world).
+var _space: PhysicsDirectSpaceState3D
+var _checked := false
 
 
 func _ready() -> void:
@@ -23,13 +26,18 @@ func _physics_process(delta: float) -> void:
 	if _flight == null or _flight.resting:
 		return
 	_age += delta
-	_flight.step(TwinSpace.space_of(self), delta)
+	if not _checked:
+		_checked = true
+		_space = TwinSpace.space_of(self)
+		if _flight.embedded(_space):
+			_flight.settle(_space)
+	_flight.step(_space, delta)
 	global_position = _flight.at
 	if _flight.rolling:
 		_spin = move_toward(_spin, 0.0, CasingConfig.spin_friction * delta)
 	rotation += _spin * delta
 	if _age >= CasingConfig.max_time and not _flight.resting:
-		_flight.settle(TwinSpace.space_of(self))
+		_flight.settle(_space)
 	if _flight.resting:
 		_spin = 0.0
 		ViewLayers.set_moving(self, false)
