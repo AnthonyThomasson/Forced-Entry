@@ -49,7 +49,8 @@ static func openings_for(rect: Rect2, doors: Array) -> Array:
 ## The stretches of `rect`'s walls that run along a wall of one of `built` (the outlines of the
 ## walls already built, `Rect2`s), as the `seams` array `spawn` takes: `{ side, from, to }`, along
 ## the side from its start corner. The walls of two rooms that touch are the same wall there, built
-## once by whichever came first.
+## once by whichever came first. The first one's thickness is the shared stretch's, so every wall
+## built against `built` must be as thick as those (`spawn` asserts it).
 static func seams_for(rect: Rect2, built: Array) -> Array:
 	var cut: Array = []
 	for other: Rect2 in built:
@@ -99,6 +100,15 @@ static func spawn(rect: Rect2, walls: RoomWalls, wall_name: String, parent: Node
 	wall.wall_thickness = walls.thickness
 	wall.openings = walls.openings
 	wall.seams = walls.seams
+	# a stretch two walls share is as thick as its owner: the walls of one building are equally
+	# thick
+	var seen: float = parent.get_meta(&"wall_thickness", walls.thickness)
+	assert(
+		walls.seams.is_empty() or is_equal_approx(seen, walls.thickness),
+		"walls built against one another under %s differ in thickness" % parent,
+	)
+	if not parent.has_meta(&"wall_thickness"):
+		parent.set_meta(&"wall_thickness", walls.thickness)
 	var style := walls.style
 	wall.art = style.get("art", "")
 	wall.art_color = style.get("color", Color(0.6, 0.6, 0.6))

@@ -6,6 +6,8 @@ extends GameTest
 
 const SHOTS := 8
 const TOP := 96.0
+## The room-side face of the arena's top wall as built (the wall is 12 px thick about y = 0).
+const BUILT_FACE := 6.0
 
 
 func describe() -> Dictionary:
@@ -55,7 +57,59 @@ func run(t: TestContext) -> void:
 		],
 	)
 	t.check(_corners_3d(twin, wall, 1) == _corners_2d(wall, 1), "another segment is as built")
+	_ray_meets_the_new_face(t, wall)
 	t.expect_near(TwinShapes.top_of(twin), TOP, 0.5, "the wall is still 96 px tall")
+
+
+## A level ray at 48 px from the room into the deepest dent strikes the dented face the 2D pieces
+## have there, not the face the wall was built with.
+func _ray_meets_the_new_face(t: TestContext, wall: Node2D) -> void:
+	var polygons := _polygons_2d(wall, 0)
+	var best_x := 0.0
+	var best := 0.0
+	for k in 340:
+		var x := 150.0 + k * 0.5
+		var recess := BUILT_FACE - _face_y(polygons, x)
+		if recess > best:
+			best = recess
+			best_x = x
+	if not t.require(best >= 1.0, "premise: the hits dented the face in (%.1f px)" % best):
+		return
+	var from := PlanSpace.lift(wall.to_global(Vector2(best_x, 20.0)), 48.0)
+	var to := PlanSpace.lift(wall.to_global(Vector2(best_x, -20.0)), 48.0)
+	var hit := TwinSpace.space_of(t.world).intersect_ray(
+		PhysicsRayQueryParameters3D.create(from, to, PhysicsLayers.TWIN_WORLD)
+	)
+	if not t.require(not hit.is_empty(), "the ray strikes the wall at x %.1f" % best_x):
+		return
+	var struck := wall.to_local(PlanSpace.plan_of(hit["position"])).y
+	t.expect_near(struck, BUILT_FACE - best, 0.4, "it strikes the dented face, not the built one")
+
+
+## The y (the wall's frame) of the room-side face of `polygons` at `x`: the first inside point
+## walking in from the built face; the built face's own y for none.
+func _face_y(polygons: Array, x: float) -> float:
+	var y := BUILT_FACE
+	while y > -BUILT_FACE:
+		for polygon: PackedVector2Array in polygons:
+			if Geometry2D.is_point_in_polygon(Vector2(x, y), polygon):
+				return y
+		y -= 0.1
+	return BUILT_FACE
+
+
+## The outlines (the wall's frame) of the 2D colliders of segment `index` of `wall`.
+func _polygons_2d(wall: Node2D, index: int) -> Array:
+	var out: Array = []
+	for holder: CollisionShape2D in wall.segment_shapes().get(index, []):
+		if holder.shape is ConvexPolygonShape2D:
+			out.append(holder.transform * (holder.shape as ConvexPolygonShape2D).points)
+		elif holder.shape is RectangleShape2D:
+			var half := (holder.shape as RectangleShape2D).size * 0.5
+			out.append(holder.transform * PackedVector2Array([
+				-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y),
+			]))
+	return out
 
 
 ## The corners (plan px, rounded, sorted) of the 2D colliders of segment `index` of `wall`.

@@ -103,7 +103,7 @@ scale (`RenderConfig.unit`); height enters only where it matters (an eye, a muzz
 _Avoid_: world space (the 3D world's own axes), 2D space
 
 **Twin**:
-A 3D body in the twin space (`TwinSpace`) that stands for one solid 2D body, with its real heights: a wall (96 px), a floor slab, a
+A 3D body in the twin space (`TwinSpace`) that stands for one solid 2D body, with its real heights: a wall (96 px; the truth for the 3D reads, its dent state still kept in the 2D `Wall` until the 2D space is deleted), a floor slab, a
 piece of furniture as one box per part (`PieceHeights`), a door's leaf, a vehicle's body, a character's upright cylinder whose height follows its
 posture (`BodyHeights`). Built by each domain from the same 2D shapes lifted by `PlanSpace`, synced from the 2D body each physics frame
 (written only when its body moved), and mapped back to its body by `TwinSpace.owner_of`. The 2D body is the truth until a class is

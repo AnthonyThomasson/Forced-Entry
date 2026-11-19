@@ -1,8 +1,9 @@
 class_name WallTwin
 extends StaticBody3D
 ## Objects domain, the 3D body of a wall (`ObjectTwins`, interface 29, #194 walls3d): its truth for
-## the 3D reads (a bullet's ray, a fragment, a lob, a sight line). A static body, built once from
-## the wall's segments, a box (or the convex pieces of a dented outline) from the floor to the
+## the 3D reads (the dent state itself stays in the 2D `Wall` until the 2D space is deleted, where
+## the cut moves here) (a bullet's ray, a fragment, a lob, a sight line). A static body, built once
+## from the wall's segments, a box (or the convex pieces of a dented outline) from the floor to the
 ## wall's top for each segment the wall owns, and a lintel over each doorway it owns. When a hit
 ## dents a segment (`Wall.segment_rebuilt`) the segment's shapes are cut again from the same dents
 ## as the 2D colliders, so the 3D wall and its 2D footprint keep one outline. The 2D colliders of

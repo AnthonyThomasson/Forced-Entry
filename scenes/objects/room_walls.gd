@@ -12,5 +12,6 @@ var openings: Array = []
 var style: Dictionary = {}
 ## The stretches of the outline a wall built before this one already stands on, in `Wall.seams`
 ## format (`WallFactory.seams_for` makes them from the rects of the walls built so far): the room
-## built first owns a wall two rooms share and the other builds none there.
+## built first owns a wall two rooms share and the other builds none there (so the walls of one
+## building are equally thick: the owner's thickness is the stretch's).
 var seams: Array = []

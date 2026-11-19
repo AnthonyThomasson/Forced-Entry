@@ -91,7 +91,9 @@ unfrozen later, a note this ADR left for furniture, is followed (the row is re-l
 ## Walls, floors and the street are static 3D bodies; a shared wall is built once (D3, #194 walls3d)
 
 A static has no direction to reverse, nothing writes it each frame: its 3D body is built once, and the 2D one beside it never moves. What the flip
-settles for walls is which outline is the truth when a hit changes it, and that each wall exists once. A wall is a **`WallTwin`** (Objects, a `StaticBody3D`)
+settles for walls is that the 3D wall is the truth for the 3D reads (bullets, fragments, lobs, sight), and that each wall exists once. The dent state
+(`_seg_impacts`, the cut polygons) still lives in the 2D `Wall` until del2d deletes the 2D space, where the cut moves to the 3D wall; until then a dent
+is cut in 2D first and `WallTwin` follows it. A wall is a **`WallTwin`** (Objects, a `StaticBody3D`)
 built from its segments, and a dent that cuts a segment's 2D collider (`Wall.segment_rebuilt`) cuts its 3D shapes from the same dents, so a ray, a
 fragment or a lob meets the outline the footprint has; the 2D colliders stay for what still reads 2D (the nav bake, the avoid maps, the 2D bodies that
 collide with a wall, the 2D occluders of the vision cone) until the 2D space is deleted. Floors, roofs and the street have no 2D body at all (a floor is a node, its slab

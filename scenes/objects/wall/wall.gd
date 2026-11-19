@@ -39,7 +39,8 @@ const SEAM_EPSILON := 0.5
 ## Stretches of this wall's outline that a wall built before it already stands on, `{ side: Side,
 ## from: float, to: float }` along the side from its start corner (`WallFactory.seams_for`). A
 ## segment inside one is still a segment (the doorways cut in it stay where they are) but builds no
-## collider: the wall that owns the stretch has the one, in 2D and in 3D.
+## collider: the wall that owns the stretch has the one, in 2D and in 3D. The owner's thickness is
+## the shared stretch's, so walls built together are equally thick (`WallFactory.spawn` checks).
 @export var seams: Array = []
 ## The wall's own ballistic surface rating (Objects owns its surface data, same as
 ## environment_object.gd): hard to shoot through.
