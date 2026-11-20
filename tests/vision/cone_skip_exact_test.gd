@@ -258,6 +258,7 @@ func _shape_added_and_moved(t: TestContext, checker: Checker) -> void:
 	slab.position = SLAB_AT
 	t.world.add_child(slab)
 	var mover := AnimatableBody2D.new()
+	mover.sync_to_physics = false  # a script moves it, not the 2D server
 	mover.collision_layer = PhysicsLayers.SOLID
 	mover.add_child(_solid_shape())
 	mover.position = MOVER_AT

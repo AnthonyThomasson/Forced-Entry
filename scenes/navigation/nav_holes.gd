@@ -82,7 +82,7 @@ static func _footprint(shape: Shape3D, pose: Transform3D) -> PackedVector2Array:
 			var angle := TAU * float(i) / float(CIRCLE_SEGMENTS)
 			ring.append(plan * (Vector2(cos(angle), sin(angle)) * radius))
 		return ring
-	var outline := TwinShapes.footprint_of(shape, pose)
+	var outline := NavTwins.footprint(shape, pose)
 	if outline.is_empty():
 		return outline
 	var best := PackedVector2Array()

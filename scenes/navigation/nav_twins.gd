@@ -37,10 +37,24 @@ static func twin_of(body: Node) -> Node3D:
 static func footprints(body: Node, grounded := false) -> Array:
 	var out: Array = []
 	for part: Array in parts(body, grounded):
-		var ring := TwinShapes.footprint_of(part[0], part[1])
+		var ring := footprint(part[0], part[1])
 		if not ring.is_empty():
 			out.append(ring)
 	return out
+
+
+## The plan polygon `shape` stands on at `pose` (`TwinShapes.footprint_of`; an upright box, the
+## most of a district's shapes, is its four corners without the hull).
+static func footprint(shape: Shape3D, pose: Transform3D) -> PackedVector2Array:
+	if shape is BoxShape3D and pose.basis.y.is_equal_approx(Vector3.UP):
+		var half := (shape as BoxShape3D).size * 0.5
+		return PackedVector2Array([
+			PlanSpace.plan_of(pose * Vector3(-half.x, 0.0, -half.z)),
+			PlanSpace.plan_of(pose * Vector3(half.x, 0.0, -half.z)),
+			PlanSpace.plan_of(pose * Vector3(half.x, 0.0, half.z)),
+			PlanSpace.plan_of(pose * Vector3(-half.x, 0.0, half.z)),
+		])
+	return TwinShapes.footprint_of(shape, pose)
 
 
 ## Each shape of `body`'s twin as `[shape, pose]` (`pose` its place in the twin space), in the order

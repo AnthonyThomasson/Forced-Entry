@@ -77,6 +77,7 @@ func run(t: TestContext) -> void:
 	if not t.require(await Probe.place(t, _eye, EYE_AT, Vector2.RIGHT), "the viewer faces east"):
 		return
 	_wardrobe = AnimatableBody2D.new()
+	_wardrobe.sync_to_physics = false  # a script moves it, not the 2D server
 	_wardrobe.collision_layer = PhysicsLayers.SOLID
 	_wardrobe.add_child(_shape())
 	_wardrobe.position = WARDROBE_AT

@@ -1,11 +1,15 @@
 extends GameTest
 ## A body frozen when it is twinned is followed once it is unfrozen (interface 29: the note of the
 ## twins job, kept by #194 furn3d): an anchored post (frozen, a static twin that is not read each
-## frame) is later unfrozen and shoved; its twin follows it where it goes, and the post is no
-## longer the body a ray finds where it stood.
+## frame) is later unfrozen and moved along by a script (no 2D physics step moves it: the test holds
+## with the 2D engine off); its twin follows it where it goes, and the post is no longer the body a
+## ray finds where it stood.
 
 const Probe := preload("res://tests/_general/twin_probe.gd")
 const AT := Vector2(300, 250)
+## How the unfrozen post is moved: this many frames, this far (px) a frame.
+const SHOVE_FRAMES := 30
+const SHOVE_STEP := Vector2(2.0, 0.0)
 ## An anchored solid post: it never moves while it is anchored (the streetlight's kind of piece).
 const POST := {
 	"name": "Post", "shape": "circle", "size": Vector2(28, 28), "color": Color(0.32, 0.33, 0.36),
@@ -37,9 +41,10 @@ func run(t: TestContext) -> void:
 		return
 	post.freeze = false
 	post.gravity_scale = 0.0
-	post.linear_damp = 3.0
-	post.apply_impulse(Vector2(3000.0, 0.0))
-	await t.seconds(1.0)
+	for i in SHOVE_FRAMES:  # a script moves it, as the 2D step moved a free body
+		post.global_position += SHOVE_STEP
+		await t.frames(1)
+	await t.frames(2)  # the twin is a frame behind a script's move
 	t.require(post.global_position.x > AT.x + 40.0, "premise: it moved (%s)" % post.global_position)
 	var plan := PlanSpace.plan_of(twin.global_position)
 	t.check(

@@ -189,7 +189,7 @@ simply:
   a piece hung above the floor is flowed under). With the 2D physics engine set to Dummy the run is red only where a test's own premise is a 2D body leading the
   simulation, and a bare `AnimatableBody2D` has `sync_to_physics` on, so a transform set by hand goes through the 2D server: `vision/cone_skip_exact`
   and `cone_skip_exact_sliced` (a mover moved by hand), `vision/cone_restarts_on_world_change` (a wardrobe), `art/mirror_follows_bodies` (a box turned by hand),
-  `art/mirror_hides_unseen_movers` (a car moved by hand) and `general/twin_unfrozen_body_is_followed` (an unfrozen `RigidBody2D` the 2D step moves). They are 17c's: no 2D body leads.
+  `art/mirror_hides_unseen_movers` (a car moved by hand) and `general/twin_unfrozen_body_is_followed` (an unfrozen `RigidBody2D` the 2D step moves). They are 17c's: no 2D body leads. Four are fixed (del2d-c): the bare `AnimatableBody2D`s the vision tests move by hand have `sync_to_physics` off, as a door and a vehicle have, and the unfrozen post is moved by a script, so none needs the 2D step; the two `art/mirror_*` go with `WorldMirror` (del2d-b3c).
   Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); `is StaticBody2D` / `CharacterBody2D` type checks; (the navigation bake's source is done: it reads the
   twins, below);
   also: `Knockback.push`'s 2D `apply_impulse` for a body no 3D body leads, and `PhysicsLayers.SOLID` / `LYING` as 2D markers (`ViewWatch`'s
