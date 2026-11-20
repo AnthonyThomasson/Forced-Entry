@@ -252,22 +252,11 @@ func _drive_zoom_out(who: Node) -> float:
 	return clampf(float(ride.call("view_zoom_out")), 0.0, 0.9)
 
 
-## Where the followed character is as it is drawn: its 2D place, moved by how far the drawn vehicle
-## it rides leads its 2D footprint. A vehicle's mesh is carried by its 3D twin, which has stepped
-## on before the footprint that the seat (and so the character) is placed from, so the place the
-## camera follows would trail the car by a step of travel (21 px at 1269 px/s). Duck-typed through
-## `use.vehicle()`; on foot, or in a world with no twin of it, nothing is added.
+## Where the followed character is: its own place. A vehicle it rides is written from its twin in
+## the same physics frame the drawn mesh stands at (`TwinSpace`), and the seat is placed from that,
+## so the place followed is the drawn seat.
 func follow_point() -> Vector2:
-	var point := _player.global_position
-	if not "use" in _player or _player.use == null:
-		return point
-	var ride: Variant = _player.use.vehicle()
-	if not is_instance_valid(ride):
-		return point
-	var twin := TwinSpace.twin_for(ride)
-	if twin == null:
-		return point
-	return point + PlanSpace.plan_of(twin.global_position) - (ride as Node2D).global_position
+	return _player.global_position
 
 
 ## The point the camera eases toward: the target, led toward the mouse. On each screen axis the lead
