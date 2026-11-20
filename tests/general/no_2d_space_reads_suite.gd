@@ -4,9 +4,11 @@ extends UnitSuite
 ## `PhysicsDirectSpaceState2D`, builds a 2D shape, ray or point query, reads a 2D world's direct
 ## space, casts a 2D ray or shape node, listens to a 2D body's contacts or overlaps, reads a 2D
 ## body's slide collisions, tests or makes a 2D body's motion, or allocates in the 2D physics
-## server. The scan reads every script's code (a comment is not code; a string is read, for it can
-## name a class or a signal) and names each line that does. No script is let off: the ragdoll and
-## the blood moved to the 3D space last.
+## server, or builds a 2D body, shape or area node (there is no 2D physics body in the game; the
+## guard on a built match, `no_2d_physics_node_in_a_match_test`, walks the tree). The scan reads
+## every script's code (a comment is not code; a string is read, for it can name a class or a
+## signal) and names each line that does. No script is let off: the ragdoll and the blood moved to
+## the 3D space last.
 ## The contact and overlap names (`body_entered`, `contact_monitor`, `get_colliding_bodies`, ...)
 ## are banned on a 3D body too: no sim script reads contact events (Jolt's are not deterministic),
 ## so the scan is stricter than the 2D rule it checks.
@@ -25,6 +27,14 @@ const FORBIDDEN := [
 	"RayCast2D",
 	"ShapeCast2D",
 	"Area2D",
+	"CollisionObject2D",
+	"PhysicsBody2D",
+	"StaticBody2D",
+	"RigidBody2D",
+	"AnimatableBody2D",
+	"CharacterBody2D",
+	"CollisionShape2D",
+	"CollisionPolygon2D",
 	"get_world_2d().direct_space_state",
 	"get_world_2d().space",
 	"world_2d.direct_space_state",
@@ -68,16 +78,13 @@ const WORLD_3D := (
 )
 ## The one script that moves a body in 3D (`CharacterBody3D`).
 const WALKER := "res://scenes/character/character_twin.gd"
-## What a script may hold that the scan forbids elsewhere: the walker's 3D moves, and the test
-## switch that pads the physics servers' RID allocations (it asks no question of the 2D space; it
-## goes with the 2D bodies).
+## What a script may hold that the scan forbids elsewhere: the walker's 3D moves.
 const ALLOWED := {
 	"res://scenes/character/character_twin.gd": [
 		"move_and_slide(",
 		"test_move(",
 		"get_slide_collision",
 	],
-	"res://scenes/testing/allocation_padding.gd": ["PhysicsServer2D"],
 }
 
 
@@ -118,6 +125,14 @@ func test_each_way_to_ask_the_2d_space_is_caught() -> void:
 		"body.move_and_slide()",
 		"var ray := RayCast2D.new()",
 		"var area := Area2D.new()",
+		"var body := StaticBody2D.new()",
+		"var body := RigidBody2D.new()",
+		"var body := AnimatableBody2D.new()",
+		"if node is CollisionObject2D: pass",
+		"var hole := CollisionPolygon2D.new()",
+		"var shape := CollisionShape2D.new()",
+		"var kind: PhysicsBody2D = null",
+		"var guy := CharacterBody2D.new()",
 		"var touching := body.get_colliding_bodies()",
 		"body.contact_monitor = true",
 		"body.body_entered.connect(f)",

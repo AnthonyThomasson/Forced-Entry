@@ -43,7 +43,7 @@ extends SubViewport
 ## a door or a character, which a script moves, is one frame behind where that script puts it
 ## (1/60 s), and a sleeping body a script teleports up to `PARK_SPREAD` frames; a twin joins the
 ## frame after its body does. A write is pushed to Jolt at once (`force_update_transform`: a
-## `Node3D` would push it only at the## frame's end), so a ray after the write meets the new pose.
+## `Node3D` would push it only at the frame's end), so a ray after the write meets the new pose.
 ##
 ## **What a reader does.** `space()` / `space_of(node)` is the `PhysicsDirectSpaceState3D` to cast
 ## into; `owner_of(collider)` maps a hit twin (a result's `collider`) to the 2D body it stands for

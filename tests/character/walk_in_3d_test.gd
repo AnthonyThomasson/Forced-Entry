@@ -2,8 +2,8 @@ extends GameTest
 ## A character is a 3D body that walks in the twin space (#194 chars3d-a, D13, interface 29): its
 ## `CharacterBody3D` is the truth of where it stands and its 2D body the footprint written from it.
 ## What the 3D space holds stops it, at the heights it stands in: a block that only the 3D space
-## has (a wall of the twin world) stops a walker and the 2D body is found beside it; a block that
-## only the 2D space has does not stop it; a beam hung over a doorway at 40 to 60 px is walked
+## has (a wall of the twin world) stops a walker and the 2D body is found beside it; a handle with
+## no twin does not stop it; a beam hung over a doorway at 40 to 60 px is walked
 ## under crouched (36 px tall) and strikes a standing body (74 px).
 
 const START := Vector2(100, 150)
@@ -17,7 +17,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "A character walks as a 3D body, its 2D body the footprint",
 		"description": "A block in the 3D space stops a walker (the 2D body ends beside it, "
-			+ "written from the 3D one); a block only the 2D space holds does not; a beam hung at "
+			+ "written from the 3D one); a plan handle with no twin does not; a beam hung at "
 			+ "40 to 60 px is walked under crouched and stops a standing body.",
 		"tags": ["twins", "3d", "character", "movement", "leader"],
 		"timeout": 20.0,
@@ -39,7 +39,7 @@ func run(t: TestContext) -> void:
 		return
 	t.check(TwinSpace.walker_of(body) == lead, "TwinSpace.walker_of names it")
 	await _blocked_in_3d(t, body, lead as CharacterBody3D)
-	await _blocked_in_2d_only(t)
+	await _blocked_by_a_handle_only(t)
 	await _beam(t)
 
 
@@ -64,22 +64,19 @@ func _blocked_in_3d(t: TestContext, body: Node2D, lead: CharacterBody3D) -> void
 	wall.queue_free()
 
 
-## A solid that only the 2D space has does not stop a walker: the 3D body is the truth.
-func _blocked_in_2d_only(t: TestContext) -> void:
-	var rock := StaticBody2D.new()
+## A plan handle with no twin (a bare `Node2D` of `TwinSpace.BODIES`) does not stop a walker: the
+## 3D body is the truth, and a handle is only where it stands.
+func _blocked_by_a_handle_only(t: TestContext) -> void:
+	var rock := Node2D.new()
 	rock.position = Vector2(500, 150)
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(30, 100)
-	shape.shape = rect
-	rock.add_child(shape)
+	rock.add_to_group(TwinSpace.BODIES)
 	t.world.add_child(rock)
 	var body := t.actor(&"walker")
 	t.puppet(&"walker").walk(Vector2.RIGHT)
 	await t.until(func() -> bool: return body.global_position.x > 560.0, 4.0)
 	t.check(
 		body.global_position.x > 540.0,
-		"a block only the 2D space holds does not stop it (x %.1f)" % body.global_position.x,
+		"a handle with no twin does not stop it (x %.1f)" % body.global_position.x,
 	)
 	t.puppet(&"walker").walk(Vector2.ZERO)
 	rock.queue_free()

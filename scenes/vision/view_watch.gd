@@ -10,7 +10,9 @@ extends RefCounted
 ##   over, it is in no ray, so it needs no watching) within the viewer's reach (`view_distance`
 ##   from the eye, and the solid's own extent, measured from its twin when the twin is reshaped and
 ##   not on the frames it moves in): its transform and standing each frame, and by signal its
-##   twin reshaped (`segment_rebuilt` of a wall a dent re-cut, `reshaped` of a piece), its leaving
+## twin reshaped (`segment_rebuilt` of a wall a dent re-cut: its extent is measured again), a
+## piece's
+##   `reshaped` (a dent in its look; its twin is not cut, so only a rebuild is marked), its leaving
 ##   the tree and a door's `changed`; a new solid in the tree is read on the next check. One
 ##   wholly outside the reach before and after a move, a change or a leave is in no ray, so it
 ##   forces no rebuild; one that moves into or out of the reach does;
@@ -230,7 +232,7 @@ func _classify(body: Node2D) -> void:
 	_blockers[id] = entry
 	if body.has_signal(&"changed"):
 		_connect(body, &"changed", _mark_near.bind(body))
-	if body.has_signal(&"reshaped"):  # a piece: its twin is rebuilt when it is dented
+	if body.has_signal(&"reshaped"):  # a piece's dent: its twin keeps its shape
 		_connect(body, &"reshaped", _mark_near.bind(body))
 	if body.has_signal(&"segment_rebuilt"):  # a wall re-cut by a dent
 		_connect(body, &"segment_rebuilt", _changed_shape.bind(body))

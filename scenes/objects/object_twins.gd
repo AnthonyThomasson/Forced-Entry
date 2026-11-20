@@ -47,12 +47,6 @@ static func _world(body: CollisionObject3D) -> CollisionObject3D:
 	return body
 
 
-## `twin`, holding `body`'s own 2D colliders lifted to `height`.
-static func _structure(body: Node2D, twin: CollisionObject3D, height: float) -> Node3D:
-	TwinShapes.lift_body(body, twin, 0.0, height)
-	return _world(twin)
-
-
 ## A door's twin: the leaf as a box (its length, its thickness, a leaf's height). A standing door
 ## is led by a `DoorBody` (an `AnimatableBody3D` its swing turns, #194 doors3d); a knocked-down one
 ## by a free `DoorSlab` (D18), which a door asks the twin space for when it falls

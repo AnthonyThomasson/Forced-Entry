@@ -1,9 +1,9 @@
 extends GameTest
 ## The carried wall mesh follows a wall whose colliders are rebuilt (#193, Art's `MeshCarrier`,
 ## interface 27). A wall that is hit cuts a segment's outlines again (`wall.gd`), and the wall's
-## mesh says `follows_shapes() -> true` (it replaces the one segment that changed itself): so the
-## carrier leaves it be, one mesh on the wall's twin, the same instance before and after, never
-## built again (`built` is said once). A wall hit as
+## mesh replaces the one segment that changed itself (`segment_rebuilt`): so the carrier
+## leaves it be, one mesh on the wall's twin, the same instance before and after, never built
+## again (`built` is said once). A wall hit as
 ## `tests/objects/wall_dents_share_a_rebuild_test.gd` lands one.
 
 const SHOTS := 5
@@ -51,7 +51,6 @@ func run(t: TestContext) -> void:
 	if not t.require(mesh != null, "premise: the wall has a mesh"):
 		return
 	t.check(mesh.get_parent() == TwinSpace.twin_for(wall), "premise: it stands on the wall's twin")
-	t.check(mesh.has_method(&"follows_shapes"), "premise: it follows the wall's shapes itself")
 	await _hit(t, wall)
 	await t.frames(4)
 	if not t.require(_shape_ids(wall) != before, "premise: the hits rebuilt the wall's colliders"):

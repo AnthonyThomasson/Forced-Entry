@@ -3,33 +3,15 @@ extends RefCounted
 ## General domain, the lifting of a 2D collision shape into the 3D twin space (#194, D3/D4,
 ## `docs/adr/0014-twin-staging-and-plan-space.md`): the same footprint, from a base height to a top,
 ## on the one scale and mapping of `PlanSpace`. A domain building the twin of one of its bodies
-## (`TwinSpace.builders`) lifts the body's own 2D shapes with `lift_body`, or one footprint
-## rectangle with `box`, so no domain writes the `(x, y)` -> `(x, 0, y)` mapping by hand.
-## Rectangles become boxes, circles upright cylinders, convex polygons extruded hulls; a shape of
-## another kind is lifted as the box of its bounds (a capsule); a shape with none (a segment, a
-## world boundary) is left out, with a warning.
+## (`TwinSpace.builders`) lifts one footprint shape with `lift`, or a rectangle with `box`, from
+## the outline data it holds (no body has a 2D shape), so no domain writes the `(x, y)` ->
+## `(x, 0, y)` mapping by hand. Rectangles become boxes, circles upright cylinders, convex polygons
+## extruded hulls; a shape of another kind is lifted as the box of its bounds (a capsule); a shape
+## with none (a segment, a world boundary) is left out, with a warning.
 ## Heights are px above the floor (`BodyHeights`, `PieceHeights`).
 
 ## The sides a round shape's footprint is cut into (as the 2D circle was).
 const ROUND_SIDES := 16
-
-
-## Add to `twin` a `CollisionShape3D` for each enabled `CollisionShape2D` child of `body`, lifted
-## from `base` to `top`, in `body`'s own frame (the twin is placed by the body's transform). Returns
-## how many were added.
-static func lift_body(body: Node2D, twin: CollisionObject3D, base: float, top: float) -> int:
-	var added := 0
-	for child in body.get_children():
-		if not child is CollisionShape2D:
-			continue
-		var holder := child as CollisionShape2D
-		if holder.disabled or holder.shape == null:
-			continue
-		var lifted := lift(holder.shape, holder.transform, base, top)
-		if lifted != null:
-			twin.add_child(lifted)
-			added += 1
-	return added
 
 
 ## The floor-plan polygon (px, plan space, convex, no repeated point) that `shape`, placed at `at`

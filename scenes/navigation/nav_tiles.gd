@@ -310,7 +310,7 @@ static func _refreshed(
 	reaches: Array[Rect2],
 ) -> Variant:
 	for child in site.house.get_children():
-		if child is CollisionObject2D or child.is_in_group(TwinSpace.BODIES):
+		if child.is_in_group(TwinSpace.BODIES):
 			return null
 	var cache: Dictionary = region.get_meta(WALL_CACHE_META, {})
 	var entries: Array = []

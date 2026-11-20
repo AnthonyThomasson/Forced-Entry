@@ -7,10 +7,10 @@ extends GameTest
 ## footprint (which trails it by a frame), at the same frame the 2D body was read at.
 ##
 ## How `EXPECTED` was recorded: this test, with `EXPECTED` empty (it prints `RECORDED` and the
-## samples), run on the commit before the vehicle was replaced (the 2D `RigidBody2D`, whose
-## `global_position`, `global_rotation` and `speed()` it read the same way): the numbers are what
-## that body did, not what the 3D body does. This same file, run on `967409b3` (the 2D body), also
-## passes against the table within the same tolerances.
+## samples), run on the commit before the vehicle was replaced (the 2D rigid body of that
+## commit, whose `global_position`, `global_rotation` and `speed()` it read the same way): the
+## numbers are what that body did, not what the 3D body does. This same file, run on `967409b3` (the
+## 2D body), also passes against the table within the same tolerances.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")

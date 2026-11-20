@@ -9,10 +9,9 @@ extends Node3D
 ## the wall-fade job fades them one by one. A whole segment is the one cached box every segment of
 ## that size and colour shares; a dented one is built from the convex pieces of its collider.
 ##
-## The node follows its wall's outlines itself (`follows_shapes`: the mirror leaves it alone when
-## a collider comes or goes): when a hit rebuilds segment `i` the wall says so (`segment_rebuilt`)
-## and only `Segment<i>` is replaced, by a new instance (`segment_replaced`: a fade set on the old
-## one is gone, so whoever fades a wall sets it again on the new part).
+## The node follows its wall's outlines itself: when a hit rebuilds segment `i` the wall says so
+## (`segment_rebuilt`) and only `Segment<i>` is replaced, by a new instance (`segment_replaced`: a
+## fade set on the old one is gone, so whoever fades a wall sets it again on the new part).
 
 ## `Segment<index>` was rebuilt: `part` is its new mesh instance.
 signal segment_replaced(index: int, part: MeshInstance3D)
@@ -56,11 +55,6 @@ static func build(wall: Node2D) -> Node3D:
 		node._put(i, shapes[i])
 	wall.connect(&"segment_rebuilt", node.rebuild_segment)
 	return node
-
-
-## Tell the mirror this mesh keeps up with the wall's outlines itself.
-func follows_shapes() -> bool:
-	return true
 
 
 ## The segments now, index -> instance (the wall fade fades them one by one).
