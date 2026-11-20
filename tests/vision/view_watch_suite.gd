@@ -184,6 +184,20 @@ func test_a_solid_that_joins_is_due() -> void:
 	assert_bool(_due(watch, EYE + Vector2(1.0, 0.0), FACING)).is_true()
 
 
+## A piece is a plan handle with no child shapes: its `reshaped` signal (a dent, a break) is what
+## tells the watch its silhouette changed with no move of its body.
+func test_a_piece_that_is_reshaped_is_due() -> void:
+	var watch := _watch()
+	var piece: Piece = auto_free(Piece.new())
+	piece.add_to_group(TwinSpace.PIECES)
+	piece.position = ORIGIN + Vector2(300.0, 0.0)
+	add_child(piece)
+	_settled(watch)
+	assert_bool(_changed(watch)).is_false()
+	piece.reshape()
+	assert_bool(_changed(watch)).is_true()
+
+
 func test_a_job_in_flight_does_not_ask_the_pose() -> void:
 	# `world_changed` has no pose to ask: nothing moved but the viewer, so the world is as the job
 	# began it.
@@ -246,3 +260,15 @@ func test_a_body_whose_twin_comes_later_is_sorted_again() -> void:
 	_settled(watch)
 	var backstops := ceili(float(FRAMES) / VisionConfig.rebuild_every)
 	assert_int(_creep(watch, piece)).is_less_equal(backstops + 1)
+
+
+## A bare piece: a `Node2D` that says it was reshaped.
+class Piece:
+	extends Node2D
+	signal reshaped
+
+	var size := Vector2(30.0, 20.0)
+
+
+	func reshape() -> void:
+		reshaped.emit()

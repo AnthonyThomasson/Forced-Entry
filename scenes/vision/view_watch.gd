@@ -242,6 +242,8 @@ func _classify(body: Node2D) -> void:
 	_connect(body, &"child_exiting_tree", _changed_shape.bind(body))
 	if body.has_signal(&"changed"):
 		_connect(body, &"changed", _mark_near.bind(body))
+	if body.has_signal(&"reshaped"):  # a piece: no shape child comes or goes when it is dented
+		_connect(body, &"reshaped", _mark_near.bind(body))
 	if body.has_signal(&"segment_rebuilt"):  # a wall re-cut by a dent: no shape child comes or goes
 		_connect(body, &"segment_rebuilt", _changed_shape.bind(body))
 	_mark_near(body)
