@@ -127,6 +127,12 @@ one wall there, built once by the room built first (one 3D wall, one lintel over
 keeps it as a segment, so its doorways stay cut, with no twin shape.
 _Avoid_: shared wall (as two walls), coincident wall
 
+**Walk-over item**:
+A small piece (`ItemBody`: a plate, a cup, a bowl, a book) whose highest point is within a step (`DoorFallConfig.step_over`, 10 px) of the floor.
+It lies on `PhysicsLayers.TWIN_WALKOVER`: a walker or a car does not meet it and nothing pushes it, the nav map has floor under it, while a round, a
+blast and anything that falls onto it still meet it. Stood up, tipped or set on a table it is on `TWIN_WORLD` and an obstacle. `docs/stacked-items.md`.
+_Avoid_: flat item, small item (as a rule)
+
 **Lintel**:
 The header of a wall over a doorway, from the door's top (84 px) to the wall's (96 px): a twin of the doorway (`ObjectTwins`), so a
 ray or a grenade at that height is stopped where one lower passes under. Not the door's leaf, which stands only as high as the door.

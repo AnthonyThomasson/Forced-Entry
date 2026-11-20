@@ -6,7 +6,7 @@ A small top-down Godot 4.4 demo, organized into seventeen isolated domains under
 the cross-cutting conventions and the whole sanctioned cross-domain interface surface. Inside a domain, also load its
 `domain-<name>` skill. Behaviour specs that tests assert live in `docs/` (`flanking-behavior.md`, `cover-and-stance.md`,
 `tactical-entry.md`, `gaze-and-fire.md`, `grenades.md`, `hearing.md`, `outfits.md`, `vehicles.md`, `lighting.md`,
-`leadership.md`, `doors.md`, `player-vision.md`).
+`leadership.md`, `doors.md`, `player-vision.md`, `stacked-items.md`).
 
 **Working on a GitHub ticket (issue), in any role, load the `ticket` skill first.** Herdr's default workflows run the
 ticket (roles, phases, pull request, merge); `ticket` routes it by label to what each kind needs planned, built and checked.
