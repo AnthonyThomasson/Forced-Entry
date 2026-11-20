@@ -263,7 +263,11 @@ func _settled() -> bool:
 func _reference() -> Reference:
 	var cone := Reference.new()
 	cone.rebuild(
-		Probe.space(_t), _eye.global_position, _eye.get("facing"), [_eye.get_rid()], _eye.sight()
+		Probe.space(_t),
+		_eye.global_position,
+		_eye.get("facing"),
+		SightRay.exclude_of(_eye),
+		_eye.sight(),
 	)
 	return cone
 

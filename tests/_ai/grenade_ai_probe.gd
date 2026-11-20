@@ -44,7 +44,7 @@ static func grenades(brain: Node) -> Dictionary:
 static func character_rids(t: TestContext) -> Array:
 	var rids: Array = []
 	for c: Node in t.world.get_tree().get_nodes_in_group(&"characters"):
-		rids.append((c as CollisionObject2D).get_rid())
+		rids.append_array(SightRay.exclude_of(c))
 	return rids
 
 

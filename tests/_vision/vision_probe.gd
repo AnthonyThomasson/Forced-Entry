@@ -16,7 +16,7 @@ extends RefCounted
 ##   - `static watch(root, viewer) -> PlayerView`: build it for `viewer` (null while
 ##     `VisionConfig.enabled` is off).
 ## - `VisionConfig.enabled` (class_name static holder): the switch.
-## - The viewer is any character: `global_position`, `facing`, `get_rid()`.
+## - The viewer is any character: `global_position`, `facing`.
 ## - The world is plain Godot physics: the solid layer (`PhysicsLayers.SOLID`, bit 1) and each
 ##   piece's real top (the twin space's, `SightRay.top_of`).
 

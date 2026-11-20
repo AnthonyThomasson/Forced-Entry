@@ -177,7 +177,7 @@ func _context(t: TestContext, hostiles: Array) -> Dictionary:
 		"space": TwinSpace.space_of(npc),
 		"map": npc.get_world_2d().navigation_map,
 		"self_pos": npc.global_position,
-		"exclude": [npc.get_rid()],
+		"exclude": SightRay.exclude_of(npc),
 		"hostiles": hostiles,
 		"allies": [],
 		"callouts": [],

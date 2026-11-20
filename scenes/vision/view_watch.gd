@@ -42,7 +42,7 @@ var _known := {}
 var _untwinned := {}
 ## The colliders that entered the tree since the last check.
 var _pending: Array = []
-## The rids that never count (the viewer's own body).
+## The instance ids of the bodies that never count (the viewer's own).
 var _left_out: Array = []
 var _tree: SceneTree
 ## What the last rebuild was made from.
@@ -61,7 +61,7 @@ var _moved_then := false
 var _measured := 0
 
 
-## Start watching `tree`, leaving the bodies in `left_out` (rids) out.
+## Start watching `tree`, leaving the bodies in `left_out` (instance ids) out.
 func attach(tree: SceneTree, left_out: Array) -> void:
 	_tree = tree
 	_left_out = left_out
@@ -201,7 +201,7 @@ func _read_new(see_over: float) -> void:
 ## Watch `body` as the kind of collider it is.
 func _classify(body: CollisionObject2D) -> void:
 	var id := body.get_instance_id()
-	if _known.has(id) or body.get_rid() in _left_out:
+	if _known.has(id) or id in _left_out:
 		return
 	_known[id] = true
 	_connect(body, &"tree_exiting", _left.bind(id))

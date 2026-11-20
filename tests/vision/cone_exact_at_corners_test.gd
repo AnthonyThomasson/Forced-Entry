@@ -117,7 +117,7 @@ func _check(t: TestContext, eye: Node2D, at: Vector2, dir: Vector2, corners: Arr
 	_t = t
 	_at = at
 	_dir = dir
-	_exclude = [eye.get_rid()]
+	_exclude = SightRay.exclude_of(eye)
 	for i in RING_ANGLES:
 		var ray := Vector2.from_angle((float(i) + 0.5) / RING_ANGLES * TAU)
 		for dist: float in RING_DISTANCES:
@@ -199,7 +199,7 @@ func _check_wall_top(t: TestContext, view: PlayerView, eye: Node2D) -> void:
 	var at := Vector2(400, 420)
 	if not t.require(await Probe.place(t, eye, at, Vector2.RIGHT), "the eye faces the wall"):
 		return
-	var exclude: Array = [eye.get_rid()]
+	var exclude: Array = SightRay.exclude_of(eye)
 	var wall := Probe.blocker(t, at, Vector2(1100, 420), exclude)
 	if not t.require(not wall.is_empty(), "premise: a wall stands east of the eye"):
 		return

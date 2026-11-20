@@ -930,7 +930,8 @@ func _nearest_gap(p: Vector2, threats: Array) -> float:
 	return best
 
 
-## The contact's body rid as a one-element array, for excluding it from a ray (empty when gone).
+## The contact's twin rid as a one-element array, for excluding it from a ray (empty when it is
+## gone or has no twin).
 func body_rid(contact: Dictionary) -> Array:
 	var n = contact.get("node")
-	return [n.get_rid()] if n is Node and is_instance_valid(n) and n.has_method("get_rid") else []
+	return SightRay.exclude_of(n) if n is Node and is_instance_valid(n) else []

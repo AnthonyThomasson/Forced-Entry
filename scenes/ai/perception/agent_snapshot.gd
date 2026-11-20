@@ -176,7 +176,7 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 		"map": _character.get_world_2d().navigation_map,
 		"self_pos": self_pos,
 		"self_id": _character.get_instance_id(),
-		"exclude": [_character.get_rid()],
+		"exclude": SightRay.exclude_of(_character),
 		"hostiles": hostiles,
 		"allies": allies,
 		"callouts": callouts,

@@ -1,10 +1,10 @@
 extends GameTest
 ## A wall two rooms share is built once (#194 walls3d): where two rooms' outlines run along the
 ## same line, the room built first owns the stretch they share and the other builds no collider
-## there, in 2D or in 3D (it keeps the stretch as a segment, so its doorways stay cut where they
+## there (it keeps the stretch as a segment, so its doorways stay cut where they
 ## are). So every wall segment of a house, and of a district shell with its partitions, has exactly
-## one collider: a ray through the middle of a segment meets one 3D wall, a point on it lies in one
-## 2D wall shape, and two segments that lie on one another are never both built.
+## one collider: a ray through the middle of a segment meets one 3D wall, and two segments that lie
+## on one another are never both built.
 
 const FAR_APART := Vector2(1500, 0)
 const PLANS := ["starter_home", "open_plan_home", "corner_flat", "food_hall_tower"]
@@ -28,7 +28,7 @@ func describe() -> Dictionary:
 		"name": "A wall two rooms share is built once",
 		"description": "For houses of several plans and a district's shells: no two built wall "
 			+ "segments lie on one another, and the middle of each segment is met by exactly one "
-			+ "2D wall shape and one 3D wall twin.",
+			+ "3D wall twin.",
 		"tags": ["worldgen", "house", "walls", "twins", "shell"],
 		"timeout": 90.0,
 	}
@@ -138,8 +138,7 @@ func _no_stacked_pair(t: TestContext, holder: Node2D, rows: Array) -> void:
 				holder.name, _label(rows[i])])
 
 
-## `row`'s middle: one 2D wall shape and one 3D wall twin meet there (false: no sample, too near a
-## junction or too short).
+## `row`'s middle: one 3D wall twin meets it (false: no sample, too near a junction or too short).
 func _sample(t: TestContext, holder: Node2D, row: Dictionary, rows: Array) -> bool:
 	var a: Vector2 = row["a"]
 	var b: Vector2 = row["b"]
@@ -147,17 +146,7 @@ func _sample(t: TestContext, holder: Node2D, row: Dictionary, rows: Array) -> bo
 	var mid := (a + b) * 0.5
 	if a.distance_to(b) < thick * 3.0 or _near_junction(mid, row, rows, thick * JUNCTION):
 		return false
-	var wall: Node2D = row["wall"]
 	var label := "%s: %s" % [holder.name, _label(row)]
-	var query := PhysicsPointQueryParameters2D.new()
-	query.position = mid
-	query.collision_mask = 0xffffffff
-	query.collide_with_areas = false
-	var in2d := 0
-	for found: Dictionary in wall.get_world_2d().direct_space_state.intersect_point(query, 16):
-		if (found["collider"] as Object).has_method(&"wall_segments"):
-			in2d += 1
-	t.check(in2d == 1, "%s: %d 2D wall shapes meet its middle, not 1" % [label, in2d])
 	var across := (b - a).normalized().orthogonal()
 	var in3d := _walls_along(t, mid + across * thick, mid - across * thick)
 	t.check(in3d == 1, "%s: %d 3D wall twins meet its middle, not 1" % [label, in3d])

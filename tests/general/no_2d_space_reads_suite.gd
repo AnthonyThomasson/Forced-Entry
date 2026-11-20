@@ -81,6 +81,19 @@ func test_no_script_asks_the_2d_physics_space() -> void:
 	assert_array(found).is_empty()
 
 
+## The AI and the player's view name a body by its twin (`SightRay.exclude_of`), never by a physics
+## RID: a 2D body's RID is a 2D server's, and a world with no 2D engine hands out none.
+func test_the_ai_and_the_view_hold_no_rid() -> void:
+	var found: Array[String] = []
+	for dir in ["res://scenes/ai", "res://scenes/vision"]:
+		for path in _scripts(dir):
+			var lines := _code_lines(path)
+			for i in lines.size():
+				if (lines[i] as String).contains("get_rid("):
+					found.append("%s:%d: get_rid(" % [path, i + 1])
+	assert_array(found).is_empty()
+
+
 func test_the_walker_is_a_3d_body() -> void:
 	var code := "\n".join(_code_lines(WALKER))
 	assert_bool(code.contains("extends CharacterBody3D")).is_true()

@@ -172,7 +172,7 @@ func _compare_moving_pieces(t: TestContext) -> void:
 	var shoved: Node2D = world.objects[&"shoved"]
 	# The game leaves the viewer's own body out of every ray: a piece left out here, as a viewer's
 	# would be, by both cones (the table through the swing, the door through the shove).
-	_exclude = [(world.objects[&"table"] as CollisionObject2D).get_rid()]
+	_exclude = SightRay.exclude_of(world.objects[&"table"])
 	var shapes: Array[PackedVector2Array] = []
 	for step in SWING_STEPS + 1:
 		var turn := float(step) / float(SWING_STEPS) * PI * 0.5
@@ -240,7 +240,7 @@ func _compare_dents(t: TestContext) -> void:
 func _compare_shove(t: TestContext, pieces: Array, cone: Cone, plain: Reference) -> void:
 	var door: Node2D = pieces[0]
 	var shoved: Node2D = pieces[1]
-	_exclude = [(door as CollisionObject2D).get_rid()]
+	_exclude = SightRay.exclude_of(door)
 	for step in SHOVE_STEPS:
 		shoved.global_position = SHOVE_AT + SHOVE_STEP * float(step + 1)
 		await t.frames(2)

@@ -6,6 +6,9 @@ extends RefCounted
 ## contract (interface 19) and the physics space, duck-typed.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+## The height (px) the probes' rays run at: over a car's wheels, under its roof line, so they meet
+## its body and the pieces that stand beside it.
+const RAY_HEIGHT := 20.0
 
 
 ## The vehicle's front (unit, world).
@@ -33,13 +36,14 @@ static func stand_point(v: Node2D, id: StringName, out := 22.0) -> Vector2:
 
 
 ## Where the vehicle's body meets the line from its centre toward `direction` (world), by a ray from
-## far out along it that hits only the vehicle (whatever else is on the line is skipped). The centre
-## when nothing is hit.
+## far out along it that hits only the vehicle (whatever else is on the line is skipped), in the
+## twin space. The centre when nothing is hit.
 static func edge(v: Node2D, direction: Vector2) -> Vector2:
-	var space := v.get_world_2d().direct_space_state
-	var query := PhysicsRayQueryParameters2D.create(
-		v.global_position + direction.normalized() * 800.0,
-		v.global_position,
+	var space := TwinSpace.space_of(v)
+	var query := PhysicsRayQueryParameters3D.create(
+		PlanSpace.lift(v.global_position + direction.normalized() * 800.0, RAY_HEIGHT),
+		PlanSpace.lift(v.global_position, RAY_HEIGHT),
+		PhysicsLayers.TWIN_VEHICLE,
 	)
 	var skipped: Array[RID] = []
 	for i in 12:
@@ -47,8 +51,8 @@ static func edge(v: Node2D, direction: Vector2) -> Vector2:
 		var hit := space.intersect_ray(query)
 		if hit.is_empty():
 			break
-		if hit["collider"] == v:
-			return hit["position"]
+		if TwinSpace.owner_of(hit["collider"]) == v:
+			return PlanSpace.plan_of(hit["position"])
 		skipped.append(hit["rid"])
 	return v.global_position
 
@@ -56,12 +60,16 @@ static func edge(v: Node2D, direction: Vector2) -> Vector2:
 ## How far (px) from the vehicle's body along `direction` the next solid thing is (another body or a
 ## wall), by a ray out from its edge; INF when nothing is within 2000 px.
 static func gap_to_solid(v: Node2D, direction: Vector2) -> float:
-	var space := v.get_world_2d().direct_space_state
+	var space := TwinSpace.space_of(v)
 	var from := edge(v, direction)
-	var query := PhysicsRayQueryParameters2D.create(from, from + direction.normalized() * 2000.0)
-	query.exclude = [v.get_rid()]
+	var query := PhysicsRayQueryParameters3D.create(
+		PlanSpace.lift(from, RAY_HEIGHT),
+		PlanSpace.lift(from + direction.normalized() * 2000.0, RAY_HEIGHT),
+		PhysicsLayers.TWIN_ALL,
+	)
+	query.exclude = SightRay.exclude_of(v) + [TwinSpace.leader_of(v).get_rid()]
 	var hit := space.intersect_ray(query)
-	return INF if hit.is_empty() else from.distance_to(hit["position"])
+	return INF if hit.is_empty() else from.distance_to(PlanSpace.plan_of(hit["position"]))
 
 
 ## Its tail (the back of the body on its centre line) in its own frame, measured at rest.

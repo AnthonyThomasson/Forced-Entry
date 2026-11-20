@@ -3,7 +3,7 @@ extends Node2D
 ## The Vision domain's one node: what one character sees, drawn for the player
 ## (`docs/player-vision.md`), a leaf like Lighting. The match builder builds it through
 ## `watch(root, viewer)` for Main's human and the Testing world's viewer (interface 25); it reads
-## the viewer only duck-typed (`facing`, `global_position`, `get_rid()`, `sight()`, `is_dead`, and
+## the viewer only duck-typed (`facing`, `global_position`, `sight()`, `is_dead`, and
 ## its `died` and `tree_exiting` signals, on which the view lifts) and imports nothing but General.
 ##
 ## Each physics frame, after its viewer has moved and turned, it builds the exact polygon of the
@@ -49,7 +49,7 @@ func _notification(what: int) -> void:
 
 
 func _ready() -> void:
-	_watch.attach(get_tree(), [_viewer.get_rid()])
+	_watch.attach(get_tree(), [_viewer.get_instance_id()])
 	process_priority = PRIORITY
 	ground = Ground.new()
 	ground.name = "Ground"

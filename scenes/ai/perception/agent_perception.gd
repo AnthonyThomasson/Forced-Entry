@@ -335,7 +335,7 @@ func observe(rooms: Array) -> void:
 	confinement.rooms = rooms
 	var self_pos: Vector2 = _character.global_position
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_character)
-	var exclude := [_character.get_rid()]
+	var exclude := SightRay.exclude_of(_character)
 	sight.see(rooms)
 
 	# The room the NPC stands in counts as searched (superseded while it stays there).
@@ -468,9 +468,9 @@ func _is_known_hostile(body: Node) -> bool:
 ## block itself.
 func has_line_to(target: Node2D, point: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_character)
-	var exclude := [_character.get_rid()]
+	var exclude := SightRay.exclude_of(_character)
 	if target != null and is_instance_valid(target):
-		exclude.append(target.get_rid())
+		exclude.append_array(SightRay.exclude_of(target))
 	return not _tactics.blocked(space, _character.global_position, point, exclude)
 
 
@@ -480,9 +480,9 @@ func has_line_to(target: Node2D, point: Vector2) -> bool:
 ## (`AgentVision.hiding_piece`). Both nearest-first (see agent_tactics.gd); the
 ## ring has `combat_ring_count` points.
 func combat_spots(target: Node2D, tgt_pos: Vector2, radius: float) -> Dictionary:
-	var exclude := [_character.get_rid()]
+	var exclude := SightRay.exclude_of(_character)
 	if target != null and is_instance_valid(target):
-		exclude.append(target.get_rid())
+		exclude.append_array(SightRay.exclude_of(target))
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_character)
 	return _tactics.combat_spots(
 		space,

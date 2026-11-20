@@ -51,7 +51,7 @@ func run(t: TestContext) -> void:
 	var npc := t.actor(&"npc")
 	var ctx := {
 		"space": TwinSpace.space_of(npc),
-		"exclude": [npc.get_rid()],
+		"exclude": SightRay.exclude_of(npc),
 	}
 	for i in LANES.size():
 		var name: StringName = LANES[i][0]

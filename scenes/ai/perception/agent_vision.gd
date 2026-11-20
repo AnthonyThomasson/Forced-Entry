@@ -26,10 +26,11 @@ extends RefCounted
 ## Every ray is cast in the twin space (interface 29) the callers hand in as `space`
 ## (`TwinSpace.space_of` a body, `space_in` a `World2D`); a caller that holds none (null: a world
 ## with no twin space, a node outside the tree) gets the neutral answer, nothing in the way. The
-## `exclude` rids the callers hand in are the bodies' rids: a sight ray never reads them (a body
-## never blocks an eye ray), a plan line looks through the bodies they name. This module is the
-## sub-domain's single owner of the solid-geometry ray query: the perception runs its line-of-fire
-## and cover tests through `blocked()` / `raycast()` below rather than repeating it.
+## `exclude` rids the callers hand in are the bodies' twin rids (`SightRay.exclude_of`): a sight ray
+## never reads them (a body never blocks an eye ray), a plan line looks through the bodies they
+## name. This module is the sub-domain's single owner of the solid-geometry ray query: the
+## perception runs its line-of-fire and cover tests through `blocked()` / `raycast()` below rather
+## than repeating it.
 ## The part of a standing body a plan line is cast at (`BodyHeights.contact`): its ankle, where a
 ## foot meets what it walks into.
 const WALK_PART := &"ankle"
@@ -138,7 +139,7 @@ func can_see_node(
 ## collider: the 2D body }` of the line to its head. Unlike `blocked() ` (physical: any solid
 ## collider
 ## stops it), this is the eye ray of the class note. Ignores `enabled`: it answers what the line
-## is, the callers decide whether sight is gated. The `exclude` rids (2D) are not read: a body is no
+## is, the callers decide whether sight is gated. The `exclude` rids are not read: a body is no
 ## obstacle to sight.
 func sight_hit(
 	space: PhysicsDirectSpaceState3D,
@@ -395,10 +396,10 @@ func fire_stop_from(
 	return stop
 
 
-## The first solid hit along `from`→`to` (plan points) that is not one of `exclude` (2D rids), or an
-## empty dict when the line is clear: a wall, a door, a piece, a vehicle or a character, found by a
-## 3D ray `height` px above the floor (a walker's ankle when none is given) in the twin space, as
-## `{ position, normal (plan), collider (the 2D body), collider_id, rid (its 2D rid) }`. Callers
+## The first solid hit along `from`→`to` (plan points) that is not one of `exclude` (twin rids), or
+## an empty dict when the line is clear: a wall, a door, a piece, a vehicle or a character, found by
+## a 3D ray `height` px above the floor (a walker's ankle when none is given) in the twin space, as
+## `{ position, normal (plan), collider (the 2D body), collider_id, rid (its twin's rid) }`. Callers
 ## that need the blocking body itself (e.g. a cover test) use this instead of `blocked()`.
 func raycast(
 	space: PhysicsDirectSpaceState3D,
@@ -417,11 +418,10 @@ func raycast(
 		var found := space.intersect_ray(_plan_ray)
 		if found.is_empty():
 			return {}
-		var body := TwinSpace.owner_of(found["collider"])
-		if body is CollisionObject2D and exclude.has((body as CollisionObject2D).get_rid()):
+		if exclude.has(found["rid"]):
 			skipped.append(found["rid"])
 			continue
-		return _plan_hit(found, body)
+		return _plan_hit(found, TwinSpace.owner_of(found["collider"]))
 	return {}  # unreachable; satisfies the parser
 
 
@@ -462,5 +462,5 @@ func _plan_hit(found: Dictionary, body: Node2D) -> Dictionary:
 		"normal": Vector2(normal.x, normal.z),
 		"collider": body,
 		"collider_id": body.get_instance_id() if body != null else 0,
-		"rid": (body as CollisionObject2D).get_rid() if body is CollisionObject2D else RID(),
+		"rid": found["rid"],
 	}

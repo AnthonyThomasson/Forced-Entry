@@ -57,7 +57,7 @@ func see(rooms: Array) -> void:
 	var self_pos: Vector2 = perception._character.global_position
 	var facing: Vector2 = perception._character.facing
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
-	var exclude := [perception._character.get_rid()]
+	var exclude := SightRay.exclude_of(perception._character)
 	var now := GameClock.msec()
 	var frame := WorldRng.frame_of(perception._character)
 	var swap := _visible_before
@@ -200,7 +200,7 @@ func visible_points(points: Array) -> Array:
 	if points.is_empty():
 		return []
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
-	var exclude := [perception._character.get_rid()]
+	var exclude := SightRay.exclude_of(perception._character)
 	var self_pos: Vector2 = perception._character.global_position
 	var facing: Vector2 = perception._character.facing
 	var seen: Array = []
@@ -220,6 +220,6 @@ func sight_end(to: Vector2) -> Vector2:
 		space,
 		perception._character.global_position,
 		to,
-		[perception._character.get_rid()],
+		SightRay.exclude_of(perception._character),
 	)
 	return hit["position"] if not hit.is_empty() else to

@@ -2,7 +2,7 @@ extends GameTest
 ## Building a wall two rooms share once leaves no hole in any room's outline (#194 walls3d): walk
 ## every room's outline 1 px at a time, over the wall's whole thickness (both faces, out to where
 ## the corners and the T-junctions of the wall's neighbours reach), leaving out the doorways, and
-## every step lies in at least one 2D wall shape and under at least one 3D wall. The walk covers
+## every step lies under at least one 3D wall. The walk covers
 ## houses of four plans, a district's shells with their partitions, and a layout whose rooms share a
 ## wall unequally (one room's side ends part way along another's: a T at the edge of a seam), so a
 ## piece beside a shared stretch that lost the half thickness it is lengthened by would be found.
@@ -30,10 +30,10 @@ const FACE_INSET := 1.0
 
 func describe() -> Dictionary:
 	return {
-		"name": "Walking every room's outline finds a wall under each step, 2D and 3D",
+		"name": "Walking every room's outline finds a 3D wall under each step",
 		"description": "Houses of four plans, a district's shells and an unequally shared wall: "
 			+ "each step of 1 px along each room's outline, on both faces, outside its doorways, "
-			+ "is in a 2D wall shape and under a 3D wall.",
+			+ "is under a 3D wall.",
 		"tags": ["worldgen", "house", "walls", "twins", "shell", "seam"],
 		"timeout": 120.0,
 	}
@@ -70,12 +70,12 @@ func _walls(t: TestContext) -> Array:
 	)
 
 
-## Walk `wall`'s outline; the steps taken; the ones with no wall in 2D or in 3D are added to
+## Walk `wall`'s outline; the steps taken; the ones with no 3D wall are added to
 ## `missing`.
 func _walk(t: TestContext, wall: Node2D, missing: Array) -> int:
 	var points := _outline(wall)
 	for point: Vector2 in points:
-		if not _walled(t, wall, point):
+		if not _walled(t, point):
 			missing.append("%s %v" % [wall.name, point])
 	return points.size()
 
@@ -127,17 +127,11 @@ func _in_doorway(wall: Node2D, side: int, s: float) -> bool:
 	return false
 
 
-## Whether `point` (plan px) is in a 2D wall shape and under a 3D wall.
-func _walled(t: TestContext, wall: Node2D, point: Vector2) -> bool:
-	var query := PhysicsPointQueryParameters2D.new()
-	query.position = point
-	query.collide_with_areas = false
-	var in2d := false
-	for found: Dictionary in wall.get_world_2d().direct_space_state.intersect_point(query, 16):
-		in2d = in2d or (found["collider"] as Object).has_method(&"wall_segments")
+## Whether `point` (plan px) is under a 3D wall.
+func _walled(t: TestContext, point: Vector2) -> bool:
 	var ray := PhysicsRayQueryParameters3D.create(
 		PlanSpace.lift(point, RAY_FROM), PlanSpace.lift(point, RAY_TO), PhysicsLayers.TWIN_WORLD
 	)
 	var hit: Dictionary = t.world.twin_space().space().intersect_ray(ray)
 	var owner := TwinSpace.owner_of(hit["collider"]) if not hit.is_empty() else null
-	return in2d and owner != null and owner.has_method(&"wall_segments")
+	return owner != null and owner.has_method(&"wall_segments")

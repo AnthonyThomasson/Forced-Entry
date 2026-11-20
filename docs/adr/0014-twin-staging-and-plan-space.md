@@ -184,10 +184,13 @@ simply:
   a body into the 2D space; the AI's `space` is the twin space itself (`space_of`, `space_in`), `AgentVision` and `Explosion`
   answer a world with no twin space with their neutral answer, and the player's cone is a level 3D ray at the viewer's eye height
   (`SightRay.plan_hit`) with its corners read by a 3D shape query over the column above the eye (`ViewShapes`), so a body with no twin blocks nothing.
-  Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); the AI's `exclude` rids and the
-  `_plan_hit` result's `rid` are 2D `get_rid()`s; `is StaticBody2D` / `CharacterBody2D` type checks; the navigation bake's source (`NavSource.walls_of`,
+  The AI and the view hold no physics RID (the AI's `exclude` is twin rids, `SightRay.exclude_of`; a plan hit's `rid` is its twin's; `ViewWatch` leaves the viewer out by
+  instance id; a scan holds `scenes/ai` and `scenes/vision` to it), and the ragdoll's and the blood's queries are 3D (blood lies on the floor: a 1 px slab over it, so
+  a piece hung above the floor is flowed under). With the 2D physics engine set to Dummy the run is red only where a test's own premise is a 2D body leading the
+  simulation or reads its shapes (listed in the 17a report).
+  Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); `is StaticBody2D` / `CharacterBody2D` type checks; the navigation bake's source (`NavSource.walls_of`,
   `NavHoles`, `NavPieces`, `NavLeaves`) reads the 2D colliders and moves to plan polygons projected from the twins (`TwinShapes.footprint_of`), compared
-  with the old bake on the district first; and the ragdoll's and the blood's queries (ragdoll3d);
+  with the old bake on the district first;
   also: `Knockback.push`'s 2D `apply_impulse` for a body no 3D body leads, and `PhysicsLayers.SOLID` / `LYING` as 2D markers (`ViewWatch`'s
   `collision_layer` reads, a door's footprint); `get_world_2d().navigation_map` (25 or more sites: locomotion, stacks, entry geometry) until nav3d;
   `TwinSpace`'s `find_world_2d()` registry key and `space_in(World2D)` (deleting the 2D world needs a new key: the stage's own node); the `RigidBody2D`

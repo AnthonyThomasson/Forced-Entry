@@ -509,7 +509,7 @@ static func _reaches(
 	return space == null or not Explosion.shields(space, burst, p, cover)
 
 
-## The rids of every character under the world root of `body` (a sight line passes through
+## The twin rids of every character under the world root of `body` (a sight line passes through
 ## bodies, and who stands where while a post is worked out has no say in where it is), read once a
 ## call of `ambush_spot` for its ranking and its picks alike; none without a body in the tree.
 func _bodies() -> Array:
@@ -518,9 +518,11 @@ func _bodies() -> Array:
 	var root: Node = body.world_root()
 	if root == null:
 		return []
-	return body.get_tree().get_nodes_in_group(&"characters").filter(
-		func(c): return c is CollisionObject2D and root.is_ancestor_of(c),
-	).map(func(c): return (c as CollisionObject2D).get_rid())
+	var rids: Array = []
+	for c in body.get_tree().get_nodes_in_group(&"characters"):
+		if root.is_ancestor_of(c):
+			rids.append_array(SightRay.exclude_of(c))
+	return rids
 
 
 ## Who could see an ambush post of entry geometry `g` from outside: its `lookouts`, then each side's

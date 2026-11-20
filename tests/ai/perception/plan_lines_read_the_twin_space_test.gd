@@ -3,7 +3,8 @@ extends GameTest
 ## (#194 chars3d-b, interface 29), not the 2D footprints: with every footprint shape off, a line
 ## along the floor still meets a table and a wall, a line through a doorway at eye height is clear,
 ## and `wall_hit` looks through furniture but not a wall, as it always did. The 2D space the callers
-## hand in is the handle of the world, not the thing asked.
+## hand in is the handle of the world, not the thing asked. A body is left out of a line by its
+## twin's rid (`SightRay.exclude_of`), never by a 2D rid, and a hit names its twin's rid.
 
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
 const TABLE_AT := Vector2(300, 400)
@@ -46,6 +47,14 @@ func run(t: TestContext) -> void:
 	t.check(
 		vision.blocked(space, TABLE_AT + Vector2(-100, 0), TABLE_AT + Vector2(100, 0), []),
 		"and blocked() says so",
+	)
+	t.check(across.get("rid") == TwinSpace.twin_for(table).get_rid(), "the hit names its twin")
+	t.check(
+		not vision.blocked(
+			space, TABLE_AT + Vector2(-100, 0), TABLE_AT + Vector2(100, 0),
+			SightRay.exclude_of(table),
+		),
+		"a line leaves the table out by its twin's rid",
 	)
 	t.check(
 		not vision.blocked(space, Vector2(100, 300), Vector2(100, 500), []),

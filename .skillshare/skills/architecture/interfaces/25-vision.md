@@ -5,7 +5,7 @@
       view of the dead). A match has one view (more than one viewer is out of scope). `MatchBuilder.populate` (23) calls it for the match's human (the handle's `view`; none with no
       human, so Watch and Endless draw everything); the Testing world (13) calls it for its `player` actor, or the actor `TestSetup.view(id)`
       names, when the `vision.enabled` switch is on (off unless a test asks). Viewing a character changes nothing in it or its AI.
-    - **What it reads of the viewer** (duck-typed, 7): `global_position`, `facing`, `get_rid()`, `sight() -> Dictionary` (a method of the Character body, 7: `{ fov_degrees,
+    - **What it reads of the viewer** (duck-typed, 7): `global_position`, `facing`, `sight() -> Dictionary` (a method of the Character body, 7: `{ fov_degrees,
       view_distance, awareness_radius, eye_height }`, its `CharacterVisionConfig` and the px height of its eye in the posture it is in, `BodyHeights`), `is_dead`, and the signals `died` and
       `tree_exiting`: either **lifts** the view (the node and its viewports are freed within a frame, the masks are cleared and `SeenArea.clear()` run at
       once, so everything is drawn again, live, for the rest of the match).

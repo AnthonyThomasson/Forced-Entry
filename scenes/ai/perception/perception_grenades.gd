@@ -177,11 +177,10 @@ func in_zone(kind: StringName, burst: Vector2, p: Vector2) -> bool:
 	)
 
 
-## The rids of every character in the world, this NPC included: the bodies a lob goes
+## The twin rids of every character in the world, this NPC included: the bodies a lob goes
 ## through.
 func character_rids() -> Array:
-	var rids := [perception._character.get_rid()]
+	var rids := SightRay.exclude_of(perception._character)
 	for other in perception.sight.others():
-		if other is CollisionObject2D:
-			rids.append(other.get_rid())
+		rids.append_array(SightRay.exclude_of(other))
 	return rids

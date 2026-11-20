@@ -148,7 +148,7 @@ func learn_by_sight(full := false) -> void:
 	var self_pos: Vector2 = perception._character.global_position
 	var facing: Vector2 = perception._character.facing
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
-	var exclude := [perception._character.get_rid()]
+	var exclude := SightRay.exclude_of(perception._character)
 	_look_at_rooms(self_pos, facing, space, exclude)
 	_look_at_furniture(full, self_pos, facing, space, exclude)
 

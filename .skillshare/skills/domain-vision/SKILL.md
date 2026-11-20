@@ -11,7 +11,7 @@ through `tests/_vision/vision_probe.gd`); the numbers live in `VisionConfig` and
 `docs/adr/0011-the-vision-domain.md`. Interfaces: 7 (`sight()`, `facing`, `died`), 11 (`ViewLayers`, `SightRay`, `SeenArea`), 13 (the `vision.enabled` switch, `TestSetup.view`), 23 (the handle's `view`), 25 (this
 domain's own).
 
-A **leaf**, like Lighting: it imports General, Godot and Art's `ToonMask`, reads the viewer duck-typed (`global_position`, `facing`, `get_rid()`,
+A **leaf**, like Lighting: it imports General, Godot and Art's `ToonMask`, reads the viewer duck-typed (`global_position`, `facing`,
 `sight()`, `is_dead`, the signals `died` and `tree_exiting`) and the world through the physics space and `get_surface()`. Its one
 caller is `MatchBuilder` (`PlayerView.watch(world, character)`, for Main's human and the Testing world's viewer); nothing in
 another domain knows `PlayerView`. Character, Items, Projectile, Physics and Vehicles set their own `ViewLayers` bits; the AI's
