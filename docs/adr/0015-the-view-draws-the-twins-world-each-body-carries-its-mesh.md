@@ -8,7 +8,7 @@ second copy of what the twins already hold: a pose written twice, a world of the
 **Decision.** The view draws the twin space's `World3D` (`View3D.mirror_world` swaps the viewport's world for it). Each body **carries its mesh on its twin**: Art's `MeshCarrier`
 (interface 27) is fed by `TwinSpace.twinned` and `retwinned`, builds the mesh the body's domain registered (`builders`, unchanged: a kind or a finer key) and hangs it on the
 twin as a child with no transform of its own, so the picture is where the twin is and nothing writes it (a character's mesh holds its 2D turn, the round twin never turns).
-The shown rules (the body's `visible`, a seated character's disabled shapes, the player's view: `MirrorSight`), `mirror_update`, `remirror`, `on_body_died`, `follows_shapes`
+The shown rules (the body's `visible`, a riding character's `use.is_riding()`, the player's view: `MirrorSight`), `mirror_update`, `remirror`, `on_body_died`
 and the `built` signal a wall fade listens to are the mirror's, kept. What is drawn but is no body (floor stencils, lying items) is shown by a small `MeshFollower` that keeps the
 mirror's `track` / `track_group`; the effects' and shots' layers hang in the view's viewport. `WorldMirror`, `MirrorConfig` and the proxy are deleted.
 

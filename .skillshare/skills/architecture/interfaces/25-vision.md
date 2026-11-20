@@ -9,7 +9,7 @@
       view_distance, awareness_radius, eye_height }`, its `CharacterVisionConfig` and the px height of its eye in the posture it is in, `BodyHeights`), `is_dead`, and the signals `died` and
       `tree_exiting`: either **lifts** the view (the node and its viewports are freed within a frame, the masks are cleared and `SeenArea.clear()` run at
       once, so everything is drawn again, live, for the rest of the match).
-    - **What it reads of the world:** the physics space (`SightRay`, 11, on `PhysicsLayers.SOLID`: a collider blocks when its twin's top, 29, is above the viewer's `eye_height`; a character never does), the groups `floors` (the seen mask's
+    - **What it reads of the world:** the physics space (`SightRay`, 11, on the twin layers: a collider blocks when its twin's top, 29, is above the viewer's `eye_height`; a character never does), the groups `floors` (the seen mask's
       bounds) and, through each blocker, `get_surface()` (`transparent`) and the signal `changed` (a door). It writes `SeenArea`
       (11), with the viewer (`set_viewer`: a living character in the cone that the eye sees no point of is hidden by Art's mirror), each time a cone is published. It draws nothing over the world: the view is `ViewGround`, two masks (the live cone in a window about the camera, and
       where the viewer has seen) the 3D scene's toon shaders read by ground position (`ToonMask`, Art, 27; `docs/player-vision.md` V12), and the `PlayerView` keeps placing its live

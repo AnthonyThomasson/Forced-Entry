@@ -73,9 +73,9 @@ Everything not listed here is private to its domain. A signature lives only in i
 An arrow is "code references" (class names or preloads). No cycles.
 
 ```
-main ──▶ worldgen, navigation, lighting, vision, ai, items, character, audio, ui   (a match is built by MatchBuilder)
+main ──▶ worldgen, navigation, lighting, vision, ai, items, character, audio, ui
 main ──(3D view: main_view3d.gd)──▶ art (MeshCarrier, MeshFollower), general (CameraRig, RenderConfig), objects, vehicle, character, items, projectile, physics (the *Meshes): meshes on the twins, duck-typed (27)
-main ──(MatchBuilder.stage: twin space, 29)──▶ general (TwinSpace), objects, vehicle, character
+main ──(MatchBuilder.stage: twin space, 29)──▶ general (TwinSpace), objects, vehicle, character   (no 2D physics: sim roots are plan handles)
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio)

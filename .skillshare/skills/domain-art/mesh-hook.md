@@ -18,7 +18,7 @@ carrier hangs it on the body's twin (`TwinSpace.twinned`), which stands and turn
   while its `visible` is false, freed when it leaves the tree. A node is built once; a null builder leaves it unshown until `remirror`. A node must be in the group by the end of its `_ready`; one that joins
   later is taken up by `follower.remirror(node)`. While a group is tracked every `Node2D` that enters the tree is queued (a dictionary entry), so for hundreds of short-lived pieces a second (a casing, a spark)
   use `MeshNodes.batch` with a `MeshPool` (its places taken and given back, no hole; Projectile's `ShotLayer` does) instead of a node and a mesh each. `follower.md`.
-- Tests: `tests/art/mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mirror_mesh_lifecycle_test.gd`, `mirror_follows_shapes_rule_test.gd`.
+- Tests: `tests/art/mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mirror_mesh_lifecycle_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`.
 
 ## Keeping a mesh in step: which to use
 
@@ -26,7 +26,7 @@ carrier hangs it on the body's twin (`TwinSpace.twinned`), which stands and turn
 |---|---|
 | a **pose** that changes often without the 2D transform changing (a limb, a facing, a wheel's spin, an open lid) | a `mirror_update(body: Node2D)` method on the mesh node: called each frame the mesh **shows** (not while hidden; a sleeping or static body's too), after the transform is written. Set transforms of the node's parts there, cheaply: nothing is rebuilt. |
 | a **shape** that changes now and then (a dent, a new outfit, a posture that changes the solids) | `MeshCarrier.remirror(node)` (a body or floor; a tracked node: `MeshFollower.remirror`): builds the mesh again at once through its builder and frees the old one. The domain asks Main to call it from the signal it already has (a hit, a posture change); `MeshCache` makes a repeat cheap. |
-| a **shape that follows the body's own colliders** (a wall's segments) | `follows_shapes() -> true` on the mesh node: the carrier does not build it again when a collision shape comes or goes (a shape queued to be freed never does); the mesh listens to its body's own signal and replaces what changed. |
+| a **shape that follows the body's own outlines** (a wall's segments) | nothing on the node: the carrier builds a mesh again only on `remirror` or a body's `reshaped`, never because a collider came or went (a body holds no 2D shape); the mesh listens to its body's own signal (`segment_rebuilt`) and replaces what changed. |
 | a mesh of one node that needs neither | a `_process` on the mesh node itself also works (it runs hidden too), the simplest thing for a spinning fan; nothing in the mirror is needed. |
 
 - **A mesh unique to one node** (a dented panel, a posed limb) is `MeshKit.build()` straight into `MeshNodes.instance`, freed with its node: only meshes many pieces share go through `MeshCache`
@@ -36,8 +36,8 @@ carrier hangs it on the body's twin (`TwinSpace.twinned`), which stands and turn
   their own builder.
 - **Reparenting.** A tracked node (the follower's `track`, `track_group`) survives `reparent` or a `remove_child` and re-add: out of the tree its mesh is hidden and not followed; back in, shown and placed. Freed out
   of the tree, its mesh is freed with it; one kept out (a pool) keeps its hidden mesh and a row, so a pool is bounded. A queued-free node's mesh goes at once. A body (carried) that leaves the tree loses its mesh and gets a new one when it is twinned again.
-- **Own meshes hide with their body's shapes:** while a body has collision shapes and every one is disabled (a character seated in a vehicle) its own mesh is hidden.
-- **A moved body** is followed by its twin, which `TwinSpace` writes when the body moves (a rigid body, a character, a driven body: interface 29), so a `StaticBody2D` a script moves is not followed. A followed node is shown by its own `visible`, not `is_visible_in_tree`: under a hidden parent it stays shown, so hide the node itself (the 2D `World` is hidden in 3D, so the parent is hidden always).
+- **A seated character's mesh is hidden:** the carrier asks the body's `use.is_riding()` (duck-typed); no collision shape is read.
+- **A moved body** is followed by its twin, which `TwinSpace` writes when the body moves (a rigid body, a character, a driven body: interface 29), so a bare node a script moves is followed only if it is a plan handle the space twins. A followed node is shown by its own `visible`, not `is_visible_in_tree`: under a hidden parent it stays shown, so hide the node itself (the 2D `World` is hidden in 3D, so the parent is hidden always).
 
 ## The vision hook
 

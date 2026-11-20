@@ -1,7 +1,7 @@
 extends RefCounted
 ## Tests: the oracle of "what stands on this plan line", cast straight into the twin space with
 ## raw 3D queries (never through `AgentVision` or `SightRay`, which a test is checking). It
-## replaces the 2D `PhysicsRayQueryParameters2D` on `PhysicsLayers.SOLID` the tests used: a floor
+## replaces the 2D ray query the tests used: a floor
 ## line (`FLOOR_LINE` px up) meets every piece, since each one stands on the floor, a wall, a door
 ## and a vehicle, and `WITH_BODIES` adds the characters. The answers name the 2D bodies the twins
 ## stand for (`TwinSpace.owner_of`).

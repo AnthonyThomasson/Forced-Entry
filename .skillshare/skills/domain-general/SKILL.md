@@ -30,7 +30,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 
 ## Shared ids
 
-- `PhysicsLayers.SOLID` is the layer walls, solid furniture and bodies sit on; every ray and sweep that must hit a wall reads it (add a layer here, never a magic number).  Walls, doors and vehicles are plan handles (`Node2D`) with no layer at all. `TWIN_WORLD`, `TWIN_VEHICLE`, `TWIN_CHARACTER` and `TWIN_ALL` are the twin 3D space's own layer bits (`twins.md`).
+- `PhysicsLayers` holds the twin 3D space's layer bits (`TWIN_WORLD`, `TWIN_VEHICLE`, `TWIN_CHARACTER`, `TWIN_ALL`, `twins.md`); every ray and sweep reads one (add a layer here, never a magic number). No 2D layer exists: every sim root is a plan handle (`Node2D`).
 - `ViewLayers` holds the visibility bits that say what the player's view may remember (`helpers.md`).
 
 ## Game clock

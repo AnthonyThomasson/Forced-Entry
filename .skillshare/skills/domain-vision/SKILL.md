@@ -49,12 +49,11 @@ read through `character.sight()`: any character can be the viewer.
   than it needs no ray (`vision/cone_hidden_corners_not_cast`), unless it lies within `FAN_HIDE_MARGIN` (0.25 px at its distance) of
   either ray: engine hits are off a face by up to 0.02 px (`vision/fan_hide_margin_keeps_grazing_corner`).
 - **`ViewWatch` skips a rebuild** a fresh one would draw again, and a rebuild is due when any input of the cone changed: the eye,
-  the facing, the sight numbers, the cone's `VisionConfig` numbers; the transform or collision layer of any blocker where a
-  ray can pass (within the view distance, in the cone's sector or the bubble, each grown by the blocker's own extent and 2 px, measured when its shapes come or go and scaled by the largest absolute
-  scale of its body; one wholly beyond it forces nothing), polled each frame, and the frame after a rebuild made while one moved;
-  by signal a blocker's shapes coming or going (a dent or a wall re-cut frees shapes and adds new with no move of the body),
-  leaving the tree, or a door's `changed`; a collider that entered the tree; a character that blocks (its posture covers more
-  than the viewer looks over: rebuilt every frame it does, and the frame after); and every `rebuild_every` (10) frames, the
+  the facing, the sight numbers, the cone's `VisionConfig` numbers; the transform or standing (solid, or a fallen door lying flat) of any blocker (a plan handle: `ViewWatch` reads no 2D body) where a
+  ray can pass (within the view distance, in the cone's sector or the bubble, each grown by the blocker's own extent and 2 px, measured from its twin when it is reshaped; one wholly beyond it forces nothing), polled each frame, and the frame after a rebuild made while one moved;
+  by signal a wall re-cut by a dent (`segment_rebuilt`: its extent measured again), a piece's dent (`reshaped`),
+  leaving the tree, or a door's `changed`; a blocker that entered the tree; no character (it never blocks: looked over
+  whatever the eye's height, so its moving costs no rebuild); and every `rebuild_every` (10) frames, the
   backstop for a change it cannot see. `stale` asks all of it for the next job; `world_changed` all but the eye and facing, each
   tick of a job in flight (`cone-job.md`). The job length is the lag (V1). A low piece is in no ray, so it is not watched. A frame that rebuilds nothing measures no
   shape and builds no Array for the key (`vision/view_watch_suite` holds the first): keep it so.

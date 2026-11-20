@@ -2,7 +2,7 @@ extends GameTest
 ## R5 (ticket #61): wear and clutter are placed in the world per room, never baked into a repeating
 ## tile. In generated houses (the test's own house world plus more seeds, so several plans): each
 ## room has 0 to 3 wear clusters and 0 to 2 clutter pieces, no clutter kind twice in a room; clutter
-## is non-solid decor (no collider on PhysicsLayers.SOLID, not carved into the nav map); every wear
+## is non-solid decor (no solid twin, not carved into the nav map); every wear
 ## cluster and clutter piece sits by a wall, a corner or a piece of solid furniture of its room; the
 ## wear is drawn by a layer of its own per room; most rooms are worn and clutter shows up; and two
 ## rooms of the same type never get the same wear layout.
@@ -224,7 +224,7 @@ func _check_room_wear(
 
 ## `room`'s clutter `placed` (`where` names it): at most MAX_CLUTTER, no kind twice, each non-solid
 ## catalogue decor placed in `house`, in the room by a wall, corner or furniture, with no collider
-## on the SOLID layer.
+## solid (no twin).
 func _check_room_clutter(
 	t: TestContext,
 	where: String,
@@ -260,7 +260,7 @@ func _check_room_clutter(
 		)
 		t.check(
 			not _collides_solid(node),
-			"%s: the placed %s has no collider on the SOLID layer" % [where, kind],
+			"%s: the placed %s is not solid" % [where, kind],
 		)
 		var p: Vector2 = node.global_position
 		t.check(rect.has_point(p), "%s: the %s at %s lies in the room" % [where, kind, p])

@@ -1,7 +1,6 @@
-11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `GameClock`, `BodyHeights`, `PlanSpace`, shared rules**
-    - `PhysicsLayers` (`general/physics_layers.gd`, static holder): `SOLID` is the physics layer bit (1) solid furniture lives on (2D; walls, doors and vehicles are plan handles with no layer); `TWIN_WORLD` (1), `TWIN_VEHICLE` (2), `TWIN_CHARACTER` (4), `TWIN_ROOF` (8, out of `TWIN_ALL`) and `TWIN_ALL` are the twin 3D space's layers (29).
-	  `SOLID` is read by what still asks the 2D space (the AI's plan fallback with no twin space, the player's cone, a dropped item's glance, the blast's
-	  lines, a vehicle's body layer). What asks the 3D space reads the twin layers (29): Interaction's reach,
+11. **General → every domain: shared ids, `PhysicsLayers`, `GameClock`, `BodyHeights`, `PlanSpace`, shared rules**
+    - `PhysicsLayers` (`general/physics_layers.gd`, static holder): there is no 2D layer (every sim root is a plan handle, 29); `TWIN_WORLD` (1), `TWIN_VEHICLE` (2), `TWIN_CHARACTER` (4), `TWIN_ROOF` (8, out of `TWIN_ALL`) and `TWIN_ALL` are the twin 3D space's layers (29).
+	  Every ray and sweep reads the twin layers (29), never a number: Interaction's reach,
 	  `use.keep_clear_of`, a vehicle's door checks, the hand and leg queries, AI sight and line of fire, a grenade's flight, the bullet.
     - `GameClock` (`general/game_clock.gd`, an autoload, `PROCESS_MODE_PAUSABLE`): counts physics frames in `_physics_process`, so it stands
 	  still while the tree is paused. `GameClock.msec() -> int` (frames × 1000 / `Engine.physics_ticks_per_second`: deterministic under
@@ -34,7 +33,7 @@
 	  `sees(space3d, eye: Vector3, to: Vector2, heights, exclude := []) -> bool` (first clear point ends the ask), `visible_heights(...)`,
 	  `eye_point(viewer)`, `target_heights(target)` (a character's `BodyHeights.sight_points` at its posture), `exclude_of(target)`.
 	  `visible_parts(viewer, target) -> PackedFloat32Array` (heights of its points the eye sees), `visible_centre(viewer, target) -> float` (their mean, -1 for none), `aim_height(viewer, target) -> float` (that, else the torso); `parts_at` / `aim_at(viewer, eye, target, at)`: from an eye, target at `at`. **The plan cast** (the player's cone):
-	  `SightRay.plan_hit(space2d, from, to, exclude, see_over) -> Dictionary` is the first `SOLID` collider taller than `see_over` (the
+	  `SightRay.plan_hit(space, from, to, exclude, see_over) -> Dictionary` (`space` the 3D one) is the first twin taller than `see_over` (the
 	  eye, px); `top_of(collider) -> float` its twin's top (0 for a `transparent` surface or a character, `INF` with no twin). An instance (`looks_over`, `rated`, `leave_out(rids)`, `cast(...)`) serves Vision's cone.
     - `SeenArea` (`general/seen_area.gd`, static holder): what the view shows live. Vision writes `set_area(polygons: Array,
 	  bounds: Rect2)` per rebuild and `clear()` on a lift; `reaches(center, radius)` (a disc)

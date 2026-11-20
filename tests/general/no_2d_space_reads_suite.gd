@@ -13,6 +13,7 @@ extends UnitSuite
 ## are banned on a 3D body too: no sim script reads contact events (Jolt's are not deterministic),
 ## so the scan is stricter than the 2D rule it checks.
 
+const NoPhysics2D := preload("res://tests/_general/no_2d_physics_nodes.gd")
 ## What a line of code must not contain: a 2D query, node or body event, the 2D physics server, a
 ## 2D body's motion.
 const FORBIDDEN := [
@@ -162,6 +163,25 @@ func test_each_way_to_ask_the_2d_space_is_caught() -> void:
 	for line: String in bare:
 		assert_array(_findings("res://scenes/x.gd", [line], [])).is_not_empty()
 		assert_array(_findings("res://scenes/x.gd", ["var s: TwinSpace", line], [])).is_empty()
+
+
+## The node walk of the match guards (`no_2d_physics_node_in_a_*_match_test`) names each 2D physics
+## class, a subclass too, and leaves a plain `Node2D` and the 3D bodies alone.
+func test_the_node_walk_finds_each_2d_physics_node() -> void:
+	var root := Node2D.new()
+	var bad: Array[Node] = [
+		StaticBody2D.new(), RigidBody2D.new(), AnimatableBody2D.new(), CharacterBody2D.new(),
+		Area2D.new(), CollisionShape2D.new(), CollisionPolygon2D.new(), RayCast2D.new(),
+		ShapeCast2D.new(),
+	]
+	for node in bad:
+		root.add_child(node)
+	var fine := Node2D.new()
+	fine.add_child(StaticBody3D.new())
+	root.add_child(fine)
+	assert_int(NoPhysics2D.offenders(root).size()).is_equal(bad.size())
+	assert_array(NoPhysics2D.offenders(fine)).is_empty()
+	root.free()
 
 
 ## A comment is not scanned, a string is (a class or a signal can be named by one): a `#` inside a

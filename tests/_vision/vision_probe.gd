@@ -17,7 +17,7 @@ extends RefCounted
 ##     `VisionConfig.enabled` is off).
 ## - `VisionConfig.enabled` (class_name static holder): the switch.
 ## - The viewer is any character: `global_position`, `facing`.
-## - The world is plain Godot physics: the solid layer (`PhysicsLayers.SOLID`, bit 1) and each
+## - The world is plain Godot physics: the twin world layer (`PhysicsLayers.TWIN_WORLD`) and each
 ##   piece's real top (the twin space's, `SightRay.top_of`).
 
 const GROUP := &"player_view"
