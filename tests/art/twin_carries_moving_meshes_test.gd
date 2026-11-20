@@ -138,13 +138,25 @@ func _check_placed(t: TestContext, mirror: WorldMirror, shelf: Node2D) -> void:
 	t.check(_on(mesh, twin), "at its twin's pose")
 
 
-## A piece twinned again (its old twin, and the mesh on it, are freed): its mesh is built on the
-## new twin, one mesh for the body, nothing logged.
+## A piece twinned again (its old twin is freed): its mesh moves to the new twin in the same call,
+## so no frame draws without it (a retwin made after the mirror's own update included), one mesh
+## for the body, nothing logged.
 func _check_retwinned(t: TestContext, mirror: WorldMirror, shelf: Node2D) -> void:
 	var before := mirror.count
 	var old := TwinSpace.twin_for(shelf)
+	var mesh_then := mirror.mesh_of(shelf)
 	TwinSpace.retwin(shelf)
-	await t.frames(4)
+	var at_once := TwinSpace.twin_for(shelf)
+	t.check(
+		mesh_then.get_parent() == at_once and mesh_then.is_inside_tree(),
+		"the same mesh is on the new twin at once, in the tree",
+	)
+	await t.frames(1)
+	t.check(
+		is_instance_valid(mesh_then) and mesh_then.is_inside_tree(),
+		"and after the old twin went",
+	)
+	await t.frames(3)
 	var twin := TwinSpace.twin_for(shelf)
 	t.check(twin != null and twin != old, "premise: the piece has a new twin")
 	var mesh := mirror.mesh_of(shelf)
@@ -182,6 +194,7 @@ func _check_swung(t: TestContext, mirror: WorldMirror, door: Node2D) -> void:
 
 func _check_fallen(t: TestContext, mirror: WorldMirror, door: Node2D) -> void:
 	var before := mirror.count
+	var felled_mesh := mirror.mesh_of(door)
 	door.take_blow(&"kick", 10_000.0, Vector2(2200.0, 0.0), 40.0)
 	await t.frames(2)
 	var slab := TwinSpace.twin_for(door)
@@ -189,6 +202,7 @@ func _check_fallen(t: TestContext, mirror: WorldMirror, door: Node2D) -> void:
 		return
 	var mesh := mirror.mesh_of(door)
 	t.check(mesh != null and mesh.get_parent() == slab, "its mesh is on the slab")
+	t.check(mesh == felled_mesh, "the very mesh that hung on the leaf's body (carried over)")
 	t.expect_eq(mirror.count, before, "the leader's replacement adds and drops no mesh")
 	var off := 0
 	var written := 0

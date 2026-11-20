@@ -93,7 +93,7 @@ func _process(_delta: float) -> void:
 ## bodies that spawn later.
 func mirror(root: Node) -> void:
 	_root = root
-	_twins = TwinSpace.of_world(root)
+	_use_twins(TwinSpace.of_world(root))
 	for floor_node: Node in root.get_tree().get_nodes_in_group(&"floors"):
 		if root.is_ancestor_of(floor_node):
 			_add_floor(floor_node as Node2D)
@@ -206,6 +206,8 @@ func _follow(row: Dictionary) -> void:
 		if _recarry(row):
 			return  # shown anew: this row is gone
 		_sync_shown(row)
+		if row.get("turns", false):
+			_turn(row)
 		_run_update(row)
 		return
 	var lead := TwinSpace.leader_of(row["body"])
@@ -302,7 +304,7 @@ func _mirror_pending() -> void:
 	if _pending.is_empty():
 		return
 	if _twins == null and _root != null:
-		_twins = TwinSpace.of_world(_root)  # a world whose twin space was staged after the mirror
+		_use_twins(TwinSpace.of_world(_root))  # a twin space staged after the mirror
 	var batch := _pending.values()
 	_pending = {}
 	for node: Variant in batch:
@@ -427,23 +429,20 @@ func _add_body(body: PhysicsBody2D) -> void:
 	_watch(body)
 
 
-## Show `body` by a mesh carried on its twin, when this mirror is drawn in the twins' world, the
-## body is no vehicle or character (a wall, a floor, a piece, a door) and a builder gives the kind a
-## mesh: the mesh is the twin's child with no transform of its own, so it stands where the
-## twin does and nothing writes it; the mirror keeps the shown rules (`_shown`) and the mesh's own
-## hooks. True when it is handled: carried, or waiting for a twin that is still to come (a twin
-## joins the frame after its body); false for a vehicle or character (the mirror follows it) or a
-## body that has no twin.
+## Show `body` by a mesh carried on its twin, when this mirror is drawn in the twins' world and a
+## builder gives the kind a mesh: the mesh is the twin's child, standing where the twin does (a
+## vehicle's `VehicleBody`, a piece's, a door's, a wall's) with no transform of its own, so nothing
+## writes it. A character's twin never turns (a round cylinder), so its mesh holds the turn of the
+## 2D body's own rotation, written only when that changes (`_turn`). The mirror keeps the shown
+## rules (`_shown`) and the mesh's own hooks. True when it is handled: carried, or waiting for a
+## twin that is still to come (a twin joins the frame after its body); false for a body that has
+## no twin or no mesh.
 func _try_carry(body: Node2D, kind: StringName) -> bool:
 	if not _draws_in_twins_world():
 		return false
 	if _twins.is_waiting(body):
 		_pending[body.get_instance_id()] = body
 		return true
-	# a vehicle's twin (an `AnimatableBody3D`) and a character's (a `CharacterBody3D`) are not
-	# carried yet: the mirror follows those bodies
-	if kind == MirrorProxy.VEHICLE or kind == MirrorProxy.CHARACTER:
-		return false
 	var twin := TwinSpace.twin_for(body) as CollisionObject3D
 	if twin == null or twin.get_parent() != _twins:
 		return false
@@ -456,12 +455,13 @@ func _try_carry(body: Node2D, kind: StringName) -> bool:
 	var row := _proxies.own_row(body, made)
 	row["carried"] = true
 	row["twin"] = twin
-	# a door's leader is replaced by a free body when it is knocked down (`TwinSpace.retwin`)
-	row["retwins"] = kind == MirrorProxy.DOOR
+	row["turns"] = kind == MirrorProxy.CHARACTER
 	row["id"] = body.get_instance_id()
 	row["shown"] = _shown(row)
 	(made as Node3D).visible = row["shown"]
 	twin.add_child(made)
+	if row["turns"]:
+		_turn(row)
 	count += 1
 	var moving := body is CharacterBody2D or body is AnimatableBody2D or body is RigidBody2D
 	if moving or not row["shown"] or (row["update"] as Callable).is_valid():
@@ -472,24 +472,54 @@ func _try_carry(body: Node2D, kind: StringName) -> bool:
 
 
 ## A carried body's twin was replaced (`TwinSpace.retwin`: a knocked-down door's `DoorBody` by a
-## `DoorSlab`), which frees the old twin and the mesh on it: the body is shown again, carried by the
-## new twin. A door's twin is looked at each frame; any other body's only once its mesh is gone.
-## True when it was, which ends the row's follow.
+## `DoorSlab`, a piece's by a new one): the old twin is freed at the frame's end, so each carried
+## mesh of the body moves to the new twin at once, never a frame without it. A body the new twin
+## cannot carry is shown again by the next update.
+func _on_retwinned(body: Node2D, _old: Node3D) -> void:
+	var rows: Array = _rows.get(body.get_instance_id(), [])
+	if rows.is_empty() or not (rows[0] as Dictionary).get("carried", false):
+		return
+	var twin := TwinSpace.twin_for(body) as CollisionObject3D
+	if twin == null or twin.get_parent() != _twins:
+		_drop(body)
+		_pending[body.get_instance_id()] = body
+		return
+	for row: Dictionary in rows:
+		var mesh: Variant = row["node"]
+		if is_instance_valid(mesh) and (mesh as Node).get_parent() != twin:
+			if (mesh as Node).get_parent() != null:
+				(mesh as Node).get_parent().remove_child(mesh)
+			twin.add_child(mesh)
+		row["twin"] = twin
+
+
+## A carried body whose mesh went with its twin (the twin was freed another way) is shown again by
+## the next update. True when it was, which ends the row's follow.
 func _recarry(row: Dictionary) -> bool:
 	var body: Variant = row["body"]
-	if not is_instance_valid(body):
+	if not is_instance_valid(body) or is_instance_valid(row["node"]):
 		return false
-	if not is_instance_valid(row["node"]):
-		_drop(body)  # the mesh went with its twin: built again next update
-		_pending[(body as Node).get_instance_id()] = body
-		return true
-	if not row.get("retwins", false):
-		return false
-	var twin := TwinSpace.twin_for(body)
-	if twin == null or twin == row["twin"]:
-		return false
-	_add_body(body as PhysicsBody2D)
+	_drop(body)  # the mesh went with its twin: built again next update
+	_pending[(body as Node).get_instance_id()] = body
 	return true
+
+
+## Turn a carried character's mesh to the 2D body's rotation (its twin does not turn, or turns by
+## what the body last gave it): written only when it changed.
+func _turn(row: Dictionary) -> void:
+	var mesh := row["node"] as Node3D
+	var twin := row["twin"] as Node3D
+	var want := Basis(Vector3.UP, -(row["body"] as Node2D).global_rotation)
+	var local := twin.global_basis.orthonormalized().inverse() * want
+	if not local.is_equal_approx(mesh.basis):
+		mesh.basis = local
+
+
+## Take `twins` as the twin space the mirror carries meshes on, and hear of its retwins.
+func _use_twins(twins: TwinSpace) -> void:
+	_twins = twins
+	if twins != null and not twins.retwinned.is_connected(_on_retwinned):
+		twins.retwinned.connect(_on_retwinned)
 
 
 ## Whether meshes are carried on twins: the switch is on, there is a twin space and this mirror is

@@ -53,6 +53,11 @@ extends SubViewport
 ## (a bullet then calls the body's `get_surface()`); `twin_of(body)` the other way. Layers:
 ## `PhysicsLayers.TWIN_*`.
 
+## A body's twin was replaced (`retwin`): its 2D body, with the new twin already in place and the
+## old one still standing until the frame ends, so a mesh carried on it can be moved to the new in
+## the same call (Art's `WorldMirror`).
+signal retwinned(body: Node2D, old: Node3D)
+
 ## The physics priority of the update: before every body's own `_physics_process` (a vehicle's is
 ## -1), so the frame's scripts, a bullet's among them, read twins that stand where the physics step
 ## left the 2D bodies.
@@ -349,8 +354,10 @@ func _retwin(body: Node2D) -> void:
 	var leaving := _on_exiting.bind(body)
 	if body.tree_exiting.is_connected(leaving):
 		body.tree_exiting.disconnect(leaving)
+	var old := row["twin"] as Node3D
 	_drop(row)
 	_twin(body)
+	retwinned.emit(body, old)
 
 
 ## Mark every node of `group` under the root to be twinned on the next update.
