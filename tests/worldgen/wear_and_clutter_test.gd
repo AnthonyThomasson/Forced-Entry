@@ -88,8 +88,8 @@ func _to_anchor(p: Vector2, room: Rect2, pieces: Array, skip: Node = null) -> fl
 	return best
 
 
-## Whether `body` has a collision shape on PhysicsLayers.SOLID, or is a wall with an outline (a wall
-## is a plan handle with no 2D shape: its outlines are what blocks).
+## Whether `body` blocks: a wall with an outline or a solid piece (plan handles: their outlines and
+## their 3D twins are what block).
 func _collides_solid(body: Node) -> bool:
 	if body.is_in_group(TwinSpace.WALLS):
 		for outlines: Variant in (body.call(&"segment_shapes") as Dictionary).values():
@@ -98,14 +98,7 @@ func _collides_solid(body: Node) -> bool:
 		return false
 	if body.is_in_group(TwinSpace.PIECES):
 		return body.solid  # a piece is a plan handle: its 3D twin is what blocks
-	if (not (body is CollisionObject2D)
-			or ((body as CollisionObject2D).collision_layer & PhysicsLayers.SOLID) == 0):
-		return false
-	for child in body.get_children():
-		if ((child is CollisionShape2D and child.shape != null)
-				or (child is CollisionPolygon2D and not child.polygon.is_empty())):
-			return true
-	return false
+	return false  # a rug, a mat: nothing else collides
 
 
 ## Checks one house; adds its rooms' wear layouts to `layouts` (type -> [{ label, layout }]) and its

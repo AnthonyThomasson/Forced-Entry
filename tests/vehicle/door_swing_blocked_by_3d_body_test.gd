@@ -63,13 +63,6 @@ func run(t: TestContext) -> void:
 	if other_car == null:
 		return
 	other_car.global_position = OTHER_CAR_AT
-	_shapes_off(other_car)
 	await t.frames(3)
 	t.check(not car.can_board(me, &"rear_left"), "another car in the swing holds the door shut")
 	t.check(car.can_board(me, &"front_left"), "the front-left door, clear of it, opens")
-
-
-## Every 2D shape of `body` off: only its 3D twin answers a query.
-func _shapes_off(body: Node) -> void:
-	for shape in body.find_children("*", "CollisionShape2D", true, false):
-		(shape as CollisionShape2D).disabled = true

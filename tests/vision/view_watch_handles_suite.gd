@@ -74,3 +74,33 @@ func test_a_wall_handle_that_is_recut_forces_a_rebuild() -> void:
 	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_false()
 	wall.emit_signal(&"segment_rebuilt", 0)
 	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_true()
+
+
+## A character is a plan handle of `TwinSpace.BODIES` too, and is looked over at any height
+## (`SightRay.top_of`): the watch sorts it as looked over, measures nothing for it, and its walking
+## forces no rebuild but the backstop's.
+func test_a_character_handle_is_looked_over_and_forces_no_rebuild() -> void:
+	var untouched := Watch.new()
+	var walker: Walker = auto_free(Walker.new())
+	walker.position = ORIGIN + Vector2(300.0, 0.0)
+	add_child(walker)
+	var watch := _settled()
+	assert_int(watch.measured()).is_equal(untouched.measured())
+	var due := 0
+	for i in FRAMES:
+		walker.position += Vector2(0.0, 1.0)
+		if watch.stale(ORIGIN, FACING, _sight()):
+			due += 1
+			watch.built(ORIGIN, FACING, _sight())
+	assert_int(due).is_less_equal(ceili(float(FRAMES) / VisionConfig.rebuild_every) + 1)
+
+
+## A plan handle with a `movement`, as a character has: looked over, whatever its twin says.
+class Walker:
+	extends Node2D
+
+	var movement: Object = RefCounted.new()
+
+
+	func _init() -> void:
+		add_to_group(TwinSpace.BODIES)

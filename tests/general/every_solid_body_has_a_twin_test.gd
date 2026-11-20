@@ -1,8 +1,8 @@
 extends GameTest
-## Every solid 2D body in a built district has a 3D twin (`TwinSpace`, interface 29): the player's
-## cone and the AI read the twin space only, so a body on `PhysicsLayers.SOLID` that had no twin
-## would block nothing for them while the view still watches it (`ViewWatch`). A wall is a plan
-## handle with no engine body, so it is read through the group of walls, not a scan by type.
+## Every solid plan handle in a built district has a 3D twin (`TwinSpace`, interface 29): the
+## player's cone and the AI read the twin space only, so a handle with no twin would block nothing
+## for them while the view still watches it (`ViewWatch`). A wall is read through the group of
+## walls, a piece through the group of pieces, a door or a vehicle through the group of hard ones.
 
 const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SEED := 18
@@ -11,10 +11,9 @@ const PLAN := ""
 
 func describe() -> Dictionary:
 	return {
-		"name": "Every solid 2D body of a district has a twin",
+		"name": "Every solid plan handle of a district has a twin",
 		"description": "A generated downtown district (towers, streets, doors, furniture): each "
-			+ "2D physics body on the solid layer, and each wall, door and vehicle, has a "
-			+ "3D twin that names it.",
+			+ "solid piece, wall, door and vehicle has a 3D twin that names it.",
 		"tags": ["twins", "3d", "district"],
 		"timeout": 20.0,
 	}
@@ -50,17 +49,7 @@ func run(t: TestContext) -> void:
 	t.expect_eq(twinless.size(), 0, "no solid body is twinless: %s" % [twinless.slice(0, 8)])
 
 
-## Whether `body` is solid: a door or a vehicle (a plan handle in `TwinSpace.HARD`), or a body on
-## `PhysicsLayers.SOLID` with a collision shape that is on (a rug or a mat is a body on the default
-## layer with no collider: it blocks nothing in 2D either).
+## Whether `body` is solid here: a door or a vehicle (a plan handle in `TwinSpace.HARD`; a wall is
+## counted below).
 func _is_solid(node: Node2D) -> bool:
-	if node.is_in_group(TwinSpace.HARD):
-		return not node.is_in_group(TwinSpace.WALLS)  # a wall is counted below
-	var body := node as CollisionObject2D
-	if body == null or body.collision_layer & PhysicsLayers.SOLID == 0:
-		return false
-	for owner_id in body.get_shape_owners():
-		if (not body.is_shape_owner_disabled(owner_id)
-				and body.shape_owner_get_shape_count(owner_id) > 0):
-			return true
-	return false
+	return node.is_in_group(TwinSpace.HARD) and not node.is_in_group(TwinSpace.WALLS)
