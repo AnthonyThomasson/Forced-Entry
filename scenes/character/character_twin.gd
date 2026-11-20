@@ -5,7 +5,7 @@ extends CharacterBody3D
 ## circle and the real height of the posture it is in (`BodyHeights`: standing the stature, ducked
 ## the duck, a ducked body risen over its cover the pose it rose to), so a ray at head height hits
 ## a standing body and passes over a ducked one. Its wall is straight up (a round meets the body
-## square on at any height, as it does the 2D circle: a rounded top would turn a head shot's damage
+## square on at any height, as the old 2D circle did: a rounded top would turn a head shot's damage
 ## down by the slant it strikes).
 ##
 ## **It is the truth of where the character stands.** The character's walk (`CharacterMovement`)
@@ -24,8 +24,8 @@ extends CharacterBody3D
 ##
 ## **Posture.** The cylinder follows the body's pose; one that would grow into a solid (stand up
 ## under a shelf, or a piece lying over it: `fits`) is refused where it is asked for
-## (`CharacterMovement.set_posture`, the rise). A seated body (the 2D circle disabled) has no
-## cylinder, and a dead body's twin is off the layer (the 2D body's own layer is 0).
+## (`CharacterMovement.set_posture`, the rise). A riding body (`use.is_riding()`) has no
+## cylinder (it is disabled), and a dead body's twin is off the layer.
 
 const Character = preload("res://scenes/character/character.gd")
 ## The angle (rad) off square within which a wall stops the walk instead of sliding it.

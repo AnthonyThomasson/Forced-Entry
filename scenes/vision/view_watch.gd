@@ -10,10 +10,10 @@ extends RefCounted
 ##   over, it is in no ray, so it needs no watching) within the viewer's reach (`view_distance`
 ##   from the eye, and the solid's own extent, measured from its twin when the twin is reshaped and
 ##   not on the frames it moves in): its transform and standing each frame, and by signal its
-## twin reshaped (`segment_rebuilt` of a wall a dent re-cut: its extent is measured again), a
-## piece's
-##   `reshaped` (a dent in its look; its twin is not cut, so only a rebuild is marked), its leaving
-##   the tree and a door's `changed`; a new solid in the tree is read on the next check. One
+##   twin reshaped (`segment_rebuilt` of a wall a dent re-cut: its extent is measured again), a
+##   piece's `reshaped` (a dent in its look; its twin is not cut, so only a rebuild is marked),
+## its leaving the tree and a door's `changed`; a new solid in the tree is read on the next check.
+## One
 ##   wholly outside the reach before and after a move, a change or a leave is in no ray, so it
 ##   forces no rebuild; one that moves into or out of the reach does;
 ## - no character: a body is looked over whatever the eye's height (`SightRay.top_of`), so it never

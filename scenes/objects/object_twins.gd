@@ -1,17 +1,17 @@
 class_name ObjectTwins
 extends RefCounted
 ## Objects domain, the 3D twins of its bodies for the twin space (`TwinSpace`, interface 29, #194
-## D3): a wall and a door lifted from their own 2D colliders to their meshes' real heights
+## D3): a wall and a door lifted from their outline data to their meshes' real heights
 ## (`ObjectStructureMeshConfig`; a wall also carries a lintel over each doorway, from a door
 ## leaf's height to the wall's top), a floor as a slab, a piece of furniture as one box per part of
 ## `PieceHeights` (a sofa's seat, arms and back; a round piece's full-footprint part a cylinder),
-## in the frame of the 2D body, so a piece that turns or is shoved is followed by its transform.
+## in the frame of the plan handle, so a piece that turns or is shoved is followed by its transform.
 ## `register` adds the hooks Main wires into the space. A free piece is a `PieceBody` that leads its
 ## 2D body, and so is a door: a standing one is an `AnimatableBody3D` its swing turns (`DoorBody`),
 ## a knocked-down one a free `DoorSlab` (D18); every other twin is a `StaticBody3D` the space writes
 ## again, with its body's transform, only when its body moves (a shoved piece), so a resting piece
 ## costs the 3D step nothing. All sit on `PhysicsLayers.TWIN_WORLD`. A dent reshapes a wall's twin
-## (`WallTwin`) with its 2D collider; a piece or a door keeps the outline it was built with.
+## (`WallTwin`) with the cut outlines; a piece or a door keeps the outline it was built with.
 
 const Piece = preload("res://scenes/objects/environment_object.gd")
 const Wall = preload("res://scenes/objects/wall/wall.gd")

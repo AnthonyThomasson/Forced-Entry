@@ -5,10 +5,10 @@ extends UnitSuite
 ## space, casts a 2D ray or shape node, listens to a 2D body's contacts or overlaps, reads a 2D
 ## body's slide collisions, tests or makes a 2D body's motion, or allocates in the 2D physics
 ## server, or builds a 2D body, shape or area node (there is no 2D physics body in the game; the
-## guard on a built match, `no_2d_physics_node_in_a_match_test`, walks the tree). The scan reads
-## every script's code (a comment is not code; a string is read, for it can name a class or a
-## signal) and names each line that does. No script is let off: the ragdoll and the blood moved to
-## the 3D space last.
+## guard on a built match, `no_2d_physics_node_in_a_district_match_test` and `..._house_match_test`,
+## walks the tree). The scan reads every script's code (a comment is not code; a string is read, for
+## it can name a class or a signal) and names each line that does. No script is let off: the ragdoll
+## and the blood moved to the 3D space last.
 ## The contact and overlap names (`body_entered`, `contact_monitor`, `get_colliding_bodies`, ...)
 ## are banned on a 3D body too: no sim script reads contact events (Jolt's are not deterministic),
 ## so the scan is stricter than the 2D rule it checks.

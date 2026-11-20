@@ -43,7 +43,7 @@ A parent's `_physics_process` runs before its children's, so the hands see the c
 
 ## Runtime shapes
 
-`character.gd` builds its body `CircleShape2D` in `_ready()` and `body_strike.gd` builds each strike's query circle. The editor's "no shape" warning on `Player/CollisionShape2D` is expected. The body runs in `MOTION_MODE_FLOATING` (top-down): in grounded mode a body it walks "down" into would be ridden as a platform and lend the character its launch velocity.
+The character is a plain `Node2D` plan handle with no shape; its 3D twin (`CharacterTwin`) is built in code and runs in `MOTION_MODE_FLOATING` (top-down): in grounded mode a body it walks "down" into would be ridden as a platform and lend the character its launch velocity.
 
 ## Death
 

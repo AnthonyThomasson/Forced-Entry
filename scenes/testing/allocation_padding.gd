@@ -3,9 +3,8 @@ class_name AllocationPadding extends RefCounted
 ## must not follow what the process allocated (instance ids step in fixed strides, a physics server
 ## hands out RIDs in turn), and this proves it: with the switch on, `TestWorld.build` allocates
 ## `nodes` loose nodes and `bodies` physics bodies, areas and shapes (of the 3D server, the only one
-## a match's
-## bodies take) before it builds anything, so every id and RID the
-## world then takes is shifted. Its only use is a test that plays a fight with and without it and
+## a match's bodies take) before it builds anything, so every id and RID the world then takes is
+## shifted. Its only use is a test that plays a fight with and without it and
 ## compares the two (`perf/` fight fingerprints, perf-fingerprint.md). `release` frees all of it
 ## (`TestWorld.restore`).
 

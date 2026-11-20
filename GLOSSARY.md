@@ -123,8 +123,8 @@ fragment, a sight line.
 
 **Seam**:
 A stretch of a room's wall that an earlier room's wall already stands on (`Wall.seams`, `WallFactory.seams_for`): two rooms that touch share
-one wall there, built once by the room built first (one 2D collider, one 3D wall, one lintel over a doorway in it). The other room's `Wall`
-keeps it as a segment, so its doorways stay cut, with no collider.
+one wall there, built once by the room built first (one 3D wall, one lintel over a doorway in it). The other room's `Wall`
+keeps it as a segment, so its doorways stay cut, with no twin shape.
 _Avoid_: shared wall (as two walls), coincident wall
 
 **Lintel**:
