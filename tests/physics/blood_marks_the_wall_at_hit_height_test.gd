@@ -13,9 +13,11 @@ const HALF := Vector2(60, 25)
 const TOP := 31.0
 ## A mark floats this far (px) off the face it lies on (the decal rule's layer lift).
 const FILM := 2.5
-## A floor splat whose middle is less than its own extent and this much (px) from the wall's face
-## lies against the wall.
+## A floor splat whose place is less than its core's extent and this much (px) from the wall's
+## face, and within `ON_THE_LINE` px of the exit blood's line along the floor, lies against the
+## wall.
 const AGAINST_WALL := 3.0
+const ON_THE_LINE := 4.0
 
 
 func describe() -> Dictionary:
@@ -86,20 +88,8 @@ func _check_wall(t: TestContext, layer: FxLayer, face: float) -> void:
 			faces_out = faces_out and n.is_equal_approx(Vector3.RIGHT)
 		t.check(faces_out, "it faces out of the wall, into the room")
 		t.check(low > 20.0, "none of it is down on the floor (lowest %.1f)" % low)
-	# The exit blood lands at (face + 8, BODY.y): were it a floor splat its core would be centred
-	# there, or (a splat that reaches into the wall is moved off it) lie against the face, its
-	# middle its own extent and a little over from it. The spray at the wound, 18 px off the wall,
-	# leaves floor splats well clear of the face (their edges 11 px out): that is the floor's blood.
-	var exit_at := Vector2(face + 8.0, BODY.y)
-	var dropped := layer.ink.marks(InkMark.Kind.SPLAT).filter(
-		func(m: InkMark) -> bool:
-			return _on_floor(m) and (
-				_centre(m).distance_to(exit_at) < 4.0
-				or _centre(m).x - face < _extent(m) + AGAINST_WALL
-			)
-	)
 	t.expect_eq(
-		dropped.size(),
+		_floor_splats_at_the_wall(layer, face).size(),
 		0,
 		"the blood that marked the wall left no splat on the floor where it struck or against it",
 	)
@@ -181,6 +171,28 @@ func _inside_desk(v: Vector3) -> bool:
 	return absf(v.x - DESK.x) < HALF.x - FILM and absf(v.z - DESK.y) < HALF.y - FILM
 
 
+## The floor splats where the exit blood struck (face + 8, BODY.y) or lying against the wall there.
+func _floor_splats_at_the_wall(layer: FxLayer, face: float) -> Array:
+	# The exit blood lands at (face + 8, BODY.y): were it a floor splat it would be put there, or (a
+	# splat that reaches into the wall is moved off it) lie against the face on that line, its place
+	# its core's extent and a little over from it. The spray at the wound, 18 px off the wall,
+	# leaves floor splats well clear of the face: that is the floor's blood. (A splat's own place
+	# and core size, not the vertices of its outline: a spike may reach 4 core radii.)
+	var exit_at := Vector2(face + 8.0, BODY.y)
+	return layer.ink.marks(InkMark.Kind.SPLAT).filter(
+		func(m: InkMark) -> bool:
+			var splat := instance_from_id(m.node_id) as Node2D
+			var at := splat.global_position
+			return _on_floor(m) and (
+				at.distance_to(exit_at) < 4.0
+				or (
+					absf(at.y - BODY.y) < ON_THE_LINE
+					and at.x - face < _core(splat) + AGAINST_WALL
+				)
+			)
+	)
+
+
 ## Whether the mark lies on the floor (all of it under 3 px), and the plan point of its middle.
 func _on_floor(mark: InkMark) -> bool:
 	for v in mark.verts:
@@ -189,20 +201,11 @@ func _on_floor(mark: InkMark) -> bool:
 	return true
 
 
-## How far (px) the mark's farthest vertex is from its middle, over the floor plan.
-func _extent(mark: InkMark) -> float:
-	var middle := _centre(mark)
-	var far := 0.0
-	for v in mark.verts:
-		far = maxf(far, middle.distance_to(Vector2(v.x, v.z)))
-	return far
-
-
-func _centre(mark: InkMark) -> Vector2:
-	var sum := Vector2.ZERO
-	for v in mark.verts:
-		sum += Vector2(v.x, v.z)
-	return sum / float(mark.verts.size())
+## The extent (px) of a splat's core, at most: its radius stretched at full energy and wobbled (what
+## the landing moves a floor splat off a footprint by).
+func _core(splat: Node2D) -> float:
+	var radius: float = splat.get("_radius")
+	return radius * (1.0 + BloodSplatConfig.stretch) * (1.0 + BloodSplatConfig.wobble)
 
 
 ## The splat marks with a vertex `where` says yes to.
