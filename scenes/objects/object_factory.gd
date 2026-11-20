@@ -99,8 +99,9 @@ static func spawn_on(
 
 
 ## The height (px above the floor) of the highest top at plan point `point` over `base`: read from
-## the twin space (a downward ray against the world's twins, so a box already standing there raises
-## it) once `base` has a twin there, else `base`'s own lift and top from its catalogue parts.
+## the twin space (a downward ray against the world's twins and what lies flat, so a box or a
+## plate already standing there raises it) once `base` has a twin there, else `base`'s own lift
+## and top from its catalogue parts.
 static func top_at(base: Node2D, point: Vector2) -> float:
 	var twin := TwinSpace.twin_for(base)
 	if twin != null and twin.is_inside_tree():
@@ -108,7 +109,7 @@ static func top_at(base: Node2D, point: Vector2) -> float:
 		if space != null:
 			var query := PhysicsRayQueryParameters3D.create(
 				PlanSpace.lift(point, TOP_PROBE), PlanSpace.lift(point, -1.0),
-				PhysicsLayers.TWIN_WORLD
+				PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_WALKOVER
 			)
 			var hit := space.intersect_ray(query)
 			if not hit.is_empty():
