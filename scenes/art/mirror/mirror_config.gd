@@ -24,7 +24,7 @@ static var door_color: Color = Color(0.55, 0.38, 0.24)
 static var character_color: Color = Color(0.85, 0.45, 0.2)
 static var hashed_saturation: float = 0.35
 static var hashed_value: float = 0.7
-## Whether a body whose twin is a static body (a wall, a floor, an anchored piece) carries its mesh
-## on that twin (`WorldMirror._try_carry`, #194 del2d-b2); off, the mirror shows it by a mesh of its
-## own that it follows (what a test compares the picture against).
+## Whether a wall, floor, piece or door (not a vehicle or character) carries its mesh on its twin
+## (`WorldMirror._try_carry`, #194 del2d-b2, b2b); off, the mirror shows it by a mesh of its own
+## that it follows (what a test compares the picture against).
 static var carry_meshes: bool = true

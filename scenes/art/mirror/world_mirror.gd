@@ -63,8 +63,8 @@ var _group_builders: Dictionary = {}
 var _seen: Dictionary = {}
 ## The subtrees the view leaves out (`leave_out`): nothing under one is mirrored.
 var _left_out: Array[Node] = []
-## The twin space of the mirrored world (null for a world with none): a body whose twin is a static
-## body carries its mesh on that twin (`_try_carry`).
+## The twin space of the mirrored world (null for a world with none): a body with a twin carries its
+## mesh on that twin (`_try_carry`).
 var _twins: TwinSpace
 
 
@@ -203,6 +203,8 @@ func update() -> void:
 func _follow(row: Dictionary) -> void:
 	if row.get("carried", false):
 		followed += 1  # its twin carries it: only the shown rules and the mesh's own update run
+		if _recarry(row):
+			return  # shown anew: this row is gone
 		_sync_shown(row)
 		_run_update(row)
 		return
@@ -426,21 +428,24 @@ func _add_body(body: PhysicsBody2D) -> void:
 
 
 ## Show `body` by a mesh carried on its twin, when this mirror is drawn in the twins' world, the
-## twin is a static body (a wall, a floor, an anchored or wall-hung piece) and a builder gives the
-## kind a mesh: the mesh is the twin's child with no transform of its own, so it stands where the
+## body is no vehicle or character (a wall, a floor, a piece, a door) and a builder gives the kind a
+## mesh: the mesh is the twin's child with no transform of its own, so it stands where the
 ## twin does and nothing writes it; the mirror keeps the shown rules (`_shown`) and the mesh's own
 ## hooks. True when it is handled: carried, or waiting for a twin that is still to come (a twin
-## joins the frame after its body); false for a body whose twin is no static body (the mirror
-## follows it) or that has none.
+## joins the frame after its body); false for a vehicle or character (the mirror follows it) or a
+## body that has no twin.
 func _try_carry(body: Node2D, kind: StringName) -> bool:
 	if not _draws_in_twins_world():
 		return false
 	if _twins.is_waiting(body):
 		_pending[body.get_instance_id()] = body
 		return true
-	var twin := TwinSpace.twin_for(body) as StaticBody3D
-	# a door's leader is an `AnimatableBody3D` (a `StaticBody3D` too): not carried yet
-	if twin == null or twin is AnimatableBody3D or twin.get_parent() != _twins:
+	# a vehicle's twin (an `AnimatableBody3D`) and a character's (a `CharacterBody3D`) are not
+	# carried yet: the mirror follows those bodies
+	if kind == MirrorProxy.VEHICLE or kind == MirrorProxy.CHARACTER:
+		return false
+	var twin := TwinSpace.twin_for(body) as CollisionObject3D
+	if twin == null or twin.get_parent() != _twins:
 		return false
 	var builder := _builder_for(body, kind)
 	var made: Variant = builder.call(body) if builder.is_valid() else null
@@ -450,6 +455,9 @@ func _try_carry(body: Node2D, kind: StringName) -> bool:
 		built.emit(body, made)
 	var row := _proxies.own_row(body, made)
 	row["carried"] = true
+	row["twin"] = twin
+	# a door's leader is replaced by a free body when it is knocked down (`TwinSpace.retwin`)
+	row["retwins"] = kind == MirrorProxy.DOOR
 	row["id"] = body.get_instance_id()
 	row["shown"] = _shown(row)
 	(made as Node3D).visible = row["shown"]
@@ -460,6 +468,27 @@ func _try_carry(body: Node2D, kind: StringName) -> bool:
 		_moving.append(row)
 	_rows[body.get_instance_id()] = [row]
 	_watch(body)
+	return true
+
+
+## A carried body's twin was replaced (`TwinSpace.retwin`: a knocked-down door's `DoorBody` by a
+## `DoorSlab`), which frees the old twin and the mesh on it: the body is shown again, carried by the
+## new twin. A door's twin is looked at each frame; any other body's only once its mesh is gone.
+## True when it was, which ends the row's follow.
+func _recarry(row: Dictionary) -> bool:
+	var body: Variant = row["body"]
+	if not is_instance_valid(body):
+		return false
+	if not is_instance_valid(row["node"]):
+		_drop(body)  # the mesh went with its twin: built again next update
+		_pending[(body as Node).get_instance_id()] = body
+		return true
+	if not row.get("retwins", false):
+		return false
+	var twin := TwinSpace.twin_for(body)
+	if twin == null or twin == row["twin"]:
+		return false
+	_add_body(body as PhysicsBody2D)
 	return true
 
 
@@ -578,11 +607,11 @@ func _drop(body: Node) -> void:
 	var id := body.get_instance_id()
 	for row: Dictionary in _rows.get(id, []):
 		row["gone"] = true
-		var node: Node = row["node"]
+		var node: Variant = row["node"]  # untyped: a carried mesh goes with its freed twin
 		if is_instance_valid(node):
-			if node.get_parent() != null:
-				node.get_parent().remove_child(node)  # a carried mesh leaves its twin
-			node.queue_free()
+			if (node as Node).get_parent() != null:
+				(node as Node).get_parent().remove_child(node)  # a carried mesh leaves its twin
+			(node as Node).queue_free()
 		count -= 1
 	_rows.erase(id)
 
