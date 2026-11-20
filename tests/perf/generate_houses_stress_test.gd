@@ -15,7 +15,9 @@ const NODE_BAND := [170, 300]
 # on its own: the first in a fresh process pays the caches (quiet machine, no other Godot: ~850 ms,
 # 3652 nodes, now the 2D visual and occluder nodes are gone), the second is the steady cost
 # (~100 ms) that a run after other tests also reads for the first. The time budgets below are from
-# the earlier, slower baseline and stay as headroom; the node band is about +-35%.
+# the earlier, slower baseline and stay as headroom; the node band is about +-35%. 2026-11-20,
+# #194 del2d-c5d: 2834 nodes now that no body, shape or layer node stands in a district (every
+# sim root is a plain Node2D plan handle), band 1850 to 3850.
 # 2026-11-06, #192: the headless cold build runs without the art pre-warm (tests skip it), so the
 # pre-warm does not move this number. Quiet machine, load 2.6 to 2.8, no other Godot, the test
 # alone, twice: cold 1870 and 1873 ms, steady 152 and 153 ms (the whole perf domain: 157 and
@@ -23,7 +25,7 @@ const NODE_BAND := [170, 300]
 # 4.0x the cold build and 600 ms 3.9x the steady one, so neither is set again.
 const DISTRICT_BUDGET_MS := 7500.0
 const DISTRICT_WARM_BUDGET_MS := 600.0
-const DISTRICT_NODE_BAND := [2900, 5000]
+const DISTRICT_NODE_BAND := [1850, 3850]
 
 
 func describe() -> Dictionary:
