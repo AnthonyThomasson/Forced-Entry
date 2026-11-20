@@ -17,7 +17,7 @@ VehicleBody._integrate_forces (3D) ─▶ drive.step (VehicleDrive), contacts.re
 
 | File | Role |
 |---|---|
-| `vehicle.gd` | Root `AnimatableBody2D`, the 2D footprint (no `class_name`; group `vehicles`) of the 3D body that leads it: set-up, the old rigid body's reads and writes answered by that body (`linear_velocity`, `angular_velocity`, `sleeping`, `apply_impulse`, `get_mass`), the drivable contract (interface 19), the hittable contract, its parts (`cabin`, `drive`, `contacts`, `row`) and `post`, through which every `vehicle` event goes. |
+| `vehicle.gd` | Root `Node2D`, the plan handle (no `class_name`; group `vehicles`) of the 3D body that leads it: set-up, the old rigid body's reads and writes answered by that body (`linear_velocity`, `angular_velocity`, `sleeping`, `apply_impulse`, `get_mass`), the drivable contract (interface 19), the hittable contract, its parts (`cabin`, `drive`, `contacts`, `row`) and `post`, through which every `vehicle` event goes. |
 | `vehicle_body.gd` (`VehicleBody`) | The vehicle's truth: a `RigidBody3D` locked upright in the twin space (`TwinSpace.leader_of`), the drive stepped in its `_integrate_forces` in plan space, `push` / `plan_velocity` / `wake` as a piece's. |
 | `vehicle_cabin.gd` (`VehicleCabin`) | Doors, seats and whose ride is whose (`take_seat` starts a ride, `release` ends it). |
 | `vehicle_drive.gd` | The bicycle model, stepped in `_integrate_forces`; the drive `intent`, engine, skids. `tyre_solve.gd` (`TyreSolve`) is one step's sideways solve. |

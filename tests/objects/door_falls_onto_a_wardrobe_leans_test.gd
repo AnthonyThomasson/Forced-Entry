@@ -52,10 +52,7 @@ func run(t: TestContext) -> void:
 	)
 	var ring: PackedVector2Array = door.fallen_footprint()
 	t.check(not ring.is_empty(), "its footprint is an obstacle")
-	t.check(
-		door.collision_layer & PhysicsLayers.SOLID != 0,
-		"on the solid layer, which characters collide with",
-	)
+	t.check(not door.footprint.flat, "it does not lie flat: an obstacle characters meet")
 	if ring.is_empty():
 		return
 	var middle := Vector2.ZERO

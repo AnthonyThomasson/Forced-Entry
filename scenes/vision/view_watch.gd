@@ -26,6 +26,9 @@ extends RefCounted
 
 const Sector := preload("res://scenes/vision/view_sector.gd")
 const SOLID := PhysicsLayers.SOLID
+## The layer a plan handle is on while it lies flat (a fallen door): a marker of its own, no
+## physics layer.
+const LYING := 2
 ## The fields of `_key`.
 const KEY_SIZE := 11
 
@@ -66,8 +69,7 @@ func attach(tree: SceneTree, left_out: Array) -> void:
 	_tree = tree
 	_left_out = left_out
 	tree.node_added.connect(_on_node_added)
-	for node in tree.root.find_children("*", "CollisionObject2D", true, false):
-		_pending.append(node)
+	_pending.append_array(_colliders())
 
 
 ## Stop watching: forget everything and let go of the tree.
@@ -93,6 +95,23 @@ func stale(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
 	if _dirty:
 		return true
 	return _moved_then or _blockers_moved()
+
+
+## Every collider and plan handle (a `Node2D` in `TwinSpace.BODIES`: a wall, a door, a vehicle) in
+## the tree.
+func _colliders() -> Array:
+	var found: Array = _tree.root.find_children("*", "CollisionObject2D", true, false)
+	found.append_array(_tree.get_nodes_in_group(TwinSpace.BODIES))
+	return found
+
+
+## The layer `body` stands on, to tell a change of it: a collider's own; a plan handle has none, so
+## the one it is on while it stands, and `LYING` for a fallen door that lies flat (its `footprint`).
+func _layer_of(body: Node2D) -> int:
+	if body is CollisionObject2D:
+		return (body as CollisionObject2D).collision_layer
+	var part: Variant = body.get(&"footprint")  # a door's
+	return LYING if part != null and part.flat else SOLID
 
 
 ## Whether the world changed since `built`, for a job in flight (`docs/player-vision.md` V1): the
@@ -131,13 +150,13 @@ func built(eye: Vector2, facing: Vector2, sight: Dictionary) -> void:
 	_moved_then = false
 	for id in _blockers:
 		var entry: Array = _blockers[id]
-		var body: CollisionObject2D = entry[0]
+		var body: Node2D = entry[0]
 		var now := body.global_transform
-		var moved: bool = now != entry[1] or body.collision_layer != entry[2]
+		var moved: bool = now != entry[1] or _layer_of(body) != entry[2]
 		if moved and _moved_within_reach(entry, now):
 			_moved_then = true
 		entry[1] = now
-		entry[2] = body.collision_layer
+		entry[2] = _layer_of(body)
 
 
 ## What the polygon is a function of, apart from the world: the order `_built_for` reads.
@@ -177,7 +196,7 @@ func _tuned_as_built(sight: Dictionary) -> bool:
 
 ## A node entered the tree: a collider is read at the next check, once it is ready.
 func _on_node_added(node: Node) -> void:
-	if node is CollisionObject2D:
+	if node is CollisionObject2D or node.is_in_group(TwinSpace.BODIES):
 		_pending.append(node)
 
 
@@ -189,17 +208,17 @@ func _read_new(see_over: float) -> void:
 		_blockers.clear()
 		_known.clear()
 		_untwinned.clear()
-		_pending.append_array(_tree.root.find_children("*", "CollisionObject2D", true, false))
+		_pending.append_array(_colliders())
 		_mark()
 	for node: Node in _pending:
 		if is_instance_valid(node) and node.is_inside_tree():
-			_classify(node as CollisionObject2D)
+			_classify(node as Node2D)
 	_pending.clear()
 	_sort_again_with_twin()
 
 
 ## Watch `body` as the kind of collider it is.
-func _classify(body: CollisionObject2D) -> void:
+func _classify(body: Node2D) -> void:
 	var id := body.get_instance_id()
 	if _known.has(id) or id in _left_out:
 		return
@@ -210,7 +229,7 @@ func _classify(body: CollisionObject2D) -> void:
 		_untwinned[id] = body  # no twin yet: a wall's worth until it has one
 	if top <= _see_over:
 		return  # looked over: a low piece, a pane, a character
-	_blockers[id] = [body, body.global_transform, body.collision_layer, _measure(body)]
+	_blockers[id] = [body, body.global_transform, _layer_of(body), _measure(body)]
 	_connect(body, &"child_entered_tree", _changed_shape.bind(body))
 	_connect(body, &"child_exiting_tree", _changed_shape.bind(body))
 	if body.has_signal(&"changed"):
@@ -221,7 +240,7 @@ func _classify(body: CollisionObject2D) -> void:
 ## Sort again each collider that was sorted with no twin and has one now.
 func _sort_again_with_twin() -> void:
 	for id: int in _untwinned.keys():
-		var body := _untwinned[id] as CollisionObject2D
+		var body := _untwinned[id] as Node2D
 		if not is_instance_valid(body):
 			_untwinned.erase(id)
 		elif TwinSpace.twin_for(body) != null:
@@ -241,7 +260,7 @@ func _connect(body: Object, signal_name: StringName, callable: Callable) -> void
 
 ## A shape came or went on `body`, a blocker: its silhouette changed with no move of its body, and
 ## its extent is measured again.
-func _changed_shape(_child: Node, body: CollisionObject2D) -> void:
+func _changed_shape(_child: Node, body: Node2D) -> void:
 	var id := body.get_instance_id()
 	if _blockers.has(id):
 		(_blockers[id] as Array)[3] = _measure(body)
@@ -254,7 +273,7 @@ func _mark() -> void:
 
 
 ## A signal says the blocker `body` changed: it is a rebuild when `body` is within reach.
-func _mark_near(body: CollisionObject2D) -> void:
+func _mark_near(body: Node2D) -> void:
 	var id := body.get_instance_id()
 	if _blockers.has(id) and _within_reach(_blockers[id], body.global_transform):
 		_dirty = true
@@ -266,7 +285,7 @@ func _left(id: int) -> void:
 	_known.erase(id)
 	if _blockers.has(id):
 		var entry: Array = _blockers[id]
-		var body: CollisionObject2D = entry[0]
+		var body: Node2D = entry[0]
 		_blockers.erase(id)
 		if _moved_within_reach(entry, body.global_transform):
 			_mark()
@@ -277,9 +296,9 @@ func _left(id: int) -> void:
 func _blockers_moved() -> bool:
 	for id in _blockers:
 		var entry: Array = _blockers[id]
-		var body: CollisionObject2D = entry[0]
+		var body: Node2D = entry[0]
 		var then: Transform2D = entry[1]
-		if body.global_transform == then and body.collision_layer == entry[2]:
+		if body.global_transform == then and _layer_of(body) == entry[2]:
 			continue
 		if _moved_within_reach(entry, body.global_transform):
 			return true
@@ -303,7 +322,7 @@ func measured() -> int:
 ## bubble round the eye, so a solid wholly beyond the reach, or outside both (`ViewSector`), is in
 ## none of them.
 func _within_reach(entry: Array, placed: Transform2D) -> bool:
-	var body: CollisionObject2D = entry[0]
+	var body: Node2D = entry[0]
 	var scale := placed.get_scale()
 	var grow := maxf(absf(scale.x), absf(scale.y))
 	var extent: float = entry[3]
@@ -319,8 +338,10 @@ func _within_reach(entry: Array, placed: Transform2D) -> bool:
 ## How far (px) any part of `body` lies from its origin at scale 1: its shapes' farthest corner,
 ## each as the shape is placed and scaled in the body. A shape not set yet could be anything:
 ## unbounded.
-func _measure(body: CollisionObject2D) -> float:
+func _measure(body: Node2D) -> float:
 	_measured += 1
+	if not body is CollisionObject2D:
+		return _measure_twin(body)
 	var far := 0.0
 	for child in body.get_children():
 		if child is CollisionShape2D:
@@ -340,4 +361,20 @@ func _measure(body: CollisionObject2D) -> float:
 			var grow := maxf(absf(s.x), absf(s.y))
 			for point in polygon.polygon:
 				far = maxf(far, polygon.position.length() + point.length() * grow)
+	return far
+
+
+## `_measure` for a plan handle: how far (px) its twin's shapes lie from its origin, as the twin
+## stands in the body's frame; unbounded with no twin (it is measured again once it has one).
+func _measure_twin(body: Node2D) -> float:
+	var twin := TwinSpace.twin_for(body) as CollisionObject3D
+	if twin == null:
+		return INF
+	var far := 0.0
+	for child in twin.get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		for point in TwinShapes.footprint_of(holder.shape, holder.transform):
+			far = maxf(far, point.length())
 	return far

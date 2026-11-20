@@ -20,17 +20,16 @@ const HALF := 1.0
 const MIN_PASS := 4.0
 
 
-## The doors standing under `house`: the bodies in the group `doors`. A door is a driven body in a
-## doorway, but it opens, so a path goes through its doorway
-## as if it were open and the walker deals with the leaf: the walls read from the twins do not
-## include it (`NavSource.walls_of`). Named by group alone, so Navigation imports nothing of the
-## Objects domain.
-static func doors_of(house: Node2D) -> Array[CollisionObject2D]:
-	var doors: Array[CollisionObject2D] = []
+## The doors standing under `house`: the plan handles in the group `doors`. A door is a driven body
+## in a doorway, but it opens, so a path goes through its doorway as if it were open and the walker
+## deals with the leaf: the walls read from the twins do not include it (`NavSource.walls_of`).
+## Named by group alone, so Navigation imports nothing of the Objects domain.
+static func doors_of(house: Node2D) -> Array[Node2D]:
+	var doors: Array[Node2D] = []
 	if not house.is_inside_tree():
 		return doors
 	for node in house.get_tree().get_nodes_in_group(&"doors"):
-		if node is CollisionObject2D and house.is_ancestor_of(node):
+		if node is Node2D and house.is_ancestor_of(node):
 			doors.append(node)
 	return doors
 

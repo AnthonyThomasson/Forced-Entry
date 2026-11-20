@@ -95,10 +95,10 @@ func run(t: TestContext) -> void:
 
 ## A car and a van set down on the largest floor under the camera, zoomed in, the walls and what
 ## stands near them hidden: the two vehicles.
-func _park(t: TestContext, main: Node, camera: Camera2D, world: Node) -> Array[AnimatableBody2D]:
+func _park(t: TestContext, main: Node, camera: Camera2D, world: Node) -> Array[Node2D]:
 	var spot := _open_floor(world)
-	var car := CarScene.instantiate() as AnimatableBody2D
-	var van := VanScene.instantiate() as AnimatableBody2D
+	var car := CarScene.instantiate() as Node2D
+	var van := VanScene.instantiate() as Node2D
 	car.position = spot + Vector2(-130, -80)
 	van.position = spot + Vector2(150, 110)
 	world.add_child(car)
@@ -118,7 +118,7 @@ func _park(t: TestContext, main: Node, camera: Camera2D, world: Node) -> Array[A
 
 
 ## Open the car's front door and the van's side and rear doors, brake, and hit the car's side.
-func _open_and_dent(t: TestContext, car: AnimatableBody2D, van: AnimatableBody2D) -> void:
+func _open_and_dent(t: TestContext, car: Node2D, van: Node2D) -> void:
 	car.cabin.door(&"front_left").open()
 	car.cabin.door(&"rear_right").open()
 	for id in [&"side", &"rear_left", &"front_right"]:
@@ -171,7 +171,7 @@ func _hide_walls(world: Node, mirror: MeshCarrier) -> void:
 
 ## Hide furniture and characters near `at`, so the vehicles stand clear in the picture.
 func _hide_clutter(world: Node, mirror: MeshCarrier, at: Vector2) -> void:
-	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
+	for body: Node in PlanProbe.bodies_under(world):
 		var node := body as Node2D
 		if node.global_position.distance_to(at) < 450.0 and not node.is_in_group(&"vehicles"):
 			if MeshKinds.kind_of(body) != MeshKinds.WALL:

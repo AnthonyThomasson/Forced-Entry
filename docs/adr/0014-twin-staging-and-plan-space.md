@@ -122,7 +122,7 @@ swing that nudges a character clear read it unchanged (interface 24, 7). A door 
 `TwinSpace.retwin` swaps the twin when the door falls): torn off its hinges it falls and lies as physics decides, with the blow's impulse at its
 real point (a blast from its burst height, a kick at the lock), plus the hinges' wrench across its face (`DoorFallConfig.fall_nudge`) so a freed
 upright slab always topples the way the blow came. Bullets, sight, cover, grenades and fragments meet it at its lying height; it can be shoved like
-a piece; its 2D footprint is walk-over when flat (top within `DoorFallConfig.step_over`) and a solid obstacle and a nav hole when leaning
+a piece; its footprint (polygon data on the door, no 2D shape) is walk-over when flat (top within `DoorFallConfig.step_over`) and a solid obstacle and a nav hole when leaning
 (`NavLeaves.fallen_hole`). The 2D follower of a door, like a footprint twin, is deleted with the 2D space; what survives is the 3D leader and slab.
 
 ## Plan space (D4)
@@ -189,9 +189,10 @@ simply:
   a piece hung above the floor is flowed under). With the 2D physics engine set to Dummy the run is red only where a test's own premise is a 2D body leading the
   simulation, and a bare `AnimatableBody2D` has `sync_to_physics` on, so a transform set by hand goes through the 2D server: `vision/cone_skip_exact`
   and `cone_skip_exact_sliced` (a mover moved by hand), `vision/cone_restarts_on_world_change` (a wardrobe), `art/mirror_hides_unseen_movers` (a car moved by hand; `art/mirror_follows_bodies` went with the mirror, del2d-b3c) and `general/twin_unfrozen_body_is_followed` (an unfrozen `RigidBody2D` the 2D step moves). They are 17c's: no 2D body leads. Four are fixed (del2d-c): the bare `AnimatableBody2D`s the vision tests move by hand have `sync_to_physics` off, as a door and a vehicle have, and the unfrozen post is moved by a script, so none needs the 2D step; the two `art/mirror_*` go with `WorldMirror` (del2d-b3c).
-  Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); `is StaticBody2D` / `CharacterBody2D` type checks (the navigation bake reads the twins: below);
-  also: `Knockback.push`'s 2D `apply_impulse` for a body no 3D body leads, and `PhysicsLayers.SOLID` / `LYING` as 2D markers (`ViewWatch`'s
-  `collision_layer` reads, a door's footprint); `get_world_2d().navigation_map` (25 or more sites: locomotion, stacks, entry geometry) until nav3d;
+  Done in del2d-c3: a `Door` and a `Vehicle` are plain `Node2D` plan handles (groups `doors` / `vehicles`, `TwinSpace.BODIES`, `HARD`), with no 2D shape or layer. A fallen door's footprint is polygon data (`DoorFootprint`: the slab's hull, and whether the leaf lies flat) and `PhysicsLayers.LYING` is gone; a vehicle's twin is its `outline()` lifted to the belt; the collision exception a boarding or just-out character, or a corpse, had with a vehicle is a list on the vehicle's contacts (`share_space`). `ViewWatch` watches the handles of `BODIES` as it does colliders (a layer of `SOLID`, or a marker for a fallen door lying flat; an extent measured from the twin). The car-lead term of `CameraController.follow_point` stays: the handle is written at the start of the physics frame from a twin that steps on after it, so the mesh still leads the handle by a step (`general/camera_follows_drawn_car`).
+  Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes) and, since del2d-c3, the plan handles of `TwinSpace.BODIES` too (a door, a vehicle: their layer is `SOLID`, or its own `LYING` marker for a fallen door lying flat; their extent is measured from the twin); `is StaticBody2D` / `CharacterBody2D` type checks (the navigation bake reads the twins: below);
+  also: `Knockback.push`'s 2D `apply_impulse` for a body no 3D body leads, and `PhysicsLayers.SOLID` as a 2D marker (`ViewWatch`'s
+  `collision_layer` reads; `PhysicsLayers.LYING` and a door's footprint collider went in del2d-c3); `get_world_2d().navigation_map` (25 or more sites: locomotion, stacks, entry geometry) until nav3d;
   `TwinSpace`'s `find_world_2d()` registry key and `space_in(World2D)` (deleting the 2D world needs a new key: the stage's own node); the `RigidBody2D`
   roots (plan handles); `tests/_vision/raw_twins.gd` (gives raw 2D test bodies a twin: it goes with them); and `scenes/testing/allocation_padding.gd`'s
   2D server pad (the scan allows it until then).
@@ -225,5 +226,5 @@ twin keeps the outline it was built with, so a shot-up piece's hole is its full 
 fight shoots furniture, was re-recorded on the Von server). Measured on the district: the holes' area -0.9 %, the navmesh 889 polygons against
 888 with +0.1 % area; on a house 112 against 111, +0.06 % area; of 90 routes between rooms' centres, none lost and none over 3 %. A character's
 hole reads its twin, which follows a body a script moves within a frame (a character at rest has a twin too). Tests that moved a footprint by hand now
-wait for its twin (`TwinSpace.PARK_SPREAD`) or move the twin. Still 2D in the bake, for 17c's later jobs: finding the pieces (`RigidBody2D`) by engine type (the walls are found by the group `walls`, done in del2d-c2); the door contract's `fallen_footprint` (`DoorFootprint.ring`, a 2D collider); a character's
+wait for its twin (`TwinSpace.PARK_SPREAD`) or move the twin. Still 2D in the bake, for 17c's later jobs: finding the pieces (`RigidBody2D`) by engine type (the walls are found by the group `walls`, done in del2d-c2); a character's
 `collision_layer`.

@@ -10,6 +10,10 @@ var angle := 0.0
 var turn := 1.0
 ## The angle the leaf is turning to (its own, when it is at rest).
 var target := 0.0
+## The game second the door last began opening, -INF before it has or once a closing swing has begun
+## since: a swing opening it within `DoorConfig.latch_gap` of that carries on one movement (a run of
+## scroll notches), which has sounded its latch already.
+var opened_at := -INF
 ## The angle the turn began at, the seconds into it and its length.
 var _from := 0.0
 var _elapsed := 0.0

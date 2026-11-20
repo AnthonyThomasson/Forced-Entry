@@ -37,10 +37,23 @@ var _struck: Array = []
 var _piled: Dictionary = {}
 ## Its own physics clock (s), advanced each step in `remember`.
 var _clock := 0.0
+## The bodies it shares space with (instance id -> true): a character getting in, riding or just
+## out, a corpse it rolls over. What a collision exception between two 2D bodies was; the contacts
+## leave them out.
+var _sharing := {}
 
 
 func _init(body: Node2D) -> void:
 	vehicle = body
+
+
+## Let `body` (a character) share space with the vehicle (`shared`) or meet it again: the contacts
+## do not count a body it shares space with, nor roll over it twice.
+func share_space(body: Object, shared: bool) -> void:
+	if shared:
+		_sharing[body.get_instance_id()] = true
+	else:
+		_sharing.erase(body.get_instance_id())
 
 
 ## Read the last step's contacts, each body's closing speed taken from the velocities that step
@@ -106,8 +119,8 @@ func _strongest_contacts(lead: RigidBody3D, touching: Dictionary) -> Array:
 
 ## Everything `query` meets, page by page (each page's colliders are left out of the next), so a
 ## floor slab or a wall segment cannot crowd a body out: `{ bodies, rids }`, the bodies of the
-## sim met (instance id -> body: a `PhysicsBody2D` that is not the vehicle and has no collision
-## exception with it) and each hit's owner (collider rid -> its instance id, or 0 for anything
+## sim met (instance id -> body: a plan handle that is not the vehicle and shares no space with
+## it) and each hit's owner (collider rid -> its instance id, or 0 for anything
 ## else).
 func _hits(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3D,
 		lead: RigidBody3D) -> Dictionary:
@@ -123,7 +136,7 @@ func _hits(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3
 				body != null
 				and body.is_in_group(TwinSpace.BODIES)
 				and body != vehicle
-				and not _excepted(body)
+				and not shares_space_with(body)
 			)
 			rids[found["rid"]] = body.get_instance_id() if counted else 0
 			if counted:
@@ -167,14 +180,10 @@ func _contact_with(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryPar
 	}
 
 
-## Whether `body` and the vehicle share space (a collision exception either way): a character
+## Whether `body` and the vehicle share space (`share_space`): a character
 ## boarding or just out, a corpse the vehicle rolls over.
-func _excepted(body: Node) -> bool:
-	if not body is PhysicsBody2D:
-		return false  # a plan handle (a wall) has no exceptions to share
-	return (vehicle as PhysicsBody2D).get_collision_exceptions().has(body) or (
-		body as PhysicsBody2D
-	).get_collision_exceptions().has(vehicle)
+func shares_space_with(body: Object) -> bool:
+	return _sharing.has(body.get_instance_id())
 
 
 ## Bodies in a fixed order: nearest the vehicle first, then by where they stand (their instance ids
@@ -579,7 +588,7 @@ func apply() -> void:
 
 ## The vehicle stops colliding with the dead `body`: it rolls over it.
 func _roll_over_for_good(body: Node) -> void:
-	(vehicle as PhysicsBody2D).add_collision_exception_with(body)
+	share_space(body, true)
 
 
 ## How fast `body` moves: a character (a body its own script moves: neither its server velocity nor

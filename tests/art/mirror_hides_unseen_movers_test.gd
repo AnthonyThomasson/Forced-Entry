@@ -121,14 +121,10 @@ func _walks_in(t: TestContext, behind: Node3D) -> void:
 ## A car in the cone is seen; it drives out of view and parks there (it is on `WORLD` again):
 ## hidden, it must be reached again.
 func _car_seen_then_parked_out_of_view(t: TestContext) -> Node3D:
-	var car := AnimatableBody2D.new()
-	car.sync_to_physics = false  # moved by hand
+	var car := Node2D.new()  # a plan handle, as a vehicle is: moved by hand
 	car.add_to_group(&"vehicles")
-	var shape := CollisionShape2D.new()
-	var box := RectangleShape2D.new()
-	box.size = Vector2(60, 30)
-	shape.shape = box
-	car.add_child(shape)
+	car.add_to_group(TwinSpace.BODIES)
+	car.add_to_group(TwinSpace.HARD)
 	car.position = CAR_SEEN_AT
 	t.world.add_child(car)
 	ViewLayers.set_moving(car, true)

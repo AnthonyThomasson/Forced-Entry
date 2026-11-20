@@ -265,7 +265,12 @@ func _carry(body: Node2D) -> void:
 	if row["turns"]:
 		_turn(row)
 	count += 1
-	var moving := body is CharacterBody2D or body is AnimatableBody2D or body is RigidBody2D
+	# a character, a rigid body, a door or a vehicle (a plan handle in HARD that is no wall)
+	var moving := (
+		body is CharacterBody2D
+		or body is RigidBody2D
+		or (body.is_in_group(TwinSpace.HARD) and not body.is_in_group(TwinSpace.WALLS))
+	)
 	if moving or not row["shown"] or (row["update"] as Callable).is_valid():
 		_moving.append(row)
 	_rows[body.get_instance_id()] = [row]

@@ -1,6 +1,6 @@
 # Doors (`objects/door/`; spec `docs/doors.md`)
 
-A door is neither furniture nor a wall: `Door` (`door/door.gd`, an `AnimatableBody2D` in the group `doors`) is a hinged leaf in a doorway,
+A door is neither furniture nor a wall: `Door` (`door/door.gd`, a plain `Node2D` plan handle in the groups `doors` and `TwinSpace.BODIES` / `HARD`) is a hinged leaf in a doorway,
 moved kinematically by code (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`). Its surface (state, the Space toggle, hits, pushes)
 is interface 24; `DoorFactory.spawn(opening, definition, parent)` builds it from World-Gen's `DoorCatalog` definition (interface 2).
 

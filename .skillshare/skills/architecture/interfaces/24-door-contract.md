@@ -1,6 +1,6 @@
 24. **The door contract: Objects' `Door` ↔ Character, AI, Testing** (`scenes/objects/door/door.gd`; spec `docs/doors.md`; World-Gen builds
     it through 2, the Space key and the AI drive it through this one)
-    A `Door` is an `AnimatableBody2D` on `PhysicsLayers.SOLID` in the group `doors` (the one name Navigation, Testing and the AI find a door
+    A `Door` is a plain `Node2D` plan handle (no 2D shape or layer) in the groups `doors` and `TwinSpace.BODIES` / `HARD` (the one name Navigation, Testing and the AI find a door
     by), one per doorway, driven by code (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`): the 2D follower of a 3D
     leader in the twin space (#194 doors3d: standing, an `AnimatableBody3D` `DoorBody` its swing turns, the leaf 84 px high under the
     lintel; knocked down, a free `DoorSlab` rigid body, D18, `docs/doors.md` DR11); its origin is the middle of

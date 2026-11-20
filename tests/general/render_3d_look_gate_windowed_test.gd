@@ -27,6 +27,7 @@ extends GameTest
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
 const CharacterScene := preload("res://scenes/character/character_base.tscn")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const CarScene := preload("res://scenes/vehicle/car.tscn")
 const VanScene := preload("res://scenes/vehicle/van.tscn")
 const SCRATCH := "user://settings_render_3d_look_gate_windowed_test.json"
@@ -198,8 +199,8 @@ func _street(t: TestContext, doors_open: bool) -> void:
 		else:
 			spot = Vector2(road.get_center().x, clampf(spot.y, road.position.y, road.end.y))
 	var along := Vector2.RIGHT if road.size.x >= road.size.y else Vector2.DOWN
-	var car := CarScene.instantiate() as AnimatableBody2D
-	var van := VanScene.instantiate() as AnimatableBody2D
+	var car := CarScene.instantiate() as Node2D
+	var van := VanScene.instantiate() as Node2D
 	car.position = spot - along * 150.0
 	van.position = spot + along * 170.0
 	car.rotation = along.angle()
@@ -509,7 +510,7 @@ func _open_room() -> Rect2:
 ## Hide the furniture in `rect` (and its clutter) so a line-up or a duel stands clear: the body
 ## itself, so 2D stops drawing it and the 3D mirror hides its mesh with it.
 func _hide_pieces_in(rect: Rect2) -> void:
-	for body: Node in _world.find_children("*", "PhysicsBody2D", true, false):
+	for body: Node in PlanProbe.bodies_under(_world):
 		var node := body as Node2D
 		if (rect.grow(20.0).has_point(node.global_position)
 				and MeshKinds.kind_of(body) == MeshKinds.FURNITURE):

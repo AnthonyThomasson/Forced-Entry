@@ -1,13 +1,15 @@
 class_name Door
-extends AnimatableBody2D
-## A hinged door standing in a doorway (Objects domain, `docs/doors.md`). A driven body, not a
+extends Node2D
+## A hinged door standing in a doorway (Objects domain, `docs/doors.md`), a plan handle (a `Node2D`
+## in the groups `doors` and `TwinSpace.BODIES`: no 2D shape, no 2D layer). A driven body, not a
 ## physics hinge (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`): the code
 ## turns its leaf about the hinge, so a swing is exact and never knocked about by what leans on it.
 ## The leaf is led in 3D (#194 doors3d, D13): its truth is a `DoorBody` in the twin space (an
-## `AnimatableBody3D` locked upright, `TwinSpace`, interface 29) that the swing turns, and this 2D
-## body is its follower, written from it in the same step (`_drive`). Knocked down (0 HP) the leaf
+## `AnimatableBody3D` locked upright, `TwinSpace`, interface 29) that the swing turns, and this
+## handle is its follower, written from it in the same step (`_drive`). Knocked down (0 HP) the leaf
 ## comes off its hinges as a free `DoorSlab` (D18, `docs/doors.md` DR11) that falls and lies as
-## physics decides, this body its footprint. It publishes the door contract (architecture
+## physics decides, this handle its footprint (`fallen_footprint`: polygon data the slab writes). It
+## publishes the door contract (architecture
 ## interface 24) and is hit, shoved and damaged through the hittable (3) and pushable (5)
 ## contracts. Shown by the 3D render (`door_mesh.gd`); its parts are `look`, `damage`, `swing` and
 ## `push`. Its tuning is `DoorConfig`, `DoorPushConfig` and `DoorMaterialConfig`. It posts a
@@ -58,16 +60,15 @@ var deformable: Deformable
 var _row: Dictionary = {}
 ## Whether it has been knocked down.
 var _down := false
+## Its fallen leaf's footprint (`door_footprint.gd`): polygon data the slab writes, what a bake
+## carves and the doorway's gap reads.
+var footprint := DoorFootprint.new()
 ## What a swing asks the twin space about before it turns there: the leaf's box, a pixel slimmer
 ## all round (`DoorConfig.probe_inset`), so a leaf lying against a jamb or a wall it clears by a
 ## hair is not counted as in it (`_overlapping` sizes it for each query).
 var _probe := BoxShape3D.new()
 ## Unit vector along the shut leaf, hinge to latch.
 var _along := Vector2.RIGHT
-## The game second the door last began opening, -INF before it has or once a closing swing has begun
-## since: a swing opening it within `DoorConfig.latch_gap` of that carries on one movement (a run of
-## scroll notches), which has sounded its latch already.
-var _opened_at := -INF
 
 
 func _enter_tree() -> void:
@@ -77,18 +78,6 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	collision_layer = PhysicsLayers.SOLID
-	collision_mask = 0
-	# the follower of its 3D leader, written in the step the leader is turned: the body is at the
-	# pose written at once (a body synced to the physics step reads its old pose until the next)
-	sync_to_physics = false
-	var size := leaf_size()
-	var col := CollisionShape2D.new()
-	var leaf := RectangleShape2D.new()
-	leaf.size = size
-	col.shape = leaf
-	col.name = DoorFootprint.COLLIDER
-	add_child(col)
 	deformable = Deformable.new()
 	deformable.max_depth = DoorConfig.dent_depth
 	deformable.allow_chunks = false
@@ -208,7 +197,7 @@ func gap() -> float:
 	if _down:
 		var middle := _doorway_middle()
 		var half := _along * width * 0.5
-		return DoorFootprint.clear_width(self, middle - half, middle + half)
+		return DoorFootprint.clear_width(fallen_footprint(), middle - half, middle + half)
 	return minf(2.0 * width * sin(deg_to_rad(swing.angle) * 0.5), width)
 
 
@@ -365,7 +354,7 @@ func _fall(direction: Vector2, shove: Vector2, height: float) -> void:
 	if slab != null:
 		slab.release(shove, height, across * (side if side != 0.0 else 1.0))
 	else:
-		collision_layer = 0  # no twin space to fall in: out of the way
+		footprint.flat = true  # no twin space to fall in: out of the way
 	changed.emit()
 	_post(&"down")
 
@@ -490,8 +479,8 @@ func _turn_to(to: float) -> void:
 		return
 	push.stop()
 	var opens := goal > swing.angle
-	var begins := opens and GameClock.seconds() - _opened_at >= DoorConfig.latch_gap
-	_opened_at = GameClock.seconds() if opens else -INF
+	var begins := opens and GameClock.seconds() - swing.opened_at >= DoorConfig.latch_gap
+	swing.opened_at = GameClock.seconds() if opens else -INF
 	swing.begin(goal, DoorConfig.swing_time * absf(goal - swing.angle) / open_angle)
 	set_physics_process(true)
 	changed.emit()
@@ -526,11 +515,12 @@ func _drive(pose: Transform2D) -> void:
 		global_transform = pose
 
 
-## The footprint of a fallen leaf that is an obstacle (a ring in the world, from its collider), or
-## empty when the leaf stands, is gone, or lies flat to be walked over: what a nav bake carves
-## (interface 9, 24).
+## The footprint of a fallen leaf that is an obstacle (a ring in the world), or empty when the leaf
+## stands, is gone, or lies flat to be walked over: what a nav bake carves (interface 9, 24).
 func fallen_footprint() -> PackedVector2Array:
-	return DoorFootprint.ring(self) if _down else PackedVector2Array()
+	if not _down:
+		return PackedVector2Array()
+	return footprint.ring(leaf_size(), global_transform)
 
 
 ## The point the leaf turns about: the hinge, half a leaf's thickness toward the room it swings

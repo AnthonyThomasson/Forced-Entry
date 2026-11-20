@@ -3,13 +3,11 @@ class_name PhysicsLayers
 ## Objects' `Wall.Side` enum) — a single source so "walls + solid furniture" isn't redefined
 ## as the same magic number in every file that raycasts against it.
 
-## The 2D layer walls, solid furniture, doors and vehicles sit on. No 2D physics query asks for it
+## The 2D layer solid furniture (and a test's bare body) sits on. No 2D physics query asks for it
 ## any more (the sim reads the twin layers below): it marks a 2D body as solid (`ViewWatch`, a
-## door's footprint, a twin's presence: a body on none has no twin on its layer).
+## twin's presence: a body on none has no twin on its layer). Walls, doors and vehicles are plan
+## handles (`Node2D`, `TwinSpace.BODIES`) with no layer at all.
 const SOLID := 1
-## The 2D layer a thing lying flat on the floor sits on (a fallen door's footprint, `docs/doors.md`
-## DR11): a marker like `SOLID`, so a fallen door is not counted as a standing one.
-const LYING := 2
 ## The 3D layers of the twin space (`TwinSpace`, `docs/adr/0014-twin-staging-and-plan-space.md`),
 ## their own bits in the 3D physics space (not `SOLID`'s 2D one): what a 3D ray or sweep asks for.
 ## `TWIN_WORLD`: walls, floors, furniture and doors. `TWIN_VEHICLE`: a vehicle's body.

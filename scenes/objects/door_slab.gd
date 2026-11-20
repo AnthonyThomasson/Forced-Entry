@@ -12,7 +12,6 @@ extends PieceBody
 ## `TWIN_WORLD`: a line meets it where it lies, at its lying height, and it can be shoved like any
 ## light piece (`Knockback.push`).
 
-const DoorFootprint = preload("res://scenes/objects/door/door_footprint.gd")
 ## What the slab collides with while it lies flat: the world (walls, pieces), the ground.
 const FLAT_MASK := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_GROUND
 
@@ -44,17 +43,17 @@ func twin_update(footprint: Node2D) -> void:
 	super.twin_update(footprint)
 	var top := _extent().y / RenderConfig.unit
 	var flat := top <= DoorFallConfig.step_over
-	DoorFootprint.lie_at(footprint as CollisionObject2D, top)
+	(footprint.get(&"footprint") as RefCounted).call(&"lie_at", top)
 	if flat != _flat:
 		_flat = flat
 		collision_mask = FLAT_MASK if flat else _full_mask
 
 
-## The footprint's collider is the hull of the tipped leaf's projection.
-func _cut_footprint(footprint: Node2D, hull: PackedVector2Array) -> void:
-	DoorFootprint.cut(footprint, hull)
+## The footprint is the hull of the tipped leaf's projection.
+func _cut_footprint(door: Node2D, outline: PackedVector2Array) -> void:
+	door.get(&"footprint").hull = outline
 
 
 ## The leaf is upright again: its footprint is the leaf's.
-func _restore_footprint(footprint: Node2D) -> void:
-	DoorFootprint.restore(footprint)
+func _restore_footprint(door: Node2D) -> void:
+	door.get(&"footprint").hull = PackedVector2Array()

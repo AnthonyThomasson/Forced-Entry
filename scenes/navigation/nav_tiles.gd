@@ -302,14 +302,14 @@ static func walls_all(
 
 ## The parse of each tower of `site`'s house (`_parse_tower`), in the order of the house's children,
 ## as kept on `region`: a tower never parsed, or one that reaches `reaches`, is read again and
-## kept. Null when a body or a wall is a child of the house itself.
+## kept. Null when a body, a wall or a door is a child of the house itself.
 static func _refreshed(
 	region: NavigationRegion2D,
 	site: NavSite,
 	reaches: Array[Rect2],
 ) -> Variant:
 	for child in site.house.get_children():
-		if child is CollisionObject2D or child.is_in_group(TwinSpace.WALLS):
+		if child is CollisionObject2D or child.is_in_group(TwinSpace.BODIES):
 			return null
 	var cache: Dictionary = region.get_meta(WALL_CACHE_META, {})
 	var entries: Array = []

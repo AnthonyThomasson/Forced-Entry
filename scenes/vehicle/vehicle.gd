@@ -1,12 +1,12 @@
-extends AnimatableBody2D
+extends Node2D
 ## Vehicles domain: a drivable vehicle (a car or a van, `kind`, tuned by its `VehicleConfig.kinds`
 ## row). The control layer. Its truth is a free 3D body locked upright (`VehicleBody`, in the twin
 ## space, interface 29: `TwinSpace.leader_of`), which the physics engine moves and collides, driven
 ## by this vehicle's `drive`, the bicycle model (vehicle_drive.gd), inside the body's
-## `_integrate_forces` from the drive intent its driver hands on. This node is the 2D footprint, a
-## kinematic body on `PhysicsLayers.SOLID` that the twin space writes from the 3D body each frame,
-## so the characters that still walk in 2D are stopped by it and everything that reads where a
-## vehicle is reads it here; its `linear_velocity`, `angular_velocity`, `mass`, `apply_impulse` and
+## `_integrate_forces` from the drive intent its driver hands on. This node is the plan handle, a
+## plain `Node2D` in the groups `vehicles` and `TwinSpace.BODIES` (no 2D shape, no 2D layer) that
+## the twin space writes from the 3D body each frame, so everything that reads where a vehicle is
+## reads it here; its `linear_velocity`, `angular_velocity`, `mass`, `apply_impulse` and
 ## `sleeping` are the old rigid body's reads and writes, answered by the 3D body. Its `cabin`
 ## (vehicle_cabin.gd) holds its doors (vehicle_door.gd) and seats, and the rides of the characters
 ## getting in and out (vehicle_boarding.gd, stepped by each character's CharacterVehicleUse). The 3D
@@ -100,10 +100,6 @@ func _ready() -> void:
 	# moves, so it moves off in this frame and is not met where it stood by the next step.
 	process_physics_priority = -1
 	mass = row["mass"]
-	sync_to_physics = false  # the twin space writes the footprint: no velocity is derived from it
-	collision_layer = PhysicsLayers.SOLID
-	collision_mask = PhysicsLayers.SOLID
-	_build_collider()
 	cabin = VehicleCabin.new(self, row)
 	_deformable = Deformable.new()
 	_deformable.max_depth = VehicleCollisionConfig.dent_max_depth
@@ -176,7 +172,7 @@ func board(character: Node2D, door_id: StringName) -> RefCounted:
 	if not can_board(character, door_id):
 		return null
 	var ride := cabin.take_seat(character, cabin.door(door_id))
-	character.add_collision_exception_with(self)
+	contacts.share_space(character, true)
 	return ride
 
 
@@ -286,12 +282,3 @@ func post(stage: StringName, where: Vector2, extra := {}) -> void:
 ## built it.
 func _lead() -> RigidBody3D:
 	return TwinSpace.leader_of(self)
-
-
-## The body's collider: its outline (built here, the runtime-shape convention).
-func _build_collider() -> void:
-	var shape := ConvexPolygonShape2D.new()
-	shape.set_point_cloud(outline())  # The hull, wound the way the physics server expects.
-	var col := CollisionShape2D.new()
-	col.shape = shape
-	add_child(col)

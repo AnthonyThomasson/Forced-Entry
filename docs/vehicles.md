@@ -130,7 +130,7 @@ and passenger click the trigger of a loaded pistol: no shot, hit or shot sound, 
 
 **V6. Collisions: full physical.** The vehicle is a free 3D body locked upright (`VehicleBody`, a `RigidBody3D` in the twin space: it
 cannot roll or pitch, it turns about up and slides on the floor; its mass, its grip and its driving model are the 2D body's) and its
-2D body is the footprint on `PhysicsLayers.SOLID` that the characters walking in 2D are stopped by. It is the same vehicle: the
+2D body is a plain `Node2D` plan handle (no 2D shape or layer) the twin space writes from it. It is the same vehicle: the
 numbers below hold.
 - Walls stop it; it loses most of its speed on the impact (`bounce` **0.025**: a crash at the top speed rebounds slower than rolling
   resistance stops within a second).

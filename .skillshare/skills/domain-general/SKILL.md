@@ -30,7 +30,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 
 ## Shared ids
 
-- `PhysicsLayers.SOLID` is the layer walls, solid furniture and bodies sit on; every ray and sweep that must hit a wall reads it (add a layer here, never a magic number). `LYING` is the 2D layer of a thing lying flat (a fallen door's footprint): walked and driven over, found by a blast. `TWIN_WORLD`, `TWIN_VEHICLE`, `TWIN_CHARACTER` and `TWIN_ALL` are the twin 3D space's own layer bits (`twins.md`).
+- `PhysicsLayers.SOLID` is the layer walls, solid furniture and bodies sit on; every ray and sweep that must hit a wall reads it (add a layer here, never a magic number).  Walls, doors and vehicles are plan handles (`Node2D`) with no layer at all. `TWIN_WORLD`, `TWIN_VEHICLE`, `TWIN_CHARACTER` and `TWIN_ALL` are the twin 3D space's own layer bits (`twins.md`).
 - `ViewLayers` holds the visibility bits that say what the player's view may remember (`helpers.md`).
 
 ## Game clock

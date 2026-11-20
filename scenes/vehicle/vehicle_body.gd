@@ -6,9 +6,9 @@ extends RigidBody3D
 ## floor, gravity and the floor under it), shaped from the vehicle's real body (`VehicleTwins`: the
 ## outline up to the belt, the cabin on up to the roof). It is the vehicle's truth: the driving
 ## model (`VehicleDrive`) steps in its `_integrate_forces`, in plan space as it always did (the same
-## bicycle, the same numbers), and the 2D body (`Vehicle`) is its footprint, written from it each
-## frame by the twin space (`TwinSpace.leader_of`), so the characters that still walk in 2D are
-## stopped by it, and the doors, the seats and the ride go on reading the 2D body's transform.
+## bicycle, the same numbers), and the 2D body (`Vehicle`, a plain `Node2D` plan handle) follows it,
+## written from it each frame by the twin space (`TwinSpace.leader_of`), so the doors, the seats and
+## the ride go on reading the handle's transform.
 ##
 ## What it meets, Jolt solves: a wall, a free piece of furniture (two free bodies: the piece is
 ## pushed on, and the bumper's blow on it, `VehicleContacts`, tips a tall thin one over where a low

@@ -237,11 +237,11 @@ separate "fallen" face). It can be shoved like a piece: `Knockback.push` / `appl
 leader (`leader_of`): a blast, a round, a fragment or any `Knockback.push` slides it, and it comes to rest again
 (`Probe.settle`); a walker pushes nothing, a fist passes above a leaf 6 px thick and a kick only grazes it (a couple of px).
 
-For the 2D follower (deleted with the 2D space): a leaf lying flat (its top within `DoorFallConfig.step_over`, 10 px, of the
-floor) is walk-over: its footprint is on `PhysicsLayers.LYING`, which no body walks or drives into (a vehicle drives over a
+For the plan handle (a `Node2D`, no 2D shape or layer): a leaf lying flat (its top within `DoorFallConfig.step_over`, 10 px, of the
+floor) is walk-over: its `footprint` (`DoorFootprint`, polygon data the slab writes) is `flat`, which no body walks or drives into (a vehicle drives over a
 lying door) but a blast asks for, so it is shoved like a piece (a second blast slides it; a walker steps over it and pushes
 nothing, a fist passes above a leaf 6 px thick and a kick only grazes it) and not a hole in the nav bake. One leaning or lying higher (fallen onto a wardrobe,
-above a bed) is an obstacle: its footprint is on the solid layer, a hole in the bake (`NavLeaves.fallen_hole`, re-baked as a
+above a bed) is an obstacle: its footprint is the slab's hull, a hole in the bake (`NavLeaves.fallen_hole`, re-baked as a
 tipped piece's is). A swinging door's leaf stops at a lying slab, flat or leaning, as at any piece (its probe is the
 leaf's whole height in the twin space). The AI reads the same slab: `gap()` is what the leaf leaves of
 the doorway within `DoorFallConfig.mouth` of the wall line (`DoorFootprint.clear_width`: all of it when the leaf lies flat or

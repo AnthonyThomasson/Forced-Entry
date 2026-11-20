@@ -115,8 +115,8 @@ func _lies_beyond(t: TestContext, door: Node2D, dir_x: float, what: String) -> v
 		"%s: it lies flat (lean %.0f, top %.1f px)" % [what, Probe.lean(door), Probe.top(door)],
 	)
 	t.check(
-		door.collision_layer & PhysicsLayers.SOLID == 0,
-		"%s: it has no solid collider to walk into" % what,
+		door.fallen_footprint().is_empty(),
+		"%s: it has no obstacle footprint to walk into" % what,
 	)
 
 

@@ -18,7 +18,7 @@
       `health`, `velocity`, `get_mass()` and calls `apply_impulse` / `take_damage(amount)`. After a ride the vehicle goes to
       `use.keep_clear_of(body)` (as in 8: the collision exception is dropped once the body is clear); boarding the vehicle just left calls
       `use.stop_clearing(body)`.
-    - **The vehicle** (`vehicle.gd`, the 2D footprint, an `AnimatableBody2D` on `PhysicsLayers.SOLID`, group `vehicles`, of a free 3D body locked upright, `VehicleBody`, which leads it: driving, collisions and mass are the 3D body's; `linear_velocity`, `angular_velocity`, `mass`, `sleeping`, `apply_impulse` and `get_mass()` on the footprint answer through it): `doors() -> Array` (`[{ id, kind`
+    - **The vehicle** (`vehicle.gd`, the plan handle, a plain `Node2D` in the groups `vehicles` and `TwinSpace.BODIES` / `HARD`, of a free 3D body locked upright, `VehicleBody`, which leads it: driving, collisions and mass are the 3D body's; `linear_velocity`, `angular_velocity`, `mass`, `sleeping`, `apply_impulse` and `get_mass()` on the footprint answer through it): `doors() -> Array` (`[{ id, kind`
       (`swing` / `slide` / `rear`)`, seat, handle, open` (0..1)`, hinge, angle, offset }]`, world space), `seats() -> Array`
       (`[{ id, occupant }]`), `driver() -> Node`, `can_board(character, door_id) -> bool` (the checks of `board`, changing nothing) and `board(character, door_id) -> RefCounted` (the ride, or null when that door cannot be used
       now), `exit(character) -> bool`, `drive_input(character, throttle, steer, handbrake)` (driver only, engine running), and the reads
