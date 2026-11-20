@@ -532,7 +532,7 @@ func _check_main(t: TestContext) -> void:
 				"Main's view registers the %s builder" % KINDS[id]["art"],
 			)
 		t.check(
-			view.mirror._group_builders.has(DecalFactory.STENCIL_GROUP),
+			view.follower._group_builders.has(DecalFactory.STENCIL_GROUP),
 			"Main's view tracks the floor stencils",
 		)
 	await MainProbe.close(t, window)

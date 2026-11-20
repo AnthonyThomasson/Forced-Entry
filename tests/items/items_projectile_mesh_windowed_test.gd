@@ -92,10 +92,10 @@ func run(t: TestContext) -> void:
 	character.movement.controller = null
 	character.movement.move_input = Vector2.ZERO
 	Probe.arm(character, 0, 2, &"rifle")
-	var layer: ShotLayer = mirror.get_node("ShotLayer")
+	var layer: ShotLayer = view.viewport.get_node("ShotLayer")
 	await _burst(t, window, camera, character, layer)
 	await _throw(t, window, camera, character)
-	await _die(t, window, camera, character, mirror)
+	await _die(t, window, camera, character, view.follower)
 	await MainProbe.close(t, window)
 
 
@@ -177,7 +177,7 @@ func _die(
 	window: SubViewport,
 	camera: Camera2D,
 	character: Node2D,
-	mirror: WorldMirror,
+	follower: MeshFollower,
 ) -> void:
 	character.inventory.select_slot(6)
 	await t.seconds(0.3)
@@ -187,7 +187,7 @@ func _die(
 	var rifles := t.world.get_tree().get_nodes_in_group(&"dropped_items")
 	t.check(not rifles.is_empty(), "the dead character let go of its rifle")
 	for item: Node2D in rifles:
-		t.check(mirror.proxies_of(item).size() == 1, "the dropped rifle is shown")
+		t.check(follower.mesh_of(item) != null, "the dropped rifle is shown")
 	for zoom: float in ZOOMS:
 		camera.zoom = Vector2(zoom, zoom)
 		camera.global_position = character.global_position

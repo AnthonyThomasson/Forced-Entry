@@ -559,8 +559,10 @@ func _check_main(t: TestContext) -> void:
 		var rect := Rect2(-300, -300, 80, 40)
 		var stencil := DecalFactory.stencil(rect, { "text": "X" }, "Main Stencil", built["world"])
 		await t.frames(3)
-		var shown: Array = view.mirror.proxies_of(stencil)
-		t.expect_eq(shown.size(), 1, "Main's view shows a floor stencil by a decal")
+		var shown: Node3D = view.follower.mesh_of(stencil)
+		t.check(shown != null, "Main's view shows a floor stencil by a decal")
+		t.check(view.mirror.proxies_of(stencil).is_empty(), "and the mirror shows it no more")
+		t.check(view.follower.mesh_of(built["world"]) == null, "a node that is no stencil has none")
 	await MainProbe.close(t, window)
 
 

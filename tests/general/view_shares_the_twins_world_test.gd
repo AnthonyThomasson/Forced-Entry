@@ -46,6 +46,19 @@ func run(t: TestContext) -> void:
 	t.check(not view.viewport.own_world_3d, "the view has no world of its own")
 	t.check(view.mirror.get_world_3d() == twins.find_world_3d(), "the mirror's meshes stand in it")
 	t.check(view.rig.camera.get_world_3d() == twins.find_world_3d(), "the camera sees it")
+	t.check(
+		view.viewport.get_node_or_null("FxLayer") != null,
+		"the effects' layer is in the viewport",
+	)
+	t.check(view.viewport.get_node_or_null("ShotLayer") != null, "so is the shots' layer")
+	t.check(
+		view.mirror.get_child_count() == 0 or _no_layers(view.mirror),
+		"none is under the mirror",
+	)
+	t.check(view.follower.get_world_3d() == twins.find_world_3d(), "the follower stands in it too")
+	for layer: Node3D in [view.viewport.get_node("FxLayer"), view.viewport.get_node("ShotLayer")]:
+		t.check(layer.get_world_3d() == twins.find_world_3d(), "%s stands in it" % layer.name)
+		t.check(layer.global_transform.is_equal_approx(Transform3D.IDENTITY), "at the origin")
 	var other := TwinSpace.new()
 	t.world.add_child(other)
 	t.check(
@@ -78,6 +91,12 @@ func _a_world_with_no_twins(t: TestContext, camera: Camera2D) -> void:
 		"and that is not the window's either",
 	)
 	view.queue_free()
+
+
+## Whether no effects' or shots' layer is a child of `mirror`.
+func _no_layers(mirror: Node) -> bool:
+	var fx := mirror.get_node_or_null("FxLayer")
+	return fx == null and mirror.get_node_or_null("ShotLayer") == null
 
 
 ## Whether a ray from above the arena down to under it meets any twin.

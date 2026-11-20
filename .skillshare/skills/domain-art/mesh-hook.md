@@ -16,6 +16,7 @@ mirror turns it with the body (a 2D turn clockwise is `-angle` about +y). It fol
 - **`track(node: Node2D, builder) -> Node3D`**: shows one node in the tree that is no physics body (a dropped item, debris, a bullet, a casing) by the mesh `builder(node)` makes (null: nothing
   tracked), in a frame with the node's origin. Same rules as a body: written only when its transform changed, hidden while its `visible` is false, freed when it leaves the tree. A node's
   height off the ground is its mesh's own.
+- **`track` / `track_group` on a `MeshFollower`** (Main's view: floor stencils and lying items; the same API and rules as the mirror's, `mesh-hook.md` below speaks of the mirror's).
 - **`track_group(group, builder)`**: every node of `group` under the root, those already there (also when called before `mirror()`) and each as it joins, on the next frame once its `_ready` has run;
   the spawning domain only `add_to_group`s, never holds the mirror. A physics body of a tracked group is shown by that builder, not by proxies. A node is built once; a builder that gives null for
   it leaves a physics body its proxies and any other node unshown, and is not asked again until `remirror`. A node must be in the group by the end of its `_ready` (the mirror looks next frame); one that joins later is taken up by `mirror.remirror(node)`. While a group is tracked every `Node2D` that enters the tree is queued (a dictionary entry),

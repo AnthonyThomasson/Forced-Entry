@@ -58,9 +58,8 @@ var _moving: Array[Dictionary] = []
 var _pending: Dictionary = {}
 ## Group name -> the `Callable` that builds the mesh of a node of that group (`track_group`).
 var _group_builders: Dictionary = {}
-## The bodies (instance id -> true) the view has seen where they are: kept across a mirror of the
-## body again (a dent, an outfit), cleared the frames the body moves outside the cone.
-var _seen: Dictionary = {}
+## What the player's view has seen and what it hides (`MirrorSight`).
+var _sight := MirrorSight.new()
 ## The subtrees the view leaves out (`leave_out`): nothing under one is mirrored.
 var _left_out: Array[Node] = []
 ## The twin space of the mirrored world (null for a world with none): a body with a twin carries its
@@ -264,7 +263,7 @@ func _sync_shown(row: Dictionary) -> void:
 	if shown != row["shown"]:
 		row["shown"] = shown
 		(row["node"] as Node3D).visible = shown
-	var moves := _moves(row)
+	var moves := MirrorSight.moves(row["body"])
 	if moves != row.get("moving", false):
 		row["moving"] = moves
 		MeshNodes.moving(row["node"], moves)
@@ -491,6 +490,8 @@ func _on_retwinned(body: Node2D, _old: Node3D) -> void:
 				(mesh as Node).get_parent().remove_child(mesh)
 			twin.add_child(mesh)
 		row["twin"] = twin
+		if row.get("turns", false):
+			_turn(row)  # the new twin holds no turn yet: a character's facing is put on it now
 
 
 ## A carried body whose mesh went with its twin (the twin was freed another way) is shown again by
@@ -517,6 +518,10 @@ func _turn(row: Dictionary) -> void:
 
 ## Take `twins` as the twin space the mirror carries meshes on, and hear of its retwins.
 func _use_twins(twins: TwinSpace) -> void:
+	if (_twins != twins
+			and is_instance_valid(_twins)
+			and _twins.retwinned.is_connected(_on_retwinned)):
+		_twins.retwinned.disconnect(_on_retwinned)  # pointed at another space: leave the old one
 	_twins = twins
 	if twins != null and not twins.retwinned.is_connected(_on_retwinned):
 		twins.retwinned.connect(_on_retwinned)
@@ -659,66 +664,9 @@ func _shown(row: Dictionary) -> bool:
 		return false
 	if not (body as CanvasItem).visible:
 		return false
-	if _unseen(body):
-		_seen.erase(body.get_instance_id())  # a thing that moves out of view is to be seen again
-		return false
-	if _not_yet_seen(row, body):
+	if _sight.hides(body as Node2D, row):
 		return false
 	return not MirrorProxy.shapes_all_off(row)
-
-
-## Whether `body` is a thing the player's view never remembers (its 2D node is on
-## `ViewLayers.MOVING`: a living character, a car under way, a thrown grenade) while a view is on
-## (`ToonMask`): the shaders draw such a thing only where the live cone shows it.
-func _moves(row: Dictionary) -> bool:
-	var body: Variant = row["body"]
-	return (
-		ToonMask.mask_active()
-		and is_instance_valid(body)
-		and ((body as CanvasItem).visibility_layer & ViewLayers.MOVING) != 0
-	)
-
-
-## Whether `body` moves and wholly lies outside the cone the player sees now, or is a character in
-## it that the viewer's eye sees no point of (ducked behind a sofa: `SeenArea.hides`), so its mesh
-## is hidden (the shaders cut one at the cone's edge pixel by pixel): its reach is a disc of
-## `MirrorVisionConfig.moving_reach` px, a vehicle's `vehicle_reach`. With no view (`SeenArea` holds
-## no area) nothing is unseen.
-func _unseen(body: Node) -> bool:
-	if (body as CanvasItem).visibility_layer & ViewLayers.MOVING == 0:
-		return false
-	if not SeenArea.reaches((body as Node2D).global_position, _reach(body)):
-		return true
-	return SeenArea.hides(body as Node2D)
-
-
-## Whether `body` is a thing the view shows only once it has been in the cone
-## (`MirrorVisionConfig.seen_first`) and has not been yet: it is hidden, and the frame the cone
-## first reaches it it is marked seen, until it moves outside the cone. With no area set (no view)
-## nothing is held back.
-func _not_yet_seen(row: Dictionary, body: Node) -> bool:
-	var id := body.get_instance_id()
-	if _seen.has(id) or not SeenArea.active():
-		return false
-	if not row.has("first"):
-		row["first"] = MirrorVisionConfig.seen_first.any(
-			func(group: StringName) -> bool: return body.is_in_group(group)
-		)
-	if not row["first"]:
-		return false
-	if SeenArea.reaches((body as Node2D).global_position, _reach(body)):
-		_seen[id] = true
-		return false
-	return true
-
-
-## How far round its origin (px) a thing that moves reaches: a vehicle's is longer.
-func _reach(body: Node) -> float:
-	return (
-		MirrorVisionConfig.vehicle_reach
-		if body.is_in_group(&"vehicles")
-		else MirrorVisionConfig.moving_reach
-	)
 
 
 ## Watch `body` leave the tree, gain or lose a collision shape (`shapes`: not for a node that is
@@ -742,7 +690,7 @@ func _watch(body: Node, shapes := true) -> void:
 func _on_body_exiting(body: Node) -> void:
 	var rows: Array = _rows.get(body.get_instance_id(), [])
 	if rows.is_empty() or body.is_queued_for_deletion() or not _is_tracked(body):
-		_seen.erase(body.get_instance_id())
+		_sight.forget(body)
 		_drop(body)
 		return
 	for row: Dictionary in rows:

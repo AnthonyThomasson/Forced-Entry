@@ -252,13 +252,31 @@ func _drive_zoom_out(who: Node) -> float:
 	return clampf(float(ride.call("view_zoom_out")), 0.0, 0.9)
 
 
+## Where the followed character is as it is drawn: its 2D place, moved by how far the drawn vehicle
+## it rides leads its 2D footprint. A vehicle's mesh is carried by its 3D twin, which has stepped
+## on before the footprint that the seat (and so the character) is placed from, so the place the
+## camera follows would trail the car by a step of travel (21 px at 1269 px/s). Duck-typed through
+## `use.vehicle()`; on foot, or in a world with no twin of it, nothing is added.
+func follow_point() -> Vector2:
+	var point := _player.global_position
+	if not "use" in _player or _player.use == null:
+		return point
+	var ride: Variant = _player.use.vehicle()
+	if not is_instance_valid(ride):
+		return point
+	var twin := TwinSpace.twin_for(ride)
+	if twin == null:
+		return point
+	return point + PlanSpace.plan_of(twin.global_position) - (ride as Node2D).global_position
+
+
 ## The point the camera eases toward: the target, led toward the mouse. On each screen axis the lead
 ## eases from nothing inside `CameraConfig.look_ahead_dead_zone` to its full reach at
 ## `look_ahead_full_at`, and the full reach leaves the target `look_ahead_edge_margin` screen pixels
 ## in from the opposite edge, so the view looks as far as it can without losing the character. Read
 ## in screen space, so the camera's own move never feeds back into it.
 func _calculate_target_position() -> Vector2:
-	var player_pos := _player.global_position
+	var player_pos := follow_point()
 	var half := get_viewport_rect().size * 0.5
 	if half.x <= 0.0 or half.y <= 0.0:
 		return player_pos

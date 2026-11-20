@@ -29,6 +29,8 @@ const STAGE_PRIORITY := 200
 ## The camera rig and the mirror, for a caller that reads them (the tests, the pixel post).
 var rig: CameraRig
 var mirror: WorldMirror
+## The follower of the drawn things that are no body (floor stencils, lying items).
+var follower: MeshFollower
 ## The wall fade: walls and tall pieces between the camera and the player fade.
 var fade: WallFade
 ## The 3D dusk's lights (null while `LightingConfig.enabled` is off).
@@ -104,8 +106,10 @@ func begin(camera: Camera2D) -> void:
 		)
 	mirror = WorldMirror.new()
 	viewport.add_child(mirror)
+	follower = MeshFollower.new()
+	viewport.add_child(follower)
 	# debris, bursts, blood and blasts show from the first frame, on the road a kerb lower
-	PhysicsMeshes.install(mirror, _ground.offset_at)
+	PhysicsMeshes.install(viewport, _ground.offset_at)
 	fade = WallFade.new()
 	fade.rig = rig
 	fade.source = camera
@@ -166,7 +170,8 @@ func mirror_world(world: Node) -> void:
 	_register_meshes()
 	_ground.refresh(world)
 	mirror.mirror(world)
-	ProjectileMeshes.install(mirror, world)
+	follower.follow(world)
+	ProjectileMeshes.install(viewport, world)
 
 
 ## Draw `world`'s twin space's `World3D` (the nodes the view holds move into it: the rig, the
@@ -192,10 +197,10 @@ func _share_world(world: Node) -> void:
 ## of a kind that has one is shown by it and the rest by their proxies.
 func _register_meshes() -> void:
 	ObjectMeshes.register(mirror.builders)
-	ObjectMeshes.track(mirror)
+	ObjectMeshes.track(follower)
 	VehicleMeshes.register(mirror.builders)
 	CharacterMeshes.register(mirror.builders)
-	ItemMeshes.register(mirror)
+	ItemMeshes.register(follower)
 
 
 ## Light the 3D world for the match's 2D world `world` (the Lighting domain's dusk, `rooms` the

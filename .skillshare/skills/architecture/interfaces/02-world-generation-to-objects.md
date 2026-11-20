@@ -39,7 +39,7 @@
 	 over `rect` in `parent`'s space; `spec`: `text` (one line per line), laid in yellow and black hazard stripes round the edge,
 	 the words in stencil letters inside; painted upright on a canvas the size of the area, so it reads the same however the building is
 	 turned, over the floors laid before it; the node joins the group
-	 `DecalFactory.STENCIL_GROUP`, which `ObjectMeshes.track(mirror)` (Main's 3D view) shows as a decal. A tower's shadow is the sun's.
+	 `DecalFactory.STENCIL_GROUP`, which `ObjectMeshes.track(follower)` (Main's 3D view, Art's `MeshFollower`) shows as a decal. A tower's shadow is the sun's.
    - `WearFactory.spawn(rect: Rect2, plan: WearPlan, name, parent) -> Node2D` — a room's wear (one node per room, built after the
 	 floors and walls). `WearPlan` (`objects/wear_plan.gd`): `floor_definition`, `wall_thickness`, `clusters` (`{ pos, wall, seed }`:
 	 centre, the free stretch of wall `[a, b]` it is by or `[]`, the seed of its marks, in `parent`'s space). World-Gen places the

@@ -80,7 +80,7 @@ func run(t: TestContext) -> void:
 	_hide_walls(built["world"], mirror)
 	victim.movement.controller = null
 	victim.movement.move_input = Vector2.ZERO
-	_layer = mirror.get_node("FxLayer")
+	_layer = view.viewport.get_node("FxLayer")
 	_world = built["world"]
 	var focus := victim.global_position
 	await _firefight(t, focus)

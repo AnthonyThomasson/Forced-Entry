@@ -1,7 +1,7 @@
 # Physics in the 3D render (`scenes/physics/mesh/`)
 
-The sim stays 2D; in the 3D render (interface 27) Physics' effects are shown by one layer, `FxLayer` (a `Node3D` under the
-`WorldMirror`), that Main's `View3D.begin()` installs: `PhysicsMeshes.install(mirror, ground := Callable()) -> FxLayer` (interfaces 4, 12). The 2D spawners
+The sim stays 2D; in the 3D render (interface 27) Physics' effects are shown by one layer, `FxLayer` (a `Node3D` in the
+view's viewport, no mirror), that Main's `View3D.begin()` installs: `PhysicsMeshes.install(parent: Node, ground := Callable()) -> FxLayer` (interfaces 4, 12). The 2D spawners
 call static hooks on `PhysicsFxHook` as they make a thing (`chip_flew`, `chip_landed`, `burst_made`, `splat_made`, `print_made`,
 `ribbon_begun`, `ribbon_grew`, `scorch_burned`, `pool_made`, `pool_changed`, `blast_made`); with no layer installed (2D, a test world)
 each is one `is_instance_valid(sink)` check. The 2D nodes are still made (hidden in 3D), and their configs are read again, not copied:

@@ -12,8 +12,9 @@ const WALKER_AT := Vector2(150, 150)
 const DRIVER_AT := Vector2(420, 400)
 ## Plan px and radians a mesh may stand off the 2D body.
 const NEAR := 0.05
-## The farthest (px) a 2D footprint trails its twin: a step of a fast car.
-const STEP := 24.0
+## Plan px a 2D footprint may trail its twin beyond the step of travel its speed gives
+## (`speed / 60`): the footprint is the twin's pose a physics step ago, no more.
+const TRAIL_SLACK := 1.0
 const TURNED := 0.08
 
 
@@ -58,6 +59,7 @@ func run(t: TestContext) -> void:
 	_check_carried(t, mirror, car, true)
 	_check_carried(t, mirror, walker, false)
 	await _check_walk(t, mirror, walker)
+	await _check_retwinned(t, mirror, walker)
 	await _check_drive(t, mirror, car)
 	_check_seated(t, mirror, car, t.actor(&"driver") as Node2D)
 	await _check_dead(t, mirror, t.actor(&"victim") as Node2D)
@@ -76,13 +78,18 @@ func _view(t: TestContext) -> WorldMirror:
 
 ## How far (px) mesh `mesh` stands off its body's twin (the truth of where the body is) and how much
 ## (rad) it is turned off the 2D body's turn. The 2D body is the twin's footprint, written from it
-## a physics step later for a vehicle, so it may trail the mesh by one step of travel (`STEP`).
+## a physics step later for a vehicle, so it may trail the mesh by one step of travel (its speed
+## over 60, and `TRAIL_SLACK`).
 func _off(mesh: Node3D, body: Node2D) -> Vector2:
 	var twin := TwinSpace.twin_for(body)
 	var want := Basis(Vector3.UP, -body.global_rotation)
 	var trail := mesh.global_position.distance_to(PlanSpace.lift(body.global_position))
 	var apart := mesh.global_position.distance_to(twin.global_position)
-	return Vector2(apart if trail < STEP else INF, mesh.global_basis.z.angle_to(want.z))
+	var step := float(body.call(&"speed")) / 60.0 if body.has_method(&"speed") else 0.0
+	return Vector2(
+		apart if trail <= step + TRAIL_SLACK else INF,
+		mesh.global_basis.z.angle_to(want.z),
+	)
 
 
 func _check_carried(t: TestContext, mirror: WorldMirror, body: Node2D, bare: bool) -> void:
@@ -138,6 +145,41 @@ func _check_walk(t: TestContext, mirror: WorldMirror, walker: Node2D) -> void:
 		mirror.mesh_of(walker).get_parent() == TwinSpace.twin_for(walker),
 		"still its twin's child",
 	)
+
+
+## A character twinned again (its old twin is freed) is drawn turned at once, the frame the new twin
+## is made (the new twin holds no turn: the mirror puts its facing on it), and a mirror pointed at
+## another world leaves the old twin space's signal alone.
+func _check_retwinned(t: TestContext, mirror: WorldMirror, walker: Node2D) -> void:
+	var old := TwinSpace.twin_for(walker)
+	walker.global_rotation += 1.3  # turned this frame: the mesh has not been written yet
+	t.check(_off(mirror.mesh_of(walker), walker).y > TURNED, "premise: the mesh holds the old turn")
+	TwinSpace.retwin(walker)
+	var at_once := TwinSpace.twin_for(walker)
+	var mesh := mirror.mesh_of(walker)
+	t.check(
+		at_once != old and mesh.get_parent() == at_once,
+		"premise: its mesh moved to the new twin",
+	)
+	t.check(_off(mesh, walker).y < TURNED, "and is turned the frame the twin is made")
+	var twins := TwinSpace.of_world(t.world)
+	# a new twin that stands upright (a character's twin never turns): the handler puts the facing
+	# on the mesh itself
+	at_once.global_basis = Basis.IDENTITY
+	t.check(_off(mesh, walker).y > TURNED, "premise: an upright twin leaves the mesh unturned")
+	twins.retwinned.emit(walker, old)
+	t.check(_off(mesh, walker).y < TURNED, "a retwinned character's mesh is turned by the handler")
+	var listening := twins.retwinned.get_connections().size()
+	var bare := Node2D.new()
+	t.world.get_parent().add_child(bare)
+	mirror.mirror(bare)  # a world of no twin space: the mirror leaves this one's signal
+	t.expect_eq(
+		twins.retwinned.get_connections().size(), listening - 1, "a re-pointed mirror disconnects"
+	)
+	bare.queue_free()
+	mirror.mirror(t.world)  # and listens again
+	t.expect_eq(twins.retwinned.get_connections().size(), listening, "and listens again")
+	await t.frames(2)
 
 
 ## A car driven forward and round: its mesh is its twin's pose every frame.

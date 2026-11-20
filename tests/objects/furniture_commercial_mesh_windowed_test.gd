@@ -56,6 +56,7 @@ const STEP := Vector2(300.0, 320.0)
 var _window: SubViewport
 var _camera: Camera2D
 var _mirror: WorldMirror
+var _follower: MeshFollower
 var _world: Node
 var _gallery: Dictionary = {}
 ## The pictures to take (`COMMERCIAL_ONLY`, a comma-separated list of scene names, gallery rows,
@@ -110,6 +111,7 @@ func run(t: TestContext) -> void:
 	_camera.set_physics_process(false)
 	await t.frames(30)
 	_mirror = main.get_node("View3D").mirror
+	_follower = main.get_node("View3D").follower
 	_world = built["world"]
 	_hide_walls(_world)  # full-height walls would stand between the camera and the pieces
 	await _scenes(t)
@@ -140,8 +142,8 @@ func _scenes(t: TestContext) -> void:
 func _stencils(t: TestContext) -> void:
 	var stencils := _world.get_tree().get_nodes_in_group(DecalFactory.STENCIL_GROUP)
 	for sprite: Node in stencils:
-		var shown := _mirror.proxies_of(sprite)
-		t.check(shown.size() == 1, "the stencil %s is shown by one node" % sprite.name)
+		var shown := _follower.mesh_of(sprite)
+		t.check(shown != null, "the stencil %s is shown by one node" % sprite.name)
 	if stencils.is_empty() or not _wanted("stencil"):
 		return
 	var first := stencils[0] as Node2D

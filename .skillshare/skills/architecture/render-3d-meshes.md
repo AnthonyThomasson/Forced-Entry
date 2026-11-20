@@ -19,9 +19,9 @@ A mesh node the mirror shows may carry (all duck-typed, all optional):
 | Objects | furniture and street props (`ObjectMeshes`, the pattern), structure (`StructureMeshes`: walls, doors, floors, the street), floor stencils (`StencilMesh`), wear and decals (`WearMesh`, `WallWearMesh`: decals on floors, wall faces and the street; a wall's marks are children of its segment and fade with it) | `ObjectMeshes.register(builders)`; `ObjectMeshes.track(mirror)` shows each floor stencil |
 | Vehicles | cars and vans (`VehicleMeshes`) | `VehicleMeshes.register(builders)` |
 | Character | the body (`CharacterMeshes`) | `CharacterMeshes.register(builders)` |
-| Items | loose items (`ItemMeshes`) | `ItemMeshes.register(mirror)` |
-| Projectile | shots (`ProjectileMeshes`: 12) | `ProjectileMeshes.install(mirror, world)` |
-| Physics | debris chips, hit particles, blood (splats, prints, smears, pools), an explosion's fireball, smoke and scorch (`PhysicsMeshes`: `domain-physics/meshes.md`) | `PhysicsMeshes.install(mirror, ground)`; `ground` is Objects' `StreetGround.offset_at` (the road a kerb lower) |
+| Items | loose items (`ItemMeshes`) | `ItemMeshes.register(follower)` (Art's `MeshFollower`) |
+| Projectile | shots (`ProjectileMeshes`: 12) | `ProjectileMeshes.install(viewport, world)` |
+| Physics | debris chips, hit particles, blood (splats, prints, smears, pools), an explosion's fireball, smoke and scorch (`PhysicsMeshes`: `domain-physics/meshes.md`) | `PhysicsMeshes.install(viewport, ground)`; `ground` is Objects' `StreetGround.offset_at` (the road a kerb lower) |
 
 Main's `main_view3d.gd` `_register_meshes()` calls each. Objects' wear and decals: `domain-objects/meshes.md`.
 

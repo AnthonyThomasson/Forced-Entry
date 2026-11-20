@@ -88,6 +88,7 @@ static func register(builders: Dictionary) -> void:
 
 
 ## Show the floor stencils (`DecalFactory.STENCIL_GROUP`: plain `StencilDecal` nodes, no physics
-## body) by `StencilMesh`: the mirror follows every one of that group under the root it mirrors.
-static func track(mirror: WorldMirror) -> void:
-	mirror.track_group(DecalFactory.STENCIL_GROUP, Callable(StencilMesh, &"build"))
+## body) by `StencilMesh`: `follower` (Art's `MeshFollower`; a `WorldMirror` has the same
+## `track_group`) shows every one of that group under the world it follows.
+static func track(follower: Node3D) -> void:
+	follower.track_group(DecalFactory.STENCIL_GROUP, Callable(StencilMesh, &"build"))

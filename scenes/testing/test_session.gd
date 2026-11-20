@@ -197,6 +197,7 @@ func _left_out_if_world(node: Node) -> void:
 		return
 	if (node.has_meta("rooms") or node.has_meta("towers")) and is_instance_valid(world.house):
 		_view.mirror.leave_out(world.house)
+		_view.follower.leave_out(world.house)
 
 
 ## Decide how the open test's Von decisions are answered (`_von_run`). Returns why it does not run
