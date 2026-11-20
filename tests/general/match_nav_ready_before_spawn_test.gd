@@ -114,7 +114,7 @@ func _watch(t: TestContext, viewport: SubViewport) -> Dictionary:
 ## A node entered the tree: when it is an NPC under `viewport` (a body with a controller that has
 ## `rooms`), note how the maps stand in `watch`'s `entries` and watch its agents' first path.
 func _on_added(watch: Dictionary, viewport: SubViewport, node: Node) -> void:
-	if not (node is CharacterBody2D and viewport.is_ancestor_of(node)):
+	if not (node.is_in_group(TwinSpace.BODIES) and viewport.is_ancestor_of(node)):
 		return
 	if TestContext.controller_of(node, &"control") == null:
 		return

@@ -392,7 +392,7 @@ func _blocked(to: float, delta: float, nudging: bool) -> bool:
 	for body in _overlapping(pose, DoorConfig.probe_inset):
 		if not _is_character(body):
 			return true
-		if nudging and not _nudged(body as CharacterBody2D, pose, delta):
+		if nudging and not _nudged(body as Node2D, pose, delta):
 			return true
 	if nudging:
 		return false
@@ -446,14 +446,14 @@ static func _nearer_the_origin(a: Node2D, b: Node2D) -> bool:
 
 ## Whether `body` is a living character (one the leaf may nudge).
 func _is_character(body: Object) -> bool:
-	return body is CharacterBody2D and (body as Node).is_in_group(&"characters")
+	return body is Node and (body as Node).is_in_group(&"characters")
 
 
 ## Move character `body` clear of the leaf standing at `pose`, straight away from it, by what it
 ## takes (no more than `DoorConfig.nudge_speed` allows this step). False when it cannot be moved
 ## that far: the leaf outruns the nudge, or a wall, a piece of furniture or another body stands in
 ## its way.
-func _nudged(body: CharacterBody2D, pose: Transform2D, delta: float) -> bool:
+func _nudged(body: Node2D, pose: Transform2D, delta: float) -> bool:
 	var half := leaf_size().x * 0.5
 	var line_a := pose * Vector2(-half, 0.0)
 	var line_b := pose * Vector2(half, 0.0)

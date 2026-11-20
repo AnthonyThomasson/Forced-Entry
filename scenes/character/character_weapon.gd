@@ -5,7 +5,7 @@ class_name CharacterWeapon extends RefCounted
 ## (`update_raise`, after the facing is set) and hands the pose its stances.
 
 ## The character holding the item.
-var character: CharacterBody2D
+var character: Node2D
 ## A ducked body's rise over its cover to fire (`character_rise.gd`): the weapon asks it before a
 ## gun leaves the barrel, `movement.body_posture()` reads the pose it holds.
 var rise: CharacterRise
@@ -18,7 +18,7 @@ var _raise := 0.0
 
 
 ## The weapon use of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 	rise = CharacterRise.new(host)
 

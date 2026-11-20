@@ -16,7 +16,7 @@ const CharacterKick = preload("res://scenes/character/body/character_kick.gd")
 const BodySweep = preload("res://scenes/character/body/body_sweep.gd")
 
 ## The character the body is.
-var character: CharacterBody2D
+var character: Node2D
 ## The body's living motion (head, shoulders, hips and hands chasing `facing`); read by the hands,
 ## rig and visuals.
 var pose: CharacterPose = CharacterPose.new()
@@ -48,7 +48,7 @@ var _bled_out := false
 
 
 ## The body of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 	sweep = BodySweep.new(host)
 	legs.sweep = sweep

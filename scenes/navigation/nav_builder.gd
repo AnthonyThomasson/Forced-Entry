@@ -12,7 +12,7 @@ extends RefCounted
 ## weighed against a hostile), and, for a district, 512 px steering tiles (`NavTiles`) and a small
 ## planning ring of the match building (`NavRing`). Imports nothing from other domains: it reads a
 ## plain `rooms` array and a Node, and recognises furniture (the group `TwinSpace.PIECES`) and
-## characters (CharacterBody2D) by engine type alone.
+## characters (the group `characters`) by group alone.
 
 ## Extra clearance (px) baked around walls, on top of the agent radius, so paths don't hug walls.
 const WALL_MARGIN := 4.0
@@ -349,8 +349,9 @@ static func furniture_holes(house: Node2D) -> Array:
 
 ## The footprint holes of the living characters AT REST under `root` (the node the nav region lives
 ## under, which is also the house's parent), each a closed WORLD-space polygon, like
-## `furniture_holes`. A character is a CharacterBody2D with a collision layer (death clears the
-## layer: a corpse is walked over) that moves slower than `REST_SPEED`. Only the ones at rest: a
+## `furniture_holes`. A character is a plan handle in the group `characters` that is alive (a corpse
+## is
+## walked over) that moves slower than `REST_SPEED`. Only the ones at rest: a
 ## hole sits where a body stands in the way until it moves, and one that walks leaves none, because
 ## every character is inside its own hole and a walker's would seal or split the passage around
 ## itself (the hall, a doorway) and lead its own path the long way round. A character that stands
@@ -365,9 +366,10 @@ static func character_holes(root: Node) -> Array:
 	if root == null:
 		return out
 	for node in root.get_children():
-		var body := node as CharacterBody2D
+		var body := node as Node2D
 		if (body == null
-				or body.collision_layer == 0
+				or not body.is_in_group(&"characters")
+				or body.get(&"is_dead")
 				or TwinSpace.real_velocity_of(body).length() >= REST_SPEED):
 			continue
 		var hull := NavHoles.hull_of(body)

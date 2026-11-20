@@ -25,7 +25,7 @@ const CharacterInteraction = preload("res://scenes/interaction/character_interac
 const CharacterVehicleUse = preload("res://scenes/vehicle/character_vehicle_use.gd")
 
 ## The character occupied.
-var character: CharacterBody2D
+var character: Node2D
 ## Its use of doors (`character_doors.gd`): the door in reach, working it.
 var doors: CharacterDoors
 ## The CharacterInteraction child, built by `attach()`.
@@ -40,19 +40,16 @@ var _ride_step := Vector2.ZERO
 ## The bodies just left (an interaction's object, a vehicle) whose collision exception waits for the
 ## body to clear them.
 var _clearing: Array = []  # untyped: a body freed while waiting stays in it until the next check
-## The character's collision circle, off while it rides.
-var _shape: CollisionShape2D
 
 
 ## What occupies `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 	doors = CharacterDoors.new(host)
 
 
 ## Add the interaction and the vehicle use as children of the character (from its `_ready`).
 func attach() -> void:
-	_shape = character.get_node(^"CollisionShape2D")
 	_interaction = CharacterInteraction.new()
 	character.add_child(_interaction)
 	_vehicle_use = CharacterVehicleUse.new()
@@ -173,7 +170,6 @@ func set_ride_pose(at: Vector2, toward: Vector2, fold: float, step := Vector2.ZE
 	if not _riding:
 		_riding = true
 		character.ammo.cancel()
-		_shape.set_deferred("disabled", true)
 	character.global_position = at
 	character.facing = toward.normalized()
 	character.movement.aim_point = at + character.facing * 64.0
@@ -188,7 +184,6 @@ func set_ride_pose(at: Vector2, toward: Vector2, fold: float, step := Vector2.ZE
 func end_ride() -> void:
 	if _riding:
 		_riding = false
-		_shape.set_deferred("disabled", false)
 	_ride_step = Vector2.ZERO
 	character.movement.aim_point = character.global_position + character.facing * 64.0
 	character.anatomy.invalidate_rig()
@@ -252,12 +247,10 @@ func restore_cleared() -> void:
 		if not is_instance_valid(body):
 			_clearing.remove_at(i)
 		elif not _overlaps(body):
-			if body is PhysicsBody2D:
-				character.remove_collision_exception_with(body)
 			TwinSpace.share_space(character, body, false)
-			var contacts: Variant = body.get(&"contacts")  # a vehicle keeps its own list
+			var contacts := body.get(&"contacts") as VehicleContacts  # a vehicle's own list
 			if contacts != null:
-				(contacts as Object).call(&"share_space", character, false)
+				contacts.share_space(character, false)
 			_clearing.remove_at(i)
 
 

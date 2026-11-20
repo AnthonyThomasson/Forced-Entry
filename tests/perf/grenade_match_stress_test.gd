@@ -244,6 +244,6 @@ func _throw_from(t: TestContext, characters: Array) -> Vector2:
 			break
 	var thrower := t.actor(&"thrower")
 	thrower.global_position = spot
-	thrower.velocity = Vector2.ZERO
+	thrower.movement.velocity = Vector2.ZERO
 	t.puppet(&"thrower").aim_at(target.global_position)
 	return target.global_position.round()

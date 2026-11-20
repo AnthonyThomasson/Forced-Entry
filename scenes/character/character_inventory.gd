@@ -6,7 +6,7 @@ class_name CharacterInventory extends RefCounted
 ## spare magazines are not slots: they are `ammo`'s.
 
 ## The character carrying the items.
-var character: CharacterBody2D
+var character: Node2D
 ## Rounds the starting gun is loaded with (negative = a full magazine). Tests and sandboxes set it
 ## through `actor(..., props)` as `"inventory:start_rounds"`.
 var start_rounds := -1
@@ -17,7 +17,7 @@ var _current_slot := 1
 
 
 ## The inventory of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 
 

@@ -249,13 +249,13 @@ func _check_seated(t: TestContext, mirror: MeshCarrier) -> void:
 	var held := _held(t, mirror, &"seated")
 	if held == null:
 		return
-	var shape := _shape_of(t.actor(&"seated"))
-	shape.set_deferred(&"disabled", true)
+	var rider: Node2D = t.actor(&"seated")
+	rider.use.set_ride_pose(rider.global_position, Vector2.RIGHT, 0.0)
 	await t.frames(3)
 	t.check(not held.is_visible_in_tree(), "a seated character's item is not shown")
-	shape.set_deferred(&"disabled", false)
+	rider.use.end_ride()
 	await t.frames(3)
-	t.check(held.is_visible_in_tree(), "and it is back when the shapes are enabled")
+	t.check(held.is_visible_in_tree(), "and it is back when the ride is over")
 
 
 ## The body the mirror shows the actor `id` by, or null (it ends the test).
@@ -270,14 +270,6 @@ func _body_of(t: TestContext, mirror: MeshCarrier, id: StringName) -> BodyMesh:
 func _held(t: TestContext, mirror: MeshCarrier, id: StringName) -> MeshInstance3D:
 	var body := _body_of(t, mirror, id)
 	return body.held() if body != null else null
-
-
-## The first collision shape of `body`.
-func _shape_of(body: Node) -> CollisionShape2D:
-	for child in body.get_children():
-		if child is CollisionShape2D:
-			return child
-	return null
 
 
 func _mirror(t: TestContext) -> MeshCarrier:

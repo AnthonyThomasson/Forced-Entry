@@ -22,14 +22,14 @@ var near_solid := true
 var casts := 0
 ## Number of shared near-solid queries made by this body.
 var near_queries := 0
-var _character: CharacterBody2D
+var _character: Node2D
 var _shapes := {}
 var _params := PhysicsShapeQueryParameters3D.new()
 var _ray := PhysicsRayQueryParameters3D.new()
 
 
 ## The body whose sweeps and queries this owns.
-func _init(character: CharacterBody2D) -> void:
+func _init(character: Node2D) -> void:
 	_character = character
 	_params.collision_mask = MASK
 	_ray.collision_mask = MASK
@@ -124,7 +124,7 @@ func pushable_at(at: Vector2, height: float) -> Node:
 	_sphere(at, CharacterPushConfig.leg_radius + 1.5, height)
 	for result in space.intersect_shape(_params, 4):
 		var body := TwinSpace.owner_of(result["collider"])
-		if body == null or body is CharacterBody2D:
+		if body == null or body.is_in_group(&"characters"):
 			continue
 		if body.has_method("apply_impulse") and body.has_method("get_mass"):
 			return body

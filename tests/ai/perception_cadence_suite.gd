@@ -95,7 +95,7 @@ func _intake_reads(perception: Node, key: StringName) -> int:
 
 ## A body as the house part's look reads it: where it stands, its facing, its world and its rid.
 class Body:
-	extends CharacterBody2D
+	extends Node2D
 
 	var facing := Vector2.RIGHT
 

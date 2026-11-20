@@ -56,7 +56,7 @@ var _hit_bodies := {}
 ## The character-owned shared near-solid gate and reused sweep queries, set by `anatomy.attach()`.
 var sweep: Sweep
 
-## Character (CharacterBody2D) — body radius + held item.
+## Character (Node2D plan handle) — body radius + held item.
 @onready var _character := get_parent()
 
 

@@ -214,10 +214,10 @@ func _hide_walls(world: Node, mirror: MeshCarrier) -> void:
 
 
 ## The first living character the match built.
-func _first_character(world: Node) -> CharacterBody2D:
-	for body: Node in world.find_children("*", "CharacterBody2D", true, false):
+func _first_character(world: Node) -> Node2D:
+	for body: Node in PlanProbe.characters_under(world):
 		if not body.get("is_dead"):
-			return body as CharacterBody2D
+			return body as Node2D
 	return null
 
 

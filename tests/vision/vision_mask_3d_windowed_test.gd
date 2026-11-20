@@ -90,7 +90,7 @@ const SAME := 0.006
 
 var _window: SubViewport
 var _main: Node
-var _human: CharacterBody2D
+var _human: Node2D
 var _world: Node2D
 var _rig: CameraRig
 var _centre := Vector2.ZERO
@@ -183,7 +183,7 @@ func _start(t: TestContext) -> bool:
 		return false
 	_world = built["world"]
 	_rig = _main.get_node("View3D").rig
-	for body: Node in _world.find_children("*", "CharacterBody2D", true, false):
+	for body: Node in preload("res://tests/_general/plan_probe.gd").characters_under(_world):
 		if body != _human:
 			(body as Node2D).global_position = Vector2(-6000.0, -6000.0)
 	var room := _largest_room(built["house"])
@@ -259,8 +259,8 @@ func _drawn(t: TestContext, who: Node2D, what: String, expected: bool) -> void:
 
 
 ## A character with no brain at `at`, in a plain outfit, facing the human.
-func _stand(at: Vector2) -> CharacterBody2D:
-	var c := CharacterScene.instantiate() as CharacterBody2D
+func _stand(at: Vector2) -> Node2D:
+	var c := CharacterScene.instantiate() as Node2D
 	c.global_position = at
 	_world.add_child(c)
 	c.movement.controller = null

@@ -7,10 +7,11 @@ extends GameTest
 ## 2D body faces, a crouch lowers the hips by `CharacterPostureConfig`'s crouch height, the legs
 ## stride when the character walks and rest when it stands, the outfit's vest, plates and the
 ## style's colours reach the parts and a changed outfit re-dresses the body in place, a body seated
-## (its shapes disabled) is hidden, a dead one stays shown (`character_ragdoll_mesh_test.gd`), and
+## (its riding) is hidden, a dead one stays shown (`character_ragdoll_mesh_test.gd`), and
 ## Main's 3D view registers the builder. What the body looks like is judged in a window,
 ## `character_mesh_windowed_test.gd`.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const Style := preload("res://scenes/character/body/character_style.gd")
 const BodyPainter := preload("res://scenes/character/body/art/body_painter.gd")
@@ -472,16 +473,16 @@ func _check_culled(t: TestContext, mirror: MeshCarrier) -> void:
 	t.check(_shown(body, BodyMesh.VEST), "an outfit change re-dresses a body away from the player")
 
 
-## A body seated (its collision shapes disabled) is hidden and back when they are enabled; a dead
+## A body seated (its collision riding) is hidden and back when they are enabled; a dead
 ## one stays shown.
 func _check_hidden(t: TestContext, mirror: MeshCarrier, east: BodyMesh) -> void:
-	var shape := _shape_of(t.actor(&"east"))
-	shape.set_deferred(&"disabled", true)
+	var rider: Node2D = t.actor(&"east")
+	rider.use.set_ride_pose(rider.global_position, Vector2.RIGHT, 0.0)
 	await t.frames(3)
-	t.check(not east.visible, "a character whose shapes are disabled (seated) has no body shown")
-	shape.set_deferred(&"disabled", false)
+	t.check(not east.visible, "a character riding a vehicle has no body shown")
+	rider.use.end_ride()
 	await t.frames(3)
-	t.check(east.visible, "and it is back when they are enabled")
+	t.check(east.visible, "and it is back when the ride is over")
 	var dying := _body_of(t, mirror, &"dying")
 	if dying == null:
 		return
@@ -528,7 +529,7 @@ func _check_main(t: TestContext) -> void:
 			view.carrier.builders.has(MeshKinds.CHARACTER),
 			"Main's view registers the character's builder",
 		)
-		var character: Node = built["world"].find_children("*", "CharacterBody2D", true, false)[0]
+		var character: Node = PlanProbe.characters_under(built["world"])[0]
 		var shown: Array = view.carrier.proxies_of(character)
 		t.check(
 			shown.size() == 1 and shown[0] is BodyMesh,
@@ -583,14 +584,6 @@ func _art(body: BodyMesh, index: int) -> Texture2D:
 ## Whether part `index` of `body` shows.
 func _shown(body: BodyMesh, index: int) -> bool:
 	return (body.get_child(index) as Node3D).visible
-
-
-## The first collision shape of `body`.
-func _shape_of(body: Node) -> CollisionShape2D:
-	for child in body.get_children():
-		if child is CollisionShape2D:
-			return child
-	return null
 
 
 func _mirror(t: TestContext) -> MeshCarrier:

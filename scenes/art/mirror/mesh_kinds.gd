@@ -61,9 +61,12 @@ static func row_of(body: Node2D, node: Node3D) -> Dictionary:
 	for child in body.get_children():
 		if child is CollisionShape2D or child is CollisionPolygon2D:
 			shapes.append(child)
+	# a character's `use` says whether it rides a vehicle (a seated body has no mesh to show)
+	var use: Variant = body.get(&"use")
 	return {
 		"node": node, "body": body, "id": body.get_instance_id(), "shown": true,
 		"moving": false, "shapes": shapes,
+		"rides": use if use is Object and (use as Object).has_method(&"is_riding") else null,
 		"update": Callable(node, &"mirror_update") if node.has_method(&"mirror_update")
 		else Callable(),
 	}
@@ -73,6 +76,9 @@ static func row_of(body: Node2D, node: Node3D) -> Dictionary:
 ## character seated in a vehicle): such a mesh has no shape of its own to be disabled. A body with
 ## no shape is not.
 static func shapes_all_off(row: Dictionary) -> bool:
+	var rides: Variant = row.get("rides")
+	if rides != null and is_instance_valid(rides) and (rides as Object).call(&"is_riding"):
+		return true
 	var any := false
 	for shape: Variant in row.get("shapes", []):
 		if not is_instance_valid(shape) or (shape as Node).is_queued_for_deletion():

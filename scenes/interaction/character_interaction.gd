@@ -33,7 +33,7 @@ var _active_object: Node = null
 ## Where the character stood when the interaction began; it returns here on exit.
 var _return_position := Vector2.ZERO
 
-## Character (CharacterBody2D) — position, aim, inventory.
+## Character (Node2D plan handle) — position, aim, inventory.
 @onready var _character := get_parent()
 
 
@@ -172,8 +172,6 @@ func _begin(spec: Dictionary, object: Node) -> void:
 	if spec.get("move_to", false):
 		# Re-entering the object just left keeps its existing exception.
 		if not _character.use.stop_clearing(object):
-			if object is PhysicsBody2D:  # a piece is a plan handle: only its 3D twin shares space
-				_character.add_collision_exception_with(object)
 			TwinSpace.share_space(_character, object, true)
 		_character.global_position = object.global_position
 

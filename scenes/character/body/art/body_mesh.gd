@@ -139,14 +139,14 @@ var _at_rest := false
 ## none: the carrier then makes none. The body keeps its own `BodyDress` (the look its
 ## wardrobe resolves).
 static func build(body: Node2D) -> Node3D:
-	if not body is CharacterBody2D or body.get("anatomy") == null:
+	if not body.is_in_group(&"characters") or body.get("anatomy") == null:
 		return null
 	if not body.get("wardrobe") is CharacterWardrobe:
 		return null
 	var mesh := BodyMesh.new()
 	var dress := BodyDress.new()
 	dress.refresh(body.wardrobe)
-	mesh._make(body as CharacterBody2D, dress)
+	mesh._make(body, dress)
 	return mesh
 
 
@@ -246,7 +246,7 @@ func held() -> MeshInstance3D:
 
 
 ## Make the parts of `body`, dressed in `dress`, and pose them.
-func _make(body: CharacterBody2D, dress: BodyDress) -> void:
+func _make(body: Node2D, dress: BodyDress) -> void:
 	_dress = dress
 	_r = body.radius
 	var hands: Node = body.get_node_or_null("Hands")

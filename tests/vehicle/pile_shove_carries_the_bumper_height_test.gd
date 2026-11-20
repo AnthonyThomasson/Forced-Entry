@@ -38,7 +38,7 @@ func run(t: TestContext) -> void:
 		members.append({
 			"body": body,
 			"mass": float(body.get_mass()),
-			"character": body is CharacterBody2D,
+			"character": body.is_in_group(&"characters"),
 			"through": 0.0,
 		})
 	var hit := {

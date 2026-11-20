@@ -38,8 +38,7 @@ func run(t: TestContext) -> void:
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(t.actor(&"you"))
 	var vision := AgentVision.new()
 	var before := _wall_blocks(vision, space)
-	for shape in t.world.find_children("*", "CollisionShape2D", true, false):
-		(shape as CollisionShape2D).disabled = true
+	t.require(t.world.find_children("*", "CollisionShape2D", true, false).is_empty(), "no 2D shape")
 	await t.frames(2)
 	t.require(before, "premise: a wall stopped the line before the footprints went off")
 	var across := vision.raycast(space, TABLE_AT + Vector2(-100, 0), TABLE_AT + Vector2(100, 0), [])
@@ -57,7 +56,9 @@ func run(t: TestContext) -> void:
 		"a line leaves the table out by its twin's rid",
 	)
 	t.check(
-		not vision.blocked(space, Vector2(100, 300), Vector2(100, 500), []),
+		not vision.blocked(
+			space, Vector2(100, 300), Vector2(100, 500), SightRay.exclude_of(t.actor(&"you")),
+		),
 		"a floor line over bare floor is clear",
 	)
 	t.check(_wall_blocks(vision, space), "wall_hit meets the wall between the rooms")

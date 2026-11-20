@@ -31,7 +31,7 @@ func _input(event: InputEvent) -> void:
 
 ## Called by the character at the top of its _physics_process, so the intent we write is
 ## used the same frame.
-func control(character: CharacterBody2D, _delta: float) -> void:
+func control(character: Node2D, _delta: float) -> void:
 	character.movement.move_input = _move_keys(character)
 	character.movement.run_input = Keybinds.is_run_pressed()
 	_aim(character)
@@ -56,7 +56,7 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 ## The cursor's aim (#194 D8): where its line meets a character's body, at that height; else, over
 ## cover that hides a body, that point on the cover; else the floor point under it, the shot flying
 ## level at the muzzle's height.
-func _aim(character: CharacterBody2D) -> void:
+func _aim(character: Node2D) -> void:
 	var meets := Pointer.aim_hit(character, character)
 	if meets.is_empty():
 		character.movement.aim_point = Pointer.world_mouse(character)
@@ -70,7 +70,7 @@ func _aim(character: CharacterBody2D) -> void:
 ## screen at any camera yaw, `Pointer.world_direction`); with no camera rig bound the screen is the
 ## world, so they are as pressed. Seated in a vehicle they stay raw: they are the vehicle's throttle
 ## and steer, never turned by the camera (`docs/vehicles.md`).
-func _move_keys(character: CharacterBody2D) -> Vector2:
+func _move_keys(character: Node2D) -> Vector2:
 	var keys := Keybinds.get_move_vector()
 	if character.use.is_in_vehicle():
 		return keys
@@ -81,7 +81,7 @@ func _move_keys(character: CharacterBody2D) -> Vector2:
 ## getting out of a vehicle at the press. A door does not: its tap toggles it at the release, so
 ## that a hold can scroll it instead (DR7), and a hold that scrolled leaves it where the scroll put
 ## it.
-func _interact(character: CharacterBody2D) -> void:
+func _interact(character: Node2D) -> void:
 	if Keybinds.is_interact_just_pressed():
 		_held_door = null
 		_use_scrolled = false
@@ -102,7 +102,7 @@ func _interact(character: CharacterBody2D) -> void:
 ## over. A press that began on the UI stays the UI's however far it is dragged. A click that comes
 ## while the body rises over its cover to fire waits for the rise (`_click_pending`) and is void
 ## if the rise is dropped first.
-func _fire(character: CharacterBody2D) -> void:
+func _fire(character: Node2D) -> void:
 	var over_ui: bool = character.get_viewport().gui_get_hovered_control() != null
 	if Keybinds.is_fire_just_pressed():
 		_fire_press_on_ui = over_ui

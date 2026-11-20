@@ -11,9 +11,13 @@ const CharacterPush = preload("res://scenes/character/character_push.gd")
 ## torso of the body at `aim_point`.
 const AIM_LEVEL := -1.0
 const AIM_AUTO := -2.0
+## `_pace`: neither running nor ran dry, running, ran dry.
+const PACE_WALKING := 0
+const PACE_RUNNING := 1
+const PACE_EXHAUSTED := 2
 
 ## The character moving.
-var character: CharacterBody2D
+var character: Node2D
 ## The controller child it pulls intent from each frame (any node with a `control(character,
 ## delta)` method); null for none. Found by the character's `_ready`.
 var controller: Node
@@ -32,10 +36,12 @@ var run_input := false
 var speed := 150.0
 ## Stamina as a fraction of a full bar; spent while running, regained otherwise.
 var stamina := 1.0
-## Ran dry: walks until stamina refills to `CharacterPaceConfig.run_resume_fraction`.
-var _exhausted := false
-## Running this frame.
-var _running := false
+## The plan velocity (px/s) the walk was asked for last frame, then what it left after the slide:
+## the plan handle's own, no 2D engine moves it. Read by what asks how a body moves by itself.
+var velocity := Vector2.ZERO
+## `PACE_RUNNING` this frame; `PACE_EXHAUSTED` ran dry and walks until stamina refills to
+## `CharacterPaceConfig.run_resume_fraction`.
+var _pace := PACE_WALKING
 ## The body's height: a `CharacterPostureConfig.postures` key (`stand` or `crouch`). A crouch is a
 ## smaller target and slower; only a standing character can run. Set through `set_posture()`.
 var _posture: StringName = &"stand"
@@ -53,7 +59,7 @@ var _push_slow := 1.0
 
 
 ## The movement of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 
 
@@ -79,14 +85,14 @@ func walk(delta: float) -> void:
 	var stun: CharacterStun = character.stun
 	_update_stamina(run_input and _posture == &"stand" and stun.level() <= 0.0
 			and move_input.length() > CharacterPaceConfig.run_min_input, delta)
-	character.velocity = move_input * _move_speed() * _push_slow + _knockback + stun.drift()
+	velocity = move_input * _move_speed() * _push_slow + _knockback + stun.drift()
 	var lead := TwinSpace.walker_of(character)
 	if lead != null:
 		# the 3D body walks and the 2D body is written from it (`CharacterTwin`); a body with no
 		# twin yet (added this frame) stays where it is
-		character.velocity = lead.walk(character.velocity)
+		velocity = lead.walk(velocity)
 	else:
-		character.velocity = Vector2.ZERO
+		velocity = Vector2.ZERO
 	_knockback = _knockback.move_toward(
 		Vector2.ZERO,
 		CharacterPushConfig.knockback_friction * delta,
@@ -98,7 +104,7 @@ func walk(delta: float) -> void:
 ## pending shove dropped so moving again doesn't lurch.
 func hold(delta: float) -> void:
 	move_input = Vector2.ZERO
-	character.velocity = Vector2.ZERO
+	velocity = Vector2.ZERO
 	_update_stamina(false, delta)
 	_knockback = Vector2.ZERO
 
@@ -208,7 +214,7 @@ func posture_hand_ahead() -> float:
 
 ## True while moving at run speed (asked to run, moving, and not out of stamina).
 func is_running() -> bool:
-	return _running
+	return _pace == PACE_RUNNING
 
 
 ## Stamina left, 0..1 of a full bar.
@@ -231,7 +237,7 @@ func walk_speed() -> float:
 ## Walking speed (slower in a lower posture, slowed to `CharacterStunConfig.speed` while stunned
 ## and by the outfit's weight), or run speed while running (only possible standing and not stunned).
 func _move_speed() -> float:
-	return _speed_in(_posture, _running)
+	return _speed_in(_posture, _pace == PACE_RUNNING)
 
 
 ## The speed (px/s) the body covers ground at in posture `which`, running or walking, as it is now
@@ -274,19 +280,19 @@ static func _eased_to(now: float, target: float, k: float) -> float:
 
 
 ## Settle this frame's running and spend or regain stamina (a heavier outfit spends it faster).
-## Running dry latches `_exhausted`, which holds until stamina refills to `run_resume_fraction`.
+## Running dry latches `PACE_EXHAUSTED`, which holds until stamina refills to `run_resume_fraction`.
 func _update_stamina(wants_run: bool, delta: float) -> void:
-	_running = wants_run and not _exhausted and stamina > 0.0
-	if _running:
+	if _pace != PACE_EXHAUSTED:
+		_pace = PACE_RUNNING if wants_run and stamina > 0.0 else PACE_WALKING
+	if _pace == PACE_RUNNING:
 		var strain := 1.0 + _extra_weight() * CharacterPaceConfig.outfit_stamina_per_kg
 		stamina = maxf(stamina - delta * strain / CharacterPaceConfig.run_stamina_seconds, 0.0)
 		if stamina <= 0.0:
-			_exhausted = true
-			_running = false
+			_pace = PACE_EXHAUSTED
 	else:
 		stamina = minf(stamina + delta * CharacterPaceConfig.stamina_regen_per_sec, 1.0)
-		if _exhausted and stamina >= CharacterPaceConfig.run_resume_fraction:
-			_exhausted = false
+		if _pace == PACE_EXHAUSTED and stamina >= CharacterPaceConfig.run_resume_fraction:
+			_pace = PACE_WALKING
 
 
 ## Shove every pushable body the character slid into this frame; return the resulting speed

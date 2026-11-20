@@ -268,7 +268,7 @@ func _carry(body: Node2D) -> void:
 	count += 1
 	# a character, a piece, a door or a vehicle (a plan handle in HARD that is no wall)
 	var moving := (
-		body is CharacterBody2D
+		body.is_in_group(&"characters")
 		or body.is_in_group(TwinSpace.PIECES)
 		or (body.is_in_group(TwinSpace.HARD) and not body.is_in_group(TwinSpace.WALLS))
 	)

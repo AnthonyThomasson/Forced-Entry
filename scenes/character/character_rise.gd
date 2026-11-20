@@ -21,7 +21,7 @@ const MAX_CASTS := 3
 static var _ray := PhysicsRayQueryParameters3D.new()
 
 ## The character that rises.
-var character: CharacterBody2D
+var character: Node2D
 ## The pose risen to (`BodyHeights.FIRE_OVER` or `STAND`), `BodyHeights.NONE` while ducked.
 var _pose: StringName = BodyHeights.NONE
 ## Seconds until a risen body may fire (it is exposed from the moment it rises), and until it
@@ -31,7 +31,7 @@ var _dwell := 0.0
 
 
 ## The rise of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 
 

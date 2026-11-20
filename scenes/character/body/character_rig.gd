@@ -72,7 +72,7 @@ var _shin := 0.0
 ## (`character.anatomy.legs.ankle(i)`, when it has one); the legs layer itself solves without, to
 ## learn where the legs would go unobstructed. With `with_arms` false the arms' joints (shoulders,
 ## elbows, hands) are left unsolved: the legs layer reads only the trunk and the legs.
-func _init(character: CharacterBody2D, with_legs := true, with_arms := true) -> void:
+func _init(character: Node2D, with_legs := true, with_arms := true) -> void:
 	solves += 1
 	if with_arms:
 		arm_solves += 1
@@ -89,7 +89,7 @@ func _init(character: CharacterBody2D, with_legs := true, with_arms := true) -> 
 
 ## Each ankle the legs layer rested against something (`character.anatomy.legs.ankle(i)`) moved
 ## there, its knee re-solved.
-func _rest_feet(character: CharacterBody2D) -> void:
+func _rest_feet(character: Node2D) -> void:
 	for i in 2:
 		var rested: Variant = character.anatomy.legs.ankle(i)
 		if rested != null:
@@ -173,7 +173,7 @@ class Measures:
 
 
 	## Take the measures of `character` as it stands now, every field anew.
-	func _measure(character: CharacterBody2D) -> void:
+	func _measure(character: Node2D) -> void:
 		pose = character.anatomy.pose
 		r = character.radius
 		fold.take(character, pose, r)
@@ -193,7 +193,7 @@ class Measures:
 	## joint), `knee_poles` and `toes`: the trunk, then each side's arm (unless `with_arms` is
 	## false) and leg.
 	func _place(
-		character: CharacterBody2D,
+		character: Node2D,
 		points: Array,
 		knee_poles: Array,
 		toes: Array,
@@ -233,7 +233,7 @@ class Measures:
 
 	## Side `i`'s arm: the shoulder reaches for the fist the hands layer holds, at its stance's grip
 	## height, following it when it is out of reach; the elbow bends toward the stance's pole.
-	func _arm(character: CharacterBody2D, i: int) -> void:
+	func _arm(character: Node2D, i: int) -> void:
 		var f := fold
 		var out := -1.0 if i == 0 else 1.0
 		var shoulder: Vector3 = (_points[CHEST]
@@ -261,7 +261,7 @@ class Measures:
 
 	## Side `i`'s leg: the hip, the striding (or kicking) ankle, the knee bent toward the way the
 	## leg leads, and the toes.
-	func _leg(character: CharacterBody2D, i: int) -> void:
+	func _leg(character: Node2D, i: int) -> void:
 		var f := fold
 		var out := -1.0 if i == 0 else 1.0
 		_points[HIP[i]] = _points[PELVIS] + f.hip_right * out * f.hip_half
@@ -305,7 +305,7 @@ class Measures:
 	## A kick `kick` of the way out on side `i`: the foot rises first, then is thrown out along the
 	## aim, as far as the leg reaches at that height; the knee leads along the aim and the toes turn
 	## to it.
-	func _kick_leg(character: CharacterBody2D, i: int, kick: float) -> void:
+	func _kick_leg(character: Node2D, i: int, kick: float) -> void:
 		var hip: Vector3 = _points[HIP[i]]
 		var ankle: Vector3 = _points[ANKLE[i]]
 		var aim := Vector3(character.facing.x, character.facing.y, 0.0)
@@ -365,7 +365,7 @@ class Fold:
 
 	## Take the frames and the fold of `character` (body radius `r`) as it stands now, its `pose`
 	## turning them, every field anew.
-	func take(character: CharacterBody2D, pose: Pose, r: float) -> void:
+	func take(character: Node2D, pose: Pose, r: float) -> void:
 		_frames(pose)
 		_heights(character, pose, r)
 		hip_half = (CharacterBodyConfig.hip_width * r
@@ -389,7 +389,7 @@ class Fold:
 	## forward about the pelvis (the pelvis sits back and the chest forward by half the lean, so the
 	## body stays centred over its feet), the hips and feet come together, and the feet stand ahead
 	## of the pelvis so the knees lead over the toes.
-	func _heights(character: CharacterBody2D, pose: Pose, r: float) -> void:
+	func _heights(character: Node2D, pose: Pose, r: float) -> void:
 		height = character.movement.posture_height()
 		folded = character.movement.posture_folded()
 		# A stun hunches it on.

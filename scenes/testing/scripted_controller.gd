@@ -36,7 +36,7 @@ var failed_interactions: Array = []
 
 
 ## Called by the character at the top of its physics frame.
-func control(character: CharacterBody2D, _delta: float) -> void:
+func control(character: Node2D, _delta: float) -> void:
 	if _aim is Node2D and is_instance_valid(_aim):
 		character.movement.aim_point = (_aim as Node2D).global_position
 	elif _aim is Vector2:

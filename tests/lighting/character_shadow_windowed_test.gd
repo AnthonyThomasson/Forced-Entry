@@ -104,7 +104,7 @@ func _start(t: TestContext) -> bool:
 	_camera.set_physics_process(false)
 	_world = built["world"]
 	_view = _main.get_node_or_null("View3D")
-	for body: Node in _world.find_children("*", "CharacterBody2D", true, false):
+	for body: Node in preload("res://tests/_general/plan_probe.gd").characters_under(_world):
 		(body as Node2D).global_position = Vector2(-6000.0, -6000.0)
 	_lighting = t.world.get_tree().get_first_node_in_group(&"world_lighting_3d") as WorldLighting3D
 	t.require(_lighting != null, "the match is lit in 3D")
@@ -113,8 +113,8 @@ func _start(t: TestContext) -> bool:
 
 
 ## One character, a bystander in the house.
-func _person() -> CharacterBody2D:
-	var c := CharacterScene.instantiate() as CharacterBody2D
+func _person() -> Node2D:
+	var c := CharacterScene.instantiate() as Node2D
 	_world.add_child(c)
 	c.movement.controller = null
 	c.movement.move_input = Vector2.ZERO
@@ -166,7 +166,7 @@ func _street_spot() -> Vector2:
 
 
 ## The picture with `person` at `spot` and again with it hidden: what differs lies within `REACH`.
-func _check_spot(t: TestContext, person: CharacterBody2D, spot: Dictionary) -> void:
+func _check_spot(t: TestContext, person: Node2D, spot: Dictionary) -> void:
 	var at: Vector2 = spot["at"]
 	person.visible = true
 	var with := await _draw(t, at, 2.0)
@@ -217,7 +217,7 @@ func _changed(p: Array[Image]) -> Vector2:
 ## The drop shadow is seen: the pixels round the character are darker with its patch than with the
 ## patch hidden (the body the same), as the 2D body's floor shadow is.
 func _check_patch_shows(
-	t: TestContext, person: CharacterBody2D, spot: Dictionary, with: Image
+	t: TestContext, person: Node2D, spot: Dictionary, with: Image
 ) -> void:
 	var shown: Array = (_view.carrier as MeshCarrier).proxies_of(person)
 	var patch: Node3D = null

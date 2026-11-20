@@ -119,7 +119,7 @@ func _hidden_after_callout(t: TestContext, b: Node, target: Node, mate: Node) ->
 	):
 		return false
 	target.global_position = HIDDEN
-	target.velocity = Vector2.ZERO
+	target.movement.velocity = Vector2.ZERO
 	if not t.require(
 			await t.until(func(): return not _contact(b, target).get("visible", true), 1.0),
 			"the target is out of the NPC's sight (premise)",

@@ -63,7 +63,7 @@ func clear() -> void:
 
 
 ## Advance the kick by `delta` and strike what the foot reaches while it is thrown.
-func update(character: CharacterBody2D, delta: float) -> void:
+func update(character: Node2D, delta: float) -> void:
 	if _phase == Phase.IDLE:
 		return
 	_time += delta
@@ -77,7 +77,7 @@ func update(character: CharacterBody2D, delta: float) -> void:
 
 
 ## Where the foot is, in the world: out along the facing by the throw so far.
-func _foot_world(character: CharacterBody2D) -> Vector2:
+func _foot_world(character: Node2D) -> Vector2:
 	return (
 		character.global_position + character.facing * (CharacterMeleeConfig.kick_reach * amount())
 	)
@@ -85,7 +85,7 @@ func _foot_world(character: CharacterBody2D) -> Vector2:
 
 ## Shove and damage the first body the foot overlaps that this kick has not struck yet
 ## (`body_strike.gd`), at the foot, so a piece struck off-centre turns.
-func _strike(character: CharacterBody2D) -> void:
+func _strike(character: Node2D) -> void:
 	var blow := MeleeBlow.new(
 		_foot_world(character),
 		CharacterMeleeConfig.kick_radius,

@@ -10,6 +10,7 @@ extends GameTest
 ## 1) as they are now, `before_` the same with the old line (one near-black colour, creases on the
 ## figure). Run: `tools/run_tests.sh --windowed --id=art/pixel_post_outline_windowed`.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
 const SCRATCH := "user://settings_pixel_post_outline_windowed_test.json"
@@ -284,19 +285,19 @@ func _body_numbers(image: Image) -> Dictionary:
 
 
 ## The first living character the match built; nobody dies while the shots are taken.
-func _first_character(world: Node) -> CharacterBody2D:
-	var bodies := world.find_children("*", "CharacterBody2D", true, false)
+func _first_character(world: Node) -> Node2D:
+	var bodies := PlanProbe.characters_under(world)
 	for body: Node in bodies:
 		body.set("health", 1.0e9)
 	for body: Node in bodies:
 		if not body.get("is_dead"):
-			return body as CharacterBody2D
+			return body as Node2D
 	return null
 
 
 ## The other characters moved far off, so a shot shows `character` alone.
 func _send_others_away(world: Node, character: Node2D) -> void:
-	for body: Node in world.find_children("*", "CharacterBody2D", true, false):
+	for body: Node in PlanProbe.characters_under(world):
 		if body != character:
 			(body as Node2D).global_position = Vector2(-6000.0, -6000.0)
 

@@ -78,4 +78,4 @@ func _place_against(body: Node2D, against: Node2D) -> void:
 
 ## The half width (px) of a person (`radius`) or a chair (`CHAIR_HALF`) along the push.
 func _half(body: Node2D) -> float:
-	return float(body.radius) if body is CharacterBody2D else CHAIR_HALF
+	return float(body.radius) if body.is_in_group(&"characters") else CHAIR_HALF

@@ -476,7 +476,7 @@ func _since(t: TestContext, mark: int, topic: StringName) -> Array:
 func _place(t: TestContext, who: StringName, at: Vector2, look: Vector2) -> void:
 	var c := t.actor(who)
 	c.global_position = at
-	c.velocity = Vector2.ZERO
+	c.movement.velocity = Vector2.ZERO
 	t.puppet(who).aim_at(look)
 
 

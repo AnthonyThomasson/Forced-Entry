@@ -130,7 +130,7 @@ func _at_spot(t: TestContext, id: StringName) -> bool:
 		return false
 	var c := t.actor(id)
 	return (c.global_position.distance_to(Vector2(spot[0], spot[1])) <= 16.0
-			and c.velocity.length() < 5.0)
+			and c.movement.velocity.length() < 5.0)
 
 
 ## The share of `duration` s that actor `id` faces `at` within `ON_DOOR_DOT`.

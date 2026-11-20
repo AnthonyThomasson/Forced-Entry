@@ -119,7 +119,7 @@ func _move_behind(t: TestContext, inv: Node, brain: Node) -> Dictionary:
 	var state := { "count": int(brain.debug_state().get("decisions", 0)), "logged": true }
 	DecisionStub.fail = true
 	inv.global_position = BEHIND
-	inv.velocity = Vector2.ZERO
+	inv.movement.velocity = Vector2.ZERO
 	var failed := await t.until(
 		func(): return not brain.debug_state().get("decision", {}).get("pending", false),
 		5.0,

@@ -188,7 +188,7 @@ func watch(root: Node) -> void:
 	# the bodies and the pieces in tree order (the order their twins are made in is the order Jolt
 	# sees them: a piece is no physics body now but is twinned where it stood), then the groups
 	for body: Node in root.find_children("*", "Node2D", true, false):
-		if body is PhysicsBody2D or body.is_in_group(PIECES):
+		if body is PhysicsBody2D or body.is_in_group(PIECES) or body.is_in_group(&"characters"):
 			_pending[body.get_instance_id()] = body
 	for body: Node in get_tree().get_nodes_in_group(BODIES):
 		if root.is_ancestor_of(body) and body.get_viewport() == _home:
@@ -354,7 +354,7 @@ static func real_velocity_of(body: Object) -> Vector2:
 	var lead := walker_of(body)
 	if lead != null:
 		return lead.call(&"real_velocity")
-	return (body as CharacterBody2D).get_real_velocity()
+	return Vector2.ZERO
 
 
 ## The row's 3D or 2D rigid body whose sleep it follows, or null for a row that is never asleep.

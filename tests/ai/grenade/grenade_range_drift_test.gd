@@ -74,7 +74,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	inv.global_position = DRIFTED
-	inv.velocity = Vector2.ZERO
+	inv.movement.velocity = Vector2.ZERO
 	var seen: Array = []
 	if not t.require(
 			await GrenadeAi.wait_act(t, &"i", "grenade", 10.0, seen),

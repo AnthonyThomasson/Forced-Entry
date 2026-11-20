@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 			for j in DUMMIES:
 				var dummy := t.actor(_id(band, j))
 				dummy.global_position = _place(band, j)
-				dummy.velocity = Vector2.ZERO
+				dummy.movement.velocity = Vector2.ZERO
 		Explosion.frag(AT, t.world, thrower, row)
 		await t.frames(14)
 	var upper_all := 0

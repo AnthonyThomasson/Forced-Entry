@@ -84,12 +84,12 @@ static func walls_clear_in(
 	return false
 
 
-## Every plan body under `root`, in tree order: each `PhysicsBody2D` and each plan handle of
-## `TwinSpace.BODIES` (a wall has no engine body, so a scan by type never meets it).
+## Every plan body under `root`, in tree order: each plan handle of `TwinSpace.BODIES` (a wall has
+## no engine body, so a scan by type never meets it).
 static func bodies_under(root: Node) -> Array[Node2D]:
 	var out: Array[Node2D] = []
 	for node in root.find_children("*", "Node2D", true, false):
-		if node is PhysicsBody2D or node.is_in_group(TwinSpace.BODIES):
+		if node.is_in_group(TwinSpace.BODIES):
 			out.append(node as Node2D)
 	return out
 
@@ -100,5 +100,15 @@ static func pieces_under(root: Node) -> Array[Node2D]:
 	var out: Array[Node2D] = []
 	for node in root.find_children("*", "Node2D", true, false):
 		if node.is_in_group(TwinSpace.PIECES):
+			out.append(node as Node2D)
+	return out
+
+
+## Every character under `root`, in tree order: the plan handles of the group `characters` (a
+## character has no engine body, so a scan by `Node2D` never meets it).
+static func characters_under(root: Node) -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	for node in root.find_children("*", "Node2D", true, false):
+		if node.is_in_group(&"characters"):
 			out.append(node as Node2D)
 	return out

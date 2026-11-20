@@ -52,7 +52,7 @@ func run(t: TestContext) -> void:
 			for pair: Array in [["bare", BARE_AT], ["vest", VEST_AT]]:
 				var dummy := t.actor(_id(pair[0], j))
 				dummy.global_position = _place(pair[1], j)
-				dummy.velocity = Vector2.ZERO
+				dummy.movement.velocity = Vector2.ZERO
 		Explosion.frag(BARE_AT, t.world, t.actor(&"thrower"), row)
 		Explosion.frag(VEST_AT, t.world, t.actor(&"thrower"), row)
 		await t.frames(14)

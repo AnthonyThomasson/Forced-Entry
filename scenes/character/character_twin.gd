@@ -50,8 +50,7 @@ var _character: Character
 var _shape := CylinderShape3D.new()
 var _holder := CollisionShape3D.new()
 var _posture: StringName = &""
-## The body's own circle (a seated character disables it) and whether the cylinder is off for it.
-var _circle: CollisionShape2D
+## Whether the cylinder is off (the character rides a vehicle).
 var _seated := false
 ## The 2D transform this last wrote to the body (a different one is a script's move: `follow`).
 var _written := Transform2D()
@@ -74,7 +73,6 @@ static func build(node: Node2D) -> Node3D:
 		return null
 	var twin := CharacterTwin.new()
 	twin._character = node as Character
-	twin._circle = node.get_node_or_null(^"CollisionShape2D")
 	twin.motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	# a wall met nearly head on (within `HEAD_ON` of square) stops the slide: the engine
 	# renormalises what is left to slide, which at a square hit is only its rounding noise, a
@@ -116,7 +114,10 @@ func twin_update(_body: Node2D) -> void:
 	var now: StringName = _character.movement.body_posture()
 	if now != _posture:
 		_set_posture(now)
-	var seated := _circle != null and _circle.disabled
+	var layer := 0 if _character.is_dead else PhysicsLayers.TWIN_CHARACTER
+	if layer != collision_layer:
+		collision_layer = layer
+	var seated: bool = _character.use.is_riding()
 	if seated != _seated:
 		_seated = seated
 		_holder.disabled = seated

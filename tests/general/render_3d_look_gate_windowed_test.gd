@@ -246,7 +246,7 @@ func _firefight(t: TestContext) -> void:
 	right.health = 400.0
 	_aim(left, right.global_position)
 	_aim(right, left.global_position)
-	for c: CharacterBody2D in [left, right]:
+	for c: Node2D in [left, right]:
 		var slot: int = c.inventory.gun_slot()
 		if slot > 0:
 			c.inventory.select_slot(slot)
@@ -254,7 +254,7 @@ func _firefight(t: TestContext) -> void:
 	for moment: Vector2 in _moments:
 		_set_yaw(moment.y)
 		for burst in 8:
-			for c: CharacterBody2D in [left, right]:
+			for c: Node2D in [left, right]:
 				if not c.is_dead:
 					c.weapon.shoot()
 			await t.seconds(0.12)
@@ -290,7 +290,7 @@ func _characters(t: TestContext) -> void:
 		"casual", "helmeted", "tactical", "aiming",
 		"crouched", "fallen", "dropped", "walking",
 	]
-	var people: Array[CharacterBody2D] = []
+	var people: Array[Node2D] = []
 	for i in kinds.size():
 		var col := i % 4
 		var row := int(i / 4.0)
@@ -518,8 +518,8 @@ func _hide_pieces_in(rect: Rect2) -> void:
 
 
 ## One character at `at`, dressed and posed by `kind`; nobody shoots it when `safe`.
-func _spawn(at: Vector2, kind: String, safe: bool) -> CharacterBody2D:
-	var c := CharacterScene.instantiate() as CharacterBody2D
+func _spawn(at: Vector2, kind: String, safe: bool) -> Node2D:
+	var c := CharacterScene.instantiate() as Node2D
 	c.global_position = at
 	_world.add_child(c)
 	c.movement.controller = null
@@ -547,12 +547,12 @@ func _spawn(at: Vector2, kind: String, safe: bool) -> CharacterBody2D:
 	return c
 
 
-func _aim(c: CharacterBody2D, point: Vector2) -> void:
+func _aim(c: Node2D, point: Vector2) -> void:
 	c.movement.aim_point = point
 
 
 ## The match's own characters moved far off, except `keep`.
 func _send_others_away(keep: Node2D) -> void:
-	for body: Node in _world.find_children("*", "CharacterBody2D", true, false):
+	for body: Node in PlanProbe.characters_under(_world):
 		if body != keep:
 			(body as Node2D).global_position = Vector2(-6000.0, -6000.0)

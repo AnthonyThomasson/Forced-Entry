@@ -53,7 +53,7 @@ func clear() -> void:
 
 
 ## Rest both legs of `character` against what is near and shove what a foot swings into.
-func update(character: CharacterBody2D, delta: float) -> void:
+func update(character: Node2D, delta: float) -> void:
 	if sweep.is_clear():
 		clear()
 		return
@@ -64,7 +64,7 @@ func update(character: CharacterBody2D, delta: float) -> void:
 
 ## Side `i`'s resting ankle (local x/y), or null when neither it nor the knee meets anything.
 func _rest_leg(
-	character: CharacterBody2D,
+	character: Node2D,
 	rig: Rig,
 	i: int,
 	delta: float,
@@ -98,12 +98,12 @@ func _rest_leg(
 ## The place `target` (local px) can be reached from the body centre by a foot-sized sphere `height`
 ## px up: `target` itself when the way is clear, else where it first touches a wall or solid piece,
 ## slid along the surface for what is left.
-func _sweep(character: CharacterBody2D, target: Vector2, height: float) -> Vector2:
+func _sweep(character: Node2D, target: Vector2, height: float) -> Vector2:
 	return sweep.circle(character.global_position, target, CharacterPushConfig.leg_radius, height)
 
 
 ## How high (px) the point `slot` names (an ankle, or a knee) is on `character`'s body.
-func _height_of(character: CharacterBody2D, slot: int) -> float:
+func _height_of(character: Node2D, slot: int) -> float:
 	var posture: StringName = character.movement.body_posture()
 	return BodyHeights.contact(&"knee" if slot >= 2 else &"ankle", posture)
 
@@ -112,7 +112,7 @@ func _height_of(character: CharacterBody2D, slot: int) -> float:
 ## is pressing into. `slot` indexes `_prev` (an ankle, or a knee: it says how high the point is):
 ## how fast the point is moving, in the world, into the piece sets the strength.
 func _press(
-	character: CharacterBody2D,
+	character: Node2D,
 	slot: int,
 	wanted: Vector2,
 	rested: Vector2,

@@ -56,6 +56,6 @@ func run(t: TestContext) -> void:
 		elapsed += 0.1
 		t.trace("npc_x", npc.global_position.x)
 		left = left or npc.global_position.x < Probe.OUTSIDE_X
-		moving = moving or (elapsed > 0.5 and npc.velocity.length() > STILL_SPEED)
+		moving = moving or (elapsed > 0.5 and npc.movement.velocity.length() > STILL_SPEED)
 	t.check(not left, "it did not walk out of the house (at %s)" % npc.global_position.round())
 	t.check(not moving, "it stood still on arrival while Von was answering")

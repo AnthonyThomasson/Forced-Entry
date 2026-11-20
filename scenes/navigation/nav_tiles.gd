@@ -195,9 +195,10 @@ static func walking_at(root: Node) -> Array[Vector2]:
 	if root == null:
 		return out
 	for node in root.get_children():
-		var body := node as CharacterBody2D
+		var body := node as Node2D
 		if (body != null
-				and body.collision_layer != 0
+				and body.is_in_group(&"characters")
+				and not body.get(&"is_dead")
 				and TwinSpace.real_velocity_of(body).length() >= NavBuilder.REST_SPEED):
 			out.append(body.global_position)
 	return out

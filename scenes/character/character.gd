@@ -1,4 +1,4 @@
-extends CharacterBody2D
+extends Node2D
 ## Character domain: a generic top-down character. It owns the body's health, its aim-based
 ## "facing" and the hit and push contracts, and holds a typed component per topic (`movement`,
 ## `inventory`, `weapon`, `ammo`, `stun`, `use`, `anatomy`, `wardrobe`). It reads its intent from
@@ -73,13 +73,6 @@ func _ready() -> void:
 	add_to_group(&"characters")
 	# The living move: drawn only inside the player's view cone (interface 11, `ViewLayers`).
 	ViewLayers.set_moving(self, true)
-	# Top-down: no floor/ceiling, so a moving body it touches is never ridden as a platform.
-	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
-	# Build the body's collision circle to match `radius`.
-	var circle := CircleShape2D.new()
-	circle.radius = radius
-	($CollisionShape2D as CollisionShape2D).shape = circle
-
 	health = max_health
 
 	movement.controller = _find_controller()
@@ -336,10 +329,9 @@ func _die(direction: Vector2) -> void:
 	ammo.cancel()
 	# The body stops bleeding, is drawn beneath the living and casts no shadow.
 	anatomy.die()
-	# A corpse is just a body on the floor: clear its collision layer so the living (and bullets,
-	# punches, sight lines and the dropped item, all on layer 1) pass right over it instead of being
-	# blocked.
-	collision_layer = 0
+	# A corpse is just a body on the floor: its twin leaves the character layer (`is_dead`, read by
+	# `CharacterTwin.twin_update`) so the living (and bullets, punches, sight lines and the dropped
+	# item) pass right over it instead of being blocked.
 	use.end_interaction()
 	use.abandon()  # Killed boarding or getting out: the ride ends where the body is.
 	var momentum := movement.momentum()
@@ -349,7 +341,7 @@ func _die(direction: Vector2) -> void:
 	stun.clear()  # A dead body sees and hears nothing more to fade.
 	anatomy.fall(momentum, direction)
 	inventory.drop_held(momentum)
-	velocity = Vector2.ZERO
+	movement.velocity = Vector2.ZERO
 	EventBus.post(&"death", { "character": self, "position": global_position })
 	died.emit()
 

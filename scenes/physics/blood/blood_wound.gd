@@ -97,9 +97,9 @@ func _drip() -> void:
 			if host.has_method("blood_origin")
 			else host.global_position)
 	var velocity := Vector2.ZERO
-	var v = host.get("velocity")
-	if v is Vector2:
-		velocity = v
+	var motion: Variant = host.get("movement")  # the host's walk, duck-typed
+	if motion is Object and (motion as Object).get("velocity") is Vector2:
+		velocity = (motion as Object).get("velocity")
 	var land := origin + velocity * BloodDripConfig.fall_time + _jitter()
 	var energy := clampf(
 		velocity.length() / maxf(BloodDripConfig.full_energy_speed, 0.001),

@@ -380,7 +380,7 @@ static func _along(member: Dictionary, normal: Vector2) -> float:
 	var body: Node = member["body"]
 	var velocity: Vector2
 	if member["character"]:
-		velocity = body.velocity
+		velocity = body.movement.velocity
 	elif _is_led(body):
 		velocity = TwinSpace.leader_of(body).call(&"plan_velocity")
 	else:
@@ -597,8 +597,8 @@ func _roll_over_for_good(body: Node) -> void:
 ## body's, unless it is a piece first met (`fresh`): the step that met it has already carried it
 ## along, and it lay at rest before; a wall or a door none.
 static func _velocity_of(body: Node, fresh: bool) -> Vector2:
-	if body is CharacterBody2D:
-		return (body as CharacterBody2D).velocity
+	if body.is_in_group(&"characters"):
+		return body.movement.velocity
 	if fresh and _is_piece(body):
 		return Vector2.ZERO
 	var lead := TwinSpace.leader_of(body)
