@@ -12,9 +12,6 @@ const WALKER_AT := Vector2(150, 150)
 const DRIVER_AT := Vector2(420, 400)
 ## Plan px and radians a mesh may stand off the 2D body.
 const NEAR := 0.05
-## Plan px a 2D footprint may trail its twin beyond the step of travel its speed gives
-## (`speed / 60`): the footprint is the twin's pose a physics step ago, no more.
-const TRAIL_SLACK := 1.0
 const TURNED := 0.08
 
 
@@ -65,6 +62,12 @@ func run(t: TestContext) -> void:
 	await _check_dead(t, mirror, t.actor(&"victim") as Node2D)
 
 
+## Wait for the render frame of the physics frame just run: nothing writes a handle or a twin
+## between the two, so what is read is what the camera and the view read.
+func _render(t: TestContext) -> void:
+	await t.world.get_tree().process_frame
+
+
 func _view(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.world_3d = TwinSpace.of_world(t.world).find_world_3d()  # drawn in the twins' world
@@ -77,17 +80,16 @@ func _view(t: TestContext) -> MeshCarrier:
 
 
 ## How far (px) mesh `mesh` stands off its body's twin (the truth of where the body is) and how much
-## (rad) it is turned off the 2D body's turn. The 2D body is the twin's footprint, written from it
-## a physics step later for a vehicle, so it may trail the mesh by one step of travel (its speed
-## over 60, and `TRAIL_SLACK`).
+## (rad) it is turned off the 2D body's turn. Read in a render frame (`_render`): the 2D body is
+## the twin's footprint, written from the twin's pose in the same physics frame the mesh stands at,
+## so it does not trail (a read at `physics_frame` would see a step of travel between them).
 func _off(mesh: Node3D, body: Node2D) -> Vector2:
 	var twin := TwinSpace.twin_for(body)
 	var want := Basis(Vector3.UP, -body.global_rotation)
 	var trail := mesh.global_position.distance_to(PlanSpace.lift(body.global_position))
 	var apart := mesh.global_position.distance_to(twin.global_position)
-	var step := float(body.call(&"speed")) / 60.0 if body.has_method(&"speed") else 0.0
 	return Vector2(
-		apart if trail <= step + TRAIL_SLACK else INF,
+		apart if trail <= NEAR else INF,
 		mesh.global_basis.z.angle_to(want.z),
 	)
 
@@ -128,6 +130,7 @@ func _check_walk(t: TestContext, mirror: MeshCarrier, walker: Node2D) -> void:
 	var start := walker.global_position
 	for _i in 90:
 		await t.frames(1)
+		await _render(t)
 		var mesh := mirror.mesh_of(walker)
 		var gap := _off(mesh, walker)
 		if gap.x > NEAR or gap.y > TURNED:
@@ -197,6 +200,7 @@ func _check_drive(t: TestContext, mirror: MeshCarrier, car: Node2D) -> void:
 	for i in 150:
 		puppet.drive(1.0, 0.0 if i < 50 else 0.7, false)
 		await t.frames(1)
+		await _render(t)
 		var mesh := mirror.mesh_of(car)
 		var gap := _off(mesh, car)
 		if gap.x > NEAR or gap.y > TURNED or mesh.get_parent() != TwinSpace.twin_for(car):
