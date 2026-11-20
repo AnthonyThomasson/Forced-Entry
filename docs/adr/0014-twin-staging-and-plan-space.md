@@ -102,8 +102,8 @@ settles for walls is that the 3D wall is the truth for the 3D reads (bullets, fr
 (`_seg_impacts`, the cut polygons) still lives in the 2D `Wall` until del2d deletes the 2D space, where the cut moves to the 3D wall; until then a dent
 is cut in 2D first and `WallTwin` follows it. A wall is a **`WallTwin`** (Objects, a `StaticBody3D`)
 built from its segments, and a dent that cuts a segment's 2D collider (`Wall.segment_rebuilt`) cuts its 3D shapes from the same dents, so a ray, a
-fragment or a lob meets the outline the footprint has; the 2D colliders stay for what still reads 2D (the nav bake, the avoid maps, the 2D bodies that
-collide with a wall, the 2D occluders of the vision cone) until the 2D space is deleted. Floors, roofs and the street have no 2D body at all (a floor is a node, its slab
+fragment or a lob meets the outline the footprint has; the 2D colliders stay for what still reads 2D (the avoid maps, the 2D bodies that
+collide with a wall, the 2D occluders of the vision cone; the nav bake reads the twin since del2d-c) until the 2D space is deleted. Floors, roofs and the street have no 2D body at all (a floor is a node, its slab
 and its roof are 3D only), so they were 3D truths already.
 
 A wall two rooms share (Kitchen's south and Hall's north) used to be built twice, two coincident colliders in 2D and in 3D, so a bullet's tie in the seam
@@ -190,9 +190,8 @@ simply:
   simulation, and a bare `AnimatableBody2D` has `sync_to_physics` on, so a transform set by hand goes through the 2D server: `vision/cone_skip_exact`
   and `cone_skip_exact_sliced` (a mover moved by hand), `vision/cone_restarts_on_world_change` (a wardrobe), `art/mirror_follows_bodies` (a box turned by hand),
   `art/mirror_hides_unseen_movers` (a car moved by hand) and `general/twin_unfrozen_body_is_followed` (an unfrozen `RigidBody2D` the 2D step moves). They are 17c's: no 2D body leads.
-  Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); `is StaticBody2D` / `CharacterBody2D` type checks; the navigation bake's source (`NavSource.walls_of`,
-  `NavHoles`, `NavPieces`, `NavLeaves`) reads the 2D colliders and moves to plan polygons projected from the twins (`TwinShapes.footprint_of`), compared
-  with the old bake on the district first;
+  Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); `is StaticBody2D` / `CharacterBody2D` type checks; (the navigation bake's source is done: it reads the
+  twins, below);
   also: `Knockback.push`'s 2D `apply_impulse` for a body no 3D body leads, and `PhysicsLayers.SOLID` / `LYING` as 2D markers (`ViewWatch`'s
   `collision_layer` reads, a door's footprint); `get_world_2d().navigation_map` (25 or more sites: locomotion, stacks, entry geometry) until nav3d;
   `TwinSpace`'s `find_world_2d()` registry key and `space_in(World2D)` (deleting the 2D world needs a new key: the stage's own node); the `RigidBody2D`
@@ -210,3 +209,25 @@ simply:
 - A reader that holds the `World2D` the sim stands in and no node finds the 3D space beside it with `TwinSpace.space_in(world)`, a registry keyed
   by the world's instance id (#194 sight3d, del2d-a). A world with no twin space (a hand-built test world) answers null and the caller treats
   nothing as blocking; two worlds in one window share one 3D space.
+
+## The nav bake reads the twins (del2d-c, first slice)
+
+The bake's source moved off the 2D colliders. `NavSource.walls_of` takes the plan polygon each shape of a wall's twin stands on
+(`NavTwins.footprints`, which is `TwinShapes.footprint_of` at the twin's pose) instead of the engine's parse of the static bodies, and
+`NavHoles` / `NavPieces` cut a piece's or a character's hole from the hull of its twin's footprints, grown by the obstacle margin (corners
+mitred), instead of its `CollisionShape2D`s. The bake projects at the plan and never by an agent's height: a wall's lintel over a doorway (84 to
+96 px, in the wall's twin) is left out (`grounded`: a shape whose underside is over the floor), so a doorway stays open. The twin space is made
+before the bake (`MatchBuilder.stage`). `NavigationServer2D` stays until nav3d; a house with no twin space bakes no walls and no holes.
+
+It is not the same outline, and `navigation/bake_from_twins_matches_colliders` (a district, seed 7; `_house`, a house) measures the new bake
+against the old one read from the 2D colliders (`tests/_navigation/collider_reference.gd`). The walls are the same outlines (341 holes and as
+many walls in the district, each wall within a pixel). A round piece or character is the bake's own 10-sided polygon (`NavHoles.CIRCLE_SEGMENTS`),
+not the twin's 16-sided disc: the 16-sided one moved 24 ambush posts of 210 and broke seven recorded AI tests. What moves: a piece hung on a
+wall (a menu board, a mirror, a towel rail) carves the depth its twin has, about half its 2D collider's; and a dent no longer changes a hole (a
+twin keeps the outline it was built with, so a shot-up piece's hole is its full footprint, as it stood; `ai/combat/defend_room_stays_inside`, whose
+fight shoots furniture, was re-recorded on the Von server). Measured on the district: the holes' area -0.9 %, the navmesh 889 polygons against
+888 with +0.1 % area; on a house 112 against 111, +0.06 % area; of 90 routes between rooms' centres, none lost and none over 3 %. A character's
+hole reads its twin, which follows a body a script moves within a frame (a body at rest has none). Tests that moved a footprint by hand now
+wait for its twin (`TwinSpace.PARK_SPREAD`) or move the twin. Still 2D in the bake, for 17c's second half: finding the pieces (`RigidBody2D`) and the walls
+(`StaticBody2D` with `wall_segments`) by engine type; the door contract's `fallen_footprint` (`DoorFootprint.ring`, a 2D collider); a character's
+`collision_layer`.

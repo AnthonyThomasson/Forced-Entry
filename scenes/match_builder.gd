@@ -566,6 +566,7 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	var root: Node2D = site["root"]
 	var house_rooms := WorldGen.get_rooms(house)
 	var site_rooms: Array = site["site_rooms"]
+	var twins := _twin_space(world)  # before the nav bake: it reads the twins, not the 2D colliders
 	var nav_region := NavBuilder.build(
 		root,
 		site_rooms,
@@ -586,7 +587,6 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 		bool((match_spec["overlays"] as Dictionary).get(OVERLAY_REGISTRY.NAV_HOLES, false)),
 	)
 	var nav_updater := _rebaker(world, nav_region, root, site_rooms, nav_debug)
-	var twins := _twin_space(world)
 	await _settle(match_spec, world, nav_updater)
 	if not is_instance_valid(world):
 		return {}

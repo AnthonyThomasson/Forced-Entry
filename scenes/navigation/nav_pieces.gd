@@ -46,10 +46,8 @@ func holes() -> Array:
 		_list()
 	var out: Array = []
 	for piece: Piece in _pieces:
-		var at := piece.body.global_transform
-		var stamp: Variant = piece.body.get(&"footprint_stamp")  # a tipped piece reshapes in place
-		if piece.dirty or at != piece.at or stamp != piece.stamp:
-			piece.at = at
+		var stamp: Variant = NavTwins.stamp_of(piece.body)
+		if piece.dirty or stamp != piece.stamp:
 			piece.stamp = stamp
 			piece.hull = NavHoles.cut(piece.body)
 			piece.dirty = false
@@ -83,7 +81,6 @@ func _list() -> void:
 		var piece: Piece = known.get(id)
 		if piece == null:
 			piece = Piece.new(node)
-			node.child_order_changed.connect(piece.dirtied)
 			node.tree_exiting.connect(_on_left)
 		_by_id[id] = piece
 		_pieces.append(piece)
@@ -103,11 +100,10 @@ func _on_node_added(node: Node) -> void:
 		_relist = true
 
 
-## A piece: its body, where it stood and the footprint cut then; `dirty` until it is cut, and again
-## whenever its colliders change.
+## A piece: its body, what its footprint depended on when it was cut (`NavTwins.stamp_of`) and the
+## footprint cut then; `dirty` until it is cut.
 class Piece:
 	var body: RigidBody2D
-	var at := Transform2D()
 	var stamp: Variant = null
 	var hull := PackedVector2Array()
 	var dirty := true
@@ -115,16 +111,9 @@ class Piece:
 	func _init(piece_body: RigidBody2D) -> void:
 		body = piece_body
 
-	## A child of the body came, went or was reordered: its colliders may have been rebuilt. (A
-	## collider moved or re-shaped in place is not seen: nothing does it.)
-	func dirtied() -> void:
-		dirty = true
-
 	## Leave the body's signals: `left` is the tracker's callback for it leaving the tree.
 	func release(left: Callable) -> void:
 		if not is_instance_valid(body):
 			return
-		if body.child_order_changed.is_connected(dirtied):
-			body.child_order_changed.disconnect(dirtied)
 		if body.tree_exiting.is_connected(left):
 			body.tree_exiting.disconnect(left)

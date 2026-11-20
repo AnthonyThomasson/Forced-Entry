@@ -21,39 +21,23 @@ static func walls(
 	return { "traversable": traversable, "obstruction": obstruction, "projected": projected }
 
 
-## What a bake of `house` parses of it: its static colliders (the walls; RigidBody2D furniture, an
-## anchored piece too, is not a StaticBody2D, so it is not parsed: the furniture is carved from its
-## footprints), as `walls`, the obstructions snapped to the map's 1 px grid. The same for every bake
-## of the house until a wall's collider changes, so `nav_updater.gd` parses once for a tick's two
-## bakes. The doors under the house (the group `doors`) are left out: their leaves stand in the
-## doorways, which stay open to the paths. `frame` places `house`'s own frame in its parent's (the
-## obstructions are moved by it before they are snapped to the grid): a part of a larger house,
-## parsed on its own.
-static func walls_of(
-	house: Node2D,
-	agent_radius: float,
-	frame := Transform2D.IDENTITY,
-) -> Dictionary:
-	var source := NavigationMeshSourceGeometryData2D.new()
-	var doors := NavLeaves.doors_of(house)
-	var layers: Array[int] = []
-	for door in doors:
-		layers.append(door.collision_layer)
-		door.collision_layer = 0
-	NavigationServer2D.parse_source_geometry_data(new_polygon(agent_radius), source, house)
-	for i in doors.size():
-		doors[i].collision_layer = layers[i]
-	var obstruction: Array = source.get_obstruction_outlines()
-	if frame != Transform2D.IDENTITY:
-		var moved: Array = []
-		for outline: PackedVector2Array in obstruction:
-			moved.append(frame * outline)
-		obstruction = moved
-	return walls(
-		on_grid(obstruction),
-		source.get_traversable_outlines(),
-		source.get_projected_obstructions(),
-	)
+## What a bake of `house` reads of its walls: the floor-plan polygon each shape of a wall's twin
+## stands on (`NavTwins.footprints`, #194 del2d-c: no 2D collider is read), as `walls`, the
+## obstructions in the house's local frame snapped to the map's 1 px grid. A lintel over a doorway
+## (a header from a door's height up) is no obstruction: the bake projects at the plan, so the
+## doorways stay open to the paths, and so do the doors (the group `doors`: their leaves stand in
+## the doorways and are no wall's shape). Furniture is not read here: it is carved from its
+## footprints. The same for every bake of the house until a wall's twin changes (a dent cuts it), so
+## `nav_updater.gd` reads once for a tick's two bakes. `frame` places `house`'s own frame in its
+## parent's (the obstructions are moved by it before they are snapped to the grid): a part of a
+## larger house, read on its own.
+static func walls_of(house: Node2D, frame := Transform2D.IDENTITY) -> Dictionary:
+	var into := frame * house.global_transform.affine_inverse()
+	var obstruction: Array = []
+	for wall in NavTwins.walls_under(house):
+		for ring: PackedVector2Array in NavTwins.footprints(wall, true):
+			obstruction.append(into * ring)
+	return walls(on_grid(obstruction))
 
 
 ## Everything a bake needs, gathered on the main thread: the polygon to bake into (`poly`, with the
@@ -90,7 +74,7 @@ static func base(site: NavSite, parsed: Dictionary = {}) -> Dictionary:
 	var source := NavigationMeshSourceGeometryData2D.new()
 	# Obstructions: the house's static colliders (walls). Setting the parsed outlines replaces the
 	# source's lists, so it comes before the footprint is added.
-	var walls_here := parsed if not parsed.is_empty() else walls_of(house, site.agent_radius)
+	var walls_here := parsed if not parsed.is_empty() else walls_of(house)
 	source.set_traversable_outlines(walls_here["traversable"])
 	source.set_obstruction_outlines(walls_here["obstruction"])
 	source.set_projected_obstructions(walls_here["projected"])

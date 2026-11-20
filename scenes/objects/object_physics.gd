@@ -132,8 +132,8 @@ func _rebuild_collider() -> void:
 
 
 ## The collider is the single convex polygon `hull` (the projection of the tipped piece's 3D shape,
-## in the piece's frame) in place of the silhouette's pieces. Replacing the shape nodes is a child
-## change, which is how a nav re-bake finds the piece's new footprint (`NavPieces`).
+## in the piece's frame) in place of the silhouette's pieces. (A nav re-bake finds the piece's new
+## footprint from its twin's pose, not from this collider: `NavPieces`.)
 func set_tipped_collider(hull: PackedVector2Array) -> void:
 	_piece.footprint_stamp += 1
 	if _tipped and is_instance_valid(_tipped_shape):

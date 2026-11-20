@@ -51,7 +51,7 @@ func run(t: TestContext) -> void:
 	await t.frames(1)
 	moved.global_position += Vector2(23.0, -11.0)
 	moved.rotation += 0.4
-	await t.frames(1)
+	await t.frames(TwinSpace.PARK_SPREAD + 1)  # its twin follows within PARK_SPREAD frames
 	var after := NavBuilder.furniture_holes(house)
 	t.check(
 		after == _fresh(house),

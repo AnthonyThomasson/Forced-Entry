@@ -49,11 +49,11 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   landing holds the region by a `WeakRef` (a lambda capturing a node freed before it runs logs an engine error:
   `tests/navigation/rebake_outlives_region_test.gd`). The sync `rebake` is for a test that needs the map now
   (`perf/bake_and_path_stress` times it); no frame pays for a bake.
-- `furniture_holes` (`NavHoles.furniture`, one `NavPieces` tracker per house) keeps each piece's hull with the transform it was cut at, and
-  cuts only a piece that moved or turned (its transform), was dented (its colliders are rebuilt: a child shape came or went, which marks it)
-  or was added; a quiet tick reads one transform a piece and walks no tree. The pieces are found again (`find_children`) only after one
-  was added under the house (`SceneTree.node_added`) or left it, so the order is a walk's. A collider moved, resized or re-shaped in place
-  (not rebuilt as a new child) is not seen (nothing does it). `NavHoles.plain` cuts every piece afresh, the reference
+- `furniture_holes` (`NavHoles.furniture`, one `NavPieces` tracker per house) keeps each piece's hull with what it was cut from (its twin
+  and the twin's pose, `NavTwins.stamp_of`), and cuts only a piece whose twin moved, turned or tipped, or that was twinned or added; a
+  quiet tick reads one transform a piece and walks no tree. A footprint a script moves by hand reaches the twin up to
+  `TwinSpace.PARK_SPREAD` frames later. The pieces are found again (`find_children`) only after one
+  was added under the house (`SceneTree.node_added`) or left it, so the order is a walk's. `NavHoles.plain` cuts every piece afresh, the reference
   (`furniture_holes_cache_matches_recut_test.gd`, `furniture_holes_follow_the_pieces_test.gd`; `NavHoles.walks` and `cuts` count the work);
   the simplified outline is pinned to the plain
   version by `outline_simplify_matches_plain_test.gd`. Tile binning likewise remembers an outline's bounds by its contents:

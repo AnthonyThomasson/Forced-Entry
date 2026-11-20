@@ -10,6 +10,11 @@ const ROUTES_SCRIPT := "res://scenes/navigation/nav_routes.gd"
 ## on the server's worker thread in real time, and a headless run's frames are far shorter than
 ## that.
 const WAIT := 12.0
+## The divider: a free piece of furniture (a footprint moved by hand sends its twin there).
+const DIVIDER := {
+	"name": "Divider", "shape": "rect", "size": Vector2(80, 200), "color": Color(0.5, 0.4, 0.3),
+	"weight": 40,
+}
 
 
 func describe() -> Dictionary:
@@ -48,6 +53,7 @@ func _plain_map(t: TestContext, routes: GDScript) -> void:
 	var region := fixture["region"] as NavigationRegion2D
 	var house := fixture["house"] as Node2D
 	(fixture["obstacle"] as Node2D).position = Vector2(400, 100)
+	await t.frames(2)  # its twin follows
 	var held := _iterations(map)
 	NavBuilder.rebake(region, house, fixture["rooms"])
 	if not await _moved_on(t, map, held, [0], "the plain re-bake"):
@@ -84,6 +90,7 @@ func _ring_fallback(t: TestContext, routes: GDScript) -> void:
 	t.expect_eq(_queries(routes), before, "the repeated fallback asks neither map again")
 
 	(fixture["obstacle"] as Node2D).position = Vector2(400, 550)
+	await t.frames(2)
 	var held := _iterations(map)
 	NavBuilder.rebake(region, fixture["house"], fixture["rooms"])
 	if not await _moved_on(t, map, held, [0, 1], "the fallback's re-bake"):
@@ -171,15 +178,15 @@ func _fixture(
 	viewport.add_child(root)
 	var house := Node2D.new()
 	root.add_child(house)
-	var obstacle := RigidBody2D.new()
-	obstacle.freeze = true
-	obstacle.position = obstacle_at
-	var collider := CollisionShape2D.new()
-	var shape := RectangleShape2D.new()
-	shape.size = obstacle_size
-	collider.shape = shape
-	obstacle.add_child(collider)
-	house.add_child(obstacle)
+	# the holes are cut from the twins: a piece of the game, and a twin space to hold its twin
+	var twins := TwinSpace.new()
+	ObjectTwins.register(twins)
+	root.add_child(twins)
+	twins.watch(root)
+	var divider := DIVIDER.duplicate()
+	divider["size"] = obstacle_size
+	var obstacle := ObjectFactory.spawn(divider, obstacle_at, house) as Node2D
+	await t.frames(2)  # a twin joins the frame after its body
 	var rooms: Array = [{
 		"key": "room", "type": "room", "rect": Rect2(200, 200, 400, 400),
 	}]

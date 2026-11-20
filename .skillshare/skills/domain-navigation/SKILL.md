@@ -14,9 +14,10 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 | `nav_site.gd` (`NavSite`) | The source geometry's inputs: the house, its rooms, the agent radius and a district's explicit `bounds`. |
 | `nav_leaves.gd` (`NavLeaves`) | All static: the house doors (`doors_of`, by the group) and the hole an open leaf leaves (`hole`). |
 | `nav_updater.gd` | Script-only Node that re-bakes on an interval. |
-| `nav_holes.gd` (`NavHoles`), `nav_pieces.gd` (`NavPieces`) | `NavHoles`: a body's footprint (`cut`, `hull_of`), the furniture's (`furniture`) and the reference that cuts every piece afresh (`plain`). `NavPieces`: one tracker per house, the pieces and the hull each was last cut to. |
+| `nav_twins.gd` (`NavTwins`) | All static: what a bake reads of a body's 3D twin (`twins.md`): its shapes and their plan footprints. |
+| `nav_holes.gd` (`NavHoles`), `nav_pieces.gd` (`NavPieces`) | `NavHoles`: a body's footprint (`cut`, `hull_of`: the hull of its twin's footprints, grown), the furniture's (`furniture`) and the reference that cuts every piece afresh (`plain`). `NavPieces`: one tracker per house, the pieces and the hull each was last cut to. |
 | `nav_gather.gd` (`NavGather`) | A district's planning re-bake gathered a step a physics frame, swapped in whole (`NavRebake.swap`). |
-| `nav_source.gd` (`NavSource`) | All static: what a bake is gathered from (the parsed walls, `walls` / `walls_of`, the `job` of polygon and source) and running it (`bake`), the outline helpers. |
+| `nav_source.gd` (`NavSource`) | All static: what a bake is gathered from (the walls read from the twins, `walls` / `walls_of`, the `job` of polygon and source) and running it (`bake`), the outline helpers. |
 | `nav_rebake.gd` (`NavRebake`) | All static: the updater's re-bakes, the planning one (its `swap` onto a worker thread) and the steering one. |
 | `nav_bake.gd` (`NavBake`), `nav_bake_config.gd` (`NavBakeConfig`) | `NavBake`: one planning bake's worker thread and its landing on a fixed `GameClock` frame (not `Engine.get_physics_frames()`, which runs through a pause). `NavBakeConfig`: that frame count by kind of bake (`district_frames`, `avoid_frames`, `ring_frames`, a lone house's `house_frames`). |
 | `nav_tiles.gd` (`NavTiles`), `nav_tile_burst.gd`, `nav_seams.gd` | A district's steering tiles, the per-tower wall cache and the outline bounds. |
@@ -30,17 +31,16 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 ## Baking
 
 `NavBuilder.build(house, rooms, parent, agent_radius, bounds)` bakes one `NavigationRegion2D`: the house footprint (the `rooms` rects grown by
-`BOUNDS_PAD`, so a walkable **outdoor ring** lets an outside NPC path round to the front entrance) minus the house's **static**
-wall colliders, so doorways stay open, minus a **hole per solid furniture footprint** so paths route
+`BOUNDS_PAD`, so a walkable **outdoor ring** lets an outside NPC path round to the front entrance) minus the plan footprints of the house's **wall twins**
+(so doorways stay open), minus a **hole per solid piece's twin** so paths route
 round furniture and through another doorway when the near one is blocked (a piece sealing the only route leaves the far side
 unreachable: the AI's cue to shove through). The bake runs in the house's local frame and the region is offset by `house.position`.
-`MatchBuilder.stage` calls it once after the house is built (Main's match and every test world alike). Every bake gathers
+`MatchBuilder.stage` calls it once after the house is built and its twin space made (Main's match and every test world alike). Every bake gathers
 its source the same way, so all carve holes identically (default radius `NavBuilder.AGENT_RADIUS`).
 
 - **Doors are left out of every bake** (interface 9, `docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`). A house `Door`
-  is an `AnimatableBody2D`, which the engine's static-collider parse reads as a wall, so a shut door would seal its doorway in the map.
-  `NavSource.walls_of` takes the bodies of the group `doors` under the house (`NavLeaves.doors_of`: the group and `is_ancestor_of`, nothing of Objects imported)
-  off the solid layer for the length of the parse and puts them back. The planning bake, the steering bake (they share `NavSource.walls_of`) and the
+  is a driven body in its doorway, so a shut door would seal it in the map. `NavSource.walls_of` reads the wall twins only (a door's twin is no wall's;
+  a wall's **lintel** is left out too, `twins.md`); `NavLeaves.doors_of` (the group `doors`, nothing of Objects imported) finds the doors for the open leaf's hole. The planning bake, the steering bake (they share `NavSource.walls_of`) and the
   avoid maps (made from the planning bake's remembered source) all path through a doorway as if it were open, and the walker opens the
   door (`docs/doors.md` DR14). Test: `tests/navigation/door_not_baked_test.gd`.
 - **A leaf at its open stop is carved where it stands** (issue #183): `NavLeaves.hole(door)` (`furniture_holes` adds it, so every bake,
@@ -51,13 +51,8 @@ its source the same way, so all carve holes identically (default radius `NavBuil
   way open (sealed up to 75°), so it is left out, as is one with under `MIN_PASS` (4 px) of way past it. `NavBuilder.leaf_in_map(door)` is that rule for the AI. Tests:
   `tests/navigation/door_open_leaf_carved_test.gd` (shut and ajar left out, open carved, the doorway open past it on both maps),
   `ai/movement/door_open_leaf_walked_round`.
-- Solid furniture is recognised by engine type alone: a `RigidBody2D` with a `CollisionShape2D` (shoved furniture, and an anchored
-  piece such as a streetlight's post, `tests/navigation/anchored_hole_test.gd`). Walls are `StaticBody2D` (parsed, not carved);
-  non-solid decor has no collider and so no hole. That keeps Navigation importing nothing.
-- A hole is the **convex hull** of all the body's collider shapes (intact primitives and the `ConvexPolygonShape2D` pieces a dented
-  piece is rebuilt into), grown by `OBSTACLE_MARGIN`. A dent's notches are far smaller than the agent, and baked in they leave
-  sub-pixel edges the server cannot merge ("navigation map synchronization error"); using every shape keeps a dented piece's hole
-  from vanishing on a re-bake. Overlapping footprints are fused (skipped for outlines whose boxes are apart:
+- **The bake reads the 3D twins, not the 2D colliders** (`twins.md`): a wall's and a piece's or character's footprint is the plan polygon of its twin's shapes,
+  grown by `OBSTACLE_MARGIN` for a hole, a round one the bake's own 10-sided polygon. Overlapping footprints are fused (skipped for outlines whose boxes are apart:
   `tests/navigation/furniture_union_fast_path_test.gd`) and every outline is snapped to the 1 px grid.
 - **Every bake is welded** (vertices merged, then slivers dropped; planning, re-bake and avoid bakes alike): a hole meeting a wall leaves vertices a fraction of a pixel apart, which the server rejects.
   Tests: `furniture_beside_wall_bakes_clean_test.gd`, `character_beside_wall_bakes_clean_test.gd`.

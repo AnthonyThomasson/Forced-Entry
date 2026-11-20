@@ -59,7 +59,7 @@ func run(t: TestContext) -> void:
 func _compare_planning(t: TestContext, region: NavigationRegion2D, site: NavSite) -> void:
 	var furniture := NavBuilder.furniture_holes(site.house)
 	var planning: Array = NavTiles.walls_after(region, site, furniture, furniture)["obstruction"]
-	var whole: Array = NavSource.walls_of(site.house, RADIUS)["obstruction"]
+	var whole: Array = NavSource.walls_of(site.house)["obstruction"]
 	var missing := 0
 	for wall: PackedVector2Array in whole:
 		if not planning.has(wall):
@@ -97,7 +97,7 @@ func _compare(
 	when: String,
 ) -> void:
 	var tiled: Array = NavTiles.walls_reaching(region, site, [area])
-	var whole: Array = NavSource.walls_of(site.house, RADIUS)["obstruction"]
+	var whole: Array = NavSource.walls_of(site.house)["obstruction"]
 	var want := 0
 	var missing := 0
 	for outline: PackedVector2Array in whole:

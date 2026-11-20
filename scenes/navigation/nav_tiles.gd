@@ -276,7 +276,7 @@ static func walls_reaching(
 ) -> Array:
 	var entries: Variant = _refreshed(region, site, reaches)
 	if entries == null:
-		return NavSource.walls_of(site.house, site.agent_radius)["obstruction"]
+		return NavSource.walls_of(site.house)["obstruction"]
 	var out: Array = []
 	for entry: Dictionary in entries:
 		if _touches(entry, reaches):
@@ -293,7 +293,7 @@ static func walls_all(
 ) -> Array:
 	var entries: Variant = _refreshed(region, site, reaches)
 	if entries == null:
-		return NavSource.walls_of(site.house, site.agent_radius)["obstruction"]
+		return NavSource.walls_of(site.house)["obstruction"]
 	var out: Array = []
 	for entry: Dictionary in entries:
 		out.append_array(entry["outlines"])
@@ -318,7 +318,7 @@ static func _refreshed(
 			continue
 		var entry: Dictionary = cache.get(child.get_instance_id(), {})
 		if entry.is_empty() or _touches(entry, reaches):
-			entry = _parse_tower(child as Node2D, site.agent_radius)
+			entry = _parse_tower(child as Node2D)
 			cache[child.get_instance_id()] = entry
 		entries.append(entry)
 	region.set_meta(WALL_CACHE_META, cache)
@@ -335,7 +335,7 @@ static func walls_after(
 	after: Array,
 ) -> Dictionary:
 	if not site.bounds.has_area():
-		return NavSource.walls_of(site.house, site.agent_radius)
+		return NavSource.walls_of(site.house)
 	return NavSource.walls(walls_all(region, site, _changed(site, before, after)))
 
 
@@ -359,8 +359,8 @@ static func _changed(site: NavSite, before: Array, after: Array) -> Array[Rect2]
 ## The walls under `tower` as `{ outlines, box }`: its obstruction outlines in the house's frame
 ## (its own transform applied before they are snapped to the grid, as a parse of the house would)
 ## and the box round them.
-static func _parse_tower(tower: Node2D, agent_radius: float) -> Dictionary:
-	var outlines: Array = NavSource.walls_of(tower, agent_radius, tower.transform)["obstruction"]
+static func _parse_tower(tower: Node2D) -> Dictionary:
+	var outlines: Array = NavSource.walls_of(tower, tower.transform)["obstruction"]
 	var box := Rect2()
 	for i in outlines.size():
 		var outline_box := NavSource.outline_bounds(outlines[i])

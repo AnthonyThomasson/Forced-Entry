@@ -7,8 +7,8 @@ extends StaticBody3D
 ## wall's top for each segment the wall owns, and a lintel over each doorway it owns. When a hit
 ## dents a segment (`Wall.segment_rebuilt`) the segment's shapes are cut again from the same dents
 ## as the 2D colliders, so the 3D wall and its 2D footprint keep one outline. The 2D colliders of
-## the wall are the footprint the not-yet-3D readers (the nav bake, the avoid maps, the 2D bodies
-## that collide with it) use until the 2D space is gone.
+## the wall are the footprint the not-yet-3D readers (the avoid maps, the 2D bodies that collide
+## with it) use until the 2D space is gone; the nav bake reads this body (`NavTwins`).
 
 ## The wall this is the body of.
 var _wall: Node2D

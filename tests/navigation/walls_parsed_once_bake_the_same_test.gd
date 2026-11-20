@@ -61,7 +61,7 @@ func _compare(t: TestContext, house: Node2D, when: String) -> void:
 		site,
 		furniture,
 		[],
-		NavSource.walls_of(house, RADIUS),
+		NavSource.walls_of(house),
 	)
 	var a: NavigationMeshSourceGeometryData2D = own["source"]
 	var b: NavigationMeshSourceGeometryData2D = shared["source"]

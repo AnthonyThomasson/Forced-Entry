@@ -42,6 +42,7 @@ func run(t: TestContext) -> void:
 		"the same point snaps the same while the map stands",
 	)
 	t.object(&"chair").global_position = Vector2(100, 100)
+	await t.frames(2)  # the chair's twin, which the holes are cut from, follows its body
 	NavBuilder.rebake(region, t.world.house, t.rooms)
 	t.check(
 		await t.until(func(): return NavBuilder.snap(map, SPOT).distance_to(SPOT) < 1.0, 2.0),

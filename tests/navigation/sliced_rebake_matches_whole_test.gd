@@ -152,8 +152,11 @@ func _version() -> int:
 	return int((_region.get_meta(NavBuilder.SOURCE_META) as Dictionary)["version"])
 
 
+## Shove `piece` by `by` px: its 3D body (the twin the holes are cut from, which a footprint moved
+## by hand reaches only up to `TwinSpace.PARK_SPREAD` frames later) and its footprint with it.
 func _shove(piece: RigidBody2D, by: Vector2) -> void:
 	piece.freeze = true  # a free body is put back by the next physics step
+	TwinSpace.leader_of(piece).global_position += PlanSpace.lift(by)
 	piece.global_position += by
 
 
@@ -166,11 +169,12 @@ func _same_mesh(a: NavigationPolygon, b: NavigationPolygon) -> bool:
 	return true
 
 
-## The district's solid pieces: a rigid body with a collider.
+## The district's free pieces: a rigid body led by a 3D body of the twin space (the holes are cut
+## from it: a footprint moved by hand sends it there, as an anchored piece's twin is not sent).
 func _solid_pieces(district: Node2D) -> Array[RigidBody2D]:
 	var out: Array[RigidBody2D] = []
 	for body in district.find_children("*", "RigidBody2D", true, false):
-		if not body.find_children("*", "CollisionShape2D", true, false).is_empty():
+		if TwinSpace.leader_of(body) != null:
 			out.append(body)
 		if out.size() == 2:
 			break

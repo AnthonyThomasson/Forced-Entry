@@ -1,7 +1,9 @@
 extends GameTest
-## The furniture holes are cut again only for the pieces moved, dented, destroyed or added since
-## the last tick (#192, rule 27): a tick where nothing changed walks no tree and cuts no hull, a
-## moved or dented piece costs one cut and a destroyed or added one a re-listing of the pieces, and
+## The furniture holes are cut again only for the pieces moved, destroyed or added since the last
+## tick (#192, rule 27): a tick where nothing changed walks no tree and cuts no hull, a moved piece
+## costs one cut (a dented one the cut of the shove that dents it, and none for the dent: its twin,
+## the holes' source since #194 del2d-c, keeps its outline) and a destroyed or added one a
+## re-listing of the pieces, and
 ## after each of those the holes are exactly what a full re-cut of every piece gives
 ## (`NavHoles.plain`, the reference). `NavHoles.walks` counts the tree walks that find the pieces
 ## and `NavHoles.cuts` the hulls cut from a body's shapes.
@@ -9,6 +11,11 @@ extends GameTest
 const Piece := preload("res://tests/_objects/piece_probe.gd")
 const SEED := 7
 const PLAN := "garage_home"
+## A crate that stays where it is put.
+const CRATE := {
+	"name": "Crate", "shape": "rect", "size": Vector2(30, 20), "color": Color(0.5, 0.4, 0.3),
+	"weight": 40, "anchored": true,
+}
 
 
 func describe() -> Dictionary:
@@ -74,7 +81,7 @@ func _check_moved(
 ) -> void:
 	moved.global_position += Vector2(23.0, -11.0)
 	moved.rotation += 0.4
-	await t.frames(1)
+	await t.frames(TwinSpace.PARK_SPREAD + 1)  # its twin follows within PARK_SPREAD frames
 	_reset_counts()
 	var after := NavBuilder.furniture_holes(house)
 	t.check(NavHoles.cuts == 1, "a moved piece is cut once (%d cuts)" % NavHoles.cuts)
@@ -83,7 +90,9 @@ func _check_moved(
 	t.check(after != before, "and the moved piece's hole moved with it")
 
 
-## A piece shot up has its collider rebuilt in convex pieces a frame later: one cut, still equal.
+## A piece shot up has its 2D collider rebuilt in convex pieces a frame later, but its twin (what
+## the holes are cut from) keeps the outline it was built with: the shots' shove is cut once, the
+## dent never, and the holes still equal a re-cut.
 func _check_dented(t: TestContext, house: Node2D, piece: RigidBody2D) -> void:
 	var hit := HitInfo.new()
 	hit.normal = Vector2.RIGHT
@@ -96,7 +105,7 @@ func _check_dented(t: TestContext, house: Node2D, piece: RigidBody2D) -> void:
 	await t.frames(3)  # the collider is rebuilt from the dents a frame later
 	_reset_counts()
 	var dented := NavBuilder.furniture_holes(house)
-	t.check(NavHoles.cuts == 1, "a dented piece is cut once (%d cuts)" % NavHoles.cuts)
+	t.check(NavHoles.cuts <= 1, "a dented piece is cut once at most (%d cuts)" % NavHoles.cuts)
 	t.check(NavHoles.walks == 0, "and dinting it walks no tree (%d walks)" % NavHoles.walks)
 	t.check(dented == NavHoles.plain(house), "after a piece is dented the holes equal a re-cut")
 
@@ -104,16 +113,10 @@ func _check_dented(t: TestContext, house: Node2D, piece: RigidBody2D) -> void:
 ## A piece added is found, cut once, and the holes equal a full re-cut.
 func _check_added(t: TestContext, house: Node2D) -> void:
 	var before := NavBuilder.furniture_holes(house)
-	var added := RigidBody2D.new()
-	var col := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(30.0, 20.0)
-	col.shape = rect
-	added.add_child(col)
-	added.freeze = true  # an added piece that shoves nothing, and is shoved by nothing
-	house.add_child(added)
-	added.global_position = house.global_position + Vector2(-400.0, -400.0)
-	await t.frames(1)
+	# an anchored piece shoves nothing and is shoved by nothing; it is twinned a frame after it
+	# joins
+	ObjectFactory.spawn(CRATE, house.global_position + Vector2(-400.0, -400.0), house)
+	await t.frames(2)
 	_reset_counts()
 	var after := NavBuilder.furniture_holes(house)
 	t.check(NavHoles.cuts == 1, "an added piece is cut once (%d cuts)" % NavHoles.cuts)
