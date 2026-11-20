@@ -59,8 +59,8 @@ its source the same way, so all carve holes identically (default radius `NavBuil
 
 ## The steering map: characters at rest are holes too
 
-`NavBuilder.character_holes(root)` returns the footprint of each **living character at rest** (a `CharacterBody2D` that still has
-a collision layer, since death clears it and a corpse is walked over, moving slower than `REST_SPEED`) under `root`
+`NavBuilder.character_holes(root)` returns the footprint of each **living character at rest** (a plan handle of the group `characters` that is not `is_dead`; a corpse is
+walked over), moving slower than `REST_SPEED`) under `root`
 (`house.get_parent()`), grown by `OBSTACLE_MARGIN`, through the same union and snap. Only characters at rest: every character is
 inside its own hole, and a walking one's would seal the passage round itself and send its own path the long way.
 

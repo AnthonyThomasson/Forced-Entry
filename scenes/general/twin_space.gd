@@ -347,7 +347,7 @@ static func walker_of(body: Object) -> CharacterBody3D:
 
 
 ## The plan velocity (px/s) the character `body` really covered last frame: what
-## `CharacterBody2D.get_real_velocity` says of a body the 2D engine moves. A character walked in the
+## what a body the 2D engine moves would say of itself. A character walked in the
 ## twin space (`walker_of`) is moved by its 3D body, its 2D body only the footprint (the 2D engine
 ## never moved it, so its own real velocity is nil), so a reader of a pace asks here.
 static func real_velocity_of(body: Object) -> Vector2:
@@ -580,7 +580,7 @@ func _new_row(node: Node2D, made: Node3D, lead: PhysicsBody3D) -> Dictionary:
 	}
 
 
-## Whether `node` can move: a character, any rigid body that is not frozen, or a kinematic body (a
+## Whether `node` can move: any rigid body that is not frozen, or a kinematic body (a
 ## test's bare `AnimatableBody2D`: a door and a vehicle are plan handles with a twin that leads or
 ## drives them, never followed here). A body that cannot (a wall, a floor) is twinned once and
 ## never read again; a frozen rigid body, and a piece that stays where it is (an anchored or a
@@ -589,7 +589,7 @@ func _new_row(node: Node2D, made: Node3D, lead: PhysicsBody3D) -> Dictionary:
 static func _moves(node: Node2D) -> bool:
 	if node is RigidBody2D:
 		return not (node as RigidBody2D).freeze
-	return node is CharacterBody2D or node is AnimatableBody2D
+	return node is AnimatableBody2D
 
 
 ## Follow one moving row (the update rule): a changed transform is written, the twin's layer follows

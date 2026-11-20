@@ -11,10 +11,10 @@ extends CharacterBody3D
 ## **It is the truth of where the character stands.** The character's walk (`CharacterMovement`)
 ## moves this body (`walk`: `move_and_slide` in 3D against the walls, furniture, doors, vehicles
 ## and the other characters of the twin space) and writes the 2D body from it, so the 2D body (a
-## `CharacterBody2D`, the footprint) stands where this one does and everything that still reads 2D
-## (the nav, the interaction finding, the AI's 2D queries, the renderer) goes on reading it. A 2D
-## body that a script, a door's swing or a ride has moved (its transform is no longer the one this
-## wrote) puts this body there instead (`follow`, `adopt`).
+## plain `Node2D` plan handle, the footprint) stands where this one does and everything that still
+## reads 2D (the nav, the interaction finding, the AI's 2D queries, the renderer) goes on reading
+## it. A 2D body that a script, a door's swing or a ride has moved (its transform is no longer the
+## one this wrote) puts this body there instead (`follow`, `adopt`).
 ##
 ## **The floor.** The body is locked upright and on the floor (the plan is its only motion: `y` is
 ## held at 0, its mode is floating so no tipped piece or ledge is a step to climb: a piece is an

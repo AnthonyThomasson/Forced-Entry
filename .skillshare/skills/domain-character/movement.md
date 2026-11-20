@@ -32,7 +32,7 @@ While `stun.level()` is above 0, `_move_speed()` scales to `CharacterStunConfig.
 ## The 3D body (`CharacterTwin`, interface 29, D13)
 
 a character's twin is a `CharacterTwin` (`character/character_twin.gd`, a `CharacterBody3D`, an upright cylinder the radius of the body's circle and the height of its posture: `BodyHeights`
-  STAND, DUCK or the pose a rise took), the truth of where it stands; its 2D `CharacterBody2D` is the footprint written from it. `CharacterMovement.walk` moves it (`TwinSpace.walker_of(body) -> CharacterBody3D`, null for a body
+  STAND, DUCK or the pose a rise took), the truth of where it stands; the character itself, a plain `Node2D` plan handle with no 2D shape or layer, is the footprint written from it. `CharacterMovement.walk` moves it (`TwinSpace.walker_of(body) -> CharacterBody3D`, null for a body
   with no such twin, whose 2D `move_and_slide` still runs): `move_and_slide` in 3D, floating mode and `y` held at 0 (the body is locked upright on the floor: a piece is an obstacle, never a step; its feet stand 0.5 px up, over a floor slab and
   a kerb), `wall_min_slide_angle` 3 degrees (a body that meets a wall nearly square stops, one a few degrees off slides, as the 2D body did), against `TWIN_WORLD`, `TWIN_VEHICLE` and the other `TWIN_CHARACTER`s. What it slid into that takes a shove (`contacts()`: the slide's own motion queries, the pushables only, one per body, ordered by where they stand, never Jolt's contact events or lists, which are not deterministic run to run) is
   shoved through `Knockback.push` (5) at hip height by the walk (`CharacterMovement._apply_pushes`), so a free piece is pushed as a `PieceBody` and a heavy one holds the walker. `TwinSpace.real_velocity_of(body: Object) -> Vector2` is the plan velocity a
