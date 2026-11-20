@@ -34,6 +34,9 @@ const Buffer := preload("res://scenes/vision/view_cone_buffer.gd")
 const REGION_SIDES := 16
 const REGION_ARC := 16
 const REGION_MARGIN := 2.0
+## A vertex of the region this near (px) the line of its neighbours is dropped: the physics engine
+## cannot build a convex hull with one.
+const FLAT_CORNER := 0.05
 ## A corner closer than this (px, at the corner's own distance) to a fan ray is never called hidden
 ## by the fan: the engine's hit positions are off a shape by up to about 0.02 px, and a hit that
 ## far off a face makes the chord between two hits leave the shape the line to a grazing corner
@@ -323,7 +326,25 @@ func _region(from: Vector2, facing: Vector2) -> PackedVector2Array:
 	var grown := Geometry2D.offset_polygon(
 		Geometry2D.convex_hull(points), REGION_MARGIN, Geometry2D.JOIN_MITER
 	)
-	return PackedVector2Array() if grown.is_empty() else grown[0]
+	return PackedVector2Array() if grown.is_empty() else _without_flat_corners(grown[0])
+
+
+## `ring` (a convex polygon) without the vertices on, or almost on, the line between their
+## neighbours (`FLAT_CORNER`): a bubble vertex in the direction of a sector's edge makes one, and
+## the physics engine fails to build a hull of a polygon that has one. What is dropped is far inside
+## the region's margin.
+static func _without_flat_corners(ring: PackedVector2Array) -> PackedVector2Array:
+	var kept := PackedVector2Array()
+	var count := ring.size()
+	for i in count:
+		var before := ring[(i + count - 1) % count]
+		var after := ring[(i + 1) % count]
+		var along := after - before
+		if (along.length_squared() > 0.0
+				and absf(along.cross(ring[i] - before)) / along.length() < FLAT_CORNER):
+			continue
+		kept.append(ring[i])
+	return kept
 
 
 ## Whether `point` is inside the cone or the bubble polygon.
