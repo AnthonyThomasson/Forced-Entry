@@ -119,10 +119,11 @@ func point() -> Vector3:
 	return PlanSpace.lift(at, height)
 
 
-## Put it at plan point `plan`, its centre `centre` px up.
+## Put it at plan point `plan`, its centre `centre` px up (a corridor looked over before is gone).
 func place(plan: Vector2, centre: float) -> void:
 	at = plan
 	height = maxf(centre, floor_height())
+	_probe.frames = 0
 
 
 ## Advance one physics frame of `delta` s in `space`, skipping the bodies in `passed`; returns what
@@ -131,10 +132,10 @@ func place(plan: Vector2, centre: float) -> void:
 func step(space: PhysicsDirectSpaceState3D, delta: float, passed: Array[RID] = NOBODY) -> int:
 	if resting:
 		return NONE
-	if _probe.frames > 0 and _coast(delta):
-		return NONE
 	_probe.query.exclude = passed
 	_probe.query.collision_mask = mask
+	if _probe.frames > 0 and _coast(space, delta):
+		return NONE
 	var event := NONE
 	if _probe.look and _probe.frames <= 0 and space != null:
 		_look_ahead(space, delta)
@@ -167,16 +168,22 @@ func step(space: PhysicsDirectSpaceState3D, delta: float, passed: Array[RID] = N
 
 
 ## One frame of a clear corridor (`_probe.frames` left): the flight's whole step when it meets
-## neither plane nor stands still, by plain arithmetic (the sweep would find nothing in it). False
-## leaves the frame to the full `step`, which then does what it always does.
-func _coast(delta: float) -> bool:
+## neither plane nor stands still, by plain arithmetic (the sweep would find nothing in it), and
+## nothing has moved into the frame's stretch of path since the corridor was looked over (a
+## character, a vehicle or a door leaf moves: one query of a sphere that takes the stretch). False
+## ends the corridor and leaves the frame to the full `step`, which then does what it always does.
+func _coast(space: PhysicsDirectSpaceState3D, delta: float) -> bool:
 	var up := rise - gravity * delta
 	var dy := up * delta
 	var dx := velocity * delta
 	var level := height + dy
-	if (dx.length_squared() + dy * dy) < 0.0000001:
+	var length := sqrt(dx.length_squared() + dy * dy)
+	if length * length < 0.0000001:
 		return false
 	if (level < radius + GROUND_GAP and dy < 0.0) or (level > ceiling - radius and dy > 0.0):
+		return false
+	if space != null and _met_on_the_way(space, dx, dy, length):
+		_probe.frames = 0
 		return false
 	rise = up
 	rolling = false
@@ -185,6 +192,23 @@ func _coast(delta: float) -> bool:
 	_probe.frames -= 1
 	_probe.cooldown = maxi(_probe.cooldown - 1, 0)
 	return true
+
+
+## Whether a body of the twin space is now within reach of the stretch of path `dx`, `dy` (`length`
+## long) from where the sphere is: a sphere about the stretch's middle that takes all of it.
+func _met_on_the_way(
+	space: PhysicsDirectSpaceState3D,
+	dx: Vector2,
+	dy: float,
+	length: float,
+) -> bool:
+	_probe.guard.radius = (radius + length * 0.5) * RenderConfig.unit
+	_probe.query.shape = _probe.guard
+	_probe.query.transform = Transform3D(Basis(), PlanSpace.lift(at + dx * 0.5, height + dy * 0.5))
+	_probe.query.motion = Vector3.ZERO
+	var found := not space.intersect_shape(_probe.query, 1).is_empty()
+	_probe.query.shape = _probe.own
+	return found
 
 
 ## Whether it lies on a piece that is no longer under it: at rest over the floor with nothing within
@@ -374,6 +398,8 @@ class Probe extends RefCounted:
 	## That sphere, to put back after a look-ahead, and the wider one the look-ahead sweeps.
 	var own := SphereShape3D.new()
 	var wide := SphereShape3D.new()
+	## The sphere that takes a frame's stretch of path, to see whether anything moved into it.
+	var guard := SphereShape3D.new()
 	## Frames left that move with no cast, and frames to wait before looking ahead again.
 	var frames := 0
 	var cooldown := 0

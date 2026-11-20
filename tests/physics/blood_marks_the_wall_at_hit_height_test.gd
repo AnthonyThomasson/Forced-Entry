@@ -13,6 +13,9 @@ const HALF := Vector2(60, 25)
 const TOP := 31.0
 ## A mark floats this far (px) off the face it lies on (the decal rule's layer lift).
 const FILM := 2.5
+## A floor splat whose middle is less than its own extent and this much (px) from the wall's face
+## lies against the wall.
+const AGAINST_WALL := 3.0
 
 
 func describe() -> Dictionary:
@@ -84,16 +87,21 @@ func _check_wall(t: TestContext, layer: FxLayer, face: float) -> void:
 		t.check(faces_out, "it faces out of the wall, into the room")
 		t.check(low > 20.0, "none of it is down on the floor (lowest %.1f)" % low)
 	# The exit blood lands at (face + 8, BODY.y): were it a floor splat its core would be centred
-	# there. The spray at the wound, 18 px off the wall, may leave a spike or a droplet on the floor
-	# by the wall: that is the floor's blood, not this one.
+	# there, or (a splat that reaches into the wall is moved off it) lie against the face, its
+	# middle its own extent and a little over from it. The spray at the wound, 18 px off the wall,
+	# leaves floor splats well clear of the face (their edges 11 px out): that is the floor's blood.
 	var exit_at := Vector2(face + 8.0, BODY.y)
 	var dropped := layer.ink.marks(InkMark.Kind.SPLAT).filter(
-		func(m: InkMark) -> bool: return _on_floor(m) and _centre(m).distance_to(exit_at) < 4.0
+		func(m: InkMark) -> bool:
+			return _on_floor(m) and (
+				_centre(m).distance_to(exit_at) < 4.0
+				or _centre(m).x - face < _extent(m) + AGAINST_WALL
+			)
 	)
 	t.expect_eq(
 		dropped.size(),
 		0,
-		"the blood that marked the wall left no splat on the floor where it struck",
+		"the blood that marked the wall left no splat on the floor where it struck or against it",
 	)
 
 
@@ -179,6 +187,15 @@ func _on_floor(mark: InkMark) -> bool:
 		if v.y >= 3.0:
 			return false
 	return true
+
+
+## How far (px) the mark's farthest vertex is from its middle, over the floor plan.
+func _extent(mark: InkMark) -> float:
+	var middle := _centre(mark)
+	var far := 0.0
+	for v in mark.verts:
+		far = maxf(far, middle.distance_to(Vector2(v.x, v.z)))
+	return far
 
 
 func _centre(mark: InkMark) -> Vector2:

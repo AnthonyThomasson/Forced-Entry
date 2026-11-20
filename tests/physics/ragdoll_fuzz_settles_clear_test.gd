@@ -79,6 +79,7 @@ func run(t: TestContext) -> void:
 	var timeout := ceili(PhysicsRagdollConfig.max_time * 60.0) - 2
 	for k in _bodies.size():
 		late += 1 if int(rested.get(k, FRAMES)) >= timeout else 0
+	print("ragdoll fuzz: %d of %d bodies ran out their time" % [late, _bodies.size()])
 	t.expect_eq(rested.size(), _bodies.size(), "every body comes to rest")
 	t.expect_eq(overlapping, 0, "no body sleeps with a joint inside a wall or a piece")
 	t.check(

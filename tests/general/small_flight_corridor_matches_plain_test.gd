@@ -60,6 +60,7 @@ func run(t: TestContext) -> void:
 		"premise: %d of %d flights ran frames with no sweep" % [corridor, FLIGHTS],
 	)
 	t.check(events > FLIGHTS, "premise: the flights bounced and struck (%d events)" % events)
+	_check_place_ends_corridor(t, space)
 
 
 ## One seeded throw flown twice in lockstep: `{apart, corridor, events}` (1 or 0 for the first two).
@@ -100,3 +101,15 @@ func _flight(throw: Dictionary) -> SmallFlight:
 	flight.velocity = throw["velocity"]
 	flight.rise = throw["rise"]
 	return flight
+
+
+## A flight set down somewhere else has not looked the way over: `place` ends the corridor.
+func _check_place_ends_corridor(t: TestContext, space: PhysicsDirectSpaceState3D) -> void:
+	var flight := _flight({
+		"at": Vector2(60, 60), "height": 30.0, "velocity": Vector2(200.0, 0.0),
+		"rise": 100.0, "radius": 1.5,
+	})
+	flight.step(space, DELTA)
+	t.check(flight.get(&"_probe").frames > 0, "premise: the flight looked its way over")
+	flight.place(Vector2(320, 240), 30.0)
+	t.expect_eq(flight.get(&"_probe").frames, 0, "placing a flight ends its corridor")
