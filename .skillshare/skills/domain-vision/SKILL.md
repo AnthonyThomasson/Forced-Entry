@@ -76,7 +76,7 @@ read through `character.sight()`: any character can be the viewer.
 ## Gotchas
 
 - **A mover's place in the view is its sim node's `ViewLayers` bit, read by Art's `MeshCarrier` and `MeshFollower`**: a new moving thing sets
-  `ViewLayers.set_moving` on its node (the mirror hides its mesh outside the cone) or, for a batch with no body, marks its mesh
+  `ViewLayers.set_moving` on its node (the carrier hides its mesh outside the cone) or, for a batch with no body, marks its mesh
   (`MeshNodes.moving`); a `MOVING` flash light is kept out of the world by nothing here: lights are Lighting's (`domain-lighting`).
 - **`ViewShapes` keeps a collider's top for its life** (`_rated`: `SightRay.top_of`, its twin's top; a character's is 0, it is looked over at any height), and `ViewWatch` does not watch it. That
   holds because a piece's top is set once from its mesh's real size and a door's is always 84 with `transparent` fixed at spawn

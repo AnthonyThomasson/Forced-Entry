@@ -459,6 +459,11 @@ func bodies_without_twin() -> Array[Node2D]:
 	return out
 
 
+## A body no builder twinned left the tree: it is no longer one of those listed without a twin.
+func _on_bare_exiting(node: Node) -> void:
+	_bare.erase(node.get_instance_id())
+
+
 ## Whether `node` is a physics body or a member of a tracked group.
 func _is_candidate(node: Node) -> bool:
 	if node is PhysicsBody2D:
@@ -482,6 +487,9 @@ func _twin(node: Node2D) -> void:
 			break
 	if made == null:
 		_bare[id] = node
+		var forget := _on_bare_exiting.bind(node)
+		if not node.tree_exiting.is_connected(forget):
+			node.tree_exiting.connect(forget, CONNECT_ONE_SHOT)
 		untwinned.emit(node)
 		return
 	made.set_meta(OWNER_META, node)

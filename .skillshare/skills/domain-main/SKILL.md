@@ -68,7 +68,7 @@ and awaits `MatchBuilder.build`. A match torn down during the build returns `{}`
 
 ## The 3D render
 
-Every match is drawn by the 3D view (`main_view3d.gd`): Main hides the `World` before it is built and builds the view that mirrors the match; there is no render mode. Details and tests: `render3d.md`. Interface 27.
+Every match is drawn by the 3D view (`main_view3d.gd`): Main hides the `World` before it is built and builds the view that draws the match's twin world; there is no render mode. Details and tests: `render3d.md`. Interface 27.
 
 ## Overlays
 
@@ -86,7 +86,7 @@ The API is interface 23; these are the reasons behind it.
 - **One house in a district.** A match generates a district (interface 1) unless the spec names a `house`: the NPCs get only the centre
   tower's `rooms` / `openings` (the handle's), so a neighbour tower counts as outside; only the nav bake and the lighting take every tower.
 - **Lights are the 3D view's.** `MatchBuilder.stage` builds no lights; Main's 3D view builds `WorldLighting3D` (interface 20,
-  `docs/lighting.md`) after the mirror, from the world's `get_lights()` and rooms.
+  `docs/lighting.md`) after the carrier, from the world's `get_lights()` and rooms.
 - **Bind before the tree.** `bind_npc` hands the controller `rooms`, `openings` and its `entry_point` before the NPC joins the
   tree, so its first tick knows them; `npc.tscn` authors the controller in group `npc_controllers` (interface 7) so that holds.
   An invader's entry point is the front entrance, a defender's none. `match_spawner.gd` never calls `MatchBuilder`: `populate`

@@ -88,8 +88,8 @@ on the catalogue definitions, and for a light-giving painter add its `ObjectArtL
 ## The 3D meshes (`object_meshes.gd`, `table_mesh.gd`, `object_mesh_config.gd`)
 
 In the 3D render a piece is shown by a mesh built from Art's mesh kit (`domain-art/meshes.md`) beside its painter: `ObjectMeshes.BUILDERS` maps an `ObjectArt` id to
-`<name>_mesh.gd` (`static build(piece) -> Node3D`, 3D units, centred), and `ObjectMeshes.register(builders)` plugs them into the mirror under
-`MeshKinds.furniture_key(art)` (Main's 3D view calls it). A piece whose art has no mesh stays a proxy box. `ObjectMeshConfig` holds the heights (px): the table's
+`<name>_mesh.gd` (`static build(piece) -> Node3D`, 3D units, centred), and `ObjectMeshes.register(builders)` plugs them into the carrier under
+`MeshKinds.furniture_key(art)` (Main's 3D view calls it). A piece whose art has no mesh has none. `ObjectMeshConfig` holds the heights (px): the table's
 `table_*` (30 tall, 22 for a small footprint, `art_opts.height` wins); a table is built like every furniture mesh, through `FurnitureSpec` and `FurnitureRig` (`table_mesh_test.gd`); the domestic kinds: `meshes.md`.
 
 Walls, doors, floors, street meshes: `structure-meshes.md`.

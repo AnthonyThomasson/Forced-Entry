@@ -26,7 +26,7 @@ dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, in
 | `art/` | Painters and holders: `art.md`, `meshes.md`, `furniture-art.md`, `structure-meshes.md`. `piece_heights.gd` (`PieceHeights`: every piece's real top and parts: `heights.md`). |
 
 Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry, colliders and look data and draw nothing:
-the 3D meshes (`art/`, `meshes.md`) read them through the mirror. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`): the editor's "no shape" warning on a `Wall` is expected.
+the 3D meshes (`art/`, `meshes.md`) read them through the carrier. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`): the editor's "no shape" warning on a `Wall` is expected.
 
 ## The contracts
 
@@ -50,7 +50,7 @@ solid pieces only, re-fed the footprint polygon when the collider is rebuilt.
 
 ## Rebuilding a hit piece
 
-- A piece's dents are its `Deformable`'s records; the 3D mesh and the collider both follow them (the mesh through the mirror's
+- A piece's dents are its `Deformable`'s records; the 3D mesh and the collider both follow them (the mesh through the carrier's
   own change check, a wall segment's mesh `Segment<i>` alone).
 - A hit queues one deferred collider rebuild however many hits land first (a wall: one per struck segment, `_rebuild_queued`).
   A blast dents a room's worth of pieces in one frame and cutting a dented silhouette into convex pieces is the costly part, so a

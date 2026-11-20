@@ -421,8 +421,8 @@ shared toon material, a decal), in the art's px so a builder never multiplies by
 _Avoid_: model, asset (no model files are imported)
 
 **Mesh hook**:
-The mirror's `builders`, a key (a body kind, or a finer key for one `ObjectArt` id) to the domain's function that builds a body's mesh; with `track` / `track_group` for drawn things that are no physics body. A mesh node may update itself (`mirror_update`), be rebuilt (`remirror`) and decide its death (`on_body_died`).
-A body no builder answers keeps its proxy.
+The carrier's `builders`, a key (a body kind, or a finer key for one `ObjectArt` id) to the domain's function that builds a body's mesh; the follower's `track` / `track_group` for drawn things that are no physics body. A mesh node may update itself (`mirror_update`), be rebuilt (`remirror`) and decide its death (`on_body_died`).
+A body no builder answers has no mesh.
 _Avoid_: plugin, mesh registry
 
 **Pixel post**:

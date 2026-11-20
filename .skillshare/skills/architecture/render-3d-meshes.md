@@ -4,7 +4,7 @@ Side file of `interfaces/27-render-3d.md`; the full hook rules are `domain-art/m
 
 ## A mesh node's own hooks
 
-A mesh node the mirror shows may carry (all duck-typed, all optional):
+A mesh node the carrier or follower shows may carry (all duck-typed, all optional):
 
 - `mirror_update(body)` runs each frame the mesh shows;
 - `on_body_died(body) -> bool` decides its death (true: stay shown);
@@ -12,7 +12,7 @@ A mesh node the mirror shows may carry (all duck-typed, all optional):
 - `follows_shapes() -> true` spares it the rebuild when a collision shape comes or goes (a wall's mesh replaces the one segment that changed);
 - the signal `MeshCarrier.built(body, mesh)` says each mesh a builder made for a body (the wall fade listens).
 
-## Which domain has meshes (the rest are still proxies)
+## Which domain has meshes (a body without one shows nothing)
 
 | Domain | Meshes | Plugged in by |
 |---|---|---|

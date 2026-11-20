@@ -187,6 +187,12 @@ func _check_death(t: TestContext, mirror: MeshCarrier) -> void:
 	await t.frames(3)
 	t.check(not gone_mesh.visible, "a body that dies hides its mesh by default")
 	t.check(stays_mesh.visible, "a mesh whose on_body_died says true stays shown")
+	# the hidden dead mesh is no longer looked at: its update stops, the surviving one's goes on
+	var gone_calls: int = (gone_mesh as MeshProbe).calls
+	var stays_calls: int = (stays_mesh as MeshProbe).calls
+	await t.frames(3)
+	t.expect_eq((gone_mesh as MeshProbe).calls, gone_calls, "a dead hidden mesh is not updated")
+	t.check((stays_mesh as MeshProbe).calls > stays_calls, "a surviving mesh is still updated")
 	t.expect_near(stays_mesh.global_position.x, 500.0, 0.5, "and keeps following the body")
 	gone.queue_free()
 	stays.queue_free()

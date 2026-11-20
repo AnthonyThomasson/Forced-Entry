@@ -6,7 +6,7 @@ description: Use when editing scenes/art/, writing or debugging a painter (furni
 # Art domain (`scenes/art/`)
 
 A leaf: the procedural pixel-art engine. It knows nothing of furniture, characters or items; each domain owns its painters and
-renders them through here. Depends only on Godot's `Image` (and, for the 3D mirror, General's `RenderConfig`). Interfaces: 12 (Objects / Character / Items / Vehicles → Art, the mesh kit too), 13
+renders them through here. Depends only on Godot's `Image` (and, for the 3D meshes, General's `RenderConfig`). Interfaces: 12 (Objects / Character / Items / Vehicles → Art, the mesh kit too), 13
 (a sandbox's own painter, as an assets ticket's showroom has) and 27 (the 3D mirror).
 
 | File | Role |
@@ -52,7 +52,7 @@ The rules run on each mesh every frame: hidden while its body's `visible` is off
 `builders` (hook key -> `Callable(node) -> Node3D` in 3D units: a kind, `FURNITURE` for every `ObjectArt` piece, or a finer key for one art id; `FLOOR` for the floors) is the hook a domain's own mesh plugs into
 (`meshes.md`); the follower's `track(node, builder)` and `track_group(group, builder)` show a drawn thing that is no physics body (a dropped item, a stencil) by the same rules.
 **Giving a domain's things a 3D mesh: `meshes.md`** (the kit, units, colours from the tones, cache keys, heights, where meshes live); the hook's keys and rules, and the vision-mask globals: `mesh-hook.md`.
-Tests: `tests/art/mirror_follows_shapes_rule_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`, `twin_carries_*_test.gd` (`tests/_art/art_probe_twins.gd` twins a bare probe body; `art_followed_baseline.gd` is the by-hand picture a carried one is compared to, windowed), `mirror_hides_seated_character_test.gd`, `mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mirror_mesh_lifecycle_test.gd`, `mesh_kit_suite.gd`, `mesh_cache_suite.gd`, `mesh_nodes_suite.gd`. Shaders compile only windowed, so a change to a shader needs one windowed run (`tools/run_tests.sh --windowed`).
+Tests: `tests/art/toon_material_bands_test.gd` (the shared toon material's bands), `carrier_places_twinless_body_test.gd`, `carrier_without_twin_space_test.gd`, `tests/art/mirror_follows_shapes_rule_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`, `twin_carries_*_test.gd` (`tests/_art/art_probe_twins.gd` twins a bare probe body; `art_followed_baseline.gd` is the by-hand picture a carried one is compared to, windowed), `mirror_hides_seated_character_test.gd`, `mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mirror_mesh_lifecycle_test.gd`, `mesh_kit_suite.gd`, `mesh_cache_suite.gd`, `mesh_nodes_suite.gd`. Shaders compile only windowed, so a change to a shader needs one windowed run (`tools/run_tests.sh --windowed`).
 
 ## The pixel post (`post/`, interface 27)
 
