@@ -185,8 +185,11 @@ func watch(root: Node) -> void:
 		_beside[beside].append(self)
 	for group: StringName in _groups:
 		_scan_group(group)
-	for body: Node in root.find_children("*", "PhysicsBody2D", true, false):
-		_pending[body.get_instance_id()] = body
+	# the bodies and the pieces in tree order (the order their twins are made in is the order Jolt
+	# sees them: a piece is no physics body now but is twinned where it stood), then the groups
+	for body: Node in root.find_children("*", "Node2D", true, false):
+		if body is PhysicsBody2D or body.is_in_group(PIECES):
+			_pending[body.get_instance_id()] = body
 	for body: Node in get_tree().get_nodes_in_group(BODIES):
 		if root.is_ancestor_of(body) and body.get_viewport() == _home:
 			_pending[body.get_instance_id()] = body

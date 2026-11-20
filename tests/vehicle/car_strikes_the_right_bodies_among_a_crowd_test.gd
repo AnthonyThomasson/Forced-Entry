@@ -91,9 +91,5 @@ func _stand_ahead(t: TestContext, car: Node2D) -> void:
 
 ## Half the narrow side of a piece's footprint, along the car's flank (px).
 func _half_width(piece: Node) -> float:
-	for child in piece.get_children():
-		if child is CollisionShape2D and child.shape is RectangleShape2D:
-			return (child.shape as RectangleShape2D).size.y * 0.5
-		if child is CollisionShape2D and child.shape is CircleShape2D:
-			return (child.shape as CircleShape2D).radius
-	return 16.0
+	var size: Vector2 = piece.get("size")
+	return size.x * 0.5 if piece.get("shape_type") == "circle" else size.y * 0.5

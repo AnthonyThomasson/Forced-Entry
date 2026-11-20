@@ -1,7 +1,7 @@
 extends GameTest
 ## Whether a car's door can open is asked of the twin space (#194 chars3d-b, interface 29): an
-## armchair in the rear-left door's swing blocks it by its 3D body, with its 2D footprint's shapes
-## off, and so does another car in the swing; a person standing at the door's stand point blocks it
+## armchair in the rear-left door's swing blocks it by its 3D body, and so does another car in the
+## swing; a person standing at the door's stand point blocks it
 ## (a character's 3D body is a solid like any other); the rider at its own stand point does not.
 ## Any piece in the arc blocks, as in 2D: its height is not read.
 
@@ -38,10 +38,7 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var me := t.actor(&"me")
-	var chair := t.object(&"chair")
 	await t.frames(3)
-	for shape in chair.find_children("*", "CollisionShape2D", true, false):
-		(shape as CollisionShape2D).disabled = true
 	me.global_position = Vector2(300, 520)
 	await t.frames(3)
 	t.check(
@@ -49,7 +46,7 @@ func run(t: TestContext) -> void:
 		"the armchair, by its 3D body, holds the rear-left door shut",
 	)
 	t.check(car.can_board(me, &"front_left"), "the front-left door is clear")
-	chair.free()
+	t.object(&"chair").free()
 	await t.frames(3)
 	t.check(car.can_board(me, &"rear_left"), "with the armchair gone the rear-left door is clear")
 	var door = car.cabin.door(&"rear_left")

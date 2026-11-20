@@ -1,7 +1,8 @@
 extends UnitSuite
 ## Native unit suite (pure logic) for Physics' `Deformation.shape_polygon`, architecture interface
-## 4, beneath `objects/blast_colliders_match_plain`: a piece of furniture dented a few times keeps a
-## simple outline, one `convex_pieces` can cut its collider from. Each case is a dent set a frag
+## 4, beneath `objects/blast_reshapes_dented_pieces`: a piece of furniture dented a few times keeps
+## a
+## simple outline, one `convex_pieces` can cut from. Each case is a dent set a frag
 ## left on a piece in that test (issue #77), its seeds fixed: a chunk near a corner, whose push
 ## into one face runs along the other face, with the fragments' dents beside it. Without the
 ## neighbour cap the corner slides past its neighbour and the outline crosses itself, and the piece
