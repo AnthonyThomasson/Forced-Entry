@@ -131,10 +131,12 @@ func place(plan: Vector2, centre: float) -> void:
 func step(space: PhysicsDirectSpaceState3D, delta: float, passed: Array[RID] = NOBODY) -> int:
 	if resting:
 		return NONE
+	if _probe.frames > 0 and _coast(delta):
+		return NONE
 	_probe.query.exclude = passed
 	_probe.query.collision_mask = mask
 	var event := NONE
-	if _probe.frames <= 0 and space != null:
+	if _probe.look and _probe.frames <= 0 and space != null:
 		_look_ahead(space, delta)
 	rise -= gravity * delta
 	var left := Vector3(velocity.x, rise, velocity.y) * delta
@@ -162,6 +164,27 @@ func step(space: PhysicsDirectSpaceState3D, delta: float, passed: Array[RID] = N
 			resting = true
 			event = RESTED
 	return event
+
+
+## One frame of a clear corridor (`_probe.frames` left): the flight's whole step when it meets
+## neither plane nor stands still, by plain arithmetic (the sweep would find nothing in it). False
+## leaves the frame to the full `step`, which then does what it always does.
+func _coast(delta: float) -> bool:
+	var up := rise - gravity * delta
+	var dy := up * delta
+	var dx := velocity * delta
+	var level := height + dy
+	if (dx.length_squared() + dy * dy) < 0.0000001:
+		return false
+	if (level < radius + GROUND_GAP and dy < 0.0) or (level > ceiling - radius and dy > 0.0):
+		return false
+	rise = up
+	rolling = false
+	at += dx
+	height = level
+	_probe.frames -= 1
+	_probe.cooldown = maxi(_probe.cooldown - 1, 0)
+	return true
 
 
 ## Whether it lies on a piece that is no longer under it: at rest over the floor with nothing within
@@ -354,3 +377,5 @@ class Probe extends RefCounted:
 	## Frames left that move with no cast, and frames to wait before looking ahead again.
 	var frames := 0
 	var cooldown := 0
+	## Whether it looks ahead at all (a test turns it off to fly the plain sweep).
+	var look := true
