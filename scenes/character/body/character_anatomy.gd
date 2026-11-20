@@ -124,7 +124,10 @@ func step(delta: float) -> void:
 		ViewLayers.set_moving(character, not ragdoll.is_settled())
 		if ragdoll.is_settled() and not _bled_out:
 			_bled_out = true
-			Physics.bleed_out(character.get_parent(), character, [character.get_rid()])
+			var twin := TwinSpace.twin_for(character) as CollisionObject3D
+			Physics.bleed_out(
+				character.get_parent(), character, [twin.get_rid()] if twin != null else []
+			)
 		return
 	kick.update(character, delta)
 	# Before the children's _physics_process, so the hands build on this frame's pose.

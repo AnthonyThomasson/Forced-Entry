@@ -24,11 +24,27 @@ const FLOOR_BAND := 1.5
 const CLEAR_PASSES := 3
 const CLEAR_MARGIN := 0.3
 const CLEAR_LIFT := 0.5
+## The thickness (px) of what blood laid on the floor asks the twin space about: a slab from
+## `CLEAR_LIFT` up, so what stands on the floor in a cell blocks it, and a table's top or a lintel
+## over it does not (blood runs under them).
+const FLOOR_THICK := 1.0
 ## How far (px) in from a wall's face the ray for its top runs, and the height it starts from.
 const TOP_PROBE := 0.5
 const TOP_FROM := 400.0
 ## How steeply up (the normal's y) a face must look to be a top.
 const FACES_UP := 0.7
+
+
+## Where blood laid on the floor is asked about at plan point `at`: the middle of the floor slab.
+static func on_floor(at: Vector2) -> Transform3D:
+	return Transform3D(Basis(), PlanSpace.lift(at, CLEAR_LIFT + FLOOR_THICK * 0.5))
+
+
+## The floor slab of a footprint `width` by `depth` px (plan), as a 3D box on `RenderConfig.unit`.
+static func floor_box(width: float, depth: float) -> BoxShape3D:
+	var box := BoxShape3D.new()
+	box.size = Vector3(width, FLOOR_THICK, depth) * RenderConfig.unit
+	return box
 
 
 ## The surface the blood thrown from plan point `from`, `height` px up, along `direction` lands on

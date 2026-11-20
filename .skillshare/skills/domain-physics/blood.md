@@ -18,7 +18,7 @@ smears). Separate from debris and deformation: the rest of `physics/` reaches it
 
 Master switches: `BloodConfig.enabled` (off: `BloodWound.record` spawns nothing and `Physics.bleed_out` returns null), and
 under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `BloodSurfaceConfig.flow` (Testing's `physics.blood`,
-`physics.footprints`, `physics.smear`). `PhysicsConfig.wall_mask` is the layer splat clipping and flow queries treat as blocking.
+`physics.footprints`, `physics.smear`). A splat's clipping rays and a pool's flow queries read the twin 3D space on `PhysicsConfig.twin_mask`, laid on the floor (`BloodLanding.on_floor`: a 1 px slab from 0.5 px up): what stands on the floor blocks, a table's top or a lintel over it does not, and a world with no twin space blocks nothing. A bleeding body's `exclude` is its twin's RID.
 
 ## Spray, drips, splats
 
@@ -37,8 +37,8 @@ under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `Blo
   advancing-head FIFO, so eviction and removal of an externally freed oldest splat do not shift the whole list
   (`blood_wound_evicts_oldest_splat_test.gd` holds it to a plain capped array).
 - **Where it lands (D12):** a spray or exit splat is traced as a parcel through the twin 3D space and lands on a wall's face or a piece's top at its real height: `blood-landing.md`.
-- A splat is built once in `setup` and then static: one conservative whole-extent shape query (a circle of `BloodSplat.clear_radius(core radius)`) first skips every clipping ray when
-  no `wall_mask` collider can reach any possible core, spike, tail or satellite; near geometry the exact centre-to-feature rays remain
+- A splat is built once in `setup` and then static: one conservative whole-extent shape query (a floor disc of `BloodSplat.clear_radius(core radius)`) first skips every clipping ray when
+  nothing on `twin_mask` can reach any possible core, spike, tail or satellite; near geometry the exact centre-to-feature rays remain
   (`blood_splat_open_matches_rays_test.gd` pins identical outlines and RNG draws, with a wall just beyond and just inside the radius). Shapes are merged into opaque outlines so overlaps
   do not darken (`Geometry2D.merge_polygons`, skipped for outlines whose boxes are
   apart; `blood_splat_merge_fast_path_test.gd`), shown by the 3D render as one mesh. About 1 splat in 100,000 unions into a polygon the
@@ -51,8 +51,8 @@ under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `Blo
   (`blood_origin()`: the trunk's middle once fallen). A `BloodFlow` flood-fill claims `bleed_out_cells` grid cells up front
   (a batch per frame), cheapest-first with noisy cost. Its frontier heap orders by (cost, first insertion sequence), leaving stale
   entries on a cost decrease, so claims match the old linear dictionary scan even on ties; one square and query-parameter object are
-  reused for blocked-cell tests (`blood_flow_heap_matches_scan_test.gd`). Cells overlapping a `wall_mask` collider never fill, so the
-  puddle wraps walls and furniture. A front sweeps through flow-cost over `bleed_out_duration`.
+  reused for blocked-cell tests (`blood_flow_heap_matches_scan_test.gd`). Cells a wall or a piece stands on (the twin space, on the floor) never fill, so the
+  puddle wraps walls and furniture and runs under a table's top. A front sweeps through flow-cost over `bleed_out_duration`.
   Drawn by blurring the fill field and thresholding it in a shader (`blood_pool_blur_matches_plain_test.gd` pins the blur).
 - `BloodSurface.resistance(world_pos)` multiplies each cell's step cost: Objects' floors register a world rect and a `groove`
   Callable, so blood runs cheaply along grooves, slowly across smooth floor, slowest over porous (carpet, rugs); outdoors 1.

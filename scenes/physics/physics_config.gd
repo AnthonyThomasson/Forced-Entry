@@ -1,5 +1,5 @@
 class_name PhysicsConfig
-## The Physics System's master switches and shared mask (scenes/physics/): the wall mask, debris
+## The Physics System's master switches and shared mask (scenes/physics/): the twin mask, debris
 ## and hit particles (switch, scale, cap).
 ##
 ## A `class_name` holder of `static var`s — read as `PhysicsConfig.<name>`; there is no
@@ -9,12 +9,9 @@ class_name PhysicsConfig
 ## (`BloodConfig`). Ballistics (fly-over/ricochet/penetration) live in the Ballistics holders
 ## (`BallisticsFlightConfig` ...); the character's walking-push knobs in CharacterPushConfig.
 
-## Physics layer mask walls and furniture live on: the blood splats', pools' and flows' collision
-## queries test against it (2D).
-static var wall_mask: int = PhysicsLayers.SOLID
-## What the ragdoll's sweeps, a casing's and a chip's flight and blood's landing meet in the twin 3D
-## space (`TwinSpace`, interface 29): walls, floors, furniture and doors, and vehicles; not people
-## (a dead body falls through the living), not a roof.
+## What the ragdoll's sweeps, a casing's and a chip's flight, blood's landing and its splats' and
+## pools' floor queries meet in the twin 3D space (`TwinSpace`, interface 29): walls, floors,
+## furniture and doors, and vehicles; not people (a dead body falls through the living), not a roof.
 static var twin_mask: int = PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
 ## Master switch for debris: off = hits spray no chips (Physics.spawn_debris spawns nothing).
 static var debris_enabled: bool = true

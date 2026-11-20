@@ -21,7 +21,7 @@
    - Blood (a character on a hit, a dead body, a footfall, a slid puddle):
 	 - `BloodWound` (Node child, character): `record(hit)` throws a splatter spray and owes drips (paced by
 	   `BloodDripConfig.interval_min..max`); `stop()` on death.
-	 - `Physics.bleed_out(parent, source, exclude)`: a dead character, once at rest: one slow, wide pool. A blood source may expose
+	 - `Physics.bleed_out(parent, source, exclude)` (`exclude`: the body's twin RIDs, which the pool's floor queries of the twin space ignore): a dead character, once at rest: one slow, wide pool. A blood source may expose
 	   `blood_origin() -> Vector2` (world space); pools emerge there, so a fallen body bleeds from where it lies.
 	 - `BloodDecals.layer(parent)`: the batched decal layer under a world node.
 	 - `BloodFootprints` (Node child, character): `step(foot, fall: Footfall)` on each footfall prints a sole if the foot carries wet blood
@@ -51,7 +51,7 @@
 	 `update_collider`; Objects reads it when recording damage; `circle_points`, the round silhouette's ring size; holders: `tuning-holders.md`).
 
    Physics imports nothing from other domains but General's infrastructure: `Despawner` (debris, the mark layers),
-   `PhysicsLayers` (`PhysicsConfig.wall_mask`), `ViewLayers`, `SeenArea`; and, for the 3D render (27), Art's mesh kit (12).
+   `PhysicsLayers`, `ViewLayers`, `SeenArea`; and, for the 3D render (27), Art's mesh kit (12).
    - `PhysicsMeshes.install(parent: Node, ground := Callable()) -> FxLayer` (Main's `View3D`, once, before the match makes anything): the 3D look of everything above
      (`domain-physics/meshes.md`). The spawners tell it through `PhysicsFxHook` (static, a no-op when none is installed); a chip tells it as it flies (`chip_flew`) and lands.
      `ground` is `func(at: Vector2) -> float`, the height offset (px, 0 on the pavement, a kerb lower on the road) of the ground under a world point: Main builds it

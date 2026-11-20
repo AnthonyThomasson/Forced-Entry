@@ -64,8 +64,8 @@ static func _spray(parent: Node, hit: HitInfo, surface: Dictionary) -> void:
 
 ## Start a dead body's bleed-out: one slow, flowing pool (BloodPoolConfig.bleed_out_*) spreading
 ## from where its blood leaves it — `source.blood_origin()` if it has one (where it lies), else its
-## position — added under `parent`. `exclude` is the body's RID(s). Returns the pool (null while
-## BloodConfig.enabled is off).
+## position — added under `parent`. `exclude` is the body's twin RID(s). Returns the pool (null
+## while BloodConfig.enabled is off).
 static func bleed_out(parent: Node, source: Node2D, exclude: Array) -> Node:
 	if not BloodConfig.enabled:
 		return null

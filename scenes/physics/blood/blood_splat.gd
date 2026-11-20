@@ -49,10 +49,10 @@ var _boxes: Array[Rect2] = []
 ## Core radius (px) and the heading (radians) its local +x runs along.
 var _radius := 3.0
 var _heading := 0.0
-## Collider RIDs the clipping rays ignore (the body the blood came from).
+## Twin RIDs the clipping rays ignore (the body the blood came from).
 var _exclude: Array = []
-## The space the wall rays query.
-var _space: PhysicsDirectSpaceState2D
+## The twin space the wall rays query (null: no walls).
+var _space: PhysicsDirectSpaceState3D
 ## The worker task merging a begun splat (-1 when none), and where it leaves the outlines (see
 ## `begin`).
 var _task := -1
@@ -145,7 +145,7 @@ func _throw(
 ) -> Array[PackedVector2Array]:
 	_radius = radius
 	_exclude = exclude
-	_space = get_world_2d().direct_space_state
+	_space = TwinSpace.space_of(self)
 	_clear = not surface.is_empty() or _fully_clear()
 	var e := clampf(energy, 0.0, 1.0)
 	_heading = direction.angle() if direction.length() > 0.001 else randf() * TAU
@@ -370,13 +370,16 @@ func _at(p: Vector2) -> Vector2:
 ## collider, so no clipping ray can meet one. This runs before shape generation and consumes no
 ## random numbers.
 func _fully_clear() -> bool:
-	var circle := CircleShape2D.new()
-	circle.radius = clear_radius(_radius)
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = circle
-	query.collision_mask = PhysicsConfig.wall_mask
+	if _space == null:
+		return true
+	var disc := CylinderShape3D.new()
+	disc.radius = clear_radius(_radius) * RenderConfig.unit
+	disc.height = BloodLanding.FLOOR_THICK * RenderConfig.unit
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = disc
+	query.collision_mask = PhysicsConfig.twin_mask
 	query.exclude = _exclude
-	query.transform = Transform2D(0.0, global_position)
+	query.transform = BloodLanding.on_floor(global_position)
 	return _space.intersect_shape(query, 1).is_empty()
 
 
@@ -394,8 +397,8 @@ static func clear_radius(radius: float) -> float:
 
 
 ## How much of the way from the core to `p` (forward-frame local) is open floor: 1 if nothing blocks
-## it, else the fraction at which a wall or furniture collider (`PhysicsConfig.wall_mask`) is
-## struck.
+## it, else the fraction at which a wall or a piece standing on the floor
+## (`PhysicsConfig.twin_mask`, in the twin 3D space) is struck.
 func _free_fraction(p: Vector2) -> float:
 	if _clear:
 		return 1.0
@@ -407,11 +410,15 @@ func _ray_fraction(p: Vector2) -> float:
 	var local := _at(p)
 	if local.length_squared() < 0.0001:
 		return 1.0
-	var ray := PhysicsRayQueryParameters2D.create(
-		global_position, global_position + local, PhysicsConfig.wall_mask,
+	if _space == null:
+		return 1.0
+	var ray := PhysicsRayQueryParameters3D.create(
+		BloodLanding.on_floor(global_position).origin,
+		BloodLanding.on_floor(global_position + local).origin,
+		PhysicsConfig.twin_mask,
 	)
 	ray.exclude = _exclude
 	var hit := _space.intersect_ray(ray)
 	if hit.is_empty():
 		return 1.0
-	return (hit.position as Vector2).distance_to(global_position) / local.length()
+	return PlanSpace.plan_of(hit["position"]).distance_to(global_position) / local.length()

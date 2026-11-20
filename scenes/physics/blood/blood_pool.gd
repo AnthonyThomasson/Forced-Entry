@@ -21,7 +21,7 @@ func _physics_process(delta: float) -> void:
 	if _claiming():
 		flow.step(
 			FLOW_CLAIMS_PER_FRAME,
-			get_world_2d().direct_space_state,
+			TwinSpace.space_of(self),
 			global_position,
 			_budget,
 		)
@@ -34,7 +34,8 @@ func _physics_process(delta: float) -> void:
 
 
 ## Start the pool: `cells` grid cells flowing out from its origin and leaning a random way, filling
-## in over `duration` seconds once claimed. `exclude` is the body's RID(s), which the flow ignores.
+## in over `duration` seconds once claimed. `exclude` is the body's twin RID(s), which the flow
+## ignores.
 func seed_bleed_out(cells: int, duration: float, exclude: Array) -> void:
 	flow = BloodFlow.new(Vector2.RIGHT.rotated(randf() * TAU), exclude)
 	BloodField.add_pool(self)

@@ -5,9 +5,8 @@ extends UnitSuite
 ## space, casts a 2D ray or shape node, listens to a 2D body's contacts or overlaps, reads a 2D
 ## body's slide collisions, tests or makes a 2D body's motion, or allocates in the 2D physics
 ## server. The scan reads every script's code (a comment is not code; a string is read, for it can
-## name a class or a signal) and names each line that does; a script listed in `PENDING` is one the
-## ragdoll's move to 3D has not reached
-## yet, and the list shrinks to empty.
+## name a class or a signal) and names each line that does. No script is let off: the ragdoll and
+## the blood moved to the 3D space last.
 ## The contact and overlap names (`body_entered`, `contact_monitor`, `get_colliding_bodies`, ...)
 ## are banned on a 3D body too: no sim script reads contact events (Jolt's are not deterministic),
 ## so the scan is stricter than the 2D rule it checks.
@@ -60,16 +59,6 @@ const WORLD_3D := (
 	"(^|[^A-Za-z0-9_])(get_world_3d\\(\\)|find_world_3d\\(\\))\\.direct_space_state"
 	+ "|\\.world_3d\\.direct_space_state"
 )
-## The scripts allowed to hold one for now: the ragdoll's wall sweeps and the blood's floor and wall
-## queries, which move with the ragdoll (`ragdoll3d`).
-const PENDING := [
-	"res://scenes/physics/ragdoll.gd",
-	"res://scenes/character/body/character_ragdoll.gd",
-	"res://scenes/character/body/character_anatomy.gd",
-	"res://scenes/physics/blood/blood_flow.gd",
-	"res://scenes/physics/blood/blood_pool.gd",
-	"res://scenes/physics/blood/blood_splat.gd",
-]
 ## The one script that moves a body in 3D (`CharacterBody3D`).
 const WALKER := "res://scenes/character/character_twin.gd"
 ## What a script may hold that the scan forbids elsewhere: the walker's 3D moves, and the test
@@ -88,16 +77,8 @@ const ALLOWED := {
 func test_no_script_asks_the_2d_physics_space() -> void:
 	var found: Array[String] = []
 	for path in _scripts("res://scenes"):
-		if path in PENDING:
-			continue
 		found.append_array(_findings(path, _code_lines(path)))
 	assert_array(found).is_empty()
-
-
-func test_the_pending_list_names_scripts_that_still_ask_it() -> void:
-	for path: String in PENDING:
-		assert_bool(_findings(path, _code_lines(path)).is_empty()) \
-			.override_failure_message("%s asks no more: drop it from PENDING" % path).is_false()
 
 
 func test_the_walker_is_a_3d_body() -> void:

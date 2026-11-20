@@ -139,14 +139,15 @@ func _spray_size() -> float:
 
 
 ## The throw of a splatter of core radius `size` flung toward `direction` with `energy`, from this
-## body (its own collider is ignored by the splat's wall clipping).
+## body (its own twin is ignored by the splat's wall clipping).
 func _throw_of(size: float, direction: Vector2, energy: float) -> BloodThrow:
 	var host := get_parent() as Node2D
 	var throw := BloodThrow.new()
 	throw.size = size
 	throw.direction = direction
 	throw.energy = energy
-	throw.exclude = [(host as CollisionObject2D).get_rid()] if host is CollisionObject2D else []
+	var twin := TwinSpace.twin_for(host) as CollisionObject3D
+	throw.exclude = [twin.get_rid()] if twin != null else []
 	return throw
 
 

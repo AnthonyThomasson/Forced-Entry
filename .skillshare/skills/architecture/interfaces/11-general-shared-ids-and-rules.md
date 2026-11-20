@@ -1,7 +1,7 @@
 11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `GameClock`, `BodyHeights`, `PlanSpace`, shared rules**
     - `PhysicsLayers` (`general/physics_layers.gd`, static holder): `SOLID` is the physics layer bit (1) walls + solid furniture live on (2D), `LYING` (2) a flat fallen door's footprint (blasts ask for it, nothing walks into it); `TWIN_WORLD` (1), `TWIN_VEHICLE` (2), `TWIN_CHARACTER` (4), `TWIN_ROOF` (8, out of `TWIN_ALL`) and `TWIN_ALL` are the twin 3D space's layers (29).
 	  `SOLID` is read by what still asks the 2D space (the AI's plan fallback with no twin space, the player's cone, a dropped item's glance, the blast's
-	  lines, `PhysicsConfig.wall_mask`, a vehicle's body layer and pile queries). What asks the 3D space reads the twin layers (29): Interaction's reach,
+	  lines, a vehicle's body layer). What asks the 3D space reads the twin layers (29): Interaction's reach,
 	  `use.keep_clear_of`, a vehicle's door checks, the hand and leg queries, AI sight and line of fire, a grenade's flight, the bullet.
     - `GameClock` (`general/game_clock.gd`, an autoload, `PROCESS_MODE_PAUSABLE`): counts physics frames in `_physics_process`, so it stands
 	  still while the tree is paused. `GameClock.msec() -> int` (frames × 1000 / `Engine.physics_ticks_per_second`: deterministic under
